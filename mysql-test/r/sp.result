@@ -2087,7 +2087,7 @@ create table t3 as select bug2773()|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `bug2773()` int(11) default NULL
+  `bug2773()` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t3|
 drop function bug2773|
@@ -2148,7 +2148,7 @@ tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
 tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` char(16) NOT NULL default '',
+  `id` char(16) NOT NULL DEFAULT '',
   `data` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Database	Create Database
@@ -2202,7 +2202,7 @@ tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
 tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` char(16) NOT NULL default '',
+  `id` char(16) NOT NULL DEFAULT '',
   `data` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Database	Create Database
@@ -3521,7 +3521,7 @@ end|
 call bug12589_1()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
-  `spv1` decimal(3,3) default NULL
+  `spv1` decimal(3,3) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Warnings:
 Warning	1264	Out of range value for column 'spv1' at row 1
@@ -3529,12 +3529,12 @@ Warning	1366	Incorrect decimal value: 'test' for column 'spv1' at row 1
 call bug12589_2()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
-  `spv1` decimal(6,3) default NULL
+  `spv1` decimal(6,3) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 call bug12589_3()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
-  `spv1` decimal(6,3) default NULL
+  `spv1` decimal(6,3) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop procedure bug12589_1|
 drop procedure bug12589_2|

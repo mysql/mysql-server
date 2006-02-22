@@ -630,7 +630,7 @@ set sql_mode=default;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` date default NULL
+  `a` date DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
