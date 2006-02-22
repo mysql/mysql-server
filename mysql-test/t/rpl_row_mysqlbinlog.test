@@ -13,6 +13,11 @@
 
 # Setup Section
 # we need this for getting fixed timestamps inside of this test
+
+--disable_query_log
+select "---Setup Section  --" as "";
+--enable_query_log
+
 set timestamp=1000000000;
 
 --disable_warnings
@@ -51,6 +56,11 @@ while ($count)
 }
 --enable_query_log
 
+
+--disable_query_log
+select "---Test1 check table load  --" as "";
+--enable_query_log
+
 # Lets Check the tables on the Master
 SELECT COUNT(*) from t1;
 SELECT COUNT(*) from t2;
@@ -79,7 +89,7 @@ flush logs;
 
 # delimiters are for easier debugging in future
 --disable_query_log
-select "--- Dump --" as "";
+select "--- Test 1 Dump binlog to file --" as "";
 --enable_query_log
 
 #
@@ -91,6 +101,9 @@ select "--- Dump --" as "";
 
 # Now that we have our file, lets get rid of the current database.
 # Cleanup the master and the slave and try to recreate.
+--disable_query_log
+select "--- Test 1 delete tables, clean master and slave  --" as "";
+--enable_query_log
 
 DROP TABLE t1;
 DROP TABLE t2;
@@ -114,8 +127,15 @@ show status like 'Slave_running';
 connection master;
 
 # We should be clean at this point, now we will run in the file from above.
+--disable_query_log
+select "--- Test 1 Load from Dump binlog file --" as "";
+--enable_query_log
 
 --exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/master.sql"
+
+--disable_query_log
+select "--- Test 1 Check Load Results --" as "";
+--enable_query_log
 
 # Lets Check the tables on the Master
 SELECT COUNT(*) from t1;
@@ -144,7 +164,7 @@ connection master;
 # this test for position option
 # By setting this position to 412, we should only get the create of t3
 --disable_query_log
-select "--- --position --" as "";
+select "--- Test 2 position test --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=412 $MYSQLTEST_VARDIR/log/master-bin.000001
@@ -153,7 +173,7 @@ select "--- --position --" as "";
 # They should return the same as previous test.
 
 --disable_query_log
-select "--- Remote --" as "";
+select "--- Test 3 First Remote test --" as "";
 --enable_query_log
 
 # This is broken now
@@ -162,6 +182,9 @@ select "--- Remote --" as "";
 
 # This part is disabled due to bug #17654
 ################### Start Bug 17654 ######################
+#--disable_query_log
+#select "--- Test 4 Second Remote test --" as "";
+#--enable_query_log
 #--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 > $MYSQLTEST_VARDIR/tmp/remote.sql
 
 #--exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002 >> $MYSQLTEST_VARDIR/tmp/remote.sql
@@ -223,7 +246,7 @@ select "--- Remote --" as "";
 
 # LOAD DATA
 --disable_query_log
-select "--- LOAD DATA --" as "";
+select "--- Test 5 LOAD DATA --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
@@ -231,15 +254,21 @@ select "--- LOAD DATA --" as "";
 # Bug#7853 (mysqlbinlog does not accept input from stdin)
 
 --disable_query_log
-select "--- reading stdin --" as "";
+select "--- Test 6 reading stdin --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL_BINLOG --short-form - < $MYSQLTEST_VARDIR/log/master-bin.000001
 
+--disable_query_log
+select "--- Test 7 reading stdin w/position --" as "";
+--enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL_BINLOG --short-form --position=412 - < $MYSQLTEST_VARDIR/log/master-bin.000001
 
 # Bug#16217 (mysql client did not know how not switch its internal charset)
+--disable_query_log
+select "--- Test 8 switch internal charset --" as "";
+--enable_query_log
 sync_slave_with_master;
 
 #we expect STOP SLAVE to produce a warning as the slave is stopped
@@ -279,6 +308,9 @@ select HEX(f) from t4;
 select HEX(f) from t05;
 select HEX(f) from t5;
 
+--disable_query_log
+select "--- Test cleanup --" as "";
+--enable_query_log
 # clean up
 connection master;
 DROP TABLE IF EXISTS t1, t2, t3, t04, t05, t4, t5; 
