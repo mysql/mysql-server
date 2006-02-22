@@ -75,8 +75,8 @@ let $message=<End test section 2 (Tiggers & SP)>;
 
 # time to dump the databases and so we can see if they match
 
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > ./var/tmp/trig001_master.sql
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > ./var/tmp/trig001_slave.sql
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/trig001_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/trig001_slave.sql
 
 # Cleanup
 connection master;
@@ -93,8 +93,8 @@ sync_slave_with_master;
 # the test will show that the diff statement failed and not reject file
 # will be created. You will need to go to the mysql-test dir and diff
 # the files your self to see what is not matching :-) Failed tests 
-# will leave dump files in mysql-test/var/tmp
+# will leave dump files in $MYSQLTEST_VARDIR/tmp
 
-exec diff ./var/tmp/trig001_master.sql ./var/tmp/trig001_slave.sql;
+exec diff $MYSQLTEST_VARDIR/tmp/trig001_master.sql $MYSQLTEST_VARDIR/tmp/trig001_slave.sql;
 
 # End of 5.0 test case

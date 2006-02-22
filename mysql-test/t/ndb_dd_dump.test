@@ -177,7 +177,7 @@ INSERT INTO t2 VALUES
 INSERT INTO t3 VALUES 
 (1,1,1);
 
---exec $MYSQL_DUMP --skip-comments --compact -Y test > var/tmp/ndb_dd_dump.sql
+--exec $MYSQL_DUMP --skip-comments --compact -Y test > $MYSQLTEST_VARDIR/tmp/ndb_dd_dump.sql
 
 DROP TABLE t1;
 DROP TABLE t2;
@@ -206,7 +206,7 @@ DROP TABLESPACE ts3 ENGINE = NDB;
 DROP LOGFILE GROUP lg1 ENGINE = NDB;
 DROP LOGFILE GROUP lg2 ENGINE = NDB;
 
---exec $MYSQL test < var/tmp/ndb_dd_dump.sql
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/ndb_dd_dump.sql
 
 SELECT DISTINCT
   LOGFILE_GROUP_NAME,
