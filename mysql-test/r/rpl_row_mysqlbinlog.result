@@ -4,11 +4,15 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+
+---Setup Section  --
 set timestamp=1000000000;
 DROP TABLE IF EXISTS t1,t2,t3;
 CREATE TABLE t1(word VARCHAR(20));
 CREATE TABLE t2(id INT AUTO_INCREMENT NOT NULL PRIMARY KEY);
 CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT);
+
+---Test1 check table load  --
 SELECT COUNT(*) from t1;
 COUNT(*)
 351
@@ -72,7 +76,9 @@ c1	c3	c4	c5
 insert into t1 values ("Alas");
 flush logs;
 
---- Dump --
+--- Test 1 Dump binlog to file --
+
+--- Test 1 delete tables, clean master and slave  --
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -80,6 +86,10 @@ stop slave;
 reset master;
 reset slave;
 start slave;
+
+--- Test 1 Load from Dump binlog file --
+
+--- Test 1 Check Load Results --
 SELECT COUNT(*) from t1;
 COUNT(*)
 352
@@ -141,7 +151,7 @@ c1	c3	c4	c5
 4	2006-02-22 00:00:00	Tested in Texas	8.8
 5	2006-02-22 00:00:00	Tested in Texas	11
 
---- --position --
+--- Test 2 position test --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 use test;
@@ -155,7 +165,7 @@ CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT,
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
---- Remote --
+--- Test 3 First Remote test --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
@@ -176,14 +186,14 @@ CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT,
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
---- LOAD DATA --
+--- Test 5 LOAD DATA --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
---- reading stdin --
+--- Test 6 reading stdin --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
@@ -203,6 +213,8 @@ CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT,
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+
+--- Test 7 reading stdin w/position --
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 use test;
@@ -215,6 +227,8 @@ CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT,
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+
+--- Test 8 switch internal charset --
 stop slave;
 reset master;
 reset slave;
@@ -247,4 +261,6 @@ HEX(f)
 select HEX(f) from t5;
 HEX(f)
 835C
+
+--- Test cleanup --
 DROP TABLE IF EXISTS t1, t2, t3, t04, t05, t4, t5;
