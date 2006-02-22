@@ -17,9 +17,10 @@
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			@ZLIB_INCLUDES@
 
-LDADD =			libarchive.a $(top_srcdir)/mysys/libmysys.a \
-			$(top_srcdir)/dbug/libdbug.a \
-			$(top_srcdir)/strings/libmystrings.a \
+LDADD =			libarchive.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a \
 			@ZLIB_LIBS@
 pkglib_LIBRARIES =	libarchive.a
 noinst_PROGRAMS	=	archive_test
