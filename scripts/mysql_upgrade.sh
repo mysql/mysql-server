@@ -95,12 +95,12 @@ then
   echo "MySQL utility script to upgrade database to the current server version"
   echo ""
   echo "It takes the following arguments:"
-  echo "  --basedir  Specifies the directory where MySQL is installed"
-  echo "  --user     user for database login if not current user"
-  echo "  --datadir  data directory"
-  echo "  --force    keep process ignoring errors"
-  echo "  --verbose  give more output about the process"
   echo "  --help     Show this help message"
+  echo "  --basedir  Specifies the directory where MySQL is installed"
+  echo "  --datadir  Specifies the data directory"
+  echo "  --force    Mysql_upgrade.info file will be ignored"
+  echo "  --user     Username for server login if not current user"
+  echo "  --verbose  Display more output about the process"
   echo ""
 
   exit 0
