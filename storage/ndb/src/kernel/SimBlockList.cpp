@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "SimBlockList.hpp"
-#include "EmulatorData.hpp"
+#include <Emulator.hpp>
 #include <SimulatedBlock.hpp>
 #include <Cmvmi.hpp>
 #include <Ndbfs.hpp>
@@ -85,7 +85,8 @@ SimBlockList::load(EmulatorData& data){
   SimulatedBlock * fs = 0;
   {
     Uint32 dl;
-    const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+    const ndb_mgm_configuration_iterator * p = 
+      ctx.m_config.getOwnConfigIterator();
     if(p && !ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl) && dl){
       fs = NEW_BLOCK(VoidFs)(ctx);
     } else { 

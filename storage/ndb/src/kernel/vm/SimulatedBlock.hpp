@@ -426,7 +426,8 @@ private:
 
 protected:  
   ArrayPool<GlobalPage>& m_global_page_pool;
-
+  ArrayPool<GlobalPage>& m_shared_page_pool;
+  
 private:
   /**
    * Node state

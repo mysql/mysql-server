@@ -771,6 +771,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "64M",
     "4M",
     "1024G" },
+
+  {
+    CFG_DB_SGA,
+    "SharedGlobalMemory",
+    DB_TOKEN,
+    "Total number bytes on each "DB_TOKEN_PRINT" node allocated for any use",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "20M",
+    "0",
+    "65536G" }, // 32k pages * 32-bit i value
   
   {
     CFG_DB_START_PARTIAL_TIMEOUT,
