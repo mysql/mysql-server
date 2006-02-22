@@ -1310,8 +1310,10 @@ NdbDictionaryImpl::putTable(NdbTableImpl *impl)
   m_globalHash->lock();
   if ((old= m_globalHash->get(impl->m_internalName.c_str())))
   {
-    old->m_status = NdbDictionary::Object::Invalid;
-    m_globalHash->drop(old);
+    m_globalHash->alter_table_rep(old->m_internalName.c_str(),
+                                  impl->m_id,
+                                  impl->m_version,
+                                  FALSE);
   }
   m_globalHash->put(impl->m_internalName.c_str(), impl);
   m_globalHash->unlock();
