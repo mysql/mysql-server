@@ -5660,8 +5660,8 @@ ER_PARTITION_NOT_DEFINED_ERROR
         eng "For the partitioned engine it is necessary to define all %-.64s"
         swe "För partitioneringsmotorn så är det nödvändigt att definiera alla %-.64s"
 ER_TOO_MANY_PARTITIONS_ERROR
-        eng "Too many partitions were defined"
-        swe "För många partitioner definierades"
+        eng "Too many partitions (including subpartitions) were defined"
+        swe "För många partitioner (inkluderande subpartitioner) definierades"
 ER_SUBPARTITION_ERROR
         eng "It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning"
         swe "Det är endast möjligt att blanda RANGE/LIST partitionering med HASH/KEY partitionering för subpartitionering"
