@@ -57,7 +57,6 @@ public:
   void set_resource_limit(const Resource_limit& rl);
   
   bool init(bool allow_alloc_less_than_requested = true);
-  void grow(Uint32 start, Uint32 cnt);
   void* get_memroot() const { return (void*)m_base_page;}
   
   void alloc(Uint32* ret, Uint32 *pages, Uint32 min_requested);
@@ -68,6 +67,9 @@ public:
   void* alloc_page(Uint32 type, Uint32* i);
   void release_page(Uint32 type, Uint32 i, void * p);
   
+  void* alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min = 1);
+  void release_pages(Uint32 type, Uint32 i, void*p, Uint32 cnt);
+  
   /**
    * Compute 2log of size 
    * @note size = 0     -> 0
@@ -76,6 +78,8 @@ public:
   static Uint32 log2(Uint32 size);
 
 private:
+  void grow(Uint32 start, Uint32 cnt);
+
 #define XX_RL_COUNT 3
   /**
    * Return pointer to free page data on page
