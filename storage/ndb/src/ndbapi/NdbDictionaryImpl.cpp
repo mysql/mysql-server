@@ -1305,7 +1305,14 @@ NdbDictionaryImpl::fetchGlobalTableImpl(const BaseString& internalTableName)
 void
 NdbDictionaryImpl::putTable(NdbTableImpl *impl)
 {
+  NdbTableImpl *old;
+
   m_globalHash->lock();
+  if ((old= m_globalHash->get(impl->m_internalName.c_str())))
+  {
+    old->m_status = NdbDictionary::Object::Invalid;
+    m_globalHash->drop(old);
+  }
   m_globalHash->put(impl->m_internalName.c_str(), impl);
   m_globalHash->unlock();
   Ndb_local_table_info *info=
@@ -1313,6 +1320,8 @@ NdbDictionaryImpl::putTable(NdbTableImpl *impl)
   
   m_localHash.put(impl->m_internalName.c_str(), info);
   
+  addBlobTables(*impl);
+
   m_ndb.theFirstTupleId[impl->getTableId()] = ~0;
   m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
 }
