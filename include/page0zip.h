@@ -370,8 +370,9 @@ page_zip_write_header(
 /*==================*/
 	page_zip_des_t*	page_zip,/* in/out: compressed page */
 	const byte*	str,	/* in: address on the uncompressed page */
-	ulint		length)	/* in: length of the data */
-	__attribute__((nonnull));
+	ulint		length,	/* in: length of the data */
+	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+	__attribute__((nonnull(1,2)));
 
 #ifdef UNIV_MATERIALIZE
 # undef UNIV_INLINE

@@ -218,11 +218,11 @@ page_set_max_trx_id(
 	/* It is not necessary to write this change to the redo log, as
 	during a database recovery we assume that the max trx id of every
 	page is the maximum trx id assigned before the crash. */
-	
+
 	mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		page_zip_write_header(page_zip,
-				page + (PAGE_HEADER + PAGE_MAX_TRX_ID), 8);
+			page + (PAGE_HEADER + PAGE_MAX_TRX_ID), 8, NULL);
 	}
 
 	if (block->is_hashed) {

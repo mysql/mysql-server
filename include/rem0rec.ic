@@ -146,30 +146,6 @@ rec_set_nth_field_sql_null(
 	rec_t*	rec, 	/* in: record */
 	ulint	n);	/* in: index of the field */
 
-/***************************************************************
-Sets the ith field extern storage bit of an old-style record. */
-
-void
-rec_set_nth_field_extern_bit_old(
-/*=============================*/
-	rec_t*	rec,	/* in: old-style record */
-	ulint	i,	/* in: ith field */
-	mtr_t*	mtr);	/* in: mtr holding an X-latch to the page where
-			rec is, or NULL; in the NULL case we do not
-			write to log about the change */
-/***************************************************************
-Sets the ith field extern storage bit of a new-style record. */
-
-void
-rec_set_nth_field_extern_bit_new(
-/*=============================*/
-	rec_t*		rec,	/* in: record */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint		ith,	/* in: ith field */
-	mtr_t*		mtr);	/* in: mtr holding an X-latch to the page
-				where rec is, or NULL; in the NULL case
-				we do not write to log about the change */
-
 /**********************************************************
 Gets a bit field from within 1 byte. */
 UNIV_INLINE
@@ -1112,26 +1088,6 @@ rec_offs_any_extern(
 		}
 	}
 	return(FALSE);
-}
-
-/***************************************************************
-Sets the ith field extern storage bit. */
-UNIV_INLINE
-void
-rec_set_nth_field_extern_bit(
-/*=========================*/
-	rec_t*		rec,	/* in: record */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint		i,	/* in: ith field */
-	mtr_t*		mtr)	/* in: mtr holding an X-latch to the page
-				where rec is, or NULL; in the NULL case
-				we do not write to log about the change */
-{
-	if (UNIV_LIKELY(index->table->comp)) {
-		rec_set_nth_field_extern_bit_new(rec, index, i, mtr);
-	} else {
-		rec_set_nth_field_extern_bit_old(rec, i, mtr);
-	}
 }
 
 /**********************************************************

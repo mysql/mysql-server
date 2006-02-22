@@ -1045,7 +1045,8 @@ btr_root_raise_and_insert(
 	ulint		level;	
 	rec_t*		node_ptr_rec;
 	page_cur_t*	page_cursor;
-	page_zip_des_t*	page_zip;
+	page_zip_des_t*	root_page_zip;
+	page_zip_des_t*	new_page_zip;
 	
 	root = btr_cur_get_page(cursor);
 	tree = btr_cur_get_tree(cursor);
@@ -1066,11 +1067,12 @@ btr_root_raise_and_insert(
 
 	btr_page_create(new_page, tree, mtr);
 
+	root_page_zip = buf_block_get_page_zip(buf_block_align(root));
 	level = btr_page_get_level(root, mtr);
 	
 	/* Set the levels of the new index page and root page */
 	btr_page_set_level(new_page, NULL, level, mtr);
-	btr_page_set_level(root, NULL/* TODO */, level + 1, mtr);
+	btr_page_set_level(root, root_page_zip, level + 1, mtr);
 	
 	/* Set the next node and previous node fields of new page */
 	btr_page_set_next(new_page, NULL, FIL_NULL, mtr);
@@ -1078,10 +1080,10 @@ btr_root_raise_and_insert(
 
 	/* Move the records from root to the new page */
 
-	page_zip = buf_block_get_page_zip(buf_block_align(new_page));
+	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
 
-	page_move_rec_list_end(new_page, page_zip,
-				page_get_infimum_rec(root), NULL,
+	page_move_rec_list_end(new_page, new_page_zip,
+				page_get_infimum_rec(root), root_page_zip,
 				cursor->index, mtr);
 
 	/* If this is a pessimistic insert which is actually done to
@@ -1103,8 +1105,11 @@ btr_root_raise_and_insert(
 	node_ptr = dict_tree_build_node_ptr(tree, rec, new_page_no, heap,
 					                          level);
 	/* Reorganize the root to get free space */
-	if (!btr_page_reorganize_low(FALSE, root, NULL, cursor->index, mtr)) {
-		ut_error; /* TODO: page_zip */
+	if (!btr_page_reorganize_low(FALSE, root, root_page_zip,
+					cursor->index, mtr)) {
+		/* The page should be empty at this point.
+		Thus, the operation should succeed. */
+		ut_error;
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -1118,16 +1123,14 @@ btr_root_raise_and_insert(
 
 	ut_ad(node_ptr_rec);
 
-	page_zip = buf_block_get_page_zip(buf_block_align(root));
-
 	/* The node pointer must be marked as the predefined minimum record,
 	as there is no lower alphabetical limit to records in the leftmost
 	node of a level: */
 
 	btr_set_min_rec_mark(node_ptr_rec, mtr);
 		
-	if (UNIV_LIKELY_NULL(page_zip)
-	    && !UNIV_UNLIKELY(page_zip_compress(page_zip, root,
+	if (UNIV_LIKELY_NULL(root_page_zip)
+	    && !UNIV_UNLIKELY(page_zip_compress(root_page_zip, root,
 							cursor->index, mtr))) {
 		/* The root page should only contain the
 		node pointer to new_page at this point.
