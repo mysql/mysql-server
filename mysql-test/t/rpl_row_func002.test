@@ -84,8 +84,8 @@ connection master;
 
 # time to dump the databases and so we can see if they match
 
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > ./var/tmp/func002_master.sql
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > ./var/tmp/func002_slave.sql
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/func002_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/func002_slave.sql
 
 # Cleanup
 DROP FUNCTION test.f1;
@@ -97,7 +97,7 @@ sync_slave_with_master;
 # the files your self to see what is not matching :-). The files are located
 # in mysql-test/var/tmp
 
-exec diff ./var/tmp/func002_master.sql ./var/tmp/func002_slave.sql;
+exec diff $MYSQLTEST_VARDIR/tmp/func002_master.sql $MYSQLTEST_VARDIR/tmp/func002_slave.sql;
 
 # End of 5.0 test case
 
