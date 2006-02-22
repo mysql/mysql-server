@@ -5281,6 +5281,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       tested replicate-* rules).
     */
     TABLE_LIST table_list;
+    TABLE_LIST *tables= &table_list;
     bool need_reopen;
     uint count= 1;
     bzero(&table_list, sizeof(table_list));
@@ -5330,13 +5331,12 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
        */
       thd->binlog_flush_pending_rows_event(false);
 
-      close_tables_for_reopen(thd, &table_list);
+      close_tables_for_reopen(thd, &tables);
 
       /* open the table again, same as in Table_map_event::exec_event */
       table_list.db= const_cast<char*>(db);
       table_list.alias= table_list.table_name= const_cast<char*>(table_name);
       table_list.updating= 1;
-      TABLE_LIST *tables= &table_list;
       if ((error= open_tables(thd, &tables, &count, 0)) == 0)
       {
         /* reset some variables for the table list*/
