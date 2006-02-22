@@ -24,8 +24,6 @@ rpl_bit_npk             : Bug#13418
 rpl_ddl                 : Bug#15963 SBR does not show "Definer" correctly
 rpl_ndb_auto_inc        : Bug#17086
 rpl_ndb_basic           : Bug#16228 [IN REVIEW]
-rpl_ndb_blob            : Bug #17505
-rpl_ndb_blob2           : Bug #17505
 rpl_ndb_charset         : Bug#17246
 rpl_ndb_ddl             : Bug#17400: delete & update of rows in table without pk fails
 rpl_ndb_delete_nowhere  : Bug#17400: delete & update of rows in table without pk fails
