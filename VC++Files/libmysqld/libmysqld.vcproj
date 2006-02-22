@@ -157,7 +157,7 @@
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../include,../libmysqld,../sql,../regex,../extra/yassl/include,../storage/bdb/build_win32,../zlib"
-				PreprocessorDefinitions="WIN32;_WINDOWS;_MBCS;NDEBUG;DBUG_OFF;USE_SYMDIR;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;MYSQL_SERVER;HAVE_INNOBASE_DB;WITH_INNOBASE_STORAGE_ENGINE;USE_TLS;__WIN__"/>
+				PreprocessorDefinitions="WIN32;_WINDOWS;_MBCS;NDEBUG;DBUG_OFF;USE_SYMDIR;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;MYSQL_SERVER;HAVE_INNOBASE_DB;WITH_INNOBASE_STORAGE_ENGINE;USE_TLS;__WIN__"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
