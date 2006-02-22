@@ -85,11 +85,13 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	if (share->changed && !share->w_locks)
 	{
 #ifdef HAVE_MMAP
-    if (info->s->mmaped_length != info->s->state.state.data_file_length)
+    if ((info->s->mmaped_length != info->s->state.state.data_file_length) &&
+        (info->s->nonmmaped_inserts > MAX_NONMAPPED_INSERTS))
     {
       if (info->s->concurrent_insert)
         rw_wrlock(&info->s->mmap_lock);
       mi_remap_file(info, info->s->state.state.data_file_length);
+      info->s->nonmmaped_inserts= 0;
       if (info->s->concurrent_insert)
         rw_unlock(&info->s->mmap_lock);
     }
