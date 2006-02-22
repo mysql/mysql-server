@@ -324,13 +324,28 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   Uint64 page_buffer = 64*1024*1024;
   ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY, &page_buffer);
   
-  page_buffer /= GLOBAL_PAGE_SIZE; // in pages
-  if (page_buffer > 0)
+  Uint32 pages = 0;
+  pages += page_buffer / GLOBAL_PAGE_SIZE; // in pages
+  pages += LCP_RESTORE_BUFFER;
+  m_global_page_pool.setSize(pages + 64, true);
+  
+  Uint64 shared_mem = 8*1024*1024;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
+  shared_mem /= GLOBAL_PAGE_SIZE;
+  if (shared_mem)
   {
-    page_buffer += LGMAN_LOG_BUFFER;
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = shared_mem;
+    rl.m_resource_id = 0;
+    m_ctx.m_mm.set_resource_limit(rl);
   }
-  page_buffer += LCP_RESTORE_BUFFER;
-  m_global_page_pool.setSize(page_buffer + 64, true);
+  
+  ndbrequire(m_ctx.m_mm.init());
+  {
+    void* ptr = m_ctx.m_mm.get_memroot();
+    m_shared_page_pool.set((GlobalPage*)ptr, ~0);
+  }
   
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();

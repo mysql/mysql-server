@@ -331,8 +331,10 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
     goto error;
   }
 
-  if(fsRWReq->getFormatFlag(fsRWReq->operationFlag) != 
-     FsReadWriteReq::fsFormatGlobalPage){
+  Uint32 format = fsRWReq->getFormatFlag(fsRWReq->operationFlag);
+  if(format != FsReadWriteReq::fsFormatGlobalPage &&
+     format != FsReadWriteReq::fsFormatSharedPage)
+  {     
     if (fsRWReq->varIndex >= getBatSize(blockNumber)) {
       jam();// Ensure that a valid variable is used    
       errorCode = FsRef::fsErrInvalidParameters;
@@ -353,7 +355,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
     tNRR = myBaseAddrRef->nrr;
     tWA = (char*)myBaseAddrRef->WA;
     
-    switch (fsRWReq->getFormatFlag(fsRWReq->operationFlag)) {
+    switch (format) {
       
       // List of memory and file pages pairs
     case FsReadWriteReq::fsFormatListOfPairs: { 
@@ -422,9 +424,21 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       goto error;
     }//default
     }//switch
-  } else {
+  } 
+  else if (format == FsReadWriteReq::fsFormatGlobalPage)
+  {
     Ptr<GlobalPage> ptr;
     m_global_page_pool.getPtr(ptr, fsRWReq->data.pageData[0]);
+    request->par.readWrite.pages[0].buf = (char*)ptr.p;
+    request->par.readWrite.pages[0].size = ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->numberOfPages;
+    request->par.readWrite.pages[0].offset= ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->varIndex;
+    request->par.readWrite.numberOfPages = 1;
+  }
+  else
+  {
+    ndbrequire(format == FsReadWriteReq::fsFormatSharedPage);
+    Ptr<GlobalPage> ptr;
+    m_shared_page_pool.getPtr(ptr, fsRWReq->data.pageData[0]);
     request->par.readWrite.pages[0].buf = (char*)ptr.p;
     request->par.readWrite.pages[0].size = ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->numberOfPages;
     request->par.readWrite.pages[0].offset= ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->varIndex;
@@ -433,7 +447,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   
   ndbrequire(forward(openFile, request));
   return;
-
+  
 error:
   theRequestPool->put(request);
   FsRef * const fsRef = (FsRef *)&signal->theData[0];
