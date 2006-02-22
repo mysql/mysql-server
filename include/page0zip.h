@@ -216,23 +216,6 @@ page_zip_alloc(
 	__attribute__((warn_unused_result, nonnull(1,2,3)));
 
 /**************************************************************************
-Determine if enough space is available for a page_zip_write_rec() call
-in the modification log. */
-UNIV_INLINE
-ibool
-page_zip_available(
-/*===============*/
-					/* out: TRUE if page_zip_write_rec()
-					will succeed */
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	ulint			length,	/* in: combined size of the record */
-	ulint			is_leaf,/* in: nonzero=leaf node,
-					zero=node pointer page */
-	ulint			create)	/* in: nonzero=add the record to
-					the heap */
-	__attribute__((warn_unused_result, nonnull, pure));
-
-/**************************************************************************
 Write an entire record on the compressed page.  The data must already
 have been written to the uncompressed page. */
 
