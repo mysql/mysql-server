@@ -610,13 +610,18 @@ struct Timer
 int 
 main(int argc, char** argv)
 {
-  int sz = 3*32768;
+  int sz = 1*32768;
+  int run_time = 30;
   if (argc > 1)
     sz = 32*atoi(argv[1]);
 
+  if (argc > 2)
+    run_time = atoi(argv[2]);
+
   char buf[255];
   Timer timer[4];
-  printf("Startar modul test av Page Manager %dMb\n", (sz >> 5));
+  printf("Startar modul test av Page Manager %dMb %ds\n", 
+	 (sz >> 5), run_time);
   g_eventLogger.createConsoleHandler();
   g_eventLogger.setCategory("keso");
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_INFO);
@@ -633,7 +638,7 @@ main(int argc, char** argv)
   rl.m_curr = 0;
   rl.m_resource_id = 0;
   mem.set_resource_limit(rl);
-  rl.m_min = 32768;
+  rl.m_min = sz < 16384 ? sz : 16384;
   rl.m_max = 0;
   rl.m_resource_id = 1;
   mem.set_resource_limit(rl);
@@ -643,13 +648,13 @@ main(int argc, char** argv)
   printf("pid: %d press enter to continue\n", getpid());
   fgets(buf, sizeof(buf), stdin);
   Vector<Chunk> chunks;
-  const Uint32 LOOPS = 100000000;
-  for(Uint32 i = 0; i<LOOPS; i++){
+  time_t stop = time(0) + run_time;
+  for(Uint32 i = 0; time(0) < stop; i++){
     //mem.dump();
     
     // Case
     Uint32 c = (rand() % 100);
-    if (c < 60)
+    if (c < 50)
     {
       c = 0;
     } 
@@ -685,7 +690,7 @@ main(int argc, char** argv)
     }
       break;
     case 2: { // Seize(n) - fail
-      alloc += 32000;
+      alloc += sz;
       // Fall through
     }
     case 1: { // Seize(n) (success)
@@ -741,6 +746,8 @@ main(int argc, char** argv)
   };
   for(Uint32 i = 0; i<4; i++)
     timer[i].print(title[i]);
+
+  mem.dump();
 }
 
 template class Vector<Chunk>;
