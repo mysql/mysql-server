@@ -27,8 +27,8 @@ Error	1538	Table storage engine 'ndbcluster' does not support the create option 
 SHOW CREATE TABLE gis_point;
 Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
-  `fid` int(11) default NULL,
-  `g` point default NULL
+  `fid` int(11) DEFAULT NULL,
+  `g` point DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
@@ -509,8 +509,8 @@ Error	1538	Table storage engine 'ndbcluster' does not support the create option 
 SHOW CREATE TABLE gis_point;
 Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
-  `fid` int(11) default NULL,
-  `g` point default NULL
+  `fid` int(11) DEFAULT NULL,
+  `g` point DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra

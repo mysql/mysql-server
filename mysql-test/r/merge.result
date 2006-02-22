@@ -173,7 +173,7 @@ show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL,
-  `b` char(20) default NULL,
+  `b` char(20) DEFAULT NULL,
   KEY `a` (`a`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
 create table t4 (a int not null, b char(10), key(a)) engine=MERGE UNION=(t1,t2);
@@ -191,7 +191,7 @@ show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `a` int(11) NOT NULL,
-  `b` char(20) default NULL,
+  `b` char(20) DEFAULT NULL,
   KEY `a` (`a`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`mysqltest`.`t6`)
 alter table t5 engine=myisam;
@@ -314,14 +314,14 @@ show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL auto_increment,
+  `b` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`,`t2`)
 show create table t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
   `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL auto_increment,
+  `b` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 insert into t1 values (1,NULL),(1,NULL),(1,NULL),(1,NULL);

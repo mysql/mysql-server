@@ -194,9 +194,9 @@ t1	t2	t3
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `t1` timestamp NOT NULL default '2003-01-01 00:00:00',
-  `t2` datetime default NULL,
-  `t3` timestamp NOT NULL default '0000-00-00 00:00:00'
+  `t1` timestamp NOT NULL DEFAULT '2003-01-01 00:00:00',
+  `t2` datetime DEFAULT NULL,
+  `t3` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
@@ -218,9 +218,9 @@ t1	t2	t3
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `t1` timestamp NOT NULL default CURRENT_TIMESTAMP,
-  `t2` datetime default NULL,
-  `t3` timestamp NOT NULL default '0000-00-00 00:00:00'
+  `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `t2` datetime DEFAULT NULL,
+  `t3` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
@@ -245,8 +245,8 @@ t1	t2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `t1` timestamp NOT NULL default '2003-01-01 00:00:00' on update CURRENT_TIMESTAMP,
-  `t2` datetime default NULL
+  `t1` timestamp NOT NULL DEFAULT '2003-01-01 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
+  `t2` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
@@ -270,8 +270,8 @@ t1	t2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `t1` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  `t2` datetime default NULL
+  `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `t2` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
@@ -295,9 +295,9 @@ t1	t2	t3
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `t1` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  `t2` datetime default NULL,
-  `t3` timestamp NOT NULL default '0000-00-00 00:00:00'
+  `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `t2` datetime DEFAULT NULL,
+  `t3` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
@@ -322,8 +322,8 @@ t1	t2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `t1` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  `t2` datetime default NULL
+  `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `t2` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
@@ -377,8 +377,8 @@ create table t1 (a timestamp null, b timestamp null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` timestamp NULL default NULL,
-  `b` timestamp NULL default NULL
+  `a` timestamp NULL DEFAULT NULL,
+  `b` timestamp NULL DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (NULL, NULL);
 SET TIMESTAMP=1000000017;
@@ -392,8 +392,8 @@ create table t1 (a timestamp null default current_timestamp on update current_ti
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` timestamp NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  `b` timestamp NULL default NULL
+  `a` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `b` timestamp NULL DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (NULL, NULL);
 SET TIMESTAMP=1000000018;
@@ -407,8 +407,8 @@ create table t1 (a timestamp null default null, b timestamp null default '2003-0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` timestamp NULL default NULL,
-  `b` timestamp NULL default '2003-01-01 00:00:00'
+  `a` timestamp NULL DEFAULT NULL,
+  `b` timestamp NULL DEFAULT '2003-01-01 00:00:00'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (NULL, NULL);
 insert into t1 values (DEFAULT, DEFAULT);
@@ -439,8 +439,8 @@ create table t1 (a timestamp, b timestamp(19));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
-  "a" datetime default NULL,
-  "b" datetime default NULL
+  "a" datetime DEFAULT NULL,
+  "b" datetime DEFAULT NULL
 )
 set sql_mode='';
 drop table t1;

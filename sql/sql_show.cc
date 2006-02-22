@@ -963,7 +963,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     {
       if (field->charset() != share->table_charset)
       {
-	packet->append(STRING_WITH_LEN(" character set "));
+	packet->append(STRING_WITH_LEN(" CHARACTER SET "));
 	packet->append(field->charset()->csname);
       }
       /* 
@@ -972,7 +972,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       */
       if (!(field->charset()->state & MY_CS_PRIMARY))
       {
-	packet->append(STRING_WITH_LEN(" collate "));
+	packet->append(STRING_WITH_LEN(" COLLATE "));
 	packet->append(field->charset()->name);
       }
     }
@@ -1003,7 +1003,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if (has_default)
     {
-      packet->append(STRING_WITH_LEN(" default "));
+      packet->append(STRING_WITH_LEN(" DEFAULT "));
       if (has_now_default)
         packet->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
       else if (!field->is_null())
@@ -1031,11 +1031,11 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (!(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS) &&
         table->timestamp_field == field && 
         field->unireg_check != Field::TIMESTAMP_DN_FIELD)
-      packet->append(STRING_WITH_LEN(" on update CURRENT_TIMESTAMP"));
+      packet->append(STRING_WITH_LEN(" ON UPDATE CURRENT_TIMESTAMP"));
 
     if (field->unireg_check == Field::NEXT_NUMBER && 
         !(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS))
-      packet->append(STRING_WITH_LEN(" auto_increment"));
+      packet->append(STRING_WITH_LEN(" AUTO_INCREMENT"));
 
     if (field->comment.length)
     {
