@@ -1641,7 +1641,8 @@ int ndb_add_binlog_index(THD *thd, void *_row)
     {
       if (need_reopen)
       {
-        close_tables_for_reopen(thd, &binlog_tables);
+        TABLE_LIST *p_binlog_tables= &binlog_tables;
+        close_tables_for_reopen(thd, &p_binlog_tables);
 	binlog_index= 0;
         continue;
       }
