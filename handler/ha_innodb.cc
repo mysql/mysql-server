@@ -6787,23 +6787,24 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 	if (!(share=(INNOBASE_SHARE*) hash_search(&innobase_open_tables,
 				(mysql_byte*) table_name,
 				length))) {
-		if ((share=(INNOBASE_SHARE *) my_malloc(sizeof(*share)+length+1,
-					MYF(MY_WME | MY_ZEROFILL)))) {
-			share->table_name_length=length;
-			share->table_name=(char*) (share+1);
-			strmov(share->table_name,table_name);
 
-			if (my_hash_insert(&innobase_open_tables,
-					(mysql_byte*) share)) {
-				pthread_mutex_unlock(&innobase_share_mutex);
-				my_free((gptr) share,0);
+		share = (INNOBASE_SHARE *) my_malloc(sizeof(*share)+length+1,
+			MYF(MY_FAE | MY_ZEROFILL));
+		
+		share->table_name_length=length;
+		share->table_name=(char*) (share+1);
+		strmov(share->table_name,table_name);
 
-				return 0;
-			}
+		if (my_hash_insert(&innobase_open_tables,
+				(mysql_byte*) share)) {
+			pthread_mutex_unlock(&innobase_share_mutex);
+			my_free((gptr) share,0);
 
-			thr_lock_init(&share->lock);
-			pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
+			return 0;
 		}
+
+		thr_lock_init(&share->lock);
+		pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
 	}
 
 	share->use_count++;
