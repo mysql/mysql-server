@@ -3195,8 +3195,8 @@ btr_cur_set_ownership_of_extern_field(
 		byte_val = byte_val | BTR_EXTERN_OWNER_FLAG;
 	}
 
-	if (UNIV_LIKELY(mtr != NULL)) {
-		/* TODO: log this differently for page_zip */
+	if (UNIV_LIKELY(mtr != NULL) && UNIV_LIKELY(!page_zip)) {
+
 		mlog_write_ulint(data + local_len + BTR_EXTERN_LEN, byte_val,
 							MLOG_1BYTE, mtr);
 	} else {

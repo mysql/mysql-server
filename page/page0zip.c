@@ -2148,3 +2148,39 @@ page_zip_dir_delete(
 	The "owned" and "deleted" flags will be cleared. */
 	mach_write_to_2(slot_free, ut_align_offset(rec, UNIV_PAGE_SIZE));
 }
+
+/**************************************************************************
+Write a log record of writing to the uncompressed header portion of a page. */
+
+void
+page_zip_write_header_log(
+/*======================*/
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	ulint			offset,	/* in: offset to the data */
+	ulint			length,	/* in: length of the data */
+	mtr_t*			mtr)	/* in: mini-transaction */
+{
+	byte*	log_ptr = mlog_open(mtr, 11 + 2 + 1);
+	ut_ad(offset < PAGE_DATA);
+	ut_ad(offset + length < PAGE_DATA);
+#if PAGE_DATA > 255
+# error "PAGE_DATA > 255"
+#endif
+	ut_ad(length < 256);
+
+	/* If no logging is requested, we may return now */
+	if (log_ptr == NULL) {
+
+		return;
+	}
+
+	log_ptr = mlog_write_initial_log_record_fast(page_zip->data + offset,
+				MLOG_ZIP_WRITE_HEADER, log_ptr, mtr);
+	mach_write_to_2(log_ptr, offset);
+	log_ptr += 2;
+
+	mach_write_to_1(log_ptr, length);
+	mlog_close(mtr, log_ptr);
+
+	mlog_catenate_string(mtr, page_zip->data + offset, length);
+}

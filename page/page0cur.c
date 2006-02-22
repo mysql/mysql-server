@@ -957,9 +957,9 @@ page_cur_insert_rec_low(
 
 	/* Set the "extern storage" flags */
 	if (UNIV_UNLIKELY(n_ext)) {
-		rec_set_field_extern_bits(insert_rec, index, ext, n_ext, mtr);
+		rec_set_field_extern_bits(insert_rec, index, ext, n_ext);
 	}
-	
+
 	/* 4. Insert the record in the linked list of records */
 	current_rec = cursor->rec;
 

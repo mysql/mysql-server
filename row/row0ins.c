@@ -2083,7 +2083,6 @@ row_ins_index_entry_low(
 								entry,
 								thr, &mtr);
 		}
-		
 	} else {
 		if (mode == BTR_MODIFY_LEAF) {
 			err = btr_cur_optimistic_insert(0, &cursor, entry,
@@ -2103,14 +2102,13 @@ function_exit:
 	if (UNIV_LIKELY_NULL(big_rec)) {
 		rec_t*		rec;
 		mtr_start(&mtr);
-	
+
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 					BTR_MODIFY_TREE, &cursor, 0, &mtr);
 		rec = btr_cur_get_rec(&cursor);
 		offsets = rec_get_offsets(rec, index, offsets,
 					ULINT_UNDEFINED, &heap);
 
-		/* TODO: set the extern bits outside this function */
 		err = btr_store_big_rec_extern_fields(index, rec,
 						offsets, big_rec, &mtr);
 

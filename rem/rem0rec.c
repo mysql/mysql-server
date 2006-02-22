@@ -728,45 +728,34 @@ rec_set_nth_field_null_bit(
 
 /***************************************************************
 Sets the ith field extern storage bit of an old-style record. */
-
+static
 void
 rec_set_nth_field_extern_bit_old(
 /*=============================*/
 	rec_t*	rec,	/* in: old-style record */
-	ulint	i,	/* in: ith field */
-	mtr_t*	mtr)	/* in: mtr holding an X-latch to the page where
-			rec is, or NULL; in the NULL case we do not
-			write to log about the change */
+	ulint	i)	/* in: ith field */
 {
 	ulint	info;
 
-	ut_a(!rec_get_1byte_offs_flag(rec));
 	ut_a(i < rec_get_n_fields_old(rec));
 	
 	info = rec_2_get_field_end_info(rec, i);
 
 	info |= REC_2BYTE_EXTERN_MASK;
 
-	if (mtr) {
-		mlog_write_ulint(rec - REC_N_OLD_EXTRA_BYTES - 2 * (i + 1),
-						info, MLOG_2BYTES, mtr);
-	} else {
-		rec_2_set_field_end_info(rec, i, info);
-	}
+	rec_2_set_field_end_info(rec, i, info);
 }
 
 /***************************************************************
-Sets the ith field extern storage bit of a new-style record. */
-
+Sets the extern storage bits of a new-style record. */
+static
 void
-rec_set_nth_field_extern_bit_new(
-/*=============================*/
+rec_set_field_extern_bits_new(
+/*==========================*/
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
-	ulint		ith,	/* in: ith field */
-	mtr_t*		mtr)	/* in: mtr holding an X-latch to the page
-				where rec is, or NULL; in the NULL case
-				we do not write to log about the change */
+	const ulint*	ext,	/* in: array of field numbers */
+	ulint		n_ext)	/* in: number of elements in ext */
 {
 	byte*		nulls	= rec - (REC_N_NEW_EXTRA_BYTES + 1);
 	byte*		lens	= nulls - (index->n_nullable + 7) / 8;
@@ -781,10 +770,21 @@ rec_set_nth_field_extern_bit_new(
 
 	n_fields = dict_index_get_n_fields(index);
 
-	ut_ad(ith < n_fields);
+	ut_ad(n_ext <= n_fields);
+	ut_ad(n_ext);
 
 	/* read the lengths of fields 0..n */
 	for (i = 0; i < n_fields; i++) {
+		ibool	flag_external = FALSE;
+
+		{
+			ulint	j = 0;
+			do {
+				ut_ad(ext[j] < n_fields);
+				flag_external = (i == ext[j++]);
+			} while (!flag_external && j < n_ext);
+		}
+
 		field = dict_index_get_nth_field(index, i);
 		type = dict_col_get_type(dict_field_get_col(field));
 		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
@@ -796,7 +796,7 @@ rec_set_nth_field_extern_bit_new(
 			if (*nulls & null_mask) {
 				null_mask <<= 1;
 				/* NULL fields cannot be external. */
-				ut_ad(i != ith);
+				ut_ad(!flag_external);
 				continue;
 			}
 
@@ -807,7 +807,7 @@ rec_set_nth_field_extern_bit_new(
 			(Fixed-length fields longer than
 			DICT_MAX_INDEX_COL_LEN will be treated as
 			variable-length ones in dict_index_add_col().) */
-			ut_ad(i != ith);
+			ut_ad(!flag_external);
 			continue;
 		}
 		lens--;
@@ -815,31 +815,19 @@ rec_set_nth_field_extern_bit_new(
 				|| dtype_get_mtype(type) == DATA_BLOB) {
 			ulint	len = lens[1];
 			if (len & 0x80) { /* 1exxxxxx: 2-byte length */
-				if (i == ith) {
-					if (len & 0x40) {
-						return; /* no change */
-					}
-					/* toggle the extern bit */
+				if (flag_external) {
+					/* set the extern bit */
 					len |= 0x40;
-					if (mtr) {
-						/* TODO: page_zip:
-						log this differently,
-						or remove altogether */
-						mlog_write_ulint(lens + 1, len,
-							MLOG_1BYTE, mtr);
-					} else {
-						lens[1] = (byte) len;
-					}
-					return;
+					lens[1] = (byte) len;
 				}
 				lens--;
 			} else {
 				/* short fields cannot be external */
-				ut_ad(i != ith);
+				ut_ad(!flag_external);
 			}
 		} else {
 			/* short fields cannot be external */
-			ut_ad(i != ith);
+			ut_ad(!flag_external);
 		}
 	}
 }
@@ -853,22 +841,16 @@ rec_set_field_extern_bits(
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	vec,	/* in: array of field numbers */
-	ulint		n_fields,/* in: number of fields numbers */
-	mtr_t*		mtr)	/* in: mtr holding an X-latch to the
-				page where rec is, or NULL;
-				in the NULL case we do not write
-				to log about the change */
+	ulint		n_fields)/* in: number of fields numbers */
 {
-	ulint	i;
-
 	if (UNIV_LIKELY(index->table->comp)) {
-		for (i = 0; i < n_fields; i++) {
-			rec_set_nth_field_extern_bit_new(rec, index, vec[i],
-									mtr);
-		}
+		rec_set_field_extern_bits_new(rec, index, vec, n_fields);
 	} else {
+		ut_a(!rec_get_1byte_offs_flag(rec));
+		ulint	i;
+
 		for (i = 0; i < n_fields; i++) {
-			rec_set_nth_field_extern_bit_old(rec, vec[i], mtr);
+			rec_set_nth_field_extern_bit_old(rec, vec[i]);
 		}
 	}
 }
