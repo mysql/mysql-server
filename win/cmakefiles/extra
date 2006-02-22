@@ -19,3 +19,5 @@ ADD_CUSTOM_TARGET(GenError
          
          
 
+ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
+TARGET_LINK_LIBRARIES(my_print_defaults strings mysys dbug taocrypt odbc32 odbccp32 wsock32)
