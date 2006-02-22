@@ -1365,9 +1365,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
           sql_print_information("NDB: Failed write frm for %s.%s, error %d",
                                 dbname, tabname, error);
         }
-        pthread_mutex_unlock(&LOCK_open);
-        close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0);
-        pthread_mutex_lock(&LOCK_open);
+        close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, TRUE);
         if ((error= ndbcluster_binlog_open_table(thd, share, 
                                                  table_share, table)))
           sql_print_information("NDB: Failed to re-open table %s.%s",
