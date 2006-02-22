@@ -28,6 +28,8 @@
 #define SERVER_DEFAULT_PORT 3306
 #define DEFAULT_MONITORING_INTERVAL 20
 #define DEFAULT_PORT 2273
+/* three-week timeout should be enough */
+#define LONG_TIMEOUT ((ulong) 3600L*24L*21L)
 
 /* the pid of the manager process (of the signal thread on the LinuxThreads) */
 extern pid_t manager_pid;
