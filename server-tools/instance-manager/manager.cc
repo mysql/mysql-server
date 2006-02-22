@@ -135,15 +135,6 @@ void manager(const Options &options)
   if (instance_map.init() || user_map.init())
     return;
 
-
-  if (instance_map.load())
-  {
-    log_error("Cannot init instances repository. This might be caused by "
-               "the wrong config file options. For instance, missing mysqld "
-               "binary. Aborting.");
-    return;
-  }
-
   if (user_map.load(options.password_file_name))
     return;
 
@@ -207,12 +198,13 @@ void manager(const Options &options)
 
   shutdown_complete= FALSE;
 
-  /* init list of guarded instances */
-  guardian_thread.lock();
-
-  guardian_thread.init();
-
-  guardian_thread.unlock();
+  if (instance_map.flush_instances())
+  {
+    log_error("Cannot init instances repository. This might be caused by "
+               "the wrong config file options. For instance, missing mysqld "
+               "binary. Aborting.");
+    return;
+  }
 
   /*
     After the list of guarded instances have been initialized,
