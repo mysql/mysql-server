@@ -1142,7 +1142,7 @@ static int mysql_test_update(Prepared_statement *stmt,
       break;
     if (!need_reopen)
       goto error;
-    close_tables_for_reopen(thd, table_list);
+    close_tables_for_reopen(thd, &table_list);
   }
 
   /*
