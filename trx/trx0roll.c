@@ -109,6 +109,7 @@ trx_general_rollback_for_mysql(
 	InnoDB Hot Backup builds.  Besides, this function should never
 	be called in InnoDB Hot Backup. */
 	ut_error;
+	return(DB_FAIL);
 #endif /* UNIV_HOTBACKUP */
 }
 
