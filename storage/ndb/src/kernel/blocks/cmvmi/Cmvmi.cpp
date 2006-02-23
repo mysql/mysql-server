@@ -1099,6 +1099,37 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 	      g_sectionSegmentPool.getSize(),
 	      g_sectionSegmentPool.getNoOfFree());
   }
+
+  if (dumpState->args[0] == 1000)
+  {
+    Uint32 len = signal->getLength();
+    if (signal->getLength() == 1)
+    {
+      signal->theData[1] = 0;
+      signal->theData[2] = ~0;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 3, JBB);
+      return;
+    }
+    Uint32 id = signal->theData[1];
+    Resource_limit rl;
+    if (!m_ctx.m_mm.get_resource_limit(id, rl))
+      len = 2;
+    else
+    {
+      if (rl.m_min || rl.m_curr || rl.m_max)
+	infoEvent("Resource %d min: %d max: %d curr: %d",
+		  id, rl.m_min, rl.m_max, rl.m_curr);
+    }
+
+    if (len == 3)
+    {
+      signal->theData[0] = 1000;
+      signal->theData[1] = id+1;
+      signal->theData[2] = ~0;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 3, JBB);
+    }
+    return;
+  }
   
   if (dumpState->args[0] == DumpStateOrd::CmvmiSetRestartOnErrorInsert){
     if(signal->getLength() == 1)
