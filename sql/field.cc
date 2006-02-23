@@ -8269,7 +8269,7 @@ void create_field::init_for_tmp_table(enum_field_types sql_type_arg,
 {
   field_name= "";
   sql_type= sql_type_arg;
-  length= length_arg;;
+  char_length= length= length_arg;;
   unireg_check= Field::NONE;
   interval= 0;
   charset= &my_charset_bin;
@@ -8597,6 +8597,8 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   case FIELD_TYPE_DECIMAL:
     DBUG_ASSERT(0); /* Was obsolete */
   }
+  /* Remember the value of length */
+  char_length= length;
 
   if (!(flags & BLOB_FLAG) &&
       ((length > max_field_charlength && fld_type != FIELD_TYPE_SET &&
