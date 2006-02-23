@@ -25,13 +25,19 @@ Pool_context::alloc_page(Uint32 type_id, Uint32 *i)
 }
   
 void 
-Pool_context::release_page(Uint32 type_id, Uint32 i, void* p)
+Pool_context::release_page(Uint32 type_id, Uint32 i)
 {
-  m_block->m_ctx.m_mm.release_page(type_id, i, p);
+  m_block->m_ctx.m_mm.release_page(type_id, i);
+}
+
+void*
+Pool_context::get_memroot()
+{
+  return m_block->m_ctx.m_mm.get_memroot();
 }
 
 void
-Pool_context::handle_abort(const AbortArg &)
+Pool_context::handleAbort(int err, const char * msg)
 {
-  
+  m_block->progError(__LINE__, err, msg);
 }

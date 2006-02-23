@@ -66,7 +66,7 @@ public:
   void dump() const ;
   
   void* alloc_page(Uint32 type, Uint32* i);
-  void release_page(Uint32 type, Uint32 i, void * p);
+  void release_page(Uint32 type, Uint32 i);
   
   /**
    * Compute 2log of size 
