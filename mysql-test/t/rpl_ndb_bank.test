@@ -117,10 +117,10 @@ RESET MASTER;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "start backup" >> $NDB_TOOLS_OUTPUT
 
 # there is no neat way to find the backupid, this is a hack to find it...
---exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > var/tmp.dat
+--exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > $MYSQLTEST_VARDIR/tmp.dat
 CREATE TABLE IF NOT EXISTS cluster_replication.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 DELETE FROM cluster_replication.backup_info;
-LOAD DATA INFILE '../../var/tmp.dat' INTO TABLE cluster_replication.backup_info FIELDS TERMINATED BY ',';
+LOAD DATA INFILE '../tmp.dat' INTO TABLE cluster_replication.backup_info FIELDS TERMINATED BY ',';
 --replace_column 1 <the_backup_id>
 SELECT @the_backup_id:=backup_id FROM cluster_replication.backup_info;
 let the_backup_id=`select @the_backup_id`;
@@ -191,17 +191,17 @@ while ($1)
 # 1. dump database BANK on both master and slave
 # 2. compare, there should be no difference
 #
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info BANK ACCOUNT_TYPE ACCOUNT GL TRANSACTION > ./var/tmp/master_BANK.sql
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info BANK ACCOUNT_TYPE ACCOUNT GL TRANSACTION > $MYSQLTEST_VARDIR/tmp/master_BANK.sql
 --connection master
 use test;
 create table t1 (a int primary key) engine=ndb;
 insert into t1 values (1);
 --sync_slave_with_master
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info BANK ACCOUNT_TYPE ACCOUNT GL TRANSACTION > ./var/tmp/slave_BANK.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info BANK ACCOUNT_TYPE ACCOUNT GL TRANSACTION > $MYSQLTEST_VARDIR/tmp/slave_BANK.sql
 --connection master
 drop table t1;
 
---exec diff ./var/tmp/master_BANK.sql ./var/tmp/slave_BANK.sql
+--exec diff $MYSQLTEST_VARDIR/tmp/master_BANK.sql $MYSQLTEST_VARDIR/tmp/slave_BANK.sql
 
   --dec $2
 }

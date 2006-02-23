@@ -9,5 +9,5 @@ eval SHOW CREATE TABLE t1;
 # listing of files belonging to the table t1
 if ($ls)
 {
-   --exec ls var/master-data/test/t1*
+   --exec ls $MYSQLTEST_VARDIR/master-data/test/t1*
 }
