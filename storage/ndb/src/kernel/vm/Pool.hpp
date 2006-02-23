@@ -17,9 +17,12 @@
 #ifndef NDB_POOL_HPP
 #define NDB_POOL_HPP
 
+#include <ndb_global.h>
 #include <kernel_types.h>
 
 /**
+ * Type bits
+ *
  * Type id is 11 bits record type, and 5 bits resource id
  *   -> 2048 different kind of records and 32 different resource groups
  * 
@@ -30,6 +33,12 @@
 #define RG_BITS 5
 #define RG_MASK ((1 << RG_BITS) - 1)
 #define MAKE_TID(TID,RG) ((TID << RG_BITS) | RG)
+
+/**
+ * Page bits
+ */
+#define POOL_RECORD_BITS 13
+#define POOL_RECORD_MASK ((1 << POOL_RECORD_BITS) - 1)
 
 /**
  * Record_info
@@ -57,6 +66,11 @@ struct Resource_limit
 struct Pool_context
 {
   class SimulatedBlock* m_block;
+
+  /**
+   * Get mem root
+   */
+  void* get_memroot();
   
   /**
    * Alloc consekutive pages
@@ -74,8 +88,8 @@ struct Pool_context
    *   @param i   : in : i value of first page
    *   @param p   : in : pointer to first page
    */
-  void release_page(Uint32 type_id, Uint32 i, void* p);
-
+  void release_page(Uint32 type_id, Uint32 i);
+  
   /**
    * Alloc consekutive pages
    *
@@ -97,21 +111,12 @@ struct Pool_context
    *   @param p   : in : pointer to first page
    *   @param cnt : in : no of pages to release
    */
-  void release_pages(Uint32 type_id, Uint32 i, void* p, Uint32 cnt);
-  
+  void release_pages(Uint32 type_id, Uint32 i, Uint32 cnt);
+
   /**
-   * Pool abort
-   *   Only know issue is getPtr with invalid i-value.
-   *   If other emerges, we will add argument to this method
+   * Abort
    */
-  struct AbortArg
-  {
-    Uint32 m_expected_magic;
-    Uint32 m_found_magic;
-    Uint32 i;
-    void * p;
-  };
-  void handle_abort(const AbortArg &);
+  void handleAbort(int code, const char* msg);
 };
 
 template <typename T>
@@ -136,19 +141,180 @@ struct ConstPtr
 /**
  * Any pool should implement the following
  */
-struct Pool
+struct PoolImpl
 {
-public:
-  Pool();
+  Pool_context m_ctx;
+  Record_info m_record_info;
   
   void init(const Record_info& ri, const Pool_context& pc);
-
-  bool seize(Uint32*, void**);
-  void* seize(Uint32*);
-
-  void release(Uint32 i, void* p);
+  void init(const Record_info& ri, const Pool_context& pc);
+  
+  bool seize(Ptr<void>&);
+  void release(Ptr<void>);
   void * getPtr(Uint32 i);
 };
 #endif
+
+template <typename T, typename P>
+class RecordPool {
+public:
+  RecordPool();
+  ~RecordPool();
+  
+  void init(Uint32 type_id, const Pool_context& pc);
+  void wo_pool_init(Uint32 type_id, const Pool_context& pc);
+  
+  /**
+   * Update p value for ptr according to i value 
+   */
+  void getPtr(Ptr<T> &);
+  void getPtr(ConstPtr<T> &) const;
+  
+  /**
+   * Get pointer for i value
+   */
+  T * getPtr(Uint32 i);
+  const T * getConstPtr(Uint32 i) const;
+
+  /**
+   * Update p & i value for ptr according to <b>i</b> value 
+   */
+  void getPtr(Ptr<T> &, Uint32 i);
+  void getPtr(ConstPtr<T> &, Uint32 i) const;
+
+  /**
+   * Allocate an object from pool - update Ptr
+   *
+   * Return i
+   */
+  bool seize(Ptr<T> &);
+
+  /**
+   * Return an object to pool
+   */
+  void release(Uint32 i);
+
+  /**
+   * Return an object to pool
+   */
+  void release(Ptr<T> &);
+private:
+  P m_pool;
+};
+
+template <typename T, typename P>
+inline
+RecordPool<T, P>::RecordPool()
+{
+}
+
+template <typename T, typename P>
+inline
+void
+RecordPool<T, P>::init(Uint32 type_id, const Pool_context& pc)
+{
+  Record_info ri;
+  ri.m_size = sizeof(T);
+  ri.m_offset_next_pool = offsetof(T, nextPool);
+  ri.m_offset_magic = offsetof(T, m_magic);
+  ri.m_type_id = type_id;
+  m_pool.init(ri, pc);
+}
+
+template <typename T, typename P>
+inline
+void
+RecordPool<T, P>::wo_pool_init(Uint32 type_id, const Pool_context& pc)
+{
+  Record_info ri;
+  ri.m_size = sizeof(T);
+  ri.m_offset_next_pool = 0;
+  ri.m_offset_magic = offsetof(T, m_magic);
+  ri.m_type_id = type_id;
+  m_pool.init(ri, pc);
+}
+
+template <typename T, typename P>
+inline
+RecordPool<T, P>::~RecordPool()
+{
+}
+
+  
+template <typename T, typename P>
+inline
+void
+RecordPool<T, P>::getPtr(Ptr<T> & ptr)
+{
+  ptr.p = static_cast<T*>(m_pool.getPtr(ptr.i));
+}
+
+template <typename T, typename P>
+inline
+void
+RecordPool<T, P>::getPtr(ConstPtr<T> & ptr) const 
+{
+  ptr.p = static_cast<const T*>(m_pool.getPtr(ptr.i));
+}
+
+template <typename T, typename P>
+inline
+void
+RecordPool<T, P>::getPtr(Ptr<T> & ptr, Uint32 i)
+{
+  ptr.i = i;
+  ptr.p = static_cast<T*>(m_pool.getPtr(ptr.i));  
+}
+
+template <typename T, typename P>
+inline
+void
+RecordPool<T, P>::getPtr(ConstPtr<T> & ptr, Uint32 i) const 
+{
+  ptr.i = i;
+  ptr.p = static_cast<const T*>(m_pool.getPtr(ptr.i));  
+}
+  
+template <typename T, typename P>
+inline
+T * 
+RecordPool<T, P>::getPtr(Uint32 i)
+{
+  return static_cast<T*>(m_pool.getPtr(i));  
+}
+
+template <typename T, typename P>
+inline
+const T * 
+RecordPool<T, P>::getConstPtr(Uint32 i) const 
+{
+  return static_cast<const T*>(m_pool.getPtr(i)); 
+}
+  
+template <typename T, typename P>
+inline
+bool
+RecordPool<T, P>::seize(Ptr<T> & ptr)
+{
+  return m_pool.seize(*(Ptr<void>*)&ptr);
+}
+
+template <typename T, typename P>
+inline
+void
+RecordPool<T, P>::release(Uint32 i)
+{
+  Ptr<T> p;
+  getPtr(p, i);
+  m_pool.release(p);
+}
+
+template <typename T, typename P>
+inline
+void
+RecordPool<T, P>::release(Ptr<T> & ptr)
+{
+  m_pool.release(*(Ptr<void>*)&ptr);
+}
 
 #endif

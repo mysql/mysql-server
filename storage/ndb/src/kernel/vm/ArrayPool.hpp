@@ -45,6 +45,7 @@ public:
    */
   bool setSize(Uint32 noOfElements, bool align = false, bool exit_on_error = true, bool guard = true);
   bool set(T*, Uint32 cnt, bool align = false);
+  void clear() { theArray = 0; }
 
   inline Uint32 getNoOfFree() const {
     return noOfFree;
