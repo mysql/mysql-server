@@ -1497,7 +1497,7 @@ int main(int argc, char** argv)
   the server
 */
 
-#ifdef __WIN__
+#if defined(__WIN__) && !defined(USING_CMAKE)
 #include "my_decimal.h"
 #include "decimal.c"
 #include "my_decimal.cpp"

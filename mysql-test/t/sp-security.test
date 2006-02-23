@@ -525,4 +525,26 @@ disconnect user_bug14533;
 drop user user_bug14533@localhost;
 drop database db_bug14533;
 
+
+#
+# BUG#7787: Stored procedures: improper warning for "grant execute" statement
+#
+
+# Prepare.
+
+CREATE DATABASE db_bug7787;
+use db_bug7787;
+
+# Test.
+
+CREATE PROCEDURE p1()
+  SHOW INNODB STATUS; 
+
+GRANT EXECUTE ON PROCEDURE p1 TO user_bug7787@localhost; 
+
+# Cleanup.
+
+DROP DATABASE db_bug7787;
+use test;
+
 # End of 5.0 bugs.
