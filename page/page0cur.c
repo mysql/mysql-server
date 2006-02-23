@@ -954,6 +954,7 @@ too_small:
 				lint	extra_size_diff
 					= rec_offs_extra_size(offsets)
 					- rec_offs_extra_size(foffsets);
+				/* TODO: compare to original extra_size */
 				if (UNIV_UNLIKELY(extra_size_diff < 0)) {
 					/* Add an offset to the extra_size. */
 					if (rec_offs_size(foffsets)
@@ -964,6 +965,11 @@ too_small:
 
 					insert_buf -= extra_size_diff;
 				}
+
+				/* TODO: update to the relocation log
+				 * add when extra_size grows for the first time
+				 * remove when extra_size shrinks to original
+				 */
 			}
 
 			heap_no = rec_get_heap_no_new(free_rec);
