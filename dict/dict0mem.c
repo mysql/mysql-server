@@ -40,7 +40,7 @@ dict_mem_table_create(
 {
 	dict_table_t*	table;
 	mem_heap_t*	heap;
-	
+
 	ut_ad(name);
 	ut_ad(comp == FALSE || comp == TRUE);
 
@@ -64,12 +64,12 @@ dict_mem_table_create(
 
 	table->n_mysql_handles_opened = 0;
 	table->n_foreign_key_checks_running = 0;
-		
+
 	table->cached = FALSE;
-	
+
 	table->mix_id = ut_dulint_zero;
 	table->mix_len = 0;
-	
+
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
 							* sizeof(dict_col_t));
 	UT_LIST_INIT(table->indexes);
@@ -87,14 +87,14 @@ dict_mem_table_create(
 	table->stat_initialized = FALSE;
 
 	table->stat_modified_counter = 0;
-	
+
 	mutex_create(&(table->autoinc_mutex));
 	mutex_set_level(&(table->autoinc_mutex), SYNC_DICT_AUTOINC_MUTEX);
 
 	table->autoinc_inited = FALSE;
 
 	table->magic_n = DICT_TABLE_MAGIC_N;
-	
+
 	return(table);
 }
 
@@ -151,13 +151,13 @@ dict_mem_table_add_col(
 {
 	dict_col_t*	col;
 	dtype_t*	type;
-	
+
 	ut_ad(table && name);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-	
+
 	table->n_def++;
 
-	col = dict_table_get_nth_col(table, table->n_def - 1);	
+	col = dict_table_get_nth_col(table, table->n_def - 1);
 
 	col->ind = table->n_def - 1;
 	col->name = mem_heap_strdup(table->heap, name);
@@ -165,7 +165,7 @@ dict_mem_table_add_col(
 	col->ord_part = 0;
 
 	col->clust_pos = ULINT_UNDEFINED;
-	
+
 	type = dict_col_get_type(col);
 
 	dtype_set(type, mtype, prtype, len, prec);
@@ -189,14 +189,14 @@ dict_mem_index_create(
 {
 	dict_index_t*	index;
 	mem_heap_t*	heap;
-	
+
 	ut_ad(table_name && index_name);
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 	index = mem_heap_alloc(heap, sizeof(dict_index_t));
 
 	index->heap = heap;
-	
+
 	index->type = type;
 	index->space = space;
 	index->name = mem_heap_strdup(heap, index_name);
@@ -262,24 +262,20 @@ dict_mem_index_add_field(
 /*=====================*/
 	dict_index_t*	index,		/* in: index */
 	const char*	name,		/* in: column name */
-	ulint		order,		/* in: order criterion; 0 means an
-					ascending order */
 	ulint		prefix_len)	/* in: 0 or the column prefix length
 					in a MySQL index like
 					INDEX (textcol(25)) */
 {
 	dict_field_t*	field;
-	
+
 	ut_ad(index && name);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	
+
 	index->n_def++;
 
-	field = dict_index_get_nth_field(index, index->n_def - 1);	
+	field = dict_index_get_nth_field(index, index->n_def - 1);
 
 	field->name = name;
-	field->order = order;
-
 	field->prefix_len = prefix_len;
 }
 

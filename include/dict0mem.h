@@ -29,12 +29,9 @@ Created 1/8/1996 Heikki Tuuri
 combination of types */
 #define DICT_CLUSTERED	1	/* clustered index */
 #define DICT_UNIQUE	2	/* unique index */
-#define	DICT_UNIVERSAL 	4	/* index which can contain records from any
+#define	DICT_UNIVERSAL	4	/* index which can contain records from any
 				other index */
-#define	DICT_IBUF 	8	/* insert buffer tree */
-				
-/* Flags for ordering an index field: OR'ing of the flags allowed */
-#define	DICT_DESCEND	1	/* in descending order (default ascending) */
+#define	DICT_IBUF	8	/* insert buffer tree */
 
 /* Types for a table object */
 #define DICT_TABLE_ORDINARY		1
@@ -116,8 +113,6 @@ dict_mem_index_add_field(
 /*=====================*/
 	dict_index_t*	index,		/* in: index */
 	const char*	name,		/* in: column name */
-	ulint		order,		/* in: order criterion; 0 means an
-					ascending order */
 	ulint		prefix_len);	/* in: 0 or the column prefix length
 					in a MySQL index like
 					INDEX (textcol(25)) */
@@ -148,7 +143,7 @@ struct dict_col_struct{
 	const char*	name;	/* name */
 	dtype_t		type;	/* data type */
 	dict_table_t*	table;	/* back pointer to table of this column */
-	ulint		aux;	/* this is used as an auxiliary variable 
+	ulint		aux;	/* this is used as an auxiliary variable
 				in some of the functions below */
 };
 
@@ -163,8 +158,6 @@ UTF-8 charset. In that charset, a character may take at most 3 bytes. */
 struct dict_field_struct{
 	dict_col_t*	col;		/* pointer to the table column */
 	const char*	name;		/* name of the column */
-	ulint		order;		/* flags for ordering this field:
-					DICT_DESCEND, ... */
 	ulint		prefix_len;	/* 0 or the length of the column
 					prefix in bytes in a MySQL index of
 					type, e.g., INDEX (textcol(25));
@@ -276,7 +269,7 @@ struct dict_foreign_struct{
 					constraint is defined: we allow the
 					indexes to contain more fields than
 					mentioned in the constraint, as long
-					as the first fields are as mentioned */ 
+					as the first fields are as mentioned */
 	dict_index_t*	foreign_index;	/* foreign index; we require that
 					both tables contain explicitly defined
 					indexes for the constraint: InnoDB
@@ -342,7 +335,7 @@ struct dict_table_struct{
 				which refer to this table */
 	UT_LIST_NODE_T(dict_table_t)
 			table_LRU; /* node of the LRU list of tables */
-	ulint		mem_fix;/* count of how many times the table 
+	ulint		mem_fix;/* count of how many times the table
 				and its indexes has been fixed in memory;
 				currently NOT used */
 	ulint		n_mysql_handles_opened;
@@ -405,9 +398,9 @@ struct dict_table_struct{
 				database pages */
 	ulint		stat_sum_of_other_index_sizes;
 				/* other indexes in database pages */
-	ibool           stat_initialized; /* TRUE if statistics have
+	ibool		stat_initialized; /* TRUE if statistics have
 				been calculated the first time
-			        after database startup or table creation */
+				after database startup or table creation */
 	ulint		stat_modified_counter;
 				/* when a row is inserted, updated, or deleted,
 				we add 1 to this number; we calculate new
@@ -429,11 +422,11 @@ struct dict_table_struct{
 				inited; MySQL gets the init value by executing
 				SELECT MAX(auto inc column) */
 	ib_longlong	autoinc;/* autoinc counter value to give to the
-				next inserted row */	
+				next inserted row */
 	ulint		magic_n;/* magic number */
 };
 #define	DICT_TABLE_MAGIC_N	76333786
-					
+
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"
 #endif

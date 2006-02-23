@@ -1,14 +1,14 @@
 /*   Innobase relational database engine; Copyright (C) 2001 Innobase Oy
-     
+
      This program is free software; you can redistribute it and/or modify
      it under the terms of the GNU General Public License 2
      as published by the Free Software Foundation in June 1991.
-     
+
      This program is distributed in the hope that it will be useful,
      but WITHOUT ANY WARRANTY; without even the implied warranty of
      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
      GNU General Public License for more details.
-     
+
      You should have received a copy of the GNU General Public License 2
      along with this program (in file COPYING); if not, write to the Free
      Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
@@ -56,14 +56,14 @@ Created 11/5/1995 Heikki Tuuri
 /* Magic value to use instead of checksums when they are disabled */
 #define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
 
-extern buf_pool_t* 	buf_pool; 	/* The buffer pool of the database */
+extern buf_pool_t*	buf_pool;	/* The buffer pool of the database */
 #ifdef UNIV_DEBUG
 extern ibool		buf_debug_prints;/* If this is set TRUE, the program
 					prints info whenever read or flush
 					occurs */
 #endif /* UNIV_DEBUG */
 extern ulint srv_buf_pool_write_requests; /* variable to count write request
-                                          issued */
+					  issued */
 
 /************************************************************************
 Creates the buffer pool. */
@@ -135,7 +135,7 @@ buf_frame_copy(
 NOTE! The following macros should be used instead of buf_page_get_gen,
 to improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed
 in LA! */
-#define buf_page_get(SP, OF, LA, MTR)    buf_page_get_gen(\
+#define buf_page_get(SP, OF, LA, MTR)	 buf_page_get_gen(\
 				SP, OF, LA, NULL,\
 				BUF_GET, __FILE__, __LINE__, MTR)
 /******************************************************************
@@ -144,13 +144,13 @@ read the contents of the page unless you know it is safe. Do not modify
 the contents of the page! We have separated this case, because it is
 error-prone programming not to set a latch, and it should be used
 with care. */
-#define buf_page_get_with_no_latch(SP, OF, MTR)    buf_page_get_gen(\
+#define buf_page_get_with_no_latch(SP, OF, MTR)	   buf_page_get_gen(\
 				SP, OF, RW_NO_LATCH, NULL,\
 				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of buf_page_get_gen, to
 improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
-#define buf_page_get_nowait(SP, OF, LA, MTR)    buf_page_get_gen(\
+#define buf_page_get_nowait(SP, OF, LA, MTR)	buf_page_get_gen(\
 				SP, OF, LA, NULL,\
 				BUF_GET_NOWAIT, __FILE__, __LINE__, MTR)
 /******************************************************************
@@ -267,7 +267,7 @@ the buffer pool. */
 
 void
 buf_page_make_young(
-/*=================*/
+/*================*/
 	buf_frame_t*	frame);	/* in: buffer frame of a file page */
 /************************************************************************
 Returns TRUE if the page can be found in the buffer pool hash table. NOTE
@@ -381,7 +381,7 @@ buf_block_modify_clock_inc(
 				/* out: new value */
 	buf_block_t*	block);	/* in: block */
 /************************************************************************
-Returns the value of the modify clock. The caller must have an s-lock 
+Returns the value of the modify clock. The caller must have an s-lock
 or x-lock on the block. */
 UNIV_INLINE
 dulint
@@ -397,12 +397,12 @@ on 32-bit and 64-bit architectures. */
 ulint
 buf_calc_page_new_checksum(
 /*=======================*/
-		       /* out: checksum */
-	byte*   page); /* in: buffer page */
+			/* out: checksum */
+	byte*	page);	/* in: buffer page */
 /************************************************************************
 In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
 looked at the first few bytes of the page. This calculates that old
-checksum. 
+checksum.
 NOTE: we must first store the new formula checksum to
 FIL_PAGE_SPACE_OR_CHKSUM before calculating and storing this old checksum
 because this takes that field as an input! */
@@ -410,8 +410,8 @@ because this takes that field as an input! */
 ulint
 buf_calc_page_old_checksum(
 /*=======================*/
-		       /* out: checksum */
-	byte*    page); /* in: buffer page */
+			/* out: checksum */
+	byte*	 page);	/* in: buffer page */
 /************************************************************************
 Checks if a page is corrupt. */
 
@@ -657,7 +657,7 @@ Sets the io_fix flag to BUF_IO_READ and sets a non-recursive exclusive lock
 on the buffer frame. The io-handler must take care that the flag is cleared
 and the lock released later. This is one of the functions which perform the
 state transition NOT_USED => FILE_PAGE to a block (the other is
-buf_page_create). */ 
+buf_page_create). */
 
 buf_block_t*
 buf_page_init_for_read(
@@ -713,7 +713,7 @@ buf_get_free_list_len(void);
 /*=======================*/
 
 
-			
+
 /* The buffer control block structure */
 
 struct buf_block_struct{
@@ -827,7 +827,7 @@ struct buf_block_struct{
 
 	/* 5. Hash search fields: NOTE that the first 4 fields are NOT
 	protected by any semaphore! */
-	
+
 	ulint		n_hash_helps;	/* counter which controls building
 					of a new hash index for the page */
 	ulint		n_fields;	/* recommended prefix length for hash
@@ -839,7 +839,7 @@ struct buf_block_struct{
 					whether the leftmost record of several
 					records with the same prefix should be
 					indexed in the hash index */
-					
+
 	/* These 6 fields may only be modified when we have
 	an x-latch on btr_search_latch AND
 	a) we are holding an s-latch or x-latch on block->lock or
@@ -875,9 +875,9 @@ struct buf_block_struct{
 					an s-latch here; so we can use the
 					debug utilities in sync0rw */
 #endif
-        ibool           file_page_was_freed;
-                                        /* this is set to TRUE when fsp
-                                        frees a page in buffer pool */
+	ibool		file_page_was_freed;
+					/* this is set to TRUE when fsp
+					frees a page in buffer pool */
 };
 
 #define BUF_BLOCK_MAGIC_N	41526563
@@ -989,7 +989,7 @@ struct buf_pool_struct{
 					physical memory is mapped to a frame */
 	UT_LIST_BASE_NODE_T(buf_block_t) LRU;
 					/* base node of the LRU list */
-	buf_block_t*	LRU_old; 	/* pointer to the about 3/8 oldest
+	buf_block_t*	LRU_old;	/* pointer to the about 3/8 oldest
 					blocks in the LRU list; NULL if LRU
 					length less than BUF_LRU_OLD_MIN_LEN */
 	ulint		LRU_old_len;	/* length of the LRU list from
@@ -1031,8 +1031,8 @@ MEMORY:		is not in free list, LRU list, or flush list, nor page
 FILE_PAGE:	space and offset are defined, is in page hash table
 		if io_fix == BUF_IO_WRITE,
 			pool: no_flush[block->flush_type] is in reset state,
-			pool: n_flush[block->flush_type] > 0			
-		
+			pool: n_flush[block->flush_type] > 0
+
 		(1) if buf_fix_count == 0, then
 			is in LRU list, not in free list
 			is in flush list,
@@ -1041,23 +1041,23 @@ FILE_PAGE:	space and offset are defined, is in page hash table
 				if and only if io_fix == BUF_IO_READ
 			is s-locked,
 				if and only if io_fix == BUF_IO_WRITE
-						
+
 		(2) if buf_fix_count > 0, then
 			is not in LRU list, not in free list
 			is in flush list,
 				if and only if oldest_modification > 0
-			if io_fix == BUF_IO_READ,		
+			if io_fix == BUF_IO_READ,
 				is x-locked
 			if io_fix == BUF_IO_WRITE,
 				is s-locked
-			
+
 State transitions:
 
 NOT_USED => READY_FOR_USE
 READY_FOR_USE => MEMORY
 READY_FOR_USE => FILE_PAGE
 MEMORY => NOT_USED
-FILE_PAGE => NOT_USED	NOTE: This transition is allowed if and only if 
+FILE_PAGE => NOT_USED	NOTE: This transition is allowed if and only if
 				(1) buf_fix_count == 0,
 				(2) oldest_modification == 0, and
 				(3) io_fix == 0.

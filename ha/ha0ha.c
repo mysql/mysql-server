@@ -42,7 +42,7 @@ ha_create(
 
 	/* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
 	but in practise it never should in this case, hence the asserts. */
-	
+
 	if (n_mutexes == 0) {
 		if (in_btr_search) {
 			table->heap = mem_heap_create_in_btr_search(4096);
@@ -53,7 +53,7 @@ ha_create(
 
 		return(table);
 	}
-	
+
 	hash_create_mutexes(table, n_mutexes, mutex_level);
 
 	table->heaps = mem_alloc(n_mutexes * sizeof(void*));
@@ -66,7 +66,7 @@ ha_create(
 			table->heaps[i] = mem_heap_create_in_buffer(4096);
 		}
 	}
-	
+
 	return(table);
 }
 
@@ -119,7 +119,7 @@ ha_insert_for_fold(
 
 		prev_node = prev_node->next;
 	}
-	
+
 	/* We have to allocate a new chain node */
 
 	node = mem_heap_alloc(hash_get_heap(table, fold), sizeof(ha_node_t));
@@ -132,7 +132,7 @@ ha_insert_for_fold(
 
 		return(FALSE);
 	}
-	
+
 	ha_node_set_data(node, data);
 
 	if (table->adaptive) {
@@ -151,7 +151,7 @@ ha_insert_for_fold(
 
 		return(TRUE);
 	}
-		
+
 	while (prev_node->next != NULL) {
 
 		prev_node = prev_node->next;
@@ -160,7 +160,7 @@ ha_insert_for_fold(
 	prev_node->next = node;
 
 	return(TRUE);
-}	
+}
 
 /***************************************************************
 Deletes a hash node. */
@@ -200,7 +200,7 @@ ha_delete(
 	ut_a(node);
 
 	ha_delete_hash_node(table, node);
-}	
+}
 
 /*************************************************************
 Looks for an element when we know the pointer to the data, and updates
@@ -269,7 +269,7 @@ ha_remove_all_nodes_to_page(
 	}
 #ifdef UNIV_DEBUG
 	/* Check that all nodes really got deleted */
-	
+
 	node = ha_chain_get_first(table, fold);
 
 	while (node) {
@@ -322,7 +322,7 @@ ha_validate(
 	}
 
 	return(ok);
-}	
+}
 
 /*****************************************************************
 Prints info of a hash table. */
@@ -362,7 +362,7 @@ ha_print_info(
 		if (table->heap->free_block) {
 			n_bufs++;
 		}
-				
+
 		fprintf(file, ", node heap has %lu buffer(s)\n", (ulong) n_bufs);
 	}
-}	
+}

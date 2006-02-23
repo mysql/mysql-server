@@ -77,7 +77,7 @@ Gets a iboolean value from a query node. */
 UNIV_INLINE
 ibool
 eval_node_get_ibool_val(
-/*===================*/
+/*====================*/
 				/* out: iboolean value */
 	que_node_t*	node);	/* in: query graph node */
 /*********************************************************************
@@ -94,4 +94,4 @@ eval_cmp(
 #include "eval0eval.ic"
 #endif
 
-#endif 
+#endif

@@ -118,13 +118,13 @@ trx_rseg_create(
 /* The rollback segment memory object */
 struct trx_rseg_struct{
 	/*--------------------------------------------------------*/
-	ulint		id;	/* rollback segment id == the index of 
+	ulint		id;	/* rollback segment id == the index of
 				its slot in the trx system file copy */
 	mutex_t		mutex;	/* mutex protecting the fields in this
 				struct except id; NOTE that the latching
 				order must always be kernel mutex ->
 				rseg mutex */
-	ulint		space;	/* space where the rollback segment is 
+	ulint		space;	/* space where the rollback segment is
 				header is placed */
 	ulint		page_no;/* page number of the rollback segment
 				header */
@@ -190,4 +190,4 @@ struct trx_rseg_struct{
 #include "trx0rseg.ic"
 #endif
 
-#endif 
+#endif
