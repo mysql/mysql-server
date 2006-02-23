@@ -231,88 +231,29 @@ page_set_max_trx_id(
 }
 
 /****************************************************************
-Allocates a block of memory from an index page. */
+Allocates a block of memory from the heap of an index page. */
 
 byte*
-page_mem_alloc(
-/*===========*/
+page_mem_alloc_heap(
+/*================*/
 				/* out: pointer to start of allocated
 				buffer, or NULL if allocation fails */
 	page_t*		page,	/* in/out: index page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
-	ulint		need,	/* in: number of bytes needed */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		heap_no,/* out: this contains the heap number
+	page_zip_des_t*	page_zip,/* in/out: compressed page with enough
+				space available for inserting the record,
+				or NULL */
+	ulint		need,	/* in: total number of bytes needed */
+	ulint*		heap_no)/* out: this contains the heap number
 				of the allocated record
 				if allocation succeeds */
-	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL
-				if page_zip == NULL */
 {
-	rec_t*	rec;
 	byte*	block;
 	ulint	avl_space;
-	ulint	garbage;
-	
+
 	ut_ad(page && heap_no);
 
-	/* TODO: add parameter n_extra */
-
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		ut_ad(page_is_comp(page));
-		ut_ad(page_zip_validate(page_zip, page));
-
-		if (!page_zip_alloc(page_zip, page, index, mtr, need, 1)) {
-
-			return(NULL);
-		}
-	}
-
-	/* If there are records in the free list, look if the first is
-	big enough */
-
-	rec = page_header_get_ptr(page, PAGE_FREE);
-
-	if (rec) {
-		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		ulint*		offsets		= offsets_;
-		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
-
-		offsets = rec_get_offsets(rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
-
-		if (rec_offs_size(offsets) >= need) {
-			page_header_set_ptr(page, page_zip, PAGE_FREE,
-				page_rec_get_next(rec));
-
-			garbage = page_header_get_field(page, PAGE_GARBAGE);
-			ut_ad(garbage >= need);
-
-			page_header_set_field(page, page_zip, PAGE_GARBAGE,
-							garbage - need);
-
-			if (page_is_comp(page)) {
-				*heap_no = rec_get_heap_no_new(rec);
-			} else {
-				*heap_no = rec_get_heap_no_old(rec);
-			}
-
-			block = rec_get_start(rec, offsets);
-			if (UNIV_LIKELY_NULL(heap)) {
-				mem_heap_free(heap);
-			}
-			return(block);
-		}
-
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
-	}
-
-	/* Could not find space from the free list, try top of heap */
-	
 	avl_space = page_get_max_insert_size(page, 1);
-	
+
 	if (avl_space >= need) {
 		block = page_header_get_ptr(page, PAGE_HEAP_TOP);
 

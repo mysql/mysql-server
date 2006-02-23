@@ -1630,8 +1630,9 @@ page_zip_validate(
 	page_t*		temp_page = buf_frame_alloc();
 	ibool		valid;
 
-	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)page))
+	ut_a(buf_block_get_page_zip(buf_block_align((byte*)page))
 		== page_zip);
+	ut_a(page_is_comp((page_t*) page));
 
 	valid = page_zip_decompress(&temp_page_zip, temp_page, NULL)
 				&& !memcmp(page, temp_page,
