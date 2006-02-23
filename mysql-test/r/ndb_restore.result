@@ -127,7 +127,7 @@ create table t8 engine=myisam as select * from t8_c;
 create table t9 engine=myisam as select * from t9_c;
 CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 DELETE FROM test.backup_info;
-LOAD DATA INFILE '../../var/tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 SELECT @the_backup_id:=backup_id FROM test.backup_info;
 @the_backup_id:=backup_id
 <the_backup_id>
@@ -250,7 +250,7 @@ ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
 CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 DELETE FROM test.backup_info;
-LOAD DATA INFILE '../../var/tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 SELECT @the_backup_id:=backup_id FROM test.backup_info;
 @the_backup_id:=backup_id
 <the_backup_id>
