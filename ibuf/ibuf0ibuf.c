@@ -140,8 +140,7 @@ access order rules. */
 /* The insert buffer control structure */
 ibuf_t*	ibuf			= NULL;
 
-static
-ulint	ibuf_rnd		= 986058871;
+static ulint ibuf_rnd		= 986058871;
 
 ulint	ibuf_flush_count	= 0;
 
