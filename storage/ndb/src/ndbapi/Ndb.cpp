@@ -1200,7 +1200,7 @@ Ndb::internalize_index_name(const NdbTableImpl * table,
   if (!table)
   {
     DBUG_PRINT("error", ("!table"));
-    return ret;
+    DBUG_RETURN(ret);
   }
 
   if (fullyQualifiedNames)
