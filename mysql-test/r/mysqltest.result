@@ -224,7 +224,7 @@ mysqltest: At line 1: Missing variable name in let
 mysqltest: At line 1: Variable name in hi=hi does not start with '$'
 mysqltest: At line 1: Missing assignment operator in let
 mysqltest: At line 1: Missing assignment operator in let
-mysqltest: At line 1: Missing arguments to let
+mysqltest: At line 1: Missing assignment operator in let
 mysqltest: At line 1: Missing variable name in let
 mysqltest: At line 1: Variable name in =hi does not start with '$'
 mysqltest: At line 1: Missing assignment operator in let
