@@ -889,10 +889,9 @@ page_cur_insert_rec_low(
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
-	dtuple_t*	tuple,	/* in: pointer to a data tuple or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
-	rec_t*		rec,	/* in: pointer to a physical record or NULL */
-	ulint*		offsets,/* in: rec_get_offsets(rec, index) or NULL */
+	rec_t*		rec,	/* in: pointer to a physical record */
+	ulint*		offsets,/* in: rec_get_offsets(rec, index) */
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
@@ -905,12 +904,9 @@ page_cur_insert_rec_low(
 	ulint		heap_no;	/* heap number of the inserted record */
 	rec_t*		current_rec;	/* current record after which the
 					new record is inserted */
-	mem_heap_t*	heap		= NULL;
 
 	ut_ad(cursor && mtr);
-	ut_ad(tuple || rec);
-	ut_ad(!(tuple && rec));
-	ut_ad(rec || dtuple_check_typed(tuple));
+	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	page = page_cur_get_page(cursor);
 	ut_ad(index->table->comp == (ibool) !!page_is_comp(page));
@@ -918,39 +914,87 @@ page_cur_insert_rec_low(
 	ut_ad(!page_rec_is_supremum(cursor->rec));
 
 	/* 1. Get the size of the physical record in the page */
-	if (tuple != NULL) {
-		rec_size = rec_get_converted_size(index, tuple);
-	} else {
-		if (!offsets) {
-			offsets = rec_get_offsets(rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
-		}
-		ut_ad(rec_offs_validate(rec, index, offsets));
-		rec_size = rec_offs_size(offsets);
-	}
+	rec_size = rec_offs_size(offsets);
 
 	/* 2. Try to find suitable space from page memory management */
-	insert_buf = page_mem_alloc(page, page_zip, rec_size,
-				index, &heap_no, mtr);
+	if (UNIV_LIKELY_NULL(page_zip)
+	    && !page_zip_alloc(page_zip, page, index, mtr, rec_size, 1)) {
 
-	if (UNIV_UNLIKELY(insert_buf == NULL)) {
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
 		return(NULL);
 	}
 
-	/* 3. Create the record */
-	if (tuple != NULL) {
-		insert_rec = rec_convert_dtuple_to_rec(insert_buf,
-							index, tuple);
-		offsets = rec_get_offsets(insert_rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
+	insert_buf = page_header_get_ptr(page, PAGE_FREE);
+	if (insert_buf) {
+		/* Try to allocate from the head of the free list. */
+		rec_t*		free_rec	= insert_buf;
+		ulint		foffsets_[REC_OFFS_NORMAL_SIZE];
+		ulint*		foffsets	= foffsets_;
+		mem_heap_t*	heap		= NULL;
+
+		*foffsets = sizeof(foffsets_) / sizeof *foffsets_;
+
+		foffsets = rec_get_offsets(free_rec, index, foffsets,
+					ULINT_UNDEFINED, &heap);
+		if (rec_offs_size(foffsets) < rec_size) {
+too_small:
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
+			}
+
+			goto use_heap;
+		}
+
+		insert_buf -= rec_offs_extra_size(foffsets);
+
+		if (page_is_comp(page)) {
+			if (UNIV_LIKELY_NULL(page_zip)) {
+				/* On compressed pages, records from
+				the free list may only be relocated so
+				that extra_size will not decrease. */
+				lint	extra_size_diff
+					= rec_offs_extra_size(offsets)
+					- rec_offs_extra_size(foffsets);
+				if (UNIV_UNLIKELY(extra_size_diff < 0)) {
+					/* Add an offset to the extra_size. */
+					if (rec_offs_size(foffsets)
+					    < rec_size - extra_size_diff) {
+
+						goto too_small;
+					}
+
+					insert_buf -= extra_size_diff;
+				}
+			}
+
+			heap_no = rec_get_heap_no_new(free_rec);
+			page_mem_alloc_free(page, page_zip,
+					rec_get_next_ptr(free_rec, TRUE),
+					rec_size);
+		} else {
+			ut_ad(!page_zip);
+			heap_no = rec_get_heap_no_old(free_rec);
+			page_mem_alloc_free(page, NULL,
+					rec_get_next_ptr(free_rec, FALSE),
+					rec_size);
+		}
+
+		if (UNIV_LIKELY_NULL(heap)) {
+			mem_heap_free(heap);
+		}
 	} else {
-		insert_rec = rec_copy(insert_buf, rec, offsets);
-		ut_ad(rec_offs_validate(rec, index, offsets));
-		rec_offs_make_valid(insert_rec, index, offsets);
+use_heap:
+		insert_buf = page_mem_alloc_heap(
+				page, page_zip, rec_size, &heap_no);
+
+		if (UNIV_UNLIKELY(insert_buf == NULL)) {
+			return(NULL);
+		}
 	}
+
+	/* 3. Create the record */
+	insert_rec = rec_copy(insert_buf, rec, offsets);
+	ut_ad(rec_offs_validate(rec, index, offsets));
+	rec_offs_make_valid(insert_rec, index, offsets);
 
 	ut_ad(insert_rec);
 	ut_ad(rec_size == rec_offs_size(offsets));
@@ -1059,9 +1103,6 @@ page_cur_insert_rec_low(
 	page_cur_insert_rec_write_log(insert_rec, rec_size, current_rec,
 				index, mtr);
 	
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
 	return(insert_rec);
 }
 

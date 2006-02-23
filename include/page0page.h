@@ -558,22 +558,35 @@ page_get_data_size(
 			/* out: data in bytes */
 	page_t*	page);	/* in: index page */
 /****************************************************************
-Allocates a block of memory from an index page. */
+Allocates a block of memory from the head of the free list
+of an index page. */
+UNIV_INLINE
+void
+page_mem_alloc_free(
+/*================*/
+	page_t*		page,	/* in/out: index page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with enough
+				space available for inserting the record,
+				or NULL */
+	rec_t*		next_rec,/* in: pointer to the new head of the
+				free record list */
+	ulint		need);	/* in: number of bytes allocated */
+/****************************************************************
+Allocates a block of memory from the heap of an index page. */
 
 byte*
-page_mem_alloc(
-/*===========*/
+page_mem_alloc_heap(
+/*================*/
 				/* out: pointer to start of allocated
 				buffer, or NULL if allocation fails */
 	page_t*		page,	/* in/out: index page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
-	ulint		need,	/* in: number of bytes needed */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		heap_no,/* out: this contains the heap number
+	page_zip_des_t*	page_zip,/* in/out: compressed page with enough
+				space available for inserting the record,
+				or NULL */
+	ulint		need,	/* in: total number of bytes needed */
+	ulint*		heap_no);/* out: this contains the heap number
 				of the allocated record
 				if allocation succeeds */
-	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL
-				if page_zip == NULL */
 /****************************************************************
 Puts a record to free list. */
 UNIV_INLINE

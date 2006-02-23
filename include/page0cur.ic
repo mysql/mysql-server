@@ -188,8 +188,22 @@ page_cur_tuple_insert(
 	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
-	return(page_cur_insert_rec_low(cursor, page_zip, tuple,
-					index, NULL, NULL, ext, n_ext, mtr));
+	mem_heap_t*	heap;
+	ulint*		offsets;
+	ulint		size	= rec_get_converted_size(index, tuple);
+	rec_t*		rec;
+
+	heap = mem_heap_create(size
+		+ (4 + REC_OFFS_HEADER_SIZE + dtuple_get_n_fields(tuple))
+		* sizeof *offsets);
+	rec = rec_convert_dtuple_to_rec(
+			mem_heap_alloc(heap, size), index, tuple);
+	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+
+	rec = page_cur_insert_rec_low(cursor, page_zip,
+					index, rec, offsets, ext, n_ext, mtr);
+	mem_heap_free(heap);
+	return(rec);
 }
 
 /***************************************************************
@@ -209,7 +223,7 @@ page_cur_rec_insert(
 	ulint*		offsets,/* in: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
-	return(page_cur_insert_rec_low(cursor, page_zip, NULL,
+	return(page_cur_insert_rec_low(cursor, page_zip,
 					index, rec, offsets, NULL, 0, mtr));
 }
 

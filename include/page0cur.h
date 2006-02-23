@@ -165,10 +165,9 @@ page_cur_insert_rec_low(
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
-	dtuple_t*	tuple,	/* in: pointer to a data tuple or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
-	rec_t*		rec,	/* in: pointer to a physical record or NULL */
-	ulint*		offsets,/* in: rec_get_offsets(rec, index) or NULL */
+	rec_t*		rec,	/* in: pointer to a physical record */
+	ulint*		offsets,/* in: rec_get_offsets(rec, index) */
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
