@@ -630,6 +630,9 @@ CREATE TABLE event (
 # EVENT privilege
 #
 
+SET @hadEventPriv := 0;
+SELECT @hadEventPriv :=1 FROM user WHERE Event_priv LIKE '%';
+
 ALTER TABLE user add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
 ALTER TABLE db add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
 ALTER TABLE event DROP PRIMARY KEY;
@@ -666,6 +669,8 @@ ALTER TABLE event ADD sql_mode
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE'
                             ) DEFAULT '' NOT NULL AFTER on_completion;
+
+UPDATE user SET Event_priv=Super_priv WHERE @hadEventPriv = 0;
 
 --
 -- TRIGGER privilege
