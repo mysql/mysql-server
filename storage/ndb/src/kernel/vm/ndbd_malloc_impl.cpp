@@ -557,13 +557,13 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i)
 }
 
 void
-Ndbd_mem_manager::release_page(Uint32 type, Uint32 i, void * p)
+Ndbd_mem_manager::release_page(Uint32 type, Uint32 i)
 {
   Uint32 idx = type & RG_MASK;
   assert(idx && idx < XX_RL_COUNT);
   Resource_limit tot = m_resource_limit[0];
   Resource_limit rl = m_resource_limit[idx];
-
+  
   Uint32 sub = (rl.m_curr < rl.m_min) ? 0 : 1; // Over min ?
   release(i, 1);
   m_resource_limit[0].m_curr = tot.m_curr - sub;
