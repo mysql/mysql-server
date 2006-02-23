@@ -68,8 +68,8 @@ sync_slave_with_master;
 
 connection master;
 
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > ./var/tmp/sp006_master.sql
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > ./var/tmp/sp006_slave.sql
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/sp006_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/sp006_slave.sql
 
 
 DROP PROCEDURE IF EXISTS mysqltest1.p1;
@@ -81,9 +81,9 @@ DROP TABLE IF EXISTS mysqltest1.t2;
 # the test will show that the diff statement failed and not reject file
 # will be created. You will need to go to the mysql-test dir and diff
 # the files your self to see what is not matching :-) Failed test 
-# Dump files will be located in mysql-test/var/tmp.
+# Dump files will be located in $MYSQLTEST_VARDIR/tmp.
 
-exec diff ./var/tmp/sp006_master.sql ./var/tmp/sp006_slave.sql;
+exec diff $MYSQLTEST_VARDIR/tmp/sp006_master.sql $MYSQLTEST_VARDIR/tmp/sp006_slave.sql;
 
 sync_slave_with_master;
 

@@ -6,13 +6,13 @@
 
 # there is no neat way to find the backupid, this is a hack to find it...
 
---exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > var/tmp.dat
+--exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > $MYSQLTEST_VARDIR/tmp.dat
 
 CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 
 DELETE FROM test.backup_info;
 
-LOAD DATA INFILE '../../var/tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
 
 --replace_column 1 <the_backup_id>
 
