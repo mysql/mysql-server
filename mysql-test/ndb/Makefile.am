@@ -1,4 +1,6 @@
 
+BUILT_SOURCES =		ndbcluster
+
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test/ndb
 

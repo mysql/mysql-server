@@ -46,7 +46,7 @@ show tables;
 use test;
 select * from t1;
 
-system rm  var/master-data/mysqltest1/f1.txt;
+system rm  $MYSQLTEST_VARDIR/master-data/mysqltest1/f1.txt;
 connection master;
 DROP DATABASE mysqltest1;
 sync_slave_with_master;

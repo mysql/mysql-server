@@ -1,11 +1,16 @@
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 
-ADD_DEFINITIONS(-DUSE_TLS -DMYSQL_CLIENT)
+# The old Windows build method used renamed (.cc -> .cpp) source files, fails
+# in #include in mysqlbinlog.cc. So disable that using the USING_CMAKE define.
+ADD_DEFINITIONS(-DUSE_TLS -DUSING_CMAKE)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
                     ${CMAKE_SOURCE_DIR}/zlib 
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include 
-                    ${CMAKE_SOURCE_DIR}/libmysql)
+                    ${CMAKE_SOURCE_DIR}/libmysql
+                    ${CMAKE_SOURCE_DIR}/regex
+                    ${CMAKE_SOURCE_DIR}/sql
+                    ${CMAKE_SOURCE_DIR}/strings)
 
 ADD_LIBRARY(mysqlclient ../mysys/array.c ../strings/bchange.c ../strings/bmove.c 
                         ../strings/bmove_upp.c ../mysys/charset-def.c ../mysys/charset.c
@@ -47,3 +52,26 @@ ADD_DEPENDENCIES(mysqlclient GenError)
 ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)
 LINK_DIRECTORIES(${MYSQL_BINARY_DIR}/mysys ${MYSQL_BINARY_DIR}/zlib)
 TARGET_LINK_LIBRARIES(mysql mysqlclient mysys yassl zlib dbug yassl  taocrypt wsock32)
+
+ADD_EXECUTABLE(mysqltest mysqltest.c)
+TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys yassl zlib dbug regex wsock32)
+
+ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
+TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient dbug yassl zlib wsock32)
+
+ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c)
+TARGET_LINK_LIBRARIES(mysqldump mysqlclient mysys dbug yassl zlib wsock32)
+
+ADD_EXECUTABLE(mysqlimport mysqlimport.c)
+TARGET_LINK_LIBRARIES(mysqlimport mysqlclient mysys dbug yassl zlib wsock32)
+
+ADD_EXECUTABLE(mysqlshow mysqlshow.c)
+TARGET_LINK_LIBRARIES(mysqlshow mysqlclient mysys dbug yassl zlib wsock32)
+
+ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc ../mysys/mf_tempdir.c ../mysys/my_new.cc
+                           ../mysys/my_bit.c ../mysys/my_bitmap.c ../mysys/my_vle.c
+                           ../mysys/base64.c)
+TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient dbug yassl zlib wsock32)
+
+ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
+TARGET_LINK_LIBRARIES(mysqladmin mysqlclient mysys dbug yassl zlib wsock32)
