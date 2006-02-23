@@ -2151,6 +2151,7 @@ dict_foreign_find_index(
 	InnoDB Hot Backup builds.  Besides, this function should never
 	be called in InnoDB Hot Backup. */
 	ut_error;
+	return(NULL);
 #endif /* UNIV_HOTBACKUP */
 }
 
@@ -2548,6 +2549,7 @@ dict_scan_col(
 	InnoDB Hot Backup builds.  Besides, this function should never
 	be called in InnoDB Hot Backup. */
 	ut_error;
+	return(NULL);
 #endif /* UNIV_HOTBACKUP */
 }
 
@@ -2653,6 +2655,7 @@ dict_scan_table_name(
 	InnoDB Hot Backup builds.  Besides, this function should never
 	be called in InnoDB Hot Backup. */
 	ut_error;
+	return(NULL);
 #endif /* UNIV_HOTBACKUP */
 }
 
