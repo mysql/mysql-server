@@ -48,7 +48,6 @@ sess_open(void)
 
 /*************************************************************************
 Closes a session, freeing the memory occupied by it. */
-
 static
 void
 sess_close(
