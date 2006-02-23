@@ -33,6 +33,8 @@
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
 
+#include <record_types.hpp>
+
 /**
  * ---<a>-----<b>-----<c>-----<d>---> (time)
  *
@@ -95,7 +97,6 @@ Lgman::Lgman(Block_context & ctx) :
   m_logfile_group_hash.setSize(10);
   m_file_pool.setSize(10);
   m_data_buffer_pool.setSize(10);
-  m_log_waiter_pool.setSize(10000);
 }
   
 Lgman::~Lgman()
@@ -117,6 +118,10 @@ Lgman::execREAD_CONFIG_REQ(Signal* signal)
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
+
+  Pool_context pc;
+  pc.m_block = this;
+  m_log_waiter_pool.wo_pool_init(RT_LGMAN_LOG_WAITER, pc);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -271,9 +276,9 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
       if (!ptr.p->m_log_buffer_waiters.isEmpty())
       {
 	Uint32 free_buffer= ptr.p->m_free_buffer_words;
-	LocalDLFifoList<Log_waiter> 
-	  list(m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
 	Ptr<Log_waiter> waiter;
+	Local_log_waiter_list 
+	  list(m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
 	list.first(waiter);
 	infoEvent("  free_buffer_words: %d head(waiters).sz: %d %d",
 		  ptr.p->m_free_buffer_words,
@@ -282,13 +287,21 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
       }
       if (!ptr.p->m_log_sync_waiters.isEmpty())
       {
-	LocalDLFifoList<Log_waiter> 
-	  list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
 	Ptr<Log_waiter> waiter;
+	Local_log_waiter_list 
+	  list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
 	list.first(waiter);
-	infoEvent("  m_last_synced_lsn: %lld: %d head(waiters).m_sync_lsn: %lld",
+	infoEvent("  m_last_synced_lsn: %lld head(waiters %x).m_sync_lsn: %lld",
 		  ptr.p->m_last_synced_lsn,
+		  waiter.i,
 		  waiter.p->m_sync_lsn);
+	
+	while(!waiter.isNull())
+	{
+	  ndbout_c("ptr: %x %p lsn: %lld next: %x", 
+		   waiter.i, waiter.p, waiter.p->m_sync_lsn, waiter.p->nextList);
+	  list.next(waiter);
+	}
       }
       m_logfile_group_list.next(ptr);
     }
@@ -1031,7 +1044,7 @@ Logfile_client::sync_lsn(Signal* signal,
     bool empty= false;
     Ptr<Lgman::Log_waiter> wait;
     {
-      LocalDLFifoList<Lgman::Log_waiter> 
+      Lgman::Local_log_waiter_list
 	list(m_lgman->m_log_waiter_pool, ptr.p->m_log_sync_waiters);
       
       empty= list.isEmpty();
@@ -1065,8 +1078,7 @@ Lgman::force_log_sync(Signal* signal,
 		      Ptr<Logfile_group> ptr, 
 		      Uint32 lsn_hi, Uint32 lsn_lo)
 {
-  LocalDLFifoList<Lgman::Log_waiter> 
-    list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
+  Local_log_waiter_list list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
   Uint64 force_lsn = lsn_hi; force_lsn <<= 32; force_lsn += lsn_lo;
 
   if(ptr.p->m_last_sync_req_lsn < force_lsn)
@@ -1125,7 +1137,7 @@ Lgman::force_log_sync(Signal* signal,
 void
 Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
 {
-  LocalDLFifoList<Log_waiter> 
+  Local_log_waiter_list 
     list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
 
   if(list.isEmpty())
@@ -1144,7 +1156,7 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
     SimulatedBlock* b = globalData.getBlock(block);
     b->execute(signal, waiter.p->m_callback, 0);
 
-    list.release(waiter);
+    list.releaseFirst(waiter);
   }
   
   if(removed && !list.isEmpty())
@@ -1260,7 +1272,7 @@ Logfile_client::get_log_buffer(Signal* signal, Uint32 sz,
     bool empty= false;
     {
       Ptr<Lgman::Log_waiter> wait;
-      LocalDLFifoList<Lgman::Log_waiter> 
+      Lgman::Local_log_waiter_list
 	list(m_lgman->m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
       
       empty= list.isEmpty();
@@ -1486,7 +1498,7 @@ void
 Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
 {
   Uint32 free_buffer= ptr.p->m_free_buffer_words;
-  LocalDLFifoList<Log_waiter> 
+  Local_log_waiter_list 
     list(m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
 
   if(list.isEmpty())
@@ -1505,7 +1517,7 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
     SimulatedBlock* b = globalData.getBlock(block);
     b->execute(signal, waiter.p->m_callback, 0);
 
-    list.release(waiter);
+    list.releaseFirst(waiter);
   }
   
   if(removed && !list.isEmpty())

@@ -131,6 +131,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
 Cmvmi::~Cmvmi()
 {
+  m_shared_page_pool.clear();
 }
 
 
