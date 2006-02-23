@@ -571,6 +571,7 @@ handle_new_error:
 	InnoDB Hot Backup builds.  Besides, this function should never
 	be called in InnoDB Hot Backup. */
 	ut_error;
+	return(FALSE);
 #endif /* UNIV_HOTBACKUP */
 }
 
