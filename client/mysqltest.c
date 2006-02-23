@@ -494,7 +494,8 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name);
 static void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
                                    const char *from, int len);
 void free_pointer_array(POINTER_ARRAY *pa);
-static void do_eval(DYNAMIC_STRING *query_eval, const char *query);
+static void do_eval(DYNAMIC_STRING *query_eval, const char *query,
+                    my_bool pass_through_escape_chars);
 static void str_to_file(const char *fname, char *str, int size);
 
 #ifdef __WIN__
@@ -526,7 +527,8 @@ static void handle_error(const char *query, struct st_query *q,
 			 const char *err_sqlstate, DYNAMIC_STRING *ds);
 static void handle_no_error(struct st_query *q);
 
-static void do_eval(DYNAMIC_STRING* query_eval, const char *query)
+static void do_eval(DYNAMIC_STRING* query_eval, const char *query,
+                    my_bool pass_through_escape_chars)
 {
   const char *p;
   register char c, next_c;
@@ -561,6 +563,12 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char *query)
       {
         /* Set escaped only if next char is \ or $ */
 	escaped = 1;
+
+        if (pass_through_escape_chars)
+        {
+          /* The escape char should be added to the output string. */
+          dynstr_append_mem(query_eval, p, 1);
+        }
       }
       else
 	dynstr_append_mem(query_eval, p, 1);
@@ -750,7 +758,7 @@ static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   init_dynamic_string(&res_ds, "", 0, 65536);
   if (eval_result)
   {
-    do_eval(&res_ds, tmp);
+    do_eval(&res_ds, tmp, FALSE);
     res_ptr = res_ds.str;
     if ((res_len = res_ds.length) != ds->length)
     {
@@ -1145,7 +1153,7 @@ static void do_exec(struct st_query *query)
 
   init_dynamic_string(&ds_cmd, 0, strlen(cmd)+256, 256);
   /* Eval the command, thus replacing all environment variables */
-  do_eval(&ds_cmd, cmd);
+  do_eval(&ds_cmd, cmd, TRUE);
   cmd= ds_cmd.str;
 
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
@@ -1439,7 +1447,7 @@ int do_system(struct st_query *command)
   init_dynamic_string(&ds_cmd, 0, strlen(command->first_argument) + 64, 256);
 
   /* Eval the system command, thus replacing all environment variables */
-  do_eval(&ds_cmd, command->first_argument);
+  do_eval(&ds_cmd, command->first_argument, TRUE);
 
   DBUG_PRINT("info", ("running system command '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
@@ -1490,7 +1498,7 @@ int do_echo(struct st_query *command)
   ds= &ds_res;
 
   init_dynamic_string(&ds_echo, "", 256, 256);
-  do_eval(&ds_echo, command->first_argument);
+  do_eval(&ds_echo, command->first_argument, FALSE);
   dynstr_append_mem(ds, ds_echo.str, ds_echo.length);
   dynstr_append_mem(ds, "\n", 1);
   dynstr_free(&ds_echo);
@@ -2819,7 +2827,6 @@ int do_block(enum block_cmd cmd, struct st_query* q)
 
   var_free(&v);
   DBUG_VOID_RETURN;
-  return 0;
 }
 
 
@@ -4590,7 +4597,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
   if (command->type == Q_EVAL)
   {
     init_dynamic_string(&eval_query, "", 16384, 65536);
-    do_eval(&eval_query, command->query);
+    do_eval(&eval_query, command->query, FALSE);
     query = eval_query.str;
     query_len = eval_query.length;
   }

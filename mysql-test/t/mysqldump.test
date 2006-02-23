@@ -647,7 +647,7 @@ select '------ Testing with illegal table names ------' as test_sequence ;
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\t1" 2>&1
  
 --error 6
---exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\\\\\t1" 2>&1
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\\\t1" 2>&1
 
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t\1" 2>&1
@@ -1079,7 +1079,6 @@ select * from v3 order by a;
 
 drop table t1;
 drop view v1, v2, v3, v4, v5;
-
 
 
 #
