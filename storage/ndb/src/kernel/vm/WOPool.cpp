@@ -38,7 +38,6 @@ WOPool::init(const Record_info& ri, const Pool_context& pc)
 bool
 WOPool::seize_new_page(Ptr<void>& ptr)
 {
-  ndbout_c("WOPool::seize_new_page(%x)", m_record_info.m_type_id);
   WOPage* page;
   Uint32 page_no = RNIL;
   if ((page = (WOPage*)m_ctx.alloc_page(m_record_info.m_type_id, &page_no)))
@@ -63,7 +62,6 @@ WOPool::seize_new_page(Ptr<void>& ptr)
 void
 WOPool::release_not_current(Ptr<void> ptr)
 {
-  ndbout_c("WOPool::release_not_current(%x)", m_record_info.m_type_id);
   WOPage* page = (WOPage*)(UintPtr(ptr.p) & ~(GLOBAL_PAGE_SIZE - 1));
   Uint32 cnt = page->m_ref_count;
   Uint32 type = page->m_type_id;
