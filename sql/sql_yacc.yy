@@ -1327,6 +1327,16 @@ create_function_tail:
 	    LEX *lex= Lex;
 	    sp_head *sp;
 
+            /* 
+              First check if AGGREGATE was used, in that case it's a
+              syntax error.
+            */
+            if (lex->udf.type == UDFTYPE_AGGREGATE)
+            {
+              my_error(ER_SP_NO_AGGREGATE, MYF(0));
+              YYABORT;
+            }
+
 	    if (lex->sphead)
 	    {
 	      my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "FUNCTION");
