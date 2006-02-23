@@ -769,7 +769,6 @@ drop table t1;
 # recreated with PS/SP"
 #
 
-drop table if exists t1;
 prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
 execute stmt;
 --disable_warnings

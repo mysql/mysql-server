@@ -733,9 +733,6 @@ count(*)
 5
 deallocate prepare stmt;
 drop table t1;
-drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 't1'
 prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
 execute stmt;
 insert into t1 (a) values (repeat('a', 20));
