@@ -5791,6 +5791,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
                       interval_list, cs, uint_geom_type))
     DBUG_RETURN(1);
 
+  new_field->char_length= new_field->length;
   lex->create_list.push_back(new_field);
   lex->last_field=new_field;
   DBUG_RETURN(0);
