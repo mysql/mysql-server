@@ -174,7 +174,9 @@ typedef struct st_rollup
 
 class JOIN :public Sql_alloc
 {
- public:
+  JOIN(const JOIN &rhs);                        /* not implemented */
+  JOIN& operator=(const JOIN &rhs);             /* not implemented */
+public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    // mapping between table indexes and JOIN_TABs
   JOIN_TAB *join_tab_save; // saved join_tab for subquery reexecution
@@ -286,12 +288,6 @@ class JOIN :public Sql_alloc
     init(thd_arg, fields_arg, select_options_arg, result_arg);
   }
 
-  JOIN(JOIN &join)
-    :fields_list(join.fields_list)
-  {
-    init(join.thd, join.fields_list, join.select_options,
-         join.result);
-  }
 
   void init(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
