@@ -981,16 +981,25 @@ sub executable_setup () {
     if ( $glob_win32 )
     {
       $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
-                                           "$glob_basedir/bin");
+                                           "$glob_basedir/bin",
+                                           # New CMake locations.
+                                           "$glob_basedir/client/release",
+                                           "$glob_basedir/client/debug");
       $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-max",
                                            "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
-                                           "$path_client_bindir/mysqld-debug",);
-      $path_language=      mtr_path_exists("$glob_basedir/share/english/");
-      $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
+                                           "$path_client_bindir/mysqld-debug",
+                                           "$glob_basedir/sql/release/mysqld",
+                                           "$glob_basedir/sql/debug/mysqld");
+      $path_language=      mtr_path_exists("$glob_basedir/share/english/",
+                                           "$glob_basedir/sql/share/english/");
+      $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets",
+                                           "$glob_basedir/sql/share/charsets");
 
       $exe_my_print_defaults=
-        mtr_exe_exists("$path_client_bindir/my_print_defaults");
+        mtr_exe_exists("$path_client_bindir/my_print_defaults",
+                       "$glob_basedir/extra/release/my_print_defaults",
+                       "$glob_basedir/extra/debug/my_print_defaults");
     }
     else
     {
