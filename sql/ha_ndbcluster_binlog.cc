@@ -310,7 +310,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
       table= 0;
       break;
     }
-    assign_new_table_id(table);
+    assign_new_table_id(table_share);
     if (!table->record[1] || table->record[1] == table->record[0])
     {
       table->record[1]= alloc_root(&table->mem_root,

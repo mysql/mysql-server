@@ -313,6 +313,22 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
     conflicts
   */
   (void) pthread_mutex_lock(&share->mutex);
+
+  /*
+    We assign a new table id under the protection of the LOCK_open and
+    the share's own mutex.  We do this insted of creating a new mutex
+    and using it for the sole purpose of serializing accesses to a
+    static variable, we assign the table id here.  We assign it to the
+    share before inserting it into the table_def_cache to be really
+    sure that it cannot be read from the cache without having a table
+    id assigned.
+
+    CAVEAT. This means that the table cannot be used for
+    binlogging/replication purposes, unless get_table_share() has been
+    called directly or indirectly.
+   */
+  assign_new_table_id(share);
+
   if (my_hash_insert(&table_def_cache, (byte*) share))
   {
 #ifdef NOT_YET
@@ -2383,43 +2399,50 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 
 
 /*
-  Function to assign a new table map id to a table.
+  Function to assign a new table map id to a table share.
 
   PARAMETERS
 
-    table - Pointer to table structure
+    share - Pointer to table share structure
 
   PRE-CONDITION(S)
 
-    table is non-NULL
+    share is non-NULL
     The LOCK_open mutex is locked
+    The share->mutex is locked
 
   POST-CONDITION(S)
 
-    table->s->table_map_id is given a value that with a high certainty
-    is not used by any other table.
+    share->table_map_id is given a value that with a high certainty is
+    not used by any other table (the only case where a table id can be
+    reused is on wrap-around, which means more than 4 billion table
+    shares open at the same time).
 
-    table->s->table_map_id is not ULONG_MAX.
+    share->table_map_id is not ULONG_MAX.
  */
-void assign_new_table_id(TABLE *table)
+void assign_new_table_id(TABLE_SHARE *share)
 {
   static ulong last_table_id= ULONG_MAX;
 
-  DBUG_ENTER("assign_new_table_id(TABLE*)");
+  DBUG_ENTER("assign_new_table_id");
 
   /* Preconditions */
-  DBUG_ASSERT(table != NULL);
+  DBUG_ASSERT(share != NULL);
   safe_mutex_assert_owner(&LOCK_open);
+  safe_mutex_assert_owner(&share->mutex);
 
   ulong tid= ++last_table_id;                   /* get next id */
-  /* There is one reserved number that cannot be used. */
+  /*
+    There is one reserved number that cannot be used.  Remember to
+    change this when 6-byte global table id's are introduced.
+  */
   if (unlikely(tid == ULONG_MAX))
     tid= ++last_table_id;
-  table->s->table_map_id= tid;
+  share->table_map_id= tid;
   DBUG_PRINT("info", ("table_id=%lu", tid));
 
   /* Post conditions */
-  DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
+  DBUG_ASSERT(share->table_map_id != ULONG_MAX);
 
   DBUG_VOID_RETURN;
 }
@@ -2572,20 +2595,6 @@ retry:
        goto err;
      break;
    }
-
-  /*
-    We assign a new table id under the protection of the LOCK_open
-    mutex.  We assign a new table id here instead of inside openfrm()
-    since that function can be used without acquiring any lock (e.g.,
-    inside ha_create_table()).  Insted of creatint a new mutex and
-    using it for the sole purpose of serializing accesses to a static
-    variable, we assign the table id here.
-
-    CAVEAT. This means that the table cannot be used for
-    binlogging/replication purposes, unless open_table() has been called
-    directly or indirectly.
-   */
-  assign_new_table_id(entry);
 
   if (Table_triggers_list::check_n_load(thd, share->db.str,
                                         share->table_name.str, entry, 0))
