@@ -22,7 +22,7 @@ Created 5/30/1994 Heikki Tuuri
 info bits of a record */
 #define REC_INFO_MIN_REC_FLAG	0x10UL
 /* The deleted flag in info bits */
-#define REC_INFO_DELETED_FLAG 	0x20UL	/* when bit is set to 1, it means the
+#define REC_INFO_DELETED_FLAG	0x20UL	/* when bit is set to 1, it means the
 					record has been delete marked */
 
 /* Number of extra bytes in an old-style record,
@@ -78,10 +78,10 @@ rec_get_next_ptr(
 The following function is used to get the offset of the
 next chained record on the same page. */
 UNIV_INLINE
-ulint 
+ulint
 rec_get_next_offs(
 /*==============*/
-			/* out: the page offset of the next 
+			/* out: the page offset of the next
 			chained record */
 	rec_t*	rec,	/* in: physical record */
 	ulint	comp);	/* in: nonzero=compact page format */
@@ -316,7 +316,7 @@ rec_get_n_extern_new(
 
 /**********************************************************
 The following function determines the offsets to each field
-in the record.  It can reuse a previously allocated array. */
+in the record.	It can reuse a previously allocated array. */
 
 ulint*
 rec_get_offsets_func(
@@ -379,10 +379,10 @@ data field in an old-style record. */
 byte*
 rec_get_nth_field_old(
 /*==================*/
- 			/* out: pointer to the field */
- 	rec_t*	rec, 	/* in: record */
- 	ulint	n,	/* in: index of the field */
-	ulint*	len);	/* out: length of the field; UNIV_SQL_NULL 
+			/* out: pointer to the field */
+	rec_t*	rec,	/* in: record */
+	ulint	n,	/* in: index of the field */
+	ulint*	len);	/* out: length of the field; UNIV_SQL_NULL
 			if SQL null */
 /****************************************************************
 Gets the physical size of an old-style field.
@@ -393,8 +393,8 @@ ulint
 rec_get_nth_field_size(
 /*===================*/
 			/* out: field size in bytes */
- 	rec_t*	rec, 	/* in: record */
- 	ulint	n);	/* in: index of the field */
+	rec_t*	rec,	/* in: record */
+	ulint	n);	/* in: index of the field */
 /****************************************************************
 The following function is used to get a pointer to the nth
 data field in a record. */
@@ -402,8 +402,8 @@ UNIV_INLINE
 byte*
 rec_get_nth_field(
 /*==============*/
-	 			/* out: pointer to the field */
-	rec_t*		rec, 	/* in: record */
+				/* out: pointer to the field */
+	rec_t*		rec,	/* in: record */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		n,	/* in: index of the field */
 	ulint*		len);	/* out: length of the field; UNIV_SQL_NULL
@@ -464,7 +464,7 @@ rec_set_field_extern_bits(
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	vec,	/* in: array of field numbers */
 	ulint		n_fields);/* in: number of fields numbers */
-/*************************************************************** 
+/***************************************************************
 This is used to modify the value of an already existing field in a record.
 The previous value must have exactly the same size as the new value. If len
 is UNIV_SQL_NULL then the field is treated as an SQL null for old-style
@@ -473,7 +473,7 @@ UNIV_INLINE
 void
 rec_set_nth_field(
 /*==============*/
-	rec_t*		rec, 	/* in: record */
+	rec_t*		rec,	/* in: record */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		n,	/* in: index number of the field */
 	const void*	data,	/* in: pointer to the data if not SQL null */
@@ -482,7 +482,7 @@ rec_set_nth_field(
 				length as the previous value.
 				If SQL null, previous value must be
 				SQL null. */
-/************************************************************** 
+/**************************************************************
 The following function returns the data size of an old-style physical
 record, that is the sum of field lengths. SQL null fields
 are counted as length 0 fields. The value returned by the function
@@ -493,12 +493,12 @@ rec_get_data_size_old(
 /*==================*/
 				/* out: size */
 	rec_t*	rec);	/* in: physical record */
-/************************************************************** 
+/**************************************************************
 The following function returns the number of fields in a record. */
 UNIV_INLINE
 ulint
 rec_offs_n_fields(
-/*===============*/
+/*==============*/
 				/* out: number of fields */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**************************************************************
@@ -514,7 +514,7 @@ rec_offs_data_size(
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**************************************************************
 Returns the total size of record minus data size of record.
-The value returned by the function is the distance from record 
+The value returned by the function is the distance from record
 start to record origin in bytes. */
 UNIV_INLINE
 ulint
@@ -591,9 +591,9 @@ rec_fold(
 Builds a physical record out of a data tuple and
 stores it into the given buffer. */
 
-rec_t* 	
+rec_t*
 rec_convert_dtuple_to_rec(
-/*======================*/			
+/*======================*/
 				/* out: pointer to the origin
 				of physical record */
 	byte*		buf,	/* in: start address of the

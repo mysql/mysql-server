@@ -49,7 +49,7 @@ read_view_sees_trx_id(
 	ulint	n_ids;
 	int	cmp;
 	ulint	i;
-	
+
 	if (ut_dulint_cmp(trx_id, view->up_limit_id) < 0) {
 
 		return(TRUE);
@@ -75,6 +75,6 @@ read_view_sees_trx_id(
 			return(cmp < 0);
 		}
 	}
-	
+
 	return(TRUE);
 }
