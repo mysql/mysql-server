@@ -1438,7 +1438,7 @@ int do_echo(struct st_query *command)
   ds= &ds_res;
 
   init_dynamic_string(&ds_echo, "", 256, 256);
-  do_eval(&ds_echo, command->first_argument);
+  do_eval(&ds_echo, command->first_argument, FALSE);
   dynstr_append_mem(ds, ds_echo.str, ds_echo.length);
   dynstr_append_mem(ds, "\n", 1);
   dynstr_free(&ds_echo);
@@ -2468,7 +2468,6 @@ int do_block(enum block_cmd cmd, struct st_query* q)
 
   var_free(&v);
   DBUG_VOID_RETURN;
-  return 0;
 }
 
 
