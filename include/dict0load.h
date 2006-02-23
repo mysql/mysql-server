@@ -60,7 +60,7 @@ dict_table_t*
 dict_load_table_on_id(
 /*==================*/
 				/* out: table; NULL if table does not exist */
-	dulint	table_id);	/* in: table id */	
+	dulint	table_id);	/* in: table id */
 /************************************************************************
 This function is called when the database is booted.
 Loads system table index definitions except for the clustered index which

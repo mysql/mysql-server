@@ -74,7 +74,7 @@ mlog_write_initial_log_record(
 	log_ptr = mlog_write_initial_log_record_fast(ptr, type, log_ptr, mtr);
 
 	mlog_close(mtr, log_ptr);
-}	
+}
 
 /************************************************************
 Parses an initial log record written by mlog_write_initial_log_record. */
@@ -143,7 +143,7 @@ mlog_parse_nbytes(
 
 	offset = mach_read_from_2(ptr);
 	ptr += 2;
-		
+
 	if (offset >= UNIV_PAGE_SIZE) {
 		recv_sys->found_corrupt_log = TRUE;
 
@@ -283,7 +283,7 @@ mlog_write_dulint(
 	mach_write_to_8(ptr, val);
 
 	log_ptr = mlog_open(mtr, 11 + 2 + 9);
-	
+
 	/* If no logging is requested, we may return now */
 	if (log_ptr == NULL) {
 
@@ -295,7 +295,7 @@ mlog_write_dulint(
 
 	mach_write_to_2(log_ptr, ptr - buf_frame_align(ptr));
 	log_ptr += 2;
-	
+
 	log_ptr += mach_dulint_write_compressed(log_ptr, val);
 
 	mlog_close(mtr, log_ptr);
@@ -314,7 +314,7 @@ mlog_write_string(
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
-	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
+		|| UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
 		fprintf(stderr,
 	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
 		ut_error;
@@ -564,7 +564,7 @@ mlog_parse_index(
 					len & 0x8000 ? DATA_NOT_NULL : 0,
 					len & 0x7fff, 0);
 			dict_index_add_col(ind,
-				dict_table_get_nth_col(table, i), 0, 0);
+				dict_table_get_nth_col(table, i), 0);
 		}
 		ptr += 2;
 	}

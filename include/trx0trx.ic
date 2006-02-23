@@ -13,7 +13,7 @@ void
 trx_start_if_not_started(
 /*=====================*/
 	trx_t*	trx)	/* in: transaction */
-{	
+{
 	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
@@ -30,7 +30,7 @@ void
 trx_start_if_not_started_low(
 /*=========================*/
 	trx_t*	trx)	/* in: transaction */
-{	
+{
 	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
@@ -94,5 +94,5 @@ trx_new_rec_locks_contain(
 	dict_index_t*	index)	/* in: index */
 {
 	return(trx->new_rec_locks[0] == index
-	       || trx->new_rec_locks[1] == index);
+		|| trx->new_rec_locks[1] == index);
 }

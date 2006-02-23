@@ -335,7 +335,7 @@ page_zip_compress(
 				<= PAGE_DIR_SLOT_MAX_N_OWNED);
 	ut_a(!memcmp(page + (PAGE_NEW_SUPREMUM - REC_N_NEW_EXTRA_BYTES + 1),
 		     supremum_extra_data, sizeof supremum_extra_data));
-	
+
 	if (UNIV_UNLIKELY(!page_get_n_recs((page_t*) page))) {
 		ut_a(rec_get_next_offs((page_t*) page + PAGE_NEW_INFIMUM, TRUE)
 			== PAGE_NEW_SUPREMUM);
@@ -739,7 +739,7 @@ page_zip_fields_decode(
 		dict_mem_table_add_col(table, "DUMMY", mtype,
 				val & 1 ? DATA_NOT_NULL : 0, len, 0);
 		dict_index_add_col(index,
-				dict_table_get_nth_col(table, i), 0, 0);
+				dict_table_get_nth_col(table, i), 0);
 	}
 
 	/* Decode the position of the trx_id column. */

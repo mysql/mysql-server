@@ -27,7 +27,7 @@ row_get_rec_trx_id(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	offset = index->trx_id_offset;
-	
+
 	if (!offset) {
 		offset = row_get_trx_id_offset(rec, index, offsets);
 	}
@@ -52,7 +52,7 @@ row_get_rec_roll_ptr(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	offset = index->trx_id_offset;
-	
+
 	if (!offset) {
 		offset = row_get_trx_id_offset(rec, index, offsets);
 	}
@@ -83,10 +83,10 @@ row_build_row_ref_fast(
 	ulint		ref_len;
 	ulint		field_no;
 	ulint		i;
-	
+
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ref_len = dtuple_get_n_fields(ref);
-	
+
 	for (i = 0; i < ref_len; i++) {
 		dfield = dtuple_get_nth_field(ref, i);
 

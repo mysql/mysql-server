@@ -76,7 +76,7 @@ dyn_array_get_element(
 /*==================*/
 				/* out: pointer to element */
 	dyn_array_t*	arr,	/* in: dyn array */
-	ulint		pos);	/* in: position of element as bytes 
+	ulint		pos);	/* in: position of element as bytes
 				from array start */
 /****************************************************************
 Returns the size of stored data in a dyn array. */
@@ -140,11 +140,11 @@ dyn_push_string(
 /* NOTE! Do not use the fields of the struct directly: the definition
 appears here only for the compiler to know its size! */
 struct dyn_block_struct{
-	mem_heap_t*	heap;	/* in the first block this is != NULL 
+	mem_heap_t*	heap;	/* in the first block this is != NULL
 				if dynamic allocation has been needed */
 	ulint		used;	/* number of data bytes used in this block */
 	byte		data[DYN_ARRAY_DATA_SIZE];
-				/* storage for array elements */	
+				/* storage for array elements */
 	UT_LIST_BASE_NODE_T(dyn_block_t) base;
 				/* linear list of dyn blocks: this node is
 				used only in the first block */
@@ -163,4 +163,4 @@ struct dyn_block_struct{
 #include "dyn0dyn.ic"
 #endif
 
-#endif 
+#endif

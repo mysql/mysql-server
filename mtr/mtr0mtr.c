@@ -18,7 +18,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "log0log.h"
 
 /*******************************************************************
-Starts a mini-transaction and creates a mini-transaction handle 
+Starts a mini-transaction and creates a mini-transaction handle
 and buffer in the memory buffer given by the caller. */
 
 mtr_t*
@@ -94,11 +94,11 @@ mtr_memo_pop_all(
 	memo = &(mtr->memo);
 
 	offset = dyn_array_get_data_size(memo);
-	
+
 	while (offset > 0) {
 		offset -= sizeof(mtr_memo_slot_t);
 		slot = dyn_array_get_element(memo, offset);
-		
+
 		mtr_memo_slot_release(mtr, slot);
 	}
 }
@@ -128,7 +128,7 @@ mtr_log_reserve_and_write(
 	} else {
 		*first_data = (byte)((ulint)*first_data | MLOG_SINGLE_REC_FLAG);
 	}
-	
+
 	if (mlog->heap == NULL) {
 		mtr->end_lsn = log_reserve_and_write_fast(first_data,
 						dyn_block_get_used(mlog),
@@ -142,7 +142,7 @@ mtr_log_reserve_and_write(
 	data_size = dyn_array_get_data_size(mlog);
 
 	/* Open the database log for log_write_low */
-	mtr->start_lsn = log_reserve_and_open(data_size); 
+	mtr->start_lsn = log_reserve_and_open(data_size);
 
 	if (mtr->log_mode == MTR_LOG_ALL) {
 
@@ -155,7 +155,7 @@ mtr_log_reserve_and_write(
 		}
 	} else {
 		ut_ad(mtr->log_mode == MTR_LOG_NONE);
-		/* Do nothing */	
+		/* Do nothing */
 	}
 
 	mtr->end_lsn = log_close();
@@ -186,7 +186,7 @@ mtr_commit(
 	at the oldest modification of any page in the buffer pool. It is also
 	required when we insert modified buffer pages in to the flush list
 	which must be sorted on oldest_modification. */
-	
+
 	mtr_memo_pop_all(mtr);
 
 	if (mtr->modifications) {
@@ -198,7 +198,7 @@ mtr_commit(
 #endif
 	dyn_array_free(&(mtr->memo));
 	dyn_array_free(&(mtr->log));
-}		
+}
 
 /**************************************************************
 Releases the latches stored in an mtr memo down to a savepoint.
@@ -223,7 +223,7 @@ mtr_rollback_to_savepoint(
 
 	offset = dyn_array_get_data_size(memo);
 	ut_ad(offset >= savepoint);
-	
+
 	while (offset > savepoint) {
 		offset -= sizeof(mtr_memo_slot_t);
 
@@ -254,7 +254,7 @@ mtr_memo_release(
 
 	memo = &(mtr->memo);
 
- 	offset = dyn_array_get_data_size(memo);
+	offset = dyn_array_get_data_size(memo);
 
 	while (offset > 0) {
 		offset -= sizeof(mtr_memo_slot_t);
@@ -280,13 +280,13 @@ mtr_read_ulint(
 	byte*		ptr,	/* in: pointer from where to read */
 	ulint		type,	/* in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 	mtr_t*		mtr __attribute__((unused)))
-                                /* in: mini-transaction handle */
+				/* in: mini-transaction handle */
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr), 
-						MTR_MEMO_PAGE_S_FIX) ||
-	      mtr_memo_contains(mtr, buf_block_align(ptr), 
-						MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr),
+			MTR_MEMO_PAGE_S_FIX) ||
+		mtr_memo_contains(mtr, buf_block_align(ptr),
+			MTR_MEMO_PAGE_X_FIX));
 	if (type == MLOG_1BYTE) {
 		return(mach_read_from_1(ptr));
 	} else if (type == MLOG_2BYTES) {
@@ -302,18 +302,18 @@ Reads 8 bytes from a file page buffered in the buffer pool. */
 
 dulint
 mtr_read_dulint(
-/*===========*/
+/*============*/
 				/* out: value read */
 	byte*		ptr,	/* in: pointer from where to read */
 	mtr_t*		mtr __attribute__((unused)))
-                                /* in: mini-transaction handle */
+				/* in: mini-transaction handle */
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(ptr && mtr);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr), 
-						MTR_MEMO_PAGE_S_FIX) ||
-	      mtr_memo_contains(mtr, buf_block_align(ptr), 
-						MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr),
+			MTR_MEMO_PAGE_S_FIX) ||
+		mtr_memo_contains(mtr, buf_block_align(ptr),
+			MTR_MEMO_PAGE_X_FIX));
 	return(mach_read_from_8(ptr));
 }
 

@@ -38,7 +38,7 @@ page_cur_get_rec(
 }
 
 /*************************************************************
-Sets the cursor object to point before the first user record 
+Sets the cursor object to point before the first user record
 on the page. */
 UNIV_INLINE
 void
@@ -51,7 +51,7 @@ page_cur_set_before_first(
 }
 
 /*************************************************************
-Sets the cursor object to point after the last user record on 
+Sets the cursor object to point after the last user record on
 the page. */
 UNIV_INLINE
 void
@@ -182,7 +182,7 @@ page_cur_tuple_insert(
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
-	dtuple_t*	tuple,  /* in: pointer to a data tuple */
+	dtuple_t*	tuple,	/* in: pointer to a data tuple */
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext,	/* in: number of elements in vec */

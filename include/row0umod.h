@@ -16,7 +16,7 @@ Created 2/27/1997 Heikki Tuuri
 #include "que0types.h"
 #include "row0types.h"
 #include "mtr0mtr.h"
-	
+
 /***************************************************************
 Undoes a modify operation on a row of a table. */
 
@@ -32,4 +32,4 @@ row_undo_mod(
 #include "row0umod.ic"
 #endif
 
-#endif 
+#endif
