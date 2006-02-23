@@ -167,12 +167,24 @@ Ndbd_mem_manager::set_resource_limit(const Resource_limit& rl)
 }
 
 bool
+Ndbd_mem_manager::get_resource_limit(Uint32 id, Resource_limit& rl) const
+{
+  if (id < XX_RL_COUNT)
+  {
+    rl = m_resource_limit[id];
+    return true;
+  }
+  return false;
+}
+
+bool
 Ndbd_mem_manager::init(bool alloc_less_memory)
 {
   assert(m_base_page == 0);
 
   Uint32 pages = 0;
   Uint32 max_page = 0;
+  Uint32 reserved = m_resource_limit[0].m_min;
   if (m_resource_limit[0].m_max)
   {
     pages = m_resource_limit[0].m_max;
@@ -267,7 +279,10 @@ Ndbd_mem_manager::init(bool alloc_less_memory)
     if (last > max_page)
       max_page = last;
   }
+
   m_resource_limit[0].m_resource_id = max_page;
+  m_resource_limit[0].m_min = reserved;
+  m_resource_limit[0].m_max = 0;
   
   for (Uint32 i = 0; i<cnt; i++)
   {
@@ -567,6 +582,7 @@ Ndbd_mem_manager::release_page(Uint32 type, Uint32 i)
   Uint32 sub = (rl.m_curr < rl.m_min) ? 0 : 1; // Over min ?
   release(i, 1);
   m_resource_limit[0].m_curr = tot.m_curr - sub;
+  m_resource_limit[idx].m_curr = rl.m_curr - 1;
 }
 
 #ifdef UNIT_TEST

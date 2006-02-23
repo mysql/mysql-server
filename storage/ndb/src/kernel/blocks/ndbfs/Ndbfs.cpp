@@ -325,13 +325,14 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   request->action = (Request::Action) action;
   request->theTrace = signal->getTrace();
 
+  Uint32 format = fsRWReq->getFormatFlag(fsRWReq->operationFlag);
+
   if (fsRWReq->numberOfPages == 0) { //Zero pages not allowed
     jam();
     errorCode = FsRef::fsErrInvalidParameters;
     goto error;
   }
 
-  Uint32 format = fsRWReq->getFormatFlag(fsRWReq->operationFlag);
   if(format != FsReadWriteReq::fsFormatGlobalPage &&
      format != FsReadWriteReq::fsFormatSharedPage)
   {     

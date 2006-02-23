@@ -55,7 +55,8 @@ public:
   Ndbd_mem_manager();
   
   void set_resource_limit(const Resource_limit& rl);
-  
+  bool get_resource_limit(Uint32 id, Resource_limit& rl) const;
+
   bool init(bool allow_alloc_less_than_requested = true);
   void* get_memroot() const { return (void*)m_base_page;}
   
@@ -65,7 +66,7 @@ public:
   void dump() const ;
   
   void* alloc_page(Uint32 type, Uint32* i);
-  void release_page(Uint32 type, Uint32 i, void * p);
+  void release_page(Uint32 type, Uint32 i);
   
   void* alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min = 1);
   void release_pages(Uint32 type, Uint32 i, void*p, Uint32 cnt);
