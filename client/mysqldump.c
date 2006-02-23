@@ -3432,7 +3432,7 @@ static my_bool get_view_structure(char *table, char* db)
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
-  snprintf(query, sizeof(query), "SHOW CREATE TABLE %s", result_table);
+  my_snprintf(query, sizeof(query), "SHOW CREATE TABLE %s", result_table);
   if (mysql_query_with_error_report(sock, &table_res, query))
   {
     safe_exit(EX_MYSQLERR);
@@ -3475,10 +3475,10 @@ static my_bool get_view_structure(char *table, char* db)
   }
 
 
-  snprintf(query, sizeof(query),
-           "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE "               \
-           "FROM information_schema.views "                             \
-           "WHERE table_name=\"%s\" AND table_schema=\"%s\"", table, db);
+  my_snprintf(query, sizeof(query),
+              "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE "            \
+              "FROM information_schema.views "                          \
+              "WHERE table_name=\"%s\" AND table_schema=\"%s\"", table, db);
   if (mysql_query(sock, query))
   {
     /*
