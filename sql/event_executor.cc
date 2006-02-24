@@ -724,7 +724,7 @@ event_executor_worker(void *event_void)
                             event->dbname.str, event->name.str,
                             event->definer.str);
     else if (ret == EVEX_MICROSECOND_UNSUP)
-      sql_print_information("SCHEDULER: MICROSECOND is supported");
+      sql_print_information("SCHEDULER: MICROSECOND is not supported");
   }
   event->spawn_thread_finish(thd);
 
