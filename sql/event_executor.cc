@@ -151,7 +151,7 @@ evex_check_system_tables()
   else
   {
     table_check_intact(tables.table, MYSQL_DB_FIELD_COUNT, mysql_db_table_fields,
-                     &mysql_db_table_last_check,ER_EVENT_CANNOT_LOAD_FROM_TABLE);                           
+                       &mysql_db_table_last_check,ER_CANNOT_LOAD_FROM_TABLE);                           
     close_thread_tables(thd);
   }
 
@@ -723,6 +723,8 @@ event_executor_worker(void *event_void)
       sql_print_information("SCHEDULER: COMPILE ERROR for event %s.%s of",
                             event->dbname.str, event->name.str,
                             event->definer.str);
+    else if (ret == EVEX_MICROSECOND_UNSUP)
+      sql_print_information("SCHEDULER: MICROSECOND is not supported");
   }
   event->spawn_thread_finish(thd);
 
@@ -775,7 +777,7 @@ err_no_thd:
      
    RETURNS
      0  - OK
-    -1  - Error
+    !0  - Error
     
    NOTES
      Reports the error to the console
@@ -828,11 +830,17 @@ evex_load_events_from_db(THD *thd)
     DBUG_PRINT("evex_load_events_from_db",
             ("Event %s loaded from row. Time to compile", et->name.str));
     
-    if ((ret= et->compile(thd, &evex_mem_root)))
-    {
+    switch (ret= et->compile(thd, &evex_mem_root)) {
+    case EVEX_MICROSECOND_UNSUP:
+      sql_print_error("SCHEDULER: mysql.event is tampered. MICROSECOND is not "
+                      "supported but found in mysql.event");
+      goto end;
+    case EVEX_COMPILE_ERROR:
       sql_print_error("SCHEDULER: Error while compiling %s.%s. Aborting load.",
                       et->dbname.str, et->name.str);
       goto end;
+    default:
+      break;
     }
     
     // let's find when to be executed  
@@ -860,7 +868,8 @@ end:
   thd->version--;  // Force close to free memory
 
   close_thread_tables(thd);
-  sql_print_information("SCHEDULER: Loaded %d event%s", count, (count == 1)?"":"s");
+  if (!ret)
+    sql_print_information("SCHEDULER: Loaded %d event%s", count, (count == 1)?"":"s");
   DBUG_PRINT("info", ("Status code %d. Loaded %d event(s)", ret, count));
 
   DBUG_RETURN(ret);
