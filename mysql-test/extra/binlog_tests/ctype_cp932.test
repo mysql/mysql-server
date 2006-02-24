@@ -415,6 +415,7 @@ SET @var1= x'8300';
 # code (and I have used it to test the fix) until there is some way to
 # exercise this code from mysql-test-run.
 EXECUTE stmt1 USING @var1;
+--replace_regex /table_id: [0-9]+/table_id: #/
 SHOW BINLOG EVENTS FROM 102;
 SELECT HEX(f1) FROM t1;
 DROP table t1;
@@ -434,4 +435,8 @@ insert into t1 values ('ab');
 select * from t1;
 insert into t1 values ('abc');
 select * from t1;
+--disable_query_log
+--disable_warnings
 drop table t1;
+--enable_warnings
+--enable_query_log
