@@ -118,7 +118,7 @@ void*
 os_mem_alloc_large(
 /*===============*/
 					/* out: allocated memory */
-	ulint		n, 		/* in: number of bytes */
+	ulint		n,		/* in: number of bytes */
 	ibool		set_to_zero,	/* in: TRUE if allocated memory
 					should be set to zero if
 					UNIV_SET_MEM_TO_ZERO is defined */

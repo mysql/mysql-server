@@ -2909,8 +2909,7 @@ row_sel_pop_cached_row_for_mysql(
 	ut_ad(prebuilt->n_fetch_cached > 0);
 	ut_ad(prebuilt->mysql_prefix_len <= prebuilt->mysql_row_len);
 
-	if (UNIV_UNLIKELY(prebuilt->keep_other_fields_on_keyread))
-	{
+	if (UNIV_UNLIKELY(prebuilt->keep_other_fields_on_keyread)) {
 		/* Copy cache record field by field, don't touch fields that
 		are not covered by current key */
 		cached_rec =
@@ -2924,8 +2923,7 @@ row_sel_pop_cached_row_for_mysql(
 				templ->mysql_col_len);
 			/* Copy NULL bit of the current field from cached_rec
 			to buf */
-			if (templ->mysql_null_bit_mask)
-			{
+			if (templ->mysql_null_bit_mask) {
 				buf[templ->mysql_null_byte_offset] ^=
 				  (buf[templ->mysql_null_byte_offset] ^
 				   cached_rec[templ->mysql_null_byte_offset]) &
@@ -2933,8 +2931,7 @@ row_sel_pop_cached_row_for_mysql(
 			}
 		}
 	}
-	else
-	{
+	else {
 		ut_memcpy(buf, prebuilt->fetch_cache[prebuilt->fetch_cache_first],
 				prebuilt->mysql_prefix_len);
 	}

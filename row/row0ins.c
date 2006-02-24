@@ -276,7 +276,7 @@ row_ins_sec_index_entry_by_modify(
 		if (err == DB_OVERFLOW || err == DB_UNDERFLOW) {
 			err = DB_FAIL;
 		}
-	} else	{
+	} else {
 		ut_a(mode == BTR_MODIFY_TREE);
 		err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG, cursor,
 					&dummy_big_rec, update, 0, thr, mtr);
@@ -340,7 +340,7 @@ row_ins_clust_index_entry_by_modify(
 		if (err == DB_OVERFLOW || err == DB_UNDERFLOW) {
 			err = DB_FAIL;
 		}
-	} else	{
+	} else {
 		ut_a(mode == BTR_MODIFY_TREE);
 		err = btr_cur_pessimistic_update(0, cursor, big_rec, update,
 								0, thr, mtr);
