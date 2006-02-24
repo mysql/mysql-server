@@ -1299,7 +1299,9 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       }
       if (length > file->max_key_part_length() && key->type != Key::FULLTEXT)
       {
-	length=file->max_key_part_length();
+        length= file->max_key_part_length();
+        /* Align key length to multibyte char boundary */
+        length-= length % sql_field->charset->mbmaxlen;
 	if (key->type == Key::MULTIPLE)
 	{
 	  /* not a critical problem */
