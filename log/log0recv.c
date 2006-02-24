@@ -2695,7 +2695,7 @@ recv_recovery_from_checkpoint_start(
 								< 0) {
 				fprintf(stderr,
 "InnoDB: ##########################################################\n"
-"InnoDB:			  WARNING!\n"
+"InnoDB:                          WARNING!\n"
 "InnoDB: The log sequence number in ibdata files is higher\n"
 "InnoDB: than the log sequence number in the ib_logfiles! Are you sure\n"
 "InnoDB: you are using the right ib_logfiles to start up the database?\n"

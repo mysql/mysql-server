@@ -6790,7 +6790,7 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 
 		share = (INNOBASE_SHARE *) my_malloc(sizeof(*share)+length+1,
 			MYF(MY_FAE | MY_ZEROFILL));
-		
+
 		share->table_name_length=length;
 		share->table_name=(char*) (share+1);
 		strmov(share->table_name,table_name);

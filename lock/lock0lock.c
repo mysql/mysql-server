@@ -476,7 +476,7 @@ lock_check_trx_id_sanity(
 
 	if (ut_dulint_cmp(trx_id, trx_sys->max_trx_id) >= 0) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: Error: transaction id associated"
+		fputs("  InnoDB: Error: transaction id associated"
 			" with record\n",
 			stderr);
 		rec_print_new(stderr, rec, offsets);
