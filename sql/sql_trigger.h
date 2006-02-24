@@ -47,6 +47,11 @@ class Table_triggers_list: public Sql_alloc
   */
   List<LEX_STRING>  names_list;
   /*
+    List of "ON table_name" parts in trigger definitions, used for
+    updating trigger definitions during RENAME TABLE.
+  */
+  List<LEX_STRING>  on_table_names_list;
+  /*
     Key representing triggers for this table in set of all stored
     routines used by statement.
     TODO: We won't need this member once triggers namespace will be
@@ -97,7 +102,10 @@ public:
   static bool check_n_load(THD *thd, const char *db, const char *table_name,
                            TABLE *table, bool names_only);
   static bool drop_all_triggers(THD *thd, char *db, char *table_name);
-
+  static bool change_table_name(THD *thd, const char *db,
+                                const char *old_table,
+                                const char *new_db,
+                                const char *new_table);
   bool has_delete_triggers()
   {
     return (bodies[TRG_EVENT_DELETE][TRG_ACTION_BEFORE] ||
@@ -122,6 +130,13 @@ public:
 
 private:
   bool prepare_record1_accessors(TABLE *table);
+  LEX_STRING* change_table_name_in_trignames(const char *db_name,
+                                             LEX_STRING *new_table_name,
+                                             LEX_STRING *stopper);
+  bool change_table_name_in_triggers(THD *thd,
+                                     const char *db_name,
+                                     LEX_STRING *old_table_name,
+                                     LEX_STRING *new_table_name);
 };
 
 extern const LEX_STRING trg_action_time_type_names[];

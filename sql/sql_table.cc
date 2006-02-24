@@ -3258,6 +3258,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	close_cached_table(thd, table);
 	if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias))
 	  error= -1;
+        else if (Table_triggers_list::change_table_name(thd, db, table_name,
+                                                        new_db, new_alias))
+        {
+          VOID(mysql_rename_table(old_db_type, new_db, new_alias, db,
+                                  table_name));
+          error= -1;
+        }
       }
       VOID(pthread_mutex_unlock(&LOCK_open));
     }
@@ -3806,7 +3813,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(quick_rm_table(new_db_type,new_db,tmp_name));
   }
   else if (mysql_rename_table(new_db_type,new_db,tmp_name,new_db,
-			      new_alias))
+			      new_alias) ||
+           (new_name != table_name || new_db != db) && // we also do rename
+           Table_triggers_list::change_table_name(thd, db, table_name,
+                                                  new_db, new_alias))
+       
   {						// Try to get everything back
     error=1;
     VOID(quick_rm_table(new_db_type,new_db,new_alias));
