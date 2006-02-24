@@ -368,6 +368,15 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
   DESCRIPTION
     Marks all tables in the list which were used by current substatement
     (they are marked by its query_id) as free for reuse.
+
+  NOTE
+    The reason we reset query_id is that it's not enough to just test
+    if table->query_id != thd->query_id to know if a table is in use.
+
+    For example
+    SELECT f1_that_uses_t1() FROM t1;
+    In f1_that_uses_t1() we will see one instance of t1 where query_id is
+    set to query_id of original query.
 */
 
 static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
