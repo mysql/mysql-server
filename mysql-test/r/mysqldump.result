@@ -2650,3 +2650,33 @@ DELIMITER ;
 
 DROP TRIGGER tr1;
 DROP TABLE t1;
+create table t1 (a text , b text);
+create table t2 (a text , b text);
+insert t1 values ("Duck, Duck", "goose");
+insert t1 values ("Duck, Duck", "pidgeon");
+insert t2 values ("We the people", "in order to perform");
+insert t2 values ("a more perfect", "union");
+select * from t1;
+a	b
+Duck, Duck	goose
+Duck, Duck	pidgeon
+select * from t2;
+a	b
+We the people	in order to perform
+a more perfect	union
+test.t1: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
+test.t2: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
+select * from t1;
+a	b
+Duck, Duck	goose
+Duck, Duck	pidgeon
+Duck, Duck	goose
+Duck, Duck	pidgeon
+select * from t2;
+a	b
+We the people	in order to perform
+a more perfect	union
+We the people	in order to perform
+a more perfect	union
+drop table t1;
+drop table t2;
