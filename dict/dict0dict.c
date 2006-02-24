@@ -2993,8 +2993,7 @@ loop:
 		   command, determine if there are any foreign keys, and
 		   if so, immediately reject the command if the table is a
 		   temporary one. For now, this kludge will work. */
-		if (reject_fks && (UT_LIST_GET_LEN(table->foreign_list) > 0))
-		{
+		if (reject_fks && (UT_LIST_GET_LEN(table->foreign_list) > 0)) {
 			return DB_CANNOT_ADD_CONSTRAINT;
 		}
 

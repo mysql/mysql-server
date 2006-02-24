@@ -626,8 +626,7 @@ innobase_mysql_print_thd(
 		/* Points to buf or dyn_str. */
 		char*	str = buf;
 
-		if (max_query_len == 0)
-		{
+		if (max_query_len == 0) {
 			/* ADDITIONAL SAFETY: the default is to print at
 			   most 300 chars to reduce the probability of a
 			   seg fault if there is a race in
@@ -639,8 +638,7 @@ innobase_mysql_print_thd(
 
 		len = min(thd->query_length, max_query_len);
 
-		if (len > (sizeof(buf) - 1))
-		{
+		if (len > (sizeof(buf) - 1)) {
 			dyn_str = my_malloc(len + 1, MYF(0));
 			str = dyn_str;
 		}
@@ -651,8 +649,7 @@ innobase_mysql_print_thd(
 		putc('\n', f);
 		fwrite(str, 1, len, f);
 
-		if (dyn_str)
-		{
+		if (dyn_str) {
 			my_free(dyn_str, MYF(0));
 		}
 	}
@@ -1683,7 +1680,7 @@ retry:
 
 		innobase_commit_low(trx);
 
-		if (srv_commit_concurrency > 0) 	{
+		if (srv_commit_concurrency > 0) {
 			pthread_mutex_lock(&commit_cond_m);
 			commit_threads--;
 			pthread_cond_signal(&commit_cond);
@@ -6624,8 +6621,7 @@ innodb_show_status(
 	/* allocate buffer for the string, and
 	read the contents of the temporary file */
 
-	if (!(str = my_malloc(usable_len + 1, MYF(0))))
-	{
+	if (!(str = my_malloc(usable_len + 1, MYF(0)))) {
 	  mutex_exit_noninline(&srv_monitor_file_mutex);
 	  DBUG_RETURN(TRUE);
 	}
