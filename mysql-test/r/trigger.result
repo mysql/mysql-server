@@ -1,4 +1,4 @@
-drop table if exists t1, t2, t3;
+drop table if exists t1, t2, t3, t4;
 drop view if exists v1;
 drop database if exists mysqltest;
 drop function if exists f1;
@@ -786,3 +786,104 @@ create trigger test.t1_bi before insert on t1 for each row set @a:=0;
 ERROR 3D000: No database selected
 drop trigger t1_bi;
 ERROR 3D000: No database selected
+create table t1 (id int);
+create trigger t1_bi before insert on t1 for each row set @a:=new.id;
+insert into t1 values (101);
+select @a;
+@a
+101
+select trigger_schema, trigger_name, event_object_schema,
+event_object_table, action_statement from information_schema.triggers
+where event_object_schema = 'test';
+trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+test	t1_bi	test	t1	 set @a:=new.id
+rename table t1 to t2;
+insert into t2 values (102);
+select @a;
+@a
+102
+select trigger_schema, trigger_name, event_object_schema,
+event_object_table, action_statement from information_schema.triggers
+where event_object_schema = 'test';
+trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+test	t1_bi	test	t2	 set @a:=new.id
+alter table t2 rename to t3;
+insert into t3 values (103);
+select @a;
+@a
+103
+select trigger_schema, trigger_name, event_object_schema,
+event_object_table, action_statement from information_schema.triggers
+where event_object_schema = 'test';
+trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+test	t1_bi	test	t3	 set @a:=new.id
+alter table t3 rename to t4, add column val int default 0;
+insert into t4 values (104, 1);
+select @a;
+@a
+104
+select trigger_schema, trigger_name, event_object_schema,
+event_object_table, action_statement from information_schema.triggers
+where event_object_schema = 'test';
+trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+test	t1_bi	test	t4	 set @a:=new.id
+drop trigger t1_bi;
+drop table t4;
+create database mysqltest;
+use mysqltest;
+create table t1 (id int);
+create trigger t1_bi before insert on t1 for each row set @a:=new.id;
+insert into t1 values (101);
+select @a;
+@a
+101
+select trigger_schema, trigger_name, event_object_schema,
+event_object_table, action_statement from information_schema.triggers
+where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+mysqltest	t1_bi	mysqltest	t1	 set @a:=new.id
+rename table t1 to test.t2;
+ERROR HY000: Trigger in wrong schema
+insert into t1 values (102);
+select @a;
+@a
+102
+select trigger_schema, trigger_name, event_object_schema,
+event_object_table, action_statement from information_schema.triggers
+where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+mysqltest	t1_bi	mysqltest	t1	 set @a:=new.id
+drop trigger test.t1_bi;
+ERROR HY000: Trigger does not exist
+drop trigger t1_bi;
+drop table t1;
+drop database mysqltest;
+use test;
+create table t1 (id int);
+create trigger t1_bi before insert on t1 for each row set @a:=new.id;
+create trigger t1_ai after insert on t1 for each row set @b:=new.id;
+insert into t1 values (101);
+select @a, @b;
+@a	@b
+101	101
+select trigger_schema, trigger_name, event_object_schema,
+event_object_table, action_statement from information_schema.triggers
+where event_object_schema = 'test';
+trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+test	t1_bi	test	t1	 set @a:=new.id
+test	t1_ai	test	t1	 set @b:=new.id
+rename table t1 to t2;
+ERROR HY000: Can't create/write to file './test/t1_ai.TRN~' (Errcode: 13)
+insert into t1 values (102);
+select @a, @b;
+@a	@b
+102	102
+select trigger_schema, trigger_name, event_object_schema,
+event_object_table, action_statement from information_schema.triggers
+where event_object_schema = 'test';
+trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+test	t1_bi	test	t1	 set @a:=new.id
+test	t1_ai	test	t1	 set @b:=new.id
+drop trigger t1_bi;
+drop trigger t1_ai;
+drop table t1;

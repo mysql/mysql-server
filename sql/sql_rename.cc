@@ -19,6 +19,7 @@
 */
 
 #include "mysql_priv.h"
+#include "sql_trigger.h"
 
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
@@ -176,8 +177,26 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
         if (table_type == DB_TYPE_UNKNOWN) 
           my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
         else
-          rc= mysql_rename_table(table_type, ren_table->db, old_alias,
-                                 new_table->db, new_alias);
+        {
+          if (!(rc= mysql_rename_table(table_type, ren_table->db, old_alias,
+                                       new_table->db, new_alias)))
+          {
+            if ((rc= Table_triggers_list::change_table_name(thd, ren_table->db,
+                                                            old_alias,
+                                                            new_table->db,
+                                                            new_alias)))
+            {
+              /*
+                We've succeeded in renaming table's .frm and in updating
+                corresponding handler data, but have failed to update table's
+                triggers appropriately. So let us revert operations on .frm
+                and handler's data and report about failure to rename table.
+              */
+              (void) mysql_rename_table(table_type, new_table->db, new_alias,
+                                        ren_table->db, old_alias);
+            }
+          }
+        }
         break;
       }
       case FRMTYPE_VIEW:

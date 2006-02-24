@@ -58,7 +58,6 @@ static File_option triggers_file_parameters[]=
 */
 
 static const int TRG_NUM_REQUIRED_PARAMETERS= 4;
-static const int TRG_MAX_VERSIONS= 3;
 
 /*
   Structure representing contents of .TRN file which are used to support
@@ -455,8 +454,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
                                definer_host->str, NullS) - trg_definer->str;
 
   if (!sql_create_definition_file(&dir, &file, &triggers_file_type,
-                                  (gptr)this, triggers_file_parameters,
-                                  TRG_MAX_VERSIONS))
+                                  (gptr)this, triggers_file_parameters, 0))
     return 0;
 
 err_with_cleanup:
@@ -480,7 +478,8 @@ err_with_cleanup:
     True  - error
 */
 
-static bool rm_trigger_file(char *path, char *db, char *table_name)
+static bool rm_trigger_file(char *path, const char *db,
+                            const char *table_name)
 {
   strxnmov(path, FN_REFLEN, mysql_data_home, "/", db, "/", table_name,
            triggers_file_ext, NullS);
@@ -504,12 +503,45 @@ static bool rm_trigger_file(char *path, char *db, char *table_name)
     True  - error
 */
 
-static bool rm_trigname_file(char *path, char *db, char *trigger_name)
+static bool rm_trigname_file(char *path, const char *db,
+                             const char *trigger_name)
 {
   strxnmov(path, FN_REFLEN, mysql_data_home, "/", db, "/", trigger_name,
            trigname_file_ext, NullS);
   unpack_filename(path, path);
   return my_delete(path, MYF(MY_WME));
+}
+
+
+/*
+  Helper function that saves .TRG file for Table_triggers_list object.
+
+  SYNOPSIS
+    save_trigger_file()
+      triggers    Table_triggers_list object for which file should be saved
+      db          Name of database for subject table
+      table_name  Name of subject table
+
+  RETURN VALUE
+    FALSE  Success
+    TRUE   Error
+*/
+
+static bool save_trigger_file(Table_triggers_list *triggers, const char *db,
+                              const char *table_name)
+{
+  char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
+  LEX_STRING dir, file;
+
+  strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", db, "/", NullS);
+  dir.length= unpack_filename(dir_buff, dir_buff);
+  dir.str= dir_buff;
+  file.length=  strxnmov(file_buff, FN_REFLEN, table_name, triggers_file_ext,
+                         NullS) - file_buff;
+  file.str= file_buff;
+
+  return sql_create_definition_file(&dir, &file, &triggers_file_type,
+                                    (gptr)triggers, triggers_file_parameters, 0);
 }
 
 
@@ -566,20 +598,7 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables)
       }
       else
       {
-        char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
-        LEX_STRING dir, file;
-
-        strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", tables->db,
-                 "/", NullS);
-        dir.length= unpack_filename(dir_buff, dir_buff);
-        dir.str= dir_buff;
-        file.length=  strxnmov(file_buff, FN_REFLEN, tables->table_name,
-                               triggers_file_ext, NullS) - file_buff;
-        file.str= file_buff;
-
-        if (sql_create_definition_file(&dir, &file, &triggers_file_type,
-                                       (gptr)this, triggers_file_parameters,
-                                       TRG_MAX_VERSIONS))
+        if (save_trigger_file(this, tables->db, tables->table_name))
           return 1;
       }
 
@@ -819,13 +838,13 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       if (!names_only && triggers->prepare_record1_accessors(table))
         DBUG_RETURN(1);
 
-      char *trg_name_buff;
       List_iterator_fast<ulonglong> itm(triggers->definition_modes_list);
       List_iterator_fast<LEX_STRING> it_definer(triggers->
                                                 definers_list);
       LEX *old_lex= thd->lex, lex;
       sp_rcontext *save_spcont= thd->spcont;
       ulong save_sql_mode= thd->variables.sql_mode;
+      LEX_STRING *on_table_name;
 
       thd->lex= &lex;
 
@@ -889,6 +908,21 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         if (triggers->names_list.push_back(&lex.sphead->m_name,
                                            &table->mem_root))
             goto err_with_lex_cleanup;
+
+        if (!(on_table_name= (LEX_STRING*) alloc_root(&table->mem_root,
+                                                      sizeof(LEX_STRING))))
+          goto err_with_lex_cleanup;
+        *on_table_name= lex.ident;
+        if (triggers->on_table_names_list.push_back(on_table_name, &table->mem_root))
+          goto err_with_lex_cleanup;
+
+        /*
+          Let us check that we correctly update trigger definitions when we
+          rename tables with triggers.
+        */
+        DBUG_ASSERT(!my_strcasecmp(table_alias_charset, lex.query_tables->db, db) &&
+                    !my_strcasecmp(table_alias_charset, lex.query_tables->table_name,
+                                   table_name));
 
         if (names_only)
         {
@@ -1055,7 +1089,7 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
   DBUG_RETURN(sp_add_to_query_tables(thd, lex, trig->m_db.str,
-                                     trigname.trigger_table.str, TL_WRITE));
+                                     trigname.trigger_table.str, TL_IGNORE));
 }
 
 
@@ -1124,6 +1158,220 @@ end:
   DBUG_RETURN(result);
 }
 
+
+/*
+  Update .TRG file after renaming triggers' subject table
+  (change name of table in triggers' definitions).
+
+  SYNOPSIS
+    change_table_name_in_triggers()
+      thd                 Thread context
+      db_name             Database of subject table
+      old_table_name      Old subject table's name
+      new_table_name      New subject table's name
+
+  RETURN VALUE
+    FALSE  Success
+    TRUE   Failure
+*/
+
+bool
+Table_triggers_list::change_table_name_in_triggers(THD *thd,
+                                                   const char *db_name,
+                                                   LEX_STRING *old_table_name,
+                                                   LEX_STRING *new_table_name)
+{
+  char path_buff[FN_REFLEN];
+  LEX_STRING *def, *on_table_name, new_def;
+  ulonglong *sql_mode;
+  ulong save_sql_mode= thd->variables.sql_mode;
+  List_iterator_fast<LEX_STRING> it_def(definitions_list);
+  List_iterator_fast<LEX_STRING> it_on_table_name(on_table_names_list);
+  List_iterator_fast<ulonglong> it_mode(definition_modes_list);
+  uint on_q_table_name_len, before_on_len;
+  String buff;
+
+  DBUG_ASSERT(definitions_list.elements == on_table_names_list.elements &&
+              definitions_list.elements == definition_modes_list.elements);
+
+  while ((def= it_def++))
+  {
+    on_table_name= it_on_table_name++;
+    thd->variables.sql_mode= *(it_mode++);
+
+    /* Construct CREATE TRIGGER statement with new table name. */
+    buff.length(0);
+    before_on_len= on_table_name->str - def->str;
+    buff.append(def->str, before_on_len);
+    buff.append(STRING_WITH_LEN("ON "));
+    append_identifier(thd, &buff, new_table_name->str, new_table_name->length);
+    on_q_table_name_len= buff.length() - before_on_len;
+    buff.append(on_table_name->str + on_table_name->length,
+                def->length - (before_on_len + on_table_name->length));
+    /*
+      It is OK to allocate some memory on table's MEM_ROOT since this
+      table instance will be thrown out at the end of rename anyway.
+    */
+    new_def.str= memdup_root(&table->mem_root, buff.ptr(), buff.length());
+    new_def.length= buff.length();
+    on_table_name->str= new_def.str + before_on_len;
+    on_table_name->length= on_q_table_name_len;
+    *def= new_def;
+  }
+
+  thd->variables.sql_mode= save_sql_mode;
+
+  if (thd->is_fatal_error)
+    return TRUE; /* OOM */
+
+  if (save_trigger_file(this, db_name, new_table_name->str))
+    return TRUE;
+  if (rm_trigger_file(path_buff, db_name, old_table_name->str))
+  {
+    (void) rm_trigger_file(path_buff, db_name, new_table_name->str);
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+/*
+  Iterate though Table_triggers_list::names_list list and update .TRN files
+  after renaming triggers' subject table.
+
+  SYNOPSIS
+    change_table_name_in_trignames()
+      db_name             Database of subject table
+      new_table_name      New subject table's name
+      stopper             Pointer to Table_triggers_list::names_list at
+                          which we should stop updating.
+
+  RETURN VALUE
+    0      Success
+    non-0  Failure, pointer to Table_triggers_list::names_list element
+           for which update failed.
+*/
+
+LEX_STRING*
+Table_triggers_list::change_table_name_in_trignames(const char *db_name,
+                                                    LEX_STRING *new_table_name,
+                                                    LEX_STRING *stopper)
+{
+  char dir_buff[FN_REFLEN], trigname_buff[FN_REFLEN];
+  struct st_trigname trigname;
+  LEX_STRING dir, trigname_file;
+  LEX_STRING *trigger;
+  List_iterator_fast<LEX_STRING> it_name(names_list);
+
+  strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", db_name, "/", NullS);
+  dir.length= unpack_filename(dir_buff, dir_buff);
+  dir.str= dir_buff;
+
+  while ((trigger= it_name++) != stopper)
+  {
+    trigname_file.length= strxnmov(trigname_buff, FN_REFLEN, trigger->str,
+                                   trigname_file_ext, NullS) - trigname_buff;
+    trigname_file.str= trigname_buff;
+
+    trigname.trigger_table= *new_table_name;
+
+    if (sql_create_definition_file(&dir, &trigname_file, &trigname_file_type,
+        (gptr)&trigname, trigname_file_parameters, 0))
+      return trigger;
+  }
+
+  return 0;
+}
+
+
+/*
+  Update .TRG and .TRN files after renaming triggers' subject table.
+
+  SYNOPSIS
+    change_table_name()
+      thd        Thread context
+      db         Old database of subject table
+      old_table  Old name of subject table
+      new_db     New database for subject table
+      new_table  New name of subject table
+
+  NOTE
+    This method tries to leave trigger related files in consistent state,
+    i.e. it either will complete successfully, or will fail leaving files
+    in their initial state.
+
+  RETURN VALUE
+    FALSE  Success
+    TRUE   Error
+*/
+
+bool Table_triggers_list::change_table_name(THD *thd, const char *db,
+                                            const char *old_table,
+                                            const char *new_db,
+                                            const char *new_table)
+{
+  TABLE table;
+  bool result= 0;
+  LEX_STRING *err_trigname;
+  DBUG_ENTER("change_table_name");
+
+  bzero(&table, sizeof(table));
+  init_alloc_root(&table.mem_root, 8192, 0);
+
+  safe_mutex_assert_owner(&LOCK_open);
+
+  if (Table_triggers_list::check_n_load(thd, db, old_table, &table, TRUE))
+  {
+    result= 1;
+    goto end;
+  }
+  if (table.triggers)
+  {
+    LEX_STRING_WITH_INIT old_table_name(old_table, strlen(old_table));
+    LEX_STRING_WITH_INIT new_table_name(new_table, strlen(new_table));
+    /*
+      Since triggers should be in the same schema as their subject tables
+      moving table with them between two schemas raises too many questions.
+      (E.g. what should happen if in new schema we already have trigger
+       with same name ?).
+    */
+    if (my_strcasecmp(table_alias_charset, db, new_db))
+    {
+      my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
+      result= 1;
+      goto end;
+    }
+    if (table.triggers->change_table_name_in_triggers(thd, db,
+                                                      &old_table_name,
+                                                      &new_table_name))
+    {
+      result= 1;
+      goto end;
+    }
+    if ((err_trigname= table.triggers->change_table_name_in_trignames(
+                                         db, &new_table_name, 0)))
+    {
+      /*
+        If we were unable to update one of .TRN files properly we will
+        revert all changes that we have done and report about error.
+        We assume that we will be able to undo our changes without errors
+        (we can't do much if there will be an error anyway).
+      */
+      (void) table.triggers->change_table_name_in_trignames(db,
+                                                            &old_table_name,
+                                                            err_trigname);
+      (void) table.triggers->change_table_name_in_triggers(thd, db,
+                                                           &new_table_name,
+                                                           &old_table_name);
+      result= 1;
+      goto end;
+    }
+  }
+end:
+  delete table.triggers;
+  free_root(&table.mem_root, MYF(0));
+  DBUG_RETURN(result);
+}
 
 
 bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
