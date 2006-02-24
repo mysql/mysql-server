@@ -3108,7 +3108,7 @@ static void dbug_print_segment_range(SEL_ARG *arg, KEY_PART *part)
       fputs(" < ", DBUG_FILE);
     else
       fputs(" <= ", DBUG_FILE);
-    store_key_image_to_rec(part->field, (char*)(arg->min_value), part->length);
+    store_key_image_to_rec(part->field, (char*)(arg->max_value), part->length);
     dbug_print_field(part->field);
   }
   fputs("\n", DBUG_FILE);
