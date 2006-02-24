@@ -2291,7 +2291,7 @@ buf_print_io(
 
 	if (srv_use_awe) {
 		fprintf(stderr,
-		"AWE: Buffer pool memory frames			       %lu\n",
+		"AWE: Buffer pool memory frames                        %lu\n",
 				(ulong) buf_pool->n_frames);
 
 		fprintf(stderr,
@@ -2300,8 +2300,8 @@ buf_print_io(
 	}
 	fprintf(file,
 		"Buffer pool size   %lu\n"
-		"Free buffers	    %lu\n"
-		"Database pages	    %lu\n"
+		"Free buffers       %lu\n"
+		"Database pages     %lu\n"
 		"Modified db pages  %lu\n"
 		"Pending reads %lu\n"
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",

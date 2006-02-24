@@ -163,7 +163,7 @@ management to ensure correct alignment for doubles etc. */
 #define UNIV_PAGE_SIZE          (2 * 8192) /* NOTE! Currently, this has to be a
 					power of 2 */
 /* The 2-logarithm of UNIV_PAGE_SIZE: */
-#define UNIV_PAGE_SIZE_SHIFT	14					
+#define UNIV_PAGE_SIZE_SHIFT	14
 
 /* Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32

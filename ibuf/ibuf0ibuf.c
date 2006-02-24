@@ -3132,7 +3132,7 @@ ibuf_merge_or_delete_for_page(
 
 			mtr_start(&mtr);
 
-			fputs("	 InnoDB: Dump of the ibuf bitmap page:\n",
+			fputs("  InnoDB: Dump of the ibuf bitmap page:\n",
 				stderr);
 
 			bitmap_page = ibuf_bitmap_get_map_page(space, page_no,

@@ -4118,7 +4118,7 @@ dict_foreign_print_low(
 	}
 
 	fprintf(stderr, " )\n"
-		"	      REFERENCES %s (",
+		"             REFERENCES %s (",
 		foreign->referenced_table_name);
 
 	for (i = 0; i < foreign->n_fields; i++) {

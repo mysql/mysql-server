@@ -1284,7 +1284,7 @@ page_rec_print(
 	ut_a(!comp == !rec_offs_comp(offsets));
 	rec_print_new(stderr, rec, offsets);
 	fprintf(stderr,
-		"	     n_owned: %lu; heap_no: %lu; next rec: %lu\n",
+		"            n_owned: %lu; heap_no: %lu; next rec: %lu\n",
 		(ulong) rec_get_n_owned(rec, comp),
 		(ulong) rec_get_heap_no(rec, comp),
 		(ulong) rec_get_next_offs(rec, comp));
@@ -1317,7 +1317,7 @@ page_dir_print(
 	for (i = 0; i < n; i++) {
 		slot = page_dir_get_nth_slot(page, i);
 		if ((i == pr_n) && (i < n - pr_n)) {
-			fputs("	   ...	 \n", stderr);
+			fputs("    ...   \n", stderr);
 		}
 		if ((i < pr_n) || (i >= n - pr_n)) {
 			fprintf(stderr,

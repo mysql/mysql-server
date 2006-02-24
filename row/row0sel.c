@@ -2714,7 +2714,7 @@ row_sel_get_clust_rec_for_mysql(
 		if (!rec_get_deleted_flag(rec, sec_index->table->comp)
 			|| prebuilt->select_lock_type != LOCK_NONE) {
 			ut_print_timestamp(stderr);
-			fputs("	 InnoDB: error clustered record"
+			fputs("  InnoDB: error clustered record"
 				" for sec rec not found\n"
 				"InnoDB: ", stderr);
 			dict_index_name_print(stderr, trx, sec_index);
