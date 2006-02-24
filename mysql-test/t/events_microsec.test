@@ -49,6 +49,7 @@ SET GLOBAL event_scheduler=0;
 --sleep 1
 --echo "Should not be running:"
 SHOW VARIABLES like 'event_scheduler';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_scheduler';
 DROP EVENT micro_test2;
 
 drop database events_test;
