@@ -2213,15 +2213,6 @@ r_object_id	users_names
 120001a080000542	guser02
 drop view v1, v2;
 drop table t1, t2;
-create definer=some_user@`` sql security invoker view v1 as select 1;
-ERROR HY000: Definer is not fully qualified
-create definer=some_user@localhost sql security invoker view v1 as select 1;
-Warnings:
-Note	1449	There is no 'some_user'@'localhost' registered
-show create view v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`some_user`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`
-drop view v1;
 create table t1 (s1 int);
 create view abc as select * from t1 as abc;
 drop table t1;
