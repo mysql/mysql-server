@@ -19,6 +19,7 @@ flush no_write_to_binlog tables;
 # Check that it's not in the binlog.
 --replace_result $SERVER_VERSION SERVER_VERSION
 --replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
 eval SHOW BINLOG EVENTS FROM $rename_event_pos ;
 # Check that the master is not confused.
 select * from t3;
@@ -27,6 +28,7 @@ flush tables;
 # Check that it's in the binlog.
 --replace_result $SERVER_VERSION SERVER_VERSION
 --replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
 eval SHOW BINLOG EVENTS FROM $rename_event_pos ;
 save_master_pos;
 connection slave;
