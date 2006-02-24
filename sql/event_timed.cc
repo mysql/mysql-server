@@ -1278,7 +1278,6 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
 
   thd->update_charset();
 
-  DBUG_ENTER("event_timed::compile");
   DBUG_PRINT("info",("old_sql_mode=%d new_sql_mode=%d",old_sql_mode, sql_mode));
   thd->variables.sql_mode= this->sql_mode;
   /* Change the memory root for the execution time */
