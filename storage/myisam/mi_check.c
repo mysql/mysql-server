@@ -3900,9 +3900,6 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
 
   create_info.data_file_length=file_length;
   create_info.auto_increment=share.state.auto_increment;
-  create_info.raid_type=   share.base.raid_type;
-  create_info.raid_chunks= share.base.raid_chunks;
-  create_info.raid_chunksize= share.base.raid_chunksize;
   create_info.language = (param->language ? param->language :
 			  share.state.header.language);
   create_info.key_file_length=  status_info.key_file_length;
