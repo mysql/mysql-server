@@ -35,11 +35,11 @@ master-bin.000001	4	Format_desc	1	102	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	102	Query	1	193	use `test`; DROP TABLE IF EXISTS test.t2
 master-bin.000001	193	Query	1	299	use `test`; CREATE TABLE test.t1 (a INT,PRIMARY KEY(a))
 master-bin.000001	299	Query	1	405	use `test`; CREATE TABLE test.t2 (a INT,PRIMARY KEY(a))
-master-bin.000001	405	Table_map	1	444	test.t1
-master-bin.000001	444	Write_rows	1	483	
-master-bin.000001	483	Table_map	1	540	mysql.proc
-master-bin.000001	540	Write_rows	1	723	
-master-bin.000001	723	Table_map	1	762	test.t2
-master-bin.000001	762	Write_rows	1	796	
+master-bin.000001	405	Table_map	1	444	table_id: # (test.t1)
+master-bin.000001	444	Write_rows	1	483	table_id: # flags: STMT_END_F
+master-bin.000001	483	Table_map	1	540	table_id: # (mysql.proc)
+master-bin.000001	540	Write_rows	1	723	table_id: # flags: STMT_END_F
+master-bin.000001	723	Table_map	1	762	table_id: # (test.t2)
+master-bin.000001	762	Write_rows	1	796	table_id: # flags: STMT_END_F
 DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE IF EXISTS test.t1;

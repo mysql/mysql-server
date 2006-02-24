@@ -26,6 +26,7 @@ CREATE TABLE t2 (a INT, b INT) ENGINE=Merge;
 CREATE TABLE t3 (a INT, b INT) CHARSET=utf8;
 CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8;
 --replace_column 1 # 4 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
 --query_vertical SHOW BINLOG EVENTS FROM 212
 --echo **** On Master ****
 --query_vertical SHOW CREATE TABLE t1
@@ -60,6 +61,7 @@ connection master;
 --error 1062
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 # Shouldn't be written to the binary log
+--replace_regex /table_id: [0-9]+/table_id: #/
 SHOW BINLOG EVENTS FROM 1326;
 
 # Test that INSERT-SELECT works the same way as for SBR.
@@ -68,6 +70,7 @@ CREATE TABLE t7 (a INT, b INT UNIQUE);
 INSERT INTO t7 SELECT a,b FROM tt3;
 SELECT * FROM t7 ORDER BY a,b;
 # Should be written to the binary log
+--replace_regex /table_id: [0-9]+/table_id: #/
 SHOW BINLOG EVENTS FROM 1326;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
@@ -78,6 +81,7 @@ INSERT INTO tt4 VALUES (4,8), (5,10), (6,12);
 BEGIN;
 INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
+--replace_regex /table_id: [0-9]+/table_id: #/
 SHOW BINLOG EVENTS FROM 1522;
 SELECT * FROM t7 ORDER BY a,b;
 sync_slave_with_master;
@@ -91,6 +95,7 @@ CREATE TEMPORARY TABLE tt6 LIKE tt4;
 --echo **** On Master ****
 --query_vertical SHOW CREATE TABLE t8
 --query_vertical SHOW CREATE TABLE t9
+--replace_regex /table_id: [0-9]+/table_id: #/
 SHOW BINLOG EVENTS FROM 1618;
 sync_slave_with_master;
 --echo **** On Slave ****

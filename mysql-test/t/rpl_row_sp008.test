@@ -49,6 +49,7 @@ SELECT * FROM test.t2;
 connection master;
 let $VERSION=`select version()`;
 --replace_result $VERSION VERSION
+--replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events;
 
 # Cleanup

@@ -5268,8 +5268,8 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
   /*
     If m_table_id == ULONG_MAX, then we have a dummy event that does
     not contain any data.  In that case, we just remove all tables in
-    the tables_to_lock list, step the relay log position, and return
-    with success.
+    the tables_to_lock list, close the thread tables, step the relay
+    log position, and return with success.
    */
   if (m_table_id == ULONG_MAX)
   {
@@ -5280,6 +5280,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
     DBUG_ASSERT(get_flags(STMT_END_F));
 
     rli->clear_tables_to_lock();
+    close_thread_tables(thd);
     thd->clear_error();
     rli->inc_event_relay_log_pos();
     DBUG_RETURN(0);
@@ -5414,12 +5415,16 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       DBUG_ASSERT(row_end != NULL); // cannot happen
       DBUG_ASSERT(row_end <= (const char*)m_rows_end);
 
+#if 0
       /* in_use can have been set to NULL in close_tables_for_reopen */
       THD* old_thd= table->in_use;
       if (!table->in_use)
         table->in_use= thd;
+#endif
       error= do_exec_row(table);
+#if 0
       table->in_use = old_thd;
+#endif
       switch (error)
       {
         /* Some recoverable errors */
@@ -5599,14 +5604,12 @@ bool Rows_log_event::write_data_body(IO_CACHE*file)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 void Rows_log_event::pack_info(Protocol *protocol)
 {
-#ifdef DBUG_RBR
   char buf[256];
   char const *const flagstr=
     get_flags(STMT_END_F) ? " flags: STMT_END_F" : "";
   my_size_t bytes= snprintf(buf, sizeof(buf),
                             "table_id: %lu%s", m_table_id, flagstr);
   protocol->store(buf, bytes, &my_charset_bin);
-#endif
 }
 #endif
 
@@ -6009,17 +6012,11 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 void Table_map_log_event::pack_info(Protocol *protocol)
 {
-#ifdef DBUG_RBR
     char buf[256];
     my_size_t bytes= snprintf(buf, sizeof(buf),
                               "table_id: %lu (%s.%s)",
                               m_table_id, m_dbnam, m_tblnam);
     protocol->store(buf, bytes, &my_charset_bin);
-#else
-    char buf[256];
-    my_size_t bytes= snprintf(buf, sizeof(buf), "%s.%s", m_dbnam, m_tblnam);
-    protocol->store(buf, bytes, &my_charset_bin);
-#endif
 }
 #endif
 
