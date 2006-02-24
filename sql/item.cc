@@ -375,9 +375,6 @@ void Item::print_item_w_name(String *str)
 void Item::cleanup()
 {
   DBUG_ENTER("Item::cleanup");
-  DBUG_PRINT("info", ("Item: 0x%lx, Type: %d, name %s, original name %s",
-		      this, (int)type(), name ? name : "(null)",
-                      orig_name ? orig_name : "null"));
   fixed=0;
   marker= 0;
   if (orig_name)

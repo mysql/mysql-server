@@ -2987,7 +2987,6 @@ select * from (select max(fld) from t1) as foo;
 max(fld)
 1
 drop table t1;
-purge master logs before (select adddate(current_timestamp(), interval -4 day));
 CREATE TABLE t1 (a int, b int);
 CREATE TABLE t2 (c int, d int);
 CREATE TABLE t3 (e int);
