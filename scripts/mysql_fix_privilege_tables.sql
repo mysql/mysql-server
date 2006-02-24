@@ -521,3 +521,9 @@ ALTER TABLE proc  MODIFY db
                          char(77) collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY comment
                          char(64) collate utf8_bin DEFAULT '' NOT NULL;
+
+# Activate the new, possible modified privilege tables
+# This should not be needed, but gives us some extra testing that the above
+# changes was correct
+
+flush privileges;

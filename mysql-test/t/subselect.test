@@ -1963,12 +1963,6 @@ select * from (select max(fld) from t1) as foo;
 drop table t1;
 
 #
-# BUG #10308: purge log with subselect
-#
-
-purge master logs before (select adddate(current_timestamp(), interval -4 day));
-
-#
 # Test for bug #11762: subquery with an aggregate function in HAVING
 #
 
