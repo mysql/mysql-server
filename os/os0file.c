@@ -1305,7 +1305,7 @@ try_again:
 		if (create_mode == OS_FILE_OPEN_RETRY) {
 			int i;
 			ut_print_timestamp(stderr);
-			fputs("	 InnoDB: Retrying to lock the first data file\n",
+			fputs("  InnoDB: Retrying to lock the first data file\n",
 				stderr);
 			for (i = 0; i < 100; i++) {
 				os_thread_sleep(1000000);
@@ -1315,7 +1315,7 @@ try_again:
 				}
 			}
 			ut_print_timestamp(stderr);
-			fputs("	 InnoDB: Unable to open the first data file\n",
+			fputs("  InnoDB: Unable to open the first data file\n",
 				stderr);
 		}
 		close(file);
