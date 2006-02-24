@@ -145,13 +145,11 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
-#if 0
   {"use-threads", OPT_USE_THREADS,
    "Load files in parallel. The argument is the number "
    "of threads to use for loading data.",
    (gptr*) &opt_use_threads, (gptr*) &opt_use_threads, 0, 
    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &current_user,
    (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
