@@ -3940,7 +3940,7 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   if (et.load_from_row(thd->mem_root, event_table))
   {
-    my_error(ER_EVENT_CANNOT_LOAD_FROM_TABLE, MYF(0));
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -3976,6 +3976,7 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     if (event_reconstruct_interval_expression(&show_str, et.interval,
                                               et.expression))
       DBUG_RETURN(1);
+
     sch_table->field[7]->set_notnull();
     sch_table->field[7]->store(show_str.c_ptr(), show_str.length(), scs);
 
