@@ -52,5 +52,8 @@ SET GLOBAL event_scheduler=0;
 SHOW VARIABLES like 'event_scheduler';
 Variable_name	Value
 event_scheduler	OFF
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_scheduler';
+COUNT(*)
+0
 DROP EVENT micro_test2;
 drop database events_test;
