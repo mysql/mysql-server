@@ -195,6 +195,7 @@ event_timed::init_execute_at(THD *thd, Item *expr)
     0                  OK
     EVEX_PARSE_ERROR   fix_fields failed
     EVEX_BAD_PARAMS    Interval is not positive
+    EVEX_MICROSECOND_UNSUP  Microseconds are not supported.
 */
 
 int
@@ -254,6 +255,7 @@ event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
   case INTERVAL_MINUTE_MICROSECOND: // day and hour are 0
   case INTERVAL_HOUR_MICROSECOND:// day is anyway 0
   case INTERVAL_DAY_MICROSECOND:
+    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
     expression= ((((interval.day*24) + interval.hour)*60+interval.minute)*60 +
                 interval.second) * 1000000L + interval.second_part;
     break;
@@ -264,10 +266,11 @@ event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
     expression= interval.minute * 60 + interval.second;
     break;
   case INTERVAL_SECOND_MICROSECOND:
+    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
     expression= interval.second * 1000000L + interval.second_part;
     break;
-  default:
-    break;
+  case INTERVAL_MICROSECOND:
+    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);  
   }
   if (interval.neg || expression > EVEX_MAX_INTERVAL_VALUE)
     DBUG_RETURN(EVEX_BAD_PARAMS);
@@ -1005,9 +1008,10 @@ extern LEX_STRING interval_type_to_name[];
       buf    String*, should be already allocated. CREATE EVENT goes inside.
 
   RETURN VALUE
-    0   OK
-    1   Error (for now if mysql.event has been tampered and MICROSECONDS
-        interval or derivative has been put there.
+    0                       OK
+    EVEX_MICROSECOND_UNSUP  Error (for now if mysql.event has been
+                            tampered and MICROSECONDS interval or
+                            derivative has been put there.
 */
 
 int
@@ -1023,7 +1027,7 @@ event_timed::get_create_event(THD *thd, String *buf)
 
   if (expression &&
       event_reconstruct_interval_expression(&expr_buf, interval, expression))
-      DBUG_RETURN(1);
+    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
 
   buf->append(STRING_WITH_LEN("CREATE EVENT "));
   append_identifier(thd, buf, dbname.str, dbname.length);
@@ -1224,8 +1228,9 @@ event_timed::restore_security_context(THD *thd, Security_context *backup)
                  instead of thd->mem_root
 
   RETURN VALUE
-    0                    success
-    EVEX_COMPILE_ERROR   error during compilation
+    0                       success
+    EVEX_COMPILE_ERROR      error during compilation
+    EVEX_MICROSECOND_UNSUP  mysql.event was tampered 
 */
 
 int
@@ -1248,7 +1253,20 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
                *old_collation_connection,
                *old_character_set_results;
 
+  DBUG_ENTER("event_timed::compile");
+
   show_create.length(0);
+
+  switch (get_create_event(thd, &show_create)) {
+  case EVEX_MICROSECOND_UNSUP:
+    sql_print_error("Scheduler");
+    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
+  case 0:
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+
   old_character_set_client= thd->variables.character_set_client;
   old_character_set_results= thd->variables.character_set_results;
   old_collation_connection= thd->variables.collation_connection;
@@ -1275,8 +1293,6 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   old_db_length= thd->db_length;
   thd->db= dbname.str;
   thd->db_length= dbname.length;
-
-  get_create_event(thd, &show_create);
 
   thd->query= show_create.c_ptr();
   thd->query_length= show_create.length();
