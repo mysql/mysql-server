@@ -5,6 +5,8 @@
 # depends on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
 
+DROP SCHEMA test;
+CREATE SCHEMA test;
 #
 # Bug #13783  mysqlcheck tries to optimize and analyze information_schema
 #
