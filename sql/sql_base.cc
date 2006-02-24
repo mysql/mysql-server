@@ -1049,21 +1049,18 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     /* Fallthrough */
   }
 
-  /*
-    For RBR: before calling close_thread_tables(), storage engines
-    should autocommit. Hence if there is a a pending event, it belongs
-    to a non-transactional engine, which writes directly to the table,
-    and should therefore be flushed before unlocking and closing the
-    tables.  The test above for locked tables will not be triggered
-    since RBR locks and unlocks tables on a per-event basis.
-
-    TODO (WL#3023): Change the semantics so that RBR does not lock and
-    unlock tables on a per-event basis.
-  */
-  thd->binlog_flush_pending_rows_event(true);
-
   if (thd->lock)
   {
+    /*
+      For RBR we flush the pending event just before we unlock all the
+      tables.  This means that we are at the end of a topmost
+      statement, so we ensure that the STMT_END_F flag is set on the
+      pending event.  For statements that are *inside* stored
+      functions, the pending event will not be flushed: that will be
+      handled either before writing a query log event (inside
+      binlog_query()) or when preparing a pending event.
+     */
+    thd->binlog_flush_pending_rows_event(true);
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
@@ -1075,7 +1072,8 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     saves some work in 2pc too)
     see also sql_parse.cc - dispatch_command()
   */
-  bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
+  if (!(thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
+    bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
   if (!thd->active_transaction())
     thd->transaction.xid_state.xid.null();
 

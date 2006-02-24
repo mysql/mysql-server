@@ -363,7 +363,6 @@ SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
 C1	HEX(B1)	HEX(B2)
 1	NULL	0
 CREATE TABLE t7 (C1 INT PRIMARY KEY, C2 INT) ENGINE = 'INNODB'  ;
-
 --- on slave: original values ---
 INSERT INTO t7 VALUES (1,3), (2,6), (3,9);
 SELECT * FROM t7 ORDER BY C1;
@@ -371,7 +370,6 @@ C1	C2
 1	3
 2	6
 3	9
-
 --- on master: new values inserted ---
 INSERT INTO t7 VALUES (1,2), (2,4), (3,6);
 SELECT * FROM t7 ORDER BY C1;
@@ -379,48 +377,42 @@ C1	C2
 1	2
 2	4
 3	6
-
 --- on slave: old values should be overwritten by replicated values ---
 SELECT * FROM t7 ORDER BY C1;
 C1	C2
 1	2
 2	4
 3	6
-
 --- on master ---
-DROP TABLE t7;
-CREATE TABLE t7 (a INT PRIMARY KEY, b INT UNIQUE, c INT UNIQUE) ENGINE = 'INNODB'  ;
-INSERT INTO t7 VALUES (99,99,99);
-INSERT INTO t7 VALUES (99,22,33);
+CREATE TABLE t8 (a INT PRIMARY KEY, b INT UNIQUE, c INT UNIQUE) ENGINE = 'INNODB'  ;
+INSERT INTO t8 VALUES (99,99,99);
+INSERT INTO t8 VALUES (99,22,33);
 ERROR 23000: Duplicate entry '99' for key 'PRIMARY'
-INSERT INTO t7 VALUES (11,99,33);
+INSERT INTO t8 VALUES (11,99,33);
 ERROR 23000: Duplicate entry '99' for key 'b'
-INSERT INTO t7 VALUES (11,22,99);
+INSERT INTO t8 VALUES (11,22,99);
 ERROR 23000: Duplicate entry '99' for key 'c'
-SELECT * FROM t7 ORDER BY a;
+SELECT * FROM t8 ORDER BY a;
 a	b	c
 99	99	99
-
 --- on slave ---
-SELECT * FROM t7 ORDER BY a;
+SELECT * FROM t8 ORDER BY a;
 a	b	c
 99	99	99
-INSERT INTO t7 VALUES (1,2,3), (2,4,6), (3,6,9);
-SELECT * FROM t7 ORDER BY a;
+INSERT INTO t8 VALUES (1,2,3), (2,4,6), (3,6,9);
+SELECT * FROM t8 ORDER BY a;
 a	b	c
 1	2	3
 2	4	6
 3	6	9
 99	99	99
-
 --- on master ---
-INSERT INTO t7 VALUES (2,4,8);
-
+INSERT INTO t8 VALUES (2,4,8);
 --- on slave ---
-SELECT * FROM t7 ORDER BY a;
+SELECT * FROM t8 ORDER BY a;
 a	b	c
 1	2	3
 2	4	8
 3	6	9
 99	99	99
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;

@@ -11323,8 +11323,8 @@ EXECUTE stmt1 USING @var1;
 SHOW BINLOG EVENTS FROM 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	102	Query	1	189	use `test`; CREATE TABLE t1(f1 blob)
-master-bin.000001	189	Table_map	1	228	test.t1
-master-bin.000001	228	Write_rows	1	262	
+master-bin.000001	189	Table_map	1	228	table_id: # (test.t1)
+master-bin.000001	228	Write_rows	1	262	table_id: # flags: STMT_END_F
 SELECT HEX(f1) FROM t1;
 HEX(f1)
 8300
@@ -11366,4 +11366,3 @@ col1
 a
 a
 a
-drop table t1;

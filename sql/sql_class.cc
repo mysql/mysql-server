@@ -162,7 +162,7 @@ bool foreign_key_prefix(Key *a, Key *b)
 ****************************************************************************/
 
 Open_tables_state::Open_tables_state(ulong version_arg)
-  :version(version_arg)
+  :version(version_arg), state_flags(0U)
 {
   reset_open_tables_state();
 }
@@ -197,7 +197,8 @@ THD::THD()
   :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
-   user_time(0), in_sub_stmt(0), global_read_lock(0), is_fatal_error(0),
+   user_time(0), in_sub_stmt(0), binlog_table_maps(0),
+   global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
    in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
@@ -1945,6 +1946,7 @@ void THD::reset_n_backup_open_tables_state(Open_tables_state *backup)
   DBUG_ENTER("reset_n_backup_open_tables_state");
   backup->set_open_tables_state(this);
   reset_open_tables_state();
+  state_flags|= Open_tables_state::BACKUPS_AVAIL;
   DBUG_VOID_RETURN;
 }
 
@@ -2010,25 +2012,6 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->cuted_fields=     cuted_fields;
   backup->client_capabilities= client_capabilities;
   backup->savepoints= transaction.savepoints;
-
-#ifdef HAVE_ROW_BASED_REPLICATION
-  /*
-    For row-based replication and before executing a function/trigger,
-    the pending rows event has to be flushed.  The function/trigger
-    might execute statement that require the pending event to be
-    flushed. A simple example:
-
-      CREATE FUNCTION foo() RETURNS INT
-      BEGIN
-        SAVEPOINT x;
-        RETURN 0;
-      END
-
-      INSERT INTO t1 VALUES (1), (foo()), (2);
-  */
-  if (binlog_row_based)
-    binlog_flush_pending_rows_event(false);
-#endif /* HAVE_ROW_BASED_REPLICATION */
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !binlog_row_based)
@@ -2209,6 +2192,7 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                        bool is_transactional,
 				       RowsEventT *hint __attribute__((unused)))
 {
+  DBUG_ENTER("binlog_prepare_pending_rows_event");
   /* Pre-conditions */
   DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
 
@@ -2220,12 +2204,12 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
     have to do it here.
   */
   if (binlog_setup_trx_data())
-    return NULL;
+    DBUG_RETURN(NULL);
 
   Rows_log_event* pending= binlog_get_pending_rows_event();
 
   if (unlikely(pending && !pending->is_valid()))
-    return NULL;
+    DBUG_RETURN(NULL);
 
   /*
     Check if the current event is non-NULL and a write-rows
@@ -2250,7 +2234,7 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
 	ev= new RowsEventT(this, table, table->s->table_map_id, cols,
                            is_transactional);
     if (unlikely(!ev))
-      return NULL;
+      DBUG_RETURN(NULL);
     ev->server_id= serv_id; // I don't like this, it's too easy to forget.
     /*
       flush the pending event and replace it with the newly created
@@ -2259,17 +2243,17 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
     if (unlikely(mysql_bin_log.flush_and_set_pending_rows_event(this, ev)))
     {
       delete ev;
-      return NULL;
+      DBUG_RETURN(NULL);
     }
 
-    return ev;                  /* This is the new pending event */
+    DBUG_RETURN(ev);               /* This is the new pending event */
   }
-  return pending;              /* This is the current pending event */
+  DBUG_RETURN(pending);        /* This is the current pending event */
 }
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 /*
-  Instansiate the versions we need, we have -fno-implicit-template as
+  Instantiate the versions we need, we have -fno-implicit-template as
   compiling option.
 */
 template Rows_log_event*
@@ -2534,14 +2518,33 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
     {
       pending->set_flags(Rows_log_event::STMT_END_F);
       pending->flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
+      binlog_table_maps= 0;
     }
 
-    /*
-      We only bother to set the pending event if it is non-NULL.  This
-      is essential for correctness, since there is not necessarily a
-      trx_data created for the thread if the pending event is NULL.
-    */
     error= mysql_bin_log.flush_and_set_pending_rows_event(this, 0);
+  }
+  else if (stmt_end && binlog_table_maps > 0)
+  {                      /* there is no pending event at this point */
+    /*
+      If pending is null and we are going to end the statement, we
+      have to write an extra, empty, binrow event so that the slave
+      knows to discard the tables it has received.  Otherwise, the
+      table maps written this far will be included in the table maps
+      for the following statement.
+
+      See if we can replace this with a dummy, maybe constant, event.
+    */
+#if 0
+    static unsigned char memory[sizeof(Write_rows_log_event)];
+    void *const ptr= &memory;
+#endif
+    Rows_log_event *ev=
+      new Write_rows_log_event(this, 0, ULONG_MAX, 0, FALSE);
+    ev->set_flags(Rows_log_event::STMT_END_F);
+    binlog_set_pending_rows_event(ev);
+
+    error= mysql_bin_log.flush_and_set_pending_rows_event(this, 0);
+    binlog_table_maps= 0;
   }
 
   DBUG_RETURN(error);
@@ -2568,6 +2571,17 @@ void THD::binlog_delete_pending_rows_event()
   functions have been issued, but before tables are unlocked and
   closed.
 
+  OBSERVE
+    There shall be no writes to any system table after calling
+    binlog_query(), so these writes has to be moved to before the call
+    of binlog_query() for correct functioning.
+
+    This is necessesary not only for RBR, but the master might crash
+    after binlogging the query but before changing the system tables.
+    This means that the slave and the master are not in the same state
+    (after the master has restarted), so therefore we have to
+    eliminate this problem.
+
   RETURN VALUE
     Error code, or 0 if no error.
 */
@@ -2577,7 +2591,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
 {
   DBUG_ENTER("THD::binlog_query");
   DBUG_ASSERT(query && mysql_bin_log.is_open());
-  int error= binlog_flush_pending_rows_event(true);
+
   switch (qtype)
   {
   case THD::MYSQL_QUERY_TYPE:
@@ -2591,19 +2605,41 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
     */
   case THD::ROW_QUERY_TYPE:
     if (binlog_row_based)
-      DBUG_RETURN(binlog_flush_pending_rows_event(true));
+    {
+      /*
+        If thd->lock is set, then we are not inside a stored function.
+        In that case, mysql_unlock_tables() will be called after this
+        binlog_query(), so we have to flush the pending rows event
+        with the STMT_END_F set to unlock all tables at the slave side
+        as well.
+
+        We will not flush the pending event, if thd->lock is NULL.
+        This means that we are inside a stored function or trigger, so
+        the flushing will be done inside the top-most
+        close_thread_tables().
+       */
+      if (this->lock)
+        DBUG_RETURN(binlog_flush_pending_rows_event(TRUE));
+      DBUG_RETURN(0);
+    }
     /* Otherwise, we fall through */
   case THD::STMT_QUERY_TYPE:
     /*
-       Most callers of binlog_query() ignore the error code, assuming
-       that the statement will always be written to the binlog.  In
-       case of error above, we therefore just continue and write the
-       statement to the binary log.
+      The MYSQL_LOG::write() function will set the STMT_END_F flag and
+      flush the pending rows event if necessary.
      */
     {
       Query_log_event qinfo(this, query, query_len, is_trans, suppress_use);
       qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
-      DBUG_RETURN(mysql_bin_log.write(&qinfo));
+      /*
+        Binlog table maps will be irrelevant after a Query_log_event
+        (they are just removed on the slave side) so after the query
+        log event is written to the binary log, we pretend that no
+        table maps were written.
+       */
+      int error= mysql_bin_log.write(&qinfo);
+      binlog_table_maps= 0;
+      DBUG_RETURN(error);
     }
     break;
 

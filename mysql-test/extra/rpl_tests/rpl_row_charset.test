@@ -114,6 +114,7 @@ connection master;
 drop database mysqltest2;
 drop database mysqltest3;
 --replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events from 102;
 sync_slave_with_master;
 
@@ -162,7 +163,7 @@ select hex(c1), hex(c2) from t1;
 
 connection master;
 # Let's have a look at generated SETs.
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+#--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 #--exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
 drop table t1;
 sync_slave_with_master;
