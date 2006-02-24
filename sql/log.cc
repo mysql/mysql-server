@@ -2680,6 +2680,8 @@ int MYSQL_LOG::flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
 
   DBUG_ASSERT(trx_data);
 
+  DBUG_PRINT("info", ("trx_data->pending=%p", trx_data->pending));
+
   if (Rows_log_event* pending= trx_data->pending)
   {
     IO_CACHE *file= &log_file;

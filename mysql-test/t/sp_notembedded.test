@@ -15,6 +15,7 @@ begin
   show grants for 'root'@'localhost';
 end|
 --disable_parsing
+--replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events;
 show storage engines;
 show master status;

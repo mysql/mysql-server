@@ -126,12 +126,12 @@ NULL	4	2
 NULL	5	10
 NULL	6	12
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
-ERROR 23000: Duplicate entry '2' for key 1
+ERROR 23000: Duplicate entry '2' for key 'b'
 SHOW BINLOG EVENTS FROM 1326;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 CREATE TABLE t7 (a INT, b INT UNIQUE);
 INSERT INTO t7 SELECT a,b FROM tt3;
-ERROR 23000: Duplicate entry '2' for key 1
+ERROR 23000: Duplicate entry '2' for key 'b'
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -140,8 +140,8 @@ a	b
 SHOW BINLOG EVENTS FROM 1326;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	1326	Query	1	1426	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
-master-bin.000001	1426	Table_map	1	1466	test.t7
-master-bin.000001	1466	Write_rows	1	1522	
+master-bin.000001	1426	Table_map	1	1466	table_id: # (test.t7)
+master-bin.000001	1466	Write_rows	1	1522	table_id: # flags: STMT_END_F
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -156,8 +156,8 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SHOW BINLOG EVENTS FROM 1522;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	1522	Table_map	1	1562	test.t7
-master-bin.000001	1562	Write_rows	1	1618	
+master-bin.000001	1522	Table_map	1	1562	table_id: # (test.t7)
+master-bin.000001	1562	Write_rows	1	1618	table_id: # flags: STMT_END_F
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2

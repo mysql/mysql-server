@@ -1907,8 +1907,6 @@ public:
  { return COMPATIBLE_DATA_NO; }
 
 private:
-  friend int ndb_add_binlog_index(THD *, void *);
-
   /*
     Row-level primitives for storage engines.  These should be
     overridden by the storage engine class. To call these methods, use
