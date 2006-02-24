@@ -17,3 +17,5 @@ copy innobase ..\..\storage\innobase\cmakelists.txt
 copy myisam ..\..\storage\myisam\cmakelists.txt
 copy myisammrg ..\..\storage\myisammrg\cmakelists.txt
 copy im ..\..\server-tools\instance-manager\cmakelists.txt
+copy libmysql ..\..\libmysql\cmakelists.txt
+copy tests ..\..\tests\cmakelists.txt
