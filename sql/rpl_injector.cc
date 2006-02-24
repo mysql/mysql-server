@@ -26,7 +26,7 @@
 /* inline since it's called below */
 inline
 injector::transaction::transaction(MYSQL_LOG *log, THD *thd)
-  : m_thd(thd)
+  : m_state(START_STATE), m_thd(thd)
 {
   /* 
      Default initialization of m_start_pos (which initializes it to garbage).
@@ -64,12 +64,31 @@ int injector::transaction::commit()
    DBUG_RETURN(0);
 }
 
+int injector::transaction::use_table(server_id_type sid, table tbl)
+{
+  DBUG_ENTER("injector::transaction::use_table");
+
+  int error;
+
+  if ((error= check_state(TABLE_STATE)))
+    DBUG_RETURN(error);
+
+  m_thd->set_server_id(sid);
+  error= m_thd->binlog_write_table_map(tbl.get_table(),
+                                       tbl.is_transactional());
+  DBUG_RETURN(error);
+}
+
 
 int injector::transaction::write_row (server_id_type sid, table tbl, 
 				      MY_BITMAP const* cols, size_t colcnt,
 				      record_type record)
 {
    DBUG_ENTER("injector::transaction::write_row(...)");
+
+   if (int error= check_state(ROW_STATE))
+     DBUG_RETURN(error);
+
    m_thd->set_server_id(sid);
    m_thd->binlog_write_row(tbl.get_table(), tbl.is_transactional(), 
                            cols, colcnt, record);
@@ -82,6 +101,10 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
 				      record_type record)
 {
    DBUG_ENTER("injector::transaction::delete_row(...)");
+
+   if (int error= check_state(ROW_STATE))
+     DBUG_RETURN(error);
+
    m_thd->set_server_id(sid);
    m_thd->binlog_delete_row(tbl.get_table(), tbl.is_transactional(), 
                             cols, colcnt, record);
@@ -94,6 +117,10 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
 				      record_type before, record_type after)
 {
    DBUG_ENTER("injector::transaction::update_row(...)");
+
+   if (int error= check_state(ROW_STATE))
+     DBUG_RETURN(error);
+
    m_thd->set_server_id(sid);
    m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(),
 		            cols, colcnt, before, after);
