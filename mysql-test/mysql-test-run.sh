@@ -318,6 +318,7 @@ while test $# -gt 0; do
       USE_EMBEDDED_SERVER=1
       USE_MANAGER=0 NO_SLAVE=1
       USE_RUNNING_SERVER=0
+      USE_NDBCLUSTER=""
       TEST_MODE="$TEST_MODE embedded" ;;
     --purify)
       USE_PURIFY=1
