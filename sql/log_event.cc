@@ -6359,18 +6359,27 @@ void Write_rows_log_event::print(FILE *file, PRINT_EVENT_INFO* print_event_info)
 **************************************************************************/
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-static int record_compare(TABLE *table, char const *a, char const *b)
+/*
+  Compares table->record[0] and table->record[1]
+
+  Returns TRUE if different.
+*/
+static bool record_compare(TABLE *table)
 {
-  for (my_size_t i= 0 ; i < table->s->fields ; ++i)
+  if (table->s->blob_fields + table->s->varchar_fields == 0)
+    return cmp_record(table,record[1]);
+  /* Compare null bits */
+  if (memcmp(table->null_flags,
+	     table->null_flags+table->s->rec_buff_length,
+	     table->s->null_bytes))
+    return TRUE;				// Diff in NULL value
+  /* Compare updated fields */
+  for (Field **ptr=table->field ; *ptr ; ptr++)
   {
-    uint const off= table->field[i]->offset();
-    uint const res= table->field[i]->cmp_binary(a + off, 
-                                                b + off);
-    if (res != 0) {
-      return res;
-    }
+    if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
+      return TRUE;
   }
-  return 0;
+  return FALSE;
 }
 
 
@@ -6378,15 +6387,12 @@ static int record_compare(TABLE *table, char const *a, char const *b)
   Find the row given by 'key', if the table has keys, or else use a table scan
   to find (and fetch) the row.  If the engine allows random access of the
   records, a combination of position() and rnd_pos() will be used.
-
-  The 'record_buf' will be used as buffer for records while locating the
-  correct row.
  */
-static int find_and_fetch_row(TABLE *table, byte *key, byte *record_buf)
+static int find_and_fetch_row(TABLE *table, byte *key)
 {
   DBUG_ENTER("find_and_fetch_row(TABLE *table, byte *key, byte *record)");
   DBUG_PRINT("enter", ("table=%p, key=%p, record=%p",
-		       table, key, record_buf));
+		       table, key, table->record[1]));
 
   DBUG_ASSERT(table->in_use != NULL);
 
@@ -6404,7 +6410,7 @@ static int find_and_fetch_row(TABLE *table, byte *key, byte *record_buf)
     DBUG_RETURN(table->file->rnd_pos(table->record[0], table->file->ref));
   }
 
-  DBUG_ASSERT(record_buf);
+  DBUG_ASSERT(table->record[1]);
 
   /* We need to retrieve all fields */
   table->file->ha_set_all_bits_in_read_set();
@@ -6412,7 +6418,7 @@ static int find_and_fetch_row(TABLE *table, byte *key, byte *record_buf)
   if (table->s->keys > 0)
   {
     int error;
-    if ((error= table->file->index_read_idx(record_buf, 0, key,
+    if ((error= table->file->index_read_idx(table->record[1], 0, key,
                                             table->key_info->key_length,
                                             HA_READ_KEY_EXACT)))
     {
@@ -6437,10 +6443,10 @@ static int find_and_fetch_row(TABLE *table, byte *key, byte *record_buf)
     if (table->key_info->flags & HA_NOSAME)
       DBUG_RETURN(0);
 
-    while (record_compare(table, (const char*)table->record[0], (const char*)record_buf) != 0)
+    while (record_compare(table))
     {
       int error;
-      if ((error= table->file->index_next(record_buf)))
+      if ((error= table->file->index_next(table->record[1])))
       {
 	table->file->print_error(error, MYF(0));
 	DBUG_RETURN(error);
@@ -6454,7 +6460,7 @@ static int find_and_fetch_row(TABLE *table, byte *key, byte *record_buf)
     int error= 0;
     do
     {
-      error= table->file->rnd_next(record_buf);
+      error= table->file->rnd_next(table->record[1]);
       switch (error)
       {
       case 0:
@@ -6471,9 +6477,7 @@ static int find_and_fetch_row(TABLE *table, byte *key, byte *record_buf)
 	DBUG_RETURN(error);
       }
     }
-    while (restart_count < 2 &&
-           record_compare(table, (const char*)table->record[0], 
-                          (const char*)record_buf) != 0);
+    while (restart_count < 2 && record_compare(table));
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
     DBUG_RETURN(error);
@@ -6493,7 +6497,7 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                              bool is_transactional)
   : Rows_log_event(thd_arg, tbl_arg, tid, cols, is_transactional)
 #ifdef HAVE_REPLICATION
-  ,m_memory(NULL), m_key(NULL), m_search_record(NULL)
+  ,m_memory(NULL), m_key(NULL), m_after_image(NULL)
 #endif
 {
 }
@@ -6510,7 +6514,7 @@ Delete_rows_log_event::Delete_rows_log_event(const char *buf, uint event_len,
   : Rows_log_event(buf, event_len, DELETE_ROWS_EVENT, description_event)
 #else
   : Rows_log_event(buf, event_len, DELETE_ROWS_EVENT, description_event),
-    m_memory(NULL), m_key(NULL), m_search_record(NULL)
+    m_memory(NULL), m_key(NULL), m_after_image(NULL)
 #endif
 {
 }
@@ -6525,7 +6529,7 @@ int Delete_rows_log_event::do_before_row_operations(TABLE *table)
       table->s->primary_key < MAX_KEY)
   {
     /*
-      We don't need to allocate any memory for m_search_record and
+      We don't need to allocate any memory for m_after_image and
       m_key since they are not used.
     */
     return 0;
@@ -6537,14 +6541,14 @@ int Delete_rows_log_event::do_before_row_operations(TABLE *table)
   {
     m_memory=
       my_multi_malloc(MYF(MY_WME),
-		      &m_search_record, table->s->reclength,
+		      &m_after_image, table->s->reclength,
 		      &m_key, table->key_info->key_length,
 		      NULL);
   }
   else
   {
-    m_search_record= (byte*)my_malloc(table->s->reclength, MYF(MY_WME));
-    m_memory= (gptr)m_search_record;
+    m_after_image= (byte*)my_malloc(table->s->reclength, MYF(MY_WME));
+    m_memory= (gptr)m_after_image;
     m_key= NULL;
   }
   if (!m_memory)
@@ -6571,7 +6575,7 @@ int Delete_rows_log_event::do_after_row_operations(TABLE *table, int error)
   table->file->ha_index_or_rnd_end();
   my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR)); // Free for multi_malloc
   m_memory= NULL;
-  m_search_record= NULL;
+  m_after_image= NULL;
   m_key= NULL;
 
   return error;
@@ -6609,7 +6613,7 @@ int Delete_rows_log_event::do_exec_row(TABLE *table)
 {
   DBUG_ASSERT(table != NULL);
 
-  int error= find_and_fetch_row(table, m_key, m_search_record);
+  int error= find_and_fetch_row(table, m_key);
   if (error)
     return error;
 
@@ -6685,7 +6689,7 @@ int Update_rows_log_event::do_before_row_operations(TABLE *table)
       table->s->primary_key < MAX_KEY)
   {
     /*
-      We don't need to allocate any memory for m_search_record and
+      We don't need to allocate any memory for m_after_image and
       m_key since they are not used.
     */
     return 0;
@@ -6697,14 +6701,14 @@ int Update_rows_log_event::do_before_row_operations(TABLE *table)
   {
     m_memory=
       my_multi_malloc(MYF(MY_WME),
-		      &m_search_record, table->s->reclength,
+		      &m_after_image, table->s->reclength,
 		      &m_key, table->key_info->key_length,
 		      NULL);
   }
   else
   {
-    m_search_record= (byte*)my_malloc(table->s->reclength, MYF(MY_WME));
-    m_memory= (gptr)m_search_record;
+    m_after_image= (byte*)my_malloc(table->s->reclength, MYF(MY_WME));
+    m_memory= (gptr)m_after_image;
     m_key= NULL;
   }
   if (!m_memory)
@@ -6732,7 +6736,7 @@ int Update_rows_log_event::do_after_row_operations(TABLE *table, int error)
   table->file->ha_index_or_rnd_end();
   my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR));
   m_memory= NULL;
-  m_search_record= NULL;
+  m_after_image= NULL;
   m_key= NULL;
 
   return error;
@@ -6752,8 +6756,8 @@ char const *Update_rows_log_event::do_prepare_row(THD *thd, TABLE *table,
   /* record[0] is the before image for the update */
   ptr= unpack_row(table, table->record[0], ptr, &m_cols);
   DBUG_ASSERT(ptr != NULL);
-  /* record[1] is the after image for the update */
-  ptr= unpack_row(table, table->record[1], ptr, &m_cols);
+  /* m_after_image is the after image for the update */
+  ptr= unpack_row(table, m_after_image, ptr, &m_cols);
 
   /*
     If we will access rows using the random access method, m_key will
@@ -6773,9 +6777,18 @@ int Update_rows_log_event::do_exec_row(TABLE *table)
 {
   DBUG_ASSERT(table != NULL);
 
-  int error= find_and_fetch_row(table, m_key, m_search_record);
+  int error= find_and_fetch_row(table, m_key);
   if (error)
     return error;
+
+  /*
+    This is only a precaution to make sure that the call to
+    ha_update_row is using record[1].
+
+    If this is not needed/required, then we could use m_after_image in
+    that call instead.
+  */
+  bmove_align(table->record[1], m_after_image,(size_t) table->s->reclength);
 
   /*
     Now we should have the right row to update.  The record that has
