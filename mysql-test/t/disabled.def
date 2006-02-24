@@ -36,4 +36,3 @@ rpl_sp                  : Bug#16456
 rpl_until               : Unstable test case, bug#15886
 sp-goto                 : GOTO is currently is disabled - will be fixed in the future
 rpl_ndb_log             : results are not deterministic
-mysqldump               : Bug#17443 mysqlimport --use-threads=5 gives crashes
