@@ -3002,6 +3002,7 @@ String *Item_func_uuid::val_str(String *str)
   char *s;
   THD *thd= current_thd;
 
+  thd->set_current_stmt_binlog_row_based_if_mixed();
   pthread_mutex_lock(&LOCK_uuid_generator);
   if (! uuid_time) /* first UUID() call. initializing data */
   {

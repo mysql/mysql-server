@@ -28,14 +28,6 @@
 
 #include <my_bitmap.h>
 
-#if !defined(MYSQL_CLIENT)
-#ifdef HAVE_ROW_BASED_REPLICATION
-extern my_bool binlog_row_based;
-#else
-extern const my_bool binlog_row_based;
-#endif
-#endif
-
 #define LOG_READ_EOF    -1
 #define LOG_READ_BOGUS  -2
 #define LOG_READ_IO     -3
