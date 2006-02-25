@@ -1105,12 +1105,12 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
   Security_context *sctx= thd->security_ctx;
+  LINT_INIT(db_access);
 #endif
   DBUG_ENTER("mysql_change_db");
   DBUG_PRINT("enter",("name: '%s'",name));
 
   LINT_INIT(db_length);
-  LINT_INIT(db_access);
 
   /* dbname can only be NULL if malloc failed */
   if (!dbname || !(db_length= strlen(dbname)))
