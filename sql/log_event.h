@@ -131,6 +131,7 @@ struct old_sql_ex
  ****************************************************************************/
 struct sql_ex_info
 {
+  sql_ex_info() {}                            /* Remove gcc warning */
   char* field_term;
   char* enclosed;
   char* line_term;
