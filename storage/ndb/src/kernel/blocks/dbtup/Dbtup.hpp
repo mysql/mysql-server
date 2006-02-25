@@ -469,20 +469,21 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   struct Page_request 
   {
-    Page_request() {}
     Local_key m_key;
-    Uint16 m_estimated_free_space; // in bytes/records
-    Uint16 m_list_index; // in Disk_alloc_info.m_page_requests
     Uint32 m_frag_ptr_i;
     Uint32 m_extent_info_ptr;
-    Uint16 m_ref_count; // Waiters for page
+    Uint16 m_estimated_free_space; // in bytes/records
+    Uint16 m_list_index;           // in Disk_alloc_info.m_page_requests
+    Uint16 m_ref_count;            // Waiters for page
     Uint16 m_uncommitted_used_space;
-    union {
-      Uint32 nextList;
-      Uint32 nextPool;
-    };
+    Uint32 nextList;
     Uint32 prevList;
+    Uint32 m_magic;
   }; // 32 bytes
+  
+  typedef RecordPool<Page_request, WOPool> Page_request_pool;
+  typedef DLFifoListImpl<Page_request_pool, Page_request> Page_request_list;
+  typedef LocalDLFifoListImpl<Page_request_pool, Page_request> Local_page_request_list;
 
   STATIC_CONST( EXTENT_SEARCH_MATRIX_COLS = 4 ); // Guarantee size
   STATIC_CONST( EXTENT_SEARCH_MATRIX_ROWS = 5 ); // Total size
@@ -518,7 +519,6 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   }; // 40 bytes
   
   typedef LocalDLList<Extent_info> Extent_list;
-  typedef LocalDLList<Page_request> Page_request_list;
 
   struct Tablerec;
   struct Disk_alloc_info 
@@ -553,7 +553,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
      * Requests (for update) that have sufficient space left after request
      *   these are currently being "mapped"
      */
-    DLList<Page_request>::Head m_page_requests[MAX_FREE_LIST];
+    Page_request_list::Head m_page_requests[MAX_FREE_LIST];
 
     /**
      * Current extent
@@ -1010,7 +1010,7 @@ ArrayPool<TupTriggerData> c_triggerPool;
   };
   
   ArrayPool<Extent_info> c_extent_pool;
-  ArrayPool<Page_request> c_page_request_pool;
+  Page_request_pool c_page_request_pool;
   DLHashTable<Extent_info> c_extent_hash;
 
   typedef Ptr<Tablerec> TablerecPtr;
@@ -2608,13 +2608,6 @@ private:
 		       Tablerec*, Fragrecord*, Local_key*, PagePtr, Uint32);
   void disk_page_free(Signal*, 
 		      Tablerec*, Fragrecord*, Local_key*, PagePtr, Uint32);
-  
-  void disk_page_update_free_space(Fragrecord*, Ptr<Page_request>,
-				   DLList<Page_request>::Head list[],
-				   Uint32 i, Uint32 sz);
-  void disk_page_update_free_space(Fragrecord*, PagePtr, Uint32 i,
-				   Int32 uncommitted_delta, 
-				   Int32 extent_delta);
   
   void disk_page_commit_callback(Signal*, Uint32 opPtrI, Uint32 page_id);  
   
