@@ -465,31 +465,14 @@ my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 #ifdef HAVE_ROW_BASED_REPLICATION
-/*
-  This variable below serves as an optimization for (opt_binlog_format ==
-  BF_ROW) as we need to do this test for every row. Stmt-based is default.
-*/
-my_bool binlog_row_based= FALSE;
 ulong opt_binlog_rows_event_max_size;
-const char *binlog_format_names[]= {"STATEMENT", "ROW", NullS};
-/*
-  Note that BF_UNSPECIFIED is last, after the end of binlog_format_names: it
-  has no corresponding cell in this array. We use this value to be able to
-  know if the user has explicitely specified a binlog format (then we require
-  also --log-bin) or not (then we fall back to statement-based).
-*/
-enum binlog_format { BF_STMT= 0, BF_ROW= 1, BF_UNSPECIFIED= 2 };
+const char *binlog_format_names[]= {"STATEMENT", "ROW", "MIXED", NullS};
 #else
-const my_bool binlog_row_based= FALSE;
 const char *binlog_format_names[]= {"STATEMENT", NullS};
-enum binlog_format { BF_STMT= 0, BF_UNSPECIFIED= 2 };
 #endif
-
 TYPELIB binlog_format_typelib=
   { array_elements(binlog_format_names)-1,"",
     binlog_format_names, NULL };
-const char *opt_binlog_format= 0;
-enum binlog_format opt_binlog_format_id= BF_UNSPECIFIED;
 
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /* Used in SIGSEGV handler. */
@@ -3187,42 +3170,25 @@ with --log-bin instead.");
     unireg_abort(1);
   }
 
-  if (!opt_bin_log && (opt_binlog_format_id != BF_UNSPECIFIED))
+ if (!opt_bin_log && (global_system_variables.binlog_format != BINLOG_FORMAT_UNSPEC))
   {
     sql_print_warning("You need to use --log-bin to make "
                       "--binlog-format work.");
     unireg_abort(1);
   }
-  if (opt_binlog_format_id == BF_UNSPECIFIED)
+  if (global_system_variables.binlog_format == BINLOG_FORMAT_UNSPEC)
   {
 #ifdef HAVE_NDB_BINLOG
     if (opt_bin_log && have_ndbcluster == SHOW_OPTION_YES)
-      opt_binlog_format_id= BF_ROW;
+      global_system_variables.binlog_format= BINLOG_FORMAT_ROW;
     else
 #endif
-      opt_binlog_format_id= BF_STMT;
+      global_system_variables.binlog_format= BINLOG_FORMAT_STMT;
   }
-#ifdef HAVE_ROW_BASED_REPLICATION
-  if (opt_binlog_format_id == BF_ROW) 
-  {
-    binlog_row_based= TRUE;
-    /*
-      Row-based binlogging turns on InnoDB unsafe locking, because the locks
-      are not needed when using row-based binlogging. In fact
-      innodb-locks-unsafe-for-binlog is unsafe only for stmt-based, it's
-      safe for row-based.
-    */
-#ifdef HAVE_INNOBASE_DB
-    innobase_locks_unsafe_for_binlog= TRUE;
-#endif
-    /* Trust stored function creators because they can do no harm */
-    trust_function_creators= 1;
-  }
-#endif
+
   /* Check that we have not let the format to unspecified at this point */
-  DBUG_ASSERT((uint)opt_binlog_format_id <=
+  DBUG_ASSERT((uint)global_system_variables.binlog_format <=
               array_elements(binlog_format_names)-1);
-  opt_binlog_format= binlog_format_names[opt_binlog_format_id];
 
 #ifdef HAVE_REPLICATION
   if (opt_log_slave_updates && replicate_same_server_id)
@@ -4929,23 +4895,23 @@ Disable with --skip-bdb (will save memory).",
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
    (gptr*) &my_bind_addr_str, (gptr*) &my_bind_addr_str, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"binlog-format", OPT_BINLOG_FORMAT,
+  {"binlog_format", OPT_BINLOG_FORMAT,
 #ifdef HAVE_ROW_BASED_REPLICATION
    "Tell the master the form of binary logging to use: either 'row' for "
-   "row-based binary logging (which automatically turns on "
-   "innodb_locks_unsafe_for_binlog as it is safe in this case), or "
-   "'statement' for statement-based logging. "
+   "row-based binary logging, or 'statement' for statement-based binary "
+   "logging, or 'mixed'. 'mixed' is statement-based binary logging except "
+   "for those statements where only row-based is correct: those which "
+   "involve user-defined functions (i.e. UDFs) or the UUID() function; for "
+   "those, row-based binary logging is automatically used. "
 #ifdef HAVE_NDB_BINLOG
-   "If ndbcluster is enabled, the default will be set to 'row'."
+   "If ndbcluster is enabled, the default is 'row'."
 #endif
-   ,
 #else
-   "Tell the master the form of binary logging to use: this release build "
+   "Tell the master the form of binary logging to use: this build "
    "supports only statement-based binary logging, so only 'statement' is "
-   "a legal value; MySQL-Max release builds support row-based binary logging "
-   "in addition.",
+   "a legal value."
 #endif
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },   
+   , 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -5148,9 +5114,7 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &innobase_unix_file_flush_method, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"innodb_locks_unsafe_for_binlog", OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
-   "Force InnoDB not to use next-key locking, to use only row-level locking."
-   " This is unsafe if you are using statement-based binary logging, and safe"
-   " if you are using row-based binary logging.",
+   "Force InnoDB to not use next-key locking, to use only row-level locking.",
    (gptr*) &innobase_locks_unsafe_for_binlog,
    (gptr*) &innobase_locks_unsafe_for_binlog, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb_log_arch_dir", OPT_INNODB_LOG_ARCH_DIR,
@@ -5231,8 +5195,9 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "a stored function (or trigger) is allowed only to users having the SUPER privilege "
    "and only if this stored function (trigger) may not break binary logging."
 #ifdef HAVE_ROW_BASED_REPLICATION
-   " If using --binlog-format=row, the security issues do not exist and the "
-   "binary logging cannot break so this option is automatically set to 1."
+   "Note that if ALL connections to this server ALWAYS use row-based binary "
+   "logging, the security issues do not exist and the binary logging cannot "
+   "break, so you can safely set this to 1."
 #endif
    ,(gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7070,6 +7035,7 @@ static void mysql_init_variables(void)
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
   global_system_variables.old_alter_table= 0;
+  global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
@@ -7314,18 +7280,19 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #ifdef HAVE_ROW_BASED_REPLICATION
       fprintf(stderr, 
 	      "Unknown binary log format: '%s' "
-	      "(should be '%s' or '%s')\n", 
+	      "(should be one of '%s', '%s', '%s')\n", 
 	      argument,
-              binlog_format_names[BF_STMT],
-              binlog_format_names[BF_ROW]);
+              binlog_format_names[BINLOG_FORMAT_STMT],
+              binlog_format_names[BINLOG_FORMAT_ROW],
+              binlog_format_names[BINLOG_FORMAT_MIXED]);
 #else
       fprintf(stderr, 
 	      "Unknown binary log format: '%s' (only legal value is '%s')\n", 
-	      argument, binlog_format_names[BF_STMT]);
+	      argument, binlog_format_names[BINLOG_FORMAT_STMT]);
 #endif
       exit(1);
     }
-    opt_binlog_format_id= (enum binlog_format)(id-1);
+    global_system_variables.binlog_format= id-1;
     break;
   }
   case (int)OPT_BINLOG_DO_DB:

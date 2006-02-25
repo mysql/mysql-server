@@ -1,0 +1,224 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop database if exists mysqltest1;
+create database mysqltest1;
+use mysqltest1;
+show global variables like "binlog_format%";
+Variable_name	Value
+binlog_format	ROW
+show session variables like "binlog_format%";
+Variable_name	Value
+binlog_format	ROW
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+ROW	ROW
+CREATE TABLE t1 (a varchar(100));
+prepare stmt1 from 'insert into t1 select concat(UUID(),?)';
+set @string="emergency";
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+insert into t1 values(concat("for",UUID()));
+insert into t1 select "yesterday";
+create temporary table tmp(a char(3));
+insert into tmp values("see");
+set binlog_format=statement;
+ERROR HY000: Cannot switch out of the row-based binary log format when the session has open temporary tables
+insert into t1 select * from tmp;
+drop temporary table tmp;
+set binlog_format=statement;
+show global variables like "binlog_format%";
+Variable_name	Value
+binlog_format	ROW
+show session variables like "binlog_format%";
+Variable_name	Value
+binlog_format	STATEMENT
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+ROW	STATEMENT
+set global binlog_format=statement;
+show global variables like "binlog_format%";
+Variable_name	Value
+binlog_format	STATEMENT
+show session variables like "binlog_format%";
+Variable_name	Value
+binlog_format	STATEMENT
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+STATEMENT	STATEMENT
+prepare stmt1 from 'insert into t1 select ?';
+set @string="emergency";
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+insert into t1 values("for");
+insert into t1 select "yesterday";
+set binlog_format=default;
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+STATEMENT	STATEMENT
+set global binlog_format=default;
+ERROR 42000: Variable 'binlog_format' doesn't have a default value
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+STATEMENT	STATEMENT
+prepare stmt1 from 'insert into t1 select ?';
+set @string="emergency";
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+insert into t1 values("for");
+insert into t1 select "yesterday";
+set binlog_format=mixed;
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+STATEMENT	MIXED
+set global binlog_format=mixed;
+select @@global.binlog_format, @@session.binlog_format;
+@@global.binlog_format	@@session.binlog_format
+MIXED	MIXED
+prepare stmt1 from 'insert into t1 select concat(UUID(),?)';
+set @string="emergency";
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+insert into t1 values(concat("for",UUID()));
+insert into t1 select "yesterday";
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+insert into t1 values(concat("for",UUID()));
+insert into t1 select "yesterday";
+create procedure foo()
+begin
+insert into t1 values("work");
+insert into t1 values(concat("for",UUID()));
+insert into t1 select "yesterday";
+end|
+create procedure foo2()
+begin
+insert into t1 values(concat("emergency",UUID()));
+insert into t1 values("work");
+insert into t1 values(concat("for",UUID()));
+set session binlog_format=row; # accepted for stored procs
+insert into t1 values("more work");
+set session binlog_format=mixed;
+end|
+create function foo3() returns bigint unsigned
+begin
+set session binlog_format=row; # rejected for stored funcs
+insert into t1 values("alarm");
+return 100;
+end|
+call foo();
+call foo2();
+select foo3();
+ERROR HY000: Cannot change the binary logging format inside a stored function or trigger
+select * from t1 where a="alarm";
+a
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Query	1	205	drop database if exists mysqltest1
+master-bin.000001	205	Query	1	300	create database mysqltest1
+master-bin.000001	300	Query	1	401	use `mysqltest1`; CREATE TABLE t1 (a varchar(100))
+master-bin.000001	401	Table_map	1	446	mysqltest1.t1
+master-bin.000001	446	Write_rows	1	481	
+master-bin.000001	481	Table_map	1	526	mysqltest1.t1
+master-bin.000001	526	Write_rows	1	602	
+master-bin.000001	602	Table_map	1	647	mysqltest1.t1
+master-bin.000001	647	Write_rows	1	718	
+master-bin.000001	718	Table_map	1	763	mysqltest1.t1
+master-bin.000001	763	Write_rows	1	803	
+master-bin.000001	803	Table_map	1	848	mysqltest1.t1
+master-bin.000001	848	Write_rows	1	918	
+master-bin.000001	918	Table_map	1	963	mysqltest1.t1
+master-bin.000001	963	Write_rows	1	1003	
+master-bin.000001	1003	Table_map	1	1048	mysqltest1.t1
+master-bin.000001	1048	Write_rows	1	1082	
+master-bin.000001	1082	Query	1	1180	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	1180	User var	1	1228	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	1228	Query	1	1328	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	1328	Query	1	1426	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	1426	User var	1	1474	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	1474	Query	1	1574	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	1574	Query	1	1671	use `mysqltest1`; insert into t1 values("for")
+master-bin.000001	1671	Query	1	1773	use `mysqltest1`; insert into t1 select "yesterday"
+master-bin.000001	1773	Query	1	1871	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	1871	User var	1	1919	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	1919	Query	1	2019	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	2019	Query	1	2117	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	2117	User var	1	2165	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	2165	Query	1	2265	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	2265	Query	1	2362	use `mysqltest1`; insert into t1 values("for")
+master-bin.000001	2362	Query	1	2464	use `mysqltest1`; insert into t1 select "yesterday"
+master-bin.000001	2464	Query	1	2562	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	2562	Table_map	1	2607	mysqltest1.t1
+master-bin.000001	2607	Write_rows	1	2683	
+master-bin.000001	2683	Table_map	1	2728	mysqltest1.t1
+master-bin.000001	2728	Write_rows	1	2799	
+master-bin.000001	2799	User var	1	2847	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	2847	Query	1	2947	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	2947	Table_map	1	2992	mysqltest1.t1
+master-bin.000001	2992	Write_rows	1	3062	
+master-bin.000001	3062	Query	1	3164	use `mysqltest1`; insert into t1 select "yesterday"
+master-bin.000001	3164	Table_map	1	3209	mysqltest1.t1
+master-bin.000001	3209	Write_rows	1	3280	
+master-bin.000001	3280	User var	1	3328	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	3328	Query	1	3428	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	3428	Table_map	1	3473	mysqltest1.t1
+master-bin.000001	3473	Write_rows	1	3543	
+master-bin.000001	3543	Query	1	3645	use `mysqltest1`; insert into t1 select "yesterday"
+master-bin.000001	3645	Query	1	3857	use `mysqltest1`; create procedure foo()
+begin
+insert into t1 values("work");
+insert into t1 values(concat("for",UUID()));
+insert into t1 select "yesterday";
+end
+master-bin.000001	3857	Query	1	4214	use `mysqltest1`; create procedure foo2()
+begin
+insert into t1 values(concat("emergency",UUID()));
+insert into t1 values("work");
+insert into t1 values(concat("for",UUID()));
+set session binlog_format=row; # accepted for stored procs
+insert into t1 values("more work");
+set session binlog_format=mixed;
+end
+master-bin.000001	4214	Query	1	4442	use `mysqltest1`; create function foo3() returns bigint unsigned
+begin
+set session binlog_format=row; # rejected for stored funcs
+insert into t1 values("alarm");
+return 100;
+end
+master-bin.000001	4442	Query	1	4548	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	4548	Table_map	1	4593	mysqltest1.t1
+master-bin.000001	4593	Write_rows	1	4663	
+master-bin.000001	4663	Query	1	4773	use `mysqltest1`; insert into t1 select "yesterday"
+master-bin.000001	4773	Table_map	1	4818	mysqltest1.t1
+master-bin.000001	4818	Write_rows	1	4894	
+master-bin.000001	4894	Query	1	5000	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	5000	Table_map	1	5045	mysqltest1.t1
+master-bin.000001	5045	Write_rows	1	5115	
+master-bin.000001	5115	Table_map	1	5160	mysqltest1.t1
+master-bin.000001	5160	Write_rows	1	5200	
+drop database mysqltest1;

@@ -1301,7 +1301,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     each substatement be binlogged its way.
   */
   need_binlog_call= mysql_bin_log.is_open() &&
-    (thd->options & OPTION_BIN_LOG) && !binlog_row_based;
+    (thd->options & OPTION_BIN_LOG) && !thd->current_stmt_binlog_row_based;
   if (need_binlog_call)
   {
     reset_dynamic(&thd->user_var_events);

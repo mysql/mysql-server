@@ -5812,8 +5812,12 @@ ER_CANT_CHANGE_TX_ISOLATION 25001
 	eng "Transaction isolation level can't be changed while a transaction is in progress"
 ER_WARN_DEPRECATED_STATEMENT
         eng  "The '%s' statement is deprecated and will be removed in MySQL %s. Please use client programs (e.g. %s) instead."
-
-ER_TABLE_NEEDS_UPGRADE
-         eng "Table upgrade required. Please do \"REPAIR TABLE `%-.32s`\" to fix it!"
 ER_SP_NO_AGGREGATE 42000
 	eng "AGGREGATE is not supported for stored functions"
+ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
+	eng "Cannot switch out of the row-based binary log format when the session has open temporary tables"
+ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT
+        eng "Cannot change the binary logging format inside a stored function or trigger"
+ER_NDB_CANT_SWITCH_BINLOG_FORMAT
+	eng "The NDB cluster engine does not support changing the binlog format on the fly yet"
+
