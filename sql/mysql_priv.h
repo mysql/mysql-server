@@ -1288,12 +1288,8 @@ extern ulong what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
-extern const char *opt_binlog_format;
 #ifdef HAVE_ROW_BASED_REPLICATION
-extern my_bool binlog_row_based;
 extern ulong opt_binlog_rows_event_max_size;
-#else
-extern const my_bool binlog_row_based;
 #endif
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;

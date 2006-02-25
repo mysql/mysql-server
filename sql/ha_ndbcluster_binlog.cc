@@ -2774,7 +2774,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   ndb_binlog_thread_running= 1;
   if (opt_bin_log)
   {
-    if (binlog_row_based)
+    if (global_system_variables.binlog_format == BINLOG_FORMAT_ROW)
     {
       ndb_binlog_running= TRUE;
     }
