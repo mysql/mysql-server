@@ -61,12 +61,15 @@ typedef struct charset_info_st CHARSET_INFO;
  */
 class NdbDictionary {
 public:
+  NdbDictionary() {}                          /* Remove gcc warning */
   /**
    * @class Object
    * @brief Meta information about a database object (a table, index, etc)
    */
   class Object {
   public:
+    Object() {}                               /* Remove gcc warning */
+    virtual ~Object() {}                      /* Remove gcc warning */
     /**
      * Status of object
      */
