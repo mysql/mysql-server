@@ -14724,9 +14724,9 @@ static void test_bug12744()
 
   mysql_close(mysql);
 
-  if (rc= mysql_stmt_execute(prep_stmt))
+  if ((rc= mysql_stmt_execute(prep_stmt)))
   {
-    if (rc= mysql_stmt_reset(prep_stmt))
+    if ((rc= mysql_stmt_reset(prep_stmt)))
       printf("OK!\n");
     else
     {
