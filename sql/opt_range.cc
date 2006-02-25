@@ -1495,6 +1495,8 @@ public:
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) { /* Never called */ }
+  virtual ~TABLE_READ_PLAN() {}               /* Remove gcc warning */
+
 };
 
 class TRP_ROR_INTERSECT;
@@ -1518,6 +1520,7 @@ public:
   TRP_RANGE(SEL_ARG *key_arg, uint idx_arg)
    : key(key_arg), key_idx(idx_arg)
   {}
+  virtual ~TRP_RANGE() {}                     /* Remove gcc warning */
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc)
@@ -1539,6 +1542,8 @@ public:
 class TRP_ROR_INTERSECT : public TABLE_READ_PLAN
 {
 public:
+  TRP_ROR_INTERSECT() {}                      /* Remove gcc warning */
+  virtual ~TRP_ROR_INTERSECT() {}             /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
 
@@ -1560,6 +1565,8 @@ public:
 class TRP_ROR_UNION : public TABLE_READ_PLAN
 {
 public:
+  TRP_ROR_UNION() {}                          /* Remove gcc warning */
+  virtual ~TRP_ROR_UNION() {}                 /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
   TABLE_READ_PLAN **first_ror; /* array of ptrs to plans for merged scans */
@@ -1576,6 +1583,8 @@ public:
 class TRP_INDEX_MERGE : public TABLE_READ_PLAN
 {
 public:
+  TRP_INDEX_MERGE() {}                        /* Remove gcc warning */
+  virtual ~TRP_INDEX_MERGE() {}               /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
   TRP_RANGE **range_scans; /* array of ptrs to plans of merged scans */
@@ -1625,6 +1634,7 @@ public:
       if (key_infix_len)
         memcpy(this->key_infix, key_infix_arg, key_infix_len);
     }
+  virtual ~TRP_GROUP_MIN_MAX() {}             /* Remove gcc warning */
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);

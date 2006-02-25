@@ -164,7 +164,8 @@ struct Hybrid_type_traits
   virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const;
   virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
   static const Hybrid_type_traits *instance();
-  Hybrid_type_traits() {};
+  Hybrid_type_traits() {}
+  virtual ~Hybrid_type_traits() {}
 };
 
 
@@ -339,6 +340,7 @@ private:
   bool        save_resolve_in_select_list;
 
 public:
+  Name_resolution_context_state() {}          /* Remove gcc warning */
   TABLE_LIST *save_next_local;
 
 public:
@@ -1015,6 +1017,7 @@ bool agg_item_charsets(DTCollation &c, const char *name,
 class Item_num: public Item
 {
 public:
+  Item_num() {}                               /* Remove gcc warning */
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(CHARSET_INFO *tocs);
 };

@@ -5979,10 +5979,11 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     /*
       table_list.next points to the last inserted TABLE_LIST->next_local'
       element
+      We don't use the offsetof() macro here to avoid warnings from gcc
     */
-    previous_table_ref= (TABLE_LIST*) (table_list.next -
-                                       offsetof(TABLE_LIST, next_local));
-    DBUG_ASSERT(previous_table_ref);
+    previous_table_ref= (TABLE_LIST*) ((char*) table_list.next -
+                                       ((char*) &(ptr->next_local) -
+                                        (char*) ptr));
     /*
       Set next_name_resolution_table of the previous table reference to point
       to the current table reference. In effect the list

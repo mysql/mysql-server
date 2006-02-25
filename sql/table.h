@@ -187,6 +187,8 @@ typedef struct st_table_share
 /* Information for one open table */
 
 struct st_table {
+  st_table() {}                               /* Remove gcc warning */
+
   TABLE_SHARE	*s;
   handler	*file;
 #ifdef NOT_YET
@@ -444,6 +446,7 @@ public:
 
 typedef struct st_table_list
 {
+  st_table_list() {}                          /* Remove gcc warning */
   /*
     List of tables local to a subquery (used by SQL_LIST). Considers
     views as leaves (unlike 'next_leaf' below). Created at parse time
@@ -675,6 +678,7 @@ class Item;
 class Field_iterator: public Sql_alloc
 {
 public:
+  Field_iterator() {}                         /* Remove gcc warning */
   virtual ~Field_iterator() {}
   virtual void set(TABLE_LIST *)= 0;
   virtual void next()= 0;
