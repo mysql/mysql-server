@@ -17,6 +17,7 @@
 #ifndef SLFIFOLIST_HPP
 #define SLFIFOLIST_HPP
 
+#include <ndb_global.h>
 #include <kernel_types.h>
 #include "Pool.hpp"
 
@@ -154,7 +155,7 @@ inline
 bool
 SLFifoListImpl<P,T,U>::seizeFirst(Ptr<T> & p)
 {
-  if (thePool.seize(p)) 
+  if (likely(thePool.seize(p)))
   {
     addFirst(p);
     return true;
@@ -168,7 +169,7 @@ inline
 bool
 SLFifoListImpl<P,T,U>::seizeLast(Ptr<T> & p)
 {
-  if (thePool.seize(p))
+  if (likely(thePool.seize(p)))
   {
     addLast(p);
     return true;
@@ -276,7 +277,8 @@ bool
 SLFifoListImpl<P,T,U>::first(Ptr<T> & p) const 
 {
   p.i = head.firstItem;
-  if(p.i != RNIL){
+  if(p.i != RNIL)
+  {
     p.p = thePool.getPtr(p.i);
     return true;
   }
@@ -290,7 +292,8 @@ bool
 SLFifoListImpl<P,T,U>::last(Ptr<T> & p) const 
 {
   p.i = head.lastItem;
-  if(p.i != RNIL){
+  if(p.i != RNIL)
+  {
     p.p = thePool.getPtr(p.i);
     return true;
   }
@@ -304,7 +307,8 @@ bool
 SLFifoListImpl<P,T,U>::next(Ptr<T> & p) const 
 {
   p.i = p.p->U::nextList;
-  if(p.i != RNIL){
+  if(p.i != RNIL)
+  {
     p.p = thePool.getPtr(p.i);
     return true;
   }

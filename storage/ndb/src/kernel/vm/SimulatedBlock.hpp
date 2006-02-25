@@ -53,6 +53,7 @@
 #include <signaldata/ReadConfig.hpp>
 #include <signaldata/UpgradeStartup.hpp>
 #include "ndbd_malloc_impl.hpp"
+#include <blocks/record_types.hpp>
 
 /**
  * Something for filesystem access
