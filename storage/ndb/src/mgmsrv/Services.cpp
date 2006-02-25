@@ -451,9 +451,9 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     return;
   }
 
-  struct sockaddr addr;
+  struct sockaddr_in addr;
   SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-  int r = getpeername(m_socket, &addr, &addrlen);
+  int r = getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
   if (r != 0 ) {
     m_output->println(cmd);
     m_output->println("result: getpeername(%d) failed, err= %d", m_socket, r);
@@ -465,7 +465,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   if(tmp == 0 || !m_allocated_resources->is_reserved(tmp)){
     BaseString error_string;
     if (!m_mgmsrv.alloc_node_id(&tmp, (enum ndb_mgm_node_type)nodetype, 
-				&addr, &addrlen, error_string)){
+				(struct sockaddr*)&addr, &addrlen, error_string)){
       const char *alias;
       const char *str;
       alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)
