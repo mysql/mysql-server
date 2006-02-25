@@ -69,7 +69,8 @@ class TC_LOG
 
 class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
 {
-  public:
+public:
+  TC_LOG_DUMMY() {}                           /* Remove gcc warning */
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
   int log(THD *thd, my_xid xid)         { return 1; }
@@ -930,6 +931,7 @@ void xid_cache_delete(XID_STATE *xid_state);
 
 class Security_context {
 public:
+  Security_context() {}                       /* Remove gcc warning */
   /*
     host - host of the client
     user - user of the client, set to NULL until the user has been read from
@@ -1679,6 +1681,7 @@ public:
 class select_result_interceptor: public select_result
 {
 public:
+  select_result_interceptor() {}              /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_fields(List<Item> &fields, uint flag) { return FALSE; }
 };
@@ -1966,6 +1969,7 @@ class Table_ident :public Sql_alloc
 class user_var_entry
 {
  public:
+  user_var_entry() {}                         /* Remove gcc warning */
   LEX_STRING name;
   char *value;
   ulong length;

@@ -356,6 +356,9 @@ then
   # mysqld requires -fno-implicit-templates.
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
+  # We should use -Wno-invalid-offsetof flag to disable some warnings from gcc
+  # regarding offset() usage in C++ which are done in a safe manner in the
+  # server
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
   AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
     [1], [Defined by configure. Use explicit template instantiation.])
