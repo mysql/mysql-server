@@ -1576,6 +1576,8 @@ int log_loaded_block(IO_CACHE* file)
   if (!(block_len = (char*) file->read_end - (char*) buffer))
     return 0;
   lf_info = (LOAD_FILE_INFO*) file->arg;
+  if (lf_info->thd->current_stmt_binlog_row_based)
+    return 0;
   if (lf_info->last_pos_in_file != HA_POS_ERROR &&
       lf_info->last_pos_in_file >= file->pos_in_file)
     return 0;
