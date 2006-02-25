@@ -7,8 +7,8 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_CHECK_REPLICATION], [
   AC_ARG_WITH([row-based-replication],
-              AC_HELP_STRING([--with-row-based-replication],
-                             [Include row-based replication]),
+              AC_HELP_STRING([--without-row-based-replication],
+                             [Don't include row-based replication]),
               [row_based="$withval"],
               [row_based=yes])
   AC_MSG_CHECKING([for row-based replication])
