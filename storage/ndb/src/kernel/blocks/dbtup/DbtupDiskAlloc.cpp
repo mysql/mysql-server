@@ -89,8 +89,8 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   {
     printf("  %d : ", i);
     Ptr<Page_request> ptr;
-    LocalDLList<Page_request> list(c_page_request_pool, 
-				   alloc.m_page_requests[i]);
+    Local_page_request_list list(c_page_request_pool, 
+				 alloc.m_page_requests[i]);
     for(list.first(ptr); !ptr.isNull(); list.next(ptr))
     {
       ndbout << ptr << " ";
@@ -388,8 +388,6 @@ Dbtup::disk_page_prealloc(Signal* signal,
     return -err;
   }
 
-  new (req.p) Page_request();
-
   req.p->m_ref_count= 1;
   req.p->m_frag_ptr_i= fragPtr.i;
   req.p->m_uncommitted_used_space= sz;
@@ -510,8 +508,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
   // And put page request in correct free list
   idx= alloc.calc_page_free_bits(new_size);
   {
-    LocalDLList<Page_request> list(c_page_request_pool, 
-				   alloc.m_page_requests[idx]);
+    Local_page_request_list list(c_page_request_pool, 
+				 alloc.m_page_requests[idx]);
     
     list.add(req);
   }
@@ -605,9 +603,9 @@ Dbtup::disk_page_prealloc_transit_page(Disk_alloc_info& alloc,
   
   if (old_idx != new_idx)
   {
-    DLList<Page_request>::Head *lists = alloc.m_page_requests;
-    LocalDLList<Page_request> old_list(c_page_request_pool, lists[old_idx]);
-    LocalDLList<Page_request> new_list(c_page_request_pool, lists[new_idx]);
+    Page_request_list::Head *lists = alloc.m_page_requests;
+    Local_page_request_list old_list(c_page_request_pool, lists[old_idx]);
+    Local_page_request_list new_list(c_page_request_pool, lists[new_idx]);
     old_list.remove(req);
     new_list.add(req);
 
@@ -761,8 +759,8 @@ Dbtup::disk_page_prealloc_callback_common(Signal* signal,
   }
   
   {
-    Page_request_list list(c_page_request_pool, 
-			   alloc.m_page_requests[old_idx]);
+    Local_page_request_list list(c_page_request_pool, 
+				 alloc.m_page_requests[old_idx]);
     list.release(req);
   }
 }

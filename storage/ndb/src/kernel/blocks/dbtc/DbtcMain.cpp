@@ -12381,7 +12381,7 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
 	  tmp2.release();
 	  LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
 	  tmp3.release();
-          regApiPtr->theFiredTriggers.release(trigPtr.i);
+          regApiPtr->theFiredTriggers.release(trigPtr);
         }
 	trigPtr = nextTrigPtr;
       }

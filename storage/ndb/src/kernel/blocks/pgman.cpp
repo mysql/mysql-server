@@ -125,10 +125,13 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
   {
     page_buffer /= GLOBAL_PAGE_SIZE; // in pages
     m_page_entry_pool.setSize(100*page_buffer);
-    m_page_request_pool.setSize(10000);
     m_param.m_max_pages = page_buffer;
     m_param.m_max_hot_pages = (page_buffer * 9) / 10;
   }
+
+  Pool_context pc;
+  pc.m_block = this;
+  m_page_request_pool.wo_pool_init(RT_PGMAN_PAGE_REQUEST, pc);
   
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -977,8 +980,7 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
        * Make sure list is in own scope if callback will access this
        * list again (destructor restores list head).
        */
-      LocalDLFifoList<Page_request>
-        req_list(m_page_request_pool, ptr.p->m_requests);
+      Local_page_request_list req_list(m_page_request_pool, ptr.p->m_requests);
       Ptr<Page_request> req_ptr;
 
       req_list.first(req_ptr);
@@ -988,8 +990,6 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
       b = globalData.getBlock(req_ptr.p->m_block);
       callback = req_ptr.p->m_callback;
       
-      req_list.release(req_ptr);
-
       if (req_ptr.p->m_flags & DIRTY_FLAGS)
       {
         jam();
@@ -997,6 +997,8 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
 	ndbassert(ptr.p->m_dirty_count);
 	ptr.p->m_dirty_count --;
       }
+
+      req_list.releaseFirst(req_ptr);
     }
     ndbrequire(state & Page_entry::BOUND);
     ndbrequire(state & Page_entry::MAPPED);
@@ -1602,12 +1604,11 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
   // queue the request
   Ptr<Pgman::Page_request> req_ptr;
   {
-    LocalDLFifoList<Page_request>
-      req_list(m_page_request_pool, ptr.p->m_requests);
+    Local_page_request_list req_list(m_page_request_pool, ptr.p->m_requests);
     if (! (req_flags & Page_request::ALLOC_REQ))
-      req_list.seize(req_ptr);
+      req_list.seizeLast(req_ptr);
     else
-      req_list.seizeFront(req_ptr);
+      req_list.seizeFirst(req_ptr);
   }
   
   if (req_ptr.i == RNIL)
@@ -2171,8 +2172,8 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
   out << " busy_count=" << dec << pe.m_busy_count;
 #ifdef VM_TRACE
   {
-    LocalDLFifoList<Pgman::Page_request>
-      req_list(ptr.p->m_this->m_page_request_pool, ptr.p->m_requests);
+    Local_page_request_list req_list(ptr.p->m_this->m_page_request_pool, 
+				     ptr.p->m_requests);
     if (! req_list.isEmpty())
     {
       Ptr<Pgman::Page_request> req_ptr;
