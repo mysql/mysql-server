@@ -117,7 +117,7 @@ create procedure bug10100p(prm int, inout res int)
 begin
 set res = res * prm;
 if prm > 1 then
-call bug10100p(prm - 1, res);  
+call bug10100p(prm - 1, res);
 end if;
 end|
 create procedure bug10100t(prm int)

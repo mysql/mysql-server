@@ -104,6 +104,7 @@ typedef int (*Read_record_func)(struct st_join_table *tab);
 Next_select_func setup_end_select_func(JOIN *join);
 
 typedef struct st_join_table {
+  st_join_table() {}                          /* Remove gcc warning */
   TABLE		*table;
   KEYUSE	*keyuse;			/* pointer to first used key */
   SQL_SELECT	*select;
@@ -288,7 +289,7 @@ class JOIN :public Sql_alloc
   }
 
   JOIN(JOIN &join)
-    :fields_list(join.fields_list)
+    :Sql_alloc(), fields_list(join.fields_list)
   {
     init(join.thd, join.fields_list, join.select_options,
          join.result);
