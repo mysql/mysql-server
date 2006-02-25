@@ -64,7 +64,11 @@ const handlerton default_hton =
   NULL, NULL, NULL,
   create_default,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-  HTON_NO_FLAGS
+  NULL,                         /* alter_tablespace */
+  NULL,                         /* fill_files_table */
+  HTON_NO_FLAGS,                /* flags */
+  NULL,                         /* binlog_func */
+  NULL                          /* binlog_log_query */
 };
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
@@ -3147,7 +3151,7 @@ namespace {
   bool check_table_binlog_row_based(THD *thd, TABLE *table)
   {
     return
-      binlog_row_based &&
+      thd->current_stmt_binlog_row_based &&
       thd && (thd->options & OPTION_BIN_LOG) &&
       (table->s->tmp_table == NO_TMP_TABLE) &&
       binlog_filter->db_ok(table->s->db.str);

@@ -5854,13 +5854,17 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
       (!rpl_filter->is_on() || rpl_filter->tables_ok("", &table_list)))
   {
     /*
+      TODO: Mats will soon change this test below so that a SBR slave always
+      accepts RBR events from the master (and binlogs them RBR).
+    */
+    /*
       Check if the slave is set to use SBR.  If so, the slave should
       stop immediately since it is not possible to daisy-chain from
       RBR to SBR.  Once RBR is used, the rest of the chain has to use
       RBR.
     */
     if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG) &&
-        !binlog_row_based)
+        !thd->current_stmt_binlog_row_based)
     {
       slave_print_msg(ERROR_LEVEL, rli, ER_BINLOG_ROW_RBR_TO_SBR,
                       "It is not possible to use statement-based binlogging "

@@ -1654,7 +1654,7 @@ static int show_var_cmp(const void *var1, const void *var2)
 */
 static void shrink_var_array(DYNAMIC_ARRAY *array)
 {
-  int a,b;
+  uint a,b;
   SHOW_VAR *all= dynamic_element(array, 0, SHOW_VAR *);
 
   for (a= b= 0; b < array->elements; b++)

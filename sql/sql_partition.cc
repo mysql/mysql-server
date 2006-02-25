@@ -697,7 +697,7 @@ bool check_partition_info(partition_info *part_info,handlerton **eng_type,
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
     goto end;
   }
-  if (same_name= part_info->has_unique_names())
+  if ((same_name= part_info->has_unique_names()))
   {
     my_error(ER_SAME_NAME_PARTITION, MYF(0), same_name);
     goto end;

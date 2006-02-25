@@ -398,7 +398,9 @@ handlerton federated_hton= {
   NULL,    /* Alter table flags */
   NULL,    /* Alter Tablespace */
   NULL,    /* Fill FILES table */
-  HTON_ALTER_NOT_SUPPORTED
+  HTON_ALTER_NOT_SUPPORTED,
+  NULL,    /* binlog_func */
+  NULL     /* binlog_log_query */
 };
 
 

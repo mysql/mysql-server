@@ -543,10 +543,9 @@ typedef struct
                            struct st_table_list *tables,
                            class Item *cond);
    uint32 flags;                                /* global handler flags */
-   /* 
-      Handlerton functions are not set in the different storage
-      engines static initialization.  They are initialized at handler init.
-      Thus, leave them last in the struct.
+   /*
+      Those handlerton functions below are properly initialized at handler
+      init.
    */
    int (*binlog_func)(THD *thd, enum_binlog_func fn, void *arg);
    void (*binlog_log_query)(THD *thd, enum_binlog_command binlog_command,

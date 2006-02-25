@@ -102,7 +102,9 @@ handlerton partition_hton = {
   alter_table_flags, /* Partition flags */
   NULL, /* Alter Tablespace */
   NULL, /* Fill FILES table */
-  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN
+  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
+  NULL,                         /* binlog_func */
+  NULL                          /* binlog_log_query */
 };
 
 /*
@@ -2609,7 +2611,7 @@ void ha_partition::unlock_row()
     ADDITIONAL INFO:
 
     Most handlers set timestamp when calling write row if any such fields
-    exists. Since we are calling an underlying handler we assume the´
+    exists. Since we are calling an underlying handler we assume theÂ´
     underlying handler will assume this responsibility.
 
     Underlying handlers will also call update_auto_increment to calculate
