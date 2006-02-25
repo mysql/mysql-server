@@ -4990,6 +4990,7 @@ end_with_restore_list:
   */
   if (thd->one_shot_set && lex->sql_command != SQLCOM_SET_OPTION)
     reset_one_shot_variables(thd);
+  thd->reset_current_stmt_binlog_row_based();
 
   /*
     The return value for ROW_COUNT() is "implementation dependent" if the
