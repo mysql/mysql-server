@@ -1179,6 +1179,7 @@ end:
     x_free(thd->db);
   if (dbname && dbname[0] == 0)
   {
+    my_free(dbname, MYF(0));
     thd->db= NULL;
     thd->db_length= 0;
   }
