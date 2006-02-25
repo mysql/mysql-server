@@ -962,7 +962,7 @@ end:
       {
         /*
           TRUNCATE must always be statement-based binlogged (not row-based) so
-          we don't test binlog_row_based.
+          we don't test current_stmt_binlog_row_based.
         */
         thd->clear_error();
         thd->binlog_query(THD::STMT_QUERY_TYPE,

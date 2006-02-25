@@ -278,7 +278,7 @@ bool partition_info::has_unique_name(partition_element *element)
   List_iterator<partition_element> parts_it(partitions);
   
   partition_element *el;
-  while (el= (parts_it++))
+  while ((el= (parts_it++)))
   {
     if (!(my_strcasecmp(system_charset_info, el->partition_name, 
                         name_to_check)) && el != element)
@@ -288,7 +288,7 @@ bool partition_info::has_unique_name(partition_element *element)
     {
       partition_element *sub_el;    
       List_iterator<partition_element> subparts_it(el->subpartitions);
-      while (sub_el= (subparts_it++))
+      while ((sub_el= (subparts_it++)))
       {
         if (!(my_strcasecmp(system_charset_info, sub_el->partition_name, 
                             name_to_check)) && sub_el != element)
@@ -323,7 +323,7 @@ char *partition_info::has_unique_names()
   List_iterator<partition_element> parts_it(partitions);
 
   partition_element *el;  
-  while (el= (parts_it++))
+  while ((el= (parts_it++)))
   {
     if (! has_unique_name(el))
       DBUG_RETURN(el->partition_name);
@@ -332,7 +332,7 @@ char *partition_info::has_unique_names()
     {
       List_iterator<partition_element> subparts_it(el->subpartitions);
       partition_element *subel;
-      while (subel= (subparts_it++))
+      while ((subel= (subparts_it++)))
       {
         if (! has_unique_name(subel))
           DBUG_RETURN(subel->partition_name);

@@ -565,7 +565,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String built_query;
   DBUG_ENTER("mysql_rm_table_part2");
 
-  if (binlog_row_based && !dont_log_query)
+  if (thd->current_stmt_binlog_row_based && !dont_log_query)
   {
     built_query.set_charset(system_charset_info);
     if (if_exists)
@@ -612,7 +612,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       being built.  The string always end in a comma and the comma
       will be chopped off before being written to the binary log.
       */
-    if (binlog_row_based && !dont_log_query)
+    if (thd->current_stmt_binlog_row_based && !dont_log_query)
     {
       ++non_temp_tables_count;
       /*
@@ -722,7 +722,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     query_cache_invalidate3(thd, tables, 0);
     if (!dont_log_query)
     {
-      if (!binlog_row_based ||
+      if (!thd->current_stmt_binlog_row_based ||
           non_temp_tables_count > 0 && !tmp_table_deleted)
       {
         /*
@@ -734,7 +734,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
          */
         write_bin_log(thd, !error, thd->query, thd->query_length);
       }
-      else if (binlog_row_based &&
+      else if (thd->current_stmt_binlog_row_based &&
                non_temp_tables_count > 0 &&
                tmp_table_deleted)
       {
@@ -2248,8 +2248,8 @@ bool mysql_create_table_internal(THD *thd,
     Otherwise, the statement shall be binlogged.
    */
   if (!internal_tmp_table &&
-      (!binlog_row_based ||
-       (binlog_row_based &&
+      (!thd->current_stmt_binlog_row_based ||
+       (thd->current_stmt_binlog_row_based &&
         !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
   error= FALSE;
@@ -3475,7 +3475,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   /*
     We have to write the query before we unlock the tables.
   */
-  if (binlog_row_based)
+  if (thd->current_stmt_binlog_row_based)
   {
     /*
        Since temporary tables are not replicated under row-based
@@ -4861,7 +4861,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto err;
     }
     /* We don't replicate alter table statement on temporary tables */
-    if (!binlog_row_based)
+    if (!thd->current_stmt_binlog_row_based)
       write_bin_log(thd, TRUE, thd->query, thd->query_length);
     goto end_temporary;
   }
@@ -5031,7 +5031,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                       thd->query, thd->query_length,
                       db, table_name);
 
-  DBUG_ASSERT(!(mysql_bin_log.is_open() && binlog_row_based &&
+  DBUG_ASSERT(!(mysql_bin_log.is_open() && thd->current_stmt_binlog_row_based &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
   write_bin_log(thd, TRUE, thd->query, thd->query_length);
   /*

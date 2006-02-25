@@ -1189,7 +1189,7 @@ void close_temporary_tables(THD *thd)
     close_temporary(table, 1, 1);
   }
   if (query && found_user_tables && mysql_bin_log.is_open() &&
-      !binlog_row_based) // CREATE TEMP TABLE not binlogged if row-based
+      !thd->current_stmt_binlog_row_based) // CREATE TEMP TABLE not binlogged if row-based
   {
     /* The -1 is to remove last ',' */
     thd->clear_error();

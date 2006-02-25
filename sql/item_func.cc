@@ -2657,6 +2657,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
              u_d->name.str, ER(ER_UNKNOWN_ERROR));
     DBUG_RETURN(TRUE);
   }
+  thd->set_current_stmt_binlog_row_based_if_mixed();
   DBUG_RETURN(FALSE);
 }
 
