@@ -2903,7 +2903,7 @@ sub run_mysqltest ($) {
     if ( $opt_debug )
     {
       $cmdline_mysqlslap .=
-        " --debug=d:t:A,$opt_vardir_trace/log/mysqldump.trace";
+        " --debug=d:t:A,$opt_vardir_trace/log/mysqlslap.trace";
     }
   }
 
