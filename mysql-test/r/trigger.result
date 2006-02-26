@@ -795,7 +795,7 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
 trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-test	t1_bi	test	t1	 set @a:=new.id
+test	t1_bi	test	t1	set @a:=new.id
 rename table t1 to t2;
 insert into t2 values (102);
 select @a;
@@ -805,7 +805,7 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
 trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-test	t1_bi	test	t2	 set @a:=new.id
+test	t1_bi	test	t2	set @a:=new.id
 alter table t2 rename to t3;
 insert into t3 values (103);
 select @a;
@@ -815,7 +815,7 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
 trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-test	t1_bi	test	t3	 set @a:=new.id
+test	t1_bi	test	t3	set @a:=new.id
 alter table t3 rename to t4, add column val int default 0;
 insert into t4 values (104, 1);
 select @a;
@@ -825,7 +825,7 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
 trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-test	t1_bi	test	t4	 set @a:=new.id
+test	t1_bi	test	t4	set @a:=new.id
 drop trigger t1_bi;
 drop table t4;
 create database mysqltest;
@@ -840,7 +840,7 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' or event_object_schema = 'mysqltest';
 trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-mysqltest	t1_bi	mysqltest	t1	 set @a:=new.id
+mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 rename table t1 to test.t2;
 ERROR HY000: Trigger in wrong schema
 insert into t1 values (102);
@@ -851,7 +851,7 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' or event_object_schema = 'mysqltest';
 trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-mysqltest	t1_bi	mysqltest	t1	 set @a:=new.id
+mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist
 drop trigger t1_bi;
@@ -869,8 +869,8 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
 trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-test	t1_bi	test	t1	 set @a:=new.id
-test	t1_ai	test	t1	 set @b:=new.id
+test	t1_bi	test	t1	set @a:=new.id
+test	t1_ai	test	t1	set @b:=new.id
 rename table t1 to t2;
 ERROR HY000: Can't create/write to file './test/t1_ai.TRN~' (Errcode: 13)
 insert into t1 values (102);
@@ -881,8 +881,8 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
 trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-test	t1_bi	test	t1	 set @a:=new.id
-test	t1_ai	test	t1	 set @b:=new.id
+test	t1_bi	test	t1	set @a:=new.id
+test	t1_ai	test	t1	set @b:=new.id
 drop trigger t1_bi;
 drop trigger t1_ai;
 drop table t1;
