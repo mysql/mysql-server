@@ -48,7 +48,7 @@ bool evex_is_running= false;
 ulonglong evex_main_thread_id= 0;
 ulong opt_event_executor;
 my_bool event_executor_running_global_var;
-static my_bool evex_mutexes_initted= false;
+static my_bool evex_mutexes_initted= FALSE;
 static uint workers_count;
 
 static int
@@ -107,7 +107,7 @@ evex_init_mutexes()
   if (evex_mutexes_initted)
     return;
 
-  evex_mutexes_initted= true;
+  evex_mutexes_initted= TRUE;
   pthread_mutex_init(&LOCK_event_arrays, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&LOCK_workers_count, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&LOCK_evex_running, MY_MUTEX_INIT_FAST);
@@ -191,7 +191,6 @@ int
 init_events()
 {
   pthread_t th;
-
   DBUG_ENTER("init_events");
 
   DBUG_PRINT("info",("Starting events main thread"));
@@ -234,13 +233,16 @@ shutdown_events()
 {
   DBUG_ENTER("shutdown_events");
   
-  VOID(pthread_mutex_lock(&LOCK_evex_running));
-  VOID(pthread_mutex_unlock(&LOCK_evex_running));
+  if (evex_mutexes_initted)
+  {
+    evex_mutexes_initted= FALSE;  
+    VOID(pthread_mutex_lock(&LOCK_evex_running));
+    VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
-  pthread_mutex_destroy(&LOCK_event_arrays);
-  pthread_mutex_destroy(&LOCK_workers_count);
-  pthread_mutex_destroy(&LOCK_evex_running);
-  
+    pthread_mutex_destroy(&LOCK_event_arrays);
+    pthread_mutex_destroy(&LOCK_workers_count);
+    pthread_mutex_destroy(&LOCK_evex_running);
+  }
   DBUG_VOID_RETURN;
 }
 
