@@ -6700,6 +6700,7 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
   return share;
 }
 
+
 /*
   Get a share object for key
 
@@ -6714,17 +6715,19 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 
   have_lock == TRUE, pthread_mutex_lock(&ndbcluster_mutex) already taken
 */
+
 NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
                                 bool create_if_not_exists,
                                 bool have_lock)
 {
-  DBUG_ENTER("get_share");
-  DBUG_PRINT("info", ("get_share: key %s", key));
   THD *thd= current_thd;
   NDB_SHARE *share;
+  uint length= (uint) strlen(key);
+  DBUG_ENTER("ndbcluster_get_share");
+  DBUG_PRINT("enter", ("key: '%s'", key));
+
   if (!have_lock)
     pthread_mutex_lock(&ndbcluster_mutex);
-  uint length= (uint) strlen(key);
   if (!(share= (NDB_SHARE*) hash_search(&ndbcluster_open_tables,
                                         (byte*) key,
                                         length)))
@@ -6784,10 +6787,10 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
 
   dbug_print_open_tables();
 
-  DBUG_PRINT("get_share",
+  DBUG_PRINT("info",
              ("0x%lx key: %s  key_length: %d  key: %s",
               share, share->key, share->key_length, key));
-  DBUG_PRINT("get_share",
+  DBUG_PRINT("info",
              ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
               share->db, share->table_name,
               share->use_count, share->commit_count));
@@ -6796,8 +6799,10 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
   DBUG_RETURN(share);
 }
 
+
 void ndbcluster_real_free_share(NDB_SHARE **share)
 {
+  DBUG_ENTER("ndbcluster_real_free_share");
   DBUG_PRINT("real_free_share",
              ("0x%lx key: %s  key_length: %d",
               (*share), (*share)->key, (*share)->key_length));
@@ -6835,6 +6840,7 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   *share= 0;
 
   dbug_print_open_tables();
+  DBUG_VOID_RETURN;
 }
 
 /*

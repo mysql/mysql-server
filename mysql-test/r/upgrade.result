@@ -1,43 +1,43 @@
-drop database if exists `testdb1`;
-drop database if exists `testdb-1`;
-drop database if exists `#mysql50#testdb-1`;
-create database `testdb1`;
-create database `#mysql50#testdb-1`;
-create table `testdb1`.`t1` (a int);
-create table `testdb1`.`#mysql50#t-1` (a int);
-create table `#mysql50#testdb-1`.`t1` (a int);
-create table `#mysql50#testdb-1`.`#mysql50#t-1` (a int);
-show create database `testdb1`;
+drop database if exists `mysqltest1`;
+drop database if exists `mysqltest-1`;
+drop database if exists `#mysql50#mysqltest-1`;
+create database `mysqltest1`;
+create database `#mysql50#mysqltest-1`;
+create table `mysqltest1`.`t1` (a int);
+create table `mysqltest1`.`#mysql50#t-1` (a int);
+create table `#mysql50#mysqltest-1`.`t1` (a int);
+create table `#mysql50#mysqltest-1`.`#mysql50#t-1` (a int);
+show create database `mysqltest1`;
 Database	Create Database
-testdb1	CREATE DATABASE `testdb1` /*!40100 DEFAULT CHARACTER SET latin1 */
-show create database `testdb-1`;
-ERROR 42000: Unknown database 'testdb-1'
-show create database `#mysql50#testdb-1`;
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET latin1 */
+show create database `mysqltest-1`;
+ERROR 42000: Unknown database 'mysqltest-1'
+show create database `#mysql50#mysqltest-1`;
 Database	Create Database
-#mysql50#testdb-1	CREATE DATABASE `#mysql50#testdb-1` /*!40100 DEFAULT CHARACTER SET latin1 */
-show tables in `testdb1`;
-Tables_in_testdb1
+#mysql50#mysqltest-1	CREATE DATABASE `#mysql50#mysqltest-1` /*!40100 DEFAULT CHARACTER SET latin1 */
+show tables in `mysqltest1`;
+Tables_in_mysqltest1
 #mysql50#t-1
 t1
-show tables in `#mysql50#testdb-1`;
-Tables_in_#mysql50#testdb-1
+show tables in `#mysql50#mysqltest-1`;
+Tables_in_#mysql50#mysqltest-1
 #mysql50#t-1
 t1
-show create database `testdb1`;
+show create database `mysqltest1`;
 Database	Create Database
-testdb1	CREATE DATABASE `testdb1` /*!40100 DEFAULT CHARACTER SET latin1 */
-show create database `testdb-1`;
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET latin1 */
+show create database `mysqltest-1`;
 Database	Create Database
-testdb-1	CREATE DATABASE `testdb-1` /*!40100 DEFAULT CHARACTER SET latin1 */
-show create database `#mysql50#testdb-1`;
-ERROR 42000: Unknown database '#mysql50#testdb-1'
-show tables in `testdb1`;
-Tables_in_testdb1
+mysqltest-1	CREATE DATABASE `mysqltest-1` /*!40100 DEFAULT CHARACTER SET latin1 */
+show create database `#mysql50#mysqltest-1`;
+ERROR 42000: Unknown database '#mysql50#mysqltest-1'
+show tables in `mysqltest1`;
+Tables_in_mysqltest1
 t1
 t-1
-show tables in `testdb-1`;
-Tables_in_testdb-1
+show tables in `mysqltest-1`;
+Tables_in_mysqltest-1
 t1
 t-1
-drop database `testdb1`;
-drop database `testdb-1`;
+drop database `mysqltest1`;
+drop database `mysqltest-1`;
