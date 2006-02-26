@@ -150,8 +150,8 @@ select * from t1 where a="alarm";
 show binlog events from 102;
 sync_slave_with_master;
 # as we're using UUID we don't SELECT but use "diff" like in rpl_row_UUID
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > ./var/tmp/rpl_row_UDF_master.sql
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > ./var/tmp/rpl_row_UDF_slave.sql
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/rpl_row_UDF_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/rpl_row_UDF_slave.sql
 
 connection master;
 drop database mysqltest1;
@@ -162,4 +162,4 @@ sync_slave_with_master;
 # will be created. You will need to go to the mysql-test dir and diff
 # the files your self to see what is not matching
 
-#--exec diff ./var/tmp/rpl_row_UDF_master.sql ./var/tmp/rpl_row_UDF_slave.sql;
+#--exec diff $MYSQLTEST_VARDIR/tmp/rpl_row_UDF_master.sql $MYSQLTEST_VARDIR/tmp/rpl_row_UDF_slave.sql;
