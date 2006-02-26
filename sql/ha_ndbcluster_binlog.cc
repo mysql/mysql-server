@@ -245,10 +245,9 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
     sql_print_error("Unable to get table share for %s, error=%d",
                     share->key, error);
     DBUG_PRINT("error", ("open_table_def failed %d", error));
+    free_table_share(table_share);
     my_free((gptr) table_share, MYF(0));
-    table_share= 0;
     my_free((gptr) table, MYF(0));
-    table= 0;
     DBUG_RETURN(error);
   }
   if ((error= open_table_from_share(thd, table_share, "", 0, 
@@ -257,10 +256,9 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
     sql_print_error("Unable to open table for %s, error=%d(%d)",
                     share->key, error, my_errno);
     DBUG_PRINT("error", ("open_table_from_share failed %d", error));
+    free_table_share(table_share);
     my_free((gptr) table_share, MYF(0));
-    table_share= 0;
     my_free((gptr) table, MYF(0));
-    table= 0;
     DBUG_RETURN(error);
   }
   assign_new_table_id(table);
@@ -304,6 +302,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
   THD *thd= current_thd;
   MEM_ROOT *mem_root= &share->mem_root;
   int do_event_op= ndb_binlog_running;
+  DBUG_ENTER("ndbcluster_binlog_init_share");
 
   share->op= 0;
   share->table= 0;
@@ -342,7 +341,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
     {
       share->flags|= NSF_NO_BINLOG;
     }
-    return;
+    DBUG_VOID_RETURN;
   }
   while (1) 
   {
@@ -358,6 +357,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
       share->flags|= NSF_BLOB_FLAG;
     break;
   }
+  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************
