@@ -217,8 +217,8 @@ MY_LOG_DIR="$MYSQL_TEST_DIR/var/log"
 #
 # Set LD_LIBRARY_PATH if we are using shared libraries
 #
-LD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$BASEDIR/zlib/.libs:$LD_LIBRARY_PATH"
-DYLD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$BASEDIR/zlib/.libs:$DYLD_LIBRARY_PATH"
+LD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$BASEDIR/libmysql_r/.libs:$BASEDIR/zlib/.libs:$LD_LIBRARY_PATH"
+DYLD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$BASEDIR/libmysql_r/.libs:$BASEDIR/zlib/.libs:$DYLD_LIBRARY_PATH"
 export LD_LIBRARY_PATH DYLD_LIBRARY_PATH
 
 #
