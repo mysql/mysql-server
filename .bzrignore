@@ -1614,3 +1614,5 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
+libmysqld/partition_info.cc
+storage/ndb/src/common/util/testBitmask.cpp

@@ -1465,7 +1465,6 @@ evex_drop_db_events(THD *thd, char *db)
   DBUG_ENTER("evex_drop_db_events");  
   DBUG_PRINT("info",("dropping events from %s", db));
 
-
   VOID(pthread_mutex_lock(&LOCK_event_arrays));
 
   if ((ret= evex_open_event_table(thd, TL_WRITE, &table)))
