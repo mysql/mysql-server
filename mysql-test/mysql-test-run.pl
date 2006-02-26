@@ -2650,7 +2650,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqlcheck .=
-      " --debug=d:t:A,$opt_vardir_trace/log/mysqldump.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqlcheck.trace";
   }
 
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
