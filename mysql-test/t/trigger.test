@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1, t2, t3;
+drop table if exists t1, t2, t3, t4;
 drop view if exists v1;
 drop database if exists mysqltest;
 drop function if exists f1;
@@ -958,6 +958,91 @@ create trigger test.t1_bi before insert on t1 for each row set @a:=0;
 --error ER_NO_DB_ERROR
 drop trigger t1_bi;
 connection default;
+
+#
+# Test for bug #13525 "Rename table does not keep info of triggers"
+#
+create table t1 (id int);
+create trigger t1_bi before insert on t1 for each row set @a:=new.id;
+insert into t1 values (101);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+rename table t1 to t2;
+# Trigger should work after rename
+insert into t2 values (102);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+# Let us check that the same works for simple ALTER TABLE ... RENAME
+alter table t2 rename to t3;
+insert into t3 values (103);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+# And for more complex ALTER TABLE
+alter table t3 rename to t4, add column val int default 0;
+insert into t4 values (104, 1);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+# .TRN file should be updated with new table name
+drop trigger t1_bi;
+drop table t4;
+# Rename between different databases if triggers exist should fail
+create database mysqltest;
+use mysqltest;
+create table t1 (id int);
+create trigger t1_bi before insert on t1 for each row set @a:=new.id;
+insert into t1 values (101);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+--error ER_TRG_IN_WRONG_SCHEMA
+rename table t1 to test.t2;
+insert into t1 values (102);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+# There should be no fantom .TRN files 
+--error ER_TRG_DOES_NOT_EXIST
+drop trigger test.t1_bi;
+drop trigger t1_bi;
+drop table t1;
+drop database mysqltest;
+use test;
+# And now let us check that the properly handle rename if there is some
+# error during it (that we rollback such renames completely).
+create table t1 (id int);
+create trigger t1_bi before insert on t1 for each row set @a:=new.id;
+create trigger t1_ai after insert on t1 for each row set @b:=new.id;
+insert into t1 values (101);
+select @a, @b;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+# Trick which makes update of second .TRN file impossible
+system echo dummy >var/master-data/test/t1_ai.TRN~;
+system chmod 000 var/master-data/test/t1_ai.TRN~;
+--error 1
+rename table t1 to t2;
+# 't1' should be still there and triggers should work correctly
+insert into t1 values (102);
+select @a, @b;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+system chmod 600 var/master-data/test/t1_ai.TRN;
+# Let us check that updates to .TRN files were rolled back too
+drop trigger t1_bi;
+drop trigger t1_ai;
+drop table t1;
 
 # Test for bug #16829 "Firing trigger with RETURN crashes the server"
 # RETURN is not supposed to be used anywhere except functions, so error
