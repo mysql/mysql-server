@@ -5601,7 +5601,7 @@ bool Rows_log_event::write_data_body(IO_CACHE*file)
   byte sbuf[sizeof(m_width)];
   my_ptrdiff_t const data_size= m_rows_cur - m_rows_buf;
 
-  char *const sbuf_end= net_store_length(sbuf, (uint) m_width);
+  char *const sbuf_end= net_store_length((char*) sbuf, (uint) m_width);
   DBUG_ASSERT(static_cast<my_size_t>(sbuf_end - (char*) sbuf) <= sizeof(sbuf));
 
   return (my_b_safe_write(file, sbuf, sbuf_end - (char*) sbuf) ||
@@ -6045,14 +6045,14 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   byte const tbuf[]= { m_tbllen };
 
   byte cbuf[sizeof(m_colcnt)];
-  char *const cbuf_end= net_store_length(cbuf, (uint) m_colcnt);
+  char *const cbuf_end= net_store_length((char*) cbuf, (uint) m_colcnt);
   DBUG_ASSERT(static_cast<my_size_t>(cbuf_end - (char*) cbuf) <= sizeof(cbuf));
 
   return (my_b_safe_write(file, dbuf,      sizeof(dbuf)) ||
           my_b_safe_write(file, (const byte*)m_dbnam,   m_dblen+1) ||
           my_b_safe_write(file, tbuf,      sizeof(tbuf)) ||
           my_b_safe_write(file, (const byte*)m_tblnam,  m_tbllen+1) ||
-          my_b_safe_write(file, cbuf,      cbuf_end - cbuf) ||
+          my_b_safe_write(file, cbuf,      cbuf_end - (char*) cbuf) ||
           my_b_safe_write(file, reinterpret_cast<byte*>(m_coltype), m_colcnt));
  }
 #endif
