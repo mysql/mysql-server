@@ -973,6 +973,7 @@ static const String tz_SYSTEM_name("SYSTEM", 6, &my_charset_latin1);
 class Time_zone_system : public Time_zone
 {
 public:
+  Time_zone_system() {}                       /* Remove gcc warning */
   virtual my_time_t TIME_to_gmt_sec(const TIME *t,
                                     my_bool *in_dst_time_gap) const;
   virtual void gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
@@ -1066,6 +1067,7 @@ Time_zone_system::get_name() const
 class Time_zone_utc : public Time_zone
 {
 public:
+  Time_zone_utc() {}                          /* Remove gcc warning */
   virtual my_time_t TIME_to_gmt_sec(const TIME *t,
                                     my_bool *in_dst_time_gap) const;
   virtual void gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
