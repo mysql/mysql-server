@@ -42,13 +42,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select sql_no_cache database() AS `database()`,user() AS `user()`
-create table t1 (version char(40)) select database(), user(), version() as 'version';
+create table t1 (version char(60)) select database(), user(), version() as 'version';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `database()` varchar(34) character set utf8 default NULL,
   `user()` varchar(77) character set utf8 NOT NULL default '',
-  `version` char(40) default NULL
+  `version` char(60) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select charset(charset(_utf8'a')), charset(collation(_utf8'a'));

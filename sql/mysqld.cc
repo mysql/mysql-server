@@ -3053,6 +3053,8 @@ static int init_server_components()
 #ifdef HAVE_REPLICATION
   init_slave_list();
 #endif
+  init_events();
+
   /* Setup logs */
 
   /* enable old-fashioned error log */
@@ -3663,8 +3665,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
       unireg_abort(1);
     }
   }
-
-  init_events();
 
   create_shutdown_thread();
   create_maintenance_thread();

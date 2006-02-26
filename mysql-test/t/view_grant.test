@@ -717,3 +717,5 @@ create definer=some_user@`` sql security invoker view v1 as select 1;
 create definer=some_user@localhost sql security invoker view v1 as select 1;
 show create view v1;
 drop view v1;
+
+

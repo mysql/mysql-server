@@ -84,7 +84,7 @@ void create_last_word_mask(MY_BITMAP *map)
   }
 }
 
-static inline void bitmap_lock(MY_BITMAP *map)
+static inline void bitmap_lock(MY_BITMAP *map __attribute__((unused)))
 {
 #ifdef THREAD
   if (map->mutex)
@@ -92,7 +92,7 @@ static inline void bitmap_lock(MY_BITMAP *map)
 #endif
 }
 
-static inline void bitmap_unlock(MY_BITMAP *map)
+static inline void bitmap_unlock(MY_BITMAP *map __attribute__((unused)))
 {
 #ifdef THREAD
   if (map->mutex)

@@ -993,6 +993,7 @@ bool select_send::send_data(List<Item> &items)
     protocol->remove_last_row();
   else
     DBUG_RETURN(protocol->write());
+  protocol->remove_last_row();
   DBUG_RETURN(1);
 }
 
