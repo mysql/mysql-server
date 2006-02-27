@@ -677,9 +677,12 @@ page_delete_rec_list_end(
 Moves record list end to another page. Moved records include
 split_rec. */
 
-void
+ibool
 page_move_rec_list_end(
 /*===================*/
+					/* out: TRUE on success; FALSE on
+					compression failure (new_page will
+					be decompressed from new_page_zip) */
 	page_t*		new_page,	/* in: index page where to move */
 	page_zip_des_t*	new_page_zip,	/* in/out: compressed page of
 					new_page, or NULL */
@@ -693,9 +696,11 @@ page_move_rec_list_end(
 Moves record list start to another page. Moved records do not include
 split_rec. */
 
-void
+ibool
 page_move_rec_list_start(
 /*=====================*/
+					/* out: TRUE on success; FALSE on
+					compression failure */
 	page_t*		new_page,	/* in: index page where to move */
 	page_zip_des_t*	new_page_zip,	/* in/out: compressed page of
 					new_page, or NULL */
