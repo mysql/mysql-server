@@ -429,3 +429,38 @@ disconnect con2root;
 disconnect con3root;
 
 # End of 4.1 tests
+
+#
+# Bug#17279 user with no global privs and with create
+#           priv in db can create databases
+#
+
+create database TESTDB;
+create table t2(a int);
+create temporary table t1 as select * from mysql.user;
+delete from mysql.user where host='localhost';
+INSERT INTO mysql.user VALUES
+('%','mysqltest_1',password('password'),'N','N','N','N','N','N',
+'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N',
+'','','','',0,0,0,0);
+INSERT INTO mysql.db VALUES
+('%','TESTDB','mysqltest_1','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','N','Y','Y','Y','
+Y','N');
+FLUSH PRIVILEGES;
+
+connect (con1,localhost,mysqltest_1,password,TESTDB);
+
+# The user mysqltest_1 should only be allowed access to
+# database TESTDB, not TEStdb
+--error 1044
+create database TEStdb;
+
+# Clean-up
+connection default;
+delete from mysql.user;
+delete from mysql.db where host='%' and user='mysqltest_1' and db='TESTDB';
+insert into mysql.user select * from t1;
+drop table t1, t2;
+drop database TESTDB;
+flush privileges;
+
