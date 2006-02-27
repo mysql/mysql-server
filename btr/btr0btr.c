@@ -144,7 +144,7 @@ btr_root_get(
 
 	root = btr_page_get(space, root_page_no, RW_X_LATCH, mtr);
 	ut_a((ibool)!!page_is_comp(root) ==
-			UT_LIST_GET_FIRST(tree->tree_indexes)->table->comp);
+		dict_table_is_comp(UT_LIST_GET_FIRST(tree->tree_indexes)->table));
 
 	return(root);
 }
@@ -259,7 +259,7 @@ btr_page_create(
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
 	page_create(page, mtr,
-			UT_LIST_GET_FIRST(tree->tree_indexes)->table->comp);
+		dict_table_is_comp(UT_LIST_GET_FIRST(tree->tree_indexes)->table));
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 
 	btr_page_set_index_id(page, tree->id, mtr);
@@ -846,7 +846,7 @@ btr_page_reorganize_low(
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
-	ut_ad(!!page_is_comp(page) == index->table->comp);
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 	data_size1 = page_get_data_size(page);
 	max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
 
@@ -2011,7 +2011,7 @@ btr_compress(
 	page = btr_cur_get_page(cursor);
 	tree = btr_cur_get_tree(cursor);
 	comp = page_is_comp(page);
-	ut_a((ibool)!!comp == cursor->index->table->comp);
+	ut_a((ibool)!!comp == dict_table_is_comp(cursor->index->table));
 
 	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
 							MTR_MEMO_X_LOCK));
@@ -2507,11 +2507,13 @@ btr_index_rec_validate(
 		return(TRUE);
 	}
 
-	if (UNIV_UNLIKELY((ibool)!!page_is_comp(page) != index->table->comp)) {
+	if (UNIV_UNLIKELY((ibool)!!page_is_comp(page)
+			!= dict_table_is_comp(index->table))) {
 		btr_index_rec_validate_report(page, rec, index);
 		fprintf(stderr, "InnoDB: compact flag=%lu, should be %lu\n",
 			(ulong) !!page_is_comp(page),
-			(ulong) index->table->comp);
+			(ulong) dict_table_is_comp(index->table));
+
 		return(FALSE);
 	}
 

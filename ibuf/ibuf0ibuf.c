@@ -532,7 +532,7 @@ ibuf_data_init_for_space(
 
 	sprintf(buf, "SYS_IBUF_TABLE_%lu", (ulong) space);
 	/* use old-style record format for the insert buffer */
-	table = dict_mem_table_create(buf, space, 2, FALSE);
+	table = dict_mem_table_create(buf, space, 2, 0);
 
 	dict_mem_table_add_col(table, "PAGE_NO", DATA_BINARY, 0, 0, 0);
 	dict_mem_table_add_col(table, "TYPES", DATA_BINARY, 0, 0, 0);
@@ -1127,13 +1127,18 @@ ibuf_dummy_index_create(
 {
 	dict_table_t*	table;
 	dict_index_t*	index;
+
 	table = dict_mem_table_create("IBUF_DUMMY",
-			DICT_HDR_SPACE, n, comp);
+		DICT_HDR_SPACE, n, comp ? DICT_TF_COMPACT : 0);
+
 	index = dict_mem_index_create("IBUF_DUMMY", "IBUF_DUMMY",
-			DICT_HDR_SPACE, 0, n);
+		DICT_HDR_SPACE, 0, n);
+
 	index->table = table;
+
 	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
 	index->cached = TRUE;
+
 	return(index);
 }
 /************************************************************************
@@ -2454,7 +2459,7 @@ ibuf_update_max_tablespace_id(void)
 	ibuf_data = fil_space_get_ibuf_data(0);
 
 	ibuf_index = ibuf_data->index;
-	ut_a(!ibuf_index->table->comp);
+	ut_a(!dict_table_is_comp(ibuf_index->table));
 
 	ibuf_enter();
 
@@ -2598,8 +2603,8 @@ ibuf_insert_low(
 	the first fields and the type information for other fields, and which
 	will be inserted to the insert buffer. */
 
-	ibuf_entry = ibuf_entry_build(entry, index->table->comp,
-						space, page_no, heap);
+	ibuf_entry = ibuf_entry_build(entry, dict_table_is_comp(index->table),
+		space, page_no, heap);
 
 	/* Open a cursor to the insert buffer tree to calculate if we can add
 	the new entry to it without exceeding the free space limit for the
@@ -2769,7 +2774,8 @@ ibuf_insert(
 	ut_a(!(index->type & DICT_CLUSTERED));
 
 	if (rec_get_converted_size(index, entry)
-		>= page_get_free_space_of_empty(index->table->comp) / 2) {
+		>= page_get_free_space_of_empty(
+			dict_table_is_comp(index->table)) / 2) {
 		return(FALSE);
 	}
 
@@ -2816,7 +2822,8 @@ ibuf_insert_to_index_page(
 	ut_ad(ibuf_inside());
 	ut_ad(dtuple_check_typed(entry));
 
-	if (UNIV_UNLIKELY(index->table->comp != (ibool)!!page_is_comp(page))) {
+	if (UNIV_UNLIKELY(dict_table_is_comp(index->table)
+			!= (ibool)!!page_is_comp(page))) {
 		fputs(
 "InnoDB: Trying to insert a record from the insert buffer to an index page\n"
 "InnoDB: but the 'compact' flag does not match!\n", stderr);

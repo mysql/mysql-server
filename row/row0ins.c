@@ -256,7 +256,8 @@ row_ins_sec_index_entry_by_modify(
 	rec = btr_cur_get_rec(cursor);
 
 	ut_ad((cursor->index->type & DICT_CLUSTERED) == 0);
-	ut_ad(rec_get_deleted_flag(rec, cursor->index->table->comp));
+	ut_ad(rec_get_deleted_flag(rec,
+			dict_table_is_comp(cursor->index->table)));
 
 	/* We know that in the alphabetical ordering, entry and rec are
 	identified. But in their binary form there may be differences if
@@ -321,7 +322,8 @@ row_ins_clust_index_entry_by_modify(
 
 	rec = btr_cur_get_rec(cursor);
 
-	ut_ad(rec_get_deleted_flag(rec, cursor->index->table->comp));
+	ut_ad(rec_get_deleted_flag(rec,
+			dict_table_is_comp(cursor->index->table)));
 
 	heap = mem_heap_create(1024);
 
@@ -969,7 +971,7 @@ row_ins_foreign_check_on_constraint(
 		goto nonstandard_exit_func;
 	}
 
-	if (rec_get_deleted_flag(clust_rec, table->comp)) {
+	if (rec_get_deleted_flag(clust_rec, dict_table_is_comp(table))) {
 		/* This can happen if there is a circular reference of
 		rows such that cascading delete comes to delete a row
 		already in the process of being delete marked */

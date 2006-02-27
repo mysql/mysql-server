@@ -36,13 +36,13 @@ dict_mem_table_create(
 				ignored if the table is made a member of
 				a cluster */
 	ulint		n_cols,	/* in: number of columns */
-	ibool		comp)	/* in: TRUE=compact page format */
+	ulint		flags)	/* in: table flags */
 {
 	dict_table_t*	table;
 	mem_heap_t*	heap;
 
 	ut_ad(name);
-	ut_ad(comp == FALSE || comp == TRUE);
+	ut_ad(!(flags & ~DICT_TF_COMPACT));
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 
@@ -51,12 +51,12 @@ dict_mem_table_create(
 	table->heap = heap;
 
 	table->type = DICT_TABLE_ORDINARY;
+	table->flags = flags;
 	table->name = mem_heap_strdup(heap, name);
 	table->dir_path_of_temp_table = NULL;
 	table->space = space;
 	table->ibd_file_missing = FALSE;
 	table->tablespace_discarded = FALSE;
-	table->comp = comp;
 	table->n_def = 0;
 	table->n_cols = n_cols + DATA_N_SYS_COLS;
 	table->mem_fix = 0;
@@ -114,7 +114,7 @@ dict_mem_cluster_create(
 	dict_table_t*		cluster;
 
 	/* Clustered tables cannot work with the compact record format. */
-	cluster = dict_mem_table_create(name, space, n_cols, FALSE);
+	cluster = dict_mem_table_create(name, space, n_cols, 0);
 
 	cluster->type = DICT_TABLE_CLUSTER;
 	cluster->mix_len = mix_len;

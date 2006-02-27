@@ -39,6 +39,9 @@ combination of types */
 #define	DICT_TABLE_CLUSTER		3 /* this means that the table is
 					  really a cluster definition */
 
+/* Table flags */
+#define DICT_TF_COMPACT			1	/* compact page format */
+
 /**************************************************************************
 Creates a table memory object. */
 
@@ -52,7 +55,7 @@ dict_mem_table_create(
 					is ignored if the table is made
 					a member of a cluster */
 	ulint		n_cols,		/* in: number of columns */
-	ibool		comp);		/* in: TRUE=compact page format */
+	ulint		flags);		/* in: table flags */
 /**************************************************************************
 Creates a cluster memory object. */
 
@@ -300,6 +303,7 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 struct dict_table_struct{
 	dulint		id;	/* id of the table or cluster */
 	ulint		type;	/* DICT_TABLE_ORDINARY, ... */
+	ulint		flags;	/* DICT_TF_COMPACT, ... */
 	mem_heap_t*	heap;	/* memory heap */
 	const char*	name;	/* table name */
 	const char*	dir_path_of_temp_table;/* NULL or the directory path
@@ -317,7 +321,6 @@ struct dict_table_struct{
 	ibool		tablespace_discarded;/* this flag is set TRUE when the
 				user calls DISCARD TABLESPACE on this table,
 				and reset to FALSE in IMPORT TABLESPACE */
-	ibool		comp;	/* flag: TRUE=compact page format */
 	hash_node_t	name_hash; /* hash chain node */
 	hash_node_t	id_hash; /* hash chain node */
 	ulint		n_def;	/* number of columns defined so far */

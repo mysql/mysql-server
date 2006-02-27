@@ -421,9 +421,11 @@ rec_get_n_fields(
 {
 	ut_ad(rec);
 	ut_ad(index);
-	if (UNIV_UNLIKELY(!index->table->comp)) {
+
+	if (!dict_table_is_comp(index->table)) {
 		return(rec_get_n_fields_old(rec));
 	}
+
 	switch (rec_get_status(rec)) {
 	case REC_STATUS_ORDINARY:
 		return(dict_index_get_n_fields(index));
@@ -1026,7 +1028,7 @@ rec_set_nth_field_extern_bit(
 				where rec is, or NULL; in the NULL case
 				we do not write to log about the change */
 {
-	if (UNIV_LIKELY(index->table->comp)) {
+	if (dict_table_is_comp(index->table)) {
 		rec_set_nth_field_extern_bit_new(rec, index, i, val, mtr);
 	} else {
 		rec_set_nth_field_extern_bit_old(rec, i, val, mtr);
@@ -1441,7 +1443,7 @@ rec_get_converted_size(
 				? dict_index_get_n_unique_in_tree(index) + 1
 				: dict_index_get_n_fields(index)));
 
-	if (UNIV_LIKELY(index->table->comp)) {
+	if (dict_table_is_comp(index->table)) {
 		return(rec_get_converted_size_new(index, dtuple));
 	}
 
