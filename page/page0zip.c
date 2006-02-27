@@ -376,9 +376,9 @@ page_zip_compress(
 
 	c_stream.next_out = buf;
 	/* Subtract the space reserved for uncompressed data. */
-	/* Page header, n_relocated, end marker of modification log */
+	/* Page header, end marker of modification log */
 	c_stream.avail_out = page_zip->size
-			- (PAGE_DATA + 2 * PAGE_ZIP_DIR_SLOT_SIZE);
+			- (PAGE_DATA + PAGE_ZIP_DIR_SLOT_SIZE);
 	/* Dense page directory and uncompressed columns, if any */
 	if (page_is_leaf(page)) {
 		trx_id_col = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
@@ -413,7 +413,6 @@ page_zip_compress(
 	ut_ad(!c_stream.avail_in);
 
 	/* TODO: do not write to page_zip->data until deflateEnd() */
-	page_zip_set_n_relocated(page_zip, 0);
 	page_zip_dir_encode(page, page_zip, recs);
 
 	c_stream.next_in = (byte*) page + PAGE_ZIP_START;
@@ -1163,10 +1162,6 @@ page_zip_decompress(
 	rec_t**		recsc;	/* cursor to dense page directory */
 	ulint		heap_status;/* heap_no and status bits */
 	ulint		n_dense;/* number of user records on the page */
-	ulint		reloc	= 0;/* index to page_zip_get_relocated() */
-	ulint		orig	= ULINT_UNDEFINED;
-				/* page_zip_get_relocated(reloc),
-				or ULINT_UNDEFINED */
 	ulint		trx_id_col = ULINT_UNDEFINED;
 	mem_heap_t*	heap;
 	ulint*		offsets	= NULL;
@@ -1288,35 +1283,11 @@ page_zip_decompress(
 		*offsets = n;
 	}
 
-	if (page_zip_get_n_relocated(page_zip)) {
-		orig = page_zip_get_relocated(page_zip, reloc);
-		reloc++;
-	}
-
 	page_zip->n_blobs = 0;
 
 	while (n_dense--) {
 		byte* const	last	= d_stream.next_out;
 		rec_t*		rec	= *recsc++;
-
-		/* Was the record relocated? */
-		if (UNIV_UNLIKELY(orig
-				< ut_align_offset(rec, UNIV_PAGE_SIZE))) {
-			/* The record was relocated since the page was
-			compressed.  Get the original offset. */
-			rec = page + orig;
-
-			/* Get the offset of the next relocated record. */
-			if (reloc < page_zip_get_n_relocated(page_zip)) {
-				orig = page_zip_get_relocated(page_zip, reloc);
-				ut_ad(ut_align_offset(rec, UNIV_PAGE_SIZE)
-					< orig);
-				reloc++;
-			} else {
-				/* End of list */
-				orig = ULINT_UNDEFINED;
-			}
-		}
 
 		d_stream.avail_out = rec - REC_N_NEW_EXTRA_BYTES - last;
 
@@ -1568,8 +1539,7 @@ err_exit:
 	/* Copy the uncompressed fields. */
 
 	storage = page_zip->data + page_zip->size
-			- (n_dense + 1 + page_zip_get_n_relocated(page_zip))
-			* PAGE_ZIP_DIR_SLOT_SIZE;
+			- (n_dense + 1) * PAGE_ZIP_DIR_SLOT_SIZE;
 	externs = storage - n_dense * (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 	page_zip->n_blobs = 0;
 	recsc = recs;
@@ -1720,8 +1690,7 @@ page_zip_write_rec(
 
 	/* Write the data bytes.  Store the uncompressed bytes separately. */
 	storage = page_zip->data + page_zip->size
-			- (page_dir_get_n_heap(page) - 1
-			+ page_zip_get_n_relocated(page_zip))
+			- (page_dir_get_n_heap(page) - 1)
 			* PAGE_ZIP_DIR_SLOT_SIZE;
 
 	if (page_is_leaf(page)) {
