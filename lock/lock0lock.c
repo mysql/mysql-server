@@ -476,7 +476,7 @@ lock_check_trx_id_sanity(
 
 	if (ut_dulint_cmp(trx_id, trx_sys->max_trx_id) >= 0) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: Error: transaction id associated"
+		fputs("  InnoDB: Error: transaction id associated"
 			" with record\n",
 			stderr);
 		rec_print_new(stderr, rec, offsets);
@@ -1733,7 +1733,7 @@ lock_rec_create(
 	space = buf_frame_get_space_id(page);
 	page_no	= buf_frame_get_page_no(page);
 
-	ut_ad((ibool) !!page_is_comp(page) == index->table->comp);
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	/* If rec is the supremum record, then we reset the gap and
 	LOCK_REC_NOT_GAP bits, as all locks on the supremum are

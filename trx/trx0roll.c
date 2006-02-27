@@ -240,7 +240,7 @@ trx_rollback_to_savepoint_for_mysql(
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: Error: transaction has a savepoint ", stderr);
+		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
 		ut_print_name(stderr, trx, savep->name);
 		fputs(" though it is not started\n", stderr);
 		return(DB_ERROR);

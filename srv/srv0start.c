@@ -1753,7 +1753,7 @@ innobase_shutdown_for_mysql(void)
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 "  InnoDB: Warning: shutting down a not properly started\n"
-"		  InnoDB: or created database!\n");
+"                 InnoDB: or created database!\n");
 		}
 
 		return(DB_SUCCESS);

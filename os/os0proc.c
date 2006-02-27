@@ -119,7 +119,7 @@ os_awe_enable_lock_pages_in_mem(void)
 
 	Result = LookupPrivilegeValue(NULL, SE_LOCK_MEMORY_NAME,
 				  &(Info.Privilege[0].Luid));
-	if (Result != TRUE)  {
+	if (Result != TRUE) {
 		fprintf(stderr,
 	"InnoDB: AWE: Cannot get local privilege value for %s, error %lu.\n",
 			SE_LOCK_MEMORY_NAME, (ulint)GetLastError());
@@ -134,7 +134,7 @@ os_awe_enable_lock_pages_in_mem(void)
 				   0, NULL, NULL);
 	/* Check the result */
 
-	if (Result != TRUE)  {
+	if (Result != TRUE) {
 		fprintf(stderr,
 		"InnoDB: AWE: Cannot adjust process token privileges, error %u.\n",
 			GetLastError());
