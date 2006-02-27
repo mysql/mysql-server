@@ -1028,8 +1028,8 @@ select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test';
 # Trick which makes update of second .TRN file impossible
-system echo dummy >var/master-data/test/t1_ai.TRN~;
-system chmod 000 var/master-data/test/t1_ai.TRN~;
+system echo dummy >$MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
+system chmod 000 $MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
 --error 1
 rename table t1 to t2;
 # 't1' should be still there and triggers should work correctly
@@ -1038,7 +1038,8 @@ select @a, @b;
 select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test';
-system chmod 600 var/master-data/test/t1_ai.TRN;
+system chmod 600 $MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
+system rm $MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
 # Let us check that updates to .TRN files were rolled back too
 drop trigger t1_bi;
 drop trigger t1_ai;
