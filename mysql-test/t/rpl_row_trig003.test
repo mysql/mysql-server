@@ -125,8 +125,8 @@ connection master;
 
 # time to dump the databases and so we can see if they match
 
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > ./var/tmp/trg003_master.sql
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > ./var/tmp/trg003_slave.sql
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/trg003_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/trg003_slave.sql
 
 # cleanup
 --disable_warnings
@@ -147,6 +147,6 @@ DROP TABLE IF EXISTS test.t2;
 DROP TABLE IF EXISTS test.t3;
 --enable_warnings
 
-exec diff ./var/tmp/trg003_master.sql ./var/tmp/trg003_slave.sql;
+exec diff $MYSQLTEST_VARDIR/tmp/trg003_master.sql $MYSQLTEST_VARDIR/tmp/trg003_slave.sql;
 
 # End of 5.0 test case

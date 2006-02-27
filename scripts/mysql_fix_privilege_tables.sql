@@ -680,3 +680,9 @@ ALTER TABLE db   ADD Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 
 ALTER TABLE tables_priv MODIFY Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
 UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
+
+# Activate the new, possible modified privilege tables
+# This should not be needed, but gives us some extra testing that the above
+# changes was correct
+
+flush privileges;

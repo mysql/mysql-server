@@ -61,22 +61,26 @@ NdbBlob::setState(State newState)
 int
 NdbBlob::getBlobTableName(char* btname, Ndb* anNdb, const char* tableName, const char* columnName)
 {
+  DBUG_ENTER("NdbBlob::getBlobTableName");
   NdbTableImpl* t = anNdb->theDictionary->m_impl.getTable(tableName);
   if (t == NULL)
-    return -1;
+    DBUG_RETURN(-1);
   NdbColumnImpl* c = t->getColumn(columnName);
   if (c == NULL)
-    return -1;
+    DBUG_RETURN(-1);
   getBlobTableName(btname, t, c);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void
 NdbBlob::getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnImpl* c)
 {
-  assert(t != 0 && c != 0 && c->getBlobType());
+  DBUG_ENTER("NdbBlob::getBlobTableName");
+  assert(t != 0 && c != 0 && c->getBlobType() && c->getPartSize() != 0);
   memset(btname, 0, NdbBlobImpl::BlobTableNameSize);
   sprintf(btname, "NDB$BLOB_%d_%d", (int)t->m_id, (int)c->m_column_no);
+  DBUG_PRINT("info", ("blob table name: %s", btname));
+  DBUG_VOID_RETURN;
 }
 
 void

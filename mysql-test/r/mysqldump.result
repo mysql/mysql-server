@@ -1464,7 +1464,10 @@ DROP TABLE IF EXISTS `v2`;
 ) */;
 /*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
-/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like _latin1'a%') WITH CASCADED CHECK OPTION*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like _latin1'a%') */
+/*!50002 WITH CASCADED CHECK OPTION */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1797,7 +1800,9 @@ DROP TABLE IF EXISTS `v1`;
 ) */;
 /*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
-/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v1` AS select `t1`.`a` AS `a` from `t1` */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1853,7 +1858,10 @@ DROP TABLE IF EXISTS `v2`;
 ) */;
 /*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
-/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like _latin1'a%') WITH CASCADED CHECK OPTION*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like _latin1'a%') */
+/*!50002 WITH CASCADED CHECK OPTION */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1959,13 +1967,19 @@ DROP TABLE IF EXISTS `v3`;
 ) */;
 /*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
-/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `v3`.`a` AS `a`,`v3`.`b` AS `b`,`v3`.`c` AS `c` from `v3` where (`v3`.`b` in (1,2,3,4,5,6,7))*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v1` AS select `v3`.`a` AS `a`,`v3`.`b` AS `b`,`v3`.`c` AS `c` from `v3` where (`v3`.`b` in (1,2,3,4,5,6,7)) */;
 /*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
-/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v3`.`a` AS `a` from (`v3` join `v1`) where ((`v1`.`a` = `v3`.`a`) and (`v3`.`b` = 3)) limit 1*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v2` AS select `v3`.`a` AS `a` from (`v3` join `v1`) where ((`v1`.`a` = `v3`.`a`) and (`v3`.`b` = 3)) limit 1 */;
 /*!50001 DROP TABLE IF EXISTS `v3`*/;
 /*!50001 DROP VIEW IF EXISTS `v3`*/;
-/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t1`.`c` AS `c` from `t1`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v3` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t1`.`c` AS `c` from `t1` */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -2399,10 +2413,10 @@ drop table t1;
 set global time_zone=default;
 set time_zone=default;
 DROP TABLE IF EXISTS `t1 test`;
+DROP TABLE IF EXISTS `t2 test`;
 CREATE TABLE `t1 test` (
 `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-DROP TABLE IF EXISTS `t2 test`;
 CREATE TABLE `t2 test` (
 `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
@@ -2534,13 +2548,19 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET l
 USE `test`;
 /*!50001 DROP TABLE IF EXISTS `v0`*/;
 /*!50001 DROP VIEW IF EXISTS `v0`*/;
-/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v0` AS select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`c` AS `c` from `v1`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v0` AS select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`c` AS `c` from `v1` */;
 /*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
-/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t1`.`c` AS `c` from `t1`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t1`.`c` AS `c` from `t1` */;
 /*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
-/*!50001 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v0`.`a` AS `a`,`v0`.`b` AS `b`,`v0`.`c` AS `c` from `v0`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v2` AS select `v0`.`a` AS `a`,`v0`.`b` AS `b`,`v0`.`c` AS `c` from `v0` */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -2650,3 +2670,240 @@ DELIMITER ;
 
 DROP TRIGGER tr1;
 DROP TABLE t1;
+create table t1 (a int);
+insert into t1 values (289), (298), (234), (456), (789);
+create definer = CURRENT_USER view v1 as select * from t1;
+create SQL SECURITY INVOKER view v2 as select * from t1;
+create view v3 as select * from t1 with local check option;
+create algorithm=merge view v4 as select * from t1 with cascaded check option;
+create algorithm =temptable view v5 as select * from t1;
+drop table t1;
+drop view v1, v2, v3, v4, v5;
+show tables;
+Tables_in_test
+t1
+v1
+v2
+v3
+v4
+v5
+select * from v3 order by a;
+a
+234
+289
+298
+456
+789
+drop table t1;
+drop view v1, v2, v3, v4, v5;
+create table t1 (a int, created datetime);
+create table t2 (b int, created datetime);
+create trigger tr1 before insert on t1 for each row set
+new.created=now();
+create trigger tr2 after insert on t1
+for each row
+begin
+insert into t2 set b=new.a and created=new.created;
+end|
+drop trigger tr1;
+drop trigger tr2;
+drop table t1, t2;
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+tr1	INSERT	t1	set
+new.created=now()	BEFORE	#		root@localhost
+tr2	INSERT	t1	begin
+insert into t2 set b=new.a and created=new.created;
+end	AFTER	#		root@localhost
+drop trigger tr1;
+drop trigger tr2;
+drop table t1, t2;
+/*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
+return 42 */|
+/*!50003 CREATE PROCEDURE `p`()
+select 42 */|
+show create function f;
+Function	sql_mode	Create Function
+f		CREATE FUNCTION `f`() RETURNS bigint(20)
+return 42
+show create procedure p;
+Procedure	sql_mode	Create Procedure
+p		CREATE PROCEDURE `p`()
+select 42
+drop function f;
+drop procedure p;
+create table t1 (a text , b text);
+create table t2 (a text , b text);
+insert t1 values ("Duck, Duck", "goose");
+insert t1 values ("Duck, Duck", "pidgeon");
+insert t2 values ("We the people", "in order to perform");
+insert t2 values ("a more perfect", "union");
+select * from t1;
+a	b
+Duck, Duck	goose
+Duck, Duck	pidgeon
+select * from t2;
+a	b
+We the people	in order to perform
+a more perfect	union
+test.t1: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
+test.t2: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
+select * from t1;
+a	b
+Duck, Duck	goose
+Duck, Duck	pidgeon
+Duck, Duck	goose
+Duck, Duck	pidgeon
+select * from t2;
+a	b
+We the people	in order to perform
+a more perfect	union
+We the people	in order to perform
+a more perfect	union
+create table words(a varchar(255));
+create table words2(b varchar(255));
+select * from t1;
+a	b
+Duck, Duck	goose
+Duck, Duck	pidgeon
+Duck, Duck	goose
+Duck, Duck	pidgeon
+Duck, Duck	goose
+Duck, Duck	pidgeon
+select * from t2;
+a	b
+We the people	in order to perform
+a more perfect	union
+We the people	in order to perform
+a more perfect	union
+We the people	in order to perform
+a more perfect	union
+select * from words;
+a
+Aarhus
+Aaron
+Ababa
+aback
+abaft
+abandon
+abandoned
+abandoning
+abandonment
+abandons
+Aarhus
+Aaron
+Ababa
+aback
+abaft
+abandon
+abandoned
+abandoning
+abandonment
+abandons
+abase
+abased
+abasement
+abasements
+abases
+abash
+abashed
+abashes
+abashing
+abasing
+abate
+abated
+abatement
+abatements
+abater
+abates
+abating
+Abba
+abbe
+abbey
+abbeys
+abbot
+abbots
+Abbott
+abbreviate
+abbreviated
+abbreviates
+abbreviating
+abbreviation
+abbreviations
+Abby
+abdomen
+abdomens
+abdominal
+abduct
+abducted
+abduction
+abductions
+abductor
+abductors
+abducts
+Abe
+abed
+Abel
+Abelian
+Abelson
+Aberdeen
+Abernathy
+aberrant
+aberration
+select * from words2;
+b
+abase
+abased
+abasement
+abasements
+abases
+abash
+abashed
+abashes
+abashing
+abasing
+abate
+abated
+abatement
+abatements
+abater
+abates
+abating
+Abba
+abbe
+abbey
+abbeys
+abbot
+abbots
+Abbott
+abbreviate
+abbreviated
+abbreviates
+abbreviating
+abbreviation
+abbreviations
+Abby
+abdomen
+abdomens
+abdominal
+abduct
+abducted
+abduction
+abductions
+abductor
+abductors
+abducts
+Abe
+abed
+Abel
+Abelian
+Abelson
+Aberdeen
+Abernathy
+aberrant
+aberration
+drop table words;
+mysql-import: Error: 1146, Table 'test.words' doesn't exist, when using table: words
+drop table t1;
+drop table t2;
+drop table words2;

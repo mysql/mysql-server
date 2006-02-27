@@ -1419,6 +1419,8 @@ ev_schedule_time: EVERY_SYM expr interval
                 break;
               case EVEX_BAD_PARAMS:
                 my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
+              case EVEX_MICROSECOND_UNSUP:
+                my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
                 YYABORT;
                 break;
               }
@@ -1678,6 +1680,16 @@ create_function_tail:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp;
+
+            /* 
+              First check if AGGREGATE was used, in that case it's a
+              syntax error.
+            */
+            if (lex->udf.type == UDFTYPE_AGGREGATE)
+            {
+              my_error(ER_SP_NO_AGGREGATE, MYF(0));
+              YYABORT;
+            }
 
 	    if (lex->sphead)
 	    {
@@ -5350,7 +5362,11 @@ restore:
 	RESTORE_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_RESTORE_TABLE;
-           WARN_DEPRECATED("RESTORE TABLE", "Command will be removed in next version.");
+           push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN,
+                               ER_WARN_DEPRECATED_STATEMENT,
+                               ER(ER_WARN_DEPRECATED_STATEMENT),
+                               "RESTORE TABLE", "5.2",
+                               "mysqldump, mysql, MySQL Administrator");
 	}
 	table_list FROM TEXT_STRING_sys
         {
@@ -5361,7 +5377,11 @@ backup:
 	BACKUP_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_BACKUP_TABLE;
-           WARN_DEPRECATED("BACKUP TABLE", "Command will be removed in next version.");
+           push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN,
+                               ER_WARN_DEPRECATED_STATEMENT,
+                               ER(ER_WARN_DEPRECATED_STATEMENT),
+                               "BACKUP TABLE", "5.2",
+                               "mysqldump, mysql, MySQL Administrator");
 	}
 	table_list TO_SYM TEXT_STRING_sys
         {
@@ -8668,7 +8688,11 @@ load:   LOAD DATA_SYM
         LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
 	  LEX *lex=Lex;
-          WARN_DEPRECATED("LOAD TABLE from MASTER", "Command will be removed in next version.");
+          push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN,
+                              ER_WARN_DEPRECATED_STATEMENT,
+                              ER(ER_WARN_DEPRECATED_STATEMENT),
+                              "LOAD TABLE FROM MASTER", "5.2",
+                              "mysqldump, mysql, MySQL Administrator");
           if (lex->sphead)
 	  {
 	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD TABLE");

@@ -231,3 +231,9 @@ select extractvalue('<a><b>B</b></a>','/a|b');
 select extractvalue('<a>a<b>B</b></a>','/a|/b');
 select extractvalue('<a>a<b>B</b></a>','/a|b');
 select extractvalue('<a>a<b>B</b></a>','a|/b');
+
+#
+# Bug#16312 XML: extractvalue() crash if angle brackets
+#
+--error 1105
+select extractvalue('<a>A</a>','/<a>');

@@ -1,0 +1,59 @@
+create database if not exists events_test;
+use events_test;
+CREATE EVENT micro_test ON SCHEDULE EVERY 100 MICROSECOND DO SELECT 1;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+CREATE EVENT micro_test ON SCHEDULE EVERY 100 DAY_MICROSECOND DO SELECT 1;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+CREATE EVENT micro_test ON SCHEDULE EVERY 100 HOUR_MICROSECOND DO SELECT 1;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+CREATE EVENT micro_test ON SCHEDULE EVERY 100 MINUTE_MICROSECOND DO SELECT 1;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+CREATE EVENT micro_test ON SCHEDULE EVERY 100 SECOND_MICROSECOND DO SELECT 1;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+"Now create normal event and change it on SQL level"
+CREATE EVENT micro_test2 ON SCHEDULE EVERY 1 MONTH DO SELECT 1;
+UPDATE mysql.event SET interval_field='MICROSECOND' WHERE db=database() AND definer=user() AND name='micro_test2';
+SHOW CREATE EVENT micro_test2;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+SET GLOBAL event_scheduler=0;
+"Should not be running:"
+SHOW VARIABLES like 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+UPDATE mysql.event SET interval_field='DAY_MICROSECOND' WHERE db=database() AND definer=user() AND name='micro_test2';
+SHOW CREATE EVENT micro_test2;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+SET GLOBAL event_scheduler=0;
+"Should not be running:"
+SHOW VARIABLES like 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+UPDATE mysql.event SET interval_field='SECOND_MICROSECOND' WHERE db=database() AND definer=user() AND name='micro_test2';
+SHOW CREATE EVENT micro_test2;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+SET GLOBAL event_scheduler=0;
+"Should not be running:"
+SHOW VARIABLES like 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+UPDATE mysql.event SET interval_field='HOUR_MICROSECOND' WHERE db=database() AND definer=user() AND name='micro_test2';
+SHOW CREATE EVENT micro_test2;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+SET GLOBAL event_scheduler=0;
+"Should not be running:"
+SHOW VARIABLES like 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+UPDATE mysql.event SET interval_field='MINUTE_MICROSECOND' WHERE db=database() AND definer=user() AND name='micro_test2';
+SHOW CREATE EVENT micro_test2;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+SET GLOBAL event_scheduler=0;
+"Should not be running:"
+SHOW VARIABLES like 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_scheduler';
+COUNT(*)
+0
+DROP EVENT micro_test2;
+drop database events_test;

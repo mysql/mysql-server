@@ -248,13 +248,15 @@ struct system_variables
 #endif /* HAVE_REPLICATION */
   my_bool innodb_table_locks;
   my_bool innodb_support_xa;
-  ulong ndb_autoincrement_prefetch_sz;
   my_bool ndb_force_send;
   my_bool ndb_use_exact_count;
   my_bool ndb_use_transactions;
   my_bool ndb_index_stat_enable;
+  ulong ndb_autoincrement_prefetch_sz;
   ulong ndb_index_stat_cache_entries;
   ulong ndb_index_stat_update_freq;
+  ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
+
   my_bool old_alter_table;
   my_bool old_passwords;
 
@@ -629,6 +631,7 @@ void xid_cache_delete(XID_STATE *xid_state);
 
 class Security_context {
 public:
+  Security_context() {}                       /* Remove gcc warning */
   /*
     host - host of the client
     user - user of the client, set to NULL until the user has been read from
@@ -1123,6 +1126,8 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   bool       slave_thread, one_shot_set;
+  /* tells if current statement should binlog row-based(1) or stmt-based(0) */
+  bool       current_stmt_binlog_row_based;
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password, is_fatal_error;
@@ -1377,6 +1382,15 @@ public:
   void restore_sub_statement_state(Sub_statement_state *backup);
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
+  inline void set_current_stmt_binlog_row_based_if_mixed()
+  {
+    if (variables.binlog_format == BINLOG_FORMAT_MIXED)
+      current_stmt_binlog_row_based= 1;
+  }
+  inline void reset_current_stmt_binlog_row_based()
+  {
+    current_stmt_binlog_row_based= test(variables.binlog_format == BINLOG_FORMAT_ROW);
+  }
 };
 
 
@@ -1467,6 +1481,7 @@ public:
 class select_result_interceptor: public select_result
 {
 public:
+  select_result_interceptor() {}              /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_fields(List<Item> &fields, uint flag) { return FALSE; }
 };
@@ -1757,6 +1772,7 @@ class Table_ident :public Sql_alloc
 class user_var_entry
 {
  public:
+  user_var_entry() {}                         /* Remove gcc warning */
   LEX_STRING name;
   char *value;
   ulong length;

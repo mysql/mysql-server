@@ -1013,6 +1013,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
 {
   TABLE_LIST *routine;
   bool result= 0;
+  bool sp_object_found;
   DBUG_ENTER("sp_exists_routine");
   for (routine= routines; routine; routine= routine->next_global)
   {
@@ -1025,10 +1026,12 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
     lex_name.str= thd->strmake(routine->table_name, lex_name.length);
     name= new sp_name(lex_db, lex_name);
     name->init_qname(thd);
-    if (sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
-                        &thd->sp_proc_cache, FALSE) != NULL ||
-        sp_find_routine(thd, TYPE_ENUM_FUNCTION, name,
-                        &thd->sp_func_cache, FALSE) != NULL)
+    sp_object_found= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
+                                     &thd->sp_proc_cache, FALSE) != NULL ||
+                     sp_find_routine(thd, TYPE_ENUM_FUNCTION, name,
+                                     &thd->sp_func_cache, FALSE) != NULL;
+    mysql_reset_errors(thd, TRUE);
+    if (sp_object_found)
     {
       if (any)
         DBUG_RETURN(1);

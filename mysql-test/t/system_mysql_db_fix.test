@@ -81,7 +81,8 @@ engine=MyISAM;
 INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y');
 INSERT INTO user VALUES ('localhost','',    '','N','N','N','N','N','N','N','N','N');
 
--- exec $MYSQL_FIX_SYSTEM_TABLES --database=test
+# Call the "shell script" $MYSQL_FIX_SYSTEM_TABLES using system
+-- system $MYSQL_FIX_SYSTEM_TABLES --database=test > /dev/null
 -- enable_query_log
 -- enable_result_log
 

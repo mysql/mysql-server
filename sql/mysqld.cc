@@ -465,31 +465,14 @@ my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 #ifdef HAVE_ROW_BASED_REPLICATION
-/*
-  This variable below serves as an optimization for (opt_binlog_format ==
-  BF_ROW) as we need to do this test for every row. Stmt-based is default.
-*/
-my_bool binlog_row_based= FALSE;
 ulong opt_binlog_rows_event_max_size;
-const char *binlog_format_names[]= {"STATEMENT", "ROW", NullS};
-/*
-  Note that BF_UNSPECIFIED is last, after the end of binlog_format_names: it
-  has no corresponding cell in this array. We use this value to be able to
-  know if the user has explicitely specified a binlog format (then we require
-  also --log-bin) or not (then we fall back to statement-based).
-*/
-enum binlog_format { BF_STMT= 0, BF_ROW= 1, BF_UNSPECIFIED= 2 };
+const char *binlog_format_names[]= {"STATEMENT", "ROW", "MIXED", NullS};
 #else
-const my_bool binlog_row_based= FALSE;
 const char *binlog_format_names[]= {"STATEMENT", NullS};
-enum binlog_format { BF_STMT= 0, BF_UNSPECIFIED= 2 };
 #endif
-
 TYPELIB binlog_format_typelib=
   { array_elements(binlog_format_names)-1,"",
     binlog_format_names, NULL };
-const char *opt_binlog_format= 0;
-enum binlog_format opt_binlog_format_id= BF_UNSPECIFIED;
 
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /* Used in SIGSEGV handler. */
@@ -3070,6 +3053,8 @@ static int init_server_components()
 #ifdef HAVE_REPLICATION
   init_slave_list();
 #endif
+  init_events();
+
   /* Setup logs */
 
   /* enable old-fashioned error log */
@@ -3187,42 +3172,25 @@ with --log-bin instead.");
     unireg_abort(1);
   }
 
-  if (!opt_bin_log && (opt_binlog_format_id != BF_UNSPECIFIED))
+ if (!opt_bin_log && (global_system_variables.binlog_format != BINLOG_FORMAT_UNSPEC))
   {
     sql_print_warning("You need to use --log-bin to make "
                       "--binlog-format work.");
     unireg_abort(1);
   }
-  if (opt_binlog_format_id == BF_UNSPECIFIED)
+  if (global_system_variables.binlog_format == BINLOG_FORMAT_UNSPEC)
   {
 #ifdef HAVE_NDB_BINLOG
     if (opt_bin_log && have_ndbcluster == SHOW_OPTION_YES)
-      opt_binlog_format_id= BF_ROW;
+      global_system_variables.binlog_format= BINLOG_FORMAT_ROW;
     else
 #endif
-      opt_binlog_format_id= BF_STMT;
+      global_system_variables.binlog_format= BINLOG_FORMAT_STMT;
   }
-#ifdef HAVE_ROW_BASED_REPLICATION
-  if (opt_binlog_format_id == BF_ROW) 
-  {
-    binlog_row_based= TRUE;
-    /*
-      Row-based binlogging turns on InnoDB unsafe locking, because the locks
-      are not needed when using row-based binlogging. In fact
-      innodb-locks-unsafe-for-binlog is unsafe only for stmt-based, it's
-      safe for row-based.
-    */
-#ifdef HAVE_INNOBASE_DB
-    innobase_locks_unsafe_for_binlog= TRUE;
-#endif
-    /* Trust stored function creators because they can do no harm */
-    trust_function_creators= 1;
-  }
-#endif
+
   /* Check that we have not let the format to unspecified at this point */
-  DBUG_ASSERT((uint)opt_binlog_format_id <=
+  DBUG_ASSERT((uint)global_system_variables.binlog_format <=
               array_elements(binlog_format_names)-1);
-  opt_binlog_format= binlog_format_names[opt_binlog_format_id];
 
 #ifdef HAVE_REPLICATION
   if (opt_log_slave_updates && replicate_same_server_id)
@@ -3697,8 +3665,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
       unireg_abort(1);
     }
   }
-
-  init_events();
 
   create_shutdown_thread();
   create_maintenance_thread();
@@ -4864,8 +4830,6 @@ struct my_option my_long_options[] =
    (gptr*) &abort_slave_event_count,  (gptr*) &abort_slave_event_count,
    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_REPLICATION */
-  {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode will also set transaction isolation level 'serializable'.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"allow-suspicious-udfs", OPT_ALLOW_SUSPICIOUS_UDFS,
    "Allows use of UDFs consisting of only one symbol xxx() "
    "without corresponding xxx_init() or xxx_deinit(). That also means "
@@ -4873,6 +4837,8 @@ struct my_option my_long_options[] =
    "from libc.so",
    (gptr*) &opt_allow_suspicious_udfs, (gptr*) &opt_allow_suspicious_udfs,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode will also set transaction isolation level 'serializable'.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-increment-increment", OPT_AUTO_INCREMENT,
    "Auto-increment columns are incremented by this",
    (gptr*) &global_system_variables.auto_increment_increment,
@@ -4929,23 +4895,23 @@ Disable with --skip-bdb (will save memory).",
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
    (gptr*) &my_bind_addr_str, (gptr*) &my_bind_addr_str, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"binlog-format", OPT_BINLOG_FORMAT,
+  {"binlog_format", OPT_BINLOG_FORMAT,
 #ifdef HAVE_ROW_BASED_REPLICATION
    "Tell the master the form of binary logging to use: either 'row' for "
-   "row-based binary logging (which automatically turns on "
-   "innodb_locks_unsafe_for_binlog as it is safe in this case), or "
-   "'statement' for statement-based logging. "
+   "row-based binary logging, or 'statement' for statement-based binary "
+   "logging, or 'mixed'. 'mixed' is statement-based binary logging except "
+   "for those statements where only row-based is correct: those which "
+   "involve user-defined functions (i.e. UDFs) or the UUID() function; for "
+   "those, row-based binary logging is automatically used. "
 #ifdef HAVE_NDB_BINLOG
-   "If ndbcluster is enabled, the default will be set to 'row'."
+   "If ndbcluster is enabled, the default is 'row'."
 #endif
-   ,
 #else
-   "Tell the master the form of binary logging to use: this release build "
+   "Tell the master the form of binary logging to use: this build "
    "supports only statement-based binary logging, so only 'statement' is "
-   "a legal value; MySQL-Max release builds support row-based binary logging "
-   "in addition.",
+   "a legal value."
 #endif
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },   
+   , 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -5148,9 +5114,7 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &innobase_unix_file_flush_method, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"innodb_locks_unsafe_for_binlog", OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
-   "Force InnoDB not to use next-key locking, to use only row-level locking."
-   " This is unsafe if you are using statement-based binary logging, and safe"
-   " if you are using row-based binary logging.",
+   "Force InnoDB to not use next-key locking, to use only row-level locking.",
    (gptr*) &innobase_locks_unsafe_for_binlog,
    (gptr*) &innobase_locks_unsafe_for_binlog, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb_log_arch_dir", OPT_INNODB_LOG_ARCH_DIR,
@@ -5175,15 +5139,15 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
    (gptr*) &innobase_create_status_file, (gptr*) &innobase_create_status_file,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"innodb_table_locks", OPT_INNODB_TABLE_LOCKS,
-   "Enable InnoDB locking in LOCK TABLES",
-   (gptr*) &global_system_variables.innodb_table_locks,
-   (gptr*) &global_system_variables.innodb_table_locks,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"innodb_support_xa", OPT_INNODB_SUPPORT_XA,
    "Enable InnoDB support for the XA two-phase commit",
    (gptr*) &global_system_variables.innodb_support_xa,
    (gptr*) &global_system_variables.innodb_support_xa,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"innodb_table_locks", OPT_INNODB_TABLE_LOCKS,
+   "Enable InnoDB locking in LOCK TABLES",
+   (gptr*) &global_system_variables.innodb_table_locks,
+   (gptr*) &global_system_variables.innodb_table_locks,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End WITH_INNOBASE_STORAGE_ENGINE */
   {"isam", OPT_ISAM, "Obsolete. ISAM storage engine is no longer supported.",
@@ -5231,8 +5195,9 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "a stored function (or trigger) is allowed only to users having the SUPER privilege "
    "and only if this stored function (trigger) may not break binary logging."
 #ifdef HAVE_ROW_BASED_REPLICATION
-   " If using --binlog-format=row, the security issues do not exist and the "
-   "binary logging cannot break so this option is automatically set to 1."
+   "Note that if ALL connections to this server ALWAYS use row-based binary "
+   "logging, the security issues do not exist and the binary logging cannot "
+   "break, so you can safely set this to 1."
 #endif
    ,(gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -5535,12 +5500,6 @@ thread is in the relay logs.",
   {"replicate-rewrite-db", OPT_REPLICATE_REWRITE_DB,
    "Updates to a database with a different name than the original. Example: replicate-rewrite-db=master_db_name->slave_db_name.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"replicate-wild-do-table", OPT_REPLICATE_WILD_DO_TABLE,
-   "Tells the slave thread to restrict replication to the tables that match the specified wildcard pattern. To specify more than one table, use the directive multiple times, once for each table. This will work for cross-database updates. Example: replicate-wild-do-table=foo%.bar% will replicate only updates to tables in all databases that start with foo and whose table names start with bar.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"replicate-wild-ignore-table", OPT_REPLICATE_WILD_IGNORE_TABLE,
-   "Tells the slave thread to not replicate to the tables that match the given wildcard pattern. To specify more than one table to ignore, use the directive multiple times, once for each table. This will work for cross-database updates. Example: replicate-wild-ignore-table=foo%.bar% will not do updates to tables in databases that start with foo and whose table names start with bar.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
   {"replicate-same-server-id", OPT_REPLICATE_SAME_SERVER_ID,
    "In replication, if set to 1, do not skip events having our server id. \
@@ -5550,6 +5509,12 @@ Can't be set to 1 if --log-slave-updates is used.",
    (gptr*) &replicate_same_server_id,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"replicate-wild-do-table", OPT_REPLICATE_WILD_DO_TABLE,
+   "Tells the slave thread to restrict replication to the tables that match the specified wildcard pattern. To specify more than one table, use the directive multiple times, once for each table. This will work for cross-database updates. Example: replicate-wild-do-table=foo%.bar% will replicate only updates to tables in all databases that start with foo and whose table names start with bar.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"replicate-wild-ignore-table", OPT_REPLICATE_WILD_IGNORE_TABLE,
+   "Tells the slave thread to not replicate to the tables that match the given wildcard pattern. To specify more than one table to ignore, use the directive multiple times, once for each table. This will work for cross-database updates. Example: replicate-wild-ignore-table=foo%.bar% will not do updates to tables in databases that start with foo and whose table names start with bar.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   // In replication, we may need to tell the other servers how to connect
   {"report-host", OPT_REPORT_HOST,
    "Hostname or IP of the slave to be reported to to the master during slave registration. Will appear in the output of SHOW SLAVE HOSTS. Leave unset if you do not want the slave to register itself with the master. Note that it is not sufficient for the master to simply read the IP of the slave off the socket once the slave connects. Due to NAT and other routing issues, that IP may not be valid for connecting to the slave from the master or other hosts.",
@@ -5791,6 +5756,11 @@ log and this option does nothing anymore.",
     "What size queue (in rows) should be allocated for handling INSERT DELAYED. If the queue becomes full, any client that does INSERT DELAYED will wait until there is room in the queue again.",
     (gptr*) &delayed_queue_size, (gptr*) &delayed_queue_size, 0, GET_ULONG,
     REQUIRED_ARG, DELAYED_QUEUE_SIZE, 1, ~0L, 0, 1, 0},
+  {"div_precision_increment", OPT_DIV_PRECINCREMENT,
+   "Precision of the result of '/' operator will be increased on that value.",
+   (gptr*) &global_system_variables.div_precincrement,
+   (gptr*) &max_system_variables.div_precincrement, 0, GET_ULONG,
+   REQUIRED_ARG, 4, 0, DECIMAL_MAX_SCALE, 0, 0, 0},
   {"expire_logs_days", OPT_EXPIRE_LOGS_DAYS,
    "If non-zero, binary logs will be purged after expire_logs_days "
    "days; possible purges happen at startup and at binary log rotation.",
@@ -5846,6 +5816,10 @@ log and this option does nothing anymore.",
    (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
    GET_LL, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, LONGLONG_MAX, 0,
    1024*1024L, 0},
+  {"innodb_commit_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
+   "Helps in performance tuning in heavily concurrent environments.",
+   (gptr*) &srv_commit_concurrency, (gptr*) &srv_commit_concurrency,
+   0, GET_LONG, REQUIRED_ARG, 0, 0, 1000, 0, 1, 0},
   {"innodb_concurrency_tickets", OPT_INNODB_CONCURRENCY_TICKETS,
    "Number of times a thread is allowed to enter InnoDB within the same \
     SQL query after it has once got the ticket",
@@ -5895,10 +5869,6 @@ log and this option does nothing anymore.",
    "Helps in performance tuning in heavily concurrent environments.",
    (gptr*) &srv_thread_concurrency, (gptr*) &srv_thread_concurrency,
    0, GET_LONG, REQUIRED_ARG, 20, 1, 1000, 0, 1, 0},
-  {"innodb_commit_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
-   "Helps in performance tuning in heavily concurrent environments.",
-   (gptr*) &srv_commit_concurrency, (gptr*) &srv_commit_concurrency,
-   0, GET_LONG, REQUIRED_ARG, 0, 0, 1000, 0, 1, 0},
   {"innodb_thread_sleep_delay", OPT_INNODB_THREAD_SLEEP_DELAY,
    "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0"
     " disable a sleep",
@@ -6019,6 +5989,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.max_sort_length,
    (gptr*) &max_system_variables.max_sort_length, 0, GET_ULONG,
    REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
+  {"max_sp_recursion_depth", OPT_MAX_SP_RECURSION_DEPTH,
+   "Maximum stored procedure recursion depth. (discussed with docs).",
+   (gptr*) &global_system_variables.max_sp_recursion_depth,
+   (gptr*) &max_system_variables.max_sp_recursion_depth, 0, GET_ULONG,
+   OPT_ARG, 0, 0, 255, 0, 1, 0 },
   {"max_tmp_tables", OPT_MAX_TMP_TABLES,
    "Maximum number of temporary tables a client can keep open at a time.",
    (gptr*) &global_system_variables.max_tmp_tables,
@@ -6183,21 +6158,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.read_rnd_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
    ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
-  {"div_precision_increment", OPT_DIV_PRECINCREMENT,
-   "Precision of the result of '/' operator will be increased on that value.",
-   (gptr*) &global_system_variables.div_precincrement,
-   (gptr*) &max_system_variables.div_precincrement, 0, GET_ULONG,
-   REQUIRED_ARG, 4, 0, DECIMAL_MAX_SCALE, 0, 0, 0},
   {"record_buffer", OPT_RECORD_BUFFER,
    "Alias for read_buffer_size",
    (gptr*) &global_system_variables.read_buff_size,
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
-  {"max_sp_recursion_depth", OPT_MAX_SP_RECURSION_DEPTH,
-   "Maximum stored procedure recursion depth. (discussed with docs).",
-   (gptr*) &global_system_variables.max_sp_recursion_depth,
-   (gptr*) &max_system_variables.max_sp_recursion_depth, 0, GET_ULONG,
-   OPT_ARG, 0, 0, 255, 0, 1, 0 },
 #ifdef HAVE_REPLICATION
   {"relay_log_purge", OPT_RELAY_LOG_PURGE,
    "0 = do not purge relay logs. 1 = purge them as soon as they are no more needed.",
@@ -7070,6 +7035,7 @@ static void mysql_init_variables(void)
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
   global_system_variables.old_alter_table= 0;
+  global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
@@ -7314,18 +7280,19 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #ifdef HAVE_ROW_BASED_REPLICATION
       fprintf(stderr, 
 	      "Unknown binary log format: '%s' "
-	      "(should be '%s' or '%s')\n", 
+	      "(should be one of '%s', '%s', '%s')\n", 
 	      argument,
-              binlog_format_names[BF_STMT],
-              binlog_format_names[BF_ROW]);
+              binlog_format_names[BINLOG_FORMAT_STMT],
+              binlog_format_names[BINLOG_FORMAT_ROW],
+              binlog_format_names[BINLOG_FORMAT_MIXED]);
 #else
       fprintf(stderr, 
 	      "Unknown binary log format: '%s' (only legal value is '%s')\n", 
-	      argument, binlog_format_names[BF_STMT]);
+	      argument, binlog_format_names[BINLOG_FORMAT_STMT]);
 #endif
       exit(1);
     }
-    opt_binlog_format_id= (enum binlog_format)(id-1);
+    global_system_variables.binlog_format= id-1;
     break;
   }
   case (int)OPT_BINLOG_DO_DB:

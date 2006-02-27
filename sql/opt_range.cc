@@ -1601,6 +1601,8 @@ public:
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) { /* Never called */ }
+  virtual ~TABLE_READ_PLAN() {}               /* Remove gcc warning */
+
 };
 
 class TRP_ROR_INTERSECT;
@@ -1624,6 +1626,7 @@ public:
   TRP_RANGE(SEL_ARG *key_arg, uint idx_arg)
    : key(key_arg), key_idx(idx_arg)
   {}
+  virtual ~TRP_RANGE() {}                     /* Remove gcc warning */
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc)
@@ -1645,6 +1648,8 @@ public:
 class TRP_ROR_INTERSECT : public TABLE_READ_PLAN
 {
 public:
+  TRP_ROR_INTERSECT() {}                      /* Remove gcc warning */
+  virtual ~TRP_ROR_INTERSECT() {}             /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
 
@@ -1666,6 +1671,8 @@ public:
 class TRP_ROR_UNION : public TABLE_READ_PLAN
 {
 public:
+  TRP_ROR_UNION() {}                          /* Remove gcc warning */
+  virtual ~TRP_ROR_UNION() {}                 /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
   TABLE_READ_PLAN **first_ror; /* array of ptrs to plans for merged scans */
@@ -1682,6 +1689,8 @@ public:
 class TRP_INDEX_MERGE : public TABLE_READ_PLAN
 {
 public:
+  TRP_INDEX_MERGE() {}                        /* Remove gcc warning */
+  virtual ~TRP_INDEX_MERGE() {}               /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
   TRP_RANGE **range_scans; /* array of ptrs to plans of merged scans */
@@ -1731,6 +1740,7 @@ public:
       if (key_infix_len)
         memcpy(this->key_infix, key_infix_arg, key_infix_len);
     }
+  virtual ~TRP_GROUP_MIN_MAX() {}             /* Remove gcc warning */
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
@@ -1951,9 +1961,12 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           read_time= (double) HA_POS_ERROR;
           goto free_mem;
         }
-        if (tree->type != SEL_TREE::KEY &&
-            tree->type != SEL_TREE::KEY_SMALLER)
-          goto free_mem;
+        /*
+          If the tree can't be used for range scans, proceed anyway, as we
+          can construct a group-min-max quick select
+        */
+        if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER)
+          tree= NULL;
       }
     }
 
@@ -2976,7 +2989,7 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
   ppar->last_subpart_partno= 
     used_subpart_fields?(int)(used_part_fields + used_subpart_fields - 1): -1;
 
-  if (is_sub_partitioned(part_info))
+  if (part_info->is_sub_partitioned())
   {
     ppar->mark_full_partition_used=  mark_full_partition_used_with_parts;
     ppar->get_top_partition_id_func= part_info->get_part_partition_id;
@@ -3105,7 +3118,7 @@ static void dbug_print_segment_range(SEL_ARG *arg, KEY_PART *part)
       fputs(" < ", DBUG_FILE);
     else
       fputs(" <= ", DBUG_FILE);
-    store_key_image_to_rec(part->field, (char*)(arg->min_value), part->length);
+    store_key_image_to_rec(part->field, (char*)(arg->max_value), part->length);
     dbug_print_field(part->field);
   }
   fputs("\n", DBUG_FILE);

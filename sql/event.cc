@@ -438,6 +438,7 @@ common_1_lev_code:
   case INTERVAL_HOUR_MICROSECOND:
   case INTERVAL_MINUTE_MICROSECOND:
   case INTERVAL_SECOND_MICROSECOND:
+  case INTERVAL_MICROSECOND:
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
     return 1;
     break;
@@ -494,7 +495,7 @@ evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table)
   
   if (table_check_intact(tables.table, EVEX_FIELD_COUNT, event_table_fields,
                          &mysql_event_last_create_time,
-                         ER_EVENT_CANNOT_LOAD_FROM_TABLE))
+                         ER_CANNOT_LOAD_FROM_TABLE))
   {
     close_thread_tables(thd);
     DBUG_RETURN(2);
@@ -623,10 +624,18 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
 
   table->field[EVEX_FIELD_STATUS]->store((longlong)et->status);
 
+  /*
+    Change the SQL_MODE only if body was present in an ALTER EVENT and of course
+    always during CREATE EVENT.
+  */ 
   if (et->body.str)
+  {
+    table->field[EVEX_FIELD_SQL_MODE]->store((longlong)thd->variables.sql_mode);
+
     if (table->field[field_num= EVEX_FIELD_BODY]->
                      store(et->body.str, et->body.length, system_charset_info))
       goto trunc_err;
+  }
 
   if (et->starts.year)
   {
@@ -976,7 +985,7 @@ db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, event_timed **ett,
   */
   if ((ret= et->load_from_row(root, table)))
   {
-    my_error(ER_EVENT_CANNOT_LOAD_FROM_TABLE, MYF(0));
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0));
     goto done;
   }
 
@@ -1376,7 +1385,7 @@ evex_show_create_event(THD *thd, sp_name *spn, LEX_STRING definer)
     char show_str_buf[768];
     String show_str(show_str_buf, sizeof(show_str_buf), system_charset_info);
     List<Item> field_list;
-    const char *sql_mode_str;
+    byte *sql_mode_str;
     ulong sql_mode_len=0;
     
     show_str.length(0);
@@ -1455,7 +1464,6 @@ evex_drop_db_events(THD *thd, char *db)
   
   DBUG_ENTER("evex_drop_db_events");  
   DBUG_PRINT("info",("dropping events from %s", db));
-
 
   VOID(pthread_mutex_lock(&LOCK_event_arrays));
 

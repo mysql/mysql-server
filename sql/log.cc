@@ -102,7 +102,9 @@ handlerton binlog_hton = {
   NULL,                         /* Alter table flags */
   NULL,                         /* Alter Tablespace */
   NULL,                         /* Fill FILES table */
-  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN
+  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
+  NULL,                         /* binlog_func */
+  NULL                          /* binlog_log_query */
 };
 
 
@@ -2630,7 +2632,7 @@ THD::binlog_set_pending_rows_event(Rows_log_event* ev)
 int MYSQL_LOG::flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
 {
   DBUG_ENTER("MYSQL_LOG::flush_and_set_pending_rows_event(event)");
-  DBUG_ASSERT(binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(thd->current_stmt_binlog_row_based && mysql_bin_log.is_open());
   DBUG_PRINT("enter", ("event=%p", event));
 
   int error= 0;
@@ -2847,7 +2849,7 @@ bool MYSQL_LOG::write(Log_event *event_info)
     */
     if (thd)
     {
-      if (!binlog_row_based)
+      if (!thd->current_stmt_binlog_row_based)
       {
         if (thd->last_insert_id_used)
         {
@@ -3517,7 +3519,7 @@ bool MYSQL_LOG::write_table_map(THD *thd, IO_CACHE *file, TABLE* table,
                        table, table->s->table_name, table->s->table_map_id));
 
   /* Pre-conditions */
-  DBUG_ASSERT(binlog_row_based && is_open());
+  DBUG_ASSERT(thd->current_stmt_binlog_row_based && is_open());
   DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
 
 #ifndef DBUG_OFF

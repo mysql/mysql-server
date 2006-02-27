@@ -329,6 +329,7 @@ void THD::init(void)
   bzero((char*) warn_count, sizeof(warn_count));
   total_warn_count= 0;
   update_charset();
+  reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
 }
 
@@ -992,6 +993,7 @@ bool select_send::send_data(List<Item> &items)
     protocol->remove_last_row();
   else
     DBUG_RETURN(protocol->write());
+  protocol->remove_last_row();
   DBUG_RETURN(1);
 }
 
@@ -2026,12 +2028,12 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
       INSERT INTO t1 VALUES (1), (foo()), (2);
   */
-  if (binlog_row_based)
+  if (current_stmt_binlog_row_based)
     binlog_flush_pending_rows_event(false);
 #endif /* HAVE_ROW_BASED_REPLICATION */
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
-      !binlog_row_based)
+      !current_stmt_binlog_row_based)
     options&= ~OPTION_BIN_LOG;
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
@@ -2394,7 +2396,7 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
                           MY_BITMAP const* cols, my_size_t colcnt, 
                           byte const *record) 
 { 
-  DBUG_ASSERT(binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
 
   /* 
      Pack records into format for transfer. We are allocating more
@@ -2441,7 +2443,7 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
                            const byte *before_record,
                            const byte *after_record)
 { 
-  DBUG_ASSERT(binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
 
   bool error= 0;
   my_size_t const before_maxlen = max_row_length(table, before_record);
@@ -2489,7 +2491,7 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
                            MY_BITMAP const* cols, my_size_t colcnt,
                            byte const *record)
 { 
-  DBUG_ASSERT(binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
 
   /* 
      Pack records into format for transfer. We are allocating more
@@ -2520,7 +2522,7 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 int THD::binlog_flush_pending_rows_event(bool stmt_end)
 {
   DBUG_ENTER("THD::binlog_flush_pending_rows_event");
-  if (!binlog_row_based || !mysql_bin_log.is_open())
+  if (!current_stmt_binlog_row_based || !mysql_bin_log.is_open())
     DBUG_RETURN(0);
 
   /*
@@ -2561,8 +2563,8 @@ void THD::binlog_delete_pending_rows_event()
 
 /*
   Member function that will log query, either row-based or
-  statement-based depending on the value of the 'binlog_row_based'
-  variable and the value of the 'qtype' flag.
+  statement-based depending on the value of the 'current_stmt_binlog_row_based'
+  the value of the 'qtype' flag.
 
   This function should be called after the all calls to ha_*_row()
   functions have been issued, but before tables are unlocked and
@@ -2586,11 +2588,11 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
       moving back and forth between using RBR for replication of
       system tables and not using it.
 
-      Make sure to change in check_table_binlog_row_based() according
+      Make sure to change in check_table_current_stmt_binlog_row_based according
       to how you treat this.
     */
   case THD::ROW_QUERY_TYPE:
-    if (binlog_row_based)
+    if (current_stmt_binlog_row_based)
       DBUG_RETURN(binlog_flush_pending_rows_event(true));
     /* Otherwise, we fall through */
   case THD::STMT_QUERY_TYPE:

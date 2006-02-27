@@ -141,6 +141,7 @@ static int  check_log_update(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
 static int  check_pseudo_thread_id(THD *thd, set_var *var);
 static bool set_log_bin(THD *thd, set_var *var);
+void fix_binlog_format_after_update(THD *thd, enum_var_type type);
 static void fix_low_priority_updates(THD *thd, enum_var_type type);
 static int check_tx_isolation(THD *thd, set_var *var);
 static void fix_tx_isolation(THD *thd, enum_var_type type);
@@ -185,6 +186,8 @@ sys_var_bool_ptr	sys_automatic_sp_privileges("automatic_sp_privileges",
 
 sys_var_long_ptr	sys_binlog_cache_size("binlog_cache_size",
 					      &binlog_cache_size);
+sys_var_thd_binlog_format sys_binlog_format("binlog_format",
+                                            &SV::binlog_format);
 sys_var_thd_ulong	sys_bulk_insert_buff_size("bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
 sys_var_character_set_server	sys_character_set_server("character_set_server");
@@ -653,11 +656,11 @@ static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff)
   var->value= buff;
   if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
   {
-    var->value= "OFF";
+    var->value= const_cast<char *>("OFF");
   }
   else if (bitmap_is_set_all(&slave_error_mask))
   {
-    var->value= "ALL";
+    var->value= const_cast<char *>("ALL");
   }
   else
   {
@@ -706,7 +709,7 @@ SHOW_VAR init_vars[]= {
   {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
-  {"binlog_format",           (char*) &opt_binlog_format,           SHOW_CHAR_PTR},
+  {sys_binlog_format.name,    (char*) &sys_binlog_format,	    SHOW_SYS},
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
   {sys_character_set_client.name,(char*) &sys_character_set_client, SHOW_SYS},
   {sys_character_set_connection.name,(char*) &sys_character_set_connection,SHOW_SYS},
@@ -1241,6 +1244,54 @@ extern void fix_delay_key_write(THD *thd, enum_var_type type)
     ha_open_options|= HA_OPEN_DELAY_KEY_WRITE;
     break;
   }
+}
+
+
+bool sys_var_thd_binlog_format::is_readonly() const
+{
+  /*
+    Under certain circumstances, the variable is read-only (unchangeable):
+  */
+  THD *thd= current_thd;
+  /*
+    If RBR and open temporary tables, their CREATE TABLE may not be in the
+    binlog, so we can't toggle to SBR in this connection.
+    The test below will also prevent SET GLOBAL, well it was not easy to test
+    if global or not here.
+    And this test will also prevent switching from RBR to RBR (a no-op which
+    should not happen too often).
+  */
+  if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW) &&
+      thd->temporary_tables)
+  {
+    my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
+    return 1;
+  }
+  /*
+    if in a stored function, it's too late to change mode
+  */
+  if (thd->spcont && thd->prelocked_mode)
+  {
+    DBUG_ASSERT(thd->variables.binlog_format != BINLOG_FORMAT_ROW);
+    my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
+    return 1;    
+  }
+#ifdef HAVE_NDB_BINLOG
+  /*
+    Cluster does not support changing the binlog format on the fly yet.
+  */
+  if (opt_bin_log && (have_ndbcluster == SHOW_OPTION_YES))
+  {
+    my_error(ER_NDB_CANT_SWITCH_BINLOG_FORMAT, MYF(0));
+    return 1;
+  }
+#endif
+  return sys_var_thd_enum::is_readonly();
+}
+
+void fix_binlog_format_after_update(THD *thd, enum_var_type type)
+{
+  thd->reset_current_stmt_binlog_row_based();
 }
 
 static void fix_max_binlog_size(THD *thd, enum_var_type type)

@@ -102,7 +102,9 @@ handlerton partition_hton = {
   alter_table_flags, /* Partition flags */
   NULL, /* Alter Tablespace */
   NULL, /* Fill FILES table */
-  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN
+  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
+  NULL,                         /* binlog_func */
+  NULL                          /* binlog_log_query */
 };
 
 /*
@@ -186,7 +188,7 @@ ha_partition::ha_partition(TABLE_SHARE *share)
 ha_partition::ha_partition(partition_info *part_info)
   :handler(&partition_hton, NULL), m_part_info(part_info),
    m_create_handler(TRUE),
-   m_is_sub_partitioned(is_sub_partitioned(m_part_info))
+   m_is_sub_partitioned(m_part_info->is_sub_partitioned())
 
 {
   DBUG_ENTER("ha_partition::ha_partition(part_info)");
@@ -331,7 +333,7 @@ int ha_partition::ha_initialise()
 
   if (m_create_handler)
   {
-    m_tot_parts= get_tot_partitions(m_part_info);
+    m_tot_parts= m_part_info->get_tot_partitions();
     DBUG_ASSERT(m_tot_parts > 0);
     if (new_handlers_from_part_info())
       DBUG_RETURN(1);
@@ -1290,7 +1292,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
   DBUG_ENTER("ha_partition::change_partitions");
 
   m_reorged_parts= 0;
-  if (!is_sub_partitioned(m_part_info))
+  if (!m_part_info->is_sub_partitioned())
     no_subparts= 1;
 
   /*
@@ -1453,7 +1455,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
       if (part_elem->part_state == PART_CHANGED ||
           (part_elem->part_state == PART_TO_BE_ADDED && temp_partitions))
         name_variant= TEMP_PART_NAME;
-      if (is_sub_partitioned(m_part_info))
+      if (m_part_info->is_sub_partitioned())
       {
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         uint j= 0, part;
@@ -2609,7 +2611,7 @@ void ha_partition::unlock_row()
     ADDITIONAL INFO:
 
     Most handlers set timestamp when calling write row if any such fields
-    exists. Since we are calling an underlying handler we assume the´
+    exists. Since we are calling an underlying handler we assume theÂ´
     underlying handler will assume this responsibility.
 
     Underlying handlers will also call update_auto_increment to calculate

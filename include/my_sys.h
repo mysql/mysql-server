@@ -915,5 +915,4 @@ void netware_reg_user(const char *ip, const char *user,
 #endif
 
 C_MODE_END
-#include "raid.h"
 #endif /* _my_sys_h */

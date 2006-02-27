@@ -1,0 +1,55 @@
+create database if not exists events_test;
+use events_test;
+
+--error 1235
+CREATE EVENT micro_test ON SCHEDULE EVERY 100 MICROSECOND DO SELECT 1;
+--error 1235
+CREATE EVENT micro_test ON SCHEDULE EVERY 100 DAY_MICROSECOND DO SELECT 1;
+--error 1235
+CREATE EVENT micro_test ON SCHEDULE EVERY 100 HOUR_MICROSECOND DO SELECT 1;
+--error 1235
+CREATE EVENT micro_test ON SCHEDULE EVERY 100 MINUTE_MICROSECOND DO SELECT 1;
+--error 1235
+CREATE EVENT micro_test ON SCHEDULE EVERY 100 SECOND_MICROSECOND DO SELECT 1;
+
+--echo "Now create normal event and change it on SQL level"
+CREATE EVENT micro_test2 ON SCHEDULE EVERY 1 MONTH DO SELECT 1;
+UPDATE mysql.event SET interval_field='MICROSECOND' WHERE db=database() AND definer=user() AND name='micro_test2';
+--error 1235
+SHOW CREATE EVENT micro_test2;
+SET GLOBAL event_scheduler=0;
+--sleep 1
+--echo "Should not be running:"
+SHOW VARIABLES like 'event_scheduler';
+UPDATE mysql.event SET interval_field='DAY_MICROSECOND' WHERE db=database() AND definer=user() AND name='micro_test2';
+--error 1235
+SHOW CREATE EVENT micro_test2;
+SET GLOBAL event_scheduler=0;
+--sleep 1
+--echo "Should not be running:"
+SHOW VARIABLES like 'event_scheduler';
+UPDATE mysql.event SET interval_field='SECOND_MICROSECOND' WHERE db=database() AND definer=user() AND name='micro_test2';
+--error 1235
+SHOW CREATE EVENT micro_test2;
+SET GLOBAL event_scheduler=0;
+--sleep 1
+--echo "Should not be running:"
+SHOW VARIABLES like 'event_scheduler';
+UPDATE mysql.event SET interval_field='HOUR_MICROSECOND' WHERE db=database() AND definer=user() AND name='micro_test2';
+--error 1235
+SHOW CREATE EVENT micro_test2;
+SET GLOBAL event_scheduler=0;
+--sleep 1
+--echo "Should not be running:"
+SHOW VARIABLES like 'event_scheduler';
+UPDATE mysql.event SET interval_field='MINUTE_MICROSECOND' WHERE db=database() AND definer=user() AND name='micro_test2';
+--error 1235
+SHOW CREATE EVENT micro_test2;
+SET GLOBAL event_scheduler=0;
+--sleep 1
+--echo "Should not be running:"
+SHOW VARIABLES like 'event_scheduler';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_scheduler';
+DROP EVENT micro_test2;
+
+drop database events_test;

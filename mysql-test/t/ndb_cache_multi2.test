@@ -24,10 +24,6 @@ set GLOBAL ndb_cache_check_time=1;
 reset query cache;
 flush status;
 
-# Sleep so that the query cache check thread has time to start
-sleep 15;
-
-
 # Create test tables in NDB and load them into cache
 # on server1
 connection server1;
@@ -53,19 +49,34 @@ show status like "Qcache_inserts";
 show status like "Qcache_hits";
 update t1 set a=3 where a=2;
 
-# Sleep so that the query cache check thread has time to run
-sleep 5;
-
 # Connect to server1 and check that cache is invalidated 
 # and correct data is returned
 connection server1;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
+
+# Loop and wait for max 10 seconds until query cache thread
+# has invalidated the cache and the column a in t1 is equal to 3
+let $retries=20;
+while (`select a != 3 from t1`)
+{
+  dec $retries;
+  if (!$retries)
+  {
+     The query_cache thread failed to invalidate query_cache in 10 seconds;
+  }
+  sleep 0.5;
+}
+
+# Select from t1 one last time for the result file
+# Column a should be 3
 select * from t1;
+
+# There should now be three queries in the cache
 show status like "Qcache_queries_in_cache";
+# And inserts should be four
 show status like "Qcache_inserts";
-show status like "Qcache_hits";
 
 drop table t1, t2;
 
