@@ -1525,9 +1525,6 @@ zlib_done:
 		page_zip->m_end = mod_log_ptr - page_zip->data;
 	}
 
-	page_zip_fields_free(index);
-	mem_heap_free(heap);
-
 	if (UNIV_UNLIKELY(!page_zip_set_extra_bytes(
 				page_zip, page, info_bits))) {
 err_exit:
@@ -1602,9 +1599,11 @@ err_exit:
 	ut_ad(page_simple_validate_new(page));
 
 	if (UNIV_LIKELY_NULL(mtr)) {
-		mlog_open_and_write_index(mtr, page, index,
-					MLOG_ZIP_DECOMPRESS, 0);
+		mlog_write_initial_log_record(page, MLOG_ZIP_DECOMPRESS, mtr);
 	}
+
+	page_zip_fields_free(index);
+	mem_heap_free(heap);
 
 	return(TRUE);
 }
