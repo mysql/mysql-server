@@ -671,11 +671,15 @@ typedef struct st_handler_buffer
 
 typedef struct system_status_var SSV;
 
+/*
+  The handler class is the interface for dynamically loadable
+  storage engines. Do not add ifdefs and take care when adding or
+  changing virtual functions to avoid vtable confusion
+ */
 class handler :public Sql_alloc
 {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
- friend class ha_partition;
-#endif
+  friend class ha_partition;
+
  protected:
   struct st_table_share *table_share;   /* The table definition */
   struct st_table *table;               /* The current open table */
@@ -1253,7 +1257,7 @@ public:
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
   virtual ulong table_flags(void) const =0;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
+
   virtual int get_default_no_partitions(ulonglong max_rows) { return 1;}
   virtual void set_auto_partitions(partition_info *part_info) { return; }
   virtual bool get_no_parts(const char *name,
@@ -1263,7 +1267,7 @@ public:
     return 0;
   }
   virtual void set_part_info(partition_info *part_info) {return;}
-#endif
+
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
   virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
