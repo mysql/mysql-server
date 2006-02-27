@@ -1105,9 +1105,12 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
   Security_context *sctx= thd->security_ctx;
+  LINT_INIT(db_access);
 #endif
   DBUG_ENTER("mysql_change_db");
   DBUG_PRINT("enter",("name: '%s'",name));
+
+  LINT_INIT(db_length);
 
   /* dbname can only be NULL if malloc failed */
   if (!dbname || !(db_length= strlen(dbname)))
@@ -1126,7 +1129,7 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   if (check_db_name(dbname))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), dbname);
-    x_free(dbname);
+    my_free(dbname, MYF(0));
     DBUG_RETURN(1);
   }
   DBUG_PRINT("info",("Use database: %s", dbname));
@@ -1176,8 +1179,7 @@ end:
     x_free(thd->db);
   if (dbname && dbname[0] == 0)
   {
-    if (!(thd->slave_thread))
-      x_free(dbname);
+    my_free(dbname, MYF(0));
     thd->db= NULL;
     thd->db_length= 0;
   }

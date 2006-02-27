@@ -1,6 +1,7 @@
 #
 # misc binlogging tests that do not require a slave running
 #
+-- source include/not_embedded.inc
 -- source include/have_bdb.inc
 -- source include/have_innodb.inc
 
@@ -18,7 +19,7 @@ begin;
 insert t2 values (5);
 commit;
 # first COMMIT must be Query_log_event, second - Xid_log_event
---replace_result "xid=18" "xid=11"
+--replace_result "xid=21" "xid=12"
 --replace_column 2 # 5 #
 show binlog events from 98;
 drop table t1,t2;
@@ -40,7 +41,7 @@ while ($1)
 --enable_query_log
 commit;
 drop table t1;
---replace_result "xid=29" "xid=18"
+--replace_result "xid=32" "xid=19"
 --replace_column 2 # 5 #
 show binlog events in 'master-bin.000001' from 98;
 --replace_column 2 # 5 #

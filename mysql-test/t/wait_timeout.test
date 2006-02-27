@@ -1,3 +1,6 @@
+# This tests not performed with embedded server
+-- source include/not_embedded.inc
+
 #
 # Bug #8731: wait_timeout does not work on Mac OS X
 #

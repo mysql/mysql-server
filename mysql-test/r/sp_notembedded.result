@@ -1,0 +1,206 @@
+drop procedure if exists bug4902|
+create procedure bug4902()
+begin
+show grants for 'root'@'localhost';
+end|
+call bug4902()|
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+call bug4902()|
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+drop procedure bug4902|
+drop procedure if exists bug4902_2|
+create procedure bug4902_2()
+begin
+show processlist;
+end|
+call bug4902_2()|
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	#	NULL	show processlist
+call bug4902_2()|
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	#	NULL	show processlist
+drop procedure bug4902_2|
+drop function if exists bug5278|
+create function bug5278 () returns char
+begin
+SET PASSWORD FOR 'bob'@'%.loc.gov' = PASSWORD('newpass');
+return 'okay';
+end|
+select bug5278()|
+ERROR 42000: Can't find any matching row in the user table
+select bug5278()|
+ERROR 42000: Can't find any matching row in the user table
+drop function bug5278|
+drop table if exists t1|
+create table t1 (
+id   char(16) not null default '',
+data int not null
+)|
+drop procedure if exists bug3583|
+drop procedure if exists bug3583|
+create procedure bug3583()
+begin
+declare c int;
+select * from t1;
+select count(*) into c from t1;
+select c;
+end|
+insert into t1 values ("x", 3), ("y", 5)|
+set @x = @@query_cache_size|
+set global query_cache_size = 10*1024*1024|
+flush status|
+flush query cache|
+show status like 'Qcache_hits'|
+Variable_name	Value
+Qcache_hits	0
+call bug3583()|
+id	data
+x	3
+y	5
+c
+2
+show status like 'Qcache_hits'|
+Variable_name	Value
+Qcache_hits	0
+call bug3583()|
+id	data
+x	3
+y	5
+c
+2
+call bug3583()|
+id	data
+x	3
+y	5
+c
+2
+show status like 'Qcache_hits'|
+Variable_name	Value
+Qcache_hits	2
+set global query_cache_size = @x|
+flush status|
+flush query cache|
+delete from t1|
+drop procedure bug3583|
+drop table t1;
+#|
+drop procedure if exists bug6807|
+create procedure bug6807()
+begin
+declare id int;
+set id = connection_id();
+kill query id;
+select 'Not reached';
+end|
+call bug6807()|
+ERROR 70100: Query execution was interrupted
+call bug6807()|
+ERROR 70100: Query execution was interrupted
+drop procedure bug6807|
+drop function if exists bug10100f|
+drop procedure if exists bug10100p|
+drop procedure if exists bug10100t|
+drop procedure if exists bug10100pt|
+drop procedure if exists bug10100pv|
+drop procedure if exists bug10100pd|
+drop procedure if exists bug10100pc|
+create function bug10100f(prm int) returns int
+begin
+if prm > 1 then
+return prm * bug10100f(prm - 1);
+end if;
+return 1;
+end|
+create procedure bug10100p(prm int, inout res int)
+begin
+set res = res * prm;
+if prm > 1 then
+call bug10100p(prm - 1, res);
+end if;
+end|
+create procedure bug10100t(prm int)
+begin
+declare res int;
+set res = 1;
+call bug10100p(prm, res);
+select res;
+end|
+create table t3 (a int)|
+insert into t3 values (0)|
+create view v1 as select a from t3;
+create procedure bug10100pt(level int, lim int)
+begin
+if level < lim then
+update t3 set a=level;
+FLUSH TABLES;
+call bug10100pt(level+1, lim);
+else
+select * from t3;
+end if;
+end|
+create procedure bug10100pv(level int, lim int)
+begin
+if level < lim then
+update v1 set a=level;
+FLUSH TABLES;
+call bug10100pv(level+1, lim);
+else
+select * from v1;
+end if;
+end|
+prepare stmt2 from "select * from t3;";
+create procedure bug10100pd(level int, lim int)
+begin
+if level < lim then
+select level;
+prepare stmt1 from "update t3 set a=a+2";
+execute stmt1;
+FLUSH TABLES;
+execute stmt1;
+FLUSH TABLES;
+execute stmt1;
+FLUSH TABLES;
+deallocate prepare stmt1;
+execute stmt2;
+select * from t3;
+call bug10100pd(level+1, lim);
+else
+execute stmt2;
+end if;
+end|
+create procedure bug10100pc(level int, lim int)
+begin
+declare lv int;
+declare c cursor for select a from t3;
+open c;
+if level < lim then
+select level;
+fetch c into lv;
+select lv;
+update t3 set a=level+lv;
+FLUSH TABLES;
+call bug10100pc(level+1, lim);
+else
+select * from t3;
+end if;
+close c;
+end|
+set @@max_sp_recursion_depth=255|
+set @var=1|
+call bug10100p(255, @var)|
+call bug10100pt(1,255)|
+call bug10100pv(1,255)|
+call bug10100pd(1,255)|
+call bug10100pc(1,255)|
+set @@max_sp_recursion_depth=0|
+deallocate prepare stmt2|
+drop function bug10100f|
+drop procedure bug10100p|
+drop procedure bug10100t|
+drop procedure bug10100pt|
+drop procedure bug10100pv|
+drop procedure bug10100pd|
+drop procedure bug10100pc|
+drop view v1|
