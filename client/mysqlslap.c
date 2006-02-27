@@ -76,7 +76,9 @@ TODO:
 #define RAND_STRING_SIZE 126
 
 #include "client_priv.h"
+#ifdef HAVE_LIBPTHREAD
 #include <my_pthread.h>
+#endif
 #include <my_sys.h>
 #include <m_string.h>
 #include <mysql.h>
@@ -987,6 +989,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
       exit(0);
     }
 
+#ifdef HAVE_LIBPTHREAD
   if (opt_use_threads)
   {
     pthread_t mainthread;            /* Thread descriptor */
@@ -1008,8 +1011,11 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
       }
     }
   }
+#endif
 #ifndef __WIN__
+#ifdef HAVE_LIBPTHREAD
   else
+#endif
   {
     fflush(NULL);
     for (x= 0; x < concur; x++)

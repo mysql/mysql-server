@@ -86,7 +86,7 @@ int main(int argc,char *argv[])
 
   init_key_cache(dflt_key_cache,MI_KEY_BLOCK_LENGTH,USE_BUFFER_INIT, 0, 0);
 
-  if (!(info=mi_open(argv[0],2,HA_OPEN_ABORT_IF_LOCKED)))
+  if (!(info=mi_open(argv[0],2,HA_OPEN_ABORT_IF_LOCKED|HA_OPEN_FROM_SQL_LAYER)))
   {
     error=my_errno;
     goto err;

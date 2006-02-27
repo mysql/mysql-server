@@ -45,6 +45,8 @@ event_timed::init()
   definer_user.str= definer_host.str= 0;
   definer_user.length= definer_host.length= 0;
 
+  sql_mode= 0;
+
   DBUG_VOID_RETURN;
 }
 
@@ -109,17 +111,21 @@ void
 event_timed::init_body(THD *thd)
 {
   DBUG_ENTER("event_timed::init_body");
-  MEM_ROOT *root= thd->mem_root;
+  DBUG_PRINT("info", ("body=[%s] body_begin=0x%ld end=0x%ld", body_begin,
+             body_begin, thd->lex->ptr));
 
   body.length= thd->lex->ptr - body_begin;
   // Trim nuls at the end
   while (body.length && body_begin[body.length-1] == '\0')
     body.length--;
 
-  //the first is always space which I cannot skip in the parser
-  DBUG_ASSERT(*body_begin == ' ');
-  body.length--;
-  body.str= strmake_root(root, (char *)body_begin + 1, body.length);
+  /* the first is always whitespace which I cannot skip in the parser */
+  while (my_isspace(thd->variables.character_set_client, *body_begin))
+  {
+    ++body_begin;
+    --body.length;
+  }
+  body.str= strmake_root(thd->mem_root, (char *)body_begin, body.length);
 
   DBUG_VOID_RETURN;
 }
@@ -189,6 +195,7 @@ event_timed::init_execute_at(THD *thd, Item *expr)
     0                  OK
     EVEX_PARSE_ERROR   fix_fields failed
     EVEX_BAD_PARAMS    Interval is not positive
+    EVEX_MICROSECOND_UNSUP  Microseconds are not supported.
 */
 
 int
@@ -248,6 +255,7 @@ event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
   case INTERVAL_MINUTE_MICROSECOND: // day and hour are 0
   case INTERVAL_HOUR_MICROSECOND:// day is anyway 0
   case INTERVAL_DAY_MICROSECOND:
+    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
     expression= ((((interval.day*24) + interval.hour)*60+interval.minute)*60 +
                 interval.second) * 1000000L + interval.second_part;
     break;
@@ -258,10 +266,11 @@ event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
     expression= interval.minute * 60 + interval.second;
     break;
   case INTERVAL_SECOND_MICROSECOND:
+    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
     expression= interval.second * 1000000L + interval.second_part;
     break;
-  default:
-    break;
+  case INTERVAL_MICROSECOND:
+    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);  
   }
   if (interval.neg || expression > EVEX_MAX_INTERVAL_VALUE)
     DBUG_RETURN(EVEX_BAD_PARAMS);
@@ -579,6 +588,9 @@ event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
     et->comment.length= strlen(et->comment.str);
   else
     et->comment.length= 0;
+    
+
+  et->sql_mode= (ulong) table->field[EVEX_FIELD_SQL_MODE]->val_int();
 
   DBUG_RETURN(0);
 error:
@@ -996,9 +1008,10 @@ extern LEX_STRING interval_type_to_name[];
       buf    String*, should be already allocated. CREATE EVENT goes inside.
 
   RETURN VALUE
-    0   OK
-    1   Error (for now if mysql.event has been tampered and MICROSECONDS
-        interval or derivative has been put there.
+    0                       OK
+    EVEX_MICROSECOND_UNSUP  Error (for now if mysql.event has been
+                            tampered and MICROSECONDS interval or
+                            derivative has been put there.
 */
 
 int
@@ -1014,7 +1027,7 @@ event_timed::get_create_event(THD *thd, String *buf)
 
   if (expression &&
       event_reconstruct_interval_expression(&expr_buf, interval, expression))
-      DBUG_RETURN(1);
+    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
 
   buf->append(STRING_WITH_LEN("CREATE EVENT "));
   append_identifier(thd, buf, dbname.str, dbname.length);
@@ -1215,8 +1228,9 @@ event_timed::restore_security_context(THD *thd, Security_context *backup)
                  instead of thd->mem_root
 
   RETURN VALUE
-    0                    success
-    EVEX_COMPILE_ERROR   error during compilation
+    0                       success
+    EVEX_COMPILE_ERROR      error during compilation
+    EVEX_MICROSECOND_UNSUP  mysql.event was tampered 
 */
 
 int
@@ -1232,13 +1246,27 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   char *old_query;
   uint old_query_len;
   st_sp_chistics *p;
+  ulong old_sql_mode= thd->variables.sql_mode;
   char create_buf[2048];
   String show_create(create_buf, sizeof(create_buf), system_charset_info);
   CHARSET_INFO *old_character_set_client,
                *old_collation_connection,
                *old_character_set_results;
 
+  DBUG_ENTER("event_timed::compile");
+
   show_create.length(0);
+
+  switch (get_create_event(thd, &show_create)) {
+  case EVEX_MICROSECOND_UNSUP:
+    sql_print_error("Scheduler");
+    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
+  case 0:
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+
   old_character_set_client= thd->variables.character_set_client;
   old_character_set_results= thd->variables.character_set_results;
   old_collation_connection= thd->variables.collation_connection;
@@ -1250,7 +1278,8 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
 
   thd->update_charset();
 
-  DBUG_ENTER("event_timed::compile");
+  DBUG_PRINT("info",("old_sql_mode=%d new_sql_mode=%d",old_sql_mode, sql_mode));
+  thd->variables.sql_mode= this->sql_mode;
   /* Change the memory root for the execution time */
   if (mem_root)
   {
@@ -1263,8 +1292,6 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   old_db_length= thd->db_length;
   thd->db= dbname.str;
   thd->db_length= dbname.length;
-
-  get_create_event(thd, &show_create);
 
   thd->query= show_create.c_ptr();
   thd->query_length= show_create.length();
@@ -1302,7 +1329,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
     TODO: Handle sql_mode!!
   */
   sphead->set_definer(definer.str, definer.length);
-  sphead->set_info(0, 0, &lex.sp_chistics, 0/*sql_mode*/);
+  sphead->set_info(0, 0, &lex.sp_chistics, sql_mode);
   sphead->optimize();
   ret= 0;
 done:
@@ -1316,6 +1343,7 @@ done:
   thd->query_length= old_query_len;
   thd->db= old_db;
 
+  thd->variables.sql_mode= old_sql_mode;
   thd->variables.character_set_client= old_character_set_client;
   thd->variables.character_set_results= old_character_set_results;
   thd->variables.collation_connection= old_collation_connection;

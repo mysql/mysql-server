@@ -209,7 +209,7 @@ struct settings {
 
 static BOOLEAN init_done= FALSE; /* Set to TRUE when initialization done */
 static struct settings init_settings;
-static char *db_process= 0;     /* Pointer to process name; argv[0] */
+static const char *db_process= 0;/* Pointer to process name; argv[0] */
 
 typedef struct _db_code_state_ {
   const char *process;          /* Pointer to process name; usually argv[0] */

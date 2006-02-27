@@ -40,7 +40,7 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc discover.
 					  sql_state.c sql_string.cc sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
 					  sql_update.cc sql_view.cc sql_yacc.h sql_yacc.cc strfunc.cc table.cc thr_malloc.cc time.cc tztime.cc
 					  uniques.cc unireg.cc item_xmlfunc.cc rpl_tblmap.cc sql_binlog.cc event_executor.cc
-					  event_timed.cc sql_tablespace.cc event.cc ../sql-common/my_user.c
+					  event_timed.cc sql_tablespace.cc event.cc ../sql-common/my_user.c partition_info.cc
 					  ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
   					  ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
 					  ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
@@ -76,14 +76,14 @@ ADD_CUSTOM_COMMAND(
 #ADD_CUSTOM_COMMAND(
 #	SOURCE ${PROJECT_SOURCE_DIR}/include/mysql_version.h.in
 #	OUTPUT ${PROJECT_SOURCE_DIR}/include/mysql_version.h
-#	COMMAND ${PROJECT_SOURCE_DIR}/win/config-version.js
+#	COMMAND cscript.exe ${PROJECT_SOURCE_DIR}/win/config-version.js
 #	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysql_version.h.in)
 
 # Handlerton file
 ADD_CUSTOM_COMMAND(
 	SOURCE ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in
 	OUTPUT ${PROJECT_SOURCE_DIR}/sql/handlerton.cc
-	COMMAND ${PROJECT_SOURCE_DIR}/win/config-handlerton.js ARGS ${PROJECT_SOURCE_DIR}/win/configure.data
+	COMMAND cscript.exe ${PROJECT_SOURCE_DIR}/win/config-handlerton.js ARGS ${PROJECT_SOURCE_DIR}/win/configure.data
 	DEPENDS ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in)
 
 # Error file

@@ -426,7 +426,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         version for the binary log to mark that table maps are invalid
         after this point.
       */
-      if (binlog_row_based)
+      if (thd->current_stmt_binlog_row_based)
         thd->binlog_flush_pending_rows_event(true);
       else
 #endif
@@ -491,7 +491,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       version for the binary log to mark that table maps are invalid
       after this point.
      */
-    if (binlog_row_based)
+    if (thd->current_stmt_binlog_row_based)
       thd->binlog_flush_pending_rows_event(true);
     else
 #endif
@@ -948,7 +948,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
       if (get_it_from_net)
 	cache.read_function = _my_b_net_read;
 
-      if (!binlog_row_based && mysql_bin_log.is_open())
+      if (mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
 	  (IO_CACHE_CALLBACK) log_loaded_block;
 #endif

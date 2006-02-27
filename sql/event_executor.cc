@@ -48,7 +48,7 @@ bool evex_is_running= false;
 ulonglong evex_main_thread_id= 0;
 ulong opt_event_executor;
 my_bool event_executor_running_global_var;
-static my_bool evex_mutexes_initted= false;
+static my_bool evex_mutexes_initted= FALSE;
 static uint workers_count;
 
 static int
@@ -107,7 +107,7 @@ evex_init_mutexes()
   if (evex_mutexes_initted)
     return;
 
-  evex_mutexes_initted= true;
+  evex_mutexes_initted= TRUE;
   pthread_mutex_init(&LOCK_event_arrays, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&LOCK_workers_count, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&LOCK_evex_running, MY_MUTEX_INIT_FAST);
@@ -151,7 +151,7 @@ evex_check_system_tables()
   else
   {
     table_check_intact(tables.table, MYSQL_DB_FIELD_COUNT, mysql_db_table_fields,
-                     &mysql_db_table_last_check,ER_EVENT_CANNOT_LOAD_FROM_TABLE);                           
+                       &mysql_db_table_last_check,ER_CANNOT_LOAD_FROM_TABLE);                           
     close_thread_tables(thd);
   }
 
@@ -191,7 +191,6 @@ int
 init_events()
 {
   pthread_t th;
-
   DBUG_ENTER("init_events");
 
   DBUG_PRINT("info",("Starting events main thread"));
@@ -234,13 +233,16 @@ shutdown_events()
 {
   DBUG_ENTER("shutdown_events");
   
-  VOID(pthread_mutex_lock(&LOCK_evex_running));
-  VOID(pthread_mutex_unlock(&LOCK_evex_running));
+  if (evex_mutexes_initted)
+  {
+    evex_mutexes_initted= FALSE;  
+    VOID(pthread_mutex_lock(&LOCK_evex_running));
+    VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
-  pthread_mutex_destroy(&LOCK_event_arrays);
-  pthread_mutex_destroy(&LOCK_workers_count);
-  pthread_mutex_destroy(&LOCK_evex_running);
-  
+    pthread_mutex_destroy(&LOCK_event_arrays);
+    pthread_mutex_destroy(&LOCK_workers_count);
+    pthread_mutex_destroy(&LOCK_evex_running);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -268,7 +270,7 @@ init_event_thread(THD* thd)
   thd->client_capabilities= 0;
   thd->security_ctx->master_access= 0;
   thd->security_ctx->db_access= 0;
-  thd->security_ctx->host= (char*)my_localhost;
+  thd->security_ctx->host_or_ip= (char*)my_localhost;
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->slave_thread= 0;
@@ -723,6 +725,8 @@ event_executor_worker(void *event_void)
       sql_print_information("SCHEDULER: COMPILE ERROR for event %s.%s of",
                             event->dbname.str, event->name.str,
                             event->definer.str);
+    else if (ret == EVEX_MICROSECOND_UNSUP)
+      sql_print_information("SCHEDULER: MICROSECOND is not supported");
   }
   event->spawn_thread_finish(thd);
 
@@ -775,7 +779,7 @@ err_no_thd:
      
    RETURNS
      0  - OK
-    -1  - Error
+    !0  - Error
     
    NOTES
      Reports the error to the console
@@ -828,11 +832,17 @@ evex_load_events_from_db(THD *thd)
     DBUG_PRINT("evex_load_events_from_db",
             ("Event %s loaded from row. Time to compile", et->name.str));
     
-    if ((ret= et->compile(thd, &evex_mem_root)))
-    {
+    switch (ret= et->compile(thd, &evex_mem_root)) {
+    case EVEX_MICROSECOND_UNSUP:
+      sql_print_error("SCHEDULER: mysql.event is tampered. MICROSECOND is not "
+                      "supported but found in mysql.event");
+      goto end;
+    case EVEX_COMPILE_ERROR:
       sql_print_error("SCHEDULER: Error while compiling %s.%s. Aborting load.",
                       et->dbname.str, et->name.str);
       goto end;
+    default:
+      break;
     }
     
     // let's find when to be executed  
@@ -860,7 +870,8 @@ end:
   thd->version--;  // Force close to free memory
 
   close_thread_tables(thd);
-  sql_print_information("SCHEDULER: Loaded %d event%s", count, (count == 1)?"":"s");
+  if (!ret)
+    sql_print_information("SCHEDULER: Loaded %d event%s", count, (count == 1)?"":"s");
   DBUG_PRINT("info", ("Status code %d. Loaded %d event(s)", ret, count));
 
   DBUG_RETURN(ret);

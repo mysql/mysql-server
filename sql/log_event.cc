@@ -28,7 +28,6 @@
 #endif /* MYSQL_CLIENT */
 #include <base64.h>
 #include <my_bitmap.h>
-#include <my_vle.h>
 
 #define log_cs	&my_charset_latin1
 
@@ -5128,7 +5127,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   byte const *const var_start= (const byte *)buf + common_header_len + 
     post_header_len;
   byte const *const ptr_width= var_start;
-  byte const *const ptr_after_width= my_vle_decode(&m_width, ptr_width);
+  uchar *ptr_after_width= (uchar*) ptr_width;
+  m_width = net_field_length(&ptr_after_width);
 
   const uint byte_count= (m_width + 7) / 8;
   const byte* const ptr_rows_data= var_start + byte_count + 1;
@@ -5281,6 +5281,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       tested replicate-* rules).
     */
     TABLE_LIST table_list;
+    TABLE_LIST *tables= &table_list;
     bool need_reopen;
     uint count= 1;
     bzero(&table_list, sizeof(table_list));
@@ -5330,13 +5331,12 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
        */
       thd->binlog_flush_pending_rows_event(false);
 
-      close_tables_for_reopen(thd, &table_list);
+      close_tables_for_reopen(thd, &tables);
 
       /* open the table again, same as in Table_map_event::exec_event */
       table_list.db= const_cast<char*>(db);
       table_list.alias= table_list.table_name= const_cast<char*>(table_name);
       table_list.updating= 1;
-      TABLE_LIST *tables= &table_list;
       if ((error= open_tables(thd, &tables, &count, 0)) == 0)
       {
         /* reset some variables for the table list*/
@@ -5598,13 +5598,13 @@ bool Rows_log_event::write_data_body(IO_CACHE*file)
      Note that this should be the number of *bits*, not the number of
      bytes.
   */
-  byte sbuf[my_vle_sizeof(m_width)];
+  byte sbuf[sizeof(m_width)];
   my_ptrdiff_t const data_size= m_rows_cur - m_rows_buf;
 
-  char *const sbuf_end= (char *const)my_vle_encode(sbuf, sizeof(sbuf), m_width);
-  DBUG_ASSERT(static_cast<my_size_t>(sbuf_end - (char *const)sbuf) <= sizeof(sbuf));
+  char *const sbuf_end= net_store_length(sbuf, (uint) m_width);
+  DBUG_ASSERT(static_cast<my_size_t>(sbuf_end - (char*) sbuf) <= sizeof(sbuf));
 
-  return (my_b_safe_write(file, sbuf, sbuf_end - (char *const)sbuf) ||
+  return (my_b_safe_write(file, sbuf, sbuf_end - (char*) sbuf) ||
           my_b_safe_write(file, reinterpret_cast<byte*>(m_cols.bitmap),
                           no_bytes_in_map(&m_cols)) ||
           my_b_safe_write(file, m_rows_buf, data_size));
@@ -5731,7 +5731,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 
   /* Length of table name + counter + terminating null */
   byte const* const ptr_colcnt= ptr_tbllen + m_tbllen + 2;
-  byte const* const ptr_after_colcnt= my_vle_decode(&m_colcnt, ptr_colcnt);
+  uchar *ptr_after_colcnt= (uchar*) ptr_colcnt;
+  m_colcnt= net_field_length(&ptr_after_colcnt);
 
   DBUG_PRINT("info",("m_dblen=%d off=%d m_tbllen=%d off=%d m_colcnt=%d off=%d",
                      m_dblen, ptr_dblen-(const byte*)vpart, 
@@ -5854,13 +5855,17 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
       (!rpl_filter->is_on() || rpl_filter->tables_ok("", &table_list)))
   {
     /*
+      TODO: Mats will soon change this test below so that a SBR slave always
+      accepts RBR events from the master (and binlogs them RBR).
+    */
+    /*
       Check if the slave is set to use SBR.  If so, the slave should
       stop immediately since it is not possible to daisy-chain from
       RBR to SBR.  Once RBR is used, the rest of the chain has to use
       RBR.
     */
     if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG) &&
-        !binlog_row_based)
+        !thd->current_stmt_binlog_row_based)
     {
       slave_print_msg(ERROR_LEVEL, rli, ER_BINLOG_ROW_RBR_TO_SBR,
                       "It is not possible to use statement-based binlogging "
@@ -6043,9 +6048,9 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   byte const dbuf[]= { m_dblen };
   byte const tbuf[]= { m_tbllen };
 
-  byte cbuf[my_vle_sizeof(m_colcnt)];
-  byte *const cbuf_end= my_vle_encode(cbuf, sizeof(cbuf), m_colcnt);
-  DBUG_ASSERT(static_cast<my_size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
+  byte cbuf[sizeof(m_colcnt)];
+  char *const cbuf_end= net_store_length(cbuf, (uint) m_colcnt);
+  DBUG_ASSERT(static_cast<my_size_t>(cbuf_end - (char*) cbuf) <= sizeof(cbuf));
 
   return (my_b_safe_write(file, dbuf,      sizeof(dbuf)) ||
           my_b_safe_write(file, (const byte*)m_dbnam,   m_dblen+1) ||

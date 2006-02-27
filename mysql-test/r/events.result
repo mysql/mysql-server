@@ -363,7 +363,7 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler	connecting host	NULL	Connect	#	Sleeping	NULL
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
 #	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2", 20)
 "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
@@ -382,7 +382,7 @@ set global event_scheduler=0;
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler	connecting host	NULL	Connect	#	Sleeping	NULL
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
 #	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2_1", 20)
 "Release the lock so the child process should finish. Hence the scheduler also"
 select release_lock("test_lock2_1");
@@ -397,4 +397,24 @@ create table t_16 (s1 int);
 create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 drop table t_16;
+create event white_space
+on schedule every 10 hour
+disable
+do
+select 1;
+select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
+event_schema	event_name	definer	event_body
+events_test	white_space	root@localhost	select 1
+drop event white_space;
+create event white_space on schedule every 10 hour disable do
+select 2;
+select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
+event_schema	event_name	definer	event_body
+events_test	white_space	root@localhost	select 2
+drop event white_space;
+create event white_space on schedule every 10 hour disable do	select 3;
+select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
+event_schema	event_name	definer	event_body
+events_test	white_space	root@localhost	select 3
+drop event white_space;
 drop database events_test;

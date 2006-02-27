@@ -2411,7 +2411,7 @@ void select_insert::send_error(uint errcode,const char *err)
       thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
                         table->file->has_transactions(), FALSE);
     }
-    if (!binlog_row_based && !table->s->tmp_table)
+    if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
   if (info.copied || info.deleted || info.updated)
@@ -2556,7 +2556,7 @@ select_create::binlog_show_create_table()
     on rollback, we clear the OPTION_STATUS_NO_TRANS_UPDATE bit of
     thd->options.
    */
-  DBUG_ASSERT(binlog_row_based && !create_table_written);
+  DBUG_ASSERT(thd->current_stmt_binlog_row_based && !create_table_written);
 
   thd->options&= ~OPTION_STATUS_NO_TRANS_UPDATE;
   char buf[2048];
@@ -2582,7 +2582,7 @@ void select_create::store_values(List<Item> &values)
     Before writing the first row, we write the CREATE TABLE statement
     to the binlog.
    */
-  if (binlog_row_based && !create_table_written)
+  if (thd->current_stmt_binlog_row_based && !create_table_written)
   {
     binlog_show_create_table();
     create_table_written= TRUE;
@@ -2611,7 +2611,7 @@ bool select_create::send_eof()
     If no rows where written to the binary log, we write the CREATE
     TABLE statement to the binlog.
    */
-  if (binlog_row_based && !create_table_written)
+  if (thd->current_stmt_binlog_row_based && !create_table_written)
   {
     binlog_show_create_table();
     create_table_written= TRUE;

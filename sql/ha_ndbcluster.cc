@@ -519,6 +519,7 @@ void ha_ndbcluster::invalidate_dictionary_cache(bool global)
   {
     NDBINDEX *index = (NDBINDEX *) m_index[i].index;
     NDBINDEX *unique_index = (NDBINDEX *) m_index[i].unique_index;
+    if (!index && !unique_index) continue;
     NDB_INDEX_TYPE idx_type= m_index[i].type;
 
     switch (idx_type) {
@@ -991,8 +992,8 @@ bool ha_ndbcluster::uses_blob_value()
     -2   Meta data has changed; Re-read data and try again
 */
 
-static int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
-                   uint pack_length)
+int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
+            uint pack_length)
 {
   DBUG_ENTER("cmp_frm");
   /*
@@ -1076,7 +1077,7 @@ int ha_ndbcluster::get_metadata(const char *path)
   m_table= (void *)tab; 
   m_table_info= NULL; // Set in external lock
   
-  DBUG_RETURN(open_indexes(ndb, table));
+  DBUG_RETURN(open_indexes(ndb, table, FALSE));
 }
 
 static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
@@ -1249,7 +1250,7 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
 /*
   Associate index handles for each index of a table
 */
-int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab)
+int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error)
 {
   uint i;
   int error= 0;
@@ -1263,7 +1264,10 @@ int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab)
   for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
     if ((error= add_index_handle(thd, dict, key_info, *key_name, i)))
-      break;
+      if (ignore_error)
+        m_index[i].index= m_index[i].unique_index= NULL;
+      else
+        break;
   }
   
   DBUG_RETURN(error);
@@ -2214,7 +2218,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   if (m_use_partition_function)
   {
     part_spec.start_part= 0;
-    part_spec.end_part= get_tot_partitions(m_part_info) - 1;
+    part_spec.end_part= m_part_info->get_tot_partitions() - 1;
     prune_partition_set(table, &part_spec);
     DBUG_PRINT("info", ("part_spec.start_part = %u, part_spec.end_part = %u",
                         part_spec.start_part, part_spec.end_part));
@@ -3739,7 +3743,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       {
         m_table= (void *)tab;
         m_table_version = tab->getObjectVersion();
-        if (!(my_errno= open_indexes(ndb, table)))
+        if (!(my_errno= open_indexes(ndb, table, FALSE)))
           DBUG_RETURN(my_errno);
       }
       m_table_info= tab_info;
@@ -5191,7 +5195,7 @@ void ha_ndbcluster::set_part_info(partition_info *part_info)
   m_part_info= part_info;
   if (!(m_part_info->part_type == HASH_PARTITION &&
         m_part_info->list_of_part_fields &&
-        !is_sub_partitioned(m_part_info)))
+        !m_part_info->is_sub_partitioned()))
     m_use_partition_function= TRUE;
 }
 
@@ -5513,7 +5517,7 @@ int ndbcluster_find_all_files(THD *thd)
     {
       NDBDICT::List::Element& elmt= list.elements[i];
       int do_handle_table= 0;
-      if (IS_TMP_PREFIX(elmt.name))
+      if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
       {
         DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
         continue;
@@ -5650,7 +5654,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   for (i= 0 ; i < list.count ; i++)
   {
     NDBDICT::List::Element& elmt= list.elements[i];
-    if (IS_TMP_PREFIX(elmt.name))
+    if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
     {
       DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
       continue;
@@ -6696,6 +6700,7 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
   return share;
 }
 
+
 /*
   Get a share object for key
 
@@ -6710,17 +6715,19 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 
   have_lock == TRUE, pthread_mutex_lock(&ndbcluster_mutex) already taken
 */
+
 NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
                                 bool create_if_not_exists,
                                 bool have_lock)
 {
-  DBUG_ENTER("get_share");
-  DBUG_PRINT("info", ("get_share: key %s", key));
   THD *thd= current_thd;
   NDB_SHARE *share;
+  uint length= (uint) strlen(key);
+  DBUG_ENTER("ndbcluster_get_share");
+  DBUG_PRINT("enter", ("key: '%s'", key));
+
   if (!have_lock)
     pthread_mutex_lock(&ndbcluster_mutex);
-  uint length= (uint) strlen(key);
   if (!(share= (NDB_SHARE*) hash_search(&ndbcluster_open_tables,
                                         (byte*) key,
                                         length)))
@@ -6780,10 +6787,10 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
 
   dbug_print_open_tables();
 
-  DBUG_PRINT("get_share",
+  DBUG_PRINT("info",
              ("0x%lx key: %s  key_length: %d  key: %s",
               share, share->key, share->key_length, key));
-  DBUG_PRINT("get_share",
+  DBUG_PRINT("info",
              ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
               share->db, share->table_name,
               share->use_count, share->commit_count));
@@ -6792,8 +6799,10 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
   DBUG_RETURN(share);
 }
 
+
 void ndbcluster_real_free_share(NDB_SHARE **share)
 {
+  DBUG_ENTER("ndbcluster_real_free_share");
   DBUG_PRINT("real_free_share",
              ("0x%lx key: %s  key_length: %d",
               (*share), (*share)->key, (*share)->key_length));
@@ -6831,6 +6840,7 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   *share= 0;
 
   dbug_print_open_tables();
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -9304,7 +9314,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   {
     uint ng;
     part_elem= part_it++;
-    if (!is_sub_partitioned(part_info))
+    if (!part_info->is_sub_partitioned())
     {
       ng= part_elem->nodegroup_id;
       if (first && ng == UNDEF_NODEGROUP)

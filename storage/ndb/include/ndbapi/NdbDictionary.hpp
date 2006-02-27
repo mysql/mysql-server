@@ -61,12 +61,15 @@ typedef struct charset_info_st CHARSET_INFO;
  */
 class NdbDictionary {
 public:
+  NdbDictionary() {}                          /* Remove gcc warning */
   /**
    * @class Object
    * @brief Meta information about a database object (a table, index, etc)
    */
   class Object {
   public:
+    Object() {}                               /* Remove gcc warning */
+    virtual ~Object() {}                      /* Remove gcc warning */
     /**
      * Status of object
      */
@@ -884,6 +887,7 @@ public:
 
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    friend class Ndb;
     friend class NdbDictionaryImpl;
     friend class NdbTableImpl;
     friend class NdbEventOperationImpl;
@@ -1597,6 +1601,14 @@ public:
      */
     const Table * getTable(const char * name) const;
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    /*
+     * Save a table definition in dictionary cache
+     * @param table Object to put into cache
+     */
+    void putTable(const Table * table);
+#endif
+
     /**
      * Get index with given name, NULL if undefined
      * @param indexName  Name of index to get.
@@ -1783,7 +1795,6 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const Table * getTable(const char * name, void **data) const;
     void set_local_table_data_size(unsigned sz);
-    void fix_blob_events(const Table* table, const char* ev_name);
 #endif
   };
 };
