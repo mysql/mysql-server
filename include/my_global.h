@@ -43,6 +43,15 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
+#if defined(__QNXNTO__) && !defined(FD_SETSIZE)
+#define FD_SETSIZE 1024         /* Max number of file descriptor bits in
+                                   fd_set, used when calling 'select'
+                                   Must be defined before including
+                                   "sys/select.h" and "sys/time.h"
+                                 */
+#endif
+
+
 /* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #define USE_PRAGMA_INTERFACE

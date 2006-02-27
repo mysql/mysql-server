@@ -432,6 +432,7 @@ typedef struct st_sql_list {
   byte *first;
   byte **next;
 
+  st_sql_list() {}                              /* Remove gcc warning */
   inline void empty()
   {
     elements=0;
@@ -983,7 +984,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               uint offset_to_list,
+                               st_table_list *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name);
 TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list);
@@ -1024,7 +1025,7 @@ inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
                                              const char *db_name,
                                              const char *table_name)
 {
-  return find_table_in_list(table, offsetof(TABLE_LIST, next_global),
+  return find_table_in_list(table, &TABLE_LIST::next_global,
                             db_name, table_name);
 }
 
@@ -1032,7 +1033,7 @@ inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
                                             const char *db_name,
                                             const char *table_name)
 {
-  return find_table_in_list(table, offsetof(TABLE_LIST, next_local),
+  return find_table_in_list(table, &TABLE_LIST::next_local,
                             db_name, table_name);
 }
 

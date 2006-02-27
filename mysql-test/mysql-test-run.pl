@@ -1117,6 +1117,7 @@ sub environment_setup () {
   $ENV{'USE_RUNNING_SERVER'}= $glob_use_running_server;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
+  $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_mysock'};
   $ENV{'MASTER_MYPORT'}=      $master->[0]->{'path_myport'};
@@ -2649,7 +2650,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqlcheck .=
-      " --debug=d:t:A,$opt_vardir_trace/log/mysqldump.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqlcheck.trace";
   }
 
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
