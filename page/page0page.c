@@ -66,14 +66,14 @@ is 50 x 4 bytes = 200 bytes. */
 
 /*****************************************************************
 Deletes records from page, up to the given record, NOT including
-that record. Infimum and supremum records are not deleted.
-This function is not to be used with compressed pages. */
+that record. Infimum and supremum records are not deleted. */
 static
 void
 page_delete_rec_list_start(
 /*=======================*/
 	rec_t*		rec,	/* in: record on page */
 	dict_index_t*	index,	/* in: record descriptor */
+	page_zip_des_t*	page_zip,/* in/out: compressed page of rec, or NULL */
 	mtr_t*		mtr);	/* in: mtr */
 
 /*******************************************************************
@@ -745,6 +745,7 @@ page_parse_delete_rec_list(
 	mtr_t*		mtr)	/* in: mtr or NULL */
 {
 	ulint		offset;
+	page_zip_des_t*	page_zip;
 
 	ut_ad(type == MLOG_LIST_END_DELETE
 		|| type == MLOG_LIST_START_DELETE
@@ -768,15 +769,16 @@ page_parse_delete_rec_list(
 
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
+	page_zip = buf_block_get_page_zip(buf_block_align(page));
+
 	if (type == MLOG_LIST_END_DELETE
 			|| type == MLOG_COMP_LIST_END_DELETE) {
 		page_delete_rec_list_end(page + offset, index,
 					ULINT_UNDEFINED, ULINT_UNDEFINED,
-					buf_block_get_page_zip(
-						buf_block_align(page)), mtr);
+					page_zip, mtr);
 	} else {
-		ut_ad(!buf_block_get_page_zip(buf_block_align(page)));
-		page_delete_rec_list_start(page + offset, index, mtr);
+		page_delete_rec_list_start(page + offset, index,
+					page_zip, mtr);
 	}
 
 	return(ptr);
@@ -963,14 +965,14 @@ page_delete_rec_list_end(
 
 /*****************************************************************
 Deletes records from page, up to the given record, NOT including
-that record. Infimum and supremum records are not deleted.
-This function is not to be used with compressed pages. */
+that record. Infimum and supremum records are not deleted. */
 static
 void
 page_delete_rec_list_start(
 /*=======================*/
 	rec_t*		rec,	/* in: record on page */
 	dict_index_t*	index,	/* in: record descriptor */
+	page_zip_des_t*	page_zip,/* in/out: compressed page of rec, or NULL */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	page_cur_t	cur1;
@@ -1008,7 +1010,7 @@ page_delete_rec_list_start(
 	while (page_cur_get_rec(&cur1) != rec) {
 		offsets = rec_get_offsets(page_cur_get_rec(&cur1), index,
 					offsets, ULINT_UNDEFINED, &heap);
-		page_cur_delete_rec(&cur1, index, offsets, NULL, mtr);
+		page_cur_delete_rec(&cur1, index, offsets, page_zip, mtr);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -1024,9 +1026,12 @@ page_delete_rec_list_start(
 Moves record list end to another page. Moved records include
 split_rec. */
 
-void
+ibool
 page_move_rec_list_end(
 /*===================*/
+					/* out: TRUE on success; FALSE on
+					compression failure (new_page will
+					be decompressed from new_page_zip) */
 	page_t*		new_page,	/* in: index page where to move */
 	page_zip_des_t*	new_page_zip,	/* in/out: compressed page of
 					new_page, or NULL */
@@ -1044,12 +1049,13 @@ page_move_rec_list_end(
 	old_data_size = page_get_data_size(new_page);
 	old_n_recs = page_get_n_recs(new_page);
 
-	if (!page_copy_rec_list_end(new_page, new_page_zip,
-					split_rec, index, mtr)) {
+	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
+					split_rec, index, mtr))) {
 		/* This should always succeed, as new_page
 		is created from the scratch and receives a contiguous
 		part of the records from split_rec onwards */
-		ut_error;
+
+		return(FALSE);
 	}
 
 	new_data_size = page_get_data_size(new_page);
@@ -1060,15 +1066,19 @@ page_move_rec_list_end(
 	page_delete_rec_list_end(split_rec, index,
 		new_n_recs - old_n_recs, new_data_size - old_data_size,
 		page_zip, mtr);
+
+	return(TRUE);
 }
 
 /*****************************************************************
 Moves record list start to another page. Moved records do not include
 split_rec. */
 
-void
+ibool
 page_move_rec_list_start(
 /*=====================*/
+					/* out: TRUE on success; FALSE on
+					compression failure */
 	page_t*		new_page,	/* in: index page where to move */
 	page_zip_des_t*	new_page_zip,	/* in/out: compressed page of
 					new_page, or NULL */
@@ -1080,65 +1090,12 @@ page_move_rec_list_start(
 {
 	if (UNIV_UNLIKELY(!page_copy_rec_list_start(new_page, new_page_zip,
 					split_rec, index, mtr))) {
-		ut_error;
+		return(FALSE);
 	}
 
-	ut_ad(!page_zip == !new_page_zip);
+	page_delete_rec_list_start(split_rec, index, page_zip, mtr);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		/* On compressed pages, instead of deleting the start
-		of the record list, recreate the page and copy the
-		end of the list. */
-
-		page_t*	page;
-		page_t*	temp_page;
-		ulint	log_mode;
-
-		page = ut_align_down(split_rec, UNIV_PAGE_SIZE);
-		ut_ad(page_is_comp(page));
-		ut_ad(page_is_comp(new_page));
-
-		/* Disable logging */
-		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
-
-		/* Copy the page to temporary space */
-		temp_page = buf_frame_alloc();
-		buf_frame_copy(page, temp_page);
-
-		/* TODO: will this fail in crash recovery? */
-		btr_search_drop_page_hash_index(page);
-
-		/* Recreate the page: note that global data on page (possible
-		segment headers, next page-field, etc.) is preserved intact */
-		page_create(page, NULL, mtr, index);
-		buf_block_align(page)->check_index_page_at_flush = TRUE;
-
-		/* Copy the records from the temporary space to the
-		recreated page; do not copy the lock bits yet */
-
-		page_copy_rec_list_end_no_locks(page,
-				temp_page - page + split_rec, index, mtr);
-
-		/* Copy max trx id to recreated page */
-		page_set_max_trx_id(page, NULL,
-					page_get_max_trx_id(temp_page));
-
-		/* Update the record lock bitmaps */
-		lock_move_reorganize_page(page, temp_page);
-
-		buf_frame_free(temp_page);
-		mtr_set_log_mode(mtr, log_mode);
-
-		if (UNIV_UNLIKELY(!page_zip_compress(
-				page_zip, page, index, mtr))) {
-
-			/* Reorganizing a page should reduce entropy,
-			making the compressed page occupy less space. */
-			ut_error;
-		}
-	} else {
-		page_delete_rec_list_start(split_rec, index, mtr);
-	}
+	return(TRUE);
 }
 
 /***************************************************************************
