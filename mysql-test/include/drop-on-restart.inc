@@ -431,6 +431,7 @@ drop table if exists new_t2;
 drop table if exists not_exist;
 drop table if exists r1;
 drop table if exists t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t21,t70;
+drop table if exists t00,t03,t04;
 drop table if exists t0_template;
 drop table if exists t1Aa,t2Aa,v1Aa,v2Aa;
 drop table if exists t1_1,t1_2,t9_1,t9_2,t1aa,t2aa;
