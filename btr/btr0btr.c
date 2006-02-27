@@ -1082,9 +1082,11 @@ btr_root_raise_and_insert(
 
 	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
 
-	page_move_rec_list_end(new_page, new_page_zip,
+	if (UNIV_UNLIKELY(!page_move_rec_list_end(new_page, new_page_zip,
 				page_get_infimum_rec(root), root_page_zip,
-				cursor->index, mtr);
+				cursor->index, mtr))) {
+		ut_error;
+	}
 
 	/* If this is a pessimistic insert which is actually done to
 	perform a pessimistic update then we have stored the lock
@@ -1766,10 +1768,13 @@ func_start:
 	if (direction == FSP_DOWN) {
 /*		fputs("Split left\n", stderr); */
 
-		page_move_rec_list_start(new_page, buf_block_get_page_zip(
+		if (UNIV_UNLIKELY(!page_move_rec_list_start(
+					new_page, buf_block_get_page_zip(
 					buf_block_align(new_page)),
 					move_limit, page_zip,
-					cursor->index, mtr);
+					cursor->index, mtr))) {
+			ut_error;
+		}
 
 		left_page = new_page;
 		right_page = page;
@@ -1778,10 +1783,14 @@ func_start:
 	} else {
 /*		fputs("Split right\n", stderr); */
 
-		page_move_rec_list_end(new_page, buf_block_get_page_zip(
+		if (UNIV_UNLIKELY(!page_move_rec_list_end(
+					new_page, buf_block_get_page_zip(
 					buf_block_align(new_page)),
 					move_limit, page_zip,
-					cursor->index, mtr);
+					cursor->index, mtr))) {
+			ut_error;
+		}
+
 		left_page = page;
 		right_page = new_page;
 
