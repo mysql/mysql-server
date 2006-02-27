@@ -72,14 +72,10 @@ In summary, the compressed page looks like this:
   - indexed by heap_no
   - DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN if page_is_leaf(page_zip->data)
   - REC_NODE_PTR_SIZE otherwise
-(8) Original origins of records that have been relocated since
-    the page was compressed, in ascending order, 16 bits per entry
-(9) dense page directory, stored backwards
+(8) dense page directory, stored backwards
   - n_dense = n_heap - 2
   - existing records in ascending collation order
   - deleted records (free list) in link order
-(10) Number of records that have been relocated
-    since the page was compressed (16 bits), cf. (7)
 */
 
 /* Start offset of the area that will be compressed */
@@ -145,74 +141,8 @@ page_zip_simple_validate(
 #endif /* UNIV_DEBUG */
 
 /*****************************************************************
-Gets the number of records that have been relocated, that is,
-allocated from the free list since the page was compressed,
-such that extra_size has grown. */
-UNIV_INLINE
-ulint
-page_zip_get_n_relocated(
-/*=====================*/
-						/* out: number of records
-						that have been relocated */
-	const page_zip_des_t*	page_zip)	/* in: compressed page */
-{
-	return(mach_read_from_2(page_zip->data
-			+ page_zip->size - PAGE_ZIP_DIR_SLOT_SIZE));
-}
-
-/*****************************************************************
-Sets the number of records that have been relocated, that is,
-allocated from the free list since the page was compressed,
-such that extra_size has grown. */
-UNIV_INLINE
-void
-page_zip_set_n_relocated(
-/*=====================*/
-	const page_zip_des_t*	page_zip,	/* in: compressed page */
-	ulint			n_relocated)	/* in: number of records
-						that have been relocated */
-{
-	mach_write_to_2(page_zip->data
-			+ page_zip->size - PAGE_ZIP_DIR_SLOT_SIZE,
-			n_relocated);
-}
-
-/*****************************************************************
-Gets original offset of a record that has been relocated, that is,
-allocated from the free list since the page was compressed,
-such that extra_size has grown. */
-UNIV_INLINE
-ulint
-page_zip_get_relocated(
-/*===================*/
-						/* out: original offset
-						of the record */
-	const page_zip_des_t*	page_zip,	/* in: compressed page */
-	ulint			i)		/* in: ith record */
-{
-#ifdef UNIV_DEBUG
-	ulint		n	= page_zip_get_n_relocated(page_zip);
-#endif /* UNIV_DEBUG */
-	ulint		offset;
-
-	ut_ad(i < n);
-
-	/* Below, we subtract 2 from n_heap for the page infimum and supremum,
-	but add 1 for n_relocated, and index by i + 1 */
-	offset = mach_read_from_2(page_zip->data
-			+ page_zip->size - PAGE_ZIP_DIR_SLOT_SIZE
-			* (page_dir_get_n_heap(page_zip->data) + i));
-
-	ut_ad(offset >= PAGE_ZIP_START);
-	ut_ad(offset < page_zip->size - PAGE_ZIP_DIR_SLOT_SIZE
-			* (page_dir_get_n_heap(page_zip->data) + n - 1));
-
-	return(offset);
-}
-
-/*****************************************************************
 Gets the size of the compressed page trailer (the dense page directory),
-including deleted records (the free list) and n_relocated. */
+including deleted records (the free list). */
 UNIV_INLINE
 ulint
 page_zip_dir_size(
@@ -221,17 +151,16 @@ page_zip_dir_size(
 						directory, in bytes */
 	const page_zip_des_t*	page_zip)	/* in: compressed page */
 {
-	/* Exclude the page infimum and supremum from the record count.
-	Add 1 slot for n_relocated. */
+	/* Exclude the page infimum and supremum from the record count. */
 	ulint	size = PAGE_ZIP_DIR_SLOT_SIZE
-			* (page_dir_get_n_heap((page_t*) page_zip->data) - 1);
+			* (page_dir_get_n_heap((page_t*) page_zip->data) - 2);
 	ut_ad(page_zip->m_end + size < page_zip->size);
 	return(size);
 }
 
 /*****************************************************************
 Gets the size of the compressed page trailer (the dense page directory),
-only including user records (excluding the free list and n_relocated). */
+only including user records (excluding the free list). */
 UNIV_INLINE
 ulint
 page_zip_dir_user_size(
@@ -323,9 +252,8 @@ page_zip_dir_get(
 {
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(slot < page_zip_dir_size(page_zip) / PAGE_ZIP_DIR_SLOT_SIZE);
-	/* Add 1 for n_relocated */
 	return(mach_read_from_2(page_zip->data + page_zip->size
-			- PAGE_ZIP_DIR_SLOT_SIZE * (slot + 2)));
+			- PAGE_ZIP_DIR_SLOT_SIZE * (slot + 1)));
 }
 /*****************************************************************
 Write a given slot in the dense page directory. */
@@ -340,9 +268,8 @@ page_zip_dir_set(
 					PAGE_ZIP_DIR_SLOT_OWNED */
 {
 	ut_ad(page_zip_simple_validate(page_zip));
-	/* Add 1 for n_relocated */
 	mach_write_to_2(page_zip->data + page_zip->size
-			- PAGE_ZIP_DIR_SLOT_SIZE * (slot + 2),
+			- PAGE_ZIP_DIR_SLOT_SIZE * (slot + 1),
 			offs);
 }
 
@@ -427,7 +354,7 @@ page_zip_available(
 
 	if (UNIV_UNLIKELY(create)) {
 		/* When a record is created, a pointer may be added to
-		the dense directory or to the list of relocated records.
+		the dense directory.
 		Likewise, space for the columns that will not be
 		compressed will be allocated from the page trailer.
 		Also the BLOB pointers will be allocated from there, but

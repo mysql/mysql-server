@@ -949,13 +949,13 @@ too_small:
 
 		if (page_is_comp(page)) {
 			if (UNIV_LIKELY_NULL(page_zip)) {
-				/* On compressed pages, records from
-				the free list may only be relocated so
-				that extra_size will not decrease. */
+				/* On compressed pages, do not
+				relocate records from the free list.
+				If extra_size would grow, use the heap. */
 				lint	extra_size_diff
 					= rec_offs_extra_size(offsets)
 					- rec_offs_extra_size(foffsets);
-				/* TODO: compare to original extra_size */
+
 				if (UNIV_UNLIKELY(extra_size_diff < 0)) {
 					/* Add an offset to the extra_size. */
 					if (rec_offs_size(foffsets)
@@ -965,12 +965,11 @@ too_small:
 					}
 
 					insert_buf -= extra_size_diff;
-				}
+				} else if (UNIV_UNLIKELY(extra_size_diff)) {
+					/* Do not allow extra_size to grow */
 
-				/* TODO: update to the relocation log
-				 * add when extra_size grows for the first time
-				 * remove when extra_size shrinks to original
-				 */
+					goto use_heap;
+				}
 			}
 
 			heap_no = rec_get_heap_no_new(free_rec);
