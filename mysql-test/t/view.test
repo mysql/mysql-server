@@ -2370,3 +2370,18 @@ SELECT IF(x IS NULL, 'blank', 'not blank') AS x FROM v1 GROUP BY x;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# BUG#15943: mysql_next_result hangs on invalid SHOW CREATE VIEW
+#
+
+delimiter //;
+drop table if exists t1; 
+drop view if exists v1; 
+create table t1 (id int); 
+create view v1 as select * from t1; 
+drop table t1; 
+show create view v1; 
+drop view v1;
+//
+delimiter ;//
