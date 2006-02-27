@@ -688,7 +688,8 @@ row_sel_get_clust_rec(
 		|| btr_pcur_get_low_match(&(plan->clust_pcur))
 		< dict_index_get_n_unique(index)) {
 
-		ut_a(rec_get_deleted_flag(rec, plan->table->comp));
+		ut_a(rec_get_deleted_flag(rec,
+				dict_table_is_comp(plan->table)));
 		ut_a(node->read_view);
 
 		/* In a rare case it is possible that no clust rec is found
@@ -765,7 +766,8 @@ row_sel_get_clust_rec(
 		visit through secondary index records that would not really
 		exist in our snapshot. */
 
-		if ((old_vers || rec_get_deleted_flag(rec, plan->table->comp))
+		if ((old_vers || rec_get_deleted_flag(rec,
+					dict_table_is_comp(plan->table)))
 			&& !row_sel_sec_rec_is_for_clust_rec(rec, plan->index,
 				clust_rec, index)) {
 			goto func_exit;
@@ -1082,7 +1084,7 @@ row_sel_try_search_shortcut(
 	row_sel_fetch_columns(index, rec, offsets,
 				UT_LIST_GET_FIRST(plan->columns));
 
-	if (rec_get_deleted_flag(rec, plan->table->comp)) {
+	if (rec_get_deleted_flag(rec, dict_table_is_comp(plan->table))) {
 
 		ret = SEL_EXHAUSTED;
 		goto func_exit;
@@ -1491,7 +1493,7 @@ rec_loop:
 		goto table_exhausted;
 	}
 
-	if (rec_get_deleted_flag(rec, plan->table->comp)
+	if (rec_get_deleted_flag(rec, dict_table_is_comp(plan->table))
 			&& !cons_read_requires_clust_rec) {
 
 		/* The record is delete marked: we can skip it if this is
@@ -1535,7 +1537,8 @@ rec_loop:
 			goto next_rec;
 		}
 
-		if (rec_get_deleted_flag(clust_rec, plan->table->comp)) {
+		if (rec_get_deleted_flag(clust_rec,
+				dict_table_is_comp(plan->table))) {
 
 			/* The record is delete marked: we can skip it */
 
@@ -2202,7 +2205,7 @@ row_sel_convert_mysql_key_to_innobase(
 					FALSE, /* MySQL key value format col */
 					key_ptr + data_offset,
 					data_len,
-					index->table->comp);
+					dict_table_is_comp(index->table));
 			buf += data_len;
 		}
 
@@ -2710,10 +2713,11 @@ row_sel_get_clust_rec_for_mysql(
 		clustered index record did not exist in the read view of
 		trx. */
 
-		if (!rec_get_deleted_flag(rec, sec_index->table->comp)
+		if (!rec_get_deleted_flag(rec,
+				dict_table_is_comp(sec_index->table))
 			|| prebuilt->select_lock_type != LOCK_NONE) {
 			ut_print_timestamp(stderr);
-			fputs("	 InnoDB: error clustered record"
+			fputs("  InnoDB: error clustered record"
 				" for sec rec not found\n"
 				"InnoDB: ", stderr);
 			dict_index_name_print(stderr, trx, sec_index);
@@ -2795,7 +2799,7 @@ row_sel_get_clust_rec_for_mysql(
 
 		if (clust_rec && (old_vers
 				|| rec_get_deleted_flag(rec,
-					sec_index->table->comp))
+					dict_table_is_comp(sec_index->table)))
 			&& !row_sel_sec_rec_is_for_clust_rec(rec, sec_index,
 				clust_rec, clust_index)) {
 			clust_rec = NULL;
@@ -2908,8 +2912,7 @@ row_sel_pop_cached_row_for_mysql(
 	ut_ad(prebuilt->n_fetch_cached > 0);
 	ut_ad(prebuilt->mysql_prefix_len <= prebuilt->mysql_row_len);
 
-	if (UNIV_UNLIKELY(prebuilt->keep_other_fields_on_keyread))
-	{
+	if (UNIV_UNLIKELY(prebuilt->keep_other_fields_on_keyread)) {
 		/* Copy cache record field by field, don't touch fields that
 		are not covered by current key */
 		cached_rec =
@@ -2923,8 +2926,7 @@ row_sel_pop_cached_row_for_mysql(
 				templ->mysql_col_len);
 			/* Copy NULL bit of the current field from cached_rec
 			to buf */
-			if (templ->mysql_null_bit_mask)
-			{
+			if (templ->mysql_null_bit_mask) {
 				buf[templ->mysql_null_byte_offset] ^=
 				  (buf[templ->mysql_null_byte_offset] ^
 				   cached_rec[templ->mysql_null_byte_offset]) &
@@ -2932,8 +2934,7 @@ row_sel_pop_cached_row_for_mysql(
 			}
 		}
 	}
-	else
-	{
+	else {
 		ut_memcpy(buf, prebuilt->fetch_cache[prebuilt->fetch_cache_first],
 				prebuilt->mysql_prefix_len);
 	}
@@ -3053,7 +3054,7 @@ row_sel_try_search_shortcut_for_mysql(
 		return(SEL_RETRY);
 	}
 
-	if (rec_get_deleted_flag(rec, index->table->comp)) {
+	if (rec_get_deleted_flag(rec, dict_table_is_comp(index->table))) {
 
 		return(SEL_EXHAUSTED);
 	}
@@ -3097,7 +3098,7 @@ row_search_for_mysql(
 					cursor 'direction' should be 0. */
 {
 	dict_index_t*	index		= prebuilt->index;
-	ibool		comp		= index->table->comp;
+	ibool		comp		= dict_table_is_comp(index->table);
 	dtuple_t*	search_tuple	= prebuilt->search_tuple;
 	btr_pcur_t*	pcur		= prebuilt->pcur;
 	trx_t*		trx		= prebuilt->trx;

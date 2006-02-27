@@ -487,6 +487,15 @@ dict_table_get_sys_col_no(
 	dict_table_t*	table,	/* in: table */
 	ulint		sys);	/* in: DATA_ROW_ID, ... */
 /************************************************************************
+Check whether the table uses the compact page format. */
+UNIV_INLINE
+ibool
+dict_table_is_comp(
+/*===============*/
+					/* out: TRUE if table uses the
+					compact page format */
+	const dict_table_t*	table);	/* in: table */
+/************************************************************************
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns. */
 

@@ -345,7 +345,7 @@ page_create(
 	rec_t*		supremum_rec;
 	page_t*		page;
 	ulint*		offsets;
-	const ibool	comp = index->table->comp;
+	const ibool	comp = dict_table_is_comp(index->table);
 
 	ut_ad(!page_zip || comp);
 	ut_ad(frame && mtr);
@@ -517,7 +517,8 @@ page_copy_rec_list_end_no_locks(
 		page_cur_move_to_next(&cur1);
 	}
 
-	ut_a((ibool)!!page_is_comp(new_page) == index->table->comp);
+	ut_a((ibool)!!page_is_comp(new_page)
+		== dict_table_is_comp(index->table));
 	ut_a(page_is_comp(new_page) == page_rec_is_comp(rec));
 	ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
 		(page_is_comp(new_page)
@@ -765,7 +766,7 @@ page_parse_delete_rec_list(
 		return(ptr);
 	}
 
-	ut_ad((ibool) !!page_is_comp(page) == index->table->comp);
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	if (type == MLOG_LIST_END_DELETE
 			|| type == MLOG_COMP_LIST_END_DELETE) {
@@ -981,7 +982,8 @@ page_delete_rec_list_start(
 
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_ad((ibool) !!page_rec_is_comp(rec) == index->table->comp);
+	ut_ad((ibool) !!page_rec_is_comp(rec)
+			== dict_table_is_comp(index->table));
 
 	if (page_rec_is_infimum(rec)) {
 
@@ -1509,7 +1511,7 @@ page_rec_print(
 	rec_print_new(stderr, rec, offsets);
 	if (page_rec_is_comp(rec)) {
 		fprintf(stderr,
-		"	     n_owned: %lu; heap_no: %lu; next rec: %lu\n",
+		"            n_owned: %lu; heap_no: %lu; next rec: %lu\n",
 			(ulong) rec_get_n_owned_new(rec),
 			(ulong) rec_get_heap_no_new(rec),
 			(ulong) rec_get_next_offs(rec, TRUE));
@@ -1549,7 +1551,7 @@ page_dir_print(
 	for (i = 0; i < n; i++) {
 		slot = page_dir_get_nth_slot(page, i);
 		if ((i == pr_n) && (i < n - pr_n)) {
-			fputs("	   ...	 \n", stderr);
+			fputs("    ...   \n", stderr);
 		}
 		if ((i < pr_n) || (i >= n - pr_n)) {
 			fprintf(stderr,
@@ -1582,7 +1584,7 @@ page_print_list(
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_a((ibool)!!page_is_comp(page) == index->table->comp);
+	ut_a((ibool)!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	fprintf(stderr,
 		"--------------------------------\n"
@@ -2180,7 +2182,7 @@ page_validate(
 	ulint*		old_offsets	= NULL;
 
 	if (UNIV_UNLIKELY((ibool) !!page_is_comp(page)
-			!= index->table->comp)) {
+			!= dict_table_is_comp(index->table))) {
 		fputs("InnoDB: 'compact format' flag mismatch\n", stderr);
 		goto func_exit2;
 	}

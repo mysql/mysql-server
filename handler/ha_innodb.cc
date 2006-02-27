@@ -626,8 +626,7 @@ innobase_mysql_print_thd(
 		/* Points to buf or dyn_str. */
 		char*	str = buf;
 
-		if (max_query_len == 0)
-		{
+		if (max_query_len == 0) {
 			/* ADDITIONAL SAFETY: the default is to print at
 			   most 300 chars to reduce the probability of a
 			   seg fault if there is a race in
@@ -639,8 +638,7 @@ innobase_mysql_print_thd(
 
 		len = min(thd->query_length, max_query_len);
 
-		if (len > (sizeof(buf) - 1))
-		{
+		if (len > (sizeof(buf) - 1)) {
 			dyn_str = my_malloc(len + 1, MYF(0));
 			str = dyn_str;
 		}
@@ -651,8 +649,7 @@ innobase_mysql_print_thd(
 		putc('\n', f);
 		fwrite(str, 1, len, f);
 
-		if (dyn_str)
-		{
+		if (dyn_str) {
 			my_free(dyn_str, MYF(0));
 		}
 	}
@@ -2309,7 +2306,7 @@ ha_innobase::get_row_type() const
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
 	if (prebuilt && prebuilt->table) {
-		if (prebuilt->table->comp) {
+		if (dict_table_is_comp(prebuilt->table)) {
 			return(ROW_TYPE_COMPACT);
 		} else {
 			return(ROW_TYPE_REDUNDANT);
@@ -3697,12 +3694,12 @@ calc_row_difference(
 
 			if (n_len != UNIV_SQL_NULL) {
 				buf = row_mysql_store_col_in_innobase_format(
-						&dfield,
-						(byte*)buf,
-						TRUE,
-						new_mysql_row_col,
-						col_pack_len,
-						prebuilt->table->comp);
+					&dfield,
+					(byte*)buf,
+					TRUE,
+					new_mysql_row_col,
+					col_pack_len,
+					dict_table_is_comp(prebuilt->table));
 				ufield->new_val.data = dfield.data;
 				ufield->new_val.len = dfield.len;
 			} else {
@@ -4586,7 +4583,7 @@ create_table_def(
 					an .ibd file for it (no .ibd extension
 					in the path, though); otherwise this
 					is NULL */
-	ibool		comp)		/* in: TRUE=compact record format */
+	ulint		flags)		/* in: table flags */
 {
 	Field*		field;
 	dict_table_t*	table;
@@ -4609,7 +4606,7 @@ create_table_def(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	table = dict_mem_table_create(table_name, 0, n_cols, comp);
+	table = dict_mem_table_create(table_name, 0, n_cols, flags);
 
 	if (path_of_temp_table) {
 		table->dir_path_of_temp_table =
@@ -4855,6 +4852,7 @@ ha_innobase::create(
 	char		norm_name[FN_REFLEN];
 	THD		*thd= current_thd;
 	ib_longlong	auto_inc_value;
+	ulint		flags;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -4908,9 +4906,15 @@ ha_innobase::create(
 
 	/* Create the table definition in InnoDB */
 
+	flags = 0;
+
+	if (form->s->row_type != ROW_TYPE_REDUNDANT) {
+		flags |= DICT_TF_COMPACT;
+	}
+
 	error = create_table_def(trx, form, norm_name,
 		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
-		form->s->row_type != ROW_TYPE_REDUNDANT);
+		flags);
 
 	if (error) {
 		goto cleanup;
@@ -6624,8 +6628,7 @@ innodb_show_status(
 	/* allocate buffer for the string, and
 	read the contents of the temporary file */
 
-	if (!(str = my_malloc(usable_len + 1, MYF(0))))
-	{
+	if (!(str = my_malloc(usable_len + 1, MYF(0)))) {
 	  mutex_exit_noninline(&srv_monitor_file_mutex);
 	  DBUG_RETURN(TRUE);
 	}
