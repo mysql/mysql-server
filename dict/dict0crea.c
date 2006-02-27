@@ -62,9 +62,13 @@ dict_create_sys_tables_tuple(
 	/* 4: N_COLS ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 2);
 
+#if DICT_TF_COMPACT != 1
+#error
+#endif
+
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, table->n_def
-			| ((ulint) table->comp << 31));
+		| ((table->flags & DICT_TF_COMPACT) << 31));
 	dfield_set_data(dfield, ptr, 4);
 	/* 5: TYPE -----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 3);
@@ -671,7 +675,7 @@ dict_drop_index_tree(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_a(!dict_sys->sys_indexes->comp);
+	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
 	ptr = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
 
 	ut_ad(len == 4);
@@ -743,7 +747,7 @@ dict_truncate_index_tree(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_a(!dict_sys->sys_indexes->comp);
+	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
 	ptr = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
 
 	ut_ad(len == 4);

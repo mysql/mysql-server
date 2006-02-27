@@ -437,12 +437,12 @@ row_mysql_convert_row_to_innobase(
 		}
 
 		row_mysql_store_col_in_innobase_format(dfield,
-					prebuilt->ins_upd_rec_buff
-						+ templ->mysql_col_offset,
-					TRUE, /* MySQL row format data */
-					mysql_rec + templ->mysql_col_offset,
-					templ->mysql_col_len,
-					prebuilt->table->comp);
+			prebuilt->ins_upd_rec_buff
+			+ templ->mysql_col_offset,
+			TRUE, /* MySQL row format data */
+			mysql_rec + templ->mysql_col_offset,
+			templ->mysql_col_len,
+			dict_table_is_comp(prebuilt->table));
 next_column:
 		;
 	}
@@ -1916,7 +1916,7 @@ row_create_table_for_mysql(
 		if (err == DB_OUT_OF_FILE_SPACE) {
 			ut_print_timestamp(stderr);
 
-			fputs("	 InnoDB: Warning: cannot create table ",
+			fputs("  InnoDB: Warning: cannot create table ",
 								stderr);
 			ut_print_name(stderr, trx, table->name);
 			fputs(" because tablespace full\n", stderr);
@@ -1930,7 +1930,7 @@ row_create_table_for_mysql(
 		} else if (err == DB_DUPLICATE_KEY) {
 			ut_print_timestamp(stderr);
 
-			fputs("	 InnoDB: Error: table ", stderr);
+			fputs("  InnoDB: Error: table ", stderr);
 			ut_print_name(stderr, trx, table->name);
 			fputs(" already exists in InnoDB internal\n"
      "InnoDB: data dictionary. Have you deleted the .frm file\n"
@@ -2007,7 +2007,7 @@ row_create_index_for_mysql(
 
 				ut_print_timestamp(stderr);
 
-				fputs("	 InnoDB: Error: column ", stderr);
+				fputs("  InnoDB: Error: column ", stderr);
 				ut_print_name(stderr, trx,
 				dict_index_get_nth_field(index, i)->name);
 				fputs(" appears twice in ", stderr);
@@ -2437,7 +2437,7 @@ do not allow the discard. We also reserve the data dictionary latch. */
 
 	if (table->space == 0) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: Error: table ", stderr);
+		fputs("  InnoDB: Error: table ", stderr);
 		ut_print_name(stderr, trx, name);
 		fputs("\n"
 "InnoDB: is in the system tablespace 0 which cannot be discarded\n", stderr);
@@ -2449,7 +2449,7 @@ do not allow the discard. We also reserve the data dictionary latch. */
 	if (table->n_foreign_key_checks_running > 0) {
 
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: You are trying to DISCARD table ", stderr);
+		fputs("  InnoDB: You are trying to DISCARD table ", stderr);
 		ut_print_name(stderr, trx, table->name);
 		fputs("\n"
 		 "InnoDB: though there is a foreign key check running on it.\n"
@@ -2483,7 +2483,7 @@ do not allow the discard. We also reserve the data dictionary latch. */
 		rewind(ef);
 		ut_print_timestamp(ef);
 
-		fputs("	 Cannot DISCARD table ", ef);
+		fputs("  Cannot DISCARD table ", ef);
 		ut_print_name(ef, trx, name);
 		fputs("\n"
 			"because it is referenced by ", ef);
@@ -2602,7 +2602,7 @@ row_import_tablespace_for_mysql(
 
 	if (!success) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: Error: cannot reset lsn's in table ", stderr);
+		fputs("  InnoDB: Error: cannot reset lsn's in table ", stderr);
 		ut_print_name(stderr, trx, name);
 		fputs("\n"
 		"InnoDB: in ALTER TABLE ... IMPORT TABLESPACE\n", stderr);
@@ -2623,7 +2623,7 @@ row_import_tablespace_for_mysql(
 
 	if (!table) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: table ", stderr);
+		fputs("  InnoDB: table ", stderr);
 		ut_print_name(stderr, trx, name);
 		fputs("\n"
 "InnoDB: does not exist in the InnoDB data dictionary\n"
@@ -2637,7 +2637,7 @@ row_import_tablespace_for_mysql(
 
 	if (table->space == 0) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: Error: table ", stderr);
+		fputs("  InnoDB: Error: table ", stderr);
 		ut_print_name(stderr, trx, name);
 		fputs("\n"
 "InnoDB: is in the system tablespace 0 which cannot be imported\n", stderr);
@@ -2821,7 +2821,7 @@ do not allow the TRUNCATE. We also reserve the data dictionary latch. */
 		rewind(ef);
 		ut_print_timestamp(ef);
 
-		fputs("	 Cannot truncate table ", ef);
+		fputs("  Cannot truncate table ", ef);
 		ut_print_name(ef, trx, table->name);
 		fputs(" by DROP+CREATE\n"
 			"InnoDB: because it is referenced by ", ef);
@@ -2841,7 +2841,7 @@ do not allow the TRUNCATE. We also reserve the data dictionary latch. */
 
 	if (table->n_foreign_key_checks_running > 0) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: Cannot truncate table ", stderr);
+		fputs("  InnoDB: Cannot truncate table ", stderr);
 		ut_print_name(stderr, trx, table->name);
 		fputs(" by DROP+CREATE\n"
 "InnoDB: because there is a foreign key check running on it.\n",
@@ -2964,7 +2964,7 @@ do not allow the TRUNCATE. We also reserve the data dictionary latch. */
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 		trx->error_state = DB_SUCCESS;
 		ut_print_timestamp(stderr);
-fputs("	 InnoDB: Unable to assign a new identifier to table ", stderr);
+fputs("  InnoDB: Unable to assign a new identifier to table ", stderr);
 		ut_print_name(stderr, trx, table->name);
 		fputs("\n"
 "InnoDB: after truncating it.  Background processes may corrupt the table!\n",
@@ -3179,7 +3179,7 @@ row_drop_table_for_mysql(
 		err = DB_TABLE_NOT_FOUND;
 		ut_print_timestamp(stderr);
 
-		fputs("	 InnoDB: Error: table ", stderr);
+		fputs("  InnoDB: Error: table ", stderr);
 		ut_print_name(stderr, trx, name);
 		fputs(" does not exist in the InnoDB internal\n"
 	"InnoDB: data dictionary though MySQL is trying to drop it.\n"
@@ -3215,7 +3215,7 @@ row_drop_table_for_mysql(
 		rewind(ef);
 		ut_print_timestamp(ef);
 
-		fputs("	 Cannot drop table ", ef);
+		fputs("  Cannot drop table ", ef);
 		ut_print_name(ef, trx, name);
 		fputs("\n"
 			"because it is referenced by ", ef);
@@ -3237,7 +3237,7 @@ row_drop_table_for_mysql(
 
 		if (added) {
 			ut_print_timestamp(stderr);
-fputs("	 InnoDB: Warning: MySQL is trying to drop table ", stderr);
+fputs("  InnoDB: Warning: MySQL is trying to drop table ", stderr);
 			ut_print_name(stderr, trx, table->name);
 			fputs("\n"
 "InnoDB: though there are still open handles to it.\n"
@@ -3270,7 +3270,7 @@ fputs("	 InnoDB: Warning: MySQL is trying to drop table ", stderr);
 
 		if (added) {
 			ut_print_timestamp(stderr);
-fputs("	 InnoDB: You are trying to drop table ", stderr);
+fputs("  InnoDB: You are trying to drop table ", stderr);
 			ut_print_name(stderr, trx, table->name);
 			fputs("\n"
 "InnoDB: though there is a foreign key check running on it.\n"
@@ -3330,7 +3330,7 @@ fputs("	 InnoDB: You are trying to drop table ", stderr);
 
 		if (dict_load_table(name) != NULL) {
 			ut_print_timestamp(stderr);
-			fputs("	 InnoDB: Error: not able to remove table ",
+			fputs("  InnoDB: Error: not able to remove table ",
 				stderr);
 			ut_print_name(stderr, trx, name);
 			fputs(" from the dictionary cache!\n", stderr);
@@ -3648,7 +3648,7 @@ row_rename_table_for_mysql(
 		err = DB_TABLE_NOT_FOUND;
 		ut_print_timestamp(stderr);
 
-		fputs("	 InnoDB: Error: table ", stderr);
+		fputs("  InnoDB: Error: table ", stderr);
 		ut_print_name(stderr, trx, old_name);
 		fputs(" does not exist in the InnoDB internal\n"
 	"InnoDB: data dictionary though MySQL is trying to rename the table.\n"
@@ -3664,7 +3664,7 @@ row_rename_table_for_mysql(
 		err = DB_TABLE_NOT_FOUND;
 		ut_print_timestamp(stderr);
 
-		fputs("	 InnoDB: Error: table ", stderr);
+		fputs("  InnoDB: Error: table ", stderr);
 		ut_print_name(stderr, trx, old_name);
 		fputs(
 	" does not have an .ibd file in the database directory.\n"
@@ -3798,7 +3798,7 @@ row_rename_table_for_mysql(
 		if (err == DB_DUPLICATE_KEY) {
 			ut_print_timestamp(stderr);
 			fputs(
-     "	InnoDB: Error; possible reasons:\n"
+     "  InnoDB: Error; possible reasons:\n"
      "InnoDB: 1) Table rename would cause two FOREIGN KEY constraints\n"
      "InnoDB: to have the same internal name in case-insensitive comparison.\n"
      "InnoDB: 2) table ", stderr);
@@ -3858,7 +3858,7 @@ row_rename_table_for_mysql(
 			ut_print_timestamp(stderr);
 
 			if (old_is_tmp) {
-				fputs("	 InnoDB: Error: in ALTER TABLE ",
+				fputs("  InnoDB: Error: in ALTER TABLE ",
 					stderr);
 				ut_print_name(stderr, trx, new_name);
 				fputs("\n"

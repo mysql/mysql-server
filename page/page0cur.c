@@ -529,7 +529,8 @@ page_cur_insert_rec_write_log(
 
 	ut_a(rec_size < UNIV_PAGE_SIZE);
 	ut_ad(buf_frame_align(insert_rec) == buf_frame_align(cursor_rec));
-	ut_ad(!page_rec_is_comp(insert_rec) == !index->table->comp);
+	ut_ad(!page_rec_is_comp(insert_rec)
+		== !dict_table_is_comp(index->table));
 
 	{
 		mem_heap_t*	heap		= NULL;
@@ -789,7 +790,7 @@ page_cur_parse_insert_rec(
 		return(ptr + (end_seg_len >> 1));
 	}
 
-	ut_ad((ibool) !!page_is_comp(page) == index->table->comp);
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 	ut_ad(!page_zip || page_is_comp(page));
 
 	/* Read from the log the inserted index record end segment which
@@ -908,7 +909,8 @@ page_cur_insert_rec_low(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	page = page_cur_get_page(cursor);
-	ut_ad(index->table->comp == (ibool) !!page_is_comp(page));
+	ut_ad(dict_table_is_comp(index->table)
+			== (ibool) !!page_is_comp(page));
 
 	ut_ad(!page_rec_is_supremum(cursor->rec));
 
@@ -1125,7 +1127,7 @@ page_copy_rec_list_to_created_page_write_log(
 {
 	byte*	log_ptr;
 
-	ut_ad(!!page_is_comp(page) == index->table->comp);
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	log_ptr = mlog_open_and_write_index(mtr, page, index,
 			page_is_comp(page)
@@ -1370,7 +1372,7 @@ page_cur_delete_rec_write_log(
 {
 	byte*	log_ptr;
 
-	ut_ad((ibool) !!page_rec_is_comp(rec) == index->table->comp);
+	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
 	log_ptr = mlog_open_and_write_index(mtr, rec, index,
 			page_rec_is_comp(rec)
@@ -1465,7 +1467,7 @@ page_cur_delete_rec(
 	page = page_cur_get_page(cursor);
 	current_rec = cursor->rec;
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
-	ut_ad((ibool) !!page_is_comp(page) == index->table->comp);
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));

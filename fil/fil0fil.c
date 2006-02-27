@@ -2200,7 +2200,7 @@ retry:
 
 	if (count > 1000) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: Warning: problems renaming ", stderr);
+		fputs("  InnoDB: Warning: problems renaming ", stderr);
 		ut_print_filename(stderr, old_name);
 		fputs(" to ", stderr);
 		ut_print_filename(stderr, new_name);
@@ -2353,7 +2353,7 @@ fil_create_new_single_table_tablespace(
 		OS_DATA_FILE, &ret);
 	if (ret == FALSE) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: Error creating file ", stderr);
+		fputs("  InnoDB: Error creating file ", stderr);
 		ut_print_filename(stderr, path);
 		fputs(".\n", stderr);
 
@@ -3351,7 +3351,7 @@ fil_space_for_table_exists_in_mem(
 	if (space == NULL) {
 		if (namespace == NULL) {
 			ut_print_timestamp(stderr);
-			fputs("	 InnoDB: Error: table ", stderr);
+			fputs("  InnoDB: Error: table ", stderr);
 			ut_print_filename(stderr, name);
 			fprintf(stderr, "\n"
 "InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
@@ -3363,7 +3363,7 @@ fil_space_for_table_exists_in_mem(
 				(ulong) id);
 		} else {
 			ut_print_timestamp(stderr);
-			fputs("	 InnoDB: Error: table ", stderr);
+			fputs("  InnoDB: Error: table ", stderr);
 			ut_print_filename(stderr, name);
 			fprintf(stderr, "\n"
 "InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
@@ -3388,7 +3388,7 @@ fil_space_for_table_exists_in_mem(
 
 	if (0 != strcmp(space->name, path)) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: Error: table ", stderr);
+		fputs("  InnoDB: Error: table ", stderr);
 		ut_print_filename(stderr, name);
 		fprintf(stderr, "\n"
 "InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"

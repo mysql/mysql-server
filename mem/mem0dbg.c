@@ -894,17 +894,17 @@ mem_print_info_low(
 
 	fprintf(outfile, "\n");
 
-	fprintf(outfile, "Current allocated memory		: %lu\n",
+	fprintf(outfile, "Current allocated memory              : %lu\n",
 			mem_current_allocated_memory);
-	fprintf(outfile, "Current allocated heaps and buffers	: %lu\n",
+	fprintf(outfile, "Current allocated heaps and buffers   : %lu\n",
 			n_heaps);
-	fprintf(outfile, "Cumulative allocated memory		: %lu\n",
+	fprintf(outfile, "Cumulative allocated memory           : %lu\n",
 			mem_total_allocated_memory);
-	fprintf(outfile, "Maximum allocated memory		: %lu\n",
+	fprintf(outfile, "Maximum allocated memory              : %lu\n",
 			mem_max_allocated_memory);
-	fprintf(outfile, "Cumulative created heaps and buffers	: %lu\n",
+	fprintf(outfile, "Cumulative created heaps and buffers  : %lu\n",
 			mem_n_created_heaps);
-	fprintf(outfile, "Cumulative number of allocations	: %lu\n",
+	fprintf(outfile, "Cumulative number of allocations      : %lu\n",
 			mem_n_allocations);
 
 	mem_last_print_info = mem_n_created_heaps;

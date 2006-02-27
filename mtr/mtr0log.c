@@ -430,7 +430,7 @@ mlog_open_and_write_index(
 	const byte*	log_start;
 	const byte*	log_end;
 
-	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
+	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
 	if (!page_rec_is_comp(rec)) {
 		log_start = log_ptr = mlog_open(mtr, 11 + size);
@@ -541,7 +541,8 @@ mlog_parse_index(
 	} else {
 		n = n_uniq = 1;
 	}
-	table = dict_mem_table_create("LOG_DUMMY", DICT_HDR_SPACE, n, comp);
+	table = dict_mem_table_create("LOG_DUMMY", DICT_HDR_SPACE, n,
+		comp ? DICT_TF_COMPACT : 0);
 	ind = dict_mem_index_create("LOG_DUMMY", "LOG_DUMMY",
 				DICT_HDR_SPACE, 0, n);
 	ind->table = table;

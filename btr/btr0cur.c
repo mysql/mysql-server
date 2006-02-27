@@ -545,7 +545,7 @@ retry_page_get:
 				page = btr_page_get(space,
 						page_no, RW_X_LATCH, mtr);
 				ut_a((ibool)!!page_is_comp(page)
-						== index->table->comp);
+					== dict_table_is_comp(index->table));
 			}
 
 			break;
@@ -1413,7 +1413,7 @@ btr_cur_update_in_place_log(
 	byte*	log_ptr;
 	page_t*	page	= ut_align_down(rec, UNIV_PAGE_SIZE);
 	ut_ad(flags < 256);
-	ut_ad(!!page_is_comp(page) == index->table->comp);
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	log_ptr = mlog_open_and_write_index(mtr, rec, index, page_is_comp(page)
 			? MLOG_COMP_REC_UPDATE_IN_PLACE
@@ -1500,7 +1500,7 @@ btr_cur_parse_update_in_place(
 		goto func_exit;
 	}
 
-	ut_a((ibool)!!page_is_comp(page) == index->table->comp);
+	ut_a((ibool)!!page_is_comp(page) == dict_table_is_comp(index->table));
 	rec = page + rec_offset;
 
 	/* We do not need to reserve btr_search_latch, as the page is only
@@ -1554,7 +1554,7 @@ btr_cur_update_in_place(
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
-	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
+	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	trx = thr_get_trx(thr);
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 #ifdef UNIV_DEBUG
@@ -1686,7 +1686,7 @@ btr_cur_optimistic_update(
 	page = btr_cur_get_page(cursor);
 	orig_rec = rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
-	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
+	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
@@ -2158,7 +2158,7 @@ btr_cur_del_mark_set_clust_rec_log(
 	ut_ad(flags < 256);
 	ut_ad(val <= 1);
 
-	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
+	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
 	log_ptr = mlog_open_and_write_index(mtr, rec, index,
 			page_rec_is_comp(rec)
@@ -2206,7 +2206,8 @@ btr_cur_parse_del_mark_set_clust_rec(
 	ulint	offset;
 	rec_t*	rec;
 
-	ut_ad(!page || !!page_is_comp(page) == index->table->comp);
+	ut_ad(!page
+		|| !!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	if (end_ptr < ptr + 2) {
 
@@ -2294,7 +2295,7 @@ btr_cur_del_mark_set_clust_rec(
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
-	ut_ad(!!page_rec_is_comp(rec) == index->table->comp);
+	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 #ifdef UNIV_DEBUG
@@ -2468,7 +2469,7 @@ btr_cur_del_mark_set_sec_rec(
 
 	block = buf_block_align(rec);
 	ut_ad(!!page_is_comp(buf_block_get_frame(block))
-			== cursor->index->table->comp);
+		== dict_table_is_comp(cursor->index->table));
 	page_zip = buf_block_get_page_zip(block);
 
 	if (block->is_hashed) {
@@ -3937,7 +3938,7 @@ btr_rec_free_externally_stored_fields(
 							MTR_MEMO_PAGE_X_FIX));
 	/* Free possible externally stored fields in the record */
 
-	ut_ad(index->table->comp == !!rec_offs_comp(offsets));
+	ut_ad(dict_table_is_comp(index->table) == !!rec_offs_comp(offsets));
 	n_fields = rec_offs_n_fields(offsets);
 
 	for (i = 0; i < n_fields; i++) {

@@ -189,7 +189,8 @@ row_build(
 
 	row = dtuple_create(heap, row_len);
 
-	dtuple_set_info_bits(row, rec_get_info_bits(rec, table->comp));
+	dtuple_set_info_bits(row, rec_get_info_bits(rec,
+			dict_table_is_comp(table)));
 
 	n_fields = rec_offs_n_fields(offsets);
 
