@@ -166,8 +166,9 @@ public:
   virtual int cmp(const char *,const char *)=0;
   virtual int cmp_binary(const char *a,const char *b, uint32 max_length=~0L)
   { return memcmp(a,b,pack_length()); }
-  int cmp_offset(uint row_offset) { return cmp(ptr,ptr+row_offset); }
-  int cmp_binary_offset(uint row_offset)
+  virtual int cmp_offset(uint row_offset)
+  { return cmp(ptr,ptr+row_offset); }
+  virtual int cmp_binary_offset(uint row_offset)
   { return cmp_binary(ptr, ptr+row_offset); };
   virtual int key_cmp(const byte *a,const byte *b)
   { return cmp((char*) a,(char*) b); }
@@ -1327,6 +1328,8 @@ public:
   { return cmp_binary((char *) a, (char *) b); }
   int key_cmp(const byte *str, uint length);
   int cmp_offset(uint row_offset);
+  int cmp_binary_offset(uint row_offset)
+  { return cmp_offset(row_offset); }
   void get_key_image(char *buff, uint length, imagetype type);
   void set_key_image(char *buff, uint length)
   { Field_bit::store(buff, length, &my_charset_bin); }
