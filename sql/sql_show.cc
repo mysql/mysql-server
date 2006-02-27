@@ -247,7 +247,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Create user", "Server Admin",  "To create new users"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
-  {"Event","Server Admin","Creation, alteration, deletion and execution of events."},
+  {"Event","Server Admin","To create, alter, drop and execute events"},
   {"Execute", "Functions,Procedures", "To execute stored routines"},
   {"File", "File access on server",   "To read and write files on the server"},
   {"Grant option",  "Databases,Tables,Functions,Procedures", "To give to other users those privileges you possess"},
@@ -1654,7 +1654,7 @@ static int show_var_cmp(const void *var1, const void *var2)
 */
 static void shrink_var_array(DYNAMIC_ARRAY *array)
 {
-  int a,b;
+  uint a,b;
   SHOW_VAR *all= dynamic_element(array, 0, SHOW_VAR *);
 
   for (a= b= 0; b < array->elements; b++)
@@ -3775,7 +3775,7 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
       table->field[9]->set_notnull();
     }
 
-    if (is_sub_partitioned(part_info))
+    if (part_info->is_sub_partitioned())
     {
       /* Subpartition method */
       if (part_info->list_of_subpart_fields)
@@ -3940,7 +3940,7 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   if (et.load_from_row(thd->mem_root, event_table))
   {
-    my_error(ER_EVENT_CANNOT_LOAD_FROM_TABLE, MYF(0));
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -3954,8 +3954,16 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   sch_table->field[3]->store(et.definer.str, et.definer.length, scs);
   sch_table->field[4]->store(et.body.str, et.body.length, scs);
 
-  // [9] is SQL_MODE and is NULL for now, will be fixed later
-  sch_table->field[9]->set_null();
+  // [9] is SQL_MODE 
+  {
+    byte *sql_mode_str;
+    ulong sql_mode_len=0;
+    sql_mode_str=
+           sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
+                                                              &sql_mode_len);  
+    sch_table->field[9]->store((const char*)sql_mode_str, sql_mode_len, scs);
+  }
+  
   if (et.expression)
   {
     String show_str;
@@ -3968,6 +3976,7 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     if (event_reconstruct_interval_expression(&show_str, et.interval,
                                               et.expression))
       DBUG_RETURN(1);
+
     sch_table->field[7]->set_notnull();
     sch_table->field[7]->store(show_str.c_ptr(), show_str.length(), scs);
 
@@ -4802,7 +4811,7 @@ ST_FIELD_INFO events_fields_info[]=
   {"EXECUTE_AT", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Execute at"},
   {"INTERVAL_VALUE", 256, MYSQL_TYPE_STRING, 0, 1, "Interval value"},
   {"INTERVAL_FIELD", 18, MYSQL_TYPE_STRING, 0, 1, "Interval field"},
-  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"STARTS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Starts"},
   {"ENDS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Ends"},
   {"STATUS", 8, MYSQL_TYPE_STRING, 0, 0, "Status"},

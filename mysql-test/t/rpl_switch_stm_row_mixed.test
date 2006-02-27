@@ -1,0 +1,165 @@
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+connection master;
+--disable_warnings
+drop database if exists mysqltest1;
+create database mysqltest1;
+--enable_warnings
+use mysqltest1;
+
+show global variables like "binlog_format%";
+show session variables like "binlog_format%";
+select @@global.binlog_format, @@session.binlog_format;
+
+CREATE TABLE t1 (a varchar(100));
+
+prepare stmt1 from 'insert into t1 select concat(UUID(),?)';
+set @string="emergency";
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+insert into t1 values(concat("for",UUID()));
+insert into t1 select "yesterday";
+
+# verify that temp tables prevent a switch to SBR
+create temporary table tmp(a char(3));
+insert into tmp values("see");
+--error ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
+set binlog_format=statement;
+insert into t1 select * from tmp;
+drop temporary table tmp;
+
+# Now we go to SBR
+set binlog_format=statement;
+show global variables like "binlog_format%";
+show session variables like "binlog_format%";
+select @@global.binlog_format, @@session.binlog_format;
+set global binlog_format=statement;
+show global variables like "binlog_format%";
+show session variables like "binlog_format%";
+select @@global.binlog_format, @@session.binlog_format;
+
+prepare stmt1 from 'insert into t1 select ?';
+set @string="emergency";
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+insert into t1 values("for");
+insert into t1 select "yesterday";
+
+# test SET DEFAULT (=statement at this point of test)
+set binlog_format=default;
+select @@global.binlog_format, @@session.binlog_format;
+# due to cluster it's hard to set back to default
+--error ER_NO_DEFAULT
+set global binlog_format=default;
+select @@global.binlog_format, @@session.binlog_format;
+
+prepare stmt1 from 'insert into t1 select ?';
+set @string="emergency";
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+insert into t1 values("for");
+insert into t1 select "yesterday";
+
+# and now the mixed mode
+
+set binlog_format=mixed;
+select @@global.binlog_format, @@session.binlog_format;
+set global binlog_format=mixed;
+select @@global.binlog_format, @@session.binlog_format;
+
+prepare stmt1 from 'insert into t1 select concat(UUID(),?)';
+set @string="emergency";
+insert into t1 values("work");
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+insert into t1 values(concat("for",UUID()));
+insert into t1 select "yesterday";
+
+prepare stmt1 from 'insert into t1 select ?';
+insert into t1 values(concat(UUID(),"work"));
+execute stmt1 using @string;
+deallocate prepare stmt1;
+
+insert into t1 values(concat("for",UUID()));
+insert into t1 select "yesterday";
+
+# inside a stored procedure (inside a function or trigger won't
+# work)
+
+delimiter |;
+create procedure foo()
+begin
+insert into t1 values("work");
+insert into t1 values(concat("for",UUID()));
+insert into t1 select "yesterday";
+end|
+create procedure foo2()
+begin
+insert into t1 values(concat("emergency",UUID()));
+insert into t1 values("work");
+insert into t1 values(concat("for",UUID()));
+set session binlog_format=row; # accepted for stored procs
+insert into t1 values("more work");
+set session binlog_format=mixed;
+end|
+create function foo3() returns bigint unsigned
+begin
+  set session binlog_format=row; # rejected for stored funcs
+  insert into t1 values("alarm");
+  return 100;
+end|
+delimiter ;|
+call foo();
+call foo2();
+
+# test that can't SET in a stored function if not in row-based mode
+--error ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT
+select foo3();
+select * from t1 where a="alarm";
+
+# and now compare:
+
+show binlog events from 102;
+sync_slave_with_master;
+# as we're using UUID we don't SELECT but use "diff" like in rpl_row_UUID
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/rpl_row_UDF_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/rpl_row_UDF_slave.sql
+
+connection master;
+drop database mysqltest1;
+sync_slave_with_master;
+
+# Let's compare. Note: If they match test will pass, if they do not match
+# the test will show that the diff statement failed and not reject file
+# will be created. You will need to go to the mysql-test dir and diff
+# the files your self to see what is not matching
+
+#--exec diff $MYSQLTEST_VARDIR/tmp/rpl_row_UDF_master.sql $MYSQLTEST_VARDIR/tmp/rpl_row_UDF_slave.sql;

@@ -35,6 +35,7 @@
 #define EVEX_BODY_TOO_LONG      SP_BODY_TOO_LONG
 #define EVEX_BAD_PARAMS        -21
 #define EVEX_NOT_RUNNING       -22
+#define EVEX_MICROSECOND_UNSUP -23
 
 #define EVENT_EXEC_NO_MORE      (1L << 0)
 #define EVENT_NOT_USED          (1L << 1)
@@ -112,7 +113,6 @@ public:
   enum enum_event_status status;
   sp_head *sphead;
   ulong sql_mode;
-
   const uchar *body_begin;
 
   bool dropped;

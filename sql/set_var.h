@@ -826,6 +826,18 @@ public:
   bool update(THD *thd, set_var *var);
 };
 
+extern void fix_binlog_format_after_update(THD *thd, enum_var_type type);
+
+class sys_var_thd_binlog_format :public sys_var_thd_enum
+{
+public:
+  sys_var_thd_binlog_format(const char *name_arg, ulong SV::*offset_arg)
+    :sys_var_thd_enum(name_arg, offset_arg,
+                      &binlog_format_typelib,
+                      fix_binlog_format_after_update)
+  {};
+  bool is_readonly() const;
+};
 
 /****************************************************************************
   Classes for parsing of the SET command

@@ -152,6 +152,7 @@ typedef struct st_mi_isam_pack {
   uchar version;
 } MI_PACK;
 
+#define MAX_NONMAPPED_INSERTS 1000      
 
 typedef struct st_mi_isam_share {	/* Shared between opens */
   MI_STATE_INFO state;
@@ -211,6 +212,8 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   rw_lock_t *key_root_lock;
 #endif
   my_off_t mmaped_length;
+  uint     nonmmaped_inserts;           /* counter of writing in non-mmaped
+                                           area */
   rw_lock_t mmap_lock;
 } MYISAM_SHARE;
 

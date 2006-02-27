@@ -5266,7 +5266,7 @@ int Field_date::store(longlong nr, bool unsigned_val)
   }
 
   if (nr >= 19000000000000.0 && nr <= 99991231235959.0)
-    nr=floor(nr/1000000.0);			// Timestamp to date
+    nr= (longlong) floor(nr/1000000.0);         // Timestamp to date
 
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,

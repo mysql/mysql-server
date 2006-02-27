@@ -699,32 +699,34 @@ drop procedure into_test4|
 --disable_warnings
 drop procedure if exists into_outfile|
 --enable_warnings
-create procedure into_outfile(x char(16), y int)
+--replace_result $MYSQLTEST_VARDIR ..
+eval create procedure into_outfile(x char(16), y int)
 begin
   insert into test.t1 values (x, y);
-  select * into outfile "/tmp/spout" from test.t1;
+  select * into outfile "$MYSQLTEST_VARDIR/tmp/spout" from test.t1;
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
-system rm -f /tmp/spout|
+--system rm -f $MYSQLTEST_VARDIR/tmp/spout
 call into_outfile("ofile", 1)|
-system rm -f /tmp/spout|
+--system rm -f $MYSQLTEST_VARDIR/tmp/spout
 delete from t1|
 drop procedure into_outfile|
 
 --disable_warnings
 drop procedure if exists into_dumpfile|
 --enable_warnings
-create procedure into_dumpfile(x char(16), y int)
+--replace_result $MYSQLTEST_VARDIR ..
+eval create procedure into_dumpfile(x char(16), y int)
 begin
   insert into test.t1 values (x, y);
-  select * into dumpfile "/tmp/spdump" from test.t1 limit 1;
+  select * into dumpfile "$MYSQLTEST_VARDIR/tmp/spdump" from test.t1 limit 1;
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
-system rm -f /tmp/spdump|
+--system rm -f $MYSQLTEST_VARDIR/tmp/spdump
 call into_dumpfile("dfile", 1)|
-system rm -f /tmp/spdump|
+--system rm -f $MYSQLTEST_VARDIR/tmp/spdump
 delete from t1|
 drop procedure into_dumpfile|
 
@@ -1660,7 +1662,7 @@ drop function `foo`|
 # Implicit LOCK/UNLOCK TABLES for table access in functions
 #
 
---disable_warning
+--disable_warnings
 drop function if exists t1max|
 --enable_warnings
 create function t1max() returns int
@@ -1702,6 +1704,397 @@ select getcount(id) from t1 where data = 5|
 select * from t3|
 drop table t3|
 drop function getcount|
+
+
+# Test cases for different combinations of condition handlers in nested
+# begin-end blocks in stored procedures.
+#
+# Note that the standard specifies that the most specific handler should
+# be triggered even if it's an outer handler masked by a less specific
+# handler in an inner block.
+# Note also that '02000' is more specific than NOT FOUND; there might be
+# other '02xxx' states, even if we currently do not issue them in any
+# situation (e.g. '02001').
+#
+# The combinations we test are these:
+#
+#                                         Inner
+#              errcode      sqlstate     not found    sqlwarning   sqlexception
+#  Outer      +------------+------------+------------+------------+------------+
+#errcode      | h_ee (i)   | h_es (o)   | h_en (o)   | h_ew (o)   | h_ex (o)   |
+#sqlstate     | h_se (i)   | h_ss (i)   | h_sn (o)   | h_sw (o)   | h_sx (o)   |
+#not found    | h_ne (i)   | h_ns (i)   | h_nn (i)   |            |            |
+#sqlwarning   | h_we (i)   | h_ws (i)   |            | h_ww (i)   |            |
+#sqlexception | h_xe (i)   | h_xs (i)   |            |            | h_xx (i)   |
+#             +------------+---------------------------------------------------+
+#
+# (i) means that the inner handler is the one that should be invoked,
+# (o) means that the outer handler should be invoked.
+#
+# ('not found', 'sqlwarning' and 'sqlexception' are mutually exclusive, hence
+#  no tests for those combinations.)
+#
+
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists h_ee|
+drop procedure if exists h_es|
+drop procedure if exists h_en|
+drop procedure if exists h_ew|
+drop procedure if exists h_ex|
+drop procedure if exists h_se|
+drop procedure if exists h_ss|
+drop procedure if exists h_sn|
+drop procedure if exists h_sw|
+drop procedure if exists h_sx|
+drop procedure if exists h_ne|
+drop procedure if exists h_ns|
+drop procedure if exists h_nn|
+drop procedure if exists h_we|
+drop procedure if exists h_ws|
+drop procedure if exists h_ww|
+drop procedure if exists h_xe|
+drop procedure if exists h_xs|
+drop procedure if exists h_xx|
+--enable_warnings
+
+# smallint    - to get out of range warnings
+# primary key - to get constraint errors
+create table t3 (a smallint primary key)|
+
+insert into t3 (a) values (1)|
+
+create procedure h_ee()
+    deterministic
+begin
+  declare continue handler for 1062 -- ER_DUP_ENTRY
+    select 'Outer (bad)' as 'h_ee';
+
+  begin
+    declare continue handler for 1062 -- ER_DUP_ENTRY
+        select 'Inner (good)' as 'h_ee';
+
+    insert into t3 values (1);
+  end;
+end|
+
+create procedure h_es()
+    deterministic
+begin
+  declare continue handler for 1062 -- ER_DUP_ENTRY
+    select 'Outer (good)' as 'h_es';
+
+  begin
+    -- integrity constraint violation
+    declare continue handler for sqlstate '23000'
+      select 'Inner (bad)' as 'h_es';
+
+    insert into t3 values (1);
+  end;
+end|
+
+create procedure h_en()
+    deterministic
+begin
+  declare continue handler for 1329 -- ER_SP_FETCH_NO_DATA
+    select 'Outer (good)' as 'h_en';
+
+  begin
+    declare x int;
+    declare continue handler for sqlstate '02000' -- no data
+      select 'Inner (bad)' as 'h_en';
+
+    select a into x from t3 where a = 42;
+  end;
+end|
+
+create procedure h_ew()
+    deterministic
+begin
+  declare continue handler for 1264 -- ER_WARN_DATA_OUT_OF_RANGE
+    select 'Outer (good)' as 'h_ew';
+
+  begin
+    declare continue handler for sqlwarning
+      select 'Inner (bad)' as 'h_ew';
+
+    insert into t3 values (123456789012);
+  end;
+  delete from t3;
+  insert into t3 values (1);
+end|
+
+create procedure h_ex()
+    deterministic
+begin
+  declare continue handler for 1062 -- ER_DUP_ENTRY
+    select 'Outer (good)' as 'h_ex';
+
+  begin
+    declare continue handler for sqlexception
+      select 'Inner (bad)' as 'h_ex';
+
+    insert into t3 values (1);
+  end;
+end|
+
+create procedure h_se()
+    deterministic
+begin
+  -- integrity constraint violation
+  declare continue handler for sqlstate '23000' 
+    select 'Outer (bad)' as 'h_se';
+
+  begin
+    declare continue handler for 1062 -- ER_DUP_ENTRY
+      select 'Inner (good)' as 'h_se';
+
+    insert into t3 values (1);
+  end;
+end|
+
+create procedure h_ss()
+    deterministic
+begin
+  -- integrity constraint violation
+  declare continue handler for sqlstate '23000' 
+    select 'Outer (bad)' as 'h_ss';
+
+  begin
+    -- integrity constraint violation
+    declare continue handler for sqlstate '23000' 
+      select 'Inner (good)' as 'h_ss';
+
+    insert into t3 values (1);
+  end;
+end|
+
+create procedure h_sn()
+    deterministic
+begin
+  -- Note: '02000' is more specific than NOT FOUND ;
+  --       there might be other not found states 
+  declare continue handler for sqlstate '02000' -- no data
+    select 'Outer (good)' as 'h_sn';
+
+  begin
+    declare x int;
+    declare continue handler for not found
+      select 'Inner (bad)' as 'h_sn';
+
+    select a into x from t3 where a = 42;
+  end;
+end|
+
+create procedure h_sw()
+    deterministic
+begin
+  -- data exception - numeric value out of range
+  declare continue handler for sqlstate '22003'
+    select 'Outer (good)' as 'h_sw';
+
+  begin
+    declare continue handler for sqlwarning
+      select 'Inner (bad)' as 'h_sw';
+
+    insert into t3 values (123456789012);
+  end;
+  delete from t3;
+  insert into t3 values (1);
+end|
+
+create procedure h_sx()
+    deterministic
+begin
+  -- integrity constraint violation
+  declare continue handler for sqlstate '23000' 
+    select 'Outer (good)' as 'h_sx';
+
+  begin
+    declare continue handler for sqlexception
+      select 'Inner (bad)' as 'h_sx';
+
+    insert into t3 values (1);
+  end;
+end|
+
+create procedure h_ne()
+    deterministic
+begin
+  declare continue handler for not found
+    select 'Outer (bad)' as 'h_ne';
+
+  begin
+    declare x int;
+    declare continue handler for 1329 -- ER_SP_FETCH_NO_DATA
+      select 'Inner (good)' as 'h_ne';
+
+    select a into x from t3 where a = 42;
+  end;
+end|
+
+create procedure h_ns()
+    deterministic
+begin
+  declare continue handler for not found
+    select 'Outer (bad)' as 'h_ns';
+
+  begin
+    declare x int;
+    declare continue handler for sqlstate '02000' -- no data
+      select 'Inner (good)' as 'h_ns';
+
+    select a into x from t3 where a = 42;
+  end;
+end|
+
+create procedure h_nn()
+    deterministic
+begin
+  declare continue handler for not found
+    select 'Outer (bad)' as 'h_nn';
+
+  begin
+    declare x int;
+    declare continue handler for not found
+      select 'Inner (good)' as 'h_nn';
+
+    select a into x from t3 where a = 42;
+  end;
+end|
+
+create procedure h_we()
+    deterministic
+begin
+  declare continue handler for sqlwarning
+    select 'Outer (bad)' as 'h_we';
+
+  begin
+    declare continue handler for 1264 -- ER_WARN_DATA_OUT_OF_RANGE
+      select 'Inner (good)' as 'h_we';
+
+    insert into t3 values (123456789012);
+  end;
+  delete from t3;
+  insert into t3 values (1);
+end|
+
+create procedure h_ws()
+    deterministic
+begin
+  declare continue handler for sqlwarning
+    select 'Outer (bad)' as 'h_ws';
+
+  begin
+    -- data exception - numeric value out of range
+    declare continue handler for sqlstate '22003'
+      select 'Inner (good)' as 'h_ws';
+
+    insert into t3 values (123456789012);
+  end;
+  delete from t3;
+  insert into t3 values (1);
+end|
+
+create procedure h_ww()
+    deterministic
+begin
+  declare continue handler for sqlwarning
+    select 'Outer (bad)' as 'h_ww';
+
+  begin
+    declare continue handler for sqlwarning
+      select 'Inner (good)' as 'h_ww';
+
+    insert into t3 values (123456789012);
+  end;
+  delete from t3;
+  insert into t3 values (1);
+end|
+
+create procedure h_xe()
+    deterministic
+begin
+  declare continue handler for sqlexception
+    select 'Outer (bad)' as 'h_xe';
+
+  begin
+    declare continue handler for 1062 -- ER_DUP_ENTRY
+      select 'Inner (good)' as 'h_xe';
+
+    insert into t3 values (1);
+  end;
+end|
+
+create procedure h_xs()
+    deterministic
+begin
+  declare continue handler for sqlexception
+    select 'Outer (bad)' as 'h_xs';
+
+  begin
+    -- integrity constraint violation
+    declare continue handler for sqlstate '23000'
+      select 'Inner (good)' as 'h_xs';
+
+    insert into t3 values (1);
+  end;
+end|
+
+create procedure h_xx()
+    deterministic
+begin
+  declare continue handler for sqlexception
+    select 'Outer (bad)' as 'h_xx';
+
+  begin
+    declare continue handler for sqlexception
+      select 'Inner (good)' as 'h_xx';
+
+    insert into t3 values (1);
+  end;
+end|
+
+call h_ee()|
+call h_es()|
+call h_en()|
+call h_ew()|
+call h_ex()|
+call h_se()|
+call h_ss()|
+call h_sn()|
+call h_sw()|
+call h_sx()|
+call h_ne()|
+call h_ns()|
+call h_nn()|
+call h_we()|
+call h_ws()|
+call h_ww()|
+call h_xe()|
+call h_xs()|
+call h_xx()|
+
+drop table t3|
+drop procedure h_ee|
+drop procedure h_es|
+drop procedure h_en|
+drop procedure h_ew|
+drop procedure h_ex|
+drop procedure h_se|
+drop procedure h_ss|
+drop procedure h_sn|
+drop procedure h_sw|
+drop procedure h_sx|
+drop procedure h_ne|
+drop procedure h_ns|
+drop procedure h_nn|
+drop procedure h_we|
+drop procedure h_ws|
+drop procedure h_ww|
+drop procedure h_xe|
+drop procedure h_xs|
+drop procedure h_xx|
 
 
 #
@@ -4929,7 +5322,7 @@ drop procedure bug5967|
 #
 --disable_warnings
 drop procedure if exists bug13012|
---enable_warnings
+# Disable warnings also for BACKUP/RESTORE: they are deprecated.
 create procedure bug13012()
 BEGIN
   REPAIR TABLE t1;
@@ -4938,6 +5331,7 @@ BEGIN
   RESTORE TABLE t1 FROM '../tmp';
 END|
 call bug13012()|
+--enable_warnings
 drop procedure bug13012|
 create view v1 as select * from t1|
 create procedure bug13012()

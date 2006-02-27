@@ -1,0 +1,149 @@
+create database if not exists events_test;
+use events_test;
+set global event_scheduler=0;
+"Wait a bit to settle down"
+delete from mysql.event;
+set global event_scheduler= 1;
+set @old_sql_mode:=@@sql_mode;
+set sql_mode=ansi;
+select get_lock('test_bug16407', 60);
+get_lock('test_bug16407', 60)
+1
+create event e_16407 on schedule every 60 second do
+begin
+select get_lock('test_bug16407', 60);
+drop table "hashed_num";
+end|
+"Now if everything is fine the event has compiled and is locked
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	events_test	Query	#	NULL	show processlist
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('test_bug16407', 60)
+select release_lock('test_bug16407');
+release_lock('test_bug16407')
+1
+set global event_scheduler= 0;
+select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
+event_schema	event_name	sql_mode
+events_test	e_16407	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+"Let's check whether we change the sql_mode on ALTER EVENT"
+set sql_mode='traditional';
+alter event e_16407 do select 1;
+select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
+event_schema	event_name	sql_mode
+events_test	e_16407	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+drop event e_16407;
+"Another sql_mode test"
+set sql_mode="traditional";
+create table events_smode_test(ev_name char(10), a date) engine=myisam;
+"This should never insert something"
+create event ee_16407_2 on schedule every 60 second do
+begin
+select get_lock('ee_16407_2', 60);
+insert into events_test.events_smode_test values('ee_16407_2','1980-19-02');
+end|
+insert into events_smode_test values ('test','1980-19-02')|
+ERROR 22007: Incorrect date value: '1980-19-02' for column 'a' at row 1
+"This is ok"
+create event ee_16407_3 on schedule every 60 second do
+begin
+select get_lock('ee_16407_2', 60);
+insert into events_test.events_smode_test values ('ee_16407_3','1980-02-19');
+insert into events_test.events_smode_test values ('ee_16407_3','1980-02-29');
+end|
+set sql_mode=""|
+"This will insert rows but they will be truncated"
+create event ee_16407_4 on schedule every 60 second do
+begin
+select get_lock('ee_16407_2', 60);
+insert into events_test.events_smode_test values ('ee_16407_4','10-11-1956');
+end|
+select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
+event_schema	event_name	sql_mode
+events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+events_test	ee_16407_4	
+set sql_mode="ansi";
+select get_lock('ee_16407_2', 60);
+get_lock('ee_16407_2', 60)
+1
+set global event_scheduler= 1;
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	events_test	Query	#	NULL	show processlist
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('ee_16407_2', 60)
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('ee_16407_2', 60)
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('ee_16407_2', 60)
+select release_lock('ee_16407_2');
+release_lock('ee_16407_2')
+1
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	events_test	Query	#	NULL	show processlist
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
+set global event_scheduler= 0;
+select * from events_smode_test order by ev_name, a;
+ev_name	a
+ee_16407_3	1980-02-19
+ee_16407_3	1980-02-29
+ee_16407_4	0000-00-00
+"OK, last check before we drop them"
+select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
+event_schema	event_name	sql_mode
+events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+events_test	ee_16407_4	
+drop event ee_16407_2;
+drop event ee_16407_3;
+drop event ee_16407_4;
+"And now one last test regarding sql_mode and call of SP from an event"
+delete from events_smode_test;
+set sql_mode='traditional';
+create procedure ee_16407_5_pendant() begin insert into events_test.events_smode_test values('ee_16407_5','2001-02-29'); end|
+create procedure ee_16407_6_pendant() begin insert into events_test.events_smode_test values('ee_16407_6','2004-02-29'); end|
+create event ee_16407_5 on schedule every 60 second do
+begin
+select get_lock('ee_16407_5', 60);
+call events_test.ee_16407_5_pendant();
+end|
+create event ee_16407_6 on schedule every 60 second do
+begin
+select get_lock('ee_16407_5', 60);
+call events_test.ee_16407_6_pendant();
+end|
+set sql_mode='ansi';
+select get_lock('ee_16407_5', 60);
+get_lock('ee_16407_5', 60)
+1
+set global event_scheduler= 1;
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	events_test	Query	#	NULL	show processlist
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('ee_16407_5', 60)
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('ee_16407_5', 60)
+select release_lock('ee_16407_5');
+release_lock('ee_16407_5')
+1
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	events_test	Query	#	NULL	show processlist
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
+select * from events_smode_test order by ev_name, a;
+ev_name	a
+ee_16407_6	2004-02-29
+"And here we check one more time before we drop the events"
+select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
+event_schema	event_name	sql_mode
+events_test	ee_16407_5	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+events_test	ee_16407_6	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+drop event ee_16407_5;
+drop event ee_16407_6;
+drop procedure ee_16407_5_pendant;
+drop procedure ee_16407_6_pendant;
+set global event_scheduler= 0;
+drop table events_smode_test;
+set sql_mode=@old_sql_mode;
+drop database events_test;

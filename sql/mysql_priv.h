@@ -434,6 +434,7 @@ typedef struct st_sql_list {
   byte *first;
   byte **next;
 
+  st_sql_list() {}                              /* Remove gcc warning */
   inline void empty()
   {
     elements=0;
@@ -503,6 +504,8 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "protocol.h"
 #include "sql_plugin.h"
 #include "sql_udf.h"
+#include "sql_partition.h"
+
 class user_var_entry;
 class Security_context;
 enum enum_var_type
@@ -657,7 +660,7 @@ bool table_cache_init(void);
 void table_cache_free(void);
 bool table_def_init(void);
 void table_def_free(void);
-void assign_new_table_id(TABLE *table);
+void assign_new_table_id(TABLE_SHARE *share);
 uint cached_open_tables(void);
 uint cached_table_definitions(void);
 void kill_mysql(void);
@@ -1036,9 +1039,9 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
-void close_tables_for_reopen(THD *thd, TABLE_LIST *tables);
+void close_tables_for_reopen(THD *thd, TABLE_LIST **tables);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               uint offset_to_list,
+                               st_table_list *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name);
 TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list);
@@ -1128,7 +1131,7 @@ inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
                                              const char *db_name,
                                              const char *table_name)
 {
-  return find_table_in_list(table, offsetof(TABLE_LIST, next_global),
+  return find_table_in_list(table, &TABLE_LIST::next_global,
                             db_name, table_name);
 }
 
@@ -1136,7 +1139,7 @@ inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
                                             const char *db_name,
                                             const char *table_name)
 {
-  return find_table_in_list(table, offsetof(TABLE_LIST, next_local),
+  return find_table_in_list(table, &TABLE_LIST::next_local,
                             db_name, table_name);
 }
 
@@ -1286,12 +1289,8 @@ extern ulong what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
-extern const char *opt_binlog_format;
 #ifdef HAVE_ROW_BASED_REPLICATION
-extern my_bool binlog_row_based;
 extern ulong opt_binlog_rows_event_max_size;
-#else
-extern const my_bool binlog_row_based;
 #endif
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;
