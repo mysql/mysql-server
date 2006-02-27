@@ -542,3 +542,5 @@ a
 select extractvalue('<a>a<b>B</b></a>','a|/b');
 extractvalue('<a>a<b>B</b></a>','a|/b')
 a
+select extractvalue('<a>A</a>','/<a>');
+ERROR HY000: XPATH syntax error: '>'
