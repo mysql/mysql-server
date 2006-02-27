@@ -485,7 +485,8 @@ page_copy_rec_list_end_no_locks(
 		page_cur_move_to_next(&cur1);
 	}
 
-	ut_a((ibool)!!page_is_comp(new_page) == index->table->comp);
+	ut_a((ibool)!!page_is_comp(new_page)
+		== dict_table_is_comp(index->table));
 	ut_a(page_is_comp(new_page) == page_is_comp(page));
 	ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
 		(page_is_comp(new_page)
@@ -690,7 +691,7 @@ page_parse_delete_rec_list(
 		return(ptr);
 	}
 
-	ut_ad(!!page_is_comp(page) == index->table->comp);
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	if (type == MLOG_LIST_END_DELETE
 			|| type == MLOG_COMP_LIST_END_DELETE) {
@@ -854,7 +855,7 @@ page_delete_rec_list_start(
 	byte		type;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_ad(!!page_is_comp(page) == index->table->comp);
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	if (page_is_comp(page)) {
 		type = MLOG_COMP_LIST_START_DELETE;
@@ -1350,7 +1351,7 @@ page_print_list(
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_a((ibool)!!page_is_comp(page) == index->table->comp);
+	ut_a((ibool)!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	fprintf(stderr,
 		"--------------------------------\n"
@@ -1744,7 +1745,7 @@ page_validate(
 	ulint*		offsets		= NULL;
 	ulint*		old_offsets	= NULL;
 
-	if ((ibool)!!comp != index->table->comp) {
+	if ((ibool)!!comp != dict_table_is_comp(index->table)) {
 		fputs("InnoDB: 'compact format' flag mismatch\n", stderr);
 		goto func_exit2;
 	}

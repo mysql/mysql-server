@@ -437,12 +437,12 @@ row_mysql_convert_row_to_innobase(
 		}
 
 		row_mysql_store_col_in_innobase_format(dfield,
-					prebuilt->ins_upd_rec_buff
-						+ templ->mysql_col_offset,
-					TRUE, /* MySQL row format data */
-					mysql_rec + templ->mysql_col_offset,
-					templ->mysql_col_len,
-					prebuilt->table->comp);
+			prebuilt->ins_upd_rec_buff
+			+ templ->mysql_col_offset,
+			TRUE, /* MySQL row format data */
+			mysql_rec + templ->mysql_col_offset,
+			templ->mysql_col_len,
+			dict_table_is_comp(prebuilt->table));
 next_column:
 		;
 	}
