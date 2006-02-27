@@ -410,6 +410,8 @@ page_zip_compress(
 		goto zlib_error;
 	}
 
+	ut_ad(!c_stream.avail_in);
+
 	/* TODO: do not write to page_zip->data until deflateEnd() */
 	page_zip_set_n_relocated(page_zip, 0);
 	page_zip_dir_encode(page, page_zip, recs);
@@ -444,6 +446,8 @@ page_zip_compress(
 					goto zlib_error;
 				}
 			}
+			ut_ad(!c_stream.avail_in);
+			ut_ad(c_stream.next_in == rec - REC_N_NEW_EXTRA_BYTES);
 
 			/* Compress the data bytes. */
 
@@ -479,6 +483,7 @@ page_zip_compress(
 					}
 				    }
 
+				    ut_ad(!c_stream.avail_in);
 				    ut_ad(c_stream.next_in == src);
 
 				    memcpy(storage - (DATA_TRX_ID_LEN
@@ -505,6 +510,7 @@ page_zip_compress(
 					goto zlib_error;
 				    }
 
+				    ut_ad(!c_stream.avail_in);
 				    ut_ad(c_stream.next_in == src);
 
 				    /* Reserve space for the data at
@@ -522,7 +528,9 @@ page_zip_compress(
 						-= BTR_EXTERN_FIELD_REF_SIZE;
 				    externs -= BTR_EXTERN_FIELD_REF_SIZE;
 
-				    ut_ad(externs > c_stream.next_in);
+				    ut_ad(externs - page_zip->data
+					> c_stream.next_out
+					+ c_stream.avail_out - buf);
 
 				    /* Copy the BLOB pointer */
 				    memcpy(externs, c_stream.next_in,
@@ -544,6 +552,7 @@ page_zip_compress(
 					goto zlib_error;
 				}
 			}
+			ut_ad(!c_stream.avail_in);
 		}
 	} else {
 		/* This is a node pointer page. */
@@ -567,6 +576,7 @@ page_zip_compress(
 					goto zlib_error;
 				}
 			}
+			ut_ad(!c_stream.avail_in);
 
 			/* Compress the data bytes, except node_ptr. */
 			c_stream.next_in = rec;
@@ -579,6 +589,8 @@ page_zip_compress(
 				goto zlib_error;
 			}
 
+			ut_ad(!c_stream.avail_in);
+
 			memcpy(storage - REC_NODE_PTR_SIZE
 					* (rec_get_heap_no_new(rec) - 1),
 					c_stream.next_in, REC_NODE_PTR_SIZE);
@@ -586,14 +598,18 @@ page_zip_compress(
 		}
 	}
 
-	ut_ad(page + page_header_get_field((page_t*) page, PAGE_HEAP_TOP)
-			== c_stream.next_in);
 	/* Finish the compression. */
 	ut_ad(!c_stream.avail_in);
+	/* Compress any trailing garbage, in case the last record was
+	allocated from an originally longer space on the free list. */
+	c_stream.avail_in = page_header_get_field(
+				(page_t*) page, PAGE_HEAP_TOP)
+				- (c_stream.next_in - page);
+	ut_a(c_stream.avail_in <= UNIV_PAGE_SIZE - PAGE_ZIP_START - PAGE_DIR);
 
 	err = deflate(&c_stream, Z_FINISH);
 
-	if (err != Z_STREAM_END) {
+	if (UNIV_UNLIKELY(err != Z_STREAM_END)) {
 zlib_error:
 		deflateEnd(&c_stream);
 		mem_heap_free(heap);
@@ -603,6 +619,8 @@ zlib_error:
 	err = deflateEnd(&c_stream);
 	ut_a(err == Z_OK);
 
+	ut_ad(buf + c_stream.total_out == c_stream.next_out);
+
 	page_zip->m_end = page_zip->m_start = PAGE_DATA + c_stream.total_out;
 	page_zip->n_blobs = n_blobs;
 	/* Copy the page header */
@@ -610,7 +628,7 @@ zlib_error:
 	/* Copy the compressed data */
 	memcpy(page_zip->data + PAGE_DATA, buf, c_stream.total_out);
 	/* Zero out the area reserved for the modification log */
-	memset(page_zip->data + PAGE_DATA + c_stream.total_out, 0,
+	memset(page_zip->data + page_zip->m_start, 0,
 		c_stream.avail_out + PAGE_ZIP_DIR_SLOT_SIZE);
 	mem_heap_free(heap);
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
@@ -721,21 +739,24 @@ page_zip_fields_decode(
 		ulint	len;
 
 		if (UNIV_UNLIKELY(val & 0x80)) {
+			/* fixed length > 62 bytes */
 			val = (val & 0x7f) << 7 | *b++;
-		}
-
-		len = val >> 1;
-
-		switch (len) {
-		case 0x7e:
+			len = val >> 1;
+			mtype = DATA_FIXBINARY;
+		} else if (UNIV_UNLIKELY(val >= 126)) {
+			/* variable length with max > 255 bytes */
 			len = 0x7fff;
-			/* fall through */
-		case 0:
 			mtype = DATA_BINARY;
-			break;
-		default:
+		} else if (val <= 1) {
+			/* variable length with max <= 255 bytes */
+			len = 0;
+			mtype = DATA_BINARY;
+		} else {
+			/* fixed length < 62 bytes */
+			len = val >> 1;
 			mtype = DATA_FIXBINARY;
 		}
+
 		dict_mem_table_add_col(table, "DUMMY", mtype,
 				val & 1 ? DATA_NOT_NULL : 0, len, 0);
 		dict_index_add_col(index,
@@ -1274,17 +1295,6 @@ page_zip_decompress(
 
 	page_zip->n_blobs = 0;
 
-	if (UNIV_UNLIKELY(!n_dense)) {
-		d_stream.avail_out = 0;
-		err = inflate(&d_stream, Z_FINISH);
-
-		if (err == Z_STREAM_END) {
-			goto zlib_error;
-		}
-
-		goto zlib_done;
-	}
-
 	while (n_dense--) {
 		byte* const	last	= d_stream.next_out;
 		rec_t*		rec	= *recsc++;
@@ -1312,10 +1322,8 @@ page_zip_decompress(
 
 		ut_ad(d_stream.avail_out < UNIV_PAGE_SIZE
 			      - PAGE_ZIP_START - PAGE_DIR);
-		err = inflate(&d_stream, Z_NO_FLUSH);
+		err = inflate(&d_stream, Z_SYNC_FLUSH);
 		switch (err) {
-		case Z_OK:
-			break;
 		case Z_STREAM_END:
 			/* Apparently, n_dense has grown
 			since the time the page was last compressed. */
@@ -1324,6 +1332,7 @@ page_zip_decompress(
 				goto zlib_error;
 			}
 			goto zlib_done;
+		case Z_OK:
 		case Z_BUF_ERROR:
 			if (!d_stream.avail_out) {
 				break;
@@ -1368,10 +1377,8 @@ page_zip_decompress(
 
 					d_stream.avail_out = dst
 						- d_stream.next_out;
-					err = inflate(&d_stream, Z_NO_FLUSH);
+					err = inflate(&d_stream, Z_SYNC_FLUSH);
 					switch (err) {
-					case Z_OK:
-						break;
 					case Z_STREAM_END:
 						if (!n_dense) {
 							/* This was the last
@@ -1379,6 +1386,7 @@ page_zip_decompress(
 							goto zlib_done;
 						}
 						goto zlib_error;
+					case Z_OK:
 					case Z_BUF_ERROR:
 						if (!d_stream.avail_out) {
 							break;
@@ -1390,8 +1398,6 @@ page_zip_decompress(
 
 					ut_ad(d_stream.next_out == dst);
 
-					d_stream.avail_out -= DATA_TRX_ID_LEN
-							+ DATA_ROLL_PTR_LEN;
 					d_stream.next_out += DATA_TRX_ID_LEN
 							+ DATA_ROLL_PTR_LEN;
 				} else if (rec_offs_nth_extern(offsets, i)) {
@@ -1402,10 +1408,8 @@ page_zip_decompress(
 
 					d_stream.avail_out = dst
 						- d_stream.next_out;
-					err = inflate(&d_stream, Z_NO_FLUSH);
+					err = inflate(&d_stream, Z_SYNC_FLUSH);
 					switch (err) {
-					case Z_OK:
-						break;
 					case Z_STREAM_END:
 						if (!n_dense) {
 							/* This was the last
@@ -1413,6 +1417,7 @@ page_zip_decompress(
 							goto zlib_done;
 						}
 						goto zlib_error;
+					case Z_OK:
 					case Z_BUF_ERROR:
 						if (!d_stream.avail_out) {
 							break;
@@ -1447,16 +1452,15 @@ page_zip_decompress(
 			d_stream.avail_out = rec_get_end(rec, offsets)
 					- d_stream.next_out;
 
-			err = inflate(&d_stream, Z_NO_FLUSH);
+			err = inflate(&d_stream, Z_SYNC_FLUSH);
 			switch (err) {
-			case Z_OK:
-				break;
 			case Z_STREAM_END:
 				if (!n_dense) {
 					/* This was the last record. */
 					goto zlib_done;
 				}
 				goto zlib_error;
+			case Z_OK:
 			case Z_BUF_ERROR:
 				if (!d_stream.avail_out) {
 					break;
@@ -1474,16 +1478,15 @@ page_zip_decompress(
 			d_stream.avail_out = rec_offs_data_size(offsets)
 					- REC_NODE_PTR_SIZE;
 
-			err = inflate(&d_stream, Z_NO_FLUSH);
+			err = inflate(&d_stream, Z_SYNC_FLUSH);
 			switch (err) {
-			case Z_OK:
-				break;
 			case Z_STREAM_END:
 				if (!n_dense) {
 					/* This was the last record. */
 					goto zlib_done;
 				}
 				goto zlib_error;
+			case Z_OK:
 			case Z_BUF_ERROR:
 				if (!d_stream.avail_out) {
 					break;
@@ -1499,14 +1502,34 @@ page_zip_decompress(
 		ut_ad(d_stream.next_out == rec_get_end(rec, offsets));
 	}
 
-	/* We should have run out of data in the loop. */
+	/* Decompress any trailing garbage, in case the last record was
+	allocated from an originally longer space on the free list. */
+	d_stream.avail_out = page_header_get_field(
+				(page_t*) page, PAGE_HEAP_TOP)
+				- (d_stream.next_out - page);
+	if (UNIV_UNLIKELY(d_stream.avail_out > UNIV_PAGE_SIZE
+			      - PAGE_ZIP_START - PAGE_DIR)) {
+
+		goto zlib_error;
+	}
+
+	err = inflate(&d_stream, Z_FINISH);
+
+	if (err != Z_STREAM_END) {
 zlib_error:
-	inflateEnd(&d_stream);
-	goto err_exit;
+		inflateEnd(&d_stream);
+		goto err_exit;
+	}
+
+	/* Note that d_stream.avail_out > 0 may hold here
+	if the modification log is nonempty. */
 
 zlib_done:
 	err = inflateEnd(&d_stream);
 	ut_a(err == Z_OK);
+
+	ut_ad(page_zip->data + PAGE_DATA + d_stream.total_in
+					== d_stream.next_in);
 
 	/* Clear the unused heap space on the uncompressed page. */
 	memset(d_stream.next_out, 0, page_dir_get_nth_slot(page,
