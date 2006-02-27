@@ -261,7 +261,7 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
     my_free((gptr) table, MYF(0));
     DBUG_RETURN(error);
   }
-  assign_new_table_id(share);
+  assign_new_table_id(table_share);
   if (!table->record[1] || table->record[1] == table->record[0])
   {
     table->record[1]= alloc_root(&table->mem_root,

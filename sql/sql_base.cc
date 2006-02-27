@@ -2414,11 +2414,17 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 
     share - Pointer to table share structure
 
+  DESCRIPTION
+
+    We are intentionally not checking that share->mutex is locked
+    since this function should only be called when opening a table
+    share and before it is entered into the table_def_cache (meaning
+    that it cannot be fetched by another thread, even accidentally).
+
   PRE-CONDITION(S)
 
     share is non-NULL
     The LOCK_open mutex is locked
-    The share->mutex is locked
 
   POST-CONDITION(S)
 
@@ -2438,7 +2444,6 @@ void assign_new_table_id(TABLE_SHARE *share)
   /* Preconditions */
   DBUG_ASSERT(share != NULL);
   safe_mutex_assert_owner(&LOCK_open);
-  safe_mutex_assert_owner(&share->mutex);
 
   ulong tid= ++last_table_id;                   /* get next id */
   /*
