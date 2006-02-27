@@ -660,7 +660,7 @@ bool table_cache_init(void);
 void table_cache_free(void);
 bool table_def_init(void);
 void table_def_free(void);
-void assign_new_table_id(TABLE *table);
+void assign_new_table_id(TABLE_SHARE *share);
 uint cached_open_tables(void);
 uint cached_table_definitions(void);
 void kill_mysql(void);
