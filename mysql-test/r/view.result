@@ -2529,3 +2529,13 @@ Warnings:
 Warning	1052	Column 'x' in group statement is ambiguous
 DROP VIEW v1;
 DROP TABLE t1;
+drop table if exists t1; 
+drop view if exists v1; 
+create table t1 (id int); 
+create view v1 as select * from t1; 
+drop table t1; 
+show create view v1; 
+drop view v1;
+//
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `test`.`t1`.`id` AS `id` from `t1`
