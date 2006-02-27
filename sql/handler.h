@@ -231,6 +231,7 @@ struct xid_t {
   long bqual_length;
   char data[XIDDATASIZE];  // not \0-terminated !
 
+  xid_t() {}                                /* Remove gcc warning */  
   bool eq(struct xid_t *xid)
   { return eq(xid->gtrid_length, xid->bqual_length, xid->data); }
   bool eq(long g, long b, const char *d)
@@ -463,6 +464,7 @@ typedef class Item COND;
 
 typedef struct st_ha_check_opt
 {
+  st_ha_check_opt() {}                        /* Remove gcc warning */
   ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */

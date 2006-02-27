@@ -104,6 +104,7 @@ typedef int (*Read_record_func)(struct st_join_table *tab);
 Next_select_func setup_end_select_func(JOIN *join);
 
 typedef struct st_join_table {
+  st_join_table() {}                          /* Remove gcc warning */
   TABLE		*table;
   KEYUSE	*keyuse;			/* pointer to first used key */
   SQL_SELECT	*select;
@@ -287,7 +288,6 @@ public:
   {
     init(thd_arg, fields_arg, select_options_arg, result_arg);
   }
-
 
   void init(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)

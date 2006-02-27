@@ -1,3 +1,5 @@
+# This test should work in embedded server after we fix mysqltest
+-- source include/not_embedded.inc
 #
 # Testing the MySQL command line client(mysql)
 #
