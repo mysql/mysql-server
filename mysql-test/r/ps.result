@@ -859,6 +859,20 @@ count(*)
 5
 deallocate prepare stmt;
 drop table t1;
+prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
+execute stmt;
+insert into t1 (a) values (repeat('a', 20));
+select length(a) from t1;
+length(a)
+10
+drop table t1;
+execute stmt;
+insert into t1 (a) values (repeat('a', 20));
+select length(a) from t1;
+length(a)
+10
+drop table t1;
+deallocate prepare stmt;
 create table t1 (id int);
 prepare ins_call from "insert into t1 (id) values (1)";
 execute ins_call;
