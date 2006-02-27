@@ -1,6 +1,10 @@
 # Embedded server doesn't support binlog
 -- source include/not_embedded.inc
 
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
 # Check if a partly-completed INSERT SELECT in a MyISAM table goes into the
 # binlog
 
