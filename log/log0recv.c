@@ -769,7 +769,8 @@ recv_parse_or_apply_log_rec_body(
 		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
 				type == MLOG_COMP_REC_INSERT, &index))) {
 			ut_a(!page
-			  || (ibool)!!page_is_comp(page)==index->table->comp);
+				|| (ibool)!!page_is_comp(page)
+				== dict_table_is_comp(index->table));
 			ptr = page_cur_parse_insert_rec(FALSE, ptr, end_ptr,
 							index, page, mtr);
 		}
@@ -778,7 +779,8 @@ recv_parse_or_apply_log_rec_body(
 		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
 			type == MLOG_COMP_REC_CLUST_DELETE_MARK, &index))) {
 			ut_a(!page
-			  || (ibool)!!page_is_comp(page)==index->table->comp);
+				|| (ibool)!!page_is_comp(page)
+				== dict_table_is_comp(index->table));
 			ptr = btr_cur_parse_del_mark_set_clust_rec(ptr,
 						end_ptr, index, page);
 		}
@@ -799,7 +801,8 @@ recv_parse_or_apply_log_rec_body(
 		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
 			type == MLOG_COMP_REC_UPDATE_IN_PLACE, &index))) {
 			ut_a(!page
-			  || (ibool)!!page_is_comp(page)==index->table->comp);
+				|| (ibool)!!page_is_comp(page)
+				== dict_table_is_comp(index->table));
 			ptr = btr_cur_parse_update_in_place(ptr, end_ptr,
 							page, index);
 		}
@@ -810,7 +813,8 @@ recv_parse_or_apply_log_rec_body(
 			type == MLOG_COMP_LIST_END_DELETE
 			|| type == MLOG_COMP_LIST_START_DELETE, &index))) {
 			ut_a(!page
-			  || (ibool)!!page_is_comp(page)==index->table->comp);
+				|| (ibool)!!page_is_comp(page)
+				== dict_table_is_comp(index->table));
 			ptr = page_parse_delete_rec_list(type, ptr, end_ptr,
 							index, page, mtr);
 		}
@@ -819,7 +823,8 @@ recv_parse_or_apply_log_rec_body(
 		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
 			type == MLOG_COMP_LIST_END_COPY_CREATED, &index))) {
 			ut_a(!page
-			  || (ibool)!!page_is_comp(page)==index->table->comp);
+				|| (ibool)!!page_is_comp(page)
+				== dict_table_is_comp(index->table));
 			ptr = page_parse_copy_rec_list_to_created_page(ptr,
 						end_ptr, index, page, mtr);
 		}
@@ -828,7 +833,8 @@ recv_parse_or_apply_log_rec_body(
 		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
 				type == MLOG_COMP_PAGE_REORGANIZE, &index))) {
 			ut_a(!page
-			  || (ibool)!!page_is_comp(page)==index->table->comp);
+				|| (ibool)!!page_is_comp(page)
+				== dict_table_is_comp(index->table));
 			ptr = btr_parse_page_reorganize(ptr, end_ptr, index,
 								page, mtr);
 		}
@@ -862,7 +868,8 @@ recv_parse_or_apply_log_rec_body(
 		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
 				type == MLOG_COMP_REC_DELETE, &index))) {
 			ut_a(!page
-			  || (ibool)!!page_is_comp(page)==index->table->comp);
+				|| (ibool)!!page_is_comp(page)
+				== dict_table_is_comp(index->table));
 			ptr = page_cur_parse_delete_rec(ptr, end_ptr,
 							index, page, mtr);
 		}

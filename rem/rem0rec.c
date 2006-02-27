@@ -164,7 +164,7 @@ rec_init_offsets(
 
 	rec_offs_make_valid(rec, index, offsets);
 
-	if (UNIV_LIKELY(index->table->comp)) {
+	if (dict_table_is_comp(index->table)) {
 		const byte*	nulls;
 		const byte*	lens;
 		dict_field_t*	field;
@@ -321,7 +321,7 @@ rec_get_offsets_func(
 	ut_ad(index);
 	ut_ad(heap);
 
-	if (UNIV_LIKELY(index->table->comp)) {
+	if (dict_table_is_comp(index->table)) {
 		switch (UNIV_EXPECT(rec_get_status(rec),
 				REC_STATUS_ORDINARY)) {
 		case REC_STATUS_ORDINARY:
@@ -446,7 +446,7 @@ rec_get_converted_size_new(
 	ulint		i;
 	ulint		n_fields;
 	ut_ad(index && dtuple);
-	ut_ad(index->table->comp);
+	ut_ad(dict_table_is_comp(index->table));
 
 	switch (dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK) {
 	case REC_STATUS_ORDINARY:
@@ -592,7 +592,7 @@ rec_set_nth_field_extern_bit_new(
 	ulint		n_fields;
 	ulint		null_mask	= 1;
 	ut_ad(rec && index);
-	ut_ad(index->table->comp);
+	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
 
 	n_fields = dict_index_get_n_fields(index);
@@ -674,7 +674,7 @@ rec_set_field_extern_bits(
 {
 	ulint	i;
 
-	if (UNIV_LIKELY(index->table->comp)) {
+	if (dict_table_is_comp(index->table)) {
 		for (i = 0; i < n_fields; i++) {
 			rec_set_nth_field_extern_bit_new(rec, index, vec[i],
 								TRUE, mtr);
@@ -841,8 +841,7 @@ rec_convert_dtuple_to_rec_new(
 	const ulint	n_fields	= dtuple_get_n_fields(dtuple);
 	const ulint	status		= dtuple_get_info_bits(dtuple)
 					& REC_NEW_STATUS_MASK;
-	ut_ad(index->table->comp);
-
+	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(n_fields > 0);
 
 	/* Try to ensure that the memset() between the for() loops
@@ -1002,7 +1001,7 @@ rec_convert_dtuple_to_rec(
 	ut_ad(dtuple_validate(dtuple));
 	ut_ad(dtuple_check_typed(dtuple));
 
-	if (UNIV_LIKELY(index->table->comp)) {
+	if (dict_table_is_comp(index->table)) {
 		rec = rec_convert_dtuple_to_rec_new(buf, index, dtuple);
 	} else {
 		rec = rec_convert_dtuple_to_rec_old(buf, dtuple);
@@ -1054,7 +1053,7 @@ rec_copy_prefix_to_dtuple(
 	ut_ad(dtuple_check_typed(tuple));
 
 	dtuple_set_info_bits(tuple,
-			rec_get_info_bits(rec, index->table->comp));
+		rec_get_info_bits(rec, dict_table_is_comp(index->table)));
 
 	for (i = 0; i < n_fields; i++) {
 
@@ -1142,7 +1141,7 @@ rec_copy_prefix_to_buf(
 
 	UNIV_PREFETCH_RW(*buf);
 
-	if (UNIV_UNLIKELY(!index->table->comp)) {
+	if (!dict_table_is_comp(index->table)) {
 		ut_ad(rec_validate_old(rec));
 		return(rec_copy_prefix_to_buf_old(rec, n_fields,
 			rec_get_field_start_offs(rec, n_fields),
@@ -1470,7 +1469,7 @@ rec_print(
 {
 	ut_ad(index);
 
-	if (!index->table->comp) {
+	if (!dict_table_is_comp(index->table)) {
 		rec_print_old(file, rec);
 		return;
 	} else {

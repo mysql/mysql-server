@@ -58,7 +58,7 @@ dict_get_first_table_name_in_db(
 
 	sys_tables = dict_table_get_low("SYS_TABLES");
 	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
-	ut_a(!sys_tables->comp);
+	ut_a(!dict_table_is_comp(sys_tables));
 
 	tuple = dtuple_create(heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
@@ -94,7 +94,7 @@ loop:
 		return(NULL);
 	}
 
-	if (!rec_get_deleted_flag(rec, sys_tables->comp)) {
+	if (!rec_get_deleted_flag(rec, 0)) {
 
 		/* We found one */
 
@@ -169,7 +169,7 @@ loop:
 
 	field = rec_get_nth_field_old(rec, 0, &len);
 
-	if (!rec_get_deleted_flag(rec, sys_tables->comp)) {
+	if (!rec_get_deleted_flag(rec, 0)) {
 
 		/* We found one */
 
@@ -235,7 +235,7 @@ dict_check_tablespaces_and_store_max_id(
 
 	sys_tables = dict_table_get_low("SYS_TABLES");
 	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
-	ut_a(!sys_tables->comp);
+	ut_a(!dict_table_is_comp(sys_tables));
 
 	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
 								TRUE, &mtr);
@@ -264,7 +264,7 @@ loop:
 
 	field = rec_get_nth_field_old(rec, 0, &len);
 
-	if (!rec_get_deleted_flag(rec, sys_tables->comp)) {
+	if (!rec_get_deleted_flag(rec, 0)) {
 
 		/* We found one */
 
@@ -343,7 +343,7 @@ dict_load_columns(
 
 	sys_columns = dict_table_get_low("SYS_COLUMNS");
 	sys_index = UT_LIST_GET_FIRST(sys_columns->indexes);
-	ut_a(!sys_columns->comp);
+	ut_a(!dict_table_is_comp(sys_columns));
 
 	tuple = dtuple_create(heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
@@ -362,7 +362,7 @@ dict_load_columns(
 
 		ut_a(btr_pcur_is_on_user_rec(&pcur, &mtr));
 
-		ut_a(!rec_get_deleted_flag(rec, sys_columns->comp));
+		ut_a(!rec_get_deleted_flag(rec, 0));
 
 		field = rec_get_nth_field_old(rec, 0, &len);
 		ut_ad(len == 8);
@@ -476,7 +476,7 @@ dict_load_fields(
 
 	sys_fields = dict_table_get_low("SYS_FIELDS");
 	sys_index = UT_LIST_GET_FIRST(sys_fields->indexes);
-	ut_a(!sys_fields->comp);
+	ut_a(!dict_table_is_comp(sys_fields));
 
 	tuple = dtuple_create(heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
@@ -494,7 +494,7 @@ dict_load_fields(
 		rec = btr_pcur_get_rec(&pcur);
 
 		ut_a(btr_pcur_is_on_user_rec(&pcur, &mtr));
-		if (rec_get_deleted_flag(rec, sys_fields->comp)) {
+		if (rec_get_deleted_flag(rec, 0)) {
 			dict_load_report_deleted_index(table->name, i);
 		}
 
@@ -589,7 +589,7 @@ dict_load_indexes(
 
 	sys_indexes = dict_table_get_low("SYS_INDEXES");
 	sys_index = UT_LIST_GET_FIRST(sys_indexes->indexes);
-	ut_a(!sys_indexes->comp);
+	ut_a(!dict_table_is_comp(sys_indexes));
 
 	tuple = dtuple_create(heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
@@ -617,7 +617,7 @@ dict_load_indexes(
 			break;
 		}
 
-		if (rec_get_deleted_flag(rec, table->comp)) {
+		if (rec_get_deleted_flag(rec, dict_table_is_comp(table))) {
 			dict_load_report_deleted_index(table->name,
 				ULINT_UNDEFINED);
 
@@ -739,6 +739,7 @@ dict_load_table(
 	ulint		len;
 	ulint		space;
 	ulint		n_cols;
+	ulint		flags;
 	ulint		err;
 	mtr_t		mtr;
 
@@ -752,7 +753,7 @@ dict_load_table(
 
 	sys_tables = dict_table_get_low("SYS_TABLES");
 	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
-	ut_a(!sys_tables->comp);
+	ut_a(!dict_table_is_comp(sys_tables));
 
 	tuple = dtuple_create(heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
@@ -765,7 +766,7 @@ dict_load_table(
 	rec = btr_pcur_get_rec(&pcur);
 
 	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)
-			|| rec_get_deleted_flag(rec, sys_tables->comp)) {
+			|| rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
 
 		btr_pcur_close(&pcur);
@@ -827,10 +828,15 @@ dict_load_table(
 	field = rec_get_nth_field_old(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
 
+	flags = 0;
+
 	/* The high-order bit of N_COLS is the "compact format" flag. */
-	table = dict_mem_table_create(name, space,
-					n_cols & ~0x80000000UL,
-					!!(n_cols & 0x80000000UL));
+	if (n_cols & 0x80000000UL) {
+		flags |= DICT_TF_COMPACT;
+	}
+
+	table = dict_mem_table_create(name, space, n_cols & ~0x80000000UL,
+		flags);
 
 	table->ibd_file_missing = ibd_file_missing;
 
@@ -938,7 +944,7 @@ dict_load_table_on_id(
 	sys_tables = dict_sys->sys_tables;
 	sys_table_ids = dict_table_get_next_index(
 				dict_table_get_first_index(sys_tables));
-	ut_a(!sys_tables->comp);
+	ut_a(!dict_table_is_comp(sys_tables));
 	heap = mem_heap_create(256);
 
 	tuple  = dtuple_create(heap, 1);
@@ -955,7 +961,7 @@ dict_load_table_on_id(
 	rec = btr_pcur_get_rec(&pcur);
 
 	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)
-			|| rec_get_deleted_flag(rec, sys_tables->comp)) {
+			|| rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
 
 		btr_pcur_close(&pcur);
@@ -1052,7 +1058,7 @@ dict_load_foreign_cols(
 
 	sys_foreign_cols = dict_table_get_low("SYS_FOREIGN_COLS");
 	sys_index = UT_LIST_GET_FIRST(sys_foreign_cols->indexes);
-	ut_a(!sys_foreign_cols->comp);
+	ut_a(!dict_table_is_comp(sys_foreign_cols));
 
 	tuple = dtuple_create(foreign->heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
@@ -1067,7 +1073,7 @@ dict_load_foreign_cols(
 		rec = btr_pcur_get_rec(&pcur);
 
 		ut_a(btr_pcur_is_on_user_rec(&pcur, &mtr));
-		ut_a(!rec_get_deleted_flag(rec, sys_foreign_cols->comp));
+		ut_a(!rec_get_deleted_flag(rec, 0));
 
 		field = rec_get_nth_field_old(rec, 0, &len);
 		ut_a(len == ut_strlen(id));
@@ -1125,7 +1131,7 @@ dict_load_foreign(
 
 	sys_foreign = dict_table_get_low("SYS_FOREIGN");
 	sys_index = UT_LIST_GET_FIRST(sys_foreign->indexes);
-	ut_a(!sys_foreign->comp);
+	ut_a(!dict_table_is_comp(sys_foreign));
 
 	tuple = dtuple_create(heap2, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
@@ -1138,7 +1144,7 @@ dict_load_foreign(
 	rec = btr_pcur_get_rec(&pcur);
 
 	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)
-			|| rec_get_deleted_flag(rec, sys_foreign->comp)) {
+			|| rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
 
 		fprintf(stderr,
@@ -1260,7 +1266,7 @@ dict_load_foreigns(
 		return(DB_ERROR);
 	}
 
-	ut_a(!sys_foreign->comp);
+	ut_a(!dict_table_is_comp(sys_foreign));
 	mtr_start(&mtr);
 
 	/* Get the secondary index based on FOR_NAME from table
@@ -1315,7 +1321,7 @@ loop:
 		goto next_rec;
 	}
 
-	if (rec_get_deleted_flag(rec, sys_foreign->comp)) {
+	if (rec_get_deleted_flag(rec, 0)) {
 
 		goto next_rec;
 	}

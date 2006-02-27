@@ -1306,7 +1306,8 @@ row_upd_sec_index_entry(
 		delete marked if we return after a lock wait in
 		row_ins_index_entry below */
 
-		if (!rec_get_deleted_flag(rec, index->table->comp)) {
+		if (!rec_get_deleted_flag(rec,
+				dict_table_is_comp(index->table))) {
 			err = btr_cur_del_mark_set_sec_rec(0, btr_cur, TRUE,
 								thr, &mtr);
 			if (err == DB_SUCCESS && check_ref) {
@@ -1506,7 +1507,7 @@ row_upd_clust_rec(
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
-					index->table->comp));
+			dict_table_is_comp(index->table)));
 
 	/* Try optimistic updating of the record, keeping changes within
 	the page; we do not check locks because we assume the x-lock on the
@@ -1543,7 +1544,7 @@ row_upd_clust_rec(
 	ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
 
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
-					index->table->comp));
+			dict_table_is_comp(index->table)));
 
 	err = btr_cur_pessimistic_update(BTR_NO_LOCKING_FLAG, btr_cur,
 					&big_rec, node->update,
@@ -2037,7 +2038,7 @@ row_upd_in_place_in_select(
 	row_upd_eval_new_vals(node->update);
 
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
-					btr_cur->index->table->comp));
+			dict_table_is_comp(btr_cur->index->table)));
 
 	ut_ad(node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE);
 	ut_ad(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE);

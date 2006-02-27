@@ -455,7 +455,7 @@ trx_undo_page_report_modify(
 	/* Store first some general parameters to the undo log */
 
 	if (update) {
-		if (rec_get_deleted_flag(rec, table->comp)) {
+		if (rec_get_deleted_flag(rec, dict_table_is_comp(table))) {
 			type_cmpl = TRX_UNDO_UPD_DEL_REC;
 		} else {
 			type_cmpl = TRX_UNDO_UPD_EXIST_REC;
@@ -480,7 +480,7 @@ trx_undo_page_report_modify(
 	/*----------------------------------------*/
 	/* Store the state of the info bits */
 
-	bits = rec_get_info_bits(rec, table->comp);
+	bits = rec_get_info_bits(rec, dict_table_is_comp(table));
 	mach_write_to_1(ptr, bits);
 	ptr += 1;
 

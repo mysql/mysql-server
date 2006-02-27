@@ -3691,7 +3691,7 @@ dict_tree_find_index_low(
 			&& UNIV_UNLIKELY(table->type != DICT_TABLE_ORDINARY)) {
 
 		/* Get the mix id of the record */
-		ut_a(!table->comp);
+		ut_a(!dict_table_is_comp(table));
 
 		mix_id = mach_dulint_read_compressed(
 			rec_get_nth_field_old(rec, table->mix_len, &len));
@@ -3787,7 +3787,7 @@ dict_is_mixed_table_rec(
 	byte*	mix_id_field;
 	ulint	len;
 
-	ut_ad(!table->comp);
+	ut_ad(!dict_table_is_comp(table));
 
 	mix_id_field = rec_get_nth_field_old(rec,
 					table->mix_len, &len);
@@ -3850,7 +3850,7 @@ dict_tree_build_node_ptr(
 		on non-leaf levels we remove the last field, which
 		contains the page number of the child page */
 
-		ut_a(!ind->table->comp);
+		ut_a(!dict_table_is_comp(ind->table));
 		n_unique = rec_get_n_fields_old(rec);
 
 		if (level > 0) {
@@ -3913,7 +3913,7 @@ dict_tree_copy_rec_order_prefix(
 	index = dict_tree_find_index_low(tree, rec);
 
 	if (UNIV_UNLIKELY(tree->type & DICT_UNIVERSAL)) {
-		ut_a(!index->table->comp);
+		ut_a(!dict_table_is_comp(index->table));
 		n = rec_get_n_fields_old(rec);
 	} else {
 		n = dict_index_get_n_unique_in_tree(index);
@@ -3940,7 +3940,8 @@ dict_tree_build_data_tuple(
 
 	ind = dict_tree_find_index_low(tree, rec);
 
-	ut_ad(ind->table->comp || n_fields <= rec_get_n_fields_old(rec));
+	ut_ad(dict_table_is_comp(ind->table)
+		|| n_fields <= rec_get_n_fields_old(rec));
 
 	tuple = dtuple_create(heap, n_fields);
 
@@ -3964,7 +3965,7 @@ dict_index_calc_min_rec_len(
 	ulint	sum	= 0;
 	ulint	i;
 
-	if (UNIV_LIKELY(index->table->comp)) {
+	if (dict_table_is_comp(index->table)) {
 		ulint nullable = 0;
 		sum = REC_N_NEW_EXTRA_BYTES;
 		for (i = 0; i < dict_index_get_n_fields(index); i++) {

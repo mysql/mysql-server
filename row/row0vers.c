@@ -123,7 +123,7 @@ row_vers_impl_x_locked_off_kernel(
 
 	comp = page_rec_is_comp(rec);
 	ut_ad(index->table == clust_index->table);
-	ut_ad(!!comp == index->table->comp);
+	ut_ad(!!comp == dict_table_is_comp(index->table));
 	ut_ad(!comp == !page_rec_is_comp(clust_rec));
 
 	/* We look up if some earlier version, which was modified by the trx_id
@@ -323,7 +323,7 @@ row_vers_old_has_index_entry(
 	clust_index = dict_table_get_first_index(index->table);
 
 	comp = page_rec_is_comp(rec);
-	ut_ad(!index->table->comp == !comp);
+	ut_ad(!dict_table_is_comp(index->table) == !comp);
 	heap = mem_heap_create(1024);
 	clust_offsets = rec_get_offsets(rec, clust_index, NULL,
 					ULINT_UNDEFINED, &heap);
