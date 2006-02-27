@@ -6685,16 +6685,6 @@ int Update_rows_log_event::do_before_row_operations(TABLE *table)
 {
   DBUG_ASSERT(m_memory == NULL);
 
-  if ((table->file->table_flags() & HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS) &&
-      table->s->primary_key < MAX_KEY)
-  {
-    /*
-      We don't need to allocate any memory for m_after_image and
-      m_key since they are not used.
-    */
-    return 0;
-  }
-
   int error= 0;
 
   if (table->s->keys > 0)
