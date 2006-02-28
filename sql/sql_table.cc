@@ -5200,8 +5200,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   */
   to->file->ha_set_all_bits_in_write_set();
   from->file->ha_retrieve_all_cols();
-  if (from->part_info)
-    bitmap_set_all(&(from->part_info->used_partitions));
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
   if (ignore ||
       handle_duplicates == DUP_REPLACE)
