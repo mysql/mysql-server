@@ -130,6 +130,34 @@
 #define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
 #define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
 #define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
+/*
+  HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
+  supported at all.
+  HA_FAST_CHANGE_PARTITION means that optimised variants of the changes
+  exists but they are not necessarily done online.
+
+  HA_ONLINE_DOUBLE_WRITE means that the handler supports writing to both
+  the new partition and to the old partitions when updating through the
+  old partitioning schema while performing a change of the partitioning.
+  This means that we can support updating of the table while performing
+  the copy phase of the change. For no lock at all also a double write
+  from new to old must exist and this is not required when this flag is
+  set.
+  This is actually removed even before it was introduced the first time.
+  The new idea is that handlers will handle the lock level already in
+  store_lock for ALTER TABLE partitions.
+
+  HA_PARTITION_ONE_PHASE is a flag that can be set by handlers that take
+  care of changing the partitions online and in one phase. Thus all phases
+  needed to handle the change are implemented inside the storage engine.
+  The storage engine must also support auto-discovery since the frm file
+  is changed as part of the change and this change must be controlled by
+  the storage engine. A typical engine to support this is NDB (through
+  WL #2498).
+*/
+#define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 12)
+#define HA_FAST_CHANGE_PARTITION                (1L << 13)
+#define HA_PARTITION_ONE_PHASE                  (1L << 14)
 
 /*
   Index scan will not return records in rowid order. Not guaranteed to be
