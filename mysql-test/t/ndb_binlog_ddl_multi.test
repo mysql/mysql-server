@@ -35,11 +35,13 @@ create table t1 (a int primary key) engine=ndb;
 create table t2 (a int primary key) engine=ndb;
 --replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
+--replace_regex /table_id: [0-9]+/table_id: #/
 --eval show binlog events from $binlog_start
 
 --connection server1
 --replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
+--replace_regex /table_id: [0-9]+/table_id: #/
 --eval show binlog events from $binlog_start
 
 
@@ -55,6 +57,7 @@ alter table t2 add column (b int);
 --connections server1
 --replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
+--replace_regex /table_id: [0-9]+/table_id: #/
 --eval show binlog events from $binlog_start
 
 
@@ -75,6 +78,7 @@ drop table mysqltest.t1;
 --connection server1
 --replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
+--replace_regex /table_id: [0-9]+/table_id: #/
 --eval show binlog events from $binlog_start
 
 
@@ -93,6 +97,7 @@ create table t1 (a int primary key) engine=ndb;
 --connection server2
 --replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
+--replace_regex /table_id: [0-9]+/table_id: #/
 --eval show binlog events from $binlog_start
 
 --connection server2
@@ -146,4 +151,5 @@ drop table t1;
 --connection server2
 --replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
+--replace_regex /table_id: [0-9]+/table_id: #/
 --eval show binlog events from $binlog_start

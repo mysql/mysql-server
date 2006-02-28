@@ -1706,15 +1706,20 @@ static int open_binlog_index(THD *thd, TABLE_LIST *tables,
 
 /*
   Insert one row in the cluster_replication.binlog_index
-
-  declared friend in handler.h to be able to call write_row directly
-  so that this insert is not replicated
 */
 int ndb_add_binlog_index(THD *thd, void *_row)
 {
   Binlog_index_row &row= *(Binlog_index_row *) _row;
   int error= 0;
   bool need_reopen;
+
+  /*
+    Turn of binlogging to prevent the table changes to be written to
+    the binary log.
+  */
+  ulong saved_options= thd->options;
+  thd->options&= ~(OPTION_BIN_LOG);
+
   for ( ; ; ) /* loop for need_reopen */
   {
     if (!binlog_index && open_binlog_index(thd, &binlog_tables, &binlog_index))
@@ -1750,7 +1755,7 @@ int ndb_add_binlog_index(THD *thd, void *_row)
   binlog_index->field[6]->store(row.n_schemaops);
 
   int r;
-  if ((r= binlog_index->file->write_row(binlog_index->record[0])))
+  if ((r= binlog_index->file->ha_write_row(binlog_index->record[0])))
   {
     sql_print_error("NDB Binlog: Writing row to binlog_index: %d", r);
     error= -1;
@@ -1759,10 +1764,12 @@ int ndb_add_binlog_index(THD *thd, void *_row)
 
   mysql_unlock_tables(thd, thd->lock);
   thd->lock= 0;
+  thd->options= saved_options;
   return 0;
 add_binlog_index_err:
   close_thread_tables(thd);
   binlog_index= 0;
+  thd->options= saved_options;
   return error;
 }
 
