@@ -1976,8 +1976,17 @@ static int my_xpath_parse_AndExpr(MY_XPATH *xpath)
 */
 static int my_xpath_parse_ne(MY_XPATH *xpath)
 { 
-  return my_xpath_parse_term(xpath, MY_XPATH_LEX_EXCL) &&
-         my_xpath_parse_term(xpath, MY_XPATH_LEX_EQ);
+  MY_XPATH_LEX prevtok= xpath->prevtok;
+  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_EXCL))
+    return 0;
+  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_EQ))
+  {
+    /* Unget the exclamation mark */
+    xpath->lasttok= xpath->prevtok;
+    xpath->prevtok= prevtok;
+    return 0;
+  }
+  return 1;
 }
 static int my_xpath_parse_EqualityOperator(MY_XPATH *xpath)
 {
