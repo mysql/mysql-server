@@ -28,3 +28,11 @@ partitions 3
 partition x2 values less than (10),
 partition x3 values less than (20));
 drop table t1;
+CREATE TABLE t1 (id INT) ENGINE=NDB
+PARTITION BY LIST(id)
+(PARTITION p0 VALUES IN (2, 4),
+PARTITION p1 VALUES IN (42, 142));
+INSERT INTO t1 VALUES (2);
+UPDATE t1 SET id=5 WHERE id=2;
+ERROR HY000: Table has no partition for value 5
+DROP TABLE t1;
