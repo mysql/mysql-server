@@ -439,13 +439,10 @@ create database TESTDB;
 create table t2(a int);
 create temporary table t1 as select * from mysql.user;
 delete from mysql.user where host='localhost';
-INSERT INTO mysql.user VALUES
-('%','mysqltest_1',password('password'),'N','N','N','N','N','N',
-'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N',
-'','','','',0,0,0,0);
-INSERT INTO mysql.db VALUES
-('%','TESTDB','mysqltest_1','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','N','Y','Y','Y','
-Y','N');
+INSERT INTO mysql.user (host, user, password) VALUES
+('%','mysqltest_1',password('password'));
+INSERT INTO mysql.db (host, db, user, select_priv) VALUES
+('%','TESTDB','mysqltest_1','Y');
 FLUSH PRIVILEGES;
 
 connect (con1,localhost,mysqltest_1,password,TESTDB);
