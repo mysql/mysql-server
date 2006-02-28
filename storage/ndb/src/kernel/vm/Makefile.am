@@ -20,7 +20,7 @@ libkernel_a_SOURCES = \
         Mutex.cpp SafeCounter.cpp \
         Rope.cpp \
 	ndbd_malloc.cpp ndbd_malloc_impl.cpp \
-        Pool.cpp WOPool.cpp
+        Pool.cpp WOPool.cpp RWPool.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
@@ -53,9 +53,9 @@ ndbd_malloc_impl_test_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/dbug/libdbug.a \
   $(top_builddir)/strings/libmystrings.a
 
-bench_pool_SOURCES = bench_pool.cpp ndbd_malloc.cpp \
-                     SuperPool.cpp NdbdSuperPool.cpp ndbd_malloc_impl.cpp
+bench_pool_SOURCES = bench_pool.cpp ../SimBlockList.o
 bench_pool_LDFLAGS = @ndb_bin_am_ldflags@ \
+  libkernel.a ../error/liberror.a \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
   $(top_builddir)/mysys/libmysys.a \
   $(top_builddir)/dbug/libdbug.a \

@@ -2032,3 +2032,6 @@ SimulatedBlock::create_distr_key(Uint32 tableId,
   }
   return dstPos;
 }
+
+CArray<KeyDescriptor> g_key_descriptor_pool;
+

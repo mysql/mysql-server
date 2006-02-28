@@ -304,9 +304,10 @@ inline
 void
 RecordPool<T, P>::release(Uint32 i)
 {
-  Ptr<T> p;
-  getPtr(p, i);
-  m_pool.release(p);
+  Ptr<void> ptr;
+  ptr.i = i;
+  ptr.p = m_pool.getPtr(i);
+  m_pool.release(ptr);
 }
 
 template <typename T, typename P>
