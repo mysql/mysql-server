@@ -1476,6 +1476,9 @@ opt_ev_status: /* empty */ { $$= 0; }
       ;
 
 ev_starts: /* empty */
+          {
+            Lex->et->init_starts(YYTHD, new Item_func_now_local());
+          }
         | STARTS_SYM expr
           {
             LEX *lex= Lex;

@@ -38,9 +38,9 @@ extern  ulong thread_created;
 extern const char *my_localhost;
 extern pthread_attr_t connection_attrib;
 
-pthread_mutex_t LOCK_event_arrays,  // mutex for when working with the queue
-                LOCK_workers_count, // mutex for when inc/dec uint workers_count
-                LOCK_evex_running;  // mutes for managing bool evex_is_running
+pthread_mutex_t LOCK_event_arrays,              // mutex for when working with the queue
+                LOCK_workers_count,             // mutex for when inc/dec uint workers_count
+                LOCK_evex_running;              // mutes for managing bool evex_is_running
 
 
 bool evex_is_running= false;
@@ -135,7 +135,7 @@ evex_check_system_tables()
   bool not_used;
   Open_tables_state backup;
 
-  // thd is 0x0 during boot of the server. Later it's !=0x0
+  /* thd is 0x0 during boot of the server. Later it's !=0x0 */
   if (!thd)
     return;
 
@@ -151,7 +151,7 @@ evex_check_system_tables()
   else
   {
     table_check_intact(tables.table, MYSQL_DB_FIELD_COUNT, mysql_db_table_fields,
-                       &mysql_db_table_last_check,ER_CANNOT_LOAD_FROM_TABLE);                           
+                       &mysql_db_table_last_check,ER_CANNOT_LOAD_FROM_TABLE);
     close_thread_tables(thd);
   }
 
@@ -182,7 +182,7 @@ evex_check_system_tables()
 
    SYNOPSIS
      init_events()
-          
+
    NOTES
     Inits the mutexes used by the scheduler. Done at server start.
 */
@@ -194,7 +194,7 @@ init_events()
   DBUG_ENTER("init_events");
 
   DBUG_PRINT("info",("Starting events main thread"));
-  
+
   evex_check_system_tables();
 
   evex_init_mutexes();
@@ -206,7 +206,7 @@ init_events()
   if (event_executor_running_global_var)
   {
 #ifndef DBUG_FAULTY_THR
-    //TODO Andrey: Change the error code returned!
+    /* TODO Andrey: Change the error code returned! */
     if (pthread_create(&th, &connection_attrib, event_executor_main,(void*)NULL))
       DBUG_RETURN(ER_SLAVE_THREAD);
 #else
@@ -223,7 +223,7 @@ init_events()
 
    SYNOPSIS
      shutdown_events()
-          
+
    NOTES
     Destroys the mutexes.
 */
@@ -232,10 +232,10 @@ void
 shutdown_events()
 {
   DBUG_ENTER("shutdown_events");
-  
+
   if (evex_mutexes_initted)
   {
-    evex_mutexes_initted= FALSE;  
+    evex_mutexes_initted= FALSE;
     VOID(pthread_mutex_lock(&LOCK_evex_running));
     VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
@@ -253,11 +253,11 @@ shutdown_events()
    SYNOPSIS
      init_event_thread()
        thd - the THD of the thread. Has to be allocated by the caller.
-          
+
    NOTES
       1. The host of the thead is my_localhost
       2. thd->net is initted with NULL - no communication.
-  
+
   Returns
      0  - OK
     -1  - Error
@@ -304,7 +304,7 @@ init_event_thread(THD* thd)
 /*
   This function waits till the time next event in the queue should be 
   executed.
-  
+
   Returns
     WAIT_STATUS_READY          There is an event to be executed right now
     WAIT_STATUS_EMPTY_QUEUE    No events or the last event was dropped.
@@ -339,14 +339,14 @@ executor_wait_till_next_event_exec(THD *thd)
     if (et->dropped)
       et->drop(thd);
     delete et;
-    evex_queue_delete_element(&EVEX_EQ_NAME, 1);// 1 is top
+    evex_queue_delete_element(&EVEX_EQ_NAME, 0);// 0 is top, internally 1
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
     sql_print_information("Event found disabled, dropping.");
     DBUG_RETURN(1);
   }
-       
+
   DBUG_PRINT("evex main thread",("computing time to sleep till next exec"));
-  // set the internal clock of thd
+  /* set the internal clock of thd */
   thd->end_time();
   my_tz_UTC->gmt_sec_to_TIME(&time_now, thd->query_start());
   t2sleep= evex_time_diff(&et->execute_at, &time_now);
@@ -387,8 +387,8 @@ executor_wait_till_next_event_exec(THD *thd)
 
    SYNOPSIS
      event_executor_main() 
-       arg - unused
-          
+       arg  unused
+
    NOTES
       1. The host of the thead is my_localhost
       2. thd->net is initted with NULL - no communication.
@@ -404,14 +404,13 @@ event_executor_main(void *arg)
   TIME time_now;
 
   DBUG_ENTER("event_executor_main");
-  DBUG_PRINT("event_executor_main", ("EVEX thread started"));    
+  DBUG_PRINT("event_executor_main", ("EVEX thread started"));
 
 
-  // init memory root
+  /* init memory root */
   init_alloc_root(&evex_mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
-  
 
-  // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
+  /* needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff*/
   my_thread_init();
 
   if (sizeof(my_time_t) != sizeof(time_t))
@@ -422,14 +421,14 @@ event_executor_main(void *arg)
     goto err_no_thd;
   }
   
-  //TODO Andrey: Check for NULL
-  if (!(thd = new THD)) // note that contructor of THD uses DBUG_ !
+  /* note that contructor of THD uses DBUG_ ! */
+  if (!(thd = new THD))                         
   {
     sql_print_error("SCHEDULER: Cannot create THD for the main thread.");
     goto err_no_thd;
   }
-  thd->thread_stack = (char*)&thd; // remember where our stack is
-  
+  thd->thread_stack = (char*)&thd;              // remember where our stack is
+
   pthread_detach_this_thread();
 
   if (init_event_thread(thd))
@@ -472,7 +471,7 @@ event_executor_main(void *arg)
   {
     TIME time_now;
     event_timed *et;
-    
+
     cnt++;
     DBUG_PRINT("info", ("EVEX External Loop %d thd->k", cnt));
 
@@ -488,7 +487,7 @@ event_executor_main(void *arg)
       my_sleep(1000000);// sleep 1s
       continue;
     }
-    
+
 restart_ticking:
     switch (executor_wait_till_next_event_exec(thd)) {
     case WAIT_STATUS_READY:                     // time to execute the event on top
@@ -498,7 +497,7 @@ restart_ticking:
       DBUG_PRINT("evex main thread",("no more events"));
       continue;
       break;
-    case WAIT_STATUS_NEW_TOP_EVENT:            // new event on top in the queue
+    case WAIT_STATUS_NEW_TOP_EVENT:             // new event on top in the queue
       DBUG_PRINT("evex main thread",("restart ticking"));
       goto restart_ticking;
     case WAIT_STATUS_STOP_EXECUTOR:
@@ -523,8 +522,7 @@ restart_ticking:
     et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
     DBUG_PRINT("evex main thread",("got event from the queue"));
       
-    if (et->execute_at.year > 1969 &&
-        my_time_compare(&time_now, &et->execute_at) == -1)
+    if (!et->execute_at_null && my_time_compare(&time_now,&et->execute_at) == -1)
     {
       DBUG_PRINT("evex main thread",("still not the time for execution"));
       VOID(pthread_mutex_unlock(&LOCK_event_arrays));
@@ -571,8 +569,11 @@ restart_ticking:
 #else
       event_executor_worker((void *) et);
 #endif
-      if ((et->execute_at.year && !et->expression) ||
-           TIME_to_ulonglong_datetime(&et->execute_at) == 0)
+      /*
+        1. For one-time event : year is > 0 and expression is 0
+        2. For recurring, expression is != -=> check execute_at_null in this case
+      */
+      if ((et->execute_at.year && !et->expression) || et->execute_at_null)
          et->flags |= EVENT_EXEC_NO_MORE;
 
       if ((et->flags & EVENT_EXEC_NO_MORE) || et->status == MYSQL_EVENT_DISABLED)
@@ -582,10 +583,10 @@ restart_ticking:
     }
     DBUG_PRINT("evex main thread",("unlocking"));
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
-  }// while
+  }/* while */
 finish:
 
-  // First manifest that this thread does not work and then destroy
+  /* First manifest that this thread does not work and then destroy */
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   evex_is_running= false;
   evex_main_thread_id= 0;
@@ -609,7 +610,7 @@ finish:
       break;
     }
     VOID(pthread_mutex_unlock(&LOCK_workers_count));
-    my_sleep(1000000);// 1s    
+    my_sleep(1000000);// 1s
   }
 
   /*
@@ -625,9 +626,9 @@ finish:
     delete et;
   }
   VOID(pthread_mutex_unlock(&LOCK_event_arrays));
-  // ... then we can thrash the whole queue at once
+  /* ... then we can thrash the whole queue at once */
   evex_queue_destroy(&EVEX_EQ_NAME);
-  
+
   thd->proc_info = "Clearing";
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because we are weird
@@ -655,7 +656,7 @@ err_no_thd:
   my_thread_end();
   pthread_exit(0);
 #endif
-  DBUG_RETURN(0);// Can't return anything here
+  DBUG_RETURN(0);                               // Can't return anything here
 }
 
 
@@ -665,7 +666,7 @@ err_no_thd:
 
    SYNOPSIS
      event_executor_worker()
-       arg - the event_timed object to be processed
+       arg  The event_timed object to be processed
 */
 
 pthread_handler_t
@@ -682,12 +683,12 @@ event_executor_worker(void *event_void)
 #ifndef DBUG_FAULTY_THR
   my_thread_init();
 
-  if (!(thd = new THD)) // note that contructor of THD uses DBUG_ !
+  if (!(thd = new THD)) /* note that contructor of THD uses DBUG_ ! */
   {
     sql_print_error("SCHEDULER: Cannot create a THD structure in an worker.");
     goto err_no_thd;
   }
-  thd->thread_stack = (char*)&thd; // remember where our stack is
+  thd->thread_stack = (char*)&thd;              // remember where our stack is
   thd->mem_root= &worker_mem_root;
 
   pthread_detach_this_thread();
@@ -697,7 +698,7 @@ event_executor_worker(void *event_void)
 
   thd->init_for_queries();
 
-  // make this thread visible it has no vio -> show processlist needs this flag
+  /* make this thread visible it has no vio -> show processlist needs this flag */
   thd->system_thread= 1;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -747,7 +748,7 @@ err:
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because we are weird
   THD_CHECK_SENTRY(thd);
-  
+
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   THD_CHECK_SENTRY(thd);
   delete thd;
@@ -778,9 +779,9 @@ err_no_thd:
        thd - Thread context. Used for memory allocation in some cases.
      
    RETURNS
-     0  - OK
-    !0  - Error
-    
+     0  OK
+    !0  Error
+
    NOTES
      Reports the error to the console
 */
@@ -793,7 +794,7 @@ evex_load_events_from_db(THD *thd)
   MYSQL_LOCK *lock;
   int ret= -1;
   uint count= 0;
-  
+
   DBUG_ENTER("evex_load_events_from_db");  
 
   if ((ret= evex_open_event_table(thd, TL_READ, &table)))
@@ -828,7 +829,7 @@ evex_load_events_from_db(THD *thd)
       delete et;
       continue;
     }
-    
+
     DBUG_PRINT("evex_load_events_from_db",
             ("Event %s loaded from row. Time to compile", et->name.str));
     
@@ -844,8 +845,8 @@ evex_load_events_from_db(THD *thd)
     default:
       break;
     }
-    
-    // let's find when to be executed  
+
+    /* let's find when to be executed */
     if (et->compute_next_execution_time())
     {
       sql_print_error("SCHEDULER: Error while computing execution time of %s.%s."
@@ -866,8 +867,9 @@ evex_load_events_from_db(THD *thd)
 end:
   VOID(pthread_mutex_unlock(&LOCK_event_arrays));
   end_read_record(&read_record_info);
-
-  thd->version--;  // Force close to free memory
+  
+  /* Force close to free memory */
+  thd->version--;  
 
   close_thread_tables(thd);
   if (!ret)
@@ -887,15 +889,15 @@ end:
      event_executor_worker()
        thd - Thread context (unused)
        car - the new value
-   
+
    Returns
-     0 - OK (always)
+     0  OK (always)
 */
 
 bool
 sys_var_event_executor::update(THD *thd, set_var *var)
 {
-  // here start the thread if not running.
+  /* here start the thread if not running. */
   DBUG_ENTER("sys_var_event_executor::update");
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   *value= var->save_result.ulong_value;
@@ -927,12 +929,12 @@ static sql_print_xxx_func sql_print_xxx_handlers[3] =
   Prints the stack of infos, warnings, errors from thd to
   the console so it can be fetched by the logs-into-tables and
   checked later.
-  
+
   Synopsis
     evex_print_warnings
       thd    - thread used during the execution of the event
       et     - the event itself
-  
+
   Returns
     0 - OK (always)   
 
@@ -940,19 +942,20 @@ static sql_print_xxx_func sql_print_xxx_handlers[3] =
 
 bool
 evex_print_warnings(THD *thd, event_timed *et)
-{  
+{
   MYSQL_ERROR *err;
   DBUG_ENTER("evex_show_warnings");
   char msg_buf[1024];
   char prefix_buf[512];
   String prefix(prefix_buf, sizeof(prefix_buf), system_charset_info);
   prefix.length(0);
-  
+
   List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
   while ((err= it++))
   {
     String err_msg(msg_buf, sizeof(msg_buf), system_charset_info);
-    err_msg.length(0);// set it to 0 or we start adding at the end
+    /* set it to 0 or we start adding at the end. That's the trick ;) */
+    err_msg.length(0);
     if (!prefix.length())
     {
       prefix.append("SCHEDULER: [");
@@ -966,7 +969,7 @@ evex_print_warnings(THD *thd, event_timed *et)
       append_identifier(thd,&prefix, et->name.str, et->name.length);
       prefix.append("] ", 2);
     }
-    
+
     err_msg.append(prefix);
     err_msg.append(err->msg, strlen(err->msg), system_charset_info);
     err_msg.append("]");
