@@ -16,27 +16,32 @@
 
 #include "Pool.hpp"
 
-struct WOPage
+struct RWPage
 {
   Uint32 m_type_id;
-  Uint32 m_ref_count;
-  Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS - 2];
+  Uint16 m_first_free;
+  Uint16 m_ref_count;
+  Uint32 m_next_page;
+  Uint32 m_prev_page;
+  Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS - 4];
 };
 
 /**
- * Write Once Pool
+ * Read Write  Pool
  */
-struct WOPool
+struct RWPool
 {
   Record_info m_record_info;
-  WOPage* m_memroot;
-  WOPage* m_current_page;
+  RWPage* m_memroot;
+  RWPage* m_current_page;
   Pool_context m_ctx;
+  Uint32 m_first_free_page;
   Uint32 m_current_page_no;
   Uint16 m_current_pos;
+  Uint16 m_current_first_free;
   Uint16 m_current_ref_count;
 public:
-  WOPool();
+  RWPool();
   
   void init(const Record_info& ri, const Pool_context& pc);
   bool seize(Ptr<void>&);
@@ -44,67 +49,17 @@ public:
   void * getPtr(Uint32 i);
   
 private:  
-  bool seize_new_page(Ptr<void>&);
-  void release_not_current(Ptr<void>);
-
   void handle_invalid_release(Ptr<void>);
   void handle_invalid_get_ptr(Uint32 i);
-  void handle_inconsistent_release(Ptr<void>);
 };
 
 inline
-bool
-WOPool::seize(Ptr<void>& ptr)
-{
-  Uint32 pos = m_current_pos;
-  Uint32 size = m_record_info.m_size;
-  WOPage *pageP = m_current_page;
-  if (likely(pos + size < GLOBAL_PAGE_SIZE_WORDS))
-  {
-    ptr.i = (m_current_page_no << POOL_RECORD_BITS) + pos;
-    ptr.p = (pageP->m_data + pos);
-    pageP->m_data[pos+m_record_info.m_offset_magic] = ~(Uint32)m_record_info.m_type_id;
-    m_current_pos = pos + size;
-    m_current_ref_count++;
-    return true;
-  }
-  
-  return seize_new_page(ptr);
-}
-
-inline
-void
-WOPool::release(Ptr<void> ptr)
-{
-  Uint32 cur_page = m_current_page_no;
-  Uint32 ptr_page = ptr.i >> POOL_RECORD_BITS;
-  Uint32 *magic_ptr = (((Uint32*)ptr.p)+m_record_info.m_offset_magic);
-  Uint32 magic_val = *magic_ptr;
-  
-  if (likely(magic_val == ~(Uint32)m_record_info.m_type_id))
-  {
-    * magic_ptr = 0;
-    if (cur_page == ptr_page)
-    {
-      if (m_current_ref_count == 1)
-      {
-	m_current_pos = 0;
-      }
-      m_current_ref_count--;
-      return;
-    }
-    return release_not_current(ptr);
-  }
-  handle_invalid_release(ptr);
-}
-
-inline
 void*
-WOPool::getPtr(Uint32 i)
+RWPool::getPtr(Uint32 i)
 {
   Uint32 page_no = i >> POOL_RECORD_BITS;
   Uint32 page_idx = i & POOL_RECORD_MASK;
-  WOPage * page = m_memroot + page_no;
+  RWPage * page = m_memroot + page_no;
   Uint32 * record = page->m_data + page_idx;
   Uint32 magic_val = * (record + m_record_info.m_offset_magic);
   if (likely(magic_val == ~(Uint32)m_record_info.m_type_id))
