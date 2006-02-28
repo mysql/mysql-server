@@ -116,7 +116,7 @@ event_timed::init_body(THD *thd)
              body_begin, thd->lex->ptr));
 
   body.length= thd->lex->ptr - body_begin;
-  // Trim nuls at the end
+  /* Trim nuls at the end */
   while (body.length && body_begin[body.length-1] == '\0')
     body.length--;
 
@@ -161,13 +161,12 @@ event_timed::init_execute_at(THD *thd, Item *expr)
   
   /* no starts and/or ends in case of execute_at */
   DBUG_PRINT("info", ("starts_null && ends_null should be 1 is %d",
-              (starts_null && ends_null)))
+                      (starts_null && ends_null)));
   DBUG_ASSERT(starts_null && ends_null);
   
-  // let's check whether time is in the past
+  /* let's check whether time is in the past */
   thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, 
-                                            (my_time_t) thd->query_start()); 
-
+                                            (my_time_t) thd->query_start());
 
   if ((not_used= expr->get_date(&ltime, TIME_NO_ZERO_DATE)))
     DBUG_RETURN(ER_WRONG_VALUE);
@@ -252,14 +251,14 @@ event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
   case INTERVAL_DAY_MINUTE:
     expression= (interval.day* 24 + interval.hour) * 60 + interval.minute;
     break;
-  case INTERVAL_HOUR_SECOND: // day is anyway 0
+  case INTERVAL_HOUR_SECOND: /* day is anyway 0 */
   case INTERVAL_DAY_SECOND:
     /* DAY_SECOND having problems because of leap seconds? */
     expression= ((interval.day* 24 + interval.hour) * 60 + interval.minute)*60
                  + interval.second;
     break;
-  case INTERVAL_MINUTE_MICROSECOND: // day and hour are 0
-  case INTERVAL_HOUR_MICROSECOND:// day is anyway 0
+  case INTERVAL_MINUTE_MICROSECOND: /* day and hour are 0 */
+  case INTERVAL_HOUR_MICROSECOND:   /* day is anyway 0    */
   case INTERVAL_DAY_MICROSECOND:
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
     expression= ((((interval.day*24) + interval.hour)*60+interval.minute)*60 +
@@ -398,7 +397,7 @@ event_timed::init_ends(THD *thd, Item *new_ends)
     Check whether ENDS is not in the past.
   */
   DBUG_PRINT("info", ("ENDS after NOW?"));
-  my_tz_UTC->gmt_sec_to_TIME(&ltime_now, thd->query_start());  
+  my_tz_UTC->gmt_sec_to_TIME(&ltime_now, thd->query_start());
   if (my_time_compare(&ltime_now, &ltime) == 1)
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
@@ -534,8 +533,8 @@ event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
 
   et->definer_user.str= strmake_root(mem_root, et->definer.str, len);
   et->definer_user.length= len;
-  len= et->definer.length - len - 1; //1 is because of @
-  et->definer_host.str= strmake_root(mem_root, ptr + 1, len);//1: because of @
+  len= et->definer.length - len - 1;            //1 is because of @
+  et->definer_host.str= strmake_root(mem_root, ptr + 1, len);/* 1:because of @*/
   et->definer_host.length= len;
   
   et->starts_null= table->field[EVEX_FIELD_STARTS]->is_null();
@@ -597,20 +596,20 @@ event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
 #endif
   last_executed_changed= false;
 
-  // ToDo : Andrey . Find a way not to allocate ptr on event_mem_root
+  /* ToDo : Andrey . Find a way not to allocate ptr on event_mem_root */
   if ((ptr= get_field(mem_root, table->field[EVEX_FIELD_STATUS])) == NullS)
     goto error;
 
   DBUG_PRINT("load_from_row", ("Event [%s] is [%s]", et->name.str, ptr));
   et->status= (ptr[0]=='E'? MYSQL_EVENT_ENABLED:MYSQL_EVENT_DISABLED);
 
-  // ToDo : Andrey . Find a way not to allocate ptr on event_mem_root
+  /* ToDo : Andrey . Find a way not to allocate ptr on event_mem_root */
   if ((ptr= get_field(mem_root,
                   table->field[EVEX_FIELD_ON_COMPLETION])) == NullS)
     goto error;
 
   et->on_completion= (ptr[0]=='D'? MYSQL_EVENT_ON_COMPLETION_DROP:
-                                     MYSQL_EVENT_ON_COMPLETION_PRESERVE);
+                                   MYSQL_EVENT_ON_COMPLETION_PRESERVE);
 
   et->comment.str= get_field(mem_root, table->field[EVEX_FIELD_COMMENT]);
   if (et->comment.str != NullS)
@@ -796,7 +795,7 @@ event_timed::compute_next_execution_time()
       goto ret;
     }
   }
-  
+
   if (!starts_null && !ends_null)
   {
     /*
@@ -931,7 +930,7 @@ event_timed::mark_last_executed(THD *thd)
   thd->end_time();
   my_tz_UTC->gmt_sec_to_TIME(&time_now, (my_time_t) thd->query_start());
 
-  last_executed= time_now; // was execute_at
+  last_executed= time_now; /* was execute_at */
 #ifdef ANDREY_0
   last_executed= execute_at;
 #endif
@@ -1086,7 +1085,7 @@ event_timed::get_create_event(THD *thd, String *buf)
   }
   else
   {
-    char dtime_buff[20*2+32];// +32 to make my_snprintf_{8bit|ucs2} happy
+    char dtime_buff[20*2+32];/* +32 to make my_snprintf_{8bit|ucs2} happy */
     buf->append(STRING_WITH_LEN("AT '"));
     /*
       Pass the buffer and the second param tells fills the buffer and
@@ -1427,7 +1426,7 @@ extern pthread_attr_t connection_attrib;
 
 /*
   Checks whether is possible and forks a thread. Passes self as argument.
-  
+
   Returns
   EVENT_EXEC_STARTED       - OK
   EVENT_EXEC_ALREADY_EXEC  - Thread not forked, already working
@@ -1498,7 +1497,6 @@ event_timed::spawn_thread_finish(THD *thd)
   Returns
     0 - ok
     1 - not locked by this thread
-  
 */
  
 
@@ -1524,5 +1522,5 @@ event_timed::spawn_unlock(THD *thd)
     }
   }
   VOID(pthread_mutex_unlock(&this->LOCK_running));
-  return ret;  
+  return ret;
 }
