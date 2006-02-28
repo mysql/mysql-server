@@ -380,13 +380,6 @@ const char *command_names[]=
   "connection",
   "query",
   "connect",
-  /* the difference between sleep and real_sleep is that sleep will use
-     the delay from command line (--sleep) if there is one.
-     real_sleep always uses delay from mysqltest's command line argument.
-     the logic is that sometimes delays are cpu-dependent (and --sleep
-     can be used to set this delay. real_sleep is used for cpu-independent
-     delays
-   */
   "sleep",
   "real_sleep",
   "inc",
@@ -1781,11 +1774,19 @@ int do_disable_rpl_parse(struct st_query *query __attribute__((unused)))
    do_sleep()
     q	       called command
     real_sleep  use the value from opt_sleep as number of seconds to sleep
+	            if real_sleep is false
 
   DESCRIPTION
     sleep <seconds>
-    real_sleep
+    real_sleep <seconds>
 
+  The difference between the sleep and real_sleep commands is that sleep
+  uses the delay from the --sleep command-line option if there is one.
+  (If the --sleep option is not given, the sleep command uses the delay
+  specified by its argument.) The real_sleep command always uses the
+  delay specified by its argument.  The logic is that sometimes delays are
+  cpu-dependent, and --sleep can be used to set this delay.  real_sleep is
+  used for cpu-independent delays.
 */
 
 int do_sleep(struct st_query *query, my_bool real_sleep)
@@ -4896,7 +4897,7 @@ void get_query_type(struct st_query* q)
     q->type=(enum enum_commands) type;		/* Found command */
     /*
       If queries are disabled, only recognize
-      --enable-queries and --disable-queries
+      --enable_parsing and --disable_parsing
     */
     if (parsing_disabled && q->type != Q_ENABLE_PARSING &&
         q->type != Q_DISABLE_PARSING)
