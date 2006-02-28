@@ -41,6 +41,7 @@ event_timed::init()
   set_zero_time(&ends, MYSQL_TIMESTAMP_DATETIME);
   set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
   set_zero_time(&last_executed, MYSQL_TIMESTAMP_DATETIME);
+  starts_null= ends_null= execute_at_null= TRUE;
 
   definer_user.str= definer_host.str= 0;
   definer_user.length= definer_host.length= 0;
@@ -157,10 +158,15 @@ event_timed::init_execute_at(THD *thd, Item *expr)
 
   if (expr->fix_fields(thd, &expr))
     DBUG_RETURN(EVEX_PARSE_ERROR);
-
-  /* Let's check whether time is in the past */
-  thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp,
-                                            (my_time_t) thd->query_start());
+  
+  /* no starts and/or ends in case of execute_at */
+  DBUG_PRINT("info", ("starts_null && ends_null should be 1 is %d",
+              (starts_null && ends_null)))
+  DBUG_ASSERT(starts_null && ends_null);
+  
+  // let's check whether time is in the past
+  thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, 
+                                            (my_time_t) thd->query_start()); 
 
 
   if ((not_used= expr->get_date(&ltime, TIME_NO_ZERO_DATE)))
@@ -177,7 +183,7 @@ event_timed::init_execute_at(THD *thd, Item *expr)
   */
   my_tz_UTC->gmt_sec_to_TIME(&ltime, TIME_to_timestamp(thd,&ltime, &not_used));
 
-
+  execute_at_null= FALSE;
   execute_at= ltime;
   DBUG_RETURN(0);
 }
@@ -332,6 +338,7 @@ event_timed::init_starts(THD *thd, Item *new_starts)
   my_tz_UTC->gmt_sec_to_TIME(&ltime, TIME_to_timestamp(thd, &ltime, &not_used));
 
   starts= ltime;
+  starts_null= FALSE;
   DBUG_RETURN(0);
 }
 
@@ -361,8 +368,7 @@ event_timed::init_starts(THD *thd, Item *new_starts)
 int
 event_timed::init_ends(THD *thd, Item *new_ends)
 {
-  TIME ltime;
-  my_time_t my_time_tmp;
+  TIME ltime, ltime_now;
   my_bool not_used;
 
   DBUG_ENTER("event_timed::init_ends");
@@ -370,20 +376,34 @@ event_timed::init_ends(THD *thd, Item *new_ends)
   if (new_ends->fix_fields(thd, &new_ends))
     DBUG_RETURN(EVEX_PARSE_ERROR);
 
-  /* The field was already fixed in init_ends */
+  DBUG_PRINT("info", ("convert to TIME"));
   if ((not_used= new_ends->get_date(&ltime, TIME_NO_ZERO_DATE)))
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
   /*
-    This may result in a 1970-01-01 date if ltime is > 2037-xx-xx.
-    CONVERT_TZ has similar problem.
+    This may result in a 1970-01-01 date if ltime is > 2037-xx-xx ?
+    CONVERT_TZ has similar problem ?
   */
+  DBUG_PRINT("info", ("get the UTC time"));
   my_tz_UTC->gmt_sec_to_TIME(&ltime, TIME_to_timestamp(thd, &ltime, &not_used));
 
-  if (starts.year && my_time_compare(&starts, &ltime) != -1)
+  /* Check whether ends is after starts */
+  DBUG_PRINT("info", ("ENDS after STARTS?"));
+  if (!starts_null && my_time_compare(&starts, &ltime) != -1)
+    DBUG_RETURN(EVEX_BAD_PARAMS);
+
+  /*
+    The parser forces starts to be provided but one day STARTS could be
+    set before NOW() and in this case the following check should be done.
+    Check whether ENDS is not in the past.
+  */
+  DBUG_PRINT("info", ("ENDS after NOW?"));
+  my_tz_UTC->gmt_sec_to_TIME(&ltime_now, thd->query_start());  
+  if (my_time_compare(&ltime_now, &ltime) == 1)
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
   ends= ltime;
+  ends_null= FALSE;
   DBUG_RETURN(0);
 }
 
@@ -403,7 +423,7 @@ event_timed::init_comment(THD *thd, LEX_STRING *set_comment)
   DBUG_ENTER("event_timed::init_comment");
 
   comment.str= strmake_root(thd->mem_root, set_comment->str,
-                              comment.length= set_comment->length);
+                            comment.length= set_comment->length);
 
   DBUG_VOID_RETURN;
 }
@@ -517,29 +537,38 @@ event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
   len= et->definer.length - len - 1; //1 is because of @
   et->definer_host.str= strmake_root(mem_root, ptr + 1, len);//1: because of @
   et->definer_host.length= len;
+  
+  et->starts_null= table->field[EVEX_FIELD_STARTS]->is_null();
+  res1= table->field[EVEX_FIELD_STARTS]->get_date(&et->starts,TIME_NO_ZERO_DATE);
 
-  res1= table->field[EVEX_FIELD_STARTS]->
-                     get_date(&et->starts, TIME_NO_ZERO_DATE);
-
-  res2= table->field[EVEX_FIELD_ENDS]->
-                     get_date(&et->ends, TIME_NO_ZERO_DATE);
-
-  et->expression= table->field[EVEX_FIELD_INTERVAL_EXPR]->val_int();
-
+  et->ends_null= table->field[EVEX_FIELD_ENDS]->is_null();
+  res2= table->field[EVEX_FIELD_ENDS]->get_date(&et->ends, TIME_NO_ZERO_DATE);
+  
+  if (!table->field[EVEX_FIELD_INTERVAL_EXPR]->is_null())
+    et->expression= table->field[EVEX_FIELD_INTERVAL_EXPR]->val_int();
+  else
+    et->expression= 0;
   /*
     If res1 and res2 are true then both fields are empty.
     Hence if EVEX_FIELD_EXECUTE_AT is empty there is an error.
   */
-  if (res1 && res2 && !et->expression && table->field[EVEX_FIELD_EXECUTE_AT]->
-                get_date(&et->execute_at, TIME_NO_ZERO_DATE))
+  et->execute_at_null= table->field[EVEX_FIELD_EXECUTE_AT]->is_null();
+  DBUG_ASSERT(!(et->starts_null && et->ends_null && !et->expression &&
+              et->execute_at_null));
+  if (!et->expression &&
+      table->field[EVEX_FIELD_EXECUTE_AT]->get_date(&et->execute_at,
+                                                     TIME_NO_ZERO_DATE))
     goto error;
 
   /*
     In DB the values start from 1 but enum interval_type starts
     from 0
   */
-  et->interval= (interval_type)
+  if (!table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->is_null())
+    et->interval= (interval_type)
        ((ulonglong) table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->val_int() - 1);
+  else
+    et->interval= (interval_type) 0;
 
   et->modified= table->field[EVEX_FIELD_CREATED]->val_int();
   et->created= table->field[EVEX_FIELD_MODIFIED]->val_int();
@@ -698,14 +727,11 @@ event_timed::compute_next_execution_time()
     /* Let's check whether it was executed */
     if (last_executed.year)
     {
-      DBUG_PRINT("compute_next_execution_time",
-                ("One-time event %s was already executed", name.str));
-      if (on_completion == MYSQL_EVENT_ON_COMPLETION_DROP)
-      {
-        DBUG_PRINT("compute_next_execution_time",
-                          ("One-time event will be dropped."));
-        dropped= true;
-      }
+      DBUG_PRINT("info",("One-time event %s.%s of was already executed",
+                         dbname.str, name.str, definer.str));
+      dropped= (on_completion == MYSQL_EVENT_ON_COMPLETION_DROP);
+      DBUG_PRINT("info",("One-time event will be dropped=%d.", dropped));
+
       status= MYSQL_EVENT_DISABLED;
       status_changed= true;
     }
@@ -731,11 +757,12 @@ event_timed::compute_next_execution_time()
                         last_executed.second);
 #endif
 
-  /* If time_now is after ends don't execute anymore */
-  if (ends.year && (tmp= my_time_compare(&ends, &time_now)) == -1)
+  /* if time_now is after ends don't execute anymore */
+  if (!ends_null && (tmp= my_time_compare(&ends, &time_now)) == -1)
   {
     /* time_now is after ends. don't execute anymore */
     set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
+    execute_at_null= TRUE;
     if (on_completion == MYSQL_EVENT_ON_COMPLETION_DROP)
       dropped= true;
     status= MYSQL_EVENT_DISABLED;
@@ -749,7 +776,7 @@ event_timed::compute_next_execution_time()
     Let's check whether time_now is before starts.
     If so schedule for starts.
   */
-  if (starts.year && (tmp= my_time_compare(&time_now, &starts)) < 1)
+  if (!starts_null && (tmp= my_time_compare(&time_now, &starts)) < 1)
   {
     if (tmp == 0 && my_time_compare(&starts, &last_executed) == 0)
     {
@@ -765,11 +792,12 @@ event_timed::compute_next_execution_time()
         time_now before starts. Scheduling for starts
       */
       execute_at= starts;
+      execute_at_null= FALSE;
       goto ret;
     }
   }
-
-  if (starts.year && ends.year)
+  
+  if (!starts_null && !ends_null)
   {
     /*
       Both starts and m_ends are set and time_now is between them (incl.)
@@ -778,7 +806,10 @@ event_timed::compute_next_execution_time()
       If not set then schedule for now.
     */
     if (!last_executed.year)
+    {
       execute_at= time_now;
+      execute_at_null= FALSE;
+    }
     else
     {
       TIME next_exec;
@@ -791,15 +822,19 @@ event_timed::compute_next_execution_time()
       {
         /* Next execution after ends. No more executions */
         set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
+        execute_at_null= TRUE;
         if (on_completion == MYSQL_EVENT_ON_COMPLETION_DROP)
           dropped= true;
       }
       else
+      {
         execute_at= next_exec;
+        execute_at_null= FALSE;
+      }
     }
     goto ret;
   }
-  else if (!starts.year && !ends.year)
+  else if (starts_null && ends_null)
   {
     /*
       Both starts and m_ends are not set, so we schedule for the next
@@ -815,11 +850,12 @@ event_timed::compute_next_execution_time()
       /* last_executed not set. Schedule the event for now */
       execute_at= time_now;
     }
+    execute_at_null= FALSE;
   }
   else
   {
-    /* Either starts or m_ends is set */
-    if (starts.year)
+    /* either starts or m_ends is set */
+    if (!starts_null)
     {
       /*
         - starts is set.
@@ -834,6 +870,7 @@ event_timed::compute_next_execution_time()
       }
       else
         execute_at= starts;
+      execute_at_null= FALSE;
     }
     else
     {
@@ -856,11 +893,15 @@ event_timed::compute_next_execution_time()
         if (my_time_compare(&ends, &next_exec) == -1)
         {
           set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
+          execute_at_null= TRUE;
           if (on_completion == MYSQL_EVENT_ON_COMPLETION_DROP)
             dropped= true;
         }
         else
+        {
           execute_at= next_exec;
+          execute_at_null= FALSE;
+        }
       }
     }
     goto ret;
@@ -1324,10 +1365,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
 
   sphead= lex.et->sphead;
   sphead->m_db= dbname;
-  /*
-    Ccopy also chistics since they will vanish otherwise we get 0x0 pointer
-    TODO: Handle sql_mode!!
-  */
+
   sphead->set_definer(definer.str, definer.length);
   sphead->set_info(0, 0, &lex.sp_chistics, sql_mode);
   sphead->optimize();
