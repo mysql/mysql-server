@@ -4011,7 +4011,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
       is freed by setting version to 0. table->s->version= 0 forces a
       flush of the table object in close_thread_tables().
     */
-    uint flags;
+    uint flags= 0;
     table->s->version= 0L;
     if (alter_info->flags == ALTER_TABLE_REORG)
     {
@@ -4060,7 +4060,10 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       DBUG_RETURN(1);
     }
-    *fast_alter_partition= flags ^ HA_PARTITION_FUNCTION_SUPPORTED;
+    *fast_alter_partition=
+      ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0);
+    DBUG_PRINT("info", ("*fast_alter_partition: %d  flags: 0x%x",
+                        *fast_alter_partition, flags));
     if (alter_info->flags & ALTER_ADD_PARTITION)
     {
       /*
@@ -4660,7 +4663,6 @@ the generated partition syntax in a correct manner.
       DBUG_ASSERT(FALSE);
     }
     *partition_changed= TRUE;
-    create_info->db_type= &partition_hton;
     thd->lex->part_info= tab_part_info;
     if (alter_info->flags == ALTER_ADD_PARTITION ||
         alter_info->flags == ALTER_REORGANIZE_PARTITION)
