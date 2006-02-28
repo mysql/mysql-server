@@ -273,20 +273,6 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
                      store(et->body.str, et->body.length, system_charset_info))
       goto trunc_err;
 
-  if (et->starts.year)
-  {
-    table->field[EVEX_FIELD_STARTS]->set_notnull();// set NULL flag to OFF
-    table->field[EVEX_FIELD_STARTS]->
-                          store_time(&et->starts, MYSQL_TIMESTAMP_DATETIME);
-  }	   
-
-  if (et->ends.year)
-  {
-    table->field[EVEX_FIELD_ENDS]->set_notnull();
-    table->field[EVEX_FIELD_ENDS]->
-                          store_time(&et->ends, MYSQL_TIMESTAMP_DATETIME);
-  }
-   
   if (et->expression)
   {
     table->field[EVEX_FIELD_INTERVAL_EXPR]->set_notnull();
@@ -300,18 +286,31 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
     table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->store((longlong)et->interval+1);
 
     table->field[EVEX_FIELD_EXECUTE_AT]->set_null();
+
+    if (!et->starts_null)
+    {
+      table->field[EVEX_FIELD_STARTS]->set_notnull();// set NULL flag to OFF
+      table->field[EVEX_FIELD_STARTS]->
+                            store_time(&et->starts, MYSQL_TIMESTAMP_DATETIME);
+    }	   
+
+    if (!et->ends_null)
+    {
+      table->field[EVEX_FIELD_ENDS]->set_notnull();
+      table->field[EVEX_FIELD_ENDS]->
+                            store_time(&et->ends, MYSQL_TIMESTAMP_DATETIME);
+    }
   }
   else if (et->execute_at.year)
   {
-    // fix_fields already called in init_execute_at
     table->field[EVEX_FIELD_INTERVAL_EXPR]->set_null();
     table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->set_null();
-
+    table->field[EVEX_FIELD_STARTS]->set_null();
+    table->field[EVEX_FIELD_ENDS]->set_null();
+    
     table->field[EVEX_FIELD_EXECUTE_AT]->set_notnull();
     table->field[EVEX_FIELD_EXECUTE_AT]->store_time(&et->execute_at,
                                                     MYSQL_TIMESTAMP_DATETIME);    
-    
-    table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->set_null();  
   }
   else
   {
@@ -322,14 +321,17 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
     
   ((Field_timestamp *)table->field[EVEX_FIELD_MODIFIED])->set_time();
 
-  if (et->comment.length)
-    if (table->field[field_num= EVEX_FIELD_COMMENT]->
-	store(et->comment.str, et->comment.length, system_charset_info))
+  if (et->comment.str)
+  {
+    if (table->field[field_num= EVEX_FIELD_COMMENT]->store(et->comment.str,
+                                                           et->comment.length,
+                                                           system_charset_info))
       goto trunc_err;
+  }
 
   DBUG_RETURN(0);
 trunc_err:
-  my_error(ER_EVENT_DATA_TOO_LONG, MYF(0));
+  my_error(ER_EVENT_DATA_TOO_LONG, MYF(0), table->field[field_num]->field_name);
   DBUG_RETURN(EVEX_GENERAL_ERROR);
 }
 
@@ -442,14 +444,16 @@ db_create_event(THD *thd, event_timed *et, my_bool create_if_not,
     my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str, ret);
     goto err;
   }
-  
+
+#ifdef USE_THIS_CODE_AS_TEMPLATE_WHEN_EVENT_REPLICATION_IS_AGREED   
   if (mysql_bin_log.is_open())
   {
     thd->clear_error();
-    /* Such a statement can always go directly to binlog, no trans cache */
+    // Such a statement can always go directly to binlog, no trans cache
     thd->binlog_query(THD::MYSQL_QUERY_TYPE,
                       thd->query, thd->query_length, FALSE, FALSE);
   }
+#endif
   
   *rows_affected= 1;
 ok:
