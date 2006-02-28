@@ -115,8 +115,8 @@ enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
   The list of error codes to --error are stored in an internal array of
   structs. This struct can hold numeric SQL error codes or SQLSTATE codes
   as strings. The element next to the last active element in the list is
-  set to type ERR_EMPTY. When an SQL statement return an error we use
-  this list to check if this  is an expected error.
+  set to type ERR_EMPTY. When an SQL statement returns an error, we use
+  this list to check if this is an expected error.
 */
 
 enum match_err_type
@@ -1105,8 +1105,8 @@ int do_source(struct st_query *query)
     *p++= 0;
   query->last_argument= p;
   /*
-     If this file has already been sourced, dont source it again.
-     It's already available in the q_lines cache
+     If this file has already been sourced, don't source it again.
+     It's already available in the q_lines cache.
   */
   if (parser.current_line < (parser.read_lines - 1))
     return 0;
@@ -1430,7 +1430,7 @@ int do_modify_var(struct st_query *query, const char *name,
     system <command>
 
     Eval the query to expand any $variables in the command.
-    Execute the command withe the "system" command.
+    Execute the command with the "system" command.
 
   NOTE
    If mysqltest is executed from cygwin shell, the command will be
@@ -2457,7 +2457,7 @@ int safe_connect(MYSQL* mysql, const char *host, const char *user,
 
 
 /*
-  Connect to a server and handle connection errors in case when they occur.
+  Connect to a server and handle connection errors in case they occur.
 
   SYNOPSIS
     connect_n_handle_errors()
@@ -2893,7 +2893,7 @@ my_bool end_of_query(int c)
     Normally that means it will read lines until it reaches the
     "delimiter" that marks end of query. Default delimiter is ';'
     The function should be smart enough not to detect delimiter's
-    found inside strings sorrounded with '"' and '\'' escaped strings.
+    found inside strings surrounded with '"' and '\'' escaped strings.
 
     If the first line in a query starts with '#' or '-' this line is treated
     as a comment. A comment is always terminated when end of line '\n' is
@@ -3178,7 +3178,7 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use the compressed server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statment",
+  {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statements.",
    (gptr*) &cursor_protocol, (gptr*) &cursor_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
@@ -3222,7 +3222,7 @@ static struct my_option my_long_options[] =
   {"result-file", 'R', "Read/Store result from/in this file.",
    (gptr*) &result_file, (gptr*) &result_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"server-arg", 'A', "Send enbedded server this as a paramenter.",
+  {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -5406,8 +5406,8 @@ int main(int argc, char **argv)
     /*
       my_stat() successful on result file. Check if we have not run a
       single query, but we do have a result file that contains data.
-      Note that we don't care, if my_stat() fails. For example for
-      non-existing or non-readable file we assume it's fine to have
+      Note that we don't care, if my_stat() fails. For example, for a
+      non-existing or non-readable file, we assume it's fine to have
       no query output from the test file, e.g. regarded as no error.
     */
     die("No queries executed but result file found!");
