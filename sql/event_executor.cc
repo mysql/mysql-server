@@ -132,7 +132,6 @@ evex_check_system_tables()
 {
   THD *thd= current_thd;
   TABLE_LIST tables;
-  bool not_used;
   Open_tables_state backup;
 
   /* thd is 0x0 during boot of the server. Later it's !=0x0 */
@@ -401,7 +400,6 @@ event_executor_main(void *arg)
   THD *thd;			/* needs to be first for thread_stack */
   uint i=0, j=0;
   my_ulonglong cnt= 0;
-  TIME time_now;
 
   DBUG_ENTER("event_executor_main");
   DBUG_PRINT("event_executor_main", ("EVEX thread started"));
@@ -791,7 +789,6 @@ evex_load_events_from_db(THD *thd)
 {
   TABLE *table;
   READ_RECORD read_record_info;
-  MYSQL_LOCK *lock;
   int ret= -1;
   uint count= 0;
 

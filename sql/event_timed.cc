@@ -65,7 +65,6 @@ void
 Event_timed::init_name(THD *thd, sp_name *spn)
 {
   DBUG_ENTER("Event_timed::init_name");
-  uint n;                                      /* Counter for nul trimming */
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
 
@@ -151,7 +150,6 @@ Event_timed::init_execute_at(THD *thd, Item *expr)
 {
   my_bool not_used;
   TIME ltime;
-  my_time_t my_time_tmp;
 
   TIME time_tmp;
   DBUG_ENTER("Event_timed::init_execute_at");
@@ -206,7 +204,6 @@ Event_timed::init_execute_at(THD *thd, Item *expr)
 int
 Event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
 {
-  longlong tmp;
   String value;
   INTERVAL interval;
 
@@ -484,8 +481,6 @@ Event_timed::init_definer(THD *thd)
 int
 Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
 {
-  longlong created;
-  longlong modified;
   char *ptr;
   Event_timed *et;
   uint len;
@@ -569,8 +564,8 @@ Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
   else
     et->interval= (interval_type) 0;
 
-  et->modified= table->field[EVEX_FIELD_CREATED]->val_int();
-  et->created= table->field[EVEX_FIELD_MODIFIED]->val_int();
+  et->created= table->field[EVEX_FIELD_CREATED]->val_int();
+  et->modified= table->field[EVEX_FIELD_MODIFIED]->val_int();
 
   /*
     ToDo Andrey : Ask PeterG & Serg what to do in this case.
@@ -957,7 +952,6 @@ Event_timed::mark_last_executed(THD *thd)
 int
 Event_timed::drop(THD *thd)
 {
-  TABLE *table;
   uint tmp= 0;
   DBUG_ENTER("Event_timed::drop");
 
@@ -987,7 +981,6 @@ Event_timed::update_fields(THD *thd)
   TABLE *table;
   Open_tables_state backup;
   int ret= 0;
-  bool opened;
 
   DBUG_ENTER("Event_timed::update_time_fields");
 
@@ -1023,7 +1016,7 @@ Event_timed::update_fields(THD *thd)
   if (status_changed)
   {
     table->field[EVEX_FIELD_STATUS]->set_notnull();
-    table->field[EVEX_FIELD_STATUS]->store((longlong)status);
+    table->field[EVEX_FIELD_STATUS]->store((longlong)status, true);
     status_changed= false;
   }
 
@@ -1281,11 +1274,8 @@ Event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   LEX *old_lex= thd->lex, lex;
   char *old_db;
   int old_db_length;
-  Event_timed *ett;
-  sp_name *spn;
   char *old_query;
   uint old_query_len;
-  st_sp_chistics *p;
   ulong old_sql_mode= thd->variables.sql_mode;
   char create_buf[2048];
   String show_create(create_buf, sizeof(create_buf), system_charset_info);

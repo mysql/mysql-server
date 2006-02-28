@@ -377,7 +377,7 @@ common_1_lev_code:
     break;
   case INTERVAL_DAY_MINUTE:
   {
-    int tmp_expr= expr;
+    ulonglong tmp_expr= expr;
 
     tmp_expr/=(24*60);
     buf->append('\'');
@@ -395,7 +395,7 @@ common_1_lev_code:
     break;
   case INTERVAL_HOUR_SECOND:
   {
-    int tmp_expr= expr;
+    ulonglong tmp_expr= expr;
 
     buf->append('\'');
     end= longlong10_to_str(tmp_expr/3600, tmp_buff, 10);
@@ -412,7 +412,7 @@ common_1_lev_code:
     break;      
   case INTERVAL_DAY_SECOND:
   {
-    int tmp_expr= expr;
+    ulonglong tmp_expr= expr;
 
     tmp_expr/=(24*3600);
     buf->append('\'');
@@ -481,7 +481,6 @@ int
 evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table)
 {
   TABLE_LIST tables;
-  bool not_used;
   DBUG_ENTER("open_proc_table");
 
   bzero((char*) &tables, sizeof(tables));
@@ -619,9 +618,10 @@ evex_fill_row(THD *thd, TABLE *table, Event_timed *et, my_bool is_update)
     goto trunc_err;
 
   /* both ON_COMPLETION and STATUS are NOT NULL thus not calling set_notnull() */
-  table->field[EVEX_FIELD_ON_COMPLETION]->store((longlong)et->on_completion);
+  table->field[EVEX_FIELD_ON_COMPLETION]->store((longlong)et->on_completion,
+                                                true);
 
-  table->field[EVEX_FIELD_STATUS]->store((longlong)et->status);
+  table->field[EVEX_FIELD_STATUS]->store((longlong)et->status, true);
 
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
@@ -629,7 +629,8 @@ evex_fill_row(THD *thd, TABLE *table, Event_timed *et, my_bool is_update)
   */ 
   if (et->body.str)
   {
-    table->field[EVEX_FIELD_SQL_MODE]->store((longlong)thd->variables.sql_mode);
+    table->field[EVEX_FIELD_SQL_MODE]->store((longlong)thd->variables.sql_mode,
+                                             true);
 
     if (table->field[field_num= EVEX_FIELD_BODY]->
                      store(et->body.str, et->body.length, system_charset_info))
@@ -639,14 +640,15 @@ evex_fill_row(THD *thd, TABLE *table, Event_timed *et, my_bool is_update)
   if (et->expression)
   {
     table->field[EVEX_FIELD_INTERVAL_EXPR]->set_notnull();
-    table->field[EVEX_FIELD_INTERVAL_EXPR]->store((longlong)et->expression);
+    table->field[EVEX_FIELD_INTERVAL_EXPR]->store((longlong)et->expression,true);
 
     table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->set_notnull();
     /*
       In the enum (C) intervals start from 0 but in mysql enum valid values start
       from 1. Thus +1 offset is needed!
     */
-    table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->store((longlong)et->interval+1);
+    table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->store((longlong)et->interval+1,
+                                                       true);
 
     table->field[EVEX_FIELD_EXECUTE_AT]->set_null();
 
@@ -725,7 +727,6 @@ db_create_event(THD *thd, Event_timed *et, my_bool create_if_not,
 {
   int ret= 0;
   TABLE *table;
-  char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
   char olddb[128];
   bool dbchanged= false;
   DBUG_ENTER("db_create_event");
@@ -959,7 +960,6 @@ db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, Event_timed **ett,
 {
   TABLE *table;
   int ret;
-  char *ptr;
   Event_timed *et=NULL;
   DBUG_ENTER("db_find_event");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
@@ -1216,7 +1216,7 @@ int
 evex_update_event(THD *thd, Event_timed *et, sp_name *new_name,
                   uint *rows_affected)
 {
-  int ret, i;
+  int ret;
   bool need_second_pass= true;
 
   DBUG_ENTER("evex_update_event");
@@ -1333,7 +1333,6 @@ int
 evex_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
                 uint *rows_affected)
 {
-  TABLE *table;
   int ret= 0;
 
   DBUG_ENTER("evex_drop_event");
@@ -1459,7 +1458,6 @@ evex_drop_db_events(THD *thd, char *db)
 {
   TABLE *table;
   READ_RECORD read_record_info;
-  MYSQL_LOCK *lock;
   int ret= 0;
   uint i;
   LEX_STRING db_lex= {db, strlen(db)};
