@@ -55,7 +55,7 @@ static int
 evex_load_events_from_db(THD *thd);
 
 bool
-evex_print_warnings(THD *thd, event_timed *et);
+evex_print_warnings(THD *thd, Event_timed *et);
 
 /*
   TODO Andrey: Check for command line option whether to start
@@ -316,7 +316,7 @@ init_event_thread(THD* thd)
 static int
 executor_wait_till_next_event_exec(THD *thd)
 {
-  event_timed *et;
+  Event_timed *et;
   TIME time_now;
   int t2sleep;
 
@@ -331,7 +331,7 @@ executor_wait_till_next_event_exec(THD *thd)
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
     DBUG_RETURN(WAIT_STATUS_EMPTY_QUEUE);
   }
-  et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
+  et= evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*);
   DBUG_ASSERT(et);
   if (et->status == MYSQL_EVENT_DISABLED)
   {
@@ -361,7 +361,7 @@ executor_wait_till_next_event_exec(THD *thd)
     */
     while (t2sleep-- && !thd->killed && event_executor_running_global_var &&
            evex_queue_num_elements(EVEX_EQ_NAME) &&
-           (evex_queue_first_element(&EVEX_EQ_NAME, event_timed*) == et))
+           (evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*) == et))
     {
       DBUG_PRINT("evex main thread",("will sleep a bit more"));
       my_sleep(1000000);
@@ -371,7 +371,7 @@ executor_wait_till_next_event_exec(THD *thd)
   int ret= WAIT_STATUS_READY;
   if (!evex_queue_num_elements(EVEX_EQ_NAME))
     ret= WAIT_STATUS_EMPTY_QUEUE;
-  else if (evex_queue_first_element(&EVEX_EQ_NAME, event_timed*) != et)
+  else if (evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*) != et)
     ret= WAIT_STATUS_NEW_TOP_EVENT;
   if (thd->killed && event_executor_running_global_var)
     ret= WAIT_STATUS_STOP_EXECUTOR;
@@ -470,7 +470,7 @@ event_executor_main(void *arg)
   while (!thd->killed)
   {
     TIME time_now;
-    event_timed *et;
+    Event_timed *et;
 
     cnt++;
     DBUG_PRINT("info", ("EVEX External Loop %d thd->k", cnt));
@@ -519,7 +519,7 @@ restart_ticking:
       DBUG_PRINT("evex main thread",("empty queue"));
       continue;
     }
-    et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
+    et= evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*);
     DBUG_PRINT("evex main thread",("got event from the queue"));
       
     if (!et->execute_at_null && my_time_compare(&time_now,&et->execute_at) == -1)
@@ -621,7 +621,7 @@ finish:
   VOID(pthread_mutex_lock(&LOCK_event_arrays));
   for (i= 0; i < evex_queue_num_elements(EVEX_EQ_NAME); ++i)
   {
-    event_timed *et= evex_queue_element(&EVEX_EQ_NAME, i, event_timed*);
+    Event_timed *et= evex_queue_element(&EVEX_EQ_NAME, i, Event_timed*);
     et->free_sp();
     delete et;
   }
@@ -666,14 +666,14 @@ err_no_thd:
 
    SYNOPSIS
      event_executor_worker()
-       arg  The event_timed object to be processed
+       arg  The Event_timed object to be processed
 */
 
 pthread_handler_t
 event_executor_worker(void *event_void)
 {
   THD *thd; /* needs to be first for thread_stack */
-  event_timed *event = (event_timed *) event_void;
+  Event_timed *event = (Event_timed *) event_void;
   MEM_ROOT worker_mem_root;
 
   DBUG_ENTER("event_executor_worker");
@@ -771,7 +771,7 @@ err_no_thd:
 /*
    Loads all ENABLED events from mysql.event into the prioritized
    queue. Called during scheduler main thread initialization. Compiles
-   the events. Creates event_timed instances for every ENABLED event
+   the events. Creates Event_timed instances for every ENABLED event
    from mysql.event.
 
    SYNOPSIS
@@ -808,8 +808,8 @@ evex_load_events_from_db(THD *thd)
   init_read_record(&read_record_info, thd, table ,NULL,1,0);
   while (!(read_record_info.read_record(&read_record_info)))
   {
-    event_timed *et;
-    if (!(et= new event_timed))
+    Event_timed *et;
+    if (!(et= new Event_timed))
     {
       DBUG_PRINT("evex_load_events_from_db", ("Out of memory"));
       ret= -1;
@@ -941,7 +941,7 @@ static sql_print_xxx_func sql_print_xxx_handlers[3] =
 */
 
 bool
-evex_print_warnings(THD *thd, event_timed *et)
+evex_print_warnings(THD *thd, Event_timed *et)
 {
   MYSQL_ERROR *err;
   DBUG_ENTER("evex_show_warnings");
