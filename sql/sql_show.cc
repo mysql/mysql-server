@@ -3936,7 +3936,7 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
   TIME time;
-  event_timed et;    
+  Event_timed et;    
   DBUG_ENTER("fill_events_copy_to_schema_tab");
 
   restore_record(sch_table, s->default_values);

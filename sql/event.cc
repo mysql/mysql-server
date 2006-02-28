@@ -49,11 +49,11 @@
  - Consider using conditional variable when doing shutdown instead of
    waiting till all worker threads end.
  
- - Make event_timed::get_show_create_event() work
+ - Make Event_timed::get_show_create_event() work
 
  - Add logging to file
 
- - Move comparison code to class event_timed
+ - Move comparison code to class Event_timed
 
 Warning:
  - For now parallel execution is not possible because the same sp_head cannot be
@@ -276,13 +276,13 @@ my_time_compare(TIME *a, TIME *b)
 
 
 /*
-  Compares the execute_at members of 2 event_timed instances
+  Compares the execute_at members of 2 Event_timed instances
 
   Synopsis
     event_timed_compare()
 
-      a - first event_timed object
-      b - second event_timed object
+      a - first Event_timed object
+      b - second Event_timed object
 
   RETURNS:
    -1   - a->execute_at < b->execute_at
@@ -294,14 +294,14 @@ my_time_compare(TIME *a, TIME *b)
 */
 
 int
-event_timed_compare(event_timed *a, event_timed *b)
+event_timed_compare(Event_timed *a, Event_timed *b)
 {
   return my_time_compare(&a->execute_at, &b->execute_at);
 }
 
 
 /*
-  Compares the execute_at members of 2 event_timed instances.
+  Compares the execute_at members of 2 Event_timed instances.
   Used as callback for the prioritized queue when shifting
   elements inside.
 
@@ -309,8 +309,8 @@ event_timed_compare(event_timed *a, event_timed *b)
     event_timed_compare()
   
       vptr - not used (set it to NULL)
-      a    - first event_timed object
-      b    - second event_timed object
+      a    - first Event_timed object
+      b    - second Event_timed object
 
   RETURNS:
    -1   - a->execute_at < b->execute_at
@@ -324,7 +324,7 @@ event_timed_compare(event_timed *a, event_timed *b)
 int 
 event_timed_compare_q(void *vptr, byte* a, byte *b)
 {
-  return event_timed_compare((event_timed *)a, (event_timed *)b);
+  return event_timed_compare((Event_timed *)a, (Event_timed *)b);
 }
 
 
@@ -520,7 +520,7 @@ evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table)
 */
 
 inline int
-evex_db_find_event_aux(THD *thd, event_timed *et, TABLE *table)
+evex_db_find_event_aux(THD *thd, Event_timed *et, TABLE *table)
 {
   return evex_db_find_event_by_name(thd, et->dbname, et->name,
                                     et->definer, table);
@@ -600,7 +600,7 @@ evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
 */
 
 static int
-evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
+evex_fill_row(THD *thd, TABLE *table, Event_timed *et, my_bool is_update)
 {
   enum evex_table_field field_num;
 
@@ -707,7 +707,7 @@ trunc_err:
    SYNOPSIS
      db_create_event()
        thd             THD
-       et              event_timed object containing information for the event
+       et              Event_timed object containing information for the event
        create_if_not - if an warning should be generated in case event exists
        rows_affected - how many rows were affected
 
@@ -720,7 +720,7 @@ trunc_err:
 */
 
 static int
-db_create_event(THD *thd, event_timed *et, my_bool create_if_not,
+db_create_event(THD *thd, Event_timed *et, my_bool create_if_not,
                 uint *rows_affected)
 {
   int ret= 0;
@@ -855,7 +855,7 @@ err:
 */
 
 static int
-db_update_event(THD *thd, event_timed *et, sp_name *new_name)
+db_update_event(THD *thd, Event_timed *et, sp_name *new_name)
 {
   TABLE *table;
   int ret= EVEX_OPEN_TABLE_FAILED;
@@ -954,13 +954,13 @@ err:
 */
 
 static int
-db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, event_timed **ett,
+db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, Event_timed **ett,
               TABLE *tbl, MEM_ROOT *root)
 {
   TABLE *table;
   int ret;
   char *ptr;
-  event_timed *et=NULL;
+  Event_timed *et=NULL;
   DBUG_ENTER("db_find_event");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
@@ -982,7 +982,7 @@ db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, event_timed **ett,
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name->m_name.str);
     goto done;    
   }
-  et= new event_timed;
+  et= new Event_timed;
   
   /*
     1)The table should not be closed beforehand.  ::load_from_row() only loads
@@ -1032,7 +1032,7 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, LEX_STRING definer,
 {
   int ret= 0;
   MEM_ROOT *tmp_mem_root;
-  event_timed *ett;
+  Event_timed *ett;
   Open_tables_state backup;
 
   DBUG_ENTER("db_load_and_compile_event");
@@ -1089,7 +1089,7 @@ done:
        use_lock - whether to lock the mutex LOCK_event_arrays or not in case it
                   has been already locked outside
        is_drop  - if an event is currently being executed then we can also delete
-                  the event_timed instance, so we alarm the event that it should
+                  the Event_timed instance, so we alarm the event that it should
                   drop itself if this parameter is set to TRUE. It's false on
                   ALTER EVENT.
 
@@ -1116,7 +1116,7 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock,
 
   for (i= 0; i < evex_queue_num_elements(EVEX_EQ_NAME); ++i)
   {
-    event_timed *et= evex_queue_element(&EVEX_EQ_NAME, i, event_timed*);
+    Event_timed *et= evex_queue_element(&EVEX_EQ_NAME, i, Event_timed*);
     DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?",db->str,name->str, et->dbname.str,
                         et->name.str));
     if (!sortcmp_lex_string(*name, et->name, system_charset_info) &&
@@ -1168,7 +1168,7 @@ done:
 */
 
 int
-evex_create_event(THD *thd, event_timed *et, uint create_options,
+evex_create_event(THD *thd, Event_timed *et, uint create_options,
                   uint *rows_affected)
 {
   int ret = 0;
@@ -1213,7 +1213,7 @@ done:
 */
 
 int
-evex_update_event(THD *thd, event_timed *et, sp_name *new_name,
+evex_update_event(THD *thd, Event_timed *et, sp_name *new_name,
                   uint *rows_affected)
 {
   int ret, i;
@@ -1267,7 +1267,7 @@ done:
      rows_affected   affected number of rows is returned heres
 */
 
-int db_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
+int db_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
                   uint *rows_affected)
 {
   TABLE *table;
@@ -1308,7 +1308,7 @@ int db_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
 
 done:
   /*
-    evex_drop_event() is used by event_timed::drop therefore
+    evex_drop_event() is used by Event_timed::drop therefore
     we have to close our thread tables.
   */
   close_thread_tables(thd);
@@ -1330,7 +1330,7 @@ done:
 */
 
 int
-evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
+evex_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
                 uint *rows_affected)
 {
   TABLE *table;
@@ -1373,7 +1373,7 @@ int
 evex_show_create_event(THD *thd, sp_name *spn, LEX_STRING definer)
 {
   int ret;
-  event_timed *et= NULL;
+  Event_timed *et= NULL;
   Open_tables_state backup;
 
   DBUG_ENTER("evex_update_event");
@@ -1442,15 +1442,15 @@ evex_show_create_event(THD *thd, sp_name *spn, LEX_STRING definer)
     1. Go through the in-memory cache, if the scheduler is working
        and for every event whose dbname matches the database we drop
        check whether is currently in execution:
-       - event_timed::can_spawn() returns true -> the event is not
+       - Event_timed::can_spawn() returns true -> the event is not
          being executed in a child thread. The reason not to use
-         event_timed::is_running() is that the latter shows only if
+         Event_timed::is_running() is that the latter shows only if
          it is being executed, which is 99% of the time in the thread
          but there are some initiliazations before and after the
          anonymous SP is being called. So if we delete in this moment
          -=> *boom*, so we have to check whether the thread has been
          spawned and can_spawn() is the right method.
-       - event_timed::can_spawn() returns false -> being runned ATM
+       - Event_timed::can_spawn() returns false -> being runned ATM
          just set the flags so it should drop itself.
 */
 
@@ -1484,7 +1484,7 @@ evex_drop_db_events(THD *thd, char *db)
 
   for (i= 0; i < evex_queue_num_elements(EVEX_EQ_NAME); ++i)
   {
-    event_timed *et= evex_queue_element(&EVEX_EQ_NAME, i, event_timed*);
+    Event_timed *et= evex_queue_element(&EVEX_EQ_NAME, i, Event_timed*);
     if (sortcmp_lex_string(et->dbname, db_lex, system_charset_info))
       continue;
 
@@ -1561,7 +1561,7 @@ skip_memory:
     LEX_STRING et_db_lex= {et_db, strlen(et_db)};
     if (!sortcmp_lex_string(et_db_lex, db_lex, system_charset_info))
     {
-      event_timed ett;
+      Event_timed ett;
       char *ptr;
       
       if ((ptr= get_field(thd->mem_root, table->field[EVEX_FIELD_STATUS]))
