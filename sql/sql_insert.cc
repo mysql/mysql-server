@@ -1711,7 +1711,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   {
     thd->fatal_error();
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
-    goto end;
+    goto err;
   }
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
@@ -1724,13 +1724,13 @@ pthread_handler_t handle_delayed_insert(void *arg)
   if (!(di->table=open_ltable(thd,&di->table_list,TL_WRITE_DELAYED)))
   {
     thd->fatal_error();				// Abort waiting inserts
-    goto end;
+    goto err;
   }
   if (!(di->table->file->table_flags() & HA_CAN_INSERT_DELAYED))
   {
     thd->fatal_error();
     my_error(ER_ILLEGAL_HA, MYF(0), di->table_list.table_name);
-    goto end;
+    goto err;
   }
   di->table->copy_blobs=1;
 
@@ -1858,6 +1858,16 @@ pthread_handler_t handle_delayed_insert(void *arg)
     if (di->tables_in_use)
       pthread_cond_broadcast(&di->cond_client); // If waiting clients
   }
+
+err:
+  /*
+    mysql_lock_tables() can potentially start a transaction and write
+    a table map. In the event of an error, that transaction has to be
+    rolled back.  We only need to roll back a potential statement
+    transaction, since real transactions are rolled back in
+    close_thread_tables().
+   */
+  ha_rollback_stmt(thd);
 
 end:
   /*
@@ -2493,9 +2503,25 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("select_create::prepare");
 
+  class MY_HOOKS : public TABLEOP_HOOKS {
+  public:
+    MY_HOOKS(select_create *x) : ptr(x) { }
+    virtual void do_prelock(TABLE **tables, uint count)
+    {
+      if (binlog_row_based)
+        ptr->binlog_show_create_table(tables, count);
+    }
+
+  private:
+    select_create *ptr;
+  };
+
+  MY_HOOKS hooks(this);
+
   unit= u;
   table= create_table_from_items(thd, create_info, create_table,
-				 extra_fields, keys, &values, &lock);
+				 extra_fields, keys, &values, &lock,
+                                 &hooks);
   if (!table)
     DBUG_RETURN(-1);				// abort() deletes table
 
@@ -2533,7 +2559,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
 
 void
-select_create::binlog_show_create_table()
+select_create::binlog_show_create_table(TABLE **tables, uint count)
 {
   /*
     Note 1: In RBR mode, we generate a CREATE TABLE statement for the
@@ -2556,18 +2582,19 @@ select_create::binlog_show_create_table()
     on rollback, we clear the OPTION_STATUS_NO_TRANS_UPDATE bit of
     thd->options.
    */
-  DBUG_ASSERT(thd->current_stmt_binlog_row_based && !create_table_written);
+  DBUG_ASSERT(thd->current_stmt_binlog_row_based);
+  DBUG_ASSERT(tables && *tables && count > 0);
 
   thd->options&= ~OPTION_STATUS_NO_TRANS_UPDATE;
   char buf[2048];
   String query(buf, sizeof(buf), system_charset_info);
   query.length(0);      // Have to zero it since constructor doesn't
   
-  TABLE_LIST tables;
-  memset(&tables, 0, sizeof(tables));
-  tables.table = table;
+  TABLE_LIST table_list;
+  memset(&table_list, 0, sizeof(table_list));
+  table_list.table = *tables;
 
-  int result= store_create_info(thd, &tables, &query, create_info);
+  int result= store_create_info(thd, &table_list, &query, create_info);
   DBUG_ASSERT(result == 0); /* store_create_info() always return 0 */
   thd->binlog_query(THD::STMT_QUERY_TYPE,
                     query.ptr(), query.length(),
@@ -2578,16 +2605,6 @@ select_create::binlog_show_create_table()
 
 void select_create::store_values(List<Item> &values)
 {
-  /*
-    Before writing the first row, we write the CREATE TABLE statement
-    to the binlog.
-   */
-  if (thd->current_stmt_binlog_row_based && !create_table_written)
-  {
-    binlog_show_create_table();
-    create_table_written= TRUE;
-  }
-
   fill_record_n_invoke_before_triggers(thd, field, values, 1,
                                        table->triggers, TRG_EVENT_INSERT);
 }
@@ -2607,16 +2624,6 @@ void select_create::send_error(uint errcode,const char *err)
 
 bool select_create::send_eof()
 {
-  /*
-    If no rows where written to the binary log, we write the CREATE
-    TABLE statement to the binlog.
-   */
-  if (thd->current_stmt_binlog_row_based && !create_table_written)
-  {
-    binlog_show_create_table();
-    create_table_written= TRUE;
-  }
-
   bool tmp=select_insert::send_eof();
   if (tmp)
     abort();
