@@ -14,6 +14,7 @@ sync_slave_with_master;
 
 connection master;
 --replace_result $VERSION VERSION
+--replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY a;
