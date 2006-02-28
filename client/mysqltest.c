@@ -4316,7 +4316,7 @@ void get_query_type(struct st_query* q)
     q->type=(enum enum_commands) type;		/* Found command */
     /*
       If queries are disabled, only recognize
-      --enable-queries and --disable-queries
+      --enable_parsing and --disable_parsing
     */
     if (parsing_disabled && q->type != Q_ENABLE_PARSING &&
         q->type != Q_DISABLE_PARSING)
