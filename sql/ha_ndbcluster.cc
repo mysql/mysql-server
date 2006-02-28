@@ -5176,10 +5176,8 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   
   res= get_metadata(name);
   if (!res)
-  {
     info(HA_STATUS_VARIABLE | HA_STATUS_CONST);
-    extra(HA_EXTRA_RESET);
-  }
+
   DBUG_RETURN(res);
 }
 
