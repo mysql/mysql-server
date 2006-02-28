@@ -1774,7 +1774,7 @@ int do_disable_rpl_parse(struct st_query *query __attribute__((unused)))
    do_sleep()
     q	       called command
     real_sleep  use the value from opt_sleep as number of seconds to sleep
-	            if real_sleep is false
+                if real_sleep is false
 
   DESCRIPTION
     sleep <seconds>
@@ -1795,18 +1795,19 @@ int do_sleep(struct st_query *query, my_bool real_sleep)
   char *p= query->first_argument;
   char *sleep_start, *sleep_end= query->end;
   double sleep_val;
+  char *cmd = (real_sleep ? "real_sleep" : "sleep");
 
   while (my_isspace(charset_info, *p))
     p++;
   if (!*p)
-    die("Missing argument to sleep");
+    die("Missing argument to %s", cmd);
   sleep_start= p;
   /* Check that arg starts with a digit, not handled by my_strtod */
   if (!my_isdigit(charset_info, *sleep_start))
-    die("Invalid argument to sleep \"%s\"", query->first_argument);
+    die("Invalid argument to %s \"%s\"", cmd, query->first_argument);
   sleep_val= my_strtod(sleep_start, &sleep_end, &error);
   if (error)
-    die("Invalid argument to sleep \"%s\"", query->first_argument);
+    die("Invalid argument to %s \"%s\"", cmd, query->first_argument);
 
   /* Fixed sleep time selected by --sleep option */
   if (opt_sleep && !real_sleep)
