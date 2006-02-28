@@ -8297,13 +8297,11 @@ void Field_bit_as_char::sql_type(String &res) const
     create_field::create_length_to_internal_length()
   
   DESCRIPTION
-    Convert create_field::length from number of characters to number of bytes,
-    save original value in chars_length.
+    Convert create_field::length from number of characters to number of bytes.
 */
 
 void create_field::create_length_to_internal_length(void)
 {
-  chars_length= length;
   switch (sql_type) {
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
@@ -8355,7 +8353,7 @@ void create_field::init_for_tmp_table(enum_field_types sql_type_arg,
 {
   field_name= "";
   sql_type= sql_type_arg;
-  length= length_arg;;
+  char_length= length= length_arg;;
   unireg_check= Field::NONE;
   interval= 0;
   charset= &my_charset_bin;
@@ -8683,6 +8681,8 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   case FIELD_TYPE_DECIMAL:
     DBUG_ASSERT(0); /* Was obsolete */
   }
+  /* Remember the value of length */
+  char_length= length;
 
   if (!(flags & BLOB_FLAG) &&
       ((length > max_field_charlength && fld_type != FIELD_TYPE_SET &&
@@ -9023,6 +9023,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
   else
     interval=0;
   def=0;
+  char_length= length;
 
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
       old_field->ptr && orig_field &&

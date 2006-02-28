@@ -3662,8 +3662,10 @@ DYNAMIC_ARRAY patterns;
 static void init_win_path_patterns()
 {
   /* List of string patterns to match in order to find paths */
-  const char* paths[] = { "$MYSQL_TEST_DIR", "./test/", 0 };
-  int num_paths= 2;
+  const char* paths[] = { "$MYSQL_TEST_DIR",
+                          "$MYSQL_TMP_DIR",
+                          "./test/", 0 };
+  int num_paths= 3;
   int i;
   char* p;
 

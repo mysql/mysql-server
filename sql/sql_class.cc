@@ -989,9 +989,7 @@ bool select_send::send_data(List<Item> &items)
   thd->sent_row_count++;
   if (!thd->vio_ok())
     DBUG_RETURN(0);
-  if (thd->net.report_error)
-    protocol->remove_last_row();
-  else
+  if (!thd->net.report_error)
     DBUG_RETURN(protocol->write());
   protocol->remove_last_row();
   DBUG_RETURN(1);
