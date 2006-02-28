@@ -237,3 +237,9 @@ select extractvalue('<a>a<b>B</b></a>','a|/b');
 #
 --error 1105
 select extractvalue('<a>A</a>','/<a>');
+
+#
+# Bug#16313 XML: extractvalue() ignores '!' in names
+#
+--error 1105
+select extractvalue('<a><b>b</b><b!>b!</b!></a>','//b!');
