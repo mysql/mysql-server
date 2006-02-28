@@ -1626,7 +1626,7 @@ int do_disable_rpl_parse(struct st_query *query __attribute__((unused)))
    do_sleep()
     q	       called command
     real_sleep  use the value from opt_sleep as number of seconds to sleep
-	            if real_sleep is false
+                if real_sleep is false
 
   DESCRIPTION
     sleep <seconds>
