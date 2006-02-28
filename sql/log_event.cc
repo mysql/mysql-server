@@ -5598,13 +5598,14 @@ bool Rows_log_event::write_data_body(IO_CACHE*file)
      Note that this should be the number of *bits*, not the number of
      bytes.
   */
-  byte sbuf[sizeof(m_width)];
+  char sbuf[sizeof(m_width)];
   my_ptrdiff_t const data_size= m_rows_cur - m_rows_buf;
 
   char *const sbuf_end= net_store_length(sbuf, (uint) m_width);
-  DBUG_ASSERT(static_cast<my_size_t>(sbuf_end - (char*) sbuf) <= sizeof(sbuf));
+  DBUG_ASSERT(static_cast<my_size_t>(sbuf_end - sbuf) <= sizeof(sbuf));
 
-  return (my_b_safe_write(file, sbuf, sbuf_end - (char*) sbuf) ||
+  return (my_b_safe_write(file, reinterpret_cast<byte*>(sbuf),
+                          sbuf_end - sbuf) ||
           my_b_safe_write(file, reinterpret_cast<byte*>(m_cols.bitmap),
                           no_bytes_in_map(&m_cols)) ||
           my_b_safe_write(file, m_rows_buf, data_size));
@@ -6048,15 +6049,16 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   byte const dbuf[]= { m_dblen };
   byte const tbuf[]= { m_tbllen };
 
-  byte cbuf[sizeof(m_colcnt)];
+  char cbuf[sizeof(m_colcnt)];
   char *const cbuf_end= net_store_length(cbuf, (uint) m_colcnt);
-  DBUG_ASSERT(static_cast<my_size_t>(cbuf_end - (char*) cbuf) <= sizeof(cbuf));
+  DBUG_ASSERT(static_cast<my_size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
 
   return (my_b_safe_write(file, dbuf,      sizeof(dbuf)) ||
           my_b_safe_write(file, (const byte*)m_dbnam,   m_dblen+1) ||
           my_b_safe_write(file, tbuf,      sizeof(tbuf)) ||
           my_b_safe_write(file, (const byte*)m_tblnam,  m_tbllen+1) ||
-          my_b_safe_write(file, cbuf,      cbuf_end - cbuf) ||
+          my_b_safe_write(file, reinterpret_cast<byte*>(cbuf),
+                          cbuf_end - cbuf) ||
           my_b_safe_write(file, reinterpret_cast<byte*>(m_coltype), m_colcnt));
  }
 #endif
