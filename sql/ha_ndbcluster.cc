@@ -3381,8 +3381,13 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("HA_EXTRA_RESET"));
     DBUG_PRINT("info", ("Clearing condition stack"));
     cond_clear();
+    /*
+     * Regular partition pruning will set the bitmap appropriately.
+     * Some queries like ALTER TABLE doesn't use partition pruning and
+     * thus the 'used_partitions' bitmap needs to be initialized
+     */
     if (m_part_info)
-      bitmap_clear_all(&m_part_info->used_partitions);
+      bitmap_set_all(&m_part_info->used_partitions);
     break;
   case HA_EXTRA_IGNORE_DUP_KEY:       /* Dup keys don't rollback everything*/
     DBUG_PRINT("info", ("HA_EXTRA_IGNORE_DUP_KEY"));
@@ -5988,8 +5993,11 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   DBUG_PRINT("enter", ("error = %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
+  {
+    char buf[100];
     my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
-             (int)m_part_info->part_expr->val_int());
+             llstr(m_part_info->part_expr->val_int(), buf));
+  }
   else
     handler::print_error(error, errflag);
   DBUG_VOID_RETURN;
