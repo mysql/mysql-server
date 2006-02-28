@@ -7428,7 +7428,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   ndb_util_thread= pthread_self();
 
   thd->thread_stack= (char*)&thd; /* remember where our stack is */
-  if (thd->store_globals() && (ndb->init() != -1))
+  if (thd->store_globals() || (ndb->init() != 0))
   {
     thd->cleanup();
     delete thd;
