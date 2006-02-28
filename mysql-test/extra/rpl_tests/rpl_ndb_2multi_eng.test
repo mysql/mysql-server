@@ -1,0 +1,344 @@
+##############################################################
+# Author: JBM
+# Date: 2006-02-23
+# Purpose: See if replication between 
+# NDB -> MyISAM and InnoDB works.
+# and if
+# MyISAM and InnoDB -> NDB works.
+##############################################################
+
+--disable_query_log
+select "--- Doing pre cleanup --" as "";
+--enable_query_log
+
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_query_log
+
+--disable_warnings
+select "--- Start test 1 Basic testing --" as "";
+select "--- Create Table Section --" as "";
+--enable_query_log
+
+CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, f FLOAT DEFAULT 0, total BIGINT UNSIGNED, y YEAR, t DATE,PRIMARY KEY(id));
+
+--disable_query_log
+select "--- Show table on master --" as "";
+--enable_query_log
+
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Show table on slave --" as "";
+--enable_query_log
+
+sync_slave_with_master;
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Perform basic operation on master and ensure replicated correctly --" as "";
+--enable_query_log
+
+--source include/rpl_multi_engine3.inc
+
+# Okay lets see how it holds up to table changes
+--disable_query_log
+select "--- Check that simple Alter statements are replicated correctly --" as "";
+--enable_query_log
+
+ALTER TABLE t1 MODIFY vc TEXT;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(id, total);
+
+--disable_query_log
+select "--- Show the new improved table on the master --" as "";
+--enable_query_log
+
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Make sure that our tables on slave are still same engine --" as "";
+select "--- and that the alter statements replicated correctly --" as "";
+--enable_query_log
+
+sync_slave_with_master;
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Perform basic operation on master and ensure replicated correctly --" as "";
+--enable_query_log
+
+--source include/rpl_multi_engine3.inc
+
+--disable_warnings
+select "--- End test 1 Basic testing --" as "";
+select "--- Do Cleanup --" as "";
+--enable_query_log
+
+DROP TABLE IF EXISTS t1;
+
+#################################################################
+--disable_warnings
+select "--- Start test 2 partition RANGE testing --" as "";
+select "--- Do setup --" as "";
+--enable_query_log
+
+CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, f FLOAT DEFAULT 0, total BIGINT UNSIGNED, y YEAR, t DATE)PARTITION BY RANGE (YEAR(t)) (PARTITION p0 VALUES LESS THAN (1901), PARTITION p1 VALUES LESS THAN (1946),  PARTITION p2 VALUES LESS THAN (1966), PARTITION p3 VALUES LESS THAN (1986), PARTITION p4 VALUES LESS THAN (2005), PARTITION p5 VALUES LESS THAN MAXVALUE);
+
+--disable_query_log
+select "--- Show table on master --" as "";
+--enable_query_log
+
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Show table on slave --" as "";
+--enable_query_log
+
+sync_slave_with_master;
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Perform basic operation on master and ensure replicated correctly --" as "";
+--enable_query_log
+
+--source include/rpl_multi_engine3.inc
+
+--disable_query_log
+select "--- Check that simple Alter statements are replicated correctly --" as "";
+--enable_query_log
+
+ALTER TABLE t1 MODIFY vc TEXT;
+
+--disable_query_log
+select "--- Show the new improved table on the master --" as "";
+--enable_query_log
+
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Make sure that our tables on slave are still same engine --" as "";
+select "--- and that the alter statements replicated correctly --" as "";
+--enable_query_log
+
+sync_slave_with_master;
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Perform basic operation on master and ensure replicated correctly --" as "";
+--enable_query_log
+
+--source include/rpl_multi_engine3.inc
+
+--disable_warnings
+select "--- End test 2 partition RANGE testing --" as "";
+select "--- Do Cleanup --" as "";
+--enable_query_log
+
+DROP TABLE IF EXISTS t1;
+
+########################################################
+--disable_warnings
+select "--- Start test 3 partition LIST testing --" as "";
+select "--- Do setup --" as "";
+--enable_query_log
+
+
+CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, f FLOAT DEFAULT 0, total BIGINT UNSIGNED, y YEAR, t DATE)PARTITION BY LIST(id) (PARTITION p0 VALUES IN (2, 4), PARTITION p1 VALUES IN (42, 142));
+
+--disable_warnings
+select "--- Test 3 Alter to add partition --" as "";
+--enable_query_log
+
+ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES IN (412));
+
+--disable_query_log
+select "--- Show table on master --" as "";
+--enable_query_log
+
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Show table on slave --" as "";
+--enable_query_log
+
+sync_slave_with_master;
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Perform basic operation on master and ensure replicated correctly --" as "";
+--enable_query_log
+
+--source include/rpl_multi_engine3.inc
+
+--disable_query_log
+select "--- Check that simple Alter statements are replicated correctly --" as "";
+--enable_query_log
+
+ALTER TABLE t1 MODIFY vc TEXT;
+
+--disable_query_log
+select "--- Show the new improved table on the master --" as "";
+--enable_query_log
+
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Make sure that our tables on slave are still same engine --" as "";
+select "--- and that the alter statements replicated correctly --" as "";
+--enable_query_log
+
+sync_slave_with_master;
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Perform basic operation on master and ensure replicated correctly --" as "";
+--enable_query_log
+
+--source include/rpl_multi_engine3.inc
+
+--disable_warnings
+select "--- End test 3 partition LIST testing --" as "";
+select "--- Do Cleanup --" as "";
+--enable_query_log
+
+DROP TABLE IF EXISTS t1;
+
+########################################################
+--disable_warnings
+select "--- Start test 4 partition HASH testing --" as "";
+select "--- Do setup --" as "";
+--enable_query_log
+
+CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, f FLOAT DEFAULT 0, total BIGINT UNSIGNED, y YEAR, t DATE)PARTITION BY HASH( YEAR(t) ) PARTITIONS 4; 
+
+--disable_query_log
+select "--- show that tables have been created correctly --" as "";
+--enable_query_log
+
+SHOW CREATE TABLE t1;
+sync_slave_with_master;
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Perform basic operation on master and ensure replicated correctly --" as "";
+--enable_query_log
+
+--source include/rpl_multi_engine3.inc
+
+--disable_query_log
+select "--- Check that simple Alter statements are replicated correctly --" as "";
+--enable_query_log
+
+ALTER TABLE t1 MODIFY vc TEXT;
+
+--disable_query_log
+select "--- Show the new improved table on the master --" as "";
+--enable_query_log
+
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Make sure that our tables on slave are still same engine --" as "";
+select "--- and that the alter statements replicated correctly --" as "";
+--enable_query_log
+
+sync_slave_with_master;
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Perform basic operation on master and ensure replicated correctly --" as "";
+--enable_query_log
+
+--source include/rpl_multi_engine3.inc
+
+--disable_warnings
+select "--- End test 4 partition HASH testing --" as "";
+select "--- Do Cleanup --" as "";
+--enable_query_log
+
+DROP TABLE IF EXISTS t1;
+
+########################################################
+--disable_warnings
+select "--- Start test 5 partition by key testing --" as "";
+select "--- Create Table Section --" as "";
+--enable_query_log
+
+CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, f FLOAT DEFAULT 0, total BIGINT UNSIGNED, y YEAR, t DATE,PRIMARY KEY(id))PARTITION BY KEY() PARTITIONS 4;
+
+--disable_query_log
+select "--- Show that tables on master are ndbcluster tables --" as "";
+--enable_query_log
+
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Show that tables on slave --" as "";
+--enable_query_log
+sync_slave_with_master;
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Perform basic operation on master and ensure replicated correctly --" as "";
+--enable_query_log
+
+--source include/rpl_multi_engine3.inc
+
+# Okay lets see how it holds up to table changes
+--disable_query_log
+select "--- Check that simple Alter statements are replicated correctly --" as "";
+--enable_query_log
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(id, total);
+
+--disable_query_log
+select "--- Show the new improved table on the master --" as "";
+--enable_query_log
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Make sure that our tables on slave are still myisam, innodb, memory --" as "";
+select "--- and that the alter statements replicated correctly --" as "";
+--enable_query_log
+sync_slave_with_master;
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Perform basic operation on master and ensure replicated correctly --" as "";
+--enable_query_log
+--source include/rpl_multi_engine3.inc
+
+--disable_query_log
+select "--- Check that simple Alter statements are replicated correctly --" as "";
+--enable_query_log
+
+ALTER TABLE t1 MODIFY vc TEXT;
+
+--disable_query_log
+select "--- Show the new improved table on the master --" as "";
+--enable_query_log
+
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Make sure that our tables on slave are still same engine --" as "";
+select "--- and that the alter statements replicated correctly --" as "";
+--enable_query_log
+
+sync_slave_with_master;
+SHOW CREATE TABLE t1;
+
+--disable_query_log
+select "--- Perform basic operation on master and ensure replicated correctly --" as "";
+--enable_query_log
+
+--source include/rpl_multi_engine3.inc
+
+--disable_warnings
+select "--- End test 1 Basic testing --" as "";
+select "--- Do Cleanup --" as "";
+--enable_query_log
+
+DROP TABLE IF EXISTS t1;
+
+# End of 5.1 test case
