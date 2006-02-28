@@ -1370,7 +1370,7 @@ int do_modify_var(struct st_query *query, const char *name,
     system <command>
 
     Eval the query to expand any $variables in the command.
-    Execute the command withe the "system" command.
+    Execute the command with the "system" command.
 
   NOTE
    If mysqltest is executed from cygwin shell, the command will be
@@ -2099,7 +2099,7 @@ int safe_connect(MYSQL* mysql, const char *host, const char *user,
 
 
 /*
-  Connect to a server and handle connection errors in case when they occur.
+  Connect to a server and handle connection errors in case they occur.
 
   SYNOPSIS
     connect_n_handle_errors()
@@ -2819,7 +2819,7 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use the compressed server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statment",
+  {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statements.",
    (gptr*) &cursor_protocol, (gptr*) &cursor_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
