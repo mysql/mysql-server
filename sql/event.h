@@ -76,10 +76,10 @@ enum evex_table_field
   EVEX_FIELD_COUNT /* a cool trick to count the number of fields :) */
 } ;
 
-class event_timed
+class Event_timed
 {
-  event_timed(const event_timed &);	/* Prevent use of these */
-  void operator=(event_timed &);
+  Event_timed(const Event_timed &);	/* Prevent use of these */
+  void operator=(Event_timed &);
   my_bool in_spawned_thread;
   ulong locked_by_thread_id;
   my_bool running;
@@ -122,7 +122,7 @@ public:
   bool free_sphead_on_delete;
   uint flags;//all kind of purposes
 
-  event_timed():in_spawned_thread(0),locked_by_thread_id(0),
+  Event_timed():in_spawned_thread(0),locked_by_thread_id(0),
                 running(0), status_changed(false),
                 last_executed_changed(false), expression(0), created(0),
                 modified(0), on_completion(MYSQL_EVENT_ON_COMPLETION_DROP),
@@ -135,7 +135,7 @@ public:
     init();
   }
 
-  ~event_timed()
+  ~Event_timed()
   {
     pthread_mutex_destroy(&this->LOCK_running);
     if (free_sphead_on_delete)
@@ -259,15 +259,15 @@ protected:
 
 
 int
-evex_create_event(THD *thd, event_timed *et, uint create_options,
+evex_create_event(THD *thd, Event_timed *et, uint create_options,
                   uint *rows_affected);
 
 int
-evex_update_event(THD *thd, event_timed *et, sp_name *new_name,
+evex_update_event(THD *thd, Event_timed *et, sp_name *new_name,
                   uint *rows_affected);
 
 int
-evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
+evex_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
                 uint *rows_affected);
 
 int
@@ -296,7 +296,7 @@ shutdown_events();
 
 // auxiliary
 int
-event_timed_compare(event_timed **a, event_timed **b);
+event_timed_compare(Event_timed **a, Event_timed **b);
 
 
 
