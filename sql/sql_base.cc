@@ -4430,7 +4430,6 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
 {
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
-  const char *field_name_1;
   Query_arena *arena, backup;
   bool add_columns= TRUE;
   bool result= TRUE;
@@ -4463,6 +4462,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   {
     bool is_created_1;
     bool found= FALSE;
+    const char *field_name_1;
     if (!(nj_col_1= it_1.get_or_create_column_ref(&is_created_1)))
       goto err;
     field_name_1= nj_col_1->name();
@@ -4663,7 +4663,6 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
 {
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
-  bool is_created;
   Query_arena *arena, backup;
   bool result= TRUE;
   List<Natural_join_column> *non_join_columns;
