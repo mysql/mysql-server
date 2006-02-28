@@ -16,6 +16,10 @@
 
 /* Some general useful functions */
 
+#ifdef USE_PRAGMA_IMPLEMENTATION
+#pragma implementation
+#endif
+
 #include "mysql_priv.h"
 #include "ha_partition.h"
 
