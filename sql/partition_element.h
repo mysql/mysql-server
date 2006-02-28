@@ -13,10 +13,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-   
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 /**
  * An enum and a struct to handle partitioning and subpartitioning.
@@ -55,7 +51,7 @@ public:
   handlerton *engine_type;
   enum partition_state part_state;
   uint16 nodegroup_id;
-  
+
   partition_element()
   : part_max_rows(0), part_min_rows(0), partition_name(NULL),
     tablespace_name(NULL), range_value(0), part_comment(NULL),

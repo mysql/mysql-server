@@ -13,7 +13,7 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-   
+
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
@@ -223,54 +223,30 @@ public:
     subpart_field_list.empty();
   }
   ~partition_info() {}
-  
-  bool is_sub_partitioned();
-  uint get_tot_partitions();
-  bool set_up_defaults_for_partitioning(handler *file, ulonglong max_rows, 
+
+  /* Answers the question if subpartitioning is used for a certain table */
+  bool is_sub_partitioned()
+  {
+    return (subpart_type == NOT_A_PARTITION ?  FALSE : TRUE);
+  }
+
+  /* Returns the total number of partitions on the leaf level */
+  uint get_tot_partitions()
+  {
+    return no_parts * (is_sub_partitioned() ? no_subparts : 1);
+  }
+
+  bool set_up_defaults_for_partitioning(handler *file, ulonglong max_rows,
                                         uint start_no);
   char *has_unique_names();
 private:
   bool set_up_default_partitions(handler *file, ulonglong max_rows,
                                  uint start_no);
   bool set_up_default_subpartitions(handler *file, ulonglong max_rows);
-  char *create_default_partition_names(uint part_no, uint no_parts, 
+  char *create_default_partition_names(uint part_no, uint no_parts,
                                        uint start_no, bool is_subpart);
-  bool has_unique_name(partition_element *element);                                          
+  bool has_unique_name(partition_element *element);
 };
-
-/*
-  Answers the question if subpartitioning is used for a certain table
-  SYNOPSIS
-    is_sub_partitioned()
-    part_info          A reference to the partition_info struct
-  RETURN VALUE
-    Returns true if subpartitioning used and false otherwise
-  DESCRIPTION
-    A routine to check for subpartitioning for improved readability of code
-*/
-inline
-bool partition_info::is_sub_partitioned()
-{ 
-  return (subpart_type == NOT_A_PARTITION ?  FALSE : TRUE); 
-}
-
-
-/*
-  Returns the total number of partitions on the leaf level.
-  SYNOPSIS
-    get_tot_partitions()
-    part_info          A reference to the partition_info struct
-  RETURN VALUE
-    Returns the number of partitions
-  DESCRIPTION
-    A routine to check for number of partitions for improved readability
-    of code
-*/
-inline
-uint partition_info::get_tot_partitions()
-{
-  return no_parts * (is_sub_partitioned() ? no_subparts : 1);
-}
 
 uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);
 
