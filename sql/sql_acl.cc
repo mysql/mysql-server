@@ -471,10 +471,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
 
       /*
-        if it is pre 5.1.4 privilege table then map CREATE privilege on
+        if it is pre 5.1.6 privilege table then map CREATE privilege on
         CREATE|ALTER|DROP|EXECUTE EVENT
       */
-      if (table->s->fields <= 37 && (user.access & CREATE_ACL))
+      if (table->s->fields <= 37 && (user.access & SUPER_ACL))
         user.access|= EVENT_ACL;
 
       /*
