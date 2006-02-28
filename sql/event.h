@@ -100,6 +100,9 @@ public:
   TIME starts;
   TIME ends;
   TIME execute_at;
+  my_bool starts_null;
+  my_bool ends_null;
+  my_bool execute_at_null;
 
   longlong expression;
   interval_type interval;

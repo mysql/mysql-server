@@ -3883,35 +3883,32 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   {
     //type
     sch_table->field[5]->store(STRING_WITH_LEN("RECURRING"), scs);
-    //execute_at
-    sch_table->field[6]->set_null();
     //interval_value
     sch_table->field[7]->set_notnull();
     sch_table->field[7]->store((longlong) et.expression);
+
     //interval_type
     LEX_STRING *ival=&interval_type_to_name[get_real_interval_type(et.interval)];
     sch_table->field[8]->set_notnull();
     sch_table->field[8]->store(ival->str, ival->length, scs);
-    //starts & ends
+
+    //starts & ends    
     sch_table->field[10]->set_notnull();
     sch_table->field[10]->store_time(&et.starts, MYSQL_TIMESTAMP_DATETIME);
-    sch_table->field[11]->set_notnull();
-    sch_table->field[11]->store_time(&et.ends, MYSQL_TIMESTAMP_DATETIME);
+
+    if (!et.ends_null)
+    {
+      sch_table->field[11]->set_notnull();
+      sch_table->field[11]->store_time(&et.ends, MYSQL_TIMESTAMP_DATETIME);
+    }
   }
   else
   {
     //type
     sch_table->field[5]->store(STRING_WITH_LEN("ONE TIME"), scs);
-    //execute_at
+
     sch_table->field[6]->set_notnull();
     sch_table->field[6]->store_time(&et.execute_at, MYSQL_TIMESTAMP_DATETIME);
-    //interval
-    sch_table->field[7]->set_null();
-    //interval_type
-    sch_table->field[8]->set_null();
-    //starts & ends
-    sch_table->field[10]->set_null();
-    sch_table->field[11]->set_null();
   }
 
   //status

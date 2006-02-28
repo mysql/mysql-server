@@ -203,7 +203,7 @@ event_executor_main(void *arg)
 
   if (init_event_thread(thd))
     goto err;
-  
+
   // make this thread invisible it has no vio -> show processlist won't see
   thd->system_thread= 1;
 
@@ -321,8 +321,7 @@ event_executor_main(void *arg)
     et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
     DBUG_PRINT("evex main thread",("got event from the queue"));
       
-    if (et->execute_at.year > 1969 &&
-        my_time_compare(&time_now, &et->execute_at) == -1)
+    if (!et->execute_at_null && my_time_compare(&time_now,&et->execute_at) == -1)
     {
       DBUG_PRINT("evex main thread",("still not the time for execution"));
       VOID(pthread_mutex_unlock(&LOCK_event_arrays));
@@ -359,8 +358,11 @@ event_executor_main(void *arg)
 #else
       event_executor_worker((void *) et);
 #endif
-      if ((et->execute_at.year && !et->expression) ||
-           TIME_to_ulonglong_datetime(&et->execute_at) == 0)
+      /*
+        1. For one-time event : year is > 0 and expression is 0
+        2. For recurring, expression is != -=> check execute_at_null in this case
+      */
+      if ((et->execute_at.year && !et->expression) || et->execute_at_null)
          et->flags |= EVENT_EXEC_NO_MORE;
 
       if ((et->flags & EVENT_EXEC_NO_MORE) || et->status == MYSQL_EVENT_DISABLED)
@@ -481,9 +483,9 @@ event_executor_worker(void *event_void)
 #endif
 
   // thd->security_ctx->priv_host is char[MAX_HOSTNAME]
-  
+
   strxnmov(thd->security_ctx->priv_host, sizeof(thd->security_ctx->priv_host),
-                event->definer_host.str, NullS);  
+                event->definer_host.str, NullS);
 
   thd->security_ctx->user= thd->security_ctx->priv_user=
                              my_strdup(event->definer_user.str, MYF(0));
@@ -506,7 +508,6 @@ event_executor_worker(void *event_void)
     if (ret == EVEX_COMPILE_ERROR)
       sql_print_information("    EVEX COMPILE ERROR for event %s.%s",
                              event->dbname.str, event->name.str);
-    
     DBUG_PRINT("info", ("    EVEX EXECUTED event %s.%s  [EXPR:%d]. RetCode=%d",
                         event->dbname.str, event->name.str,
                         (int) event->expression, ret));
