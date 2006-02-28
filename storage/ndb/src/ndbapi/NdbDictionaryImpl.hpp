@@ -479,6 +479,7 @@ private:
   class TransporterFacade * m_transporter;
   
   friend class Ndb;
+  friend class NdbDictionaryImpl;
   static void execSignal(void* dictImpl, 
 			 class NdbApiSignal* signal, 
 			 struct LinearSectionPtr ptr[3]);
@@ -540,7 +541,7 @@ public:
   bool setTransporter(class TransporterFacade * tf);
 
   int createTable(NdbTableImpl &t);
-  int createBlobTables(NdbTableImpl& org, NdbTableImpl & created);
+  int createBlobTables(NdbTableImpl& t);
   int addBlobTables(NdbTableImpl &);
   int alterTable(NdbTableImpl &t);
   int dropTable(const char * name);
