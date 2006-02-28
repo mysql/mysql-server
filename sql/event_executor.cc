@@ -329,7 +329,7 @@ executor_wait_till_next_event_exec(THD *thd)
   if (!evex_queue_num_elements(EVEX_EQ_NAME))
   {
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
-    DBUG_RETURN(1);
+    DBUG_RETURN(WAIT_STATUS_EMPTY_QUEUE);
   }
   et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
   DBUG_ASSERT(et);
@@ -368,13 +368,13 @@ executor_wait_till_next_event_exec(THD *thd)
     }
   }
 
-  int ret= 0;
+  int ret= WAIT_STATUS_READY;
   if (!evex_queue_num_elements(EVEX_EQ_NAME))
-    ret= 1;
+    ret= WAIT_STATUS_EMPTY_QUEUE;
   else if (evex_queue_first_element(&EVEX_EQ_NAME, event_timed*) != et)
-    ret= 2;
+    ret= WAIT_STATUS_NEW_TOP_EVENT;
   if (thd->killed && event_executor_running_global_var)
-    ret= 3;
+    ret= WAIT_STATUS_STOP_EXECUTOR;
 
   DBUG_RETURN(ret);
 }
