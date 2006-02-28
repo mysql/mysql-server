@@ -184,17 +184,6 @@ page_zip_dir_get(
 	ulint			slot)		/* in: slot
 						(0=first user record) */
 	__attribute__((pure));
-/*****************************************************************
-Write a given slot in the dense page directory. */
-UNIV_INLINE
-void
-page_zip_dir_set(
-/*=============*/
-	page_zip_des_t*	page_zip,	/* in: compressed page */
-	ulint		slot,		/* in: slot (0=first user record) */
-	ulint		offs);		/* in: offset, possibly ORed with
-					PAGE_ZIP_DIR_SLOT_DEL or
-					PAGE_ZIP_DIR_SLOT_OWNED */
 
 /**************************************************************************
 Ensure that enough space is available in the modification log.
