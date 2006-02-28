@@ -284,11 +284,11 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
     it may be in use by the injector thread
   */
   share->ndb_value[0]= (NdbValue*)
-    alloc_root(mem_root, sizeof(NdbValue) * table->s->fields
-               + 1 /*extra for hidden key*/);
+    alloc_root(mem_root, sizeof(NdbValue) *
+               (table->s->fields + 2 /*extra for hidden key and part key*/));
   share->ndb_value[1]= (NdbValue*)
-    alloc_root(mem_root, sizeof(NdbValue) * table->s->fields
-               +1 /*extra for hidden key*/);
+    alloc_root(mem_root, sizeof(NdbValue) *
+               (table->s->fields + 2 /*extra for hidden key and part key*/));
 
   DBUG_RETURN(0);
 }
