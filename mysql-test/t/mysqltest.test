@@ -664,10 +664,14 @@ real_sleep 1;
 # Missing parameter
 --error 1
 --exec echo "sleep ;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "real_sleep ;" | $MYSQL_TEST 2>&1
 
 # Illegal parameter
 --error 1
 --exec echo "sleep abc;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "real_sleep abc;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
 # Test inc
