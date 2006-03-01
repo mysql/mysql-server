@@ -4,7 +4,7 @@
 
 #
 # Currently test only works with ndb since it retrieves "old"
-# binlog positions with cluster_replication.binlog_index and apply_status;
+# binlog positions with cluster.binlog_index and apply_status;
 #
 
 # create a table with one row
@@ -15,7 +15,7 @@ SELECT * FROM t1 ORDER BY c3;
 # sync slave and retrieve epoch
 sync_slave_with_master;
 --replace_column 1 <the_epoch>
-SELECT @the_epoch:=MAX(epoch) FROM cluster_replication.apply_status;
+SELECT @the_epoch:=MAX(epoch) FROM cluster.apply_status;
 let $the_epoch= `select @the_epoch` ;
 SELECT * FROM t1 ORDER BY c3;
 
@@ -24,7 +24,7 @@ connection master;
 --replace_result $the_epoch <the_epoch>
 --replace_column 1 <the_pos>
 eval SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
-   FROM cluster_replication.binlog_index WHERE epoch = $the_epoch ;
+   FROM cluster.binlog_index WHERE epoch = $the_epoch ;
 let $the_pos= `SELECT @the_pos` ;
 let $the_file= `SELECT @the_file` ;
 
