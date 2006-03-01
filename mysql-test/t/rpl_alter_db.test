@@ -1,0 +1,10 @@
+source include/master-slave.inc;
+connection master;
+use mysql; # to be different from initial `test' db of mysqltest client
+alter database collate latin1_bin;
+save_master_pos;
+
+connection slave;
+sync_with_master;
+
+

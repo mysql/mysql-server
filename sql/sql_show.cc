@@ -3936,7 +3936,7 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
   TIME time;
-  event_timed et;    
+  Event_timed et;    
   DBUG_ENTER("fill_events_copy_to_schema_tab");
 
   restore_record(sch_table, s->default_values);
@@ -3957,7 +3957,7 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   sch_table->field[3]->store(et.definer.str, et.definer.length, scs);
   sch_table->field[4]->store(et.body.str, et.body.length, scs);
 
-  // [9] is SQL_MODE 
+  /* [9] is SQL_MODE */
   {
     byte *sql_mode_str;
     ulong sql_mode_len=0;
@@ -3972,9 +3972,9 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     String show_str;
     //type
     sch_table->field[5]->store(STRING_WITH_LEN("RECURRING"), scs);
-    //execute_at
+    /* execute_at */
     sch_table->field[6]->set_null();
-    //interval_value
+    /* interval_value */
     //interval_type
     if (event_reconstruct_interval_expression(&show_str, et.interval,
                                               et.expression))
@@ -3986,26 +3986,24 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     LEX_STRING *ival= &interval_type_to_name[et.interval];
     sch_table->field[8]->set_notnull();
     sch_table->field[8]->store(ival->str, ival->length, scs);
-    //starts & ends
+
+    //starts & ends    
     sch_table->field[10]->set_notnull();
     sch_table->field[10]->store_time(&et.starts, MYSQL_TIMESTAMP_DATETIME);
-    sch_table->field[11]->set_notnull();
-    sch_table->field[11]->store_time(&et.ends, MYSQL_TIMESTAMP_DATETIME);
+
+    if (!et.ends_null)
+    {
+      sch_table->field[11]->set_notnull();
+      sch_table->field[11]->store_time(&et.ends, MYSQL_TIMESTAMP_DATETIME);
+    }
   }
   else
   {
     //type
     sch_table->field[5]->store(STRING_WITH_LEN("ONE TIME"), scs);
-    //execute_at
+
     sch_table->field[6]->set_notnull();
     sch_table->field[6]->store_time(&et.execute_at, MYSQL_TIMESTAMP_DATETIME);
-    //interval
-    sch_table->field[7]->set_null();
-    //interval_type
-    sch_table->field[8]->set_null();
-    //starts & ends
-    sch_table->field[10]->set_null();
-    sch_table->field[11]->set_null();
   }
 
   //status

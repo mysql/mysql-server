@@ -2005,7 +2005,7 @@ private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   gptr  m_memory;
-  byte *m_search_record;
+  byte *m_after_image;
 
   virtual int         do_before_row_operations(TABLE *table);
   virtual int         do_after_row_operations(TABLE *table, int error);
@@ -2069,7 +2069,7 @@ private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   gptr  m_memory;
   byte *m_key;
-  byte *m_search_record;
+  byte *m_after_image;
 
   virtual int         do_before_row_operations(TABLE *table);
   virtual int         do_after_row_operations(TABLE *table, int error);
@@ -2139,7 +2139,7 @@ private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   gptr  m_memory;
   byte *m_key;
-  byte *m_search_record;
+  byte *m_after_image;
 
   virtual int         do_before_row_operations(TABLE *table);
   virtual int         do_after_row_operations(TABLE *table, int error);

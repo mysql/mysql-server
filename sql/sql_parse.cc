@@ -2111,6 +2111,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 void log_slow_statement(THD *thd)
 {
+  DBUG_ENTER("log_slow_statement");
   time_t start_of_query;
 
   /*
@@ -2142,6 +2143,7 @@ void log_slow_statement(THD *thd)
       slow_log_print(thd, thd->query, thd->query_length, start_of_query);
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3715,7 +3717,7 @@ end_with_restore_list:
     }
     if (!strip_sp(db) || check_db_name(db))
     {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
+      my_error(ER_WRONG_DB_NAME, MYF(0), db);
       break;
     }
     /*
@@ -3727,8 +3729,8 @@ end_with_restore_list:
     */
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread &&
-	(!rpl_filter->db_ok(lex->name) ||
-	 !rpl_filter->db_ok_with_wild_table(lex->name)))
+	(!rpl_filter->db_ok(db) ||
+	 !rpl_filter->db_ok_with_wild_table(db)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       break;
