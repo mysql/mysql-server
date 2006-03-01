@@ -601,7 +601,14 @@ while test $# -gt 0; do
       FAST_START=1
       ;;
     --use-old-data)
-      USE_OLD_DATA=1;
+      USE_OLD_DATA=1
+      ;;
+    --comment=*)
+      TMP=`$ECHO "$1" | $SED -e "s;--comment=;;"`
+      echo
+      echo '############################################'
+      echo "# $TMP"
+      echo '############################################'
       ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
