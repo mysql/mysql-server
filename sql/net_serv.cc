@@ -208,13 +208,33 @@ my_bool net_realloc(NET *net, ulong length)
   RETURN VALUES
     0	No data to read
     1	Data or EOF to read
+    -1  Don't know if data is ready or not
 */
 
-static my_bool net_data_is_ready(my_socket sd)
+static int net_data_is_ready(my_socket sd)
 {
+#ifdef HAVE_POLL
+  struct pollfd ufds;
+  int res;
+
+  ufds.fd= sd;
+  ufds.events= POLLIN | POLLPRI;
+  if (!(res= poll(&ufds, 1, 0)))
+    return 0;
+  if (res < 0 || !(ufds.revents & (POLLIN | POLLPRI)))
+    return 0;
+  return 1;
+#else
   fd_set sfds;
   struct timeval tv;
   int res;
+
+#ifndef __WIN__
+  /* Windows uses an _array_ of 64 fd's as default, so it's safe */
+  if (sd >= FD_SETSIZE)
+    return -1;
+  #define NET_DATA_IS_READY_CAN_RETURN_MINUS_ONE
+#endif
 
   FD_ZERO(&sfds);
   FD_SET(sd, &sfds);
@@ -222,9 +242,10 @@ static my_bool net_data_is_ready(my_socket sd)
   tv.tv_sec= tv.tv_usec= 0;
 
   if ((res= select(sd+1, &sfds, NULL, NULL, &tv)) < 0)
-    return FALSE;
+    return 0;
   else
     return test(res ? FD_ISSET(sd, &sfds) : 0);
+#endif
 }
 
 
@@ -251,10 +272,10 @@ static my_bool net_data_is_ready(my_socket sd)
 
 void net_clear(NET *net)
 {
-  int count;
+  int count, ready;
   DBUG_ENTER("net_clear");
 #if !defined(EMBEDDED_LIBRARY)
-  while(net_data_is_ready(net->vio->sd))
+  while((ready= net_data_is_ready(net->vio->sd)) > 0)
   {
     /* The socket is ready */
     if ((count= vio_read(net->vio, (char*) (net->buff),
@@ -274,6 +295,22 @@ void net_clear(NET *net)
       break;
     }
   }
+#ifdef NET_DATA_IS_READY_CAN_RETURN_MINUS_ONE
+  /* 'net_data_is_ready' returned "don't know" */
+  if (ready == -1)
+  {
+    /* Read unblocking to clear net */
+    my_bool old_mode;
+    if (!vio_blocking(net->vio, FALSE, &old_mode))
+    {
+      while ((count= vio_read(net->vio, (char*) (net->buff),
+                              (uint32) net->max_packet)) > 0)
+	DBUG_PRINT("info",("skipped %d bytes from file: %s",
+			   count, vio_description(net->vio)));
+      vio_blocking(net->vio, TRUE, &old_mode);
+    }
+  }
+#endif
 #endif
   net->pkt_nr=net->compress_pkt_nr=0;		/* Ready for new command */
   net->write_pos=net->buff;

@@ -334,3 +334,24 @@ lock table mysql.user write;
  revoke all on *.* from 'mysqltest_1'@'localhost';
 unlock tables;
 drop user 'mysqltest_1'@'localhost';
+create database TESTDB;
+create table t2(a int);
+create temporary table t1 as select * from mysql.user;
+delete from mysql.user where host='localhost';
+INSERT INTO mysql.user (host, user, password) VALUES
+('%','mysqltest_1',password('password'));
+Warnings:
+Warning	1364	Field 'ssl_cipher' doesn't have a default value
+Warning	1364	Field 'x509_issuer' doesn't have a default value
+Warning	1364	Field 'x509_subject' doesn't have a default value
+INSERT INTO mysql.db (host, db, user, select_priv) VALUES
+('%','TESTDB','mysqltest_1','Y');
+FLUSH PRIVILEGES;
+create database TEStdb;
+ERROR 42000: Access denied for user 'mysqltest_1'@'%' to database 'TEStdb'
+delete from mysql.user;
+delete from mysql.db where host='%' and user='mysqltest_1' and db='TESTDB';
+insert into mysql.user select * from t1;
+drop table t1, t2;
+drop database TESTDB;
+flush privileges;
