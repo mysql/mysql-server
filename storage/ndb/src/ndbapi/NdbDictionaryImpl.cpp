@@ -2056,59 +2056,94 @@ int
 NdbDictionaryImpl::createTable(NdbTableImpl &t)
 { 
   DBUG_ENTER("NdbDictionaryImpl::createTable");
-  // If the a new name has not been set, used the copied name
+
+  // if the new name has not been set, use the copied name
   if (t.m_newExternalName.empty())
     t.m_newExternalName.assign(t.m_externalName);
+
+  // create table
   if (m_receiver.createTable(m_ndb, t) != 0)
-  {
+    DBUG_RETURN(-1);
+  Uint32* data = (Uint32*)m_receiver.m_buffer.get_data();
+  t.m_id = data[0];
+  t.m_version = data[1];
+
+  // update table def from DICT - by-pass cache
+  NdbTableImpl* t2 =
+    m_receiver.getTable(t.m_internalName, m_ndb.usingFullyQualifiedNames());
+
+  // check if we got back same table
+  if (t2 == NULL) {
+    DBUG_PRINT("info", ("table %s dropped by another thread", 
+                        t.m_internalName.c_str()));
+    m_error.code = 283;
     DBUG_RETURN(-1);
   }
-  if (t.m_noOfBlobs == 0)
-  {
-    DBUG_RETURN(0);
-  }
-  // update table def from DICT
-  Ndb_local_table_info *info=
-    get_local_table_info(t.m_internalName,false);
-  if (info == NULL) {
-    m_error.code= 709;
+  if (t.m_id != t2->m_id || t.m_version != t2->m_version) {
+    DBUG_PRINT("info", ("table %s re-created by another thread",
+                        t.m_internalName.c_str()));
+    m_error.code = 283;
+    delete t2;
     DBUG_RETURN(-1);
   }
-  if (createBlobTables(t, *(info->m_table_impl)) != 0) {
+
+  // auto-increment - use "t" because initial value is not in DICT
+  {
+    bool autoIncrement = false;
+    Uint64 initialValue = 0;
+    for (Uint32 i = 0; i < t.m_columns.size(); i++) {
+      const NdbColumnImpl* c = t.m_columns[i];
+      assert(c != NULL);
+      if (c->m_autoIncrement) {
+        if (autoIncrement) {
+          m_error.code = 4335;
+          delete t2;
+          DBUG_RETURN(-1);
+        }
+        autoIncrement = true;
+        initialValue = c->m_autoIncrementInitialValue;
+      }
+    }
+    if (autoIncrement) {
+      // XXX unlikely race condition - t.m_id may no longer be same table
+      if (! m_ndb.setTupleIdInNdb(t.m_id, initialValue, false)) {
+        if (m_ndb.theError.code)
+          m_error.code = m_ndb.theError.code;
+        else
+          m_error.code = 4336;
+        delete t2;
+        DBUG_RETURN(-1);
+      }
+    }
+  }
+
+  // blob tables - use "t2" to get values set by kernel
+  if (t2->m_noOfBlobs != 0 && createBlobTables(*t2) != 0) {
     int save_code = m_error.code;
-    (void)dropTable(t);
-    m_error.code= save_code;
+    (void)dropTable(*t2);
+    m_error.code = save_code;
+    delete t2;
     DBUG_RETURN(-1);
   }
+
+  // not entered in cache
+  delete t2;
   DBUG_RETURN(0);
 }
 
 int
-NdbDictionaryImpl::createBlobTables(NdbTableImpl& org, NdbTableImpl &t)
+NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
 {
   DBUG_ENTER("NdbDictionaryImpl::createBlobTables");
   for (unsigned i = 0; i < t.m_columns.size(); i++) {
     NdbColumnImpl & c = *t.m_columns[i];
-    NdbColumnImpl & oc = *org.m_columns[i];
     if (! c.getBlobType() || c.getPartSize() == 0)
       continue;
     NdbTableImpl bt;
-    NdbDictionary::Column::StorageType save = c.getStorageType();
-    c.setStorageType(oc.getStorageType());
     NdbBlob::getBlobTable(bt, &t, &c);
-    c.setStorageType(save);
-    if (createTable(bt) != 0)
-    {
+    if (createTable(bt) != 0) {
       DBUG_RETURN(-1);
     }
-    // Save BLOB table handle
-    Ndb_local_table_info *info=
-      get_local_table_info(bt.m_internalName, false);
-    if (info == 0)
-    {
-      DBUG_RETURN(-1);
-    }
-    c.m_blobTable = info->m_table_impl;
   }
   DBUG_RETURN(0); 
 }
@@ -2292,21 +2327,13 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 	   sizeof(tmpTab->TableName),
 	   internalName.c_str());
 
-  bool haveAutoIncrement = false;
-  Uint64 autoIncrementValue = 0;
   Uint32 distKeys= 0;
-  for(i = 0; i<sz; i++){
+  for(i = 0; i<sz; i++) {
     const NdbColumnImpl * col = impl.m_columns[i];
-    if(col == 0)
-      continue;
-    if (col->m_autoIncrement) {
-      if (haveAutoIncrement) {
-        m_error.code= 4335;
-        NdbMem_Free((void*)tmpTab);
-        DBUG_RETURN(-1);
-      }
-      haveAutoIncrement = true;
-      autoIncrementValue = col->m_autoIncrementInitialValue;
+    if (col == NULL) {
+      m_error.code = 4272;
+      NdbMem_Free((void*)tmpTab);
+      DBUG_RETURN(-1);
     }
     if (col->m_distributionKey)
     {
@@ -2570,17 +2597,6 @@ loop:
 		     errCodes);
   }
   
-  if (!ret && !alter && haveAutoIncrement) {
-    if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(), 
-				   autoIncrementValue)) {
-      if (ndb.theError.code == 0) {
-	m_error.code = 4336;
-	ndb.theError = m_error;
-      } else
-	m_error= ndb.theError;
-      ret = -1; // errorcode set in initialize_autoincrement
-    }
-  }
   DBUG_RETURN(ret);
 }
 
@@ -2588,12 +2604,12 @@ void
 NdbDictInterface::execCREATE_TABLE_CONF(NdbApiSignal * signal,
 					LinearSectionPtr ptr[3])
 {
-#if 0
   const CreateTableConf* const conf=
     CAST_CONSTPTR(CreateTableConf, signal->getDataPtr());
-  Uint32 tableId= conf->tableId;
-  Uint32 tableVersion= conf->tableVersion;
-#endif
+  m_buffer.grow(4 * 2); // 2 words
+  Uint32* data = (Uint32*)m_buffer.get_data();
+  data[0] = conf->tableId;
+  data[1] = conf->tableVersion;
   m_waiter.signal(NO_WAIT);  
 }
 
