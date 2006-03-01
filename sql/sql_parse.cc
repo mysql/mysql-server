@@ -7207,6 +7207,34 @@ bool get_default_definer(THD *thd, LEX_USER *definer)
 
 
 /*
+  Create default definer for the specified THD. Also check that the current
+  user is conformed to the definers requirements.
+
+  SYNOPSIS
+    create_default_definer()
+    thd         [in] thread handler
+
+  RETURN
+    On success, return a valid pointer to the created and initialized
+    LEX_USER, which contains definer information.
+    On error, return 0.
+*/
+
+LEX_USER *create_default_definer(THD *thd)
+{
+  LEX_USER *definer;
+
+  if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
+    return 0;
+
+  if (get_default_definer(thd, definer))
+    return 0;
+
+  return definer;
+}
+
+
+/*
   Create definer with the given user and host names. Also check that the user
   and host names satisfy definers requirements.
 
@@ -7218,7 +7246,7 @@ bool get_default_definer(THD *thd, LEX_USER *definer)
 
   RETURN
     On success, return a valid pointer to the created and initialized
-    LEX_STRING, which contains definer information.
+    LEX_USER, which contains definer information.
     On error, return 0.
 */
 

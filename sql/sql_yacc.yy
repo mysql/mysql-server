@@ -778,7 +778,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <symbol> FUNC_ARG0 FUNC_ARG1 FUNC_ARG2 FUNC_ARG3 keyword keyword_sp
 
-%type <lex_user> user grant_user get_definer
+%type <lex_user> user grant_user
 
 %type <charset>
 	opt_collate
@@ -8960,39 +8960,27 @@ subselect_end:
 	};
 
 definer:
-	get_definer
+	/* empty */
 	{
-	  THD *thd= YYTHD;
-	  
-	  if (! (thd->lex->definer= create_definer(thd, &$1->user, &$1->host)))
-	    YYABORT;
+          /*
+            We have to distinguish missing DEFINER-clause from case when
+            CURRENT_USER specified as definer explicitly in order to properly
+            handle CREATE TRIGGER statements which come to replication thread
+            from older master servers (i.e. to create non-suid trigger in this
+            case).
+           */
+          YYTHD->lex->definer= 0;
 	}
-	;
-
-get_definer:
-	opt_current_definer
+	| DEFINER_SYM EQ CURRENT_USER optional_braces
 	{
-	  THD *thd= YYTHD;
-          
-	  if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
-	    YYABORT;
-
-	  if (get_default_definer(thd, $$))
-	    YYABORT;
+          if (! (YYTHD->lex->definer= create_default_definer(YYTHD)))
+            YYABORT;
 	}
 	| DEFINER_SYM EQ ident_or_text '@' ident_or_text
 	{
-	  if (!($$=(LEX_USER*) YYTHD->alloc(sizeof(st_lex_user))))
-	    YYABORT;
-
-	  $$->user= $3;
-	  $$->host= $5;
+          if (!(YYTHD->lex->definer= create_definer(YYTHD, &$3, &$5)))
+            YYABORT;
 	}
-	;
-
-opt_current_definer:
-	/* empty */
-	| DEFINER_SYM EQ CURRENT_USER optional_braces
 	;
 
 /**************************************************************************

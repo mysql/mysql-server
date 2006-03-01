@@ -531,6 +531,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
 
 bool get_default_definer(THD *thd, LEX_USER *definer);
+LEX_USER *create_default_definer(THD *thd);
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 
 enum enum_mysql_completiontype {
