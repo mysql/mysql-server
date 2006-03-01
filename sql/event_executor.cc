@@ -273,7 +273,7 @@ init_event_thread(THD* thd)
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->slave_thread= 0;
-  thd->options= OPTION_AUTO_IS_NULL;
+  thd->options|= OPTION_AUTO_IS_NULL;
   thd->client_capabilities= CLIENT_LOCAL_FILES;
   thd->real_id=pthread_self();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -708,6 +708,7 @@ event_executor_worker(void *event_void)
   thd= current_thd;
 #endif
 
+  thd->enable_slow_log= TRUE;
   {
     int ret;
     sql_print_information("SCHEDULER: Executing event %s.%s of %s [EXPR:%d]",

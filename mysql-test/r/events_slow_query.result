@@ -1,0 +1,56 @@
+create database if not exists events_test;
+use events_test;
+"Save the values"
+SET @old_global_long_query_time:=(select get_value());
+SET @old_session_long_query_time:=@@long_query_time;
+SHOW VARIABLES LIKE 'log_slow_queries';
+Variable_name	Value
+log_slow_queries	ON
+DROP FUNCTION get_value;
+TRUNCATE mysql.slow_log;
+SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+user_host	query_time	db	sql_text
+"Set new values"
+SET GLOBAL long_query_time=4;
+SET SESSION long_query_time=2;
+"Check that logging is working"
+SELECT SLEEP(3);
+SLEEP(3)
+0
+SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+user_host	query_time	db	sql_text
+root[root] @ localhost []	00:00:03	events_test	SELECT SLEEP(3)
+TRUNCATE mysql.slow_log;
+CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
+"This won't go to the slow log"
+CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(3);
+SELECT * FROM slow_event_test;
+slo_val	val
+SET GLOBAL event_scheduler=1;
+"Sleep some more time than the actual event run will take"
+"Check our table. Should see 1 row"
+SELECT * FROM slow_event_test;
+slo_val	val
+4	0
+"Check slow log. Should not see anything because 3 is under the threshold of 4 for GLOBAL, though over SESSION which is 2"
+SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+user_host	query_time	db	sql_text
+"This should go to the slow log"
+SET SESSION long_query_time=10;
+ALTER EVENT long_event DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(5);
+"Sleep some more time than the actual event run will take"
+"Check our table. Should see 2 rows"
+SELECT * FROM slow_event_test;
+slo_val	val
+4	0
+4	0
+"Check slow log. Should see 1 row because 5 is over the threshold of 4 for GLOBAL, though under SESSION which is 10"
+SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+user_host	query_time	db	sql_text
+root[root] @ localhost [localhost]	00:00:05	events_test	INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(5)
+DROP EVENT long_event;
+SET GLOBAL  long_query_time =@old_global_long_query_time;
+SET SESSION long_query_time =@old_session_long_query_time;
+TRUNCATE mysql.slow_log;
+DROP TABLE slow_event_test;
+drop database events_test;
