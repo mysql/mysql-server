@@ -252,6 +252,18 @@ public:
 };
 
 
+/* Returns self */
+class Item_nodeset_func_selfbyname: public Item_nodeset_func_axisbyname
+{
+public:
+  Item_nodeset_func_selfbyname(Item *a, const char *n_arg, uint l_arg,
+                                String *pxml): 
+    Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml) {}
+  const char *func_name() const { return "xpath_selfbyname"; }
+  String *val_nodeset(String *nodeset);
+};
+
+
 /* Returns children */
 class Item_nodeset_func_childbyname: public Item_nodeset_func_axisbyname
 {
@@ -567,6 +579,20 @@ String * Item_nodeset_func_union::val_nodeset(String *nodeset)
   {
     if (both[i])
      ((XPathFilter*)nodeset)->append_element(i, pos++);
+  }
+  return nodeset;
+}
+
+
+String *Item_nodeset_func_selfbyname::val_nodeset(String *nodeset)
+{
+  prepare(nodeset);
+  for (MY_XPATH_FLT *flt= fltbeg; flt < fltend; flt++)
+  {
+    uint pos= 0;
+    MY_XML_NODE *self= &nodebeg[flt->num];
+    if (validname(self))
+      ((XPathFilter*)nodeset)->append_element(flt->num,pos++);
   }
   return nodeset;
 }
@@ -944,6 +970,9 @@ static Item* nametestfunc(MY_XPATH *xpath,
     break;
   case MY_XPATH_AXIS_ATTRIBUTE:
     res= new Item_nodeset_func_attributebyname(arg, beg, len, xpath->pxml);
+    break;
+  case MY_XPATH_AXIS_SELF:
+    res= new Item_nodeset_func_selfbyname(arg, beg, len, xpath->pxml);
     break;
   default:
     res= new Item_nodeset_func_childbyname(arg, beg, len, xpath->pxml);
