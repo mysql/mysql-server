@@ -410,6 +410,13 @@ while test $# -gt 0; do
     --fast)
       FAST_START=1
       ;;
+    --comment=*)
+      TMP=`$ECHO "$1" | $SED -e "s;--comment=;;"`
+      echo
+      echo '############################################'
+      echo "# $TMP"
+      echo '############################################'
+      ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
     * ) break ;;
