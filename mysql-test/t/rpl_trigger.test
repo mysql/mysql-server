@@ -162,6 +162,7 @@ use test;
 drop table t1,t2;
 drop database other;
 
+
 #
 # Test specific triggers including SELECT into var with replication
 # BUG#13227:
@@ -256,6 +257,79 @@ while ($rnd)
   dec $rnd;
 }
 
+
+#
+# BUG#16266: Definer is not fully qualified error during replication.
+#
+# The idea of this test is to emulate replication of a trigger from the old
+# master (master w/o "DEFINER in triggers" support) to the new slave and check
+# that:
+#   1. the trigger on the slave will be replicated w/o errors;
+#   2. the trigger on the slave will be non-SUID (will have no DEFINER);
+#   3. the trigger can be activated later on the slave w/o errors.
+#
+# In order to emulate this kind of replication, we make the slave playing the binlog,
+# recorded by 5.0.16 master. This binlog contains the following statements:
+#   CREATE TABLE t1(c INT);
+#   CREATE TABLE t2(s CHAR(200));
+#   CREATE TRIGGER trg1 AFTER INSERT ON t1
+#     FOR EACH ROW
+#       INSERT INTO t2 VALUES(CURRENT_USER());
+#   INSERT INTO t1 VALUES(1);
+#
+
+# 1. Check that the trigger's replication is succeeded.
+
+# Stop the slave.
+
+connection slave;
+STOP SLAVE;
+
+# Replace master's binlog.
+
+connection master;
+FLUSH LOGS;
+exec cp $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLTEST_VARDIR/log/master-bin.000001;
+
+# Make the slave to replay the new binlog.
+
+connection slave;
+RESET SLAVE;
+START SLAVE;
+
+SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
+
+# Check that the replication succeeded.
+
+SHOW TABLES;
+SHOW TRIGGERS;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+# 2. Check that the trigger is non-SUID on the slave;
+# 3. Check that the trigger can be activated on the slave.
+
+INSERT INTO t1 VALUES(2);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+# That's all, cleanup.
+
+DROP TRIGGER trg1;
+DROP TABLE t1;
+DROP TABLE t2;
+
+STOP SLAVE;
+RESET SLAVE;
+
+# The master should be clean.
+
+connection master;
+SHOW TABLES;
+SHOW TRIGGERS;
+
+RESET MASTER;
 
 
 #

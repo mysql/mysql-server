@@ -264,7 +264,17 @@ end:
         log_query.set((char *) 0, 0, system_charset_info); /* reset log_query */
 
         log_query.append(STRING_WITH_LEN("CREATE "));
-        append_definer(thd, &log_query, &definer_user, &definer_host);
+
+        if (definer_user.str && definer_host.str)
+        {
+          /*
+            Append definer-clause if the trigger is SUID (a usual trigger in
+            new MySQL versions).
+          */
+
+          append_definer(thd, &log_query, &definer_user, &definer_host);
+        }
+
         log_query.append(thd->lex->trigger_definition_begin);
       }
 
@@ -289,17 +299,30 @@ end:
                      LEX)
       tables       - table list containing one open table for which the
                      trigger is created.
-      definer_user - [out] after a call it points to 0-terminated string,
-                     which contains user name part of the actual trigger
-                     definer. The caller is responsible to provide memory for
+      definer_user - [out] after a call it points to 0-terminated string or
+                     contains the NULL-string:
+                       - 0-terminated is returned if the trigger is SUID. The
+                         string contains user name part of the actual trigger
+                         definer.
+                       - NULL-string is returned if the trigger is non-SUID.
+                     Anyway, the caller is responsible to provide memory for
                      storing LEX_STRING object.
-      definer_host - [out] after a call it points to 0-terminated string,
-                     which contains host name part of the actual trigger
-                     definer. The caller is responsible to provide memory for
+      definer_host - [out] after a call it points to 0-terminated string or
+                     contains the NULL-string:
+                       - 0-terminated string is returned if the trigger is
+                         SUID. The string contains host name part of the
+                         actual trigger definer.
+                       - NULL-string is returned if the trigger is non-SUID.
+                     Anyway, the caller is responsible to provide memory for
                      storing LEX_STRING object.
 
   NOTE
-    Assumes that trigger name is fully qualified.
+    - Assumes that trigger name is fully qualified.
+    - NULL-string means the following LEX_STRING instance:
+      { str = 0; length = 0 }.
+    - In other words, definer_user and definer_host should contain
+      simultaneously NULL-strings (non-SUID/old trigger) or valid strings
+      (SUID/new trigger).
 
   RETURN VALUE
     False - success
@@ -336,12 +359,30 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
     return 1;
   }
 
-  /*
-    Definer attribute of the Lex instance is always set in sql_yacc.yy when
-    trigger is created.
-  */
+  if (!lex->definer)
+  {
+    /*
+      DEFINER-clause is missing.
 
-  DBUG_ASSERT(lex->definer);
+      If we are in slave thread, this means that we received CREATE TRIGGER
+      from the master, that does not support definer in triggers. So, we
+      should mark this trigger as non-SUID. Note that this does not happen
+      when we parse triggers' definitions during opening .TRG file.
+      LEX::definer is ignored in that case.
+
+      Otherwise, we should use CURRENT_USER() as definer.
+
+      NOTE: when CREATE TRIGGER statement is allowed to be executed in PS/SP,
+      it will be required to create the definer below in persistent MEM_ROOT
+      of PS/SP.
+    */
+
+    if (!thd->slave_thread)
+    {
+      if (!(lex->definer= create_default_definer(thd)))
+        return 1;
+    }
+  }
 
   /*
     If the specified definer differs from the current user, we should check
@@ -349,10 +390,11 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
     under another user one must have SUPER privilege).
   */
   
-  if (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) ||
-      my_strcasecmp(system_charset_info,
-                    lex->definer->host.str,
-                    thd->security_ctx->priv_host))
+  if (lex->definer &&
+      (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) ||
+       my_strcasecmp(system_charset_info,
+                     lex->definer->host.str,
+                     thd->security_ctx->priv_host)))
   {
     if (check_global_access(thd, SUPER_ACL))
     {
@@ -446,8 +488,8 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   *trg_sql_mode= thd->variables.sql_mode;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!is_acl_user(lex->definer->host.str,
-                   lex->definer->user.str))
+  if (lex->definer && !is_acl_user(lex->definer->host.str,
+                                   lex->definer->user.str))
   {
     push_warning_printf(thd,
                         MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -458,12 +500,30 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   }
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
-  *definer_user= lex->definer->user;
-  *definer_host= lex->definer->host;
+  if (lex->definer)
+  {
+    /* SUID trigger. */
 
-  trg_definer->str= trg_definer_holder;
-  trg_definer->length= strxmov(trg_definer->str, definer_user->str, "@",
-                               definer_host->str, NullS) - trg_definer->str;
+    *definer_user= lex->definer->user;
+    *definer_host= lex->definer->host;
+
+    trg_definer->str= trg_definer_holder;
+    trg_definer->length= strxmov(trg_definer->str, definer_user->str, "@",
+                                 definer_host->str, NullS) - trg_definer->str;
+  }
+  else
+  {
+    /* non-SUID trigger. */
+
+    definer_user->str= 0;
+    definer_user->length= 0;
+
+    definer_host->str= 0;
+    definer_host->length= 0;
+
+    trg_definer->str= (char*) "";
+    trg_definer->length= 0;
+  }
 
   if (!sql_create_definition_file(&dir, &file, &triggers_file_type,
                                   (gptr)this, triggers_file_parameters, 0))
