@@ -1,3 +1,8 @@
+# Requires row logging because warnings produced when creating
+# the tables in "gis_generic" with no PK and BLOB's differ
+
+--source include/have_binlog_format_row.inc
+
 --source include/have_ndb.inc
 SET storage_engine=ndbcluster;
 --source include/gis_generic.inc
