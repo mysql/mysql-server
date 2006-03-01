@@ -2111,6 +2111,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 void log_slow_statement(THD *thd)
 {
+  DBUG_ENTER("log_slow_statement");
   time_t start_of_query;
 
   /*
@@ -2142,6 +2143,7 @@ void log_slow_statement(THD *thd)
       slow_log_print(thd, thd->query, thd->query_length, start_of_query);
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
