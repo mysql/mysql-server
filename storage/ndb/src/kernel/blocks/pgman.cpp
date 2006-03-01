@@ -2172,8 +2172,8 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
   out << " busy_count=" << dec << pe.m_busy_count;
 #ifdef VM_TRACE
   {
-    Local_page_request_list req_list(ptr.p->m_this->m_page_request_pool, 
-				     ptr.p->m_requests);
+    Pgman::Local_page_request_list 
+      req_list(ptr.p->m_this->m_page_request_pool, ptr.p->m_requests);
     if (! req_list.isEmpty())
     {
       Ptr<Pgman::Page_request> req_ptr;
