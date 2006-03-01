@@ -421,7 +421,7 @@ row_vers_build_for_consistent_read(
 {
 	rec_t*		version;
 	rec_t*		prev_version;
-	dulint		prev_trx_id;
+	dulint		trx_id;
 	mem_heap_t*	heap		= NULL;
 	byte*		buf;
 	ulint		err;
@@ -436,15 +436,47 @@ row_vers_build_for_consistent_read(
 
 	ut_ad(rec_offs_validate(rec, index, *offsets));
 
-	ut_ad(!read_view_sees_trx_id(view,
-				row_get_rec_trx_id(rec, index, *offsets)));
+	trx_id = row_get_rec_trx_id(rec, index, *offsets);
+
+	ut_ad(!read_view_sees_trx_id(view, trx_id));
 
 	rw_lock_s_lock(&(purge_sys->latch));
 	version = rec;
 
 	for (;;) {
 		mem_heap_t*	heap2	= heap;
+		trx_undo_rec_t* undo_rec;
+		dulint		roll_ptr;
+		dulint		undo_no;
 		heap = mem_heap_create(1024);
+
+		/* If we have high-granularity consistent read view and
+		creating transaction of the view is the same as trx_id in
+		the record we see this record only in the case when
+		undo_no of the record is < undo_no in the view. */
+
+		if (view->type == VIEW_HIGH_GRANULARITY 
+		&& ut_dulint_cmp(view->creator_trx_id, trx_id) == 0) {
+
+			roll_ptr = row_get_rec_roll_ptr(version, index, 
+								*offsets);
+			undo_rec = trx_undo_get_undo_rec_low(roll_ptr, heap);
+			undo_no = trx_undo_rec_get_undo_no(undo_rec);
+			mem_heap_empty(heap);
+
+			if (ut_dulint_cmp(view->undo_no, undo_no) > 0) {
+				/* The view already sees this version: we can 
+				copy it to in_heap and return */
+
+				buf = mem_heap_alloc(in_heap, 
+						rec_offs_size(*offsets));
+				*old_vers = rec_copy(buf, version, *offsets);
+				rec_offs_make_valid(*old_vers, index, *offsets);
+				err = DB_SUCCESS;
+
+				break;
+			}
+		}
 
 		err = trx_undo_prev_version_build(rec, mtr, version, index,
 						*offsets, heap, &prev_version);
@@ -466,10 +498,10 @@ row_vers_build_for_consistent_read(
 
 		*offsets = rec_get_offsets(prev_version, index, *offsets,
 					ULINT_UNDEFINED, offset_heap);
-		prev_trx_id = row_get_rec_trx_id(prev_version, index,
-					*offsets);
 
-		if (read_view_sees_trx_id(view, prev_trx_id)) {
+		trx_id = row_get_rec_trx_id(prev_version, index, *offsets);
+
+		if (read_view_sees_trx_id(view, trx_id)) {
 
 			/* The view already sees this version: we can copy
 			it to in_heap and return */

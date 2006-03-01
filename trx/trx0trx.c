@@ -999,7 +999,7 @@ trx_assign_read_view(
 	mutex_enter(&kernel_mutex);
 
 	if (!trx->read_view) {
-		trx->read_view = read_view_open_now(trx,
+		trx->read_view = read_view_open_now(trx->id,
 					trx->global_read_view_heap);
 		trx->global_read_view = trx->read_view;
 	}
