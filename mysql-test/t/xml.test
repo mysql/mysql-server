@@ -243,3 +243,8 @@ select extractvalue('<a>A</a>','/<a>');
 #
 --error 1105
 select extractvalue('<a><b>b</b><b!>b!</b!></a>','//b!');
+
+#
+# Bug #16320 XML: extractvalue() won't accept names containing underscores
+#
+select extractvalue('<A_B>A</A_B>','/A_B');

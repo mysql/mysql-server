@@ -2342,6 +2342,29 @@ bool partition_key_modified(TABLE *table, List<Item> &fields)
 
 
 /*
+  A function to handle correct handling of NULL values in partition
+  functions.
+  SYNOPSIS
+    part_val_int()
+    item_expr                 The item expression to evaluate
+  RETURN VALUES
+    The value of the partition function, LONGLONG_MIN if any null value
+    in function
+*/
+
+static
+inline
+longlong
+part_val_int(Item *item_expr)
+{
+  longlong value= item_expr->val_int();
+  if (item_expr->null_value)
+    value= LONGLONG_MIN;
+  return value;
+}
+
+
+/*
   The next set of functions are used to calculate the partition identity.
   A handler sets up a variable that corresponds to one of these functions
   to be able to quickly call it whenever the partition id needs to calculated
@@ -2437,7 +2460,7 @@ static uint32 get_part_id_hash(uint no_parts,
                                longlong *func_value)
 {
   DBUG_ENTER("get_part_id_hash");
-  *func_value= part_expr->val_int();
+  *func_value= part_val_int(part_expr);
   longlong int_hash_id= *func_value % no_parts;
   DBUG_RETURN(int_hash_id < 0 ? -int_hash_id : int_hash_id);
 }
@@ -2466,7 +2489,7 @@ static uint32 get_part_id_linear_hash(partition_info *part_info,
 {
   DBUG_ENTER("get_part_id_linear_hash");
 
-  *func_value= part_expr->val_int();
+  *func_value= part_val_int(part_expr);
   DBUG_RETURN(get_part_id_from_linear_hash(*func_value,
                                            part_info->linear_hash_mask,
                                            no_parts));
@@ -2604,7 +2627,7 @@ int get_partition_id_list(partition_info *part_info,
   longlong list_value;
   int min_list_index= 0;
   int max_list_index= part_info->no_list_values - 1;
-  longlong part_func_value= part_info->part_expr->val_int();
+  longlong part_func_value= part_val_int(part_info->part_expr);
   DBUG_ENTER("get_partition_id_list");
 
   *func_value= part_func_value;
@@ -2680,7 +2703,7 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
   longlong list_value;
   uint min_list_index= 0, max_list_index= part_info->no_list_values - 1;
   /* Get the partitioning function value for the endpoint */
-  longlong part_func_value= part_info->part_expr->val_int();
+  longlong part_func_value= part_val_int(part_info->part_expr);
   while (max_list_index >= min_list_index)
   {
     list_index= (max_list_index + min_list_index) >> 1;
@@ -2714,7 +2737,7 @@ int get_partition_id_range(partition_info *part_info,
   uint min_part_id= 0;
   uint max_part_id= max_partition;
   uint loc_part_id;
-  longlong part_func_value= part_info->part_expr->val_int();
+  longlong part_func_value= part_val_int(part_info->part_expr);
   DBUG_ENTER("get_partition_id_int_range");
 
   while (max_part_id > min_part_id)
@@ -2789,7 +2812,7 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   uint max_partition= part_info->no_parts - 1;
   uint min_part_id= 0, max_part_id= max_partition, loc_part_id;
   /* Get the partitioning function value for the endpoint */
-  longlong part_func_value= part_info->part_expr->val_int();
+  longlong part_func_value= part_val_int(part_info->part_expr);
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;

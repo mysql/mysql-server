@@ -55,7 +55,7 @@ static int
 evex_load_events_from_db(THD *thd);
 
 bool
-evex_print_warnings(THD *thd, event_timed *et);
+evex_print_warnings(THD *thd, Event_timed *et);
 
 /*
   TODO Andrey: Check for command line option whether to start
@@ -132,7 +132,6 @@ evex_check_system_tables()
 {
   THD *thd= current_thd;
   TABLE_LIST tables;
-  bool not_used;
   Open_tables_state backup;
 
   /* thd is 0x0 during boot of the server. Later it's !=0x0 */
@@ -274,7 +273,7 @@ init_event_thread(THD* thd)
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->slave_thread= 0;
-  thd->options= OPTION_AUTO_IS_NULL;
+  thd->options|= OPTION_AUTO_IS_NULL;
   thd->client_capabilities= CLIENT_LOCAL_FILES;
   thd->real_id=pthread_self();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -316,7 +315,7 @@ init_event_thread(THD* thd)
 static int
 executor_wait_till_next_event_exec(THD *thd)
 {
-  event_timed *et;
+  Event_timed *et;
   TIME time_now;
   int t2sleep;
 
@@ -331,7 +330,7 @@ executor_wait_till_next_event_exec(THD *thd)
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
     DBUG_RETURN(WAIT_STATUS_EMPTY_QUEUE);
   }
-  et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
+  et= evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*);
   DBUG_ASSERT(et);
   if (et->status == MYSQL_EVENT_DISABLED)
   {
@@ -355,23 +354,30 @@ executor_wait_till_next_event_exec(THD *thd)
   DBUG_PRINT("evex main thread",("unlocked LOCK_event_arrays"));
   if (t2sleep > 0)
   {
+    ulonglong modified= et->modified;
     /*
       We sleep t2sleep seconds but we check every second whether this thread
       has been killed, or there is a new candidate
     */
     while (t2sleep-- && !thd->killed && event_executor_running_global_var &&
            evex_queue_num_elements(EVEX_EQ_NAME) &&
-           (evex_queue_first_element(&EVEX_EQ_NAME, event_timed*) == et))
+           (evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*) == et &&
+            evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*)->modified ==
+             modified))
     {
-      DBUG_PRINT("evex main thread",("will sleep a bit more"));
+      DBUG_PRINT("evex main thread",("will sleep a bit more."));
       my_sleep(1000000);
     }
+    DBUG_PRINT("info",("saved_modified=%llu current=%llu", modified,
+               evex_queue_num_elements(EVEX_EQ_NAME)? 
+               evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*)->modified:
+               (ulonglong)~0));
   }
 
   int ret= WAIT_STATUS_READY;
   if (!evex_queue_num_elements(EVEX_EQ_NAME))
     ret= WAIT_STATUS_EMPTY_QUEUE;
-  else if (evex_queue_first_element(&EVEX_EQ_NAME, event_timed*) != et)
+  else if (evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*) != et)
     ret= WAIT_STATUS_NEW_TOP_EVENT;
   if (thd->killed && event_executor_running_global_var)
     ret= WAIT_STATUS_STOP_EXECUTOR;
@@ -401,7 +407,6 @@ event_executor_main(void *arg)
   THD *thd;			/* needs to be first for thread_stack */
   uint i=0, j=0;
   my_ulonglong cnt= 0;
-  TIME time_now;
 
   DBUG_ENTER("event_executor_main");
   DBUG_PRINT("event_executor_main", ("EVEX thread started"));
@@ -470,7 +475,7 @@ event_executor_main(void *arg)
   while (!thd->killed)
   {
     TIME time_now;
-    event_timed *et;
+    Event_timed *et;
 
     cnt++;
     DBUG_PRINT("info", ("EVEX External Loop %d thd->k", cnt));
@@ -519,7 +524,7 @@ restart_ticking:
       DBUG_PRINT("evex main thread",("empty queue"));
       continue;
     }
-    et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
+    et= evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*);
     DBUG_PRINT("evex main thread",("got event from the queue"));
       
     if (!et->execute_at_null && my_time_compare(&time_now,&et->execute_at) == -1)
@@ -621,7 +626,7 @@ finish:
   VOID(pthread_mutex_lock(&LOCK_event_arrays));
   for (i= 0; i < evex_queue_num_elements(EVEX_EQ_NAME); ++i)
   {
-    event_timed *et= evex_queue_element(&EVEX_EQ_NAME, i, event_timed*);
+    Event_timed *et= evex_queue_element(&EVEX_EQ_NAME, i, Event_timed*);
     et->free_sp();
     delete et;
   }
@@ -666,14 +671,14 @@ err_no_thd:
 
    SYNOPSIS
      event_executor_worker()
-       arg  The event_timed object to be processed
+       arg  The Event_timed object to be processed
 */
 
 pthread_handler_t
 event_executor_worker(void *event_void)
 {
   THD *thd; /* needs to be first for thread_stack */
-  event_timed *event = (event_timed *) event_void;
+  Event_timed *event = (Event_timed *) event_void;
   MEM_ROOT worker_mem_root;
 
   DBUG_ENTER("event_executor_worker");
@@ -710,6 +715,7 @@ event_executor_worker(void *event_void)
   thd= current_thd;
 #endif
 
+  thd->enable_slow_log= TRUE;
   {
     int ret;
     sql_print_information("SCHEDULER: Executing event %s.%s of %s [EXPR:%d]",
@@ -771,7 +777,7 @@ err_no_thd:
 /*
    Loads all ENABLED events from mysql.event into the prioritized
    queue. Called during scheduler main thread initialization. Compiles
-   the events. Creates event_timed instances for every ENABLED event
+   the events. Creates Event_timed instances for every ENABLED event
    from mysql.event.
 
    SYNOPSIS
@@ -791,7 +797,6 @@ evex_load_events_from_db(THD *thd)
 {
   TABLE *table;
   READ_RECORD read_record_info;
-  MYSQL_LOCK *lock;
   int ret= -1;
   uint count= 0;
 
@@ -808,8 +813,8 @@ evex_load_events_from_db(THD *thd)
   init_read_record(&read_record_info, thd, table ,NULL,1,0);
   while (!(read_record_info.read_record(&read_record_info)))
   {
-    event_timed *et;
-    if (!(et= new event_timed))
+    Event_timed *et;
+    if (!(et= new Event_timed))
     {
       DBUG_PRINT("evex_load_events_from_db", ("Out of memory"));
       ret= -1;
@@ -941,7 +946,7 @@ static sql_print_xxx_func sql_print_xxx_handlers[3] =
 */
 
 bool
-evex_print_warnings(THD *thd, event_timed *et)
+evex_print_warnings(THD *thd, Event_timed *et)
 {
   MYSQL_ERROR *err;
   DBUG_ENTER("evex_show_warnings");
