@@ -92,6 +92,15 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 #define all_bits_set(A,B) ((A) & (B) != (B))
 
+#define WARN_DEPRECATED(Thd,Ver,Old,New)                                  \
+  do {                                                                    \
+    DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) >= 0);  \
+    push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,       \
+                        ER_WARN_DEPRECATED, ER(ER_WARN_DEPRECATED),       \
+                        (Old), (Ver), (New));                             \
+  } while(0)
+
+
 extern CHARSET_INFO *system_charset_info, *files_charset_info ;
 extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
