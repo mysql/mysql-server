@@ -79,7 +79,7 @@ SimBlockList::load(EmulatorData& data){
   Lgman* lg = 0;
   Tsman* ts = 0;
 
-  Block_context ctx(conf, *data.m_mem_manager);
+  Block_context ctx(*data.theConfiguration, *data.m_mem_manager);
   
   SimulatedBlock * fs = 0;
   {
