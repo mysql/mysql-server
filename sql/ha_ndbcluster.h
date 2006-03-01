@@ -731,8 +731,8 @@ private:
   char* get_tablespace_name(THD *thd);
   int set_range_data(void *tab, partition_info* part_info);
   int set_list_data(void *tab, partition_info* part_info);
-  int complemented_pk_read(const byte *old_data, byte *new_data,
-                           uint32 old_part_id);
+  int complemented_read(const byte *old_data, byte *new_data,
+                        uint32 old_part_id);
   int pk_read(const byte *key, uint key_len, byte *buf, uint32 part_id);
   int ordered_index_scan(const key_range *start_key,
                          const key_range *end_key,
