@@ -184,6 +184,7 @@ our $opt_big_test= 0;            # Send --big-test to mysqltest
 
 our @opt_extra_mysqld_opt;
 
+our $opt_comment;
 our $opt_compress;
 our $opt_current_test;
 our $opt_ddd;
@@ -536,6 +537,7 @@ sub command_line_setup () {
 
              # Misc
              'big-test'                 => \$opt_big_test,
+             'comment=s'                => \$opt_comment,
              'compress'                 => \$opt_compress,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
@@ -569,6 +571,14 @@ sub command_line_setup () {
   if ( $opt_usage )
   {
     usage("");
+  }
+
+  if ( $opt_comment )
+  {
+    print "\n";
+    print '#' x 78, "\n";
+    print "# $opt_comment\n";
+    print '#' x 78, "\n\n";
   }
 
   foreach my $arg ( @ARGV )
@@ -2398,6 +2408,7 @@ Misc options
 
   verbose               Verbose output from this script
   script-debug          Debug this script itself
+  comment=STR           Write STR to the output
   compress              Use the compressed protocol between client and server
   timer                 Show test case execution time
   start-and-exit        Only initiate and start the "mysqld" servers, use the startup
