@@ -22,21 +22,40 @@
 #include "ndbd_malloc_impl.hpp"
 #include "SimulatedBlock.hpp"
 
+#ifdef USE_CALLGRIND
 #include <valgrind/callgrind.h>
+#else
+#define CALLGRIND_TOGGLE_COLLECT()
+#endif
 
 #define T_TEST_AP   (1 << 0)
 #define T_TEST_WO   (1 << 1)
 #define T_TEST_RW   (1 << 2)
 
-#define T_SEIZE     (1 << 1)
-#define T_RELEASE   (1 << 2)
-#define T_MIX       (1 << 3)
+#define T_SEIZE       (1 << 0)
+#define T_RELEASE     (1 << 1)
+#define T_G_RELEASE   (1 << 2)
+#define T_R_RELEASE   (1 << 3)
+#define T_R_G_RELEASE (1 << 4)
+#define T_MIX         (1 << 5)
+#define T_GETPTR      (1 << 6)
+#define T_FIFO        (1 << 7)
 
-#define T_L_SEIZE   (1 << 4)
-#define T_L_RELEASE (1 << 5)
-#define T_L_MIX     (1 << 6)
+const char *test_names[] = {
+  "seize",
+  "release",
+  "get+rel",
+  "r-rel",
+  "r-get+rel",
+  "mix",
+  "getptr",
+  "fifo",
+  0
+};
 
+Uint32 pools = ~0;
 Uint32 tests = ~0;
+Uint32 records = ~0;
 Uint32 sizes = 7;
 unsigned int seed;
 Ndbd_mem_manager mm;
@@ -53,7 +72,7 @@ template <typename T>
 void
 init(ArrayPool<T> & pool, Uint32 cnt)
 {
-  pool.setSize(cnt + 1);
+  pool.setSize(cnt + 1, true);
 }
 
 template <typename T>
@@ -81,11 +100,11 @@ test_pool(R& pool, Uint32 cnt, Uint32 loops)
   Ptr<T> ptr;
   Uint32 *arr = (Uint32*)alloca(cnt * sizeof(Uint32));
   bzero(arr, cnt * sizeof(Uint32));
+  if (tests & T_SEIZE)
   {
-    printf(" ; seize "); fflush(stdout);
     Uint64 sum = 0;
     for(Uint32 i = 0; i<loops; i++)
-    {
+    { // seize
       Uint64 start = NdbTick_CurrentMillisecond();
       CALLGRIND_TOGGLE_COLLECT();
       for(Uint32 j = 0; j<cnt; j++)
@@ -101,22 +120,18 @@ test_pool(R& pool, Uint32 cnt, Uint32 loops)
       for(Uint32 j = 0; j<cnt; j++)
       {
 	ptr.i = arr[j];
+	pool.getPtr(ptr);
+	ptr.p->do_stuff();
 	pool.release(ptr.i);
 	arr[j] = RNIL;
       }
-
       sum += (stop - start);
-      if (i == 0)
-      {
-	printf("; first ; %lld", (stop - start));
-	fflush(stdout);
-      }
     }
-    printf(" ; avg ; %lld ; tot ; %lld", sum/loops, sum);fflush(stdout);
+    printf(" ; %lld", sum); fflush(stdout);
   }
   
-  {
-    printf(" ; release "); fflush(stdout);
+  if (tests & T_RELEASE)
+  { // release
     Uint64 sum = 0;
     for(Uint32 i = 0; i<loops; i++)
     {
@@ -124,7 +139,34 @@ test_pool(R& pool, Uint32 cnt, Uint32 loops)
       {
 	bool b = pool.seize(ptr);
 	arr[j] = ptr.i;
-	assert(b);
+	ptr.p->do_stuff();
+      }
+
+      Uint64 start = NdbTick_CurrentMillisecond();
+      CALLGRIND_TOGGLE_COLLECT();
+      for(Uint32 j = 0; j<cnt; j++)
+      {
+	pool.release(arr[j]);
+	arr[j] = RNIL;
+      }
+      CALLGRIND_TOGGLE_COLLECT();
+      Uint64 stop = NdbTick_CurrentMillisecond();      
+      
+      sum += (stop - start);
+    }
+    printf(" ; %lld", sum); fflush(stdout);
+  }
+  
+  if (tests & T_G_RELEASE)
+  { // getptr + release
+    Uint64 sum = 0;
+    for(Uint32 i = 0; i<loops; i++)
+    {
+      for(Uint32 j = 0; j<cnt; j++)
+      {
+	bool b = pool.seize(ptr);
+	arr[j] = ptr.i;
+	ptr.p->do_stuff();
       }
 
       Uint64 start = NdbTick_CurrentMillisecond();
@@ -141,18 +183,74 @@ test_pool(R& pool, Uint32 cnt, Uint32 loops)
       
       sum += (stop - start);
     }
-    printf("; avg ; %lld ; tot ; %lld", sum/loops, sum); fflush(stdout);
+    printf(" ; %lld", sum); fflush(stdout);
   }
 
+  if (tests & T_R_RELEASE)
+  { // release reverse
+    Uint64 sum = 0;
+    for(Uint32 i = 0; i<loops; i++)
+    {
+      for(Uint32 j = 0; j<cnt; j++)
+      {
+	bool b = pool.seize(ptr);
+	arr[j] = ptr.i;
+	ptr.p->do_stuff();
+      }
+
+      Uint64 start = NdbTick_CurrentMillisecond();
+      CALLGRIND_TOGGLE_COLLECT();
+      for(Uint32 j = 0; j<cnt; j++)
+      {
+	pool.release(arr[cnt - j - 1]);
+	arr[cnt - j - 1] = RNIL;
+      }
+      CALLGRIND_TOGGLE_COLLECT();
+      Uint64 stop = NdbTick_CurrentMillisecond();      
+      
+      sum += (stop - start);
+    }
+    printf(" ; %lld", sum); fflush(stdout);
+  }
+  
+  if (tests & T_R_G_RELEASE)
+  { // getptr + release
+    Uint64 sum = 0;
+    for(Uint32 i = 0; i<loops; i++)
+    {
+      for(Uint32 j = 0; j<cnt; j++)
+      {
+	bool b = pool.seize(ptr);
+	arr[j] = ptr.i;
+	ptr.p->do_stuff();
+      }
+
+      Uint64 start = NdbTick_CurrentMillisecond();
+      CALLGRIND_TOGGLE_COLLECT();
+      for(Uint32 j = 0; j<cnt; j++)
+      {
+	pool.getPtr(ptr, arr[cnt - j - 1]);
+	ptr.p->do_stuff();
+	pool.release(ptr);
+	arr[cnt - j - 1] = RNIL;
+      }
+      CALLGRIND_TOGGLE_COLLECT();
+      Uint64 stop = NdbTick_CurrentMillisecond();      
+      
+      sum += (stop - start);
+    }
+    printf(" ; %lld", sum); fflush(stdout);
+  }
+  
+  if (tests & T_MIX)
   {
-    printf(" ; mix"); fflush(stdout);
-    
     Uint64 sum = 0;
     Uint64 start = NdbTick_CurrentMillisecond();
+    Uint32 lseed = seed;
     CALLGRIND_TOGGLE_COLLECT();
     for(Uint32 i = 0; i<loops * cnt; i++)
     {
-      int pos = my_rand(&seed) % cnt;
+      int pos = rand_r(&lseed) % cnt;
       ptr.i = arr[pos];
       if (ptr.i == RNIL)
       {
@@ -177,6 +275,7 @@ test_pool(R& pool, Uint32 cnt, Uint32 loops)
       ptr.i = arr[j];
       if (ptr.i != RNIL)
       {
+	pool.getPtr(ptr);
 	pool.release(ptr.i);
       }
       arr[j] = RNIL;
@@ -186,13 +285,14 @@ test_pool(R& pool, Uint32 cnt, Uint32 loops)
     printf(" ; %lld", sum); fflush(stdout);
   }
   
+  if (tests & T_GETPTR)
   {
-    printf(" ; getPtr"); fflush(stdout);
-
+    Uint32 lseed = seed;
     for(Uint32 j = 0; j<cnt; j++)
     {
       bool b = pool.seize(ptr);
       arr[j] = ptr.i;
+      ptr.p->do_stuff();
       assert(b);
     }
 
@@ -201,7 +301,7 @@ test_pool(R& pool, Uint32 cnt, Uint32 loops)
     CALLGRIND_TOGGLE_COLLECT();
     for(Uint32 i = 0; i<loops * cnt; i++)
     {
-      int pos = my_rand(&seed) % cnt;
+      int pos = rand_r(&lseed) % cnt;
       ptr.i = arr[pos];
       pool.getPtr(ptr);
       ptr.p->do_stuff();
@@ -212,6 +312,8 @@ test_pool(R& pool, Uint32 cnt, Uint32 loops)
     for(Uint32 j = 0; j<cnt; j++)
     {
       ptr.i = arr[j];
+      pool.getPtr(ptr);
+      ptr.p->do_stuff();
       pool.release(ptr.i);
       arr[j] = RNIL;
     }
@@ -219,6 +321,49 @@ test_pool(R& pool, Uint32 cnt, Uint32 loops)
     sum += (stop - start);
     printf(" ; %lld", sum); fflush(stdout);
   }
+
+  if (tests & T_FIFO)
+  { // fifo
+    Uint64 sum = 0;
+    Uint64 start = NdbTick_CurrentMillisecond();
+    CALLGRIND_TOGGLE_COLLECT();
+    for(Uint32 i = 0; i<loops; i++)
+    {
+      Uint32 head = RNIL;
+      Uint32 last = RNIL;
+      
+      Uint64 sum = 0;
+      for(Uint32 j = 0; j<cnt; j++)
+      {
+	pool.seize(ptr);
+	ptr.p->do_stuff();
+	ptr.p->m_nextList = RNIL;
+	if (head == RNIL)
+	{
+	  head = ptr.i;
+	}
+	else
+	{
+	  T* t = pool.getPtr(last);
+	  t->m_nextList = ptr.i;
+	}
+	last = ptr.i;
+      }
+
+      while (head != RNIL)
+      {
+	pool.getPtr(ptr, head);
+	ptr.p->do_stuff();
+	head = ptr.p->m_nextList;
+	pool.release(ptr);
+      }
+    }      
+    CALLGRIND_TOGGLE_COLLECT();
+    Uint64 stop = NdbTick_CurrentMillisecond();    
+    sum += (stop - start);
+    printf(" ; %lld", sum); fflush(stdout);
+  }
+  
   ndbout_c("");
 }
 
@@ -227,61 +372,72 @@ struct Rec {
   Uint32 m_data;
   Uint32 m_magic; 
   Uint32 nextPool; 
-  char m_cdata[sz-12];
-  void do_stuff() { m_data += m_cdata[0] + m_cdata[sz-13]; }
-};
-typedef Rec<32> Rec32;
+  Uint32 m_nextList;
+  char m_cdata[sz-16];
 
+  void do_stuff() { 
+    Uint32 sum = 0; 
+    Uint32 *ptr = (Uint32*)this; 
+    for(Uint32 i = 0; i<(sz >> 2); i++)
+      sum += * ptr ++;
+    m_data = sum;
+  }
+};
+
+typedef Rec<32> Rec32;
+typedef Rec<36> Rec36;
+typedef Rec<56> Rec56;
+typedef Rec<224> Rec224;
+
+template <typename T>
 void test_ap(Uint32 cnt, Uint32 loop)
 {
-  printf("AP ; %d ; ws ; %d ; page ; n/a", sizeof(Rec32), (cnt * sizeof(Rec32))>>10);
-  ArrayPool<Rec32> pool;
+  printf("AP ; %d ; %d", sizeof(T), (cnt * sizeof(T))>>10); fflush(stdout);
+  ArrayPool<T> pool;
   init(pool, cnt);
-  test_pool<Rec32, ArrayPool<Rec32> >(pool, cnt, loop);
+  test_pool<T, ArrayPool<T> >(pool, cnt, loop);
 }
 
+template <typename T>
 void test_rw(Uint32 cnt, Uint32 loop)
 {
-  printf("RW ; %d ; ws ; %d ; page ; n/a", sizeof(Rec32), (cnt * sizeof(Rec32))>>10);
-  RecordPool<Rec32, RWPool> pool;
+  printf("RW ; %d ; %d", sizeof(T), (cnt * sizeof(T))>>10); fflush(stdout);
+  RecordPool<T, RWPool> pool;
   init(pool, cnt);
-  test_pool<Rec32, RecordPool<Rec32, RWPool> >(pool, cnt, loop);
+  test_pool<T, RecordPool<T, RWPool> >(pool, cnt, loop);
 }
 
+template <typename T>
 void test_wo(Uint32 cnt, Uint32 loop)
 {
-  printf("WO ; %d ; ws ; %d ; page ; n/a", sizeof(Rec32), (cnt * sizeof(Rec32))>>10);
-  RecordPool<Rec32, WOPool> pool;
+  printf("WO ; %d ; %d", sizeof(T), (cnt * sizeof(T))>>10); fflush(stdout);
+  RecordPool<T, WOPool> pool;
   init(pool, cnt);
-  test_pool<Rec32, RecordPool<Rec32, WOPool> >(pool, cnt, loop);
+  test_pool<T, RecordPool<T, WOPool> >(pool, cnt, loop);
 }
 
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
 
-unsigned 
-my_rand(unsigned* seed)
-{
-  unsigned val = *seed;
-  val += 117711;
-  val *= 133131;
-  return * seed = val;
-}
-
 int
 main(int argc, char **argv)
 {
-  g_eventLogger.createConsoleHandler();
-  g_eventLogger.setCategory("keso");
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_INFO);
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_CRITICAL);
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_WARNING);
-
   Uint32 loops = 300000;
   for (Uint32 i = 1 ; i<argc ; i++)
   {
-    if (argc > i+1 && strcmp(argv[i], "-tests") == 0)
+    if (argc > i+1 && strcmp(argv[i], "-pools") == 0)
+    {
+      pools = 0;
+      for (Uint32 j = 0; j<strlen(argv[i+1]); j++)
+      {
+	char c = argv[i+1][j];
+	if (c >= '0' && c <= '9')
+	  pools |= 1 << (c - '0');
+	else 
+	  pools |= 1 << (10 + (c - 'a'));
+      }
+    }
+    else if (argc > i+1 && strcmp(argv[i], "-tests") == 0)
     {
       tests = 0;
       for (Uint32 j = 0; j<strlen(argv[i+1]); j++)
@@ -290,9 +446,8 @@ main(int argc, char **argv)
 	if (c >= '0' && c <= '9')
 	  tests |= 1 << (c - '0');
 	else 
-	  tests |= 1 << (c - 'a');
+	  tests |= 1 << (10 + (c - 'a'));
       }
-      ndbout_c("tests: %x", tests);
     }
     else if (argc > i+1 && strcmp(argv[i], "-sizes") == 0)
     {
@@ -300,9 +455,23 @@ main(int argc, char **argv)
       for (Uint32 j = 0; j<strlen(argv[i+1]); j++)
       {
 	char c = argv[i+1][j];
-	sizes |= 1 << (c - '0');
+	if (c >= '0' && c <= '9')
+	  sizes |= 1 << (c - '0');
+	else
+	  sizes |= 1 << (10 + (c - 'a'));
       }
-      ndbout_c("sizes: %x", sizes);
+    }
+    else if (argc > i+1 && strcmp(argv[i], "-records") == 0)
+    {
+      records = 0;
+      for (Uint32 j = 0; j<strlen(argv[i+1]); j++)
+      {
+	char c = argv[i+1][j];
+	if (c >= '0' && c <= '9')
+	  records |= 1 << (c - '0');
+	else
+	  records |= 1 << (10 + (c - 'a'));
+      }
     }
     else if (argc > i+1 && strcmp(argv[i], "-loop") == 0)
     {
@@ -319,26 +488,61 @@ main(int argc, char **argv)
   {
     abort();
   }
-  mm.dump();
 
   seed = time(0);
   Uint32 sz = 0;
-  Uint32 cnt = 768;
+  Uint32 cnt = 256;
+
+  printf("pool ; rs ; ws");
+  for (Uint32 i = 0; test_names[i] && i<31; i++)
+    if (tests & (1 << i))
+      printf(" ; %s", test_names[i]);
+  ndbout_c("");
 
   while(cnt <= 1000000)
   {
     Uint32 loop = 768 * loops / cnt;
     if (sizes & (1 << sz))
     {
-      if (tests & T_TEST_AP)
-	test_ap(cnt, loop);
-      if (tests & T_TEST_WO)
-	test_wo(cnt, loop);
-      if (tests & T_TEST_RW)
-	test_rw(cnt, loop);
+      if (records & 1)
+      {
+	if (pools & T_TEST_AP)
+	  test_ap<Rec32>(cnt, loop);
+	if (pools & T_TEST_WO)
+	  test_wo<Rec32>(cnt, loop);
+	if (pools & T_TEST_RW)
+	  test_rw<Rec32>(cnt, loop);
+      }
+      if (records & 2)
+      {
+	if (pools & T_TEST_AP)
+	  test_ap<Rec36>(cnt, loop);
+	if (pools & T_TEST_WO)
+	  test_wo<Rec36>(cnt, loop);
+	if (pools & T_TEST_RW)
+	  test_rw<Rec36>(cnt, loop);
+      }
+      if (records & 4)
+      {
+	if (pools & T_TEST_AP)
+	  test_ap<Rec56>(cnt, loop);
+	if (pools & T_TEST_WO)
+	  test_wo<Rec56>(cnt, loop);
+	if (pools & T_TEST_RW)
+	  test_rw<Rec56>(cnt, loop);
+      }
+      if (records & 8)
+      {
+	if (pools & T_TEST_AP)
+	  test_ap<Rec224>(cnt, loop);
+	if (pools & T_TEST_WO)
+	  test_wo<Rec224>(cnt, loop);
+	if (pools & T_TEST_RW)
+	  test_rw<Rec224>(cnt, loop);
+      }
     }
 
-    cnt += (1024 << sz);
+    cnt += (512 << sz);
     sz++;
   }
 }
@@ -384,10 +588,19 @@ SimBlockList::unload()
 
 }
 
-template void test_pool<Rec<(unsigned)32>, ArrayPool<Rec<(unsigned)32> > >(ArrayPool<Rec<(unsigned)32> >&, unsigned, unsigned);
-template void test_pool<Rec<(unsigned)32>, RecordPool<Rec<(unsigned)32>, RWPool> >(RecordPool<Rec<(unsigned)32>, RWPool>&, unsigned, unsigned);
-template void test_pool<Rec<(unsigned)32>, RecordPool<Rec<(unsigned)32>, WOPool> >(RecordPool<Rec<(unsigned)32>, WOPool>&, unsigned, unsigned);
+#define INSTANCE(X) \
+template void test_ap<X>(unsigned, unsigned);\
+template void test_wo<X>(unsigned, unsigned);\
+template void test_rw<X>(unsigned, unsigned);\
+template void test_pool<X, ArrayPool<X> >(ArrayPool<X>&, unsigned, unsigned);\
+template void test_pool<X, RecordPool<X, RWPool> >(RecordPool<X, RWPool>&, unsigned, unsigned); \
+template void test_pool<X, RecordPool<X, WOPool> >(RecordPool<X, WOPool>&, unsigned, unsigned);\
+template void init<X>(ArrayPool<X>&, unsigned);\
+template void init<X>(RecordPool<X, RWPool>&, unsigned);\
+template void init<X>(RecordPool<X, WOPool>&, unsigned)
 
-template void init<Rec<(unsigned)32> >(ArrayPool<Rec<(unsigned)32> >&, unsigned);
-template void init<Rec<(unsigned)32> >(RecordPool<Rec<(unsigned)32>, RWPool>&, unsigned);
-template void init<Rec<(unsigned)32> >(RecordPool<Rec<(unsigned)32>, WOPool>&, unsigned);
+INSTANCE(Rec32);
+INSTANCE(Rec36);
+INSTANCE(Rec56);
+INSTANCE(Rec224);
+
