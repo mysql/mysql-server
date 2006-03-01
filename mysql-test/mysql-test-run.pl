@@ -198,7 +198,6 @@ our $opt_big_test= 0;            # Send --big-test to mysqltest
 
 our @opt_extra_mysqld_opt;
 
-our $opt_comment;
 our $opt_compress;
 our $opt_ssl;
 our $opt_skip_ssl;
@@ -661,14 +660,6 @@ sub command_line_setup () {
             ) or usage("Can't read options");
 
   usage("") if $opt_usage;
-
-  if ( $opt_comment )
-  {
-    print "\n";
-    print '#' x 78, "\n";
-    print "# $opt_comment\n";
-    print '#' x 78, "\n\n";
-  }
 
   if ( $opt_comment )
   {
