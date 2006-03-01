@@ -855,3 +855,44 @@ f3
 drop trigger trg11;
 drop table t21,t31;
 drop table t11;
+STOP SLAVE;
+FLUSH LOGS;
+RESET SLAVE;
+START SLAVE;
+SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
+MASTER_POS_WAIT('master-bin.000001', 513) >= 0
+1
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+trg1	INSERT	t1	INSERT INTO t2 VALUES(CURRENT_USER())	AFTER	NULL		
+SELECT * FROM t1;
+c
+1
+SELECT * FROM t2;
+s
+@
+INSERT INTO t1 VALUES(2);
+SELECT * FROM t1;
+c
+1
+2
+SELECT * FROM t2;
+s
+@
+root@localhost
+DROP TRIGGER trg1;
+Warnings:
+Warning	1454	No definer attribute for trigger 'test'.'trg1'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger.
+DROP TABLE t1;
+DROP TABLE t2;
+STOP SLAVE;
+RESET SLAVE;
+SHOW TABLES;
+Tables_in_test
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+RESET MASTER;
