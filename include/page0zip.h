@@ -85,48 +85,8 @@ page_zip_validate(
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 /*****************************************************************
-Gets the number of records that have been relocated, that is,
-allocated from the free list since the page was compressed,
-such that extra_size has grown. */
-UNIV_INLINE
-ulint
-page_zip_get_n_relocated(
-/*=====================*/
-						/* out: number of records
-						that have been relocated */
-	const page_zip_des_t*	page_zip)	/* in: compressed page */
-	__attribute__((pure));
-
-/*****************************************************************
-Sets the number of records that have been relocated, that is,
-allocated from the free list since the page was compressed,
-such that extra_size has grown. */
-UNIV_INLINE
-void
-page_zip_set_n_relocated(
-/*=====================*/
-	const page_zip_des_t*	page_zip,	/* in: compressed page */
-	ulint			n_relocated)	/* in: number of records
-						that have been relocated */
-	__attribute__((nonnull));
-
-/*****************************************************************
-Gets original offset of a record that has been relocated, that is,
-allocated from the free list since the page was compressed,
-such that extra_size has grown. */
-UNIV_INLINE
-ulint
-page_zip_get_relocated(
-/*===================*/
-						/* out: original offset
-						of the record */
-	const page_zip_des_t*	page_zip,	/* in: compressed page */
-	ulint			i)		/* in: ith record */
-	__attribute__((pure));
-
-/*****************************************************************
 Gets the size of the compressed page trailer (the dense page directory),
-including deleted records (the free list) and n_relocated. */
+including deleted records (the free list). */
 UNIV_INLINE
 ulint
 page_zip_dir_size(
@@ -137,7 +97,7 @@ page_zip_dir_size(
 	__attribute__((pure));
 /*****************************************************************
 Gets the size of the compressed page trailer (the dense page directory),
-only including user records (excluding the free list and n_relocated). */
+only including user records (excluding the free list). */
 UNIV_INLINE
 ulint
 page_zip_dir_user_size(
