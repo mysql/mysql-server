@@ -223,3 +223,41 @@ SELECT * FROM t1;
 id	b1	vc	bc	d	f	total	y	t
 2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 DROP TABLE t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null)
+partition by list(a)
+partitions 2
+(partition x123 values in (1,5,6),
+partition x234 values in (4,7,8));
+INSERT into t1 VALUES (5,1,1);
+select * from t1;
+a	b	c
+5	1	1
+UPDATE t1 SET a=8 WHERE a=5 AND b=1;
+select * from t1;
+a	b	c
+8	1	1
+drop table t1;
+CREATE TABLE t1 ( f1 INTEGER, f2 char(20)) engine=ndb
+PARTITION BY RANGE(f1)
+( PARTITION part1 VALUES LESS THAN (2),
+PARTITION part2 VALUES LESS THAN (1000));
+INSERT INTO t1 VALUES(1, '---1---');
+INSERT INTO t1 VALUES(2, '---2---');
+select * from t1;
+f1	f2
+1	---1---
+2	---2---
+UPDATE t1 SET f1 = f1 + 4 WHERE f1 = 2;
+select * from t1;
+f1	f2
+1	---1---
+6	---2---
+UPDATE t1 SET f1 = f1 + 4 WHERE f1 = 1;
+select * from t1;
+f1	f2
+5	---1---
+6	---2---
+drop table t1;
