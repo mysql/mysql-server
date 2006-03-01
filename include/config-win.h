@@ -427,6 +427,7 @@ inline double ulonglong2double(ulonglong value)
 
 #define HAVE_SPATIAL 1
 #define HAVE_RTREE_KEYS 1
+#define HAVE_ROW_BASED_REPLICATION 1
 
 /* #undef HAVE_OPENSSL */
 /* #undef HAVE_YASSL */

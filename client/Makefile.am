@@ -21,17 +21,21 @@ if HAVE_YASSL
 else
   yassl_dummy_link_fix=
 endif
+
+if THREAD_SAFE_CLIENT
+LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql_r/libmysqlclient_r.la
+else
+LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql/libmysqlclient.la
+endif
+
 #AUTOMAKE_OPTIONS =              nostdinc
 INCLUDES =			-I$(top_builddir)/include \
 				-I$(top_srcdir)/include \
 				-I$(top_srcdir)/regex \
-                                $(openssl_includes) $(yassl_includes)
+				$(openssl_includes) $(yassl_includes)
 LIBS =				@CLIENT_LIBS@
 LDADD=				@CLIENT_EXTRA_LDFLAGS@ $(CLIENT_THREAD_LIBS) \
-                                $(top_builddir)/libmysql/libmysqlclient.la
-LDADD_R=			@CLIENT_EXTRA_LDFLAGS@ \
-                                $(CLIENT_THREAD_LIBS) \
-                                $(top_builddir)/libmysql_r/libmysqlclient_r.la
+				$(top_builddir)/libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
 				mysqldump mysqlimport mysqltest mysqlbinlog \
 				mysqltestmanagerc mysqltestmanager-pwgen \
@@ -41,8 +45,8 @@ noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
 mysqladmin_SOURCES =		mysqladmin.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
-mysqltest_SOURCES=              mysqltest.c $(top_srcdir)/mysys/my_getsystime.c \
-                                $(yassl_dummy_link_fix)
+mysqltest_SOURCES=		mysqltest.c $(top_srcdir)/mysys/my_getsystime.c \
+				$(yassl_dummy_link_fix)
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
 mysqlbinlog_SOURCES =		mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c \
 				$(top_srcdir)/mysys/my_new.cc \
@@ -51,18 +55,22 @@ mysqlbinlog_SOURCES =		mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c \
 				$(top_srcdir)/mysys/my_vle.c \
 				$(top_srcdir)/mysys/base64.c
 mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
-mysqlslap_LDADD =		$(CXXLDFLAGS) $(LDADD_R) \
-				$(top_builddir)/mysys/libmysys.a
-mysqlimport_LDADD =		$(CXXLDFLAGS) $(LDADD_R) \
-				$(top_builddir)/mysys/libmysys.a
-mysqltestmanager_pwgen_SOURCES =   mysqlmanager-pwgen.c
-mysqltestmanagerc_SOURCES=      mysqlmanagerc.c $(yassl_dummy_link_fix)
-mysqlcheck_SOURCES=             mysqlcheck.c $(yassl_dummy_link_fix)
-mysqlshow_SOURCES=              mysqlshow.c $(yassl_dummy_link_fix)
-mysqlslap_SOURCES=              mysqlslap.c \
+mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
+				@CLIENT_EXTRA_LDFLAGS@ \
+				$(LIBMYSQLCLIENT_LA) \
+				$(top_builddir)/mysys/libmysys.a 
+mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
+				@CLIENT_EXTRA_LDFLAGS@ \
+				$(LIBMYSQLCLIENT_LA) \
+				$(top_builddir)/mysys/libmysys.a 
+mysqltestmanager_pwgen_SOURCES = mysqlmanager-pwgen.c 
+mysqltestmanagerc_SOURCES=	mysqlmanagerc.c $(yassl_dummy_link_fix)
+mysqlcheck_SOURCES=		 mysqlcheck.c $(yassl_dummy_link_fix)
+mysqlshow_SOURCES=		mysqlshow.c $(yassl_dummy_link_fix)
+mysqlslap_SOURCES=		mysqlslap.c \
 				$(yassl_dummy_link_fix)
-mysqldump_SOURCES=              mysqldump.c my_user.c $(yassl_dummy_link_fix)
-mysqlimport_SOURCES=            mysqlimport.c \
+mysqldump_SOURCES=		mysqldump.c my_user.c $(yassl_dummy_link_fix)
+mysqlimport_SOURCES=		mysqlimport.c \
 				$(yassl_dummy_link_fix)
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
