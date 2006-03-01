@@ -229,8 +229,12 @@ static int net_data_is_ready(my_socket sd)
   struct timeval tv;
   int res;
 
+#ifndef __WIN__
+  /* Windows uses an _array_ of 64 fd's as default, so it's safe */
   if (sd >= FD_SETSIZE)
     return -1;
+  #define NET_DATA_IS_READY_CAN_RETURN_MINUS_ONE
+#endif
 
   FD_ZERO(&sfds);
   FD_SET(sd, &sfds);
@@ -271,7 +275,7 @@ void net_clear(NET *net)
   int count, ready;
   DBUG_ENTER("net_clear");
 #if !defined(EMBEDDED_LIBRARY)
-  while((ready= net_data_is_ready(net->vio->sd)) != 0)
+  while((ready= net_data_is_ready(net->vio->sd)) > 0)
   {
     /* The socket is ready */
     if ((count= vio_read(net->vio, (char*) (net->buff),
@@ -286,15 +290,27 @@ void net_clear(NET *net)
     }
     else
     {
-      /* No data to read and 'net_data_is_ready' returned "don't know" */
-      if (ready == -1)
-        break;
-
       DBUG_PRINT("info",("socket ready but only EOF to read - disconnected"));
       net->error= 2;
       break;
     }
   }
+#ifdef NET_DATA_IS_READY_CAN_RETURN_MINUS_ONE
+  /* 'net_data_is_ready' returned "don't know" */
+  if (ready == -1)
+  {
+    /* Read unblocking to clear net */
+    my_bool old_mode;
+    if (!vio_blocking(net->vio, FALSE, &old_mode))
+    {
+      while ((count= vio_read(net->vio, (char*) (net->buff),
+                              (uint32) net->max_packet)) > 0)
+	DBUG_PRINT("info",("skipped %d bytes from file: %s",
+			   count, vio_description(net->vio)));
+      vio_blocking(net->vio, TRUE, &old_mode);
+    }
+  }
+#endif
 #endif
   net->pkt_nr=net->compress_pkt_nr=0;		/* Ready for new command */
   net->write_pos=net->buff;
