@@ -21,7 +21,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	cluster_replication.apply_status
+master-bin.000001	#	Table_map	1	#	cluster.apply_status
 master-bin.000001	#	Write_rows	1	#	
 master-bin.000001	#	Table_map	1	#	test.t1
 master-bin.000001	#	Write_rows	1	#	
@@ -29,7 +29,7 @@ master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; drop table t1
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)ENGINE=NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	cluster_replication.apply_status
+master-bin.000001	#	Table_map	1	#	cluster.apply_status
 master-bin.000001	#	Write_rows	1	#	
 master-bin.000001	#	Table_map	1	#	test.t1
 master-bin.000001	#	Write_rows	1	#	
@@ -43,7 +43,7 @@ master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_in
 master-bin.000001	#	Query	1	#	BEGIN
 show binlog events from 102 limit 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Table_map	1	#	cluster_replication.apply_status
+master-bin.000001	#	Table_map	1	#	cluster.apply_status
 flush logs;
 create table t3 (a int)ENGINE=NDB;
 start slave;
@@ -56,7 +56,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	cluster_replication.apply_status
+master-bin.000001	#	Table_map	1	#	cluster.apply_status
 master-bin.000001	#	Write_rows	1	#	
 master-bin.000001	#	Table_map	1	#	test.t1
 master-bin.000001	#	Write_rows	1	#	
@@ -64,7 +64,7 @@ master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; drop table t1
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)ENGINE=NDB
 master-bin.000001	#	Query	1	#	BEGIN
-master-bin.000001	#	Table_map	1	#	cluster_replication.apply_status
+master-bin.000001	#	Table_map	1	#	cluster.apply_status
 master-bin.000001	#	Write_rows	1	#	
 master-bin.000001	#	Table_map	1	#	test.t1
 master-bin.000001	#	Write_rows	1	#	
@@ -76,7 +76,7 @@ master-bin.000002	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000002	#	Query	1	#	use `test`; create table t3 (a int)ENGINE=NDB
 master-bin.000002	#	Query	1	#	use `test`; create table t2 (n int)ENGINE=NDB
 master-bin.000002	#	Query	1	#	BEGIN
-master-bin.000002	#	Table_map	1	#	cluster_replication.apply_status
+master-bin.000002	#	Table_map	1	#	cluster.apply_status
 master-bin.000002	#	Write_rows	1	#	
 master-bin.000002	#	Table_map	1	#	test.t2
 master-bin.000002	#	Write_rows	1	#	
@@ -95,7 +95,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=NDB
 slave-bin.000001	#	Query	2	#	BEGIN
-slave-bin.000001	#	Table_map	2	#	cluster_replication.apply_status
+slave-bin.000001	#	Table_map	2	#	cluster.apply_status
 slave-bin.000001	#	Write_rows	2	#	
 slave-bin.000001	#	Table_map	2	#	test.t1
 slave-bin.000001	#	Write_rows	2	#	
@@ -104,7 +104,7 @@ slave-bin.000001	#	Query	1	#	use `test`; drop table t1
 slave-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)ENGINE=NDB
 slave-bin.000001	#	Query	1	#	use `test`; create table t3 (a int)ENGINE=NDB
 slave-bin.000001	#	Query	2	#	BEGIN
-slave-bin.000001	#	Table_map	2	#	cluster_replication.apply_status
+slave-bin.000001	#	Table_map	2	#	cluster.apply_status
 slave-bin.000001	#	Write_rows	2	#	
 slave-bin.000001	#	Table_map	2	#	test.t1
 slave-bin.000001	#	Write_rows	2	#	
@@ -115,7 +115,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000002	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000002	#	Query	1	#	use `test`; create table t2 (n int)ENGINE=NDB
 slave-bin.000002	#	Query	2	#	BEGIN
-slave-bin.000002	#	Table_map	2	#	cluster_replication.apply_status
+slave-bin.000002	#	Table_map	2	#	cluster.apply_status
 slave-bin.000002	#	Write_rows	2	#	
 slave-bin.000002	#	Table_map	2	#	test.t2
 slave-bin.000002	#	Write_rows	2	#	
