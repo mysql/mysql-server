@@ -84,67 +84,6 @@ page_zip_validate(
 	__attribute__((nonnull));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
-/*****************************************************************
-Gets the size of the compressed page trailer (the dense page directory),
-including deleted records (the free list). */
-UNIV_INLINE
-ulint
-page_zip_dir_size(
-/*==============*/
-						/* out: length of dense page
-						directory, in bytes */
-	const page_zip_des_t*	page_zip)	/* in: compressed page */
-	__attribute__((pure));
-/*****************************************************************
-Gets the size of the compressed page trailer (the dense page directory),
-only including user records (excluding the free list). */
-UNIV_INLINE
-ulint
-page_zip_dir_user_size(
-/*===================*/
-						/* out: length of dense page
-						directory, in bytes */
-	const page_zip_des_t*	page_zip)	/* in: compressed page */
-	__attribute__((pure));
-
-/*****************************************************************
-Find the slot of the given non-free record in the dense page directory. */
-UNIV_INLINE
-byte*
-page_zip_dir_find(
-/*==============*/
-						/* out: dense directory slot,
-						or NULL if record not found */
-	page_zip_des_t*	page_zip,		/* in: compressed page */
-	ulint		offset)			/* in: offset of user record */
-	__attribute__((pure));
-/*****************************************************************
-Find the slot of the given free record in the dense page directory. */
-UNIV_INLINE
-byte*
-page_zip_dir_find_free(
-/*===================*/
-						/* out: dense directory slot,
-						or NULL if record not found */
-	page_zip_des_t*	page_zip,		/* in: compressed page */
-	ulint		offset)			/* in: offset of user record */
-	__attribute__((pure));
-/*****************************************************************
-Read a given slot in the dense page directory. */
-UNIV_INLINE
-ulint
-page_zip_dir_get(
-/*=============*/
-						/* out: record offset
-						on the uncompressed page,
-						possibly ORed with
-						PAGE_ZIP_DIR_SLOT_DEL or
-						PAGE_ZIP_DIR_SLOT_OWNED */
-	const page_zip_des_t*	page_zip,	/* in: compressed page */
-	ulint			slot)		/* in: slot
-						(0=first user record) */
-	__attribute__((pure));
-
 /**************************************************************************
 Ensure that enough space is available in the modification log.
 If not, try to compress the page. */
