@@ -140,13 +140,17 @@ CREATE TABLE test.t1 (
   a3 BIT NOT NULL,
   a4 DECIMAL(8,3),
   a5 INT NOT NULL,
-  a6 VARCHAR(255),
+  a6 INT,
   PRIMARY KEY(a1))
   TABLESPACE ts1 STORAGE DISK ENGINE=NDB
   PARTITION BY LIST (a1)
  (PARTITION p0 VALUES IN (1,2,3,4,5),
   PARTITION p1 VALUES IN (6,7,8,9, 10),
   PARTITION p2 VALUES IN (11, 12, 13, 14, 15));
+
+# Alter table directly without any statements inbetween
+ALTER TABLE test.t1 DROP COLUMN a6;
+ALTER TABLE test.t1 ADD COLUMN a6 VARCHAR(255);
 
 let $j= 15;
 --disable_query_log
