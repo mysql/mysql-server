@@ -496,8 +496,8 @@ page_zip_compress(
 
 	c_stream.next_out = buf;
 	/* Subtract the space reserved for uncompressed data. */
-	/* Page header, end marker of modification log */
-	c_stream.avail_out = buf_end - buf - PAGE_ZIP_DIR_SLOT_SIZE;
+	/* Page header and the end marker of the modification log */
+	c_stream.avail_out = buf_end - buf - 1;
 	/* Dense page directory and uncompressed columns, if any */
 	if (page_is_leaf(page)) {
 		trx_id_col = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
@@ -644,7 +644,7 @@ page_zip_compress(
 
 				    ut_ad(externs == c_stream.next_out
 					+ c_stream.avail_out
-					+ PAGE_ZIP_DIR_SLOT_SIZE/* mod log */);
+					+ 1/* end of modification log */);
 
 				    /* Copy the BLOB pointer */
 				    memcpy(externs, c_stream.next_in,
@@ -736,9 +736,10 @@ zlib_error:
 	ut_ad(buf + c_stream.total_out == c_stream.next_out);
 	ut_ad((ulint) (storage - c_stream.next_out) >= c_stream.avail_out);
 
-	/* Zero out the area reserved for the modification log */
-	memset(c_stream.next_out, 0, c_stream.avail_out
-			+ PAGE_ZIP_DIR_SLOT_SIZE);
+	/* Zero out the area reserved for the modification log.
+	Space for the end marker of the modification log is not
+	included in avail_out. */
+	memset(c_stream.next_out, 0, c_stream.avail_out + 1/* end marker */);
 
 	page_zip->m_end = page_zip->m_start = PAGE_DATA + c_stream.total_out;
 	page_zip->n_blobs = n_blobs;
@@ -1071,55 +1072,6 @@ page_zip_set_extra_bytes(
 }
 
 /**************************************************************************
-Find the heap number of a record by binary search in the sorted
-dense page directory. */
-static
-ulint
-page_zip_find_heap_no(
-/*==================*/
-				/* out: the heap number of the smallest record
-				in recs[] that is >= start; 0 if not found */
-	const byte*	start,	/* in: start address of the record */
-	rec_t**		recs,	/* in: dense page directory,
-				sorted by address (indexed by heap_no - 2) */
-	ulint		n_dense)/* in: number of entries in recs[] */
-{
-	ulint	low	= 0;
-	ulint	high	= n_dense;
-	ulint	mid;
-
-	for (;;) {
-		mid = (low + high) / 2;
-
-		/* 'start' should be at least REC_N_NEW_EXTRA_BYTES
-		smaller than the matching entry in recs[] */
-		ut_ad(start != recs[mid]);
-
-		if (UNIV_UNLIKELY(low == high)) {
-			if (UNIV_UNLIKELY(start > recs[high])) {
-				return(0);
-			}
-			break;
-		}
-
-		if (start > recs[mid]) {
-			/* Too high */
-			high = mid;
-		} else {
-			/* Either this is too low, or we found a match. */
-			low = mid + 1;
-			if (start > recs[low]) {
-				/* The adjacent record does not match.
-				This is the closest match. */
-				break;
-			}
-		}
-	}
-
-	return(mid + 2);
-}
-
-/**************************************************************************
 Apply the modification log to an uncompressed page. */
 static
 const byte*
@@ -1129,7 +1081,6 @@ page_zip_apply_log(
 				or NULL on failure */
 	const byte*	data,	/* in: modification log */
 	ulint		size,	/* in: maximum length of the log, in bytes */
-	page_t*		page,	/* out: uncompressed page */
 	rec_t**		recs,	/* in: dense page directory,
 				sorted by address (indexed by heap_no - 2) */
 	ulint		n_dense,/* in: size of recs[] */
@@ -1143,30 +1094,28 @@ page_zip_apply_log(
 	const byte* const end = data + size;
 
 	for (;;) {
-		ulint	start;
+		ulint	val;
 		rec_t*	rec;
 		ulint	len;
 		ulint	hs;
 
-		start = mach_read_from_2((byte*) data);
-		if (UNIV_UNLIKELY(data + 2 >= end)) {
-			return(NULL);
-		}
-		if (UNIV_UNLIKELY(!start)) {
+		val = *data++;
+		if (UNIV_UNLIKELY(!val)) {
 			break;
 		}
-		if (UNIV_UNLIKELY(start < PAGE_ZIP_START)) {
+		if (val & 0x80) {
+			val = (val & 0x7f) << 7 | *data++;
+		}
+		if (UNIV_UNLIKELY(data >= end)) {
+			return(NULL);
+		}
+		if (UNIV_UNLIKELY(val >= n_dense)) {
 			return(NULL);
 		}
 
-		data += 2;
-
-		/* Determine the heap number of the record. */
-		hs = page_zip_find_heap_no(page + start, recs, n_dense)
-				<< REC_HEAP_NO_SHIFT;
-		if (UNIV_UNLIKELY(!hs)) {
-			return(NULL);
-		}
+		/* Determine the heap number and status bits of the record. */
+		rec = recs[val - 1];
+		hs = (val + 1) << REC_HEAP_NO_SHIFT;
 		hs |= heap_status & ((1 << REC_HEAP_NO_SHIFT) - 1);
 
 		/* This may either be an old record that is being
@@ -1183,8 +1132,6 @@ page_zip_apply_log(
 		rec_get_offsets_reverse(data, index,
 				heap_status & REC_STATUS_NODE_PTR,
 				offsets);
-
-		rec = page + start + rec_offs_extra_size(offsets);
 
 		mach_write_to_2(rec - REC_NEW_HEAP_NO, hs);
 
@@ -1290,7 +1237,10 @@ page_zip_decompress(
 
 	/* The dense directory excludes the infimum and supremum records. */
 	n_dense = page_dir_get_n_heap(page_zip->data) - 2;
-	ut_a(n_dense * PAGE_ZIP_DIR_SLOT_SIZE < page_zip->size);
+	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
+				>= page_zip->size)) {
+		return(FALSE);
+	}
 
 	heap = mem_heap_create(n_dense * (3 * sizeof *recs));
 	recsc = recs = mem_heap_alloc(heap, n_dense * (2 * sizeof *recs));
@@ -1328,6 +1278,8 @@ page_zip_decompress(
 	ut_a(err == Z_OK);
 
 	d_stream.next_in = page_zip->data + PAGE_DATA;
+	/* Subtract the space reserved for
+	the page header and the end marker of the modification log. */
 	d_stream.avail_in = page_zip->size - (PAGE_DATA + 1);
 
 	d_stream.next_out = page + PAGE_ZIP_START;
@@ -1633,7 +1585,7 @@ zlib_done:
 		const byte*	mod_log_ptr;
 		mod_log_ptr = page_zip_apply_log(
 				page_zip->data + page_zip->m_start,
-				d_stream.avail_in, page, recs, n_dense,
+				d_stream.avail_in, recs, n_dense,
 				heap_status, index, offsets);
 
 		if (UNIV_UNLIKELY(!mod_log_ptr)) {
@@ -1765,6 +1717,7 @@ page_zip_write_rec(
 	page_t*	page;
 	byte*	data;
 	byte*	storage;
+	ulint	heap_no;
 
 	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)rec)) == page_zip);
 	ut_ad(page_zip_simple_validate(page_zip));
@@ -1783,17 +1736,26 @@ page_zip_write_rec(
 			- PAGE_DIR - PAGE_DIR_SLOT_SIZE
 			* page_dir_get_n_slots(page));
 
+	heap_no = rec_get_heap_no_new((rec_t*) rec);
+	ut_ad(heap_no >= 2); /* not infimum or supremum */
+	ut_ad(heap_no < page_dir_get_n_heap(page));
+
 	/* Append to the modification log. */
 	data = page_zip->data + page_zip->m_end;
 	ut_ad(!mach_read_from_2(data));
 
 	{
-		/* Identify the record by writing its start address.  0 is
+		/* Identify the record by writing its heap number - 1.  0 is
 		reserved to indicate the end of the modification log. */
 		const byte*	start	= rec_get_start((rec_t*) rec, offsets);
 		const byte*	b	= rec - REC_N_NEW_EXTRA_BYTES;
 
-		mach_write_to_2(data, ut_align_offset(start, UNIV_PAGE_SIZE));
+		if (heap_no - 1 >= 128) {
+			*data++ = 0x80 | (heap_no - 1) >> 7;
+		} else {
+			*data++ = heap_no - 1;
+		}
+
 		/* Write the extra bytes backwards, so that
 		rec_offs_extra_size() can be easily computed in
 		page_zip_apply_log() by invoking
@@ -1847,7 +1809,7 @@ page_zip_write_rec(
 
 		/* Copy roll_ptr and trx_id to the uncompressed area. */
 		memcpy(storage - (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
-				* (rec_get_heap_no_new((rec_t*) rec) - 2),
+				* (heap_no - 2),
 				start,
 				DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 		ut_a(data < storage
@@ -1855,7 +1817,7 @@ page_zip_write_rec(
 				* (page_dir_get_n_heap(page) - 2)
 				- page_zip->n_blobs
 				* BTR_EXTERN_FIELD_REF_SIZE
-				- 2 /* for the modification log terminator */);
+				- 1 /* for the modification log terminator */);
 	} else {
 		/* This is a node pointer page. */
 		ulint	len;
@@ -1871,13 +1833,13 @@ page_zip_write_rec(
 
 		/* Copy the node pointer to the uncompressed area. */
 		memcpy(storage - REC_NODE_PTR_SIZE
-				* (rec_get_heap_no_new((rec_t*) rec) - 2),
+				* (heap_no - 2),
 				rec + len,
 				REC_NODE_PTR_SIZE);
 		ut_a(data < storage
 				- REC_NODE_PTR_SIZE
 				* (page_dir_get_n_heap(page) - 2)
-				- 2 /* for the modification log terminator */);
+				- 1 /* for the modification log terminator */);
 	}
 
 	page_zip->m_end = data - page_zip->data;
