@@ -183,8 +183,9 @@ public:
                                   Logfile_group::LG_FLUSH_THREAD;
     
     Uint64 m_last_lsn;
-    Uint64 m_last_sync_req_lsn;
-    Uint64 m_last_synced_lsn;
+    Uint64 m_last_sync_req_lsn; // Outstanding
+    Uint64 m_last_synced_lsn;   // 
+    Uint64 m_max_sync_req_lsn;  // User requested lsn
     union {
       Uint64 m_last_read_lsn;
       Uint64 m_last_lcp_lsn;
