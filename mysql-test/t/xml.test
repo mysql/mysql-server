@@ -23,6 +23,7 @@ SELECT extractValue(@xml,'/*/*');
 SELECT extractValue(@xml,'/*/*/*');
 
 SELECT extractValue(@xml,'/a/child::*');
+SELECT extractValue(@xml,'/a/self::*');
 SELECT extractValue(@xml,'/a/descendant::*');
 SELECT extractValue(@xml,'/a/descendant-or-self::*');
 SELECT extractValue(@xml,'/a/attribute::*');
@@ -243,3 +244,10 @@ select extractvalue('<a>A</a>','/<a>');
 #
 --error 1105
 select extractvalue('<a><b>b</b><b!>b!</b!></a>','//b!');
+
+#
+# Bug #16315 XML: extractvalue() handles self badly
+#
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant::*');
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/self::*');
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant-or-self::*');
