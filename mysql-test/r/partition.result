@@ -348,4 +348,29 @@ INSERT INTO t1 SET f_int1 = 2, f_int2 = 2, f_char1 = '2', f_char2 = '2', f_charb
 SELECT * FROM t1 WHERE f_int1  IS NULL;
 f_int1	f_int2	f_char1	f_char2	f_charbig
 drop table t1;
+create procedure p ()
+begin
+create table t1 (s1 mediumint,s2 mediumint)
+partition by list (s2)
+(partition p1 values in (0),
+partition p2 values in (1));
+end//
+call p()//
+drop procedure p//
+drop table t1;
+create procedure p ()
+begin
+create table t1 (a int not null,b int not null,c int not null,primary key (a,b))
+partition by range (a)
+subpartition by hash (a+b)
+(partition x1 values less than (1)
+(subpartition x11,
+subpartition x12),
+partition x2 values less than (5)
+(subpartition x21,
+subpartition x22));
+end//
+call p()//
+drop procedure p//
+drop table t1//
 End of 5.1 tests
