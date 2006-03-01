@@ -885,7 +885,8 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                              const char *db, const char *table_name,
                              uint32 ndb_table_id,
                              uint32 ndb_table_version,
-                             enum SCHEMA_OP_TYPE type)
+                             enum SCHEMA_OP_TYPE type,
+                             const char *old_db, const char *old_table_name)
 {
   DBUG_ENTER("ndbcluster_log_schema_op");
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -919,10 +920,19 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
     query= tmp_buf2;
     query_length= (uint) (strxmov(tmp_buf2, "drop table `",
                                   table_name, "`", NullS) - tmp_buf2);
-    // fall through
-  case SOT_CREATE_TABLE:
-    // fall through
+    if (!share)
+      get_a_share= 1;
+    break;
   case SOT_RENAME_TABLE:
+    /* redo the rename table query as is may contain several tables */
+    query= tmp_buf2;
+    query_length= (uint) (strxmov(tmp_buf2, "rename table `",
+                                  old_db, ".", old_table_name, "` to `",
+                                  db, ".", table_name, "`", NullS) - tmp_buf2);
+    if (!share)
+      get_a_share= 1;
+    break;
+  case SOT_CREATE_TABLE:
     // fall through
   case SOT_ALTER_TABLE:
     if (!share)
@@ -983,8 +993,8 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   }
 
   Ndb *ndb= thd_ndb->ndb;
-  char old_db[FN_REFLEN];
-  strcpy(old_db, ndb->getDatabaseName());
+  char save_db[FN_REFLEN];
+  strcpy(save_db, ndb->getDatabaseName());
 
   char tmp_buf[SCHEMA_QUERY_SIZE];
   NDBDICT *dict= ndb->getDictionary();
@@ -1091,7 +1101,7 @@ end:
           
   if (trans)
     ndb->closeTransaction(trans);
-  ndb->setDatabaseName(old_db);
+  ndb->setDatabaseName(save_db);
 
   /*
     Wait for other mysqld's to acknowledge the table operation
@@ -1169,8 +1179,8 @@ ndbcluster_update_slock(THD *thd,
   const NdbError *ndb_error= 0;
   uint32 node_id= g_ndb_cluster_connection->node_id();
   Ndb *ndb= check_ndb_in_thd(thd);
-  char old_db[128];
-  strcpy(old_db, ndb->getDatabaseName());
+  char save_db[FN_HEADLEN];
+  strcpy(save_db, ndb->getDatabaseName());
 
   char tmp_buf[SCHEMA_QUERY_SIZE];
   NDBDICT *dict= ndb->getDictionary();
@@ -1292,7 +1302,7 @@ end:
                         db, table_name);
   if (trans)
     ndb->closeTransaction(trans);
-  ndb->setDatabaseName(old_db);
+  ndb->setDatabaseName(save_db);
   DBUG_RETURN(0);
 }
 
