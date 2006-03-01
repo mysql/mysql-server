@@ -2775,7 +2775,7 @@ static bool set_log_update(THD *thd, set_var *var)
     See sql/mysqld.cc/, comments in function init_server_components() for an
     explaination of the different warnings we send below
   */
-    
+
   if (opt_sql_bin_update)
   {
     ((sys_var_thd_bit*) var->var)->bit_flag|= (OPTION_BIN_LOG |
@@ -3256,10 +3256,7 @@ bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
 
 void sys_var_thd_table_type::warn_deprecated(THD *thd)
 {
-  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-		      ER_WARN_DEPRECATED_SYNTAX,
-		      ER(ER_WARN_DEPRECATED_SYNTAX), "table_type",
-                      "storage_engine"); 
+  WARN_DEPRECATED(thd, "5.2", "table_type", "'storage_engine'");
 }
 
 void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
@@ -3516,10 +3513,8 @@ bool process_key_caches(int (* func) (const char *name, KEY_CACHE *))
 
 void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
 {
-  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-		      ER_WARN_DEPRECATED_SYNTAX,
-		      ER(ER_WARN_DEPRECATED_SYNTAX), "log_bin_trust_routine_creators",
-                      "log_bin_trust_function_creators"); 
+  WARN_DEPRECATED(thd, "5.2", "log_bin_trust_routine_creators",
+                      "'log_bin_trust_function_creators'");
 }
 
 void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)
