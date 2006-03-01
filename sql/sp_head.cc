@@ -1412,7 +1412,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   uint params = m_pcont->context_pvars();
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
-  bool save_enable_slow_log;
+  bool save_enable_slow_log= false;
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
@@ -1522,7 +1522,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   if (!err_status)
     err_status= execute(thd);
 
-  if (thd->enable_slow_log && !(m_flags & LOG_SLOW_STATEMENTS))
+  if (save_enable_slow_log && !(m_flags & LOG_SLOW_STATEMENTS))
     thd->enable_slow_log= save_enable_slow_log;
 
   /*
