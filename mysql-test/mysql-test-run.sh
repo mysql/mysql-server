@@ -1326,8 +1326,8 @@ start_ndbcluster()
 
 rm_ndbcluster_tables()
 {
-  $RM -f $1/cluster_replication/apply_status*
-  $RM -f $1/cluster_replication/schema*
+  $RM -f $1/cluster/apply_status*
+  $RM -f $1/cluster/schema*
 }
 
 stop_ndbcluster()
