@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "SimBlockList.hpp"
+#include <Emulator.hpp>
 #include <SimulatedBlock.hpp>
 #include <Cmvmi.hpp>
 #include <Ndbfs.hpp>
@@ -69,7 +70,7 @@ void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
 #endif
 
 void 
-SimBlockList::load(Configuration & conf){
+SimBlockList::load(EmulatorData& data){
   noOfBlocks = NO_OF_BLOCKS;
   theList = new SimulatedBlock * [noOfBlocks];
   Dbdict* dbdict = 0;
@@ -78,12 +79,13 @@ SimBlockList::load(Configuration & conf){
   Lgman* lg = 0;
   Tsman* ts = 0;
 
-  Block_context ctx(conf, * (Ndbd_mem_manager*)0);
+  Block_context ctx(conf, *data.m_mem_manager);
   
   SimulatedBlock * fs = 0;
   {
     Uint32 dl;
-    const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+    const ndb_mgm_configuration_iterator * p = 
+      ctx.m_config.getOwnConfigIterator();
     if(p && !ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl) && dl){
       fs = NEW_BLOCK(VoidFs)(ctx);
     } else { 

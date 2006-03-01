@@ -28,6 +28,9 @@
 #include "diskpage.hpp"
 #include <signaldata/GetTabInfo.hpp>
 
+#include <WOPool.hpp>
+#include <SLFifoList.hpp>
+
 class Lgman : public SimulatedBlock
 {
 public:
@@ -77,18 +80,19 @@ protected:
 public:
   struct Log_waiter
   {
+    Callback m_callback;
     union {
       Uint32 m_size;
       Uint64 m_sync_lsn;
     };
     Uint32 m_block;
-    Callback m_callback;
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
-    Uint32 prevList;
+    Uint32 nextList;
+    Uint32 m_magic;
   };
+
+  typedef RecordPool<Log_waiter, WOPool> Log_waiter_pool;
+  typedef SLFifoListImpl<Log_waiter_pool, Log_waiter> Log_waiter_list;
+  typedef LocalSLFifoListImpl<Log_waiter_pool, Log_waiter> Local_log_waiter_list;
   
   struct Undofile
   {
@@ -190,7 +194,7 @@ public:
       Uint64 m_last_read_lsn;
       Uint64 m_last_lcp_lsn;
     };
-    DLFifoList<Log_waiter>::Head m_log_sync_waiters;
+    Log_waiter_list::Head m_log_sync_waiters;
     
     Buffer_idx m_tail_pos[3]; // 0 is cut, 1 is saved, 2 is current
     Buffer_idx m_file_pos[2]; // 0 tail, 1 head = { file_ptr_i, page_no }
@@ -200,7 +204,7 @@ public:
     DLFifoList<Undofile>::Head m_meta_files;// Files being created or dropped
     
     Uint32 m_free_buffer_words;    // Free buffer page words
-    DLFifoList<Log_waiter>::Head m_log_buffer_waiters;
+    Log_waiter_list::Head m_log_buffer_waiters;
     Page_map::Head m_buffer_pages; // Pairs of { ptr.i, count }
     struct Position {
       Buffer_idx m_current_page;   // { m_buffer_pages.i, left in range }
@@ -235,7 +239,7 @@ private:
   friend class Logfile_client;
   ArrayPool<Undofile> m_file_pool;
   ArrayPool<Logfile_group> m_logfile_group_pool;
-  ArrayPool<Log_waiter> m_log_waiter_pool;
+  Log_waiter_pool m_log_waiter_pool;
 
   Page_map::DataBufferPool m_data_buffer_pool;
 

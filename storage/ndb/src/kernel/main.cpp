@@ -406,7 +406,7 @@ int main(int argc, char** argv)
   systemInfo(* theConfig, * theConfig->m_logLevel); 
   
     // Load blocks
-  globalEmulatorData.theSimBlockList->load(* theConfig);
+  globalEmulatorData.theSimBlockList->load(globalEmulatorData);
     
   // Set thread concurrency for Solaris' light weight processes
   int status;

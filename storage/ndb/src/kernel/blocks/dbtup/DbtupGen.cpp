@@ -309,7 +309,10 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
 
   c_extent_pool.setSize(8192);
   c_extent_hash.setSize(1024); // 4k
-  c_page_request_pool.setSize(1000);
+  
+  Pool_context pc;
+  pc.m_block = this;
+  c_page_request_pool.wo_pool_init(RT_DBTUP_PAGE_REQUEST, pc);
   
   Uint32 nScanOp;       // use TUX config for now
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));

@@ -14,41 +14,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef KERNEL_RECORDS_HPP
-#define KERNEL_RECORDS_HPP
 
-/**
- * Resource groups
- */
+#include "Pool.hpp"
+#include "SimulatedBlock.hpp"
 
-/**
- * Operations for dd
- *    PGMAN_PAGE_REQUEST
- *    LGMAN_LOG_WAITER
- *    DBTUP_PAGE_REQUEST
- */
-#define RG_DISK_OPERATIONS      1
+void*
+Pool_context::alloc_page(Uint32 type_id, Uint32 *i)
+{
+  return m_block->m_ctx.m_mm.alloc_page(type_id, i);
+}
+  
+void 
+Pool_context::release_page(Uint32 type_id, Uint32 i)
+{
+  m_block->m_ctx.m_mm.release_page(type_id, i);
+}
 
-/**
- * Records for dd
- *   DBTUP_EXTENT_INFO
- */
-#define RG_DISK_RECORDS         2
+void*
+Pool_context::get_memroot()
+{
+  return m_block->m_ctx.m_mm.get_memroot();
+}
 
-/**
- * 
- */
-#define RG_RESERVED             0
-#define RG_COUNT                3
-
-/**
- * Record types
- */
-#define RT_PGMAN_PAGE_REQUEST      MAKE_TID(1, RG_DISK_OPERATIONS)
-
-#define RT_LGMAN_LOG_WAITER        MAKE_TID(2, RG_DISK_OPERATIONS)
-
-#define RT_DBTUP_PAGE_REQUEST      MAKE_TID(3, RG_DISK_OPERATIONS)
-#define RT_DBTUP_EXTENT_INFO       MAKE_TID(4, RG_DISK_RECORDS)
-
-#endif
+void
+Pool_context::handleAbort(int err, const char * msg)
+{
+  m_block->progError(__LINE__, err, msg);
+}

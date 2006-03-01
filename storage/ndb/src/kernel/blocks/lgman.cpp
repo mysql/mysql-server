@@ -33,6 +33,8 @@
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
 
+#include <record_types.hpp>
+
 /**
  * ---<a>-----<b>-----<c>-----<d>---> (time)
  *
@@ -90,12 +92,11 @@ Lgman::Lgman(Block_context & ctx) :
 
   addRecSignal(GSN_GET_TABINFOREQ, &Lgman::execGET_TABINFOREQ);
 
-  m_last_lsn = 0;
+  m_last_lsn = 1;
   m_logfile_group_pool.setSize(10);
   m_logfile_group_hash.setSize(10);
   m_file_pool.setSize(10);
   m_data_buffer_pool.setSize(10);
-  m_log_waiter_pool.setSize(10000);
 }
   
 Lgman::~Lgman()
@@ -117,6 +118,10 @@ Lgman::execREAD_CONFIG_REQ(Signal* signal)
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
+
+  Pool_context pc;
+  pc.m_block = this;
+  m_log_waiter_pool.wo_pool_init(RT_LGMAN_LOG_WAITER, pc);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -271,9 +276,9 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
       if (!ptr.p->m_log_buffer_waiters.isEmpty())
       {
 	Uint32 free_buffer= ptr.p->m_free_buffer_words;
-	LocalDLFifoList<Log_waiter> 
-	  list(m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
 	Ptr<Log_waiter> waiter;
+	Local_log_waiter_list 
+	  list(m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
 	list.first(waiter);
 	infoEvent("  free_buffer_words: %d head(waiters).sz: %d %d",
 		  ptr.p->m_free_buffer_words,
@@ -282,13 +287,21 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
       }
       if (!ptr.p->m_log_sync_waiters.isEmpty())
       {
-	LocalDLFifoList<Log_waiter> 
-	  list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
 	Ptr<Log_waiter> waiter;
+	Local_log_waiter_list 
+	  list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
 	list.first(waiter);
-	infoEvent("  m_last_synced_lsn: %lld: %d head(waiters).m_sync_lsn: %lld",
+	infoEvent("  m_last_synced_lsn: %lld head(waiters %x).m_sync_lsn: %lld",
 		  ptr.p->m_last_synced_lsn,
+		  waiter.i,
 		  waiter.p->m_sync_lsn);
+	
+	while(!waiter.isNull())
+	{
+	  ndbout_c("ptr: %x %p lsn: %lld next: %x", 
+		   waiter.i, waiter.p, waiter.p->m_sync_lsn, waiter.p->nextList);
+	  list.next(waiter);
+	}
       }
       m_logfile_group_list.next(ptr);
     }
@@ -859,9 +872,6 @@ Lgman::Logfile_group::Logfile_group(const CreateFilegroupImplReq* req)
 bool
 Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
 {
-  /**
-   * TODO use buddy allocator
-   */
   Uint32 pages= (((bytes + 3) >> 2) + File_formats::NDB_PAGE_SIZE_WORDS - 1)
     / File_formats::NDB_PAGE_SIZE_WORDS;
   Uint32 requested= pages;
@@ -869,14 +879,14 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
     Page_map map(m_data_buffer_pool, ptr.p->m_buffer_pages);
     while(pages)
     {
-      Ptr<GlobalPage> page;
-      if(m_global_page_pool.seize(page))
+      Uint32 ptrI;
+      Uint32 cnt = pages > 64 ? 64 : pages;
+      m_ctx.m_mm.alloc(&ptrI, &cnt, 1);
+      if (cnt)
       {
 	Buffer_idx range;
-	range.m_ptr_i= page.i;
-	range.m_idx = 1;
-	while(pages >range.m_idx && m_global_page_pool.seizeId(page, page.i+1))
-	  range.m_idx++;
+	range.m_ptr_i= ptrI;
+	range.m_idx = cnt;
 	
 	ndbrequire(map.append((Uint32*)&range, 2));
 	pages -= range.m_idx;
@@ -989,12 +999,8 @@ Lgman::free_logbuffer_memory(Ptr<Logfile_group> ptr)
     tmp[0] = *it.data;
     ndbrequire(map.next(it));
     tmp[1] = *it.data;
-    while(range.m_idx)
-    {
-      m_global_page_pool.release(range.m_ptr_i);
-      range.m_ptr_i++;
-      range.m_idx--;
-    }
+    
+    m_ctx.m_mm.release(range.m_ptr_i, range.m_idx);
     map.next(it);
   }
   map.release();
@@ -1039,7 +1045,7 @@ Logfile_client::sync_lsn(Signal* signal,
     bool empty= false;
     Ptr<Lgman::Log_waiter> wait;
     {
-      LocalDLFifoList<Lgman::Log_waiter> 
+      Lgman::Local_log_waiter_list
 	list(m_lgman->m_log_waiter_pool, ptr.p->m_log_sync_waiters);
       
       empty= list.isEmpty();
@@ -1076,8 +1082,7 @@ Lgman::force_log_sync(Signal* signal,
 		      Ptr<Logfile_group> ptr, 
 		      Uint32 lsn_hi, Uint32 lsn_lo)
 {
-  LocalDLFifoList<Lgman::Log_waiter> 
-    list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
+  Local_log_waiter_list list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
   Uint64 force_lsn = lsn_hi; force_lsn <<= 32; force_lsn += lsn_lo;
 
   if(ptr.p->m_last_sync_req_lsn < force_lsn)
@@ -1086,7 +1091,7 @@ Lgman::force_log_sync(Signal* signal,
      * Do force
      */
     Buffer_idx pos= ptr.p->m_pos[PRODUCER].m_current_pos;
-    GlobalPage *page = m_global_page_pool.getPtr(pos.m_ptr_i);
+    GlobalPage *page = m_shared_page_pool.getPtr(pos.m_ptr_i);
   
     Uint32 free= File_formats::UNDO_PAGE_WORDS - pos.m_idx;
     if(pos.m_idx) // don't flush empty page...
@@ -1136,7 +1141,7 @@ Lgman::force_log_sync(Signal* signal,
 void
 Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
 {
-  LocalDLFifoList<Log_waiter> 
+  Local_log_waiter_list 
     list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
 
   if(list.isEmpty())
@@ -1155,7 +1160,7 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
     SimulatedBlock* b = globalData.getBlock(block);
     b->execute(signal, waiter.p->m_callback, 0);
 
-    list.release(waiter);
+    list.releaseFirst(waiter);
   }
   
   if(removed && !list.isEmpty())
@@ -1176,7 +1181,7 @@ Uint32*
 Lgman::get_log_buffer(Ptr<Logfile_group> ptr, Uint32 sz)
 {
   GlobalPage *page;
-  page=m_global_page_pool.getPtr(ptr.p->m_pos[PRODUCER].m_current_pos.m_ptr_i);
+  page=m_shared_page_pool.getPtr(ptr.p->m_pos[PRODUCER].m_current_pos.m_ptr_i);
   
   Uint32 total_free= ptr.p->m_free_buffer_words;
   assert(total_free >= sz);
@@ -1214,7 +1219,7 @@ next:
   pos= 0;
   assert(total_free >= free);
   total_free -= free;
-  page= m_global_page_pool.getPtr(next_page(ptr.p, PRODUCER));
+  page= m_shared_page_pool.getPtr(next_page(ptr.p, PRODUCER));
   goto next;
 }
 
@@ -1271,7 +1276,7 @@ Logfile_client::get_log_buffer(Signal* signal, Uint32 sz,
     bool empty= false;
     {
       Ptr<Lgman::Log_waiter> wait;
-      LocalDLFifoList<Lgman::Log_waiter> 
+      Lgman::Local_log_waiter_list
 	list(m_lgman->m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
       
       empty= list.isEmpty();
@@ -1352,7 +1357,7 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
       else
       {
 	Buffer_idx pos= producer.m_current_pos;
-	GlobalPage *page = m_global_page_pool.getPtr(pos.m_ptr_i);
+	GlobalPage *page = m_shared_page_pool.getPtr(pos.m_ptr_i);
 	
 	Uint32 free= File_formats::UNDO_PAGE_WORDS - pos.m_idx;
 
@@ -1497,7 +1502,7 @@ void
 Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
 {
   Uint32 free_buffer= ptr.p->m_free_buffer_words;
-  LocalDLFifoList<Log_waiter> 
+  Local_log_waiter_list 
     list(m_log_waiter_pool, ptr.p->m_log_buffer_waiters);
 
   if(list.isEmpty())
@@ -1516,7 +1521,7 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
     SimulatedBlock* b = globalData.getBlock(block);
     b->execute(signal, waiter.p->m_callback, 0);
 
-    list.release(waiter);
+    list.releaseFirst(waiter);
   }
   
   if(removed && !list.isEmpty())
@@ -1571,7 +1576,7 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
   req->data.pageData[0] = pageId;
   req->operationFlag = 0;
   FsReadWriteReq::setFormatFlag(req->operationFlag, 
-				FsReadWriteReq::fsFormatGlobalPage);
+				FsReadWriteReq::fsFormatSharedPage);
 
   if(max > pages)
   {
@@ -1592,7 +1597,7 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
     filePtr.p->m_state |= Undofile::FS_OUTSTANDING;
 
     File_formats::Undofile::Undo_page *page= (File_formats::Undofile::Undo_page*)
-      m_global_page_pool.getPtr(pageId + max - 1);
+      m_shared_page_pool.getPtr(pageId + max - 1);
     Uint64 lsn = 0;
     lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
     lsn += page->m_page_header.m_page_lsn_lo;
@@ -1618,7 +1623,7 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
     filePtr.p->m_state |= Undofile::FS_OUTSTANDING;
 
     File_formats::Undofile::Undo_page *page= (File_formats::Undofile::Undo_page*)
-      m_global_page_pool.getPtr(pageId + max - 1);
+      m_shared_page_pool.getPtr(pageId + max - 1);
     Uint64 lsn = 0;
     lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
     lsn += page->m_page_header.m_page_lsn_lo;
@@ -2099,7 +2104,7 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> ptr)
     req->data.pageData[0] = page_id;
     req->operationFlag = 0;
     FsReadWriteReq::setFormatFlag(req->operationFlag, 
-				  FsReadWriteReq::fsFormatGlobalPage);
+				  FsReadWriteReq::fsFormatSharedPage);
     
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
 	       FsReadWriteReq::FixedLength + 1, JBA);
@@ -2140,7 +2145,7 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> ptr)
     req->data.pageData[0] = page_id;
     req->operationFlag = 0;
     FsReadWriteReq::setFormatFlag(req->operationFlag, 
-				  FsReadWriteReq::fsFormatGlobalPage);
+				  FsReadWriteReq::fsFormatSharedPage);
     
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
 	       FsReadWriteReq::FixedLength + 1, JBA);
@@ -2201,7 +2206,7 @@ Lgman::execFSREADCONF(Signal* signal)
   lg_ptr.p->m_outstanding_fs = cnt - 1;
 
   Ptr<GlobalPage> page_ptr;
-  m_global_page_pool.getPtr(page_ptr, ptr.p->m_online.m_outstanding);
+  m_shared_page_pool.getPtr(page_ptr, ptr.p->m_online.m_outstanding);
   ptr.p->m_online.m_outstanding= 0;
   
   File_formats::Undofile::Undo_page* page = 
@@ -2333,7 +2338,7 @@ Lgman::find_log_head_in_file(Signal* signal,
     req->data.pageData[0] = page_id;
     req->operationFlag = 0;
     FsReadWriteReq::setFormatFlag(req->operationFlag, 
-				  FsReadWriteReq::fsFormatGlobalPage);
+				  FsReadWriteReq::fsFormatSharedPage);
     
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
 	       FsReadWriteReq::FixedLength + 1, JBA);
@@ -2438,7 +2443,7 @@ Lgman::init_run_undo_log(Signal* signal)
       
       Uint32 page = ptr.p->m_pos[CONSUMER].m_current_pos.m_ptr_i;
       File_formats::Undofile::Undo_page* pageP = 
-	(File_formats::Undofile::Undo_page*)m_global_page_pool.getPtr(page);
+	(File_formats::Undofile::Undo_page*)m_shared_page_pool.getPtr(page);
       
       ptr.p->m_pos[CONSUMER].m_current_pos.m_idx = pageP->m_words_used;
       ptr.p->m_pos[PRODUCER].m_current_pos.m_idx = 1;
@@ -2578,7 +2583,7 @@ Lgman::read_undo_pages(Signal* signal, Ptr<Logfile_group> ptr,
   req->userPointer = filePtr.i;
   req->operationFlag = 0;
   FsReadWriteReq::setFormatFlag(req->operationFlag, 
-				FsReadWriteReq::fsFormatGlobalPage);
+				FsReadWriteReq::fsFormatSharedPage);
 
 
   if(max > pages)
@@ -2717,7 +2722,7 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
   Uint32 page = consumer.m_current_pos.m_ptr_i;
   
   File_formats::Undofile::Undo_page* pageP=(File_formats::Undofile::Undo_page*)
-    m_global_page_pool.getPtr(page);
+    m_shared_page_pool.getPtr(page);
 
   if(pos == 0)
   {
@@ -2795,7 +2800,7 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
       ndbout_c("reading from %d", consumer.m_current_pos.m_ptr_i);
 
     pageP=(File_formats::Undofile::Undo_page*)
-      m_global_page_pool.getPtr(consumer.m_current_pos.m_ptr_i);
+      m_shared_page_pool.getPtr(consumer.m_current_pos.m_ptr_i);
     
     pos= consumer.m_current_pos.m_idx= pageP->m_words_used;
     
