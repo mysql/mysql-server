@@ -2595,8 +2595,15 @@ const char *Natural_join_column::db_name()
   if (view_field)
     return table_ref->view_db.str;
 
+  /*
+    Test that TABLE_LIST::db is the same as st_table_share::db to
+    ensure consistency. An exception are I_S schema tables, which
+    are inconsistent in this respect.
+  */
   DBUG_ASSERT(!strcmp(table_ref->db,
-                      table_ref->table->s->db));
+                      table_ref->table->s->db) ||
+              (table_ref->schema_table &&
+               table_ref->table->s->db[0] == 0));
   return table_ref->db;
 }
 
@@ -2798,7 +2805,15 @@ const char *Field_iterator_table_ref::db_name()
   else if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->db_name();
 
-  DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db));
+  /*
+    Test that TABLE_LIST::db is the same as st_table_share::db to
+    ensure consistency. An exception are I_S schema tables, which
+    are inconsistent in this respect.
+  */
+  DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db) ||
+              (table_ref->schema_table &&
+               table_ref->table->s->db[0] == 0));
+
   return table_ref->db;
 }
 
