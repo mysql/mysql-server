@@ -5919,10 +5919,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     */
     char buf[32];
     my_snprintf(buf, sizeof(buf), "TIMESTAMP(%s)", length);
-    push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_WARN_DEPRECATED_SYNTAX,
-                        ER(ER_WARN_DEPRECATED_SYNTAX),
-                        buf, "TIMESTAMP");
+    WARN_DEPRECATED(thd, "5.2", buf, "'TIMESTAMP'");
   }
 
   if (!(new_field= new create_field()) ||
