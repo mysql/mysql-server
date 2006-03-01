@@ -25,13 +25,13 @@ hex(c2)	hex(c3)	c1
 0	1	BCDEF
 1	0	CD
 0	0	DEFGHIJKL
-CREATE TEMPORARY TABLE IF NOT EXISTS cluster_replication.backup_info (id INT, backup_id INT)ENGINE=HEAP;
-DELETE FROM cluster_replication.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE cluster_replication.backup_info FIELDS TERMINATED BY ',';
-SELECT @the_backup_id:=backup_id FROM cluster_replication.backup_info;
+CREATE TEMPORARY TABLE IF NOT EXISTS cluster.backup_info (id INT, backup_id INT)ENGINE=HEAP;
+DELETE FROM cluster.backup_info;
+LOAD DATA INFILE '../tmp.dat' INTO TABLE cluster.backup_info FIELDS TERMINATED BY ',';
+SELECT @the_backup_id:=backup_id FROM cluster.backup_info;
 @the_backup_id:=backup_id
 <the_backup_id>
-DROP TABLE cluster_replication.backup_info;
+DROP TABLE cluster.backup_info;
 UPDATE t1 SET c2=0 WHERE c3="row2";
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 hex(c1)	hex(c2)	c3
@@ -60,11 +60,11 @@ hex(c2)	hex(c3)	c1
 0	1	BCDEF
 1	0	CD
 0	0	DEFGHIJKL
-SELECT @the_epoch:=MAX(epoch) FROM cluster_replication.apply_status;
+SELECT @the_epoch:=MAX(epoch) FROM cluster.apply_status;
 @the_epoch:=MAX(epoch)
 <the_epoch>
 SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
-FROM cluster_replication.binlog_index WHERE epoch > <the_epoch> ORDER BY epoch ASC LIMIT 1;
+FROM cluster.binlog_index WHERE epoch > <the_epoch> ORDER BY epoch ASC LIMIT 1;
 @the_pos:=Position	@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
 <the_pos>	master-bin.000001
 CHANGE MASTER TO
@@ -89,8 +89,8 @@ hex(c2)	hex(c3)	c1
 DROP DATABASE ndbsynctest;
 STOP SLAVE;
 reset master;
-select * from cluster_replication.binlog_index;
+select * from cluster.binlog_index;
 Position	File	epoch	inserts	updates	deletes	schemaops
 reset slave;
-select * from cluster_replication.apply_status;
+select * from cluster.apply_status;
 server_id	epoch
