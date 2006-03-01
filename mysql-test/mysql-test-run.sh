@@ -894,7 +894,7 @@ show_failed_diff ()
     $DIFF -c $result_file $reject_file
     echo "-------------------------------------------------------"
     echo "Please follow the instructions outlined at"
-    echo "http://www.mysql.com/doc/en/Reporting_mysqltest_bugs.html"
+    echo "http://dev.mysql.com/doc/mysql/en/reporting-mysqltest-bugs.html"
     echo "to find the reason to this problem and how to report this."
     echo ""
   fi
@@ -990,7 +990,7 @@ report_stats () {
         $ECHO "The log files in $MY_LOG_DIR may give you some hint"
 	$ECHO "of what went wrong."
 	$ECHO "If you want to report this error, please read first the documentation at"
-        $ECHO "http://www.mysql.com/doc/en/MySQL_test_suite.html"
+        $ECHO "http://dev.mysql.com/doc/mysql/en/mysql-test-suite.html"
     fi
 
     if [ $USE_RUNNING_SERVER -eq 0 ]
