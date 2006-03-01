@@ -28,6 +28,9 @@ SELECT * FROM slow_event_test;
 slo_val	val
 SET GLOBAL event_scheduler=1;
 "Sleep some more time than the actual event run will take"
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
 "Check our table. Should see 1 row"
 SELECT * FROM slow_event_test;
 slo_val	val
@@ -37,7 +40,8 @@ SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 user_host	query_time	db	sql_text
 "This should go to the slow log"
 SET SESSION long_query_time=10;
-ALTER EVENT long_event DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(5);
+DROP EVENT long_event;
+CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(5);
 "Sleep some more time than the actual event run will take"
 "Check our table. Should see 2 rows"
 SELECT * FROM slow_event_test;
@@ -48,7 +52,7 @@ slo_val	val
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 user_host	query_time	db	sql_text
 root[root] @ localhost [localhost]	00:00:05	events_test	INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(5)
-DROP EVENT long_event;
+DROP EVENT long_event2;
 SET GLOBAL  long_query_time =@old_global_long_query_time;
 SET SESSION long_query_time =@old_session_long_query_time;
 TRUNCATE mysql.slow_log;
