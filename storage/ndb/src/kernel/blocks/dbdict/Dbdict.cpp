@@ -15325,8 +15325,6 @@ Dbdict::create_file_abort_complete(Signal* signal, SchemaOp* op)
   execute(signal, op->m_callback, 0);
 }
 
-CArray<KeyDescriptor> g_key_descriptor_pool;
-
 void
 Dbdict::drop_file_prepare_start(Signal* signal, SchemaOp* op)
 {
