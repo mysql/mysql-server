@@ -354,17 +354,24 @@ executor_wait_till_next_event_exec(THD *thd)
   DBUG_PRINT("evex main thread",("unlocked LOCK_event_arrays"));
   if (t2sleep > 0)
   {
+    ulonglong modified= et->modified;
     /*
       We sleep t2sleep seconds but we check every second whether this thread
       has been killed, or there is a new candidate
     */
     while (t2sleep-- && !thd->killed && event_executor_running_global_var &&
            evex_queue_num_elements(EVEX_EQ_NAME) &&
-           (evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*) == et))
+           (evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*) == et &&
+            evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*)->modified ==
+             modified))
     {
-      DBUG_PRINT("evex main thread",("will sleep a bit more"));
+      DBUG_PRINT("evex main thread",("will sleep a bit more."));
       my_sleep(1000000);
     }
+    DBUG_PRINT("info",("saved_modified=%llu current=%llu", modified,
+               evex_queue_num_elements(EVEX_EQ_NAME)? 
+               evex_queue_first_element(&EVEX_EQ_NAME, Event_timed*)->modified:
+               (ulonglong)~0));
   }
 
   int ret= WAIT_STATUS_READY;
