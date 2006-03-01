@@ -1414,6 +1414,7 @@ static bool set_up_partition_bitmap(THD *thd, partition_info *part_info)
     DBUG_RETURN(TRUE);
   }
   bitmap_init(&part_info->used_partitions, bitmap_buf, bitmap_bytes*8, FALSE);
+  bitmap_set_all(&part_info->used_partitions);
   DBUG_RETURN(FALSE);
 }
 
