@@ -14,7 +14,7 @@ NULL	test	latin1	latin1_swedish_ci	NULL
 select schema_name from information_schema.schemata;
 schema_name
 information_schema
-cluster_replication
+cluster
 mysql
 test
 show databases like 't%';
@@ -23,7 +23,7 @@ test
 show databases;
 Database
 information_schema
-cluster_replication
+cluster
 mysql
 test
 show databases where `database` = 't%';
@@ -339,7 +339,7 @@ create view v0 (c) as select schema_name from information_schema.schemata;
 select * from v0;
 c
 information_schema
-cluster_replication
+cluster
 mysql
 test
 explain select * from v0;
@@ -835,7 +835,7 @@ delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-cluster_replication	1
+cluster	1
 information_schema	22
 mysql	21
 create table t1 (i int, j int);

@@ -57,11 +57,11 @@ master-bin.000001	798	Query	1	978	use `test`; CREATE TABLE t1
 tablespace ts1 storage disk
 engine ndb
 master-bin.000001	978	Query	1	1042	BEGIN
-master-bin.000001	1042	Table_map	1	65	cluster_replication.apply_status
-master-bin.000001	1107	Write_rows	1	107	
-master-bin.000001	1149	Table_map	1	148	test.t1
-master-bin.000001	1190	Write_rows	1	190	
-master-bin.000001	1232	Query	1	1297	COMMIT
+master-bin.000001	1042	Table_map	1	53	cluster.apply_status
+master-bin.000001	1095	Write_rows	1	95	
+master-bin.000001	1137	Table_map	1	136	test.t1
+master-bin.000001	1178	Write_rows	1	178	
+master-bin.000001	1220	Query	1	1285	COMMIT
 drop table t1;
 alter tablespace ts1
 drop datafile 'datafile.dat'
