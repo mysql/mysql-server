@@ -1364,8 +1364,6 @@ public:
   { return cmp_binary((char *) a, (char *) b); }
   int key_cmp(const byte *str, uint length);
   int cmp_offset(uint row_offset);
-  int cmp_binary_offset(uint row_offset)
-  { return cmp_offset(row_offset); }
   void get_key_image(char *buff, uint length, imagetype type);
   void set_key_image(char *buff, uint length)
   { Field_bit::store(buff, length, &my_charset_bin); }
