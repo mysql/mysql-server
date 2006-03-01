@@ -1318,6 +1318,20 @@ public:
 };
 
 
+/*
+  Note:
+    To use Field_bit::cmp_binary() you need to copy the bits stored in
+    the beginning of the record (the NULL bytes) to each memory you
+    want to compare (where the arguments point).
+
+    This is the reason:
+    - Field_bit::cmp_binary() is only implemented in the base class
+      (Field::cmp_binary()).
+    - Field::cmp_binary() currenly use pack_length() to calculate how
+      long the data is.
+    - pack_length() includes size of the bits stored in the NULL bytes
+      of the record.
+*/
 class Field_bit :public Field {
 public:
   uchar *bit_ptr;     // position in record where 'uneven' bits store
@@ -1343,6 +1357,8 @@ public:
   my_decimal *val_decimal(my_decimal *);
   int cmp(const char *a, const char *b)
   { return cmp_binary(a, b); }
+  int cmp_binary_offset(uint row_offset)
+  { return cmp_offset(row_offset); }
   int cmp_max(const char *a, const char *b, uint max_length);
   int key_cmp(const byte *a, const byte *b)
   { return cmp_binary((char *) a, (char *) b); }

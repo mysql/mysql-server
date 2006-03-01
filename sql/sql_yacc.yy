@@ -1343,7 +1343,7 @@ create:
 
             lex->create_info.options= $3;
 
-            if (!(lex->et= new event_timed())) // implicitly calls event_timed::init()
+            if (!(lex->et= new Event_timed())) // implicitly calls Event_timed::init()
               YYABORT;
 
             /*
@@ -1476,6 +1476,9 @@ opt_ev_status: /* empty */ { $$= 0; }
       ;
 
 ev_starts: /* empty */
+          {
+            Lex->et->init_starts(YYTHD, new Item_func_now_local());
+          }
         | STARTS_SYM expr
           {
             LEX *lex= Lex;
@@ -3486,7 +3489,7 @@ part_func:
           uint expr_len= (uint)($4 - $2) - 1;
           lex->part_info->list_of_part_fields= FALSE;
           lex->part_info->part_expr= $3;
-          lex->part_info->part_func_string= $2+1;
+          lex->part_info->part_func_string= (char* ) sql_memdup($2+1, expr_len);
           lex->part_info->part_func_len= expr_len;
         }
         ;
@@ -3498,7 +3501,7 @@ sub_part_func:
           uint expr_len= (uint)($4 - $2) - 1;
           lex->part_info->list_of_subpart_fields= FALSE;
           lex->part_info->subpart_expr= $3;
-          lex->part_info->subpart_func_string= $2+1;
+          lex->part_info->subpart_func_string= (char* ) sql_memdup($2+1, expr_len);        
           lex->part_info->subpart_func_len= expr_len;
         }
         ;
@@ -4819,7 +4822,7 @@ alter:
           */
           {
             LEX *lex=Lex;
-            event_timed *et;
+            Event_timed *et;
 
             if (lex->et)
             {
@@ -4832,7 +4835,7 @@ alter:
             }
             lex->spname= 0;//defensive programming
 
-            if (!(et= new event_timed()))// implicitly calls event_timed::init()
+            if (!(et= new Event_timed()))// implicitly calls Event_timed::init()
               YYABORT;
             lex->et = et;
 
@@ -4908,7 +4911,7 @@ opt_ev_rename_to: /* empty */ { $$= 0;}
           {
             LEX *lex=Lex;
             lex->spname= $3; //use lex's spname to hold the new name
-	                     //the original name is in the event_timed object
+	                     //the original name is in the Event_timed object
             $$= 1;
           }
       ;
@@ -7731,7 +7734,7 @@ drop:
               YYABORT;
             }
 
-            if (!(lex->et= new event_timed()))
+            if (!(lex->et= new Event_timed()))
               YYABORT;
 	  
             if (!lex->et_compile_phase)
@@ -8455,7 +8458,7 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
             Lex->spname= $3;
-            Lex->et= new event_timed();
+            Lex->et= new Event_timed();
             if (!Lex->et)
               YYABORT;
             Lex->et->init_definer(YYTHD);
