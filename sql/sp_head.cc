@@ -1412,6 +1412,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   uint params = m_pcont->context_pvars();
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
+  bool save_enable_slow_log;
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
@@ -1510,11 +1511,19 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
     DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
   }
-
+  if (thd->enable_slow_log && !(m_flags & LOG_SLOW_STATEMENTS))
+  {
+    DBUG_PRINT("info", ("Disabling slow log for the execution"));
+    save_enable_slow_log= thd->enable_slow_log;
+    thd->enable_slow_log= FALSE;
+  }
   thd->spcont= nctx;
-
+  
   if (!err_status)
     err_status= execute(thd);
+
+  if (thd->enable_slow_log && !(m_flags & LOG_SLOW_STATEMENTS))
+    thd->enable_slow_log= save_enable_slow_log;
 
   /*
     In the case when we weren't able to employ reuse mechanism for
@@ -2298,6 +2307,8 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 					  thd->query, thd->query_length) <= 0)
     {
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
+      if (!res && unlikely(thd->enable_slow_log))
+        log_slow_statement(thd);
       query_cache_end_of_result(thd);
     }
     else

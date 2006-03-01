@@ -1162,6 +1162,8 @@ Event_timed::execute(THD *thd, MEM_ROOT *mem_root)
   {
     List<Item> empty_item_list;
     empty_item_list.empty();
+    if (thd->enable_slow_log)
+      sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
     ret= sphead->execute_procedure(thd, &empty_item_list);
   }
   else
