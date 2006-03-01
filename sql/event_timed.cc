@@ -26,13 +26,13 @@ extern int yyparse(void *thd);
   Init all member variables
 
   SYNOPSIS
-    event_timed::init()
+    Event_timed::init()
 */
 
 void
-event_timed::init()
+Event_timed::init()
 {
-  DBUG_ENTER("event_timed::init");
+  DBUG_ENTER("Event_timed::init");
 
   dbname.str= name.str= body.str= comment.str= 0;
   dbname.length= name.length= body.length= comment.length= 0;
@@ -56,16 +56,15 @@ event_timed::init()
   Set a name of the event
 
   SYNOPSIS
-    event_timed::init_name()
+    Event_timed::init_name()
       thd   THD
       spn   the name extracted in the parser
 */
 
 void
-event_timed::init_name(THD *thd, sp_name *spn)
+Event_timed::init_name(THD *thd, sp_name *spn)
 {
-  DBUG_ENTER("event_timed::init_name");
-  uint n;                                      /* Counter for nul trimming */
+  DBUG_ENTER("Event_timed::init_name");
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
 
@@ -100,7 +99,7 @@ event_timed::init_name(THD *thd, sp_name *spn)
   Set body of the event - what should be executed.
 
   SYNOPSIS
-    event_timed::init_body()
+    Event_timed::init_body()
       thd   THD
 
   NOTE
@@ -109,9 +108,9 @@ event_timed::init_name(THD *thd, sp_name *spn)
 */
 
 void
-event_timed::init_body(THD *thd)
+Event_timed::init_body(THD *thd)
 {
-  DBUG_ENTER("event_timed::init_body");
+  DBUG_ENTER("Event_timed::init_body");
   DBUG_PRINT("info", ("body=[%s] body_begin=0x%ld end=0x%ld", body_begin,
              body_begin, thd->lex->ptr));
 
@@ -136,7 +135,7 @@ event_timed::init_body(THD *thd)
   Set time for execution for one time events.
 
   SYNOPSIS
-    event_timed::init_execute_at()
+    Event_timed::init_execute_at()
       expr   when (datetime)
 
   RETURN VALUE
@@ -147,14 +146,13 @@ event_timed::init_body(THD *thd)
 */
 
 int
-event_timed::init_execute_at(THD *thd, Item *expr)
+Event_timed::init_execute_at(THD *thd, Item *expr)
 {
   my_bool not_used;
   TIME ltime;
-  my_time_t my_time_tmp;
 
   TIME time_tmp;
-  DBUG_ENTER("event_timed::init_execute_at");
+  DBUG_ENTER("Event_timed::init_execute_at");
 
   if (expr->fix_fields(thd, &expr))
     DBUG_RETURN(EVEX_PARSE_ERROR);
@@ -192,7 +190,7 @@ event_timed::init_execute_at(THD *thd, Item *expr)
   Set time for execution for transient events.
 
   SYNOPSIS
-    event_timed::init_interval()
+    Event_timed::init_interval()
       expr      how much?
       new_interval  what is the interval
 
@@ -204,13 +202,12 @@ event_timed::init_execute_at(THD *thd, Item *expr)
 */
 
 int
-event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
+Event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
 {
-  longlong tmp;
   String value;
   INTERVAL interval;
 
-  DBUG_ENTER("event_timed::init_interval");
+  DBUG_ENTER("Event_timed::init_interval");
 
   if (expr->fix_fields(thd, &expr))
     DBUG_RETURN(EVEX_PARSE_ERROR);
@@ -289,7 +286,7 @@ event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
   Set activation time.
 
   SYNOPSIS
-    event_timed::init_starts()
+    Event_timed::init_starts()
     expr      how much?
     interval  what is the interval
 
@@ -307,12 +304,12 @@ event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
 */
 
 int
-event_timed::init_starts(THD *thd, Item *new_starts)
+Event_timed::init_starts(THD *thd, Item *new_starts)
 {
   my_bool not_used;
   TIME ltime, time_tmp;
 
-  DBUG_ENTER("event_timed::init_starts");
+  DBUG_ENTER("Event_timed::init_starts");
 
   if (new_starts->fix_fields(thd, &new_starts))
     DBUG_RETURN(EVEX_PARSE_ERROR);
@@ -346,7 +343,7 @@ event_timed::init_starts(THD *thd, Item *new_starts)
   Set deactivation time.
 
   SYNOPSIS
-    event_timed::init_ends()
+    Event_timed::init_ends()
       thd       THD
       new_ends  when?
 
@@ -365,12 +362,12 @@ event_timed::init_starts(THD *thd, Item *new_starts)
 */
 
 int
-event_timed::init_ends(THD *thd, Item *new_ends)
+Event_timed::init_ends(THD *thd, Item *new_ends)
 {
   TIME ltime, ltime_now;
   my_bool not_used;
 
-  DBUG_ENTER("event_timed::init_ends");
+  DBUG_ENTER("Event_timed::init_ends");
 
   if (new_ends->fix_fields(thd, &new_ends))
     DBUG_RETURN(EVEX_PARSE_ERROR);
@@ -411,15 +408,15 @@ event_timed::init_ends(THD *thd, Item *new_ends)
   Sets comment.
 
   SYNOPSIS
-    event_timed::init_comment()
+    Event_timed::init_comment()
       thd      THD - used for memory allocation
       comment  the string.
 */
 
 void
-event_timed::init_comment(THD *thd, LEX_STRING *set_comment)
+Event_timed::init_comment(THD *thd, LEX_STRING *set_comment)
 {
-  DBUG_ENTER("event_timed::init_comment");
+  DBUG_ENTER("Event_timed::init_comment");
 
   comment.str= strmake_root(thd->mem_root, set_comment->str,
                             comment.length= set_comment->length);
@@ -432,13 +429,13 @@ event_timed::init_comment(THD *thd, LEX_STRING *set_comment)
   Inits definer (definer_user and definer_host) during parsing.
 
   SYNOPSIS
-    event_timed::init_definer()
+    Event_timed::init_definer()
 */
 
 int
-event_timed::init_definer(THD *thd)
+Event_timed::init_definer(THD *thd)
 {
-  DBUG_ENTER("event_timed::init_definer");
+  DBUG_ENTER("Event_timed::init_definer");
 
   DBUG_PRINT("info",("init definer_user thd->mem_root=0x%lx "
                      "thd->sec_ctx->priv_user=0x%lx", thd->mem_root,
@@ -473,7 +470,7 @@ event_timed::init_definer(THD *thd)
   Loads an event from a row from mysql.event
 
   SYNOPSIS
-    event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
+    Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
 
   NOTES
     This method is silent on errors and should behave like that. Callers
@@ -482,16 +479,14 @@ event_timed::init_definer(THD *thd)
 */
 
 int
-event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
+Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
 {
-  longlong created;
-  longlong modified;
   char *ptr;
-  event_timed *et;
+  Event_timed *et;
   uint len;
   bool res1, res2;
 
-  DBUG_ENTER("event_timed::load_from_row");
+  DBUG_ENTER("Event_timed::load_from_row");
 
   if (!table)
     goto error;
@@ -569,8 +564,8 @@ event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
   else
     et->interval= (interval_type) 0;
 
-  et->modified= table->field[EVEX_FIELD_CREATED]->val_int();
-  et->created= table->field[EVEX_FIELD_MODIFIED]->val_int();
+  et->created= table->field[EVEX_FIELD_CREATED]->val_int();
+  et->modified= table->field[EVEX_FIELD_MODIFIED]->val_int();
 
   /*
     ToDo Andrey : Ask PeterG & Serg what to do in this case.
@@ -698,7 +693,7 @@ bool get_next_time(TIME *next, TIME *start, int i_value, interval_type i_type)
   Computes next execution time.
 
   SYNOPSIS
-    event_timed::compute_next_execution_time()
+    Event_timed::compute_next_execution_time()
 
   NOTES
     The time is set in execute_at, if no more executions the latter is set to
@@ -706,13 +701,13 @@ bool get_next_time(TIME *next, TIME *start, int i_value, interval_type i_type)
 */
 
 bool
-event_timed::compute_next_execution_time()
+Event_timed::compute_next_execution_time()
 {
   TIME time_now;
   my_time_t now;
   int tmp;
 
-  DBUG_ENTER("event_timed::compute_next_execution_time");
+  DBUG_ENTER("Event_timed::compute_next_execution_time");
 
   if (status == MYSQL_EVENT_DISABLED)
   {
@@ -918,12 +913,12 @@ err:
   time according to thd->query_start(), so the THD's clock.
 
   SYNOPSIS
-    event_timed::drop()
+    Event_timed::drop()
       thd   thread context
 */
 
 void
-event_timed::mark_last_executed(THD *thd)
+Event_timed::mark_last_executed(THD *thd)
 {
   TIME time_now;
 
@@ -942,7 +937,7 @@ event_timed::mark_last_executed(THD *thd)
   Drops the event
 
   SYNOPSIS
-    event_timed::drop()
+    Event_timed::drop()
       thd   thread context
 
   RETURN VALUE
@@ -955,11 +950,10 @@ event_timed::mark_last_executed(THD *thd)
 */
 
 int
-event_timed::drop(THD *thd)
+Event_timed::drop(THD *thd)
 {
-  TABLE *table;
   uint tmp= 0;
-  DBUG_ENTER("event_timed::drop");
+  DBUG_ENTER("Event_timed::drop");
 
   DBUG_RETURN(db_drop_event(thd, this, false, &tmp));
 }
@@ -969,7 +963,7 @@ event_timed::drop(THD *thd)
   Saves status and last_executed_at to the disk if changed.
 
   SYNOPSIS
-    event_timed::update_fields()
+    Event_timed::update_fields()
       thd - thread context
 
   RETURN VALUE
@@ -982,14 +976,13 @@ event_timed::drop(THD *thd)
 */
 
 bool
-event_timed::update_fields(THD *thd)
+Event_timed::update_fields(THD *thd)
 {
   TABLE *table;
   Open_tables_state backup;
   int ret= 0;
-  bool opened;
 
-  DBUG_ENTER("event_timed::update_time_fields");
+  DBUG_ENTER("Event_timed::update_time_fields");
 
   DBUG_PRINT("enter", ("name: %*s", name.length, name.str));
 
@@ -1023,7 +1016,7 @@ event_timed::update_fields(THD *thd)
   if (status_changed)
   {
     table->field[EVEX_FIELD_STATUS]->set_notnull();
-    table->field[EVEX_FIELD_STATUS]->store((longlong)status);
+    table->field[EVEX_FIELD_STATUS]->store((longlong)status, true);
     status_changed= false;
   }
 
@@ -1043,7 +1036,7 @@ extern LEX_STRING interval_type_to_name[];
   Get SHOW CREATE EVENT as string
 
   SYNOPSIS
-    event_timed::get_create_event(THD *thd, String *buf)
+    Event_timed::get_create_event(THD *thd, String *buf)
       thd    Thread
       buf    String*, should be already allocated. CREATE EVENT goes inside.
 
@@ -1055,7 +1048,7 @@ extern LEX_STRING interval_type_to_name[];
 */
 
 int
-event_timed::get_create_event(THD *thd, String *buf)
+Event_timed::get_create_event(THD *thd, String *buf)
 {
   int multipl= 0;
   char tmp_buff[128];
@@ -1133,14 +1126,14 @@ event_timed::get_create_event(THD *thd, String *buf)
 */
 
 int
-event_timed::execute(THD *thd, MEM_ROOT *mem_root)
+Event_timed::execute(THD *thd, MEM_ROOT *mem_root)
 {
   Security_context *save_ctx;
   /* this one is local and not needed after exec */
   Security_context security_ctx;
   int ret= 0;
 
-  DBUG_ENTER("event_timed::execute");
+  DBUG_ENTER("Event_timed::execute");
   DBUG_PRINT("info", ("    EVEX EXECUTING event %s.%s [EXPR:%d]",
                dbname.str, name.str, (int) expression));
 
@@ -1169,6 +1162,8 @@ event_timed::execute(THD *thd, MEM_ROOT *mem_root)
   {
     List<Item> empty_item_list;
     empty_item_list.empty();
+    if (thd->enable_slow_log)
+      sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
     ret= sphead->execute_procedure(thd, &empty_item_list);
   }
   else
@@ -1207,7 +1202,7 @@ done:
 /*
   Switches the security context
   Synopsis
-    event_timed::change_security_context()
+    Event_timed::change_security_context()
       thd    - thread
       backup - where to store the old context 
   
@@ -1216,10 +1211,10 @@ done:
     1  - Error (generates error too)
 */
 bool
-event_timed::change_security_context(THD *thd, Security_context *s_ctx,
+Event_timed::change_security_context(THD *thd, Security_context *s_ctx,
                                      Security_context **backup)
 {
-  DBUG_ENTER("event_timed::change_security_context");
+  DBUG_ENTER("Event_timed::change_security_context");
   DBUG_PRINT("info",("%s@%s@%s",definer_user.str,definer_host.str, dbname.str));
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   s_ctx->init();
@@ -1240,15 +1235,15 @@ event_timed::change_security_context(THD *thd, Security_context *s_ctx,
 /*
   Restores the security context
   Synopsis
-    event_timed::restore_security_context()
+    Event_timed::restore_security_context()
       thd    - thread
       backup - switch to this context
  */
 
 void
-event_timed::restore_security_context(THD *thd, Security_context *backup)
+Event_timed::restore_security_context(THD *thd, Security_context *backup)
 {
-  DBUG_ENTER("event_timed::change_security_context");
+  DBUG_ENTER("Event_timed::change_security_context");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (backup)
     thd->security_ctx= backup;
@@ -1262,7 +1257,7 @@ event_timed::restore_security_context(THD *thd, Security_context *backup)
   sp_head object held by the event
 
   SYNOPSIS
-    event_timed::compile()
+    Event_timed::compile()
       thd        thread context, used for memory allocation mostly
       mem_root   if != NULL then this memory root is used for allocs
                  instead of thd->mem_root
@@ -1274,18 +1269,15 @@ event_timed::restore_security_context(THD *thd, Security_context *backup)
 */
 
 int
-event_timed::compile(THD *thd, MEM_ROOT *mem_root)
+Event_timed::compile(THD *thd, MEM_ROOT *mem_root)
 {
   int ret= 0;
   MEM_ROOT *tmp_mem_root= 0;
   LEX *old_lex= thd->lex, lex;
   char *old_db;
   int old_db_length;
-  event_timed *ett;
-  sp_name *spn;
   char *old_query;
   uint old_query_len;
-  st_sp_chistics *p;
   ulong old_sql_mode= thd->variables.sql_mode;
   char create_buf[2048];
   String show_create(create_buf, sizeof(create_buf), system_charset_info);
@@ -1293,7 +1285,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
                *old_collation_connection,
                *old_character_set_results;
 
-  DBUG_ENTER("event_timed::compile");
+  DBUG_ENTER("Event_timed::compile");
 
   show_create.length(0);
 
@@ -1335,7 +1327,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
 
   thd->query= show_create.c_ptr();
   thd->query_length= show_create.length();
-  DBUG_PRINT("event_timed::compile", ("query:%s",thd->query));
+  DBUG_PRINT("Event_timed::compile", ("query:%s",thd->query));
 
   thd->lex= &lex;
   lex_start(thd, (uchar*)thd->query, thd->query_length);
@@ -1407,7 +1399,7 @@ done:
 */
 
 my_bool
-event_timed::can_spawn_now_n_lock(THD *thd)
+Event_timed::can_spawn_now_n_lock(THD *thd)
 {
   my_bool ret= FALSE;
   VOID(pthread_mutex_lock(&this->LOCK_running));
@@ -1434,11 +1426,11 @@ extern pthread_attr_t connection_attrib;
 */
 
 int
-event_timed::spawn_now(void * (*thread_func)(void*))
+Event_timed::spawn_now(void * (*thread_func)(void*))
 {  
   int ret= EVENT_EXEC_STARTED;
   static uint exec_num= 0;
-  DBUG_ENTER("event_timed::spawn_now");
+  DBUG_ENTER("Event_timed::spawn_now");
   DBUG_PRINT("info", ("[%s.%s]", dbname.str, name.str));
 
   VOID(pthread_mutex_lock(&this->LOCK_running));
@@ -1472,9 +1464,9 @@ event_timed::spawn_now(void * (*thread_func)(void*))
 
 
 void
-event_timed::spawn_thread_finish(THD *thd)
+Event_timed::spawn_thread_finish(THD *thd)
 {
-  DBUG_ENTER("event_timed::spawn_thread_finish");
+  DBUG_ENTER("Event_timed::spawn_thread_finish");
   VOID(pthread_mutex_lock(&this->LOCK_running));
   in_spawned_thread= false;
   if ((flags & EVENT_EXEC_NO_MORE) || status == MYSQL_EVENT_DISABLED)
@@ -1501,7 +1493,7 @@ event_timed::spawn_thread_finish(THD *thd)
  
 
 int
-event_timed::spawn_unlock(THD *thd)
+Event_timed::spawn_unlock(THD *thd)
 {
   int ret= 0;
   VOID(pthread_mutex_lock(&this->LOCK_running));

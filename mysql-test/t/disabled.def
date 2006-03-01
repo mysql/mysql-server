@@ -20,7 +20,7 @@ ndb_binlog_ddl_multi    : Bug#17038 [PATCH PENDING]
 ndb_load                : Bug#17233
 partition_03ndb         : Bug#16385
 ps_7ndb                 : dbug assert in RBR mode when executing test suite
-rpl_bit_npk             : Bug#13418
+#rpl_bit_npk             : Bug#13418
 rpl_ddl                 : Bug#15963 SBR does not show "Definer" correctly
 rpl_ndb_2innodb         : Bugs#17400, 17687, 17701
 rpl_ndb_2myisam         : Bugs#17400, 17687, 17701

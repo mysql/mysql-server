@@ -105,10 +105,10 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
   }
   
   {
-    struct sockaddr addr;
+    struct sockaddr_in addr;
     SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-    int r= getpeername(sockfd, &addr, &addrlen);
-    m_connect_address= ((struct sockaddr_in *)&addr)->sin_addr;
+    int r= getpeername(sockfd, (struct sockaddr*)&addr, &addrlen);
+    m_connect_address= (&addr)->sin_addr;
   }
 
   bool res = connect_server_impl(sockfd);
@@ -198,10 +198,10 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   }
 
   {
-    struct sockaddr addr;
+    struct sockaddr_in addr;
     SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-    int r= getpeername(sockfd, &addr, &addrlen);
-    m_connect_address= ((struct sockaddr_in *)&addr)->sin_addr;
+    int r= getpeername(sockfd, (struct sockaddr*)&addr, &addrlen);
+    m_connect_address= (&addr)->sin_addr;
   }
 
   bool res = connect_client_impl(sockfd);

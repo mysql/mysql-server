@@ -27,7 +27,7 @@ class sp_instr;
 class sp_pcontext;
 class st_alter_tablespace;
 class partition_info;
-class event_timed;
+class Event_timed;
 
 #ifdef MYSQL_SERVER
 /*
@@ -932,7 +932,7 @@ typedef struct st_lex
 
   st_sp_chistics sp_chistics;
 
-  event_timed *et;
+  Event_timed *et;
   bool et_compile_phase;
 
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
