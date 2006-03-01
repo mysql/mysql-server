@@ -48,12 +48,7 @@ const LEX_STRING null_lex_str={0,0};
 
 #define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if (my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
-#define WARN_DEPRECATED(A,B)                                        \
-  push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
-		      ER_WARN_DEPRECATED_SYNTAX,                    \
-		      ER(ER_WARN_DEPRECATED_SYNTAX), (A), (B));
-
-#define YYERROR_UNLESS(A)                  \
+#define YYERROR_UNLESS(A)               \
   if (!(A))                             \
   {					\
     yyerror(ER(ER_SYNTAX_ERROR));	\
@@ -4006,6 +4001,13 @@ create_table_options:
 
 create_table_option:
 	ENGINE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE; }
+	| TYPE_SYM opt_equal storage_engines
+          {
+            Lex->create_info.db_type= $3;
+            WARN_DEPRECATED(yythd, "5.2", "TYPE=storage_engine",
+                            "'ENGINE=storage_engine'");
+            Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE;
+          }
 	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ulong_num	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
@@ -5362,11 +5364,8 @@ restore:
 	RESTORE_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_RESTORE_TABLE;
-           push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN,
-                               ER_WARN_DEPRECATED_STATEMENT,
-                               ER(ER_WARN_DEPRECATED_STATEMENT),
-                               "RESTORE TABLE", "5.2",
-                               "mysqldump, mysql, MySQL Administrator");
+           WARN_DEPRECATED(yythd, "5.2", "RESTORE TABLE",
+                           "MySQL Administrator (mysqldump, mysql)");
 	}
 	table_list FROM TEXT_STRING_sys
         {
@@ -5377,11 +5376,8 @@ backup:
 	BACKUP_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_BACKUP_TABLE;
-           push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN,
-                               ER_WARN_DEPRECATED_STATEMENT,
-                               ER(ER_WARN_DEPRECATED_STATEMENT),
-                               "BACKUP TABLE", "5.2",
-                               "mysqldump, mysql, MySQL Administrator");
+           WARN_DEPRECATED(yythd, "5.2", "BACKUP TABLE",
+                           "MySQL Administrator (mysqldump, mysql)");
 	}
 	table_list TO_SYM TEXT_STRING_sys
         {
@@ -8224,7 +8220,7 @@ show_param:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
-	    WARN_DEPRECATED("SHOW TABLE TYPES", "SHOW [STORAGE] ENGINES");
+	    WARN_DEPRECATED(yythd, "5.2", "SHOW TABLE TYPES", "'SHOW [STORAGE] ENGINES'");
 	  }
 	| opt_storage ENGINES_SYM
 	  {
@@ -8260,7 +8256,7 @@ show_param:
             lex->option_type= $1;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
               YYABORT;
-	  }	
+	  }
         | INNOBASE_SYM STATUS_SYM
           {
             LEX *lex= Lex;
@@ -8271,19 +8267,19 @@ show_param:
 	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "InnoDB");
 	      YYABORT;
             }
-            WARN_DEPRECATED("SHOW INNODB STATUS", "SHOW ENGINE INNODB STATUS");
+            WARN_DEPRECATED(yythd, "5.2", "SHOW INNODB STATUS", "'SHOW ENGINE INNODB STATUS'");
 	  }
         | MUTEX_SYM STATUS_SYM
           {
 	    LEX *lex= Lex;
-            lex->sql_command = SQLCOM_SHOW_ENGINE_MUTEX; 
+            lex->sql_command = SQLCOM_SHOW_ENGINE_MUTEX;
             if (!(lex->create_info.db_type=
                   ha_resolve_by_legacy_type(YYTHD, DB_TYPE_INNODB)))
             {
 	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "InnoDB");
 	      YYABORT;
             }
-            WARN_DEPRECATED("SHOW MUTEX STATUS", "SHOW ENGINE INNODB MUTEX");
+            WARN_DEPRECATED(yythd, "5.2", "SHOW MUTEX STATUS", "'SHOW ENGINE INNODB MUTEX'");
 	  }
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
@@ -8322,7 +8318,7 @@ show_param:
 	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "BerkeleyDB");
 	      YYABORT;
             }
-	    WARN_DEPRECATED("SHOW BDB LOGS", "SHOW ENGINE BDB LOGS");
+	    WARN_DEPRECATED(yythd, "5.2", "SHOW BDB LOGS", "'SHOW ENGINE BDB LOGS'");
 	  }
 	| LOGS_SYM
 	  {
@@ -8334,7 +8330,7 @@ show_param:
 	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "BerkeleyDB");
 	      YYABORT;
             }
-	    WARN_DEPRECATED("SHOW LOGS", "SHOW ENGINE BDB LOGS");
+	    WARN_DEPRECATED(yythd, "5.2", "SHOW LOGS", "'SHOW ENGINE BDB LOGS'");
 	  }
 	| GRANTS
 	  {
@@ -8688,11 +8684,8 @@ load:   LOAD DATA_SYM
         LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
 	  LEX *lex=Lex;
-          push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN,
-                              ER_WARN_DEPRECATED_STATEMENT,
-                              ER(ER_WARN_DEPRECATED_STATEMENT),
-                              "LOAD TABLE FROM MASTER", "5.2",
-                              "mysqldump, mysql, MySQL Administrator");
+          WARN_DEPRECATED(yythd, "5.2", "LOAD TABLE FROM MASTER",
+                          "MySQL Administrator (mysqldump, mysql)");
           if (lex->sphead)
 	  {
 	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD TABLE");
