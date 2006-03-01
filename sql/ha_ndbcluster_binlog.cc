@@ -184,8 +184,8 @@ static void dbug_print_table(const char *info, TABLE *table)
   Run a query through mysql_parse
 
   Used to:
-  - purging the cluster_replication.binlog_index
-  - creating the cluster_replication.apply_status table
+  - purging the binlog_index
+  - creating the apply_status table
 */
 static void run_query(THD *thd, char *buf, char *end,
                       my_bool print_error, my_bool disable_binlog)
@@ -606,7 +606,7 @@ void ndbcluster_binlog_init_handlerton()
 
 
 /*
-  check the availability af the cluster_replication.apply_status share
+  check the availability af the apply_status share
   - return share, but do not increase refcount
   - return 0 if there is no share
 */
@@ -624,7 +624,7 @@ static NDB_SHARE *ndbcluster_check_apply_status_share()
 }
 
 /*
-  check the availability af the cluster_replication.schema share
+  check the availability af the schema share
   - return share, but do not increase refcount
   - return 0 if there is no share
 */
@@ -642,7 +642,7 @@ static NDB_SHARE *ndbcluster_check_schema_share()
 }
 
 /*
-  Create the cluster_replication.apply_status table
+  Create the apply_status table
 */
 static int ndbcluster_create_apply_status_table(THD *thd)
 {
@@ -691,7 +691,7 @@ static int ndbcluster_create_apply_status_table(THD *thd)
 
 
 /*
-  Create the cluster_replication.schema table
+  Create the schema table
 */
 static int ndbcluster_create_schema_table(THD *thd)
 {
@@ -1655,13 +1655,13 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
 
 /*********************************************************************
   Internal helper functions for handeling of the cluster replication tables
-  - cluster_replication.binlog_index
-  - cluster_replication.apply_status
+  - binlog_index
+  - apply_status
 *********************************************************************/
 
 /*
   struct to hold the data to be inserted into the
-  cluster_replication.binlog_index table
+  binlog_index table
 */
 struct Binlog_index_row {
   ulonglong gci;
@@ -1674,7 +1674,7 @@ struct Binlog_index_row {
 };
 
 /*
-  Open the cluster_replication.binlog_index table
+  Open the binlog_index table
 */
 static int open_binlog_index(THD *thd, TABLE_LIST *tables,
                              TABLE **binlog_index)
@@ -1705,7 +1705,7 @@ static int open_binlog_index(THD *thd, TABLE_LIST *tables,
 }
 
 /*
-  Insert one row in the cluster_replication.binlog_index
+  Insert one row in the binlog_index
 
   declared friend in handler.h to be able to call write_row directly
   so that this insert is not replicated

@@ -9,7 +9,7 @@ CREATE DATABASE test_ignore;
 SHOW DATABASES;
 Database
 information_schema
-cluster_replication
+cluster
 mysql
 test
 test_ignore
@@ -29,7 +29,7 @@ INSERT INTO t2 VALUES (3,3), (4,4);
 SHOW DATABASES;
 Database
 information_schema
-cluster_replication
+cluster
 mysql
 test
 USE test;

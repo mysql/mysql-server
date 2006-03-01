@@ -1508,8 +1508,8 @@ sub ndbcluster_start ($) {
 
 sub rm_ndbcluster_tables ($) {
   my $dir=       shift;
-  foreach my $bin ( glob("$dir/cluster_replication/apply_status*"),
-                    glob("$dir/cluster_replication/schema*") )
+  foreach my $bin ( glob("$dir/cluster/apply_status*"),
+                    glob("$dir/cluster/schema*") )
   {
     unlink($bin);
   }

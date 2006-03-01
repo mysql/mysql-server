@@ -1684,15 +1684,16 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf,
 
 /*
   Read one complementing record from NDB using primary key from old_data
+  or hidden key
 */
 
-int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data,
-                                        uint32 old_part_id)
+int ha_ndbcluster::complemented_read(const byte *old_data, byte *new_data,
+                                     uint32 old_part_id)
 {
   uint no_fields= table_share->fields, i;
   NdbTransaction *trans= m_active_trans;
   NdbOperation *op;
-  DBUG_ENTER("complemented_pk_read");
+  DBUG_ENTER("complemented_read");
   m_write_op= FALSE;
 
   if (ha_get_all_bit_in_read_set())
@@ -1706,9 +1707,17 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data,
   if (!(op= trans->getNdbOperation((const NDBTAB *) m_table)) || 
       op->readTuple(lm) != 0)
     ERR_RETURN(trans->getNdbError());
-  int res;
-  if ((res= set_primary_key_from_record(op, old_data)))
-    ERR_RETURN(trans->getNdbError());
+  if (table_share->primary_key != MAX_KEY) 
+  {
+    if (set_primary_key_from_record(op, old_data))
+      ERR_RETURN(trans->getNdbError());
+  } 
+  else 
+  {
+    // This table has no primary key, use "hidden" primary key
+    if (set_hidden_key(op, table->s->fields, m_ref))
+      ERR_RETURN(op->getNdbError());
+  }
 
   if (m_use_partition_function)
     op->setPartitionId(old_part_id);
@@ -2501,19 +2510,23 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     DBUG_RETURN(error);
   }
 
-  /* Check for update of primary key for special handling */  
-  if ((table_share->primary_key != MAX_KEY) &&
-      (key_cmp(table_share->primary_key, old_data, new_data)) ||
+  /*
+   * Check for update of primary key or partition change
+   * for special handling
+   */  
+  if (((table_share->primary_key != MAX_KEY) &&
+       key_cmp(table_share->primary_key, old_data, new_data)) ||
       (old_part_id != new_part_id))
   {
     int read_res, insert_res, delete_res, undo_res;
 
-    DBUG_PRINT("info", ("primary key update, doing pk read+delete+insert"));
+    DBUG_PRINT("info", ("primary key update or partition change, "
+                        "doing read+delete+insert"));
     // Get all old fields, since we optimize away fields not in query
-    read_res= complemented_pk_read(old_data, new_data, old_part_id);
+    read_res= complemented_read(old_data, new_data, old_part_id);
     if (read_res)
     {
-      DBUG_PRINT("info", ("pk read failed"));
+      DBUG_PRINT("info", ("read failed"));
       DBUG_RETURN(read_res);
     }
     // Delete old row
