@@ -3489,7 +3489,7 @@ part_func:
           uint expr_len= (uint)($4 - $2) - 1;
           lex->part_info->list_of_part_fields= FALSE;
           lex->part_info->part_expr= $3;
-          lex->part_info->part_func_string= $2+1;
+          lex->part_info->part_func_string= (char* ) sql_memdup($2+1, expr_len);
           lex->part_info->part_func_len= expr_len;
         }
         ;
@@ -3501,7 +3501,7 @@ sub_part_func:
           uint expr_len= (uint)($4 - $2) - 1;
           lex->part_info->list_of_subpart_fields= FALSE;
           lex->part_info->subpart_expr= $3;
-          lex->part_info->subpart_func_string= $2+1;
+          lex->part_info->subpart_func_string= (char* ) sql_memdup($2+1, expr_len);        
           lex->part_info->subpart_func_len= expr_len;
         }
         ;
