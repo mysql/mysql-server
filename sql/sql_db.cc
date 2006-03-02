@@ -1226,7 +1226,8 @@ err:
 bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
 {
   int length, db_length;
-  char *dbname=my_strdup((char*) name,MYF(MY_WME));
+  char *dbname= thd->slave_thread ? (char *) name :
+                                    my_strdup((char *) name, MYF(MY_WME));
   char	path[FN_REFLEN];
   HA_CREATE_INFO create;
   bool system_db= 0;
@@ -1246,7 +1247,8 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
       system_db= 1;
       goto end;
     }
-    x_free(dbname);				/* purecov: inspected */
+    if (!(thd->slave_thread))
+      x_free(dbname);				/* purecov: inspected */
     my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR),
                MYF(0));                         /* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
@@ -1254,7 +1256,8 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   if (check_db_name(dbname))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), dbname);
-    x_free(dbname);
+    if (!(thd->slave_thread))
+      x_free(dbname);
     DBUG_RETURN(1);
   }
   DBUG_PRINT("info",("Use database: %s", dbname));
@@ -1284,7 +1287,8 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
                dbname);
       general_log_print(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
                         sctx->priv_user, sctx->priv_host, dbname);
-      my_free(dbname,MYF(0));
+      if (!(thd->slave_thread))
+        my_free(dbname,MYF(0));
       DBUG_RETURN(1);
     }
   }
@@ -1295,7 +1299,8 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   if (my_access(path,F_OK))
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
-    my_free(dbname,MYF(0));
+    if (!(thd->slave_thread))
+      my_free(dbname,MYF(0));
     DBUG_RETURN(1);
   }
 end:
