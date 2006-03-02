@@ -1,5 +1,24 @@
 create database if not exists events_test;
 use events_test;
+"Check General Query Log"
+SET GLOBAL event_scheduler=0;
+create event log_general on schedule every 1 minute do seLect 'alabala', sleep(3) from dual;
+TRUNCATE mysql.general_log;
+SELECT user_host, command_type, argument FROM mysql.general_log;
+user_host	command_type	argument
+root[root] @ localhost []	Query	SELECT user_host, command_type, argument FROM mysql.general_log
+SET GLOBAL event_scheduler=1;
+"Wait the scheduler to start"
+"Should see 3 rows. The create, the seLect and the select from the general_log"
+SELECT user_host, command_type, argument FROM mysql.general_log;
+user_host	command_type	argument
+root[root] @ localhost []	Query	SELECT user_host, command_type, argument FROM mysql.general_log
+root[root] @ localhost []	Query	SET GLOBAL event_scheduler=1
+root[root] @ localhost [localhost]	Query	seLect 'alabala', sleep(3) from dual
+root[root] @ localhost []	Query	SELECT user_host, command_type, argument FROM mysql.general_log
+DROP EVENT log_general;
+SET GLOBAL event_scheduler=0;
+"Check slow query log"
 "Save the values"
 SET @old_global_long_query_time:=(select get_value());
 SET @old_session_long_query_time:=@@long_query_time;
