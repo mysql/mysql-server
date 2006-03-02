@@ -1585,7 +1585,6 @@ public:
     			   str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  String *const_string() { return &str_value; }
   inline void append(char *str, uint length) { str_value.append(str, length); }
   void print(String *str);
   // to prevent drop fixed flag (no need parent cleanup call)
