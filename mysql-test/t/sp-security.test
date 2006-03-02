@@ -647,5 +647,100 @@ DROP USER mysqltest_2@localhost;
 
 DROP DATABASE mysqltest;
 
+--disconnect mysqltest_1_con
+--disconnect mysqltest_2_con
+
+
+#
+# BUG#13198: SP executes if definer does not exist
+#
+
+# Prepare environment.
+
+--echo
+--echo ---> connection: root
+--connection con1root
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+
+CREATE DATABASE mysqltest;
+
+CREATE USER mysqltest_1@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_1@localhost;
+
+CREATE USER mysqltest_2@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
+
+--connect (mysqltest_1_con,localhost,mysqltest_1,,mysqltest)
+--connect (mysqltest_2_con,localhost,mysqltest_2,,mysqltest)
+
+# Create a procedure/function under u1.
+
+--echo
+--echo ---> connection: mysqltest_1_con
+--connection mysqltest_1_con
+
+use mysqltest;
+
+CREATE PROCEDURE bug13198_p1()
+  SELECT 1;
+
+CREATE FUNCTION bug13198_f1() RETURNS INT
+  RETURN 1;
+
+CALL bug13198_p1();
+
+SELECT bug13198_f1();
+
+# Check that u2 can call the procedure/function.
+
+--echo
+--echo ---> connection: mysqltest_2_con
+--connection mysqltest_2_con
+
+use mysqltest;
+
+CALL bug13198_p1();
+
+SELECT bug13198_f1();
+
+# Drop user u1 (definer of the object);
+
+--echo
+--echo ---> connection: root
+--connection con1root
+
+--disconnect mysqltest_1_con
+
+DROP USER mysqltest_1@localhost;
+
+# Check that u2 can not call the procedure/function.
+
+--echo
+--echo ---> connection: mysqltest_2_con
+--connection mysqltest_2_con
+
+use mysqltest;
+
+--error ER_NO_SUCH_USER
+CALL bug13198_p1();
+
+--error ER_NO_SUCH_USER
+SELECT bug13198_f1();
+
+# Cleanup.
+
+--echo
+--echo ---> connection: root
+--connection con1root
+
+--disconnect mysqltest_2_con
+
+DROP USER mysqltest_2@localhost;
+
+DROP DATABASE mysqltest;
+
 
 # End of 5.0 bugs.
