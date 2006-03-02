@@ -452,7 +452,8 @@ connect (con1,localhost,mysqltest_1,password,TESTDB);
 
 # The user mysqltest_1 should only be allowed access to
 # database TESTDB, not TEStdb
---error 1044
+# On system with "lowercase names" we get error "1007: Can't create db..."
+--error 1044, 1007
 create database TEStdb;
 
 # Clean-up
