@@ -1156,7 +1156,12 @@ Event_timed::execute(THD *thd, MEM_ROOT *mem_root)
     goto done;
   /* Now we are sure we have valid this->sphead so we can copy the context */
   sphead->m_security_ctx= security_ctx;
-  thd->db= dbname.str;
+  /*
+    THD::~THD will clean this or if there is DROP DATABASE in the SP then
+    it will be free there. It should not point to our buffer which is allocated
+    on a mem_root.
+  */
+  thd->db= my_strdup(dbname.str, MYF(0));
   thd->db_length= dbname.length;
   if (!check_access(thd, EVENT_ACL,dbname.str, 0, 0, 0,is_schema_db(dbname.str)))
   {
@@ -1175,7 +1180,6 @@ Event_timed::execute(THD *thd, MEM_ROOT *mem_root)
   restore_security_context(thd, save_ctx);
   DBUG_PRINT("info", ("master_access=%d db_access=%d",
              thd->security_ctx->master_access, thd->security_ctx->db_access));
-  thd->db= 0;
 
   VOID(pthread_mutex_lock(&this->LOCK_running));
   running= false;
@@ -1238,12 +1242,12 @@ Event_timed::change_security_context(THD *thd, Security_context *s_ctx,
     Event_timed::restore_security_context()
       thd    - thread
       backup - switch to this context
- */
+*/
 
 void
 Event_timed::restore_security_context(THD *thd, Security_context *backup)
 {
-  DBUG_ENTER("Event_timed::change_security_context");
+  DBUG_ENTER("Event_timed::restore_security_context");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (backup)
     thd->security_ctx= backup;
@@ -1490,7 +1494,6 @@ Event_timed::spawn_thread_finish(THD *thd)
     0 - ok
     1 - not locked by this thread
 */
- 
 
 int
 Event_timed::spawn_unlock(THD *thd)
