@@ -447,11 +447,14 @@ Initializes a page for writing to the tablespace. */
 void
 buf_flush_init_for_writing(
 /*=======================*/
-	byte*	page,		/* in: page */
+	byte*	page,		/* in/out: page */
+	void*	page_zip_,	/* in/out: compressed page, or NULL */
 	dulint	newest_lsn,	/* in: newest modification lsn to the page */
 	ulint	space,		/* in: space id */
 	ulint	page_no)	/* in: page number */
 {
+	page_zip_des_t*	page_zip = page_zip_;
+
 	/* Write the newest modification lsn to the page header and trailer */
 	mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
@@ -467,6 +470,14 @@ buf_flush_init_for_writing(
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
 					srv_use_checksums ?
 		buf_calc_page_new_checksum(page) : BUF_NO_CHECKSUM_MAGIC);
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		/* Copy FIL_PAGE_SPACE_OR_CHKSUM and FIL_PAGE_OFFSET */
+		memcpy(page_zip->data, page, FIL_PAGE_PREV);
+		/* Copy FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID */
+		memcpy(page_zip->data + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+			page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4);
+	}
 
 	/* We overwrite the first 4 bytes of the end lsn field to store
 	the old formula checksum. Since it depends also on the field
@@ -510,8 +521,10 @@ buf_flush_write_block_low(
 	/* Force the log to the disk before writing the modified block */
 	log_write_up_to(block->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
 #endif
-	buf_flush_init_for_writing(block->frame, block->newest_modification,
-						block->space, block->offset);
+	buf_flush_init_for_writing(block->frame,
+			buf_block_get_page_zip(block),
+			block->newest_modification,
+			block->space, block->offset);
 	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 			FALSE, block->space, block->offset, 0, UNIV_PAGE_SIZE,

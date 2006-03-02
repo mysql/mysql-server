@@ -763,7 +763,7 @@ btr_create(
 
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		if (UNIV_UNLIKELY(page_zip_compress(
+		if (UNIV_UNLIKELY(!page_zip_compress(
 				page_zip, page, index, mtr))) {
 			/* An empty page should always be compressible */
 			ut_error;

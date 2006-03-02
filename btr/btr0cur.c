@@ -450,6 +450,7 @@ btr_cur_search_to_nth_level(
 	/* Loop and search until we arrive at the desired level */
 
 	for (;;) {
+		buf_block_t*	block;
 retry_page_get:
 		page = buf_page_get_gen(space, page_no, rw_latch, guess,
 					buf_mode,
@@ -482,7 +483,12 @@ retry_page_get:
 			goto retry_page_get;
 		}
 
-		buf_block_align(page)->check_index_page_at_flush = TRUE;
+		block = buf_block_align(page);
+
+		ut_ad(!buf_block_get_page_zip(block) || page_zip_validate(
+				buf_block_get_page_zip(block), page));
+
+		block->check_index_page_at_flush = TRUE;
 
 #ifdef UNIV_SYNC_DEBUG
 		if (rw_latch != RW_NO_LATCH) {

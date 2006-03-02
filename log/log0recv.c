@@ -1612,6 +1612,7 @@ recv_addr->space, recv_addr->page_no);
 			fil0fil.c routines */
 
 			buf_flush_init_for_writing(page,
+				NULL,/* TODO: page_zip */
 				mach_read_from_8(page + FIL_PAGE_LSN),
 				recv_addr->space, recv_addr->page_no);
 
