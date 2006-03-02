@@ -1133,7 +1133,7 @@ SHOW PROCEDURE STATUS LIKE 'p1';
 Db	mysqltest1
 Name	p1
 Type	PROCEDURE
-Definer	@
+Definer	root@localhost
 Modified	#
 Created	#
 Security_type	DEFINER
@@ -1199,7 +1199,7 @@ SHOW PROCEDURE STATUS LIKE 'p1';
 Db	mysqltest1
 Name	p1
 Type	PROCEDURE
-Definer	@
+Definer	root@localhost
 Modified	#
 Created	#
 Security_type	DEFINER

@@ -4146,6 +4146,90 @@ end_with_restore_list:
 #endif
 
     /*
+      If the definer is not specified, this means that CREATE-statement missed
+      DEFINER-clause. DEFINER-clause can be missed in two cases:
+      
+        - The user submitted a statement w/o the clause. This is a normal
+          case, we should assign CURRENT_USER as definer.
+
+        - Our slave received an updated from the master, that does not
+          replicate definer for stored rountines. We should also assign
+          CURRENT_USER as definer here, but also we should mark this routine
+          as NON-SUID. This is essential for the sake of backward
+          compatibility.
+          
+          The problem is the slave thread is running under "special" user (@),
+          that actually does not exist. In the older versions we do not fail
+          execution of a stored routine if its definer does not exist and
+          continue the execution under the authorization of the invoker
+          (BUG#13198). And now if we try to switch to slave-current-user (@),
+          we will fail.
+
+          Actually, this leads to the inconsistent state of master and
+          slave (different definers, different SUID behaviour), but it seems,
+          this is the best we can do.
+    */
+
+    if (!lex->definer)
+    {
+      bool res= FALSE;
+      Query_arena original_arena;
+      Query_arena *ps_arena = thd->activate_stmt_arena_if_needed(&original_arena);
+
+      if (!(lex->definer= create_default_definer(thd)))
+        res= TRUE;
+
+      if (ps_arena)
+        thd->restore_active_arena(ps_arena, &original_arena);
+
+      if (res)
+      {
+        /* Error has been already reported. */
+        delete lex->sphead;
+        lex->sphead= 0;
+        goto error;
+      }
+
+      if (thd->slave_thread)
+        lex->sphead->m_chistics->suid= SP_IS_NOT_SUID;
+    }
+
+    /*
+      If the specified definer differs from the current user, we should check
+      that the current user has SUPER privilege (in order to create a stored
+      routine under another user one must have SUPER privilege).
+    */
+    
+    else if (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) ||
+        my_strcasecmp(system_charset_info,
+                      lex->definer->host.str,
+                      thd->security_ctx->priv_host))
+    {
+      if (check_global_access(thd, SUPER_ACL))
+      {
+        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+        delete lex->sphead;
+        lex->sphead= 0;
+        goto error;
+      }
+    }
+
+    /* Check that the specified definer exists. Emit a warning if not. */
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (!is_acl_user(lex->definer->host.str,
+                     lex->definer->user.str))
+    {
+      push_warning_printf(thd,
+                          MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_NO_SUCH_USER,
+                          ER(ER_NO_SUCH_USER),
+                          lex->definer->user.str,
+                          lex->definer->host.str);
+    }
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
+    /*
       We need to copy name and db in order to use them for
       check_routine_access which is called after lex->sphead has
       been deleted.
