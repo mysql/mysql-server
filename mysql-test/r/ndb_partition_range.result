@@ -246,17 +246,17 @@ PARTITION BY RANGE(f1)
 PARTITION part2 VALUES LESS THAN (1000));
 INSERT INTO t1 VALUES(1, '---1---');
 INSERT INTO t1 VALUES(2, '---2---');
-select * from t1;
+select * from t1 order by f1;
 f1	f2
 1	---1---
 2	---2---
 UPDATE t1 SET f1 = f1 + 4 WHERE f1 = 2;
-select * from t1;
+select * from t1 order by f1;
 f1	f2
 1	---1---
 6	---2---
 UPDATE t1 SET f1 = f1 + 4 WHERE f1 = 1;
-select * from t1;
+select * from t1 order by f1;
 f1	f2
 5	---1---
 6	---2---
