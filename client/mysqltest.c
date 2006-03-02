@@ -2404,7 +2404,7 @@ int do_done(struct st_query *q)
 
  */
 
-int do_block(enum block_cmd cmd, struct st_query* q)
+void do_block(enum block_cmd cmd, struct st_query* q)
 {
   char *p= q->first_argument;
   const char *expr_start, *expr_end;
@@ -2428,7 +2428,7 @@ int do_block(enum block_cmd cmd, struct st_query* q)
     cur_block++;
     cur_block->cmd= cmd;
     cur_block->ok= FALSE;
-    return 0;
+    DBUG_VOID_RETURN;
   }
 
   /* Parse and evaluate test expression */
@@ -3134,7 +3134,7 @@ static void init_win_path_patterns()
 
 static void free_win_path_patterns()
 {
-  int i= 0;
+  uint i= 0;
   for (i=0 ; i < patterns.elements ; i++)
   {
     const char** pattern= dynamic_element(&patterns, i, const char**);
