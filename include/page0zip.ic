@@ -272,7 +272,7 @@ page_zip_write_header(
 
 	ut_ad(pos < PAGE_DATA);
 
-	memcpy(page_zip + pos, str, length);
+	memcpy(page_zip->data + pos, str, length);
 
 	/* The following would fail in page_cur_insert_rec_low(). */
 	/* ut_ad(page_zip_validate(page_zip, str - pos)); */

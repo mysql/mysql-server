@@ -2432,7 +2432,8 @@ fil_create_new_single_table_tablespace(
 
 	fsp_header_write_space_id(page, *space_id);
 
-	buf_flush_init_for_writing(page, ut_dulint_zero, *space_id, 0);
+	buf_flush_init_for_writing(page, NULL/* TODO: page_zip */,
+				ut_dulint_zero, *space_id, 0);
 
 	ret = os_file_write(path, file, page, 0, 0, UNIV_PAGE_SIZE);
 
@@ -2594,8 +2595,9 @@ fil_reset_too_high_lsns(
 					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 			page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
 
-			buf_flush_init_for_writing(page, current_lsn, space_id,
-				page_no);
+			buf_flush_init_for_writing(page,
+					NULL/* TODO: page_zip */,
+					current_lsn, space_id, page_no);
 			success = os_file_write(filepath, file, page,
 				(ulint)(offset & 0xFFFFFFFFUL),
 				(ulint)(offset >> 32), UNIV_PAGE_SIZE);
