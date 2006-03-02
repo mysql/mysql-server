@@ -375,3 +375,47 @@ RETURN 3
 DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;
 DROP DATABASE mysqltest;
+
+---> connection: root
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+CREATE USER mysqltest_1@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_1@localhost;
+CREATE USER mysqltest_2@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
+
+---> connection: mysqltest_1_con
+use mysqltest;
+CREATE PROCEDURE bug13198_p1()
+SELECT 1;
+CREATE FUNCTION bug13198_f1() RETURNS INT
+RETURN 1;
+CALL bug13198_p1();
+1
+1
+SELECT bug13198_f1();
+bug13198_f1()
+1
+
+---> connection: mysqltest_2_con
+use mysqltest;
+CALL bug13198_p1();
+1
+1
+SELECT bug13198_f1();
+bug13198_f1()
+1
+
+---> connection: root
+DROP USER mysqltest_1@localhost;
+
+---> connection: mysqltest_2_con
+use mysqltest;
+CALL bug13198_p1();
+ERROR HY000: There is no 'mysqltest_1'@'localhost' registered
+SELECT bug13198_f1();
+ERROR HY000: There is no 'mysqltest_1'@'localhost' registered
+
+---> connection: root
+DROP USER mysqltest_2@localhost;
+DROP DATABASE mysqltest;
