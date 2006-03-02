@@ -408,11 +408,10 @@ select * from t1 natural join (t2 natural join (t3 natural join t4));
 select * from t5 natural right join (t4 natural right join ((t2 natural right join t1) natural right join t3));
 select * from (t1 natural join t2), (t3 natural join t4);
 -- MySQL extension - nested comma ',' operator instead of cross join.
--- BUG#15357 - natural join with nested cross-join results in incorrect columns
--- select * from t5 natural join ((t1 natural join t2), (t3 natural join t4));
--- select * from  ((t1 natural join t2),  (t3 natural join t4)) natural join t5;
--- select * from t5 natural join ((t1 natural join t2) cross join (t3 natural join t4));
--- select * from  ((t1 natural join t2) cross join (t3 natural join t4)) natural join t5;
+select * from t5 natural join ((t1 natural join t2), (t3 natural join t4));
+select * from  ((t1 natural join t2),  (t3 natural join t4)) natural join t5;
+select * from t5 natural join ((t1 natural join t2) cross join (t3 natural join t4));
+select * from  ((t1 natural join t2) cross join (t3 natural join t4)) natural join t5;
 
 select * from (t1 join t2 using (b)) join (t3 join t4 using (c)) using (c);
 select * from (t1 join t2 using (b)) natural join (t3 join t4 using (c));
@@ -500,8 +499,7 @@ select * from ((t1 natural join t2), (t3 natural join t4)) natural join t6;
 -- error 1052
 select * from ((t1 natural join t2), (t3 natural join t4)) natural join t6;
 -- error 1052
--- BUG#15357: doesn't detect non-unique column 'c', as in the above query.
--- select * from t6 natural join ((t1 natural join t2),  (t3 natural join t4));
+select * from t6 natural join ((t1 natural join t2),  (t3 natural join t4));
 -- error 1052
 select * from (t1 join t2 on t1.b=t2.b) natural join (t3 natural join t4);
 -- error 1052
@@ -512,11 +510,7 @@ select * from (t3 join (t4 natural join t5) on (b < z))
               natural join
               (t1 natural join t2);
 -- error 1052
--- BUG#15357: this query should return an ambiguous column error
--- Expected result: the query must return error with duplicate column 'c'
---select * from (t1 natural join t2)
---              natural join
---              (t3 join (t4 natural join t5) on (b < z));
+select * from (t1 natural join t2) natural join (t3 join (t4 natural join t5) on (b < z));
 
 -- error 1054
 select t1.b from v1a;
@@ -539,5 +533,28 @@ drop view v2b;
 drop view v3a;
 drop view v3b;
 drop view v4;
+
+#
+# BUG#15229 - columns of nested joins that are not natural joins incorrectly
+# materialized
+#
+create table t1 (a1 int, a2 int);
+create table t2 (a1 int, b int);
+create table t3 (c1 int, c2 int);
+create table t4 (c2 int);
+
+insert into t1 values (1,1);
+insert into t2 values (1,1);
+insert into t3 values (1,1);
+insert into t4 values (1);
+
+select * from t1 join t2 using (a1) join t3 on b=c1 join t4 using (c2);
+select * from t3 join (t1 join t2 using (a1)) on b=c1 join t4 using (c2);
+select a2 from t1 join t2 using (a1) join t3 on b=c1 join t4 using (c2);
+select a2 from t3 join (t1 join t2 using (a1)) on b=c1 join t4 using (c2);
+select a2 from ((t1 join t2 using (a1)) join t3 on b=c1) join t4 using (c2);
+select a2 from ((t1 natural join t2) join t3 on b=c1) natural join t4;
+
+drop table t1,t2,t3,t4;
 
 # End of tests for WL#2486 - natural/using join

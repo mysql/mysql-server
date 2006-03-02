@@ -782,7 +782,7 @@ public:
   GRANT_INFO *grant();
   Item *create_item(THD *thd) { return field_it->create_item(thd); }
   Field *field() { return field_it->field(); }
-  Natural_join_column *get_or_create_column_ref(bool *is_created);
+  Natural_join_column *get_or_create_column_ref(TABLE_LIST *parent_table_ref);
   Natural_join_column *get_natural_column_ref();
 };
 
