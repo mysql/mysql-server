@@ -496,6 +496,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   struct Extent_info : public Extent_list_t
   {
+    Uint32 m_magic;
     Uint32 m_first_page_no;
     Local_key m_key;
     Uint32 m_free_space;
@@ -517,9 +518,13 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 	m_key.m_page_idx == rec.m_key.m_page_idx;
     }
   }; // 40 bytes
-  
-  typedef LocalDLList<Extent_info> Extent_list;
 
+  typedef RecordPool<Extent_info, RWPool> Extent_info_pool;
+  typedef DLListImpl<Extent_info_pool, Extent_info> Extent_info_list;
+  typedef LocalDLListImpl<Extent_info_pool, Extent_info> Local_extent_info_list;
+  typedef DLHashTableImpl<Extent_info_pool, Extent_info> Extent_info_hash;
+  typedef SLListImpl<Extent_info_pool, Extent_info, Extent_list_t> Fragment_extent_list;
+  typedef LocalSLListImpl<Extent_info_pool, Extent_info, Extent_list_t> Local_fragment_extent_list;
   struct Tablerec;
   struct Disk_alloc_info 
   {
@@ -564,7 +569,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
      * 
      */
     STATIC_CONST( SZ = EXTENT_SEARCH_MATRIX_SIZE );
-    DLList<Extent_info>::Head m_free_extents[SZ];
+    Extent_info_list::Head m_free_extents[SZ];
     Uint32 m_total_extent_free_space_thresholds[EXTENT_SEARCH_MATRIX_ROWS];
     Uint32 m_page_free_bits_map[EXTENT_SEARCH_MATRIX_COLS];
 
@@ -588,7 +593,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
       return EXTENT_SEARCH_MATRIX_COLS - 1;
     }
 
-    SLList<Extent_info, Extent_list_t>::Head m_extent_list;
+    Fragment_extent_list::Head m_extent_list;
   };
   
   void dump_disk_alloc(Disk_alloc_info&);
@@ -1009,9 +1014,9 @@ ArrayPool<TupTriggerData> c_triggerPool;
     };
   };
   
-  ArrayPool<Extent_info> c_extent_pool;
+  Extent_info_pool c_extent_pool;
+  Extent_info_hash c_extent_hash;
   Page_request_pool c_page_request_pool;
-  DLHashTable<Extent_info> c_extent_hash;
 
   typedef Ptr<Tablerec> TablerecPtr;
 

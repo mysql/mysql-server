@@ -37,6 +37,7 @@ RWPool::init(const Record_info& ri, const Pool_context& pc)
   m_record_info.m_offset_magic = ((ri.m_offset_magic + 3) >> 2);
   m_record_info.m_offset_next_pool = ((ri.m_offset_next_pool + 3) >> 2);
   m_memroot = (RWPage*)m_ctx.get_memroot();
+  ndbout_c("RWPool::init(%x, %d)",ri.m_type_id, m_record_info.m_size);
 }
 
 bool
