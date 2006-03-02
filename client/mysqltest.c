@@ -1367,7 +1367,9 @@ int do_modify_var(struct st_query *query, const char *name,
 
   NOTE
    If mysqltest is executed from cygwin shell, the command will be
-   executed in cygwin shell. Thus commands like "rm" etc can be used.
+   executed in the "windows command interpreter" cmd.exe and we prepend "sh"
+   to make it be executed by cygwins "bash". Thus commands like "rm",
+   "mkdir" as well as shellscripts can executed by "system" in Windows.
  */
 
 int do_system(struct st_query *command)
@@ -1379,8 +1381,17 @@ int do_system(struct st_query *command)
 
   init_dynamic_string(&ds_cmd, 0, strlen(command->first_argument) + 64, 256);
 
+#ifdef __WIN__
+  /* Execute the command in "bash", ie. sh -c "<command>" */
+  dynstr_append(&ds_cmd, "sh -c \"");
+#endif
+
   /* Eval the system command, thus replacing all environment variables */
   do_eval(&ds_cmd, command->first_argument, TRUE);
+
+#ifdef __WIN__
+  dynstr_append(&ds_cmd, "\"");
+#endif
 
   DBUG_PRINT("info", ("running system command '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
