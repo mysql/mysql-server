@@ -102,7 +102,7 @@ t1_first	root@localhost
 SELECT routine_name, definer
 FROM information_schema.routines;
 routine_name	definer
-bug12480	@
+bug12480	root@localhost
 SELECT trigger_name, definer
 FROM information_schema.triggers;
 trigger_name	definer
