@@ -348,7 +348,7 @@ INSERT INTO mysql.db (host, db, user, select_priv) VALUES
 ('%','TESTDB','mysqltest_1','Y');
 FLUSH PRIVILEGES;
 create database TEStdb;
-ERROR 42000: Access denied for user 'mysqltest_1'@'%' to database 'TEStdb'
+Got one of the listed errors
 delete from mysql.user;
 delete from mysql.db where host='%' and user='mysqltest_1' and db='TESTDB';
 insert into mysql.user select * from t1;
