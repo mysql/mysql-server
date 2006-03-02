@@ -95,7 +95,9 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                              const char *db, const char *table_name,
                              uint32 ndb_table_id,
                              uint32 ndb_table_version,
-                             enum SCHEMA_OP_TYPE type);
+                             enum SCHEMA_OP_TYPE type,
+                             const char *old_db= 0,
+                             const char *old_table_name= 0);
 int ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
                                  NDB_SHARE *share);
 void ndb_rep_event_name(String *event_name,
