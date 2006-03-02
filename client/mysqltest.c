@@ -2404,7 +2404,7 @@ int do_done(struct st_query *q)
 
  */
 
-int do_block(enum block_cmd cmd, struct st_query* q)
+void do_block(enum block_cmd cmd, struct st_query* q)
 {
   char *p= q->first_argument;
   const char *expr_start, *expr_end;
@@ -2428,7 +2428,7 @@ int do_block(enum block_cmd cmd, struct st_query* q)
     cur_block++;
     cur_block->cmd= cmd;
     cur_block->ok= FALSE;
-    return 0;
+    DBUG_VOID_RETURN;
   }
 
   /* Parse and evaluate test expression */
