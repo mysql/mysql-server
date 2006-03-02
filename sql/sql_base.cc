@@ -3608,8 +3608,18 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   Natural_join_column *nj_col_1, *nj_col_2;
   const char *field_name_1;
   Query_arena *arena, backup;
-  bool add_columns= TRUE;
   bool result= TRUE;
+  bool first_outer_loop= TRUE;
+  /*
+    Leaf table references to which new natural join columns are added
+    if the leaves are != NULL.
+  */
+  TABLE_LIST *leaf_1= (table_ref_1->nested_join &&
+                       !table_ref_1->is_natural_join) ?
+                      NULL : table_ref_1;
+  TABLE_LIST *leaf_2= (table_ref_2->nested_join &&
+                       !table_ref_2->is_natural_join) ?
+                      NULL : table_ref_2;
 
   DBUG_ENTER("mark_common_columns");
   DBUG_PRINT("info", ("operand_1: %s  operand_2: %s",
@@ -3618,34 +3628,12 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   *found_using_fields= 0;
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
-  /*
-    TABLE_LIST::join_columns could be allocated by the previous call to
-    store_natural_using_join_columns() for the lower level of nested tables.
-  */
-  if (!table_ref_1->join_columns)
-  {
-    if (!(table_ref_1->join_columns= new List<Natural_join_column>))
-      goto err;
-    table_ref_1->is_join_columns_complete= FALSE;
-  }
-  if (!table_ref_2->join_columns)
-  {
-    if (!(table_ref_2->join_columns= new List<Natural_join_column>))
-      goto err;
-    table_ref_2->is_join_columns_complete= FALSE;
-  }
-
   for (it_1.set(table_ref_1); !it_1.end_of_fields(); it_1.next())
   {
-    bool is_created_1;
     bool found= FALSE;
-    if (!(nj_col_1= it_1.get_or_create_column_ref(&is_created_1)))
+    if (!(nj_col_1= it_1.get_or_create_column_ref(leaf_1)))
       goto err;
     field_name_1= nj_col_1->name();
-
-    /* If nj_col_1 was just created add it to the list of join columns. */
-    if (is_created_1)
-      table_ref_1->join_columns->push_back(nj_col_1);
 
     /*
       Find a field with the same name in table_ref_2.
@@ -3657,16 +3645,11 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     nj_col_2= NULL;
     for (it_2.set(table_ref_2); !it_2.end_of_fields(); it_2.next())
     {
-      bool is_created_2;
       Natural_join_column *cur_nj_col_2;
       const char *cur_field_name_2;
-      if (!(cur_nj_col_2= it_2.get_or_create_column_ref(&is_created_2)))
+      if (!(cur_nj_col_2= it_2.get_or_create_column_ref(leaf_2)))
         goto err;
       cur_field_name_2= cur_nj_col_2->name();
-
-      /* If nj_col_1 was just created add it to the list of join columns. */
-      if (add_columns && is_created_2)
-        table_ref_2->join_columns->push_back(cur_nj_col_2);
 
       /*
         Compare the two columns and check for duplicate common fields.
@@ -3686,9 +3669,15 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         found= TRUE;
       }
     }
-    /* Force it_2.set() to use table_ref_2->join_columns. */
-    table_ref_2->is_join_columns_complete= TRUE;
-    add_columns= FALSE;
+    if (first_outer_loop && leaf_2)
+    {
+      /*
+        Make sure that the next inner loop "knows" that all columns
+        are materialized already.
+      */
+      leaf_2->is_join_columns_complete= TRUE;
+      first_outer_loop= FALSE;
+    }
     if (!found)
       continue;                                 // No matching field
 
@@ -3772,7 +3761,8 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         ++(*found_using_fields);
     }
   }
-  table_ref_1->is_join_columns_complete= TRUE;
+  if (leaf_1)
+    leaf_1->is_join_columns_complete= TRUE;
 
   /*
     Everything is OK.
@@ -4625,16 +4615,15 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
         if (tables->is_natural_join)
         {
-          bool is_created;
           TABLE *field_table;
           /*
             In this case we are sure that the column ref will not be created
             because it was already created and stored with the natural join.
           */
           Natural_join_column *nj_col;
-          if (!(nj_col= field_iterator.get_or_create_column_ref(&is_created)))
+          if (!(nj_col= field_iterator.get_natural_column_ref()))
             DBUG_RETURN(TRUE);
-          DBUG_ASSERT(nj_col->table_field && !is_created);
+          DBUG_ASSERT(nj_col->table_field);
           field_table= nj_col->table_ref->table;
           if (field_table)
           {

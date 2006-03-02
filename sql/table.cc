@@ -2816,11 +2816,31 @@ GRANT_INFO *Field_iterator_table_ref::grant()
 
   SYNOPSIS
     Field_iterator_table_ref::get_or_create_column_ref()
-    is_created  [out] set to TRUE if the column was created,
-                      FALSE if we return an already created colum
+    parent_table_ref  the parent table reference over which the
+                      iterator is iterating
 
   DESCRIPTION
-    TODO
+    Create a new natural join column for the current field of the
+    iterator if no such column was created, or return an already
+    created natural join column. The former happens for base tables or
+    views, and the latter for natural/using joins. If a new field is
+    created, then the field is added to 'parent_table_ref' if it is
+    given, or to the original table referene of the field if
+    parent_table_ref == NULL.
+
+  NOTES
+    This method is designed so that when a Field_iterator_table_ref
+    walks through the fields of a table reference, all its fields
+    are created and stored as follows:
+    - If the table reference being iterated is a stored table, view or
+      natural/using join, store all natural join columns in a list
+      attached to that table reference.
+    - If the table reference being iterated is a nested join that is
+      not natural/using join, then do not materialize its result
+      fields. This is OK because for such table references
+      Field_iterator_table_ref iterates over the fields of the nested
+      table references (recursively). In this way we avoid the storage
+      of unnecessay copies of result columns of nested joins.
 
   RETURN
     #     Pointer to a column of a natural join (or its operand)
@@ -2828,22 +2848,28 @@ GRANT_INFO *Field_iterator_table_ref::grant()
 */
 
 Natural_join_column *
-Field_iterator_table_ref::get_or_create_column_ref(bool *is_created)
+Field_iterator_table_ref::get_or_create_column_ref(TABLE_LIST *parent_table_ref)
 {
   Natural_join_column *nj_col;
+  bool is_created= TRUE;
+  uint field_count;
+  TABLE_LIST *add_table_ref= parent_table_ref ?
+                             parent_table_ref : table_ref;
 
-  *is_created= TRUE;
   if (field_it == &table_field_it)
   {
     /* The field belongs to a stored table. */
     Field *field= table_field_it.field();
     nj_col= new Natural_join_column(field, table_ref);
+    field_count= table_ref->table->s->fields;
   }
   else if (field_it == &view_field_it)
   {
     /* The field belongs to a merge view or information schema table. */
     Field_translator *translated_field= view_field_it.field_translator();
     nj_col= new Natural_join_column(translated_field, table_ref);
+    field_count= table_ref->field_translation_end -
+                 table_ref->field_translation;
   }
   else
   {
@@ -2852,12 +2878,43 @@ Field_iterator_table_ref::get_or_create_column_ref(bool *is_created)
       already created via one of the two constructor calls above. In this case
       we just return the already created column reference.
     */
-    *is_created= FALSE;
+    DBUG_ASSERT(table_ref->is_join_columns_complete);
+    is_created= FALSE;
     nj_col= natural_join_it.column_ref();
     DBUG_ASSERT(nj_col);
   }
   DBUG_ASSERT(!nj_col->table_field ||
               nj_col->table_ref->table == nj_col->table_field->table);
+
+  /*
+    If the natural join column was just created add it to the list of
+    natural join columns of either 'parent_table_ref' or to the table
+    reference that directly contains the original field.
+  */
+  if (is_created)
+  {
+    /* Make sure not all columns were materialized. */
+    DBUG_ASSERT(!add_table_ref->is_join_columns_complete);
+    if (!add_table_ref->join_columns)
+    {
+      /* Create a list of natural join columns on demand. */
+      if (!(add_table_ref->join_columns= new List<Natural_join_column>))
+        return NULL;
+      add_table_ref->is_join_columns_complete= FALSE;
+    }
+    add_table_ref->join_columns->push_back(nj_col);
+    /*
+      If new fields are added to their original table reference, mark if
+      all fields were added. We do it here as the caller has no easy way
+      of knowing when to do it.
+      If the fields are being added to parent_table_ref, then the caller
+      must take care to mark when all fields are created/added.
+    */
+    if (!parent_table_ref &&
+        add_table_ref->join_columns->elements == field_count)
+      add_table_ref->is_join_columns_complete= TRUE;
+  }
+
   return nj_col;
 }
 
