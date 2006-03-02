@@ -1,21 +1,26 @@
 create database if not exists events_test;
 use events_test;
+"We use procedure here because its statements won't be logged into the general log"
+"If we had used normal select that are logged in different ways depending on whether"
+"the test suite is run in normal mode or with --ps-protocol"
+CREATE procedure select_general_log()
+BEGIN
+SELECT user_host, argument FROM mysql.general_log WHERE argument LIKE '%alabala%';
+END|
 "Check General Query Log"
 SET GLOBAL event_scheduler=0;
-create event log_general on schedule every 1 minute do seLect 'alabala', sleep(3) from dual;
+create event log_general on schedule every 1 minute do SELect 'alabala', sleep(3) from dual;
 TRUNCATE mysql.general_log;
-SELECT user_host, command_type, argument FROM mysql.general_log;
-user_host	command_type	argument
-root[root] @ localhost []	Query	SELECT user_host, command_type, argument FROM mysql.general_log
+"1 row, the current statement!"
+call select_general_log();
+user_host	argument
 SET GLOBAL event_scheduler=1;
 "Wait the scheduler to start"
-"Should see 3 rows. The create, the seLect and the select from the general_log"
-SELECT user_host, command_type, argument FROM mysql.general_log;
-user_host	command_type	argument
-root[root] @ localhost []	Query	SELECT user_host, command_type, argument FROM mysql.general_log
-root[root] @ localhost []	Query	SET GLOBAL event_scheduler=1
-root[root] @ localhost [localhost]	Query	seLect 'alabala', sleep(3) from dual
-root[root] @ localhost []	Query	SELECT user_host, command_type, argument FROM mysql.general_log
+"Should see 3 rows - the 'SELect' is in the middle. The other two are selects from general_log"
+call select_general_log();
+user_host	argument
+root[root] @ localhost [localhost]	SELect 'alabala', sleep(3) from dual
+DROP PROCEDURE select_general_log;
 DROP EVENT log_general;
 SET GLOBAL event_scheduler=0;
 "Check slow query log"
