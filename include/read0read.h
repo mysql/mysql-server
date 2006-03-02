@@ -24,10 +24,12 @@ point in time are seen in the view. */
 read_view_t*
 read_view_open_now(
 /*===============*/
-				/* out, own: read view struct */
-	dulint		cr_trx_id,/* in: trx_id of creating transaction, 
-				or (0, 0) used in purge */
-	mem_heap_t*	heap);	/* in: memory heap from which allocated */
+					/* out, own: read view struct */
+	dulint		cr_trx_id,	/* in: trx_id of creating
+					transaction, or (0, 0) used in
+					purge */
+	mem_heap_t*	heap);		/* in: memory heap from which
+					allocated */
 /*************************************************************************
 Makes a copy of the oldest existing read view, or opens a new. The view
 must be closed with ..._close. */
@@ -35,10 +37,12 @@ must be closed with ..._close. */
 read_view_t*
 read_view_oldest_copy_or_open_new(
 /*==============================*/
-				/* out, own: read view struct */
-	dulint		cr_trx_id,/* in: trx_id of creating transaction, 
-				or (0, 0) used in purge */
-	mem_heap_t*	heap);	/* in: memory heap from which allocated */
+					/* out, own: read view struct */
+	dulint		cr_trx_id,	/* in: trx_id of creating
+					transaction, or (0, 0) used in
+					purge */
+	mem_heap_t*	heap);		/* in: memory heap from which
+					allocated */
 /*************************************************************************
 Closes a read view. */
 
@@ -62,7 +66,7 @@ read_view_sees_trx_id(
 /*==================*/
 				/* out: TRUE if sees */
 	read_view_t*	view,	/* in: read view */
-	dulint		trx_id);	/* in: trx id */
+	dulint		trx_id);/* in: trx id */
 /*************************************************************************
 Prints a read view to stderr. */
 
@@ -155,7 +159,7 @@ struct cursor_view_struct{
 				/* Consistent read view of the cursor*/
 	ulint		n_mysql_tables_in_use;
 				/* number of Innobase tables used in the
-				  processing of this cursor */
+				processing of this cursor */
 };
 
 #ifndef UNIV_NONINL
