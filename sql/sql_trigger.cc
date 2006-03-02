@@ -275,7 +275,7 @@ end:
           append_definer(thd, &log_query, &definer_user, &definer_host);
         }
 
-        log_query.append(thd->lex->trigger_definition_begin);
+        log_query.append(thd->lex->stmt_definition_begin);
       }
 
       /* Such a statement can always go directly to binlog, no trans cache. */

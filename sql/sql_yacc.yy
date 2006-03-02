@@ -833,8 +833,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
         load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
         definer view_replace_or_algorithm view_replace view_algorithm_opt
-        view_algorithm view_or_trigger_tail view_suid view_tail view_list_opt
-        view_list view_select view_check_option trigger_tail
+        view_algorithm view_or_trigger_or_sp view_or_trigger_or_sp_tail
+	view_suid view_tail view_list_opt view_list view_select
+	view_check_option trigger_tail sp_tail
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -1189,81 +1190,13 @@ create:
 	    lex->name=$4.str;
             lex->create_info.options=$3;
 	  }
-	| CREATE udf_func_type FUNCTION_SYM sp_name
-	  {
-	    LEX *lex=Lex;
-	    lex->spname= $4;
-	    lex->udf.type= $2;
-	  }
-	  create_function_tail
-	  {}
-	| CREATE PROCEDURE sp_name
-	  {
-	    LEX *lex= Lex;
-	    sp_head *sp;
-
-	    if (lex->sphead)
-	    {
-	      my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "PROCEDURE");
-	      YYABORT;
-	    }
-	    /* Order is important here: new - reset - init */
-	    sp= new sp_head();
-	    sp->reset_thd_mem_root(YYTHD);
-	    sp->init(lex);
-
-	    sp->m_type= TYPE_ENUM_PROCEDURE;
-	    lex->sphead= sp;
-	    /*
-	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
-	     * stored procedure, otherwise yylex will chop it into pieces
-	     * at each ';'.
-	     */
-	    sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-	    YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
-	  }
-          '('
-	  {
-	    LEX *lex= Lex;
-
-	    lex->sphead->m_param_begin= lex->tok_start+1;
-	  }
-	  sp_pdparam_list
-	  ')'
-	  {
-	    LEX *lex= Lex;
-
-	    lex->sphead->m_param_end= lex->tok_start;
-	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-	  }
-	  sp_c_chistics
-	  {
-	    LEX *lex= Lex;
-
-	    lex->sphead->m_chistics= &lex->sp_chistics;
-	    lex->sphead->m_body_begin= lex->tok_start;
-	  }
-	  sp_proc_stmt
-	  {
-	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-
-	    if (sp->check_backpatch(YYTHD))
-	      YYABORT;
-	    sp->init_strings(YYTHD, lex, $3);
-	    lex->sql_command= SQLCOM_CREATE_PROCEDURE;
-	    /* Restore flag if it was cleared above */
-	    if (sp->m_old_cmq)
-	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
-	    sp->restore_thd_mem_root(YYTHD);
-	  }
 	| CREATE
 	  {
             Lex->create_view_mode= VIEW_CREATE_NEW;
             Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
             Lex->create_view_suid= TRUE;
 	  }
-	  view_or_trigger
+	  view_or_trigger_or_sp
 	  {}
 	| CREATE USER clear_privileges grant_list
 	  {
@@ -8959,6 +8892,34 @@ subselect_end:
           lex->nest_level--;
 	};
 
+/**************************************************************************
+
+ CREATE VIEW | TRIGGER | PROCEDURE statements.
+
+**************************************************************************/
+
+view_or_trigger_or_sp:
+	definer view_or_trigger_or_sp_tail
+	{}
+	| view_replace_or_algorithm definer view_tail
+	{}
+	;
+
+view_or_trigger_or_sp_tail:
+	view_tail
+	{}
+	| trigger_tail
+	{}
+	| sp_tail
+	{}
+	;
+
+/**************************************************************************
+
+ DEFINER clause support.
+
+**************************************************************************/
+
 definer:
 	/* empty */
 	{
@@ -8985,7 +8946,7 @@ definer:
 
 /**************************************************************************
 
- CREATE VIEW statement options.
+ CREATE VIEW statement parts.
 
 **************************************************************************/
 
@@ -9016,20 +8977,6 @@ view_algorithm_opt:
 	/* empty */
 	{ Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
 	| view_algorithm
-	{}
-	;
-
-view_or_trigger:
-	definer view_or_trigger_tail
-	{}
-	| view_replace_or_algorithm definer view_tail
-	{}
-	;
-
-view_or_trigger_tail:
-	view_tail
-	{}
-	| trigger_tail
 	{}
 	;
 
@@ -9131,7 +9078,7 @@ trigger_tail:
 	  sp->reset_thd_mem_root(YYTHD);
 	  sp->init(lex);
 	
-	  lex->trigger_definition_begin= $2;
+	  lex->stmt_definition_begin= $2;
           lex->ident.str= $7;
           lex->ident.length= $9 - $7;
 
@@ -9177,6 +9124,87 @@ trigger_tail:
 	                                         TL_OPTION_UPDATING,
                                                  TL_IGNORE))
 	    YYABORT;
+	}
+	;
+
+/**************************************************************************
+
+ CREATE FUNCTION | PROCEDURE statements parts.
+
+**************************************************************************/
+
+sp_tail:
+	udf_func_type remember_name FUNCTION_SYM sp_name
+	{
+	  LEX *lex=Lex;
+	  lex->udf.type= $1;
+	  lex->stmt_definition_begin= $2;
+	  lex->spname= $4;
+	}
+	create_function_tail
+	{}
+	| PROCEDURE remember_name sp_name
+	{
+	  LEX *lex= Lex;
+	  sp_head *sp;
+
+	  if (lex->sphead)
+	  {
+	    my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "PROCEDURE");
+	    YYABORT;
+	  }
+	  
+	  lex->stmt_definition_begin= $2;
+	  
+	  /* Order is important here: new - reset - init */
+	  sp= new sp_head();
+	  sp->reset_thd_mem_root(YYTHD);
+	  sp->init(lex);
+
+	  sp->m_type= TYPE_ENUM_PROCEDURE;
+	  lex->sphead= sp;
+	  /*
+	   * We have to turn of CLIENT_MULTI_QUERIES while parsing a
+	   * stored procedure, otherwise yylex will chop it into pieces
+	   * at each ';'.
+	   */
+	  sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+	  YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
+	}
+        '('
+	{
+	  LEX *lex= Lex;
+
+	  lex->sphead->m_param_begin= lex->tok_start+1;
+	}
+	sp_pdparam_list
+	')'
+	{
+	  LEX *lex= Lex;
+
+	  lex->sphead->m_param_end= lex->tok_start;
+	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+	}
+	sp_c_chistics
+	{
+	  LEX *lex= Lex;
+
+	  lex->sphead->m_chistics= &lex->sp_chistics;
+	  lex->sphead->m_body_begin= lex->tok_start;
+	}
+	sp_proc_stmt
+	{
+	  LEX *lex= Lex;
+	  sp_head *sp= lex->sphead;
+
+	  if (sp->check_backpatch(YYTHD))
+	    YYABORT;
+	  sp->init_strings(YYTHD, lex, $3);
+	  lex->sql_command= SQLCOM_CREATE_PROCEDURE;
+	  /* Restore flag if it was cleared above */
+	  if (sp->m_old_cmq)
+	    YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+	  sp->restore_thd_mem_root(YYTHD);
 	}
 	;
 

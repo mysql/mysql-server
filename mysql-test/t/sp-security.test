@@ -547,4 +547,105 @@ GRANT EXECUTE ON PROCEDURE p1 TO user_bug7787@localhost;
 DROP DATABASE db_bug7787;
 use test;
 
+
+#
+# WL#2897: Complete definer support in the stored routines.
+#
+# The following cases are tested:
+#   1. check that if DEFINER-clause is not explicitly specified, stored routines
+#     are created with CURRENT_USER privileges;
+#   2. check that if DEFINER-clause specifies non-current user, SUPER privilege
+#     is required to create a stored routine;
+#   3. check that if DEFINER-clause specifies non-existent user, a warning is
+#     emitted.
+#   4. check that SHOW CREATE PROCEDURE | FUNCTION works correctly;
+#
+# The following cases are tested in other test suites:
+#   - check that mysqldump dumps new attribute correctly;
+#   - check that slave replicates CREATE-statements with explicitly specified
+#     DEFINER correctly.
+#
+
+# Setup the environment.
+
+--echo
+--echo ---> connection: root
+--connection con1root
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+
+CREATE DATABASE mysqltest;
+
+CREATE USER mysqltest_1@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_1@localhost;
+
+CREATE USER mysqltest_2@localhost;
+GRANT SUPER ON *.* TO mysqltest_2@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
+
+--connect (mysqltest_2_con,localhost,mysqltest_2,,mysqltest)
+--connect (mysqltest_1_con,localhost,mysqltest_1,,mysqltest)
+
+# test case (1).
+
+--echo
+--echo ---> connection: mysqltest_2_con
+--connection mysqltest_2_con
+
+use mysqltest;
+
+CREATE PROCEDURE wl2897_p1() SELECT 1;
+
+CREATE FUNCTION wl2897_f1() RETURNS INT RETURN 1;
+
+# test case (2).
+
+--echo
+--echo ---> connection: mysqltest_1_con
+--connection mysqltest_1_con
+
+use mysqltest;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE DEFINER=root@localhost PROCEDURE wl2897_p2() SELECT 2;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE DEFINER=root@localhost FUNCTION wl2897_f2() RETURNS INT RETURN 2;
+
+# test case (3).
+
+--echo
+--echo ---> connection: mysqltest_2_con
+--connection mysqltest_2_con
+
+use mysqltest;
+
+CREATE DEFINER='a @ b @ c'@localhost PROCEDURE wl2897_p3() SELECT 3;
+
+CREATE DEFINER='a @ b @ c'@localhost FUNCTION wl2897_f3() RETURNS INT RETURN 3;
+
+# test case (4).
+
+--echo
+--echo ---> connection: con1root
+--connection con1root
+
+use mysqltest;
+
+SHOW CREATE PROCEDURE wl2897_p1;
+SHOW CREATE PROCEDURE wl2897_p3;
+
+SHOW CREATE FUNCTION wl2897_f1;
+SHOW CREATE FUNCTION wl2897_f3;
+
+# Cleanup.
+
+DROP USER mysqltest_1@localhost;
+DROP USER mysqltest_2@localhost;
+
+DROP DATABASE mysqltest;
+
+
 # End of 5.0 bugs.
