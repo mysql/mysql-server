@@ -1887,9 +1887,10 @@ class Item_int_with_ref :public Item_int
 {
   Item *ref;
 public:
-  Item_int_with_ref(longlong i, Item *ref_arg) :Item_int(i), ref(ref_arg)
+  Item_int_with_ref(longlong i, Item *ref_arg, my_bool unsigned_arg) :
+    Item_int(i), ref(ref_arg)
   {
-    unsigned_flag= ref_arg->unsigned_flag;
+    unsigned_flag= unsigned_arg;
   }
   int save_in_field(Field *field, bool no_conversions)
   {
