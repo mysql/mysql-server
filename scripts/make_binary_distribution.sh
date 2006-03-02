@@ -315,7 +315,7 @@ BASE=$BASE2
 if [ x"@GXX@" = x"yes" ] ; then
   gcclib=`@CC@ --print-libgcc-file`
   if [ $? -ne 0 ] ; then
-    print "Warning: Couldn't find libgcc.a!"
+    echo "Warning: Couldn't find libgcc.a!"
   else
     $CP $gcclib $BASE/lib/libmygcc.a
   fi
