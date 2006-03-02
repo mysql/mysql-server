@@ -2631,11 +2631,13 @@ Lgman::read_undo_pages(Signal* signal, Ptr<Logfile_group> ptr,
     filePtr.p->m_state |= Undofile::FS_OUTSTANDING | Undofile::FS_MOVE_NEXT;
     
     Ptr<Undofile> prev = filePtr;
-    LocalDLFifoList<Undofile> files(m_file_pool, ptr.p->m_files);
-    if(!files.prev(prev))
     {
-      jam();
-      files.last(prev);
+      LocalDLFifoList<Undofile> files(m_file_pool, ptr.p->m_files);
+      if(!files.prev(prev))
+      {
+	jam();
+	files.last(prev);
+      }
     }
     if(DEBUG_UNDO_EXECUTION)
       ndbout_c("changing file from %d to %d", filePtr.i, prev.i);

@@ -14,6 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef WOPOOL_HPP
+#define WOPOOL_HPP
+
 #include "Pool.hpp"
 
 struct WOPage
@@ -113,3 +116,5 @@ WOPool::getPtr(Uint32 i)
   }
   handle_invalid_get_ptr(i);
 }
+
+#endif

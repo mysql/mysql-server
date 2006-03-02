@@ -103,7 +103,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   {
     printf("  %d : ", i);
     Ptr<Extent_info> ptr;
-    LocalDLList<Extent_info> list(c_extent_pool, alloc.m_free_extents[i]);
+    Local_extent_info_list list(c_extent_pool, alloc.m_free_extents[i]);
     for(list.first(ptr); !ptr.isNull(); list.next(ptr))
     {
       ndbout << ptr << " ";
@@ -248,8 +248,8 @@ Dbtup::update_extent_pos(Disk_alloc_info& alloc,
     if (old != pos)
     {
       jam();
-      Extent_list old_list(c_extent_pool, alloc.m_free_extents[old]);
-      Extent_list new_list(c_extent_pool, alloc.m_free_extents[pos]);
+      Local_extent_info_list old_list(c_extent_pool, alloc.m_free_extents[old]);
+      Local_extent_info_list new_list(c_extent_pool, alloc.m_free_extents[pos]);
       old_list.remove(extentPtr);
       new_list.add(extentPtr);
       extentPtr.p->m_free_matrix_pos= pos;
@@ -420,7 +420,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       alloc.m_curr_extent_info_ptr_i = RNIL;
       Uint32 pos= alloc.calc_extent_pos(ext.p);
       ext.p->m_free_matrix_pos = pos;
-      LocalDLList<Extent_info> list(c_extent_pool, alloc.m_free_extents[pos]);
+      Local_extent_info_list list(c_extent_pool, alloc.m_free_extents[pos]);
       list.add(ext);
     }
   }
@@ -431,7 +431,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
     if ((pos= alloc.find_extent(sz)) != RNIL)
     {
       jam();
-      LocalDLList<Extent_info> list(c_extent_pool, alloc.m_free_extents[pos]);
+      Local_extent_info_list list(c_extent_pool, alloc.m_free_extents[pos]);
       list.first(ext);
       list.remove(ext);
     }
@@ -465,8 +465,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       ext.p->m_free_page_count[0]= pages; // All pages are "free"-est
       c_extent_hash.add(ext);
 
-      LocalSLList<Extent_info, Extent_list_t> 
-	list1(c_extent_pool, alloc.m_extent_list);
+      Local_fragment_extent_list list1(c_extent_pool, alloc.m_extent_list);
       list1.add(ext);
     }      
     
@@ -1520,7 +1519,7 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
 	c_extent_pool.getPtr(old, alloc.m_curr_extent_info_ptr_i);
 	ndbassert(old.p->m_free_matrix_pos == RNIL);
 	Uint32 pos= alloc.calc_extent_pos(old.p);
-	Extent_list new_list(c_extent_pool, alloc.m_free_extents[pos]);
+	Local_extent_info_list new_list(c_extent_pool, alloc.m_free_extents[pos]);
 	new_list.add(old);
 	old.p->m_free_matrix_pos= pos;
       }
@@ -1529,8 +1528,7 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
       ext.p->m_free_matrix_pos = RNIL;
       c_extent_hash.add(ext);
 
-      LocalSLList<Extent_info, Extent_list_t> 
-	list1(c_extent_pool, alloc.m_extent_list);
+      Local_fragment_extent_list list1(c_extent_pool, alloc.m_extent_list);
       list1.add(ext);
       return 0;
     }
