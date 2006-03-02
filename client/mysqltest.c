@@ -3134,7 +3134,7 @@ static void init_win_path_patterns()
 
 static void free_win_path_patterns()
 {
-  int i= 0;
+  uint i= 0;
   for (i=0 ; i < patterns.elements ; i++)
   {
     const char** pattern= dynamic_element(&patterns, i, const char**);
