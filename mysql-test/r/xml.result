@@ -65,6 +65,9 @@ c1
 SELECT extractValue(@xml,'/a/child::*');
 extractValue(@xml,'/a/child::*')
 b1 b2
+SELECT extractValue(@xml,'/a/self::*');
+extractValue(@xml,'/a/self::*')
+a1 a2
 SELECT extractValue(@xml,'/a/descendant::*');
 extractValue(@xml,'/a/descendant::*')
 b1 c1 b2
@@ -546,6 +549,15 @@ select extractvalue('<a>A</a>','/<a>');
 ERROR HY000: XPATH syntax error: '>'
 select extractvalue('<a><b>b</b><b!>b!</b!></a>','//b!');
 ERROR HY000: XPATH syntax error: '!'
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant::*');
+extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant::*')
+B C
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/self::*');
+extractvalue('<a>A<b>B<c>C</c></b></a>','/a/self::*')
+A
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant-or-self::*');
+extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant-or-self::*')
+A B C
 select extractvalue('<A_B>A</A_B>','/A_B');
 extractvalue('<A_B>A</A_B>','/A_B')
 A
