@@ -1120,8 +1120,6 @@ static void do_exec(struct st_query *query)
                ("error: %d, status: %d", error, status));
     for (i= 0; i < query->expected_errors; i++)
     {
-      DBUG_PRINT("info",
-                 ("error: %d, status: %d", error, status));
       DBUG_PRINT("info", ("expected error: %d",
                           query->expected_errno[i].code.errnum));
       if ((query->expected_errno[i].type == ERR_ERRNO) &&
