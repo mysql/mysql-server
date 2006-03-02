@@ -9,14 +9,6 @@ drop procedure if exists f1;
 use test;
 
 #
-# test that we can create VIEW if privileges check switched off
-#
-create table t1 (field1 INT);
--- error ER_MALFORMED_DEFINER
-CREATE VIEW v1 AS SELECT field1 FROM t1;
-drop table t1;
-
-#
 # Test that we can create and drop procedure without warnings
 # see bug#9993
 #
@@ -30,3 +22,48 @@ create table t1 (a int);
 create definer='user'@'host' sql security definer view v1 as select * from t1;
 drop view v1;
 drop table t1;
+
+#
+# BUG#16777: Can not create trigger nor view w/o definer if --skip-grant-tables
+# specified
+#
+# Also, a test that we can create VIEW if privileges check switched off has
+# been moved here.
+#
+
+# Prepare.
+
+--disable_warnings
+
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+
+DROP TABLE IF EXISTS t1;
+
+--enable_warnings
+
+# Test case.
+
+CREATE TABLE t1(c INT);
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+  FOR EACH ROW
+    SET @a = 1;
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+CREATE DEFINER=a@b TRIGGER ti_ai AFTER INSERT ON t1
+  FOR EACH ROW
+    SET @b = 1;
+
+CREATE DEFINER=a@b VIEW v2 AS SELECT * FROM t1;
+
+# Cleanup.
+
+DROP TRIGGER t1_bi;
+DROP TRIGGER ti_ai;
+
+DROP VIEW v1;
+DROP VIEW v2;
+
+DROP TABLE t1;
