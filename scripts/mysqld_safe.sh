@@ -213,15 +213,10 @@ then
   chown $user $mysql_unix_port_dir
 fi
 
-# Use the mysqld-max binary by default if the user doesn't specify a binary
+# If the user doesn't specify a binary, we assume name "mysqld"
 if test -z "$MYSQLD"
 then
-  if test -x $ledir/mysqld-max
-  then
-    MYSQLD=mysqld-max
-  else
-    MYSQLD=mysqld
-  fi
+  MYSQLD=mysqld
 fi
 
 if test ! -x $ledir/$MYSQLD
