@@ -835,8 +835,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
                         table->db, table->table_name);
-    if (get_default_definer(thd, &table->definer))
-      goto err;
+    get_default_definer(thd, &table->definer);
   }
 
   /*
