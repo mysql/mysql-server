@@ -349,7 +349,7 @@ Warnings:
 Warning	1265	Data truncated for column 'Alter_routine_priv' at row 1
 FLUSH PRIVILEGES;
 create database TEStdb;
-ERROR 42000: Access denied for user 'mysqltest_1'@'%' to database 'TEStdb'
+Got one of the listed errors
 delete from mysql.user;
 delete from mysql.db where host='%' and user='mysqltest_1' and db='TESTDB';
 insert into mysql.user select * from t1;

@@ -233,7 +233,7 @@ static int net_data_is_ready(my_socket sd)
   /* Windows uses an _array_ of 64 fd's as default, so it's safe */
   if (sd >= FD_SETSIZE)
     return -1;
-  #define NET_DATA_IS_READY_CAN_RETURN_MINUS_ONE
+#define NET_DATA_IS_READY_CAN_RETURN_MINUS_ONE
 #endif
 
   FD_ZERO(&sfds);
