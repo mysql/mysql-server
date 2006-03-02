@@ -1,45 +1,51 @@
-This directory contains a test suite for mysql daemon. To run
+This directory contains a test suite for the MySQL daemon. To run
 the currently existing test cases, simply execute ./mysql-test-run in
 this directory. It will fire up the newly built mysqld and test it.
 
-If you want to run a test with a running MySQL server use the --extern
-option to mysql-test-run. Please note that in this mode the test suite
-expects user to specify test names to run. Otherwise it falls back to the
-normal "non-extern" behaviour. The reason is that some tests
-could not run with external server. Here is the sample command
-to test "alias" and "analyze" tests on external server:
-
-mysql-test-run --extern alias analyze
-
-To match your setup you might also need to provide --socket, --user and
-other relevant options.
-
-Note that you do not have to have to do make install, and you could
-actually have a co-existing MySQL installation - the tests will not
+Note that you do not have to have to do "make install", and you could
+actually have a co-existing MySQL installation. The tests will not
 conflict with it.
 
 All tests must pass. If one or more of them fail on your system, please
-read the following manual section of how to report the problem:
+read the following manual section for instructions on how to report the
+problem:
 
 http://dev.mysql.com/doc/mysql/en/mysql-test-suite.html
 
+If you want to use an already running MySQL server for specific tests,
+use the --extern option to mysql-test-run. Please note that in this mode,
+the test suite expects you to provide the names of the tests to run.
+For example, here is the command to run the "alias" and "analyze" tests
+with an external server:
 
-You can create your own test cases. To create a test case:
+mysql-test-run --extern alias analyze
+
+To match your setup, you might also need to provide --socket, --user, and
+other relevant options.
+
+With no test cases named on the command line, mysql-test-run falls back
+to the normal "non-extern" behavior. The reason for this is that some
+tests cannot run with an external server.
+
+
+You can create your own test cases. To create a test case, create a new
+file in the t subdirectory using a text editor. The file should have a .test
+extension. For example:
 
  xemacs t/test_case_name.test
 
- in the file, put a set of SQL commands that will create some tables,
- load test data, run some queries to manipulate it.
+ In the file, put a set of SQL statements that create some tables,
+ load test data, and run some queries to manipulate it.
 
- We would appreciate if the test tables were called t1, t2, t3 ... (to not
+ We would appreciate it if you name your test tables t1, t2, t3 ... (to not
  conflict too much with existing tables).
 
  Your test should begin by dropping the tables you are going to create and
- end by dropping them again.  This will ensure that one can run the test
- over and over again.
+ end by dropping them again.  This ensures that you can run the test over
+ and over again.
  
  If you are using mysqltest commands (like result file names) in your
- test case you should do create the result file as follows:
+ test case, you should create the result file as follows:
 
  mysql-test-run --record test_case_name
 
@@ -47,8 +53,8 @@ You can create your own test cases. To create a test case:
 
  mysqltest --record < t/test_case_name.test
 
- If you only have a simple test cases consistent of SQL commands and comments
- you can create the test case one of the following ways:
+ If you only have a simple test cases consisting of SQL statements and
+ comments, you can create the test case in one of the following ways:
 
  mysql-test-run --record test_case_name
 
@@ -57,11 +63,11 @@ You can create your own test cases. To create a test case:
  mysqltest --record --record-file=r/test_case_name.result < t/test_case_name.test
 
  When this is done, take a look at r/test_case_name.result
- - If the result is wrong, you have found a bug;  In this case you should
+ - If the result is incorrect, you have found a bug. In this case, you should
    edit the test result to the correct results so that we can verify
    that the bug is corrected in future releases.
 
 To submit your test case, put your .test file and .result file(s) into
 a tar.gz archive, add a README that explains the problem, ftp the 
-archive to ftp://support.mysql.com/pub/mysql/secret/ and send  a mail
+archive to ftp://support.mysql.com/pub/mysql/secret/ and send a mail
 to bugs@lists.mysql.com
