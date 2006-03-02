@@ -3630,11 +3630,13 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   Item *thd_free_list= thd->free_list;
   bool result= TRUE;
   partition_info *part_info;
+  CHARSET_INFO *old_character_set_client= thd->variables.character_set_client;
   LEX *old_lex= thd->lex;
   LEX lex;
   DBUG_ENTER("mysql_unpack_partition");
 
   thd->lex= &lex;
+  thd->variables.character_set_client= system_charset_info;
   lex_start(thd, part_buf, part_info_len);
   /*
     We need to use the current SELECT_LEX since I need to keep the
@@ -3760,6 +3762,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
 end:
   thd->free_list= thd_free_list;
   thd->lex= old_lex;
+  thd->variables.character_set_client= old_character_set_client;
   DBUG_RETURN(result);
 }
 
