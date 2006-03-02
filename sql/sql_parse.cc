@@ -7168,47 +7168,28 @@ Item *negate_expression(THD *thd, Item *expr)
 
 /*
   Set the specified definer to the default value, which is the current user in
-  the thread. Also check that the current user satisfies to the definers
-  requirements.
+  the thread.
  
   SYNOPSIS
     get_default_definer()
     thd       [in] thread handler
     definer   [out] definer
- 
-  RETURN
-    error status, that is:
-      - FALSE -- on success;
-      - TRUE -- on error (current user can not be a definer).
 */
  
-bool get_default_definer(THD *thd, LEX_USER *definer)
+void get_default_definer(THD *thd, LEX_USER *definer)
 {
-  /* Check that current user has non-empty host name. */
-
   const Security_context *sctx= thd->security_ctx;
-
-  if (sctx->priv_host[0] == 0)
-  {
-    my_error(ER_MALFORMED_DEFINER, MYF(0));
-    return TRUE;
-  }
-
-  /* Fill in. */
 
   definer->user.str= (char *) sctx->priv_user;
   definer->user.length= strlen(definer->user.str);
 
   definer->host.str= (char *) sctx->priv_host;
   definer->host.length= strlen(definer->host.str);
-
-  return FALSE;
 }
 
 
 /*
-  Create default definer for the specified THD. Also check that the current
-  user is conformed to the definers requirements.
+  Create default definer for the specified THD.
 
   SYNOPSIS
     create_default_definer()
@@ -7227,8 +7208,7 @@ LEX_USER *create_default_definer(THD *thd)
   if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     return 0;
 
-  if (get_default_definer(thd, definer))
-    return 0;
+  get_default_definer(thd, definer);
 
   return definer;
 }
