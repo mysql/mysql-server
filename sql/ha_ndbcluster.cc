@@ -4728,13 +4728,14 @@ int ha_ndbcluster::final_drop_index(TABLE *table_arg)
 int ha_ndbcluster::rename_table(const char *from, const char *to)
 {
   NDBDICT *dict;
+  char old_dbname[FN_HEADLEN];
   char new_tabname[FN_HEADLEN];
   const NDBTAB *orig_tab;
   int result;
 
   DBUG_ENTER("ha_ndbcluster::rename_table");
   DBUG_PRINT("info", ("Renaming %s to %s", from, to));
-  set_dbname(from);
+  set_dbname(from, old_dbname);
   set_tabname(from);
   set_tabname(to, new_tabname);
 
@@ -4742,6 +4743,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
 
   Ndb *ndb= get_ndb();
+  ndb->setDatabaseName(old_dbname);
   dict= ndb->getDictionary();
   if (!(orig_tab= dict->getTable(m_tabname)))
     ERR_RETURN(dict->getNdbError());
@@ -4833,7 +4835,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
                                current_thd->query, current_thd->query_length,
                                m_dbname, new_tabname,
                                0, 0,
-                               SOT_RENAME_TABLE);
+                               SOT_RENAME_TABLE,
+                               old_dbname, m_tabname);
   }
   if (share)
     free_share(&share);
