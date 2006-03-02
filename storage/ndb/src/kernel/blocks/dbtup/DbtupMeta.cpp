@@ -928,7 +928,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     {
       if(alloc_info.m_curr_extent_info_ptr_i != RNIL)
       {
-	LocalDLList<Extent_info> 
+	Local_extent_info_list
 	  list(c_extent_pool, alloc_info.m_free_extents[0]);
 	Ptr<Extent_info> ext_ptr;
 	c_extent_pool.getPtr(ext_ptr, alloc_info.m_curr_extent_info_ptr_i);
@@ -1015,7 +1015,7 @@ Dbtup::drop_fragment_free_exent(Signal *signal,
       if(!alloc_info.m_free_extents[pos].isEmpty())
       {
 	jam();
-	LocalDLList<Extent_info> 
+	Local_extent_info_list
 	  list(c_extent_pool, alloc_info.m_free_extents[pos]);
 	Ptr<Extent_info> ext_ptr;
 	list.first(ext_ptr);

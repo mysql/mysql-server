@@ -28,6 +28,7 @@
 
 #include <SLList.hpp>
 #include <DLFifoList.hpp>
+#include <DLCFifoList.hpp>
 #include <SignalCounter.hpp>
 #include <blocks/mutexes.hpp>
 
@@ -439,7 +440,7 @@ public:
     Uint32 startGCP;
     Uint32 currGCP;
     Uint32 stopGCP;
-    DLList<Table> tables;
+    DLCFifoList<Table> tables;
     SLList<TriggerRecord> triggers;
     
     SLList<BackupFile> files; 
