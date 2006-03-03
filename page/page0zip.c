@@ -1845,6 +1845,11 @@ page_zip_write_rec(
 	page_zip->m_end = data - page_zip->data;
 	ut_a(!mach_read_from_2(data));
 
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(page_zip_validate(page_zip,
+			ut_align_down((byte*) rec, UNIV_PAGE_SIZE)));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
 	/* TODO: write a redo log record (MLOG_ZIP_WRITE_REC),
 	or is it at all needed? */
 }
