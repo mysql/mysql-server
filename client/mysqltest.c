@@ -2529,8 +2529,8 @@ my_bool end_of_query(int c)
     size    size of the buffer i.e max size to read
 
   DESCRIPTION
-    This function actually reads several lines an adds them to the
-    buffer buf. It will continue to read until it finds what it believes
+    This function actually reads several lines and adds them to the
+    buffer buf. It continues to read until it finds what it believes
     is a complete query.
 
     Normally that means it will read lines until it reaches the
@@ -3760,7 +3760,7 @@ static void handle_no_error(struct st_query *q)
   command - currrent command pointer
   query - query string to execute
   query_len - length query string to execute
-  ds - output buffer wherte to store result form query
+  ds - output buffer where to store result form query
 
   RETURN VALUE
   error - function will not return
@@ -3778,7 +3778,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   DBUG_PRINT("query", ("'%-.60s'", query));
 
   /*
-    Init a new stmt if it's not alreday one created for this connectoon
+    Init a new stmt if it's not already one created for this connection
   */
   if(!(stmt= cur_con->stmt))
   {
@@ -3867,7 +3867,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
     goto end;
   }
 
-  /* If we got here the statement was both executed and read succeesfully */
+  /* If we got here the statement was both executed and read successfully */
   handle_no_error(command);
   if (!disable_result_log)
   {
@@ -4594,7 +4594,7 @@ int main(int argc, char **argv)
       case Q_QUERY_HORIZONTAL:
       {
 	my_bool old_display_result_vertically= display_result_vertically;
-	/* fix up query pointer if this is * first iteration for this line */
+	/* fix up query pointer if this is first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len + 1;
 	display_result_vertically= (q->type==Q_QUERY_VERTICAL);
@@ -4639,15 +4639,15 @@ int main(int argc, char **argv)
       case Q_SEND:
 	if (!q->query[q->first_word_len])
 	{
-	  /* This happens when we use 'send' on it's own line */
+	  /* This happens when we use 'send' on its own line */
 	  q_send_flag=1;
 	  break;
 	}
-	/* fix up query pointer if this is * first iteration for this line */
+	/* fix up query pointer if this is first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len;
 	/*
-	  run_query() can execute a query partially, depending on the flags
+	  run_query() can execute a query partially, depending on the flags.
 	  QUERY_SEND flag without QUERY_REAP tells it to just send the
 	  query and read the result some time later when reap instruction
 	  is given on this connection.
@@ -4731,7 +4731,7 @@ int main(int argc, char **argv)
         break;
       case Q_ENABLE_PARSING:
         /*
-          Ensure we don't get parsing_disabled < 0 as this would accidently
+          Ensure we don't get parsing_disabled < 0 as this would accidentally
           disable code we don't want to have disabled
         */
         if (parsing_disabled > 0)
@@ -4777,9 +4777,9 @@ int main(int argc, char **argv)
   start_lineno= 0;
 
   /*
-    The whole test has been executed _sucessfully_
-    Time to compare result or save it to record file
-    The entire output from test is now kept in ds_res
+    The whole test has been executed _sucessfully_.
+    Time to compare result or save it to record file.
+    The entire output from test is now kept in ds_res.
   */
   if (ds_res.length)
   {
@@ -5509,7 +5509,7 @@ static int get_next_bit(REP_SET *set,uint lastpos)
 }
 
 	/* find if there is a same set in sets. If there is, use it and
-	   free given set, else put in given set in sets and return it's
+	   free given set, else put in given set in sets and return its
 	   position */
 
 static int find_set(REP_SETS *sets,REP_SET *find)
@@ -5528,7 +5528,7 @@ static int find_set(REP_SETS *sets,REP_SET *find)
 
 	/* find if there is a found_set with same table_offset & found_offset
 	   If there is return offset to it, else add new offset and return pos.
-	   Pos returned is -offset-2 in found_set_structure because it's is
+	   Pos returned is -offset-2 in found_set_structure because it is
 	   saved in set->next and set->next[] >= 0 points to next set and
 	   set->next[] == -1 is reserved for end without replaces.
 	   */
