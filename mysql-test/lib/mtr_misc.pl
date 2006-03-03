@@ -96,7 +96,16 @@ sub mtr_exe_exists (@) {
   map {$_.= ".exe"} @path if $::glob_win32;
   foreach my $path ( @path )
   {
-    return $path if -x $path;
+    if ( -x $path )
+    {
+      if ( $::glob_cygwin_perl )
+      {
+        $path= `cygpath -w $path`;
+	# Chop off the \n that cygpath adds
+        $path=~ s/\n//;
+      }
+      return $path;
+    }
   }
   if ( @path == 1 )
   {
