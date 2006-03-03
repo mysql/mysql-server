@@ -1109,7 +1109,7 @@ page_zip_apply_log(
 		if (UNIV_UNLIKELY(data >= end)) {
 			return(NULL);
 		}
-		if (UNIV_UNLIKELY(val >= n_dense)) {
+		if (UNIV_UNLIKELY(val > n_dense)) {
 			return(NULL);
 		}
 
@@ -1126,12 +1126,13 @@ page_zip_apply_log(
 			return(NULL);
 		} else if (hs == heap_status) {
 			/* A new record was allocated from the heap. */
-			heap_status += REC_HEAP_NO_SHIFT;
+			heap_status += 1 << REC_HEAP_NO_SHIFT;
 		}
 
 		rec_get_offsets_reverse(data, index,
-				heap_status & REC_STATUS_NODE_PTR,
+				hs & REC_STATUS_NODE_PTR,
 				offsets);
+		rec_offs_make_valid(rec, index, offsets);
 
 		mach_write_to_2(rec - REC_NEW_HEAP_NO, hs);
 
@@ -1146,7 +1147,7 @@ page_zip_apply_log(
 		}
 
 		/* Copy the data bytes. */
-		if (UNIV_UNLIKELY(heap_status & REC_STATUS_NODE_PTR)) {
+		if (UNIV_UNLIKELY(hs & REC_STATUS_NODE_PTR)) {
 			/* Non-leaf nodes should not contain any
 			externally stored columns. */
 			if (UNIV_UNLIKELY(rec_offs_any_extern(offsets))) {
@@ -1220,7 +1221,6 @@ page_zip_decompress(
 				or NULL if no logging is needed */
 {
 	z_stream	d_stream;
-	int		err;
 	dict_index_t*	index	= NULL;
 	rec_t**		recs;	/* dense page directory, sorted by address */
 	rec_t**		recsc;	/* cursor to dense page directory */
@@ -1274,8 +1274,9 @@ page_zip_decompress(
 	d_stream.zfree = (free_func) 0;
 	d_stream.opaque = (voidpf) 0;
 
-	err = inflateInit(&d_stream);
-	ut_a(err == Z_OK);
+	if (UNIV_UNLIKELY(inflateInit(&d_stream) != Z_OK)) {
+		ut_error;
+	}
 
 	d_stream.next_in = page_zip->data + PAGE_DATA;
 	/* Subtract the space reserved for
@@ -1285,16 +1286,9 @@ page_zip_decompress(
 	d_stream.next_out = page + PAGE_ZIP_START;
 	d_stream.avail_out = UNIV_PAGE_SIZE - PAGE_ZIP_START;
 
-	/* Decode the zlib header. */
-	err = inflate(&d_stream, Z_BLOCK);
-	if (err != Z_OK) {
-
-		goto zlib_error;
-	}
-
-	/* Decode the index information. */
-	err = inflate(&d_stream, Z_BLOCK);
-	if (err != Z_OK) {
+	/* Decode the zlib header and the index information. */
+	if (UNIV_UNLIKELY(inflate(&d_stream, Z_BLOCK) != Z_OK)
+	    || UNIV_UNLIKELY(inflate(&d_stream, Z_BLOCK) != Z_OK)) {
 
 		goto zlib_error;
 	}
@@ -1362,8 +1356,7 @@ page_zip_decompress(
 
 		ut_ad(d_stream.avail_out < UNIV_PAGE_SIZE
 			      - PAGE_ZIP_START - PAGE_DIR);
-		err = inflate(&d_stream, Z_SYNC_FLUSH);
-		switch (err) {
+		switch (inflate(&d_stream, Z_SYNC_FLUSH)) {
 		case Z_STREAM_END:
 			/* Apparently, n_dense has grown
 			since the time the page was last compressed. */
@@ -1417,15 +1410,10 @@ page_zip_decompress(
 
 					d_stream.avail_out = dst
 						- d_stream.next_out;
-					err = inflate(&d_stream, Z_SYNC_FLUSH);
-					switch (err) {
+
+					switch (inflate(&d_stream,
+							Z_SYNC_FLUSH)) {
 					case Z_STREAM_END:
-						if (!n_dense) {
-							/* This was the last
-							record. */
-							goto zlib_done;
-						}
-						goto zlib_error;
 					case Z_OK:
 					case Z_BUF_ERROR:
 						if (!d_stream.avail_out) {
@@ -1448,15 +1436,9 @@ page_zip_decompress(
 
 					d_stream.avail_out = dst
 						- d_stream.next_out;
-					err = inflate(&d_stream, Z_SYNC_FLUSH);
-					switch (err) {
+					switch (inflate(&d_stream,
+							Z_SYNC_FLUSH)) {
 					case Z_STREAM_END:
-						if (!n_dense) {
-							/* This was the last
-							record. */
-							goto zlib_done;
-						}
-						goto zlib_error;
 					case Z_OK:
 					case Z_BUF_ERROR:
 						if (!d_stream.avail_out) {
@@ -1492,14 +1474,8 @@ page_zip_decompress(
 			d_stream.avail_out = rec_get_end(rec, offsets)
 					- d_stream.next_out;
 
-			err = inflate(&d_stream, Z_SYNC_FLUSH);
-			switch (err) {
+			switch (inflate(&d_stream, Z_SYNC_FLUSH)) {
 			case Z_STREAM_END:
-				if (!n_dense) {
-					/* This was the last record. */
-					goto zlib_done;
-				}
-				goto zlib_error;
 			case Z_OK:
 			case Z_BUF_ERROR:
 				if (!d_stream.avail_out) {
@@ -1518,14 +1494,8 @@ page_zip_decompress(
 			d_stream.avail_out = rec_offs_data_size(offsets)
 					- REC_NODE_PTR_SIZE;
 
-			err = inflate(&d_stream, Z_SYNC_FLUSH);
-			switch (err) {
+			switch (inflate(&d_stream, Z_SYNC_FLUSH)) {
 			case Z_STREAM_END:
-				if (!n_dense) {
-					/* This was the last record. */
-					goto zlib_done;
-				}
-				goto zlib_error;
 			case Z_OK:
 			case Z_BUF_ERROR:
 				if (!d_stream.avail_out) {
@@ -1553,9 +1523,7 @@ page_zip_decompress(
 		goto zlib_error;
 	}
 
-	err = inflate(&d_stream, Z_FINISH);
-
-	if (err != Z_STREAM_END) {
+	if (UNIV_UNLIKELY(inflate(&d_stream, Z_FINISH) != Z_STREAM_END)) {
 zlib_error:
 		inflateEnd(&d_stream);
 		goto err_exit;
@@ -1565,8 +1533,9 @@ zlib_error:
 	if the modification log is nonempty. */
 
 zlib_done:
-	err = inflateEnd(&d_stream);
-	ut_a(err == Z_OK);
+	if (UNIV_UNLIKELY(inflateEnd(&d_stream) != Z_OK)) {
+		ut_error;
+	}
 
 	ut_ad(page_zip->data + PAGE_DATA + d_stream.total_in
 					== d_stream.next_in);
@@ -1768,7 +1737,7 @@ page_zip_write_rec(
 
 	/* Write the data bytes.  Store the uncompressed bytes separately. */
 	storage = page_zip->data + page_zip->size
-			- (page_dir_get_n_heap(page) - 1)
+			- (page_dir_get_n_heap(page) - 2)
 			* PAGE_ZIP_DIR_SLOT_SIZE;
 
 	if (page_is_leaf(page)) {
@@ -1795,7 +1764,11 @@ page_zip_write_rec(
 				/* TODO: copy the BLOB pointer to
 				the appropriate place in the
 				uncompressed BLOB pointer array */
+
+				/* TODO: update page_zip->n_blobs */
 			}
+
+			/* TODO: observe trx_id_col */
 		}
 
 		/* Log the last bytes of the record.
@@ -1809,10 +1782,10 @@ page_zip_write_rec(
 
 		/* Copy roll_ptr and trx_id to the uncompressed area. */
 		memcpy(storage - (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
-				* (heap_no - 2),
+				* (heap_no - 1),
 				start,
 				DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-		ut_a(data < storage
+		ut_a(data <= storage
 				- (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
 				* (page_dir_get_n_heap(page) - 2)
 				- page_zip->n_blobs
@@ -1833,10 +1806,10 @@ page_zip_write_rec(
 
 		/* Copy the node pointer to the uncompressed area. */
 		memcpy(storage - REC_NODE_PTR_SIZE
-				* (heap_no - 2),
+				* (heap_no - 1),
 				rec + len,
 				REC_NODE_PTR_SIZE);
-		ut_a(data < storage
+		ut_a(data <= storage
 				- REC_NODE_PTR_SIZE
 				* (page_dir_get_n_heap(page) - 2)
 				- 1 /* for the modification log terminator */);
