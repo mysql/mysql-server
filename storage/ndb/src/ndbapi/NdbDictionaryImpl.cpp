@@ -3480,7 +3480,7 @@ NdbDictInterface::stopSubscribeEvent(class Ndb & ndb,
 }
 
 NdbEventImpl * 
-NdbDictionaryImpl::getEvent(const char * eventName)
+NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
 {
   DBUG_ENTER("NdbDictionaryImpl::getEvent");
   DBUG_PRINT("enter",("eventName= %s", eventName));
@@ -3499,19 +3499,10 @@ NdbDictionaryImpl::getEvent(const char * eventName)
     DBUG_RETURN(NULL);
   }
 
-  // We only have the table name with internal name
-  DBUG_PRINT("info",("table %s", ev->getTableName()));
-  Ndb_local_table_info *info;
-  info= get_local_table_info(ev->getTableName(), true);
-  if (info == 0)
-  {
-    DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
-    delete ev;
-    DBUG_RETURN(NULL);
-  }
-  if (info->m_table_impl->m_status != NdbDictionary::Object::Retrieved)
-  {
-    removeCachedObject(*info->m_table_impl);
+  if (tab == NULL) {
+    // We only have the table name with internal name
+    DBUG_PRINT("info",("table %s", ev->getTableName()));
+    Ndb_local_table_info *info;
     info= get_local_table_info(ev->getTableName(), true);
     if (info == 0)
     {
@@ -3519,8 +3510,21 @@ NdbDictionaryImpl::getEvent(const char * eventName)
       delete ev;
       DBUG_RETURN(NULL);
     }
+    if (info->m_table_impl->m_status != NdbDictionary::Object::Retrieved)
+    {
+      removeCachedObject(*info->m_table_impl);
+      info= get_local_table_info(ev->getTableName(), true);
+      if (info == 0)
+      {
+        DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
+        delete ev;
+        DBUG_RETURN(NULL);
+      }
+    }
+    tab = info->m_table_impl;
   }
-  ev->setTable(info->m_table_impl);
+
+  ev->setTable(tab);
   ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));  
   // get the columns from the attrListBitmask
   NdbTableImpl &table = *ev->m_tableImpl;
@@ -3566,6 +3570,26 @@ NdbDictionaryImpl::getEvent(const char * eventName)
     ev->m_columns.push_back(new_col);
   }
   DBUG_RETURN(ev);
+}
+
+// ev is main event and has been retrieved previously
+NdbEventImpl *
+NdbDictionaryImpl::getBlobEvent(const NdbEventImpl& ev, uint col_no)
+{
+  DBUG_ENTER("NdbDictionaryImpl::getBlobEvent");
+  DBUG_PRINT("enter", ("ev=%s col=%u", ev.m_name.c_str(), col_no));
+
+  NdbTableImpl* tab = ev.m_tableImpl;
+  assert(tab != NULL && col_no < tab->m_columns.size());
+  NdbColumnImpl* col = tab->m_columns[col_no];
+  assert(col != NULL && col->getBlobType() && col->getPartSize() != 0);
+  NdbTableImpl* blob_tab = col->m_blobTable;
+  assert(blob_tab != NULL);
+  char bename[MAX_TAB_NAME_SIZE];
+  NdbBlob::getBlobEventName(bename, &ev, col);
+
+  NdbEventImpl* blob_ev = getEvent(bename, blob_tab);
+  DBUG_RETURN(blob_ev);
 }
 
 void

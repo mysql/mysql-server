@@ -88,18 +88,55 @@ print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
 // todo handle several ndb objects
 // todo free allocated data when closing NdbEventBuffer
 
-NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
+NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &f,
 					     Ndb *theNdb, 
-					     const char* eventName) 
-  : NdbEventOperation(*this), m_facade(&N), m_magic_number(0),
-    m_ndb(theNdb), m_state(EO_ERROR), mi_type(0), m_oid(~(Uint32)0),
-    m_change_mask(0),
-#ifdef VM_TRACE
-    m_data_done_count(0), m_data_count(0),
-#endif
-    m_next(0), m_prev(0)
+					     const char* eventName) :
+  NdbEventOperation(*this),
+  m_facade(&f),
+  m_ndb(theNdb),
+  m_state(EO_ERROR)
 {
   DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl");
+
+  assert(m_ndb != NULL);
+  NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
+  assert(myDict != NULL);
+
+  const NdbDictionary::Event *myEvnt = myDict->getEvent(eventName);
+  if (!myEvnt) { m_error.code= myDict->getNdbError().code; DBUG_VOID_RETURN; }
+
+  init(myEvnt->m_impl);
+  DBUG_VOID_RETURN;
+}
+
+NdbEventOperationImpl::NdbEventOperationImpl(Ndb *theNdb,
+                                             NdbEventImpl& evnt) :
+  NdbEventOperation(*this),
+  m_facade(this),
+  m_ndb(theNdb),
+  m_state(EO_ERROR)
+{
+  DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl [evnt]");
+  init(evnt);
+  DBUG_VOID_RETURN;
+}
+
+void
+NdbEventOperationImpl::init(NdbEventImpl& evnt)
+{
+  DBUG_ENTER("NdbEventOperationImpl::init");
+
+  m_magic_number = 0;
+  mi_type = 0;
+  m_oid = ~(Uint32)0;
+  m_change_mask = 0;
+#ifdef VM_TRACE
+  m_data_done_count = 0;
+  m_data_count = 0;
+#endif
+  m_next = 0;
+  m_prev = 0;
+
   m_eventId = 0;
   theFirstPkAttrs[0] = NULL;
   theCurrentPkAttrs[0] = NULL;
@@ -123,15 +160,7 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
   // we should lookup id in Dictionary, TODO
   // also make sure we only have one listener on each event
 
-  if (!m_ndb) abort();
-
-  NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
-  if (!myDict) { m_error.code= m_ndb->getNdbError().code; DBUG_VOID_RETURN; }
-
-  const NdbDictionary::Event *myEvnt = myDict->getEvent(eventName);
-  if (!myEvnt) { m_error.code= myDict->getNdbError().code; DBUG_VOID_RETURN; }
-
-  m_eventImpl = &myEvnt->m_impl;
+  m_eventImpl = &evnt;
 
   m_eventId = m_eventImpl->m_eventId;
 
@@ -347,18 +376,27 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
 
     // create blob event op if not found
     if (tBlobOp == NULL) {
-      // to hide blob op it is linked under main op, not under m_ndb
-      NdbEventOperation* tmp =
-        m_ndb->theEventBuffer->createEventOperation(bename, m_error);
-      if (tmp == NULL)
+      // get blob event
+      NdbDictionaryImpl& dict =
+        NdbDictionaryImpl::getImpl(*m_ndb->getDictionary());
+      NdbEventImpl* blobEvnt =
+        dict.getBlobEvent(*this->m_eventImpl, tAttrInfo->m_column_no);
+      if (blobEvnt == NULL) {
+        m_error.code = dict.m_error.code;
         DBUG_RETURN(NULL);
-      tBlobOp = &tmp->m_impl;
+      }
+
+      // create blob event operation
+      tBlobOp =
+        m_ndb->theEventBuffer->createEventOperation(*blobEvnt, m_error);
+      if (tBlobOp == NULL)
+        DBUG_RETURN(NULL);
 
       // pointer to main table op
       tBlobOp->theMainOp = this;
       tBlobOp->m_mergeEvents = m_mergeEvents;
 
-      // add to list end
+      // to hide blob op it is linked under main op, not under m_ndb
       if (tLastBlopOp == NULL)
         theBlobOpList = tBlobOp;
       else
@@ -2118,6 +2156,25 @@ NdbEventBuffer::createEventOperation(const char* eventName,
 {
   DBUG_ENTER("NdbEventBuffer::createEventOperation");
   NdbEventOperation* tOp= new NdbEventOperation(m_ndb, eventName);
+  if (tOp == 0)
+  {
+    theError.code= 4000;
+    DBUG_RETURN(NULL);
+  }
+  if (tOp->getState() != NdbEventOperation::EO_CREATED) {
+    theError.code= tOp->getNdbError().code;
+    delete tOp;
+    DBUG_RETURN(NULL);
+  }
+  DBUG_RETURN(tOp);
+}
+
+NdbEventOperationImpl*
+NdbEventBuffer::createEventOperation(NdbEventImpl& evnt,
+				     NdbError &theError)
+{
+  DBUG_ENTER("NdbEventBuffer::createEventOperation [evnt]");
+  NdbEventOperationImpl* tOp= new NdbEventOperationImpl(m_ndb, evnt);
   if (tOp == 0)
   {
     theError.code= 4000;
