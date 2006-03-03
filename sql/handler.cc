@@ -3137,10 +3137,11 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   correct for the table.
 
   A row in the given table should be replicated if:
-  - Row-based replication is on
-  - It is not a temporary table
+  - Row-based replication is enabled in the current thread
   - The binlog is enabled
-  - The table shall be binlogged (binlog_*_db rules)
+  - It is not a temporary table
+  - The binary log is open
+  - The database the table resides in shall be binlogged (binlog_*_db rules)
 */
 
 #ifdef HAVE_ROW_BASED_REPLICATION
@@ -3154,6 +3155,7 @@ namespace {
       thd->current_stmt_binlog_row_based &&
       thd && (thd->options & OPTION_BIN_LOG) &&
       (table->s->tmp_table == NO_TMP_TABLE) &&
+      mysql_bin_log.is_open() &&
       binlog_filter->db_ok(table->s->db.str);
   }
 }
