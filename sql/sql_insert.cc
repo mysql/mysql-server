@@ -2508,7 +2508,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     MY_HOOKS(select_create *x) : ptr(x) { }
     virtual void do_prelock(TABLE **tables, uint count)
     {
-      if (binlog_row_based)
+      if (ptr->thd->current_stmt_binlog_row_based)
         ptr->binlog_show_create_table(tables, count);
     }
 

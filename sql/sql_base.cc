@@ -2309,7 +2309,7 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
           (search->locked_by_name && wait_for_name_lock ||
            search->locked_by_flush ||
            (search->db_stat && search->s->version < refresh_version)))
-        return 1;
+        DBUG_RETURN(1);
     }
   } while ((table=table->next));
   DBUG_RETURN(0);

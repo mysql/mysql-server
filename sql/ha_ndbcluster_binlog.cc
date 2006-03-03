@@ -2959,8 +2959,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
             const LEX_STRING& name=table->s->table_name;
             DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
             injector::transaction::table tbl(table, true);
-            // TODO enable when mats patch pushed
-            //trans.use_table(::server_id, tbl);
+            trans.use_table(::server_id, tbl);
           }
         }
         gci= pOp->getGCI();
@@ -2971,8 +2970,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
           const LEX_STRING& name=table->s->table_name;
           DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
           injector::transaction::table tbl(table, true);
-          // TODO enable when mats patch pushed
-          //trans.use_table(::server_id, tbl);
+          trans.use_table(::server_id, tbl);
 
           MY_BITMAP b;
           uint32 bitbuf;
