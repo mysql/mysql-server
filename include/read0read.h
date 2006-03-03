@@ -24,9 +24,12 @@ point in time are seen in the view. */
 read_view_t*
 read_view_open_now(
 /*===============*/
-				/* out, own: read view struct */
-	trx_t*		cr_trx,	/* in: creating transaction, or NULL */
-	mem_heap_t*	heap);	/* in: memory heap from which allocated */
+					/* out, own: read view struct */
+	dulint		cr_trx_id,	/* in: trx_id of creating
+					transaction, or (0, 0) used in
+					purge */
+	mem_heap_t*	heap);		/* in: memory heap from which
+					allocated */
 /*************************************************************************
 Makes a copy of the oldest existing read view, or opens a new. The view
 must be closed with ..._close. */
@@ -34,9 +37,12 @@ must be closed with ..._close. */
 read_view_t*
 read_view_oldest_copy_or_open_new(
 /*==============================*/
-				/* out, own: read view struct */
-	trx_t*		cr_trx,	/* in: creating transaction, or NULL */
-	mem_heap_t*	heap);	/* in: memory heap from which allocated */
+					/* out, own: read view struct */
+	dulint		cr_trx_id,	/* in: trx_id of creating
+					transaction, or (0, 0) used in
+					purge */
+	mem_heap_t*	heap);		/* in: memory heap from which
+					allocated */
 /*************************************************************************
 Closes a read view. */
 
@@ -60,7 +66,7 @@ read_view_sees_trx_id(
 /*==================*/
 				/* out: TRUE if sees */
 	read_view_t*	view,	/* in: read view */
-	dulint		trx_id);	/* in: trx id */
+	dulint		trx_id);/* in: trx id */
 /*************************************************************************
 Prints a read view to stderr. */
 
@@ -101,6 +107,10 @@ read_cursor_set_for_mysql(
 read should not see the modifications to the database. */
 
 struct read_view_struct{
+	ulint	type;		/* VIEW_NORMAL, VIEW_HIGH_GRANULARITY */
+	dulint	undo_no;	/* (0, 0) or if type is VIEW_HIGH_GRANULARITY
+				transaction undo_no when this high-granularity
+				consistent read view was created */
 	ibool	can_be_too_old;	/* TRUE if the system has had to purge old
 				versions which this read view should be able
 				to access: the read view can bump into the
@@ -121,11 +131,22 @@ struct read_view_struct{
 				serialized, except the reading transaction
 				itself; the trx ids in this array are in a
 				descending order */
-	trx_t*	creator;	/* Pointer to the creating transaction, or
-				NULL if used in purge */
+	dulint	creator_trx_id;	/* trx id of creating transaction, or
+				(0, 0) used in purge */
 	UT_LIST_NODE_T(read_view_t) view_list;
 				/* List of read views in trx_sys */
 };
+
+/* Read view types */
+#define VIEW_NORMAL		1	/* Normal consistent read view
+					where transaction does not see changes
+					made by active transactions except
+					creating transaction. */
+#define VIEW_HIGH_GRANULARITY	2	/* High-granularity read view where
+					transaction does not see changes
+					made by active transactions and own
+					changes after a point in time when this
+					read view was created. */
 
 /* Implement InnoDB framework to support consistent read views in
 cursors. This struct holds both heap where consistent read view
@@ -138,7 +159,7 @@ struct cursor_view_struct{
 				/* Consistent read view of the cursor*/
 	ulint		n_mysql_tables_in_use;
 				/* number of Innobase tables used in the
-				  processing of this cursor */
+				processing of this cursor */
 };
 
 #ifndef UNIV_NONINL
