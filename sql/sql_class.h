@@ -741,11 +741,20 @@ public:
   ulong	version;
   uint current_tablenr;
 
+  enum enum_flags {
+    BACKUPS_AVAIL = (1U << 0)     /* There are backups available */
+  };
+
+  /*
+    Flags with information about the open tables state.
+  */
+  uint state_flags;
+
   /*
     This constructor serves for creation of Open_tables_state instances
     which are used as backup storage.
   */
-  Open_tables_state() {};
+  Open_tables_state() : state_flags(0U) { }
 
   Open_tables_state(ulong version_arg);
 
@@ -759,6 +768,7 @@ public:
     open_tables= temporary_tables= handler_tables= derived_tables= 0;
     lock= locked_tables= 0;
     prelocked_mode= NON_PRELOCKED;
+    state_flags= 0U;
   }
 };
 
@@ -909,8 +919,9 @@ public:
 #ifndef MYSQL_CLIENT
 
   /*
-    Public interface to write rows to the binlog
+    Public interface to write RBR events to the binlog
   */
+  int binlog_write_table_map(TABLE *table, bool is_transactional);
   int binlog_write_row(TABLE* table, bool is_transactional,
                        MY_BITMAP const* cols, my_size_t colcnt,
                        const byte *buf);
@@ -953,6 +964,11 @@ public:
 
   int binlog_flush_pending_rows_event(bool stmt_end);
   void binlog_delete_pending_rows_event();
+
+private:
+  uint binlog_table_maps; // Number of table maps currently in the binlog
+
+public:
 
 #endif
 #endif /* HAVE_ROW_BASED_REPLICATION */
@@ -1570,7 +1586,6 @@ class select_create: public select_insert {
   HA_CREATE_INFO *create_info;
   MYSQL_LOCK *lock;
   Field **field;
-  bool create_table_written;
 public:
   select_create (TABLE_LIST *table,
 		 HA_CREATE_INFO *create_info_par,
@@ -1579,11 +1594,11 @@ public:
 		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
     :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore), create_table(table),
     extra_fields(&fields_par),keys(&keys_par), create_info(create_info_par),
-    lock(0), create_table_written(FALSE)
+    lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   
-  void binlog_show_create_table();
+  void binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
