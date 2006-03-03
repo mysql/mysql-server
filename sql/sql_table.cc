@@ -688,6 +688,12 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   {
     CHARSET_INFO *save_cs;
 
+    /*
+      Initialize length from its original value (number of characters),
+      which was set in the parser. This is necessary if we're
+      executing a prepared statement for the second time.
+    */
+    sql_field->length= sql_field->char_length;
     if (!sql_field->charset)
       sql_field->charset= create_info->default_table_charset;
     /*
@@ -872,7 +878,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	  sql_field->charset=		(dup_field->charset ?
 					 dup_field->charset :
 					 create_info->default_table_charset);
-	  sql_field->length=		dup_field->chars_length;
+	  sql_field->length=		dup_field->char_length;
           sql_field->pack_length=	dup_field->pack_length;
           sql_field->key_length=	dup_field->key_length;
 	  sql_field->create_length_to_internal_length();
@@ -1299,7 +1305,9 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       }
       if (length > file->max_key_part_length() && key->type != Key::FULLTEXT)
       {
-	length=file->max_key_part_length();
+        length= file->max_key_part_length();
+        /* Align key length to multibyte char boundary */
+        length-= length % sql_field->charset->mbmaxlen;
 	if (key->type == Key::MULTIPLE)
 	{
 	  /* not a critical problem */
@@ -2328,7 +2336,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       open_for_modify= 0;
     }
 
-    if (table->table->s->crashed && operator_func == &handler::check)
+    if (table->table->s->crashed && operator_func == &handler::ha_check)
     {
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
@@ -2338,6 +2346,21 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                       system_charset_info);
       if (protocol->write())
         goto err;
+    }
+
+    if (operator_func == &handler::ha_repair)
+    {
+      if ((table->table->file->check_old_types() == HA_ADMIN_NEEDS_ALTER) ||
+          (table->table->file->ha_check_for_upgrade(check_opt) ==
+           HA_ADMIN_NEEDS_ALTER))
+      {
+        close_thread_tables(thd);
+        tmp_disable_binlog(thd); // binlogging is done by caller if wanted
+        result_code= mysql_recreate_table(thd, table, 0);
+        reenable_binlog(thd);
+        goto send_result;
+      }
+
     }
 
     result_code = (table->table->file->*operator_func)(thd, check_opt);
@@ -2466,6 +2489,19 @@ send_result_message:
       break;
     }
 
+    case HA_ADMIN_NEEDS_UPGRADE:
+    case HA_ADMIN_NEEDS_ALTER:
+    {
+      char buf[ERRMSGSIZE];
+      uint length;
+
+      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+      length=my_snprintf(buf, ERRMSGSIZE, ER(ER_TABLE_NEEDS_UPGRADE), table->table_name);
+      protocol->store(buf, length, system_charset_info);
+      fatal_error=1;
+      break;
+    }
+
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
         char buf[ERRMSGSIZE+20];
@@ -2535,7 +2571,7 @@ bool mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
                                 test(check_opt->sql_flags & TT_USEFRM),
                                 HA_OPEN_FOR_REPAIR,
 				&prepare_for_repair,
-				&handler::repair, 0));
+				&handler::ha_repair, 0));
 }
 
 
@@ -2847,7 +2883,7 @@ bool mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"check", lock_type,
 				0, HA_OPEN_FOR_REPAIR, 0, 0,
-				&handler::check, &view_checksum));
+				&handler::ha_check, &view_checksum));
 }
 
 
@@ -3259,6 +3295,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	close_cached_table(thd, table);
 	if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias))
 	  error= -1;
+        else if (Table_triggers_list::change_table_name(thd, db, table_name,
+                                                        new_db, new_alias))
+        {
+          VOID(mysql_rename_table(old_db_type, new_db, new_alias, db,
+                                  table_name));
+          error= -1;
+        }
       }
       VOID(pthread_mutex_unlock(&LOCK_open));
     }
@@ -3807,7 +3850,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(quick_rm_table(new_db_type,new_db,tmp_name));
   }
   else if (mysql_rename_table(new_db_type,new_db,tmp_name,new_db,
-			      new_alias))
+			      new_alias) ||
+           (new_name != table_name || new_db != db) && // we also do rename
+           Table_triggers_list::change_table_name(thd, db, table_name,
+                                                  new_db, new_alias))
+       
   {						// Try to get everything back
     error=1;
     VOID(quick_rm_table(new_db_type,new_db,new_alias));
