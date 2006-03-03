@@ -388,6 +388,12 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   silent	Used by replication when internally creating a database.
 		In this case the entry should not be logged.
 
+  SIDE-EFFECTS
+   1. Report back to client that command succeeded (send_ok)
+   2. Report errors to client
+   3. Log event to binary log
+   (The 'silent' flags turns off 1 and 3.)
+
   RETURN VALUES
   0	ok
   -1	Error
@@ -421,16 +427,17 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
 
   if (my_stat(path,&stat_info,MYF(0)))
   {
-   if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
+    if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
       my_error(ER_DB_CREATE_EXISTS,MYF(0),db);
       error= -1;
       goto exit;
     }
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                        ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
+			ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
+    if (!silent)
+      send_ok(thd);
     error= 0;
-    send_ok(thd);
     goto exit;
   }
   else

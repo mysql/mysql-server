@@ -179,6 +179,11 @@ struct fil_space_struct {
 	hash_node_t	name_hash;/* hash chain the name_hash table */
 	rw_lock_t	latch;	/* latch protecting the file space storage
 				allocation */
+	UT_LIST_NODE_T(fil_space_t) unflushed_spaces;
+				/* list of spaces with at least one unflushed
+				file we have written to */
+	ibool		is_in_unflushed_spaces; /* TRUE if this space is
+				currently in the list above */
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/* list of all spaces */
 	ibuf_data_t*	ibuf_data;
@@ -211,6 +216,12 @@ struct fil_system_struct {
 					not put to this list: they are opened
 					after the startup, and kept open until
 					shutdown */
+	UT_LIST_BASE_NODE_T(fil_space_t) unflushed_spaces;
+					/* base node for the list of those
+					tablespaces whose files contain
+					unflushed writes; those spaces have
+					at least one file node where
+					modification_counter > flush_counter */
 	ulint		n_open;		/* number of files currently open */
 	ulint		max_n_open;	/* n_open is not allowed to exceed
 					this */
@@ -387,6 +398,36 @@ fil_space_get_ibuf_data(
 	return(space->ibuf_data);
 }
 
+/**************************************************************************
+Checks if all the file nodes in a space are flushed. The caller must hold
+the fil_system mutex. */
+static
+ibool
+fil_space_is_flushed(
+/*=================*/
+				/* out: TRUE if all are flushed */
+	fil_space_t*	space)	/* in: space */
+{
+	fil_node_t*	node;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(fil_system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+	node = UT_LIST_GET_FIRST(space->chain);
+
+	while (node) {
+		if (node->modification_counter > node->flush_counter) {
+
+			return(FALSE);
+		}
+
+		node = UT_LIST_GET_NEXT(chain, node);
+	}
+
+	return(TRUE);
+}
+
 /***********************************************************************
 Appends a new file to the chain of files of a space. File must be closed. */
 
@@ -517,7 +558,7 @@ fil_node_open_file(
 		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 	        	fprintf(stderr,
 "InnoDB: Error: the size of single-table tablespace file %s\n"
-"InnoDB: is only %lu %lu, should be at least %lu!", node->name,
+"InnoDB: is only %lu %lu, should be at least %lu!\n", node->name,
 			(ulong) size_high,
 			(ulong) size_low, (ulong) (4 * UNIV_PAGE_SIZE));
 			
@@ -687,8 +728,8 @@ fil_try_to_close_file_in_LRU(
 			ut_print_filename(stderr, node->name);
 			fprintf(stderr,
 				", because mod_count %ld != fl_count %ld\n",
-				(ulong) node->modification_counter,
-				(ulong) node->flush_counter);
+				(long) node->modification_counter,
+				(long) node->flush_counter);
 		}
 
 		node = UT_LIST_GET_PREV(LRU, node);
@@ -838,6 +879,16 @@ fil_node_free(
 		there are no unflushed modifications in the file */
 
 		node->modification_counter = node->flush_counter;
+
+		if (space->is_in_unflushed_spaces
+		    && fil_space_is_flushed(space)) {
+
+			space->is_in_unflushed_spaces = FALSE;
+
+			UT_LIST_REMOVE(unflushed_spaces,
+					system->unflushed_spaces,
+					space);
+		}
 
 		fil_node_close_file(node, system);
 	}
@@ -1002,6 +1053,8 @@ try_again:
 
 	HASH_INSERT(fil_space_t, name_hash, system->name_hash,
 						ut_fold_string(name), space);
+	space->is_in_unflushed_spaces = FALSE;
+
 	UT_LIST_ADD_LAST(space_list, system->space_list, space);
 				
 	mutex_exit(&(system->mutex));
@@ -1096,6 +1149,13 @@ fil_space_free(
 
 	HASH_DELETE(fil_space_t, name_hash, system->name_hash,
 					   ut_fold_string(space->name), space);
+
+	if (space->is_in_unflushed_spaces) {
+		space->is_in_unflushed_spaces = FALSE;
+
+		UT_LIST_REMOVE(unflushed_spaces, system->unflushed_spaces,
+								space);
+	}
 
 	UT_LIST_REMOVE(space_list, system->space_list, space);
 
@@ -1248,6 +1308,7 @@ fil_system_create(
 
 	system->tablespace_version = 0;
 
+	UT_LIST_INIT(system->unflushed_spaces);
 	UT_LIST_INIT(system->space_list);
 
 	return(system);
@@ -2612,12 +2673,12 @@ fil_open_single_table_tablespace(
 		fputs("!\n"
 "InnoDB: Have you moved InnoDB .ibd files around without using the\n"
 "InnoDB: commands DISCARD TABLESPACE and IMPORT TABLESPACE?\n"
-"InnoDB: It is also possible that this is a table created with\n"
-"InnoDB: CREATE TEMPORARY TABLE, and MySQL removed the .ibd file for this.\n"
+"InnoDB: It is also possible that this is a temporary table #sql...,\n"
+"InnoDB: and MySQL removed the .ibd file for this.\n"
 "InnoDB: Please refer to\n"
 "InnoDB:"
 " http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
-"InnoDB: how to resolve the issue.\n", stderr);
+"InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(filepath);
 
@@ -2657,7 +2718,7 @@ fil_open_single_table_tablespace(
 "InnoDB: Please refer to\n"
 "InnoDB:"
 " http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
-"InnoDB: how to resolve the issue.\n", (ulong) space_id, (ulong) id);
+"InnoDB: for how to resolve the issue.\n", (ulong) space_id, (ulong) id);
 
 		ret = FALSE;
 
@@ -3292,7 +3353,7 @@ fil_space_for_table_exists_in_mem(
 			ut_print_filename(stderr, name);
 			fprintf(stderr, "\n"
 "InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
-"InnoDB: but tablespace with that id does not exist. There is\n"
+"InnoDB: but a tablespace with that id does not exist. There is\n"
 "InnoDB: a tablespace of name %s and id %lu, though. Have\n"
 "InnoDB: you deleted or moved .ibd files?\n",
 				(ulong) id, namespace->name,
@@ -3303,7 +3364,7 @@ fil_space_for_table_exists_in_mem(
 "InnoDB: Please refer to\n"
 "InnoDB:"
 " http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
-"InnoDB: how to resolve the issue.\n", stderr);
+"InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(path);
 		mutex_exit(&(system->mutex));
@@ -3317,7 +3378,7 @@ fil_space_for_table_exists_in_mem(
 		ut_print_filename(stderr, name);
 		fprintf(stderr, "\n"
 "InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
-"InnoDB: but tablespace with that id has name %s.\n"
+"InnoDB: but the tablespace with that id has name %s.\n"
 "InnoDB: Have you deleted or moved .ibd files?\n", (ulong) id, space->name);
 
 		if (namespace != NULL) {
@@ -3732,6 +3793,14 @@ fil_node_complete_io(
 	if (type == OS_FILE_WRITE) {
 		system->modification_counter++;
 		node->modification_counter = system->modification_counter;
+
+		if (!node->space->is_in_unflushed_spaces) {
+
+			node->space->is_in_unflushed_spaces = TRUE;
+			UT_LIST_ADD_FIRST(unflushed_spaces,
+					system->unflushed_spaces,
+					node->space);
+		}
 	}
 	
 	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE
@@ -4145,6 +4214,16 @@ retry:
 skip_flush:
 			if (node->flush_counter < old_mod_counter) {
 				node->flush_counter = old_mod_counter;
+
+				if (space->is_in_unflushed_spaces
+				    && fil_space_is_flushed(space)) {
+
+					space->is_in_unflushed_spaces = FALSE;
+
+					UT_LIST_REMOVE(unflushed_spaces,
+						system->unflushed_spaces,
+						space);
+				}
 			}
 
 			if (space->purpose == FIL_TABLESPACE) {
@@ -4176,7 +4255,7 @@ fil_flush_file_spaces(
 
 	mutex_enter(&(system->mutex));
 
-	space = UT_LIST_GET_FIRST(system->space_list);
+	space = UT_LIST_GET_FIRST(system->unflushed_spaces);
 
 	while (space) {
 		if (space->purpose == purpose && !space->is_being_deleted) {
@@ -4192,7 +4271,7 @@ fil_flush_file_spaces(
 
 			space->n_pending_flushes--;
 		}
-		space = UT_LIST_GET_NEXT(space_list, space);
+		space = UT_LIST_GET_NEXT(unflushed_spaces, space);
 	}
 	
 	mutex_exit(&(system->mutex));

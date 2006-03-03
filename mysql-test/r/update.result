@@ -358,3 +358,22 @@ update t2,t1 set f1=3,f2=3 where f1=f2 and f1=1;
 affected rows: 3
 info: Rows matched: 3  Changed: 3  Warnings: 0
 drop table t1,t2;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, filler1 char(200), filler2 char(200), key(a));
+insert into t2 select A.a + 10*B.a, 'filler','filler' from t1 A, t1 B;
+flush status;
+update t2 set a=3 where a=2;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_next	1
+Handler_read_prev	0
+Handler_read_rnd	1
+Handler_read_rnd_next	0
+drop table t1, t2;
+create table t1(f1 int, `*f2` int);
+insert into t1 values (1,1);
+update t1 set `*f2`=1;
+drop table t1;

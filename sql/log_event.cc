@@ -949,6 +949,7 @@ Query_log_event::Query_log_event(const char* buf, int event_len,
 void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 {
   char buff[40],*end;				// Enough for SET TIMESTAMP
+  const uint set_len= sizeof("SET ONE_SHOT CHARACTER_SET_CLIENT=") - 1;
   if (!short_form)
   {
     print_header(file);
@@ -978,6 +979,17 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
   my_fwrite(file, (byte*) buff, (uint) (end-buff),MYF(MY_NABP | MY_WME));
   if (flags & LOG_EVENT_THREAD_SPECIFIC_F)
     fprintf(file,"SET @@session.pseudo_thread_id=%lu;\n",(ulong)thread_id);
+  /* charset_name command for mysql client */
+  if (!strncmp(query, "SET ONE_SHOT CHARACTER_SET_CLIENT=", set_len))
+  {
+    char * endptr;
+    int cs_number= strtoul(query + set_len, &endptr, 10);
+    DBUG_ASSERT(*endptr == ',');
+    CHARSET_INFO *cs_info= get_charset(cs_number, MYF(MY_WME));
+    if (cs_info) {
+      fprintf(file, "/*!\\C %s */;\n", cs_info->csname);
+    }
+  }
   my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
   fprintf(file, ";\n");
 }

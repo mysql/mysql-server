@@ -2840,21 +2840,26 @@ unsent_create_error:
     if ((res= multi_update_precheck(thd, tables)))
       break;
 
-    if ((res= mysql_multi_update_lock(thd, tables, &select_lex->item_list,
-				      select_lex)))
-      break;
-
+    res= mysql_multi_update_lock(thd, tables, &select_lex->item_list,
+                                 select_lex);
 #ifdef HAVE_REPLICATION
     /* Check slave filtering rules */
     if (thd->slave_thread)
       if (all_tables_not_ok(thd,tables))
       {
+        if (res!= 0)
+        {
+          res= 0;             /* don't care of prev failure  */
+          thd->clear_error(); /* filters are of highest prior */
+        }
 	/* we warn the slave SQL thread */
 	my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
 	break;
       }
 #endif /* HAVE_REPLICATION */
-
+    if (res)
+      break;
+    
     res= mysql_multi_update(thd,tables,
 			    &select_lex->item_list,
 			    &lex->value_list,
