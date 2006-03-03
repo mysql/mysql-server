@@ -41,6 +41,7 @@ combination of types */
 
 /* Table flags */
 #define DICT_TF_COMPACT			1	/* compact page format */
+#define DICT_TF_COMPRESSED		2	/* compressed compact format */
 
 /**************************************************************************
 Creates a table memory object. */
@@ -321,7 +322,6 @@ struct dict_table_struct{
 	ibool		tablespace_discarded;/* this flag is set TRUE when the
 				user calls DISCARD TABLESPACE on this table,
 				and reset to FALSE in IMPORT TABLESPACE */
-	ibool		zip;	/* flag: TRUE=compressed page format */
 	hash_node_t	name_hash; /* hash chain node */
 	hash_node_t	id_hash; /* hash chain node */
 	ulint		n_def;	/* number of columns defined so far */

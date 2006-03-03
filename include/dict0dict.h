@@ -496,6 +496,15 @@ dict_table_is_comp(
 					compact page format */
 	const dict_table_t*	table);	/* in: table */
 /************************************************************************
+Check whether the table uses the compressed compact page format. */
+UNIV_INLINE
+ibool
+dict_table_is_zip(
+/*==============*/
+					/* out: TRUE if table uses the
+					compressed compact page format */
+	const dict_table_t*	table);	/* in: table */
+/************************************************************************
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns. */
 
