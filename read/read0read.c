@@ -15,6 +15,111 @@ Created 2/16/1997 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0sys.h"
 
+/*
+-------------------------------------------------------------------------------
+FACT A: Cursor read view on a secondary index sees only committed versions
+-------
+of the records in the secondary index or those versions of rows created
+by transaction which created a cursor before cursor was created even
+if transaction which created the cursor has changed that clustered index page.
+
+PROOF: We must show that read goes always to the clustered index record
+to see that record is visible in the cursor read view. Consider e.g.
+following table and SQL-clauses:
+
+create table t1(a int not null, b int, primary key(a), index(b));
+insert into t1 values (1,1),(2,2);
+commit;
+
+Now consider that we have a cursor for a query
+
+select b from t1 where b >= 1;
+
+This query will use secondary key on the table t1. Now after the first fetch
+on this cursor if we do a update:
+
+update t1 set b = 5 where b = 2;
+
+Now second fetch of the cursor should not see record (2,5) instead it should
+see record (2,2).
+
+We also should show that if we have delete t1 where b = 5; we still
+can see record (2,2).
+
+When we access a secondary key record maximum transaction id is fetched
+from this record and this trx_id is compared to up_limit_id in the view.
+If trx_id in the record is greater or equal than up_limit_id in the view
+cluster record is accessed.  Because trx_id of the creating
+transaction is stored when this view was created to the list of
+trx_ids not seen by this read view previous version of the
+record is requested to be built. This is build using clustered record.
+If the secondary key record is delete  marked it's corresponding
+clustered record can be already be purged only if records
+trx_id < low_limit_no. Purge can't remove any record deleted by a
+transaction which was active when cursor was created. But, we still
+may have a deleted secondary key record but no clustered record. But,
+this is not a problem because this case is handled in
+row_sel_get_clust_rec() function which is called
+whenever we note that this read view does not see trx_id in the
+record. Thus, we see correct version. Q. E. D.
+
+-------------------------------------------------------------------------------
+FACT B: Cursor read view on a clustered index sees only committed versions
+-------
+of the records in the clustered index or those versions of rows created
+by transaction which created a cursor before cursor was created even
+if transaction which created the cursor has changed that clustered index page.
+
+PROOF:  Consider e.g.following table and SQL-clauses:
+
+create table t1(a int not null, b int, primary key(a));
+insert into t1 values (1),(2);
+commit;
+
+Now consider that we have a cursor for a query
+
+select a from t1 where a >= 1;
+
+This query will use clustered key on the table t1. Now after the first fetch
+on this cursor if we do a update:
+
+update t1 set a = 5 where a = 2;
+
+Now second fetch of the cursor should not see record (5) instead it should
+see record (2).
+
+We also should show that if we have execute delete t1 where a = 5; after
+the cursor is opened we still can see record (2).
+
+When accessing clustered record we always check if this read view sees
+trx_id stored to clustered record. By default we don't see any changes
+if record trx_id >= low_limit_id i.e. change was made transaction
+which started after transaction which created the cursor. If row
+was changed by the future transaction a previous version of the
+clustered record is created. Thus we see only committed version in
+this case. We see all changes made by committed transactions i.e.
+record trx_id < up_limit_id. In this case we don't need to do anything,
+we already see correct version of the record. We don't see any changes
+made by active transaction except creating transaction. We have stored
+trx_id of creating transaction to list of trx_ids when this view was
+created. Thus we can easily see if this record was changed by the
+creating transaction. Because we already have clustered record we can
+access roll_ptr. Using this roll_ptr we can fetch undo record.
+We can now check that undo_no of the undo record is less than undo_no of the
+trancaction which created a view when cursor was created. We see this
+clustered record only in case when record undo_no is less than undo_no
+in the view. If this is not true we build based on undo_rec previous
+version of the record. This record is found because purge can't remove
+records accessed by active transaction. Thus we see correct version. Q. E. D.
+-------------------------------------------------------------------------------
+FACT C: Purge does not remove any delete marked row that is visible
+-------
+to cursor view.
+
+TODO: proof this
+
+*/
+
 /*************************************************************************
 Creates a read view object. */
 UNIV_INLINE
@@ -44,9 +149,11 @@ with ..._close. This is used in purge. */
 read_view_t*
 read_view_oldest_copy_or_open_new(
 /*==============================*/
-				/* out, own: read view struct */
-	trx_t*		cr_trx,	/* in: creating transaction, or NULL */
-	mem_heap_t*	heap)	/* in: memory heap from which allocated */
+					/* out, own: read view struct */
+	dulint		cr_trx_id,	/* in: trx_id of creating
+					transaction, or (0, 0) used in purge*/
+	mem_heap_t*	heap)		/* in: memory heap from which
+					allocated */
 {
 	read_view_t*	old_view;
 	read_view_t*	view_copy;
@@ -62,12 +169,13 @@ read_view_oldest_copy_or_open_new(
 
 	if (old_view == NULL) {
 
-		return(read_view_open_now(cr_trx, heap));
+		return(read_view_open_now(cr_trx_id, heap));
 	}
 
 	n = old_view->n_trx_ids;
 
-	if (old_view->creator) {
+	if (ut_dulint_cmp(old_view->creator_trx_id,
+					ut_dulint_create(0,0)) != 0) {
 		n++;
 	} else {
 		needs_insert = FALSE;
@@ -82,12 +190,12 @@ read_view_oldest_copy_or_open_new(
 	while (i < n) {
 		if (needs_insert
 			&& (i >= old_view->n_trx_ids
-				|| ut_dulint_cmp(old_view->creator->id,
+				|| ut_dulint_cmp(old_view->creator_trx_id,
 					read_view_get_nth_trx_id(old_view, i))
 				> 0)) {
 
 			read_view_set_nth_trx_id(view_copy, i,
-						old_view->creator->id);
+						old_view->creator_trx_id);
 			needs_insert = FALSE;
 			insert_done = 1;
 		} else {
@@ -99,7 +207,7 @@ read_view_oldest_copy_or_open_new(
 		i++;
 	}
 
-	view_copy->creator = cr_trx;
+	view_copy->creator_trx_id = cr_trx_id;
 
 	view_copy->low_limit_no = old_view->low_limit_no;
 	view_copy->low_limit_id = old_view->low_limit_id;
@@ -126,9 +234,12 @@ point in time are seen in the view. */
 read_view_t*
 read_view_open_now(
 /*===============*/
-				/* out, own: read view struct */
-	trx_t*		cr_trx,	/* in: creating transaction, or NULL */
-	mem_heap_t*	heap)	/* in: memory heap from which allocated */
+					/* out, own: read view struct */
+	dulint		cr_trx_id,	/* in: trx_id of creating
+					transaction, or (0, 0) used in
+					purge */
+	mem_heap_t*	heap)		/* in: memory heap from which
+					allocated */
 {
 	read_view_t*	view;
 	trx_t*		trx;
@@ -138,7 +249,9 @@ read_view_open_now(
 #endif /* UNIV_SYNC_DEBUG */
 	view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list), heap);
 
-	view->creator = cr_trx;
+	view->creator_trx_id = cr_trx_id;
+	view->type = VIEW_NORMAL;
+	view->undo_no = ut_dulint_create(0, 0);
 
 	/* No future transactions should be visible in the view */
 
@@ -153,8 +266,9 @@ read_view_open_now(
 	/* No active transaction should be visible, except cr_trx */
 
 	while (trx) {
-		if (trx != cr_trx && (trx->conc_state == TRX_ACTIVE ||
-					trx->conc_state == TRX_PREPARED)) {
+		if (ut_dulint_cmp(trx->id, cr_trx_id) != 0
+			&& (trx->conc_state == TRX_ACTIVE
+				|| trx->conc_state == TRX_PREPARED)) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
 
@@ -183,6 +297,7 @@ read_view_open_now(
 	} else {
 		view->up_limit_id = view->low_limit_id;
 	}
+
 
 	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
 
@@ -237,6 +352,15 @@ read_view_print(
 	ulint	n_ids;
 	ulint	i;
 
+	if (view->type == VIEW_HIGH_GRANULARITY) {
+		fprintf(stderr,
+			"High-granularity read view undo_n:o %lu %lu\n",
+			(ulong) ut_dulint_get_high(view->undo_no),
+			(ulong) ut_dulint_get_low(view->undo_no));
+	} else {
+		fprintf(stderr, "Normal read view\n");
+	}
+
 	fprintf(stderr, "Read view low limit trx n:o %lu %lu\n",
 			(ulong) ut_dulint_get_high(view->low_limit_no),
 			(ulong) ut_dulint_get_low(view->low_limit_no));
@@ -261,9 +385,10 @@ read_view_print(
 }
 
 /*************************************************************************
-Create a consistent cursor view for mysql to be used in cursors. In this
-consistent read view modifications done by the creating transaction or future
-transactions are not visible. */
+Create a high-granularity consistent cursor view for mysql to be used
+in cursors. In this consistent read view modifications done by the
+creating transaction after the cursor is created or future transactions
+are not visible. */
 
 cursor_view_t*
 read_cursor_view_create_for_mysql(
@@ -298,7 +423,9 @@ read_cursor_view_create_for_mysql(
 					curview->heap);
 
 	view = curview->read_view;
-	view->creator = cr_trx;
+	view->creator_trx_id = cr_trx->id;
+	view->type = VIEW_HIGH_GRANULARITY;
+	view->undo_no = cr_trx->undo_no;
 
 	/* No future transactions should be visible in the view */
 
@@ -310,13 +437,12 @@ read_cursor_view_create_for_mysql(
 	n = 0;
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
-	/* No active transaction should be visible, except cr_trx.
-	This is quick fix for a bug 12456 and needs to be fixed when
-	semi-consistent high-granularity read view is implemented. */
+	/* No active transaction should be visible */
 
 	while (trx) {
-		if (trx != cr_trx && (trx->conc_state == TRX_ACTIVE ||
-					trx->conc_state == TRX_PREPARED)) {
+
+		if (trx->conc_state == TRX_ACTIVE
+			|| trx->conc_state == TRX_PREPARED) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
 
