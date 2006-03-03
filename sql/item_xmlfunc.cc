@@ -30,7 +30,6 @@
   2. add nodeset_to_nodeset_comparator
   3. add lacking functions:
        - name()
-       - last()
        - lang()
        - string()
        - id()
@@ -75,6 +74,7 @@ typedef struct my_xpath_flt_st
 {
   uint num;     /* absolute position in MY_XML_NODE array */
   uint pos;     /* relative position in context           */
+  uint size;    /* context size                           */
 } MY_XPATH_FLT;
 
 
@@ -123,6 +123,15 @@ public:
     MY_XPATH_FLT add;
     add.num= num;
     add.pos= pos;
+    add.size= 0;
+    return append_element(&add);
+  }
+  inline bool append_element(uint32 num, uint32 pos, uint32 size)
+  {
+    MY_XPATH_FLT add;
+    add.num= num;
+    add.pos= pos;
+    add.size= size;
     return append_element(&add);
   }
   inline MY_XPATH_FLT *element(uint i)
@@ -451,7 +460,11 @@ public:
   void fix_length_and_dec() { max_length=10; }
   longlong val_int()
   {
+    uint predicate_supplied_context_size;
     String *res= args[0]->val_nodeset(&tmp_value);
+    if (res->length() == sizeof(MY_XPATH_FLT) &&
+        (predicate_supplied_context_size= ((MY_XPATH_FLT*)res->ptr())->size))
+      return predicate_supplied_context_size;
     return res->length() / sizeof(MY_XPATH_FLT);
   }
 };
@@ -731,13 +744,15 @@ String *Item_nodeset_func_predicate::val_nodeset(String *str)
 {
   Item_nodeset_func *nodeset_func= (Item_nodeset_func*) args[0];
   Item_func *comp_func= (Item_func*)args[1];
-  uint pos= 0;
+  uint pos= 0, size;
   prepare(str);
+  size= fltend - fltbeg;
   for (MY_XPATH_FLT *flt= fltbeg; flt < fltend; flt++)
   {
     nodeset_func->context_cache.length(0);
     ((XPathFilter*)(&nodeset_func->context_cache))->append_element(flt->num,
-                                                                   flt->pos);
+                                                                   flt->pos,
+                                                                   size);
     if (comp_func->val_int())
       ((XPathFilter*)str)->append_element(flt->num, pos++);
   }
@@ -747,17 +762,19 @@ String *Item_nodeset_func_predicate::val_nodeset(String *str)
 
 String *Item_nodeset_func_elementbyindex::val_nodeset(String *nodeset)
 {
+  Item_nodeset_func *nodeset_func= (Item_nodeset_func*) args[0];
   prepare(nodeset);
-  int index= args[1]->val_int() - 1;
-  if (index >= 0)
+  MY_XPATH_FLT *flt;
+  uint pos, size= fltend - fltbeg;
+  for (pos= 0, flt= fltbeg; flt < fltend; flt++)
   {
-    MY_XPATH_FLT *flt;
-    uint pos;
-    for (pos= 0, flt= fltbeg; flt < fltend; flt++)
-    {
-      if (flt->pos == (uint) index || args[1]->is_bool_func())
-        ((XPathFilter*)nodeset)->append_element(flt->num, pos++);
-    }
+    nodeset_func->context_cache.length(0);
+    ((XPathFilter*)(&nodeset_func->context_cache))->append_element(flt->num,
+                                                                   flt->pos,
+                                                                   size);
+    int index= args[1]->val_int() - 1;
+    if (index >= 0 && (flt->pos == (uint) index || args[1]->is_bool_func()))
+      ((XPathFilter*)nodeset)->append_element(flt->num, pos++);
   }
   return nodeset;
 }
