@@ -89,7 +89,7 @@ Pgman::Pgman(Block_context& ctx) :
   m_cleanup_ptr.i = RNIL;
 
   // should be a factor larger than number of pool pages
-  m_data_buffer_pool.setSize(1);
+  m_data_buffer_pool.setSize(16);
   m_page_hashlist.setSize(512);
   
   for (Uint32 k = 0; k < Page_entry::SUBLIST_COUNT; k++)
