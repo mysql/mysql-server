@@ -1,6 +1,19 @@
 create database if not exists events_test;
 use events_test;
 #
+# Start - 16396: Events: Distant-future dates become past dates
+#
+--error 1503
+create event e_55 on schedule at 99990101000000 do drop table t;
+--error 1503
+create event e_55 on schedule every 10 hour starts 99990101000000 do drop table t;
+--error 1521
+create event e_55 on schedule every 10 minute ends 99990101000000 do drop table t;
+#
+# End  -  16396: Events: Distant-future dates become past dates
+#
+
+#
 # Start - 16407: Events: Changes in sql_mode won't be taken into account
 #
 set global event_scheduler=0;

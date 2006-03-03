@@ -1,5 +1,11 @@
 create database if not exists events_test;
 use events_test;
+create event e_55 on schedule at 99990101000000 do drop table t;
+ERROR HY000: Incorrect AT value: '99990101000000'
+create event e_55 on schedule every 10 hour starts 99990101000000 do drop table t;
+ERROR HY000: Incorrect STARTS value: '99990101000000'
+create event e_55 on schedule every 10 minute ends 99990101000000 do drop table t;
+ERROR HY000: ENDS is either invalid or before STARTS
 set global event_scheduler=0;
 "Wait a bit to settle down"
 delete from mysql.event;
