@@ -140,62 +140,65 @@ a
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	102	Query	1	205	drop database if exists mysqltest1
-master-bin.000001	205	Query	1	300	create database mysqltest1
-master-bin.000001	300	Query	1	401	use `mysqltest1`; CREATE TABLE t1 (a varchar(100))
-master-bin.000001	401	Table_map	1	446	mysqltest1.t1
-master-bin.000001	446	Write_rows	1	481	
-master-bin.000001	481	Table_map	1	526	mysqltest1.t1
-master-bin.000001	526	Write_rows	1	602	
-master-bin.000001	602	Table_map	1	647	mysqltest1.t1
-master-bin.000001	647	Write_rows	1	718	
-master-bin.000001	718	Table_map	1	763	mysqltest1.t1
-master-bin.000001	763	Write_rows	1	803	
-master-bin.000001	803	Table_map	1	848	mysqltest1.t1
-master-bin.000001	848	Write_rows	1	918	
-master-bin.000001	918	Table_map	1	963	mysqltest1.t1
-master-bin.000001	963	Write_rows	1	1003	
-master-bin.000001	1003	Table_map	1	1048	mysqltest1.t1
-master-bin.000001	1048	Write_rows	1	1082	
-master-bin.000001	1082	Query	1	1180	use `mysqltest1`; insert into t1 values("work")
-master-bin.000001	1180	User var	1	1228	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
-master-bin.000001	1228	Query	1	1328	use `mysqltest1`; insert into t1 select @'string'
-master-bin.000001	1328	Query	1	1426	use `mysqltest1`; insert into t1 values("work")
-master-bin.000001	1426	User var	1	1474	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
-master-bin.000001	1474	Query	1	1574	use `mysqltest1`; insert into t1 select @'string'
-master-bin.000001	1574	Query	1	1671	use `mysqltest1`; insert into t1 values("for")
-master-bin.000001	1671	Query	1	1773	use `mysqltest1`; insert into t1 select "yesterday"
-master-bin.000001	1773	Query	1	1871	use `mysqltest1`; insert into t1 values("work")
-master-bin.000001	1871	User var	1	1919	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
-master-bin.000001	1919	Query	1	2019	use `mysqltest1`; insert into t1 select @'string'
-master-bin.000001	2019	Query	1	2117	use `mysqltest1`; insert into t1 values("work")
-master-bin.000001	2117	User var	1	2165	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
-master-bin.000001	2165	Query	1	2265	use `mysqltest1`; insert into t1 select @'string'
-master-bin.000001	2265	Query	1	2362	use `mysqltest1`; insert into t1 values("for")
-master-bin.000001	2362	Query	1	2464	use `mysqltest1`; insert into t1 select "yesterday"
-master-bin.000001	2464	Query	1	2562	use `mysqltest1`; insert into t1 values("work")
-master-bin.000001	2562	Table_map	1	2607	mysqltest1.t1
-master-bin.000001	2607	Write_rows	1	2683	
-master-bin.000001	2683	Table_map	1	2728	mysqltest1.t1
-master-bin.000001	2728	Write_rows	1	2799	
-master-bin.000001	2799	User var	1	2847	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
-master-bin.000001	2847	Query	1	2947	use `mysqltest1`; insert into t1 select @'string'
-master-bin.000001	2947	Table_map	1	2992	mysqltest1.t1
-master-bin.000001	2992	Write_rows	1	3062	
-master-bin.000001	3062	Query	1	3164	use `mysqltest1`; insert into t1 select "yesterday"
-master-bin.000001	3164	Table_map	1	3209	mysqltest1.t1
-master-bin.000001	3209	Write_rows	1	3280	
-master-bin.000001	3280	User var	1	3328	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
-master-bin.000001	3328	Query	1	3428	use `mysqltest1`; insert into t1 select @'string'
-master-bin.000001	3428	Table_map	1	3473	mysqltest1.t1
-master-bin.000001	3473	Write_rows	1	3543	
-master-bin.000001	3543	Query	1	3645	use `mysqltest1`; insert into t1 select "yesterday"
-master-bin.000001	3645	Query	1	3857	use `mysqltest1`; create procedure foo()
+master-bin.000001	205	Table_map	1	262	table_id: 15 (mysql.proc)
+master-bin.000001	262	Write_rows	1	291	table_id: 4294967295 flags: STMT_END_F
+master-bin.000001	291	Table_map	1	349	table_id: 16 (mysql.event)
+master-bin.000001	349	Write_rows	1	378	table_id: 4294967295 flags: STMT_END_F
+master-bin.000001	378	Query	1	473	create database mysqltest1
+master-bin.000001	473	Query	1	574	use `mysqltest1`; CREATE TABLE t1 (a varchar(100))
+master-bin.000001	574	Table_map	1	619	table_id: 17 (mysqltest1.t1)
+master-bin.000001	619	Write_rows	1	648	table_id: 4294967295 flags: STMT_END_F
+master-bin.000001	648	Table_map	1	693	table_id: 17 (mysqltest1.t1)
+master-bin.000001	693	Write_rows	1	728	table_id: 17 flags: STMT_END_F
+master-bin.000001	728	Table_map	1	773	table_id: 17 (mysqltest1.t1)
+master-bin.000001	773	Write_rows	1	849	table_id: 17 flags: STMT_END_F
+master-bin.000001	849	Table_map	1	894	table_id: 17 (mysqltest1.t1)
+master-bin.000001	894	Write_rows	1	923	table_id: 4294967295 flags: STMT_END_F
+master-bin.000001	923	Table_map	1	968	table_id: 17 (mysqltest1.t1)
+master-bin.000001	968	Write_rows	1	1039	table_id: 17 flags: STMT_END_F
+master-bin.000001	1039	Table_map	1	1084	table_id: 17 (mysqltest1.t1)
+master-bin.000001	1084	Write_rows	1	1124	table_id: 17 flags: STMT_END_F
+master-bin.000001	1124	Table_map	1	1169	table_id: 17 (mysqltest1.t1)
+master-bin.000001	1169	Write_rows	1	1239	table_id: 17 flags: STMT_END_F
+master-bin.000001	1239	Table_map	1	1284	table_id: 17 (mysqltest1.t1)
+master-bin.000001	1284	Write_rows	1	1324	table_id: 17 flags: STMT_END_F
+master-bin.000001	1324	Table_map	1	1369	table_id: 17 (mysqltest1.t1)
+master-bin.000001	1369	Write_rows	1	1403	table_id: 17 flags: STMT_END_F
+master-bin.000001	1403	Query	1	1501	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	1501	User var	1	1549	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	1549	Query	1	1649	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	1649	Query	1	1747	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	1747	User var	1	1795	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	1795	Query	1	1895	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	1895	Query	1	1992	use `mysqltest1`; insert into t1 values("for")
+master-bin.000001	1992	Query	1	2094	use `mysqltest1`; insert into t1 select "yesterday"
+master-bin.000001	2094	Query	1	2192	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	2192	User var	1	2240	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	2240	Query	1	2340	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	2340	Query	1	2438	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	2438	User var	1	2486	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	2486	Query	1	2586	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	2586	Query	1	2683	use `mysqltest1`; insert into t1 values("for")
+master-bin.000001	2683	Query	1	2785	use `mysqltest1`; insert into t1 select "yesterday"
+master-bin.000001	2785	Query	1	2883	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	2883	Write_rows	1	2959	table_id: 17 flags: STMT_END_F
+master-bin.000001	2959	Write_rows	1	3030	table_id: 17 flags: STMT_END_F
+master-bin.000001	3030	User var	1	3078	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	3078	Query	1	3178	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	3178	Write_rows	1	3248	table_id: 17 flags: STMT_END_F
+master-bin.000001	3248	Query	1	3350	use `mysqltest1`; insert into t1 select "yesterday"
+master-bin.000001	3350	Write_rows	1	3421	table_id: 17 flags: STMT_END_F
+master-bin.000001	3421	User var	1	3469	@`string`=_latin1 0x656D657267656E6379 COLLATE latin1_swedish_ci
+master-bin.000001	3469	Query	1	3569	use `mysqltest1`; insert into t1 select @'string'
+master-bin.000001	3569	Write_rows	1	3639	table_id: 17 flags: STMT_END_F
+master-bin.000001	3639	Query	1	3741	use `mysqltest1`; insert into t1 select "yesterday"
+master-bin.000001	3741	Query	1	3953	use `mysqltest1`; create procedure foo()
 begin
 insert into t1 values("work");
 insert into t1 values(concat("for",UUID()));
 insert into t1 select "yesterday";
 end
-master-bin.000001	3857	Query	1	4214	use `mysqltest1`; create procedure foo2()
+master-bin.000001	3953	Query	1	4310	use `mysqltest1`; create procedure foo2()
 begin
 insert into t1 values(concat("emergency",UUID()));
 insert into t1 values("work");
@@ -204,21 +207,18 @@ set session binlog_format=row; # accepted for stored procs
 insert into t1 values("more work");
 set session binlog_format=mixed;
 end
-master-bin.000001	4214	Query	1	4442	use `mysqltest1`; create function foo3() returns bigint unsigned
+master-bin.000001	4310	Query	1	4538	use `mysqltest1`; create function foo3() returns bigint unsigned
 begin
 set session binlog_format=row; # rejected for stored funcs
 insert into t1 values("alarm");
 return 100;
 end
-master-bin.000001	4442	Query	1	4548	use `mysqltest1`; insert into t1 values("work")
-master-bin.000001	4548	Table_map	1	4593	mysqltest1.t1
-master-bin.000001	4593	Write_rows	1	4663	
-master-bin.000001	4663	Query	1	4773	use `mysqltest1`; insert into t1 select "yesterday"
-master-bin.000001	4773	Table_map	1	4818	mysqltest1.t1
-master-bin.000001	4818	Write_rows	1	4894	
-master-bin.000001	4894	Query	1	5000	use `mysqltest1`; insert into t1 values("work")
-master-bin.000001	5000	Table_map	1	5045	mysqltest1.t1
-master-bin.000001	5045	Write_rows	1	5115	
-master-bin.000001	5115	Table_map	1	5160	mysqltest1.t1
-master-bin.000001	5160	Write_rows	1	5200	
+master-bin.000001	4538	Query	1	4644	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	4644	Write_rows	1	4714	table_id: 17 flags: STMT_END_F
+master-bin.000001	4714	Query	1	4824	use `mysqltest1`; insert into t1 select "yesterday"
+master-bin.000001	4824	Write_rows	1	4900	table_id: 17 flags: STMT_END_F
+master-bin.000001	4900	Query	1	5006	use `mysqltest1`; insert into t1 values("work")
+master-bin.000001	5006	Write_rows	1	5076	table_id: 17 flags: STMT_END_F
+master-bin.000001	5076	Table_map	1	5121	table_id: 17 (mysqltest1.t1)
+master-bin.000001	5121	Write_rows	1	5161	table_id: 17 flags: STMT_END_F
 drop database mysqltest1;

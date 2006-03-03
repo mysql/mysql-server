@@ -547,7 +547,8 @@ typedef struct st_table_list
   struct st_table_list *next_name_resolution_table;
   /* Index names in a "... JOIN ... USE/IGNORE INDEX ..." clause. */
   List<String> *use_index, *ignore_index;
-  TABLE        *table;                   /* opened table */
+  TABLE        *table;                          /* opened table */
+  uint          table_id; /* table id (from binlog) for opened table */
   /*
     select_result for derived table to pass it from table creation to table
     filling procedure

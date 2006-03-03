@@ -1444,6 +1444,8 @@ static int init_relay_log_info(RELAY_LOG_INFO* rli,
   rli->abort_pos_wait=0;
   rli->log_space_limit= relay_log_space_limit;
   rli->log_space_total= 0;
+  rli->tables_to_lock= 0;
+  rli->tables_to_lock_count= 0;
 
   /*
     The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE.
@@ -2306,7 +2308,9 @@ st_relay_log_info::st_relay_log_info()
    ignore_log_space_limit(0), last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), slave_run_id(0), sql_thd(0), last_slave_errno(0),
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
-   until_log_pos(0), retried_trans(0), m_reload_flags(RELOAD_NONE_F),
+   until_log_pos(0), retried_trans(0),
+   tables_to_lock(0), tables_to_lock_count(0),
+   m_reload_flags(RELOAD_NONE_F),
    unsafe_to_stop_at(0)
 {
   group_relay_log_name[0]= event_relay_log_name[0]=
@@ -4960,6 +4964,7 @@ void st_relay_log_info::cleanup_context(THD *thd, bool error)
   }
   m_table_map.clear_tables();
   close_thread_tables(thd);
+  clear_tables_to_lock();
   unsafe_to_stop_at= 0;
 }
 #endif
