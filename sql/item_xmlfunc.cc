@@ -206,7 +206,11 @@ public:
     return str;
   }
   enum Item_result result_type () const { return STRING_RESULT; }
-  void fix_length_and_dec() { max_length=  MAX_BLOB_WIDTH; }
+  void fix_length_and_dec()
+  {
+    max_length= MAX_BLOB_WIDTH;
+    collation.collation= pxml->charset();
+  }
   const char *func_name() const { return "nodeset"; }
 };
 
@@ -2373,6 +2377,7 @@ void Item_xml_str_func::fix_length_and_dec()
   xpath.cs= collation.collation;
   xpath.debug= 0;
   xpath.pxml= &pxml;
+  pxml.set_charset(collation.collation);
 
   rc= my_xpath_parse(&xpath, xp->ptr(), xp->ptr() + xp->length());
 
