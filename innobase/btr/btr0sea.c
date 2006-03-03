@@ -191,7 +191,7 @@ static
 void
 btr_search_info_update_hash(
 /*========================*/
-	btr_search_t*	info,	/* in: search info */
+	btr_search_t*	info,	/* in/out: search info */
 	btr_cur_t*	cursor)	/* in: cursor which was just positioned */
 {
 	dict_index_t*	index;
@@ -443,7 +443,7 @@ Updates the search info. */
 void
 btr_search_info_update_slow(
 /*========================*/
-	btr_search_t*	info,	/* in: search info */
+	btr_search_t*	info,	/* in/out: search info */
 	btr_cur_t*	cursor)	/* in: cursor which was just positioned */
 {
 	buf_block_t*	block;
@@ -931,7 +931,7 @@ btr_search_drop_page_hash_index(
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-
+retry:
 	rw_lock_s_lock(&btr_search_latch);
 
 	block = buf_block_align(page);
@@ -1007,6 +1007,24 @@ next_rec:
 
 	rw_lock_x_lock(&btr_search_latch);
 
+	if (!block->is_hashed) {
+		/* Someone else has meanwhile dropped the hash index */
+
+		goto cleanup;
+	}
+
+	if (block->curr_n_fields != n_fields
+	    || block->curr_n_bytes != n_bytes) {
+
+		/* Someone else has meanwhile built a new hash index on the
+		page, with different parameters */
+
+		rw_lock_x_unlock(&btr_search_latch);
+
+		mem_free(folds);
+		goto retry;
+	}
+
 	for (i = 0; i < n_cached; i++) {
 
 		ha_remove_all_nodes_to_page(table, folds[i], page);
@@ -1014,7 +1032,22 @@ next_rec:
 
 	block->is_hashed = FALSE;
 
-	rw_lock_x_unlock(&btr_search_latch);
+cleanup:
+	if (block->n_pointers) {
+		/* Corruption */
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: Corruption of adaptive hash index. After dropping\n"
+"InnoDB: the hash index to a page of %lu %lu, still %lu hash nodes remain.\n",
+			(ulong) ut_dulint_get_high(tree_id),
+			(ulong) ut_dulint_get_low(tree_id),
+			(ulong) block->n_pointers);
+		rw_lock_x_unlock(&btr_search_latch);
+
+		btr_search_validate();
+	} else {
+		rw_lock_x_unlock(&btr_search_latch);
+	}
 
 	mem_free(folds);
 }

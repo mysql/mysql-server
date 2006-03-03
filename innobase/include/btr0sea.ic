@@ -16,7 +16,7 @@ Updates the search info. */
 void
 btr_search_info_update_slow(
 /*========================*/
-	btr_search_t*	info,	/* in: search info */
+	btr_search_t*	info,	/* in/out: search info */
 	btr_cur_t*	cursor);/* in: cursor which was just positioned */
 
 /************************************************************************

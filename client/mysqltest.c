@@ -115,8 +115,8 @@ enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
   The list of error codes to --error are stored in an internal array of
   structs. This struct can hold numeric SQL error codes or SQLSTATE codes
   as strings. The element next to the last active element in the list is
-  set to type ERR_EMPTY. When an SQL statement return an error we use
-  this list to check if this  is an expected error.
+  set to type ERR_EMPTY. When an SQL statement returns an error, we use
+  this list to check if this is an expected error.
 */
  
 enum match_err_type
@@ -320,13 +320,6 @@ const char *command_names[]=
   "connection",
   "query",
   "connect",
-  /* the difference between sleep and real_sleep is that sleep will use
-     the delay from command line (--sleep) if there is one.
-     real_sleep always uses delay from mysqltest's command line argument.
-     the logic is that sometimes delays are cpu-dependent (and --sleep
-     can be used to set this delay. real_sleep is used for cpu-independent
-     delays
-   */
   "sleep",
   "real_sleep",
   "inc",
@@ -986,8 +979,8 @@ int do_source(struct st_query *query)
     *p++= 0;
   query->last_argument= p;
   /*
-     If this file has already been sourced, dont source it again.
-     It's already available in the q_lines cache
+     If this file has already been sourced, don't source it again.
+     It's already available in the q_lines cache.
   */
   if (parser.current_line < (parser.read_lines - 1))
     return 0;
@@ -1536,11 +1529,19 @@ int do_disable_rpl_parse(struct st_query *query __attribute__((unused)))
    do_sleep()
     q	       called command
     real_sleep  use the value from opt_sleep as number of seconds to sleep
+	            if real_sleep is false
 
   DESCRIPTION
     sleep <seconds>
-    real_sleep
+    real_sleep <seconds>
 
+  The difference between the sleep and real_sleep commands is that sleep
+  uses the delay from the --sleep command-line option if there is one.
+  (If the --sleep option is not given, the sleep command uses the delay
+  specified by its argument.) The real_sleep command always uses the
+  delay specified by its argument.  The logic is that sometimes delays are
+  cpu-dependent, and --sleep can be used to set this delay.  real_sleep is
+  used for cpu-independent delays.
 */
 
 int do_sleep(struct st_query *query, my_bool real_sleep)
@@ -1549,18 +1550,19 @@ int do_sleep(struct st_query *query, my_bool real_sleep)
   char *p= query->first_argument;
   char *sleep_start, *sleep_end= query->end;
   double sleep_val;
+  char *cmd = (real_sleep ? "real_sleep" : "sleep");
 
   while (my_isspace(charset_info, *p))
     p++;
   if (!*p)
-    die("Missing argument to sleep");
+    die("Missing argument to %s", cmd);
   sleep_start= p;
   /* Check that arg starts with a digit, not handled by my_strtod */
   if (!my_isdigit(charset_info, *sleep_start))
-    die("Invalid argument to sleep \"%s\"", query->first_argument);
+    die("Invalid argument to %s \"%s\"", cmd, query->first_argument);
   sleep_val= my_strtod(sleep_start, &sleep_end, &error);
   if (error)
-    die("Invalid argument to sleep \"%s\"", query->first_argument);
+    die("Invalid argument to %s \"%s\"", cmd, query->first_argument);
 
   /* Fixed sleep time selected by --sleep option */
   if (opt_sleep && !real_sleep)
@@ -2151,7 +2153,7 @@ my_bool end_of_query(int c)
     Normally that means it will read lines until it reaches the
     "delimiter" that marks end of query. Default delimiter is ';'
     The function should be smart enough not to detect delimiter's
-    found inside strings sorrounded with '"' and '\'' escaped strings.
+    found inside strings surrounded with '"' and '\'' escaped strings.
 
     If the first line in a query starts with '#' or '-' this line is treated
     as a comment. A comment is always terminated when end of line '\n' is
@@ -2485,7 +2487,7 @@ static struct my_option my_long_options[] =
   {"result-file", 'R', "Read/Store result from/in this file.",
    (gptr*) &result_file, (gptr*) &result_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"server-arg", 'A', "Send enbedded server this as a paramenter.",
+  {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -2966,8 +2968,8 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 	  warn_res= mysql_store_result(mysql);
 	}
 	if (!warn_res)
-	  verbose_msg("Warning count is %u but didn't get any warnings\n",
-		      count);
+	  die("Warning count is %u but didn't get any warnings\n",
+	      count);
 	else
 	{
 	  dynstr_append_mem(ds, "Warnings:\n", 10);
@@ -3446,8 +3448,8 @@ static void run_query_stmt_handle_warnings(MYSQL *mysql, DYNAMIC_STRING *ds)
     {
       MYSQL_RES *warn_res= mysql_store_result(mysql);
       if (!warn_res)
-        verbose_msg("Warning count is %u but didn't get any warnings\n",
-                    count);
+        die("Warning count is %u but didn't get any warnings\n",
+	    count);
       else
       {
         dynstr_append_mem(ds, "Warnings:\n", 10);
@@ -4074,8 +4076,8 @@ int main(int argc, char **argv)
     /*
       my_stat() successful on result file. Check if we have not run a
       single query, but we do have a result file that contains data.
-      Note that we don't care, if my_stat() fails. For example for
-      non-existing or non-readable file we assume it's fine to have
+      Note that we don't care, if my_stat() fails. For example, for a
+      non-existing or non-readable file, we assume it's fine to have
       no query output from the test file, e.g. regarded as no error.
     */
     if (res_info.st_size)

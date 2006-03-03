@@ -11706,6 +11706,37 @@ static void test_bug12001()
   DIE_UNLESS(res==1);
 }
 
+static void test_bug12744()
+{
+  MYSQL_STMT *prep_stmt = NULL;
+  int rc;
+  myheader("test_bug12744");
+	
+  prep_stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(prep_stmt, "SELECT 1", 8);
+  DIE_UNLESS(rc==0);
+  
+  rc= mysql_kill(mysql, mysql_thread_id(mysql));
+  DIE_UNLESS(rc==0);
+
+  if (rc= mysql_stmt_execute(prep_stmt))
+  {
+    if (rc= mysql_stmt_reset(prep_stmt))
+      printf("OK!\n");
+    else
+    {
+      printf("Error!");
+      DIE_UNLESS(1==0);      
+    }
+  }
+  else
+  {
+    fprintf(stderr, "expected error but no error occured\n");
+    DIE_UNLESS(1==0);
+  }
+  rc= mysql_stmt_close(prep_stmt);
+}
+
 /*
   Bug#11718: query with function, join and order by returns wrong type
 */
@@ -12054,6 +12085,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug8378", test_bug8378 },
   { "test_bug9735", test_bug9735 },
   { "test_bug11183", test_bug11183 },
+  { "test_bug12744", test_bug12744 },
   { "test_bug12001", test_bug12001 },
   { "test_bug11718", test_bug11718 },
   { "test_bug12925", test_bug12925 },

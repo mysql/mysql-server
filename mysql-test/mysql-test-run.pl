@@ -184,6 +184,7 @@ our $opt_big_test= 0;            # Send --big-test to mysqltest
 
 our @opt_extra_mysqld_opt;
 
+our $opt_comment;
 our $opt_compress;
 our $opt_current_test;
 our $opt_ddd;
@@ -463,11 +464,21 @@ sub command_line_setup () {
   my $opt_slave_myport=  9308;
   $opt_ndbcluster_port=  9350;
 
+  #
+  # To make it easier for different devs to work on the same host,
+  # an environment variable can be used to control all ports. A small
+  # number is to be used, 0 - 16 or similar.
+  #
+  # Note the MASTER_MYPORT has to be set the same in all 4.x and 5.x
+  # versions of this script, else a 4.0 test run might conflict with a
+  # 5.1 test run, even if different MTR_BUILD_THREAD is used. This means
+  # all port numbers might not be used in this version of the script.
+  #
   if ( $ENV{'MTR_BUILD_THREAD'} )
   {
-    $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 40 + 8120;
-    $opt_slave_myport=    $opt_master_myport + 16;
-    $opt_ndbcluster_port= $opt_master_myport + 24;
+    $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 10 + 10000;
+    $opt_slave_myport=    $opt_master_myport + 2; # and 3 4
+    $opt_ndbcluster_port= $opt_master_myport + 5;
   }
 
   # Read the command line
@@ -526,6 +537,7 @@ sub command_line_setup () {
 
              # Misc
              'big-test'                 => \$opt_big_test,
+             'comment=s'                => \$opt_comment,
              'compress'                 => \$opt_compress,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
@@ -559,6 +571,14 @@ sub command_line_setup () {
   if ( $opt_usage )
   {
     usage("");
+  }
+
+  if ( $opt_comment )
+  {
+    print "\n";
+    print '#' x 78, "\n";
+    print "# $opt_comment\n";
+    print '#' x 78, "\n\n";
   }
 
   foreach my $arg ( @ARGV )
@@ -975,12 +995,14 @@ sub environment_setup () {
   $ENV{'USE_RUNNING_SERVER'}= $glob_use_running_server;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   $ENV{'MYSQL_TEST_WINDIR'}=  $glob_mysql_test_dir;
-  $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_WINMYSOCK'}=   $master->[0]->{'path_mysock'};
+  $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_mysock'};
   $ENV{'MASTER_MYPORT'}=      $master->[0]->{'path_myport'};
   $ENV{'MASTER_MYPORT1'}=     $master->[1]->{'path_myport'};
   $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'path_myport'};
+  $ENV{'SLAVE_MYPORT1'}=      $slave->[1]->{'path_myport'};
+  $ENV{'SLAVE_MYPORT2'}=      $slave->[2]->{'path_myport'};
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
 
@@ -994,11 +1016,15 @@ sub environment_setup () {
     }
   }
 
+  $ENV{MTR_BUILD_THREAD}= 0 unless $ENV{MTR_BUILD_THREAD}; # Set if not set
+
   # We are nice and report a bit about our settings
-  print "Using MTR_BUILD_THREAD = ",$ENV{MTR_BUILD_THREAD} || 0,"\n";
+  print "Using MTR_BUILD_THREAD = $ENV{MTR_BUILD_THREAD}\n";
   print "Using MASTER_MYPORT    = $ENV{MASTER_MYPORT}\n";
   print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
   print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
+  print "Using SLAVE_MYPORT1    = $ENV{SLAVE_MYPORT1}\n";
+  print "Using SLAVE_MYPORT2    = $ENV{SLAVE_MYPORT2}\n";
   print "Using NDBCLUSTER_PORT  = $opt_ndbcluster_port\n";
 }
 
@@ -2382,6 +2408,7 @@ Misc options
 
   verbose               Verbose output from this script
   script-debug          Debug this script itself
+  comment=STR           Write STR to the output
   compress              Use the compressed protocol between client and server
   timer                 Show test case execution time
   start-and-exit        Only initiate and start the "mysqld" servers, use the startup

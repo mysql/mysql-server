@@ -1681,7 +1681,10 @@ bool select_dumpvar::send_eof()
 
 void TMP_TABLE_PARAM::init()
 {
+  DBUG_ENTER("TMP_TABLE_PARAM::init");
+  DBUG_PRINT("enter", ("this: 0x%lx", (ulong)this));
   field_count= sum_func_count= func_count= hidden_field_count= 0;
   group_parts= group_length= group_null_parts= 0;
   quick_group= 1;
+  DBUG_VOID_RETURN;
 }
