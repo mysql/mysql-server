@@ -69,7 +69,8 @@ class TC_LOG
 
 class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
 {
-  public:
+public:
+  TC_LOG_DUMMY() {}                           /* Remove gcc warning */
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
   int log(THD *thd, my_xid xid)         { return 1; }
@@ -930,6 +931,7 @@ void xid_cache_delete(XID_STATE *xid_state);
 
 class Security_context {
 public:
+  Security_context() {}                       /* Remove gcc warning */
   /*
     host - host of the client
     user - user of the client, set to NULL until the user has been read from
@@ -1102,13 +1104,16 @@ public:
 
 #ifdef EMBEDDED_LIBRARY
   struct st_mysql  *mysql;
-  struct st_mysql_data *data;
   unsigned long	 client_stmt_id;
   unsigned long  client_param_count;
   struct st_mysql_bind *client_params;
   char *extra_data;
   ulong extra_length;
-  String query_rest;
+  struct st_mysql_data *cur_data;
+  struct st_mysql_data *first_data;
+  struct st_mysql_data **data_tail;
+  void clear_data_list();
+  struct st_mysql_data *alloc_new_dataset();
 #endif
   NET	  net;				// client connection descriptor
   MEM_ROOT warn_root;			// For warnings and errors
@@ -1659,6 +1664,11 @@ public:
   */
   virtual void cleanup();
   void set_thd(THD *thd_arg) { thd= thd_arg; }
+#ifdef EMBEDDED_LIBRARY
+  virtual void begin_dataset() {}
+#else
+  void begin_dataset() {}
+#endif
 };
 
 
@@ -1671,6 +1681,7 @@ public:
 class select_result_interceptor: public select_result
 {
 public:
+  select_result_interceptor() {}              /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_fields(List<Item> &fields, uint flag) { return FALSE; }
 };
@@ -1958,6 +1969,7 @@ class Table_ident :public Sql_alloc
 class user_var_entry
 {
  public:
+  user_var_entry() {}                         /* Remove gcc warning */
   LEX_STRING name;
   char *value;
   ulong length;

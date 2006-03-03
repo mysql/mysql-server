@@ -628,6 +628,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  UNTIL_SYM
 %token  UPDATE_SYM
 %token  UPDATE_SYM
+%token  UPGRADE_SYM
 %token  USAGE
 %token  USER
 %token  USE_FRM
@@ -1325,6 +1326,16 @@ create_function_tail:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp;
+
+            /* 
+              First check if AGGREGATE was used, in that case it's a
+              syntax error.
+            */
+            if (lex->udf.type == UDFTYPE_AGGREGATE)
+            {
+              my_error(ER_SP_NO_AGGREGATE, MYF(0));
+              YYABORT;
+            }
 
 	    if (lex->sphead)
 	    {
@@ -3836,7 +3847,8 @@ mi_check_type:
 	| FAST_SYM { Lex->check_opt.flags|= T_FAST; }
 	| MEDIUM_SYM { Lex->check_opt.flags|= T_MEDIUM; }
 	| EXTENDED_SYM { Lex->check_opt.flags|= T_EXTEND; }
-	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; };
+	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; }
+        | FOR_SYM UPGRADE_SYM { Lex->check_opt.sql_flags|= TT_FOR_UPGRADE; };
 
 optimize:
 	OPTIMIZE opt_no_write_to_binlog table_or_tables
@@ -9114,8 +9126,8 @@ view_check_option:
 **************************************************************************/
 
 trigger_tail:
-	TRIGGER_SYM remember_name sp_name trg_action_time trg_event 
-	ON table_ident FOR_SYM EACH_SYM ROW_SYM
+	TRIGGER_SYM remember_name sp_name trg_action_time trg_event
+	ON remember_name table_ident remember_end FOR_SYM EACH_SYM ROW_SYM
 	{
 	  LEX *lex= Lex;
 	  sp_head *sp;
@@ -9132,7 +9144,9 @@ trigger_tail:
 	  sp->init(lex);
 	
 	  lex->trigger_definition_begin= $2;
-	  
+          lex->ident.str= $7;
+          lex->ident.length= $9 - $7;
+
 	  sp->m_type= TYPE_ENUM_TRIGGER;
 	  lex->sphead= sp;
 	  lex->spname= $3;
@@ -9169,15 +9183,11 @@ trigger_tail:
 	    We have to do it after parsing trigger body, because some of
 	    sp_proc_stmt alternatives are not saving/restoring LEX, so
 	    lex->query_tables can be wiped out.
-	    
-	    QQ: What are other consequences of this?
-	    
-	    QQ: Could we loosen lock type in certain cases ?
 	  */
-	  if (!lex->select_lex.add_table_to_list(YYTHD, $7, 
+	  if (!lex->select_lex.add_table_to_list(YYTHD, $8,
 	                                         (LEX_STRING*) 0,
 	                                         TL_OPTION_UPDATING,
-	                                         TL_WRITE))
+                                                 TL_IGNORE))
 	    YYABORT;
 	}
 	;

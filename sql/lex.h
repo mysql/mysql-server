@@ -514,6 +514,7 @@ static SYMBOL symbols[] = {
   { "UNSIGNED",		SYM(UNSIGNED)},
   { "UNTIL",		SYM(UNTIL_SYM)},
   { "UPDATE",		SYM(UPDATE_SYM)},
+  { "UPGRADE",          SYM(UPGRADE_SYM)},
   { "USAGE",		SYM(USAGE)},
   { "USE",		SYM(USE_SYM)},
   { "USER",		SYM(USER)},
