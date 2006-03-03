@@ -38,16 +38,16 @@ load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines;
 select count(*) from t1;
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\//
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events;
 --replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\//
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events from 102 limit 1;
 --replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\//
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events from 102 limit 2;
 --replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\//
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events from 102 limit 2,1;
 flush logs;
 
@@ -88,11 +88,11 @@ eval create table t2 (n int)ENGINE=$engine_type;
 insert into t2 values (1);
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\//
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events;
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\//
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events in 'master-bin.000002';
 show binary logs;
 save_master_pos;
@@ -102,11 +102,11 @@ sync_with_master;
 show binary logs;
 --replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
 --replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\//
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events in 'slave-bin.000001' from 4;
 --replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
 --replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\//
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events in 'slave-bin.000002' from 4;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 16 # 23 # 33 #
