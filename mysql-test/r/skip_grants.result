@@ -12,3 +12,6 @@ create table t1 (a int);
 create definer='user'@'host' sql security definer view v1 as select * from t1;
 drop view v1;
 drop table t1;
+drop function if exists f1;
+Warnings:
+Note	1305	FUNCTION f1 does not exist

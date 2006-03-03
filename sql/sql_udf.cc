@@ -308,6 +308,10 @@ static void del_udf(udf_func *udf)
 void free_udf(udf_func *udf)
 {
   DBUG_ENTER("free_udf");
+  
+  if (!initialized)
+    DBUG_VOID_RETURN;
+
   rw_wrlock(&THR_LOCK_udf);
   if (!--udf->usage_count)
   {
@@ -331,6 +335,9 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
 {
   udf_func *udf=0;
   DBUG_ENTER("find_udf");
+
+  if (!initialized)
+    DBUG_RETURN(NULL);
 
   /* TODO: This should be changed to reader locks someday! */
   if (mark_used)
