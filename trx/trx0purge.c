@@ -231,8 +231,8 @@ trx_purge_sys_create(void)
 
 	purge_sys->query = trx_purge_graph_build();
 
-	purge_sys->view = read_view_oldest_copy_or_open_new(NULL,
-							purge_sys->heap);
+	purge_sys->view = read_view_oldest_copy_or_open_new(
+				ut_dulint_create(0,0), purge_sys->heap);
 }
 
 /*================ UNDO LOG HISTORY LIST =============================*/
@@ -1090,7 +1090,8 @@ trx_purge(void)
 		}
 	}
 
-	purge_sys->view = read_view_oldest_copy_or_open_new(NULL,
+	purge_sys->view = read_view_oldest_copy_or_open_new(
+						ut_dulint_create(0, 0),
 							purge_sys->heap);
 	mutex_exit(&kernel_mutex);
 

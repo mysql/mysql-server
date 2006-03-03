@@ -109,8 +109,8 @@ do {\
 \
 		while (struct3333->NAME != DATA) {\
 \
-			ut_a(struct3333);\
 			struct3333 = struct3333->NAME;\
+			ut_a(struct3333);\
 		}\
 \
 		struct3333->NAME = DATA->NAME;\
