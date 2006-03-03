@@ -254,3 +254,19 @@ select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant-or-self::*');
 # Bug #16320 XML: extractvalue() won't accept names containing underscores
 #
 select extractvalue('<A_B>A</A_B>','/A_B');
+
+#
+# Bug#16318: XML: extractvalue() incorrectly returns last() = 1
+#
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[position()]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=last()]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()-1]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=1]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=2]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=position()]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)-1]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=1]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=2]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=position()]');
