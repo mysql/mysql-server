@@ -1352,6 +1352,35 @@ int do_modify_var(struct st_query *query, const char *name,
 
 
 /*
+  Wrapper for 'system' function
+
+  NOTE
+   If mysqltest is executed from cygwin shell, the command will be
+   executed in the "windows command interpreter" cmd.exe and we prepend "sh"
+   to make it be executed by cygwins "bash". Thus commands like "rm",
+   "mkdir" as well as shellscripts can executed by "system" in Windows.
+
+*/
+
+int my_system(DYNAMIC_STRING* ds_cmd)
+{
+#ifdef __WIN__
+  /* Dump the command into a sh script file and execute with "sh" */
+  int err;
+  char tmp_sh_name[64], tmp_sh_cmd[70];
+  my_snprintf(tmp_sh_name, sizeof(tmp_sh_name), "tmp_%d.sh", getpid());
+  my_snprintf(tmp_sh_cmd, sizeof(tmp_sh_cmd), "sh %s", tmp_sh_name);
+  str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
+  err= system(tmp_sh_cmd);
+  my_delete(tmp_sh_name, MYF(0));
+  return err;
+#else
+  return system(ds_cmd->str);
+#endif
+}
+
+
+/*
 
   SYNOPSIS
   do_system
@@ -1363,37 +1392,24 @@ int do_modify_var(struct st_query *query, const char *name,
     Eval the query to expand any $variables in the command.
     Execute the command with the "system" command.
 
-  NOTE
-   If mysqltest is executed from cygwin shell, the command will be
-   executed in the "windows command interpreter" cmd.exe and we prepend "sh"
-   to make it be executed by cygwins "bash". Thus commands like "rm",
-   "mkdir" as well as shellscripts can executed by "system" in Windows.
- */
+*/
 
-int do_system(struct st_query *command)
+void do_system(struct st_query *command)
 {
   DYNAMIC_STRING ds_cmd;
+  DBUG_ENTER("do_system");
 
   if (strlen(command->first_argument) == 0)
     die("Missing arguments to system, nothing to do!");
 
   init_dynamic_string(&ds_cmd, 0, strlen(command->first_argument) + 64, 256);
 
-#ifdef __WIN__
-  /* Execute the command in "bash", ie. sh -c "<command>" */
-  dynstr_append(&ds_cmd, "sh -c \"");
-#endif
-
   /* Eval the system command, thus replacing all environment variables */
   do_eval(&ds_cmd, command->first_argument, TRUE);
 
-#ifdef __WIN__
-  dynstr_append(&ds_cmd, "\"");
-#endif
-
   DBUG_PRINT("info", ("running system command '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
-  if (system(ds_cmd.str))
+  if (my_system(&ds_cmd))
   {
     if (command->abort_on_error)
       die("system command '%s' failed", command->first_argument);
@@ -1405,7 +1421,7 @@ int do_system(struct st_query *command)
   }
 
   command->last_argument= command->end;
-  return 0;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1656,7 +1672,7 @@ int do_sleep(struct st_query *query, my_bool real_sleep)
   char *p= query->first_argument;
   char *sleep_start, *sleep_end= query->end;
   double sleep_val;
-  char *cmd = (real_sleep ? "real_sleep" : "sleep");
+  const char *cmd = (real_sleep ? "real_sleep" : "sleep");
 
   while (my_isspace(charset_info, *p))
     p++;
