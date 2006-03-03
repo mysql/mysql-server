@@ -93,10 +93,7 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_GET_TABINFOREQ, &Lgman::execGET_TABINFOREQ);
 
   m_last_lsn = 1;
-  m_logfile_group_pool.setSize(10);
   m_logfile_group_hash.setSize(10);
-  m_file_pool.setSize(10);
-  m_data_buffer_pool.setSize(10);
 }
   
 Lgman::~Lgman()
@@ -122,6 +119,9 @@ Lgman::execREAD_CONFIG_REQ(Signal* signal)
   Pool_context pc;
   pc.m_block = this;
   m_log_waiter_pool.wo_pool_init(RT_LGMAN_LOG_WAITER, pc);
+  m_file_pool.init(RT_LGMAN_FILE, pc);
+  m_logfile_group_pool.init(RT_LGMAN_FILEGROUP, pc);
+  m_data_buffer_pool.setSize(10);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -438,7 +438,7 @@ Lgman::drop_filegroup_drop_files(Signal* signal,
   ndbrequire(ptr.p->m_meta_files.isEmpty());
   ndbrequire(ptr.p->m_outstanding_fs == 0);
 
-  LocalDLFifoList<Undofile> list(m_file_pool, ptr.p->m_files);
+  Local_undofile_list list(m_file_pool, ptr.p->m_files);
   Ptr<Undofile> file_ptr;
 
   if (list.first(file_ptr))
@@ -529,7 +529,8 @@ Lgman::execCREATE_FILE_REQ(Signal* signal){
     }
     
     new (file_ptr.p) Undofile(req, ptr.i);
-    LocalDLFifoList<Undofile> tmp(m_file_pool, ptr.p->m_meta_files);
+
+    Local_undofile_list tmp(m_file_pool, ptr.p->m_meta_files);
     tmp.add(file_ptr);
     
     open_file(signal, file_ptr, req->requestInfo);
@@ -649,7 +650,7 @@ Lgman::execFSOPENREF(Signal* signal)
 	       CreateFileImplRef::SignalLength, JBB);
   }
 
-  LocalDLFifoList<Undofile> meta(m_file_pool, lg_ptr.p->m_meta_files);
+  Local_undofile_list meta(m_file_pool, lg_ptr.p->m_meta_files);
   meta.release(ptr);
 }
 
@@ -683,9 +684,9 @@ Lgman::execFSOPENCONF(Signal* signal)
 
 bool 
 Lgman::find_file_by_id(Ptr<Undofile>& ptr, 
-		       DLFifoList<Undofile>::Head& head, Uint32 id)
+		       Local_undofile_list::Head& head, Uint32 id)
 {
-  LocalDLFifoList<Undofile> list(m_file_pool, head);
+  Local_undofile_list list(m_file_pool, head);
   for(list.first(ptr); !ptr.isNull(); list.next(ptr))
     if(ptr.p->m_file_id == id)
       return true;
@@ -704,8 +705,8 @@ Lgman::create_file_commit(Signal* signal,
   if(ptr.p->m_state == Undofile::FS_CREATING)
   {
     jam();
-    LocalDLFifoList<Undofile> free(m_file_pool, lg_ptr.p->m_files);
-    LocalDLFifoList<Undofile> meta(m_file_pool, lg_ptr.p->m_meta_files);
+    Local_undofile_list free(m_file_pool, lg_ptr.p->m_files);
+    Local_undofile_list meta(m_file_pool, lg_ptr.p->m_meta_files);
     first= free.isEmpty();
     meta.remove(ptr);
     if(!first)
@@ -812,7 +813,7 @@ Lgman::execFSCLOSECONF(Signal* signal)
   {
     jam();
     {
-      LocalDLFifoList<Undofile> list(m_file_pool, lg_ptr.p->m_files);
+      Local_undofile_list list(m_file_pool, lg_ptr.p->m_files);
       list.release(ptr);
     }
     drop_filegroup_drop_files(signal, lg_ptr, senderRef, senderData);
@@ -820,7 +821,7 @@ Lgman::execFSCLOSECONF(Signal* signal)
   else
   {
     jam();
-    LocalDLFifoList<Undofile> list(m_file_pool, lg_ptr.p->m_meta_files);
+    Local_undofile_list list(m_file_pool, lg_ptr.p->m_meta_files);
     list.release(ptr);
 
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
@@ -967,7 +968,7 @@ Lgman::compute_free_file_pages(Ptr<Logfile_group> ptr)
   {
     Ptr<Undofile> file;
     m_file_pool.getPtr(file, head.m_ptr_i);
-    LocalDLFifoList<Undofile> list(m_file_pool, ptr.p->m_files);
+    Local_undofile_list list(m_file_pool, ptr.p->m_files);
     
     do 
     {
@@ -1632,7 +1633,7 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
     ptr.p->m_last_sync_req_lsn = lsn; // And logfile_group
     
     Ptr<Undofile> next = filePtr;
-    LocalDLFifoList<Undofile> files(m_file_pool, ptr.p->m_files);
+    Local_undofile_list files(m_file_pool, ptr.p->m_files);
     if(!files.next(next))
     {
       jam();
@@ -1683,7 +1684,7 @@ Lgman::execFSWRITECONF(Signal* signal)
     Uint32 tot= 0;
     Uint64 lsn = 0;
     {
-      LocalDLFifoList<Undofile> files(m_file_pool, lg_ptr.p->m_files);
+      Local_undofile_list files(m_file_pool, lg_ptr.p->m_files);
       while(cnt && ! (ptr.p->m_state & Undofile::FS_OUTSTANDING))
       {
 	Uint32 state= ptr.p->m_state;
@@ -1888,7 +1889,7 @@ Lgman::cut_log_tail(Signal* signal, Ptr<Logfile_group> ptr)
 	ptr.p->m_free_file_words += free * File_formats::UNDO_PAGE_WORDS;
 	
 	Ptr<Undofile> next = filePtr;
-	LocalDLFifoList<Undofile> files(m_file_pool, ptr.p->m_files);
+	Local_undofile_list files(m_file_pool, ptr.p->m_files);
 	while(files.next(next) && (next.p->m_state & Undofile::FS_EMPTY))
 	  ndbrequire(next.i != filePtr.i);
 	if(next.isNull())
@@ -2083,7 +2084,7 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> ptr)
   /**
    * Read first page from each undofile (1 file at a time...)
    */
-  LocalDLFifoList<Undofile> files(m_file_pool, ptr.p->m_meta_files);
+  Local_undofile_list files(m_file_pool, ptr.p->m_meta_files);
   Ptr<Undofile> file_ptr;
   files.first(file_ptr);
   
@@ -2120,7 +2121,7 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> ptr)
      *   and m_files is sorted acording to lsn
      */
     ndbrequire(!ptr.p->m_files.isEmpty());
-    LocalDLFifoList<Undofile> read_files(m_file_pool, ptr.p->m_files);
+    Local_undofile_list read_files(m_file_pool, ptr.p->m_files);
     read_files.last(file_ptr);
     
 
@@ -2181,7 +2182,7 @@ Lgman::execFSREADCONF(Signal* signal)
     if(lg_ptr.p->m_next_reply_ptr_i == ptr.i)
     {
       Uint32 tot= 0;
-      LocalDLFifoList<Undofile> files(m_file_pool, lg_ptr.p->m_files);
+      Local_undofile_list files(m_file_pool, lg_ptr.p->m_files);
       while(cnt && ! (ptr.p->m_state & Undofile::FS_OUTSTANDING))
       {
 	Uint32 state= ptr.p->m_state;
@@ -2245,8 +2246,8 @@ Lgman::execFSREADCONF(Signal* signal)
    * Insert into m_files
    */
   {
-    LocalDLFifoList<Undofile> meta(m_file_pool, lg_ptr.p->m_meta_files);  
-    LocalDLFifoList<Undofile> files(m_file_pool, lg_ptr.p->m_files);
+    Local_undofile_list meta(m_file_pool, lg_ptr.p->m_meta_files);  
+    Local_undofile_list files(m_file_pool, lg_ptr.p->m_files);
     meta.remove(ptr);
 
     Ptr<Undofile> loop;  
@@ -2370,7 +2371,7 @@ Lgman::find_log_head_in_file(Signal* signal,
   ptr.p->m_next_reply_ptr_i = file_ptr.i;
   
   {
-    LocalDLFifoList<Undofile> files(m_file_pool, ptr.p->m_files);
+    Local_undofile_list files(m_file_pool, ptr.p->m_files);
     if(tail == 1)
     {
       /**
@@ -2423,8 +2424,8 @@ Lgman::init_run_undo_log(Signal* signal)
    * Perform initial sorting of logfile groups
    */
   Ptr<Logfile_group> group;
-  DLFifoList<Logfile_group>& list= m_logfile_group_list;
-  DLFifoList<Logfile_group> tmp(m_logfile_group_pool);
+  Logfile_group_list& list= m_logfile_group_list;
+  Logfile_group_list tmp(m_logfile_group_pool);
 
   list.first(group);
   while(!group.isNull())
@@ -2632,7 +2633,7 @@ Lgman::read_undo_pages(Signal* signal, Ptr<Logfile_group> ptr,
     
     Ptr<Undofile> prev = filePtr;
     {
-      LocalDLFifoList<Undofile> files(m_file_pool, ptr.p->m_files);
+      Local_undofile_list files(m_file_pool, ptr.p->m_files);
       if(!files.prev(prev))
       {
 	jam();
@@ -2892,7 +2893,7 @@ Lgman::stop_run_undo_log(Signal* signal)
 	if(pages >= diff)
 	{
 	  pages -= diff;
-	  LocalDLFifoList<Undofile> files(m_file_pool, ptr.p->m_files);
+	  Local_undofile_list files(m_file_pool, ptr.p->m_files);
 	  if(!files.next(file))
 	    files.first(file);
 	  tail.m_idx = 1;
