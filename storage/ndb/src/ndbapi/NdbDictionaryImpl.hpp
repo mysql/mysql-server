@@ -577,7 +577,8 @@ public:
     const BaseString& internalTableName, bool do_add_blob_tables);
   NdbIndexImpl * getIndex(const char * indexName,
 			  const char * tableName);
-  NdbEventImpl * getEvent(const char * eventName);
+  NdbEventImpl * getEvent(const char * eventName, NdbTableImpl* = NULL);
+  NdbEventImpl * getBlobEvent(const NdbEventImpl& ev, uint col_no);
   NdbEventImpl * getEventImpl(const char * internalName);
 
   int createDatafile(const NdbDatafileImpl &, bool force = false);
