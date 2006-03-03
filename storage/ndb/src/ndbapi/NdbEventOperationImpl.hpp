@@ -202,9 +202,12 @@ struct Gci_container
 
 class NdbEventOperationImpl : public NdbEventOperation {
 public:
-  NdbEventOperationImpl(NdbEventOperation &N,
+  NdbEventOperationImpl(NdbEventOperation &f,
 			Ndb *theNdb, 
 			const char* eventName);
+  NdbEventOperationImpl(Ndb *theNdb, 
+			NdbEventImpl& evnt);
+  void init(NdbEventImpl& evnt);
   NdbEventOperationImpl(NdbEventOperationImpl&); //unimplemented
   NdbEventOperationImpl& operator=(const NdbEventOperationImpl&); //unimplemented
   ~NdbEventOperationImpl();
@@ -292,6 +295,8 @@ public:
   const Uint32 &m_system_nodes;
   Vector<Gci_container> m_active_gci;
   NdbEventOperation *createEventOperation(const char* eventName,
+					  NdbError &);
+  NdbEventOperationImpl *createEventOperation(NdbEventImpl& evnt,
 					  NdbError &);
   void dropEventOperation(NdbEventOperation *);
   static NdbEventOperationImpl* getEventOperationImpl(NdbEventOperation* tOp);
