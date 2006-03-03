@@ -1,3 +1,6 @@
+# This tests not performed with embedded server
+-- source include/not_embedded.inc
+
 --disable_warnings
 drop table if exists t1,v1;
 drop view if exists t1,v1;
@@ -27,3 +30,6 @@ create table t1 (a int);
 create definer='user'@'host' sql security definer view v1 as select * from t1;
 drop view v1;
 drop table t1;
+
+# BUG#17595: DROP FUNCTION IF EXISTS f1 crashes server
+drop function if exists f1;

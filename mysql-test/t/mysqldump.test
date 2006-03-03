@@ -830,11 +830,11 @@ DROP TABLE t1, t2;
 # Bugs #9136, #12917: problems with --defaults-extra-file option
 #
 
---exec echo "[mysqltest1]" > $MYSQLTEST_VARDIR/tmp/tmp.cnf
---exec echo "port=1234" >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--system echo "[mysqltest1]" > $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--system echo "port=1234" >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
 --exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1
 --exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1 mysqltest1
---exec rm $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--system rm $MYSQLTEST_VARDIR/tmp/tmp.cnf
 
 #
 # Test of fix to BUG 12597
@@ -950,15 +950,16 @@ set time_zone=default;
 #
 --disable_warnings
 DROP TABLE IF EXISTS `t1 test`;
+DROP TABLE IF EXISTS `t2 test`;
+--enable_warnings
+
 CREATE TABLE `t1 test` (
   `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
-DROP TABLE IF EXISTS `t2 test`;
 CREATE TABLE `t2 test` (
   `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
---enable_warnings
 
 DELIMITER //;
 CREATE TRIGGER `test trig` BEFORE INSERT ON `t1 test` FOR EACH ROW BEGIN
@@ -973,11 +974,10 @@ SELECT * FROM `t2 test`;
 # quoted
 --exec $MYSQL_DUMP --skip-comments --compatible=ansi --triggers test
 
---disable_warnings
 DROP TRIGGER `test trig`;
 DROP TABLE `t1 test`;
 DROP TABLE `t2 test`;
---enable_warnings
+
 #
 # BUG# 12838 mysqldump -x with views exits with error 
 #
@@ -1036,3 +1036,80 @@ insert into t1 values ('','');
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug 14871 Invalid view dump output
+#
+
+create table t1 (a int);
+insert into t1 values (289), (298), (234), (456), (789);
+create definer = CURRENT_USER view v1 as select * from t1;
+create SQL SECURITY INVOKER view v2 as select * from t1;
+create view v3 as select * from t1 with local check option;
+create algorithm=merge view v4 as select * from t1 with cascaded check option;
+create algorithm =temptable view v5 as select * from t1;
+
+# dump tables and views
+--exec $MYSQL_DUMP test > $MYSQLTEST_VARDIR/tmp/bug14871.sql
+
+# drop the db, tables and views
+drop table t1;
+drop view v1, v2, v3, v4, v5;
+
+# Reload dump
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug14871.sql
+
+# check that all tables and views could be created
+show tables;
+select * from v3 order by a;
+
+drop table t1;
+drop view v1, v2, v3, v4, v5;
+
+#
+# Bug #16878 dump of trigger
+#
+
+create table t1 (a int, created datetime);
+create table t2 (b int, created datetime);
+create trigger tr1 before insert on t1 for each row set
+new.created=now();
+delimiter |;
+create trigger tr2 after insert on t1
+for each row
+begin
+  insert into t2 set b=new.a and created=new.created;
+end|
+delimiter ;|
+
+# dump table and trigger
+--exec $MYSQL_DUMP test > $MYSQLTEST_VARDIR/tmp/bug16878.sql
+drop trigger tr1;
+drop trigger tr2;
+drop table t1, t2;
+
+# reload dump
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug16878.sql
+--replace_column 6 #
+show triggers;
+drop trigger tr1;
+drop trigger tr2;
+drop table t1, t2;
+
+
+#
+# Bug#14857 Reading dump files with single statement stored routines fails.
+# fixed by patch for bug#16878
+#
+#
+DELIMITER |;
+/*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
+return 42 */|
+/*!50003 CREATE PROCEDURE `p`()
+select 42 */|
+DELIMITER ;|
+show create function f;
+show create procedure p;
+drop function f;
+drop procedure p;
+

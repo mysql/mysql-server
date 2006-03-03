@@ -125,6 +125,7 @@ public:
   friend class select_subselect;
   friend class Item_in_optimizer;
   friend bool Item_field::fix_fields(THD *, Item **);
+  friend int  Item_field::fix_outer_field(THD *, Field **, Item **);
   friend bool Item_ref::fix_fields(THD *, Item **);
   friend void mark_select_range_as_dependent(THD*,
                                              st_select_lex*, st_select_lex*,

@@ -158,7 +158,7 @@ int mysql_update(THD *thd,
       break;
     if (!need_reopen)
       DBUG_RETURN(1);
-    close_tables_for_reopen(thd, table_list);
+    close_tables_for_reopen(thd, &table_list);
   }
 
   if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
@@ -823,7 +823,7 @@ reopen_tables:
     for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
       tbl->cleanup_items();
 
-    close_tables_for_reopen(thd, table_list);
+    close_tables_for_reopen(thd, &table_list);
     goto reopen_tables;
   }
 
@@ -1303,7 +1303,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       memcpy((char*) tmp_table->field[0]->ptr,
 	     (char*) table->file->ref, table->file->ref_length);
       /* Write row, ignoring duplicated updates to a row */
-      if (error= tmp_table->file->write_row(tmp_table->record[0]))
+      if ((error= tmp_table->file->write_row(tmp_table->record[0])))
       {
         if (error != HA_ERR_FOUND_DUPP_KEY &&
             error != HA_ERR_FOUND_DUPP_UNIQUE &&

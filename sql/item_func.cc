@@ -4881,6 +4881,7 @@ Item_func_sp::fix_length_and_dec()
   {
     decimals= result_field->decimals();
     max_length= result_field->field_length;
+    collation.set(result_field->charset());
     DBUG_VOID_RETURN;
   }
 
@@ -4891,6 +4892,7 @@ Item_func_sp::fix_length_and_dec()
   }
   decimals= field->decimals();
   max_length= field->field_length;
+  collation.set(field->charset());
   maybe_null= 1;
   delete field;
   DBUG_VOID_RETURN;

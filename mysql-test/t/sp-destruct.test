@@ -46,10 +46,13 @@ flush table mysql.proc;
 
 # Thrashing the .frm file
 --system echo 'saljdlfa' > $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
+--replace_result $MYSQLTEST_VARDIR . master-data// ''
 --error ER_NOT_FORM_FILE
 call bug14233();
+--replace_result $MYSQLTEST_VARDIR . master-data// ''
 --error ER_NOT_FORM_FILE
 create view v1 as select bug14233_f();
+--replace_result $MYSQLTEST_VARDIR . master-data// ''
 --error ER_NOT_FORM_FILE
 insert into t1 values (0);
 

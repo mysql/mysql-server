@@ -288,7 +288,27 @@ void ha_myisammrg::info(uint flag)
   table->s->db_options_in_use= info.options;
   table->s->is_view= 1;
   mean_rec_length= info.reclength;
-  block_size=0;
+  
+  /* 
+    The handler::block_size is used all over the code in index scan cost
+    calculations. It is used to get number of disk seeks required to
+    retrieve a number of index tuples.
+    If the merge table has N underlying tables, then (assuming underlying
+    tables have equal size, the only "simple" approach we can use)
+    retrieving X index records from a merge table will require N times more
+    disk seeks compared to doing the same on a MyISAM table with equal
+    number of records.
+    In the edge case (file_tables > myisam_block_size) we'll get
+    block_size==0, and index calculation code will act as if we need one
+    disk seek to retrieve one index tuple.
+
+    TODO: In 5.2 index scan cost calculation will be factored out into a
+    virtual function in class handler and we'll be able to remove this hack.
+  */
+  block_size= 0;
+  if (file->tables)
+    block_size= myisam_block_size / file->tables;
+  
   update_time=0;
 #if SIZEOF_OFF_T > 4
   ref_length=6;					// Should be big enough

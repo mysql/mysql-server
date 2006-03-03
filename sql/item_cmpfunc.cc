@@ -216,7 +216,8 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
-      Item *tmp=new Item_int_with_ref(field->val_int(), *item);
+      Item *tmp=new Item_int_with_ref(field->val_int(), *item,
+                                      test(field->flags & UNSIGNED_FLAG));
       field->table->in_use->variables.sql_mode= orig_sql_mode;
       if (tmp)
         thd->change_item_tree(item, tmp);
@@ -697,12 +698,6 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     return 1;
 
   cache->setup(args[0]);
-  /*
-    If it is preparation PS only then we do not know values of parameters =>
-    cant't get there values and do not need that values.
-  */
-  if (!thd->stmt_arena->is_stmt_prepare())
-    cache->store(args[0]);
   if (cache->cols() == 1)
   {
     if ((used_tables_cache= args[0]->used_tables()))

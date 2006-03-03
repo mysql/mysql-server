@@ -104,6 +104,7 @@ typedef int (*Read_record_func)(struct st_join_table *tab);
 Next_select_func setup_end_select_func(JOIN *join);
 
 typedef struct st_join_table {
+  st_join_table() {}                          /* Remove gcc warning */
   TABLE		*table;
   KEYUSE	*keyuse;			/* pointer to first used key */
   SQL_SELECT	*select;
@@ -174,7 +175,9 @@ typedef struct st_rollup
 
 class JOIN :public Sql_alloc
 {
- public:
+  JOIN(const JOIN &rhs);                        /* not implemented */
+  JOIN& operator=(const JOIN &rhs);             /* not implemented */
+public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    // mapping between table indexes and JOIN_TABs
   JOIN_TAB *join_tab_save; // saved join_tab for subquery reexecution
@@ -284,13 +287,6 @@ class JOIN :public Sql_alloc
     :fields_list(fields_arg)
   {
     init(thd_arg, fields_arg, select_options_arg, result_arg);
-  }
-
-  JOIN(JOIN &join)
-    :fields_list(join.fields_list)
-  {
-    init(join.thd, join.fields_list, join.select_options,
-         join.result);
   }
 
   void init(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,

@@ -368,6 +368,15 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
   DESCRIPTION
     Marks all tables in the list which were used by current substatement
     (they are marked by its query_id) as free for reuse.
+
+  NOTE
+    The reason we reset query_id is that it's not enough to just test
+    if table->query_id != thd->query_id to know if a table is in use.
+
+    For example
+    SELECT f1_that_uses_t1() FROM t1;
+    In f1_that_uses_t1() we will see one instance of t1 where query_id is
+    set to query_id of original query.
 */
 
 static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
@@ -678,11 +687,11 @@ void close_temporary_tables(THD *thd)
 */
 
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               uint offset,
+                               st_table_list *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name)
 {
-  for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
+  for (; table; table= table->*link )
   {
     if ((table->table == 0 || table->table->s->tmp_table == NO_TMP_TABLE) &&
         strcmp(table->db, db_name) == 0 &&
@@ -1982,22 +1991,11 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     statement for which table list for prelocking is already built, let
     us cache routines and try to build such table list.
 
-    NOTE: We can't delay prelocking until we will met some sub-statement
-    which really uses tables, since this will imply that we have to restore
-    its table list to be able execute it in some other context.
-    And current views implementation assumes that view tables are added to
-    global table list only once during PS preparing/first SP execution.
-    Also locking at earlier stage is probably faster altough may decrease
-    concurrency a bit.
-
     NOTE: We will mark statement as requiring prelocking only if we will
     have non empty table list. But this does not guarantee that in prelocked
     mode we will have some locked tables, because queries which use only
     derived/information schema tables and views possible. Thus "counter"
     may be still zero for prelocked statement...
-
-    NOTE: The above notes may be out of date. Please wait for psergey to
-          document new prelocked behavior.
   */
 
   if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
@@ -2083,48 +2081,23 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
 
       if (refresh)				// Refresh in progress
       {
-	/* close all 'old' tables used by this thread */
-	pthread_mutex_lock(&LOCK_open);
-	// if query_id is not reset, we will get an error
-	// re-opening a temp table
-	thd->version=refresh_version;
-	TABLE **prev_table= &thd->open_tables;
-	bool found=0;
-	for (TABLE_LIST *tmp= *start; tmp; tmp= tmp->next_global)
-	{
-	  /* Close normal (not temporary) changed tables */
-	  if (tmp->table && ! tmp->table->s->tmp_table)
-	  {
-	    if (tmp->table->s->version != refresh_version ||
-		! tmp->table->db_stat)
-	    {
-	      VOID(hash_delete(&open_cache,(byte*) tmp->table));
-	      tmp->table=0;
-	      found=1;
-	    }
-	    else
-	    {
-	      *prev_table= tmp->table;		// Relink open list
-	      prev_table= &tmp->table->next;
-	    }
-	  }
-	}
-	*prev_table=0;
-	pthread_mutex_unlock(&LOCK_open);
-	if (found)
-	  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
         /*
-          Let us prepare for recalculation of set of prelocked tables.
-          First we pretend that we have finished calculation which we
-          were doing currently. Then we restore list of tables to be
-          opened and set of used routines to the state in which they were
-          before first open_tables() call for this statement (i.e. before
-          we have calculated current set of tables for prelocking).
+          We have met name-locked or old version of table. Now we have
+          to close all tables which are not up to date. We also have to
+          throw away set of prelocked tables (and thus close tables from
+          this set that were open by now) since it possible that one of
+          tables which determined its content was changed.
+
+          Instead of implementing complex/non-robust logic mentioned
+          above we simply close and then reopen all tables.
+
+          In order to prepare for recalculation of set of prelocked tables
+          we pretend that we have finished calculation which we were doing
+          currently.
         */
         if (query_tables_last_own)
           thd->lex->mark_as_requiring_prelocking(query_tables_last_own);
-        thd->lex->chop_off_not_own_tables();
-        sp_remove_not_own_routines(thd->lex);
+        close_tables_for_reopen(thd, start);
 	goto restart;
       }
       result= -1;				// Fatal error
@@ -2335,7 +2308,7 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
       break;
     if (!need_reopen)
       DBUG_RETURN(-1);
-    close_tables_for_reopen(thd, tables);
+    close_tables_for_reopen(thd, &tables);
   }
   DBUG_RETURN(0);
 }
@@ -2372,7 +2345,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
       break;
     if (!need_reopen)
       DBUG_RETURN(-1);
-    close_tables_for_reopen(thd, tables);
+    close_tables_for_reopen(thd, &tables);
   }
   if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
@@ -2600,18 +2573,24 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
 
   SYNOPSIS
     close_tables_for_reopen()
-      thd     Thread context
-      tables  List of tables which we were trying to open and lock
+      thd    in     Thread context
+      tables in/out List of tables which we were trying to open and lock
 
 */
 
-void close_tables_for_reopen(THD *thd, TABLE_LIST *tables)
+void close_tables_for_reopen(THD *thd, TABLE_LIST **tables)
 {
+  /*
+    If table list consists only from tables from prelocking set, table list
+    for new attempt should be empty, so we have to update list's root pointer.
+  */
+  if (thd->lex->first_not_own_table() == *tables)
+    *tables= 0;
   thd->lex->chop_off_not_own_tables();
   sp_remove_not_own_routines(thd->lex);
-  for (TABLE_LIST *tmp= tables; tmp; tmp= tmp->next_global)
-    if (tmp->table && !tmp->table->s->tmp_table)
-      tmp->table= 0;
+  for (TABLE_LIST *tmp= *tables; tmp; tmp= tmp->next_global)
+    tmp->table= 0;
+  mark_used_tables_as_free_for_reuse(thd, thd->temporary_tables);
   close_thread_tables(thd);
 }
 
@@ -3624,7 +3603,6 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
 {
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
-  const char *field_name_1;
   Query_arena *arena, backup;
   bool add_columns= TRUE;
   bool result= TRUE;
@@ -3657,6 +3635,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   {
     bool is_created_1;
     bool found= FALSE;
+    const char *field_name_1;
     if (!(nj_col_1= it_1.get_or_create_column_ref(&is_created_1)))
       goto err;
     field_name_1= nj_col_1->name();
@@ -3853,7 +3832,6 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
 {
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
-  bool is_created;
   Query_arena *arena, backup;
   bool result= TRUE;
   List<Natural_join_column> *non_join_columns;

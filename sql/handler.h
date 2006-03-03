@@ -46,6 +46,9 @@
 #define HA_ADMIN_TRY_ALTER       -7
 #define HA_ADMIN_WRONG_CHECKSUM  -8
 #define HA_ADMIN_NOT_BASE_TABLE  -9
+#define HA_ADMIN_NEEDS_UPGRADE  -10
+#define HA_ADMIN_NEEDS_ALTER    -11
+#define HA_ADMIN_NEEDS_CHECK    -12
 
 /* Bits in table_flags() to show what database can do */
 
@@ -228,6 +231,7 @@ struct xid_t {
   long bqual_length;
   char data[XIDDATASIZE];  // not \0-terminated !
 
+  xid_t() {}                                /* Remove gcc warning */  
   bool eq(struct xid_t *xid)
   { return eq(xid->gtrid_length, xid->bqual_length, xid->data); }
   bool eq(long g, long b, const char *d)
@@ -460,6 +464,7 @@ typedef class Item COND;
 
 typedef struct st_ha_check_opt
 {
+  st_ha_check_opt() {}                        /* Remove gcc warning */
   ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
@@ -702,10 +707,26 @@ public:
   { return HA_ERR_WRONG_COMMAND; }
 
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
+protected:
+  /* to be implemented in handlers */
 
   /* admin commands - called from mysql_admin_table */
   virtual int check(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
+
+  /*
+     in these two methods check_opt can be modified
+     to specify CHECK option to use to call check()
+     upon the table
+  */
+  virtual int check_for_upgrade(HA_CHECK_OPT *check_opt)
+  { return 0; }
+public:
+  int ha_check_for_upgrade(HA_CHECK_OPT *check_opt);
+  int check_old_types();
+  /* to be actually called to get 'check()' functionality*/
+  int ha_check(THD *thd, HA_CHECK_OPT *check_opt);
+   
   virtual int backup(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   /*
@@ -714,8 +735,11 @@ public:
   */
   virtual int restore(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
+protected:
   virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
+public:
+  int ha_repair(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)

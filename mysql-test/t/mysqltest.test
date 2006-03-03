@@ -1,3 +1,5 @@
+# This test should work in embedded server after mysqltest is fixed
+-- source include/not_embedded.inc
 
 # ============================================================================
 #
@@ -429,7 +431,7 @@ echo ;
 # Illegal use of echo
 
 --error 1
---exec echo "echo $;" | $MYSQL_TEST 2>&1
+--exec echo "echo \$;" | $MYSQL_TEST 2>&1
 
 
 # ----------------------------------------------------------------------------
@@ -516,22 +518,22 @@ echo $novar1;
 --exec echo "let ;" | $MYSQL_TEST 2>&1
 
 --error 1
---exec echo "let $=hi;" | $MYSQL_TEST  2>&1
+--exec echo "let \$=hi;" | $MYSQL_TEST  2>&1
 
 --error 1
 --exec echo "let hi=hi;" | $MYSQL_TEST  2>&1
 
 --error 1
---exec echo "let $1 hi;" | $MYSQL_TEST  2>&1
+--exec echo "let \$1 hi;" | $MYSQL_TEST  2>&1
 
 --error 1
---exec echo "let $m hi;" | $MYSQL_TEST  2>&1
+--exec echo "let \$m hi;" | $MYSQL_TEST  2>&1
 
 --error 1
---exec echo "let $hi;" | $MYSQL_TEST  2>&1
+--exec echo "let \$hi;" | $MYSQL_TEST  2>&1
 
 --error 1
---exec echo "let $ hi;" | $MYSQL_TEST  2>&1
+--exec echo "let \$ hi;" | $MYSQL_TEST  2>&1
 
 --error 1
 --exec echo "let =hi;" | $MYSQL_TEST  2>&1
@@ -665,10 +667,14 @@ real_sleep 1;
 # Missing parameter
 --error 1
 --exec echo "sleep ;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "real_sleep ;" | $MYSQL_TEST 2>&1
 
 # Illegal parameter
 --error 1
 --exec echo "sleep abc;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "real_sleep abc;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
 # Test inc
@@ -755,6 +761,30 @@ echo test3stop
 --delimiter ;
 echo test4;
 
+
+# ----------------------------------------------------------------------------
+# Test if
+# ----------------------------------------------------------------------------
+
+let $counter=10;
+if ($counter)
+{
+  echo Counter is greater than 0, (counter=10);
+}
+if (!$counter)
+{
+  echo Counter is not 0, (counter=10);
+}
+let $counter=0;
+if ($counter)
+{
+  echo Counter is greater than 0, (counter=0);
+}
+if (!$counter)
+{
+  echo Counter is not 0, (counter=0);
+}
+
 # ----------------------------------------------------------------------------
 # Test while, { and }
 # ----------------------------------------------------------------------------
@@ -768,7 +798,12 @@ while ($i)
 # One liner
 #let $i=1;while ($i){echo $i;dec $i;}
 
-
+let $i=0;
+while (!$i)
+{
+  echo Testing while with not;
+  inc $i;
+}
 
 # Exceed max nesting level
 --error 1

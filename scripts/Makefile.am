@@ -32,6 +32,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqldumpslow \
 			mysql_explain_log \
 			mysql_tableinfo \
+			mysql_upgrade \
 			mysqld_multi \
 			mysql_create_system_tables
 
@@ -59,6 +60,7 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysql_explain_log.sh \
 			mysqld_multi.sh \
 			mysql_tableinfo.sh \
+			mysql_upgrade.sh \
 			mysqld_safe.sh \
 			mysql_create_system_tables.sh
 
@@ -87,6 +89,7 @@ CLEANFILES =		@server_scripts@ \
 			mysqldumpslow \
 			mysql_explain_log \
 			mysql_tableinfo \
+			mysql_upgrade \
 			mysqld_multi \
 			make_win_src_distribution \
 			mysql_create_system_tables

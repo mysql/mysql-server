@@ -159,6 +159,7 @@ our $path_slave_load_tmpdir;     # What is this?!
 our $path_mysqltest_log;
 our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
+our $opt_vardir_trace;           # unix formatted opt_vardir for trace files
 our $opt_tmpdir;                 # A path but set directly on cmd line
 
 our $opt_usage;
@@ -192,6 +193,7 @@ our $opt_big_test= 0;            # Send --big-test to mysqltest
 
 our @opt_extra_mysqld_opt;
 
+our $opt_comment;
 our $opt_compress;
 our $opt_ssl;
 our $opt_skip_ssl;
@@ -599,6 +601,7 @@ sub command_line_setup () {
 
              # Misc
              'big-test'                 => \$opt_big_test,
+             'comment=s'                => \$opt_comment,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
              'local'                    => \$opt_local,
@@ -632,6 +635,14 @@ sub command_line_setup () {
     usage("");
   }
 
+  if ( $opt_comment )
+  {
+    print "\n";
+    print '#' x 78, "\n";
+    print "# $opt_comment\n";
+    print '#' x 78, "\n\n";
+  }
+
   foreach my $arg ( @ARGV )
   {
     if ( $arg =~ /^--skip-/ )
@@ -656,7 +667,7 @@ sub command_line_setup () {
   {
     $opt_vardir= "$glob_mysql_test_dir/var";
   }
-
+  $opt_vardir_trace= $opt_vardir;
   # We make the path absolute, as the server will do a chdir() before usage
   unless ( $opt_vardir =~ m,^/, or
            ($glob_win32 and $opt_vardir =~ m,^[a-z]:/,i) )
@@ -954,7 +965,8 @@ sub executable_setup () {
     if ( $glob_win32 )
     {
       $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
-                                           "$glob_basedir/bin");
+					   "$glob_basedir/client_debug",
+                                           "$glob_basedir/bin",);
       $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-max",
                                            "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
@@ -1002,6 +1014,7 @@ sub executable_setup () {
       }
       $exe_mysql_client_test=
         mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
+                       "$path_client_bindir/mysql_client_test",
 		       "/usr/bin/false");
     }
     $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
@@ -1113,9 +1126,8 @@ sub environment_setup () {
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= $glob_use_running_server;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
-  $ENV{'MYSQL_TEST_WINDIR'}=  $glob_mysql_test_dir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
-  $ENV{'MASTER_WINMYSOCK'}=   $master->[0]->{'path_mysock'};
+  $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_mysock'};
   $ENV{'MASTER_MYPORT'}=      $master->[0]->{'path_myport'};
@@ -1137,16 +1149,6 @@ sub environment_setup () {
   $ENV{'IM_MYSQLD2_SOCK'}=    $instance_manager->{instances}->[1]->{path_sock};
   $ENV{'IM_MYSQLD2_PORT'}=    $instance_manager->{instances}->[1]->{port};
   $ENV{'IM_MYSQLD2_PATH_PID'}=$instance_manager->{instances}->[1]->{path_pid};
-
-  if ( $glob_cygwin_perl )
-  {
-    foreach my $key ('MYSQL_TEST_WINDIR','MASTER_MYSOCK')
-    {
-      $ENV{$key}= `cygpath -w $ENV{$key}`;
-      $ENV{$key} =~ s,\\,\\\\,g;
-      chomp($ENV{$key});
-    }
-  }
 
   $ENV{MTR_BUILD_THREAD}= 0 unless $ENV{MTR_BUILD_THREAD}; # Set if not set
 
@@ -2279,12 +2281,12 @@ sub mysqld_arguments ($$$$$$) {
     if ( $type eq 'master' )
     {
       mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/master%s.trace",
-                  $prefix, $opt_vardir, $sidx);
+                  $prefix, $opt_vardir_trace, $sidx);
     }
     if ( $type eq 'slave' )
     {
       mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/slave%s.trace",
-                  $prefix, $opt_vardir, $sidx);
+                  $prefix, $opt_vardir_trace, $sidx);
     }
   }
 
@@ -2658,7 +2660,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqlcheck .=
-      " --debug=d:t:A,$opt_vardir/log/mysqldump.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqlcheck.trace";
   }
 
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
@@ -2667,7 +2669,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqldump .=
-      " --debug=d:t:A,$opt_vardir/log/mysqldump.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqldump.trace";
   }
   my $cmdline_mysqlimport= "$exe_mysqlimport -uroot " .
                          "--port=$master->[0]->{'path_myport'} " .
@@ -2675,7 +2677,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqlimport .=
-      " --debug=d:t:A,$opt_vardir/log/mysqlimport.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqlimport.trace";
   }
 
   my $cmdline_mysqlshow= "$exe_mysqlshow -uroot " .
@@ -2684,7 +2686,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqlshow .=
-      " --debug=d:t:A,$opt_vardir/log/mysqlshow.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqlshow.trace";
   }
 
   my $cmdline_mysqlbinlog=
@@ -2695,7 +2697,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqlbinlog .=
-      " --debug=d:t:A,$opt_vardir/log/mysqlbinlog.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqlbinlog.trace";
   }
 
   my $cmdline_mysql=
@@ -2827,7 +2829,7 @@ sub run_mysqltest ($) {
 
   if ( $opt_debug )
   {
-    mtr_add_arg($args, "--debug=d:t:A,%s/log/mysqltest.trace", $opt_vardir);
+    mtr_add_arg($args, "--debug=d:t:A,%s/log/mysqltest.trace", $opt_vardir_trace);
   }
 
   if ( $opt_ssl_supported )
@@ -3005,6 +3007,7 @@ Options for coverage, profiling etc
 
 Misc options
 
+  comment=STR           Write STR to the output
   verbose               Verbose output from this script
   script-debug          Debug this script itself
   timer                 Show test case execution time
