@@ -550,8 +550,9 @@ rec_get_offsets_reverse(
 		rec_offs_base(offsets)[i + 1] = len;
 	} while (++i < rec_offs_n_fields(offsets));
 
-	*rec_offs_base(offsets) =
-		((lens - 1) - extra) | REC_OFFS_COMPACT;
+	ut_ad(lens >= extra);
+	*rec_offs_base(offsets) = (lens - extra + REC_N_NEW_EXTRA_BYTES)
+				| REC_OFFS_COMPACT;
 }
 
 /****************************************************************
