@@ -86,41 +86,43 @@ a int not null primary key,
 b text not null
 ) engine=ndb
 master-bin.000001	239	Query	1	303	BEGIN
-master-bin.000001	303	Table_map	1	65	cluster_replication.apply_status
-master-bin.000001	368	Write_rows	1	107	
-master-bin.000001	410	Table_map	1	147	test.t1
-master-bin.000001	450	Write_rows	1	818	
-master-bin.000001	1121	Write_rows	1	9853	
+master-bin.000001	303	Table_map	1	40	table_id: # (test.t1)
+master-bin.000001	343	Table_map	1	105	table_id: # (cluster_replication.apply_status)
+master-bin.000001	408	Write_rows	1	147	table_id: #
+master-bin.000001	450	Write_rows	1	818	table_id: #
+master-bin.000001	1121	Write_rows	1	9853	table_id: # flags: STMT_END_F
 master-bin.000001	10156	Query	1	10221	COMMIT
 master-bin.000001	10221	Query	1	10285	BEGIN
-master-bin.000001	10285	Table_map	1	65	cluster_replication.apply_status
-master-bin.000001	10350	Write_rows	1	107	
-master-bin.000001	10392	Query	1	10457	COMMIT
-master-bin.000001	10457	Query	1	10533	use `test`; drop table t1
-master-bin.000001	10533	Query	1	10708	use `test`; create table t1 (
+master-bin.000001	10285	Table_map	1	40	table_id: # (test.t1)
+master-bin.000001	10325	Table_map	1	105	table_id: # (cluster_replication.apply_status)
+master-bin.000001	10390	Write_rows	1	147	table_id: # flags: STMT_END_F
+master-bin.000001	10432	Query	1	10497	COMMIT
+master-bin.000001	10497	Query	1	10573	use `test`; drop table t1
+master-bin.000001	10573	Query	1	10748	use `test`; create table t1 (
 a int not null primary key,
 b text not null,
 c int,
 d longblob,
 e tinyblob
 ) engine=ndbcluster
-master-bin.000001	10708	Query	1	10772	BEGIN
-master-bin.000001	10772	Table_map	1	65	cluster_replication.apply_status
-master-bin.000001	10837	Write_rows	1	107	
-master-bin.000001	10879	Table_map	1	150	test.t1
-master-bin.000001	10922	Write_rows	1	48934	
-master-bin.000001	59706	Write_rows	1	124436	
-master-bin.000001	135208	Write_rows	1	124542	
-master-bin.000001	135314	Write_rows	1	205961	
-master-bin.000001	216733	Write_rows	1	224245	
-master-bin.000001	235017	Write_rows	1	227523	
-master-bin.000001	238295	Write_rows	1	242391	
-master-bin.000001	253163	Write_rows	1	254087	
-master-bin.000001	264859	Write_rows	1	304335	
-master-bin.000001	315107	Write_rows	1	330427	
-master-bin.000001	341199	Query	1	341264	COMMIT
-master-bin.000001	341264	Query	1	341328	BEGIN
-master-bin.000001	341328	Table_map	1	65	cluster_replication.apply_status
-master-bin.000001	341393	Write_rows	1	107	
-master-bin.000001	341435	Query	1	341500	COMMIT
-master-bin.000001	341500	Query	1	341576	use `test`; drop table t1
+master-bin.000001	10748	Query	1	10812	BEGIN
+master-bin.000001	10812	Table_map	1	43	table_id: # (test.t1)
+master-bin.000001	10855	Table_map	1	108	table_id: # (cluster_replication.apply_status)
+master-bin.000001	10920	Write_rows	1	150	table_id: #
+master-bin.000001	10962	Write_rows	1	48934	table_id: #
+master-bin.000001	59746	Write_rows	1	124436	table_id: #
+master-bin.000001	135248	Write_rows	1	124542	table_id: #
+master-bin.000001	135354	Write_rows	1	205961	table_id: #
+master-bin.000001	216773	Write_rows	1	224245	table_id: #
+master-bin.000001	235057	Write_rows	1	227523	table_id: # flags: STMT_END_F
+master-bin.000001	238335	Query	1	238400	COMMIT
+master-bin.000001	238400	Query	1	238464	BEGIN
+master-bin.000001	238464	Table_map	1	43	table_id: # (test.t1)
+master-bin.000001	238507	Table_map	1	108	table_id: # (cluster_replication.apply_status)
+master-bin.000001	238572	Write_rows	1	150	table_id: #
+master-bin.000001	238614	Write_rows	1	15018	table_id: #
+master-bin.000001	253482	Write_rows	1	26714	table_id: #
+master-bin.000001	265178	Write_rows	1	76962	table_id: #
+master-bin.000001	315426	Write_rows	1	103054	table_id: # flags: STMT_END_F
+master-bin.000001	341518	Query	1	341583	COMMIT
+master-bin.000001	341583	Query	1	341659	use `test`; drop table t1

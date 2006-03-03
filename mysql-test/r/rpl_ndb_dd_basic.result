@@ -57,10 +57,10 @@ master-bin.000001	798	Query	1	978	use `test`; CREATE TABLE t1
 tablespace ts1 storage disk
 engine ndb
 master-bin.000001	978	Query	1	1042	BEGIN
-master-bin.000001	1042	Table_map	1	65	cluster_replication.apply_status
-master-bin.000001	1107	Write_rows	1	107	
-master-bin.000001	1149	Table_map	1	148	test.t1
-master-bin.000001	1190	Write_rows	1	190	
+master-bin.000001	1042	Table_map	1	41	table_id: # (test.t1)
+master-bin.000001	1083	Table_map	1	106	table_id: # (cluster_replication.apply_status)
+master-bin.000001	1148	Write_rows	1	148	table_id: #
+master-bin.000001	1190	Write_rows	1	190	table_id: # flags: STMT_END_F
 master-bin.000001	1232	Query	1	1297	COMMIT
 drop table t1;
 alter tablespace ts1
