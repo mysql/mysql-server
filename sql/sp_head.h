@@ -125,7 +125,8 @@ public:
     HAS_SET_AUTOCOMMIT_STMT= 64,// Is set if a procedure with 'set autocommit'
     /* Is set if a procedure with COMMIT (implicit or explicit) | ROLLBACK */
     HAS_COMMIT_OR_ROLLBACK= 128,
-    LOG_SLOW_STATEMENTS= 256
+    LOG_SLOW_STATEMENTS= 256,   // Used by events
+    LOG_GENERAL_LOG= 512        // Used by events
   };
 
   /* TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */

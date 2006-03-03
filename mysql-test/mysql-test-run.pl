@@ -987,10 +987,10 @@ sub executable_setup () {
                                            # New CMake locations.
                                            "$glob_basedir/client/release",
                                            "$glob_basedir/client/debug");
-      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-max",
-                                           "$path_client_bindir/mysqld-nt",
+      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
                                            "$path_client_bindir/mysqld-debug",
+                                           "$path_client_bindir/mysqld-max",
                                            "$glob_basedir/sql/release/mysqld",
                                            "$glob_basedir/sql/debug/mysqld");
       $path_language=      mtr_path_exists("$glob_basedir/share/english/",

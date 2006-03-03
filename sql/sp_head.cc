@@ -1413,6 +1413,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
   bool save_enable_slow_log= false;
+  bool save_log_general= false;
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
@@ -1511,20 +1512,28 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
     DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
   }
-  if (thd->enable_slow_log && !(m_flags & LOG_SLOW_STATEMENTS))
+  if (!(m_flags & LOG_SLOW_STATEMENTS) && thd->enable_slow_log)
   {
     DBUG_PRINT("info", ("Disabling slow log for the execution"));
-    save_enable_slow_log= thd->enable_slow_log;
+    save_enable_slow_log= true;
     thd->enable_slow_log= FALSE;
+  }
+  if (!(m_flags & LOG_GENERAL_LOG) && !(thd->options & OPTION_LOG_OFF))
+  {
+    DBUG_PRINT("info", ("Disabling general log for the execution"));
+    save_log_general= true;
+    /* disable this bit */
+    thd->options |= OPTION_LOG_OFF;
   }
   thd->spcont= nctx;
   
   if (!err_status)
     err_status= execute(thd);
 
-  if (save_enable_slow_log && !(m_flags & LOG_SLOW_STATEMENTS))
-    thd->enable_slow_log= save_enable_slow_log;
-
+  if (save_log_general)
+    thd->options &= ~OPTION_LOG_OFF;
+  if (save_enable_slow_log)
+    thd->enable_slow_log= true;
   /*
     In the case when we weren't able to employ reuse mechanism for
     OUT/INOUT paranmeters, we should reallocate memory. This
@@ -2303,6 +2312,9 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       (the order of query cache and subst_spvars calls is irrelevant because
       queries with SP vars can't be cached)
     */
+    if (unlikely((thd->options & OPTION_LOG_OFF)==0))
+      general_log_print(thd, COM_QUERY, "%s", thd->query);
+
     if (query_cache_send_result_to_client(thd,
 					  thd->query, thd->query_length) <= 0)
     {
