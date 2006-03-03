@@ -1656,9 +1656,15 @@ longlong Item_func_sec_to_time::val_int()
 
 void Item_func_date_format::fix_length_and_dec()
 {
+  /*
+    Must use this_item() in case it's a local SP variable
+    (for ->max_length and ->str_value)
+  */
+  Item *arg1= args[1]->this_item();
+
   decimals=0;
   collation.set(&my_charset_bin);
-  if (args[1]->type() == STRING_ITEM)
+  if (arg1->type() == STRING_ITEM)
   {						// Optimize the normal case
     fixed_length=1;
 
@@ -1666,13 +1672,13 @@ void Item_func_date_format::fix_length_and_dec()
       The result is a binary string (no reason to use collation->mbmaxlen
       This is becasue make_date_time() only returns binary strings
     */
-    max_length= format_length(((Item_string*) args[1])->const_string());
+    max_length= format_length(&arg1->str_value);
   }
   else
   {
     fixed_length=0;
     /* The result is a binary string (no reason to use collation->mbmaxlen */
-    max_length=min(args[1]->max_length,MAX_BLOB_WIDTH) * 10;
+    max_length=min(arg1->max_length, MAX_BLOB_WIDTH) * 10;
     set_if_smaller(max_length,MAX_BLOB_WIDTH);
   }
   maybe_null=1;					// If wrong date
@@ -1682,6 +1688,7 @@ void Item_func_date_format::fix_length_and_dec()
 bool Item_func_date_format::eq(const Item *item, bool binary_cmp) const
 {
   Item_func_date_format *item_func;
+
   if (item->type() != FUNC_ITEM)
     return 0;
   if (func_name() != ((Item_func*) item)->func_name())

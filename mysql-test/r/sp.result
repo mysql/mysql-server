@@ -4778,4 +4778,23 @@ Handler
 Inner
 drop procedure bug15011|
 drop table t3|
+drop procedure if exists bug17476|
+create table t3 ( d date )|
+insert into t3 values
+( '2005-01-01' ), ( '2005-01-02' ), ( '2005-01-03' ),
+( '2005-01-04' ), ( '2005-02-01' ), ( '2005-02-02' )|
+create procedure bug17476(pDateFormat varchar(10))
+select date_format(t3.d, pDateFormat), count(*)
+from t3 
+group by date_format(t3.d, pDateFormat)|
+call bug17476('%Y-%m')|
+date_format(t3.d, pDateFormat)	count(*)
+2005-01	4
+2005-02	2
+call bug17476('%Y-%m')|
+date_format(t3.d, pDateFormat)	count(*)
+2005-01	4
+2005-02	2
+drop table t3|
+drop procedure bug17476|
 drop table t1,t2;
