@@ -150,6 +150,7 @@ Event_timed::init_execute_at(THD *thd, Item *expr)
 {
   my_bool not_used;
   TIME ltime;
+  my_time_t t;
 
   TIME time_tmp;
   DBUG_ENTER("Event_timed::init_execute_at");
@@ -173,12 +174,18 @@ Event_timed::init_execute_at(THD *thd, Item *expr)
       TIME_to_ulonglong_datetime(&time_tmp))
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
-
   /*
     This may result in a 1970-01-01 date if ltime is > 2037-xx-xx.
     CONVERT_TZ has similar problem.
+    mysql_priv.h currently lists 
+      #define TIMESTAMP_MAX_YEAR 2038 (see TIME_to_timestamp())
   */
-  my_tz_UTC->gmt_sec_to_TIME(&ltime, TIME_to_timestamp(thd,&ltime, &not_used));
+  my_tz_UTC->gmt_sec_to_TIME(&ltime,t=TIME_to_timestamp(thd,&ltime,&not_used));
+  if (!t)
+  {
+    DBUG_PRINT("error", ("Execute AT after year 2037"));
+    DBUG_RETURN(ER_WRONG_VALUE);
+  }
 
   execute_at_null= FALSE;
   execute_at= ltime;
@@ -301,6 +308,7 @@ Event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
   RETURNS
     0                  OK
     EVEX_PARSE_ERROR   fix_fields failed
+    EVEX_BAD_PARAMS    starts before now
 */
 
 int
@@ -308,6 +316,7 @@ Event_timed::init_starts(THD *thd, Item *new_starts)
 {
   my_bool not_used;
   TIME ltime, time_tmp;
+  my_time_t t;
 
   DBUG_ENTER("Event_timed::init_starts");
 
@@ -328,10 +337,17 @@ Event_timed::init_starts(THD *thd, Item *new_starts)
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
   /*
-    This may result in a 1970-01-01 date if ltime is > 2037-xx-xx
-    CONVERT_TZ has similar problem
+    This may result in a 1970-01-01 date if ltime is > 2037-xx-xx.
+    CONVERT_TZ has similar problem.
+    mysql_priv.h currently lists 
+      #define TIMESTAMP_MAX_YEAR 2038 (see TIME_to_timestamp())
   */
-  my_tz_UTC->gmt_sec_to_TIME(&ltime, TIME_to_timestamp(thd, &ltime, &not_used));
+  my_tz_UTC->gmt_sec_to_TIME(&ltime,t=TIME_to_timestamp(thd, &ltime, &not_used));
+  if (!t)
+  {
+    DBUG_PRINT("error", ("STARTS after year 2037"));
+    DBUG_RETURN(EVEX_BAD_PARAMS);
+  }
 
   starts= ltime;
   starts_null= FALSE;
@@ -358,6 +374,7 @@ Event_timed::init_starts(THD *thd, Item *new_starts)
   RETURNS
     0                  OK
     EVEX_PARSE_ERROR   fix_fields failed
+    ER_WRONG_VALUE     starts distant date (after year 2037)
     EVEX_BAD_PARAMS    ENDS before STARTS
 */
 
@@ -366,6 +383,7 @@ Event_timed::init_ends(THD *thd, Item *new_ends)
 {
   TIME ltime, ltime_now;
   my_bool not_used;
+  my_time_t t;
 
   DBUG_ENTER("Event_timed::init_ends");
 
@@ -377,11 +395,18 @@ Event_timed::init_ends(THD *thd, Item *new_ends)
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
   /*
-    This may result in a 1970-01-01 date if ltime is > 2037-xx-xx ?
-    CONVERT_TZ has similar problem ?
+    This may result in a 1970-01-01 date if ltime is > 2037-xx-xx.
+    CONVERT_TZ has similar problem.
+    mysql_priv.h currently lists 
+      #define TIMESTAMP_MAX_YEAR 2038 (see TIME_to_timestamp())
   */
   DBUG_PRINT("info", ("get the UTC time"));
-  my_tz_UTC->gmt_sec_to_TIME(&ltime, TIME_to_timestamp(thd, &ltime, &not_used));
+  my_tz_UTC->gmt_sec_to_TIME(&ltime,t=TIME_to_timestamp(thd, &ltime, &not_used));
+  if (!t)
+  {
+    DBUG_PRINT("error", ("ENDS after year 2037"));
+    DBUG_RETURN(EVEX_BAD_PARAMS);
+  }
 
   /* Check whether ends is after starts */
   DBUG_PRINT("info", ("ENDS after STARTS?"));
