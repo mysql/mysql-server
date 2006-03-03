@@ -523,6 +523,12 @@ select t1.b from v1a;
 -- error 1054
 select * from v1a join v1b on t1.b = t2.b;
 
+#
+# Bug #17523 natural join and information_schema
+#
+select * from information_schema.statistics join information_schema.columns
+              using(table_name,column_name) where table_name='user';
+
 drop table t1;
 drop table t2;
 drop table t3;
