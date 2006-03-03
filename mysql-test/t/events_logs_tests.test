@@ -1,6 +1,31 @@
 create database if not exists events_test;
 use events_test;
+--echo "We use procedure here because its statements won't be logged into the general log"
+--echo "If we had used normal select that are logged in different ways depending on whether"
+--echo "the test suite is run in normal mode or with --ps-protocol"
+delimiter |;
+CREATE procedure select_general_log()
+BEGIN
+  SELECT user_host, argument FROM mysql.general_log WHERE argument LIKE '%alabala%';
+END|
+delimiter ;|
+--echo "Check General Query Log"
+SET GLOBAL event_scheduler=0;
+create event log_general on schedule every 1 minute do SELect 'alabala', sleep(3) from dual;
+TRUNCATE mysql.general_log;
+--echo "1 row, the current statement!"
+call select_general_log();
+SET GLOBAL event_scheduler=1;
+--echo "Wait the scheduler to start"
+--echo "Should see 3 rows - the 'SELect' is in the middle. The other two are selects from general_log"
+--sleep 2
+call select_general_log();
+DROP PROCEDURE select_general_log;
+DROP EVENT log_general;
+SET GLOBAL event_scheduler=0;
+--sleep 1
 
+--echo "Check slow query log"
 --disable_query_log
 DELIMITER |;
 CREATE FUNCTION get_value()
