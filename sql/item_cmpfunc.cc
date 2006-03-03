@@ -698,12 +698,6 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     return 1;
 
   cache->setup(args[0]);
-  /*
-    If it is preparation PS only then we do not know values of parameters =>
-    cant't get there values and do not need that values.
-  */
-  if (!thd->stmt_arena->is_stmt_prepare())
-    cache->store(args[0]);
   if (cache->cols() == 1)
   {
     if ((used_tables_cache= args[0]->used_tables()))
