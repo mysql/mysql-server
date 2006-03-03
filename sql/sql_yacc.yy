@@ -2080,10 +2080,10 @@ sp_proc_stmt:
 	      uint ip= sp->instructions();
 	      uint n;
 
-	      n= ctx->diff_handlers(lab->ctx);
+	      n= ctx->diff_handlers(lab->ctx, TRUE);  /* Exclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_hpop(ip++, ctx, n));
-	      n= ctx->diff_cursors(lab->ctx);
+	      n= ctx->diff_cursors(lab->ctx, TRUE);  /* Exclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_cpop(ip++, ctx, n));
 	      i= new sp_instr_jump(ip, ctx);
@@ -2109,10 +2109,10 @@ sp_proc_stmt:
 	      uint ip= sp->instructions();
 	      uint n;
 
-	      n= ctx->diff_handlers(lab->ctx);
+	      n= ctx->diff_handlers(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_hpop(ip++, ctx, n));
-	      n= ctx->diff_cursors(lab->ctx);
+	      n= ctx->diff_cursors(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_cpop(ip++, ctx, n));
 	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
