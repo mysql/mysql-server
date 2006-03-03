@@ -379,6 +379,16 @@ static void do_cut_string_complex(Copy_field *copy)
 
 
 
+static void do_expand_binary(Copy_field *copy)
+{
+  CHARSET_INFO *cs= copy->from_field->charset();
+  memcpy(copy->to_ptr,copy->from_ptr,copy->from_length);
+  cs->cset->fill(cs, copy->to_ptr+copy->from_length,
+                     copy->to_length-copy->from_length, '\0');
+}
+
+
+
 static void do_expand_string(Copy_field *copy)
 {
   CHARSET_INFO *cs= copy->from_field->charset();
@@ -583,7 +593,13 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 	return (from->charset()->mbmaxlen == 1 ?
                 do_cut_string : do_cut_string_complex);
       else if (to_length > from_length)
-	return do_expand_string;
+      {
+        if ((to->flags & BINARY_FLAG) != 0)
+          return do_expand_binary;
+        else
+          return do_expand_string;
+      }
+
     }
     else if (to->real_type() != from->real_type() ||
 	     to_length != from_length ||
