@@ -2772,7 +2772,7 @@ ibuf_insert(
 	ut_ad(dtuple_check_typed(entry));
 
 	ut_a(!(index->type & DICT_CLUSTERED));
-	ut_a(!index->table->zip);
+	ut_a(!dict_table_is_zip(index->table));
 
 	if (rec_get_converted_size(index, entry)
 		>= page_get_free_space_of_empty(
