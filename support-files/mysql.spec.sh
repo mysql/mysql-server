@@ -204,24 +204,24 @@ the standard MySQL package.
 
 Please note that this is a dynamically linked binary!
 
-%package embedded
-Requires: %{name}-devel
-Summary: MySQL - embedded library
-Group: Applications/Databases
-Obsoletes: mysql-embedded
-
-%description embedded
-This package contains the MySQL server as an embedded library.
-
-The embedded MySQL server library makes it possible to run a
-full-featured MySQL server inside the client application.
-The main benefits are increased speed and more simple management
-for embedded applications.
-
-The API is identical for the embedded MySQL version and the
-client/server version.
-
-%{see_base}
+#%package embedded
+#Requires: %{name}-devel
+#Summary: MySQL - embedded library
+#Group: Applications/Databases
+#Obsoletes: mysql-embedded
+#
+#%description embedded
+#This package contains the MySQL server as an embedded library.
+#
+#The embedded MySQL server library makes it possible to run a
+#full-featured MySQL server inside the client application.
+#The main benefits are increased speed and more simple management
+#for embedded applications.
+#
+#The API is identical for the embedded MySQL version and the
+#client/server version.
+#
+#%{see_base}
 
 %prep
 %setup -n mysql-%{mysql_version}
@@ -712,14 +712,18 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld-max
 %attr(644, root, root) %{_libdir}/mysql/mysqld-max.sym
 
-%files embedded
-%defattr(-, root, root, 0755)
+#%files embedded
+#%defattr(-, root, root, 0755)
 # %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
 # The spec file changelog only includes changes made to the spec file
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Mar 03 2006 Kent Boortz <kent@mysql.com>
+
+- Don't output an embedded package as it is empty
+
 * Fri Jan 10 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Use "-i" on "make test-force";
