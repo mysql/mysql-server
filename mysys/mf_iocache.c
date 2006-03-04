@@ -397,11 +397,31 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
 
 
 /*
-  Read buffered. Returns 1 if can't read requested characters
-  This function is only called from the my_b_read() macro
-  when there isn't enough characters in the buffer to
-  satisfy the request.
-  Returns 0 we succeeded in reading all data
+  Read buffered.
+
+  SYNOPSIS
+    _my_b_read()
+      info                      IO_CACHE pointer
+      Buffer                    Buffer to retrieve count bytes from file
+      Count                     Number of bytes to read into Buffer
+
+  NOTE
+    This function is only called from the my_b_read() macro when there
+    isn't enough characters in the buffer to satisfy the request.
+
+  WARNING
+
+    When changing this function, be careful with handling file offsets
+    (end-of_file, pos_in_file). Do not cast them to possibly smaller
+    types than my_off_t unless you can be sure that their value fits.
+    Same applies to differences of file offsets.
+
+    When changing this function, check _my_b_read_r(). It might need the
+    same change.
+
+  RETURN
+    0      we succeeded in reading all data
+    1      Error: can't read requested characters
 */
 
 int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
@@ -429,7 +449,7 @@ int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
   if (Count >= (uint) (IO_SIZE+(IO_SIZE-diff_length)))
   {					/* Fill first intern buffer */
     uint read_length;
-    if (info->end_of_file == pos_in_file)
+    if (info->end_of_file <= pos_in_file)
     {					/* End of file */
       info->error=(int) left_length;
       DBUG_RETURN(1);
@@ -544,43 +564,70 @@ static void unlock_io_cache(IO_CACHE *info)
 
 /*
   Read from IO_CACHE when it is shared between several threads.
-  It works as follows: when a thread tries to read from a file
-  (that is, after using all the data from the (shared) buffer),
-  it just hangs on lock_io_cache(), wating for other threads.
-  When the very last thread attempts a read, lock_io_cache()
-  returns 1, the thread does actual IO and unlock_io_cache(),
-  which signals all the waiting threads that data is in the buffer.
+
+  SYNOPSIS
+    _my_b_read_r()
+      info                      IO_CACHE pointer
+      Buffer                    Buffer to retrieve count bytes from file
+      Count                     Number of bytes to read into Buffer
+
+  NOTE
+    This function is only called from the my_b_read() macro when there
+    isn't enough characters in the buffer to satisfy the request.
+
+  IMPLEMENTATION
+
+    It works as follows: when a thread tries to read from a file (that
+    is, after using all the data from the (shared) buffer), it just
+    hangs on lock_io_cache(), wating for other threads. When the very
+    last thread attempts a read, lock_io_cache() returns 1, the thread
+    does actual IO and unlock_io_cache(), which signals all the waiting
+    threads that data is in the buffer.
+
+  WARNING
+
+    When changing this function, be careful with handling file offsets
+    (end-of_file, pos_in_file). Do not cast them to possibly smaller
+    types than my_off_t unless you can be sure that their value fits.
+    Same applies to differences of file offsets. (Bug #11527)
+
+    When changing this function, check _my_b_read(). It might need the
+    same change.
+
+  RETURN
+    0      we succeeded in reading all data
+    1      Error: can't read requested characters
 */
 
 int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
 {
   my_off_t pos_in_file;
-  uint length,diff_length,read_len;
+  uint length, diff_length, left_length;
   DBUG_ENTER("_my_b_read_r");
 
-  if ((read_len=(uint) (info->read_end-info->read_pos)))
+  if ((left_length= (uint) (info->read_end - info->read_pos)))
   {
-    DBUG_ASSERT(Count >= read_len);	/* User is not using my_b_read() */
-    memcpy(Buffer,info->read_pos, (size_t) (read_len));
-    Buffer+=read_len;
-    Count-=read_len;
+    DBUG_ASSERT(Count >= left_length);	/* User is not using my_b_read() */
+    memcpy(Buffer, info->read_pos, (size_t) (left_length));
+    Buffer+= left_length;
+    Count-= left_length;
   }
   while (Count)
   {
     int cnt, len;
 
-    pos_in_file= info->pos_in_file + (uint)(info->read_end - info->buffer);
+    pos_in_file= info->pos_in_file + (info->read_end - info->buffer);
     diff_length= (uint) (pos_in_file & (IO_SIZE-1));
     length=IO_ROUND_UP(Count+diff_length)-diff_length;
     length=(length <= info->read_length) ?
                    length + IO_ROUND_DN(info->read_length - length) :
                    length - IO_ROUND_UP(length - info->read_length) ;
     if (info->type != READ_FIFO &&
-	(length > (uint) (info->end_of_file - pos_in_file)))
+	(length > (info->end_of_file - pos_in_file)))
       length= (uint) (info->end_of_file - pos_in_file);
     if (length == 0)
     {
-      info->error=(int) read_len;
+      info->error= (int) left_length;
       DBUG_RETURN(1);
     }
     if (lock_io_cache(info, pos_in_file))
@@ -605,15 +652,15 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
     info->seek_not_done=0;
     if (len <= 0)
     {
-      info->error=(int) read_len;
+      info->error= (int) left_length;
       DBUG_RETURN(1);
     }
-    cnt=((uint) len > Count) ? (int) Count : len;
-    memcpy(Buffer,info->read_pos, (size_t)cnt);
-    Count -=cnt;
-    Buffer+=cnt;
-    read_len+=cnt;
-    info->read_pos+=cnt;
+    cnt= ((uint) len > Count) ? (int) Count : len;
+    memcpy(Buffer, info->read_pos, (size_t) cnt);
+    Count -= cnt;
+    Buffer+= cnt;
+    left_length+= cnt;
+    info->read_pos+= cnt;
   }
   DBUG_RETURN(0);
 }
