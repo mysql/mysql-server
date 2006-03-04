@@ -3736,6 +3736,7 @@ static void fix_win_paths(const char* val, int len)
   {
     const char** pattern= dynamic_element(&patterns, i, const char**);
     DBUG_PRINT("info", ("pattern: %s", *pattern));
+    if (strlen(*pattern) == 0) continue;
     /* Search for the path in string */
     while ((p= strstr(val, *pattern)))
     {
