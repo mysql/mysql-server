@@ -6516,13 +6516,11 @@ bool Field_num::eq_def(Field *field)
     create_field::create_length_to_internal_length()
   
   DESCRIPTION
-    Convert create_field::length from number of characters to number of bytes,
-    save original value in chars_length.
+    Convert create_field::length from number of characters to number of bytes.
 */
 
 void create_field::create_length_to_internal_length(void)
 {
-  chars_length= length;
   switch (sql_type) {
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
@@ -6775,6 +6773,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
       break;
   }
 
+  char_length= length;
   decimals= old_field->decimals();
   if (sql_type == FIELD_TYPE_STRING)
   {
