@@ -9127,7 +9127,7 @@ view_check_option:
 
 trigger_tail:
 	TRIGGER_SYM remember_name sp_name trg_action_time trg_event
-	ON remember_name table_ident remember_end FOR_SYM EACH_SYM ROW_SYM
+	ON remember_name table_ident FOR_SYM remember_name EACH_SYM ROW_SYM
 	{
 	  LEX *lex= Lex;
 	  sp_head *sp;
@@ -9145,7 +9145,7 @@ trigger_tail:
 	
 	  lex->trigger_definition_begin= $2;
           lex->ident.str= $7;
-          lex->ident.length= $9 - $7;
+          lex->ident.length= $10 - $7;
 
 	  sp->m_type= TYPE_ENUM_TRIGGER;
 	  lex->sphead= sp;
