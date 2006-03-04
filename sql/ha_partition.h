@@ -197,6 +197,7 @@ public:
     DBUG_RETURN(0);
   }
 private:
+  int prepare_for_delete();
   int copy_partitions(ulonglong *copied, ulonglong *deleted);
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,

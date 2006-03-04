@@ -218,6 +218,7 @@ void ha_partition::init_handler_variables()
   m_engine_array= NULL;
   m_file= NULL;
   m_reorged_file= NULL;
+  m_new_file= NULL;
   m_reorged_parts= 0;
   m_added_file= NULL;
   m_tot_parts= 0;
@@ -4680,11 +4681,13 @@ int ha_partition::extra(enum ha_extra_function operation)
   }
 
   /* Category 3), used by MyISAM handlers */
+  case HA_EXTRA_PREPARE_FOR_DELETE:
+    DBUG_RETURN(prepare_for_delete());
+    break;
   case HA_EXTRA_NORMAL:
   case HA_EXTRA_QUICK:
   case HA_EXTRA_NO_READCHECK:
   case HA_EXTRA_PREPARE_FOR_UPDATE:
-  case HA_EXTRA_PREPARE_FOR_DELETE:
   case HA_EXTRA_FORCE_REOPEN:
   case HA_EXTRA_FLUSH_CACHE:
   {
@@ -4794,6 +4797,41 @@ void ha_partition::prepare_extra_cache(uint cachesize)
 
 
 /*
+  Prepares our new and reorged handlers for rename or delete
+
+  SYNOPSIS
+    prepare_for_delete()
+
+  RETURN VALUE
+    >0                    Error code
+    0                     Success
+*/
+
+int ha_partition::prepare_for_delete()
+{
+  int result= 0, tmp;
+  handler **file;
+  DBUG_ENTER("ha_partition::prepare_for_delete()");
+  
+  if (m_new_file != NULL)
+  {
+    for (file= m_new_file; *file; file++)
+      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_DELETE)))
+        result= tmp;      
+    for (file= m_reorged_file; *file; file++)
+      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_DELETE)))
+        result= tmp;      
+  }
+  else
+  {
+    for (file= m_file; *file; file++)
+      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_DELETE)))
+        result= tmp;      
+  }
+  DBUG_RETURN(result);
+}
+
+/*
   Call extra on all partitions
 
   SYNOPSIS
@@ -4810,6 +4848,7 @@ int ha_partition::loop_extra(enum ha_extra_function operation)
   int result= 0, tmp;
   handler **file;
   DBUG_ENTER("ha_partition::loop_extra()");
+  
   /* 
     TODO, 5.2: this is where you could possibly add optimisations to add the bitmap
     _if_ a SELECT.
