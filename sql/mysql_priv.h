@@ -259,7 +259,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_BIG_TABLES       (LL(1) << 8)       // THD, user
 #define OPTION_BIG_SELECTS      (LL(1) << 9)       // THD, user
 #define OPTION_LOG_OFF          (LL(1) << 10)      // THD, user
-#define OPTION_UPDATE_LOG       (LL(1) << 11)      // THD, user, unused
+#define OPTION_QUOTE_SHOW_CREATE (LL(1) << 11)     // THD, user
 #define TMP_TABLE_ALL_COLUMNS   (LL(1) << 12)      // SELECT, intern
 #define OPTION_WARNINGS         (LL(1) << 13)      // THD, user
 #define OPTION_AUTO_IS_NULL     (LL(1) << 14)      // THD, user, binlog
@@ -271,7 +271,6 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_BEGIN            (LL(1) << 20)      // THD, intern
 #define OPTION_TABLE_LOCK       (LL(1) << 21)      // THD, intern
 #define OPTION_QUICK            (LL(1) << 22)      // SELECT (for DELETE)
-#define OPTION_QUOTE_SHOW_CREATE (LL(1) << 23)     // THD, user
 
 /* Thr following is used to detect a conflict with DISTINCT
    in the user query has requested */

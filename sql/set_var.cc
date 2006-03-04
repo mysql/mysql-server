@@ -22,9 +22,6 @@
   - Use one of the 'sys_var... classes from set_var.h or write a specific
     one for the variable type.
   - Define it in the 'variable definition list' in this file.
-  - If the variable should be changeable or one should be able to access it
-    with @@variable_name, it should be added to the 'list of all variables'
-    list (sys_variables) in this file.
   - If the variable is thread specific, add it to 'system_variables' struct.
     If not, add it to mysqld.cc and an declaration in 'mysql_priv.h'
   - If the variable should be changed from the command line, add a definition
@@ -140,7 +137,6 @@ static bool set_option_autocommit(THD *thd, set_var *var);
 static int  check_log_update(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
 static int  check_pseudo_thread_id(THD *thd, set_var *var);
-static bool set_log_bin(THD *thd, set_var *var);
 void fix_binlog_format_after_update(THD *thd, enum_var_type type);
 static void fix_low_priority_updates(THD *thd, enum_var_type type);
 static int check_tx_isolation(THD *thd, set_var *var);
@@ -170,7 +166,10 @@ static byte *get_warning_count(THD *thd);
   Variable definition list
 
   These are variables that can be set from the command line, in
-  alphabetic order
+  alphabetic order.
+
+  The variables are linked into the list. A variable is added to
+  it in the constructor (see sys_var class for details).
 */
 
 sys_var *sys_var::first= NULL;
@@ -557,10 +556,10 @@ static sys_var_thd_bit	sys_log_off("sql_log_off", 0,
 static sys_var_thd_bit	sys_log_update("sql_log_update",
                                        check_log_update,
 				       set_log_update,
-				       OPTION_UPDATE_LOG);
+				       OPTION_BIN_LOG);
 static sys_var_thd_bit	sys_log_binlog("sql_log_bin",
                                        check_log_update,
-				       set_log_bin,
+				       set_option_bit,
 				       OPTION_BIN_LOG);
 static sys_var_thd_bit	sys_sql_warnings("sql_warnings", 0,
 					 set_option_bit,
@@ -2775,11 +2774,9 @@ static bool set_log_update(THD *thd, set_var *var)
     See sql/mysqld.cc/, comments in function init_server_components() for an
     explaination of the different warnings we send below
   */
-    
+
   if (opt_sql_bin_update)
   {
-    ((sys_var_thd_bit*) var->var)->bit_flag|= (OPTION_BIN_LOG |
-					       OPTION_UPDATE_LOG);
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_UPDATE_LOG_DEPRECATED_TRANSLATED,
                  ER(ER_UPDATE_LOG_DEPRECATED_TRANSLATED));
@@ -2792,14 +2789,6 @@ static bool set_log_update(THD *thd, set_var *var)
   return 0;
 }
 
-static bool set_log_bin(THD *thd, set_var *var)
-{
-  if (opt_sql_bin_update)
-    ((sys_var_thd_bit*) var->var)->bit_flag|= (OPTION_BIN_LOG |
-					       OPTION_UPDATE_LOG);
-  set_option_bit(thd, var);
-  return 0;
-}
 
 static int check_pseudo_thread_id(THD *thd, set_var *var)
 {
