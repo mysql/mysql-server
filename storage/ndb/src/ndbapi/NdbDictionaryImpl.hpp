@@ -30,6 +30,9 @@
 #include "NdbWaiter.hpp"
 #include "DictCache.hpp"
 
+bool is_ndb_blob_table(const char* name);
+bool is_ndb_blob_table(const class NdbTableImpl* t);
+
 class NdbDictObjectImpl {
 public:
   int m_id;
@@ -542,13 +545,12 @@ public:
 
   int createTable(NdbTableImpl &t);
   int createBlobTables(NdbTableImpl& t);
-  int addBlobTables(NdbTableImpl &);
   int alterTable(NdbTableImpl &t);
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
   int dropBlobTables(NdbTableImpl &);
-  int invalidateObject(NdbTableImpl &, bool lock = true);
-  int removeCachedObject(NdbTableImpl &, bool lock = true);
+  int invalidateObject(NdbTableImpl &);
+  int removeCachedObject(NdbTableImpl &);
 
   int createIndex(NdbIndexImpl &ix);
   int dropIndex(const char * indexName, 
@@ -573,8 +575,9 @@ public:
 
   NdbTableImpl * getTable(const char * tableName, void **data= 0);
   void putTable(NdbTableImpl *impl);
-  Ndb_local_table_info* get_local_table_info(
-    const BaseString& internalTableName, bool do_add_blob_tables);
+  int getBlobTables(NdbTableImpl &);
+  Ndb_local_table_info*
+    get_local_table_info(const BaseString& internalTableName);
   NdbIndexImpl * getIndex(const char * indexName,
 			  const char * tableName);
   NdbEventImpl * getEvent(const char * eventName, NdbTableImpl* = NULL);
@@ -848,7 +851,7 @@ NdbDictionaryImpl::getTable(const char * table_name, void **data)
 {
   const BaseString internal_tabname(m_ndb.internalize_table_name(table_name));
   Ndb_local_table_info *info=
-    get_local_table_info(internal_tabname, true);
+    get_local_table_info(internal_tabname);
   if (info == 0)
     return 0;
   if (data)
@@ -858,8 +861,7 @@ NdbDictionaryImpl::getTable(const char * table_name, void **data)
 
 inline
 Ndb_local_table_info * 
-NdbDictionaryImpl::get_local_table_info(const BaseString& internalTableName,
-					bool do_add_blob_tables)
+NdbDictionaryImpl::get_local_table_info(const BaseString& internalTableName)
 {
   Ndb_local_table_info *info= m_localHash.get(internalTableName.c_str());
   if (info == 0) {
@@ -868,9 +870,6 @@ NdbDictionaryImpl::get_local_table_info(const BaseString& internalTableName,
       return 0;
     }
   }
-  if (do_add_blob_tables && info->m_table_impl->m_noOfBlobs)
-    addBlobTables(*(info->m_table_impl));
-  
   return info; // autoincrement already initialized
 }
 
@@ -891,7 +890,7 @@ NdbDictionaryImpl::getIndex(const char * index_name,
     if (internal_indexname.length())
     {
       Ndb_local_table_info * info=
-        get_local_table_info(internal_indexname, false);
+        get_local_table_info(internal_indexname);
       if (info)
       {
 	NdbTableImpl * tab= info->m_table_impl;
@@ -955,7 +954,5 @@ const NdbUndofileImpl &
 NdbUndofileImpl::getImpl(const NdbDictionary::Undofile & t){
   return t.m_impl;
 }
-
-
 
 #endif

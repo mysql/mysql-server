@@ -260,3 +260,33 @@ DictFilegroupInfo::File::init(){
   FileSizeLo = 0;
   FileFreeExtents = 0;
 }
+
+// blob table name hack
+
+bool
+DictTabInfo::isBlobTableName(const char* name, Uint32* ptab_id, Uint32* pcol_no)
+{ 
+  const char* const prefix = "NDB$BLOB_";
+  const char* s = strrchr(name, table_name_separator);
+  s = (s == NULL ? name : s + 1);
+  if (strncmp(s, prefix, strlen(prefix)) != 0)
+    return false;
+  s += strlen(prefix);
+  uint i, n;
+  for (i = 0, n = 0; '0' <= s[i] && s[i] <= '9'; i++)
+    n += 10 * n + (s[i] - '0');
+  if (i == 0 || s[i] != '_')
+    return false;
+  const uint tab_id = n;
+  s = &s[i + 1];
+  for (i = 0, n = 0; '0' <= s[i] && s[i] <= '9'; i++)
+    n += 10 * n + (s[i] - '0');
+  if (i == 0 || s[i] != 0)
+    return false;
+  const uint col_no = n;
+  if (ptab_id)
+    *ptab_id = tab_id;
+  if (pcol_no)
+    *pcol_no = col_no;
+  return true;
+}
