@@ -478,9 +478,11 @@ page_dir_set_n_heap(
 	ulint		n_heap)	/* in: number of records */
 {
 	ut_ad(n_heap < 0x8000);
+	ut_ad(!page_zip || n_heap
+		== (page_header_get_field(page, PAGE_N_HEAP) & 0x7fff) + 1);
 
-	page_header_set_field(page, page_zip, PAGE_N_HEAP, n_heap | (0x8000 &
-		page_header_get_field(page, PAGE_N_HEAP)));
+	page_header_set_field(page, page_zip, PAGE_N_HEAP, n_heap
+		| (0x8000 & page_header_get_field(page, PAGE_N_HEAP)));
 }
 
 /*****************************************************************

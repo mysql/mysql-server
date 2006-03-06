@@ -139,6 +139,7 @@ void
 row_upd_rec_in_place(
 /*=================*/
 	rec_t*		rec,	/* in/out: record where replaced */
+	dict_index_t*	index,	/* in: the index the record belongs to */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	upd_t*		update,	/* in: update vector */
 	page_zip_des_t*	page_zip);/* in: compressed page with enough space
