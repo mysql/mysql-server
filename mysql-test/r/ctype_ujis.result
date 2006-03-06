@@ -118,8 +118,8 @@ b enum('あ','い') default NULL
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(1) NOT NULL default '',
-  `b` enum('あ','い') default NULL
+  `a` char(1) NOT NULL DEFAULT '',
+  `b` enum('あ','い') DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=ujis
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra

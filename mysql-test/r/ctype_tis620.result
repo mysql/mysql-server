@@ -120,7 +120,7 @@ PRIMARY KEY  (recid)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `recid` int(11) NOT NULL auto_increment,
+  `recid` int(11) NOT NULL AUTO_INCREMENT,
   `dyninfo` text,
   PRIMARY KEY (`recid`)
 ) ENGINE=MyISAM DEFAULT CHARSET=tis620
