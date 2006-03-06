@@ -433,4 +433,20 @@ drop user mysqltest_7@;
 --error 1141
 show grants for mysqltest_7@;
 
+#
+# Bug#14385: GRANT and mapping to correct user account problems
+#
+create database mysqltest;
+use mysqltest;
+create table t1(f1 int);
+GRANT DELETE ON mysqltest.t1 TO mysqltest1@'%';
+GRANT SELECT ON mysqltest.t1 TO mysqltest1@'192.%';
+show grants for mysqltest1@'192.%';
+show grants for mysqltest1@'%';
+delete from mysql.user where user='mysqltest1';
+delete from mysql.db where user='mysqltest1';
+delete from mysql.tables_priv where user='mysqltest1';
+flush privileges;
+drop database mysqltest;
+
 # End of 4.1 tests
