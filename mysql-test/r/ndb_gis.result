@@ -11,8 +11,8 @@ CREATE TABLE gis_geometry (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g GEOMETRY);
 SHOW CREATE TABLE gis_point;
 Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
-  `fid` int(11) NOT NULL auto_increment,
-  `g` point default NULL,
+  `fid` int(11) NOT NULL AUTO_INCREMENT,
+  `g` point DEFAULT NULL,
   PRIMARY KEY (`fid`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
 SHOW FIELDS FROM gis_point;
@@ -473,8 +473,8 @@ CREATE TABLE gis_geometry (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g GEOMETRY);
 SHOW CREATE TABLE gis_point;
 Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
-  `fid` int(11) NOT NULL auto_increment,
-  `g` point default NULL,
+  `fid` int(11) NOT NULL AUTO_INCREMENT,
+  `g` point DEFAULT NULL,
   PRIMARY KEY (`fid`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
 SHOW FIELDS FROM gis_point;
