@@ -218,3 +218,23 @@ truncate(-5000111000111000155,-1)
 select truncate(15000111000111000155,-1);
 truncate(15000111000111000155,-1)
 15000111000111000150
+set names utf8;
+create table t1
+(f1 varchar(32) not null,
+f2 smallint(5) unsigned not null,
+f3 int(10) unsigned not null default '0')
+engine=myisam default charset=utf8;
+insert into t1 values ('zombie',0,0),('gold',1,10000),('silver',2,10000);
+create table t2
+(f1 int(10) unsigned not null,
+f2 int(10) unsigned not null,
+f3 smallint(5) unsigned not null)
+engine=myisam default charset=utf8;
+insert into t2 values (16777216,16787215,1),(33554432,33564431,2);
+select format(t2.f2-t2.f1+1,0) from t1,t2
+where t1.f2 = t2.f3 order by t1.f1;
+format(t2.f2-t2.f1+1,0)
+10,000
+10,000
+drop table t1, t2;
+set names default;
