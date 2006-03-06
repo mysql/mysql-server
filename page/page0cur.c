@@ -995,15 +995,15 @@ use_heap:
 		if (UNIV_UNLIKELY(insert_buf == NULL)) {
 			return(NULL);
 		}
+
+		if (UNIV_LIKELY_NULL(page_zip)) {
+			page_zip_dir_add_slot(page_zip);
+		}
 	}
 
 	/* 3. Create the record */
 	insert_rec = rec_copy(insert_buf, rec, offsets);
-	ut_ad(rec_offs_validate(rec, index, offsets));
 	rec_offs_make_valid(insert_rec, index, offsets);
-
-	ut_ad(insert_rec);
-	ut_ad(rec_size == rec_offs_size(offsets));
 
 	/* Set the "extern storage" flags */
 	if (UNIV_UNLIKELY(n_ext)) {
@@ -1093,7 +1093,7 @@ use_heap:
 		we have to split the corresponding directory slot in two. */
 
 		if (UNIV_UNLIKELY(n_owned == PAGE_DIR_SLOT_MAX_N_OWNED)) {
-			page_dir_split_slot(page, NULL,
+			page_dir_split_slot(page, page_zip,
 					page_dir_find_owner_slot(owner_rec));
 		}
 	}
@@ -1102,7 +1102,7 @@ use_heap:
 		/* TODO: something similar to page_zip_dir_delete() */
 		page_zip_dir_rewrite(page_zip, page);
 
-		page_zip_write_rec(page_zip, insert_rec, offsets);
+		page_zip_write_rec(page_zip, insert_rec, index, offsets);
 	}
 
 	/* 9. Write log record of the insert */

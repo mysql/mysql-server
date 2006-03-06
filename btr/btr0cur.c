@@ -1519,7 +1519,7 @@ btr_cur_parse_update_in_place(
 			pos, trx_id, roll_ptr);
 	}
 
-	row_upd_rec_in_place(rec, offsets, update, page_zip);
+	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
 
 func_exit:
 	mem_heap_free(heap);
@@ -1618,7 +1618,7 @@ btr_cur_update_in_place(
 	was_delete_marked = rec_get_deleted_flag(rec,
 				page_is_comp(buf_block_get_frame(block)));
 
-	row_upd_rec_in_place(rec, offsets, update, page_zip);
+	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
 
 	if (block->is_hashed) {
 		rw_lock_x_unlock(&btr_search_latch);
@@ -1628,7 +1628,7 @@ btr_cur_update_in_place(
 					trx, roll_ptr, mtr);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write_rec(page_zip, rec, offsets);
+		page_zip_write_rec(page_zip, rec, index, offsets);
 	}
 
 	if (was_delete_marked && !rec_get_deleted_flag(rec,
@@ -2084,7 +2084,7 @@ btr_cur_pessimistic_update(
 		}
 
 		if (UNIV_LIKELY_NULL(page_zip)) {
-			page_zip_write_rec(page_zip, rec, offsets);
+			page_zip_write_rec(page_zip, rec, index, offsets);
 		}
 
 		btr_cur_compress_if_useful(cursor, mtr);

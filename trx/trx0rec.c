@@ -1413,7 +1413,7 @@ trx_undo_prev_version_build(
 		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
 		*old_vers = rec_copy(buf, rec, offsets);
 		rec_offs_make_valid(*old_vers, index, offsets);
-		row_upd_rec_in_place(*old_vers, offsets, update, NULL);
+		row_upd_rec_in_place(*old_vers, index, offsets, update, NULL);
 	}
 
 	return(DB_SUCCESS);
