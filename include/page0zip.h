@@ -112,6 +112,7 @@ page_zip_write_rec(
 /*===============*/
 	page_zip_des_t*	page_zip,/* in/out: compressed page */
 	const byte*	rec,	/* in: record being written */
+	dict_index_t*	index,	/* in: the index the record belongs to */
 	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
 	__attribute__((nonnull));
 
@@ -227,6 +228,15 @@ page_zip_dir_delete(
 	page_zip_des_t*	page_zip,/* in/out: compressed page */
 	const byte*	rec,	/* in: deleted record */
 	const byte*	free)	/* in: previous start of the free list */
+	__attribute__((nonnull));
+
+/**************************************************************************
+Add a slot to the dense page directory. */
+
+void
+page_zip_dir_add_slot(
+/*==================*/
+	page_zip_des_t*	page_zip)/* in/out: compressed page */
 	__attribute__((nonnull));
 
 /**************************************************************************

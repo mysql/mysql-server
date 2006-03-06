@@ -114,4 +114,12 @@ page_zip_dir_delete(
 	const byte*	free)	/* in: previous start of the free list */
 	__attribute__((nonnull));
 
+/**************************************************************************
+Add a slot to the dense page directory. */
+
+void
+page_zip_dir_add_slot(
+/*==================*/
+	page_zip_des_t*	page_zip)/* in/out: compressed page */
+	__attribute__((nonnull));
 #endif
