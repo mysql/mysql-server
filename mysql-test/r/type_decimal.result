@@ -772,3 +772,10 @@ productid	zlevelprice
 003trans	39.98
 004trans	31.18
 drop table t1, t2;
+create table t1 (f1 decimal(5));
+insert into t1 values (40);
+flush tables;
+select f1 from t1 where f1 in (select f1 from t1);
+f1
+40
+drop table t1;
