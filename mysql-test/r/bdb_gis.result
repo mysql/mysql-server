@@ -11,7 +11,7 @@ CREATE TABLE gis_geometry (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g GEOMETRY);
 SHOW CREATE TABLE gis_point;
 Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
-  `fid` int(11) NOT NULL AUTO_INCREMENT
+  `fid` int(11) NOT NULL AUTO_INCREMENT,
   `g` point DEFAULT NULL,
   PRIMARY KEY (`fid`)
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=latin1
