@@ -506,7 +506,7 @@ ErrorBundle ErrorCodes[] = {
   { 4315, DMEC, AE, "No more key attributes allowed after defining variable length key attribute" },
   { 4316, DMEC, AE, "Key attributes are not allowed to be NULL attributes" },
   { 4317, DMEC, AE, "Too many primary keys defined in table" },
-  { 4318, DMEC, AE, "Invalid attribute name" },
+  { 4318, DMEC, AE, "Invalid attribute name or number" },
   { 4319, DMEC, AE, "createAttribute called at erroneus place" },
   { 4322, DMEC, AE, "Attempt to define distribution key when not prepared to" },
   { 4323, DMEC, AE, "Distribution Key set on table but not defined on first attribute" },
@@ -598,7 +598,8 @@ ErrorBundle ErrorCodes[] = {
   { 4335, DMEC, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" },
   { 4336, DMEC, AE, "Auto-increment value set below current value" },
   { 4271, DMEC, AE, "Invalid index object, not retrieved via getIndex()" },
-  { 4272, DMEC, AE, "Table definition has undefined column" }
+  { 4272, DMEC, AE, "Table definition has undefined column" },
+  { 4273, DMEC, IE, "No blob table in dict cache" }
 };
 
 static
