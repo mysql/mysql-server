@@ -1255,4 +1255,59 @@ INSERT INTO federated.t1 VALUES ();
 SELECT LAST_INSERT_ID();
 SELECT * FROM federated.t1;
 
+#
+# Bug#17377 Federated Engine returns wrong Data, always the rows
+#           with the highest ID
+#
+
+connection slave;
+
+--disable_warnings
+DROP TABLE IF EXISTS federated.bug_17377_table;
+--enable_warnings
+
+CREATE TABLE federated.bug_17377_table (
+`fld_cid` bigint(20) NOT NULL auto_increment,
+`fld_name` varchar(255) NOT NULL default '',
+`fld_parentid` bigint(20) NOT NULL default '0',
+`fld_delt` int(1) NOT NULL default '0',
+PRIMARY KEY (`fld_cid`),
+KEY `fld_parentid` (`fld_parentid`),
+KEY `fld_delt` (`fld_delt`),
+KEY `fld_cid` (`fld_cid`)
+) ENGINE=MyISAM;
+
+# Insert some test-data
+insert into federated.bug_17377_table( fld_name )
+values
+("Mats"), ("Sivert"), ("Sigvard"), ("Torgny"), ("Torkel");
+
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+`fld_cid` bigint(20) NOT NULL auto_increment,
+`fld_name` varchar(255) NOT NULL default '',
+`fld_parentid` bigint(20) NOT NULL default '0',
+`fld_delt` int(1) NOT NULL default '0',
+PRIMARY KEY (`fld_cid`),
+KEY `fld_parentid` (`fld_parentid`),
+KEY `fld_delt` (`fld_delt`),
+KEY `fld_cid` (`fld_cid`)
+) ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/bug_17377_table';
+
+select * from federated.t1 where fld_parentid=0 and fld_delt=0
+order by fld_name;
+
+select * from federated.t1 where fld_parentid=0 and fld_delt=0;
+
+DROP TABLE federated.t1;
+connection slave;
+DROP TABLE federated.bug_17377_table;
+
+
 source include/federated_cleanup.inc;
