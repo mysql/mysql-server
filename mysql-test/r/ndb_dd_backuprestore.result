@@ -170,7 +170,7 @@ CREATE TABLE test.t6 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 VARCHAR(220) NOT
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` varchar(150) NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
@@ -179,7 +179,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` text NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
@@ -188,7 +188,7 @@ t2	CREATE TABLE `t2` (
 SHOW CREATE TABLE test.t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` varchar(202) NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
@@ -197,7 +197,7 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE test.t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` varchar(180) NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
@@ -206,7 +206,7 @@ t4	CREATE TABLE `t4` (
 SHOW CREATE TABLE test.t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` text NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
@@ -215,7 +215,7 @@ t5	CREATE TABLE `t5` (
 SHOW CREATE TABLE test.t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` varchar(220) NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
@@ -336,7 +336,7 @@ ENGINE =NDB;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` varchar(150) NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
@@ -345,7 +345,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` text NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
@@ -354,7 +354,7 @@ t2	CREATE TABLE `t2` (
 SHOW CREATE TABLE test.t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` varchar(202) NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
@@ -363,7 +363,7 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE test.t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` varchar(180) NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
@@ -372,7 +372,7 @@ t4	CREATE TABLE `t4` (
 SHOW CREATE TABLE test.t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` text NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
@@ -381,7 +381,7 @@ t5	CREATE TABLE `t5` (
 SHOW CREATE TABLE test.t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `pk1` mediumint(9) NOT NULL auto_increment,
+  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
   `c2` varchar(220) NOT NULL,
   `c3` int(11) NOT NULL,
   `c4` bit(1) NOT NULL,
