@@ -5490,9 +5490,8 @@ select_derived2:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables|= DERIVED_SUBQUERY;
-	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
-	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
-	       lex->sql_command == (int)SQLCOM_KILL)
+          if (lex->sql_command == (int)SQLCOM_HA_READ ||
+              lex->sql_command == (int)SQLCOM_KILL)
 	  {
 	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
@@ -6891,18 +6890,18 @@ purge_option:
 /* kill threads */
 
 kill:
-	KILL_SYM kill_option expr
+	KILL_SYM { Lex->sql_command= SQLCOM_KILL; } kill_option expr
 	{
 	  LEX *lex=Lex;
 	  lex->value_list.empty();
-	  lex->value_list.push_front($3);
-          lex->sql_command= SQLCOM_KILL;
+	  lex->value_list.push_front($4);
 	};
 
 kill_option:
 	/* empty */	 { Lex->type= 0; }
 	| CONNECTION_SYM { Lex->type= 0; }
-	| QUERY_SYM      { Lex->type= ONLY_KILL_QUERY; };
+	| QUERY_SYM      { Lex->type= ONLY_KILL_QUERY; }
+        ;
 
 /* change database */
 
@@ -6915,7 +6914,7 @@ use:	USE_SYM ident
 
 /* import, export of files */
 
-load:   LOAD DATA_SYM 
+load:   LOAD DATA_SYM
         {
           LEX *lex=Lex;
 	  if (lex->sphead)
@@ -8939,9 +8938,8 @@ subselect_start:
 	'(' SELECT_SYM
 	{
 	  LEX *lex=Lex;
-	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
-	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
-	       lex->sql_command == (int)SQLCOM_KILL)
+          if (lex->sql_command == (int)SQLCOM_HA_READ ||
+              lex->sql_command == (int)SQLCOM_KILL)
 	  {
             yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
