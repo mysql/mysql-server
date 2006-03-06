@@ -19,6 +19,8 @@ TZ=$MY_TZ; export TZ # for UNIX_TIMESTAMP tests to work
 LOCAL_SOCKET=@MYSQL_UNIX_ADDR@
 MYSQL_TCP_PORT=@MYSQL_TCP_PORT@
 
+umask 022
+
 # For query_cache test
 case `uname` in
     SCO_SV | UnixWare | OpenUNIX )
