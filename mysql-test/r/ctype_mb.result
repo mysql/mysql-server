@@ -3,17 +3,17 @@ CREATE TABLE t1 SELECT _utf8'test' as c1, _utf8'тест' as c2;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) character set utf8 NOT NULL default '',
-  `c2` varchar(4) character set utf8 NOT NULL default ''
+  `c1` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c2` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DELETE FROM t1;
 ALTER TABLE t1 ADD c3 CHAR(4) CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) character set utf8 NOT NULL default '',
-  `c2` varchar(4) character set utf8 NOT NULL default '',
-  `c3` char(4) character set utf8 default NULL
+  `c1` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c2` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c3` char(4) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES ('aaaabbbbccccdddd','aaaabbbbccccdddd','aaaabbbbccccdddd');
 Warnings:
@@ -28,7 +28,7 @@ CREATE TABLE t1 (a CHAR(4) CHARACTER SET utf8, KEY key_a(a(3)));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(4) character set utf8 default NULL,
+  `a` char(4) CHARACTER SET utf8 DEFAULT NULL,
   KEY `key_a` (`a`(3))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW KEYS FROM t1;
@@ -38,7 +38,7 @@ ALTER TABLE t1 CHANGE a a CHAR(4);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(4) default NULL,
+  `a` char(4) DEFAULT NULL,
   KEY `key_a` (`a`(3))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW KEYS FROM t1;
@@ -48,7 +48,7 @@ ALTER TABLE t1 CHANGE a a CHAR(4) CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(4) character set utf8 default NULL,
+  `a` char(4) CHARACTER SET utf8 DEFAULT NULL,
   KEY `key_a` (`a`(3))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW KEYS FROM t1;

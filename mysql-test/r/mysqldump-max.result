@@ -111,8 +111,8 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET l
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 
@@ -121,8 +121,8 @@ INSERT  DELAYED IGNORE INTO `t1` VALUES (1,'first value'),(2,'first value'),(3,'
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 DROP TABLE IF EXISTS `t2`;
 CREATE TABLE `t2` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 
@@ -131,8 +131,8 @@ INSERT  DELAYED IGNORE INTO `t2` VALUES (1,'first value'),(2,'first value'),(3,'
 /*!40000 ALTER TABLE `t2` ENABLE KEYS */;
 DROP TABLE IF EXISTS `t3`;
 CREATE TABLE `t3` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
 
 
@@ -141,8 +141,8 @@ INSERT  DELAYED IGNORE INTO `t3` VALUES (1,'first value'),(2,'first value'),(3,'
 /*!40000 ALTER TABLE `t3` ENABLE KEYS */;
 DROP TABLE IF EXISTS `t4`;
 CREATE TABLE `t4` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
 
 
@@ -151,8 +151,8 @@ INSERT  DELAYED IGNORE INTO `t4` VALUES (1,'first value'),(2,'first value'),(3,'
 /*!40000 ALTER TABLE `t4` ENABLE KEYS */;
 DROP TABLE IF EXISTS `t5`;
 CREATE TABLE `t5` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
 
 
@@ -161,8 +161,8 @@ INSERT  DELAYED IGNORE INTO `t5` VALUES (1,'first value'),(2,'first value'),(3,'
 /*!40000 ALTER TABLE `t5` ENABLE KEYS */;
 DROP TABLE IF EXISTS `t6`;
 CREATE TABLE `t6` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 
@@ -196,8 +196,8 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET l
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 
@@ -206,8 +206,8 @@ INSERT  DELAYED INTO `t1` VALUES (1,'first value'),(2,'first value'),(3,'first v
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 DROP TABLE IF EXISTS `t2`;
 CREATE TABLE `t2` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 
@@ -216,8 +216,8 @@ INSERT  DELAYED INTO `t2` VALUES (1,'first value'),(2,'first value'),(3,'first v
 /*!40000 ALTER TABLE `t2` ENABLE KEYS */;
 DROP TABLE IF EXISTS `t3`;
 CREATE TABLE `t3` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
 
 
@@ -226,8 +226,8 @@ INSERT  DELAYED INTO `t3` VALUES (1,'first value'),(2,'first value'),(3,'first v
 /*!40000 ALTER TABLE `t3` ENABLE KEYS */;
 DROP TABLE IF EXISTS `t4`;
 CREATE TABLE `t4` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
 
 
@@ -236,8 +236,8 @@ INSERT  DELAYED INTO `t4` VALUES (1,'first value'),(2,'first value'),(3,'first v
 /*!40000 ALTER TABLE `t4` ENABLE KEYS */;
 DROP TABLE IF EXISTS `t5`;
 CREATE TABLE `t5` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
 
 
@@ -246,8 +246,8 @@ INSERT  DELAYED INTO `t5` VALUES (1,'first value'),(2,'first value'),(3,'first v
 /*!40000 ALTER TABLE `t5` ENABLE KEYS */;
 DROP TABLE IF EXISTS `t6`;
 CREATE TABLE `t6` (
-  `id` int(8) default NULL,
-  `name` varchar(32) default NULL
+  `id` int(8) DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 

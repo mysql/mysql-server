@@ -746,40 +746,40 @@ concat('*',v,'*',c,'*',t,'*')
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 create table t2 like t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 create table t3 select * from t1;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 modify c varchar(10);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` varchar(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
   `t` text
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 modify v char(10);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) default NULL,
-  `c` varchar(10) default NULL,
+  `v` char(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
   `t` text
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 modify t varchar(10);
@@ -788,9 +788,9 @@ Note	1265	Data truncated for column 't' at row 2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) default NULL,
-  `c` varchar(10) default NULL,
-  `t` varchar(10) default NULL
+  `v` char(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
+  `t` varchar(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
@@ -801,8 +801,8 @@ create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text,
   KEY `v` (`v`),
   KEY `c` (`c`),
@@ -1020,8 +1020,8 @@ alter table t1 modify v varchar(300), drop key v, drop key v_2, add key v (v);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(300) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(300) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text,
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
@@ -1100,8 +1100,8 @@ alter table t1 drop key v, add key v (v(30));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(300) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(300) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text,
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
@@ -1180,8 +1180,8 @@ alter table t1 modify v varchar(600), drop key v, add key v (v);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(600) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(600) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text,
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
@@ -1258,8 +1258,8 @@ create table t1 (v varchar(10), c char(10), t text, key(v(5)), key(c(5)), key(t(
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text,
   KEY `v` (`v`(5)),
   KEY `c` (`c`(5)),
@@ -1270,15 +1270,15 @@ create table t1 (v char(10) character set utf8);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) character set utf8 default NULL
+  `v` char(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
 insert into t1 values('a','a'),('a ','a ');
 select concat('*',v,'*',c,'*') from t1;
@@ -1320,7 +1320,7 @@ Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` mediumtext character set utf8
+  `v` mediumtext CHARACTER SET utf8
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (v varchar(65535));
