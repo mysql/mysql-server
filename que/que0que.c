@@ -487,7 +487,7 @@ que_graph_free_recursive(
 			fprintf(stderr,
 		"que_thr struct appears corrupt; magic n %lu\n",
 				(unsigned long) thr->magic_n);
-			mem_analyze_corruption((byte*)thr);
+			mem_analyze_corruption(thr);
 			ut_error;
 		}
 
@@ -599,7 +599,7 @@ que_graph_free_recursive(
 		fprintf(stderr,
 		"que_node struct appears corrupt; type %lu\n",
 			(unsigned long) que_node_get_type(node));
-		mem_analyze_corruption((byte*)node);
+		mem_analyze_corruption(node);
 		ut_error;
 	}
 }
@@ -990,7 +990,7 @@ que_thr_move_to_run_state_for_mysql(
 	"que_thr struct appears corrupt; magic n %lu\n",
 			(unsigned long) thr->magic_n);
 
-		mem_analyze_corruption((byte*)thr);
+		mem_analyze_corruption(thr);
 
 		ut_error;
 	}
@@ -1027,7 +1027,7 @@ que_thr_stop_for_mysql_no_error(
 	"que_thr struct appears corrupt; magic n %lu\n",
 			(unsigned long) thr->magic_n);
 
-		mem_analyze_corruption((byte*)thr);
+		mem_analyze_corruption(thr);
 
 		ut_error;
 	}
