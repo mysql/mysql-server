@@ -38,6 +38,7 @@ int check_user(THD *thd, enum enum_server_command command,
 	       const char *passwd, uint passwd_len, const char *db,
 	       bool check_count);
 C_MODE_START
+
 #include <mysql.h>
 #undef ER
 #include "errmsg.h"
@@ -45,19 +46,6 @@ C_MODE_START
 #include "embedded_priv.h"
 
 static my_bool emb_read_query_result(MYSQL *mysql);
-
-void THD::clear_data_list()
-{
-  while (first_data)
-  {
-    MYSQL_DATA *data= first_data;
-    first_data= data->embedded_info->next;
-    free_rows(data);
-  }
-  data_tail= &first_data;
-  free_rows(cur_data);
-  cur_data= 0;
-}
 
 
 /*
@@ -423,15 +411,6 @@ MYSQL_METHODS embedded_methods=
   emb_read_rows_from_cursor
 };
 
-C_MODE_END
-
-void THD::clear_error()
-{
-  net.last_error[0]= 0;
-  net.last_errno= 0;
-  net.report_error= 0;
-}
-
 /*
   Make a copy of array and the strings array points to
 */
@@ -458,11 +437,7 @@ char **copy_arguments(int argc, char **argv)
   return res;
 }
 
-
-extern "C"
-{
-
-char **		copy_arguments_ptr= 0; 
+char **		copy_arguments_ptr= 0;
 
 int init_embedded_server(int argc, char **argv, char **groups)
 {
@@ -571,9 +546,7 @@ void end_embedded_server()
   clean_up(0);
 }
 
-} /* extern "C" */
 
-C_MODE_START
 void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db)
 {
   THD *thd = (THD *)mysql->thd;
@@ -692,6 +665,26 @@ err:
 #endif
 
 C_MODE_END
+
+void THD::clear_data_list()
+{
+  while (first_data)
+  {
+    MYSQL_DATA *data= first_data;
+    first_data= data->embedded_info->next;
+    free_rows(data);
+  }
+  data_tail= &first_data;
+  free_rows(cur_data);
+  cur_data= 0;
+}
+
+void THD::clear_error()
+{
+  net.last_error[0]= 0;
+  net.last_errno= 0;
+  net.report_error= 0;
+}
 
 static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
 			 CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
