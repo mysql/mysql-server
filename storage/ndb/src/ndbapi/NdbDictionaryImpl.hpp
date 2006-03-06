@@ -30,6 +30,11 @@
 #include "NdbWaiter.hpp"
 #include "DictCache.hpp"
 
+bool
+is_ndb_blob_table(const char* name, Uint32* ptab_id = 0, Uint32* pcol_no = 0);
+bool
+is_ndb_blob_table(const class NdbTableImpl* t);
+
 class NdbDictObjectImpl {
 public:
   int m_id;
@@ -437,7 +442,7 @@ public:
   int listObjects(NdbDictionary::Dictionary::List& list, Uint32 requestData, bool fullyQualifiedNames);
   int listObjects(NdbApiSignal* signal);
   
-/*  NdbTableImpl * getTable(int tableId, bool fullyQualifiedNames); */
+  NdbTableImpl * getTable(int tableId, bool fullyQualifiedNames);
   NdbTableImpl * getTable(const BaseString& name, bool fullyQualifiedNames);
   NdbTableImpl * getTable(class NdbApiSignal * signal, 
 			  LinearSectionPtr ptr[3],
@@ -542,13 +547,12 @@ public:
 
   int createTable(NdbTableImpl &t);
   int createBlobTables(NdbTableImpl& t);
-  int addBlobTables(NdbTableImpl &);
   int alterTable(NdbTableImpl &t);
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
   int dropBlobTables(NdbTableImpl &);
-  int invalidateObject(NdbTableImpl &, bool lock = true);
-  int removeCachedObject(NdbTableImpl &, bool lock = true);
+  int invalidateObject(NdbTableImpl &);
+  int removeCachedObject(NdbTableImpl &);
 
   int createIndex(NdbIndexImpl &ix);
   int dropIndex(const char * indexName, 
@@ -572,9 +576,12 @@ public:
   int listIndexes(List& list, Uint32 indexId);
 
   NdbTableImpl * getTable(const char * tableName, void **data= 0);
+  NdbTableImpl * getBlobTable(const NdbTableImpl&, uint col_no);
+  NdbTableImpl * getBlobTable(uint tab_id, uint col_no);
   void putTable(NdbTableImpl *impl);
-  Ndb_local_table_info* get_local_table_info(
-    const BaseString& internalTableName, bool do_add_blob_tables);
+  int getBlobTables(NdbTableImpl &);
+  Ndb_local_table_info*
+    get_local_table_info(const BaseString& internalTableName);
   NdbIndexImpl * getIndex(const char * indexName,
 			  const char * tableName);
   NdbEventImpl * getEvent(const char * eventName, NdbTableImpl* = NULL);
@@ -846,32 +853,42 @@ inline
 NdbTableImpl *
 NdbDictionaryImpl::getTable(const char * table_name, void **data)
 {
+  DBUG_ENTER("NdbDictionaryImpl::getTable");
+  DBUG_PRINT("enter", ("table: %s", table_name));
+
+  if (unlikely(strchr(table_name, '$') != 0)) {
+    Uint32 tab_id, col_no;
+    if (is_ndb_blob_table(table_name, &tab_id, &col_no)) {
+      NdbTableImpl* t = getBlobTable(tab_id, col_no);
+      DBUG_RETURN(t);
+    }
+  }
+
   const BaseString internal_tabname(m_ndb.internalize_table_name(table_name));
   Ndb_local_table_info *info=
-    get_local_table_info(internal_tabname, true);
+    get_local_table_info(internal_tabname);
   if (info == 0)
-    return 0;
+    DBUG_RETURN(0);
   if (data)
     *data= info->m_local_data;
-  return info->m_table_impl;
+  DBUG_RETURN(info->m_table_impl);
 }
 
 inline
 Ndb_local_table_info * 
-NdbDictionaryImpl::get_local_table_info(const BaseString& internalTableName,
-					bool do_add_blob_tables)
+NdbDictionaryImpl::get_local_table_info(const BaseString& internalTableName)
 {
+  DBUG_ENTER("NdbDictionaryImpl::get_local_table_info");
+  DBUG_PRINT("enter", ("table: %s", internalTableName.c_str()));
+
   Ndb_local_table_info *info= m_localHash.get(internalTableName.c_str());
   if (info == 0) {
     info= fetchGlobalTableImpl(internalTableName);
     if (info == 0) {
-      return 0;
+      DBUG_RETURN(0);
     }
   }
-  if (do_add_blob_tables && info->m_table_impl->m_noOfBlobs)
-    addBlobTables(*(info->m_table_impl));
-  
-  return info; // autoincrement already initialized
+  DBUG_RETURN(info); // autoincrement already initialized
 }
 
 inline
@@ -891,7 +908,7 @@ NdbDictionaryImpl::getIndex(const char * index_name,
     if (internal_indexname.length())
     {
       Ndb_local_table_info * info=
-        get_local_table_info(internal_indexname, false);
+        get_local_table_info(internal_indexname);
       if (info)
       {
 	NdbTableImpl * tab= info->m_table_impl;
@@ -955,7 +972,5 @@ const NdbUndofileImpl &
 NdbUndofileImpl::getImpl(const NdbDictionary::Undofile & t){
   return t.m_impl;
 }
-
-
 
 #endif
