@@ -124,7 +124,7 @@ create table t1 select date_format("2004-01-19 10:10:10", "%Y-%m-%d");
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` varbinary(10) default NULL
+  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` varbinary(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 date_format("2004-01-19 10:10:10", "%Y-%m-%d")
@@ -275,7 +275,7 @@ create table t1 (a enum('aaaa','проба') character set utf8);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('aaaa','проба') character set utf8 default NULL
+  `a` enum('aaaa','проба') CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('проба');
 select * from t1;
@@ -285,7 +285,7 @@ create table t2 select ifnull(a,a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `ifnull(a,a)` varchar(5) character set utf8 default NULL
+  `ifnull(a,a)` varchar(5) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t2;
 ifnull(a,a)
@@ -411,7 +411,7 @@ unique key a using hash (c(1))
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) character set utf8 default NULL,
+  `c` char(10) CHARACTER SET utf8 DEFAULT NULL,
   UNIQUE KEY `a` USING HASH (`c`(1))
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
@@ -447,7 +447,7 @@ unique key a using btree (c(1))
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) character set utf8 default NULL,
+  `c` char(10) CHARACTER SET utf8 DEFAULT NULL,
   UNIQUE KEY `a` USING BTREE (`c`(1))
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
@@ -569,7 +569,7 @@ unique key a using hash (c(1))
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) character set utf8 collate utf8_bin default NULL,
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
   UNIQUE KEY `a` USING HASH (`c`(1))
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
@@ -605,7 +605,7 @@ unique key a using btree (c(1))
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) character set utf8 collate utf8_bin default NULL,
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
   UNIQUE KEY `a` USING BTREE (`c`(1))
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
@@ -809,8 +809,8 @@ create table t2 select concat(a,_utf8'') as a, concat(b,_utf8'')as b from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(5) character set utf8 NOT NULL default '',
-  `b` varchar(15) character set utf8 NOT NULL default ''
+  `a` varchar(5) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `b` varchar(15) CHARACTER SET utf8 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2;
 drop table t1;
