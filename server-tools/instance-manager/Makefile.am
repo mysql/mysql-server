@@ -79,7 +79,7 @@ mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
                         portability.h
 
 mysqlmanager_LDADD=	@CLIENT_EXTRA_LDFLAGS@ \
-			liboptions.a \
+			liboptions.la \
 			libnet.a \
 			$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/mysys/libmysys.a \
