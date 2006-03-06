@@ -224,6 +224,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --with-zlib-dir=bundled \
 	    --enable-assembler \
 	    --enable-local-infile \
+	    --with-fast-mutexes \
             --with-mysqld-user=%{mysqld_user} \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
             --prefix=/ \
@@ -708,6 +709,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon Mar 06 2006 Kent Boortz <kent@mysql.com>
+
+- Fast mutexes is now disabled by default, but should be
+  used in Linux builds.
+
 * Mon Feb 20 2006 Kent Boortz <kent@mysql.com>
 
 - Reintroduced a max build
