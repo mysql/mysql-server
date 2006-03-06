@@ -2463,10 +2463,10 @@ sp_proc_stmt_leave:
 	      uint ip= sp->instructions();
 	      uint n;
 
-	      n= ctx->diff_handlers(lab->ctx);
+	      n= ctx->diff_handlers(lab->ctx, TRUE);  /* Exclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_hpop(ip++, ctx, n));
-	      n= ctx->diff_cursors(lab->ctx);
+	      n= ctx->diff_cursors(lab->ctx, TRUE);  /* Exclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_cpop(ip++, ctx, n));
 	      i= new sp_instr_jump(ip, ctx);
@@ -2495,10 +2495,10 @@ sp_proc_stmt_iterate:
 	      uint ip= sp->instructions();
 	      uint n;
 
-	      n= ctx->diff_handlers(lab->ctx);
+	      n= ctx->diff_handlers(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_hpop(ip++, ctx, n));
-	      n= ctx->diff_cursors(lab->ctx);
+	      n= ctx->diff_cursors(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_cpop(ip++, ctx, n));
 	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
@@ -7150,9 +7150,8 @@ select_derived2:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables|= DERIVED_SUBQUERY;
-	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
-	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
-	       lex->sql_command == (int)SQLCOM_KILL)
+          if (lex->sql_command == (int)SQLCOM_HA_READ ||
+              lex->sql_command == (int)SQLCOM_KILL)
 	  {
 	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
@@ -8647,18 +8646,18 @@ purge_option:
 /* kill threads */
 
 kill:
-	KILL_SYM kill_option expr
+	KILL_SYM { Lex->sql_command= SQLCOM_KILL; } kill_option expr
 	{
 	  LEX *lex=Lex;
 	  lex->value_list.empty();
-	  lex->value_list.push_front($3);
-          lex->sql_command= SQLCOM_KILL;
+	  lex->value_list.push_front($4);
 	};
 
 kill_option:
 	/* empty */	 { Lex->type= 0; }
 	| CONNECTION_SYM { Lex->type= 0; }
-	| QUERY_SYM      { Lex->type= ONLY_KILL_QUERY; };
+	| QUERY_SYM      { Lex->type= ONLY_KILL_QUERY; }
+        ;
 
 /* change database */
 
@@ -8671,7 +8670,7 @@ use:	USE_SYM ident
 
 /* import, export of files */
 
-load:   LOAD DATA_SYM 
+load:   LOAD DATA_SYM
         {
           LEX *lex=Lex;
 	  if (lex->sphead)
@@ -10739,9 +10738,8 @@ subselect_start:
 	'(' SELECT_SYM
 	{
 	  LEX *lex=Lex;
-	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
-	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
-	       lex->sql_command == (int)SQLCOM_KILL)
+          if (lex->sql_command == (int)SQLCOM_HA_READ ||
+              lex->sql_command == (int)SQLCOM_KILL)
 	  {
             yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
@@ -10927,7 +10925,7 @@ view_check_option:
 
 trigger_tail:
 	TRIGGER_SYM remember_name sp_name trg_action_time trg_event
-	ON remember_name table_ident remember_end FOR_SYM EACH_SYM ROW_SYM
+	ON remember_name table_ident FOR_SYM remember_name EACH_SYM ROW_SYM
 	{
 	  LEX *lex= Lex;
 	  sp_head *sp;
@@ -10945,7 +10943,7 @@ trigger_tail:
 
 	  lex->trigger_definition_begin= $2;
           lex->ident.str= $7;
-          lex->ident.length= $9 - $7;
+          lex->ident.length= $10 - $7;
 
 	  sp->m_type= TYPE_ENUM_TRIGGER;
 	  lex->sphead= sp;
