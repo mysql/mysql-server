@@ -599,6 +599,8 @@ echo $var3_var3;
 --error 1
 --exec echo "source ;" | $MYSQL_TEST 2>&1
 
+# Fix win paths
+--replace_result \\ /
 --error 1
 --exec echo "source non_existingFile;" | $MYSQL_TEST 2>&1
 
@@ -806,6 +808,8 @@ while (!$i)
 }
 
 # Exceed max nesting level
+# Fix win path
+--replace_result \\ /
 --error 1
 --exec echo "source include/mysqltest_while.inc;" | $MYSQL_TEST 2>&1
 --error 1
@@ -925,41 +929,41 @@ select "a" as col1, "c" as col2;
 --exec echo "connect (con1,localhost,root,,,,,SMTP POP);" | $MYSQL_TEST 2>&1
 
 # Repeat connect/disconnect
---exec echo "let \$i=100;"                              > $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "while (\$i)"                              >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "{"                                        >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo " connect (test_con1,localhost,root,,); "  >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo " disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo " dec \$i;                               " >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "}"                                        >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "source $MYSQLTEST_VARDIR/tmp/con.sql; echo OK;" | $MYSQL_TEST 2>&1
+--system echo "let \$i=100;"                              > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "while (\$i)"                              >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "{"                                        >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo " connect (test_con1,localhost,root,,); "  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo " disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo " dec \$i;                               " >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "}"                                        >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql; echo OK;" | $MYSQL_TEST 2>&1
 
 # Repeat connect/disconnect, exceed max number of connections
---exec echo "let \$i=200;"                              > $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "while (\$i)"                              >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "{"                                        >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo " connect (test_con1,localhost,root,,); "  >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo " disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo " dec \$i;                               " >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "}"                                        >> $MYSQLTEST_VARDIR/tmp/con.sql
+--system echo "let \$i=200;"                              > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "while (\$i)"                              >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "{"                                        >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo " connect (test_con1,localhost,root,,); "  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo " disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo " dec \$i;                               " >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "}"                                        >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
---exec echo "source $MYSQLTEST_VARDIR/tmp/con.sql;" | $MYSQL_TEST 2>&1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
 
 # Select disconnected connection
---exec echo "connect (test_con1,localhost,root,,);"    > $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "connection test_con1;"                   >> $MYSQLTEST_VARDIR/tmp/con.sql
+--system echo "connect (test_con1,localhost,root,,);"    > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "connection test_con1;"                   >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
---exec echo "source $MYSQLTEST_VARDIR/tmp/con.sql;" | $MYSQL_TEST 2>&1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
 
 # Connection name already used
---exec echo "connect (test_con1,localhost,root,,);"    > $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "connect (test_con1,localhost,root,,);"   >> $MYSQLTEST_VARDIR/tmp/con.sql
+--system echo "connect (test_con1,localhost,root,,);"    > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "connect (test_con1,localhost,root,,);"   >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
---exec echo "source $MYSQLTEST_VARDIR/tmp/con.sql;" | $MYSQL_TEST 2>&1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
 
 # connect when "disable_abort_on_error" caused "connection not found"
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -977,6 +981,8 @@ connection con1;
 --exec $MYSQL_TEST < $MYSQL_TEST_DIR/include/mysqltest-x.inc
 --exec $MYSQL_TEST -x $MYSQL_TEST_DIR/include/mysqltest-x.inc
 --exec $MYSQL_TEST --test_file=$MYSQL_TEST_DIR/include/mysqltest-x.inc
+# Fix Win paths
+--replace_result \\ /
 --error 1
 --exec $MYSQL_TEST -x non_existing_file.inc 2>&1
 
