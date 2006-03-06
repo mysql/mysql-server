@@ -40,4 +40,7 @@ connection con2;
 select 4;
 drop table t1;
 
+--error 1064
+kill (select count(*) from mysql.user);
+
 # End of 4.1 tests
