@@ -50,9 +50,9 @@
 extern Uint64 g_latest_trans_gci;
 
 bool
-is_ndb_blob_table(const char* name)
+is_ndb_blob_table(const char* name, Uint32* ptab_id, Uint32* pcol_no)
 {
-  return DictTabInfo::isBlobTableName(name);
+  return DictTabInfo::isBlobTableName(name, ptab_id, pcol_no);
 }
 
 bool
@@ -1383,6 +1383,43 @@ NdbDictionaryImpl::getBlobTables(NdbTableImpl &t)
   DBUG_RETURN(0); 
 }
 
+NdbTableImpl*
+NdbDictionaryImpl::getBlobTable(const NdbTableImpl& tab, uint col_no)
+{
+  if (col_no < tab.m_columns.size()) {
+    NdbColumnImpl* col = tab.m_columns[col_no];
+    if (col != NULL) {
+      NdbTableImpl* bt = col->m_blobTable;
+      if (bt != NULL)
+        return bt;
+      else
+        m_error.code = 4273; // No blob table..
+    } else
+      m_error.code = 4249; // Invalid table..
+  } else
+    m_error.code = 4318; // Invalid attribute..
+  return NULL;
+}
+
+NdbTableImpl*
+NdbDictionaryImpl::getBlobTable(uint tab_id, uint col_no)
+{
+  DBUG_ENTER("NdbDictionaryImpl::getBlobTable");
+  DBUG_PRINT("enter", ("tab_id: %u col_no %u", tab_id, col_no));
+
+  NdbTableImpl* tab = m_receiver.getTable(tab_id,
+                                          m_ndb.usingFullyQualifiedNames());
+  if (tab == NULL)
+    DBUG_RETURN(NULL);
+  Ndb_local_table_info* info =
+    get_local_table_info(tab->m_internalName);
+  delete tab;
+  if (info == NULL)
+    DBUG_RETURN(NULL);
+  NdbTableImpl* bt = getBlobTable(*info->m_table_impl, col_no);
+  DBUG_RETURN(bt);
+}
+
 #if 0
 bool
 NdbDictionaryImpl::setTransporter(class TransporterFacade * tf)
@@ -1697,7 +1734,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
   }
   DBUG_RETURN(-1);
 }
-#if 0
+
 /*
   Get dictionary information for a table using table id as reference
 
@@ -1721,8 +1758,6 @@ NdbDictInterface::getTable(int tableId, bool fullyQualifiedNames)
 
   return getTable(&tSignal, 0, 0, fullyQualifiedNames);
 }
-#endif
-
 
 /*
   Get dictionary information for a table using table name as the reference

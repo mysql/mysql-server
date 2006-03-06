@@ -30,8 +30,10 @@
 #include "NdbWaiter.hpp"
 #include "DictCache.hpp"
 
-bool is_ndb_blob_table(const char* name);
-bool is_ndb_blob_table(const class NdbTableImpl* t);
+bool
+is_ndb_blob_table(const char* name, Uint32* ptab_id = 0, Uint32* pcol_no = 0);
+bool
+is_ndb_blob_table(const class NdbTableImpl* t);
 
 class NdbDictObjectImpl {
 public:
@@ -440,7 +442,7 @@ public:
   int listObjects(NdbDictionary::Dictionary::List& list, Uint32 requestData, bool fullyQualifiedNames);
   int listObjects(NdbApiSignal* signal);
   
-/*  NdbTableImpl * getTable(int tableId, bool fullyQualifiedNames); */
+  NdbTableImpl * getTable(int tableId, bool fullyQualifiedNames);
   NdbTableImpl * getTable(const BaseString& name, bool fullyQualifiedNames);
   NdbTableImpl * getTable(class NdbApiSignal * signal, 
 			  LinearSectionPtr ptr[3],
@@ -574,6 +576,8 @@ public:
   int listIndexes(List& list, Uint32 indexId);
 
   NdbTableImpl * getTable(const char * tableName, void **data= 0);
+  NdbTableImpl * getBlobTable(const NdbTableImpl&, uint col_no);
+  NdbTableImpl * getBlobTable(uint tab_id, uint col_no);
   void putTable(NdbTableImpl *impl);
   int getBlobTables(NdbTableImpl &);
   Ndb_local_table_info*
@@ -849,28 +853,42 @@ inline
 NdbTableImpl *
 NdbDictionaryImpl::getTable(const char * table_name, void **data)
 {
+  DBUG_ENTER("NdbDictionaryImpl::getTable");
+  DBUG_PRINT("enter", ("table: %s", table_name));
+
+  if (unlikely(strchr(table_name, '$') != 0)) {
+    Uint32 tab_id, col_no;
+    if (is_ndb_blob_table(table_name, &tab_id, &col_no)) {
+      NdbTableImpl* t = getBlobTable(tab_id, col_no);
+      DBUG_RETURN(t);
+    }
+  }
+
   const BaseString internal_tabname(m_ndb.internalize_table_name(table_name));
   Ndb_local_table_info *info=
     get_local_table_info(internal_tabname);
   if (info == 0)
-    return 0;
+    DBUG_RETURN(0);
   if (data)
     *data= info->m_local_data;
-  return info->m_table_impl;
+  DBUG_RETURN(info->m_table_impl);
 }
 
 inline
 Ndb_local_table_info * 
 NdbDictionaryImpl::get_local_table_info(const BaseString& internalTableName)
 {
+  DBUG_ENTER("NdbDictionaryImpl::get_local_table_info");
+  DBUG_PRINT("enter", ("table: %s", internalTableName.c_str()));
+
   Ndb_local_table_info *info= m_localHash.get(internalTableName.c_str());
   if (info == 0) {
     info= fetchGlobalTableImpl(internalTableName);
     if (info == 0) {
-      return 0;
+      DBUG_RETURN(0);
     }
   }
-  return info; // autoincrement already initialized
+  DBUG_RETURN(info); // autoincrement already initialized
 }
 
 inline
