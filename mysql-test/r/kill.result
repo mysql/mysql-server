@@ -17,3 +17,5 @@ select 4;
 4
 4
 drop table t1;
+kill (select count(*) from mysql.user);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select count(*) from mysql.user)' at line 1
