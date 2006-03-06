@@ -1120,8 +1120,6 @@ static void do_exec(struct st_query *query)
                ("error: %d, status: %d", error, status));
     for (i= 0; i < query->expected_errors; i++)
     {
-      DBUG_PRINT("info",
-                 ("error: %d, status: %d", error, status));
       DBUG_PRINT("info", ("expected error: %d",
                           query->expected_errno[i].code.errnum));
       if ((query->expected_errno[i].type == ERR_ERRNO) &&
@@ -1354,6 +1352,35 @@ int do_modify_var(struct st_query *query, const char *name,
 
 
 /*
+  Wrapper for 'system' function
+
+  NOTE
+   If mysqltest is executed from cygwin shell, the command will be
+   executed in the "windows command interpreter" cmd.exe and we prepend "sh"
+   to make it be executed by cygwins "bash". Thus commands like "rm",
+   "mkdir" as well as shellscripts can executed by "system" in Windows.
+
+*/
+
+int my_system(DYNAMIC_STRING* ds_cmd)
+{
+#ifdef __WIN__
+  /* Dump the command into a sh script file and execute with "sh" */
+  int err;
+  char tmp_sh_name[64], tmp_sh_cmd[70];
+  my_snprintf(tmp_sh_name, sizeof(tmp_sh_name), "tmp_%d.sh", getpid());
+  my_snprintf(tmp_sh_cmd, sizeof(tmp_sh_cmd), "sh %s", tmp_sh_name);
+  str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
+  err= system(tmp_sh_cmd);
+  my_delete(tmp_sh_name, MYF(0));
+  return err;
+#else
+  return system(ds_cmd->str);
+#endif
+}
+
+
+/*
 
   SYNOPSIS
   do_system
@@ -1365,14 +1392,12 @@ int do_modify_var(struct st_query *query, const char *name,
     Eval the query to expand any $variables in the command.
     Execute the command with the "system" command.
 
-  NOTE
-   If mysqltest is executed from cygwin shell, the command will be
-   executed in cygwin shell. Thus commands like "rm" etc can be used.
- */
+*/
 
-int do_system(struct st_query *command)
+void do_system(struct st_query *command)
 {
   DYNAMIC_STRING ds_cmd;
+  DBUG_ENTER("do_system");
 
   if (strlen(command->first_argument) == 0)
     die("Missing arguments to system, nothing to do!");
@@ -1384,7 +1409,7 @@ int do_system(struct st_query *command)
 
   DBUG_PRINT("info", ("running system command '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
-  if (system(ds_cmd.str))
+  if (my_system(&ds_cmd))
   {
     if (command->abort_on_error)
       die("system command '%s' failed", command->first_argument);
@@ -1396,7 +1421,7 @@ int do_system(struct st_query *command)
   }
 
   command->last_argument= command->end;
-  return 0;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1647,6 +1672,7 @@ int do_sleep(struct st_query *query, my_bool real_sleep)
   char *p= query->first_argument;
   char *sleep_start, *sleep_end= query->end;
   double sleep_val;
+  const char *cmd = (real_sleep ? "real_sleep" : "sleep");
 
   while (my_isspace(charset_info, *p))
     p++;
@@ -2405,7 +2431,7 @@ int do_done(struct st_query *q)
 
  */
 
-int do_block(enum block_cmd cmd, struct st_query* q)
+void do_block(enum block_cmd cmd, struct st_query* q)
 {
   char *p= q->first_argument;
   const char *expr_start, *expr_end;
@@ -2429,7 +2455,7 @@ int do_block(enum block_cmd cmd, struct st_query* q)
     cur_block++;
     cur_block->cmd= cmd;
     cur_block->ok= FALSE;
-    return 0;
+    DBUG_VOID_RETURN;
   }
 
   /* Parse and evaluate test expression */
@@ -3135,7 +3161,7 @@ static void init_win_path_patterns()
 
 static void free_win_path_patterns()
 {
-  int i= 0;
+  uint i= 0;
   for (i=0 ; i < patterns.elements ; i++)
   {
     const char** pattern= dynamic_element(&patterns, i, const char**);
