@@ -425,8 +425,7 @@ install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.
 install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Install embedded server library in the build root
-# FIXME No libmysqld on 5.0 yet
-#install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
+install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -703,7 +702,7 @@ fi
 
 %files embedded
 %defattr(-, root, root, 0755)
-# %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
+%attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
 # The spec file changelog only includes changes made to the spec file
 # itself - note that they must be ordered by date (important when
