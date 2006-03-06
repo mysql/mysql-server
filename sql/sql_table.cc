@@ -3706,6 +3706,8 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
   uint changes= 0, tmp;
   List_iterator_fast<create_field> new_field_it(*create_list);
   create_field *new_field;
+  KEY_PART_INFO *key_part;
+  KEY_PART_INFO *end;
   DBUG_ENTER("compare_tables");
 
   /*
@@ -3833,9 +3835,14 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
     /* Key modified. Add the offset of the key to both buffers. */
     index_drop_buffer[(*index_drop_count)++]= table_key - table->key_info;
     index_add_buffer[(*index_add_count)++]= new_key - key_info_buffer;
-    field= table->field[new_key->key_part->fieldnr];
-    // Mark field to be part of new key 
-    field->add_index= 1;
+    key_part= new_key->key_part;
+    end= key_part + new_key->key_parts;
+    for(; key_part != end; key_part++)
+    {
+      // Mark field to be part of new key 
+      field= table->field[key_part->fieldnr];
+      field->add_index= 1;
+    }
     DBUG_PRINT("info", ("index changed: '%s'", table_key->name));
   }
   /*end of for (; table_key < table_key_end;) */
@@ -3855,9 +3862,14 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
     {
       /* Key not found. Add the offset of the key to the add buffer. */
       index_add_buffer[(*index_add_count)++]= new_key - key_info_buffer;
-      field= table->field[new_key->key_part->fieldnr];
-      // Mark field to be part of new key 
-      field->add_index= 1;
+      key_part= new_key->key_part;
+      end= key_part + new_key->key_parts;
+      for(; key_part != end; key_part++)
+      {
+        // Mark field to be part of new key 
+        field= table->field[key_part->fieldnr];
+        field->add_index= 1;
+      }
       DBUG_PRINT("info", ("index added: '%s'", new_key->name));
     }
   }
