@@ -792,7 +792,7 @@ check_trx_exists(
 		thd->ha_data[innobase_hton.slot] = trx;
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
-			mem_analyze_corruption((byte*)trx);
+			mem_analyze_corruption(trx);
 
 			ut_a(0);
 		}

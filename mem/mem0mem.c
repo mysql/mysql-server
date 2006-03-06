@@ -141,7 +141,7 @@ mem_heap_create_block(
 		|| (type == MEM_HEAP_BUFFER + MEM_HEAP_BTR_SEARCH));
 
 	if (heap && heap->magic_n != MEM_BLOCK_MAGIC_N) {
-		mem_analyze_corruption((byte*)heap);
+		mem_analyze_corruption(heap);
 	}
 
 	/* In dynamic allocation, calculate the size: block header + data. */
@@ -286,7 +286,7 @@ mem_heap_block_free(
 	ibool	init_block;
 
 	if (block->magic_n != MEM_BLOCK_MAGIC_N) {
-		mem_analyze_corruption((byte*)block);
+		mem_analyze_corruption(block);
 	}
 
 	UT_LIST_REMOVE(list, heap->base, block);
@@ -361,7 +361,7 @@ mem_validate_all_blocks(void)
 
 	while (block) {
 		if (block->magic_n != MEM_BLOCK_MAGIC_N) {
-			mem_analyze_corruption((byte*)block);
+			mem_analyze_corruption(block);
 		}
 
 		block = UT_LIST_GET_NEXT(mem_block_list, block);

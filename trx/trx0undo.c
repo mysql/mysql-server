@@ -1443,7 +1443,7 @@ trx_undo_mem_init_for_reuse(
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
 			(ulong) undo->id);
 
-		mem_analyze_corruption((byte*)undo);
+		mem_analyze_corruption(undo);
 		ut_error;
 	}
 
@@ -1589,7 +1589,7 @@ trx_undo_reuse_cached(
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
 			(ulong) undo->id);
-		mem_analyze_corruption((byte*)undo);
+		mem_analyze_corruption(undo);
 		ut_error;
 	}
 
@@ -1737,7 +1737,7 @@ trx_undo_set_state_at_finish(
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
 			(ulong) undo->id);
-		mem_analyze_corruption((byte*)undo);
+		mem_analyze_corruption(undo);
 		ut_error;
 	}
 
@@ -1787,7 +1787,7 @@ trx_undo_set_state_at_prepare(
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
 			(ulong) undo->id);
-		mem_analyze_corruption((byte*)undo);
+		mem_analyze_corruption(undo);
 		ut_error;
 	}
 
