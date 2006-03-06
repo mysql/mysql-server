@@ -642,4 +642,3 @@ delete from mysql.db where user='mysqltest1';
 delete from mysql.tables_priv where user='mysqltest1';
 flush privileges;
 drop database mysqltest;
-
