@@ -1360,7 +1360,7 @@ int do_modify_var(struct st_query *query,
   const char *p= query->first_argument;
   VAR* v;
   if (!*p)
-    die("Missing argument to %.*s", query->first_word_len, query->query);
+    die("Missing arguments to %.*s", query->first_word_len, query->query);
   if (*p != '$')
     die("First argument to %.*s must be a variable (start with $)",
         query->first_word_len, query->query);
