@@ -2258,7 +2258,10 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   {
     if (exact)
     {
-      if (compare_hostname(&grant_name->host, host, ip))
+      if ((host &&
+	   !my_strcasecmp(system_charset_info, host,
+                          grant_name->host.hostname)) ||
+	  (ip && !strcmp(ip, grant_name->host.hostname)))
 	return grant_name;
     }
     else
