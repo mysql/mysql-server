@@ -263,41 +263,41 @@ concat('*',v,'*',c,'*',t,'*')
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
-  `t` varchar(50) default NULL
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` varchar(50) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 create table t2 like t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
-  `t` varchar(50) default NULL
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` varchar(50) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 create table t3 select * from t1;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
-  `t` varchar(50) default NULL
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` varchar(50) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 alter table t1 modify c varchar(10);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` varchar(10) default NULL,
-  `t` varchar(50) default NULL
+  `v` varchar(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
+  `t` varchar(50) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 alter table t1 modify v char(10);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) default NULL,
-  `c` varchar(10) default NULL,
-  `t` varchar(50) default NULL
+  `v` char(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
+  `t` varchar(50) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 alter table t1 modify t varchar(10);
 Warnings:
@@ -305,9 +305,9 @@ Warning	1265	Data truncated for column 't' at row 2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) default NULL,
-  `c` varchar(10) default NULL,
-  `t` varchar(10) default NULL
+  `v` char(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
+  `t` varchar(10) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
@@ -318,9 +318,9 @@ create table t1 (v varchar(10), c char(10), t varchar(50), key(v), key(c), key(t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
-  `t` varchar(50) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` varchar(50) DEFAULT NULL,
   KEY `v` (`v`),
   KEY `c` (`c`),
   KEY `t` (`t`(10))
@@ -553,9 +553,9 @@ create table t1 (v varchar(10), c char(10), t varchar(50), key using btree (v), 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
-  `t` varchar(50) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` varchar(50) DEFAULT NULL,
   KEY `v` USING BTREE (`v`),
   KEY `c` USING BTREE (`c`),
   KEY `t` USING BTREE (`t`(10))
@@ -644,9 +644,9 @@ create table t1 (v varchar(10), c char(10), t varchar(50), key(v(5)), key(c(5)),
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
-  `t` varchar(50) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` varchar(50) DEFAULT NULL,
   KEY `v` (`v`(5)),
   KEY `c` (`c`(5)),
   KEY `t` (`t`(5))
@@ -656,7 +656,7 @@ create table t1 (v varchar(65530), key(v(10)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(65530) default NULL,
+  `v` varchar(65530) DEFAULT NULL,
   KEY `v` (`v`(10))
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values(repeat('a',65530));

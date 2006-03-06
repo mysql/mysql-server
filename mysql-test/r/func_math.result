@@ -156,7 +156,7 @@ create table t1 select round(1, 6);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `round(1, 6)` decimal(7,6) NOT NULL default '0.000000'
+  `round(1, 6)` decimal(7,6) NOT NULL DEFAULT '0.000000'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 round(1, 6)
