@@ -33,14 +33,14 @@ id	created
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `id` int(11) NOT NULL auto_increment,
-  `created` datetime default NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `created` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `id` int(11) NOT NULL default '0',
-  `created` datetime default NULL
+  `id` int(11) NOT NULL DEFAULT '0',
+  `created` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2,t3,t5;

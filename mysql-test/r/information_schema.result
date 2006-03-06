@@ -433,7 +433,7 @@ alter table t1 add constraint constraint_2 unique key_2(a);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`),
   UNIQUE KEY `constraint_1` (`a`),
   UNIQUE KEY `key_1` (`a`),
@@ -506,19 +506,19 @@ drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
 CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
-  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
-  `DESCRIPTION` varchar(60) NOT NULL default '',
-  `MAXLEN` bigint(3) NOT NULL default '0'
+  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
+  `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
 CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
-  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
-  `DESCRIPTION` varchar(60) NOT NULL default '',
-  `MAXLEN` bigint(3) NOT NULL default '0'
+  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
+  `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 set names latin1;
 create table t1 select * from information_schema.CHARACTER_SETS
@@ -530,10 +530,10 @@ alter table t1 default character set utf8;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
-  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
-  `DESCRIPTION` varchar(60) NOT NULL default '',
-  `MAXLEN` bigint(3) NOT NULL default '0'
+  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
+  `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 drop table t1;
 create view v1 as select * from information_schema.TABLES;

@@ -495,11 +495,11 @@ c5 bigint);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) default NULL,
-  `c2` smallint(6) default NULL,
-  `c3` mediumint(9) default NULL,
-  `c4` int(11) default NULL,
-  `c5` bigint(20) default NULL
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` smallint(6) DEFAULT NULL,
+  `c3` mediumint(9) DEFAULT NULL,
+  `c4` int(11) DEFAULT NULL,
+  `c5` bigint(20) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 set @arg00= 8, @arg01= 8.8, @arg02= 'a string', @arg03= 0.2e0;
@@ -507,10 +507,10 @@ create table t1 as select @arg00 as c1, @arg01 as c2, @arg02 as c3, @arg03 as c4
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) default NULL,
-  `c2` decimal(65,30) default NULL,
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` decimal(65,30) DEFAULT NULL,
   `c3` longtext,
-  `c4` double default NULL
+  `c4` double DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 SET GLOBAL MYISAM_DATA_POINTER_SIZE= 7;
