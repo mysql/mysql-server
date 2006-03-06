@@ -153,7 +153,6 @@ class ha_federated: public handler
   FEDERATED_SHARE *share;    /* Shared lock info */
   MYSQL *mysql; /* MySQL connection */
   MYSQL_RES *stored_result;
-  bool scan_flag;
   uint ref_length;
   uint fetch_num; // stores the fetch num
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
