@@ -1602,6 +1602,12 @@ public:
     const Table * getTable(const char * name) const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    /**
+     * Given main table, get blob table.
+     */
+    const Table * getBlobTable(const Table *, const char * col_name);
+    const Table * getBlobTable(const Table *, Uint32 col_no);
+
     /*
      * Save a table definition in dictionary cache
      * @param table Object to put into cache
