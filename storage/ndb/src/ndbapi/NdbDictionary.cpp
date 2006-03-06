@@ -1367,6 +1367,25 @@ NdbDictionary::Dictionary::getTable(const char * name) const
   return getTable(name, 0);
 }
 
+const NdbDictionary::Table *
+NdbDictionary::Dictionary::getBlobTable(const NdbDictionary::Table* table,
+                                        const char* col_name)
+{
+  const NdbDictionary::Column* col = table->getColumn(col_name);
+  if (col == NULL) {
+    m_impl.m_error.code = 4318;
+    return NULL;
+  }
+  return getBlobTable(table, col->getColumnNo());
+}
+
+const NdbDictionary::Table *
+NdbDictionary::Dictionary::getBlobTable(const NdbDictionary::Table* table,
+                                        Uint32 col_no)
+{
+  return m_impl.getBlobTable(NdbTableImpl::getImpl(*table), col_no);
+}
+
 void
 NdbDictionary::Dictionary::invalidateTable(const char * name){
   DBUG_ENTER("NdbDictionaryImpl::invalidateTable");
