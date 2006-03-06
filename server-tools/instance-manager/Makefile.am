@@ -24,9 +24,10 @@ DEFS= -DMYSQL_INSTANCE_MANAGER -DMYSQL_SERVER
 # default_options.h, generated from default_options.h.in)
 # See automake/autoconf docs for details
 
-noinst_LIBRARIES= liboptions.a libnet.a
+noinst_LTLIBRARIES= liboptions.la
+noinst_LIBRARIES=   libnet.a
 
-liboptions_a_CXXFLAGS= $(CXXFLAGS) \
+liboptions_la_CXXFLAGS= $(CXXFLAGS) \
 	-DDEFAULT_PID_FILE_NAME="$(localstatedir)/mysqlmanager.pid" \
 	-DDEFAULT_LOG_FILE_NAME="$(localstatedir)/mysqlmanager.log" \
 	-DDEFAULT_SOCKET_FILE_NAME="/tmp/mysqlmanager.sock" \
@@ -35,8 +36,8 @@ liboptions_a_CXXFLAGS= $(CXXFLAGS) \
 	-DDEFAULT_CONFIG_FILE="/etc/my.cnf" \
 	-DPROTOCOL_VERSION=@PROTOCOL_VERSION@
 
-liboptions_a_SOURCES= options.h options.cc priv.h priv.cc
-liboptions_a_LIBADD= $(top_builddir)/libmysql/get_password.$(OBJEXT)
+liboptions_la_SOURCES= options.h options.cc priv.h priv.cc
+liboptions_la_LIBADD= $(top_builddir)/libmysql/get_password.lo
 
 # MySQL sometimes uses symlinks to reuse code 
 # All symlinked files are grouped in libnet.a
