@@ -158,7 +158,7 @@ btr_pcur_copy_stored_position(
 		mem_free(pcur_receive->old_rec_buf);
 	}
 
-	ut_memcpy((byte*)pcur_receive, (byte*)pcur_donate, sizeof(btr_pcur_t));
+	ut_memcpy(pcur_receive, pcur_donate, sizeof(btr_pcur_t));
 
 	if (pcur_donate->old_rec_buf) {
 

@@ -3161,7 +3161,7 @@ row_search_for_mysql(
 		ut_print_name(stderr, trx, prebuilt->table->name);
 		putc('\n', stderr);
 
-		mem_analyze_corruption((byte*)prebuilt);
+		mem_analyze_corruption(prebuilt);
 
 		ut_error;
 	}

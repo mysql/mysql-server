@@ -207,7 +207,7 @@ row_mysql_store_blob_ref(
 
 	mach_write_to_n_little_endian(dest, col_len - 8, len);
 
-	ut_memcpy(dest + col_len - 8, (byte*)&data, sizeof(byte*));
+	ut_memcpy(dest + col_len - 8, &data, sizeof(byte*));
 }
 
 /***********************************************************************
@@ -226,7 +226,7 @@ row_mysql_read_blob_ref(
 
 	*len = mach_read_from_n_little_endian(ref, col_len - 8);
 
-	ut_memcpy((byte*)&data, ref + col_len - 8, sizeof(byte*));
+	ut_memcpy(&data, ref + col_len - 8, sizeof(byte*));
 
 	return(data);
 }
@@ -681,7 +681,7 @@ row_prebuilt_free(
 		ut_print_name(stderr, NULL, prebuilt->table->name);
 		putc('\n', stderr);
 
-		mem_analyze_corruption((byte*)prebuilt);
+		mem_analyze_corruption(prebuilt);
 
 		ut_error;
 	}
@@ -761,7 +761,7 @@ row_update_prebuilt_trx(
 		"InnoDB: trx handle. Magic n %lu\n",
 		(ulong) trx->magic_n);
 
-		mem_analyze_corruption((byte*)trx);
+		mem_analyze_corruption(trx);
 
 		ut_error;
 	}
@@ -774,7 +774,7 @@ row_update_prebuilt_trx(
 		ut_print_name(stderr, NULL, prebuilt->table->name);
 		putc('\n', stderr);
 
-		mem_analyze_corruption((byte*)prebuilt);
+		mem_analyze_corruption(prebuilt);
 
 		ut_error;
 	}
@@ -1095,7 +1095,7 @@ row_insert_for_mysql(
 		ut_print_name(stderr, prebuilt->trx, prebuilt->table->name);
 		putc('\n', stderr);
 
-		mem_analyze_corruption((byte*)prebuilt);
+		mem_analyze_corruption(prebuilt);
 
 		ut_error;
 	}
@@ -1330,7 +1330,7 @@ row_update_for_mysql(
 		ut_print_name(stderr, prebuilt->trx, prebuilt->table->name);
 		putc('\n', stderr);
 
-		mem_analyze_corruption((byte*)prebuilt);
+		mem_analyze_corruption(prebuilt);
 
 		ut_error;
 	}

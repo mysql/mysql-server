@@ -202,7 +202,7 @@ void
 ut_print_buf(
 /*=========*/
 	FILE*		file,	/* in: file where to print */
-	const byte*	buf,	/* in: memory buffer */
+	const void*	buf,	/* in: memory buffer */
 	ulint		len);	/* in: length of the buffer */
 
 /**************************************************************************
