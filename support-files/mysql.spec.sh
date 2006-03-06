@@ -369,8 +369,8 @@ BuildMySQL "--disable-shared \
 		--with-client-ldflags='-all-static' \
 		$USE_OTHER_LIBC_DIR \
 %else
-%endif
 		--with-zlib-dir=bundled \
+%endif
 		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
 		--with-server-suffix='%{server_suffix}' \
 		--with-archive-storage-engine \
@@ -690,8 +690,11 @@ fi
 %{_libdir}/mysql/libndbclient.a
 %{_libdir}/mysql/libndbclient.la
 %{_libdir}/mysql/libvio.a
+%if %{STATIC_BUILD}
+%else
 %{_libdir}/mysql/libz.a
 %{_libdir}/mysql/libz.la
+%endif
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -723,6 +726,11 @@ fi
 * Fri Mar 03 2006 Kent Boortz <kent@mysql.com>
 
 - Don't output an embedded package as it is empty
+- Can't use bundled zlib when doing static build. Might be a
+  automake/libtool problem, having two .la files, "libmysqlclient.la"
+  and "libz.la", on the same command line to link "thread_test"
+  expands to too many "-lc", "-lpthread" and other libs giving hard
+  to nail down duplicate symbol defintion problems.
 
 * Fri Jan 10 2006 Joerg Bruehe <joerg@mysql.com>
 
