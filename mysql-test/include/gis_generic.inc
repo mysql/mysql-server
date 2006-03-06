@@ -8,14 +8,14 @@
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 --enable_warnings
 
-CREATE TABLE gis_point  (fid INTEGER, g POINT);
-CREATE TABLE gis_line  (fid INTEGER, g LINESTRING);
-CREATE TABLE gis_polygon   (fid INTEGER, g POLYGON);
-CREATE TABLE gis_multi_point (fid INTEGER, g MULTIPOINT);
-CREATE TABLE gis_multi_line (fid INTEGER, g MULTILINESTRING);
-CREATE TABLE gis_multi_polygon  (fid INTEGER, g MULTIPOLYGON);
-CREATE TABLE gis_geometrycollection  (fid INTEGER, g GEOMETRYCOLLECTION);
-CREATE TABLE gis_geometry (fid INTEGER, g GEOMETRY);
+CREATE TABLE gis_point  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g POINT);
+CREATE TABLE gis_line  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g LINESTRING);
+CREATE TABLE gis_polygon   (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g POLYGON);
+CREATE TABLE gis_multi_point (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g MULTIPOINT);
+CREATE TABLE gis_multi_line (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g MULTILINESTRING);
+CREATE TABLE gis_multi_polygon  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g MULTIPOLYGON);
+CREATE TABLE gis_geometrycollection  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometry (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g GEOMETRY);
 
 SHOW CREATE TABLE gis_point;
 SHOW FIELDS FROM gis_point;
@@ -141,6 +141,7 @@ DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gi
 # Check that ALTER TABLE doesn't loose geometry type
 #
 CREATE TABLE t1 (
+  a INTEGER PRIMARY KEY AUTO_INCREMENT,
   gp  point,
   ln  linestring,
   pg  polygon,
@@ -156,24 +157,24 @@ ALTER TABLE t1 ADD fid INT;
 SHOW FIELDS FROM t1;
 DROP TABLE t1;
 
-create table t1 (a geometry not null);
-insert into t1 values (GeomFromText('Point(1 2)'));
+create table t1 (pk integer primary key auto_increment, a geometry not null);
+insert into t1 (a) values (GeomFromText('Point(1 2)'));
 -- error 1416
-insert into t1 values ('Garbage');
+insert into t1 (a) values ('Garbage');
 -- error 1416
-insert IGNORE into t1 values ('Garbage');
+insert IGNORE into t1 (a) values ('Garbage');
 
 drop table t1;
 
-create table t1 (fl geometry);
+create table t1 (pk integer primary key auto_increment, fl geometry);
 --error 1416
-insert into t1 values (1);
+insert into t1 (fl) values (1);
 --error 1416
-insert into t1 values (1.11);
+insert into t1 (fl) values (1.11);
 --error 1416
-insert into t1 values ("qwerty");
+insert into t1 (fl) values ("qwerty");
 --error 1416
-insert into t1 values (pointfromtext('point(1,1)'));
+insert into t1 (fl) values (pointfromtext('point(1,1)'));
 
 drop table t1;
 
