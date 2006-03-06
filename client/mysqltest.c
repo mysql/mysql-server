@@ -1346,7 +1346,6 @@ enum enum_operator
   SYNOPSIS
     do_modify_var()
     query	called command
-    name        human readable name of operator
     operator    operation to perform on the var
 
   DESCRIPTION
@@ -1355,15 +1354,16 @@ enum enum_operator
 
 */
 
-int do_modify_var(struct st_query *query, const char *name,
+int do_modify_var(struct st_query *query,
                   enum enum_operator operator)
 {
   const char *p= query->first_argument;
   VAR* v;
   if (!*p)
-    die("Missing arguments to %s", name);
+    die("Missing argument to %.*s", query->first_word_len, query->query);
   if (*p != '$')
-    die("First argument to %s must be a variable (start with $)", name);
+    die("First argument to %.*s must be a variable (start with $)",
+        query->first_word_len, query->query);
   v= var_get(p, &p, 1, 0);
   switch (operator) {
   case DO_DEC:
@@ -1697,7 +1697,6 @@ int do_sleep(struct st_query *query, my_bool real_sleep)
   char *p= query->first_argument;
   char *sleep_start, *sleep_end= query->end;
   double sleep_val;
-  const char *cmd = (real_sleep ? "real_sleep" : "sleep");
 
   while (my_isspace(charset_info, *p))
     p++;
@@ -4617,8 +4616,8 @@ int main(int argc, char **argv)
       case Q_SERVER_START: do_server_start(q); break;
       case Q_SERVER_STOP: do_server_stop(q); break;
 #endif
-      case Q_INC: do_modify_var(q, "inc", DO_INC); break;
-      case Q_DEC: do_modify_var(q, "dec", DO_DEC); break;
+      case Q_INC: do_modify_var(q, DO_INC); break;
+      case Q_DEC: do_modify_var(q, DO_DEC); break;
       case Q_ECHO: do_echo(q); query_executed= 1; break;
       case Q_SYSTEM: do_system(q); break;
       case Q_DELIMITER:
