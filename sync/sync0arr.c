@@ -896,11 +896,12 @@ sync_array_signal_object(
 
 				if (cell_count == cell_max_count) {
 					sync_cell_t** old_cell_ptr = cell_ptr;
-					size_t old_size = cell_max_count *
+					size_t old_size, new_size;
+
+					old_size = cell_max_count *
 						sizeof(sync_cell_t*);
 					cell_max_count *= 2;
-
-					size_t new_size = cell_max_count *
+					new_size = cell_max_count *
 						sizeof(sync_cell_t*);
 
 					cell_ptr = malloc(new_size);
