@@ -4820,15 +4820,11 @@ int ha_partition::prepare_for_delete()
         result= tmp;      
     for (file= m_reorged_file; *file; file++)
       if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_DELETE)))
-        result= tmp;      
+        result= tmp;   
+    DBUG_RETURN(result);   
   }
-  else
-  {
-    for (file= m_file; *file; file++)
-      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_DELETE)))
-        result= tmp;      
-  }
-  DBUG_RETURN(result);
+  
+  DBUG_RETURN(loop_extra(HA_EXTRA_PREPARE_FOR_DELETE));
 }
 
 /*
