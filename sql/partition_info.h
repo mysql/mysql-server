@@ -181,6 +181,9 @@ public:
   bool linear_hash_ind;
   bool fixed;
   bool from_openfrm;
+  bool has_null_value;
+  uint has_null_part_id;
+
 
   partition_info()
   : get_partition_id(NULL), get_part_partition_id(NULL),
@@ -211,7 +214,9 @@ public:
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE),
     fixed(FALSE),
-    from_openfrm(FALSE)
+    from_openfrm(FALSE),
+    has_null_value(FALSE),
+    has_null_part_id(0)
   {
     all_fields_in_PF.clear_all();
     all_fields_in_PPF.clear_all();

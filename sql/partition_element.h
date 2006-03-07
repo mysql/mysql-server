@@ -51,13 +51,14 @@ public:
   handlerton *engine_type;
   enum partition_state part_state;
   uint16 nodegroup_id;
+  bool has_null_value;
 
   partition_element()
   : part_max_rows(0), part_min_rows(0), partition_name(NULL),
     tablespace_name(NULL), range_value(0), part_comment(NULL),
     data_file_name(NULL), index_file_name(NULL),
     engine_type(NULL),part_state(PART_NORMAL),
-    nodegroup_id(UNDEF_NODEGROUP)
+    nodegroup_id(UNDEF_NODEGROUP), has_null_value(FALSE)
   {
     subpartitions.empty();
     list_val_list.empty();
