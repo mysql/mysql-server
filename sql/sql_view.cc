@@ -208,6 +208,26 @@ bool mysql_create_view(THD *thd,
   if (mode != VIEW_CREATE_NEW)
     sp_cache_invalidate();
 
+  if (!lex->definer)
+  {
+    /*
+      DEFINER-clause is missing; we have to create default definer in
+      persistent arena to be PS/SP friendly.
+    */
+
+    Query_arena original_arena;
+    Query_arena *ps_arena = thd->activate_stmt_arena_if_needed(&original_arena);
+
+    if (!(lex->definer= create_default_definer(thd)))
+      res= TRUE;
+
+    if (ps_arena)
+      thd->restore_active_arena(ps_arena, &original_arena);
+
+    if (res)
+      goto err;
+  }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     check definer of view:
@@ -815,8 +835,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
                         table->db, table->table_name);
-    if (get_default_definer(thd, &table->definer))
-      goto err;
+    get_default_definer(thd, &table->definer);
   }
 
   /*
