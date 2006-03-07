@@ -244,8 +244,8 @@ t1	CREATE TABLE `t1` (
   `t_vers` varchar(4) NOT NULL,
   `t_rele` varchar(2) NOT NULL,
   `t_cust` varchar(4) NOT NULL,
-  `filler1` char(250) default NULL,
-  `filler2` char(250) default NULL,
+  `filler1` char(250) DEFAULT NULL,
+  `filler2` char(250) DEFAULT NULL,
   PRIMARY KEY (`t_cpac`,`t_vers`,`t_rele`,`t_cust`),
   UNIQUE KEY `IX_4` (`t_cust`,`t_cpac`,`t_vers`,`t_rele`),
   KEY `IX_5` (`t_vers`,`t_rele`,`t_cust`)

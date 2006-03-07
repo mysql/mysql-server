@@ -1591,8 +1591,8 @@ if test "$with_debug" = "no"
 then
   AC_ARG_WITH([fast-mutexes],
               AC_HELP_STRING([--with-fast-mutexes], 
-              [compile with fast mutexes (default is enabled)]),
-              [with_fast_mutexes=$withval], [with_fast_mutexes=yes])
+              [Compile with fast mutexes (default is disabled)]),
+              [with_fast_mutexes=$withval], [with_fast_mutexes=no])
 fi
 
 if test "$with_fast_mutexes" = "yes"

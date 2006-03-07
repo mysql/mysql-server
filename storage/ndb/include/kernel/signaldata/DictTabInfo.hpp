@@ -196,6 +196,10 @@ public:
     Datafile = 22,          ///< Datafile
     Undofile = 23           ///< Undofile
   };
+
+  // used 1) until type BlobTable added 2) in upgrade code
+  static bool
+  isBlobTableName(const char* name, Uint32* ptab_id = 0, Uint32* pcol_no = 0);
   
   static inline bool
   isTable(int tableType) {

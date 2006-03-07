@@ -2418,7 +2418,7 @@ create table t3 as select bug2773()|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `bug2773()` int(11) default NULL
+  `bug2773()` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t3|
 drop function bug2773|
@@ -2479,7 +2479,7 @@ tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
 tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` char(16) NOT NULL default '',
+  `id` char(16) NOT NULL DEFAULT '',
   `data` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Database	Create Database
@@ -2533,7 +2533,7 @@ tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
 tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` char(16) NOT NULL default '',
+  `id` char(16) NOT NULL DEFAULT '',
   `data` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Database	Create Database
@@ -3852,7 +3852,7 @@ end|
 call bug12589_1()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
-  `spv1` decimal(3,3) default NULL
+  `spv1` decimal(3,3) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Warnings:
 Warning	1264	Out of range value for column 'spv1' at row 1
@@ -3860,12 +3860,12 @@ Warning	1366	Incorrect decimal value: 'test' for column 'spv1' at row 1
 call bug12589_2()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
-  `spv1` decimal(6,3) default NULL
+  `spv1` decimal(6,3) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 call bug12589_3()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
-  `spv1` decimal(6,3) default NULL
+  `spv1` decimal(6,3) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop procedure bug12589_1|
 drop procedure bug12589_2|
@@ -4778,6 +4778,20 @@ Handler
 Inner
 drop procedure bug15011|
 drop table t3|
+drop function if exists bug17615|
+create table t3 (a varchar(256) unicode)|
+create function bug17615() returns varchar(256) unicode
+begin
+declare tmp_res varchar(256) unicode;
+set tmp_res= 'foo string';
+return tmp_res;
+end|
+insert into t3 values(bug17615())|
+select * from t3|
+a
+foo string
+drop function bug17615|
+drop table t3|
 drop procedure if exists bug17476|
 create table t3 ( d date )|
 insert into t3 values
@@ -4797,4 +4811,60 @@ date_format(t3.d, pDateFormat)	count(*)
 2005-02	2
 drop table t3|
 drop procedure bug17476|
+drop table if exists t3|
+drop procedure if exists bug16887|
+create table t3 ( c varchar(1) )|
+insert into t3 values
+(' '),('.'),(';'),(','),('-'),('_'),('('),(')'),('/'),('\\')|
+create procedure bug16887()
+begin
+declare i int default 10;
+again:
+while i > 0 do
+begin
+declare breakchar varchar(1);
+declare done int default 0;
+declare t3_cursor cursor for select c from t3;
+declare continue handler for not found set done = 1;
+set i = i - 1;
+select i;
+if i = 3 then
+iterate again;
+end if;
+open t3_cursor;
+loop
+fetch t3_cursor into breakchar;
+if done = 1 then
+begin
+close t3_cursor;
+iterate again;
+end;
+end if;
+end loop;
+end;
+end while;
+end|
+call bug16887()|
+i
+9
+i
+8
+i
+7
+i
+6
+i
+5
+i
+4
+i
+3
+i
+2
+i
+1
+i
+0
+drop table t3|
+drop procedure bug16887|
 drop table t1,t2;
