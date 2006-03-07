@@ -1399,7 +1399,6 @@ sub ndbcluster_install () {
 		 "--initial"],
 		"", "", "", "") )
   {
-    mtr_error("Error ndbcluster_install");
     return 1;
   }
 
@@ -1606,9 +1605,19 @@ sub mysql_install_db () {
 
   if ( ndbcluster_install() )
   {
-    # failed to install, disable usage but flag that its no ok
-    $opt_with_ndbcluster= 0;
-    $flag_ndb_status_ok= 0;
+    if ( $opt_force)
+    {
+      # failed to install, disable usage and flag that its no ok
+      mtr_report("ndbcluster_install failed, continuing without cluster");
+      $opt_with_ndbcluster= 0;
+      $flag_ndb_status_ok= 0;
+    }
+    else
+    {
+      print "Aborting: Failed to install ndb cluster\n";
+      print "To continue, re-run with '--force'.\n";
+      mtr_exit(1);
+    }
   }
 
   return 0;
@@ -1805,6 +1814,13 @@ sub run_testcase ($) {
   {
     mtr_report_test_name($tinfo);
     mtr_report_test_skipped($tinfo);
+    return;
+  }
+
+  if ( $tinfo->{'ndb_test'}  and ! $flag_ndb_status_ok )
+  {
+    mtr_report_test_name($tinfo);
+    mtr_report_test_failed($tinfo);
     return;
   }
 
