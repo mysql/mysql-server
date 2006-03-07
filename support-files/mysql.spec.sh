@@ -302,7 +302,7 @@ BuildMySQL "--enable-shared \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 	        --with-big-tables \
-		--with-comment=\"MySQL Community Edition - Debug (GPL)\"")
+		--with-comment=\"MySQL Community Server - Debug (GPL)\"")
 
 # We might want to save the config log file
 if test -n "$MYSQL_DEBUGCONFLOG_DEST"
@@ -333,7 +333,7 @@ BuildMySQL "--enable-shared \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 	        --with-big-tables \
-		--with-comment=\"MySQL Community Edition - Max (GPL)\"")
+		--with-comment=\"MySQL Community Server - Max (GPL)\"")
 
 # We might want to save the config log file
 if test -n "$MYSQL_MAXCONFLOG_DEST"
@@ -363,7 +363,7 @@ BuildMySQL "--enable-shared \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 	        --with-big-tables \
-		--with-comment=\"MySQL Community Edition (GPL)\"")
+		--with-comment=\"MySQL Community Server (GPL)\"")
 
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
@@ -709,6 +709,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Mar 07 2006 Kent Boortz <kent@mysql.com>
+
+- Changed product name from "Community Edition" to "Community Server"
+
 * Mon Mar 06 2006 Kent Boortz <kent@mysql.com>
 
 - Fast mutexes is now disabled by default, but should be
