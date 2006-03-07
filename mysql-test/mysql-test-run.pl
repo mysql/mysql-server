@@ -1563,7 +1563,6 @@ sub ndbcluster_install_slave () {
 		 "--core"],
 		"", "", "", "") )
   {
-    mtr_error("Error ndbcluster_install_slave");
     return 1;
   }
 
@@ -1793,9 +1792,20 @@ sub mysql_install_db () {
 
   if ( ndbcluster_install_slave() )
   {
-    # failed to install, disable usage but flag that its no ok
-    $opt_with_ndbcluster_slave= 0;
-    $flag_ndb_slave_status_ok= 0;
+    if ( $opt_force)
+    {
+      # failed to install, disable usage and flag that its no ok
+      mtr_report("ndbcluster_install_slave failed, " .
+		 "continuing without slave cluster");
+      $opt_with_ndbcluster_slave= 0;
+      $flag_ndb_slave_status_ok= 0;
+    }
+    else
+    {
+      print "Aborting: Failed to install ndb cluster\n";
+      print "To continue, re-run with '--force'.\n";
+      mtr_exit(1);
+    }
   }
 
   return 0;
