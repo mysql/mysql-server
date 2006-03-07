@@ -2463,10 +2463,10 @@ sp_proc_stmt_leave:
 	      uint ip= sp->instructions();
 	      uint n;
 
-	      n= ctx->diff_handlers(lab->ctx);
+	      n= ctx->diff_handlers(lab->ctx, TRUE);  /* Exclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_hpop(ip++, ctx, n));
-	      n= ctx->diff_cursors(lab->ctx);
+	      n= ctx->diff_cursors(lab->ctx, TRUE);  /* Exclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_cpop(ip++, ctx, n));
 	      i= new sp_instr_jump(ip, ctx);
@@ -2495,10 +2495,10 @@ sp_proc_stmt_iterate:
 	      uint ip= sp->instructions();
 	      uint n;
 
-	      n= ctx->diff_handlers(lab->ctx);
+	      n= ctx->diff_handlers(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_hpop(ip++, ctx, n));
-	      n= ctx->diff_cursors(lab->ctx);
+	      n= ctx->diff_cursors(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
 	        sp->add_instr(new sp_instr_cpop(ip++, ctx, n));
 	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
@@ -10927,7 +10927,7 @@ view_check_option:
 
 trigger_tail:
 	TRIGGER_SYM remember_name sp_name trg_action_time trg_event
-	ON remember_name table_ident remember_end FOR_SYM EACH_SYM ROW_SYM
+	ON remember_name table_ident FOR_SYM remember_name EACH_SYM ROW_SYM
 	{
 	  LEX *lex= Lex;
 	  sp_head *sp;
@@ -10945,7 +10945,7 @@ trigger_tail:
 
 	  lex->trigger_definition_begin= $2;
           lex->ident.str= $7;
-          lex->ident.length= $9 - $7;
+          lex->ident.length= $10 - $7;
 
 	  sp->m_type= TYPE_ENUM_TRIGGER;
 	  lex->sphead= sp;

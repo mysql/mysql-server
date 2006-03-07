@@ -1213,6 +1213,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
     buff.append(def->str, before_on_len);
     buff.append(STRING_WITH_LEN("ON "));
     append_identifier(thd, &buff, new_table_name->str, new_table_name->length);
+    buff.append(STRING_WITH_LEN(" "));
     on_q_table_name_len= buff.length() - before_on_len;
     buff.append(on_table_name->str + on_table_name->length,
                 def->length - (before_on_len + on_table_name->length));

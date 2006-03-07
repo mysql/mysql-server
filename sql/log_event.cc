@@ -6424,6 +6424,13 @@ static int find_and_fetch_row(TABLE *table, byte *key)
   if (table->s->keys > 0)
   {
     int error;
+      /*
+        We need to set the null bytes to ensure that the filler bit
+        are all set when returning.  There are storage engines that
+        just set the necessary bits on the bytes and don't set the
+        filler bits correctly.
+      */
+    table->record[1][table->s->null_bytes - 1]= 0xFF;
     if ((error= table->file->index_read_idx(table->record[1], 0, key,
                                             table->key_info->key_length,
                                             HA_READ_KEY_EXACT)))
@@ -6452,6 +6459,13 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     while (record_compare(table))
     {
       int error;
+      /*
+        We need to set the null bytes to ensure that the filler bit
+        are all set when returning.  There are storage engines that
+        just set the necessary bits on the bytes and don't set the
+        filler bits correctly.
+      */
+      table->record[1][table->s->null_bytes - 1]= 0xFF;
       if ((error= table->file->index_next(table->record[1])))
       {
 	table->file->print_error(error, MYF(0));
@@ -6466,6 +6480,13 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     int error= 0;
     do
     {
+      /*
+        We need to set the null bytes to ensure that the filler bit
+        are all set when returning.  There are storage engines that
+        just set the necessary bits on the bytes and don't set the
+        filler bits correctly.
+      */
+      table->record[1][table->s->null_bytes - 1]= 0xFF;
       error= table->file->rnd_next(table->record[1]);
       switch (error)
       {
