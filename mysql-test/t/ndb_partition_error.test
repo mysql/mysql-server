@@ -56,3 +56,16 @@ INSERT INTO t1 VALUES (2);
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 UPDATE t1 SET id=5 WHERE id=2;
 DROP TABLE t1;
+
+#
+# NULL for LIST partition
+#
+create table t1 (a int,b int, c int)
+engine = ndb
+partition by list(a)
+partitions 2
+(partition x123 values in (11, 12),
+ partition x234 values in (5, 1));
+--error 1504
+insert into t1 values (NULL,1,1);
+drop table t1;
