@@ -840,8 +840,8 @@ DROP TABLE t1, t2;
 # Bugs #9136, #12917: problems with --defaults-extra-file option
 #
 
---system echo "[mysqltest1]" > $MYSQLTEST_VARDIR/tmp/tmp.cnf
---system echo "port=1234" >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--system echo '[mysqltest1]' > $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--system echo 'port=1234' >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
 --exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1
 --exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1 mysqltest1
 --system rm $MYSQLTEST_VARDIR/tmp/tmp.cnf
