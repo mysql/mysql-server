@@ -531,6 +531,7 @@ static bool check_list_constants(partition_info *part_info)
   bool result= TRUE;
   longlong curr_value, prev_value;
   partition_element* part_def;
+  bool found_null= FALSE;
   List_iterator<partition_element> list_func_it(part_info->partitions);
   DBUG_ENTER("check_list_constants");
 
@@ -556,6 +557,17 @@ static bool check_list_constants(partition_info *part_info)
   do
   {
     part_def= list_func_it++;
+    if (part_def->has_null_value)
+    {
+      if (found_null)
+      {
+        my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
+        goto end;
+      }
+      part_info->has_null_value= TRUE;
+      part_info->has_null_part_id= i;
+      found_null= TRUE;
+    }
     List_iterator<longlong> list_val_it1(part_def->list_val_list);
     while (list_val_it1++)
       no_list_values++;
@@ -2041,6 +2053,16 @@ static int add_partition_values(File fptr, partition_info *part_info,
     err+= add_string(fptr, "VALUES IN ");
     uint no_items= p_elem->list_val_list.elements;
     err+= add_begin_parenthesis(fptr);
+    if (p_elem->has_null_value)
+    {
+      err+= add_string(fptr, "NULL");
+      if (no_items == 0)
+      {
+        err+= add_end_parenthesis(fptr);
+        goto end;
+      }
+      err+= add_comma(fptr);
+    }
     i= 0;
     do
     {
@@ -2051,6 +2073,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
     } while (++i < no_items);
     err+= add_end_parenthesis(fptr);
   }
+end:
   return err + add_space(fptr);
 }
 
@@ -2631,6 +2654,15 @@ int get_partition_id_list(partition_info *part_info,
   longlong part_func_value= part_val_int(part_info->part_expr);
   DBUG_ENTER("get_partition_id_list");
 
+  if (part_info->part_expr->null_value)
+  {
+    if (part_info->has_null_value)
+    {
+      *part_id= part_info->has_null_part_id;
+      DBUG_RETURN(0);
+    }
+    goto notfound;
+  }
   *func_value= part_func_value;
   while (max_list_index >= min_list_index)
   {
@@ -2741,6 +2773,11 @@ int get_partition_id_range(partition_info *part_info,
   longlong part_func_value= part_val_int(part_info->part_expr);
   DBUG_ENTER("get_partition_id_int_range");
 
+  if (part_info->part_expr->null_value)
+  {
+    *part_id= 0;
+    DBUG_RETURN(0);
+  }
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
@@ -2814,6 +2851,10 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   uint min_part_id= 0, max_part_id= max_partition, loc_part_id;
   /* Get the partitioning function value for the endpoint */
   longlong part_func_value= part_val_int(part_info->part_expr);
+
+  if (part_info->part_expr->null_value)
+    DBUG_RETURN(0);
+
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
