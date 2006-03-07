@@ -1141,11 +1141,10 @@ page_zip_apply_log(
 
 		/* Copy the extra bytes (backwards). */
 		{
-			ulint	n = rec_offs_extra_size(offsets)
-					- REC_N_NEW_EXTRA_BYTES;
-			byte*	b = rec - REC_N_NEW_EXTRA_BYTES;
-			while (n--) {
-				*b-- = *data++;
+			byte*	start	= rec_get_start(rec, offsets);
+			byte*	b	= rec - REC_N_NEW_EXTRA_BYTES;
+			while (b != start) {
+				*--b = *data++;
 			}
 		}
 
@@ -1729,19 +1728,20 @@ page_zip_write_rec(
 
 	/* Append to the modification log. */
 	data = page_zip->data + page_zip->m_end;
-	ut_ad(!mach_read_from_2(data));
+	ut_ad(!*data);
+
+	/* Identify the record by writing its heap number - 1.
+	0 is reserved to indicate the end of the modification log. */
+
+	if (heap_no - 1 >= 128) {
+		*data++ = 0x80 | (heap_no - 1) >> 7;
+	} else {
+		*data++ = heap_no - 1;
+	}
 
 	{
-		/* Identify the record by writing its heap number - 1.  0 is
-		reserved to indicate the end of the modification log. */
 		const byte*	start	= rec_get_start((rec_t*) rec, offsets);
 		const byte*	b	= rec - REC_N_NEW_EXTRA_BYTES;
-
-		if (heap_no - 1 >= 128) {
-			*data++ = 0x80 | (heap_no - 1) >> 7;
-		} else {
-			*data++ = heap_no - 1;
-		}
 
 		/* Write the extra bytes backwards, so that
 		rec_offs_extra_size() can be easily computed in
