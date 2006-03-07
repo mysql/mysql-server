@@ -4265,7 +4265,7 @@ dict_index_print_low(
 	}
 
 	fprintf(stderr,
-		"  INDEX: name %s, id %lu %lu, fields %lu/%lu, type %lu\n"
+		"  INDEX: name %s, id %lu %lu, fields %lu/%lu, uniq %lu, type %lu\n"
 		"   root page %lu, appr.key vals %lu,"
 		" leaf pages %lu, size pages %lu\n"
 		"   FIELDS: ",
@@ -4273,7 +4273,9 @@ dict_index_print_low(
 		(ulong) ut_dulint_get_high(tree->id),
 		(ulong) ut_dulint_get_low(tree->id),
 		(ulong) index->n_user_defined_cols,
-		(ulong) index->n_fields, (ulong) index->type,
+		(ulong) index->n_fields,
+		(ulong) index->n_uniq,
+		(ulong) index->type,
 		(ulong) tree->page,
 		(ulong) n_vals,
 		(ulong) index->stat_n_leaf_pages,
