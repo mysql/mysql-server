@@ -373,4 +373,53 @@ end//
 call p()//
 drop procedure p//
 drop table t1//
+create table t1 (a int,b int,c int,key(a,b))
+partition by range (a)
+partitions 3
+(partition x1 values less than (0) tablespace ts1,
+partition x2 values less than (10) tablespace ts2,
+partition x3 values less than maxvalue tablespace ts3);
+insert into t1 values (NULL, 1, 1);
+insert into t1 values (0, 1, 1);
+insert into t1 values (12, 1, 1);
+select partition_name, partition_description, table_rows
+from information_schema.partitions where table_schema ='test';
+partition_name	partition_description	table_rows
+x1	0	1
+x2	10	1
+x3	MAXVALUE	1
+drop table t1;
+create table t1 (a int,b int, c int)
+partition by list(a)
+partitions 2
+(partition x123 values in (11,12),
+partition x234 values in (1 ,NULL, NULL));
+ERROR HY000: Multiple definition of same constant in list partitioning
+create table t1 (a int,b int, c int)
+partition by list(a)
+partitions 2
+(partition x123 values in (11, NULL),
+partition x234 values in (1 ,NULL));
+ERROR HY000: Multiple definition of same constant in list partitioning
+create table t1 (a int,b int, c int)
+partition by list(a)
+partitions 2
+(partition x123 values in (11, 12),
+partition x234 values in (5, 1));
+insert into t1 values (NULL,1,1);
+ERROR HY000: Table has no partition for value NULL
+drop table t1;
+create table t1 (a int,b int, c int)
+partition by list(a)
+partitions 2
+(partition x123 values in (11, 12),
+partition x234 values in (NULL, 1));
+insert into t1 values (11,1,6);
+insert into t1 values (NULL,1,1);
+select partition_name, partition_description, table_rows
+from information_schema.partitions where table_schema ='test';
+partition_name	partition_description	table_rows
+x123	11,12	1
+x234	NULL,1	1
+drop table t1;
 End of 5.1 tests

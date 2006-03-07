@@ -6012,6 +6012,7 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   {
     char buf[100];
     my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
+             m_part_info->part_expr->null_value ? "NULL" :
              llstr(m_part_info->part_expr->val_int(), buf));
   }
   else
