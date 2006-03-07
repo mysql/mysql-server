@@ -4563,6 +4563,7 @@ int main(int argc, char **argv)
   init_var_hash(&cur_con->mysql);
 
 #ifdef __WIN__
+  init_tmp_sh_file();
   init_win_path_patterns();
 #endif
 
