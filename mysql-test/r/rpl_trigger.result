@@ -862,8 +862,8 @@ START SLAVE;
 SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
 MASTER_POS_WAIT('master-bin.000001', 513) >= 0
 1
-SHOW TABLES;
-Tables_in_test
+SHOW TABLES LIKE 't_';
+Tables_in_test (t_)
 t1
 t2
 SHOW TRIGGERS;
@@ -891,8 +891,8 @@ DROP TABLE t1;
 DROP TABLE t2;
 STOP SLAVE;
 RESET SLAVE;
-SHOW TABLES;
-Tables_in_test
+SHOW TABLES LIKE 't_';
+Tables_in_test (t_)
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 RESET MASTER;
