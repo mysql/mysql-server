@@ -253,18 +253,13 @@ sub collect_one_test_case($$$$$$$) {
   }
 
   # Cluster is needed by test case if testname contains ndb
-  if ( ( $::opt_with_ndbcluster or $::glob_use_running_ndbcluster ) and
-       defined mtr_match_substring($tname,"ndb") )
+  if ( defined mtr_match_substring($tname,"ndb") )
   {
+    $tinfo->{'ndb_test'}= 1;
     if ( $::opt_skip_ndbcluster )
     {
-      $tinfo->{'ndb_test'}= 0;
       $tinfo->{'skip'}= 1;
       return;
-    }
-    else
-    {
-      $tinfo->{'ndb_test'}= 1;
     }
   }
   else
