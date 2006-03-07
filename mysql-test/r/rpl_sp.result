@@ -31,7 +31,7 @@ declare b int;
 set b = 8;
 insert into t1 values (b);
 insert into t1 values (unix_timestamp());
-end	@	#	#		
+end	root@localhost	#	#		
 set timestamp=1000000000;
 call foo();
 select * from t1;
@@ -118,7 +118,7 @@ select * from mysql.proc where name="foo4" and db='mysqltest1';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
 mysqltest1	foo4	PROCEDURE	foo4	SQL	CONTAINS_SQL	YES	DEFINER			begin
 insert into t2 values(20),(20);
-end	@	#	#		
+end	root@localhost	#	#		
 drop procedure foo4;
 select * from mysql.proc where name="foo4" and db='mysqltest1';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
@@ -223,13 +223,13 @@ select * from mysql.proc where db='mysqltest1';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
 mysqltest1	fn1	FUNCTION	fn1	SQL	NO_SQL	NO	DEFINER		int(11)	begin
 return unix_timestamp();
-end	@	#	#		
+end	root@localhost	#	#		
 mysqltest1	fn2	FUNCTION	fn2	SQL	NO_SQL	NO	DEFINER		int(11)	begin
 return unix_timestamp();
-end	@	#	#		
+end	zedjzlcsjhd@localhost	#	#		
 mysqltest1	fn3	FUNCTION	fn3	SQL	READS_SQL_DATA	NO	DEFINER		int(11)	begin
 return 0;
-end	@	#	#		
+end	root@localhost	#	#		
 delete from t2;
 alter table t2 add unique (a);
 drop function fn1;
@@ -274,7 +274,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	drop database if exists mysqltest1
 master-bin.000001	#	Query	1	#	create database mysqltest1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t1 (a varchar(100))
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` procedure foo()
 begin
 declare b int;
 set b = 8;
@@ -284,19 +284,19 @@ end
 master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values ( NAME_CONST('b',8))
 master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (unix_timestamp())
 master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo2()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` procedure foo2()
 select * from mysqltest1.t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; alter procedure foo2 contains sql
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop table t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t1 (a int)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t2 like t1
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo3()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` procedure foo3()
 deterministic
 insert into t1 values (15)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo4()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` procedure foo4()
 deterministic
 begin
 insert into t2 values(3);
@@ -311,7 +311,7 @@ master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (5)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t2
 master-bin.000001	#	Query	1	#	use `mysqltest1`; alter table t2 add unique (a)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop procedure foo4
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo4()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` procedure foo4()
 deterministic
 begin
 insert into t2 values(20),(20);
@@ -321,7 +321,7 @@ master-bin.000001	#	Query	1	#	use `mysqltest1`; drop procedure foo4
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop procedure foo
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop procedure foo2
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop procedure foo3
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn1(x int)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` function fn1(x int)
 returns int
 deterministic
 begin
@@ -332,7 +332,7 @@ master-bin.000001	#	Query	1	#	use `mysqltest1`; delete t1,t2 from t1,t2
 master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `fn1`(20)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t2 values(fn1(21))
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop function fn1
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn1()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` function fn1()
 returns int
 no sql
 begin
@@ -340,13 +340,13 @@ return unix_timestamp();
 end
 master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values(fn1())
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn2()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` function fn2()
 returns int
 no sql
 begin
 return unix_timestamp();
 end
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn3()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` function fn3()
 returns int
 not deterministic
 reads sql data
@@ -356,7 +356,7 @@ end
 master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t2
 master-bin.000001	#	Query	1	#	use `mysqltest1`; alter table t2 add unique (a)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop function fn1
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn1(x int)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` function fn1(x int)
 returns int
 begin
 insert into t2 values(x),(x);

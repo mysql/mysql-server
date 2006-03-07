@@ -21,6 +21,8 @@
 #include "sp_cache.h"
 #include "sql_trigger.h"
 
+#include <my_user.h>
+
 static bool
 create_string(THD *thd, String *buf,
 	      int sp_type,
@@ -28,7 +30,9 @@ create_string(THD *thd, String *buf,
 	      const char *params, ulong paramslen,
 	      const char *returns, ulong returnslen,
 	      const char *body, ulong bodylen,
-	      st_sp_chistics *chistics);
+	      st_sp_chistics *chistics,
+              const LEX_STRING *definer_user,
+              const LEX_STRING *definer_host);
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 ulong sql_mode, const char *params, const char *returns,
@@ -406,6 +410,15 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   ulong old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
+  
+  char definer_user_name_holder[USERNAME_LENGTH + 1];
+  LEX_STRING_WITH_INIT definer_user_name(definer_user_name_holder,
+                                         USERNAME_LENGTH);
+
+  char definer_host_name_holder[HOSTNAME_LENGTH + 1];
+  LEX_STRING_WITH_INIT definer_host_name(definer_host_name_holder,
+                                         HOSTNAME_LENGTH);
+  
   int ret;
 
   thd->variables.sql_mode= sql_mode;
@@ -414,14 +427,25 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   thd->lex= &newlex;
   newlex.current_select= NULL;
 
+  parse_user(definer, strlen(definer),
+             definer_user_name.str, &definer_user_name.length,
+             definer_host_name.str, &definer_host_name.length);
+
   defstr.set_charset(system_charset_info);
+
+  /*
+    We have to add DEFINER clause and provide proper routine characterstics in
+    routine definition statement that we build here to be able to use this
+    definition for SHOW CREATE PROCEDURE later.
+   */
+
   if (!create_string(thd, &defstr,
 		     type,
 		     name,
 		     params, strlen(params),
 		     returns, strlen(returns),
 		     body, strlen(body),
-		     &chistics))
+		     &chistics, &definer_user_name, &definer_host_name))
   {
     ret= SP_INTERNAL_ERROR;
     goto end;
@@ -449,7 +473,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
       goto end;
     *sphp= newlex.sphead;
-    (*sphp)->set_definer((char*) definer, (uint) strlen(definer));
+    (*sphp)->set_definer(&definer_user_name, &definer_host_name);
     (*sphp)->set_info(created, modified, &chistics, sql_mode);
     (*sphp)->optimize();
   }
@@ -500,8 +524,10 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   else
   {
     restore_record(table, s->default_values); // Get default values for fields
-    strxmov(definer, thd->security_ctx->priv_user, "@",
-            thd->security_ctx->priv_host, NullS);
+
+    /* NOTE: all needed privilege checks have been already done. */
+    strxmov(definer, thd->lex->definer->user.str, "@",
+            thd->lex->definer->host.str, NullS);
 
     if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
     {
@@ -592,8 +618,17 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     else if (mysql_bin_log.is_open())
     {
       thd->clear_error();
+
+      String log_query;
+      log_query.set_charset(system_charset_info);
+      log_query.append(STRING_WITH_LEN("CREATE "));
+      append_definer(thd, &log_query, &thd->lex->definer->user,
+                     &thd->lex->definer->host);
+      log_query.append(thd->lex->stmt_definition_begin);
+
       /* Such a statement can always go directly to binlog, no trans cache */
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      Query_log_event qinfo(thd, log_query.c_ptr(), log_query.length(), 0,
+                            FALSE);
       mysql_bin_log.write(&qinfo);
     }
 
@@ -1723,14 +1758,18 @@ create_string(THD *thd, String *buf,
 	      const char *params, ulong paramslen,
 	      const char *returns, ulong returnslen,
 	      const char *body, ulong bodylen,
-	      st_sp_chistics *chistics)
+	      st_sp_chistics *chistics,
+              const LEX_STRING *definer_user,
+              const LEX_STRING *definer_host)
 {
   /* Make some room to begin with */
   if (buf->alloc(100 + name->m_qname.length + paramslen + returnslen + bodylen +
-		 chistics->comment.length))
+		 chistics->comment.length + 10 /* length of " DEFINER= "*/ +
+                 USER_HOST_BUFF_SIZE))
     return FALSE;
 
   buf->append(STRING_WITH_LEN("CREATE "));
+  append_definer(thd, buf, definer_user, definer_host);
   if (type == TYPE_ENUM_FUNCTION)
     buf->append(STRING_WITH_LEN("FUNCTION "));
   else
