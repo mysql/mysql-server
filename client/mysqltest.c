@@ -1048,7 +1048,7 @@ int do_source(struct st_query *query)
   return open_file(name);
 }
 
-//#ifdef __WIN__
+#ifdef __WIN__
 /* Variables used for temuprary sh files used for emulating Unix on Windows */
 char tmp_sh_name[64], tmp_sh_cmd[70];
 
@@ -1064,7 +1064,7 @@ static void free_tmp_sh_file()
 {
   my_delete(tmp_sh_name, MYF(0));
 }
-
+#endif
 
 FILE* my_popen(DYNAMIC_STRING* ds_cmd, const char* mode)
 {
