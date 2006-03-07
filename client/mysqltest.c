@@ -1360,9 +1360,9 @@ int do_modify_var(struct st_query *query,
   const char *p= query->first_argument;
   VAR* v;
   if (!*p)
-    die("Missing arguments to %.*s", query->first_word_len, query->query);
+    die("Missing argument to %.*s", query->first_word_len, query->query);
   if (*p != '$')
-    die("First argument to %.*s must be a variable (start with $)",
+    die("The argument to %.*s must be a variable (start with $)",
         query->first_word_len, query->query);
   v= var_get(p, &p, 1, 0);
   switch (operator) {
@@ -1373,7 +1373,7 @@ int do_modify_var(struct st_query *query,
     v->int_val++;
     break;
   default:
-    die("Invalid operator to do_operator");
+    die("Invalid operator to do_modify_var");
     break;
   }
   v->int_dirty= 1;
