@@ -42,6 +42,12 @@
 #include <myisam.h>
 #include <myisammrg.h>
 
+typedef struct p_elem_val
+{ 
+  longlong value;
+  bool null_value;
+} part_elem_value;
+
 int yylex(void *yylval, void *yythd);
 
 const LEX_STRING null_lex_str={0,0};
@@ -105,6 +111,7 @@ inline Item *is_truth_value(Item *A, bool v1, bool v2)
   sp_name *spname;
   struct st_lex *lex;
   sp_head *sphead;
+  struct p_elem_val *p_elem_value;
 }
 
 %{
@@ -752,7 +759,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <ulonglong_number>
 	ulonglong_num size_number
 
-%type <longlong_number>
+%type <p_elem_value>
         part_bit_expr
 
 %type <lock_type>
@@ -3781,7 +3788,7 @@ part_func_max:
 part_range_func:
         '(' part_bit_expr ')' 
         {
-          Lex->part_info->curr_part_elem->range_value= $2;
+          Lex->part_info->curr_part_elem->range_value= $2->value;
         }
         ;
 
@@ -3793,12 +3800,12 @@ part_list_func:
 part_list_item:
         part_bit_expr
         {
-          longlong *value_ptr;
-          if (!(value_ptr= (longlong*)sql_alloc(sizeof(longlong))) ||
-              ((*value_ptr= $1, FALSE) ||
-     Lex->part_info->curr_part_elem->list_val_list.push_back(value_ptr)))
+          part_elem_value *value_ptr= $1;
+          if (!value_ptr->null_value &&
+             Lex->part_info->curr_part_elem->
+              list_val_list.push_back((longlong*) &value_ptr->value))
           {
-            mem_alloc_error(sizeof(longlong));
+            mem_alloc_error(sizeof(part_elem_value));
             YYABORT;
           }
         }
@@ -3818,6 +3825,15 @@ part_bit_expr:
 
           context->table_list= 0;
           thd->where= "partition function";
+
+          part_elem_value *value_ptr= 
+            (part_elem_value*)sql_alloc(sizeof(part_elem_value));
+          if (!value_ptr)
+          {
+            mem_alloc_error(sizeof(part_elem_value));
+            YYABORT;
+          }
+
           if (part_expr->fix_fields(YYTHD, (Item**)0) ||
               ((context->table_list= save_list), FALSE) ||
               (!part_expr->const_item()) ||
@@ -3827,13 +3843,23 @@ part_bit_expr:
             YYABORT;
           }
           thd->where= save_where;
-          if (part_expr->result_type() != INT_RESULT)
+          value_ptr->value= part_expr->val_int();
+          if ((value_ptr->null_value= part_expr->null_value))
+          {
+            if (Lex->part_info->curr_part_elem->has_null_value)
+            {
+              my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
+              YYABORT;
+            }
+            Lex->part_info->curr_part_elem->has_null_value= TRUE;
+          }
+          else if (part_expr->result_type() != INT_RESULT &&
+                   !part_expr->null_value)
           {
             yyerror(ER(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR));
             YYABORT;
           }
-          item_value= part_expr->val_int();
-          $$= item_value; 
+          $$= value_ptr; 
         }
         ;
 
