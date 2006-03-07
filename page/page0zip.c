@@ -180,7 +180,7 @@ page_zip_fixed_field_encode(
 		*/
 		*buf++ = val;
 	} else {
-		*buf++ = 0x80 | val >> 7;
+		*buf++ = 0x80 | val >> 8;
 		*buf++ = 0xff & val;
 	}
 
@@ -290,7 +290,7 @@ page_zip_fields_encode(
 		if (trx_id_col < 128) {
 			*buf++ = trx_id_col;
 		} else {
-			*buf++ = 0x80 | trx_id_col >> 7;
+			*buf++ = 0x80 | trx_id_col >> 8;
 			*buf++ = 0xff & trx_id_col;
 		}
 	}
@@ -857,7 +857,7 @@ page_zip_fields_decode(
 
 		if (UNIV_UNLIKELY(val & 0x80)) {
 			/* fixed length > 62 bytes */
-			val = (val & 0x7f) << 7 | *b++;
+			val = (val & 0x7f) << 8 | *b++;
 			len = val >> 1;
 			mtype = DATA_FIXBINARY;
 		} else if (UNIV_UNLIKELY(val >= 126)) {
@@ -884,7 +884,7 @@ page_zip_fields_decode(
 	if (trx_id_col) {
 		ulint	val = *b++;
 		if (UNIV_UNLIKELY(val & 0x80)) {
-			val = (val & 0x7f) << 7 | *b++;
+			val = (val & 0x7f) << 8 | *b++;
 		}
 
 		if (UNIV_UNLIKELY(val >= n)) {
@@ -1107,7 +1107,7 @@ page_zip_apply_log(
 			return(data - 1);
 		}
 		if (val & 0x80) {
-			val = (val & 0x7f) << 7 | *data++;
+			val = (val & 0x7f) << 8 | *data++;
 		}
 		if (UNIV_UNLIKELY(data >= end)) {
 			return(NULL);
@@ -1733,11 +1733,10 @@ page_zip_write_rec(
 	/* Identify the record by writing its heap number - 1.
 	0 is reserved to indicate the end of the modification log. */
 
-	if (heap_no - 1 >= 128) {
-		*data++ = 0x80 | (heap_no - 1) >> 7;
-	} else {
-		*data++ = heap_no - 1;
+	if (UNIV_UNLIKELY(heap_no - 1 >= 128)) {
+		*data++ = 0x80 | (heap_no - 1) >> 8;
 	}
+	*data++ = heap_no - 1;
 
 	{
 		const byte*	start	= rec_get_start((rec_t*) rec, offsets);
