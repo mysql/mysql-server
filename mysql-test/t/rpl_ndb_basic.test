@@ -98,6 +98,7 @@ INSERT INTO t1 VALUES(1,"XYZ1","ABC1");
 # cause a lock on that row on the slave
 --sync_slave_with_master
 --connection slave
+--echo **** On Slave ****
 BEGIN;
 UPDATE t1 SET `nom`="LOCK" WHERE `nid`=1;
 
@@ -107,6 +108,7 @@ set GLOBAL slave_transaction_retries=1;
 # now do a change to this row on the master
 # will deadlock on the slave because of lock above
 --connection master
+--echo **** On Master ****
 UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 
 # wait for deadlock to be detected
@@ -119,14 +121,14 @@ UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 # replication should have stopped, since max retries where not enough
 # verify with show slave status
 --connection slave
+--echo **** On Slave ****
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master>
-SHOW SLAVE STATUS;
+--query_vertical SHOW SLAVE STATUS;
 
 # now set max retries high enough to succeed, and start slave again
 set GLOBAL slave_transaction_retries=10;
 START SLAVE;
-
 # wait for deadlock to be detected and retried
 # should be the same sleep as above for test to be valid
 --sleep 5
