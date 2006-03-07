@@ -492,6 +492,7 @@ static void do_eval(DYNAMIC_STRING *query_eval, const char *query,
 static void str_to_file(const char *fname, char *str, int size);
 
 #ifdef __WIN__
+static void free_tmp_sh_file();
 static void free_win_path_patterns();
 #endif
 
@@ -641,6 +642,7 @@ static void free_used_memory()
   mysql_server_end();
   free_re();
 #ifdef __WIN__
+  free_tmp_sh_file();
   free_win_path_patterns();
 #endif
   DBUG_VOID_RETURN;
@@ -1106,6 +1108,35 @@ int do_source(struct st_query *query)
   return open_file(name);
 }
 
+#ifdef __WIN__
+/* Variables used for temuprary sh files used for emulating Unix on Windows */
+char tmp_sh_name[64], tmp_sh_cmd[70];
+
+static void init_tmp_sh_file()
+{
+  /* Format a name for the tmp sh file that is unique for this process */
+  my_snprintf(tmp_sh_name, sizeof(tmp_sh_name), "tmp_%d.sh", getpid());
+  /* Format the command to execute in order to run the script */
+  my_snprintf(tmp_sh_cmd, sizeof(tmp_sh_cmd), "sh %s", tmp_sh_name);
+}
+
+static void free_tmp_sh_file()
+{
+  my_delete(tmp_sh_name, MYF(0));
+}
+#endif
+
+FILE* my_popen(DYNAMIC_STRING* ds_cmd, const char* mode)
+{
+#ifdef __WIN__
+  /* Dump the command into a sh script file and execute with popen */
+  str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
+  return popen(tmp_sh_cmd, mode);
+#else
+  return popen(ds_cmd->str, mode);
+#endif
+}
+
 
 /*
   Execute given command.
@@ -1152,7 +1183,7 @@ static void do_exec(struct st_query *query)
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       query->first_argument, cmd));
 
-  if (!(res_file= popen(cmd, "r")) && query->abort_on_error)
+  if (!(res_file= my_popen(&ds_cmd, "r")) && query->abort_on_error)
     die("popen(\"%s\", \"r\") failed", query->first_argument);
 
   while (fgets(buf, sizeof(buf), res_file))
@@ -1375,7 +1406,6 @@ enum enum_operator
   SYNOPSIS
     do_modify_var()
     query	called command
-    name        human readable name of operator
     operator    operation to perform on the var
 
   DESCRIPTION
@@ -1384,15 +1414,16 @@ enum enum_operator
 
 */
 
-int do_modify_var(struct st_query *query, const char *name,
+int do_modify_var(struct st_query *query,
                   enum enum_operator operator)
 {
   const char *p= query->first_argument;
   VAR* v;
   if (!*p)
-    die("Missing arguments to %s", name);
+    die("Missing argument to %.*s", query->first_word_len, query->query);
   if (*p != '$')
-    die("First argument to %s must be a variable (start with $)", name);
+    die("The argument to %.*s must be a variable (start with $)",
+        query->first_word_len, query->query);
   v= var_get(p, &p, 1, 0);
   switch (operator) {
   case DO_DEC:
@@ -1402,7 +1433,7 @@ int do_modify_var(struct st_query *query, const char *name,
     v->int_val++;
     break;
   default:
-    die("Invalid operator to do_operator");
+    die("Invalid operator to do_modify_var");
     break;
   }
   v->int_dirty= 1;
@@ -1425,15 +1456,9 @@ int do_modify_var(struct st_query *query, const char *name,
 int my_system(DYNAMIC_STRING* ds_cmd)
 {
 #ifdef __WIN__
-  /* Dump the command into a sh script file and execute with "sh" */
-  int err;
-  char tmp_sh_name[64], tmp_sh_cmd[70];
-  my_snprintf(tmp_sh_name, sizeof(tmp_sh_name), "tmp_%d.sh", getpid());
-  my_snprintf(tmp_sh_cmd, sizeof(tmp_sh_cmd), "sh %s", tmp_sh_name);
+  /* Dump the command into a sh script file and execute with system */
   str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
-  err= system(tmp_sh_cmd);
-  my_delete(tmp_sh_name, MYF(0));
-  return err;
+  return system(tmp_sh_cmd);
 #else
   return system(ds_cmd->str);
 #endif
@@ -1820,7 +1845,6 @@ int do_sleep(struct st_query *query, my_bool real_sleep)
   char *p= query->first_argument;
   char *sleep_start, *sleep_end= query->end;
   double sleep_val;
-  const char *cmd = (real_sleep ? "real_sleep" : "sleep");
 
   while (my_isspace(charset_info, *p))
     p++;
@@ -5123,6 +5147,7 @@ int main(int argc, char **argv)
   init_var_hash(&cur_con->mysql);
 
 #ifdef __WIN__
+  init_tmp_sh_file();
   init_win_path_patterns();
 #endif
 
@@ -5181,8 +5206,8 @@ int main(int argc, char **argv)
       case Q_SERVER_START: do_server_start(q); break;
       case Q_SERVER_STOP: do_server_stop(q); break;
 #endif
-      case Q_INC: do_modify_var(q, "inc", DO_INC); break;
-      case Q_DEC: do_modify_var(q, "dec", DO_DEC); break;
+      case Q_INC: do_modify_var(q, DO_INC); break;
+      case Q_DEC: do_modify_var(q, DO_DEC); break;
       case Q_ECHO: do_echo(q); query_executed= 1; break;
       case Q_SYSTEM: do_system(q); break;
       case Q_DELIMITER:
