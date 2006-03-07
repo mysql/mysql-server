@@ -25,8 +25,7 @@ rpl_ddl                 : Bug#15963 SBR does not show "Definer" correctly
 rpl_ndb_2innodb         : Bugs#17400: delete & update of rows in table without pk fails
 rpl_ndb_2myisam         : Bugs#17400: delete & update of rows in table without pk fails
 rpl_ndb_auto_inc        : Bug#17086
-rpl_ndb_basic           : Bug#16228 [IN REVIEW]
-rpl_ndb_charset         : Bug#17246
+#rpl_ndb_basic           : Bug#16228 [IN REVIEW]
 rpl_ndb_ddl             : Bug#17400: delete & update of rows in table without pk fails
 rpl_ndb_delete_nowhere  : Bug#17400: delete & update of rows in table without pk fails
 rpl_ndb_innodb2ndb      : Bugs#17400: delete & update of rows in table without pk fails
@@ -39,3 +38,4 @@ rpl_ndb_sp007           : Bug #17290
 rpl_sp                  : Bug#16456
 rpl_until               : Unstable test case, bug#15886
 sp-goto                 : GOTO is currently is disabled - will be fixed in the future
+rpl_ndb_multi_update2   : BUG#17738 In progress

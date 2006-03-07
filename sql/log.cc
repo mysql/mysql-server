@@ -714,7 +714,8 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   {
     current_time= time(NULL);
 
-    if (!(thd->options & OPTION_UPDATE_LOG))
+    /* do not log slow queries from replication threads */
+    if (thd->slave_thread)
       return 0;
 
     lock();

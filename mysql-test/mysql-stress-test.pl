@@ -14,16 +14,17 @@
 # 
 # Design of stress script should allow one:
 # 
-#   - to use for stress testing mysqltest binary as test engine
-#   - to use for stress testing both regular test suite and any
-#     additional test suites (e.g. mysql-test-extra-5.0)
-#   - to specify files with lists of tests both for initialization of
-#     stress db and for further testing itself
-#   - to define number of threads that will be concurrently used in testing
-#   - to define limitations for test run. e.g. number of tests or loops
-#     for execution or duration of testing, delay between test executions, etc.
-#   - to get readable log file which can be used for identification of
-#     errors arose during testing
+#   - To stress test the mysqltest binary test engine.
+#   - To stress test the regular test suite and any additional test suites
+#     (such as mysql-test-extra-5.0).
+#   - To specify files with lists of tests both for initialization of
+#     stress db and for further testing itself.
+#   - To define the number of threads to be concurrently used in testing.
+#   - To define limitations for the test run. such as the number of tests or
+#     loops for execution or duration of testing, delay between test
+#     executions, and so forth.
+#   - To get a readable log file that can be used for identification of
+#     errors that occur during testing.
 # 
 # Basic scenarios:
 # 

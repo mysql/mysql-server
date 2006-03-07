@@ -224,6 +224,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --with-zlib-dir=bundled \
 	    --enable-assembler \
 	    --enable-local-infile \
+	    --with-fast-mutexes \
             --with-mysqld-user=%{mysqld_user} \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
             --prefix=/ \
@@ -301,7 +302,7 @@ BuildMySQL "--enable-shared \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 	        --with-big-tables \
-		--with-comment=\"MySQL Community Edition - Debug (GPL)\"")
+		--with-comment=\"MySQL Community Server - Debug (GPL)\"")
 
 # We might want to save the config log file
 if test -n "$MYSQL_DEBUGCONFLOG_DEST"
@@ -332,7 +333,7 @@ BuildMySQL "--enable-shared \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 	        --with-big-tables \
-		--with-comment=\"MySQL Community Edition - Max (GPL)\"")
+		--with-comment=\"MySQL Community Server - Max (GPL)\"")
 
 # We might want to save the config log file
 if test -n "$MYSQL_MAXCONFLOG_DEST"
@@ -362,7 +363,7 @@ BuildMySQL "--enable-shared \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 	        --with-big-tables \
-		--with-comment=\"MySQL Community Edition (GPL)\"")
+		--with-comment=\"MySQL Community Server (GPL)\"")
 
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
@@ -425,8 +426,7 @@ install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.
 install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Install embedded server library in the build root
-# FIXME No libmysqld on 5.0 yet
-#install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
+install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -703,12 +703,21 @@ fi
 
 %files embedded
 %defattr(-, root, root, 0755)
-# %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
+%attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
 # The spec file changelog only includes changes made to the spec file
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Mar 07 2006 Kent Boortz <kent@mysql.com>
+
+- Changed product name from "Community Edition" to "Community Server"
+
+* Mon Mar 06 2006 Kent Boortz <kent@mysql.com>
+
+- Fast mutexes is now disabled by default, but should be
+  used in Linux builds.
+
 * Mon Feb 20 2006 Kent Boortz <kent@mysql.com>
 
 - Reintroduced a max build

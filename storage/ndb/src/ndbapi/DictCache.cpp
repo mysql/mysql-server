@@ -27,6 +27,7 @@ static NdbTableImpl f_altered_table;
 Ndb_local_table_info *
 Ndb_local_table_info::create(NdbTableImpl *table_impl, Uint32 sz)
 {
+  assert(! is_ndb_blob_table(table_impl));
   Uint32 tot_size= sizeof(Ndb_local_table_info) - sizeof(Uint64)
     + ((sz+7) & ~7); // round to Uint64
   void *data= malloc(tot_size);
@@ -44,6 +45,7 @@ void Ndb_local_table_info::destroy(Ndb_local_table_info *info)
 
 Ndb_local_table_info::Ndb_local_table_info(NdbTableImpl *table_impl)
 {
+  assert(! is_ndb_blob_table(table_impl));
   m_table_impl= table_impl;
 }
 
@@ -61,18 +63,21 @@ LocalDictCache::~LocalDictCache(){
 
 Ndb_local_table_info * 
 LocalDictCache::get(const char * name){
+  assert(! is_ndb_blob_table(name));
   const Uint32 len = strlen(name);
   return m_tableHash.getData(name, len);
 }
 
 void 
 LocalDictCache::put(const char * name, Ndb_local_table_info * tab_info){
+  assert(! is_ndb_blob_table(name));
   const Uint32 id = tab_info->m_table_impl->m_id;
   m_tableHash.insertKey(name, strlen(name), id, tab_info);
 }
 
 void
 LocalDictCache::drop(const char * name){
+  assert(! is_ndb_blob_table(name));
   Ndb_local_table_info *info= m_tableHash.deleteKey(name, strlen(name));
   DBUG_ASSERT(info != 0);
   Ndb_local_table_info::destroy(info);
@@ -142,6 +147,7 @@ GlobalDictCache::get(const char * name)
 {
   DBUG_ENTER("GlobalDictCache::get");
   DBUG_PRINT("enter", ("name: %s", name));
+  assert(! is_ndb_blob_table(name));
 
   const Uint32 len = strlen(name);
   Vector<TableVersion> * versions = 0;
@@ -196,6 +202,7 @@ GlobalDictCache::put(const char * name, NdbTableImpl * tab)
                        tab ? tab->m_internalName.c_str() : "tab NULL",
                        tab ? tab->m_version & 0xFFFFFF : 0,
                        tab ? tab->m_version >> 24 : 0));
+  assert(! is_ndb_blob_table(name));
 
   const Uint32 len = strlen(name);
   Vector<TableVersion> * vers = m_tableHash.getData(name, len);
@@ -261,6 +268,7 @@ GlobalDictCache::drop(NdbTableImpl * tab)
 {
   DBUG_ENTER("GlobalDictCache::drop");
   DBUG_PRINT("enter", ("internal_name: %s", tab->m_internalName.c_str()));
+  assert(! is_ndb_blob_table(tab));
 
   unsigned i;
   const Uint32 len = strlen(tab->m_internalName.c_str());
@@ -316,6 +324,7 @@ GlobalDictCache::release(NdbTableImpl * tab)
 {
   DBUG_ENTER("GlobalDictCache::release");
   DBUG_PRINT("enter", ("internal_name: %s", tab->m_internalName.c_str()));
+  assert(! is_ndb_blob_table(tab));
 
   unsigned i;
   const Uint32 len = strlen(tab->m_internalName.c_str());
@@ -365,6 +374,7 @@ GlobalDictCache::alter_table_rep(const char * name,
 				 Uint32 tableVersion,
 				 bool altered)
 {
+  assert(! is_ndb_blob_table(name));
   const Uint32 len = strlen(name);
   Vector<TableVersion> * vers = 
     m_tableHash.getData(name, len);

@@ -754,7 +754,7 @@ Ndb::getAutoIncrementValue(const char* aTableName, Uint32 cacheSize)
   BaseString internal_tabname(internalize_table_name(aTableName));
 
   Ndb_local_table_info *info=
-    theDictionary->get_local_table_info(internal_tabname, false);
+    theDictionary->get_local_table_info(internal_tabname);
   if (info == 0)
     DBUG_RETURN(~(Uint64)0);
   const NdbTableImpl *table= info->m_table_impl;
@@ -846,7 +846,7 @@ Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase)
   BaseString internal_tabname(internalize_table_name(aTableName));
 
   Ndb_local_table_info *info=
-    theDictionary->get_local_table_info(internal_tabname, false);
+    theDictionary->get_local_table_info(internal_tabname);
   if (info == 0) {
     theError= theDictionary->getNdbError();
     DBUG_RETURN(false);

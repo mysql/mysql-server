@@ -492,6 +492,7 @@ static void do_eval(DYNAMIC_STRING *query_eval, const char *query,
 static void str_to_file(const char *fname, char *str, int size);
 
 #ifdef __WIN__
+static void free_tmp_sh_file();
 static void free_win_path_patterns();
 #endif
 
@@ -641,6 +642,7 @@ static void free_used_memory()
   mysql_server_end();
   free_re();
 #ifdef __WIN__
+  free_tmp_sh_file();
   free_win_path_patterns();
 #endif
   DBUG_VOID_RETURN;
@@ -1106,6 +1108,35 @@ int do_source(struct st_query *query)
   return open_file(name);
 }
 
+#ifdef __WIN__
+/* Variables used for temuprary sh files used for emulating Unix on Windows */
+char tmp_sh_name[64], tmp_sh_cmd[70];
+
+static void init_tmp_sh_file()
+{
+  /* Format a name for the tmp sh file that is unique for this process */
+  my_snprintf(tmp_sh_name, sizeof(tmp_sh_name), "tmp_%d.sh", getpid());
+  /* Format the command to execute in order to run the script */
+  my_snprintf(tmp_sh_cmd, sizeof(tmp_sh_cmd), "sh %s", tmp_sh_name);
+}
+
+static void free_tmp_sh_file()
+{
+  my_delete(tmp_sh_name, MYF(0));
+}
+#endif
+
+FILE* my_popen(DYNAMIC_STRING* ds_cmd, const char* mode)
+{
+#ifdef __WIN__
+  /* Dump the command into a sh script file and execute with popen */
+  str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
+  return popen(tmp_sh_cmd, mode);
+#else
+  return popen(ds_cmd->str, mode);
+#endif
+}
+
 
 /*
   Execute given command.
@@ -1152,7 +1183,7 @@ static void do_exec(struct st_query *query)
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       query->first_argument, cmd));
 
-  if (!(res_file= popen(cmd, "r")) && query->abort_on_error)
+  if (!(res_file= my_popen(&ds_cmd, "r")) && query->abort_on_error)
     die("popen(\"%s\", \"r\") failed", query->first_argument);
 
   while (fgets(buf, sizeof(buf), res_file))
@@ -1180,8 +1211,6 @@ static void do_exec(struct st_query *query)
                ("error: %d, status: %d", error, status));
     for (i= 0; i < query->expected_errors; i++)
     {
-      DBUG_PRINT("info",
-                 ("error: %d, status: %d", error, status));
       DBUG_PRINT("info", ("expected error: %d",
                           query->expected_errno[i].code.errnum));
       if ((query->expected_errno[i].type == ERR_ERRNO) &&
@@ -1377,7 +1406,6 @@ enum enum_operator
   SYNOPSIS
     do_modify_var()
     query	called command
-    name        human readable name of operator
     operator    operation to perform on the var
 
   DESCRIPTION
@@ -1386,15 +1414,16 @@ enum enum_operator
 
 */
 
-int do_modify_var(struct st_query *query, const char *name,
+int do_modify_var(struct st_query *query,
                   enum enum_operator operator)
 {
   const char *p= query->first_argument;
   VAR* v;
   if (!*p)
-    die("Missing arguments to %s", name);
+    die("Missing argument to %.*s", query->first_word_len, query->query);
   if (*p != '$')
-    die("First argument to %s must be a variable (start with $)", name);
+    die("The argument to %.*s must be a variable (start with $)",
+        query->first_word_len, query->query);
   v= var_get(p, &p, 1, 0);
   switch (operator) {
   case DO_DEC:
@@ -1404,12 +1433,35 @@ int do_modify_var(struct st_query *query, const char *name,
     v->int_val++;
     break;
   default:
-    die("Invalid operator to do_operator");
+    die("Invalid operator to do_modify_var");
     break;
   }
   v->int_dirty= 1;
   query->last_argument= (char*)++p;
   return 0;
+}
+
+
+/*
+  Wrapper for 'system' function
+
+  NOTE
+   If mysqltest is executed from cygwin shell, the command will be
+   executed in the "windows command interpreter" cmd.exe and we prepend "sh"
+   to make it be executed by cygwins "bash". Thus commands like "rm",
+   "mkdir" as well as shellscripts can executed by "system" in Windows.
+
+*/
+
+int my_system(DYNAMIC_STRING* ds_cmd)
+{
+#ifdef __WIN__
+  /* Dump the command into a sh script file and execute with system */
+  str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
+  return system(tmp_sh_cmd);
+#else
+  return system(ds_cmd->str);
+#endif
 }
 
 
@@ -1425,14 +1477,12 @@ int do_modify_var(struct st_query *query, const char *name,
     Eval the query to expand any $variables in the command.
     Execute the command with the "system" command.
 
-  NOTE
-   If mysqltest is executed from cygwin shell, the command will be
-   executed in cygwin shell. Thus commands like "rm" etc can be used.
- */
+*/
 
-int do_system(struct st_query *command)
+void do_system(struct st_query *command)
 {
   DYNAMIC_STRING ds_cmd;
+  DBUG_ENTER("do_system");
 
   if (strlen(command->first_argument) == 0)
     die("Missing arguments to system, nothing to do!");
@@ -1444,7 +1494,7 @@ int do_system(struct st_query *command)
 
   DBUG_PRINT("info", ("running system command '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
-  if (system(ds_cmd.str))
+  if (my_system(&ds_cmd))
   {
     if (command->abort_on_error)
       die("system command '%s' failed", command->first_argument);
@@ -1456,7 +1506,7 @@ int do_system(struct st_query *command)
   }
 
   command->last_argument= command->end;
-  return 0;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1795,19 +1845,20 @@ int do_sleep(struct st_query *query, my_bool real_sleep)
   char *p= query->first_argument;
   char *sleep_start, *sleep_end= query->end;
   double sleep_val;
-  char *cmd = (real_sleep ? "real_sleep" : "sleep");
 
   while (my_isspace(charset_info, *p))
     p++;
   if (!*p)
-    die("Missing argument to %s", cmd);
+    die("Missing argument to %.*s", query->first_word_len, query->query);
   sleep_start= p;
   /* Check that arg starts with a digit, not handled by my_strtod */
   if (!my_isdigit(charset_info, *sleep_start))
-    die("Invalid argument to %s \"%s\"", cmd, query->first_argument);
+    die("Invalid argument to %.*s \"%s\"", query->first_word_len, query->query,
+		query->first_argument);
   sleep_val= my_strtod(sleep_start, &sleep_end, &error);
   if (error)
-    die("Invalid argument to %s \"%s\"", cmd, query->first_argument);
+    die("Invalid argument to %.*s \"%s\"", query->first_word_len, query->query,
+		query->first_argument);
 
   /* Fixed sleep time selected by --sleep option */
   if (opt_sleep && !real_sleep)
@@ -2763,7 +2814,7 @@ int do_done(struct st_query *q)
 
  */
 
-int do_block(enum block_cmd cmd, struct st_query* q)
+void do_block(enum block_cmd cmd, struct st_query* q)
 {
   char *p= q->first_argument;
   const char *expr_start, *expr_end;
@@ -2787,7 +2838,7 @@ int do_block(enum block_cmd cmd, struct st_query* q)
     cur_block++;
     cur_block->cmd= cmd;
     cur_block->ok= FALSE;
-    return 0;
+    DBUG_VOID_RETURN;
   }
 
   /* Parse and evaluate test expression */
@@ -2888,8 +2939,8 @@ my_bool end_of_query(int c)
     size    size of the buffer i.e max size to read
 
   DESCRIPTION
-    This function actually reads several lines an adds them to the
-    buffer buf. It will continue to read until it finds what it believes
+    This function actually reads several lines and adds them to the
+    buffer buf. It continues to read until it finds what it believes
     is a complete query.
 
     Normally that means it will read lines until it reaches the
@@ -3703,7 +3754,7 @@ static void init_win_path_patterns()
 
 static void free_win_path_patterns()
 {
-  int i= 0;
+  uint i= 0;
   for (i=0 ; i < patterns.elements ; i++)
   {
     const char** pattern= dynamic_element(&patterns, i, const char**);
@@ -4340,7 +4391,7 @@ static void handle_no_error(struct st_query *q)
   command - currrent command pointer
   query - query string to execute
   query_len - length query string to execute
-  ds - output buffer wherte to store result form query
+  ds - output buffer where to store result form query
 
   RETURN VALUE
   error - function will not return
@@ -4358,7 +4409,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   DBUG_PRINT("query", ("'%-.60s'", query));
 
   /*
-    Init a new stmt if it's not alreday one created for this connectoon
+    Init a new stmt if it's not already one created for this connection
   */
   if(!(stmt= cur_con->stmt))
   {
@@ -4447,7 +4498,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
     goto end;
   }
 
-  /* If we got here the statement was both executed and read succeesfully */
+  /* If we got here the statement was both executed and read successfully */
   handle_no_error(command);
   if (!disable_result_log)
   {
@@ -5097,6 +5148,7 @@ int main(int argc, char **argv)
   init_var_hash(&cur_con->mysql);
 
 #ifdef __WIN__
+  init_tmp_sh_file();
   init_win_path_patterns();
 #endif
 
@@ -5155,8 +5207,8 @@ int main(int argc, char **argv)
       case Q_SERVER_START: do_server_start(q); break;
       case Q_SERVER_STOP: do_server_stop(q); break;
 #endif
-      case Q_INC: do_modify_var(q, "inc", DO_INC); break;
-      case Q_DEC: do_modify_var(q, "dec", DO_DEC); break;
+      case Q_INC: do_modify_var(q, DO_INC); break;
+      case Q_DEC: do_modify_var(q, DO_DEC); break;
       case Q_ECHO: do_echo(q); query_executed= 1; break;
       case Q_SYSTEM: do_system(q); break;
       case Q_DELIMITER:
@@ -5184,7 +5236,7 @@ int main(int argc, char **argv)
       case Q_QUERY_HORIZONTAL:
       {
 	my_bool old_display_result_vertically= display_result_vertically;
-	/* fix up query pointer if this is * first iteration for this line */
+	/* fix up query pointer if this is first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len + 1;
 	display_result_vertically= (q->type==Q_QUERY_VERTICAL);
@@ -5229,15 +5281,15 @@ int main(int argc, char **argv)
       case Q_SEND:
 	if (!q->query[q->first_word_len])
 	{
-	  /* This happens when we use 'send' on it's own line */
+	  /* This happens when we use 'send' on its own line */
 	  q_send_flag=1;
 	  break;
 	}
-	/* fix up query pointer if this is * first iteration for this line */
+	/* fix up query pointer if this is first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len;
 	/*
-	  run_query() can execute a query partially, depending on the flags
+	  run_query() can execute a query partially, depending on the flags.
 	  QUERY_SEND flag without QUERY_REAP tells it to just send the
 	  query and read the result some time later when reap instruction
 	  is given on this connection.
@@ -5325,7 +5377,7 @@ int main(int argc, char **argv)
         break;
       case Q_ENABLE_PARSING:
         /*
-          Ensure we don't get parsing_disabled < 0 as this would accidently
+          Ensure we don't get parsing_disabled < 0 as this would accidentally
           disable code we don't want to have disabled
         */
         if (parsing_disabled > 0)
@@ -5371,9 +5423,9 @@ int main(int argc, char **argv)
   start_lineno= 0;
 
   /*
-    The whole test has been executed _sucessfully_
-    Time to compare result or save it to record file
-    The entire output from test is now kept in ds_res
+    The whole test has been executed _sucessfully_.
+    Time to compare result or save it to record file.
+    The entire output from test is now kept in ds_res.
   */
   if (ds_res.length)
   {
@@ -6103,7 +6155,7 @@ static int get_next_bit(REP_SET *set,uint lastpos)
 }
 
 	/* find if there is a same set in sets. If there is, use it and
-	   free given set, else put in given set in sets and return it's
+	   free given set, else put in given set in sets and return its
 	   position */
 
 static int find_set(REP_SETS *sets,REP_SET *find)
@@ -6122,7 +6174,7 @@ static int find_set(REP_SETS *sets,REP_SET *find)
 
 	/* find if there is a found_set with same table_offset & found_offset
 	   If there is return offset to it, else add new offset and return pos.
-	   Pos returned is -offset-2 in found_set_structure because it's is
+	   Pos returned is -offset-2 in found_set_structure because it is
 	   saved in set->next and set->next[] >= 0 points to next set and
 	   set->next[] == -1 is reserved for end without replaces.
 	   */
