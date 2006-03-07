@@ -249,7 +249,7 @@ copy_dir_dirs() {
 # Input directories to be copied
 #
 
-for i in client dbug extra storage/heap include storage/archive storage/example \
+for i in client dbug extra storage/heap include storage/archive storage/csv \
          include/mysql libmysql libmysqld storage/myisam storage/example \
          storage/myisammrg mysys regex sql strings sql-common sql/examples \
          tools vio zlib

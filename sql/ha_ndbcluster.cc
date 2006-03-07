@@ -5995,6 +5995,22 @@ static int ndbcluster_end(ha_panic_function type)
   delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
 
+#ifdef HAVE_NDB_BINLOG
+  {
+    pthread_mutex_lock(&ndbcluster_mutex);
+    for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+    {
+      NDB_SHARE *share=
+        (NDB_SHARE*) hash_element(&ndbcluster_open_tables, i);
+#ifndef DBUG_OFF
+      fprintf(stderr, "NDB: table share %s with use_count %d not freed\n",
+              share->key, share->use_count);
+#endif
+      real_free_share(&share);
+    }
+    pthread_mutex_unlock(&ndbcluster_mutex);
+  }
+#endif
   hash_free(&ndbcluster_open_tables);
   pthread_mutex_destroy(&ndbcluster_mutex);
   pthread_mutex_destroy(&LOCK_ndb_util_thread);
@@ -6012,6 +6028,7 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   {
     char buf[100];
     my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
+             m_part_info->part_expr->null_value ? "NULL" :
              llstr(m_part_info->part_expr->val_int(), buf));
   }
   else
@@ -6843,11 +6860,10 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
 #ifdef HAVE_NDB_BINLOG
   if ((*share)->table)
   {
+    // (*share)->table->mem_root is freed by closefrm
     closefrm((*share)->table, 0);
-#if 0 // todo ?
-    free_root(&(*share)->table->mem_root, MYF(0));
-#endif
-
+    // (*share)->table_share->mem_root is freed by free_table_share
+    free_table_share((*share)->table_share);
 #ifndef DBUG_OFF
     bzero((gptr)(*share)->table_share, sizeof(*(*share)->table_share));
     bzero((gptr)(*share)->table, sizeof(*(*share)->table));

@@ -29,7 +29,7 @@ t3	CREATE TABLE `t3` (
 show create TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `c` mediumtext character set utf8 NOT NULL
+  `c` mediumtext CHARACTER SET utf8 NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2,t3,t4;
 CREATE TABLE t1 (a char(257) default "hello");
@@ -709,11 +709,11 @@ alter table t1 add key (a,b,d,e);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0',
-  `b` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) NOT NULL DEFAULT '0',
   `c` tinyblob NOT NULL,
-  `d` int(11) NOT NULL default '0',
-  `e` int(11) default NULL,
+  `d` int(11) NOT NULL DEFAULT '0',
+  `e` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`,`c`(255),`d`),
   KEY `a` (`a`,`b`,`d`,`e`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
