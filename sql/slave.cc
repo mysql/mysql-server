@@ -3093,6 +3093,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
           else
           {
             exec_res= 0;
+            end_trans(thd, ROLLBACK);
 	    /* chance for concurrent connection to get more locks */
             safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
 		       (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);
@@ -3110,8 +3111,16 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
                           "the slave_transaction_retries variable.",
                           slave_trans_retries);
       }
-      if (!((thd->options & OPTION_BEGIN) && opt_using_transactions))
-         rli->trans_retries= 0; // restart from fresh
+      else if (!((thd->options & OPTION_BEGIN) && opt_using_transactions))
+      {
+        /*
+          Only reset the retry counter if the event succeeded or
+          failed with a non-transient error.  On a successful event,
+          the execution will proceed as usual; in the case of a
+          non-transient error, the slave will stop with an error.
+         */
+        rli->trans_retries= 0; // restart from fresh
+      }
      }
     return exec_res;
   }
