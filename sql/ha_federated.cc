@@ -758,7 +758,7 @@ error:
 
 ha_federated::ha_federated(TABLE_SHARE *table_arg)
   :handler(&federated_hton, table_arg),
-  mysql(0), stored_result(0), scan_flag(0),
+  mysql(0), stored_result(0),
   ref_length(sizeof(MYSQL_ROW_OFFSET)), current_position(0)
 {
   trx_next= 0;
@@ -2238,7 +2238,7 @@ int ha_federated::rnd_init(bool scan)
     containing the correct record, hence update the wrong row!
 
   */
-  scan_flag= scan;
+
   if (scan)
   {
     DBUG_PRINT("info", ("share->select_query %s", share->select_query));
@@ -2362,24 +2362,13 @@ void ha_federated::position(const byte *record)
 int ha_federated::rnd_pos(byte *buf, byte *pos)
 {
   DBUG_ENTER("ha_federated::rnd_pos");
-  /*
-    we do not need to do any of this if there has been a scan performed
-    already, or if this is an update and index_read_idx already has a result
-    set in which to build it's update query from
-  */
-  if (scan_flag)
-  {
-    int retval;
-    statistic_increment(table->in_use->status_var.ha_read_rnd_count,
-                        &LOCK_status);
-    memcpy_fixed(&current_position, pos, sizeof(MYSQL_ROW_OFFSET));  // pos
-    /* is not aligned */
-    stored_result->current_row= 0;
-    stored_result->data_cursor= current_position;
-    retval= rnd_next(buf);
-    DBUG_RETURN(retval);
-  }
-  DBUG_RETURN(0);
+
+  statistic_increment(table->in_use->status_var.ha_read_rnd_count,
+                      &LOCK_status);
+  memcpy_fixed(&current_position, pos, sizeof(MYSQL_ROW_OFFSET));
+  stored_result->current_row= 0;
+  stored_result->data_cursor= current_position;
+  DBUG_RETURN(rnd_next(buf));
 }
 
 
