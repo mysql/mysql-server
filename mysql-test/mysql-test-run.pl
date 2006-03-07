@@ -703,6 +703,9 @@ sub command_line_setup () {
     $opt_vardir= "$glob_mysql_test_dir/var";
   }
   $opt_vardir_trace= $opt_vardir;
+  # Chop off any "c:", DBUG likes a unix path ex: c:/src/... => /src/...
+  $opt_vardir_trace=~ s/^\w://;
+
   # We make the path absolute, as the server will do a chdir() before usage
   unless ( $opt_vardir =~ m,^/, or
            ($glob_win32 and $opt_vardir =~ m,^[a-z]:/,i) )
