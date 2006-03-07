@@ -3832,6 +3832,12 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
         uint no_items= part_elem->list_val_list.elements;
         tmp_str.length(0);
         tmp_res.length(0);
+        if (part_elem->has_null_value)
+        {
+          tmp_str.append("NULL");
+          if (no_items > 0)
+            tmp_str.append(",");
+        }
         while ((list_value= list_val_it++))
         {
           tmp_res.set(*list_value, cs);
