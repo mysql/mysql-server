@@ -913,6 +913,7 @@ page_cur_insert_rec_low(
 			== (ibool) !!page_is_comp(page));
 
 	ut_ad(!page_rec_is_supremum(cursor->rec));
+	ut_ad(!page_zip || page_zip_validate(page_zip, page));
 
 	/* 1. Get the size of the physical record in the page */
 	rec_size = rec_offs_size(offsets);

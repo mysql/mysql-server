@@ -474,6 +474,8 @@ buf_flush_init_for_writing(
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		/* Copy FIL_PAGE_SPACE_OR_CHKSUM and FIL_PAGE_OFFSET */
 		memcpy(page_zip->data, page, FIL_PAGE_PREV);
+		/* Copy FIL_PAGE_LSN */
+		memcpy(page_zip->data + FIL_PAGE_LSN, page + FIL_PAGE_LSN, 8);
 		/* Copy FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID */
 		memcpy(page_zip->data + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
 			page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4);
