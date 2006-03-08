@@ -871,6 +871,7 @@ btr_page_reorganize_low(
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+	ut_ad(!page_zip || page_zip_validate(page_zip, page));
 	data_size1 = page_get_data_size(page);
 	max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
 
@@ -940,6 +941,7 @@ btr_page_reorganize_low(
 	}
 
 func_exit:
+	ut_ad(!page_zip || page_zip_validate(page_zip, page));
 	buf_frame_free(new_page);
 
 	/* Restore logging mode */
