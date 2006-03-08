@@ -301,7 +301,7 @@ SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
 
 # Check that the replication succeeded.
 
-SHOW TABLES;
+SHOW TABLES LIKE 't_';
 SHOW TRIGGERS;
 SELECT * FROM t1;
 SELECT * FROM t2;
@@ -326,7 +326,7 @@ RESET SLAVE;
 # The master should be clean.
 
 connection master;
-SHOW TABLES;
+SHOW TABLES LIKE 't_';
 SHOW TRIGGERS;
 
 RESET MASTER;
