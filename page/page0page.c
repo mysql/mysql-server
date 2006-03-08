@@ -1175,39 +1175,27 @@ in the added slots or update n_owned values: this is the responsibility
 of the caller. */
 UNIV_INLINE
 void
-page_dir_add_slots(
-/*===============*/
+page_dir_add_slot(
+/*==============*/
 	page_t*		page,	/* in/out: the index page */
 	page_zip_des_t*	page_zip,/* in/out: comprssed page, or NULL */
-	ulint		start,	/* in: the slot above which the new slots
+	ulint		start)	/* in: the slot above which the new slots
 				are added */
-	ulint		n)	/* in: number of slots to add
-				(currently only n == 1 allowed) */
 {
 	page_dir_slot_t*	slot;
 	ulint			n_slots;
-	ulint			i;
-	rec_t*			rec;
-
-	ut_ad(n == 1);
 
 	n_slots = page_dir_get_n_slots(page);
 
 	ut_ad(start < n_slots - 1);
 
 	/* Update the page header */
-	page_dir_set_n_slots(page, page_zip, n_slots + n);
+	page_dir_set_n_slots(page, page_zip, n_slots + 1);
 
 	/* Move slots up */
-
-	for (i = n_slots - 1; i > start; i--) {
-
-		slot = page_dir_get_nth_slot(page, i);
-		rec = page_dir_slot_get_rec(slot);
-
-		slot = page_dir_get_nth_slot(page, i + n);
-		page_dir_slot_set_rec(slot, rec);
-	}
+	slot = page_dir_get_nth_slot(page, n_slots);
+	memmove(slot, slot + PAGE_DIR_SLOT_SIZE,
+		(n_slots - 1 - start) * PAGE_DIR_SLOT_SIZE);
 }
 
 /********************************************************************
@@ -1252,7 +1240,7 @@ page_dir_split_slot(
 	/* 2. We add one directory slot immediately below the slot to be
 	split. */
 
-	page_dir_add_slots(page, page_zip, slot_no - 1, 1);
+	page_dir_add_slot(page, page_zip, slot_no - 1);
 
 	/* The added slot is now number slot_no, and the old slot is
 	now number slot_no + 1 */

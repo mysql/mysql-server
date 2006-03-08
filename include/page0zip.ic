@@ -210,7 +210,7 @@ page_zip_available(
 				+ REC_NODE_PTR_SIZE;
 	}
 
-	trailer_len = page_get_n_recs((page_t*) page_zip->data)
+	trailer_len = (page_dir_get_n_heap((page_t*) page_zip->data) - 2)
 				* uncompressed_size
 				+ page_zip->n_blobs
 				* BTR_EXTERN_FIELD_REF_SIZE;
