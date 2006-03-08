@@ -5115,6 +5115,22 @@ const char *ha_partition::index_type(uint inx)
 }
 
 
+enum row_type ha_partition::get_row_type() const
+{
+  handler **file;
+  enum row_type type= (*m_file)->get_row_type();
+
+  for (file= m_file, file++; *file; file++)
+  {
+    enum row_type part_type= (*file)->get_row_type();
+    if (part_type != type)
+      return ROW_TYPE_NOT_USED;
+  }
+
+  return type;
+}
+
+
 void ha_partition::print_error(int error, myf errflag)
 {
   DBUG_ENTER("ha_partition::print_error");

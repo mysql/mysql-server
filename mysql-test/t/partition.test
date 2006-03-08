@@ -540,4 +540,11 @@ select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
 drop table t1;
 
+#
+# Bug #14673: Wrong InnoDB default row format
+#
+create table t1 (a int) engine=innodb partition by hash(a) ;
+show table status like 't1';
+drop table t1;
+
 --echo End of 5.1 tests
