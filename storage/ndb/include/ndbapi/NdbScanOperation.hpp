@@ -247,6 +247,7 @@ protected:
   bool m_descending;
   Uint32 m_read_range_no;
   NdbRecAttr *m_curr_row; // Pointer to last returned row
+  bool m_executed; // Marker if operation should be released at close
 };
 
 inline
