@@ -5452,6 +5452,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       For now we code, knowing that error is not skippable and so slave SQL
       thread is certainly going to stop.
     */
+    thd->reset_current_stmt_binlog_row_based();
     rli->cleanup_context(thd, 1);
     thd->query_error= 1;
     DBUG_RETURN(error);
@@ -5495,6 +5496,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       event flushed.
     */
 
+    thd->reset_current_stmt_binlog_row_based();
     rli->cleanup_context(thd, 0);
     rli->transaction_end(thd);
 
@@ -5856,24 +5858,14 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
       (!rpl_filter->is_on() || rpl_filter->tables_ok("", &table_list)))
   {
     /*
-      TODO: Mats will soon change this test below so that a SBR slave always
-      accepts RBR events from the master (and binlogs them RBR).
+      Check if the slave is set to use SBR.  If so, it should switch
+      to using RBR until the end of the "statement", i.e., next
+      STMT_END_F or next error.
     */
-    /*
-      Check if the slave is set to use SBR.  If so, the slave should
-      stop immediately since it is not possible to daisy-chain from
-      RBR to SBR.  Once RBR is used, the rest of the chain has to use
-      RBR.
-    */
-    if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG) &&
-        !thd->current_stmt_binlog_row_based)
+    if (!thd->current_stmt_binlog_row_based &&
+        mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
     {
-      slave_print_msg(ERROR_LEVEL, rli, ER_BINLOG_ROW_RBR_TO_SBR,
-                      "It is not possible to use statement-based binlogging "
-                      "on a slave that replicates row-based.  Please use "
-                      "--binrow-format=row on slave if you want to use "
-                      "--log-slave-updates and read row-based binlog events.");
-      DBUG_RETURN(ERR_RBR_TO_SBR);
+      thd->set_current_stmt_binlog_row_based();
     }
 
     /*
