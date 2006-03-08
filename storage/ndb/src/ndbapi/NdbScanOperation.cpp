@@ -50,6 +50,7 @@ NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
   m_receivers = 0;
   m_array = new Uint32[1]; // skip if on delete in fix_receivers
   theSCAN_TABREQ = 0;
+  m_executed = false;
 }
 
 NdbScanOperation::~NdbScanOperation()
@@ -111,6 +112,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   theNdbCon->theMagicNumber = 0xFE11DF;
   theNoOfTupKeyLeft = tab->m_noOfDistributionKeys;
   m_read_range_no = 0;
+  m_executed = false;
   return 0;
 }
 
@@ -387,6 +389,7 @@ NdbScanOperation::executeCursor(int nodeId){
     if (doSendScan(nodeId) == -1)
       return -1;
 
+    m_executed= true; // Mark operation as executed
     return 0;
   } else {
     if (!(tp->get_node_stopping(nodeId) &&
@@ -680,7 +683,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
 
   if (releaseOp && tTransCon) {
     NdbIndexScanOperation* tOp = (NdbIndexScanOperation*)this;
-    tTransCon->releaseExecutedScanOperation(tOp);
+    tTransCon->releaseScanOperation(tOp);
   }
   
   tCon->theScanningOp = 0;
