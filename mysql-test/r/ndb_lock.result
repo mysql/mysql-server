@@ -66,7 +66,6 @@ drop table t1;
 create table t3 (id2 int) engine=ndb;
 lock tables t3 write;
 unlock tables;
-id2
 drop table t3;
 create table t2 (id int, j int) engine=ndb;
 insert into t2 values (2, 2);
