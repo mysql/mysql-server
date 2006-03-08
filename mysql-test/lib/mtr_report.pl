@@ -114,6 +114,11 @@ sub mtr_report_test_failed ($) {
   {
     print "[ fail ]  timeout\n";
   }
+  elsif ( $tinfo->{'ndb_test'} and  !$::flag_ndb_status_ok)
+  {
+    print "[ fail ]  ndbcluster start failure\n";
+    return;
+  }
   else
   {
     print "[ fail ]\n";
