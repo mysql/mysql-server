@@ -155,11 +155,24 @@ sub collect_test_cases ($) {
   if ( $::opt_reorder )
   {
     @$cases = sort {
-      if ( $a->{'master_restart'} and $b->{'master_restart'} or
-           ! $a->{'master_restart'} and ! $b->{'master_restart'} )
+      if ( ! $a->{'master_restart'} and ! $b->{'master_restart'} )
       {
         return $a->{'name'} cmp $b->{'name'};
       }
+
+      if ( $a->{'master_restart'} and $b->{'master_restart'} )
+      {
+        my $cmp= mtr_cmp_opts($a->{'master_opt'}, $b->{'master_opt'});
+        if ( $cmp == 0 )
+        {
+          return $a->{'name'} cmp $b->{'name'};
+        }
+        else
+        {
+          return $cmp;
+        }
+      }
+
       if ( $a->{'master_restart'} )
       {
         return 1;                 # Is greater
