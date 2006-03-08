@@ -2607,6 +2607,13 @@ int THD::binlog_setup_trx_data()
   DBUG_RETURN(0);
 }
 
+/*
+  Write a table map to the binary log.
+
+  This function is called from ha_external_lock() after the storage
+  engine has registered for the transaction.
+ */
+
 int THD::binlog_write_table_map(TABLE *table, bool is_trans)
 {
   DBUG_ENTER("THD::binlog_write_table_map");
@@ -2623,10 +2630,6 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
   Table_map_log_event
     the_event(this, table, table->s->table_map_id, is_trans, flags);
 
-  /*
-    This function is called from ha_external_lock() after the storage
-    engine has registered for the transaction.
-   */
   if (is_trans)
     trans_register_ha(this, options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN),
                       &binlog_hton);

@@ -2532,12 +2532,14 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
       table maps written this far will be included in the table maps
       for the following statement.
 
-      See if we can replace this with a dummy, maybe constant, event.
+      TODO: Remove the need for a dummy event altogether.  It can be
+      fixed if we can write table maps to a memory buffer before
+      writing the first binrow event.  We can then flush and clear the
+      memory buffer with table map events before writing the first
+      binrow event.  In the event of a crash, nothing is lost since
+      the table maps are only needed if there are binrow events.
     */
-#if 0
-    static unsigned char memory[sizeof(Write_rows_log_event)];
-    void *const ptr= &memory;
-#endif
+
     Rows_log_event *ev=
       new Write_rows_log_event(this, 0, ULONG_MAX, 0, FALSE);
     ev->set_flags(Rows_log_event::STMT_END_F);
