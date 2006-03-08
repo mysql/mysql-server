@@ -447,7 +447,8 @@ ibool
 page_rec_is_user_rec_low(
 /*=====================*/
 			/* out: TRUE if a user record */
-	ulint	offset);/* in: record offset on page */
+	ulint	offset)	/* in: record offset on page */
+	__attribute__((const));
 /****************************************************************
 TRUE if the record is the supremum record on a page. */
 UNIV_INLINE
@@ -455,7 +456,8 @@ ibool
 page_rec_is_supremum_low(
 /*=====================*/
 			/* out: TRUE if the supremum record */
-	ulint	offset);/* in: record offset on page */
+	ulint	offset)	/* in: record offset on page */
+	__attribute__((const));
 /****************************************************************
 TRUE if the record is the infimum record on a page. */
 UNIV_INLINE
@@ -463,7 +465,8 @@ ibool
 page_rec_is_infimum_low(
 /*====================*/
 			/* out: TRUE if the infimum record */
-	ulint	offset);/* in: record offset on page */
+	ulint	offset)	/* in: record offset on page */
+	__attribute__((const));
 
 /****************************************************************
 TRUE if the record is a user record on the page. */
@@ -472,7 +475,8 @@ ibool
 page_rec_is_user_rec(
 /*=================*/
 				/* out: TRUE if a user record */
-	const rec_t*	rec);	/* in: record */
+	const rec_t*	rec)	/* in: record */
+	__attribute__((const));
 /****************************************************************
 TRUE if the record is the supremum record on a page. */
 UNIV_INLINE
@@ -480,7 +484,9 @@ ibool
 page_rec_is_supremum(
 /*=================*/
 				/* out: TRUE if the supremum record */
-	const rec_t*	rec);	/* in: record */
+	const rec_t*	rec)	/* in: record */
+	__attribute__((const));
+
 /****************************************************************
 TRUE if the record is the infimum record on a page. */
 UNIV_INLINE
@@ -488,7 +494,8 @@ ibool
 page_rec_is_infimum(
 /*================*/
 				/* out: TRUE if the infimum record */
-	const rec_t*	rec);	/* in: record */
+	const rec_t*	rec)	/* in: record */
+	__attribute__((const));
 /*******************************************************************
 Looks for the record which owns the given record. */
 UNIV_INLINE
