@@ -502,10 +502,10 @@ ha_ndbcluster::invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
     }
     else
       dict->invalidateTable(tabname);
+    share->version=0L;			/* Free when thread is ready */
   }
   else
     dict->removeCachedTable(tabname);
-  share->version=0L;			/* Free when thread is ready */
   DBUG_RETURN(0);
 }
 
