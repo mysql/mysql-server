@@ -813,6 +813,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     strmov(path, table->s->path);
     *table_ptr= table->next;			// Unlink table from list
     close_temporary(table,0);
+    if (thd->slave_thread)
+      --slave_open_temp_tables;
     *fn_ext(path)=0;				// Remove the .frm extension
     ha_create_table(path, &create_info,1);
     // We don't need to call invalidate() because this table is not in cache
