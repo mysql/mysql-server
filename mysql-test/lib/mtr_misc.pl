@@ -13,6 +13,9 @@ sub mtr_add_arg ($$);
 sub mtr_path_exists(@);
 sub mtr_script_exists(@);
 sub mtr_exe_exists(@);
+sub mtr_copy_dir($$);
+sub mtr_same_opts($$);
+sub mtr_cmp_opts($$);
 
 ##############################################################################
 #
@@ -108,5 +111,44 @@ sub mtr_exe_exists (@) {
   }
 }
 
+sub mtr_copy_dir($$) {
+  my $srcdir= shift;
+  my $dstdir= shift;
+
+  # Create destination directory
+  mkpath($dstdir);
+  find(\&mtr_copy_one_file, $dstdir);
+}
+
+sub mtr_copy_one_file {
+  print $File::Find::name, "\n";
+}
+
+sub mtr_same_opts ($$) {
+  my $l1= shift;
+  my $l2= shift;
+  return mtr_cmp_opts($l1,$l2) == 0;
+}
+
+sub mtr_cmp_opts ($$) {
+  my $l1= shift;
+  my $l2= shift;
+
+  my @l1= @$l1;
+  my @l2= @$l2;
+
+  return -1 if @l1 < @l2;
+  return  1 if @l1 > @l2;
+
+  while ( @l1 )                         # Same length
+  {
+    my $e1= shift @l1;
+    my $e2= shift @l2;
+    my $cmp= ($e1 cmp $e2);
+    return $cmp if $cmp != 0;
+  }
+
+  return 0;                             # They are the same
+}
 
 1;
