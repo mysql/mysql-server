@@ -373,7 +373,6 @@ NdbScanOperation::executeCursor(int nodeId){
   Uint32 magic = tCon->theMagicNumber;
   Uint32 seq = tCon->theNodeSequence;
 
-  m_executed= true; // Mark operation as executed
   if (tp->get_node_alive(nodeId) &&
       (tp->getNodeSequence(nodeId) == seq)) {
 
@@ -390,6 +389,7 @@ NdbScanOperation::executeCursor(int nodeId){
     if (doSendScan(nodeId) == -1)
       return -1;
 
+    m_executed= true; // Mark operation as executed
     return 0;
   } else {
     if (!(tp->get_node_stopping(nodeId) &&
