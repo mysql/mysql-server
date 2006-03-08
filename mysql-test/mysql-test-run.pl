@@ -464,9 +464,9 @@ sub initial_setup () {
   if ( $glob_cygwin_perl )
   {
     # Windows programs like 'mysqld' needs Windows paths
-    $glob_mysql_test_dir= `cygpath -m $glob_mysql_test_dir`;
+    $glob_mysql_test_dir= `cygpath -m "$glob_mysql_test_dir"`;
     my $shell= $ENV{'SHELL'} || "/bin/bash";
-    $glob_cygwin_shell=   `cygpath -w $shell`; # The Windows path c:\...
+    $glob_cygwin_shell=   `cygpath -w "$shell"`; # The Windows path c:\...
     chomp($glob_mysql_test_dir);
     chomp($glob_cygwin_shell);
   }
@@ -973,7 +973,8 @@ sub executable_setup () {
       $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-max",
                                            "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
-                                           "$path_client_bindir/mysqld-debug",);
+                                           "$path_client_bindir/mysqld-debug",
+                                           "$path_client_bindir/mysqld-max");
       $path_language=      mtr_path_exists("$glob_basedir/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
       $exe_my_print_defaults=
@@ -1837,13 +1838,37 @@ sub run_testcase ($) {
 
   if ( ! $glob_use_running_server and ! $glob_use_embedded_server )
   {
-    if ( $tinfo->{'master_restart'} or
-         $master->[0]->{'running_master_is_special'} or
-	 # Stop if cluster is started but test cases does not need cluster
-	 ( $opt_with_ndbcluster && $tinfo->{'ndb_test'} != $using_ndbcluster_master ) )
+    # We try to find out if we are to restart the server
+    my $do_restart= 0;          # Assumes we don't have to
+
+    if ( $tinfo->{'master_sh'} )
+    {
+      $do_restart= 1;           # Always restart if script to run
+    }
+    elsif ( $opt_with_ndbcluster and $tinfo->{'ndb_test'} != $using_ndbcluster_master )
+    {
+      $do_restart= 1;           # Restart without cluster
+    }
+    elsif ( $master->[0]->{'running_master_is_special'} and
+            $master->[0]->{'running_master_is_special'}->{'timezone'} eq
+            $tinfo->{'timezone'} and
+            mtr_same_opts($master->[0]->{'running_master_is_special'}->{'master_opt'},
+                          $tinfo->{'master_opt'}) )
+    {
+      # If running master was started with special settings, but
+      # the current test requuires the same ones, we *don't* restart.
+      $do_restart= 0;
+    }
+    elsif ( $tinfo->{'master_restart'} or
+            $master->[0]->{'running_master_is_special'} )
+    {
+      $do_restart= 1;
+    }
+
+    if ( $do_restart )
     {
       stop_masters();
-      $master->[0]->{'running_master_is_special'}= 0; # Forget why we stopped
+      delete $master->[0]->{'running_master_is_special'}; # Forget history
     }
 
     # ----------------------------------------------------------------------
@@ -1930,7 +1955,8 @@ sub run_testcase ($) {
 
       if ( $tinfo->{'master_restart'} )
       {
-        $master->[0]->{'running_master_is_special'}= 1;
+        # Save this test case information, so next can examine it
+        $master->[0]->{'running_master_is_special'}= $tinfo;
       }
     }
     elsif ( ! $opt_skip_im and $tinfo->{'component_id'} eq 'im' )
