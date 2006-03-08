@@ -540,4 +540,10 @@ select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
 drop table t1;
 
+#
+# Bug #17497: Partitions: crash if add partition on temporary table
+#
+--error ER_PARTITION_NO_TEMPORARY
+create temporary table t1 (a int) partition by hash(a);
+
 --echo End of 5.1 tests
