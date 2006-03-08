@@ -422,4 +422,6 @@ partition_name	partition_description	table_rows
 x123	11,12	1
 x234	NULL,1	1
 drop table t1;
+create temporary table t1 (a int) partition by hash(a);
+ERROR HY000: Cannot create temporary table with partitions
 End of 5.1 tests
