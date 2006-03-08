@@ -5841,14 +5841,34 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
         /*
           Error reporting borrowed from Query_log_event with many excessive
           simplifications (we don't honour --slave-skip-errors)
+
+          BUG: There can be extreneous table maps in the binary log,
+          so in case we fail to open the table, we just generate a
+          warning and do not add the table to the list of tables to
+          open and lock.
         */
         uint actual_error= thd->net.last_errno;
-        slave_print_msg(ERROR_LEVEL, rli, actual_error,
-                        "Error '%s' on opening table `%s`.`%s`",
-                        (actual_error ? thd->net.last_error :
-                         "unexpected success or fatal error"),
-                        table_list->db, table_list->table_name);
-        thd->query_error= 1;
+        switch (actual_error)
+        {
+        case ER_NO_SUCH_TABLE:
+          slave_print_msg(WARNING_LEVEL, rli, actual_error,
+                          thd->net.last_error ?
+                          thd->net.last_error :
+                          "<no message>");
+          clear_all_errors(thd, rli);
+          rli->inc_event_relay_log_pos();       // Continue with next event
+          error= 0;
+          break;
+
+        default:
+          slave_print_msg(ERROR_LEVEL, rli, actual_error,
+                          "Error '%s' on opening table `%s`.`%s`",
+                          (actual_error ? thd->net.last_error :
+                           "unexpected success or fatal error"),
+                          table_list->db, table_list->table_name);
+          thd->query_error= 1;
+          break;
+        }
       }
       DBUG_RETURN(error);
     }
