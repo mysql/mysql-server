@@ -23,6 +23,7 @@
 #include "rpl_filter.h"
 #include "slave.h"
 #include "ha_ndbcluster_binlog.h"
+#include "NdbDictionary.hpp"
 
 #ifdef ndb_dynamite
 #undef assert
@@ -2965,11 +2966,19 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
               DBUG_PRINT("info", ("no share or table !"));
               continue;
             }
-            TABLE* table=share->table;
-            const LEX_STRING& name=table->s->table_name;
-            DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
-            injector::transaction::table tbl(table, true);
-            trans.use_table(::server_id, tbl);
+
+            Uint32 const bits=
+              NdbDictionary::Event::TE_INSERT |
+              NdbDictionary::Event::TE_DELETE |
+              NdbDictionary::Event::TE_UPDATE;
+            if (event_types & bits)
+            {
+              TABLE* table=share->table;
+              const LEX_STRING& name=table->s->table_name;
+              DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
+              injector::transaction::table tbl(table, true);
+              trans.use_table(::server_id, tbl);
+            }
           }
         }
         gci= pOp->getGCI();
