@@ -5073,7 +5073,9 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
 {
   /*
     We allow a special form of dummy event when the table, and cols
-    are null and the table id is ULONG_MAX.
+    are null and the table id is ULONG_MAX.  This is a temporary
+    solution, to be able to terminate a started statement in the
+    binary log: the extreneous events will be removed in the future.
    */
   DBUG_ASSERT(tbl_arg && tbl_arg->s && tid != ULONG_MAX ||
               !tbl_arg && !cols && tid == ULONG_MAX);
