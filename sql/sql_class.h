@@ -1387,6 +1387,10 @@ public:
     if (variables.binlog_format == BINLOG_FORMAT_MIXED)
       current_stmt_binlog_row_based= 1;
   }
+  inline void set_current_stmt_binlog_row_based()
+  {
+    current_stmt_binlog_row_based= 1;
+  }
   inline void reset_current_stmt_binlog_row_based()
   {
     current_stmt_binlog_row_based= test(variables.binlog_format == BINLOG_FORMAT_ROW);
