@@ -1252,12 +1252,14 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
      * Already completed GCI...
      *   Possible in case of resend during NF handling
      */
+#ifdef VM_TRACE
     ndbout << "bucket == 0, gci:" << gci
 	   << " complete: " << m_complete_data << endl;
     for(Uint32 i = 0; i<m_active_gci.size(); i++)
     {
       ndbout << i << " - " << m_active_gci[i] << endl;
     }
+#endif
     DBUG_VOID_RETURN_EVENT;
   }
 
