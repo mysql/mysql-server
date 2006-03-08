@@ -23,6 +23,7 @@
 #include "rpl_filter.h"
 #include "slave.h"
 #include "ha_ndbcluster_binlog.h"
+#include "NdbDictionary.hpp"
 
 #ifdef ndb_dynamite
 #undef assert
@@ -1716,15 +1717,20 @@ static int open_binlog_index(THD *thd, TABLE_LIST *tables,
 
 /*
   Insert one row in the binlog_index
-
-  declared friend in handler.h to be able to call write_row directly
-  so that this insert is not replicated
 */
 int ndb_add_binlog_index(THD *thd, void *_row)
 {
   Binlog_index_row &row= *(Binlog_index_row *) _row;
   int error= 0;
   bool need_reopen;
+
+  /*
+    Turn of binlogging to prevent the table changes to be written to
+    the binary log.
+  */
+  ulong saved_options= thd->options;
+  thd->options&= ~(OPTION_BIN_LOG);
+
   for ( ; ; ) /* loop for need_reopen */
   {
     if (!binlog_index && open_binlog_index(thd, &binlog_tables, &binlog_index))
@@ -1760,7 +1766,7 @@ int ndb_add_binlog_index(THD *thd, void *_row)
   binlog_index->field[6]->store(row.n_schemaops);
 
   int r;
-  if ((r= binlog_index->file->write_row(binlog_index->record[0])))
+  if ((r= binlog_index->file->ha_write_row(binlog_index->record[0])))
   {
     sql_print_error("NDB Binlog: Writing row to binlog_index: %d", r);
     error= -1;
@@ -1769,10 +1775,12 @@ int ndb_add_binlog_index(THD *thd, void *_row)
 
   mysql_unlock_tables(thd, thd->lock);
   thd->lock= 0;
+  thd->options= saved_options;
   return 0;
 add_binlog_index_err:
   close_thread_tables(thd);
   binlog_index= 0;
+  thd->options= saved_options;
   return error;
 }
 
@@ -2958,12 +2966,19 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
               DBUG_PRINT("info", ("no share or table !"));
               continue;
             }
-            TABLE* table=share->table;
-            const LEX_STRING& name=table->s->table_name;
-            DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
-            injector::transaction::table tbl(table, true);
-            // TODO enable when mats patch pushed
-            //trans.use_table(::server_id, tbl);
+
+            Uint32 const bits=
+              NdbDictionary::Event::TE_INSERT |
+              NdbDictionary::Event::TE_DELETE |
+              NdbDictionary::Event::TE_UPDATE;
+            if (event_types & bits)
+            {
+              TABLE* table=share->table;
+              const LEX_STRING& name=table->s->table_name;
+              DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
+              injector::transaction::table tbl(table, true);
+              trans.use_table(::server_id, tbl);
+            }
           }
         }
         gci= pOp->getGCI();
@@ -2974,8 +2989,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
           const LEX_STRING& name=table->s->table_name;
           DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
           injector::transaction::table tbl(table, true);
-          // TODO enable when mats patch pushed
-          //trans.use_table(::server_id, tbl);
+          trans.use_table(::server_id, tbl);
 
           MY_BITMAP b;
           uint32 bitbuf;
