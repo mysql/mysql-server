@@ -1064,17 +1064,14 @@ btr_root_raise_and_insert(
 	moving the root records to the new page, emptying the root, putting
 	a node pointer to the new page, and then splitting the new page. */
 
-	new_page = btr_page_alloc(tree, 0, FSP_NO_DIR,
-				btr_page_get_level(root, mtr), mtr);
+	level = btr_page_get_level(root, mtr);
+
+	new_page = btr_page_alloc(tree, 0, FSP_NO_DIR, level, mtr);
 
 	btr_page_create(new_page, tree, mtr);
 
-	root_page_zip = buf_block_get_page_zip(buf_block_align(root));
-	level = btr_page_get_level(root, mtr);
-
-	/* Set the levels of the new index page and root page */
+	/* Set the level of the new index page */
 	btr_page_set_level(new_page, NULL, level, mtr);
-	btr_page_set_level(root, root_page_zip, level + 1, mtr);
 
 	/* Set the next node and previous node fields of new page */
 	btr_page_set_next(new_page, NULL, FIL_NULL, mtr);
@@ -1084,9 +1081,11 @@ btr_root_raise_and_insert(
 
 	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
 
-	if (UNIV_UNLIKELY(!page_move_rec_list_end(new_page, new_page_zip,
-				page_get_infimum_rec(root), root_page_zip,
-				cursor->index, mtr))) {
+	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
+			page_get_infimum_rec(root), cursor->index, mtr))) {
+		/* This should always succeed, as new_page
+		is created from the scratch and receives
+		the records in sorted order. */
 		ut_error;
 	}
 
@@ -1108,13 +1107,11 @@ btr_root_raise_and_insert(
 
 	node_ptr = dict_tree_build_node_ptr(tree, rec, new_page_no, heap,
 								level);
-	/* Reorganize the root to get free space */
-	if (!btr_page_reorganize_low(FALSE, root, root_page_zip,
-					cursor->index, mtr)) {
-		/* The page should be empty at this point.
-		Thus, the operation should succeed. */
-		ut_error;
-	}
+	/* Rebuild the root page to get free space */
+	root_page_zip = buf_block_get_page_zip(buf_block_align(root));
+	btr_page_set_level(root, NULL, level + 1, mtr);
+	page_create(root, root_page_zip, mtr, cursor->index);
+	buf_block_align(root)->check_index_page_at_flush = TRUE;
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
@@ -1552,6 +1549,9 @@ btr_attach_half_pages(
 		upper_page_no = buf_frame_get_page_no(page);
 		lower_page = new_page;
 		upper_page = page;
+		lower_page_zip = buf_block_get_page_zip(
+				buf_block_align(new_page));
+		upper_page_zip = page_zip;
 
 		/* Look from the tree for the node pointer to page */
 		node_ptr = btr_page_get_father_node_ptr(tree, page, mtr);
@@ -1559,7 +1559,8 @@ btr_attach_half_pages(
 		/* Replace the address of the old child node (= page) with the
 		address of the new lower half */
 
-		btr_node_ptr_set_child_page_no(node_ptr, page_zip,
+		btr_node_ptr_set_child_page_no(node_ptr,
+			buf_block_get_page_zip(buf_block_align(node_ptr)),
 			rec_get_offsets(node_ptr,
 					UT_LIST_GET_FIRST(tree->tree_indexes),
 					NULL, ULINT_UNDEFINED, &heap),
@@ -1570,10 +1571,10 @@ btr_attach_half_pages(
 		upper_page_no = buf_frame_get_page_no(new_page);
 		lower_page = page;
 		upper_page = new_page;
+		lower_page_zip = page_zip;
+		upper_page_zip = buf_block_get_page_zip(
+				buf_block_align(new_page));
 	}
-
-	lower_page_zip = buf_block_get_page_zip(buf_block_align(lower_page));
-	upper_page_zip = buf_block_get_page_zip(buf_block_align(upper_page));
 
 	/* Get the level of the split pages */
 	level = btr_page_get_level(page, mtr);

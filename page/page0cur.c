@@ -254,7 +254,7 @@ page_cur_search_with_match(
 	page_check_dir(page);
 
 #ifdef PAGE_CUR_ADAPT
-	if ((page_header_get_field(page, PAGE_LEVEL) == 0)
+	if (page_is_leaf(page)
 		&& (mode == PAGE_CUR_LE)
 		&& (page_header_get_field(page, PAGE_N_DIRECTION) > 3)
 		&& (page_header_get_ptr(page, PAGE_LAST_INSERT))
