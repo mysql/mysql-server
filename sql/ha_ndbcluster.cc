@@ -466,60 +466,58 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
     #   The mapped error code
 */
 
-int
-ha_ndbcluster::invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
-                                           const char *dbname, const char *tabname,
-                                           bool global)
+int ha_ndbcluster::invalidate_dictionary_cache(bool global)
 {
-  NDBDICT *dict= ndb->getDictionary();
+  NDBDICT *dict= get_ndb()->getDictionary();
   DBUG_ENTER("invalidate_dictionary_cache");
-  DBUG_PRINT("info", ("invalidating %s", tabname));
-
-#ifdef HAVE_NDB_BINLOG
-  char key[FN_REFLEN];
-  build_table_filename(key, sizeof(key), dbname, tabname, "");
-  DBUG_PRINT("info", ("Getting ndbcluster mutex"));
-  pthread_mutex_lock(&ndbcluster_mutex);
-  NDB_SHARE *ndb_share= (NDB_SHARE*)hash_search(&ndbcluster_open_tables,
-                                                (byte*) key, strlen(key));
-  pthread_mutex_unlock(&ndbcluster_mutex);
-  DBUG_PRINT("info", ("Released ndbcluster mutex"));
-  // Only binlog_thread is allowed to globally invalidate a table
-  if (global && ndb_share && ndb_share->op && (current_thd != injector_thd))
-    DBUG_RETURN(1);
-#endif
+  DBUG_PRINT("info", ("m_tabname: %s  global: %d", m_tabname, global));
 
   if (global)
   {
-    const NDBTAB *tab= dict->getTable(tabname);
+#ifdef HAVE_NDB_BINLOG
+    if (current_thd != injector_thd)
+    {
+      char key[FN_REFLEN];
+      build_table_filename(key, sizeof(key), m_dbname, m_tabname, "");
+      DBUG_PRINT("info", ("Getting ndbcluster mutex"));
+      pthread_mutex_lock(&ndbcluster_mutex);
+      NDB_SHARE *ndb_share= (NDB_SHARE*)hash_search(&ndbcluster_open_tables,
+                                                    (byte*) key, strlen(key));
+      // Only binlog_thread is allowed to globally invalidate a table
+      if (ndb_share && ndb_share->op)
+      {
+        pthread_mutex_unlock(&ndbcluster_mutex);
+        DBUG_PRINT("info", ("Released ndbcluster mutex"));
+        DBUG_RETURN(1);
+      }
+      pthread_mutex_unlock(&ndbcluster_mutex);
+      DBUG_PRINT("info", ("Released ndbcluster mutex"));
+    }
+#endif
+    const NDBTAB *tab= dict->getTable(m_tabname);
     if (!tab)
       DBUG_RETURN(1);
     if (tab->getObjectStatus() == NdbDictionary::Object::Invalid)
     {
       // Global cache has already been invalidated
-      dict->removeCachedTable(tabname);
+      dict->removeCachedTable(m_tabname);
       global= FALSE;
+      DBUG_PRINT("info", ("global: %d", global));
     }
     else
-      dict->invalidateTable(tabname);
-    share->version=0L;			/* Free when thread is ready */
+      dict->invalidateTable(m_tabname);
+    table_share->version= 0L;			/* Free when thread is ready */
   }
   else
-    dict->removeCachedTable(tabname);
-  DBUG_RETURN(0);
-}
+    dict->removeCachedTable(m_tabname);
 
-void ha_ndbcluster::invalidate_dictionary_cache(bool global)
-{
-  NDBDICT *dict= get_ndb()->getDictionary();
-  if (invalidate_dictionary_cache(table_share, get_ndb(), m_dbname, m_tabname, global))
-    return;
   /* Invalidate indexes */
   for (uint i= 0; i < table_share->keys; i++)
   {
     NDBINDEX *index = (NDBINDEX *) m_index[i].index;
     NDBINDEX *unique_index = (NDBINDEX *) m_index[i].unique_index;
-    if (!index && !unique_index) continue;
+    if (!index && !unique_index)
+      continue;
     NDB_INDEX_TYPE idx_type= m_index[i].type;
 
     switch (idx_type) {
@@ -546,6 +544,7 @@ void ha_ndbcluster::invalidate_dictionary_cache(bool global)
       break;
     }
   }
+  DBUG_RETURN(0);
 }
 
 int ha_ndbcluster::ndb_err(NdbTransaction *trans)
