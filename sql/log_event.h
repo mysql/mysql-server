@@ -1833,36 +1833,6 @@ public:
     return m_rows_buf && m_cols.bitmap;
   }
 
-  /*
-    If there is no table map active for the event, write one to the
-    binary log.
-
-    LOCK_log has to be aquired before calling this function.
-
-    PARAMETERS
-      thd - Thread to use when writing the table map
-
-    RETURN VALUE
-      Error code, or zero if write succeeded.
-  */
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
-#if 0
-  int maybe_write_table_map(THD *thd, IO_CACHE *file, MYSQL_LOG *log) const
-  {
-    /*
-      N.B., get_cache_stmt() returns the value of 'using_trans' that
-      was provided to the constructor, i.e., get_cache_stmt() == true
-      if and only if the table is transactional.
-    */
-
-    int result= 0;
-    if (!log->is_table_mapped(m_table))
-      result= log->write_table_map(thd, file, m_table, get_cache_stmt());
-    return result;
-  }
-#endif
-#endif
-
   uint     m_row_count;         /* The number of rows added to the event */
 
 protected:
