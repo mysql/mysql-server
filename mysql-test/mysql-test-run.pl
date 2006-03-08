@@ -1840,7 +1840,7 @@ sub run_testcase ($) {
     if ( $tinfo->{'master_restart'} or
          $master->[0]->{'running_master_is_special'} or
 	 # Stop if cluster is started but test cases does not need cluster
-	 ( $tinfo->{'ndb_test'} != $using_ndbcluster_master ) )
+	 ( $opt_with_ndbcluster && $tinfo->{'ndb_test'} != $using_ndbcluster_master ) )
     {
       stop_masters();
       $master->[0]->{'running_master_is_special'}= 0; # Forget why we stopped
@@ -1889,7 +1889,7 @@ sub run_testcase ($) {
 
     if ( $tinfo->{'component_id'} eq 'mysqld' and ! $opt_local_master )
     {
-      if ( $master->[0]->{'ndbcluster'} )
+      if ( $opt_with_ndbcluster and $master->[0]->{'ndbcluster'} )
       {
 	# Cluster is not started
 
