@@ -1846,19 +1846,27 @@ sp_head::set_info(longlong created, longlong modified,
 void
 sp_head::set_definer(const char *definer, uint definerlen)
 {
-  uint user_name_len;
-  char user_name_str[USERNAME_LENGTH + 1];
-  uint host_name_len;
-  char host_name_str[HOSTNAME_LENGTH + 1];
+  char user_name_holder[USERNAME_LENGTH + 1];
+  LEX_STRING_WITH_INIT user_name(user_name_holder, USERNAME_LENGTH);
 
-  parse_user(definer, definerlen, user_name_str, &user_name_len,
-             host_name_str, &host_name_len);
+  char host_name_holder[HOSTNAME_LENGTH + 1];
+  LEX_STRING_WITH_INIT host_name(host_name_holder, HOSTNAME_LENGTH);
 
-  m_definer_user.str= strmake_root(mem_root, user_name_str, user_name_len);
-  m_definer_user.length= user_name_len;
+  parse_user(definer, definerlen, user_name.str, &user_name.length,
+             host_name.str, &host_name.length);
 
-  m_definer_host.str= strmake_root(mem_root, host_name_str, host_name_len);
-  m_definer_host.length= host_name_len;
+  set_definer(&user_name, &host_name);
+}
+
+
+void
+sp_head::set_definer(const LEX_STRING *user_name, const LEX_STRING *host_name)
+{
+  m_definer_user.str= strmake_root(mem_root, user_name->str, user_name->length);
+  m_definer_user.length= user_name->length;
+
+  m_definer_host.str= strmake_root(mem_root, host_name->str, host_name->length);
+  m_definer_host.length= host_name->length;
 }
 
 
@@ -3204,24 +3212,9 @@ sp_change_security_context(THD *thd, sp_head *sp, Security_context **backup)
                                 sp->m_definer_host.str,
                                 sp->m_db.str))
     {
-#ifdef NOT_YET_REPLICATION_SAFE
-      /*
-        Until we don't properly replicate information about stored routine
-        definer with stored routine creation statement all stored routines
-        on slave are created under ''@'' definer. Therefore we won't be able
-        to run any routine which was replicated from master on slave server
-        if we emit error here. This will cause big problems for users
-        who use slave for fail-over. So until we fully implement WL#2897
-        "Complete definer support in the stored routines" we run suid
-        stored routines for which we were unable to find definer under
-        invoker security context.
-      */
       my_error(ER_NO_SUCH_USER, MYF(0), sp->m_definer_user.str,
                sp->m_definer_host.str);
       return TRUE;
-#else
-      return FALSE;
-#endif
     }
     *backup= thd->security_ctx;
     thd->security_ctx= &sp->m_security_ctx;
