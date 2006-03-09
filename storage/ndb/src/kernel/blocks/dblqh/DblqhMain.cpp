@@ -2366,8 +2366,9 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   jamEntry();
   
   CommitAckMarkerPtr removedPtr;
-  m_commitAckMarkerHash.release(removedPtr, key);
+  m_commitAckMarkerHash.remove(removedPtr, key);
   ndbrequire(removedPtr.i != RNIL);
+  m_commitAckMarkerPool.release(removedPtr);
 #ifdef MARKER_TRACE
   ndbout_c("Rem marker[%.8x %.8x]", key.transid1, key.transid2);
 #endif

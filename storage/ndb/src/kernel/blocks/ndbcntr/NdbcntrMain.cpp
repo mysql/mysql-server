@@ -90,6 +90,7 @@ static BlockInfo ALL_BLOCKS[] = {
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
 
 static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
+  CMVMI_REF,
   DBTUP_REF,
   DBACC_REF,
   DBTC_REF,
@@ -100,7 +101,6 @@ static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   NDBFS_REF,
   NDBCNTR_REF,
   QMGR_REF,
-  CMVMI_REF,
   TRIX_REF,
   BACKUP_REF,
   DBUTIL_REF,
