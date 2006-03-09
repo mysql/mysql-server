@@ -47,6 +47,8 @@
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
 
+#define DICT_WAITFOR_TIMEOUT (7*24*60*60*1000)
+
 extern Uint64 g_latest_trans_gci;
 
 bool
@@ -1807,7 +1809,7 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
   int r = dictSignal(signal, ptr, noOfSections,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     WAITFOR_RESPONSE_TIMEOUT, 100, errCodes);
+		     DICT_WAITFOR_TIMEOUT, 100, errCodes);
 
   if (r)
     return 0;
@@ -2640,7 +2642,7 @@ loop:
     ret = dictSignal(&tSignal, ptr, 1,
 		     0, // master
 		     WAIT_ALTER_TAB_REQ,
-		     WAITFOR_RESPONSE_TIMEOUT, 100,
+		     DICT_WAITFOR_TIMEOUT, 100,
 		     errCodes);
     
     if(m_error.code == AlterTableRef::InvalidTableVersion) {
@@ -2658,7 +2660,7 @@ loop:
     ret = dictSignal(&tSignal, ptr, 1,
 		     0, // master node
 		     WAIT_CREATE_INDX_REQ,
-		     WAITFOR_RESPONSE_TIMEOUT, 100,
+		     DICT_WAITFOR_TIMEOUT, 100,
 		     errCodes);
   }
   
@@ -2832,7 +2834,7 @@ NdbDictInterface::dropTable(const NdbTableImpl & impl)
   int r = dictSignal(&tSignal, 0, 0,
 		     0, // master
 		     WAIT_DROP_TAB_REQ, 
-		     WAITFOR_RESPONSE_TIMEOUT, 100,
+		     DICT_WAITFOR_TIMEOUT, 100,
 		     errCodes);
   if(m_error.code == DropTableRef::InvalidTableVersion) {
     // Clear caches and try again
@@ -3086,7 +3088,7 @@ NdbDictInterface::createIndex(Ndb & ndb,
   return dictSignal(&tSignal, ptr, 2,
 		    0, // master
 		    WAIT_CREATE_INDX_REQ,
-		    WAITFOR_RESPONSE_TIMEOUT, 100,
+		    DICT_WAITFOR_TIMEOUT, 100,
 		    errCodes);
 }
 
@@ -3199,7 +3201,7 @@ NdbDictInterface::dropIndex(const NdbIndexImpl & impl,
   int r = dictSignal(&tSignal, 0, 0,
 		     0, // master
 		     WAIT_DROP_INDX_REQ,
-		     WAITFOR_RESPONSE_TIMEOUT, 100,
+		     DICT_WAITFOR_TIMEOUT, 100,
 		     errCodes);
   if(m_error.code == DropIndxRef::InvalidIndexVersion) {
     // Clear caches and try again
@@ -3418,7 +3420,7 @@ NdbDictInterface::createEvent(class Ndb & ndb,
   int ret = dictSignal(&tSignal,ptr, 1,
 		       0, // master
 		       WAIT_CREATE_INDX_REQ,
-		       WAITFOR_RESPONSE_TIMEOUT, 100,
+		       DICT_WAITFOR_TIMEOUT, 100,
 		       0, -1);
 
   if (ret) {
@@ -4035,7 +4037,7 @@ NdbDictInterface::listObjects(NdbApiSignal* signal)
       continue;
     }
     m_error.code= 0;
-    int ret_val= poll_guard.wait_n_unlock(WAITFOR_RESPONSE_TIMEOUT,
+    int ret_val= poll_guard.wait_n_unlock(DICT_WAITFOR_TIMEOUT,
                                           aNodeId, WAIT_LIST_TABLES_CONF);
     // end protected
     if (ret_val == 0 && m_error.code == 0)
@@ -4095,7 +4097,7 @@ NdbDictInterface::forceGCPWait()
     m_error.code= 0;
     m_waiter.m_node = aNodeId;
     m_waiter.m_state = WAIT_LIST_TABLES_CONF;
-    m_waiter.wait(WAITFOR_RESPONSE_TIMEOUT);
+    m_waiter.wait(DICT_WAITFOR_TIMEOUT);
     m_transporter->unlock_mutex();    
     return 0;
   }
@@ -4421,7 +4423,7 @@ NdbDictInterface::drop_file(const NdbFileImpl & file){
   DBUG_RETURN(dictSignal(&tSignal, 0, 0,
 	                 0, // master
 		         WAIT_CREATE_INDX_REQ,
-		         WAITFOR_RESPONSE_TIMEOUT, 100,
+		         DICT_WAITFOR_TIMEOUT, 100,
 		         err));
 }
 
@@ -4516,7 +4518,7 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group){
   DBUG_RETURN(dictSignal(&tSignal, ptr, 1,
 	                 0, // master
 		         WAIT_CREATE_INDX_REQ,
-		         WAITFOR_RESPONSE_TIMEOUT, 100,
+		         DICT_WAITFOR_TIMEOUT, 100,
 		         err));
 }
 
@@ -4556,7 +4558,7 @@ NdbDictInterface::drop_filegroup(const NdbFilegroupImpl & group){
   DBUG_RETURN(dictSignal(&tSignal, 0, 0,
                          0, // master
 		         WAIT_CREATE_INDX_REQ,
-		         WAITFOR_RESPONSE_TIMEOUT, 100,
+		         DICT_WAITFOR_TIMEOUT, 100,
 		         err));
 }
 
@@ -4605,7 +4607,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   int r = dictSignal(&tSignal, ptr, 1,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     WAITFOR_RESPONSE_TIMEOUT, 100);
+		     DICT_WAITFOR_TIMEOUT, 100);
   if (r)
   {
     DBUG_PRINT("info", ("get_filegroup failed dictSignal"));
@@ -4694,7 +4696,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   int r = dictSignal(&tSignal, NULL, 1,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     WAITFOR_RESPONSE_TIMEOUT, 100);
+		     DICT_WAITFOR_TIMEOUT, 100);
   if (r)
   {
     DBUG_PRINT("info", ("get_filegroup failed dictSignal"));
@@ -4747,7 +4749,7 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
   int r = dictSignal(&tSignal, ptr, 1,
 		     node,
 		     WAIT_GET_TAB_INFO_REQ,
-		     WAITFOR_RESPONSE_TIMEOUT, 100);
+		     DICT_WAITFOR_TIMEOUT, 100);
   if (r)
   {
     DBUG_PRINT("info", ("get_file failed dictSignal"));
