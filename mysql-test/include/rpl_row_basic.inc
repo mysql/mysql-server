@@ -174,22 +174,16 @@ SELECT C1,HEX(B1),HEX(B2) FROM t4 ORDER BY C1;
 connection master;
 eval CREATE TABLE t7 (C1 INT PRIMARY KEY, C2 INT) ENGINE = $type ;
 sync_slave_with_master;
---disable_query_log
-SELECT "--- on slave: original values ---" AS "";
---enable_query_log
+--echo --- on slave: original values ---
 INSERT INTO t7 VALUES (1,3), (2,6), (3,9);
 SELECT * FROM t7 ORDER BY C1;
 
 connection master;
---disable_query_log
-SELECT "--- on master: new values inserted ---" AS "";
---enable_query_log
+--echo --- on master: new values inserted ---
 INSERT INTO t7 VALUES (1,2), (2,4), (3,6);
 SELECT * FROM t7 ORDER BY C1;
 sync_slave_with_master;
---disable_query_log
-SELECT "--- on slave: old values should be overwritten by replicated values ---" AS "";
---enable_query_log
+--echo --- on slave: old values should be overwritten by replicated values ---
 SELECT * FROM t7 ORDER BY C1;
 
 #
@@ -197,42 +191,33 @@ SELECT * FROM t7 ORDER BY C1;
 # causing a conflict for a key that is not "last".
 #
 connection master;
---disable_query_log
-SELECT "--- on master ---" AS "";
---enable_query_log
-DROP TABLE t7;
-eval CREATE TABLE t7 (a INT PRIMARY KEY, b INT UNIQUE, c INT UNIQUE) ENGINE = $type ;
+--echo --- on master ---
+eval CREATE TABLE t8 (a INT PRIMARY KEY, b INT UNIQUE, c INT UNIQUE) ENGINE = $type ;
 
 # First we make sure that the constraints are correctly set.
-INSERT INTO t7 VALUES (99,99,99);
+INSERT INTO t8 VALUES (99,99,99);
 --error 1062
-INSERT INTO t7 VALUES (99,22,33);
+INSERT INTO t8 VALUES (99,22,33);
 --error 1062
-INSERT INTO t7 VALUES (11,99,33);
+INSERT INTO t8 VALUES (11,99,33);
 --error 1062
-INSERT INTO t7 VALUES (11,22,99);
-SELECT * FROM t7 ORDER BY a;
+INSERT INTO t8 VALUES (11,22,99);
+SELECT * FROM t8 ORDER BY a;
 
 sync_slave_with_master;
---disable_query_log
-SELECT "--- on slave ---" AS "";
---enable_query_log
-SELECT * FROM t7 ORDER BY a;
-INSERT INTO t7 VALUES (1,2,3), (2,4,6), (3,6,9);
-SELECT * FROM t7 ORDER BY a;
+--echo --- on slave ---
+SELECT * FROM t8 ORDER BY a;
+INSERT INTO t8 VALUES (1,2,3), (2,4,6), (3,6,9);
+SELECT * FROM t8 ORDER BY a;
 
 connection master;
---disable_query_log
-SELECT "--- on master ---" AS "";
---enable_query_log
+--echo --- on master ---
 # We insert a row that will cause conflict on the primary key but not
 # on the other keys.
-INSERT INTO t7 VALUES (2,4,8);
+INSERT INTO t8 VALUES (2,4,8);
 sync_slave_with_master;
---disable_query_log
-SELECT "--- on slave ---" AS "";
---enable_query_log
-SELECT * FROM t7 ORDER BY a;
+--echo --- on slave ---
+SELECT * FROM t8 ORDER BY a;
 
 #
 # Test conflicting operations when changing in a table referenced by a
@@ -245,5 +230,4 @@ SELECT * FROM t7 ORDER BY a;
 #
 
 connection master;
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
-sync_slave_with_master;
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;
