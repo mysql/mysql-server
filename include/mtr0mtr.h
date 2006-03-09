@@ -132,22 +132,16 @@ flag value must give the length also! */
 #define MLOG_ZIP_WRITE_NODE_PTR	((byte)47)	/* write the node pointer of
 						a record on a compressed
 						non-leaf B-tree page */
-#define MLOG_ZIP_WRITE_TRX_ID	((byte)48)	/* write the trx_id of
-						a record on a compressed
-						leaf B-tree page */
-#define MLOG_ZIP_WRITE_ROLL_PTR	((byte)49)	/* write the roll_ptr of
-						a record on a compressed
-						leaf B-tree page */
-#define MLOG_ZIP_WRITE_BLOB_PTR	((byte)50)	/* write the BLOB pointer
+#define MLOG_ZIP_WRITE_BLOB_PTR	((byte)48)	/* write the BLOB pointer
 						of an externally stored column
 						on a compressed page */
-#define MLOG_ZIP_COMPRESS	((byte)51)	/* compress a page */
-#define MLOG_ZIP_DECOMPRESS	((byte)52)	/* decompress a page
+#define MLOG_ZIP_COMPRESS	((byte)49)	/* compress a page */
+#define MLOG_ZIP_DECOMPRESS	((byte)50)	/* decompress a page
 						to undo a compressed page
 						overflow */
-#define MLOG_ZIP_WRITE_HEADER	((byte)53)	/* write to compressed page
+#define MLOG_ZIP_WRITE_HEADER	((byte)51)	/* write to compressed page
 						header */
-#define MLOG_BIGGEST_TYPE	((byte)53)	/* biggest value (used in
+#define MLOG_BIGGEST_TYPE	((byte)51)	/* biggest value (used in
 						asserts) */
 
 /*******************************************************************

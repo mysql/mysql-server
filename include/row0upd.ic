@@ -113,7 +113,7 @@ row_upd_rec_sys_fields(
 	trx_t*		trx,	/* in: transaction */
 	dulint		roll_ptr)/* in: roll ptr of the undo log record */
 {
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!buf_block_align(rec)->is_hashed
@@ -121,12 +121,9 @@ row_upd_rec_sys_fields(
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write_trx_id(
-				page_zip, rec, rec_offs_data_size(offsets),
-				trx->id, NULL);
-		page_zip_write_roll_ptr(
-				page_zip, rec, rec_offs_data_size(offsets),
-				roll_ptr, NULL);
+		ulint	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
+		page_zip_write_trx_id_and_roll_ptr(page_zip, rec, offsets,
+					pos, trx->id, roll_ptr);
 	} else {
 		ulint	offset = index->trx_id_offset;
 
@@ -134,6 +131,9 @@ row_upd_rec_sys_fields(
 			offset = row_get_trx_id_offset(rec, index, offsets);
 		}
 
+#if DATA_TRX_ID + 1 != DATA_ROLL_PTR
+# error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
+#endif
 		trx_write_trx_id(rec + offset, trx->id);
 		trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
 	}

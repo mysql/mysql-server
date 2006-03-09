@@ -551,7 +551,7 @@ dict_build_index_def_step(
 	node->table = table;
 
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
-		|| (index->type & DICT_CLUSTERED));
+		|| dict_index_is_clust(index));
 
 	index->id = dict_hdr_get_new_id(DICT_HDR_INDEX_ID);
 
@@ -614,7 +614,7 @@ dict_create_index_tree_step(
 
 	sys_indexes = dict_sys->sys_indexes;
 
-	if (index->type & DICT_CLUSTERED
+	if (dict_index_is_clust(index)
 			&& table->type == DICT_TABLE_CLUSTER_MEMBER) {
 
 		/* Do not create a new index tree: entries are put to the

@@ -295,7 +295,7 @@ row_sel_fetch_columns(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 		index_type = SYM_CLUST_FIELD_NO;
 	} else {
 		index_type = SYM_SEC_FIELD_NO;
@@ -814,7 +814,7 @@ sel_set_rec_lock(
 		}
 	}
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 		err = lock_clust_rec_read_check_and_lock(0,
 					rec, index, offsets, mode, type, thr);
 	} else {
@@ -1067,7 +1067,7 @@ row_sel_try_search_shortcut(
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 		if (!lock_clust_rec_cons_read_sees(rec, index, offsets,
 							node->read_view)) {
 			ret = SEL_RETRY;
@@ -1435,7 +1435,7 @@ rec_loop:
 		/* This is a non-locking consistent read: if necessary, fetch
 		a previous version of the record */
 
-		if (index->type & DICT_CLUSTERED) {
+		if (dict_index_is_clust(index)) {
 
 			if (!lock_clust_rec_cons_read_sees(rec, index, offsets,
 							node->read_view)) {
@@ -3015,7 +3015,7 @@ row_sel_try_search_shortcut_for_mysql(
 	trx_t*		trx		= prebuilt->trx;
 	rec_t*		rec;
 
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(!prebuilt->templ_contains_blob);
 
 	btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE,
@@ -3296,7 +3296,7 @@ stderr);
 		&& index->type & DICT_UNIQUE
 		&& dtuple_get_n_fields(search_tuple)
 		== dict_index_get_n_unique(index)
-		&& (index->type & DICT_CLUSTERED
+		&& (dict_index_is_clust(index)
 			|| !dtuple_contains_null(search_tuple))) {
 
 		/* Note above that a UNIQUE secondary index can contain many
@@ -3333,7 +3333,7 @@ stderr);
 
 	if (UNIV_UNLIKELY(direction == 0)
 		&& unique_search
-		&& index->type & DICT_CLUSTERED
+		&& dict_index_is_clust(index)
 		&& !prebuilt->templ_contains_blob
 		&& !prebuilt->used_in_HANDLER
 		&& (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)) {

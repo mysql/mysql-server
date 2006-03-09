@@ -998,7 +998,8 @@ use_heap:
 		}
 
 		if (UNIV_LIKELY_NULL(page_zip)) {
-			page_zip_dir_add_slot(page_zip);
+			page_zip_dir_add_slot(page_zip,
+					dict_index_is_clust(index));
 		}
 	}
 

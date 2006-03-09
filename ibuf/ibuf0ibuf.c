@@ -2530,7 +2530,7 @@ ibuf_insert_low(
 	mtr_t		mtr;
 	mtr_t		bitmap_mtr;
 
-	ut_a(!(index->type & DICT_CLUSTERED));
+	ut_a(!dict_index_is_clust(index));
 	ut_ad(dtuple_check_typed(entry));
 
 	ut_a(trx_sys_multiple_tablespace_format);
@@ -2771,7 +2771,7 @@ ibuf_insert(
 	ut_a(trx_sys_multiple_tablespace_format);
 	ut_ad(dtuple_check_typed(entry));
 
-	ut_a(!(index->type & DICT_CLUSTERED));
+	ut_a(!dict_index_is_clust(index));
 	ut_a(!dict_table_is_zip(index->table));
 
 	if (rec_get_converted_size(index, entry)

@@ -255,7 +255,7 @@ row_ins_sec_index_entry_by_modify(
 
 	rec = btr_cur_get_rec(cursor);
 
-	ut_ad((cursor->index->type & DICT_CLUSTERED) == 0);
+	ut_ad(!dict_index_is_clust(cursor->index));
 	ut_ad(rec_get_deleted_flag(rec,
 			dict_table_is_comp(cursor->index->table)));
 
@@ -319,7 +319,7 @@ row_ins_clust_index_entry_by_modify(
 	upd_t*		update;
 	ulint		err;
 
-	ut_ad(cursor->index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(cursor->index));
 
 	*big_rec = NULL;
 
@@ -913,7 +913,7 @@ row_ins_foreign_check_on_constraint(
 
 	rec = btr_pcur_get_rec(pcur);
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 		/* pcur is already positioned in the clustered index of
 		the child table */
 
@@ -1134,7 +1134,7 @@ row_ins_set_shared_rec_lock(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 		err = lock_clust_rec_read_check_and_lock(0,
 				rec, index, offsets, LOCK_S, type, thr);
 	} else {
@@ -1165,7 +1165,7 @@ row_ins_set_exclusive_rec_lock(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 		err = lock_clust_rec_read_check_and_lock(0,
 				rec, index, offsets, LOCK_X, type, thr);
 	} else {
@@ -1613,7 +1613,7 @@ row_ins_dupl_error_with_rec(
 	/* In a unique secondary index we allow equal key values if they
 	contain SQL NULLs */
 
-	if (!(index->type & DICT_CLUSTERED)) {
+	if (!dict_index_is_clust(index)) {
 
 		for (i = 0; i < n_unique; i++) {
 			if (UNIV_SQL_NULL == dfield_get_len(
@@ -1792,7 +1792,7 @@ row_ins_duplicate_error_in_clust(
 
 	UT_NOT_USED(mtr);
 
-	ut_a(cursor->index->type & DICT_CLUSTERED);
+	ut_a(dict_index_is_clust(cursor->index));
 	ut_ad(cursor->index->type & DICT_UNIQUE);
 
 	/* NOTE: For unique non-clustered indexes there may be any number
@@ -1891,7 +1891,7 @@ row_ins_duplicate_error_in_clust(
 			mem_heap_free(heap);
 		}
 
-		ut_a(!(cursor->index->type & DICT_CLUSTERED));
+		ut_a(!dict_index_is_clust(cursor->index));
 						/* This should never happen */
 	}
 
@@ -2033,7 +2033,7 @@ row_ins_index_entry_low(
 	if (index->type & DICT_UNIQUE && (cursor.up_match >= n_unique
 					 || cursor.low_match >= n_unique)) {
 
-		if (index->type & DICT_CLUSTERED) {
+		if (dict_index_is_clust(index)) {
 			/* Note that the following may return also
 			DB_LOCK_WAIT */
 
@@ -2079,7 +2079,7 @@ row_ins_index_entry_low(
 			btr_cur_position(index, rec, &cursor);
 		}
 
-		if (index->type & DICT_CLUSTERED) {
+		if (dict_index_is_clust(index)) {
 			err = row_ins_clust_index_entry_by_modify(mode,
 							&cursor, &big_rec,
 							entry,

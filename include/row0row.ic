@@ -23,7 +23,7 @@ row_get_rec_trx_id(
 {
 	ulint	offset;
 
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	offset = index->trx_id_offset;
@@ -48,7 +48,7 @@ row_get_rec_roll_ptr(
 {
 	ulint	offset;
 
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	offset = index->trx_id_offset;

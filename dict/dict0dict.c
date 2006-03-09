@@ -497,7 +497,7 @@ dict_index_get_nth_col_pos(
 
 	col = dict_table_get_nth_col(index->table, n);
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 
 		return(col->clust_pos);
 	}
@@ -535,7 +535,7 @@ dict_index_contains_col_or_prefix(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 
 		return(TRUE);
 	}
@@ -1411,8 +1411,8 @@ dict_index_add_to_cache(
 			index2 = UT_LIST_GET_NEXT(indexes, index2);
 		}
 
-		ut_a(UT_LIST_GET_LEN(table->indexes) == 0
-				|| (index->type & DICT_CLUSTERED) == 0);
+		ut_a(!dict_index_is_clust(index)
+				|| UT_LIST_GET_LEN(table->indexes) == 0);
 	}
 
 	success = dict_index_find_cols(table, index);
@@ -1426,7 +1426,7 @@ dict_index_add_to_cache(
 	/* Build the cache internal representation of the index,
 	containing also the added system fields */
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 		new_index = dict_index_build_internal_clust(table, index);
 	} else {
 		new_index = dict_index_build_internal_non_clust(table, index);
@@ -1723,7 +1723,7 @@ dict_index_build_internal_clust(
 	ulint		i;
 
 	ut_ad(table && index);
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1897,7 +1897,7 @@ dict_index_build_internal_non_clust(
 	ulint		i;
 
 	ut_ad(table && index);
-	ut_ad(0 == (index->type & DICT_CLUSTERED));
+	ut_ad(!dict_index_is_clust(index));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1907,7 +1907,7 @@ dict_index_build_internal_non_clust(
 	clust_index = UT_LIST_GET_FIRST(table->indexes);
 
 	ut_ad(clust_index);
-	ut_ad(clust_index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(clust_index));
 	ut_ad(!(clust_index->type & DICT_UNIVERSAL));
 
 	/* Create a new index */
@@ -3697,7 +3697,7 @@ dict_tree_find_index_low(
 	ut_ad(index);
 	table = index->table;
 
-	if ((index->type & DICT_CLUSTERED)
+	if (dict_index_is_clust(index)
 			&& UNIV_UNLIKELY(table->type != DICT_TABLE_ORDINARY)) {
 
 		/* Get the mix id of the record */

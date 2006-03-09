@@ -1500,7 +1500,7 @@ row_unlock_for_mysql(
 		reset locks on clust_pcur. The values in clust_pcur may be
 		garbage! */
 
-		if (index->type & DICT_CLUSTERED) {
+		if (dict_index_is_clust(index)) {
 
 			goto func_exit;
 		}

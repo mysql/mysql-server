@@ -309,17 +309,20 @@ row_upd_rec_sys_fields_in_recovery(
 	dulint		trx_id,	/* in: transaction id */
 	dulint		roll_ptr)/* in: roll ptr of the undo log record */
 {
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
+
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write_trx_id(page_zip, rec,
-				rec_offs_size(offsets), trx_id, NULL);
-		page_zip_write_roll_ptr(page_zip, rec,
-				rec_offs_size(offsets), roll_ptr, NULL);
+		page_zip_write_trx_id_and_roll_ptr(
+				page_zip, rec, offsets, pos, trx_id, roll_ptr);
 	} else {
 		byte*	field;
 		ulint	len;
 
 		field = rec_get_nth_field(rec, offsets, pos, &len);
 		ut_ad(len == DATA_TRX_ID_LEN);
+#if DATA_TRX_ID + 1 != DATA_ROLL_PTR
+# error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
+#endif
 		trx_write_trx_id(field, trx_id);
 		trx_write_roll_ptr(field + DATA_TRX_ID_LEN, roll_ptr);
 	}
@@ -343,7 +346,7 @@ row_upd_index_entry_sys_field(
 	byte*		field;
 	ulint		pos;
 
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 
 	pos = dict_index_get_sys_col_pos(index, type);
 
@@ -492,7 +495,7 @@ row_upd_write_sys_vals_to_log(
 				in mlog */
 	mtr_t*		mtr __attribute__((unused))) /* in: mtr */
 {
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(mtr);
 
 	log_ptr += mach_write_compressed(log_ptr,
@@ -743,7 +746,7 @@ row_upd_build_sec_rec_difference_binary(
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	/* This function is used only for a secondary index */
-	ut_a(0 == (index->type & DICT_CLUSTERED));
+	ut_a(!dict_index_is_clust(index));
 
 	update = upd_create(dtuple_get_n_fields(entry), heap);
 
@@ -821,7 +824,7 @@ row_upd_build_difference_binary(
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	/* This function is used only for a clustered index */
-	ut_a(index->type & DICT_CLUSTERED);
+	ut_a(dict_index_is_clust(index));
 
 	update = upd_create(dtuple_get_n_fields(entry), heap);
 
@@ -1380,7 +1383,7 @@ row_upd_sec_step(
 
 	ut_ad((node->state == UPD_NODE_UPDATE_ALL_SEC)
 				|| (node->state == UPD_NODE_UPDATE_SOME_SEC));
-	ut_ad(!(node->index->type & DICT_CLUSTERED));
+	ut_ad(!dict_index_is_clust(node->index));
 
 	if (node->state == UPD_NODE_UPDATE_ALL_SEC
 		|| row_upd_changes_ord_field_binary(node->row, node->index,
@@ -1420,7 +1423,7 @@ row_upd_clust_rec_by_insert(
 	ulint		err;
 
 	ut_ad(node);
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 
 	trx = thr_get_trx(thr);
 	table = node->table;
@@ -1523,7 +1526,7 @@ row_upd_clust_rec(
 	ulint		err;
 
 	ut_ad(node);
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 
 	pcur = node->pcur;
 	btr_cur = btr_pcur_get_btr_cur(pcur);
@@ -1620,7 +1623,7 @@ row_upd_del_mark_clust_rec(
 	ulint		err;
 
 	ut_ad(node);
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(node->is_delete);
 
 	pcur = node->pcur;

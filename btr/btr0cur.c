@@ -916,7 +916,7 @@ btr_cur_ins_lock_and_undo(
 		return(err);
 	}
 
-	if ((index->type & DICT_CLUSTERED) && !(index->type & DICT_IBUF)) {
+	if (dict_index_is_clust(index) && !(index->type & DICT_IBUF)) {
 
 		err = trx_undo_report_row_operation(flags, TRX_UNDO_INSERT_OP,
 					thr, index, entry, NULL, 0, NULL,
@@ -1365,7 +1365,7 @@ btr_cur_upd_lock_and_undo(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 
-	if (!(index->type & DICT_CLUSTERED)) {
+	if (!dict_index_is_clust(index)) {
 		/* We do undo logging only when we update a clustered index
 		record */
 		return(lock_sec_rec_modify_check_and_lock(flags, rec, index,
@@ -1597,7 +1597,7 @@ btr_cur_update_in_place(
 		if the update vector was built for a clustered index, we must
 		NOT call it if index is secondary */
 
-		if (!(index->type & DICT_CLUSTERED)
+		if (!dict_index_is_clust(index)
 			|| row_upd_changes_ord_field_binary(NULL, index, update)) {
 
 			/* Remove possible hash index pointer to this record */
@@ -2307,7 +2307,7 @@ btr_cur_del_mark_set_clust_rec(
 	}
 #endif /* UNIV_DEBUG */
 
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
 	page_zip = buf_block_get_page_zip(buf_block_align(rec));
@@ -3516,7 +3516,7 @@ btr_store_big_rec_extern_fields(
 							MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(local_mtr, buf_block_align(rec),
 							MTR_MEMO_PAGE_X_FIX));
-	ut_a(index->type & DICT_CLUSTERED);
+	ut_a(dict_index_is_clust(index));
 
 	space_id = buf_frame_get_space_id(rec);
 
