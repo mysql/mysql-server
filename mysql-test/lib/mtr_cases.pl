@@ -262,6 +262,12 @@ sub collect_one_test_case($$$$$$$) {
       $tinfo->{'skip'}= 1;
       return;
     }
+    if ( ! $::opt_with_ndbcluster )
+    {
+      # Ndb is not supported, skip them
+      $tinfo->{'skip'}= 1;
+      return;
+    }
   }
   else
   {

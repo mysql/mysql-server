@@ -80,6 +80,7 @@ static char *add_load_option(char *ptr, const char *object,
 			     const char *statement);
 static ulong find_set(TYPELIB *lib, const char *x, uint length,
 		      char **err_pos, uint *err_len);
+static char *alloc_query_str(ulong size);
 
 static char *field_escape(char *to,const char *from,uint length);
 static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
@@ -1313,19 +1314,64 @@ static uint dump_routines_for_db(char *db)
                              routine_name, row[2], strlen(row[2])));
           if (strlen(row[2]))
           {
+            char *query_str= NULL;
+            char *definer_begin;
+
             if (opt_drop)
               fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */;;\n",
                       routine_type[i], routine_name);
+
+            /*
+              Cover DEFINER-clause in version-specific comments.
+
+              TODO: this is definitely a BAD IDEA to parse SHOW CREATE output.
+              We should user INFORMATION_SCHEMA instead. The only problem is
+              that now INFORMATION_SCHEMA does not provide information about
+              routine parameters.
+            */
+
+            definer_begin= strstr(row[2], " DEFINER");
+            
+            if (definer_begin)
+            {
+              char *definer_end= strstr(definer_begin, " PROCEDURE");
+
+              if (!definer_end)
+                definer_end= strstr(definer_begin, " FUNCTION");
+
+              if (definer_end)
+              {
+                char *query_str_tail;
+
+                /*
+                  Allocate memory for new query string: original string
+                  from SHOW statement and version-specific comments.
+                */
+                query_str= alloc_query_str(strlen(row[2]) + 23);
+
+                query_str_tail= strnmov(query_str, row[2],
+                                        definer_begin - row[2]);
+                query_str_tail= strmov(query_str_tail, "*/ /*!50019");
+                query_str_tail= strnmov(query_str_tail, definer_begin,
+                                        definer_end - definer_begin);
+                query_str_tail= strxmov(query_str_tail, "*/ /*!50003",
+                                        definer_end, NullS);
+              }
+            }
+
             /*
               we need to change sql_mode only for the CREATE
               PROCEDURE/FUNCTION otherwise we may need to re-quote routine_name
             */;
             fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/;;\n",
                     row[1] /* sql_mode */);
-            fprintf(sql_file, "/*!50003 %s */;;\n", row[2]);
+            fprintf(sql_file, "/*!50003 %s */;;\n",
+                    (query_str != NULL ? query_str : row[2]));
             fprintf(sql_file,
                     "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/"
                     ";;\n");
+
+            my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
           }
         } /* end of routine printing */
       } /* end of list of routines */
