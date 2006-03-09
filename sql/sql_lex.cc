@@ -17,6 +17,7 @@
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
+#define MYSQL_LEX 1
 #include "mysql_priv.h"
 #include "item_create.h"
 #include <m_ctype.h>
