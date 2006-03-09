@@ -1627,10 +1627,6 @@ btr_cur_update_in_place(
 	btr_cur_update_in_place_log(flags, rec, index, update,
 					trx, roll_ptr, mtr);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write_rec(page_zip, rec, index, offsets);
-	}
-
 	if (was_delete_marked && !rec_get_deleted_flag(rec,
 				page_is_comp(buf_block_get_frame(block)))) {
 		/* The new updated record owns its possible externally
