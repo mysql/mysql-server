@@ -223,7 +223,7 @@ dropTable()
 {
   NdbDictionary::Table tab(g_opt.m_tname);
   if (g_dic->getTable(g_opt.m_tname) != 0)
-    CHK(g_dic->dropTable(tab) == 0);
+    CHK(g_dic->dropTable(g_opt.m_tname) == 0);
   return 0;
 }
 
