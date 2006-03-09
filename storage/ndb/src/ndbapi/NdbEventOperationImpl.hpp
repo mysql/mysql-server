@@ -68,8 +68,12 @@ public:
   ~EventBufData_list();
 
   void remove_first();
-  void append(EventBufData *data);
-  void append(const EventBufData_list &list);
+  // append data and insert data into Gci_op list with add_gci_op
+  void append_data(EventBufData *data);
+  // append data and insert data but ignore Gci_op list
+  void append_used_data(EventBufData *data);
+  // append list to another, will call move_gci_ops
+  void append_list(EventBufData_list *list, Uint64 gci);
 
   int is_empty();
 
@@ -77,13 +81,60 @@ public:
   unsigned m_count;
   unsigned m_sz;
 
-  // distinct ops per gci (assume no hash needed)
-  struct Gci_op { NdbEventOperationImpl* op; Uint32 event_types; };
-  Gci_op* m_gci_op_list;
-  Uint32 m_gci_op_count;
-  Uint32 m_gci_op_alloc;
+  /*
+    distinct ops per gci (assume no hash needed)
+
+    list may be in 2 versions
+
+    1. single list with on gci only
+    - one linear array
+    Gci_op  *m_gci_op_list;
+    Uint32 m_gci_op_count;
+    Uint32 m_gci_op_alloc != 0;
+
+    2. multi list with several gcis
+    - linked list of gci's
+    - one linear array per gci
+    Gci_ops *m_gci_ops_list;
+    Gci_ops *m_gci_ops_list_tail;
+    Uint32 m_is_not_multi_list == 0;
+
+  */
+  struct Gci_op                 // 1 + 2
+  {
+    NdbEventOperationImpl* op;
+    Uint32 event_types;
+  };
+  struct Gci_ops                // 2
+  {
+    Uint64 m_gci;
+    Gci_op *m_gci_op_list;
+    Gci_ops *m_next;
+    Uint32 m_gci_op_count;
+  };
+  union
+  {
+    Gci_op  *m_gci_op_list;      // 1
+    Gci_ops *m_gci_ops_list;     // 2
+  };
+  union
+  {
+    Uint32 m_gci_op_count;       // 1
+    Gci_ops *m_gci_ops_list_tail;// 2
+  };
+  union
+  {
+    Uint32 m_gci_op_alloc;       // 1
+    Uint32 m_is_not_multi_list;  // 2
+  };
+  Gci_ops *first_gci_ops();
+  Gci_ops *next_gci_ops();
 private:
+  // case 1 above; add Gci_op to single list
   void add_gci_op(Gci_op g);
+  // case 2 above; move single list or multi list from
+  // one list to another
+  void move_gci_ops(EventBufData_list *list, Uint64 gci);
 };
 
 inline
@@ -92,7 +143,7 @@ EventBufData_list::EventBufData_list()
     m_count(0),
     m_sz(0),
     m_gci_op_list(NULL),
-    m_gci_op_count(0),
+    m_gci_ops_list_tail(0),
     m_gci_op_alloc(0)
 {
 }
@@ -100,7 +151,14 @@ EventBufData_list::EventBufData_list()
 inline
 EventBufData_list::~EventBufData_list()
 {
-  delete [] m_gci_op_list;
+  if (m_is_not_multi_list)
+    delete [] m_gci_op_list;
+  else
+  {
+    Gci_ops *op = first_gci_ops();
+    while (op)
+      op = next_gci_ops();
+  }
 }
 
 inline
@@ -120,11 +178,8 @@ void EventBufData_list::remove_first()
 }
 
 inline
-void EventBufData_list::append(EventBufData *data)
+void EventBufData_list::append_used_data(EventBufData *data)
 {
-  Gci_op g = { data->m_event_op, 1 << (Uint32)data->sdata->operation };
-  add_gci_op(g);
-
   data->m_next= 0;
   if (m_tail)
     m_tail->m_next= data;
@@ -143,19 +198,33 @@ void EventBufData_list::append(EventBufData *data)
 }
 
 inline
-void EventBufData_list::append(const EventBufData_list &list)
+void EventBufData_list::append_data(EventBufData *data)
 {
-  Uint32 i;
-  for (i = 0; i < list.m_gci_op_count; i++)
-    add_gci_op(list.m_gci_op_list[i]);
+  Gci_op g = { data->m_event_op, 1 << (Uint32)data->sdata->operation };
+  add_gci_op(g);
 
-  if (m_tail)
-    m_tail->m_next= list.m_head;
-  else
-    m_head= list.m_head;
-  m_tail= list.m_tail;
-  m_count+= list.m_count;
-  m_sz+= list.m_sz;
+  append_used_data(data);
+}
+
+inline EventBufData_list::Gci_ops *
+EventBufData_list::first_gci_ops()
+{
+  assert(!m_is_not_multi_list);
+  return m_gci_ops_list;
+}
+
+inline EventBufData_list::Gci_ops *
+EventBufData_list::next_gci_ops()
+{
+  assert(!m_is_not_multi_list);
+  Gci_ops *first = m_gci_ops_list;
+  m_gci_ops_list = first->m_next;
+  if (first->m_gci_op_list)
+    delete [] first->m_gci_op_list;
+  delete first;
+  if (m_gci_ops_list == 0)
+    m_gci_ops_list_tail = 0;
+  return m_gci_ops_list;
 }
 
 // GCI bucket has also a hash over data, with key event op, table PK.
