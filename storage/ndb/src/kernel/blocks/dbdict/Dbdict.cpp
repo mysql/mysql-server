@@ -12142,7 +12142,11 @@ Dbdict::createTrigger_slaveCreate(Signal* signal, OpCreateTriggerPtr opPtr)
   // fill in trigger data
   {
     Rope name(c_rope_pool, triggerPtr.p->triggerName);
-    ndbrequire(name.assign(opPtr.p->m_triggerName));
+    if(!name.assign(opPtr.p->m_triggerName))
+    {
+      opPtr.p->m_errorCode = (CreateTrigRef::ErrorCode)CreateTableRef::OutOfStringBuffer;
+      return;
+    }
   }
   triggerPtr.p->triggerId = triggerId;
   triggerPtr.p->tableId = req->getTableId();
