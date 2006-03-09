@@ -881,7 +881,7 @@ protected:
   Uint32 ptr2int() { return theReceiver.getId(); };
 
   // get table or index key from prepared signals
-  int getKeyFromTCREQ(Uint32* data, unsigned size);
+  int getKeyFromTCREQ(Uint32* data, Uint32 & size);
 
 /******************************************************************************
  * These are the private variables that are defined in the operation objects.
