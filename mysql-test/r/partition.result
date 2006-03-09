@@ -422,4 +422,28 @@ partition_name	partition_description	table_rows
 x123	11,12	1
 x234	NULL,1	1
 drop table t1;
+create table t1 (a int)
+partition by range (a)
+(partition p0 values less than (1));
+alter table t1 add partition (partition p1 values in (2));
+ERROR HY000: Only LIST PARTITIONING can use VALUES IN in partition definition
+alter table t1 add partition (partition p1);
+ERROR HY000: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition
+drop table t1;
+create table t1 (a int)
+partition by list (a)
+(partition p0 values in (1));
+alter table t1 add partition (partition p1 values less than (2));
+ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
+alter table t1 add partition (partition p1);
+ERROR HY000: LIST PARTITIONING requires definition of VALUES IN for each partition
+drop table t1;
+create table t1 (a int)
+partition by hash (a)
+(partition p0);
+alter table t1 add partition (partition p1 values less than (2));
+ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
+alter table t1 add partition (partition p1 values in (2));
+ERROR HY000: Only LIST PARTITIONING can use VALUES IN in partition definition
+drop table t1;
 End of 5.1 tests
