@@ -599,7 +599,8 @@ ErrorBundle ErrorCodes[] = {
   { 4336, DMEC, AE, "Auto-increment value set below current value" },
   { 4271, DMEC, AE, "Invalid index object, not retrieved via getIndex()" },
   { 4272, DMEC, AE, "Table definition has undefined column" },
-  { 4273, DMEC, IE, "No blob table in dict cache" }
+  { 4273, DMEC, IE, "No blob table in dict cache" },
+  { 4274, DMEC, IE, "Corrupted main table PK in blob operation" }
 };
 
 static
