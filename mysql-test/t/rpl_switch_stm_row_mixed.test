@@ -147,6 +147,8 @@ select * from t1 where a="alarm";
 
 # and now compare:
 
+--replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events from 102;
 sync_slave_with_master;
 # as we're using UUID we don't SELECT but use "diff" like in rpl_row_UUID

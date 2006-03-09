@@ -5,8 +5,8 @@ reset master;
 insert into t2 values (@v);
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Table_map	1	141	test.t2
-master-bin.000001	141	Write_rows	1	231	
+master-bin.000001	102	Table_map	1	141	table_id: # (test.t2)
+master-bin.000001	141	Write_rows	1	231	table_id: # flags: STMT_END_F
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 ROLLBACK;
