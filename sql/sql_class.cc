@@ -2194,7 +2194,7 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
 {
   DBUG_ENTER("binlog_prepare_pending_rows_event");
   /* Pre-conditions */
-  DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
+  DBUG_ASSERT(table->s->table_map_id != ~0UL);
 
   /* Fetch the type code for the RowsEventT template parameter */
   int const type_code= RowsEventT::TYPE_CODE;
@@ -2541,7 +2541,7 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
     */
 
     Rows_log_event *ev=
-      new Write_rows_log_event(this, 0, ULONG_MAX, 0, FALSE);
+      new Write_rows_log_event(this, 0, ~0UL, 0, FALSE);
     ev->set_flags(Rows_log_event::STMT_END_F);
     binlog_set_pending_rows_event(ev);
 

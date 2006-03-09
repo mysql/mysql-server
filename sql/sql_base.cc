@@ -2431,11 +2431,11 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
     reused is on wrap-around, which means more than 4 billion table
     shares open at the same time).
 
-    share->table_map_id is not ULONG_MAX.
+    share->table_map_id is not ~0UL.
  */
 void assign_new_table_id(TABLE_SHARE *share)
 {
-  static ulong last_table_id= ULONG_MAX;
+  static ulong last_table_id= ~0UL;
 
   DBUG_ENTER("assign_new_table_id");
 
@@ -2448,13 +2448,13 @@ void assign_new_table_id(TABLE_SHARE *share)
     There is one reserved number that cannot be used.  Remember to
     change this when 6-byte global table id's are introduced.
   */
-  if (unlikely(tid == ULONG_MAX))
+  if (unlikely(tid == ~0UL))
     tid= ++last_table_id;
   share->table_map_id= tid;
   DBUG_PRINT("info", ("table_id=%lu", tid));
 
   /* Post conditions */
-  DBUG_ASSERT(share->table_map_id != ULONG_MAX);
+  DBUG_ASSERT(share->table_map_id != ~0UL);
 
   DBUG_VOID_RETURN;
 }
