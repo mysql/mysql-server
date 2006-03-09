@@ -2279,12 +2279,12 @@ UNLOCK TABLES;
 DELIMITER ;;
 /*!50003 DROP FUNCTION IF EXISTS `bug9056_func1` */;;
 /*!50003 SET SESSION SQL_MODE=""*/;;
-/*!50003 CREATE FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11)
+/*!50003 CREATE*/ /*!50019 DEFINER=`root`@`localhost`*/ /*!50003 FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11)
 RETURN a+b */;;
 /*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;;
 /*!50003 DROP FUNCTION IF EXISTS `bug9056_func2` */;;
 /*!50003 SET SESSION SQL_MODE=""*/;;
-/*!50003 CREATE FUNCTION `bug9056_func2`(f1 char binary) RETURNS char(1)
+/*!50003 CREATE*/ /*!50019 DEFINER=`root`@`localhost`*/ /*!50003 FUNCTION `bug9056_func2`(f1 char binary) RETURNS char(1)
 begin
 set f1= concat( 'hello', f1 );
 return f1;
@@ -2292,17 +2292,17 @@ end */;;
 /*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;;
 /*!50003 DROP PROCEDURE IF EXISTS `a'b` */;;
 /*!50003 SET SESSION SQL_MODE="REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI"*/;;
-/*!50003 CREATE PROCEDURE "a'b"()
+/*!50003 CREATE*/ /*!50019 DEFINER="root"@"localhost"*/ /*!50003 PROCEDURE "a'b"()
 select 1 */;;
 /*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;;
 /*!50003 DROP PROCEDURE IF EXISTS `bug9056_proc1` */;;
 /*!50003 SET SESSION SQL_MODE=""*/;;
-/*!50003 CREATE PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
+/*!50003 CREATE*/ /*!50019 DEFINER=`root`@`localhost`*/ /*!50003 PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
 BEGIN SELECT a+b INTO c; end */;;
 /*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;;
 /*!50003 DROP PROCEDURE IF EXISTS `bug9056_proc2` */;;
 /*!50003 SET SESSION SQL_MODE=""*/;;
-/*!50003 CREATE PROCEDURE `bug9056_proc2`(OUT a INT)
+/*!50003 CREATE*/ /*!50019 DEFINER=`root`@`localhost`*/ /*!50003 PROCEDURE `bug9056_proc2`(OUT a INT)
 BEGIN 
 select sum(id) from t1 into a; 
 END */;;
@@ -2724,11 +2724,11 @@ return 42 */|
 select 42 */|
 show create function f;
 Function	sql_mode	Create Function
-f		CREATE FUNCTION `f`() RETURNS bigint(20)
+f		CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS bigint(20)
 return 42
 show create procedure p;
 Procedure	sql_mode	Create Procedure
-p		CREATE PROCEDURE `p`()
+p		CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 select 42
 drop function f;
 drop procedure p;
