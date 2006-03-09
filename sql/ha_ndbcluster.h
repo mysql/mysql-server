@@ -685,9 +685,6 @@ static void set_tabname(const char *pathname, char *tabname);
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
 				  uint table_changes);
-  static int invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
-                                         const char *dbname, const char *tabname,
-                                         bool global);
 
 private:
   friend int ndbcluster_drop_database_impl(const char *path);
@@ -774,7 +771,7 @@ private:
   void print_results();
 
   ulonglong get_auto_increment();
-  void invalidate_dictionary_cache(bool global);
+  int invalidate_dictionary_cache(bool global);
   int ndb_err(NdbTransaction*);
   bool uses_blob_value();
 
