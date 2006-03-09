@@ -308,6 +308,13 @@ NdbBlob::Buf::alloc(unsigned n)
 }
 
 void
+NdbBlob::Buf::zerorest()
+{
+  assert(size <= maxsize);
+  memset(data + size, 0, maxsize - size);
+}
+
+void
 NdbBlob::Buf::copyfrom(const NdbBlob::Buf& src)
 {
   size = src.size;
@@ -441,6 +448,7 @@ NdbBlob::packKeyValue(const NdbTableImpl* aTable, const Buf& srcBuf)
   assert(4 * pos == srcBuf.size);
   assert(4 * pack_pos <= thePackKeyBuf.maxsize);
   thePackKeyBuf.size = 4 * pack_pos;
+  thePackKeyBuf.zerorest();
   DBUG_RETURN(0);
 }
 
@@ -1316,6 +1324,7 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
         DBUG_RETURN(-1);
       }
       thePackKeyBuf.size = 4 * size;
+      thePackKeyBuf.zerorest();
       if (unpackKeyValue(theTable, theKeyBuf) == -1)
         DBUG_RETURN(-1);
     }
@@ -1328,6 +1337,7 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
         DBUG_RETURN(-1);
       }
       thePackKeyBuf.size = 4 * size;
+      thePackKeyBuf.zerorest();
       if (unpackKeyValue(theAccessTable, theAccessKeyBuf) == -1)
         DBUG_RETURN(-1);
     }
@@ -1634,6 +1644,7 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
       // copy key from first blob
       theKeyBuf.copyfrom(tFirstBlob->theKeyBuf);
       thePackKeyBuf.copyfrom(tFirstBlob->thePackKeyBuf);
+      thePackKeyBuf.zerorest();
     }
   }
   if (isReadOp()) {
@@ -1795,6 +1806,7 @@ NdbBlob::atNextResult()
       DBUG_RETURN(-1);
     }
     thePackKeyBuf.size = 4 * size;
+    thePackKeyBuf.zerorest();
     if (unpackKeyValue(theTable, theKeyBuf) == -1)
       DBUG_RETURN(-1);
   }
