@@ -1092,6 +1092,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     subPtr.p->m_table_ptrI       = RNIL;
     subPtr.p->m_state            = Subscription::DEFINED;
     subPtr.p->n_subscribers      = 0;
+    subPtr.p->m_current_sync_ptrI = RNIL;
 
     fprintf(stderr, "table %d options %x\n", subPtr.p->m_tableId, subPtr.p->m_options);
     DBUG_PRINT("info",("Added: key.m_subscriptionId: %u, key.m_subscriptionKey: %u",
@@ -1163,12 +1164,14 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   DBUG_PRINT("info",("c_syncPool  size: %d free: %d",
 		     c_syncPool.getSize(),
 		     c_syncPool.getNoOfFree()));
-  new (syncPtr.p) Ptr<SyncRecord>;
+
   syncPtr.p->m_senderRef        = req->senderRef;
   syncPtr.p->m_senderData       = req->senderData;
   syncPtr.p->m_subscriptionPtrI = subPtr.i;
   syncPtr.p->ptrI               = syncPtr.i;
   syncPtr.p->m_error            = 0;
+
+  subPtr.p->m_current_sync_ptrI = syncPtr.i;
 
   {
     jam();
@@ -2059,7 +2062,7 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
   ndbrequire(c_subscriptions.find(subPtr, key));
 
   ScanFragNextReq * req = (ScanFragNextReq *)signal->getDataPtrSend();
-  req->senderData = subPtr.i;
+  req->senderData = subPtr.p->m_current_sync_ptrI;
   req->closeFlag = 0;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (getOwnNodeId() << 8);
@@ -2098,6 +2101,12 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
 #endif
 
   release();
+  
+  Ptr<Subscription> subPtr;
+  suma.c_subscriptions.getPtr(subPtr, m_subscriptionPtrI);
+  ndbrequire(subPtr.p->m_current_sync_ptrI == ptrI);
+  subPtr.p->m_current_sync_ptrI = RNIL;
+
   suma.c_syncPool.release(ptrI);
   DBUG_PRINT("info",("c_syncPool  size: %d free: %d",
 		     suma.c_syncPool.getSize(),
