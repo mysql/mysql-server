@@ -60,9 +60,10 @@ public:
     fsFormatArrayOfPages=1,
     fsFormatListOfMemPages=2,
     fsFormatGlobalPage=3,
+    fsFormatSharedPage=4,
     fsFormatMax
   };
-
+  
   /**
    * Length of signal
    */

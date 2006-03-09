@@ -661,8 +661,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       {
         Disk_alloc_info& alloc = frag.m_disk_alloc_info;
-        LocalSLList<Extent_info, Extent_list_t>
-          list(c_extent_pool, alloc.m_extent_list);
+        Local_fragment_extent_list list(c_extent_pool, alloc.m_extent_list);
         Ptr<Extent_info> ext_ptr;
         c_extent_pool.getPtr(ext_ptr, pos.m_extent_info_ptr_i);
         Extent_info* ext = ext_ptr.p;
