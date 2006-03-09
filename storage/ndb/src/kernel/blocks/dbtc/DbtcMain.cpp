@@ -4785,13 +4785,14 @@ Dbtc::execTC_COMMIT_ACK(Signal* signal){
   key.transid2 = signal->theData[1];
 
   CommitAckMarkerPtr removedMarker;
-  m_commitAckMarkerHash.release(removedMarker, key);
+  m_commitAckMarkerHash.remove(removedMarker, key);
   if (removedMarker.i == RNIL) {
     jam();
     warningHandlerLab(signal, __LINE__);
     return;
   }//if
   sendRemoveMarkers(signal, removedMarker.p);
+  m_commitAckMarkerPool.release(removedMarker);
 }
 
 void
@@ -12381,7 +12382,7 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
 	  tmp2.release();
 	  LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
 	  tmp3.release();
-          regApiPtr->theFiredTriggers.release(trigPtr.i);
+          regApiPtr->theFiredTriggers.release(trigPtr);
         }
 	trigPtr = nextTrigPtr;
       }
