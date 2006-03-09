@@ -74,13 +74,24 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 connection slave;
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 
+###################################
+# Just to some File Schema check  #
+###################################
+
 --disable_query_log
-SELECT FILE_NAME, FILE_TYPE, TABLESPACE_NAME, LOGFILE_GROUP_NAME   
+SELECT DISTINCT FILE_NAME, FILE_TYPE, TABLESPACE_NAME, LOGFILE_GROUP_NAME   
        FROM INFORMATION_SCHEMA.FILES
-       WHERE ENGINE="ndbcluster";
+       WHERE ENGINE="ndbcluster" ORDER BY FILE_NAME;
 --enable_query_log
 
 --echo **** Do First Set of ALTERs in the master table ****
+###################################################
+# On this first set of alters I expect: 
+# 1. To be able to create and index on 2 columns
+# 2. To be able to create a unique index
+# 3. To be able to add two columns and have
+# it all replicated correctly to the slave cluster.
+###################################################
 connection master;
 CREATE INDEX t1_i ON t1(c2, c3);
 #Bug 18039
@@ -96,7 +107,17 @@ connection slave;
 SHOW CREATE TABLE t1;
 
 --echo **** Second set of alters test 1 ****
-
+############################################
+# With this next set of alters we have had
+# Some issues with renames of tables. So this
+# test renames our main table, drop and index off
+# of it, creates another table with then name
+# of the orginal table, inserts a row, drops 
+# the table and renames the orginal table back.
+# I want to make sure that 1) the cluster does
+# okay with this and 2) that it is replicated 
+# correctly.
+#############################################
 connection master;
 ALTER TABLE t1 RENAME t2;
 ALTER TABLE t2 DROP INDEX c5;
@@ -115,6 +136,15 @@ connection slave;
 SHOW CREATE TABLE t1;
 
 --echo **** Third and last set of alters for test1  ****
+#########################################################
+# In this last set of alters, we are messing with the 
+# cluster ability to rebuild indexes, drop a column that make up
+# an index with another column and change types several times in
+# a row. I have choosen the BLOB as it seems to have had many
+# issues in this release. I want to make sure that the cluster
+# deals with these radical changes and that the replication to
+# the slave cluster is dones correctly. 
+###########################################################
 connection master;
 ALTER TABLE t1 CHANGE c1 c1 DOUBLE;
 ALTER TABLE t1 CHANGE c2 c2 DECIMAL(10,2);
@@ -136,7 +166,7 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 --sync_slave_with_master
 connection slave;
 SHOW CREATE TABLE t1;
-# Bug 16498
+# Bug 18094
 #SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 SELECT * FROM t1 where c1 = 1;
 
@@ -561,5 +591,10 @@ connection master;
 --echo ****** Do dumps compare ************
 
 --exec diff $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
+
+## Note: Ths files should only get removed, if the above diff succeeds.
+
+--exec rm $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql
+--exec rm $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
 
 # End 5.1 test case
