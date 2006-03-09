@@ -689,9 +689,45 @@ NdbEventOperationImpl::receive_event()
                                 error.code));
       DBUG_RETURN_EVENT(1);
     }
-    if ( m_eventImpl->m_tableImpl) 
-      delete m_eventImpl->m_tableImpl;
+
+    NdbTableImpl *tmp_table_impl= m_eventImpl->m_tableImpl;
     m_eventImpl->m_tableImpl = at;
+
+    DBUG_PRINT("info", ("switching table impl 0x%x -> 0x%x",
+                        tmp_table_impl, at));
+
+    // change the rec attrs to refer to the new table object
+    int i;
+    for (i = 0; i < 2; i++)
+    {
+      NdbRecAttr *p = theFirstPkAttrs[i];
+      while (p)
+      {
+        int no = p->getColumn()->getColumnNo();
+        NdbColumnImpl *tAttrInfo = at->getColumn(no);
+        DBUG_PRINT("info", ("rec_attr: 0x%x  "
+                            "switching column impl 0x%x -> 0x%x",
+                            p, p->m_column, tAttrInfo));
+        p->m_column = tAttrInfo;
+        p = p->next();
+      }
+    }
+    for (i = 0; i < 2; i++)
+    {
+      NdbRecAttr *p = theFirstDataAttrs[i];
+      while (p)
+      {
+        int no = p->getColumn()->getColumnNo();
+        NdbColumnImpl *tAttrInfo = at->getColumn(no);
+        DBUG_PRINT("info", ("rec_attr: 0x%x  "
+                            "switching column impl 0x%x -> 0x%x",
+                            p, p->m_column, tAttrInfo));
+        p->m_column = tAttrInfo;
+        p = p->next();
+      }
+    }
+    if (tmp_table_impl) 
+      delete tmp_table_impl;
   }
 
   if (unlikely(operation >= NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT))
