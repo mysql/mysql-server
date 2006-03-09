@@ -112,7 +112,7 @@ ErrorBundle ErrorCodes[] = {
   { 630,  HA_ERR_FOUND_DUPP_KEY, CV, "Tuple already existed when attempting to insert" },
   { 839,  DMEC, CV, "Illegal null attribute" },
   { 840,  DMEC, CV, "Trying to set a NOT NULL attribute to NULL" },
-  { 893,  HA_ERR_FOUND_DUPP_KEY, CV, "Constraint violation e.g. duplicate value in unique index" },
+  { 893,  HA_ERR_FOUND_DUPP_UNIQUE, CV, "Constraint violation e.g. duplicate value in unique index" },
 
   /**
    * Node recovery errors
@@ -577,7 +577,7 @@ ErrorBundle ErrorCodes[] = {
   { 4248, DMEC, AE, "Trigger/index name invalid" },
   { 4249, DMEC, AE, "Invalid table" },
   { 4250, DMEC, AE, "Invalid index type or index logging option" },
-  { 4251, DMEC, AE, "Cannot create unique index, duplicate keys found" },
+  { 4251, HA_ERR_FOUND_DUPP_UNIQUE, AE, "Cannot create unique index, duplicate keys found" },
   { 4252, DMEC, AE, "Failed to allocate space for index" },
   { 4253, DMEC, AE, "Failed to create index table" },
   { 4254, DMEC, AE, "Table not an index table" },
