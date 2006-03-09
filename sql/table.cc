@@ -145,7 +145,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
       elsewhere, and then assign a table map id inside open_table()
       under the protection of the LOCK_open mutex.
     */
-    share->table_map_id= ULONG_MAX;
+    share->table_map_id= ~0UL;
 #endif
 
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
@@ -204,7 +204,7 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
     anyway to be able to catch errors.
    */
   share->table_map_version= ~(ulonglong)0;
-  share->table_map_id= ULONG_MAX;
+  share->table_map_id= ~0UL;
 #endif
 
   DBUG_VOID_RETURN;
