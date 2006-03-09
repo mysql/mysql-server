@@ -240,7 +240,7 @@ protected:
   void receiver_completed(NdbReceiver*);
   void execCLOSE_SCAN_REP();
 
-  int getKeyFromKEYINFO20(Uint32* data, unsigned size);
+  int getKeyFromKEYINFO20(Uint32* data, Uint32 & size);
   NdbOperation*	takeOverScanOp(OperationType opType, NdbTransaction*);
   
   bool m_ordered;
