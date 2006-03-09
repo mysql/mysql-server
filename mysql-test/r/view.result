@@ -2539,3 +2539,17 @@ drop view v1;
 //
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `test`.`t1`.`id` AS `id` from `t1`
+create table t1(f1 int, f2 int);
+create view v1 as select ta.f1 as a, tb.f1 as b from t1 ta, t1 tb where ta.f1=tb
+.f1 and ta.f2=tb.f2;
+insert into t1 values(1,1),(2,2);
+create view v2 as select * from v1 where a > 1 with check option;
+select * from v2;
+a	b
+2	2
+update v2 set b=3 where a=2;
+select * from v2;
+a	b
+3	3
+drop view v2, v1;
+drop table t1;
