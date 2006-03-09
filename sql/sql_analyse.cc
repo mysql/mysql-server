@@ -27,6 +27,8 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
+#define MYSQL_LEX 1
+
 #include "mysql_priv.h"
 #include "procedure.h"
 #include "sql_analyse.h"
