@@ -1368,15 +1368,17 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
 */
 NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_table(uint inx) const
 {
-  return get_index_type_from_key(inx, table_share->key_info);
+  return get_index_type_from_key(inx, table_share->key_info,
+                                 inx == table_share->primary_key);
 }
 
 NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_key(uint inx,
-                                                      KEY *key_info) const
+                                                      KEY *key_info,
+                                                      bool primary) const
 {
   bool is_hash_index=  (key_info[inx].algorithm == 
                         HA_KEY_ALG_HASH);
-  if (inx == table_share->primary_key)
+  if (primary)
     return is_hash_index ? PRIMARY_KEY_INDEX : PRIMARY_KEY_ORDERED_INDEX;
   
   return ((key_info[inx].flags & HA_NOSAME) ? 
@@ -4645,7 +4647,7 @@ int ha_ndbcluster::add_index(TABLE *table_arg,
     KEY *key= key_info + idx;
     KEY_PART_INFO *key_part= key->key_part;
     KEY_PART_INFO *end= key_part + key->key_parts;
-    NDB_INDEX_TYPE idx_type= get_index_type_from_key(idx, key);
+    NDB_INDEX_TYPE idx_type= get_index_type_from_key(idx, key, false);
     DBUG_PRINT("info", ("Adding index: '%s'", key_info[idx].name));
     // Add fields to key_part struct
     for (; key_part != end; key_part++)
