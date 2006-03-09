@@ -2907,3 +2907,40 @@ mysql-import: Error: 1146, Table 'test.words' doesn't exist, when using table: w
 drop table t1;
 drop table t2;
 drop table words2;
+create database first;
+use first;
+set time_zone = 'UTC';
+create event ee1 on schedule at '2035-12-31 20:01:23' do set @a=5;
+show events;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+first	ee1	root@localhost	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED
+show create event ee1;
+Event	sql_mode	Create Event
+ee1		CREATE EVENT `ee1` ON SCHEDULE AT '2035-12-31 20:01:23' ON COMPLETION NOT PRESERVE ENABLE DO set @a=5
+drop database first;
+create database second;
+use second;
+show events;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+second	ee1	root@localhost	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED
+show create event ee1;
+Event	sql_mode	Create Event
+ee1	NO_AUTO_VALUE_ON_ZERO	CREATE EVENT `ee1` ON SCHEDULE AT '2035-12-31 20:01:23' ON COMPLETION NOT PRESERVE ENABLE DO set @a=5
+create event ee2 on schedule at '2018-12-31 21:01:23' do set @a=5;
+create event ee3 on schedule at '2030-12-31 22:01:23' do set @a=5;
+show events;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+second	ee1	root@localhost	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED
+second	ee2	root@localhost	ONE TIME	2018-12-31 21:01:23	NULL	NULL	NULL	NULL	ENABLED
+second	ee3	root@localhost	ONE TIME	2030-12-31 22:01:23	NULL	NULL	NULL	NULL	ENABLED
+drop database second;
+create database third;
+use third;
+show events;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+third	ee1	root@localhost	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED
+third	ee2	root@localhost	ONE TIME	2018-12-31 21:01:23	NULL	NULL	NULL	NULL	ENABLED
+third	ee3	root@localhost	ONE TIME	2030-12-31 22:01:23	NULL	NULL	NULL	NULL	ENABLED
+drop database third;
+set time_zone = 'SYSTEM';
+use test;
