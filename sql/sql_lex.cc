@@ -223,7 +223,7 @@ static int find_keyword(LEX *lex, uint len, bool function)
 
   SYNOPSIS
     is_keyword()
-    name      checked name
+    name      checked name (must not be empty)
     len       length of checked name
 
   RETURN VALUES
@@ -233,6 +233,7 @@ static int find_keyword(LEX *lex, uint len, bool function)
 
 bool is_keyword(const char *name, uint len)
 {
+  DBUG_ASSERT(len != 0);
   return get_hash_symbol(name,len,0)!=0;
 }
 
