@@ -5024,7 +5024,7 @@ alter_commands:
         ;
 
 all_or_alt_part_name_list:
-        | ALL
+        ALL
         {
 	  Lex->alter_info.flags|= ALTER_ALL_PARTITION;
         }
