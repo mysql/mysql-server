@@ -5073,12 +5073,12 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
 {
   /*
     We allow a special form of dummy event when the table, and cols
-    are null and the table id is ULONG_MAX.  This is a temporary
+    are null and the table id is ~0UL.  This is a temporary
     solution, to be able to terminate a started statement in the
     binary log: the extreneous events will be removed in the future.
    */
-  DBUG_ASSERT(tbl_arg && tbl_arg->s && tid != ULONG_MAX ||
-              !tbl_arg && !cols && tid == ULONG_MAX);
+  DBUG_ASSERT(tbl_arg && tbl_arg->s && tid != ~0UL ||
+              !tbl_arg && !cols && tid == ~0UL);
 
   if (thd_arg->options & OPTION_NO_FOREIGN_KEY_CHECKS)
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
@@ -5268,12 +5268,12 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
   char const *row_start= (char const *)m_rows_buf;
 
   /*
-    If m_table_id == ULONG_MAX, then we have a dummy event that does
+    If m_table_id == ~0UL, then we have a dummy event that does
     not contain any data.  In that case, we just remove all tables in
     the tables_to_lock list, close the thread tables, step the relay
     log position, and return with success.
    */
-  if (m_table_id == ULONG_MAX)
+  if (m_table_id == ~0UL)
   {
     /*
        This one is supposed to be set: just an extra check so that
@@ -5417,16 +5417,12 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       DBUG_ASSERT(row_end != NULL); // cannot happen
       DBUG_ASSERT(row_end <= (const char*)m_rows_end);
 
-#if 0
       /* in_use can have been set to NULL in close_tables_for_reopen */
       THD* old_thd= table->in_use;
       if (!table->in_use)
         table->in_use= thd;
-#endif
       error= do_exec_row(table);
-#if 0
       table->in_use = old_thd;
-#endif
       switch (error)
       {
         /* Some recoverable errors */
@@ -5640,7 +5636,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     m_table_id(tid),
     m_flags(flags)
 {
-  DBUG_ASSERT(m_table_id != ULONG_MAX);
+  DBUG_ASSERT(m_table_id != ~0UL);
   /*
     In TABLE_SHARE, "db" and "table_name" are 0-terminated (see this comment in
     table.cc / alloc_table_share():
@@ -5708,7 +5704,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
     post_start+= TM_FLAGS_OFFSET;
   }
 
-  DBUG_ASSERT(m_table_id != ULONG_MAX);
+  DBUG_ASSERT(m_table_id != ~0UL);
 
   m_flags= uint2korr(post_start);
 
@@ -5985,7 +5981,7 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
 #ifndef MYSQL_CLIENT
 bool Table_map_log_event::write_data_header(IO_CACHE *file)
 {
-  DBUG_ASSERT(m_table_id != ULONG_MAX);
+  DBUG_ASSERT(m_table_id != ~0UL);
   byte buf[TABLE_MAP_HEADER_LEN];
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
                   {
@@ -6395,7 +6391,9 @@ static int find_and_fetch_row(TABLE *table, byte *key)
         just set the necessary bits on the bytes and don't set the
         filler bits correctly.
       */
-    table->record[1][table->s->null_bytes - 1]= 0xFF;
+    my_ptrdiff_t const pos=
+      table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
+    table->record[1][pos]= 0xFF;
     if ((error= table->file->index_read_idx(table->record[1], 0, key,
                                             table->key_info->key_length,
                                             HA_READ_KEY_EXACT)))
@@ -6430,7 +6428,9 @@ static int find_and_fetch_row(TABLE *table, byte *key)
         just set the necessary bits on the bytes and don't set the
         filler bits correctly.
       */
-      table->record[1][table->s->null_bytes - 1]= 0xFF;
+      my_ptrdiff_t const pos=
+        table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
+      table->record[1][pos]= 0xFF;
       if ((error= table->file->index_next(table->record[1])))
       {
 	table->file->print_error(error, MYF(0));
@@ -6451,7 +6451,9 @@ static int find_and_fetch_row(TABLE *table, byte *key)
         just set the necessary bits on the bytes and don't set the
         filler bits correctly.
       */
-      table->record[1][table->s->null_bytes - 1]= 0xFF;
+      my_ptrdiff_t const pos=
+        table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
+      table->record[1][pos]= 0xFF;
       error= table->file->rnd_next(table->record[1]);
       switch (error)
       {
