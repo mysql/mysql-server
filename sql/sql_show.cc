@@ -713,7 +713,8 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
 {
-  if (!is_keyword(name,length) &&
+  if (!length ||
+      !is_keyword(name,length) &&
       !require_quotes(name, length) &&
       !(thd->options & OPTION_QUOTE_SHOW_CREATE))
     return EOF;
