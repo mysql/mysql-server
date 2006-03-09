@@ -1,7 +1,7 @@
 drop database if exists mysqltest;
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 reset master;
 reset master;
 create database mysqltest;
@@ -123,3 +123,68 @@ master-bin1.000001	#	Table_map	#	#	cluster.apply_status
 master-bin1.000001	#	Write_rows	#	#	
 master-bin1.000001	#	Query	#	#	COMMIT
 master-bin1.000001	#	Query	#	#	use `test`; drop table `t1`
+reset master;
+show tables;
+Tables_in_test
+reset master;
+show tables;
+Tables_in_test
+create table t1 (a int key) engine=ndb;
+create table t2 (a int key) engine=ndb;
+create table t3 (a int key) engine=ndb;
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin1.000001	#	Query	#	#	use `test`; create table t1 (a int key) engine=ndb
+master-bin1.000001	#	Query	#	#	use `test`; create table t2 (a int key) engine=ndb
+master-bin1.000001	#	Query	#	#	use `test`; create table t3 (a int key) engine=ndb
+master-bin1.000001	#	Query	#	#	BEGIN
+master-bin1.000001	#	Table_map	#	#	cluster.apply_status
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Query	#	#	COMMIT
+master-bin1.000001	#	Query	#	#	use `test`; rename table `test.t3` to `test.t4`
+master-bin1.000001	#	Query	#	#	BEGIN
+master-bin1.000001	#	Table_map	#	#	cluster.apply_status
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Query	#	#	COMMIT
+master-bin1.000001	#	Query	#	#	use `test`; rename table `test.t2` to `test.t3`
+master-bin1.000001	#	Query	#	#	BEGIN
+master-bin1.000001	#	Table_map	#	#	cluster.apply_status
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Query	#	#	COMMIT
+master-bin1.000001	#	Query	#	#	use `test`; rename table `test.t1` to `test.t2`
+master-bin1.000001	#	Query	#	#	BEGIN
+master-bin1.000001	#	Table_map	#	#	cluster.apply_status
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Query	#	#	COMMIT
+master-bin1.000001	#	Query	#	#	use `test`; rename table `test.t4` to `test.t1`
+drop table t1;
+drop table t2;
+drop table t3;
+reset master;
+show tables;
+Tables_in_test
+reset master;
+show tables;
+Tables_in_test
+create table t1 (a int key) engine=ndb;
+insert into t1 values(1);
+rename table t1 to t2;
+insert into t2 values(2);
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin1.000001	#	Query	#	#	use `test`; create table t1 (a int key) engine=ndb
+master-bin1.000001	#	Query	#	#	BEGIN
+master-bin1.000001	#	Table_map	#	#	cluster.apply_status
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Table_map	#	#	test.t1
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Query	#	#	COMMIT
+master-bin1.000001	#	Query	#	#	use `test`; rename table `test.t1` to `test.t2`
+master-bin1.000001	#	Query	#	#	BEGIN
+master-bin1.000001	#	Table_map	#	#	cluster.apply_status
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Table_map	#	#	test.t2
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Query	#	#	COMMIT
+drop table t2;
