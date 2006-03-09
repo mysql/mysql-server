@@ -719,7 +719,8 @@ private:
   void release_metadata();
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
-  NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info) const;
+  NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info, 
+                                         bool primary) const;
   int check_index_fields_not_null(uint index_no);
 
   uint set_up_partition_info(partition_info *part_info,
