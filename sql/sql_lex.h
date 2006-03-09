@@ -957,12 +957,16 @@ typedef struct st_lex
   SQL_LIST trg_table_fields;
 
   /*
-    trigger_definition_begin points to the beginning of the word "TRIGGER" in
-    CREATE TRIGGER statement. This is used to add possibly omitted DEFINER
-    clause to the trigger definition statement before dumping it to the
-    binlog. 
+    stmt_definition_begin is intended to point to the next word after
+    DEFINER-clause in the following statements:
+      - CREATE TRIGGER (points to "TRIGGER");
+      - CREATE PROCEDURE (points to "PROCEDURE");
+      - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
+
+    This pointer is required to add possibly omitted DEFINER-clause to the
+    DDL-statement before dumping it to the binlog. 
   */
-  const char *trigger_definition_begin;
+  const char *stmt_definition_begin;
 
   /*
     If non-0 then indicates that query requires prelocking and points to

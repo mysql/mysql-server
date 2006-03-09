@@ -288,6 +288,7 @@ private:
     Buf();
     ~Buf();
     void alloc(unsigned n);
+    void zerorest();
     void copyfrom(const Buf& src);
   };
   Buf theKeyBuf;
