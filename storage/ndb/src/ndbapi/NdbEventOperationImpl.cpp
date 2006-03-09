@@ -2015,7 +2015,7 @@ split_concatenated_pk(const NdbTableImpl* t, Uint32* ah_buffer,
     ah_buffer[n++] = ah.m_value;
     sz += ah.getDataSize();
   }
-  assert(n == t->m_noOfKeys && sz == pk_sz);
+  assert(n == t->m_noOfKeys && sz <= pk_sz);
 }
 
 int
