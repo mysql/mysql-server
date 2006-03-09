@@ -83,11 +83,60 @@ from t1 order by a;
 drop table t1;
 --sync_slave_with_master
 
-#
-# view the binlog
-#
+# table with varsize key (future cluster/schema)
+
+# sql/ha_ndbcluster_binlog.cc
+--connection master
+CREATE TABLE IF NOT EXISTS t1 (
+  db VARBINARY(63) NOT NULL,
+  name VARBINARY(63) NOT NULL,
+  slock BINARY(32) NOT NULL,
+  query BLOB NOT NULL,
+  node_id INT UNSIGNED NOT NULL,
+  epoch BIGINT UNSIGNED NOT NULL,
+  id INT UNSIGNED NOT NULL,
+  version INT UNSIGNED NOT NULL,
+  type INT UNSIGNED NOT NULL,
+  PRIMARY KEY USING HASH (db,name))
+ENGINE=NDB;
+
+insert into t1 values ('test','t1',
+  'abc',repeat(@s0,10),  11,12,13,14,15);
+insert into t1 values ('test','t2',
+  'def',repeat(@s1,100), 21,22,23,24,25);
+insert into t1 values ('test','t3',
+  'ghi',repeat(@s2,1000),31,32,33,34,35);
+insert into t1 values ('testtttttttttt','t1',
+  'abc',repeat(@s0,10),  11,12,13,14,15);
+insert into t1 values ('testttttttttttt','t1',
+  'def',repeat(@s1,100), 21,22,23,24,25);
+insert into t1 values ('testtttttttttttt','t1',
+  'ghi',repeat(@s2,1000),31,32,33,34,35);
+insert into t1 values ('t','t11111111111',
+  'abc',repeat(@s0,10),  11,12,13,14,15);
+insert into t1 values ('t','t111111111111',
+  'def',repeat(@s1,100), 21,22,23,24,25);
+insert into t1 values ('t','t1111111111111',
+  'ghi',repeat(@s2,1000),31,32,33,34,35);
+
+select 'M', db, name, sha1(query), node_id, epoch, id, version, type
+from t1 order by db, name;
+
+--sync_slave_with_master
+--sleep 5
+--connection slave
+select 'S', db, name, sha1(query), node_id, epoch, id, version, type
+from t1 order by db, name;
 
 --connection master
-let $VERSION=`select version()`;
---replace_result $VERSION VERSION
-show binlog events;
+drop table t1;
+--sync_slave_with_master
+
+#
+# view the binlog - not deterministic (mats)
+#
+
+#--connection master
+#let $VERSION=`select version()`;
+#--replace_result $VERSION VERSION
+#show binlog events;
