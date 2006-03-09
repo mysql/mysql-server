@@ -78,49 +78,58 @@ S	7	a6bae0cfe6b45ff8c3c12d2ce577a1cd3931190f	107	39ee712b4b9e47f2cf3ba7c9790b2bf
 S	8	e139adcb7b2974ee7ff227fd405709e5cb7c896c	108	ba8073b0e1a281d4111bd2d82c7722b01574c00b	NULL
 S	9	1fc5168fe4be566b17b658d94e7813f0b5032cdb	NULL	NULL	NULL
 drop table t1;
-show binlog events;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	102	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	102	Query	1	239	use `test`; create table t1 (
-a int not null primary key,
-b text not null
-) engine=ndb
-master-bin.000001	239	Query	1	303	BEGIN
-master-bin.000001	303	Table_map	1	53	cluster.apply_status
-master-bin.000001	356	Write_rows	1	95	
-master-bin.000001	398	Table_map	1	135	test.t1
-master-bin.000001	438	Write_rows	1	806	
-master-bin.000001	1109	Write_rows	1	9841	
-master-bin.000001	10144	Query	1	10209	COMMIT
-master-bin.000001	10209	Query	1	10273	BEGIN
-master-bin.000001	10273	Table_map	1	53	cluster.apply_status
-master-bin.000001	10326	Write_rows	1	95	
-master-bin.000001	10368	Query	1	10433	COMMIT
-master-bin.000001	10433	Query	1	10509	use `test`; drop table t1
-master-bin.000001	10509	Query	1	10684	use `test`; create table t1 (
-a int not null primary key,
-b text not null,
-c int,
-d longblob,
-e tinyblob
-) engine=ndbcluster
-master-bin.000001	10684	Query	1	10748	BEGIN
-master-bin.000001	10748	Table_map	1	53	cluster.apply_status
-master-bin.000001	10801	Write_rows	1	95	
-master-bin.000001	10843	Table_map	1	138	test.t1
-master-bin.000001	10886	Write_rows	1	48922	
-master-bin.000001	59670	Write_rows	1	124424	
-master-bin.000001	135172	Write_rows	1	124530	
-master-bin.000001	135278	Write_rows	1	205949	
-master-bin.000001	216697	Write_rows	1	224233	
-master-bin.000001	234981	Write_rows	1	227511	
-master-bin.000001	238259	Write_rows	1	242379	
-master-bin.000001	253127	Write_rows	1	254075	
-master-bin.000001	264823	Write_rows	1	304323	
-master-bin.000001	315071	Write_rows	1	330415	
-master-bin.000001	341163	Query	1	341228	COMMIT
-master-bin.000001	341228	Query	1	341292	BEGIN
-master-bin.000001	341292	Table_map	1	53	cluster.apply_status
-master-bin.000001	341345	Write_rows	1	95	
-master-bin.000001	341387	Query	1	341452	COMMIT
-master-bin.000001	341452	Query	1	341528	use `test`; drop table t1
+CREATE TABLE IF NOT EXISTS t1 (
+db VARBINARY(63) NOT NULL,
+name VARBINARY(63) NOT NULL,
+slock BINARY(32) NOT NULL,
+query BLOB NOT NULL,
+node_id INT UNSIGNED NOT NULL,
+epoch BIGINT UNSIGNED NOT NULL,
+id INT UNSIGNED NOT NULL,
+version INT UNSIGNED NOT NULL,
+type INT UNSIGNED NOT NULL,
+PRIMARY KEY USING HASH (db,name))
+ENGINE=NDB;
+insert into t1 values ('test','t1',
+'abc',repeat(@s0,10),  11,12,13,14,15);
+insert into t1 values ('test','t2',
+'def',repeat(@s1,100), 21,22,23,24,25);
+insert into t1 values ('test','t3',
+'ghi',repeat(@s2,1000),31,32,33,34,35);
+insert into t1 values ('testtttttttttt','t1',
+'abc',repeat(@s0,10),  11,12,13,14,15);
+insert into t1 values ('testttttttttttt','t1',
+'def',repeat(@s1,100), 21,22,23,24,25);
+insert into t1 values ('testtttttttttttt','t1',
+'ghi',repeat(@s2,1000),31,32,33,34,35);
+insert into t1 values ('t','t11111111111',
+'abc',repeat(@s0,10),  11,12,13,14,15);
+insert into t1 values ('t','t111111111111',
+'def',repeat(@s1,100), 21,22,23,24,25);
+insert into t1 values ('t','t1111111111111',
+'ghi',repeat(@s2,1000),31,32,33,34,35);
+select 'M', db, name, sha1(query), node_id, epoch, id, version, type
+from t1 order by db, name;
+M	db	name	sha1(query)	node_id	epoch	id	version	type
+M	t	t11111111111	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+M	t	t111111111111	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+M	t	t1111111111111	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+M	test	t1	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+M	test	t2	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+M	test	t3	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+M	testtttttttttt	t1	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+M	testttttttttttt	t1	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+M	testtttttttttttt	t1	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+select 'S', db, name, sha1(query), node_id, epoch, id, version, type
+from t1 order by db, name;
+S	db	name	sha1(query)	node_id	epoch	id	version	type
+S	t	t11111111111	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+S	t	t111111111111	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+S	t	t1111111111111	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+S	test	t1	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+S	test	t2	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+S	test	t3	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+S	testtttttttttt	t1	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+S	testttttttttttt	t1	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+S	testtttttttttttt	t1	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+drop table t1;
