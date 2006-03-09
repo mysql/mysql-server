@@ -540,4 +540,40 @@ select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
 drop table t1;
 
+#
+# Bug 17127 
+#
+create table t1 (a int)
+partition by range (a)
+(partition p0 values less than (1));
+
+--error ER_PARTITION_WRONG_VALUES_ERROR
+alter table t1 add partition (partition p1 values in (2));
+--error ER_PARTITION_REQUIRES_VALUES_ERROR
+alter table t1 add partition (partition p1);
+
+drop table t1;
+
+create table t1 (a int)
+partition by list (a)
+(partition p0 values in (1));
+
+--error ER_PARTITION_WRONG_VALUES_ERROR
+alter table t1 add partition (partition p1 values less than (2));
+--error ER_PARTITION_REQUIRES_VALUES_ERROR
+alter table t1 add partition (partition p1);
+
+drop table t1;
+
+create table t1 (a int)
+partition by hash (a)
+(partition p0);
+
+--error ER_PARTITION_WRONG_VALUES_ERROR
+alter table t1 add partition (partition p1 values less than (2));
+--error ER_PARTITION_WRONG_VALUES_ERROR
+alter table t1 add partition (partition p1 values in (2));
+
+drop table t1;
+
 --echo End of 5.1 tests

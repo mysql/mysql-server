@@ -3734,6 +3734,8 @@ opt_part_values:
               YYABORT;
             }
           }
+          else
+            lex->part_info->part_type= HASH_PARTITION;
         }
         | VALUES LESS_SYM THAN_SYM part_func_max
         {
@@ -3747,6 +3749,8 @@ opt_part_values:
               YYABORT;
             }
           }
+          else
+            lex->part_info->part_type= RANGE_PARTITION;
         }
         | VALUES IN_SYM '(' part_list_func ')'
         {
@@ -3760,6 +3764,8 @@ opt_part_values:
               YYABORT;
             }
           }
+          else
+            lex->part_info->part_type= LIST_PARTITION;
         }
         ;
 
