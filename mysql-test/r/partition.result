@@ -422,4 +422,10 @@ partition_name	partition_description	table_rows
 x123	11,12	1
 x234	NULL,1	1
 drop table t1;
+create table t1 (a int)
+partition by list (a)
+(partition p0 values in (1));
+alter table t1 rebuild partition;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+drop table t1;
 End of 5.1 tests
