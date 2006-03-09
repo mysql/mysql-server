@@ -561,6 +561,42 @@ A B C
 select extractvalue('<A_B>A</A_B>','/A_B');
 extractvalue('<A_B>A</A_B>','/A_B')
 A
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[position()]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[position()]')
+B1 B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=last()]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=last()]')
+B1 B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()]')
+B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()-1]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()-1]')
+B1
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=1]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=1]')
+
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=2]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=2]')
+B1 B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=position()]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=position()]')
+B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)]')
+B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)-1]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)-1]')
+B1
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=1]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=1]')
+
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=2]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=2]')
+B1 B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=position()]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=position()]')
+B2
 select extractvalue('<a>Jack</a>','/a[contains(../a,"J")]');
 extractvalue('<a>Jack</a>','/a[contains(../a,"J")]')
 Jack
