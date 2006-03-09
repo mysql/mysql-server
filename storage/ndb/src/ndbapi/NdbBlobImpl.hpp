@@ -34,6 +34,8 @@ public:
   STATIC_CONST( ErrAbort = 4268 );
   // "Unknown blob error"
   STATIC_CONST( ErrUnknown = 4269 );
+  // "Corrupted main table PK in blob operation"
+  STATIC_CONST( ErrCorruptPK = 4274 );
 };
 
 #endif
