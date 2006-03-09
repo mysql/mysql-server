@@ -199,7 +199,7 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
       out << hex << "H'" << r.u_32_value() << dec;
       break;
     case NdbDictionary::Column::Unsigned:
-      out << r.u_32_value();
+      out << *((Uint32*)r.aRef() + j);
       break;
     case NdbDictionary::Column::Smallunsigned:
       out << r.u_short_value();

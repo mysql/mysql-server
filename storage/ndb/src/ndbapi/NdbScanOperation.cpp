@@ -912,13 +912,20 @@ NdbScanOperation::doSendScan(int aProcessorId)
  *     the scan process. 
  ****************************************************************************/
 int
-NdbScanOperation::getKeyFromKEYINFO20(Uint32* data, unsigned size)
+NdbScanOperation::getKeyFromKEYINFO20(Uint32* data, Uint32 & size)
 {
   NdbRecAttr * tRecAttr = m_curr_row;
   if(tRecAttr)
   {
     const Uint32 * src = (Uint32*)tRecAttr->aRef();
-    memcpy(data, src, 4*size);
+
+    assert(tRecAttr->get_size_in_bytes() > 0);
+    assert(tRecAttr->get_size_in_bytes() < 65536);
+    const Uint32 len = (tRecAttr->get_size_in_bytes() + 3)/4-1;
+
+    assert(size >= len);
+    memcpy(data, src, 4*len);
+    size = len;
     return 0;
   }
   return -1;
