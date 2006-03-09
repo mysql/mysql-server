@@ -65,13 +65,14 @@ In summary, the compressed page looks like this:
 (3) Compressed page data
 (4) Page modification log (page_zip->m_start..page_zip->m_end)
 (5) Empty zero-filled space
-(6) BLOB pointers
+(6) BLOB pointers (on leaf pages)
   - BTR_EXTERN_FIELD_REF_SIZE for each externally stored column
   - in descending collation order
 (7) Uncompressed columns of user records, n_dense * uncompressed_size bytes,
   - indexed by heap_no
-  - DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN if page_is_leaf(page_zip->data)
-  - REC_NODE_PTR_SIZE otherwise
+  - DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN for leaf pages of clustered indexes
+  - REC_NODE_PTR_SIZE for non-leaf pages
+  - 0 otherwise
 (8) dense page directory, stored backwards
   - n_dense = n_heap - 2
   - existing records in ascending collation order
@@ -102,6 +103,8 @@ page_zip_available(
 	ulint			length,	/* in: combined size of the record */
 	ulint			is_leaf,/* in: nonzero=leaf node,
 					zero=node pointer page */
+	ulint			is_clustered,/* in: nonzero=clustered index,
+					zero=secondary index */
 	ulint			create)	/* in: nonzero=add the record to
 					the heap */
 	__attribute__((warn_unused_result, nonnull, pure));
@@ -161,7 +164,8 @@ page_zip_alloc(
 	ut_ad(page_is_comp((page_t*) page));
 	ut_ad(page_zip_validate(page_zip, page));
 
-	if (page_zip_available(page_zip, length, page_is_leaf(page), create)) {
+	if (page_zip_available(page_zip, length, page_is_leaf(page),
+			dict_index_is_clust(index), create)) {
 		return(TRUE);
 	}
 
@@ -177,8 +181,8 @@ page_zip_alloc(
 	}
 
 	/* Check if there is enough space available after compression. */
-	return(page_zip_available(page_zip, length,
-				page_is_leaf(page), create));
+	return(page_zip_available(page_zip, length, page_is_leaf(page),
+			dict_index_is_clust(index), create));
 }
 
 /**************************************************************************
@@ -193,6 +197,8 @@ page_zip_available(
 	ulint			length,	/* in: combined size of the record */
 	ulint			is_leaf,/* in: nonzero=leaf node,
 					zero=node pointer page */
+	ulint			is_clustered,/* in: nonzero=clustered index,
+					zero=secondary index */
 	ulint			create)	/* in: nonzero=add the record to
 					the heap */
 {
@@ -202,12 +208,14 @@ page_zip_available(
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(length > REC_N_NEW_EXTRA_BYTES);
 
-	if (is_leaf) {
+	if (UNIV_UNLIKELY(!is_leaf)) {
+		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
+				+ REC_NODE_PTR_SIZE;
+	} else if (UNIV_UNLIKELY(is_clustered)) {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
 				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 	} else {
-		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
-				+ REC_NODE_PTR_SIZE;
+		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE;
 	}
 
 	trailer_len = (page_dir_get_n_heap((page_t*) page_zip->data) - 2)

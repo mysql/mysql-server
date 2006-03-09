@@ -426,7 +426,7 @@ row_vers_build_for_consistent_read(
 	byte*		buf;
 	ulint		err;
 
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
 		|| mtr_memo_contains(mtr, buf_block_align(rec),
 						MTR_MEMO_PAGE_S_FIX));
@@ -555,7 +555,7 @@ row_vers_build_for_semi_consistent_read(
 	ulint		err;
 	dulint		rec_trx_id;
 
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
 		|| mtr_memo_contains(mtr, buf_block_align(rec),
 						MTR_MEMO_PAGE_S_FIX));

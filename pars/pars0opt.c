@@ -367,14 +367,14 @@ opt_calc_index_goodness(
 	if (goodness >= 4 * dict_index_get_n_unique(index)) {
 		goodness += 1024;
 
-		if (index->type & DICT_CLUSTERED) {
+		if (dict_index_is_clust(index)) {
 
 			goodness += 1024;
 		}
 	}
 
 	/* We have to test for goodness here, as last_op may note be set */
-	if (goodness && index->type & DICT_CLUSTERED) {
+	if (goodness && dict_index_is_clust(index)) {
 
 		goodness++;
 	}
@@ -593,7 +593,7 @@ opt_search_plan_for_table(
 								best_last_op);
 	}
 
-	if ((best_index->type & DICT_CLUSTERED)
+	if (dict_index_is_clust(best_index)
 		&& (plan->n_exact_match >= dict_index_get_n_unique(best_index))) {
 
 		plan->unique_search = TRUE;
@@ -602,7 +602,7 @@ opt_search_plan_for_table(
 	}
 
 	if ((table->type != DICT_TABLE_ORDINARY)
-				&& (best_index->type & DICT_CLUSTERED)) {
+				&& dict_index_is_clust(best_index)) {
 
 		plan->mixed_index = TRUE;
 
@@ -934,7 +934,7 @@ opt_find_all_cols(
 				= dict_index_get_nth_col_pos(
 				dict_table_get_first_index(index->table),
 							sym_node->col_no);
-	if (!(index->type & DICT_CLUSTERED)) {
+	if (!dict_index_is_clust(index)) {
 
 		ut_a(plan);
 
@@ -1070,7 +1070,7 @@ opt_clust_access(
 
 	plan->no_prefetch = FALSE;
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 		plan->clust_map = NULL;
 		plan->clust_ref = NULL;
 

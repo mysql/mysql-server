@@ -87,7 +87,7 @@ ibuf_should_try(
 						a secondary index when we
 						decide */
 {
-	if (!(index->type & DICT_CLUSTERED)
+	if (!dict_index_is_clust(index)
 		&& !dict_table_is_zip(index->table)
 		&& (ignore_sec_unique || !(index->type & DICT_UNIQUE))
 		&& ibuf->meter > IBUF_THRESHOLD) {

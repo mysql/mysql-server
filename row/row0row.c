@@ -43,7 +43,7 @@ row_get_trx_id_offset(
 	byte*	field;
 	ulint	len;
 
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
@@ -167,7 +167,7 @@ row_build(
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(index && rec && heap);
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
@@ -624,7 +624,7 @@ row_get_clust_rec(
 	ibool		found;
 	rec_t*		clust_rec;
 
-	ut_ad((index->type & DICT_CLUSTERED) == 0);
+	ut_ad(!dict_index_is_clust(index));
 
 	table = index->table;
 

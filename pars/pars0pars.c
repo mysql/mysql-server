@@ -992,7 +992,7 @@ pars_update_statement(
 
 	plan->no_prefetch = TRUE;
 
-	if (!((plan->index)->type & DICT_CLUSTERED)) {
+	if (!dict_index_is_clust(plan->index)) {
 
 		plan->must_get_clust = TRUE;
 

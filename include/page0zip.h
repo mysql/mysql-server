@@ -147,30 +147,18 @@ page_zip_write_node_ptr(
 	__attribute__((nonnull(1,2)));
 
 /**************************************************************************
-Write the trx_id of a record on a B-tree leaf node page. */
+Write the trx_id and roll_ptr of a record on a B-tree leaf node page. */
 
 void
-page_zip_write_trx_id(
-/*==================*/
+page_zip_write_trx_id_and_roll_ptr(
+/*===============================*/
 	page_zip_des_t*	page_zip,/* in/out: compressed page */
 	byte*		rec,	/* in/out: record */
-	ulint		size,	/* in: data size of rec */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
+	ulint		trx_id_col,/* in: column number of TRX_ID in rec */
 	dulint		trx_id,	/* in: transaction identifier */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
-	__attribute__((nonnull(1,2)));
-
-/**************************************************************************
-Write the roll_ptr of a record on a B-tree leaf node page. */
-
-void
-page_zip_write_roll_ptr(
-/*====================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	byte*		rec,	/* in/out: record */
-	ulint		size,	/* in: data size of rec */
-	dulint		roll_ptr,/* in: roll_ptr */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
-	__attribute__((nonnull(1,2)));
+	dulint		roll_ptr)/* in: roll_ptr */
+	__attribute__((nonnull));
 
 /**************************************************************************
 Clear a record on the uncompressed and compressed page, if possible. */
@@ -236,7 +224,9 @@ Add a slot to the dense page directory. */
 void
 page_zip_dir_add_slot(
 /*==================*/
-	page_zip_des_t*	page_zip)/* in/out: compressed page */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page */
+	ulint		is_clustered)	/* in: nonzero for clustered index,
+					zero for others */
 	__attribute__((nonnull));
 
 /**************************************************************************
