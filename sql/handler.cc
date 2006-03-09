@@ -3142,6 +3142,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   - It is not a temporary table
   - The binary log is open
   - The database the table resides in shall be binlogged (binlog_*_db rules)
+  - table is not mysql.event
 */
 
 #ifdef HAVE_ROW_BASED_REPLICATION
@@ -3156,7 +3157,9 @@ namespace {
       thd && (thd->options & OPTION_BIN_LOG) &&
       (table->s->tmp_table == NO_TMP_TABLE) &&
       mysql_bin_log.is_open() &&
-      binlog_filter->db_ok(table->s->db.str);
+      binlog_filter->db_ok(table->s->db.str) &&
+      (strcmp(table->s->db.str, "mysql") ||
+       strcmp(table->s->table_name.str, "event"));
   }
 }
 
