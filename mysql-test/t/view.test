@@ -2385,3 +2385,17 @@ show create view v1;
 drop view v1;
 //
 delimiter ;//
+
+#
+# Bug#17726 Not checked empty list caused endless loop
+#
+create table t1(f1 int, f2 int);
+create view v1 as select ta.f1 as a, tb.f1 as b from t1 ta, t1 tb where ta.f1=tb
+.f1 and ta.f2=tb.f2;
+insert into t1 values(1,1),(2,2);
+create view v2 as select * from v1 where a > 1 with check option;
+select * from v2;
+update v2 set b=3 where a=2;
+select * from v2;
+drop view v2, v1;
+drop table t1;
