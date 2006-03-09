@@ -41,8 +41,12 @@ class Event_timed;
 #define LEX_YYSTYPE void *
 #else
 #include "lex_symbol.h"
+#if MYSQL_LEX
 #include "sql_yacc.h"
 #define LEX_YYSTYPE YYSTYPE *
+#else
+#define LEX_YYSTYPE void *
+#endif
 #endif
 #endif
 
