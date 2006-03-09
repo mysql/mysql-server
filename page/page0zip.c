@@ -16,6 +16,7 @@ Created June 2005 by Marko Makela
 #include "mtr0log.h"
 #include "ut0sort.h"
 #include "dict0boot.h"
+#include "dict0dict.h"
 #include "btr0cur.h"
 #include "page0types.h"
 #include "zlib.h"
@@ -505,16 +506,22 @@ page_zip_compress(
 	c_stream.avail_out = buf_end - buf - 1;
 	/* Dense page directory and uncompressed columns, if any */
 	if (page_is_leaf(page)) {
-		trx_id_col = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-		ut_ad(trx_id_col > 0);
-		if (trx_id_col == ULINT_UNDEFINED) {
-			/* Signal the absence of trx_id
-			in page_zip_fields_encode() */
-			trx_id_col = 0;
-			c_stream.avail_out -= n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
-		} else {
+		if (dict_index_is_clust(index)) {
+			trx_id_col = dict_index_get_sys_col_pos(
+					index, DATA_TRX_ID);
+			ut_ad(trx_id_col > 0);
+			ut_ad(trx_id_col != ULINT_UNDEFINED);
+
 			c_stream.avail_out -= n_dense * (PAGE_ZIP_DIR_SLOT_SIZE
 				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+		} else {
+			/* Signal the absence of trx_id
+			in page_zip_fields_encode() */
+			ut_ad(dict_index_get_sys_col_pos(
+					index, DATA_TRX_ID)
+					== ULINT_UNDEFINED);
+			trx_id_col = 0;
+			c_stream.avail_out -= n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
 		}
 	} else {
 		c_stream.avail_out -= n_dense * (PAGE_ZIP_DIR_SLOT_SIZE
@@ -544,8 +551,13 @@ page_zip_compress(
 
 	if (page_is_leaf(page)) {
 		/* BTR_EXTERN_FIELD_REF storage */
-		byte*	externs = storage - n_dense
+		byte*	externs;
+		if (UNIV_UNLIKELY(trx_id_col != ULINT_UNDEFINED)) {
+			externs = storage - n_dense
 				* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+		} else {
+			externs = storage;
+		}
 
 		while (n_dense--) {
 			ulint	i;
@@ -586,12 +598,11 @@ page_zip_compress(
 				    in uncompressed form. */
 				    src = rec_get_nth_field(rec, offsets,
 								i, &len);
-#ifdef UNIV_DEBUG
-				    ut_ad(len == DATA_TRX_ID_LEN);
-				    rec_get_nth_field(rec, offsets,
-								i + 1, &len);
+				    ut_ad(src + DATA_TRX_ID_LEN
+						== rec_get_nth_field(
+						rec, offsets, i + 1, &len));
 				    ut_ad(len == DATA_ROLL_PTR_LEN);
-#endif /* UNIV_DEBUG */
+
 				    /* Compress any preceding bytes. */
 				    c_stream.avail_in = src - c_stream.next_in;
 
@@ -1121,6 +1132,9 @@ page_zip_apply_log(
 		}
 		if (val & 0x80) {
 			val = (val & 0x7f) << 8 | *data++;
+			if (UNIV_UNLIKELY(!val)) {
+				return(NULL);
+			}
 		}
 		if (UNIV_UNLIKELY(data >= end)) {
 			return(NULL);
@@ -1608,7 +1622,12 @@ err_exit:
 
 	storage = page_zip->data + page_zip->size
 			- n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
-	externs = storage - n_dense * (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+	if (trx_id_col != ULINT_UNDEFINED) {
+		externs = storage - n_dense
+				* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+	} else {
+		externs = storage;
+	}
 	page_zip->n_blobs = 0;
 	recsc = recs;
 
@@ -1776,8 +1795,28 @@ page_zip_write_rec(
 		ulint		i;
 		ulint		len;
 		const byte*	start = rec;
-		ulint		trx_id_col = dict_index_get_sys_col_pos(
-							index, DATA_TRX_ID);
+		ulint		trx_id_col;
+
+		if (dict_index_is_clust(index)) {
+			trx_id_col = dict_index_get_sys_col_pos(
+					index, DATA_TRX_ID);
+			ut_ad(trx_id_col != ULINT_UNDEFINED);
+			/* Do not assert on page_zip->n_blobs, because
+			it may change later in this function. */
+			ut_ad(data + rec_offs_data_size(offsets)
+					- (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
+					< storage
+					- (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
+					* (page_dir_get_n_heap(page) - 2));
+		} else {
+			trx_id_col = ULINT_UNDEFINED;
+			ut_ad(dict_index_get_sys_col_pos(
+					index, DATA_TRX_ID)
+					== ULINT_UNDEFINED);
+			/* Do not assert on page_zip->n_blobs, because
+			it may change later in this function. */
+			ut_ad(data + rec_offs_data_size(offsets) < storage);
+		}
 
 		/* Check if there are any externally stored columns.
 		For each externally stored column, store the
@@ -1792,12 +1831,12 @@ page_zip_write_rec(
 				/* Store trx_id and roll_ptr separately. */
 				src = rec_get_nth_field((rec_t*) rec,
 						offsets, i, &len);
-#ifdef UNIV_DEBUG
 				ut_ad(len == DATA_TRX_ID_LEN);
-				rec_get_nth_field((rec_t*) rec,
-						offsets, i + 1, &len);
+				ut_ad(src + DATA_TRX_ID_LEN
+					== rec_get_nth_field((rec_t*) rec,
+					offsets, i + 1, &len));
 				ut_ad(len == DATA_ROLL_PTR_LEN);
-#endif /* UNIV_DEBUG */
+
 				/* Log the preceding fields. */
 				memcpy(data, start, src - start);
 				data += src - start;
@@ -1845,6 +1884,8 @@ page_zip_write_rec(
 
 		/* Copy the data bytes, except node_ptr. */
 		len = rec_offs_data_size(offsets) - REC_NODE_PTR_SIZE;
+		ut_ad(data + len < storage - REC_NODE_PTR_SIZE
+				* (page_dir_get_n_heap(page) - 2));
 		memcpy(data, rec, len);
 		data += len;
 
@@ -1853,14 +1894,10 @@ page_zip_write_rec(
 				* (heap_no - 1),
 				rec + len,
 				REC_NODE_PTR_SIZE);
-		ut_a(data <= storage
-				- REC_NODE_PTR_SIZE
-				* (page_dir_get_n_heap(page) - 2)
-				- 1 /* for the modification log terminator */);
 	}
 
-	page_zip->m_end = data - page_zip->data;
 	ut_a(!*data);
+	page_zip->m_end = data - page_zip->data;
 
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip,
@@ -1888,7 +1925,7 @@ page_zip_write_blob_ptr(
 				or NULL if no logging is needed */
 {
 	byte*	field;
-	byte*	storage;
+	byte*	externs;
 	page_t*	page	= buf_frame_align((byte*) rec);
 	ulint	blob_no;
 	ulint	next_offs;
@@ -1930,16 +1967,22 @@ found:
 	ut_a(blob_no < page_zip->n_blobs);
 
 	/* The heap number of the first user record is 2. */
-	storage = page_zip->data + page_zip->size
+	if (dict_index_is_clust(index)) {
+		externs = page_zip->data + page_zip->size
 			- (page_dir_get_n_heap(page) - 2)
-			* PAGE_ZIP_DIR_SLOT_SIZE
-			- (rec_get_heap_no_new((rec_t*) rec) - 2)
-			* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
-			- blob_no * BTR_EXTERN_FIELD_REF_SIZE;
+			* (PAGE_ZIP_DIR_SLOT_SIZE
+			+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+	} else {
+		externs = page_zip->data + page_zip->size
+			- (page_dir_get_n_heap(page) - 2)
+			* PAGE_ZIP_DIR_SLOT_SIZE;
+	}
+
 	field = rec_get_nth_field((rec_t*) rec, offsets, n, &len);
 
-	memcpy(storage, field + len - BTR_EXTERN_FIELD_REF_SIZE,
-		BTR_EXTERN_FIELD_REF_SIZE);
+	memcpy(externs - blob_no * BTR_EXTERN_FIELD_REF_SIZE,
+			field + len - BTR_EXTERN_FIELD_REF_SIZE,
+			BTR_EXTERN_FIELD_REF_SIZE);
 
 	if (mtr) {
 		mlog_write_initial_log_record(
@@ -1997,25 +2040,28 @@ page_zip_write_node_ptr(
 }
 
 /**************************************************************************
-Write the trx_id of a record on a B-tree leaf node page. */
+Write the trx_id and roll_ptr of a record on a B-tree leaf node page. */
 
 void
-page_zip_write_trx_id(
-/*==================*/
+page_zip_write_trx_id_and_roll_ptr(
+/*===============================*/
 	page_zip_des_t*	page_zip,/* in/out: compressed page */
 	byte*		rec,	/* in/out: record */
-	ulint		size,	/* in: data size of rec */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
+	ulint		trx_id_col,/* in: column number of TRX_ID in rec */
 	dulint		trx_id,	/* in: transaction identifier */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+	dulint		roll_ptr)/* in: roll_ptr */
 {
 	byte*	field;
 	byte*	storage;
 	page_t*	page	= ut_align_down(rec, UNIV_PAGE_SIZE);
+	ulint	len;
 
 	ut_ad(buf_block_get_page_zip(buf_block_align(rec)) == page_zip);
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
-	ut_ad(page_rec_is_comp(rec));
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(rec_offs_comp(offsets));
 
 	ut_ad(page_zip->m_start >= PAGE_DATA);
 	ut_ad(!memcmp(page, page_zip->data, PAGE_DATA));
@@ -2028,8 +2074,15 @@ page_zip_write_trx_id(
 			* PAGE_ZIP_DIR_SLOT_SIZE
 			- (rec_get_heap_no_new(rec) - 1)
 			* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-	field = rec + size
-			- (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+
+#if DATA_TRX_ID + 1 != DATA_ROLL_PTR
+# error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
+#endif
+	field = rec_get_nth_field(rec, offsets, trx_id_col, &len);
+	ut_ad(len == DATA_TRX_ID_LEN);
+	ut_ad(field + DATA_TRX_ID_LEN
+		== rec_get_nth_field(rec, offsets, trx_id_col + 1, &len));
+	ut_ad(len == DATA_ROLL_PTR_LEN);
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 	ut_a(!memcmp(storage, field, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
@@ -2037,62 +2090,11 @@ page_zip_write_trx_id(
 # error "DATA_TRX_ID_LEN != 6"
 #endif
 	mach_write_to_6(field, trx_id);
-	memcpy(storage, field, DATA_TRX_ID_LEN);
-
-	if (mtr) {
-		mlog_write_initial_log_record(
-				rec, MLOG_ZIP_WRITE_TRX_ID, mtr);
-	}
-}
-
-/**************************************************************************
-Write the roll_ptr of a record on a B-tree leaf node page. */
-
-void
-page_zip_write_roll_ptr(
-/*====================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	byte*		rec,	/* in/out: record */
-	ulint		size,	/* in: data size of rec */
-	dulint		roll_ptr,/* in: roll_ptr */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
-{
-	byte*	field;
-	byte*	storage;
-	page_t*	page	= ut_align_down(rec, UNIV_PAGE_SIZE);
-
-	ut_ad(buf_block_get_page_zip(buf_block_align(rec)) == page_zip);
-	ut_ad(page_zip_simple_validate(page_zip));
-	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
-	ut_ad(page_rec_is_comp(rec));
-
-	ut_ad(page_zip->m_start >= PAGE_DATA);
-	ut_ad(!memcmp(page, page_zip->data, PAGE_DATA));
-
-	ut_ad(page_is_leaf(page));
-
-	/* The heap number of the first user record is 2. */
-	storage = page_zip->data + page_zip->size
-			- (page_dir_get_n_heap(page) - 2)
-			* PAGE_ZIP_DIR_SLOT_SIZE
-			- (rec_get_heap_no_new(rec) - 1)
-			* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
-			+ DATA_TRX_ID_LEN;
-	field = rec + size
-			- DATA_ROLL_PTR_LEN;
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
-	ut_a(!memcmp(storage, field, DATA_ROLL_PTR_LEN));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 #if DATA_ROLL_PTR_LEN != 7
 # error "DATA_ROLL_PTR_LEN != 7"
 #endif
 	mach_write_to_7(field, roll_ptr);
-	memcpy(storage, field, DATA_ROLL_PTR_LEN);
-
-	if (mtr) {
-		mlog_write_initial_log_record(
-				rec, MLOG_ZIP_WRITE_TRX_ID, mtr);
-	}
+	memcpy(storage, field, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 }
 
 /**************************************************************************
@@ -2113,7 +2115,8 @@ page_zip_clear_rec(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	if (page_zip_available(page_zip, rec_offs_size(offsets),
-				page_is_leaf(page_zip->data), 0)) {
+				page_is_leaf(page_zip->data),
+				dict_index_is_clust(index), 0)) {
 		memset(rec - rec_offs_extra_size(offsets), 0,
 			rec_offs_extra_size(offsets) - REC_N_NEW_EXTRA_BYTES);
 		memset(rec, 0, rec_offs_data_size(offsets));
@@ -2252,28 +2255,38 @@ Add a slot to the dense page directory. */
 void
 page_zip_dir_add_slot(
 /*==================*/
-	page_zip_des_t*	page_zip)/* in/out: compressed page */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page */
+	ulint		is_clustered)	/* in: nonzero for clustered index,
+					zero for others */
 {
 	ulint	n_dense;
 	byte*	dir;
 	byte*	stored;
 
-	n_dense = page_dir_get_n_heap(page_zip->data) - 2;
-	ut_a(n_dense > 0); /* This field should have already been updated. */
+	ut_ad(page_is_comp(page_zip->data));
+
+	/* Read the old n_dense (n_heap has already been incremented).
+	Subtract 2 for the infimum and supremum records. */
+	n_dense = page_dir_get_n_heap(page_zip->data) - 3;
 
 	dir = page_zip->data + page_zip->size
 			- PAGE_ZIP_DIR_SLOT_SIZE * n_dense;
 
-	if (page_is_leaf(page_zip->data)) {
-		stored = dir - (n_dense - 1)
+	if (!page_is_leaf(page_zip->data)) {
+		ut_ad(!page_zip->n_blobs);
+		stored = dir - n_dense * REC_NODE_PTR_SIZE;
+	} else if (UNIV_UNLIKELY(is_clustered)) {
+		stored = dir - n_dense
 			* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
 			- page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
 	} else {
-		ut_ad(!page_zip->n_blobs);
-		stored = dir - (n_dense - 1) * REC_NODE_PTR_SIZE;
+		stored = dir
+			- page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
 	}
 
-	memmove(stored, stored + PAGE_ZIP_DIR_SLOT_SIZE, dir - stored);
+	/* Move the uncompressed area backwards to make space
+	for one directory slot. */
+	memmove(stored - PAGE_ZIP_DIR_SLOT_SIZE, stored, dir - stored);
 }
 
 /**************************************************************************

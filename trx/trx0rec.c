@@ -339,7 +339,7 @@ trx_undo_rec_get_row_ref(
 	ulint		i;
 
 	ut_ad(index && ptr && ref && heap);
-	ut_a(index->type & DICT_CLUSTERED);
+	ut_a(dict_index_is_clust(index));
 
 	ref_len = dict_index_get_n_unique(index);
 
@@ -376,7 +376,7 @@ trx_undo_rec_skip_row_ref(
 	ulint	i;
 
 	ut_ad(index && ptr);
-	ut_a(index->type & DICT_CLUSTERED);
+	ut_a(dict_index_is_clust(index));
 
 	ref_len = dict_index_get_n_unique(index);
 
@@ -429,7 +429,7 @@ trx_undo_page_report_modify(
 	byte*		type_cmpl_ptr;
 	ulint		i;
 
-	ut_a(index->type & DICT_CLUSTERED);
+	ut_a(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 				+ TRX_UNDO_PAGE_TYPE) == TRX_UNDO_UPDATE);
@@ -796,7 +796,7 @@ trx_undo_update_rec_get_update(
 	ulint		field_no;
 	ulint		i;
 
-	ut_a(index->type & DICT_CLUSTERED);
+	ut_a(dict_index_is_clust(index));
 
 	if (type != TRX_UNDO_DEL_MARK_REC) {
 		ptr = trx_undo_update_rec_get_n_upd_fields(ptr, &n_fields);
@@ -1023,7 +1023,7 @@ trx_undo_report_row_operation(
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_a(index->type & DICT_CLUSTERED);
+	ut_a(dict_index_is_clust(index));
 
 	if (flags & BTR_NO_UNDO_LOG_FLAG) {
 
@@ -1287,7 +1287,7 @@ trx_undo_prev_version_build(
 			MTR_MEMO_PAGE_X_FIX));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (!(index->type & DICT_CLUSTERED)) {
+	if (!dict_index_is_clust(index)) {
 		fprintf(stderr, "InnoDB: Error: trying to access"
 			" update undo rec for non-clustered index %s\n"
 			"InnoDB: Submit a detailed bug report to"

@@ -894,8 +894,6 @@ recv_parse_or_apply_log_rec_body(
 							ULINT_UNDEFINED);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
-	case MLOG_ZIP_WRITE_TRX_ID:
-	case MLOG_ZIP_WRITE_ROLL_PTR:
 	case MLOG_ZIP_WRITE_HEADER:
 		ut_error; /* TODO */
 		break;

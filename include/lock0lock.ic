@@ -68,7 +68,7 @@ lock_clust_rec_some_has_impl(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 
 	trx_id = row_get_rec_trx_id(rec, index, offsets);

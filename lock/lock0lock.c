@@ -516,7 +516,7 @@ lock_clust_rec_cons_read_sees(
 {
 	dulint	trx_id;
 
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -552,7 +552,7 @@ lock_sec_rec_cons_read_sees(
 
 	UT_NOT_USED(index);
 
-	ut_ad(!(index->type & DICT_CLUSTERED));
+	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 
 	/* NOTE that we might call this function while holding the search
@@ -1667,7 +1667,7 @@ lock_sec_rec_some_has_impl_off_kernel(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(!(index->type & DICT_CLUSTERED));
+	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -4588,7 +4588,7 @@ lock_rec_queue_validate(
 	}
 
 	if (!index);
-	else if (index->type & DICT_CLUSTERED) {
+	else if (dict_index_is_clust(index)) {
 
 		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
 
@@ -4881,7 +4881,7 @@ lock_rec_insert_check_and_lock(
 
 		lock_mutex_exit_kernel();
 
-		if (!(index->type & DICT_CLUSTERED)) {
+		if (!dict_index_is_clust(index)) {
 			buf_block_t*	block = buf_block_align(rec);
 
 			/* Update the page max trx id field */
@@ -4921,7 +4921,7 @@ lock_rec_insert_check_and_lock(
 
 	lock_mutex_exit_kernel();
 
-	if ((err == DB_SUCCESS) && !(index->type & DICT_CLUSTERED)) {
+	if ((err == DB_SUCCESS) && !dict_index_is_clust(index)) {
 		buf_block_t*	block = buf_block_align(rec);
 
 		/* Update the page max trx id field */
@@ -4970,7 +4970,7 @@ lock_rec_convert_impl_to_expl(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
 
-	if (index->type & DICT_CLUSTERED) {
+	if (dict_index_is_clust(index)) {
 		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
 	} else {
 		impl_trx = lock_sec_rec_some_has_impl_off_kernel(
@@ -5022,7 +5022,7 @@ lock_clust_rec_modify_check_and_lock(
 	ulint	err;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
@@ -5072,7 +5072,7 @@ lock_sec_rec_modify_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	ut_ad(!(index->type & DICT_CLUSTERED));
+	ut_ad(!dict_index_is_clust(index));
 
 	/* Another transaction cannot have an implicit lock on the record,
 	because when we come here, we already have modified the clustered
@@ -5140,7 +5140,7 @@ lock_sec_rec_read_check_and_lock(
 {
 	ulint	err;
 
-	ut_ad(!(index->type & DICT_CLUSTERED));
+	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -5206,7 +5206,7 @@ lock_clust_rec_read_check_and_lock(
 {
 	ulint	err;
 
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
 	ut_ad(gap_mode == LOCK_ORDINARY || gap_mode == LOCK_GAP
 					|| gap_mode == LOCK_REC_NOT_GAP);

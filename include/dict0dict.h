@@ -422,6 +422,17 @@ dict_table_get_next_index_noninline(
 /*================================*/
 				/* out: index, NULL if none left */
 	dict_index_t*	index);	/* in: index */
+
+/************************************************************************
+Check whether the index is the clustered index. */
+UNIV_INLINE
+ulint
+dict_index_is_clust(
+/*================*/
+					/* out: nonzero for clustered index,
+					zero for other indexes */
+	const dict_index_t*	index);	/* in: index */
+
 /************************************************************************
 Gets the number of user-defined columns in a table in the dictionary
 cache. */
