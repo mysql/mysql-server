@@ -1166,3 +1166,43 @@ drop table t1;
 drop table t2;
 
 drop table words2;
+
+#
+# BUG# 16853: mysqldump doesn't show events
+#
+create database first;
+use first;
+set time_zone = 'UTC';
+
+## prove one works
+create event ee1 on schedule at '2035-12-31 20:01:23' do set @a=5;
+show events;
+show create event ee1;
+--exec $MYSQL_DUMP --events first > $MYSQLTEST_VARDIR/tmp/bug16853-1.sql
+drop database first;
+
+create database second;
+use second;
+--exec $MYSQL second < $MYSQLTEST_VARDIR/tmp/bug16853-1.sql
+show events;
+show create event ee1;
+
+## prove three works
+# start with one from the previous restore
+create event ee2 on schedule at '2018-12-31 21:01:23' do set @a=5;
+create event ee3 on schedule at '2030-12-31 22:01:23' do set @a=5;
+show events;
+--exec $MYSQL_DUMP --events second > $MYSQLTEST_VARDIR/tmp/bug16853-2.sql
+drop database second;
+
+create database third;
+use third;
+--exec $MYSQL third < $MYSQLTEST_VARDIR/tmp/bug16853-2.sql
+show events;
+drop database third;
+
+# revert back to normal settings
+set time_zone = 'SYSTEM';
+use test;
+
+#####
