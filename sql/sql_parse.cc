@@ -7475,8 +7475,7 @@ LEX_USER *create_default_definer(THD *thd)
 
 
 /*
-  Create definer with the given user and host names. Also check that the user
-  and host names satisfy definers requirements.
+  Create definer with the given user and host names.
 
   SYNOPSIS
     create_definer()
@@ -7493,14 +7492,6 @@ LEX_USER *create_default_definer(THD *thd)
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 {
   LEX_USER *definer;
-
-  /* Check that specified host name is valid. */
-
-  if (host_name->length == 0)
-  {
-    my_error(ER_MALFORMED_DEFINER, MYF(0));
-    return 0;
-  }
 
   /* Create and initialize. */
 
