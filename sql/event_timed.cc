@@ -1063,8 +1063,6 @@ Event_timed::get_create_event(THD *thd, String *buf)
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
 
   buf->append(STRING_WITH_LEN("CREATE EVENT "));
-  append_identifier(thd, buf, dbname.str, dbname.length);
-  buf->append(STRING_WITH_LEN("."));
   append_identifier(thd, buf, name.str, name.length);
 
   buf->append(STRING_WITH_LEN(" ON SCHEDULE "));
