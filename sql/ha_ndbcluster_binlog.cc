@@ -1746,7 +1746,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
   while ((schema= post_epoch_unlock_list->pop()))
   {
     ndbcluster_update_slock(thd, schema->db, schema->name);
-  }      
+  }
+  DBUG_VOID_RETURN;
 }
 
 /*
