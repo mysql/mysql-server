@@ -1319,13 +1319,11 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
   int error= 0;
   const char *index_name;
   KEY* key_info= tab->key_info;
-  const char **key_name= tab->s->keynames.type_names;
   NDBDICT *dict= ndb->getDictionary();
   DBUG_ENTER("ha_ndbcluster::drop_indexes");
   
-  for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
+  for (i= 0; i < tab->s->keys; i++, key_info++)
   {
-    index_name= *key_name;
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
     m_index[i].type= idx_type;
     if (m_index[i].status == TO_BE_DROPPED)
@@ -1346,8 +1344,8 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
         m_index[i].index= NULL;
       if (!error && unique_index)
       {
-        index_name= index->getName();
-        DBUG_PRINT("info", ("Dropping index %u: %s", i, index_name));
+        index_name= unique_index->getName();
+        DBUG_PRINT("info", ("Dropping unique index %u: %s", i, index_name));
         // Drop unique index from ndb
         error= drop_ndb_index(index_name);
       }
