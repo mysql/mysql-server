@@ -292,6 +292,7 @@ private:
   };
   Buf theKeyBuf;
   Buf theAccessKeyBuf;
+  Buf thePackKeyBuf;
   Buf theHeadInlineBuf;
   Buf theHeadInlineCopyBuf;     // for writeTuple
   Buf thePartBuf;
@@ -328,6 +329,9 @@ private:
   Uint32 getPartNumber(Uint64 pos);
   Uint32 getPartCount();
   Uint32 getDistKey(Uint32 part);
+  // pack / unpack
+  int packKeyValue(const NdbTableImpl* aTable, const Buf& srcBuf);
+  int unpackKeyValue(const NdbTableImpl* aTable, Buf& dstBuf);
   // getters and setters
   int getTableKeyValue(NdbOperation* anOp);
   int setTableKeyValue(NdbOperation* anOp);
