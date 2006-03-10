@@ -2758,7 +2758,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   lex_start(thd, (uchar*) thd->query, thd->query_length);
   lex->stmt_prepare_mode= TRUE;
 
-  error= yyparse((void *)thd) || thd->is_fatal_error ||
+  error= MYSQLparse((void *)thd) || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
   lex->safe_to_cache_query= FALSE;
   /*
