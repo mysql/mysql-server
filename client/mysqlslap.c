@@ -295,9 +295,9 @@ int main(int argc, char **argv)
   client_flag|= CLIENT_MULTI_RESULTS;
   if (!opt_only_print) 
   {
-    if (!(mysql_real_connect(&mysql,host,user,opt_password,
-                             argv[0],opt_mysql_port,opt_mysql_unix_port,
-                             client_flag)))
+    if (!(mysql_real_connect(&mysql, host, user, opt_password,
+                             NULL, opt_mysql_port,
+                             opt_mysql_unix_port, client_flag)))
     {
       fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
       free_defaults(defaults_argv);
