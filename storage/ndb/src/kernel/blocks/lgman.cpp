@@ -326,6 +326,13 @@ Lgman::execCREATE_FILEGROUP_REQ(Signal* signal){
       break;
     }
     
+    if (!m_logfile_group_list.isEmpty())
+    {
+      jam();
+      err = CreateFilegroupImplRef::OneLogfileGroupLimit;
+      break;
+    }
+
     if (!m_logfile_group_pool.seize(ptr))
     {
       jam();
@@ -1035,10 +1042,8 @@ int
 Logfile_client::sync_lsn(Signal* signal, 
 			 Uint64 lsn, Request* req, Uint32 flags)
 {
-  Lgman::Logfile_group key;
-  key.m_logfile_group_id= m_logfile_group_id;
   Ptr<Lgman::Logfile_group> ptr;
-  if(m_lgman->m_logfile_group_hash.find(ptr, key))
+  if(m_lgman->m_logfile_group_list.first(ptr))
   {
     if(ptr.p->m_last_synced_lsn >= lsn)
     {
