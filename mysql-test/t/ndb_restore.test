@@ -347,7 +347,14 @@ select count(*)
   from (select * from t9 union 
         select * from t9_c) a;
 
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
+#
+# Drop all table except t2_c
+#   This to make sure that error returned from ndb_restore above is 
+#     guaranteed to be from t2_c, this since order of tables in backup
+#     is none deterministic
+# 
+drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
+--source include/ndb_backup.inc
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map '(0,1)' $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id 2>&1 | grep Translate || true
 
 #
@@ -356,7 +363,7 @@ drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
+drop table if exists t2_c;
 --enable_warnings
 
 #
