@@ -2144,7 +2144,6 @@ btr_compress(
 	page_t*		merge_page;
 	ibool		is_left;
 	page_t*		page;
-	page_zip_des_t*	page_zip;
 	rec_t*		node_ptr;
 	ulint		data_size;
 	ulint		n_recs;
@@ -2153,7 +2152,6 @@ btr_compress(
 	ulint		level;
 
 	page = btr_cur_get_page(cursor);
-	page_zip = buf_block_get_page_zip(buf_block_align(page));
 	tree = btr_cur_get_tree(cursor);
 	ut_a((ibool) !!page_is_comp(page)
 			== dict_table_is_comp(cursor->index->table) );
@@ -2251,7 +2249,9 @@ btr_compress(
 		/* Replace the address of the old child node (= page) with the
 		address of the merge page to the right */
 
-		btr_node_ptr_set_child_page_no(node_ptr, page_zip,
+		btr_node_ptr_set_child_page_no(node_ptr,
+				buf_block_get_page_zip(
+				buf_block_align(node_ptr)),
 				rec_get_offsets(node_ptr, cursor->index,
 				offsets_, ULINT_UNDEFINED, &heap),
 				right_page_no, mtr);

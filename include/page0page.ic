@@ -910,9 +910,7 @@ page_mem_free(
 				6 bytes available, or NULL */
 	rec_t*		rec,	/* in: pointer to the (origin of) record */
 	dict_index_t*	index,	/* in: record descriptor */
-	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL
-				if page_zip==NULL */
+	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
 	rec_t*		free;
 	ulint		garbage;
@@ -933,14 +931,6 @@ page_mem_free(
 
 		/* Update the dense page directory. */
 		page_zip_dir_delete(page_zip, rec, free);
-
-		/* Clear the data bytes of the deleted record in order
-		to improve the compression ratio of the page.  The fixed extra
-		bytes of the record, which will be omitted from the
-		stream compression algorithm, cannot be cleared, because
-		page_mem_alloc() needs them in order to determine the size
-		of the deleted record. */
-		page_zip_clear_rec(page_zip, rec, index, offsets, mtr);
 	}
 
 	garbage = page_header_get_field(page, PAGE_GARBAGE);
