@@ -181,6 +181,30 @@ ut_memcpyq(
 	const char*	src,	/* in: string to be quoted */
 	ulint		len);	/* in: length of src */
 
+/**************************************************************************
+Return the number of times s2 occurs in s1. Overlapping instances of s2
+are only counted once. */
+
+ulint
+ut_strcount(
+/*========*/
+				/* out: the number of times s2 occurs in s1 */
+	const char*	s1,	/* in: string to search in */
+	const char*	s2);	/* in: string to search for */
+
+/**************************************************************************
+Replace every occurrence of s1 in str with s2. Overlapping instances of s1
+are only replaced once. */
+
+char *
+ut_strreplace(
+/*==========*/
+				/* out, own: modified string, must be
+				freed with mem_free() */
+	const char*	str,	/* in: string to operate on */
+	const char*	s1,	/* in: string to replace */
+	const char*	s2);	/* in: string to replace s1 with */
+
 #ifndef UNIV_NONINL
 #include "ut0mem.ic"
 #endif
