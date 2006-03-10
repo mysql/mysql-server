@@ -399,7 +399,7 @@ enum ha_base_keytype {
 #define HA_STATE_BUFF_SAVED	512	/* If current keybuff is info->buff */
 #define HA_STATE_ROW_CHANGED	1024	/* To invalide ROW cache */
 #define HA_STATE_EXTEND_BLOCK	2048
-#define HA_STATE_RNEXT_SAME	4096	/* rnext_same was called */
+#define HA_STATE_RNEXT_SAME	4096	/* rnext_same occupied lastkey2 */
 
 /* myisampack expects no more than 32 field types. */
 enum en_fieldtype {
