@@ -112,7 +112,7 @@ ErrorBundle ErrorCodes[] = {
   { 630,  HA_ERR_FOUND_DUPP_KEY, CV, "Tuple already existed when attempting to insert" },
   { 839,  DMEC, CV, "Illegal null attribute" },
   { 840,  DMEC, CV, "Trying to set a NOT NULL attribute to NULL" },
-  { 893,  HA_ERR_FOUND_DUPP_UNIQUE, CV, "Constraint violation e.g. duplicate value in unique index" },
+  { 893,  HA_ERR_FOUND_DUPP_KEY, CV, "Constraint violation e.g. duplicate value in unique index" },
 
   /**
    * Node recovery errors
