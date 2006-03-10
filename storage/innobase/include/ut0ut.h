@@ -34,8 +34,8 @@ ulint
 ut_min(
 /*===*/
 			/* out: minimum */
-	ulint    n1,  	/* in: first number */
-	ulint    n2);  	/* in: second number */
+	ulint	 n1,	/* in: first number */
+	ulint	 n2);	/* in: second number */
 /**********************************************************
 Calculates the maximum of two ulints. */
 UNIV_INLINE
@@ -43,8 +43,8 @@ ulint
 ut_max(
 /*===*/
 			/* out: maximum */
-	ulint    n1,	/* in: first number */
-	ulint    n2);	/* in: second number */
+	ulint	 n1,	/* in: first number */
+	ulint	 n2);	/* in: second number */
 /********************************************************************
 Calculates minimum of two ulint-pairs. */
 UNIV_INLINE
@@ -73,7 +73,7 @@ int
 ut_pair_cmp(
 /*========*/
 			/* out: -1 if a < b, 0 if a == b,
-			1 if a > b */ 
+			1 if a > b */
 	ulint	a1,	/* in: more significant part of first pair */
 	ulint	a2,	/* in: less significant part of first pair */
 	ulint	b1,	/* in: more significant part of second pair */
@@ -202,7 +202,7 @@ void
 ut_print_buf(
 /*=========*/
 	FILE*		file,	/* in: file where to print */
-	const byte*	buf,	/* in: memory buffer */
+	const void*	buf,	/* in: memory buffer */
 	ulint		len);	/* in: length of the buffer */
 
 /**************************************************************************
@@ -231,7 +231,7 @@ Outputs a fixed-length string, quoted as an SQL identifier. */
 
 void
 ut_print_namel(
-/*==========*/
+/*===========*/
 	FILE*		f,	/* in: output stream */
 	struct trx_struct*trx,	/* in: transaction (NULL=no quotes) */
 	const char*	name,	/* in: name to print */

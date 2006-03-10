@@ -20,7 +20,9 @@ trx_undo_build_roll_ptr(
 	ulint	page_no,	/* in: page number */
 	ulint	offset)		/* in: offset of the undo entry within page */
 {
-	ut_ad(DATA_ROLL_PTR_LEN == 7);
+#if DATA_ROLL_PTR_LEN != 7
+# error "DATA_ROLL_PTR_LEN != 7"
+#endif
 	ut_ad(rseg_id < 128);
 
 	return(ut_dulint_create(is_insert * 128 * 256 * 256
@@ -44,13 +46,15 @@ trx_undo_decode_roll_ptr(
 {
 	ulint	low;
 	ulint	high;
-
-	ut_ad(DATA_ROLL_PTR_LEN == 7);
-	ut_ad(TRUE == 1);
-	
+#if DATA_ROLL_PTR_LEN != 7
+# error "DATA_ROLL_PTR_LEN != 7"
+#endif
+#if TRUE != 1
+# error "TRUE != 1"
+#endif
 	high = ut_dulint_get_high(roll_ptr);
 	low = ut_dulint_get_low(roll_ptr);
-	
+
 	*offset = low % (256 * 256);
 
 	*is_insert = high / (256 * 256 * 128);	/* TRUE == 1 */
@@ -70,12 +74,14 @@ trx_undo_roll_ptr_is_insert(
 	dulint	roll_ptr)	/* in: roll pointer */
 {
 	ulint	high;
-
-	ut_ad(DATA_ROLL_PTR_LEN == 7);
-	ut_ad(TRUE == 1);
-
+#if DATA_ROLL_PTR_LEN != 7
+# error "DATA_ROLL_PTR_LEN != 7"
+#endif
+#if TRUE != 1
+# error "TRUE != 1"
+#endif
 	high = ut_dulint_get_high(roll_ptr);
-	
+
 	return(high / (256 * 256 * 128));
 }
 
@@ -91,7 +97,7 @@ trx_write_roll_ptr(
 	dulint	roll_ptr)	/* in: roll ptr */
 {
 	ut_ad(DATA_ROLL_PTR_LEN == 7);
-	
+
 	mach_write_to_7(ptr, roll_ptr);
 }
 
@@ -106,8 +112,9 @@ trx_read_roll_ptr(
 			/* out: roll ptr */
 	byte*	ptr)	/* in: pointer to memory from where to read */
 {
-	ut_ad(DATA_ROLL_PTR_LEN == 7);
-	
+#if DATA_ROLL_PTR_LEN != 7
+# error "DATA_ROLL_PTR_LEN != 7"
+#endif
 	return(mach_read_from_7(ptr));
 }
 
@@ -116,14 +123,14 @@ Gets an undo log page and x-latches it. */
 UNIV_INLINE
 page_t*
 trx_undo_page_get(
-/*===============*/
+/*==============*/
 				/* out: pointer to page x-latched */
 	ulint	space,		/* in: space where placed */
 	ulint	page_no,	/* in: page number */
 	mtr_t*	mtr)		/* in: mtr */
 {
 	page_t*	page;
-	
+
 	page = buf_page_get(space, page_no, RW_X_LATCH, mtr);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -138,14 +145,14 @@ Gets an undo log page and s-latches it. */
 UNIV_INLINE
 page_t*
 trx_undo_page_get_s_latched(
-/*=========================*/
+/*========================*/
 				/* out: pointer to page s-latched */
 	ulint	space,		/* in: space where placed */
 	ulint	page_no,	/* in: page number */
 	mtr_t*	mtr)		/* in: mtr */
 {
 	page_t*	page;
-	
+
 	page = buf_page_get(space, page_no, RW_S_LATCH, mtr);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -168,7 +175,7 @@ trx_undo_page_get_start(
 	ulint	offset)	/* in: undo log header offset on page */
 {
 	ulint	start;
-	
+
 	if (page_no == buf_frame_get_page_no(undo_page)) {
 
 		start = mach_read_from_2(offset + undo_page
@@ -194,7 +201,7 @@ trx_undo_page_get_end(
 {
 	trx_ulogf_t*	log_hdr;
 	ulint		end;
-	
+
 	if (page_no == buf_frame_get_page_no(undo_page)) {
 
 		log_hdr = undo_page + offset;
@@ -259,14 +266,14 @@ trx_undo_page_get_next_rec(
 	undo_page = buf_frame_align(rec);
 
 	end = trx_undo_page_get_end(undo_page, page_no, offset);
-	
+
 	next = mach_read_from_2(rec);
 
 	if (next == end) {
 
 		return(NULL);
 	}
-	
+
 	return(undo_page + next);
 }
 
@@ -285,9 +292,9 @@ trx_undo_page_get_last_rec(
 	ulint	start;
 	ulint	end;
 
-	start = trx_undo_page_get_start(undo_page, page_no, offset);	
-	end = trx_undo_page_get_end(undo_page, page_no, offset);	
-	
+	start = trx_undo_page_get_start(undo_page, page_no, offset);
+	end = trx_undo_page_get_end(undo_page, page_no, offset);
+
 	if (start == end) {
 
 		return(NULL);
@@ -311,9 +318,9 @@ trx_undo_page_get_first_rec(
 	ulint	start;
 	ulint	end;
 
-	start = trx_undo_page_get_start(undo_page, page_no, offset);	
-	end = trx_undo_page_get_end(undo_page, page_no, offset);	
-	
+	start = trx_undo_page_get_start(undo_page, page_no, offset);
+	end = trx_undo_page_get_end(undo_page, page_no, offset);
+
 	if (start == end) {
 
 		return(NULL);

@@ -109,8 +109,8 @@ do {\
 \
 		while (struct3333->NAME != DATA) {\
 \
-			ut_a(struct3333);\
 			struct3333 = struct3333->NAME;\
+			ut_a(struct3333);\
 		}\
 \
 		struct3333->NAME = DATA->NAME;\
@@ -153,8 +153,8 @@ hash_cell_t*
 hash_get_nth_cell(
 /*==============*/
 				/* out: pointer to cell */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		n);	/* in: cell index */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		n);	/* in: cell index */
 /*****************************************************************
 Returns the number of cells in a hash table. */
 UNIV_INLINE
@@ -229,8 +229,8 @@ ulint
 hash_get_mutex_no(
 /*==============*/
 				/* out: mutex number */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		fold);	/* in: fold */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold);	/* in: fold */
 /****************************************************************
 Gets the nth heap in a hash table. */
 UNIV_INLINE
@@ -238,8 +238,8 @@ mem_heap_t*
 hash_get_nth_heap(
 /*==============*/
 				/* out: mem heap */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		i);	/* in: index of the heap */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		i);	/* in: index of the heap */
 /****************************************************************
 Gets the heap for a fold value in a hash table. */
 UNIV_INLINE
@@ -247,8 +247,8 @@ mem_heap_t*
 hash_get_heap(
 /*==========*/
 				/* out: mem heap */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		fold);	/* in: fold */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold);	/* in: fold */
 /****************************************************************
 Gets the nth mutex in a hash table. */
 UNIV_INLINE
@@ -256,8 +256,8 @@ mutex_t*
 hash_get_nth_mutex(
 /*===============*/
 				/* out: mutex */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		i);	/* in: index of the mutex */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		i);	/* in: index of the mutex */
 /****************************************************************
 Gets the mutex for a fold value in a hash table. */
 UNIV_INLINE
@@ -265,38 +265,38 @@ mutex_t*
 hash_get_mutex(
 /*===========*/
 				/* out: mutex */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		fold);	/* in: fold */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold);	/* in: fold */
 /****************************************************************
 Reserves the mutex for a fold value in a hash table. */
 
 void
 hash_mutex_enter(
 /*=============*/
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		fold);	/* in: fold */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold);	/* in: fold */
 /****************************************************************
 Releases the mutex for a fold value in a hash table. */
 
 void
 hash_mutex_exit(
 /*============*/
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		fold);	/* in: fold */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold);	/* in: fold */
 /****************************************************************
 Reserves all the mutexes of a hash table, in an ascending order. */
 
 void
 hash_mutex_enter_all(
 /*=================*/
-	hash_table_t* 	table);	/* in: hash table */
+	hash_table_t*	table);	/* in: hash table */
 /****************************************************************
 Releases all the mutexes of a hash table. */
 
 void
 hash_mutex_exit_all(
 /*================*/
-	hash_table_t* 	table);	/* in: hash table */
+	hash_table_t*	table);	/* in: hash table */
 
 
 struct hash_cell_struct{

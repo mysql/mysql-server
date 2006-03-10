@@ -63,7 +63,20 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_LSN		16	/* lsn of the end of the newest
 					modification log record to the page */
 #define	FIL_PAGE_TYPE		24	/* file page type: FIL_PAGE_INDEX,...,
-					2 bytes */
+					2 bytes.
+
+					The contents of this field can only
+					be trusted in the following case:
+					if the page is an uncompressed
+					B-tree index page, then it is
+					guaranteed that the value is
+					FIL_PAGE_INDEX.
+					The opposite does not hold.
+
+					In tablespaces created by
+					MySQL/InnoDB 5.1.7 or later, the
+					contents of this field is valid
+					for all uncompressed pages. */
 #define FIL_PAGE_FILE_FLUSH_LSN	26	/* this is only defined for the
 					first page in a data file: the file
 					has been flushed to disk at least up
@@ -79,14 +92,22 @@ extern fil_addr_t	fil_addr_null;
 					to the last 4 bytes of FIL_PAGE_LSN */
 #define FIL_PAGE_DATA_END	8
 
-/* File page types */
-#define FIL_PAGE_INDEX		17855
-#define FIL_PAGE_UNDO_LOG	2
-#define FIL_PAGE_INODE		3
-#define FIL_PAGE_IBUF_FREE_LIST	4
+/* File page types (values of FIL_PAGE_TYPE) */
+#define FIL_PAGE_INDEX		17855	/* B-tree node */
+#define FIL_PAGE_UNDO_LOG	2	/* Undo log page */
+#define FIL_PAGE_INODE		3	/* Index node */
+#define FIL_PAGE_IBUF_FREE_LIST	4	/* Insert buffer free list */
+/* File page types introduced in MySQL/InnoDB 5.1.7 */
+#define FIL_PAGE_TYPE_ALLOCATED	0	/* Freshly allocated page */
+#define FIL_PAGE_IBUF_BITMAP	5	/* Insert buffer bitmap */
+#define FIL_PAGE_TYPE_SYS	6	/* System page */
+#define FIL_PAGE_TYPE_TRX_SYS	7	/* Transaction system data */
+#define FIL_PAGE_TYPE_FSP_HDR	8	/* File space header */
+#define FIL_PAGE_TYPE_XDES	9	/* Extent descriptor page */
+#define FIL_PAGE_TYPE_BLOB	10	/* Uncompressed BLOB page */
 
 /* Space types */
-#define FIL_TABLESPACE 		501
+#define FIL_TABLESPACE		501
 #define FIL_LOG			502
 
 extern ulint	fil_n_log_flushes;
@@ -271,7 +292,7 @@ Decrements the count of pending insert buffer page merges. */
 
 void
 fil_decr_pending_ibuf_merges(
-/*========================*/
+/*=========================*/
 	ulint	id);	/* in: space id */
 /***********************************************************************
 Parses the body of a log record written about an .ibd file operation. That is,
@@ -289,13 +310,13 @@ datadir that we should use in replaying the file operations. */
 byte*
 fil_op_log_parse_or_replay(
 /*=======================*/
-                        	/* out: end of log record, or NULL if the
+				/* out: end of log record, or NULL if the
 				record was not completely contained between
 				ptr and end_ptr */
-        byte*   ptr,    	/* in: buffer containing the log record body,
+	byte*	ptr,		/* in: buffer containing the log record body,
 				or an initial segment of it, if the record does
 				not fir completely between ptr and end_ptr */
-        byte*   end_ptr,	/* in: buffer end */
+	byte*	end_ptr,	/* in: buffer end */
 	ulint	type,		/* in: the type of this log record */
 	ibool	do_replay,	/* in: TRUE if we want to replay the
 				operation, and not just parse the log record */
@@ -619,7 +640,7 @@ void
 fil_aio_wait(
 /*=========*/
 	ulint	segment);	/* in: the number of the segment in the aio
-				array to wait for */ 
+				array to wait for */
 /**************************************************************************
 Flushes to disk possible writes cached by the OS. If the space does not exist
 or is being dropped, does not do anything. */
@@ -665,7 +686,7 @@ Sets the file page type. */
 void
 fil_page_set_type(
 /*==============*/
-	byte* 	page,	/* in: file page */
+	byte*	page,	/* in: file page */
 	ulint	type);	/* in: type */
 /*************************************************************************
 Gets the file page type. */
@@ -675,7 +696,7 @@ fil_page_get_type(
 /*==============*/
 			/* out: type; NOTE that if the type has not been
 			written to page, the return value not defined */
-	byte* 	page);	/* in: file page */
+	byte*	page);	/* in: file page */
 
 
 typedef	struct fil_space_struct	fil_space_t;

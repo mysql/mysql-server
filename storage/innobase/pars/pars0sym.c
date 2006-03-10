@@ -66,7 +66,7 @@ sym_tab_free_private(
 		if (sym->cursor_def) {
 			que_graph_free_recursive(sym->cursor_def);
 		}
-		
+
 		sym = UT_LIST_GET_NEXT(sym_list, sym);
 	}
 
@@ -91,23 +91,23 @@ sym_tab_add_int_lit(
 {
 	sym_node_t*	node;
 	byte*		data;
-	
+
 	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
 
 	node->common.type = QUE_NODE_SYMBOL;
-	
+
 	node->resolved = TRUE;
 	node->token_type = SYM_LIT;
 
 	node->indirection = NULL;
-	
+
 	dtype_set(&(node->common.val.type), DATA_INT, 0, 4, 0);
 
 	data = mem_heap_alloc(sym_tab->heap, 4);
 	mach_write_to_4(data, val);
 
 	dfield_set_data(&(node->common.val), data, 4);
-	
+
 	node->common.val_buf_size = 0;
 	node->prefetch_buf = NULL;
 	node->cursor_def = NULL;
@@ -115,7 +115,7 @@ sym_tab_add_int_lit(
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
 
 	node->sym_table = sym_tab;
-	
+
 	return(node);
 }
 
@@ -133,7 +133,7 @@ sym_tab_add_str_lit(
 {
 	sym_node_t*	node;
 	byte*		data;
-	
+
 	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
 
 	node->common.type = QUE_NODE_SYMBOL;
@@ -142,7 +142,7 @@ sym_tab_add_str_lit(
 	node->token_type = SYM_LIT;
 
 	node->indirection = NULL;
-	
+
 	dtype_set(&(node->common.val.type), DATA_VARCHAR, DATA_ENGLISH, 0, 0);
 
 	if (len) {
@@ -157,7 +157,7 @@ sym_tab_add_str_lit(
 	node->common.val_buf_size = 0;
 	node->prefetch_buf = NULL;
 	node->cursor_def = NULL;
-	
+
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
 
 	node->sym_table = sym_tab;
@@ -175,16 +175,16 @@ sym_tab_add_null_lit(
 	sym_tab_t*	sym_tab)	/* in: symbol table */
 {
 	sym_node_t*	node;
-	
+
 	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
 
 	node->common.type = QUE_NODE_SYMBOL;
-	
+
 	node->resolved = TRUE;
 	node->token_type = SYM_LIT;
 
 	node->indirection = NULL;
-	
+
 	node->common.val.type.mtype = DATA_ERROR;
 
 	dfield_set_data(&(node->common.val), NULL, UNIV_SQL_NULL);
@@ -192,7 +192,7 @@ sym_tab_add_null_lit(
 	node->common.val_buf_size = 0;
 	node->prefetch_buf = NULL;
 	node->cursor_def = NULL;
-	
+
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
 
 	node->sym_table = sym_tab;
@@ -212,11 +212,11 @@ sym_tab_add_id(
 	ulint		len)		/* in: identifier length */
 {
 	sym_node_t*	node;
-	
+
 	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
 
 	node->common.type = QUE_NODE_SYMBOL;
-	
+
 	node->resolved = FALSE;
 	node->indirection = NULL;
 
@@ -230,7 +230,7 @@ sym_tab_add_id(
 	node->common.val_buf_size = 0;
 	node->prefetch_buf = NULL;
 	node->cursor_def = NULL;
-	
+
 	node->sym_table = sym_tab;
 
 	return(node);

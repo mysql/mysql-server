@@ -18,7 +18,7 @@ Created 12/27/1996 Heikki Tuuri
 #include "que0types.h"
 #include "row0types.h"
 #include "pars0types.h"
-	
+
 /*************************************************************************
 Creates an update vector object. */
 UNIV_INLINE
@@ -209,7 +209,7 @@ Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings! */
- 
+
 ibool
 row_upd_changes_ord_field_binary(
 /*=============================*/
@@ -410,7 +410,7 @@ struct upd_node_struct{
 					index record was changed, or this is
 					a delete operation: should update
 					all the secondary index records */
-#define	UPD_NODE_UPDATE_SOME_SEC   5 	/* secondary index entries should be
+#define	UPD_NODE_UPDATE_SOME_SEC   5	/* secondary index entries should be
 					looked at and updated if an ordering
 					field changed */
 
@@ -425,4 +425,4 @@ struct upd_node_struct{
 #include "row0upd.ic"
 #endif
 
-#endif 
+#endif

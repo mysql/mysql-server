@@ -17,7 +17,7 @@ Created 12/29/1997 Heikki Tuuri
 #include "row0sel.h"
 
 /* The RND function seed */
-ulint	eval_rnd 	= 128367121;
+ulint	eval_rnd	= 128367121;
 
 /* Dummy adress used when we should allocate a buffer of size 0 in
 the function below */
@@ -44,12 +44,12 @@ eval_node_alloc_val_buf(
 	byte*		data;
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_SYMBOL
-	      || que_node_get_type(node) == QUE_NODE_FUNC);
+		|| que_node_get_type(node) == QUE_NODE_FUNC);
 
 	dfield = que_node_get_val(node);
 
 	data = dfield_get_data(dfield);
-	
+
 	if (data && data != &eval_dummy) {
 		mem_free(data);
 	}
@@ -81,15 +81,15 @@ eval_node_free_val_buf(
 	byte*		data;
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_SYMBOL
-	      || que_node_get_type(node) == QUE_NODE_FUNC);
+		|| que_node_get_type(node) == QUE_NODE_FUNC);
 
 	dfield = que_node_get_val(node);
 
 	data = dfield_get_data(dfield);
-	
+
 	if (que_node_get_val_buf_size(node) > 0) {
 		ut_a(data);
-	
+
 		mem_free(data);
 	}
 }
@@ -108,7 +108,7 @@ eval_cmp(
 	int		res;
 	ibool		val;
 	int		func;
-	
+
 	ut_ad(que_node_get_type(cmp_node) == QUE_NODE_FUNC);
 
 	arg1 = cmp_node->args;
@@ -119,7 +119,7 @@ eval_cmp(
 	val = TRUE;
 
 	func = cmp_node->func;
-			
+
 	if (func == '=') {
 		if (res != 0) {
 			val = FALSE;
@@ -142,7 +142,7 @@ eval_cmp(
 		}
 	} else {
 		ut_ad(func == '>');
-		
+
 		if (res != 1) {
 			val = FALSE;
 		}
@@ -268,7 +268,7 @@ eval_aggregate(
 
 		val = val + arg_val;
 	}
-	
+
 	eval_node_set_int_val(node, val);
 }
 
@@ -304,7 +304,7 @@ eval_predefined_2(
 	if (func == PARS_PRINTF_TOKEN) {
 
 		arg = arg1;
-	
+
 		while (arg) {
 			dfield_print(que_node_get_val(arg));
 
@@ -312,16 +312,16 @@ eval_predefined_2(
 		}
 
 		putc('\n', stderr);
-		
+
 	} else if (func == PARS_ASSERT_TOKEN) {
 
 		if (!eval_node_get_ibool_val(arg1)) {
 			fputs("SQL assertion fails in a stored procedure!\n",
 				stderr);
 		}
- 
+
 		ut_a(eval_node_get_ibool_val(arg1));
-		
+
 		/* This function, or more precisely, a debug procedure,
 		returns no value */
 
@@ -332,7 +332,7 @@ eval_predefined_2(
 
 		ut_ad(len2 >= len1);
 
-		if (len2 > len1) {		
+		if (len2 > len1) {
 			int_val = (lint)(len1 +
 					(eval_rnd % (len2 - len1 + 1)));
 		} else {
@@ -383,7 +383,7 @@ eval_notfound(
 	ut_ad(que_node_get_type(cursor) == QUE_NODE_SYMBOL);
 
 	if (cursor->token_type == SYM_LIT) {
-		
+
 		ut_ad(ut_memcmp(dfield_get_data(que_node_get_val(cursor)),
 							"SQL", 3) == 0);
 
@@ -425,7 +425,7 @@ eval_substr(
 	arg3 = que_node_get_next(arg2);
 
 	str1 = dfield_get_data(que_node_get_val(arg1));
-		
+
 	len1 = (ulint)eval_node_get_int_val(arg2);
 	len2 = (ulint)eval_node_get_int_val(arg3);
 
@@ -473,7 +473,7 @@ eval_replstr(
 
 	ut_memcpy(str1 + len1, str2, len2);
 }
-		
+
 /*********************************************************************
 Evaluates an instr-function node. */
 static
@@ -500,7 +500,7 @@ eval_instr(
 
 	dfield1 = que_node_get_val(arg1);
 	dfield2 = que_node_get_val(arg2);
-	
+
 	str1 = dfield_get_data(dfield1);
 	str2 = dfield_get_data(dfield2);
 
@@ -539,7 +539,7 @@ eval_instr(
 			}
 		}
 	}
-	
+
 	int_val = 0;
 
 match_found:
@@ -568,7 +568,7 @@ eval_binary_to_number(
 	str1 = dfield_get_data(dfield);
 	len1 = dfield_get_len(dfield);
 
- 	if (len1 > 4) {
+	if (len1 > 4) {
 		ut_error;
 	}
 
@@ -577,13 +577,13 @@ eval_binary_to_number(
 	} else {
 		int_val = 0;
 		str2 = (byte*)&int_val;
-			
+
 		ut_memcpy(str2 + (4 - len1), str1, len1);
 	}
 
 	eval_node_copy_and_alloc_val(func_node, str2, 4);
 }
-		
+
 /*********************************************************************
 Evaluates a predefined function node. */
 static
@@ -661,14 +661,14 @@ eval_to_binary(
 	}
 
 	arg2 = que_node_get_next(arg1);
-	
+
 	len1 = (ulint)eval_node_get_int_val(arg2);
 
 	if (len1 > 4) {
 
 		ut_error;
 	}
-		
+
 	dfield = que_node_get_val(func_node);
 
 	dfield_set_data(dfield, str1 + (4 - len1), len1);
@@ -688,7 +688,7 @@ eval_predefined(
 	int		func;
 
 	func = func_node->func;
-	
+
 	arg1 = func_node->args;
 
 	if (func == PARS_LENGTH_TOKEN) {
@@ -763,7 +763,7 @@ eval_predefined(
 		return;
 	}
 
-	eval_node_set_int_val(func_node, int_val); 
+	eval_node_set_int_val(func_node, int_val);
 }
 
 /*********************************************************************
@@ -791,7 +791,7 @@ eval_func(
 
 		/* The functions are not defined for SQL null argument
 		values, except for eval_cmp and notfound */
-		
+
 		if ((dfield_get_len(que_node_get_val(arg)) == UNIV_SQL_NULL)
 					&& (class != PARS_FUNC_CMP)
 					&& (func != PARS_NOTFOUND_TOKEN)

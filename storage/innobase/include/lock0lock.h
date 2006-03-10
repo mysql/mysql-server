@@ -224,7 +224,7 @@ lock_rec_restore_from_page_infimum(
 	rec_t*	rec,	/* in: record whose lock state is restored */
 	page_t*	page);	/* in: page (rec is not necessarily on this page)
 			whose infimum stored the lock state; lock bits are
-			reset on the infimum */ 
+			reset on the infimum */
 /*************************************************************************
 Returns TRUE if there are explicit record locks on a page. */
 
@@ -427,7 +427,7 @@ to a lock. */
 void
 lock_rec_unlock(
 /*============*/
-	trx_t*	trx,  		/* in: transaction that has set a record
+	trx_t*	trx,		/* in: transaction that has set a record
 				lock */
 	rec_t*	rec,		/* in: record */
 	ulint	lock_mode);	/* in: LOCK_S or LOCK_X */
@@ -477,7 +477,7 @@ searching for a lock in the hash table. */
 UNIV_INLINE
 ulint
 lock_rec_fold(
-/*===========*/
+/*==========*/
 			/* out: folded value */
 	ulint	space,	/* in: space */
 	ulint	page_no);/* in: page number */
@@ -624,7 +624,7 @@ extern lock_sys_t*	lock_sys;
 				waiting for its turn in the wait queue */
 /* Precise modes */
 #define LOCK_ORDINARY	0	/* this flag denotes an ordinary next-key lock
-				in contrast to LOCK_GAP or LOCK_REC_NOT_GAP */ 
+				in contrast to LOCK_GAP or LOCK_REC_NOT_GAP */
 #define LOCK_GAP	512	/* this gap bit should be so high that
 				it can be ORed to the other flags;
 				when this bit is set, it means that the
@@ -634,7 +634,7 @@ extern lock_sys_t*	lock_sys;
 				the bit is set; locks of this type are created
 				when records are removed from the index chain
 				of records */
-#define LOCK_REC_NOT_GAP 1024 	/* this bit means that the lock is only on
+#define LOCK_REC_NOT_GAP 1024	/* this bit means that the lock is only on
 				the index record and does NOT block inserts
 				to the gap before the index record; this is
 				used in the case when we retrieve a record
@@ -650,7 +650,7 @@ extern lock_sys_t*	lock_sys;
 				remains set when the waiting lock is granted,
 				or if the lock is inherited to a neighboring
 				record */
-				
+
 /* When lock bits are reset, the following flags are available: */
 #define LOCK_RELEASE_WAIT	1
 #define LOCK_NOT_RELEASE_WAIT	2
@@ -678,4 +678,4 @@ extern lock_sys_t*	lock_sys;
 #include "lock0lock.ic"
 #endif
 
-#endif 
+#endif
