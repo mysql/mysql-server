@@ -686,4 +686,23 @@ select * from t1 where bob is null and cip=1;
 create index bug on t1 (bob(22), cip, time);
 select * from t1 where bob is null and cip=1;
 drop table t1;
+
+#
+# Bug#14980 - COUNT(*) incorrect on MyISAM table with certain INDEX
+#
+create table t1 (
+  id1 int not null auto_increment,
+  id2 int not null default '0',
+  t text not null,
+  primary key  (id1),
+  key x (id2, t(32))
+) engine=myisam;
+insert into t1 (id2, t) values
+(10, 'abc'), (10, 'abc'), (10, 'abc'),
+(20, 'abc'), (20, 'abc'), (20, 'def'),
+(10, 'abc'), (10, 'abc');
+select count(*)   from t1 where id2 = 10;
+select count(id1) from t1 where id2 = 10;
+drop table t1;
+
 # End of 4.1 tests
