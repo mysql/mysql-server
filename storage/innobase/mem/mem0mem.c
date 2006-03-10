@@ -35,7 +35,7 @@ When we use a memory heap,
 we can allocate larger blocks of memory at a time and thus
 reduce overhead. Slightly more efficient the method is when we
 allocate the memory from the index page buffer pool, as we can
-claim a new page fast. This is called buffer allocation. 
+claim a new page fast. This is called buffer allocation.
 When we allocate the memory from the dynamic memory of the
 C environment, that is called dynamic allocation.
 
@@ -44,13 +44,13 @@ First, when the heap is created, an initial block of memory is
 allocated. In dynamic allocation this may be about 50 bytes.
 If more space is needed, additional blocks are allocated
 and they are put into a linked list.
-After the initial block, each allocated block is twice the size of the 
+After the initial block, each allocated block is twice the size of the
 previous, until a threshold is attained, after which the sizes
 of the blocks stay the same. An exception is, of course, the case
 where the caller requests a memory buffer whose size is
 bigger than the threshold. In that case a block big enough must
 be allocated.
- 
+
 The heap is physically arranged so that if the current block
 becomes full, a new block is allocated and always inserted in the
 chain of blocks as the last block.
@@ -75,18 +75,18 @@ After freeing, all the blocks in the heap are set to random bytes
 to help us discover errors which result from the use of
 buffers in an already freed heap. */
 
-#ifdef MEM_PERIODIC_CHECK	
+#ifdef MEM_PERIODIC_CHECK
 
 ibool					mem_block_list_inited;
 /* List of all mem blocks allocated; protected by the mem_comm_pool mutex */
 UT_LIST_BASE_NODE_T(mem_block_t)	mem_block_list;
 
 #endif
-			
+
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
-the C compiler. Is like malloc of C. The buffer must be freed 
+the C compiler. Is like malloc of C. The buffer must be freed
 with mem_free. */
 
 void*
@@ -97,7 +97,7 @@ mem_alloc_func_noninline(
 	const char*	file_name,	/* in: file name where created */
 	ulint		line)		/* in: line where created */
 {
-	return(mem_alloc_func(n, file_name, line));	
+	return(mem_alloc_func(n, file_name, line));
 }
 
 /**************************************************************************
@@ -136,12 +136,12 @@ mem_heap_create_block(
 {
 	mem_block_t*	block;
 	ulint		len;
-	
+
 	ut_ad((type == MEM_HEAP_DYNAMIC) || (type == MEM_HEAP_BUFFER)
 		|| (type == MEM_HEAP_BUFFER + MEM_HEAP_BTR_SEARCH));
 
 	if (heap && heap->magic_n != MEM_BLOCK_MAGIC_N) {
-		mem_analyze_corruption((byte*)heap);
+		mem_analyze_corruption(heap);
 	}
 
 	/* In dynamic allocation, calculate the size: block header + data. */
@@ -191,14 +191,14 @@ mem_heap_create_block(
 	ut_strlcpy_rev(block->file_name, file_name, sizeof(block->file_name));
 	block->line = line;
 
-#ifdef MEM_PERIODIC_CHECK	
+#ifdef MEM_PERIODIC_CHECK
 	mem_pool_mutex_enter();
 
 	if (!mem_block_list_inited) {
 		mem_block_list_inited = TRUE;
 		UT_LIST_INIT(mem_block_list);
 	}
-	
+
 	UT_LIST_ADD_LAST(mem_block_list, mem_block_list, block);
 
 	mem_pool_mutex_exit();
@@ -225,11 +225,11 @@ mem_heap_add_block(
 				/* out: created block, NULL if did not
 				succeed (only possible for
 				MEM_HEAP_BTR_SEARCH type heaps)*/
-	mem_heap_t* 	heap,	/* in: memory heap */
+	mem_heap_t*	heap,	/* in: memory heap */
 	ulint		n)	/* in: number of bytes user needs */
 {
-	mem_block_t*	block; 
-	mem_block_t*	new_block; 
+	mem_block_t*	block;
+	mem_block_t*	new_block;
 	ulint		new_size;
 
 	ut_ad(mem_heap_check(heap));
@@ -239,7 +239,7 @@ mem_heap_add_block(
 	/* We have to allocate a new block. The size is always at least
 	doubled until the standard size is reached. After that the size
 	stays the same, except in cases where the caller needs more space. */
-		
+
 	new_size = 2 * mem_block_get_len(block);
 
 	if (heap->type != MEM_HEAP_DYNAMIC) {
@@ -257,7 +257,7 @@ mem_heap_add_block(
 	if (new_size < n) {
 		new_size = n;
 	}
-	
+
 	new_block = mem_heap_create_block(heap, new_size, NULL, heap->type,
 						heap->file_name, heap->line);
 	if (new_block == NULL) {
@@ -283,15 +283,15 @@ mem_heap_block_free(
 {
 	ulint	type;
 	ulint	len;
-	ibool	init_block;	
+	ibool	init_block;
 
 	if (block->magic_n != MEM_BLOCK_MAGIC_N) {
-		mem_analyze_corruption((byte*)block);
+		mem_analyze_corruption(block);
 	}
 
 	UT_LIST_REMOVE(list, heap->base, block);
-		
-#ifdef MEM_PERIODIC_CHECK	
+
+#ifdef MEM_PERIODIC_CHECK
 	mem_pool_mutex_enter();
 
 	UT_LIST_REMOVE(mem_block_list, mem_block_list, block);
@@ -302,7 +302,7 @@ mem_heap_block_free(
 	len = block->len;
 	init_block = block->init_block;
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
-	
+
 #ifdef UNIV_MEM_DEBUG
 	/* In the debug version we set the memory to a random combination
 	of hex 0xDE and 0xAD. */
@@ -361,7 +361,7 @@ mem_validate_all_blocks(void)
 
 	while (block) {
 		if (block->magic_n != MEM_BLOCK_MAGIC_N) {
-			mem_analyze_corruption((byte*)block);
+			mem_analyze_corruption(block);
 		}
 
 		block = UT_LIST_GET_NEXT(mem_block_list, block);

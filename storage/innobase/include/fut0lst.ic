@@ -40,9 +40,9 @@ flst_write_addr(
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(faddr),
 							MTR_MEMO_PAGE_X_FIX));
 
-	mlog_write_ulint(faddr + FIL_ADDR_PAGE, addr.page, MLOG_4BYTES, mtr); 
+	mlog_write_ulint(faddr + FIL_ADDR_PAGE, addr.page, MLOG_4BYTES, mtr);
 	mlog_write_ulint(faddr + FIL_ADDR_BYTE, addr.boffset,
-							MLOG_2BYTES, mtr); 
+							MLOG_2BYTES, mtr);
 }
 
 /************************************************************************
@@ -59,10 +59,10 @@ flst_read_addr(
 
 	ut_ad(faddr && mtr);
 
-	addr.page = mtr_read_ulint(faddr + FIL_ADDR_PAGE, MLOG_4BYTES, mtr); 
-	addr.boffset = mtr_read_ulint(faddr + FIL_ADDR_BYTE, MLOG_2BYTES, 
+	addr.page = mtr_read_ulint(faddr + FIL_ADDR_PAGE, MLOG_4BYTES, mtr);
+	addr.boffset = mtr_read_ulint(faddr + FIL_ADDR_BYTE, MLOG_2BYTES,
 								mtr);
-	return(addr); 
+	return(addr);
 }
 
 /************************************************************************
@@ -76,9 +76,9 @@ flst_init(
 {
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
 							MTR_MEMO_PAGE_X_FIX));
-	mlog_write_ulint(base + FLST_LEN, 0, MLOG_4BYTES, mtr); 
-	flst_write_addr(base + FLST_FIRST, fil_addr_null, mtr); 
-	flst_write_addr(base + FLST_LAST, fil_addr_null, mtr); 
+	mlog_write_ulint(base + FLST_LEN, 0, MLOG_4BYTES, mtr);
+	flst_write_addr(base + FLST_FIRST, fil_addr_null, mtr);
+	flst_write_addr(base + FLST_LAST, fil_addr_null, mtr);
 }
 
 /************************************************************************

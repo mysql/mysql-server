@@ -16,7 +16,7 @@ Created 2/25/1997 Heikki Tuuri
 #include "que0types.h"
 #include "row0types.h"
 #include "mtr0mtr.h"
-	
+
 /***************************************************************
 Undoes a fresh insert of a row to a table. A fresh insert means that
 the same clustered index unique key did not have any record, even delete
@@ -33,4 +33,4 @@ row_undo_ins(
 #include "row0uins.ic"
 #endif
 
-#endif 
+#endif

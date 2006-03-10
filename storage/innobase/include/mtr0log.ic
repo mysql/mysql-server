@@ -73,10 +73,18 @@ mlog_catenate_ulint(
 
 	mlog = &(mtr->log);
 
-	ut_ad(MLOG_1BYTE == 1);
-	ut_ad(MLOG_2BYTES == 2);
-	ut_ad(MLOG_4BYTES == 4);
-
+#if MLOG_1BYTE != 1
+# error "MLOG_1BYTE != 1"
+#endif
+#if MLOG_2BYTES != 2
+# error "MLOG_2BYTES != 2"
+#endif
+#if MLOG_4BYTES != 4
+# error "MLOG_4BYTES != 4"
+#endif
+#if MLOG_8BYTES != 8
+# error "MLOG_8BYTES != 8"
+#endif
 	ptr = dyn_array_push(mlog, type);
 
 	if (type == MLOG_4BYTES) {
@@ -86,7 +94,7 @@ mlog_catenate_ulint(
 	} else {
 		ut_ad(type == MLOG_1BYTE);
 		mach_write_to_1(ptr, val);
- 	}
+	}
 }
 
 /************************************************************
@@ -156,7 +164,7 @@ mlog_write_initial_log_record_fast(
 	ulint		space;
 	ulint		offset;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr), 
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr),
 							MTR_MEMO_PAGE_X_FIX));
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
 	ut_ad(ptr && log_ptr);
@@ -167,7 +175,7 @@ mlog_write_initial_log_record_fast(
 	offset = buf_block_get_page_no(block);
 
 	mach_write_to_1(log_ptr, type);
-	log_ptr++;	
+	log_ptr++;
 	log_ptr += mach_write_compressed(log_ptr, space);
 	log_ptr += mach_write_compressed(log_ptr, offset);
 
@@ -188,7 +196,7 @@ mlog_write_initial_log_record_fast(
 	}
 #endif
 	return(log_ptr);
-}	
+}
 
 /************************************************************
 Writes a log record about an .ibd file create/delete/rename. */
@@ -216,4 +224,4 @@ mlog_write_initial_log_record_for_file_op(
 	mtr->n_log_recs++;
 
 	return(log_ptr);
-}	
+}

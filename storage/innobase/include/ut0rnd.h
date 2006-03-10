@@ -15,7 +15,7 @@ Created 1/20/1994 Heikki Tuuri
 
 /* The 'character code' for end of field or string (used
 in folding records */
-#define UT_END_OF_FIELD         257
+#define UT_END_OF_FIELD		257
 
 /************************************************************
 This is used to set the random number seed. */
@@ -23,7 +23,7 @@ UNIV_INLINE
 void
 ut_rnd_set_seed(
 /*============*/
-	ulint    seed);          /* in: seed */
+	ulint	 seed);		 /* in: seed */
 /************************************************************
 The following function generates a series of 'random' ulint integers. */
 UNIV_INLINE
@@ -65,10 +65,10 @@ random number to work reliably. */
 UNIV_INLINE
 ulint
 ut_hash_ulint(
-/*=========*/
+/*==========*/
 				/* out: hash value */
-	ulint    key,           /* in: value to be hashed */
-	ulint    table_size);   /* in: hash table size */
+	ulint	 key,		/* in: value to be hashed */
+	ulint	 table_size);	/* in: hash table size */
 /*****************************************************************
 Folds a pair of ulints. */
 UNIV_INLINE
@@ -93,7 +93,7 @@ ulint
 ut_fold_string(
 /*===========*/
 				/* out: folded value */
-	const char*	str);	/* in: null-terminated string */	
+	const char*	str);	/* in: null-terminated string */
 /*****************************************************************
 Folds a binary string. */
 UNIV_INLINE
@@ -111,7 +111,7 @@ ulint
 ut_find_prime(
 /*==========*/
 			/* out: prime */
-	ulint    n);     /* in: positive number > 100 */
+	ulint	 n);	 /* in: positive number > 100 */
 
 
 #ifndef UNIV_NONINL

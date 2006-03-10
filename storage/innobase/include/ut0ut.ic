@@ -13,8 +13,8 @@ ulint
 ut_min(
 /*===*/
 			/* out: minimum */
-	ulint    n1,	/* in: first number */
-	ulint    n2)	/* in: second number */
+	ulint	 n1,	/* in: first number */
+	ulint	 n2)	/* in: second number */
 {
 	return((n1 <= n2) ? n1 : n2);
 }
@@ -26,8 +26,8 @@ ulint
 ut_max(
 /*===*/
 			/* out: maximum */
-	ulint    n1,	/* in: first number */
-	ulint    n2)	/* in: second number */
+	ulint	 n1,	/* in: first number */
+	ulint	 n2)	/* in: second number */
 {
 	return((n1 <= n2) ? n2 : n1);
 }
@@ -44,7 +44,7 @@ ut_pair_min(
 	ulint	b1,	/* in: less significant part of first pair */
 	ulint	a2,	/* in: more significant part of second pair */
 	ulint	b2)	/* in: less significant part of second pair */
-{	
+{
 	if (a1 == a2) {
 		*a = a1;
 		*b = ut_min(b1, b2);
@@ -82,7 +82,7 @@ UNIV_INLINE
 int
 ut_pair_cmp(
 /*========*/
-			/* out: -1 if a < b, 0 if a == b, 1 if a > b */ 
+			/* out: -1 if a < b, 0 if a == b, 1 if a > b */
 	ulint	a1,	/* in: more significant part of first pair */
 	ulint	a2,	/* in: less significant part of first pair */
 	ulint	b1,	/* in: more significant part of second pair */
