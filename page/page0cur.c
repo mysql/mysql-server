@@ -1469,6 +1469,7 @@ page_cur_delete_rec(
 	current_rec = cursor->rec;
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+	ut_ad(!page_zip || page_zip_validate(page_zip, page));
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));
@@ -1513,8 +1514,6 @@ page_cur_delete_rec(
 	/* 3. Remove the record from the linked list of records */
 
 	page_rec_set_next(prev_rec, next_rec);
-	page_header_set_field(page, page_zip, PAGE_N_RECS,
-				(ulint)(page_get_n_recs(page) - 1));
 
 	/* 4. If the deleted record is pointed to by a dir slot, update the
 	record pointer in slot. In the following if-clause we assume that
@@ -1535,7 +1534,18 @@ page_cur_delete_rec(
 	page_dir_slot_set_n_owned(cur_dir_slot, page_zip, cur_n_owned - 1);
 
 	/* 6. Free the memory occupied by the record */
-	page_mem_free(page, page_zip, current_rec, index, offsets, mtr);
+	page_mem_free(page, page_zip, current_rec, index, offsets);
+	page_header_set_field(page, page_zip, PAGE_N_RECS,
+				(ulint)(page_get_n_recs(page) - 1));
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		/* Clear the data bytes of the deleted record in order
+		to improve the compression ratio of the page.  The fixed extra
+		bytes of the record, which will be omitted from the
+		stream compression algorithm, cannot be cleared, because
+		page_mem_alloc() needs them in order to determine the size
+		of the deleted record. */
+		page_zip_clear_rec(page_zip, rec, index, offsets, mtr);
+	}
 
 	/* 7. Now we have decremented the number of owned records of the slot.
 	If the number drops below PAGE_DIR_SLOT_MIN_N_OWNED, we balance the
