@@ -160,6 +160,24 @@ public:
       }
       
       /*
+
+        DESCRIPTION
+
+          Register table for use within the transaction.  All tables
+          that are going to be used need to be registered before being
+          used below.  The member function will fail with an error if
+          use_table() is called after any *_row() function has been
+          called for the transaction.
+
+        RETURN VALUE
+
+          0         All OK
+          >0        Failure
+
+       */
+      int use_table(server_id_type sid, table tbl);
+
+      /*
         Add a 'write row' entry to the transaction.
       */
       int write_row (server_id_type sid, table tbl, 
@@ -218,6 +236,62 @@ public:
           o.m_thd= tmp;
         }
       }
+
+      enum enum_state
+      {
+        START_STATE,                            /* Start state */
+        TABLE_STATE,      /* At least one table has been registered */
+        ROW_STATE,          /* At least one row has been registered */
+        STATE_COUNT               /* State count and sink state */
+      } m_state;
+
+      /*
+        Check and update the state.
+
+        PARAMETER(S)
+
+          target_state
+              The state we are moving to: TABLE_STATE if we are
+              writing a table and ROW_STATE if we are writing a row.
+
+        DESCRIPTION
+
+          The internal state will be updated to the target state if
+          and only if it is a legal move.  The only legal moves are:
+
+              START_STATE -> START_STATE
+              START_STATE -> TABLE_STATE
+              TABLE_STATE -> TABLE_STATE
+              TABLE_STATE -> ROW_STATE
+
+          That is:
+          - It is not possible to write any row before having written at
+            least one table
+          - It is not possible to write a table after at least one row
+            has been written
+
+        RETURN VALUE
+
+           0    All OK
+          -1    Incorrect call sequence
+       */
+      int check_state(enum_state const target_state)
+      {
+        static char const *state_name[] = {
+          "START_STATE", "TABLE_STATE", "ROW_STATE", "STATE_COUNT"
+        };
+
+        DBUG_ASSERT(0 <= target_state && target_state <= STATE_COUNT);
+        DBUG_PRINT("info", ("In state %s", state_name[m_state]));
+
+        if (m_state <= target_state && target_state <= m_state + 1 &&
+            m_state < STATE_COUNT)
+          m_state= target_state;
+        else
+          m_state= STATE_COUNT;
+        return m_state == STATE_COUNT ? 1 : 0;
+      }
+
 
       binlog_pos m_start_pos;
       THD *m_thd;
