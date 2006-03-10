@@ -190,13 +190,13 @@ master-bin.000001	#	User var	1	#	@`string`=_latin1 0x656D657267656E6379 COLLATE 
 master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 select @'string'
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 select "yesterday"
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` procedure foo()
 begin
 insert into t1 values("work");
 insert into t1 values(concat("for",UUID()));
 insert into t1 select "yesterday";
 end
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo2()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` procedure foo2()
 begin
 insert into t1 values(concat("emergency",UUID()));
 insert into t1 values("work");
@@ -205,7 +205,7 @@ set session binlog_format=row; # accepted for stored procs
 insert into t1 values("more work");
 set session binlog_format=mixed;
 end
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create function foo3() returns bigint unsigned
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` function foo3() returns bigint unsigned
 begin
 set session binlog_format=row; # rejected for stored funcs
 insert into t1 values("alarm");
