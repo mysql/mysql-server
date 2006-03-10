@@ -10,7 +10,7 @@ UNIV_INLINE
 void*
 ut_memcpy(void* dest, const void* sour, ulint n)
 {
-	return(memcpy(dest, sour, n)); 
+	return(memcpy(dest, sour, n));
 }
 
 UNIV_INLINE

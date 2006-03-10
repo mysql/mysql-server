@@ -46,6 +46,8 @@ extern pars_res_word_t	pars_rnd_str_token;
 extern pars_res_word_t	pars_count_token;
 extern pars_res_word_t	pars_sum_token;
 extern pars_res_word_t	pars_distinct_token;
+extern pars_res_word_t	pars_binary_token;
+extern pars_res_word_t	pars_blob_token;
 extern pars_res_word_t	pars_int_token;
 extern pars_res_word_t	pars_char_token;
 extern pars_res_word_t	pars_float_token;
@@ -59,7 +61,7 @@ extern pars_res_word_t	pars_unique_token;
 extern pars_res_word_t	pars_clustered_token;
 
 extern ulint		pars_star_denoter;
-	
+
 /* Procedure parameter types */
 #define PARS_INPUT	0
 #define PARS_OUTPUT	1
@@ -111,7 +113,7 @@ func_node_t*
 pars_func(
 /*======*/
 				/* out, own: function node in a query tree */
-	que_node_t* 	res_word,/* in: function name reserved word */
+	que_node_t*	res_word,/* in: function name reserved word */
 	que_node_t*	arg);	/* in: first argument in the argument list */
 /*************************************************************************
 Parses an operator expression. */
@@ -190,7 +192,7 @@ pars_update_statement_start(
 	ibool		is_delete,	/* in: TRUE if delete */
 	sym_node_t*	table_sym,	/* in: table name node */
 	col_assign_node_t* col_assign_list);/* in: column assignment list, NULL
-					if delete */	
+					if delete */
 /*************************************************************************
 Parses an update or delete statement. */
 
@@ -212,7 +214,7 @@ pars_insert_statement(
 					/* out, own: update node in a query
 					tree */
 	sym_node_t*	table_sym,	/* in: table name node */
-	que_node_t* 	values_list,	/* in: value expression list or NULL */
+	que_node_t*	values_list,	/* in: value expression list or NULL */
 	sel_node_t*	select);	/* in: select condition or NULL */
 /*************************************************************************
 Parses a procedure parameter declaration. */
@@ -336,10 +338,15 @@ Parses a column definition at a table creation. */
 sym_node_t*
 pars_column_def(
 /*============*/
-					/* out: column sym table node */
-	sym_node_t*	sym_node,	/* in: column node in the symbol
-					table */
-	pars_res_word_t* type);		/* in: data type */
+						/* out: column sym table
+						node */
+	sym_node_t*		sym_node,	/* in: column node in the
+						symbol table */
+	pars_res_word_t*	type,		/* in: data type */
+	sym_node_t*		len,		/* in: length of column, or
+						NULL */
+	void*			is_not_null);	/* in: if not NULL, column
+						is of type NOT NULL. */
 /*************************************************************************
 Parses a table creation operation. */
 
@@ -464,7 +471,7 @@ struct if_node_struct{
 	que_node_t*	cond;		/* if condition */
 	que_node_t*	stat_list;	/* statement list */
 	que_node_t*	else_part;	/* else-part statement list */
- 	elsif_node_t*	elsif_list;	/* elsif element list */
+	elsif_node_t*	elsif_list;	/* elsif element list */
 };
 
 /* while-statement node */
@@ -523,4 +530,4 @@ struct col_assign_node_struct{
 #include "pars0pars.ic"
 #endif
 
-#endif 
+#endif

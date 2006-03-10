@@ -16,7 +16,7 @@ Created 7/1/1994 Heikki Tuuri
 
 /*		ALPHABETICAL ORDER
 		==================
-		
+
 The records are put into alphabetical order in the following
 way: let F be the first field where two records disagree.
 If there is a character in some position n where the the
@@ -30,7 +30,7 @@ data type is not paddable, longer field is considered greater.
 Finally, the SQL null is bigger than any other value.
 
 At the present, the comparison functions return 0 in the case,
-where two records disagree only in the way that one 
+where two records disagree only in the way that one
 has more fields than the other. */
 
 #ifdef UNIV_DEBUG
@@ -42,9 +42,9 @@ differ from dtuple in some of the m fields rec has. */
 static
 int
 cmp_debug_dtuple_rec_with_match(
-/*============================*/	
-				/* out: 1, 0, -1, if dtuple is greater, equal, 
-				less than rec, respectively, when only the 
+/*============================*/
+				/* out: 1, 0, -1, if dtuple is greater, equal,
+				less than rec, respectively, when only the
 				common first fields are compared */
 	dtuple_t*	dtuple,	/* in: data tuple */
 	rec_t*		rec,	/* in: physical record which differs from
@@ -52,11 +52,12 @@ cmp_debug_dtuple_rec_with_match(
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint*	 	matched_fields);/* in/out: number of already
+	ulint*		matched_fields);/* in/out: number of already
 				completely  matched fields; when function
 				returns, contains the value for current
 				comparison */
 #endif /* UNIV_DEBUG */
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
@@ -75,7 +76,7 @@ innobase_mysql_cmp(
 	unsigned char*	b,		/* in: data field */
 	unsigned int	b_length);	/* in: data field length,
 					not UNIV_SQL_NULL */
-
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
 Transforms the character code so that it is ordered appropriately for the
 language. This is only used for the latin1 char set. MySQL does the
@@ -86,7 +87,7 @@ cmp_collate(
 /*========*/
 			/* out: collation order position */
 	ulint	code)	/* in: code of a character stored in database record */
-{	
+{
 	return((ulint) srv_latin1_ordering[code]);
 }
 
@@ -99,61 +100,63 @@ cmp_types_are_equal(
 				/* out: TRUE if the types are considered
 				equal in comparisons */
 	dtype_t*	type1,	/* in: type 1 */
-	dtype_t*	type2)	/* in: type 2 */
+	dtype_t*	type2,	/* in: type 2 */
+	ibool		check_charsets) /* in: whether to check charsets */
 {
 	if (dtype_is_non_binary_string_type(type1->mtype, type1->prtype)
-	    && dtype_is_non_binary_string_type(type2->mtype, type2->prtype)) {
+		&& dtype_is_non_binary_string_type(type2->mtype, type2->prtype)) {
 
 		/* Both are non-binary string types: they can be compared if
 		and only if the charset-collation is the same */
 
-		if (dtype_get_charset_coll(type1->prtype)
-				== dtype_get_charset_coll(type2->prtype)) {
+		if (check_charsets) {
+			return(dtype_get_charset_coll(type1->prtype)
+				== dtype_get_charset_coll(type2->prtype));
+		} else {
 			return(TRUE);
 		}
-
-		return(FALSE);
-        }
+	}
 
 	if (dtype_is_binary_string_type(type1->mtype, type1->prtype)
-	    && dtype_is_binary_string_type(type2->mtype, type2->prtype)) {
+		&& dtype_is_binary_string_type(type2->mtype, type2->prtype)) {
 
 		/* Both are binary string types: they can be compared */
 
 		return(TRUE);
 	}
-	
-        if (type1->mtype != type2->mtype) {
+
+	if (type1->mtype != type2->mtype) {
 
 		return(FALSE);
 	}
 
-        if (type1->mtype == DATA_INT
-	    && (type1->prtype & DATA_UNSIGNED)
+	if (type1->mtype == DATA_INT
+		&& (type1->prtype & DATA_UNSIGNED)
 		!= (type2->prtype & DATA_UNSIGNED)) {
 
 		/* The storage format of an unsigned integer is different
 		from a signed integer: in a signed integer we OR
 		0x8000... to the value of positive integers. */
-	
+
 		return(FALSE);
 	}
 
-        if (type1->mtype == DATA_INT && type1->len != type2->len) {
-	
+	if (type1->mtype == DATA_INT && type1->len != type2->len) {
+
 		return(FALSE);
 	}
 
 	return(TRUE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Innobase uses this function to compare two data fields for which the data type
 is such that we must compare whole fields or call MySQL to do the comparison */
 static
 int
 cmp_whole_field(
-/*============*/	
+/*============*/
 					/* out: 1, 0, -1, if a is greater,
 					equal, less than b, respectively */
 	dtype_t*	type,		/* in: data type */
@@ -175,36 +178,36 @@ cmp_whole_field(
 
 	switch (data_type) {
 
-    	case DATA_DECIMAL:
+	case DATA_DECIMAL:
 		/* Remove preceding spaces */
 		for (; a_length && *a == ' '; a++, a_length--);
 		for (; b_length && *b == ' '; b++, b_length--);
 
-      		if (*a == '-') {
+		if (*a == '-') {
 			if (*b != '-') {
-	  			return(-1);
-	  		}
+				return(-1);
+			}
 
 			a++; b++;
 			a_length--;
 			b_length--;
 
 			swap_flag = -1;
-			
-      		} else if (*b == '-') {
+
+		} else if (*b == '-') {
 
 			return(1);
 		}
-		
-      		while (a_length > 0 && (*a == '+' || *a == '0')) {
-			a++; a_length--;
-      		}
 
-      		while (b_length > 0 && (*b == '+' || *b == '0')) {
+		while (a_length > 0 && (*a == '+' || *a == '0')) {
+			a++; a_length--;
+		}
+
+		while (b_length > 0 && (*b == '+' || *b == '0')) {
 			b++; b_length--;
-      		}
-      		
-      		if (a_length != b_length) {
+		}
+
+		if (a_length != b_length) {
 			if (a_length < b_length) {
 				return(-swap_flag);
 			}
@@ -216,7 +219,7 @@ cmp_whole_field(
 
 			a++; b++; a_length--;
 		}
-			
+
 		if (a_length == 0) {
 
 			return(0);
@@ -227,54 +230,55 @@ cmp_whole_field(
 		}
 
 		return(-swap_flag);
-    	case DATA_DOUBLE:
+	case DATA_DOUBLE:
 		d_1 = mach_double_read(a);
 		d_2 = mach_double_read(b);
-		
-      		if (d_1 > d_2) {
-      			return(1);
-      		} else if (d_2 > d_1) {
-      			return(-1);
-      		}
 
-      		return(0);
-	
+		if (d_1 > d_2) {
+			return(1);
+		} else if (d_2 > d_1) {
+			return(-1);
+		}
+
+		return(0);
+
 	case DATA_FLOAT:
 		f_1 = mach_float_read(a);
 		f_2 = mach_float_read(b);
 
-      		if (f_1 > f_2) {
-      			return(1);
-      		} else if (f_2 > f_1) {
-      			return(-1);
-      		}
+		if (f_1 > f_2) {
+			return(1);
+		} else if (f_2 > f_1) {
+			return(-1);
+		}
 
-      		return(0);
+		return(0);
 	case DATA_VARMYSQL:
 	case DATA_MYSQL:
 	case DATA_BLOB:
 		if (data_type == DATA_BLOB
-		    && 0 != (type->prtype & DATA_BINARY_TYPE)) {
+			&& 0 != (type->prtype & DATA_BINARY_TYPE)) {
 
 			ut_print_timestamp(stderr);
-		        fprintf(stderr,
+			fprintf(stderr,
 "  InnoDB: Error: comparing a binary BLOB with a character set sensitive\n"
 "InnoDB: comparison!\n");
-		}		   
+		}
 
 		return(innobase_mysql_cmp(
 				(int)(type->prtype & DATA_MYSQL_TYPE_MASK),
 				(uint)dtype_get_charset_coll(type->prtype),
 				a, a_length, b, b_length));
 	default:
-	        fprintf(stderr,
+		fprintf(stderr,
 			"InnoDB: unknown type number %lu\n",
 			(ulong) data_type);
-	        ut_error;
+		ut_error;
 	}
 
 	return(0);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*****************************************************************
 This function is used to compare two data fields for which we know the
@@ -282,8 +286,8 @@ data type. */
 
 int
 cmp_data_data_slow(
-/*===============*/	
-				/* out: 1, 0, -1, if data1 is greater, equal, 
+/*===============*/
+				/* out: 1, 0, -1, if data1 is greater, equal,
 				less than data2, respectively */
 	dtype_t*	cur_type,/* in: data type of the fields */
 	byte*		data1,	/* in: data field (== a pointer to a memory
@@ -293,6 +297,7 @@ cmp_data_data_slow(
 				buffer) */
 	ulint		len2)	/* in: data field length or UNIV_SQL_NULL */
 {
+#ifndef UNIV_HOTBACKUP
 	ulint	data1_byte;
 	ulint	data2_byte;
 	ulint	cur_bytes;
@@ -315,18 +320,18 @@ cmp_data_data_slow(
 
 		return(1);
 	}
-	
+
 	if (cur_type->mtype >= DATA_FLOAT
-	    || (cur_type->mtype == DATA_BLOB
-	        && 0 == (cur_type->prtype & DATA_BINARY_TYPE)
-		&& dtype_get_charset_coll(cur_type->prtype) !=
-				DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
+		|| (cur_type->mtype == DATA_BLOB
+			&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+			&& dtype_get_charset_coll(cur_type->prtype) !=
+			DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
 
 		return(cmp_whole_field(cur_type,
 					data1, (unsigned) len1,
 					data2, (unsigned) len2));
 	}
-	
+
 	/* Compare then the fields */
 
 	cur_bytes = 0;
@@ -337,7 +342,7 @@ cmp_data_data_slow(
 
 				return(0);
 			}
-			
+
 			data1_byte = dtype_get_pad_char(cur_type);
 
 			if (data1_byte == ULINT_UNDEFINED) {
@@ -358,7 +363,7 @@ cmp_data_data_slow(
 		} else {
 			data2_byte = *data2;
 		}
-			
+
 		if (data1_byte == data2_byte) {
 			/* If the bytes are equal, they will remain such even
 			after the collation transformation below */
@@ -367,13 +372,13 @@ cmp_data_data_slow(
 		}
 
 		if (cur_type->mtype <= DATA_CHAR
-		    || (cur_type->mtype == DATA_BLOB
-		        && 0 == (cur_type->prtype & DATA_BINARY_TYPE))) {
+			|| (cur_type->mtype == DATA_BLOB
+				&& 0 == (cur_type->prtype & DATA_BINARY_TYPE))) {
 
 			data1_byte = cmp_collate(data1_byte);
 			data2_byte = cmp_collate(data2_byte);
 		}
-			
+
 		if (data1_byte > data2_byte) {
 
 				return(1);
@@ -387,6 +392,12 @@ cmp_data_data_slow(
 		data1++;
 		data2++;
 	}
+#else /* !UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* !UNIV_HOTBACKUP */
 
 	return(0);		/* Not reached */
 }
@@ -402,9 +413,9 @@ made. */
 
 int
 cmp_dtuple_rec_with_match(
-/*======================*/	
-				/* out: 1, 0, -1, if dtuple is greater, equal, 
-				less than rec, respectively, when only the 
+/*======================*/
+				/* out: 1, 0, -1, if dtuple is greater, equal,
+				less than rec, respectively, when only the
 				common first fields are compared, or
 				until the first externally stored field in
 				rec */
@@ -414,30 +425,31 @@ cmp_dtuple_rec_with_match(
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint*	 	matched_fields, /* in/out: number of already completely 
+	ulint*		matched_fields, /* in/out: number of already completely
 				matched fields; when function returns,
 				contains the value for current comparison */
-	ulint*	  	matched_bytes) /* in/out: number of already matched 
+	ulint*		matched_bytes) /* in/out: number of already matched
 				bytes within the first field not completely
 				matched; when function returns, contains the
 				value for current comparison */
 {
+#ifndef UNIV_HOTBACKUP
 	dtype_t*	cur_type;	/* pointer to type of the current
 					field in dtuple */
 	dfield_t*	dtuple_field;	/* current field in logical record */
-	ulint		dtuple_f_len;	/* the length of the current field 
+	ulint		dtuple_f_len;	/* the length of the current field
 					in the logical record */
-	byte*		dtuple_b_ptr;	/* pointer to the current byte in 
+	byte*		dtuple_b_ptr;	/* pointer to the current byte in
 					logical field data */
-	ulint		dtuple_byte;	/* value of current byte to be compared 
+	ulint		dtuple_byte;	/* value of current byte to be compared
 					in dtuple*/
 	ulint		rec_f_len;	/* length of current field in rec */
-	byte*		rec_b_ptr;	/* pointer to the current byte in 
+	byte*		rec_b_ptr;	/* pointer to the current byte in
 					rec field */
-	ulint		rec_byte;	/* value of current byte to be 
+	ulint		rec_byte;	/* value of current byte to be
 					compared in rec */
 	ulint		cur_field;	/* current field number */
-	ulint		cur_bytes; 	/* number of already matched bytes 
+	ulint		cur_bytes;	/* number of already matched bytes
 					in current field */
 	int		ret = 3333;	/* return value */
 
@@ -473,7 +485,7 @@ cmp_dtuple_rec_with_match(
 		dtuple_field = dtuple_get_nth_field(dtuple, cur_field);
 		cur_type = dfield_get_type(dtuple_field);
 
-		dtuple_f_len = dfield_get_len(dtuple_field);	
+		dtuple_f_len = dfield_get_len(dtuple_field);
 
 		rec_b_ptr = rec_get_nth_field(rec, offsets,
 						cur_field, &rec_f_len);
@@ -493,7 +505,7 @@ cmp_dtuple_rec_with_match(
 				goto order_resolved;
 			}
 
-		    	if (dtuple_f_len == UNIV_SQL_NULL) {
+			if (dtuple_f_len == UNIV_SQL_NULL) {
 				if (rec_f_len == UNIV_SQL_NULL) {
 
 					goto next_field;
@@ -512,9 +524,9 @@ cmp_dtuple_rec_with_match(
 		}
 
 		if (cur_type->mtype >= DATA_FLOAT
-	    	    || (cur_type->mtype == DATA_BLOB
-	        	&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
-			&& dtype_get_charset_coll(cur_type->prtype) !=
+			|| (cur_type->mtype == DATA_BLOB
+				&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+				&& dtype_get_charset_coll(cur_type->prtype) !=
 				DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
 
 			ret = cmp_whole_field(
@@ -531,21 +543,21 @@ cmp_dtuple_rec_with_match(
 				goto next_field;
 			}
 		}
-		
+
 		/* Set the pointers at the current byte */
 
 		rec_b_ptr = rec_b_ptr + cur_bytes;
-		dtuple_b_ptr = (byte*)dfield_get_data(dtuple_field) 
+		dtuple_b_ptr = (byte*)dfield_get_data(dtuple_field)
 								+ cur_bytes;
-		/* Compare then the fields */		
-		
+		/* Compare then the fields */
+
 		for (;;) {
 			if (UNIV_UNLIKELY(rec_f_len <= cur_bytes)) {
 				if (dtuple_f_len <= cur_bytes) {
 
 					goto next_field;
 				}
-			
+
 				rec_byte = dtype_get_pad_char(cur_type);
 
 				if (rec_byte == ULINT_UNDEFINED) {
@@ -568,7 +580,7 @@ cmp_dtuple_rec_with_match(
 			} else {
 				dtuple_byte = *dtuple_b_ptr;
 			}
-			
+
 			if (dtuple_byte == rec_byte) {
 				/* If the bytes are equal, they will
 				remain such even after the collation
@@ -578,9 +590,9 @@ cmp_dtuple_rec_with_match(
 			}
 
 			if (cur_type->mtype <= DATA_CHAR
-			    || (cur_type->mtype == DATA_BLOB
-			        && 0 ==
-				    (cur_type->prtype & DATA_BINARY_TYPE))) {
+				|| (cur_type->mtype == DATA_BLOB
+					&& 0 ==
+					(cur_type->prtype & DATA_BINARY_TYPE))) {
 
 				rec_byte = cmp_collate(rec_byte);
 				dtuple_byte = cmp_collate(dtuple_byte);
@@ -623,6 +635,13 @@ order_resolved:
 	*matched_bytes = cur_bytes;
 
 	return(ret);
+#else /* !UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+	return(0);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /******************************************************************
@@ -631,10 +650,10 @@ Compares a data tuple to a physical record. */
 int
 cmp_dtuple_rec(
 /*===========*/
-				/* out: 1, 0, -1, if dtuple is greater, equal, 
+				/* out: 1, 0, -1, if dtuple is greater, equal,
 				less than rec, respectively; see the comments
 				for cmp_dtuple_rec_with_match */
-	dtuple_t* 	dtuple,	/* in: data tuple */
+	dtuple_t*	dtuple,	/* in: data tuple */
 	rec_t*		rec,	/* in: physical record */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
@@ -664,12 +683,12 @@ cmp_dtuple_is_prefix_of_rec(
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	n_fields = dtuple_get_n_fields(dtuple);
-	
+
 	if (n_fields > rec_offs_n_fields(offsets)) {
 
 		return(FALSE);
 	}
-	
+
 	cmp_dtuple_rec_with_match(dtuple, rec, offsets,
 					&matched_fields, &matched_bytes);
 	if (matched_fields == n_fields) {
@@ -683,7 +702,7 @@ cmp_dtuple_is_prefix_of_rec(
 		return(TRUE);
 	}
 
-	return(FALSE);	
+	return(FALSE);
 }
 
 /*****************************************************************
@@ -693,7 +712,7 @@ encountered, then 0 is returned. */
 
 int
 cmp_rec_rec_with_match(
-/*===================*/	
+/*===================*/
 				/* out: 1, 0 , -1 if rec1 is greater, equal,
 				less, respectively, than rec2; only the common
 				first fields are compared */
@@ -702,15 +721,16 @@ cmp_rec_rec_with_match(
 	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
 	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
 	dict_index_t*	index,	/* in: data dictionary index */
-	ulint*	 	matched_fields, /* in/out: number of already completely 
+	ulint*		matched_fields, /* in/out: number of already completely
 				matched fields; when the function returns,
 				contains the value the for current
 				comparison */
-	ulint*	  	matched_bytes) /* in/out: number of already matched 
+	ulint*		matched_bytes) /* in/out: number of already matched
 				bytes within the first field not completely
 				matched; when the function returns, contains
 				the value for the current comparison */
 {
+#ifndef UNIV_HOTBACKUP
 	dtype_t* cur_type;	/* pointer to type struct of the
 				current field in index */
 	ulint	rec1_n_fields;	/* the number of fields in rec */
@@ -724,7 +744,7 @@ cmp_rec_rec_with_match(
 	ulint	rec2_byte;	/* value of current byte to be compared in
 				rec */
 	ulint	cur_field;	/* current field number */
-	ulint	cur_bytes; 	/* number of already matched bytes in current
+	ulint	cur_bytes;	/* number of already matched bytes in current
 				field */
 	int	ret = 3333;	/* return value */
 	ulint	comp;
@@ -749,8 +769,8 @@ cmp_rec_rec_with_match(
 			cur_type = dtype_binary;
 		} else {
 			cur_type = dict_col_get_type(
-			      dict_field_get_col(
-				dict_index_get_nth_field(index, cur_field)));
+				dict_field_get_col(
+					dict_index_get_nth_field(index, cur_field)));
 		}
 
 		rec1_b_ptr = rec_get_nth_field(rec1, offsets1,
@@ -764,27 +784,27 @@ cmp_rec_rec_with_match(
 				record */
 				if (rec_get_info_bits(rec1, comp)
 						& REC_INFO_MIN_REC_FLAG) {
-	
+
 					if (rec_get_info_bits(rec2, comp)
-					    & REC_INFO_MIN_REC_FLAG) {
+						& REC_INFO_MIN_REC_FLAG) {
 						ret = 0;
 					} else {
 						ret = -1;
 					}
-	
+
 					goto order_resolved;
-	
+
 				} else if (rec_get_info_bits(rec2, comp)
 					   & REC_INFO_MIN_REC_FLAG) {
-	
+
 					ret = 1;
-	
+
 					goto order_resolved;
 				}
 			}
 
 			if (rec_offs_nth_extern(offsets1, cur_field)
-			    || rec_offs_nth_extern(offsets2, cur_field)) {
+				|| rec_offs_nth_extern(offsets2, cur_field)) {
 				/* We do not compare to an externally
 				stored field */
 
@@ -792,9 +812,9 @@ cmp_rec_rec_with_match(
 
 				goto order_resolved;
 			}
-			
-		    	if (rec1_f_len == UNIV_SQL_NULL
-		            || rec2_f_len == UNIV_SQL_NULL) {
+
+			if (rec1_f_len == UNIV_SQL_NULL
+				|| rec2_f_len == UNIV_SQL_NULL) {
 
 				if (rec1_f_len == rec2_f_len) {
 
@@ -802,8 +822,8 @@ cmp_rec_rec_with_match(
 
 				} else if (rec2_f_len == UNIV_SQL_NULL) {
 
-					/* We define the SQL null to be the 
-					smallest possible value of a field 
+					/* We define the SQL null to be the
+					smallest possible value of a field
 					in the alphabetical order */
 
 					ret = 1;
@@ -816,9 +836,9 @@ cmp_rec_rec_with_match(
 		}
 
 		if (cur_type->mtype >= DATA_FLOAT
-	    	    || (cur_type->mtype == DATA_BLOB
-	        	&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
-			&& dtype_get_charset_coll(cur_type->prtype) !=
+			|| (cur_type->mtype == DATA_BLOB
+				&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+				&& dtype_get_charset_coll(cur_type->prtype) !=
 				DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
 
 			ret = cmp_whole_field(cur_type,
@@ -868,19 +888,19 @@ cmp_rec_rec_with_match(
 			} else {
 				rec1_byte = *rec1_b_ptr;
 			}
-			
+
 			if (rec1_byte == rec2_byte) {
 				/* If the bytes are equal, they will remain
-				such even after the collation transformation 
+				such even after the collation transformation
 				below */
 
 				goto next_byte;
 			}
 
 			if (cur_type->mtype <= DATA_CHAR
-			    || (cur_type->mtype == DATA_BLOB
-			        && 0 ==
-				    (cur_type->prtype & DATA_BINARY_TYPE))) {
+				|| (cur_type->mtype == DATA_BLOB
+					&& 0 ==
+					(cur_type->prtype & DATA_BINARY_TYPE))) {
 
 				rec1_byte = cmp_collate(rec1_byte);
 				rec2_byte = cmp_collate(rec2_byte);
@@ -914,10 +934,17 @@ order_resolved:
 
 	ut_ad((ret >= - 1) && (ret <= 1));
 
-	*matched_fields = cur_field;	
+	*matched_fields = cur_field;
 	*matched_bytes = cur_bytes;
 
 	return(ret);
+#else /* !UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+	return(0);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 #ifdef UNIV_DEBUG
@@ -930,9 +957,9 @@ externally stored field, returns 0. */
 static
 int
 cmp_debug_dtuple_rec_with_match(
-/*============================*/	
-				/* out: 1, 0, -1, if dtuple is greater, equal, 
-				less than rec, respectively, when only the 
+/*============================*/
+				/* out: 1, 0, -1, if dtuple is greater, equal,
+				less than rec, respectively, when only the
 				common first fields are compared */
 	dtuple_t*	dtuple,	/* in: data tuple */
 	rec_t*		rec,	/* in: physical record which differs from
@@ -940,7 +967,7 @@ cmp_debug_dtuple_rec_with_match(
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint*	 	matched_fields) /* in/out: number of already
+	ulint*		matched_fields) /* in/out: number of already
 				completely matched fields; when function
 				returns, contains the value for current
 				comparison */
@@ -948,7 +975,7 @@ cmp_debug_dtuple_rec_with_match(
 	dtype_t*	cur_type;	/* pointer to type of the current
 					field in dtuple */
 	dfield_t*	dtuple_field;	/* current field in logical record */
-	ulint		dtuple_f_len;	/* the length of the current field 
+	ulint		dtuple_f_len;	/* the length of the current field
 					in the logical record */
 	byte*		dtuple_f_data;	/* pointer to the current logical
 					field data */
@@ -956,11 +983,11 @@ cmp_debug_dtuple_rec_with_match(
 	byte*		rec_f_data;	/* pointer to the current rec field */
 	int		ret = 3333;	/* return value */
 	ulint		cur_field;	/* current field number */
-	
+
 	ut_ad(dtuple && rec && matched_fields);
 	ut_ad(dtuple_check_typed(dtuple));
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	
+
 	ut_ad(*matched_fields <= dtuple_get_n_fields_cmp(dtuple));
 	ut_ad(*matched_fields <= rec_offs_n_fields(offsets));
 
@@ -971,13 +998,13 @@ cmp_debug_dtuple_rec_with_match(
 					& REC_INFO_MIN_REC_FLAG) {
 
 			ret = !(dtuple_get_info_bits(dtuple)
-				    	    & REC_INFO_MIN_REC_FLAG);
+				& REC_INFO_MIN_REC_FLAG);
 
 			goto order_resolved;
 		}
 
 		if (dtuple_get_info_bits(dtuple) & REC_INFO_MIN_REC_FLAG) {
- 			ret = -1;
+			ret = -1;
 
 			goto order_resolved;
 		}
@@ -993,7 +1020,7 @@ cmp_debug_dtuple_rec_with_match(
 
 		dtuple_f_data = dfield_get_data(dtuple_field);
 		dtuple_f_len = dfield_get_len(dtuple_field);
-		
+
 		rec_f_data = rec_get_nth_field(rec, offsets,
 						cur_field, &rec_f_len);
 
@@ -1009,7 +1036,7 @@ cmp_debug_dtuple_rec_with_match(
 							rec_f_data, rec_f_len);
 		if (ret != 0) {
 			goto order_resolved;
-		} 
+		}
 
 		cur_field++;
 	}

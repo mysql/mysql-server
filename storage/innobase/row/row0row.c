@@ -103,9 +103,9 @@ dtuple_t*
 row_build_index_entry(
 /*==================*/
 				/* out: index entry which should be inserted */
-	dtuple_t*	row, 	/* in: row which should be inserted to the
+	dtuple_t*	row,	/* in: row which should be inserted to the
 				table */
-	dict_index_t*	index, 	/* in: index on the table */
+	dict_index_t*	index,	/* in: index on the table */
 	mem_heap_t*	heap)	/* in: memory heap from which the memory for
 				the index entry is allocated */
 {
@@ -116,12 +116,12 @@ row_build_index_entry(
 	dfield_t*	dfield2;
 	dict_col_t*	col;
 	ulint		i;
-        ulint           storage_len;
+	ulint		storage_len;
 	dtype_t*	cur_type;
 
 	ut_ad(row && index && heap);
 	ut_ad(dtuple_check_typed(row));
-	
+
 	entry_len = dict_index_get_n_fields(index);
 	entry = dtuple_create(heap, entry_len);
 
@@ -144,8 +144,8 @@ row_build_index_entry(
 
 		/* If a column prefix index, take only the prefix */
 		if (ind_field->prefix_len > 0
-		    && dfield_get_len(dfield2) != UNIV_SQL_NULL) {
-			
+			&& dfield_get_len(dfield2) != UNIV_SQL_NULL) {
+
 			cur_type = dict_col_get_type(
 				dict_field_get_col(ind_field));
 
@@ -161,7 +161,7 @@ row_build_index_entry(
 	ut_ad(dtuple_check_typed(entry));
 
 	return(entry);
-}			
+}
 
 /***********************************************************************
 An inverse function to dict_row_build_index_entry. Builds a row from a
@@ -172,7 +172,7 @@ row_build(
 /*======*/
 				/* out, own: row built; see the NOTE below! */
 	ulint		type,	/* in: ROW_COPY_POINTERS, ROW_COPY_DATA, or
-				ROW_COPY_ALSO_EXTERNALS, 
+				ROW_COPY_ALSO_EXTERNALS,
 				the two last copy also the data fields to
 				heap as the first only places pointers to
 				data fields on the index page, and thus is
@@ -200,7 +200,7 @@ row_build(
 	byte*		field;
 	ulint		len;
 	ulint		row_len;
-	byte*		buf; 
+	byte*		buf;
 	ulint		i;
 	mem_heap_t*	tmp_heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -229,26 +229,27 @@ row_build(
 
 	row = dtuple_create(heap, row_len);
 
-	dtuple_set_info_bits(row, rec_get_info_bits(rec, table->comp));
+	dtuple_set_info_bits(row, rec_get_info_bits(rec,
+			dict_table_is_comp(table)));
 
 	n_fields = rec_offs_n_fields(offsets);
 
 	dict_table_copy_types(row, table);
 
 	for (i = 0; i < n_fields; i++) {
-	        ind_field = dict_index_get_nth_field(index, i);
+		ind_field = dict_index_get_nth_field(index, i);
 
 		if (ind_field->prefix_len == 0) {
 
-		        col = dict_field_get_col(ind_field);
+			col = dict_field_get_col(ind_field);
 			dfield = dtuple_get_nth_field(row,
 						dict_col_get_no(col));
 			field = rec_get_nth_field(rec, offsets, i, &len);
 
 			if (type == ROW_COPY_ALSO_EXTERNALS
-			    && rec_offs_nth_extern(offsets, i)) {
+				&& rec_offs_nth_extern(offsets, i)) {
 
-			        field = btr_rec_copy_externally_stored_field(
+				field = btr_rec_copy_externally_stored_field(
 						rec, offsets, i, &len, heap);
 			}
 
@@ -302,7 +303,7 @@ row_rec_to_index_entry(
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(rec && heap && index);
-	
+
 	offsets = rec_get_offsets(rec, index, offsets,
 					ULINT_UNDEFINED, &tmp_heap);
 
@@ -315,7 +316,7 @@ row_rec_to_index_entry(
 	}
 
 	rec_len = rec_offs_n_fields(offsets);
-	
+
 	entry = dtuple_create(heap, rec_len);
 
 	dtuple_set_n_fields_cmp(entry,
@@ -399,7 +400,7 @@ row_build_row_ref(
 	}
 
 	table = index->table;
-	
+
 	clust_index = dict_table_get_first_index(table);
 
 	ref_len = dict_index_get_n_unique(clust_index);
@@ -414,7 +415,7 @@ row_build_row_ref(
 		pos = dict_index_get_nth_field_pos(index, clust_index, i);
 
 		ut_a(pos != ULINT_UNDEFINED);
-	
+
 		field = rec_get_nth_field(rec, offsets, pos, &len);
 
 		dfield_set_data(dfield, field, len);
@@ -428,7 +429,7 @@ row_build_row_ref(
 			dict_index_get_nth_field(clust_index, i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
-		    	if (len != UNIV_SQL_NULL) {
+			if (len != UNIV_SQL_NULL) {
 
 				dfield_set_len(dfield,
 				  dtype_get_at_most_n_mbchars(
@@ -478,7 +479,7 @@ row_build_row_ref_in_tuple(
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_a(ref && index && rec);
-	
+
 	if (!index->table) {
 		fputs("InnoDB: table ", stderr);
 	notfound:
@@ -488,9 +489,9 @@ row_build_row_ref_in_tuple(
 		fputs(" not found\n", stderr);
 		ut_error;
 	}
-	
+
 	clust_index = dict_table_get_first_index(index->table);
-	
+
 	if (!clust_index) {
 		fputs("InnoDB: clust index for table ", stderr);
 		goto notfound;
@@ -501,7 +502,7 @@ row_build_row_ref_in_tuple(
 	ref_len = dict_index_get_n_unique(clust_index);
 
 	ut_ad(ref_len == dtuple_get_n_fields(ref));
-	
+
 	dict_index_copy_types(ref, clust_index, ref_len);
 
 	for (i = 0; i < ref_len; i++) {
@@ -524,7 +525,7 @@ row_build_row_ref_in_tuple(
 			dict_index_get_nth_field(clust_index, i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
-		    	if (len != UNIV_SQL_NULL) {
+			if (len != UNIV_SQL_NULL) {
 
 				dfield_set_len(dfield,
 				  dtype_get_at_most_n_mbchars(
@@ -563,28 +564,28 @@ row_build_row_ref_from_row(
 	ulint		ref_len;
 	ulint		i;
 	dtype_t*	cur_type;
-	
+
 	ut_ad(ref && table && row);
-		
+
 	clust_index = dict_table_get_first_index(table);
 
 	ref_len = dict_index_get_n_unique(clust_index);
 
 	ut_ad(ref_len == dtuple_get_n_fields(ref));
-	
+
 	for (i = 0; i < ref_len; i++) {
 		dfield = dtuple_get_nth_field(ref, i);
-		
+
 		field = dict_index_get_nth_field(clust_index, i);
-		
+
 		col = dict_field_get_col(field);
-				
+
 		dfield2 = dtuple_get_nth_field(row, dict_col_get_no(col));
 
 		dfield_copy(dfield, dfield2);
 
 		if (field->prefix_len > 0
-		    && dfield->len != UNIV_SQL_NULL) {
+			&& dfield->len != UNIV_SQL_NULL) {
 
 			cur_type = dict_col_get_type(
 				dict_field_get_col(field));
@@ -613,7 +614,7 @@ row_search_on_row_ref(
 	dtuple_t*	ref,	/* in: row reference */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	ulint		low_match;	
+	ulint		low_match;
 	rec_t*		rec;
 	dict_index_t*	index;
 
@@ -624,7 +625,7 @@ row_search_on_row_ref(
 	ut_a(dtuple_get_n_fields(ref) == dict_index_get_n_unique(index));
 
 	btr_pcur_open(index, ref, PAGE_CUR_LE, mode, pcur, mtr);
-	
+
 	low_match = btr_pcur_get_low_match(pcur);
 
 	rec = btr_pcur_get_rec(pcur);
@@ -662,7 +663,7 @@ row_get_clust_rec(
 	btr_pcur_t	pcur;
 	ibool		found;
 	rec_t*		clust_rec;
-	
+
 	ut_ad((index->type & DICT_CLUSTERED) == 0);
 
 	table = index->table;
@@ -703,7 +704,7 @@ row_search_index_entry(
 	rec_t*	rec;
 
 	ut_ad(dtuple_check_typed(entry));
-	
+
 	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, pcur, mtr);
 	low_match = btr_pcur_get_low_match(pcur);
 

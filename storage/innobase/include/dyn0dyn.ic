@@ -41,7 +41,7 @@ dyn_array_get_last_block(
 	if (arr->heap == NULL) {
 
 		return(arr);
-	}  
+	}
 
 	return(UT_LIST_GET_LAST(arr->base));
 }
@@ -57,13 +57,13 @@ dyn_array_get_next_block(
 	dyn_block_t*	block)	/* in: dyn array block */
 {
 	ut_ad(arr && block);
-	
+
 	if (arr->heap == NULL) {
 		ut_ad(arr == block);
-	
+
 		return(NULL);
 	}
-	
+
 	return(UT_LIST_GET_NEXT(list, block));
 }
 
@@ -106,7 +106,9 @@ dyn_array_create(
 				size sizeof(dyn_array_t) */
 {
 	ut_ad(arr);
-	ut_ad(DYN_ARRAY_DATA_SIZE < DYN_BLOCK_FULL_FLAG);
+#if DYN_ARRAY_DATA_SIZE >= DYN_BLOCK_FULL_FLAG
+# error "DYN_ARRAY_DATA_SIZE >= DYN_BLOCK_FULL_FLAG"
+#endif
 
 	arr->heap = NULL;
 	arr->used = 0;
@@ -153,13 +155,13 @@ dyn_array_push(
 	ut_ad(arr->magic_n == DYN_BLOCK_MAGIC_N);
 	ut_ad(size <= DYN_ARRAY_DATA_SIZE);
 	ut_ad(size);
-	
+
 	block = arr;
 	used = block->used;
 
 	if (used + size > DYN_ARRAY_DATA_SIZE) {
 		/* Get the last array block */
-		
+
 		block = dyn_array_get_last_block(arr);
 		used = block->used;
 
@@ -195,13 +197,13 @@ dyn_array_open(
 	ut_ad(arr->magic_n == DYN_BLOCK_MAGIC_N);
 	ut_ad(size <= DYN_ARRAY_DATA_SIZE);
 	ut_ad(size);
-	
+
 	block = arr;
 	used = block->used;
 
 	if (used + size > DYN_ARRAY_DATA_SIZE) {
 		/* Get the last array block */
-		
+
 		block = dyn_array_get_last_block(arr);
 		used = block->used;
 
@@ -217,7 +219,7 @@ dyn_array_open(
 	ut_ad(arr->buf_end == 0);
 
 	arr->buf_end = used + size;
-#endif	
+#endif
 	return((block->data) + used);
 }
 
@@ -234,13 +236,13 @@ dyn_array_close(
 
 	ut_ad(arr);
 	ut_ad(arr->magic_n == DYN_BLOCK_MAGIC_N);
-	
+
 	block = dyn_array_get_last_block(arr);
 
 	ut_ad(arr->buf_end + block->data >= ptr);
 
 	block->used = ptr - block->data;
-	
+
 	ut_ad(block->used <= DYN_ARRAY_DATA_SIZE);
 
 #ifdef UNIV_DEBUG
@@ -256,7 +258,7 @@ dyn_array_get_element(
 /*==================*/
 				/* out: pointer to element */
 	dyn_array_t*	arr,	/* in: dyn array */
-	ulint		pos)	/* in: position of element as bytes 
+	ulint		pos)	/* in: position of element as bytes
 				from array start */
 {
 	dyn_block_t*	block;
@@ -267,7 +269,7 @@ dyn_array_get_element(
 
 	/* Get the first array block */
 	block = dyn_array_get_first_block(arr);
-	
+
 	if (arr->heap != NULL) {
 		used = dyn_block_get_used(block);
 
@@ -282,7 +284,7 @@ dyn_array_get_element(
 
 	ut_ad(block);
 	ut_ad(dyn_block_get_used(block) >= pos);
-	
+
 	return(block->data + pos);
 }
 
@@ -296,7 +298,7 @@ dyn_array_get_data_size(
 	dyn_array_t*	arr)	/* in: dyn array */
 {
 	dyn_block_t*	block;
-	ulint		sum 	= 0;
+	ulint		sum	= 0;
 
 	ut_ad(arr);
 	ut_ad(arr->magic_n == DYN_BLOCK_MAGIC_N);
@@ -305,7 +307,7 @@ dyn_array_get_data_size(
 
 		return(arr->used);
 	}
-	
+
 	/* Get the first array block */
 	block = dyn_array_get_first_block(arr);
 
@@ -334,10 +336,10 @@ dyn_push_string(
 			n_copied = DYN_ARRAY_DATA_SIZE;
 		} else {
 			n_copied = len;
-		}			
+		}
 
 		memcpy(dyn_array_push(arr, n_copied), str, n_copied);
-		
+
 		str += n_copied;
 		len -= n_copied;
 	}

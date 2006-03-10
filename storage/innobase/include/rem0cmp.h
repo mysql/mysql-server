@@ -24,15 +24,16 @@ cmp_types_are_equal(
 				/* out: TRUE if the types are considered
 				equal in comparisons */
 	dtype_t*	type1,	/* in: type 1 */
-	dtype_t*	type2);	/* in: type 2 */
+	dtype_t*	type2,	/* in: type 2 */
+	ibool		check_charsets); /* in: whether to check charsets */
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. */
 UNIV_INLINE
 int
 cmp_data_data(
-/*==========*/	
-				/* out: 1, 0, -1, if data1 is greater, equal, 
+/*==========*/
+				/* out: 1, 0, -1, if data1 is greater, equal,
 				less than data2, respectively */
 	dtype_t*	cur_type,/* in: data type of the fields */
 	byte*		data1,	/* in: data field (== a pointer to a memory
@@ -47,8 +48,8 @@ data type. */
 
 int
 cmp_data_data_slow(
-/*===============*/	
-				/* out: 1, 0, -1, if data1 is greater, equal, 
+/*===============*/
+				/* out: 1, 0, -1, if data1 is greater, equal,
 				less than data2, respectively */
 	dtype_t*	cur_type,/* in: data type of the fields */
 	byte*		data1,	/* in: data field (== a pointer to a memory
@@ -63,8 +64,8 @@ has its data type field set. */
 UNIV_INLINE
 int
 cmp_dfield_dfield(
-/*==============*/	
-				/* out: 1, 0, -1, if dfield1 is greater, equal, 
+/*==============*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
 				less than dfield2, respectively */
 	dfield_t*	dfield1,/* in: data field; must have type field set */
 	dfield_t*	dfield2);/* in: data field */
@@ -79,9 +80,9 @@ made. */
 
 int
 cmp_dtuple_rec_with_match(
-/*======================*/	
-				/* out: 1, 0, -1, if dtuple is greater, equal, 
-				less than rec, respectively, when only the 
+/*======================*/
+				/* out: 1, 0, -1, if dtuple is greater, equal,
+				less than rec, respectively, when only the
 				common first fields are compared, or
 				until the first externally stored field in
 				rec */
@@ -91,10 +92,10 @@ cmp_dtuple_rec_with_match(
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint*	 	matched_fields, /* in/out: number of already completely 
+	ulint*		matched_fields, /* in/out: number of already completely
 				matched fields; when function returns,
 				contains the value for current comparison */
-	ulint*	  	matched_bytes); /* in/out: number of already matched 
+	ulint*		matched_bytes); /* in/out: number of already matched
 				bytes within the first field not completely
 				matched; when function returns, contains the
 				value for current comparison */
@@ -104,10 +105,10 @@ Compares a data tuple to a physical record. */
 int
 cmp_dtuple_rec(
 /*===========*/
-				/* out: 1, 0, -1, if dtuple is greater, equal, 
+				/* out: 1, 0, -1, if dtuple is greater, equal,
 				less than rec, respectively; see the comments
 				for cmp_dtuple_rec_with_match */
-	dtuple_t* 	dtuple,	/* in: data tuple */
+	dtuple_t*	dtuple,	/* in: data tuple */
 	rec_t*		rec,	/* in: physical record */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /******************************************************************
@@ -128,7 +129,7 @@ encountered, then 0 is returned. */
 
 int
 cmp_rec_rec_with_match(
-/*===================*/	
+/*===================*/
 				/* out: 1, 0 , -1 if rec1 is greater, equal,
 				less, respectively, than rec2; only the common
 				first fields are compared */
@@ -137,11 +138,11 @@ cmp_rec_rec_with_match(
 	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
 	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
 	dict_index_t*	index,	/* in: data dictionary index */
-	ulint*	 	matched_fields, /* in/out: number of already completely 
+	ulint*		matched_fields, /* in/out: number of already completely
 				matched fields; when the function returns,
 				contains the value the for current
 				comparison */
-	ulint*	  	matched_bytes);/* in/out: number of already matched 
+	ulint*		matched_bytes);/* in/out: number of already matched
 				bytes within the first field not completely
 				matched; when the function returns, contains
 				the value for the current comparison */
@@ -151,7 +152,7 @@ first fields are compared. */
 UNIV_INLINE
 int
 cmp_rec_rec(
-/*========*/	
+/*========*/
 				/* out: 1, 0 , -1 if rec1 is greater, equal,
 				less, respectively, than rec2; only the common
 				first fields are compared */

@@ -11,11 +11,11 @@ Created 6/9/1994 Heikki Tuuri
 check fields whose sizes are given below */
 
 #ifdef UNIV_MEM_DEBUG
-#define MEM_FIELD_HEADER_SIZE   ut_calc_align(2 * sizeof(ulint),\
+#define MEM_FIELD_HEADER_SIZE	ut_calc_align(2 * sizeof(ulint),\
 						UNIV_MEM_ALIGNMENT)
-#define MEM_FIELD_TRAILER_SIZE  sizeof(ulint)
+#define MEM_FIELD_TRAILER_SIZE	sizeof(ulint)
 #else
-#define MEM_FIELD_HEADER_SIZE   0
+#define MEM_FIELD_HEADER_SIZE	0
 #endif
 
 
@@ -25,8 +25,7 @@ UNIV_MEM_ALIGNMENT. In the debug version there are also
 check fields at the both ends of the field. */
 #ifdef UNIV_MEM_DEBUG
 #define MEM_SPACE_NEEDED(N) ut_calc_align((N) + MEM_FIELD_HEADER_SIZE\
-			       	              + MEM_FIELD_TRAILER_SIZE,\
-				          UNIV_MEM_ALIGNMENT)
+		 + MEM_FIELD_TRAILER_SIZE, UNIV_MEM_ALIGNMENT)
 #else
 #define MEM_SPACE_NEEDED(N) ut_calc_align((N), UNIV_MEM_ALIGNMENT)
 #endif
@@ -41,23 +40,23 @@ of blocks. */
 void
 mem_heap_validate_or_print(
 /*=======================*/
-	mem_heap_t*   	heap, 	/* in: memory heap */
+	mem_heap_t*	heap,	/* in: memory heap */
 	byte*		top,	/* in: calculate and validate only until
 				this top pointer in the heap is reached,
 				if this pointer is NULL, ignored */
-	ibool            print,  /* in: if TRUE, prints the contents
+	ibool		 print,	 /* in: if TRUE, prints the contents
 				of the heap; works only in
 				the debug version */
-	ibool*           error,  /* out: TRUE if error */
-	ulint*          us_size,/* out: allocated memory 
+	ibool*		 error,	 /* out: TRUE if error */
+	ulint*		us_size,/* out: allocated memory
 				(for the user) in the heap,
 				if a NULL pointer is passed as this
 				argument, it is ignored; in the
 				non-debug version this is always -1 */
-	ulint*          ph_size,/* out: physical size of the heap,
+	ulint*		ph_size,/* out: physical size of the heap,
 				if a NULL pointer is passed as this
 				argument, it is ignored */
-	ulint*          n_blocks); /* out: number of blocks in the heap,
+	ulint*		n_blocks); /* out: number of blocks in the heap,
 				if a NULL pointer is passed as this
 				argument, it is ignored */
 #ifdef UNIV_MEM_DEBUG
@@ -115,7 +114,7 @@ the neighborhood of a given pointer. */
 void
 mem_analyze_corruption(
 /*===================*/
-	byte*	ptr);	/* in: pointer to place of possible corruption */
+	void*	ptr);	/* in: pointer to place of possible corruption */
 /*********************************************************************
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers. Can only be used in the debug version. */

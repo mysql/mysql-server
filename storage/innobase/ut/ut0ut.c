@@ -117,11 +117,11 @@ ut_print_timestamp(
 	FILE*  file) /* in: file where to print */
 {
 #ifdef __WIN__
-  	SYSTEMTIME cal_tm;
+	SYSTEMTIME cal_tm;
 
-  	GetLocalTime(&cal_tm);
+	GetLocalTime(&cal_tm);
 
-  	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
+	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
 	  (int)cal_tm.wYear % 100,
 	  (int)cal_tm.wMonth,
 	  (int)cal_tm.wDay,
@@ -130,18 +130,18 @@ ut_print_timestamp(
 	  (int)cal_tm.wSecond);
 #else
 	struct tm  cal_tm;
-  	struct tm* cal_tm_ptr;
-  	time_t     tm;
+	struct tm* cal_tm_ptr;
+	time_t	   tm;
 
-  	time(&tm);
+	time(&tm);
 
 #ifdef HAVE_LOCALTIME_R
-  	localtime_r(&tm, &cal_tm);
-  	cal_tm_ptr = &cal_tm;
+	localtime_r(&tm, &cal_tm);
+	cal_tm_ptr = &cal_tm;
 #else
-  	cal_tm_ptr = localtime(&tm);
+	cal_tm_ptr = localtime(&tm);
 #endif
-  	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
+	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
 	  cal_tm_ptr->tm_year % 100,
 	  cal_tm_ptr->tm_mon + 1,
 	  cal_tm_ptr->tm_mday,
@@ -160,11 +160,11 @@ ut_sprintf_timestamp(
 	char*	buf) /* in: buffer where to sprintf */
 {
 #ifdef __WIN__
-  	SYSTEMTIME cal_tm;
+	SYSTEMTIME cal_tm;
 
-  	GetLocalTime(&cal_tm);
+	GetLocalTime(&cal_tm);
 
-  	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
+	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
 	  (int)cal_tm.wYear % 100,
 	  (int)cal_tm.wMonth,
 	  (int)cal_tm.wDay,
@@ -173,18 +173,18 @@ ut_sprintf_timestamp(
 	  (int)cal_tm.wSecond);
 #else
 	struct tm  cal_tm;
-  	struct tm* cal_tm_ptr;
-  	time_t     tm;
+	struct tm* cal_tm_ptr;
+	time_t	   tm;
 
-  	time(&tm);
+	time(&tm);
 
 #ifdef HAVE_LOCALTIME_R
-  	localtime_r(&tm, &cal_tm);
-  	cal_tm_ptr = &cal_tm;
+	localtime_r(&tm, &cal_tm);
+	cal_tm_ptr = &cal_tm;
 #else
-  	cal_tm_ptr = localtime(&tm);
+	cal_tm_ptr = localtime(&tm);
 #endif
-  	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
+	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
 	  cal_tm_ptr->tm_year % 100,
 	  cal_tm_ptr->tm_mon + 1,
 	  cal_tm_ptr->tm_mday,
@@ -204,11 +204,11 @@ ut_sprintf_timestamp_without_extra_chars(
 	char*	buf) /* in: buffer where to sprintf */
 {
 #ifdef __WIN__
-  	SYSTEMTIME cal_tm;
+	SYSTEMTIME cal_tm;
 
-  	GetLocalTime(&cal_tm);
+	GetLocalTime(&cal_tm);
 
-  	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
+	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
 	  (int)cal_tm.wYear % 100,
 	  (int)cal_tm.wMonth,
 	  (int)cal_tm.wDay,
@@ -217,18 +217,18 @@ ut_sprintf_timestamp_without_extra_chars(
 	  (int)cal_tm.wSecond);
 #else
 	struct tm  cal_tm;
-  	struct tm* cal_tm_ptr;
-  	time_t     tm;
+	struct tm* cal_tm_ptr;
+	time_t	   tm;
 
-  	time(&tm);
+	time(&tm);
 
 #ifdef HAVE_LOCALTIME_R
-  	localtime_r(&tm, &cal_tm);
-  	cal_tm_ptr = &cal_tm;
+	localtime_r(&tm, &cal_tm);
+	cal_tm_ptr = &cal_tm;
 #else
-  	cal_tm_ptr = localtime(&tm);
+	cal_tm_ptr = localtime(&tm);
 #endif
-  	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
+	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
 	  cal_tm_ptr->tm_year % 100,
 	  cal_tm_ptr->tm_mon + 1,
 	  cal_tm_ptr->tm_mday,
@@ -249,29 +249,29 @@ ut_get_year_month_day(
 	ulint*	day)	/* out: day */
 {
 #ifdef __WIN__
-  	SYSTEMTIME cal_tm;
+	SYSTEMTIME cal_tm;
 
-  	GetLocalTime(&cal_tm);
+	GetLocalTime(&cal_tm);
 
-  	*year = (ulint)cal_tm.wYear;
-  	*month = (ulint)cal_tm.wMonth;
-  	*day = (ulint)cal_tm.wDay;
+	*year = (ulint)cal_tm.wYear;
+	*month = (ulint)cal_tm.wMonth;
+	*day = (ulint)cal_tm.wDay;
 #else
 	struct tm  cal_tm;
-  	struct tm* cal_tm_ptr;
-  	time_t     tm;
+	struct tm* cal_tm_ptr;
+	time_t	   tm;
 
-  	time(&tm);
+	time(&tm);
 
 #ifdef HAVE_LOCALTIME_R
-  	localtime_r(&tm, &cal_tm);
-  	cal_tm_ptr = &cal_tm;
+	localtime_r(&tm, &cal_tm);
+	cal_tm_ptr = &cal_tm;
 #else
-  	cal_tm_ptr = localtime(&tm);
+	cal_tm_ptr = localtime(&tm);
 #endif
-  	*year = (ulint)cal_tm_ptr->tm_year + 1900;
-  	*month = (ulint)cal_tm_ptr->tm_mon + 1;
-  	*day = (ulint)cal_tm_ptr->tm_mday;
+	*year = (ulint)cal_tm_ptr->tm_year + 1900;
+	*month = (ulint)cal_tm_ptr->tm_mon + 1;
+	*day = (ulint)cal_tm_ptr->tm_mday;
 #endif
 }
 
@@ -296,9 +296,9 @@ ut_delay(
 	if (ut_always_false) {
 		ut_always_false = (ibool) j;
 	}
-	
+
 	return(j);
-}	
+}
 
 /*****************************************************************
 Prints the contents of a memory buffer in hex and ascii. */
@@ -307,7 +307,7 @@ void
 ut_print_buf(
 /*=========*/
 	FILE*		file,	/* in: file where to print */
-	const byte*	buf,	/* in: memory buffer */
+	const void*	buf,	/* in: memory buffer */
 	ulint		len)	/* in: length of the buffer */
 {
 	const byte*	data;
@@ -315,13 +315,13 @@ ut_print_buf(
 
 	fprintf(file, " len %lu; hex ", len);
 
-	for (data = buf, i = 0; i < len; i++) {
+	for (data = (const byte*)buf, i = 0; i < len; i++) {
 		fprintf(file, "%02lx", (ulong)*data++);
 	}
 
 	fputs("; asc ", file);
 
-	data = buf;
+	data = (const byte*)buf;
 
 	for (i = 0; i < len; i++) {
 		int	c = (int) *data++;
@@ -408,7 +408,7 @@ Outputs a fixed-length string, quoted as an SQL identifier. */
 
 void
 ut_print_namel(
-/*==========*/
+/*===========*/
 	FILE*		f,	/* in: output stream */
 	trx_t*		trx,	/* in: transaction (NULL=no quotes) */
 	const char*	name,	/* in: name to print */

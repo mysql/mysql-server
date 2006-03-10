@@ -89,59 +89,58 @@ os_awe_enable_lock_pages_in_mem(void)
 	return(TRUE);
 
 #elif defined(__WIN2000__)
-  	struct {
-    	DWORD 			Count;
-    	LUID_AND_ATTRIBUTES 	Privilege[1];
-  	} 	Info;
+	struct {
+	DWORD			Count;
+	LUID_AND_ATTRIBUTES	Privilege[1];
+	}	Info;
 	HANDLE	hProcess;
-  	HANDLE	Token;
-  	BOOL 	Result;
+	HANDLE	Token;
+	BOOL	Result;
 
 	hProcess = GetCurrentProcess();
 
-  	/* Open the token of the current process */
+	/* Open the token of the current process */
 
-  	Result = OpenProcessToken(hProcess,
-                              TOKEN_ADJUST_PRIVILEGES,
-                              &Token);
-  	if (Result != TRUE) {
-    		fprintf(stderr,
+	Result = OpenProcessToken(hProcess,
+		TOKEN_ADJUST_PRIVILEGES, &Token);
+	if (Result != TRUE) {
+		fprintf(stderr,
 			"InnoDB: AWE: Cannot open process token, error %lu\n",
 			(ulint)GetLastError());
-    		return(FALSE);
-  	}
+		return(FALSE);
+	}
 
-  	Info.Count = 1;
+	Info.Count = 1;
 
-    	Info.Privilege[0].Attributes = SE_PRIVILEGE_ENABLED;
+	Info.Privilege[0].Attributes = SE_PRIVILEGE_ENABLED;
 
-  	/* Get the local unique identifier (LUID) of the SE_LOCK_MEMORY
+	/* Get the local unique identifier (LUID) of the SE_LOCK_MEMORY
 	privilege */
 
-  	Result = LookupPrivilegeValue(NULL, SE_LOCK_MEMORY_NAME,
-                                  &(Info.Privilege[0].Luid));
-  	if (Result != TRUE)  {
-    		fprintf(stderr,
+	Result = LookupPrivilegeValue(NULL, SE_LOCK_MEMORY_NAME,
+				  &(Info.Privilege[0].Luid));
+	if (Result != TRUE) {
+		fprintf(stderr,
 	"InnoDB: AWE: Cannot get local privilege value for %s, error %lu.\n",
 			SE_LOCK_MEMORY_NAME, (ulint)GetLastError());
 
-    		return(FALSE);
-  	}
+		return(FALSE);
+	}
 
-  	/* Try to adjust the privilege */
+	/* Try to adjust the privilege */
 
-  	Result = AdjustTokenPrivileges(Token, FALSE,
-                                   (PTOKEN_PRIVILEGES)&Info,
-                                   0, NULL, NULL);
-  	/* Check the result */
+	Result = AdjustTokenPrivileges(Token, FALSE,
+				   (PTOKEN_PRIVILEGES)&Info,
+				   0, NULL, NULL);
+	/* Check the result */
 
-  	if (Result != TRUE)  {
-    		fprintf(stderr,
+	if (Result != TRUE) {
+		fprintf(stderr,
 		"InnoDB: AWE: Cannot adjust process token privileges, error %u.\n",
 			GetLastError());
-    		return(FALSE);
-  	} else if (GetLastError() != ERROR_SUCCESS) {
-      		fprintf(stderr,
+		return(FALSE);
+	} else if (GetLastError() != ERROR_SUCCESS) {
+		fprintf(stderr,
 "InnoDB: AWE: Cannot enable SE_LOCK_MEMORY privilege, error %lu.\n"
 "InnoDB: In Windows XP Home you cannot use AWE. In Windows 2000 and XP\n"
 "InnoDB: Professional you must go to the Control Panel, to\n"
@@ -159,7 +158,7 @@ os_awe_enable_lock_pages_in_mem(void)
 #ifdef __WIN__
 	fprintf(stderr,
 "InnoDB: AWE: Error: to use AWE you must use a ...-nt MySQL executable.\n");
-#endif	
+#endif
 	return(FALSE);
 #endif
 }
@@ -193,14 +192,14 @@ os_awe_allocate_physical_mem(
 
 #elif defined(__WIN2000__)
 	BOOL		bResult;
-  	os_awe_t 	NumberOfPages;		/* Question: why does Windows
-  						use the name ULONG_PTR for
-  						a scalar integer type? Maybe
-  						because we may also refer to
-  						&NumberOfPages? */
-  	os_awe_t 	NumberOfPagesInitial;
-  	SYSTEM_INFO 	sSysInfo;
-  	int 		PFNArraySize;
+	os_awe_t	NumberOfPages;		/* Question: why does Windows
+						use the name ULONG_PTR for
+						a scalar integer type? Maybe
+						because we may also refer to
+						&NumberOfPages? */
+	os_awe_t	NumberOfPagesInitial;
+	SYSTEM_INFO	sSysInfo;
+	int		PFNArraySize;
 
 	if (n_megabytes > 64 * 1024) {
 
@@ -211,9 +210,9 @@ os_awe_allocate_physical_mem(
 		return(FALSE);
 	}
 
-  	GetSystemInfo(&sSysInfo);  /* fill the system information structure */
+	GetSystemInfo(&sSysInfo);  /* fill the system information structure */
 
-  	if ((ulint)OS_AWE_X86_PAGE_SIZE != (ulint)sSysInfo.dwPageSize) {
+	if ((ulint)OS_AWE_X86_PAGE_SIZE != (ulint)sSysInfo.dwPageSize) {
 		fprintf(stderr,
 "InnoDB: AWE: Error: this computer has a page size of %lu.\n"
 "InnoDB: Should be 4096 bytes for InnoDB AWE support to work.\n",
@@ -222,36 +221,36 @@ os_awe_allocate_physical_mem(
 		return(FALSE);
 	}
 
-  	/* Calculate the number of pages of memory to request */
+	/* Calculate the number of pages of memory to request */
 
-  	NumberOfPages = n_megabytes * ((1024 * 1024) / OS_AWE_X86_PAGE_SIZE);
- 
- 	/* Calculate the size of page_info for allocated physical pages */
+	NumberOfPages = n_megabytes * ((1024 * 1024) / OS_AWE_X86_PAGE_SIZE);
 
-  	PFNArraySize = NumberOfPages * sizeof(os_awe_t);
+	/* Calculate the size of page_info for allocated physical pages */
 
-   	*page_info = (os_awe_t*)HeapAlloc(GetProcessHeap(), 0, PFNArraySize);
+	PFNArraySize = NumberOfPages * sizeof(os_awe_t);
+
+	*page_info = (os_awe_t*)HeapAlloc(GetProcessHeap(), 0, PFNArraySize);
 
 	if (*page_info == NULL) {
-    		fprintf(stderr,
+		fprintf(stderr,
 "InnoDB: AWE: Failed to allocate page info array from process heap, error %lu\n",
 			(ulint)GetLastError());
 
-    		return(FALSE);
-  	}
+		return(FALSE);
+	}
 
 	ut_total_allocated_memory += PFNArraySize;
 
-  	/* Enable this process' privilege to lock pages to physical memory */
+	/* Enable this process' privilege to lock pages to physical memory */
 
 	if (!os_awe_enable_lock_pages_in_mem()) {
 
 		return(FALSE);
 	}
 
-  	/* Allocate the physical memory */
+	/* Allocate the physical memory */
 
-  	NumberOfPagesInitial = NumberOfPages;
+	NumberOfPagesInitial = NumberOfPages;
 
 	os_awe_page_info = *page_info;
 	os_awe_n_pages = (ulint)NumberOfPages;
@@ -259,19 +258,18 @@ os_awe_allocate_physical_mem(
 	/* Compilation note: if the compiler complains the function is not
 	defined, see the note at the start of this file */
 
- 	bResult = AllocateUserPhysicalPages(GetCurrentProcess(),
-                                       &NumberOfPages,
-                                       *page_info);
-  	if (bResult != TRUE) {
-    		fprintf(stderr,
+	bResult = AllocateUserPhysicalPages(GetCurrentProcess(),
+		&NumberOfPages, *page_info);
+	if (bResult != TRUE) {
+		fprintf(stderr,
 "InnoDB: AWE: Cannot allocate physical pages, error %lu.\n",
 			(ulint)GetLastError());
 
-    		return(FALSE);
-  	}
+		return(FALSE);
+	}
 
-  	if (NumberOfPagesInitial != NumberOfPages) {
-    		fprintf(stderr,
+	if (NumberOfPagesInitial != NumberOfPages) {
+		fprintf(stderr,
 "InnoDB: AWE: Error: allocated only %lu pages of %lu requested.\n"
 "InnoDB: Check that you have enough free RAM.\n"
 "InnoDB: In Windows XP Professional and 2000 Professional\n"
@@ -283,18 +281,18 @@ os_awe_allocate_physical_mem(
 			(ulint)NumberOfPages,
 			(ulint)NumberOfPagesInitial);
 
-    		return(FALSE);
-  	}
+		return(FALSE);
+	}
 
 	fprintf(stderr,
 "InnoDB: Using Address Windowing Extensions (AWE); allocated %lu MB\n",
 		n_megabytes);
 
-	return(TRUE);	
+	return(TRUE);
 #else
 	UT_NOT_USED(n_megabytes);
 	UT_NOT_USED(page_info);
-	
+
 	return(FALSE);
 #endif
 }
@@ -324,7 +322,7 @@ os_awe_allocate_virtual_mem_window(
 	}
 
 	return(os_awe_simulate_window);
-	
+
 #elif defined(__WIN2000__)
 	byte*	ptr;
 
@@ -334,7 +332,7 @@ os_awe_allocate_virtual_mem_window(
 
 		return(NULL);
 	}
-	
+
 	ptr = VirtualAlloc(NULL, (SIZE_T)size, MEM_RESERVE | MEM_PHYSICAL,
 							PAGE_READWRITE);
 	if (ptr == NULL) {
@@ -353,7 +351,7 @@ os_awe_allocate_virtual_mem_window(
 	return(ptr);
 #else
 	UT_NOT_USED(size);
-	
+
 	return(NULL);
 #endif
 }
@@ -393,7 +391,7 @@ os_awe_map_physical_mem_to_window(
 	ut_a(ptr < os_awe_simulate_window + os_awe_simulate_window_size);
 	ut_a(page_info >= os_awe_simulate_page_info);
 	ut_a(page_info < os_awe_simulate_page_info +
-			 		(os_awe_simulate_mem_size / 4096));
+					(os_awe_simulate_mem_size / 4096));
 
 	/* First look if some other 'physical pages' are mapped at ptr,
 	and copy them back to where they were if yes */
@@ -401,7 +399,7 @@ os_awe_map_physical_mem_to_window(
 	map = os_awe_simulate_map
 			+ ((ulint)(ptr - os_awe_simulate_window)) / 4096;
 	page = ptr;
-		
+
 	for (i = 0; i < n_mem_pages; i++) {
 		if (*map != NULL) {
 			ut_memcpy(*map, page, 4096);
@@ -432,13 +430,13 @@ os_awe_map_physical_mem_to_window(
 	}
 
 	return(TRUE);
-	
+
 #elif defined(__WIN2000__)
 	BOOL		bResult;
 	os_awe_t	n_pages;
 
 	n_pages = (os_awe_t)n_mem_pages;
-	
+
 	if (!(ptr >= os_awe_window)) {
 		fprintf(stderr,
 "InnoDB: AWE: Error: trying to map to address %lx but AWE window start %lx\n",
@@ -487,7 +485,7 @@ os_awe_map_physical_mem_to_window(
 
 	return(FALSE);
 #endif
-}	
+}
 
 /********************************************************************
 Converts the current process id to a number. It is not guaranteed that the
@@ -518,7 +516,7 @@ os_mem_alloc_nocache(
 #ifdef __WIN__
 	void*	ptr;
 
-      	ptr = VirtualAlloc(NULL, n, MEM_COMMIT,
+	ptr = VirtualAlloc(NULL, n, MEM_COMMIT,
 					PAGE_READWRITE | PAGE_NOCACHE);
 	ut_a(ptr);
 
@@ -533,60 +531,60 @@ Allocates large pages memory. */
 
 void*
 os_mem_alloc_large(
-/*=================*/
-      /* out: allocated memory */
-  ulint	n, /* in: number of bytes */
-	ibool set_to_zero, /* in: TRUE if allocated memory should be set
-        to zero if UNIV_SET_MEM_TO_ZERO is defined */
-	ibool	assert_on_error) /* in: if TRUE, we crash mysqld if the memory
-				cannot be allocated */
+/*===============*/
+					/* out: allocated memory */
+	ulint		n,		/* in: number of bytes */
+	ibool		set_to_zero,	/* in: TRUE if allocated memory
+					should be set to zero if
+					UNIV_SET_MEM_TO_ZERO is defined */
+	ibool		assert_on_error)/* in: if TRUE, we crash mysqld if
+					 the memory cannot be allocated */
 {
 #ifdef HAVE_LARGE_PAGES
   ulint size;
   int shmid;
   void *ptr = NULL;
   struct shmid_ds buf;
-  
+
   if (!os_use_large_pages || !os_large_page_size) {
-    goto skip;
+	  goto skip;
   }
 
 #ifdef UNIV_LINUX
   /* Align block size to os_large_page_size */
   size = ((n - 1) & ~(os_large_page_size - 1)) + os_large_page_size;
-  
+
   shmid = shmget(IPC_PRIVATE, (size_t)size, SHM_HUGETLB | SHM_R | SHM_W);
   if (shmid < 0) {
-    fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to allocate %lu bytes. "
-            "errno %d\n", n, errno);
+	  fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to allocate"
+		  " %lu bytes. errno %d\n", n, errno);
   } else {
-    ptr = shmat(shmid, NULL, 0);
-    if (ptr == (void *)-1) {
-      fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to attach shared memory "
-              "segment, errno %d\n", errno);
-    }
-    /*
-      Remove the shared memory segment so that it will be automatically freed
-      after memory is detached or process exits
-    */
-    shmctl(shmid, IPC_RMID, &buf);
+	  ptr = shmat(shmid, NULL, 0);
+	  if (ptr == (void *)-1) {
+		  fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to"
+			  " attach shared memory segment, errno %d\n", errno);
+	  }
+
+	  /* Remove the shared memory segment so that it will be
+	  automatically freed after memory is detached or process exits */
+	  shmctl(shmid, IPC_RMID, &buf);
   }
 #endif
-  
-  if (ptr) {
-    if (set_to_zero) {
-#ifdef UNIV_SET_MEM_TO_ZERO
-      memset(ptr, '\0', size);
-#endif
-    }
 
-    return(ptr);
+  if (ptr) {
+	  if (set_to_zero) {
+#ifdef UNIV_SET_MEM_TO_ZERO
+		  memset(ptr, '\0', size);
+#endif
+	  }
+
+	  return(ptr);
   }
 
   fprintf(stderr, "InnoDB HugeTLB: Warning: Using conventional memory pool\n");
 skip:
 #endif /* HAVE_LARGE_PAGES */
-  
+
 	return(ut_malloc_low(n, set_to_zero, assert_on_error));
 }
 
@@ -595,16 +593,16 @@ Frees large pages memory. */
 
 void
 os_mem_free_large(
-/*=================*/
+/*==============*/
 	void	*ptr)	/* in: number of bytes */
 {
 #ifdef HAVE_LARGE_PAGES
   if (os_use_large_pages && os_large_page_size
 #ifdef UNIV_LINUX
-      && !shmdt(ptr)
+	  && !shmdt(ptr)
 #endif
-      ) {
-    return;
+  ) {
+	  return;
   }
 #endif
 
@@ -630,7 +628,9 @@ os_process_set_priority_boost(
 		no_boost = TRUE;
 	}
 
-	ut_a(TRUE == 1);
+#if TRUE != 1
+# error "TRUE != 1"
+#endif
 
 /* Does not do anything currently!
 	SetProcessPriorityBoost(GetCurrentProcess(), no_boost);
