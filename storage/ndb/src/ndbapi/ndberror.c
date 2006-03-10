@@ -413,6 +413,7 @@ ErrorBundle ErrorCodes[] = {
   { 1511, DMEC, IE, "Out of memory" },
   { 1512, DMEC, SE, "File read error" },
   { 1513, DMEC, IE, "Filegroup not online" },
+  { 1514, DMEC, SE, "Currently there is a limit of one logfile group" },
   
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   
