@@ -30,28 +30,10 @@ void	vio_ignore_timeout(Vio *vio, uint which, uint timeout);
 
 int	vio_ssl_read(Vio *vio,gptr buf,	int size);
 int	vio_ssl_write(Vio *vio,const gptr buf,int size);
-void	vio_ssl_timeout(Vio *vio, uint which, uint timeout);
 
-/* setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible. */
-int vio_ssl_fastsend(Vio *vio);
-/* setsockopt SO_KEEPALIVE at SOL_SOCKET level, when possible. */
-int vio_ssl_keepalive(Vio *vio, my_bool onoff);
-/* Whenever we should retry the last read/write operation. */
-my_bool vio_ssl_should_retry(Vio *vio);
-/* Check that operation was timed out */
-my_bool	vio_ssl_was_interrupted(Vio *vio);
 /* When the workday is over... */
 int vio_ssl_close(Vio *vio);
-/* Return last error number */
-int vio_ssl_errno(Vio *vio);
-my_bool vio_ssl_peer_addr(Vio *vio, char *buf, uint16 *port);
-void vio_ssl_in_addr(Vio *vio, struct in_addr *in);
+
 int vio_ssl_blocking(Vio *vio, my_bool set_blocking_mode, my_bool *old_mode);
 
-/* Single copy for server */
-enum vio_ssl_acceptorfd_state
-{
-  state_connect       = 1,
-  state_accept        = 2
-};
 #endif /* HAVE_OPENSSL */
