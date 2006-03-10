@@ -1117,7 +1117,7 @@ NdbEventBuffer::nextEvent()
     m_available_data.remove_first();
 
     // add it to used list
-    m_used_data.append(data);
+    m_used_data.append_used_data(data);
 
 #ifdef VM_TRACE
     op->m_data_done_count++;
@@ -1144,6 +1144,10 @@ NdbEventBuffer::nextEvent()
           (void)tBlob->atNextEvent();
           tBlob = tBlob->theNext;
         }
+        EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
+        while (gci_ops && op->getGCI() > gci_ops->m_gci)
+          gci_ops = m_available_data.next_gci_ops();
+        assert(gci_ops && (op->getGCI() == gci_ops->m_gci));
 	DBUG_RETURN_EVENT(op->m_facade);
       }
       // the next event belonged to an event op that is no
@@ -1158,15 +1162,21 @@ NdbEventBuffer::nextEvent()
 #ifdef VM_TRACE
   m_latest_command= m_latest_command_save;
 #endif
+
+  // free all "per gci unique" collected operations
+  EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
+  while (gci_ops)
+    gci_ops = m_available_data.next_gci_ops();
   DBUG_RETURN_EVENT(0);
 }
 
 NdbEventOperationImpl*
 NdbEventBuffer::getGCIEventOperations(Uint32* iter, Uint32* event_types)
 {
-  if (*iter < m_available_data.m_gci_op_count)
+  EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
+  if (*iter < gci_ops->m_gci_op_count)
   {
-    EventBufData_list::Gci_op g = m_available_data.m_gci_op_list[(*iter)++];
+    EventBufData_list::Gci_op g = gci_ops->m_gci_op_list[(*iter)++];
     if (event_types != NULL)
       *event_types = g.event_types;
     return g.op;
@@ -1318,7 +1328,7 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
 #ifdef VM_TRACE
 	assert(bucket->m_data.m_count);
 #endif
-	m_complete_data.m_data.append(bucket->m_data);
+	m_complete_data.m_data.append_list(&bucket->m_data, gci);
       }
       reportStatus();
       bzero(bucket, sizeof(Gci_container));
@@ -1389,7 +1399,7 @@ NdbEventBuffer::complete_outof_order_gcis()
 #ifdef VM_TRACE
       assert(bucket->m_data.m_count);
 #endif
-      m_complete_data.m_data.append(bucket->m_data);
+      m_complete_data.m_data.append_list(&bucket->m_data, start_gci);
 #ifdef VM_TRACE
       ndbout_c(" moved %lld rows -> %lld", bucket->m_data.m_count,
 	       m_complete_data.m_data.m_count);
@@ -1599,7 +1609,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       data->m_event_op = op;
       if (! is_blob_event || ! is_data_event)
       {
-        bucket->m_data.append(data);
+        bucket->m_data.append_data(data);
       }
       else
       {
@@ -1615,7 +1625,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         if (ret != 0) // main event was created
         {
           main_data->m_event_op = op->theMainOp;
-          bucket->m_data.append(main_data);
+          bucket->m_data.append_data(main_data);
           if (use_hash)
           {
             main_data->m_pkhash = main_hpos.pkhash;
@@ -2097,7 +2107,7 @@ NdbEventBuffer::move_data()
   if (!m_complete_data.m_data.is_empty())
   {
     // move this list to last in m_available_data
-    m_available_data.append(m_complete_data.m_data);
+    m_available_data.append_list(&m_complete_data.m_data, 0);
 
     bzero(&m_complete_data, sizeof(m_complete_data));
   }
@@ -2160,6 +2170,19 @@ NdbEventBuffer::free_list(EventBufData_list &list)
   list.m_count = list.m_sz = 0;
 }
 
+void EventBufData_list::append_list(EventBufData_list *list, Uint64 gci)
+{
+  move_gci_ops(list, gci);
+
+  if (m_tail)
+    m_tail->m_next= list->m_head;
+  else
+    m_head= list->m_head;
+  m_tail= list->m_tail;
+  m_count+= list->m_count;
+  m_sz+= list->m_sz;
+}
+
 void
 EventBufData_list::add_gci_op(Gci_op g)
 {
@@ -2186,6 +2209,44 @@ EventBufData_list::add_gci_op(Gci_op g)
     assert(m_gci_op_count < m_gci_op_alloc);
     m_gci_op_list[m_gci_op_count++] = g;
   }
+}
+
+void
+EventBufData_list::move_gci_ops(EventBufData_list *list, Uint64 gci)
+{
+  assert(!m_is_not_multi_list);
+  if (!list->m_is_not_multi_list)
+  {
+    assert(gci == 0);
+    if (m_gci_ops_list_tail)
+      m_gci_ops_list_tail->m_next = list->m_gci_ops_list;
+    else
+    {
+      m_gci_ops_list =  list->m_gci_ops_list;
+    }
+    m_gci_ops_list_tail = list->m_gci_ops_list_tail;
+    goto end;
+  }
+  {
+    Gci_ops *new_gci_ops = new Gci_ops;
+    if (m_gci_ops_list_tail)
+      m_gci_ops_list_tail->m_next = new_gci_ops;
+    else
+    {
+      assert(m_gci_ops_list == 0);
+      m_gci_ops_list = new_gci_ops;
+    }
+    m_gci_ops_list_tail = new_gci_ops;
+    
+    new_gci_ops->m_gci_op_list = list->m_gci_op_list;
+    new_gci_ops->m_gci_op_count = list->m_gci_op_count;
+    new_gci_ops->m_gci = gci;
+    new_gci_ops->m_next = 0;
+  }
+end:
+  list->m_gci_op_list = 0;
+  list->m_gci_ops_list_tail = 0;
+  list->m_gci_op_alloc = 0;
 }
 
 NdbEventOperation*
