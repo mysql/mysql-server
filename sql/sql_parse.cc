@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#define MYSQL_LEX 1
 #include "mysql_priv.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
@@ -4281,6 +4282,90 @@ end_with_restore_list:
 #endif
 
     /*
+      If the definer is not specified, this means that CREATE-statement missed
+      DEFINER-clause. DEFINER-clause can be missed in two cases:
+      
+        - The user submitted a statement w/o the clause. This is a normal
+          case, we should assign CURRENT_USER as definer.
+
+        - Our slave received an updated from the master, that does not
+          replicate definer for stored rountines. We should also assign
+          CURRENT_USER as definer here, but also we should mark this routine
+          as NON-SUID. This is essential for the sake of backward
+          compatibility.
+          
+          The problem is the slave thread is running under "special" user (@),
+          that actually does not exist. In the older versions we do not fail
+          execution of a stored routine if its definer does not exist and
+          continue the execution under the authorization of the invoker
+          (BUG#13198). And now if we try to switch to slave-current-user (@),
+          we will fail.
+
+          Actually, this leads to the inconsistent state of master and
+          slave (different definers, different SUID behaviour), but it seems,
+          this is the best we can do.
+    */
+
+    if (!lex->definer)
+    {
+      bool res= FALSE;
+      Query_arena original_arena;
+      Query_arena *ps_arena = thd->activate_stmt_arena_if_needed(&original_arena);
+
+      if (!(lex->definer= create_default_definer(thd)))
+        res= TRUE;
+
+      if (ps_arena)
+        thd->restore_active_arena(ps_arena, &original_arena);
+
+      if (res)
+      {
+        /* Error has been already reported. */
+        delete lex->sphead;
+        lex->sphead= 0;
+        goto error;
+      }
+
+      if (thd->slave_thread)
+        lex->sphead->m_chistics->suid= SP_IS_NOT_SUID;
+    }
+
+    /*
+      If the specified definer differs from the current user, we should check
+      that the current user has SUPER privilege (in order to create a stored
+      routine under another user one must have SUPER privilege).
+    */
+    
+    else if (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) ||
+        my_strcasecmp(system_charset_info,
+                      lex->definer->host.str,
+                      thd->security_ctx->priv_host))
+    {
+      if (check_global_access(thd, SUPER_ACL))
+      {
+        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+        delete lex->sphead;
+        lex->sphead= 0;
+        goto error;
+      }
+    }
+
+    /* Check that the specified definer exists. Emit a warning if not. */
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    if (!is_acl_user(lex->definer->host.str,
+                     lex->definer->user.str))
+    {
+      push_warning_printf(thd,
+                          MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_NO_SUCH_USER,
+                          ER(ER_NO_SUCH_USER),
+                          lex->definer->user.str,
+                          lex->definer->host.str);
+    }
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
+    /*
       We need to copy name and db in order to use them for
       check_routine_access which is called after lex->sphead has
       been deleted.
@@ -4294,7 +4379,7 @@ end_with_restore_list:
       /*
         We must cleanup the unit and the lex here because
         sp_grant_privileges calls (indirectly) db_find_routine,
-        which in turn may call yyparse with THD::lex.
+        which in turn may call MYSQLparse with THD::lex.
         TODO: fix db_find_routine to use a temporary lex.
       */
       lex->unit.cleanup();
@@ -5733,7 +5818,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
     
-    if (!yyparse((void *)thd) && ! thd->is_fatal_error)
+    if (!MYSQLparse((void *)thd) && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->user_connect &&
@@ -5825,7 +5910,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   DBUG_ENTER("mysql_test_parse_for_slave");
 
   mysql_init_query(thd, (uchar*) inBuf, length);
-  if (!yyparse((void*) thd) && ! thd->is_fatal_error &&
+  if (!MYSQLparse((void*) thd) && ! thd->is_fatal_error &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */
   thd->end_statement();
@@ -7344,47 +7429,54 @@ Item *negate_expression(THD *thd, Item *expr)
 
 /*
   Set the specified definer to the default value, which is the current user in
-  the thread. Also check that the current user satisfies to the definers
-  requirements.
+  the thread.
  
   SYNOPSIS
     get_default_definer()
     thd       [in] thread handler
     definer   [out] definer
- 
-  RETURN
-    error status, that is:
-      - FALSE -- on success;
-      - TRUE -- on error (current user can not be a definer).
 */
  
-bool get_default_definer(THD *thd, LEX_USER *definer)
+void get_default_definer(THD *thd, LEX_USER *definer)
 {
-  /* Check that current user has non-empty host name. */
-
   const Security_context *sctx= thd->security_ctx;
-
-  if (sctx->priv_host[0] == 0)
-  {
-    my_error(ER_MALFORMED_DEFINER, MYF(0));
-    return TRUE;
-  }
-
-  /* Fill in. */
 
   definer->user.str= (char *) sctx->priv_user;
   definer->user.length= strlen(definer->user.str);
 
   definer->host.str= (char *) sctx->priv_host;
   definer->host.length= strlen(definer->host.str);
-
-  return FALSE;
 }
 
 
 /*
-  Create definer with the given user and host names. Also check that the user
-  and host names satisfy definers requirements.
+  Create default definer for the specified THD.
+
+  SYNOPSIS
+    create_default_definer()
+    thd         [in] thread handler
+
+  RETURN
+    On success, return a valid pointer to the created and initialized
+    LEX_USER, which contains definer information.
+    On error, return 0.
+*/
+
+LEX_USER *create_default_definer(THD *thd)
+{
+  LEX_USER *definer;
+
+  if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
+    return 0;
+
+  get_default_definer(thd, definer);
+
+  return definer;
+}
+
+
+/*
+  Create definer with the given user and host names.
 
   SYNOPSIS
     create_definer()
@@ -7394,21 +7486,13 @@ bool get_default_definer(THD *thd, LEX_USER *definer)
 
   RETURN
     On success, return a valid pointer to the created and initialized
-    LEX_STRING, which contains definer information.
+    LEX_USER, which contains definer information.
     On error, return 0.
 */
 
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 {
   LEX_USER *definer;
-
-  /* Check that specified host name is valid. */
-
-  if (host_name->length == 0)
-  {
-    my_error(ER_MALFORMED_DEFINER, MYF(0));
-    return 0;
-  }
 
   /* Create and initialize. */
 
