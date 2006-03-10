@@ -78,7 +78,7 @@ int
 ut_dulint_cmp(
 /*==========*/
 			/* out: -1 if a < b, 0 if a == b,
-			1 if a > b */ 
+			1 if a > b */
 	dulint	a,	/* in: dulint */
 	dulint	b);	/* in: dulint */
 /***********************************************************
@@ -135,8 +135,8 @@ dulint
 ut_dulint_align_down(
 /*=================*/
 				/* out: rounded value */
-	dulint   n,        	/* in: number to be rounded */
-	ulint    align_no);  	/* in: align by this number which must be a
+	dulint	 n,		/* in: number to be rounded */
+	ulint	 align_no);	/* in: align by this number which must be a
 				power of 2 */
 /************************************************************
 Rounds a dulint upward to a multiple of a power of 2. */
@@ -145,8 +145,8 @@ dulint
 ut_dulint_align_up(
 /*===============*/
 				/* out: rounded value */
-	dulint   n,        	/* in: number to be rounded */
-	ulint    align_no);  	/* in: align by this number which must be a
+	dulint	 n,		/* in: number to be rounded */
+	ulint	 align_no);	/* in: align by this number which must be a
 				power of 2 */
 /***********************************************************
 Increments a dulint variable by 1. */
@@ -177,8 +177,8 @@ ulint
 ut_calc_align(
 /*==========*/
 				/* out: rounded value */
-	ulint    n,             /* in: number to be rounded */
-	ulint    align_no);     /* in: align by this number */
+	ulint	 n,		/* in: number to be rounded */
+	ulint	 align_no);	/* in: align by this number */
 /************************************************************
 The following function calculates the value of an integer n rounded
 to the biggest product of align_no which is <= n. align_no has to be a
@@ -188,8 +188,8 @@ ulint
 ut_calc_align_down(
 /*===============*/
 				/* out: rounded value */
-	ulint    n,          	/* in: number to be rounded */
-	ulint    align_no);	/* in: align by this number */
+	ulint	 n,		/* in: number to be rounded */
+	ulint	 align_no);	/* in: align by this number */
 /*************************************************************
 The following function rounds up a pointer to the nearest aligned address. */
 UNIV_INLINE
@@ -197,8 +197,8 @@ void*
 ut_align(
 /*=====*/
 				/* out: aligned pointer */
-	void*   ptr,            /* in: pointer */
-	ulint   align_no);     	/* in: align by this number */
+	void*	ptr,		/* in: pointer */
+	ulint	align_no);	/* in: align by this number */
 /*************************************************************
 The following function rounds down a pointer to the nearest
 aligned address. */
@@ -207,8 +207,8 @@ void*
 ut_align_down(
 /*==========*/
 				/* out: aligned pointer */
-	void*   ptr,            /* in: pointer */
-	ulint   align_no)      /* in: align by this number */
+	void*	ptr,		/* in: pointer */
+	ulint	align_no)	/* in: align by this number */
 		__attribute__((const));
 /*************************************************************
 The following function computes the offset of a pointer from the nearest
@@ -216,7 +216,7 @@ aligned address. */
 UNIV_INLINE
 ulint
 ut_align_offset(
-/*==========*/
+/*============*/
 					/* out: distance from aligned
 					pointer */
 	const void*	ptr,		/* in: pointer */

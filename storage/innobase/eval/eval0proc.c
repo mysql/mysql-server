@@ -25,7 +25,7 @@ if_step(
 	elsif_node_t*	elsif_node;
 
 	ut_ad(thr);
-	
+
 	node = thr->run_node;
 	ut_ad(que_node_get_type(node) == QUE_NODE_IF);
 
@@ -83,9 +83,9 @@ if_step(
 	if (thr->run_node == NULL) {
 		thr->run_node = que_node_get_parent(node);
 	}
-	
+
 	return(thr);
-} 
+}
 
 /**************************************************************************
 Performs an execution step of a while-statement node. */
@@ -99,7 +99,7 @@ while_step(
 	while_node_t*	node;
 
 	ut_ad(thr);
-	
+
 	node = thr->run_node;
 	ut_ad(que_node_get_type(node) == QUE_NODE_WHILE);
 
@@ -121,7 +121,7 @@ while_step(
 	}
 
 	return(thr);
-} 
+}
 
 /**************************************************************************
 Performs an execution step of an assignment statement node. */
@@ -135,7 +135,7 @@ assign_step(
 	assign_node_t*	node;
 
 	ut_ad(thr);
-	
+
 	node = thr->run_node;
 	ut_ad(que_node_get_type(node) == QUE_NODE_ASSIGNMENT);
 
@@ -144,11 +144,11 @@ assign_step(
 	eval_exp(node->val);
 
 	eval_node_copy_val(node->var->alias, node->val);
-	
+
 	thr->run_node = que_node_get_parent(node);
 
 	return(thr);
-} 
+}
 
 /**************************************************************************
 Performs an execution step of a for-loop node. */
@@ -164,9 +164,9 @@ for_step(
 	lint		loop_var_value;
 
 	ut_ad(thr);
-	
+
 	node = thr->run_node;
-	
+
 	ut_ad(que_node_get_type(node) == QUE_NODE_FOR);
 
 	parent = que_node_get_parent(node);
@@ -182,7 +182,7 @@ for_step(
 		}
 
 		/* Increment the value of loop_var */
-		
+
 		loop_var_value = 1 + eval_node_get_int_val(node->loop_var);
 	} else {
 		/* Initialize the loop */
@@ -210,7 +210,7 @@ for_step(
 	}
 
 	return(thr);
-} 
+}
 
 /**************************************************************************
 Performs an execution step of a return-statement node. */
@@ -225,9 +225,9 @@ return_step(
 	que_node_t*	parent;
 
 	ut_ad(thr);
-	
+
 	node = thr->run_node;
-	
+
 	ut_ad(que_node_get_type(node) == QUE_NODE_RETURN);
 
 	parent = node;

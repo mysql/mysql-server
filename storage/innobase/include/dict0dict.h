@@ -26,6 +26,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "trx0types.h"
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 
@@ -33,6 +34,7 @@ void
 dict_casedn_str(
 /*============*/
 	char*	a);	/* in/out: string to put in lower case */
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Get the database name length in a table name. */
 
@@ -197,7 +199,8 @@ dict_foreign_add_to_cache(
 /*======================*/
 					/* out: DB_SUCCESS or error code */
 	dict_foreign_t*	foreign,	/* in, own: foreign key constraint */
-	ibool		check_types);	/* in: TRUE=check type compatibility */
+	ibool		check_charsets);/* in: TRUE=check charset
+					compatibility */
 /*************************************************************************
 Checks if a table is referenced by foreign keys. */
 
@@ -305,7 +308,7 @@ Checks if a table is in the dictionary cache. */
 UNIV_INLINE
 dict_table_t*
 dict_table_check_if_in_cache_low(
-/*==============================*/
+/*=============================*/
 					/* out: table, NULL if not found */
 	const char*	table_name);	/* in: table name */
 /**************************************************************************
@@ -484,6 +487,15 @@ dict_table_get_sys_col_no(
 	dict_table_t*	table,	/* in: table */
 	ulint		sys);	/* in: DATA_ROW_ID, ... */
 /************************************************************************
+Check whether the table uses the compact page format. */
+UNIV_INLINE
+ibool
+dict_table_is_comp(
+/*===============*/
+					/* out: TRUE if table uses the
+					compact page format */
+	const dict_table_t*	table);	/* in: table */
+/************************************************************************
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns. */
 
@@ -659,7 +671,6 @@ dict_index_add_col(
 /*===============*/
 	dict_index_t*	index,		/* in: index */
 	dict_col_t*	col,		/* in: column */
-	ulint		order,		/* in: order criterion */
 	ulint		prefix_len);	/* in: column prefix length */
 /***********************************************************************
 Copies types of fields contained in index to tuple. */
@@ -678,13 +689,6 @@ dict_index_get_tree(
 /*================*/
 				/* out: index tree */
 	dict_index_t*	index);	/* in: index */
-/*************************************************************************
-Gets the field order criterion. */
-UNIV_INLINE
-ulint
-dict_field_get_order(
-/*=================*/
-	dict_field_t*	field);
 /*************************************************************************
 Gets the field column. */
 UNIV_INLINE
@@ -770,7 +774,7 @@ dict_tree_build_node_ptr(
 				pointer */
 	ulint		page_no,/* in: page number to put in node pointer */
 	mem_heap_t*	heap,	/* in: memory heap where pointer created */
-	ulint           level);  /* in: level of rec in tree: 0 means leaf
+	ulint		level);	 /* in: level of rec in tree: 0 means leaf
 				level */
 /**************************************************************************
 Copies an initial segment of a physical record, long enough to specify an
@@ -872,7 +876,7 @@ dict_update_statistics_low(
 /*=======================*/
 	dict_table_t*	table,		/* in: table */
 	ibool		has_dict_mutex);/* in: TRUE if the caller has the
-					dictionary mutex */	
+					dictionary mutex */
 /*************************************************************************
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
@@ -940,13 +944,13 @@ struct dict_sys_struct{
 					header and flushed to a file; in
 					recovery this must be derived from
 					the log records */
-	hash_table_t* 	table_hash;	/* hash table of the tables, based
+	hash_table_t*	table_hash;	/* hash table of the tables, based
 					on name */
-	hash_table_t* 	table_id_hash;	/* hash table of the tables, based
+	hash_table_t*	table_id_hash;	/* hash table of the tables, based
 					on id */
-	hash_table_t* 	col_hash;	/* hash table of the columns */
+	hash_table_t*	col_hash;	/* hash table of the columns */
 	UT_LIST_BASE_NODE_T(dict_table_t)
-			table_LRU; 	/* LRU list of tables */
+			table_LRU;	/* LRU list of tables */
 	ulint		size;		/* varying space in bytes occupied
 					by the data dictionary table and
 					index objects */

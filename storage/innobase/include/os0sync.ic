@@ -22,7 +22,7 @@ os_fast_mutex_trylock(
 						thread */
 	os_fast_mutex_t*	fast_mutex)	/* in: mutex to acquire */
 {
-#ifdef __WIN__	
+#ifdef __WIN__
 	EnterCriticalSection(fast_mutex);
 
 	return(0);

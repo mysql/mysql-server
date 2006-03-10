@@ -53,8 +53,8 @@ os_thread_pf(
 	os_thread_id_t	a)
 {
 #ifdef UNIV_HPUX10
-        /* In HP-UX-10.20 a pthread_t is a struct of 3 fields: field1, field2,
-        field3. We do not know if field1 determines the thread uniquely. */
+	/* In HP-UX-10.20 a pthread_t is a struct of 3 fields: field1, field2,
+	field3. We do not know if field1 determines the thread uniquely. */
 
 	return((ulint)(a.field1));
 #else
@@ -115,11 +115,11 @@ os_thread_create(
 
 	if (srv_set_thread_priorities) {
 
-	        /* Set created thread priority the same as a normal query
-	        in MYSQL: we try to prevent starvation of threads by
-	        assigning same priority QUERY_PRIOR to all */
+		/* Set created thread priority the same as a normal query
+		in MYSQL: we try to prevent starvation of threads by
+		assigning same priority QUERY_PRIOR to all */
 
-	        ut_a(SetThreadPriority(thread, srv_query_thread_priority));
+		ut_a(SetThreadPriority(thread, srv_query_thread_priority));
 	}
 
 	*thread_id = win_thread_id;
@@ -128,12 +128,12 @@ os_thread_create(
 #else
 	int		ret;
 	os_thread_t	pthread;
-	pthread_attr_t  attr;
+	pthread_attr_t	attr;
 
 #if !(defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10))
-        pthread_attr_init(&attr);
+	pthread_attr_init(&attr);
 #endif
-        
+
 #ifdef UNIV_AIX
 	/* We must make sure a thread stack is at least 32 kB, otherwise
 	InnoDB might crash; we do not know if the default stack size on
@@ -141,28 +141,19 @@ os_thread_create(
 	the size was 96 kB, though. */
 
 	ret = pthread_attr_setstacksize(&attr,
-			      (size_t)(PTHREAD_STACK_MIN + 32 * 1024));
-        if (ret) {
-	         fprintf(stderr,
-          "InnoDB: Error: pthread_attr_setstacksize returned %d\n", ret);
+		(size_t)(PTHREAD_STACK_MIN + 32 * 1024));
+	if (ret) {
+		 fprintf(stderr,
+	  "InnoDB: Error: pthread_attr_setstacksize returned %d\n", ret);
 		 exit(1);
 	}
 #endif
 #ifdef __NETWARE__
 	ret = pthread_attr_setstacksize(&attr,
 					(size_t) NW_THD_STACKSIZE);
-        if (ret) {
-	         fprintf(stderr,
-          "InnoDB: Error: pthread_attr_setstacksize returned %d\n", ret);
-		 exit(1);
-	}
-#endif
-#ifdef __NETWARE__
-	ret = pthread_attr_setstacksize(&attr,
-			      (size_t)NW_THD_STACKSIZE);
-        if (ret) {
-	         fprintf(stderr,
-          "InnoDB: Error: pthread_attr_setstacksize returned %d\n", ret);
+	if (ret) {
+		 fprintf(stderr,
+	  "InnoDB: Error: pthread_attr_setstacksize returned %d\n", ret);
 		 exit(1);
 	}
 #endif
@@ -175,9 +166,9 @@ os_thread_create(
 #else
 	ret = pthread_create(&pthread, &attr, start_f, arg);
 #endif
-        if (ret) {
-	         fprintf(stderr,
-          "InnoDB: Error: pthread_create returned %d\n", ret);
+	if (ret) {
+		 fprintf(stderr,
+	  "InnoDB: Error: pthread_create returned %d\n", ret);
 		 exit(1);
 	}
 
@@ -185,8 +176,8 @@ os_thread_create(
 	pthread_attr_destroy(&attr);
 #endif
 	if (srv_set_thread_priorities) {
-	
-	        my_pthread_setprio(pthread, srv_query_thread_priority);
+
+		my_pthread_setprio(pthread, srv_query_thread_priority);
 	}
 
 	*thread_id = pthread;
@@ -206,14 +197,14 @@ os_thread_exit(
 {
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Thread exits, id %lu\n",
-			      os_thread_pf(os_thread_get_curr_id()));
+		os_thread_pf(os_thread_get_curr_id()));
 #endif
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count--;
 	os_mutex_exit(os_sync_mutex);
 
 #ifdef __WIN__
-        ExitThread((DWORD)exit_value);
+	ExitThread((DWORD)exit_value);
 #else
 	pthread_exit(exit_value);
 #endif
@@ -222,7 +213,7 @@ os_thread_exit(
 #ifdef HAVE_PTHREAD_JOIN
 int
 os_thread_join(
-/*=============*/
+/*===========*/
   os_thread_id_t  thread_id)	/* in: id of the thread to join */
 {
   return pthread_join(thread_id, NULL);
@@ -241,7 +232,7 @@ os_thread_get_curr(void)
 	return(pthread_self());
 #endif
 }
-	
+
 /*********************************************************************
 Advises the os to give up remainder of the thread's time slice. */
 
@@ -252,13 +243,13 @@ os_thread_yield(void)
 #if defined(__WIN__)
 	Sleep(0);
 #elif (defined(HAVE_SCHED_YIELD) && defined(HAVE_SCHED_H))
-        sched_yield();
+	sched_yield();
 #elif defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
 	pthread_yield();
 #elif defined(HAVE_PTHREAD_YIELD_ONE_ARG)
 	pthread_yield(0);
 #else
-        os_thread_sleep(0);
+	os_thread_sleep(0);
 #endif
 }
 
@@ -279,7 +270,7 @@ os_thread_sleep(
 
 	t.tv_sec = tm / 1000000;
 	t.tv_usec = tm % 1000000;
-	
+
 	select(0, NULL, NULL, NULL, &t);
 #endif
 }
@@ -320,8 +311,8 @@ ulint
 os_thread_get_priority(
 /*===================*/
 				/* out: priority */
-	os_thread_t	handle __attribute__((unused)))	
-                                /* in: OS handle to the thread */
+	os_thread_t	handle __attribute__((unused)))
+				/* in: OS handle to the thread */
 {
 #ifdef __WIN__
 	int	os_pri;

@@ -27,7 +27,7 @@ typedef struct open_node_struct	open_node_t;
 
 typedef struct fetch_node_struct fetch_node_t;
 
-typedef struct row_printf_node_struct 	row_printf_node_t;
+typedef struct row_printf_node_struct	row_printf_node_t;
 typedef struct sel_buf_struct	sel_buf_t;
 
 typedef	struct undo_node_struct undo_node_t;

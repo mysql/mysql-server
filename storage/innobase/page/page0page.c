@@ -23,7 +23,7 @@ Created 2/2/1994 Heikki Tuuri
 
 /*			THE INDEX PAGE
 			==============
-		
+
 The index page consists of a page header which contains the page's
 id and other information. On top of it are the the index records
 in a heap linked into a one way linear list according to alphabetic order.
@@ -33,13 +33,13 @@ to about every sixth record in the list. The pointers are placed in
 the directory in the alphabetical order of the records pointed to,
 enabling us to make binary search using the array. Each slot n:o I
 in the directory points to a record, where a 4-bit field contains a count
-of those records which are in the linear list between pointer I and 
+of those records which are in the linear list between pointer I and
 the pointer I - 1 in the directory, including the record
 pointed to by pointer I and not including the record pointed to by I - 1.
 We say that the record pointed to by slot I, or that slot I, owns
 these records. The count is always kept in the range 4 to 8, with
-the exception that it is 1 for the first slot, and 1--8 for the second slot.  
-		
+the exception that it is 1 for the first slot, and 1--8 for the second slot.
+
 An essentially binary search can be performed in the list of index
 records, like we could do if we had pointer to every record in the
 page directory. The data structure is, however, more efficient when
@@ -200,7 +200,7 @@ page_set_max_trx_id(
 	/* It is not necessary to write this change to the redo log, as
 	during a database recovery we assume that the max trx id of every
 	page is the maximum trx id assigned before the crash. */
-	
+
 	mach_write_to_8(page + PAGE_HEADER + PAGE_MAX_TRX_ID, trx_id);
 
 	if (block->is_hashed) {
@@ -227,7 +227,7 @@ page_mem_alloc(
 	byte*	block;
 	ulint	avl_space;
 	ulint	garbage;
-	
+
 	ut_ad(page && heap_no);
 
 	/* If there are records in the free list, look if the first is
@@ -269,9 +269,9 @@ page_mem_alloc(
 	}
 
 	/* Could not find space from the free list, try top of heap */
-	
+
 	avl_space = page_get_max_insert_size(page, 1);
-	
+
 	if (avl_space >= need) {
 		block = page_header_get_ptr(page, PAGE_HEAP_TOP);
 
@@ -328,7 +328,7 @@ page_parse_create(
 /**************************************************************
 The index page creation function. */
 
-page_t* 
+page_t*
 page_create(
 /*========*/
 				/* out: pointer to the page */
@@ -339,7 +339,7 @@ page_create(
 {
 	page_dir_slot_t* slot;
 	mem_heap_t*	heap;
-	dtuple_t*	tuple;	
+	dtuple_t*	tuple;
 	dfield_t*	field;
 	byte*		heap_top;
 	rec_t*		infimum_rec;
@@ -349,25 +349,27 @@ page_create(
 	ulint*		offsets;
 
 	index = comp ? srv_sys->dummy_ind2 : srv_sys->dummy_ind1;
-	
+
 	ut_ad(frame && mtr);
-	ut_ad(PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE
-	      <= PAGE_DATA);
-	ut_ad(PAGE_BTR_IBUF_FREE_LIST_NODE + FLST_NODE_SIZE
-	      <= PAGE_DATA);
+#if PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA
+# error "PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA"
+#endif
+#if PAGE_BTR_IBUF_FREE_LIST_NODE + FLST_NODE_SIZE > PAGE_DATA
+# error "PAGE_BTR_IBUF_FREE_LIST_NODE + FLST_NODE_SIZE > PAGE_DATA"
+#endif
 
 	/* 1. INCREMENT MODIFY CLOCK */
 	buf_frame_modify_clock_inc(frame);
 
 	/* 2. WRITE LOG INFORMATION */
 	page_create_write_log(frame, mtr, comp);
-	
+
 	page = frame;
 
 	fil_page_set_type(page, FIL_PAGE_INDEX);
 
 	heap = mem_heap_create(200);
-		
+
 	/* 3. CREATE THE INFIMUM AND SUPREMUM RECORDS */
 
 	/* Create first a data tuple for infimum record */
@@ -382,7 +384,7 @@ page_create(
 	record heap */
 
 	heap_top = page + PAGE_DATA;
-	
+
 	infimum_rec = rec_convert_dtuple_to_rec(heap_top, index, tuple);
 
 	ut_a(infimum_rec ==
@@ -448,7 +450,7 @@ page_create(
 	page_dir_slot_set_rec(slot, supremum_rec);
 
 	/* Set the next pointers in infimum and supremum */
-	
+
 	rec_set_next_offs(infimum_rec, comp, (ulint)(supremum_rec - page));
 	rec_set_next_offs(supremum_rec, comp, 0);
 
@@ -483,18 +485,19 @@ page_copy_rec_list_end_no_locks(
 		page_cur_move_to_next(&cur1);
 	}
 
-	ut_a((ibool)!!page_is_comp(new_page) == index->table->comp);
+	ut_a((ibool)!!page_is_comp(new_page)
+		== dict_table_is_comp(index->table));
 	ut_a(page_is_comp(new_page) == page_is_comp(page));
 	ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
 		(page_is_comp(new_page)
 		? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
 
 	page_cur_set_before_first(new_page, &cur2);
-	
-	/* Copy records from the original page to the new page */	
+
+	/* Copy records from the original page to the new page */
 
 	sup = page_get_supremum_rec(page);
-	
+
 	for (;;) {
 		rec_t*	cur1_rec = page_cur_get_rec(&cur1);
 		if (cur1_rec == sup) {
@@ -507,15 +510,16 @@ page_copy_rec_list_end_no_locks(
 			/* Track an assertion failure reported on the mailing
 			list on June 18th, 2003 */
 
-		        buf_page_print(new_page);
-		        buf_page_print(page);
+			buf_page_print(new_page);
+			buf_page_print(page);
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
 "InnoDB: rec offset %lu, cur1 offset %lu, cur2 offset %lu\n",
-			      (ulong)(rec - page),
-			      (ulong)(page_cur_get_rec(&cur1) - page),
-			      (ulong)(page_cur_get_rec(&cur2) - new_page));
+				(ulong)(rec - page),
+				(ulong)(page_cur_get_rec(&cur1) - page),
+				(ulong)(page_cur_get_rec(&cur2) - new_page));
+
 			ut_error;
 		}
 
@@ -557,7 +561,7 @@ page_copy_rec_list_end(
 	page_update_max_trx_id(new_page, page_get_max_trx_id(page));
 
 	btr_search_move_or_delete_hash_entries(new_page, page, index);
-}	
+}
 
 /*****************************************************************
 Copies records from page to new_page, up to the given record,
@@ -589,12 +593,12 @@ page_copy_rec_list_start(
 	}
 
 	page_cur_move_to_next(&cur1);
-	
+
 	page_cur_set_after_last(new_page, &cur2);
 	page_cur_move_to_prev(&cur2);
 	old_end = page_cur_get_rec(&cur2);
-	
-	/* Copy records from the original page to the new page */	
+
+	/* Copy records from the original page to the new page */
 
 	while (page_cur_get_rec(&cur1) != rec) {
 		rec_t*	ins_rec;
@@ -610,7 +614,7 @@ page_copy_rec_list_start(
 	}
 
 	/* Update the lock table, MAX_TRX_ID, and possible hash index */
-	
+
 	lock_move_rec_list_start(new_page, page, rec, old_end);
 
 	page_update_max_trx_id(new_page, page_get_max_trx_id(page));
@@ -666,19 +670,19 @@ page_parse_delete_rec_list(
 	mtr_t*		mtr)	/* in: mtr or NULL */
 {
 	ulint	offset;
-	
+
 	ut_ad(type == MLOG_LIST_END_DELETE
 		|| type == MLOG_LIST_START_DELETE
 		|| type == MLOG_COMP_LIST_END_DELETE
 		|| type == MLOG_COMP_LIST_START_DELETE);
-	      
+
 	/* Read the record offset as a 2-byte ulint */
 
 	if (end_ptr < ptr + 2) {
 
 		return(NULL);
 	}
-	
+
 	offset = mach_read_from_2(ptr);
 	ptr += 2;
 
@@ -687,7 +691,7 @@ page_parse_delete_rec_list(
 		return(ptr);
 	}
 
-	ut_ad(!!page_is_comp(page) == index->table->comp);
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	if (type == MLOG_LIST_END_DELETE
 			|| type == MLOG_COMP_LIST_END_DELETE) {
@@ -738,9 +742,9 @@ page_delete_rec_list_end(
 	frame modify clock */
 
 	buf_frame_modify_clock_inc(page);
-	
+
 	sup = page_get_supremum_rec(page);
-	
+
 	comp = page_is_comp(page);
 	if (page_rec_is_infimum_low(rec - page)) {
 		rec = page_rec_get_next(rec);
@@ -753,7 +757,7 @@ page_delete_rec_list_end(
 
 		return;
 	}
-	
+
 	prev_rec = page_rec_get_prev(rec);
 
 	last_rec = page_rec_get_prev(sup);
@@ -792,10 +796,10 @@ page_delete_rec_list_end(
 	/* Update the page directory; there is no need to balance the number
 	of the records owned by the supremum record, as it is allowed to be
 	less than PAGE_DIR_SLOT_MIN_N_OWNED */
-	
+
 	rec2 = rec;
 	count = 0;
-	
+
 	while (rec_get_n_owned(rec2, comp) == 0) {
 		count++;
 
@@ -805,15 +809,15 @@ page_delete_rec_list_end(
 	ut_ad(rec_get_n_owned(rec2, comp) - count > 0);
 
 	n_owned = rec_get_n_owned(rec2, comp) - count;
-	
+
 	slot_index = page_dir_find_owner_slot(rec2);
 	slot = page_dir_get_nth_slot(page, slot_index);
-	
+
 	page_dir_slot_set_rec(slot, sup);
 	page_dir_slot_set_n_owned(slot, n_owned);
 
 	page_dir_set_n_slots(page, slot_index + 1);
-	
+
 	/* Remove the record chain segment from the record chain */
 	page_rec_set_next(prev_rec, page_get_supremum_rec(page));
 
@@ -829,7 +833,7 @@ page_delete_rec_list_end(
 
 	page_header_set_field(page, PAGE_N_RECS,
 				(ulint)(page_get_n_recs(page) - n_recs));
-}	
+}
 
 /*****************************************************************
 Deletes records from page, up to the given record, NOT including
@@ -851,7 +855,7 @@ page_delete_rec_list_start(
 	byte		type;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_ad(!!page_is_comp(page) == index->table->comp);
+	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	if (page_is_comp(page)) {
 		type = MLOG_COMP_LIST_START_DELETE;
@@ -869,7 +873,7 @@ page_delete_rec_list_start(
 	}
 
 	page_cur_move_to_next(&cur1);
-	
+
 	/* Individual deletes are not logged */
 
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
@@ -887,7 +891,7 @@ page_delete_rec_list_start(
 	/* Restore log mode */
 
 	mtr_set_log_mode(mtr, log_mode);
-}	
+}
 
 /*****************************************************************
 Moves record list end to another page. Moved records include
@@ -909,7 +913,7 @@ page_move_rec_list_end(
 
 	old_data_size = page_get_data_size(new_page);
 	old_n_recs = page_get_n_recs(new_page);
-	
+
 	page_copy_rec_list_end(new_page, page, split_rec, index, mtr);
 
 	new_data_size = page_get_data_size(new_page);
@@ -953,7 +957,7 @@ page_rec_write_index_page_no(
 {
 	byte*	data;
 	ulint	len;
-	
+
 	data = rec_get_nth_field_old(rec, i, &len);
 
 	ut_ad(len == 4);
@@ -971,7 +975,7 @@ page_dir_delete_slots(
 /*==================*/
 	page_t*	page,	/* in: the index page */
 	ulint	start,	/* in: first slot to be deleted */
-	ulint	n)	/* in: number of slots to delete (currently 
+	ulint	n)	/* in: number of slots to delete (currently
 			only n == 1 allowed) */
 {
 	page_dir_slot_t*	slot;
@@ -980,7 +984,7 @@ page_dir_delete_slots(
 	ulint			n_slots;
 	rec_t*			rec;
 
-	ut_ad(n == 1);	
+	ut_ad(n == 1);
 	ut_ad(start > 0);
 	ut_ad(start + n < page_dir_get_n_slots(page));
 
@@ -1023,7 +1027,7 @@ page_dir_add_slots(
 /*===============*/
 	page_t*	page,	/* in: the index page */
 	ulint	start,	/* in: the slot above which the new slots are added */
-	ulint	n)	/* in: number of slots to add (currently only n == 1 
+	ulint	n)	/* in: number of slots to add (currently only n == 1
 			allowed) */
 {
 	page_dir_slot_t*	slot;
@@ -1032,7 +1036,7 @@ page_dir_add_slots(
 	rec_t*			rec;
 
 	ut_ad(n == 1);
-	
+
 	n_slots = page_dir_get_n_slots(page);
 
 	ut_ad(start < n_slots - 1);
@@ -1060,7 +1064,7 @@ page_dir_split_slot(
 /*================*/
 	page_t*	page,		/* in: the index page in question */
 	ulint	slot_no)	/* in: the directory slot */
-{		
+{
 	rec_t*			rec;
 	page_dir_slot_t*	new_slot;
 	page_dir_slot_t*	prev_slot;
@@ -1072,13 +1076,13 @@ page_dir_split_slot(
 	ut_ad(slot_no > 0);
 
 	slot = page_dir_get_nth_slot(page, slot_no);
-	
+
 	n_owned = page_dir_slot_get_n_owned(slot);
 	ut_ad(n_owned == PAGE_DIR_SLOT_MAX_N_OWNED + 1);
 
-	/* 1. We loop to find a record approximately in the middle of the 
+	/* 1. We loop to find a record approximately in the middle of the
 	records owned by the slot. */
-	
+
 	prev_slot = page_dir_get_nth_slot(page, slot_no - 1);
 	rec = page_dir_slot_get_rec(prev_slot);
 
@@ -1100,11 +1104,11 @@ page_dir_split_slot(
 	slot = page_dir_get_nth_slot(page, slot_no + 1);
 
 	/* 3. We store the appropriate values to the new slot. */
-	
+
 	page_dir_slot_set_rec(new_slot, rec);
 	page_dir_slot_set_n_owned(new_slot, n_owned / 2);
-	
-	/* 4. Finally, we update the number of records field of the 
+
+	/* 4. Finally, we update the number of records field of the
 	original slot */
 
 	page_dir_slot_set_n_owned(slot, n_owned - (n_owned / 2));
@@ -1119,7 +1123,7 @@ void
 page_dir_balance_slot(
 /*==================*/
 	page_t*	page,		/* in: index page */
-	ulint	slot_no) 	/* in: the directory slot */
+	ulint	slot_no)	/* in: the directory slot */
 {
 	page_dir_slot_t*	slot;
 	page_dir_slot_t*	up_slot;
@@ -1132,7 +1136,7 @@ page_dir_balance_slot(
 	ut_ad(slot_no > 0);
 
 	slot = page_dir_get_nth_slot(page, slot_no);
-	
+
 	/* The last directory slot cannot be balanced with the upper
 	neighbor, as there is none. */
 
@@ -1140,35 +1144,35 @@ page_dir_balance_slot(
 
 		return;
 	}
-	
+
 	up_slot = page_dir_get_nth_slot(page, slot_no + 1);
-		
+
 	n_owned = page_dir_slot_get_n_owned(slot);
 	up_n_owned = page_dir_slot_get_n_owned(up_slot);
-	
+
 	ut_ad(n_owned == PAGE_DIR_SLOT_MIN_N_OWNED - 1);
 
 	/* If the upper slot has the minimum value of n_owned, we will merge
-	the two slots, therefore we assert: */ 
+	the two slots, therefore we assert: */
 	ut_ad(2 * PAGE_DIR_SLOT_MIN_N_OWNED - 1 <= PAGE_DIR_SLOT_MAX_N_OWNED);
-	
+
 	if (up_n_owned > PAGE_DIR_SLOT_MIN_N_OWNED) {
 
 		/* In this case we can just transfer one record owned
 		by the upper slot to the property of the lower slot */
 		old_rec = page_dir_slot_get_rec(slot);
 		new_rec = page_rec_get_next(old_rec);
-		
+
 		rec_set_n_owned(old_rec, page_is_comp(page), 0);
 		rec_set_n_owned(new_rec, page_is_comp(page), n_owned + 1);
-		
+
 		page_dir_slot_set_rec(slot, new_rec);
-		
+
 		page_dir_slot_set_n_owned(up_slot, up_n_owned -1);
 	} else {
 		/* In this case we may merge the two slots */
 		page_dir_delete_slots(page, slot_no, 1);
-	}		
+	}
 }
 
 /****************************************************************
@@ -1218,7 +1222,7 @@ page_get_middle_rec(
 
 	return(rec);
 }
-	
+
 /*******************************************************************
 Returns the number of records before the given record in chain.
 The number includes infimum and supremum records. */
@@ -1246,7 +1250,7 @@ page_rec_get_n_recs_before(
 		rec = page_rec_get_next(rec);
 		n--;
 	}
-	
+
 	for (i = 0; ; i++) {
 		slot = page_dir_get_nth_slot(page, i);
 		slot_rec = page_dir_slot_get_rec(slot);
@@ -1269,7 +1273,7 @@ page_rec_get_n_recs_before(
 /****************************************************************
 Prints record contents including the data relevant only in
 the index page context. */
- 
+
 void
 page_rec_print(
 /*===========*/
@@ -1281,7 +1285,7 @@ page_rec_print(
 	ut_a(!comp == !rec_offs_comp(offsets));
 	rec_print_new(stderr, rec, offsets);
 	fprintf(stderr,
-     		"            n_owned: %lu; heap_no: %lu; next rec: %lu\n",
+		"            n_owned: %lu; heap_no: %lu; next rec: %lu\n",
 		(ulong) rec_get_n_owned(rec, comp),
 		(ulong) rec_get_heap_no(rec, comp),
 		(ulong) rec_get_next_offs(rec, comp));
@@ -1305,7 +1309,7 @@ page_dir_print(
 	page_dir_slot_t*	slot;
 
 	n = page_dir_get_n_slots(page);
-	
+
 	fprintf(stderr, "--------------------------------\n"
 		"PAGE DIRECTORY\n"
 		"Page address %p\n"
@@ -1316,18 +1320,18 @@ page_dir_print(
 		if ((i == pr_n) && (i < n - pr_n)) {
 			fputs("    ...   \n", stderr);
 		}
-	    	if ((i < pr_n) || (i >= n - pr_n)) {
+		if ((i < pr_n) || (i >= n - pr_n)) {
 			fprintf(stderr,
-	   	   "Contents of slot: %lu: n_owned: %lu, rec offs: %lu\n",
+		   "Contents of slot: %lu: n_owned: %lu, rec offs: %lu\n",
 			(ulong) i, (ulong) page_dir_slot_get_n_owned(slot),
 			(ulong)(page_dir_slot_get_rec(slot) - page));
-	    	}
+		}
 	}
 	fprintf(stderr, "Total of %lu records\n"
 		"--------------------------------\n",
 		(ulong) (2 + page_get_n_recs(page)));
-}	
-	
+}
+
 /*******************************************************************
 This is used to print the contents of the page record list for
 debugging purposes. */
@@ -1347,7 +1351,7 @@ page_print_list(
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_a((ibool)!!page_is_comp(page) == index->table->comp);
+	ut_a((ibool)!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	fprintf(stderr,
 		"--------------------------------\n"
@@ -1365,27 +1369,27 @@ page_print_list(
 
 		if (count == pr_n) {
 			break;
-		}	
+		}
 		if (page_cur_is_after_last(&cur)) {
 			break;
-		}	
+		}
 		page_cur_move_to_next(&cur);
-		count++;	
+		count++;
 	}
-	
+
 	if (n_recs > 2 * pr_n) {
 		fputs(" ... \n", stderr);
 	}
-	
+
 	while (!page_cur_is_after_last(&cur)) {
 		page_cur_move_to_next(&cur);
 
-		if (count + pr_n >= n_recs) {	
+		if (count + pr_n >= n_recs) {
 			offsets = rec_get_offsets(cur.rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
 			page_rec_print(cur.rec, offsets);
 		}
-		count++;	
+		count++;
 	}
 
 	fprintf(stderr,
@@ -1396,7 +1400,7 @@ page_print_list(
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
-}	
+}
 
 /*******************************************************************
 Prints the info in a page header. */
@@ -1431,7 +1435,7 @@ debugging purposes. */
 
 void
 page_print(
-/*======*/
+/*=======*/
 	page_t*		page,	/* in: index page */
 	dict_index_t*	index,	/* in: dictionary index of the page */
 	ulint		dn,	/* in: print dn first and last entries
@@ -1442,7 +1446,7 @@ page_print(
 	page_header_print(page);
 	page_dir_print(page, dn);
 	page_print_list(page, index, rn);
-}	
+}
 
 /*******************************************************************
 The following is used to validate a record on a page. This function
@@ -1485,7 +1489,7 @@ page_rec_validate(
 				(ulong) page_dir_get_n_heap(page));
 		return(FALSE);
 	}
-	
+
 	return(TRUE);
 }
 
@@ -1504,22 +1508,22 @@ page_check_dir(
 	n_slots = page_dir_get_n_slots(page);
 
 	if (page_dir_slot_get_rec(page_dir_get_nth_slot(page, 0))
-	    != page_get_infimum_rec(page)) {
+		!= page_get_infimum_rec(page)) {
 
-	        fprintf(stderr,
+		fprintf(stderr,
 "InnoDB: Page directory corruption: supremum not pointed to\n");
 		buf_page_print(page);
-       	}
+	}
 
 	if (page_dir_slot_get_rec(page_dir_get_nth_slot(page, n_slots - 1))
-	    != page_get_supremum_rec(page)) {
+		!= page_get_supremum_rec(page)) {
 
-	        fprintf(stderr,
+		fprintf(stderr,
 "InnoDB: Page directory corruption: supremum not pointed to\n");
 		buf_page_print(page);
-       	}
+	}
 }
-	
+
 /*******************************************************************
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
@@ -1531,7 +1535,7 @@ page_simple_validate(
 			/* out: TRUE if ok */
 	page_t*	page)	/* in: index page */
 {
-	page_cur_t 	cur;
+	page_cur_t	cur;
 	page_dir_slot_t* slot;
 	ulint		slot_no;
 	ulint		n_slots;
@@ -1555,16 +1559,16 @@ page_simple_validate(
 	}
 
 	rec_heap_top = page_header_get_ptr(page, PAGE_HEAP_TOP);
-	
+
 	if (rec_heap_top > page_dir_get_nth_slot(page, n_slots - 1)) {
 
 		fprintf(stderr,
     "InnoDB: Record heap and dir overlap on a page, heap top %lu, dir %lu\n",
-       		(ulong)(page_header_get_ptr(page, PAGE_HEAP_TOP) - page),
-       		(ulong)(page_dir_get_nth_slot(page, n_slots - 1) - page));
+		(ulong)(page_header_get_ptr(page, PAGE_HEAP_TOP) - page),
+		(ulong)(page_dir_get_nth_slot(page, n_slots - 1) - page));
 
-       		goto func_exit;
-       	}
+		goto func_exit;
+	}
 
 	/* Validate the record list in a loop checking also that it is
 	consistent with the page record directory. */
@@ -1578,7 +1582,7 @@ page_simple_validate(
 
 	for (;;) {
 		rec = (&cur)->rec;
-		
+
 		if (rec > rec_heap_top) {
 			fprintf(stderr,
 			"InnoDB: Record %lu is above rec heap top %lu\n",
@@ -1607,7 +1611,7 @@ page_simple_validate(
 
 				goto func_exit;
 			}
-						
+
 			own_count = 0;
 
 			if (!page_cur_is_after_last(&cur)) {
@@ -1631,7 +1635,7 @@ page_simple_validate(
 			goto func_exit;
 		}
 
-		count++;		
+		count++;
 
 		if (count > UNIV_PAGE_SIZE) {
 			fprintf(stderr,
@@ -1639,22 +1643,22 @@ page_simple_validate(
 								(ulong) count);
 			goto func_exit;
 		}
-		
+
 		page_cur_move_to_next(&cur);
 		own_count++;
 	}
-	
+
 	if (rec_get_n_owned(rec, comp) == 0) {
 		fprintf(stderr, "InnoDB: n owned is zero in a supremum rec\n");
 
 		goto func_exit;
 	}
-		
+
 	if (slot_no != n_slots - 1) {
 		fprintf(stderr, "InnoDB: n slots wrong %lu, %lu\n",
 			(ulong) slot_no, (ulong) (n_slots - 1));
 		goto func_exit;
-	}		
+	}
 
 	if (page_header_get_field(page, PAGE_N_RECS) + 2 != count + 1) {
 		fprintf(stderr, "InnoDB: n recs wrong %lu %lu\n",
@@ -1686,17 +1690,17 @@ page_simple_validate(
 		}
 
 		count++;
-		
+
 		if (count > UNIV_PAGE_SIZE) {
 			fprintf(stderr,
 		"InnoDB: Page free list appears to be circular %lu\n",
-							    (ulong) count);
+				(ulong) count);
 			goto func_exit;
 		}
 
 		rec = page_rec_get_next(rec);
 	}
-	
+
 	if (page_dir_get_n_heap(page) != count + 1) {
 
 		fprintf(stderr, "InnoDB: N heap is wrong %lu, %lu\n",
@@ -1706,10 +1710,10 @@ page_simple_validate(
 		goto func_exit;
 	}
 
-	ret = TRUE;	
+	ret = TRUE;
 
 func_exit:
-	return(ret);			  
+	return(ret);
 }
 
 /*******************************************************************
@@ -1725,7 +1729,7 @@ page_validate(
 {
 	page_dir_slot_t* slot;
 	mem_heap_t*	heap;
-	page_cur_t 	cur;
+	page_cur_t	cur;
 	byte*		buf;
 	ulint		count;
 	ulint		own_count;
@@ -1741,7 +1745,7 @@ page_validate(
 	ulint*		offsets		= NULL;
 	ulint*		old_offsets	= NULL;
 
-	if ((ibool)!!comp != index->table->comp) {
+	if ((ibool)!!comp != dict_table_is_comp(index->table)) {
 		fputs("InnoDB: 'compact format' flag mismatch\n", stderr);
 		goto func_exit2;
 	}
@@ -1750,7 +1754,7 @@ page_validate(
 	}
 
 	heap = mem_heap_create(UNIV_PAGE_SIZE + 200);
-	
+
 	/* The following buffer is used to check that the
 	records in the page record heap do not overlap */
 
@@ -1772,8 +1776,8 @@ page_validate(
 				page_header_get_ptr(page, PAGE_HEAP_TOP),
 			page_dir_get_nth_slot(page, n_slots - 1));
 
-       		goto func_exit;
-       	}
+		goto func_exit;
+	}
 
 	/* Validate the record list in a loop checking also that
 	it is consistent with the directory. */
@@ -1801,7 +1805,7 @@ page_validate(
 		if (!page_rec_validate(rec, offsets)) {
 			goto func_exit;
 		}
-		
+
 		/* Check that the records are in the ascending order */
 		if ((count >= 2) && (!page_cur_is_after_last(&cur))) {
 			if (!(1 == cmp_rec_rec(rec, old_rec,
@@ -1815,7 +1819,7 @@ page_validate(
 				fputs("\nInnoDB: record ", stderr);
 				rec_print_new(stderr, rec, offsets);
 				putc('\n', stderr);
-				
+
 				goto func_exit;
 			}
 		}
@@ -1824,9 +1828,9 @@ page_validate(
 
 			data_size += rec_offs_size(offsets);
 		}
-		
+
 		offs = rec_get_start(rec, offsets) - page;
-		
+
 		for (i = 0; i < rec_offs_size(offsets); i++) {
 			if (!buf[offs + i] == 0) {
 				/* No other record may overlap this */
@@ -1835,10 +1839,10 @@ page_validate(
 					stderr);
 				goto func_exit;
 			}
-				
+
 			buf[offs + i] = 1;
 		}
-		
+
 		if (rec_get_n_owned(rec, comp) != 0) {
 			/* This is a record pointed to by a dir slot */
 			if (rec_get_n_owned(rec, comp) != own_count) {
@@ -1855,9 +1859,9 @@ page_validate(
 					stderr);
 				goto func_exit;
 			}
-			
+
 			page_dir_slot_check(slot);
-			
+
 			own_count = 0;
 			if (!page_cur_is_after_last(&cur)) {
 				slot_no++;
@@ -1877,7 +1881,7 @@ page_validate(
 			goto func_exit;
 		}
 
-		count++;		
+		count++;
 		page_cur_move_to_next(&cur);
 		own_count++;
 		old_rec = rec;
@@ -1888,17 +1892,17 @@ page_validate(
 			offsets = offs;
 		}
 	}
-	
+
 	if (rec_get_n_owned(rec, comp) == 0) {
 		fputs("InnoDB: n owned is zero\n", stderr);
 		goto func_exit;
 	}
-		
+
 	if (slot_no != n_slots - 1) {
 		fprintf(stderr, "InnoDB: n slots wrong %lu %lu\n",
 			(ulong) slot_no, (ulong) (n_slots - 1));
 		goto func_exit;
-	}		
+	}
 
 	if (page_header_get_field(page, PAGE_N_RECS) + 2 != count + 1) {
 		fprintf(stderr, "InnoDB: n recs wrong %lu %lu\n",
@@ -1924,10 +1928,10 @@ page_validate(
 
 			goto func_exit;
 		}
-		
-		count++;	
+
+		count++;
 		offs = rec_get_start(rec, offsets) - page;
-		
+
 		for (i = 0; i < rec_offs_size(offsets); i++) {
 
 			if (buf[offs + i] != 0) {
@@ -1935,13 +1939,13 @@ page_validate(
 		"InnoDB: Record overlaps another in free list\n", stderr);
 				goto func_exit;
 			}
-				
+
 			buf[offs + i] = 1;
 		}
-		
+
 		rec = page_rec_get_next(rec);
 	}
-	
+
 	if (page_dir_get_n_heap(page) != count + 1) {
 		fprintf(stderr, "InnoDB: N heap is wrong %lu %lu\n",
 			(ulong) page_dir_get_n_heap(page),
@@ -1949,7 +1953,7 @@ page_validate(
 		goto func_exit;
 	}
 
-	ret = TRUE;	
+	ret = TRUE;
 
 func_exit:
 	mem_heap_free(heap);
@@ -1962,8 +1966,8 @@ func_exit:
 		putc('\n', stderr);
 		buf_page_print(page);
 	}
-	
-	return(ret);			  
+
+	return(ret);
 }
 
 /*******************************************************************
@@ -1989,7 +1993,7 @@ page_find_rec_with_heap_no(
 		if (page_cur_is_after_last(&cur)) {
 
 			return(NULL);
-		}	
+		}
 
 		page_cur_move_to_next(&cur);
 	}

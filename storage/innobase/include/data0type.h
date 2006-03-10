@@ -13,13 +13,14 @@ Created 1/16/1996 Heikki Tuuri
 
 extern ulint	data_mysql_default_charset_coll;
 #define DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL 8
+#define DATA_MYSQL_BINARY_CHARSET_COLL 63
 
 /* SQL data type struct */
 typedef struct dtype_struct		dtype_t;
 
 /* This variable is initialized as the standard binary variable length
 data type */
-extern dtype_t* 	dtype_binary;
+extern dtype_t*		dtype_binary;
 
 /*-------------------------------------------*/
 /* The 'MAIN TYPE' of a column */
@@ -101,7 +102,7 @@ InnoDB's own internal system tables have different precise types for their
 columns, and for them the precise type is usually not used at all.
 */
 
-#define DATA_ENGLISH    4       /* English language character string: this
+#define DATA_ENGLISH	4	/* English language character string: this
 				is a relic from pre-MySQL time and only used
 				for InnoDB's own system tables */
 #define DATA_ERROR	111	/* another relic from pre-MySQL time */
@@ -127,7 +128,7 @@ be less than 256 */
 				a row in a compressed form */
 #define DATA_MIX_ID_LEN	9	/* maximum stored length for mix id (in a
 				compressed dulint form) */
-#define	DATA_N_SYS_COLS 4 	/* number of system columns defined above */
+#define	DATA_N_SYS_COLS 4	/* number of system columns defined above */
 
 /* Flags ORed to the precise data type */
 #define DATA_NOT_NULL	256	/* this is ORed to the precise type when
@@ -311,7 +312,7 @@ dtype_get_pad_char(
 /*===============*/
 				/* out: padding character code, or
 				ULINT_UNDEFINED if no padding specified */
-	dtype_t*	type);	/* in: type */
+	const dtype_t*	type);	/* in: type */
 /***************************************************************************
 Returns the size of a fixed size data type, 0 if not a fixed size type. */
 UNIV_INLINE

@@ -6,19 +6,19 @@ Random numbers and hashing
 Created 5/30/1994 Heikki Tuuri
 *******************************************************************/
 
-#define UT_HASH_RANDOM_MASK     1463735687
-#define UT_HASH_RANDOM_MASK2    1653893711
-#define UT_RND1                 151117737
-#define UT_RND2                 119785373
-#define UT_RND3                  85689495
-#define UT_RND4                  76595339
-#define UT_SUM_RND2              98781234 
-#define UT_SUM_RND3             126792457
-#define UT_SUM_RND4              63498502
-#define UT_XOR_RND1             187678878
-#define UT_XOR_RND2             143537923
+#define UT_HASH_RANDOM_MASK	1463735687
+#define UT_HASH_RANDOM_MASK2	1653893711
+#define UT_RND1			151117737
+#define UT_RND2			119785373
+#define UT_RND3			 85689495
+#define UT_RND4			 76595339
+#define UT_SUM_RND2		 98781234
+#define UT_SUM_RND3		126792457
+#define UT_SUM_RND4		 63498502
+#define UT_XOR_RND1		187678878
+#define UT_XOR_RND2		143537923
 
-extern  ulint    ut_rnd_ulint_counter;
+extern	ulint	 ut_rnd_ulint_counter;
 
 /************************************************************
 This is used to set the random number seed. */
@@ -26,7 +26,7 @@ UNIV_INLINE
 void
 ut_rnd_set_seed(
 /*============*/
-	ulint    seed)           /* in: seed */
+	ulint	 seed)		 /* in: seed */
 {
 	ut_rnd_ulint_counter = seed;
 }
@@ -66,7 +66,7 @@ ut_rnd_gen_ulint(void)
 /*==================*/
 			/* out: the 'random' number */
 {
-	ulint   rnd;
+	ulint	rnd;
 	ulint	n_bits;
 
 	n_bits = 8 * sizeof(ulint);
@@ -111,7 +111,7 @@ ut_rnd_gen_ibool(void)
 /*=================*/
 			/* out: the random value */
 {
-	ulint    x;
+	ulint	 x;
 
 	x = ut_rnd_gen_ulint();
 
@@ -121,7 +121,7 @@ ut_rnd_gen_ibool(void)
 	}
 
 	return(FALSE);
-} 
+}
 
 /***********************************************************
 The following function generates a hash value for a ulint integer
@@ -130,10 +130,10 @@ or some random number for the hash table to work reliably. */
 UNIV_INLINE
 ulint
 ut_hash_ulint(
-/*=========*/
+/*==========*/
 				/* out: hash value */
-	ulint    key,      	/* in: value to be hashed */
-	ulint    table_size) 	/* in: hash table size */
+	ulint	 key,		/* in: value to be hashed */
+	ulint	 table_size)	/* in: hash table size */
 {
 	key = key ^ UT_HASH_RANDOM_MASK2;
 
@@ -152,7 +152,7 @@ ut_fold_ulint_pair(
 {
 	return(((((n1 ^ n2 ^ UT_HASH_RANDOM_MASK2) << 8) + n1)
 						^ UT_HASH_RANDOM_MASK) + n2);
-} 
+}
 
 /*****************************************************************
 Folds a dulint. */
@@ -165,7 +165,7 @@ ut_fold_dulint(
 {
 	return(ut_fold_ulint_pair(ut_dulint_get_low(d),
 						ut_dulint_get_high(d)));
-} 
+}
 
 /*****************************************************************
 Folds a character string ending in the null character. */
@@ -174,7 +174,7 @@ ulint
 ut_fold_string(
 /*===========*/
 				/* out: folded value */
-	const char*	str)	/* in: null-terminated string */	
+	const char*	str)	/* in: null-terminated string */
 {
 #ifdef UNIV_DEBUG
 	ulint	i = 0;
@@ -196,7 +196,7 @@ ut_fold_string(
 
 	return(fold);
 }
-	
+
 /*****************************************************************
 Folds a binary string. */
 UNIV_INLINE
