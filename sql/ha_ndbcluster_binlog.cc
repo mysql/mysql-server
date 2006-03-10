@@ -1477,7 +1477,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
 
   if (do_close_cached_tables)
     close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 static int
