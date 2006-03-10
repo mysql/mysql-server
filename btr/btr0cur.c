@@ -2371,8 +2371,7 @@ btr_cur_compress(
 	ut_ad(mtr_memo_contains(mtr,
 				dict_tree_get_lock(btr_cur_get_tree(cursor)),
 							MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(
-						btr_cur_get_page(cursor)),
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
 				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(btr_page_get_level(btr_cur_get_page(cursor), mtr) == 0);
 
@@ -2398,8 +2397,7 @@ btr_cur_compress_if_useful(
 	ut_ad(mtr_memo_contains(mtr,
 				dict_tree_get_lock(btr_cur_get_tree(cursor)),
 							MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(
-						btr_cur_get_page(cursor)),
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
 				MTR_MEMO_PAGE_X_FIX));
 
 	if (btr_cur_compress_recommendation(cursor, mtr)) {
@@ -2437,7 +2435,7 @@ btr_cur_optimistic_delete(
 	ibool		no_compress_needed;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_page(cursor)),
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
 							MTR_MEMO_PAGE_X_FIX));
 	/* This is intended only for leaf page deletions */
 
