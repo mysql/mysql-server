@@ -4097,6 +4097,18 @@ dict_update_statistics(
 }
 
 /**************************************************************************
+A noninlined version of dict_table_get_low. */
+
+dict_table_t*
+dict_table_get_low_noninlined(
+/*==========================*/
+					/* out: table, NULL if not found */
+	const char*	table_name)	/* in: table name */
+{
+	return(dict_table_get_low(table_name));
+}
+
+/**************************************************************************
 Prints info of a foreign key constraint. */
 static
 void

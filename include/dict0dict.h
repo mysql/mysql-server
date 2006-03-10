@@ -321,6 +321,14 @@ dict_table_get_low(
 					/* out: table, NULL if not found */
 	const char*	table_name);	/* in: table name */
 /**************************************************************************
+A noninlined version of dict_table_get_low. */
+
+dict_table_t*
+dict_table_get_low_noninlined(
+/*==========================*/
+					/* out: table, NULL if not found */
+	const char*	table_name);	/* in: table name */
+/**************************************************************************
 Returns an index object. */
 UNIV_INLINE
 dict_index_t*
