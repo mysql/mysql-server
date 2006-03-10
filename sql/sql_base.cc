@@ -1058,21 +1058,18 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     /* Fallthrough */
   }
 
-  /*
-    For RBR: before calling close_thread_tables(), storage engines
-    should autocommit. Hence if there is a a pending event, it belongs
-    to a non-transactional engine, which writes directly to the table,
-    and should therefore be flushed before unlocking and closing the
-    tables.  The test above for locked tables will not be triggered
-    since RBR locks and unlocks tables on a per-event basis.
-
-    TODO (WL#3023): Change the semantics so that RBR does not lock and
-    unlock tables on a per-event basis.
-  */
-  thd->binlog_flush_pending_rows_event(true);
-
   if (thd->lock)
   {
+    /*
+      For RBR we flush the pending event just before we unlock all the
+      tables.  This means that we are at the end of a topmost
+      statement, so we ensure that the STMT_END_F flag is set on the
+      pending event.  For statements that are *inside* stored
+      functions, the pending event will not be flushed: that will be
+      handled either before writing a query log event (inside
+      binlog_query()) or when preparing a pending event.
+     */
+    thd->binlog_flush_pending_rows_event(true);
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
@@ -1084,7 +1081,8 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     saves some work in 2pc too)
     see also sql_parse.cc - dispatch_command()
   */
-  bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
+  if (!(thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
+    bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
   if (!thd->active_transaction())
     thd->transaction.xid_state.xid.null();
 
@@ -2311,7 +2309,7 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
           (search->locked_by_name && wait_for_name_lock ||
            search->locked_by_flush ||
            (search->db_stat && search->s->version < refresh_version)))
-        return 1;
+        DBUG_RETURN(1);
     }
   } while ((table=table->next));
   DBUG_RETURN(0);
@@ -2433,11 +2431,11 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
     reused is on wrap-around, which means more than 4 billion table
     shares open at the same time).
 
-    share->table_map_id is not ULONG_MAX.
+    share->table_map_id is not ~0UL.
  */
 void assign_new_table_id(TABLE_SHARE *share)
 {
-  static ulong last_table_id= ULONG_MAX;
+  static ulong last_table_id= ~0UL;
 
   DBUG_ENTER("assign_new_table_id");
 
@@ -2450,13 +2448,13 @@ void assign_new_table_id(TABLE_SHARE *share)
     There is one reserved number that cannot be used.  Remember to
     change this when 6-byte global table id's are introduced.
   */
-  if (unlikely(tid == ULONG_MAX))
+  if (unlikely(tid == ~0UL))
     tid= ++last_table_id;
   share->table_map_id= tid;
   DBUG_PRINT("info", ("table_id=%lu", tid));
 
   /* Post conditions */
-  DBUG_ASSERT(share->table_map_id != ULONG_MAX);
+  DBUG_ASSERT(share->table_map_id != ~0UL);
 
   DBUG_VOID_RETURN;
 }

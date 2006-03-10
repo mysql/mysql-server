@@ -58,4 +58,4 @@ Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File
 flush logs;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000002	102	<Binlog_Ignore_DB>	
+master-bin.000002	212	<Binlog_Ignore_DB>	
