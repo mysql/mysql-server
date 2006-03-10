@@ -41,8 +41,12 @@ class Event_timed;
 #define LEX_YYSTYPE void *
 #else
 #include "lex_symbol.h"
+#if MYSQL_LEX
 #include "sql_yacc.h"
 #define LEX_YYSTYPE YYSTYPE *
+#else
+#define LEX_YYSTYPE void *
+#endif
 #endif
 #endif
 
@@ -753,7 +757,7 @@ typedef struct st_lex
   const uchar *buf;		/* The beginning of string, used by SPs */
   const uchar *ptr,*tok_start,*tok_end,*end_of_query;
   
-  /* The values of tok_start/tok_end as they were one call of yylex before */
+  /* The values of tok_start/tok_end as they were one call of MYSQLlex before */
   const uchar *tok_start_prev, *tok_end_prev;
 
   char *length,*dec,*change,*name;
@@ -957,12 +961,16 @@ typedef struct st_lex
   SQL_LIST trg_table_fields;
 
   /*
-    trigger_definition_begin points to the beginning of the word "TRIGGER" in
-    CREATE TRIGGER statement. This is used to add possibly omitted DEFINER
-    clause to the trigger definition statement before dumping it to the
-    binlog. 
+    stmt_definition_begin is intended to point to the next word after
+    DEFINER-clause in the following statements:
+      - CREATE TRIGGER (points to "TRIGGER");
+      - CREATE PROCEDURE (points to "PROCEDURE");
+      - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
+
+    This pointer is required to add possibly omitted DEFINER-clause to the
+    DDL-statement before dumping it to the binlog. 
   */
-  const char *trigger_definition_begin;
+  const char *stmt_definition_begin;
 
   /*
     If non-0 then indicates that query requires prelocking and points to
@@ -1111,7 +1119,7 @@ extern void lex_init(void);
 extern void lex_free(void);
 extern void lex_start(THD *thd, const uchar *buf, uint length);
 extern void lex_end(LEX *lex);
-extern int yylex(void *arg, void *yythd);
+extern int MYSQLlex(void *arg, void *yythd);
 
 extern pthread_key(LEX*,THR_LEX);
 
