@@ -26,12 +26,10 @@ How to make the InnoDB parser and lexer C files:
 
 5. Rename lex.yy.c to lexyy.c.
 
-6. Remove the #include of unistd.h from about line 2500 of lexyy.c
-
-7. Add '#include "univ.i"' before #include <stdio.h> in lexyy.c
+6. Add '#include "univ.i"' before #include <stdio.h> in lexyy.c
    (Needed for AIX)
 
-8. Add a type cast to int to the assignment below the comment
+7. Add a type cast to int to the assignment below the comment
    'need more input.'  (Removes a warning on Win64)
 
 These instructions seem to work at least with bison-1.28 and flex-2.5.4 on
@@ -50,6 +48,7 @@ Linux.
 %option noyy_scan_buffer
 %option noyy_scan_bytes
 %option noyy_scan_string
+%option nounistd
 
 %{
 #define YYSTYPE que_node_t*
@@ -189,6 +188,14 @@ In the state 'quoted', only two actions are possible (defined below). */
 
 "OUT"		{
 			return(PARS_OUT_TOKEN);
+}
+
+"BINARY"	{
+	 		return(PARS_BINARY_TOKEN);
+}
+
+"BLOB"		{
+	 		return(PARS_BLOB_TOKEN);
 }
 
 "INT"		{

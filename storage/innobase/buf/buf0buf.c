@@ -1,14 +1,14 @@
 /*   Innobase relational database engine; Copyright (C) 2001 Innobase Oy
-     
+
      This program is free software; you can redistribute it and/or modify
      it under the terms of the GNU General Public License 2
      as published by the Free Software Foundation in June 1991.
-     
+
      This program is distributed in the hope that it will be useful,
      but WITHOUT ANY WARRANTY; without even the implied warranty of
      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
      GNU General Public License for more details.
-     
+
      You should have received a copy of the GNU General Public License 2
      along with this program (in file COPYING); if not, write to the Free
      Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
@@ -42,7 +42,7 @@ Created 11/5/1995 Heikki Tuuri
 		IMPLEMENTATION OF THE BUFFER POOL
 		=================================
 
-Performance improvement: 
+Performance improvement:
 ------------------------
 Thread scheduling in NT may be so slow that the OS wait mechanism should
 not be used even in waiting for disk reads to complete.
@@ -239,33 +239,33 @@ to a file. Note that we must be careful to calculate the same value on
 ulint
 buf_calc_page_new_checksum(
 /*=======================*/
-		       /* out: checksum */
-	byte*    page) /* in: buffer page */
+			/* out: checksum */
+	byte*	 page)	/* in: buffer page */
 {
-  	ulint checksum;
+	ulint checksum;
 
-        /* Since the field FIL_PAGE_FILE_FLUSH_LSN, and in versions <= 4.1.x
-        ..._ARCH_LOG_NO, are written outside the buffer pool to the first
-        pages of data files, we have to skip them in the page checksum
-        calculation.
+	/* Since the field FIL_PAGE_FILE_FLUSH_LSN, and in versions <= 4.1.x
+	..._ARCH_LOG_NO, are written outside the buffer pool to the first
+	pages of data files, we have to skip them in the page checksum
+	calculation.
 	We must also skip the field FIL_PAGE_SPACE_OR_CHKSUM where the
 	checksum is stored, and also the last 8 bytes of page because
 	there we store the old formula checksum. */
-  	
-  	checksum = ut_fold_binary(page + FIL_PAGE_OFFSET,
-				 FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET)
-  		   + ut_fold_binary(page + FIL_PAGE_DATA, 
-				           UNIV_PAGE_SIZE - FIL_PAGE_DATA
-				           - FIL_PAGE_END_LSN_OLD_CHKSUM);
-  	checksum = checksum & 0xFFFFFFFFUL;
 
-  	return(checksum);
+	checksum = ut_fold_binary(page + FIL_PAGE_OFFSET,
+				 FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET)
+		   + ut_fold_binary(page + FIL_PAGE_DATA,
+					   UNIV_PAGE_SIZE - FIL_PAGE_DATA
+					   - FIL_PAGE_END_LSN_OLD_CHKSUM);
+	checksum = checksum & 0xFFFFFFFFUL;
+
+	return(checksum);
 }
 
 /************************************************************************
 In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
 looked at the first few bytes of the page. This calculates that old
-checksum. 
+checksum.
 NOTE: we must first store the new formula checksum to
 FIL_PAGE_SPACE_OR_CHKSUM before calculating and storing this old checksum
 because this takes that field as an input! */
@@ -273,16 +273,16 @@ because this takes that field as an input! */
 ulint
 buf_calc_page_old_checksum(
 /*=======================*/
-		       /* out: checksum */
-	byte*    page) /* in: buffer page */
+			/* out: checksum */
+	byte*	 page)	/* in: buffer page */
 {
-  	ulint checksum;
-  	
-  	checksum = ut_fold_binary(page, FIL_PAGE_FILE_FLUSH_LSN);
+	ulint checksum;
 
-  	checksum = checksum & 0xFFFFFFFFUL;
+	checksum = ut_fold_binary(page, FIL_PAGE_FILE_FLUSH_LSN);
 
-  	return(checksum);
+	checksum = checksum & 0xFFFFFFFFUL;
+
+	return(checksum);
 }
 
 /************************************************************************
@@ -302,11 +302,11 @@ buf_page_is_corrupted(
 	dulint	current_lsn;
 #endif
 	if (mach_read_from_4(read_buf + FIL_PAGE_LSN + 4)
-	     != mach_read_from_4(read_buf + UNIV_PAGE_SIZE
-				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
+		!= mach_read_from_4(read_buf + UNIV_PAGE_SIZE
+			- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
 
 		/* Stored log sequence numbers at the start and the end
-		of page do not match */
+		   of page do not match */
 
 		return(TRUE);
 	}
@@ -314,8 +314,8 @@ buf_page_is_corrupted(
 #ifndef UNIV_HOTBACKUP
 	if (recv_lsn_checks_on && log_peek_lsn(&current_lsn)) {
 		if (ut_dulint_cmp(current_lsn,
-				  mach_read_from_8(read_buf + FIL_PAGE_LSN))
-				 < 0) {
+				mach_read_from_8(read_buf + FIL_PAGE_LSN))
+			< 0) {
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
@@ -324,53 +324,58 @@ buf_page_is_corrupted(
 "InnoDB: Your database may be corrupt or you may have copied the InnoDB\n"
 "InnoDB: tablespace but not the InnoDB log files. See\n"
 "http://dev.mysql.com/doc/mysql/en/backing-up.html for more information.\n",
-		        (ulong) mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
-			(ulong) ut_dulint_get_high(
-				mach_read_from_8(read_buf + FIL_PAGE_LSN)),
-			(ulong) ut_dulint_get_low(
-				mach_read_from_8(read_buf + FIL_PAGE_LSN)),
-			(ulong) ut_dulint_get_high(current_lsn),
-			(ulong) ut_dulint_get_low(current_lsn));
+				(ulong) mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
+				(ulong) ut_dulint_get_high(
+					mach_read_from_8(read_buf + FIL_PAGE_LSN)),
+				(ulong) ut_dulint_get_low(
+					mach_read_from_8(read_buf + FIL_PAGE_LSN)),
+				(ulong) ut_dulint_get_high(current_lsn),
+				(ulong) ut_dulint_get_low(current_lsn));
 		}
 	}
 #endif
-  
-  /* If we use checksums validation, make additional check before returning
-  TRUE to ensure that the checksum is not equal to BUF_NO_CHECKSUM_MAGIC which
-  might be stored by InnoDB with checksums disabled.
-     Otherwise, skip checksum calculation and return FALSE */
-  
-  if (srv_use_checksums) {
-    old_checksum = buf_calc_page_old_checksum(read_buf); 
 
-    old_checksum_field = mach_read_from_4(read_buf + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN_OLD_CHKSUM);
+	/* If we use checksums validation, make additional check before
+	returning TRUE to ensure that the checksum is not equal to
+	BUF_NO_CHECKSUM_MAGIC which might be stored by InnoDB with checksums
+	disabled. Otherwise, skip checksum calculation and return FALSE */
 
-    /* There are 2 valid formulas for old_checksum_field:
-	  1. Very old versions of InnoDB only stored 8 byte lsn to the start
-	  and the end of the page.
-	  2. Newer InnoDB versions store the old formula checksum there. */
-	
-    if (old_checksum_field != mach_read_from_4(read_buf + FIL_PAGE_LSN)
-        && old_checksum_field != old_checksum
-        && old_checksum_field != BUF_NO_CHECKSUM_MAGIC) {
+	if (srv_use_checksums) {
+		old_checksum = buf_calc_page_old_checksum(read_buf);
 
-      return(TRUE);
-    }
+		old_checksum_field = mach_read_from_4(read_buf + UNIV_PAGE_SIZE
+			- FIL_PAGE_END_LSN_OLD_CHKSUM);
 
-    checksum = buf_calc_page_new_checksum(read_buf);
-    checksum_field = mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM);
+		/* There are 2 valid formulas for old_checksum_field:
 
-    /* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
-	  (always equal to 0), to FIL_PAGE_SPACE_SPACE_OR_CHKSUM */
+		1. Very old versions of InnoDB only stored 8 byte lsn to the
+		start and the end of the page.
 
-    if (checksum_field != 0 && checksum_field != checksum
-        && checksum_field != BUF_NO_CHECKSUM_MAGIC) {
+		2. Newer InnoDB versions store the old formula checksum
+		there. */
 
-      return(TRUE);
-    }
-  }
-  
+		if (old_checksum_field != mach_read_from_4(read_buf
+				+ FIL_PAGE_LSN)
+			&& old_checksum_field != old_checksum
+			&& old_checksum_field != BUF_NO_CHECKSUM_MAGIC) {
+
+			return(TRUE);
+		}
+
+		checksum = buf_calc_page_new_checksum(read_buf);
+		checksum_field = mach_read_from_4(read_buf +
+			FIL_PAGE_SPACE_OR_CHKSUM);
+
+		/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
+		(always equal to 0), to FIL_PAGE_SPACE_SPACE_OR_CHKSUM */
+
+		if (checksum_field != 0 && checksum_field != checksum
+			&& checksum_field != BUF_NO_CHECKSUM_MAGIC) {
+
+			return(TRUE);
+		}
+	}
+
 	return(FALSE);
 }
 
@@ -393,12 +398,12 @@ buf_page_print(
 	fputs("InnoDB: End of page dump\n", stderr);
 
 	checksum = srv_use_checksums ?
-    buf_calc_page_new_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
+		buf_calc_page_new_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
 	old_checksum = srv_use_checksums ?
-    buf_calc_page_old_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
+		buf_calc_page_old_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr, 
+	fprintf(stderr,
 "  InnoDB: Page checksum %lu, prior-to-4.0.14-form checksum %lu\n"
 "InnoDB: stored checksum %lu, prior-to-4.0.14-form stored checksum %lu\n",
 			(ulong) checksum, (ulong) old_checksum,
@@ -417,18 +422,19 @@ buf_page_print(
 		(ulong) mach_read_from_4(read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
 
 	if (mach_read_from_2(read_buf + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_TYPE)
-	    == TRX_UNDO_INSERT) {
-	    	fprintf(stderr,
+		== TRX_UNDO_INSERT) {
+		fprintf(stderr,
 			"InnoDB: Page may be an insert undo log page\n");
 	} else if (mach_read_from_2(read_buf + TRX_UNDO_PAGE_HDR
 						+ TRX_UNDO_PAGE_TYPE)
-	    	== TRX_UNDO_UPDATE) {
-	    	fprintf(stderr,
+		== TRX_UNDO_UPDATE) {
+		fprintf(stderr,
 			"InnoDB: Page may be an update undo log page\n");
 	}
 
-	if (fil_page_get_type(read_buf) == FIL_PAGE_INDEX) {
-	    	fprintf(stderr,
+	switch (fil_page_get_type(read_buf)) {
+	case FIL_PAGE_INDEX:
+		fprintf(stderr,
 "InnoDB: Page may be an index page where index id is %lu %lu\n",
 			(ulong) ut_dulint_get_high(btr_page_get_index_id(read_buf)),
 			(ulong) ut_dulint_get_low(btr_page_get_index_id(read_buf)));
@@ -438,19 +444,50 @@ buf_page_print(
 
 		if (dict_sys != NULL) {
 
-		        index = dict_index_find_on_id_low(
+			index = dict_index_find_on_id_low(
 					btr_page_get_index_id(read_buf));
-		        if (index) {
+			if (index) {
 				fputs("InnoDB: (", stderr);
 				dict_index_name_print(stderr, NULL, index);
 				fputs(")\n", stderr);
 			}
 		}
-	} else if (fil_page_get_type(read_buf) == FIL_PAGE_INODE) {
+		break;
+	case FIL_PAGE_INODE:
 		fputs("InnoDB: Page may be an 'inode' page\n", stderr);
-	} else if (fil_page_get_type(read_buf) == FIL_PAGE_IBUF_FREE_LIST) {
+		break;
+	case FIL_PAGE_IBUF_FREE_LIST:
 		fputs("InnoDB: Page may be an insert buffer free list page\n",
 			stderr);
+		break;
+	case FIL_PAGE_TYPE_ALLOCATED:
+		fputs("InnoDB: Page may be a freshly allocated page\n",
+			stderr);
+		break;
+	case FIL_PAGE_IBUF_BITMAP:
+		fputs("InnoDB: Page may be an insert buffer bitmap page\n",
+			stderr);
+		break;
+	case FIL_PAGE_TYPE_SYS:
+		fputs("InnoDB: Page may be a system page\n",
+			stderr);
+		break;
+	case FIL_PAGE_TYPE_TRX_SYS:
+		fputs("InnoDB: Page may be a transaction system page\n",
+			stderr);
+		break;
+	case FIL_PAGE_TYPE_FSP_HDR:
+		fputs("InnoDB: Page may be a file space header page\n",
+			stderr);
+		break;
+	case FIL_PAGE_TYPE_XDES:
+		fputs("InnoDB: Page may be an extent descriptor page\n",
+			stderr);
+		break;
+	case FIL_PAGE_TYPE_BLOB:
+		fputs("InnoDB: Page may be a BLOB page\n",
+			stderr);
+		break;
 	}
 }
 
@@ -464,14 +501,19 @@ buf_block_init(
 	byte*		frame)	/* in: pointer to buffer frame, or NULL if in
 				the case of AWE there is no frame */
 {
+	block->magic_n = 0;
+
 	block->state = BUF_BLOCK_NOT_USED;
-	
+
 	block->frame = frame;
 
 	block->awe_info = NULL;
 
+	block->buf_fix_count = 0;
+	block->io_fix = 0;
+
 	block->modify_clock = ut_dulint_zero;
-	
+
 	block->file_page_was_freed = FALSE;
 
 	block->check_index_page_at_flush = FALSE;
@@ -513,12 +555,12 @@ buf_pool_init(
 	byte*		frame;
 	ulint		i;
 	buf_block_t*	block;
-	
+
 	ut_a(max_size == curr_size);
 	ut_a(srv_use_awe || n_frames == max_size);
-	
+
 	if (n_frames > curr_size) {
-	        fprintf(stderr,
+		fprintf(stderr,
 "InnoDB: AWE: Error: you must specify in my.cnf .._awe_mem_mb larger\n"
 "InnoDB: than .._buffer_pool_size. Now the former is %lu pages,\n"
 "InnoDB: the latter %lu pages.\n", (ulong) curr_size, (ulong) n_frames);
@@ -542,18 +584,18 @@ buf_pool_init(
 
 		buf_pool->frame_mem = os_awe_allocate_virtual_mem_window(
 					UNIV_PAGE_SIZE * (n_frames + 1));
-					
+
 		/* Allocate the physical memory for AWE and the AWE info array
 		for buf_pool */
 
 		if ((curr_size % ((1024 * 1024) / UNIV_PAGE_SIZE)) != 0) {
 
-		        fprintf(stderr,
+			fprintf(stderr,
 "InnoDB: AWE: Error: physical memory must be allocated in full megabytes.\n"
-"InnoDB: Trying to allocate %lu database pages.\n", 
+"InnoDB: Trying to allocate %lu database pages.\n",
 			  (ulong) curr_size);
 
-		        return(NULL);
+			return(NULL);
 		}
 
 		if (!os_awe_allocate_physical_mem(&(buf_pool->awe_info),
@@ -605,7 +647,7 @@ buf_pool_init(
 	}
 
 	buf_pool->blocks_of_frames = ut_malloc(sizeof(void*) * n_frames);
-	
+
 	if (buf_pool->blocks_of_frames == NULL) {
 
 		return(NULL);
@@ -626,7 +668,7 @@ buf_pool_init(
 		} else {
 			frame = NULL;
 		}
-		
+
 		buf_block_init(block, frame);
 
 		if (srv_use_awe) {
@@ -647,14 +689,14 @@ buf_pool_init(
 	buf_pool->n_pages_written = 0;
 	buf_pool->n_pages_created = 0;
 	buf_pool->n_pages_awe_remapped = 0;
-	
+
 	buf_pool->n_page_gets = 0;
 	buf_pool->n_page_gets_old = 0;
 	buf_pool->n_pages_read_old = 0;
 	buf_pool->n_pages_written_old = 0;
 	buf_pool->n_pages_created_old = 0;
 	buf_pool->n_pages_awe_remapped_old = 0;
-	
+
 	/* 2. Initialize flushing fields
 	   ---------------------------- */
 	UT_LIST_INIT(buf_pool->flush_list);
@@ -669,7 +711,7 @@ buf_pool_init(
 
 	buf_pool->ulint_clock = 1;
 	buf_pool->freed_page_clock = 0;
-	
+
 	/* 3. Initialize LRU fields
 	   ---------------------------- */
 	UT_LIST_INIT(buf_pool->LRU);
@@ -695,7 +737,7 @@ buf_pool_init(
 			if (srv_use_awe) {
 				/* Add to the list of blocks mapped to
 				frames */
-				
+
 				UT_LIST_ADD_LAST(awe_LRU_free_mapped,
 					buf_pool->awe_LRU_free_mapped, block);
 			}
@@ -708,15 +750,15 @@ buf_pool_init(
 	mutex_exit(&(buf_pool->mutex));
 
 	if (srv_use_adaptive_hash_indexes) {
-	  	btr_search_sys_create(
+		btr_search_sys_create(
 			  curr_size * UNIV_PAGE_SIZE / sizeof(void*) / 64);
 	} else {
-	        /* Create only a small dummy system */
-	        btr_search_sys_create(1000);
+		/* Create only a small dummy system */
+		btr_search_sys_create(1000);
 	}
 
 	return(buf_pool);
-}	
+}
 
 /************************************************************************
 Maps the page of block to a frame, if not mapped yet. Unmaps some page
@@ -749,9 +791,9 @@ buf_awe_map_page_to_frame(
 
 	bck = UT_LIST_GET_LAST(buf_pool->awe_LRU_free_mapped);
 
-	while (bck) {	
+	while (bck) {
 		if (bck->state == BUF_BLOCK_FILE_PAGE
-	    	    && (bck->buf_fix_count != 0 || bck->io_fix != 0)) {
+			&& (bck->buf_fix_count != 0 || bck->io_fix != 0)) {
 
 			/* We have to skip this */
 			bck = UT_LIST_GET_PREV(awe_LRU_free_mapped, bck);
@@ -770,7 +812,7 @@ buf_awe_map_page_to_frame(
 						- buf_pool->frame_zero))
 						>> UNIV_PAGE_SIZE_SHIFT))
 				= block;
-			
+
 			bck->frame = NULL;
 			UT_LIST_REMOVE(awe_LRU_free_mapped,
 					buf_pool->awe_LRU_free_mapped,
@@ -783,7 +825,7 @@ buf_awe_map_page_to_frame(
 			}
 
 			buf_pool->n_pages_awe_remapped++;
-			
+
 			return;
 		}
 	}
@@ -822,7 +864,7 @@ buf_block_make_young(
 /*=================*/
 	buf_block_t*	block)	/* in: block to make younger */
 {
-	if (buf_pool->freed_page_clock >= block->freed_page_clock 
+	if (buf_pool->freed_page_clock >= block->freed_page_clock
 				+ 1 + (buf_pool->curr_size / 1024)) {
 
 		/* There has been freeing activity in the LRU list:
@@ -839,11 +881,11 @@ the buffer pool. */
 
 void
 buf_page_make_young(
-/*=================*/
+/*================*/
 	buf_frame_t*	frame)	/* in: buffer frame of a file page */
 {
 	buf_block_t*	block;
-	
+
 	mutex_enter(&(buf_pool->mutex));
 
 	block = buf_block_align(frame);
@@ -893,7 +935,7 @@ buf_frame_free(
 {
 	buf_block_free(buf_block_align(frame));
 }
-	
+
 /************************************************************************
 Returns the buffer control block if the page can be found in the buffer
 pool. NOTE that it is possible that the page is not yet read
@@ -938,7 +980,7 @@ buf_reset_check_index_page_at_flush(
 	if (block) {
 		block->check_index_page_at_flush = FALSE;
 	}
-	
+
 	mutex_exit(&(buf_pool->mutex));
 }
 
@@ -1074,14 +1116,14 @@ buf_page_get_gen(
 	ulint		fix_type;
 	ibool		success;
 	ibool		must_read;
-	
+
 	ut_ad(mtr);
 	ut_ad((rw_latch == RW_S_LATCH)
-	      || (rw_latch == RW_X_LATCH)
-	      || (rw_latch == RW_NO_LATCH));
+		|| (rw_latch == RW_X_LATCH)
+		|| (rw_latch == RW_NO_LATCH));
 	ut_ad((mode != BUF_GET_NO_LATCH) || (rw_latch == RW_NO_LATCH));
 	ut_ad((mode == BUF_GET) || (mode == BUF_GET_IF_IN_POOL)
-	      || (mode == BUF_GET_NO_LATCH) || (mode == BUF_GET_NOWAIT));
+		|| (mode == BUF_GET_NO_LATCH) || (mode == BUF_GET_NOWAIT));
 #ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside() || ibuf_page(space, offset));
 #endif
@@ -1090,7 +1132,7 @@ loop:
 	mutex_enter_fast(&(buf_pool->mutex));
 
 	block = NULL;
-	
+
 	if (guess) {
 		block = buf_block_align(guess);
 
@@ -1130,7 +1172,7 @@ loop:
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	must_read = FALSE;
-	
+
 	if (block->io_fix == BUF_IO_READ) {
 
 		must_read = TRUE;
@@ -1142,7 +1184,7 @@ loop:
 
 			return(NULL);
 		}
-	}		
+	}
 
 	/* If AWE is enabled and the page is not mapped to a frame, then
 	map it */
@@ -1153,10 +1195,10 @@ loop:
 		/* We set second parameter TRUE because the block is in the
 		LRU list and we must put it to awe_LRU_free_mapped list once
 		mapped to a frame */
-		
+
 		buf_awe_map_page_to_frame(block, TRUE);
 	}
-	
+
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_buf_fix_inc_debug(block, file, line);
 #else
@@ -1172,7 +1214,7 @@ loop:
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(block->file_page_was_freed == FALSE);
-#endif	
+#endif
 	mutex_exit(&(buf_pool->mutex));
 
 #ifdef UNIV_DEBUG
@@ -1203,7 +1245,7 @@ loop:
 			block->buf_fix_count--;
 #ifdef UNIV_SYNC_DEBUG
 			rw_lock_s_unlock(&(block->debug_latch));
-#endif			
+#endif
 			mutex_exit(&(buf_pool->mutex));
 
 			return(NULL);
@@ -1211,24 +1253,24 @@ loop:
 	} else if (rw_latch == RW_NO_LATCH) {
 
 		if (must_read) {
-		        /* Let us wait until the read operation
+			/* Let us wait until the read operation
 			completes */
 
-		        for (;;) {
-			        mutex_enter(&(buf_pool->mutex));
+			for (;;) {
+				mutex_enter(&(buf_pool->mutex));
 
-		                if (block->io_fix == BUF_IO_READ) {
+				if (block->io_fix == BUF_IO_READ) {
 
-				        mutex_exit(&(buf_pool->mutex));
-				  
-				        /* Sleep 20 milliseconds */
+					mutex_exit(&(buf_pool->mutex));
 
-				        os_thread_sleep(20000);
+					/* Sleep 20 milliseconds */
+
+					os_thread_sleep(20000);
 				} else {
-				  
-				       mutex_exit(&(buf_pool->mutex));
 
-				       break;
+					mutex_exit(&(buf_pool->mutex));
+
+					break;
 				}
 			}
 		}
@@ -1257,7 +1299,7 @@ loop:
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(ibuf_count_get(block->space, block->offset) == 0);
 #endif
-	return(block->frame);		
+	return(block->frame);
 }
 
 /************************************************************************
@@ -1284,11 +1326,11 @@ buf_page_optimistic_get_func(
 
 	ut_ad(mtr && block);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
-	
+
 	mutex_enter(&(buf_pool->mutex));
 
 	/* If AWE is used, block may have a different frame now, e.g., NULL */
-	
+
 	if (UNIV_UNLIKELY(block->state != BUF_BLOCK_FILE_PAGE)
 			|| UNIV_UNLIKELY(block->frame != guess)) {
 	exit_func:
@@ -1326,7 +1368,7 @@ buf_page_optimistic_get_func(
 
 	if (UNIV_UNLIKELY(!success)) {
 		mutex_enter(&(buf_pool->mutex));
-		
+
 		block->buf_fix_count--;
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_s_unlock(&(block->debug_latch));
@@ -1345,7 +1387,7 @@ buf_page_optimistic_get_func(
 		}
 
 		mutex_enter(&(buf_pool->mutex));
-		
+
 		block->buf_fix_count--;
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_s_unlock(&(block->debug_latch));
@@ -1406,20 +1448,20 @@ buf_page_get_known_nowait(
 
 	ut_ad(mtr);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
-	
+
 	mutex_enter(&(buf_pool->mutex));
 
 	block = buf_block_align(guess);
 
 	if (block->state == BUF_BLOCK_REMOVE_HASH) {
-	        /* Another thread is just freeing the block from the LRU list
-	        of the buffer pool: do not try to access this page; this
+		/* Another thread is just freeing the block from the LRU list
+		of the buffer pool: do not try to access this page; this
 		attempt to access the page can only come through the hash
 		index because when the buffer block state is ..._REMOVE_HASH,
 		we have already removed it from the page address hash table
 		of the buffer pool. */
 
-	        mutex_exit(&(buf_pool->mutex));
+		mutex_exit(&(buf_pool->mutex));
 
 		return(FALSE);
 	}
@@ -1448,14 +1490,14 @@ buf_page_get_known_nowait(
 								file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 	}
-	
+
 	if (!success) {
 		mutex_enter(&(buf_pool->mutex));
-		
+
 		block->buf_fix_count--;
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_s_unlock(&(block->debug_latch));
-#endif		
+#endif
 		mutex_exit(&(buf_pool->mutex));
 
 		return(FALSE);
@@ -1499,27 +1541,27 @@ buf_page_init_for_backup_restore(
 	/* Set the state of the block */
 	block->magic_n		= BUF_BLOCK_MAGIC_N;
 
-	block->state 		= BUF_BLOCK_FILE_PAGE;
-	block->space 		= space;
-	block->offset 		= offset;
+	block->state		= BUF_BLOCK_FILE_PAGE;
+	block->space		= space;
+	block->offset		= offset;
 
 	block->lock_hash_val	= 0;
 	block->lock_mutex	= NULL;
-	
+
 	block->freed_page_clock = 0;
 
 	block->newest_modification = ut_dulint_zero;
 	block->oldest_modification = ut_dulint_zero;
-	
+
 	block->accessed		= FALSE;
-	block->buf_fix_count 	= 0;
+	block->buf_fix_count	= 0;
 	block->io_fix		= 0;
 
 	block->n_hash_helps	= 0;
 	block->is_hashed	= FALSE;
-	block->n_fields         = 1;
-	block->n_bytes          = 0;
-	block->side             = BTR_SEARCH_LEFT_SIDE;
+	block->n_fields		= 1;
+	block->n_bytes		= 0;
+	block->side		= BTR_SEARCH_LEFT_SIDE;
 
 	block->file_page_was_freed = FALSE;
 }
@@ -1543,31 +1585,31 @@ buf_page_init(
 	/* Set the state of the block */
 	block->magic_n		= BUF_BLOCK_MAGIC_N;
 
-	block->state 		= BUF_BLOCK_FILE_PAGE;
-	block->space 		= space;
-	block->offset 		= offset;
+	block->state		= BUF_BLOCK_FILE_PAGE;
+	block->space		= space;
+	block->offset		= offset;
 
 	block->check_index_page_at_flush = FALSE;
 	block->index		= NULL;
-	
+
 	block->lock_hash_val	= lock_rec_hash(space, offset);
 	block->lock_mutex	= NULL;
-	
+
 	/* Insert into the hash table of file pages */
 
-        if (buf_page_hash_get(space, offset)) {
-                fprintf(stderr,
+	if (buf_page_hash_get(space, offset)) {
+		fprintf(stderr,
 "InnoDB: Error: page %lu %lu already found from the hash table\n",
 			(ulong) space,
 			(ulong) offset);
 #ifdef UNIV_DEBUG
-                buf_print();
-                buf_LRU_print();
-                buf_validate();
-                buf_LRU_validate();
+		buf_print();
+		buf_LRU_print();
+		buf_validate();
+		buf_LRU_validate();
 #endif /* UNIV_DEBUG */
-                ut_a(0);
-        }
+		ut_a(0);
+	}
 
 	HASH_INSERT(buf_block_t, hash, buf_pool->page_hash,
 				buf_page_address_fold(space, offset), block);
@@ -1576,16 +1618,16 @@ buf_page_init(
 
 	block->newest_modification = ut_dulint_zero;
 	block->oldest_modification = ut_dulint_zero;
-	
+
 	block->accessed		= FALSE;
-	block->buf_fix_count 	= 0;
+	block->buf_fix_count	= 0;
 	block->io_fix		= 0;
 
 	block->n_hash_helps	= 0;
 	block->is_hashed	= FALSE;
-	block->n_fields         = 1;
-	block->n_bytes          = 0;
-	block->side             = BTR_SEARCH_LEFT_SIDE;
+	block->n_fields		= 1;
+	block->n_bytes		= 0;
+	block->side		= BTR_SEARCH_LEFT_SIDE;
 
 	block->file_page_was_freed = FALSE;
 }
@@ -1600,7 +1642,7 @@ Sets the io_fix flag to BUF_IO_READ and sets a non-recursive exclusive lock
 on the buffer frame. The io-handler must take care that the flag is cleared
 and the lock released later. This is one of the functions which perform the
 state transition NOT_USED => FILE_PAGE to a block (the other is
-buf_page_create). */ 
+buf_page_create). */
 
 buf_block_t*
 buf_page_init_for_read(
@@ -1626,9 +1668,9 @@ buf_page_init_for_read(
 
 		ut_ad(!ibuf_bitmap_page(offset));
 		ut_ad(ibuf_inside());
-	
+
 		mtr_start(&mtr);
-	
+
 		if (!ibuf_page_low(space, offset, &mtr)) {
 
 			mtr_commit(&mtr);
@@ -1638,7 +1680,7 @@ buf_page_init_for_read(
 	} else {
 		ut_ad(mode == BUF_READ_ANY_PAGE);
 	}
-	
+
 	block = buf_block_alloc();
 
 	ut_a(block);
@@ -1651,7 +1693,7 @@ buf_page_init_for_read(
 	}
 
 	if (*err == DB_TABLESPACE_DELETED
-	    || NULL != buf_page_hash_get(space, offset)) {
+		|| NULL != buf_page_hash_get(space, offset)) {
 
 		/* The page belongs to a space which has been deleted or is
 		being deleted, or the page is already in buf_pool, return */
@@ -1668,26 +1710,26 @@ buf_page_init_for_read(
 	}
 
 	ut_ad(block);
-	
+
 	buf_page_init(space, offset, block);
 
 	/* The block must be put to the LRU list, to the old blocks */
 
-	buf_LRU_add_block(block, TRUE); 	/* TRUE == to old blocks */
-	
+	buf_LRU_add_block(block, TRUE);		/* TRUE == to old blocks */
+
 	block->io_fix = BUF_IO_READ;
 	buf_pool->n_pend_reads++;
-	
+
 	/* We set a pass-type x-lock on the frame because then the same
 	thread which called for the read operation (and is running now at
 	this point of code) can wait for the read to complete by waiting
 	for the x-lock on the frame; if the x-lock were recursive, the
 	same thread would illegally get the x-lock before the page read
 	is completed. The x-lock is cleared by the io-handler thread. */
-	
+
 	rw_lock_x_lock_gen(&(block->lock), BUF_IO_READ);
-	
- 	mutex_exit(&(buf_pool->mutex));
+
+	mutex_exit(&(buf_pool->mutex));
 
 	if (mode == BUF_READ_IBUF_PAGES_ONLY) {
 
@@ -1695,7 +1737,7 @@ buf_page_init_for_read(
 	}
 
 	return(block);
-}	
+}
 
 /************************************************************************
 Initializes a page to the buffer buf_pool. The page is usually not read
@@ -1715,11 +1757,11 @@ buf_page_create(
 	buf_frame_t*	frame;
 	buf_block_t*	block;
 	buf_block_t*	free_block	= NULL;
-	
+
 	ut_ad(mtr);
 
 	free_block = buf_LRU_get_free_block();
-	
+
 	mutex_enter(&(buf_pool->mutex));
 
 	block = buf_page_hash_get(space, offset);
@@ -1750,12 +1792,12 @@ buf_page_create(
 #endif /* UNIV_DEBUG */
 
 	block = free_block;
-	
+
 	buf_page_init(space, offset, block);
 
 	/* The block must be put to the LRU list */
 	buf_LRU_add_block(block, FALSE);
-		
+
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_buf_fix_inc_debug(block, __FILE__, __LINE__);
 #else
@@ -1764,7 +1806,7 @@ buf_page_create(
 	mtr_memo_push(mtr, block, MTR_MEMO_BUF_FIX);
 
 	block->accessed = TRUE;
-	
+
 	buf_pool->n_pages_created++;
 
 	mutex_exit(&(buf_pool->mutex));
@@ -1778,6 +1820,10 @@ buf_page_create(
 	buf_flush_free_margin();
 
 	frame = block->frame;
+
+	memset(frame + FIL_PAGE_PREV, 0xff, 4);
+	memset(frame + FIL_PAGE_NEXT, 0xff, 4);
+	mach_write_to_2(frame + FIL_PAGE_TYPE, FIL_PAGE_TYPE_ALLOCATED);
 
 	/* Reset to zero the file flush lsn field in the page; if the first
 	page of an ibdata file is 'created' in this function into the buffer
@@ -1811,7 +1857,7 @@ buf_page_io_complete(
 {
 	ulint		io_type;
 	ulint		read_page_no;
-	
+
 	ut_ad(block);
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
@@ -1827,7 +1873,7 @@ buf_page_io_complete(
 						+ FIL_PAGE_OFFSET);
 		if (read_page_no != 0
 			&& !trx_doublewrite_page_inside(read_page_no)
-	    		&& read_page_no != block->offset) {
+			&& read_page_no != block->offset) {
 
 			fprintf(stderr,
 "InnoDB: Error: page n:o stored in the page read in is %lu, should be %lu!\n",
@@ -1837,16 +1883,16 @@ buf_page_io_complete(
 		   to the 4 first bytes of the page end lsn field */
 
 		if (buf_page_is_corrupted(block->frame)) {
-		  	fprintf(stderr,
+			fprintf(stderr,
 		"InnoDB: Database page corruption on disk or a failed\n"
 		"InnoDB: file read of page %lu.\n", (ulong) block->offset);
-			  
+
 			fputs(
 		"InnoDB: You may have to recover from a backup.\n", stderr);
 
 			buf_page_print(block->frame);
 
-		  	fprintf(stderr,
+			fprintf(stderr,
 		"InnoDB: Database page corruption on disk or a failed\n"
 		"InnoDB: file read of page %lu.\n", (ulong) block->offset);
 			fputs(
@@ -1864,13 +1910,13 @@ buf_page_io_complete(
 		"InnoDB: See also "
 		"http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html\n"
 		"InnoDB: about forcing recovery.\n", stderr);
-			  
+
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
 				fputs(
 	"InnoDB: Ending processing because of a corrupt database page.\n",
 					stderr);
-		  		exit(1);
-		  	}
+				exit(1);
+			}
 		}
 
 		if (recv_recovery_is_on()) {
@@ -1883,24 +1929,24 @@ buf_page_io_complete(
 					block->space, block->offset, TRUE);
 		}
 	}
-	
+
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(ibuf_count_get(block->space, block->offset) == 0);
 #endif
 	mutex_enter(&(buf_pool->mutex));
-	
+
 	/* Because this thread which does the unlocking is not the same that
 	did the locking, we use a pass value != 0 in unlock, which simply
 	removes the newest lock debug record, without checking the thread
 	id. */
 
 	block->io_fix = 0;
-	
+
 	if (io_type == BUF_IO_READ) {
 		/* NOTE that the call to ibuf may have moved the ownership of
 		the x-latch to this OS thread: do not let this confuse you in
-		debugging! */		
-	
+		debugging! */
+
 		ut_ad(buf_pool->n_pend_reads > 0);
 		buf_pool->n_pend_reads--;
 		buf_pool->n_pages_read++;
@@ -1930,7 +1976,7 @@ buf_page_io_complete(
 		}
 #endif /* UNIV_DEBUG */
 	}
-	
+
 	mutex_exit(&(buf_pool->mutex));
 
 #ifdef UNIV_DEBUG
@@ -1953,13 +1999,13 @@ buf_pool_invalidate(void)
 	ibool	freed;
 
 	ut_ad(buf_all_freed());
-	
+
 	freed = TRUE;
 
 	while (freed) {
 		freed = buf_LRU_search_and_free_block(100);
 	}
-	
+
 	mutex_enter(&(buf_pool->mutex));
 
 	ut_ad(UT_LIST_GET_LEN(buf_pool->LRU) == 0);
@@ -1984,7 +2030,7 @@ buf_validate(void)
 	ulint		n_flush		= 0;
 	ulint		n_free		= 0;
 	ulint		n_page		= 0;
-	
+
 	ut_ad(buf_pool);
 
 	mutex_enter(&(buf_pool->mutex));
@@ -2001,8 +2047,8 @@ buf_validate(void)
 
 #ifdef UNIV_IBUF_DEBUG
 			ut_a((block->io_fix == BUF_IO_READ)
-			     || ibuf_count_get(block->space, block->offset)
-								== 0);
+				|| ibuf_count_get(block->space, block->offset)
+				== 0);
 #endif
 			if (block->io_fix == BUF_IO_WRITE) {
 
@@ -2025,18 +2071,18 @@ buf_validate(void)
 				ut_a(rw_lock_is_locked(&(block->lock),
 							RW_LOCK_EX));
 			}
-			
+
 			n_lru++;
 
 			if (ut_dulint_cmp(block->oldest_modification,
 						ut_dulint_zero) > 0) {
 					n_flush++;
-			}	
-		
+			}
+
 		} else if (block->state == BUF_BLOCK_NOT_USED) {
 			n_free++;
 		}
- 	}
+	}
 
 	if (n_lru + n_free > buf_pool->curr_size) {
 		fprintf(stderr, "n LRU %lu, n free %lu\n", (ulong) n_lru, (ulong) n_free);
@@ -2054,14 +2100,14 @@ buf_validate(void)
 	ut_a(buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] == n_single_flush);
 	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] == n_list_flush);
 	ut_a(buf_pool->n_flush[BUF_FLUSH_LRU] == n_lru_flush);
-	
+
 	mutex_exit(&(buf_pool->mutex));
 
 	ut_a(buf_LRU_validate());
 	ut_a(buf_flush_validate());
 
 	return(TRUE);
-}	
+}
 
 /*************************************************************************
 Prints info of the buffer buf_pool data structure. */
@@ -2077,9 +2123,9 @@ buf_print(void)
 	ulint		j;
 	dulint		id;
 	ulint		n_found;
-	buf_frame_t* 	frame;
+	buf_frame_t*	frame;
 	dict_index_t*	index;
-	
+
 	ut_ad(buf_pool);
 
 	size = buf_pool->curr_size;
@@ -2088,7 +2134,7 @@ buf_print(void)
 	counts = mem_alloc(sizeof(ulint) * size);
 
 	mutex_enter(&(buf_pool->mutex));
-	
+
 	fprintf(stderr,
 		"buf_pool size %lu\n"
 		"database pages %lu\n"
@@ -2109,7 +2155,7 @@ buf_print(void)
 		(ulong) buf_pool->n_pages_written);
 
 	/* Count the number of blocks belonging to each index in the buffer */
-	
+
 	n_found = 0;
 
 	for (i = 0; i < size; i++) {
@@ -2147,8 +2193,8 @@ buf_print(void)
 
 		fprintf(stderr,
 			"Block count for index %lu in buffer is about %lu",
-		       (ulong) ut_dulint_get_low(index_ids[i]),
-		       (ulong) counts[i]);
+			(ulong) ut_dulint_get_low(index_ids[i]),
+			(ulong) counts[i]);
 
 		if (index) {
 			putc(' ', stderr);
@@ -2157,12 +2203,12 @@ buf_print(void)
 
 		putc('\n', stderr);
 	}
-	
+
 	mem_free(index_ids);
 	mem_free(counts);
 
 	ut_a(buf_validate());
-}	
+}
 #endif /* UNIV_DEBUG */
 
 /*************************************************************************
@@ -2171,23 +2217,23 @@ Returns the number of latched pages in the buffer pool. */
 ulint
 buf_get_latched_pages_number(void)
 {
-        buf_block_t* block;
-        ulint i;
-        ulint fixed_pages_number = 0;
+	buf_block_t* block;
+	ulint i;
+	ulint fixed_pages_number = 0;
 
-        mutex_enter(&(buf_pool->mutex));
+	mutex_enter(&(buf_pool->mutex));
 
-        for (i = 0; i < buf_pool->curr_size; i++) {
+	for (i = 0; i < buf_pool->curr_size; i++) {
 
-               block = buf_pool_get_nth_block(buf_pool, i);
+		block = buf_pool_get_nth_block(buf_pool, i);
 
-               if (((block->buf_fix_count != 0) || (block->io_fix != 0)) &&
-                    block->magic_n == BUF_BLOCK_MAGIC_N )
-                       fixed_pages_number++;
-        }
+		if (((block->buf_fix_count != 0) || (block->io_fix != 0)) &&
+			block->magic_n == BUF_BLOCK_MAGIC_N )
+			fixed_pages_number++;
+	}
 
-        mutex_exit(&(buf_pool->mutex));
-        return fixed_pages_number;
+	mutex_exit(&(buf_pool->mutex));
+	return fixed_pages_number;
 }
 
 /*************************************************************************
@@ -2216,10 +2262,10 @@ buf_get_modified_ratio_pct(void)
 	mutex_enter(&(buf_pool->mutex));
 
 	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
-		     / (1 + UT_LIST_GET_LEN(buf_pool->LRU)
-		        + UT_LIST_GET_LEN(buf_pool->free));
+		/ (1 + UT_LIST_GET_LEN(buf_pool->LRU)
+			+ UT_LIST_GET_LEN(buf_pool->free));
 
-		       /* 1 + is there to avoid division by zero */   
+	/* 1 + is there to avoid division by zero */
 
 	mutex_exit(&(buf_pool->mutex));
 
@@ -2237,17 +2283,17 @@ buf_print_io(
 	time_t	current_time;
 	double	time_elapsed;
 	ulint	size;
-	
+
 	ut_ad(buf_pool);
 	size = buf_pool->curr_size;
 
 	mutex_enter(&(buf_pool->mutex));
-	
+
 	if (srv_use_awe) {
 		fprintf(stderr,
 		"AWE: Buffer pool memory frames                        %lu\n",
 				(ulong) buf_pool->n_frames);
-		
+
 		fprintf(stderr,
 		"AWE: Database pages and free buffers mapped in frames %lu\n",
 				(ulong) UT_LIST_GET_LEN(buf_pool->awe_LRU_free_mapped));
@@ -2294,13 +2340,12 @@ buf_print_io(
 				- buf_pool->n_pages_awe_remapped_old)
 			/ time_elapsed);
 	}
-		
+
 	if (buf_pool->n_page_gets > buf_pool->n_page_gets_old) {
 		fprintf(file, "Buffer pool hit rate %lu / 1000\n",
-       (ulong) (1000
-		- ((1000 *
-		    (buf_pool->n_pages_read - buf_pool->n_pages_read_old))
-		/ (buf_pool->n_page_gets - buf_pool->n_page_gets_old))));
+			(ulong) (1000 -
+			((1000 * (buf_pool->n_pages_read - buf_pool->n_pages_read_old))
+			/ (buf_pool->n_page_gets - buf_pool->n_page_gets_old))));
 	} else {
 		fputs("No buffer pool page gets since the last printout\n",
 			file);
@@ -2322,12 +2367,12 @@ void
 buf_refresh_io_stats(void)
 /*======================*/
 {
-        buf_pool->last_printout_time = time(NULL);
+	buf_pool->last_printout_time = time(NULL);
 	buf_pool->n_page_gets_old = buf_pool->n_page_gets;
 	buf_pool->n_pages_read_old = buf_pool->n_pages_read;
 	buf_pool->n_pages_created_old = buf_pool->n_pages_created;
 	buf_pool->n_pages_written_old = buf_pool->n_pages_written;
-	buf_pool->n_pages_awe_remapped_old = buf_pool->n_pages_awe_remapped; 
+	buf_pool->n_pages_awe_remapped_old = buf_pool->n_pages_awe_remapped;
 }
 
 /*************************************************************************
@@ -2339,7 +2384,7 @@ buf_all_freed(void)
 {
 	buf_block_t*	block;
 	ulint		i;
-	
+
 	ut_ad(buf_pool);
 
 	mutex_enter(&(buf_pool->mutex));
@@ -2355,15 +2400,15 @@ buf_all_freed(void)
 				fprintf(stderr,
 					"Page %lu %lu still fixed or dirty\n",
 					(ulong) block->space, (ulong) block->offset);
-			    	ut_error;
+				ut_error;
 			}
 		}
- 	}
+	}
 
 	mutex_exit(&(buf_pool->mutex));
 
 	return(TRUE);
-}	
+}
 
 /*************************************************************************
 Checks that there currently are no pending i/o-operations for the buffer

@@ -41,7 +41,7 @@ struct ibuf_data_struct{
 
 /* If the ibuf meter exceeds this value, then the suitable inserts are made to
 the insert buffer instead of directly to the disk page */
-#define IBUF_THRESHOLD	50	
+#define IBUF_THRESHOLD	50
 
 struct ibuf_struct{
 	ulint		size;		/* current size of the ibuf index
@@ -88,13 +88,13 @@ ibuf_should_try(
 						decide */
 {
 	if (!(index->type & DICT_CLUSTERED)
-	    && (ignore_sec_unique || !(index->type & DICT_UNIQUE))
-	    && ibuf->meter > IBUF_THRESHOLD) {
+		&& (ignore_sec_unique || !(index->type & DICT_UNIQUE))
+		&& ibuf->meter > IBUF_THRESHOLD) {
 
 		ibuf_flush_count++;
 
 		if (ibuf_flush_count % 8 == 0) {
-	    
+
 			buf_LRU_try_free_flushed_blocks();
 		}
 
@@ -132,13 +132,13 @@ ibuf_index_page_calc_free_bits(
 				for the page */
 {
 	ulint	n;
-	
+
 	n = max_ins_size / (UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
 
 	if (n == 3) {
 		n = 2;
 	}
-	
+
 	if (n > 3) {
 		n = 3;
 	}
@@ -206,8 +206,9 @@ ibuf_update_free_bits_if_full(
 	before = ibuf_index_page_calc_free_bits(max_ins_size);
 
 	if (max_ins_size >= increase) {
-		ut_ad(ULINT_UNDEFINED > UNIV_PAGE_SIZE);
-		
+#if ULINT32_UNDEFINED <= UNIV_PAGE_SIZE
+# error "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE"
+#endif
 		after = ibuf_index_page_calc_free_bits(max_ins_size
 								- increase);
 #ifdef UNIV_IBUF_DEBUG

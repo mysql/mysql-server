@@ -22,7 +22,7 @@ ut_dulint_create(
 	ut_ad(low <= 0xFFFFFFFF);
 
 	res.high = high;
-	res.low  = low;
+	res.low	 = low;
 
 	return(res);
 }
@@ -89,7 +89,7 @@ int
 ut_dulint_cmp(
 /*==========*/
 			/* out: -1 if a < b, 0 if a == b,
-			1 if a > b */ 
+			1 if a > b */
 	dulint	a,	/* in: dulint */
 	dulint	b)	/* in: dulint */
 {
@@ -186,7 +186,7 @@ ut_dulint_subtract(
 	a.low = 0xFFFFFFFFUL - b;
 
 	ut_ad(a.high > 0);
-	
+
 	a.high--;
 
 	return(a);
@@ -218,9 +218,9 @@ ut_dulint_minus(
 	diff += 1 + a.low;
 
 	ut_ad(diff > a.low);
-	
+
 	return(diff);
-} 
+}
 
 /************************************************************
 Rounds a dulint downward to a multiple of a power of 2. */
@@ -229,8 +229,8 @@ dulint
 ut_dulint_align_down(
 /*=================*/
 				/* out: rounded value */
-	dulint   n,        	/* in: number to be rounded */
-	ulint    align_no)  	/* in: align by this number which must be a
+	dulint	 n,		/* in: number to be rounded */
+	ulint	 align_no)	/* in: align by this number which must be a
 				power of 2 */
 {
 	ulint	low, high;
@@ -240,7 +240,7 @@ ut_dulint_align_down(
 
 	low = ut_dulint_get_low(n);
 	high = ut_dulint_get_high(n);
-	
+
 	low = low & ~(align_no - 1);
 
 	return(ut_dulint_create(high, low));
@@ -253,8 +253,8 @@ dulint
 ut_dulint_align_up(
 /*===============*/
 				/* out: rounded value */
-	dulint   n,        	/* in: number to be rounded */
-	ulint    align_no)  	/* in: align by this number which must be a
+	dulint	 n,		/* in: number to be rounded */
+	ulint	 align_no)	/* in: align by this number which must be a
 				power of 2 */
 {
 	return(ut_dulint_align_down(ut_dulint_add(n, align_no - 1), align_no));
@@ -269,8 +269,8 @@ ulint
 ut_calc_align(
 /*==========*/
 				/* out: rounded value */
-	ulint    n,        	/* in: number to be rounded */
-	ulint    align_no)  	/* in: align by this number */
+	ulint	 n,		/* in: number to be rounded */
+	ulint	 align_no)	/* in: align by this number */
 {
 	ut_ad(align_no > 0);
 	ut_ad(((align_no - 1) & align_no) == 0);
@@ -285,8 +285,8 @@ void*
 ut_align(
 /*=====*/
 				/* out: aligned pointer */
-	void*   ptr,            /* in: pointer */
-	ulint   align_no)      	/* in: align by this number */
+	void*	ptr,		/* in: pointer */
+	ulint	align_no)	/* in: align by this number */
 {
 	ut_ad(align_no > 0);
 	ut_ad(((align_no - 1) & align_no) == 0);
@@ -306,8 +306,8 @@ ulint
 ut_calc_align_down(
 /*===============*/
 				/* out: rounded value */
-	ulint    n,              /* in: number to be rounded */
-	ulint    align_no)       /* in: align by this number */
+	ulint	 n,		 /* in: number to be rounded */
+	ulint	 align_no)	 /* in: align by this number */
 {
 	ut_ad(align_no > 0);
 	ut_ad(((align_no - 1) & align_no) == 0);
@@ -323,8 +323,8 @@ void*
 ut_align_down(
 /*==========*/
 				/* out: aligned pointer */
-	void*   ptr,            /* in: pointer */
-	ulint   align_no)      	/* in: align by this number */
+	void*	ptr,		/* in: pointer */
+	ulint	align_no)	/* in: align by this number */
 {
 	ut_ad(align_no > 0);
 	ut_ad(((align_no - 1) & align_no) == 0);
@@ -344,8 +344,8 @@ ut_align_offset(
 /*============*/
 					/* out: distance from
 					aligned pointer */
-	const void*	ptr,            /* in: pointer */
-	ulint		align_no)      	/* in: align by this number */
+	const void*	ptr,		/* in: pointer */
+	ulint		align_no)	/* in: align by this number */
 {
 	ut_ad(align_no > 0);
 	ut_ad(((align_no - 1) & align_no) == 0);
@@ -368,8 +368,9 @@ ut_bit_get_nth(
 	ulint	n)	/* in: nth bit requested */
 {
 	ut_ad(n < 8 * sizeof(ulint));
-	ut_ad(TRUE == 1);
-
+#if TRUE != 1
+# error "TRUE != 1"
+#endif
 	return(1 & (a >> n));
 }
 
@@ -385,8 +386,9 @@ ut_bit_set_nth(
 	ibool	val)	/* in: value for the bit to set */
 {
 	ut_ad(n < 8 * sizeof(ulint));
-	ut_ad(TRUE == 1);
-
+#if TRUE != 1
+# error "TRUE != 1"
+#endif
 	if (val) {
 		return((1 << n) | a);
 	} else {

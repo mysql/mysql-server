@@ -8,6 +8,7 @@ Created 1/16/1996 Heikki Tuuri
 
 #include "mach0data.h"
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Get the variable length bounds of the given character set.
 
@@ -20,6 +21,7 @@ innobase_get_cset_width(
 	ulint	cset,		/* in: MySQL charset-collation code */
 	ulint*	mbminlen,	/* out: minimum length of a char (in bytes) */
 	ulint*	mbmaxlen);	/* out: maximum length of a char (in bytes) */
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Gets the MySQL charset-collation code for MySQL string types. */
@@ -55,9 +57,21 @@ dtype_set_mblen(
 {
 	ut_ad(type);
 	if (dtype_is_string_type(type->mtype)) {
+#ifndef UNIV_HOTBACKUP
 		innobase_get_cset_width(dtype_get_charset_coll(type->prtype),
 				&type->mbminlen, &type->mbmaxlen);
 		ut_ad(type->mbminlen <= type->mbmaxlen);
+#else /* !UNIV_HOTBACKUP */
+#ifdef notdefined
+printf("ibbackup: DEBUG: type->mtype=%lu, type->prtype=%lu\n",
+		  type->mtype, type->prtype);
+#endif
+		ut_a(type->mtype <= DATA_BINARY);
+#ifdef notdefined
+		ut_a(type->prtype == (DATA_BINARY | DATA_NOT_NULL));
+#endif
+		type->mbminlen = type->mbmaxlen = 1;
+#endif /* !UNIV_HOTBACKUP */
 	} else {
 		type->mbminlen = type->mbmaxlen = 0;
 	}
@@ -77,7 +91,7 @@ dtype_set(
 {
 	ut_ad(type);
 	ut_ad(mtype <= DATA_MTYPE_MAX);
-	
+
 	type->mtype = mtype;
 	type->prtype = prtype;
 	type->len = len;
@@ -188,26 +202,35 @@ dtype_get_pad_char(
 /*===============*/
 				/* out: padding character code, or
 				ULINT_UNDEFINED if no padding specified */
-	dtype_t*	type)	/* in: type */
+	const dtype_t*	type)	/* in: type */
 {
-	if (type->mtype == DATA_CHAR
-	    || type->mtype == DATA_VARCHAR
-	    || type->mtype == DATA_BINARY
-	    || type->mtype == DATA_FIXBINARY
-	    || type->mtype == DATA_MYSQL
-	    || type->mtype == DATA_VARMYSQL
-	    || (type->mtype == DATA_BLOB
-		&& (type->prtype & DATA_BINARY_TYPE) == 0)) {
-
+	switch (type->mtype) {
+	case DATA_FIXBINARY:
+	case DATA_BINARY:
+		if (UNIV_UNLIKELY(dtype_get_charset_coll(type->prtype)
+				== DATA_MYSQL_BINARY_CHARSET_COLL)) {
+			/* Starting from 5.0.18, do not pad
+			VARBINARY or BINARY columns. */
+			return(ULINT_UNDEFINED);
+		}
+		/* Fall through */
+	case DATA_CHAR:
+	case DATA_VARCHAR:
+	case DATA_MYSQL:
+	case DATA_VARMYSQL:
 		/* Space is the padding character for all char and binary
-	        strings, and starting from 5.0.3, also for TEXT strings. */
+		strings, and starting from 5.0.3, also for TEXT strings. */
 
-		return((ulint)' ');
+		return(0x20);
+	case DATA_BLOB:
+		if ((type->prtype & DATA_BINARY_TYPE) == 0) {
+			return(0x20);
+		}
+		/* Fall through */
+	default:
+		/* No padding specified */
+		return(ULINT_UNDEFINED);
 	}
-
-	/* No padding specified */
-
-	return(ULINT_UNDEFINED);
 }
 
 /**************************************************************************
@@ -233,7 +256,7 @@ dtype_new_store_for_order_and_null_size(
 		buf[0] = buf[0] | 128;
 	}
 
-	/* In versions < 4.1.2 we had: 	if (type->prtype & DATA_NONLATIN1) {
+	/* In versions < 4.1.2 we had:	if (type->prtype & DATA_NONLATIN1) {
 						buf[0] = buf[0] | 64;
 					}
 	*/
@@ -262,20 +285,20 @@ dtype_read_for_order_and_null_size(
 	byte*		buf)	/* in: buffer for stored type order info */
 {
 	ut_ad(4 == DATA_ORDER_NULL_TYPE_BUF_SIZE);
-	
+
 	type->mtype = buf[0] & 63;
 	type->prtype = buf[1];
 
 	if (buf[0] & 128) {
-	        type->prtype = type->prtype | DATA_BINARY_TYPE;
+		type->prtype = type->prtype | DATA_BINARY_TYPE;
 	}
 
 	type->len = mach_read_from_2(buf + 2);
-		
+
 	type->prtype = dtype_form_prtype(type->prtype,
 					data_mysql_default_charset_coll);
 	dtype_set_mblen(type);
-}	
+}
 
 /**************************************************************************
 Reads to a type the stored information which determines its alphabetical
@@ -293,7 +316,7 @@ dtype_new_read_for_order_and_null_size(
 #if 6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
 #error "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE"
 #endif
-	
+
 	type->mtype = buf[0] & 63;
 	type->prtype = buf[1];
 
@@ -323,13 +346,12 @@ dtype_new_read_for_order_and_null_size(
 
 			charset_coll = data_mysql_default_charset_coll;
 		}
-		
+
 		type->prtype = dtype_form_prtype(type->prtype, charset_coll);
-	}						
+	}
 	dtype_set_mblen(type);
 }
 
-#ifndef UNIV_HOTBACKUP
 /***************************************************************************
 Returns the size of a fixed size data type, 0 if not a fixed size type. */
 UNIV_INLINE
@@ -374,8 +396,13 @@ dtype_get_fixed_size(
 			if (type->prtype & DATA_BINARY_TYPE) {
 				return(dtype_get_len(type));
 			} else {
+#ifdef UNIV_HOTBACKUP
+				if (type->mbminlen == type->mbmaxlen) {
+					return(dtype_get_len(type));
+				}
+#else /* UNIV_HOTBACKUP */
 				/* We play it safe here and ask MySQL for
-				mbminlen and mbmaxlen.  Although
+				mbminlen and mbmaxlen.	Although
 				type->mbminlen and type->mbmaxlen are
 				initialized if and only if type->prtype
 				is (in one of the 3 functions in this file),
@@ -405,6 +432,7 @@ dtype_get_fixed_size(
 				if (mbminlen == mbmaxlen) {
 					return(dtype_get_len(type));
 				}
+#endif /* !UNIV_HOTBACKUP */
 			}
 			/* fall through for variable-length charsets */
 	case DATA_VARCHAR:
@@ -412,7 +440,7 @@ dtype_get_fixed_size(
 	case DATA_DECIMAL:
 	case DATA_VARMYSQL:
 	case DATA_BLOB:
-			return(0); 
+			return(0);
 	default:	ut_error;
 	}
 
@@ -470,13 +498,12 @@ dtype_get_min_size(
 	case DATA_DECIMAL:
 	case DATA_VARMYSQL:
 	case DATA_BLOB:
-			return(0); 
+			return(0);
 	default:	ut_error;
 	}
 
 	return(0);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************************
 Returns a stored SQL NULL size for a type. For fixed length types it is

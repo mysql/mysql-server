@@ -20,7 +20,7 @@ Created 9/6/1995 Heikki Tuuri
 #include "srv0start.h"
 
 /* Type definition for an operating system mutex struct */
-struct os_mutex_struct{ 
+struct os_mutex_struct{
 	void*		handle;	/* OS handle to mutex */
 	ulint		count;	/* we use this counter to check
 				that the same thread does not
@@ -80,24 +80,24 @@ os_sync_free(void)
 
 	while (event) {
 
-	      os_event_free(event);
+		os_event_free(event);
 
-	      event = UT_LIST_GET_FIRST(os_event_list);
+		event = UT_LIST_GET_FIRST(os_event_list);
 	}
 
 	mutex = UT_LIST_GET_FIRST(os_mutex_list);
 
 	while (mutex) {
-	      if (mutex == os_sync_mutex) {
-		      /* Set the flag to FALSE so that we do not try to
-		      reserve os_sync_mutex any more in remaining freeing
-		      operations in shutdown */
-		      os_sync_mutex_inited = FALSE;
-	      }
+		if (mutex == os_sync_mutex) {
+			/* Set the flag to FALSE so that we do not try to
+			   reserve os_sync_mutex any more in remaining freeing
+			   operations in shutdown */
+			os_sync_mutex_inited = FALSE;
+		}
 
-	      os_mutex_free(mutex);
+		os_mutex_free(mutex);
 
-	      mutex = UT_LIST_GET_FIRST(os_mutex_list);
+		mutex = UT_LIST_GET_FIRST(os_mutex_list);
 	}
 }
 
@@ -114,7 +114,7 @@ os_event_create(
 				the event is created without a name */
 {
 #ifdef __WIN__
-        os_event_t event;
+	os_event_t event;
 
 	event = ut_malloc(sizeof(struct os_event_struct));
 
@@ -123,7 +123,7 @@ os_event_create(
 			FALSE,		/* Initial state nonsignaled */
 			(LPCTSTR) name);
 	if (!event->handle) {
-	        fprintf(stderr,
+		fprintf(stderr,
 "InnoDB: Could not create a Windows event semaphore; Windows error %lu\n",
 		  (ulong) GetLastError());
 	}
@@ -146,7 +146,7 @@ os_event_create(
 	event->signal_count = 0;
 #endif /* __WIN__ */
 
-        /* Put to the list of events */
+	/* Put to the list of events */
 	os_mutex_enter(os_sync_mutex);
 
 	UT_LIST_ADD_FIRST(os_event_list, os_event_list, event);
@@ -170,7 +170,7 @@ os_event_create_auto(
 	const char*	name)	/* in: the name of the event, if NULL
 				the event is created without a name */
 {
-        os_event_t event;
+	os_event_t event;
 
 	event = ut_malloc(sizeof(struct os_event_struct));
 
@@ -180,12 +180,12 @@ os_event_create_auto(
 			(LPCTSTR) name);
 
 	if (!event->handle) {
-	        fprintf(stderr,
+		fprintf(stderr,
 "InnoDB: Could not create a Windows auto event semaphore; Windows error %lu\n",
 		  (ulong) GetLastError());
 	}
 
-        /* Put to the list of events */
+	/* Put to the list of events */
 	os_mutex_enter(os_sync_mutex);
 
 	UT_LIST_ADD_FIRST(os_event_list, os_event_list, event);
@@ -207,7 +207,7 @@ os_event_set(
 /*=========*/
 	os_event_t	event)	/* in: event to set */
 {
-#ifdef __WIN__	
+#ifdef __WIN__
 	ut_a(event);
 	ut_a(SetEvent(event->handle));
 #else
@@ -224,7 +224,7 @@ os_event_set(
 	}
 
 	os_fast_mutex_unlock(&(event->os_mutex));
-#endif		
+#endif
 }
 
 /**************************************************************
@@ -262,7 +262,7 @@ void
 os_event_free(
 /*==========*/
 	os_event_t	event)	/* in: event to free */
-	
+
 {
 #ifdef __WIN__
 	ut_a(event);
@@ -274,7 +274,7 @@ os_event_free(
 	os_fast_mutex_free(&(event->os_mutex));
 	ut_a(0 == pthread_cond_destroy(&(event->cond_var)));
 #endif
-        /* Remove from the list of events */
+	/* Remove from the list of events */
 
 	os_mutex_enter(os_sync_mutex);
 
@@ -309,7 +309,7 @@ os_event_wait(
 	ut_a(err == WAIT_OBJECT_0);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-	        os_thread_exit(NULL);
+		os_thread_exit(NULL);
 	}
 #else
 	ib_longlong	old_signal_count;
@@ -317,28 +317,28 @@ os_event_wait(
 	os_fast_mutex_lock(&(event->os_mutex));
 
 	old_signal_count = event->signal_count;
-loop:
-	if (event->is_set == TRUE
-            || event->signal_count != old_signal_count) {
 
-		os_fast_mutex_unlock(&(event->os_mutex));
+	for (;;) {
+		if (event->is_set == TRUE
+			|| event->signal_count != old_signal_count) {
 
-		if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+			os_fast_mutex_unlock(&(event->os_mutex));
 
-		        os_thread_exit(NULL);
+			if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+
+				os_thread_exit(NULL);
+			}
+			/* Ok, we may return */
+
+			return;
 		}
-		/* Ok, we may return */
 
-		return;
+		pthread_cond_wait(&(event->cond_var), &(event->os_mutex));
+
+		/* Solaris manual said that spurious wakeups may occur: we
+		have to check if the event really has been signaled after
+		we came here to wait */
 	}
-
-	pthread_cond_wait(&(event->cond_var), &(event->os_mutex));
-
-	/* Solaris manual said that spurious wakeups may occur: we have to
-	check if the event really has been signaled after we came here to
-	wait */
-
-	goto loop;
 #endif
 }
 
@@ -365,7 +365,7 @@ os_event_wait_time(
 	} else {
 		err = WaitForSingleObject(event->handle, INFINITE);
 	}
-	
+
 	if (err == WAIT_OBJECT_0) {
 
 		return(0);
@@ -378,7 +378,7 @@ os_event_wait_time(
 	}
 #else
 	UT_NOT_USED(time);
-	
+
 	/* In Posix this is just an ordinary, infinite wait */
 
 	os_event_wait(event);
@@ -416,7 +416,7 @@ os_event_wait_multiple(
 	ut_a(index < WAIT_OBJECT_0 + n);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-	        os_thread_exit(NULL);
+		os_thread_exit(NULL);
 	}
 
 	return(index - WAIT_OBJECT_0);
@@ -447,11 +447,11 @@ os_mutex_create(
 	os_mutex_t		mutex_str;
 
 	UT_NOT_USED(name);
-	
+
 	mutex = ut_malloc(sizeof(os_fast_mutex_t));
 
 	os_fast_mutex_init(mutex);
-#endif	
+#endif
 	mutex_str = ut_malloc(sizeof(os_mutex_str_t));
 
 	mutex_str->handle = mutex;
@@ -459,7 +459,7 @@ os_mutex_create(
 
 	if (os_sync_mutex_inited) {
 		/* When creating os_sync_mutex itself we cannot reserve it */
-	        os_mutex_enter(os_sync_mutex);
+		os_mutex_enter(os_sync_mutex);
 	}
 
 	UT_LIST_ADD_FIRST(os_mutex_list, os_mutex_list, mutex_str);
@@ -519,7 +519,7 @@ os_mutex_exit(
 	ut_a(ReleaseMutex(mutex->handle));
 #else
 	os_fast_mutex_unlock(mutex->handle);
-#endif	
+#endif
 }
 
 /**************************************************************
@@ -537,7 +537,7 @@ os_mutex_free(
 	}
 
 	UT_LIST_REMOVE(os_mutex_list, os_mutex_list, mutex);
-	
+
 	os_mutex_count--;
 
 	if (os_sync_mutex_inited) {
@@ -565,7 +565,7 @@ os_fast_mutex_init(
 {
 #ifdef __WIN__
 	ut_a(fast_mutex);
-	
+
 	InitializeCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
 #if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
@@ -584,7 +584,7 @@ os_fast_mutex_init(
 	os_fast_mutex_count++;
 
 	if (os_sync_mutex_inited) {
-	        os_mutex_exit(os_sync_mutex);
+		os_mutex_exit(os_sync_mutex);
 	}
 }
 
@@ -632,7 +632,7 @@ os_fast_mutex_free(
 	DeleteCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
 	int	ret;
-	
+
 	ret = pthread_mutex_destroy(fast_mutex);
 
 	if (ret != 0) {
@@ -642,8 +642,7 @@ os_fast_mutex_free(
 "InnoDB: pthread_mutex_destroy().\n", (ulint)ret);
 		fprintf(stderr,
 "InnoDB: Byte contents of the pthread mutex at %p:\n", fast_mutex);
-		ut_print_buf(stderr, (const byte*)fast_mutex,
-						sizeof(os_fast_mutex_t));
+		ut_print_buf(stderr, fast_mutex, sizeof(os_fast_mutex_t));
 		fprintf(stderr, "\n");
 	}
 #endif

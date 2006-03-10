@@ -28,8 +28,8 @@ extern ibool	os_aio_print_debug;
 extern ulint	os_file_n_pending_preads;
 extern ulint	os_file_n_pending_pwrites;
 
-extern ulint    os_n_pending_reads;
-extern ulint    os_n_pending_writes;
+extern ulint	os_n_pending_reads;
+extern ulint	os_n_pending_writes;
 
 #ifdef __WIN__
 
@@ -75,7 +75,7 @@ log. */
 #define	OS_FILE_OPEN_RETRY		56	/* for os_file_create() on
 						the first ibdata file */
 
-#define OS_FILE_READ_ONLY 		333
+#define OS_FILE_READ_ONLY		333
 #define	OS_FILE_READ_WRITE		444
 #define	OS_FILE_READ_ALLOW_DELETE	555	/* for ibbackup */
 
@@ -91,9 +91,10 @@ log. */
 #define	OS_FILE_NOT_FOUND		71
 #define	OS_FILE_DISK_FULL		72
 #define	OS_FILE_ALREADY_EXISTS		73
-#define OS_FILE_AIO_RESOURCES_RESERVED	74	/* wait for OS aio resources
+#define	OS_FILE_PATH_ERROR		74
+#define	OS_FILE_AIO_RESOURCES_RESERVED	75	/* wait for OS aio resources
 						to become available again */
-#define	OS_FILE_ERROR_NOT_SPECIFIED	75
+#define	OS_FILE_ERROR_NOT_SPECIFIED	76
 
 /* Types for aio operations */
 #define OS_FILE_READ	10
@@ -109,7 +110,7 @@ log. */
 				pages or ibuf bitmap pages */
 #define OS_AIO_IBUF	22	/* Asynchronous i/o for ibuf pages or ibuf
 				bitmap pages */
-#define OS_AIO_LOG  	23	/* Asynchronous i/o for the log */
+#define OS_AIO_LOG	23	/* Asynchronous i/o for the log */
 #define OS_AIO_SYNC	24	/* Asynchronous i/o where the calling thread
 				will itself wait for the i/o to complete,
 				doing also the job of the i/o-handler thread;
@@ -124,12 +125,12 @@ log. */
 				in the call of os_aio(...),
 				if the caller wants to post several i/o
 				requests in a batch, and only after that
- 				wake the i/o-handler thread; this has
-				effect only in simulated aio */ 
-#define OS_WIN31     1
-#define OS_WIN95     2	
-#define OS_WINNT     3
-#define OS_WIN2000   4
+				wake the i/o-handler thread; this has
+				effect only in simulated aio */
+#define OS_WIN31	1
+#define OS_WIN95	2
+#define OS_WINNT	3
+#define OS_WIN2000	4
 
 extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
@@ -138,10 +139,10 @@ extern ulint	os_n_fsyncs;
 /* File types for directory entry data type */
 
 enum os_file_type_enum{
-    OS_FILE_TYPE_UNKNOWN = 0,
-    OS_FILE_TYPE_FILE,	 		/* regular file */
-    OS_FILE_TYPE_DIR,			/* directory */
-    OS_FILE_TYPE_LINK 			/* symbolic link */
+	OS_FILE_TYPE_UNKNOWN = 0,
+	OS_FILE_TYPE_FILE,			/* regular file */
+	OS_FILE_TYPE_DIR,			/* directory */
+	OS_FILE_TYPE_LINK			/* symbolic link */
 };
 typedef enum os_file_type_enum	  os_file_type_t;
 
@@ -156,14 +157,14 @@ struct os_file_stat_struct{
 	char		name[OS_FILE_MAX_PATH];	/* path to a file */
 	os_file_type_t	type;			/* file type */
 	ib_longlong	size;			/* file size */
-	time_t          ctime;			/* creation time */
+	time_t		ctime;			/* creation time */
 	time_t		mtime;			/* modification time */
 	time_t		atime;			/* access time */
 };
 typedef struct os_file_stat_struct	os_file_stat_t;
 
 #ifdef __WIN__
-typedef HANDLE  os_file_dir_t;	/* directory stream */
+typedef HANDLE	os_file_dir_t;	/* directory stream */
 #else
 typedef DIR*	os_file_dir_t;	/* directory stream */
 #endif
@@ -174,7 +175,7 @@ Gets the operating system version. Currently works only on Windows. */
 ulint
 os_get_os_version(void);
 /*===================*/
-                  /* out: OS_WIN95, OS_WIN31, OS_WINNT, or OS_WIN2000 */
+		  /* out: OS_WIN95, OS_WIN31, OS_WINNT, or OS_WIN2000 */
 /********************************************************************
 Creates the seek mutexes used in positioned reads and writes. */
 
@@ -182,12 +183,15 @@ void
 os_io_init_simple(void);
 /*===================*/
 /***************************************************************************
-Creates a temporary file. */
+Creates a temporary file.  This function is like tmpfile(3), but
+the temporary file is created in the MySQL temporary directory.
+On Netware, this function is like tmpfile(3), because the C run-time
+library of Netware does not expose the delete-on-close flag. */
 
 FILE*
 os_file_create_tmpfile(void);
 /*========================*/
-			/* out: temporary file handle (never NULL) */
+			/* out: temporary file handle, or NULL on error */
 /***************************************************************************
 The os_file_opendir() function opens a directory stream corresponding to the
 directory named by the dirname argument. The directory stream is positioned
@@ -256,7 +260,7 @@ os_file_create_simple(
 				opened (if does not exist, error), or
 				OS_FILE_CREATE if a new file is created
 				(if exists, error), or
-	                        OS_FILE_CREATE_PATH if new file
+				OS_FILE_CREATE_PATH if new file
 				(if exists, error) and subdirectories along
 				its path are created (if needed)*/
 	ulint		access_type,/* in: OS_FILE_READ_ONLY or
@@ -430,7 +434,7 @@ os_file_read(
 				offset where to read */
 	ulint		offset_high,/* in: most significant 32 bits of
 				offset */
-	ulint		n);	/* in: number of bytes to read */	
+	ulint		n);	/* in: number of bytes to read */
 /***********************************************************************
 Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
@@ -457,7 +461,7 @@ os_file_read_no_error_handling(
 				offset where to read */
 	ulint		offset_high,/* in: most significant 32 bits of
 				offset */
-	ulint		n);	/* in: number of bytes to read */	
+	ulint		n);	/* in: number of bytes to read */
 
 /***********************************************************************
 Requests a synchronous write operation. */
@@ -475,7 +479,7 @@ os_file_write(
 				offset where to write */
 	ulint		offset_high,/* in: most significant 32 bits of
 				offset */
-	ulint		n);	/* in: number of bytes to write */	
+	ulint		n);	/* in: number of bytes to write */
 /***********************************************************************
 Check the existence and type of the given file. */
 
@@ -483,7 +487,7 @@ ibool
 os_file_status(
 /*===========*/
 				/* out: TRUE if call succeeded */
-	const char*	path,	/* in:  pathname of the file */
+	const char*	path,	/* in:	pathname of the file */
 	ibool*		exists,	/* out: TRUE if file exists */
 	os_file_type_t* type);	/* out: type of the file (if it exists) */
 /********************************************************************
@@ -500,18 +504,18 @@ yields a complete pathname.
 
 The return value is  a copy of the directory component of the pathname.
 The copy is allocated from heap. It is the caller responsibility
-to free it after it is no longer needed.	
+to free it after it is no longer needed.
 
 The following list of examples (taken from SUSv2) shows the strings
 returned by dirname and basename for different paths:
 
-       path           dirname        basename
-       "/usr/lib"     "/usr"         "lib"
-       "/usr/"        "/"            "usr"
-       "usr"          "."            "usr"
-       "/"            "/"            "/"
-       "."            "."            "."
-       ".."           "."            ".."
+       path	      dirname	     basename
+       "/usr/lib"     "/usr"	     "lib"
+       "/usr/"	      "/"	     "usr"
+       "usr"	      "."	     "usr"
+       "/"	      "/"	     "/"
+       "."	      "."	     "."
+       ".."	      "."	     ".."
 */
 
 char*
@@ -522,7 +526,7 @@ os_file_dirname(
 	const char*	path);	/* in: pathname */
 /********************************************************************
 Creates all missing subdirectories along the given path. */
-	
+
 ibool
 os_file_create_subdirs_if_needed(
 /*=============================*/
@@ -577,7 +581,7 @@ os_aio(
 				offset where to read or write */
 	ulint		offset_high, /* in: most significant 32 bits of
 				offset */
-	ulint		n,	/* in: number of bytes to read or write */	
+	ulint		n,	/* in: number of bytes to read or write */
 	fil_node_t*	message1,/* in: messages for the aio handler (these
 				can be used to identify a completed aio
 				operation); if mode is OS_AIO_SYNC, these
@@ -635,7 +639,7 @@ os_aio_windows_handle(
 				sync aio is used, and this parameter is
 				ignored */
 	ulint	pos,		/* this parameter is used only in sync aio:
-				wait for the aio slot at this position */  
+				wait for the aio slot at this position */
 	fil_node_t**message1,	/* out: the messages passed with the aio
 				request; note that also in the case where
 				the aio operation failed, these output
@@ -720,7 +724,7 @@ ibool
 os_file_get_status(
 /*===============*/
 					/* out: TRUE if stat information found */
-	const char*     path,		/* in:  pathname of the file */
+	const char*	path,		/* in:	pathname of the file */
 	os_file_stat_t* stat_info);	/* information of a file in a directory */
 
-#endif 
+#endif

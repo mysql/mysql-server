@@ -79,14 +79,14 @@ buf_read_page_low(
 
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 	mode = mode & ~OS_AIO_SIMULATED_WAKE_LATER;
-	
+
 	if (trx_doublewrite && space == TRX_SYS_SPACE
 		&& (   (offset >= trx_doublewrite->block1
-		        && offset < trx_doublewrite->block1
-		     		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-		    || (offset >= trx_doublewrite->block2
-		        && offset < trx_doublewrite->block2
-		     		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE))) {
+				&& offset < trx_doublewrite->block1
+				+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
+			|| (offset >= trx_doublewrite->block2
+				&& offset < trx_doublewrite->block2
+				+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE))) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 "  InnoDB: Warning: trying to read doublewrite buffer page %lu\n",
@@ -112,9 +112,9 @@ buf_read_page_low(
 		/* Trx sys header is so low in the latching order that we play
 		safe and do not leave the i/o-completion to an asynchronous
 		i/o-thread. Ibuf bitmap pages must always be read with
-                syncronous i/o, to make sure they do not get involved in
-                thread deadlocks. */
-		
+		syncronous i/o, to make sure they do not get involved in
+		thread deadlocks. */
+
 		sync = TRUE;
 	}
 
@@ -125,16 +125,16 @@ buf_read_page_low(
 	block = buf_page_init_for_read(err, mode, space, tablespace_version,
 								offset);
 	if (block == NULL) {
-		
+
 		return(0);
 	}
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr,
-                        "Posting read request for page %lu, sync %lu\n",
+			"Posting read request for page %lu, sync %lu\n",
 							   (ulong) offset,
-		       					   (ulong) sync);
+							   (ulong) sync);
 	}
 #endif
 
@@ -151,9 +151,9 @@ buf_read_page_low(
 		fil_read */
 		buf_page_io_complete(block);
 	}
-		
+
 	return(1);
-}	
+}
 
 /************************************************************************
 Applies a random read-ahead in buf_pool if there are at least a threshold
@@ -188,15 +188,15 @@ buf_read_ahead_random(
 	ulint		i;
 
 	if (srv_startup_is_before_trx_rollback_phase) {
-	        /* No read-ahead to avoid thread deadlocks */
-	        return(0);
+		/* No read-ahead to avoid thread deadlocks */
+		return(0);
 	}
 
 	if (ibuf_bitmap_page(offset) || trx_sys_hdr_page(space, offset)) {
 
 		/* If it is an ibuf bitmap page or trx sys hdr, we do
-                no read-ahead, as that could break the ibuf page access
-                order */
+		no read-ahead, as that could break the ibuf page access
+		order */
 
 		return(0);
 	}
@@ -219,7 +219,7 @@ buf_read_ahead_random(
 	/* Get the minimum LRU_position field value for an initial segment
 	of the LRU list, to determine which blocks have recently been added
 	to the start of the list. */
-	
+
 	LRU_recent_limit = buf_LRU_get_recent_limit();
 
 	mutex_enter(&(buf_pool->mutex));
@@ -229,7 +229,7 @@ buf_read_ahead_random(
 		mutex_exit(&(buf_pool->mutex));
 
 		return(0);
-	}	
+	}
 
 	/* Count how many blocks in the area have been recently accessed,
 	that is, reside near the start of the LRU list. */
@@ -238,15 +238,15 @@ buf_read_ahead_random(
 		block = buf_page_hash_get(space, i);
 
 		if ((block)
-		    && (block->LRU_position > LRU_recent_limit)
-		    && block->accessed) {
+			&& (block->LRU_position > LRU_recent_limit)
+			&& block->accessed) {
 
 			recent_blocks++;
 		}
 	}
 
 	mutex_exit(&(buf_pool->mutex));
-	
+
 	if (recent_blocks < BUF_READ_AHEAD_RANDOM_THRESHOLD) {
 		/* Do nothing */
 
@@ -270,7 +270,7 @@ buf_read_ahead_random(
 		if (!ibuf_bitmap_page(i)) {
 			count += buf_read_page_low(&err, FALSE, ibuf_mode
 					| OS_AIO_SIMULATED_WAKE_LATER,
-				        space, tablespace_version, i);
+					space, tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -285,7 +285,7 @@ buf_read_ahead_random(
 	/* In simulated aio we wake the aio handler threads only after
 	queuing all aio requests, in native aio the following call does
 	nothing: */
-	
+
 	os_aio_simulated_wake_handler_threads();
 
 #ifdef UNIV_DEBUG
@@ -293,11 +293,11 @@ buf_read_ahead_random(
 		fprintf(stderr,
 			"Random read-ahead space %lu offset %lu pages %lu\n",
 						(ulong) space, (ulong) offset,
-		       				(ulong) count);
+						(ulong) count);
 	}
 #endif /* UNIV_DEBUG */
 
-        ++srv_read_ahead_rnd;
+	++srv_read_ahead_rnd;
 	return(count);
 }
 
@@ -330,9 +330,9 @@ buf_read_page(
 
 	count2 = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
 					tablespace_version, offset);
-        srv_buf_pool_reads+= count2;
+	srv_buf_pool_reads+= count2;
 	if (err == DB_TABLESPACE_DELETED) {
-	        ut_print_timestamp(stderr);
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
 "  InnoDB: Error: trying to access tablespace %lu page no. %lu,\n"
 "InnoDB: but the tablespace does not exist or is just being dropped.\n",
@@ -391,17 +391,17 @@ buf_read_ahead_linear(
 	ulint		low, high;
 	ulint		err;
 	ulint		i;
-	
+
 	if (srv_startup_is_before_trx_rollback_phase) {
-	        /* No read-ahead to avoid thread deadlocks */
-	        return(0);
+		/* No read-ahead to avoid thread deadlocks */
+		return(0);
 	}
 
 	if (ibuf_bitmap_page(offset) || trx_sys_hdr_page(space, offset)) {
 
 		/* If it is an ibuf bitmap page or trx sys hdr, we do
-                no read-ahead, as that could break the ibuf page access
-                order */
+		no read-ahead, as that could break the ibuf page access
+		order */
 
 		return(0);
 	}
@@ -437,7 +437,7 @@ buf_read_ahead_linear(
 		mutex_exit(&(buf_pool->mutex));
 
 		return(0);
-	}	
+	}
 
 	/* Check that almost all pages in the area have been accessed; if
 	offset == low, the accesses must be in a descending order, otherwise,
@@ -453,14 +453,15 @@ buf_read_ahead_linear(
 
 	for (i = low; i < high; i++) {
 		block = buf_page_hash_get(space, i);
-		
+
 		if ((block == NULL) || !block->accessed) {
 			/* Not accessed */
 			fail_count++;
 
-		} else if (pred_block && (ut_ulint_cmp(block->LRU_position,
-				      		    pred_block->LRU_position)
-			       		  != asc_or_desc)) {
+		} else if (pred_block
+			&& (ut_ulint_cmp(block->LRU_position,
+					pred_block->LRU_position)
+				!= asc_or_desc)) {
 			/* Accesses not in the right order */
 
 			fail_count++;
@@ -489,27 +490,27 @@ buf_read_ahead_linear(
 	}
 
 	frame = block->frame;
-	
+
 	/* Read the natural predecessor and successor page addresses from
 	the page; NOTE that because the calling thread may have an x-latch
 	on the page, we do not acquire an s-latch on the page, this is to
 	prevent deadlocks. Even if we read values which are nonsense, the
-	algorithm will work. */ 
+	algorithm will work. */
 
 	pred_offset = fil_page_get_prev(frame);
 	succ_offset = fil_page_get_next(frame);
 
 	mutex_exit(&(buf_pool->mutex));
-	
+
 	if ((offset == low) && (succ_offset == offset + 1)) {
 
-	    	/* This is ok, we can continue */
-	    	new_offset = pred_offset;
+		/* This is ok, we can continue */
+		new_offset = pred_offset;
 
 	} else if ((offset == high - 1) && (pred_offset == offset - 1)) {
 
-	    	/* This is ok, we can continue */
-	    	new_offset = succ_offset;
+		/* This is ok, we can continue */
+		new_offset = succ_offset;
 	} else {
 		/* Successor or predecessor not in the right order */
 
@@ -548,7 +549,7 @@ buf_read_ahead_linear(
 	full read batch to be posted, we use special heuristics here */
 
 	os_aio_simulated_put_read_threads_to_sleep();
-	
+
 	for (i = low; i < high; i++) {
 		/* It is only sensible to do read-ahead in the non-sync
 		aio mode: hence FALSE as the first parameter */
@@ -556,7 +557,7 @@ buf_read_ahead_linear(
 		if (!ibuf_bitmap_page(i)) {
 			count += buf_read_page_low(&err, FALSE, ibuf_mode
 					| OS_AIO_SIMULATED_WAKE_LATER,
-					space, 	tablespace_version, i);
+					space,	tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -571,7 +572,7 @@ buf_read_ahead_linear(
 	/* In simulated aio we wake the aio handler threads only after
 	queuing all aio requests, in native aio the following call does
 	nothing: */
-	
+
 	os_aio_simulated_wake_handler_threads();
 
 	/* Flush pages from the end of the LRU list if necessary */
@@ -585,7 +586,7 @@ buf_read_ahead_linear(
 	}
 #endif /* UNIV_DEBUG */
 
-        ++srv_read_ahead_seq;
+	++srv_read_ahead_seq;
 	return(count);
 }
 
@@ -616,11 +617,11 @@ buf_read_ibuf_merge_pages(
 	ut_ad(!ibuf_inside());
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(n_stored < UNIV_PAGE_SIZE);
-#endif	
+#endif
 	while (buf_pool->n_pend_reads >
 			buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
 		os_thread_sleep(500000);
-	}	
+	}
 
 	for (i = 0; i < n_stored; i++) {
 		if ((i + 1 == n_stored) && sync) {
@@ -639,7 +640,7 @@ buf_read_ibuf_merge_pages(
 							page_nos[i], FALSE);
 		}
 	}
-	
+
 	os_aio_simulated_wake_handler_threads();
 
 	/* Flush pages from the end of the LRU list if necessary */
@@ -704,14 +705,14 @@ buf_read_recv_pages(
 
 		if ((i + 1 == n_stored) && sync) {
 			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
-					tablespace_version, page_nos[i]);
+				tablespace_version, page_nos[i]);
 		} else {
 			buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
-					| OS_AIO_SIMULATED_WAKE_LATER,
-				       space, tablespace_version, page_nos[i]);
+				| OS_AIO_SIMULATED_WAKE_LATER,
+				space, tablespace_version, page_nos[i]);
 		}
 	}
-	
+
 	os_aio_simulated_wake_handler_threads();
 
 	/* Flush pages from the end of the LRU list if necessary */

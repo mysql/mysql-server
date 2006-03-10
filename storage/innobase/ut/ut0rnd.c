@@ -32,9 +32,9 @@ ut_find_prime(
 {
 	ulint	pow2;
 	ulint	i;
-	
+
 	n += 100;
-	
+
 	pow2 = 1;
 	while (pow2 * 2 < n) {
 		pow2 = 2 * pow2;
@@ -43,23 +43,23 @@ ut_find_prime(
 	if ((double)n < 1.05 * (double)pow2) {
 		n = (ulint) ((double)n * UT_RANDOM_1);
 	}
-	
+
 	pow2 = 2 * pow2;
-	
+
 	if ((double)n > 0.95 * (double)pow2) {
 		n = (ulint) ((double)n * UT_RANDOM_2);
 	}
-	
+
 	if (n > pow2 - 20) {
 		n += 30;
 	}
 
 	/* Now we have n far enough from powers of 2. To make
-	n more random (especially, if it was not near 
-	a power of 2), we then multiply it by a random number. */ 
+	n more random (especially, if it was not near
+	a power of 2), we then multiply it by a random number. */
 
 	n = (ulint) ((double)n * UT_RANDOM_3);
-	
+
 	for (;; n++) {
 		i = 2;
 		while (i * i <= n) {
@@ -68,11 +68,11 @@ ut_find_prime(
 			}
 			i++;
 		}
-		
+
 		/* Found a prime */
 		break;
-next_n: 	;
+next_n:		;
 	}
-	
+
 	return(n);
 }

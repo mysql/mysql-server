@@ -30,7 +30,7 @@ btr_pcur_create_for_mysql(void)
 
 	pcur->btr_cur.index = NULL;
 	btr_pcur_init(pcur);
-	
+
 	return(pcur);
 }
 
@@ -53,7 +53,7 @@ btr_pcur_free_for_mysql(
 	cursor->old_rec = NULL;
 	cursor->old_n_fields = 0;
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
-	
+
 	cursor->latch_mode = BTR_NO_LATCHES;
 	cursor->pos_state = BTR_PCUR_NOT_POSITIONED;
 
@@ -79,7 +79,7 @@ btr_pcur_store_position(
 	dict_tree_t*	tree;
 	page_t*		page;
 	ulint		offs;
-	
+
 	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
@@ -92,9 +92,9 @@ btr_pcur_store_position(
 	offs = ut_align_offset(rec, UNIV_PAGE_SIZE);
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-							MTR_MEMO_PAGE_S_FIX)
-	      || mtr_memo_contains(mtr, buf_block_align(page),
-							MTR_MEMO_PAGE_X_FIX));
+			MTR_MEMO_PAGE_S_FIX)
+		|| mtr_memo_contains(mtr, buf_block_align(page),
+			MTR_MEMO_PAGE_X_FIX));
 	ut_a(cursor->latch_mode != BTR_NO_LATCHES);
 
 	if (UNIV_UNLIKELY(page_get_n_recs(page) == 0)) {
@@ -115,7 +115,7 @@ btr_pcur_store_position(
 		}
 
 		return;
-	} 
+	}
 
 	if (page_rec_is_supremum_low(offs)) {
 
@@ -138,7 +138,7 @@ btr_pcur_store_position(
 						&cursor->old_rec_buf,
 						&cursor->buf_size);
 
-	cursor->block_when_stored = buf_block_align(page);	
+	cursor->block_when_stored = buf_block_align(page);
 	cursor->modify_clock = buf_block_get_modify_clock(
 				cursor->block_when_stored);
 }
@@ -158,17 +158,17 @@ btr_pcur_copy_stored_position(
 		mem_free(pcur_receive->old_rec_buf);
 	}
 
-	ut_memcpy((byte*)pcur_receive, (byte*)pcur_donate, sizeof(btr_pcur_t));
+	ut_memcpy(pcur_receive, pcur_donate, sizeof(btr_pcur_t));
 
 	if (pcur_donate->old_rec_buf) {
 
 		pcur_receive->old_rec_buf = mem_alloc(pcur_donate->buf_size);
-	
+
 		ut_memcpy(pcur_receive->old_rec_buf, pcur_donate->old_rec_buf,
 						pcur_donate->buf_size);
 		pcur_receive->old_rec = pcur_receive->old_rec_buf
 			+ (pcur_donate->old_rec - pcur_donate->old_rec_buf);
-	}	
+	}
 
 	pcur_receive->old_n_fields = pcur_donate->old_n_fields;
 }
@@ -195,7 +195,7 @@ btr_pcur_restore_position(
 					whose ordering fields are identical to
 					the ones of the original user record */
 	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF, ... */
-	btr_pcur_t*	cursor, 	/* in: detached persistent cursor */
+	btr_pcur_t*	cursor,		/* in: detached persistent cursor */
 	mtr_t*		mtr)		/* in: mtr */
 {
 	dict_tree_t*	tree;
@@ -206,21 +206,21 @@ btr_pcur_restore_position(
 	mem_heap_t*	heap;
 
 	if (UNIV_UNLIKELY(cursor->old_stored != BTR_PCUR_OLD_STORED)
-	    || UNIV_UNLIKELY(cursor->pos_state != BTR_PCUR_WAS_POSITIONED
-			     && cursor->pos_state != BTR_PCUR_IS_POSITIONED)) {
-		ut_print_buf(stderr, (const byte*)cursor, sizeof(btr_pcur_t));
+		|| UNIV_UNLIKELY(cursor->pos_state != BTR_PCUR_WAS_POSITIONED
+			&& cursor->pos_state != BTR_PCUR_IS_POSITIONED)) {
+		ut_print_buf(stderr, cursor, sizeof(btr_pcur_t));
 		if (cursor->trx_if_known) {
 			trx_print(stderr, cursor->trx_if_known, 0);
 		}
-		
+
 		ut_error;
 	}
 
 	if (UNIV_UNLIKELY(cursor->rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE
 			|| cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE)) {
 
-	    	/* In these cases we do not try an optimistic restoration,
-	    	but always do a search */
+		/* In these cases we do not try an optimistic restoration,
+		but always do a search */
 
 		btr_cur_open_at_index_side(
 			cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE,
@@ -232,7 +232,7 @@ btr_pcur_restore_position(
 
 		return(FALSE);
 	}
-	
+
 	ut_a(cursor->old_rec);
 	ut_a(cursor->old_n_fields);
 
@@ -241,10 +241,10 @@ btr_pcur_restore_position(
 	if (UNIV_LIKELY(latch_mode == BTR_SEARCH_LEAF)
 			|| UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
 		/* Try optimistic restoration */
-	    
+
 		if (UNIV_LIKELY(buf_page_optimistic_get(latch_mode,
-					    cursor->block_when_stored, page,
-					    cursor->modify_clock, mtr))) {
+					cursor->block_when_stored, page,
+					cursor->modify_clock, mtr))) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 #ifdef UNIV_SYNC_DEBUG
 			buf_page_dbg_add_level(page, SYNC_TREE_NODE);
@@ -285,14 +285,14 @@ btr_pcur_restore_position(
 	/* If optimistic restoration did not succeed, open the cursor anew */
 
 	heap = mem_heap_create(256);
-	
+
 	tree = btr_cur_get_tree(btr_pcur_get_btr_cur(cursor));
 	tuple = dict_tree_build_data_tuple(tree, cursor->old_rec,
 					cursor->old_n_fields, heap);
 
 	/* Save the old search mode of the cursor */
 	old_mode = cursor->search_mode;
-	
+
 	if (UNIV_LIKELY(cursor->rel_pos == BTR_PCUR_ON)) {
 		mode = PAGE_CUR_LE;
 	} else if (cursor->rel_pos == BTR_PCUR_AFTER) {
@@ -304,13 +304,13 @@ btr_pcur_restore_position(
 
 	btr_pcur_open_with_no_init(btr_pcur_get_btr_cur(cursor)->index, tuple,
 					mode, latch_mode, cursor, 0, mtr);
-	
+
 	/* Restore the old search mode */
 	cursor->search_mode = old_mode;
 
 	if (cursor->rel_pos == BTR_PCUR_ON
-	    && btr_pcur_is_on_user_rec(cursor, mtr)
-	    && 0 == cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor),
+		&& btr_pcur_is_on_user_rec(cursor, mtr)
+		&& 0 == cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor),
 			rec_get_offsets(btr_pcur_get_rec(cursor),
 				btr_pcur_get_btr_cur(cursor)->index,
 				NULL, ULINT_UNDEFINED, &heap))) {
@@ -335,7 +335,7 @@ btr_pcur_restore_position(
 	/* We have to store new position information, modify_clock etc.,
 	to the cursor because it can now be on a different page, the record
 	under it may have been removed, etc. */
-	
+
 	btr_pcur_store_position(cursor, mtr);
 
 	return(FALSE);
@@ -358,12 +358,12 @@ btr_pcur_release_leaf(
 
 	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
-	
+
 	page = btr_cur_get_page(btr_pcur_get_btr_cur(cursor));
-	
+
 	btr_leaf_page_release(page, cursor->latch_mode, mtr);
-	
-	cursor->latch_mode = BTR_NO_LATCHES;	
+
+	cursor->latch_mode = BTR_NO_LATCHES;
 
 	cursor->pos_state = BTR_PCUR_WAS_POSITIONED;
 }
@@ -386,25 +386,25 @@ btr_pcur_move_to_next_page(
 	page_t*	page;
 	page_t*	next_page;
 
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);	
+	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
-	ut_ad(btr_pcur_is_after_last_on_page(cursor, mtr));	
+	ut_ad(btr_pcur_is_after_last_on_page(cursor, mtr));
 
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
-	
+
 	page = btr_pcur_get_page(cursor);
 
 	next_page_no = btr_page_get_next(page, mtr);
 	space = buf_frame_get_space_id(page);
 
-	ut_ad(next_page_no != FIL_NULL);	
+	ut_ad(next_page_no != FIL_NULL);
 
 	next_page = btr_page_get(space, next_page_no, cursor->latch_mode, mtr);
 	ut_a(page_is_comp(next_page) == page_is_comp(page));
 	buf_block_align(next_page)->check_index_page_at_flush = TRUE;
 
 	btr_leaf_page_release(page, cursor->latch_mode, mtr);
-	
+
 	page_cur_set_before_first(next_page, btr_pcur_get_page_cur(cursor));
 
 	page_check_dir(next_page);
@@ -436,11 +436,11 @@ btr_pcur_move_backward_from_page(
 
 	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
-	ut_ad(btr_pcur_is_before_first_on_page(cursor, mtr));	
-	ut_ad(!btr_pcur_is_before_first_in_tree(cursor, mtr));	
-	
+	ut_ad(btr_pcur_is_before_first_on_page(cursor, mtr));
+	ut_ad(!btr_pcur_is_before_first_in_tree(cursor, mtr));
+
 	latch_mode = cursor->latch_mode;
-	
+
 	if (latch_mode == BTR_SEARCH_LEAF) {
 
 		latch_mode2 = BTR_SEARCH_PREV;
@@ -459,7 +459,7 @@ btr_pcur_move_backward_from_page(
 
 	mtr_start(mtr);
 
-	btr_pcur_restore_position(latch_mode2, cursor, mtr);	
+	btr_pcur_restore_position(latch_mode2, cursor, mtr);
 
 	page = btr_pcur_get_page(cursor);
 
@@ -467,7 +467,7 @@ btr_pcur_move_backward_from_page(
 	space = buf_frame_get_space_id(page);
 
 	if (btr_pcur_is_before_first_on_page(cursor, mtr)
-					&& (prev_page_no != FIL_NULL)) {	
+					&& (prev_page_no != FIL_NULL)) {
 
 		prev_page = btr_pcur_get_btr_cur(cursor)->left_page;
 
@@ -476,11 +476,11 @@ btr_pcur_move_backward_from_page(
 		page_cur_set_after_last(prev_page,
 						btr_pcur_get_page_cur(cursor));
 	} else if (prev_page_no != FIL_NULL) {
-		
+
 		/* The repositioned cursor did not end on an infimum record on
 		a page. Cursor repositioning acquired a latch also on the
 		previous page, but we do not need the latch: release it. */
-	
+
 		prev_page = btr_pcur_get_btr_cur(cursor)->left_page;
 
 		btr_leaf_page_release(prev_page, latch_mode, mtr);
@@ -506,7 +506,7 @@ btr_pcur_move_to_prev(
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
-	
+
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
 
 	if (btr_pcur_is_before_first_on_page(cursor, mtr)) {
@@ -542,14 +542,14 @@ btr_pcur_open_on_user_rec(
 	ulint		mode,		/* in: PAGE_CUR_L, ... */
 	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF or
 					BTR_MODIFY_LEAF */
-	btr_pcur_t*	cursor, 	/* in: memory buffer for persistent
+	btr_pcur_t*	cursor,		/* in: memory buffer for persistent
 					cursor */
 	mtr_t*		mtr)		/* in: mtr */
 {
 	btr_pcur_open(index, tuple, mode, latch_mode, cursor, mtr);
 
 	if ((mode == PAGE_CUR_GE) || (mode == PAGE_CUR_G)) {
-	
+
 		if (btr_pcur_is_after_last_on_page(cursor, mtr)) {
 
 			btr_pcur_move_to_next_user_rec(cursor, mtr);

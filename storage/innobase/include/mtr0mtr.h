@@ -27,7 +27,7 @@ Created 11/26/1995 Heikki Tuuri
 					(operations in fsp0fsp.* ) */
 #define	MTR_LOG_SHORT_INSERTS	24	/* inserts are logged in a shorter
 					form */
-					
+
 /* Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 #define	MTR_MEMO_PAGE_S_FIX	RW_S_LATCH
@@ -47,31 +47,31 @@ flag value must give the length also! */
 						has been called only once,
 						this flag is ORed to the type
 						of that first log record */
-#define	MLOG_1BYTE		((byte)1) 	/* one byte is written */
-#define	MLOG_2BYTES		((byte)2)	/* 2 bytes ... */
-#define	MLOG_4BYTES		((byte)4)	/* 4 bytes ... */
-#define	MLOG_8BYTES		((byte)8)	/* 8 bytes ... */
+#define	MLOG_1BYTE		(1)		/* one byte is written */
+#define	MLOG_2BYTES		(2)		/* 2 bytes ... */
+#define	MLOG_4BYTES		(4)		/* 4 bytes ... */
+#define	MLOG_8BYTES		(8)		/* 8 bytes ... */
 #define	MLOG_REC_INSERT		((byte)9)	/* record insert */
-#define	MLOG_REC_CLUST_DELETE_MARK ((byte)10) 	/* mark clustered index record
+#define	MLOG_REC_CLUST_DELETE_MARK ((byte)10)	/* mark clustered index record
 						deleted */
-#define	MLOG_REC_SEC_DELETE_MARK ((byte)11) 	/* mark secondary index record
+#define	MLOG_REC_SEC_DELETE_MARK ((byte)11)	/* mark secondary index record
 						deleted */
 #define MLOG_REC_UPDATE_IN_PLACE ((byte)13)	/* update of a record,
 						preserves record field sizes */
 #define MLOG_REC_DELETE		((byte)14)	/* delete a record from a
 						page */
-#define	MLOG_LIST_END_DELETE 	((byte)15)	/* delete record list end on
+#define	MLOG_LIST_END_DELETE	((byte)15)	/* delete record list end on
 						index page */
-#define	MLOG_LIST_START_DELETE 	((byte)16) 	/* delete record list start on
+#define	MLOG_LIST_START_DELETE	((byte)16)	/* delete record list start on
 						index page */
-#define	MLOG_LIST_END_COPY_CREATED ((byte)17) 	/* copy record list end to a
+#define	MLOG_LIST_END_COPY_CREATED ((byte)17)	/* copy record list end to a
 						new created index page */
-#define	MLOG_PAGE_REORGANIZE 	((byte)18)	/* reorganize an index page */
-#define MLOG_PAGE_CREATE 	((byte)19)	/* create an index page */
-#define	MLOG_UNDO_INSERT 	((byte)20)	/* insert entry in an undo
+#define	MLOG_PAGE_REORGANIZE	((byte)18)	/* reorganize an index page */
+#define MLOG_PAGE_CREATE	((byte)19)	/* create an index page */
+#define	MLOG_UNDO_INSERT	((byte)20)	/* insert entry in an undo
 						log */
 #define MLOG_UNDO_ERASE_END	((byte)21)	/* erase an undo log page end */
-#define	MLOG_UNDO_INIT 		((byte)22)	/* initialize a page in an
+#define	MLOG_UNDO_INIT		((byte)22)	/* initialize a page in an
 						undo log */
 #define MLOG_UNDO_HDR_DISCARD	((byte)23)	/* discard an update undo log
 						header */
@@ -132,9 +132,9 @@ flag value must give the length also! */
 
 #define MLOG_BIGGEST_TYPE	((byte)46)	/* biggest value (used in
 						asserts) */
-					
+
 /*******************************************************************
-Starts a mini-transaction and creates a mini-transaction handle 
+Starts a mini-transaction and creates a mini-transaction handle
 and buffer in the memory buffer given by the caller. */
 UNIV_INLINE
 mtr_t*
@@ -144,7 +144,7 @@ mtr_start(
 			the mtr handle */
 	mtr_t*	mtr);	/* in: memory buffer for the mtr buffer */
 /*******************************************************************
-Starts a mini-transaction and creates a mini-transaction handle 
+Starts a mini-transaction and creates a mini-transaction handle
 and buffer in the memory buffer given by the caller. */
 
 mtr_t*
@@ -187,7 +187,7 @@ mtr_release_s_latch_at_savepoint(
 /*=============================*/
 	mtr_t*		mtr,		/* in: mtr */
 	ulint		savepoint,	/* in: savepoint */
-	rw_lock_t* 	lock);		/* in: latch to release */
+	rw_lock_t*	lock);		/* in: latch to release */
 /*******************************************************************
 Gets the logging mode of a mini-transaction. */
 UNIV_INLINE
@@ -220,7 +220,7 @@ Reads 8 bytes from a file page buffered in the buffer pool. */
 
 dulint
 mtr_read_dulint(
-/*===========*/
+/*============*/
 			/* out: value read */
 	byte*	ptr,	/* in: pointer from where to read */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
@@ -336,7 +336,7 @@ struct mtr_struct{
 #define MTR_ACTIVE		12231
 #define MTR_COMMITTING		56456
 #define MTR_COMMITTED		34676
-	
+
 #ifndef UNIV_NONINL
 #include "mtr0mtr.ic"
 #endif

@@ -31,7 +31,7 @@ typedef struct rw_lock_debug_struct	rw_lock_debug_t;
 
 typedef UT_LIST_BASE_NODE_T(rw_lock_t)	rw_lock_list_t;
 
-extern rw_lock_list_t 	rw_lock_list;
+extern rw_lock_list_t	rw_lock_list;
 extern mutex_t		rw_lock_list_mutex;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -62,7 +62,7 @@ location (which must be appropriately aligned). The rw-lock is initialized
 to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
 is necessary only if the memory block containing it is freed. */
 #define rw_lock_create(L) rw_lock_create_func((L), __FILE__, __LINE__, #L)
-          
+
 /*=====================*/
 /**********************************************************************
 Creates, or rather, initializes an rw-lock object in a specified memory
@@ -75,7 +75,7 @@ rw_lock_create_func(
 /*================*/
 	rw_lock_t*	lock,		/* in: pointer to memory */
 	const char*	cfile_name,	/* in: file name where created */
-  ulint cline,  /* in: file line where created */
+  ulint cline,	/* in: file line where created */
   const char* cmutex_name); /* in: mutex name */
 /**********************************************************************
 Calling this function is obligatory only if the memory buffer containing
@@ -98,20 +98,20 @@ rw_lock_validate(
 NOTE! The following macros should be used in rw s-locking, not the
 corresponding function. */
 
-#define rw_lock_s_lock(M)    rw_lock_s_lock_func(\
-					  (M), 0, __FILE__, __LINE__)
+#define rw_lock_s_lock(M)	rw_lock_s_lock_func(\
+		(M), 0, __FILE__, __LINE__)
 /******************************************************************
 NOTE! The following macros should be used in rw s-locking, not the
 corresponding function. */
 
-#define rw_lock_s_lock_gen(M, P)    rw_lock_s_lock_func(\
-					  (M), (P), __FILE__, __LINE__)
+#define rw_lock_s_lock_gen(M, P)	rw_lock_s_lock_func(\
+		(M), (P), __FILE__, __LINE__)
 /******************************************************************
 NOTE! The following macros should be used in rw s-locking, not the
 corresponding function. */
 
-#define rw_lock_s_lock_nowait(M)    rw_lock_s_lock_func_nowait(\
-					     (M), __FILE__, __LINE__)
+#define rw_lock_s_lock_nowait(M)	rw_lock_s_lock_func_nowait(\
+		(M), __FILE__, __LINE__)
 /**********************************************************************
 NOTE! Use the corresponding macro, not directly this function, except if
 you supply the file name and line number. Lock an rw-lock in shared mode
@@ -123,7 +123,7 @@ UNIV_INLINE
 void
 rw_lock_s_lock_func(
 /*================*/
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 	const char*	file_name,/* in: file name where lock requested */
@@ -137,7 +137,7 @@ ibool
 rw_lock_s_lock_func_nowait(
 /*=======================*/
 				/* out: TRUE if success */
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	const char*	file_name,/* in: file name where lock requested */
 	ulint		line);	/* in: line where requested */
 /**********************************************************************
@@ -149,7 +149,7 @@ ibool
 rw_lock_x_lock_func_nowait(
 /*=======================*/
 				/* out: TRUE if success */
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	const char*	file_name,/* in: file name where lock requested */
 	ulint		line);	/* in: line where requested */
 /**********************************************************************
@@ -168,36 +168,36 @@ rw_lock_s_unlock_func(
 Releases a shared mode lock. */
 
 #ifdef UNIV_SYNC_DEBUG
-#define rw_lock_s_unlock(L)    rw_lock_s_unlock_func(L, 0)
+#define rw_lock_s_unlock(L)	rw_lock_s_unlock_func(L, 0)
 #else
-#define rw_lock_s_unlock(L)    rw_lock_s_unlock_func(L)
+#define rw_lock_s_unlock(L)	rw_lock_s_unlock_func(L)
 #endif
 /***********************************************************************
 Releases a shared mode lock. */
 
 #ifdef UNIV_SYNC_DEBUG
-#define rw_lock_s_unlock_gen(L, P)    rw_lock_s_unlock_func(L, P)
+#define rw_lock_s_unlock_gen(L, P)	rw_lock_s_unlock_func(L, P)
 #else
-#define rw_lock_s_unlock_gen(L, P)    rw_lock_s_unlock_func(L)
+#define rw_lock_s_unlock_gen(L, P)	rw_lock_s_unlock_func(L)
 #endif
 /******************************************************************
 NOTE! The following macro should be used in rw x-locking, not the
 corresponding function. */
 
-#define rw_lock_x_lock(M)    rw_lock_x_lock_func(\
-					  (M), 0, __FILE__, __LINE__)
+#define rw_lock_x_lock(M)	rw_lock_x_lock_func(\
+		(M), 0, __FILE__, __LINE__)
 /******************************************************************
 NOTE! The following macro should be used in rw x-locking, not the
 corresponding function. */
 
-#define rw_lock_x_lock_gen(M, P)    rw_lock_x_lock_func(\
-					  (M), (P), __FILE__, __LINE__)
+#define rw_lock_x_lock_gen(M, P)	rw_lock_x_lock_func(\
+		(M), (P), __FILE__, __LINE__)
 /******************************************************************
 NOTE! The following macros should be used in rw x-locking, not the
 corresponding function. */
 
-#define rw_lock_x_lock_nowait(M)    rw_lock_x_lock_func_nowait(\
-					     (M), __FILE__, __LINE__)
+#define rw_lock_x_lock_nowait(M)	rw_lock_x_lock_func_nowait(\
+		(M), __FILE__, __LINE__)
 /**********************************************************************
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread. If the rw-lock is locked
@@ -211,7 +211,7 @@ an s-lock, locking does not succeed! */
 void
 rw_lock_x_lock_func(
 /*================*/
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 	const char*	file_name,/* in: file name where lock requested */
@@ -232,17 +232,17 @@ rw_lock_x_unlock_func(
 Releases an exclusive mode lock. */
 
 #ifdef UNIV_SYNC_DEBUG
-#define rw_lock_x_unlock(L)    rw_lock_x_unlock_func(L, 0)
+#define rw_lock_x_unlock(L)	rw_lock_x_unlock_func(L, 0)
 #else
-#define rw_lock_x_unlock(L)    rw_lock_x_unlock_func(L)
+#define rw_lock_x_unlock(L)	rw_lock_x_unlock_func(L)
 #endif
 /***********************************************************************
 Releases an exclusive mode lock. */
 
 #ifdef UNIV_SYNC_DEBUG
-#define rw_lock_x_unlock_gen(L, P)    rw_lock_x_unlock_func(L, P)
+#define rw_lock_x_unlock_gen(L, P)	rw_lock_x_unlock_func(L, P)
 #else
-#define rw_lock_x_unlock_gen(L, P)    rw_lock_x_unlock_func(L)
+#define rw_lock_x_unlock_gen(L, P)	rw_lock_x_unlock_func(L)
 #endif
 /**********************************************************************
 Low-level function which locks an rw-lock in s-mode when we know that it
@@ -413,7 +413,7 @@ field. Then no new readers are allowed in. */
 struct rw_lock_struct {
 	ulint	reader_count;	/* Number of readers who have locked this
 				lock in the shared mode */
-	ulint	writer; 	/* This field is set to RW_LOCK_EX if there
+	ulint	writer;		/* This field is set to RW_LOCK_EX if there
 				is a writer owning the lock (in exclusive
 				mode), RW_LOCK_WAIT_EX if a writer is
 				queueing for the lock, and
@@ -424,7 +424,7 @@ struct rw_lock_struct {
 				recursively locked the lock in the exclusive
 				mode */
 	mutex_t	mutex;		/* The mutex protecting rw_lock_struct */
-	ulint	pass; 		/* Default value 0. This is set to some
+	ulint	pass;		/* Default value 0. This is set to some
 				value != 0 given by the caller of an x-lock
 				operation, if the x-lock is to be passed to
 				another thread to unlock (which happens in

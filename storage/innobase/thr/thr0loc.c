@@ -61,8 +61,8 @@ thr_local_get(
 	os_thread_id_t	id)	/* in: thread id of the thread */
 {
 	thr_local_t*	local;
-	
-try_again:	
+
+try_again:
 	ut_ad(thr_local_hash);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&thr_local_mutex));
@@ -71,21 +71,21 @@ try_again:
 	/* Look for the local struct in the hash table */
 
 	local = NULL;
-	
+
 	HASH_SEARCH(hash, thr_local_hash, os_thread_pf(id),
 				local, os_thread_eq(local->id, id));
 	if (local == NULL) {
 		mutex_exit(&thr_local_mutex);
-		
+
 		thr_local_create();
-	
+
 		mutex_enter(&thr_local_mutex);
 
 		goto try_again;
-	}	
+	}
 
 	ut_ad(local->magic_n == THR_LOCAL_MAGIC_N);
-				
+
 	return(local);
 }
 
@@ -102,11 +102,11 @@ thr_local_get_slot_no(
 	thr_local_t*	local;
 
 	mutex_enter(&thr_local_mutex);
-	
+
 	local = thr_local_get(id);
 
 	slot_no = local->slot_no;
-	
+
 	mutex_exit(&thr_local_mutex);
 
 	return(slot_no);
@@ -124,11 +124,11 @@ thr_local_set_slot_no(
 	thr_local_t*	local;
 
 	mutex_enter(&thr_local_mutex);
-	
+
 	local = thr_local_get(id);
 
 	local->slot_no = slot_no;
-	
+
 	mutex_exit(&thr_local_mutex);
 }
 
@@ -144,9 +144,9 @@ thr_local_get_in_ibuf_field(void)
 	thr_local_t*	local;
 
 	mutex_enter(&thr_local_mutex);
-	
+
 	local = thr_local_get(os_thread_get_curr_id());
-	
+
 	mutex_exit(&thr_local_mutex);
 
 	return(&(local->in_ibuf));
@@ -164,21 +164,21 @@ thr_local_create(void)
 	if (thr_local_hash == NULL) {
 		thr_local_init();
 	}
-	
+
 	local = mem_alloc(sizeof(thr_local_t));
 
 	local->id = os_thread_get_curr_id();
 	local->handle = os_thread_get_curr();
 	local->magic_n = THR_LOCAL_MAGIC_N;
 
- 	local->in_ibuf = FALSE;
-	
+	local->in_ibuf = FALSE;
+
 	mutex_enter(&thr_local_mutex);
 
 	HASH_INSERT(thr_local_t, hash, thr_local_hash,
 			os_thread_pf(os_thread_get_curr_id()),
 			local);
-				
+
 	mutex_exit(&thr_local_mutex);
 }
 
@@ -191,7 +191,7 @@ thr_local_free(
 	os_thread_id_t	id)	/* in: thread id */
 {
 	thr_local_t*	local;
-	
+
 	mutex_enter(&thr_local_mutex);
 
 	/* Look for the local struct in the hash table */
@@ -203,14 +203,14 @@ thr_local_free(
 
 		return;
 	}
-						
+
 	HASH_DELETE(thr_local_t, hash, thr_local_hash,
 				os_thread_pf(id), local);
 
 	mutex_exit(&thr_local_mutex);
-				
+
 	ut_a(local->magic_n == THR_LOCAL_MAGIC_N);
-	
+
 	mem_free(local);
 }
 
