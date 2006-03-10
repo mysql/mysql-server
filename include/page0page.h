@@ -605,9 +605,7 @@ page_mem_free(
 				6 bytes available, or NULL */
 	rec_t*		rec,	/* in: pointer to the (origin of) record */
 	dict_index_t*	index,	/* in: record descriptor */
-	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL
-				if page_zip==NULL */
+	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**************************************************************
 The index page creation function. */
 
