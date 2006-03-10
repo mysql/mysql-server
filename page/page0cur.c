@@ -1534,7 +1534,7 @@ page_cur_delete_rec(
 	page_dir_slot_set_n_owned(cur_dir_slot, page_zip, cur_n_owned - 1);
 
 	/* 6. Free the memory occupied by the record */
-	page_mem_free(page, page_zip, current_rec, index, offsets);
+	page_mem_free(page, page_zip, current_rec, offsets);
 	page_header_set_field(page, page_zip, PAGE_N_RECS,
 				(ulint)(page_get_n_recs(page) - 1));
 	if (UNIV_LIKELY_NULL(page_zip)) {
