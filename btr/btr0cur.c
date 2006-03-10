@@ -2531,8 +2531,7 @@ btr_cur_compress_if_useful(
 	ut_ad(mtr_memo_contains(mtr,
 				dict_tree_get_lock(btr_cur_get_tree(cursor)),
 							MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(
-						btr_cur_get_page(cursor)),
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
 				MTR_MEMO_PAGE_X_FIX));
 
 	if (btr_cur_compress_recommendation(cursor, mtr)) {
@@ -2568,7 +2567,7 @@ btr_cur_optimistic_delete(
 	ibool		no_compress_needed;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_page(cursor)),
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
 							MTR_MEMO_PAGE_X_FIX));
 	/* This is intended only for leaf page deletions */
 
@@ -2586,20 +2585,17 @@ btr_cur_optimistic_delete(
 
 	if (no_compress_needed) {
 
-		page_zip_des_t*	page_zip;
-
 		lock_update_delete(rec);
 
 		btr_search_update_hash_on_delete(cursor);
 
 		max_ins_size = page_get_max_insert_size_after_reorganize(page,
 									1);
-		page_zip = buf_block_get_page_zip(
-				buf_block_align(btr_cur_get_page(cursor)));
-
 		page_cur_delete_rec(btr_cur_get_page_cur(cursor),
-						cursor->index, offsets,
-						page_zip, mtr);
+				cursor->index, offsets,
+				buf_block_get_page_zip(buf_block_align(
+					btr_cur_get_rec(cursor))),
+				mtr);
 
 		ibuf_update_free_bits_low(cursor->index, page, max_ins_size,
 									mtr);
