@@ -18,7 +18,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0arr.h"
 
 #ifndef UNIV_HOTBACKUP
-extern my_bool  timed_mutexes;
+extern my_bool	timed_mutexes;
 #endif /* UNIV_HOTBACKUP */
 
 /**********************************************************************
@@ -52,7 +52,7 @@ mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
 	const char*	cfile_name,	/* in: file name where created */
-  ulint cline,  /* in: file line where created */
+  ulint cline,	/* in: file line where created */
   const char* cmutex_name); /* in: mutex name */
 /**********************************************************************
 Calling this function is obligatory only if the memory buffer containing
@@ -68,7 +68,7 @@ mutex_free(
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
-#define mutex_enter(M)    mutex_enter_func((M), __FILE__, __LINE__)
+#define mutex_enter(M)	  mutex_enter_func((M), __FILE__, __LINE__)
 /**********************************************************************
 A noninlined function that reserves a mutex. In ha_innodb.cc we have disabled
 inlining of InnoDB functions, and no inlined functions should be called from
@@ -84,8 +84,8 @@ corresponding function. */
 
 /* NOTE! currently same as mutex_enter! */
 
-#define mutex_enter_fast(M)    	mutex_enter_func((M), __FILE__, __LINE__)
-#define mutex_enter_fast_func  	mutex_enter_func;
+#define mutex_enter_fast(M)	mutex_enter_func((M), __FILE__, __LINE__)
+#define mutex_enter_fast_func	mutex_enter_func;
 /**********************************************************************
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Locks a mutex for the current thread. If the mutex is reserved
@@ -96,7 +96,7 @@ void
 mutex_enter_func(
 /*=============*/
 	mutex_t*	mutex,		/* in: pointer to mutex */
-	const char*	file_name, 	/* in: file name where locked */
+	const char*	file_name,	/* in: file name where locked */
 	ulint		line);		/* in: line where locked */
 /************************************************************************
 Tries to lock the mutex for the current thread. If the lock is not acquired
@@ -172,7 +172,7 @@ sync_thread_add_level(
 /*==================*/
 	void*	latch,	/* in: pointer to a mutex or an rw-lock */
 	ulint	level);	/* in: level in the latching order; if SYNC_LEVEL_NONE,
-			nothing is done */			
+			nothing is done */
 /**********************************************************************
 Removes a latch from the thread level array if it is found there. */
 
@@ -253,7 +253,7 @@ UNIV_INLINE
 ulint
 mutex_get_waiters(
 /*==============*/
-				/* out: value to set */		
+				/* out: value to set */
 	mutex_t*	mutex);	/* in: mutex */
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -269,7 +269,7 @@ central memory object latch or mutex.
 
 Synchronization object			Notes
 ----------------------			-----
-		
+
 Dictionary mutex			If we have a pointer to a dictionary
 |					object, e.g., a table, it can be
 |					accessed without reserving the
@@ -281,7 +281,7 @@ Dictionary mutex			If we have a pointer to a dictionary
 V
 Dictionary header
 |
-V					
+V
 Secondary index tree latch		The tree latch protects also all
 |					the B-tree non-leaf pages. These
 V					can be read with the page only
@@ -293,7 +293,7 @@ Secondary index non-leaf		bufferfixed to save CPU time,
 |					it is allowed to latch non-leaf pages
 |					even after it has acquired the fsp
 |					latch.
-V					
+V
 Secondary index leaf			The latch on the secondary index leaf
 |					can be kept while accessing the
 |					clustered index, to save CPU time.
@@ -301,7 +301,7 @@ V
 Clustered index tree latch		To increase concurrency, the tree
 |					latch is usually released when the
 |					leaf page latch has been acquired.
-V					
+V
 Clustered index non-leaf
 |
 V
@@ -319,7 +319,7 @@ Transaction undo mutex			The undo log entry must be written
 |					trx undo mutex reserved, it is allowed
 |					to latch the undo log pages in any
 |					order, and also after it has acquired
-|					the fsp latch. 
+|					the fsp latch.
 V
 Rollback segment mutex			The rollback segment mutex must be
 |					reserved, if, e.g., a new page must
@@ -412,7 +412,7 @@ or row lock! */
 #define SYNC_EXTERN_STORAGE	500
 #define	SYNC_FSP		400
 #define	SYNC_FSP_PAGE		395
-/*------------------------------------- Insert buffer headers */ 
+/*------------------------------------- Insert buffer headers */
 /*------------------------------------- ibuf_mutex */
 /*------------------------------------- Insert buffer tree */
 #define	SYNC_IBUF_BITMAP_MUTEX	351
@@ -441,7 +441,7 @@ or row lock! */
 #define	SYNC_MEM_POOL		130
 
 /* Codes used to designate lock operations */
-#define RW_LOCK_NOT_LOCKED 	350
+#define RW_LOCK_NOT_LOCKED	350
 #define RW_LOCK_EX		351
 #define RW_LOCK_EXCLUSIVE	351
 #define RW_LOCK_SHARED		352
@@ -485,8 +485,8 @@ struct mutex_struct {
   ulong count_os_yield; /* count of os_wait */
   ulonglong lspent_time; /* mutex os_wait timer msec */
   ulonglong lmax_spent_time; /* mutex os_wait timer msec */
-  const char* cmutex_name;/* mutex name  */
-  ulint mutex_type;/* 0 - usual mutex 1 - rw_lock mutex  */
+  const char* cmutex_name;/* mutex name	 */
+  ulint mutex_type;/* 0 - usual mutex 1 - rw_lock mutex	 */
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -512,7 +512,7 @@ to 20 microseconds. */
 /* The number of system calls made in this module. Intended for performance
 monitoring. */
 
-extern 	ulint	mutex_system_call_count;
+extern	ulint	mutex_system_call_count;
 extern	ulint	mutex_exit_count;
 
 /* Latching order checks start when this is set TRUE */

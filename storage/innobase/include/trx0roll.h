@@ -89,7 +89,7 @@ trx_undo_rec_release(
 	trx_t*	trx,	/* in: transaction */
 	dulint	undo_no);/* in: undo number */
 /*************************************************************************
-Starts a rollback operation. */	
+Starts a rollback operation. */
 
 void
 trx_rollback(
@@ -104,7 +104,7 @@ trx_rollback(
 /***********************************************************************
 Rollback or clean up transactions which have no user session. If the
 transaction already was committed, then we clean up a possible insert
-undo log. If the transaction was not yet committed, then we roll it back. 
+undo log. If the transaction was not yet committed, then we roll it back.
 Note: this is done in a background thread. */
 
 #ifndef __WIN__
@@ -114,10 +114,10 @@ ulint
 #endif
 trx_rollback_or_clean_all_without_sess(
 /*===================================*/
-                        /* out: a dummy parameter */
-        void*   arg __attribute__((unused)));
-                        /* in: a dummy parameter required by
-                        os_thread_create */
+			/* out: a dummy parameter */
+	void*	arg __attribute__((unused)));
+			/* in: a dummy parameter required by
+			os_thread_create */
 /********************************************************************
 Finishes a transaction rollback. */
 
@@ -129,7 +129,7 @@ trx_finish_rollback_off_kernel(
 	que_thr_t**	next_thr);/* in/out: next query thread to run;
 				if the value which is passed in is
 				a pointer to a NULL pointer, then the
-   				calling function can start running
+				calling function can start running
 				a new query thread; if this parameter is
 				NULL, it is ignored */
 /********************************************************************
@@ -190,7 +190,7 @@ trx_general_rollback_for_mysql(
 Rolls back a transaction back to a named savepoint. Modifications after the
 savepoint are undone but InnoDB does NOT release the corresponding locks
 which are stored in memory. If a lock is 'implicit', that is, a new inserted
-row holds a lock where the lock information is carried by the trx id stored in 
+row holds a lock where the lock information is carried by the trx id stored in
 the row, these locks are naturally released in the rollback. Savepoints which
 were set after this savepoint are deleted. */
 
@@ -225,14 +225,14 @@ trx_savepoint_for_mysql(
 						position corresponding to this
 						connection at the time of the
 						savepoint */
-						
+
 /***********************************************************************
 Releases a named savepoint. Savepoints which
 were set after this savepoint are deleted. */
 
 ulint
 trx_release_savepoint_for_mysql(
-/*================================*/
+/*============================*/
 						/* out: if no savepoint
 						of the name found then
 						DB_NO_SAVEPOINT,
@@ -303,4 +303,4 @@ struct trx_named_savept_struct{
 #include "trx0roll.ic"
 #endif
 
-#endif 
+#endif

@@ -15,7 +15,7 @@ waiting for the lock before suspending the thread. */
 void
 rw_lock_s_lock_spin(
 /*================*/
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 	const char*	file_name,/* in: file name where lock requested */
@@ -126,9 +126,9 @@ ibool
 rw_lock_s_lock_low(
 /*===============*/
 				/* out: TRUE if success */
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	ulint		pass __attribute__((unused)),
-                                /* in: pass value; != 0, if the lock will be
+				/* in: pass value; != 0, if the lock will be
 				passed to another thread to unlock */
 	const char*	file_name, /* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
@@ -169,7 +169,7 @@ rw_lock_s_lock_direct(
 {
 	ut_ad(lock->writer == RW_LOCK_NOT_LOCKED);
 	ut_ad(rw_lock_get_reader_count(lock) == 0);
-	
+
 	/* Set the shared lock by incrementing the reader count */
 	lock->reader_count++;
 
@@ -193,7 +193,7 @@ rw_lock_x_lock_direct(
 	const char*	file_name,	/* in: file name where requested */
 	ulint		line)		/* in: line where lock requested */
 {
-        ut_ad(rw_lock_validate(lock));
+	ut_ad(rw_lock_validate(lock));
 	ut_ad(rw_lock_get_reader_count(lock) == 0);
 	ut_ad(rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED);
 
@@ -201,7 +201,7 @@ rw_lock_x_lock_direct(
 	lock->writer_thread = os_thread_get_curr_id();
 	lock->writer_count++;
 	lock->pass = 0;
-			
+
 	lock->last_x_file_name = file_name;
 	lock->last_x_line = line;
 
@@ -220,7 +220,7 @@ UNIV_INLINE
 void
 rw_lock_s_lock_func(
 /*================*/
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 	const char*	file_name,/* in: file name where lock requested */
@@ -236,7 +236,7 @@ rw_lock_s_lock_func(
 	safe recursive s-locking, we should keep in a list the thread ids of
 	the threads which have s-locked a latch. This would use some CPU
 	time. */
-	
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED)); /* see NOTE above */
 #endif /* UNIV_SYNC_DEBUG */
@@ -266,7 +266,7 @@ ibool
 rw_lock_s_lock_func_nowait(
 /*=======================*/
 				/* out: TRUE if success */
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
@@ -285,7 +285,7 @@ rw_lock_s_lock_func_nowait(
 
 		lock->last_s_file_name = file_name;
 		lock->last_s_line = line;
-		
+
 		success = TRUE;
 	}
 
@@ -303,7 +303,7 @@ ibool
 rw_lock_x_lock_func_nowait(
 /*=======================*/
 				/* out: TRUE if success */
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
+	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
@@ -313,13 +313,13 @@ rw_lock_x_lock_func_nowait(
 
 	if (UNIV_UNLIKELY(rw_lock_get_reader_count(lock) != 0)) {
 	} else if (UNIV_LIKELY(rw_lock_get_writer(lock)
-			       == RW_LOCK_NOT_LOCKED)) {
+			== RW_LOCK_NOT_LOCKED)) {
 		rw_lock_set_writer(lock, RW_LOCK_EX);
 		lock->writer_thread = curr_thread;
 		lock->pass = 0;
 	relock:
 		lock->writer_count++;
-			
+
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_add_debug_info(lock, 0, RW_LOCK_EX, file_name, line);
 #endif
@@ -336,7 +336,7 @@ rw_lock_x_lock_func_nowait(
 
 	mutex_exit(rw_lock_get_mutex(lock));
 
-        ut_ad(rw_lock_validate(lock));
+	ut_ad(rw_lock_validate(lock));
 
 	return(success);
 }
@@ -355,9 +355,9 @@ rw_lock_s_unlock_func(
 	)
 {
 	mutex_t*	mutex	= &(lock->mutex);
-	ibool		sg 	= FALSE;
+	ibool		sg	= FALSE;
 
-        /* Acquire the mutex protecting the rw-lock fields */
+	/* Acquire the mutex protecting the rw-lock fields */
 	mutex_enter(mutex);
 
 	/* Reset the shared lock by decrementing the reader count */
@@ -368,24 +368,24 @@ rw_lock_s_unlock_func(
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_remove_debug_info(lock, pass, RW_LOCK_SHARED);
 #endif
-	
+
 	/* If there may be waiters and this was the last s-lock,
 	signal the object */
 
 	if (UNIV_UNLIKELY(lock->waiters)
 			&& lock->reader_count == 0) {
-	       	sg = TRUE;
+		sg = TRUE;
 
 		rw_lock_set_waiters(lock, 0);
 	}
-	
+
 	mutex_exit(mutex);
 
 	if (UNIV_UNLIKELY(sg)) {
 		sync_array_signal_object(sync_primary_wait_array, lock);
 	}
 
-        ut_ad(rw_lock_validate(lock));
+	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
 	rw_s_exit_count++;
@@ -412,7 +412,7 @@ rw_lock_s_unlock_direct(
 #endif
 
 	ut_ad(!lock->waiters);
-        ut_ad(rw_lock_validate(lock));
+	ut_ad(rw_lock_validate(lock));
 #ifdef UNIV_SYNC_PERF_STAT
 	rw_s_exit_count++;
 #endif
@@ -431,9 +431,9 @@ rw_lock_x_unlock_func(
 #endif
 	)
 {
-	ibool	sg 	= FALSE;
+	ibool	sg	= FALSE;
 
-        /* Acquire the mutex protecting the rw-lock fields */
+	/* Acquire the mutex protecting the rw-lock fields */
 	mutex_enter(&(lock->mutex));
 
 	/* Reset the exclusive lock if this thread no longer has an x-mode
@@ -450,22 +450,22 @@ rw_lock_x_unlock_func(
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_remove_debug_info(lock, pass, RW_LOCK_EX);
 #endif
-	
+
 	/* If there may be waiters, signal the lock */
 	if (UNIV_UNLIKELY(lock->waiters)
 			&& lock->writer_count == 0) {
 
-	       	sg = TRUE;
+		sg = TRUE;
 		rw_lock_set_waiters(lock, 0);
 	}
-	
+
 	mutex_exit(&(lock->mutex));
 
 	if (UNIV_UNLIKELY(sg)) {
 		sync_array_signal_object(sync_primary_wait_array, lock);
 	}
 
-        ut_ad(rw_lock_validate(lock));
+	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
 	rw_x_exit_count++;
@@ -497,7 +497,7 @@ rw_lock_x_unlock_direct(
 #endif
 
 	ut_ad(!lock->waiters);
-        ut_ad(rw_lock_validate(lock));
+	ut_ad(rw_lock_validate(lock));
 
 #ifdef UNIV_SYNC_PERF_STAT
 	rw_x_exit_count++;

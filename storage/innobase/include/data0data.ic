@@ -9,7 +9,9 @@ Created 5/30/1994 Heikki Tuuri
 #include "mem0mem.h"
 #include "ut0rnd.h"
 
+#ifdef UNIV_DEBUG
 extern byte data_error;
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Gets pointer to the type struct of SQL data field. */
@@ -42,7 +44,7 @@ dfield_set_type(
 /*************************************************************************
 Gets pointer to the data in a field. */
 UNIV_INLINE
-void* 
+void*
 dfield_get_data(
 /*============*/
 				/* out: pointer to data */
@@ -50,7 +52,7 @@ dfield_get_data(
 {
 	ut_ad(field);
 	ut_ad((field->len == UNIV_SQL_NULL)
-	      || (field->data != &data_error)); 
+		|| (field->data != &data_error));
 
 	return(field->data);
 }
@@ -61,13 +63,13 @@ UNIV_INLINE
 ulint
 dfield_get_len(
 /*===========*/
-				/* out: length of data; UNIV_SQL_NULL if 
+				/* out: length of data; UNIV_SQL_NULL if
 				SQL null data */
 	dfield_t* field)	/* in: field */
 {
 	ut_ad(field);
 	ut_ad((field->len == UNIV_SQL_NULL)
-	      || (field->data != &data_error));
+		|| (field->data != &data_error));
 
 	return(field->len);
 }
@@ -75,10 +77,10 @@ dfield_get_len(
 /*************************************************************************
 Sets length in a field. */
 UNIV_INLINE
-void 
+void
 dfield_set_len(
 /*===========*/
-	dfield_t* 	field,	/* in: field */
+	dfield_t*	field,	/* in: field */
 	ulint		len)	/* in: length or UNIV_SQL_NULL */
 {
 	ut_ad(field);
@@ -89,10 +91,10 @@ dfield_set_len(
 /*************************************************************************
 Sets pointer to the data and length in a field. */
 UNIV_INLINE
-void 
+void
 dfield_set_data(
 /*============*/
-	dfield_t* 	field,	/* in: field */
+	dfield_t*	field,	/* in: field */
 	const void*	data,	/* in: data */
 	ulint		len)	/* in: length or UNIV_SQL_NULL */
 {
@@ -105,10 +107,10 @@ dfield_set_data(
 /*************************************************************************
 Copies the data and len fields. */
 UNIV_INLINE
-void 
+void
 dfield_copy_data(
 /*=============*/
-	dfield_t* 	field1,	/* in: field to copy to */
+	dfield_t*	field1,	/* in: field to copy to */
 	dfield_t*	field2)	/* in: field to copy from */
 {
 	ut_ad(field1 && field2);
@@ -142,11 +144,12 @@ dfield_datas_are_binary_equal(
 	ulint	len;
 
 	len = field1->len;
-	
+
 	if ((len != field2->len)
-	    || ((len != UNIV_SQL_NULL)
-	        && (0 != ut_memcmp(field1->data, field2->data, len)))) {
-	    	
+		|| ((len != UNIV_SQL_NULL)
+			&& (0 != ut_memcmp(field1->data, field2->data,
+					len)))) {
+
 		return(FALSE);
 	}
 
@@ -160,7 +163,7 @@ ulint
 dtuple_get_info_bits(
 /*=================*/
 				/* out: info bits */
-	dtuple_t* 	tuple)	/* in: tuple */
+	dtuple_t*	tuple)	/* in: tuple */
 {
 	ut_ad(tuple);
 
@@ -173,7 +176,7 @@ UNIV_INLINE
 void
 dtuple_set_info_bits(
 /*=================*/
-	dtuple_t* 	tuple,		/* in: tuple */
+	dtuple_t*	tuple,		/* in: tuple */
 	ulint		info_bits)	/* in: info bits */
 {
 	ut_ad(tuple);
@@ -219,7 +222,7 @@ ulint
 dtuple_get_n_fields(
 /*================*/
 				/* out: number of fields */
-	dtuple_t* 	tuple)	/* in: tuple */
+	dtuple_t*	tuple)	/* in: tuple */
 {
 	ut_ad(tuple);
 
@@ -229,11 +232,11 @@ dtuple_get_n_fields(
 /*************************************************************************
 Gets nth field of a tuple. */
 UNIV_INLINE
-dfield_t* 
+dfield_t*
 dtuple_get_nth_field(
 /*=================*/
 				/* out: nth field */
-	dtuple_t* 	tuple,	/* in: tuple */
+	dtuple_t*	tuple,	/* in: tuple */
 	ulint		n)	/* in: index of field */
 {
 	ut_ad(tuple);
@@ -249,17 +252,17 @@ UNIV_INLINE
 dtuple_t*
 dtuple_create(
 /*==========*/
-	 	 		/* out, own: created tuple */
+				/* out, own: created tuple */
 	mem_heap_t*	heap,	/* in: memory heap where the tuple
 				is created */
-	ulint		n_fields) /* in: number of fields */	
+	ulint		n_fields) /* in: number of fields */
 {
-	dtuple_t*	tuple;	
+	dtuple_t*	tuple;
 
 	ut_ad(heap);
 
 	tuple = (dtuple_t*) mem_heap_alloc(heap, sizeof(dtuple_t)
-				     + n_fields * sizeof(dfield_t));
+		+ n_fields * sizeof(dfield_t));
 	tuple->info_bits = 0;
 	tuple->n_fields = n_fields;
 	tuple->n_fields_cmp = n_fields;
@@ -270,14 +273,14 @@ dtuple_create(
 
 	{	/* In the debug version, initialize fields to an error value */
 		ulint	i;
-		
+
 		for (i = 0; i < n_fields; i++) {
 			(tuple->fields + i)->data = &data_error;
 			dfield_get_type(tuple->fields + i)->mtype = DATA_ERROR;
 		}
 	}
 #endif
-	return(tuple);	
+	return(tuple);
 }
 
 /**************************************************************
@@ -292,10 +295,10 @@ dtuple_get_data_size(
 	dtuple_t*	tuple)	/* in: typed data tuple */
 {
 	dfield_t*	field;
-	ulint	 	n_fields;
-	ulint	 	len;
-	ulint	 	i;
-	ulint	 	sum	= 0;
+	ulint		n_fields;
+	ulint		len;
+	ulint		i;
+	ulint		sum	= 0;
 
 	ut_ad(tuple);
 	ut_ad(dtuple_check_typed(tuple));
@@ -313,7 +316,7 @@ dtuple_get_data_size(
 
 		sum += len;
 	}
-	
+
 	return(sum);
 }
 
@@ -328,7 +331,7 @@ dtuple_set_types_binary(
 {
 	dtype_t*	dfield_type;
 	ulint		i;
-	
+
 	for (i = 0; i < n; i++) {
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
 		dtype_set(dfield_type, DATA_BINARY, 0, 0, 0);
@@ -364,10 +367,10 @@ dtuple_fold(
 		field = dtuple_get_nth_field(tuple, i);
 
 		data = (byte*) dfield_get_data(field);
-		len = dfield_get_len(field);	
-		
+		len = dfield_get_len(field);
+
 		if (len != UNIV_SQL_NULL) {
-			fold = ut_fold_ulint_pair(fold, 
+			fold = ut_fold_ulint_pair(fold,
 						  ut_fold_binary(data, len));
 		}
 	}
@@ -376,17 +379,17 @@ dtuple_fold(
 		field = dtuple_get_nth_field(tuple, i);
 
 		data = (byte*) dfield_get_data(field);
-		len = dfield_get_len(field);	
-		
+		len = dfield_get_len(field);
+
 		if (len != UNIV_SQL_NULL) {
 			if (len > n_bytes) {
 				len = n_bytes;
 			}
 
-			fold = ut_fold_ulint_pair(fold, 
+			fold = ut_fold_ulint_pair(fold,
 						  ut_fold_binary(data, len));
 		}
-	}	
+	}
 
 	return(fold);
 }
@@ -423,7 +426,7 @@ dtuple_contains_null(
 
 	for (i = 0; i < n; i++) {
 		if (dfield_get_len(dtuple_get_nth_field(tuple, i))
-		    == UNIV_SQL_NULL) {
+			== UNIV_SQL_NULL) {
 
 			return(TRUE);
 		}

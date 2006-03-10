@@ -57,13 +57,13 @@ both have sensible values. */
 ibool
 btr_search_guess_on_hash(
 /*=====================*/
-					/* out: TRUE if succeeded */	
+					/* out: TRUE if succeeded */
 	dict_index_t*	index,		/* in: index */
 	btr_search_t*	info,		/* in: index search info */
 	dtuple_t*	tuple,		/* in: logical record */
 	ulint		mode,		/* in: PAGE_CUR_L, ... */
-	ulint		latch_mode, 	/* in: BTR_SEARCH_LEAF, ... */
-	btr_cur_t*	cursor, 	/* out: tree cursor */
+	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF, ... */
+	btr_cur_t*	cursor,		/* out: tree cursor */
 	ulint		has_search_latch,/* in: latch mode the caller
 					currently has on btr_search_latch:
 					RW_S_LATCH, RW_X_LATCH, or 0 */
@@ -169,7 +169,7 @@ struct btr_search_struct{
 	ulint	n_hash_potential;/* number of consecutive searches which would
 				have succeeded, or did succeed, using the hash
 				index */
-	/*----------------------*/			
+	/*----------------------*/
 	ulint	n_fields;	/* recommended prefix length for hash search:
 				number of full fields */
 	ulint	n_bytes;	/* recommended prefix: number of bytes in
@@ -250,4 +250,4 @@ much timeout. This is to reduce contention. */
 #include "btr0sea.ic"
 #endif
 
-#endif 
+#endif

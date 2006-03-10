@@ -74,7 +74,7 @@ sym_tab_add_id(
 
 #define	SYM_CLUST_FIELD_NO	0
 #define	SYM_SEC_FIELD_NO	1
-	
+
 struct sym_node_struct{
 	que_common_t			common;		/* node type:
 							QUE_NODE_SYMBOL */
@@ -185,4 +185,4 @@ struct sym_tab_struct{
 #include "pars0sym.ic"
 #endif
 
-#endif 
+#endif

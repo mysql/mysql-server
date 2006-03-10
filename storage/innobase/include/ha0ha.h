@@ -99,13 +99,15 @@ ha_remove_all_nodes_to_page(
 	ulint		fold,	/* in: fold value */
 	page_t*		page);	/* in: buffer page */
 /*****************************************************************
-Validates a hash table. */
+Validates a given range of the cells in hash table. */
 
 ibool
 ha_validate(
 /*========*/
-				/* out: TRUE if ok */
-	hash_table_t*	table);	/* in: hash table */
+					/* out: TRUE if ok */
+	hash_table_t*	table,		/* in: hash table */
+	ulint		start_index,	/* in: start index */
+	ulint		end_index);	/* in: end index */
 /*****************************************************************
 Prints info of a hash table. */
 
@@ -128,4 +130,4 @@ struct ha_node_struct {
 #include "ha0ha.ic"
 #endif
 
-#endif 
+#endif
