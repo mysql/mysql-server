@@ -1093,7 +1093,7 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
 
 /* mysqld.cc */
-extern void yyerror(const char*);
+extern void MYSQLerror(const char*);
 
 /* item_func.cc */
 extern bool check_reserved_words(LEX_STRING *name);
@@ -1415,7 +1415,7 @@ void free_list(I_List <i_string_pair> *list);
 void free_list(I_List <i_string> *list);
 
 /* sql_yacc.cc */
-extern int yyparse(void *thd);
+extern int MYSQLparse(void *thd);
 
 /* frm_crypt.cc */
 #ifdef HAVE_CRYPTED_FRM
