@@ -427,23 +427,23 @@ SET @@SQL_MODE='';
 create function `foo` () returns int return 5;
 show create function `foo`;
 Function	sql_mode	Create Function
-foo		CREATE FUNCTION `foo`() RETURNS int(11)
+foo		CREATE DEFINER=`root`@`localhost` FUNCTION `foo`() RETURNS int(11)
 return 5
 SET @@SQL_MODE='ANSI_QUOTES';
 show create function `foo`;
 Function	sql_mode	Create Function
-foo		CREATE FUNCTION `foo`() RETURNS int(11)
+foo		CREATE DEFINER=`root`@`localhost` FUNCTION `foo`() RETURNS int(11)
 return 5
 drop function `foo`;
 create function `foo` () returns int return 5;
 show create function `foo`;
 Function	sql_mode	Create Function
-foo	ANSI_QUOTES	CREATE FUNCTION "foo"() RETURNS int(11)
+foo	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" FUNCTION "foo"() RETURNS int(11)
 return 5
 SET @@SQL_MODE='';
 show create function `foo`;
 Function	sql_mode	Create Function
-foo	ANSI_QUOTES	CREATE FUNCTION "foo"() RETURNS int(11)
+foo	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" FUNCTION "foo"() RETURNS int(11)
 return 5
 drop function `foo`;
 SET @@SQL_MODE='';

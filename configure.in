@@ -214,7 +214,7 @@ AC_PROG_INSTALL
 test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
 
 # Not critical since the generated file is distributed
-AC_PROG_YACC
+AC_CHECK_PROGS(YACC, ['bison -y -p MYSQL'])
 AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
 AC_CHECK_PROG(DVIS,      tex,    manual.dvi)
 

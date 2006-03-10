@@ -33,6 +33,7 @@
 
 /* Some general useful functions */
 
+#define MYSQL_LEX 1
 #include "mysql_priv.h"
 #include <errno.h>
 #include <m_ctype.h>
@@ -3697,7 +3698,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
     we then save in the partition info structure.
   */
   thd->free_list= NULL;
-  lex.part_info= new partition_info();/* Indicates yyparse from this place */
+  lex.part_info= new partition_info();/* Indicates MYSQLparse from this place */
   if (!lex.part_info)
   {
     mem_alloc_error(sizeof(partition_info));
@@ -3706,7 +3707,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   lex.part_info->part_state= part_state;
   lex.part_info->part_state_len= part_state_len;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
-  if (yyparse((void*)thd) || thd->is_fatal_error)
+  if (MYSQLparse((void*)thd) || thd->is_fatal_error)
   {
     free_items(thd->free_list);
     goto end;

@@ -680,7 +680,7 @@ drop procedure if exists fn3;
 create function fn3 () returns point return GeomFromText("point(1 1)");
 show create function fn3;
 Function	sql_mode	Create Function
-fn3		CREATE FUNCTION `fn3`() RETURNS point
+fn3		CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
 return GeomFromText("point(1 1)")
 select astext(fn3());
 astext(fn3())
