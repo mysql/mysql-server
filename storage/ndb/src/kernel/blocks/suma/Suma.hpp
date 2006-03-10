@@ -189,6 +189,7 @@ public:
      */
     Uint32 m_tableId;
     Uint32 m_table_ptrI;
+    Uint32 m_current_sync_ptrI;
   };
   typedef Ptr<Subscription> SubscriptionPtr;
 
@@ -239,7 +240,8 @@ public:
       suma.progError(line, cause, extra); 
     }
     
-    union { Uint32 nextPool; Uint32 nextList; Uint32 prevList; Uint32 ptrI; };
+    Uint32 prevList; Uint32 ptrI;
+    union { Uint32 nextPool; Uint32 nextList; };
   };
   friend struct SyncRecord;
 

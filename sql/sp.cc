@@ -268,7 +268,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 static int
 db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 {
-  extern int yyparse(void *thd);
+  extern int MYSQLparse(void *thd);
   TABLE *table;
   const char *params, *returns, *body;
   int ret;
@@ -458,7 +458,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
 
   thd->spcont= 0;
-  if (yyparse(thd) || thd->is_fatal_error || newlex.sphead == NULL)
+  if (MYSQLparse(thd) || thd->is_fatal_error || newlex.sphead == NULL)
   {
     sp_head *sp= newlex.sphead;
 
