@@ -10,7 +10,7 @@ RETURNS STRING SONAME 'udf_example.so';
 CREATE AGGREGATE FUNCTION avgcost
 RETURNS REAL SONAME 'udf_example.so';
 select myfunc_double();
-ERROR HY000: myfunc_double must have at least on argument
+ERROR HY000: myfunc_double must have at least one argument
 select myfunc_double(1);
 myfunc_double(1)
 49.00
@@ -59,18 +59,18 @@ select metaphon('hello');
 metaphon('hello')
 HL
 CREATE PROCEDURE `XXX1`(in testval varchar(10))
-begin 
-select metaphon(testval); 
+begin
+select metaphon(testval);
 end//
 call XXX1('hello');
 metaphon(testval)
 HL
 drop procedure xxx1;
 CREATE PROCEDURE `XXX2`()
-begin 
+begin
 declare testval varchar(10);
 set testval = 'hello';
-select metaphon(testval); 
+select metaphon(testval);
 end//
 call XXX2();
 metaphon(testval)
