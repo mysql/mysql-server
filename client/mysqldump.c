@@ -1342,7 +1342,7 @@ static uint dump_routines_for_db(char *db)
 
                 query_str_tail= strnmov(query_str, row[2],
                                         definer_begin - row[2]);
-                query_str_tail= strmov(query_str_tail, "*/ /*!50019");
+                query_str_tail= strmov(query_str_tail, "*/ /*!50020");
                 query_str_tail= strnmov(query_str_tail, definer_begin,
                                         definer_end - definer_begin);
                 query_str_tail= strxmov(query_str_tail, "*/ /*!50003",
