@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#define MYSQL_LEX 1
 #include "mysql_priv.h"
 #include "sql_select.h"
 #include "parse_file.h"
@@ -891,7 +892,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
                                 MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
     CHARSET_INFO *save_cs= thd->variables.character_set_client;
     thd->variables.character_set_client= system_charset_info;
-    res= yyparse((void *)thd);
+    res= MYSQLparse((void *)thd);
     thd->variables.character_set_client= save_cs;
     thd->variables.sql_mode= save_mode;
   }
