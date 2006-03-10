@@ -27,7 +27,7 @@
 
 # ----------------------------------------------------------------------------
 # $mysql_errno contains the return code of the last command
-# send to the server.
+# sent to the server.
 # ----------------------------------------------------------------------------
 # get $mysql_errno before the first statement
 #     $mysql_errno should be -1
@@ -50,7 +50,7 @@ select otto from (select 1 as otto) as t1;
 
 # ----------------------------------------------------------------------------
 # Negative case(statement):
-# The dervied table t1 does not contain a column named 'friedrich' . 
+# The derived table t1 does not contain a column named 'friedrich' . 
 # --> ERROR 42S22: Unknown column 'friedrich' in 'field list and
 # --> 1054: Unknown column 'friedrich' in 'field list'
 # ----------------------------------------------------------------------------
@@ -68,7 +68,7 @@ select friedrich from (select 1 as otto) as t1;
 # The following unmasked unsuccessful statement must give
 # 1. mysqltest gives a 'failed'
 # 2. does not produce a r/<test case>.reject file !!!
-# PLEASE uncomment it and check it's effect
+# PLEASE uncomment it and check its effect
 #select friedrich from (select 1 as otto) as t1;
 
 
@@ -114,7 +114,7 @@ select friedrich from (select 1 as otto) as t1;
 # test cases for $mysql_errno
 #
 # $mysql_errno is a builtin variable of mysqltest and contains the return code
-# of the last command send to the server.
+# of the last command sent to the server.
 #
 #      The following test cases often initialize $mysql_errno to 1064 by 
 #      a command with wrong syntax.
@@ -217,7 +217,7 @@ garbage ;
 execute stmt;
 eval select $mysql_errno as "after_successful_execute" ;
 
-# failing execute (table dropped)
+# failing execute (table has been dropped)
 drop table t1;
 --error 1064
 garbage ;
@@ -249,8 +249,8 @@ eval select $mysql_errno as "after_failing_deallocate" ;
 # ----------------------------------------------------------------------------
 # test cases for "--disable_abort_on_error"
 #
-# "--disable_abort_on_error" switches the abort of mysqltest
-# after "unmasked" failing statements off.
+# "--disable_abort_on_error" switches off the abort of mysqltest
+# after "unmasked" failing statements.
 #
 # The default is "--enable_abort_on_error".
 #
@@ -258,13 +258,13 @@ eval select $mysql_errno as "after_failing_deallocate" ;
 #   --error <error number>  and  --error <error number>
 # in the line before the failing statement.
 #
-# There are some additional test case for $mysql_errno
+# There are some additional test cases for $mysql_errno
 # because "--disable_abort_on_error" enables a new situation.
 # Example: "unmasked" statement fails + analysis of $mysql_errno
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
-# Switch the abort on error off and check the effect on $mysql_errno
+# Switch off the abort on error and check the effect on $mysql_errno
 # ----------------------------------------------------------------------------
 --error 1064
 garbage ;
@@ -345,7 +345,7 @@ select 3 from t1 ;
 
 # ----------------------------------------------------------------------------
 # Test detect end of line "junk"
-# Most likely causes by a missing delimiter
+# Most likely caused by a missing delimiter
 # ----------------------------------------------------------------------------
 
 # Too many parameters to function
@@ -1040,7 +1040,7 @@ let $message= . Here comes a very very long message that
 --source include/show_msg80.inc
 
 #
-# Test --enable_parsning / disable_parsning
+# Test --enable_parsing / disable_parsing
 #
 --disable_query_log
 --disable_parsing
@@ -1067,9 +1067,9 @@ select "this will be executed";
 
 #
 # Test that mysqltest fails when there are no queries executed
-# but a result file exist
+# but a result file exists
 # NOTE! This will never happen as long as it's not allowed to have
-# test files that does not produce any output
+# test files that produce no output
 #--exec echo "something" > $MYSQLTEST_VARDIR/tmp/result_file.result
 #--exec echo "let \$i= 1;" > $MYSQLTEST_VARDIR/tmp/query.sql
 #--error 1

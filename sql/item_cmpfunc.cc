@@ -2547,7 +2547,8 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   {
     table_map tmp_table_map;
     while (item->type() == Item::COND_ITEM &&
-	   ((Item_cond*) item)->functype() == functype())
+	   ((Item_cond*) item)->functype() == functype() &&
+           !((Item_cond*) item)->list.is_empty())
     {						// Identical function
       li.replace(((Item_cond*) item)->list);
       ((Item_cond*) item)->list.empty();

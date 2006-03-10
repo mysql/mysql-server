@@ -80,6 +80,7 @@ static char *add_load_option(char *ptr, const char *object,
 			     const char *statement);
 static ulong find_set(TYPELIB *lib, const char *x, uint length,
 		      char **err_pos, uint *err_len);
+static char *alloc_query_str(ulong size);
 
 static char *field_escape(char *to,const char *from,uint length);
 static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
@@ -95,6 +96,7 @@ static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
                 opt_complete_insert= 0, opt_drop_database= 0,
                 opt_replace_into= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
+                opt_events= 0,
                 opt_alltspcs=0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
@@ -231,6 +233,9 @@ static struct my_option my_long_options[] =
   {"disable-keys", 'K',
    "'/*!40000 ALTER TABLE tb_name DISABLE KEYS */; and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */; will be put in the output.", (gptr*) &opt_disable_keys,
    (gptr*) &opt_disable_keys, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"events", 'E', "Dump events.",
+     (gptr*) &opt_events, (gptr*) &opt_events, 0, GET_BOOL,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
   {"extended-insert", 'e',
    "Allows utilization of the new, much faster INSERT syntax.",
    (gptr*) &extended_insert, (gptr*) &extended_insert, 0, GET_BOOL, NO_ARG,
@@ -1238,9 +1243,136 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   check_io(xml_file);
 }
 
+
+/*
+ create_delimiter
+ Generate a new (null-terminated) string that does not exist in  query 
+ and is therefore suitable for use as a query delimiter.  Store this
+ delimiter in  delimiter_buff .
+ 
+ This is quite simple in that it doesn't even try to parse statements as an
+ interpreter would.  It merely returns a string that is not in the query, which
+ is much more than adequate for constructing a delimiter.
+
+ RETURN
+   ptr to the delimiter  on Success
+   NULL                  on Failure
+*/
+static char *create_delimiter(char *query, char *delimiter_buff, 
+                              int delimiter_max_size) 
+{
+  int proposed_length;
+  char *presence;
+
+  delimiter_buff[0]= ';';  /* start with one semicolon, and */
+
+  for (proposed_length= 2; proposed_length < delimiter_max_size; 
+      delimiter_max_size++) {
+
+    delimiter_buff[proposed_length-1]= ';';  /* add semicolons, until */
+    delimiter_buff[proposed_length]= '\0';
+
+    presence = strstr(query, delimiter_buff);
+    if (presence == NULL) { /* the proposed delimiter is not in the query. */
+       return delimiter_buff;
+    }
+
+  }
+  return NULL;  /* but if we run out of space, return nothing at all. */
+}
+
+
+/*
+  dump_events_for_db
+  -- retrieves list of events for a given db, and prints out
+  the CREATE EVENT statement into the output (the dump).
+
+  RETURN
+    0  Success
+    1  Error
+*/
+static uint dump_events_for_db(char *db)
+{
+  char       query_buff[QUERY_LENGTH];
+  char       db_name_buff[NAME_LEN*2+3], name_buff[NAME_LEN*2+3];
+  char       *event_name;
+  char       delimiter[QUERY_LENGTH], *delimit_test;
+  FILE       *sql_file= md_result_file;
+  MYSQL_RES  *event_res, *event_list_res;
+  MYSQL_ROW  row, event_list_row;
+  DBUG_ENTER("dump_events_for_db");
+  DBUG_PRINT("enter", ("db: '%s'", db));
+
+  mysql_real_escape_string(sock, db_name_buff, db, strlen(db));
+
+  /* nice comments */
+  if (opt_comments)
+    fprintf(sql_file, "\n--\n-- Dumping events for database '%s'\n--\n", db);
+
+  /*
+    not using "mysql_query_with_error_report" because we may have not
+    enough privileges to lock mysql.events.
+  */
+  if (lock_tables)
+    mysql_query(sock, "LOCK TABLES mysql.event READ");
+
+  if (mysql_query_with_error_report(sock, &event_list_res, "show events"))
+  {
+    safe_exit(EX_MYSQLERR);
+    DBUG_RETURN(0);
+  }
+
+  strcpy(delimiter, ";");
+  if (mysql_num_rows(event_list_res) > 0)
+  {
+    while ((event_list_row= mysql_fetch_row(event_list_res)) != NULL)
+    {
+      event_name= quote_name(event_list_row[1], name_buff, 0);
+      DBUG_PRINT("info", ("retrieving CREATE EVENT for %s", name_buff));
+      my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE EVENT %s", 
+          event_name);
+
+      if (mysql_query_with_error_report(sock, &event_res, query_buff))
+        DBUG_RETURN(1);
+
+      while ((row= mysql_fetch_row(event_res)) != NULL)
+      {
+        /*
+          if the user has EXECUTE privilege he can see event names, but not the
+          event body!
+        */
+        if (strlen(row[2]) != 0)
+        {
+          if (opt_drop)
+            fprintf(sql_file, "/*!50106 DROP EVENT IF EXISTS %s */%s\n", 
+                event_name, delimiter);
+
+          delimit_test= create_delimiter(row[2], delimiter, sizeof(delimiter)); 
+          if (delimit_test == NULL) {
+            fprintf(stderr, "%s: Warning: Can't dump event '%s'\n", 
+                event_name, my_progname);
+            DBUG_RETURN(1);
+          }
+
+          fprintf(sql_file, "DELIMITER %s\n", delimiter);
+          fprintf(sql_file, "/*!50106 %s */ %s\n", row[2], delimiter);
+        }
+      } /* end of event printing */
+    } /* end of list of events */
+    fprintf(sql_file, "DELIMITER ;\n");
+    mysql_free_result(event_res);
+  }
+  mysql_free_result(event_list_res);
+
+  if (lock_tables)
+    VOID(mysql_query_with_error_report(sock, 0, "UNLOCK TABLES"));
+  DBUG_RETURN(0);
+}
+
+
 /*
   dump_routines_for_db
-  -- retrievs list of routines for a given db, and prints out
+  -- retrieves list of routines for a given db, and prints out
   the CREATE PROCEDURE definition into the output (the dump).
 
   This function has logic to print the appropriate syntax depending on whether
@@ -1253,7 +1385,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
 
 static uint dump_routines_for_db(char *db)
 {
-  char       query_buff[512];
+  char       query_buff[QUERY_LENGTH];
   const char *routine_type[]= {"FUNCTION", "PROCEDURE"};
   char       db_name_buff[NAME_LEN*2+3], name_buff[NAME_LEN*2+3];
   char       *routine_name;
@@ -1294,9 +1426,9 @@ static uint dump_routines_for_db(char *db)
 
       while ((routine_list_row= mysql_fetch_row(routine_list_res)))
       {
+        routine_name= quote_name(routine_list_row[1], name_buff, 0);
         DBUG_PRINT("info", ("retrieving CREATE %s for %s", routine_type[i],
                             name_buff));
-        routine_name= quote_name(routine_list_row[1], name_buff, 0);
         my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE %s %s",
                     routine_type[i], routine_name);
 
@@ -1313,19 +1445,64 @@ static uint dump_routines_for_db(char *db)
                              routine_name, row[2], strlen(row[2])));
           if (strlen(row[2]))
           {
+            char *query_str= NULL;
+            char *definer_begin;
+
             if (opt_drop)
               fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */;;\n",
                       routine_type[i], routine_name);
+
+            /*
+              Cover DEFINER-clause in version-specific comments.
+
+              TODO: this is definitely a BAD IDEA to parse SHOW CREATE output.
+              We should user INFORMATION_SCHEMA instead. The only problem is
+              that now INFORMATION_SCHEMA does not provide information about
+              routine parameters.
+            */
+
+            definer_begin= strstr(row[2], " DEFINER");
+            
+            if (definer_begin)
+            {
+              char *definer_end= strstr(definer_begin, " PROCEDURE");
+
+              if (!definer_end)
+                definer_end= strstr(definer_begin, " FUNCTION");
+
+              if (definer_end)
+              {
+                char *query_str_tail;
+
+                /*
+                  Allocate memory for new query string: original string
+                  from SHOW statement and version-specific comments.
+                */
+                query_str= alloc_query_str(strlen(row[2]) + 23);
+
+                query_str_tail= strnmov(query_str, row[2],
+                                        definer_begin - row[2]);
+                query_str_tail= strmov(query_str_tail, "*/ /*!50019");
+                query_str_tail= strnmov(query_str_tail, definer_begin,
+                                        definer_end - definer_begin);
+                query_str_tail= strxmov(query_str_tail, "*/ /*!50003",
+                                        definer_end, NullS);
+              }
+            }
+
             /*
               we need to change sql_mode only for the CREATE
               PROCEDURE/FUNCTION otherwise we may need to re-quote routine_name
             */;
             fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\"*/;;\n",
                     row[1] /* sql_mode */);
-            fprintf(sql_file, "/*!50003 %s */;;\n", row[2]);
+            fprintf(sql_file, "/*!50003 %s */;;\n",
+                    (query_str != NULL ? query_str : row[2]));
             fprintf(sql_file,
                     "/*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/"
                     ";;\n");
+
+            my_free(query_str, MYF(MY_ALLOW_ZERO_PTR));
           }
         } /* end of routine printing */
       } /* end of list of routines */
@@ -1364,7 +1541,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   char	     *result_table, *opt_quoted_table;
   const char *insert_option;
   char	     name_buff[NAME_LEN+3],table_buff[NAME_LEN*2+3];
-  char	     table_buff2[NAME_LEN*2+3], query_buff[512];
+  char	     table_buff2[NAME_LEN*2+3], query_buff[QUERY_LENGTH];
   FILE       *sql_file = md_result_file;
   int        len;
   MYSQL_RES  *result;
@@ -1840,7 +2017,7 @@ static void dump_triggers_for_table (char *table, char *db)
 {
   char	     *result_table;
   char	     name_buff[NAME_LEN*4+3], table_buff[NAME_LEN*2+3];
-  char       query_buff[512];
+  char       query_buff[QUERY_LENGTH];
   uint old_opt_compatible_mode=opt_compatible_mode;
   FILE       *sql_file = md_result_file;
   MYSQL_RES  *result;
@@ -2500,7 +2677,6 @@ static int dump_all_tablespaces()
 {
   MYSQL_ROW row;
   MYSQL_RES *tableres;
-  int result=0;
   char buf[FN_REFLEN];
   int first;
 
@@ -2798,6 +2974,12 @@ static int dump_all_tables_in_db(char *database)
         dump_triggers_for_table(table, database);
     }
   }
+  if (opt_events && !opt_xml &&
+      mysql_get_server_version(sock) >= 50106)
+  {
+    DBUG_PRINT("info", ("Dumping events for database %s", database));
+    dump_events_for_db(database);
+  }
   if (opt_routines && !opt_xml &&
       mysql_get_server_version(sock) >= 50009)
   {
@@ -3007,6 +3189,12 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       table_name= hash_element(&dump_tables, i);
       get_view_structure(table_name, db);
     }
+  }
+  if (opt_events && !opt_xml &&
+      mysql_get_server_version(sock) >= 50106)
+  {
+    DBUG_PRINT("info", ("Dumping events for database %s", db));
+    dump_events_for_db(db);
   }
   /* obtain dump of routines (procs/functions) */
   if (opt_routines  && !opt_xml &&
