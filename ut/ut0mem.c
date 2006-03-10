@@ -437,3 +437,96 @@ ut_memcpyq(
 
 	return(dest);
 }
+
+/**************************************************************************
+Return the number of times s2 occurs in s1. Overlapping instances of s2
+are only counted once. */
+
+ulint
+ut_strcount(
+/*========*/
+				/* out: the number of times s2 occurs in s1 */
+	const char*	s1,	/* in: string to search in */
+	const char*	s2)	/* in: string to search for */
+{
+	ulint	count = 0;
+	ulint	len = strlen(s2);
+
+	if (len == 0) {
+		
+		return(0);
+	}
+
+	for (;;) {
+		s1 = strstr(s1, s2);
+
+		if (!s1) {
+			
+			break;
+		}
+
+		count++;
+		s1 += len;
+	}
+
+	return(count);
+}
+
+/**************************************************************************
+Replace every occurrence of s1 in str with s2. Overlapping instances of s1
+are only replaced once. */
+
+char *
+ut_strreplace(
+/*==========*/
+				/* out, own: modified string, must be
+				freed with mem_free() */
+	const char*	str,	/* in: string to operate on */
+	const char*	s1,	/* in: string to replace */
+	const char*	s2)	/* in: string to replace s1 with */
+{
+	char*		new_str;
+	char*		ptr;
+	const char*	str_end;
+	ulint		str_len = strlen(str);
+	ulint		s1_len = strlen(s1);
+	ulint		s2_len = strlen(s2);
+	ulint		count = 0;
+	int		len_delta = (int)s2_len - (int)s1_len;
+
+	str_end = str + str_len;
+	
+	if (len_delta <= 0) {
+		len_delta = 0;		
+	} else {
+		count = ut_strcount(str, s1);
+	}
+	
+	new_str = mem_alloc(str_len + count * len_delta + 1);
+	ptr = new_str;
+	
+	while (str) {
+		const char*	next = strstr(str, s1);
+		
+		if (!next) {
+			next = str_end;
+		}
+
+		memcpy(ptr, str, next - str);
+		ptr += next - str;
+
+		if (next == str_end) {
+			
+			break;
+		}
+
+		memcpy(ptr, s2, s2_len);
+		ptr += s2_len;
+		
+		str = next + s1_len;
+	}
+
+	*ptr = '\0';
+	
+	return(new_str);
+}
