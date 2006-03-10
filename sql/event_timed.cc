@@ -14,13 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#define MYSQL_LEX 1
 #include "event_priv.h"
 #include "event.h"
 #include "sp.h"
 
 
 
-extern int yyparse(void *thd);
+extern int MYSQLparse(void *thd);
 
 /*
   Init all member variables
@@ -1338,7 +1339,7 @@ Event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   thd->lex= &lex;
   lex_start(thd, (uchar*)thd->query, thd->query_length);
   lex.et_compile_phase= TRUE;
-  if (yyparse((void *)thd) || thd->is_fatal_error)
+  if (MYSQLparse((void *)thd) || thd->is_fatal_error)
   {
     DBUG_PRINT("error", ("error during compile or thd->is_fatal_error=%d",
                           thd->is_fatal_error));
