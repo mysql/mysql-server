@@ -650,10 +650,15 @@ public:
   {
     return (void*) my_malloc((uint)size, MYF(MY_WME|MY_FAE));
   }
+
   static void operator delete(void *ptr, size_t size)
   {
     my_free((gptr) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
   }
+
+  /* Placement version of the above operators */
+  static void *operator new(size_t, void* ptr) { return ptr; }
+  static void operator delete(void*, void*) { }
 
 #ifndef MYSQL_CLIENT
   bool write_header(IO_CACHE* file, ulong data_length);
@@ -1788,9 +1793,7 @@ public:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int exec_event(struct st_relay_log_info *rli);
-#ifdef DBUG_RBR
   virtual void pack_info(Protocol *protocol);
-#endif
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -1830,33 +1833,7 @@ public:
     return m_rows_buf && m_cols.bitmap;
   }
 
-  /*
-    If there is no table map active for the event, write one to the
-    binary log.
-
-    LOCK_log has to be aquired before calling this function.
-
-    PARAMETERS
-      thd - Thread to use when writing the table map
-
-    RETURN VALUE
-      Error code, or zero if write succeeded.
-  */
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
-  int maybe_write_table_map(THD *thd, IO_CACHE *file, MYSQL_LOG *log) const
-  {
-    /*
-      N.B., get_cache_stmt() returns the value of 'using_trans' that
-      was provided to the constructor, i.e., get_cache_stmt() == true
-      if and only if the table is transactional.
-    */
-
-    int result= 0;
-    if (!log->is_table_mapped(m_table))
-      result= log->write_table_map(thd, file, m_table, get_cache_stmt());
-    return result;
-  }
-#endif
+  uint     m_row_count;         /* The number of rows added to the event */
 
 protected:
   /* 
