@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
 
 
+#define MYSQL_LEX 1
 #include "mysql_priv.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
@@ -928,7 +929,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         lex_start(thd, (uchar*)trg_create_str->str, trg_create_str->length);
 
 	thd->spcont= 0;
-        if (yyparse((void *)thd) || thd->is_fatal_error)
+        if (MYSQLparse((void *)thd) || thd->is_fatal_error)
         {
           /*
             Free lex associated resources.
