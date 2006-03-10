@@ -222,6 +222,32 @@ do {\
 	mem_heap_free_top(hash_get_heap(TABLE, fold111), sizeof(TYPE));\
 } while (0)
 
+/********************************************************************
+Move all hash table entries from OLD_TABLE to NEW_TABLE.*/
+
+#define HASH_MIGRATE(OLD_TABLE, NEW_TABLE, NODE_TYPE, PTR_NAME, FOLD_FUNC) \
+do {\
+	ulint		i2222;\
+	ulint		cell_count2222;\
+\
+	cell_count2222 = hash_get_n_cells(OLD_TABLE);\
+\
+	for (i2222 = 0; i2222 < cell_count2222; i2222++) {\
+		NODE_TYPE*	node2222 = HASH_GET_FIRST((OLD_TABLE), i2222);\
+\
+		while (node2222) {\
+			NODE_TYPE*	next2222 = node2222->PTR_NAME;\
+			ulint		fold2222 = FOLD_FUNC(node2222);\
+\
+			HASH_INSERT(NODE_TYPE, PTR_NAME, (NEW_TABLE),\
+				fold2222, node2222);\
+\
+			node2222 = next2222;\
+		}\
+	}\
+} while (0)
+
+
 /****************************************************************
 Gets the mutex index for a fold value in a hash table. */
 UNIV_INLINE
