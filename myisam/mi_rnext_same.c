@@ -40,7 +40,7 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
 
   if (info->s->concurrent_insert)
     rw_rdlock(&info->s->key_root_lock[inx]);
-    
+
   switch (keyinfo->key_alg)
   {
 #ifdef HAVE_RTREE_KEYS
@@ -102,4 +102,4 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
     DBUG_RETURN(0);
   }
   DBUG_RETURN(my_errno);
-} /* mi_rnext */
+} /* mi_rnext_same */
