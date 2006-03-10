@@ -156,7 +156,6 @@ lex_hash.h:	gen_lex_hash$(EXEEXT)
 # For testing of udf_example.so
 noinst_LTLIBRARIES= udf_example.la
 udf_example_la_SOURCES= udf_example.cc
-udf_example_la_CXXFLAGS= -DSTANDARD
 udf_example_la_LDFLAGS= -module -rpath $(pkglibdir)
 
 
