@@ -70,7 +70,8 @@ struct CreateFilegroupImplRef {
     NoError = 0,
     FilegroupAlreadyExists = 1502,
     OutOfFilegroupRecords = 1503,
-    OutOfLogBufferMemory = 1504
+    OutOfLogBufferMemory = 1504,
+    OneLogfileGroupLimit = 1514
   };
   
   Uint32 senderData;
