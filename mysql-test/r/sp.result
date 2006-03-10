@@ -4857,4 +4857,33 @@ i
 0
 drop table t3|
 drop procedure bug16887|
+drop procedure if exists bug16474_1|
+drop procedure if exists bug16474_2|
+delete from t1|
+insert into t1 values ('c', 2), ('b', 3), ('a', 1)|
+create procedure bug16474_1()
+begin
+declare x int;
+select id from t1 order by x;
+end|
+create procedure bug16474_2(x int)
+select id from t1 order by x|
+call bug16474_1()|
+id
+c
+b
+a
+call bug16474_2(1)|
+id
+c
+b
+a
+call bug16474_2(2)|
+id
+c
+b
+a
+drop procedure bug16474_1|
+drop procedure bug16474_2|
+delete from t1|
 drop table t1,t2;
