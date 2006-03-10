@@ -1606,7 +1606,7 @@ btr_cur_optimistic_update(
 	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-									NULL);
+		FALSE, NULL);
 	old_rec_size = rec_offs_size(offsets);
 	new_rec_size = rec_get_converted_size(index, new_entry);
 
@@ -1846,7 +1846,7 @@ btr_cur_pessimistic_update(
 	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-									heap);
+		FALSE, heap);
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 								roll_ptr);
