@@ -276,6 +276,7 @@ struct system_variables
   DATE_TIME_FORMAT *date_format;
   DATE_TIME_FORMAT *datetime_format;
   DATE_TIME_FORMAT *time_format;
+  my_bool sysdate_is_now;
 };
 
 
