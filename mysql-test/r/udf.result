@@ -1,8 +1,9 @@
 drop table if exists t1;
 CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
 CREATE FUNCTION myfunc_double RETURNS REAL SONAME 'udf_example.so';
+CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME 'udf_example.so';
+ERROR HY000: Can't find function 'myfunc_nonexist' in library
 CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME 'udf_example.so';
-ERROR HY000: Can't find function 'myfunc_int_init' in library
 CREATE FUNCTION sequence RETURNS INTEGER SONAME "udf_example.so";
 CREATE FUNCTION lookup RETURNS STRING SONAME 'udf_example.so';
 CREATE FUNCTION reverse_lookup
@@ -17,8 +18,11 @@ myfunc_double(1)
 select myfunc_double(78654);
 myfunc_double(78654)
 54.00
+select myfunc_nonexist();
+ERROR 42000: FUNCTION test.myfunc_nonexist does not exist
 select myfunc_int();
-ERROR 42000: FUNCTION test.myfunc_int does not exist
+myfunc_int()
+0
 select lookup();
 ERROR HY000: Wrong arguments to lookup;  Use the source
 select lookup("127.0.0.1");
@@ -32,11 +36,7 @@ lookup("localhost")
 select reverse_lookup();
 ERROR HY000: Wrong number of arguments to reverse_lookup;  Use the source
 select reverse_lookup("127.0.0.1");
-reverse_lookup("127.0.0.1")
-localhost
 select reverse_lookup(127,0,0,1);
-reverse_lookup(127,0,0,1)
-localhost
 select reverse_lookup("localhost");
 reverse_lookup("localhost")
 NULL
@@ -78,8 +78,9 @@ HL
 drop procedure xxx2;
 DROP FUNCTION metaphon;
 DROP FUNCTION myfunc_double;
+DROP FUNCTION myfunc_nonexist;
+ERROR 42000: FUNCTION test.myfunc_nonexist does not exist
 DROP FUNCTION myfunc_int;
-ERROR 42000: FUNCTION test.myfunc_int does not exist
 DROP FUNCTION sequence;
 DROP FUNCTION lookup;
 DROP FUNCTION reverse_lookup;
