@@ -231,7 +231,13 @@ handlerton innobase_hton = {
   innobase_start_trx_and_assign_read_view,    /* Start Consistent Snapshot */
   innobase_flush_logs,		/* Flush logs */
   innobase_show_status,		/* Show status */
-  HTON_NO_FLAGS
+  NULL,                         /* Partition flags */
+  NULL,                         /* Alter table flags */
+  NULL,                         /* alter_tablespace */
+  NULL,                         /* Fill FILES table */
+  HTON_NO_FLAGS,
+  NULL,                         /* binlog_func */
+  NULL                          /* binlog_log_query */
 };
 
 
@@ -5794,7 +5800,7 @@ ha_innobase::analyze(
 }
 
 /**************************************************************************
-This is mapped to "ALTER TABLE tablename TYPE=InnoDB", which rebuilds
+This is mapped to "ALTER TABLE tablename ENGINE=InnoDB", which rebuilds
 the table in MySQL. */
 
 int
