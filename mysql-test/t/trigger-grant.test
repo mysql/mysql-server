@@ -317,10 +317,7 @@ CREATE DEFINER='mysqltest_nonexs'@'localhost'
 
 # Check that trg2 will not be activated.
 
-# --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-#
-# TODO: Due to the BUG#13198(SP executes if definer does not exist) the
-# following statement does not fail as it should.
+--error ER_NO_SUCH_USER
 INSERT INTO t1 VALUES(6);
 
 #

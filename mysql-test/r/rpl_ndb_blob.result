@@ -78,3 +78,58 @@ S	7	a6bae0cfe6b45ff8c3c12d2ce577a1cd3931190f	107	39ee712b4b9e47f2cf3ba7c9790b2bf
 S	8	e139adcb7b2974ee7ff227fd405709e5cb7c896c	108	ba8073b0e1a281d4111bd2d82c7722b01574c00b	NULL
 S	9	1fc5168fe4be566b17b658d94e7813f0b5032cdb	NULL	NULL	NULL
 drop table t1;
+CREATE TABLE IF NOT EXISTS t1 (
+db VARBINARY(63) NOT NULL,
+name VARBINARY(63) NOT NULL,
+slock BINARY(32) NOT NULL,
+query BLOB NOT NULL,
+node_id INT UNSIGNED NOT NULL,
+epoch BIGINT UNSIGNED NOT NULL,
+id INT UNSIGNED NOT NULL,
+version INT UNSIGNED NOT NULL,
+type INT UNSIGNED NOT NULL,
+PRIMARY KEY USING HASH (db,name))
+ENGINE=NDB;
+insert into t1 values ('test','t1',
+'abc',repeat(@s0,10),  11,12,13,14,15);
+insert into t1 values ('test','t2',
+'def',repeat(@s1,100), 21,22,23,24,25);
+insert into t1 values ('test','t3',
+'ghi',repeat(@s2,1000),31,32,33,34,35);
+insert into t1 values ('testtttttttttt','t1',
+'abc',repeat(@s0,10),  11,12,13,14,15);
+insert into t1 values ('testttttttttttt','t1',
+'def',repeat(@s1,100), 21,22,23,24,25);
+insert into t1 values ('testtttttttttttt','t1',
+'ghi',repeat(@s2,1000),31,32,33,34,35);
+insert into t1 values ('t','t11111111111',
+'abc',repeat(@s0,10),  11,12,13,14,15);
+insert into t1 values ('t','t111111111111',
+'def',repeat(@s1,100), 21,22,23,24,25);
+insert into t1 values ('t','t1111111111111',
+'ghi',repeat(@s2,1000),31,32,33,34,35);
+select 'M', db, name, sha1(query), node_id, epoch, id, version, type
+from t1 order by db, name;
+M	db	name	sha1(query)	node_id	epoch	id	version	type
+M	t	t11111111111	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+M	t	t111111111111	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+M	t	t1111111111111	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+M	test	t1	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+M	test	t2	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+M	test	t3	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+M	testtttttttttt	t1	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+M	testttttttttttt	t1	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+M	testtttttttttttt	t1	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+select 'S', db, name, sha1(query), node_id, epoch, id, version, type
+from t1 order by db, name;
+S	db	name	sha1(query)	node_id	epoch	id	version	type
+S	t	t11111111111	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+S	t	t111111111111	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+S	t	t1111111111111	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+S	test	t1	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+S	test	t2	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+S	test	t3	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+S	testtttttttttt	t1	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
+S	testttttttttttt	t1	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
+S	testtttttttttttt	t1	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
+drop table t1;
