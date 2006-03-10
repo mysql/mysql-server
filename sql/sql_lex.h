@@ -716,7 +716,7 @@ typedef struct st_lex
   uchar *buf;			/* The beginning of string, used by SPs */
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   
-  /* The values of tok_start/tok_end as they were one call of yylex before */
+  /* The values of tok_start/tok_end as they were one call of MYSQLlex before */
   uchar *tok_start_prev, *tok_end_prev;
 
   char *length,*dec,*change,*name;
@@ -1065,7 +1065,7 @@ extern void lex_init(void);
 extern void lex_free(void);
 extern void lex_start(THD *thd, uchar *buf,uint length);
 extern void lex_end(LEX *lex);
-extern int yylex(void *arg, void *yythd);
+extern int MYSQLlex(void *arg, void *yythd);
 
 extern pthread_key(LEX*,THR_LEX);
 
