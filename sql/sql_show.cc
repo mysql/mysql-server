@@ -766,6 +766,18 @@ static const char *require_quotes(const char *name, uint name_length)
 }
 
 
+/*
+  Quote the given identifier if needed and append it to the target string.
+  If the given identifier is empty, it will be quoted.
+
+  SYNOPSIS
+  append_identifier()
+  thd                   thread handler
+  packet                target string
+  name                  the identifier to be appended
+  name_length           length of the appending identifier
+*/
+
 void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
@@ -819,8 +831,11 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
     length	length of name
 
   IMPLEMENTATION
-    If name is a keyword or includes a special character, then force
-    quoting.
+    Force quoting in the following cases:
+      - name is empty (for one, it is possible when we use this function for
+        quoting user and host names for DEFINER clause);
+      - name is a keyword;
+      - name includes a special character;
     Otherwise identifier is quoted only if the option OPTION_QUOTE_SHOW_CREATE
     is set.
 
