@@ -4578,6 +4578,7 @@ enum options_mysqld
   OPT_DATETIME_FORMAT,
   OPT_LOG_QUERIES_NOT_USING_INDEXES,
   OPT_DEFAULT_TIME_ZONE,
+  OPT_SYSDATE_IS_NOW,
   OPT_OPTIMIZER_SEARCH_DEPTH,
   OPT_OPTIMIZER_PRUNE_LEVEL,
   OPT_UPDATABLE_VIEWS_WITH_LIMIT,
@@ -5935,6 +5936,10 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
    0, 1, 0},
+  {"sysdate-is-now", OPT_SYSDATE_IS_NOW,
+   "Non-default flag to alias SYSDATE() to NOW() to be safe-replicatable. Since 5.0 SYSDATE returns a `dynamic' value different for different invocation even within a query",
+   (gptr*) &global_system_variables.sysdate_is_now,
+   0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
