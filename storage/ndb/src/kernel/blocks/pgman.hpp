@@ -262,13 +262,14 @@ private:
     Uint16 m_flags;
     SimulatedBlock::Callback m_callback;
 
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
-    Uint32 prevList;
+    Uint32 nextList;
+    Uint32 m_magic;
   };
 
+  typedef RecordPool<Page_request, WOPool> Page_request_pool;
+  typedef SLFifoListImpl<Page_request_pool, Page_request> Page_request_list;
+  typedef LocalSLFifoListImpl<Page_request_pool, Page_request> Local_page_request_list;
+  
   struct Page_entry_stack_ptr {
     Uint32 nextList;
     Uint32 prevList;
@@ -338,7 +339,7 @@ private:
       Uint32 nextPool;
     };
     
-    DLFifoList<Page_request>::Head m_requests;
+    Page_request_list::Head m_requests;
     
     Uint32 nextHash;
     Uint32 prevHash;
@@ -384,7 +385,7 @@ private:
   File_map::DataBufferPool m_data_buffer_pool;
 
   // page entries and requests
-  ArrayPool<Page_request> m_page_request_pool;
+  Page_request_pool m_page_request_pool;
   ArrayPool<Page_entry> m_page_entry_pool;
   Page_hashlist m_page_hashlist;
   Page_stack m_page_stack;
