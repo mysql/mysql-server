@@ -83,12 +83,12 @@ master-bin.000002	#	Write_rows	1	#
 master-bin.000002	#	Query	1	#	COMMIT
 show binary logs;
 Log_name	File_size
-master-bin.000001	1722
-master-bin.000002	603
+master-bin.000001	1698
+master-bin.000002	591
 start slave;
 show binary logs;
 Log_name	File_size
-slave-bin.000001	1817
+slave-bin.000001	1793
 slave-bin.000002	198
 show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -102,13 +102,13 @@ slave-bin.000001	#	Write_rows	2	#
 slave-bin.000001	#	Query	2	#	COMMIT
 slave-bin.000001	#	Query	1	#	use `test`; drop table t1
 slave-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)ENGINE=NDB
-slave-bin.000001	#	Query	1	#	use `test`; create table t3 (a int)ENGINE=NDB
 slave-bin.000001	#	Query	2	#	BEGIN
 slave-bin.000001	#	Table_map	2	#	cluster.apply_status
 slave-bin.000001	#	Write_rows	2	#	
 slave-bin.000001	#	Table_map	2	#	test.t1
 slave-bin.000001	#	Write_rows	2	#	
 slave-bin.000001	#	Query	2	#	COMMIT
+slave-bin.000001	#	Query	1	#	use `test`; create table t3 (a int)ENGINE=NDB
 slave-bin.000001	#	Rotate	2	#	slave-bin.000002;pos=4
 show binlog events in 'slave-bin.000002' from 4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -122,7 +122,7 @@ slave-bin.000002	#	Write_rows	2	#
 slave-bin.000002	#	Query	2	#	COMMIT
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000002	603	#	#	master-bin.000002	Yes	Yes				#			0		0	603	#	None		0	No						#
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000002	591	#	#	master-bin.000002	Yes	Yes				#			0		0	591	#	None		0	No						#
 show binlog events in 'slave-bin.000005' from 4;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not find target log
 DROP TABLE t1;

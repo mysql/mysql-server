@@ -43,6 +43,9 @@ injector::transaction::transaction(MYSQL_LOG *log, THD *thd)
 
 injector::transaction::~transaction()
 {
+  if (!good())
+    return;
+
   /* Needed since my_free expects a 'char*' (instead of 'void*'). */
   char* const the_memory= const_cast<char*>(m_start_pos.m_file_name);
 
