@@ -33,11 +33,9 @@ cluster.binlog_index ORDER BY epoch DESC LIMIT 1;
 SELECT inserts,updates,deletes,schemaops FROM
 cluster.binlog_index WHERE epoch > <the_epoch> AND epoch < <the_epoch2>;
 inserts	updates	deletes	schemaops
-0	0	0	1
 drop table t1;
 SHOW TABLES;
 Tables_in_test
 SELECT inserts,updates,deletes,schemaops FROM
 cluster.binlog_index WHERE epoch > <the_epoch> AND epoch < <the_epoch2>;
 inserts	updates	deletes	schemaops
-0	0	0	1
