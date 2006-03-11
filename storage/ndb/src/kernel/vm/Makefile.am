@@ -53,8 +53,8 @@ ndbd_malloc_impl_test_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/dbug/libdbug.a \
   $(top_builddir)/strings/libmystrings.a
 
-bench_pool_SOURCES = bench_pool.cpp ../SimBlockList.o
-bench_pool_LDFLAGS = @ndb_bin_am_ldflags@ \
+bench_pool_SOURCES = bench_pool.cpp
+bench_pool_LDFLAGS = @ndb_bin_am_ldflags@ ../SimBlockList.o \
   libkernel.a ../error/liberror.a \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
   $(top_builddir)/mysys/libmysys.a \
