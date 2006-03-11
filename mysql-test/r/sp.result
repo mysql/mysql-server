@@ -2197,35 +2197,6 @@ select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
 2	01-01-1970 03:16:40
 drop procedure bug3426|
 create table t3 (
-a int primary key, 
-ach char(1)
-) engine = innodb|
-create table t4 (
-b int  primary key , 
-bch char(1)
-) engine = innodb|
-insert into t3 values (1 , 'aCh1' ) , ('2' , 'aCh2')|
-Warnings:
-Warning	1265	Data truncated for column 'ach' at row 1
-Warning	1265	Data truncated for column 'ach' at row 2
-insert into t4 values (1 , 'bCh1' )|
-Warnings:
-Warning	1265	Data truncated for column 'bch' at row 1
-drop procedure if exists bug3448|
-create procedure bug3448()
-select * from t3 inner join t4 on t3.a = t4.b|
-select * from t3 inner join t4 on t3.a = t4.b|
-a	ach	b	bch
-1	a	1	b
-call bug3448()|
-a	ach	b	bch
-1	a	1	b
-call bug3448()|
-a	ach	b	bch
-1	a	1	b
-drop procedure bug3448|
-drop table t3, t4|
-create table t3 (
 id int unsigned auto_increment not null primary key,
 title VARCHAR(200),
 body text,
@@ -4005,48 +3976,6 @@ DROP VIEW bug13095_v1
 DROP PROCEDURE IF EXISTS bug13095;
 DROP VIEW IF EXISTS bug13095_v1;
 DROP TABLE IF EXISTS bug13095_t1;
-drop procedure if exists bug14210|
-set @@session.max_heap_table_size=16384|
-select @@session.max_heap_table_size|
-@@session.max_heap_table_size
-16384
-create table t3 (a char(255)) engine=InnoDB|
-create procedure bug14210_fill_table()
-begin
-declare table_size, max_table_size int default 0;
-select @@session.max_heap_table_size into max_table_size;
-delete from t3;
-insert into t3 (a) values (repeat('a', 255));
-repeat
-insert into t3 select a from t3;
-select count(*)*255 from t3 into table_size;
-until table_size > max_table_size*2 end repeat;
-end|
-call bug14210_fill_table()|
-drop procedure bug14210_fill_table|
-create table t4 like t3|
-create procedure bug14210()
-begin
-declare a char(255);
-declare done int default 0;
-declare c cursor for select * from t3;
-declare continue handler for sqlstate '02000' set done = 1;
-open c;
-repeat
-fetch c into a;
-if not done then
-insert into t4 values (upper(a));
-end if;
-until done end repeat;
-close c;
-end|
-call bug14210()|
-select count(*) from t4|
-count(*)
-256
-drop table t3, t4|
-drop procedure bug14210|
-set @@session.max_heap_table_size=default|
 drop function if exists bug14723|
 drop procedure if exists bug14723|
 /*!50003 create function bug14723()
@@ -4857,4 +4786,20 @@ i
 0
 drop table t3|
 drop procedure bug16887|
+create table t3 (f1 int, f2 varchar(3), primary key(f1)) engine=innodb|
+insert into t3 values (1,'aaa'),(2,'bbb'),(3,'ccc')|
+CREATE FUNCTION bug13575 ( p1 integer ) 
+returns varchar(3) 
+BEGIN 
+DECLARE v1 VARCHAR(10) DEFAULT null;
+SELECT f2 INTO v1 FROM t3 WHERE f1 = p1; 
+RETURN v1;
+END|
+select distinct f1, bug13575(f1) from t3 order by f1|
+f1	bug13575(f1)
+1	aaa
+2	bbb
+3	ccc
+drop function bug13575;
+drop table t3|
 drop table t1,t2;

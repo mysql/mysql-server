@@ -1524,7 +1524,7 @@ static void network_init(void)
 
 #endif /*!EMBEDDED_LIBRARY*/
 
-void yyerror(const char *s)
+void MYSQLerror(const char *s)
 {
   THD *thd=current_thd;
   char *yytext= (char*) thd->lex->tok_start;

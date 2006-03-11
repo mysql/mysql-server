@@ -17,6 +17,7 @@
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
+#define MYSQL_LEX 1
 #include "mysql_priv.h"
 #include "item_create.h"
 #include <m_ctype.h>
@@ -506,14 +507,14 @@ static inline uint int_token(const char *str,uint length)
 }
 
 /*
-  yylex remember the following states from the following yylex()
+  MYSQLlex remember the following states from the following MYSQLlex()
 
   - MY_LEX_EOQ			Found end of query
   - MY_LEX_OPERATOR_OR_IDENT	Last state was an ident, text or number
 				(which can't be followed by a signed number)
 */
 
-int yylex(void *arg, void *yythd)
+int MYSQLlex(void *arg, void *yythd)
 {
   reg1	uchar c;
   int	tokval, result_state;
