@@ -4069,6 +4069,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
        ALTER_REPAIR_PARTITION | ALTER_REBUILD_PARTITION))
   {
     partition_info *tab_part_info= table->part_info;
+    partition_info *alt_part_info= thd->lex->part_info;
     if (!tab_part_info)
     {
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
@@ -4141,7 +4142,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
         partitioning scheme as currently set-up.
         Partitions are always added at the end in ADD PARTITION.
       */
-      partition_info *alt_part_info= thd->lex->part_info;
       uint no_new_partitions= alt_part_info->no_parts;
       uint no_orig_partitions= tab_part_info->no_parts;
       uint check_total_partitions= no_new_partitions + no_orig_partitions;
@@ -4736,6 +4736,13 @@ the generated partition syntax in a correct manner.
     if (alter_info->flags == ALTER_ADD_PARTITION ||
         alter_info->flags == ALTER_REORGANIZE_PARTITION)
     {
+      if (tab_part_info->is_sub_partitioned() &&
+          tab_part_info->use_default_subpartitions &&
+          !alt_part_info->use_default_subpartitions)
+      {
+        tab_part_info->use_default_subpartitions= FALSE;
+        tab_part_info->use_default_no_subpartitions= FALSE;
+      }
       if (check_partition_info(tab_part_info, (handlerton**)NULL,
                                table->file, ULL(0)))
       {
