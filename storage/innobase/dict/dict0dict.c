@@ -4520,3 +4520,15 @@ dict_index_name_print(
 	fputs(" of table ", file);
 	ut_print_name(file, trx, index->table_name);
 }
+
+/************************************************************************
+Export an inlined function for use in ha_innodb.c. */
+ibool
+innodb_dict_table_is_comp(
+/*===============*/
+					/* out: TRUE if table uses the
+					compact page format */
+	const dict_table_t*	table)	/* in: table */
+{
+	return dict_table_is_comp(table);
+}
