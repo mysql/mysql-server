@@ -4736,8 +4736,7 @@ the generated partition syntax in a correct manner.
     if (alter_info->flags == ALTER_ADD_PARTITION ||
         alter_info->flags == ALTER_REORGANIZE_PARTITION)
     {
-      if (tab_part_info->is_sub_partitioned() &&
-          tab_part_info->use_default_subpartitions &&
+      if (tab_part_info->use_default_subpartitions &&
           !alt_part_info->use_default_subpartitions)
       {
         tab_part_info->use_default_subpartitions= FALSE;
