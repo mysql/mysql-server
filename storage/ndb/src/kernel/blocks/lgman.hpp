@@ -28,6 +28,9 @@
 #include "diskpage.hpp"
 #include <signaldata/GetTabInfo.hpp>
 
+#include <WOPool.hpp>
+#include <SLFifoList.hpp>
+
 class Lgman : public SimulatedBlock
 {
 public:
@@ -77,24 +80,26 @@ protected:
 public:
   struct Log_waiter
   {
+    Callback m_callback;
     union {
       Uint32 m_size;
       Uint64 m_sync_lsn;
     };
     Uint32 m_block;
-    Callback m_callback;
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
-    Uint32 prevList;
+    Uint32 nextList;
+    Uint32 m_magic;
   };
+
+  typedef RecordPool<Log_waiter, WOPool> Log_waiter_pool;
+  typedef SLFifoListImpl<Log_waiter_pool, Log_waiter> Log_waiter_list;
+  typedef LocalSLFifoListImpl<Log_waiter_pool, Log_waiter> Local_log_waiter_list;
   
   struct Undofile
   {
     Undofile(){}
     Undofile(const struct CreateFileImplReq*, Uint32 lg_ptr_i);
     
+    Uint32 m_magic;
     Uint32 m_file_id; // Dict obj id
     Uint32 m_logfile_group_ptr_i;
 
@@ -136,6 +141,9 @@ public:
     };
   };
 
+  typedef RecordPool<Undofile, RWPool> Undofile_pool;
+  typedef DLFifoListImpl<Undofile_pool, Undofile> Undofile_list;
+  typedef LocalDLFifoListImpl<Undofile_pool, Undofile> Local_undofile_list;
   typedef LocalDataBuffer<15> Page_map;
 
   struct Buffer_idx 
@@ -152,6 +160,7 @@ public:
     Logfile_group(){}
     Logfile_group(const struct CreateFilegroupImplReq*);
     
+    Uint32 m_magic;
     union {
       Uint32 key;
       Uint32 m_logfile_group_id;
@@ -183,23 +192,24 @@ public:
                                   Logfile_group::LG_FLUSH_THREAD;
     
     Uint64 m_last_lsn;
-    Uint64 m_last_sync_req_lsn;
-    Uint64 m_last_synced_lsn;
+    Uint64 m_last_sync_req_lsn; // Outstanding
+    Uint64 m_last_synced_lsn;   // 
+    Uint64 m_max_sync_req_lsn;  // User requested lsn
     union {
       Uint64 m_last_read_lsn;
       Uint64 m_last_lcp_lsn;
     };
-    DLFifoList<Log_waiter>::Head m_log_sync_waiters;
+    Log_waiter_list::Head m_log_sync_waiters;
     
     Buffer_idx m_tail_pos[3]; // 0 is cut, 1 is saved, 2 is current
     Buffer_idx m_file_pos[2]; // 0 tail, 1 head = { file_ptr_i, page_no }
     Uint64 m_free_file_words; // Free words in logfile group 
     
-    DLFifoList<Undofile>::Head m_files;     // Files in log
-    DLFifoList<Undofile>::Head m_meta_files;// Files being created or dropped
+    Undofile_list::Head m_files;     // Files in log
+    Undofile_list::Head m_meta_files;// Files being created or dropped
     
     Uint32 m_free_buffer_words;    // Free buffer page words
-    DLFifoList<Log_waiter>::Head m_log_buffer_waiters;
+    Log_waiter_list::Head m_log_buffer_waiters;
     Page_map::Head m_buffer_pages; // Pairs of { ptr.i, count }
     struct Position {
       Buffer_idx m_current_page;   // { m_buffer_pages.i, left in range }
@@ -221,6 +231,11 @@ public:
     }
   };
 
+  typedef RecordPool<Logfile_group, RWPool> Logfile_group_pool;
+  typedef DLFifoListImpl<Logfile_group_pool, Logfile_group> Logfile_group_list;
+  typedef LocalDLFifoListImpl<Logfile_group_pool, Logfile_group> Local_logfile_group_list;
+  typedef KeyTableImpl<Logfile_group_pool, Logfile_group> Logfile_group_hash;
+
   /**
    * Alloc/free space in log
    *   Alloction will be removed at either/or
@@ -232,16 +247,17 @@ public:
   
 private:
   friend class Logfile_client;
-  ArrayPool<Undofile> m_file_pool;
-  ArrayPool<Logfile_group> m_logfile_group_pool;
-  ArrayPool<Log_waiter> m_log_waiter_pool;
+  
+  Undofile_pool m_file_pool;
+  Logfile_group_pool m_logfile_group_pool;
+  Log_waiter_pool m_log_waiter_pool;
 
   Page_map::DataBufferPool m_data_buffer_pool;
 
   Uint64 m_last_lsn;
   Uint32 m_latest_lcp;
-  DLFifoList<Logfile_group> m_logfile_group_list;
-  KeyTable<Logfile_group> m_logfile_group_hash;
+  Logfile_group_list m_logfile_group_list;
+  Logfile_group_hash m_logfile_group_hash;
 
   bool alloc_logbuffer_memory(Ptr<Logfile_group>, Uint32 pages);
   void init_logbuffer_pointers(Ptr<Logfile_group>);
@@ -275,7 +291,7 @@ private:
   void stop_run_undo_log(Signal* signal);
   void init_tail_ptr(Signal* signal, Ptr<Logfile_group> ptr);
 
-  bool find_file_by_id(Ptr<Undofile>&, DLFifoList<Undofile>::Head&, Uint32 id);
+  bool find_file_by_id(Ptr<Undofile>&, Undofile_list::Head&, Uint32 id);
   void create_file_commit(Signal* signal, Ptr<Logfile_group>, Ptr<Undofile>);
   void create_file_abort(Signal* signal, Ptr<Logfile_group>, Ptr<Undofile>);
 
