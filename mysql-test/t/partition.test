@@ -552,4 +552,13 @@ alter table t1 rebuild partition;
 
 drop table t1;
 
+#
+# BUG 15961 No error when subpartition defined without subpartition by clause
+#
+--error ER_SUBPARTITION_ERROR
+create table t1 (a int)
+partition by hash (a)
+(partition p0 (subpartition sp0));
+
+
 --echo End of 5.1 tests
