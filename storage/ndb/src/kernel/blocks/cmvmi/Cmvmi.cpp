@@ -131,6 +131,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
 Cmvmi::~Cmvmi()
 {
+  m_shared_page_pool.clear();
 }
 
 
@@ -324,13 +325,28 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   Uint64 page_buffer = 64*1024*1024;
   ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY, &page_buffer);
   
-  page_buffer /= GLOBAL_PAGE_SIZE; // in pages
-  if (page_buffer > 0)
+  Uint32 pages = 0;
+  pages += page_buffer / GLOBAL_PAGE_SIZE; // in pages
+  pages += LCP_RESTORE_BUFFER;
+  m_global_page_pool.setSize(pages + 64, true);
+  
+  Uint64 shared_mem = 8*1024*1024;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
+  shared_mem /= GLOBAL_PAGE_SIZE;
+  if (shared_mem)
   {
-    page_buffer += LGMAN_LOG_BUFFER;
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = shared_mem;
+    rl.m_resource_id = 0;
+    m_ctx.m_mm.set_resource_limit(rl);
   }
-  page_buffer += LCP_RESTORE_BUFFER;
-  m_global_page_pool.setSize(page_buffer + 64, true);
+  
+  ndbrequire(m_ctx.m_mm.init());
+  {
+    void* ptr = m_ctx.m_mm.get_memroot();
+    m_shared_page_pool.set((GlobalPage*)ptr, ~0);
+  }
   
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -1082,6 +1098,37 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("Cmvmi: g_sectionSegmentPool size: %d free: %d",
 	      g_sectionSegmentPool.getSize(),
 	      g_sectionSegmentPool.getNoOfFree());
+  }
+
+  if (dumpState->args[0] == 1000)
+  {
+    Uint32 len = signal->getLength();
+    if (signal->getLength() == 1)
+    {
+      signal->theData[1] = 0;
+      signal->theData[2] = ~0;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 3, JBB);
+      return;
+    }
+    Uint32 id = signal->theData[1];
+    Resource_limit rl;
+    if (!m_ctx.m_mm.get_resource_limit(id, rl))
+      len = 2;
+    else
+    {
+      if (rl.m_min || rl.m_curr || rl.m_max)
+	infoEvent("Resource %d min: %d max: %d curr: %d",
+		  id, rl.m_min, rl.m_max, rl.m_curr);
+    }
+
+    if (len == 3)
+    {
+      signal->theData[0] = 1000;
+      signal->theData[1] = id+1;
+      signal->theData[2] = ~0;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 3, JBB);
+    }
+    return;
   }
   
   if (dumpState->args[0] == DumpStateOrd::CmvmiSetRestartOnErrorInsert){
