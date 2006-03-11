@@ -2690,7 +2690,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   {
   case NDBEVENT::TE_INSERT:
     row.n_inserts++;
-    DBUG_PRINT("info", ("INSERT INTO %s", share->key));
+    DBUG_PRINT("info", ("INSERT INTO %s.%s", table_s->db.str, table_s->table_name.str));
     {
       if (share->flags & NSF_BLOB_FLAG)
       {
@@ -2701,13 +2701,14 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         DBUG_ASSERT(ret == 0);
       }
       ndb_unpack_record(table, share->ndb_value[0], &b, table->record[0]);
-      trans.write_row(::server_id, injector::transaction::table(table, true),
-                      &b, n_fields, table->record[0]);
+      int ret= trans.write_row(::server_id, injector::transaction::table(table, true),
+                               &b, n_fields, table->record[0]);
+      DBUG_ASSERT(ret == 0);
     }
     break;
   case NDBEVENT::TE_DELETE:
     row.n_deletes++;
-    DBUG_PRINT("info",("DELETE FROM %s", share->key));
+    DBUG_PRINT("info",("DELETE FROM %s.%s", table_s->db.str, table_s->table_name.str));
     {
       /*
         table->record[0] contains only the primary key in this case
@@ -2736,13 +2737,14 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       }
       ndb_unpack_record(table, share->ndb_value[n], &b, table->record[n]);
       DBUG_EXECUTE("info", print_records(table, table->record[n]););
-      trans.delete_row(::server_id, injector::transaction::table(table, true),
-                       &b, n_fields, table->record[n]);
+      int ret= trans.delete_row(::server_id, injector::transaction::table(table, true),
+                                &b, n_fields, table->record[n]);
+      DBUG_ASSERT(ret == 0);
     }
     break;
   case NDBEVENT::TE_UPDATE:
     row.n_updates++;
-    DBUG_PRINT("info", ("UPDATE %s", share->key));
+    DBUG_PRINT("info", ("UPDATE %s.%s", table_s->db.str, table_s->table_name.str));
     {
       if (share->flags & NSF_BLOB_FLAG)
       {
@@ -2780,11 +2782,12 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         }
         ndb_unpack_record(table, share->ndb_value[1], &b, table->record[1]);
         DBUG_EXECUTE("info", print_records(table, table->record[1]););
-        trans.update_row(::server_id,
-                         injector::transaction::table(table, true),
-                         &b, n_fields,
-                         table->record[1], // before values
-                         table->record[0]);// after values
+        int ret= trans.update_row(::server_id,
+                                  injector::transaction::table(table, true),
+                                  &b, n_fields,
+                                  table->record[1], // before values
+                                  table->record[0]);// after values
+        DBUG_ASSERT(ret == 0);
       }
     }
     break;
@@ -3122,7 +3125,8 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
             }
             DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
             injector::transaction::table tbl(table, true);
-            trans.use_table(::server_id, tbl);
+            int ret= trans.use_table(::server_id, tbl);
+            DBUG_ASSERT(ret == 0);
           }
         }
         if (trans.good())
@@ -3134,7 +3138,8 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
             const LEX_STRING& name=table->s->table_name;
             DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
             injector::transaction::table tbl(table, true);
-            trans.use_table(::server_id, tbl);
+            int ret= trans.use_table(::server_id, tbl);
+            DBUG_ASSERT(ret == 0);
 
             MY_BITMAP b;
             uint32 bitbuf;
