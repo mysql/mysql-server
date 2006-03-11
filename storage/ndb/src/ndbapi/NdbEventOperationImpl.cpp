@@ -1173,15 +1173,17 @@ NdbEventBuffer::nextEvent()
 NdbEventOperationImpl*
 NdbEventBuffer::getGCIEventOperations(Uint32* iter, Uint32* event_types)
 {
+  DBUG_ENTER("NdbEventBuffer::getGCIEventOperations");
   EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
   if (*iter < gci_ops->m_gci_op_count)
   {
     EventBufData_list::Gci_op g = gci_ops->m_gci_op_list[(*iter)++];
     if (event_types != NULL)
       *event_types = g.event_types;
-    return g.op;
+    DBUG_PRINT("info", ("gci: %d", (unsigned)gci_ops->m_gci));
+    DBUG_RETURN(g.op);
   }
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 void
@@ -1647,11 +1649,19 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     else
     {
       // event with same op, PK found, merge into old buffer
+      Uint32 old_op = data->sdata->operation;
       if (unlikely(merge_data(sdata, ptr, data)))
       {
         op->m_has_error = 3;
         DBUG_RETURN_EVENT(-1);
       }
+      Uint32 new_op = data->sdata->operation;
+
+      // make Gci_ops reflect the merge by delete old and add new
+      EventBufData_list::Gci_op g = { op, (1 << old_op) };
+      // bucket->m_data.del_gci_op(g); // XXX whats wrong? fix later
+      g.event_types = (1 << new_op);
+      bucket->m_data.add_gci_op(g);
     }
     DBUG_RETURN_EVENT(0);
   }
@@ -2184,7 +2194,7 @@ void EventBufData_list::append_list(EventBufData_list *list, Uint64 gci)
 }
 
 void
-EventBufData_list::add_gci_op(Gci_op g)
+EventBufData_list::add_gci_op(Gci_op g, bool del)
 {
   assert(g.op != NULL);
   Uint32 i;
@@ -2193,7 +2203,10 @@ EventBufData_list::add_gci_op(Gci_op g)
       break;
   }
   if (i < m_gci_op_count) {
-    m_gci_op_list[i].event_types |= g.event_types;
+    if (! del)
+      m_gci_op_list[i].event_types |= g.event_types;
+    else
+      m_gci_op_list[i].event_types &= ~ g.event_types;
   } else {
     if (m_gci_op_count == m_gci_op_alloc) {
       Uint32 n = 1 + 2 * m_gci_op_alloc;
@@ -2207,6 +2220,7 @@ EventBufData_list::add_gci_op(Gci_op g)
       m_gci_op_alloc = n;
     }
     assert(m_gci_op_count < m_gci_op_alloc);
+    assert(! del);
     m_gci_op_list[m_gci_op_count++] = g;
   }
 }

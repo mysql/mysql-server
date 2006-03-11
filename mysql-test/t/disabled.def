@@ -15,8 +15,8 @@ events                  : test case unstable. andrey will fix
 #ndb_alter_table_row    : sometimes wrong error 1015!=1046
 ndb_autodiscover        : Needs to be fixed w.r.t binlog
 ndb_autodiscover2       : Needs to be fixed w.r.t binlog
-ndb_binlog_basic        : Results are not deterministic, Tomas will fix
-ndb_binlog_ddl_multi    : Bug#17038 [PATCH PENDING]
+#ndb_binlog_basic        : Results are not deterministic, Tomas will fix
+#ndb_binlog_ddl_multi    : Bug#17038 [PATCH PENDING]
 ndb_load                : Bug#17233
 partition_03ndb         : Bug#16385
 ps_7ndb                 : dbug assert in RBR mode when executing test suite
@@ -33,7 +33,7 @@ rpl_ndb_delete_nowhere  : Bug#17400: delete & update of rows in table without pk
 rpl_ndb_innodb2ndb      : Bugs#17400: delete & update of rows in table without pk fails
 rpl_ndb_insert_ignore   : Bugs: #17431: INSERT IGNORE INTO returns failed: 1296
 rpl_ndb_myisam2ndb      : Bugs#17400: delete & update of rows in table without pk fails
-rpl_ndb_log             : result not deterministic
+#rpl_ndb_log             : result not deterministic
 rpl_ndb_relay_space     : Bug#16993
 rpl_ndb_multi_update2   : BUG#17738 In progress
 rpl_ndb_multi_update3   : Bug#17400: delete & update of rows in table without pk fails

@@ -43,6 +43,7 @@ SELECT * FROM t2 ORDER BY a;
 eval SELECT inserts,updates,deletes,schemaops FROM 
   cluster.binlog_index WHERE epoch=$the_epoch;
 
+# single schema ops will not show
 # drop the table on server1
 DROP TABLE t2;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = NDB;
