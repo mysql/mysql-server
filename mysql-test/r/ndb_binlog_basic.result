@@ -29,12 +29,6 @@ select inserts,updates,deletes from
 cluster.binlog_index where epoch > @max_epoch and updates > 0;
 inserts	updates	deletes
 2	1	1
-select schemaops from 
-cluster.binlog_index where epoch > @max_epoch and schemaops > 0;
-schemaops
-1
-1
-1
 flush logs;
 purge master logs before now();
 select count(*) from cluster.binlog_index;
@@ -55,8 +49,3 @@ select inserts,updates,deletes from
 cluster.binlog_index where epoch > @max_epoch and inserts > 0;
 inserts	updates	deletes
 2	0	0
-select schemaops from
-cluster.binlog_index where epoch > @max_epoch and schemaops > 0;
-schemaops
-1
-1
