@@ -41,10 +41,10 @@ create table t1 (a int primary key) engine=ndb;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin1.000001	#	Query	#	#	BEGIN
-master-bin1.000001	#	Table_map	#	#	cluster.apply_status
-master-bin1.000001	#	Write_rows	#	#	
-master-bin1.000001	#	Table_map	#	#	test.t2
-master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin1.000001	#	Table_map	#	#	table_id: # (cluster.apply_status)
+master-bin1.000001	#	Write_rows	#	#	table_id: #
+master-bin1.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin1.000001	#	Query	#	#	COMMIT
 master-bin1.000001	#	Query	#	#	drop database mysqltest
 master-bin1.000001	#	Query	#	#	use `test`; create table t1 (a int primary key) engine=ndb
@@ -148,16 +148,16 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin1.000001	#	Query	#	#	use `test`; create table t1 (a int key) engine=ndb
 master-bin1.000001	#	Query	#	#	BEGIN
-master-bin1.000001	#	Table_map	#	#	cluster.apply_status
-master-bin1.000001	#	Write_rows	#	#	
-master-bin1.000001	#	Table_map	#	#	test.t1
-master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin1.000001	#	Table_map	#	#	table_id: # (cluster.apply_status)
+master-bin1.000001	#	Write_rows	#	#	table_id: #
+master-bin1.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin1.000001	#	Query	#	#	COMMIT
 master-bin1.000001	#	Query	#	#	use `test`; rename table `test.t1` to `test.t2`
 master-bin1.000001	#	Query	#	#	BEGIN
-master-bin1.000001	#	Table_map	#	#	cluster.apply_status
-master-bin1.000001	#	Write_rows	#	#	
-master-bin1.000001	#	Table_map	#	#	test.t2
-master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin1.000001	#	Table_map	#	#	table_id: # (cluster.apply_status)
+master-bin1.000001	#	Write_rows	#	#	table_id: #
+master-bin1.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin1.000001	#	Query	#	#	COMMIT
 master-bin1.000001	#	Query	#	#	use `test`; drop table `t2`
