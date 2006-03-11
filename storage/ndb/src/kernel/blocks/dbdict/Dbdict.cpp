@@ -281,8 +281,6 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
 #define MEMINFO(x, y) infoEvent(x ": %d %d", y.getSize(), y.getNoOfFree())
   if(signal->theData[0] == 1226){
     MEMINFO("c_obj_pool", c_obj_pool);
-    MEMINFO("c_file_pool", c_file_pool);
-    MEMINFO("c_filegroup_pool", c_filegroup_pool);
     MEMINFO("c_opRecordPool", c_opRecordPool);
     MEMINFO("c_rope_pool", c_rope_pool);
   }
@@ -2037,10 +2035,14 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_obj_pool.setSize(tablerecSize+c_maxNoOfTriggers);
   c_obj_hash.setSize((tablerecSize+c_maxNoOfTriggers+1)/2);
 
-  c_file_pool.setSize(10);
+  Pool_context pc;
+  pc.m_block = this;
+
   c_file_hash.setSize(16);
-  c_filegroup_pool.setSize(10);
   c_filegroup_hash.setSize(16);
+
+  c_file_pool.init(RT_DBDICT_FILE, pc);
+  c_filegroup_pool.init(RT_DBDICT_FILEGROUP, pc);
   
   c_opRecordPool.setSize(256);   // XXX need config params
   c_opCreateTable.setSize(8);
@@ -2119,22 +2121,6 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     SLList<DictObject> objs(c_obj_pool);
     while(objs.seize(ptr))
       new (ptr.p) DictObject();
-    objs.release();
-  }
-
-  {
-    Ptr<File> ptr;
-    SLList<File> objs(c_file_pool);
-    while(objs.seize(ptr))
-      new (ptr.p) File();
-    objs.release();
-  }
-
-  {
-    Ptr<Filegroup> ptr;
-    SLList<Filegroup> objs(c_filegroup_pool);
-    while(objs.seize(ptr))
-      new (ptr.p) Filegroup();
     objs.release();
   }
 }//execSIZEALT_REP()
@@ -12142,7 +12128,11 @@ Dbdict::createTrigger_slaveCreate(Signal* signal, OpCreateTriggerPtr opPtr)
   // fill in trigger data
   {
     Rope name(c_rope_pool, triggerPtr.p->triggerName);
-    ndbrequire(name.assign(opPtr.p->m_triggerName));
+    if(!name.assign(opPtr.p->m_triggerName))
+    {
+      opPtr.p->m_errorCode = (CreateTrigRef::ErrorCode)CreateTableRef::OutOfStringBuffer;
+      return;
+    }
   }
   triggerPtr.p->triggerId = triggerId;
   triggerPtr.p->tableId = req->getTableId();
@@ -14831,6 +14821,8 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
       break;
     }
   
+    new (fg_ptr.p) Filegroup();
+
     {
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(fg.FilegroupName, len, hash)){
@@ -15070,6 +15062,8 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
       break;
     }
 
+    new (filePtr.p) File();
+
     {
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(f.FileName, len, hash)){
@@ -15084,7 +15078,7 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
       break;
     case DictTabInfo::LogfileGroup:
     {
-      LocalDLList<File> list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
+      Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
       list.add(filePtr);
       break;
     }
@@ -15310,7 +15304,7 @@ Dbdict::create_file_abort_complete(Signal* signal, SchemaOp* op)
       break;
     case DictTabInfo::LogfileGroup:
     {
-      LocalDLList<File> list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
+      Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
       list.remove(f_ptr);
       break;
     }
@@ -15324,8 +15318,6 @@ Dbdict::create_file_abort_complete(Signal* signal, SchemaOp* op)
   
   execute(signal, op->m_callback, 0);
 }
-
-CArray<KeyDescriptor> g_key_descriptor_pool;
 
 void
 Dbdict::drop_file_prepare_start(Signal* signal, SchemaOp* op)
@@ -15513,7 +15505,7 @@ Dbdict::drop_fg_commit_start(Signal* signal, SchemaOp* op)
      * Mark all undofiles as dropped
      */
     Ptr<File> filePtr;
-    LocalDLList<File> list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
+    Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
     XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
     for(list.first(filePtr); !filePtr.isNull(); list.next(filePtr))
     {

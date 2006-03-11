@@ -534,6 +534,7 @@ public:
     File() {}
     
     Uint32 key;
+    Uint32 m_magic;
     Uint32 m_obj_ptr_i;
     Uint32 m_filegroup_id;
     Uint32 m_type;
@@ -552,12 +553,17 @@ public:
     bool equal(const File& obj) const { return key == obj.key;}
   };
   typedef Ptr<File> FilePtr;
-
+  typedef RecordPool<File, RWPool> File_pool;
+  typedef DLListImpl<File_pool, File> File_list;
+  typedef LocalDLListImpl<File_pool, File> Local_file_list;
+  typedef KeyTableImpl<File_pool, File> File_hash;
+  
   struct Filegroup {
     Filegroup(){}
 
     Uint32 key;
     Uint32 m_obj_ptr_i;
+    Uint32 m_magic;
     
     Uint32 m_type;
     Uint32 m_version;
@@ -571,7 +577,7 @@ public:
       
       struct {
 	Uint32 m_undo_buffer_size;
-	DLList<File>::HeadPOD m_files;
+	File_list::HeadPOD m_files;
       } m_logfilegroup;
     };
     
@@ -586,11 +592,13 @@ public:
     bool equal(const Filegroup& obj) const { return key == obj.key;}
   };
   typedef Ptr<Filegroup> FilegroupPtr;
+  typedef RecordPool<Filegroup, RWPool> Filegroup_pool;
+  typedef KeyTableImpl<Filegroup_pool, Filegroup> Filegroup_hash;
   
-  ArrayPool<File> c_file_pool;
-  KeyTable<File> c_file_hash;
-  ArrayPool<Filegroup> c_filegroup_pool;
-  KeyTable<Filegroup> c_filegroup_hash;
+  File_pool c_file_pool;
+  Filegroup_pool c_filegroup_pool;
+  File_hash c_file_hash;
+  Filegroup_hash c_filegroup_hash;
   
   RopePool c_rope_pool;
 

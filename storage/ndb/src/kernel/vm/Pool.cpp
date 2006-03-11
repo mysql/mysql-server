@@ -14,39 +14,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef KEY_TABLE_HPP
-#define KEY_TABLE_HPP
 
-#include <DLHashTable.hpp>
+#include "Pool.hpp"
+#include "SimulatedBlock.hpp"
 
-/**
- * KeyTable2 is DLHashTable2 with hardcoded Uint32 key named "key".
- */
-template <typename P, typename T>
-class KeyTableImpl : public DLHashTableImpl<P, T> {
-public:
-  KeyTableImpl(P & pool) :
-    DLHashTableImpl<P, T>(pool) {
-  }
-
-  bool find(Ptr<T>& ptr, const T& rec) const {
-    return DLHashTableImpl<P, T>::find(ptr, rec);
-  }
-
-  bool find(Ptr<T>& ptr, Uint32 key) const {
-    T rec;
-    rec.key = key;
-    return DLHashTableImpl<P, T>::find(ptr, rec);
-  }
-};
-
-// Specializations
-
-template <typename T>
-class KeyTable : public KeyTableImpl<ArrayPool<T>, T>
+void*
+Pool_context::alloc_page(Uint32 type_id, Uint32 *i)
 {
-public:
-  KeyTable(ArrayPool<T> & p) : KeyTableImpl<ArrayPool<T>, T>(p) {}
-};
+  return m_block->m_ctx.m_mm.alloc_page(type_id, i);
+}
+  
+void 
+Pool_context::release_page(Uint32 type_id, Uint32 i)
+{
+  m_block->m_ctx.m_mm.release_page(type_id, i);
+}
 
-#endif
+void*
+Pool_context::get_memroot()
+{
+  return m_block->m_ctx.m_mm.get_memroot();
+}
+
+void
+Pool_context::handleAbort(int err, const char * msg)
+{
+  m_block->progError(__LINE__, err, msg);
+}
