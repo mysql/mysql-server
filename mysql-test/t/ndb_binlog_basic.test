@@ -42,8 +42,6 @@ select inserts from cluster.binlog_index where epoch > @max_epoch and inserts > 
 select deletes from cluster.binlog_index where epoch > @max_epoch and deletes > 5;
 select inserts,updates,deletes from 
   cluster.binlog_index where epoch > @max_epoch and updates > 0;
-select schemaops from 
-  cluster.binlog_index where epoch > @max_epoch and schemaops > 0;
 
 #
 # check that purge clears the binlog_index
@@ -72,5 +70,3 @@ drop table t1;
 drop database mysqltest;
 select inserts,updates,deletes from 
   cluster.binlog_index where epoch > @max_epoch and inserts > 0;
-select schemaops from
-  cluster.binlog_index where epoch > @max_epoch and schemaops > 0;
