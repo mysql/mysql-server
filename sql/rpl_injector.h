@@ -235,6 +235,11 @@ public:
           m_thd= o.m_thd;
           o.m_thd= tmp;
         }
+        {
+          enum_state const tmp= m_state;
+          m_state= o.m_state;
+          o.m_state= tmp;
+        }
       }
 
       enum enum_state
