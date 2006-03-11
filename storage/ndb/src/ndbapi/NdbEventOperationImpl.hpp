@@ -129,9 +129,11 @@ public:
   };
   Gci_ops *first_gci_ops();
   Gci_ops *next_gci_ops();
-private:
   // case 1 above; add Gci_op to single list
-  void add_gci_op(Gci_op g);
+  void add_gci_op(Gci_op g, bool del = false);
+  // delete bit from existing flags
+  void del_gci_op(Gci_op g) { add_gci_op(g, true); }
+private:
   // case 2 above; move single list or multi list from
   // one list to another
   void move_gci_ops(EventBufData_list *list, Uint64 gci);
