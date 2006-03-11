@@ -348,7 +348,7 @@ void Dbdict::packTableIntoPages(Signal* signal)
 
   memset(&pagePtr.p->word[0], 0, 4 * ZPAGE_HEADER_SIZE);
   LinearWriter w(&pagePtr.p->word[ZPAGE_HEADER_SIZE], 
-		 8 * ZSIZE_OF_PAGES_IN_WORDS);
+		 ZMAX_PAGES_OF_TABLE_DEFINITION * ZSIZE_OF_PAGES_IN_WORDS);
   w.first();
   switch((DictTabInfo::TableType)type) {
   case DictTabInfo::SystemTable:

@@ -2565,6 +2565,9 @@ Suma::reportAllSubscribers(Signal *signal,
     return;
   }
  
+#ifdef VM_TRACE
+  ndbout_c("reportAllSubscribers");
+#endif
   SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
   data->gci            = m_last_complete_gci + 1;
   data->tableId        = subPtr.p->m_tableId;
@@ -2591,6 +2594,12 @@ Suma::reportAllSubscribers(Signal *signal,
         data->senderData = subbPtr.p->m_senderData;
         sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
                    SubTableData::SignalLength, JBB);
+#ifdef VM_TRACE
+        ndbout_c("sent %s(%d) to node %d",
+                 table_event == NdbDictionary::Event::_TE_SUBSCRIBE ?
+                 "SUBSCRIBE" : "UNSUBSCRIBE", (int) table_event,
+                 refToNode(subbPtr.p->m_senderRef));
+#endif
       }
     }
   }
