@@ -2675,7 +2675,7 @@ Backup::openFilesReply(Signal* signal,
   
   const Uint32 sz = 
     (sizeof(BackupFormat::CtlFile::TableList) >> 2) +
-    ptr.p->tables.noOfElements() - 1;
+    ptr.p->tables.count() - 1;
   
   Uint32 * dst;
   ndbrequire(sz < buf.getMaxWrite());
