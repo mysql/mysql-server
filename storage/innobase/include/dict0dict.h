@@ -496,6 +496,14 @@ dict_table_is_comp(
 					compact page format */
 	const dict_table_t*	table);	/* in: table */
 /************************************************************************
+Non inlined version of 'dict_table_is_comp' above. */
+ibool
+innodb_dict_table_is_comp(
+/*===============*/
+					/* out: TRUE if table uses the
+					compact page format */
+	const dict_table_t*	table);	/* in: table */
+/************************************************************************
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns. */
 
