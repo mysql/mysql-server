@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#define MYSQL_LEX 1
 #include "mysql_priv.h"
 #include "sql_repl.h"
 #include "repl_failsafe.h"
@@ -4243,7 +4244,7 @@ end_with_restore_list:
       /*
         We must cleanup the unit and the lex here because
         sp_grant_privileges calls (indirectly) db_find_routine,
-        which in turn may call yyparse with THD::lex.
+        which in turn may call MYSQLparse with THD::lex.
         TODO: fix db_find_routine to use a temporary lex.
       */
       lex->unit.cleanup();
@@ -5658,7 +5659,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
     
-    if (!yyparse((void *)thd) && ! thd->is_fatal_error)
+    if (!MYSQLparse((void *)thd) && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->user_connect &&
@@ -5738,7 +5739,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   DBUG_ENTER("mysql_test_parse_for_slave");
 
   mysql_init_query(thd, (uchar*) inBuf, length);
-  if (!yyparse((void*) thd) && ! thd->is_fatal_error &&
+  if (!MYSQLparse((void*) thd) && ! thd->is_fatal_error &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */
   thd->end_statement();
@@ -7299,8 +7300,7 @@ LEX_USER *create_default_definer(THD *thd)
 
 
 /*
-  Create definer with the given user and host names. Also check that the user
-  and host names satisfy definers requirements.
+  Create definer with the given user and host names.
 
   SYNOPSIS
     create_definer()
@@ -7317,14 +7317,6 @@ LEX_USER *create_default_definer(THD *thd)
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 {
   LEX_USER *definer;
-
-  /* Check that specified host name is valid. */
-
-  if (host_name->length == 0)
-  {
-    my_error(ER_MALFORMED_DEFINER, MYF(0));
-    return 0;
-  }
 
   /* Create and initialize. */
 
