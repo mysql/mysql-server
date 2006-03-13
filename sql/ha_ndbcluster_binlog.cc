@@ -3224,7 +3224,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
 
         if (trans.good())
         {
-          DBUG_ASSERT(row.n_inserts || row.n_updates || row.n_deletes);
+          //DBUG_ASSERT(row.n_inserts || row.n_updates || row.n_deletes);
           injector::transaction::binlog_pos start= trans.start_pos();
           if (int r= trans.commit())
           {
@@ -3240,7 +3240,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
           DBUG_PRINT("info", ("COMMIT gci: %lld", gci));
           if (ndb_update_binlog_index)
             ndb_add_binlog_index(thd, &row);
-          ndb_latest_applied_binlog_epoch= gci;
         }
         ndb_latest_handled_binlog_epoch= gci;
 #ifdef RUN_NDB_BINLOG_TIMER
