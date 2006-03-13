@@ -1604,11 +1604,11 @@ btr_search_validate(void)
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
-
 	/* How many cells to check before temporarily releasing
 	btr_search_latch. */
 	ulint		chunk_size = 10000;
+
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	rw_lock_x_lock(&btr_search_latch);
 
