@@ -2079,10 +2079,6 @@ btr_cur_pessimistic_update(
 					page_zip, rec, index, offsets, mtr);
 		}
 
-		if (UNIV_LIKELY_NULL(page_zip)) {
-			page_zip_write_rec(page_zip, rec, index, offsets);
-		}
-
 		btr_cur_compress_if_useful(cursor, mtr);
 
 		err = DB_SUCCESS;
@@ -3197,17 +3193,16 @@ btr_cur_set_ownership_of_extern_field(
 		byte_val = byte_val | BTR_EXTERN_OWNER_FLAG;
 	}
 
-	if (UNIV_LIKELY(mtr != NULL) && UNIV_LIKELY(!page_zip)) {
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		mach_write_to_1(data + local_len + BTR_EXTERN_LEN, byte_val);
+		page_zip_write_blob_ptr(
+				page_zip, rec, index, offsets, i, mtr);
+	} else if (UNIV_LIKELY(mtr != NULL)) {
 
 		mlog_write_ulint(data + local_len + BTR_EXTERN_LEN, byte_val,
 							MLOG_1BYTE, mtr);
 	} else {
 		mach_write_to_1(data + local_len + BTR_EXTERN_LEN, byte_val);
-	}
-
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write_blob_ptr(
-				page_zip, rec, index, offsets, i, mtr);
 	}
 }
 

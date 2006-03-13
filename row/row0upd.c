@@ -456,7 +456,8 @@ row_upd_rec_in_place(
 	ulint		n_fields;
 	ulint		i;
 
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	if (rec_offs_comp(offsets)) {
 		rec_set_info_bits_new(rec, update->info_bits);
