@@ -588,4 +588,21 @@ show create table t1;
 
 drop table t1;
 
+#
+# BUG 15407 Crash with subpartition
+#
+--error 1064
+create table t1 (a int, b int)
+partition by range (a)
+subpartition by hash(a)
+(partition p0 values less than (0) (subpartition sp0),
+ partition p1 values less than (1));
+
+--error 1064
+create table t1 (a int, b int)
+partition by range (a)
+subpartition by hash(a)
+(partition p0 values less than (0),
+ partition p1 values less than (1) (subpartition sp0));
+
 --echo End of 5.1 tests
