@@ -157,6 +157,7 @@ our $path_charsetsdir;
 our $path_client_bindir;
 our $path_language;
 our $path_timefile;
+our $path_snapshot;
 our $path_manager_log;           # Used by mysqldadmin
 our $path_slave_load_tmpdir;     # What is this?!
 our $path_mysqltest_log;
@@ -320,10 +321,13 @@ our $opt_ndb_extra_test= 0;
 
 our $exe_ndb_mgm;
 our $path_ndb_tools_dir;
-our $path_ndb_backup_dir;
+our $path_ndb_data_dir;
+our $path_ndb_slave_data_dir;
 our $file_ndb_testrun_log;
 our $flag_ndb_status_ok= 1;
 our $flag_ndb_slave_status_ok= 1;
+
+our @data_dir_lst;
 
 ######################################################################
 #
@@ -405,9 +409,10 @@ sub main () {
     {
       kill_and_cleanup();
       mysql_install_db();
-
-#    mysql_loadstd();  FIXME copying from "std_data" .frm and
-#                      .MGR but there are none?!
+      if ( $opt_force )
+      {
+	save_installed_db();
+      }
     }
   }
 
@@ -978,6 +983,22 @@ sub command_line_setup () {
 
   $path_timefile=  "$opt_vardir/log/mysqltest-time";
   $path_mysqltest_log=  "$opt_vardir/log/mysqltest.log";
+
+  $path_snapshot= "$opt_tmpdir/snapshot_$opt_master_myport/";
+
+  # Make a list of all data_dirs
+  @data_dir_lst = (
+    $master->[0]->{'path_myddir'},
+    $master->[1]->{'path_myddir'},
+    $slave->[0]->{'path_myddir'},
+    $slave->[1]->{'path_myddir'},
+    $slave->[2]->{'path_myddir'});
+
+  foreach my $instance (@{$instance_manager->{'instances'}})
+  {
+    push(@data_dir_lst, $instance->{'path_datadir'});
+  }
+
 }
 
 
@@ -1127,8 +1148,8 @@ sub executable_setup () {
   $exe_master_mysqld= $exe_master_mysqld || $exe_mysqld;
   $exe_slave_mysqld=  $exe_slave_mysqld  || $exe_mysqld;
 
-  $path_ndb_backup_dir=
-    "$opt_vardir/ndbcluster-$opt_ndbcluster_port";
+  $path_ndb_data_dir= "$opt_vardir/ndbcluster-$opt_ndbcluster_port";
+  $path_ndb_slave_data_dir= "$opt_vardir/ndbcluster-$opt_ndbcluster_port_slave";
   $file_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 }
 
@@ -1311,21 +1332,7 @@ sub kill_and_cleanup () {
   mkpath("$opt_vardir/tmp");
   mkpath($opt_tmpdir) if $opt_tmpdir ne "$opt_vardir/tmp";
 
-  # FIXME do we really need to create these all, or are they
-  # created for us when tables are created?
-
-  my @data_dir_lst = (
-    $master->[0]->{'path_myddir'},
-    $master->[1]->{'path_myddir'},
-    $slave->[0]->{'path_myddir'},
-    $slave->[1]->{'path_myddir'},
-    $slave->[2]->{'path_myddir'});
-
-  foreach my $instance (@{$instance_manager->{'instances'}})
-  {
-    push(@data_dir_lst, $instance->{'path_datadir'});
-  }
-
+  # Remove old and create new data dirs
   foreach my $data_dir (@data_dir_lst)
   {
     rmtree("$data_dir");
@@ -2266,10 +2273,9 @@ sub run_testcase ($) {
       report_failure_and_restart($tinfo);
     }
     # Save info from this testcase run to mysqltest.log
+    my $testcase_log= mtr_fromfile($path_timefile) if -f $path_timefile;
     mtr_tofile($path_mysqltest_log,"CURRENT TEST $tname\n");
-    my $testcase_log= mtr_fromfile($path_timefile);
-    mtr_tofile($path_mysqltest_log,
-	       $testcase_log);
+    mtr_tofile($path_mysqltest_log, $testcase_log);
   }
 
   # ----------------------------------------------------------------------
@@ -2283,6 +2289,80 @@ sub run_testcase ($) {
   }
 }
 
+sub copy_dir($$) {
+  my $from_dir= shift;
+  my $to_dir= shift;
+
+  mkpath("$to_dir");
+  opendir(DIR, "$from_dir")
+    or mtr_error("Can't find $from_dir$!");
+  for(readdir(DIR)) {
+    next if "$_" eq "." or "$_" eq "..";
+    if ( -d "$from_dir/$_" )
+    {
+      copy_dir("$from_dir/$_", "$to_dir/$_");
+      next;
+    }
+    copy("$from_dir/$_", "$to_dir/$_");
+  }
+  closedir(DIR);
+
+}
+
+#
+# Save a snapshot of the installed test db(s)
+# I.e take a snapshot of the var/ dir
+#
+sub save_installed_db () {
+
+  mtr_report("Saving snapshot of installed databases");
+  rmtree($path_snapshot);
+
+  foreach my $data_dir (@data_dir_lst)
+  {
+    my $name= basename($data_dir);
+    copy_dir("$data_dir", "$path_snapshot/$name");
+  }
+}
+
+#
+# Restore snapshot of the installed test db(s)
+# if the snapshot exists
+#
+sub restore_installed_db () {
+
+  if ( -d $path_snapshot)
+  {
+    kill_running_server ();
+
+    mtr_report("Restoring snapshot of databases");
+
+    foreach my $data_dir (@data_dir_lst)
+    {
+      my $name= basename($data_dir);
+      rmtree("$data_dir");
+      copy_dir("$path_snapshot/$name", "$data_dir");
+    }
+    if ($opt_with_ndbcluster)
+    {
+      # Remove the ndb_*_fs dirs, forcing a clean start of ndb
+      rmtree("$path_ndb_data_dir/ndb_1_fs");
+      rmtree("$path_ndb_data_dir/ndb_2_fs");
+
+      if ( $opt_with_ndbcluster_slave )
+      {
+	# Remove also the ndb_*_fs dirs for slave cluster
+	rmtree("$path_ndb_slave_data_dir/ndb_1_fs");
+      }
+    }
+  }
+  else
+  {
+    # No snapshot existed, just stop all processes
+    stop_masters_slaves();
+  }
+}
+
 
 sub report_failure_and_restart ($) {
   my $tinfo= shift;
@@ -2290,27 +2370,24 @@ sub report_failure_and_restart ($) {
   mtr_report_test_failed($tinfo);
   mtr_show_failed_diff($tinfo->{'name'});
   print "\n";
-  if ( ! $opt_force )
+  if ( $opt_force )
   {
-    my $test_mode= join(" ", @::glob_test_mode) || "default";
-    print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
-    print "To continue, re-run with '--force'.\n";
-    if ( ! $opt_gdb and ! $glob_use_running_server and
-         ! $opt_ddd and ! $glob_use_embedded_server )
-    {
-      stop_masters_slaves();
-    }
-    mtr_exit(1);
+    # Restore the snapshot of the installed test db
+    restore_installed_db();
+    print "Resuming Tests\n\n";
+    return;
   }
 
-  # FIXME always terminate on failure?!
+  my $test_mode= join(" ", @::glob_test_mode) || "default";
+  print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
+  print "To continue, re-run with '--force'.\n";
   if ( ! $opt_gdb and ! $glob_use_running_server and
        ! $opt_ddd and ! $glob_use_embedded_server )
   {
     stop_masters_slaves();
   }
-  $glob_mysqld_restart= 1;
-  print "Resuming Tests\n\n";
+  mtr_exit(1);
+
 }
 
 
@@ -3046,7 +3123,8 @@ sub run_mysqltest ($) {
   $ENV{'NDB_SLAVE_STATUS_OK'}=      $flag_ndb_slave_status_ok;
   $ENV{'NDB_EXTRA_TEST'}=           $opt_ndb_extra_test;
   $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
-  $ENV{'NDB_BACKUP_DIR'}=           $path_ndb_backup_dir;
+  $ENV{'NDB_BACKUP_DIR'}=           $path_ndb_data_dir;
+  $ENV{'NDB_DATA_DIR'}=             $path_ndb_data_dir;
   $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
   $ENV{'NDB_TOOLS_OUTPUT'}=         $file_ndb_testrun_log;
   $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
