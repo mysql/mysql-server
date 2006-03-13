@@ -5608,8 +5608,8 @@ void Rows_log_event::pack_info(Protocol *protocol)
   char buf[256];
   char const *const flagstr=
     get_flags(STMT_END_F) ? " flags: STMT_END_F" : "";
-  my_size_t bytes= snprintf(buf, sizeof(buf),
-                            "table_id: %lu%s", m_table_id, flagstr);
+  my_size_t bytes= my_snprintf(buf, sizeof(buf),
+                               "table_id: %lu%s", m_table_id, flagstr);
   protocol->store(buf, bytes, &my_charset_bin);
 }
 #endif
@@ -6030,8 +6030,8 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
 void Table_map_log_event::pack_info(Protocol *protocol)
 {
     char buf[256];
-    my_size_t bytes= snprintf(buf, sizeof(buf),
-                              "table_id: %lu (%s.%s)",
+    my_size_t bytes= my_snprintf(buf, sizeof(buf),
+                                 "table_id: %lu (%s.%s)",
                               m_table_id, m_dbnam, m_tblnam);
     protocol->store(buf, bytes, &my_charset_bin);
 }

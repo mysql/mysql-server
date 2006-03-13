@@ -1602,6 +1602,7 @@ public:
     lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  friend class select_create_prepare_hooks;
   
   void binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
