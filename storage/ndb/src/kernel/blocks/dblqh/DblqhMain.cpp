@@ -438,6 +438,9 @@ void Dblqh::execSTTOR(Signal* signal)
   tstartPhase = signal->theData[1];
                                                   /* SYSTEM RESTART RANK */
   csignalKey = signal->theData[6];
+#if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
+  char *name;
+#endif
   switch (tstartPhase) {
   case ZSTART_PHASE1:
     jam();
@@ -448,7 +451,7 @@ void Dblqh::execSTTOR(Signal* signal)
     sendsttorryLab(signal);
     
 #if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
-    char *name = NdbConfig_SignalLogFileName(getOwnNodeId());
+    name = NdbConfig_SignalLogFileName(getOwnNodeId());
     tracenrout = new NdbOut(* new FileOutputStream(fopen(name, "w+")));
 #endif
     
