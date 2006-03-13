@@ -2073,6 +2073,11 @@ bool mysql_create_table_internal(THD *thd,
     char *part_syntax_buf;
     uint syntax_len;
     handlerton *engine_type;
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    {
+      my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
+      goto err;
+    }
     while ((key= key_iterator++))
     {
       if (key->type == Key::FOREIGN_KEY)
