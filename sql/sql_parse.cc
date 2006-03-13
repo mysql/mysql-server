@@ -2446,6 +2446,9 @@ mysql_execute_command(THD *thd)
     statistic_increment(thd->status_var.com_stat[lex->sql_command],
                         &LOCK_status);
 
+  if (lex->binlog_row_based_if_mixed)
+    thd->set_current_stmt_binlog_row_based_if_mixed();
+
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
@@ -5065,6 +5068,8 @@ end_with_restore_list:
     send_ok(thd);
     break;
   }
+
+end:
   thd->proc_info="query end";
 
   /*
@@ -5095,7 +5100,8 @@ end_with_restore_list:
   DBUG_RETURN(res || thd->net.report_error);
 
 error:
-  DBUG_RETURN(1);
+  res= 1;           // would be better to set res=1 before "goto error"
+  goto end;
 }
 
 

@@ -880,7 +880,11 @@ typedef struct st_lex
   uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
-  bool tx_chain, tx_release;
+  /*
+    binlog_row_based_if_mixed tells if the parsing stage detected that some
+    items require row-based binlogging to give a reliable binlog/replication.
+  */
+  bool tx_chain, tx_release, binlog_row_based_if_mixed;
   /*
     Special JOIN::prepare mode: changing of query is prohibited.
     When creating a view, we need to just check its syntax omitting
