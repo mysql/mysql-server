@@ -2430,6 +2430,7 @@ void store_key_image_to_rec(Field *field, char *ptr, uint len)
       field->set_null();
       return;
     }
+    field->set_notnull();
     ptr++;
   }    
   field->set_key_image(ptr, len); 
