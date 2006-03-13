@@ -6689,10 +6689,6 @@ void Dblqh::execACCKEYREF(Signal* signal)
      *
      * -> ZNO_TUPLE_FOUND is possible
      */
-    ndbrequire(tcPtr->operation == ZREAD 
-	       || tcPtr->operation == ZREAD_EX
-	       || tcPtr->seqNoReplica == 0);
-    
     ndbrequire
       (tcPtr->seqNoReplica == 0 ||
        errCode != ZTUPLE_ALREADY_EXIST ||
