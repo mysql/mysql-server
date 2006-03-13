@@ -2312,7 +2312,7 @@ ha_innobase::get_row_type() const
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
 	if (prebuilt && prebuilt->table) {
-		if (dict_table_is_comp(prebuilt->table)) {
+		if (dict_table_is_comp_noninline(prebuilt->table)) {
 			return(ROW_TYPE_COMPACT);
 		} else {
 			return(ROW_TYPE_REDUNDANT);
@@ -3705,7 +3705,8 @@ calc_row_difference(
 					TRUE,
 					new_mysql_row_col,
 					col_pack_len,
-					dict_table_is_comp(prebuilt->table));
+					dict_table_is_comp_noninline(
+							prebuilt->table));
 				ufield->new_val.data = dfield.data;
 				ufield->new_val.len = dfield.len;
 			} else {
