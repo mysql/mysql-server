@@ -191,6 +191,7 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
+  lex->binlog_row_based_if_mixed= 0;
   DBUG_VOID_RETURN;
 }
 
