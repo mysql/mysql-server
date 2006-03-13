@@ -1104,7 +1104,7 @@ use_heap:
 		/* TODO: something similar to page_zip_dir_delete() */
 		page_zip_dir_rewrite(page_zip, page);
 
-		page_zip_write_rec(page_zip, insert_rec, index, offsets);
+		page_zip_write_rec(page_zip, insert_rec, index, offsets, 1);
 	}
 
 	/* 9. Write log record of the insert */
