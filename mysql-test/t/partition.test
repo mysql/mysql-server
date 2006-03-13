@@ -552,4 +552,11 @@ alter table t1 rebuild partition;
 
 drop table t1;
 
+#
+# Bug #14673: Wrong InnoDB default row format
+#
+create table t1 (a int) engine=innodb partition by hash(a) ;
+show table status like 't1';
+drop table t1;
+
 --echo End of 5.1 tests
