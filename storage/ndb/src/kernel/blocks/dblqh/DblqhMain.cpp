@@ -119,8 +119,7 @@ operator<<(NdbOut& out, Dblqh::ScanRecord::ScanType state){
 const Uint32 NR_ScanNo = 0;
 
 #if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
-static FileOutputStream tracenr_fos(fopen("tracenr.log", "w+"));
-NdbOut tracenrout(tracenr_fos);
+NdbOut & tracenrout = ndbout;
 static int TRACENR_FLAG = 0;
 #define TRACENR(x) tracenrout << x
 #define SET_TRACENR_FLAG TRACENR_FLAG = 1
