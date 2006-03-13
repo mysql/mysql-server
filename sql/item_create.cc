@@ -431,7 +431,9 @@ Item *create_func_unhex(Item* a)
 
 Item *create_func_uuid(void)
 {
-  return new Item_func_uuid();
+  THD *thd= current_thd;
+  thd->lex->binlog_row_based_if_mixed= 1;
+  return new(thd->mem_root) Item_func_uuid();
 }
 
 Item *create_func_version(void)
