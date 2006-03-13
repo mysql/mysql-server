@@ -1080,7 +1080,7 @@ rec_offs_nth_size(
 
 /**********************************************************
 Returns TRUE if the extern bit is set in any of the fields
-of an old-style record. */
+of a record. */
 UNIV_INLINE
 ibool
 rec_offs_any_extern(
@@ -1095,6 +1095,25 @@ rec_offs_any_extern(
 		}
 	}
 	return(FALSE);
+}
+
+/**********************************************************
+Returns the number of extern bits set in a record. */
+UNIV_INLINE
+ulint
+rec_offs_n_extern(
+/*==============*/
+				/* out: number of externally stored fields */
+	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
+{
+	ulint	i;
+	ulint	n = 0;
+	for (i = rec_offs_n_fields(offsets); i--; ) {
+		if (rec_offs_nth_extern(offsets, i)) {
+			n++;
+		}
+	}
+	return(n);
 }
 
 /**********************************************************

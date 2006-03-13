@@ -477,7 +477,7 @@ row_upd_rec_in_place(
 	}
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write_rec(page_zip, rec, index, offsets);
+		page_zip_write_rec(page_zip, rec, index, offsets, 0);
 	}
 }
 
