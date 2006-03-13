@@ -2294,7 +2294,6 @@ sub save_installed_db () {
   foreach my $data_dir (@data_dir_lst)
   {
     my $name= basename($data_dir);
-    print "$data_dir\n";
     copy_dir("$data_dir", "$path_snapshot/$name");
   }
 }
@@ -2314,7 +2313,6 @@ sub restore_installed_db () {
     foreach my $data_dir (@data_dir_lst)
     {
       my $name= basename($data_dir);
-    print "$data_dir\n";
       rmtree("$data_dir");
       copy_dir("$path_snapshot/$name", "$data_dir");
     }
