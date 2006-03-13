@@ -160,6 +160,16 @@ insert into bug16905 values ('новое');
 select * from mysql.general_log;
 drop table bug16905;
 
+#
+# Bug #17600: Invalid data logged into mysql.slow_log
+#
+
+truncate table mysql.slow_log;
+set session long_query_time=1;
+select sleep(2);
+--replace_column 1 TIMESTAMP, 3 USER_HOST, 4 QUERY_TIME
+select * from mysql.slow_log;
+
 # kill all connections
 disconnect con1;
 disconnect con2;
