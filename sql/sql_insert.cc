@@ -2498,25 +2498,28 @@ bool select_insert::send_eof()
   CREATE TABLE (SELECT) ...
 ***************************************************************************/
 
+/* HPUX compiler bug prevents this from being a local class, since then it
+   does not have access to protected member select_create::thd.
+*/
+class select_create_prepare_hooks : public TABLEOP_HOOKS {
+public:
+  select_create_prepare_hooks(select_create *x) : ptr(x) { }
+  virtual void do_prelock(TABLE **tables, uint count)
+  {
+    if (ptr->thd->current_stmt_binlog_row_based)
+      ptr->binlog_show_create_table(tables, count);
+  }
+
+private:
+  select_create *ptr;
+};
+
 int
 select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("select_create::prepare");
 
-  class MY_HOOKS : public TABLEOP_HOOKS {
-  public:
-    MY_HOOKS(select_create *x) : ptr(x) { }
-    virtual void do_prelock(TABLE **tables, uint count)
-    {
-      if (ptr->thd->current_stmt_binlog_row_based)
-        ptr->binlog_show_create_table(tables, count);
-    }
-
-  private:
-    select_create *ptr;
-  };
-
-  MY_HOOKS hooks(this);
+  select_create_prepare_hooks hooks(this);
 
   unit= u;
   table= create_table_from_items(thd, create_info, create_table,
