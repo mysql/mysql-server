@@ -206,8 +206,6 @@ ENGINE=NDB;
 ###### CLEAN UP SECTION ##############
 DROP DATABASE IF EXISTS tpcb;
 CREATE DATABASE tpcb;
-DROP DATABASE IF EXISTS test;
-CREATE DATABASE test;
 ######## Creat Table Section #########
 --echo *********** Create TPCB Tables *****************
 CREATE TABLE tpcb.account 
