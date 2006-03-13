@@ -4060,6 +4060,15 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
 {
   DBUG_ENTER("prep_alter_part_table");
 
+  /*
+    We are going to manipulate the partition info on the table object
+    so we need to ensure that the data structure of the table object
+    is freed by setting version to 0. table->s->version= 0 forces a
+    flush of the table object in close_thread_tables().
+  */
+  if (table->part_info)
+    table->s->version= 0L;
+
   if (alter_info->flags &
       (ALTER_ADD_PARTITION | ALTER_DROP_PARTITION |
        ALTER_COALESCE_PARTITION | ALTER_REORGANIZE_PARTITION |
@@ -4068,19 +4077,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
        ALTER_REPAIR_PARTITION | ALTER_REBUILD_PARTITION))
   {
     partition_info *tab_part_info= table->part_info;
+    uint flags= 0;
     if (!tab_part_info)
     {
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
       DBUG_RETURN(TRUE);
     }
-    /*
-      We are going to manipulate the partition info on the table object
-      so we need to ensure that the data structure of the table object
-      is freed by setting version to 0. table->s->version= 0 forces a
-      flush of the table object in close_thread_tables().
-    */
-    uint flags= 0;
-    table->s->version= 0L;
     if (alter_info->flags == ALTER_TABLE_REORG)
     {
       uint new_part_no, curr_part_no;

@@ -540,4 +540,15 @@ select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
 drop table t1;
 
+#
+# Bug #17097: Partitions: failing ADD PRIMARY KEY leads to temporary rotten
+# metadata,crash
+#
+create table t1 (a int, b int) partition by list (a)
+  (partition p1 values in (1), partition p2 values in (2));
+--error ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
+alter table t1 add primary key (b);
+show create table t1;
+drop table t1;
+
 --echo End of 5.1 tests
