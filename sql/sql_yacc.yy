@@ -6415,6 +6415,8 @@ simple_expr:
               if (udf->type == UDFTYPE_AGGREGATE)
                 Select->in_sum_expr--;
 
+              Lex->binlog_row_based_if_mixed= 1;
+
               switch (udf->returns) {
               case STRING_RESULT:
                 if (udf->type == UDFTYPE_FUNCTION)

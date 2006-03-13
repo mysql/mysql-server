@@ -1271,7 +1271,6 @@ bool sys_var_thd_binlog_format::is_readonly() const
   */
   if (thd->spcont && thd->prelocked_mode)
   {
-    DBUG_ASSERT(thd->variables.binlog_format != BINLOG_FORMAT_ROW);
     my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
     return 1;    
   }
