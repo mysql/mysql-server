@@ -451,4 +451,6 @@ select * from t2 where s1 = 2;
 s1
 2
 drop table t2;
+create temporary table t1 (a int) partition by hash(a);
+ERROR HY000: Cannot create temporary table with partitions
 End of 5.1 tests

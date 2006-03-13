@@ -571,4 +571,10 @@ select * from t2 where s1 < 3;
 select * from t2 where s1 = 2;
 drop table t2;
 
+#
+# Bug #17497: Partitions: crash if add partition on temporary table
+#
+--error ER_PARTITION_NO_TEMPORARY
+create temporary table t1 (a int) partition by hash(a);
+
 --echo End of 5.1 tests
