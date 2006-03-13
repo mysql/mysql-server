@@ -6956,17 +6956,18 @@ ha_innobase::store_lock(
 		< TL_WRITE_CONCURRENT_INSERT.
 
 		We especially allow multiple writers if MySQL is at the
-		start of a stored procedure call (SQLCOM_CALL)
-		(MySQL does have thd->in_lock_tables TRUE there). */
+		start of a stored procedure call (SQLCOM_CALL) or a
+		stored function call (MySQL does have thd->in_lock_tables
+		TRUE there). */
 
 		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT
-				&& lock_type <= TL_WRITE)
-			&& (!thd->in_lock_tables
-				|| thd->lex->sql_command == SQLCOM_CALL)
-			&& !thd->tablespace_op
-			&& thd->lex->sql_command != SQLCOM_TRUNCATE
-			&& thd->lex->sql_command != SQLCOM_OPTIMIZE
-			&& thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
+		&& lock_type <= TL_WRITE)
+		&& !(thd->in_lock_tables
+			&& thd->lex->sql_command == SQLCOM_LOCK_TABLES)
+		&& !thd->tablespace_op
+		&& thd->lex->sql_command != SQLCOM_TRUNCATE
+		&& thd->lex->sql_command != SQLCOM_OPTIMIZE
+		&& thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
 			lock_type = TL_WRITE_ALLOW_WRITE;
 		}
