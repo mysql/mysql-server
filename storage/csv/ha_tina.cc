@@ -351,9 +351,20 @@ int ha_tina::encode_quote(byte *buf)
     const char *ptr;
     const char *end_ptr;
 
-    (*field)->val_str(&attribute,&attribute);
-    ptr= attribute.ptr();
-    end_ptr= attribute.length() + ptr;
+    /*
+      Write an empty string to the buffer in case of a NULL value.
+      Basically this is a safety check, as no one ensures that the
+      field content is cleaned up every time we use Field::set_null()
+      in the code.
+    */
+    if ((*field)->is_null())
+      ptr= end_ptr= 0;
+    else
+    {
+      (*field)->val_str(&attribute,&attribute);
+      ptr= attribute.ptr();
+      end_ptr= attribute.length() + ptr;
+    }
 
     buffer.append('"');
 

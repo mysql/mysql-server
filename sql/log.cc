@@ -288,7 +288,7 @@ void Log_to_csv_event_handler::cleanup()
   Log command to the general log table
 
   SYNOPSIS
-    log_general_to_csv()
+    log_general()
 
     event_time        command start timestamp
     user_host         the pointer to the string with user@host info
@@ -322,18 +322,32 @@ bool Log_to_csv_event_handler::
   if (unlikely(!logger.is_log_tables_initialized))
     return FALSE;
 
+  /*
+    NOTE: we do not call restore_record() here, as all fields are
+    filled by the Logger (=> no need to load default ones).
+  */
+
   /* log table entries are not replicated at the moment */
   tmp_disable_binlog(current_thd);
 
+  /* Set current time. Required for CURRENT_TIMESTAMP to work */
   general_log_thd->start_time= event_time;
-  /* set default value (which is CURRENT_TIMESTAMP) */
-  table->field[0]->set_null();
+
+  /*
+    We do not set a value for table->field[0], as it will use
+    default value (which is CURRENT_TIMESTAMP).
+  */
 
   table->field[1]->store(user_host, user_host_len, client_cs);
+  table->field[1]->set_notnull();
   table->field[2]->store((longlong) thread_id);
+  table->field[2]->set_notnull();
   table->field[3]->store((longlong) server_id);
+  table->field[3]->set_notnull();
   table->field[4]->store(command_type, command_type_len, client_cs);
+  table->field[4]->set_notnull();
   table->field[5]->store(sql_text, sql_text_len, client_cs);
+  table->field[5]->set_notnull();
   table->file->ha_write_row(table->record[0]);
 
   reenable_binlog(current_thd);
@@ -346,7 +360,7 @@ bool Log_to_csv_event_handler::
   Log a query to the slow log table
 
   SYNOPSIS
-    log_slow_to_csv()
+    log_slow()
     thd               THD of the query
     current_time      current timestamp
     query_start_arg   command start timestamp
@@ -381,7 +395,7 @@ bool Log_to_csv_event_handler::
   TABLE *table= slow_log.table;
   CHARSET_INFO *client_cs= thd->variables.character_set_client;
 
-  DBUG_ENTER("log_slow_to_csv");
+  DBUG_ENTER("log_slow");
 
   /* below should never happen */
   if (unlikely(!logger.is_log_tables_initialized))
@@ -392,12 +406,15 @@ bool Log_to_csv_event_handler::
 
   /*
      Set start time for CURRENT_TIMESTAMP to the start of the query.
-     This will be default value for the field
+     This will be default value for the field[0]
   */
   slow_log_thd->start_time= query_start_arg;
+  restore_record(table, s->default_values);    // Get empty record
 
-  /* set default value (which is CURRENT_TIMESTAMP) */
-  table->field[0]->set_null();
+  /*
+    We do not set a value for table->field[0], as it will use
+    default value.
+  */
 
   /* store the value */
   table->field[1]->store(user_host, user_host_len, client_cs);
@@ -421,24 +438,28 @@ bool Log_to_csv_event_handler::
     table->field[5]->set_null();
   }
 
+  /* fill database field */
   if (thd->db)
-    /* fill database field */
+  {
     table->field[6]->store(thd->db, thd->db_length, client_cs);
-  else
-    table->field[6]->set_null();
+    table->field[6]->set_notnull();
+  }
 
   if (thd->last_insert_id_used)
+  {
     table->field[7]->store((longlong) thd->current_insert_id);
-  else
-    table->field[7]->set_null();
+    table->field[7]->set_notnull();
+  }
 
   /* set value if we do an insert on autoincrement column */
   if (thd->insert_id_used)
+  {
     table->field[8]->store((longlong) thd->last_insert_id);
-  else
-    table->field[8]->set_null();
+    table->field[8]->set_notnull();
+  }
 
   table->field[9]->store((longlong) server_id);
+  table->field[9]->set_notnull();
 
   /* sql_text */
   table->field[10]->store(sql_text,sql_text_len, client_cs);
