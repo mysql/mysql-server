@@ -119,9 +119,10 @@ operator<<(NdbOut& out, Dblqh::ScanRecord::ScanType state){
 const Uint32 NR_ScanNo = 0;
 
 #if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
-NdbOut & tracenrout = ndbout;
+#include <NdbConfig.h>
+NdbOut * tracenrout = 0;
 static int TRACENR_FLAG = 0;
-#define TRACENR(x) tracenrout << x
+#define TRACENR(x) (* tracenrout) << x
 #define SET_TRACENR_FLAG TRACENR_FLAG = 1
 #define CLEAR_TRACENR_FLAG TRACENR_FLAG = 0
 #else
@@ -445,6 +446,12 @@ void Dblqh::execSTTOR(Signal* signal)
     c_acc = (Dbacc*)globalData.getBlock(DBACC);
     ndbrequire(c_tup != 0 && c_acc != 0);
     sendsttorryLab(signal);
+    
+#if defined VM_TRACE || defined ERROR_INSERT || defined NDBD_TRACENR
+    char *name = NdbConfig_SignalLogFileName(getOwnNodeId());
+    tracenrout = new NdbOut(* new FileOutputStream(fopen(name, "w+")));
+#endif
+    
     return;
     break;
   case 4:
