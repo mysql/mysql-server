@@ -176,8 +176,6 @@ DROP DATABASE IF EXISTS tpcb;
 Warnings:
 Note	1008	Can't drop database 'tpcb'; database doesn't exist
 CREATE DATABASE tpcb;
-DROP DATABASE IF EXISTS test;
-CREATE DATABASE test;
 *********** Create TPCB Tables *****************
 CREATE TABLE tpcb.account 
 (id INT, bid INT, balance DECIMAL(10,2),
