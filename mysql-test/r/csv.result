@@ -4993,6 +4993,38 @@ val
 2
 UNLOCK TABLES;
 DROP TABLE test_concurrent_insert;
+CREATE TABLE test_repair_table ( val integer ) ENGINE = CSV;
+CHECK TABLE test_repair_table;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table	check	status	OK
+REPAIR TABLE test_repair_table;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table	repair	status	OK
+DROP TABLE test_repair_table;
+CREATE TABLE test_repair_table2 ( val integer ) ENGINE = CSV;
+SELECT * from test_repair_table2;
+val
+Warnings:
+Error	1194	Table 'test_repair_table2' is marked as crashed and should be repaired
+SELECT * from test_repair_table2;
+val
+test_repair_table2.CSM
+CHECK TABLE test_repair_table2;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table2	check	status	OK
+DROP TABLE test_repair_table2;
+CREATE TABLE test_repair_table3 ( val integer ) ENGINE = CSV;
+CHECK TABLE test_repair_table3;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table3	check	error	Corrupt
+REPAIR TABLE test_repair_table3;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table3	repair	status	OK
+SELECT * FROM test_repair_table3;
+val
+1
+4
+DROP TABLE test_repair_table3;
 create table t1 (a int) engine=csv;
 insert t1 values (1);
 delete from t1;

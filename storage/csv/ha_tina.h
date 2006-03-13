@@ -19,9 +19,16 @@
 #include <my_dir.h>
 
 #define DEFAULT_CHAIN_LENGTH 512
+/*
+  Version for file format.
+  1 - Initial Version. That is, the version when the metafile was introduced.
+*/
+
+#define TINA_VERSION 1
 
 typedef struct st_tina_share {
   char *table_name;
+  char data_file_name[FN_REFLEN];
   byte *mapped_file;                /* mapped region of file */
   uint table_name_length, use_count;
   /*
@@ -39,6 +46,9 @@ typedef struct st_tina_share {
   off_t saved_data_file_length;
   pthread_mutex_t mutex;
   THR_LOCK lock;
+  File meta_file;           /* Meta file we use */
+  bool crashed;             /* Meta file is crashed */
+  ha_rows rows_recorded;    /* Number of rows in tables */
 } TINA_SHARE;
 
 typedef struct tina_set {
@@ -108,7 +118,7 @@ public:
                                            ulong type, TABLE *table,
                                            uint count,
                                            bool called_by_logger_thread);
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint open_options);
   int close(void);
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);
@@ -116,7 +126,17 @@ public:
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
+  bool check_and_repair(THD *thd);
+  int check(THD* thd, HA_CHECK_OPT* check_opt);
+  bool is_crashed() const;
+  int read_meta_file(File meta_file, ha_rows *rows);
+  int write_meta_file(File meta_file, ha_rows rows, bool dirty);
+  TINA_SHARE *get_share(const char *table_name, TABLE *table, int *rc);
+  int free_share(TINA_SHARE *share);
   int rnd_end();
+  int repair(THD* thd, HA_CHECK_OPT* check_opt);
+  /* This is required for SQL layer to know that we support autorepair */
+  bool auto_repair() const { return 1; }
   void position(const byte *record);
   void info(uint);
   int extra(enum ha_extra_function operation);
