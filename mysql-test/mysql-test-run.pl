@@ -322,6 +322,7 @@ our $opt_ndb_extra_test= 0;
 our $exe_ndb_mgm;
 our $path_ndb_tools_dir;
 our $path_ndb_data_dir;
+our $path_ndb_slave_data_dir;
 our $file_ndb_testrun_log;
 our $flag_ndb_status_ok= 1;
 our $flag_ndb_slave_status_ok= 1;
@@ -1148,6 +1149,7 @@ sub executable_setup () {
   $exe_slave_mysqld=  $exe_slave_mysqld  || $exe_mysqld;
 
   $path_ndb_data_dir= "$opt_vardir/ndbcluster-$opt_ndbcluster_port";
+  $path_ndb_slave_data_dir= "$opt_vardir/ndbcluster-$opt_ndbcluster_port_slave";
   $file_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 }
 
@@ -2321,6 +2323,12 @@ sub restore_installed_db () {
       # Remove the ndb_*_fs dirs, forcing a clean start of ndb
       rmtree("$path_ndb_data_dir/ndb_1_fs");
       rmtree("$path_ndb_data_dir/ndb_2_fs");
+
+      if ( $opt_with_ndbcluster_slave )
+      {
+	# Remove also the ndb_*_fs dirs for slave cluster
+	rmtree("$path_ndb_slave_data_dir/ndb_1_fs");
+      }
     }
   }
   else
