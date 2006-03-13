@@ -280,7 +280,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       const ScanPos& pos = scan.m_scanPos;
       const Local_key& key_mm = pos.m_key_mm;
       int ret = tuxReadPk(fragPtr.i, pos.m_realpid_mm, key_mm.m_page_idx,
-			  pkData, false);
+			  pkData, true);
       ndbrequire(ret > 0);
       pkSize = ret;
       dbg((DBTUP, "PK size=%d data=%08x", pkSize, pkData[0]));
