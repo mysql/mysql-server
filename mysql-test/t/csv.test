@@ -1388,6 +1388,45 @@ UNLOCK TABLES;
 DROP TABLE test_concurrent_insert;
 
 #
+# Test REPAIR/CHECK TABLE (5.1)
+#
+
+# Check that repair on the newly created table works fine
+
+CREATE TABLE test_repair_table ( val integer ) ENGINE = CSV;
+
+CHECK TABLE test_repair_table;
+REPAIR TABLE test_repair_table;
+
+DROP TABLE test_repair_table;
+
+#
+# Check autorepair. Here we also check that we can work w/o metafile
+# restore the meta-file
+#
+
+CREATE TABLE test_repair_table2 ( val integer ) ENGINE = CSV;
+--exec rm $MYSQLTEST_VARDIR/master-data/test/test_repair_table2.CSM
+# should give a warning and perform autorepair
+SELECT * from test_repair_table2;
+# this should work ok, as the table is already repaired
+SELECT * from test_repair_table2;
+# check that the metafile appeared again. chop the path to it
+--exec ls $MYSQLTEST_VARDIR/master-data/test/test_repair_table2.CSM | perl -pi -e "s/.*\///"
+CHECK TABLE test_repair_table2;
+DROP TABLE test_repair_table2;
+
+
+# Corrupt csv file and see if we can repair it
+CREATE TABLE test_repair_table3 ( val integer ) ENGINE = CSV;
+--exec echo -n -e \"1\"\\n\"4\"\\n\"3 > $MYSQLTEST_VARDIR/master-data/test/test_repair_table3.CSV
+CHECK TABLE test_repair_table3;
+REPAIR TABLE test_repair_table3;
+SELECT * FROM test_repair_table3;
+DROP TABLE test_repair_table3;
+
+
+#
 # BUG#13406 - incorrect amount of "records deleted"
 #
 
