@@ -476,6 +476,7 @@ subpartition by hash(a)
 (partition p0 values less than (0),
 partition p1 values less than (1) (subpartition sp0));
 ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '))' at line 5
+create table t1 (a int)
 partition by hash (a)
 (partition p0 (subpartition sp0));
 ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning

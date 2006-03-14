@@ -504,14 +504,14 @@ from information_schema.partitions where table_schema ='test';
 drop table t1;
 
 # NULL for LIST partition
---error 1473
+--error ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR
 create table t1 (a int,b int, c int)
 partition by list(a)
 partitions 2
 (partition x123 values in (11,12),
  partition x234 values in (1 ,NULL, NULL));
 
---error 1473
+--error ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR
 create table t1 (a int,b int, c int)
 partition by list(a)
 partitions 2
@@ -523,7 +523,7 @@ partition by list(a)
 partitions 2
 (partition x123 values in (11, 12),
  partition x234 values in (5, 1));
---error 1504
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert into t1 values (NULL,1,1);
 drop table t1;
 
