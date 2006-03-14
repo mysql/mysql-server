@@ -7157,7 +7157,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
         // This occurs when eliminate_item_equal() founds that cond is
         // always false and substitues it with Item_int 0.
         // Due to this, value of item_equal will be 0, so just return it.
-        if (cond->type() != Item::ITEM_COND)
+        if (cond->type() != Item::COND_ITEM)
           break;
       }
     }
