@@ -4135,6 +4135,35 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
       ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0);
     DBUG_PRINT("info", ("*fast_alter_partition: %d  flags: 0x%x",
                         *fast_alter_partition, flags));
+    if (((alter_info->flags & ALTER_ADD_PARTITION) ||
+         (alter_info->flags & ALTER_REORGANIZE_PARTITION)) &&
+         (thd->lex->part_info->part_type != tab_part_info->part_type) &&
+         (thd->lex->part_info->part_type != NOT_A_PARTITION))
+    {
+      if (thd->lex->part_info->part_type == RANGE_PARTITION)
+      {
+        my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                 "RANGE", "LESS THAN");
+      }
+      else if (thd->lex->part_info->part_type == LIST_PARTITION)
+      {
+        DBUG_ASSERT(thd->lex->part_info->part_type == LIST_PARTITION);
+        my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                 "LIST", "IN");
+      }
+      else if (tab_part_info->part_type == RANGE_PARTITION)
+      {
+        my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                 "RANGE", "LESS THAN");
+      }
+      else
+      {
+        DBUG_ASSERT(tab_part_info->part_type == LIST_PARTITION);
+        my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                 "LIST", "IN");
+      }
+      DBUG_RETURN(TRUE);
+    }
     if (alter_info->flags & ALTER_ADD_PARTITION)
     {
       /*
