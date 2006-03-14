@@ -4135,7 +4135,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
                         *fast_alter_partition, flags));
     if (((alter_info->flags & ALTER_ADD_PARTITION) ||
          (alter_info->flags & ALTER_REORGANIZE_PARTITION)) &&
-         (thd->lex->part_info->part_type != tab_part_info->part_type))
+         (thd->lex->part_info->part_type != tab_part_info->part_type) &&
+         (thd->lex->part_info->part_type != NOT_A_PARTITION))
     {
       if (thd->lex->part_info->part_type == RANGE_PARTITION)
       {
