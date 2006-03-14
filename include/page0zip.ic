@@ -48,9 +48,11 @@ covering the compressed portion of the page, as follows.
 
 MODIFICATION LOG ENTRY FORMAT
 - write record:
-  - heap_no-1 (1..2 bytes)
+  - (heap_no - 1) << 1 (1..2 bytes)
   - extra bytes backwards
   - data bytes
+- clear record:
+  - (heap_no - 1) << 1 | 1 (1..2 bytes)
 
 The integer values are stored in a variable-length format:
 - 0xxxxxxx: 0..127
@@ -100,11 +102,8 @@ page_zip_available(
 					/* out: TRUE if page_zip_write_rec()
 					will succeed */
 	const page_zip_des_t*	page_zip,/* in: compressed page */
+	dict_index_t*		index,	/* in: index of the B-tree node */
 	ulint			length,	/* in: combined size of the record */
-	ulint			is_leaf,/* in: nonzero=leaf node,
-					zero=node pointer page */
-	ulint			is_clustered,/* in: nonzero=clustered index,
-					zero=secondary index */
 	ulint			create)	/* in: nonzero=add the record to
 					the heap */
 	__attribute__((warn_unused_result, nonnull, pure));
@@ -164,8 +163,7 @@ page_zip_alloc(
 	ut_ad(page_is_comp((page_t*) page));
 	ut_ad(page_zip_validate(page_zip, page));
 
-	if (page_zip_available(page_zip, length, page_is_leaf(page),
-			dict_index_is_clust(index), create)) {
+	if (page_zip_available(page_zip, index, length, create)) {
 		return(TRUE);
 	}
 
@@ -181,8 +179,44 @@ page_zip_alloc(
 	}
 
 	/* Check if there is enough space available after compression. */
-	return(page_zip_available(page_zip, length, page_is_leaf(page),
-			dict_index_is_clust(index), create));
+	return(page_zip_available(page_zip, index, length, create));
+}
+
+/**************************************************************************
+Determine if the length of the page trailer. */
+UNIV_INLINE
+ibool
+page_zip_get_trailer_len(
+/*=====================*/
+					/* out: length of the page trailer,
+					in bytes, not including the terminating
+					zero byte of the modification log */
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	dict_index_t*		index,	/* in: index of the B-tree node */
+	ulint*			entry_size)/* out: size of the uncompressed
+					portion of a user record */
+{
+	ulint	uncompressed_size;
+
+	ut_ad(page_zip_simple_validate(page_zip));
+
+	if (UNIV_UNLIKELY(!page_is_leaf((page_t*) page_zip->data))) {
+		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
+				+ REC_NODE_PTR_SIZE;
+	} else if (dict_index_is_clust(index)) {
+		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
+				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+	} else {
+		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE;
+	}
+
+	if (entry_size) {
+		*entry_size = uncompressed_size;
+	}
+
+	return((page_dir_get_n_heap((page_t*) page_zip->data) - 2)
+			* uncompressed_size
+			+ page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE);
 }
 
 /**************************************************************************
@@ -194,34 +228,18 @@ page_zip_available(
 					/* out: TRUE if enough space
 					is available */
 	const page_zip_des_t*	page_zip,/* in: compressed page */
+	dict_index_t*		index,	/* in: index of the B-tree node */
 	ulint			length,	/* in: combined size of the record */
-	ulint			is_leaf,/* in: nonzero=leaf node,
-					zero=node pointer page */
-	ulint			is_clustered,/* in: nonzero=clustered index,
-					zero=secondary index */
 	ulint			create)	/* in: nonzero=add the record to
 					the heap */
 {
 	ulint	uncompressed_size;
 	ulint	trailer_len;
 
-	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(length > REC_N_NEW_EXTRA_BYTES);
 
-	if (UNIV_UNLIKELY(!is_leaf)) {
-		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
-				+ REC_NODE_PTR_SIZE;
-	} else if (UNIV_UNLIKELY(is_clustered)) {
-		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
-				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
-	} else {
-		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE;
-	}
-
-	trailer_len = (page_dir_get_n_heap((page_t*) page_zip->data) - 2)
-				* uncompressed_size
-				+ page_zip->n_blobs
-				* BTR_EXTERN_FIELD_REF_SIZE;
+	trailer_len = page_zip_get_trailer_len(page_zip, index,
+				&uncompressed_size);
 
 	/* Subtract the fixed extra bytes and add the maximum
 	space needed for identifying the record (encoded heap_no). */
