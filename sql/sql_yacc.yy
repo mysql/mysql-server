@@ -3793,7 +3793,15 @@ part_bit_expr:
         ;
 
 opt_sub_partition:
-        /* empty */ {}
+        /* empty */
+        {
+          if (Lex->part_info->no_subparts != 0 &&
+              !Lex->part_info->use_default_subpartitions)
+          {
+            yyerror(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+            YYABORT;
+          }
+        }
         | '(' sub_part_list ')'
         {
           LEX *lex= Lex;
@@ -3809,6 +3817,11 @@ opt_sub_partition:
           }
           else if (part_info->count_curr_subparts > 0)
           {
+            if (part_info->partitions.elements > 1)
+            {
+              yyerror(ER(ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+              YYABORT;
+            }
             part_info->no_subparts= part_info->count_curr_subparts;
           }
           part_info->count_curr_subparts= 0;
