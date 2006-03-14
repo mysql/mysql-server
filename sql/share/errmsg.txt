@@ -5614,6 +5614,10 @@ ER_PARTITION_MAXVALUE_ERROR
 ER_PARTITION_SUBPARTITION_ERROR
         eng "Subpartitions can only be hash partitions and by key"
         swe "Subpartitioner kan bara vara hash och key partitioner"
+ER_PARTITION_SUBPART_MIX_ERROR
+        eng "Must define subpartitions on all partitions if on one partition"
+        swe "Subpartitioner måste definieras på alla partitioner om på en"
+
 ER_PARTITION_WRONG_NO_PART_ERROR
         eng "Wrong number of partitions defined, mismatch with previous setting"
         swe "Antal partitioner definierade och antal partitioner �r inte lika"
