@@ -428,6 +428,10 @@ partition by list (a)
 alter table t1 rebuild partition;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 drop table t1;
+create table t1 (a int)
+partition by hash (a)
+(partition p0 (subpartition sp0));
+ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
 create table t1 (a int) engine=innodb partition by hash(a) ;
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
