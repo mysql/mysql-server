@@ -954,6 +954,19 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
   DBUG_RETURN(m_value[fieldnr].rec == NULL);
 }
 
+/*
+  Instruct NDB to fetch the partition id (fragment id)
+*/
+int ha_ndbcluster::get_ndb_partition_id(NdbOperation *ndb_op)
+{
+  DBUG_ENTER("get_ndb_partition_id");
+  uint partition_id_fieldnr= table_share->fields + 1;
+
+  m_value[partition_id_fieldnr].rec= 
+    ndb_op->getValue(NdbDictionary::Column::FRAGMENT, 
+                     (char *)&m_part_id);
+  DBUG_RETURN(m_value[partition_id_fieldnr].rec == NULL);
+}
 
 /*
   Check if any set or get of blob value in current query.
@@ -1646,8 +1659,6 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf,
       op->readTuple(lm) != 0)
     ERR_RETURN(trans->getNdbError());
   
-  if (m_use_partition_function)
-    op->setPartitionId(part_id);
   if (table_share->primary_key == MAX_KEY) 
   {
     // This table has no primary key, use "hidden" primary key
@@ -1668,7 +1679,18 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf,
   
   if ((res= define_read_attrs(buf, op)))
     DBUG_RETURN(res);
-  
+
+  if (m_use_partition_function)
+  {
+    op->setPartitionId(part_id);
+    // If table has user defined partitioning
+    // and no indexes, we need to read the partition id
+    // to support ORDER BY queries
+    if (table_share->primary_key == MAX_KEY &&
+        get_ndb_partition_id(op))
+      ERR_RETURN(trans->getNdbError());
+  }
+
   if (execute_no_commit_ie(this,trans) != 0) 
   {
     table->status= STATUS_NOT_FOUND;
@@ -2187,12 +2209,23 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       DBUG_RETURN(res);
   }
 
-  if (!restart && generate_scan_filter(m_cond_stack, op))
-    DBUG_RETURN(ndb_err(trans));
-  
-  if (!restart && (res= define_read_attrs(buf, op)))
+  if (!restart)
   {
-    DBUG_RETURN(res);
+    if (generate_scan_filter(m_cond_stack, op))
+      DBUG_RETURN(ndb_err(trans));
+
+    if (res= define_read_attrs(buf, op))
+    {
+      DBUG_RETURN(res);
+    }
+    
+    // If table has user defined partitioning
+    // and no primary key, we need to read the partition id
+    // to support ORDER BY queries
+    if (m_use_partition_function &&
+        (table_share->primary_key == MAX_KEY) && 
+        (get_ndb_partition_id(op)))
+      ERR_RETURN(trans->getNdbError());
   }
 
   if (execute_no_commit(this,trans) != 0)
@@ -2249,6 +2282,12 @@ int ha_ndbcluster::full_table_scan(byte *buf)
       */
       m_active_cursor->setPartitionId(part_spec.start_part);
     }
+    // If table has user defined partitioning
+    // and no primary key, we need to read the partition id
+    // to support ORDER BY queries
+    if ((table_share->primary_key == MAX_KEY) && 
+        (get_ndb_partition_id(op)))
+      ERR_RETURN(trans->getNdbError());
   }
 
   if (generate_scan_filter(m_cond_stack, op))
@@ -3217,17 +3256,32 @@ int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
   // Perform a pk_read using primary key "index"
   {
     part_id_range part_spec;
+    uint key_length= ref_length;
     if (m_use_partition_function)
     {
-      key_range key_spec;
-      KEY *key_info= table->key_info + active_index;
-      key_spec.key= pos;
-      key_spec.length= ref_length;
-      key_spec.flag= HA_READ_KEY_EXACT;
-      get_full_part_id_from_key(table, buf, key_info, &key_spec, &part_spec);
-      DBUG_ASSERT(part_spec.start_part == part_spec.end_part);
+      if (table_share->primary_key == MAX_KEY)
+      {
+        /*
+          The partition id has been fetched from ndb
+          and has been stored directly after the hidden key
+        */
+        key_length= ref_length - sizeof(m_part_id);
+        part_spec.start_part= part_spec.end_part= *(pos + key_length);
+      }
+      else
+      {
+        key_range key_spec;
+        KEY *key_info= table->key_info + active_index;
+        key_spec.key= pos;
+        key_spec.length= key_length;
+        key_spec.flag= HA_READ_KEY_EXACT;
+        get_full_part_id_from_key(table, buf, key_info, 
+                                  &key_spec, &part_spec);
+        DBUG_ASSERT(part_spec.start_part == part_spec.end_part);
+      }
+      DBUG_PRINT("info", ("partition id %u", part_spec.start_part));
     }
-    DBUG_RETURN(pk_read(pos, ref_length, buf, part_spec.start_part));
+    DBUG_RETURN(pk_read(pos, key_length, buf, part_spec.start_part));
   }
 }
 
@@ -3244,6 +3298,7 @@ void ha_ndbcluster::position(const byte *record)
   KEY_PART_INFO *key_part;
   KEY_PART_INFO *end;
   byte *buff;
+  uint key_length= ref_length;
   DBUG_ENTER("position");
 
   if (table_share->primary_key != MAX_KEY) 
@@ -3290,18 +3345,25 @@ void ha_ndbcluster::position(const byte *record)
   {
     // No primary key, get hidden key
     DBUG_PRINT("info", ("Getting hidden key"));
+    // If table has user defined partition save the partition id as well
+    if(m_use_partition_function)
+    {
+      DBUG_PRINT("info", ("Saving partition id %u", m_part_id));
+      key_length= ref_length - sizeof(m_part_id);
+      memcpy(ref+key_length, (void *)&m_part_id, sizeof(m_part_id));
+    }
 #ifndef DBUG_OFF
     int hidden_no= table->s->fields;
     const NDBTAB *tab= (const NDBTAB *) m_table;  
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     DBUG_ASSERT(hidden_col->getPrimaryKey() && 
                 hidden_col->getAutoIncrement() &&
-                ref_length == NDB_HIDDEN_PRIMARY_KEY_LENGTH);
+                key_length == NDB_HIDDEN_PRIMARY_KEY_LENGTH);
 #endif
-    memcpy(ref, m_ref, ref_length);
+    memcpy(ref, m_ref, key_length);
   }
   
-  DBUG_DUMP("ref", (char*)ref, ref_length);
+  DBUG_DUMP("ref", (char*)ref, key_length);
   DBUG_VOID_RETURN;
 }
 
@@ -5173,8 +5235,17 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   {
     key= table->key_info+table_share->primary_key;
     ref_length= key->key_length;
-    DBUG_PRINT("info", (" ref_length: %d", ref_length));
   }
+  else // (table_share->primary_key == MAX_KEY) 
+  {
+    if (m_use_partition_function)
+    {
+      ref_length+= sizeof(m_part_id);
+    }
+  }
+
+  DBUG_PRINT("info", ("ref_length: %d", ref_length));
+
   // Init table lock structure 
   if (!(m_share=get_share(name, table)))
     DBUG_RETURN(1);
