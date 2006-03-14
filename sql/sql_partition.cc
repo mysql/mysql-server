@@ -704,7 +704,7 @@ bool check_partition_info(partition_info *part_info,handlerton **eng_type,
                  part_info->part_type == LIST_PARTITION))))
   {
     /* Only RANGE and LIST partitioning can be subpartitioned */
-    my_error(ER_SUBPARTITION_ERROR, MYF(0));
+    my_error(ER_PARTITION_SUBPART_MIX_ERROR, MYF(0));
     goto end;
   }
   if (unlikely(part_info->set_up_defaults_for_partitioning(file,
