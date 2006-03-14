@@ -3348,7 +3348,7 @@ void ha_ndbcluster::position(const byte *record)
     // If table has user defined partition save the partition id as well
     if(m_use_partition_function)
     {
-      DBUG_PRINT("info", ("Saving partition id %u in %u", m_part_id));
+      DBUG_PRINT("info", ("Saving partition id %u", m_part_id));
       key_length= ref_length - sizeof(m_part_id);
       memcpy(ref+key_length, (void *)&m_part_id, sizeof(m_part_id));
     }
