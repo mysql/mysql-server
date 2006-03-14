@@ -727,6 +727,18 @@ rec_set_nth_field_null_bit(
 	rec_2_set_field_end_info(rec, i, info);
 }
 
+/**********************************************************
+Sets the extern bit in nth field of rec. */
+UNIV_INLINE
+void
+rec_offs_set_nth_extern(
+/*====================*/
+	ulint*	offsets,/* in: array returned by rec_get_offsets() */
+	ulint	n)	/* in: nth field */
+{
+	rec_offs_base(offsets)[1 + n] |= REC_OFFS_EXTERNAL;
+}
+
 /***************************************************************
 Sets the ith field extern storage bit of an old-style record. */
 static
@@ -755,6 +767,7 @@ rec_set_field_extern_bits_new(
 /*==========================*/
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
+	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
 	const ulint*	ext,	/* in: array of field numbers */
 	ulint		n_ext)	/* in: number of elements in ext */
 {
@@ -820,6 +833,7 @@ rec_set_field_extern_bits_new(
 					/* set the extern bit */
 					len |= 0x40;
 					lens[1] = (byte) len;
+					rec_offs_set_nth_extern(offsets, i);
 				}
 				lens--;
 			} else {
@@ -841,17 +855,22 @@ rec_set_field_extern_bits(
 /*======================*/
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
+	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
 	const ulint*	vec,	/* in: array of field numbers */
 	ulint		n_fields)/* in: number of fields numbers */
 {
-	if (dict_table_is_comp(index->table)) {
-		rec_set_field_extern_bits_new(rec, index, vec, n_fields);
+	ut_ad(rec_offs_validate(rec, index, offsets));
+
+	if (rec_offs_comp(offsets)) {
+		rec_set_field_extern_bits_new(rec, index, offsets,
+							vec, n_fields);
 	} else {
 		ut_a(!rec_get_1byte_offs_flag(rec));
 		ulint	i;
 
 		for (i = 0; i < n_fields; i++) {
 			rec_set_nth_field_extern_bit_old(rec, vec[i]);
+			rec_offs_set_nth_extern(offsets, vec[i]);
 		}
 	}
 }
