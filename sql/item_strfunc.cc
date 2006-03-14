@@ -80,6 +80,20 @@ String *Item_str_func::check_well_formed_result(String *str)
 }
 
 
+my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value)
+{
+  DBUG_ASSERT(fixed == 1);
+  char buff[64];
+  String *res, tmp(buff,sizeof(buff), &my_charset_bin);
+  res= val_str(&tmp);
+  if (!res)
+    return 0;
+  (void)str2my_decimal(E_DEC_FATAL_ERROR, (char*) res->ptr(),
+                       res->length(), res->charset(), decimal_value);
+  return decimal_value;
+}
+
+
 double Item_str_func::val_real()
 {
   DBUG_ASSERT(fixed == 1);

@@ -33,6 +33,7 @@ public:
   Item_str_func(List<Item> &list) :Item_func(list) {decimals=NOT_FIXED_DEC; }
   longlong val_int();
   double val_real();
+  my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
   String *check_well_formed_result(String *str);
