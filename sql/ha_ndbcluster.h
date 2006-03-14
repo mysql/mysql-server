@@ -761,6 +761,7 @@ private:
   int set_ndb_value(NdbOperation*, Field *field, uint fieldnr,
 		    int row_offset= 0, bool *set_blob_value= 0);
   int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
+  int ha_ndbcluster::get_ndb_partition_id(NdbOperation *);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
   int set_primary_key(NdbOperation *op, const byte *key);
@@ -824,6 +825,7 @@ private:
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   byte m_ref[NDB_HIDDEN_PRIMARY_KEY_LENGTH];
   partition_info *m_part_info;
+  uint32 m_part_id;
   byte *m_rec0;
   Field **m_part_field_array;
   bool m_use_partition_function;
