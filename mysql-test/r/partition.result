@@ -445,6 +445,8 @@ alter table t1 add partition (partition p1 values less than (2));
 ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
 alter table t1 add partition (partition p1 values in (2));
 ERROR HY000: Only LIST PARTITIONING can use VALUES IN in partition definition
+drop table t1;
+create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
 alter table t1 rebuild partition;
