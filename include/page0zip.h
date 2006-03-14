@@ -209,7 +209,8 @@ page_zip_rec_set_owned(
 	__attribute__((nonnull));
 
 /**************************************************************************
-Shift the dense page directory when a record is deleted. */
+Shift the dense page directory and the array of BLOB pointers
+when a record is deleted. */
 
 void
 page_zip_dir_delete(

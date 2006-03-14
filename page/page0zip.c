@@ -1181,13 +1181,28 @@ page_zip_apply_log(
 		if (UNIV_UNLIKELY(data >= end)) {
 			return(NULL);
 		}
-		if (UNIV_UNLIKELY(val > n_dense)) {
+		if (UNIV_UNLIKELY((val >> 1) > n_dense)) {
 			return(NULL);
 		}
 
 		/* Determine the heap number and status bits of the record. */
-		rec = recs[val - 1];
-		hs = (val + 1) << REC_HEAP_NO_SHIFT;
+		rec = recs[(val >> 1) - 1];
+
+		if (val & 1) {
+			/* Clear the data bytes of the record. */
+			mem_heap_t*	heap	= NULL;
+			ulint*		offs;
+			offs = rec_get_offsets(rec, index, offsets,
+					ULINT_UNDEFINED, &heap);
+			memset(rec, 0, rec_offs_data_size(offs));
+
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
+			}
+			continue;
+		}
+
+		hs = ((val >> 1) + 1) << REC_HEAP_NO_SHIFT;
 		hs |= heap_status & ((1 << REC_HEAP_NO_SHIFT) - 1);
 
 		/* This may either be an old record that is being
@@ -1435,8 +1450,6 @@ page_zip_decompress(
 		*offsets = n;
 	}
 
-	page_zip->n_blobs = 0;
-
 	while (n_dense--) {
 		byte* const	last	= d_stream.next_out;
 		rec_t*		rec	= *recsc++;
@@ -1555,7 +1568,6 @@ page_zip_decompress(
 						-= BTR_EXTERN_FIELD_REF_SIZE;
 					d_stream.next_out
 						+= BTR_EXTERN_FIELD_REF_SIZE;
-					page_zip->n_blobs++;
 				}
 			}
 
@@ -1662,6 +1674,7 @@ err_exit:
 
 	/* Copy the uncompressed fields. */
 
+	page_zip->n_blobs = 0;
 	storage = page_zip->data + page_zip->size
 			- n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
 	if (trx_id_col != ULINT_UNDEFINED) {
@@ -1701,6 +1714,8 @@ err_exit:
 					/* Copy the BLOB pointer */
 					memcpy(dst, externs,
 						BTR_EXTERN_FIELD_REF_SIZE);
+
+					page_zip->n_blobs++;
 				}
 			}
 
@@ -1756,9 +1771,36 @@ page_zip_validate(
 		== page_zip);
 	ut_a(page_is_comp((page_t*) page));
 
-	valid = page_zip_decompress(&temp_page_zip, temp_page, NULL)
-				&& !memcmp(page, temp_page,
-				UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
+	valid = page_zip_decompress(&temp_page_zip, temp_page, NULL);
+	if (!valid) {
+		fputs("page_zip_validate(): failed to decompress\n", stderr);
+		goto func_exit;
+	}
+	if (page_zip->n_blobs != temp_page_zip.n_blobs) {
+		fprintf(stderr,
+			"page_zip_validate(): n_blobs mismatch: %lu!=%lu\n",
+			page_zip->n_blobs, temp_page_zip.n_blobs);
+		valid = FALSE;
+	}
+	if (page_zip->m_start != temp_page_zip.m_start) {
+		fprintf(stderr,
+			"page_zip_validate(): m_start mismatch: %lu!=%lu\n",
+			page_zip->m_start, temp_page_zip.m_start);
+		valid = FALSE;
+	}
+	if (page_zip->m_end != temp_page_zip.m_end) {
+		fprintf(stderr,
+			"page_zip_validate(): m_end mismatch: %lu!=%lu\n",
+			page_zip->m_end, temp_page_zip.m_end);
+		valid = FALSE;
+	}
+	if (memcmp(page + PAGE_HEADER, temp_page + PAGE_HEADER,
+			UNIV_PAGE_SIZE - PAGE_HEADER - FIL_PAGE_DATA_END)) {
+		fputs("content mismatch\n", stderr);
+		valid = FALSE;
+	}
+
+func_exit:
 	buf_frame_free(temp_page);
 	return(valid);
 }
@@ -1810,10 +1852,10 @@ page_zip_write_rec(
 	/* Identify the record by writing its heap number - 1.
 	0 is reserved to indicate the end of the modification log. */
 
-	if (UNIV_UNLIKELY(heap_no - 1 >= 128)) {
-		*data++ = 0x80 | (heap_no - 1) >> 8;
+	if (UNIV_UNLIKELY(heap_no - 1 >= 64)) {
+		*data++ = 0x80 | (heap_no - 1) >> 7;
 	}
-	*data++ = heap_no - 1;
+	*data++ = (heap_no - 1) << 1;
 
 	{
 		const byte*	start	= rec_get_start((rec_t*) rec, offsets);
@@ -2035,6 +2077,11 @@ page_zip_write_blob_ptr(
 			field + len - BTR_EXTERN_FIELD_REF_SIZE,
 			BTR_EXTERN_FIELD_REF_SIZE);
 
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(page_zip_validate(page_zip,
+			ut_align_down((rec_t*) rec, UNIV_PAGE_SIZE)));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
 	if (mtr) {
 		mlog_write_initial_log_record(
 				(rec_t*) rec, MLOG_ZIP_WRITE_BLOB_PTR, mtr);
@@ -2160,20 +2207,35 @@ page_zip_clear_rec(
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
+	ulint	heap_no;
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, ut_align_down(rec, UNIV_PAGE_SIZE)));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (page_zip_available(page_zip, rec_offs_size(offsets),
-				page_is_leaf(page_zip->data),
-				dict_index_is_clust(index), 0)) {
-		memset(rec - rec_offs_extra_size(offsets), 0,
-			rec_offs_extra_size(offsets) - REC_N_NEW_EXTRA_BYTES);
+	heap_no = rec_get_heap_no_new(rec);
+
+	if (page_zip->m_end
+			+ 1 + ((heap_no - 1) >= 64)/* size of the log entry */
+			+ page_zip_get_trailer_len(page_zip, index, NULL)
+			< page_zip->size) {
+		byte*	data;
+
+		/* Do not touch the extra bytes, because the
+		decompressor depends on them. */
 		memset(rec, 0, rec_offs_data_size(offsets));
 
 		/* Log that the data was zeroed out. */
-		page_zip_write_rec(page_zip, rec, index, offsets, 0);
+		data = page_zip->data + page_zip->m_end;
+		ut_ad(!*data);
+		if (UNIV_UNLIKELY(heap_no - 1 >= 64)) {
+			*data++ = 0x80 | (heap_no - 1) >> 7;
+		}
+		*data++ = (heap_no - 1) << 1 | 1;
+		ut_ad(!*data);
+		page_zip->m_end = data - page_zip->data;
+		ut_ad(page_zip_validate(page_zip,
+				ut_align_down(rec, UNIV_PAGE_SIZE)));
 	} else {
 		/* There is not enough space to log the clearing.
 		Try to clear the block and to recompress the page. */
@@ -2182,8 +2244,8 @@ page_zip_clear_rec(
 		memcpy(buf, rec - rec_offs_extra_size(offsets),
 					rec_offs_size(offsets));
 
-		memset(rec - rec_offs_extra_size(offsets), 0,
-			rec_offs_extra_size(offsets) - REC_N_NEW_EXTRA_BYTES);
+		/* Do not touch the extra bytes, because the
+		decompressor depends on them. */
 		memset(rec, 0, rec_offs_data_size(offsets));
 		/* TODO: maybe log the memset()s? */
 
@@ -2257,7 +2319,8 @@ page_zip_rec_set_owned(
 
 
 /**************************************************************************
-Shift the dense page directory when a record is deleted. */
+Shift the dense page directory and the array of BLOB pointers
+when a record is deleted. */
 
 void
 page_zip_dir_delete(
@@ -2294,6 +2357,8 @@ page_zip_dir_delete(
 			slot_free,
 			slot_rec - slot_free);
 	}
+
+	/* TODO: shift and zero fill the array of BLOB pointers, set n_blobs */
 
 	/* Write the entry for the deleted record.
 	The "owned" and "deleted" flags will be cleared. */
