@@ -527,6 +527,9 @@ public:
   virtual const char *table_type() const
   { return "PARTITION"; }
 
+  /* The name of the row type used for the underlying tables. */
+  virtual enum row_type get_row_type() const;
+
   /*
      Handler specific error messages
   */
