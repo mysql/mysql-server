@@ -314,4 +314,34 @@ drop procedure f2;
 drop procedure f3;
 drop procedure f4;
 drop table t1;
+reset query cache;
+drop function if exists f1;
+create table t1 (id int);
+create function f1 ()
+returns int
+begin
+declare i_var int;
+set i_var = sleep(3);
+insert into t1 values(3);
+set i_var = sleep(3);
+return 0;
+end;|
+ select f1();
+select sleep(4);
+sleep(4)
+0
+select * from t1;
+id
+3
+f1()
+0
+select * from t1;
+id
+3
+reset query cache;
+select * from t1;
+id
+3
+drop table t1;
+drop function f1;
 set GLOBAL query_cache_size=0;
