@@ -848,9 +848,8 @@ NDBT_Tables::createAllTables(Ndb* pNdb){
   return createAllTables(pNdb, false);
 }
 
-static
 int
-create_default_tablespace(Ndb* pNdb)
+NDBT_Tables::create_default_tablespace(Ndb* pNdb)
 {
   NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
 
