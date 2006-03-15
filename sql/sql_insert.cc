@@ -258,6 +258,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool log_on= (thd->options & OPTION_BIN_LOG) ||
     (!(thd->security_ctx->master_access & SUPER_ACL));
   bool transactional_table, joins_freed= FALSE;
+  bool changed;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -544,32 +545,30 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     else if (table->next_number_field && info.copied)
       id=table->next_number_field->val_int();	// Return auto_increment value
 
-    /*
-      Invalidate the table in the query cache if something changed.
-      For the transactional algorithm to work the invalidation must be
-      before binlog writing and ha_autocommit_or_rollback
-    */
-    if (info.copied || info.deleted || info.updated)
-    {
-      query_cache_invalidate3(thd, table_list, 1);
-    }
-
     transactional_table= table->file->has_transactions();
 
-    if ((info.copied || info.deleted || info.updated) &&
-	(error <= 0 || !transactional_table))
+    if ((changed= (info.copied || info.deleted || info.updated)))
     {
-      if (mysql_bin_log.is_open())
+      /*
+        Invalidate the table in the query cache if something changed.
+        For the transactional algorithm to work the invalidation must be
+        before binlog writing and ha_autocommit_or_rollback
+      */
+      query_cache_invalidate3(thd, table_list, 1);
+      if (error <= 0 || !transactional_table)
       {
-        if (error <= 0)
-          thd->clear_error();
-	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      transactional_table, FALSE);
-	if (mysql_bin_log.write(&qinfo) && transactional_table)
-	  error=1;
+        if (mysql_bin_log.is_open())
+        {
+          if (error <= 0)
+            thd->clear_error();
+          Query_log_event qinfo(thd, thd->query, thd->query_length,
+                                transactional_table, FALSE);
+          if (mysql_bin_log.write(&qinfo) && transactional_table)
+            error=1;
+        }
+        if (!transactional_table)
+          thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
       }
-      if (!transactional_table)
-	thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
     }
     if (transactional_table)
       error=ha_autocommit_or_rollback(thd,error);
@@ -577,6 +576,16 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (thd->lock)
     {
       mysql_unlock_tables(thd, thd->lock);
+      /*
+        Invalidate the table in the query cache if something changed
+        after unlocking when changes become fisible.
+        TODO: this is workaround. right way will be move invalidating in
+        the unlock procedure.
+      */
+      if (lock_type ==  TL_WRITE_CONCURRENT_INSERT && changed)
+      {
+        query_cache_invalidate3(thd, table_list, 1);
+      }
       thd->lock=0;
     }
   }
