@@ -1141,13 +1141,15 @@ static Item *create_func_round(MY_XPATH *xpath, Item **args, uint nargs)
 
 static Item *create_func_last(MY_XPATH *xpath, Item **args, uint nargs)
 {
-  return new Item_func_xpath_count(xpath->context, xpath->pxml);
+  return xpath->context ? 
+         new Item_func_xpath_count(xpath->context, xpath->pxml) : NULL;
 }
 
 
 static Item *create_func_position(MY_XPATH *xpath, Item **args, uint nargs)
 {
-  return new Item_func_xpath_position(xpath->context, xpath->pxml);
+  return xpath->context ? 
+         new Item_func_xpath_position(xpath->context, xpath->pxml) : NULL;
 }
 
 
