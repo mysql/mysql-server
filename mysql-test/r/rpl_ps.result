@@ -26,3 +26,5 @@ from-master-2-'',
 from-var-from-master-3
 drop table t1;
 stop slave;
+reset master;
+reset slave;
