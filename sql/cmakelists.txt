@@ -50,7 +50,7 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc discover.
 					  ${PROJECT_SOURCE_DIR}/sql/handlerton.cc
 					  ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
 TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg innobase mysys yassl zlib dbug yassl taocrypt strings vio regex wsock32)
-ADD_DEPENDENCIES(mysqld comp_err)
+ADD_DEPENDENCIES(mysqld GenError)
 
 # Sql Parser custom command
 ADD_CUSTOM_COMMAND(
