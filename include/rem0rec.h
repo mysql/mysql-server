@@ -470,7 +470,8 @@ rec_set_field_extern_bits(
 /*======================*/
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
+	ulint*		offsets,/* in/out: rec_get_offsets(rec, index),
+				or NULL */
 	const ulint*	vec,	/* in: array of field numbers */
 	ulint		n_fields);/* in: number of fields numbers */
 /***************************************************************
