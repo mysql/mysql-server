@@ -761,6 +761,7 @@ typedef struct st_lex
   const uchar *tok_start_prev, *tok_end_prev;
 
   char *length,*dec,*change,*name;
+  Table_ident *like_name;
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
