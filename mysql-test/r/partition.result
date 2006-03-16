@@ -546,4 +546,15 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY LIST (a) (PARTITION p1 VALUES IN (1) ENGINE = MyISAM, PARTITION p2 VALUES IN (2) ENGINE = MyISAM)
 drop table t1;
+create table t1 (a int unsigned not null auto_increment primary key)
+partition by key(a);
+alter table t1 rename t2, add c char(10), comment "no comment";
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `c` char(10) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='no comment' PARTITION BY KEY (a) 
+drop table t2;
 End of 5.1 tests
