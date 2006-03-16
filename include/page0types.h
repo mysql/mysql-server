@@ -54,19 +54,6 @@ page_zip_write(
 	__attribute__((nonnull));
 
 /**************************************************************************
-Clear a record on the uncompressed and compressed page, if possible. */
-
-void
-page_zip_clear_rec(
-/*===============*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	byte*		rec,	/* in: record to clear */
-	dict_index_t*	index,	/* in: index of rec */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	mtr_t*		mtr)	/* in: mini-transaction */
-	__attribute__((nonnull));
-
-/**************************************************************************
 Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page. */
 UNIV_INLINE
@@ -110,9 +97,11 @@ void
 page_zip_dir_delete(
 /*================*/
 	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	rec,	/* in: deleted record */
+	byte*		rec,	/* in: deleted record */
+	dict_index_t*	index,	/* in: index of rec */
+	const ulint*	offsets,/* in: rec_get_offsets(rec) */
 	const byte*	free)	/* in: previous start of the free list */
-	__attribute__((nonnull(1,2)));
+	__attribute__((nonnull(1,2,3,4)));
 
 /**************************************************************************
 Add a slot to the dense page directory. */
