@@ -132,8 +132,7 @@ row_upd_changes_field_size_or_external(
 	upd_t*		update);/* in: update vector */
 /***************************************************************
 Replaces the new column values stored in the update vector to the record
-given. No field size changes are allowed. This function is used only for
-a clustered index */
+given. No field size changes are allowed. */
 
 void
 row_upd_rec_in_place(

@@ -767,7 +767,8 @@ rec_set_field_extern_bits_new(
 /*==========================*/
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
+	ulint*		offsets,/* in/out: rec_get_offsets(rec, index),
+				or NULL */
 	const ulint*	ext,	/* in: array of field numbers */
 	ulint		n_ext)	/* in: number of elements in ext */
 {
@@ -833,7 +834,10 @@ rec_set_field_extern_bits_new(
 					/* set the extern bit */
 					len |= 0x40;
 					lens[1] = (byte) len;
-					rec_offs_set_nth_extern(offsets, i);
+					if (offsets) {
+						rec_offs_set_nth_extern(
+								offsets, i);
+					}
 				}
 				lens--;
 			} else {
@@ -855,13 +859,14 @@ rec_set_field_extern_bits(
 /*======================*/
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
+	ulint*		offsets,/* in/out: rec_get_offsets(rec, index),
+				or NULL */
 	const ulint*	vec,	/* in: array of field numbers */
 	ulint		n_fields)/* in: number of fields numbers */
 {
-	ut_ad(rec_offs_validate(rec, index, offsets));
+	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
 
-	if (rec_offs_comp(offsets)) {
+	if (dict_table_is_comp(index->table)) {
 		rec_set_field_extern_bits_new(rec, index, offsets,
 							vec, n_fields);
 	} else {
@@ -870,7 +875,9 @@ rec_set_field_extern_bits(
 
 		for (i = 0; i < n_fields; i++) {
 			rec_set_nth_field_extern_bit_old(rec, vec[i]);
-			rec_offs_set_nth_extern(offsets, vec[i]);
+			if (offsets) {
+				rec_offs_set_nth_extern(offsets, vec[i]);
+			}
 		}
 	}
 }
