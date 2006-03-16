@@ -465,4 +465,10 @@ select event_schema, event_name, definer, event_body from information_schema.eve
 event_schema	event_name	definer	event_body
 events_test	white_space	root@localhost	select 3
 drop event white_space;
+create event e1 on schedule every 1 year do set @a = 5;
+create table t1 (s1 int);
+create trigger t1_ai after insert on t1 for each row show create event e1;
+ERROR 0A000: Not allowed to return a result set from a trigger
+drop table t1;
+drop event e1;
 drop database events_test;
