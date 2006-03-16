@@ -427,6 +427,16 @@ drop event white_space;
 # END:  BUG #17453: Creating Event crash the server
 #
 
+#
+# Bug#17403 "Events: packets out of order with show create event"
+#
+create event e1 on schedule every 1 year do set @a = 5;
+create table t1 (s1 int);
+--error ER_SP_NO_RETSET
+create trigger t1_ai after insert on t1 for each row show create event e1;
+drop table t1;
+drop event e1;
+
 ##set global event_scheduler=1;
 ##select get_lock("test_lock3", 20);
 ##create event закачка on schedule every 10 hour do select get_lock("test_lock3", 20);

@@ -82,8 +82,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     ha_rows const maybe_deleted= table->file->records;
     /*
-      If all rows shall be deleted, we always log this statement-based
-      (see [binlog], below), so we set this flag and test it below.
+      If all rows shall be deleted, we (almost) always log this
+      statement-based (see [binlog], below), so we set this flag and
+      test it below.
     */
     ha_delete_all_rows= 1;
     if (!(error=table->file->delete_all_rows()))
@@ -330,12 +331,13 @@ cleanup:
         thd->clear_error();
 
       /*
-        [binlog]: If 'handler::delete_all_rows()' was called, we
-        replicate statement-based; otherwise, 'ha_delete_row()' was
-        used to delete specific rows which we might log row-based.
+        [binlog]: If 'handler::delete_all_rows()' was called and the
+        storage engine does not inject the rows itself, we replicate
+        statement-based; otherwise, 'ha_delete_row()' was used to
+        delete specific rows which we might log row-based.
       */
       THD::enum_binlog_query_type const
-	query_type(ha_delete_all_rows ?
+	query_type(ha_delete_all_rows && !table->file->is_injective() ?
 		   THD::STMT_QUERY_TYPE :
 		   THD::ROW_QUERY_TYPE);
       int log_result= thd->binlog_query(query_type,
