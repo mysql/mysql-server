@@ -3741,14 +3741,14 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
              ha_legacy_type(default_db_type)));
   if (is_create_table_ind)
   {
-    if (old_lex->name)
+    if (old_lex->like_name)
     {
       /*
         This code is executed when we do a CREATE TABLE t1 LIKE t2
-        old_lex->name contains the t2 and the table we are opening has 
+        old_lex->like_name contains the t2 and the table we are opening has 
         name t1.
       */
-      Table_ident *table_ident= (Table_ident *)old_lex->name;
+      Table_ident *table_ident= old_lex->like_name;
       char *src_db= table_ident->db.str ? table_ident->db.str : thd->db;
       char *src_table= table_ident->table.str;
       char buf[FN_REFLEN];
