@@ -604,6 +604,7 @@ page_mem_free(
 	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
 				6 bytes available, or NULL */
 	rec_t*		rec,	/* in: pointer to the (origin of) record */
+	dict_index_t*	index,	/* in: index of rec */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**************************************************************
 The index page creation function. */

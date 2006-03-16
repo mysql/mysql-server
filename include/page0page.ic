@@ -909,33 +909,29 @@ page_mem_free(
 	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
 				6 bytes available, or NULL */
 	rec_t*		rec,	/* in: pointer to the (origin of) record */
+	dict_index_t*	index,	/* in: index of rec */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
 	rec_t*		free;
 	ulint		garbage;
 
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	ut_ad(!rec_offs_comp(offsets) == !page_rec_is_comp(rec));
+	ut_ad(rec_offs_validate(rec, index, offsets));
 	free = page_header_get_ptr(page, PAGE_FREE);
 
 	page_rec_set_next(rec, free);
 	page_header_set_ptr(page, page_zip, PAGE_FREE, rec);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		ut_ad(rec_offs_comp(offsets));
-
-		/* The compression algorithm expects info_bits and n_owned
-		to be 0 for deleted records. */
-		rec[-REC_N_NEW_EXTRA_BYTES] = 0; /* info_bits and n_owned */
-
-		/* Update the dense page directory. */
-		page_zip_dir_delete(page_zip, rec, free);
-	}
-
 	garbage = page_header_get_field(page, PAGE_GARBAGE);
 
 	page_header_set_field(page, page_zip, PAGE_GARBAGE,
 				garbage + rec_offs_size(offsets));
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_dir_delete(page_zip, rec, index, offsets, free);
+	} else {
+		page_header_set_field(page, page_zip, PAGE_N_RECS,
+				(ulint)(page_get_n_recs(page) - 1));
+	}
 }
 
 #ifdef UNIV_MATERIALIZE

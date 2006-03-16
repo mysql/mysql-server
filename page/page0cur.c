@@ -1535,18 +1535,7 @@ page_cur_delete_rec(
 	page_dir_slot_set_n_owned(cur_dir_slot, page_zip, cur_n_owned - 1);
 
 	/* 6. Free the memory occupied by the record */
-	page_mem_free(page, page_zip, current_rec, offsets);
-	page_header_set_field(page, page_zip, PAGE_N_RECS,
-				(ulint)(page_get_n_recs(page) - 1));
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		/* Clear the data bytes of the deleted record in order
-		to improve the compression ratio of the page.  The fixed extra
-		bytes of the record, which will be omitted from the
-		stream compression algorithm, cannot be cleared, because
-		page_mem_alloc() needs them in order to determine the size
-		of the deleted record. */
-		page_zip_clear_rec(page_zip, rec, index, offsets, mtr);
-	}
+	page_mem_free(page, page_zip, current_rec, index, offsets);
 
 	/* 7. Now we have decremented the number of owned records of the slot.
 	If the number drops below PAGE_DIR_SLOT_MIN_N_OWNED, we balance the
