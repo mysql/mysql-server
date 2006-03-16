@@ -429,8 +429,8 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_RTREE_KEYS 1
 #define HAVE_ROW_BASED_REPLICATION 1
 
-/* #undef HAVE_OPENSSL */
-/* #undef HAVE_YASSL */
+#define HAVE_OPENSSL 1
+#define HAVE_YASSL 1
 
 /* Define charsets you want */
 /* #undef HAVE_CHARSET_armscii8 */
