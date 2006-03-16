@@ -7114,7 +7114,10 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   if (!cond)
     cond= new Item_cond_and(eq_list);
   else
+  {
+    DBUG_ASSERT(cond->type() == Item::COND_ITEM);
     ((Item_cond *) cond)->add_at_head(&eq_list);
+  }
 
   cond->quick_fix_field();
   cond->update_used_tables();
@@ -7199,6 +7202,11 @@ static COND* substitute_for_best_equal_field(COND *cond,
       while ((item_equal= it++))
       {
         cond= eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
+        // This occurs when eliminate_item_equal() founds that cond is
+        // always false and substitues it with Item_int 0.
+        // Due to this, value of item_equal will be 0, so just return it.
+        if (cond->type() != Item::COND_ITEM)
+          break;
       }
     }
   }
