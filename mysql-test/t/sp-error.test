@@ -1691,6 +1691,24 @@ drop function if exists bug16896;
 --error ER_SP_NO_AGGREGATE
 create aggregate function bug16896() returns int return 1;
 
+#
+# End of 5.0 tests
+#
+
+#
+# Bug#16164 "Easter egg": check that SHOW AUTHORS is disabled in
+# stored functions/triggers
+#
+--disable_warnings
+drop function if exists bug16164;
+--enable_warnings
+delimiter |;
+--error ER_SP_NO_RETSET
+create function bug16164() returns int
+begin
+  show authors;
+  return 42;
+end|
 
 #
 # BUG#NNNN: New bug synopsis
