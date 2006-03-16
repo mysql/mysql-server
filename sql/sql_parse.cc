@@ -3803,10 +3803,14 @@ end_with_restore_list:
         send_ok(thd, rows_affected);
 
       /* lex->unit.cleanup() is called outside, no need to call it here */
-    } while (0);  
-    lex->et->free_sphead_on_delete= true;
-    delete lex->et;
-    lex->et= 0;
+    } while (0);
+    if (!thd->spcont)
+    {
+      lex->et->free_sphead_on_delete= true;
+      lex->et->free_sp();
+      lex->et->deinit_mutexes();
+    }
+    
     break;
   }
   case SQLCOM_SHOW_CREATE_EVENT:
@@ -5845,7 +5849,9 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
           if (thd->lex->et)
           {
             thd->lex->et->free_sphead_on_delete= true;
-            delete thd->lex->et;
+            /* alloced on thd->mem_root so no real memory free but dtor call */
+            thd->lex->et->free_sp();
+            thd->lex->et->deinit_mutexes();
             thd->lex->et= NULL;
           }
 	}
@@ -5886,7 +5892,8 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       if (thd->lex->et)
       {
         thd->lex->et->free_sphead_on_delete= true;
-        delete thd->lex->et;
+        lex->et->free_sp();
+        lex->et->deinit_mutexes();
         thd->lex->et= NULL;
       }
     }
