@@ -246,7 +246,7 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		fprintf(stderr,
 	"Thread %lu spin wait rw-s-lock at %p cfile %s cline %lu rnds %lu\n",
-		(ulong) os_thread_pf(os_thread_get_curr_id()), lock,
+		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) lock,
 		lock->cfile_name, (ulong) lock->cline, (ulong) i);
 	}
 
@@ -277,7 +277,8 @@ lock_loop:
 			fprintf(stderr,
 		"Thread %lu OS wait rw-s-lock at %p cfile %s cline %lu\n",
 				os_thread_pf(os_thread_get_curr_id()),
-			lock, lock->cfile_name, (ulong) lock->cline);
+				(void*) lock, lock->cfile_name,
+				(ulong) lock->cline);
 		}
 
 		rw_s_system_call_count++;
@@ -495,8 +496,8 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		fprintf(stderr,
 	"Thread %lu spin wait rw-x-lock at %p cfile %s cline %lu rnds %lu\n",
-			os_thread_pf(os_thread_get_curr_id()), lock,
-		lock->cfile_name, (ulong) lock->cline, (ulong) i);
+			os_thread_pf(os_thread_get_curr_id()), (void*) lock,
+			lock->cfile_name, (ulong) lock->cline, (ulong) i);
 	}
 
 	rw_x_spin_wait_count++;
@@ -528,8 +529,8 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		fprintf(stderr,
 		"Thread %lu OS wait for rw-x-lock at %p cfile %s cline %lu\n",
-			os_thread_pf(os_thread_get_curr_id()), lock,
-		lock->cfile_name, (ulong) lock->cline);
+			os_thread_pf(os_thread_get_curr_id()), (void*) lock,
+			lock->cfile_name, (ulong) lock->cline);
 	}
 
 	rw_x_system_call_count++;
@@ -787,7 +788,7 @@ rw_lock_list_print_info(void)
 			|| (rw_lock_get_reader_count(lock) != 0)
 			|| (rw_lock_get_waiters(lock) != 0)) {
 
-			fprintf(stderr, "RW-LOCK: %p ", lock);
+			fprintf(stderr, "RW-LOCK: %p ", (void*) lock);
 
 			if (rw_lock_get_waiters(lock)) {
 				fputs(" Waiters for the lock exist\n", stderr);
@@ -823,7 +824,7 @@ rw_lock_print(
 	fprintf(stderr,
 		"-------------\n"
 		"RW-LATCH INFO\n"
-		"RW-LATCH: %p ", lock);
+		"RW-LATCH: %p ", (void*) lock);
 
 	if ((rw_lock_get_writer(lock) != RW_LOCK_NOT_LOCKED)
 		|| (rw_lock_get_reader_count(lock) != 0)

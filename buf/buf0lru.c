@@ -881,10 +881,10 @@ buf_LRU_block_remove_hashed_page(
 		if (buf_page_hash_get(block->space, block->offset)) {
 			fprintf(stderr,
 "InnoDB: From hash table we find block %p of %lu %lu which is not %p\n",
-		buf_page_hash_get(block->space, block->offset),
+		(void*) buf_page_hash_get(block->space, block->offset),
 		(ulong) buf_page_hash_get(block->space, block->offset)->space,
 		(ulong) buf_page_hash_get(block->space, block->offset)->offset,
-		block);
+		(void*) block);
 		}
 
 #ifdef UNIV_DEBUG

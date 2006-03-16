@@ -122,7 +122,7 @@ by one. */
 #ifdef __WIN__
 #define UNIV_INLINE	__inline
 #else
-#define UNIV_INLINE static inline
+#define UNIV_INLINE static __inline__
 #endif
 
 #else
