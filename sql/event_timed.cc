@@ -1228,12 +1228,12 @@ Event_timed::change_security_context(THD *thd, Security_context *s_ctx,
                              definer_host.str, dbname.str))
   {
     my_error(ER_NO_SUCH_USER, MYF(0), definer_user.str, definer_host.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   *backup= thd->security_ctx;
   thd->security_ctx= s_ctx;
 #endif
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -1368,7 +1368,8 @@ Event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   ret= 0;
 done:
   lex.et->free_sphead_on_delete= false;
-  delete lex.et;
+  lex.et->deinit_mutexes();
+
   lex_end(&lex);
   DBUG_PRINT("note", ("return old data on its place. set back NAMES"));
 
