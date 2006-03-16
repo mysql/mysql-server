@@ -2897,9 +2897,9 @@ mysql_execute_command(THD *thd)
     else
     {
       /* regular create */
-      if (lex->name)
+      if (lex->like_name)
         res= mysql_create_like_table(thd, create_table, &lex->create_info, 
-                                     (Table_ident *)lex->name); 
+                                     lex->like_name); 
       else
       {
         res= mysql_create_table(thd, create_table->db,
