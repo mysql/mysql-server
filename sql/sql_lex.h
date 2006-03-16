@@ -53,6 +53,11 @@ class Event_timed;
 /*
   When a command is added here, be sure it's also added in mysqld.cc
   in "struct show_var_st status_vars[]= {" ...
+
+  If the command returns a result set or is not allowed in stored
+  functions or triggers, please also make sure that
+  sp_get_flags_for_command (sp_head.cc) returns proper flags for the
+  added SQLCOM_.
 */
 
 enum enum_sql_command {
