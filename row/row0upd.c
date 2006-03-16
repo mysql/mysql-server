@@ -438,8 +438,7 @@ row_upd_changes_field_size_or_external(
 
 /***************************************************************
 Replaces the new column values stored in the update vector to the record
-given. No field size changes are allowed. This function is used only for
-a clustered index */
+given. No field size changes are allowed. */
 
 void
 row_upd_rec_in_place(
@@ -456,7 +455,6 @@ row_upd_rec_in_place(
 	ulint		n_fields;
 	ulint		i;
 
-	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	if (rec_offs_comp(offsets)) {
