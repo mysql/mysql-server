@@ -60,16 +60,11 @@ click the build solution menu option.
 
 Current issues
 --------------
-1.  Dependencies are not handled correctly with the current scripts.  What
-this means is that a new error file may not be generated when the errmsg.txt
-file changes.  In this case, simply force the GenError target to build.  This 
-should execute comp_err to generate the required files.
-
-2.  Not all configurations are currently available.  i.e.  Classic, Pro, Max.  
+1.  Not all configurations are currently available.  i.e.  Classic, Pro, Max.  
 Currently, only debug and release are available.  This will change in the near
 future.
 
-3.  The definitions set for features (partitioning, blackhole, etc) are not 
+2.  The definitions set for features (partitioning, blackhole, etc) are not 
 changed based on the options given with configure.  This will soon be fixed 
 as well.
 
