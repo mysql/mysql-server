@@ -41,8 +41,7 @@ end|
 delimiter ;|
 --sleep 1
 --echo "Now if everything is fine the event has compiled and is locked
---replace_column 1 # 6 #
-show processlist;
+select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock('test_bug16407');
 set global event_scheduler= 0;
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
@@ -59,7 +58,7 @@ create table events_smode_test(ev_name char(10), a date) engine=myisam;
 delimiter |;
 create event ee_16407_2 on schedule every 60 second do
 begin
-  select get_lock('ee_16407_2', 60);
+  select get_lock('ee_16407_2', 60) /*ee_16407_2*/;
   insert into events_test.events_smode_test values('ee_16407_2','1980-19-02');
 end|
 --error 1292
@@ -67,7 +66,7 @@ insert into events_smode_test values ('test','1980-19-02')|
 --echo "This is ok"
 create event ee_16407_3 on schedule every 60 second do
 begin
-  select get_lock('ee_16407_2', 60);
+  select get_lock('ee_16407_2', 60) /*ee_16407_3*/;
   insert into events_test.events_smode_test values ('ee_16407_3','1980-02-19');
   insert into events_test.events_smode_test values ('ee_16407_3','1980-02-29');
 end|
@@ -75,7 +74,7 @@ set sql_mode=""|
 --echo "This will insert rows but they will be truncated"
 create event ee_16407_4 on schedule every 60 second do
 begin
-  select get_lock('ee_16407_2', 60);
+  select get_lock('ee_16407_2', 60) /*ee_16407_4*/;
   insert into events_test.events_smode_test values ('ee_16407_4','10-11-1956');
 end|
 delimiter ;|
@@ -84,12 +83,10 @@ set sql_mode="ansi";
 select get_lock('ee_16407_2', 60);
 set global event_scheduler= 1;
 --sleep 1
---replace_column 1 # 6 #
-show processlist;
+select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock('ee_16407_2');
 --sleep 3
---replace_column 1 # 6 #
-show processlist;
+select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 set global event_scheduler= 0;
 select * from events_smode_test order by ev_name, a;
 --echo "OK, last check before we drop them"
@@ -107,12 +104,12 @@ create procedure ee_16407_5_pendant() begin insert into events_test.events_smode
 create procedure ee_16407_6_pendant() begin insert into events_test.events_smode_test values('ee_16407_6','2004-02-29'); end|
 create event ee_16407_5 on schedule every 60 second do
 begin
-  select get_lock('ee_16407_5', 60);
+  select get_lock('ee_16407_5', 60) /*ee_16407_5*/;
   call events_test.ee_16407_5_pendant();
 end|
 create event ee_16407_6 on schedule every 60 second do
 begin
-  select get_lock('ee_16407_5', 60);
+  select get_lock('ee_16407_5', 60) /*ee_16407_6*/;
   call events_test.ee_16407_6_pendant();
 end|
 delimiter ;|
@@ -120,12 +117,12 @@ set sql_mode='ansi';
 select get_lock('ee_16407_5', 60);
 set global event_scheduler= 1;
 --sleep 1
---replace_column 1 # 6 #
-show processlist;
+--echo "Should have 2 locked processes"
+select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock('ee_16407_5');
 --sleep 3
---replace_column 1 # 6 #
-show processlist;
+--echo "Should have 0 processes locked"
+select /*5*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select * from events_smode_test order by ev_name, a;
 --echo "And here we check one more time before we drop the events"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
