@@ -48,7 +48,7 @@ ADD_LIBRARY(mysqlclient ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                         ../mysys/thr_mutex.c ../mysys/typelib.c ../vio/vio.c ../vio/viosocket.c 
                         ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c)
 
-ADD_DEPENDENCIES(mysqlclient GenError)
+ADD_DEPENDENCIES(mysqlclient comp_err)
 ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)
 LINK_DIRECTORIES(${MYSQL_BINARY_DIR}/mysys ${MYSQL_BINARY_DIR}/zlib)
 TARGET_LINK_LIBRARIES(mysql mysqlclient mysys yassl zlib dbug yassl  taocrypt wsock32)
