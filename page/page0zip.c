@@ -675,6 +675,11 @@ page_zip_compress(
 				    ut_ad(!c_stream.avail_in);
 				    ut_ad(c_stream.next_in == src);
 
+				    ut_ad(slot < page_get_n_recs(
+						(page_t*) page)
+					|| !memcmp(src, zero,
+					DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN));
+
 				    memcpy(storage - (DATA_TRX_ID_LEN
 							+ DATA_ROLL_PTR_LEN)
 					* (rec_get_heap_no_new(rec) - 1),
@@ -2327,7 +2332,6 @@ page_zip_clear_rec(
 		/* Do not touch the extra bytes, because the
 		decompressor depends on them. */
 		memset(rec, 0, rec_offs_data_size(offsets));
-		/* TODO: maybe log the memset()s? */
 
 		if (UNIV_UNLIKELY(!page_zip_compress(page_zip,
 					ut_align_down(rec, UNIV_PAGE_SIZE),
