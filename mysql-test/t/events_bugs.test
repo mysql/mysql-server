@@ -22,6 +22,19 @@ DROP EVENT e_16;
 #
 
 #
+# Start - 16396: Events: Distant-future dates become past dates
+#
+--error 1504
+create event e_55 on schedule at 99990101000000 do drop table t;
+--error 1504
+create event e_55 on schedule every 10 hour starts 99990101000000 do drop table t;
+--error ER_EVENT_ENDS_BEFORE_STARTS
+create event e_55 on schedule every 10 minute ends 99990101000000 do drop table t;
+#
+# End  -  16396: Events: Distant-future dates become past dates
+#
+
+#
 # Start - 16407: Events: Changes in sql_mode won't be taken into account
 #
 set global event_scheduler=0;
