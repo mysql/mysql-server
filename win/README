@@ -1,0 +1,70 @@
+Windows building readme
+======================================
+
+----------------IMPORTANT----------------------------
+This readme outlines the instructions for building 
+MySQL for Windows staring from version 5.1.
+This readme does not apply to MySQL versions 5.0 
+or ealier.
+-----------------------------------------------------
+
+The Windows build system uses a tool named CMake to generate build files for
+a variety of project systems.  This tool is combined with a set of jscript
+files to enable building of MySQL for Windows directly out of a bk clone.
+The steps required are below.
+
+Step 1
+------
+Download and install CMake.  It can be downloaded from http://www.cmake.org. 
+Once it is installed, modify your path to make sure you can execute
+the cmake binary.
+
+Step 2
+------
+Download and install bison for Windows.  It can be downloaded from
+http://gnuwin32.sourceforge.net/packages/bison.htm.  Please download using
+the link named "Complete package, excluding sources".  This includes an
+installer that will install bison.  After the installer finishes, modify
+your path so that you can execute bison.
+
+Step 3
+------
+Clone your bk tree to any location you like.
+
+Step 4
+------
+From the root of your bk clone, execute the command:  win\configure <options>.  
+The options right now are WITH_INNODB and WITH_PARTITION.  So the command line
+would look like:
+
+win\configure WITH_INNODB WITH_PARTITION
+
+These are the only two flags supported right now.  Others will come later.
+
+Step 5
+------
+From the root of your bk clone, execute one of the batch files to generate the type
+of project files you desire.
+
+For Visual Studio 8, do win\build-vs8.
+For Visual Studio 7.1, do win\build-vs71.
+
+We will support building with nmake in the near future.
+
+Step 6
+------
+From the root of your bk clone, start your build.
+
+For Visual Studio, simply execute mysql.sln.  This will start the IDE and you can
+click the build solution menu option.
+
+Current issues
+--------------
+1.  Not all configurations are currently available.  i.e.  Classic, Pro, Max.  
+Currently, only debug and release are available.  This will change in the near
+future.
+
+2.  The definitions set for features (partitioning, blackhole, etc) are not 
+changed based on the options given with configure.  This will soon be fixed 
+as well.
+

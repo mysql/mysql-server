@@ -53,6 +53,11 @@ class Event_timed;
 /*
   When a command is added here, be sure it's also added in mysqld.cc
   in "struct show_var_st status_vars[]= {" ...
+
+  If the command returns a result set or is not allowed in stored
+  functions or triggers, please also make sure that
+  sp_get_flags_for_command (sp_head.cc) returns proper flags for the
+  added SQLCOM_.
 */
 
 enum enum_sql_command {
@@ -761,6 +766,7 @@ typedef struct st_lex
   const uchar *tok_start_prev, *tok_end_prev;
 
   char *length,*dec,*change,*name;
+  Table_ident *like_name;
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */

@@ -40,7 +40,6 @@
 #define EVENT_EXEC_NO_MORE      (1L << 0)
 #define EVENT_NOT_USED          (1L << 1)
 
-
 extern ulong opt_event_executor;
 
 enum enum_event_on_completion
@@ -122,6 +121,39 @@ public:
   bool free_sphead_on_delete;
   uint flags;//all kind of purposes
 
+  static void *operator new(size_t size)
+  {
+    void *p;
+    DBUG_ENTER("Event_timed::new(size)");
+    p= my_malloc(size, MYF(0));
+    DBUG_PRINT("info", ("alloc_ptr=0x%lx", p));
+    DBUG_RETURN(p);
+  }
+
+  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  { return (void*) alloc_root(mem_root, (uint) size); }
+
+  static void operator delete(void *ptr, size_t size)
+  {
+    DBUG_ENTER("Event_timed::delete(ptr,size)");
+    DBUG_PRINT("enter", ("free_ptr=0x%lx", ptr));
+    TRASH(ptr, size);
+    my_free((gptr) ptr, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+
+  static void operator delete(void *ptr, MEM_ROOT *mem_root)
+  {
+    /*
+      Don't free the memory it will be done by the mem_root but
+      we need to call the destructor because we free other resources
+      which are not allocated on the root but on the heap, or we
+      deinit mutexes.
+    */
+    DBUG_ASSERT(0);
+  }
+
+
   Event_timed():in_spawned_thread(0),locked_by_thread_id(0),
                 running(0), status_changed(false),
                 last_executed_changed(false), expression(0), created(0),
@@ -136,15 +168,21 @@ public:
   }
 
   ~Event_timed()
-  {
-    pthread_mutex_destroy(&this->LOCK_running);
-    if (free_sphead_on_delete)
-	    free_sp();
-  }
+  {    
+    deinit_mutexes();
 
+    if (free_sphead_on_delete)
+      free_sp();
+  }
 
   void
   init();
+  
+  void
+  deinit_mutexes()
+  {
+    pthread_mutex_destroy(&this->LOCK_running);
+  }
 
   int
   init_definer(THD *thd);
