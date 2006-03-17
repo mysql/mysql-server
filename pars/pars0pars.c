@@ -1085,6 +1085,8 @@ pars_set_dfield_type(
 	pars_res_word_t*	type,		/* in: pointer to a type
 						token */
 	ulint			len,		/* in: length, or 0 */
+	ibool			is_unsigned,	/* in: if TRUE, column is
+						UNSIGNED. */
 	ibool			is_not_null)	/* in: if TRUE, column is
 						NOT NULL. */
 {
@@ -1092,6 +1094,10 @@ pars_set_dfield_type(
 
 	if (is_not_null) {
 		flags |= DATA_NOT_NULL;
+	}
+
+	if (is_unsigned) {
+		flags |= DATA_UNSIGNED;
 	}
 
 	if (type == &pars_int_token) {
@@ -1158,7 +1164,7 @@ pars_variable_declaration(
 
 	node->param_type = PARS_NOT_PARAM;
 
-	pars_set_dfield_type(que_node_get_val(node), type, 0, FALSE);
+	pars_set_dfield_type(que_node_get_val(node), type, 0, FALSE, FALSE);
 
 	return(node);
 }
@@ -1529,6 +1535,8 @@ pars_column_def(
 	pars_res_word_t*	type,		/* in: data type */
 	sym_node_t*		len,		/* in: length of column, or
 						NULL */
+	void*			is_unsigned,	/* in: if not NULL, column
+						is of type UNSIGNED. */
 	void*			is_not_null)	/* in: if not NULL, column
 						is of type NOT NULL. */
 {
@@ -1541,7 +1549,7 @@ pars_column_def(
 	}
 
 	pars_set_dfield_type(que_node_get_val(sym_node), type, len2,
-		is_not_null != NULL);
+		is_unsigned != NULL, is_not_null != NULL);
 
 	return(sym_node);
 }
