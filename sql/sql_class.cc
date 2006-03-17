@@ -2602,7 +2602,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
       moving back and forth between using RBR for replication of
       system tables and not using it.
 
-      Make sure to change in check_table_current_stmt_binlog_row_based according
+      Make sure to change in check_table_binlog_row_based() according
       to how you treat this.
     */
   case THD::ROW_QUERY_TYPE:
