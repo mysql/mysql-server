@@ -6884,8 +6884,8 @@ ha_innobase::store_lock(
 
     		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT 
 		    && lock_type <= TL_WRITE)
-		    && (!thd->in_lock_tables
-			|| thd->lex->sql_command == SQLCOM_CALL)
+		    && !(thd->in_lock_tables
+                         && thd->lex->sql_command == SQLCOM_LOCK_TABLES)
 		    && !thd->tablespace_op
 		    && thd->lex->sql_command != SQLCOM_TRUNCATE
 		    && thd->lex->sql_command != SQLCOM_OPTIMIZE
