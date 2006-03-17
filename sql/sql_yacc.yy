@@ -1214,7 +1214,8 @@ create:
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= lex->thd->variables.table_type;
 	  lex->create_info.default_table_charset= NULL;
-	  lex->name=0;
+	  lex->name= 0;
+         lex->like_name= 0;
 	}
 	create2
 	  { Lex->current_select= &Lex->select_lex; }
@@ -1274,7 +1275,7 @@ create:
 
             lex->create_info.options= $3;
 
-            if (!(lex->et= new Event_timed())) // implicitly calls Event_timed::init()
+            if (!(lex->et= new(YYTHD->mem_root) Event_timed())) // implicitly calls Event_timed::init()
               YYABORT;
 
             /*
@@ -3272,13 +3273,13 @@ create2:
         | LIKE table_ident
           {
             LEX *lex=Lex;
-            if (!(lex->name= (char *)$2))
+            if (!(lex->like_name= $2))
               YYABORT;
           }
         | '(' LIKE table_ident ')'
           {
             LEX *lex=Lex;
-            if (!(lex->name= (char *)$3))
+            if (!(lex->like_name= $3))
               YYABORT;
           }
         ;
@@ -4712,8 +4713,8 @@ alter:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
+         lex->name= 0;
 	  lex->sql_command= SQLCOM_ALTER_TABLE;
-	  lex->name= 0;
 	  lex->duplicates= DUP_ERROR; 
 	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
 						 TL_OPTION_UPDATING))
@@ -4722,7 +4723,8 @@ alter:
 	  lex->key_list.empty();
 	  lex->col_list.empty();
           lex->select_lex.init_order();
-	  lex->select_lex.db=lex->name=0;
+	  lex->select_lex.db=lex->name= 0;
+         lex->like_name= 0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= (handlerton*) &default_hton;
 	  lex->create_info.default_table_charset= NULL;
@@ -4811,7 +4813,7 @@ alter:
             }
             lex->spname= 0;//defensive programming
 
-            if (!(et= new Event_timed()))// implicitly calls Event_timed::init()
+            if (!(et= new (YYTHD->mem_root) Event_timed()))// implicitly calls Event_timed::init()
               YYABORT;
             lex->et = et;
 
@@ -7715,7 +7717,7 @@ drop:
               YYABORT;
             }
 
-            if (!(lex->et= new Event_timed()))
+            if (!(lex->et= new (YYTHD->mem_root) Event_timed()))
               YYABORT;
 	  
             if (!lex->et_compile_phase)
@@ -8439,7 +8441,7 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
             Lex->spname= $3;
-            Lex->et= new Event_timed();
+            Lex->et= new (YYTHD->mem_root) Event_timed();
             if (!Lex->et)
               YYABORT;
             Lex->et->init_definer(YYTHD);

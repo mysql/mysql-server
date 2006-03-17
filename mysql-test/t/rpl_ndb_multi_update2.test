@@ -3,5 +3,10 @@
 # to reuse test code between engine runs                   #
 ############################################################
 -- source include/have_ndb.inc
+
+# Run this only for row based replication, as replication of
+# auto_increment values are not supported with NDB as storage engine
+-- source include/have_binlog_format_row.inc
+
 let $engine_type=NDB;
 --source extra/rpl_tests/rpl_multi_update2.test
