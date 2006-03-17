@@ -3144,8 +3144,8 @@ end_with_restore_list:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-        mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::STMT_QUERY_TYPE,
+                          thd->query, thd->query_length, 0, FALSE);
       }
     }
     select_lex->table_list.first= (byte*) first_table;
@@ -3178,8 +3178,8 @@ end_with_restore_list:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-        mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::STMT_QUERY_TYPE,
+                          thd->query, thd->query_length, 0, FALSE);
       }
     }
     select_lex->table_list.first= (byte*) first_table;
@@ -3203,8 +3203,8 @@ end_with_restore_list:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-        mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::STMT_QUERY_TYPE,
+                          thd->query, thd->query_length, 0, FALSE);
       }
     }
     select_lex->table_list.first= (byte*) first_table;
@@ -3861,10 +3861,8 @@ end_with_restore_list:
     if (!(res= mysql_create_user(thd, lex->users_list)))
     {
       if (mysql_bin_log.is_open())
-      {
         thd->binlog_query(THD::MYSQL_QUERY_TYPE,
                           thd->query, thd->query_length, FALSE, FALSE);
-      }
       send_ok(thd);
     }
     break;
@@ -4054,8 +4052,8 @@ end_with_restore_list:
       {
         if (mysql_bin_log.is_open())
         {
-          Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-          mysql_bin_log.write(&qinfo);
+          thd->binlog_query(THD::STMT_QUERY_TYPE,
+                            thd->query, thd->query_length, 0, FALSE);
         }
       }
       send_ok(thd);
