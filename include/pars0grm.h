@@ -114,7 +114,8 @@
      PARS_COMMIT_TOKEN = 340,
      PARS_ROLLBACK_TOKEN = 341,
      PARS_WORK_TOKEN = 342,
-     NEG = 343
+     PARS_UNSIGNED_TOKEN = 343,
+     NEG = 344
    };
 #endif
 #define PARS_INT_LIT 258
@@ -202,7 +203,8 @@
 #define PARS_COMMIT_TOKEN 340
 #define PARS_ROLLBACK_TOKEN 341
 #define PARS_WORK_TOKEN 342
-#define NEG 343
+#define PARS_UNSIGNED_TOKEN 343
+#define NEG 344
 
 
 

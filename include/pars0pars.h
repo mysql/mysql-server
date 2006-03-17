@@ -345,6 +345,8 @@ pars_column_def(
 	pars_res_word_t*	type,		/* in: data type */
 	sym_node_t*		len,		/* in: length of column, or
 						NULL */
+	void*			is_unsigned,	/* in: if not NULL, column
+						is of type UNSIGNED. */
 	void*			is_not_null);	/* in: if not NULL, column
 						is of type NOT NULL. */
 /*************************************************************************

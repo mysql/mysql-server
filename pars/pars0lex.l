@@ -96,7 +96,7 @@ string_append(
 }
 
 %}
-								
+
 DIGIT	[0-9]
 ID	[a-z_A-Z][a-z_A-Z0-9]*
 %x comment
@@ -460,6 +460,10 @@ In the state 'quoted', only two actions are possible (defined below). */
 
 "WORK"		{
 			return(PARS_WORK_TOKEN);
+}
+
+"UNSIGNED"	{
+			return(PARS_UNSIGNED_TOKEN);
 }
 
 {ID}		{
