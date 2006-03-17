@@ -1,6 +1,5 @@
 create database if not exists events_test;
 use events_test;
-
 set @a=3;
 CREATE PROCEDURE p_16 () CREATE EVENT e_16 ON SCHEDULE EVERY @a SECOND DO SET @a=5;
 call p_16();
@@ -15,7 +14,6 @@ CALL p_16();
 ERROR HY000: Event 'e_16' already exists
 DROP PROCEDURE p_16;
 DROP EVENT e_16;
-
 create event e_55 on schedule at 99990101000000 do drop table t;
 ERROR HY000: Incorrect AT value: '99990101000000'
 create event e_55 on schedule every 10 hour starts 99990101000000 do drop table t;
