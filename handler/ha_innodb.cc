@@ -539,11 +539,18 @@ convert_error_code_to_mysql(
 
 		return(HA_ERR_NO_SAVEPOINT);
 	} else if (error == (int) DB_LOCK_TABLE_FULL) {
+ 		/* Since we rolled back the whole transaction, we must
+ 		tell it also to MySQL so that MySQL knows to empty the
+ 		cached binlog for this transaction */
 
-		return(HA_ERR_LOCK_TABLE_FULL);
-	} else {
-		return(-1);			// Unknown error
-	}
+ 		if (thd) {
+ 			ha_rollback(thd);
+ 		}
+
+    		return(HA_ERR_LOCK_TABLE_FULL);
+    	} else {
+    		return(-1);			// Unknown error
+    	}
 }
 
 /*****************************************************************
