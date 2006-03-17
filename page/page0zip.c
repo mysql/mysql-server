@@ -44,6 +44,11 @@ static const byte supremum_extra_data[] = {
 	0x65, 0x6d, 0x75, 0x6d	/* "supremum" */
 };
 
+#ifdef UNIV_DEBUG
+/* Array of zeros, used for debug assertions */
+static const byte zero[BTR_EXTERN_FIELD_REF_SIZE] = { 0, };
+#endif
+
 /*****************************************************************
 Gets the size of the compressed page trailer (the dense page directory),
 including deleted records (the free list). */
@@ -1892,8 +1897,10 @@ page_zip_write_rec(
 
 	if (UNIV_UNLIKELY(heap_no - 1 >= 64)) {
 		*data++ = 0x80 | (heap_no - 1) >> 7;
+		ut_ad(!*data);
 	}
 	*data++ = (heap_no - 1) << 1;
+	ut_ad(!*data);
 
 	{
 		const byte*	start	= rec_get_start((rec_t*) rec, offsets);
@@ -1906,6 +1913,7 @@ page_zip_write_rec(
 
 		while (b != start) {
 			*data++ = *--b;
+			ut_ad(!*data);
 		}
 	}
 
@@ -1964,6 +1972,10 @@ page_zip_write_rec(
 
 			if (create) {
 				page_zip->n_blobs += n_ext;
+				ut_ad(!memcmp(ext_end - n_ext
+						* BTR_EXTERN_FIELD_REF_SIZE,
+						zero,
+						BTR_EXTERN_FIELD_REF_SIZE));
 				memmove(ext_end - n_ext
 						* BTR_EXTERN_FIELD_REF_SIZE,
 						ext_end,
@@ -1992,12 +2004,18 @@ page_zip_write_rec(
 				ut_ad(len == DATA_ROLL_PTR_LEN);
 
 				/* Log the preceding fields. */
+				ut_ad(!memcmp(data, zero,
+					ut_min(src - start, sizeof zero)));
 				memcpy(data, start, src - start);
 				data += src - start;
 				start = src + (DATA_TRX_ID_LEN
 						+ DATA_ROLL_PTR_LEN);
 
 				/* Store trx_id and roll_ptr separately. */
+				ut_ad(!memcmp(storage
+					- (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
+					* (heap_no - 1), zero,
+					DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN));
 				memcpy(storage
 					- (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
 					* (heap_no - 1),
@@ -2011,6 +2029,8 @@ page_zip_write_rec(
 				ut_ad(len > BTR_EXTERN_FIELD_REF_SIZE);
 				src += len - BTR_EXTERN_FIELD_REF_SIZE;
 
+				ut_ad(!memcmp(data, zero,
+					ut_min(src - start, sizeof zero)));
 				memcpy(data, start, src - start);
 				data += src - start;
 				start = src + BTR_EXTERN_FIELD_REF_SIZE;
@@ -2018,6 +2038,8 @@ page_zip_write_rec(
 				/* Store the BLOB pointer separately. */
 				externs -= BTR_EXTERN_FIELD_REF_SIZE;
 				ut_ad(data < externs);
+				ut_ad(!memcmp(externs, zero,
+						BTR_EXTERN_FIELD_REF_SIZE));
 				memcpy(externs, src,
 						BTR_EXTERN_FIELD_REF_SIZE);
 			}
@@ -2026,6 +2048,7 @@ page_zip_write_rec(
 		/* Log the last bytes of the record. */
 		len = rec_get_end((rec_t*) rec, offsets) - start;
 
+		ut_ad(!memcmp(data, zero, ut_min(len, sizeof zero)));
 		memcpy(data, start, len);
 		data += len;
 	} else {
@@ -2040,10 +2063,15 @@ page_zip_write_rec(
 		len = rec_offs_data_size(offsets) - REC_NODE_PTR_SIZE;
 		ut_ad(data + len < storage - REC_NODE_PTR_SIZE
 				* (page_dir_get_n_heap(page) - 2));
+		ut_ad(!memcmp(data, zero, ut_min(len, sizeof zero)));
 		memcpy(data, rec, len);
 		data += len;
 
 		/* Copy the node pointer to the uncompressed area. */
+		ut_ad(!memcmp(storage - REC_NODE_PTR_SIZE
+				* (heap_no - 1),
+				zero,
+				REC_NODE_PTR_SIZE));
 		memcpy(storage - REC_NODE_PTR_SIZE
 				* (heap_no - 1),
 				rec + len,
@@ -2235,7 +2263,7 @@ page_zip_write_trx_id_and_roll_ptr(
 
 /**************************************************************************
 Clear an area on the uncompressed and compressed page, if possible. */
-static
+
 void
 page_zip_clear_rec(
 /*===============*/
@@ -2283,6 +2311,7 @@ page_zip_clear_rec(
 		ut_ad(!*data);
 		if (UNIV_UNLIKELY(heap_no - 1 >= 64)) {
 			*data++ = 0x80 | (heap_no - 1) >> 7;
+			ut_ad(!*data);
 		}
 		*data++ = (heap_no - 1) << 1 | 1;
 		ut_ad(!*data);
@@ -2497,12 +2526,18 @@ page_zip_dir_add_slot(
 			* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 		externs = stored
 			- page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
+		ut_ad(!memcmp(zero, externs - (PAGE_ZIP_DIR_SLOT_SIZE
+				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
+				PAGE_ZIP_DIR_SLOT_SIZE
+				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN));
 		memmove(externs - (PAGE_ZIP_DIR_SLOT_SIZE
 				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
 			externs, stored - externs);
 	} else {
 		stored = dir
 			- page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
+		ut_ad(!memcmp(zero, stored - PAGE_ZIP_DIR_SLOT_SIZE,
+				PAGE_ZIP_DIR_SLOT_SIZE));
 	}
 
 	/* Move the uncompressed area backwards to make space

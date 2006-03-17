@@ -162,6 +162,18 @@ page_zip_write_trx_id_and_roll_ptr(
 	__attribute__((nonnull));
 
 /**************************************************************************
+Clear an area on the uncompressed and compressed page, if possible. */
+
+void
+page_zip_clear_rec(
+/*===============*/
+	page_zip_des_t*	page_zip,/* in/out: compressed page */
+	byte*		rec,	/* in: record to clear */
+	dict_index_t*	index,	/* in: index of rec */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
+	mtr_t*		mtr)	/* in: mini-transaction */
+	__attribute__((nonnull(1,2,3,4)));
+/**************************************************************************
 Populate the dense page directory on the compressed page
 from the sparse directory on the uncompressed row_format=compact page. */
 void
