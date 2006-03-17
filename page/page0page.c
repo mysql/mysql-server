@@ -855,15 +855,8 @@ page_delete_rec_list_end(
 						ULINT_UNDEFINED, &heap);
 
 			if (UNIV_LIKELY_NULL(page_zip)) {
-				/* Clear the data bytes of the deleted
-				record in order to improve the
-				compression ratio of the page.  The
-				extra bytes of the record cannot be
-				cleared, because page_mem_alloc()
-				needs them in order to determine the
-				size of the deleted record. */
-
-				memset(rec2, 0, rec_offs_data_size(offsets));
+				page_zip_clear_rec(page_zip,
+						rec2, index, offsets, NULL);
 			}
 
 			s = rec_offs_size(offsets);
