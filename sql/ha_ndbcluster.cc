@@ -960,12 +960,8 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
 int ha_ndbcluster::get_ndb_partition_id(NdbOperation *ndb_op)
 {
   DBUG_ENTER("get_ndb_partition_id");
-  uint partition_id_fieldnr= table_share->fields + 1;
-
-  m_value[partition_id_fieldnr].rec= 
-    ndb_op->getValue(NdbDictionary::Column::FRAGMENT, 
-                     (char *)&m_part_id);
-  DBUG_RETURN(m_value[partition_id_fieldnr].rec == NULL);
+  DBUG_RETURN(ndb_op->getValue(NdbDictionary::Column::FRAGMENT, 
+                               (char *)&m_part_id) == NULL);
 }
 
 /*
@@ -3271,7 +3267,7 @@ int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
       else
       {
         key_range key_spec;
-        KEY *key_info= table->key_info + active_index;
+        KEY *key_info= table->key_info + table_share->primary_key;
         key_spec.key= pos;
         key_spec.length= key_length;
         key_spec.flag= HA_READ_KEY_EXACT;
@@ -3298,11 +3294,13 @@ void ha_ndbcluster::position(const byte *record)
   KEY_PART_INFO *key_part;
   KEY_PART_INFO *end;
   byte *buff;
-  uint key_length= ref_length;
+  uint key_length;
+
   DBUG_ENTER("position");
 
   if (table_share->primary_key != MAX_KEY) 
   {
+    key_length= ref_length;
     key_info= table->key_info + table_share->primary_key;
     key_part= key_info->key_part;
     end= key_part + key_info->key_parts;
@@ -3352,6 +3350,8 @@ void ha_ndbcluster::position(const byte *record)
       key_length= ref_length - sizeof(m_part_id);
       memcpy(ref+key_length, (void *)&m_part_id, sizeof(m_part_id));
     }
+    else
+      key_length= ref_length;
 #ifndef DBUG_OFF
     int hidden_no= table->s->fields;
     const NDBTAB *tab= (const NDBTAB *) m_table;  
