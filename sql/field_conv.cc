@@ -593,7 +593,7 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
                 do_cut_string : do_cut_string_complex);
       else if (to_length > from_length)
       {
-        if ((to->flags & BINARY_FLAG) != 0)
+        if (to->charset() == &my_charset_bin)
           return do_expand_binary;
         else
           return do_expand_string;

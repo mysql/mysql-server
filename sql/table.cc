@@ -146,6 +146,8 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
       under the protection of the LOCK_open mutex.
     */
     share->table_map_id= ~0UL;
+    share->cached_row_logging_check= -1;
+
 #endif
 
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
@@ -205,6 +207,7 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
    */
   share->table_map_version= ~(ulonglong)0;
   share->table_map_id= ~0UL;
+  share->cached_row_logging_check= -1;
 #endif
 
   DBUG_VOID_RETURN;

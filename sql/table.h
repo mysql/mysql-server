@@ -191,6 +191,15 @@ typedef struct st_table_share
   bool waiting_on_cond;                 /* Protection against free */
   ulong table_map_id;                   /* for row-based replication */
   ulonglong table_map_version;
+
+  /*
+    Cache for row-based replication table share checks that does not
+    need to be repeated. Possible values are: -1 when cache value is
+    not calculated yet, 0 when table *shall not* be replicated, 1 when
+    table *may* be replicated.
+  */
+  int cached_row_logging_check;
+
   /*
     TRUE if this is a system table like 'mysql.proc', which we want to be
     able to open and lock even when we already have some tables open and
