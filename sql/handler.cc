@@ -3150,16 +3150,47 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
    declared static, but it works by putting it into an anonymous
    namespace. */
 namespace {
+  struct st_table_data {
+    char const *db;
+    char const *name;
+  };
+
+  int table_name_compare(void const *a, void const *b)
+  {
+    st_table_data const *x = (st_table_data const*) a;
+    st_table_data const *y = (st_table_data const*) b;
+
+    /* Doing lexical compare in order (db,name) */
+    int const res= strcmp(x->db, y->db);
+    return res != 0 ? res : strcmp(x->name, y->name);
+  }
+
   bool check_table_binlog_row_based(THD *thd, TABLE *table)
   {
+    static st_table_data const ignore[] = {
+      { "mysql", "event" },
+      { "mysql", "general_log" },
+      { "mysql", "slow_log" }
+    };
+
+    my_size_t const ignore_size = sizeof(ignore)/sizeof(*ignore);
+    st_table_data const item = { table->s->db.str, table->s->table_name.str };
+
+    if (table->s->cached_row_logging_check == -1)
+      table->s->cached_row_logging_check=
+        (table->s->tmp_table == NO_TMP_TABLE) &&
+        binlog_filter->db_ok(table->s->db.str) &&
+        bsearch(&item, ignore, ignore_size,
+                sizeof(st_table_data), table_name_compare) == NULL;
+
+    DBUG_ASSERT(table->s->cached_row_logging_check == 0 ||
+                table->s->cached_row_logging_check == 1);
+
     return
       thd->current_stmt_binlog_row_based &&
       thd && (thd->options & OPTION_BIN_LOG) &&
-      (table->s->tmp_table == NO_TMP_TABLE) &&
       mysql_bin_log.is_open() &&
-      binlog_filter->db_ok(table->s->db.str) &&
-      (strcmp(table->s->db.str, "mysql") ||
-       strcmp(table->s->table_name.str, "event"));
+      table->s->cached_row_logging_check;
   }
 }
 

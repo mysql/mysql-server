@@ -14,7 +14,5 @@ get_lock("a",10)
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	#	Table_map	1	#	table_id: # (mysql.proc)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	create database `drop-temp+table-test`
 drop database `drop-temp+table-test`;
