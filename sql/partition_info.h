@@ -229,6 +229,7 @@ public:
   }
   ~partition_info() {}
 
+  partition_info *get_clone();
   /* Answers the question if subpartitioning is used for a certain table */
   bool is_sub_partitioned()
   {
