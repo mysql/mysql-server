@@ -25,6 +25,48 @@
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 
+partition_info *partition_info::get_clone()
+{
+  if (!this)
+    return 0;
+  List_iterator<partition_element> part_it(partitions);
+  partition_element *part;
+  partition_info *clone= new partition_info();
+  if (!clone)
+  {
+    mem_alloc_error(sizeof(partition_info));
+    return NULL;
+  }
+  memcpy(clone, this, sizeof(partition_info));
+  clone->partitions.empty();
+
+  while ((part= (part_it++)))
+  {
+    List_iterator<partition_element> subpart_it(part->subpartitions);
+    partition_element *subpart;
+    partition_element *part_clone= new partition_element();
+    if (!part_clone)
+    {
+      mem_alloc_error(sizeof(partition_element));
+      return NULL;
+    }
+    memcpy(part_clone, part, sizeof(partition_element));
+    part_clone->subpartitions.empty();
+    while ((subpart= (subpart_it++)))
+    {
+      partition_element *subpart_clone= new partition_element();
+      if (!subpart_clone)
+      {
+        mem_alloc_error(sizeof(partition_element));
+        return NULL;
+      }
+      memcpy(subpart_clone, subpart, sizeof(partition_element));
+      part_clone->subpartitions.push_back(subpart_clone);
+    }
+    clone->partitions.push_back(part_clone);
+  }
+  return clone;
+}
 
 /*
   Create a memory area where default partition names are stored and fill it

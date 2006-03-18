@@ -4077,6 +4077,9 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
   if (table->part_info)
     table->s->version= 0L;
 
+  if (!(thd->work_part_info= thd->lex->part_info->get_clone()))
+    DBUG_RETURN(TRUE);
+
   if (alter_info->flags &
       (ALTER_ADD_PARTITION | ALTER_DROP_PARTITION |
        ALTER_COALESCE_PARTITION | ALTER_REORGANIZE_PARTITION |
@@ -4085,7 +4088,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
        ALTER_REPAIR_PARTITION | ALTER_REBUILD_PARTITION))
   {
     partition_info *tab_part_info= table->part_info;
-    partition_info *alt_part_info= thd->lex->part_info;
+    partition_info *alt_part_info= thd->work_part_info;
     uint flags= 0;
     if (!tab_part_info)
     {
@@ -4121,7 +4124,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
           setting the flag for no default number of partitions
         */
         alter_info->flags|= ALTER_ADD_PARTITION;
-        thd->lex->part_info->no_parts= new_part_no - curr_part_no;
+        thd->work_part_info->no_parts= new_part_no - curr_part_no;
       }
       else
       {
@@ -4145,17 +4148,17 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
                         *fast_alter_partition, flags));
     if (((alter_info->flags & ALTER_ADD_PARTITION) ||
          (alter_info->flags & ALTER_REORGANIZE_PARTITION)) &&
-         (thd->lex->part_info->part_type != tab_part_info->part_type) &&
-         (thd->lex->part_info->part_type != NOT_A_PARTITION))
+         (thd->work_part_info->part_type != tab_part_info->part_type) &&
+         (thd->work_part_info->part_type != NOT_A_PARTITION))
     {
-      if (thd->lex->part_info->part_type == RANGE_PARTITION)
+      if (thd->work_part_info->part_type == RANGE_PARTITION)
       {
         my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
                  "RANGE", "LESS THAN");
       }
-      else if (thd->lex->part_info->part_type == LIST_PARTITION)
+      else if (thd->work_part_info->part_type == LIST_PARTITION)
       {
-        DBUG_ASSERT(thd->lex->part_info->part_type == LIST_PARTITION);
+        DBUG_ASSERT(thd->work_part_info->part_type == LIST_PARTITION);
         my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
                  "LIST", "IN");
       }
@@ -4623,8 +4626,8 @@ state of p1.
         This command can be used on RANGE and LIST partitions.
       */
       uint no_parts_reorged= alter_info->partition_names.elements;
-      uint no_parts_new= thd->lex->part_info->partitions.elements;
-      partition_info *alt_part_info= thd->lex->part_info;
+      uint no_parts_new= thd->work_part_info->partitions.elements;
+      partition_info *alt_part_info= thd->work_part_info;
       uint check_total_partitions;
       if (no_parts_reorged > tab_part_info->no_parts)
       {
@@ -4770,7 +4773,7 @@ the generated partition syntax in a correct manner.
       DBUG_ASSERT(FALSE);
     }
     *partition_changed= TRUE;
-    thd->lex->part_info= tab_part_info;
+    thd->work_part_info= tab_part_info;
     if (alter_info->flags == ALTER_ADD_PARTITION ||
         alter_info->flags == ALTER_REORGANIZE_PARTITION)
     {
@@ -4840,35 +4843,35 @@ the generated partition syntax in a correct manner.
     */
     if (table->part_info)
     {
-      if (!thd->lex->part_info &&
+      if (!thd->work_part_info &&
           create_info->db_type == old_db_type)
-        thd->lex->part_info= table->part_info;
+        thd->work_part_info= table->part_info;
     }
-    if (thd->lex->part_info)
+    if (thd->work_part_info)
     {
       /*
         Need to cater for engine types that can handle partition without
         using the partition handler.
       */
-      if (thd->lex->part_info != table->part_info)
+      if (thd->work_part_info != table->part_info)
         *partition_changed= TRUE;
       if (create_info->db_type == &partition_hton)
       {
         if (table->part_info)
         {
-          thd->lex->part_info->default_engine_type=
+          thd->work_part_info->default_engine_type=
                                table->part_info->default_engine_type;
         }
         else
         {
-          thd->lex->part_info->default_engine_type= 
+          thd->work_part_info->default_engine_type= 
                            ha_checktype(thd, DB_TYPE_DEFAULT, FALSE, FALSE);
         }
       }
       else
       {
         bool is_native_partitioned= FALSE;
-        partition_info *part_info= thd->lex->part_info;
+        partition_info *part_info= thd->work_part_info;
         part_info->default_engine_type= create_info->db_type;
         if (check_native_partitioned(create_info, &is_native_partitioned,
                                      part_info, thd))
@@ -4882,7 +4885,7 @@ the generated partition syntax in a correct manner.
         }
       }
       DBUG_PRINT("info", ("default_db_type = %s",
-                 thd->lex->part_info->default_engine_type->name));
+                 thd->work_part_info->default_engine_type->name));
     }
   }
   DBUG_RETURN(FALSE);
@@ -5065,7 +5068,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   lpt->deleted= 0;
   lpt->pack_frm_data= NULL;
   lpt->pack_frm_len= 0;
-  thd->lex->part_info= part_info;
+  thd->work_part_info= part_info;
 
   if (alter_info->flags & ALTER_OPTIMIZE_PARTITION ||
       alter_info->flags & ALTER_ANALYZE_PARTITION ||
