@@ -55,7 +55,7 @@ INSERT INTO t1 SET f_int1 = -1, f_int2 = 20, f_char1 = '20', f_char2 = '20', f_c
 INSERT INTO t1 SET f_int1 = 0, f_int2 = 20, f_char1 = '20', f_char2 = '20', f_charbig = '===20===';
 INSERT INTO t1 SET f_int1 = 1, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
 INSERT INTO t1 SET f_int1 = 2, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
---error 1505
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
 INSERT INTO t1 SET f_int1 = 20, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
 
 SELECT * FROM t1 ORDER BY f_int1;
