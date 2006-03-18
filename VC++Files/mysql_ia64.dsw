@@ -436,6 +436,24 @@ Package=<4>
 
 ###############################################################################
 
+Project: "mysql_upgrade"=".\client\mysql_upgrade_ia64.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysqlclient
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name zlib
+    End Project Dependency
+}}}
+
+###############################################################################
+
 Project: "mysqlbinlog"=".\mysqlbinlog\mysqlbinlog_ia64.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -500,6 +518,8 @@ Package=<4>
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name mysqladmin_ia64
+    Begin Project Dependency
+    Project_Dep_Name mysql_upgrade_ia64
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name mysqldump
