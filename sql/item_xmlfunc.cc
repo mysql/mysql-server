@@ -1561,10 +1561,13 @@ static int my_xpath_parse_AbsoluteLocationPath(MY_XPATH *xpath)
     return my_xpath_parse_RelativeLocationPath(xpath);
   }
 
+  if (my_xpath_parse_term(xpath, MY_XPATH_LEX_EOF))
+    return 1;
+
   if (my_xpath_parse_RelativeLocationPath(xpath))
     return 1;
 
-  return 1;
+  return 0;
 }
 
 
