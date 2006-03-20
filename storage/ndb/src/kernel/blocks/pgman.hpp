@@ -494,6 +494,9 @@ private:
   friend class NdbOut& operator<<(NdbOut&, Ptr<Page_entry>);
 };
 
+class NdbOut& operator<<(NdbOut&, Ptr<Pgman::Page_request>);
+class NdbOut& operator<<(NdbOut&, Ptr<Pgman::Page_entry>);
+
 class Page_cache_client
 {
   Uint32 m_block;
