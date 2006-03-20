@@ -1206,7 +1206,9 @@ public:
     */
     query_id_t first_query_id;
   } binlog_evt_union;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
+#endif
   
   THD();
   ~THD();
