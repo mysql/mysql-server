@@ -2357,7 +2357,9 @@ mysql_execute_command(THD *thd)
   /* Saved variable value */
   DBUG_ENTER("mysql_execute_command");
   thd->net.no_send_error= 0;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
+#endif
 
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
