@@ -675,6 +675,34 @@ page_zip_compress(
 				    ut_ad(!c_stream.avail_in);
 				    ut_ad(c_stream.next_in == src);
 
+#ifdef UNIV_DEBUG
+				    if (memcmp(src, zero,
+						DATA_TRX_ID_LEN
+						+ DATA_ROLL_PTR_LEN)) {
+					/* Ensure that this is an
+					allocated user record. */
+					ulint	offs	= ut_align_offset(
+							rec, UNIV_PAGE_SIZE);
+					byte*	slot	= buf_end
+						- PAGE_ZIP_DIR_SLOT_SIZE
+						* page_get_n_recs((page_t*)
+								page);
+
+					for (; slot < buf_end; slot
+						+= PAGE_ZIP_DIR_SLOT_SIZE) {
+					    if (offs == (mach_read_from_2(slot)
+						& PAGE_ZIP_DIR_SLOT_MASK)) {
+
+						goto found_record;
+					    }
+					}
+
+					/* All deleted records should be
+					zero-filled. */
+					ut_error;
+				    }
+found_record:
+#endif
 				    memcpy(storage - (DATA_TRX_ID_LEN
 							+ DATA_ROLL_PTR_LEN)
 					* (rec_get_heap_no_new(rec) - 1),
@@ -1518,7 +1546,7 @@ page_zip_decompress(
 
 			/* Check if there are any externally stored columns.
 			For each externally stored column, restore the
-			BTR_EXTERN_FIELD_REF separately._*/
+			BTR_EXTERN_FIELD_REF separately. */
 
 			for (i = 0; i < rec_offs_n_fields(offsets); i++) {
 				ulint	len;
@@ -1733,7 +1761,7 @@ err_exit:
 
 			/* Check if there are any externally stored columns.
 			For each externally stored column, restore the
-			BTR_EXTERN_FIELD_REF separately._*/
+			BTR_EXTERN_FIELD_REF separately. */
 
 			if (slot < page_get_n_recs(page)) {
 				for (i = 0; i < rec_offs_n_fields(offsets);
