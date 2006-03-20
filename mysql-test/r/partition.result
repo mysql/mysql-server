@@ -563,6 +563,7 @@ partition by list (case when s1 > 'cz' then 1 else 2 end)
 partition p2 values in (2));
 drop table t1;
 create table t1 (f1 int) partition by hash (f1) as select 1;
+drop table t1;
 prepare stmt1 from 'create table t1 (s1 int) partition by hash (s1)';
 execute stmt1;
 execute stmt1;
