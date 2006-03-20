@@ -5212,6 +5212,7 @@ void Dbdih::removeNodeFromTable(Signal* signal,
 
   //const Uint32 lcpId = SYSFILE->latestLCP_ID;
   const bool lcpOngoingFlag = (tabPtr.p->tabLcpStatus== TabRecord::TLS_ACTIVE);
+  const bool temporary = !tabPtr.p->storedTable;
   
   FragmentstorePtr fragPtr;
   for(Uint32 fragNo = 0; fragNo < tabPtr.p->totalfragments; fragNo++){
@@ -5232,7 +5233,7 @@ void Dbdih::removeNodeFromTable(Signal* signal,
         jam();
 	found = true;
 	noOfRemovedReplicas++;
-	removeNodeFromStored(nodeId, fragPtr, replicaPtr);
+	removeNodeFromStored(nodeId, fragPtr, replicaPtr, temporary);
 	if(replicaPtr.p->lcpOngoingFlag){
 	  jam();
 	  /**
@@ -12051,9 +12052,18 @@ void Dbdih::removeDeadNode(NodeRecordPtr removeNodePtr)
 /*---------------------------------------------------------------*/
 void Dbdih::removeNodeFromStored(Uint32 nodeId,
                                  FragmentstorePtr fragPtr,
-                                 ReplicaRecordPtr replicatePtr)
+                                 ReplicaRecordPtr replicatePtr,
+				 bool temporary)
 {
-  newCrashedReplica(nodeId, replicatePtr);
+  if (!temporary)
+  {
+    jam();
+    newCrashedReplica(nodeId, replicatePtr);
+  }
+  else
+  {
+    jam();
+  }
   removeStoredReplica(fragPtr, replicatePtr);
   linkOldStoredReplica(fragPtr, replicatePtr);
   ndbrequire(fragPtr.p->storedReplicas != RNIL);

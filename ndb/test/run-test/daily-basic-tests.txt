@@ -236,6 +236,10 @@ max-time: 500
 cmd: testTimeout
 args: -n TimeoutRandTransaction T1
 
+max-time: 600
+cmd: testTimeout
+args: -n Error4012 T1
+
 # SCAN TESTS
 #
 max-time: 500
@@ -445,6 +449,10 @@ args: -n Bug15632 T1
 max-time: 500
 cmd: testNodeRestart
 args: -n Bug15685 T1
+
+max-time: 500
+cmd: testNodeRestart
+args: -n Bug16772 T1
 
 # OLD FLEX
 max-time: 500

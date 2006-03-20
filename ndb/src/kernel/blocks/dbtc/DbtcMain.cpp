@@ -262,6 +262,10 @@ void Dbtc::execCONTINUEB(Signal* signal)
     jam();
     checkScanActiveInFailedLqh(signal, Tdata0, Tdata1);
     return;
+  case TcContinueB::ZNF_CHECK_TRANSACTIONS:
+    jam();
+    nodeFailCheckTransactions(signal, Tdata0, Tdata1);
+    return;
   case TcContinueB::CHECK_WAIT_DROP_TAB_FAILED_LQH:
     jam();
     checkWaitDropTabFailedLqh(signal, Tdata0, Tdata1);
@@ -299,8 +303,8 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
   hostptr.i = signal->theData[1];
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
   hostptr.p->hostStatus = HS_ALIVE;
-  hostptr.p->takeOverStatus = TOS_IDLE;
   signal->theData[0] = cownref;
+  c_alive_nodes.set(hostptr.i);
   sendSignal(tblockref, GSN_INCL_NODECONF, signal, 1, JBB);
 }
 
@@ -487,6 +491,7 @@ Dbtc::checkWaitDropTabFailedLqh(Signal* signal, Uint32 nodeId, Uint32 tableId)
      * Finished
      */
     jam();
+    checkNodeFailComplete(signal, nodeId, HostRecord::NF_CHECK_DROP_TAB);
     return;
   }
   
@@ -850,8 +855,6 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
       hostptr.i = i;
       ptrCheckGuard(hostptr, chostFilesize, hostRecord);
 
-      hostptr.p->takeOverStatus = TOS_IDLE;
-      
       if (NodeBitmask::get(readNodes->inactiveNodes, i)) {
         jam();
         hostptr.p->hostStatus = HS_DEAD;
@@ -859,6 +862,7 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
         jam();
         con_lineNodes++;
         hostptr.p->hostStatus = HS_ALIVE;
+	c_alive_nodes.set(i);
       }//if
     }//if
   }//for
@@ -2314,6 +2318,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->commitAckMarker = RNIL;
   regApiPtr->buddyPtr = RNIL;
   regApiPtr->currSavePointId = 0;
+  regApiPtr->m_transaction_nodes.clear();
   // Trigger data
   releaseFiredTriggerData(&regApiPtr->theFiredTriggers),
   // Index data
@@ -2921,6 +2926,10 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   signal->theData[0] = TdihConnectptr;
   signal->theData[1] = Ttableref;
   signal->theData[2] = TdistrHashValue;
+  signal->theData[3] = 0;
+  signal->theData[4] = 0;
+  signal->theData[5] = 0;
+  signal->theData[6] = 0;
 
   /*-------------------------------------------------------------*/
   /* FOR EFFICIENCY REASONS WE AVOID THE SIGNAL SENDING HERE AND */
@@ -3098,6 +3107,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   CacheRecord * const regCachePtr = cachePtr.p;
+  UintR sig0, sig1, sig2, sig3, sig4, sig5, sig6;
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(8002)) {
     systemErrorLab(signal);
@@ -3135,6 +3145,9 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   LqhKeyReq::setScanTakeOverFlag(tslrAttrLen, regCachePtr->scanTakeOverInd);
 
   Tdata10 = 0;
+  sig0 = regCachePtr->opSimple;
+  sig1 = regTcPtr->operation;
+  bool simpleRead = (sig1 == ZREAD && sig0 == ZTRUE);
   LqhKeyReq::setKeyLen(Tdata10, regCachePtr->keylen);
   LqhKeyReq::setLastReplicaNo(Tdata10, regTcPtr->lastReplicaNo);
   LqhKeyReq::setLockType(Tdata10, regCachePtr->opLock);
@@ -3144,8 +3157,8 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   LqhKeyReq::setApplicationAddressFlag(Tdata10, 1);
   LqhKeyReq::setDirtyFlag(Tdata10, regTcPtr->dirtyOp);
   LqhKeyReq::setInterpretedFlag(Tdata10, regCachePtr->opExec);
-  LqhKeyReq::setSimpleFlag(Tdata10, regCachePtr->opSimple);
-  LqhKeyReq::setOperation(Tdata10, regTcPtr->operation);
+  LqhKeyReq::setSimpleFlag(Tdata10, sig0);
+  LqhKeyReq::setOperation(Tdata10, sig1);
   /* ----------------------------------------------------------------------- 
    * Sequential Number of first LQH = 0, bit 22-23                           
    * IF ATTRIBUTE INFORMATION IS SENT IN TCKEYREQ,
@@ -3158,18 +3171,16 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
    * ----------------------------------------------------------------------- */
   //LqhKeyReq::setAPIVersion(Tdata10, regCachePtr->apiVersionNo);
   Uint32 commitAckMarker = regTcPtr->commitAckMarker;
+  const Uint32 noOfLqhs = regTcPtr->noOfNodes;
   if(commitAckMarker != RNIL){
     jam();
-    
     LqhKeyReq::setMarkerFlag(Tdata10, 1);
 
-    CommitAckMarker * tmp;
-    tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
+    CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
     
     /**
      * Populate LQH array
      */
-    const Uint32 noOfLqhs = regTcPtr->noOfNodes;
     tmp->noOfLqhs = noOfLqhs;
     for(Uint32 i = 0; i<noOfLqhs; i++){
       tmp->lqhNodeId[i] = regTcPtr->tcNodedata[i];
@@ -3180,7 +3191,6 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   /* NO READ LENGTH SENT FROM TC. SEQUENTIAL NUMBER IS 1 AND IT    */
   /* IS SENT TO A PRIMARY NODE.                                    */
   /* ************************************************************> */
-  UintR sig0, sig1, sig2, sig3, sig4, sig5, sig6;
 
   LqhKeyReq * const lqhKeyReq = (LqhKeyReq *)signal->getDataPtrSend();
 
@@ -3204,6 +3214,14 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   sig5 = regTcPtr->clientData;
   sig6 = regCachePtr->scanInfo;
 
+  if (! simpleRead)
+  {
+    regApiPtr->m_transaction_nodes.set(regTcPtr->tcNodedata[0]);
+    regApiPtr->m_transaction_nodes.set(regTcPtr->tcNodedata[1]);
+    regApiPtr->m_transaction_nodes.set(regTcPtr->tcNodedata[2]);
+    regApiPtr->m_transaction_nodes.set(regTcPtr->tcNodedata[3]);  
+  }
+  
   lqhKeyReq->tableSchemaVersion = sig0;
   lqhKeyReq->fragmentData = sig1;
   lqhKeyReq->transId1 = sig2;
@@ -4587,6 +4605,7 @@ void Dbtc::copyApi(Signal* signal)
   UintR TgcpPointer = regTmpApiPtr->gcpPointer;
   UintR TgcpFilesize = cgcpFilesize;
   UintR TcommitAckMarker = regTmpApiPtr->commitAckMarker;
+  NdbNodeBitmask Tnodes = regTmpApiPtr->m_transaction_nodes;
   GcpRecord *localGcpRecord = gcpRecord;
 
   regApiPtr->ndbapiBlockref = regTmpApiPtr->ndbapiBlockref;
@@ -4597,6 +4616,7 @@ void Dbtc::copyApi(Signal* signal)
   regApiPtr->transid[1] = Ttransid2;
   regApiPtr->lqhkeyconfrec = Tlqhkeyconfrec;
   regApiPtr->commitAckMarker = TcommitAckMarker;
+  regApiPtr->m_transaction_nodes = Tnodes;
 
   gcpPtr.i = TgcpPointer;
   ptrCheckGuard(gcpPtr, TgcpFilesize, localGcpRecord);
@@ -4607,6 +4627,7 @@ void Dbtc::copyApi(Signal* signal)
   regTmpApiPtr->commitAckMarker = RNIL;
   regTmpApiPtr->firstTcConnect = RNIL;
   regTmpApiPtr->lastTcConnect = RNIL;
+  regTmpApiPtr->m_transaction_nodes.clear();
   releaseAllSeizedIndexOperations(regTmpApiPtr);
 }//Dbtc::copyApi()
 
@@ -4865,7 +4886,7 @@ void Dbtc::releaseTransResources(Signal* signal)
   TcConnectRecordPtr localTcConnectptr;
   UintR TtcConnectFilesize = ctcConnectFilesize;
   TcConnectRecord *localTcConnectRecord = tcConnectRecord;
-
+  apiConnectptr.p->m_transaction_nodes.clear();
   localTcConnectptr.i = apiConnectptr.p->firstTcConnect;
   do {
     jam();
@@ -5269,7 +5290,8 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
       break;
     case CS_ABORTING:
       jam();
-      errorCode = ZABORTINPROGRESS;
+      errorCode = regApiPtr->returncode ? 
+	regApiPtr->returncode : ZABORTINPROGRESS;
       break;
     case CS_START_SCAN:
       jam();
@@ -5808,9 +5830,9 @@ void Dbtc::abort010Lab(Signal* signal)
 
   if (transP->firstTcConnect == RNIL) {
     jam();
-    /*-----------------------------------------------------------------------*/
-    /*    WE HAVE NO PARTICIPANTS IN THE TRANSACTION.                        */
-    /*-----------------------------------------------------------------------*/
+    /*--------------------------------------------------------------------*/
+    /* WE HAVE NO PARTICIPANTS IN THE TRANSACTION.                        */
+    /*--------------------------------------------------------------------*/
     releaseAbortResources(signal);
     return;
   }//if
@@ -6087,10 +6109,12 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
     if (api_timer != 0) {
       time_out_value= time_out_param + (api_con_ptr & mask_value);
       time_passed= tc_timer - api_timer;
-      if (time_passed > time_out_value) {
+      if (time_passed > time_out_value) 
+      {
         jam();
-        timeOutFoundLab(signal, api_con_ptr);
-        return;
+        timeOutFoundLab(signal, api_con_ptr, ZTIME_OUT_ERROR);
+	api_con_ptr++;
+	break;
       }
     }
   }
@@ -6110,10 +6134,8 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
   return;
 }//Dbtc::timeOutLoopStartLab()
 
-void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr) 
+void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode) 
 {
-  sendContinueTimeOutControl(signal, TapiConPtr + 1);
-  
   apiConnectptr.i = TapiConPtr;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   /*------------------------------------------------------------------*/
@@ -6126,7 +6148,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
 	<< "Time-out in state = " << apiConnectptr.p->apiConnectstate
 	<< " apiConnectptr.i = " << apiConnectptr.i 
 	<< " - exec: " << apiConnectptr.p->m_exec_flag
-	<< " - place: " << c_apiConTimer_line[apiConnectptr.i]);
+	<< " - place: " << c_apiConTimer_line[apiConnectptr.i]
+	<< " code: " << errCode);
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
     if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec){
@@ -6143,7 +6166,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
       }//if
     }
     apiConnectptr.p->returnsignal = RS_TCROLLBACKREP;      
-    apiConnectptr.p->returncode = ZTIME_OUT_ERROR;
+    apiConnectptr.p->returncode = errCode;
     abort010Lab(signal);
     return;
   case CS_RECEIVING:
@@ -6156,7 +6179,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
     /*       START ABORTING THE TRANSACTION. ALSO START CHECKING THE    */
     /*       REMAINING TRANSACTIONS.                                    */
     /*------------------------------------------------------------------*/
-    terrorCode = ZTIME_OUT_ERROR;
+    terrorCode = errCode;
     abortErrorLab(signal);
     return;
   case CS_COMMITTING:
@@ -6800,58 +6823,44 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
   const Uint32 tnewMasterId = nodeFail->masterNodeId;
   
   arrGuard(tnoOfNodes, MAX_NDB_NODES);
+  Uint32 i;
   int index = 0;
-  for (unsigned i = 1; i< MAX_NDB_NODES; i++) {
-    if(NodeBitmask::get(nodeFail->theNodes, i)){
+  for (i = 1; i< MAX_NDB_NODES; i++) 
+  {
+    if(NodeBitmask::get(nodeFail->theNodes, i))
+    {
       cdata[index] = i;
       index++;
     }//if
   }//for
 
+  cmasterNodeId = tnewMasterId;
+  
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
-  Uint32 tindex;
-  for (tindex = 0; tindex < tnoOfNodes; tindex++) {
+  for (i = 0; i < tnoOfNodes; i++) 
+  {
     jam();
-    hostptr.i = cdata[tindex];
+    hostptr.i = cdata[i];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);
+    
     /*------------------------------------------------------------*/
     /*       SET STATUS OF THE FAILED NODE TO DEAD SINCE IT HAS   */
     /*       FAILED.                                              */
     /*------------------------------------------------------------*/
     hostptr.p->hostStatus = HS_DEAD;
+    hostptr.p->m_nf_bits = HostRecord::NF_NODE_FAIL_BITS;
+    c_alive_nodes.clear(hostptr.i);
 
-    if (hostptr.p->takeOverStatus == TOS_COMPLETED) {
-      jam();
-      /*------------------------------------------------------------*/
-      /*       A VERY UNUSUAL SITUATION. THE TAKE OVER WAS COMPLETED*/
-      /*       EVEN BEFORE WE HEARD ABOUT THE NODE FAILURE REPORT.  */
-      /*       HOWEVER UNUSUAL THIS SITUATION IS POSSIBLE.          */
-      /*------------------------------------------------------------*/
-      /*       RELEASE THE CURRENTLY UNUSED LQH CONNECTIONS. THE    */
-      /*       REMAINING WILL BE RELEASED WHEN THE TRANSACTION THAT */
-      /*       USED THEM IS COMPLETED.                              */
-      /*------------------------------------------------------------*/
-      {
-	NFCompleteRep * const nfRep = (NFCompleteRep *)&signal->theData[0];
-	nfRep->blockNo      = DBTC;
-	nfRep->nodeId       = cownNodeid;
-	nfRep->failedNodeId = hostptr.i;
-      }
-      sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal, 
-		 NFCompleteRep::SignalLength, JBB);
-    } else {
-      ndbrequire(hostptr.p->takeOverStatus == TOS_IDLE);
-      hostptr.p->takeOverStatus = TOS_NODE_FAILED;
-    }//if
-    
-    if (tcNodeFailptr.p->failStatus == FS_LISTENING) {
+    if (tcNodeFailptr.p->failStatus == FS_LISTENING) 
+    {
       jam();
       /*------------------------------------------------------------*/
       /*       THE CURRENT TAKE OVER CAN BE AFFECTED BY THIS NODE   */
       /*       FAILURE.                                             */
       /*------------------------------------------------------------*/
-      if (hostptr.p->lqhTransStatus == LTS_ACTIVE) {
+      if (hostptr.p->lqhTransStatus == LTS_ACTIVE) 
+      {
 	jam();
 	/*------------------------------------------------------------*/
 	/*       WE WERE WAITING FOR THE FAILED NODE IN THE TAKE OVER */
@@ -6863,85 +6872,45 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
       }//if
     }//if
     
-  }//for
-
-  const bool masterFailed = (cmasterNodeId != tnewMasterId);
-  cmasterNodeId = tnewMasterId;
-
-  if(getOwnNodeId() == cmasterNodeId && masterFailed){
-    /**
-     * Master has failed and I'm the new master
-     */
-    jam();
-    
-    for (hostptr.i = 1; hostptr.i < MAX_NDB_NODES; hostptr.i++) {
+    if (getOwnNodeId() != tnewMasterId)
+    {
       jam();
-      ptrAss(hostptr, hostRecord);
-      if (hostptr.p->hostStatus != HS_ALIVE) {
-	jam();
-	if (hostptr.p->takeOverStatus == TOS_COMPLETED) {
-	  jam();
-	  /*------------------------------------------------------------*/
-	  /*       SEND TAKE OVER CONFIRMATION TO ALL ALIVE NODES IF    */
-	  /*       TAKE OVER IS COMPLETED. THIS IS PERFORMED TO ENSURE  */
-	  /*       THAT ALL NODES AGREE ON THE IDLE STATE OF THE TAKE   */
-	  /*       OVER. THIS MIGHT BE MISSED IN AN ERROR SITUATION IF  */
-	  /*       MASTER FAILS AFTER SENDING CONFIRMATION TO NEW       */
-	  /*       MASTER BUT FAILING BEFORE SENDING TO ANOTHER NODE    */
-	  /*       WHICH WAS NOT MASTER. IF THIS NODE LATER BECOMES     */
-	  /*       MASTER IT MIGHT START A NEW TAKE OVER EVEN AFTER THE */
-	  /*       CRASHED NODE HAVE ALREADY RECOVERED.                 */
-	  /*------------------------------------------------------------*/
-	  for(tmpHostptr.i = 1; tmpHostptr.i < MAX_NDB_NODES;tmpHostptr.i++) {
-	    jam();
-	    ptrAss(tmpHostptr, hostRecord);
-	    if (tmpHostptr.p->hostStatus == HS_ALIVE) {
-	      jam();
-	      tblockref = calcTcBlockRef(tmpHostptr.i);
-	      signal->theData[0] = hostptr.i;
-	      sendSignal(tblockref, GSN_TAKE_OVERTCCONF, signal, 1, JBB);
-	    }//if
-	  }//for
-	}//if
-      }//if
-    }//for
-  }
-
-  if(getOwnNodeId() == cmasterNodeId){
-    jam();
-    for (hostptr.i = 1; hostptr.i < MAX_NDB_NODES; hostptr.i++) {
+      /**
+       * Only master does takeover currently
+       */
+      hostptr.p->m_nf_bits &= ~HostRecord::NF_TAKEOVER;
+    }
+    else
+    {
       jam();
-      ptrAss(hostptr, hostRecord);
-      if (hostptr.p->hostStatus != HS_ALIVE) {
-        jam();
-        if (hostptr.p->takeOverStatus == TOS_NODE_FAILED) {
-          jam();
-	  /*------------------------------------------------------------*/
-	  /*       CONCLUDE ALL ACTIVITIES THE FAILED TC DID CONTROL    */
-	  /*       SINCE WE ARE THE MASTER. THIS COULD HAVE BEEN STARTED*/
-	  /*       BY A PREVIOUS MASTER BUT HAVE NOT BEEN CONCLUDED YET.*/
-	  /*------------------------------------------------------------*/
-          hostptr.p->takeOverStatus = TOS_ACTIVE;
-          signal->theData[0] = hostptr.i;
-          sendSignal(cownref, GSN_TAKE_OVERTCREQ, signal, 1, JBB);
-        }//if
-      }//if
-    }//for
-  }//if
-  for (tindex = 0; tindex < tnoOfNodes; tindex++) {
-    jam();
-    hostptr.i = cdata[tindex];
-    ptrCheckGuard(hostptr, chostFilesize, hostRecord);
-    /*------------------------------------------------------------*/
-    /*       LOOP THROUGH AND ABORT ALL SCANS THAT WHERE          */
-    /*       CONTROLLED BY THIS TC AND ACTIVE IN THE FAILED       */
-    /*       NODE'S LQH                                           */
-    /*------------------------------------------------------------*/
+      signal->theData[0] = hostptr.i;
+      sendSignal(cownref, GSN_TAKE_OVERTCREQ, signal, 1, JBB);
+    }
+
     checkScanActiveInFailedLqh(signal, 0, hostptr.i);
     checkWaitDropTabFailedLqh(signal, hostptr.i, 0); // nodeid, tableid
-  }//for
-
+    nodeFailCheckTransactions(signal, 0, hostptr.i);
+  }
 }//Dbtc::execNODE_FAILREP()
+
+void
+Dbtc::checkNodeFailComplete(Signal* signal, 
+			    Uint32 failedNodeId,
+			    Uint32 bit)
+{
+  hostptr.i = failedNodeId;
+  ptrCheckGuard(hostptr, chostFilesize, hostRecord);
+  hostptr.p->m_nf_bits &= ~bit;
+  if (hostptr.p->m_nf_bits == 0)
+  {
+    NFCompleteRep * const nfRep = (NFCompleteRep *)&signal->theData[0];
+    nfRep->blockNo      = DBTC;
+    nfRep->nodeId       = cownNodeid;
+    nfRep->failedNodeId = hostptr.i;
+    sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal, 
+	       NFCompleteRep::SignalLength, JBB);
+  }
+}
 
 void Dbtc::checkScanActiveInFailedLqh(Signal* signal, 
 				      Uint32 scanPtrI, 
@@ -6984,7 +6953,43 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
     return;
   }//for
+
+  checkNodeFailComplete(signal, failedNodeId, HostRecord::NF_CHECK_SCAN);
 }
+
+void
+Dbtc::nodeFailCheckTransactions(Signal* signal, 
+				Uint32 transPtrI, 
+				Uint32 failedNodeId)
+{
+  jam();
+  Ptr<ApiConnectRecord> transPtr;
+  for (transPtr.i = transPtrI; transPtr.i < capiConnectFilesize; transPtr.i++)
+  {
+    ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord); 
+    if (transPtr.p->m_transaction_nodes.get(failedNodeId))
+    {
+      jam();
+      // Force timeout regardless of state      
+      Uint32 save = c_appl_timeout_value;
+      c_appl_timeout_value = 1;
+      setApiConTimer(transPtr.i, 0, __LINE__);
+      timeOutFoundLab(signal, transPtr.i, ZNODEFAIL_BEFORE_COMMIT);
+      c_appl_timeout_value = save;
+    }
+    
+    // Send CONTINUEB to continue later
+    signal->theData[0] = TcContinueB::ZNF_CHECK_TRANSACTIONS;
+    signal->theData[1] = transPtr.i + 1; // Check next
+    signal->theData[2] = failedNodeId;
+    sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
+    return;
+  }
+
+  checkNodeFailComplete(signal, failedNodeId, 
+			HostRecord::NF_CHECK_TRANSACTION);
+}
+
 
 void
 Dbtc::checkScanFragList(Signal* signal,
@@ -7001,54 +7006,17 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
   tfailedNodeId = signal->theData[0];
   hostptr.i = tfailedNodeId;
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
-  switch (hostptr.p->takeOverStatus) {
-  case TOS_IDLE:
+
+  ndbout_c("received execTAKE_OVERTCCONF(%d) from %x (%x)",
+	   tfailedNodeId, signal->getSendersBlockRef(), reference());
+  if (signal->getSendersBlockRef() != reference())
+  {
     jam();
-    /*------------------------------------------------------------*/
-    /*       THIS MESSAGE ARRIVED EVEN BEFORE THE NODE_FAILREP    */
-    /*       MESSAGE. THIS IS POSSIBLE IN EXTREME SITUATIONS.     */
-    /*       WE SET THE STATE TO TAKE_OVER_COMPLETED AND WAIT     */
-    /*       FOR THE NODE_FAILREP MESSAGE.                        */
-    /*------------------------------------------------------------*/
-    hostptr.p->takeOverStatus = TOS_COMPLETED;
-    break;
-  case TOS_NODE_FAILED:
-  case TOS_ACTIVE:
-    jam();
-    /*------------------------------------------------------------*/
-    /*       WE ARE NOT MASTER AND THE TAKE OVER IS ACTIVE OR WE  */
-    /*       ARE MASTER AND THE TAKE OVER IS ACTIVE. IN BOTH      */
-    /*       WE SET THE STATE TO TAKE_OVER_COMPLETED.             */
-    /*------------------------------------------------------------*/
-    /*       RELEASE THE CURRENTLY UNUSED LQH CONNECTIONS. THE    */
-    /*       REMAINING WILL BE RELEASED WHEN THE TRANSACTION THAT */
-    /*       USED THEM IS COMPLETED.                              */
-    /*------------------------------------------------------------*/
-    hostptr.p->takeOverStatus = TOS_COMPLETED;
-    {
-      NFCompleteRep * const nfRep = (NFCompleteRep *)&signal->theData[0];
-      nfRep->blockNo      = DBTC;
-      nfRep->nodeId       = cownNodeid;
-      nfRep->failedNodeId = hostptr.i;
-    }
-    sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal, 
-               NFCompleteRep::SignalLength, JBB);
-    break;
-  case TOS_COMPLETED:
-    jam();
-    /*------------------------------------------------------------*/
-    /*       WE HAVE ALREADY RECEIVED THE CONF SIGNAL. IT IS MOST */
-    /*       LIKELY SENT FROM A NEW MASTER WHICH WASN'T SURE IF   */
-    /*       THIS NODE HEARD THE CONF SIGNAL FROM THE OLD MASTER. */
-    /*       WE SIMPLY IGNORE THE MESSAGE.                        */
-    /*------------------------------------------------------------*/
-    /*empty*/;
-    break;
-  default:
-    jam();
-    systemErrorLab(signal);
     return;
-  }//switch
+  }
+  
+  
+  checkNodeFailComplete(signal, hostptr.i, HostRecord::NF_TAKEOVER);
 }//Dbtc::execTAKE_OVERTCCONF()
 
 void Dbtc::execTAKE_OVERTCREQ(Signal* signal) 
@@ -7288,16 +7256,10 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
     /*       TO REPORT THE COMPLETION OF THE TAKE OVER TO ALL     */
     /*       NODES THAT ARE ALIVE.                                */
     /*------------------------------------------------------------*/
-    for (hostptr.i = 1; hostptr.i < MAX_NDB_NODES; hostptr.i++) {
-      jam();
-      ptrAss(hostptr, hostRecord);
-      if (hostptr.p->hostStatus == HS_ALIVE) {
-        jam();
-        tblockref = calcTcBlockRef(hostptr.i);
-        signal->theData[0] = tcNodeFailptr.p->takeOverNode;
-        sendSignal(tblockref, GSN_TAKE_OVERTCCONF, signal, 1, JBB);
-      }//if
-    }//for
+    NodeReceiverGroup rg(DBTC, c_alive_nodes);
+    signal->theData[0] = tcNodeFailptr.p->takeOverNode;
+    sendSignal(rg, GSN_TAKE_OVERTCCONF, signal, 1, JBB);
+    
     if (tcNodeFailptr.p->queueIndex > 0) {
       jam();
       /*------------------------------------------------------------*/
@@ -7979,6 +7941,7 @@ void Dbtc::initApiConnectFail(Signal* signal)
   apiConnectptr.p->ndbapiBlockref = 0;
   apiConnectptr.p->ndbapiConnect = 0;
   apiConnectptr.p->buddyPtr = RNIL;
+  apiConnectptr.p->m_transaction_nodes.clear();
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   switch(ttransStatus){
   case LqhTransConf::Committed:
@@ -9756,6 +9719,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->executingIndexOp = RNIL;
     apiConnectptr.p->buddyPtr = RNIL;
     apiConnectptr.p->currSavePointId = 0;
+    apiConnectptr.p->m_transaction_nodes.clear();
   }//for
   apiConnectptr.i = tiacTmp - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -9783,6 +9747,7 @@ void Dbtc::initApiConnect(Signal* signal)
       apiConnectptr.p->executingIndexOp = RNIL;
       apiConnectptr.p->buddyPtr = RNIL;
       apiConnectptr.p->currSavePointId = 0;
+      apiConnectptr.p->m_transaction_nodes.clear();
     }//for
   apiConnectptr.i = (2 * tiacTmp) - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -9810,6 +9775,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->executingIndexOp = RNIL;
     apiConnectptr.p->buddyPtr = RNIL;
     apiConnectptr.p->currSavePointId = 0;
+    apiConnectptr.p->m_transaction_nodes.clear();
   }//for
   apiConnectptr.i = (3 * tiacTmp) - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -9870,13 +9836,13 @@ void Dbtc::inithost(Signal* signal)
     ptrAss(hostptr, hostRecord);
     hostptr.p->hostStatus = HS_DEAD;
     hostptr.p->inPackedList = false;
-    hostptr.p->takeOverStatus = TOS_NOT_DEFINED;
     hostptr.p->lqhTransStatus = LTS_IDLE;
     hostptr.p->noOfWordsTCKEYCONF = 0;
     hostptr.p->noOfWordsTCINDXCONF = 0;
     hostptr.p->noOfPackedWordsLqh = 0;
     hostptr.p->hostLqhBlockRef = calcLqhBlockRef(hostptr.i);
   }//for
+  c_alive_nodes.clear();
 }//Dbtc::inithost()
 
 void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0, 
@@ -10126,6 +10092,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
   }//while
   apiConnectptr.p->firstTcConnect = RNIL;
   apiConnectptr.p->lastTcConnect = RNIL;
+  apiConnectptr.p->m_transaction_nodes.clear();
 
   // MASV let state be CS_ABORTING until all 
   // signals in the "air" have been received. Reset to CS_CONNECTED
@@ -10199,6 +10166,7 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
   cfirstfreeApiConnect = TlocalApiConnectptr.i;
   setApiConTimer(TlocalApiConnectptr.i, 0, __LINE__);
   TlocalApiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
+  ndbassert(TlocalApiConnectptr.p->m_transaction_nodes.isclear());
   ndbassert(TlocalApiConnectptr.p->apiScanRec == RNIL);
   TlocalApiConnectptr.p->ndbapiBlockref = 0;
 }//Dbtc::releaseApiCon()
@@ -10733,6 +10701,34 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("IndexOpCount: pool: %d free: %d", 
 	      c_theIndexOperationPool.getSize(),
 	      c_theIndexOperationPool.getNoOfFree());
+  }
+
+  if (dumpState->args[0] == 2514)
+  {
+    if (signal->getLength() == 2)
+    {
+      dumpState->args[0] = DumpStateOrd::TcDumpOneApiConnectRec;
+      execDUMP_STATE_ORD(signal);
+    }
+
+    NodeReceiverGroup rg(CMVMI, c_alive_nodes);
+    dumpState->args[0] = 15;
+    sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+
+    signal->theData[0] = 2515;
+    sendSignalWithDelay(cownref, GSN_DUMP_STATE_ORD, signal, 1000, 1);    
+    return;
+  }
+
+  if (dumpState->args[0] == 2515)
+  {
+    NdbNodeBitmask mask = c_alive_nodes;
+    mask.clear(getOwnNodeId());
+    NodeReceiverGroup rg(NDBCNTR, mask);
+    
+    sendSignal(rg, GSN_SYSTEM_ERROR, signal, 1, JBB);
+    sendSignalWithDelay(cownref, GSN_SYSTEM_ERROR, signal, 300, 1);    
+    return;
   }
 }//Dbtc::execDUMP_STATE_ORD()
 
