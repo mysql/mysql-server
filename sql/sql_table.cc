@@ -2037,10 +2037,8 @@ bool mysql_create_table_internal(THD *thd,
     DBUG_RETURN(TRUE);
   }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  partition_info *part_info;
-  if (!(part_info= thd->lex->part_info->get_clone()))
-    DBUG_RETURN(TRUE);
-  thd->work_part_info= part_info;
+  partition_info *part_info= thd->work_part_info;
+
   if (!part_info && create_info->db_type->partition_flags &&
       (create_info->db_type->partition_flags() & HA_USE_AUTO_PARTITION))
   {
@@ -2089,7 +2087,8 @@ bool mysql_create_table_internal(THD *thd,
         goto err;
       }
     }
-    if (part_engine_type == &partition_hton)
+    if ((part_engine_type == &partition_hton) &&
+        part_info->default_engine_type)
     {
       /*
         This only happens at ALTER TABLE.

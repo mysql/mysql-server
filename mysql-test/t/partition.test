@@ -714,4 +714,34 @@ show create table t2;
 
 drop table t2;
 
+#
+# bug #14350 Partitions: crash if prepared statement
+#
+prepare stmt1 from 'create table t1 (s1 int) partition by hash (s1)';
+execute stmt1;
+--error 1050
+execute stmt1;
+drop table t1;
+
+#
+# bug 17290 SP with delete, create and rollback to save point causes MySQLD core
+#
+delimiter |;
+eval CREATE PROCEDURE test.p1(IN i INT)
+BEGIN
+  DECLARE CONTINUE HANDLER FOR sqlexception BEGIN END;
+  DROP TABLE IF EXISTS t1;
+  CREATE TABLE t1 (num INT,PRIMARY KEY(num));
+  START TRANSACTION;
+    INSERT INTO t1 VALUES(i);
+    savepoint t1_save;
+    INSERT INTO t1 VALUES (14);
+    ROLLBACK to savepoint t1_save;
+    COMMIT;
+END|
+delimiter ;|
+CALL test.p1(12);
+CALL test.p1(13);
+drop table t1;
+
 --echo End of 5.1 tests
