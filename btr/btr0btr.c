@@ -600,8 +600,8 @@ btr_page_get_father_for_rec(
 	offsets = rec_get_offsets(node_ptr, index, offsets,
 						ULINT_UNDEFINED, &heap);
 
-	if (btr_node_ptr_get_child_page_no(node_ptr, offsets) !=
-						buf_frame_get_page_no(page)) {
+	if (UNIV_UNLIKELY(btr_node_ptr_get_child_page_no(node_ptr, offsets) !=
+						buf_frame_get_page_no(page))) {
 		rec_t*	print_rec;
 		fputs("InnoDB: Dump of the child page:\n", stderr);
 		buf_page_print(buf_frame_align(page));
@@ -630,10 +630,9 @@ btr_page_get_father_for_rec(
 "InnoDB: corruption. If the crash happens at the database startup, see\n"
 "InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html about\n"
 "InnoDB: forcing recovery. Then dump + drop + reimport.\n", stderr);
-	}
 
-	ut_a(btr_node_ptr_get_child_page_no(node_ptr, offsets) ==
-						buf_frame_get_page_no(page));
+		ut_error;
+	}
 	mem_heap_free(heap);
 
 	return(node_ptr);
@@ -2842,6 +2841,9 @@ btr_validate_level(
 	mem_heap_t*	heap	= mem_heap_create(256);
 	ulint*		offsets	= NULL;
 	ulint*		offsets2= NULL;
+#ifdef UNIV_DEBUG
+	page_zip_des_t*	page_zip;
+#endif
 
 	mtr_start(&mtr);
 
@@ -2854,7 +2856,10 @@ btr_validate_level(
 	index = UT_LIST_GET_FIRST(tree->tree_indexes);
 
 	while (level != btr_page_get_level(page, &mtr)) {
-
+#ifdef UNIV_DEBUG
+		page_zip = buf_block_get_page_zip(buf_block_align(page));
+		ut_ad(!page_zip || page_zip_validate(page_zip, page));
+#endif
 		ut_a(btr_page_get_level(page, &mtr) > 0);
 
 		page_cur_set_before_first(page, &cursor);
@@ -2877,6 +2882,11 @@ loop:
 	mem_heap_empty(heap);
 	offsets = offsets2 = NULL;
 	mtr_x_lock(dict_tree_get_lock(tree), &mtr);
+
+#ifdef UNIV_DEBUG
+	page_zip = buf_block_get_page_zip(buf_block_align(page));
+	ut_ad(!page_zip || page_zip_validate(page_zip, page));
+#endif
 
 	/* Check ordering etc. of records */
 

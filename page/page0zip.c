@@ -675,11 +675,6 @@ page_zip_compress(
 				    ut_ad(!c_stream.avail_in);
 				    ut_ad(c_stream.next_in == src);
 
-				    ut_ad(slot < page_get_n_recs(
-						(page_t*) page)
-					|| !memcmp(src, zero,
-					DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN));
-
 				    memcpy(storage - (DATA_TRX_ID_LEN
 							+ DATA_ROLL_PTR_LEN)
 					* (rec_get_heap_no_new(rec) - 1),
@@ -1871,6 +1866,7 @@ page_zip_write_rec(
 	byte*	data;
 	byte*	storage;
 	ulint	heap_no;
+	byte*	slot;
 
 	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)rec)) == page_zip);
 	ut_ad(page_zip_simple_validate(page_zip));
@@ -1883,6 +1879,13 @@ page_zip_write_rec(
 		page_zip->data, PAGE_DATA));
 
 	page = ut_align_down((rec_t*) rec, UNIV_PAGE_SIZE);
+	slot = page_zip_dir_find(page_zip,
+			ut_align_offset(rec, UNIV_PAGE_SIZE));
+	ut_a(slot);
+	/* Clear the delete mark bit. */
+	ut_ad(!(rec_get_info_bits((rec_t*) rec, TRUE)
+			& REC_INFO_DELETED_FLAG));
+	*slot &= ~(PAGE_ZIP_DIR_SLOT_DEL >> 8);
 
 	ut_ad(rec_get_start((rec_t*) rec, offsets) >= page + PAGE_ZIP_START);
 	ut_ad(rec_get_end((rec_t*) rec, offsets) <= page + UNIV_PAGE_SIZE
