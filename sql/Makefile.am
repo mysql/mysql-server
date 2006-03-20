@@ -174,10 +174,11 @@ ha_ndbcluster_binlog.o:ha_ndbcluster_binlog.cc ha_ndbcluster_binlog.h
 handler.o:	handler.cc ha_ndbcluster.h
 		$(CXXCOMPILE) @ndbcluster_includes@ $(CXXFLAGS) -c $<
 
-# For testing of udf_example.so;  Works on platforms with gcc
-# (This is not part of our build process but only provided as an example)
-udf_example.so:	udf_example.cc
-		$(CXXCOMPILE) -shared -o $@ $<
+# For testing of udf_example.so
+noinst_LTLIBRARIES= udf_example.la
+udf_example_la_SOURCES= udf_example.cc
+udf_example_la_LDFLAGS= -module -rpath $(pkglibdir)
+
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
