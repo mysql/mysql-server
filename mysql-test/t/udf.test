@@ -1,0 +1,108 @@
+--source include/have_udf.inc
+#
+# To run this tests the "sql/udf_example.cc" need to be compiled into
+# udf_example.so and LD_LIBRARY_PATH should be setup to point out where
+# the library are.
+#
+
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Create the example functions from udf_example
+#
+
+CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
+CREATE FUNCTION myfunc_double RETURNS REAL SONAME 'udf_example.so';
+
+--error ER_CANT_FIND_DL_ENTRY
+CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME 'udf_example.so';
+CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME 'udf_example.so';
+CREATE FUNCTION sequence RETURNS INTEGER SONAME "udf_example.so";
+CREATE FUNCTION lookup RETURNS STRING SONAME 'udf_example.so';
+CREATE FUNCTION reverse_lookup
+        RETURNS STRING SONAME 'udf_example.so';
+CREATE AGGREGATE FUNCTION avgcost
+        RETURNS REAL SONAME 'udf_example.so';
+
+--error 0
+select myfunc_double();
+select myfunc_double(1);
+select myfunc_double(78654);
+--error 1305
+select myfunc_nonexist();
+select myfunc_int();
+--error 0
+select lookup();
+select lookup("127.0.0.1");
+--error 0
+select lookup(127,0,0,1);
+select lookup("localhost");
+--error 0
+select reverse_lookup();
+
+# These two functions should return "localhost", but it's
+# depending on configuration, so just call them and don't log the result
+--disable_result_log
+select reverse_lookup("127.0.0.1");
+select reverse_lookup(127,0,0,1);
+--enable_result_log
+
+select reverse_lookup("localhost");
+--error 0
+select avgcost();
+--error 0
+select avgcost(100,23.76);
+create table t1(sum int, price float(24));
+insert into t1 values(100, 50.00), (100, 100.00);
+select avgcost(sum, price) from t1;
+delete from t1;
+insert into t1 values(100, 54.33), (200, 199.99);
+select avgcost(sum, price) from t1;
+drop table t1;
+
+#------------------------------------------------------------------------
+# BUG#17261 Passing a variable from a stored procedure to UDF crashes mysqld
+#------------------------------------------------------------------------
+
+select metaphon('hello');
+
+delimiter //;
+CREATE PROCEDURE `XXX1`(in testval varchar(10))
+begin
+select metaphon(testval);
+end//
+delimiter ;//
+
+call XXX1('hello');
+drop procedure xxx1;
+
+delimiter //;
+CREATE PROCEDURE `XXX2`()
+begin
+declare testval varchar(10);
+set testval = 'hello';
+select metaphon(testval);
+end//
+delimiter ;//
+
+call XXX2();
+drop procedure xxx2;
+
+
+#
+# Drop the example functions from udf_example
+#
+
+DROP FUNCTION metaphon;
+DROP FUNCTION myfunc_double;
+--error ER_SP_DOES_NOT_EXIST
+DROP FUNCTION myfunc_nonexist;
+DROP FUNCTION myfunc_int;
+DROP FUNCTION sequence;
+DROP FUNCTION lookup;
+DROP FUNCTION reverse_lookup;
+DROP FUNCTION avgcost;
+
