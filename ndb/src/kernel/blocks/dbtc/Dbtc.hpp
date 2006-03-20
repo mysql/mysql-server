@@ -636,6 +636,7 @@ public:
     ConnectionState apiConnectstate;
     UintR transid[2];
     UintR firstTcConnect;
+    NdbNodeBitmask m_transaction_nodes; 
     
     //---------------------------------------------------
     // Second 16 byte cache line. Hot variables.
@@ -941,6 +942,17 @@ public:
     UintR noOfWordsTCINDXCONF;
     UintR packedWordsTCINDXCONF[30];
     BlockReference hostLqhBlockRef;
+
+    enum NodeFailBits
+    {
+      NF_TAKEOVER          = 0x1,
+      NF_CHECK_SCAN        = 0x2,
+      NF_CHECK_TRANSACTION = 0x4,
+      NF_CHECK_DROP_TAB    = 0x8,
+      NF_NODE_FAIL_BITS    = 0xF // All bits...
+    };
+    Uint32 m_nf_bits;
+    NdbNodeBitmask m_lqh_trans_conf;
   }; /* p2c: size = 128 bytes */
   
   typedef Ptr<HostRecord> HostRecordPtr;
@@ -1578,7 +1590,7 @@ private:
   void wrongSchemaVersionErrorLab(Signal* signal);
   void noFreeConnectionErrorLab(Signal* signal);
   void tckeyreq050Lab(Signal* signal);
-  void timeOutFoundLab(Signal* signal, UintR anAdd);
+  void timeOutFoundLab(Signal* signal, UintR anAdd, Uint32 errCode);
   void completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd);
   void completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd);
   void completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd);
@@ -1600,6 +1612,9 @@ private:
   void checkScanFragList(Signal*, Uint32 failedNodeId, ScanRecord * scanP, 
 			 LocalDLList<ScanFragRec>::Head&);
 
+  void nodeFailCheckTransactions(Signal*,Uint32 transPtrI,Uint32 failedNodeId);
+  void checkNodeFailComplete(Signal* signal, Uint32 failedNodeId, Uint32 bit);
+  
   // Initialisation
   void initData();
   void initRecords();
@@ -1626,6 +1641,7 @@ private:
   HostRecord *hostRecord;
   HostRecordPtr hostptr;
   UintR chostFilesize;
+  NdbNodeBitmask c_alive_nodes;
 
   GcpRecord *gcpRecord;
   GcpRecordPtr gcpPtr;
