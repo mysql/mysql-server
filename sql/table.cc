@@ -1423,7 +1423,7 @@ bool check_db_name(char *name)
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    last_char_is_space= my_isspace(default_charset_info, *name);
+    last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
@@ -1469,7 +1469,7 @@ bool check_table_name(const char *name, uint length)
   while (name != end)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    last_char_is_space= my_isspace(default_charset_info, *name);
+    last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, end);
@@ -1500,7 +1500,7 @@ bool check_column_name(const char *name)
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    last_char_is_space= my_isspace(default_charset_info, *name);
+    last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
