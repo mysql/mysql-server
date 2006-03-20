@@ -303,7 +303,6 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
   hostptr.i = signal->theData[1];
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
   hostptr.p->hostStatus = HS_ALIVE;
-  hostptr.p->takeOverStatus = TOS_IDLE;
   signal->theData[0] = cownref;
   c_alive_nodes.set(hostptr.i);
   sendSignal(tblockref, GSN_INCL_NODECONF, signal, 1, JBB);
@@ -856,8 +855,6 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
       hostptr.i = i;
       ptrCheckGuard(hostptr, chostFilesize, hostRecord);
 
-      hostptr.p->takeOverStatus = TOS_IDLE;
-      
       if (NodeBitmask::get(readNodes->inactiveNodes, i)) {
         jam();
         hostptr.p->hostStatus = HS_DEAD;
@@ -6826,21 +6823,27 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
   const Uint32 tnewMasterId = nodeFail->masterNodeId;
   
   arrGuard(tnoOfNodes, MAX_NDB_NODES);
+  Uint32 i;
   int index = 0;
-  for (unsigned i = 1; i< MAX_NDB_NODES; i++) {
-    if(NodeBitmask::get(nodeFail->theNodes, i)){
+  for (i = 1; i< MAX_NDB_NODES; i++) 
+  {
+    if(NodeBitmask::get(nodeFail->theNodes, i))
+    {
       cdata[index] = i;
       index++;
     }//if
   }//for
 
+  cmasterNodeId = tnewMasterId;
+  
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
-  Uint32 tindex;
-  for (tindex = 0; tindex < tnoOfNodes; tindex++) {
+  for (i = 0; i < tnoOfNodes; i++) 
+  {
     jam();
-    hostptr.i = cdata[tindex];
+    hostptr.i = cdata[i];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);
+    
     /*------------------------------------------------------------*/
     /*       SET STATUS OF THE FAILED NODE TO DEAD SINCE IT HAS   */
     /*       FAILED.                                              */
@@ -6849,30 +6852,15 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
     hostptr.p->m_nf_bits = HostRecord::NF_NODE_FAIL_BITS;
     c_alive_nodes.clear(hostptr.i);
 
-    if (hostptr.p->takeOverStatus == TOS_COMPLETED) {
-      jam();
-      /*------------------------------------------------------------*/
-      /*       A VERY UNUSUAL SITUATION. THE TAKE OVER WAS COMPLETED*/
-      /*       EVEN BEFORE WE HEARD ABOUT THE NODE FAILURE REPORT.  */
-      /*       HOWEVER UNUSUAL THIS SITUATION IS POSSIBLE.          */
-      /*------------------------------------------------------------*/
-      /*       RELEASE THE CURRENTLY UNUSED LQH CONNECTIONS. THE    */
-      /*       REMAINING WILL BE RELEASED WHEN THE TRANSACTION THAT */
-      /*       USED THEM IS COMPLETED.                              */
-      /*------------------------------------------------------------*/
-      hostptr.p->m_nf_bits &= ~HostRecord::NF_TAKEOVER;
-    } else {
-      ndbrequire(hostptr.p->takeOverStatus == TOS_IDLE);
-      hostptr.p->takeOverStatus = TOS_NODE_FAILED;
-    }//if
-    
-    if (tcNodeFailptr.p->failStatus == FS_LISTENING) {
+    if (tcNodeFailptr.p->failStatus == FS_LISTENING) 
+    {
       jam();
       /*------------------------------------------------------------*/
       /*       THE CURRENT TAKE OVER CAN BE AFFECTED BY THIS NODE   */
       /*       FAILURE.                                             */
       /*------------------------------------------------------------*/
-      if (hostptr.p->lqhTransStatus == LTS_ACTIVE) {
+      if (hostptr.p->lqhTransStatus == LTS_ACTIVE) 
+      {
 	jam();
 	/*------------------------------------------------------------*/
 	/*       WE WERE WAITING FOR THE FAILED NODE IN THE TAKE OVER */
@@ -6884,78 +6872,25 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
       }//if
     }//if
     
-  }//for
-
-  const bool masterFailed = (cmasterNodeId != tnewMasterId);
-  cmasterNodeId = tnewMasterId;
-
-  if(getOwnNodeId() == cmasterNodeId && masterFailed){
-    /**
-     * Master has failed and I'm the new master
-     */
-    jam();
-    
-    for (hostptr.i = 1; hostptr.i < MAX_NDB_NODES; hostptr.i++) {
+    if (getOwnNodeId() != tnewMasterId)
+    {
       jam();
-      ptrAss(hostptr, hostRecord);
-      if (hostptr.p->hostStatus != HS_ALIVE) {
-	jam();
-	if (hostptr.p->takeOverStatus == TOS_COMPLETED) {
-	  jam();
-	  /*------------------------------------------------------------*/
-	  /*       SEND TAKE OVER CONFIRMATION TO ALL ALIVE NODES IF    */
-	  /*       TAKE OVER IS COMPLETED. THIS IS PERFORMED TO ENSURE  */
-	  /*       THAT ALL NODES AGREE ON THE IDLE STATE OF THE TAKE   */
-	  /*       OVER. THIS MIGHT BE MISSED IN AN ERROR SITUATION IF  */
-	  /*       MASTER FAILS AFTER SENDING CONFIRMATION TO NEW       */
-	  /*       MASTER BUT FAILING BEFORE SENDING TO ANOTHER NODE    */
-	  /*       WHICH WAS NOT MASTER. IF THIS NODE LATER BECOMES     */
-	  /*       MASTER IT MIGHT START A NEW TAKE OVER EVEN AFTER THE */
-	  /*       CRASHED NODE HAVE ALREADY RECOVERED.                 */
-	  /*------------------------------------------------------------*/
-	  NodeReceiverGroup rg(DBTC, c_alive_nodes);
-	  signal->theData[0] = hostptr.i;
-	  sendSignal(rg, GSN_TAKE_OVERTCCONF, signal, 1, JBB);
-	}//if
-      }//if
-    }//for
-  }
-
-  if(getOwnNodeId() == cmasterNodeId){
-    jam();
-    for (hostptr.i = 1; hostptr.i < MAX_NDB_NODES; hostptr.i++) {
+      /**
+       * Only master does takeover currently
+       */
+      hostptr.p->m_nf_bits &= ~HostRecord::NF_TAKEOVER;
+    }
+    else
+    {
       jam();
-      ptrAss(hostptr, hostRecord);
-      if (hostptr.p->hostStatus != HS_ALIVE) {
-        jam();
-        if (hostptr.p->takeOverStatus == TOS_NODE_FAILED) {
-          jam();
-	  /*------------------------------------------------------------*/
-	  /*       CONCLUDE ALL ACTIVITIES THE FAILED TC DID CONTROL    */
-	  /*       SINCE WE ARE THE MASTER. THIS COULD HAVE BEEN STARTED*/
-	  /*       BY A PREVIOUS MASTER BUT HAVE NOT BEEN CONCLUDED YET.*/
-	  /*------------------------------------------------------------*/
-          hostptr.p->takeOverStatus = TOS_ACTIVE;
-          signal->theData[0] = hostptr.i;
-          sendSignal(cownref, GSN_TAKE_OVERTCREQ, signal, 1, JBB);
-        }//if
-      }//if
-    }//for
-  }//if
-  for (tindex = 0; tindex < tnoOfNodes; tindex++) {
-    jam();
-    hostptr.i = cdata[tindex];
-    ptrCheckGuard(hostptr, chostFilesize, hostRecord);
-    /*------------------------------------------------------------*/
-    /*       LOOP THROUGH AND ABORT ALL SCANS THAT WHERE          */
-    /*       CONTROLLED BY THIS TC AND ACTIVE IN THE FAILED       */
-    /*       NODE'S LQH                                           */
-    /*------------------------------------------------------------*/
+      signal->theData[0] = hostptr.i;
+      sendSignal(cownref, GSN_TAKE_OVERTCREQ, signal, 1, JBB);
+    }
+
     checkScanActiveInFailedLqh(signal, 0, hostptr.i);
     checkWaitDropTabFailedLqh(signal, hostptr.i, 0); // nodeid, tableid
     nodeFailCheckTransactions(signal, 0, hostptr.i);
-  }//for
-
+  }
 }//Dbtc::execNODE_FAILREP()
 
 void
@@ -7071,47 +7006,17 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
   tfailedNodeId = signal->theData[0];
   hostptr.i = tfailedNodeId;
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
-  switch (hostptr.p->takeOverStatus) {
-  case TOS_IDLE:
+
+  ndbout_c("received execTAKE_OVERTCCONF(%d) from %x (%x)",
+	   tfailedNodeId, signal->getSendersBlockRef(), reference());
+  if (signal->getSendersBlockRef() != reference())
+  {
     jam();
-    /*------------------------------------------------------------*/
-    /*       THIS MESSAGE ARRIVED EVEN BEFORE THE NODE_FAILREP    */
-    /*       MESSAGE. THIS IS POSSIBLE IN EXTREME SITUATIONS.     */
-    /*       WE SET THE STATE TO TAKE_OVER_COMPLETED AND WAIT     */
-    /*       FOR THE NODE_FAILREP MESSAGE.                        */
-    /*------------------------------------------------------------*/
-    hostptr.p->takeOverStatus = TOS_COMPLETED;
-    break;
-  case TOS_NODE_FAILED:
-  case TOS_ACTIVE:
-    jam();
-    /*------------------------------------------------------------*/
-    /*       WE ARE NOT MASTER AND THE TAKE OVER IS ACTIVE OR WE  */
-    /*       ARE MASTER AND THE TAKE OVER IS ACTIVE. IN BOTH      */
-    /*       WE SET THE STATE TO TAKE_OVER_COMPLETED.             */
-    /*------------------------------------------------------------*/
-    /*       RELEASE THE CURRENTLY UNUSED LQH CONNECTIONS. THE    */
-    /*       REMAINING WILL BE RELEASED WHEN THE TRANSACTION THAT */
-    /*       USED THEM IS COMPLETED.                              */
-    /*------------------------------------------------------------*/
-    hostptr.p->takeOverStatus = TOS_COMPLETED;
-    checkNodeFailComplete(signal, hostptr.i, HostRecord::NF_TAKEOVER);
-    break;
-  case TOS_COMPLETED:
-    jam();
-    /*------------------------------------------------------------*/
-    /*       WE HAVE ALREADY RECEIVED THE CONF SIGNAL. IT IS MOST */
-    /*       LIKELY SENT FROM A NEW MASTER WHICH WASN'T SURE IF   */
-    /*       THIS NODE HEARD THE CONF SIGNAL FROM THE OLD MASTER. */
-    /*       WE SIMPLY IGNORE THE MESSAGE.                        */
-    /*------------------------------------------------------------*/
-    /*empty*/;
-    break;
-  default:
-    jam();
-    systemErrorLab(signal);
     return;
-  }//switch
+  }
+  
+  
+  checkNodeFailComplete(signal, hostptr.i, HostRecord::NF_TAKEOVER);
 }//Dbtc::execTAKE_OVERTCCONF()
 
 void Dbtc::execTAKE_OVERTCREQ(Signal* signal) 
@@ -7351,16 +7256,10 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
     /*       TO REPORT THE COMPLETION OF THE TAKE OVER TO ALL     */
     /*       NODES THAT ARE ALIVE.                                */
     /*------------------------------------------------------------*/
-    for (hostptr.i = 1; hostptr.i < MAX_NDB_NODES; hostptr.i++) {
-      jam();
-      ptrAss(hostptr, hostRecord);
-      if (hostptr.p->hostStatus == HS_ALIVE) {
-        jam();
-        tblockref = calcTcBlockRef(hostptr.i);
-        signal->theData[0] = tcNodeFailptr.p->takeOverNode;
-        sendSignal(tblockref, GSN_TAKE_OVERTCCONF, signal, 1, JBB);
-      }//if
-    }//for
+    NodeReceiverGroup rg(DBTC, c_alive_nodes);
+    signal->theData[0] = tcNodeFailptr.p->takeOverNode;
+    sendSignal(rg, GSN_TAKE_OVERTCCONF, signal, 1, JBB);
+    
     if (tcNodeFailptr.p->queueIndex > 0) {
       jam();
       /*------------------------------------------------------------*/
@@ -9937,7 +9836,6 @@ void Dbtc::inithost(Signal* signal)
     ptrAss(hostptr, hostRecord);
     hostptr.p->hostStatus = HS_DEAD;
     hostptr.p->inPackedList = false;
-    hostptr.p->takeOverStatus = TOS_NOT_DEFINED;
     hostptr.p->lqhTransStatus = LTS_IDLE;
     hostptr.p->noOfWordsTCKEYCONF = 0;
     hostptr.p->noOfWordsTCINDXCONF = 0;
