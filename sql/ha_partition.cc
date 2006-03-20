@@ -4703,6 +4703,7 @@ int ha_partition::extra(enum ha_extra_function operation)
     break;
   }
   case HA_EXTRA_NO_CACHE:
+  case HA_EXTRA_WRITE_CACHE:
   {
     m_extra_cache= FALSE;
     m_extra_cache_size= 0;
