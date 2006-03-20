@@ -3864,7 +3864,8 @@ bool get_schema_tables_result(JOIN *join)
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
     if (table_list->schema_table && thd->fill_derived_tables())
     {
-      bool is_subselect= (&lex->unit != lex->current_select->master_unit());
+      bool is_subselect= (&lex->unit != lex->current_select->master_unit() &&
+                          lex->current_select->master_unit()->item);
       /*
         The schema table is already processed and 
         the statement is not a subselect.
