@@ -211,14 +211,6 @@ public:
     LTS_ACTIVE = 1
   };
 
-  enum TakeOverState {
-    TOS_NOT_DEFINED = 0,
-    TOS_IDLE = 1,
-    TOS_ACTIVE = 2,
-    TOS_COMPLETED = 3,
-    TOS_NODE_FAILED = 4
-  };
-
   enum FailState {
     FS_IDLE = 0,
     FS_LISTENING = 1,
@@ -933,7 +925,6 @@ public:
   struct HostRecord {
     HostState hostStatus;
     LqhTransState lqhTransStatus;
-    TakeOverState takeOverStatus;
     bool  inPackedList;
     UintR noOfPackedWordsLqh;
     UintR packedWordsLqh[26];
