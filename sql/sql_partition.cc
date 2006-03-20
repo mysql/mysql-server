@@ -3817,6 +3817,42 @@ end:
 
 
 /*
+  Set engine type on all partition element objects
+  SYNOPSIS
+    set_engine_all_partitions()
+    part_info                  Partition info
+    engine_type                Handlerton reference of engine
+  RETURN VALUES
+    NONE
+*/
+
+static
+void
+set_engine_all_partitions(partition_info *part_info,
+                          handlerton *engine_type)
+{
+  uint i= 0;
+  List_iterator<partition_element> part_it(part_info->partitions);
+  do
+  {
+    partition_element *part_elem= part_it++;
+
+    part_elem->engine_type= engine_type;
+    if (part_info->is_sub_partitioned())
+    {
+      List_iterator<partition_element> sub_it(part_elem->subpartitions);
+      uint j= 0;
+
+      do
+      {
+        partition_element *sub_elem= sub_it++;
+
+        sub_elem->engine_type= engine_type;
+      } while (++j < part_info->no_subparts);
+    }
+  } while (++i < part_info->no_parts);
+}
+/*
   SYNOPSIS
     fast_alter_partition_error_handler()
     lpt                           Container for parameters
@@ -3918,17 +3954,34 @@ static bool check_engine_condition(partition_element *p_elem,
                                    handlerton **engine_type,
                                    bool *first)
 {
+  DBUG_ENTER("check_engine_condition");
+
+  DBUG_PRINT("enter", ("def_eng = %u, first = %u", default_engine, *first));
+  if (*engine_type)
+    DBUG_PRINT("info", ("engine_type = %s", (*engine_type)->name));
+  else
+    DBUG_PRINT("info", ("engine_type = NULL"));
   if (*first && default_engine)
+  {
     *engine_type= p_elem->engine_type;
+    if (*engine_type)
+      DBUG_PRINT("info", ("engine_type changed to = %s", (*engine_type)->name));
+    else
+      DBUG_PRINT("info", ("engine_type changed to = NULL"));
+  }
   *first= FALSE;
   if ((!default_engine &&
-      (p_elem->engine_type != *engine_type &&
-       !p_elem->engine_type)) ||
+      (p_elem->engine_type != (*engine_type) &&
+       p_elem->engine_type)) ||
       (default_engine &&
-       p_elem->engine_type != *engine_type))
-    return TRUE;
+       p_elem->engine_type != (*engine_type)))
+  {
+    DBUG_RETURN(TRUE);
+  }
   else
-    return FALSE;
+  {
+    DBUG_RETURN(FALSE);
+  }
 }
 
 /*
@@ -3965,8 +4018,8 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
   uint no_parts= part_info->partitions.elements;
   DBUG_ENTER("check_native_partitioned");
 
-  default_engine= (create_info->used_fields | HA_CREATE_USED_ENGINE) ?
-                   TRUE : FALSE;
+  default_engine= (create_info->used_fields & HA_CREATE_USED_ENGINE) ?
+                   FALSE : TRUE;
   DBUG_PRINT("info", ("engine_type = %u, default = %u",
                        ha_legacy_type(engine_type),
                        default_engine));
@@ -4025,6 +4078,7 @@ error:
     Mixed engines not yet supported but when supported it will need
     the partition handler
   */
+  my_error(ER_MIX_HANDLER_ERROR, MYF(0));
   *ret_val= FALSE;
   DBUG_RETURN(TRUE);
 }
@@ -4803,7 +4857,7 @@ the generated partition syntax in a correct manner.
 
      Case IIa:
        There was a partitioning before and there is no new one defined.
-       Also the user has not specified an explicit engine to use.
+       Also the user has not specified to remove partitioning explicitly.
 
        We use the old partitioning also for the new table. We do this
        by assigning the partition_info from the table loaded in
@@ -4812,12 +4866,11 @@ the generated partition syntax in a correct manner.
 
      Case IIb:
        There was a partitioning before and there is no new one defined.
-       The user has specified an explicit engine to use.
+       The user has specified explicitly to remove partitioning
 
-       Since the user has specified an explicit engine to use we override
-       the old partitioning info and create a new table using the specified
-       engine. This is the reason for the extra check if old and new engine
-       is equal.
+       Since the user has specified explicitly to remove partitioning
+       we override the old partitioning info and create a new table using
+       the specified engine.
        In this case the partition also is changed.
 
      Case III:
@@ -4840,12 +4893,41 @@ the generated partition syntax in a correct manner.
     */
     if (table->part_info)
     {
-      if (!thd->lex->part_info &&
-          create_info->db_type == old_db_type)
+      if (thd->lex->alter_info.flags & ALTER_REMOVE_PARTITIONING)
+      {
+        DBUG_PRINT("info", ("Remove partitioning"));
+        if (!(thd->lex->create_info.used_fields & HA_CREATE_USED_ENGINE))
+        {
+          DBUG_PRINT("info", ("No explicit engine used"));
+          create_info->db_type= table->part_info->default_engine_type;
+        }
+        DBUG_PRINT("info", ("New engine type = %s",
+                   create_info->db_type->name));
+        thd->lex->part_info= NULL;
+        *partition_changed= TRUE;
+      }
+      else if (!thd->lex->part_info)
+      {
+        /*
+          Retain partitioning but possibly with a new storage engine
+          beneath.
+        */
         thd->lex->part_info= table->part_info;
+        if (thd->lex->create_info.used_fields & HA_CREATE_USED_ENGINE &&
+            create_info->db_type != table->part_info->default_engine_type)
+        {
+          /*
+            Make sure change of engine happens to all partitions.
+          */
+          set_engine_all_partitions(thd->lex->part_info, create_info->db_type);
+          *partition_changed= TRUE;
+        }
+      }
     }
     if (thd->lex->part_info)
     {
+      partition_info *part_info= thd->lex->part_info;
+      bool is_native_partitioned= FALSE;
       /*
         Need to cater for engine types that can handle partition without
         using the partition handler.
@@ -4853,35 +4935,20 @@ the generated partition syntax in a correct manner.
       if (thd->lex->part_info != table->part_info)
         *partition_changed= TRUE;
       if (create_info->db_type == &partition_hton)
-      {
-        if (table->part_info)
-        {
-          thd->lex->part_info->default_engine_type=
-                               table->part_info->default_engine_type;
-        }
-        else
-        {
-          thd->lex->part_info->default_engine_type= 
-                           ha_checktype(thd, DB_TYPE_DEFAULT, FALSE, FALSE);
-        }
-      }
+        part_info->default_engine_type= table->part_info->default_engine_type;
       else
-      {
-        bool is_native_partitioned= FALSE;
-        partition_info *part_info= thd->lex->part_info;
         part_info->default_engine_type= create_info->db_type;
-        if (check_native_partitioned(create_info, &is_native_partitioned,
-                                     part_info, thd))
-        {
-          DBUG_RETURN(TRUE);
-        }
-        if (!is_native_partitioned)
-        {
-          DBUG_ASSERT(create_info->db_type != &default_hton);
-          create_info->db_type= &partition_hton;
-        }
+      if (check_native_partitioned(create_info, &is_native_partitioned,
+                                   part_info, thd))
+      {
+        DBUG_RETURN(TRUE);
       }
-      DBUG_PRINT("info", ("default_db_type = %s",
+      if (!is_native_partitioned)
+      {
+        DBUG_ASSERT(create_info->db_type != &default_hton);
+        create_info->db_type= &partition_hton;
+      }
+      DBUG_PRINT("info", ("default_engine_type = %s",
                  thd->lex->part_info->default_engine_type->name));
     }
   }
