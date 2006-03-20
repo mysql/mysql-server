@@ -328,7 +328,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       table_list.table_name= file->name;
       table_list.table_name_length= strlen(file->name);
       table_list.grant.privilege=col_access;
-      if (check_grant(thd, TABLE_ACLS, &table_list, 1, UINT_MAX, 1))
+      if (check_grant(thd, TABLE_ACLS, &table_list, 1, 1, 1))
         continue;
     }
 #endif
