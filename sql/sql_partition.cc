@@ -3760,7 +3760,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
       }
     }
     else
-      part_info= old_lex->part_info;
+      part_info= thd->work_part_info;
   }
   table->part_info= part_info;
   table->file->set_part_info(part_info);
@@ -4077,7 +4077,9 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
   if (table->part_info)
     table->s->version= 0L;
 
-  if (!(thd->work_part_info= thd->lex->part_info->get_clone()))
+  thd->work_part_info= thd->lex->part_info;
+  if (thd->work_part_info &&
+      !(thd->work_part_info= thd->lex->part_info->get_clone()))
     DBUG_RETURN(TRUE);
 
   if (alter_info->flags &
