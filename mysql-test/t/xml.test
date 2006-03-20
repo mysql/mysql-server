@@ -286,3 +286,12 @@ select extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]');
 select extractValue('<e>1</e>','position()');
 --error 1105
 select extractValue('<e>1</e>','last()');
+
+
+#
+# Bug #18172 XML: Extractvalue() accepts mallformed
+# XPath without a XPath syntax error
+#
+--error 1105
+select extractValue('<e><a>1</a></e>','/e/');
+
