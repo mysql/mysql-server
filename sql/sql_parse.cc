@@ -2357,6 +2357,7 @@ mysql_execute_command(THD *thd)
   /* Saved variable value */
   DBUG_ENTER("mysql_execute_command");
   thd->net.no_send_error= 0;
+  thd->work_part_info= 0;
 
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
@@ -2902,6 +2903,15 @@ mysql_execute_command(THD *thd)
                                      lex->like_name); 
       else
       {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+        partition_info *part_info= thd->lex->part_info;
+        if (part_info && !(part_info= thd->lex->part_info->get_clone()))
+        {
+          res= -1;
+          goto end_with_restore_list;
+        }
+        thd->work_part_info= part_info;
+#endif
         res= mysql_create_table(thd, create_table->db,
 				create_table->table_name, &lex->create_info,
 				lex->create_list,
