@@ -1038,7 +1038,8 @@ private:
   void prepareReplicas(FragmentstorePtr regFragptr);
   void removeNodeFromStored(Uint32 nodeId,
                             FragmentstorePtr regFragptr,
-                            ReplicaRecordPtr replicaPtr);
+                            ReplicaRecordPtr replicaPtr,
+			    bool temporary);
   void removeOldStoredReplica(FragmentstorePtr regFragptr,
                               ReplicaRecordPtr replicaPtr);
   void removeStoredReplica(FragmentstorePtr regFragptr,

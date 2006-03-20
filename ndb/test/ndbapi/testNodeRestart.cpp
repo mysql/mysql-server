@@ -535,6 +535,52 @@ err:
   return NDBT_FAILED;
 }
 
+int 
+runBug16772(NDBT_Context* ctx, NDBT_Step* step){
+
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  int aliveNodeId = restarter.getRandomNotMasterNodeId(rand());
+  int deadNodeId = aliveNodeId;
+  while (deadNodeId == aliveNodeId)
+    deadNodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+  
+  if (restarter.insertErrorInNode(aliveNodeId, 930))
+    return NDBT_FAILED;
+
+  if (restarter.restartOneDbNode(deadNodeId,
+				 /** initial */ false, 
+				 /** nostart */ true,
+				 /** abort   */ true))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesNoStart(&deadNodeId, 1))
+    return NDBT_FAILED;
+
+  if (restarter.startNodes(&deadNodeId, 1))
+    return NDBT_FAILED;
+
+  // It should now be hanging since we throw away NDB_FAILCONF
+  int ret = restarter.waitNodesStartPhase(&deadNodeId, 1, 3, 10);
+  // So this should fail...i.e it should not reach startphase 3
+
+  // Now send a NDB_FAILCONF for deadNo
+  int dump[] = { 7020, 323, 252, 0 };
+  dump[3] = deadNodeId;
+  if (restarter.dumpStateOneNode(aliveNodeId, dump, 4))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesStarted(&deadNodeId, 1))
+    return NDBT_FAILED;
+
+  return ret ? NDBT_OK : NDBT_FAILED;
+}
+
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -819,6 +865,10 @@ TESTCASE("Bug15685",
 	 "Test bug with NF during abort"){
   STEP(runBug15685);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug16772",
+	 "Test bug with restarting before NF handling is complete"){
+  STEP(runBug16772);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
