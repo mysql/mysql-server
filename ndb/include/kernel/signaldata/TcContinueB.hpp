@@ -44,7 +44,8 @@ private:
     CHECK_WAIT_DROP_TAB_FAILED_LQH         = 16,
     TRIGGER_PENDING                        = 17,
     
-    DelayTCKEYCONF = 18
+    DelayTCKEYCONF = 18,
+    ZNF_CHECK_TRANSACTIONS = 19
   };
 };
 
