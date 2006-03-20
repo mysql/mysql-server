@@ -579,7 +579,6 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
       timeout = tmp1;
   }
   m_waitfor_timeout = timeout;
-  ndbout_c("Using waitfor: %d", timeout);
   
   if (!theTransporterRegistry->start_service(m_socket_server)){
     ndbout_c("Unable to start theTransporterRegistry->start_service");
