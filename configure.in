@@ -1545,11 +1545,13 @@ fi
 #---END:
 
 # dlopen, dlerror
-case $with_mysqld_ldflags in
+case "$with_mysqld_ldflags " in
 
-  *-all-static*)
+  *"-static "*)
     # No need to check for dlopen when mysqld is linked with
-    # -all-static as it won't be able to load any functions.
+    # -all-static or -static as it won't be able to load any functions.
+    # NOTE! It would be better if it was possible to test if dlopen
+    # can be used, but a good way to test it couldn't be found
 
     ;;
 
