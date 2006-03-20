@@ -236,6 +236,10 @@ max-time: 500
 cmd: testTimeout
 args: -n TimeoutRandTransaction T1
 
+max-time: 600
+cmd: testTimeout
+args: -n Error4012 T1
+
 # SCAN TESTS
 #
 max-time: 500
