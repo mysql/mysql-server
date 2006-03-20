@@ -723,4 +723,10 @@ partition by list (case when s1 > 'cz' then 1 else 2 end)
  partition p2 values in (2));
 drop table t1;
 
+#
+# Bug#15336 Partitions: crash if create table as select
+#
+create table t1 (f1 int) partition by hash (f1) as select 1;
+drop table t1;
+
 --echo End of 5.1 tests
