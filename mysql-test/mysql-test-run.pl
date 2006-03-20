@@ -1135,6 +1135,14 @@ sub environment_setup () {
   }
 
   # --------------------------------------------------------------------------
+  # Add the path where mysqld will find udf_example.so
+  # --------------------------------------------------------------------------
+  $ENV{'LD_LIBRARY_PATH'}=
+    "$glob_basedir/sql/.libs" .
+      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+
+
+  # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
   # --------------------------------------------------------------------------
 

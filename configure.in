@@ -1499,16 +1499,37 @@ else
 fi
 #---END:
 
-# Check for dlopen, needed for user definable functions
-# This must be checked after threads on AIX
-# We only need this for mysqld, not for the clients.
+# dlopen, dlerror
+case "$with_mysqld_ldflags " in
 
-my_save_LIBS="$LIBS"
-LIBS=""
-AC_CHECK_LIB(dl,dlopen)
-LIBDL=$LIBS
-LIBS="$my_save_LIBS"
-AC_SUBST(LIBDL)
+  *"-static "*)
+    # No need to check for dlopen when mysqld is linked with
+    # -all-static or -static as it won't be able to load any functions.
+    # NOTE! It would be better if it was possible to test if dlopen
+    # can be used, but a good way to test it couldn't be found
+
+    ;;
+
+  *)
+    # Check for dlopen, needed for user definable functions
+    # This must be checked after threads on AIX
+    # We only need this for mysqld, not for the clients.
+
+    my_save_LIBS="$LIBS"
+    LIBS=""
+    AC_CHECK_LIB(dl,dlopen)
+    LIBDL=$LIBS
+    LIBS="$my_save_LIBS"
+    AC_SUBST(LIBDL)
+
+    my_save_LIBS="$LIBS"
+    LIBS="$LIBS $LIBDL"
+    AC_CHECK_FUNCS(dlopen dlerror)
+    LIBS="$my_save_LIBS"
+
+    ;;
+esac
+
 
 # System characteristics
 case $SYSTEM_TYPE in
@@ -1892,11 +1913,6 @@ then
   AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
 fi]
 )
-
-my_save_LIBS="$LIBS"
-LIBS="$LIBS $LIBDL"
-AC_CHECK_FUNCS(dlopen dlerror)
-LIBS="$my_save_LIBS"
 
 # Check definition of gethostbyaddr_r (glibc2 defines this with 8 arguments)
 ac_save_CXXFLAGS="$CXXFLAGS"
