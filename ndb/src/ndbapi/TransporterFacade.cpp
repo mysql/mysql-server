@@ -567,6 +567,20 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   }
 #endif
   
+  Uint32 timeout = 120000;
+  iter.first();
+  for (iter.first(); iter.valid(); iter.next())
+  {
+    Uint32 tmp1 = 0, tmp2 = 0;
+    iter.get(CFG_DB_TRANSACTION_CHECK_INTERVAL, &tmp1);
+    iter.get(CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &tmp2);
+    tmp1 += tmp2;
+    if (tmp1 > timeout)
+      timeout = tmp1;
+  }
+  m_waitfor_timeout = timeout;
+  ndbout_c("Using waitfor: %d", timeout);
+  
   if (!theTransporterRegistry->start_service(m_socket_server)){
     ndbout_c("Unable to start theTransporterRegistry->start_service");
     DBUG_RETURN(false);
