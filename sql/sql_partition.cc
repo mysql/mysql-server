@@ -1710,6 +1710,7 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   char* db_name;
   partition_info *part_info= table->part_info;
   ulong save_set_query_id= thd->set_query_id;
+  Item *thd_free_list= thd->free_list;
   DBUG_ENTER("fix_partition_func");
 
   if (part_info->fixed)
@@ -1744,6 +1745,7 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
       DBUG_RETURN(TRUE);
     }
   }
+  thd->free_list= part_info->item_free_list;
   if (part_info->is_sub_partitioned())
   {
     DBUG_ASSERT(part_info->subpart_type == HASH_PARTITION);
@@ -1853,6 +1855,7 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   set_up_range_analysis_info(part_info);
   result= FALSE;
 end:
+  thd->free_list= thd_free_list;
   thd->set_query_id= save_set_query_id;
   DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
   DBUG_RETURN(result);
