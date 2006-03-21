@@ -2453,7 +2453,7 @@ row_ins_step(
 	execution resumes after wait for the table IX lock), set an
 	IX lock on the table and reset the possible select node. MySQL's
 	partitioned table code may also call an insert within the same
-	SQL statement AFTER it has used this tbale handle to do a search.
+	SQL statement AFTER it has used this table handle to do a search.
 	This happens, for example, when a row update moves it to another
 	partition. In that case, we have already set the IX lock on the
 	table during the search operation, and there is no need to set
