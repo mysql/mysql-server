@@ -303,6 +303,8 @@ Test Crashes in handling node restarts
 7131: Crash when receiving START_COPYREQ in master node
 7132: Crash when receiving START_COPYCONF in starting node
 
+7170: Crash when receiving START_PERMREF (InitialStartRequired)
+
 DICT:
 6000  Crash during NR when receiving DICTSTARTREQ
 6001  Crash during NR when receiving SCHEMA_INFO

@@ -127,6 +127,7 @@ public:
     DihMinTimeBetweenLCP = 7017,
     DihMaxTimeBetweenLCP = 7018,
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
+    DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,
     // 8000 Suma
     // 12000 Tux
