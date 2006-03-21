@@ -495,6 +495,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PARSER_SYM
 %token  PARTIAL
 %token  PARTITION_SYM
+%token  PARTITIONING_SYM
 %token  PARTITIONS_SYM
 %token  PASSWORD
 %token  PARAM_MARKER
@@ -537,6 +538,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RELAY_THREAD
 %token  RELEASE_SYM
 %token  RELOAD
+%token  REMOVE_SYM
 %token  RENAME
 %token  REORGANIZE_SYM
 %token  REPAIR
@@ -4908,6 +4910,9 @@ alter_commands:
 	| IMPORT TABLESPACE { Lex->alter_info.tablespace_op= IMPORT_TABLESPACE; }
         | alter_list
           opt_partitioning
+        | alter_list
+          remove_partitioning
+        | remove_partitioning
         | partitioning
 /*
   This part was added for release 5.1 by Mikael Ronström.
@@ -4971,6 +4976,13 @@ alter_commands:
 	    lex->alter_info.no_parts= $4;
           }
         | reorg_partition_rule
+        ;
+
+remove_partitioning:
+        REMOVE_SYM PARTITIONING_SYM
+        {
+          Lex->alter_info.flags|= ALTER_REMOVE_PARTITIONING;
+        }
         ;
 
 all_or_alt_part_name_list:
@@ -7809,7 +7821,19 @@ replace:
 	;
 
 insert_lock_option:
-	/* empty */	{ $$= TL_WRITE_CONCURRENT_INSERT; }
+	/* empty */
+          {
+#ifdef HAVE_QUERY_CACHE
+            /*
+              If it is SP we do not allow insert optimisation whan result of
+              insert visible only after the table unlocking but everyone can
+              read table.
+            */
+            $$= (Lex->sphead ? TL_WRITE :TL_WRITE_CONCURRENT_INSERT);
+#else
+            $$= TL_WRITE_CONCURRENT_INSERT;
+#endif
+          }
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; }
 	| DELAYED_SYM	{ $$= TL_WRITE_DELAYED; }
 	| HIGH_PRIORITY { $$= TL_WRITE; }
@@ -8728,7 +8752,16 @@ opt_local:
 
 load_data_lock:
 	/* empty */	{ $$= YYTHD->update_lock_default; }
-	| CONCURRENT	{ $$= TL_WRITE_CONCURRENT_INSERT ; }
+	| CONCURRENT
+          {
+#ifdef HAVE_QUERY_CACHE
+            /*
+              Ignore this option in SP to avoid problem with query cache
+            */
+            if (Lex->sphead != 0)
+#endif
+              $$= TL_WRITE_CONCURRENT_INSERT;
+          }
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; };
 
 
@@ -9326,6 +9359,7 @@ keyword:
 	| PARTITION_SYM		{}
         | PLUGIN_SYM            {}
         | PREPARE_SYM           {}
+	| REMOVE_SYM		{}
 	| REPAIR		{}
 	| RESET_SYM		{}
 	| RESTORE_SYM		{}
@@ -9500,6 +9534,7 @@ keyword_sp:
         | ONE_SYM               {}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
+	| PARTITIONING_SYM	{}
 	| PARTITIONS_SYM	{}
 	| PASSWORD		{}
         | PHASE_SYM             {}
