@@ -630,6 +630,7 @@ sys_var_have_variable sys_have_blackhole_db("have_blackhole_engine",
 sys_var_have_variable sys_have_compress("have_compress", &have_compress);
 sys_var_have_variable sys_have_crypt("have_crypt", &have_crypt);
 sys_var_have_variable sys_have_csv_db("have_csv", &have_csv_db);
+sys_var_have_variable sys_have_dlopen("have_dlopen", &have_dlopen);
 sys_var_have_variable sys_have_example_db("have_example_engine",
                                           &have_example_db);
 sys_var_have_variable sys_have_federated_db("have_federated_engine",
@@ -754,6 +755,7 @@ SHOW_VAR init_vars[]= {
   {sys_have_compress.name,    (char*) &have_compress,               SHOW_HAVE},
   {sys_have_crypt.name,       (char*) &have_crypt,                  SHOW_HAVE},
   {sys_have_csv_db.name,      (char*) &have_csv_db,                 SHOW_HAVE},
+  {sys_have_dlopen.name,      (char*) &have_dlopen,                 SHOW_HAVE},
   {sys_have_example_db.name,  (char*) &have_example_db,             SHOW_HAVE},
   {sys_have_federated_db.name,(char*) &have_federated_db,           SHOW_HAVE},
   {sys_have_geometry.name,    (char*) &have_geometry,               SHOW_HAVE},

@@ -1444,7 +1444,7 @@ extern handlerton myisammrg_hton;
 extern handlerton heap_hton;
 
 extern SHOW_COMP_OPTION have_row_based_replication;
-extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
+extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
