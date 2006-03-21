@@ -114,7 +114,7 @@ void udf_init()
   READ_RECORD read_record_info;
   TABLE *table;
   int error;
-  DBUG_ENTER("ufd_init");
+  DBUG_ENTER("udf_init");
 
   if (initialized)
     DBUG_VOID_RETURN;
@@ -177,7 +177,6 @@ void udf_init()
       continue;
     }
 
-
     if (!(tmp= add_udf(&name,(Item_result) table->field[1]->val_int(),
                        dl_name, udftype)))
     {
@@ -188,13 +187,10 @@ void udf_init()
     void *dl = find_udf_dl(tmp->dl);
     if (dl == NULL)
     {
-      char dlpath[FN_REFLEN];
-      strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", tmp->dl,
-               NullS);
-      if (!(dl= dlopen(dlpath, RTLD_NOW)))
+      if (!(dl= dlopen(tmp->dl, RTLD_NOW)))
       {
 	/* Print warning to log */
-	sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dlpath, errno, dlerror());
+	sql_print_error(ER(ER_CANT_OPEN_LIBRARY), tmp->dl, errno, dlerror());
 	/* Keep the udf in the hash so that we can remove it later */
 	continue;
       }
@@ -415,14 +411,12 @@ int mysql_create_function(THD *thd,udf_func *udf)
   }
   if (!(dl = find_udf_dl(udf->dl)))
   {
-    char dlpath[FN_REFLEN];
-    strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", udf->dl, NullS);
-    if (!(dl = dlopen(dlpath, RTLD_NOW)))
+    if (!(dl = dlopen(udf->dl, RTLD_NOW)))
     {
       DBUG_PRINT("error",("dlopen of %s failed, error: %d (%s)",
-			  dlpath, errno, dlerror()));
+			  udf->dl, errno, dlerror()));
       my_error(ER_CANT_OPEN_LIBRARY, MYF(0),
-                      dlpath, errno, dlerror());
+               udf->dl, errno, dlerror());
       goto err;
     }
     new_dl=1;

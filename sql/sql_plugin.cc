@@ -94,8 +94,10 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(struct st_plugin_dl *plugin_dl)
 
 static inline void free_plugin_mem(struct st_plugin_dl *p)
 {
+#ifdef HAVE_DLOPEN
   if (p->handle)
     dlclose(p->handle);
+#endif
   my_free(p->dl.str, MYF(MY_ALLOW_ZERO_PTR));
   if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION)
     my_free((gptr)p->plugins, MYF(MY_ALLOW_ZERO_PTR));

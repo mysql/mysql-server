@@ -1443,13 +1443,4 @@ do { doubleget_union _tmp; \
 #define dlerror() ""
 #endif
 
-/* FreeBSD 2.2.2 does not define RTLD_NOW) */
-#ifndef RTLD_NOW
-#define RTLD_NOW 1
-#endif
-
-#ifndef HAVE_DLERROR
-#define dlerror() ""
-#endif
-
 #endif /* my_global_h */
