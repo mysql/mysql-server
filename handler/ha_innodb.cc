@@ -6898,18 +6898,20 @@ ha_innobase::store_lock(
 		unexpected if an obsolete consistent read view would be
 		used. */
 
-		if (srv_locks_unsafe_for_binlog &&
-			prebuilt->trx->isolation_level != TRX_ISO_SERIALIZABLE &&
-			(lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
-			(thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
-				thd->lex->sql_command == SQLCOM_UPDATE)) {
+		if (srv_locks_unsafe_for_binlog
+		&& prebuilt->trx->isolation_level != TRX_ISO_SERIALIZABLE
+		&& (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT)
+		&& (thd->lex->sql_command == SQLCOM_INSERT_SELECT
+			|| thd->lex->sql_command == SQLCOM_UPDATE
+			|| thd->lex->sql_command == SQLCOM_CREATE_TABLE)) {
 
 			/* In case we have innobase_locks_unsafe_for_binlog
 			option set and isolation level of the transaction
 			is not set to serializable and MySQL is doing
-			INSERT INTO...SELECT or UPDATE ... = (SELECT ...)
-			without FOR UPDATE or IN SHARE MODE in select, then
-			we use consistent read for select. */
+			INSERT INTO...SELECT or UPDATE ... = (SELECT ...) or
+			CREATE  ... SELECT... without FOR UPDATE or
+			IN SHARE MODE in select, then we use consistent
+			read for select. */
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;
