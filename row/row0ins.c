@@ -1896,7 +1896,6 @@ row_ins_duplicate_error_in_clust(
 				err = DB_DUPLICATE_KEY;
 				goto func_exit;
 			}
-			mem_heap_free(heap);
 		}
 
 		ut_a(!(cursor->index->type & DICT_CLUSTERED));
@@ -1905,6 +1904,9 @@ row_ins_duplicate_error_in_clust(
 
 	err = DB_SUCCESS;
 func_exit:
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
+	}
 	return(err);
 #else /* UNIV_HOTBACKUP */
 	/* This function depends on MySQL code that is not included in
