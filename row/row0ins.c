@@ -2451,7 +2451,15 @@ row_ins_step(
 
 	/* If this is the first time this node is executed (or when
 	execution resumes after wait for the table IX lock), set an
-	IX lock on the table and reset the possible select node. */
+	IX lock on the table and reset the possible select node. MySQL's
+	partitioned table code may also call an insert within the same
+	SQL statement AFTER it has used this tbale handle to do a search.
+	This happens, for example, when a row update moves it to another
+	partition. In that case, we have already set the IX lock on the
+	table during the search operation, and there is no need to set
+	it again here. But we must write thx->id to to node->trx_id_buf. */
+
+	trx_write_trx_id(node->trx_id_buf, trx->id);
 
 	if (node->state == INS_NODE_SET_IX_LOCK) {
 
@@ -2459,12 +2467,10 @@ row_ins_step(
 		its transaction, or it has been committed: */
 
 		if (UT_DULINT_EQ(trx->id, node->trx_id)) {
-			/* No need to do IX-locking or write trx id to buf */
+			/* No need to do IX-locking */
 
 			goto same_trx;
 		}
-
-		trx_write_trx_id(node->trx_id_buf, trx->id);
 
 		err = lock_table(0, node->table, LOCK_IX, thr);
 
