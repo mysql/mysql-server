@@ -6605,9 +6605,11 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
   {
     int i;
     const char *p;
-    for (i=0 ; (p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i)); i++)
+    char *end= buff + SHOW_VAR_FUNC_BUFF_SIZE;
+    for (i=0; (p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i)) &&
+               buff < end; i++)
     {
-      buff= strmov(buff, p);
+      buff= strnmov(buff, p, end-buff-1);
       *buff++= ':';
     }
     if (i)
