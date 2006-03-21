@@ -80,8 +80,8 @@ sp_map_item_type(enum enum_field_types type)
 /*
   Return a string representation of the Item value.
 
-  NOTE: this is a legacy-compatible implementation. It fails if the value
-  contains non-ordinary symbols, which should be escaped.
+  NOTE: If the item has a string result type, the string is escaped
+  according to its character set.
 
   SYNOPSIS
     item    a pointer to the Item
@@ -119,9 +119,9 @@ sp_get_item_value(Item *item, String *str)
 
         buf.append('_');
         buf.append(result->charset()->csname);
-        buf.append('\'');
-        buf.append(*result);
-        buf.append('\'');
+        if (result->charset()->escape_with_backslash_is_dangerous)
+          buf.append(' ');
+        append_query_string(result->charset(), result, &buf);
         str->copy(buf);
 
         return str;
