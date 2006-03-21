@@ -294,6 +294,13 @@ sub1	sub1
 select count(*) from information_schema.ROUTINES;
 count(*)
 2
+create view v1 as select routine_schema, routine_name from information_schema.routines 
+order by routine_schema, routine_name;
+select * from v1;
+routine_schema	routine_name
+test	sel2
+test	sub1
+drop view v1;
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
 ROUTINE_NAME	ROUTINE_DEFINITION
 show create function sub1;
