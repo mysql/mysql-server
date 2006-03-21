@@ -4934,7 +4934,7 @@ the generated partition syntax in a correct manner.
     }
     if (thd->work_part_info)
     {
-      partition_info *part_info= thd->lex->part_info;
+      partition_info *part_info= thd->work_part_info;
       bool is_native_partitioned= FALSE;
       /*
         Need to cater for engine types that can handle partition without
