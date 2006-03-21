@@ -7821,7 +7821,19 @@ replace:
 	;
 
 insert_lock_option:
-	/* empty */	{ $$= TL_WRITE_CONCURRENT_INSERT; }
+	/* empty */
+          {
+#ifdef HAVE_QUERY_CACHE
+            /*
+              If it is SP we do not allow insert optimisation whan result of
+              insert visible only after the table unlocking but everyone can
+              read table.
+            */
+            $$= (Lex->sphead ? TL_WRITE :TL_WRITE_CONCURRENT_INSERT);
+#else
+            $$= TL_WRITE_CONCURRENT_INSERT;
+#endif
+          }
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; }
 	| DELAYED_SYM	{ $$= TL_WRITE_DELAYED; }
 	| HIGH_PRIORITY { $$= TL_WRITE; }
@@ -8740,7 +8752,16 @@ opt_local:
 
 load_data_lock:
 	/* empty */	{ $$= YYTHD->update_lock_default; }
-	| CONCURRENT	{ $$= TL_WRITE_CONCURRENT_INSERT ; }
+	| CONCURRENT
+          {
+#ifdef HAVE_QUERY_CACHE
+            /*
+              Ignore this option in SP to avoid problem with query cache
+            */
+            if (Lex->sphead != 0)
+#endif
+              $$= TL_WRITE_CONCURRENT_INSERT;
+          }
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; };
 
 
