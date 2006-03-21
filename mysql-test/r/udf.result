@@ -2,7 +2,7 @@ drop table if exists t1;
 CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
 CREATE FUNCTION myfunc_double RETURNS REAL SONAME 'udf_example.so';
 CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME 'udf_example.so';
-ERROR HY000: Can't find function 'myfunc_nonexist' in library
+ERROR HY000: Can't find symbol 'myfunc_nonexist' in library
 CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME 'udf_example.so';
 CREATE FUNCTION sequence RETURNS INTEGER SONAME "udf_example.so";
 CREATE FUNCTION lookup RETURNS STRING SONAME 'udf_example.so';

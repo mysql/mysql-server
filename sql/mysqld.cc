@@ -564,7 +564,7 @@ CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
 
 SHOW_COMP_OPTION have_row_based_replication;
-SHOW_COMP_OPTION have_openssl, have_symlink, have_query_cache;
+SHOW_COMP_OPTION have_openssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
@@ -1163,13 +1163,13 @@ void clean_up(bool print_message)
   set_var_free();
   free_charsets();
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
-#ifdef HAVE_DLOPEN
   if (!opt_noacl)
   {
+#ifdef HAVE_DLOPEN
     udf_free();
-  }
 #endif
-  plugin_free();
+    plugin_free();
+  }
   if (tc_log)
     tc_log->close();
   xid_cache_free();
@@ -7077,6 +7077,11 @@ static void mysql_init_variables(void)
   have_symlink=SHOW_OPTION_NO;
 #else
   have_symlink=SHOW_OPTION_YES;
+#endif
+#ifdef HAVE_DLOPEN
+  have_dlopen=SHOW_OPTION_YES;
+#else
+  have_dlopen=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_QUERY_CACHE
   have_query_cache=SHOW_OPTION_YES;
