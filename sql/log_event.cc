@@ -240,6 +240,37 @@ char *str_to_hex(char *to, const char *from, uint len)
 }
 
 /*
+  Append a version of the 'from' string suitable for use in a query to
+  the 'to' string.  To generate a correct escaping, the character set
+  information in 'csinfo' is used.
+ */
+#ifndef MYSQL_CLIENT
+int
+append_query_string(CHARSET_INFO *csinfo,
+                    String const *from, String *to)
+{
+  char *beg, *ptr;
+  uint32 const orig_len= to->length();
+  if (to->reserve(orig_len + from->length()*2+3))
+    return 1;
+
+  beg= to->c_ptr_quick() + to->length();
+  ptr= beg;
+  if (csinfo->escape_with_backslash_is_dangerous)
+    ptr= str_to_hex(ptr, from->ptr(), from->length());
+  else
+  {
+    *ptr++= '\'';
+    ptr+= escape_string_for_mysql(from->charset(), ptr, 0,
+                                  from->ptr(), from->length());
+    *ptr++='\'';
+  }
+  to->length(orig_len + ptr - beg);
+  return 0;
+}
+#endif
+
+/*
   Prints a "session_var=value" string. Used by mysqlbinlog to print some SET
   commands just before it prints a query.
 */
