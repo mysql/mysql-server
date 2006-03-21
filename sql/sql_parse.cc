@@ -3314,6 +3314,19 @@ end_with_restore_list:
         select_lex->context.table_list= 
           select_lex->context.first_name_resolution_table= second_table;
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
+        /*
+          Invalidate the table in the query cache if something changed
+          after unlocking when changes become visible.
+          TODO: this is workaround. right way will be move invalidating in
+          the unlock procedure.
+        */
+        if (first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
+            thd->lock)
+        {
+          mysql_unlock_tables(thd, thd->lock);
+          query_cache_invalidate3(thd, first_table, 1);
+          thd->lock=0;
+        }
         delete result;
       }
       /* revert changes for SP */

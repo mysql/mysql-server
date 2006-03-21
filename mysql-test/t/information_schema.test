@@ -142,6 +142,11 @@ select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
 mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) order by 1;
 select count(*) from information_schema.ROUTINES;
 
+create view v1 as select routine_schema, routine_name from information_schema.routines 
+order by routine_schema, routine_name;
+select * from v1;
+drop view v1;
+
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
