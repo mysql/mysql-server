@@ -2642,25 +2642,8 @@ const String *Item_param::query_val_str(String* str) const
   case STRING_VALUE:
   case LONG_DATA_VALUE:
     {
-      char *buf, *ptr;
       str->length(0);
-      if (str->reserve(str_value.length()*2+3))
-        break;
-
-      buf= str->c_ptr_quick();
-      ptr= buf;
-      if (value.cs_info.character_set_client->escape_with_backslash_is_dangerous)
-      {
-        ptr= str_to_hex(ptr, str_value.ptr(), str_value.length());
-      }
-      else
-      {
-        *ptr++= '\'';
-        ptr+= escape_string_for_mysql(str_value.charset(), ptr, 0,
-                                      str_value.ptr(), str_value.length());
-        *ptr++='\'';
-      }
-      str->length((uint32) (ptr - buf));
+      append_query_string(value.cs_info.character_set_client, &str_value, str);
       break;
     }
   case NULL_VALUE:
