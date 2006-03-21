@@ -705,6 +705,7 @@ typedef class st_select_lex SELECT_LEX;
 #define ALTER_ANALYZE_PARTITION  (1L << 22)
 #define ALTER_CHECK_PARTITION    (1L << 23)
 #define ALTER_REPAIR_PARTITION   (1L << 24)
+#define ALTER_REMOVE_PARTITIONING (1L << 25)
 
 typedef struct st_alter_info
 {
