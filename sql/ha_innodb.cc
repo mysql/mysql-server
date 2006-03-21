@@ -534,16 +534,23 @@ convert_error_code_to_mysql(
 
 	} else if (error == (int) DB_CORRUPTION) {
 
-		return(HA_ERR_CRASHED);
-	} else if (error == (int) DB_NO_SAVEPOINT) {
+    		return(HA_ERR_CRASHED);
+  	} else if (error == (int) DB_NO_SAVEPOINT) {
 
-		return(HA_ERR_NO_SAVEPOINT);
-	} else if (error == (int) DB_LOCK_TABLE_FULL) {
+    		return(HA_ERR_NO_SAVEPOINT);
+  	} else if (error == (int) DB_LOCK_TABLE_FULL) {
+          /* Since we rolled back the whole transaction, we must
+          tell it also to MySQL so that MySQL knows to empty the
+          cached binlog for this transaction */
 
-		return(HA_ERR_LOCK_TABLE_FULL);
-	} else {
-		return(-1);			// Unknown error
-	}
+          if (thd) {
+                  ha_rollback(thd);
+          }
+
+    		return(HA_ERR_LOCK_TABLE_FULL);
+    	} else {
+    		return(-1);			// Unknown error
+    	}
 }
 
 /*****************************************************************
@@ -6950,25 +6957,25 @@ ha_innobase::store_lock(
 		}
 
 		/* If we are not doing a LOCK TABLE, DISCARD/IMPORT
-		TABLESPACE or TRUNCATE TABLE then allow multiple
+		TABLESPACE or TRUNCATE TABLE then allow multiple 
 		writers. Note that ALTER TABLE uses a TL_WRITE_ALLOW_READ
 		< TL_WRITE_CONCURRENT_INSERT.
 
-		We especially allow multiple writers if MySQL is at the
-		start of a stored procedure call (SQLCOM_CALL)
+		We especially allow multiple writers if MySQL is at the 
+		start of a stored procedure call (SQLCOM_CALL) 
 		(MySQL does have thd->in_lock_tables TRUE there). */
 
-		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT
-				&& lock_type <= TL_WRITE)
-			&& (!thd->in_lock_tables
-				|| thd->lex->sql_command == SQLCOM_CALL)
-			&& !thd->tablespace_op
-			&& thd->lex->sql_command != SQLCOM_TRUNCATE
-			&& thd->lex->sql_command != SQLCOM_OPTIMIZE
-			&& thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
+    		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT 
+		    && lock_type <= TL_WRITE)
+		    && !(thd->in_lock_tables
+                         && thd->lex->sql_command == SQLCOM_LOCK_TABLES)
+		    && !thd->tablespace_op
+		    && thd->lex->sql_command != SQLCOM_TRUNCATE
+		    && thd->lex->sql_command != SQLCOM_OPTIMIZE
+		    && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
 			lock_type = TL_WRITE_ALLOW_WRITE;
-		}
+      		}
 
 		/* In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
 		MySQL would use the lock TL_READ_NO_INSERT on t2, and that
