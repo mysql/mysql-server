@@ -3829,6 +3829,9 @@ NdbDictionaryImpl::dropBlobEvents(const NdbEventImpl& evnt)
   } else {
     // loop over MAX_ATTRIBUTES_IN_TABLE ...
     Uint32 i;
+    DBUG_PRINT("info", ("missing table definition, looping over "
+                        "MAX_ATTRIBUTES_IN_TABLE(%d)",
+                        MAX_ATTRIBUTES_IN_TABLE));
     for (i = 0; i < MAX_ATTRIBUTES_IN_TABLE; i++) {
       char bename[MAX_TAB_NAME_SIZE];
       // XXX should get name from NdbBlob
