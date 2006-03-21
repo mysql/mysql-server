@@ -1243,11 +1243,56 @@ extern const LEX_STRING view_type;
 
 /* optional things, have_* variables */
 
-extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
-extern SHOW_COMP_OPTION have_example_db, have_archive_db, have_csv_db;
+#ifdef HAVE_INNOBASE_DB
+extern handlerton innobase_hton;
+#define have_innodb innobase_hton.state
+#else
+extern SHOW_COMP_OPTION have_innodb;
+#endif
+#ifdef HAVE_BERKELEY_DB
+extern handlerton berkeley_hton;
+#define have_berkeley_db berkeley_hton.state
+#else
+extern SHOW_COMP_OPTION have_berkeley_db;
+#endif
+#ifdef HAVE_EXAMPLE_DB
+extern handlerton example_hton;
+#define have_example_db example_hton.state
+#else
+extern SHOW_COMP_OPTION have_example_db;
+#endif
+#ifdef HAVE_ARCHIVE_DB
+extern handlerton archive_hton;
+#define have_archive_db archive_hton.state
+#else
+extern SHOW_COMP_OPTION have_archive_db;
+#endif
+#ifdef HAVE_CSV_DB
+extern handlerton tina_hton;
+#define have_csv_db tina_hton.state
+#else
+extern SHOW_COMP_OPTION have_csv_db;
+#endif
+#ifdef HAVE_FEDERATED_DB
+extern handlerton federated_hton;
+#define have_federated_db federated_hton.state
+#else
 extern SHOW_COMP_OPTION have_federated_db;
+#endif
+#ifdef HAVE_BLACKHOLE_DB
+extern handlerton blackhole_hton;
+#define have_blackhole_db blackhole_hton.state
+#else
 extern SHOW_COMP_OPTION have_blackhole_db;
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+extern handlerton ndbcluster_hton;
+#define have_ndbcluster ndbcluster_hton.state
+#else
 extern SHOW_COMP_OPTION have_ndbcluster;
+#endif
+
+extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;

@@ -472,13 +472,10 @@ CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
 
-SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, have_ndbcluster, 
-  have_example_db, have_archive_db, have_csv_db;
-SHOW_COMP_OPTION have_federated_db;
+SHOW_COMP_OPTION have_isam;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
-SHOW_COMP_OPTION have_blackhole_db;
 
 /* Thread specific variables */
 
@@ -5315,8 +5312,12 @@ log and this option does nothing anymore.",
   {"symbolic-links", 's', "Enable symbolic link support.",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
+  {"sysdate-is-now", OPT_SYSDATE_IS_NOW,
+   "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. Since 5.0, SYSDATE() returns a `dynamic' value different for different invocations, even within the same statement.",
+   (gptr*) &global_system_variables.sysdate_is_now,
+   0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"tc-heuristic-recover", OPT_TC_HEURISTIC_RECOVER,
-   "Decision to use in heuristic recover process. Possible values are COMMIT or ROLLBACK",
+   "Decision to use in heuristic recover process. Possible values are COMMIT or ROLLBACK.",
    (gptr*) &opt_tc_heuristic_recover, (gptr*) &opt_tc_heuristic_recover,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"temp-pool", OPT_TEMP_POOL,
@@ -5936,10 +5937,6 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
    0, 1, 0},
-  {"sysdate-is-now", OPT_SYSDATE_IS_NOW,
-   "Non-default flag to alias SYSDATE() to NOW() to be safe-replicatable. Since 5.0 SYSDATE returns a `dynamic' value different for different invocation even within a query",
-   (gptr*) &global_system_variables.sysdate_is_now,
-   0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7394,6 +7391,30 @@ static void create_pid_file()
   sql_perror("Can't start server: can't create PID file");
   exit(1);  
 }
+
+
+/*****************************************************************************
+  Instantiate have_xyx for missing storage engines
+*****************************************************************************/
+#undef have_berkeley_db
+#undef have_innodb
+#undef have_ndbcluster
+#undef have_example_db
+#undef have_archive_db
+#undef have_csv_db
+#undef have_federated_db
+#undef have_partition_db
+#undef have_blackhole_db
+
+SHOW_COMP_OPTION have_berkeley_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_example_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_archive_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_csv_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_federated_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_partition_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
 
 
 /*****************************************************************************

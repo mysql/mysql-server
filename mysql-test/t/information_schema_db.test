@@ -8,4 +8,35 @@ show tables from INFORMATION_SCHEMA like 'T%';
 create database `inf%`;
 use `inf%`;
 show tables;
+
+#
+# Bug#18113 SELECT * FROM information_schema.xxx crashes server
+# Crash happened when one selected data from one of INFORMATION_SCHEMA
+# tables and in order to build its contents server had to open view which
+# used stored function and table or view on which one had not global or
+# database-level privileges (e.g. had only table-level or had no
+# privileges at all).
+#
+grant all privileges on `inf%`.* to 'mysqltest_1'@'localhost';
+create table t1 (f1 int);
+delimiter |;
+create function func1(curr_int int) returns int
+begin
+  declare ret_val int;
+  select max(f1) from t1 into ret_val;
+  return ret_val;
+end|
+delimiter ;|
+create view v1 as select f1 from t1 where f1 = func1(f1);
+connect (user1,localhost,mysqltest_1,,);
+connection user1;
+--disable_result_log
+select * from information_schema.tables;
+--enable_result_log
+connection default;
+drop user mysqltest_1@localhost;
+drop view v1;
+drop function func1;
+drop table t1;
+
 drop database `inf%`;

@@ -328,7 +328,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       table_list.table_name= file->name;
       table_list.table_name_length= strlen(file->name);
       table_list.grant.privilege=col_access;
-      if (check_grant(thd, TABLE_ACLS, &table_list, 1, UINT_MAX, 1))
+      if (check_grant(thd, TABLE_ACLS, &table_list, 1, 1, 1))
         continue;
     }
 #endif
@@ -3864,7 +3864,8 @@ bool get_schema_tables_result(JOIN *join)
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
     if (table_list->schema_table && thd->fill_derived_tables())
     {
-      bool is_subselect= (&lex->unit != lex->current_select->master_unit());
+      bool is_subselect= (&lex->unit != lex->current_select->master_unit() &&
+                          lex->current_select->master_unit()->item);
       /*
         The schema table is already processed and 
         the statement is not a subselect.
