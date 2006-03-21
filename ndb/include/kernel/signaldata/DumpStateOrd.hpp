@@ -126,6 +126,9 @@ public:
     DihAllAllowNodeStart = 7016,
     DihMinTimeBetweenLCP = 7017,
     DihMaxTimeBetweenLCP = 7018,
+    // 7019
+    // 7020
+    // 7021
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,

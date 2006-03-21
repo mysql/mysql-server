@@ -5983,6 +5983,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
   execDUMP_STATE_ORD(signal);
 
   signal->theData[0] = 7015;
+  signal->theData[1] = 0;
   execDUMP_STATE_ORD(signal);
 
   c_lcpMasterTakeOverState.set(LMTOS_IDLE, __LINE__);
@@ -13036,7 +13037,8 @@ void
 Dbdih::execDUMP_STATE_ORD(Signal* signal)
 {
   DumpStateOrd * const & dumpState = (DumpStateOrd *)&signal->theData[0];
-  if (dumpState->args[0] == DumpStateOrd::DihDumpNodeRestartInfo) {
+  Uint32 arg = dumpState->args[0];
+  if (arg == DumpStateOrd::DihDumpNodeRestartInfo) {
     infoEvent("c_nodeStartMaster.blockLcp = %d, c_nodeStartMaster.blockGcp = %d, c_nodeStartMaster.wait = %d",
 	      c_nodeStartMaster.blockLcp, c_nodeStartMaster.blockGcp, c_nodeStartMaster.wait);
     infoEvent("cstartGcpNow = %d, cgcpStatus = %d",
@@ -13046,7 +13048,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("cgcpOrderBlocked = %d, cgcpStartCounter = %d",
               cgcpOrderBlocked, cgcpStartCounter);
   }//if  
-  if (dumpState->args[0] == DumpStateOrd::DihDumpNodeStatusInfo) {
+  if (arg == DumpStateOrd::DihDumpNodeStatusInfo) {
     NodeRecordPtr localNodePtr;
     infoEvent("Printing nodeStatus of all nodes");
     for (localNodePtr.i = 1; localNodePtr.i < MAX_NDB_NODES; localNodePtr.i++) {
@@ -13058,7 +13060,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }//for
   }//if
   
-  if (dumpState->args[0] == DumpStateOrd::DihPrintFragmentation){
+  if (arg == DumpStateOrd::DihPrintFragmentation){
     infoEvent("Printing fragmentation of all tables --");
     for(Uint32 i = 0; i<ctabFileSize; i++){
       TabRecordPtr tabPtr;
@@ -13233,7 +13235,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
-  if(dumpState->args[0] == 7019 && signal->getLength() == 2)
+  if(arg == 7019 && signal->getLength() == 2)
   {
     char buf2[8+1];
     NodeRecordPtr nodePtr;
@@ -13251,7 +13253,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	      nodePtr.p->m_nodefailSteps.getText(buf2));
   }
   
-  if(dumpState->args[0] == 7020 && signal->getLength() > 3)
+  if(arg == 7020 && signal->getLength() > 3)
   {
     Uint32 gsn= signal->theData[1];
     Uint32 block= signal->theData[2];
@@ -13275,7 +13277,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 			  gsn, getBlockName(block, "UNKNOWN"), length, buf);
   }
   
-  if(dumpState->args[0] == DumpStateOrd::DihDumpLCPState){
+  if(arg == DumpStateOrd::DihDumpLCPState){
     infoEvent("-- Node %d LCP STATE --", getOwnNodeId());
     infoEvent("lcpStatus = %d (update place = %d) ",
 	      c_lcpState.lcpStatus, c_lcpState.lcpStatusUpdatedPlace);
@@ -13291,7 +13293,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("-- Node %d LCP STATE --", getOwnNodeId());
   }
 
-  if(dumpState->args[0] == DumpStateOrd::DihDumpLCPMasterTakeOver){
+  if(arg == DumpStateOrd::DihDumpLCPMasterTakeOver){
     infoEvent("-- Node %d LCP MASTER TAKE OVER STATE --", getOwnNodeId());
     infoEvent
       ("c_lcpMasterTakeOverState.state = %d updatePlace = %d failedNodeId = %d",
@@ -13306,52 +13308,25 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("-- Node %d LCP MASTER TAKE OVER STATE --", getOwnNodeId());
   }
 
-  if (signal->theData[0] == 7015){
-    for(Uint32 i = 0; i<ctabFileSize; i++){
-      TabRecordPtr tabPtr;
-      tabPtr.i = i;
-      ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-      
-      if(tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
-	continue;
-      
-      infoEvent
-	("Table %d: TabCopyStatus: %d TabUpdateStatus: %d TabLcpStatus: %d",
-	 tabPtr.i, 
-	 tabPtr.p->tabCopyStatus, 
-	 tabPtr.p->tabUpdateState,
-	 tabPtr.p->tabLcpStatus);
+  if (signal->theData[0] == 7015)
+  {
+    if (signal->getLength() == 1)
+    {
+      signal->theData[1] = 0;
+    }
 
-      FragmentstorePtr fragPtr;
-      for (Uint32 fid = 0; fid < tabPtr.p->totalfragments; fid++) {
-	jam();
-	getFragstore(tabPtr.p, fid, fragPtr);
-	
-	char buf[100], buf2[100];
-	BaseString::snprintf(buf, sizeof(buf), " Fragment %d: noLcpReplicas==%d ", 
-		 fid, fragPtr.p->noLcpReplicas);
-	
-	Uint32 num=0;
-	ReplicaRecordPtr replicaPtr;
-	replicaPtr.i = fragPtr.p->storedReplicas;
-	do {
-	  ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
-	  BaseString::snprintf(buf2, sizeof(buf2), "%s %d(on %d)=%d(%s)",
-		   buf, num, 
-		   replicaPtr.p->procNode, 
-		   replicaPtr.p->lcpIdStarted,
-		   replicaPtr.p->lcpOngoingFlag ? "Ongoing" : "Idle");
-	  BaseString::snprintf(buf, sizeof(buf), "%s", buf2);
-	  
-	  num++;
-	  replicaPtr.i = replicaPtr.p->nextReplica;
-	} while (replicaPtr.i != RNIL);
-	infoEvent(buf);
-      }
+    Uint32 tableId = signal->theData[1];
+    if (tableId < ctabFileSize)
+    {
+      signal->theData[0] = 7021;
+      execDUMP_STATE_ORD(signal);
+      signal->theData[0] = 7015;
+      signal->theData[1] = tableId + 1;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 2, JBB);
     }
   }
 
-  if(dumpState->args[0] == DumpStateOrd::EnableUndoDelayDataWrite){
+  if(arg == DumpStateOrd::EnableUndoDelayDataWrite){
     ndbout << "Dbdih:: delay write of datapages for table = " 
 	   << dumpState->args[1]<< endl;
     // Send this dump to ACC and TUP
@@ -13381,7 +13356,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
   
-  if(dumpState->args[0] == 7098){
+  if(arg == 7098){
     if(signal->length() == 3){
       jam();
       infoEvent("startLcpRoundLoopLab(tabel=%d, fragment=%d)",
@@ -13394,12 +13369,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
-  if(dumpState->args[0] == DumpStateOrd::DihStartLcpImmediately){
+  if(arg == DumpStateOrd::DihStartLcpImmediately){
     c_lcpState.ctimer += (1 << c_lcpState.clcpDelay);
     return;
   }
 
-  if (dumpState->args[0] == DumpStateOrd::DihSetTimeBetweenGcp)
+  if (arg == DumpStateOrd::DihSetTimeBetweenGcp)
   {
     if (signal->getLength() == 1)
     {
@@ -13413,6 +13388,53 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
       cgcpDelay = signal->theData[1];
     }
     ndbout_c("Setting time between gcp : %d", cgcpDelay);
+  }
+
+  if (arg == 7021 && signal->getLength() == 2)
+  {
+    TabRecordPtr tabPtr;
+    tabPtr.i = signal->theData[1];
+    if (tabPtr.i >= ctabFileSize)
+      return;
+
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+    
+    if(tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
+      return;
+    
+    infoEvent
+      ("Table %d: TabCopyStatus: %d TabUpdateStatus: %d TabLcpStatus: %d",
+       tabPtr.i, 
+       tabPtr.p->tabCopyStatus, 
+       tabPtr.p->tabUpdateState,
+       tabPtr.p->tabLcpStatus);
+    
+    FragmentstorePtr fragPtr;
+    for (Uint32 fid = 0; fid < tabPtr.p->totalfragments; fid++) {
+      jam();
+      getFragstore(tabPtr.p, fid, fragPtr);
+      
+      char buf[100], buf2[100];
+      BaseString::snprintf(buf, sizeof(buf), " Fragment %d: noLcpReplicas==%d ", 
+			   fid, fragPtr.p->noLcpReplicas);
+      
+      Uint32 num=0;
+      ReplicaRecordPtr replicaPtr;
+      replicaPtr.i = fragPtr.p->storedReplicas;
+      do {
+	ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
+	BaseString::snprintf(buf2, sizeof(buf2), "%s %d(on %d)=%d(%s)",
+			     buf, num, 
+			     replicaPtr.p->procNode, 
+			     replicaPtr.p->lcpIdStarted,
+			     replicaPtr.p->lcpOngoingFlag ? "Ongoing" : "Idle");
+	BaseString::snprintf(buf, sizeof(buf), "%s", buf2);
+	
+	num++;
+	replicaPtr.i = replicaPtr.p->nextReplica;
+      } while (replicaPtr.i != RNIL);
+      infoEvent(buf);
+    }
   }
 }//Dbdih::execDUMP_STATE_ORD()
 
