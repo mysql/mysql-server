@@ -3537,6 +3537,13 @@ end:
    RETURN
      0  ok
      1  Error: User did not have the requested privileges
+
+   NOTE
+     This functions assumes that either number of tables to be inspected
+     by it is limited explicitly (i.e. is is not UINT_MAX) or table list
+     used and thd->lex->query_tables_own_last value correspond to each
+     other (the latter should be either 0 or point to next_global member
+     of one of elements of this table list).
 ****************************************************************************/
 
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
