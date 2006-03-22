@@ -1974,8 +1974,8 @@ fetch_step(
 	sel_node->common.parent = node;
 
 	if (sel_node->state == SEL_NODE_CLOSED) {
-		/* SQL error detected */
-		fprintf(stderr, "SQL error %lu\n", (ulong)DB_ERROR);
+		fprintf(stderr,
+			"InnoDB: Error: fetch called on a closed cursor\n");
 
 		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
 
