@@ -189,7 +189,7 @@ Ndb_cluster_connection::node_id()
 
 int Ndb_cluster_connection::get_no_ready()
 {
-  TransporterFacade *tp = TransporterFacade::instance();
+  TransporterFacade *tp = m_impl.m_transporter_facade;
   if (tp == 0 || tp->ownId() == 0)
     return -1;
 
@@ -214,7 +214,7 @@ Ndb_cluster_connection::wait_until_ready(int timeout,
 					 int timeout_after_first_alive)
 {
   DBUG_ENTER("Ndb_cluster_connection::wait_until_ready");
-  TransporterFacade *tp = TransporterFacade::instance();
+  TransporterFacade *tp = m_impl.m_transporter_facade;
   if (tp == 0)
   {
     DBUG_RETURN(-1);
@@ -293,9 +293,7 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
     NdbMgmHandle h= m_config_retriever->get_mgmHandle();
     ndb_mgm_set_name(h, m_name);
   }
-  m_transporter_facade=
-    TransporterFacade::theFacadeInstance= 
-    new TransporterFacade();
+  m_transporter_facade= new TransporterFacade();
   
   DBUG_VOID_RETURN;
 }
@@ -303,7 +301,10 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
 Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
 {
   DBUG_ENTER("~Ndb_cluster_connection");
-  TransporterFacade::stop_instance();
+  if (m_transporter_facade != 0)
+  {
+    m_transporter_facade->stop_instance();
+  }
   if (m_connect_thread)
   {
     void *status;
@@ -315,9 +316,7 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
   if (m_transporter_facade != 0)
   {
     delete m_transporter_facade;
-    if (m_transporter_facade != TransporterFacade::theFacadeInstance)
-      abort();
-    TransporterFacade::theFacadeInstance= 0;
+    m_transporter_facade = 0;
   }
   if (m_config_retriever)
   {

@@ -57,8 +57,6 @@ static int indexToNumber(int index)
 #define TRP_DEBUG(t)
 #endif
 
-TransporterFacade* TransporterFacade::theFacadeInstance = NULL;
-
 /*****************************************************************************
  * Call back functions
  *****************************************************************************/
@@ -116,7 +114,6 @@ reportConnect(void * callbackObj, NodeId nodeId){
   ndbout_c("REPORT_TRANSP: API reportConnect (nodeId=%d)", (int)nodeId);
 #endif
   ((TransporterFacade*)(callbackObj))->reportConnected(nodeId);
-  //  TransporterFacade::instance()->reportConnected(nodeId);
 }
 
 /**
@@ -128,7 +125,6 @@ reportDisconnect(void * callbackObj, NodeId nodeId, Uint32 error){
   ndbout_c("REPORT_TRANSP: API reportDisconnect (nodeId=%d)", (int)nodeId);
 #endif
   ((TransporterFacade*)(callbackObj))->reportDisconnected(nodeId);
-  //TransporterFacade::instance()->reportDisconnected(nodeId);
 }
 
 void
@@ -392,7 +388,7 @@ int
 TransporterFacade::start_instance(int nodeId, 
 				  const ndb_mgm_configuration* props)
 {
-  if (! theFacadeInstance->init(nodeId, props)) {
+  if (! init(nodeId, props)) {
     return -1;
   }
   
@@ -418,8 +414,7 @@ TransporterFacade::start_instance(int nodeId,
 void
 TransporterFacade::stop_instance(){
   DBUG_ENTER("TransporterFacade::stop_instance");
-  if(theFacadeInstance)
-    theFacadeInstance->doStop();
+  doStop();
   DBUG_VOID_RETURN;
 }
 
