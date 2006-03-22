@@ -2457,7 +2457,7 @@ row_ins_step(
 	This happens, for example, when a row update moves it to another
 	partition. In that case, we have already set the IX lock on the
 	table during the search operation, and there is no need to set
-	it again here. But we must write trx->id to to node->trx_id_buf. */
+	it again here. But we must write trx->id to node->trx_id_buf. */
 
 	trx_write_trx_id(node->trx_id_buf, trx->id);
 
