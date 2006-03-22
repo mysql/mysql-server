@@ -249,6 +249,9 @@ page_cur_search_with_match(
 # endif /* PAGE_CUR_LE_OR_EXTENDS */
 	ut_ad((mode == PAGE_CUR_L) || (mode == PAGE_CUR_LE)
 		|| (mode == PAGE_CUR_G) || (mode == PAGE_CUR_GE));
+	page_zip_des_t*	page_zip = buf_block_get_page_zip(
+			buf_block_align(page));
+	ut_ad(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_DEBUG */
 
 	page_check_dir(page);
