@@ -108,9 +108,11 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
 
   m_maxFiles = 40;
   ndb_mgm_get_int_parameter(p, CFG_DB_MAX_OPEN_FILES, &m_maxFiles);
-	        
+  Uint32 noIdleFiles = 27;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INITIAL_OPEN_FILES, &noIdleFiles);
+  if (noIdleFiles > m_maxFiles)
+    m_maxFiles = noIdleFiles;
   // Create idle AsyncFiles
-  Uint32 noIdleFiles = m_maxFiles > 27  ? 27 : m_maxFiles ;
   for (Uint32 i = 0; i < noIdleFiles; i++){
     theIdleFiles.push_back(createAsyncFile());
   }
