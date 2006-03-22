@@ -5157,7 +5157,7 @@ write_log_changed_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
     if (part_elem->part_state == PART_IS_CHANGED ||
         (part_elem->part_state == PART_IS_ADDED && temp_partitions))
     {
-      if (is_sub_partitioned(part_info))
+      if (part_info->is_sub_partitioned())
       {
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         uint no_subparts= part_info->no_subparts;
@@ -5271,7 +5271,7 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
         name_variant= TEMP_PART_NAME;
       else
         name_variant= NORMAL_PART_NAME;
-      if (is_sub_partitioned(part_info))
+      if (part_info->is_sub_partitioned())
       {
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         uint no_subparts= part_info->no_subparts;
