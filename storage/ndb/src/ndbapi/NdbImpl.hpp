@@ -60,6 +60,7 @@ public:
   Ndb &m_ndb;
 
   Ndb_cluster_connection_impl &m_ndb_cluster_connection;
+  TransporterFacade *m_transporter_facade;
 
   NdbDictionaryImpl m_dictionary;
 

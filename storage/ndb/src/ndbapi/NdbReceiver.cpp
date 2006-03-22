@@ -101,7 +101,7 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
                                   Uint32& batch_byte_size,
                                   Uint32& first_batch_size)
 {
-  TransporterFacade *tp= TransporterFacade::instance();
+  TransporterFacade *tp= m_ndb->theImpl->m_transporter_facade;
   Uint32 max_scan_batch_size= tp->get_scan_batch_size();
   Uint32 max_batch_byte_size= tp->get_batch_byte_size();
   Uint32 max_batch_size= tp->get_batch_size();
