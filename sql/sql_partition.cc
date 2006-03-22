@@ -4499,6 +4499,11 @@ that are reorganised.
         my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), ptr);
         DBUG_RETURN(TRUE);
       }
+      if (!(*fast_alter_partition))
+      {
+        table->file->print_error(HA_ERR_WRONG_COMMAND, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
     }
     else if (alter_info->flags & ALTER_COALESCE_PARTITION)
     {
