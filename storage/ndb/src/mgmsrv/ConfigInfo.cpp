@@ -893,7 +893,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
   
   {
-    CFG_DB_MAX_OPEN_FILES,
+    CFG_DB_INITIAL_OPEN_FILES,
     "InitialNoOfOpenFiles",
     DB_TOKEN,
     "Initial number of files open per "DB_TOKEN_PRINT" node.(One thread is created per file)",
