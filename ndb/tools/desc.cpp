@@ -119,7 +119,7 @@ int main(int argc, char** argv){
       ndbout << endl;
       
       if (_partinfo)
-	print_part_info(pMyNdb, pTab);
+	print_part_info(&MyNdb, pTab);
     }
     else
       ndbout << argv[i] << ": " << dict->getNdbError() << endl;
@@ -159,8 +159,8 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
     if (pOp == NULL)
       break;
     
-    NdbResultSet* rs= pOp->readTuples(NdbOperation::LM_CommittedRead); 
-    if (rs == 0)
+    int rs = pOp->readTuples(NdbOperation::LM_CommittedRead); 
+    if (rs != 0)
       break;
     
     if (pOp->interpret_exit_last_row() != 0)
@@ -183,7 +183,7 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
       ndbout << g_part_info[i].m_title << "\t";
     ndbout << endl;
     
-    while(rs->nextResult() == 0)
+    while(pOp->nextResult() == 0)
     {
       for(i = 0; g_part_info[i].m_title != 0; i++)
       {
