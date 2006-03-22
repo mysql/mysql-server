@@ -2606,7 +2606,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       switch(arguments[i]->type()) {
       case Item::STRING_ITEM:			// Constant string !
       {
-	String *res=arguments[i]->val_str((String *) 0);
+	String *res=arguments[i]->val_str(&buffers[i]);
 	if (arguments[i]->null_value)
 	  continue;
 	f_args.args[i]=    (char*) res->ptr();
