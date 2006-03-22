@@ -546,7 +546,7 @@ select extractvalue('<a>a<b>B</b></a>','a|/b');
 extractvalue('<a>a<b>B</b></a>','a|/b')
 a
 select extractvalue('<a>A</a>','/<a>');
-ERROR HY000: XPATH syntax error: '>'
+ERROR HY000: XPATH syntax error: '<a>'
 select extractvalue('<a><b>b</b><b!>b!</b!></a>','//b!');
 ERROR HY000: XPATH syntax error: '!'
 select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant::*');
@@ -612,4 +612,6 @@ extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]')
 select extractValue('<e>1</e>','position()');
 ERROR HY000: XPATH syntax error: ''
 select extractValue('<e>1</e>','last()');
+ERROR HY000: XPATH syntax error: ''
+select extractValue('<e><a>1</a></e>','/e/');
 ERROR HY000: XPATH syntax error: ''
