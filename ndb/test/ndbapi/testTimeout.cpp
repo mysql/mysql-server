@@ -173,8 +173,11 @@ int runTimeoutTrans(NDBT_Context* ctx, NDBT_Step* step){
       NdbSleep_MilliSleep(sleep);
       
       // Expect that transaction has timed-out
-      CHECK(hugoOps.execute_Commit(pNdb) == 237); 
-
+      int ret = hugoOps.execute_Commit(pNdb);
+      CHECK(ret != 0);
+      NdbError err = pNdb->getNdbError(ret);
+      CHECK(err.classification == NdbError::TimeoutExpired);
+      
     } while(false);
 
     hugoOps.closeTransaction(pNdb);
