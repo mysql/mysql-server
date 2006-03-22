@@ -2565,9 +2565,10 @@ Suma::reportAllSubscribers(Signal *signal,
     return;
   }
  
-#ifdef VM_TRACE
-  ndbout_c("reportAllSubscribers");
-#endif
+//#ifdef VM_TRACE
+  ndbout_c("reportAllSubscribers  subPtr.i: %d  subPtr.p->n_subscribers: %d",
+           subPtr.i, subPtr.p->n_subscribers);
+//#endif
   SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
   data->gci            = m_last_complete_gci + 1;
   data->tableId        = subPtr.p->m_tableId;
@@ -2588,18 +2589,28 @@ Suma::reportAllSubscribers(Signal *signal,
       data->senderData = i_subbPtr.p->m_senderData;
       sendSignal(i_subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
                  SubTableData::SignalLength, JBB);
+//#ifdef VM_TRACE
+      ndbout_c("sent %s(%d) to node %d, req_nodeid: %d  senderData: %d",
+               table_event == NdbDictionary::Event::_TE_SUBSCRIBE ?
+               "SUBSCRIBE" : "UNSUBSCRIBE", (int) table_event,
+               refToNode(i_subbPtr.p->m_senderRef),
+               data->req_nodeid, data->senderData
+               );
+//#endif
       if (i_subbPtr.i != subbPtr.i)
       {
         data->req_nodeid = refToNode(i_subbPtr.p->m_senderRef);
         data->senderData = subbPtr.p->m_senderData;
         sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
                    SubTableData::SignalLength, JBB);
-#ifdef VM_TRACE
-        ndbout_c("sent %s(%d) to node %d",
+//#ifdef VM_TRACE
+        ndbout_c("sent %s(%d) to node %d, req_nodeid: %d  senderData: %d",
                  table_event == NdbDictionary::Event::_TE_SUBSCRIBE ?
                  "SUBSCRIBE" : "UNSUBSCRIBE", (int) table_event,
-                 refToNode(subbPtr.p->m_senderRef));
-#endif
+                 refToNode(subbPtr.p->m_senderRef),
+                 data->req_nodeid, data->senderData
+                 );
+//#endif
       }
     }
   }
