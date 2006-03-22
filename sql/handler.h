@@ -1387,7 +1387,7 @@ public:
                                 ulonglong *deleted,
                                 const void *pack_frm_data,
                                 uint pack_frm_len)
-  { return HA_ERR_WRONG_COMMAND; }
+  { print_error(HA_ERR_WRONG_COMMAND, MYF(0)); return TRUE; }
   virtual int drop_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
