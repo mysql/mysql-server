@@ -1610,7 +1610,7 @@ void Dbdih::execSTART_PERMREF(Signal* signal)
 			 " with --initial as partial start has been performed"
 			 " and this filesystem is unusable");
     progError(__LINE__, 
-	      ERR_SR_RESTARTCONFLICT,
+	      NDBD_EXIT_SR_RESTARTCONFLICT,
 	      buf);
     ndbrequire(false);
   }
