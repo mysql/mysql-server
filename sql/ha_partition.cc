@@ -4709,6 +4709,15 @@ int ha_partition::extra(enum ha_extra_function operation)
     m_extra_cache_size= 0;
     DBUG_RETURN(loop_extra(operation));
   }
+  case HA_EXTRA_IGNORE_NO_KEY:
+  case HA_EXTRA_NO_IGNORE_NO_KEY:
+  {
+    /*
+      Ignore as these are specific to NDB for handling
+      idempotency
+     */
+    break;
+  }
   default:
   {
     /* Temporary crash to discover what is wrong */
