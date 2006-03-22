@@ -6,3 +6,9 @@
 disable_query_log;
 show variables like "have_dlopen";
 enable_query_log;
+
+#
+# Check that the "udf_example.so" file has been created
+#
+
+# TODO
