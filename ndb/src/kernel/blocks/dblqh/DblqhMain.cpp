@@ -18572,7 +18572,6 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
   TcConnectionrec *regTcConnectionrec = tcConnectionrec;
   Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
-  Uint32 arg = dumpState->args[0];
   if(arg == 2306)
   {
     for(Uint32 i = 0; i<1024; i++)
