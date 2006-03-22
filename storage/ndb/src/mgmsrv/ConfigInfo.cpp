@@ -893,6 +893,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
   
   {
+    CFG_DB_INITIAL_OPEN_FILES,
+    "InitialNoOfOpenFiles",
+    DB_TOKEN,
+    "Initial number of files open per "DB_TOKEN_PRINT" node.(One thread is created per file)",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "27",
+    "20",
+    STR_VALUE(MAX_INT_RNIL) },
+  
+  {
     CFG_DB_TRANSACTION_CHECK_INTERVAL,
     "TimeBetweenInactiveTransactionAbortCheck",
     DB_TOKEN,
