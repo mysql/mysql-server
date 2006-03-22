@@ -299,9 +299,12 @@ choose_conf(){
     elif [ -f $test_dir/conf-$1.txt ]
     then
 	echo "$test_dir/conf-$1.txt"
+    elif [ -f $test_dir/conf-$HOST.txt ]
+	echo "$test_dir/conf-$HOST.txt"
     else
 	echo "Unable to find conf file looked for" 1>&2
 	echo "$test_dir/conf-$1-$HOST.txt and" 1>&2
+	echo "$test_dir/conf-$HOST.txt" 1>&2
 	echo "$test_dir/conf-$1.txt" 1>&2
 	exit
     fi
