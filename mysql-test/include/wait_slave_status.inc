@@ -104,8 +104,8 @@
 eval SELECT "let \$result_pattern= $result_pattern ;" AS "";
 SELECT '--source include/wait_slave_status.inc' AS "";
 
-# We accept to wait in maximum 30 seconds.
-let $max_wait= 30;
+# We accept to wait maximum 30 seconds (0.2 sec/loop).
+let $max_wait= 150;
 while ($max_wait)
 {
     let $my_val= `SHOW SLAVE STATUS`;
@@ -134,7 +134,7 @@ while ($max_wait)
     {
        # We did not reach the expected result and will have to sleep again
        # or jump out of the loop, when max_wait is exhausted.
-       sleep 1;
+       real_sleep 0.2;
     }
     dec $max_wait;
 }
