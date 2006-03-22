@@ -706,7 +706,7 @@ NdbTransaction::sendTC_HBREP()		// Send a TC_HBREP signal;
   tcHbRep->transId1      = tTransId1;
   tcHbRep->transId2      = tTransId2;
  
-  TransporterFacade *tp = TransporterFacade::instance();
+  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
   tp->lock_mutex(); 
   const int res = tp->sendSignal(tSignal,theDBnode);
   tp->unlock_mutex(); 
@@ -812,7 +812,7 @@ NdbTransaction::sendROLLBACK()      // Send a TCROLLBACKREQ signal;
  *************************************************************************/
     NdbApiSignal tSignal(tNdb->theMyRef);
     Uint32 tTransId1, tTransId2;
-    TransporterFacade *tp = TransporterFacade::instance();
+    TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
     int	  tReturnCode;
 
     tTransId1 = (Uint32) theTransactionId;
@@ -859,7 +859,7 @@ NdbTransaction::sendCOMMIT()    // Send a TC_COMMITREQ signal;
 {
   NdbApiSignal tSignal(theNdb->theMyRef);
   Uint32 tTransId1, tTransId2;
-  TransporterFacade *tp = TransporterFacade::instance(); 
+  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
   int	  tReturnCode;
 
   tTransId1 = (Uint32) theTransactionId;

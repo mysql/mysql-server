@@ -79,7 +79,7 @@ Ndb::init(int aMaxNoOfTransactions)
     DBUG_RETURN(-1);
   }//if
   theInitState = StartingInit;
-  TransporterFacade * theFacade =  TransporterFacade::instance();
+  TransporterFacade * theFacade =  theImpl->m_transporter_facade;
   theFacade->lock_mutex();
   
   const int tBlockNo = theFacade->open(this,
@@ -147,7 +147,7 @@ error_handler:
   ndbout << "error_handler" << endl;
   releaseTransactionArrays();
   delete theDictionary;
-  TransporterFacade::instance()->close(theNdbBlockNumber, 0);
+  theImpl->m_transporter_facade->close(theNdbBlockNumber, 0);
   DBUG_RETURN(-1);
 }
 
@@ -185,7 +185,7 @@ void Ndb::connected(Uint32 ref)
     assert(theMyRef == numberToRef(theNdbBlockNumber, tmpTheNode));
   }
   
-  TransporterFacade * theFacade =  TransporterFacade::instance();
+  TransporterFacade * theFacade =  theImpl->m_transporter_facade;
   int i, n= 0;
   for (i = 1; i < MAX_NDB_NODES; i++){
     if (theFacade->getIsDbNode(i)){
@@ -258,7 +258,7 @@ Ndb::report_node_failure_completed(Uint32 node_id)
     // node failed
     // eventOperations in the ndb object should be notified
     theEventBuffer->report_node_failure(node_id);
-    if(!TransporterFacade::instance()->theClusterMgr->isClusterAlive())
+    if(!theImpl->m_transporter_facade->theClusterMgr->isClusterAlive())
     {
       // cluster is unavailable, 
       // eventOperations in the ndb object should be notified
@@ -374,10 +374,11 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
         }//if
 
 	if(TcKeyConf::getMarkerFlag(keyConf->confInfo)){
-	  NdbTransaction::sendTC_COMMIT_ACK(theCommitAckSignal,
-					   keyConf->transId1, 
-					   keyConf->transId2,
-					   aTCRef);
+	  NdbTransaction::sendTC_COMMIT_ACK(theImpl->m_transporter_facade,
+                                            theCommitAckSignal,
+                                            keyConf->transId1, 
+                                            keyConf->transId2,
+                                            aTCRef);
 	}
       
 	return;
@@ -453,10 +454,11 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 #endif
       }
       if(tFirstData & 1){
-	NdbTransaction::sendTC_COMMIT_ACK(theCommitAckSignal,
-					 failConf->transId1, 
-					 failConf->transId2,
-					 aTCRef);
+	NdbTransaction::sendTC_COMMIT_ACK(theImpl->m_transporter_facade,
+                                          theCommitAckSignal,
+                                          failConf->transId1, 
+                                          failConf->transId2,
+                                          aTCRef);
       }
       return;
     }
@@ -525,10 +527,11 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	}//if
 
 	if(tFirstData & 1){
-	  NdbTransaction::sendTC_COMMIT_ACK(theCommitAckSignal,
-					   commitConf->transId1, 
-					   commitConf->transId2,
-					   aTCRef);
+	  NdbTransaction::sendTC_COMMIT_ACK(theImpl->m_transporter_facade,
+                                            theCommitAckSignal,
+                                            commitConf->transId1, 
+                                            commitConf->transId2,
+                                            aTCRef);
 	}
 	return;
       }
@@ -860,10 +863,11 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }//if
     
     if(TcIndxConf::getMarkerFlag(indxConf->confInfo)){
-      NdbTransaction::sendTC_COMMIT_ACK(theCommitAckSignal,
-				       indxConf->transId1, 
-				       indxConf->transId2,
-				       aTCRef);
+      NdbTransaction::sendTC_COMMIT_ACK(theImpl->m_transporter_facade,
+                                        theCommitAckSignal,
+                                        indxConf->transId1, 
+                                        indxConf->transId2,
+                                        aTCRef);
     }
     return;
   }
@@ -905,7 +909,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       its conditional wait. This will wake up this thread so that it
       can continue its work.
     */
-    TransporterFacade *tp= TransporterFacade::instance();
+    TransporterFacade *tp= theImpl->m_transporter_facade;
     if (tp->get_poll_owner() != t_waiter)
     {
       /*
@@ -969,7 +973,7 @@ Ndb::completedTransaction(NdbTransaction* aCon)
     if ((theMinNoOfEventsToWakeUp != 0) &&
         (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp)) {
       theMinNoOfEventsToWakeUp = 0;
-      TransporterFacade *tp = TransporterFacade::instance();
+      TransporterFacade *tp = theImpl->m_transporter_facade;
       NdbWaiter *t_waiter= &theImpl->theWaiter;
       if (tp->get_poll_owner() != t_waiter) {
         /*
@@ -1138,7 +1142,7 @@ Ndb::sendPrepTrans(int forceSend)
      and we keep a small space for messages like that.
   */
   Uint32 i;
-  TransporterFacade* tp = TransporterFacade::instance();
+  TransporterFacade* tp = theImpl->m_transporter_facade;
   Uint32 no_of_prep_trans = theNoOfPreparedTransactions;
   for (i = 0; i < no_of_prep_trans; i++) {
     NdbTransaction * a_con = thePreparedTransactionsArray[i];
@@ -1279,9 +1283,9 @@ Remark:   First send all prepared operations and then check if there are any
 void	
 Ndb::sendPreparedTransactions(int forceSend)
 {
-  TransporterFacade::instance()->lock_mutex();
+  theImpl->m_transporter_facade->lock_mutex();
   sendPrepTrans(forceSend);
-  TransporterFacade::instance()->unlock_mutex();
+  theImpl->m_transporter_facade->unlock_mutex();
   return;
 }//Ndb::sendPreparedTransactions()
 
@@ -1302,7 +1306,7 @@ Ndb::sendPollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup, int forceSen
     in all places where the object is out of context due to a return,
     break, continue or simply end of statement block
   */
-  PollGuard pg(TransporterFacade::instance(), &theImpl->theWaiter,
+  PollGuard pg(theImpl->m_transporter_facade, &theImpl->theWaiter,
                theNdbBlockNumber);
   sendPrepTrans(forceSend);
   return poll_trans(aMillisecondNumber, minNoOfEventsToWakeup, &pg);
@@ -1346,7 +1350,7 @@ Ndb::pollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup)
     in all places where the object is out of context due to a return,
     break, continue or simply end of statement block
   */
-  PollGuard pg(TransporterFacade::instance(), &theImpl->theWaiter,
+  PollGuard pg(theImpl->m_transporter_facade, &theImpl->theWaiter,
                theNdbBlockNumber);
   return poll_trans(aMillisecondNumber, minNoOfEventsToWakeup, &pg);
 }
@@ -1370,7 +1374,7 @@ Ndb::sendRecSignal(Uint16 node_id,
 
   int return_code;
   Uint32 read_conn_seq;
-  TransporterFacade* tp = TransporterFacade::instance();
+  TransporterFacade* tp = theImpl->m_transporter_facade;
   Uint32 send_size = 1; // Always sends one signal only
   // Protected area
   /*
@@ -1411,16 +1415,16 @@ Ndb::sendRecSignal(Uint16 node_id,
 }//Ndb::sendRecSignal()
 
 void
-NdbTransaction::sendTC_COMMIT_ACK(NdbApiSignal * aSignal,
-				 Uint32 transId1, Uint32 transId2, 
-				 Uint32 aTCRef){
+NdbTransaction::sendTC_COMMIT_ACK(TransporterFacade *tp,
+                                  NdbApiSignal * aSignal,
+                                  Uint32 transId1, Uint32 transId2, 
+                                  Uint32 aTCRef){
 #ifdef MARKER_TRACE
   ndbout_c("Sending TC_COMMIT_ACK(0x%.8x, 0x%.8x) to -> %d",
 	   transId1,
 	   transId2,
 	   refToNode(aTCRef));
 #endif  
-  TransporterFacade *tp = TransporterFacade::instance();
   aSignal->theTrace                = TestOrd::TraceAPI;
   aSignal->theReceiversBlockNumber = DBTC;
   aSignal->theVerId_signalNumber   = GSN_TC_COMMIT_ACK;
@@ -1437,7 +1441,7 @@ int
 NdbImpl::send_event_report(Uint32 *data, Uint32 length)
 {
   NdbApiSignal aSignal(m_ndb.theMyRef);
-  TransporterFacade *tp = TransporterFacade::instance();
+  TransporterFacade *tp = m_transporter_facade;
   aSignal.theTrace                = TestOrd::TraceAPI;
   aSignal.theReceiversBlockNumber = CMVMI;
   aSignal.theVerId_signalNumber   = GSN_EVENT_REP;

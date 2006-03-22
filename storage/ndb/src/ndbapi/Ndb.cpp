@@ -139,7 +139,7 @@ Ndb::NDB_connect(Uint32 tNode)
 //***************************************************************************
   
   int	         tReturnCode;
-  TransporterFacade *tp = TransporterFacade::instance();
+  TransporterFacade *tp = theImpl->m_transporter_facade;
 
   DBUG_ENTER("Ndb::NDB_connect");
 
@@ -609,7 +609,7 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
   tSignal.setData(tNdbConn->ptr2int(),2);
   tSignal.setData(theMyRef,3);		// Set return block reference
   tNdbConn->Status(NdbTransaction::Connecting); // Set status to connecting
-  TransporterFacade *tp = TransporterFacade::instance();
+  TransporterFacade *tp = theImpl->m_transporter_facade;
   if (tAction == 3) {
     tp->lock_mutex();
     tp->sendSignal(&tSignal, aNode);

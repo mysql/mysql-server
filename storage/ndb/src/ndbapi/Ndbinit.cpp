@@ -108,7 +108,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theImpl->m_schemaname.assign(aSchema);
   theImpl->update_prefix();
 
-  theImpl->theWaiter.m_mutex =  TransporterFacade::instance()->theMutexPtr;
+  theImpl->theWaiter.m_mutex =  theImpl->m_transporter_facade->theMutexPtr;
 
   // Signal that the constructor has finished OK
   if (theInitState == NotConstructed)
@@ -148,8 +148,8 @@ Ndb::~Ndb()
 
   delete theEventBuffer;
 
-  if (TransporterFacade::instance() != NULL && theNdbBlockNumber > 0){
-    TransporterFacade::instance()->close(theNdbBlockNumber, theFirstTransId);
+  if (theImpl->m_transporter_facade != NULL && theNdbBlockNumber > 0){
+    theImpl->m_transporter_facade->close(theNdbBlockNumber, theFirstTransId);
   }
   
   releaseTransactionArrays();
@@ -205,9 +205,10 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 		 Ndb& ndb)
   : m_ndb(ndb),
     m_ndb_cluster_connection(ndb_cluster_connection->m_impl),
+    m_transporter_facade(ndb_cluster_connection->m_impl.m_transporter_facade),
     m_dictionary(ndb),
     theCurrentConnectIndex(0),
-    theNdbObjectIdMap(ndb_cluster_connection->m_impl.m_transporter_facade->theMutexPtr,
+    theNdbObjectIdMap(m_transporter_facade->theMutexPtr,
 		      1024,1024),
     theNoOfDBnodes(0),
     m_ev_op(0)
