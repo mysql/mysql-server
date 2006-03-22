@@ -2118,11 +2118,32 @@ sub save_installed_db () {
   }
 }
 
+
+#
+# Save any interesting files in the data_dir
+# before the data dir is removed.
+#
+sub save_files_before_restore($$) {
+  my $test_name= shift;
+  my $data_dir= shift;
+  my $save_name= "$opt_vardir/log/$test_name";
+
+  # Look for core files
+  foreach my $core_file ( glob("$data_dir/core*") )
+  {
+    my $core_name= basename($core_file);
+    mtr_report("Saving $core_name");
+    mkdir($save_name) if ! -d $save_name;
+    rename("$core_file", "$save_name/$core_name");
+  }
+}
+
 #
 # Restore snapshot of the installed test db(s)
 # if the snapshot exists
 #
-sub restore_installed_db () {
+sub restore_installed_db ($) {
+  my $test_name= shift;
 
   if ( -d $path_snapshot)
   {
@@ -2133,6 +2154,7 @@ sub restore_installed_db () {
     foreach my $data_dir (@data_dir_lst)
     {
       my $name= basename($data_dir);
+      save_files_before_restore($test_name, $data_dir);
       rmtree("$data_dir");
       copy_dir("$path_snapshot/$name", "$data_dir");
     }
@@ -2160,7 +2182,7 @@ sub report_failure_and_restart ($) {
   if ( $opt_force )
   {
     # Restore the snapshot of the installed test db
-    restore_installed_db();
+    restore_installed_db($tinfo->{'name'});
     print "Resuming Tests\n\n";
     return;
   }
