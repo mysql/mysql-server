@@ -159,6 +159,8 @@ enum ha_extra_function {
     Ignore if the a tuple is not found, continue processing the
     transaction and ignore that 'row'.  Needed for idempotency
     handling on the slave
+
+    Currently only used by NDB storage engine. Partition handler ignores flag.
   */
   HA_EXTRA_IGNORE_NO_KEY,
   HA_EXTRA_NO_IGNORE_NO_KEY,

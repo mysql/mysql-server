@@ -23,8 +23,8 @@ partition_03ndb         : Bug#16385
 ps_7ndb                 : dbug assert in RBR mode when executing test suite
 #rpl_bit_npk             : Bug#13418
 rpl_ddl                 : Bug#15963 SBR does not show "Definer" correctly
-rpl_ndb_2innodb         : Assert failure in ha_partition::extra()
-rpl_ndb_2myisam         : Assert failure in ha_partition::extra()
+rpl_ndb_2innodb         : If removed fails later on assertion in get_parts_for_update()
+rpl_ndb_2myisam         : If removed fails later on assertion in get_parts_for_update()
 rpl_ndb_auto_inc        : Bug#17086
 #rpl_ndb_basic           : Bug#16228 [IN REVIEW]
 rpl_ndb_blob            : interferes with following tests, causing hang
