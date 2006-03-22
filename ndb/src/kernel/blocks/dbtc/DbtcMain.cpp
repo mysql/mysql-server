@@ -6386,6 +6386,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
     return;
   }
   
+  bool found = false;
   OperationState tmp[16];
   
   Uint32 TloopCount = 0;
@@ -6393,7 +6394,31 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
     jam();
     if (tcConnectptr.i == RNIL) {
       jam();
-      if (Tcheck == 0) {
+
+#ifdef VM_TRACE
+      ndbout_c("found: %d Tcheck: %d apiConnectptr.p->counter: %d",
+	       found, Tcheck, apiConnectptr.p->counter);
+#endif
+      if (found || apiConnectptr.p->counter)
+      {
+	jam();
+	/**
+	 * We sent atleast one ABORT/ABORTED
+	 *   or ZABORT_TIMEOUT_BREAK is in job buffer
+	 *   wait for reception...
+	 */
+	return;
+      }
+      
+      if (Tcheck == 1)
+      {
+	jam();
+	releaseAbortResources(signal);
+	return;
+      }
+      
+      if (Tcheck == 0)
+      {
         jam();
 	/*------------------------------------------------------------------
 	 * All nodes had already reported ABORTED for all tcConnect records.
@@ -6402,9 +6427,11 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	 *------------------------------------------------------------------*/
 	char buf[96]; buf[0] = 0;
 	char buf2[96];
-	BaseString::snprintf(buf, sizeof(buf), "TC %d: %d ops:",
-		 __LINE__, apiConnectptr.i);
-	for(Uint32 i = 0; i<TloopCount; i++){
+	BaseString::snprintf(buf, sizeof(buf), "TC %d: %d counter: %d ops:",
+			     __LINE__, apiConnectptr.i,
+			     apiConnectptr.p->counter);
+	for(Uint32 i = 0; i<TloopCount; i++)
+	{
 	  BaseString::snprintf(buf2, sizeof(buf2), "%s %d", buf, tmp[i]);
 	  BaseString::snprintf(buf, sizeof(buf), buf2);
 	}
@@ -6412,7 +6439,9 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	ndbout_c(buf);
 	ndbrequire(false);
 	releaseAbortResources(signal);
+	return;
       }
+      
       return;
     }//if
     TloopCount++;
@@ -6427,7 +6456,16 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
       signal->theData[0] = TcContinueB::ZABORT_TIMEOUT_BREAK;
       signal->theData[1] = tcConnectptr.i;
       signal->theData[2] = apiConnectptr.i;      
-      sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
+      if (ERROR_INSERTED(8050))
+      {
+	ndbout_c("sending ZABORT_TIMEOUT_BREAK delayed (%d %d)", 
+		 Tcheck, apiConnectptr.p->counter);
+	sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 2000, 3);
+      }
+      else
+      {
+	sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
+      }
       return;
     }//if
     ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
@@ -6450,7 +6488,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
         jam();
         if (tcConnectptr.p->tcNodedata[Ti] != 0) {
           TloopCount += 31;
-          Tcheck = 1;
+	  found = true;
           hostptr.i = tcConnectptr.p->tcNodedata[Ti];
           ptrCheckGuard(hostptr, chostFilesize, hostRecord);
           if (hostptr.p->hostStatus == HS_ALIVE) {
@@ -7007,8 +7045,6 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
   hostptr.i = tfailedNodeId;
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
 
-  ndbout_c("received execTAKE_OVERTCCONF(%d) from %x (%x)",
-	   tfailedNodeId, signal->getSendersBlockRef(), reference());
   if (signal->getSendersBlockRef() != reference())
   {
     jam();

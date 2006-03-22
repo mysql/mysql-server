@@ -5982,10 +5982,6 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
   signal->theData[0] = 7012;
   execDUMP_STATE_ORD(signal);
 
-  signal->theData[0] = 7015;
-  signal->theData[1] = 0;
-  execDUMP_STATE_ORD(signal);
-
   c_lcpMasterTakeOverState.set(LMTOS_IDLE, __LINE__);
 
   checkLocalNodefailComplete(signal, failedNodePtr.i, NF_LCP_TAKE_OVER);

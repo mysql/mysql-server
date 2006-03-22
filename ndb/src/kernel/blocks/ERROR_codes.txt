@@ -226,6 +226,8 @@ Delay execution of COMPLETECONF signal 2 seconds to generate time-out.
 8045: (ABORTCONF only as part of take-over)
 Delay execution of ABORTCONF signal 2 seconds to generate time-out.
 
+8050: Send ZABORT_TIMEOUT_BREAK delayed
+
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
 
