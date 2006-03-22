@@ -278,6 +278,7 @@ void Qmgr::setArbitTimeout(UintR aArbitTimeout)
 
 void Qmgr::execCONNECT_REP(Signal* signal)
 {
+  jamEntry();
   const Uint32 nodeId = signal->theData[0];
   c_connectedNodes.set(nodeId);
   NodeRecPtr nodePtr;
@@ -285,9 +286,13 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
   switch(nodePtr.p->phase){
   case ZSTARTING:
-    jam();
-    break;
   case ZRUNNING:
+    jam();
+    if(!c_start.m_nodes.isWaitingFor(nodeId)){
+      jam();
+      return;
+    }
+    break;
   case ZPREPARE_FAIL:
   case ZFAIL_CLOSING:
     jam();
@@ -298,20 +303,27 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   case ZAPI_INACTIVE:
     return;
   }
-
-  if(!c_start.m_nodes.isWaitingFor(nodeId)){
-    jam();
-    return;
-  }
-
+  
   switch(c_start.m_gsn){
   case GSN_CM_REGREQ:
     jam();
     sendCmRegReq(signal, nodeId);
     return;
-  case GSN_CM_NODEINFOREQ:{
+  case GSN_CM_NODEINFOREQ:
     jam();
     sendCmNodeInfoReq(signal, nodeId, nodePtr.p);
+    return;
+  case GSN_CM_ADD:{
+    jam();
+
+    ndbrequire(getOwnNodeId() != cpresident);
+    c_start.m_nodes.clearWaitingFor(nodeId);
+    c_start.m_gsn = RNIL;
+    
+    NodeRecPtr addNodePtr;
+    addNodePtr.i = nodeId;
+    ptrCheckGuard(addNodePtr, MAX_NDB_NODES, nodeRec);
+    cmAddPrepare(signal, addNodePtr, nodePtr.p);
     return;
   }
   default:
@@ -945,15 +957,27 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
     return;
   case ZFAIL_CLOSING:
     jam();
-#ifdef VM_TRACE
-    ndbout_c("Enabling communication to CM_ADD node state=%d", 
-	     nodePtr.p->phase);
-#endif
+    
+#if 1
+    warningEvent("Recieved request to incorperate node %u, "
+		 "while error handling has not yet completed",
+		 nodePtr.i);
+    
+    ndbrequire(getOwnNodeId() != cpresident);
+    ndbrequire(signal->header.theVerId_signalNumber == GSN_CM_ADD);
+    c_start.m_nodes.clearWaitingFor();
+    c_start.m_nodes.setWaitingFor(nodePtr.i);
+    c_start.m_gsn = GSN_CM_ADD;
+#else
+    warningEvent("Enabling communication to CM_ADD node %u state=%d", 
+		 nodePtr.i,
+		 nodePtr.p->phase);
     nodePtr.p->phase = ZSTARTING;
     nodePtr.p->failState = NORMAL;
     signal->theData[0] = 0;
     signal->theData[1] = nodePtr.i;
     sendSignal(CMVMI_REF, GSN_OPEN_COMREQ, signal, 2, JBA);
+#endif
     return;
   case ZSTARTING:
     break;
@@ -1788,11 +1812,27 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
 
   jamEntry();
   failedNodePtr.i = signal->theData[0];  
+
+  if (ERROR_INSERTED(930))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    infoEvent("Discarding NDB_FAILCONF for %u", failedNodePtr.i);
+    return;
+  }
+  
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
   if (failedNodePtr.p->failState == WAITING_FOR_NDB_FAILCONF){
     failedNodePtr.p->failState = NORMAL;
   } else {
     jam();
+
+    char buf[100];
+    BaseString::snprintf(buf, 100, 
+			 "Received NDB_FAILCONF for node %u with state: %d %d",
+			 failedNodePtr.i,
+			 failedNodePtr.p->phase,
+			 failedNodePtr.p->failState);
+    progError(__LINE__, 0, buf);
     systemErrorLab(signal, __LINE__);
   }//if
   if (cpresident == getOwnNodeId()) {
@@ -2112,10 +2152,42 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
   if (failedNodePtr.i == getOwnNodeId()) {
     jam();
-    systemErrorLab(signal, __LINE__);
+
+    const char * msg = 0;
+    switch(aFailCause){
+    case FailRep::ZOWN_FAILURE: 
+      msg = "Own failure"; 
+      break;
+    case FailRep::ZOTHER_NODE_WHEN_WE_START: 
+    case FailRep::ZOTHERNODE_FAILED_DURING_START:
+      msg = "Other node died during start"; 
+      break;
+    case FailRep::ZIN_PREP_FAIL_REQ:
+      msg = "Prep fail";
+      break;
+    case FailRep::ZSTART_IN_REGREQ:
+      msg = "Start timeout";
+      break;
+    case FailRep::ZHEARTBEAT_FAILURE:
+      msg = "Hearbeat failure";
+      break;
+    case FailRep::ZLINK_FAILURE:
+      msg = "Connection failure";
+      break;
+    }
+    
+    char buf[100];
+    BaseString::snprintf(buf, 100, 
+			 "We(%u) have been declared dead by %u reason: %s(%u)",
+			 getOwnNodeId(),
+			 refToNode(signal->getSendersBlockRef()),
+			 aFailCause,
+			 msg ? msg : "<Unknown>");
+
+    progError(__LINE__, 0, buf);
     return;
   }//if
-
+  
   myNodePtr.i = getOwnNodeId();
   ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
   if (myNodePtr.p->phase != ZRUNNING) {
@@ -2826,6 +2898,7 @@ void Qmgr::failReport(Signal* signal,
         cfailureNr = cprepareFailureNr;
         ctoFailureNr = 0;
         ctoStatus = Q_ACTIVE;
+	c_start.reset(); // Don't take over nodes being started
         if (cnoCommitFailedNodes > 0) {
           jam();
 	  /**-----------------------------------------------------------------

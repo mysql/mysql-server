@@ -535,6 +535,119 @@ err:
   return NDBT_FAILED;
 }
 
+int 
+runBug16772(NDBT_Context* ctx, NDBT_Step* step){
+
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  int aliveNodeId = restarter.getRandomNotMasterNodeId(rand());
+  int deadNodeId = aliveNodeId;
+  while (deadNodeId == aliveNodeId)
+    deadNodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+  
+  if (restarter.insertErrorInNode(aliveNodeId, 930))
+    return NDBT_FAILED;
+
+  if (restarter.restartOneDbNode(deadNodeId,
+				 /** initial */ false, 
+				 /** nostart */ true,
+				 /** abort   */ true))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesNoStart(&deadNodeId, 1))
+    return NDBT_FAILED;
+
+  if (restarter.startNodes(&deadNodeId, 1))
+    return NDBT_FAILED;
+
+  // It should now be hanging since we throw away NDB_FAILCONF
+  int ret = restarter.waitNodesStartPhase(&deadNodeId, 1, 3, 10);
+  // So this should fail...i.e it should not reach startphase 3
+
+  // Now send a NDB_FAILCONF for deadNo
+  int dump[] = { 7020, 323, 252, 0 };
+  dump[3] = deadNodeId;
+  if (restarter.dumpStateOneNode(aliveNodeId, dump, 4))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesStarted(&deadNodeId, 1))
+    return NDBT_FAILED;
+
+  return ret ? NDBT_OK : NDBT_FAILED;
+}
+
+int 
+runBug18414(NDBT_Context* ctx, NDBT_Step* step){
+
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  Ndb* pNdb = GETNDB(step);
+  HugoOperations hugoOps(*ctx->getTab());
+  HugoTransactions hugoTrans(*ctx->getTab());
+  int loop = 0;
+  do 
+  {
+    if(hugoOps.startTransaction(pNdb) != 0)
+      goto err;
+    
+    if(hugoOps.pkUpdateRecord(pNdb, 0, 128, rand()) != 0)
+      goto err;
+    
+    if(hugoOps.execute_NoCommit(pNdb) != 0)
+      goto err;
+
+    int node1 = hugoOps.getTransaction()->getConnectedNodeId();
+    int node2 = restarter.getRandomNodeSameNodeGroup(node1, rand());
+    
+    if (node1 == -1 || node2 == -1)
+      break;
+    
+    if (loop & 1)
+    {
+      if (restarter.insertErrorInNode(node1, 8050))
+	goto err;
+    }
+    
+    if (restarter.insertErrorInNode(node2, 5003))
+      goto err;
+    
+    int res= hugoOps.execute_Rollback(pNdb);
+  
+    if (restarter.waitNodesNoStart(&node2, 1) != 0)
+      goto err;
+    
+    if (restarter.insertErrorInAllNodes(0))
+      goto err;
+    
+    if (restarter.startNodes(&node2, 1) != 0)
+      goto err;
+    
+    if (restarter.waitClusterStarted() != 0)
+      goto err;
+    
+    if (hugoTrans.scanUpdateRecords(pNdb, 128) != 0)
+      goto err;
+
+    hugoOps.closeTransaction(pNdb);
+    
+  } while(++loop < 5);
+  
+  return NDBT_OK;
+  
+err:
+  hugoOps.closeTransaction(pNdb);
+  return NDBT_FAILED;    
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -818,6 +931,16 @@ TESTCASE("Bug15632",
 TESTCASE("Bug15685",
 	 "Test bug with NF during abort"){
   STEP(runBug15685);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug16772",
+	 "Test bug with restarting before NF handling is complete"){
+  STEP(runBug16772);
+}
+TESTCASE("Bug18414",
+	 "Test bug with NF during NR"){
+  INITIALIZER(runLoadTable);
+  STEP(runBug18414);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
