@@ -1910,10 +1910,12 @@ page_zip_write_rec(
 	slot = page_zip_dir_find(page_zip,
 			ut_align_offset(rec, UNIV_PAGE_SIZE));
 	ut_a(slot);
-	/* Clear the delete mark bit. */
-	ut_ad(!(rec_get_info_bits((rec_t*) rec, TRUE)
-			& REC_INFO_DELETED_FLAG));
-	*slot &= ~(PAGE_ZIP_DIR_SLOT_DEL >> 8);
+	/* Copy the delete mark. */
+	if (rec_get_deleted_flag((rec_t*) rec, TRUE)) {
+		*slot |= PAGE_ZIP_DIR_SLOT_DEL >> 8;
+	} else {
+		*slot &= ~(PAGE_ZIP_DIR_SLOT_DEL >> 8);
+	}
 
 	ut_ad(rec_get_start((rec_t*) rec, offsets) >= page + PAGE_ZIP_START);
 	ut_ad(rec_get_end((rec_t*) rec, offsets) <= page + UNIV_PAGE_SIZE
@@ -2431,7 +2433,6 @@ page_zip_rec_set_owned(
 		*slot &= ~(PAGE_ZIP_DIR_SLOT_OWNED >> 8);
 	}
 }
-
 
 /**************************************************************************
 Shift the dense page directory and the array of BLOB pointers
