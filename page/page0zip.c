@@ -2293,7 +2293,7 @@ page_zip_write_trx_id_and_roll_ptr(
 #if DATA_ROLL_PTR_LEN != 7
 # error "DATA_ROLL_PTR_LEN != 7"
 #endif
-	mach_write_to_7(field, roll_ptr);
+	mach_write_to_7(field + DATA_TRX_ID_LEN, roll_ptr);
 	memcpy(storage, field, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 }
 
