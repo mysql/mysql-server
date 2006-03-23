@@ -95,7 +95,7 @@ static int my_ucs2_uni(CHARSET_INFO *cs __attribute__((unused)),
 		       my_wc_t * pwc, const uchar *s, const uchar *e)
 {
   if (s+2 > e) /* Need 2 characters */
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL2;
   
   *pwc= ((unsigned char)s[0]) * 256  + ((unsigned char)s[1]);
   return 2;
@@ -105,7 +105,7 @@ static int my_uni_ucs2(CHARSET_INFO *cs __attribute__((unused)) ,
 		       my_wc_t wc, uchar *r, uchar *e)
 {
   if ( r+2 > e ) 
-    return MY_CS_TOOSMALL;
+    return MY_CS_TOOSMALL2;
   
   r[0]= (uchar) (wc >> 8);
   r[1]= (uchar) (wc & 0xFF);

@@ -44,10 +44,19 @@ typedef struct unicase_info_st
   uint16 sort;
 } MY_UNICASE_INFO;
 
-#define MY_CS_ILSEQ	0
-#define MY_CS_ILUNI	0
-#define MY_CS_TOOSMALL	-1
-#define MY_CS_TOOFEW(n)	(-1-(n))
+
+/* wm_wc and wc_mb return codes */
+#define MY_CS_ILSEQ	0     /* Wrong by sequence: wb_wc                   */
+#define MY_CS_ILUNI	0     /* Cannot encode Unicode to charset: wc_mb    */
+#define MY_CS_TOOSMALL  -101  /* Need at least one byte:    wc_mb and mb_wc */
+#define MY_CS_TOOSMALL2 -102  /* Need at least two bytes:   wc_mb and mb_wc */
+#define MY_CS_TOOSMALL3 -103  /* Need at least three bytes: wc_mb and mb_wc */
+/* These following three are currently not really used */
+#define MY_CS_TOOSMALL4 -104  /* Need at least 4 bytes: wc_mb and mb_wc */
+#define MY_CS_TOOSMALL5 -105  /* Need at least 5 bytes: wc_mb and mb_wc */
+#define MY_CS_TOOSMALL6 -106  /* Need at least 6 bytes: wc_mb and mb_wc */
+/* A helper macros for "need at least n bytes" */
+#define MY_CS_TOOSMALLN(n)    (-100-(n))
 
 #define MY_SEQ_INTTAIL	1
 #define MY_SEQ_SPACES	2
