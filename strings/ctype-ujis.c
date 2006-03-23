@@ -242,7 +242,7 @@ my_mb_wc_jisx0201(CHARSET_INFO *cs  __attribute__((unused)),
 		  const uchar *e __attribute__((unused)))
 {
   wc[0]=tab_jisx0201_uni[*s];
-  return (!wc[0] && s[0]) ? MY_CS_ILSEQ : 1;
+  return (!wc[0] && s[0]) ? -1 : 1;
 }
 
 
@@ -8341,7 +8341,7 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
   int c1,c2,c3;
   
   if (s >= e)
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL;
   
   c1=s[0];
   
@@ -8353,7 +8353,7 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
   }
   
   if (s+2>e)
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL2;
     
   c2=s[1];
   
@@ -8368,7 +8368,7 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
     {
       pwc[0]=my_jisx0208_uni_onechar( ((c1-0x80) << 8) + (c2-0x80));
       if (!pwc[0])
-        return MY_CS_ILSEQ;
+        return -2;
     }
     else
     {
@@ -8388,7 +8388,7 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
     
     ret = my_mb_wc_jisx0201(cs,pwc,s+1,e);
     if (ret!=1)
-      return ret;
+      return -2;
     return 2;
   }
   
@@ -8399,7 +8399,7 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
       return MY_CS_ILSEQ;
     
     if (s+3>e)
-      return MY_CS_TOOFEW(0);
+      return MY_CS_TOOSMALL3;
     
     c3=s[2];
     if (c3 < 0xA1 || c3>=0xFF)
@@ -8408,8 +8408,8 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
     if (c2<0xF5)
     {
       pwc[0]=my_jisx0212_uni_onechar((c2-0x80)*256 + (c3-0x80));
-      if (!pwc)
-        return MY_CS_ILSEQ;
+      if (!pwc[0])
+        return -3;
     }
     else
     {
@@ -8440,7 +8440,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
   if ((jp=my_uni_jisx0208_onechar(wc)))
   {
     if (s+2>e)
-      return MY_CS_TOOSMALL;
+      return MY_CS_TOOSMALL2;
       
     jp+=0x8080;
     s[0]=jp>>8;
@@ -8452,7 +8452,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
   if (my_wc_mb_jisx0201(c,wc,s,e) == 1)
   {
     if (s+2>e)
-      return MY_CS_TOOSMALL;
+      return MY_CS_TOOSMALL2;
     s[1]= s[0];
     s[0]= 0x8E;
     return 2;
@@ -8462,7 +8462,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
   if ((jp=my_uni_jisx0212_onechar(wc)))
   {
     if (s+3>e)
-      return MY_CS_TOOSMALL;
+      return MY_CS_TOOSMALL3;
       
     jp+=0x8080;
     s[0]=0x8F;
@@ -8476,7 +8476,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
   if (wc>=0xE000 && wc<0xE3AC)
   { 
     if (s+2>e)
-      return MY_CS_TOOSMALL;
+      return MY_CS_TOOSMALL2;
       
     c1=((unsigned)(wc-0xE000)/94)+0xF5;
     s[0]=c1;
@@ -8490,7 +8490,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
   if (wc>=0xE3AC && wc<0xE758)
   {
     if (s+3>e)
-      return MY_CS_TOOSMALL;
+      return MY_CS_TOOSMALL3;
       
     s[0]=0x8F;
     c1=((unsigned)(wc-0xE3AC)/94)+0xF5;
