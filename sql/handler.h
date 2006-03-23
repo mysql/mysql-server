@@ -1605,11 +1605,6 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 #define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
         !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
 
-/* semi-synchronous replication */
-int ha_repl_report_sent_binlog(THD *thd, char *log_file_name,
-                               my_off_t end_offset);
-int ha_repl_report_replication_stop(THD *thd);
-
 #ifdef HAVE_NDB_BINLOG
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
