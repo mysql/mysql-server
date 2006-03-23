@@ -9221,7 +9221,7 @@ void Dblqh::nextScanConfCopyLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
     scanptr.p->scanCompletedStatus = ZTRUE;
     scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
-    if (ERROR_INSERTED(5042))
+    if (ERROR_INSERTED(5043))
     {
       CLEAR_ERROR_INSERT_VALUE;
       tcConnectptr.p->copyCountWords = ~0;
