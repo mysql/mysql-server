@@ -199,13 +199,15 @@ bool is_name_in_list(char *name,
 */
 
 bool partition_default_handling(TABLE *table, partition_info *part_info,
+                                bool is_create_table_ind,
                                 const char *normalized_path)
 {
   DBUG_ENTER("partition_default_handling");
 
   if (part_info->use_default_no_partitions)
   {
-    if (table->file->get_no_parts(normalized_path, &part_info->no_parts))
+    if (!is_create_table_ind &&
+        table->file->get_no_parts(normalized_path, &part_info->no_parts))
     {
       DBUG_RETURN(TRUE);
     }
@@ -214,7 +216,8 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
            part_info->use_default_no_subpartitions)
   {
     uint no_parts;
-    if (table->file->get_no_parts(normalized_path, &no_parts))
+    if (!is_create_table_ind &&
+        (table->file->get_no_parts(normalized_path, &no_parts)))
     {
       DBUG_RETURN(TRUE);
     }
@@ -1737,9 +1740,12 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   db_name= &db_name_string[home_dir_length];
   tables.db= db_name;
 
-  if (!is_create_table_ind)
+  if (!is_create_table_ind ||
+      (is_create_table_ind &&
+       thd->lex->sql_command != SQLCOM_CREATE_TABLE))
   {
     if (partition_default_handling(table, part_info,
+                                   is_create_table_ind,
                                    table->s->normalized_path.str))
     {
       DBUG_RETURN(TRUE);
@@ -3742,7 +3748,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   DBUG_PRINT("info", ("default engine = %d, default_db_type = %d",
              ha_legacy_type(part_info->default_engine_type),
              ha_legacy_type(default_db_type)));
-  if (is_create_table_ind)
+  if (is_create_table_ind && old_lex->sql_command == SQLCOM_CREATE_TABLE)
   {
     if (old_lex->like_name)
     {
@@ -3756,7 +3762,8 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
       char *src_table= table_ident->table.str;
       char buf[FN_REFLEN];
       build_table_filename(buf, sizeof(buf), src_db, src_table, "");
-      if (partition_default_handling(table, part_info, buf))
+      if (partition_default_handling(table, part_info,
+                                     FALSE, buf))
       {
         result= TRUE;
         goto end;
