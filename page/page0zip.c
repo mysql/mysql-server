@@ -675,34 +675,6 @@ page_zip_compress(
 				    ut_ad(!c_stream.avail_in);
 				    ut_ad(c_stream.next_in == src);
 
-#ifdef UNIV_DEBUG
-				    if (memcmp(src, zero,
-						DATA_TRX_ID_LEN
-						+ DATA_ROLL_PTR_LEN)) {
-					/* Ensure that this is an
-					allocated user record. */
-					ulint	offs	= ut_align_offset(
-							rec, UNIV_PAGE_SIZE);
-					byte*	slot	= buf_end
-						- PAGE_ZIP_DIR_SLOT_SIZE
-						* page_get_n_recs((page_t*)
-								page);
-
-					for (; slot < buf_end; slot
-						+= PAGE_ZIP_DIR_SLOT_SIZE) {
-					    if (offs == (mach_read_from_2(slot)
-						& PAGE_ZIP_DIR_SLOT_MASK)) {
-
-						goto found_record;
-					    }
-					}
-
-					/* All deleted records should be
-					zero-filled. */
-					ut_error;
-				    }
-found_record:
-#endif
 				    memcpy(storage - (DATA_TRX_ID_LEN
 							+ DATA_ROLL_PTR_LEN)
 					* (rec_get_heap_no_new(rec) - 1),
@@ -2050,10 +2022,6 @@ page_zip_write_rec(
 						+ DATA_ROLL_PTR_LEN);
 
 				/* Store trx_id and roll_ptr separately. */
-				ut_ad(!memcmp(storage
-					- (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
-					* (heap_no - 1), zero,
-					DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN));
 				memcpy(storage
 					- (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
 					* (heap_no - 1),
@@ -2106,10 +2074,6 @@ page_zip_write_rec(
 		data += len;
 
 		/* Copy the node pointer to the uncompressed area. */
-		ut_ad(!memcmp(storage - REC_NODE_PTR_SIZE
-				* (heap_no - 1),
-				zero,
-				REC_NODE_PTR_SIZE));
 		memcpy(storage - REC_NODE_PTR_SIZE
 				* (heap_no - 1),
 				rec + len,
@@ -2301,7 +2265,7 @@ page_zip_write_trx_id_and_roll_ptr(
 
 /**************************************************************************
 Clear an area on the uncompressed and compressed page, if possible. */
-
+static
 void
 page_zip_clear_rec(
 /*===============*/
@@ -2316,6 +2280,10 @@ page_zip_clear_rec(
 	ut_a(page_zip_validate(page_zip, ut_align_down(rec, UNIV_PAGE_SIZE)));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 	ut_ad(rec_offs_validate(rec, index, offsets));
+	ut_ad(!page_zip_dir_find(page_zip,
+			ut_align_offset(rec, UNIV_PAGE_SIZE)));
+	ut_ad(page_zip_dir_find_free(page_zip,
+			ut_align_offset(rec, UNIV_PAGE_SIZE)));
 
 	heap_no = rec_get_heap_no_new(rec);
 	ut_ad(heap_no >= 2); /* exclude infimum and supremum */
@@ -2358,22 +2326,18 @@ page_zip_clear_rec(
 		/* There is not enough space to log the clearing.
 		Try to clear the block and to recompress the page. */
 
-		byte*	buf = mem_alloc(rec_offs_size(offsets));
-		memcpy(buf, rec - rec_offs_extra_size(offsets),
-					rec_offs_size(offsets));
+		byte*	buf = mem_alloc(rec_offs_data_size(offsets));
+		memcpy(buf, rec, rec_offs_data_size(offsets));
 
 		/* Do not touch the extra bytes, because the
 		decompressor depends on them. */
 		memset(rec, 0, rec_offs_data_size(offsets));
-
 		if (UNIV_UNLIKELY(!page_zip_compress(page_zip,
 					ut_align_down(rec, UNIV_PAGE_SIZE),
 					index, mtr))) {
 			/* Compression failed. Restore the block. */
-			memcpy(rec - rec_offs_extra_size(offsets), buf,
-				rec_offs_size(offsets));
+			memcpy(rec, buf, rec_offs_data_size(offsets));
 		}
-
 		mem_free(buf);
 	}
 }
