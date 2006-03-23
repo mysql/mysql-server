@@ -3163,3 +3163,9 @@ t
 crash1
 crash1
 drop table t1;
+create table t1 (c int, key(c));
+insert into t1 values (1142477582), (1142455969);
+create table t2 (a int, b int);
+insert into t2 values (2, 1), (1, 0);
+delete from t1 where c <= 1140006215 and (select b from t2 where a = 2) = 1;
+drop table t1, t2;
