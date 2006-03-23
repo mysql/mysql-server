@@ -1,0 +1,30 @@
+-- source include/have_latin2_ch.inc
+
+#
+# Tests with latin2_czech_cs
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Bug#17374: select ... like 'A%' operator fails
+# to find value on columuns with key
+#
+set names latin2;
+select 'A' = 'a' collate latin2_czech_cs;
+create table t1 (
+    id  int(5) not null,    
+    tt  char(255) not null
+) character set latin2 collate latin2_czech_cs;
+insert into t1 values (1,'Aa');
+insert into t1 values (2,'Aas');
+alter table t1 add primary key aaa(tt); 
+select * from t1 where tt like 'Aa%';
+select * from t1 ignore index (primary) where tt like 'Aa%';
+select * from t1 where tt like '%Aa%';
+select * from t1 where tt like 'AA%';
+select * from t1 ignore index (primary) where tt like 'AA%';
+select * from t1 where tt like '%AA%';
+
+# End of 4.1 tests
