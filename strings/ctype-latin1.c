@@ -363,10 +363,10 @@ int my_mb_wc_latin1(CHARSET_INFO *cs  __attribute__((unused)),
 		    const unsigned char *end __attribute__((unused)))
 {
   if (str >= end)
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL;
   
   *wc=cs_to_uni[*str];
-  return (!wc[0] && str[0]) ? MY_CS_ILSEQ : 1;
+  return (!wc[0] && str[0]) ? -1 : 1;
 }
 
 static
