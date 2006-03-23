@@ -634,10 +634,7 @@ static void die(const char *fmt, ...)
 
   /* Dump the result that has been accumulated so far to reject file */
   if (result_file && ds_res.length)
-  {
-
-    reject_dump(result_file, ds_res.str, ds_res.length);
-  }
+    dump_result_to_reject_file(result_file, ds_res.str, ds_res.length);
 
   /* Clean up and exit */
   free_used_memory();
