@@ -300,8 +300,6 @@ our $opt_stress_test_duration=  0;
 our $opt_stress_init_file=     "";
 our $opt_stress_test_file=     "";
 
-our $opt_verbose;
-
 our $opt_wait_for_master;
 our $opt_wait_for_slave;
 our $opt_wait_timeout=  10;
@@ -643,7 +641,6 @@ sub command_line_setup () {
              'unified-diff|udiff'       => \$opt_udiff,
              'user-test=s'              => \$opt_user_test,
              'user=s'                   => \$opt_user,
-             'verbose'                  => \$opt_verbose,
              'wait-timeout=i'           => \$opt_wait_timeout,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
@@ -3296,7 +3293,6 @@ Options for coverage, profiling etc
 Misc options
 
   comment=STR           Write STR to the output
-  verbose               Verbose output from this script
   script-debug          Debug this script itself
   timer                 Show test case execution time
   start-and-exit        Only initiate and start the "mysqld" servers, use the startup
