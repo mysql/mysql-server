@@ -17,15 +17,40 @@ try
 	while (! datafile.AtEndOfStream)
 	{
 		var line = datafile.ReadLine();
-		if (line == "WITH_INNODB")
+		if (line == "WITH_INNOBASE_STORAGE_ENGINE")
 		{
 			extern_line += ",innobase_hton";
 			address_line += ",&innobase_hton";
 		}
-		else if (line == "WITH_PARTITION")
+		else if (line == "WITH_PARTITION_STORAGE_ENGINE")
 		{
 			extern_line += ",partition_hton";
 			address_line += ",&partition_hton";
+		}
+		else if (line == "WITH_ARCHIVE_STORAGE_ENGINE")
+		{
+			extern_line += ",archive_hton";
+			address_line += ",&archive_hton";
+		}
+		else if (line == "WITH_BERKELEY_STORAGE_ENGINE")
+		{
+			extern_line += ",berkeley_hton";
+			address_line += ",&berkeley_hton";
+		}
+		else if (line == "WITH_BLACKHOLE_STORAGE_ENGINE")
+		{
+			extern_line += ",blackhole_hton";
+			address_line += ",&blackhole_hton";
+		}
+		else if (line == "WITH_EXAMPLE_STORAGE_ENGINE")
+		{
+			extern_line += ",example_hton";
+			address_line += ",&example_hton";
+		}
+		else if (line == "WITH_FEDERATED_STORAGE_ENGINE")
+		{
+			extern_line += ",federated_hton";
+			address_line += ",&federated_hton";
 		}
 	}
 	datafile.Close();

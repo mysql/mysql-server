@@ -1,6 +1,16 @@
 PROJECT(MySql)
 
-EXEC_PROGRAM(cscript.exe win ARGS config-version.js OUT_VARIABLE out)
+EXEC_PROGRAM(cscript.exe ${PROJECT_SOURCE_DIR}/win
+             ARGS config-version.js ${PROJECT_SOURCE_DIR}/win/configure.data
+             OUTPUT_VARIABLE out)
+STRING(REGEX REPLACE ".*DEFINITIONS@ *([^@]*)@.*" \\1 cfg_def ${out})
+STRING(REGEX REPLACE ".*HANDLERTONS@ *([^@]*)@.*" \\1 handlertons ${out})
+SEPARATE_ARGUMENTS(handlertons)
+STRING(REGEX REPLACE ".*DEPENDS@ *([^@]*)@.*" \\1 se_deps ${out})
+SEPARATE_ARGUMENTS(se_deps)
+STRING(REGEX REPLACE ".*SUBDIRS@ *([^@]*)@.*" \\1 se_subdirs ${out})
+SEPARATE_ARGUMENTS(se_subdirs)
+ADD_DEFINITIONS(${cfg_def})
 
 # in some places we use DBUG_OFF
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -D DBUG_OFF")
@@ -32,5 +42,6 @@ ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR CMAKE_GENERATOR MATCHES "Visu
 ADD_DEFINITIONS("-D_WINDOWS -D__WIN__")
 
 SUBDIRS(vio dbug strings regex mysys extra/yassl extra/yassl/taocrypt extra 
-        zlib storage/innobase storage/heap storage/myisam storage/myisammrg 
-		client sql server-tools/instance-manager libmysql tests)
+        zlib storage/heap storage/myisam storage/myisammrg client sql
+	server-tools/instance-manager libmysql tests
+	${se_subdirs})
