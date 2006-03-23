@@ -3435,6 +3435,11 @@ NdbDictInterface::createEvent(class Ndb & ndb,
   
   //  NdbEventImpl *evntImpl = (NdbEventImpl *)evntConf->getUserData();
 
+  evnt.m_eventId = evntConf->getEventId();
+  evnt.m_eventKey = evntConf->getEventKey();
+  evnt.m_table_id = evntConf->getTableId();
+  evnt.m_table_version = evntConf->getTableVersion();
+
   if (getFlag) {
     evnt.m_attrListBitmask = evntConf->getAttrListBitmask();
     evnt.mi_type           = evntConf->getEventType();
@@ -3448,9 +3453,6 @@ NdbDictInterface::createEvent(class Ndb & ndb,
       DBUG_RETURN(1);
     }
   }
-
-  evnt.m_eventId         = evntConf->getEventId();
-  evnt.m_eventKey        = evntConf->getEventKey();
 
   DBUG_RETURN(0);
 }
@@ -3560,7 +3562,10 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
       delete ev;
       DBUG_RETURN(NULL);
     }
-    if (info->m_table_impl->m_status != NdbDictionary::Object::Retrieved)
+    if ((info->m_table_impl->m_status != NdbDictionary::Object::Retrieved) ||
+        (info->m_table_impl->m_id != ev->m_table_id) ||
+        (table_version_major(info->m_table_impl->m_version) !=
+         table_version_major(ev->m_table_version)))
     {
       removeCachedObject(*info->m_table_impl);
       info= get_local_table_info(ev->getTableName());
@@ -3584,6 +3589,14 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
   DBUG_PRINT("info",("Table: id: %d version: %d", 
                      table.m_id, table.m_version));
 
+  if (table.m_id != ev->m_table_id ||
+      table_version_major(table.m_version) !=
+      table_version_major(ev->m_table_version))
+  {
+    m_error.code = 241;
+    delete ev;
+    DBUG_RETURN(NULL);
+  }
 #ifndef DBUG_OFF
   char buf[128] = {0};
   mask.getText(buf);

@@ -2193,9 +2193,19 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
     }
 
     /*
+      try retrieving the event, if table version/id matches, we will get
+      a valid event.  Otherwise we have a trailing event from before
+    */
+    if (dict->getEvent(event_name))
+    {
+      DBUG_RETURN(0);
+    }
+
+    /*
       trailing event from before; an error, but try to correct it
     */
-    if (dict->dropEvent(my_event.getName()))
+    if (dict->getNdbError().code == NDB_INVALID_SCHEMA_OBJECT &&
+        dict->dropEvent(my_event.getName()))
     {
       if (push_warning)
         push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
