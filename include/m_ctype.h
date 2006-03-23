@@ -378,6 +378,11 @@ int my_wildcmp_8bit(CHARSET_INFO *,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many);
 
+int my_wildcmp_bin(CHARSET_INFO *,
+		   const char *str,const char *str_end,
+		   const char *wildstr,const char *wildend,
+		   int escape, int w_one, int w_many);
+
 uint my_numchars_8bit(CHARSET_INFO *, const char *b, const char *e);
 uint my_numcells_8bit(CHARSET_INFO *, const char *b, const char *e);
 uint my_charpos_8bit(CHARSET_INFO *, const char *b, const char *e, uint pos);
