@@ -3917,7 +3917,7 @@ my_mb_wc_filename(CHARSET_INFO *cs __attribute__((unused)),
 {
   int byte1, byte2;
   if (s >= e)
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL;
 
   if (*s < 128 && filename_safe_char[*s])  
   {
@@ -3929,7 +3929,7 @@ my_mb_wc_filename(CHARSET_INFO *cs __attribute__((unused)),
     return MY_CS_ILSEQ;
   
   if (s + 3 > e)
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL3;
   
   byte1= s[1];
   byte2= s[2];
@@ -3946,7 +3946,7 @@ my_mb_wc_filename(CHARSET_INFO *cs __attribute__((unused)),
   }
   
   if (s + 4 > e)
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL4;
 
   if ((byte1= hexlo(byte1)) >= 0 &&
       (byte2= hexlo(byte2)) >= 0)
@@ -3977,7 +3977,7 @@ my_wc_mb_filename(CHARSET_INFO *cs __attribute__((unused)),
   }
   
   if (s + 3 > e)
-    return MY_CS_TOOSMALL;
+    return MY_CS_TOOSMALL3;
 
   *s++= MY_FILENAME_ESCAPE;
   if ((wc >= 0x00C0 && wc <= 0x05FF && (code= uni_0C00_05FF[wc - 0x00C0])) ||
@@ -3993,7 +3993,7 @@ my_wc_mb_filename(CHARSET_INFO *cs __attribute__((unused)),
 
   /* Non letter */
   if (s + 5 > e)
-    return MY_CS_TOOSMALL;
+    return MY_CS_TOOSMALL5;
 
   *s++= hex[(wc >> 12) & 15];
   *s++= hex[(wc >> 8) & 15];
