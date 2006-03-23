@@ -31,4 +31,14 @@ INSERT INTO t1 VALUES (0xA3A0),(0xA1A1);
 SELECT hex(a) FROM t1 ORDER BY a;
 DROP TABLE t1;
 
+#
+# Bugs#15375: Unassigned multibyte codes are broken
+# into parts when converting to Unicode.
+# This query should return 0x003F0041. I.e. it should
+# scan unassigned double-byte character 0xA140, convert
+# it as QUESTION MARK 0x003F and then scan the next
+# character, which is a single byte character 0x41.
+#
+select hex(convert(_gbk 0xA14041 using ucs2));
+
 # End of 4.1 tests

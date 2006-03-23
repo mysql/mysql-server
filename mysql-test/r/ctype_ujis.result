@@ -2307,3 +2307,9 @@ select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
 c2h
 ab_def
 drop table t1;
+select hex(convert(_ujis 0xA5FE41 using ucs2));
+hex(convert(_ujis 0xA5FE41 using ucs2))
+003F0041
+select hex(convert(_ujis 0x8FABF841 using ucs2));
+hex(convert(_ujis 0x8FABF841 using ucs2))
+003F0041
