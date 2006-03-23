@@ -101,8 +101,6 @@ static uint ndbcluster_alter_table_flags(uint flags)
 #define NDB_FAILED_AUTO_INCREMENT ~(Uint64)0
 #define NDB_AUTO_INCREMENT_RETRIES 10
 
-#define NDB_INVALID_SCHEMA_OBJECT 241
-
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
 

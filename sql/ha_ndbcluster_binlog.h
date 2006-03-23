@@ -29,6 +29,8 @@ extern ulong ndb_extra_logging;
 
 #define INJECTOR_EVENT_LEN 200
 
+#define NDB_INVALID_SCHEMA_OBJECT 241
+
 /*
   The numbers below must not change as they
   are passed between mysql servers, and if changed
