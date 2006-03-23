@@ -8166,6 +8166,7 @@ my_bool innobase_log_archive,
         innobase_file_per_table,
         innobase_locks_unsafe_for_binlog;
 
+extern "C" {
 ulong srv_max_buf_pool_modified_pct;
 ulong srv_max_purge_lag;
 ulong srv_auto_extend_increment;
@@ -8174,6 +8175,7 @@ ulong srv_n_free_tickets_to_enter;
 ulong srv_thread_sleep_delay;
 ulong srv_thread_concurrency;
 ulong srv_commit_concurrency;
+}
 #endif
 
 #ifndef WITH_NDBCLUSTER_STORAGE_ENGINE
