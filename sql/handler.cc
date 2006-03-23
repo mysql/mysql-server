@@ -3296,6 +3296,13 @@ int handler::ha_write_row(byte *buf)
 int handler::ha_update_row(const byte *old_data, byte *new_data)
 {
   int error;
+
+  /*
+    Some storage engines require that the new record is in record[0]
+    (and the old record is in record[1]).
+   */
+  DBUG_ASSERT(new_data == table->record[0]);
+
   if (unlikely(error= update_row(old_data, new_data)))
     return error;
 #ifdef HAVE_ROW_BASED_REPLICATION
