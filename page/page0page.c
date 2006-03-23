@@ -839,8 +839,7 @@ page_delete_rec_list_end(
 
 	last_rec = page_rec_get_prev(page_get_supremum_rec(page));
 
-	if ((size == ULINT_UNDEFINED) || (n_recs == ULINT_UNDEFINED)
-			|| UNIV_LIKELY_NULL(page_zip)) {
+	if ((size == ULINT_UNDEFINED) || (n_recs == ULINT_UNDEFINED)) {
 		rec_t*		rec2		= rec;
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -854,12 +853,6 @@ page_delete_rec_list_end(
 			ulint	s;
 			offsets = rec_get_offsets(rec2, index, offsets,
 						ULINT_UNDEFINED, &heap);
-
-			if (UNIV_LIKELY_NULL(page_zip)) {
-				page_zip_clear_rec(page_zip,
-						rec2, index, offsets, NULL);
-			}
-
 			s = rec_offs_size(offsets);
 			ut_ad(rec2 - page + s - rec_offs_extra_size(offsets)
 				< UNIV_PAGE_SIZE);
