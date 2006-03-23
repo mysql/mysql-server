@@ -2130,15 +2130,6 @@ bool mysql_create_table_internal(THD *thd,
       goto err;
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;
-    if (create_info->db_type != engine_type)
-    {
-      delete file;
-      if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, engine_type)))
-      {
-        mem_alloc_error(sizeof(handler));
-        DBUG_RETURN(TRUE);
-      }
-    }
     if ((!(engine_type->partition_flags &&
            engine_type->partition_flags() & HA_CAN_PARTITION)) ||
         create_info->db_type == &partition_hton)
@@ -2153,6 +2144,43 @@ bool mysql_create_table_internal(THD *thd,
       create_info->db_type= &partition_hton;
       if (!(file= get_ha_partition(part_info)))
       {
+        DBUG_RETURN(TRUE);
+      }
+      /*
+        If we have default number of partitions or subpartitions we
+        might require to set-up the part_info object such that it
+        creates a proper .par file. The current part_info object is
+        only used to create the frm-file and .par-file.
+      */
+      if (part_info->use_default_no_partitions &&
+          part_info->no_parts &&
+          part_info->no_parts != file->get_default_no_partitions(0ULL))
+      {
+        uint i= 0;
+        bool first= TRUE;
+        List_iterator<partition_element> part_it(part_info->partitions);
+        do
+        {
+          partition_element *part_elem= part_it++;
+          if (!first)
+            part_elem->part_state= PART_TO_BE_DROPPED;
+          first= FALSE;
+        } while (++i < part_info->partitions.elements);
+      }
+      else if (part_info->is_sub_partitioned() &&
+               part_info->use_default_no_subpartitions &&
+               part_info->no_subparts &&
+               part_info->no_subparts != file->get_default_no_partitions(0ULL))
+      {
+        part_info->no_subparts= file->get_default_no_partitions(0ULL);
+      }
+    }
+    else if (create_info->db_type != engine_type)
+    {
+      delete file;
+      if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, engine_type)))
+      {
+        mem_alloc_error(sizeof(handler));
         DBUG_RETURN(TRUE);
       }
     }
