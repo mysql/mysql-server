@@ -50,7 +50,6 @@ extern MY_UNICASE_INFO *my_unicase_turkish[256];
 
 #define MY_CS_ILSEQ	0
 #define MY_CS_ILUNI	0
-#define MY_CS_TOOSMALL	-1
 #define MY_CS_TOOFEW(n)	(-1-(n))
 
 /* wm_wc and wc_mb return codes */
