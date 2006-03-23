@@ -961,14 +961,12 @@ bool select_send::send_data(List<Item> &items)
     return 0;
   }
 
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
   /*
     We may be passing the control from mysqld to the client: release the
     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
     by thd
   */
-    ha_release_temporary_latches(thd);
-#endif
+  ha_release_temporary_latches(thd);
 
   List_iterator_fast<Item> li(items);
   Protocol *protocol= thd->protocol;
@@ -998,12 +996,12 @@ bool select_send::send_data(List<Item> &items)
 
 bool select_send::send_eof()
 {
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  /* We may be passing the control from mysqld to the client: release the
-     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
-     by thd */
-    ha_release_temporary_latches(thd);
-#endif
+  /* 
+    We may be passing the control from mysqld to the client: release the
+    InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
+    by thd 
+  */
+  ha_release_temporary_latches(thd);
 
   /* Unlock tables before sending packet to gain some speed */
   if (thd->lock)
