@@ -356,7 +356,7 @@ static int my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)),
 
 #ifdef REAL_MYSQL
 
-#define min_sort_char 0
+#define min_sort_char ' '
 #define max_sort_char '9'
 
 #define EXAMPLE
