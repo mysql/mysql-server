@@ -3053,9 +3053,10 @@ sub run_mysqltest ($) {
     ddd_arguments(\$args, \$exe, "client");
   }
 
-  if ($glob_use_libtool)
+  if ($glob_use_libtool and $opt_valgrind)
   {
     # Add "libtool --mode-execute" before the test to execute
+    # if running in valgrind(to avoid valgrinding bash)
     unshift(@$args, "--mode=execute", $exe);
     $exe= "libtool";
   }
