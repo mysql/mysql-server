@@ -619,6 +619,10 @@ sub command_line_setup () {
              'stress-test-count=i'      => \$opt_stress_test_count,
              'stress-test-duration=i'   => \$opt_stress_test_duration,
 
+	     # Directories
+             'tmpdir=s'                 => \$opt_tmpdir,
+             'vardir=s'                 => \$opt_vardir,
+
              # Misc
              'big-test'                 => \$opt_big_test,
              'comment=s'                => \$opt_comment,
@@ -636,11 +640,9 @@ sub command_line_setup () {
              'start-and-exit'           => \$opt_start_and_exit,
              'start-from=s'             => \$opt_start_from,
              'timer'                    => \$opt_timer,
-             'tmpdir=s'                 => \$opt_tmpdir,
              'unified-diff|udiff'       => \$opt_udiff,
              'user-test=s'              => \$opt_user_test,
              'user=s'                   => \$opt_user,
-             'vardir=s'                 => \$opt_vardir,
              'verbose'                  => \$opt_verbose,
              'wait-timeout=i'           => \$opt_wait_timeout,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
@@ -3227,6 +3229,13 @@ Options to control what engine/variation to run
   bench                 Run the benchmark suite FIXME
   small-bench           FIXME
 
+Options to control directories to use
+  vardir=DIR            The directory where files generated from the test run
+                        is stored(default: ./var). Specifying a ramdisk or tmpfs
+                        will speed up tests.
+  tmpdir=DIR            The directory where temporary files are stored
+                        (default: ./var/tmp).
+
 Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
@@ -3315,7 +3324,6 @@ Options not yet described, or that I want to look into more
   old-master            
   sleep=SECONDS         
   socket=PATH           
-  tmpdir=DIR            
   user-test=s           
   wait-timeout=SECONDS  
   warnings              
