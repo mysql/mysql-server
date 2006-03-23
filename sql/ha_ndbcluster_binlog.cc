@@ -746,10 +746,10 @@ static int ndbcluster_create_schema_table(THD *thd)
   */
   end= strmov(buf, "CREATE TABLE IF NOT EXISTS "
                    NDB_REP_DB "." NDB_SCHEMA_TABLE
-                   " ( db VARCHAR(63) NOT NULL,"
-                   " name VARCHAR(63) NOT NULL,"
+                   " ( db VARBINARY(63) NOT NULL,"
+                   " name VARBINARY(63) NOT NULL,"
                    " slock BINARY(32) NOT NULL,"
-                   " query VARCHAR(4094) NOT NULL,"
+                   " query BLOB NOT NULL,"
                    " node_id INT UNSIGNED NOT NULL,"
                    " epoch BIGINT UNSIGNED NOT NULL,"
                    " id INT UNSIGNED NOT NULL,"
@@ -802,7 +802,6 @@ void ndbcluster_setup_binlog_table_shares(THD *thd)
 #define SCHEMA_TYPE_I 8u
 #define SCHEMA_SIZE 9u
 #define SCHEMA_SLOCK_SIZE 32u
-#define SCHEMA_QUERY_SIZE 4096u
 
 struct Cluster_schema
 {
@@ -813,7 +812,7 @@ struct Cluster_schema
   unsigned char slock_length;
   uint32 slock[SCHEMA_SLOCK_SIZE/4];
   unsigned short query_length;
-  char query[SCHEMA_QUERY_SIZE];
+  char *query;
   Uint64 epoch;
   uint32 node_id;
   uint32 id;
@@ -824,10 +823,26 @@ struct Cluster_schema
 /*
   Transfer schema table data into corresponding struct
 */
-static void ndbcluster_get_schema(TABLE *table,
+static void ndbcluster_get_schema(NDB_SHARE *share,
                                   Cluster_schema *s)
 {
+  TABLE *table= share->table;
   Field **field;
+  /* unpack blob values */
+  byte* blobs_buffer= 0;
+  uint blobs_buffer_size= 0;
+  {
+    ptrdiff_t ptrdiff= 0;
+    int ret= get_ndb_blobs_value(table, share->ndb_value[0],
+                                 blobs_buffer, blobs_buffer_size,
+                                 ptrdiff);
+    if (ret != 0)
+    {
+      my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+      DBUG_PRINT("info", ("blob read error"));
+      DBUG_ASSERT(false);
+    }
+  }
   /* db varchar 1 length byte */
   field= table->field;
   s->db_length= *(uint8*)(*field)->ptr;
@@ -847,13 +862,19 @@ static void ndbcluster_get_schema(TABLE *table,
   s->slock_length= (*field)->field_length;
   DBUG_ASSERT((*field)->field_length == sizeof(s->slock));
   memcpy(s->slock, (*field)->ptr, s->slock_length);
-  /* query varchar 2 length bytes */
+  /* query blob */
   field++;
-  s->query_length= uint2korr((*field)->ptr);
-  DBUG_ASSERT(s->query_length <= (*field)->field_length);
-  DBUG_ASSERT((*field)->field_length + 2 == sizeof(s->query));
-  memcpy(s->query, (*field)->ptr + 2, s->query_length);
-  s->query[s->query_length]= 0;
+  {
+    Field_blob *field_blob= (Field_blob*)(*field);
+    uint blob_len= field_blob->get_length((*field)->ptr);
+    char *blob_ptr= 0;
+    field_blob->get_ptr(&blob_ptr);
+    assert(blob_len == 0 || blob_ptr != 0);
+    s->query_length= blob_len;
+    s->query= sql_alloc(blob_len+1);
+    memcpy(s->query, blob_ptr, blob_len);
+    s->query[blob_len]= 0;
+  }
   /* node_id */
   field++;
   s->node_id= ((Field_long *)*field)->val_int();
@@ -869,6 +890,8 @@ static void ndbcluster_get_schema(TABLE *table,
   /* type */
   field++;
   s->type= ((Field_long *)*field)->val_int();
+  /* free blobs buffer */
+  my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
 }
 
 /*
@@ -1013,7 +1036,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   char save_db[FN_REFLEN];
   strcpy(save_db, ndb->getDatabaseName());
 
-  char tmp_buf[SCHEMA_QUERY_SIZE];
+  char tmp_buf[FN_REFLEN];
   NDBDICT *dict= ndb->getDictionary();
   ndb->setDatabaseName(NDB_REP_DB);
   const NDBTAB *ndbtab= dict->getTable(NDB_SCHEMA_TABLE);
@@ -1037,8 +1060,11 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
     for (i= 0; i < SCHEMA_SIZE; i++)
     {
       col[i]= ndbtab->getColumn(i);
-      sz[i]= col[i]->getLength();
-      DBUG_ASSERT(sz[i] <= sizeof(tmp_buf));
+      if (i != SCHEMA_QUERY_I)
+      {
+        sz[i]= col[i]->getLength();
+        DBUG_ASSERT(sz[i] <= sizeof(tmp_buf));
+      }
     }
   }
 
@@ -1068,9 +1094,14 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
       r|= op->setValue(SCHEMA_SLOCK_I, (char*)schema_subscribers.bitmap);
       DBUG_ASSERT(r == 0);
       /* query */
-      ndb_pack_varchar(col[SCHEMA_QUERY_I], tmp_buf, query, query_length);
-      r|= op->setValue(SCHEMA_QUERY_I, tmp_buf);
-      DBUG_ASSERT(r == 0);
+      {
+        NdbBlob *ndb_blob= op->getBlobHandle(SCHEMA_QUERY_I);
+        DBUG_ASSERT(ndb_blob != 0);
+        uint blob_len= query_length;
+        const char* blob_ptr= query;
+        r|= ndb_blob->setValue(blob_ptr, blob_len);
+        DBUG_ASSERT(r == 0);
+      }
       /* node_id */
       r|= op->setValue(SCHEMA_NODE_ID_I, node_id);
       DBUG_ASSERT(r == 0);
@@ -1203,7 +1234,7 @@ ndbcluster_update_slock(THD *thd,
   char save_db[FN_HEADLEN];
   strcpy(save_db, ndb->getDatabaseName());
 
-  char tmp_buf[SCHEMA_QUERY_SIZE];
+  char tmp_buf[FN_REFLEN];
   NDBDICT *dict= ndb->getDictionary();
   ndb->setDatabaseName(NDB_REP_DB);
   const NDBTAB *ndbtab= dict->getTable(NDB_SCHEMA_TABLE);
@@ -1227,8 +1258,11 @@ ndbcluster_update_slock(THD *thd,
     for (i= 0; i < SCHEMA_SIZE; i++)
     {
       col[i]= ndbtab->getColumn(i);
-      sz[i]= col[i]->getLength();
-      DBUG_ASSERT(sz[i] <= sizeof(tmp_buf));
+      if (i != SCHEMA_QUERY_I)
+      {
+        sz[i]= col[i]->getLength();
+        DBUG_ASSERT(sz[i] <= sizeof(tmp_buf));
+      }
     }
   }
 
@@ -1506,7 +1540,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       MY_BITMAP slock;
       bitmap_init(&slock, schema->slock, 8*SCHEMA_SLOCK_SIZE, false);
       uint node_id= g_ndb_cluster_connection->node_id();
-      ndbcluster_get_schema(share->table, schema);
+      ndbcluster_get_schema(share, schema);
       if (schema->node_id != node_id)
       {
         int log_query= 0, post_epoch_unlock= 0;
@@ -2265,6 +2299,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
   */
 
   DBUG_ENTER("ndbcluster_create_event_ops");
+  DBUG_PRINT("enter", ("table: %s event: %s", ndbtab->getName(), event_name));
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(ndbtab->getName()));
 
   DBUG_ASSERT(share != 0);
@@ -2374,6 +2409,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
         else
         {
           DBUG_PRINT("info", ("%s blob", col_name));
+          DBUG_ASSERT(share->flags & NSF_BLOB_FLAG);
           attr0.blob= op->getBlobHandle(col_name);
           attr1.blob= op->getPreBlobHandle(col_name);
           if (attr0.blob == NULL || attr1.blob == NULL)
