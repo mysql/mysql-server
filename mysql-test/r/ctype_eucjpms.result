@@ -9819,3 +9819,9 @@ eucjpms_bin	6109
 eucjpms_bin	61
 eucjpms_bin	6120
 drop table t1;
+select hex(convert(_eucjpms 0xA5FE41 using ucs2));
+hex(convert(_eucjpms 0xA5FE41 using ucs2))
+003F0041
+select hex(convert(_eucjpms 0x8FABF841 using ucs2));
+hex(convert(_eucjpms 0x8FABF841 using ucs2))
+003F0041

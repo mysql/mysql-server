@@ -1949,7 +1949,7 @@ static int my_utf8_uni(CHARSET_INFO *cs __attribute__((unused)),
   unsigned char c;
 
   if (s >= e)
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL;
 
   c= s[0];
   if (c < 0x80)
@@ -1962,7 +1962,7 @@ static int my_utf8_uni(CHARSET_INFO *cs __attribute__((unused)),
   else if (c < 0xe0)
   {
     if (s+2 > e) /* We need 2 characters */
-      return MY_CS_TOOFEW(0);
+      return MY_CS_TOOSMALL2;
 
     if (!((s[1] ^ 0x80) < 0x40))
       return MY_CS_ILSEQ;
@@ -1973,7 +1973,7 @@ static int my_utf8_uni(CHARSET_INFO *cs __attribute__((unused)),
   else if (c < 0xf0)
   {
     if (s+3 > e) /* We need 3 characters */
-      return MY_CS_TOOFEW(0);
+      return MY_CS_TOOSMALL3;
 
     if (!((s[1] ^ 0x80) < 0x40 && (s[2] ^ 0x80) < 0x40 && (c >= 0xe1 || s[1] >= 0xa0)))
       return MY_CS_ILSEQ;
@@ -1988,7 +1988,7 @@ static int my_utf8_uni(CHARSET_INFO *cs __attribute__((unused)),
   else if (c < 0xf8 && sizeof(my_wc_t)*8 >= 32)
   {
     if (s+4 > e) /* We need 4 characters */
-      return MY_CS_TOOFEW(0);
+      return MY_CS_TOOSMALL4;
 
     if (!((s[1] ^ 0x80) < 0x40 &&
           (s[2] ^ 0x80) < 0x40 &&
@@ -2006,7 +2006,7 @@ static int my_utf8_uni(CHARSET_INFO *cs __attribute__((unused)),
    else if (c < 0xfc && sizeof(my_wc_t)*8 >= 32)
   {
     if (s+5 >e) /* We need 5 characters */
-      return MY_CS_TOOFEW(0);
+      return MY_CS_TOOSMALL5;
 
     if (!((s[1] ^ 0x80) < 0x40 &&
           (s[2] ^ 0x80) < 0x40 &&
@@ -2025,7 +2025,7 @@ static int my_utf8_uni(CHARSET_INFO *cs __attribute__((unused)),
   else if (c < 0xfe && sizeof(my_wc_t)*8 >= 32)
   {
     if ( s+6 >e ) /* We need 6 characters */
-      return MY_CS_TOOFEW(0);
+      return MY_CS_TOOSMALL6;
 
     if (!((s[1] ^ 0x80) < 0x40   &&
           (s[2] ^ 0x80) < 0x40   &&
@@ -2076,7 +2076,7 @@ static int my_uni_utf8 (CHARSET_INFO *cs __attribute__((unused)) ,
     Because of it (r+count > e), not (r+count-1 >e )
    */
   if ( r+count > e )
-    return MY_CS_TOOSMALL;
+    return MY_CS_TOOSMALLN(count);
 
   switch (count) {
     /* Fall through all cases!!! */
