@@ -1428,7 +1428,13 @@ mysql_init(MYSQL *mysql)
     mysql->free_me=1;
   }
   else
-    bzero((char*) (mysql),sizeof(*(mysql)));
+  {
+#if defined(EMBEDDED_LIBRARY) || MYSQL_VERSION_ID >= 50100
+    bzero((char*) (mysql), sizeof(*(mysql)));
+#else
+    bzero((char*) (mysql), offsetof(MYSQL, info_buffer));
+#endif
+  }
   mysql->options.connect_timeout= CONNECT_TIMEOUT;
   mysql->last_used_con= mysql->next_slave= mysql->master = mysql;
   mysql->charset=default_charset_info;
@@ -2341,9 +2347,12 @@ static void mysql_close_free(MYSQL *mysql)
   my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
+#if defined(EMBEDDED_LIBRARY) || MYSQL_VERSION_ID >= 50100
   my_free(mysql->info_buffer,MYF(MY_ALLOW_ZERO_PTR));
+  mysql->info_buffer= 0;
+#endif
   /* Clear pointers for better safety */
-  mysql->info_buffer=mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
+  mysql->host_info= mysql->user= mysql->passwd= mysql->db= 0;
 }
 
 
