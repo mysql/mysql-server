@@ -415,7 +415,7 @@ inline double ulonglong2double(ulonglong value)
 #else
 #define MYSQL_DEFAULT_CHARSET_NAME "latin1"
 #define MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"
-#enfif
+#endif
 
 #define HAVE_SPATIAL 1
 #define HAVE_RTREE_KEYS 1
