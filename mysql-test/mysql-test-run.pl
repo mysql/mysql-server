@@ -2550,11 +2550,11 @@ sub mysqld_start ($$$$$) {
 
   if ( $opt_gdb || $opt_manual_gdb)
   {
-    gdb_arguments(\$args, \$exe, $type);
+    gdb_arguments(\$args, \$exe, "$type"."_$idx");
   }
   elsif ( $opt_ddd || $opt_manual_ddd )
   {
-    ddd_arguments(\$args, \$exe, $type);
+    ddd_arguments(\$args, \$exe, "$type"."_$idx");
   }
   elsif ( $opt_manual_debug )
   {
@@ -3089,6 +3089,9 @@ sub gdb_arguments {
   my $str= join(" ", @$$args);
   my $gdb_init_file= "$opt_tmpdir/gdbinit.$type";
 
+  # Remove the old gdbinit file
+  unlink($gdb_init_file);
+
   if ( $type eq "client" )
   {
     # write init file for client
@@ -3110,7 +3113,7 @@ sub gdb_arguments {
 
   if ( $opt_manual_gdb )
   {
-     print "\nTo start gdb for$type, type in another window:\n";
+     print "\nTo start gdb for $type, type in another window:\n";
      print "cd $glob_mysql_test_dir;\n";
      print "gdb -x $gdb_init_file $$exe\n";
 
@@ -3150,6 +3153,9 @@ sub ddd_arguments {
   my $str= join(" ", @$$args);
   my $gdb_init_file= "$opt_tmpdir/gdbinit.$type";
 
+  # Remove the old gdbinit file
+  unlink($gdb_init_file);
+
   if ( $type eq "client" )
   {
     # write init file for client
@@ -3172,7 +3178,7 @@ sub ddd_arguments {
 
   if ( $opt_manual_ddd )
   {
-     print "\nTo start ddd for$type, type in another window:\n";
+     print "\nTo start ddd for $type, type in another window:\n";
      print "cd $glob_mysql_test_dir;\n";
      print "ddd -x $gdb_init_file $$exe\n";
 
