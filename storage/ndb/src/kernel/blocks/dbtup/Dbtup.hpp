@@ -878,6 +878,7 @@ ArrayPool<TupTriggerData> c_triggerPool;
       {}
     
     Bitmask<MAXNROFATTRIBUTESINWORDS> notNullAttributeMask;
+    Bitmask<MAXNROFATTRIBUTESINWORDS> blobAttributeMask;
     
     ReadFunction* readFunctionArray;
     UpdateFunction* updateFunctionArray;

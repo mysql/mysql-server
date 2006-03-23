@@ -867,10 +867,19 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   } else {
     ljam();
 //--------------------------------------------------------------------
-// All others send all attributes that are monitored
+// All others send all attributes that are monitored, except:
+// Omit unchanged blob inlines on update i.e.
+// attributeMask & ~ (blobAttributeMask & ~ changeMask)
 //--------------------------------------------------------------------
-    numAttrsToRead = setAttrIds(trigPtr->attributeMask, 
-				regTabPtr->m_no_of_attributes, &readBuffer[0]);
+    Bitmask<MAXNROFATTRIBUTESINWORDS> attributeMask;
+    attributeMask = trigPtr->attributeMask;
+    if (regOperPtr->op_struct.op_type == ZUPDATE) {
+      Bitmask<MAXNROFATTRIBUTESINWORDS> tmpMask = regTabPtr->blobAttributeMask;
+      tmpMask.bitANDC(req_struct->changeMask);
+      attributeMask.bitANDC(tmpMask);
+    }
+    numAttrsToRead = setAttrIds(attributeMask, regTabPtr->m_no_of_attributes,
+                                &readBuffer[0]);
   }
   ndbrequire(numAttrsToRead < MAX_ATTRIBUTES_IN_TABLE);
 //--------------------------------------------------------------------

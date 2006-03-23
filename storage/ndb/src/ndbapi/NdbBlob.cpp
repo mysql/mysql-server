@@ -598,6 +598,8 @@ NdbBlob::getHeadFromRecAttr()
   theNullFlag = theHeadInlineRecAttr->isNULL();
   assert(theEventBlobVersion >= 0 || theNullFlag != -1);
   theLength = ! theNullFlag ? theHead->length : 0;
+  DBUG_PRINT("info", ("theNullFlag=%d theLength=%llu",
+                      theNullFlag, theLength));
   DBUG_VOID_RETURN;
 }
 
@@ -1835,10 +1837,13 @@ int
 NdbBlob::atNextEvent()
 {
   DBUG_ENTER("NdbBlob::atNextEvent");
-  DBUG_PRINT("info", ("this=%p op=%p blob op=%p version=%d", this, theEventOp, theBlobEventOp, theEventBlobVersion));
+  Uint32 optype = theEventOp->m_data_item->sdata->operation;
+  DBUG_PRINT("info", ("this=%p op=%p blob op=%p version=%d optype=%u", this, theEventOp, theBlobEventOp, theEventBlobVersion, optype));
   if (theState == Invalid)
     DBUG_RETURN(-1);
   assert(theEventBlobVersion >= 0);
+  if (optype >= NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT)
+    DBUG_RETURN(0);
   getHeadFromRecAttr();
   if (theNullFlag == -1) // value not defined
     DBUG_RETURN(0);
