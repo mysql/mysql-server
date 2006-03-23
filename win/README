@@ -34,12 +34,25 @@ Clone your bk tree to any location you like.
 Step 4
 ------
 From the root of your bk clone, execute the command:  win\configure <options>.  
-The options right now are WITH_INNODB and WITH_PARTITION.  So the command line
-would look like:
+The options right now are
 
-win\configure WITH_INNODB WITH_PARTITION
+    WITH_INNOBASE_STORAGE_ENGINE         Enable particular storage engines
+    WITH_PARTITION_STORAGE_ENGINE
+    WITH_ARCHIVE_STORAGE_ENGINE
+    WITH_BERKELEY_STORAGE_ENGINE
+    WITH_BLACKHOLE_STORAGE_ENGINE
+    WITH_EXAMPLE_STORAGE_ENGINE
+    WITH_FEDERATED_STORAGE_ENGINE
+    WITH_INNOBASE_STORAGE_ENGINE
+    __NT__                               Enable named pipe support
+    MYSQL_SERVER_SUFFIX=<suffix>         Server suffix, default none
+    COMPILATION_COMMENT=<comment>        Server comment, default "Source distribution"
+    MYSQL_TCP_PORT=<port>                Server port, default 3306
+    CYBOZU
 
-These are the only two flags supported right now.  Others will come later.
+So the command line could look like:
+
+win\configure WITH_INNOBASE_STORAGE_ENGINE WITH_PARTITION_STORAGE_ENGINE MYSQL_SERVER_SUFFIX=-pro
 
 Step 5
 ------
@@ -60,11 +73,5 @@ click the build solution menu option.
 
 Current issues
 --------------
-1.  Not all configurations are currently available.  i.e.  Classic, Pro, Max.  
-Currently, only debug and release are available.  This will change in the near
-future.
-
-2.  The definitions set for features (partitioning, blackhole, etc) are not 
-changed based on the options given with configure.  This will soon be fixed 
-as well.
-
+1. After changing configuration (eg. adding or removing a storage engine), it
+may be necessary to clean the build tree to remove any stale objects.
