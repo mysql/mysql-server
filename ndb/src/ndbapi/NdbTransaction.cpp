@@ -1232,6 +1232,8 @@ NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
   
   if (tOp->init(tab, this) != -1) {
     define_scan_op(tOp);
+    // Mark that this NdbIndexScanOperation is used as NdbScanOperation
+    tOp->m_type = NdbOperation::TableScan; 
     return tOp;
   } else {
     theNdb->releaseScanOperation(tOp);
