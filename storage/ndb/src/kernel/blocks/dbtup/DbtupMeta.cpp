@@ -201,6 +201,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     regTabPtr.p->m_no_of_attributes= noOfAttributes;
     
     regTabPtr.p->notNullAttributeMask.clear();
+    regTabPtr.p->blobAttributeMask.clear();
     
     Uint32 offset[10];
     Uint32 tableDescriptorRef= allocTabDescr(regTabPtr.p, offset);
@@ -286,6 +287,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   ptrCheckGuard(fragOperPtr, cnoOfFragoprec, fragoperrec);
   Uint32 attrId = signal->theData[2];
   Uint32 attrDescriptor = signal->theData[3];
+  Uint32 extType = AttributeDescriptor::getType(attrDescriptor);
   // DICT sends charset number in upper half
   Uint32 csNumber = (signal->theData[4] >> 16);
 
@@ -351,6 +353,10 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     else 
     {
       regTabPtr.p->notNullAttributeMask.set(attrId);
+    }
+
+    if (extType == NDB_TYPE_BLOB || extType == NDB_TYPE_TEXT) {
+      regTabPtr.p->blobAttributeMask.set(attrId);
     }
 
     switch (AttributeDescriptor::getArrayType(attrDescriptor)) {
