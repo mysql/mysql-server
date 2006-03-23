@@ -439,6 +439,14 @@ int runBug15587(NDBT_Context* ctx, NDBT_Step* step){
   if (restarter.startNodes(&nodeId, 1))
     return NDBT_FAILED;
 
+  restarter.waitNodesStartPhase(&nodeId, 1, 3);
+  
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+    return NDBT_FAILED; 
+   
+  if (restarter.startNodes(&nodeId, 1))
+    return NDBT_FAILED;
+  
   if (restarter.waitNodesStarted(&nodeId, 1))
     return NDBT_FAILED;
   

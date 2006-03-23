@@ -318,7 +318,7 @@ LQH:
 5026  Crash when receiving COPY_ACTIVEREQ
 5027  Crash when receiving STAT_RECREQ
 
-5042  Crash starting node, when scan is finished on primary replica
+5043  Crash starting node, when scan is finished on primary replica
 
 Test Crashes in handling take over
 ----------------------------------
