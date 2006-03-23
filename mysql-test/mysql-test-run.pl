@@ -133,6 +133,7 @@ our $glob_win32=                  0; # OS and native Win32 executables
 our $glob_win32_perl=             0; # ActiveState Win32 Perl
 our $glob_cygwin_perl=            0; # Cygwin Perl
 our $glob_cygwin_shell=           undef;
+our $glob_use_libtool=            1;
 our $glob_mysql_test_dir=         undef;
 our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
@@ -189,7 +190,6 @@ our @opt_extra_mysqld_opt;
 our $opt_comment;
 our $opt_compress;
 our $opt_current_test;
-our $opt_ddd;
 our $opt_debug;
 our $opt_do_test;
 our @opt_cases;                  # The test cases names in argv
@@ -203,9 +203,14 @@ our $opt_gcov;
 our $opt_gcov_err;
 our $opt_gcov_msg;
 
+our $glob_debugger= 0;
 our $opt_gdb;
 our $opt_client_gdb;
+our $opt_ddd;
+our $opt_client_ddd;
 our $opt_manual_gdb;
+our $opt_manual_ddd;
+our $opt_manual_debug;
 
 our $opt_gprof;
 our $opt_gprof_dir;
@@ -259,11 +264,12 @@ our $opt_timer;
 our $opt_user;
 our $opt_user_test;
 
-our $opt_valgrind;
-our $opt_valgrind_mysqld;
-our $opt_valgrind_mysqltest;
-our $opt_valgrind_all;
+our $opt_valgrind= 0;
+our $opt_valgrind_mysqld= 0;
+our $opt_valgrind_mysqltest= 0;
+our $opt_valgrind_all= 0;
 our $opt_valgrind_options;
+our $opt_valgrind_path;
 
 our $opt_verbose;
 
@@ -410,6 +416,12 @@ sub initial_setup () {
   $glob_cygwin_perl= ($^O eq "cygwin");
   $glob_win32=       ($glob_win32_perl or $glob_cygwin_perl);
 
+  # Use libtool on all platforms except windows
+  if ( $glob_win32 )
+  {
+    $glob_use_libtool= 0;
+  }
+
   # We require that we are in the "mysql-test" directory
   # to run mysql-test-run
 
@@ -524,9 +536,11 @@ sub command_line_setup () {
 
              # Debugging
              'gdb'                      => \$opt_gdb,
-             'manual-gdb'               => \$opt_manual_gdb,
              'client-gdb'               => \$opt_client_gdb,
+             'manual-gdb'               => \$opt_manual_gdb,
+             'manual-debug'             => \$opt_manual_debug,
              'ddd'                      => \$opt_ddd,
+             'client-ddd'               => \$opt_client_ddd,
              'strace-client'            => \$opt_strace_client,
              'master-binary=s'          => \$exe_master_mysqld,
              'slave-binary=s'           => \$exe_slave_mysqld,
@@ -534,10 +548,12 @@ sub command_line_setup () {
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
              'gprof'                    => \$opt_gprof,
-             'valgrind:s'               => \$opt_valgrind,
-             'valgrind-mysqltest:s'     => \$opt_valgrind_mysqltest,
-             'valgrind-all:s'           => \$opt_valgrind_all,
+             'valgrind'                 => \$opt_valgrind,
+             'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
+             'valgrind-mysqld'          => \$opt_valgrind_mysqld,
+             'valgrind-all'             => \$opt_valgrind_all,
              'valgrind-options=s'       => \$opt_valgrind_options,
+             'valgrind-path=s'          => \$opt_valgrind_path,
 
              # Misc
              'big-test'                 => \$opt_big_test,
@@ -692,29 +708,17 @@ sub command_line_setup () {
     mtr_error("Coverage test needs the source - please use source dist");
   }
 
-  if ( $opt_gdb )
+  # Check debug related options
+  if ( $opt_gdb || $opt_client_gdb || $opt_ddd || opt_client_ddd ||
+       $opt_manual_gdb || $opt_manual_ddd || opt_manual_debug)
   {
+    # Indicate that we are using debugger 
+    $glob_debugger= 1;
+    # Increase timeouts
     $opt_wait_timeout=  300;
     if ( $opt_extern )
     {
-      mtr_error("Can't use --extern with --gdb");
-    }
-  }
-
-  if ( $opt_manual_gdb )
-  {
-    $opt_gdb=  1;
-    if ( $opt_extern )
-    {
-      mtr_error("Can't use --extern with --manual-gdb");
-    }
-  }
-
-  if ( $opt_ddd )
-  {
-    if ( $opt_extern )
-    {
-      mtr_error("Can't use --extern with --ddd");
+      mtr_error("Can't use --extern when using debugger");
     }
   }
 
@@ -733,22 +737,20 @@ sub command_line_setup () {
     $opt_with_ndbcluster= 0;
   }
 
-  # The ":s" in the argument spec, means we have three different cases
-  #
-  #   undefined    option not set
-  #   ""           option set with no argument
-  #   "somestring" option is name/path of valgrind executable
-
-  # Take executable path from any of them, if any
-  $opt_valgrind_mysqld= $opt_valgrind;
-  $opt_valgrind= $opt_valgrind_mysqltest if $opt_valgrind_mysqltest;
-  $opt_valgrind= $opt_valgrind_all       if $opt_valgrind_all;
-
-  # If valgrind flag not defined, define if other valgrind flags are
-  unless ( defined $opt_valgrind )
+  # Turn on valgrinding of all executables if "valgrind" or "valgrind-all"
+  if ( $opt_valgrind or $opt_valgrind_all )
   {
-    $opt_valgrind= ""
-      if defined $opt_valgrind_mysqltest or defined $opt_valgrind_all;
+    mtr_report("Turning on valgrind for all executables");
+    $opt_valgrind= 1;
+    $opt_valgrind_mysqld= 1;
+    $opt_valgrind_mysqltest= 1;
+  }
+  elsif ( $opt_valgrind_mysqld or $opt_valgrind_mysqltest )
+  {
+    # If test's are run for a specific executable, turn on
+    # verbose and show-reachable
+    $opt_valgrind= 1;
+    $opt_valgrind_all= 1;
   }
 
   if ( ! $opt_testcase_timeout )
@@ -763,12 +765,11 @@ sub command_line_setup () {
     $opt_suite_timeout*= 4 if defined $opt_valgrind;
   }
 
-  if ( defined $opt_valgrind )
+  # Increase times to wait for executables to start if using valgrind
+  if ( $opt_valgrind )
   {
     $opt_sleep_time_after_restart= 10;
     $opt_sleep_time_for_delete= 60;
-    # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
-    #  valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && VALGRIND="$VALGRIND --tool=memcheck"
   }
 
   if ( ! $opt_user )
@@ -893,19 +894,7 @@ sub executable_setup () {
     }
     else
     {
-      if ( $opt_valgrind_mysqltest )
-      {
-        # client/mysqltest might be a libtool .sh script, so look for real exe
-        # to avoid valgrinding bash ;)
-        $exe_mysqltest=
-  	  mtr_exe_exists("$path_client_bindir/.libs/lt-mysqltest",
-		         "$path_client_bindir/.libs/mysqltest",
-		         "$path_client_bindir/mysqltest");
-      }
-      else
-      {
-        $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
-      }
+      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
       $exe_mysql_client_test=
         mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
 		       "/usr/bin/false");
@@ -1378,8 +1367,9 @@ sub run_suite () {
 
   mtr_print_line();
 
-  if ( ! $opt_gdb and ! $glob_use_running_server and
-       ! $opt_ddd and ! $glob_use_embedded_server )
+  if ( ! $opt_debugger and
+       ! $glob_use_running_server and
+       ! $glob_use_embedded_server )
   {
     stop_masters_slaves();
   }
@@ -1748,17 +1738,18 @@ sub report_failure_and_restart ($) {
     my $test_mode= join(" ", @::glob_test_mode) || "default";
     print "Aborting: $tinfo->{'name'} failed in $test_mode mode. ";
     print "To continue, re-run with '--force'.\n";
-    if ( ! $opt_gdb and ! $glob_use_running_server and
-         ! $opt_ddd and ! $glob_use_embedded_server )
+    if ( ! $glob_debugger and
+	 ! $glob_use_running_server and
+         ! $glob_use_embedded_server )
     {
       stop_masters_slaves();
     }
     mtr_exit(1);
   }
 
-  # FIXME always terminate on failure?!
-  if ( ! $opt_gdb and ! $glob_use_running_server and
-       ! $opt_ddd and ! $glob_use_embedded_server )
+  if ( ! $glob_debugger and
+       ! $glob_use_running_server and
+       ! $glob_use_embedded_server )
   {
     stop_masters_slaves();
   }
@@ -1882,7 +1873,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
 
-  if ( defined $opt_valgrind_mysqld )
+  if ( $opt_valgrind_mysqld )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
     mtr_add_arg($args, "%s--skip-bdb", $prefix);
@@ -2020,7 +2011,8 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--log-warnings", $prefix);
   }
 
-  if ( $opt_gdb or $opt_client_gdb or $opt_manual_gdb or $opt_ddd)
+  # Indicate to "mysqld" it will be debugged in debugger
+  if ( $glob_debugger )
   {
     mtr_add_arg($args, "%s--gdb", $prefix);
   }
@@ -2111,12 +2103,21 @@ sub mysqld_start ($$$$) {
 
   mtr_init_args(\$args);
 
-  if ( defined $opt_valgrind_mysqld )
+  if ( $opt_valgrind_mysqld )
   {
     valgrind_arguments($args, \$exe);
   }
 
   mysqld_arguments($args,$type,$idx,$extra_opt,$slave_master_info);
+
+  if ( $opt_gdb || $opt_manual_gdb)
+  {
+    gdb_arguments(\$args, \$exe, $type);
+  }
+  elsif ( $opt_ddd || $opt_manual_ddd )
+  {
+    ddd_arguments(\$args, \$exe, $type);
+  }
 
   if ( $type eq 'master' )
   {
@@ -2297,7 +2298,7 @@ sub run_mysqltest ($) {
 
   mtr_init_args(\$args);
 
-  if ( defined $opt_valgrind_mysqltest )
+  if ( $opt_valgrind_mysqltest )
   {
     valgrind_arguments($args, \$exe);
   }
@@ -2379,7 +2380,10 @@ sub run_mysqltest ($) {
   # Add arguments that should not go into the MYSQL_TEST env var
   # ----------------------------------------------------------------------
 
-  mtr_add_arg($args, "-R");
+  mtr_add_arg($args, "--test-file");
+  mtr_add_arg($args, $tinfo->{'path'});
+
+  mtr_add_arg($args, "--result-file");
   mtr_add_arg($args, $tinfo->{'result_file'});
 
   if ( $opt_record )
@@ -2387,10 +2391,130 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--record");
   }
 
-  return mtr_run_test($exe,$args,$tinfo->{'path'},"",$path_timefile,"");
+  if ( $opt_client_gdb )
+  {
+    gdb_arguments(\$args, \$exe, "client");
+  }
+  elsif ( $opt_client_ddd )
+  {
+    ddd_arguments(\$args, \$exe, "client");
+  }
+
+  if ($glob_use_libtool)
+  {
+    # Add "libtool --mode-execute" before the test to execute
+    unshift(@$args, "--mode=execute", $path);
+    $exe= "libtool";
+  }
+
+  return mtr_run_test($exe,$args,"","",$path_timefile,"");
 }
 
 
+#
+# Modify the exe and args so that program is run in gdb in xterm
+#
+sub gdb_arguments {
+  my $args= shift;
+  my $exe=  shift;
+  my $type= shift;
+
+  # Write $args to gdb init file
+  my $str= join(" ", @$$args);
+  my $gdb_init_file= "$opt_tmpdir/gdbinit.$type";
+
+  if ( $type eq "client" )
+  {
+    # write init file for client
+    mtr_tofile($gdb_init_file,
+	       "set args $str\n"
+	      );
+  }
+  else
+  {
+    # write init file for mysqld
+    mtr_tofile($gdb_init_file,
+	       "file $$exe\n" .
+	       "set args $str\n" .
+	       "break mysql_parse\n" .
+	       "commands 1\n" .
+	       "disable 1\n" .
+	       "end\n" .
+	       "run"
+	      );
+  }
+
+  $$args= [];
+  mtr_add_arg($$args, "-title");
+  mtr_add_arg($$args, "$type");
+  mtr_add_arg($$args, "-e");
+  if ( $glob_use_libtool )
+  {
+    mtr_add_arg($$args, "libtool");
+    mtr_add_arg($$args, "--mode=execute");
+  }
+
+  mtr_add_arg($$args, "gdb");
+  mtr_add_arg($$args, "-x");
+  mtr_add_arg($$args, "$gdb_init_file");
+  mtr_add_arg($$args, "$$exe");
+
+  $$exe= "xterm";
+}
+
+#
+# Modify the exe and args so that program is run in ddd
+#
+sub ddd_arguments {
+  my $args= shift;
+  my $exe=  shift;
+  my $type= shift;
+
+  # Write $args to ddd init file
+  my $str= join(" ", @$$args);
+  my $gdb_init_file= "$opt_tmpdir/gdbinit.$type";
+
+  if ( $type eq "client" )
+  {
+    # write init file for client
+    mtr_tofile($gdb_init_file,
+	       "set args $str\n" .
+	       "break main\n"
+	      );
+  }
+  else
+  {
+    # write init file for mysqld
+    mtr_tofile($gdb_init_file,
+	       "file $$exe\n" .
+	       "set args $str\n" .
+	       "break mysql_parse\n" .
+	       "commands 1\n" .
+	       "disable 1\n" .
+	       "end\n" .
+	       "run"
+	      );
+  }
+
+  my $save_exe= $$exe;
+  $$args= [];
+  if ( $glob_use_libtool )
+  {
+    $$exe= "libtool";
+    mtr_add_arg($$args, "--mode=execute");
+    mtr_add_arg($$args, "ddd");
+  }
+  else
+  {
+    $$exe= "ddd";
+  }
+  mtr_add_arg($$args, "--command=$gdb_init_file");
+  mtr_add_arg($$args, "$save_exe");
+}
+
+#
+# Modify the exe and args so that program is run in valgrind
+#
 sub valgrind_arguments {
   my $args= shift;
   my $exe=  shift;
@@ -2402,7 +2526,7 @@ sub valgrind_arguments {
   mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
     if -f "$glob_mysql_test_dir/valgrind.supp";
 
-  if ( defined $opt_valgrind_all )
+  if ( $opt_valgrind_all )
   {
     mtr_add_arg($args, "-v");
     mtr_add_arg($args, "--show-reachable=yes");
@@ -2410,13 +2534,12 @@ sub valgrind_arguments {
 
   if ( $opt_valgrind_options )
   {
-    # FIXME split earlier and put into @glob_valgrind_*
     mtr_add_arg($args, split(' ', $opt_valgrind_options));
   }
 
   mtr_add_arg($args, $$exe);
 
-  $$exe= $opt_valgrind || "valgrind";
+  $$exe= $opt_valgrind_path || "valgrind";
 }
 
 
@@ -2474,10 +2597,12 @@ Options to run test on running server
 
 Options for debugging the product
 
-  gdb                   FIXME
-  manual-gdb            FIXME
-  client-gdb            FIXME
-  ddd                   FIXME
+  gdb                   Start the mysqld(s) in gdb
+  manual-gdb            Let user manually start mysqld in gdb, before running test(s)
+  manual-debug          Let user manually start mysqld in debugger, before running test(s)
+  client-gdb            Start mysqltest client in gdb
+  ddd                   Start mysqld in ddd
+  client-ddd            Start mysqltest client in ddd
   strace-client         FIXME
   master-binary=PATH    Specify the master "mysqld" to use
   slave-binary=PATH     Specify the slave "mysqld" to use
@@ -2486,12 +2611,13 @@ Options for coverage, profiling etc
 
   gcov                  FIXME
   gprof                 FIXME
-  valgrind[=EXE]        Run the "mysqltest" executable as well as the "mysqld"
-                        server using valgrind, optionally specifying the
-                        executable path/name
-  valgrind-mysqltest[=EXE] In addition, run the "mysqltest" executable with valgrind
-  valgrind-all[=EXE]    Adds verbose flag, and --show-reachable to valgrind
+  valgrind              Run the "mysqltest" and "mysqld" executables using valgrind
+  valgrind-all          Same as "valgrind" but will also add "verbose" and "--show-reachable"
+                        flags to valgrind
+  valgrind-mysqltest    Run the "mysqltest" executable with valgrind
+  valgrind-mysqld       Run the "mysqld" executable with valgrind
   valgrind-options=ARGS Extra options to give valgrind
+  valgrind-path=[EXE]   Path to the valgrind executable
 
 Misc options
 
