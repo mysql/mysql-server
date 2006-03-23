@@ -1360,7 +1360,7 @@ int my_mb_ctype_8bit(CHARSET_INFO *cs, int *ctype,
   if (s >= e)
   {
     *ctype= 0;
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL;
   }
   *ctype= cs->ctype[*s];
   return 1;
