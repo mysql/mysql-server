@@ -2805,9 +2805,6 @@ longlong Item_func_udf_int::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_int::val_int");
-  DBUG_PRINT("info",("result_type: %d  arg_count: %d",
-		     args[0]->result_type(), arg_count));
-
   DBUG_RETURN(udf.val_int(&null_value));
 }
 
