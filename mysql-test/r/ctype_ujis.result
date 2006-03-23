@@ -2337,3 +2337,9 @@ DROP TABLE t2;
 set names default;
 set character_set_database=default;
 set character_set_server=default;
+select hex(convert(_ujis 0xA5FE41 using ucs2));
+hex(convert(_ujis 0xA5FE41 using ucs2))
+003F0041
+select hex(convert(_ujis 0x8FABF841 using ucs2));
+hex(convert(_ujis 0x8FABF841 using ucs2))
+003F0041
