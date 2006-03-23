@@ -774,8 +774,8 @@ sub command_line_setup () {
   }
 
   # Check debug related options
-  if ( $opt_gdb || $opt_client_gdb || $opt_ddd || opt_client_ddd ||
-       $opt_manual_gdb || $opt_manual_ddd || opt_manual_debug)
+  if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd ||
+       $opt_manual_gdb || $opt_manual_ddd || $opt_manual_debug)
   {
     # Indicate that we are using debugger 
     $glob_debugger= 1;
@@ -1557,7 +1557,7 @@ sub run_suite () {
 
   mtr_print_line();
 
-  if ( ! $opt_debugger and
+  if ( ! $glob_debugger and
        ! $glob_use_running_server and
        ! $glob_use_embedded_server )
   {
@@ -2494,7 +2494,7 @@ sub mysqld_start ($$$$$) {
 
   my $args;                             # Arg vector
   my $exe;
-  my $pid;
+  my $pid= -1;
 
   if ( $type eq 'master' )
   {
@@ -2527,30 +2527,45 @@ sub mysqld_start ($$$$$) {
   {
     ddd_arguments(\$args, \$exe, $type);
   }
+  elsif ( $opt_manual_debug )
+  {
+     print "\nStart $type in your debugger\n" .
+           "dir: $glob_mysql_test_dir\n" .
+           "exe: $exe\n" .
+	   "args:  " . join(" ", @$args)  . "\n\n" .
+	   "Waiting ....\n";
+
+     # Indicate the exe should not be started
+    $exe= undef;
+  }
 
   if ( $type eq 'master' )
   {
-    if ( $pid= mtr_spawn($exe, $args, "",
-                         $master->[$idx]->{'path_myerr'},
-                         $master->[$idx]->{'path_myerr'},
-                         "",
-                         { append_log_file => 1 }) )
+    if ( ! defined $exe or
+	 $pid= mtr_spawn($exe, $args, "",
+			 $master->[$idx]->{'path_myerr'},
+			 $master->[$idx]->{'path_myerr'},
+			 "",
+			 { append_log_file => 1 }) )
     {
       return sleep_until_file_created($master->[$idx]->{'path_mypid'},
-                                      $master->[$idx]->{'start_timeout'}, $pid);
+                                      $master->[$idx]->{'start_timeout'},
+				      $pid);
     }
   }
 
   if ( $type eq 'slave' )
   {
-    if ( $pid= mtr_spawn($exe, $args, "",
+    if ( ! defined $exe or
+	 $pid= mtr_spawn($exe, $args, "",
                          $slave->[$idx]->{'path_myerr'},
                          $slave->[$idx]->{'path_myerr'},
                          "",
                          { append_log_file => 1 }) )
     {
       return sleep_until_file_created($slave->[$idx]->{'path_mypid'},
-                                      $master->[$idx]->{'start_timeout'}, $pid);
+                                      $master->[$idx]->{'start_timeout'},
+				      $pid);
     }
   }
 
@@ -3012,7 +3027,7 @@ sub run_mysqltest ($) {
   if ($glob_use_libtool)
   {
     # Add "libtool --mode-execute" before the test to execute
-    unshift(@$args, "--mode=execute", $path);
+    unshift(@$args, "--mode=execute", $exe);
     $exe= "libtool";
   }
 
@@ -3049,27 +3064,37 @@ sub gdb_arguments {
   {
     # write init file for client
     mtr_tofile($gdb_init_file,
-	       "set args $str\n"
-	      );
+	       "set args $str\n" .
+	       "break main\n");
   }
   else
   {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
-	       "file $$exe\n" .
 	       "set args $str\n" .
 	       "break mysql_parse\n" .
 	       "commands 1\n" .
 	       "disable 1\n" .
 	       "end\n" .
-	       "run"
-	      );
+	       "run");
+  }
+
+  if ( $opt_manual_gdb )
+  {
+     print "\nTo start gdb for$type, type in another window:\n";
+     print "cd $glob_mysql_test_dir;\n";
+     print "gdb -x $gdb_init_file $$exe\n";
+
+     # Indicate the exe should not be started
+     $$exe= undef;
+     return;
   }
 
   $$args= [];
   mtr_add_arg($$args, "-title");
   mtr_add_arg($$args, "$type");
   mtr_add_arg($$args, "-e");
+
   if ( $glob_use_libtool )
   {
     mtr_add_arg($$args, "libtool");
@@ -3101,8 +3126,7 @@ sub ddd_arguments {
     # write init file for client
     mtr_tofile($gdb_init_file,
 	       "set args $str\n" .
-	       "break main\n"
-	      );
+	       "break main\n");
   }
   else
   {
@@ -3114,8 +3138,18 @@ sub ddd_arguments {
 	       "commands 1\n" .
 	       "disable 1\n" .
 	       "end\n" .
-	       "run"
-	      );
+	       "run");
+  }
+
+  if ( $opt_manual_ddd )
+  {
+     print "\nTo start ddd for$type, type in another window:\n";
+     print "cd $glob_mysql_test_dir;\n";
+     print "ddd -x $gdb_init_file $$exe\n";
+
+     # Indicate the exe should not be started
+     $$exe= undef;
+     return;
   }
 
   my $save_exe= $$exe;
