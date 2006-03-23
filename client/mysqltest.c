@@ -373,8 +373,10 @@ const char *command_names[]=
   "enable_rpl_parse",
   "disable_rpl_parse",
   "eval_result",
+  /* Enable/disable that the _query_ is logged to result file */
   "enable_query_log",
   "disable_query_log",
+  /* Enable/disable that the _result_ from a query is logged to result file */
   "enable_result_log",
   "disable_result_log",
   "server_start",
@@ -760,8 +762,8 @@ err:
   check_result
   ds - content to be checked
   fname - name of file to check against
-  require_option - if set and check fails, the test will be aborted with the special
-                   exit code "not supported test"
+  require_option - if set and check fails, the test will be aborted
+                   with the special exit code "not supported test"
 
   RETURN VALUES
    error - the function will not return
@@ -3716,7 +3718,17 @@ static void handle_error(const char *query, struct st_query *q,
   DBUG_ENTER("handle_error");
 
   if (q->require_file)
+  {
+    /*
+      The query after a "--require" failed. This is fine as long the server
+      returned a valid reponse. Don't allow 2013 or 2006 to trigger an
+      abort_not_supported_test
+     */
+    if (err_errno == CR_SERVER_LOST ||
+        err_errno == CR_SERVER_GONE_ERROR)
+      die("require query '%s' failed: %d: %s", query, err_errno, err_error);
     abort_not_supported_test();
+  }
 
   if (q->abort_on_error)
     die("query '%s' failed: %d: %s", query, err_errno, err_error);
