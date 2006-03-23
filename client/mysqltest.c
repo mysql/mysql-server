@@ -427,6 +427,7 @@ static VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 static void var_free(void* v);
 
 void dump_result_to_reject_file(const char *record_file, char *buf, int size);
+void dump_result_to_log_file(const char *record_file, char *buf, int size);
 
 int close_connection(struct st_query*);
 static void set_charset(struct st_query*);
@@ -634,9 +635,9 @@ static void die(const char *fmt, ...)
   }
   va_end(args);
 
-  /* Dump the result that has been accumulated so far to reject file */
+  /* Dump the result that has been accumulated so far to .log file */
   if (result_file && ds_res.length)
-    dump_result_to_reject_file(result_file, ds_res.str, ds_res.length);
+    dump_result_to_log_file(result_file, ds_res.str, ds_res.length);
 
   /* Clean up and exit */
   free_used_memory();
@@ -3137,6 +3138,12 @@ void dump_result_to_reject_file(const char *record_file, char *buf, int size)
 {
   char reject_file[FN_REFLEN];
   str_to_file(fn_format(reject_file, record_file,"",".reject",2), buf, size);
+}
+
+void dump_result_to_log_file(const char *record_file, char *buf, int size)
+{
+  char log_file[FN_REFLEN];
+  str_to_file(fn_format(log_file, record_file,"",".log",2), buf, size);
 }
 
 
