@@ -26,7 +26,7 @@
 #include <signaldata/IndxAttrInfo.hpp>
 
 NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
-  NdbOperation(aNdb),
+  NdbOperation(aNdb, NdbOperation::UniqueIndexAccess),
   m_theIndex(NULL)
 {
   m_tcReqGSN = GSN_TCINDXREQ;
@@ -162,6 +162,12 @@ int NdbIndexOperation::interpretedDeleteTuple()
   // First check that index is unique
 
   return NdbOperation::interpretedDeleteTuple();
+}
+
+const NdbDictionary::Index*
+NdbIndexOperation::getIndex() const
+{
+  return m_theIndex;
 }
 
 int 
