@@ -386,9 +386,6 @@ impossible position";
     goto err;
   }
 
-  if (thd->variables.sync_replication)
-    ha_repl_report_sent_binlog(thd, log_file_name, pos);
-
   /*
     We need to start a packet with something other than 255
     to distinguish it from error
@@ -475,9 +472,6 @@ impossible position";
            goto err;
          }
 
-         if (thd->variables.sync_replication)
-           ha_repl_report_sent_binlog(thd, log_file_name, my_b_tell(&log));
-
          /*
            No need to save this event. We are only doing simple reads
            (no real parsing of the events) so we don't need it. And so
@@ -535,9 +529,6 @@ impossible position";
 	my_errno= ER_UNKNOWN_ERROR;
 	goto err;
       }
-
-      if (thd->variables.sync_replication)
-        ha_repl_report_sent_binlog(thd, log_file_name, my_b_tell(&log));
 
       DBUG_PRINT("info", ("log event code %d",
 			  (*packet)[LOG_EVENT_OFFSET+1] ));
@@ -652,9 +643,6 @@ impossible position";
 	    goto err;
 	  }
 
-          if (thd->variables.sync_replication)
-            ha_repl_report_sent_binlog(thd, log_file_name, my_b_tell(&log));
-
 	  if ((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
 	  {
 	    if (send_file(thd))
@@ -721,18 +709,12 @@ impossible position";
 	goto err;
       }
 
-      if (thd->variables.sync_replication)
-        ha_repl_report_sent_binlog(thd, log_file_name, 0);
-
       packet->length(0);
       packet->append('\0');
     }
   }
 
 end:
-  if (thd->variables.sync_replication)
-    ha_repl_report_replication_stop(thd);
-
   end_io_cache(&log);
   (void)my_close(file, MYF(MY_WME));
 
@@ -744,9 +726,6 @@ end:
   DBUG_VOID_RETURN;
 
 err:
-  if (thd->variables.sync_replication)
-    ha_repl_report_replication_stop(thd);
-
   thd->proc_info = "Waiting to finalize termination";
   end_io_cache(&log);
   /*
