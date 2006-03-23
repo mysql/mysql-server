@@ -303,6 +303,8 @@ public:
   Uint32 m_eventId;
   Uint32 m_eventKey;
   AttributeMask m_attrListBitmask;
+  Uint32 m_table_id;
+  Uint32 m_table_version;
   BaseString m_name;
   Uint32 mi_type;
   NdbDictionary::Event::EventDurability m_dur;
