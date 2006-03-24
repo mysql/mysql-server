@@ -667,8 +667,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
       next_chunk+= 5 + partition_info_len;
     }
-#if 0
-    if (share->mysql_version == 50106)
+#if 1
+    if (share->mysql_version == 50106 ||
+        share->mysql_version == 50107)
     {
       /*
          Partition state array was here in version 5.1.6, this code makes

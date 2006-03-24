@@ -36,7 +36,7 @@ enum partition_state {
   PART_IS_ADDED= 8
 };
 
-struct st_table_log_memory_entry;
+struct st_ddl_log_memory_entry;
 
 class partition_element :public Sql_alloc {
 public:
@@ -46,7 +46,7 @@ public:
   ulonglong part_min_rows;
   char *partition_name;
   char *tablespace_name;
-  struct st_table_log_memory_entry *log_entry;
+  struct st_ddl_log_memory_entry *log_entry;
   longlong range_value;
   char* part_comment;
   char* data_file_name;
