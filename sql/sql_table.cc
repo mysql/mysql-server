@@ -3182,6 +3182,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
   bool need_copy_table;
+  bool no_table_reopen= FALSE;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -3833,6 +3834,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     */
     close_cached_table(thd, table);
     table=0;					// Marker that table is closed
+    no_table_reopen= TRUE;
   }
 #if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))
   else
@@ -3871,7 +3873,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
-  if (thd->lock || new_name != table_name)	// True if WIN32
+  if (thd->lock || new_name != table_name || no_table_reopen)  // True if WIN32
   {
     /*
       Not table locking or alter table with rename
