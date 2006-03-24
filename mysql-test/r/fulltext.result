@@ -447,12 +447,12 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 CREATE TABLE t1 (a TEXT, FULLTEXT KEY(a));
 INSERT INTO t1 VALUES('test'),('test1'),('test');
-PREPARE stmt from "SELECT a, MATCH(a) AGAINST('test1 test') FROM t1 WHERE MATCH(a) AGAINST('test1 test')";
+PREPARE stmt from "SELECT a, FORMAT(MATCH(a) AGAINST('test1 test'),6) FROM t1 WHERE MATCH(a) AGAINST('test1 test')";
 EXECUTE stmt;
-a	MATCH(a) AGAINST('test1 test')
-test1	0.68526661396027
+a	FORMAT(MATCH(a) AGAINST('test1 test'),6)
+test1	0.685267
 EXECUTE stmt;
-a	MATCH(a) AGAINST('test1 test')
-test1	0.68526661396027
+a	FORMAT(MATCH(a) AGAINST('test1 test'),6)
+test1	0.685267
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;

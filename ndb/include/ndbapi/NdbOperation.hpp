@@ -56,9 +56,32 @@ public:
    */
 
   /**
+   * Different access types (supported by sub-classes of NdbOperation)
+   */
+
+  enum Type {
+    PrimaryKeyAccess     ///< Read, insert, update, or delete using pk
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = 0                  // NdbOperation
+#endif
+    ,UniqueIndexAccess   ///< Read, update, or delete using unique index
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = 1                  // NdbIndexOperation
+#endif
+    ,TableScan          ///< Full table scan
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = 2                  // NdbScanOperation
+#endif
+    ,OrderedIndexScan   ///< Ordered index scan
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = 3                  // NdbIndexScanOperation
+#endif
+  };
+  
+  /**
    * Lock when performing read
    */
-  
+
   enum LockMode {
     LM_Read                 ///< Read with shared lock
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -715,6 +738,11 @@ public:
    */
   const NdbDictionary::Table * getTable() const;
 
+  /**
+   * Get the type of access for this operation
+   */
+  const Type getType() const;
+
   /** @} *********************************************************************/
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -768,7 +796,7 @@ protected:
   int init(const class NdbTableImpl*, NdbTransaction* aCon);
   void initInterpreter();
 
-  NdbOperation(Ndb* aNdb);	
+  NdbOperation(Ndb* aNdb, Type aType = PrimaryKeyAccess);	
   virtual ~NdbOperation();
   void	next(NdbOperation*);		// Set next pointer		      
   NdbOperation*	    next();	        // Get next pointer		       
@@ -880,6 +908,8 @@ protected:
 /******************************************************************************
  * These are the private variables that are defined in the operation objects.
  *****************************************************************************/
+
+  Type m_type;
 
   NdbReceiver theReceiver;
 
@@ -1043,6 +1073,19 @@ NdbOperation::getFirstRecAttr() const
   return theReceiver.theFirstRecAttr;
 }
 
+/******************************************************************************
+Type getType()
+                                                                                
+Return Value    Return the Type.
+Remark:         Gets type of access.
+******************************************************************************/
+inline
+const NdbOperation::Type
+NdbOperation::getType() const
+{
+  return m_type;
+}
+                                                                                
 /******************************************************************************
 OperationStatus  Status();
 
