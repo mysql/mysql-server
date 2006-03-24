@@ -1303,7 +1303,7 @@ NdbDictionaryImpl::fetchGlobalTableImpl(const BaseString& internalTableName)
       int ret = getBlobTables(*impl);
       if (ret != 0) {
         delete impl;
-        return 0;
+        impl = 0;
       }
     }
 
