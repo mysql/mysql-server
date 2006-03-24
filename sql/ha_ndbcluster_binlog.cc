@@ -765,16 +765,6 @@ static int ndbcluster_create_schema_table(THD *thd)
 void ndbcluster_setup_binlog_table_shares(THD *thd)
 {
   int done_find_all_files= 0;
-  if (!apply_status_share &&
-      ndbcluster_check_apply_status_share() == 0)
-  {
-    if (!done_find_all_files)
-    {
-      ndbcluster_find_all_files(thd);
-      done_find_all_files= 1;
-    }
-    ndbcluster_create_apply_status_table(thd);
-  }
   if (!schema_share &&
       ndbcluster_check_schema_share() == 0)
   {
@@ -784,6 +774,19 @@ void ndbcluster_setup_binlog_table_shares(THD *thd)
       done_find_all_files= 1;
     }
     ndbcluster_create_schema_table(thd);
+    // always make sure we create the 'schema' first
+    if (!schema_share)
+      return;
+  }
+  if (!apply_status_share &&
+      ndbcluster_check_apply_status_share() == 0)
+  {
+    if (!done_find_all_files)
+    {
+      ndbcluster_find_all_files(thd);
+      done_find_all_files= 1;
+    }
+    ndbcluster_create_apply_status_table(thd);
   }
 }
 
