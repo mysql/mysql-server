@@ -579,7 +579,7 @@ DROP PROCEDURE create_log_tables;
 
 CREATE TABLE event (
   db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  name char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  name char(64) CHARACTER SET utf8 NOT NULL default '',
   body longblob NOT NULL,
   definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
   execute_at DATETIME default NULL,
