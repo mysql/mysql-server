@@ -2154,24 +2154,22 @@ bool mysql_create_table_internal(THD *thd,
       */
       if (part_info->use_default_no_partitions &&
           part_info->no_parts &&
-          part_info->no_parts != file->get_default_no_partitions(0ULL))
+          (int)part_info->no_parts != file->get_default_no_partitions(0ULL))
       {
-        uint i= 0;
-        bool first= TRUE;
+        uint i;
         List_iterator<partition_element> part_it(part_info->partitions);
-        do
-        {
-          partition_element *part_elem= part_it++;
-          if (!first)
-            part_elem->part_state= PART_TO_BE_DROPPED;
-          first= FALSE;
-        } while (++i < part_info->partitions.elements);
+        part_it++;
+        DBUG_ASSERT(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
+        for (i= 1; i < part_info->partitions.elements; i++)
+          (part_it++)->part_state= PART_TO_BE_DROPPED;
       }
       else if (part_info->is_sub_partitioned() &&
                part_info->use_default_no_subpartitions &&
                part_info->no_subparts &&
-               part_info->no_subparts != file->get_default_no_partitions(0ULL))
+               (int)part_info->no_subparts !=
+                 file->get_default_no_partitions(0ULL))
       {
+        DBUG_ASSERT(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
         part_info->no_subparts= file->get_default_no_partitions(0ULL);
       }
     }
