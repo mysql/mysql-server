@@ -3944,6 +3944,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint db_create_options, used_fields;
   handlerton *old_db_type, *new_db_type;
   uint need_copy_table= 0;
+  bool no_table_reopen= FALSE;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   uint fast_alter_partition= 0;
   bool partition_changed= FALSE;
@@ -4977,6 +4978,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     table->s->version= 0;                	// Force removal of table def
     close_cached_table(thd, table);
     table=0;					// Marker that table is closed
+    no_table_reopen= TRUE;
   }
 #if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))
   else
@@ -5034,7 +5036,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto err;
     }
   }
-  if (thd->lock || new_name != table_name)	// True if WIN32
+  if (thd->lock || new_name != table_name || no_table_reopen)  // True if WIN32
   {
     /*
       Not table locking or alter table with rename.
