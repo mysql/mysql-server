@@ -1017,6 +1017,29 @@ select trigger_schema, trigger_name, event_object_schema,
 # There should be no fantom .TRN files 
 --error ER_TRG_DOES_NOT_EXIST
 drop trigger test.t1_bi;
+# Let us also check handling of this restriction in ALTER TABLE ... RENAME
+--error ER_TRG_IN_WRONG_SCHEMA
+alter table t1 rename to test.t1;
+insert into t1 values (103);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+# Again there should be no fantom .TRN files 
+--error ER_TRG_DOES_NOT_EXIST
+drop trigger test.t1_bi;
+--error ER_TRG_IN_WRONG_SCHEMA
+alter table t1 rename to test.t1, add column val int default 0;
+insert into t1 values (104);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+# Table definition should not change
+show create table t1;
+# And once again check for fantom .TRN files 
+--error ER_TRG_DOES_NOT_EXIST
+drop trigger test.t1_bi;
 drop trigger t1_bi;
 drop table t1;
 drop database mysqltest;
