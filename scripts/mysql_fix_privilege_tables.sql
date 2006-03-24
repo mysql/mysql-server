@@ -671,6 +671,7 @@ ALTER TABLE event ADD sql_mode
                             ) DEFAULT '' NOT NULL AFTER on_completion;
 
 UPDATE user SET Event_priv=Super_priv WHERE @hadEventPriv = 0;
+ALTER TABLE event MODIFY name char(64) CHARACTER SET utf8 NOT NULL default '';
 
 --
 -- TRIGGER privilege
