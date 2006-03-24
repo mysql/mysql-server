@@ -244,7 +244,7 @@ static int mysql_copy_key_list(List<Key> *orig_key,
 /*
 --------------------------------------------------------------------------
 
-   MODULE: Table log
+   MODULE: DDL log
    -----------------
 
    This module is used to ensure that we can recover from crashes that occur
@@ -253,12 +253,12 @@ static int mysql_copy_key_list(List<Key> *orig_key,
    also that each table drop is entirely done and not "half-baked".
 
    To support this we create log entries for each meta-data statement in the
-   table log while we are executing. These entries are dropped when the
+   ddl log while we are executing. These entries are dropped when the
    operation is completed.
 
    At recovery those entries that were not completed will be executed.
 
-   There is only one table log in the system and it is protected by a mutex
+   There is only one ddl log in the system and it is protected by a mutex
    and there is a global struct that contains information about its current
    state.
 
@@ -268,82 +268,79 @@ static int mysql_copy_key_list(List<Key> *orig_key,
 */
 
 
-typedef struct st_global_table_log
+typedef struct st_global_ddl_log
 {
-  char file_entry[IO_SIZE];
+  char file_entry_buf[4*IO_SIZE];
   char file_name_str[FN_REFLEN];
   char *file_name;
-  TABLE_LOG_MEMORY_ENTRY *first_free;
-  TABLE_LOG_MEMORY_ENTRY *first_used;
-  uint no_entries;
+  DDL_LOG_MEMORY_ENTRY *first_free;
+  DDL_LOG_MEMORY_ENTRY *first_used;
+  uint num_entries;
   File file_id;
   uint name_len;
-  uint handler_type_len;
+  uint handler_name_len;
   uint io_size;
-} GLOBAL_TABLE_LOG;
+  bool inited;
+} GLOBAL_DDL_LOG;
 
-GLOBAL_TABLE_LOG global_table_log;
+GLOBAL_DDL_LOG global_ddl_log;
 
-pthread_mutex_t LOCK_gtl;
+pthread_mutex_t LOCK_gdl;
 
-#define TLOG_ENTRY_TYPE_POS 0
-#define TLOG_ACTION_TYPE_POS 1
-#define TLOG_PHASE_POS 2
-#define TLOG_NEXT_ENTRY_POS 4
-#define TLOG_NAME_POS 8
+#define DDL_LOG_ENTRY_TYPE_POS 0
+#define DDL_LOG_ACTION_TYPE_POS 1
+#define DDL_LOG_PHASE_POS 2
+#define DDL_LOG_NEXT_ENTRY_POS 4
+#define DDL_LOG_NAME_POS 8
 
-#define TLOG_NO_ENTRY_POS 0
-#define TLOG_NAME_LEN_POS 4
-#define TLOG_HANDLER_TYPE_POS 8
-#define TLOG_IO_SIZE_POS 12
+#define DDL_LOG_NUM_ENTRY_POS 0
+#define DDL_LOG_NAME_LEN_POS 4
+#define DDL_LOG_HANDLER_TYPE_POS 8
+#define DDL_LOG_IO_SIZE_POS 12
 
 /*
-  Read one entry from table log file
+  Read one entry from ddl log file
   SYNOPSIS
-    read_table_log_file_entry()
+    read_ddl_log_file_entry()
     entry_no                     Entry number to read
   RETURN VALUES
     TRUE                         Error
     FALSE                        Success
 */
 
-static
-bool
-read_table_log_file_entry(uint entry_no)
+static bool read_ddl_log_file_entry(uint entry_no)
 {
   bool error= FALSE;
-  File file_id= global_table_log.file_id;
-  char *file_entry= (char*)global_table_log.file_entry;
-  uint io_size= global_table_log.io_size;
-  DBUG_ENTER("read_table_log_file_entry");
+  File file_id= global_ddl_log.file_id;
+  char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
+  uint io_size= global_ddl_log.io_size;
+  DBUG_ENTER("read_ddl_log_file_entry");
 
-  if (my_pread(file_id, file_entry, io_size, io_size * entry_no,
-               MYF(MY_WME)) != IO_SIZE)
+  if (my_pread(file_id, file_entry_buf, io_size, io_size * entry_no,
+               MYF(MY_WME)) != io_size)
     error= TRUE;
   DBUG_RETURN(error);
 }
 
 
 /*
-  Write one entry from table log file
+  Write one entry from ddl log file
   SYNOPSIS
-    write_table_log_file_entry()
+    write_ddl_log_file_entry()
     entry_no                     Entry number to read
   RETURN VALUES
     TRUE                         Error
     FALSE                        Success
 */
 
-static
-bool
-write_table_log_file_entry(uint entry_no)
+static bool write_ddl_log_file_entry(uint entry_no)
 {
   bool error= FALSE;
-  File file_id= global_table_log.file_id;
-  char *file_entry= (char*)global_table_log.file_entry;
-  DBUG_ENTER("write_table_log_file_entry");
+  File file_id= global_ddl_log.file_id;
+  char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
+  DBUG_ENTER("write_ddl_log_file_entry");
 
-  if (my_pwrite(file_id, file_entry,
+  if (my_pwrite(file_id, file_entry_buf,
                 IO_SIZE, IO_SIZE * entry_no, MYF(MY_WME)) != IO_SIZE)
     error= TRUE;
   DBUG_RETURN(error);
@@ -351,200 +348,197 @@ write_table_log_file_entry(uint entry_no)
 
 
 /*
-  Write table log header
+  Write ddl log header
   SYNOPSIS
-    write_table_log_header()
+    write_ddl_log_header()
   RETURN VALUES
     TRUE                      Error
     FALSE                     Success
 */
 
-static
-bool
-write_table_log_header()
+static bool write_ddl_log_header()
 {
   uint16 const_var;
   bool error= FALSE;
-  DBUG_ENTER("write_table_log_header");
+  DBUG_ENTER("write_ddl_log_header");
 
-  int4store(&global_table_log.file_entry[TLOG_NO_ENTRY_POS],
-            global_table_log.no_entries);
+  int4store(&global_ddl_log.file_entry_buf[DDL_LOG_NUM_ENTRY_POS],
+            global_ddl_log.num_entries);
   const_var= FN_LEN;
-  int4store(&global_table_log.file_entry[TLOG_NAME_LEN_POS],
+  int4store(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_LEN_POS],
             const_var);
-  const_var= TLOG_HANDLER_TYPE_LEN;
-  int4store(&global_table_log.file_entry[TLOG_HANDLER_TYPE_POS],
+  const_var= DDL_LOG_HANDLER_TYPE_LEN;
+  int4store(&global_ddl_log.file_entry_buf[DDL_LOG_HANDLER_TYPE_POS],
             const_var);
   const_var= IO_SIZE;
-  int4store(&global_table_log.file_entry[TLOG_IO_SIZE_POS],
+  int4store(&global_ddl_log.file_entry_buf[DDL_LOG_IO_SIZE_POS],
             const_var);
-  if (write_table_log_file_entry(0UL))
+  if (write_ddl_log_file_entry(0UL))
     error= TRUE;
   if (!error)
-    VOID(sync_table_log());
+    VOID(sync_ddl_log());
   DBUG_RETURN(error);
 }
 
 
 /*
-  Create table log file name
+  Create ddl log file name
   SYNOPSIS
-    create_table_log_file_name()
+    create_ddl_log_file_name()
     file_name                   Filename setup
   RETURN VALUES
     NONE
 */
 
-static
-void
-create_table_log_file_name(char *file_name)
+static inline void create_ddl_log_file_name(char *file_name)
 {
-  strxmov(file_name, mysql_data_home, "/", "table_log.log", NullS);
+  strxmov(file_name, mysql_data_home, "/", "ddl_log.log", NullS);
 }
 
 
 /*
-  Read header of table log file
+  Read header of ddl log file
   SYNOPSIS
-    read_table_log_header()
+    read_ddl_log_header()
   RETURN VALUES
-    > 0                  Last entry in table log
-    0                    No entries in table log
+    > 0                  Last entry in ddl log
+    0                    No entries in ddl log
   DESCRIPTION
-    When we read the table log header we get information about maximum sizes
-    of names in the table log and we also get information about the number
-    of entries in the table log.
+    When we read the ddl log header we get information about maximum sizes
+    of names in the ddl log and we also get information about the number
+    of entries in the ddl log.
 */
 
-static
-uint
-read_table_log_header()
+static uint read_ddl_log_header()
 {
-  char *file_entry= (char*)global_table_log.file_entry;
+  char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
   char file_name[FN_REFLEN];
   uint entry_no;
   bool successful_open= FALSE;
-  DBUG_ENTER("read_table_log_header");
+  DBUG_ENTER("read_ddl_log_header");
 
-  bzero(file_entry, sizeof(global_table_log.file_entry));
-  create_table_log_file_name(file_name);
-  if (!(my_open(file_name, O_RDWR | O_TRUNC | O_BINARY, MYF(MY_WME))))
+  bzero(file_entry_buf, sizeof(global_ddl_log.file_entry_buf));
+  global_ddl_log.inited= FALSE;
+  create_ddl_log_file_name(file_name);
+  if (!(my_open(file_name, O_RDONLY | O_BINARY, MYF(MY_WME))))
   {
-    if (read_table_log_file_entry(0UL))
+    if (read_ddl_log_file_entry(0UL))
     {
       ; /* Write message into error log */
     }
     else
       successful_open= TRUE;
   }
-  entry_no= uint4korr(&file_entry[TLOG_NO_ENTRY_POS]);
-  global_table_log.name_len= uint4korr(&file_entry[TLOG_NAME_LEN_POS]);
-  global_table_log.handler_type_len=
-        uint4korr(&file_entry[TLOG_HANDLER_TYPE_POS]);
+  entry_no= uint4korr(&file_entry_buf[DDL_LOG_NUM_ENTRY_POS]);
+  global_ddl_log.name_len= uint4korr(&file_entry_buf[DDL_LOG_NAME_LEN_POS]);
+  global_ddl_log.handler_name_len=
+        uint4korr(&file_entry_buf[DDL_LOG_HANDLER_TYPE_POS]);
   if (successful_open) 
-    global_table_log.io_size= uint4korr(&file_entry[TLOG_IO_SIZE_POS]);
+    global_ddl_log.io_size= uint4korr(&file_entry_buf[DDL_LOG_IO_SIZE_POS]);
   else
-    global_table_log.io_size= IO_SIZE;
-  global_table_log.first_free= NULL;
-  global_table_log.first_used= NULL;
-  global_table_log.no_entries= 0;
-  VOID(pthread_mutex_init(&LOCK_gtl, MY_MUTEX_INIT_FAST));
+    global_ddl_log.io_size= IO_SIZE;
+  global_ddl_log.first_free= NULL;
+  global_ddl_log.first_used= NULL;
+  global_ddl_log.num_entries= 0;
+  VOID(pthread_mutex_init(&LOCK_gdl, MY_MUTEX_INIT_FAST));
   DBUG_RETURN(entry_no);
 }
 
 
 /*
-  Read a table log entry
+  Read a ddl log entry
   SYNOPSIS
-    read_table_log_entry()
+    read_ddl_log_entry()
     read_entry               Number of entry to read
     out:entry_info           Information from entry
   RETURN VALUES
     TRUE                     Error
     FALSE                    Success
   DESCRIPTION
-    Read a specified entry in the table log
+    Read a specified entry in the ddl log
 */
 
-bool
-read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry)
+bool read_ddl_log_entry(uint read_entry, DDL_LOG_ENTRY *ddl_log_entry)
 {
-  char *file_entry= (char*)&global_table_log.file_entry;
+  char *file_entry_buf= (char*)&global_ddl_log.file_entry_buf;
   uint inx;
-  DBUG_ENTER("read_table_log_entry");
+  DBUG_ENTER("read_ddl_log_entry");
 
-  if (read_table_log_file_entry(read_entry))
+  if (read_ddl_log_file_entry(read_entry))
   {
     /* Error handling */
     DBUG_RETURN(TRUE);
   }
-  table_log_entry->entry_pos= read_entry;
-  table_log_entry->entry_type= file_entry[TLOG_ENTRY_TYPE_POS];
-  table_log_entry->action_type= file_entry[TLOG_ACTION_TYPE_POS];
-  table_log_entry->phase= file_entry[TLOG_PHASE_POS];
-  table_log_entry->next_entry= uint4korr(&file_entry[TLOG_NEXT_ENTRY_POS]);
-  table_log_entry->name= &file_entry[TLOG_NAME_POS];
-  inx= TLOG_NAME_POS + global_table_log.name_len;
-  table_log_entry->from_name= &file_entry[inx];
-  inx+= global_table_log.name_len;
-  table_log_entry->handler_type= &file_entry[inx];
+  ddl_log_entry->entry_pos= read_entry;
+  ddl_log_entry->entry_type=
+            (enum ddl_log_entry_code)file_entry_buf[DDL_LOG_ENTRY_TYPE_POS];
+  ddl_log_entry->action_type=
+            (enum ddl_log_action_code)file_entry_buf[DDL_LOG_ACTION_TYPE_POS];
+  ddl_log_entry->phase= file_entry_buf[DDL_LOG_PHASE_POS];
+  ddl_log_entry->next_entry= uint4korr(&file_entry_buf[DDL_LOG_NEXT_ENTRY_POS]);
+  ddl_log_entry->name= &file_entry_buf[DDL_LOG_NAME_POS];
+  inx= DDL_LOG_NAME_POS + global_ddl_log.name_len;
+  ddl_log_entry->from_name= &file_entry_buf[inx];
+  inx+= global_ddl_log.name_len;
+  ddl_log_entry->handler_name= &file_entry_buf[inx];
   DBUG_RETURN(FALSE);
 }
 
 
 /*
-  Initialise table log
+  Initialise ddl log
   SYNOPSIS
-    init_table_log()
+    init_ddl_log()
   RETURN VALUES
     TRUE                     Error
     FALSE                    Success
   DESCRIPTION
-    Write the header of the table log file and length of names. Also set
+    Write the header of the ddl log file and length of names. Also set
     number of entries to zero.
 */
 
-static
-bool
-init_table_log()
+static bool init_ddl_log()
 {
   bool error= FALSE;
   char file_name[FN_REFLEN];
-  DBUG_ENTER("init_table_log");
+  DBUG_ENTER("init_ddl_log");
 
-  global_table_log.io_size= IO_SIZE;
-  create_table_log_file_name(file_name);
-  VOID(my_delete(file_name, MYF(0)));
-  if ((global_table_log.file_id= my_create(file_name,
-                                           CREATE_MODE,
-                                           O_RDWR | O_TRUNC | O_BINARY,
-                                           MYF(MY_WME))) < 0)
+  if (global_ddl_log.inited)
   {
-    /* Couldn't create table log file, this is serious error */
+    DBUG_RETURN(FALSE);
+  }
+  global_ddl_log.io_size= IO_SIZE;
+  create_ddl_log_file_name(file_name);
+  VOID(my_delete(file_name, MYF(0)));
+  if ((global_ddl_log.file_id= my_create(file_name,
+                                         CREATE_MODE,
+                                         O_RDWR | O_TRUNC | O_BINARY,
+                                         MYF(MY_WME))) < 0)
+  {
+    /* Couldn't create ddl log file, this is serious error */
     abort();
   }
-  if (write_table_log_header())
+  if (write_ddl_log_header())
   {
     /* Write to error log */
     error= TRUE;
   }
+  global_ddl_log.inited= TRUE;
   DBUG_RETURN(error);
 }
 
 
 /*
-  Execute one action in a table log entry
+  Execute one action in a ddl log entry
   SYNOPSIS
-    execute_table_log_action()
-    table_log_entry              Information in action entry to execute
+    execute_ddl_log_action()
+    ddl_log_entry              Information in action entry to execute
   RETURN VALUES
     TRUE                       Error
     FALSE                      Success
 */
 
-static
-bool
-execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
+static bool execute_ddl_log_action(DDL_LOG_ENTRY *ddl_log_entry)
 {
   bool frm_action= FALSE;
   LEX_STRING handler_name;
@@ -555,22 +549,22 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
   char from_path[FN_REFLEN];
   char *par_ext= (char*)".par";
   handlerton *hton;
-  DBUG_ENTER("execute_table_log_action");
+  DBUG_ENTER("execute_ddl_log_action");
 
-  if (table_log_entry->entry_type == TLOG_IGNORE_LOG_ENTRY_CODE)
+  if (ddl_log_entry->entry_type == DDL_IGNORE_LOG_ENTRY_CODE)
   {
     DBUG_RETURN(FALSE);
   }
-  handler_name.str= (char*)table_log_entry->handler_type;
-  handler_name.length= strlen(table_log_entry->handler_type);
+  handler_name.str= (char*)ddl_log_entry->handler_name;
+  handler_name.length= strlen(ddl_log_entry->handler_name);
   hton= ha_resolve_by_name(current_thd, &handler_name);
   if (!hton)
   {
-    my_error(ER_ILLEGAL_HA, MYF(0), table_log_entry->handler_type);
+    my_error(ER_ILLEGAL_HA, MYF(0), ddl_log_entry->handler_name);
     DBUG_RETURN(TRUE);
   }
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0); 
-  if (strcmp("frm", table_log_entry->handler_type))
+  if (strcmp("frm", ddl_log_entry->handler_name))
     frm_action= TRUE;
   else
   {
@@ -583,65 +577,65 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
       goto error;
     }
   }
-  switch (table_log_entry->action_type)
+  switch (ddl_log_entry->action_type)
   {
-    case TLOG_DELETE_ACTION_CODE:
-    case TLOG_REPLACE_ACTION_CODE:
+    case DDL_LOG_DELETE_ACTION:
+    case DDL_LOG_REPLACE_ACTION:
     {
-      if (table_log_entry->action_type == TLOG_DELETE_ACTION_CODE ||
-          (table_log_entry->action_type == TLOG_REPLACE_ACTION_CODE &&
-           table_log_entry->phase == 0UL))
+      if (ddl_log_entry->action_type == DDL_LOG_DELETE_ACTION ||
+          (ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION &&
+           ddl_log_entry->phase == 0UL))
       {
         if (frm_action)
         {
-          strxmov(path, table_log_entry->name, reg_ext, NullS);
+          strxmov(path, ddl_log_entry->name, reg_ext, NullS);
           if (my_delete(path, MYF(MY_WME)))
             break;
-          strxmov(path, table_log_entry->name, par_ext, NullS);
+          strxmov(path, ddl_log_entry->name, par_ext, NullS);
           if (my_delete(path, MYF(MY_WME)))
             break;
         }
         else
         {
-          if (file->delete_table(table_log_entry->name))
+          if (file->delete_table(ddl_log_entry->name))
             break;
         }
-        if ((!inactivate_table_log_entry(table_log_entry->entry_pos)))
+        if ((!deactivate_ddl_log_entry(ddl_log_entry->entry_pos)))
           ;
         else
         {
-          VOID(sync_table_log());
+          VOID(sync_ddl_log());
           error= FALSE;
         }
         break;
       }
-      if (table_log_entry->action_type == TLOG_DELETE_ACTION_CODE)
+      if (ddl_log_entry->action_type == DDL_LOG_DELETE_ACTION)
         break;
     }
-    case TLOG_RENAME_ACTION_CODE:
+    case DDL_LOG_RENAME_ACTION:
     {
       error= TRUE;
       if (frm_action)
       {
-        strxmov(path, table_log_entry->name, reg_ext, NullS);
-        strxmov(from_path, table_log_entry->from_name, reg_ext, NullS);
+        strxmov(path, ddl_log_entry->name, reg_ext, NullS);
+        strxmov(from_path, ddl_log_entry->from_name, reg_ext, NullS);
         if (my_rename(path, from_path, MYF(MY_WME)))
           break;
-        strxmov(path, table_log_entry->name, par_ext, NullS);
-        strxmov(from_path, table_log_entry->from_name, par_ext, NullS);
+        strxmov(path, ddl_log_entry->name, par_ext, NullS);
+        strxmov(from_path, ddl_log_entry->from_name, par_ext, NullS);
         if (my_rename(path, from_path, MYF(MY_WME)))
           break;
       }
       else
       {
-        if (file->rename_table(table_log_entry->name,
-                               table_log_entry->from_name))
+        if (file->rename_table(ddl_log_entry->name,
+                               ddl_log_entry->from_name))
           break;
-        if ((!inactivate_table_log_entry(table_log_entry->entry_pos)))
+        if ((!deactivate_ddl_log_entry(ddl_log_entry->entry_pos)))
           ;
         else
         {
-          VOID(sync_table_log());
+          VOID(sync_ddl_log());
           error= FALSE;
         }
       }
@@ -659,40 +653,38 @@ error:
 
 
 /*
-  Get a free entry in the table log
+  Get a free entry in the ddl log
   SYNOPSIS
-    get_free_table_log_entry()
-    out:active_entry                A table log memory entry returned
+    get_free_ddl_log_entry()
+    out:active_entry                A ddl log memory entry returned
   RETURN VALUES
     TRUE                       Error
     FALSE                      Success
 */
 
-static
-bool
-get_free_table_log_entry(TABLE_LOG_MEMORY_ENTRY **active_entry,
-                         bool *write_header)
+static bool get_free_ddl_log_entry(DDL_LOG_MEMORY_ENTRY **active_entry,
+                                   bool *write_header)
 {
   uint entry_no;
-  TABLE_LOG_MEMORY_ENTRY *used_entry;
-  TABLE_LOG_MEMORY_ENTRY *first_used= global_table_log.first_used;
-  DBUG_ENTER("get_free_table_log_entry");
+  DDL_LOG_MEMORY_ENTRY *used_entry;
+  DDL_LOG_MEMORY_ENTRY *first_used= global_ddl_log.first_used;
+  DBUG_ENTER("get_free_ddl_log_entry");
 
-  if (global_table_log.first_free == NULL)
+  if (global_ddl_log.first_free == NULL)
   {
-    if (!(used_entry= (TABLE_LOG_MEMORY_ENTRY*)my_malloc(
-                              sizeof(TABLE_LOG_MEMORY_ENTRY), MYF(MY_WME))))
+    if (!(used_entry= (DDL_LOG_MEMORY_ENTRY*)my_malloc(
+                              sizeof(DDL_LOG_MEMORY_ENTRY), MYF(MY_WME))))
     {
       DBUG_RETURN(TRUE);
     }
-    global_table_log.no_entries++;
-    used_entry->entry_pos= entry_no= global_table_log.no_entries;
+    global_ddl_log.num_entries++;
+    used_entry->entry_pos= entry_no= global_ddl_log.num_entries;
     *write_header= TRUE;
   }
   else
   {
-    used_entry= global_table_log.first_free;
-    global_table_log.first_free= used_entry->next_log_entry;
+    used_entry= global_ddl_log.first_free;
+    global_ddl_log.first_free= used_entry->next_log_entry;
     entry_no= used_entry->entry_pos;
     *write_header= FALSE;
   }
@@ -701,7 +693,7 @@ get_free_table_log_entry(TABLE_LOG_MEMORY_ENTRY **active_entry,
   */
   used_entry->next_log_entry= first_used;
   used_entry->prev_log_entry= NULL;
-  global_table_log.first_used= used_entry;
+  global_ddl_log.first_used= used_entry;
   if (first_used)
     first_used->prev_log_entry= used_entry;
 
@@ -711,76 +703,79 @@ get_free_table_log_entry(TABLE_LOG_MEMORY_ENTRY **active_entry,
 
 
 /*
-  External interface methods for the Table log Module
+  External interface methods for the DDL log Module
   ---------------------------------------------------
 */
 
 /*
   SYNOPSIS
-    write_table_log_entry()
-    table_log_entry         Information about log entry
-    out:entry_written       Entry information written into   
+    write_ddl_log_entry()
+    ddl_log_entry         Information about log entry
+    out:entry_written     Entry information written into   
 
   RETURN VALUES
     TRUE                      Error
     FALSE                     Success
 
   DESCRIPTION
-    A careful write of the table log is performed to ensure that we can
+    A careful write of the ddl log is performed to ensure that we can
     handle crashes occurring during CREATE and ALTER TABLE processing.
 */
 
-bool
-write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
-                      TABLE_LOG_MEMORY_ENTRY **active_entry)
+bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
+                         DDL_LOG_MEMORY_ENTRY **active_entry)
 {
   bool error, write_header;
-  DBUG_ENTER("write_table_log_entry");
+  DBUG_ENTER("write_ddl_log_entry");
 
-  global_table_log.file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_LOG_ENTRY_CODE;
-  global_table_log.file_entry[TLOG_ACTION_TYPE_POS]=
-                                    table_log_entry->action_type;
-  global_table_log.file_entry[TLOG_PHASE_POS]= 0;
-  int4store(&global_table_log.file_entry[TLOG_NEXT_ENTRY_POS],
-            table_log_entry->next_entry);
-  DBUG_ASSERT(strlen(table_log_entry->name) < FN_LEN);
-  strncpy(&global_table_log.file_entry[TLOG_NAME_POS],
-          table_log_entry->name, FN_LEN);
-  if (table_log_entry->action_type == TLOG_RENAME_ACTION_CODE ||
-      table_log_entry->action_type == TLOG_REPLACE_ACTION_CODE)
+  if (init_ddl_log())
   {
-    DBUG_ASSERT(strlen(table_log_entry->from_name) < FN_LEN);
-    strncpy(&global_table_log.file_entry[TLOG_NAME_POS + FN_LEN],
-          table_log_entry->from_name, FN_LEN);
+    DBUG_RETURN(TRUE);
+  }
+  global_ddl_log.file_entry_buf[DDL_LOG_ENTRY_TYPE_POS]= DDL_LOG_ENTRY_CODE;
+  global_ddl_log.file_entry_buf[DDL_LOG_ACTION_TYPE_POS]=
+                                    ddl_log_entry->action_type;
+  global_ddl_log.file_entry_buf[DDL_LOG_PHASE_POS]= 0;
+  int4store(&global_ddl_log.file_entry_buf[DDL_LOG_NEXT_ENTRY_POS],
+            ddl_log_entry->next_entry);
+  DBUG_ASSERT(strlen(ddl_log_entry->name) < FN_LEN);
+  strncpy(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS],
+          ddl_log_entry->name, FN_LEN);
+  if (ddl_log_entry->action_type == DDL_LOG_RENAME_ACTION ||
+      ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION)
+  {
+    DBUG_ASSERT(strlen(ddl_log_entry->from_name) < FN_LEN);
+    strncpy(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + FN_LEN],
+          ddl_log_entry->from_name, FN_LEN);
   }
   else
-    global_table_log.file_entry[TLOG_NAME_POS + FN_LEN]= 0;
-  DBUG_ASSERT(strlen(table_log_entry->handler_type) < FN_LEN);
-  strncpy(&global_table_log.file_entry[TLOG_NAME_POS + (2*FN_LEN)],
-          table_log_entry->handler_type, FN_LEN);
-  if (get_free_table_log_entry(active_entry, &write_header))
+    global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + FN_LEN]= 0;
+  DBUG_ASSERT(strlen(ddl_log_entry->handler_name) < FN_LEN);
+  strncpy(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + (2*FN_LEN)],
+          ddl_log_entry->handler_name, FN_LEN);
+  if (get_free_ddl_log_entry(active_entry, &write_header))
   {
     DBUG_RETURN(TRUE);
   }
   error= FALSE;
-  if (write_table_log_file_entry((*active_entry)->entry_pos))
+  if (write_ddl_log_file_entry((*active_entry)->entry_pos))
     error= TRUE;
   if (write_header && !error)
   {
-    VOID(sync_table_log());
-    if (write_table_log_header())
+    VOID(sync_ddl_log());
+    if (write_ddl_log_header())
       error= TRUE;
   }
   if (error)
-    release_table_log_memory_entry(*active_entry);
+    release_ddl_log_memory_entry(*active_entry);
   DBUG_RETURN(error);
 }
 
 
 /*
-  Write final entry in the table log
+  Write final entry in the ddl log
   SYNOPSIS
-    write_execute_table_log_entry()
+    write_execute_ddl_log_entry()
     first_entry                    First entry in linked list of entries
                                    to execute, if 0 = NULL it means that
                                    the entry is removed and the entries
@@ -794,50 +789,53 @@ write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
     FALSE                          Success
 
   DESCRIPTION
-    This is the last write in the table log. The previous log entries have
+    This is the last write in the ddl log. The previous log entries have
     already been written but not yet synched to disk.
 */ 
 
-bool
-write_execute_table_log_entry(uint first_entry,
-                              bool complete,
-                              TABLE_LOG_MEMORY_ENTRY **active_entry)
+bool write_execute_ddl_log_entry(uint first_entry,
+                                 bool complete,
+                                 DDL_LOG_MEMORY_ENTRY **active_entry)
 {
   bool write_header= FALSE;
-  char *file_entry= (char*)global_table_log.file_entry;
-  DBUG_ENTER("write_execute_table_log_entry");
+  char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
+  DBUG_ENTER("write_execute_ddl_log_entry");
 
+  if (init_ddl_log())
+  {
+    DBUG_RETURN(TRUE);
+  }
   if (!complete)
   {
-    VOID(sync_table_log());
-    file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_EXECUTE_CODE;
+    VOID(sync_ddl_log());
+    file_entry_buf[DDL_LOG_ENTRY_TYPE_POS]= DDL_LOG_EXECUTE_CODE;
   }
   else
-    file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_IGNORE_LOG_ENTRY_CODE;
-  file_entry[TLOG_ACTION_TYPE_POS]= 0; /* Ignored for execute entries */
-  file_entry[TLOG_PHASE_POS]= 0;
-  int4store(&file_entry[TLOG_NEXT_ENTRY_POS], first_entry);
-  file_entry[TLOG_NAME_POS]= 0;
-  file_entry[TLOG_NAME_POS + FN_LEN]= 0;
-  file_entry[TLOG_NAME_POS + 2*FN_LEN]= 0;
+    file_entry_buf[DDL_LOG_ENTRY_TYPE_POS]= DDL_IGNORE_LOG_ENTRY_CODE;
+  file_entry_buf[DDL_LOG_ACTION_TYPE_POS]= 0; /* Ignored for execute entries */
+  file_entry_buf[DDL_LOG_PHASE_POS]= 0;
+  int4store(&file_entry_buf[DDL_LOG_NEXT_ENTRY_POS], first_entry);
+  file_entry_buf[DDL_LOG_NAME_POS]= 0;
+  file_entry_buf[DDL_LOG_NAME_POS + FN_LEN]= 0;
+  file_entry_buf[DDL_LOG_NAME_POS + 2*FN_LEN]= 0;
   if (!(*active_entry))
   {
-    if (get_free_table_log_entry(active_entry, &write_header))
+    if (get_free_ddl_log_entry(active_entry, &write_header))
     {
       DBUG_RETURN(TRUE);
     }
   }
-  if (write_table_log_file_entry((*active_entry)->entry_pos))
+  if (write_ddl_log_file_entry((*active_entry)->entry_pos))
   {
-    release_table_log_memory_entry(*active_entry);
+    release_ddl_log_memory_entry(*active_entry);
     DBUG_RETURN(TRUE);
   }
-  VOID(sync_table_log());
+  VOID(sync_ddl_log());
   if (write_header)
   {
-    if (write_table_log_header())
+    if (write_ddl_log_header())
     {
-      release_table_log_memory_entry(*active_entry);
+      release_ddl_log_memory_entry(*active_entry);
       DBUG_RETURN(TRUE);
     }
   }
@@ -846,9 +844,9 @@ write_execute_table_log_entry(uint first_entry,
 
 
 /*
-  For complex rename operations we need to inactivate individual entries.
+  For complex rename operations we need to deactivate individual entries.
   SYNOPSIS
-    inactivate_table_log_entry()
+    deactivate_ddl_log_entry()
     entry_no                      Entry position of record to change
   RETURN VALUES
     TRUE                         Error
@@ -857,7 +855,7 @@ write_execute_table_log_entry(uint first_entry,
     During replace operations where we start with an existing table called
     t1 and a replacement table called t1#temp or something else and where
     we want to delete t1 and rename t1#temp to t1 this is not possible to
-    do in a safe manner unless the table log is informed of the phases in
+    do in a safe manner unless the ddl log is informed of the phases in
     the change.
 
     Delete actions are 1-phase actions that can be ignored immediately after
@@ -869,32 +867,31 @@ write_execute_table_log_entry(uint first_entry,
     rename x -> y.
 */
 
-bool
-inactivate_table_log_entry(uint entry_no)
+bool deactivate_ddl_log_entry(uint entry_no)
 {
   bool error= TRUE;
-  char *file_entry= (char*)global_table_log.file_entry;
-  DBUG_ENTER("inactivate_table_log_entry");
+  char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
+  DBUG_ENTER("deactivate_ddl_log_entry");
 
-  if (!read_table_log_file_entry(entry_no))
+  if (!read_ddl_log_file_entry(entry_no))
   {
-    if (file_entry[TLOG_ENTRY_TYPE_POS] == TLOG_LOG_ENTRY_CODE)
+    if (file_entry_buf[DDL_LOG_ENTRY_TYPE_POS] == DDL_LOG_ENTRY_CODE)
     {
-      if (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_DELETE_ACTION_CODE ||
-          file_entry[TLOG_ACTION_TYPE_POS] == TLOG_RENAME_ACTION_CODE ||
-          (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_REPLACE_ACTION_CODE &&
-           file_entry[TLOG_PHASE_POS] == 1))
-        file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_IGNORE_LOG_ENTRY_CODE;
-      else if (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_REPLACE_ACTION_CODE)
+      if (file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_DELETE_ACTION ||
+          file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_RENAME_ACTION ||
+          (file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_REPLACE_ACTION &&
+           file_entry_buf[DDL_LOG_PHASE_POS] == 1))
+        file_entry_buf[DDL_LOG_ENTRY_TYPE_POS]= DDL_IGNORE_LOG_ENTRY_CODE;
+      else if (file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_REPLACE_ACTION)
       {
-        DBUG_ASSERT(file_entry[TLOG_PHASE_POS] == 0);
-        file_entry[TLOG_PHASE_POS]= 1;
+        DBUG_ASSERT(file_entry_buf[DDL_LOG_PHASE_POS] == 0);
+        file_entry_buf[DDL_LOG_PHASE_POS]= 1;
       }
       else
       {
         DBUG_ASSERT(0);
       }
-      if (!write_table_log_file_entry(entry_no))
+      if (!write_ddl_log_file_entry(entry_no))
         error= FALSE;
     }
   }
@@ -903,21 +900,24 @@ inactivate_table_log_entry(uint entry_no)
 
 
 /*
-  Sync table log file
+  Sync ddl log file
   SYNOPSIS
-    sync_table_log()
+    sync_ddl_log()
   RETURN VALUES
     TRUE                      Error
     FALSE                     Success
 */
 
-bool
-sync_table_log()
+bool sync_ddl_log()
 {
   bool error= FALSE;
-  DBUG_ENTER("sync_table_log");
+  DBUG_ENTER("sync_ddl_log");
 
-  if (my_sync(global_table_log.file_id, MYF(0)))
+  if (init_ddl_log())
+  {
+    DBUG_RETURN(TRUE);
+  }
+  if (my_sync(global_ddl_log.file_id, MYF(0)))
   {
     /* Write to error log */
     error= TRUE;
@@ -929,27 +929,26 @@ sync_table_log()
 /*
   Release a log memory entry
   SYNOPSIS
-    release_table_log_memory_entry()
+    release_ddl_log_memory_entry()
     log_memory_entry                Log memory entry to release
   RETURN VALUES
     NONE
 */
 
-void
-release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry)
+void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry)
 {
-  TABLE_LOG_MEMORY_ENTRY *first_free= global_table_log.first_free;
-  TABLE_LOG_MEMORY_ENTRY *next_log_entry= log_entry->next_log_entry;
-  TABLE_LOG_MEMORY_ENTRY *prev_log_entry= log_entry->prev_log_entry;
-  DBUG_ENTER("release_table_log_memory_entry");
+  DDL_LOG_MEMORY_ENTRY *first_free= global_ddl_log.first_free;
+  DDL_LOG_MEMORY_ENTRY *next_log_entry= log_entry->next_log_entry;
+  DDL_LOG_MEMORY_ENTRY *prev_log_entry= log_entry->prev_log_entry;
+  DBUG_ENTER("release_ddl_log_memory_entry");
 
-  global_table_log.first_free= log_entry;
+  global_ddl_log.first_free= log_entry;
   log_entry->next_log_entry= first_free;
 
   if (prev_log_entry)
     prev_log_entry->next_log_entry= next_log_entry;
   else
-    global_table_log.first_used= next_log_entry;
+    global_ddl_log.first_used= next_log_entry;
   if (next_log_entry)
     next_log_entry->prev_log_entry= prev_log_entry;
   DBUG_VOID_RETURN;
@@ -957,75 +956,73 @@ release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry)
 
 
 /*
-  Execute one entry in the table log. Executing an entry means executing
+  Execute one entry in the ddl log. Executing an entry means executing
   a linked list of actions.
   SYNOPSIS
-    execute_table_log_entry()
+    execute_ddl_log_entry()
     first_entry                Reference to first action in entry
   RETURN VALUES
     TRUE                       Error
     FALSE                      Success
 */
 
-bool
-execute_table_log_entry(uint first_entry)
+bool execute_ddl_log_entry(uint first_entry)
 {
-  TABLE_LOG_ENTRY table_log_entry;
+  DDL_LOG_ENTRY ddl_log_entry;
   uint read_entry= first_entry;
-  DBUG_ENTER("execute_table_log_entry");
+  DBUG_ENTER("execute_ddl_log_entry");
 
-  lock_global_table_log();
+  lock_global_ddl_log();
   do
   {
-    if (read_table_log_entry(read_entry, &table_log_entry))
+    if (read_ddl_log_entry(read_entry, &ddl_log_entry))
     {
       DBUG_ASSERT(0);
       /* Write to error log and continue with next log entry */
       break;
     }
-    DBUG_ASSERT(table_log_entry.entry_type == TLOG_LOG_ENTRY_CODE ||
-                table_log_entry.entry_type == TLOG_IGNORE_LOG_ENTRY_CODE);
+    DBUG_ASSERT(ddl_log_entry.entry_type == DDL_LOG_ENTRY_CODE ||
+                ddl_log_entry.entry_type == DDL_IGNORE_LOG_ENTRY_CODE);
 
-    if (execute_table_log_action(&table_log_entry))
+    if (execute_ddl_log_action(&ddl_log_entry))
     {
       DBUG_ASSERT(0);
       /* Write to error log and continue with next log entry */
       break;
     }
-    read_entry= table_log_entry.next_entry;
+    read_entry= ddl_log_entry.next_entry;
   } while (read_entry);
-  unlock_global_table_log();
+  unlock_global_ddl_log();
   DBUG_RETURN(FALSE);
 }
 
 
 /*
-  Execute the table log at recovery of MySQL Server
+  Execute the ddl log at recovery of MySQL Server
   SYNOPSIS
-    execute_table_log_recovery()
+    execute_ddl_log_recovery()
   RETURN VALUES
     NONE
 */
 
-void
-execute_table_log_recovery()
+void execute_ddl_log_recovery()
 {
-  uint no_entries, i;
-  TABLE_LOG_ENTRY table_log_entry;
-  DBUG_ENTER("execute_table_log_recovery");
+  uint num_entries, i;
+  DDL_LOG_ENTRY ddl_log_entry;
+  DBUG_ENTER("execute_ddl_log_recovery");
 
-  no_entries= read_table_log_header();
-  for (i= 0; i < no_entries; i++)
+  num_entries= read_ddl_log_header();
+  for (i= 0; i < num_entries; i++)
   {
-    if (read_table_log_entry(i, &table_log_entry))
+    if (read_ddl_log_entry(i, &ddl_log_entry))
     {
       DBUG_ASSERT(0);
       /* Write to error log */
       break;
     }
-    if (table_log_entry.entry_type == TLOG_EXECUTE_CODE)
+    if (ddl_log_entry.entry_type == DDL_LOG_EXECUTE_CODE)
     {
-      if (execute_table_log_entry(table_log_entry.next_entry))
+      if (execute_ddl_log_entry(ddl_log_entry.next_entry))
       {
         /*
            Currently errors are either crashing or ignored so we should
@@ -1036,78 +1033,75 @@ execute_table_log_recovery()
       }
     }
   }
-  VOID(init_table_log());
+  VOID(init_ddl_log());
   DBUG_VOID_RETURN;
 }
 
 
 /*
-  Release all memory allocated to the table log
+  Release all memory allocated to the ddl log
   SYNOPSIS
-    release_table_log()
+    release_ddl_log()
   RETURN VALUES
     NONE
 */
 
-void
-release_table_log()
+void release_ddl_log()
 {
-  TABLE_LOG_MEMORY_ENTRY *free_list= global_table_log.first_free;
-  TABLE_LOG_MEMORY_ENTRY *used_list= global_table_log.first_used;
-  DBUG_ENTER("release_table_log");
+  DDL_LOG_MEMORY_ENTRY *free_list= global_ddl_log.first_free;
+  DDL_LOG_MEMORY_ENTRY *used_list= global_ddl_log.first_used;
+  DBUG_ENTER("release_ddl_log");
 
-  lock_global_table_log();
+  lock_global_ddl_log();
   while (used_list)
   {
-    TABLE_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
+    DDL_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
     my_free((char*)used_list, MYF(0));
     used_list= tmp;
   }
   while (free_list)
   {
-    TABLE_LOG_MEMORY_ENTRY *tmp= free_list->next_log_entry;
+    DDL_LOG_MEMORY_ENTRY *tmp= free_list->next_log_entry;
     my_free((char*)free_list, MYF(0));
     free_list= tmp;
   }
-  VOID(my_close(global_table_log.file_id, MYF(0)));
-  unlock_global_table_log();
-  VOID(pthread_mutex_destroy(&LOCK_gtl));
+  VOID(my_close(global_ddl_log.file_id, MYF(0)));
+  unlock_global_ddl_log();
+  VOID(pthread_mutex_destroy(&LOCK_gdl));
   DBUG_VOID_RETURN;
 }
 
 
 /*
-  Lock mutex for global table log
+  Lock mutex for global ddl log
   SYNOPSIS
-    lock_global_table_log()
+    lock_global_ddl_log()
   RETURN VALUES
     NONE
 */
 
-void
-lock_global_table_log()
+void lock_global_ddl_log()
 {
-  DBUG_ENTER("lock_global_table_log");
+  DBUG_ENTER("lock_global_ddl_log");
 
-  VOID(pthread_mutex_lock(&LOCK_gtl));
+  VOID(pthread_mutex_lock(&LOCK_gdl));
   DBUG_VOID_RETURN;
 }
 
 
 /*
-  Unlock mutex for global table log
+  Unlock mutex for global ddl log
   SYNOPSIS
-    unlock_global_table_log()
+    unlock_global_ddl_log()
   RETURN VALUES
     NONE
 */
 
-void
-unlock_global_table_log()
+void unlock_global_ddl_log()
 {
-  DBUG_ENTER("unlock_global_table_log");
+  DBUG_ENTER("unlock_global_ddl_log");
 
-  VOID(pthread_mutex_unlock(&LOCK_gtl));
+  VOID(pthread_mutex_unlock(&LOCK_gdl));
   DBUG_VOID_RETURN;
 }
 
@@ -1115,7 +1109,7 @@ unlock_global_table_log()
 /*
 ---------------------------------------------------------------------------
 
-  END MODULE Table log
+  END MODULE DDL log
   --------------------
 
 ---------------------------------------------------------------------------
@@ -1254,8 +1248,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     VOID(pthread_mutex_lock(&LOCK_open));
     if (my_delete(frm_name, MYF(MY_WME)) ||
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-        inactivate_table_log_entry(part_info->frm_log_entry->entry_pos) ||
-        (sync_table_log(), FALSE) ||
+        deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos) ||
+        (sync_ddl_log(), FALSE) ||
 #endif
         my_rename(shadow_frm_name, frm_name, MYF(MY_WME)) ||
         lpt->table->file->create_handler_files(path, shadow_path, TRUE))
@@ -1264,9 +1258,9 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     }
     VOID(pthread_mutex_unlock(&LOCK_open));
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    inactivate_table_log_entry(part_info->frm_log_entry->entry_pos);
+    deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos);
     part_info->frm_log_entry= NULL;
-    VOID(sync_table_log());
+    VOID(sync_ddl_log());
 #endif
   }
 

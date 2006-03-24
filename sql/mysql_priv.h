@@ -631,9 +631,6 @@ struct Query_cache_query_flags
 
 #else
 
-#define SET_ERROR_INJECT_VALUE(x) \
-  current_thd->error_inject_value= (x)
-
 inline bool
 my_error_inject_name(const char *dbug_str)
 {
@@ -661,6 +658,43 @@ my_error_inject(int value)
   return 0;
 }
 
+/*
+  ERROR INJECT MODULE:
+  --------------------
+  These macros are used to insert macros from the application code.
+  The event that activates those error injections can be activated
+  from SQL by using:
+  SET SESSION dbug=+d,code;
+
+  After the error has been injected, the macros will automatically
+  remove the debug code, thus similar to using:
+  SET SESSION dbug=-d,code
+  from SQL.
+
+  ERROR_INJECT_CRASH will inject a crash of the MySQL Server if code
+  is set when macro is called. ERROR_INJECT_CRASH can be used in
+  if-statements, it will always return FALSE unless of course it
+  crashes in which case it doesn't return at all.
+
+  ERROR_INJECT_ACTION will inject the action specified in the action
+  parameter of the macro, before performing the action the code will
+  be removed such that no more events occur. ERROR_INJECT_ACTION
+  can also be used in if-statements and always returns FALSE.
+  ERROR_INJECT can be used in a normal if-statement, where the action
+  part is performed in the if-block. The macro returns TRUE if the
+  error was activated and otherwise returns FALSE. If activated the
+  code is removed.
+
+  Sometimes it is necessary to perform error inject actions as a serie
+  of events. In this case one can use one variable on the THD object.
+  Thus one sets this value by using e.g. SET_ERROR_INJECT_VALUE(100).
+  Then one can later test for it by using ERROR_INJECT_CRASH_VALUE,
+  ERROR_INJECT_ACTION_VALUE and ERROR_INJECT_VALUE. This have the same
+  behaviour as the above described macros except that they use the
+  error inject value instead of a code used by DBUG macros.
+*/
+#define SET_ERROR_INJECT_VALUE(x) \
+  current_thd->error_inject_value= (x)
 #define ERROR_INJECT_CRASH(code) \
   DBUG_EVALUATE_IF(code, (abort(), 0), 0)
 #define ERROR_INJECT_ACTION(code, action) \
@@ -1186,57 +1220,86 @@ typedef struct st_lock_param_type
 
 void mem_alloc_error(size_t size);
 
-typedef struct st_table_log_entry
+enum ddl_log_entry_code
+{
+  /*
+    DDL_LOG_EXECUTE_CODE:
+      This is a code that indicates that this is a log entry to
+      be executed, from this entry a linked list of log entries
+      can be found and executed.
+    DDL_LOG_ENTRY_CODE:
+      An entry to be executed in a linked list from an execute log
+      entry.
+    DDL_IGNORE_LOG_ENTRY_CODE:
+      An entry that is to be ignored
+  */
+  DDL_LOG_EXECUTE_CODE = 'e',
+  DDL_LOG_ENTRY_CODE = 'l',
+  DDL_IGNORE_LOG_ENTRY_CODE = 'i'
+};
+
+enum ddl_log_action_code
+{
+  /*
+    The type of action that a DDL_LOG_ENTRY_CODE entry is to
+    perform.
+    DDL_LOG_DELETE_ACTION:
+      Delete an entity
+    DDL_LOG_RENAME_ACTION:
+      Rename an entity
+    DDL_LOG_REPLACE_ACTION:
+      Rename an entity after removing the previous entry with the
+      new name, that is replace this entry.
+  */
+  DDL_LOG_DELETE_ACTION = 'd',
+  DDL_LOG_RENAME_ACTION = 'r',
+  DDL_LOG_REPLACE_ACTION = 's'
+};
+
+
+typedef struct st_ddl_log_entry
 {
   const char *name;
   const char *from_name;
-  const char *handler_type;
+  const char *handler_name;
   uint next_entry;
   uint entry_pos;
-  char action_type;
-  char entry_type;
+  enum ddl_log_entry_code entry_type;
+  enum ddl_log_action_code action_type;
   char phase;
-  char not_used;
-} TABLE_LOG_ENTRY;
+} DDL_LOG_ENTRY;
 
-typedef struct st_table_log_memory_entry
+typedef struct st_ddl_log_memory_entry
 {
   uint entry_pos;
-  struct st_table_log_memory_entry *next_log_entry;
-  struct st_table_log_memory_entry *prev_log_entry;
-  struct st_table_log_memory_entry *next_active_log_entry;
-} TABLE_LOG_MEMORY_ENTRY;
+  struct st_ddl_log_memory_entry *next_log_entry;
+  struct st_ddl_log_memory_entry *prev_log_entry;
+  struct st_ddl_log_memory_entry *next_active_log_entry;
+} DDL_LOG_MEMORY_ENTRY;
 
-#define TLOG_EXECUTE_CODE 'e'
-#define TLOG_LOG_ENTRY_CODE 'l'
-#define TLOG_IGNORE_LOG_ENTRY_CODE 'i'
 
-#define TLOG_DELETE_ACTION_CODE 'd'
-#define TLOG_RENAME_ACTION_CODE 'r'
-#define TLOG_REPLACE_ACTION_CODE 's'
 
-#define TLOG_HANDLER_TYPE_LEN 32
+#define DDL_LOG_HANDLER_TYPE_LEN 32
 
-bool write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
-                           TABLE_LOG_MEMORY_ENTRY **active_entry);
-bool write_execute_table_log_entry(uint first_entry,
+bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
+                           DDL_LOG_MEMORY_ENTRY **active_entry);
+bool write_execute_ddl_log_entry(uint first_entry,
                                    bool complete,
-                                   TABLE_LOG_MEMORY_ENTRY **active_entry);
-bool inactivate_table_log_entry(uint entry_no);
-void release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry);
-bool sync_table_log();
-void release_table_log();
-void execute_table_log_recovery();
-bool execute_table_log_entry(uint first_entry);
-void lock_global_table_log();
-void unlock_global_table_log();
+                                   DDL_LOG_MEMORY_ENTRY **active_entry);
+bool deactivate_ddl_log_entry(uint entry_no);
+void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry);
+bool sync_ddl_log();
+void release_ddl_log();
+void execute_ddl_log_recovery();
+bool execute_ddl_log_entry(uint first_entry);
+void lock_global_ddl_log();
+void unlock_global_ddl_log();
 
 #define WFRM_WRITE_SHADOW 1
 #define WFRM_INSTALL_SHADOW 2
 #define WFRM_PACK_FRM 4
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
-bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt,
-                            bool can_be_killed);
+void abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 

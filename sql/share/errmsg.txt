@@ -5826,5 +5826,5 @@ ER_NDB_CANT_SWITCH_BINLOG_FORMAT
 	eng "The NDB cluster engine does not support changing the binlog format on the fly yet"
 ER_PARTITION_NO_TEMPORARY
 	eng "Cannot create temporary table with partitions"
-ER_TABLE_LOG_ERROR
-        eng "Error in table log"
+ER_DDL_LOG_ERROR
+        eng "Error in DDL log"
