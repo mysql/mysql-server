@@ -434,7 +434,7 @@ NdbTransaction::executeNoBlobs(ExecType aTypeOfExec,
 //------------------------------------------------------------------------
   Ndb* tNdb = theNdb;
 
-  Uint32 timeout = TransporterFacade::instance()->m_waitfor_timeout;
+  Uint32 timeout = theNdb->theImpl->m_transporter_facade->m_waitfor_timeout;
   m_waitForReply = false;
   executeAsynchPrepare(aTypeOfExec, NULL, NULL, abortOption);
   if (m_waitForReply){
