@@ -27,6 +27,7 @@ noinst_PROGRAMS	=	archive_test
 archive_test_LDFLAGS = @NOINST_LDFLAGS@
 noinst_HEADERS =	azlib.h
 libarchive_a_SOURCES =	azio.c
+EXTRA_DIST =		cmakelists.txt
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
