@@ -37,8 +37,8 @@
 
 #define DEBUG_NEXT_RESULT 0
 
-NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
-  NdbOperation(aNdb),
+NdbScanOperation::NdbScanOperation(Ndb* aNdb, NdbOperation::Type aType) :
+  NdbOperation(aNdb, aType),
   m_transConnection(NULL)
 {
   theParallelism = 0;
@@ -1012,7 +1012,7 @@ NdbScanOperation::getBlobHandle(Uint32 anAttrId)
 }
 
 NdbIndexScanOperation::NdbIndexScanOperation(Ndb* aNdb)
-  : NdbScanOperation(aNdb)
+  : NdbScanOperation(aNdb, NdbOperation::OrderedIndexScan)
 {
 }
 
