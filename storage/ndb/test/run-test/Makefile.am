@@ -7,14 +7,13 @@ include $(top_srcdir)/storage/ndb/config/type_mgmapiclient.mk.am
 
 test_PROGRAMS = atrt
 test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
-          conf-daily-basic-ndbmaster.txt \
-          conf-daily-basic-shark.txt \
-          conf-daily-devel-ndbmaster.txt \
-          conf-daily-sql-ndbmaster.txt \
-          conf-daily-basic-dl145a.txt \
           conf-daily-basic-ndb08.txt \
           conf-daily-devel-ndb08.txt \
-          conf-daily-sql-ndb08.txt
+          conf-daily-sql-ndb08.txt \
+          conf-ndbmaster.txt \
+          conf-shark.txt \
+          conf-dl145a.txt
+
 test_SCRIPTS=atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
           atrt-clear-result.sh make-config.sh make-index.sh make-html-reports.sh
 

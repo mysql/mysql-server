@@ -55,7 +55,9 @@ static const ConnectionError connectionError[] =
 const char *lookupConnectionError(Uint32 err)
 {
   int i= 0;
-  while ((Uint32)connectionError[i].err != err && (Uint32)connectionError[i].err != -1);
+  while ((Uint32)connectionError[i].err != err && 
+	 (Uint32)connectionError[i].err != -1)
+    i++;
   return connectionError[i].text;
 }
 

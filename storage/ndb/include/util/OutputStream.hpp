@@ -25,6 +25,7 @@
  */
 class OutputStream {
 public:
+  virtual ~OutputStream() {}
   virtual int print(const char * fmt, ...) = 0;
   virtual int println(const char * fmt, ...) = 0;
   virtual void flush() {};
@@ -34,7 +35,8 @@ class FileOutputStream : public OutputStream {
   FILE * f;
 public:
   FileOutputStream(FILE * file = stdout);
-  
+  virtual ~FileOutputStream() {}
+
   int print(const char * fmt, ...);
   int println(const char * fmt, ...);
   void flush() { fflush(f); }
@@ -45,7 +47,8 @@ class SocketOutputStream : public OutputStream {
   unsigned m_timeout;
 public:
   SocketOutputStream(NDB_SOCKET_TYPE socket, unsigned writeTimeout = 1000);
-  
+  virtual ~SocketOutputStream() {}
+
   int print(const char * fmt, ...);
   int println(const char * fmt, ...);
 };
@@ -53,13 +56,15 @@ public:
 class SoftOseOutputStream : public OutputStream {
 public:
   SoftOseOutputStream();
-  
+  virtual ~SoftOseOutputStream() {}
+
   int print(const char * fmt, ...);
   int println(const char * fmt, ...);
 };
 
 class NullOutputStream : public OutputStream {
 public:
+  virtual ~NullOutputStream() {}
   int print(const char * /* unused */, ...) { return 1;}
   int println(const char * /* unused */, ...) { return 1;}
 };
