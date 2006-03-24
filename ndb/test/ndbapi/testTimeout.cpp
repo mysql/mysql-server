@@ -24,6 +24,7 @@
 
 #define TIMEOUT (Uint32)3000
 Uint32 g_org_timeout = 3000;
+Uint32 g_org_deadlock = 3000;
 
 int
 setTransactionTimeout(NDBT_Context* ctx, NDBT_Step* step){
@@ -52,6 +53,60 @@ resetTransactionTimeout(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
   
   int val[] = { DumpStateOrd::TcSetApplTransactionTimeout, g_org_timeout };
+  if(restarter.dumpStateAllNodes(val, 2) != 0){
+    return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
+
+int
+setDeadlockTimeout(NDBT_Context* ctx, NDBT_Step* step){
+  NdbRestarter restarter;
+  int timeout = ctx->getProperty("TransactionDeadlockTimeout", TIMEOUT);
+  
+  NdbConfig conf(GETNDB(step)->getNodeId()+1);
+  unsigned int nodeId = conf.getMasterNodeId();
+  if (!conf.getProperty(nodeId,
+			NODE_TYPE_DB, 
+			CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT,
+			&g_org_deadlock))
+    return NDBT_FAILED;
+  
+  g_err << "Setting timeout: " << timeout << endl;
+  int val[] = { DumpStateOrd::TcSetTransactionTimeout, timeout };
+  if(restarter.dumpStateAllNodes(val, 2) != 0){
+    return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
+
+int
+getDeadlockTimeout(NDBT_Context* ctx, NDBT_Step* step){
+  NdbRestarter restarter;
+  
+  Uint32 val = 0;
+  NdbConfig conf(GETNDB(step)->getNodeId()+1);
+  unsigned int nodeId = conf.getMasterNodeId();
+  if (!conf.getProperty(nodeId,
+			NODE_TYPE_DB, 
+			CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT,
+			&val))
+    return NDBT_FAILED;
+
+  if (val < 120000)
+    val = 120000;
+  ctx->setProperty("TransactionDeadlockTimeout", 4*val);
+  
+  return NDBT_OK;
+}
+
+int
+resetDeadlockTimeout(NDBT_Context* ctx, NDBT_Step* step){
+  NdbRestarter restarter;
+  
+  int val[] = { DumpStateOrd::TcSetTransactionTimeout, g_org_deadlock };
   if(restarter.dumpStateAllNodes(val, 2) != 0){
     return NDBT_FAILED;
   }
@@ -333,6 +388,43 @@ int runBuddyTransNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int 
+runError4012(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int stepNo = step->getStepNo();
+  
+  int timeout = ctx->getProperty("TransactionDeadlockTimeout", TIMEOUT);
+
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+
+  do{
+    // Commit transaction
+    CHECK(hugoOps.startTransaction(pNdb) == 0);
+    CHECK(hugoOps.pkUpdateRecord(pNdb, 0) == 0);
+    int ret = hugoOps.execute_NoCommit(pNdb);
+    if (ret == 0)
+    {
+      int sleep = timeout;
+      ndbout << "Sleeping for " << sleep << " milliseconds" << endl;
+      NdbSleep_MilliSleep(sleep);
+      
+      // Expect that transaction has NOT timed-out
+      CHECK(hugoOps.execute_Commit(pNdb) == 0);
+    }
+    else
+    {
+      CHECK(ret == 4012);
+    }
+  } while(false);
+  
+  hugoOps.closeTransaction(pNdb);
+  
+  return result;
+}
+
+
 NDBT_TESTSUITE(testTimeout);
 TESTCASE("DontTimeoutTransaction", 
 	 "Test that the transaction does not timeout "\
@@ -403,6 +495,15 @@ TESTCASE("BuddyTransNoTimeout5",
   FINALIZER(resetTransactionTimeout);
   FINALIZER(runClearTable);
 }
+TESTCASE("Error4012", ""){
+  TC_PROPERTY("TransactionDeadlockTimeout", 120000);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(getDeadlockTimeout);
+  INITIALIZER(setDeadlockTimeout);
+  STEPS(runError4012, 2);
+  FINALIZER(runClearTable);
+}
+
 NDBT_TESTSUITE_END(testTimeout);
 
 int main(int argc, const char** argv){
