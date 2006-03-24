@@ -332,13 +332,15 @@ void
 DLListImpl<P,T,U>::release()
 {
   Ptr<T> ptr;
-  while((ptr.i = head.firstItem) != RNIL)
+  Uint32 curr = head.firstItem;
+  while(curr != RNIL)
   {
-    thePool.getPtr(ptr);
-    head.firstItem = ptr.p->U::nextList;
+    thePool.getPtr(ptr, curr);
+    curr = ptr.p->U::nextList;
     thePool.release(ptr);
   }
-}  
+  head.firstItem = RNIL;
+}
 
 template <typename P, typename T, typename U>
 inline

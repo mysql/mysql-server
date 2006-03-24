@@ -312,15 +312,16 @@ inline
 void 
 DLFifoListImpl<P,T,U>::release()
 {
-  Ptr<T> p;
-  while(head.firstItem != RNIL)
+  Ptr<T> ptr;
+  Uint32 curr = head.firstItem;
+  while(curr != RNIL)
   {
-    p.i = head.firstItem;  
-    p.p = thePool.getPtr(head.firstItem);    
-    T * t = p.p;
-    head.firstItem = t->U::nextList;
-    release(p);
+    thePool.getPtr(ptr, curr);
+    curr = ptr.p->U::nextList;
+    thePool.release(ptr);
   }
+  head.firstItem = RNIL;
+  head.lastItem = RNIL;
 }
 
 template <typename P, typename T, typename U>
