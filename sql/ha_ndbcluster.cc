@@ -2076,7 +2076,7 @@ int ha_ndbcluster::write_row(byte *record)
   /*
    * If IGNORE the ignore constraint violations on primary and unique keys
    */
-  if (m_ignore_dup_key)
+  if (!m_use_write && m_ignore_dup_key)
   {
     int peek_res= peek_indexed_rows(record);
     
