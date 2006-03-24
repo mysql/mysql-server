@@ -398,14 +398,6 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   tmp_file[2]='*';
   tmp_file[3]='\0';
 
-#ifdef __BORLANDC__
-  if ((handle= findfirst(tmp_path,&find,0)) == -1L)
-    goto error;
-#else
-  if ((handle=_findfirst(tmp_path,&find)) == -1L)
-    goto error;
-#endif
-
   if (!(buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
                           ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
                           sizeof(MEM_ROOT), MyFlags)))
@@ -425,7 +417,23 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   
   /* MY_DIR structure is allocated and completly initialized at this point */
   result= (MY_DIR*)buffer;
- 
+
+#ifdef __BORLANDC__
+  if ((handle= findfirst(tmp_path,&find,0)) == -1L)
+#else
+  if ((handle=_findfirst(tmp_path,&find)) == -1L)
+#endif
+  {
+    DBUG_PRINT("info", ("find_first returned error"));
+    if  (errno != EINVAL)
+      goto error;
+    /*
+      Could not read the directory, no read access.
+      Probably because by "chmod -r".
+      continue and return zero files in dir
+    */
+  }
+
   do
   {
 #ifdef __BORLANDC__
