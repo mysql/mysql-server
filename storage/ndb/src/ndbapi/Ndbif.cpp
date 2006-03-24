@@ -1055,7 +1055,7 @@ Ndb::pollCompleted(NdbTransaction** aCopyArray)
 void
 Ndb::check_send_timeout()
 {
-  Uint32 timeout = TransporterFacade::instance()->m_waitfor_timeout;
+  Uint32 timeout = theImpl->m_transporter_facade->m_waitfor_timeout;
   NDB_TICKS current_time = NdbTick_CurrentMillisecond();
   assert(current_time >= the_last_check_time);
   if (current_time - the_last_check_time > 1000) {
