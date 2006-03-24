@@ -1,5 +1,28 @@
 create database if not exists events_test;
 use events_test;
+
+#
+# START - 16415: Events: event names are case sensitive
+#
+CREATE EVENT lower_case ON SCHEDULE EVERY 1 MINUTE DO SELECT 1;
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT Lower_case ON SCHEDULE EVERY 2 MINUTE DO SELECT 2;
+DROP EVENT Lower_case;
+SET NAMES cp1251;
+CREATE EVENT долен_регистър_1251 ON SCHEDULE EVERY 1 YEAR DO SELECT 100;
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT ДоЛеН_регистър_1251 ON SCHEDULE EVERY 2 YEAR DO SELECT 200;
+DROP EVENT ДоЛеН_регистър_1251;
+SET NAMES utf8;
+CREATE EVENT РґРѕР»РµРЅ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8 ON SCHEDULE EVERY 3 YEAR DO SELECT 300;
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT Р”РћР›Р•Рќ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8 ON SCHEDULE EVERY 4 YEAR DO SELECT 400;
+DROP EVENT Р”РћР›Р•Рќ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8;
+SET NAMES latin1;
+#
+# END   - 16415: Events: event names are case sensitive
+#
+
 #
 # Start - 16407: Events: Changes in sql_mode won't be taken into account
 #
@@ -41,7 +64,7 @@ begin
   select get_lock('ee_16407_2', 60);
   insert into events_test.events_smode_test values('ee_16407_2','1980-19-02');
 end|
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into events_smode_test values ('test','1980-19-02')|
 --echo "This is ok"
 create event ee_16407_3 on schedule every 60 second do

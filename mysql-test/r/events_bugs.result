@@ -1,5 +1,20 @@
 create database if not exists events_test;
 use events_test;
+CREATE EVENT lower_case ON SCHEDULE EVERY 1 MINUTE DO SELECT 1;
+CREATE EVENT Lower_case ON SCHEDULE EVERY 2 MINUTE DO SELECT 2;
+ERROR HY000: Event 'Lower_case' already exists
+DROP EVENT Lower_case;
+SET NAMES cp1251;
+CREATE EVENT долен_регистър_1251 ON SCHEDULE EVERY 1 YEAR DO SELECT 100;
+CREATE EVENT ДоЛеН_регистър_1251 ON SCHEDULE EVERY 2 YEAR DO SELECT 200;
+ERROR HY000: Event 'Р”РѕР›РµРќ_СЂРµРіРёСЃС‚СЉСЂ_1251' already exists
+DROP EVENT ДоЛеН_регистър_1251;
+SET NAMES utf8;
+CREATE EVENT РґРѕР»РµРЅ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8 ON SCHEDULE EVERY 3 YEAR DO SELECT 300;
+CREATE EVENT Р”РћР›Р•Рќ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8 ON SCHEDULE EVERY 4 YEAR DO SELECT 400;
+ERROR HY000: Event 'Р”РћР›Р•Рќ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8' already exists
+DROP EVENT Р”РћР›Р•Рќ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8;
+SET NAMES latin1;
 set global event_scheduler=0;
 "Wait a bit to settle down"
 delete from mysql.event;
