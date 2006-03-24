@@ -197,7 +197,7 @@ public:
   /**
    * Return an object to pool
    */
-  void release(Ptr<T> &);
+  void release(Ptr<T>);
 private:
   P m_pool;
 };
@@ -322,7 +322,7 @@ RecordPool<T, P>::release(Uint32 i)
 template <typename T, typename P>
 inline
 void
-RecordPool<T, P>::release(Ptr<T> & ptr)
+RecordPool<T, P>::release(Ptr<T> ptr)
 {
   m_pool.release(*(Ptr<void>*)&ptr);
 }
