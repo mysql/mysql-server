@@ -50,6 +50,5 @@ ADD_LIBRARY(libmysql MODULE dll.c libmysql.def
 ADD_DEPENDENCIES(libmysql dbug vio mysys strings GenError zlib yassl taocrypt)
 TARGET_LINK_LIBRARIES(libmysql mysys strings wsock32)
 
-# ToDo: We should move the mytest.c program out in libmysql/
-ADD_EXECUTABLE(myTest ../VC++Files/libmysqltest/mytest.c)
+ADD_EXECUTABLE(myTest mytest.c)
 TARGET_LINK_LIBRARIES(myTest libmysql)

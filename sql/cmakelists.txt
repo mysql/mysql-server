@@ -67,10 +67,10 @@ ADD_CUSTOM_COMMAND(
 
 # Windows message file
 ADD_CUSTOM_COMMAND(
-	SOURCE ../VC++Files/sql/message.mc
+	SOURCE message.mc
 	OUTPUT message.rc message.h
-	COMMAND mc ARGS ../VC++Files/sql/message.mc
-	DEPENDS ../VC++Files/sql/message.mc)
+	COMMAND mc ARGS message.mc
+	DEPENDS message.mc)
 
 # MySql_version.h.
 #ADD_CUSTOM_COMMAND(
@@ -84,7 +84,9 @@ ADD_CUSTOM_COMMAND(
 	SOURCE ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in
 	OUTPUT ${PROJECT_SOURCE_DIR}/sql/handlerton.cc
 	COMMAND cscript.exe ${PROJECT_SOURCE_DIR}/win/config-handlerton.js ARGS ${PROJECT_SOURCE_DIR}/win/configure.data
-	DEPENDS ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in)
+	DEPENDS ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in
+                ${PROJECT_SOURCE_DIR}/win/configure.data
+		${PROJECT_SOURCE_DIR}/win/config-handlerton.js)
 
 # Error file
 #GET_TARGET_PROPERTY(COMP_ERR_EXE comp_err LOCATION)
