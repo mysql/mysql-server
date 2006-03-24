@@ -9,7 +9,7 @@ test_PROGRAMS = atrt
 test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
           conf-daily-basic-ndb08.txt \
           conf-daily-devel-ndb08.txt \
-          conf-daily-sql-ndb08.txt
+          conf-daily-sql-ndb08.txt \
           conf-ndbmaster.txt \
           conf-shark.txt \
           conf-dl145a.txt
