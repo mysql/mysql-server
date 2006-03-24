@@ -1367,6 +1367,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
     This method tries to leave trigger related files in consistent state,
     i.e. it either will complete successfully, or will fail leaving files
     in their initial state.
+    Also this method assumes that subject table is not renamed to itself.
 
   RETURN VALUE
     FALSE  Success
@@ -1387,6 +1388,9 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   init_alloc_root(&table.mem_root, 8192, 0);
 
   safe_mutex_assert_owner(&LOCK_open);
+
+  DBUG_ASSERT(my_strcasecmp(table_alias_charset, db, new_db) ||
+              my_strcasecmp(table_alias_charset, old_table, new_table));
 
   if (Table_triggers_list::check_n_load(thd, db, old_table, &table, TRUE))
   {

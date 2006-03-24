@@ -4948,7 +4948,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       Win32 and InnoDB can't drop a table that is in use, so we must
       close the original table at before doing the rename
     */
-    table_name=thd->strdup(table_name);		// must be saved
     table->s->version= 0;                	// Force removal of table def
     close_cached_table(thd, table);
     table=0;					// Marker that table is closed
