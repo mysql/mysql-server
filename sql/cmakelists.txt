@@ -5,7 +5,9 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include 
                     ${CMAKE_SOURCE_DIR}/sql 
                     ${CMAKE_SOURCE_DIR}/regex 
-                    ${CMAKE_SOURCE_DIR}/zlib)
+                    ${CMAKE_SOURCE_DIR}/zlib
+                    ${CMAKE_SOURCE_DIR}/storage/bdb/build_win32
+                    ${CMAKE_SOURCE_DIR}/storage/bdb/dbinc)
 
 SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc 
 							${CMAKE_SOURCE_DIR}/sql/message.h 
@@ -18,13 +20,11 @@ SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc
                             ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
                             ${PROJECT_SOURCE_DIR}/include/sql_state.h PROPERTIES GENERATED 1)
                             
-ADD_DEFINITIONS(-DWITH_INNOBASE_STORAGE_ENGINE -DHAVE_ARCHIVE_DB -DHAVE_BLACKHOLE_DB -DHAVE_EXAMPLE_DB)
-ADD_DEFINITIONS(-DHAVE_ROW_BASED_REPLICATION -DHAVE_FEDERATED_DB -DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN -DWITH_PARTITION_STORAGE_ENGINE -D_CRT_SECURE_NO_DEPRECATE)
+ADD_DEFINITIONS(-DHAVE_ROW_BASED_REPLICATION -DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN -D_CRT_SECURE_NO_DEPRECATE)
 
 ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc discover.cc ../libmysql/errmsg.c field.cc
-					  field_conv.cc filesort.cc gstream.cc ha_blackhole.cc
-					  ha_federated.cc ha_heap.cc ha_innodb.cc ha_myisam.cc ha_myisammrg.cc
-					  ha_partition.cc handler.cc hash_filo.cc hash_filo.h hostname.cc
+					  field_conv.cc filesort.cc gstream.cc  ha_heap.cc ha_myisam.cc ha_myisammrg.cc
+					  ${handlertons} handler.cc hash_filo.cc hash_filo.h hostname.cc
 					  init.cc item.cc item_buff.cc item_cmpfunc.cc item_create.cc item_func.cc item_geofunc.cc
 					  item_row.cc item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc item_uniq.cc
 					  key.cc log.cc lock.cc log_event.cc message.rc message.h mf_iocache.cc 
@@ -49,7 +49,7 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc discover.
 					  ${PROJECT_SOURCE_DIR}/include/mysql_version.h 
 					  ${PROJECT_SOURCE_DIR}/sql/handlerton.cc
 					  ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
-TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg innobase mysys yassl zlib dbug yassl taocrypt strings vio regex wsock32)
+TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg ${se_deps} mysys yassl zlib dbug yassl taocrypt strings vio regex wsock32)
 ADD_DEPENDENCIES(mysqld GenError)
 
 # Sql Parser custom command
@@ -67,10 +67,10 @@ ADD_CUSTOM_COMMAND(
 
 # Windows message file
 ADD_CUSTOM_COMMAND(
-	SOURCE ../VC++Files/sql/message.mc
+	SOURCE message.mc
 	OUTPUT message.rc message.h
-	COMMAND mc ARGS ../VC++Files/sql/message.mc
-	DEPENDS ../VC++Files/sql/message.mc)
+	COMMAND mc ARGS message.mc
+	DEPENDS message.mc)
 
 # MySql_version.h.
 #ADD_CUSTOM_COMMAND(
@@ -84,7 +84,9 @@ ADD_CUSTOM_COMMAND(
 	SOURCE ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in
 	OUTPUT ${PROJECT_SOURCE_DIR}/sql/handlerton.cc
 	COMMAND cscript.exe ${PROJECT_SOURCE_DIR}/win/config-handlerton.js ARGS ${PROJECT_SOURCE_DIR}/win/configure.data
-	DEPENDS ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in)
+	DEPENDS ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in
+                ${PROJECT_SOURCE_DIR}/win/configure.data
+		${PROJECT_SOURCE_DIR}/win/config-handlerton.js)
 
 # Error file
 #GET_TARGET_PROPERTY(COMP_ERR_EXE comp_err LOCATION)
