@@ -28,7 +28,7 @@ typedef int (*get_part_id_func)(partition_info *part_info,
                                  longlong *func_value);
 typedef uint32 (*get_subpart_id_func)(partition_info *part_info);
 
-struct st_table_log_memory_entry;
+struct st_ddl_log_memory_entry;
 
 class partition_info : public Sql_alloc
 {
@@ -77,9 +77,9 @@ public:
 
   Item *item_free_list;
 
-  struct st_table_log_memory_entry *first_log_entry;
-  struct st_table_log_memory_entry *exec_log_entry;
-  struct st_table_log_memory_entry *frm_log_entry;
+  struct st_ddl_log_memory_entry *first_log_entry;
+  struct st_ddl_log_memory_entry *exec_log_entry;
+  struct st_ddl_log_memory_entry *frm_log_entry;
 
   /* 
     A bitmap of partitions used by the current query. 
