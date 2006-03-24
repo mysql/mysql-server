@@ -19,7 +19,7 @@ ndb_autodiscover2       : Needs to be fixed w.r.t binlog
 ndb_binlog_ddl_multi    : Bug #18490 cluster: binlog events lost on remote mysqld (asynchronous)
 #ndb_binlog_multi        : Results are not deterministic, Tomas will fix
 ndb_load                : Bug#17233
-#partition_03ndb         : Bug#16385
+partition_03ndb         : Bug#16385
 ps_7ndb                 : dbug assert in RBR mode when executing test suite
 #rpl_bit_npk             : Bug#13418
 #rpl_ddl                 : Bug#15963 SBR does not show "Definer" correctly
