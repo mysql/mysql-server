@@ -27,8 +27,8 @@ rpl_ndb_2innodb         : assertion in get_parts_for_update()
 rpl_ndb_2myisam         : assertion in get_parts_for_update()
 rpl_ndb_auto_inc        : Bug#17086
 #rpl_ndb_basic           : Bug#16228 [IN REVIEW]
-rpl_ndb_blob            : interferes with following tests, causing hang
-rpl_ndb_blob2           : interferes with following tests, causing hang
+#rpl_ndb_blob            : interferes with following tests, causing hang
+#rpl_ndb_blob2           : interferes with following tests, causing hang
 rpl_ndb_ddl             : master hangs
 #rpl_ndb_delete_nowhere  : Bug#17400: delete & update of rows in table without pk fails
 rpl_ndb_innodb2ndb      : Bug#18261: Cluster Replication: tests rpl_ndb_xxx2ndb fails
