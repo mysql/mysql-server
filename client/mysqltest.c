@@ -654,6 +654,8 @@ static void die(const char *fmt, ...)
 {
   va_list args;
   DBUG_ENTER("die");
+
+  /* Print the error message */
   va_start(args, fmt);
   if (fmt)
   {
@@ -668,6 +670,12 @@ static void die(const char *fmt, ...)
     fflush(stderr);
   }
   va_end(args);
+
+  /* Dump the result that has been accumulated so far to reject file */
+  if (result_file && ds_res.length)
+    dump_result_to_reject_file(result_file, ds_res.str, ds_res.length);
+
+  /* Clean up and exit */
   free_used_memory();
   my_end(MY_CHECK_ERROR);
 
