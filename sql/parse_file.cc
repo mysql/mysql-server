@@ -746,7 +746,6 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
   char *eol;
   LEX_STRING *str;
   List<LEX_STRING> *list;
-  ulonglong *num;
   DBUG_ENTER("File_parser::parse");
 
   while (ptr < end && found < required)

@@ -2606,7 +2606,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       switch(arguments[i]->type()) {
       case Item::STRING_ITEM:			// Constant string !
       {
-	String *res=arguments[i]->val_str((String *) 0);
+	String *res=arguments[i]->val_str(&buffers[i]);
 	if (arguments[i]->null_value)
 	  continue;
 	f_args.args[i]=    (char*) res->ptr();
@@ -2805,9 +2805,6 @@ longlong Item_func_udf_int::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_int::val_int");
-  DBUG_PRINT("info",("result_type: %d  arg_count: %d",
-		     args[0]->result_type(), arg_count));
-
   DBUG_RETURN(udf.val_int(&null_value));
 }
 
