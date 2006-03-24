@@ -9960,7 +9960,7 @@ void Dblqh::nextScanConfCopyLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
     scanptr.p->scanCompletedStatus = ZTRUE;
     scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
-    if (ERROR_INSERTED(5042))
+    if (ERROR_INSERTED(5043))
     {
       CLEAR_ERROR_INSERT_VALUE;
       tcConnectptr.p->copyCountWords = ~0;
@@ -18198,6 +18198,89 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
+#ifdef ERROR_INSERT
+#ifdef NDB_DEBUG_FULL
+  if(dumpState->args[0] == DumpStateOrd::LCPContinue){
+    switch(cerrorInsert){
+    case 5904:
+      CLEAR_ERROR_INSERT_VALUE;
+      g_trace_lcp.restore(*globalData.getBlock(BACKUP), signal);
+      return;
+    default:
+      return;
+    }
+  }
+#endif
+#endif
+
+  if(arg == 2304 || arg == 2305)
+  {
+    jam();
+    Uint32 i;
+    GcpRecordPtr gcp; gcp.i = RNIL;
+    for(i = 0; i<4; i++)
+    {
+      logPartPtr.i = i;
+      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+      ndbout_c("LP %d state: %d WW_Gci: %d gcprec: %d flq: %d currfile: %d tailFileNo: %d logTailMbyte: %d", 
+	       i,
+	       logPartPtr.p->logPartState,
+	       logPartPtr.p->waitWriteGciLog,
+	       logPartPtr.p->gcprec,
+	       logPartPtr.p->firstLogQueue,
+	       logPartPtr.p->currentLogfile,
+	       logPartPtr.p->logTailFileNo,
+	       logPartPtr.p->logTailMbyte);
+      
+      if(gcp.i == RNIL && logPartPtr.p->gcprec != RNIL)
+	gcp.i = logPartPtr.p->gcprec;
+
+      LogFileRecordPtr logFilePtr;
+      Uint32 first= logFilePtr.i= logPartPtr.p->firstLogfile;
+      do
+      {
+	ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
+	ndbout_c("  file %d(%d) FileChangeState: %d logFileStatus: %d currentMbyte: %d currentFilepage", 
+		 logFilePtr.p->fileNo,
+		 logFilePtr.i,
+		 logFilePtr.p->fileChangeState,
+		 logFilePtr.p->logFileStatus,
+		 logFilePtr.p->currentMbyte,
+		 logFilePtr.p->currentFilepage);
+	logFilePtr.i = logFilePtr.p->nextLogFile;
+      } while(logFilePtr.i != first);
+    }
+    
+    if(gcp.i != RNIL)
+    {
+      ptrCheckGuard(gcp, cgcprecFileSize, gcpRecord);
+      for(i = 0; i<4; i++)
+      {
+	ndbout_c("  GCP %d file: %d state: %d sync: %d page: %d word: %d",
+		 i, gcp.p->gcpFilePtr[i], gcp.p->gcpLogPartState[i],
+		 gcp.p->gcpSyncReady[i],
+		 gcp.p->gcpPageNo[i],
+		 gcp.p->gcpWordNo[i]);      
+      }
+    }
+
+    if(arg== 2305)
+    {
+      progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
+		"Please report this as a bug. "
+		"Provide as much info as possible, expecially all the "
+		"ndb_*_out.log files, Thanks. "
+		"Shutting down node due to failed handling of GCP_SAVEREQ");
+      
+    }
+  }
+
+  if (dumpState->args[0] == DumpStateOrd::LqhErrorInsert5042 && signal->getLength() == 2)
+  {
+    c_error_insert_table_id = dumpState->args[1];
+    SET_ERROR_INSERT_VALUE(5042);
+  }
+
   TcConnectionrec *regTcConnectionrec = tcConnectionrec;
   Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
   if(arg == 2306)
@@ -18363,88 +18446,6 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     ndbrequire(arg != 2308);
   }
   
-#ifdef ERROR_INSERT
-#ifdef NDB_DEBUG_FULL
-  if(dumpState->args[0] == DumpStateOrd::LCPContinue){
-    switch(cerrorInsert){
-    case 5904:
-      CLEAR_ERROR_INSERT_VALUE;
-      g_trace_lcp.restore(*globalData.getBlock(BACKUP), signal);
-      return;
-    default:
-      return;
-    }
-  }
-#endif
-#endif
-
-  if(arg == 2304 || arg == 2305)
-  {
-    jam();
-    Uint32 i;
-    GcpRecordPtr gcp; gcp.i = RNIL;
-    for(i = 0; i<4; i++)
-    {
-      logPartPtr.i = i;
-      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
-      ndbout_c("LP %d state: %d WW_Gci: %d gcprec: %d flq: %d currfile: %d tailFileNo: %d logTailMbyte: %d", 
-	       i,
-	       logPartPtr.p->logPartState,
-	       logPartPtr.p->waitWriteGciLog,
-	       logPartPtr.p->gcprec,
-	       logPartPtr.p->firstLogQueue,
-	       logPartPtr.p->currentLogfile,
-	       logPartPtr.p->logTailFileNo,
-	       logPartPtr.p->logTailMbyte);
-      
-      if(gcp.i == RNIL && logPartPtr.p->gcprec != RNIL)
-	gcp.i = logPartPtr.p->gcprec;
-
-      LogFileRecordPtr logFilePtr;
-      Uint32 first= logFilePtr.i= logPartPtr.p->firstLogfile;
-      do
-      {
-	ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-	ndbout_c("  file %d(%d) FileChangeState: %d logFileStatus: %d currentMbyte: %d currentFilepage", 
-		 logFilePtr.p->fileNo,
-		 logFilePtr.i,
-		 logFilePtr.p->fileChangeState,
-		 logFilePtr.p->logFileStatus,
-		 logFilePtr.p->currentMbyte,
-		 logFilePtr.p->currentFilepage);
-	logFilePtr.i = logFilePtr.p->nextLogFile;
-      } while(logFilePtr.i != first);
-    }
-    
-    if(gcp.i != RNIL)
-    {
-      ptrCheckGuard(gcp, cgcprecFileSize, gcpRecord);
-      for(i = 0; i<4; i++)
-      {
-	ndbout_c("  GCP %d file: %d state: %d sync: %d page: %d word: %d",
-		 i, gcp.p->gcpFilePtr[i], gcp.p->gcpLogPartState[i],
-		 gcp.p->gcpSyncReady[i],
-		 gcp.p->gcpPageNo[i],
-		 gcp.p->gcpWordNo[i]);      
-      }
-    }
-
-    if(arg== 2305)
-    {
-      progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
-		"Please report this as a bug. "
-		"Provide as much info as possible, expecially all the "
-		"ndb_*_out.log files, Thanks. "
-		"Shutting down node due to failed handling of GCP_SAVEREQ");
-      
-    }
-  }
-
-  if (dumpState->args[0] == DumpStateOrd::LqhErrorInsert5042 && signal->getLength() == 2)
-  {
-    c_error_insert_table_id = dumpState->args[1];
-    SET_ERROR_INSERT_VALUE(5042);
-  }
 }//Dblqh::execDUMP_STATE_ORD()
 
 void Dblqh::execSET_VAR_REQ(Signal* signal) 

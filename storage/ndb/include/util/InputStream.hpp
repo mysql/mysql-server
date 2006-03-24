@@ -25,6 +25,7 @@
  */
 class InputStream {
 public:
+  virtual ~InputStream() {}
   virtual char* gets(char * buf, int bufLen) = 0;
 };
 
@@ -32,6 +33,7 @@ class FileInputStream : public InputStream {
   FILE * f;
 public:
   FileInputStream(FILE * file = stdin);
+  virtual ~FileInputStream() {}
   char* gets(char * buf, int bufLen); 
 };
 
@@ -42,6 +44,7 @@ class SocketInputStream : public InputStream {
   unsigned m_timeout;
 public:
   SocketInputStream(NDB_SOCKET_TYPE socket, unsigned readTimeout = 1000);
+  virtual ~SocketInputStream() {}
   char* gets(char * buf, int bufLen);
 };
 
