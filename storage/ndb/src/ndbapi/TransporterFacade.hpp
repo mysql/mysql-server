@@ -121,6 +121,7 @@ public:
   Uint32 get_scan_batch_size();
   Uint32 get_batch_byte_size();
   Uint32 get_batch_size();
+  Uint32 m_waitfor_timeout; // in milli seconds...
 
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
 

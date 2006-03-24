@@ -13,7 +13,7 @@ save_args=$*
 VERSION="ndb-autotest.sh version 1.04"
 
 DATE=`date '+%Y-%m-%d'`
-HOST=`hostname`
+HOST=`hostname -s`
 export DATE HOST
 
 set -e
@@ -67,7 +67,7 @@ done
 
 if [ -f $conf ]
 then
-	. ./$conf
+	. $conf
 else
 	echo "Can't find config file: $conf"
 	exit
@@ -299,9 +299,12 @@ choose_conf(){
     elif [ -f $test_dir/conf-$1.txt ]
     then
 	echo "$test_dir/conf-$1.txt"
+    elif [ -f $test_dir/conf-$HOST.txt ]
+	echo "$test_dir/conf-$HOST.txt"
     else
 	echo "Unable to find conf file looked for" 1>&2
 	echo "$test_dir/conf-$1-$HOST.txt and" 1>&2
+	echo "$test_dir/conf-$HOST.txt" 1>&2
 	echo "$test_dir/conf-$1.txt" 1>&2
 	exit
     fi
