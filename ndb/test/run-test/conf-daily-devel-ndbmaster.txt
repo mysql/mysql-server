@@ -17,3 +17,6 @@ FileSystemPath: /space/autotest/run
 PortNumber: 16000
 ArbitrationRank: 1
 DataDir: .
+
+[TCP DEFAULT]
+SendBufferMemory: 2M

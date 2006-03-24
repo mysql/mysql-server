@@ -9265,7 +9265,7 @@ void Dblqh::nextScanConfCopyLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
     scanptr.p->scanCompletedStatus = ZTRUE;
     scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
-    if (ERROR_INSERTED(5042))
+    if (ERROR_INSERTED(5043))
     {
       CLEAR_ERROR_INSERT_VALUE;
       tcConnectptr.p->copyCountWords = ~0;
@@ -18569,6 +18569,172 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     c_error_insert_table_id = dumpState->args[1];
     SET_ERROR_INSERT_VALUE(5042);
   }
+
+  TcConnectionrec *regTcConnectionrec = tcConnectionrec;
+  Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
+  if(arg == 2306)
+  {
+    for(Uint32 i = 0; i<1024; i++)
+    {
+      TcConnectionrecPtr tcRec;
+      tcRec.i = ctransidHash[i];
+      while(tcRec.i != RNIL)
+      {
+	ptrCheckGuard(tcRec, ttcConnectrecFileSize, regTcConnectionrec);
+	ndbout << "TcConnectionrec " << tcRec.i;
+	signal->theData[0] = 2307;
+	signal->theData[1] = tcRec.i;
+	execDUMP_STATE_ORD(signal);
+	tcRec.i = tcRec.p->nextHashRec;
+      }
+    }
+  }
+
+  if(arg == 2307 || arg == 2308)
+  {
+    TcConnectionrecPtr tcRec;
+    tcRec.i = signal->theData[1];
+    ptrCheckGuard(tcRec, ttcConnectrecFileSize, regTcConnectionrec);
+    
+    ndbout << " transactionState = " << tcRec.p->transactionState<<endl;
+    ndbout << " operation = " << tcRec.p->operation<<endl;
+    ndbout << " tcNodeFailrec = " << tcRec.p->tcNodeFailrec
+	   << " seqNoReplica = " << tcRec.p->seqNoReplica
+	   << " simpleRead = " << tcRec.p->simpleRead
+	   << endl;
+    ndbout << " replicaType = " << tcRec.p->replicaType
+	   << " reclenAiLqhkey = " << tcRec.p->reclenAiLqhkey
+	   << " opExec = " << tcRec.p->opExec
+	   << endl;
+    ndbout << " opSimple = " << tcRec.p->opSimple
+	   << " nextSeqNoReplica = " << tcRec.p->nextSeqNoReplica
+	   << " lockType = " << tcRec.p->lockType
+	   << endl;
+    ndbout << " lastReplicaNo = " << tcRec.p->lastReplicaNo
+	   << " indTakeOver = " << tcRec.p->indTakeOver
+	   << " dirtyOp = " << tcRec.p->dirtyOp
+	   << endl;
+    ndbout << " activeCreat = " << tcRec.p->activeCreat
+	   << " tcBlockref = " << hex << tcRec.p->tcBlockref
+	   << " reqBlockref = " << hex << tcRec.p->reqBlockref
+	   << " primKeyLen = " << tcRec.p->primKeyLen
+	   << endl;
+    ndbout << " nextReplica = " << tcRec.p->nextReplica
+	   << " tcBlockref = " << hex << tcRec.p->tcBlockref
+	   << " reqBlockref = " << hex << tcRec.p->reqBlockref
+	   << " primKeyLen = " << tcRec.p->primKeyLen
+	   << endl;
+    ndbout << " logStopPageNo = " << tcRec.p->logStopPageNo
+	   << " logStartPageNo = " << tcRec.p->logStartPageNo
+	   << " logStartPageIndex = " << tcRec.p->logStartPageIndex
+	   << endl;
+    ndbout << " errorCode = " << tcRec.p->errorCode
+	   << " clientBlockref = " << hex << tcRec.p->clientBlockref
+	   << " applRef = " << hex << tcRec.p->applRef
+	   << " totSendlenAi = " << tcRec.p->totSendlenAi
+	   << endl;
+    ndbout << " totReclenAi = " << tcRec.p->totReclenAi
+	   << " tcScanRec = " << tcRec.p->tcScanRec
+	   << " tcScanInfo = " << tcRec.p->tcScanInfo
+	   << " tcOprec = " << hex << tcRec.p->tcOprec
+	   << endl;
+    ndbout << " tableref = " << tcRec.p->tableref
+	   << " simpleTcConnect = " << tcRec.p->simpleTcConnect
+	   << " storedProcId = " << tcRec.p->storedProcId
+	   << " schemaVersion = " << tcRec.p->schemaVersion
+	   << endl;
+    ndbout << " reqinfo = " << tcRec.p->reqinfo
+	   << " reqRef = " << tcRec.p->reqRef
+	   << " readlenAi = " << tcRec.p->readlenAi
+	   << " prevTc = " << tcRec.p->prevTc
+	   << endl;
+    ndbout << " prevLogTcrec = " << tcRec.p->prevLogTcrec
+	   << " prevHashRec = " << tcRec.p->prevHashRec
+	   << " nodeAfterNext0 = " << tcRec.p->nodeAfterNext[0]
+	   << " nodeAfterNext1 = " << tcRec.p->nodeAfterNext[1]
+	   << endl;
+    ndbout << " nextTcConnectrec = " << tcRec.p->nextTcConnectrec
+	   << " nextTc = " << tcRec.p->nextTc
+	   << " nextTcLogQueue = " << tcRec.p->nextTcLogQueue
+	   << " nextLogTcrec = " << tcRec.p->nextLogTcrec
+	   << endl;
+    ndbout << " nextHashRec = " << tcRec.p->nextHashRec
+	   << " logWriteState = " << tcRec.p->logWriteState
+	   << " logStartFileNo = " << tcRec.p->logStartFileNo
+	   << " listState = " << tcRec.p->listState
+	   << endl;
+    ndbout << " lastAttrinbuf = " << tcRec.p->lastAttrinbuf
+	   << " lastTupkeybuf = " << tcRec.p->lastTupkeybuf
+	   << " hashValue = " << tcRec.p->hashValue
+	   << endl;
+    ndbout << " gci = " << tcRec.p->gci
+	   << " fragmentptr = " << tcRec.p->fragmentptr
+	   << " fragmentid = " << tcRec.p->fragmentid
+	   << " firstTupkeybuf = " << tcRec.p->firstTupkeybuf
+	   << endl;
+    ndbout << " firstAttrinbuf = " << tcRec.p->firstAttrinbuf
+	   << " currTupAiLen = " << tcRec.p->currTupAiLen
+	   << " currReclenAi = " << tcRec.p->currReclenAi
+	   << endl;
+    ndbout << " tcTimer = " << tcRec.p->tcTimer
+	   << " clientConnectrec = " << tcRec.p->clientConnectrec
+	   << " applOprec = " << hex << tcRec.p->applOprec
+	   << " abortState = " << tcRec.p->abortState
+	   << endl;
+    ndbout << " transid0 = " << hex << tcRec.p->transid[0]
+	   << " transid1 = " << hex << tcRec.p->transid[1]
+	   << " tupkeyData0 = " << tcRec.p->tupkeyData[0]
+	   << " tupkeyData1 = " << tcRec.p->tupkeyData[1]
+	   << endl;
+    ndbout << " tupkeyData2 = " << tcRec.p->tupkeyData[2]
+	   << " tupkeyData3 = " << tcRec.p->tupkeyData[3]
+	   << endl;
+    switch (tcRec.p->transactionState) {
+	
+    case TcConnectionrec::SCAN_STATE_USED:
+      if (tcRec.p->tcScanRec < cscanrecFileSize){
+	ScanRecordPtr TscanPtr;
+	c_scanRecordPool.getPtr(TscanPtr, tcRec.p->tcScanRec);
+	ndbout << " scanState = " << TscanPtr.p->scanState << endl;
+	//TscanPtr.p->scanLocalref[2];
+	ndbout << " copyPtr="<<TscanPtr.p->copyPtr
+	       << " scanAccPtr="<<TscanPtr.p->scanAccPtr
+	       << " scanAiLength="<<TscanPtr.p->scanAiLength
+	       << endl;
+	ndbout << " m_curr_batch_size_rows="<<
+	  TscanPtr.p->m_curr_batch_size_rows
+	       << " m_max_batch_size_rows="<<
+	  TscanPtr.p->m_max_batch_size_rows
+	       << " scanErrorCounter="<<TscanPtr.p->scanErrorCounter
+	       << endl;
+	ndbout << " scanSchemaVersion="<<TscanPtr.p->scanSchemaVersion
+	       << "  scanStoredProcId="<<TscanPtr.p->scanStoredProcId
+	       << "  scanTcrec="<<TscanPtr.p->scanTcrec
+	       << endl;
+	ndbout << "  scanType="<<TscanPtr.p->scanType
+	       << "  scanApiBlockref="<<TscanPtr.p->scanApiBlockref
+	       << "  scanNodeId="<<TscanPtr.p->scanNodeId
+	       << "  scanCompletedStatus="<<TscanPtr.p->scanCompletedStatus
+	       << endl;
+	ndbout << "  scanFlag="<<TscanPtr.p->scanFlag
+	       << "  scanLockHold="<<TscanPtr.p->scanLockHold
+	       << "  scanLockMode="<<TscanPtr.p->scanLockMode
+	       << "  scanNumber="<<TscanPtr.p->scanNumber
+	       << endl;
+	ndbout << "  scanReleaseCounter="<<TscanPtr.p->scanReleaseCounter
+	       << "  scanTcWaiting="<<TscanPtr.p->scanTcWaiting
+	       << "  scanKeyinfoFlag="<<TscanPtr.p->scanKeyinfoFlag
+	       << endl;
+      } else{
+	ndbout << "No connected scan record found" << endl;
+      }
+      break;
+    default:
+      break;
+    }
+    ndbrequire(arg != 2308);
+  }
+  
 }//Dblqh::execDUMP_STATE_ORD()
 
 void Dblqh::execSET_VAR_REQ(Signal* signal) 
