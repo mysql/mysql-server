@@ -1171,6 +1171,8 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
       {
 	tOp->m_currentTable = table;
       }
+      // Mark that this really an NdbIndexScanOperation
+      tOp->m_type = NdbOperation::OrderedIndexScan; 
       return tOp;
     } else {
       setOperationErrorCodeAbort(4271);
@@ -1232,6 +1234,8 @@ NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
   
   if (tOp->init(tab, this) != -1) {
     define_scan_op(tOp);
+    // Mark that this NdbIndexScanOperation is used as NdbScanOperation
+    tOp->m_type = NdbOperation::TableScan; 
     return tOp;
   } else {
     theNdb->releaseScanOperation(tOp);
