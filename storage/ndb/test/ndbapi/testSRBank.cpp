@@ -22,10 +22,12 @@
 
 #include "bank/Bank.hpp"
 
+bool disk = false;
+
 int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
   Bank bank(ctx->m_cluster_connection);
   int overWriteExisting = true;
-  if (bank.createAndLoadBank(overWriteExisting, 10) != NDBT_OK)
+  if (bank.createAndLoadBank(overWriteExisting, disk, 10) != NDBT_OK)
     return NDBT_FAILED;
   return NDBT_OK;
 }
@@ -406,8 +408,20 @@ TESTCASE("Mix",
 }
 NDBT_TESTSUITE_END(testSRBank);
 
-int main(int argc, const char** argv){
+int 
+main(int argc, const char** argv){
   ndb_init();
+  for (int i = 0; i<argc; i++)
+  {
+    if (strcmp(argv[i], "--disk") == 0)
+    {
+      argc--;
+      disk = true;
+      for (; i<argc; i++)
+	argv[i] = argv[i+1];
+      break;
+    }
+  } 
   return testSRBank.execute(argc, argv);
 }
 
