@@ -17,3 +17,6 @@ FileSystemPath: CHOOSE_dir/run
 PortNumber: 14000
 ArbitrationRank: 1
 DataDir: .
+
+[TCP DEFAULT]
+SendBufferMemory: 2M

@@ -92,6 +92,8 @@ public:
    */
   class Reader {
   public:
+    virtual ~Reader() {}
+
     /**
      * Move to first element
      *   Return true if element exist
@@ -164,6 +166,8 @@ public:
    */
   class Writer {
   public:
+    virtual ~Writer() {}
+
     bool first();
     bool add(Uint16 key, Uint32 value);
     bool add(Uint16 key, const char * value);
@@ -183,6 +187,7 @@ public:
 class SimplePropertiesLinearReader : public SimpleProperties::Reader {
 public:
   SimplePropertiesLinearReader(const Uint32 * src, Uint32 len);
+  virtual ~SimplePropertiesLinearReader() {}
   
   virtual void reset();
   virtual bool step(Uint32 len);
@@ -201,7 +206,8 @@ private:
 class LinearWriter : public SimpleProperties::Writer {
 public:
   LinearWriter(Uint32 * src, Uint32 len);
-  
+  virtual ~LinearWriter() {}
+
   virtual bool reset();
   virtual bool putWord(Uint32 val);
   virtual bool putWords(const Uint32 * src, Uint32 len);
@@ -218,6 +224,7 @@ private:
 class UtilBufferWriter : public SimpleProperties::Writer {
 public:
   UtilBufferWriter(class UtilBuffer & buf);
+  virtual ~UtilBufferWriter() {}
   
   virtual bool reset();
   virtual bool putWord(Uint32 val);
@@ -237,7 +244,9 @@ class SimplePropertiesSectionReader : public SimpleProperties::Reader {
 public:
   SimplePropertiesSectionReader(struct SegmentedSectionPtr &,
 				class SectionSegmentPool &);
+  virtual ~SimplePropertiesSectionReader() {}
   
+
   virtual void reset();
   virtual bool step(Uint32 len);
   virtual bool getWord(Uint32 * dst);
@@ -269,6 +278,7 @@ Uint32 SimplePropertiesSectionReader::getSize() const
 class SimplePropertiesSectionWriter : public SimpleProperties::Writer {
 public:
   SimplePropertiesSectionWriter(class SectionSegmentPool &);
+  virtual ~SimplePropertiesSectionWriter() {}
 
   virtual bool reset();
   virtual bool putWord(Uint32 val);

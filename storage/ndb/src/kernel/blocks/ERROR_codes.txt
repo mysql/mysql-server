@@ -228,6 +228,8 @@ Delay execution of COMPLETECONF signal 2 seconds to generate time-out.
 8045: (ABORTCONF only as part of take-over)
 Delay execution of ABORTCONF signal 2 seconds to generate time-out.
 
+8050: Send ZABORT_TIMEOUT_BREAK delayed
+
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
 
@@ -305,6 +307,8 @@ Test Crashes in handling node restarts
 7131: Crash when receiving START_COPYREQ in master node
 7132: Crash when receiving START_COPYCONF in starting node
 
+7170: Crash when receiving START_PERMREF (InitialStartRequired)
+
 DICT:
 6000  Crash during NR when receiving DICTSTARTREQ
 6001  Crash during NR when receiving SCHEMA_INFO
@@ -314,7 +318,7 @@ LQH:
 5026  Crash when receiving COPY_ACTIVEREQ
 5027  Crash when receiving STAT_RECREQ
 
-5042  Crash starting node, when scan is finished on primary replica
+5043  Crash starting node, when scan is finished on primary replica
 
 Test Crashes in handling take over
 ----------------------------------
