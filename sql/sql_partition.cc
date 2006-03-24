@@ -1741,8 +1741,7 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   tables.db= db_name;
 
   if (!is_create_table_ind ||
-      (is_create_table_ind &&
-       thd->lex->sql_command != SQLCOM_CREATE_TABLE))
+       thd->lex->sql_command != SQLCOM_CREATE_TABLE)
   {
     if (partition_default_handling(table, part_info,
                                    is_create_table_ind,
@@ -3770,7 +3769,24 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
       }
     }
     else
+    {
+      /*
+        When we come here we are doing a create table. In this case we
+        have already done some preparatory work on the old part_info
+        object. We don't really need this new partition_info object.
+        Thus we go back to the old partition info object.
+        We need to free any memory objects allocated on item_free_list
+        by the parser since we are keeping the old info from the first
+        parser call in CREATE TABLE.
+        We'll ensure that this object isn't put into table cache also
+        just to ensure we don't get into strange situations with the
+        item objects.
+      */
+      free_items(thd->free_list);
       part_info= thd->work_part_info;
+      thd->free_list= NULL;
+      table->s->version= 0UL;
+    }
   }
   table->part_info= part_info;
   table->file->set_part_info(part_info);
