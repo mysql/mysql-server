@@ -77,6 +77,7 @@ strings_src=decimal.c
 
 # Fix for mit-threads
 DEFS =			-DUNDEF_THREADS_HACK
+EXTRA_DIST =		get_password.c cmakelists.txt
 
 link_sources:
 	for f in $(sql_src) ; do \
