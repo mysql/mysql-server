@@ -213,10 +213,15 @@ inline
 void
 RecordPool<T, P>::init(Uint32 type_id, const Pool_context& pc)
 {
+  T tmp;
+  const char * off_base = (char*)&tmp;
+  const char * off_next = (char*)&tmp.nextPool;
+  const char * off_magic = (char*)&tmp.m_magic;
+
   Record_info ri;
   ri.m_size = sizeof(T);
-  ri.m_offset_next_pool = offsetof(T, nextPool);
-  ri.m_offset_magic = offsetof(T, m_magic);
+  ri.m_offset_next_pool = Uint32(off_next - off_base);
+  ri.m_offset_magic = Uint32(off_magic - off_base);
   ri.m_type_id = type_id;
   m_pool.init(ri, pc);
 }
@@ -226,10 +231,14 @@ inline
 void
 RecordPool<T, P>::wo_pool_init(Uint32 type_id, const Pool_context& pc)
 {
+  T tmp;
+  const char * off_base = (char*)&tmp;
+  const char * off_magic = (char*)&tmp.m_magic;
+  
   Record_info ri;
   ri.m_size = sizeof(T);
   ri.m_offset_next_pool = 0;
-  ri.m_offset_magic = offsetof(T, m_magic);
+  ri.m_offset_magic = Uint32(off_magic - off_base);
   ri.m_type_id = type_id;
   m_pool.init(ri, pc);
 }
