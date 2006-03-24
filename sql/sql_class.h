@@ -1605,13 +1605,14 @@ public:
     lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  friend class select_create_prepare_hooks;
   
   void binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
   void abort();
+  // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
+  THD *get_thd(void) { return thd; }
 };
 
 #include <myisam.h>
