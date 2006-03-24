@@ -199,13 +199,15 @@ bool is_name_in_list(char *name,
 */
 
 bool partition_default_handling(TABLE *table, partition_info *part_info,
+                                bool is_create_table_ind,
                                 const char *normalized_path)
 {
   DBUG_ENTER("partition_default_handling");
 
   if (part_info->use_default_no_partitions)
   {
-    if (table->file->get_no_parts(normalized_path, &part_info->no_parts))
+    if (!is_create_table_ind &&
+        table->file->get_no_parts(normalized_path, &part_info->no_parts))
     {
       DBUG_RETURN(TRUE);
     }
@@ -214,7 +216,8 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
            part_info->use_default_no_subpartitions)
   {
     uint no_parts;
-    if (table->file->get_no_parts(normalized_path, &no_parts))
+    if (!is_create_table_ind &&
+        (table->file->get_no_parts(normalized_path, &no_parts)))
     {
       DBUG_RETURN(TRUE);
     }
@@ -1737,9 +1740,11 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   db_name= &db_name_string[home_dir_length];
   tables.db= db_name;
 
-  if (!is_create_table_ind)
+  if (!is_create_table_ind ||
+       thd->lex->sql_command != SQLCOM_CREATE_TABLE)
   {
     if (partition_default_handling(table, part_info,
+                                   is_create_table_ind,
                                    table->s->normalized_path.str))
     {
       DBUG_RETURN(TRUE);
@@ -3742,7 +3747,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   DBUG_PRINT("info", ("default engine = %d, default_db_type = %d",
              ha_legacy_type(part_info->default_engine_type),
              ha_legacy_type(default_db_type)));
-  if (is_create_table_ind)
+  if (is_create_table_ind && old_lex->sql_command == SQLCOM_CREATE_TABLE)
   {
     if (old_lex->like_name)
     {
@@ -3756,14 +3761,32 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
       char *src_table= table_ident->table.str;
       char buf[FN_REFLEN];
       build_table_filename(buf, sizeof(buf), src_db, src_table, "");
-      if (partition_default_handling(table, part_info, buf))
+      if (partition_default_handling(table, part_info,
+                                     FALSE, buf))
       {
         result= TRUE;
         goto end;
       }
     }
     else
+    {
+      /*
+        When we come here we are doing a create table. In this case we
+        have already done some preparatory work on the old part_info
+        object. We don't really need this new partition_info object.
+        Thus we go back to the old partition info object.
+        We need to free any memory objects allocated on item_free_list
+        by the parser since we are keeping the old info from the first
+        parser call in CREATE TABLE.
+        We'll ensure that this object isn't put into table cache also
+        just to ensure we don't get into strange situations with the
+        item objects.
+      */
+      free_items(thd->free_list);
       part_info= thd->work_part_info;
+      thd->free_list= NULL;
+      table->s->version= 0UL;
+    }
   }
   table->part_info= part_info;
   table->file->set_part_info(part_info);
