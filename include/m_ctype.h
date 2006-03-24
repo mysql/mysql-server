@@ -56,7 +56,6 @@ typedef struct uni_ctype_st
 
 extern MY_UNI_CTYPE my_uni_ctype[256];
 
-
 /* wm_wc and wc_mb return codes */
 #define MY_CS_ILSEQ	0     /* Wrong by sequence: wb_wc                   */
 #define MY_CS_ILUNI	0     /* Cannot encode Unicode to charset: wc_mb    */
