@@ -775,7 +775,7 @@ if test ! -f $mdata/event.frm
 then
   c_ev="$c_ev CREATE TABLE event ("
   c_ev="$c_ev   db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
-  c_ev="$c_ev   name char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
+  c_ev="$c_ev   name char(64) CHARACTER SET utf8 NOT NULL default '',"
   c_ev="$c_ev   body longblob NOT NULL,"
   c_ev="$c_ev   definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
   c_ev="$c_ev   execute_at DATETIME default NULL,"
