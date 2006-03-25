@@ -887,7 +887,7 @@ mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) default NULL
+  `id` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist
