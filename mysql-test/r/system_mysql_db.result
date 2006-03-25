@@ -193,7 +193,7 @@ show create table event;
 Table	Create Table
 event	CREATE TABLE `event` (
   `db` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-  `name` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `name` char(64) NOT NULL DEFAULT '',
   `body` longblob NOT NULL,
   `definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
   `execute_at` datetime DEFAULT NULL,
