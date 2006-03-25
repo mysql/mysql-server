@@ -1748,3 +1748,10 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
+mysql-test/r/backup.log
+mysql-test/r/events.log
+mysql-test/r/events_bugs.log
+mysql-test/r/events_logs_tests.log
+mysql-test/r/mysqltest.log
+mysql-test/r/symlink.log
+mysql-test/r/system_mysql_db.log
