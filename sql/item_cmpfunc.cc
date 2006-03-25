@@ -2563,10 +2563,13 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 	(item= *li.ref())->check_cols(1))
       return TRUE; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
-    tmp_table_map=	    item->not_null_tables();
-    not_null_tables_cache|= tmp_table_map;
-    and_tables_cache&=      tmp_table_map;
-    const_item_cache&=      item->const_item();
+    if (!item->const_item())
+    {
+      tmp_table_map= item->not_null_tables();
+      not_null_tables_cache|= tmp_table_map;
+      and_tables_cache&= tmp_table_map;
+      const_item_cache= FALSE;
+    }  
     with_sum_func=	    with_sum_func || item->with_sum_func;
     if (item->maybe_null)
       maybe_null=1;
