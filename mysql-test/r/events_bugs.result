@@ -1,5 +1,20 @@
 create database if not exists events_test;
 use events_test;
+CREATE EVENT lower_case ON SCHEDULE EVERY 1 MINUTE DO SELECT 1;
+CREATE EVENT Lower_case ON SCHEDULE EVERY 2 MINUTE DO SELECT 2;
+ERROR HY000: Event 'Lower_case' already exists
+DROP EVENT Lower_case;
+SET NAMES cp1251;
+CREATE EVENT äîëåí_ðåãèñòúð_1251 ON SCHEDULE EVERY 1 YEAR DO SELECT 100;
+CREATE EVENT ÄîËåÍ_ðåãèñòúð_1251 ON SCHEDULE EVERY 2 YEAR DO SELECT 200;
+ERROR HY000: Event 'ДоЛеН_регистър_1251' already exists
+DROP EVENT ÄîËåÍ_ðåãèñòúð_1251;
+SET NAMES utf8;
+CREATE EVENT долен_регистър_утф8 ON SCHEDULE EVERY 3 YEAR DO SELECT 300;
+CREATE EVENT ДОЛЕН_регистър_утф8 ON SCHEDULE EVERY 4 YEAR DO SELECT 400;
+ERROR HY000: Event 'ДОЛЕН_регистър_утф8' already exists
+DROP EVENT ДОЛЕН_регистър_утф8;
+SET NAMES latin1;
 set @a=3;
 CREATE PROCEDURE p_16 () CREATE EVENT e_16 ON SCHEDULE EVERY @a SECOND DO SET @a=5;
 call p_16();
