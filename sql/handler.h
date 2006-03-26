@@ -580,6 +580,7 @@ typedef struct
    void (*binlog_log_query)(THD *thd, enum_binlog_command binlog_command,
                             const char *query, uint query_length,
                             const char *db, const char *table_name);
+   int (*release_temporary_latches)(THD *thd);
 } handlerton;
 
 extern const handlerton default_hton;
