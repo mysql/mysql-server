@@ -1179,11 +1179,23 @@ bool mysql_xa_recover(THD *thd)
   return value:  always 0
 */
 
+static my_bool release_temporary_latches(THD *thd, st_plugin_int *plugin,
+                                 void *unused)
+{
+  handlerton *hton= (handlerton *) plugin->plugin->info;  
+
+  if (hton->state == SHOW_OPTION_YES && hton->release_temporary_latches)
+    hton->release_temporary_latches(thd);
+
+  return FALSE;
+}
+
+
 int ha_release_temporary_latches(THD *thd)
 {
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  innobase_release_temporary_latches(thd);
-#endif
+  plugin_foreach(thd, release_temporary_latches, MYSQL_STORAGE_ENGINE_PLUGIN, 
+                 NULL);
+
   return 0;
 }
 
@@ -3264,6 +3276,8 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   case SQLCOM_TRUNCATE:
   case SQLCOM_ALTER_TABLE:
     DBUG_RETURN(0);
+  default:
+    break;
   }
 
   /*
