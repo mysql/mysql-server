@@ -1,5 +1,5 @@
+#include "azlib.h"
 #include <stdio.h>
-#include <azlib.h>
 
 #define TEST_STRING "This is a test"
 #define BUFFER_LEN 1024
