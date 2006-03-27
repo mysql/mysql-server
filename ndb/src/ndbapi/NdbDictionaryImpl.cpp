@@ -1139,7 +1139,8 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
   m_error.code= parseTableInfo(&rt, 
 			       (Uint32*)m_buffer.get_data(), 
 			       m_buffer.length() / 4, fullyQualifiedNames);
-  rt->buildColumnHash();
+  if (rt != 0)
+    rt->buildColumnHash();
   return rt;
 }
 
