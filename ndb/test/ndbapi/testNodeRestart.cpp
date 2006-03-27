@@ -433,6 +433,11 @@ int runBug15587(NDBT_Context* ctx, NDBT_Step* step){
   if (restarter.waitNodesNoStart(&nodeId, 1))
     return NDBT_FAILED; 
    
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  
+  if (restarter.dumpStateOneNode(nodeId, val2, 2))
+    return NDBT_FAILED;
+
   if (restarter.dumpStateOneNode(nodeId, dump, 2))
     return NDBT_FAILED;
 
@@ -444,6 +449,9 @@ int runBug15587(NDBT_Context* ctx, NDBT_Step* step){
   if (restarter.waitNodesNoStart(&nodeId, 1))
     return NDBT_FAILED; 
    
+  if (restarter.dumpStateOneNode(nodeId, val2, 1))
+    return NDBT_FAILED;
+  
   if (restarter.startNodes(&nodeId, 1))
     return NDBT_FAILED;
   
@@ -625,6 +633,10 @@ runBug18414(NDBT_Context* ctx, NDBT_Step* step){
       if (restarter.insertErrorInNode(node1, 8050))
 	goto err;
     }
+    
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    if (restarter.dumpStateOneNode(node2, val2, 2))
+      goto err;
     
     if (restarter.insertErrorInNode(node2, 5003))
       goto err;
