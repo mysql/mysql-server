@@ -150,7 +150,6 @@ DROP TABLE IF EXISTS t1;
 ########################################################
 
 # This part does not work
---disable_parsing
 --echo **** Partition by KEY ****
 
 # Create table that is partitioned by key on id with 4 parts.  Then
@@ -201,6 +200,5 @@ SHOW CREATE TABLE t1;
 --source include/rpl_multi_engine3.inc
 
 DROP TABLE IF EXISTS t1;
---enable_parsing
 
 # End of 5.1 test case
