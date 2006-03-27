@@ -14,7 +14,27 @@ try
     var configfile = fso.CreateTextFile("win\\configure.data", true);
     for (i=0; i < args.Count(); i++)
     {
-		configfile.WriteLine(args.Item(i));
+		var parts = args.Item(i).split('=');
+		switch (parts[0])
+		{
+			case "WITH_ARCHIVE_STORAGE_ENGINE":
+			case "WITH_BERKELEY_STORAGE_ENGINE":
+			case "WITH_BLACKHOLE_STORAGE_ENGINE":
+			case "WITH_EXAMPLE_STORAGE_ENGINE":
+			case "WITH_FEDERATED_STORAGE_ENGINE":
+			case "WITH_INNOBASE_STORAGE_ENGINE":
+			case "WITH_PARTITION_STORAGE_ENGINE":
+			case "__NT__":
+				line = "SET (" + args.Item(i) + " TRUE)";
+				break;
+			case "MYSQL_SERVER_SUFFIX":
+			case "COMPILATION_COMMENT":
+			case "MYSQL_TCP_PORT":
+				line = "SET (" + parts[0] + " " + parts[1] + ")";
+				break;
+		}
+    
+		configfile.WriteLine(line);
     }
     configfile.Close();
     
