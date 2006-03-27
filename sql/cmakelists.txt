@@ -18,8 +18,47 @@ SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc
                             ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
                             ${PROJECT_SOURCE_DIR}/include/sql_state.h PROPERTIES GENERATED 1)
                             
-ADD_DEFINITIONS(-DWITH_INNOBASE_STORAGE_ENGINE -DHAVE_ARCHIVE_DB -DHAVE_BLACKHOLE_DB -DHAVE_EXAMPLE_DB)
-ADD_DEFINITIONS(-DHAVE_ROW_BASED_REPLICATION -DHAVE_FEDERATED_DB -DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN -DWITH_PARTITION_STORAGE_ENGINE -D_CRT_SECURE_NO_DEPRECATE)
+IF(WITH_ARCHIVE_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-D WITH_ARCHIVE_STORAGE_ENGINE)
+  SET (mysql_se_htons "${mysql_se_htons}, &archive_hton")
+  SET (mysql_se_decls "${mysql_se_decls}, archive_hton")
+ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
+IF(WITH_BLACKHOLE_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-D WITH_BLACKHOLE_STORAGE_ENGINE)
+  SET (mysql_se_htons "${mysql_se_htons}, &blackhole_hton")
+  SET (mysql_se_decls "${mysql_se_decls}, blackhole_hton")
+ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
+IF(WITH_EXAMPLE_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-D WITH_EXAMPLE_STORAGE_ENGINE)
+  SET (mysql_se_htons "${mysql_se_htons}, &example_hton")
+  SET (mysql_se_decls "${mysql_se_decls}, example_hton")
+ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
+IF(WITH_INNOBASE_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-D WITH_INNOBASE_STORAGE_ENGINE)
+  SET (mysql_se_htons "${mysql_se_htons}, &innobase_hton")
+  SET (mysql_se_decls "${mysql_se_decls}, innobase_hton")
+ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
+IF(WITH_PARTITION_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-D WITH_PARTITION_STORAGE_ENGINE)
+  SET (mysql_se_htons "${mysql_se_htons}, &partition_hton")
+  SET (mysql_se_decls "${mysql_se_decls}, partition_hton")
+ENDIF(WITH_PARTITION_STORAGE_ENGINE)
+IF(WITH_FEDERATED_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-D WITH_FEDERATED_STORAGE_ENGINE)
+  SET (mysql_se_htons "${mysql_se_htons}, &federated_hton")
+  SET (mysql_se_decls "${mysql_se_decls}, federated_hton")
+ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
+IF(WITH_BERKELEY_STORAGE_ENGINE)
+  ADD_DEFINITIONS(-D WITH_BERKELEY_STORAGE_ENGINE)
+  SET (mysql_se_htons "${mysql_se_htons}, &berkeley_hton")
+  SET (mysql_se_decls "${mysql_se_decls}, berkeley_hton")
+ENDIF(WITH_BERKELEY_STORAGE_ENGINE)
+IF(__NT__)
+  ADD_DEFINITIONS(-D __NT__)
+ENDIF(__NT__)
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/handlerton.cc.in ${CMAKE_SOURCE_DIR}/sql/handlerton.cc @ONLY)
+
+ADD_DEFINITIONS(-DHAVE_ROW_BASED_REPLICATION -DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN)
 
 ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc discover.cc ../libmysql/errmsg.c field.cc
 					  field_conv.cc filesort.cc gstream.cc ha_blackhole.cc
@@ -67,51 +106,10 @@ ADD_CUSTOM_COMMAND(
 
 # Windows message file
 ADD_CUSTOM_COMMAND(
-	SOURCE ../VC++Files/sql/message.mc
+	SOURCE ../VC++Files/sql/messae.mc
 	OUTPUT message.rc message.h
 	COMMAND mc ARGS ../VC++Files/sql/message.mc
 	DEPENDS ../VC++Files/sql/message.mc)
-
-# MySql_version.h.
-#ADD_CUSTOM_COMMAND(
-#	SOURCE ${PROJECT_SOURCE_DIR}/include/mysql_version.h.in
-#	OUTPUT ${PROJECT_SOURCE_DIR}/include/mysql_version.h
-#	COMMAND cscript.exe ${PROJECT_SOURCE_DIR}/win/config-version.js
-#	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysql_version.h.in)
-
-# Handlerton file
-ADD_CUSTOM_COMMAND(
-	SOURCE ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in
-	OUTPUT ${PROJECT_SOURCE_DIR}/sql/handlerton.cc
-	COMMAND cscript.exe ${PROJECT_SOURCE_DIR}/win/config-handlerton.js ARGS ${PROJECT_SOURCE_DIR}/win/configure.data
-	DEPENDS ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in)
-
-# Error file
-#GET_TARGET_PROPERTY(COMP_ERR_EXE comp_err LOCATION)
-#ADD_CUSTOM_COMMAND(
-	#SOURCE ${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
-	#OUTPUT ${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
-	#COMMAND ${COMP_ERR_EXE}
-	#ARGS --charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
-	#     --out-dir=${PROJECT_SOURCE_DIR}/sql/share/
-##		 --header_file=${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
-#		 --name_file=${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
-#	     --state_file=${PROJECT_SOURCE_DIR}/include/sql_state.h
- #        --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
-  #  DEPENDS ${COMP_ERR_EXE} share/errmsg.txt)
-
-#ADD_CUSTOM_COMMAND(
-#	OUTPUT ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
-#	COMMAND echo
-#	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
-#)
-
-#ADD_CUSTOM_COMMAND(
-#	OUTPUT ${PROJECT_SOURCE_DIR}/include/sql_state.h
-#	COMMAND echo
-#	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
-#)
-
 
 # Gen_lex_hash
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
