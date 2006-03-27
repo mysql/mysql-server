@@ -475,8 +475,8 @@ page_zip_dir_encode(
 Allocate memory for zlib. */
 static
 void*
-page_zip_alloc(
-/*===========*/
+page_zip_malloc(
+/*============*/
 	void*	opaque __attribute__((unused)),
 	uInt	items,
 	uInt	size)
@@ -571,7 +571,7 @@ page_zip_compress(
 	buf_end = buf + page_zip->size - PAGE_DATA;
 
 	/* Compress the data payload. */
-	c_stream.zalloc = page_zip_alloc;
+	c_stream.zalloc = page_zip_malloc;
 	c_stream.zfree = page_zip_free;
 	c_stream.opaque = (voidpf) 0;
 
@@ -1425,7 +1425,7 @@ page_zip_decompress(
 	memcpy(page + (PAGE_NEW_SUPREMUM - REC_N_NEW_EXTRA_BYTES + 1),
 		     supremum_extra_data, sizeof supremum_extra_data);
 
-	d_stream.zalloc = page_zip_alloc;
+	d_stream.zalloc = page_zip_malloc;
 	d_stream.zfree = page_zip_free;
 	d_stream.opaque = (voidpf) 0;
 
