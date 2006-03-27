@@ -241,9 +241,10 @@ $CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
     mysql-test/std_data/*.cnf \
     $BASE/mysql-test/std_data
-$CP mysql-test/t/*.test mysql-test/t/*.imtest \
-    mysql-test/t/*.disabled mysql-test/t/*.opt \
-    mysql-test/t/*.slave-mi mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
+$CP mysql-test/t/*.test $BASE/mysql-test/t
+$CP mysql-test/t/*.imtest mysql-test/t/*.disabled $BASE/mysql-test/t
+$CP mysql-test/t/*.opt mysql-test/t/*.slave-mi $BASE/mysql-test/t
+$CP mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
 $CP mysql-test/r/*.result mysql-test/r/*.require \
     $BASE/mysql-test/r
 $CP mysql-test/extra/binlog_tests/*.test $BASE/mysql-test/extra/binlog_tests
