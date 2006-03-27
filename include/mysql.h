@@ -287,8 +287,10 @@ typedef struct st_mysql
     from mysql_stmt_close if close had to cancel result set of this object.
   */
   my_bool *unbuffered_fetch_owner;
+#if defined(EMBEDDED_LIBRARY) || defined(EMBEDDED_LIBRARY_COMPATIBLE) || MYSQL_VERSION_ID >= 50100
   /* needed for embedded server - no net buffer to store the 'info' */
   char *info_buffer;
+#endif
 } MYSQL;
 
 typedef struct st_mysql_res {
