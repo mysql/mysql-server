@@ -1012,7 +1012,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
     }
   }
 #endif
-#ifndef __WIN__
+#if !(defined(__WIN__) || defined(__NETWARE__))
 #ifdef HAVE_LIBPTHREAD
   else
 #endif
