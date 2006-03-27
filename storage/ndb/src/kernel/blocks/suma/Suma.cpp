@@ -1040,6 +1040,15 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
   const Uint32 reportSubscribe = (flags & SubCreateReq::ReportSubscribe) ?
     Subscription::REPORT_SUBSCRIBE : 0;
   const Uint32 tableId = req.tableId;
+  Subscription::State state = (Subscription::State) req.state;
+  if (signal->getLength() != SubCreateReq::SignalLength2)
+  {
+    /*
+      api or restarted by older version
+      if restarted by old version, do the best we can
+    */
+    state = Subscription::DEFINED;
+  }
 
   Subscription key;
   key.m_subscriptionId  = subId;
@@ -1067,6 +1076,17 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
       addTableId(req.tableId, subPtr, 0);
     }
   } else {
+    if (c_startup.m_restart_server_node_id && 
+        refToNode(subRef) != c_startup.m_restart_server_node_id)
+    {
+      /**
+       * only allow "restart_server" Suma's to come through 
+       * for restart purposes
+       */
+      jam();
+      sendSubStartRef(signal, 1405);
+      DBUG_VOID_RETURN;
+    }
     // Check that id/key is unique
     if(c_subscriptions.find(subPtr, key)) {
       jam();
@@ -1090,7 +1110,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     subPtr.p->m_options          = reportSubscribe | reportAll;
     subPtr.p->m_tableId          = tableId;
     subPtr.p->m_table_ptrI       = RNIL;
-    subPtr.p->m_state            = Subscription::DEFINED;
+    subPtr.p->m_state            = state;
     subPtr.p->n_subscribers      = 0;
     subPtr.p->m_current_sync_ptrI = RNIL;
 
@@ -1446,7 +1466,9 @@ Suma::completeOneSubscriber(Signal *signal, TablePtr tabPtr, SubscriberPtr subbP
   jam();
   DBUG_ENTER("Suma::completeOneSubscriber");
 
-  if (tabPtr.p->m_error)
+  if (tabPtr.p->m_error &&
+      (c_startup.m_restart_server_node_id == 0 ||
+       tabPtr.p->m_state != Table::DROPPED))
   {
     sendSubStartRef(signal,subbPtr,tabPtr.p->m_error,
 		    SubscriptionData::TableData);
@@ -1531,8 +1553,44 @@ Suma::completeInitTable(Signal *signal, TablePtr tabPtr)
 void
 Suma::execGET_TABINFOREF(Signal* signal){
   jamEntry();
-  /* ToDo handle this */
-  ndbrequire(false);
+  GetTabInfoRef* ref = (GetTabInfoRef*)signal->getDataPtr();
+  Uint32 tableId = ref->tableId;
+  Uint32 senderData = ref->senderData;
+  GetTabInfoRef::ErrorCode errorCode =
+    (GetTabInfoRef::ErrorCode) ref->errorCode;
+  int do_resend_request = 0;
+  TablePtr tabPtr;
+  c_tablePool.getPtr(tabPtr, senderData);
+  switch (errorCode)
+  {
+  case GetTabInfoRef::TableNotDefined:
+    // wrong state
+    break;
+  case GetTabInfoRef::InvalidTableId:
+    // no such table
+    break;
+  case GetTabInfoRef::Busy:
+    do_resend_request = 1;
+    break;
+  case GetTabInfoRef::TableNameTooLong:
+    ndbrequire(false);
+  }
+  if (do_resend_request)
+  {
+    GetTabInfoReq * req = (GetTabInfoReq *)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = senderData;
+    req->requestType = 
+      GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
+    req->tableId = tableId;
+    sendSignalWithDelay(DBDICT_REF, GSN_GET_TABINFOREQ, signal,
+                        30, GetTabInfoReq::SignalLength);
+    return;
+  }
+  tabPtr.p->m_state = Table::DROPPED;
+  tabPtr.p->m_error = errorCode;
+  completeAllSubscribers(signal, tabPtr);
+  completeInitTable(signal, tabPtr);
 }
 
 void
@@ -2153,7 +2211,7 @@ Suma::execSUB_START_REQ(Signal* signal){
   Subscription key; 
   key.m_subscriptionId        = req->subscriptionId;
   key.m_subscriptionKey       = req->subscriptionKey;
-  
+
   if (c_startup.m_restart_server_node_id && 
       refToNode(senderRef) != c_startup.m_restart_server_node_id)
   {
@@ -2173,12 +2231,23 @@ Suma::execSUB_START_REQ(Signal* signal){
     DBUG_VOID_RETURN;
   }
   
-  if (subPtr.p->m_state != Subscription::DEFINED) {
+  if (subPtr.p->m_state == Subscription::LOCKED) {
     jam();
     DBUG_PRINT("info",("Locked"));
     sendSubStartRef(signal, 1411);
     DBUG_VOID_RETURN;
   }
+
+  if (subPtr.p->m_state == Subscription::DROPPED &&
+      c_startup.m_restart_server_node_id == 0) {
+    jam();
+    DBUG_PRINT("info",("Dropped"));
+    sendSubStartRef(signal, 1418);
+    DBUG_VOID_RETURN;
+  }
+
+  ndbrequire(subPtr.p->m_state == Subscription::DEFINED ||
+             c_startup.m_restart_server_node_id);
 
   SubscriberPtr subbPtr;
   if(!c_subscriberPool.seize(subbPtr)){
@@ -2193,7 +2262,8 @@ Suma::execSUB_START_REQ(Signal* signal){
   c_subscriber_nodes.set(refToNode(subscriberRef));
 
   // setup subscription record
-  subPtr.p->m_state = Subscription::LOCKED;
+  if (subPtr.p->m_state == Subscription::DEFINED)
+    subPtr.p->m_state = Subscription::LOCKED;
   // store these here for later use
   subPtr.p->m_senderRef  = senderRef;
   subPtr.p->m_senderData = senderData;
@@ -2241,8 +2311,14 @@ Suma::sendSubStartComplete(Signal* signal,
 
   SubscriptionPtr subPtr;
   c_subscriptions.getPtr(subPtr, subbPtr.p->m_subPtrI);
-  ndbrequire( subPtr.p->m_state == Subscription::LOCKED )
-  subPtr.p->m_state = Subscription::DEFINED;
+  ndbrequire(subPtr.p->m_state == Subscription::LOCKED ||
+             (subPtr.p->m_state == Subscription::DROPPED &&
+              c_startup.m_restart_server_node_id));
+  if (subPtr.p->m_state == Subscription::LOCKED)
+  {
+    jam();
+    subPtr.p->m_state = Subscription::DEFINED;
+  }
   subPtr.p->n_subscribers++;
 
   DBUG_PRINT("info",("subscriber: %u[%u,%u] subscription: %u[%u,%u] "
@@ -2293,8 +2369,14 @@ Suma::sendSubStartRef(Signal* signal,
   SubscriptionPtr subPtr;
   c_subscriptions.getPtr(subPtr, subbPtr.p->m_subPtrI);
 
-  ndbrequire( subPtr.p->m_state == Subscription::LOCKED );
-  subPtr.p->m_state = Subscription::DEFINED;
+  ndbrequire(subPtr.p->m_state == Subscription::LOCKED ||
+             (subPtr.p->m_state == Subscription::DROPPED &&
+              c_startup.m_restart_server_node_id));
+  if (subPtr.p->m_state == Subscription::LOCKED)
+  {
+    jam();
+    subPtr.p->m_state = Subscription::DEFINED;
+  }
 
   SubStartRef * ref= (SubStartRef *)signal->getDataPtrSend();
   ref->senderRef        = reference();
@@ -2360,6 +2442,18 @@ Suma::execSUB_STOP_REQ(Signal* signal){
     DBUG_VOID_RETURN;
   }
   
+  if (c_startup.m_restart_server_node_id && 
+      refToNode(senderRef) != c_startup.m_restart_server_node_id)
+  {
+    /**
+     * only allow "restart_server" Suma's to come through 
+     * for restart purposes
+     */
+    jam();
+    sendSubStopRef(signal, 1405);
+    DBUG_VOID_RETURN;
+  }
+
   if (subPtr.p->m_state == Subscription::LOCKED) {
     jam();
     DBUG_PRINT("error", ("locked"));
@@ -3668,7 +3762,17 @@ Suma::execSUB_REMOVE_REQ(Signal* signal)
     sendSubRemoveRef(signal, req, 1413);
     DBUG_VOID_RETURN;
   }
-  
+  if (subPtr.p->m_state == Subscription::DROPPED)
+  {
+    /**
+     * already dropped
+     */
+    jam();
+    sendSubRemoveRef(signal, req, 1419);
+    DBUG_VOID_RETURN;
+  }
+
+  ndbrequire(subPtr.p->m_state == Subscription::DEFINED);
   DBUG_PRINT("info",("n_subscribers: %u", subPtr.p->n_subscribers));
 
   if (subPtr.p->n_subscribers == 0)
@@ -3981,8 +4085,9 @@ Suma::Restart::nextSubscription(Signal* signal, Uint32 sumaRef)
   case SubCreateReq::TableEvent:
     jam();
     req->tableId = subPtr.p->m_tableId;
+    req->state = subPtr.p->m_state;
     suma.sendSignal(sumaRef, GSN_SUB_CREATE_REQ, signal,
-		    SubCreateReq::SignalLength, JBB);
+		    SubCreateReq::SignalLength2, JBB);
     DBUG_VOID_RETURN;
   case SubCreateReq::SingleTableScan:
     jam();
