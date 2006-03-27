@@ -544,7 +544,9 @@ struct trx_struct{
 					the transaction; note that it is also
 					in the lock list trx_locks */
 	dict_index_t*	new_rec_locks[2];/* these are normally NULL; if
-					srv_locks_unsafe_for_binlog is TRUE,
+					srv_locks_unsafe_for_binlog is TRUE
+					or session is using READ COMMITTED
+					isolation level,
 					in a cursor search, if we set a new
 					record lock on an index, this is set
 					to point to the index; this is

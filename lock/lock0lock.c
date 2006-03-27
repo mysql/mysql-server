@@ -2001,7 +2001,8 @@ lock_rec_lock_fast(
 		if (!impl) {
 			lock_rec_create(mode, rec, index, trx);
 
-			if (srv_locks_unsafe_for_binlog) {
+			if (srv_locks_unsafe_for_binlog
+			|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
 				trx_register_new_rec_lock(trx, index);
 			}
 		}
@@ -2027,7 +2028,8 @@ lock_rec_lock_fast(
 
 		if (!lock_rec_get_nth_bit(lock, heap_no)) {
 			lock_rec_set_nth_bit(lock, heap_no);
-			if (srv_locks_unsafe_for_binlog) {
+			if (srv_locks_unsafe_for_binlog
+			|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
 				trx_register_new_rec_lock(trx, index);
 			}
 		}
@@ -2087,7 +2089,8 @@ lock_rec_lock_slow(
 
 		err = lock_rec_enqueue_waiting(mode, rec, index, thr);
 
-		if (srv_locks_unsafe_for_binlog) {
+		if (srv_locks_unsafe_for_binlog
+		|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
 			trx_register_new_rec_lock(trx, index);
 		}
 	} else {
@@ -2096,7 +2099,8 @@ lock_rec_lock_slow(
 
 			lock_rec_add_to_queue(LOCK_REC | mode, rec, index,
 									trx);
-			if (srv_locks_unsafe_for_binlog) {
+			if (srv_locks_unsafe_for_binlog
+			|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
 				trx_register_new_rec_lock(trx, index);
 			}
 		}
@@ -2436,15 +2440,18 @@ lock_rec_inherit_to_gap(
 
 	lock = lock_rec_get_first(rec);
 
-	/* If srv_locks_unsafe_for_binlog is TRUE, we do not want locks set
+	/* If srv_locks_unsafe_for_binlog is TRUE or session is using
+	READ COMMITTED isolation level, we do not want locks set
 	by an UPDATE or a DELETE to be inherited as gap type locks. But we
 	DO want S-locks set by a consistency constraint to be inherited also
 	then. */
 
 	while (lock != NULL) {
 		if (!lock_rec_get_insert_intention(lock)
-			&& !(srv_locks_unsafe_for_binlog
-				&& lock_get_mode(lock) == LOCK_X)) {
+		&& !((srv_locks_unsafe_for_binlog
+				|| lock->trx->isolation_level ==
+			     		TRX_ISO_READ_COMMITTED)
+			&& lock_get_mode(lock) == LOCK_X)) {
 
 			lock_rec_add_to_queue(LOCK_REC | lock_get_mode(lock)
 				| LOCK_GAP,
