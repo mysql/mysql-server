@@ -26,4 +26,3 @@ base_configs=" \
 	--without-man \
 	--without-csv-storage-engine \
 	"
-
