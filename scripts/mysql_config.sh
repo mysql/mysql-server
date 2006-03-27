@@ -107,7 +107,7 @@ include="-I$pkgincludedir"
 for remove in DDBUG_OFF DSAFEMALLOC USAFEMALLOC DSAFE_MUTEX \
               DPEDANTIC_SAFEMALLOC DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
               DEXTRA_DEBUG DHAVE_purify 'O[0-9]' 'W[-A-Za-z]*' \
-              Xa xstrconst
+              Xa xstrconst "xc99=none"
 do
   # The first option we might strip will always have a space before it because
   # we set -I$pkgincludedir as the first option
