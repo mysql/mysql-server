@@ -1435,7 +1435,8 @@ run_again:
 }
 
 /*************************************************************************
-This can only be used when srv_locks_unsafe_for_binlog is TRUE. Before
+This can only be used when srv_locks_unsafe_for_binlog is TRUE or
+this session is using a READ COMMITTED isolation level. Before
 calling this function we must use trx_reset_new_rec_lock_info() and
 trx_register_new_rec_lock() to store the information which new record locks
 really were set. This function removes a newly set lock under prebuilt->pcur,
@@ -1466,11 +1467,13 @@ row_unlock_for_mysql(
 	ut_ad(prebuilt && trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
-	if (!srv_locks_unsafe_for_binlog) {
+	if (!(srv_locks_unsafe_for_binlog
+	|| trx->isolation_level == TRX_ISO_READ_COMMITTED)) {
 
 		fprintf(stderr,
 "InnoDB: Error: calling row_unlock_for_mysql though\n"
-"InnoDB: srv_locks_unsafe_for_binlog is FALSE.\n");
+"InnoDB: srv_locks_unsafe_for_binlog is FALSE and\n"
+"InnoDB: this session is not using READ COMMITTED isolation level.\n");
 
 		return(DB_SUCCESS);
 	}
