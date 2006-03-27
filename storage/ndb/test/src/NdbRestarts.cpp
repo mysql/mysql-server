@@ -641,8 +641,8 @@ int restartNFDuringNR(NdbRestarter& _restarter,
     CHECK(_restarter.waitNodesNoStart(&nodeId, 1) == 0,
 	  "waitNodesNoStart failed");
     
-    int val = DumpStateOrd::CmvmiSetRestartOnErrorInsert;
-    CHECK(_restarter.dumpStateOneNode(nodeId, &val, 1) == 0,
+    int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 } ;
+    CHECK(_restarter.dumpStateOneNode(nodeId, val, 2) == 0,
 	  "failed to set RestartOnErrorInsert");
     
     CHECK(_restarter.insertErrorInNode(nodeId, error) == 0,
@@ -698,8 +698,8 @@ int restartNFDuringNR(NdbRestarter& _restarter,
     CHECK(_restarter.waitNodesNoStart(&nodeId, 1) == 0,
 	  "waitNodesNoStart failed");
         
-    int val = DumpStateOrd::CmvmiSetRestartOnErrorInsert;
-    CHECK(_restarter.dumpStateOneNode(crashNodeId, &val, 2) == 0,
+    int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    CHECK(_restarter.dumpStateOneNode(crashNodeId, val, 2) == 0,
 	  "failed to set RestartOnErrorInsert");
     
     CHECK(_restarter.insertErrorInNode(crashNodeId, error) == 0,
@@ -771,8 +771,8 @@ int restartNodeDuringLCP(NdbRestarter& _restarter,
 	   << " error code = " << error << endl;
 
     {
-      int val = DumpStateOrd::CmvmiSetRestartOnErrorInsert;
-      CHECK(_restarter.dumpStateAllNodes(&val, 1) == 0,
+      int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+      CHECK(_restarter.dumpStateAllNodes(val, 2) == 0,
 	    "failed to set RestartOnErrorInsert");
     }
 
@@ -812,8 +812,8 @@ int restartNodeDuringLCP(NdbRestarter& _restarter,
     ndbout << _restart->m_name << " restarting non-master node = " << nodeId
 	   << " error code = " << error << endl;
 
-    int val = DumpStateOrd::CmvmiSetRestartOnErrorInsert;
-    CHECK(_restarter.dumpStateAllNodes(&val, 1) == 0,
+    int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    CHECK(_restarter.dumpStateAllNodes(val, 2) == 0,
 	  "failed to set RestartOnErrorInsert");
     
     CHECK(_restarter.insertErrorInNode(nodeId, error) == 0,
