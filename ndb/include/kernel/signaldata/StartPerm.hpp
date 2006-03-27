@@ -64,5 +64,11 @@ private:
   
   Uint32 startingNodeId;
   Uint32 errorCode;  
+
+  enum ErrorCode
+  {
+    ZNODE_ALREADY_STARTING_ERROR = 305,
+    InitialStartRequired = 320
+  };
 };
 #endif
