@@ -1078,11 +1078,24 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 	      g_sectionSegmentPool.getNoOfFree());
   }
   
-  if (dumpState->args[0] == DumpStateOrd::CmvmiSetRestartOnErrorInsert){
+  if (dumpState->args[0] == DumpStateOrd::CmvmiSetRestartOnErrorInsert)
+  {
     if(signal->getLength() == 1)
-      theConfig.setRestartOnErrorInsert((int)NRT_NoStart_Restart);
+    {
+      Uint32 val = (Uint32)NRT_NoStart_Restart;
+      const ndb_mgm_configuration_iterator * p = 
+	theConfig.getOwnConfigIterator();
+      ndbrequire(p != 0);
+      
+      if(!ndb_mgm_get_int_parameter(p, CFG_DB_STOP_ON_ERROR_INSERT, &val))
+      {
+	theConfig.setRestartOnErrorInsert(val);
+      }
+    }
     else
+    {
       theConfig.setRestartOnErrorInsert(signal->theData[1]);
+    }
   }
 
   if (dumpState->args[0] == DumpStateOrd::CmvmiTestLongSigWithDelay) {
