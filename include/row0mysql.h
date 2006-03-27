@@ -244,7 +244,8 @@ row_update_for_mysql(
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
 /*************************************************************************
-This can only be used when srv_locks_unsafe_for_binlog is TRUE. Before
+This can only be used when srv_locks_unsafe_for_binlog is TRUE or
+session is using a READ COMMITTED isolation level. Before
 calling this function we must use trx_reset_new_rec_lock_info() and
 trx_register_new_rec_lock() to store the information which new record locks
 really were set. This function removes a newly set lock under prebuilt->pcur,
