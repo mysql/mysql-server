@@ -6425,9 +6425,9 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     my_ptrdiff_t const pos=
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
     table->record[1][pos]= 0xFF;
-    if ((error= table->file->index_read_idx(table->record[1], 0, key,
-                                            table->key_info->key_length,
-                                            HA_READ_KEY_EXACT)))
+    if ((error= table->file->index_read(table->record[1], key,
+                                        table->key_info->key_length,
+                                        HA_READ_KEY_EXACT)))
     {
       table->file->print_error(error, MYF(0));
       DBUG_RETURN(error);
