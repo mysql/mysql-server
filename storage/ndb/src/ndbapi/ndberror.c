@@ -475,6 +475,8 @@ ErrorBundle ErrorCodes[] = {
   { 1415, DMEC, SE, "Subscription not unique in subscriber manager" },
   { 1416, DMEC, IS, "Can't accept more subscriptions, out of space in pool" },
   { 1417, DMEC, SE, "Table in suscription not defined, probably dropped" },
+  { 1418, DMEC, SE, "Subscription dropped, no new subscribers allowed" },
+  { 1419, DMEC, SE, "Subscription already dropped" },
 
   { 4004, DMEC, AE, "Attribute name not found in the Table" },
   
