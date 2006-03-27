@@ -472,6 +472,31 @@ page_zip_dir_encode(
 }
 
 /**************************************************************************
+Allocate memory for zlib. */
+static
+void*
+page_zip_alloc(
+/*===========*/
+	void*	opaque __attribute__((unused)),
+	uInt	items,
+	uInt	size)
+{
+	return(ut_malloc(items * size));
+}
+
+/**************************************************************************
+Deallocate memory for zlib. */
+static
+void
+page_zip_free(
+/*==========*/
+	 void*	opaque __attribute__((unused)),
+	 void*	address)
+{
+	return(ut_free(address));
+}
+
+/**************************************************************************
 Compress a page. */
 
 ibool
@@ -546,8 +571,8 @@ page_zip_compress(
 	buf_end = buf + page_zip->size - PAGE_DATA;
 
 	/* Compress the data payload. */
-	c_stream.zalloc = (alloc_func) 0;
-	c_stream.zfree = (free_func) 0;
+	c_stream.zalloc = page_zip_alloc;
+	c_stream.zfree = page_zip_free;
 	c_stream.opaque = (voidpf) 0;
 
 	err = deflateInit(&c_stream, Z_DEFAULT_COMPRESSION);
@@ -1400,8 +1425,8 @@ page_zip_decompress(
 	memcpy(page + (PAGE_NEW_SUPREMUM - REC_N_NEW_EXTRA_BYTES + 1),
 		     supremum_extra_data, sizeof supremum_extra_data);
 
-	d_stream.zalloc = (alloc_func) 0;
-	d_stream.zfree = (free_func) 0;
+	d_stream.zalloc = page_zip_alloc;
+	d_stream.zfree = page_zip_free;
 	d_stream.opaque = (voidpf) 0;
 
 	if (UNIV_UNLIKELY(inflateInit(&d_stream) != Z_OK)) {
