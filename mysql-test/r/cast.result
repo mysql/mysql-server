@@ -370,3 +370,11 @@ DROP TABLE t1;
 select cast(NULL as decimal(6)) as t1;
 t1
 NULL
+CREATE TABLE t1 (f1 double);
+INSERT INTO t1 SET f1 = -1.0e+30 ;
+INSERT INTO t1 SET f1 = +1.0e+30 ;
+SELECT f1 AS double_val, CAST(f1 AS SIGNED INT) AS cast_val FROM t1;
+double_val	cast_val
+-1e+30	-9223372036854775808
+1e+30	9223372036854775807
+DROP TABLE t1;
