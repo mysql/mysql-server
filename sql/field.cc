@@ -3385,6 +3385,11 @@ longlong Field_double::val_int(void)
   else
 #endif
     doubleget(j,ptr);
+  /* Check whether we fit into longlong range */
+  if (j <= (double) LONGLONG_MIN)
+    return (longlong) LONGLONG_MIN;
+  if (j >= (double) (ulonglong) LONGLONG_MAX)
+    return (longlong) LONGLONG_MAX;
   return ((longlong) j);
 }
 

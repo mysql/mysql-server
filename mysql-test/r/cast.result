@@ -267,3 +267,11 @@ Warning	1105	Cast to signed converted positive out-of-range integer to it's nega
 select cast(1.0e+300 as signed int);
 cast(1.0e+300 as signed int)
 9223372036854775807
+CREATE TABLE t1 (f1 double);
+INSERT INTO t1 SET f1 = -1.0e+30 ;
+INSERT INTO t1 SET f1 = +1.0e+30 ;
+SELECT f1 AS double_val, CAST(f1 AS SIGNED INT) AS cast_val FROM t1;
+double_val	cast_val
+-1e+30	-9223372036854775808
+1e+30	9223372036854775807
+DROP TABLE t1;
