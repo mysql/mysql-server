@@ -2028,7 +2028,6 @@ void Item_date_add_interval::fix_length_and_dec()
 
 bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
 {
-  long period,sign;
   INTERVAL interval;
 
   if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE) ||
