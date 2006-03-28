@@ -1063,6 +1063,8 @@ sub executable_setup () {
       $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
       $exe_mysql_client_test=
         mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
+                       "$glob_basedir/tests/release/mysql_client_test",
+                       "$glob_basedir/tests/debug/mysql_client_test",
                        "$path_client_bindir/mysql_client_test",
 		       "/usr/bin/false");
     }
