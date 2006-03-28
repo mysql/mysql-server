@@ -1,6 +1,7 @@
 #
 # Test of partitions that require symlinks
 #
+-- source include/have_partition.inc
 
 -- require r/have_symlink.require
 disable_query_log;

@@ -1537,7 +1537,7 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
       break;
     }
     NdbDictionary::Table tmp(*pTab);
-    tmp.setNodeGroupIds(0, 0);
+    //tmp.setNodeGroupIds(0, 0);
     if (ndb->getDictionary()->createTable(tmp) != 0){
       g_err << "createTable failed: "
             << ndb->getDictionary()->getNdbError() << endl;
