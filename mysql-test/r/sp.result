@@ -4885,5 +4885,11 @@ b
 a
 drop procedure bug16474_1|
 drop procedure bug16474_2|
+set @x = 2|
+select * from t1 order by @x|
+id	data
+c	2
+b	3
+a	1
 delete from t1|
 drop table t1,t2;
