@@ -8196,7 +8196,12 @@ void ndb_serialize_cond(const Item *item, void *arg)
                      context->expecting_field_result(INT_RESULT))
                   : true)) &&
                 // Bit fields no yet supported in scan filter
-                type != MYSQL_TYPE_BIT)
+                type != MYSQL_TYPE_BIT &&
+                // No BLOB support in scan filter
+                type != MYSQL_TYPE_TINY_BLOB &&
+                type != MYSQL_TYPE_MEDIUM_BLOB &&
+                type != MYSQL_TYPE_LONG_BLOB &&
+                type != MYSQL_TYPE_BLOB)
             {
               const NDBCOL *col= tab->getColumn(field->field_name);
               DBUG_ASSERT(col);
