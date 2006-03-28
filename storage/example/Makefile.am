@@ -31,7 +31,7 @@ pkglib_LTLIBRARIES =	ha_example.la
 ha_example_la_LDFLAGS =	-module
 noinst_HEADERS	      =	ha_example.h
 ha_example_la_SOURCES =	ha_example.cc
-
+EXTRA_DIST	      = cmakelists.txt
 LDADD =
 
 DEFS =                  -DMYSQL_SERVER @DEFS@
