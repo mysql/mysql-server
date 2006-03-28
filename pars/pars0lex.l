@@ -466,6 +466,10 @@ In the state 'quoted', only two actions are possible (defined below). */
 			return(PARS_UNSIGNED_TOKEN);
 }
 
+"EXIT"		{
+			return(PARS_EXIT_TOKEN);
+}
+
 {ID}		{
 			yylval = sym_tab_add_id(pars_sym_tab_global,
 							(byte*)yytext,

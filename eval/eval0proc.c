@@ -213,6 +213,38 @@ for_step(
 }
 
 /**************************************************************************
+Performs an execution step of an exit statement node. */
+
+que_thr_t*
+exit_step(
+/*======*/
+				/* out: query thread to run next or NULL */
+	que_thr_t*	thr)	/* in: query thread */
+{
+	exit_node_t*	node;
+	que_node_t*	loop_node;
+
+	ut_ad(thr);
+
+	node = thr->run_node;
+
+	ut_ad(que_node_get_type(node) == QUE_NODE_EXIT);
+
+	/* Loops exit by setting thr->run_node as the loop node's parent, so
+	find our containing loop node and get its parent. */
+
+	loop_node = que_node_get_containing_loop_node(node);
+
+	/* If someone uses an EXIT statement outside of a loop, this will
+	trigger. */
+	ut_a(loop_node);
+
+	thr->run_node = que_node_get_parent(loop_node);
+
+	return(thr);
+}
+
+/**************************************************************************
 Performs an execution step of a return-statement node. */
 
 que_thr_t*
