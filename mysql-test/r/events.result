@@ -389,10 +389,9 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 select definer, name, db from mysql.event;
 definer	name	db
 root@localhost	закачка	events_test
-"Should be only 1 process"
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	events_test	Query	#	NULL	show processlist
+"Should be 0 processes"
+select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	command	state	info
 select release_lock("test_lock1");
 release_lock("test_lock1")
 1
@@ -409,12 +408,11 @@ get_lock("test_lock2", 20)
 "Create an event which tries to acquire a mutex. The event locks on the mutex"
 create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
 "Let some time pass to the event starts"
-"Should have only 3 processes: the scheduler, our conn and the locked event"
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
-#	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2", 20)
+"Should have only 2 processes: the scheduler and the locked event"
+select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	command	state	info
+event_scheduler	localhost	NULL	Connect	Sleeping	NULL
+root	localhost	events_test	Connect	User lock	select get_lock("test_lock2", 20)
 "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
 release_lock("test_lock2")
@@ -425,23 +423,21 @@ select get_lock("test_lock2_1", 20);
 get_lock("test_lock2_1", 20)
 1
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
-"Should see 2 processes, one locked on get_lock("
+"Should see 1 process, locked on get_lock("
 "Shutting down the scheduler, it should wait for the running event"
 set global event_scheduler=0;
-"Should have only 3 processes: the scheduler, our conn and the locked event"
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
-#	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2_1", 20)
+"Should have only 2 processes: the scheduler and the locked event"
+select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	command	state	info
+event_scheduler	localhost	NULL	Connect	Sleeping	NULL
+root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
 "Release the lock so the child process should finish. Hence the scheduler also"
 select release_lock("test_lock2_1");
 release_lock("test_lock2_1")
 1
-"Should have only our process now:"
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	events_test	Query	#	NULL	show processlist
+"Should see 0 processes now:"
+select /*5*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	command	state	info
 drop event закачка21;
 create table t_16 (s1 int);
 create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
