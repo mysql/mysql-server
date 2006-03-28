@@ -1063,6 +1063,8 @@ sub executable_setup () {
       $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
       $exe_mysql_client_test=
         mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
+                       "$glob_basedir/tests/release/mysql_client_test",
+                       "$glob_basedir/tests/debug/mysql_client_test",
                        "$path_client_bindir/mysql_client_test",
 		       "/usr/bin/false");
     }
@@ -1074,7 +1076,8 @@ sub executable_setup () {
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
     $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
     $exe_mysql_fix_system_tables=
-      mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables");
+      mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
+                        "/usr/bin/false");
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/storage/ndb/tools");
     $exe_ndb_mgm=        "$glob_basedir/storage/ndb/src/mgmclient/ndb_mgm";
   }
@@ -1090,7 +1093,8 @@ sub executable_setup () {
     $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
     $exe_mysql_fix_system_tables=
       mtr_script_exists("$path_client_bindir/mysql_fix_privilege_tables",
-			"$glob_basedir/scripts/mysql_fix_privilege_tables");
+			"$glob_basedir/scripts/mysql_fix_privilege_tables",
+                        "/usr/bin/false");
     $exe_my_print_defaults=
       mtr_exe_exists("$path_client_bindir/my_print_defaults");
 
@@ -1126,6 +1130,8 @@ sub executable_setup () {
       $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
       $exe_mysql_client_test=
         mtr_exe_exists("$path_client_bindir/mysql_client_test",
+                       "$glob_basedir/tests/release/mysql_client_test",
+                       "$glob_basedir/tests/debug/mysql_client_test",
 		       "/usr/bin/false"); # FIXME temporary
     }
 

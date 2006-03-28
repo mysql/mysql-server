@@ -116,6 +116,13 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define _REENTRANT			1
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
 
+/*
+  Windows has two ways to use thread local storage. The most efficient
+  is using __declspec(thread), but that does not work properly when
+  used in a .dll that is loaded at runtime, after program load. So for
+  libmysql.dll and libmysqld.dll we define USE_TLS in order to use the
+  TlsXxx() API instead, which works in all cases.
+*/
 #ifdef USE_TLS					/* For LIBMYSQL.DLL */
 #undef SAFE_MUTEX				/* This will cause conflicts */
 #define pthread_key(T,V)  DWORD V

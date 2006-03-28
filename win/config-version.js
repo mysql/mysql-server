@@ -9,11 +9,91 @@ try
 	// first we attempt to open the main configure.in file
     var fso = new ActiveXObject("Scripting.FileSystemObject");
 
+	var args = WScript.Arguments
+
+    // Find any configured MYSQL_SERVER_SUFFIX.
+    // Find any extra preprocessor definitions.
+    var datafile = fso.OpenTextFile(args.Item(0), ForReading);
+    var server_suffix = '';
+    var server_comment = 'Source distribution';
+    var server_port = '';
+    var defs = '';
+    var htons = '';
+    var subdirs = '';
+    var depends = '';
+    while (! datafile.AtEndOfStream)
+    {
+        var line = datafile.ReadLine();
+        if (line.indexOf("MYSQL_SERVER_SUFFIX=") == 0)
+        {
+            server_suffix = line.substring(20, line.length);
+        }
+        else if (line.indexOf("COMPILATION_COMMENT=") == 0)
+        {
+            server_comment = line.substring(20, line.length);
+        }
+        else if (line.indexOf("MYSQL_TCP_PORT=") == 0)
+        {
+            server_port = line.substring(15, line.length);
+        }
+        else if (line == "WITH_ARCHIVE_STORAGE_ENGINE")
+        {
+             defs += " -D" + line;
+             htons += " ha_archive.cc";
+             subdirs += " storage/archive";
+             depends += " archive";
+      	}
+        else if (line == "WITH_BERKELEY_STORAGE_ENGINE")
+        {
+             defs += " -D" + line;
+             htons += " ha_berkeley.cc";
+             subdirs += " storage/bdb";
+             depends += " bdb";
+        }
+        else if (line == "WITH_BLACKHOLE_STORAGE_ENGINE")
+        {
+             defs += " -D" + line;
+             htons += " ha_blackhole.cc";
+        }
+        else if (line == "WITH_EXAMPLE_STORAGE_ENGINE")
+        {
+             defs += " -D" + line;
+             subdirs += " storage/example";
+             depends += " example";
+        }
+        else if (line == "WITH_FEDERATED_STORAGE_ENGINE")
+        {
+             defs += " -D" + line;
+             htons += " ha_federated.cc";
+        }
+        else if (line == "WITH_INNOBASE_STORAGE_ENGINE")
+        {
+             defs += " -D" + line;
+             htons += " ha_innodb.cc";
+             subdirs += " storage/innobase";
+             depends += " innobase";
+        }
+        else if (line == "WITH_PARTITION_STORAGE_ENGINE")
+        {
+             defs += " -D" + line;
+             htons += " ha_partition.cc";
+        }
+        else if (line == "__NT__" ||
+                 line == "CYBOZU" ||
+                 line.indexOf("LICENSE=") == 0) {
+             defs += " -D" + line;
+        }
+    }
+    datafile.Close();
+
 	ConfigureMySqlVersion();
 	//ConfigureBDB();
 	fso = null;
 
-    WScript.Echo("done!");
+    WScript.Echo("DEFINITIONS@" + defs + "@");
+    WScript.Echo("HANDLERTONS@" + htons + "@");
+    WScript.Echo("DEPENDS@" + depends + "@");
+    WScript.Echo("SUBDIRS@" + subdirs + "@");
 }
 catch (e)
 {
@@ -63,10 +143,11 @@ function ConfigureMySqlVersion()
     
     mysqlin = mysqlin.replace("@PROTOCOL_VERSION@", GetValue(configureIn, "PROTOCOL_VERSION"));
     mysqlin = mysqlin.replace("@DOT_FRM_VERSION@", GetValue(configureIn, "DOT_FRM_VERSION"));
-    mysqlin = mysqlin.replace("@MYSQL_TCP_PORT@", GetValue(configureIn, "MYSQL_TCP_PORT_DEFAULT"));
+    if (server_port == '') { server_port = GetValue(configureIn, "MYSQL_TCP_PORT_DEFAULT"); }
+    mysqlin = mysqlin.replace("@MYSQL_TCP_PORT@", server_port);
     mysqlin = mysqlin.replace("@MYSQL_UNIX_ADDR@", GetValue(configureIn, "MYSQL_UNIX_ADDR_DEFAULT"));
-    mysqlin = mysqlin.replace("@MYSQL_SERVER_SUFFIX@", '');
-    mysqlin = mysqlin.replace("@COMPILATION_COMMENT@", 'Source distribution');
+    mysqlin = mysqlin.replace("@MYSQL_SERVER_SUFFIX@", server_suffix);
+    mysqlin = mysqlin.replace("@COMPILATION_COMMENT@", server_comment);
 
 
     var version = GetVersion(configureIn);
