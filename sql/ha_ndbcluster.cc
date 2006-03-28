@@ -74,6 +74,8 @@ handlerton ndbcluster_hton = {
   DB_TYPE_NDBCLUSTER,
   ndbcluster_init,
   ~(uint)0, /* slot */
+  /* below are initialized by name in ndbcluster_init() */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
 static handler *ndbcluster_create_handler(TABLE_SHARE *table)
@@ -2336,7 +2338,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (generate_scan_filter(m_cond_stack, op))
       DBUG_RETURN(ndb_err(trans));
 
-    if (res= define_read_attrs(buf, op))
+    if ((res= define_read_attrs(buf, op)))
     {
       DBUG_RETURN(res);
     }
@@ -9235,7 +9237,7 @@ char* ha_ndbcluster::get_tablespace_name(THD *thd)
   {
     NdbDictionary::Tablespace ts= ndbdict->getTablespace(id);
     ndberr= ndbdict->getNdbError();
-    if(ndberr.classification != ndberror_cl_none)
+    if(ndberr.classification != NdbError::NoError)
       goto err;
     return (my_strdup(ts.getName(), MYF(0)));
   }
