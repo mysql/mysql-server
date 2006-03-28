@@ -1275,3 +1275,5 @@ zlib/*.ds?
 zlib/*.vcproj
 scripts/mysql_upgrade
 include/openssl
+mysql-test/r/bdb.log
+mysql-test/r/im_client_port.log
