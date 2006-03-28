@@ -5076,11 +5076,8 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   DESCRIPTION
     A view column reference is considered equal to another column
     reference if the second one is a view column and if both column
-    references point to the same field. For views 'same field' means
-    the same Item_field object in the view translation table, where
-    the view translation table contains all result columns of the
-    view. This definition ensures that view columns are resolved
-    in the same manner as table columns.
+    references resolve to the same item. It is assumed that both
+    items are of the same type.
 
   RETURN
     TRUE    Referenced item is equal to given item
@@ -5096,8 +5093,8 @@ bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
     if (item_ref->ref_type() == VIEW_REF)
     {
       Item *item_ref_ref= *(item_ref->ref);
-      DBUG_ASSERT((*ref)->real_item()->type() == FIELD_ITEM &&
-                  (item_ref_ref->real_item()->type() == FIELD_ITEM));
+      DBUG_ASSERT((*ref)->real_item()->type() == 
+                  item_ref_ref->real_item()->type());
       return ((*ref)->real_item() == item_ref_ref->real_item());
     }
   }
