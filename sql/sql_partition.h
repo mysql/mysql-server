@@ -124,7 +124,7 @@ typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
 typedef struct st_partition_iter
 {
   partition_iter_func get_next;
-  
+  bool has_null_value;
   struct st_part_num_range
   {
     uint32 start;
