@@ -319,6 +319,12 @@ public:
   /* convert decimal to longlong with overflow check */
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     int *err);
+  /* The max. number of characters */
+  inline uint32 Field::char_length() const
+  {
+    return field_length / charset()->mbmaxlen;
+  }
+
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
