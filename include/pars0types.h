@@ -19,6 +19,7 @@ typedef struct elsif_node_struct	elsif_node_t;
 typedef struct if_node_struct		if_node_t;
 typedef struct while_node_struct	while_node_t;
 typedef struct for_node_struct		for_node_t;
+typedef struct exit_node_struct		exit_node_t;
 typedef struct return_node_struct	return_node_t;
 typedef struct assign_node_struct	assign_node_t;
 typedef struct col_assign_node_struct	col_assign_node_t;

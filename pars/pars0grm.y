@@ -116,6 +116,7 @@ yylex(void);
 %token PARS_ROLLBACK_TOKEN
 %token PARS_WORK_TOKEN
 %token PARS_UNSIGNED_TOKEN
+%token PARS_EXIT_TOKEN
 
 %left PARS_AND_TOKEN PARS_OR_TOKEN
 %left PARS_NOT_TOKEN
@@ -134,6 +135,7 @@ statement:
 	| predefined_procedure_call ';'
 	| while_statement ';'
 	| for_statement ';'
+	| exit_statement ';'
 	| if_statement ';'
 	| return_statement ';'
 	| assignment_statement ';'
@@ -427,6 +429,10 @@ for_statement:
 	PARS_LOOP_TOKEN statement_list
 	PARS_END_TOKEN PARS_LOOP_TOKEN
 				{ $$ = pars_for_statement($2, $4, $6, $8); }
+;
+
+exit_statement:
+	PARS_EXIT_TOKEN		{ $$ = pars_exit_statement(); }
 ;
 
 return_statement:

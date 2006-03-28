@@ -277,6 +277,15 @@ que_node_get_parent(
 /*================*/
 				/* out: parent node or NULL */
 	que_node_t*	node);	/* in: node */
+/********************************************************************
+Get the first containing loop node (e.g. while_node_t or for_node_t) for the
+given node, or NULL if the node is not within a loop. */
+
+que_node_t*
+que_node_get_containing_loop_node(
+/*==============================*/
+				/* out: containing loop node, or NULL. */
+	que_node_t*	node);	/* in: node */
 /*************************************************************************
 Catenates a query graph node to a list of them, possible empty list. */
 UNIV_INLINE
@@ -469,6 +478,7 @@ struct que_fork_struct{
 #define QUE_NODE_ROW_PRINTF	29
 #define QUE_NODE_ELSIF		30
 #define QUE_NODE_CALL		31
+#define QUE_NODE_EXIT		32
 
 /* Query thread states */
 #define QUE_THR_RUNNING		1
