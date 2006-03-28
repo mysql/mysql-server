@@ -524,7 +524,6 @@ THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
 
 int ha_heap::delete_table(const char *name)
 {
-  char buff[FN_REFLEN];
   int error= heap_delete_table(name);
   return error == ENOENT ? 0 : error;
 }

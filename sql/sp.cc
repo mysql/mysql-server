@@ -668,7 +668,6 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 {
   TABLE *table;
   int ret;
-  bool opened;
   DBUG_ENTER("db_update_routine");
   DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));

@@ -445,8 +445,6 @@ static my_bool init_handlerton(THD *unused1, st_plugin_int *plugin,
 int ha_init()
 {
   int error= 0;
-  handlerton **types;
-  show_table_alias_st *table_alias;
   total_ha= savepoint_alloc_size= 0;
 
   if (ha_init_errors())

@@ -1408,10 +1408,7 @@ void update_non_unique_table_error(TABLE_LIST *update,
 
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name)
 {
-  char	key[MAX_DBKEY_LENGTH];
-  uint	key_length;
   TABLE_LIST table_list;
-  TABLE *table;
 
   table_list.db= (char*) db;
   table_list.table_name= (char*) table_name;
@@ -1939,7 +1936,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
   else
   {
-    TABLE_SHARE *share;
     /* Free cache if too big */
     while (open_cache.records > table_cache_size && unused_tables)
       VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
