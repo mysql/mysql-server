@@ -1885,6 +1885,11 @@ static int add_write(File fptr, const char *buf, uint len)
     return 1;
 }
 
+static int add_string_object(File fptr, String *string)
+{
+  return add_write(fptr, string->ptr(), string->length());
+}
+
 static int add_string(File fptr, const char *string)
 {
   return add_write(fptr, string, strlen(string));
@@ -1971,7 +1976,14 @@ static int add_key_partition(File fptr, List<char> field_list)
   while (i < no_fields)
   {
     const char *field_str= part_it++;
-    err+= add_string(fptr, field_str);
+    String field_string("", 0, system_charset_info);
+    THD *thd= current_thd;
+    ulonglong save_options= thd->options;
+    thd->options= 0;
+    append_identifier(thd, &field_string, field_str,
+                      strlen(field_str));
+    thd->options= save_options;
+    err+= add_string_object(fptr, &field_string);
     if (i != (no_fields-1))
       err+= add_comma(fptr);
     i++;
@@ -2041,7 +2053,7 @@ static int add_partition_options(File fptr, partition_element *p_elem)
     err+= add_keyword_string(fptr, "INDEX DIRECTORY", TRUE, 
                              p_elem->index_file_name);
   if (p_elem->part_comment)
-    err+= add_keyword_string(fptr, "COMMENT", FALSE, p_elem->part_comment);
+    err+= add_keyword_string(fptr, "COMMENT", TRUE, p_elem->part_comment);
   return err + add_engine(fptr,p_elem->engine_type);
 }
 

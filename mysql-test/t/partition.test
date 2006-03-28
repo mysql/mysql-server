@@ -849,4 +849,23 @@ CALL test.p1(12);
 CALL test.p1(13);
 drop table t1;
 
+#
+# Bug 13520: Problem with delimiters in COMMENT DATA DIRECTORY ..
+#
+CREATE TABLE t1 (a int not null)
+partition by key(a)
+(partition p0 COMMENT='first partition');
+drop table t1;
+
+#
+# Bug 13433: Problem with delimited identifiers
+#
+CREATE TABLE t1 (`a b` int not null)
+partition by key(`a b`);
+drop table t1;
+
+CREATE TABLE t1 (`a b` int not null)
+partition by hash(`a b`);
+drop table t1;
+
 --echo End of 5.1 tests
