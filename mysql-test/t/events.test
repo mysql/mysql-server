@@ -341,9 +341,8 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 --echo "Should return 1 row"
 select definer, name, db from mysql.event;
 
---echo "Should be only 1 process"
---replace_column 1 # 6 #
-show processlist;
+--echo "Should be 0 processes"
+select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock("test_lock1");
 drop event закачка;
 --echo "Should have 0 events"
@@ -359,9 +358,8 @@ select get_lock("test_lock2", 20);
 create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
 --echo "Let some time pass to the event starts"
 --sleep 2
---echo "Should have only 3 processes: the scheduler, our conn and the locked event"
---replace_column 1 # 6 #
-show processlist;
+--echo "Should have only 2 processes: the scheduler and the locked event"
+select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 --echo "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
 drop event закачка;
@@ -378,21 +376,18 @@ set global event_scheduler=1;
 select get_lock("test_lock2_1", 20);
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
 --sleep 1
---echo "Should see 2 processes, one locked on get_lock("
-#--replace_column 1 # 6 #
-#show processlist;
+--echo "Should see 1 process, locked on get_lock("
+#select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 --echo "Shutting down the scheduler, it should wait for the running event"
 set global event_scheduler=0;
 --sleep 1
---echo "Should have only 3 processes: the scheduler, our conn and the locked event"
---replace_column 1 # 6 #
-show processlist;
+--echo "Should have only 2 processes: the scheduler and the locked event"
+select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 --echo "Release the lock so the child process should finish. Hence the scheduler also"
 select release_lock("test_lock2_1");
 --sleep 1
---echo "Should have only our process now:"
---replace_column 1 # 6 #
-show processlist;
+--echo "Should see 0 processes now:"
+select /*5*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 drop event закачка21;
 
 ####
@@ -441,7 +436,7 @@ drop event e1;
 ##select get_lock("test_lock3", 20);
 ##create event закачка on schedule every 10 hour do select get_lock("test_lock3", 20);
 ##select sleep(2);
-##show processlist;
+##select /*7*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 ##drop event закачка;
 ##select release_lock("test_lock3");
 
@@ -451,15 +446,13 @@ drop event e1;
 ##select get_lock("test_lock4", 20);
 ##create event закачка4 on schedule every 1 second do select get_lock("test_lock4", 20);
 ##select sleep(3);
-##--replace_column 1 # 6 #
-##show processlist;
+##select /*8*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 ##drop event закачка4;
 ##select release_lock("test_lock4");
 
 ##set global event_scheduler=0;
 ##select sleep(2);
-##--replace_column 1 # 6 #
-##show processlist;
+##select /*9*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 ##select count(*) from mysql.event;
 
 drop database events_test;
