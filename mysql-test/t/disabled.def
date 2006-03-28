@@ -23,6 +23,7 @@ partition_03ndb         : Bug#16385
 ps_7ndb                 : dbug assert in RBR mode when executing test suite
 #rpl_bit_npk             : Bug#13418
 #rpl_ddl                 : Bug#15963 SBR does not show "Definer" correctly
+rpl_ndb_dd_basic        : Bug #18569
 rpl_ndb_2innodb         : assertion in get_parts_for_update()
 rpl_ndb_2myisam         : assertion in get_parts_for_update()
 rpl_ndb_auto_inc        : Bug#17086
@@ -31,6 +32,7 @@ rpl_ndb_auto_inc        : Bug#17086
 #rpl_ndb_blob2           : interferes with following tests, causing hang
 rpl_ndb_ddl             : master hangs
 #rpl_ndb_delete_nowhere  : Bug#17400: delete & update of rows in table without pk fails
+rpl_ndb_insert_ignore : Bug #18567
 rpl_ndb_innodb2ndb      : Bug#18261: Cluster Replication: tests rpl_ndb_xxx2ndb fails
 rpl_ndb_myisam2ndb      : Bug#18261: Cluster Replication: tests rpl_ndb_xxx2ndb fails
 rpl_ndb_log             : result not deterministic, TBD if should remove
