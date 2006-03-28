@@ -2465,7 +2465,8 @@ MYSQL_STORAGE_ENGINE(innobase,,innodb,,,,storage/innobase,ha_innodb.o,[ dnl
 MYSQL_STORAGE_ENGINE(berkeley,,berkeley-db,,,,storage/bdb,,,[
   MYSQL_SETUP_BERKELEY_DB
 ])
-MYSQL_STORAGE_ENGINE(example,,,,,no,storage/example,,,[
+MYSQL_STORAGE_ENGINE(example,,,,,,storage/example,no,
+ \$(top_builddir)/storage/example/libexample.a,[
   AC_CONFIG_FILES(storage/example/Makefile)
 ])
 MYSQL_STORAGE_ENGINE(archive,,,,,,storage/archive,,
