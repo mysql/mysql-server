@@ -1639,5 +1639,15 @@ select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
 explain
 select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.attr3 < 5 or t4.attr1 is null order by t4.pk1;
 
+# bug#15722
+create table t5 (a int primary key auto_increment, b tinytext not null) 
+engine = ndb;
+insert into t5 (b) values ('jonas'), ('jensing'), ('johan');
+set engine_condition_pushdown = off;
+select * from t5 where b like '%jo%' order by a;
+set engine_condition_pushdown = on;
+explain select * from t5 where b like '%jo%';
+select * from t5 where b like '%jo%' order by a;
+
 set engine_condition_pushdown = @old_ecpd;
-DROP TABLE t1,t2,t3,t4;
+DROP TABLE t1,t2,t3,t4,t5;
