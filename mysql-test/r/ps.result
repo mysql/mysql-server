@@ -880,3 +880,49 @@ select row_count();
 row_count()
 1
 drop table t1;
+create table t1 (a int, b int);
+insert into t1 (a,b) values (2,8),(1,9),(3,7);
+prepare stmt from "select * from t1 order by ?";
+execute stmt using @a;
+a	b
+2	8
+1	9
+3	7
+set @a=1;
+execute stmt using @a;
+a	b
+1	9
+2	8
+3	7
+set @a=2;
+execute stmt using @a;
+a	b
+3	7
+2	8
+1	9
+deallocate prepare stmt;
+select * from t1 order by 1;
+a	b
+1	9
+2	8
+3	7
+prepare stmt from "select * from t1 order by ?+1";
+set @a=0;
+execute stmt using @a;
+a	b
+2	8
+1	9
+3	7
+set @a=1;
+execute stmt using @a;
+a	b
+2	8
+1	9
+3	7
+deallocate prepare stmt;
+select * from t1 order by 1+1;
+a	b
+2	8
+1	9
+3	7
+drop table t1;

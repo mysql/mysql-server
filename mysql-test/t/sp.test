@@ -5745,6 +5745,11 @@ call bug16474_2(1)|
 call bug16474_2(2)|
 drop procedure bug16474_1|
 drop procedure bug16474_2|
+
+# For reference: user variables are expressions too and do not affect ordering.
+set @x = 2|
+select * from t1 order by @x|
+
 delete from t1|
 
 
