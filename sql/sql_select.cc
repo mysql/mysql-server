@@ -12333,7 +12333,12 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   Item **select_item; /* The corresponding item from the SELECT clause. */
   Field *from_field;  /* The corresponding field from the FROM clause. */
 
-  if (order_item->type() == Item::INT_ITEM)
+  /*
+    Local SP variables may be int but are expressions, not positions.
+    (And they can't be used before fix_fields is called for them).
+  */
+  //  if (order_item->type() == Item::INT_ITEM && !order_item->is_splocal())
+  if (order_item->type() == Item::INT_ITEM && order_item->basic_const_item())
   {						/* Order by position */
     uint count= (uint) order_item->val_int();
     if (!count || count > fields.elements)

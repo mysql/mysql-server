@@ -933,4 +933,38 @@ execute ins_call;
 select row_count();
 drop table t1;
 
+#
+# BUG#16474: SP crashed MySQL
+# (when using "order by localvar", where 'localvar' is just that.
+# The actual bug test is in sp.test, this is just testing that we get the
+# expected result for prepared statements too, i.e. place holders work as
+# textual substitution. If it's a single integer, it works as the (deprecated)
+# "order by column#", otherwise it's an expression.
+#
+create table t1 (a int, b int);
+insert into t1 (a,b) values (2,8),(1,9),(3,7);
+
+# Will order by index
+prepare stmt from "select * from t1 order by ?";
+execute stmt using @a;
+set @a=1;
+execute stmt using @a;
+set @a=2;
+execute stmt using @a;
+deallocate prepare stmt;
+# For reference:
+select * from t1 order by 1;
+
+# Will not order by index.
+prepare stmt from "select * from t1 order by ?+1";
+set @a=0;
+execute stmt using @a;
+set @a=1;
+execute stmt using @a;
+deallocate prepare stmt;
+# For reference:
+select * from t1 order by 1+1;
+
+drop table t1;
+
 # End of 5.0 tests
