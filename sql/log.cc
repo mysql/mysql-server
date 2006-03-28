@@ -717,8 +717,6 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   bool error= FALSE;
   Log_event_handler **current_handler= slow_log_handler_list;
   bool is_command= FALSE;
-
-  char message_buff[MAX_LOG_BUFFER_SIZE];
   char user_host_buff[MAX_USER_HOST_SIZE];
 
   my_time_t current_time;
