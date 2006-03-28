@@ -1705,8 +1705,8 @@ zlib_done:
 		const byte*	mod_log_ptr;
 		mod_log_ptr = page_zip_apply_log(
 				page_zip->data + page_zip->m_start,
-				d_stream.avail_in, recs, n_dense, trx_id_col,
-				heap_status, index, offsets);
+				d_stream.avail_in + 1, recs, n_dense,
+				trx_id_col, heap_status, index, offsets);
 
 		if (UNIV_UNLIKELY(!mod_log_ptr)) {
 			goto err_exit;
@@ -2326,7 +2326,16 @@ page_zip_clear_rec(
 		the decompressor depend on the extra bytes. */
 		memset(rec, 0, rec_offs_data_size(offsets));
 
-		if (page_is_leaf(page) && dict_index_is_clust(index)) {
+		if (!page_is_leaf(page)) {
+			/* Clear node_ptr on the compressed page. */
+			byte*	storage	= page_zip->data + page_zip->size
+					- (page_dir_get_n_heap(page) - 2)
+					* PAGE_ZIP_DIR_SLOT_SIZE;
+
+			memset(storage - (heap_no - 1) * REC_NODE_PTR_SIZE,
+				0, REC_NODE_PTR_SIZE);
+		}
+		else if (dict_index_is_clust(index)) {
 			/* Clear trx_id and roll_ptr on the compressed page. */
 			byte*	storage	= page_zip->data + page_zip->size
 					- (page_dir_get_n_heap(page) - 2)
