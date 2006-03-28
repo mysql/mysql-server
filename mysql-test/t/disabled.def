@@ -36,7 +36,7 @@ rpl_ndb_myisam2ndb      : Bug#18261: Cluster Replication: tests rpl_ndb_xxx2ndb 
 rpl_ndb_log             : result not deterministic, TBD if should remove
 rpl_ndb_relay_space     : Bug#16993
 #rpl_ndb_multi_update3   : Bug#17400: delete & update of rows in table without pk fails
-#rpl_ndb_sp007           : Bug #17290
+rpl_ndb_sp007           : Bug #18565
 rpl_row_inexist_tbl     : Disabled since patch makes this test wait forever
 rpl_sp                  : Bug#16456
 rpl_until               : Unstable test case, bug#15886
