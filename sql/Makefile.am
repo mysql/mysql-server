@@ -124,7 +124,7 @@ DEFS =			-DMYSQL_SERVER \
 			@DEFS@
 
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
-EXTRA_DIST =		udf_example.cc handlerton-win.cc $(BUILT_SOURCES)
+EXTRA_DIST =		udf_example.cc $(BUILT_SOURCES)
 CLEANFILES =        	lex_hash.h sql_yacc.cc sql_yacc.h
 AM_YFLAGS =		-d
 
