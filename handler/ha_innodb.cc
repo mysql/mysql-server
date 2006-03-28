@@ -3873,6 +3873,13 @@ ha_innobase::unlock_row(void)
 		ut_error;
 	}
 
+	/* Consistent read does not take any locks, thus there is
+	nothing to unlock. */
+
+	if (prebuilt->select_lock_type == LOCK_NONE) {
+		DBUG_VOID_RETURN;
+	}
+
 	switch (prebuilt->row_read_type) {
 	case ROW_READ_WITH_LOCKS:
 		if (!srv_locks_unsafe_for_binlog
