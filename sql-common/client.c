@@ -1428,13 +1428,7 @@ mysql_init(MYSQL *mysql)
     mysql->free_me=1;
   }
   else
-  {
-#if defined(EMBEDDED_LIBRARY) || MYSQL_VERSION_ID >= 50100
     bzero((char*) (mysql), sizeof(*(mysql)));
-#else
-    bzero((char*) (mysql), offsetof(MYSQL, info_buffer));
-#endif
-  }
   mysql->options.connect_timeout= CONNECT_TIMEOUT;
   mysql->last_used_con= mysql->next_slave= mysql->master = mysql;
   mysql->charset=default_charset_info;

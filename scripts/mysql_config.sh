@@ -91,18 +91,15 @@ socket='@MYSQL_UNIX_ADDR@'
 port='@MYSQL_TCP_PORT@'
 ldflags='@LDFLAGS@'
 
-# Create options
-
-libs="$ldflags -L$pkglibdir -lmysqlclient @ZLIB_DEPS@ @NON_THREADED_LIBS@"
+# Create options 
+# We intentionally add a space to the beginning of lib strings, simplifies replace later
+libs=" $ldflags -L$pkglibdir -lmysqlclient @ZLIB_DEPS@ @NON_THREADED_LIBS@"
 libs="$libs @openssl_libs@ @STATIC_NSS_FLAGS@"
-libs=`echo "$libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
+libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @LIBS@ @openssl_libs@"
+embedded_libs=" $ldflags -L$pkglibdir -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @innodb_system_libs@"
 
-libs_r="$ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @LIBS@ @openssl_libs@"
-libs_r=`echo "$libs_r" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
 include="-I$pkgincludedir"
-embedded_libs="$ldflags -L$pkglibdir -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @innodb_system_libs@"
-embedded_libs=`echo "$embedded_libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 
 # Remove some options that a client doesn't have to care about
 # FIXME until we have a --cxxflags, we need to remove -Xa
@@ -110,13 +107,27 @@ embedded_libs=`echo "$embedded_libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | 
 for remove in DDBUG_OFF DSAFEMALLOC USAFEMALLOC DSAFE_MUTEX \
               DPEDANTIC_SAFEMALLOC DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
               DEXTRA_DEBUG DHAVE_purify 'O[0-9]' 'W[-A-Za-z]*' \
-              Xa xstrconst
+              Xa xstrconst "xc99=none"
 do
   # The first option we might strip will always have a space before it because
   # we set -I$pkgincludedir as the first option
   cflags=`echo "$cflags"|sed -e "s/ -$remove  */ /g"` 
 done
 cflags=`echo "$cflags"|sed -e 's/ *\$//'` 
+
+# Same for --libs(_r)
+for remove in lmtmalloc
+do
+  # We know the strings starts with a space
+  libs=`echo "$libs"|sed -e "s/ -$remove  */ /g"` 
+  libs_r=`echo "$libs_r"|sed -e "s/ -$remove  */ /g"` 
+  embedded_libs=`echo "$embedded_libs"|sed -e "s/ -$remove  */ /g"` 
+done
+
+# Strip trailing and ending space if any, and '+' (FIXME why?)
+libs=`echo "$libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
+libs_r=`echo "$libs_r" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
+embedded_libs=`echo "$embedded_libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 
 usage () {
         cat <<EOF

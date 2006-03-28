@@ -546,7 +546,7 @@ parse_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
   read escaped string from ptr to eol in already allocated str
 
   SYNOPSIS
-    parse_escaped_string()
+    read_escaped_string()
     ptr		- pointer on string beginning
     eol		- pointer on character after end of string
     str		- target string
@@ -617,7 +617,7 @@ read_escaped_string(char *ptr, char *eol, LEX_STRING *str)
     #	- pointer on symbol after string
 */
 
-static char *
+char *
 parse_escaped_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
 {
   char *eol= strchr(ptr, '\n');
@@ -635,7 +635,7 @@ parse_escaped_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
   parse '' delimited escaped string
 
   SYNOPSIS
-    parse_escaped_string()
+    parse_quoted_escaped_string()
     ptr		- pointer on string beginning
     end		- pointer on symbol after parsed string end (still owned
 		  by buffer and can be accessed
