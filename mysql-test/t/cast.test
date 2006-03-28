@@ -152,4 +152,13 @@ select cast(repeat('1',20) as signed);
 #
 select cast(1.0e+300 as signed int);
 
+#
+# Bugs: #15098: CAST(column double TO signed int), wrong result
+#
+CREATE TABLE t1 (f1 double);
+INSERT INTO t1 SET f1 = -1.0e+30 ;
+INSERT INTO t1 SET f1 = +1.0e+30 ;
+SELECT f1 AS double_val, CAST(f1 AS SIGNED INT) AS cast_val FROM t1;
+DROP TABLE t1;					   
+
 # End of 4.1 tests
