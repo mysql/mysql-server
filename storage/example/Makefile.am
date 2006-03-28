@@ -26,11 +26,10 @@ INCLUDES =              -I$(top_srcdir)/include \
                         -I$(srcdir)
 WRAPLIBS=
 
-pkglib_LTLIBRARIES =	ha_example.la
+pkglib_LIBRARIES =	libexample.a
 
-ha_example_la_LDFLAGS =	-module
 noinst_HEADERS	      =	ha_example.h
-ha_example_la_SOURCES =	ha_example.cc
+libexample_a_SOURCES =	ha_example.cc
 
 LDADD =
 
