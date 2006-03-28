@@ -5947,7 +5947,9 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
     if ((* value).ptr)
     {
       DBUG_ASSERT(curr != 0);
-      (* value).rec= curr;
+      NdbValue* val= m_value + curr->getColumn()->getColumnNo();
+      DBUG_ASSERT(val->ptr);
+      val->rec= curr;
       curr= curr->next();
     }
   }
