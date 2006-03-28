@@ -2868,9 +2868,6 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   /* Get the partitioning function value for the endpoint */
   longlong part_func_value= part_val_int(part_info->part_expr);
 
-  if (part_info->part_expr->null_value)
-    DBUG_RETURN(0);
-
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
@@ -5745,6 +5742,19 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   else
     DBUG_ASSERT(0);
 
+  if (field->real_maybe_null() && part_info->has_null_value)
+  {
+    if (*min_value)
+    {
+      if (*max_value && !(flags & (NO_MIN_RANGE | NO_MAX_RANGE)))
+      {
+        init_single_partition_iterator(part_info->has_null_part_id, part_iter);
+        return 1;
+      }
+      if (!(flags & NEAR_MIN))
+        part_iter->has_null_value= TRUE;
+    }
+  }
   /* Find minimum */
   if (flags & NO_MIN_RANGE)
     part_iter->part_nums.start= 0;
@@ -5956,7 +5966,14 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
 {
   if (part_iter->part_nums.start == part_iter->part_nums.end)
+  {
+    if (part_iter->has_null_value)
+    {
+      part_iter->has_null_value= FALSE;
+      return part_iter->part_info->has_null_part_id;
+    }
     return NOT_A_PARTITION_ID;
+  }
   else
     return part_iter->part_info->list_array[part_iter->
                                             part_nums.start++].partition_id;

@@ -2296,6 +2296,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   RANGE_OPT_PARAM  *range_par= &prune_param.range_param;
 
   prune_param.part_info= part_info;
+  prune_param.part_iter.has_null_value= FALSE;
 
   init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
   range_par->mem_root= &alloc;
