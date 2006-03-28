@@ -12,27 +12,11 @@ not automatically generate them from pars0grm.y and pars0lex.l.
 
 How to make the InnoDB parser and lexer C files:
 
-1. First do
-        bison -d pars0grm.y
-   That generates pars0grm.tab.c and pars0grm.tab.h.
+1. Run ./make_flex.sh to generate lexer files.
 
-2. Rename pars0grm.tab.c to pars0grm.c and pars0grm.tab.h to pars0grm.h.
+2. Run ./make_bison.sh to generate parser files.
 
-3. Copy pars0grm.h also to /innobase/include
-
-4. Do
-        flex pars0lex.l
-   That generates lex.yy.c.
-
-5. Rename lex.yy.c to lexyy.c.
-
-6. Add '#include "univ.i"' before #include <stdio.h> in lexyy.c
-   (Needed for AIX)
-
-7. Add a type cast to int to the assignment below the comment
-   'need more input.'  (Removes a warning on Win64)
-
-These instructions seem to work at least with bison-1.28 and flex-2.5.4 on
+These instructions seem to work at least with bison-1.875d and flex-2.5.31 on
 Linux.
 *******************************************************/
 

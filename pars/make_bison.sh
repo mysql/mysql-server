@@ -1,7 +1,6 @@
 #!/bin/bash
 #
-# regenerate parser from bison input files as documented at the top of
-# pars0lex.l.
+# generate parser files from bison input files.
 
 set -eu
 
