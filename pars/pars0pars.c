@@ -1353,6 +1353,22 @@ pars_for_statement(
 }
 
 /*************************************************************************
+Parses an exit statement. */
+
+exit_node_t*
+pars_exit_statement(void)
+/*=====================*/
+					/* out: exit statement node */
+{
+	exit_node_t*	node;
+
+	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(exit_node_t));
+	node->common.type = QUE_NODE_EXIT;
+
+	return(node);
+}
+
+/*************************************************************************
 Parses a return-statement. */
 
 return_node_t*

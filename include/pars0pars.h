@@ -269,6 +269,13 @@ pars_while_statement(
 	que_node_t*	cond,		/* in: while-condition */
 	que_node_t*	stat_list);	/* in: statement list */
 /*************************************************************************
+Parses an exit statement. */
+
+exit_node_t*
+pars_exit_statement(void);
+/*=====================*/
+					/* out: exit statement node */
+/*************************************************************************
 Parses a return-statement. */
 
 return_node_t*
@@ -498,6 +505,11 @@ struct for_node_struct{
 					is entered, and will not change within
 					the loop */
 	que_node_t*	stat_list;	/* statement list */
+};
+
+/* exit statement node */
+struct exit_node_struct{
+	que_common_t	common;		/* type: QUE_NODE_EXIT */
 };
 
 /* return-statement node */
