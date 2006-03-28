@@ -113,4 +113,26 @@ select * from t1;
 # cleanup
 drop table t1, t2;
 
+
+
+#
+# Bug#11151:  LOAD DATA INFILE commits transaction in 5.0
+#
+create table bug11151 (a int, b int) engine=InnoDB;
+
+start transaction;
+insert into bug11151 values (0, 0);
+rollback;
+select a, b from bug11151;
+delete from bug11151;
+
+start transaction;
+insert into bug11151 values (42, 0);
+load data infile '../std_data_ln/loaddata5.dat' into table bug11151 fields terminated by '' enclosed by '' (a, b);
+insert into bug11151 values (42, 99);
+rollback;
+select a, b from bug11151;
+
+drop table bug11151;
+
 # End of 5.0 tests
