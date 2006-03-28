@@ -718,4 +718,105 @@ CALL test.p1(13);
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 drop table t1;
+create table t1 (f1 integer) partition by range(f1)
+(partition p1 values less than (0), partition p2 values less than (10));
+insert into t1 set f1 = null;
+select * from t1 where f1 is null;
+f1
+NULL
+explain partitions select * from t1 where f1 is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	system	NULL	NULL	NULL	NULL	1	
+drop table t1;
+create table t1 (f1 integer) partition by list(f1)
+(partition p1 values in (1), partition p2 values in (null));
+insert into t1 set f1 = null;
+insert into t1 set f1 = 1;
+select * from t1 where f1 is null or f1 = 1;
+f1
+1
+NULL
+drop table t1;
+create table t1 (f1 smallint)
+partition by list (f1) (partition p0 values in (null));
+insert into t1 values (null);
+select * from t1 where f1 is null;
+f1
+NULL
+drop table t1;
+create table t1 (f1 smallint)
+partition by range (f1) (partition p0 values less than (0));
+insert into t1 values (null);
+select * from t1 where f1 is null;
+f1
+NULL
+drop table t1;
+create table t1 (f1 integer) partition by list(f1)
+(
+partition p1 values in (1),
+partition p2 values in (NULL),
+partition p3 values in (2),
+partition p4 values in (3),
+partition p5 values in (4)
+);
+insert into t1 values (1),(2),(3),(4),(null);
+select * from t1 where f1 < 3;
+f1
+1
+2
+explain partitions select * from t1 where f1 < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1,p3	ALL	NULL	NULL	NULL	NULL	2	Using where
+select * from t1 where f1 is null;
+f1
+NULL
+explain partitions select * from t1 where f1 is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	
+drop table t1;
+create table t1 (f1 int) partition by list(f1 div 2)
+(
+partition p1 values in (1),
+partition p2 values in (NULL),
+partition p3 values in (2),
+partition p4 values in (3),
+partition p5 values in (4)
+);
+insert into t1 values (2),(4),(6),(8),(null);
+select * from t1 where f1 < 3;
+f1
+2
+explain partitions select * from t1 where f1 < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1,p2,p3,p4,p5	ALL	NULL	NULL	NULL	NULL	5	Using where
+select * from t1 where f1 is null;
+f1
+NULL
+explain partitions select * from t1 where f1 is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	
+drop table t1;
+create table t1 (a int) partition by LIST(a) (
+partition pn values in (NULL),
+partition p0 values in (0),
+partition p1 values in (1),
+partition p2 values in (2)
+);
+insert into t1 values (NULL),(0),(1),(2);
+select * from t1 where a is null or a < 2;
+a
+NULL
+0
+1
+explain partitions select * from t1 where a is null or a < 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pn,p0,p1	ALL	NULL	NULL	NULL	NULL	3	Using where
+select * from t1 where a is null or a < 0 or a > 1;
+a
+NULL
+2
+explain partitions select * from t1 where a is null or a < 0 or a > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pn,p2	ALL	NULL	NULL	NULL	NULL	2	Using where
+drop table t1;
 End of 5.1 tests
