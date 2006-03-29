@@ -699,3 +699,5 @@ t2	CREATE TABLE `t2` (
   `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
+create table t1(a set("a,b","c,d") not null);
+ERROR HY000: Illegal set 'a,b' value found during parsing
