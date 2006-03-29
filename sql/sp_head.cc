@@ -1224,10 +1224,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   bool err_status= FALSE;
-
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
 
+  LINT_INIT(binlog_save_options);
   params = m_pcont->context_pvars();
 
   /*

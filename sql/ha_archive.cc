@@ -180,7 +180,9 @@ handlerton archive_hton = {
   NULL,    /* fill_files_table */
   HTON_NO_FLAGS,
   NULL,    /* binlog_func */
-  NULL     /* binlog_log_query */
+  NULL,    /* binlog_log_query */
+  NULL	   /* release_temporary_latches */
+
 };
 
 static handler *archive_create_handler(TABLE_SHARE *table)
@@ -1228,10 +1230,11 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
         if (table->found_next_number_field)
         {
           Field *field= table->found_next_number_field;
-          if (share->auto_increment_value < 
-              field->val_int((char*)(buf + field->offset())))
+          ulonglong auto_value=
+            (ulonglong) field->val_int((char*)(buf + field->offset()));
+          if (share->auto_increment_value < auto_value)
             auto_increment_value= share->auto_increment_value=
-              field->val_int((char*)(buf + field->offset()));
+              auto_value;
         }
         share->rows_recorded++;
       }

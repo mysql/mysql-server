@@ -686,6 +686,8 @@ public:
   {
     do_prelock(tables, count);
   }
+  virtual ~TABLEOP_HOOKS() {}
+  TABLEOP_HOOKS() {}
 
 private:
   /* Function primitive that is called prior to locking tables */

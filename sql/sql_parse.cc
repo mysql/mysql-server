@@ -2112,8 +2112,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 void log_slow_statement(THD *thd)
 {
-  DBUG_ENTER("log_slow_statement");
   time_t start_of_query;
+  DBUG_ENTER("log_slow_statement");
 
   /*
     The following should never be true with our current code base,
@@ -2121,7 +2121,7 @@ void log_slow_statement(THD *thd)
     statement in a trigger or stored function
   */
   if (unlikely(thd->in_sub_stmt))
-    return;                                     // Don't set time for sub stmt
+    DBUG_VOID_RETURN;                           // Don't set time for sub stmt
 
   start_of_query= thd->start_time;
   thd->end_time();				// Set start time
@@ -5864,18 +5864,15 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       {
 	if (thd->net.report_error)
 	{
-	  if (thd->lex->sphead)
-	  {
-	    delete thd->lex->sphead;
-	    thd->lex->sphead= NULL;
-	  }
-          if (thd->lex->et)
+          delete lex->sphead;
+          lex->sphead= NULL;
+          if (lex->et)
           {
-            thd->lex->et->free_sphead_on_delete= true;
+            lex->et->free_sphead_on_delete= true;
             /* alloced on thd->mem_root so no real memory free but dtor call */
-            thd->lex->et->free_sp();
-            thd->lex->et->deinit_mutexes();
-            thd->lex->et= NULL;
+            lex->et->free_sp();
+            lex->et->deinit_mutexes();
+            lex->et= NULL;
           }
 	}
 	else
@@ -5906,18 +5903,18 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 			 thd->is_fatal_error));
       query_cache_abort(&thd->net);
       lex->unit.cleanup();
-      if (thd->lex->sphead)
+      if (lex->sphead)
       {
 	/* Clean up after failed stored procedure/function */
-	delete thd->lex->sphead;
-	thd->lex->sphead= NULL;
+	delete lex->sphead;
+	lex->sphead= NULL;
       }
-      if (thd->lex->et)
+      if (lex->et)
       {
-        thd->lex->et->free_sphead_on_delete= true;
+        lex->et->free_sphead_on_delete= true;
         lex->et->free_sp();
         lex->et->deinit_mutexes();
-        thd->lex->et= NULL;
+        lex->et= NULL;
       }
     }
     thd->proc_info="freeing items";

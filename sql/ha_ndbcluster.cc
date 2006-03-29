@@ -2336,7 +2336,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (generate_scan_filter(m_cond_stack, op))
       DBUG_RETURN(ndb_err(trans));
 
-    if (res= define_read_attrs(buf, op))
+    if ((res= define_read_attrs(buf, op)))
     {
       DBUG_RETURN(res);
     }
@@ -9681,6 +9681,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
   NDBDICT *dict = ndb->getDictionary();
   int error;
   const char * errmsg;
+  LINT_INIT(errmsg);
 
   switch (info->ts_cmd_type){
   case (CREATE_TABLESPACE):
