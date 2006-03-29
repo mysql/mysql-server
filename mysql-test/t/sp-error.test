@@ -904,11 +904,25 @@ end|
 #
 # BUG#9529: Stored Procedures: No Warning on truncation of procedure name
 #           during creation.
-# Note: When using utf8 for mysql.proc, this limit is much higher than before
+# BUG#17015: Routine name truncation not an error
+#            When we started using utf8 for mysql.proc, this limit appeared
+#            to be higher, but in reality the names were truncated.
 --error ER_TOO_LONG_IDENT
-create procedure bug9529_90123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123()
+create procedure bug9529_901234567890123456789012345678901234567890123456789012345()
 begin
 end|
+
+--disable_warnings
+drop procedure if exists bug17015_0123456789012345678901234567890123456789012345678901234|
+--enable_warnings
+# Check the upper limit, just to make sure.
+create procedure bug17015_0123456789012345678901234567890123456789012345678901234()
+begin
+end|
+
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+show procedure status like 'bug17015%'|
+drop procedure bug17015_0123456789012345678901234567890123456789012345678901234|
 
 
 #
@@ -1699,4 +1713,3 @@ create aggregate function bug16896() returns int return 1;
 #drop procedure if exists bugNNNN|
 #--enable_warnings
 #create procedure bugNNNN...
-

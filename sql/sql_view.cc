@@ -938,6 +938,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
       tbl->skip_temporary= 1;
       tbl->belong_to_view= top_view;
       tbl->referencing_view= table;
+      tbl->prelocking_placeholder= table->prelocking_placeholder;
       /*
         First we fill want_privilege with SELECT_ACL (this is needed for the
         tables which belongs to view subqueries and temporary table views,
