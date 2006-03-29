@@ -2,6 +2,7 @@ drop table if exists t1, t2, t3, t4;
 drop view if exists v1;
 drop database if exists mysqltest;
 drop function if exists f1;
+drop function if exists f2;
 drop procedure if exists p1;
 create table t1 (i int);
 create trigger trg before insert on t1 for each row set @a:=1;
@@ -897,3 +898,26 @@ create trigger t1_bi before insert on t1 for each row return 0;
 ERROR 42000: RETURN is only allowed in a FUNCTION
 insert into t1 values (1);
 drop table t1;
+create table t1 (a varchar(64), b int);
+create table t2 like t1;
+create trigger t1_ai after insert on t1 for each row
+set @a:= (select max(a) from t1);
+insert into t1 (a) values
+("Twas"),("brillig"),("and"),("the"),("slithy"),("toves"),
+("Did"),("gyre"),("and"),("gimble"),("in"),("the"),("wabe");
+create trigger t2_ai after insert on t2 for each row
+set @a:= (select max(a) from t2);
+insert into t2 select * from t1;
+load data infile '../std_data_ln/words.dat' into table t1 (a);
+drop trigger t1_ai;
+drop trigger t2_ai;
+create function f1() returns int return (select max(b) from t1);
+insert into t1 values
+("All",f1()),("mimsy",f1()),("were",f1()),("the",f1()),("borogoves",f1()),
+("And",f1()),("the",f1()),("mome", f1()),("raths",f1()),("outgrabe",f1());
+create function f2() returns int return (select max(b) from t2);
+insert into t2 select a, f2() from t1;
+load data infile '../std_data_ln/words.dat' into table t1 (a) set b:= f1();
+drop table t1;
+drop function f1;
+drop function f2;
