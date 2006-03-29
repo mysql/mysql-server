@@ -139,18 +139,3 @@ a	b	c
 10	NULL	Ten
 15	NULL	Fifteen
 drop table t1, t2;
-create table bug11151 (a int, b int) engine=InnoDB;
-start transaction;
-insert into bug11151 values (0, 0);
-rollback;
-select a, b from bug11151;
-a	b
-delete from bug11151;
-start transaction;
-insert into bug11151 values (42, 0);
-load data infile '../std_data_ln/loaddata5.dat' into table bug11151 fields terminated by '' enclosed by '' (a, b);
-insert into bug11151 values (42, 99);
-rollback;
-select a, b from bug11151;
-a	b
-drop table bug11151;

@@ -381,7 +381,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->next_number_field=0;
   }
-
+  ha_enable_transaction(thd, TRUE);
   if (file >= 0)
     my_close(file,MYF(0));
   free_blobs(table);				/* if pack_blob was used */
@@ -396,6 +396,9 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (error)
   {
+    if (transactional_table)
+      ha_autocommit_or_rollback(thd,error);
+
     if (read_file_from_client)
       while (!read_info.next_line())
 	;
@@ -462,6 +465,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 					 ignore, transactional_table);
   }
 #endif /*!EMBEDDED_LIBRARY*/
+  if (transactional_table)
+    error=ha_autocommit_or_rollback(thd,error);
 
 err:
   if (thd->lock)
