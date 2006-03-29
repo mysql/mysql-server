@@ -9,6 +9,8 @@ Created 1/11/1998 Heikki Tuuri
 #ifndef pars0types_h
 #define pars0types_h
 
+typedef struct pars_info_struct		pars_info_t;
+typedef struct pars_user_func_struct	pars_user_func_t;
 typedef struct sym_node_struct		sym_node_t;
 typedef struct sym_tab_struct		sym_tab_t;
 typedef struct pars_res_word_struct	pars_res_word_t;

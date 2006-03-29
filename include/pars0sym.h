@@ -158,6 +158,7 @@ struct sym_tab_struct{
 					/* position of the next character in
 					sql_string to give to the lexical
 					analyzer */
+	pars_info_t*		info;	/* extra information, or NULL */
 	sym_node_list_t		sym_list;
 					/* list of symbol nodes in the symbol
 					table */
@@ -180,6 +181,7 @@ struct sym_tab_struct{
 #define SYM_CURSOR		96	/* named cursor */
 #define SYM_PROCEDURE_NAME	97	/* stored procedure name */
 #define SYM_INDEX		98	/* database index name */
+#define SYM_FUNCTION		99	/* user function name */
 
 #ifndef UNIV_NONINL
 #include "pars0sym.ic"

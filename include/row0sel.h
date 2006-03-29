@@ -78,6 +78,15 @@ fetch_step(
 /*=======*/
 				/* out: query thread to run next or NULL */
 	que_thr_t*	thr);	/* in: query thread */
+/********************************************************************
+Sample callback function for fetch that prints each row.*/
+
+void*
+row_fetch_print(
+/*============*/
+				/* out: always returns non-NULL */
+	void*	row,		/* in:  sel_node_t* */
+	void*	user_arg);	/* in:  not used */
 /***************************************************************
 Prints a row in a select result. */
 
@@ -311,6 +320,20 @@ struct fetch_node_struct{
 	que_common_t	common;		/* type: QUE_NODE_FETCH */
 	sel_node_t*	cursor_def;	/* cursor definition */
 	sym_node_t*	into_list;	/* variables to set */
+
+	pars_user_func_t*
+			func;		/* User callback function or NULL.
+					The first argument to the function
+					is a sel_node_t*, containing the
+					results of the SELECT operation for
+					one row. If the function returns
+					NULL, it is not interested in
+					further rows and the cursor is
+					modified so (cursor % NOTFOUND) is
+					true. If it returns not-NULL,
+					continue normally. See
+					row_fetch_print() for an example
+					(and a useful debugging tool). */
 };
 
 /* Open or close cursor statement node */

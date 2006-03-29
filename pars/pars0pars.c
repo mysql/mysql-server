@@ -373,14 +373,15 @@ pars_resolve_exp_variables_and_types(
 	}
 
 	/* Not resolved yet: look in the symbol table for a variable
-	or a cursor with the same name */
+	or a cursor or a function with the same name */
 
 	node = UT_LIST_GET_FIRST(pars_sym_tab_global->sym_list);
 
 	while (node) {
 		if (node->resolved
 			&& ((node->token_type == SYM_VAR)
-					|| (node->token_type == SYM_CURSOR))
+				|| (node->token_type == SYM_CURSOR)
+				|| (node->token_type == SYM_FUNCTION))
 			&& node->name
 			&& (sym_node->name_len == node->name_len)
 			&& (ut_memcmp(sym_node->name, node->name,
@@ -782,6 +783,26 @@ pars_cursor_declaration(
 
 	select_node->state = SEL_NODE_CLOSED;
 	select_node->explicit_cursor = sym_node;
+
+	return(sym_node);
+}
+
+/*************************************************************************
+Parses a function declaration. */
+
+que_node_t*
+pars_function_declaration(
+/*======================*/
+					/* out: sym_node */
+	sym_node_t*	sym_node)	/* in: function id node in the symbol
+					table */
+{
+	sym_node->resolved = TRUE;
+	sym_node->token_type = SYM_FUNCTION;
+
+	/* Check that the function exists. */
+	ut_a(pars_info_get_user_func(pars_sym_tab_global->info,
+		     sym_node->name));
 
 	return(sym_node);
 }
@@ -1433,26 +1454,42 @@ pars_procedure_call(
 }
 
 /*************************************************************************
-Parses a fetch statement. */
+Parses a fetch statement. into_list or user_func (but not both) must be
+non-NULL. */
 
 fetch_node_t*
 pars_fetch_statement(
 /*=================*/
 					/* out: fetch statement node */
 	sym_node_t*	cursor,		/* in: cursor node */
-	sym_node_t*	into_list)	/* in: variables to set */
+	sym_node_t*	into_list,	/* in: variables to set, or NULL */
+	sym_node_t*	user_func)	/* in: user function name, or NULL */
 {
 	sym_node_t*	cursor_decl;
 	fetch_node_t*	node;
+
+	/* Logical XOR. */
+	ut_a(!into_list != !user_func);
 
 	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(fetch_node_t));
 
 	node->common.type = QUE_NODE_FETCH;
 
 	pars_resolve_exp_variables_and_types(NULL, cursor);
-	pars_resolve_exp_list_variables_and_types(NULL, into_list);
 
-	node->into_list = into_list;
+	if (into_list) {
+		pars_resolve_exp_list_variables_and_types(NULL, into_list);
+		node->into_list = into_list;
+		node->func = NULL;
+	} else {
+		pars_resolve_exp_variables_and_types(NULL, user_func);
+
+		node->func = pars_info_get_user_func(pars_sym_tab_global->info,
+			user_func->name);
+		ut_a(node->func);
+
+		node->into_list = NULL;
+	}
 
 	cursor_decl = cursor->alias;
 
@@ -1460,8 +1497,11 @@ pars_fetch_statement(
 
 	node->cursor_def = cursor_decl->cursor_def;
 
-	ut_a(que_node_list_get_len(into_list)
-		== que_node_list_get_len(node->cursor_def->select_list));
+	if (into_list) {
+		ut_a(que_node_list_get_len(into_list)
+			== que_node_list_get_len(
+				node->cursor_def->select_list));
+	}
 
 	return(node);
 }
@@ -1822,6 +1862,7 @@ que_t*
 pars_sql(
 /*=====*/
 				/* out, own: the query graph */
+	pars_info_t*	info,	/* in: extra information, or NULL */
 	const char*	str)	/* in: SQL string */
 {
 	sym_node_t*	sym_node;
@@ -1841,6 +1882,7 @@ pars_sql(
 	pars_sym_tab_global->sql_string = mem_heap_strdup(heap, str);
 	pars_sym_tab_global->string_len = strlen(str);
 	pars_sym_tab_global->next_char_pos = 0;
+	pars_sym_tab_global->info = info;
 
 	yyparse();
 
@@ -1890,4 +1932,30 @@ pars_complete_graph_for_exec(
 	trx->graph = NULL;
 
 	return(thr);
+}
+
+/********************************************************************
+Get user function with the given name.*/
+
+pars_user_func_t*
+pars_info_get_user_func(
+/*====================*/
+					/* out: user func, or NULL if not
+					found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: function name to find*/
+{
+	ulint	i;
+
+	if (!info) {
+		return(NULL);
+	}
+
+	for (i = 0; i < info->n_funcs; i++) {
+		if (strcmp(info->funcs[i].name, name) == 0) {
+			return(&info->funcs[i]);
+		}
+	}
+
+	return(NULL);
 }

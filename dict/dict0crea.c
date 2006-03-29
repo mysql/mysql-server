@@ -1229,7 +1229,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	"COMMIT WORK;\n"
 	"END;\n";
 
-	graph = pars_sql(str);
+	graph = pars_sql(NULL, str);
 
 	ut_a(graph);
 
@@ -1403,7 +1403,7 @@ loop:
 
 	ut_a(sqlend == sql + len + 1);
 
-	graph = pars_sql(sql);
+	graph = pars_sql(NULL, sql);
 
 	ut_a(graph);
 
