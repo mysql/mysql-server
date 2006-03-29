@@ -252,7 +252,7 @@ dtype_print(
 		} else if (prtype == DATA_ENGLISH) {
 			fputs("DATA_ENGLISH", stderr);
 		} else {
-			fprintf(stderr, "prtype %lu", (ulong) mtype);
+			fprintf(stderr, "prtype %lu", (ulong) prtype);
 		}
 	}
 
