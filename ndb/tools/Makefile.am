@@ -1,4 +1,6 @@
 
+bin_SCRIPTS =		ndb_error_reporter
+
 ndbtools_PROGRAMS = \
   ndb_test_platform \
   ndb_waiter \
