@@ -1698,6 +1698,40 @@ lock_sec_rec_some_has_impl_off_kernel(
 	return(row_vers_impl_x_locked_off_kernel(rec, index, offsets));
 }
 
+/*************************************************************************
+Return approximate number or record locks (bits set in the bitmap) for
+this transaction. Since delete-marked records may be removed, the
+record count will not be precise. */
+
+ulint
+lock_number_of_rows_locked(
+/*=======================*/
+	trx_t*	trx)	/* in: transaction */
+{
+	lock_t*	lock;
+	ulint   n_records = 0;
+	ulint	n_bits;
+	ulint	n_bit;
+
+	lock = UT_LIST_GET_FIRST(trx->trx_locks);
+
+	while (lock) {
+		if (lock_get_type(lock) == LOCK_REC) {
+			n_bits = lock_rec_get_n_bits(lock);
+
+			for (n_bit = 0; n_bit < n_bits; n_bit++) {
+				if (lock_rec_get_nth_bit(lock, n_bit)) {
+					n_records++;
+				}
+			}
+		}
+
+		lock = UT_LIST_GET_NEXT(trx_locks, lock);
+	}
+
+	return (n_records);
+}
+
 /*============== RECORD LOCK CREATION AND QUEUE MANAGEMENT =============*/
 
 /*************************************************************************
@@ -4327,6 +4361,10 @@ loop:
 				(ulong) ut_dulint_get_low(trx->read_view->up_limit_id));
 		}
 
+		fprintf(file,
+			"Trx has approximately %lu row locks\n",
+			(ulong) lock_number_of_rows_locked(trx));
+
 		if (trx->que_state == TRX_QUE_LOCK_WAIT) {
 			fprintf(file,
  "------- TRX HAS BEEN WAITING %lu SEC FOR THIS LOCK TO BE GRANTED:\n",
@@ -5174,3 +5212,4 @@ lock_clust_rec_read_check_and_lock_alt(
 	}
 	return(ret);
 }
+

@@ -1770,6 +1770,9 @@ trx_print(
 		fprintf(f, "%lu lock struct(s), heap size %lu",
 			(ulong) UT_LIST_GET_LEN(trx->trx_locks),
 			(ulong) mem_heap_get_size(trx->lock_heap));
+
+		fprintf(f, "%lu row lock(s)",
+			(ulong) lock_number_of_rows_locked(trx));
 	}
 
 	if (trx->has_search_latch) {
