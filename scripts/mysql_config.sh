@@ -82,10 +82,15 @@ basedir=`echo $me | sed -e 's;/bin/mysql_config;;'`
 ldata='@localstatedir@'
 execdir='@libexecdir@'
 bindir='@bindir@'
+
+# If installed, search for the compiled in directory first (might be "lib64")
 pkglibdir='@pkglibdir@'
-fix_path pkglibdir lib/mysql lib
+pkglibdir_rel=`echo $pkglibdir | sed -e "s;^$basedir/;;"`
+fix_path pkglibdir $pkglibdir_rel lib/mysql lib
+
 pkgincludedir='@pkgincludedir@'
 fix_path pkgincludedir include/mysql include
+
 version='@VERSION@'
 socket='@MYSQL_UNIX_ADDR@'
 port='@MYSQL_TCP_PORT@'
