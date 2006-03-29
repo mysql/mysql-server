@@ -404,11 +404,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     let's *try* to start bulk inserts. It won't necessary
     start them as values_list.elements should be greater than
     some - handler dependent - threshold.
+    We should not start bulk inserts if this statement uses
+    functions or invokes triggers since they may access
+    to the same table and therefore should not see its
+    inconsistent state created by this optimization.
     So we call start_bulk_insert to perform nesessary checks on
     values_list.elements, and - if nothing else - to initialize
     the code to make the call of end_bulk_insert() below safe.
   */
-  if (lock_type != TL_WRITE_DELAYED)
+  if (lock_type != TL_WRITE_DELAYED && !thd->prelocked_mode)
     table->file->start_bulk_insert(values_list.elements);
 
   thd->no_trans_update= 0;
@@ -534,7 +538,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   else
 #endif
   {
-    if (table->file->end_bulk_insert() && !error)
+    if (!thd->prelocked_mode && table->file->end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno,MYF(0));
       error=1;
@@ -2181,7 +2185,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     lex->current_select->options|= OPTION_BUFFER_RESULT;
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
-  else
+  else if (!thd->prelocked_mode)
   {
     /*
       We must not yet prepare the result table if it is the same as one of the 
@@ -2189,6 +2193,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       indexes on the result table, which may be used during the select, if it
       is the same table (Bug #6034). Do the preparation after the select phase
       in select_insert::prepare2().
+      We won't start bulk inserts at all if this statement uses functions or
+      should invoke triggers since they may access to the same table too.
     */
     table->file->start_bulk_insert((ha_rows) 0);
   }
@@ -2229,7 +2235,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
-  if (thd->lex->current_select->options & OPTION_BUFFER_RESULT)
+  if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
+      !thd->prelocked_mode)
     table->file->start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
 }
@@ -2332,7 +2339,8 @@ void select_insert::send_error(uint errcode,const char *err)
     */
     DBUG_VOID_RETURN;
   }
-  table->file->end_bulk_insert();
+  if (!thd->prelocked_mode)
+    table->file->end_bulk_insert();
   /*
     If at least one row has been inserted/modified and will stay in the table
     (the table doesn't have transactions) (example: we got a duplicate key
@@ -2367,7 +2375,7 @@ bool select_insert::send_eof()
   int error,error2;
   DBUG_ENTER("select_insert::send_eof");
 
-  error=table->file->end_bulk_insert();
+  error= (!thd->prelocked_mode) ? table->file->end_bulk_insert():0;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   /*
@@ -2450,7 +2458,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  table->file->start_bulk_insert((ha_rows) 0);
+  if (!thd->prelocked_mode)
+    table->file->start_bulk_insert((ha_rows) 0);
   thd->no_trans_update= 0;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
