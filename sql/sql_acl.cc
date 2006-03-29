@@ -5037,6 +5037,8 @@ static int handle_grant_struct(uint struct_no, bool drop,
   LINT_INIT(acl_user);
   LINT_INIT(acl_db);
   LINT_INIT(grant_name);
+  LINT_INIT(user);
+  LINT_INIT(host);
 
   /* Get the number of elements in the in-memory structure. */
   switch (struct_no) {
@@ -5109,8 +5111,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
     result= 1; /* At least one element found. */
     if ( drop )
     {
-      switch ( struct_no )
-      {
+      switch ( struct_no ) {
       case 0:
         delete_dynamic_element(&acl_users, idx);
         break;

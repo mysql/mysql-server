@@ -1877,7 +1877,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (!thd->open_tables)
     thd->version=refresh_version;
   else if ((thd->version != refresh_version) &&
-           ! (flags & MYSQL_LOCK_IGNORE_FLUSH) && !table->s->log_table)
+           ! (flags & MYSQL_LOCK_IGNORE_FLUSH))
   {
     /* Someone did a refresh while thread was opening tables */
     if (refresh)
@@ -2349,13 +2349,36 @@ bool wait_for_tables(THD *thd)
 }
 
 
-/* drop tables from locked list */
+/*
+  drop tables from locked list
 
-bool drop_locked_tables(THD *thd,const char *db, const char *table_name)
+  SYNOPSIS
+    drop_locked_tables()
+    thd			Thread thandler
+    db			Database
+    table_name		Table name
+
+  INFORMATION
+    This is only called on drop tables
+
+    The TABLE object for the dropped table is unlocked but still kept around
+    as a name lock, which means that the table will be available for other
+    thread as soon as we call unlock_table_names().
+    If there is multiple copies of the table locked, all copies except
+    the first, which acts as a name lock, is removed.
+
+  RETURN
+    #    If table existed, return table
+    0	 Table was not locked
+*/
+
+
+TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name)
 {
-  TABLE *table,*next,**prev;
-  bool found=0;
+  TABLE *table,*next,**prev, *found= 0;
   prev= &thd->open_tables;
+  DBUG_ENTER("drop_locked_tables");
+
   for (table= thd->open_tables; table ; table=next)
   {
     next=table->next;
@@ -2363,8 +2386,21 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name)
 	!strcmp(table->s->db.str, db))
     {
       mysql_lock_remove(thd, thd->locked_tables,table);
-      VOID(hash_delete(&open_cache,(byte*) table));
-      found=1;
+      if (!found)
+      {
+        found= table;
+        /* Close engine table, but keep object around as a name lock */
+        if (table->db_stat)
+        {
+          table->db_stat= 0;
+          table->file->close();
+        }
+      }
+      else
+      {
+        /* We already have a name lock, remove copy */
+        VOID(hash_delete(&open_cache,(byte*) table));
+      }
     }
     else
     {
@@ -2373,14 +2409,12 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name)
     }
   }
   *prev=0;
-  if (found)
-    VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
   if (thd->locked_tables && thd->locked_tables->table_count == 0)
   {
     my_free((gptr) thd->locked_tables,MYF(0));
     thd->locked_tables=0;
   }
-  return found;
+  DBUG_RETURN(found);
 }
 
 
@@ -3489,6 +3523,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
   Field_iterator_view field_it;
   field_it.set(table_list);
   Query_arena *arena, backup;  
+  LINT_INIT(arena);
   
   DBUG_ASSERT(table_list->schema_table_reformed ||
               (ref != 0 && table_list->view != 0));
@@ -3578,6 +3613,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   DBUG_ASSERT(table_ref->is_natural_join && table_ref->join_columns);
   DBUG_ASSERT(*actual_table == NULL);
 
+  LINT_INIT(arena);
   LINT_INIT(found_field);
 
   for (;;)

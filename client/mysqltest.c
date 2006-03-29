@@ -209,9 +209,9 @@ struct st_replace_regex
    */
   char* buf;
   char* even_buf;
-  uint even_buf_len;
   char* odd_buf;
-  uint odd_buf_len;
+  int even_buf_len;
+  int odd_buf_len;
 };
 
 struct st_replace_regex *glob_replace_regex= 0;
@@ -1279,6 +1279,7 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
   LINT_INIT(res);
+  DBUG_ENTER("var_query_set");
 
   while (end > query && *end != '`')
     --end;
@@ -1340,7 +1341,7 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
     eval_expr(var, "", 0);
 
   mysql_free_result(res);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void var_copy(VAR *dest, VAR *src)
@@ -1517,6 +1518,7 @@ void do_system(struct st_query *command)
   }
 
   command->last_argument= command->end;
+  dynstr_free(&ds_cmd);
   DBUG_VOID_RETURN;
 }
 
@@ -1557,7 +1559,7 @@ int do_echo(struct st_query *command)
   dynstr_append_mem(ds, "\n", 1);
   dynstr_free(&ds_echo);
   command->last_argument= command->end;
-  return 0;
+  return(0);
 }
 
 
@@ -1660,7 +1662,7 @@ int do_save_master_pos()
 
     if (have_ndbcluster)
     {
-      ulonglong epoch, tmp_epoch= 0;
+      ulonglong epoch=0, tmp_epoch= 0;
       int count= 0;
 
       do

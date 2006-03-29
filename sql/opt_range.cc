@@ -6039,7 +6039,8 @@ SEL_ARG *
 SEL_ARG::insert(SEL_ARG *key)
 {
   SEL_ARG *element,**par,*last_element;
-  LINT_INIT(par); LINT_INIT(last_element);
+  LINT_INIT(par);
+  LINT_INIT(last_element);
 
   for (element= this; element != &null_element ; )
   {

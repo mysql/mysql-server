@@ -1556,7 +1556,15 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   DBUG_RETURN (error);
 }
 
-	/* close a .frm file and it's tables */
+
+/*
+  Free information allocated by openfrm
+
+  SYNOPSIS
+    closefrm()
+    table		TABLE object to free
+    free_share		Is 1 if we also want to free table_share
+*/
 
 int closefrm(register TABLE *table, bool free_share)
 {
@@ -1564,6 +1572,7 @@ int closefrm(register TABLE *table, bool free_share)
   uint idx;
   KEY *key_info;
   DBUG_ENTER("closefrm");
+
   if (table->db_stat)
     error=table->file->close();
   key_info= table->key_info;
@@ -2395,12 +2404,14 @@ table_check_intact(TABLE *table, uint table_f_count,
              table running on a old server will be valid.
         */ 
         field->sql_type(sql_type);
-        if (strncmp(sql_type.c_ptr(), table_def->type.str,
+        if (sql_type.length() < table_def->type.length - 1 ||
+            strncmp(sql_type.ptr(),
+                    table_def->type.str,
                     table_def->type.length - 1))
         {
           sql_print_error("(%s) Expected field %s at position %d to have type "
                           "%s, found %s", table->alias, table_def->name.str,
-                          i, table_def->type.str, sql_type.c_ptr()); 
+                          i, table_def->type.str, sql_type.c_ptr_safe()); 
           error= TRUE;
         }
         else if (table_def->cset.str && !field->has_charset())
@@ -3621,6 +3632,7 @@ Field_iterator_table_ref::get_or_create_column_ref(TABLE_LIST *parent_table_ref)
   TABLE_LIST *add_table_ref= parent_table_ref ?
                              parent_table_ref : table_ref;
 
+  LINT_INIT(field_count);
   if (field_it == &table_field_it)
   {
     /* The field belongs to a stored table. */
