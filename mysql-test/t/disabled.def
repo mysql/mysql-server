@@ -19,6 +19,7 @@ ndb_autodiscover2       : Needs to be fixed w.r.t binlog
 ndb_binlog_ddl_multi    : Bug #18490 cluster: binlog events lost on remote mysqld (asynchronous)
 #ndb_binlog_multi        : Results are not deterministic, Tomas will fix
 ndb_cache2  : Bug #18597
+ndb_gis    : Bug #18600
 ndb_load                : Bug#17233
 ndb_partition_list      : Bug#18598
 partition_03ndb         : Bug#16385
