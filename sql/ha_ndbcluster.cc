@@ -3397,6 +3397,7 @@ int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
           The partition id has been fetched from ndb
           and has been stored directly after the hidden key
         */
+        DBUG_DUMP("key+part", (char *)pos, key_length);
         key_length= ref_length - sizeof(m_part_id);
         part_spec.start_part= part_spec.end_part= *(pos + key_length);
       }
@@ -3413,6 +3414,7 @@ int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
       }
       DBUG_PRINT("info", ("partition id %u", part_spec.start_part));
     }
+    DBUG_DUMP("key", (char *)pos, key_length);
     DBUG_RETURN(pk_read(pos, key_length, buf, part_spec.start_part));
   }
 }
@@ -3498,7 +3500,10 @@ void ha_ndbcluster::position(const byte *record)
 #endif
     memcpy(ref, m_ref, key_length);
   }
-  
+#ifndef DBUG_OFF
+  if (table_share->primary_key == MAX_KEY && m_use_partition_function) 
+    DBUG_DUMP("key+part", (char*)ref, key_length+sizeof(m_part_id));
+#endif
   DBUG_DUMP("ref", (char*)ref, key_length);
   DBUG_VOID_RETURN;
 }

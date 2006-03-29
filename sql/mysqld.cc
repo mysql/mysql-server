@@ -8183,6 +8183,7 @@ ulong srv_thread_sleep_delay;
 ulong srv_thread_concurrency;
 ulong srv_commit_concurrency;
 }
+
 #endif
 
 #ifndef WITH_NDBCLUSTER_STORAGE_ENGINE
