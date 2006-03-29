@@ -28,6 +28,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "eval0eval.h"
 #include "data0data.h"
 #include "usr0sess.h"
+#include "buf0lru.h"
 
 #define	ROW_INS_PREV	1
 #define	ROW_INS_NEXT	2
@@ -278,10 +279,17 @@ row_ins_sec_index_entry_by_modify(
 		}
 	} else  {
 		ut_a(mode == BTR_MODIFY_TREE);
+		if (buf_LRU_buf_pool_running_out()) {
+	
+			err = DB_LOCK_TABLE_FULL;
+		
+			goto func_exit;
+		}
+
 		err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG, cursor,
 					&dummy_big_rec, update, 0, thr, mtr);
 	}
-
+func_exit:
 	mem_heap_free(heap);
 
 	return(err);
@@ -342,10 +350,16 @@ row_ins_clust_index_entry_by_modify(
 		}
 	} else  {
 		ut_a(mode == BTR_MODIFY_TREE);
+		if (buf_LRU_buf_pool_running_out()) {
+	
+			err = DB_LOCK_TABLE_FULL;
+
+			goto func_exit;
+		}
 		err = btr_cur_pessimistic_update(0, cursor, big_rec, update,
 								0, thr, mtr);
 	}
-	
+func_exit:	
 	mem_heap_free(heap);
 
 	return(err);
@@ -1860,7 +1874,6 @@ row_ins_duplicate_error_in_clust(
 				err = DB_DUPLICATE_KEY;
 				goto func_exit;
 			}
-			mem_heap_free(heap);
 		}
 
 		ut_a(!(cursor->index->type & DICT_CLUSTERED));
@@ -1869,6 +1882,9 @@ row_ins_duplicate_error_in_clust(
 
 	err = DB_SUCCESS;
 func_exit:
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
+	}
 	return(err);
 #else /* UNIV_HOTBACKUP */
 	/* This function depends on MySQL code that is not included in
@@ -2068,6 +2084,12 @@ row_ins_index_entry_low(
 					&insert_rec, &big_rec, thr, &mtr);
 		} else {
 			ut_a(mode == BTR_MODIFY_TREE);
+			if (buf_LRU_buf_pool_running_out()) {
+	
+				err = DB_LOCK_TABLE_FULL;
+
+				goto function_exit;
+			}
 			err = btr_cur_pessimistic_insert(0, &cursor, entry,
 					&insert_rec, &big_rec, thr, &mtr);
 		}
