@@ -1407,8 +1407,13 @@ DROP TABLE test_repair_table;
 
 CREATE TABLE test_repair_table2 ( val integer ) ENGINE = CSV;
 --exec rm $MYSQLTEST_VARDIR/master-data/test/test_repair_table2.CSM
-# should give a warning and perform autorepair
+
+# Should give a warning and perform autorepair. We also disable ps-protocol
+# here, as mysql-test eats up warnings in ps-protocol mode
+
+--disable_ps_protocol
 SELECT * from test_repair_table2;
+--enable_ps_protocol
 # this should work ok, as the table is already repaired
 SELECT * from test_repair_table2;
 # check that the metafile appeared again. chop the path to it
@@ -1435,7 +1440,9 @@ CREATE TABLE test_repair_table4 (
 ) ENGINE = CSV;
 
 --exec rm $MYSQLTEST_VARDIR/master-data/test/test_repair_table4.CSM
+--disable_ps_protocol
 SELECT * FROM test_repair_table4;
+--enable_ps_protocol
 SELECT * FROM test_repair_table4;
 CHECK TABLE test_repair_table4;
 
