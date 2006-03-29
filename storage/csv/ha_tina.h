@@ -129,10 +129,6 @@ public:
   bool check_and_repair(THD *thd);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   bool is_crashed() const;
-  int read_meta_file(File meta_file, ha_rows *rows);
-  int write_meta_file(File meta_file, ha_rows rows, bool dirty);
-  TINA_SHARE *get_share(const char *table_name, TABLE *table, int *rc);
-  int free_share(TINA_SHARE *share);
   int rnd_end();
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   /* This is required for SQL layer to know that we support autorepair */
