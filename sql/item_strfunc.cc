@@ -2593,7 +2593,7 @@ String *Item_load_file::val_str(String *str)
   tmp_value.length(stat_info.st_size);
   my_close(file, MYF(0));
   null_value = 0;
-  return &tmp_value;
+  DBUG_RETURN(&tmp_value);
 
 err:
   null_value = 1;

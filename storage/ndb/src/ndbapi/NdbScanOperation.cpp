@@ -169,7 +169,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   { char* p = getenv("NDB_USE_TUPSCAN");
     if (p != 0) {
       unsigned n = atoi(p); // 0-10
-      if (::time(0) % 10 < n) tupScan = true;
+      if ((unsigned int) (::time(0) % 10) < n) tupScan = true;
     }
   }
 #endif

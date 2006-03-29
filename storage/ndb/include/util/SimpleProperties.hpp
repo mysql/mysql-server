@@ -166,6 +166,7 @@ public:
    */
   class Writer {
   public:
+    Writer() {}
     virtual ~Writer() {}
 
     bool first();

@@ -4463,7 +4463,7 @@ double Item_func_match::val_real()
     DBUG_RETURN(-1.0);
 
   if (table->null_row) /* NULL row from an outer join */
-    return 0.0;
+    DBUG_RETURN(0.0);
 
   if (join_key)
   {
@@ -4480,9 +4480,8 @@ double Item_func_match::val_real()
     DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
 				      (byte *)a->ptr(), a->length()));
   }
-  else
-    DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
-                                                   table->record[0], 0));
+  DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
+                                                 table->record[0], 0));
 }
 
 void Item_func_match::print(String *str)
