@@ -166,7 +166,6 @@ our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
 our $opt_vardir_trace;           # unix formatted opt_vardir for trace files
 our $opt_tmpdir;                 # A path but set directly on cmd line
-our $opt_restart_cleanup;        # Source a file with SQL drop statements
 
 our $opt_usage;
 our $opt_suite;
@@ -588,16 +587,18 @@ sub command_line_setup () {
              'with-ndbcluster-only'     => \$opt_with_ndbcluster_only,
              'ndb-extra-test'           => \$opt_ndb_extra_test,
              'do-test=s'                => \$opt_do_test,
+             'start-from=s'             => \$opt_start_from,
              'suite=s'                  => \$opt_suite,
              'skip-rpl'                 => \$opt_skip_rpl,
              'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
+             'big-test'                 => \$opt_big_test,
 
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
-             'ndbcluster_port=i'        => \$opt_ndbcluster_port,
-             'ndbcluster_port_slave=i'  => \$opt_ndbcluster_port_slave,
+             'ndbcluster-port=i'        => \$opt_ndbcluster_port,
+             'ndbcluster-port-slave=i'  => \$opt_ndbcluster_port_slave,
              'manager-port=i'           => \$opt_manager_port, # Currently not used
              'im-port=i'                => \$im_port, # Instance Manager port.
              'im-mysqld1-port=i'        => \$im_mysqld1_port, # Port of mysqld, controlled by IM
@@ -607,13 +608,13 @@ sub command_line_setup () {
              'record'                   => \$opt_record,
              'check-testcases'          => \$opt_check_testcases,
 
-             # ???
+             # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
 
              # Run test on running server
              'extern'                   => \$opt_extern,
-             'ndbconnectstring=s'       => \$opt_ndbconnectstring,
-             'ndbconnectstring-slave=s' => \$opt_ndbconnectstring_slave,
+             'ndb-connectstring=s'       => \$opt_ndbconnectstring,
+             'ndb-connectstring-slave=s' => \$opt_ndbconnectstring_slave,
 
              # Debugging
              'gdb'                      => \$opt_gdb,
@@ -652,7 +653,6 @@ sub command_line_setup () {
              'vardir=s'                 => \$opt_vardir,
 
              # Misc
-             'big-test'                 => \$opt_big_test,
              'comment=s'                => \$opt_comment,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
@@ -661,13 +661,11 @@ sub command_line_setup () {
              'netware'                  => \$opt_netware,
              'old-master'               => \$opt_old_master,
              'reorder'                  => \$opt_reorder,
-             'restart-cleanup'          => \$opt_restart_cleanup,
              'script-debug'             => \$opt_script_debug,
              'sleep=i'                  => \$opt_sleep,
              'socket=s'                 => \$opt_socket,
              'start-dirty'              => \$opt_start_dirty,
              'start-and-exit'           => \$opt_start_and_exit,
-             'start-from=s'             => \$opt_start_from,
              'timer'                    => \$opt_timer,
              'unified-diff|udiff'       => \$opt_udiff,
              'user-test=s'              => \$opt_user_test,
@@ -3260,12 +3258,6 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--sleep=%d", $opt_sleep);
   }
 
-  if ( $opt_restart_cleanup and $glob_mysqld_restart )
-  {
-    mtr_add_arg($args, "--include=%s", "include/drop-on-restart.inc");
-    $glob_mysqld_restart= 0;
-  }
-
   if ( $opt_debug )
   {
     mtr_add_arg($args, "--debug=d:t:A,%s/log/mysqltest.trace", $opt_vardir_trace);
@@ -3561,12 +3553,15 @@ Options to control what test suites or cases to run
   skip-rpl              Skip the replication test cases.
   skip-im               Don't start IM, and skip the IM test cases
   skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
+  big-test              Pass "--big-test" to mysqltest which will set the environment
+                        variable BIG_TEST, which can be checked from test cases.
 
 Options that specify ports
 
   master_port=PORT      Specify the port number used by the first master
   slave_port=PORT       Specify the port number used by the first slave
-  ndbcluster_port=PORT  Specify the port number used by cluster
+  ndbcluster-port=PORT  Specify the port number used by cluster
+  ndbcluster-port-slave=PORT  Specify the port number used by slave cluster
 
 Options for test case authoring
 
@@ -3620,16 +3615,14 @@ Misc options
   help                  Get this help text
   unified-diff | udiff  When presenting differences, use unified diff
 
-  testcase-timeout=MINUTES Max test case run time (default 5)
-  suite-timeout=MINUTES    Max test suite run time (default 120)
+  testcase-timeout=MINUTES Max test case run time (default $default_testcase_timeout)
+  suite-timeout=MINUTES    Max test suite run time (default $default_suite_timeout)
 
 Deprecated options
   with-openssl          Deprecated option for ssl
 
 
 Options not yet described, or that I want to look into more
-
-  big-test              
   debug                 
   local                 
   local-master          
