@@ -597,8 +597,8 @@ sub command_line_setup () {
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
-             'ndbcluster_port=i'        => \$opt_ndbcluster_port,
-             'ndbcluster_port_slave=i'  => \$opt_ndbcluster_port_slave,
+             'ndbcluster-port=i'        => \$opt_ndbcluster_port,
+             'ndbcluster-port-slave=i'  => \$opt_ndbcluster_port_slave,
              'manager-port=i'           => \$opt_manager_port, # Currently not used
              'im-port=i'                => \$im_port, # Instance Manager port.
              'im-mysqld1-port=i'        => \$im_mysqld1_port, # Port of mysqld, controlled by IM
@@ -3564,7 +3564,8 @@ Options that specify ports
 
   master_port=PORT      Specify the port number used by the first master
   slave_port=PORT       Specify the port number used by the first slave
-  ndbcluster_port=PORT  Specify the port number used by cluster
+  ndbcluster-port=PORT  Specify the port number used by cluster
+  ndbcluster-port-slave=PORT  Specify the port number used by slave cluster
 
 Options for test case authoring
 
