@@ -400,7 +400,8 @@ handlerton federated_hton= {
   NULL,    /* Fill FILES table */
   HTON_ALTER_NOT_SUPPORTED,
   NULL,    /* binlog_func */
-  NULL     /* binlog_log_query */
+  NULL,    /* binlog_log_query */
+  NULL	   /* release_temporary_latches */
 };
 
 

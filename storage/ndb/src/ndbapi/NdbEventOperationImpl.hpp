@@ -51,6 +51,7 @@ struct EventBufData
   EventBufData *m_next_hash; // Next in per-GCI hash
   Uint32 m_pkhash; // PK hash (without op) for fast compare
 
+  EventBufData() {}
   // Get blob part number from blob data
   Uint32 get_blob_part_no() {
     assert(ptr[0].sz > 2);

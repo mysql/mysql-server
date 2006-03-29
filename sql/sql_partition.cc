@@ -4921,7 +4921,7 @@ the generated partition syntax in a correct manner.
     */
     if (table->part_info)
     {
-      if (thd->lex->alter_info.flags & ALTER_REMOVE_PARTITIONING)
+      if (alter_info->flags & ALTER_REMOVE_PARTITIONING)
       {
         DBUG_PRINT("info", ("Remove partitioning"));
         if (!(thd->lex->create_info.used_fields & HA_CREATE_USED_ENGINE))

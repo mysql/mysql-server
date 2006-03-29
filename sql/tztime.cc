@@ -2189,12 +2189,11 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
   TZ_NAMES_ENTRY *tmp_tzname;
   Time_zone *result_tz= 0;
   long offset;
-
   DBUG_ENTER("my_tz_find");
   DBUG_PRINT("enter", ("time zone name='%s'",
-                      name ? ((String *)name)->c_ptr() : "NULL"));
-
-  DBUG_ASSERT(!time_zone_tables_exist || tz_tables || current_thd->slave_thread);
+                       name ? ((String *)name)->c_ptr_safe() : "NULL"));
+  DBUG_ASSERT(!time_zone_tables_exist || tz_tables ||
+              current_thd->slave_thread);
 
   if (!name)
     DBUG_RETURN(0);

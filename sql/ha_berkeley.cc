@@ -155,7 +155,8 @@ handlerton berkeley_hton = {
   NULL, /* Fill Files Table */
   HTON_CLOSE_CURSORS_AT_COMMIT | HTON_FLUSH_AFTER_RENAME,
   NULL, /* binlog_func */
-  NULL  /* binlog_log_query */
+  NULL,  /* binlog_log_query */
+  NULL	/* release_temporary_latches */
 };
 
 handler *berkeley_create_handler(TABLE_SHARE *table)

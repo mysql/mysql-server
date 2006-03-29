@@ -1275,12 +1275,13 @@ end:
 
 int ha_tina::delete_all_rows()
 {
+  int rc;
   DBUG_ENTER("ha_tina::delete_all_rows");
 
   if (!records_is_known)
-    return (my_errno=HA_ERR_WRONG_COMMAND);
+    DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
 
-  int rc= my_chsize(share->data_file, 0, 0, MYF(MY_WME));
+  rc= my_chsize(share->data_file, 0, 0, MYF(MY_WME));
 
   if (get_mmap(share, 0) > 0)
     DBUG_RETURN(-1);

@@ -63,9 +63,11 @@ static int binlog_prepare(THD *thd, bool all);
   Don't add constructors, destructors, or virtual functions.
 */
 struct binlog_trx_data {
-  bool empty() const {
+  bool empty() const
+  {
     return pending == NULL && my_b_tell(&trans_log) == 0;
   }
+  binlog_trx_data() {}
   IO_CACHE trans_log;                         // The transaction cache
   Rows_log_event *pending;                // The pending binrows event
 };
@@ -104,7 +106,8 @@ handlerton binlog_hton = {
   NULL,                         /* Fill FILES table */
   HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
   NULL,                         /* binlog_func */
-  NULL                          /* binlog_log_query */
+  NULL,                         /* binlog_log_query */
+  NULL				/* release_temporary_latches */
 };
 
 
@@ -2635,8 +2638,9 @@ int THD::binlog_setup_trx_data()
 
 int THD::binlog_write_table_map(TABLE *table, bool is_trans)
 {
+  int error;
   DBUG_ENTER("THD::binlog_write_table_map");
-  DBUG_PRINT("enter", ("table=%p (%s: #%u)",
+  DBUG_PRINT("enter", ("table: %p  (%s: #%u)",
                        table, table->s->table_name, table->s->table_map_id));
 
   /* Pre-conditions */
@@ -2653,10 +2657,10 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
     trans_register_ha(this, options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN),
                       &binlog_hton);
 
-  if (int error= mysql_bin_log.write(&the_event))
+  if ((error= mysql_bin_log.write(&the_event)))
     DBUG_RETURN(error);
 
-  ++binlog_table_maps;
+  binlog_table_maps++;
   table->s->table_map_version= mysql_bin_log.table_map_version();
   DBUG_RETURN(0);
 }
