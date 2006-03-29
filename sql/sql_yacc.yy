@@ -4726,13 +4726,14 @@ alter:
 	  lex->col_list.empty();
           lex->select_lex.init_order();
 	  lex->select_lex.db=lex->name= 0;
-         lex->like_name= 0;
+	  lex->like_name= 0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= (handlerton*) &default_hton;
 	  lex->create_info.default_table_charset= NULL;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
 	  lex->alter_info.reset();
 	  lex->alter_info.flags= 0;
+          lex->no_write_to_binlog= 0;
 	}
 	alter_commands
 	{}

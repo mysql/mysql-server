@@ -37,7 +37,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   READ_RECORD	info;
   bool          using_limit=limit != HA_POS_ERROR;
   bool		transactional_table, safe_update, const_cond;
-  ha_rows	deleted;
+  ha_rows	deleted= 0;
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
   bool          ha_delete_all_rows= 0;
@@ -212,7 +212,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   else
     init_read_record_idx(&info, thd, table, 1, usable_index);
 
-  deleted=0L;
   init_ftfuncs(thd, select_lex, 1);
   thd->proc_info="updating";
   will_batch= !table->file->start_bulk_delete();

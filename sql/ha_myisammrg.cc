@@ -70,7 +70,8 @@ handlerton myisammrg_hton= {
   NULL,    /* Fill Files Table */
   HTON_CAN_RECREATE,
   NULL,    /* binlog_func */
-  NULL     /* binlog_log_query */
+  NULL,    /* binlog_log_query */
+  NULL	   /* release_temporary_latches */
 };
 
 static handler *myisammrg_create_handler(TABLE_SHARE *table)

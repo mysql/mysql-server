@@ -1362,6 +1362,9 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
                        Item **args, uint nargs, uint flags)
 {
   Item **arg, **last, *safe_args[2];
+
+  LINT_INIT(safe_args[0]);
+  LINT_INIT(safe_args[1]);
   if (agg_item_collations(coll, fname, args, nargs, flags))
     return TRUE;
 

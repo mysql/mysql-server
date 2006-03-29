@@ -153,6 +153,15 @@
    fun:gzflush
 }
 
+{
+   libz deflate3
+   Memcheck:Cond
+   obj:*/libz.so.*
+   obj:*/libz.so.*
+   fun:deflate
+   fun:do_flush
+}
+
 #
 # Warning from my_thread_init becasue mysqld dies before kill thread exists
 #

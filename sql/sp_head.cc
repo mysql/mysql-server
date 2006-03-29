@@ -563,6 +563,7 @@ create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
   TYPELIB *result= NULL;
   CHARSET_INFO *cs= field_def->charset;
   DBUG_ENTER("create_typelib");
+
   if (src->elements)
   {
     result= (TYPELIB*) alloc_root(mem_root, sizeof(TYPELIB));
@@ -570,8 +571,8 @@ create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
     result->name= "";
     if (!(result->type_names=(const char **)
           alloc_root(mem_root,(sizeof(char *)+sizeof(int))*(result->count+1))))
-      return 0;
-    result->type_lengths= (unsigned int *)(result->type_names + result->count+1);
+      DBUG_RETURN(0);
+    result->type_lengths= (uint*)(result->type_names + result->count+1);
     List_iterator<String> it(*src);
     String conv;
     for (uint i=0; i < result->count; i++)
@@ -604,7 +605,7 @@ create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
     result->type_names[result->count]= 0;
     result->type_lengths[result->count]= 0;
   }
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -1224,10 +1225,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   bool err_status= FALSE;
-
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
 
+  LINT_INIT(binlog_save_options);
   params = m_pcont->context_pvars();
 
   /*

@@ -68,7 +68,8 @@ const handlerton default_hton =
   NULL,                         /* fill_files_table */
   HTON_NO_FLAGS,                /* flags */
   NULL,                         /* binlog_func */
-  NULL                          /* binlog_log_query */
+  NULL,                          /* binlog_log_query */
+  NULL				/* release_temporary_latches */
 };
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
