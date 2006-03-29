@@ -1975,7 +1975,18 @@ fetch_step(
 
 		if (sel_node->state != SEL_NODE_NO_MORE_ROWS) {
 
-			sel_assign_into_var_values(node->into_list, sel_node);
+			if (node->into_list) {
+				sel_assign_into_var_values(node->into_list,
+					sel_node);
+			} else {
+				void* ret = (*node->func->func)(sel_node,
+					node->func->arg);
+
+				if (!ret) {
+					sel_node->state =
+						SEL_NODE_NO_MORE_ROWS;
+				}
+			}
 		}
 
 		thr->run_node = que_node_get_parent(node);
@@ -2002,6 +2013,46 @@ fetch_step(
 	thr->run_node = sel_node;
 
 	return(thr);
+}
+
+/********************************************************************
+Sample callback function for fetch that prints each row.*/
+
+void*
+row_fetch_print(
+/*============*/
+				/* out: always returns non-NULL */
+	void*	row,		/* in:  sel_node_t* */
+	void*	user_arg)	/* in:  not used */
+{
+	sel_node_t*	node = row;
+	que_node_t*	exp;
+	ulint		i = 0;
+
+	UT_NOT_USED(user_arg);
+
+	fprintf(stderr, "row_fetch_print: row %p\n", row);
+
+	exp = node->select_list;
+
+	while (exp) {
+		dfield_t*	dfield = que_node_get_val(exp);
+		dtype_t*	type = dfield_get_type(dfield);
+
+		fprintf(stderr, " column %lu:\n", (ulong)i);
+
+		dtype_print(type);
+		fprintf(stderr, "\n");
+
+		ut_print_buf(stderr, dfield_get_data(dfield),
+			dfield_get_len(dfield));
+		fprintf(stderr, "\n");
+
+		exp = que_node_get_next(exp);
+		i++;
+	}
+
+	return((void*)42);
 }
 
 /***************************************************************

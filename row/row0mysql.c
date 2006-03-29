@@ -2510,7 +2510,7 @@ do not allow the discard. We also reserve the data dictionary latch. */
 		(ulong) ut_dulint_get_high(new_id),
 		(ulong) ut_dulint_get_low(new_id));
 
-	graph = pars_sql(buf);
+	graph = pars_sql(NULL, buf);
 
 	ut_a(graph);
 
@@ -2942,7 +2942,7 @@ do not allow the TRUNCATE. We also reserve the data dictionary latch. */
 		(ulong) ut_dulint_get_high(new_id),
 		(ulong) ut_dulint_get_low(new_id));
 
-	graph = pars_sql(sql);
+	graph = pars_sql(NULL, sql);
 
 	ut_a(graph);
 
@@ -3166,7 +3166,7 @@ row_drop_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	graph = pars_sql(sql);
+	graph = pars_sql(NULL, sql);
 
 	ut_a(graph);
 	mem_free(sql);
@@ -3781,7 +3781,7 @@ row_rename_table_for_mysql(
 
 	ut_a(sqlend == sql + len + 1);
 
-	graph = pars_sql(sql);
+	graph = pars_sql(NULL, sql);
 
 	ut_a(graph);
 	mem_free(sql);

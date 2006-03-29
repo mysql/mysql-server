@@ -116,7 +116,8 @@
      PARS_WORK_TOKEN = 342,
      PARS_UNSIGNED_TOKEN = 343,
      PARS_EXIT_TOKEN = 344,
-     NEG = 345
+     PARS_FUNCTION_TOKEN = 345,
+     NEG = 346
    };
 #endif
 #define PARS_INT_LIT 258
@@ -206,7 +207,8 @@
 #define PARS_WORK_TOKEN 342
 #define PARS_UNSIGNED_TOKEN 343
 #define PARS_EXIT_TOKEN 344
-#define NEG 345
+#define PARS_FUNCTION_TOKEN 345
+#define NEG 346
 
 
 

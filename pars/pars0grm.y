@@ -117,6 +117,7 @@ yylex(void);
 %token PARS_WORK_TOKEN
 %token PARS_UNSIGNED_TOKEN
 %token PARS_EXIT_TOKEN
+%token PARS_FUNCTION_TOKEN
 
 %left PARS_AND_TOKEN PARS_OR_TOKEN
 %left PARS_NOT_TOKEN
@@ -226,6 +227,10 @@ predefined_procedure_name:
 	PARS_REPLSTR_TOKEN	{ $$ = &pars_replstr_token; }
 	| PARS_PRINTF_TOKEN	{ $$ = &pars_printf_token; }
 	| PARS_ASSERT_TOKEN	{ $$ = &pars_assert_token; }
+;
+
+user_function_call:
+	PARS_ID_TOKEN '(' ')'	{ $$ = $1; }
 ;
 
 table_list:
@@ -453,7 +458,9 @@ close_cursor_statement:
 
 fetch_statement:
 	PARS_FETCH_TOKEN PARS_ID_TOKEN PARS_INTO_TOKEN variable_list
-				{ $$ = pars_fetch_statement($2, $4); }
+				{ $$ = pars_fetch_statement($2, $4, NULL); }
+	| PARS_FETCH_TOKEN PARS_ID_TOKEN PARS_INTO_TOKEN user_function_call
+				{ $$ = pars_fetch_statement($2, NULL, $4); }
 ;
 
 column_def:
@@ -575,10 +582,20 @@ cursor_declaration:
 				{ $$ = pars_cursor_declaration($3, $5); }
 ;
 
+function_declaration:
+	PARS_DECLARE_TOKEN PARS_FUNCTION_TOKEN PARS_ID_TOKEN ';'
+				{ $$ = pars_function_declaration($3); }
+;
+
+declaration:
+	cursor_declaration
+	| function_declaration
+;
+
 declaration_list:
 	/* Nothing */
-	| cursor_declaration
-	| declaration_list cursor_declaration
+	| declaration
+	| declaration_list declaration
 ;
 
 procedure_definition:

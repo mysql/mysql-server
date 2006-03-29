@@ -77,6 +77,7 @@ que_t*
 pars_sql(
 /*=====*/
 				/* out, own: the query graph */
+	pars_info_t*	info,	/* in: extra information, or NULL */
 	const char*	str);	/* in: SQL string */
 /*****************************************************************
 Retrieves characters to the lexical analyzer. */
@@ -156,6 +157,15 @@ pars_cursor_declaration(
 	sym_node_t*	sym_node,	/* in: cursor id node in the symbol
 					table */
 	sel_node_t*	select_node);	/* in: select node */
+/*************************************************************************
+Parses a function declaration. */
+
+que_node_t*
+pars_function_declaration(
+/*======================*/
+					/* out: sym_node */
+	sym_node_t*	sym_node);	/* in: function id node in the symbol
+					table */
 /*************************************************************************
 Parses a select statement. */
 
@@ -301,14 +311,16 @@ pars_assignment_statement(
 	sym_node_t*	var,	/* in: variable to assign */
 	que_node_t*	val);	/* in: value to assign */
 /*************************************************************************
-Parses a fetch statement. */
+Parses a fetch statement. into_list or user_func (but not both) must be
+non-NULL. */
 
 fetch_node_t*
 pars_fetch_statement(
 /*=================*/
 					/* out: fetch statement node */
 	sym_node_t*	cursor,		/* in: cursor node */
-	sym_node_t*	into_list);	/* in: variables to set */
+	sym_node_t*	into_list,	/* in: variables to set, or NULL */
+	sym_node_t*	user_func);	/* in: user function name, or NULL */
 /*************************************************************************
 Parses an open or close cursor statement. */
 
@@ -427,6 +439,39 @@ pars_complete_graph_for_exec(
 	trx_t*		trx,	/* in: transaction handle */
 	mem_heap_t*	heap);	/* in: memory heap from which allocated */
 
+/********************************************************************
+Get user function with the given name.*/
+
+pars_user_func_t*
+pars_info_get_user_func(
+/*====================*/
+					/* out: user func, or NULL if not
+					found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name);	/* in: function name to find*/
+
+
+/* Extra information (possibly) supplied for pars_sql(). */
+struct pars_info_struct {
+	pars_user_func_t*	funcs;		/* User functions, owned by
+						the user, who's responsible
+						for freeing them as
+						necessary. */
+	ulint			n_funcs;	/* number of user functions */
+};
+
+/* Type of the user functions. The first argument is always InnoDB-supplied
+and varies in type, while 'user_arg' is a user-supplied argument. The
+meaning of the return type also varies. See the individual use cases, e.g.
+the FETCH statement, for details on them. */
+typedef void* (*pars_user_func_cb_t)(void* arg, void* user_arg);
+
+/* User-supplied function and argument. */
+struct pars_user_func_struct {
+	const char*		name;		/* function name */
+	pars_user_func_cb_t	func;		/* function address */
+	void*			arg;		/* user-supplied argument */
+};
 
 /* Struct used to denote a reserved word in a parsing tree */
 struct pars_res_word_struct{

@@ -494,6 +494,10 @@ In the state 'id', only two actions are possible (defined below). */
 			return(PARS_EXIT_TOKEN);
 }
 
+"FUNCTION"	{
+			return(PARS_FUNCTION_TOKEN);
+}
+
 {ID}		{
 			yylval = sym_tab_add_id(pars_sym_tab_global,
 							(byte*)yytext,
