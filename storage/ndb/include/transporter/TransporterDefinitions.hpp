@@ -117,6 +117,7 @@ struct SegmentedSectionPtr {
   Uint32 i;
   struct SectionSegment * p;
 
+  SegmentedSectionPtr() {}
   void setNull() { p = 0;}
   bool isNull() const { return p == 0;}
 };
