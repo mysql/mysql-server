@@ -85,6 +85,7 @@ DIGIT	[0-9]
 ID	[a-z_A-Z][a-z_A-Z0-9]*
 %x comment
 %x quoted
+%x id
 %%
 
 {DIGIT}+	{
@@ -134,6 +135,45 @@ In the state 'quoted', only two actions are possible (defined below). */
 					pars_sym_tab_global,
 					(byte*) stringbuf, stringbuf_len);
 				return(PARS_STR_LIT);
+			}
+}
+
+\"		{
+/* Quoted identifiers are handled in an explicit start state 'id'.
+This state is entered and the buffer for the scanned string is emptied
+upon encountering a starting quote.
+
+In the state 'id', only two actions are possible (defined below). */
+			BEGIN(id);
+			stringbuf_len = 0;
+}
+<id>[^\"]+	{
+			/* Got a sequence of characters other than '"':
+			append to string buffer */
+			string_append(yytext, yyleng);
+}
+<id>\"+	{
+			/* Got a sequence of '"' characters:
+			append half of them to string buffer,
+			as '""' represents a single '"'.
+			We apply truncating division,
+			so that '"""' will result in '"'. */
+
+			string_append(yytext, yyleng / 2);
+
+			/* If we got an odd number of quotes, then the
+			last quote we got is the terminating quote.
+			At the end of the string, we return to the
+			initial start state and report the scanned
+			identifier. */
+
+			if (yyleng % 2) {
+				BEGIN(INITIAL);
+				yylval = sym_tab_add_id(
+					pars_sym_tab_global,
+					(byte*) stringbuf, stringbuf_len);
+
+				return(PARS_ID_TOKEN);
 			}
 }
 
