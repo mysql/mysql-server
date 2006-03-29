@@ -592,6 +592,7 @@ sub command_line_setup () {
              'skip-rpl'                 => \$opt_skip_rpl,
              'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
+             'big-test'                 => \$opt_big_test,
 
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
@@ -607,7 +608,7 @@ sub command_line_setup () {
              'record'                   => \$opt_record,
              'check-testcases'          => \$opt_check_testcases,
 
-             # ???
+             # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
 
              # Run test on running server
@@ -652,7 +653,6 @@ sub command_line_setup () {
              'vardir=s'                 => \$opt_vardir,
 
              # Misc
-             'big-test'                 => \$opt_big_test,
              'comment=s'                => \$opt_comment,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
@@ -3557,6 +3557,8 @@ Options to control what test suites or cases to run
   skip-rpl              Skip the replication test cases.
   skip-im               Don't start IM, and skip the IM test cases
   skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
+  big-test              Pass "--big-test" to mysqltest which will set the environment
+                        variable BIG_TEST, which can be checked from test cases.
 
 Options that specify ports
 
@@ -3624,8 +3626,6 @@ Deprecated options
 
 
 Options not yet described, or that I want to look into more
-
-  big-test              
   debug                 
   local                 
   local-master          
