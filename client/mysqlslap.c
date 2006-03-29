@@ -266,6 +266,7 @@ int main(int argc, char **argv)
     my_end(0);
     exit(1);
   }
+
   /* globals? Yes, so we only have to run strlen once */
   delimiter_length= strlen(delimiter);
 
@@ -455,9 +456,10 @@ static struct my_option my_long_options[] =
     (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
     0},
   {"preserve-schema", OPT_MYSQL_PRESERVE_SCHEMA,
-    "Preserve the schema from the mysqlslap run.",
+    "Preserve the schema from the mysqlslap run, this happens unless \
+      --auto-generate-sql or --create are used.",
     (gptr*) &opt_preserve, (gptr*) &opt_preserve, 0, GET_BOOL,
-    NO_ARG, 0, 0, 0, 0, 0, 0},
+    NO_ARG, TRUE, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
     "The protocol of connection (tcp,socket,pipe,memory).",
     0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -749,6 +751,9 @@ get_options(int *argc,char ***argv)
 
   if (!user)
     user= (char *)"root";
+
+  if (create_string || auto_generate_sql )
+    opt_preserve= FALSE;
 
   if (auto_generate_sql && (create_string || user_supplied_query))
   {
