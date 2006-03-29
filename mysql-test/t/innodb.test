@@ -2124,5 +2124,6 @@ drop trigger t2t;
 drop trigger t3t;
 drop trigger t4t;
 drop table t1, t2, t3, t4, t5;
+connection default;
 disconnect a;
 disconnect b;

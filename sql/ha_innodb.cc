@@ -513,13 +513,13 @@ convert_error_code_to_mysql(
 
     		return(HA_ERR_NO_SAVEPOINT);
   	} else if (error == (int) DB_LOCK_TABLE_FULL) {
-          /* Since we rolled back the whole transaction, we must
-          tell it also to MySQL so that MySQL knows to empty the
-          cached binlog for this transaction */
+ 		/* Since we rolled back the whole transaction, we must
+ 		tell it also to MySQL so that MySQL knows to empty the
+ 		cached binlog for this transaction */
 
-          if (thd) {
-                  ha_rollback(thd);
-          }
+ 		if (thd) {
+ 			ha_rollback(thd);
+ 		}
 
     		return(HA_ERR_LOCK_TABLE_FULL);
     	} else {
@@ -6726,32 +6726,37 @@ static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
 
 static INNOBASE_SHARE *get_share(const char *table_name)
 {
-  INNOBASE_SHARE *share;
-  pthread_mutex_lock(&innobase_share_mutex);
-  uint length=(uint) strlen(table_name);
-  if (!(share=(INNOBASE_SHARE*) hash_search(&innobase_open_tables,
-					(mysql_byte*) table_name,
-					    length)))
-  {
-    if ((share=(INNOBASE_SHARE *) my_malloc(sizeof(*share)+length+1,
-				       MYF(MY_WME | MY_ZEROFILL))))
-    {
-      share->table_name_length=length;
-      share->table_name=(char*) (share+1);
-      strmov(share->table_name,table_name);
-      if (my_hash_insert(&innobase_open_tables, (mysql_byte*) share))
-      {
-        pthread_mutex_unlock(&innobase_share_mutex);
-	my_free((gptr) share,0);
-	return 0;
-      }
-      thr_lock_init(&share->lock);
-      pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
-    }
-  }
-  share->use_count++;
-  pthread_mutex_unlock(&innobase_share_mutex);
-  return share;
+	INNOBASE_SHARE *share;
+	pthread_mutex_lock(&innobase_share_mutex);
+	uint length=(uint) strlen(table_name);
+	
+	if (!(share=(INNOBASE_SHARE*) hash_search(&innobase_open_tables,
+				(mysql_byte*) table_name,
+				length))) {
+
+		share = (INNOBASE_SHARE *) my_malloc(sizeof(*share)+length+1,
+			MYF(MY_FAE | MY_ZEROFILL));
+
+		share->table_name_length=length;
+		share->table_name=(char*) (share+1);
+		strmov(share->table_name,table_name);
+
+		if (my_hash_insert(&innobase_open_tables,
+				(mysql_byte*) share)) {
+			pthread_mutex_unlock(&innobase_share_mutex);
+			my_free((gptr) share,0);
+			
+			return 0;
+		}
+		
+		thr_lock_init(&share->lock);
+		pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
+	}
+	
+	share->use_count++;
+	pthread_mutex_unlock(&innobase_share_mutex);
+	
+	return share;
 }
 
 static void free_share(INNOBASE_SHARE *share)
@@ -6825,14 +6830,16 @@ ha_innobase::store_lock(
 		    prebuilt->trx->isolation_level != TRX_ISO_SERIALIZABLE &&
 		    (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
 		    (thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
-		     thd->lex->sql_command == SQLCOM_UPDATE)) {
+		     thd->lex->sql_command == SQLCOM_UPDATE ||
+		     thd->lex->sql_command == SQLCOM_CREATE_TABLE)) {
 
 			/* In case we have innobase_locks_unsafe_for_binlog
 			option set and isolation level of the transaction
 			is not set to serializable and MySQL is doing
-			INSERT INTO...SELECT or UPDATE ... = (SELECT ...)
-			without FOR UPDATE or IN SHARE MODE in select, then
-			we use consistent read for select. */
+			INSERT INTO...SELECT or UPDATE ... = (SELECT ...) or
+			CREATE  ... SELECT... without FOR UPDATE or
+			IN SHARE MODE in select, then we use consistent
+			read for select. */
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;
@@ -6885,14 +6892,15 @@ ha_innobase::store_lock(
 		writers. Note that ALTER TABLE uses a TL_WRITE_ALLOW_READ
 		< TL_WRITE_CONCURRENT_INSERT.
 
-		We especially allow multiple writers if MySQL is at the 
-		start of a stored procedure call (SQLCOM_CALL) 
-		(MySQL does have thd->in_lock_tables TRUE there). */
+		We especially allow multiple writers if MySQL is at the
+		start of a stored procedure call (SQLCOM_CALL) or a
+		stored function call (MySQL does have thd->in_lock_tables
+		TRUE there). */
 
     		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT 
 		    && lock_type <= TL_WRITE)
 		    && !(thd->in_lock_tables
-                         && thd->lex->sql_command == SQLCOM_LOCK_TABLES)
+			    && thd->lex->sql_command == SQLCOM_LOCK_TABLES)
 		    && !thd->tablespace_op
 		    && thd->lex->sql_command != SQLCOM_TRUNCATE
 		    && thd->lex->sql_command != SQLCOM_OPTIMIZE
