@@ -613,8 +613,8 @@ sub command_line_setup () {
 
              # Run test on running server
              'extern'                   => \$opt_extern,
-             'ndbconnectstring=s'       => \$opt_ndbconnectstring,
-             'ndbconnectstring-slave=s' => \$opt_ndbconnectstring_slave,
+             'ndb-connectstring=s'       => \$opt_ndbconnectstring,
+             'ndb-connectstring-slave=s' => \$opt_ndbconnectstring_slave,
 
              # Debugging
              'gdb'                      => \$opt_gdb,
