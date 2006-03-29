@@ -477,12 +477,23 @@ sub command_line_setup () {
   # 5.1 test run, even if different MTR_BUILD_THREAD is used. This means
   # all port numbers might not be used in this version of the script.
   #
+  # Also note the limiteation of ports we are allowed to hand out. This
+  # differs between operating systems and configuration, see
+  # http://www.ncftp.com/ncftpd/doc/misc/ephemeral_ports.html
+  # But a fairly safe range seems to be 5001 - 32767
   if ( $ENV{'MTR_BUILD_THREAD'} )
   {
     # Up to two masters, up to three slaves
     $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 10 + 10000; # and 1
     $opt_slave_myport=    $opt_master_myport + 2;  # and 3 4
     $opt_ndbcluster_port= $opt_master_myport + 5;
+  }
+
+  if ( $opt_master_myport < 5001 or $opt_master_myport + 10 >= 32767 )
+  {
+    mtr_error("MTR_BUILD_THREAD number results in a port",
+              "outside 5001 - 32767",
+              "($opt_master_myport - $opt_master_myport + 10)");
   }
 
   # Read the command line
