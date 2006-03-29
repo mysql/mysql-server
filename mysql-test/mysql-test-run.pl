@@ -166,7 +166,6 @@ our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
 our $opt_vardir_trace;           # unix formatted opt_vardir for trace files
 our $opt_tmpdir;                 # A path but set directly on cmd line
-our $opt_restart_cleanup;        # Source a file with SQL drop statements
 
 our $opt_usage;
 our $opt_suite;
@@ -661,7 +660,6 @@ sub command_line_setup () {
              'netware'                  => \$opt_netware,
              'old-master'               => \$opt_old_master,
              'reorder'                  => \$opt_reorder,
-             'restart-cleanup'          => \$opt_restart_cleanup,
              'script-debug'             => \$opt_script_debug,
              'sleep=i'                  => \$opt_sleep,
              'socket=s'                 => \$opt_socket,
@@ -3254,12 +3252,6 @@ sub run_mysqltest ($) {
   if ( $opt_sleep )
   {
     mtr_add_arg($args, "--sleep=%d", $opt_sleep);
-  }
-
-  if ( $opt_restart_cleanup and $glob_mysqld_restart )
-  {
-    mtr_add_arg($args, "--include=%s", "include/drop-on-restart.inc");
-    $glob_mysqld_restart= 0;
   }
 
   if ( $opt_debug )
