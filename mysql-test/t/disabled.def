@@ -21,7 +21,6 @@ ndb_binlog_ddl_multi    : Bug #18490 cluster: binlog events lost on remote mysql
 ndb_cache2  : Bug #18597
 ndb_gis    : Bug #18600
 ndb_load                : Bug#17233
-ndb_partition_list      : Bug#18598
 partition_03ndb         : Bug#16385
 ps_7ndb                 : dbug assert in RBR mode when executing test suite
 #rpl_bit_npk             : Bug#13418
