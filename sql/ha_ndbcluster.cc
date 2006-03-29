@@ -3399,7 +3399,7 @@ int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
         */
         DBUG_DUMP("key+part", (char *)pos, key_length);
         key_length= ref_length - sizeof(m_part_id);
-        part_spec.start_part= part_spec.end_part= *(pos + key_length);
+        part_spec.start_part= part_spec.end_part= *(uint32 *)(pos + key_length);
       }
       else
       {
