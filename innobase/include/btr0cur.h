@@ -459,7 +459,10 @@ btr_store_big_rec_extern_fields(
 	dict_index_t*	index,		/* in: index of rec; the index tree
 					MUST be X-latched */
 	rec_t*		rec,		/* in: record */
-	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec, index);
+					the "external storage" flags in offsets
+					will not correspond to rec when
+					this function returns */
 	big_rec_t*	big_rec_vec,	/* in: vector containing fields
 					to be stored externally */
 	mtr_t*		local_mtr);	/* in: mtr containing the latch to
