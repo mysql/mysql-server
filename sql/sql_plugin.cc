@@ -192,7 +192,8 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
 
   if (plugin_dl.version != MYSQL_PLUGIN_INTERFACE_VERSION)
   {
-    int i, sizeof_st_plugin;
+    int i;
+    uint sizeof_st_plugin;
     struct st_mysql_plugin *old, *cur;
     char *ptr= (char *)sym;
 

@@ -3613,7 +3613,7 @@ Slave SQL thread aborted. Can't execute init_slave query");
                             thd->net.last_error ?
                             thd->net.last_error : "<no message>");
           }
-          else if (rli->last_slave_errno != thd->net.last_errno)
+          else if (rli->last_slave_errno != (int) thd->net.last_errno)
           {
             sql_print_error("Slave (additional info): %s Error_code: %d",
                             thd->net.last_error ?
@@ -4095,6 +4095,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
       buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
 
+  LINT_INIT(inc_pos);
   pthread_mutex_lock(&mi->data_lock);
 
   switch (buf[EVENT_TYPE_OFFSET]) {
