@@ -195,8 +195,9 @@ NdbBlob::getBlobEvent(NdbEventImpl& be, const NdbEventImpl* e, const NdbColumnIm
   assert(c->m_blobTable != NULL);
   const NdbTableImpl& bt = *c->m_blobTable;
   // blob event name
-  char bename[MAX_TAB_NAME_SIZE];
+  char bename[MAX_TAB_NAME_SIZE+1];
   getBlobEventName(bename, e, c);
+  bename[sizeof(bename)-1]= 0;
   be.setName(bename);
   be.setTable(bt);
   // simple assigments
