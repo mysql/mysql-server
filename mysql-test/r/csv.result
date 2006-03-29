@@ -4993,6 +4993,99 @@ val
 2
 UNLOCK TABLES;
 DROP TABLE test_concurrent_insert;
+CREATE TABLE test_repair_table ( val integer ) ENGINE = CSV;
+CHECK TABLE test_repair_table;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table	check	status	OK
+REPAIR TABLE test_repair_table;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table	repair	status	OK
+DROP TABLE test_repair_table;
+CREATE TABLE test_repair_table2 ( val integer ) ENGINE = CSV;
+SELECT * from test_repair_table2;
+val
+Warnings:
+Error	1194	Table 'test_repair_table2' is marked as crashed and should be repaired
+SELECT * from test_repair_table2;
+val
+test_repair_table2.CSM
+CHECK TABLE test_repair_table2;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table2	check	status	OK
+DROP TABLE test_repair_table2;
+CREATE TABLE test_repair_table3 ( val integer ) ENGINE = CSV;
+CHECK TABLE test_repair_table3;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table3	check	error	Corrupt
+REPAIR TABLE test_repair_table3;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table3	repair	status	OK
+SELECT * FROM test_repair_table3;
+val
+1
+4
+DROP TABLE test_repair_table3;
+CREATE TABLE test_repair_table4 (
+num int not null,
+magic_no int(4) unsigned zerofill DEFAULT '0000' NOT NULL,
+company_name char(30) DEFAULT '' NOT NULL,
+founded char(4) DEFAULT '' NOT NULL
+) ENGINE = CSV;
+SELECT * FROM test_repair_table4;
+num	magic_no	company_name	founded
+Warnings:
+Error	1194	Table 'test_repair_table4' is marked as crashed and should be repaired
+SELECT * FROM test_repair_table4;
+num	magic_no	company_name	founded
+CHECK TABLE test_repair_table4;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table4	check	status	OK
+INSERT INTO test_repair_table4 VALUES (2,101,'SAP','1972');
+INSERT INTO test_repair_table4 VALUES (1,101,'Microsoft','1978');
+INSERT INTO test_repair_table4 VALUES (2,101,'MySQL','1995');
+SELECT * FROM test_repair_table4;
+num	magic_no	company_name	founded
+2	0101	SAP	1972
+1	0101	Microsoft	1978
+2	0101	MySQL	1995
+CHECK TABLE test_repair_table4;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table4	check	status	OK
+REPAIR TABLE test_repair_table4;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table4	repair	status	OK
+SELECT * FROM test_repair_table4;
+num	magic_no	company_name	founded
+2	0101	SAP	1972
+1	0101	Microsoft	1978
+2	0101	MySQL	1995
+CHECK TABLE test_repair_table4;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table4	check	status	OK
+REPAIR TABLE test_repair_table4;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table4	repair	status	OK
+SELECT * FROM test_repair_table4;
+num	magic_no	company_name	founded
+2	0101	SAP	1972
+1	0101	Microsoft	1978
+2	0101	MySQL	1995
+DROP TABLE test_repair_table4;
+CREATE TABLE test_repair_table5 (
+num int not null,
+magic_no int(4) unsigned zerofill DEFAULT '0000' NOT NULL,
+company_name char(30) DEFAULT '' NOT NULL,
+founded char(4) DEFAULT '' NOT NULL
+) ENGINE = CSV;
+CHECK TABLE test_repair_table5;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table5	check	error	Corrupt
+REPAIR TABLE test_repair_table5;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table5	repair	status	OK
+SELECT * FROM test_repair_table5;
+num	magic_no	company_name	founded
+DROP TABLE test_repair_table5;
 create table t1 (a int) engine=csv;
 insert t1 values (1);
 delete from t1;

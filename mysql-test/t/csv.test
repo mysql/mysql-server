@@ -1388,6 +1388,92 @@ UNLOCK TABLES;
 DROP TABLE test_concurrent_insert;
 
 #
+# Test REPAIR/CHECK TABLE (5.1)
+#
+
+# Check that repair on the newly created table works fine
+
+CREATE TABLE test_repair_table ( val integer ) ENGINE = CSV;
+
+CHECK TABLE test_repair_table;
+REPAIR TABLE test_repair_table;
+
+DROP TABLE test_repair_table;
+
+#
+# Check autorepair. Here we also check that we can work w/o metafile
+# restore the meta-file
+#
+
+CREATE TABLE test_repair_table2 ( val integer ) ENGINE = CSV;
+--exec rm $MYSQLTEST_VARDIR/master-data/test/test_repair_table2.CSM
+# should give a warning and perform autorepair
+SELECT * from test_repair_table2;
+# this should work ok, as the table is already repaired
+SELECT * from test_repair_table2;
+# check that the metafile appeared again. chop the path to it
+--exec ls $MYSQLTEST_VARDIR/master-data/test/test_repair_table2.CSM | perl -pi -e "s/.*\///"
+CHECK TABLE test_repair_table2;
+DROP TABLE test_repair_table2;
+
+
+# Corrupt csv file and see if we can repair it
+CREATE TABLE test_repair_table3 ( val integer ) ENGINE = CSV;
+--exec echo -n -e \"1\"\\n\"4\"\\n\"3 > $MYSQLTEST_VARDIR/master-data/test/test_repair_table3.CSV
+CHECK TABLE test_repair_table3;
+REPAIR TABLE test_repair_table3;
+SELECT * FROM test_repair_table3;
+DROP TABLE test_repair_table3;
+
+# Test with more sophisticated table
+
+CREATE TABLE test_repair_table4 (
+  num int not null,
+  magic_no int(4) unsigned zerofill DEFAULT '0000' NOT NULL,
+  company_name char(30) DEFAULT '' NOT NULL,
+  founded char(4) DEFAULT '' NOT NULL
+) ENGINE = CSV;
+
+--exec rm $MYSQLTEST_VARDIR/master-data/test/test_repair_table4.CSM
+SELECT * FROM test_repair_table4;
+SELECT * FROM test_repair_table4;
+CHECK TABLE test_repair_table4;
+
+INSERT INTO test_repair_table4 VALUES (2,101,'SAP','1972');
+INSERT INTO test_repair_table4 VALUES (1,101,'Microsoft','1978');
+INSERT INTO test_repair_table4 VALUES (2,101,'MySQL','1995');
+
+# list table content
+SELECT * FROM test_repair_table4;
+CHECK TABLE test_repair_table4;
+REPAIR TABLE test_repair_table4;
+# check that nothing changed
+SELECT * FROM test_repair_table4;
+# verify that check/repair did non corrupt the table itself
+CHECK TABLE test_repair_table4;
+REPAIR TABLE test_repair_table4;
+SELECT * FROM test_repair_table4;
+DROP TABLE test_repair_table4;
+
+# Run CHECK/REPAIR on the CSV file with a single row, which misses a column.
+
+CREATE TABLE test_repair_table5 (
+  num int not null,
+  magic_no int(4) unsigned zerofill DEFAULT '0000' NOT NULL,
+  company_name char(30) DEFAULT '' NOT NULL,
+  founded char(4) DEFAULT '' NOT NULL
+) ENGINE = CSV;
+
+# Corrupt a table -- put a file with wrong # of columns
+--exec echo -n -e \"1\",\"101\",\"IBM\"\\n  > $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+
+CHECK TABLE test_repair_table5;
+REPAIR TABLE test_repair_table5;
+SELECT * FROM test_repair_table5;
+DROP TABLE test_repair_table5;
+
+
+#
 # BUG#13406 - incorrect amount of "records deleted"
 #
 
