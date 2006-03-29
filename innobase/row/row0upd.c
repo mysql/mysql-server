@@ -28,6 +28,7 @@ Created 12/27/1996 Heikki Tuuri
 #include "log0log.h"
 #include "pars0sym.h"
 #include "eval0eval.h"
+#include "buf0lru.h"
 
 
 /* What kind of latch and lock can we assume when the control comes to
@@ -1523,6 +1524,10 @@ row_upd_clust_rec(
 		return(err);
 	}
 
+	if (buf_LRU_buf_pool_running_out()) {
+	
+		return(DB_LOCK_TABLE_FULL);
+	}
 	/* We may have to modify the tree structure: do a pessimistic descent
 	down the index tree */
 
