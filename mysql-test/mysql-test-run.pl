@@ -3611,8 +3611,8 @@ Misc options
   help                  Get this help text
   unified-diff | udiff  When presenting differences, use unified diff
 
-  testcase-timeout=MINUTES Max test case run time (default 5)
-  suite-timeout=MINUTES    Max test suite run time (default 120)
+  testcase-timeout=MINUTES Max test case run time (default $default_testcase_timeout)
+  suite-timeout=MINUTES    Max test suite run time (default $default_suite_timeout)
 
 Deprecated options
   with-openssl          Deprecated option for ssl
