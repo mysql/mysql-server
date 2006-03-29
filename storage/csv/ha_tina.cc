@@ -66,6 +66,10 @@ TODO:
 #define CSM_EXT ".CSM"               // Meta file
 
 
+static TINA_SHARE *get_share(const char *table_name, TABLE *table);
+static int free_share(TINA_SHARE *share);
+static int read_meta_file(File meta_file, ha_rows *rows);
+static int write_meta_file(File meta_file, ha_rows rows, bool dirty);
 
 /* Stuff for shares */
 pthread_mutex_t tina_mutex;
@@ -208,7 +212,7 @@ static int tina_done_func()
 /*
   Simple lock controls.
 */
-TINA_SHARE *ha_tina::get_share(const char *table_name, TABLE *table, int *rc)
+static TINA_SHARE *get_share(const char *table_name, TABLE *table)
 {
   TINA_SHARE *share;
   char meta_file_name[FN_REFLEN];
@@ -218,7 +222,6 @@ TINA_SHARE *ha_tina::get_share(const char *table_name, TABLE *table, int *rc)
   if (!tina_init)
      tina_init_func();
 
-  *rc= 0;
   pthread_mutex_lock(&tina_mutex);
   length=(uint) strlen(table_name);
 
@@ -236,7 +239,6 @@ TINA_SHARE *ha_tina::get_share(const char *table_name, TABLE *table, int *rc)
                          NullS))
     {
       pthread_mutex_unlock(&tina_mutex);
-      *rc= HA_ERR_OUT_OF_MEM;
       return NULL;
     }
 
@@ -295,8 +297,6 @@ TINA_SHARE *ha_tina::get_share(const char *table_name, TABLE *table, int *rc)
     share->saved_data_file_length= share->file_stat.st_size;
   }
   share->use_count++;
-  if (share->crashed)
-    *rc= HA_ERR_CRASHED_ON_USAGE;
   pthread_mutex_unlock(&tina_mutex);
 
   return share;
@@ -307,8 +307,6 @@ error2:
   thr_lock_delete(&share->lock);
   pthread_mutex_destroy(&share->mutex);
 error:
-  if (share->crashed)
-    *rc= HA_ERR_CRASHED_ON_USAGE;
   pthread_mutex_unlock(&tina_mutex);
   my_free((gptr) share, MYF(0));
 
@@ -332,10 +330,10 @@ error:
 
   RETURN
     0 - OK
-    non-zero - error occured
+    non-zero - error occurred
 */
 
-int ha_tina::read_meta_file(File meta_file, ha_rows *rows)
+static int read_meta_file(File meta_file, ha_rows *rows)
 {
   uchar meta_buffer[META_BUFFER_SIZE];
   uchar *ptr= meta_buffer;
@@ -387,10 +385,10 @@ int ha_tina::read_meta_file(File meta_file, ha_rows *rows)
 
   RETURN
     0 - OK
-    non-zero - error occured
+    non-zero - error occurred
 */
 
-int ha_tina::write_meta_file(File meta_file, ha_rows rows, bool dirty)
+static int write_meta_file(File meta_file, ha_rows rows, bool dirty)
 {
   uchar meta_buffer[META_BUFFER_SIZE];
   uchar *ptr= meta_buffer;
@@ -441,7 +439,7 @@ bool ha_tina::is_crashed() const
 /*
   Free lock controls.
 */
-int ha_tina::free_share(TINA_SHARE *share)
+static int free_share(TINA_SHARE *share)
 {
   DBUG_ENTER("ha_tina::free_share");
   pthread_mutex_lock(&tina_mutex);
@@ -569,7 +567,7 @@ int ha_tina::encode_quote(byte *buf)
 
 /*
   chain_append() adds delete positions to the chain that we use to keep
-  track of space. Then the chain will be used to cleanup "holes", occured
+  track of space. Then the chain will be used to cleanup "holes", occurred
   due to deletes and updates.
 */
 int ha_tina::chain_append()
@@ -812,18 +810,15 @@ bool ha_tina::check_if_locking_is_allowed(uint sql_command,
 int ha_tina::open(const char *name, int mode, uint open_options)
 {
   DBUG_ENTER("ha_tina::open");
-  int rc;
 
-  share= get_share(name, table, &rc);
+  if (!(share= get_share(name, table)))
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
-  if (rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
+  if (share->crashed && !(open_options & HA_OPEN_FOR_REPAIR))
   {
     free_share(share);
-    DBUG_RETURN(rc);
+    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }
-  else
-    if (rc == HA_ERR_OUT_OF_MEM)
-      DBUG_RETURN(rc);
 
   /*
     Init locking. Pass handler object to the locking routines,
@@ -1165,6 +1160,24 @@ int ha_tina::rnd_end()
 }
 
 
+/*
+  Repair CSV table in the case, it is crashed.
+
+  SYNOPSIS
+    repair()
+    thd         The thread, performing repair
+    check_opt   The options for repair. We do not use it currently.
+
+  DESCRIPTION
+    If the file is empty, change # of rows in the file and complete recovery.
+    Otherwise, scan the table looking for bad rows. If none were found,
+    we mark file as a good one and return. If a bad row was encountered,
+    we truncate the datafile up to the last good row.
+
+   TODO: Make repair more clever - it should try to recover subsequent
+         rows (after the first bad one) as well.
+*/
+
 int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
   char repaired_fname[FN_REFLEN];
@@ -1190,6 +1203,9 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
     the log tables). We set it manually here.
   */
   local_saved_data_file_length= share->file_stat.st_size;
+  /* set current position to the beginning of the file */
+  current_position= next_position= 0;
+
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
   while (!(rc= find_current_row(buf)))
   {
@@ -1199,9 +1215,16 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
 
   my_free((char*)buf, MYF(0));
 
-  // the file is ok
-  if (rc == HA_ERR_END_OF_FILE && share->rows_recorded == rows_repaired)
+  /* The file is ok */
+  if (rc == HA_ERR_END_OF_FILE)
+  {
+    /*
+      If rows_recorded != rows_repaired, we should update
+      rows_recorded value to the current amount of rows.
+    */
+    share->rows_recorded= rows_repaired;
     goto end;
+  }
 
   /*
     Otherwise we've encountered a bad row => repair is needed.
@@ -1217,6 +1240,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
                MYF(MY_NABP)))
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   my_close(repair_file, MYF(0));
+  /* we just truncated the file up to the first bad row. update rows count. */
   share->rows_recorded= rows_repaired;
 
   if (my_munmap(share->mapped_file, share->file_stat.st_size))
@@ -1330,7 +1354,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
 
   if ((rc != HA_ERR_END_OF_FILE) || count)
   {
-    share->crashed= FALSE;
+    share->crashed= TRUE;
     DBUG_RETURN(HA_ADMIN_CORRUPT);
   }
   else
