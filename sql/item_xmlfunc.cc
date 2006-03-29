@@ -2403,8 +2403,7 @@ void Item_xml_str_func::fix_length_and_dec()
     char context[32];
     uint clen= xpath.query.end - xpath.lasttok.beg;
     set_if_bigger(clen, sizeof(context) - 1);
-    memcpy(context, xpath.lasttok.beg, clen);
-    context[clen]= '\0';
+    strmake(context, xpath.lasttok.beg, clen);
     my_printf_error(ER_UNKNOWN_ERROR, "XPATH syntax error: '%s'", 
                     MYF(0), context);
     return;

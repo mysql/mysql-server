@@ -60,6 +60,7 @@ public:
    */
   class Service {
   public:
+    Service() {}
     virtual ~Service(){}
     
     /**

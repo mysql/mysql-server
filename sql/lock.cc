@@ -911,11 +911,13 @@ end:
 void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 			TABLE_LIST *last_table)
 {
+  DBUG_ENTER("unlock_table_names");
   for (TABLE_LIST *table= table_list;
        table != last_table;
        table= table->next_local)
     unlock_table_name(thd,table);
   pthread_cond_broadcast(&COND_refresh);
+  DBUG_VOID_RETURN;
 }
 
 

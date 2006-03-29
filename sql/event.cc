@@ -952,6 +952,10 @@ err:
    NOTES
      1) Use sp_name for look up, return in **ett if found
      2) tbl is not closed at exit
+
+   RETURN
+     0  ok     In this case *ett is set to the event
+     #  error  *ett == 0
 */
 
 static int
@@ -960,7 +964,7 @@ db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, Event_timed **ett,
 {
   TABLE *table;
   int ret;
-  Event_timed *et=NULL;
+  Event_timed *et= 0;
   DBUG_ENTER("db_find_event");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
@@ -997,7 +1001,7 @@ db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, Event_timed **ett,
   }
 
 done:
-  if (ret && et)
+  if (ret)
   {
     delete et;
     et= 0;
@@ -1382,7 +1386,7 @@ evex_show_create_event(THD *thd, sp_name *spn, LEX_STRING definer)
   ret= db_find_event(thd, spn, &definer, &et, NULL, thd->mem_root);
   thd->restore_backup_open_tables_state(&backup);
 
-  if (!ret && et)
+  if (et)
   {
     Protocol *protocol= thd->protocol;
     char show_str_buf[768];
@@ -1392,10 +1396,12 @@ evex_show_create_event(THD *thd, sp_name *spn, LEX_STRING definer)
     ulong sql_mode_len=0;
 
     show_str.length(0);
-    show_str.set_charset(system_charset_info);
 
     if (et->get_create_event(thd, &show_str))
+    {
+      delete et;
       DBUG_RETURN(1);
+    }
 
     field_list.push_back(new Item_empty_string("Event", NAME_LEN));
 
@@ -1409,16 +1415,19 @@ evex_show_create_event(THD *thd, sp_name *spn, LEX_STRING definer)
                                                show_str.length()));
     if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
                                            Protocol::SEND_EOF))
+    {
+      delete et;
       DBUG_RETURN(1);
-
+    }
     protocol->prepare_for_resend();
     protocol->store(et->name.str, et->name.length, system_charset_info);
 
     protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
 
-    protocol->store(show_str.c_ptr(), show_str.length(), system_charset_info);
+    protocol->store(show_str.ptr(), show_str.length(), system_charset_info);
     ret= protocol->write();
     send_eof(thd);
+    delete et;
   }
 
   DBUG_RETURN(ret);

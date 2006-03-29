@@ -103,8 +103,9 @@ handlerton partition_hton = {
   NULL, /* Alter Tablespace */
   NULL, /* Fill FILES table */
   HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
-  NULL,                         /* binlog_func */
-  NULL                          /* binlog_log_query */
+  NULL, /* binlog_func */
+  NULL, /* binlog_log_query */
+  NULL	/* release_temporary_latches */
 };
 
 /*
@@ -2914,12 +2915,15 @@ int ha_partition::rnd_init(bool scan)
   
   /* Now we see what the index of our first important partition is */
   DBUG_PRINT("info", ("m_part_info->used_partitions 0x%x",
-             m_part_info->used_partitions.bitmap));
+                      m_part_info->used_partitions.bitmap));
   part_id= bitmap_get_first_set(&(m_part_info->used_partitions));
   DBUG_PRINT("info", ("m_part_spec.start_part %d", part_id));
 
   if (MY_BIT_NONE == part_id)
+  {
+    error= 0;
     goto err1;
+  }
 
   /*
     We have a partition and we are scanning with rnd_next
@@ -2958,7 +2962,7 @@ err:
   while ((int)--i >= (int)part_id)
   {
     if (bitmap_is_set(&(m_part_info->used_partitions), i))
-	  m_file[i]->ha_rnd_end();
+      m_file[i]->ha_rnd_end();
   }
 err1:
   m_scan_value= 2;

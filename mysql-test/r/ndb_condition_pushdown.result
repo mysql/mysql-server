@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS t1,t2;
+DROP TABLE IF EXISTS t1,t2,t3,t4;
 CREATE TABLE t1 (
 auto int(5) unsigned NOT NULL auto_increment,
 string char(10),

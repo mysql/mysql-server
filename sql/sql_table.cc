@@ -565,6 +565,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String built_query;
   DBUG_ENTER("mysql_rm_table_part2");
 
+  LINT_INIT(alias);
+  LINT_INIT(path_length);
+  safe_mutex_assert_owner(&LOCK_open);
+
   if (thd->current_stmt_binlog_row_based && !dont_log_query)
   {
     built_query.set_charset(system_charset_info);
@@ -614,7 +618,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       */
     if (thd->current_stmt_binlog_row_based && !dont_log_query)
     {
-      ++non_temp_tables_count;
+      non_temp_tables_count++;
       /*
         Don't write the database name if it is the current one (or if
         thd->db is NULL).
@@ -634,11 +638,18 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     table_type= table->db_type;
     if (!drop_temporary)
     {
+      TABLE *locked_table;
       abort_locked_tables(thd, db, table->table_name);
       remove_table_from_cache(thd, db, table->table_name,
 	                      RTFC_WAIT_OTHER_THREAD_FLAG |
 			      RTFC_CHECK_KILLED_FLAG);
-      drop_locked_tables(thd, db, table->table_name);
+      /*
+        If the table was used in lock tables, remember it so that
+        unlock_table_names can free it
+      */
+      if ((locked_table= drop_locked_tables(thd, db, table->table_name)))
+        table->table= locked_table;
+
       if (thd->killed)
       {
         thd->no_warnings_for_error= 0;
@@ -649,8 +660,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       path_length= build_table_filename(path, sizeof(path),
                                         db, alias, reg_ext);
     }
-    if (table_type == NULL &&
-        (drop_temporary ||
+    if (drop_temporary ||
+        (table_type == NULL &&        
          (access(path, F_OK) &&
           ha_create_table_from_engine(thd, db, alias)) ||
          (!drop_view &&
@@ -3961,6 +3972,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint *index_add_buffer;
   bool committed= 0;
   DBUG_ENTER("mysql_alter_table");
+
+  LINT_INIT(index_add_count);
+  LINT_INIT(index_drop_count);
+  LINT_INIT(index_add_buffer);
+  LINT_INIT(index_drop_buffer);
 
   thd->proc_info="init";
   table_name=table_list->table_name;

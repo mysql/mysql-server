@@ -62,8 +62,9 @@ handlerton blackhole_hton= {
   NULL,    /* Alter Tablespace */
   NULL,    /* Fill FILES table */
   HTON_CAN_RECREATE,
-  NULL, /* binlog_func */
-  NULL  /* binlog_log_query */
+  NULL,    /* binlog_func */
+  NULL,    /* binlog_log_query */
+  NULL	   /* release_temporary_latches */
 };
 
 

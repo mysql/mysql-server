@@ -40,7 +40,8 @@ class TC_LOG
 
 class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
 {
-  public:
+public:
+  TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
   int log(THD *thd, my_xid xid)         { return 1; }
@@ -354,6 +355,7 @@ public:
 class Log_event_handler
 {
 public:
+  Log_event_handler() {}
   virtual bool init()= 0;
   virtual void cleanup()= 0;
 

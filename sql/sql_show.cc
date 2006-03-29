@@ -1770,18 +1770,19 @@ void free_status_vars()
     there's lots of room for optimizing this, especially in non-sorted mode,
     but nobody cares - it may be called only in case of failed plugin
     initialization in the mysqld startup.
-
 */
+
 void remove_status_vars(SHOW_VAR *list)
 {
   if (status_vars_inited)
   {
     pthread_mutex_lock(&LOCK_status);
     SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
-    int a= 0, b= all_status_vars.elements, c= (a+b)/2, res;
+    int a= 0, b= all_status_vars.elements, c= (a+b)/2;
 
     for (; list->name; list++)
     {
+      int res= 0;
       for (a= 0, b= all_status_vars.elements; b-a > 1; c= (a+b)/2)
       {
         res= show_var_cmp(list, all+c);
@@ -1789,7 +1790,8 @@ void remove_status_vars(SHOW_VAR *list)
           b= c;
         else if (res > 0)
           a= c;
-        else break;
+        else
+          break;
       }
       if (res == 0)
         all[c].type= SHOW_UNDEF;
@@ -1800,7 +1802,7 @@ void remove_status_vars(SHOW_VAR *list)
   else
   {
     SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
-    int i;
+    uint i;
     for (; list->name; list++)
     {
       for (i= 0; i < all_status_vars.elements; i++)

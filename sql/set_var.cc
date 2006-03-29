@@ -1965,6 +1965,7 @@ CHARSET_INFO *get_old_charset_by_name(const char *name)
 bool sys_var_collation::check(THD *thd, set_var *var)
 {
   CHARSET_INFO *tmp;
+  LINT_INIT(tmp);
 
   if (var->value->result_type() == STRING_RESULT)
   {
@@ -1999,6 +2000,7 @@ bool sys_var_collation::check(THD *thd, set_var *var)
 bool sys_var_character_set::check(THD *thd, set_var *var)
 {
   CHARSET_INFO *tmp;
+  LINT_INIT(tmp);
 
   if (var->value->result_type() == STRING_RESULT)
   {
