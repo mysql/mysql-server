@@ -1,5 +1,5 @@
 
-bin_SCRIPTS =		ndb_size.pl
+dist_bin_SCRIPTS =	ndb_size.pl
 dist_pkgdata_DATA =	ndb_size.tmpl
 
 ndbtools_PROGRAMS = \
