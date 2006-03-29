@@ -321,7 +321,7 @@ public:
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     int *err);
   /* The max. number of characters */
-  inline uint32 Field::char_length() const
+  inline uint32 char_length() const
   {
     return field_length / charset()->mbmaxlen;
   }
