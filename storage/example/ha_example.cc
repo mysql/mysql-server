@@ -726,6 +726,7 @@ int ha_example::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(0);
 }
 
+#ifdef MYSQL_PLUGIN
 mysql_declare_plugin
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -738,4 +739,4 @@ mysql_declare_plugin
   0x0001 /* 0.1 */,
 }
 mysql_declare_plugin_end;
-
+#endif
