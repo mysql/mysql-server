@@ -62,5 +62,12 @@ INSTALL-BINARY:	mysql.info $(GT)
 ../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "mac-os-x-installation" "netware-installation" > $@
 
+# Include the Windows manual.chm in source .tar.gz only if available.
+# It is not in BitKeeper, but is downloaded from intranet by Bootstrap.
+dist-hook:
+	if [ -e $(srcdir)/manual.chm ] ; then \
+	  cp $(srcdir)/manual.chm $(distdir); \
+	fi
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%
