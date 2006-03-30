@@ -185,6 +185,7 @@ class Item_sum_count_distinct :public Item_sum_int
   TMP_TABLE_PARAM *tmp_table_param;
   TREE tree_base;
   TREE *tree;
+  bool force_copy_fields;
   /*
     Following is 0 normal object and pointer to original one for copy 
     (to correctly free resources)
@@ -226,15 +227,16 @@ class Item_sum_count_distinct :public Item_sum_int
   public:
   Item_sum_count_distinct(List<Item> &list)
     :Item_sum_int(list), table(0), used_table_cache(~(table_map) 0),
-     tmp_table_param(0), tree(&tree_base), original(0), use_tree(0),
-     always_null(0)
+     tmp_table_param(0), tree(&tree_base), force_copy_fields(0), original(0),
+     use_tree(0), always_null(0)
   { quick_group= 0; }
   Item_sum_count_distinct(THD *thd, Item_sum_count_distinct *item)
     :Item_sum_int(thd, item), table(item->table),
      used_table_cache(item->used_table_cache),
      field_lengths(item->field_lengths),
      tmp_table_param(item->tmp_table_param),
-     tree(item->tree), original(item), key_length(item->key_length),
+     tree(item->tree), force_copy_fields(item->force_copy_fields),
+     original(item), key_length(item->key_length),
      max_elements_in_tree(item->max_elements_in_tree),
      rec_offset(item->rec_offset), use_tree(item->use_tree),
      always_null(item->always_null)
@@ -685,6 +687,7 @@ class Item_func_group_concat : public Item_sum
   bool distinct;
   bool warning_for_row;
   bool always_null;
+  bool force_copy_fields;
 
   friend int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
 					      byte* key2);
