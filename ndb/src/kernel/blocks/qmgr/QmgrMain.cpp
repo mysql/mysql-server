@@ -56,6 +56,33 @@
 #define DEBUG_START3(signal, msg)
 #endif
 
+/**
+ * c_start.m_gsn = GSN_CM_REGREQ
+ *   Possible for all nodes
+ *   c_start.m_nodes contains all nodes in config
+ *
+ * c_start.m_gsn = GSN_CM_NODEINFOREQ;
+ *   Set when receiving CM_REGCONF
+ *   State possible for starting node only (not in cluster)
+ *
+ *   c_start.m_nodes contains all node in alive cluster that
+ *                   that has not replied to GSN_CM_NODEINFOREQ
+ *                   passed by president in GSN_CM_REGCONF
+ *
+ * c_start.m_gsn = GSN_CM_ADD
+ *   Possible for president only
+ *   Set when receiving and accepting CM_REGREQ (to include node)
+ *
+ *   c_start.m_nodes contains all nodes in alive cluster + starting node
+ *                   that has not replied to GSN_CM_ADD
+ *                   by sending GSN_CM_ACKADD
+ *
+ * c_start.m_gsn = GSN_CM_NODEINFOCONF
+ *   Possible for non presidents only
+ *     c_start.m_nodes contains a node that has been accepted by president
+ *     but has not connected to us yet
+ */
+
 // Signal entries and statement blocks
 /* 4  P R O G R A M        */
 /*******************************/
@@ -259,18 +286,24 @@ void Qmgr::execCONNECT_REP(Signal* signal)
 {
   jamEntry();
   const Uint32 nodeId = signal->theData[0];
+
+  if (ERROR_INSERTED(931))
+  {
+    jam();
+    ndbout_c("Discarding CONNECT_REP(%d)", nodeId);
+    infoEvent("Discarding CONNECT_REP(%d)", nodeId);
+    return;
+  }
+  
   c_connectedNodes.set(nodeId);
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
   ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
   switch(nodePtr.p->phase){
-  case ZSTARTING:
   case ZRUNNING:
+    ndbrequire(!c_clusterNodes.get(nodeId));
+  case ZSTARTING:
     jam();
-    if(!c_start.m_nodes.isWaitingFor(nodeId)){
-      jam();
-      return;
-    }
     break;
   case ZPREPARE_FAIL:
   case ZFAIL_CLOSING:
@@ -282,32 +315,64 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   case ZAPI_INACTIVE:
     return;
   }
-  
+
+  if (getNodeInfo(nodeId).getType() != NodeInfo::DB)
+  {
+    jam();
+    return;
+  }
+
   switch(c_start.m_gsn){
   case GSN_CM_REGREQ:
     jam();
     sendCmRegReq(signal, nodeId);
+
+    /**
+     * We're waiting for CM_REGCONF c_start.m_nodes contains all configured
+     *   nodes
+     */
+    ndbrequire(nodePtr.p->phase == ZSTARTING);
+    ndbrequire(c_start.m_nodes.isWaitingFor(nodeId));
     return;
   case GSN_CM_NODEINFOREQ:
     jam();
-    sendCmNodeInfoReq(signal, nodeId, nodePtr.p);
-    return;
-  case GSN_CM_ADD:{
-    jam();
 
-    ndbrequire(getOwnNodeId() != cpresident);
-    c_start.m_nodes.clearWaitingFor(nodeId);
-    c_start.m_gsn = RNIL;
-    
-    NodeRecPtr addNodePtr;
-    addNodePtr.i = nodeId;
-    ptrCheckGuard(addNodePtr, MAX_NDB_NODES, nodeRec);
-    cmAddPrepare(signal, addNodePtr, nodePtr.p);
+    if (c_start.m_nodes.isWaitingFor(nodeId))
+    {
+      jam();
+      ndbrequire(getOwnNodeId() != cpresident);
+      ndbrequire(nodePtr.p->phase == ZSTARTING);
+      sendCmNodeInfoReq(signal, nodeId, nodePtr.p);
+      return;
+    }
     return;
+  case GSN_CM_NODEINFOCONF:{
+    jam();
+    
+    ndbrequire(getOwnNodeId() != cpresident);
+    ndbrequire(nodePtr.p->phase == ZRUNNING);
+    if (c_start.m_nodes.isWaitingFor(nodeId))
+    {
+      jam();
+      c_start.m_nodes.clearWaitingFor(nodeId);
+      c_start.m_gsn = RNIL;
+      
+      NodeRecPtr addNodePtr;
+      addNodePtr.i = nodeId;
+      ptrCheckGuard(addNodePtr, MAX_NDB_NODES, nodeRec);
+      cmAddPrepare(signal, addNodePtr, nodePtr.p);
+      return;
+    }
   }
   default:
-    return;
+    (void)1;
   }
+  
+  ndbrequire(!c_start.m_nodes.isWaitingFor(nodeId));
+  ndbrequire(!c_cmregreq_nodes.get(nodeId));
+  c_cmregreq_nodes.set(nodeId);
+  sendCmRegReq(signal, nodeId);  
+  c_regReqReqSent--;
   return;
 }//Qmgr::execCONNECT_REP()
 
@@ -601,22 +666,39 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   jamEntry();
 
   const CmRegConf * const cmRegConf = (CmRegConf *)&signal->theData[0];
+  Uint32 presidentNodeId = cmRegConf->presidentNodeId;
+
+  if (check_cmregreq_reply(signal, presidentNodeId, GSN_CM_REGCONF))
+  {
+    jam();
+    return;
+  }
 
   if (!ndbCompatible_ndb_ndb(NDB_VERSION, cmRegConf->presidentVersion)) {
     jam();
     char buf[128];
-    BaseString::snprintf(buf,sizeof(buf),"incompatible version own=0x%x other=0x%x, shutting down", NDB_VERSION, cmRegConf->presidentVersion);
+    BaseString::snprintf(buf,sizeof(buf), 
+			 "incompatible version own=0x%x other=0x%x, "
+			 " shutting down", 
+			 NDB_VERSION, cmRegConf->presidentVersion);
     systemErrorLab(signal, __LINE__, buf);
     return;
   }
 
-
+  myNodePtr.i = getOwnNodeId();
+  ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
+  
+  ndbrequire(c_start.m_gsn == GSN_CM_REGREQ);
+  ndbrequire(myNodePtr.p->phase = ZSTARTING);
+  
   cpdistref    = cmRegConf->presidentBlockRef;
   cpresident   = cmRegConf->presidentNodeId;
   UintR TdynamicId   = cmRegConf->dynamicId;
   c_maxDynamicId = TdynamicId;
   c_clusterNodes.assign(NdbNodeBitmask::Size, cmRegConf->allNdbNodes);
 
+  myNodePtr.p->ndynamicId = TdynamicId;
+  
 /*--------------------------------------------------------------*/
 // Send this as an EVENT REPORT to inform about hearing about
 // other NDB node proclaiming to be president.
@@ -626,10 +708,6 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   signal->theData[2] = cpresident;
   signal->theData[3] = TdynamicId;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
-
-  myNodePtr.i = getOwnNodeId();
-  ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
-  myNodePtr.p->ndynamicId = TdynamicId;
 
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     jam();
@@ -652,6 +730,134 @@ void Qmgr::execCM_REGCONF(Signal* signal)
 
   return;
 }//Qmgr::execCM_REGCONF()
+
+bool
+Qmgr::check_cmregreq_reply(Signal* signal, Uint32 nodeId, Uint32 gsn)
+{
+  NodeRecPtr myNodePtr;
+  myNodePtr.i = getOwnNodeId();
+  ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
+  
+  NodeRecPtr nodePtr;
+  nodePtr.i = nodeId;
+  ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  
+  /**
+   * Try to decide if replying node
+   *   knows who is president
+   */
+  Uint32 president_reply = RNIL;
+  switch(gsn){
+  case GSN_CM_REGREF:{
+    jam();
+    CmRegRef* ref = (CmRegRef*)signal->getDataPtr();
+    switch(ref->errorCode){
+    case CmRegRef::ZBUSY:
+    case CmRegRef::ZBUSY_PRESIDENT:
+    case CmRegRef::ZBUSY_TO_PRES:
+      jam();
+      /**
+       * Only president replies this
+       */
+      ndbrequire(nodeId == ref->presidentCandidate);
+      president_reply = nodeId;
+      break;
+    case CmRegRef::ZNOT_PRESIDENT:
+      jam();
+      president_reply = ref->presidentCandidate;
+      break;
+    case CmRegRef::ZNOT_IN_CFG:
+    case CmRegRef::ZNOT_DEAD:
+    case CmRegRef::ZELECTION:
+      // Neither of these replies give certain president knowledge
+      jam();
+    }
+    break;
+  }
+  case GSN_CM_REGCONF:
+    jam();
+    president_reply = nodeId;
+    break;
+  }
+  
+  char buf[256];
+  switch(c_start.m_gsn){
+  case GSN_CM_REGREQ:
+    jam();
+    ndbrequire(c_start.m_nodes.isWaitingFor(nodeId));
+    ndbrequire(c_cmregreq_nodes.isclear());    
+    ndbrequire(myNodePtr.p->phase == ZSTARTING);
+    return false;
+  case GSN_CM_NODEINFOREQ:
+    jam();
+
+    ndbrequire(myNodePtr.p->phase == ZSTARTING);
+    if (c_start.m_nodes.isWaitingFor(nodeId))
+    {
+      jam();
+      /**
+       * We're waiting for CM_NODEINFO
+       */
+      if (gsn == GSN_CM_REGREF)
+      {
+	jam();
+	return false;
+      }
+      
+      jam();
+      BaseString::snprintf(buf, sizeof(buf), 
+			   "Partitioned cluster! check StartPartialTimeout, "
+			   " received CM_REGCONF from %d"
+			   " while waiting for GSN_CM_NODEINFOCONF."
+			   " president=%d", 
+			   nodeId, cpresident);
+      goto die_direct;
+    }
+    
+    goto check_reply;
+  default:
+  case GSN_CM_NODEINFOCONF:
+    jam();
+    ndbrequire(myNodePtr.p->phase == ZRUNNING);
+    goto check_reply;
+  }
+  
+check_reply:
+  jam();
+  c_cmregreq_nodes.clear(nodeId);
+  
+  if (gsn == GSN_CM_REGCONF)
+  {
+    jam();
+    BaseString::snprintf(buf, sizeof(buf),
+			 "Partitioned cluster! check StartPartialTimeout, "
+			 " received CM_REGCONF"
+			 " from %d I think president: %d",
+			 nodeId, cpresident);
+    goto die_direct;
+  }
+  
+  if (president_reply != RNIL && president_reply != cpresident)
+  {
+    jam();
+    BaseString::snprintf(buf, sizeof(buf),
+			 "Partitioned cluster! check StartPartialTimeout, "
+			 " received CM_REGREF from %d specifying president as"
+			 " %d, president: %d",
+			 nodeId, president_reply, cpresident);
+    goto die_direct;
+  }
+  
+  return false;
+
+die_direct:
+  ndbout_c(buf);
+  progError(__LINE__, 
+	    ERR_ARBIT_SHUTDOWN, 
+	    buf);
+  
+  ndbrequire(false);
+}
 
 void
 Qmgr::sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self){
@@ -685,13 +891,21 @@ Qmgr::sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self){
 void Qmgr::execCM_REGREF(Signal* signal) 
 {
   jamEntry();
-  c_regReqReqRecv++;
 
-  // Ignore block reference in data[0]
   UintR TaddNodeno = signal->theData[1];
   UintR TrefuseReason = signal->theData[2];
   Uint32 candidate = signal->theData[3];
   DEBUG_START3(signal, TrefuseReason);
+
+  if (check_cmregreq_reply(signal, TaddNodeno, GSN_CM_REGREF))
+  {
+    jam();
+    return;
+  }
+
+  c_regReqReqRecv++;
+
+  // Ignore block reference in data[0]
   
   if(candidate != cpresidentCandidate){
     jam();
@@ -779,7 +993,7 @@ void Qmgr::execCM_REGREF(Signal* signal)
   Uint64 now = NdbTick_CurrentMillisecond();
   if((c_regReqReqRecv == cnoOfNodes) || now > c_stopElectionTime){
     jam();
-    electionWon();
+    electionWon(signal);
     sendSttorryLab(signal);
     
     /**
@@ -793,7 +1007,7 @@ void Qmgr::execCM_REGREF(Signal* signal)
 }//Qmgr::execCM_REGREF()
 
 void
-Qmgr::electionWon(){
+Qmgr::electionWon(Signal* signal){
   NodeRecPtr myNodePtr;
   cpresident = getOwnNodeId(); /* This node becomes president. */
   myNodePtr.i = getOwnNodeId();
@@ -812,6 +1026,12 @@ Qmgr::electionWon(){
   cpresidentAlive = ZTRUE;
   c_stopElectionTime = ~0;
   c_start.reset();
+
+  signal->theData[0] = EventReport::CM_REGCONF;
+  signal->theData[1] = getOwnNodeId();
+  signal->theData[2] = cpresident;
+  signal->theData[3] = 1;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
 }
 
 /*
@@ -946,7 +1166,7 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
     ndbrequire(signal->header.theVerId_signalNumber == GSN_CM_ADD);
     c_start.m_nodes.clearWaitingFor();
     c_start.m_nodes.setWaitingFor(nodePtr.i);
-    c_start.m_gsn = GSN_CM_ADD;
+    c_start.m_gsn = GSN_CM_NODEINFOCONF;
 #else
     warningEvent("Enabling communication to CM_ADD node %u state=%d", 
 		 nodePtr.i,
@@ -1847,7 +2067,8 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
   const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
   const Uint32 nodeId = rep->nodeId;
   c_connectedNodes.clear(nodeId);
-
+  c_cmregreq_nodes.clear(nodeId);
+  
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
   ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);

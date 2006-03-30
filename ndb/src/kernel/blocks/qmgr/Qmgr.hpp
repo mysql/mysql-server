@@ -100,7 +100,12 @@ public:
   };
 
   struct StartRecord {
-    void reset(){ m_startKey++; m_startNode = 0;}
+    void reset(){ 
+      m_startKey++; 
+      m_startNode = 0; 
+      m_gsn = RNIL; 
+      m_nodes.clearWaitingFor();
+    }
     Uint32 m_startKey;
     Uint32 m_startNode;
     Uint64 m_startTimeout;
@@ -112,6 +117,14 @@ public:
   NdbNodeBitmask c_definedNodes; // DB nodes in config
   NdbNodeBitmask c_clusterNodes; // DB nodes in cluster
   NodeBitmask c_connectedNodes;  // All kinds of connected nodes
+
+  /**
+   * Nodes which we're checking for partitioned cluster
+   *
+   * i.e. nodes that connect to use, when we already have elected president
+   */
+  NdbNodeBitmask c_cmregreq_nodes;
+  
   Uint32 c_maxDynamicId;
   
   // Records
@@ -251,8 +264,10 @@ private:
 
   // Generated statement blocks
   void startphase1(Signal* signal);
-  void electionWon();
+  void electionWon(Signal* signal);
   void cmInfoconf010Lab(Signal* signal);
+  bool check_cmregreq_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
+  
   void apiHbHandlingLab(Signal* signal);
   void timerHandlingLab(Signal* signal);
   void hbReceivedLab(Signal* signal);
