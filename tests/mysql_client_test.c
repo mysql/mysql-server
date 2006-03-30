@@ -12992,7 +12992,6 @@ static void test_bug9520()
 }
 
 
-/*
   We can't have more than one cursor open for a prepared statement.
   Test re-executions of a PS with cursor; mysql_stmt_reset must close
   the cursor attached to the statement, if there is one.

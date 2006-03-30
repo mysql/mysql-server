@@ -2472,6 +2472,7 @@ void Item_sum_count_distinct::make_unique()
 {
   table=0;
   original= 0;
+  force_copy_fields= 1;
   tree= 0;
   tmp_table_param= 0;
   always_null= FALSE;
@@ -2515,6 +2516,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
   if (always_null)
     return FALSE;
   count_field_types(tmp_table_param,list,0);
+  tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
 				0,
@@ -3022,7 +3024,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
                        SQL_LIST *order_list, String *separator_arg)
   :tmp_table_param(0), warning(0),
-   separator(separator_arg), tree(0), table(0),
+   force_copy_fields(0), separator(separator_arg), tree(0), table(0),
    order(0), context(context_arg),
    arg_count_order(order_list ? order_list->elements : 0),
    arg_count_field(select_list->elements),
@@ -3075,6 +3077,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   :Item_sum(thd, item),
   tmp_table_param(item->tmp_table_param),
   warning(item->warning),
+  force_copy_fields(item->force_copy_fields),
   separator(item->separator),
   tree(item->tree),
   table(item->table),
@@ -3287,6 +3290,7 @@ bool Item_func_group_concat::setup(THD *thd)
     DBUG_RETURN(TRUE);
 
   count_field_types(tmp_table_param,all_fields,0);
+  tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
   /*
     We have to create a temporary table to get descriptions of fields
@@ -3349,6 +3353,7 @@ void Item_func_group_concat::make_unique()
   tmp_table_param= 0;
   table=0;
   original= 0;
+  force_copy_fields= 1;
   tree= 0;
 }
 

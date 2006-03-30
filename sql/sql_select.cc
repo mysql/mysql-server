@@ -8294,6 +8294,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         Item ***copy_func, Field **from_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,
+                        bool make_copy_field,
                         uint convert_blob_length)
 {
   Item::Type orig_type= type;
@@ -8373,7 +8374,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
-    return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
+    if (make_copy_field)
+    {
+      DBUG_ASSERT(((Item_result_field*)item)->result_field);
+      *from_field= ((Item_result_field*)item)->result_field;
+    }
+    return create_tmp_field_from_item(thd, item, table, (make_copy_field ? 0 :
+                                      copy_func), modify_item,
                                       convert_blob_length);
   case Item::TYPE_HOLDER:
     return ((Item_type_holder *)item)->make_field_by_type(table);
@@ -8445,6 +8452,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   Item **copy_func;
   MI_COLUMNDEF *recinfo;
   uint total_uneven_bit_length= 0;
+  bool force_copy_fields= param->force_copy_fields;
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
 		      (int) distinct, (int) save_sum_fields,
@@ -8605,7 +8613,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  Field *new_field=
             create_tmp_field(thd, table, arg, arg->type(), &copy_func,
                              tmp_from_field, group != 0,not_all_columns,
-                             distinct,
+                             distinct, 0,
                              param->convert_blob_length);
 	  if (!new_field)
 	    goto err;					// Should be OOM
@@ -8662,7 +8670,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         create_tmp_field(thd, table, item, type, &copy_func,
                          tmp_from_field, group != 0,
                          not_all_columns || group != 0,
-                         item->marker == 4,
+                         item->marker == 4, 0,
                          param->convert_blob_length);
 
       if (!new_field)
