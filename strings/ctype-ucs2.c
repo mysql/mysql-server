@@ -253,8 +253,8 @@ static int my_strnncollsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   uint minlen;
 
   /* extra safety to make sure the lengths are even numbers */
-  slen= (slen >> 1) << 1;
-  tlen= (tlen >> 1) << 1;
+  slen= slen & ~(uint) 1;
+  tlen= tlen & ~(uint) 1;
 
   se= s + slen;
   te= t + tlen;
