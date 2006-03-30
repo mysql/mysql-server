@@ -77,6 +77,7 @@ struct show_table_authors_st show_table_authors[]= {
     "Bug fixing" },
   { "Mats Kindahl", "Storvreta, Sweden", "Replication" },
   { "Serge Kozlov", "Velikie Luki, Russia", "Testing - Cluster" },
+  { "Hakan Küçükyılmaz", "Walldorf, Germany", "Testing - Server" },
   { "Greg (Groggy) Lehey", "Uchunga, SA, Australia", "Backup" },
   { "Matthias Leich", "Berlin, Germany", "Testing - Server" },
   { "Dmitri Lenev", "Moscow, Russia",
