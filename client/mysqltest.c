@@ -1278,8 +1278,8 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
   MYSQL_RES *res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
-  LINT_INIT(res);
   DBUG_ENTER("var_query_set");
+  LINT_INIT(res);
 
   while (end > query && *end != '`')
     --end;
