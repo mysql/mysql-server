@@ -770,9 +770,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
                                 interval->type_lengths[i], 
                                 comma_buf, comma_length, NULL, 0))
             {
-              my_printf_error(ER_UNKNOWN_ERROR,
-                              "Illegal %s '%-.64s' value found during parsing",
-                              MYF(0), "set", tmp->ptr());
+              my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "set", tmp->ptr());
               DBUG_RETURN(-1);
             }
           }
