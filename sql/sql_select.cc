@@ -8669,8 +8669,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         create_tmp_field_for_schema(thd, item, table) :
         create_tmp_field(thd, table, item, type, &copy_func,
                          tmp_from_field, group != 0,
-                         not_all_columns || group != 0,
-                         item->marker == 4, 0,
+                         !force_copy_fields &&
+                           (not_all_columns || group !=0),
+                         item->marker == 4, force_copy_fields,
                          param->convert_blob_length);
 
       if (!new_field)
