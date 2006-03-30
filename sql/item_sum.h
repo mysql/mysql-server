@@ -525,13 +525,13 @@ class Item_sum_count_distinct :public Item_sum_int
 public:
   Item_sum_count_distinct(List<Item> &list)
     :Item_sum_int(list), table(0), field_lengths(0), tmp_table_param(0),
-     tree(0), force_copy_fields(0), original(0), always_null(FALSE)
+     force_copy_fields(0), tree(0), original(0), always_null(FALSE)
   { quick_group= 0; }
   Item_sum_count_distinct(THD *thd, Item_sum_count_distinct *item)
     :Item_sum_int(thd, item), table(item->table),
      field_lengths(item->field_lengths),
      tmp_table_param(item->tmp_table_param),
-     tree(item->tree), force_copy_fields(0), original(item),
+     force_copy_fields(0), tree(item->tree), original(item),
      tree_key_length(item->tree_key_length),
      always_null(item->always_null)
   {}
