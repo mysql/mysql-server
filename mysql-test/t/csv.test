@@ -1424,7 +1424,7 @@ DROP TABLE test_repair_table2;
 
 # Corrupt csv file and see if we can repair it
 CREATE TABLE test_repair_table3 ( val integer ) ENGINE = CSV;
---exec echo -n -e \"1\"\\n\"4\"\\n\"3 > $MYSQLTEST_VARDIR/master-data/test/test_repair_table3.CSV
+--exec perl -e 'print "\"1\"\n\"4\"\n\"3";' > $MYSQLTEST_VARDIR/master-data/test/test_repair_table3.CSV
 CHECK TABLE test_repair_table3;
 REPAIR TABLE test_repair_table3;
 SELECT * FROM test_repair_table3;
@@ -1472,7 +1472,7 @@ CREATE TABLE test_repair_table5 (
 ) ENGINE = CSV;
 
 # Corrupt a table -- put a file with wrong # of columns
---exec echo -n -e \"1\",\"101\",\"IBM\"\\n  > $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+--exec perl -e 'print "\"1\",\"101\",\"IBM\"\n";' > $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
 
 CHECK TABLE test_repair_table5;
 REPAIR TABLE test_repair_table5;
