@@ -89,8 +89,9 @@ case $SYSTEM_TYPE in
         fi
         ;;
       *)
+        # Just to be safe, we test for ".so" anyway
         if test \( -f "$mysql_zlib_dir/lib/libz.a"  -o -f "$mysql_zlib_dir/lib/libz.so" -o \
-                   -f "$mysql_zlib_dir/lib/libz.sl" -o -f "$mysql_zlib_dir/lib/libz.dylib" \) \
+                   -f "$mysql_zlib_dir/lib/libz$shrext_cmds" \) \
                 -a -f "$mysql_zlib_dir/include/zlib.h"; then
           ZLIB_INCLUDES="-I$mysql_zlib_dir/include"
           ZLIB_LIBS="-L$mysql_zlib_dir/lib -lz"
