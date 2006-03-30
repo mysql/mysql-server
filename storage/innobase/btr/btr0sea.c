@@ -59,6 +59,9 @@ before hash index building is started */
 
 #define BTR_SEARCH_BUILD_LIMIT		100
 
+/* How many cells to check before temporarily releasing btr_search_latch */
+#define BTR_CHUNK_SIZE			10000
+
 /************************************************************************
 Builds a hash index on a page with the given parameters. If the page already
 has a hash index with different parameters, the old hash index is removed.
@@ -1604,25 +1607,21 @@ btr_search_validate(void)
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	/* How many cells to check before temporarily releasing
-	btr_search_latch. */
-	ulint		chunk_size = 10000;
-
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	rw_lock_x_lock(&btr_search_latch);
 
 	cell_count = hash_get_n_cells(btr_search_sys->hash_index);
-
+	
 	for (i = 0; i < cell_count; i++) {
 		/* We release btr_search_latch every once in a while to
 		give other queries a chance to run. */
-		if ((i != 0) && ((i % chunk_size) == 0)) {
+		if ((i != 0) && ((i % BTR_CHUNK_SIZE) == 0)) {
 			rw_lock_x_unlock(&btr_search_latch);
 			os_thread_yield();
 			rw_lock_x_lock(&btr_search_latch);
 		}
-
+		
 		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
 
 		while (node != NULL) {
@@ -1676,9 +1675,9 @@ btr_search_validate(void)
 		}
 	}
 
-	for (i = 0; i < cell_count; i += chunk_size) {
-		ulint end_index = ut_min(i + chunk_size - 1, cell_count - 1);
-
+	for (i = 0; i < cell_count; i += BTR_CHUNK_SIZE) {
+		ulint end_index = ut_min(i + BTR_CHUNK_SIZE - 1, cell_count - 1);
+		
 		/* We release btr_search_latch every once in a while to
 		give other queries a chance to run. */
 		if (i != 0) {
