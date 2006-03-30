@@ -3781,7 +3781,7 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
       create_info->used_fields & HA_CREATE_USED_ENGINE ||
       create_info->used_fields & HA_CREATE_USED_CHARSET ||
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
-      (alter_info->flags & ALTER_RECREATE) ||
+      (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
       order_num)
     DBUG_RETURN(ALTER_TABLE_DATA_CHANGED);
 
