@@ -3024,14 +3024,14 @@ Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
                        SQL_LIST *order_list, String *separator_arg)
   :tmp_table_param(0), warning(0),
-   force_copy_fields(0), separator(separator_arg), tree(0), table(0),
+   separator(separator_arg), tree(0), table(0),
    order(0), context(context_arg),
    arg_count_order(order_list ? order_list->elements : 0),
    arg_count_field(select_list->elements),
    count_cut_values(0),
    distinct(distinct_arg),
    warning_for_row(FALSE),
-   original(0)
+   force_copy_fields(0), original(0)
 {
   Item *item_select;
   Item **arg_ptr;
@@ -3077,7 +3077,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   :Item_sum(thd, item),
   tmp_table_param(item->tmp_table_param),
   warning(item->warning),
-  force_copy_fields(item->force_copy_fields),
   separator(item->separator),
   tree(item->tree),
   table(item->table),
@@ -3089,6 +3088,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   distinct(item->distinct),
   warning_for_row(item->warning_for_row),
   always_null(item->always_null),
+  force_copy_fields(item->force_copy_fields),
   original(item)
 {
   quick_group= item->quick_group;
