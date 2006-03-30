@@ -11719,13 +11719,13 @@ static void test_bug12744()
   rc= mysql_kill(mysql, mysql_thread_id(mysql));
   DIE_UNLESS(rc==0);
 
-  if (rc= mysql_stmt_execute(prep_stmt))
+  if ((rc= mysql_stmt_execute(prep_stmt)))
   {
-    if (rc= mysql_stmt_reset(prep_stmt))
+    if ((rc= mysql_stmt_reset(prep_stmt)))
       printf("OK!\n");
     else
     {
-      printf("Error!");
+      printf("Error!\n");
       DIE_UNLESS(1==0);      
     }
   }
