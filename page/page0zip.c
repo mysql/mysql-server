@@ -181,7 +181,7 @@ page_zip_dir_get(
 
 /**********************************************************
 Determine how many externally stored columns are contained
-in records with smaller heap_no than rec. */
+in existing records with smaller heap_no than rec. */
 static
 ulint
 page_zip_get_n_prev_extern(
@@ -197,7 +197,7 @@ page_zip_get_n_prev_extern(
 	ulint	i;
 	ulint	left;
 	ulint	heap_no;
-	ulint	n_recs	= page_dir_get_n_heap((page_t*) page_zip->data) - 2;
+	ulint	n_recs	= page_get_n_recs((page_t*) page_zip->data);
 
 	ut_ad(page_is_leaf(page));
 	ut_ad(page_is_comp(page));
@@ -223,7 +223,6 @@ page_zip_get_n_prev_extern(
 		}
 	}
 
-	ut_a(!left);
 	return(n_ext);
 }
 
@@ -2044,7 +2043,7 @@ page_zip_write_rec(
 			ulint	blob_no	= page_zip_get_n_prev_extern(
 					page_zip, rec, index);
 			byte*	ext_end = externs - page_zip->n_blobs
-						* BTR_EXTERN_FIELD_REF_SIZE;
+					* BTR_EXTERN_FIELD_REF_SIZE;
 			ut_ad(blob_no <= page_zip->n_blobs);
 			externs -= blob_no * BTR_EXTERN_FIELD_REF_SIZE;
 
@@ -2112,8 +2111,6 @@ page_zip_write_rec(
 				/* Store the BLOB pointer separately. */
 				externs -= BTR_EXTERN_FIELD_REF_SIZE;
 				ut_ad(data < externs);
-				ut_ad(!memcmp(externs, zero,
-						BTR_EXTERN_FIELD_REF_SIZE));
 				memcpy(externs, src,
 						BTR_EXTERN_FIELD_REF_SIZE);
 			}
