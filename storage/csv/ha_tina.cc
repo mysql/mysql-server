@@ -1379,6 +1379,7 @@ bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
+#ifdef MYSQL_PLUGIN
 mysql_declare_plugin
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -1391,4 +1392,4 @@ mysql_declare_plugin
   0x0100 /* 1.0 */,
 }
 mysql_declare_plugin_end;
-
+#endif
