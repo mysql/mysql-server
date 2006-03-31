@@ -4237,6 +4237,7 @@ double Field_double::val_real(void)
 longlong Field_double::val_int(void)
 {
   double j;
+  longlong res;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -4247,10 +4248,28 @@ longlong Field_double::val_int(void)
     doubleget(j,ptr);
   /* Check whether we fit into longlong range */
   if (j <= (double) LONGLONG_MIN)
-    return (longlong) LONGLONG_MIN;
+  {
+    res= (longlong) LONGLONG_MIN;
+    goto warn;
+  }
   if (j >= (double) (ulonglong) LONGLONG_MAX)
-    return (longlong) LONGLONG_MAX;
+  {
+    res= (longlong) LONGLONG_MAX;
+    goto warn;
+  }
   return (longlong) rint(j);
+
+warn:
+  {
+    char buf[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
+    String tmp(buf, sizeof(buf), &my_charset_latin1), *str;
+    str= val_str(&tmp, 0);
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        str->c_ptr());
+  }
+  return res;
 }
 
 
