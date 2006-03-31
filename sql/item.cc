@@ -532,8 +532,9 @@ bool Item_field::collect_item_field_processor(byte *arg)
 
   RETURN
     TRUE  if 'this' references the field 'arg'
-    FALE  otherwise
+    FALSE otherwise
 */
+
 bool Item_field::find_item_in_field_list_processor(byte *arg)
 {
   KEY_PART_INFO *first_non_group_part= *((KEY_PART_INFO **) arg);
