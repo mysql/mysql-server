@@ -5643,6 +5643,7 @@ static void set_up_range_analysis_info(partition_info *part_info)
     switch (field->type()) {
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
       part_info->get_part_iter_for_interval=
