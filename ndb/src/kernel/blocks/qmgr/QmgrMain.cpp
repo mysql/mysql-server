@@ -848,10 +848,12 @@ check_reply:
     goto die_direct;
   }
   
-  return false;
+  return true;
 
 die_direct:
   ndbout_c(buf);
+  CRASH_INSERTION(932);
+  
   progError(__LINE__, 
 	    ERR_ARBIT_SHUTDOWN, 
 	    buf);
@@ -2082,9 +2084,13 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
   case ZFAIL_CLOSING:
   case ZAPI_ACTIVE:
   case ZAPI_INACTIVE:
+  {
+    char buf[100];
+    BaseString::snprintf(buf, 100, "Node %u disconected", nodeId);    
+    progError(__LINE__, ERR_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
   }
-
+  }
   node_failed(signal, nodeId);
 }//DISCONNECT_REP
 
