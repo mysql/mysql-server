@@ -132,6 +132,7 @@ extern "C" {
 #include "../storage/innobase/include/sync0sync.h"
 #include "../storage/innobase/include/fil0fil.h"
 #include "../storage/innobase/include/trx0xa.h"
+#include "../storage/innobase/include/thr0loc.h"
 }
 
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
@@ -2298,6 +2299,7 @@ innobase_close_connection(
 
 	innobase_rollback_trx(trx);
 
+	thr_local_free(trx->mysql_thread_id);
 	trx_free_for_mysql(trx);
 
 	return(0);
