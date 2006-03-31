@@ -366,8 +366,6 @@ trx_free_for_mysql(
 /*===============*/
 	trx_t*	trx)	/* in, own: trx object */
 {
-	thr_local_free(trx->mysql_thread_id);
-
 	mutex_enter(&kernel_mutex);
 
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
