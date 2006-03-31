@@ -22,7 +22,7 @@
 #include <NdbRestarts.hpp>
 #include <Vector.hpp>
 #include <signaldata/DumpStateOrd.hpp>
-
+#include <Bitmask.hpp>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -669,6 +669,110 @@ err:
   return NDBT_FAILED;    
 }
 
+int 
+runBug18612(NDBT_Context* ctx, NDBT_Step* step){
+
+  // Assume two replicas
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  Uint32 cnt = restarter.getNumDbNodes();
+
+  for(int loop = 0; loop < ctx->getNumLoops(); loop++)
+  {
+    int partition0[256];
+    int partition1[256];
+    bzero(partition0, sizeof(partition0));
+    bzero(partition1, sizeof(partition1));
+    Bitmask<4> nodesmask;
+    
+    Uint32 node1 = restarter.getDbNodeId(rand()%cnt);
+    for (Uint32 i = 0; i<cnt/2; i++)
+    {
+      do { 
+	node1 = restarter.getRandomNodeOtherNodeGroup(node1, rand());
+      } while(nodesmask.get(node1));
+      
+      partition0[i] = node1;
+      partition1[i] = restarter.getRandomNodeSameNodeGroup(node1, rand());
+      
+      ndbout_c("nodes %d %d", node1, partition1[i]);
+      
+      assert(!nodesmask.get(node1));
+      assert(!nodesmask.get(partition1[i]));
+      nodesmask.set(node1);
+      nodesmask.set(partition1[i]);
+    } 
+    
+    ndbout_c("done");
+
+    int dump[255];
+    dump[0] = DumpStateOrd::NdbcntrStopNodes;
+    memcpy(dump + 1, partition0, sizeof(int)*cnt/2);
+    
+    Uint32 master = restarter.getMasterNodeId();
+    
+    if (restarter.dumpStateOneNode(master, dump, 1+cnt/2))
+      return NDBT_FAILED;
+    
+    if (restarter.waitNodesNoStart(partition0, cnt/2))
+      return NDBT_FAILED;
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    
+    if (restarter.dumpStateAllNodes(val2, 2))
+      return NDBT_FAILED;
+    
+    if (restarter.insertErrorInAllNodes(932))
+      return NDBT_FAILED;
+
+    dump[0] = 9000;
+    memcpy(dump + 1, partition0, sizeof(int)*cnt/2);    
+    for (Uint32 i = 0; i<cnt/2; i++)
+      if (restarter.dumpStateOneNode(partition1[i], dump, 1+cnt/2))
+	return NDBT_FAILED;
+
+    dump[0] = 9000;
+    memcpy(dump + 1, partition1, sizeof(int)*cnt/2);    
+    for (Uint32 i = 0; i<cnt/2; i++)
+      if (restarter.dumpStateOneNode(partition0[i], dump, 1+cnt/2))
+	return NDBT_FAILED;
+    
+    if (restarter.startNodes(partition0, cnt/2))
+      return NDBT_FAILED;
+    
+    if (restarter.waitNodesStartPhase(partition0, cnt/2, 2))
+      return NDBT_FAILED;
+    
+    dump[0] = 9001;
+    for (Uint32 i = 0; i<cnt/2; i++)
+      if (restarter.dumpStateAllNodes(dump, 2))
+	return NDBT_FAILED;
+
+    if (restarter.waitClusterNoStart())
+      return NDBT_FAILED;
+    
+    for (Uint32 i = 0; i<cnt/2; i++)
+      if (restarter.restartOneDbNode(partition0[i], true, true, true))
+	return NDBT_FAILED;
+
+    if (restarter.waitNodesNoStart(partition0, cnt/2))
+      return NDBT_FAILED;
+    
+    if (restarter.startAll())
+      return NDBT_FAILED;
+
+    if (restarter.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -961,6 +1065,12 @@ TESTCASE("Bug18414",
 	 "Test bug with NF during NR"){
   INITIALIZER(runLoadTable);
   STEP(runBug18414);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug18612",
+	 "Test bug with partitioned clusters"){
+  INITIALIZER(runLoadTable);
+  STEP(runBug18612);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);

@@ -35,6 +35,7 @@ void Qmgr::initData()
 
   Uint32 hbDBAPI = 500;
   setHbApiDelay(hbDBAPI);
+  c_stopReq.senderRef = 0;
 }//Qmgr::initData()
 
 void Qmgr::initRecords() 
@@ -49,6 +50,7 @@ Qmgr::Qmgr(const class Configuration & conf)
 
   // Transit signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Qmgr::execDUMP_STATE_ORD);
+  addRecSignal(GSN_STOP_REQ, &Qmgr::execSTOP_REQ);
   addRecSignal(GSN_DEBUG_SIG, &Qmgr::execDEBUG_SIG);
   addRecSignal(GSN_CONTINUEB, &Qmgr::execCONTINUEB);
   addRecSignal(GSN_CM_HEARTBEAT, &Qmgr::execCM_HEARTBEAT);
