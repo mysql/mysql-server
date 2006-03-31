@@ -124,7 +124,6 @@ char *partition_info::create_default_partition_names(uint part_no, uint no_parts
 
   SYNOPSIS
     set_up_default_partitions()
-    part_info           The reference to all partition information
     file                A reference to a handler of the table
     max_rows            Maximum number of rows stored in the table
     start_no            Starting partition number
@@ -201,7 +200,6 @@ end:
 
   SYNOPSIS
     set_up_default_subpartitions()
-    part_info           The reference to all partition information
     file                A reference to a handler of the table
     max_rows            Maximum number of rows stored in the table
 
@@ -271,7 +269,6 @@ end:
 
   SYNOPSIS
     set_up_defaults_for_partitioning()
-    part_info           The reference to all partition information
     file                A reference to a handler of the table
     max_rows            Maximum number of rows stored in the table
     start_no            Starting partition number
@@ -387,5 +384,363 @@ char *partition_info::has_unique_names()
   } 
   DBUG_RETURN(NULL);
 }
+
+
+/*
+  Check that all partitions use the same storage engine.
+  This is currently a limitation in this version.
+
+  SYNOPSIS
+    check_engine_mix()
+    engine_array           An array of engine identifiers
+    no_parts               Total number of partitions
+
+  RETURN VALUE
+    TRUE                   Error, mixed engines
+    FALSE                  Ok, no mixed engines
+  DESCRIPTION
+    Current check verifies only that all handlers are the same.
+    Later this check will be more sophisticated.
+*/
+
+bool partition_info::check_engine_mix(handlerton **engine_array, uint no_parts)
+{
+  uint i= 0;
+  bool result= FALSE;
+  DBUG_ENTER("partition_info::check_engine_mix");
+
+  do
+  {
+    if (engine_array[i] != engine_array[0])
+    {
+      result= TRUE;
+      break;
+    }
+  } while (++i < no_parts);
+  DBUG_RETURN(result);
+}
+
+
+/*
+  This routine allocates an array for all range constants to achieve a fast
+  check what partition a certain value belongs to. At the same time it does
+  also check that the range constants are defined in increasing order and
+  that the expressions are constant integer expressions.
+
+  SYNOPSIS
+    check_range_constants()
+
+  RETURN VALUE
+    TRUE                An error occurred during creation of range constants
+    FALSE               Successful creation of range constant mapping
+
+  DESCRIPTION
+    This routine is called from check_partition_info to get a quick error
+    before we came too far into the CREATE TABLE process. It is also called
+    from fix_partition_func every time we open the .frm file. It is only
+    called for RANGE PARTITIONed tables.
+*/
+
+bool partition_info::check_range_constants()
+{
+  partition_element* part_def;
+  longlong current_largest_int= LONGLONG_MIN;
+  longlong part_range_value_int;
+  uint i;
+  List_iterator<partition_element> it(partitions);
+  bool result= TRUE;
+  DBUG_ENTER("partition_info::check_range_constants");
+  DBUG_PRINT("enter", ("INT_RESULT with %d parts", no_parts));
+
+  part_result_type= INT_RESULT;
+  range_int_array= (longlong*)sql_alloc(no_parts * sizeof(longlong));
+  if (unlikely(range_int_array == NULL))
+  {
+    mem_alloc_error(no_parts * sizeof(longlong));
+    goto end;
+  }
+  i= 0;
+  do
+  {
+    part_def= it++;
+    if ((i != (no_parts - 1)) || !defined_max_value)
+      part_range_value_int= part_def->range_value; 
+    else
+      part_range_value_int= LONGLONG_MAX;
+    if (likely(current_largest_int < part_range_value_int))
+    {
+      current_largest_int= part_range_value_int;
+      range_int_array[i]= part_range_value_int;
+    }
+    else
+    {
+      my_error(ER_RANGE_NOT_INCREASING_ERROR, MYF(0));
+      goto end;
+    }
+  } while (++i < no_parts);
+  result= FALSE;
+end:
+  DBUG_RETURN(result);
+}
+
+
+/*
+  A support routine for check_list_constants used by qsort to sort the
+  constant list expressions.
+
+  SYNOPSIS
+    list_part_cmp()
+      a                First list constant to compare with
+      b                Second list constant to compare with
+
+  RETURN VALUE
+    +1                 a > b
+    0                  a  == b
+    -1                 a < b
+*/
+
+int partition_info::list_part_cmp(const void* a, const void* b)
+{
+  longlong a1= ((LIST_PART_ENTRY*)a)->list_value;
+  longlong b1= ((LIST_PART_ENTRY*)b)->list_value;
+  if (a1 < b1)
+    return -1;
+  else if (a1 > b1)
+    return +1;
+  else
+    return 0;
+}
+
+
+/*
+  This routine allocates an array for all list constants to achieve a fast
+  check what partition a certain value belongs to. At the same time it does
+  also check that there are no duplicates among the list constants and that
+  that the list expressions are constant integer expressions.
+
+  SYNOPSIS
+    check_list_constants()
+
+  RETURN VALUE
+    TRUE                  An error occurred during creation of list constants
+    FALSE                 Successful creation of list constant mapping
+
+  DESCRIPTION
+    This routine is called from check_partition_info to get a quick error
+    before we came too far into the CREATE TABLE process. It is also called
+    from fix_partition_func every time we open the .frm file. It is only
+    called for LIST PARTITIONed tables.
+*/
+
+bool partition_info::check_list_constants()
+{
+  uint i;
+  uint list_index= 0;
+  longlong *list_value;
+  bool not_first;
+  bool result= TRUE;
+  longlong curr_value, prev_value;
+  partition_element* part_def;
+  bool found_null= FALSE;
+  List_iterator<partition_element> list_func_it(partitions);
+  DBUG_ENTER("partition_info::check_list_constants");
+
+  part_result_type= INT_RESULT;
+  no_list_values= 0;
+  /*
+    We begin by calculating the number of list values that have been
+    defined in the first step.
+
+    We use this number to allocate a properly sized array of structs
+    to keep the partition id and the value to use in that partition.
+    In the second traversal we assign them values in the struct array.
+
+    Finally we sort the array of structs in order of values to enable
+    a quick binary search for the proper value to discover the
+    partition id.
+    After sorting the array we check that there are no duplicates in the
+    list.
+  */
+
+  i= 0;
+  do
+  {
+    part_def= list_func_it++;
+    if (part_def->has_null_value)
+    {
+      if (found_null)
+      {
+        my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
+        goto end;
+      }
+      has_null_value= TRUE;
+      has_null_part_id= i;
+      found_null= TRUE;
+    }
+    List_iterator<longlong> list_val_it1(part_def->list_val_list);
+    while (list_val_it1++)
+      no_list_values++;
+  } while (++i < no_parts);
+  list_func_it.rewind();
+  list_array= (LIST_PART_ENTRY*)sql_alloc(no_list_values*sizeof(LIST_PART_ENTRY));
+  if (unlikely(list_array == NULL))
+  {
+    mem_alloc_error(no_list_values * sizeof(LIST_PART_ENTRY));
+    goto end;
+  }
+
+  i= 0;
+  do
+  {
+    part_def= list_func_it++;
+    List_iterator<longlong> list_val_it2(part_def->list_val_list);
+    while ((list_value= list_val_it2++))
+    {
+      list_array[list_index].list_value= *list_value;
+      list_array[list_index++].partition_id= i;
+    }
+  } while (++i < no_parts);
+
+  qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
+        &list_part_cmp);
+
+  not_first= FALSE;
+  i= prev_value= 0; //prev_value initialised to quiet compiler
+  do
+  {
+    curr_value= list_array[i].list_value;
+    if (likely(!not_first || prev_value != curr_value))
+    {
+      prev_value= curr_value;
+      not_first= TRUE;
+    }
+    else
+    {
+      my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
+      goto end;
+    }
+  } while (++i < no_list_values);
+  result= FALSE;
+end:
+  DBUG_RETURN(result);
+}
+
+
+/*
+  This code is used early in the CREATE TABLE and ALTER TABLE process.
+
+  SYNOPSIS
+    check_partition_info()
+    file                A reference to a handler of the table
+    max_rows            Maximum number of rows stored in the table
+    engine_type         Return value for used engine in partitions
+
+  RETURN VALUE
+    TRUE                 Error, something went wrong
+    FALSE                Ok, full partition data structures are now generated
+
+  DESCRIPTION
+    We will check that the partition info requested is possible to set-up in
+    this version. This routine is an extension of the parser one could say.
+    If defaults were used we will generate default data structures for all
+    partitions.
+
+*/
+
+bool partition_info::check_partition_info(handlerton **eng_type,
+                                          handler *file, ulonglong max_rows)
+{
+  handlerton **engine_array= NULL;
+  uint part_count= 0;
+  uint i, tot_partitions;
+  bool result= TRUE;
+  char *same_name;
+  DBUG_ENTER("partition_info::check_partition_info");
+
+  if (unlikely(!is_sub_partitioned() && 
+               !(use_default_subpartitions && use_default_no_subpartitions)))
+  {
+    my_error(ER_SUBPARTITION_ERROR, MYF(0));
+    goto end;
+  }
+  if (unlikely(is_sub_partitioned() &&
+              (!(part_type == RANGE_PARTITION || 
+                 part_type == LIST_PARTITION))))
+  {
+    /* Only RANGE and LIST partitioning can be subpartitioned */
+    my_error(ER_SUBPARTITION_ERROR, MYF(0));
+    goto end;
+  }
+  if (unlikely(set_up_defaults_for_partitioning(file, max_rows, (uint)0)))
+    goto end;
+  tot_partitions= get_tot_partitions();
+  if (unlikely(tot_partitions > MAX_PARTITIONS))
+  {
+    my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
+    goto end;
+  }
+  if ((same_name= has_unique_names()))
+  {
+    my_error(ER_SAME_NAME_PARTITION, MYF(0), same_name);
+    goto end;
+  }
+  engine_array= (handlerton**)my_malloc(tot_partitions * sizeof(handlerton *), 
+                                        MYF(MY_WME));
+  if (unlikely(!engine_array))
+    goto end;
+  i= 0;
+  {
+    List_iterator<partition_element> part_it(partitions);
+    do
+    {
+      partition_element *part_elem= part_it++;
+      if (!is_sub_partitioned())
+      {
+        if (part_elem->engine_type == NULL)
+          part_elem->engine_type= default_engine_type;
+        DBUG_PRINT("info", ("engine = %d",
+                   ha_legacy_type(part_elem->engine_type)));
+        engine_array[part_count++]= part_elem->engine_type;
+      }
+      else
+      {
+        uint j= 0;
+        List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        do
+        {
+          part_elem= sub_it++;
+          if (part_elem->engine_type == NULL)
+            part_elem->engine_type= default_engine_type;
+          DBUG_PRINT("info", ("engine = %u",
+                     ha_legacy_type(part_elem->engine_type)));
+          engine_array[part_count++]= part_elem->engine_type;
+        } while (++j < no_subparts);
+      }
+    } while (++i < no_parts);
+  }
+  if (unlikely(partition_info::check_engine_mix(engine_array, part_count)))
+  {
+    my_error(ER_MIX_HANDLER_ERROR, MYF(0));
+    goto end;
+  }
+
+  if (eng_type)
+    *eng_type= (handlerton*)engine_array[0];
+
+  /*
+    We need to check all constant expressions that they are of the correct
+    type and that they are increasing for ranges and not overlapping for
+    list constants.
+  */
+
+  if (unlikely((part_type == RANGE_PARTITION && check_range_constants()) ||
+                (part_type == LIST_PARTITION && check_list_constants())))
+    goto end;
+  result= FALSE;
+end:
+  my_free((char*)engine_array,MYF(MY_ALLOW_ZERO_PTR));
+  DBUG_RETURN(result);
+}
+
 
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
