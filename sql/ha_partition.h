@@ -524,8 +524,7 @@ public:
   virtual const char *index_type(uint inx);
 
   /* The name of the table type that will be used for display purposes */
-  virtual const char *table_type() const
-  { return "PARTITION"; }
+  virtual const char *table_type() const;
 
   /* The name of the row type used for the underlying tables. */
   virtual enum row_type get_row_type() const;
