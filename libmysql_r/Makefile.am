@@ -32,7 +32,11 @@ include $(top_srcdir)/libmysql/Makefile.shared
 libmysql_dir = $(top_srcdir)/libmysql
 
 libmysqlclient_r_la_SOURCES = $(target_sources)
-libmysqlclient_r_la_LIBADD = $(target_libadd) $(yassl_libs_with_path)
+libmysqlclient_r_la_LIBADD = $(target_libadd)
+if HAVE_YASSL
+libmysqlclient_r_la_LIBADD+= $(top_srcdir)/extra/yassl/src/libyassl.la \
+			     $(top_srcdir)/extra/yassl/taocrypt/src/libtaocrypt.la
+endif
 libmysqlclient_r_la_LDFLAGS = $(target_ldflags)
 
 # This is called from the toplevel makefile
