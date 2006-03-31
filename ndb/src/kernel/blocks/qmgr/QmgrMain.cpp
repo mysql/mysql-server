@@ -2342,6 +2342,9 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
 
   failedNodePtr.i = aFailedNode;
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
+
+  check_multi_node_shutdown(signal);
+  
   if (failedNodePtr.i == getOwnNodeId()) {
     jam();
 
@@ -2433,7 +2436,9 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
 {
   NodeRecPtr myNodePtr;
   jamEntry();
-
+  
+  check_multi_node_shutdown(signal);
+  
   PrepFailReqRef * const prepFail = (PrepFailReqRef *)&signal->theData[0];
 
   BlockReference Tblockref  = prepFail->xxxBlockRef;
@@ -4085,6 +4090,8 @@ Qmgr::stateArbitCrash(Signal* signal)
   if (! (arbitRec.getTimediff() > getArbitTimeout()))
     return;
 #endif
+  CRASH_INSERTION(932);
+
   progError(__LINE__, ERR_ARBIT_SHUTDOWN, "Arbitrator decided to shutdown this node");
 }
 
@@ -4244,4 +4251,41 @@ Qmgr::execAPI_BROADCAST_REP(Signal* signal)
   
   NodeReceiverGroup rg(API_CLUSTERMGR, mask);
   sendSignal(rg, api.gsn, signal, len, JBB); // forward sections
+}
+
+void
+Qmgr::execSTOP_REQ(Signal* signal)
+{
+  jamEntry();
+  c_stopReq = * (StopReq*)signal->getDataPtr();
+
+  if (c_stopReq.senderRef)
+  {
+    ndbrequire(NdbNodeBitmask::get(c_stopReq.nodes, getOwnNodeId()));
+    
+    StopConf *conf = (StopConf*)signal->getDataPtrSend();
+    conf->senderData = c_stopReq.senderData;
+    conf->nodeState = getOwnNodeId();
+    sendSignal(c_stopReq.senderRef, 
+	       GSN_STOP_CONF, signal, StopConf::SignalLength, JBA);
+  }
+}
+
+void
+Qmgr::check_multi_node_shutdown(Signal* signal)
+{
+  if (c_stopReq.senderRef && 
+      NdbNodeBitmask::get(c_stopReq.nodes, getOwnNodeId()))
+  {
+    jam();
+    if(StopReq::getPerformRestart(c_stopReq.requestInfo))
+    {
+      jam();
+      StartOrd * startOrd = (StartOrd *)&signal->theData[0];
+      startOrd->restartInfo = c_stopReq.requestInfo;
+      EXECUTE_DIRECT(CMVMI, GSN_START_ORD, signal, 2);
+    } else {
+      EXECUTE_DIRECT(CMVMI, GSN_STOP_ORD, signal, 1);
+    }
+  }
 }

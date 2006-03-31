@@ -27,6 +27,7 @@ class FailRep {
    * Sender(s) & Reciver(s)
    */
   friend class Qmgr;
+  friend class Ndbcntr;
   
   /**
    * For printing
@@ -43,9 +44,10 @@ public:
     ZSTART_IN_REGREQ=3,
     ZHEARTBEAT_FAILURE=4,
     ZLINK_FAILURE=5,
-    ZOTHERNODE_FAILED_DURING_START=6
+    ZOTHERNODE_FAILED_DURING_START=6,
+    ZMULTI_NODE_SHUTDOWN = 7
   };
-
+  
 private:
   
   Uint32 failNodeId;
