@@ -2721,6 +2721,12 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
       ptr=strxmov(ptr, " row_format=", 
                   ha_row_type[(uint) share->row_type],
                   NullS);
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    if (share->db_type == &partition_hton &&
+        share->partition_info != NULL && 
+        ((partition_info*)share->partition_info)->no_parts > 0)
+      ptr= strmov(ptr, " partitioned");
+#endif
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 
                              (uint) (ptr-option_buff)-1), cs);
