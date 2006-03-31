@@ -14160,11 +14160,36 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
     jam();
     conf->senderData = senderData;
     conf->gcp = cnewgcp;
+    conf->blockStatus = cgcpOrderBlocked;
     sendSignal(senderRef, GSN_WAIT_GCP_CONF, signal, 
 	       WaitGCPConf::SignalLength, JBB);
     return;
   }//if
 
+  if (requestType == WaitGCPReq::BlockStartGcp)
+  {
+    jam();
+    conf->senderData = senderData;
+    conf->gcp = cnewgcp;
+    conf->blockStatus = cgcpOrderBlocked;
+    sendSignal(senderRef, GSN_WAIT_GCP_CONF, signal, 
+	       WaitGCPConf::SignalLength, JBB);
+    cgcpOrderBlocked = 1;
+    return;
+  }
+
+  if (requestType == WaitGCPReq::UnblockStartGcp)
+  {
+    jam();
+    conf->senderData = senderData;
+    conf->gcp = cnewgcp;
+    conf->blockStatus = cgcpOrderBlocked;
+    sendSignal(senderRef, GSN_WAIT_GCP_CONF, signal, 
+	       WaitGCPConf::SignalLength, JBB);
+    cgcpOrderBlocked = 0;
+    return;
+  }
+  
   if(isMaster()) {
     /**
      * Master
@@ -14176,6 +14201,7 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
       jam();
       conf->senderData = senderData;
       conf->gcp = coldgcp;
+      conf->blockStatus = cgcpOrderBlocked;
       sendSignal(senderRef, GSN_WAIT_GCP_CONF, signal, 
 		 WaitGCPConf::SignalLength, JBB);
       return;
@@ -14262,6 +14288,7 @@ void Dbdih::execWAIT_GCP_CONF(Signal* signal)
 
   conf->senderData = ptr.p->clientData;
   conf->gcp = gcp;
+  conf->blockStatus = cgcpOrderBlocked;
   sendSignal(ptr.p->clientRef, GSN_WAIT_GCP_CONF, signal,
 	     WaitGCPConf::SignalLength, JBB);
   
@@ -14329,6 +14356,7 @@ void Dbdih::emptyWaitGCPMasterQueue(Signal* signal)
 
     c_waitGCPMasterList.next(ptr);    
     conf->senderData = clientData;
+    conf->blockStatus = cgcpOrderBlocked;
     sendSignal(clientRef, GSN_WAIT_GCP_CONF, signal,
 	       WaitGCPConf::SignalLength, JBB);
     
