@@ -1191,6 +1191,11 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
                                                sql_field->interval_list);
         List_iterator<String> it(sql_field->interval_list);
         String conv, *tmp;
+        char comma_buf[2];
+        int comma_length= cs->cset->wc_mb(cs, ',', (uchar*) comma_buf,
+                                          (uchar*) comma_buf + 
+                                          sizeof(comma_buf));
+        DBUG_ASSERT(comma_length > 0);
         for (uint i= 0; (tmp= it++); i++)
         {
           uint lengthsp;
@@ -1209,6 +1214,16 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
                                        interval->type_lengths[i]);
           interval->type_lengths[i]= lengthsp;
           ((uchar *)interval->type_names[i])[lengthsp]= '\0';
+          if (sql_field->sql_type == FIELD_TYPE_SET)
+          {
+            if (cs->coll->instr(cs, interval->type_names[i], 
+                                interval->type_lengths[i], 
+                                comma_buf, comma_length, NULL, 0))
+            {
+              my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "set", tmp->ptr());
+              DBUG_RETURN(-1);
+            }
+          }
         }
         sql_field->interval_list.empty(); // Don't need interval_list anymore
       }
