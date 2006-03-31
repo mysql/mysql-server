@@ -83,6 +83,19 @@ struct sym_node_struct{
 	been allocated from dynamic memory and it should be freed when the
 	symbol table is discarded */
 
+	/* 'alias' and 'indirection' are almost the same, but not quite.
+	'alias' always points to the primary instance of the variable, while
+	'indirection' does the same only if we should use the primary
+	instance's values for the node's data. This is usually the case, but
+	when initializing a cursor (e.g., "DECLARE CURSOR c IS SELECT * FROM
+	t WHERE id = x;"), we copy the values from the primary instance to
+	the cursor's instance so that they are fixed for the duration of the
+	cursor, and set 'indirection' to NULL. If we did not, the value of
+	'x' could change between fetches and things would break horribly.
+
+	TODO: It would be cleaner to make 'indirection' a boolean field and
+	always use 'alias' to refer to the primary node. */
+
 	sym_node_t*			indirection;	/* pointer to
 							another symbol table
 							node which contains
