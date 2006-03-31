@@ -245,7 +245,13 @@ public:
   bool set_up_defaults_for_partitioning(handler *file, ulonglong max_rows,
                                         uint start_no);
   char *has_unique_names();
+  static bool check_engine_mix(handlerton **engine_array, uint no_parts);
+  bool check_range_constants();
+  bool check_list_constants();
+  bool check_partition_info(handlerton **eng_type,
+                            handler *file, ulonglong max_rows);
 private:
+  static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, ulonglong max_rows,
                                  uint start_no);
   bool set_up_default_subpartitions(handler *file, ulonglong max_rows);

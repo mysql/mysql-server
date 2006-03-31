@@ -344,6 +344,9 @@ SELECT f1 AS double_val, CAST(f1 AS SIGNED INT) AS cast_val FROM t1;
 double_val	cast_val
 -1e+30	-9223372036854775808
 1e+30	9223372036854775807
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '-1e+30'
+Warning	1292	Truncated incorrect INTEGER value: '1e+30'
 DROP TABLE t1;
 select cast('1.2' as decimal(3,2));
 cast('1.2' as decimal(3,2))

@@ -924,4 +924,17 @@ select * from t1 where a is null or a < 0 or a > 1;
 explain partitions select * from t1 where a is null or a < 0 or a > 1;
 drop table t1;
 
+#
+#Bug# 17631 SHOW TABLE STATUS reports wrong engine
+#
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) 
+ENGINE=MyISAM DEFAULT CHARSET=latin1
+PARTITION BY RANGE(id)
+(PARTITION p0  VALUES LESS THAN (10) ENGINE = MyISAM,
+PARTITION p1 VALUES LESS THAN (20) ENGINE = MyISAM,
+PARTITION p2 VALUES LESS THAN (30) ENGINE = MyISAM);
+--replace_column 6 0 7 0 8 0 9 0 12 NULL 13 NULL 14 NULL
+SHOW TABLE STATUS;
+DROP TABLE t1;
+
 --echo End of 5.1 tests
