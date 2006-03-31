@@ -699,6 +699,7 @@ public:
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
   virtual bool cleanup_processor(byte *arg);
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
+  virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
   virtual bool change_context_processor(byte *context) { return 0; }
   virtual bool reset_query_id_processor(byte *query_id) { return 0; }
 
@@ -1146,6 +1147,7 @@ public:
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(byte * arg);
+  bool find_item_in_field_list_processor(byte *arg);
   bool reset_query_id_processor(byte *arg)
   {
     field->query_id= *((query_id_t *) arg);

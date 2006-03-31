@@ -499,7 +499,7 @@ bool Item_ident::remove_dependence_processor(byte * arg)
     arguments in a condition the method must return false.
 
   RETURN
-    false to force the evaluation of collect_item_field_processor
+    FALSE to force the evaluation of collect_item_field_processor
           for the subsequent items.
 */
 
@@ -517,6 +517,38 @@ bool Item_field::collect_item_field_processor(byte *arg)
   }
   item_list->push_back(this);
   DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Check if an Item_field references some field from a list of fields.
+
+  SYNOPSIS
+    Item_field::find_item_in_field_list_processor
+    arg   Field being compared, arg must be of type Field
+
+  DESCRIPTION
+    Check whether the Item_field represented by 'this' references any
+    of the fields in the keyparts passed via 'arg'. Used with the
+    method Item::walk() to test whether any keypart in a sequence of
+    keyparts is referenced in an expression.
+
+  RETURN
+    TRUE  if 'this' references the field 'arg'
+    FALE  otherwise
+*/
+bool Item_field::find_item_in_field_list_processor(byte *arg)
+{
+  KEY_PART_INFO *first_non_group_part= *((KEY_PART_INFO **) arg);
+  KEY_PART_INFO *last_part= *(((KEY_PART_INFO **) arg) + 1);
+  KEY_PART_INFO *cur_part;
+
+  for (cur_part= first_non_group_part; cur_part != last_part; cur_part++)
+  {
+    if (field->eq(cur_part->field))
+      return TRUE;
+  }
+  return FALSE;
 }
 
 
