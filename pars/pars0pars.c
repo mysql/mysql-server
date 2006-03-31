@@ -1122,47 +1122,25 @@ pars_set_dfield_type(
 	}
 
 	if (type == &pars_int_token) {
-		if (len != 0) {
-			ut_error;
-		}
+		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_INT, flags, 4, 0);
 
 	} else if (type == &pars_char_token) {
-		if (len != 0) {
-			ut_error;
-		}
+		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_VARCHAR,
 			DATA_ENGLISH | flags, 0, 0);
 	} else if (type == &pars_binary_token) {
-		if (len == 0) {
-			ut_error;
-		}
+		ut_a(len != 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_FIXBINARY,
 			DATA_BINARY_TYPE | flags, len, 0);
 	} else if (type == &pars_blob_token) {
-		if (len != 0) {
-			ut_error;
-		}
+		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_BLOB,
 			DATA_BINARY_TYPE | flags, 0, 0);
-	} else if (type == &pars_binary_token) {
-		if (len == 0) {
-			ut_error;
-		}
-
-		dtype_set(dfield_get_type(dfield), DATA_FIXBINARY,
-			DATA_BINARY_TYPE, len, 0);
-	} else if (type == &pars_blob_token) {
-		if (len != 0) {
-			ut_error;
-		}
-
-		dtype_set(dfield_get_type(dfield), DATA_BLOB,
-			DATA_BINARY_TYPE, 0, 0);
 	} else {
 		ut_error;
 	}
