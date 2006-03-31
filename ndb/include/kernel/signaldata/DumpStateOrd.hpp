@@ -64,6 +64,7 @@ public:
     // 19 NDBFS Fipple with O_SYNC, O_CREATE etc.
     // 20-24 BACKUP
     NdbcntrTestStopOnError = 25,
+    NdbcntrStopNodes = 70,
     // 100-105 TUP and ACC  
     // 200-240 UTIL
     // 300-305 TRIX

@@ -29,6 +29,7 @@
 #include <signaldata/CmRegSignalData.hpp>
 #include <signaldata/ApiRegSignalData.hpp>
 #include <signaldata/FailRep.hpp>
+#include <signaldata/StopReq.hpp>
 
 #include "timer.hpp"
 
@@ -218,6 +219,7 @@ private:
   void execPRES_TOCONF(Signal* signal);
   void execDISCONNECT_REP(Signal* signal);
   void execSYSTEM_ERROR(Signal* signal);
+  void execSTOP_REQ(Signal* signal);
 
   // Received signals
   void execDUMP_STATE_ORD(Signal* signal);
@@ -402,7 +404,9 @@ private:
   Uint16 cfailedNodes[MAX_NDB_NODES];
   Uint16 cprepFailedNodes[MAX_NDB_NODES];
   Uint16 ccommitFailedNodes[MAX_NDB_NODES];
-
+  
+  StopReq c_stopReq;
+  void check_multi_node_shutdown(Signal* signal);
 };
 
 #endif
