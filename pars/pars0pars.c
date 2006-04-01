@@ -1937,3 +1937,29 @@ pars_info_get_user_func(
 
 	return(NULL);
 }
+
+/********************************************************************
+Get bound literal with the given name.*/
+
+pars_bound_lit_t*
+pars_info_get_bound_lit(
+/*====================*/
+					/* out: bound literal, or NULL if
+					not found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: bound literal name to find */
+{
+	ulint	i;
+
+	if (!info) {
+		return(NULL);
+	}
+
+	for (i = 0; i < info->n_bound_lits; i++) {
+		if (strcmp(info->bound_lits[i].name, name) == 0) {
+			return(&info->bound_lits[i]);
+		}
+	}
+
+	return(NULL);
+}
