@@ -488,7 +488,7 @@ struct pars_user_func_struct {
 /* Bound literal. */
 struct pars_bound_lit_struct {
 	const char*	name;		/* name */
-	void*		address;	/* address */
+	const void*	address;	/* address */
 	ulint		length;		/* length of data */
 	ulint		type;		/* type, e.g. DATA_FIXBINARY */
 	ulint		prtype;		/* precise type, e.g. DATA_UNSIGNED */
