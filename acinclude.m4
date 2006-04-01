@@ -233,9 +233,9 @@ mysql_cv_compress="yes"
 dnl Auxiliary macro to check for zlib at given path
 
 AC_DEFUN([MYSQL_CHECK_ZLIB_DIR], [
-save_INCLUDES="$INCLUDES"
+save_CPPFLAGS="$CPPFLAGS"
 save_LIBS="$LIBS"
-INCLUDES="$INCLUDES $ZLIB_INCLUDES"
+CPPFLAGS="$ZLIB_INCLUDES $CPPFLAGS"
 LIBS="$LIBS $ZLIB_LIBS"
 AC_CACHE_VAL([mysql_cv_compress],
   [AC_TRY_LINK([#include <zlib.h>],
@@ -244,7 +244,7 @@ AC_CACHE_VAL([mysql_cv_compress],
     AC_MSG_RESULT([ok])],
     [mysql_cv_compress="no"])
   ])
-INCLUDES="$save_INCLUDES"
+CPPFLAGS="$save_CPPFLAGS"
 LIBS="$save_LIBS"
 ])
 
