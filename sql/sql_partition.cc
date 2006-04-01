@@ -5634,7 +5634,8 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
       Failed to write, Bad...
       We have completed the operation but have log records to REMOVE
       stuff that shouldn't be removed. What clever things could one do
-      here?
+      here? An error output was written to the error output by the
+      above method so we don't do anything here.
     */
     ;
   }
