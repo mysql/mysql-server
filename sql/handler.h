@@ -632,12 +632,12 @@ typedef struct {
 
 #define UNDEF_NODEGROUP 65535
 class Item;
+struct st_table_log_memory_entry;
 
 class partition_info;
 
 struct st_partition_iter;
 #define NOT_A_PARTITION_ID ((uint32)-1)
-
 
 
 typedef struct st_ha_create_information
@@ -1378,7 +1378,11 @@ public:
   virtual void drop_table(const char *name);
   
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
-  virtual int create_handler_files(const char *name) { return FALSE;}
+  virtual int create_handler_files(const char *name, const char *old_name,
+                                   bool rename_flag)
+  {
+    return FALSE;
+  }
 
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
@@ -1386,7 +1390,7 @@ public:
                                 ulonglong *deleted,
                                 const void *pack_frm_data,
                                 uint pack_frm_len)
-  { return HA_ERR_WRONG_COMMAND; }
+  { print_error(HA_ERR_WRONG_COMMAND, MYF(0)); return TRUE; }
   virtual int drop_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
