@@ -54,6 +54,16 @@ sym_tab_add_str_lit(
 					it */
 	ulint		len);		/* in: string length */
 /**********************************************************************
+Add a bound literal to a symbol table. */
+
+sym_node_t*
+sym_tab_add_bound_lit(
+/*==================*/
+					/* out: symbol table node */
+	sym_tab_t*	sym_tab,	/* in: symbol table */
+	const char*	name,		/* in: name of bound literal */
+	ulint*		lit_type);	/* out: type of literal (PARS_*_LIT) */
+/**********************************************************************
 Adds an SQL null literal to a symbol table. */
 
 sym_node_t*

@@ -33,6 +33,8 @@ yylex(void);
 %token PARS_INT_LIT
 %token PARS_FLOAT_LIT
 %token PARS_STR_LIT
+%token PARS_FIXBINARY_LIT
+%token PARS_BLOB_LIT
 %token PARS_NULL_LIT
 %token PARS_ID_TOKEN
 %token PARS_AND_TOKEN
@@ -169,6 +171,8 @@ exp:
 	| PARS_INT_LIT		{ $$ = $1;}
 	| PARS_FLOAT_LIT	{ $$ = $1;}
 	| PARS_STR_LIT		{ $$ = $1;}
+	| PARS_FIXBINARY_LIT	{ $$ = $1;}
+	| PARS_BLOB_LIT		{ $$ = $1;}
 	| PARS_NULL_LIT		{ $$ = $1;}
 	| PARS_SQL_TOKEN	{ $$ = $1;}
 	| exp '+' exp        	{ $$ = pars_op('+', $1, $3); }
