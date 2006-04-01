@@ -86,7 +86,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-pro"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
