@@ -2848,3 +2848,26 @@ drop table t1,t2;
 #
 --error 1064
 select * from (select * left join t on f1=f2) tt;
+
+#
+# Bug #16504: re-evaluation of Item_equal object after reading const table
+#
+
+CREATE TABLE t1 (sku int PRIMARY KEY, pr int);
+CREATE TABLE t2 (sku int PRIMARY KEY, sppr int, name varchar(255));
+
+INSERT INTO t1 VALUES
+  (10, 10), (20, 10), (30, 20), (40, 30), (50, 10), (60, 10);
+
+INSERT INTO t2 VALUES 
+  (10, 10, 'aaa'), (20, 10, 'bbb'), (30, 10, 'ccc'), (40, 20, 'ddd'),
+  (50, 10, 'eee'), (60, 20, 'fff'), (70, 20, 'ggg'), (80, 30, 'hhh');
+
+SELECT t2.sku, t2.sppr, t2.name, t1.sku, t1.pr
+  FROM t2, t1 WHERE t2.sku=20 AND (t2.sku=t1.sku OR t2.sppr=t1.sku);
+EXPLAIN
+SELECT t2.sku, t2.sppr, t2.name, t1.sku, t1.pr
+  FROM t2, t1 WHERE t2.sku=20 AND (t2.sku=t1.sku OR t2.sppr=t1.sku);
+
+
+DROP TABLE t1,t2;
