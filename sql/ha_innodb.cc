@@ -989,7 +989,6 @@ innobase_query_caching_of_table_permitted(
 		mutex_enter_noninline(&kernel_mutex);
 		trx_print(stderr, trx, 1024);
 		mutex_exit_noninline(&kernel_mutex);
-		ut_error;
 	}
 
 	innobase_release_stat_resources(trx);
@@ -3832,7 +3831,14 @@ ha_innobase::unlock_row(void)
 		mem_analyze_corruption((byte *) prebuilt->trx);
 		ut_error;
 	}
-	
+
+	/* Consistent read does not take any locks, thus there is
+	nothing to unlock. */
+
+	if (prebuilt->select_lock_type == LOCK_NONE) {
+		DBUG_VOID_RETURN;
+	}
+
 	if (srv_locks_unsafe_for_binlog) {
 		row_unlock_for_mysql(prebuilt, FALSE);
 	}
