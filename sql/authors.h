@@ -65,6 +65,7 @@ struct show_table_authors_st show_table_authors[]= {
   { "Antony T. Curtis", "Norwalk, CA, USA",
     "Parser, port to OS/2, storage engines and some random stuff" },
   { "Yuri Dario", "", "OS/2 port" },
+  { "Andrei Elkin", "Espoo, Finland", "Replication" },
   { "Sergei Golubchik", "Kerpen, Germany",
     "Full-text search, precision math" },
   { "Lenz Grimmer", "Hamburg, Germany",
