@@ -1266,6 +1266,12 @@ typedef struct st_ddl_log_entry
   uint entry_pos;
   enum ddl_log_entry_code entry_type;
   enum ddl_log_action_code action_type;
+  /*
+    Most actions have only one phase. REPLACE does however have two
+    phases. The first phase removes the file with the new name if
+    there was one there before and the second phase renames the
+    old name to the new name.
+  */
   char phase;
 } DDL_LOG_ENTRY;
 
