@@ -83,6 +83,8 @@ string_append(
 
 DIGIT	[0-9]
 ID	[a-z_A-Z][a-z_A-Z0-9]*
+BOUND_LIT	\:[a-z_A-Z0-9]+
+
 %x comment
 %x quoted
 %x id
@@ -98,6 +100,15 @@ ID	[a-z_A-Z][a-z_A-Z0-9]*
 			ut_error;	/* not implemented */
 
 			return(PARS_FLOAT_LIT);
+}
+
+{BOUND_LIT}	{
+			ulint	type;
+
+			yylval = sym_tab_add_bound_lit(pars_sym_tab_global,
+				yytext + 1, &type);
+
+			return(type);
 }
 
 "'"		{

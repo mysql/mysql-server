@@ -450,14 +450,26 @@ pars_info_get_user_func(
 	pars_info_t*		info,	/* in: info struct */
 	const char*		name);	/* in: function name to find*/
 
+/********************************************************************
+Get bound literal with the given name.*/
 
-/* Extra information (possibly) supplied for pars_sql(). */
+pars_bound_lit_t*
+pars_info_get_bound_lit(
+/*====================*/
+					/* out: bound literal, or NULL if
+					not found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name);	/* in: bound literal name to find */
+
+
+/* Extra information supplied for pars_sql(). All data is owned by the user
+who's responsible for freeing them as necessary.*/
 struct pars_info_struct {
-	pars_user_func_t*	funcs;		/* User functions, owned by
-						the user, who's responsible
-						for freeing them as
-						necessary. */
+	pars_user_func_t*	funcs;		/* user functions */
 	ulint			n_funcs;	/* number of user functions */
+
+	pars_bound_lit_t*	bound_lits;	/* bound literals */
+	ulint			n_bound_lits;	/* number of bound literals */
 };
 
 /* Type of the user functions. The first argument is always InnoDB-supplied
@@ -471,6 +483,15 @@ struct pars_user_func_struct {
 	const char*		name;		/* function name */
 	pars_user_func_cb_t	func;		/* function address */
 	void*			arg;		/* user-supplied argument */
+};
+
+/* Bound literal. */
+struct pars_bound_lit_struct {
+	const char*	name;		/* name */
+	void*		address;	/* address */
+	ulint		length;		/* length of data */
+	ulint		type;		/* type, e.g. DATA_FIXBINARY */
+	ulint		prtype;		/* precise type, e.g. DATA_UNSIGNED */
 };
 
 /* Struct used to denote a reserved word in a parsing tree */
