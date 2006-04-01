@@ -238,6 +238,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS \
 	          -felide-constructors -fno-exceptions -fno-rtti \
 		  }\" \
+	LDFLAGS=\"$MYSQL_BUILD_LDFLAGS\" \
 	./configure \
  	    $* \
 	    --enable-assembler \
@@ -723,6 +724,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Sat Apr 01 2006 Kent Boortz <kent@mysql.com>
+
+- Set $LDFLAGS from $MYSQL_BUILD_LDFLAGS
+
 * Fri Mar 03 2006 Kent Boortz <kent@mysql.com>
 
 - Don't output an embedded package as it is empty
