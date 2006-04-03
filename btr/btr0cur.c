@@ -3512,6 +3512,7 @@ btr_store_big_rec_extern_fields(
 	space_id = buf_frame_get_space_id(rec);
 
 	page_zip = buf_block_get_page_zip(buf_block_align(rec));
+	ut_a(!dict_table_is_zip(index->table) == !page_zip);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		int	err;
@@ -3847,7 +3848,9 @@ btr_free_externally_stored_field(
 #ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(page, SYNC_EXTERN_STORAGE);
 #endif /* UNIV_SYNC_DEBUG */
-		if (UNIV_LIKELY_NULL(page_zip)) {
+		if (dict_table_is_zip(index->table)) {
+			/* Note that page_zip will be NULL
+			in row_purge_upd_exist_or_extern(). */
 			next_page_no = mach_read_from_4(page);
 
 			btr_page_free_low(index->tree, page,
@@ -3859,8 +3862,10 @@ btr_free_externally_stored_field(
 			mlog_write_ulint(field_ref + BTR_EXTERN_LEN + 4,
 						0,
 						MLOG_4BYTES, &mtr);
-			page_zip_write_blob_ptr(page_zip,
+			if (page_zip) {
+				page_zip_write_blob_ptr(page_zip,
 						rec, index, offsets, i, &mtr);
+			}
 		} else {
 			ulint	extern_len	= mach_read_from_4(
 					field_ref + BTR_EXTERN_LEN + 4);

@@ -1533,11 +1533,10 @@ page_zip_decompress(
 		switch (inflate(&d_stream, Z_SYNC_FLUSH)) {
 		case Z_STREAM_END:
 			/* Apparently, n_dense has grown
-			since the time the page was last compressed. */
-			if (UNIV_UNLIKELY(d_stream.next_out != last)) {
-				/* Somehow, we got a partial record. */
-				goto zlib_error;
-			}
+			since the time the page was last compressed.
+			(d_stream.next_out == last) will not hold,
+			in case the last record was allocated from
+			an originally longer space on the free list. */
 			goto zlib_done;
 		case Z_OK:
 		case Z_BUF_ERROR:
@@ -1645,8 +1644,6 @@ page_zip_decompress(
 						BTR_EXTERN_FIELD_REF_SIZE);
 					d_stream.next_out
 						+= BTR_EXTERN_FIELD_REF_SIZE;
-					d_stream.avail_in
-						-= BTR_EXTERN_FIELD_REF_SIZE;
 				}
 			}
 
