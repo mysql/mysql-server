@@ -1299,7 +1299,7 @@ void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry);
 bool sync_ddl_log();
 void release_ddl_log();
 void execute_ddl_log_recovery();
-bool execute_ddl_log_entry(uint first_entry);
+bool execute_ddl_log_entry(THD *thd, uint first_entry);
 void lock_global_ddl_log();
 void unlock_global_ddl_log();
 

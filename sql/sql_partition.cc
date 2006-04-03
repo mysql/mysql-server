@@ -5342,7 +5342,8 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
   DBUG_ENTER("handle_alter_part_error");
 
   if (!part_info->first_log_entry &&
-      execute_ddl_log_entry(part_info->first_log_entry->entry_pos))
+      execute_ddl_log_entry(current_thd,
+                            part_info->first_log_entry->entry_pos))
   {
     /*
       We couldn't recover from error, most likely manual interaction
