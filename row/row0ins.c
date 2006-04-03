@@ -2021,10 +2021,9 @@ row_ins_index_entry_low(
 		rec_t*	first_rec = page_rec_get_next(
 				page_get_infimum_rec(page));
 
-		if (UNIV_LIKELY(first_rec != page_get_supremum_rec(page))) {
-			ut_a(rec_get_n_fields(first_rec, index)
+		ut_ad(page_rec_is_supremum(first_rec)
+			|| rec_get_n_fields(first_rec, index)
 			== dtuple_get_n_fields(entry));
-		}
 	}
 #endif
 

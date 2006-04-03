@@ -1230,8 +1230,8 @@ btr_cur_pessimistic_insert(
 
 	cursor->flag = BTR_CUR_BINARY;
 
-	err = btr_cur_optimistic_insert(flags, cursor, entry, rec, big_rec,
-							ext, n_ext, thr, mtr);
+	err = btr_cur_optimistic_insert(flags, cursor, entry, rec,
+					&big_rec_vec, ext, n_ext, thr, mtr);
 	if (err != DB_FAIL) {
 
 		return(err);
