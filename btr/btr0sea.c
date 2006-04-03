@@ -24,8 +24,8 @@ ulint	btr_search_this_is_zero = 0;	/* A dummy variable to fool the
 
 #ifdef UNIV_SEARCH_PERF_STAT
 ulint	btr_search_n_succ	= 0;
-#endif /* UNIV_SEARCH_PERF_STAT */
 ulint	btr_search_n_hash_fail	= 0;
+#endif /* UNIV_SEARCH_PERF_STAT */
 
 byte	btr_sea_pad1[64];	/* padding to prevent other memory update
 				hotspots from residing on the same memory
@@ -169,10 +169,12 @@ btr_search_info_create(
 
 	info->last_hash_succ = FALSE;
 
+#ifdef UNIV_SEARCH_PERF_STAT
 	info->n_hash_succ = 0;
 	info->n_hash_fail = 0;
 	info->n_patt_succ = 0;
 	info->n_searches = 0;
+#endif /* UNIV_SEARCH_PERF_STAT */
 
 	/* Set some sensible values */
 	info->n_fields = 1;
@@ -484,7 +486,9 @@ btr_search_info_update_slow(
 	if (cursor->flag == BTR_CUR_HASH_FAIL) {
 		/* Update the hash node reference, if appropriate */
 
+#ifdef UNIV_SEARCH_PERF_STAT
 		btr_search_n_hash_fail++;
+#endif /* UNIV_SEARCH_PERF_STAT */
 
 		rw_lock_x_lock(&btr_search_latch);
 
@@ -869,11 +873,11 @@ failure_unlock:
 		rw_lock_s_unlock(&btr_search_latch);
 	}
 failure:
-	info->n_hash_fail++;
-
 	cursor->flag = BTR_CUR_HASH_FAIL;
 
 #ifdef UNIV_SEARCH_PERF_STAT
+	info->n_hash_fail++;
+
 	if (info->n_hash_succ > 0) {
 		info->n_hash_succ--;
 	}
