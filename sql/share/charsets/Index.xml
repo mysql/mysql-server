@@ -115,7 +115,10 @@ To make maintaining easier please:
   <alias>l1</alias>
   <alias>latin1</alias>
   <collation name="latin1_german1_ci"	id="5"	order="German Duden"/>
-  <collation name="latin1_swedish_ci"	id="8"	order="Finnish, Swedish"	flag="primary"/>
+  <collation name="latin1_swedish_ci"	id="8"	order="Finnish, Swedish">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
   <collation name="latin1_danish_ci"	id="15"	order="Danish"/>
   <collation name="latin1_german2_ci"	id="31"	order="German Phonebook"	flag="compiled"/>
   <collation name="latin1_spanish_ci"	id="94"	order="Spanish"/>
