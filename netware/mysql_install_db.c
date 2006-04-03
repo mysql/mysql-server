@@ -423,7 +423,7 @@ int main(int argc, char **argv)
   printf("\nThe latest information about MySQL is available on the web at\n");
   printf("\thttp://www.mysql.com\n");
   
-  printf("\nSupport MySQL by buying support at https://order.mysql.com\n\n");
+  printf("\nSupport MySQL by buying support at http://shop.mysql.com\n\n");
   
   return 0;
 }
