@@ -583,3 +583,17 @@ explain partitions select * from t1 where a>='a' and a <= 'dddd';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p1,p2,p3,p4,p5	ALL	NULL	NULL	NULL	NULL	5	Using where
 drop table t1;
+create table t1 (f_int1 integer) partition by list(abs(mod(f_int1,2)))
+subpartition by hash(f_int1) subpartitions 2
+(
+partition part1 values in (0),
+partition part2 values in (1),
+partition part4 values in (null)
+);
+insert into t1 set f_int1 = null;
+select * from t1 where f_int1 is null;
+f_int1
+NULL
+explain partitions select * from t1 where f_int1 is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	part4_p2sp0	system	NULL	NULL	NULL	NULL	1	
