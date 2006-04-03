@@ -180,12 +180,14 @@ struct btr_search_struct{
 				the same prefix should be indexed in the
 				hash index */
 	/*----------------------*/
+#ifdef UNIV_SEARCH_PERF_STAT
 	ulint	n_hash_succ;	/* number of successful hash searches thus
 				far */
 	ulint	n_hash_fail;	/* number of failed hash searches */
 	ulint	n_patt_succ;	/* number of successful pattern searches thus
 				far */
 	ulint	n_searches;	/* number of searches */
+#endif /* UNIV_SEARCH_PERF_STAT */
 };
 
 #define BTR_SEARCH_MAGIC_N	1112765
@@ -218,8 +220,8 @@ extern rw_lock_t*	btr_search_latch_temp;
 
 #ifdef UNIV_SEARCH_PERF_STAT
 extern ulint	btr_search_n_succ;
-#endif /* UNIV_SEARCH_PERF_STAT */
 extern ulint	btr_search_n_hash_fail;
+#endif /* UNIV_SEARCH_PERF_STAT */
 
 /* After change in n_fields or n_bytes in info, this many rounds are waited
 before starting the hash analysis again: this is to save CPU time when there
