@@ -5989,7 +5989,7 @@ int Field_str::store(double nr)
 
 uint Field::is_equal(create_field *new_field)
 {
-  return (new_field->sql_type == type());
+  return (new_field->sql_type == real_type());
 }
 
 
@@ -6001,7 +6001,7 @@ uint Field_str::is_equal(create_field *new_field)
 	(flags & (BINCMP_FLAG | BINARY_FLAG))))
     return 0; /* One of the fields is binary and the other one isn't */
 
-  return ((new_field->sql_type == type()) &&
+  return ((new_field->sql_type == real_type()) &&
 	  new_field->charset == field_charset &&
 	  new_field->length == max_length());
 }
@@ -6798,7 +6798,7 @@ Field *Field_varstring::new_key_field(MEM_ROOT *root,
 
 uint Field_varstring::is_equal(create_field *new_field)
 {
-  if (new_field->sql_type == type() &&
+  if (new_field->sql_type == real_type() &&
       new_field->charset == field_charset)
   {
     if (new_field->length == max_length())
@@ -7957,12 +7957,12 @@ bool Field_num::eq_def(Field *field)
 
 uint Field_num::is_equal(create_field *new_field)
 {
-  return ((new_field->sql_type == type()) &&
+  return ((new_field->sql_type == real_type()) &&
 	  ((new_field->flags & UNSIGNED_FLAG) == (uint) (flags &
 							 UNSIGNED_FLAG)) &&
 	  ((new_field->flags & AUTO_INCREMENT_FLAG) ==
 	   (uint) (flags & AUTO_INCREMENT_FLAG)) &&
-	  (new_field->length >= max_length()));
+	  (new_field->length <= max_length()));
 }
 
 
