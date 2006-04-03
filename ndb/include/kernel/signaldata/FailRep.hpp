@@ -18,6 +18,7 @@
 #define FAIL_REP_HPP
 
 #include "SignalData.hpp"
+#include <NodeBitmask.hpp>
 
 /**
  * 
