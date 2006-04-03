@@ -479,5 +479,19 @@ select * from t1 where a>='a' and a <= 'dddd';
 explain partitions select * from t1 where a>='a' and a <= 'dddd';
 drop table t1;
 
+# BUG#18659: Assertion failure when subpartitioning is used and partition is
+# "IS NULL"
+create table t1 (f_int1 integer) partition by list(abs(mod(f_int1,2)))
+  subpartition by hash(f_int1) subpartitions 2
+(
+  partition part1 values in (0),
+  partition part2 values in (1),
+  partition part4 values in (null)
+);
+insert into t1 set f_int1 = null;
+
+select * from t1 where f_int1 is null;
+explain partitions select * from t1 where f_int1 is null;
+
 # No tests for NULLs in RANGE(monotonic_expr()) - they depend on BUG#15447
 # being fixed.
