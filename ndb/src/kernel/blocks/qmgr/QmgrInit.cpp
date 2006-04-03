@@ -94,6 +94,9 @@ Qmgr::Qmgr(const class Configuration & conf)
   addRecSignal(GSN_ARBIT_CHOOSEREF, &Qmgr::execARBIT_CHOOSEREF);
   addRecSignal(GSN_ARBIT_STOPREP, &Qmgr::execARBIT_STOPREP);
 
+  addRecSignal(GSN_READ_NODESREF, &Qmgr::execREAD_NODESREF);
+  addRecSignal(GSN_READ_NODESCONF, &Qmgr::execREAD_NODESCONF);
+  
   initData();
 }//Qmgr::Qmgr()
 

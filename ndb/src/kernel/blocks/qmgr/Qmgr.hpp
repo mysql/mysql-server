@@ -124,7 +124,7 @@ public:
    *
    * i.e. nodes that connect to use, when we already have elected president
    */
-  NdbNodeBitmask c_cmregreq_nodes;
+  NdbNodeBitmask c_readnodes_nodes;
   
   Uint32 c_maxDynamicId;
   
@@ -233,6 +233,8 @@ private:
   void execREAD_NODESREQ(Signal* signal);
   void execSET_VAR_REQ(Signal* signal);
 
+  void execREAD_NODESREF(Signal* signal);
+  void execREAD_NODESCONF(Signal* signal);
 
   void execAPI_VERSION_REQ(Signal* signal);
   void execAPI_BROADCAST_REP(Signal* signal);
@@ -249,6 +251,8 @@ private:
   void execARBIT_STOPREP(Signal* signal);
 
   // Statement blocks
+  void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
+
   void node_failed(Signal* signal, Uint16 aFailedNode);
   void checkStartInterface(Signal* signal);
   void failReport(Signal* signal,
@@ -268,7 +272,6 @@ private:
   void startphase1(Signal* signal);
   void electionWon(Signal* signal);
   void cmInfoconf010Lab(Signal* signal);
-  bool check_cmregreq_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
   
   void apiHbHandlingLab(Signal* signal);
   void timerHandlingLab(Signal* signal);
