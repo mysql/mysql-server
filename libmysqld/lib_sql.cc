@@ -28,7 +28,7 @@ extern "C"
   extern unsigned long max_allowed_packet, net_buffer_length;
 }
 
-#if defined (__WIN__)
+#if defined(__WIN__) && !defined(USING_CMAKE)
 #include "../sql/mysqld.cpp"
 #else
 #include "../sql/mysqld.cc"
