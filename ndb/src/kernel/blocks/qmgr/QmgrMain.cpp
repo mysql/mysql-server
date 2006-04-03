@@ -369,12 +369,28 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   }
   
   ndbrequire(!c_start.m_nodes.isWaitingFor(nodeId));
-  ndbrequire(!c_cmregreq_nodes.get(nodeId));
-  c_cmregreq_nodes.set(nodeId);
-  sendCmRegReq(signal, nodeId);  
-  c_regReqReqSent--;
+  ndbrequire(!c_readnodes_nodes.get(nodeId));
+  c_readnodes_nodes.set(nodeId);
+  signal->theData[0] = reference();
+  sendSignal(calcQmgrBlockRef(nodeId), GSN_READ_NODESREQ, signal, 1, JBA);
   return;
 }//Qmgr::execCONNECT_REP()
+
+void
+Qmgr::execREAD_NODESCONF(Signal* signal)
+{
+  check_readnodes_reply(signal, 
+			refToNode(signal->getSendersBlockRef()),
+			GSN_READ_NODESCONF);
+}
+
+void
+Qmgr::execREAD_NODESREF(Signal* signal)
+{
+  check_readnodes_reply(signal, 
+			refToNode(signal->getSendersBlockRef()),
+			GSN_READ_NODESREF);
+}
 
 /*******************************/
 /* CM_INFOCONF                */
@@ -668,12 +684,6 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   const CmRegConf * const cmRegConf = (CmRegConf *)&signal->theData[0];
   Uint32 presidentNodeId = cmRegConf->presidentNodeId;
 
-  if (check_cmregreq_reply(signal, presidentNodeId, GSN_CM_REGCONF))
-  {
-    jam();
-    return;
-  }
-
   if (!ndbCompatible_ndb_ndb(NDB_VERSION, cmRegConf->presidentVersion)) {
     jam();
     char buf[128];
@@ -731,8 +741,8 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   return;
 }//Qmgr::execCM_REGCONF()
 
-bool
-Qmgr::check_cmregreq_reply(Signal* signal, Uint32 nodeId, Uint32 gsn)
+void
+Qmgr::check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn)
 {
   NodeRecPtr myNodePtr;
   myNodePtr.i = getOwnNodeId();
@@ -741,117 +751,65 @@ Qmgr::check_cmregreq_reply(Signal* signal, Uint32 nodeId, Uint32 gsn)
   NodeRecPtr nodePtr;
   nodePtr.i = nodeId;
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
-  
-  /**
-   * Try to decide if replying node
-   *   knows who is president
-   */
-  Uint32 president_reply = RNIL;
-  switch(gsn){
-  case GSN_CM_REGREF:{
-    jam();
-    CmRegRef* ref = (CmRegRef*)signal->getDataPtr();
-    switch(ref->errorCode){
-    case CmRegRef::ZBUSY:
-    case CmRegRef::ZBUSY_PRESIDENT:
-    case CmRegRef::ZBUSY_TO_PRES:
-      jam();
-      /**
-       * Only president replies this
-       */
-      ndbrequire(nodeId == ref->presidentCandidate);
-      president_reply = nodeId;
-      break;
-    case CmRegRef::ZNOT_PRESIDENT:
-      jam();
-      president_reply = ref->presidentCandidate;
-      break;
-    case CmRegRef::ZNOT_IN_CFG:
-    case CmRegRef::ZNOT_DEAD:
-    case CmRegRef::ZELECTION:
-      // Neither of these replies give certain president knowledge
-      jam();
-    }
-    break;
-  }
-  case GSN_CM_REGCONF:
-    jam();
-    president_reply = nodeId;
-    break;
-  }
-  
-  char buf[256];
-  switch(c_start.m_gsn){
-  case GSN_CM_REGREQ:
-    jam();
-    ndbrequire(c_start.m_nodes.isWaitingFor(nodeId));
-    ndbrequire(c_cmregreq_nodes.isclear());    
-    ndbrequire(myNodePtr.p->phase == ZSTARTING);
-    return false;
-  case GSN_CM_NODEINFOREQ:
-    jam();
 
-    ndbrequire(myNodePtr.p->phase == ZSTARTING);
-    if (c_start.m_nodes.isWaitingFor(nodeId))
-    {
-      jam();
-      /**
-       * We're waiting for CM_NODEINFO
-       */
-      if (gsn == GSN_CM_REGREF)
-      {
-	jam();
-	return false;
-      }
-      
-      jam();
-      BaseString::snprintf(buf, sizeof(buf), 
-			   "Partitioned cluster! check StartPartialTimeout, "
-			   " received CM_REGCONF from %d"
-			   " while waiting for GSN_CM_NODEINFOCONF."
-			   " president=%d", 
-			   nodeId, cpresident);
-      goto die_direct;
-    }
-    
-    goto check_reply;
-  default:
-  case GSN_CM_NODEINFOCONF:
-    jam();
-    ndbrequire(myNodePtr.p->phase == ZRUNNING);
-    goto check_reply;
-  }
-  
-check_reply:
-  jam();
-  c_cmregreq_nodes.clear(nodeId);
-  
-  if (gsn == GSN_CM_REGCONF)
+  ndbrequire(c_readnodes_nodes.get(nodeId));
+  ReadNodesConf* conf = (ReadNodesConf*)signal->getDataPtr();
+  if (gsn == GSN_READ_NODESREF)
   {
     jam();
-    BaseString::snprintf(buf, sizeof(buf),
-			 "Partitioned cluster! check StartPartialTimeout, "
-			 " received CM_REGCONF"
-			 " from %d I think president: %d",
-			 nodeId, cpresident);
-    goto die_direct;
+retry:
+    signal->theData[0] = reference();
+    sendSignal(calcQmgrBlockRef(nodeId), GSN_READ_NODESREQ, signal, 1, JBA);
+    return;
   }
   
-  if (president_reply != RNIL && president_reply != cpresident)
+  if (conf->masterNodeId == ZNIL)
   {
     jam();
-    BaseString::snprintf(buf, sizeof(buf),
-			 "Partitioned cluster! check StartPartialTimeout, "
-			 " received CM_REGREF from %d specifying president as"
-			 " %d, president: %d",
-			 nodeId, president_reply, cpresident);
-    goto die_direct;
+    goto retry;
   }
   
-  return true;
+  Uint32 president = conf->masterNodeId;
+  if (president == cpresident)
+  {
+    jam();
+    c_readnodes_nodes.clear(nodeId);
+    return;
+  }
 
-die_direct:
+  char buf[255];
+  BaseString::snprintf(buf, sizeof(buf),
+		       "Partitioned cluster! check StartPartialTimeout, "
+		       " node %d thinks %d is president, "
+		       " I think president is: %d",
+		       nodeId, president, cpresident);
+
   ndbout_c(buf);
+  CRASH_INSERTION(933);
+
+  if (getNodeState().startLevel == NodeState::SL_STARTED)
+  {
+    jam();
+    NdbNodeBitmask part;
+    part.assign(NdbNodeBitmask::Size, conf->clusterNodes);
+    FailRep* rep = (FailRep*)signal->getDataPtrSend();
+    rep->failCause = FailRep::ZPARTITIONED_CLUSTER;
+    rep->president = cpresident;
+    c_clusterNodes.copyto(NdbNodeBitmask::Size, rep->partition);
+    Uint32 ref = calcQmgrBlockRef(nodeId);
+    Uint32 i = 0;
+    while((i = part.find(i + 1)) != NdbNodeBitmask::NotFound)
+    {
+      if (i == nodeId)
+	continue;
+      rep->failNodeId = i;
+      sendSignal(ref, GSN_FAIL_REP, signal, FailRep::SignalLength, JBA);
+    }
+    rep->failNodeId = nodeId;
+    sendSignal(ref, GSN_FAIL_REP, signal, FailRep::SignalLength, JBB);
+    return;
+  }
+  
   CRASH_INSERTION(932);
   
   progError(__LINE__, 
@@ -898,12 +856,6 @@ void Qmgr::execCM_REGREF(Signal* signal)
   UintR TrefuseReason = signal->theData[2];
   Uint32 candidate = signal->theData[3];
   DEBUG_START3(signal, TrefuseReason);
-
-  if (check_cmregreq_reply(signal, TaddNodeno, GSN_CM_REGREF))
-  {
-    jam();
-    return;
-  }
 
   c_regReqReqRecv++;
 
@@ -2069,7 +2021,7 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
   const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
   const Uint32 nodeId = rep->nodeId;
   c_connectedNodes.clear(nodeId);
-  c_cmregreq_nodes.clear(nodeId);
+  c_readnodes_nodes.clear(nodeId);
   
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
@@ -2342,13 +2294,16 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
 
   failedNodePtr.i = aFailedNode;
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
+  FailRep* rep = (FailRep*)signal->getDataPtr();
 
   check_multi_node_shutdown(signal);
   
   if (failedNodePtr.i == getOwnNodeId()) {
     jam();
 
+    Uint32 code = 0;
     const char * msg = 0;
+    char extra[100];
     switch(aFailCause){
     case FailRep::ZOWN_FAILURE: 
       msg = "Own failure"; 
@@ -2369,17 +2324,46 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
     case FailRep::ZLINK_FAILURE:
       msg = "Connection failure";
       break;
+    case FailRep::ZPARTITIONED_CLUSTER:
+    {
+      code = ERR_ARBIT_SHUTDOWN;
+      char buf1[100], buf2[100];
+      c_clusterNodes.getText(buf1);
+      if (signal->getLength()== FailRep::SignalLength + FailRep::ExtraLength &&
+	  signal->header.theVerId_signalNumber == GSN_FAIL_REP)
+      {
+	jam();
+	NdbNodeBitmask part;
+	part.assign(NdbNodeBitmask::Size, rep->partition);
+	part.getText(buf2);
+	BaseString::snprintf(extra, sizeof(extra),
+			     "Partitioned cluster!"
+			     " Our cluster: %s other cluster: %s",
+			     buf1, buf2);
+      }
+      else
+      {
+	jam();
+	BaseString::snprintf(extra, sizeof(extra),
+			     "Partitioned cluster!"
+			     " Our cluster: %s ", buf1);
+      }
+      msg = extra;
+      break;
+    }
     }
     
-    char buf[100];
-    BaseString::snprintf(buf, 100, 
+    CRASH_INSERTION(932);
+
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf), 
 			 "We(%u) have been declared dead by %u reason: %s(%u)",
 			 getOwnNodeId(),
 			 refToNode(signal->getSendersBlockRef()),
 			 aFailCause,
 			 msg ? msg : "<Unknown>");
-
-    progError(__LINE__, 0, buf);
+    
+    progError(__LINE__, code, buf);
     return;
   }//if
   

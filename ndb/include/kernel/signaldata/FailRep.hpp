@@ -36,7 +36,8 @@ class FailRep {
 
 public:
   STATIC_CONST( SignalLength = 2 );
-
+  STATIC_CONST( ExtraLength = 1 + NdbNodeBitmask::Size );
+  
   enum FailCause {
     ZOWN_FAILURE=0,
     ZOTHER_NODE_WHEN_WE_START=1,
@@ -45,13 +46,19 @@ public:
     ZHEARTBEAT_FAILURE=4,
     ZLINK_FAILURE=5,
     ZOTHERNODE_FAILED_DURING_START=6,
-    ZMULTI_NODE_SHUTDOWN = 7
+    ZMULTI_NODE_SHUTDOWN = 7,
+    ZPARTITIONED_CLUSTER = 8
   };
   
 private:
   
   Uint32 failNodeId;
   Uint32 failCause;
+  /**
+   * Used when failCause == ZPARTITIONED_CLUSTER
+   */
+  Uint32 president;
+  Uint32 partition[NdbNodeBitmask::Size];
 };
 
 

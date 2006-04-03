@@ -753,13 +753,13 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
       if (restarter.dumpStateAllNodes(dump, 2))
 	return NDBT_FAILED;
 
-    if (restarter.waitClusterNoStart())
+    if (restarter.waitNodesNoStart(partition0, cnt/2))
       return NDBT_FAILED;
     
     for (Uint32 i = 0; i<cnt/2; i++)
       if (restarter.restartOneDbNode(partition0[i], true, true, true))
 	return NDBT_FAILED;
-
+    
     if (restarter.waitNodesNoStart(partition0, cnt/2))
       return NDBT_FAILED;
     
