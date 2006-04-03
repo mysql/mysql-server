@@ -1406,8 +1406,10 @@ trx_undo_prev_version_build(
 		*old_vers = rec_convert_dtuple_to_rec(buf, index, entry);
 
 		/* Now set the extern bits in the old version of the record */
-		rec_set_field_extern_bits(*old_vers, index, NULL,
+		if (n_ext_vect) {
+			rec_set_field_extern_bits(*old_vers, index, NULL,
 						ext_vect, n_ext_vect);
+		}
 		mem_free(ext_vect);
 	} else {
 		buf = mem_heap_alloc(heap, rec_offs_size(offsets));

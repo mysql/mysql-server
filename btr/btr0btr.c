@@ -1668,6 +1668,7 @@ btr_page_split_and_insert(
 	byte*		buf = 0; /* remove warning */
 	rec_t*		move_limit;
 	ibool		insert_will_fit;
+	ibool		insert_left;
 	ulint		n_iterations = 0;
 	rec_t*		rec;
 	mem_heap_t*	heap;
@@ -1727,9 +1728,8 @@ func_start:
 	first record (move_limit) on original page which ends up on the
 	upper half */
 
-	if (split_rec != NULL) {
-		first_rec = split_rec;
-		move_limit = split_rec;
+	if (split_rec) {
+		first_rec = move_limit = split_rec;
 	} else {
 		buf = mem_alloc(rec_get_converted_size(cursor->index, tuple));
 
@@ -1752,10 +1752,12 @@ func_start:
 		offsets = rec_get_offsets(split_rec, cursor->index, offsets,
 							n_uniq, &heap);
 
+		insert_left = cmp_dtuple_rec(tuple, split_rec, offsets) < 0;
 		insert_will_fit = btr_page_insert_fits(cursor,
 					split_rec, offsets, tuple, heap);
 	} else {
 		mem_free(buf);
+		insert_left = FALSE;
 		insert_will_fit = btr_page_insert_fits(cursor,
 					NULL, NULL, tuple, heap);
 	}
@@ -1799,22 +1801,16 @@ func_start:
 		lock_update_split_right(right_page, left_page);
 	}
 
+	/* At this point, split_rec, move_limit and first_rec may point
+	to garbage on the old page. */
+
 	/* 6. The split and the tree modification is now completed. Decide the
 	page where the tuple should be inserted */
 
-	if (split_rec == NULL) {
-		insert_page = right_page;
-
+	if (insert_left) {
+		insert_page = left_page;
 	} else {
-		offsets = rec_get_offsets(first_rec, cursor->index,
-						offsets, n_uniq, &heap);
-
-		if (cmp_dtuple_rec(tuple, first_rec, offsets) >= 0) {
-
-			insert_page = right_page;
-		} else {
-			insert_page = left_page;
-		}
+		insert_page = right_page;
 	}
 
 	insert_page_zip = buf_block_get_page_zip(buf_block_align(insert_page));
