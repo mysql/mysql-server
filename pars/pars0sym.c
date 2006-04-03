@@ -179,7 +179,7 @@ sym_tab_add_bound_lit(
 {
 	sym_node_t*		node;
 	pars_bound_lit_t*	blit;
-	ulint			len;
+	ulint			len	= 0;
 
 	blit = pars_info_get_bound_lit(sym_tab->info, name);
 	ut_a(blit);
@@ -202,12 +202,10 @@ sym_tab_add_bound_lit(
 		break;
 
 	case DATA_BLOB:
-		len = 0;
 		*lit_type = PARS_BLOB_LIT;
 		break;
 
 	case DATA_VARCHAR:
-		len = 0;
 		*lit_type = PARS_STR_LIT;
 		break;
 
