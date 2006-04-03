@@ -434,8 +434,6 @@ static uint read_ddl_log_header()
     else
       successful_open= TRUE;
   }
-  else
-    sql_print_error("Failed to open ddl log file in recovery");
   entry_no= uint4korr(&file_entry_buf[DDL_LOG_NUM_ENTRY_POS]);
   global_ddl_log.name_len= uint4korr(&file_entry_buf[DDL_LOG_NAME_LEN_POS]);
   global_ddl_log.handler_name_len=
@@ -526,11 +524,12 @@ static bool init_ddl_log()
     sql_print_error("Failed to open ddl log file");
     DBUG_RETURN(TRUE);
   }
+  global_ddl_log.inited= TRUE;
   if (write_ddl_log_header())
   {
+    global_ddl_log.inited= FALSE;
     DBUG_RETURN(TRUE);
   }
-  global_ddl_log.inited= TRUE;
   DBUG_RETURN(FALSE);
 }
 
@@ -776,7 +775,6 @@ bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
     VOID(sync_ddl_log());
     if (write_ddl_log_header())
       error= TRUE;
-    VOID(sync_ddl_log());
   }
   if (error)
     release_ddl_log_memory_entry(*active_entry);
@@ -861,7 +859,6 @@ bool write_execute_ddl_log_entry(uint first_entry,
       release_ddl_log_memory_entry(*active_entry);
       DBUG_RETURN(TRUE);
     }
-    VOID(sync_ddl_log());
   }
   DBUG_RETURN(FALSE);
 }
@@ -1046,7 +1043,9 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry)
 void execute_ddl_log_recovery()
 {
   uint num_entries, i;
+  THD *thd;
   DDL_LOG_ENTRY ddl_log_entry;
+  char file_name[FN_REFLEN];
   DBUG_ENTER("execute_ddl_log_recovery");
 
   /*
@@ -1069,7 +1068,7 @@ void execute_ddl_log_recovery()
     }
     if (ddl_log_entry.entry_type == DDL_LOG_EXECUTE_CODE)
     {
-      if (execute_ddl_log_entry(ddl_log_entry.next_entry))
+      if (execute_ddl_log_entry(thd, ddl_log_entry.next_entry))
       {
         /* Real unpleasant scenario but we continue anyways.  */
         DBUG_ASSERT(0);
