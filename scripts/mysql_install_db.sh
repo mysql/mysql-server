@@ -1,3 +1,4 @@
+
 #!/bin/sh
 # Copyright (C) 2002-2004 MySQL AB
 # For a more info consult the file COPYRIGHT distributed with this file.
@@ -397,7 +398,7 @@ then
   echo
   echo "The latest information about MySQL is available on the web at"
   echo "http://www.mysql.com"
-  echo "Support MySQL by buying support/licenses at https://order.mysql.com"
+  echo "Support MySQL by buying support/licenses at http://shop.mysql.com"
   echo 
   exit 0
 else
