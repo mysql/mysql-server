@@ -253,7 +253,7 @@ page_zip_available(
 		Also the BLOB pointers will be allocated from there, but
 		we may as well count them in the length of the record. */
 
-		trailer_len += PAGE_ZIP_DIR_SLOT_SIZE + uncompressed_size;
+		trailer_len += uncompressed_size;
 	}
 
 	return(UNIV_LIKELY(
