@@ -694,7 +694,10 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
     for (Uint32 i = 0; i<cnt/2; i++)
     {
       do { 
-	node1 = restarter.getRandomNodeOtherNodeGroup(node1, rand());
+	int tmp = restarter.getRandomNodeOtherNodeGroup(node1, rand());
+	if (tmp == -1)
+	  break;
+	node1 = tmp;
       } while(nodesmask.get(node1));
       
       partition0[i] = node1;
@@ -797,7 +800,10 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
     for (Uint32 i = 0; i<cnt/2; i++)
     {
       do { 
-	node1 = restarter.getRandomNodeOtherNodeGroup(node1, rand());
+	int tmp = restarter.getRandomNodeOtherNodeGroup(node1, rand());
+	if (tmp == -1)
+	  break;
+	node1 = tmp;
       } while(nodesmask.get(node1));
       
       partition0[i] = node1;
