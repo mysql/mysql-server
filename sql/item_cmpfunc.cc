@@ -3602,7 +3602,8 @@ void Item_equal::add(Item *c)
   Item_func_eq *func= new Item_func_eq(c, const_item);
   func->set_cmp_func();
   func->quick_fix_field();
-  cond_false =  !(func->val_int());
+  if ((cond_false= !func->val_int()))
+    const_item_cache= 1;
 }
 
 void Item_equal::add(Item_field *f)
@@ -3734,13 +3735,45 @@ void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
   } while (swap);
 }
 
+
+/*
+  Check appearance of new constant items in the multiple equality object
+
+  SYNOPSIS
+    check()
+  
+  DESCRIPTION
+    The function checks appearance of new constant items among
+    the members of multiple equalities. Each new constant item is
+    compared with the designated constant item if there is any in the
+    multiple equality. If there is none the first new constant item
+    becomes designated.
+      
+  RETURN VALUES
+    none    
+*/
+
+void Item_equal::check_const()
+{
+  List_iterator<Item_field> it(fields);
+  Item *item;
+  while ((item= it++))
+  {
+    if (item->const_item())
+    {
+      it.remove();
+      add(item);
+    }
+  }
+}
+
 bool Item_equal::fix_fields(THD *thd, Item **ref)
 {
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 0;
-  while ((item=li++))
+  while ((item= li++))
   {
     table_map tmp_table_map;
     used_tables_cache|= item->used_tables();
