@@ -1196,6 +1196,7 @@ public:
   bool contains(Field *field);
   Item_field* get_first() { return fields.head(); }
   void merge(Item_equal *item);
+  void update_const();
   enum Functype functype() const { return MULT_EQUAL_FUNC; }
   longlong val_int(); 
   const char *func_name() const { return "multiple equal"; }

@@ -3054,7 +3054,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
       /*       NODE IF POSSIBLE TO AVOID UNNECESSARY COMMUNICATION   */
       /*       WITH SIMPLE READS.                                    */
       /*-------------------------------------------------------------*/
-      arrGuard(tnoOfBackup, 4);
+      arrGuard(tnoOfBackup, MAX_REPLICAS);
       UintR Tindex;
       UintR TownNode = cownNodeid;
       for (Tindex = 1; Tindex <= tnoOfBackup; Tindex++) {
@@ -6325,7 +6325,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     jam();
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
     ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-    arrGuard(apiConnectptr.p->currentReplicaNo, 4);
+    arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
     hostptr.i = tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);
     if (hostptr.p->hostStatus == HS_ALIVE) {
@@ -6351,7 +6351,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     jam();
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
     ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-    arrGuard(apiConnectptr.p->currentReplicaNo, 4);
+    arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
     hostptr.i = tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);
     if (hostptr.p->hostStatus == HS_ALIVE) {
@@ -6377,7 +6377,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     jam();
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
     ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-    arrGuard(apiConnectptr.p->currentReplicaNo, 4);
+    arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
     hostptr.i = tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);
     if (hostptr.p->hostStatus == HS_ALIVE) {
@@ -6552,7 +6552,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
       // in time to the ABORT signal we will declare it as dead.
       /*------------------------------------------------------------------*/
       UintR Ti = 0;
-      arrGuard(tcConnectptr.p->noOfNodes, 4);
+      arrGuard(tcConnectptr.p->noOfNodes, MAX_REPLICAS+1);
       for (Ti = 0; Ti < tcConnectptr.p->noOfNodes; Ti++) {
         jam();
         if (tcConnectptr.p->tcNodedata[Ti] != 0) {
@@ -7545,7 +7545,7 @@ void Dbtc::execABORTCONF(Signal* signal)
     warningReport(signal, 18);
     return;
   }//if
-  arrGuard(apiConnectptr.p->currentReplicaNo, 4);
+  arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
   if (tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo] !=
       tnodeid) {
     warningReport(signal, 19);
@@ -7561,7 +7561,7 @@ void Dbtc::toAbortHandlingLab(Signal* signal)
   do {
     if (tcurrentReplicaNo != (Uint8)Z8NIL) {
       jam();
-      arrGuard(tcurrentReplicaNo, 4);
+      arrGuard(tcurrentReplicaNo, MAX_REPLICAS);
       const LqhTransConf::OperationStatus stat = 
 	(LqhTransConf::OperationStatus)
 	tcConnectptr.p->failData[tcurrentReplicaNo];
@@ -7695,7 +7695,7 @@ void Dbtc::execCOMMITCONF(Signal* signal)
     warningReport(signal, 10);
     return;
   }//if
-  arrGuard(apiConnectptr.p->currentReplicaNo, 4);
+  arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
   if (tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo] !=
       tnodeid) {
     warningReport(signal, 11);
@@ -7715,7 +7715,7 @@ void Dbtc::toCommitHandlingLab(Signal* signal)
   do {
     if (tcurrentReplicaNo != (Uint8)Z8NIL) {
       jam();
-      arrGuard(tcurrentReplicaNo, 4);
+      arrGuard(tcurrentReplicaNo, MAX_REPLICAS);
       switch (tcConnectptr.p->failData[tcurrentReplicaNo]) {
       case LqhTransConf::InvalidStatus:
         jam();
@@ -7840,7 +7840,7 @@ void Dbtc::execCOMPLETECONF(Signal* signal)
     warningReport(signal, 14);
     return;
   }//if
-  arrGuard(apiConnectptr.p->currentReplicaNo, 4);
+  arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
   if (tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo] !=
       tnodeid) {
     warningReport(signal, 15);
@@ -7860,7 +7860,7 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
   do {
     if (tcurrentReplicaNo != (Uint8)Z8NIL) {
       jam();
-      arrGuard(tcurrentReplicaNo, 4);
+      arrGuard(tcurrentReplicaNo, MAX_REPLICAS);
       switch (tcConnectptr.p->failData[tcurrentReplicaNo]) {
       case LqhTransConf::InvalidStatus:
         jam();
@@ -8150,6 +8150,7 @@ void Dbtc::setupFailData(Signal* signal)
     case OS_PREPARED:
     case OS_COMMITTING:
       jam();
+      arrGuard(tcConnectptr.p->lastReplicaNo, MAX_REPLICAS);
       for (tindex = 0; tindex <= tcConnectptr.p->lastReplicaNo; tindex++) {
 	jam();
 	/*-------------------------------------------------------------------
@@ -8157,13 +8158,13 @@ void Dbtc::setupFailData(Signal* signal)
 	 * IN THIS CASE ALL LQH'S ARE PREPARED AND WAITING FOR 
 	 * COMMIT/ABORT DECISION.                 
 	 *------------------------------------------------------------------*/
-	arrGuard(tindex, 4);
 	tcConnectptr.p->failData[tindex] = LqhTransConf::Prepared;
       }//for
       break;
     case OS_COMMITTED:
     case OS_COMPLETING:
       jam();
+      arrGuard(tcConnectptr.p->lastReplicaNo, MAX_REPLICAS);
       for (tindex = 0; tindex <= tcConnectptr.p->lastReplicaNo; tindex++) {
 	jam();
 	/*-------------------------------------------------------------------
@@ -8171,19 +8172,18 @@ void Dbtc::setupFailData(Signal* signal)
 	 * IN THIS CASE ALL LQH'S ARE COMMITTED AND WAITING FOR 
 	 * COMPLETE MESSAGE.                     
 	 *------------------------------------------------------------------*/
-	arrGuard(tindex, 4);
 	tcConnectptr.p->failData[tindex] = LqhTransConf::Committed;
       }//for
       break;
     case OS_COMPLETED:
       jam();
+      arrGuard(tcConnectptr.p->lastReplicaNo, MAX_REPLICAS);
       for (tindex = 0; tindex <= tcConnectptr.p->lastReplicaNo; tindex++) {
 	jam();
 	/*-------------------------------------------------------------------
 	 * KEYDATA IS USED TO KEEP AN INDICATION OF STATE IN LQH. 
 	 * IN THIS CASE ALL LQH'S ARE COMPLETED.
 	 *-------------------------------------------------------------------*/
-	arrGuard(tindex, 4);
 	tcConnectptr.p->failData[tindex] = LqhTransConf::InvalidStatus;
       }//for
       break;
