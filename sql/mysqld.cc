@@ -3370,7 +3370,7 @@ static void create_shutdown_thread()
 }
 
 
-#if defined(__NT__) || defined(HAVE_SMEM)
+#if (defined(__NT__) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
 static void handle_connections_methods()
 {
   pthread_t hThread;
