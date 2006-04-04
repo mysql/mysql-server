@@ -4799,9 +4799,18 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
   /* Here when simple cond */
   if (cond->const_item())
   {
-    if (cond->val_int())
-      DBUG_RETURN(new SEL_TREE(SEL_TREE::ALWAYS));
-    DBUG_RETURN(new SEL_TREE(SEL_TREE::IMPOSSIBLE));
+    /*
+      During the cond->val_int() evaluation we can come across a subselect 
+      item which may allocate memory on the thd->mem_root and assumes 
+      all the memory allocated has the same life span as the subselect 
+      item itself. So we have to restore the thread's mem_root here.
+    */
+    MEM_ROOT *tmp_root= param->mem_root;
+    param->thd->mem_root= param->old_root;
+    tree= cond->val_int() ? new(tmp_root) SEL_TREE(SEL_TREE::ALWAYS) :
+                            new(tmp_root) SEL_TREE(SEL_TREE::IMPOSSIBLE);
+    param->thd->mem_root= tmp_root;
+    DBUG_RETURN(tree);
   }
 
   table_map ref_tables= 0;

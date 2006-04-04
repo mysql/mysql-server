@@ -232,6 +232,8 @@ our $opt_client_ddd;
 our $opt_manual_gdb;
 our $opt_manual_ddd;
 our $opt_manual_debug;
+our $opt_debugger;
+our $opt_client_debugger;
 
 our $opt_gprof;
 our $opt_gprof_dir;
@@ -622,6 +624,8 @@ sub command_line_setup () {
              'manual-debug'             => \$opt_manual_debug,
              'ddd'                      => \$opt_ddd,
              'client-ddd'               => \$opt_client_ddd,
+	     'debugger=s'               => \$opt_debugger,
+	     'client-debugger=s'        => \$opt_client_debugger,
              'strace-client'            => \$opt_strace_client,
              'master-binary=s'          => \$exe_master_mysqld,
              'slave-binary=s'           => \$exe_slave_mysqld,
@@ -812,9 +816,10 @@ sub command_line_setup () {
 
   # Check debug related options
   if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd ||
-       $opt_manual_gdb || $opt_manual_ddd || $opt_manual_debug)
+       $opt_manual_gdb || $opt_manual_ddd || $opt_manual_debug ||
+       $opt_debugger || $opt_client_debugger )
   {
-    # Indicate that we are using debugger 
+    # Indicate that we are using debugger
     $glob_debugger= 1;
     # Increase timeouts
     $opt_wait_timeout=  300;
@@ -2786,11 +2791,15 @@ sub mysqld_start ($$$$$) {
 
   if ( $opt_gdb || $opt_manual_gdb)
   {
-    gdb_arguments(\$args, \$exe, $type);
+    gdb_arguments(\$args, \$exe, "$type"."_$idx");
   }
   elsif ( $opt_ddd || $opt_manual_ddd )
   {
-    ddd_arguments(\$args, \$exe, $type);
+    ddd_arguments(\$args, \$exe, "$type"."_$idx");
+  }
+  elsif ( $opt_debugger )
+  {
+    debugger_arguments(\$args, \$exe, "$type"."_$idx");
   }
   elsif ( $opt_manual_debug )
   {
@@ -3324,10 +3333,15 @@ sub run_mysqltest ($) {
   {
     ddd_arguments(\$args, \$exe, "client");
   }
+  elsif ( $opt_client_debugger )
+  {
+    debugger_arguments(\$args, \$exe, "client");
+  }
 
-  if ($glob_use_libtool)
+  if ($glob_use_libtool and $opt_valgrind)
   {
     # Add "libtool --mode-execute" before the test to execute
+    # if running in valgrind(to avoid valgrinding bash)
     unshift(@$args, "--mode=execute", $exe);
     $exe= "libtool";
   }
@@ -3361,6 +3375,9 @@ sub gdb_arguments {
   my $str= join(" ", @$$args);
   my $gdb_init_file= "$opt_tmpdir/gdbinit.$type";
 
+  # Remove the old gdbinit file
+  unlink($gdb_init_file);
+
   if ( $type eq "client" )
   {
     # write init file for client
@@ -3382,7 +3399,7 @@ sub gdb_arguments {
 
   if ( $opt_manual_gdb )
   {
-     print "\nTo start gdb for$type, type in another window:\n";
+     print "\nTo start gdb for $type, type in another window:\n";
      print "cd $glob_mysql_test_dir;\n";
      print "gdb -x $gdb_init_file $$exe\n";
 
@@ -3422,6 +3439,9 @@ sub ddd_arguments {
   my $str= join(" ", @$$args);
   my $gdb_init_file= "$opt_tmpdir/gdbinit.$type";
 
+  # Remove the old gdbinit file
+  unlink($gdb_init_file);
+
   if ( $type eq "client" )
   {
     # write init file for client
@@ -3444,7 +3464,7 @@ sub ddd_arguments {
 
   if ( $opt_manual_ddd )
   {
-     print "\nTo start ddd for$type, type in another window:\n";
+     print "\nTo start ddd for $type, type in another window:\n";
      print "cd $glob_mysql_test_dir;\n";
      print "ddd -x $gdb_init_file $$exe\n";
 
@@ -3468,6 +3488,42 @@ sub ddd_arguments {
   mtr_add_arg($$args, "--command=$gdb_init_file");
   mtr_add_arg($$args, "$save_exe");
 }
+
+
+#
+# Modify the exe and args so that program is run in the selected debugger
+#
+sub debugger_arguments {
+  my $args= shift;
+  my $exe=  shift;
+  my $debugger= $opt_debugger || $opt_client_debugger;
+
+  if ( $debugger eq "vcexpress" or $debugger eq "vc")
+  {
+    # vc[express] /debugexe exe arg1 .. argn
+
+    # Add /debugexe and name of the exe before args
+    unshift(@$$args, "/debugexe");
+    unshift(@$$args, "$$exe");
+
+  }
+  elsif ( $debugger eq "windbg" )
+  {
+    # windbg exe arg1 .. argn
+
+    # Add name of the exe before args
+    unshift(@$$args, "$$exe");
+
+  }
+  else
+  {
+    mtr_error("Unknown argument \"$debugger\" passed to --debugger");
+  }
+
+  # Set exe to debuggername
+  $$exe= $debugger;
+}
+
 
 #
 # Modify the exe and args so that program is run in valgrind
@@ -3578,6 +3634,8 @@ Options for debugging the product
   client-gdb            Start mysqltest client in gdb
   ddd                   Start mysqld in ddd
   client-ddd            Start mysqltest client in ddd
+  debugger=NAME         Start mysqld in the selected debugger
+  client-debugger=NAME  Start mysqltest in the selected debugger
   strace-client         FIXME
   master-binary=PATH    Specify the master "mysqld" to use
   slave-binary=PATH     Specify the slave "mysqld" to use
