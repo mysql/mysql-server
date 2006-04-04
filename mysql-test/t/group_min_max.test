@@ -641,6 +641,14 @@ explain select a1,a2,count(a2) from t1 group by a1,a2,b;
 explain select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
 explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 
+
+#
+# Bug #16710: select distinct doesn't return all it should
+#
+
+explain select distinct(a1) from t1 where ord(a2) = 98;
+select distinct(a1) from t1 where ord(a2) = 98;
+
 #
 # BUG#11044: DISTINCT or GROUP BY queries with equality predicates instead of MIN/MAX.
 #
