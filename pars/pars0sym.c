@@ -179,12 +179,10 @@ sym_tab_add_bound_lit(
 {
 	sym_node_t*		node;
 	pars_bound_lit_t*	blit;
-	ulint			len	= 0;
+	ulint			len = 0;
 
 	blit = pars_info_get_bound_lit(sym_tab->info, name);
 	ut_a(blit);
-
-	ut_a(blit->length > 0);
 
 	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
 
@@ -210,7 +208,9 @@ sym_tab_add_bound_lit(
 		break;
 
 	case DATA_INT:
+		ut_a(blit->length > 0);
 		ut_a(blit->length <= 8);
+
 		len = blit->length;
 		*lit_type = PARS_INT_LIT;
 		break;
