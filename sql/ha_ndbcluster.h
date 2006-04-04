@@ -115,8 +115,6 @@ typedef struct st_ndbcluster_share {
   TABLE *table;
   NdbValue *ndb_value[2];
   MY_BITMAP *subscriber_bitmap;
-  MY_BITMAP slock_bitmap;
-  uint32 slock[256/32]; // 256 bits for lock status of table
 #endif
 } NDB_SHARE;
 
