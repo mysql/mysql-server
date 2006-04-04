@@ -136,7 +136,7 @@ static enum_nested_loop_state
 end_write_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 
 static int test_if_group_changed(List<Cached_item> &list);
-static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
+static int join_read_const_table(JOIN *join, JOIN_TAB *tab, POSITION *pos);
 static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
 static int join_read_key(JOIN_TAB *tab);
@@ -2111,7 +2111,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     s= p_pos->table;
     s->type=JT_SYSTEM;
     join->const_table_map|=s->table->map;
-    if ((tmp=join_read_const_table(s, p_pos)))
+    if ((tmp=join_read_const_table(join, s, p_pos)))
     {
       if (tmp > 0)
 	DBUG_RETURN(1);			// Fatal error
@@ -2148,7 +2148,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	  s->type=JT_SYSTEM;
 	  join->const_table_map|=table->map;
 	  set_position(join,const_count++,s,(KEYUSE*) 0);
-	  if ((tmp= join_read_const_table(s,join->positions+const_count-1)))
+	  if ((tmp= join_read_const_table(join, s,
+                                          join->positions+const_count-1)))
 	  {
 	    if (tmp > 0)
 	      DBUG_RETURN(1);			// Fatal error
@@ -2200,7 +2201,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	      if (create_ref_for_key(join, s, start_keyuse,
 				     found_const_table_map))
 		DBUG_RETURN(1);
-	      if ((tmp=join_read_const_table(s,
+	      if ((tmp=join_read_const_table(join, s,
 					     join->positions+const_count-1)))
 	      {
 		if (tmp > 0)
@@ -6796,8 +6797,8 @@ static COND *build_equal_items_for_cond(COND *cond,
       return item_equal;
     }
     /* 
-      For each field reference in cond, not from equalitym predicates,
-      set a pointer to the multiple equality if belongs to (if there is any)
+      For each field reference in cond, not from equal item predicates,
+      set a pointer to the multiple equality it belongs to (if there is any)
     */ 
     cond= cond->transform(&Item::equal_fields_propagator,
                             (byte *) inherited);
@@ -6982,7 +6983,7 @@ static int compare_fields_by_table_order(Item_field *field1,
 
   NOTES
     Before generating an equality function checks that it has not
-    been generated for multiple equalies of the upper levels.
+    been generated for multiple equalities of the upper levels.
     E.g. for the following where condition
     WHERE a=5 AND ((a=b AND b=c) OR  c>4)
     the upper level AND condition will contain =(5,a),
@@ -7155,7 +7156,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
       {
         cond= eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
         // This occurs when eliminate_item_equal() founds that cond is
-        // always false and substitues it with Item_int 0.
+        // always false and substitutes it with Item_int 0.
         // Due to this, value of item_equal will be 0, so just return it.
         if (cond->type() != Item::COND_ITEM)
           break;
@@ -7174,6 +7175,45 @@ static COND* substitute_for_best_equal_field(COND *cond,
   else
     cond->transform(&Item::replace_equal_field, 0);
   return cond;
+}
+
+
+/* 
+  Check appearance of new constant items in multiple equalities
+  of a condition after reading a constant table
+ 
+  SYNOPSIS
+    check_const_equal_item()
+    cond       condition whose multiple equalities are to be checked
+    table      constant table that has been read 
+
+  DESCRIPTION
+    The function retrieves the cond condition and for each encountered
+    multiple equality checks whether new constants have appeared after
+    reading the constant (single row) table tab. If so it adjusts
+    the multiple equality appropriately.
+*/
+
+static void check_const_equal_items(COND *cond,
+                                    JOIN_TAB *tab)
+{
+  if (!(cond->used_tables() & tab->table->map))
+    return;
+
+  if (cond->type() == Item::COND_ITEM)
+  {
+    List<Item> *cond_list= ((Item_cond*) cond)->argument_list(); 
+    List_iterator_fast<Item> li(*cond_list);
+    Item *item;
+    while ((item= li++))
+      check_const_equal_items(item, tab);
+  }
+  else if (cond->type() == Item::FUNC_ITEM && 
+           ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
+  {
+    Item_equal *item_equal= (Item_equal *) cond;
+    item_equal->check_const();
+  }
 }
 
 
@@ -10099,7 +10139,7 @@ int safe_index_read(JOIN_TAB *tab)
 
 
 static int
-join_read_const_table(JOIN_TAB *tab, POSITION *pos)
+join_read_const_table(JOIN *join, JOIN_TAB *tab, POSITION *pos)
 {
   int error;
   DBUG_ENTER("join_read_const_table");
@@ -10151,6 +10191,26 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   }
   if (!table->null_row)
     table->maybe_null=0;
+
+  /* Check appearance of new constant items in Item_equal objects */
+  if (join->conds)
+    check_const_equal_items(join->conds, tab);
+  TABLE_LIST *tbl;
+  for (tbl= join->select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
+  {
+    TABLE_LIST *embedded;
+    TABLE_LIST *embedding= tbl;
+    do
+    {
+      embedded= embedding;
+      if (embedded->on_expr)
+         check_const_equal_items(embedded->on_expr, tab);
+      embedding= embedded->embedding;
+    }
+    while (embedding &&
+           embedding->nested_join->join_list.head() == embedded);
+  }
+
   DBUG_RETURN(0);
 }
 
