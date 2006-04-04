@@ -36,6 +36,7 @@ sub mtr_show_failed_diff ($) {
 
   my $reject_file=  "r/$tname.reject";
   my $result_file=  "r/$tname.result";
+  my $log_file=  "r/$tname.log";
   my $eval_file=    "r/$tname.eval";
 
   if ( $::opt_suite ne "main" )
@@ -43,10 +44,11 @@ sub mtr_show_failed_diff ($) {
     $reject_file= "$::glob_mysql_test_dir/suite/$::opt_suite/$reject_file";
     $result_file= "$::glob_mysql_test_dir/suite/$::opt_suite/$result_file";
     $eval_file=   "$::glob_mysql_test_dir/suite/$::opt_suite/$eval_file";
+    $log_file=   "$::glob_mysql_test_dir/suite/$::opt_suite/$log_file";
   }
 
   if ( -f $eval_file )
-  { 
+  {
     $result_file=  $eval_file;
   }
   elsif ( $::opt_result_ext and
@@ -69,6 +71,12 @@ sub mtr_show_failed_diff ($) {
     print "Please follow the instructions outlined at\n";
     print "http://www.mysql.com/doc/en/Reporting_mysqltest_bugs.html\n";
     print "to find the reason to this problem and how to report this.\n\n";
+  }
+
+  if ( -f $log_file )
+  {
+    print "Result from queries before failure can be found in $log_file\n";
+    # FIXME Maybe a tail -f -n 10 $log_file here
   }
 }
 
