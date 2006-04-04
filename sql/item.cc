@@ -3777,7 +3777,7 @@ Item *Item_field::replace_equal_field(byte *arg)
   if (item_equal)
   {
     Item_field *subst= item_equal->get_first();
-    if (!field->eq(subst->field))
+    if (subst && !field->eq(subst->field))
       return subst;
   }
   return this;
