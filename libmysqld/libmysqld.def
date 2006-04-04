@@ -18,6 +18,7 @@ EXPORTS
 	list_delete
 	load_defaults
 	max_allowed_packet
+	my_cgets
 	my_end
 	my_getopt_print_errors
 	my_init
