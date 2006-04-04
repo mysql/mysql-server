@@ -6402,7 +6402,7 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       table->record[0] if the engine allows it.  We first compute a
       row reference using the position() member function (it will be
       stored in table->file->ref) and the use rnd_pos() to position
-      the "cursor" at the correct row.
+      the "cursor" (i.e., record[0] in this case) at the correct row.
     */
     table->file->position(table->record[0]);
     DBUG_RETURN(table->file->rnd_pos(table->record[0], table->file->ref));
@@ -6425,9 +6425,9 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     my_ptrdiff_t const pos=
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
     table->record[1][pos]= 0xFF;
-    if ((error= table->file->index_read_idx(table->record[1], 0, key,
-                                            table->key_info->key_length,
-                                            HA_READ_KEY_EXACT)))
+    if ((error= table->file->index_read(table->record[1], key,
+                                        table->key_info->key_length,
+                                        HA_READ_KEY_EXACT)))
     {
       table->file->print_error(error, MYF(0));
       DBUG_RETURN(error);
@@ -6797,19 +6797,25 @@ int Update_rows_log_event::do_exec_row(TABLE *table)
     return error;
 
   /*
-    This is only a precaution to make sure that the call to
-    ha_update_row is using record[1].
+    We have to ensure that the new record (i.e., the after image) is
+    in record[0] and the old record (i.e., the before image) is in
+    record[1].  This since some storage engines require this (for
+    example, the partition engine).
 
-    If this is not needed/required, then we could use m_after_image in
-    that call instead.
+    Since find_and_fetch_row() puts the fetched record (i.e., the old
+    record) in record[0], we have to move it out of the way and into
+    record[1]. After that, we can put the new record (i.e., the after
+    image) into record[0].
   */
-  bmove_align(table->record[1], m_after_image,(size_t) table->s->reclength);
+  bmove_align(table->record[1], table->record[0], table->s->reclength);
+  bmove_align(table->record[0], m_after_image, table->s->reclength);
 
   /*
-    Now we should have the right row to update.  The record that has
-    been fetched is guaranteed to be in record[0], so we use that.
+    Now we should have the right row to update.  The old row (the one
+    we're looking for) has to be in record[1] and the new row has to
+    be in record[0] for all storage engines to work correctly.
   */
-  error= table->file->ha_update_row(table->record[0], table->record[1]);
+  error= table->file->ha_update_row(table->record[1], table->record[0]);
 
   return error;
 }
