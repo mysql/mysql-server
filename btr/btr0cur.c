@@ -2569,7 +2569,7 @@ btr_cur_optimistic_delete(
 
 	page = btr_cur_get_page(cursor);
 
-	ut_ad(btr_page_get_level(page, mtr) == 0);
+	ut_ad(page_is_leaf(page));
 
 	rec = btr_cur_get_rec(cursor);
 	offsets = rec_get_offsets(rec, cursor->index, offsets,

@@ -494,7 +494,6 @@ dtuple_convert_big_rec(
 	ulint		n_fields;
 	ulint		longest;
 	ulint		longest_i		= ULINT_MAX;
-	ibool		is_externally_stored;
 	ulint		i;
 	ulint		j;
 
@@ -536,28 +535,26 @@ dtuple_convert_big_rec(
 			/* Skip over fields which already are externally
 			stored */
 
-			is_externally_stored = FALSE;
-
 			if (ext_vec) {
 				for (j = 0; j < n_ext_vec; j++) {
 					if (ext_vec[j] == i) {
-						is_externally_stored = TRUE;
+						goto is_externally_stored;
 					}
 				}
 			}
 
-			if (!is_externally_stored) {
+			dfield = dtuple_get_nth_field(entry, i);
 
-				dfield = dtuple_get_nth_field(entry, i);
+			if (dfield->len != UNIV_SQL_NULL
+				&& dfield->len > longest) {
 
-				if (dfield->len != UNIV_SQL_NULL &&
-						dfield->len > longest) {
+				longest = dfield->len;
 
-					longest = dfield->len;
-
-					longest_i = i;
-				}
+				longest_i = i;
 			}
+
+is_externally_stored:
+			continue;
 		}
 
 		/* We do not store externally fields which are smaller than

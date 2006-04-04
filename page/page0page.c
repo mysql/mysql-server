@@ -2175,8 +2175,7 @@ page_validate(
 
 		if (page_is_comp(page) && page_rec_is_user_rec(rec)
 				&& UNIV_UNLIKELY(rec_get_node_ptr_flag(rec)
-				!= (ibool)
-				(btr_page_get_level_low(page) != 0))) {
+				== page_is_leaf(page))) {
 			fputs("InnoDB: node_ptr flag mismatch\n", stderr);
 			goto func_exit;
 		}
