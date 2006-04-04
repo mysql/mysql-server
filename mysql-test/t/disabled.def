@@ -16,7 +16,6 @@ events                  : test case unstable. andrey will fix
 ndb_autodiscover        : Needs to be fixed w.r.t binlog
 ndb_autodiscover2       : Needs to be fixed w.r.t binlog
 #ndb_binlog_basic        : Results are not deterministic, Tomas will fix
-ndb_binlog_ddl_multi    : Bug #18490 cluster: binlog events lost on remote mysqld (asynchronous)
 #ndb_binlog_multi        : Results are not deterministic, Tomas will fix
 ndb_cache2  : Bug #18597
 ndb_gis    : Bug #18600

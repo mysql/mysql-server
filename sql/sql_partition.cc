@@ -5521,7 +5521,11 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
     else
     {
       longlong dummy;
-      if (!part_info->get_partition_id(part_info, &part_id, &dummy))
+      int res= part_info->is_sub_partitioned() ?
+                  part_info->get_part_partition_id(part_info, &part_id,
+                                                   &dummy):
+                  part_info->get_partition_id(part_info, &part_id, &dummy);
+      if (!res)
       {
         init_single_partition_iterator(part_id, part_iter);
         return 1; /* Ok, iterator initialized */
