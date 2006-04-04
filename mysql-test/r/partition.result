@@ -718,6 +718,16 @@ CALL test.p1(13);
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 drop table t1;
+CREATE TABLE t1 (a int not null)
+partition by key(a)
+(partition p0 COMMENT='first partition');
+drop table t1;
+CREATE TABLE t1 (`a b` int not null)
+partition by key(`a b`);
+drop table t1;
+CREATE TABLE t1 (`a b` int not null)
+partition by hash(`a b`);
+drop table t1;
 create table t1 (f1 integer) partition by range(f1)
 (partition p1 values less than (0), partition p2 values less than (10));
 insert into t1 set f1 = null;

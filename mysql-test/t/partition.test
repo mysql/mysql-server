@@ -850,6 +850,25 @@ CALL test.p1(13);
 drop table t1;
 
 #
+# Bug 13520: Problem with delimiters in COMMENT DATA DIRECTORY ..
+#
+CREATE TABLE t1 (a int not null)
+partition by key(a)
+(partition p0 COMMENT='first partition');
+drop table t1;
+
+#
+# Bug 13433: Problem with delimited identifiers
+#
+CREATE TABLE t1 (`a b` int not null)
+partition by key(`a b`);
+drop table t1;
+
+CREATE TABLE t1 (`a b` int not null)
+partition by hash(`a b`);
+drop table t1;
+
+#
 # Bug#18053 Partitions: crash if null
 # Bug#18070 Partitions: wrong result on WHERE ... IS NULL
 #
