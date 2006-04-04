@@ -11840,7 +11840,8 @@ void Dbdih::newCrashedReplica(Uint32 nodeId, ReplicaRecordPtr ncrReplicaPtr)
   /*       THAT THE NEW REPLICA IS NOT STARTED YET AND REPLICA_LAST_GCI IS*/
   /*       SET TO -1 TO INDICATE THAT IT IS NOT DEAD YET.                 */
   /*----------------------------------------------------------------------*/
-  arrGuard(ncrReplicaPtr.p->noCrashedReplicas + 1, 8);
+  arrGuardErr(ncrReplicaPtr.p->noCrashedReplicas + 1, 8,
+              NDBD_EXIT_MAX_CRASHED_REPLICAS);
   ncrReplicaPtr.p->replicaLastGci[ncrReplicaPtr.p->noCrashedReplicas] = 
     SYSFILE->lastCompletedGCI[nodeId];
   ncrReplicaPtr.p->noCrashedReplicas = ncrReplicaPtr.p->noCrashedReplicas + 1;
