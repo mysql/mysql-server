@@ -29,7 +29,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ @yassl_dir@ \
 			@mysql_se_plugins@ \
 			netware @libmysqld_dirs@ \
 			@bench_dirs@ support-files @tools_dirs@ \
-			plugin
+			plugin mytap unittest
 
 DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@readline_topdir@ sql-common \
