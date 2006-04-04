@@ -2599,6 +2599,8 @@ AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
+ mytap/Makefile mytap/t/Makefile unittest/Makefile dnl
+ unittest/mysys/Makefile unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile storage/heap/Makefile dnl
  storage/myisam/Makefile storage/myisammrg/Makefile dnl
  os2/Makefile os2/include/Makefile os2/include/sys/Makefile dnl
@@ -2619,6 +2621,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  cmd-line-utils/readline/Makefile dnl
  plugin/Makefile dnl
  plugin/fulltext/Makefile)
+
  AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
  AC_OUTPUT
 
