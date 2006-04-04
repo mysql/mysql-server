@@ -511,7 +511,7 @@ btr_node_ptr_set_child_page_no(
 	ulint	len;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	ut_ad(0 < btr_page_get_level(buf_frame_align(rec), mtr));
+	ut_ad(!page_is_leaf(buf_frame_align(rec)));
 	ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
 
 	/* The child address is in the last field */
@@ -1762,7 +1762,7 @@ func_start:
 					NULL, NULL, tuple, heap);
 	}
 
-	if (insert_will_fit && (btr_page_get_level(page, mtr) == 0)) {
+	if (insert_will_fit && page_is_leaf(page)) {
 
 		mtr_memo_release(mtr, dict_tree_get_lock(tree),
 							MTR_MEMO_X_LOCK);
@@ -2398,7 +2398,7 @@ btr_discard_page(
 	ut_a(page_is_comp(merge_page) == page_is_comp(page));
 	btr_search_drop_page_hash_index(page);
 
-	if (left_page_no == FIL_NULL && btr_page_get_level(page, mtr) > 0) {
+	if (left_page_no == FIL_NULL && !page_is_leaf(page)) {
 
 		/* We have to mark the leftmost node pointer on the right
 		side page as the predefined minimum record */
@@ -2506,7 +2506,7 @@ btr_print_recursive(
 
 	while (!page_cur_is_after_last(&cursor)) {
 
-		if (0 == btr_page_get_level(page, mtr)) {
+		if (page_is_leaf(page)) {
 
 			/* If this is the leaf level, do nothing */
 
@@ -2590,7 +2590,7 @@ btr_check_node_ptr(
 
 	node_ptr = btr_page_get_father_node_ptr(tree, page, mtr);
 
-	if (btr_page_get_level(page, mtr) == 0) {
+	if (page_is_leaf(page)) {
 
 		return(TRUE);
 	}
@@ -2856,7 +2856,7 @@ btr_validate_level(
 		page_zip = buf_block_get_page_zip(buf_block_align(page));
 		ut_ad(!page_zip || page_zip_validate(page_zip, page));
 #endif
-		ut_a(btr_page_get_level(page, &mtr) > 0);
+		ut_a(!page_is_leaf(page));
 
 		page_cur_set_before_first(page, &cursor);
 		page_cur_move_to_next(&cursor);
@@ -2994,7 +2994,7 @@ loop:
 			goto node_ptr_fails;
 		}
 
-		if (btr_page_get_level(page, &mtr) > 0) {
+		if (!page_is_leaf(page)) {
 			offsets	= rec_get_offsets(node_ptr, index,
 					offsets, ULINT_UNDEFINED, &heap);
 
