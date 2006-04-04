@@ -3740,7 +3740,7 @@ void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
   Check appearance of new constant items in the multiple equality object
 
   SYNOPSIS
-    check()
+    update_const()
   
   DESCRIPTION
     The function checks appearance of new constant items among
@@ -3753,7 +3753,7 @@ void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
     none    
 */
 
-void Item_equal::check_const()
+void Item_equal::update_const()
 {
   List_iterator<Item_field> it(fields);
   Item *item;
