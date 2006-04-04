@@ -453,7 +453,6 @@ skip_secondaries:
 						SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
 			ut_a(ufield->new_val.len >= BTR_EXTERN_FIELD_REF_SIZE);
-			/* TODO: observe dict_table_is_zip(index->table) */
 			btr_free_externally_stored_field(index, data_field
 						+ ufield->new_val.len
 						- BTR_EXTERN_FIELD_REF_SIZE,

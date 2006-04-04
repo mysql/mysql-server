@@ -772,7 +772,7 @@ ibuf_set_free_bits_low(
 		return;
 	}
 
-	if (btr_page_get_level_low(page) != 0) {
+	if (!page_is_leaf(page)) {
 
 		return;
 	}
@@ -817,7 +817,7 @@ ibuf_set_free_bits(
 		return;
 	}
 
-	if (btr_page_get_level_low(page) != 0) {
+	if (!page_is_leaf(page)) {
 
 		return;
 	}
