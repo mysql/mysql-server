@@ -36,7 +36,7 @@ else
       extra_configs="$debug_configs"
       ;;
     debug-max)
-      extra_flags="$ppc_cflags $debug_cflags $max_cflags"
+      extra_flags="$ppc_cflags $debug_cflags"
       c_warnings="$c_warnings $debug_extra_warnings"
       cxx_warnings="$cxx_warnings $debug_extra_warnings"
       extra_configs="$debug_configs $max_configs"
