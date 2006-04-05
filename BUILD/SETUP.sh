@@ -53,14 +53,13 @@ SSL_LIBRARY=--with-yassl
 # __attribute()__ doesn't work with gnu C++)
 
 global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings"
-#debug_extra_warnings="-Wuninitialized"
 c_warnings="$global_warnings -Wunused"
 cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
 base_max_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine --with-csv-storage-engine --with-example-storage-engine --with-partition $SSL_LIBRARY"
 base_max_no_ndb_configs="--with-innodb --with-berkeley-db --without-ndbcluster --with-archive-storage-engine --with-big-tables --with-blackhole-storage-engine --with-federated-storage-engine --with-csv-storage-engine --with-example-storage-engine --with-partition $SSL_LIBRARY"
-max_leave_isam_configs="--with-innodb --with-berkeley-db --with-ndbcluster --with-archive-storage-engine --with-federated-storage-engine --with-blackhole-storage-engine --with-csv-storage-engine --with-example-storage-engine --with-embedded-server --with-big-tables --with-partition $SSL_LIBRARY"
 max_configs="$base_max_configs --with-embedded-server"
 max_no_ndb_configs="$base_max_no_ndb_configs --with-embedded-server"
+valgrind_flags="-USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_purify -DMYSQL_SERVER_SUFFIX=-valgrind-max"
 
 path=`dirname $0`
 . "$path/check-cpu"
