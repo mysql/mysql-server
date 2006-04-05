@@ -39,7 +39,7 @@ DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@man_dirs@ tests SSL\
 			BUILD netware os2 @libmysqld_dirs@\
 			@bench_dirs@ support-files server-tools tools \
-			plugin
+			plugin mytap unittest
 
 # Run these targets before any others, also make part of clean target,
 # to make sure we create new links after a clean.
