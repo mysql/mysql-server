@@ -1229,6 +1229,11 @@ multi_update::initialize_tables(JOIN *join)
     Field_string offset(table->file->ref_length, 0, "offset",
 			&my_charset_bin);
     offset.init(table);
+    /*
+      The field will be converted to varstring when creating tmp table if
+      table to be updated was created by mysql 4.1. Deny this.
+    */
+    offset.can_alter_field_type= 0;
     if (!(ifield= new Item_field(((Field *) &offset))))
       DBUG_RETURN(1);
     ifield->maybe_null= 0;
