@@ -834,7 +834,7 @@ retry:
   CRASH_INSERTION(932);
   
   progError(__LINE__, 
-	    ERR_ARBIT_SHUTDOWN, 
+	    NDBD_EXIT_ARBIT_SHUTDOWN,
 	    buf);
   
   ndbrequire(false);
@@ -1002,7 +1002,7 @@ Qmgr::electionWon(Signal* signal){
   c_stopElectionTime = ~0;
   c_start.reset();
 
-  signal->theData[0] = EventReport::CM_REGCONF;
+  signal->theData[0] = NDB_LE_CM_REGCONF;
   signal->theData[1] = getOwnNodeId();
   signal->theData[2] = cpresident;
   signal->theData[3] = 1;
@@ -2071,7 +2071,7 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
   {
     char buf[100];
     BaseString::snprintf(buf, 100, "Node %u disconected", nodeId);    
-    progError(__LINE__, ERR_SR_OTHERNODEFAILED, buf);
+    progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
   }
   }
@@ -2361,7 +2361,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
       break;
     case FailRep::ZPARTITIONED_CLUSTER:
     {
-      code = ERR_ARBIT_SHUTDOWN;
+      code = NDBD_EXIT_ARBIT_SHUTDOWN;
       char buf1[100], buf2[100];
       c_clusterNodes.getText(buf1);
       if (signal->getLength()== FailRep::SignalLength + FailRep::ExtraLength &&
@@ -2386,6 +2386,11 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
       msg = extra;
       break;
     }
+    case FailRep::ZMULTI_NODE_SHUTDOWN:
+      msg = "Multi node shutdown";
+      break;
+    default:
+      msg = "<UNKNOWN>";
     }
     
     CRASH_INSERTION(932);
