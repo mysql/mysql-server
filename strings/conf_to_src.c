@@ -22,7 +22,7 @@
 
 #define ROW_LEN		16
 #define ROW16_LEN	8
-#define MAX_BUF		16*1024
+#define MAX_BUF		64*1024
 
 static CHARSET_INFO all_charsets[256];
 
@@ -156,6 +156,7 @@ static int my_read_charset_file(const char *filename)
   }
   
   len=read(fd,buf,MAX_BUF);
+  DBUG_ASSERT(len < MAX_BUF);
   close(fd);
   
   if (my_parse_charset_xml(buf,len,add_collation))
