@@ -1,3 +1,4 @@
+
 %define mysql_version		@VERSION@
 
 # use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
@@ -217,6 +218,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	CXX=\"${CXX:-$MYSQL_BUILD_CXX}\" \
 	CFLAGS=\"$CFLAGS\" \
 	CXXFLAGS=\"$CXXFLAGS\" \
+	LDFLAGS=\"$MYSQL_BUILD_LDFLAGS\" \
 	./configure \
  	    $* \
 	    --with-mysqld-ldflags='-static' \
@@ -709,6 +711,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Sat Apr 01 2006 Kent Boortz <kent@mysql.com>
+
+- Set $LDFLAGS from $MYSQL_BUILD_LDFLAGS
+
 * Wed Mar 07 2006 Kent Boortz <kent@mysql.com>
 
 - Changed product name from "Community Edition" to "Community Server"

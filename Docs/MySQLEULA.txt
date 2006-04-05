@@ -63,7 +63,7 @@ Licensee.
 4.  Price and payment.
 No later than thirty (30) days after submission of the Order Form, Licensee
 shall remit one non-refundable license fee per Licensed Copy as posted on
-http://order.mysql.com on the date Licensee submitted the Order Form (the
+http://shop.mysql.com on the date Licensee submitted the Order Form (the
 "License Fee"). All payments shall be made in Euros or U.S. dollars. Licensee
 shall be responsible for paying all local, state, federal and international
 sales, value added, excise and other taxes and duties payable in connection
