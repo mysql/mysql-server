@@ -97,9 +97,12 @@ SHOW CHARACTER SET WHERE charset like 'latin1%';
 # Test for information_schema.COLLATIONS &
 # SHOW COLLATION
 
+--replace_column 5 #
 select * from information_schema.COLLATIONS
 where COLLATION_NAME like 'latin1%';
+--replace_column 5 #
 SHOW COLLATION LIKE 'latin1%';
+--replace_column 5 #
 SHOW COLLATION WHERE collation like 'latin1%';
 
 select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY
