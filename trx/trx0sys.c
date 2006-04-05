@@ -465,13 +465,21 @@ trx_sys_doublewrite_init_or_restore_pages(
 			/* It is an unwritten doublewrite buffer page:
 			do nothing */
 		} else {
+			ulint	zip_size;
 			/* Read in the actual page from the data files */
 
 			fil_io(OS_FILE_READ, TRUE, space_id, page_no, 0,
 					UNIV_PAGE_SIZE, read_buf, NULL);
 			/* Check if the page is corrupt */
 
-			if (buf_page_is_corrupted(read_buf)) {
+			if (space_id && fil_page_get_type(read_buf)
+					== FIL_PAGE_TYPE_ZBLOB) {
+				zip_size = 16384; /* TODO */
+			} else {
+				zip_size = 0;
+			}
+
+			if (buf_page_is_corrupted(read_buf, zip_size)) {
 
 				fprintf(stderr,
 		"InnoDB: Warning: database page corruption or a failed\n"
@@ -479,7 +487,7 @@ trx_sys_doublewrite_init_or_restore_pages(
 				fprintf(stderr,
 		"InnoDB: Trying to recover it from the doublewrite buffer.\n");
 
-				if (buf_page_is_corrupted(page)) {
+				if (buf_page_is_corrupted(page, zip_size)) {
 					fprintf(stderr,
 		"InnoDB: Dump of the page:\n");
 					buf_page_print(read_buf);

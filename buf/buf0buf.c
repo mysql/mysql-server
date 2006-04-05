@@ -233,6 +233,22 @@ ibool		buf_debug_prints = FALSE; /* If this is set TRUE,
 					read-ahead or flush occurs */
 #endif /* UNIV_DEBUG */
 /************************************************************************
+Calculates a compressed BLOB page checksum which is stored to the page
+when it is written to a file. Note that we must be careful to calculate
+the same value on 32-bit and 64-bit architectures. */
+
+ulint
+buf_calc_zblob_page_checksum(
+/*=========================*/
+					/* out: checksum */
+	const byte*	page,		/* in: compressed BLOB page */
+	ulint		zip_size)	/* in: size of the page, in bytes */
+{
+	return(ut_fold_binary(page + FIL_PAGE_SPACE_OR_CHKSUM,
+			zip_size - FIL_PAGE_SPACE_OR_CHKSUM) & 0xFFFFFFFFUL);
+}
+
+/************************************************************************
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value on
 32-bit and 64-bit architectures. */
@@ -293,18 +309,19 @@ ibool
 buf_page_is_corrupted(
 /*==================*/
 				/* out: TRUE if corrupted */
-	byte*	read_buf)	/* in: a database page */
+	byte*	read_buf,	/* in: a database page */
+	ulint	zip_size)	/* in: size of compressed page;
+				0 for uncompressed pages */
 {
-	ulint	checksum;
-	ulint	old_checksum;
 	ulint	checksum_field;
 	ulint	old_checksum_field;
 #ifndef UNIV_HOTBACKUP
 	dulint	current_lsn;
 #endif
-	if (mach_read_from_4(read_buf + FIL_PAGE_LSN + 4)
-		!= mach_read_from_4(read_buf + UNIV_PAGE_SIZE
-			- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
+	if (UNIV_LIKELY(!zip_size)
+		&& memcmp(read_buf + FIL_PAGE_LSN + 4,
+			read_buf + UNIV_PAGE_SIZE
+			- FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
 
 		/* Stored log sequence numbers at the start and the end
 		of page do not match */
@@ -341,8 +358,16 @@ buf_page_is_corrupted(
 	BUF_NO_CHECKSUM_MAGIC which might be stored by InnoDB with checksums
 	disabled. Otherwise, skip checksum calculation and return FALSE */
 
-	if (srv_use_checksums) {
-		old_checksum = buf_calc_page_old_checksum(read_buf);
+	if (UNIV_LIKELY(srv_use_checksums)) {
+		checksum_field = mach_read_from_4(read_buf
+						+ FIL_PAGE_SPACE_OR_CHKSUM);
+
+		if (UNIV_UNLIKELY(zip_size)) {
+			return(checksum_field != BUF_NO_CHECKSUM_MAGIC
+				&& checksum_field
+				!= buf_calc_zblob_page_checksum(
+						read_buf, zip_size));
+		}
 
 		old_checksum_field = mach_read_from_4(read_buf + UNIV_PAGE_SIZE
 			- FIL_PAGE_END_LSN_OLD_CHKSUM);
@@ -357,21 +382,20 @@ buf_page_is_corrupted(
 
 		if (old_checksum_field != mach_read_from_4(read_buf
 				+ FIL_PAGE_LSN)
-			&& old_checksum_field != old_checksum
-			&& old_checksum_field != BUF_NO_CHECKSUM_MAGIC) {
+				&& old_checksum_field != BUF_NO_CHECKSUM_MAGIC
+				&& old_checksum_field
+				!= buf_calc_page_old_checksum(read_buf)) {
 
 			return(TRUE);
 		}
 
-		checksum = buf_calc_page_new_checksum(read_buf);
-		checksum_field = mach_read_from_4(read_buf +
-			FIL_PAGE_SPACE_OR_CHKSUM);
-
 		/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
 		(always equal to 0), to FIL_PAGE_SPACE_SPACE_OR_CHKSUM */
 
-		if (checksum_field != 0 && checksum_field != checksum
-			&& checksum_field != BUF_NO_CHECKSUM_MAGIC) {
+		if (checksum_field != 0
+				&& checksum_field != BUF_NO_CHECKSUM_MAGIC
+				&& checksum_field
+				!= buf_calc_page_new_checksum(read_buf)) {
 
 			return(TRUE);
 		}
@@ -398,6 +422,7 @@ buf_page_print(
 	ut_print_buf(stderr, read_buf, UNIV_PAGE_SIZE);
 	fputs("InnoDB: End of page dump\n", stderr);
 
+	/* TODO: print zipped pages differently, esp. BLOB pages */
 	checksum = srv_use_checksums ?
 		buf_calc_page_new_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
 	old_checksum = srv_use_checksums ?
@@ -487,6 +512,10 @@ buf_page_print(
 		break;
 	case FIL_PAGE_TYPE_BLOB:
 		fputs("InnoDB: Page may be a BLOB page\n",
+			stderr);
+		break;
+	case FIL_PAGE_TYPE_ZBLOB:
+		fputs("InnoDB: Page may be a compressed BLOB page\n",
 			stderr);
 		break;
 	}
@@ -1885,7 +1914,8 @@ buf_page_io_complete(
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
-		if (buf_page_is_corrupted(block->frame)) {
+		if (buf_page_is_corrupted(block->frame,
+					block->space ? 16384 : 0/* TODO */)) {
 			fprintf(stderr,
 		"InnoDB: Database page corruption on disk or a failed\n"
 		"InnoDB: file read of page %lu.\n", (ulong) block->offset);
