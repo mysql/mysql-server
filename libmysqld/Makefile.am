@@ -94,8 +94,12 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/dbug/libdbug.a \
 		$(top_builddir)/vio/libvio.a \
 		@mysql_se_libs@ \
-                @yassl_libs_with_path@
+		$(yassl_las)
 
+if HAVE_YASSL
+yassl_las = $(top_srcdir)/extra/yassl/src/libyassl.la \
+	    $(top_srcdir)/extra/yassl/taocrypt/src/libtaocrypt.la
+endif
 
 # Storage engine specific compilation options
 
