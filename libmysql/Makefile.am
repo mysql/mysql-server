@@ -29,11 +29,7 @@ INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
 include $(srcdir)/Makefile.shared
 
 libmysqlclient_la_SOURCES = $(target_sources)
-libmysqlclient_la_LIBADD = $(target_libadd)
-if HAVE_YASSL
-libmysqlclient_la_LIBADD+= $(top_srcdir)/extra/yassl/src/libyassl.la \
-			   $(top_srcdir)/extra/yassl/taocrypt/src/libtaocrypt.la
-endif
+libmysqlclient_la_LIBADD = $(target_libadd) $(yassl_las)
 libmysqlclient_la_LDFLAGS = $(target_ldflags)
 EXTRA_DIST = Makefile.shared libmysql.def dll.c mytest.c cmakelists.txt
 noinst_HEADERS = client_settings.h
