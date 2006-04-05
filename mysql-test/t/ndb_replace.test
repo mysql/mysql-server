@@ -27,4 +27,15 @@ replace into t1 (gesuchnr,benutzer_id) values (1,1);
 select * from t1 order by gesuchnr;
 drop table t1;
 
+# bug#17431
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, 
+                j INT, 
+                k INT, 
+                UNIQUE INDEX(j)
+               ) ENGINE = ndb;
+INSERT  INTO t1 VALUES (1,1,23),(2,2,24);
+REPLACE INTO t1 (j,k) VALUES (1,42);
+REPLACE INTO t1 (i,j) VALUES (17,2);
+SELECT * from t1 ORDER BY i;
+
 # End of 4.1 tests
