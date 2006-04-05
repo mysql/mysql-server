@@ -455,6 +455,25 @@ buf_flush_init_for_writing(
 {
 	page_zip_des_t*	page_zip = page_zip_;
 
+	if (space/* TODO: space_is_zip */) {
+		switch (fil_page_get_type(page)) {
+		case FIL_PAGE_TYPE_ZBLOB:
+			ut_ad(!page_zip);
+			mach_write_to_4(page + FIL_PAGE_OFFSET, page_no);
+			mach_write_to_4(page + FIL_PAGE_PREV, space);
+			mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
+			mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
+					srv_use_checksums
+					? buf_calc_zblob_page_checksum(
+							page, 16384/* TODO */)
+					: BUF_NO_CHECKSUM_MAGIC);
+			return;
+		case FIL_PAGE_INDEX:
+			/* TODO: special handling */
+			break;
+		}
+	}
+
 	/* Write the newest modification lsn to the page header and trailer */
 	mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
