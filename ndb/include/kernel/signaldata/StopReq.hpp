@@ -32,7 +32,7 @@ class StopReq
   friend class MgmtSrvr;
 
 public:
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 9 + NdbNodeBitmask::Size);
   
 public:
   Uint32 senderRef;
@@ -49,29 +49,34 @@ public:
   Int32 readOperationTimeout; // Timeout before read operations are aborted
   Int32 operationTimeout;     // Timeout before all operations are aborted
 
+  Uint32 nodes[NdbNodeBitmask::Size];
+
   static void setSystemStop(Uint32 & requestInfo, bool value);
   static void setPerformRestart(Uint32 & requestInfo, bool value);
   static void setNoStart(Uint32 & requestInfo, bool value);
   static void setInitialStart(Uint32 & requestInfo, bool value);
-  static void setEscalateOnNodeFail(Uint32 & requestInfo, bool value);
   /**
    * Don't perform "graceful" shutdown/restart...
    */
   static void setStopAbort(Uint32 & requestInfo, bool value);
+  static void setStopNodes(Uint32 & requestInfo, bool value);
 
   static bool getSystemStop(const Uint32 & requestInfo);
   static bool getPerformRestart(const Uint32 & requestInfo);
   static bool getNoStart(const Uint32 & requestInfo);
   static bool getInitialStart(const Uint32 & requestInfo);
-  static bool getEscalateOnNodeFail(const Uint32 & requestInfo);
   static bool getStopAbort(const Uint32 & requestInfo);
+  static bool getStopNodes(const Uint32 & requestInfo);
 };
 
 struct StopConf
 {
   STATIC_CONST( SignalLength = 2 );
   Uint32 senderData;
-  Uint32 nodeState;
+  union {
+    Uint32 nodeState;
+    Uint32 nodeId;
+  };
 };
 
 class StopRef 
@@ -94,7 +99,9 @@ public:
     NodeShutdownInProgress = 1,
     SystemShutdownInProgress = 2,
     NodeShutdownWouldCauseSystemCrash = 3,
-    TransactionAbortFailed = 4
+    TransactionAbortFailed = 4,
+    UnsupportedNodeShutdown = 5,
+    MultiNodeShutdownNotMaster = 6
   };
   
 public:
@@ -132,16 +139,16 @@ StopReq::getInitialStart(const Uint32 & requestInfo)
 
 inline
 bool
-StopReq::getEscalateOnNodeFail(const Uint32 & requestInfo)
+StopReq::getStopAbort(const Uint32 & requestInfo)
 {
-  return requestInfo & 16;
+  return requestInfo & 32;
 }
 
 inline
 bool
-StopReq::getStopAbort(const Uint32 & requestInfo)
+StopReq::getStopNodes(const Uint32 & requestInfo)
 {
-  return requestInfo & 32;
+  return requestInfo & 64;
 }
 
 
@@ -187,16 +194,6 @@ StopReq::setInitialStart(Uint32 & requestInfo, bool value)
 
 inline
 void
-StopReq::setEscalateOnNodeFail(Uint32 & requestInfo, bool value)
-{
-  if(value)
-    requestInfo |= 16;
-  else
-    requestInfo &= ~16;
-}
-
-inline
-void
 StopReq::setStopAbort(Uint32 & requestInfo, bool value)
 {
   if(value)
@@ -205,6 +202,15 @@ StopReq::setStopAbort(Uint32 & requestInfo, bool value)
     requestInfo &= ~32;
 }
 
+inline
+void
+StopReq::setStopNodes(Uint32 & requestInfo, bool value)
+{
+  if(value)
+    requestInfo |= 64;
+  else
+    requestInfo &= ~64;
+}
 
 #endif
 

@@ -29,6 +29,7 @@
 #include <signaldata/CmRegSignalData.hpp>
 #include <signaldata/ApiRegSignalData.hpp>
 #include <signaldata/FailRep.hpp>
+#include <signaldata/StopReq.hpp>
 
 #include "timer.hpp"
 
@@ -100,7 +101,12 @@ public:
   };
 
   struct StartRecord {
-    void reset(){ m_startKey++; m_startNode = 0;}
+    void reset(){ 
+      m_startKey++; 
+      m_startNode = 0; 
+      m_gsn = RNIL; 
+      m_nodes.clearWaitingFor();
+    }
     Uint32 m_startKey;
     Uint32 m_startNode;
     Uint64 m_startTimeout;
@@ -112,6 +118,14 @@ public:
   NdbNodeBitmask c_definedNodes; // DB nodes in config
   NdbNodeBitmask c_clusterNodes; // DB nodes in cluster
   NodeBitmask c_connectedNodes;  // All kinds of connected nodes
+
+  /**
+   * Nodes which we're checking for partitioned cluster
+   *
+   * i.e. nodes that connect to use, when we already have elected president
+   */
+  NdbNodeBitmask c_readnodes_nodes;
+  
   Uint32 c_maxDynamicId;
   
   // Records
@@ -204,6 +218,7 @@ private:
   void execPRES_TOCONF(Signal* signal);
   void execDISCONNECT_REP(Signal* signal);
   void execSYSTEM_ERROR(Signal* signal);
+  void execSTOP_REQ(Signal* signal);
 
   // Received signals
   void execDUMP_STATE_ORD(Signal* signal);
@@ -218,6 +233,8 @@ private:
   void execREAD_NODESREQ(Signal* signal);
   void execSET_VAR_REQ(Signal* signal);
 
+  void execREAD_NODESREF(Signal* signal);
+  void execREAD_NODESCONF(Signal* signal);
 
   void execAPI_VERSION_REQ(Signal* signal);
   void execAPI_BROADCAST_REP(Signal* signal);
@@ -234,6 +251,8 @@ private:
   void execARBIT_STOPREP(Signal* signal);
 
   // Statement blocks
+  void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
+
   void node_failed(Signal* signal, Uint16 aFailedNode);
   void checkStartInterface(Signal* signal);
   void failReport(Signal* signal,
@@ -251,8 +270,9 @@ private:
 
   // Generated statement blocks
   void startphase1(Signal* signal);
-  void electionWon();
+  void electionWon(Signal* signal);
   void cmInfoconf010Lab(Signal* signal);
+  
   void apiHbHandlingLab(Signal* signal);
   void timerHandlingLab(Signal* signal);
   void hbReceivedLab(Signal* signal);
@@ -387,7 +407,9 @@ private:
   Uint16 cfailedNodes[MAX_NDB_NODES];
   Uint16 cprepFailedNodes[MAX_NDB_NODES];
   Uint16 ccommitFailedNodes[MAX_NDB_NODES];
-
+  
+  StopReq c_stopReq;
+  void check_multi_node_shutdown(Signal* signal);
 };
 
 #endif
