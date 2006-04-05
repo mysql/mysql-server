@@ -207,8 +207,7 @@ btr_page_reorganize(
 				/* out: TRUE on success, FALSE on failure */
 	page_t*		page,	/* in: page to be reorganized */
 	dict_index_t*	index,	/* in: record descriptor */
-	mtr_t*		mtr)	/* in: mtr */
-	__attribute__((nonnull, warn_unused_result));
+	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
 Decides if the page should be split at the convergence point of
 inserts converging to left. */

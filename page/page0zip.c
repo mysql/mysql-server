@@ -968,7 +968,8 @@ page_zip_fields_decode(
 		return(NULL);
 	}
 
-	table = dict_mem_table_create("ZIP_DUMMY", DICT_HDR_SPACE, n, TRUE);
+	table = dict_mem_table_create("ZIP_DUMMY", DICT_HDR_SPACE, n,
+				DICT_TF_COMPACT | DICT_TF_COMPRESSED);
 	index = dict_mem_index_create("ZIP_DUMMY", "ZIP_DUMMY",
 				DICT_HDR_SPACE, 0, n);
 	index->table = table;
