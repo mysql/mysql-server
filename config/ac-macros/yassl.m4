@@ -39,5 +39,5 @@ AC_DEFUN([MYSQL_CHECK_YASSL], [
   AC_SUBST(yassl_libs)
   AC_SUBST(yassl_includes)
   AC_SUBST(yassl_dir)
-  AM_CONDITIONAL([HAVE_YASSL], [ test "with_yassl" = "yes" ])
+  AM_CONDITIONAL([HAVE_YASSL], [ test "$with_yassl" = "yes" ])
 ])
