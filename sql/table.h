@@ -236,7 +236,10 @@ struct st_table {
   */
   timestamp_auto_set_type timestamp_field_type;
   table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
-  
+
+  uint          lock_position;          /* Position in MYSQL_LOCK.table */
+  uint          lock_data_start;        /* Start pos. in MYSQL_LOCK.locks */
+  uint          lock_count;             /* Number of locks */
   uint		tablenr,used_fields;
   uint          temp_pool_slot;		/* Used by intern temp tables */
   uint		status;                 /* What's in record[0] */
@@ -245,8 +248,8 @@ struct st_table {
   uint          derived_select_number;
   int		current_lock;           /* Type of lock on table */
   my_bool copy_blobs;			/* copy_blobs when storing */
-  
-  /* 
+
+  /*
     0 or JOIN_TYPE_{LEFT|RIGHT}. Currently this is only compared to 0.
     If maybe_null !=0, this table is inner w.r.t. some outer join operation,
     and null_row may be true.
