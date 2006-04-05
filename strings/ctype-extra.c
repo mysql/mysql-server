@@ -8527,6 +8527,72 @@ CHARSET_INFO compiled_charsets[] = {
 }
 ,
 #endif
+#ifdef HAVE_CHARSET_geostd8
+{
+  92,0,0,
+  MY_CS_COMPILED|MY_CS_PRIMARY,
+  "geostd8",                     /* cset name     */
+  "geostd8_general_ci",                     /* coll name     */
+  "",                       /* comment       */
+  NULL,                       /* tailoring     */
+  ctype_geostd8_general_ci,                   /* ctype         */
+  to_lower_geostd8_general_ci,                /* lower         */
+  to_upper_geostd8_general_ci,                /* upper         */
+  sort_order_geostd8_general_ci,            /* sort_order    */
+  NULL,                       /* contractions  */
+  NULL,                       /* sort_order_big*/
+  to_uni_geostd8_general_ci,                  /* to_uni        */
+  NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
+  NULL,                       /* state map     */
+  NULL,                       /* ident map     */
+  1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
+  1,                          /* mbminlen      */
+  1,                          /* mbmaxlen      */
+  0,                          /* min_sort_char */
+  255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
+  0,                          /* escape_with_backslash_is_dangerous */
+  &my_charset_8bit_handler,
+  &my_collation_8bit_simple_ci_handler,
+}
+,
+#endif
+#ifdef HAVE_CHARSET_geostd8
+{
+  93,0,0,
+  MY_CS_COMPILED|MY_CS_BINSORT,
+  "geostd8",                     /* cset name     */
+  "geostd8_bin",                     /* coll name     */
+  "",                       /* comment       */
+  NULL,                       /* tailoring     */
+  ctype_geostd8_bin,                   /* ctype         */
+  to_lower_geostd8_bin,                /* lower         */
+  to_upper_geostd8_bin,                /* upper         */
+  NULL,                     /* sort_order    */
+  NULL,                       /* contractions  */
+  NULL,                       /* sort_order_big*/
+  to_uni_geostd8_bin,                  /* to_uni        */
+  NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
+  NULL,                       /* state map     */
+  NULL,                       /* ident map     */
+  1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
+  1,                          /* mbminlen      */
+  1,                          /* mbmaxlen      */
+  0,                          /* min_sort_char */
+  255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
+  0,                          /* escape_with_backslash_is_dangerous */
+  &my_charset_8bit_handler,
+  &my_collation_8bit_bin_handler,
+}
+,
+#endif
 #ifdef HAVE_CHARSET_latin1
 {
   94,0,0,
