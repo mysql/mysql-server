@@ -133,3 +133,15 @@ show create table t1;
 alter table t1 engine=innodb;
 show create table t1;
 drop table t1;
+
+#
+# Bug #13601: Wrong field length reported for BIT fields
+#
+create table t1 (a bit(7)) engine=innodb;
+insert into t1 values (0x60);
+--enable_metadata
+select * from t1;
+--disable_metadata
+drop table t1;
+
+--echo End of 5.0 tests
