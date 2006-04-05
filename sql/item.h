@@ -744,6 +744,11 @@ public:
   virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
   virtual bool change_context_processor(byte *context) { return 0; }
   virtual bool reset_query_id_processor(byte *query_id) { return 0; }
+  virtual bool check_partition_func_processor(byte *bool_arg)
+  {
+    *(bool *)bool_arg= FALSE;
+    return 0;
+  }
 
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
   virtual Item *set_no_const_sub(byte *arg) { return this; }
@@ -1202,6 +1207,7 @@ public:
       result_field->query_id= field->query_id;
     return 0;
   }
+  bool check_partition_func_processor(byte *bool_arg) { return 0; }
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   Item *equal_fields_propagator(byte *arg);
