@@ -530,8 +530,11 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
   THR_LOCK_DATA         **end_data2;
   DBUG_ENTER("mysql_lock_have_duplicate");
 
-  /* Table may not be defined for derived or view tables. */
-  if (! (table= needle->table))
+  /*
+    Table may not be defined for derived or view tables.
+    Table may not be part of a lock for delayed operations.
+  */
+  if (! (table= needle->table) || ! table->lock_count)
     goto end;
 
   /* A temporary table does not have locks. */
@@ -550,7 +553,8 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
   lock_tables= mylock->table;
 
   /* Prepare table related variables that don't change in loop. */
-  DBUG_ASSERT(table == lock_tables[table->lock_position]);
+  DBUG_ASSERT((table->lock_position < mylock->table_count) &&
+              (table == lock_tables[table->lock_position]));
   table_lock_data= lock_locks + table->lock_data_start;
   end_data= table_lock_data + table->lock_count;
 
@@ -563,7 +567,8 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
       continue;
 
     /* All tables in list must be in lock. */
-    DBUG_ASSERT(table2 == lock_tables[table2->lock_position]);
+    DBUG_ASSERT((table2->lock_position < mylock->table_count) &&
+                (table2 == lock_tables[table2->lock_position]));
 
     for (lock_data2=  lock_locks + table2->lock_data_start,
            end_data2= lock_data2 + table2->lock_count;
