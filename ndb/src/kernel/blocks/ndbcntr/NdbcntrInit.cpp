@@ -25,7 +25,10 @@
 
 void Ndbcntr::initData() 
 {
-
+  c_start.reset();
+  cmasterNodeId = 0;
+  cnoStartNodes = 0;
+  cnoWaitrep = 0;
   // Records with constant sizes
   ndbBlocksRec = new NdbBlocksRec[ZSIZE_NDB_BLOCKS_REC];
 }//Ndbcntr::initData()
