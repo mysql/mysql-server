@@ -94,9 +94,19 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
 
 /*
   A "Get next" function for partition iterator.
+
   SYNOPSIS
     partition_iter_func()
       part_iter  Partition iterator, you call only "iter.get_next(&iter)"
+
+  DESCRIPTION
+    Depending on whether partitions or sub-partitions are iterated, the
+    function returns next subpartition id/partition number. The sequence of
+    returned numbers is not ordered and may contain duplicates.
+
+    When the end of sequence is reached, NOT_A_PARTITION_ID is returned, and 
+    the iterator resets itself (so next get_next() call will start to 
+    enumerate the set all over again).
 
   RETURN 
     NOT_A_PARTITION_ID if there are no more partitions.
@@ -124,16 +134,22 @@ typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
 typedef struct st_partition_iter
 {
   partition_iter_func get_next;
-  bool has_null_value;
+  /* 
+    Valid for "Interval mapping" in LIST partitioning: if true, let the
+    iterator also produce id of the partition that contains NULL value.
+  */
+  bool ret_null_part, ret_null_part_orig;
   struct st_part_num_range
   {
     uint32 start;
+    uint32 cur;
     uint32 end;
   };
 
   struct st_field_value_range
   {
     longlong start;
+    longlong cur;
     longlong end;
   };
 
