@@ -233,7 +233,7 @@ sizeof(SimpleProperties::SP2StructMapping);
 
 void
 DictFilegroupInfo::Filegroup::init(){
-  memset(FilegroupName, sizeof(FilegroupName), 0);
+  memset(FilegroupName, 0, sizeof(FilegroupName));
   FilegroupType = ~0;
   FilegroupId = ~0;
   FilegroupVersion = ~0;
