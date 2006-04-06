@@ -49,7 +49,6 @@ TODO:
 #include "mysql_priv.h"
 
 #include "ha_tina.h"
-#include <sys/mman.h>
 
 #include <mysql/plugin.h>
 
@@ -161,7 +160,7 @@ int get_mmap(TINA_SHARE *share, int write)
       share->mapped_file= (byte *)my_mmap(NULL, share->file_stat.st_size,
                                           PROT_READ, MAP_PRIVATE,
                                           share->data_file, 0);
-    if ((share->mapped_file ==(caddr_t)-1))
+    if ((share->mapped_file == MAP_FAILED))
     {
       /*
         Bad idea you think? See the problem is that nothing actually checks
@@ -499,7 +498,7 @@ ha_tina::ha_tina(TABLE_SHARE *table_arg)
   records_is_known(0)
 {
   /* Set our original buffers from pre-allocated memory */
-  buffer.set(byte_buffer, IO_SIZE, system_charset_info);
+  buffer.set((char*)byte_buffer, IO_SIZE, system_charset_info);
   chain= chain_buffer;
 }
 
@@ -877,7 +876,8 @@ int ha_tina::write_row(byte * buf)
 
   size= encode_quote(buf);
 
-  if (my_write(share->data_file, buffer.ptr(), size, MYF(MY_WME | MY_NABP)))
+  if (my_write(share->data_file, (byte*)buffer.ptr(), size,
+               MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
 
   /*
@@ -929,7 +929,8 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
   if (chain_append())
     DBUG_RETURN(-1);
 
-  if (my_write(share->data_file, buffer.ptr(), size, MYF(MY_WME | MY_NABP)))
+  if (my_write(share->data_file, (byte*)buffer.ptr(), size,
+               MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
 
   /* UPDATE should never happen on the log tables */
@@ -1130,7 +1131,7 @@ int ha_tina::rnd_end()
   if ((chain_ptr - chain)  > 0)
   {
     tina_set *ptr;
-    off_t length;
+    size_t length;
 
     /*
       Setting up writable map, this will contain all of the data after the
@@ -1154,15 +1155,16 @@ int ha_tina::rnd_end()
       length= length - (size_t)(ptr->end - ptr->begin);
     }
 
-    /* Truncate the file to the new size */
+    /* Unmap the file before the new size is set */
+    if (my_munmap(share->mapped_file, share->file_stat.st_size))
+      DBUG_RETURN(-1);
+    /* We set it to null so that get_mmap() won't try to unmap it */
+    share->mapped_file= NULL;
+
+    /* Set the file to the new size */
     if (my_chsize(share->data_file, length, 0, MYF(MY_WME)))
       DBUG_RETURN(-1);
 
-    if (my_munmap(share->mapped_file, length))
-      DBUG_RETURN(-1);
-
-    /* We set it to null so that get_mmap() won't try to unmap it */
-    share->mapped_file= NULL;
     if (get_mmap(share, 0) > 0)
       DBUG_RETURN(-1);
   }
@@ -1281,6 +1283,13 @@ int ha_tina::delete_all_rows()
   if (!records_is_known)
     DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
 
+  /* Unmap the file before the new size is set */
+  if (share->mapped_file && my_munmap(share->mapped_file,
+                                      share->file_stat.st_size))
+    DBUG_RETURN(-1);
+  share->mapped_file= NULL;
+
+  /* Truncate the file to zero size */
   rc= my_chsize(share->data_file, 0, 0, MYF(MY_WME));
 
   if (get_mmap(share, 0) > 0)
