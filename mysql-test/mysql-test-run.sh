@@ -230,6 +230,9 @@ FAILED_CASES=
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
 USE_RUNNING_SERVER=1
+# backport from 5.1, disabled - this substitution is not done in 4.0
+# USE_NDBCLUSTER=@USE_NDBCLUSTER@
+# USE_NDBCLUSTER_ONLY=0
 DO_GCOV=""
 DO_GDB=""
 MANUAL_GDB=""
@@ -259,6 +262,14 @@ while test $# -gt 0; do
       SLAVE_MYSQLD=`$ECHO "$1" | $SED -e "s;--slave-binary=;;"` ;;
     --local)   USE_RUNNING_SERVER="" ;;
     --extern)   USE_RUNNING_SERVER="1" ;;
+    --with-ndbcluster)
+#     USE_NDBCLUSTER="--ndbcluster" ;;
+      $ECHO "Option '--with-ndbcluster' is ignored in this version" ;;
+    --with-ndbcluster-only)
+#     USE_NDBCLUSTER="--ndbcluster"
+#     USE_NDBCLUSTER_SLAVE="--ndbcluster"
+#     USE_NDBCLUSTER_ONLY=1 ;;
+      $ECHO "Option '--with-ndbcluster-only' is ignored in this version" ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
