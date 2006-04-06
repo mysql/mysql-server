@@ -547,9 +547,8 @@ struct pars_info_struct {
 	ib_vector*	bound_lits;	/* bound literals, or NULL
 					(pars_bound_lit_t*) */
 
-	ibool		pars_sql_owns_us;
-					/* if TRUE (which is the default),
-					pars_sql() free us before exiting */
+	ibool		graph_owns_us;	/* if TRUE (which is the default),
+					que_graph_free() will free us */
 };
 
 /* User-supplied function and argument. */
