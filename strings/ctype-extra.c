@@ -6481,13 +6481,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_dec8_swedish_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6510,13 +6514,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp850_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6539,13 +6547,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin1_german1_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6568,13 +6580,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_hp8_english_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6597,13 +6613,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_koi8r_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6626,13 +6646,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin2_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6655,13 +6679,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_swe7_swedish_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6684,13 +6712,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_ascii_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6713,13 +6745,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1251_bulgarian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6742,13 +6778,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin1_danish_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6771,13 +6811,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_hebrew_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6800,13 +6844,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin7_estonian_cs,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6829,13 +6877,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin2_hungarian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6858,13 +6910,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_koi8u_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6887,13 +6943,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1251_ukrainian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6916,13 +6976,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_greek_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6945,13 +7009,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1250_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -6974,13 +7042,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin2_croatian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7003,13 +7075,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1257_lithuanian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7032,13 +7108,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin5_turkish_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7061,13 +7141,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_armscii8_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7090,13 +7174,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp866_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7119,13 +7207,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_keybcs2_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7148,13 +7240,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_macce_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7177,13 +7273,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_macroman_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7206,13 +7306,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp852_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7235,13 +7339,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin7_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7264,13 +7372,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin7_general_cs,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7293,13 +7405,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_macce_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7322,13 +7438,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1250_croatian_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7351,13 +7471,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin1_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7380,13 +7504,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin1_general_cs,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7409,13 +7537,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1251_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7438,13 +7570,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1251_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7467,13 +7603,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1251_general_cs,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7496,13 +7636,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_macroman_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7525,13 +7669,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1256_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7554,13 +7702,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1257_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7583,13 +7735,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1257_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -7612,13 +7768,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_armscii8_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7641,13 +7801,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_ascii_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7670,13 +7834,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1250_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7699,13 +7867,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp1256_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7728,13 +7900,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp866_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7757,13 +7933,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_dec8_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7786,13 +7966,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_greek_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7815,13 +7999,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_hebrew_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7844,13 +8032,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_hp8_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7873,13 +8065,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_keybcs2_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7902,13 +8098,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_koi8r_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7931,13 +8131,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_koi8u_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7960,13 +8164,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin2_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -7989,13 +8197,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin5_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -8018,13 +8230,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin7_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -8047,13 +8263,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp850_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -8076,13 +8296,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_cp852_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -8105,13 +8329,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_swe7_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -8134,13 +8362,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_geostd8_general_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -8163,13 +8395,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_geostd8_bin,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_bin_handler,
@@ -8192,13 +8428,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   to_uni_latin1_spanish_ci,                  /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
@@ -8220,13 +8460,17 @@ CHARSET_INFO compiled_charsets[] = {
   NULL,                       /* sort_order_big*/
   NULL,                       /* to_uni        */
   NULL,                       /* from_uni      */
+  my_unicase_default,         /* caseinfo      */
   NULL,                       /* state map     */
   NULL,                       /* ident map     */
   1,                          /* strxfrm_multiply*/
+  1,                          /* caseup_multiply*/
+  1,                          /* casedn_multiply*/
   1,                          /* mbminlen      */
   1,                          /* mbmaxlen      */
   0,                          /* min_sort_char */
   255,                        /* max_sort_char */
+  ' ',                        /* pad_char      */
   0,                          /* escape_with_backslash_is_dangerous */
   &my_charset_8bit_handler,
   &my_collation_8bit_simple_ci_handler,
