@@ -2763,7 +2763,11 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
   FailRep* rep = (FailRep*)signal->getDataPtr();
 
-  check_multi_node_shutdown(signal);
+  if (check_multi_node_shutdown(signal))
+  {
+    jam();
+    return;
+  }
   
   if (failedNodePtr.i == getOwnNodeId()) {
     jam();
@@ -2832,8 +2836,8 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
 			 "We(%u) have been declared dead by %u reason: %s(%u)",
 			 getOwnNodeId(),
 			 refToNode(signal->getSendersBlockRef()),
-			 aFailCause,
-			 msg ? msg : "<Unknown>");
+			 msg ? msg : "<Unknown>",
+			 aFailCause);
     
     progError(__LINE__, code, buf);
     return;
@@ -2893,7 +2897,11 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
   NodeRecPtr myNodePtr;
   jamEntry();
   
-  check_multi_node_shutdown(signal);
+  if (check_multi_node_shutdown(signal))
+  {
+    jam();
+    return;
+  }
   
   PrepFailReqRef * const prepFail = (PrepFailReqRef *)&signal->theData[0];
 
@@ -4729,7 +4737,7 @@ Qmgr::execSTOP_REQ(Signal* signal)
   }
 }
 
-void
+bool
 Qmgr::check_multi_node_shutdown(Signal* signal)
 {
   if (c_stopReq.senderRef && 
@@ -4745,5 +4753,7 @@ Qmgr::check_multi_node_shutdown(Signal* signal)
     } else {
       EXECUTE_DIRECT(CMVMI, GSN_STOP_ORD, signal, 1);
     }
+    return true;
   }
+  return false;
 }
