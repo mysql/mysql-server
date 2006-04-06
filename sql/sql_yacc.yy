@@ -4167,6 +4167,9 @@ key_def:
 					    HA_KEY_ALG_UNDEF, 1,
 					    lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
+
+            /* Only used for ALTER TABLE. Ignored otherwise. */
+            lex->alter_info.flags|= ALTER_FOREIGN_KEY;
 	  }
 	| constraint opt_check_constraint
 	  {
@@ -5137,7 +5140,7 @@ alter_list_item:
 	  }
 	| DROP FOREIGN KEY_SYM opt_ident
           {
-	    Lex->alter_info.flags|= ALTER_DROP_INDEX;
+	    Lex->alter_info.flags|= ALTER_DROP_INDEX | ALTER_FOREIGN_KEY;
           }
 	| DROP PRIMARY_SYM KEY_SYM
 	  {
