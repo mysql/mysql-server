@@ -28,6 +28,7 @@
 #include "SimBlockList.hpp"
 
 #include <NodeState.hpp>
+#include "ndbd_malloc_impl.hpp"
 
 #include <NdbMem.h>
 #include <NdbMutex.h>
@@ -77,6 +78,7 @@ EmulatorData::EmulatorData(){
   theSimBlockList  = 0;
   theShutdownMutex = 0;
   m_socket_server = 0;
+  m_mem_manager = 0;
 }
 
 void
@@ -93,6 +95,7 @@ EmulatorData::create(){
   theThreadConfig  = new ThreadConfig();
   theSimBlockList  = new SimBlockList();
   m_socket_server  = new SocketServer();
+  m_mem_manager    = new Ndbd_mem_manager();
 
   theShutdownMutex = NdbMutex_Create();
 
@@ -111,6 +114,9 @@ EmulatorData::destroy(){
     delete theSimBlockList; theSimBlockList = 0;
   if(m_socket_server)
     delete m_socket_server; m_socket_server = 0;
+  if (m_mem_manager)
+    delete m_mem_manager; m_mem_manager = 0;
+  
   NdbMem_Destroy();
 }
 

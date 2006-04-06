@@ -65,7 +65,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
 			sql_array.h sql_cursor.h event.h event_priv.h \
-			sql_plugin.h authors.h
+			sql_plugin.h authors.h sql_partition.h \
+                        partition_info.h partition_element.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -101,7 +102,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
                         event_executor.cc event.cc event_timed.cc \
 			sql_plugin.cc sql_binlog.cc \
-			handlerton.cc sql_tablespace.cc
+			handlerton.cc sql_tablespace.cc partition_info.cc
 EXTRA_mysqld_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
 			ha_innodb.h  ha_berkeley.h  ha_archive.h \
 			ha_blackhole.cc ha_federated.cc ha_ndbcluster.cc \
@@ -123,7 +124,8 @@ DEFS =			-DMYSQL_SERVER \
 			@DEFS@
 
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
-EXTRA_DIST =		udf_example.cc handlerton-win.cc $(BUILT_SOURCES)
+EXTRA_DIST =		udf_example.cc $(BUILT_SOURCES) \
+			nt_servc.cc nt_servc.h message.mc cmakelists.txt
 CLEANFILES =        	lex_hash.h sql_yacc.cc sql_yacc.h
 AM_YFLAGS =		-d
 
@@ -173,10 +175,11 @@ ha_ndbcluster_binlog.o:ha_ndbcluster_binlog.cc ha_ndbcluster_binlog.h
 handler.o:	handler.cc ha_ndbcluster.h
 		$(CXXCOMPILE) @ndbcluster_includes@ $(CXXFLAGS) -c $<
 
-# For testing of udf_example.so;  Works on platforms with gcc
-# (This is not part of our build process but only provided as an example)
-udf_example.so:	udf_example.cc
-		$(CXXCOMPILE) -shared -o $@ $<
+# For testing of udf_example.so
+noinst_LTLIBRARIES= udf_example.la
+udf_example_la_SOURCES= udf_example.cc
+udf_example_la_LDFLAGS= -module -rpath $(pkglibdir)
+
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

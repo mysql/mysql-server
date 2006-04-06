@@ -280,7 +280,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       const ScanPos& pos = scan.m_scanPos;
       const Local_key& key_mm = pos.m_key_mm;
       int ret = tuxReadPk(fragPtr.i, pos.m_realpid_mm, key_mm.m_page_idx,
-			  pkData, false);
+			  pkData, true);
       ndbrequire(ret > 0);
       pkSize = ret;
       dbg((DBTUP, "PK size=%d data=%08x", pkSize, pkData[0]));
@@ -661,8 +661,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       {
         Disk_alloc_info& alloc = frag.m_disk_alloc_info;
-        LocalSLList<Extent_info, Extent_list_t>
-          list(c_extent_pool, alloc.m_extent_list);
+        Local_fragment_extent_list list(c_extent_pool, alloc.m_extent_list);
         Ptr<Extent_info> ext_ptr;
         c_extent_pool.getPtr(ext_ptr, pos.m_extent_info_ptr_i);
         Extent_info* ext = ext_ptr.p;

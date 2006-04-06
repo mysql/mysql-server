@@ -111,6 +111,10 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
       {
 	uint new_length=_mi_make_key(info,i,new_key,newrec,pos);
 	uint old_length=_mi_make_key(info,i,old_key,oldrec,pos);
+
+        /* The above changed info->lastkey2. Inform mi_rnext_same(). */
+        info->update&= ~HA_STATE_RNEXT_SAME;
+
 	if (new_length != old_length ||
 	    memcmp((byte*) old_key,(byte*) new_key,new_length))
 	{

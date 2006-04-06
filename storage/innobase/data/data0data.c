@@ -18,24 +18,24 @@ Created 5/30/1994 Heikki Tuuri
 #include "dict0dict.h"
 #include "btr0cur.h"
 
+#ifdef UNIV_DEBUG
 byte	data_error;	/* data pointers of tuple fields are initialized
 			to point here for error checking */
 
-#ifdef UNIV_DEBUG
 ulint	data_dummy;	/* this is used to fool the compiler in
 			dtuple_validate */
 #endif /* UNIV_DEBUG */
 
 /* Some non-inlined functions used in the MySQL interface: */
-void 
+void
 dfield_set_data_noninline(
-	dfield_t* 	field,	/* in: field */
+	dfield_t*	field,	/* in: field */
 	void*		data,	/* in: data */
 	ulint		len)	/* in: length or UNIV_SQL_NULL */
 {
 	dfield_set_data(field, data, len);
 }
-void* 
+void*
 dfield_get_data_noninline(
 	dfield_t* field)	/* in: field */
 {
@@ -47,15 +47,15 @@ dfield_get_len_noninline(
 {
 	return(dfield_get_len(field));
 }
-ulint 
+ulint
 dtuple_get_n_fields_noninline(
-	dtuple_t* 	tuple)	/* in: tuple */
+	dtuple_t*	tuple)	/* in: tuple */
 {
 	return(dtuple_get_n_fields(tuple));
 }
-dfield_t* 
+dfield_t*
 dtuple_get_nth_field_noninline(
-	dtuple_t* 	tuple,	/* in: tuple */
+	dtuple_t*	tuple,	/* in: tuple */
 	ulint		n)	/* in: index of field */
 {
 	return(dtuple_get_nth_field(tuple, n));
@@ -83,7 +83,7 @@ dfield_data_is_binary_equal(
 	}
 
 	if (0 != ut_memcmp(field->data, data, len)) {
-	    	
+
 		return(FALSE);
 	}
 
@@ -122,18 +122,18 @@ dtuple_datas_are_ordering_equal(
 
 		return(FALSE);
 	}
-	
+
 	for (i = 0; i < n_fields; i++) {
 
 		field1 = dtuple_get_nth_field(tuple1, i);
 		field2 = dtuple_get_nth_field(tuple2, i);
 
 		if (0 != cmp_dfield_dfield(field1, field2)) {
-		
+
 			return(FALSE);
-		}			
+		}
 	}
-	
+
 	return(TRUE);
 }
 
@@ -144,12 +144,12 @@ dtuple_t*
 dtuple_create_for_mysql(
 /*====================*/
 				/* out, own created dtuple */
-	void** 	heap,    	/* out: created memory heap */
-	ulint 	n_fields) 	/* in: number of fields */
+	void**	heap,		/* out: created memory heap */
+	ulint	n_fields)	/* in: number of fields */
 {
-  	*heap = (void*)mem_heap_create(500);
- 
-  	return(dtuple_create(*((mem_heap_t**)heap), n_fields));  
+	*heap = (void*)mem_heap_create(500);
+
+	return(dtuple_create(*((mem_heap_t**)heap), n_fields));
 }
 
 /*************************************************************************
@@ -160,12 +160,12 @@ dtuple_free_for_mysql(
 /*==================*/
 	void*	heap) /* in: memory heap where tuple was created */
 {
-  	mem_heap_free((mem_heap_t*)heap);
+	mem_heap_free((mem_heap_t*)heap);
 }
 
 /*************************************************************************
 Sets number of fields used in a tuple. Normally this is set in
-dtuple_create, but if you want later to set it smaller, you can use this. */ 
+dtuple_create, but if you want later to set it smaller, you can use this. */
 
 void
 dtuple_set_n_fields(
@@ -189,7 +189,7 @@ dfield_check_typed_no_assert(
 	dfield_t*	field)	/* in: data field */
 {
 	if (dfield_get_type(field)->mtype > DATA_MYSQL
-	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
+		|| dfield_get_type(field)->mtype < DATA_VARCHAR) {
 
 		fprintf(stderr,
 "InnoDB: Error: data field type %lu, len %lu\n",
@@ -211,8 +211,8 @@ dtuple_check_typed_no_assert(
 	dtuple_t*	tuple)	/* in: tuple */
 {
 	dfield_t*	field;
-	ulint	 	i;
-	
+	ulint		i;
+
 	if (dtuple_get_n_fields(tuple) > REC_MAX_N_FIELDS) {
 		fprintf(stderr,
 "InnoDB: Error: index entry has %lu fields\n",
@@ -247,7 +247,7 @@ dfield_check_typed(
 	dfield_t*	field)	/* in: data field */
 {
 	if (dfield_get_type(field)->mtype > DATA_MYSQL
-	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
+		|| dfield_get_type(field)->mtype < DATA_VARCHAR) {
 
 		fprintf(stderr,
 "InnoDB: Error: data field type %lu, len %lu\n",
@@ -270,7 +270,7 @@ dtuple_check_typed(
 	dtuple_t*	tuple)	/* in: tuple */
 {
 	dfield_t*	field;
-	ulint	 	i;
+	ulint		i;
 
 	for (i = 0; i < dtuple_get_n_fields(tuple); i++) {
 
@@ -294,11 +294,11 @@ dtuple_validate(
 	dtuple_t*	tuple)	/* in: tuple */
 {
 	dfield_t*	field;
-	byte*	 	data;
-	ulint	 	n_fields;
-	ulint	 	len;
-	ulint	 	i;
-	ulint	 	j;
+	byte*		data;
+	ulint		n_fields;
+	ulint		len;
+	ulint		i;
+	ulint		j;
 
 	ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
 
@@ -311,7 +311,7 @@ dtuple_validate(
 
 		field = dtuple_get_nth_field(tuple, i);
 		len = dfield_get_len(field);
-	
+
 		if (len != UNIV_SQL_NULL) {
 
 			data = field->data;
@@ -357,7 +357,7 @@ dfield_print(
 	mtype = dtype_get_mtype(dfield_get_type(dfield));
 
 	if ((mtype == DATA_CHAR) || (mtype == DATA_VARCHAR)) {
-	
+
 		for (i = 0; i < len; i++) {
 			int	c = *data++;
 			putc(isprint(c) ? c : ' ', stderr);
@@ -372,7 +372,7 @@ dfield_print(
 
 /*****************************************************************
 Pretty prints a dfield value according to its data type. Also the hex string
-is printed if a string contains non-printable characters. */ 
+is printed if a string contains non-printable characters. */
 
 void
 dfield_print_also_hex(
@@ -399,7 +399,7 @@ dfield_print_also_hex(
 	if ((mtype == DATA_CHAR) || (mtype == DATA_VARCHAR)) {
 
 		print_also_hex = FALSE;
-	
+
 		for (i = 0; i < len; i++) {
 			int c = *data++;
 			if (!isprint(c)) {
@@ -415,9 +415,9 @@ dfield_print_also_hex(
 		}
 
 		fputs(" Hex: ", stderr);
-		
+
 		data = dfield_get_data(dfield);
-		
+
 		for (i = 0; i < len; i++) {
 			fprintf(stderr, "%02lx", (ulint)*data);
 
@@ -431,6 +431,22 @@ dfield_print_also_hex(
 	}
 }
 
+/*****************************************************************
+Print a dfield value using ut_print_buf. */
+
+void
+dfield_print_raw(
+/*=============*/
+	FILE*		f,		/* in: output stream */
+	dfield_t*	dfield)		/* in: dfield */
+{
+	if (dfield->len != UNIV_SQL_NULL) {
+		ut_print_buf(f, dfield->data, dfield->len);
+	} else {
+		fputs(" SQL NULL", f);
+	}
+}
+
 /**************************************************************
 The following function prints the contents of a tuple. */
 
@@ -440,7 +456,6 @@ dtuple_print(
 	FILE*		f,	/* in: output stream */
 	dtuple_t*	tuple)	/* in: tuple */
 {
-	dfield_t*	field;
 	ulint		n_fields;
 	ulint		i;
 
@@ -451,13 +466,7 @@ dtuple_print(
 	for (i = 0; i < n_fields; i++) {
 		fprintf(f, " %lu:", (ulong) i);
 
-		field = dtuple_get_nth_field(tuple, i);
-		
-		if (field->len != UNIV_SQL_NULL) {
-			ut_print_buf(f, field->data, field->len);
-		} else {
-			fputs(" SQL NULL", f);
-		}
+		dfield_print_raw(f, dtuple_get_nth_field(tuple, i));
 
 		putc(';', f);
 	}
@@ -497,7 +506,7 @@ dtuple_convert_big_rec(
 	ibool		is_externally_stored;
 	ulint		i;
 	ulint		j;
-	
+
 	ut_a(dtuple_check_typed_no_assert(entry));
 
 	size = rec_get_converted_size(index, entry);
@@ -525,9 +534,9 @@ dtuple_convert_big_rec(
 	n_fields = 0;
 
 	while (rec_get_converted_size(index, entry)
-			>= ut_min(page_get_free_space_of_empty(
-					index->table->comp) / 2,
-					REC_MAX_DATA_SIZE)) {
+		>= ut_min(page_get_free_space_of_empty(
+				  dict_table_is_comp(index->table)) / 2,
+			REC_MAX_DATA_SIZE)) {
 
 		longest = 0;
 		for (i = dict_index_get_n_unique_in_tree(index);
@@ -545,25 +554,27 @@ dtuple_convert_big_rec(
 					}
 				}
 			}
-				
+
 			if (!is_externally_stored) {
 
 				dfield = dtuple_get_nth_field(entry, i);
 
 				if (dfield->len != UNIV_SQL_NULL &&
-			        		dfield->len > longest) {
+						dfield->len > longest) {
 
-			        	longest = dfield->len;
+					longest = dfield->len;
 
-			        	longest_i = i;
+					longest_i = i;
 				}
 			}
 		}
-	
+
 		/* We do not store externally fields which are smaller than
 		DICT_MAX_INDEX_COL_LEN */
 
-		ut_a(DICT_MAX_INDEX_COL_LEN > REC_1BYTE_OFFS_LIMIT);
+#if DICT_MAX_INDEX_COL_LEN <= REC_1BYTE_OFFS_LIMIT
+# error "DICT_MAX_INDEX_COL_LEN <= REC_1BYTE_OFFS_LIMIT"
+#endif
 
 		if (longest < BTR_EXTERN_FIELD_REF_SIZE + 10
 						+ DICT_MAX_INDEX_COL_LEN) {
@@ -589,7 +600,7 @@ dtuple_convert_big_rec(
 		vector->fields[n_fields].field_no = longest_i;
 
 		ut_a(dfield->len > DICT_MAX_INDEX_COL_LEN);
-		
+
 		vector->fields[n_fields].len = dfield->len
 						- DICT_MAX_INDEX_COL_LEN;
 
@@ -610,7 +621,7 @@ dtuple_convert_big_rec(
 			+ dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
 					0, BTR_EXTERN_FIELD_REF_SIZE);
 		n_fields++;
-	}	
+	}
 
 	vector->n_fields = n_fields;
 	return(vector);
@@ -630,10 +641,10 @@ dtuple_convert_back_big_rec(
 				freed in this function */
 {
 	dfield_t*	dfield;
-	ulint		i;	
+	ulint		i;
 
 	for (i = 0; i < vector->n_fields; i++) {
-	
+
 		dfield = dtuple_get_nth_field(entry,
 						vector->fields[i].field_no);
 		/* Copy data from big rec vector */
@@ -641,10 +652,10 @@ dtuple_convert_back_big_rec(
 		ut_memcpy(((byte*)dfield->data)
 				+ dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
 			  vector->fields[i].data,
-		          vector->fields[i].len);
+			  vector->fields[i].len);
 		dfield->len = dfield->len + vector->fields[i].len
 						- BTR_EXTERN_FIELD_REF_SIZE;
-	}	
+	}
 
 	mem_heap_free(vector->heap);
 }

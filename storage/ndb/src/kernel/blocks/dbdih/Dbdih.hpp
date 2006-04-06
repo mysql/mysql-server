@@ -75,7 +75,6 @@
 #define ZWRONG_FAILURE_NUMBER_ERROR 302
 #define ZWRONG_START_NODE_ERROR 303
 #define ZNO_REPLICA_FOUND_ERROR 304
-#define ZNODE_ALREADY_STARTING_ERROR 305
 #define ZNODE_START_DISALLOWED_ERROR 309
 
 // --------------------------------------
@@ -1040,7 +1039,8 @@ private:
   void prepareReplicas(FragmentstorePtr regFragptr);
   void removeNodeFromStored(Uint32 nodeId,
                             FragmentstorePtr regFragptr,
-                            ReplicaRecordPtr replicaPtr);
+                            ReplicaRecordPtr replicaPtr,
+			    bool temporary);
   void removeOldStoredReplica(FragmentstorePtr regFragptr,
                               ReplicaRecordPtr replicaPtr);
   void removeStoredReplica(FragmentstorePtr regFragptr,

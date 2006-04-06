@@ -56,3 +56,8 @@ drop table t1;
 --exec $MYSQL --default-character-set=utf8 test -e "charset cp932; set character_set_client= cp932; select 'ƒ\'"
 --exec $MYSQL --default-character-set=utf8 test -e "/*charset cp932 */; set character_set_client= cp932; select 'ƒ\'"
 --exec $MYSQL --default-character-set=utf8 test -e "/*!\C cp932 */; set character_set_client= cp932; select 'ƒ\'"
+
+#
+# Bug#16859 -- NULLs in columns must not truncate data as if a C-language "string".
+#
+--exec $MYSQL -t test -e "create table t1 (col1 binary(4), col2 varchar(10), col3 int); insert into t1 values ('a', 'b', 123421),('a ', '0123456789', 4), ('abcd', '', 4); select concat('>',col1,'<'), col2, col3 from t1; drop table t1;" 2>&1

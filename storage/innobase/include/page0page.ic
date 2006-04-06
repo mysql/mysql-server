@@ -41,7 +41,7 @@ page_update_max_trx_id(
 	ut_ad(page);
 
 	if (ut_dulint_cmp(page_get_max_trx_id(page), trx_id) < 0) {
-	
+
 		page_set_max_trx_id(page, trx_id);
 	}
 }
@@ -93,8 +93,8 @@ page_header_get_ptr(
 
 	ut_ad(page);
 	ut_ad((field == PAGE_FREE)
-	      || (field == PAGE_LAST_INSERT)
-	      || (field == PAGE_HEAP_TOP));
+		|| (field == PAGE_LAST_INSERT)
+		|| (field == PAGE_HEAP_TOP));
 
 	offs = page_header_get_field(page, field);
 
@@ -122,8 +122,8 @@ page_header_set_ptr(
 
 	ut_ad(page);
 	ut_ad((field == PAGE_FREE)
-	      || (field == PAGE_LAST_INSERT)
-	      || (field == PAGE_HEAP_TOP));
+		|| (field == PAGE_LAST_INSERT)
+		|| (field == PAGE_HEAP_TOP));
 
 	if (ptr == NULL) {
 		offs = 0;
@@ -177,13 +177,13 @@ page_rec_is_comp(
 {
 #ifdef UNIV_RELEASE_NOT_YET_STABLE
 	if (UNIV_UNLIKELY((ulint)rec < (ulint)(buf_pool->frame_zero))
-	    || UNIV_UNLIKELY((ulint)rec >= (ulint)(buf_pool->high_end))) {
+		|| UNIV_UNLIKELY((ulint)rec >= (ulint)(buf_pool->high_end))) {
 
-		ut_print_timestamp(stderr);	
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
 "InnoDB: Error: trying to read a stray page rec %p\n"
 "InnoDB: buf pool start is at %p, end at %p\n",
- 			rec, buf_pool->frame_zero,
+			rec, buf_pool->frame_zero,
 			buf_pool->high_end);
 		ut_error;
 	}
@@ -284,7 +284,7 @@ TRUE if the record is the infimum record on a page. */
 UNIV_INLINE
 ibool
 page_rec_is_infimum_low(
-/*=====================*/
+/*====================*/
 			/* out: TRUE if the infimum record */
 	ulint	offset)	/* in: record offset on page */
 {
@@ -343,20 +343,20 @@ the positive infinity in the alphabetical order. */
 UNIV_INLINE
 int
 page_cmp_dtuple_rec_with_match(
-/*===========================*/	
-				/* out: 1, 0, -1, if dtuple is greater, equal, 
-				less than rec, respectively, when only the 
+/*===========================*/
+				/* out: 1, 0, -1, if dtuple is greater, equal,
+				less than rec, respectively, when only the
 				common first fields are compared */
 	dtuple_t*	dtuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: physical record on a page; may also 
-				be page infimum or supremum, in which case 
-				matched-parameter values below are not 
+	rec_t*		rec,	/* in: physical record on a page; may also
+				be page infimum or supremum, in which case
+				matched-parameter values below are not
 				affected */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint*	 	matched_fields, /* in/out: number of already completely 
+	ulint*		matched_fields, /* in/out: number of already completely
 				matched fields; when function returns
 				contains the value for current comparison */
-	ulint*	  	matched_bytes) /* in/out: number of already matched 
+	ulint*		matched_bytes) /* in/out: number of already matched
 				bytes within the first field not completely
 				matched; when function returns contains the
 				value for current comparison */
@@ -461,7 +461,7 @@ page_dir_get_nth_slot(
 
 	return(page + UNIV_PAGE_SIZE - PAGE_DIR
 					- (n + 1) * PAGE_DIR_SLOT_SIZE);
-}		
+}
 
 /******************************************************************
 Used to check the consistency of a record on a page. */
@@ -474,7 +474,7 @@ page_rec_check(
 {
 	page_t*	page;
 
-	ut_a(rec);	
+	ut_a(rec);
 
 	page = buf_frame_align(rec);
 
@@ -517,7 +517,7 @@ ulint
 page_dir_slot_get_n_owned(
 /*======================*/
 					/* out: number of records */
-	page_dir_slot_t* 	slot)	/* in: page directory slot */
+	page_dir_slot_t*	slot)	/* in: page directory slot */
 {
 	rec_t*	rec	= page_dir_slot_get_rec(slot);
 	return(rec_get_n_owned(rec, page_rec_is_comp(rec)));
@@ -530,7 +530,7 @@ void
 page_dir_slot_set_n_owned(
 /*======================*/
 	page_dir_slot_t*	slot,	/* in: directory slot */
-	ulint			n)	/* in: number of records owned 
+	ulint			n)	/* in: number of records owned
 					by the slot */
 {
 	rec_t*	rec	= page_dir_slot_get_rec(slot);
@@ -549,7 +549,7 @@ page_dir_calc_reserved_space(
 {
 	return((PAGE_DIR_SLOT_SIZE * n_recs + PAGE_DIR_SLOT_MIN_N_OWNED - 1)
 						/ PAGE_DIR_SLOT_MIN_N_OWNED);
-} 
+}
 
 /****************************************************************
 Gets the pointer to the next record on the page. */
@@ -563,7 +563,7 @@ page_rec_get_next(
 	ulint	offs;
 	page_t*	page;
 
-	ut_ad(page_rec_check(rec));	
+	ut_ad(page_rec_check(rec));
 
 	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
@@ -584,7 +584,7 @@ page_rec_get_next(
 	}
 
 	if (UNIV_UNLIKELY(offs == 0)) {
-		
+
 		return(NULL);
 	}
 
@@ -592,7 +592,7 @@ page_rec_get_next(
 }
 
 /****************************************************************
-Sets the pointer to the next record on the page. */ 
+Sets the pointer to the next record on the page. */
 UNIV_INLINE
 void
 page_rec_set_next(
@@ -604,7 +604,7 @@ page_rec_set_next(
 	page_t*	page;
 	ulint	offs;
 
-	ut_ad(page_rec_check(rec));	
+	ut_ad(page_rec_check(rec));
 	ut_ad(!page_rec_is_supremum(rec));
 	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
@@ -635,7 +635,7 @@ page_rec_get_prev(
 	rec_t*			prev_rec = NULL;
 	page_t*			page;
 
-	ut_ad(page_rec_check(rec));	
+	ut_ad(page_rec_check(rec));
 
 	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
@@ -644,16 +644,16 @@ page_rec_get_prev(
 	slot_no = page_dir_find_owner_slot(rec);
 
 	ut_a(slot_no != 0);
-	
+
 	slot = page_dir_get_nth_slot(page, slot_no - 1);
-	
+
 	rec2 = page_dir_slot_get_rec(slot);
-	
+
 	while (rec != rec2) {
 		prev_rec = rec2;
 		rec2 = page_rec_get_next(rec2);
 	}
-	
+
 	ut_a(prev_rec);
 
 	return(prev_rec);
@@ -696,10 +696,10 @@ page_get_data_size(
 	ulint	ret;
 
 	ret = (ulint)(page_header_get_field(page, PAGE_HEAP_TOP)
-		      - (page_is_comp(page)
-				? PAGE_NEW_SUPREMUM_END
-				: PAGE_OLD_SUPREMUM_END)
-		      - page_header_get_field(page, PAGE_GARBAGE));
+		- (page_is_comp(page)
+			? PAGE_NEW_SUPREMUM_END
+			: PAGE_OLD_SUPREMUM_END)
+		- page_header_get_field(page, PAGE_GARBAGE));
 
 	ut_ad(ret < UNIV_PAGE_SIZE);
 

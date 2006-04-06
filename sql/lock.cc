@@ -229,12 +229,12 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
 	((*tables)->reginfo.lock_type >= TL_READ &&
 	 (*tables)->reginfo.lock_type <= TL_READ_NO_INSERT))
       lock_type=F_RDLCK;
-    if ((error=(*tables)->file->external_lock(thd,lock_type)))
+    if ((error=(*tables)->file->ha_external_lock(thd,lock_type)))
     {
       print_lock_error(error, (*tables)->file->table_type());
       for (; i-- ; tables--)
       {
-	(*tables)->file->external_lock(thd, F_UNLCK);
+	(*tables)->file->ha_external_lock(thd, F_UNLCK);
 	(*tables)->current_lock=F_UNLCK;
       }
       DBUG_RETURN(error);
@@ -578,7 +578,7 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
     if ((*table)->current_lock != F_UNLCK)
     {
       (*table)->current_lock = F_UNLCK;
-      if ((error=(*table)->file->external_lock(thd, F_UNLCK)))
+      if ((error=(*table)->file->ha_external_lock(thd, F_UNLCK)))
       {
 	error_code=error;
 	print_lock_error(error_code, (*table)->file->table_type());
@@ -911,11 +911,13 @@ end:
 void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 			TABLE_LIST *last_table)
 {
+  DBUG_ENTER("unlock_table_names");
   for (TABLE_LIST *table= table_list;
        table != last_table;
        table= table->next_local)
     unlock_table_name(thd,table);
   pthread_cond_broadcast(&COND_refresh);
+  DBUG_VOID_RETURN;
 }
 
 

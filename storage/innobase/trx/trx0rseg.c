@@ -58,7 +58,7 @@ trx_rseg_header_create(
 	trx_sysf_t*	sys_header;
 	ulint		i;
 	page_t*		page;
-	
+
 	ut_ad(mtr);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -91,10 +91,10 @@ trx_rseg_header_create(
 
 	/* Get the rollback segment file page */
 	rsegf = trx_rsegf_get_new(space, page_no, mtr);
-					    
+
 	/* Initialize max size field */
 	mlog_write_ulint(rsegf + TRX_RSEG_MAX_SIZE, max_size, MLOG_4BYTES, mtr);
-	
+
 	/* Initialize the history list */
 
 	mlog_write_ulint(rsegf + TRX_RSEG_HISTORY_SIZE, 0, MLOG_4BYTES, mtr);
@@ -109,7 +109,7 @@ trx_rseg_header_create(
 	/* Add the rollback segment info to the free slot in the trx system
 	header */
 
-	trx_sysf_rseg_set_space(sys_header, *slot_no, space, mtr);	
+	trx_sysf_rseg_set_space(sys_header, *slot_no, space, mtr);
 	trx_sysf_rseg_set_page_no(sys_header, *slot_no, page_no, mtr);
 
 	return(page_no);
@@ -146,7 +146,7 @@ trx_rseg_mem_create(
 	rseg->id = id;
 	rseg->space = space;
 	rseg->page_no = page_no;
-	
+
 	mutex_create(&(rseg->mutex));
 	mutex_set_level(&(rseg->mutex), SYNC_RSEG);
 
@@ -154,7 +154,7 @@ trx_rseg_mem_create(
 
 	trx_sys_set_nth_rseg(trx_sys, id, rseg);
 
-	rseg_header = trx_rsegf_get_new(space, page_no, mtr);	
+	rseg_header = trx_rsegf_get_new(space, page_no, mtr);
 
 	rseg->max_size = mtr_read_ulint(rseg_header + TRX_RSEG_MAX_SIZE,
 							MLOG_4BYTES, mtr);
@@ -172,15 +172,14 @@ trx_rseg_mem_create(
 		trx_sys->rseg_history_len += len;
 
 		node_addr = trx_purge_get_log_from_hist(
-			      flst_get_last(rseg_header + TRX_RSEG_HISTORY,
+			flst_get_last(rseg_header + TRX_RSEG_HISTORY,
 									mtr));
 		rseg->last_page_no = node_addr.page;
 		rseg->last_offset = node_addr.boffset;
 
 		undo_log_hdr = trx_undo_page_get(rseg->space, node_addr.page,
-									mtr)
-			       + node_addr.boffset;
-			       
+			mtr) + node_addr.boffset;
+
 		rseg->last_trx_no = mtr_read_dulint(
 					undo_log_hdr + TRX_UNDO_TRX_NO, mtr);
 		rseg->last_del_marks = mtr_read_ulint(
@@ -242,7 +241,7 @@ trx_rseg_create(
 	ulint		page_no;
 	trx_rseg_t*	rseg;
 
-	mtr_x_lock(fil_space_get_latch(space), mtr);	
+	mtr_x_lock(fil_space_get_latch(space), mtr);
 	mutex_enter(&kernel_mutex);
 
 	page_no = trx_rseg_header_create(space, max_size, id, mtr);

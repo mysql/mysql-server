@@ -1364,8 +1364,12 @@ mysql_stat(MYSQL *mysql)
 int STDCALL
 mysql_ping(MYSQL *mysql)
 {
+  int res;
   DBUG_ENTER("mysql_ping");
-  DBUG_RETURN(simple_command(mysql,COM_PING,0,0,0));
+  res= simple_command(mysql,COM_PING,0,0,0);
+  if (res == CR_SERVER_LOST && mysql->reconnect)
+    res= simple_command(mysql,COM_PING,0,0,0);
+  DBUG_RETURN(res);
 }
 
 
@@ -1373,35 +1377,6 @@ const char * STDCALL
 mysql_get_server_info(MYSQL *mysql)
 {
   return((char*) mysql->server_version);
-}
-
-
-/*
-  Get version number for server in a form easy to test on
-
-  SYNOPSIS
-    mysql_get_server_version()
-    mysql		Connection
-
-  EXAMPLE
-    4.1.0-alfa ->  40100
-  
-  NOTES
-    We will ensure that a newer server always has a bigger number.
-
-  RETURN
-   Signed number > 323000
-*/
-
-ulong STDCALL
-mysql_get_server_version(MYSQL *mysql)
-{
-  uint major, minor, version;
-  char *pos= mysql->server_version, *end_pos;
-  major=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
-  minor=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
-  version= (uint) strtoul(pos, &end_pos, 10);
-  return (ulong) major*10000L+(ulong) (minor*100+version);
 }
 
 
@@ -2816,7 +2791,7 @@ my_bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
     break;
   case STMT_ATTR_CURSOR_TYPE:
     *(ulong*) value= stmt->flags;
-      break;
+    break;
   case STMT_ATTR_PREFETCH_ROWS:
     *(ulong*) value= stmt->prefetch_rows;
     break;

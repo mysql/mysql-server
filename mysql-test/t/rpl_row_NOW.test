@@ -50,8 +50,8 @@ sync_slave_with_master;
 
 connection master;
 
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > ./var/tmp/NOW_master.sql
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > ./var/tmp/NOW_slave.sql
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/NOW_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/NOW_slave.sql
 
 # lets cleanup
 DROP TABLE IF EXISTS mysqltest1.t1;
@@ -61,13 +61,13 @@ DROP FUNCTION mysqltest1.f1;
 # the test will show that the diff statement failed and not reject file
 # will be created. You will need to go to the mysql-test dir and diff
 # the files your self to see what is not matching :-) The failed dump 
-# files will be located in mysql-test/var/tmp
+# files will be located in $MYSQLTEST_VARDIR/tmp
 
-exec diff ./var/tmp/NOW_master.sql ./var/tmp/NOW_slave.sql;
+exec diff $MYSQLTEST_VARDIR/tmp/NOW_master.sql $MYSQLTEST_VARDIR/tmp/NOW_slave.sql;
 
 # If all is good, when can cleanup our dump files.
-system rm ./var/tmp/NOW_master.sql;
-system rm ./var/tmp/NOW_slave.sql;
+system rm $MYSQLTEST_VARDIR/tmp/NOW_master.sql;
+system rm $MYSQLTEST_VARDIR/tmp/NOW_slave.sql;
 
 sync_slave_with_master;
 # End of 5.1 test case

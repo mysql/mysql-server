@@ -80,19 +80,44 @@ static void delete_instance(void *u)
 static int process_option(void *ctx, const char *group, const char *option)
 {
   Instance_map *map= NULL;
+
+  map = (Instance_map*) ctx;
+  return map->process_one_option(group, option);
+}
+
+C_MODE_END
+
+
+/*
+  Process one option from the configuration file.
+
+  SYNOPSIS
+    Instance_map::process_one_option()
+      group         group name
+      option        option string (e.g. "--name=value")
+
+  DESCRIPTION
+    This is an auxiliary function and should not be used externally.
+    It is used only by flush_instances(), which pass it to
+    process_option(). The caller ensures proper locking
+    of the instance map object.
+*/
+
+int Instance_map::process_one_option(const char *group, const char *option)
+{
   Instance *instance= NULL;
   static const char prefix[]= { 'm', 'y', 's', 'q', 'l', 'd' };
 
-  map = (Instance_map*) ctx;
   if (strncmp(group, prefix, sizeof prefix) == 0 &&
       ((my_isdigit(default_charset_info, group[sizeof prefix]))
        || group[sizeof(prefix)] == '\0'))
     {
-      if ((instance= map->find(group, strlen(group))) == NULL)
+      if (!(instance= (Instance *) hash_search(&hash, (byte *) group,
+                                               strlen(group))))
       {
-        if ((instance= new Instance) == 0)
+        if (!(instance= new Instance))
           goto err;
-        if (instance->init(group) || map->add_instance(instance))
+        if (instance->init(group) || my_hash_insert(&hash, (byte *) instance))
           goto err_instance;
       }
 
@@ -107,8 +132,6 @@ err_instance:
 err:
   return 1;
 }
-
-C_MODE_END
 
 
 Instance_map::Instance_map(const char *default_mysqld_path_arg):
@@ -144,27 +167,58 @@ void Instance_map::unlock()
   pthread_mutex_unlock(&LOCK_instance_map);
 }
 
+/*
+  Re-read instance configuration file.
+
+  SYNOPSIS
+    Instance_map::flush_instances()
+
+  DESCRIPTION
+    This function will:
+     - clear the current list of instances. This removes both
+       running and stopped instances.
+     - load a new instance configuration from the file.
+     - pass on the new map to the guardian thread: it will start
+       all instances that are marked `guarded' and not yet started.
+    Note, as the check whether an instance is started is currently
+    very simple (returns true if there is a MySQL server running
+    at the given port), this function has some peculiar
+    side-effects:
+     * if the port number of a running instance was changed, the
+       old instance is forgotten, even if it was running. The new
+       instance will be started at the new port.
+     * if the configuration was changed in a way that two
+       instances swapped their port numbers, the guardian thread
+       will not notice that and simply report that both instances
+       are configured successfully and running.
+    In order to avoid such side effects one should never call
+    FLUSH INSTANCES without prior stop of all running instances.
+
+  TODO
+    FLUSH INSTANCES should return an error if it's called
+    while there is a running instance.
+*/
 
 int Instance_map::flush_instances()
 {
   int rc;
 
+  /*
+    Guardian thread relies on the instance map repository for guarding
+    instances. This is why refreshing instance map, we need (1) to stop
+    guardian (2) reload the instance map (3) reinitialize the guardian
+    with new instances.
+  */
   guardian->lock();
   pthread_mutex_lock(&LOCK_instance_map);
   hash_free(&hash);
   hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
             get_instance_key, delete_instance, 0);
-  pthread_mutex_unlock(&LOCK_instance_map);
   rc= load();
   guardian->init();
+  pthread_mutex_unlock(&LOCK_instance_map);
   guardian->unlock();
   return rc;
-}
-
-
-int Instance_map::add_instance(Instance *instance)
-{
-  return my_hash_insert(&hash, (byte *) instance);
 }
 
 
@@ -190,9 +244,8 @@ int Instance_map::complete_initialization()
     if ((instance= new Instance) == 0)
       goto err;
 
-    if (instance->init("mysqld") || add_instance(instance))
+    if (instance->init("mysqld") || my_hash_insert(&hash, (byte *) instance))
       goto err_instance;
-
 
     /*
       After an instance have been added to the instance_map,

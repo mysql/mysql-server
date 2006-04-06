@@ -1142,7 +1142,7 @@ static int mysql_test_update(Prepared_statement *stmt,
       break;
     if (!need_reopen)
       goto error;
-    close_tables_for_reopen(thd, table_list);
+    close_tables_for_reopen(thd, &table_list);
   }
 
   /*
@@ -2128,11 +2128,17 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     /* Reset is_schema_table_processed value(needed for I_S tables */
     tables->is_schema_table_processed= FALSE;
 
-    if (tables->prep_on_expr)
+    TABLE_LIST *embedded; /* The table at the current level of nesting. */
+    TABLE_LIST *embedding= tables; /* The parent nested table reference. */
+    do
     {
-      tables->on_expr= tables->prep_on_expr->copy_andor_structure(thd);
-      tables->on_expr->cleanup();
+      embedded= embedding;
+      if (embedded->prep_on_expr)
+        embedded->on_expr= embedded->prep_on_expr->copy_andor_structure(thd);
+      embedding= embedded->embedding;
     }
+    while (embedding &&
+           embedding->nested_join->join_list.head() == embedded);
   }
   lex->current_select= &lex->select_lex;
 
@@ -2758,7 +2764,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   lex_start(thd, (uchar*) thd->query, thd->query_length);
   lex->stmt_prepare_mode= TRUE;
 
-  error= yyparse((void *)thd) || thd->is_fatal_error ||
+  error= MYSQLparse((void *)thd) || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
   lex->safe_to_cache_query= FALSE;
   /*

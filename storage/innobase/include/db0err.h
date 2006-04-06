@@ -42,14 +42,14 @@ Created 5/24/1996 Heikki Tuuri
 #define DB_CANNOT_ADD_CONSTRAINT 38	/* adding a foreign key constraint
 					to a table failed */
 #define DB_CORRUPTION		39	/* data structure corruption noticed */
-#define DB_COL_APPEARS_TWICE_IN_INDEX 40 /* InnoDB cannot handle an index
-					    where same column appears twice */
+#define DB_COL_APPEARS_TWICE_IN_INDEX 40/* InnoDB cannot handle an index
+					where same column appears twice */
 #define DB_CANNOT_DROP_CONSTRAINT 41	/* dropping a foreign key constraint
 					from a table failed */
 #define DB_NO_SAVEPOINT		42	/* no savepoint exists with the given
 					name */
 #define	DB_TABLESPACE_ALREADY_EXISTS 43 /* we cannot create a new single-table
-				        tablespace because a file of the same
+					tablespace because a file of the same
 					name already exists */
 #define DB_TABLESPACE_DELETED	44	/* tablespace does not exist or is
 					being dropped right now */
@@ -63,11 +63,11 @@ Created 5/24/1996 Heikki Tuuri
 					table */
 
 /* The following are partial failure codes */
-#define DB_FAIL 		1000
-#define DB_OVERFLOW 		1001
-#define DB_UNDERFLOW 		1002
+#define DB_FAIL			1000
+#define DB_OVERFLOW		1001
+#define DB_UNDERFLOW		1002
 #define DB_STRONG_FAIL		1003
 #define DB_RECORD_NOT_FOUND	1500
 #define DB_END_OF_INDEX		1501
 
-#endif 
+#endif

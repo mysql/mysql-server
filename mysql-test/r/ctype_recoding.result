@@ -6,7 +6,7 @@ CREATE TABLE t2 (a CHAR(10) CHARACTER SET utf8);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) character set cp1251 default NULL
+  `a` char(10) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT a FROM t1;
 a
@@ -30,7 +30,7 @@ CREATE TABLE t2 (a TEXT CHARACTER SET utf8);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` text character set cp1251
+  `a` text CHARACTER SET cp1251
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT HEX(a) FROM t1;
 HEX(a)
@@ -50,7 +50,7 @@ Tables_in_test
 SHOW CREATE TABLE таблица;
 Table	Create Table
 таблица	CREATE TABLE `таблица` (
-  `поле` char(32) character set koi8r NOT NULL COMMENT 'комментарий поля'
+  `поле` char(32) CHARACTER SET koi8r NOT NULL COMMENT 'комментарий поля'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='комментарий таблицы'
 SHOW FIELDS FROM таблица;
 Field	Type	Null	Key	Default	Extra
@@ -62,7 +62,7 @@ Tables_in_test
 SHOW CREATE TABLE РЮАКХЖЮ;
 Table	Create Table
 РЮАКХЖЮ	CREATE TABLE `РЮАКХЖЮ` (
-  `ОНКЕ` char(32) character set koi8r NOT NULL COMMENT 'ЙНЛЛЕМРЮПХИ ОНКЪ'
+  `ОНКЕ` char(32) CHARACTER SET koi8r NOT NULL COMMENT 'ЙНЛЛЕМРЮПХИ ОНКЪ'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='ЙНЛЛЕМРЮПХИ РЮАКХЖШ'
 SHOW FIELDS FROM РЮАКХЖЮ;
 Field	Type	Null	Key	Default	Extra
@@ -74,7 +74,7 @@ Tables_in_test
 SHOW CREATE TABLE я┌п╟п╠п╩п╦я├п╟;
 Table	Create Table
 я┌п╟п╠п╩п╦я├п╟	CREATE TABLE `я┌п╟п╠п╩п╦я├п╟` (
-  `п©п╬п╩п╣` char(32) character set koi8r NOT NULL COMMENT 'п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ п©п╬п╩я▐'
+  `п©п╬п╩п╣` char(32) CHARACTER SET koi8r NOT NULL COMMENT 'п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ п©п╬п╩я▐'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ я┌п╟п╠п╩п╦я├я▀'
 SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
 Field	Type	Null	Key	Default	Extra
@@ -117,13 +117,13 @@ CREATE TABLE `я┌п╣я│я┌` (`я┌п╣я│я┌` int);
 SHOW CREATE TABLE `я┌п╣я│я┌`;
 Table	Create Table
 я┌п╣я│я┌	CREATE TABLE `я┌п╣я│я┌` (
-  `я┌п╣я│я┌` int(11) default NULL
+  `я┌п╣я│я┌` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SET NAMES utf8;
 SHOW CREATE TABLE `я┌п╣я│я┌`;
 Table	Create Table
 я┌п╣я│я┌	CREATE TABLE `я┌п╣я│я┌` (
-  `я┌п╣я│я┌` int(11) default NULL
+  `я┌п╣я│я┌` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE `я┌п╣я│я┌`;
 SET NAMES binary;
@@ -141,8 +141,8 @@ CREATE TABLE t1 (`Д` CHAR(128) DEFAULT 'Д', `Д1` ENUM('Д1','Д2') DEFAULT 'Д2');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `Д` char(128) default 'Д',
-  `Д1` enum('Д1','Д2') default 'Д2'
+  `Д` char(128) DEFAULT 'Д',
+  `Д1` enum('Д1','Д2') DEFAULT 'Д2'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
@@ -152,8 +152,8 @@ SET NAMES binary;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `ц╓` char(128) default 'ц╓',
-  `ц╓1` enum('ц╓1','ц╓2') default 'ц╓2'
+  `ц╓` char(128) DEFAULT 'ц╓',
+  `ц╓1` enum('ц╓1','ц╓2') DEFAULT 'ц╓2'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra

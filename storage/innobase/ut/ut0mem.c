@@ -23,7 +23,7 @@ typedef struct ut_mem_block_struct ut_mem_block_t;
 ulint	ut_total_allocated_memory	= 0;
 
 struct ut_mem_block_struct{
-        UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;
+	UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;
 			/* mem block list node */
 	ulint	size;	/* size of allocated memory */
 	ulint	magic_n;
@@ -35,7 +35,7 @@ struct ut_mem_block_struct{
 with malloc */
 UT_LIST_BASE_NODE_T(ut_mem_block_t)   ut_mem_block_list;
 
-os_fast_mutex_t ut_list_mutex;  /* this protects the list */
+os_fast_mutex_t ut_list_mutex;	/* this protects the list */
 
 ibool  ut_mem_block_list_inited = FALSE;
 
@@ -48,8 +48,8 @@ void
 ut_mem_block_list_init(void)
 /*========================*/
 {
-        os_fast_mutex_init(&ut_list_mutex);
-        UT_LIST_INIT(ut_mem_block_list);
+	os_fast_mutex_init(&ut_list_mutex);
+	UT_LIST_INIT(ut_mem_block_list);
 	ut_mem_block_list_inited = TRUE;
 }
 
@@ -60,12 +60,13 @@ defined and set_to_zero is TRUE. */
 void*
 ut_malloc_low(
 /*==========*/
-	                     /* out, own: allocated memory */
-        ulint   n,           /* in: number of bytes to allocate */
-	ibool   set_to_zero, /* in: TRUE if allocated memory should be set
-			     to zero if UNIV_SET_MEM_TO_ZERO is defined */
-	ibool	assert_on_error) /* in: if TRUE, we crash mysqld if the memory
-				cannot be allocated */
+				/* out, own: allocated memory */
+	ulint	n,		/* in: number of bytes to allocate */
+	ibool	set_to_zero,	/* in: TRUE if allocated memory should be
+				set to zero if UNIV_SET_MEM_TO_ZERO is
+				defined */
+	ibool	assert_on_error)/* in: if TRUE, we crash mysqld if the
+				memory cannot be allocated */
 {
 	ulint	retry_count	= 0;
 	void*	ret;
@@ -73,7 +74,7 @@ ut_malloc_low(
 	ut_ad((sizeof(ut_mem_block_t) % 8) == 0); /* check alignment ok */
 
 	if (!ut_mem_block_list_inited) {
-	        ut_mem_block_list_init();
+		ut_mem_block_list_init();
 	}
 retry:
 	os_fast_mutex_lock(&ut_list_mutex);
@@ -95,7 +96,7 @@ retry:
 		"InnoDB: Note that in most 32-bit computers the process\n"
 		"InnoDB: memory space is limited to 2 GB or 4 GB.\n"
 		"InnoDB: We keep retrying the allocation for 60 seconds...\n",
-		                  (ulong) n, (ulong) ut_total_allocated_memory,
+				  (ulong) n, (ulong) ut_total_allocated_memory,
 #ifdef __WIN__
 			(ulong) GetLastError()
 #else
@@ -110,7 +111,7 @@ retry:
 		just a temporary shortage of memory */
 
 		os_thread_sleep(1000000);
-		
+
 		retry_count++;
 
 		goto retry;
@@ -123,13 +124,13 @@ retry:
 
 		fflush(stderr);
 
-	        os_fast_mutex_unlock(&ut_list_mutex);
+		os_fast_mutex_unlock(&ut_list_mutex);
 
 		/* Make an intentional seg fault so that we get a stack
 		trace */
-		/* Intentional segfault on NetWare causes an abend. Avoid this 
+		/* Intentional segfault on NetWare causes an abend. Avoid this
 		by graceful exit handling in ut_a(). */
-#if (!defined __NETWARE__) 
+#if (!defined __NETWARE__)
 		if (assert_on_error) {
 			ut_print_timestamp(stderr);
 
@@ -144,11 +145,11 @@ retry:
 #else
 		ut_a(0);
 #endif
-	}		
+	}
 
 	if (set_to_zero) {
 #ifdef UNIV_SET_MEM_TO_ZERO
-	        memset(ret, '\0', n + sizeof(ut_mem_block_t));
+		memset(ret, '\0', n + sizeof(ut_mem_block_t));
 #endif
 	}
 
@@ -156,9 +157,9 @@ retry:
 	((ut_mem_block_t*)ret)->magic_n = UT_MEM_MAGIC_N;
 
 	ut_total_allocated_memory += n + sizeof(ut_mem_block_t);
-	
+
 	UT_LIST_ADD_FIRST(mem_block_list, ut_mem_block_list,
-			                         ((ut_mem_block_t*)ret));
+						 ((ut_mem_block_t*)ret));
 	os_fast_mutex_unlock(&ut_list_mutex);
 
 	return((void*)((byte*)ret + sizeof(ut_mem_block_t)));
@@ -171,10 +172,10 @@ defined. */
 void*
 ut_malloc(
 /*======*/
-	                /* out, own: allocated memory */
-        ulint   n)      /* in: number of bytes to allocate */
+			/* out, own: allocated memory */
+	ulint	n)	/* in: number of bytes to allocate */
 {
-        return(ut_malloc_low(n, TRUE, TRUE));
+	return(ut_malloc_low(n, TRUE, TRUE));
 }
 
 /**************************************************************************
@@ -202,8 +203,8 @@ ut_test_malloc(
 		"InnoDB: ulimits of your operating system.\n"
 		"InnoDB: On FreeBSD check you have compiled the OS with\n"
 		"InnoDB: a big enough maximum process size.\n",
-		                  (ulong) n,
-			          (ulong) ut_total_allocated_memory,
+				  (ulong) n,
+				  (ulong) ut_total_allocated_memory,
 				  (int) errno);
 		return(FALSE);
 	}
@@ -211,7 +212,7 @@ ut_test_malloc(
 	free(ret);
 
 	return(TRUE);
-}	
+}
 
 /**************************************************************************
 Frees a memory block allocated with ut_malloc. */
@@ -221,7 +222,7 @@ ut_free(
 /*====*/
 	void* ptr)  /* in, own: memory block */
 {
-        ut_mem_block_t* block;
+	ut_mem_block_t* block;
 
 	block = (ut_mem_block_t*)((byte*)ptr - sizeof(ut_mem_block_t));
 
@@ -231,10 +232,10 @@ ut_free(
 	ut_a(ut_total_allocated_memory >= block->size);
 
 	ut_total_allocated_memory -= block->size;
-	
+
 	UT_LIST_REMOVE(mem_block_list, ut_mem_block_list, block);
 	free(block);
-	
+
 	os_fast_mutex_unlock(&ut_list_mutex);
 }
 
@@ -248,10 +249,10 @@ man realloc in Linux, 2004:
        realloc()  changes the size of the memory block pointed to
        by ptr to size bytes.  The contents will be  unchanged  to
        the minimum of the old and new sizes; newly allocated mem­
-       ory will be uninitialized.  If ptr is NULL,  the  call  is
+       ory will be uninitialized.  If ptr is NULL,  the	 call  is
        equivalent  to malloc(size); if size is equal to zero, the
-       call is equivalent to free(ptr).  Unless ptr is  NULL,  it
-       must  have  been  returned by an earlier call to malloc(),
+       call is equivalent to free(ptr).	 Unless ptr is	NULL,  it
+       must  have  been	 returned by an earlier call to malloc(),
        calloc() or realloc().
 
 RETURN VALUE
@@ -259,8 +260,8 @@ RETURN VALUE
        which is suitably aligned for any kind of variable and may
        be different from ptr, or NULL if the  request  fails.  If
        size  was equal to 0, either NULL or a pointer suitable to
-       be passed to free() is returned.  If realloc()  fails  the
-       original  block  is  left  untouched  - it is not freed or
+       be passed to free() is returned.	 If realloc()  fails  the
+       original	 block	is  left  untouched  - it is not freed or
        moved. */
 
 void*
@@ -270,7 +271,7 @@ ut_realloc(
 	void*	ptr,	/* in: pointer to old block or NULL */
 	ulint	size)	/* in: desired size */
 {
-        ut_mem_block_t* block;
+	ut_mem_block_t* block;
 	ulint		old_size;
 	ulint		min_size;
 	void*		new_ptr;
@@ -297,20 +298,20 @@ ut_realloc(
 	} else {
 		min_size = old_size;
 	}
-		
+
 	new_ptr = ut_malloc(size);
 
 	if (new_ptr == NULL) {
 
 		return(NULL);
-	}				
+	}
 
 	/* Copy the old data from ptr */
 	ut_memcpy(new_ptr, ptr, min_size);
 
 	ut_free(ptr);
 
-	return(new_ptr);		
+	return(new_ptr);
 }
 
 /**************************************************************************
@@ -320,9 +321,9 @@ void
 ut_free_all_mem(void)
 /*=================*/
 {
-        ut_mem_block_t* block;
+	ut_mem_block_t* block;
 
-        os_fast_mutex_free(&ut_list_mutex);
+	os_fast_mutex_free(&ut_list_mutex);
 
 	while ((block = UT_LIST_GET_FIRST(ut_mem_block_list))) {
 
@@ -330,11 +331,11 @@ ut_free_all_mem(void)
 		ut_a(ut_total_allocated_memory >= block->size);
 
 		ut_total_allocated_memory -= block->size;
-	
-	        UT_LIST_REMOVE(mem_block_list, ut_mem_block_list, block);
-	        free(block);
+
+		UT_LIST_REMOVE(mem_block_list, ut_mem_block_list, block);
+		free(block);
 	}
-		                      
+
 	if (ut_total_allocated_memory != 0) {
 		fprintf(stderr,
 "InnoDB: Warning: after shutdown total allocated memory is %lu\n",
@@ -359,7 +360,7 @@ ut_strlcpy(
 
 	if (size != 0) {
 		ulint	n = ut_min(src_size, size - 1);
-		
+
 		memcpy(dst, src, n);
 		dst[n] = '\0';
 	}
@@ -391,7 +392,7 @@ ut_strlcpy_rev(
 }
 
 /**************************************************************************
-Make a quoted copy of a NUL-terminated string.  Leading and trailing
+Make a quoted copy of a NUL-terminated string.	Leading and trailing
 quotes will not be included; only embedded quotes will be escaped.
 See also ut_strlenq() and ut_memcpyq(). */
 

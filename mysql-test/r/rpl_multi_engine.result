@@ -16,30 +16,30 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 engine=myisam;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -65,15 +65,15 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -99,15 +99,15 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -133,30 +133,30 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 alter table t1 engine=myisam;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -182,15 +182,15 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -216,15 +216,15 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -250,30 +250,30 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 engine=myisam;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -299,15 +299,15 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
@@ -333,15 +333,15 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL,
-  `b1` bit(8) default NULL,
-  `vc` varchar(255) default NULL,
-  `bc` char(255) default NULL,
-  `d` decimal(10,4) default '0.0000',
-  `f` float default '0',
-  `total` bigint(20) unsigned default NULL,
-  `y` year(4) default NULL,
-  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`id`)
+  `b1` bit(8) DEFAULT NULL,
+  `vc` varchar(255) DEFAULT NULL,
+  `bc` char(255) DEFAULT NULL,
+  `d` decimal(10,4) DEFAULT '0.0000',
+  `f` float DEFAULT '0',
+  `total` bigint(20) unsigned DEFAULT NULL,
+  `y` year(4) DEFAULT NULL,
+  `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;

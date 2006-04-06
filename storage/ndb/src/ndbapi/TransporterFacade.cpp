@@ -57,8 +57,6 @@ static int indexToNumber(int index)
 #define TRP_DEBUG(t)
 #endif
 
-TransporterFacade* TransporterFacade::theFacadeInstance = NULL;
-
 /*****************************************************************************
  * Call back functions
  *****************************************************************************/
@@ -116,7 +114,6 @@ reportConnect(void * callbackObj, NodeId nodeId){
   ndbout_c("REPORT_TRANSP: API reportConnect (nodeId=%d)", (int)nodeId);
 #endif
   ((TransporterFacade*)(callbackObj))->reportConnected(nodeId);
-  //  TransporterFacade::instance()->reportConnected(nodeId);
 }
 
 /**
@@ -128,7 +125,6 @@ reportDisconnect(void * callbackObj, NodeId nodeId, Uint32 error){
   ndbout_c("REPORT_TRANSP: API reportDisconnect (nodeId=%d)", (int)nodeId);
 #endif
   ((TransporterFacade*)(callbackObj))->reportDisconnected(nodeId);
-  //TransporterFacade::instance()->reportDisconnected(nodeId);
 }
 
 void
@@ -392,7 +388,7 @@ int
 TransporterFacade::start_instance(int nodeId, 
 				  const ndb_mgm_configuration* props)
 {
-  if (! theFacadeInstance->init(nodeId, props)) {
+  if (! init(nodeId, props)) {
     return -1;
   }
   
@@ -418,8 +414,7 @@ TransporterFacade::start_instance(int nodeId,
 void
 TransporterFacade::stop_instance(){
   DBUG_ENTER("TransporterFacade::stop_instance");
-  if(theFacadeInstance)
-    theFacadeInstance->doStop();
+  doStop();
   DBUG_VOID_RETURN;
 }
 
@@ -725,6 +720,19 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   if (!iter.get(CFG_BATCH_SIZE, &batch_size)) {
     m_batch_size= batch_size;
   }
+  
+  Uint32 timeout = 120000;
+  iter.first();
+  for (iter.first(); iter.valid(); iter.next())
+  {
+    Uint32 tmp1 = 0, tmp2 = 0;
+    iter.get(CFG_DB_TRANSACTION_CHECK_INTERVAL, &tmp1);
+    iter.get(CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &tmp2);
+    tmp1 += tmp2;
+    if (tmp1 > timeout)
+      timeout = tmp1;
+  }
+  m_waitfor_timeout = timeout;
   
   if (!theTransporterRegistry->start_service(m_socket_server)){
     ndbout_c("Unable to start theTransporterRegistry->start_service");

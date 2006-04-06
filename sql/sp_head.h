@@ -124,7 +124,9 @@ public:
     IS_INVOKED= 32,             // Is set if this sp_head is being used
     HAS_SET_AUTOCOMMIT_STMT= 64,// Is set if a procedure with 'set autocommit'
     /* Is set if a procedure with COMMIT (implicit or explicit) | ROLLBACK */
-    HAS_COMMIT_OR_ROLLBACK= 128
+    HAS_COMMIT_OR_ROLLBACK= 128,
+    LOG_SLOW_STATEMENTS= 256,   // Used by events
+    LOG_GENERAL_LOG= 512        // Used by events
   };
 
   /* TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
@@ -301,6 +303,7 @@ public:
 		st_sp_chistics *chistics, ulong sql_mode);
 
   void set_definer(const char *definer, uint definerlen);
+  void set_definer(const LEX_STRING *user_name, const LEX_STRING *host_name);
 
   void reset_thd_mem_root(THD *thd);
 

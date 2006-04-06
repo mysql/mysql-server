@@ -1,4 +1,7 @@
 
+dist_bin_SCRIPTS =	ndb_size.pl ndb_error_reporter
+dist_pkgdata_DATA =	ndb_size.tmpl
+
 ndbtools_PROGRAMS = \
   ndb_test_platform \
   ndb_waiter \

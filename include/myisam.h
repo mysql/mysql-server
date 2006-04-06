@@ -159,8 +159,6 @@ typedef struct st_mi_isaminfo		/* Struct from h_info */
   uint  reflength;
   ulong record_offset;
   ulong *rec_per_key;			/* for sql optimizing */
-  uint raid_type,raid_chunks;
-  ulong raid_chunksize;
 } MI_ISAMINFO;
 
 
@@ -172,8 +170,6 @@ typedef struct st_mi_create_info
   ulonglong auto_increment;
   ulonglong data_file_length;
   ulonglong key_file_length;
-  uint raid_type,raid_chunks;
-  ulong raid_chunksize;
   uint old_options;
   uint8 language;
   my_bool with_auto_increment;
@@ -371,6 +367,7 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 */
 
 #define TT_USEFRM               1
+#define TT_FOR_UPGRADE          2
 
 #define O_NEW_INDEX	1		/* Bits set in out_flag */
 #define O_NEW_DATA	2

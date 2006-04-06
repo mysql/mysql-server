@@ -23,6 +23,7 @@ SELECT extractValue(@xml,'/*/*');
 SELECT extractValue(@xml,'/*/*/*');
 
 SELECT extractValue(@xml,'/a/child::*');
+SELECT extractValue(@xml,'/a/self::*');
 SELECT extractValue(@xml,'/a/descendant::*');
 SELECT extractValue(@xml,'/a/descendant-or-self::*');
 SELECT extractValue(@xml,'/a/attribute::*');
@@ -215,3 +216,82 @@ select UpdateXML(@xml, '/a/b/@bb1', '');
 select UpdateXML(@xml, '/a/b/@bb1', 'bb3="bb3"');
 select UpdateXML(@xml, '/a/b/@bb2', '');
 select UpdateXML(@xml, '/a/b/@bb2', 'bb3="bb3"');
+
+#
+#  Bug#16234 XML: Crash if ExtractValue()
+#
+SET @xml= '<order><clerk>lesser wombat</clerk></order>';
+select extractvalue(@xml,'order/clerk');
+select extractvalue(@xml,'/order/clerk');
+
+#
+# Bug#16314 XML: extractvalue() crash if vertical bar
+#
+select extractvalue('<a><b>B</b></a>','/a|/b');
+select extractvalue('<a><b>B</b></a>','/a|b');
+select extractvalue('<a>a<b>B</b></a>','/a|/b');
+select extractvalue('<a>a<b>B</b></a>','/a|b');
+select extractvalue('<a>a<b>B</b></a>','a|/b');
+
+#
+# Bug#16312 XML: extractvalue() crash if angle brackets
+#
+--error 1105
+select extractvalue('<a>A</a>','/<a>');
+
+#
+# Bug#16313 XML: extractvalue() ignores '!' in names
+#
+--error 1105
+select extractvalue('<a><b>b</b><b!>b!</b!></a>','//b!');
+
+#
+# Bug #16315 XML: extractvalue() handles self badly
+#
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant::*');
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/self::*');
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant-or-self::*');
+# Bug #16320 XML: extractvalue() won't accept names containing underscores
+#
+select extractvalue('<A_B>A</A_B>','/A_B');
+
+#
+# Bug#16318: XML: extractvalue() incorrectly returns last() = 1
+#
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[position()]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=last()]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()-1]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=1]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=2]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=position()]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)-1]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=1]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=2]');
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=position()]');
+#
+# Bug#16316: XML: extractvalue() is case-sensitive with contains()
+#
+select extractvalue('<a>Jack</a>','/a[contains(../a,"J")]');
+select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]');
+select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin);
+select extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]');
+
+#
+# Bug #18171 XML: ExtractValue: the XPath position()
+# function crashes the server!
+#
+--error 1105
+select extractValue('<e>1</e>','position()');
+--error 1105
+select extractValue('<e>1</e>','last()');
+
+
+#
+# Bug #18172 XML: Extractvalue() accepts mallformed
+# XPath without a XPath syntax error
+#
+--error 1105
+select extractValue('<e><a>1</a></e>','/e/');
+

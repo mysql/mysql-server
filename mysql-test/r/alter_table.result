@@ -390,7 +390,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(10) NOT NULL,
-  PRIMARY KEY  (`a`)
+  PRIMARY KEY (`a`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`)
 flush tables;
 alter table t1 modify a varchar(10) not null;
@@ -398,7 +398,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(10) NOT NULL,
-  PRIMARY KEY  (`a`)
+  PRIMARY KEY (`a`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`)
 drop table if exists t1, t2;
 create table t1 (a int, b int, c int, d int, e int, f int, g int, h int,i int, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
@@ -468,25 +468,25 @@ delete from t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) character set koi8r default NULL
+  `a` char(10) CHARACTER SET koi8r DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 DEFAULT CHARACTER SET latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) character set koi8r default NULL
+  `a` char(10) CHARACTER SET koi8r DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 CONVERT TO CHARACTER SET latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) default NULL
+  `a` char(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 DEFAULT CHARACTER SET cp1251;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) character set latin1 default NULL
+  `a` char(10) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=cp1251
 drop table t1;
 create table t1 (myblob longblob,mytext longtext) 
@@ -495,14 +495,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `myblob` longblob,
-  `mytext` longtext collate latin1_general_cs
+  `mytext` longtext COLLATE latin1_general_cs
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_cs
 alter table t1 character set latin2;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `myblob` longblob,
-  `mytext` longtext character set latin1 collate latin1_general_cs
+  `mytext` longtext CHARACTER SET latin1 COLLATE latin1_general_cs
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2
 drop table t1;
 CREATE TABLE t1 (a int PRIMARY KEY, b INT UNIQUE);
@@ -511,7 +511,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  `b` int(11) default NULL,
+  `b` int(11) DEFAULT NULL,
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 ALTER TABLE t1 DROP PRIMARY KEY;
@@ -621,3 +621,29 @@ create table t1 (t varchar(255) default null, key t (t(80)))
 engine=myisam default charset=latin1;
 alter table t1 change t t text;
 drop table t1;
+CREATE TABLE t1 (s CHAR(8) BINARY);
+INSERT INTO t1 VALUES ('test');
+SELECT LENGTH(s) FROM t1;
+LENGTH(s)
+4
+ALTER TABLE t1 MODIFY s CHAR(10) BINARY;
+SELECT LENGTH(s) FROM t1;
+LENGTH(s)
+4
+DROP TABLE t1;
+CREATE TABLE t1 (s BINARY(8));
+INSERT INTO t1 VALUES ('test');
+SELECT LENGTH(s) FROM t1;
+LENGTH(s)
+8
+SELECT HEX(s) FROM t1;
+HEX(s)
+7465737400000000
+ALTER TABLE t1 MODIFY s BINARY(10);
+SELECT HEX(s) FROM t1;
+HEX(s)
+74657374000000000000
+SELECT LENGTH(s) FROM t1;
+LENGTH(s)
+10
+DROP TABLE t1;

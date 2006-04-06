@@ -775,7 +775,7 @@ if test ! -f $mdata/event.frm
 then
   c_ev="$c_ev CREATE TABLE event ("
   c_ev="$c_ev   db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
-  c_ev="$c_ev   name char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
+  c_ev="$c_ev   name char(64) CHARACTER SET utf8 NOT NULL default '',"
   c_ev="$c_ev   body longblob NOT NULL,"
   c_ev="$c_ev   definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
   c_ev="$c_ev   execute_at DATETIME default NULL,"
@@ -874,8 +874,8 @@ $c_pp
 $c_gl
 $c_sl
 $c_ev
-CREATE DATABASE IF NOT EXISTS cluster_replication;
-CREATE TABLE IF NOT EXISTS cluster_replication.binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts BIGINT UNSIGNED NOT NULL, updates BIGINT UNSIGNED NOT NULL, deletes BIGINT UNSIGNED NOT NULL, schemaops BIGINT UNSIGNED NOT NULL, PRIMARY KEY(epoch)) ENGINE=MYISAM;
+CREATE DATABASE IF NOT EXISTS cluster;
+CREATE TABLE IF NOT EXISTS cluster.binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts BIGINT UNSIGNED NOT NULL, updates BIGINT UNSIGNED NOT NULL, deletes BIGINT UNSIGNED NOT NULL, schemaops BIGINT UNSIGNED NOT NULL, PRIMARY KEY(epoch)) ENGINE=MYISAM;
 
 END_OF_DATA
 

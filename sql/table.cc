@@ -130,6 +130,26 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->version=       refresh_version;
     share->flush_version= flush_version;
 
+#ifdef HAVE_ROW_BASED_REPLICATION
+    /*
+      This constant is used to mark that no table map version has been
+      assigned.  No arithmetic is done on the value: it will be
+      overwritten with a value taken from MYSQL_BIN_LOG.
+    */
+    share->table_map_version= ~(ulonglong)0;
+
+    /*
+      Since alloc_table_share() can be called without any locking (for
+      example, ha_create_table... functions), we do not assign a table
+      map id here.  Instead we assign a value that is not used
+      elsewhere, and then assign a table map id inside open_table()
+      under the protection of the LOCK_open mutex.
+    */
+    share->table_map_id= ~0UL;
+    share->cached_row_logging_check= -1;
+
+#endif
+
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
     pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&share->cond, NULL);
@@ -179,6 +199,16 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
   share->normalized_path.str=    (char*) path;
   share->path.length= share->normalized_path.length= strlen(path);
   share->frm_version= 		 FRM_VER_TRUE_VARCHAR;
+
+#ifdef HAVE_ROW_BASED_REPLICATION
+  /*
+    Temporary tables are not replicated, but we set up these fields
+    anyway to be able to catch errors.
+   */
+  share->table_map_version= ~(ulonglong)0;
+  share->table_map_id= ~0UL;
+  share->cached_row_logging_check= -1;
+#endif
 
   DBUG_VOID_RETURN;
 }
@@ -271,6 +301,9 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   strxmov(path, share->normalized_path.str, reg_ext, NullS);
   if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
+    if (strchr(share->table_name.str, '@'))
+      goto err_not_open;
+
     /* Try unecoded 5.0 name */
     uint length;
     strxnmov(path, sizeof(path)-1,
@@ -371,6 +404,7 @@ err_not_open:
     share->error= error;
     open_table_error(share, error, (share->open_errno= my_errno), 0);
   }
+
   DBUG_RETURN(error);
 }
 
@@ -1503,24 +1537,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   *root_ptr= old_root;
   thd->status_var.opened_tables++;
-#ifdef HAVE_REPLICATION
-
-  /*
-     This constant is used to mark that no table map version has been
-     assigned.  No arithmetic is done on the value: it will be
-     overwritten with a value taken from MYSQL_BIN_LOG.
-  */
-  share->table_map_version= ~(ulonglong)0;
-
-  /*
-    Since openfrm() can be called without any locking (for example,
-    ha_create_table... functions), we do not assign a table map id
-    here.  Instead we assign a value that is not used elsewhere, and
-    then assign a table map id inside open_table() under the
-    protection of the LOCK_open mutex.
-   */
-  share->table_map_id= ULONG_MAX;
-#endif
 
   DBUG_RETURN (0);
 
@@ -1540,7 +1556,15 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   DBUG_RETURN (error);
 }
 
-	/* close a .frm file and it's tables */
+
+/*
+  Free information allocated by openfrm
+
+  SYNOPSIS
+    closefrm()
+    table		TABLE object to free
+    free_share		Is 1 if we also want to free table_share
+*/
 
 int closefrm(register TABLE *table, bool free_share)
 {
@@ -1548,6 +1572,7 @@ int closefrm(register TABLE *table, bool free_share)
   uint idx;
   KEY *key_info;
   DBUG_ENTER("closefrm");
+
   if (table->db_stat)
     error=table->file->close();
   key_info= table->key_info;
@@ -2196,7 +2221,7 @@ bool check_db_name(char *name)
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    last_char_is_space= my_isspace(default_charset_info, *name);
+    last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
@@ -2238,7 +2263,7 @@ bool check_table_name(const char *name, uint length)
   while (name != end)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    last_char_is_space= my_isspace(default_charset_info, *name);
+    last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, end);
@@ -2267,7 +2292,7 @@ bool check_column_name(const char *name)
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    last_char_is_space= my_isspace(default_charset_info, *name);
+    last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
@@ -2379,12 +2404,14 @@ table_check_intact(TABLE *table, uint table_f_count,
              table running on a old server will be valid.
         */ 
         field->sql_type(sql_type);
-        if (strncmp(sql_type.c_ptr(), table_def->type.str,
+        if (sql_type.length() < table_def->type.length - 1 ||
+            strncmp(sql_type.ptr(),
+                    table_def->type.str,
                     table_def->type.length - 1))
         {
           sql_print_error("(%s) Expected field %s at position %d to have type "
                           "%s, found %s", table->alias, table_def->name.str,
-                          i, table_def->type.str, sql_type.c_ptr()); 
+                          i, table_def->type.str, sql_type.c_ptr_safe()); 
           error= TRUE;
         }
         else if (table_def->cset.str && !field->has_charset())
@@ -3326,8 +3353,15 @@ const char *Natural_join_column::db_name()
   if (view_field)
     return table_ref->view_db.str;
 
+  /*
+    Test that TABLE_LIST::db is the same as st_table_share::db to
+    ensure consistency. An exception are I_S schema tables, which
+    are inconsistent in this respect.
+  */
   DBUG_ASSERT(!strcmp(table_ref->db,
-                      table_ref->table->s->db.str));
+                      table_ref->table->s->db.str) ||
+              (table_ref->schema_table &&
+               table_ref->table->s->db.str[0] == 0));
   return table_ref->db;
 }
 
@@ -3529,7 +3563,15 @@ const char *Field_iterator_table_ref::db_name()
   else if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->db_name();
 
-  DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db.str));
+  /*
+    Test that TABLE_LIST::db is the same as st_table_share::db to
+    ensure consistency. An exception are I_S schema tables, which
+    are inconsistent in this respect.
+  */
+  DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db.str) ||
+              (table_ref->schema_table &&
+               table_ref->table->s->db.str[0] == 0));
+
   return table_ref->db;
 }
 
@@ -3550,11 +3592,31 @@ GRANT_INFO *Field_iterator_table_ref::grant()
 
   SYNOPSIS
     Field_iterator_table_ref::get_or_create_column_ref()
-    is_created  [out] set to TRUE if the column was created,
-                      FALSE if we return an already created colum
+    parent_table_ref  the parent table reference over which the
+                      iterator is iterating
 
   DESCRIPTION
-    TODO
+    Create a new natural join column for the current field of the
+    iterator if no such column was created, or return an already
+    created natural join column. The former happens for base tables or
+    views, and the latter for natural/using joins. If a new field is
+    created, then the field is added to 'parent_table_ref' if it is
+    given, or to the original table referene of the field if
+    parent_table_ref == NULL.
+
+  NOTES
+    This method is designed so that when a Field_iterator_table_ref
+    walks through the fields of a table reference, all its fields
+    are created and stored as follows:
+    - If the table reference being iterated is a stored table, view or
+      natural/using join, store all natural join columns in a list
+      attached to that table reference.
+    - If the table reference being iterated is a nested join that is
+      not natural/using join, then do not materialize its result
+      fields. This is OK because for such table references
+      Field_iterator_table_ref iterates over the fields of the nested
+      table references (recursively). In this way we avoid the storage
+      of unnecessay copies of result columns of nested joins.
 
   RETURN
     #     Pointer to a column of a natural join (or its operand)
@@ -3562,22 +3624,29 @@ GRANT_INFO *Field_iterator_table_ref::grant()
 */
 
 Natural_join_column *
-Field_iterator_table_ref::get_or_create_column_ref(bool *is_created)
+Field_iterator_table_ref::get_or_create_column_ref(TABLE_LIST *parent_table_ref)
 {
   Natural_join_column *nj_col;
+  bool is_created= TRUE;
+  uint field_count;
+  TABLE_LIST *add_table_ref= parent_table_ref ?
+                             parent_table_ref : table_ref;
 
-  *is_created= TRUE;
+  LINT_INIT(field_count);
   if (field_it == &table_field_it)
   {
     /* The field belongs to a stored table. */
     Field *field= table_field_it.field();
     nj_col= new Natural_join_column(field, table_ref);
+    field_count= table_ref->table->s->fields;
   }
   else if (field_it == &view_field_it)
   {
     /* The field belongs to a merge view or information schema table. */
     Field_translator *translated_field= view_field_it.field_translator();
     nj_col= new Natural_join_column(translated_field, table_ref);
+    field_count= table_ref->field_translation_end -
+                 table_ref->field_translation;
   }
   else
   {
@@ -3586,12 +3655,43 @@ Field_iterator_table_ref::get_or_create_column_ref(bool *is_created)
       already created via one of the two constructor calls above. In this case
       we just return the already created column reference.
     */
-    *is_created= FALSE;
+    DBUG_ASSERT(table_ref->is_join_columns_complete);
+    is_created= FALSE;
     nj_col= natural_join_it.column_ref();
     DBUG_ASSERT(nj_col);
   }
   DBUG_ASSERT(!nj_col->table_field ||
               nj_col->table_ref->table == nj_col->table_field->table);
+
+  /*
+    If the natural join column was just created add it to the list of
+    natural join columns of either 'parent_table_ref' or to the table
+    reference that directly contains the original field.
+  */
+  if (is_created)
+  {
+    /* Make sure not all columns were materialized. */
+    DBUG_ASSERT(!add_table_ref->is_join_columns_complete);
+    if (!add_table_ref->join_columns)
+    {
+      /* Create a list of natural join columns on demand. */
+      if (!(add_table_ref->join_columns= new List<Natural_join_column>))
+        return NULL;
+      add_table_ref->is_join_columns_complete= FALSE;
+    }
+    add_table_ref->join_columns->push_back(nj_col);
+    /*
+      If new fields are added to their original table reference, mark if
+      all fields were added. We do it here as the caller has no easy way
+      of knowing when to do it.
+      If the fields are being added to parent_table_ref, then the caller
+      must take care to mark when all fields are created/added.
+    */
+    if (!parent_table_ref &&
+        add_table_ref->join_columns->elements == field_count)
+      add_table_ref->is_join_columns_complete= TRUE;
+  }
+
   return nj_col;
 }
 

@@ -22,6 +22,7 @@ MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 MYSQLLIBdir=            $(libdir)
 
+EXTRA_DIST =		libmysqld.def
 DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
@@ -67,7 +68,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
         event_executor.cc event.cc event_timed.cc \
         rpl_filter.cc sql_partition.cc handlerton.cc sql_plugin.cc \
         sql_tablespace.cc \
-        rpl_injector.cc my_user.c
+        rpl_injector.cc my_user.c partition_info.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 EXTRA_libmysqld_a_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
@@ -93,8 +94,12 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/dbug/libdbug.a \
 		$(top_builddir)/vio/libvio.a \
 		@mysql_se_libs@ \
-                @yassl_libs_with_path@
+		$(yassl_las)
 
+if HAVE_YASSL
+yassl_las = $(top_srcdir)/extra/yassl/src/libyassl.la \
+	    $(top_srcdir)/extra/yassl/taocrypt/src/libtaocrypt.la
+endif
 
 # Storage engine specific compilation options
 

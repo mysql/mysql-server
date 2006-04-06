@@ -57,9 +57,8 @@ public:
   virtual ~TransporterFacade();
   bool init(Uint32, const ndb_mgm_configuration *);
 
-  static TransporterFacade* instance();
   int start_instance(int, const ndb_mgm_configuration*);
-  static void stop_instance();
+  void stop_instance();
   
   /**
    * Register this block for sending/receiving signals
@@ -122,6 +121,7 @@ public:
   Uint32 get_scan_batch_size();
   Uint32 get_batch_byte_size();
   Uint32 get_batch_size();
+  Uint32 m_waitfor_timeout; // in milli seconds...
 
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
 
@@ -277,8 +277,6 @@ private:
   
 public:
   NdbMutex* theMutexPtr;
-private:
-  static TransporterFacade* theFacadeInstance;
 
 public:
   GlobalDictCache m_globalDictCache;
@@ -302,12 +300,6 @@ class PollGuard
   bool m_locked;
 };
 
-inline
-TransporterFacade*
-TransporterFacade::instance()
-{
-  return theFacadeInstance;
-}
 
 inline
 void 

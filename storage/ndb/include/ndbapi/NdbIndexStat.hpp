@@ -108,6 +108,7 @@ private:
     Uint16 m_entries;
     Uint8 m_idir;
     Uint8 pad1;
+    Area() {}
     Pointer& get_pointer(unsigned i) const {
       return *(Pointer*)&m_data[i];
     }

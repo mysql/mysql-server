@@ -89,3 +89,15 @@ show create table t1;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug#16857
+#
+create table t1 (col1 binary(4));
+insert into t1 values ('a'),('a ');
+select hex(col1) from t1;
+alter table t1 modify col1 binary(10);
+select hex(col1) from t1;
+insert into t1 values ('b'),('b ');
+select hex(col1) from t1;
+drop table t1;

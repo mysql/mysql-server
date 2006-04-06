@@ -56,6 +56,7 @@ struct EmulatorData {
   class ThreadConfig  * theThreadConfig;
   class SimBlockList  * theSimBlockList;
   class SocketServer  * m_socket_server;
+  class Ndbd_mem_manager * m_mem_manager;
 
   /**
    * Constructor

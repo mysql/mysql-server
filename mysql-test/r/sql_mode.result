@@ -14,10 +14,10 @@ sql_mode
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL auto_increment,
-  `pseudo` varchar(35) character set latin2 NOT NULL default '',
-  `email` varchar(60) character set latin2 NOT NULL default '',
-  PRIMARY KEY  (`a`),
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `pseudo` varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  `email` varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  PRIMARY KEY (`a`),
   UNIQUE KEY `email` USING BTREE (`email`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="ansi_quotes";
@@ -27,10 +27,10 @@ sql_mode	ANSI_QUOTES
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
-  "a" int(11) NOT NULL auto_increment,
-  "pseudo" varchar(35) character set latin2 NOT NULL default '',
-  "email" varchar(60) character set latin2 NOT NULL default '',
-  PRIMARY KEY  ("a"),
+  "a" int(11) NOT NULL AUTO_INCREMENT,
+  "pseudo" varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  "email" varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  PRIMARY KEY ("a"),
   UNIQUE KEY "email" USING BTREE ("email")
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="no_table_options";
@@ -40,10 +40,10 @@ sql_mode	NO_TABLE_OPTIONS
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL auto_increment,
-  `pseudo` varchar(35) character set latin2 NOT NULL default '',
-  `email` varchar(60) character set latin2 NOT NULL default '',
-  PRIMARY KEY  (`a`),
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `pseudo` varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  `email` varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  PRIMARY KEY (`a`),
   UNIQUE KEY `email` USING BTREE (`email`)
 )
 set @@sql_mode="no_key_options";
@@ -53,10 +53,10 @@ sql_mode	NO_KEY_OPTIONS
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL auto_increment,
-  `pseudo` varchar(35) character set latin2 NOT NULL default '',
-  `email` varchar(60) character set latin2 NOT NULL default '',
-  PRIMARY KEY  (`a`),
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `pseudo` varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  `email` varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  PRIMARY KEY (`a`),
   UNIQUE KEY `email` (`email`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="no_field_options,mysql323,mysql40";
@@ -67,9 +67,9 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  `pseudo` varchar(35) NOT NULL default '',
-  `email` varchar(60) NOT NULL default '',
-  PRIMARY KEY  (`a`),
+  `pseudo` varchar(35) NOT NULL DEFAULT '',
+  `email` varchar(60) NOT NULL DEFAULT '',
+  PRIMARY KEY (`a`),
   UNIQUE KEY `email` (`email`)
 ) TYPE=HEAP ROW_FORMAT=DYNAMIC
 set sql_mode="postgresql,oracle,mssql,db2,maxdb";
@@ -80,9 +80,9 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
   "a" int(11) NOT NULL,
-  "pseudo" varchar(35) character set latin2 NOT NULL default '',
-  "email" varchar(60) character set latin2 NOT NULL default '',
-  PRIMARY KEY  ("a"),
+  "pseudo" varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  "email" varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  PRIMARY KEY ("a"),
   UNIQUE KEY "email" ("email")
 )
 drop table t1;
@@ -95,25 +95,25 @@ set @@sql_mode="";
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) default NULL,
-  `b` char(10) character set latin1 collate latin1_bin default NULL,
-  `c` binary(10) default NULL
+  `a` char(10) DEFAULT NULL,
+  `b` char(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+  `c` binary(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 set @@sql_mode="mysql323";
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) default NULL,
-  `b` char(10) binary default NULL,
-  `c` binary(10) default NULL
+  `a` char(10) DEFAULT NULL,
+  `b` char(10) binary DEFAULT NULL,
+  `c` binary(10) DEFAULT NULL
 ) TYPE=MyISAM
 set @@sql_mode="mysql40";
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) default NULL,
-  `b` char(10) binary default NULL,
-  `c` binary(10) default NULL
+  `a` char(10) DEFAULT NULL,
+  `b` char(10) binary DEFAULT NULL,
+  `c` binary(10) DEFAULT NULL
 ) TYPE=MyISAM
 drop table t1;
 set session sql_mode = '';
@@ -121,7 +121,7 @@ create table t1 ( min_num   dec(6,6)     default .000001);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `min_num` decimal(6,6) default '0.000001'
+  `min_num` decimal(6,6) DEFAULT '0.000001'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1 ;
 set session sql_mode = 'IGNORE_SPACE';
@@ -129,14 +129,14 @@ create table t1 ( min_num   dec(6,6)     default 0.000001);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `min_num` decimal(6,6) default '0.000001'
+  `min_num` decimal(6,6) DEFAULT '0.000001'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1 ;
 create table t1 ( min_num   dec(6,6)     default .000001);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `min_num` decimal(6,6) default '0.000001'
+  `min_num` decimal(6,6) DEFAULT '0.000001'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1 ;
 set @@SQL_MODE=NULL;
@@ -148,17 +148,17 @@ f2 timestamp default current_timestamp on update current_timestamp);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
-  "f1" int(11) NOT NULL auto_increment,
-  "f2" timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  ("f1")
+  "f1" int(11) NOT NULL AUTO_INCREMENT,
+  "f2" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY ("f1")
 )
 set session sql_mode=no_field_options;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` int(11) NOT NULL,
-  `f2` timestamp NOT NULL default CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`f1`)
+  `f2` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`f1`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='';
@@ -427,23 +427,23 @@ SET @@SQL_MODE='';
 create function `foo` () returns int return 5;
 show create function `foo`;
 Function	sql_mode	Create Function
-foo		CREATE FUNCTION `foo`() RETURNS int(11)
+foo		CREATE DEFINER=`root`@`localhost` FUNCTION `foo`() RETURNS int(11)
 return 5
 SET @@SQL_MODE='ANSI_QUOTES';
 show create function `foo`;
 Function	sql_mode	Create Function
-foo		CREATE FUNCTION `foo`() RETURNS int(11)
+foo		CREATE DEFINER=`root`@`localhost` FUNCTION `foo`() RETURNS int(11)
 return 5
 drop function `foo`;
 create function `foo` () returns int return 5;
 show create function `foo`;
 Function	sql_mode	Create Function
-foo	ANSI_QUOTES	CREATE FUNCTION "foo"() RETURNS int(11)
+foo	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" FUNCTION "foo"() RETURNS int(11)
 return 5
 SET @@SQL_MODE='';
 show create function `foo`;
 Function	sql_mode	Create Function
-foo	ANSI_QUOTES	CREATE FUNCTION "foo"() RETURNS int(11)
+foo	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" FUNCTION "foo"() RETURNS int(11)
 return 5
 drop function `foo`;
 SET @@SQL_MODE='';
@@ -460,4 +460,20 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER="root"@"localhost" SQL SECURITY DEFINER VI
 create view v2 as select a from t2 where a in (select a from v1);
 drop view v2, v1;
 drop table t1, t2;
+select @@sql_mode;
+@@sql_mode
+ANSI_QUOTES
+set sql_mode=2097152;
+select @@sql_mode;
+@@sql_mode
+STRICT_TRANS_TABLES
+set sql_mode=16384+(65536*4);
+select @@sql_mode;
+@@sql_mode
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_TABLE_OPTIONS,ANSI
+set sql_mode=2147483648;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '2147483648'
+select @@sql_mode;
+@@sql_mode
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_TABLE_OPTIONS,ANSI
 SET @@SQL_MODE=@OLD_SQL_MODE;

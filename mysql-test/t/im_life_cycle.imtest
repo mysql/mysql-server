@@ -149,3 +149,18 @@ SHOW INSTANCES;
 ###########################################################################
 --error 1149
 SHOW INSTANCE STATUS;
+
+#
+# Tests for bug fixes
+#
+
+#
+# Bug #12813    Instance Manager: START/STOP INSTANCE commands accept
+#                                 a list as argument.
+#
+
+--error 1149
+START INSTANCE mysqld1,mysqld2,mysqld3;
+
+--error 1149
+STOP INSTANCE mysqld1,mysqld2,mysqld3;

@@ -64,3 +64,11 @@ TIMESTAMP	root[root] @ localhost []	2	1	Query	create table bug16905 (s char(15) 
 TIMESTAMP	root[root] @ localhost []	2	1	Query	insert into bug16905 values ('новое')
 TIMESTAMP	root[root] @ localhost []	2	1	Query	select * from mysql.general_log
 drop table bug16905;
+truncate table mysql.slow_log;
+set session long_query_time=1;
+select sleep(2);
+sleep(2)
+0
+select * from mysql.slow_log;
+start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
+TIMESTAMP,	root[root] @ localhost []	USER_HOST,	QUERY_TIME	1	0	test	0	0	1	select sleep(2)

@@ -15,7 +15,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "que0types.h"
 #include "row0types.h"
 #include "mtr0mtr.h"
-					
+
 /*************************************************************************
 Creates a table create graph. */
 

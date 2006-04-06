@@ -24,4 +24,4 @@ a
 ABE
 ANG
 LIL
-DROP TABLE t1,t2;
+DROP DATABASE mysqltest1;

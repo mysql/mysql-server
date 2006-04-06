@@ -458,7 +458,7 @@ create table t2 select group_concat(a) as a from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(400) character set cp1250 default NULL
+  `a` varchar(400) CHARACTER SET cp1250 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select collation(group_concat(a,_koi8r'test')) from t1;
 collation(group_concat(a,_koi8r'test'))
@@ -596,6 +596,21 @@ GROUP_CONCAT(a ORDER BY a)
 ,x
 ,z
 DROP TABLE t1;
+create table t1(f1 int);
+insert into t1 values(1),(2),(3);
+select f1, group_concat(f1+1) from t1 group by f1 with rollup;
+f1	group_concat(f1+1)
+1	2
+2	3
+3	4
+NULL	2,3,4
+select count(distinct (f1+1)) from t1 group by f1 with rollup;
+count(distinct (f1+1))
+1
+1
+1
+3
+drop table t1;
 set names latin1;
 create table t1 (a char, b char);
 insert into t1 values ('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b');

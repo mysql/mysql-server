@@ -29,10 +29,10 @@ insert into t2 values(fn1(2));
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL DEFAULT '0',
   `blob_column` longblob,
-  `vchar_column` varchar(100) default NULL,
-  PRIMARY KEY  (`a`)
+  `vchar_column` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP PROCEDURE test.p1;
 DROP FUNCTION test.fn1;

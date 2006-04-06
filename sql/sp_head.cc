@@ -80,8 +80,8 @@ sp_map_item_type(enum enum_field_types type)
 /*
   Return a string representation of the Item value.
 
-  NOTE: this is a legacy-compatible implementation. It fails if the value
-  contains non-ordinary symbols, which should be escaped.
+  NOTE: If the item has a string result type, the string is escaped
+  according to its character set.
 
   SYNOPSIS
     item    a pointer to the Item
@@ -119,9 +119,9 @@ sp_get_item_value(Item *item, String *str)
 
         buf.append('_');
         buf.append(result->charset()->csname);
-        buf.append('\'');
-        buf.append(*result);
-        buf.append('\'');
+        if (result->charset()->escape_with_backslash_is_dangerous)
+          buf.append(' ');
+        append_query_string(result->charset(), result, &buf);
         str->copy(buf);
 
         return str;
@@ -176,6 +176,7 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_CREATE_DB:
   case SQLCOM_SHOW_CREATE_FUNC:
   case SQLCOM_SHOW_CREATE_PROC:
+  case SQLCOM_SHOW_CREATE_EVENT:
   case SQLCOM_SHOW_DATABASES:
   case SQLCOM_SHOW_ERRORS:
   case SQLCOM_SHOW_FIELDS:
@@ -200,6 +201,7 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_WARNS:
   case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_FUNC_CODE:
+  case SQLCOM_SHOW_AUTHORS:
   case SQLCOM_REPAIR:
   case SQLCOM_BACKUP_TABLE:
   case SQLCOM_RESTORE_TABLE:
@@ -561,6 +563,7 @@ create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
   TYPELIB *result= NULL;
   CHARSET_INFO *cs= field_def->charset;
   DBUG_ENTER("create_typelib");
+
   if (src->elements)
   {
     result= (TYPELIB*) alloc_root(mem_root, sizeof(TYPELIB));
@@ -568,8 +571,8 @@ create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
     result->name= "";
     if (!(result->type_names=(const char **)
           alloc_root(mem_root,(sizeof(char *)+sizeof(int))*(result->count+1))))
-      return 0;
-    result->type_lengths= (unsigned int *)(result->type_names + result->count+1);
+      DBUG_RETURN(0);
+    result->type_lengths= (uint*)(result->type_names + result->count+1);
     List_iterator<String> it(*src);
     String conv;
     for (uint i=0; i < result->count; i++)
@@ -602,7 +605,7 @@ create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
     result->type_names[result->count]= 0;
     result->type_lengths[result->count]= 0;
   }
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -749,12 +752,6 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
   written into binary log. Instead we catch function calls the statement
   makes and write it into binary log separately (see #3).
   
-  We actually can easily write SELECT statements into the binary log in the 
-  right order (we don't have issues with const tables being unlocked early
-  because SELECTs that use FUNCTIONs unlock all tables at once) We don't do 
-  it because replication slave thread currently can't execute SELECT
-  statements. Fixing this is on the TODO.
-  
   2. PROCEDURE calls
 
   CALL statements are not written into binary log. Instead
@@ -775,7 +772,7 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
      function execution (grep for start_union_events and stop_union_events)
 
    If the answers are No and Yes, we write the function call into the binary
-   log as "DO spfunc(<param1value>, <param2value>, ...)"
+   log as "SELECT spfunc(<param1value>, <param2value>, ...)"
   
   
   4. Miscellaneous issues.
@@ -1228,10 +1225,10 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   bool err_status= FALSE;
-
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
 
+  LINT_INIT(binlog_save_options);
   params = m_pcont->context_pvars();
 
   /*
@@ -1307,7 +1304,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     each substatement be binlogged its way.
   */
   need_binlog_call= mysql_bin_log.is_open() &&
-    (thd->options & OPTION_BIN_LOG) && !binlog_row_based;
+    (thd->options & OPTION_BIN_LOG) && !thd->current_stmt_binlog_row_based;
   if (need_binlog_call)
   {
     reset_dynamic(&thd->user_var_events);
@@ -1327,7 +1324,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       char buf[256];
       String bufstr(buf, sizeof(buf), &my_charset_bin);
       bufstr.length(0);
-      bufstr.append(STRING_WITH_LEN("DO "));
+      bufstr.append(STRING_WITH_LEN("SELECT "));
       append_identifier(thd, &bufstr, m_name.str, m_name.length);
       bufstr.append('(');
       for (uint i=0; i < argcount; i++)
@@ -1418,6 +1415,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   uint params = m_pcont->context_pvars();
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
+  bool save_enable_slow_log= false;
+  bool save_log_general= false;
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
@@ -1516,12 +1515,28 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
     DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
   }
-
+  if (!(m_flags & LOG_SLOW_STATEMENTS) && thd->enable_slow_log)
+  {
+    DBUG_PRINT("info", ("Disabling slow log for the execution"));
+    save_enable_slow_log= true;
+    thd->enable_slow_log= FALSE;
+  }
+  if (!(m_flags & LOG_GENERAL_LOG) && !(thd->options & OPTION_LOG_OFF))
+  {
+    DBUG_PRINT("info", ("Disabling general log for the execution"));
+    save_log_general= true;
+    /* disable this bit */
+    thd->options |= OPTION_LOG_OFF;
+  }
   thd->spcont= nctx;
-
+  
   if (!err_status)
     err_status= execute(thd);
 
+  if (save_log_general)
+    thd->options &= ~OPTION_LOG_OFF;
+  if (save_enable_slow_log)
+    thd->enable_slow_log= true;
   /*
     In the case when we weren't able to employ reuse mechanism for
     OUT/INOUT paranmeters, we should reallocate memory. This
@@ -1626,6 +1641,8 @@ sp_head::reset_lex(THD *thd)
   sublex->trg_chistics= oldlex->trg_chistics;
   sublex->trg_table_fields.empty();
   sublex->sp_lex_in_use= FALSE;
+
+  sublex->in_comment= oldlex->in_comment;
 
   /* Reset type info. */
 
@@ -1832,19 +1849,27 @@ sp_head::set_info(longlong created, longlong modified,
 void
 sp_head::set_definer(const char *definer, uint definerlen)
 {
-  uint user_name_len;
-  char user_name_str[USERNAME_LENGTH + 1];
-  uint host_name_len;
-  char host_name_str[HOSTNAME_LENGTH + 1];
+  char user_name_holder[USERNAME_LENGTH + 1];
+  LEX_STRING_WITH_INIT user_name(user_name_holder, USERNAME_LENGTH);
 
-  parse_user(definer, definerlen, user_name_str, &user_name_len,
-             host_name_str, &host_name_len);
+  char host_name_holder[HOSTNAME_LENGTH + 1];
+  LEX_STRING_WITH_INIT host_name(host_name_holder, HOSTNAME_LENGTH);
 
-  m_definer_user.str= strmake_root(mem_root, user_name_str, user_name_len);
-  m_definer_user.length= user_name_len;
+  parse_user(definer, definerlen, user_name.str, &user_name.length,
+             host_name.str, &host_name.length);
 
-  m_definer_host.str= strmake_root(mem_root, host_name_str, host_name_len);
-  m_definer_host.length= host_name_len;
+  set_definer(&user_name, &host_name);
+}
+
+
+void
+sp_head::set_definer(const LEX_STRING *user_name, const LEX_STRING *host_name)
+{
+  m_definer_user.str= strmake_root(mem_root, user_name->str, user_name->length);
+  m_definer_user.length= user_name->length;
+
+  m_definer_host.str= strmake_root(mem_root, host_name->str, host_name->length);
+  m_definer_host.length= host_name->length;
 }
 
 
@@ -2298,10 +2323,15 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       (the order of query cache and subst_spvars calls is irrelevant because
       queries with SP vars can't be cached)
     */
+    if (unlikely((thd->options & OPTION_LOG_OFF)==0))
+      general_log_print(thd, COM_QUERY, "%s", thd->query);
+
     if (query_cache_send_result_to_client(thd,
 					  thd->query, thd->query_length) <= 0)
     {
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
+      if (!res && unlikely(thd->enable_slow_log))
+        log_slow_statement(thd);
       query_cache_end_of_result(thd);
     }
     else
@@ -3185,24 +3215,9 @@ sp_change_security_context(THD *thd, sp_head *sp, Security_context **backup)
                                 sp->m_definer_host.str,
                                 sp->m_db.str))
     {
-#ifdef NOT_YET_REPLICATION_SAFE
-      /*
-        Until we don't properly replicate information about stored routine
-        definer with stored routine creation statement all stored routines
-        on slave are created under ''@'' definer. Therefore we won't be able
-        to run any routine which was replicated from master on slave server
-        if we emit error here. This will cause big problems for users
-        who use slave for fail-over. So until we fully implement WL#2897
-        "Complete definer support in the stored routines" we run suid
-        stored routines for which we were unable to find definer under
-        invoker security context.
-      */
       my_error(ER_NO_SUCH_USER, MYF(0), sp->m_definer_user.str,
                sp->m_definer_host.str);
       return TRUE;
-#else
-      return FALSE;
-#endif
     }
     *backup= thd->security_ctx;
     thd->security_ctx= &sp->m_security_ctx;

@@ -74,7 +74,6 @@
 #define MAX_QUERY     (256*1024)
 #define MAX_VAR_NAME	256
 #define MAX_COLUMNS	256
-#define PAD_SIZE	128
 #define MAX_CONS	128
 #define MAX_INCLUDE_DEPTH 16
 #define INIT_Q_LINES	  1024
@@ -116,8 +115,8 @@ enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
   The list of error codes to --error are stored in an internal array of
   structs. This struct can hold numeric SQL error codes or SQLSTATE codes
   as strings. The element next to the last active element in the list is
-  set to type ERR_EMPTY. When an SQL statement return an error we use
-  this list to check if this  is an expected error.
+  set to type ERR_EMPTY. When an SQL statement returns an error, we use
+  this list to check if this is an expected error.
 */
 
 enum match_err_type
@@ -157,6 +156,7 @@ static uint global_expected_errors;
 static int record = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
 const char *user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
+const char *opt_include= 0;
 static int port = 0;
 static my_bool opt_big_test= 0, opt_compress= 0, silent= 0, verbose = 0;
 static my_bool tty_password= 0;
@@ -209,9 +209,9 @@ struct st_replace_regex
    */
   char* buf;
   char* even_buf;
-  uint even_buf_len;
   char* odd_buf;
-  uint odd_buf_len;
+  int even_buf_len;
+  int odd_buf_len;
 };
 
 struct st_replace_regex *glob_replace_regex= 0;
@@ -308,18 +308,6 @@ typedef struct
   char *env_s;
 } VAR;
 
-#if defined(__NETWARE__) || defined(__WIN__)
-/*
-  Netware doesn't proved environment variable substitution that is done
-  by the shell in unix environments. We do this in the following function:
-*/
-
-static char *subst_env_var(const char *cmd);
-static FILE *my_popen(const char *cmd, const char *mode);
-#undef popen
-#define popen(A,B) my_popen((A),(B))
-#endif /* __NETWARE__ */
-
 VAR var_reg[10];
 /*Perl/shell-like variable registers */
 HASH var_hash;
@@ -392,13 +380,6 @@ const char *command_names[]=
   "connection",
   "query",
   "connect",
-  /* the difference between sleep and real_sleep is that sleep will use
-     the delay from command line (--sleep) if there is one.
-     real_sleep always uses delay from mysqltest's command line argument.
-     the logic is that sometimes delays are cpu-dependent (and --sleep
-     can be used to set this delay. real_sleep is used for cpu-independent
-     delays
-   */
   "sleep",
   "real_sleep",
   "inc",
@@ -427,8 +408,10 @@ const char *command_names[]=
   "enable_rpl_parse",
   "disable_rpl_parse",
   "eval_result",
+  /* Enable/disable that the _query_ is logged to result file */
   "enable_query_log",
   "disable_query_log",
+  /* Enable/disable that the _result_ from a query is logged to result file */
   "enable_result_log",
   "disable_result_log",
   "server_start",
@@ -480,6 +463,7 @@ static VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 static void var_free(void* v);
 
 void dump_result_to_reject_file(const char *record_file, char *buf, int size);
+void dump_result_to_log_file(const char *record_file, char *buf, int size);
 
 int close_connection(struct st_query*);
 static void set_charset(struct st_query*);
@@ -500,20 +484,22 @@ typedef struct st_pointer_array {		/* when using array-strings */
 struct st_replace;
 struct st_replace *init_replace(my_string *from, my_string *to, uint count,
 				my_string word_end_chars);
-uint replace_strings(struct st_replace *rep, my_string *start,
-		     uint *max_length, const char *from);
 void free_replace();
 static void free_replace_regex();
 static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name);
+static void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
+                                   const char *from, int len);
 void free_pointer_array(POINTER_ARRAY *pa);
-static int initialize_replace_buffer(void);
-static void do_eval(DYNAMIC_STRING *query_eval, const char *query);
+static void do_eval(DYNAMIC_STRING *query_eval, const char *query,
+                    my_bool pass_through_escape_chars);
 static void str_to_file(const char *fname, char *str, int size);
-int do_server_op(struct st_query *q,const char *op);
+
+#ifdef __WIN__
+static void free_tmp_sh_file();
+static void free_win_path_patterns();
+#endif
 
 struct st_replace *glob_replace;
-static char *out_buff;
-static uint out_length;
 static int eval_result = 0;
 
 /* For column replace */
@@ -538,10 +524,11 @@ static void handle_error(const char *query, struct st_query *q,
 			 const char *err_sqlstate, DYNAMIC_STRING *ds);
 static void handle_no_error(struct st_query *q);
 
-static void do_eval(DYNAMIC_STRING* query_eval, const char *query)
+static void do_eval(DYNAMIC_STRING* query_eval, const char *query,
+                    my_bool pass_through_escape_chars)
 {
   const char *p;
-  register char c;
+  register char c, next_c;
   register int escaped = 0;
   VAR* v;
   DBUG_ENTER("do_eval");
@@ -563,13 +550,25 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char *query)
       }
       break;
     case '\\':
+      next_c= *(p+1);
       if (escaped)
       {
 	escaped = 0;
 	dynstr_append_mem(query_eval, p, 1);
       }
-      else
+      else if (next_c == '\\' || next_c == '$')
+      {
+        /* Set escaped only if next char is \ or $ */
 	escaped = 1;
+
+        if (pass_through_escape_chars)
+        {
+          /* The escape char should be added to the output string. */
+          dynstr_append_mem(query_eval, p, 1);
+        }
+      }
+      else
+	dynstr_append_mem(query_eval, p, 1);
       break;
     default:
       dynstr_append_mem(query_eval, p, 1);
@@ -645,6 +644,10 @@ static void free_used_memory()
   free_defaults(default_argv);
   mysql_server_end();
   free_re();
+#ifdef __WIN__
+  free_tmp_sh_file();
+  free_win_path_patterns();
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -652,6 +655,8 @@ static void die(const char *fmt, ...)
 {
   va_list args;
   DBUG_ENTER("die");
+
+  /* Print the error message */
   va_start(args, fmt);
   if (fmt)
   {
@@ -666,6 +671,12 @@ static void die(const char *fmt, ...)
     fflush(stderr);
   }
   va_end(args);
+
+  /* Dump the result that has been accumulated so far to .log file */
+  if (result_file && ds_res.length)
+    dump_result_to_log_file(result_file, ds_res.str, ds_res.length);
+
+  /* Clean up and exit */
   free_used_memory();
   my_end(MY_CHECK_ERROR);
 
@@ -753,7 +764,7 @@ static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   init_dynamic_string(&res_ds, "", 0, 65536);
   if (eval_result)
   {
-    do_eval(&res_ds, tmp);
+    do_eval(&res_ds, tmp, FALSE);
     res_ptr = res_ds.str;
     if ((res_len = res_ds.length) != ds->length)
     {
@@ -789,8 +800,8 @@ err:
   check_result
   ds - content to be checked
   fname - name of file to check against
-  require_option - if set and check fails, the test will be aborted with the special
-                   exit code "not supported test"
+  require_option - if set and check fails, the test will be aborted
+                   with the special exit code "not supported test"
 
   RETURN VALUES
    error - the function will not return
@@ -1030,17 +1041,7 @@ int do_require_manager(struct st_query *query __attribute__((unused)) )
 }
 
 #ifndef EMBEDDED_LIBRARY
-int do_server_start(struct st_query *q)
-{
-  return do_server_op(q, "start");
-}
-
-int do_server_stop(struct st_query *q)
-{
-  return do_server_op(q, "stop");
-}
-
-int do_server_op(struct st_query *q, const char *op)
+static int do_server_op(struct st_query *q, const char *op)
 {
   char *p= q->first_argument;
   char com_buf[256], *com_p;
@@ -1070,6 +1071,17 @@ int do_server_op(struct st_query *q, const char *op)
   q->last_argument= p;
   return 0;
 }
+
+int do_server_start(struct st_query *q)
+{
+  return do_server_op(q, "start");
+}
+
+int do_server_stop(struct st_query *q)
+{
+  return do_server_op(q, "stop");
+}
+
 #endif
 
 
@@ -1099,12 +1111,41 @@ int do_source(struct st_query *query)
     *p++= 0;
   query->last_argument= p;
   /*
-     If this file has already been sourced, dont source it again.
-     It's already available in the q_lines cache
+     If this file has already been sourced, don't source it again.
+     It's already available in the q_lines cache.
   */
   if (parser.current_line < (parser.read_lines - 1))
     return 0;
   return open_file(name);
+}
+
+#ifdef __WIN__
+/* Variables used for temuprary sh files used for emulating Unix on Windows */
+char tmp_sh_name[64], tmp_sh_cmd[70];
+
+static void init_tmp_sh_file()
+{
+  /* Format a name for the tmp sh file that is unique for this process */
+  my_snprintf(tmp_sh_name, sizeof(tmp_sh_name), "tmp_%d.sh", getpid());
+  /* Format the command to execute in order to run the script */
+  my_snprintf(tmp_sh_cmd, sizeof(tmp_sh_cmd), "sh %s", tmp_sh_name);
+}
+
+static void free_tmp_sh_file()
+{
+  my_delete(tmp_sh_name, MYF(0));
+}
+#endif
+
+FILE* my_popen(DYNAMIC_STRING* ds_cmd, const char* mode)
+{
+#ifdef __WIN__
+  /* Dump the command into a sh script file and execute with popen */
+  str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
+  return popen(tmp_sh_cmd, mode);
+#else
+  return popen(ds_cmd->str, mode);
+#endif
 }
 
 
@@ -1123,16 +1164,21 @@ int do_source(struct st_query *query)
     expected error array, previously set with the --error command.
     It can thus be used to execute a command that shall fail.
 
+  NOTE
+     Although mysqltest is executed from cygwin shell, the command will be
+     executed in "cmd.exe". Thus commands like "rm" etc can NOT be used, use
+     system for those commands.
 */
 
 static void do_exec(struct st_query *query)
 {
   int error;
-  DYNAMIC_STRING *ds= NULL;
   char buf[1024];
   FILE *res_file;
   char *cmd= query->first_argument;
+  DYNAMIC_STRING ds_cmd;
   DBUG_ENTER("do_exec");
+  DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
   while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
@@ -1140,24 +1186,28 @@ static void do_exec(struct st_query *query)
     die("Missing argument in exec");
   query->last_argument= query->end;
 
-  DBUG_PRINT("info", ("Executing '%s'", cmd));
+  init_dynamic_string(&ds_cmd, 0, strlen(cmd)+256, 256);
+  /* Eval the command, thus replacing all environment variables */
+  do_eval(&ds_cmd, cmd, TRUE);
+  cmd= ds_cmd.str;
 
-  if (!(res_file= popen(cmd, "r")) && query->abort_on_error)
-    die("popen(\"%s\", \"r\") failed", cmd);
+  DBUG_PRINT("info", ("Executing '%s' as '%s'",
+                      query->first_argument, cmd));
 
-  if (disable_result_log)
+  if (!(res_file= my_popen(&ds_cmd, "r")) && query->abort_on_error)
+    die("popen(\"%s\", \"r\") failed", query->first_argument);
+
+  while (fgets(buf, sizeof(buf), res_file))
   {
-    while (fgets(buf, sizeof(buf), res_file))
+    if (disable_result_log)
     {
       buf[strlen(buf)-1]=0;
       DBUG_PRINT("exec_result",("%s", buf));
     }
-  }
-  else
-  {
-    ds= &ds_res;
-    while (fgets(buf, sizeof(buf), res_file))
-      replace_dynstr_append(ds, buf);
+    else
+    {
+      replace_dynstr_append(&ds_res, buf);
+    }
   }
   error= pclose(res_file);
   if (error != 0)
@@ -1166,14 +1216,12 @@ static void do_exec(struct st_query *query)
     my_bool ok= 0;
 
     if (query->abort_on_error)
-      die("command \"%s\" failed", cmd);
+      die("command \"%s\" failed", query->first_argument);
 
     DBUG_PRINT("info",
                ("error: %d, status: %d", error, status));
     for (i= 0; i < query->expected_errors; i++)
     {
-      DBUG_PRINT("info",
-                 ("error: %d, status: %d", error, status));
       DBUG_PRINT("info", ("expected error: %d",
                           query->expected_errno[i].code.errnum));
       if ((query->expected_errno[i].type == ERR_ERRNO) &&
@@ -1181,19 +1229,19 @@ static void do_exec(struct st_query *query)
       {
         ok= 1;
         DBUG_PRINT("info", ("command \"%s\" failed with expected error: %d",
-                            cmd, status));
+                            query->first_argument, status));
       }
     }
     if (!ok)
       die("command \"%s\" failed with wrong error: %d",
-          cmd, status);
+          query->first_argument, status);
   }
   else if (query->expected_errno[0].type == ERR_ERRNO &&
            query->expected_errno[0].code.errnum != 0)
   {
     /* Error code we wanted was != 0, i.e. not an expected success */
     die("command \"%s\" succeeded - should have failed with errno %d...",
-        cmd, query->expected_errno[0].code.errnum);
+        query->first_argument, query->expected_errno[0].code.errnum);
   }
 
   free_replace();
@@ -1230,6 +1278,7 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
   MYSQL_RES *res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
+  DBUG_ENTER("var_query_set");
   LINT_INIT(res);
 
   while (end > query && *end != '`')
@@ -1292,7 +1341,7 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
     eval_expr(var, "", 0);
 
   mysql_free_result(res);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void var_copy(VAR *dest, VAR *src)
@@ -1369,7 +1418,6 @@ enum enum_operator
   SYNOPSIS
     do_modify_var()
     query	called command
-    name        human readable name of operator
     operator    operation to perform on the var
 
   DESCRIPTION
@@ -1378,15 +1426,16 @@ enum enum_operator
 
 */
 
-int do_modify_var(struct st_query *query, const char *name,
+int do_modify_var(struct st_query *query,
                   enum enum_operator operator)
 {
   const char *p= query->first_argument;
   VAR* v;
   if (!*p)
-    die("Missing arguments to %s", name);
+    die("Missing argument to %.*s", query->first_word_len, query->query);
   if (*p != '$')
-    die("First argument to %s must be a variable (start with $)", name);
+    die("The argument to %.*s must be a variable (start with $)",
+        query->first_word_len, query->query);
   v= var_get(p, &p, 1, 0);
   switch (operator) {
   case DO_DEC:
@@ -1396,7 +1445,7 @@ int do_modify_var(struct st_query *query, const char *name,
     v->int_val++;
     break;
   default:
-    die("Invalid operator to do_operator");
+    die("Invalid operator to do_modify_var");
     break;
   }
   v->int_dirty= 1;
@@ -1405,39 +1454,72 @@ int do_modify_var(struct st_query *query, const char *name,
 }
 
 
-int do_system(struct st_query *q)
+/*
+  Wrapper for 'system' function
+
+  NOTE
+   If mysqltest is executed from cygwin shell, the command will be
+   executed in the "windows command interpreter" cmd.exe and we prepend "sh"
+   to make it be executed by cygwins "bash". Thus commands like "rm",
+   "mkdir" as well as shellscripts can executed by "system" in Windows.
+
+*/
+
+int my_system(DYNAMIC_STRING* ds_cmd)
 {
-  DYNAMIC_STRING *ds;
-  char *p=q->first_argument;
-  VAR v;
-  var_init(&v, 0, 0, 0, 0);
-  eval_expr(&v, p, 0); /* NULL terminated */
-  ds= &ds_res;
+#ifdef __WIN__
+  /* Dump the command into a sh script file and execute with system */
+  str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
+  return system(tmp_sh_cmd);
+#else
+  return system(ds_cmd->str);
+#endif
+}
 
-  if (v.str_val_len)
-  {
-    char expr_buf[1024];
-    if ((uint)v.str_val_len > sizeof(expr_buf) - 1)
-      v.str_val_len = sizeof(expr_buf) - 1;
-    memcpy(expr_buf, v.str_val, v.str_val_len);
-    expr_buf[v.str_val_len] = 0;
-    DBUG_PRINT("info", ("running system command '%s'", expr_buf));
-    if (system(expr_buf))
-    {
-      if (q->abort_on_error)
-        die("system command '%s' failed", expr_buf);
 
-      /* If ! abort_on_error, log message and continue */
-      dynstr_append(ds, "system command '");
-      replace_dynstr_append(ds, expr_buf);
-      dynstr_append(ds, "' failed\n");
-    }
-  }
-  else
+/*
+
+  SYNOPSIS
+  do_system
+    command	called command
+
+  DESCRIPTION
+    system <command>
+
+    Eval the query to expand any $variables in the command.
+    Execute the command with the "system" command.
+
+*/
+
+void do_system(struct st_query *command)
+{
+  DYNAMIC_STRING ds_cmd;
+  DBUG_ENTER("do_system");
+
+  if (strlen(command->first_argument) == 0)
     die("Missing arguments to system, nothing to do!");
-  var_free(&v);
-  q->last_argument= q->end;
-  return 0;
+
+  init_dynamic_string(&ds_cmd, 0, strlen(command->first_argument) + 64, 256);
+
+  /* Eval the system command, thus replacing all environment variables */
+  do_eval(&ds_cmd, command->first_argument, TRUE);
+
+  DBUG_PRINT("info", ("running system command '%s' as '%s'",
+                      command->first_argument, ds_cmd.str));
+  if (my_system(&ds_cmd))
+  {
+    if (command->abort_on_error)
+      die("system command '%s' failed", command->first_argument);
+
+    /* If ! abort_on_error, log message and continue */
+    dynstr_append(&ds_res, "system command '");
+    replace_dynstr_append(&ds_res, command->first_argument);
+    dynstr_append(&ds_res, "' failed\n");
+  }
+
+  command->last_argument= command->end;
+  dynstr_free(&ds_cmd);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1472,12 +1554,12 @@ int do_echo(struct st_query *command)
   ds= &ds_res;
 
   init_dynamic_string(&ds_echo, "", 256, 256);
-  do_eval(&ds_echo, command->first_argument);
+  do_eval(&ds_echo, command->first_argument, FALSE);
   dynstr_append_mem(ds, ds_echo.str, ds_echo.length);
   dynstr_append_mem(ds, "\n", 1);
   dynstr_free(&ds_echo);
   command->last_argument= command->end;
-  return 0;
+  return(0);
 }
 
 
@@ -1580,7 +1662,7 @@ int do_save_master_pos()
 
     if (have_ndbcluster)
     {
-      ulonglong epoch, tmp_epoch= 0;
+      ulonglong epoch=0, tmp_epoch= 0;
       int count= 0;
 
       do
@@ -1755,11 +1837,19 @@ int do_disable_rpl_parse(struct st_query *query __attribute__((unused)))
    do_sleep()
     q	       called command
     real_sleep  use the value from opt_sleep as number of seconds to sleep
+                if real_sleep is false
 
   DESCRIPTION
     sleep <seconds>
-    real_sleep
+    real_sleep <seconds>
 
+  The difference between the sleep and real_sleep commands is that sleep
+  uses the delay from the --sleep command-line option if there is one.
+  (If the --sleep option is not given, the sleep command uses the delay
+  specified by its argument.) The real_sleep command always uses the
+  delay specified by its argument.  The logic is that sometimes delays are
+  cpu-dependent, and --sleep can be used to set this delay.  real_sleep is
+  used for cpu-independent delays.
 */
 
 int do_sleep(struct st_query *query, my_bool real_sleep)
@@ -1772,14 +1862,16 @@ int do_sleep(struct st_query *query, my_bool real_sleep)
   while (my_isspace(charset_info, *p))
     p++;
   if (!*p)
-    die("Missing argument to sleep");
+    die("Missing argument to %.*s", query->first_word_len, query->query);
   sleep_start= p;
   /* Check that arg starts with a digit, not handled by my_strtod */
   if (!my_isdigit(charset_info, *sleep_start))
-    die("Invalid argument to sleep \"%s\"", query->first_argument);
+    die("Invalid argument to %.*s \"%s\"", query->first_word_len, query->query,
+		query->first_argument);
   sleep_val= my_strtod(sleep_start, &sleep_end, &error);
   if (error)
-    die("Invalid argument to sleep \"%s\"", query->first_argument);
+    die("Invalid argument to %.*s \"%s\"", query->first_word_len, query->query,
+		query->first_argument);
 
   /* Fixed sleep time selected by --sleep option */
   if (opt_sleep && !real_sleep)
@@ -2204,8 +2296,7 @@ static void get_replace(struct st_query *q)
   if (!(glob_replace=init_replace((char**) from_array.typelib.type_names,
 				  (char**) to_array.typelib.type_names,
 				  (uint) from_array.typelib.count,
-				  word_end_chars)) ||
-      initialize_replace_buffer())
+				  word_end_chars)))
     die("Can't initialize replace from '%s'", q->query);
   free_pointer_array(&from_array);
   free_pointer_array(&to_array);
@@ -2233,7 +2324,6 @@ void free_replace()
   {
     my_free((char*) glob_replace,MYF(0));
     glob_replace=0;
-    my_free(out_buff,MYF(MY_WME));
   }
   DBUG_VOID_RETURN;
 }
@@ -2433,7 +2523,7 @@ int safe_connect(MYSQL* mysql, const char *host, const char *user,
 
 
 /*
-  Connect to a server and handle connection errors in case when they occur.
+  Connect to a server and handle connection errors in case they occur.
 
   SYNOPSIS
     connect_n_handle_errors()
@@ -2711,12 +2801,41 @@ int do_done(struct st_query *q)
 }
 
 
-int do_block(enum block_cmd cmd, struct st_query* q)
+/*
+  Process start of a "if" or "while" statement
+
+  SYNOPSIS
+   do_block()
+    cmd        Type of block
+    q	       called command
+
+  DESCRIPTION
+    if ([!]<expr>)
+    {
+      <block statements>
+    }
+
+    while ([!]<expr>)
+    {
+      <block statements>
+    }
+
+    Evaluates the <expr> and if it evaluates to
+    greater than zero executes the following code block.
+    A '!' can be used before the <expr> to indicate it should
+    be executed if it evaluates to zero.
+
+ */
+
+void do_block(enum block_cmd cmd, struct st_query* q)
 {
   char *p= q->first_argument;
   const char *expr_start, *expr_end;
   VAR v;
   const char *cmd_name= (cmd == cmd_while ? "while" : "if");
+  my_bool not_expr= FALSE;
+  DBUG_ENTER("do_block");
+  DBUG_PRINT("enter", ("%s", cmd_name));
 
   /* Check stack overflow */
   if (cur_block == block_stack_end)
@@ -2732,13 +2851,21 @@ int do_block(enum block_cmd cmd, struct st_query* q)
     cur_block++;
     cur_block->cmd= cmd;
     cur_block->ok= FALSE;
-    return 0;
+    DBUG_VOID_RETURN;
   }
 
   /* Parse and evaluate test expression */
   expr_start= strchr(p, '(');
-  if (!expr_start)
+  if (!expr_start++)
     die("missing '(' in %s", cmd_name);
+
+  /* Check for !<expr> */
+  if (*expr_start == '!')
+  {
+    not_expr= TRUE;
+    expr_start++; /* Step past the '!' */
+  }
+  /* Find ending ')' */
   expr_end= strrchr(expr_start, ')');
   if (!expr_end)
     die("missing ')' in %s", cmd_name);
@@ -2752,15 +2879,20 @@ int do_block(enum block_cmd cmd, struct st_query* q)
     die("Missing '{' after %s. Found \"%s\"", cmd_name, p);
 
   var_init(&v,0,0,0,0);
-  eval_expr(&v, ++expr_start, &expr_end);
+  eval_expr(&v, expr_start, &expr_end);
 
   /* Define inner block */
   cur_block++;
   cur_block->cmd= cmd;
   cur_block->ok= (v.int_val ? TRUE : FALSE);
 
+  if (not_expr)
+    cur_block->ok = !cur_block->ok;
+
+  DBUG_PRINT("info", ("OK: %d", cur_block->ok));
+
   var_free(&v);
-  return 0;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2820,14 +2952,14 @@ my_bool end_of_query(int c)
     size    size of the buffer i.e max size to read
 
   DESCRIPTION
-    This function actually reads several lines an adds them to the
-    buffer buf. It will continue to read until it finds what it believes
+    This function actually reads several lines and adds them to the
+    buffer buf. It continues to read until it finds what it believes
     is a complete query.
 
     Normally that means it will read lines until it reaches the
     "delimiter" that marks end of query. Default delimiter is ';'
     The function should be smart enough not to detect delimiter's
-    found inside strings sorrounded with '"' and '\'' escaped strings.
+    found inside strings surrounded with '"' and '\'' escaped strings.
 
     If the first line in a query starts with '#' or '-' this line is treated
     as a comment. A comment is always terminated when end of line '\n' is
@@ -2877,9 +3009,15 @@ int read_line(char *buf, int size)
       continue;
     }
 
-    /* Line counting is independent of state */
     if (c == '\n')
+    {
+      /* Line counting is independent of state */
       cur_file->lineno++;
+
+      /* Convert cr/lf to lf */
+      if (p != buf && *(p-1) == '\r')
+        *(p-1)= 0;
+    }
 
     switch(state) {
     case R_NORMAL:
@@ -3049,7 +3187,7 @@ int read_query(struct st_query** q_ptr)
     check_eol_junk(read_query_buf);
     DBUG_RETURN(1);
   }
-
+  
   DBUG_PRINT("info", ("query: %s", read_query_buf));
   if (*p == '#')
   {
@@ -3106,6 +3244,9 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use the compressed server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
+  {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statements.",
+   (gptr*) &cursor_protocol, (gptr*) &cursor_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
@@ -3117,6 +3258,8 @@ static struct my_option my_long_options[] =
 #endif
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"include", 'i', "Include SQL before each test case.", (gptr*) &opt_include,
+   (gptr*) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"manager-host", OPT_MANAGER_HOST, "Undocumented: Used for debugging.",
    (gptr*) &manager_host, (gptr*) &manager_host, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -3138,15 +3281,6 @@ static struct my_option my_long_options[] =
   {"ps-protocol", OPT_PS_PROTOCOL, "Use prepared statements protocol for communication",
    (gptr*) &ps_protocol, (gptr*) &ps_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select",
-   (gptr*) &sp_protocol, (gptr*) &sp_protocol, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"cursor-protocol", OPT_CURSOR_PROTOCOL, "Use cursors for prepared statment",
-   (gptr*) &cursor_protocol, (gptr*) &cursor_protocol, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select",
-   (gptr*) &view_protocol, (gptr*) &view_protocol, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"quiet", 's', "Suppress all normal output.", (gptr*) &silent,
    (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"record", 'r', "Record output of test_file into result file.",
@@ -3154,7 +3288,7 @@ static struct my_option my_long_options[] =
   {"result-file", 'R', "Read/Store result from/in this file.",
    (gptr*) &result_file, (gptr*) &result_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"server-arg", 'A', "Send enbedded server this as a paramenter.",
+  {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3169,6 +3303,9 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &unix_sock, (gptr*) &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
+  {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select",
+   (gptr*) &sp_protocol, (gptr*) &sp_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3182,6 +3319,9 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select",
+   (gptr*) &view_protocol, (gptr*) &view_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -3361,6 +3501,12 @@ void dump_result_to_reject_file(const char *record_file, char *buf, int size)
 {
   char reject_file[FN_REFLEN];
   str_to_file(fn_format(reject_file, record_file,"",".reject",2), buf, size);
+}
+
+void dump_result_to_log_file(const char *record_file, char *buf, int size)
+{
+  char log_file[FN_REFLEN];
+  str_to_file(fn_format(log_file, record_file,"",".log",2), buf, size);
 }
 
 static void check_regerr(my_regex_t* r, int err)
@@ -3572,34 +3718,139 @@ static int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
 }
 
 
-/* Append the string to ds, with optional replace */
+#ifdef __WIN__
 
-static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
-				      int len)
+DYNAMIC_ARRAY patterns;
+
+/*
+  init_win_path_patterns
+
+  DESCRIPTION
+   Setup string patterns that will be used to detect filenames that
+   needs to be converted from Win to Unix format
+
+*/
+
+static void init_win_path_patterns()
 {
-  if (glob_replace)
+  /* List of string patterns to match in order to find paths */
+  const char* paths[] = { "$MYSQL_TEST_DIR",
+                          "$MYSQL_TMP_DIR",
+                          "./test/", 0 };
+  int num_paths= 3;
+  int i;
+  char* p;
+
+  DBUG_ENTER("init_win_path_patterns");
+
+  my_init_dynamic_array(&patterns, sizeof(const char*), 16, 16);
+
+  /* Loop through all paths in the array */
+  for (i= 0; i < num_paths; i++)
   {
-    len=(int) replace_strings(glob_replace, &out_buff, &out_length, val);
-    if (len == -1)
-      die("Out of memory in replace");
-    val=out_buff;
+    VAR* v;
+    if (*(paths[i]) == '$')
+    {
+      v= var_get(paths[i], 0, 0, 0);
+      p= my_strdup(v->str_val, MYF(MY_FAE));
+    }
+    else
+      p= my_strdup(paths[i], MYF(MY_FAE));
+
+    if (insert_dynamic(&patterns, (gptr) &p))
+        die(NullS);
+
+    DBUG_PRINT("info", ("p: %s", p));
+    while (*p)
+    {
+      if (*p == '/')
+        *p='\\';
+      p++;
+    }
   }
-  
+  DBUG_VOID_RETURN;
+}
+
+static void free_win_path_patterns()
+{
+  uint i= 0;
+  for (i=0 ; i < patterns.elements ; i++)
+  {
+    const char** pattern= dynamic_element(&patterns, i, const char**);
+    my_free((gptr) *pattern, MYF(0));
+  }
+  delete_dynamic(&patterns);
+}
+
+/*
+  fix_win_paths
+
+  DESCRIPTION
+   Search the string 'val' for the patterns that are known to be
+   strings that contain filenames. Convert all \ to / in the
+   filenames that are found.
+
+   Ex:
+   val = 'Error "c:\mysql\mysql-test\var\test\t1.frm" didn't exist'
+          => $MYSQL_TEST_DIR is found by strstr
+          => all \ from c:\mysql\m... until next space is converted into /
+*/
+
+static void fix_win_paths(const char* val, int len)
+{
+  uint i;
+  char *p;
+
+  DBUG_ENTER("fix_win_paths");
+  for (i= 0; i < patterns.elements; i++)
+  {
+    const char** pattern= dynamic_element(&patterns, i, const char**);
+    DBUG_PRINT("info", ("pattern: %s", *pattern));
+    if (strlen(*pattern) == 0) continue;
+    /* Search for the path in string */
+    while ((p= strstr(val, *pattern)))
+    {
+      DBUG_PRINT("info", ("Found %s in val p: %s", *pattern, p));
+
+      while (*p && !my_isspace(charset_info, *p))
+      {
+        if (*p == '\\')
+          *p= '/';
+        p++;
+      }
+      DBUG_PRINT("info", ("Converted \\ to /, p: %s", p));
+    }
+  }
+  DBUG_PRINT("exit", (" val: %s, len: %d", val, len));
+  DBUG_VOID_RETURN;
+}
+#endif
+
+/* Append the string to ds, with optional replace */
+static void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
+                                      const char *val,  int len)
+{
+#ifdef __WIN__
+  fix_win_paths(val, len);
+#endif
+
   if (glob_replace_regex)
   {
-    if (!multi_reg_replace(glob_replace_regex,(char*)val))        
-    {   
-      val= glob_replace_regex->buf;   
+    if (!multi_reg_replace(glob_replace_regex, (char*)val))
+    {
+      val= glob_replace_regex->buf;
       len= strlen(val);
-    }  
+    }
   }
-  
-  dynstr_append_mem(ds, val, len);
+
+  if (glob_replace)
+    replace_strings_append(glob_replace, ds, val, len);
+  else
+    dynstr_append_mem(ds, val, len);
 }
 
 
 /* Append zero-terminated string to ds, with optional replace */
-
 static void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val)
 {
   replace_dynstr_append_mem(ds, val, strlen(val));
@@ -3613,8 +3864,6 @@ static void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val)
 static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
                          const char* val, ulonglong len, bool is_null)
 {
-
-  char buf[256];
   if (col_idx < max_replace_column && replace_column[col_idx])
   {
     val= replace_column[col_idx];
@@ -4058,7 +4307,17 @@ static void handle_error(const char *query, struct st_query *q,
   DBUG_ENTER("handle_error");
 
   if (q->require_file)
+  {
+    /*
+      The query after a "--require" failed. This is fine as long the server
+      returned a valid reponse. Don't allow 2013 or 2006 to trigger an
+      abort_not_supported_test
+     */
+    if (err_errno == CR_SERVER_LOST ||
+        err_errno == CR_SERVER_GONE_ERROR)
+      die("require query '%s' failed: %d: %s", query, err_errno, err_error);
     abort_not_supported_test();
+  }
 
   if (q->abort_on_error)
     die("query '%s' failed: %d: %s", query, err_errno, err_error);
@@ -4161,7 +4420,7 @@ static void handle_no_error(struct st_query *q)
   command - currrent command pointer
   query - query string to execute
   query_len - length query string to execute
-  ds - output buffer wherte to store result form query
+  ds - output buffer where to store result form query
 
   RETURN VALUE
   error - function will not return
@@ -4179,7 +4438,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   DBUG_PRINT("query", ("'%-.60s'", query));
 
   /*
-    Init a new stmt if it's not alreday one created for this connectoon
+    Init a new stmt if it's not already one created for this connection
   */
   if(!(stmt= cur_con->stmt))
   {
@@ -4268,7 +4527,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
     goto end;
   }
 
-  /* If we got here the statement was both executed and read succeesfully */
+  /* If we got here the statement was both executed and read successfully */
   handle_no_error(command);
   if (!disable_result_log)
   {
@@ -4423,7 +4682,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
   if (command->type == Q_EVAL)
   {
     init_dynamic_string(&eval_query, "", 16384, 65536);
-    do_eval(&eval_query, command->query);
+    do_eval(&eval_query, command->query, FALSE);
     query = eval_query.str;
     query_len = eval_query.length;
   }
@@ -4720,7 +4979,7 @@ void get_query_type(struct st_query* q)
     q->type=(enum enum_commands) type;		/* Found command */
     /*
       If queries are disabled, only recognize
-      --enable-queries and --disable-queries
+      --enable_parsing and --disable_parsing
     */
     if (parsing_disabled && q->type != Q_ENABLE_PARSING &&
         q->type != Q_DISABLE_PARSING)
@@ -4917,12 +5176,22 @@ int main(int argc, char **argv)
 
   init_var_hash(&cur_con->mysql);
 
+#ifdef __WIN__
+  init_tmp_sh_file();
+  init_win_path_patterns();
+#endif
+
   /*
     Initialize $mysql_errno with -1, so we can
     - distinguish it from valid values ( >= 0 ) and
     - detect if there was never a command sent to the server
   */
   var_set_errno(-1);
+
+  if (opt_include)
+  {
+    open_file(opt_include);
+  }
 
   while (!abort_flag && !read_query(&q))
   {
@@ -4967,8 +5236,8 @@ int main(int argc, char **argv)
       case Q_SERVER_START: do_server_start(q); break;
       case Q_SERVER_STOP: do_server_stop(q); break;
 #endif
-      case Q_INC: do_modify_var(q, "inc", DO_INC); break;
-      case Q_DEC: do_modify_var(q, "dec", DO_DEC); break;
+      case Q_INC: do_modify_var(q, DO_INC); break;
+      case Q_DEC: do_modify_var(q, DO_DEC); break;
       case Q_ECHO: do_echo(q); query_executed= 1; break;
       case Q_SYSTEM: do_system(q); break;
       case Q_DELIMITER:
@@ -4996,7 +5265,7 @@ int main(int argc, char **argv)
       case Q_QUERY_HORIZONTAL:
       {
 	my_bool old_display_result_vertically= display_result_vertically;
-	/* fix up query pointer if this is * first iteration for this line */
+	/* fix up query pointer if this is first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len + 1;
 	display_result_vertically= (q->type==Q_QUERY_VERTICAL);
@@ -5041,15 +5310,15 @@ int main(int argc, char **argv)
       case Q_SEND:
 	if (!q->query[q->first_word_len])
 	{
-	  /* This happens when we use 'send' on it's own line */
+	  /* This happens when we use 'send' on its own line */
 	  q_send_flag=1;
 	  break;
 	}
-	/* fix up query pointer if this is * first iteration for this line */
+	/* fix up query pointer if this is first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len;
 	/*
-	  run_query() can execute a query partially, depending on the flags
+	  run_query() can execute a query partially, depending on the flags.
 	  QUERY_SEND flag without QUERY_REAP tells it to just send the
 	  query and read the result some time later when reap instruction
 	  is given on this connection.
@@ -5137,7 +5406,7 @@ int main(int argc, char **argv)
         break;
       case Q_ENABLE_PARSING:
         /*
-          Ensure we don't get parsing_disabled < 0 as this would accidently
+          Ensure we don't get parsing_disabled < 0 as this would accidentally
           disable code we don't want to have disabled
         */
         if (parsing_disabled > 0)
@@ -5183,9 +5452,9 @@ int main(int argc, char **argv)
   start_lineno= 0;
 
   /*
-    The whole test has been executed _sucessfully_
-    Time to compare result or save it to record file
-    The entire output from test is now kept in ds_res
+    The whole test has been executed _sucessfully_.
+    Time to compare result or save it to record file.
+    The entire output from test is now kept in ds_res.
   */
   if (ds_res.length)
   {
@@ -5221,8 +5490,8 @@ int main(int argc, char **argv)
     /*
       my_stat() successful on result file. Check if we have not run a
       single query, but we do have a result file that contains data.
-      Note that we don't care, if my_stat() fails. For example for
-      non-existing or non-readable file we assume it's fine to have
+      Note that we don't care, if my_stat() fails. For example, for a
+      non-existing or non-readable file, we assume it's fine to have
       no query output from the test file, e.g. regarded as no error.
     */
     die("No queries executed but result file found!");
@@ -5915,7 +6184,7 @@ static int get_next_bit(REP_SET *set,uint lastpos)
 }
 
 	/* find if there is a same set in sets. If there is, use it and
-	   free given set, else put in given set in sets and return it's
+	   free given set, else put in given set in sets and return its
 	   position */
 
 static int find_set(REP_SETS *sets,REP_SET *find)
@@ -5934,7 +6203,7 @@ static int find_set(REP_SETS *sets,REP_SET *find)
 
 	/* find if there is a found_set with same table_offset & found_offset
 	   If there is return offset to it, else add new offset and return pos.
-	   Pos returned is -offset-2 in found_set_structure because it's is
+	   Pos returned is -offset-2 in found_set_structure because it is
 	   saved in set->next and set->next[] >= 0 points to next set and
 	   set->next[] == -1 is reserved for end without replaces.
 	   */
@@ -5982,60 +6251,57 @@ static uint replace_len(my_string str)
 }
 
 
-	/* Replace strings;  Return length of result string */
-
-uint replace_strings(REPLACE *rep, my_string *start,uint *max_length,
-		     const char *from)
+/* Replace strings while appending to ds */
+void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
+                            const char *str, int len)
 {
   reg1 REPLACE *rep_pos;
   reg2 REPLACE_STRING *rep_str;
-  my_string to,end,pos,new_str;
+  const char *start, *from;
+  DBUG_ENTER("replace_strings_append");
 
-  end=(to= *start) + *max_length-1;
+  start= from= str;
   rep_pos=rep+1;
   for (;;)
   {
+    /* Loop through states */
+    DBUG_PRINT("info", ("Looping through states"));
     while (!rep_pos->found)
-    {
-      rep_pos= rep_pos->next[(uchar) *from];
-      if (to == end)
-      {
-	(*max_length)+=8192;
-	if (!(new_str=my_realloc(*start,*max_length,MYF(MY_WME))))
-	  return (uint) -1;
-	to=new_str+(to - *start);
-	end=(*start=new_str)+ *max_length-1;
-      }
-      *to++= *from++;
-    }
+      rep_pos= rep_pos->next[(uchar) *from++];
+
+    /* Does this state contain a string to be replaced */
     if (!(rep_str = ((REPLACE_STRING*) rep_pos))->replace_string)
-      return (uint) (to - *start)-1;
-    to-=rep_str->to_offset;
-    for (pos=rep_str->replace_string; *pos ; pos++)
     {
-      if (to == end)
-      {
-	(*max_length)*=2;
-	if (!(new_str=my_realloc(*start,*max_length,MYF(MY_WME))))
-	  return (uint) -1;
-	to=new_str+(to - *start);
-	end=(*start=new_str)+ *max_length-1;
-      }
-      *to++= *pos;
+      /* No match found */
+      dynstr_append_mem(ds, start, from - start - 1);
+      DBUG_PRINT("exit", ("Found no more string to replace, appended: %s", start));
+      DBUG_VOID_RETURN;
     }
+
+    /* Found a string that needs to be replaced */
+    DBUG_PRINT("info", ("found: %d, to_offset: %d, from_offset: %d, string: %s",
+                        rep_str->found, rep_str->to_offset,
+                        rep_str->from_offset, rep_str->replace_string));
+
+    /* Append part of original string before replace string */
+    dynstr_append_mem(ds, start, (from - rep_str->to_offset) - start);
+
+    /* Append replace string */
+    dynstr_append_mem(ds, rep_str->replace_string,
+                      strlen(rep_str->replace_string));
+
     if (!*(from-=rep_str->from_offset) && rep_pos->found != 2)
-      return (uint) (to - *start);
+    {
+      /* End of from string */
+      DBUG_PRINT("exit", ("Found end of from string"));
+      DBUG_VOID_RETURN;
+    }
+    DBUG_ASSERT(from <= str+len);
+    start= from;
     rep_pos=rep;
   }
 }
 
-static int initialize_replace_buffer(void)
-{
-  out_length=8192;
-  if (!(out_buff=my_malloc(out_length,MYF(MY_WME))))
-    return(1);
-  return 0;
-}
 
 /****************************************************************************
  Replace results for a column
@@ -6094,105 +6360,6 @@ static void get_replace_column(struct st_query *q)
   q->last_argument= q->end;
 }
 
-#if defined(__NETWARE__) || defined(__WIN__)
-/*
-  Substitute environment variables with text.
 
-  SYNOPSIS
-    subst_env_var()
-    arg			String that should be substitute
-
-  DESCRIPTION
-    This function takes a string as an input and replaces the
-    environment variables, that starts with '$' character, with it value.
-
-  NOTES
-    Return string must be freed with my_free()
-
-  RETURN
-    String with environment variables replaced.
-*/
-
-static char *subst_env_var(const char *str)
-{
-  char *result;
-  char *pos;
-
-  result= pos= my_malloc(MAX_QUERY, MYF(MY_FAE));
-  while (*str)
-  {
-    /*
-      need this only when we want to provide the functionality of
-      escaping through \ 'backslash'
-      if ((result == pos && *str=='$') ||
-          (result != pos && *str=='$' && str[-1] !='\\'))
-    */
-    if (*str == '$')
-    {
-      char env_var[256], *env_pos= env_var, *subst;
-
-      /* Search for end of environment variable */
-      for (str++;
-           *str && !isspace(*str) && *str != '\\' && *str != '/' &&
-             *str != '$';
-           str++)
-        *env_pos++= *str;
-      *env_pos= 0;
-
-      if (!(subst= getenv(env_var)))
-      {
-        my_free(result, MYF(0));
-        die("MYSQLTEST.NLM: Environment variable %s is not defined",
-            env_var);
-      }
-
-      /* get the string to be substitued for env_var  */
-      pos= strmov(pos, subst);
-      /* Process delimiter in *str again */
-    }
-    else
-      *pos++= *str++;
-  }
-  *pos= 0;
-  return result;
-}
-
-
-/*
-  popen replacement for Netware
-
-  SYNPOSIS
-    my_popen()
-    name		Command to execute (with possible env variables)
-    mode		Mode for popen.
-
-  NOTES
-    Environment variable expansion does not take place for popen function
-    on NetWare, so we use this function to wrap around popen to do this.
-
-    For the moment we ignore 'mode' and always use 'r0'
-
-  RETURN
-    # >= 0	File handle
-    -1		Error
-*/
-
-#undef popen                                    /* Remove wrapper */
-#ifdef __WIN__
-#define popen _popen                           /* redefine for windows */
-#endif
-
-FILE *my_popen(const char *cmd, const char *mode __attribute__((unused)))
-{
-  char *subst_cmd;
-  FILE *res_file;
-
-  subst_cmd= subst_env_var(cmd);
-  res_file= popen(subst_cmd, "r0");
-  my_free(subst_cmd, MYF(0));
-  return res_file;
-}
-
-#endif /* __NETWARE__ or  __WIN__*/
 
 

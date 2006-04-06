@@ -30,9 +30,11 @@ int main(int argc, const char** argv){
   ndb_init();
   int _help = 0;
   char * _database = "BANK";
-  
+  int disk = 0;
+
   struct getargs args[] = {
     { "database", 'd', arg_string, &_database, "Database name", ""},
+    { "disk", 0, arg_flag, &disk, "Use disk tables", "" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
@@ -53,7 +55,7 @@ int main(int argc, const char** argv){
 
   Bank bank(con,_database);
   int overWriteExisting = true;
-  if (bank.createAndLoadBank(overWriteExisting) != NDBT_OK)
+  if (bank.createAndLoadBank(overWriteExisting, disk) != NDBT_OK)
     return NDBT_ProgramExit(NDBT_FAILED);
   return NDBT_ProgramExit(NDBT_OK);
 

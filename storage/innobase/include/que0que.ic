@@ -27,7 +27,7 @@ UNIV_INLINE
 que_thr_t*
 que_fork_get_first_thr(
 /*===================*/
-	que_fork_t*	fork) 	/* in: query fork */
+	que_fork_t*	fork)	/* in: query fork */
 {
 	return(UT_LIST_GET_FIRST(fork->thrs));
 }
@@ -38,7 +38,7 @@ UNIV_INLINE
 que_node_t*
 que_fork_get_child(
 /*===============*/
-	que_fork_t*	fork) 	/* in: query fork */
+	que_fork_t*	fork)	/* in: query fork */
 {
 	que_thr_t*	thr;
 
@@ -143,7 +143,7 @@ que_node_list_add_last(
 	que_common_t*	cnode2;
 
 	cnode = node;
-	
+
 	cnode->brother = NULL;
 
 	if (node_list == NULL) {
@@ -152,7 +152,7 @@ que_node_list_add_last(
 	}
 
 	cnode2 = node_list;
-	
+
 	while (cnode2->brother != NULL) {
 		cnode2 = cnode2->brother;
 	}
@@ -188,7 +188,7 @@ que_node_list_get_len(
 
 	cnode = node_list;
 	len = 0;
-	
+
 	while (cnode != NULL) {
 		len++;
 		cnode = cnode->brother;
@@ -228,11 +228,12 @@ que_thr_peek_stop(
 
 	graph = thr->graph;
 	trx = graph->trx;
-	
+
 	if (graph->state != QUE_FORK_ACTIVE
-	    || trx->que_state == TRX_QUE_LOCK_WAIT
-	    || (UT_LIST_GET_LEN(trx->signals) > 0
-				&& trx->que_state == TRX_QUE_RUNNING)) {
+		|| trx->que_state == TRX_QUE_LOCK_WAIT
+		|| (UT_LIST_GET_LEN(trx->signals) > 0
+			&& trx->que_state == TRX_QUE_RUNNING)) {
+
 		return(TRUE);
 	}
 
@@ -251,7 +252,7 @@ que_graph_is_select(
 	if (graph->fork_type == QUE_FORK_SELECT_SCROLL
 			|| graph->fork_type == QUE_FORK_SELECT_NON_SCROLL) {
 
-	    	return(TRUE);
+		return(TRUE);
 	}
 
 	return(FALSE);

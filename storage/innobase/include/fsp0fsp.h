@@ -80,8 +80,8 @@ Reads the space id from the first page of a tablespace. */
 ulint
 fsp_header_get_space_id(
 /*====================*/
-                        /* out: space id, ULINT UNDEFINED if error */
-        page_t* page);   /* in: first page of a tablespace */
+			/* out: space id, ULINT UNDEFINED if error */
+	page_t* page);	 /* in: first page of a tablespace */
 /**************************************************************************
 Writes the space id to a tablespace header. This function is used past the
 buffer pool when we in fil0fil.c create a new single-table tablespace. */
@@ -100,7 +100,7 @@ fsp_header_init(
 /*============*/
 	ulint	space,	/* in: space id */
 	ulint	size,	/* in: current size in blocks */
-	mtr_t*	mtr);	/* in: mini-transaction handle */	
+	mtr_t*	mtr);	/* in: mini-transaction handle */
 /**************************************************************************
 Increases the space size field of a space. */
 
@@ -109,7 +109,7 @@ fsp_header_inc_size(
 /*================*/
 	ulint	space,	/* in: space id */
 	ulint	size_inc,/* in: size increment in pages */
-	mtr_t*	mtr);	/* in: mini-transaction handle */	
+	mtr_t*	mtr);	/* in: mini-transaction handle */
 /**************************************************************************
 Creates a new segment. */
 
@@ -158,7 +158,7 @@ ulint
 fseg_n_reserved_pages(
 /*==================*/
 				/* out: number of reserved pages */
-	fseg_header_t* 	header,	/* in: segment header */
+	fseg_header_t*	header,	/* in: segment header */
 	ulint*		used,	/* out: number of pages used (<= reserved) */
 	mtr_t*		mtr);	/* in: mtr handle */
 /**************************************************************************
@@ -232,9 +232,9 @@ ibool
 fsp_reserve_free_extents(
 /*=====================*/
 			/* out: TRUE if we were able to make the reservation */
-        ulint*  n_reserved,/* out: number of extents actually reserved; if we
-                        return TRUE and the tablespace size is < 64 pages,
-                        then this can be 0, otherwise it is n_ext */
+	ulint*	n_reserved,/* out: number of extents actually reserved; if we
+			return TRUE and the tablespace size is < 64 pages,
+			then this can be 0, otherwise it is n_ext */
 	ulint	space,	/* in: space id */
 	ulint	n_ext,	/* in: number of extents to reserve */
 	ulint	alloc_type,/* in: FSP_NORMAL, FSP_UNDO, or FSP_CLEANING */

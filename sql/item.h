@@ -164,7 +164,8 @@ struct Hybrid_type_traits
   virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const;
   virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
   static const Hybrid_type_traits *instance();
-  Hybrid_type_traits() {};
+  Hybrid_type_traits() {}
+  virtual ~Hybrid_type_traits() {}
 };
 
 
@@ -339,6 +340,7 @@ private:
   bool        save_resolve_in_select_list;
 
 public:
+  Name_resolution_context_state() {}          /* Remove gcc warning */
   TABLE_LIST *save_next_local;
 
 public:
@@ -739,6 +741,7 @@ public:
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
   virtual bool cleanup_processor(byte *arg);
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
+  virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
   virtual bool change_context_processor(byte *context) { return 0; }
   virtual bool reset_query_id_processor(byte *query_id) { return 0; }
 
@@ -1055,6 +1058,7 @@ bool agg_item_charsets(DTCollation &c, const char *name,
 class Item_num: public Item
 {
 public:
+  Item_num() {}                               /* Remove gcc warning */
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
@@ -1190,6 +1194,7 @@ public:
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(byte * arg);
+  bool find_item_in_field_list_processor(byte *arg);
   bool reset_query_id_processor(byte *arg)
   {
     field->query_id= *((query_id_t *) arg);
@@ -1205,6 +1210,7 @@ public:
   inline uint32 max_disp_length() { return field->max_length(); }
   Item_field *filed_for_view_update() { return this; }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
+  int fix_outer_field(THD *thd, Field **field, Item **reference);
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -1625,7 +1631,6 @@ public:
     			   str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  String *const_string() { return &str_value; }
   inline void append(char *str, uint length) { str_value.append(str, length); }
   void print(String *str);
   // to prevent drop fixed flag (no need parent cleanup call)
@@ -1927,9 +1932,10 @@ class Item_int_with_ref :public Item_int
 {
   Item *ref;
 public:
-  Item_int_with_ref(longlong i, Item *ref_arg) :Item_int(i), ref(ref_arg)
+  Item_int_with_ref(longlong i, Item *ref_arg, my_bool unsigned_arg) :
+    Item_int(i), ref(ref_arg)
   {
-    unsigned_flag= ref_arg->unsigned_flag;
+    unsigned_flag= unsigned_arg;
   }
   int save_in_field(Field *field, bool no_conversions)
   {

@@ -27,9 +27,9 @@
 class Bank {
 public:  
 
-  Bank(Ndb_cluster_connection&, bool init = true, char *dbase="BANK");
+  Bank(Ndb_cluster_connection&, bool init = true, const char *dbase="BANK");
 
-  int createAndLoadBank(bool overWrite, int num_accounts=10);
+  int createAndLoadBank(bool overWrite, bool disk= false, int num_accounts=10);
   int dropBank();
   
   int performTransactions(int maxSleepBetweenTrans = 20, int yield=0);
@@ -121,8 +121,8 @@ private:
   int prepareReadSystemValueOp(NdbConnection*, SystemValueId sysValId, Uint64 &time);
   int prepareGetCurrTimeOp(NdbConnection*, Uint64 &time);
 
-  int createTables();
-  int createTable(const char* tabName);
+  int createTables(bool disk);
+  int createTable(const char* tabName, bool disk);
 
   int dropTables();
   int dropTable(const char* tabName);

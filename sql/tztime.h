@@ -30,6 +30,7 @@
 class Time_zone: public Sql_alloc 
 {
 public:
+  Time_zone() {}                              /* Remove gcc warning */
   /*
     Converts local time in broken down TIME representation to 
     my_time_t (UTC seconds since Epoch) represenation.

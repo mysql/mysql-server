@@ -1,3 +1,4 @@
+drop table if exists t1,t2;
 create table t1(a int, unique(a));
 insert into t1 values(2);
 create table t2(a int);

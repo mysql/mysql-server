@@ -1,0 +1,89 @@
+create database if not exists events_test;
+use events_test;
+--echo "We use procedure here because its statements won't be logged into the general log"
+--echo "If we had used normal select that are logged in different ways depending on whether"
+--echo "the test suite is run in normal mode or with --ps-protocol"
+delimiter |;
+CREATE procedure select_general_log()
+BEGIN
+  SELECT user_host, argument FROM mysql.general_log WHERE argument LIKE '%alabala%';
+END|
+delimiter ;|
+--echo "Check General Query Log"
+SET GLOBAL event_scheduler=0;
+create event log_general on schedule every 1 minute do SELect 'alabala', sleep(3) from dual;
+TRUNCATE mysql.general_log;
+--echo "1 row, the current statement!"
+call select_general_log();
+SET GLOBAL event_scheduler=1;
+--echo "Wait the scheduler to start"
+--echo "Should see 3 rows - the 'SELect' is in the middle. The other two are selects from general_log"
+--sleep 2
+call select_general_log();
+DROP PROCEDURE select_general_log;
+DROP EVENT log_general;
+SET GLOBAL event_scheduler=0;
+--sleep 1
+
+--echo "Check slow query log"
+--disable_query_log
+DELIMITER |;
+CREATE FUNCTION get_value()
+  returns INT
+  deterministic
+BEGIN
+  DECLARE var_name CHAR(255);
+  DECLARE var_val INT;
+  DECLARE done INT DEFAULT 0;
+  DECLARE cur1 CURSOR FOR SHOW GLOBAL VARIABLES LIKE 'long_query_time';
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+  OPEN cur1;
+  FETCH cur1 INTO var_name, var_val;
+  CLOSE cur1;
+  RETURN var_val;
+end|
+DELIMITER ;|
+--enable_query_log
+--echo "Save the values"
+SET @old_global_long_query_time:=(select get_value());
+SET @old_session_long_query_time:=@@long_query_time;
+SHOW VARIABLES LIKE 'log_slow_queries';
+DROP FUNCTION get_value;
+TRUNCATE mysql.slow_log;
+SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+--echo "Set new values"
+SET GLOBAL long_query_time=4;
+SET SESSION long_query_time=2;
+--echo "Check that logging is working"
+SELECT SLEEP(3);
+SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+TRUNCATE mysql.slow_log;
+CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
+--echo "This won't go to the slow log"
+CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(3);
+SELECT * FROM slow_event_test;
+SET GLOBAL event_scheduler=1;
+--echo "Sleep some more time than the actual event run will take"
+--sleep 5
+SHOW VARIABLES LIKE 'event_scheduler';
+--echo "Check our table. Should see 1 row"
+SELECT * FROM slow_event_test;
+--echo "Check slow log. Should not see anything because 3 is under the threshold of 4 for GLOBAL, though over SESSION which is 2"
+SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+--echo "This should go to the slow log"
+SET SESSION long_query_time=10;
+DROP EVENT long_event;
+CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(5);
+--echo "Sleep some more time than the actual event run will take"
+--sleep 7
+--echo "Check our table. Should see 2 rows"
+SELECT * FROM slow_event_test;
+--echo "Check slow log. Should see 1 row because 5 is over the threshold of 4 for GLOBAL, though under SESSION which is 10"
+SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+DROP EVENT long_event2;
+SET GLOBAL  long_query_time =@old_global_long_query_time;
+SET SESSION long_query_time =@old_session_long_query_time; 
+TRUNCATE mysql.slow_log;
+DROP TABLE slow_event_test;
+
+drop database events_test;

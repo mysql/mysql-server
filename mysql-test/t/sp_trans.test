@@ -420,6 +420,140 @@ drop table t3|
 
 
 #
+# BUG#10656: Stored Procedure - Create index and Truncate table command error
+#
+--disable_warnings
+drop procedure if exists bug10656_create_index|
+drop procedure if exists bug10656_myjoin|
+drop procedure if exists bug10656_truncate_table|
+--enable_warnings
+
+CREATE TABLE t3 (
+  `ID` int(11) default NULL,
+  `txt` char(5) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1|
+
+INSERT INTO t3 (`ID`,`txt`) VALUES
+ (1,'a'), (2,'b'), (3,'c'), (4,'d')|
+
+CREATE TABLE t4 (
+  `ID` int(11) default NULL,
+  `txt` char(5) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1|
+
+INSERT INTO t4 (`ID`,`txt`) VALUES
+ (1,'a'), (2,'b'), (3,'c'), (4,'d')|
+
+create procedure bug10656_create_index()
+begin
+  create index bug10656_my_index on t3 (ID);
+end|
+call bug10656_create_index()|
+
+create procedure bug10656_myjoin()
+begin
+  update t3, t4 set t3.txt = t4.txt where t3.id = t4.id;
+end|
+call bug10656_myjoin()|
+
+create procedure bug10656_truncate_table()
+begin
+  truncate table t3;
+end|
+call bug10656_truncate_table()|
+
+
+drop procedure bug10656_create_index|
+drop procedure bug10656_myjoin|
+drop procedure bug10656_truncate_table|
+drop table t3, t4|
+
+#
+# BUG#3448
+#
+--disable_warnings
+create table t3 (
+  a int primary key,
+  ach char(1)
+) engine = innodb|
+
+create table t4 (
+  b int  primary key,
+  bch char(1)
+) engine = innodb|
+--enable_warnings
+
+insert into t3 values (1 , 'aCh1' ) , ('2' , 'aCh2')|
+insert into t4 values (1 , 'bCh1' )|
+
+--disable_warnings
+drop procedure if exists bug3448|
+--enable_warnings
+create procedure bug3448()
+  select * from t3 inner join t4 on t3.a = t4.b|
+
+select * from t3 inner join t4 on t3.a = t4.b|
+call bug3448()|
+call bug3448()|
+
+drop procedure bug3448|
+drop table t3, t4|
+
+#
+# BUG#14210: "Simple query with > operator on large table gives server
+# crash"
+# Check that cursors work in case when HEAP tables are converted to
+# MyISAM
+#
+--disable_warnings
+drop procedure if exists bug14210|
+--enable_warnings
+set @@session.max_heap_table_size=16384|
+select @@session.max_heap_table_size|
+# To trigger the memory corruption the original table must be InnoDB.
+# No harm if it's not, so don't warn if the suite is run with --skip-innodb
+--disable_warnings
+create table t3 (a char(255)) engine=InnoDB|
+--enable_warnings
+create procedure bug14210_fill_table()
+begin
+  declare table_size, max_table_size int default 0;
+  select @@session.max_heap_table_size into max_table_size;
+  delete from t3;
+  insert into t3 (a) values (repeat('a', 255));
+  repeat
+    insert into t3 select a from t3;
+    select count(*)*255 from t3 into table_size;
+  until table_size > max_table_size*2 end repeat;
+end|
+call bug14210_fill_table()|
+drop procedure bug14210_fill_table|
+create table t4 like t3|
+
+create procedure bug14210()
+begin
+  declare a char(255);
+  declare done int default 0;
+  declare c cursor for select * from t3;
+  declare continue handler for sqlstate '02000' set done = 1;
+  open c;
+  repeat
+    fetch c into a;
+    if not done then
+       insert into t4 values (upper(a));
+    end if;
+  until done end repeat;
+  close c;
+end|
+call bug14210()|
+select count(*) from t4|
+
+drop table t3, t4|
+drop procedure bug14210|
+set @@session.max_heap_table_size=default|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

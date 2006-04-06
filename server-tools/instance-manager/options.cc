@@ -79,6 +79,7 @@ enum options {
 #endif
   OPT_MONITORING_INTERVAL,
   OPT_PORT,
+  OPT_WAIT_TIMEOUT,
   OPT_BIND_ADDRESS
 };
 
@@ -150,6 +151,11 @@ static struct my_option my_long_options[] =
 #endif
   { "version", 'V', "Output version information and exit.", 0, 0, 0,
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "wait-timeout", OPT_WAIT_TIMEOUT, "The number of seconds IM waits "
+    "for activity on a connection before closing it.",
+    (gptr *) &net_read_timeout, (gptr *) &net_read_timeout, 0, GET_ULONG,
+    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0 },
 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };

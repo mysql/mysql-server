@@ -41,6 +41,8 @@
 #include "DLList.hpp"
 #include "ArrayPool.hpp"
 #include "DLHashTable.hpp"
+#include "WOPool.hpp"
+#include "RWPool.hpp"
 #include "Callback.hpp"
 #include "SafeCounter.hpp"
 
@@ -53,6 +55,7 @@
 #include <signaldata/ReadConfig.hpp>
 #include <signaldata/UpgradeStartup.hpp>
 #include "ndbd_malloc_impl.hpp"
+#include <blocks/record_types.hpp>
 
 /**
  * Something for filesystem access
@@ -93,6 +96,7 @@ class SimulatedBlock {
   friend class Page_cache_client;
   friend class Lgman;
   friend class Logfile_client;
+  friend struct Pool_context;
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
@@ -427,7 +431,8 @@ private:
 
 protected:  
   ArrayPool<GlobalPage>& m_global_page_pool;
-
+  ArrayPool<GlobalPage>& m_shared_page_pool;
+  
 private:
   /**
    * Node state

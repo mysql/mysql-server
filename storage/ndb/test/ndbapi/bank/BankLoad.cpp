@@ -53,7 +53,7 @@ int Bank::getNumAccountTypes(){
   return accountTypesSize;
 }
 
-int Bank::createAndLoadBank(bool ovrWrt, int num_accounts){
+int Bank::createAndLoadBank(bool ovrWrt, bool disk, int num_accounts){
 
   m_ndb.init();   
   if (m_ndb.waitUntilReady() != 0)
@@ -69,7 +69,7 @@ int Bank::createAndLoadBank(bool ovrWrt, int num_accounts){
     }
   }
   
-  if (createTables() != NDBT_OK)
+  if (createTables(disk) != NDBT_OK)
     return NDBT_FAILED;
   
   if (clearTables() != NDBT_OK)
@@ -104,9 +104,9 @@ int Bank::dropBank(){
 
 }
 
-int Bank::createTables(){
+int Bank::createTables(bool disk){
   for (int i = 0; i < tableNamesSize; i++){
-    if (createTable(tableNames[i]) != NDBT_OK)
+    if (createTable(tableNames[i], disk) != NDBT_OK)
       return NDBT_FAILED;
   }
   return NDBT_OK;
@@ -136,7 +136,7 @@ int Bank::clearTable(const char* tabName){
   return NDBT_OK;
 }
 
-int Bank::createTable(const char* tabName){    
+int Bank::createTable(const char* tabName, bool disk){    
   ndbout << "createTable " << tabName << endl;
 
   const NdbDictionary::Table* pTab = NDBT_Tables::getTable(tabName);
@@ -146,7 +146,8 @@ int Bank::createTable(const char* tabName){
   const NdbDictionary::Table* org = 
     m_ndb.getDictionary()->getTable(tabName);
   
-  if (org != 0 && pTab->equal(* org)){
+  if (org != 0 && (disk || pTab->equal(* org)))
+  {
     return NDBT_OK;
   }
   
@@ -154,11 +155,31 @@ int Bank::createTable(const char* tabName){
     ndbout << "Different table with same name exists" << endl;
     return NDBT_FAILED;
   }
- 
-  if(m_ndb.getDictionary()->createTable(* pTab) == -1){
-    ndbout << "Failed to create table: " <<
-      m_ndb.getNdbError() << endl;
-    return NDBT_FAILED;
+
+  if (disk)
+  {
+    if (NDBT_Tables::create_default_tablespace(&m_ndb))
+    {
+      ndbout << "Failed to create tablespaces" << endl;
+      return NDBT_FAILED;
+    }
+    NdbDictionary::Table copy(* pTab);
+    copy.setTablespace("DEFAULT-TS");
+    for (Uint32 i = 0; i<copy.getNoOfColumns(); i++)
+      copy.getColumn(i)->setStorageType(NdbDictionary::Column::StorageTypeDisk);
+    if(m_ndb.getDictionary()->createTable(copy) == -1){
+      ndbout << "Failed to create table: " <<
+	m_ndb.getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+  else
+  {
+    if(m_ndb.getDictionary()->createTable(* pTab) == -1){
+      ndbout << "Failed to create table: " <<
+	m_ndb.getNdbError() << endl;
+      return NDBT_FAILED;
+    }
   }
 
   return NDBT_OK;    

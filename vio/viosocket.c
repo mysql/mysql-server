@@ -560,14 +560,20 @@ int vio_close_shared_memory(Vio * vio)
       Close all handlers. UnmapViewOfFile and CloseHandle return non-zero
       result if they are success.
     */
-    r= UnmapViewOfFile(vio->handle_map) || CloseHandle(vio->event_server_wrote) ||
-       CloseHandle(vio->event_server_read) || CloseHandle(vio->event_client_wrote) ||
-       CloseHandle(vio->event_client_read) || CloseHandle(vio->handle_file_map);
-    if (!r)
-    {
-      DBUG_PRINT("vio_error", ("close() failed, error: %d",r));
-      /* FIXME: error handling (not critical for MySQL) */
-    }
+    if (UnmapViewOfFile(vio->handle_map) == 0) 
+      DBUG_PRINT("vio_error", ("UnmapViewOfFile() failed"));
+    if (CloseHandle(vio->event_server_wrote) == 0)
+      DBUG_PRINT("vio_error", ("CloseHandle(vio->esw) failed"));
+    if (CloseHandle(vio->event_server_read) == 0)
+      DBUG_PRINT("vio_error", ("CloseHandle(vio->esr) failed"));
+    if (CloseHandle(vio->event_client_wrote) == 0)
+      DBUG_PRINT("vio_error", ("CloseHandle(vio->ecw) failed"));
+    if (CloseHandle(vio->event_client_read) == 0)
+      DBUG_PRINT("vio_error", ("CloseHandle(vio->ecr) failed"));
+    if (CloseHandle(vio->handle_file_map) == 0)
+      DBUG_PRINT("vio_error", ("CloseHandle(vio->hfm) failed"));
+    if (CloseHandle(vio->event_conn_closed) == 0)
+      DBUG_PRINT("vio_error", ("CloseHandle(vio->ecc) failed"));
   }
   vio->type= VIO_CLOSED;
   vio->sd=   -1;

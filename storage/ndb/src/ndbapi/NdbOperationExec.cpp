@@ -59,7 +59,7 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
   int tSignalCount = 0;
   assert(theTCREQ != NULL);
   setLastFlag(theTCREQ, lastFlag);
-  TransporterFacade *tp = TransporterFacade::instance();
+  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
   tReturnCode = tp->sendSignal(theTCREQ, aNodeId);
   tSignalCount++;
   if (tReturnCode == -1) {

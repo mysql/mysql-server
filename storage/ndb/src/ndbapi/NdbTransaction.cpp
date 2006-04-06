@@ -434,12 +434,12 @@ NdbTransaction::executeNoBlobs(ExecType aTypeOfExec,
 //------------------------------------------------------------------------
   Ndb* tNdb = theNdb;
 
+  Uint32 timeout = theNdb->theImpl->m_transporter_facade->m_waitfor_timeout;
   m_waitForReply = false;
   executeAsynchPrepare(aTypeOfExec, NULL, NULL, abortOption);
   if (m_waitForReply){
     while (1) {
-      int noOfComp = tNdb->sendPollNdb((3 * WAITFOR_RESPONSE_TIMEOUT),
-                                       1, forceSend);
+      int noOfComp = tNdb->sendPollNdb(3 * timeout, 1, forceSend);
       if (noOfComp == 0) {
         /** 
          * This timeout situation can occur if NDB crashes.
@@ -706,7 +706,7 @@ NdbTransaction::sendTC_HBREP()		// Send a TC_HBREP signal;
   tcHbRep->transId1      = tTransId1;
   tcHbRep->transId2      = tTransId2;
  
-  TransporterFacade *tp = TransporterFacade::instance();
+  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
   tp->lock_mutex(); 
   const int res = tp->sendSignal(tSignal,theDBnode);
   tp->unlock_mutex(); 
@@ -812,7 +812,7 @@ NdbTransaction::sendROLLBACK()      // Send a TCROLLBACKREQ signal;
  *************************************************************************/
     NdbApiSignal tSignal(tNdb->theMyRef);
     Uint32 tTransId1, tTransId2;
-    TransporterFacade *tp = TransporterFacade::instance();
+    TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
     int	  tReturnCode;
 
     tTransId1 = (Uint32) theTransactionId;
@@ -859,7 +859,7 @@ NdbTransaction::sendCOMMIT()    // Send a TC_COMMITREQ signal;
 {
   NdbApiSignal tSignal(theNdb->theMyRef);
   Uint32 tTransId1, tTransId2;
-  TransporterFacade *tp = TransporterFacade::instance(); 
+  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
   int	  tReturnCode;
 
   tTransId1 = (Uint32) theTransactionId;
@@ -970,35 +970,57 @@ NdbTransaction::releaseScanOperations(NdbIndexScanOperation* cursorOp)
 }//NdbTransaction::releaseScanOperations()
 
 /*****************************************************************************
-void releaseExecutedScanOperation();
+void releaseScanOperation();
 
 Remark:         Release scan op when hupp'ed trans closed (save memory)
 ******************************************************************************/
 void 
-NdbTransaction::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
+NdbTransaction::releaseScanOperation(NdbIndexScanOperation* cursorOp)
 {
-  DBUG_ENTER("NdbTransaction::releaseExecutedScanOperation");
+  DBUG_ENTER("NdbTransaction::releaseScanOperation");
   DBUG_PRINT("enter", ("this=0x%x op=0x%x", (UintPtr)this, (UintPtr)cursorOp));
 
   // here is one reason to make op lists doubly linked
-  if (m_firstExecutedScanOp == cursorOp) {
-    m_firstExecutedScanOp = (NdbIndexScanOperation*)cursorOp->theNext;
-    cursorOp->release();
-    theNdb->releaseScanOperation(cursorOp);
-  } else if (m_firstExecutedScanOp != NULL) {
-    NdbIndexScanOperation* tOp = m_firstExecutedScanOp;
-    while (tOp->theNext != NULL) {
-      if (tOp->theNext == cursorOp) {
-        tOp->theNext = cursorOp->theNext;
-        cursorOp->release();
-        theNdb->releaseScanOperation(cursorOp);
-        break;
+  if (cursorOp->m_executed)
+  {
+    if (m_firstExecutedScanOp == cursorOp) {
+      m_firstExecutedScanOp = (NdbIndexScanOperation*)cursorOp->theNext;
+      cursorOp->release();
+      theNdb->releaseScanOperation(cursorOp);
+    } else if (m_firstExecutedScanOp != NULL) {
+      NdbIndexScanOperation* tOp = m_firstExecutedScanOp;
+      while (tOp->theNext != NULL) {
+        if (tOp->theNext == cursorOp) {
+          tOp->theNext = cursorOp->theNext;
+          cursorOp->release();
+          theNdb->releaseScanOperation(cursorOp);
+          break;
+        }
+        tOp = (NdbIndexScanOperation*)tOp->theNext;
       }
-      tOp = (NdbIndexScanOperation*)tOp->theNext;
+    }
+  }
+  else
+  {
+    if (m_theFirstScanOperation == cursorOp) {
+      m_theFirstScanOperation = (NdbIndexScanOperation*)cursorOp->theNext;
+      cursorOp->release();
+      theNdb->releaseScanOperation(cursorOp);
+    } else if (m_theFirstScanOperation != NULL) {
+      NdbIndexScanOperation* tOp = m_theFirstScanOperation;
+      while (tOp->theNext != NULL) {
+        if (tOp->theNext == cursorOp) {
+          tOp->theNext = cursorOp->theNext;
+          cursorOp->release();
+          theNdb->releaseScanOperation(cursorOp);
+          break;
+        }
+        tOp = (NdbIndexScanOperation*)tOp->theNext;
+      }
     }
   }
   DBUG_VOID_RETURN;
-}//NdbTransaction::releaseExecutedScanOperation()
+}//NdbTransaction::releaseScanOperation()
 
 /*****************************************************************************
 NdbOperation* getNdbOperation(const char* aTableName);
@@ -1171,6 +1193,8 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
       {
 	tOp->m_currentTable = table;
       }
+      // Mark that this really an NdbIndexScanOperation
+      tOp->m_type = NdbOperation::OrderedIndexScan; 
       return tOp;
     } else {
       setOperationErrorCodeAbort(4271);
@@ -1232,6 +1256,8 @@ NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
   
   if (tOp->init(tab, this) != -1) {
     define_scan_op(tOp);
+    // Mark that this NdbIndexScanOperation is used as NdbScanOperation
+    tOp->m_type = NdbOperation::TableScan; 
     return tOp;
   } else {
     theNdb->releaseScanOperation(tOp);

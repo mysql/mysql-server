@@ -214,3 +214,26 @@ drop function f1;
 drop function f2;
 drop function f3;
 drop procedure sp1;
+drop table if exists t1;
+drop view if exists v1, v2, v3;
+drop function if exists bug15683;
+create table t1 (f1 bigint, f2 varchar(20), f3 bigint);
+insert into t1 set f1 = 1, f2 = 'schoenenbourg', f3 = 1;
+create view v1 as select 1 from t1 union all select 1;
+create view v2 as select 1 from v1;
+create view v3 as select 1 as f1 from v2;
+create function bug15683() returns bigint
+begin
+return (select count(*) from v3);
+end|
+prepare stmt from "select bug15683()";
+execute stmt;
+bug15683()
+2
+execute stmt;
+bug15683()
+2
+deallocate prepare stmt;
+drop table t1;
+drop view v1, v2, v3;
+drop function bug15683;

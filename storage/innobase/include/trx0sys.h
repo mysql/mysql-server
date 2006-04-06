@@ -29,7 +29,7 @@ file name and position here. We have successfully got the updates to InnoDB
 up to this position. If .._pos is -1, it means no crash recovery was needed,
 or there was no master log position info inside InnoDB. */
 
-extern char 		trx_sys_mysql_master_log_name[];
+extern char		trx_sys_mysql_master_log_name[];
 extern ib_longlong	trx_sys_mysql_master_log_pos;
 
 /* If this MySQL server uses binary logging, after InnoDB has been inited
@@ -37,7 +37,7 @@ and if it has done a crash recovery, we store the binlog file name and position
 here. If .._pos is -1, it means there was no binlog position info inside
 InnoDB. */
 
-extern char 		trx_sys_mysql_bin_log_name[];
+extern char		trx_sys_mysql_bin_log_name[];
 extern ib_longlong	trx_sys_mysql_bin_log_pos;
 
 /* The transaction system */
@@ -320,7 +320,7 @@ trx_sys_print_mysql_master_log_pos(void);
 #define TRX_SYS_FSEG_HEADER	8	/* segment header for the tablespace
 					segment the trx system is created
 					into */
-#define	TRX_SYS_RSEGS		(8 + FSEG_HEADER_SIZE)	
+#define	TRX_SYS_RSEGS		(8 + FSEG_HEADER_SIZE)
 					/* the start of the array of rollback
 					segment specification slots */
 /*-------------------------------------------------------------*/
@@ -352,10 +352,10 @@ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 /* The offset of the doublewrite buffer header on the trx system header page */
 #define TRX_SYS_DOUBLEWRITE		(UNIV_PAGE_SIZE - 200)
 /*-------------------------------------------------------------*/
-#define TRX_SYS_DOUBLEWRITE_FSEG 	0	/* fseg header of the fseg
+#define TRX_SYS_DOUBLEWRITE_FSEG	0	/* fseg header of the fseg
 						containing the doublewrite
 						buffer */
-#define TRX_SYS_DOUBLEWRITE_MAGIC 	FSEG_HEADER_SIZE
+#define TRX_SYS_DOUBLEWRITE_MAGIC	FSEG_HEADER_SIZE
 						/* 4-byte magic number which
 						shows if we already have
 						created the doublewrite
@@ -390,7 +390,7 @@ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 #define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N 1783657386
 
 
-#define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE	FSP_EXTENT_SIZE	
+#define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE	FSP_EXTENT_SIZE
 
 /* Doublewrite control struct */
 struct trx_doublewrite_struct{
@@ -401,7 +401,7 @@ struct trx_doublewrite_struct{
 	ulint	block2;		/* page number of the second block */
 	ulint	first_free;	/* first free position in write_buf measured
 				in units of UNIV_PAGE_SIZE */
-	byte*	write_buf; 	/* write buffer used in writing to the
+	byte*	write_buf;	/* write buffer used in writing to the
 				doublewrite buffer, aligned to an
 				address divisible by UNIV_PAGE_SIZE
 				(which is required by Windows aio) */
@@ -450,4 +450,4 @@ page is updated */
 #include "trx0sys.ic"
 #endif
 
-#endif 
+#endif

@@ -247,7 +247,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Create user", "Server Admin",  "To create new users"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
-  {"Event","Server Admin","Creation, alteration, deletion and execution of events."},
+  {"Event","Server Admin","To create, alter, drop and execute events"},
   {"Execute", "Functions,Procedures", "To execute stored routines"},
   {"File", "File access on server",   "To read and write files on the server"},
   {"Grant option",  "Databases,Tables,Functions,Procedures", "To give to other users those privileges you possess"},
@@ -476,7 +476,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       table_list.table_name= file->name;
       table_list.table_name_length= strlen(file->name);
       table_list.grant.privilege=col_access;
-      if (check_grant(thd, TABLE_ACLS, &table_list, 1, UINT_MAX, 1))
+      if (check_grant(thd, TABLE_ACLS, &table_list, 1, 1, 1))
         continue;
     }
 #endif
@@ -513,12 +513,15 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     if (!table_list->view || thd->net.last_errno != ER_VIEW_INVALID)
       DBUG_RETURN(TRUE);
+
     /*
       Clear all messages with 'error' level status and
       issue a warning with 'warning' level status in 
       case of invalid view and last error is ER_VIEW_INVALID
     */
     mysql_reset_errors(thd, true);
+    thd->clear_error();
+
     push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_VIEW_INVALID,
                         ER(ER_VIEW_INVALID),
@@ -763,6 +766,18 @@ static const char *require_quotes(const char *name, uint name_length)
 }
 
 
+/*
+  Quote the given identifier if needed and append it to the target string.
+  If the given identifier is empty, it will be quoted.
+
+  SYNOPSIS
+  append_identifier()
+  thd                   thread handler
+  packet                target string
+  name                  the identifier to be appended
+  name_length           length of the appending identifier
+*/
+
 void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
@@ -816,8 +831,11 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
     length	length of name
 
   IMPLEMENTATION
-    If name is a keyword or includes a special character, then force
-    quoting.
+    Force quoting in the following cases:
+      - name is empty (for one, it is possible when we use this function for
+        quoting user and host names for DEFINER clause);
+      - name is a keyword;
+      - name includes a special character;
     Otherwise identifier is quoted only if the option OPTION_QUOTE_SHOW_CREATE
     is set.
 
@@ -828,7 +846,8 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
 {
-  if (!is_keyword(name,length) &&
+  if (length &&
+      !is_keyword(name,length) &&
       !require_quotes(name, length) &&
       !(thd->options & OPTION_QUOTE_SHOW_CREATE))
     return EOF;
@@ -963,7 +982,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     {
       if (field->charset() != share->table_charset)
       {
-	packet->append(STRING_WITH_LEN(" character set "));
+	packet->append(STRING_WITH_LEN(" CHARACTER SET "));
 	packet->append(field->charset()->csname);
       }
       /* 
@@ -972,7 +991,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       */
       if (!(field->charset()->state & MY_CS_PRIMARY))
       {
-	packet->append(STRING_WITH_LEN(" collate "));
+	packet->append(STRING_WITH_LEN(" COLLATE "));
 	packet->append(field->charset()->name);
       }
     }
@@ -1003,7 +1022,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if (has_default)
     {
-      packet->append(STRING_WITH_LEN(" default "));
+      packet->append(STRING_WITH_LEN(" DEFAULT "));
       if (has_now_default)
         packet->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
       else if (!field->is_null())
@@ -1031,11 +1050,11 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (!(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS) &&
         table->timestamp_field == field && 
         field->unireg_check != Field::TIMESTAMP_DN_FIELD)
-      packet->append(STRING_WITH_LEN(" on update CURRENT_TIMESTAMP"));
+      packet->append(STRING_WITH_LEN(" ON UPDATE CURRENT_TIMESTAMP"));
 
     if (field->unireg_check == Field::NEXT_NUMBER && 
         !(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS))
-      packet->append(STRING_WITH_LEN(" auto_increment"));
+      packet->append(STRING_WITH_LEN(" AUTO_INCREMENT"));
 
     if (field->comment.length)
     {
@@ -1058,15 +1077,20 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (i == primary_key && !strcmp(key_info->name, primary_key_name))
     {
       found_primary=1;
-      packet->append(STRING_WITH_LEN("PRIMARY "));
+      /*
+        No space at end, because a space will be added after where the
+        identifier would go, but that is not added for primary key.
+      */
+      packet->append(STRING_WITH_LEN("PRIMARY KEY"));
     }
     else if (key_info->flags & HA_NOSAME)
-      packet->append(STRING_WITH_LEN("UNIQUE "));
+      packet->append(STRING_WITH_LEN("UNIQUE KEY "));
     else if (key_info->flags & HA_FULLTEXT)
-      packet->append(STRING_WITH_LEN("FULLTEXT "));
+      packet->append(STRING_WITH_LEN("FULLTEXT KEY "));
     else if (key_info->flags & HA_SPATIAL)
-      packet->append(STRING_WITH_LEN("SPATIAL "));
-    packet->append(STRING_WITH_LEN("KEY "));
+      packet->append(STRING_WITH_LEN("SPATIAL KEY "));
+    else
+      packet->append(STRING_WITH_LEN("KEY "));
 
     if (!found_primary)
      append_identifier(thd, packet, key_info->name, strlen(key_info->name));
@@ -1649,7 +1673,7 @@ static int show_var_cmp(const void *var1, const void *var2)
 */
 static void shrink_var_array(DYNAMIC_ARRAY *array)
 {
-  int a,b;
+  uint a,b;
   SHOW_VAR *all= dynamic_element(array, 0, SHOW_VAR *);
 
   for (a= b= 0; b < array->elements; b++)
@@ -1746,18 +1770,19 @@ void free_status_vars()
     there's lots of room for optimizing this, especially in non-sorted mode,
     but nobody cares - it may be called only in case of failed plugin
     initialization in the mysqld startup.
-
 */
+
 void remove_status_vars(SHOW_VAR *list)
 {
   if (status_vars_inited)
   {
     pthread_mutex_lock(&LOCK_status);
     SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
-    int a= 0, b= all_status_vars.elements, c= (a+b)/2, res;
+    int a= 0, b= all_status_vars.elements, c= (a+b)/2;
 
     for (; list->name; list++)
     {
+      int res= 0;
       for (a= 0, b= all_status_vars.elements; b-a > 1; c= (a+b)/2)
       {
         res= show_var_cmp(list, all+c);
@@ -1765,7 +1790,8 @@ void remove_status_vars(SHOW_VAR *list)
           b= c;
         else if (res > 0)
           a= c;
-        else break;
+        else
+          break;
       }
       if (res == 0)
         all[c].type= SHOW_UNDEF;
@@ -1776,7 +1802,7 @@ void remove_status_vars(SHOW_VAR *list)
   else
   {
     SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
-    int i;
+    uint i;
     for (; list->name; list++)
     {
       for (i= 0; i < all_status_vars.elements; i++)
@@ -2695,6 +2721,12 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
       ptr=strxmov(ptr, " row_format=", 
                   ha_row_type[(uint) share->row_type],
                   NullS);
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    if (show_table->s->db_type == &partition_hton && 
+        show_table->part_info != NULL && 
+        show_table->part_info->no_parts > 0)
+      ptr= strmov(ptr, " partitioned");
+#endif
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 
                              (uint) (ptr-option_buff)-1), cs);
@@ -3770,7 +3802,7 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
       table->field[9]->set_notnull();
     }
 
-    if (is_sub_partitioned(part_info))
+    if (part_info->is_sub_partitioned())
     {
       /* Subpartition method */
       if (part_info->list_of_subpart_fields)
@@ -3824,6 +3856,12 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
         uint no_items= part_elem->list_val_list.elements;
         tmp_str.length(0);
         tmp_res.length(0);
+        if (part_elem->has_null_value)
+        {
+          tmp_str.append("NULL");
+          if (no_items > 0)
+            tmp_str.append(",");
+        }
         while ((list_value= list_val_it++))
         {
           tmp_res.set(*list_value, cs);
@@ -3928,14 +3966,14 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
   TIME time;
-  event_timed et;    
+  Event_timed et;    
   DBUG_ENTER("fill_events_copy_to_schema_tab");
 
   restore_record(sch_table, s->default_values);
 
   if (et.load_from_row(thd->mem_root, event_table))
   {
-    my_error(ER_EVENT_CANNOT_LOAD_FROM_TABLE, MYF(0));
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -3949,46 +3987,53 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   sch_table->field[3]->store(et.definer.str, et.definer.length, scs);
   sch_table->field[4]->store(et.body.str, et.body.length, scs);
 
-  // [9] is SQL_MODE and is NULL for now, will be fixed later
-  sch_table->field[9]->set_null();
+  /* [9] is SQL_MODE */
+  {
+    byte *sql_mode_str;
+    ulong sql_mode_len=0;
+    sql_mode_str=
+           sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
+                                                              &sql_mode_len);  
+    sch_table->field[9]->store((const char*)sql_mode_str, sql_mode_len, scs);
+  }
+  
   if (et.expression)
   {
     String show_str;
     //type
     sch_table->field[5]->store(STRING_WITH_LEN("RECURRING"), scs);
-    //execute_at
+    /* execute_at */
     sch_table->field[6]->set_null();
-    //interval_value
+    /* interval_value */
     //interval_type
     if (event_reconstruct_interval_expression(&show_str, et.interval,
                                               et.expression))
       DBUG_RETURN(1);
+
     sch_table->field[7]->set_notnull();
     sch_table->field[7]->store(show_str.c_ptr(), show_str.length(), scs);
 
     LEX_STRING *ival= &interval_type_to_name[et.interval];
     sch_table->field[8]->set_notnull();
     sch_table->field[8]->store(ival->str, ival->length, scs);
-    //starts & ends
+
+    //starts & ends    
     sch_table->field[10]->set_notnull();
     sch_table->field[10]->store_time(&et.starts, MYSQL_TIMESTAMP_DATETIME);
-    sch_table->field[11]->set_notnull();
-    sch_table->field[11]->store_time(&et.ends, MYSQL_TIMESTAMP_DATETIME);
+
+    if (!et.ends_null)
+    {
+      sch_table->field[11]->set_notnull();
+      sch_table->field[11]->store_time(&et.ends, MYSQL_TIMESTAMP_DATETIME);
+    }
   }
   else
   {
     //type
     sch_table->field[5]->store(STRING_WITH_LEN("ONE TIME"), scs);
-    //execute_at
+
     sch_table->field[6]->set_notnull();
     sch_table->field[6]->store_time(&et.execute_at, MYSQL_TIMESTAMP_DATETIME);
-    //interval
-    sch_table->field[7]->set_null();
-    //interval_type
-    sch_table->field[8]->set_null();
-    //starts & ends
-    sch_table->field[10]->set_null();
-    sch_table->field[11]->set_null();
   }
 
   //status
@@ -4627,7 +4672,8 @@ bool get_schema_tables_result(JOIN *join)
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
     if (table_list->schema_table && thd->fill_derived_tables())
     {
-      bool is_subselect= (&lex->unit != lex->current_select->master_unit());
+      bool is_subselect= (&lex->unit != lex->current_select->master_unit() &&
+                          lex->current_select->master_unit()->item);
       /*
         The schema table is already processed and 
         the statement is not a subselect.
@@ -4797,7 +4843,7 @@ ST_FIELD_INFO events_fields_info[]=
   {"EXECUTE_AT", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Execute at"},
   {"INTERVAL_VALUE", 256, MYSQL_TYPE_STRING, 0, 1, "Interval value"},
   {"INTERVAL_FIELD", 18, MYSQL_TYPE_STRING, 0, 1, "Interval field"},
-  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"STARTS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Starts"},
   {"ENDS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Ends"},
   {"STATUS", 8, MYSQL_TYPE_STRING, 0, 0, "Status"},

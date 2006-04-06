@@ -28,7 +28,7 @@ represented on a higher text line):
   if the offset is 2-byte, then the second most significant
   bit is set to 1 if the field is stored on another page:
   mostly this will occur in the case of big BLOB fields |
-... 
+...
 | offset of the end of the first field of data + the SQL-null bit |
 | 4 bits used to delete mark a record, and mark a predefined
   minimum record in alphabetical order |
@@ -41,18 +41,18 @@ represented on a higher text line):
   one byte format, 0 if in two byte format |
 | two bytes giving an absolute pointer to the next record in the page |
 ORIGIN of the record
-| first field of data | 
-... 
+| first field of data |
+...
 | last field of data |
 
-The origin of the record is the start address of the first field 
-of data. The offsets are given relative to the origin. 
+The origin of the record is the start address of the first field
+of data. The offsets are given relative to the origin.
 The offsets of the data fields are stored in an inverted
-order because then the offset of the first fields are near the 
+order because then the offset of the first fields are near the
 origin, giving maybe a better processor cache hit rate in searches.
 
-The offsets of the data fields are given as one-byte 
-(if there are less than 127 bytes of data in the record) 
+The offsets of the data fields are given as one-byte
+(if there are less than 127 bytes of data in the record)
 or two-byte unsigned integers. The most significant bit
 is not part of the offset, instead it indicates the SQL-null
 if the bit is set to 1. */
@@ -102,7 +102,7 @@ if the bit is set to 1. */
 string of 'characters' in the following way: catenate the bytes
 in each field, in the order of fields. An SQL-null field
 is taken to be an empty sequence of bytes. Then after
-the position of each field insert in the string 
+the position of each field insert in the string
 the 'character' <FIELD-END>, except that after an SQL-null field
 insert <NULL-FIELD-END>. Now the ordinal position of each
 byte in this canonical string is its canonical coordinate.
@@ -138,9 +138,9 @@ rec_validate_old(
 
 /**********************************************************
 The following function determines the offsets to each field in the
-record.  The offsets are written to a previously allocated array of
+record.	 The offsets are written to a previously allocated array of
 ulint, where rec_offs_n_fields(offsets) has been initialized to the
-number of fields in the record.  The rest of the array will be
+number of fields in the record.	 The rest of the array will be
 initialized by this function.  rec_offs_base(offsets)[0] will be set
 to the extra size (if REC_OFFS_COMPACT is set, the record is in the
 new format), and rec_offs_base(offsets)[1..n_fields] will be set to
@@ -164,7 +164,7 @@ rec_init_offsets(
 
 	rec_offs_make_valid(rec, index, offsets);
 
-	if (UNIV_LIKELY(index->table->comp)) {
+	if (dict_table_is_comp(index->table)) {
 		const byte*	nulls;
 		const byte*	lens;
 		dict_field_t*	field;
@@ -230,8 +230,8 @@ rec_init_offsets(
 						dict_field_get_col(field));
 				len = *lens--;
 				if (UNIV_UNLIKELY(dtype_get_len(type) > 255)
-				    || UNIV_UNLIKELY(dtype_get_mtype(type)
-							== DATA_BLOB)) {
+					|| UNIV_UNLIKELY(dtype_get_mtype(type)
+						== DATA_BLOB)) {
 					if (len & 0x80) {
 						/* 1exxxxxxx xxxxxxxx */
 						len <<= 8;
@@ -297,7 +297,7 @@ rec_init_offsets(
 
 /**********************************************************
 The following function determines the offsets to each field
-in the record.  It can reuse a previously returned array. */
+in the record.	It can reuse a previously returned array. */
 
 ulint*
 rec_get_offsets_func(
@@ -321,7 +321,7 @@ rec_get_offsets_func(
 	ut_ad(index);
 	ut_ad(heap);
 
-	if (UNIV_LIKELY(index->table->comp)) {
+	if (dict_table_is_comp(index->table)) {
 		switch (UNIV_EXPECT(rec_get_status(rec),
 				REC_STATUS_ORDINARY)) {
 		case REC_STATUS_ORDINARY:
@@ -371,9 +371,9 @@ data field in an old-style record. */
 byte*
 rec_get_nth_field_old(
 /*==================*/
- 			/* out: pointer to the field */
- 	rec_t*	rec, 	/* in: record */
- 	ulint	n,	/* in: index of the field */
+			/* out: pointer to the field */
+	rec_t*	rec,	/* in: record */
+	ulint	n,	/* in: index of the field */
 	ulint*	len)	/* out: length of the field; UNIV_SQL_NULL if SQL
 			null */
 {
@@ -393,7 +393,7 @@ rec_get_nth_field_old(
 		fputs("Error: rec is NULL pointer\n", stderr);
 		ut_error;
 	}
-	
+
 	if (rec_get_1byte_offs_flag(rec)) {
 		os = rec_1_get_field_start_offs(rec, n);
 
@@ -408,7 +408,7 @@ rec_get_nth_field_old(
 		next_os = next_os & ~REC_1BYTE_SQL_NULL_MASK;
 	} else {
 		os = rec_2_get_field_start_offs(rec, n);
-	
+
 		next_os = rec_2_get_field_end_info(rec, n);
 
 		if (next_os & REC_2BYTE_SQL_NULL_MASK) {
@@ -420,7 +420,7 @@ rec_get_nth_field_old(
 		next_os = next_os & ~(REC_2BYTE_SQL_NULL_MASK
 						| REC_2BYTE_EXTERN_MASK);
 	}
-	
+
 	*len = next_os - os;
 
 	ut_ad(*len < UNIV_PAGE_SIZE);
@@ -446,7 +446,7 @@ rec_get_converted_size_new(
 	ulint		i;
 	ulint		n_fields;
 	ut_ad(index && dtuple);
-	ut_ad(index->table->comp);
+	ut_ad(dict_table_is_comp(index->table));
 
 	switch (dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK) {
 	case REC_STATUS_ORDINARY:
@@ -553,7 +553,7 @@ rec_set_nth_field_extern_bit_old(
 
 	ut_a(!rec_get_1byte_offs_flag(rec));
 	ut_a(i < rec_get_n_fields_old(rec));
-	
+
 	info = rec_2_get_field_end_info(rec, i);
 
 	if (val) {
@@ -592,7 +592,7 @@ rec_set_nth_field_extern_bit_new(
 	ulint		n_fields;
 	ulint		null_mask	= 1;
 	ut_ad(rec && index);
-	ut_ad(index->table->comp);
+	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
 
 	n_fields = dict_index_get_n_fields(index);
@@ -674,7 +674,7 @@ rec_set_field_extern_bits(
 {
 	ulint	i;
 
-	if (UNIV_LIKELY(index->table->comp)) {
+	if (dict_table_is_comp(index->table)) {
 		for (i = 0; i < n_fields; i++) {
 			rec_set_nth_field_extern_bit_new(rec, index, vec[i],
 								TRUE, mtr);
@@ -687,14 +687,14 @@ rec_set_field_extern_bits(
 	}
 }
 
-/*************************************************************** 
+/***************************************************************
 Sets an old-style record field to SQL null.
 The physical size of the field is not changed. */
 
 void
 rec_set_nth_field_sql_null(
 /*=======================*/
-	rec_t*	rec, 	/* in: record */
+	rec_t*	rec,	/* in: record */
 	ulint	n)	/* in: index of the field */
 {
 	ulint	offset;
@@ -712,22 +712,22 @@ stores it beginning from the start of the given buffer. */
 static
 rec_t*
 rec_convert_dtuple_to_rec_old(
-/*==========================*/			
+/*==========================*/
 			/* out: pointer to the origin of
 			physical record */
 	byte*	buf,	/* in: start address of the physical record */
 	dtuple_t* dtuple)/* in: data tuple */
 {
-	dfield_t* 	field;
+	dfield_t*	field;
 	ulint		n_fields;
 	ulint		data_size;
-	rec_t* 		rec;
+	rec_t*		rec;
 	ulint		end_offset;
 	ulint		ored_offset;
 	byte*		data;
 	ulint		len;
 	ulint		i;
-	
+
 	ut_ad(buf && dtuple);
 	ut_ad(dtuple_validate(dtuple));
 	ut_ad(dtuple_check_typed(dtuple));
@@ -737,10 +737,10 @@ rec_convert_dtuple_to_rec_old(
 
 	ut_ad(n_fields > 0);
 
-	/* Calculate the offset of the origin in the physical record */	
+	/* Calculate the offset of the origin in the physical record */
 
 	rec = buf + rec_get_converted_extra_size(data_size, n_fields);
-	
+
 	/* Store the number of fields */
 	rec_set_n_fields_old(rec, n_fields);
 
@@ -754,57 +754,61 @@ rec_convert_dtuple_to_rec_old(
 
 	if (data_size <= REC_1BYTE_OFFS_LIMIT) {
 
-	    rec_set_1byte_offs_flag(rec, TRUE);
+		rec_set_1byte_offs_flag(rec, TRUE);
 
-	    for (i = 0; i < n_fields; i++) {
+		for (i = 0; i < n_fields; i++) {
 
-		field = dtuple_get_nth_field(dtuple, i);
+			field = dtuple_get_nth_field(dtuple, i);
 
-		data = dfield_get_data(field);
-		len = dfield_get_len(field);
-		
-		if (len == UNIV_SQL_NULL) {
-			len = dtype_get_sql_null_size(dfield_get_type(field));
-			data_write_sql_null(rec + end_offset, len);
-		
-			end_offset += len;
-			ored_offset = end_offset | REC_1BYTE_SQL_NULL_MASK;
-		} else {
-			/* If the data is not SQL null, store it */
-			ut_memcpy(rec + end_offset, data, len);
+			data = dfield_get_data(field);
+			len = dfield_get_len(field);
 
-			end_offset += len;
-			ored_offset = end_offset;
+			if (len == UNIV_SQL_NULL) {
+				len = dtype_get_sql_null_size(
+					dfield_get_type(field));
+				data_write_sql_null(rec + end_offset, len);
+
+				end_offset += len;
+				ored_offset = end_offset
+					| REC_1BYTE_SQL_NULL_MASK;
+			} else {
+				/* If the data is not SQL null, store it */
+				ut_memcpy(rec + end_offset, data, len);
+
+				end_offset += len;
+				ored_offset = end_offset;
+			}
+
+			rec_1_set_field_end_info(rec, i, ored_offset);
 		}
-
-		rec_1_set_field_end_info(rec, i, ored_offset);
-	    }
 	} else {
-	    rec_set_1byte_offs_flag(rec, FALSE);
+		rec_set_1byte_offs_flag(rec, FALSE);
 
-	    for (i = 0; i < n_fields; i++) {
+		for (i = 0; i < n_fields; i++) {
 
-		field = dtuple_get_nth_field(dtuple, i);
+			field = dtuple_get_nth_field(dtuple, i);
 
-		data = dfield_get_data(field);
-		len = dfield_get_len(field);
-		
-		if (len == UNIV_SQL_NULL) {
-			len = dtype_get_sql_null_size(dfield_get_type(field));
-			data_write_sql_null(rec + end_offset, len);
-		
-			end_offset += len;
-			ored_offset = end_offset | REC_2BYTE_SQL_NULL_MASK;
-		} else {
-			/* If the data is not SQL null, store it */
-			ut_memcpy(rec + end_offset, data, len);
+			data = dfield_get_data(field);
+			len = dfield_get_len(field);
 
-			end_offset += len;
-			ored_offset = end_offset;
+			if (len == UNIV_SQL_NULL) {
+				len = dtype_get_sql_null_size(
+					dfield_get_type(field));
+				data_write_sql_null(rec + end_offset, len);
+
+				end_offset += len;
+				ored_offset = end_offset
+					| REC_2BYTE_SQL_NULL_MASK;
+			} else {
+				/* If the data is not SQL null, store it */
+				ut_memcpy(rec + end_offset, data, len);
+
+				end_offset += len;
+				ored_offset = end_offset;
+			}
+
+			rec_2_set_field_end_info(rec, i, ored_offset);
 		}
-
-		rec_2_set_field_end_info(rec, i, ored_offset);
-	    }
 	}
 
 	return(rec);
@@ -825,7 +829,7 @@ rec_convert_dtuple_to_rec_new(
 {
 	dfield_t*	field;
 	dtype_t*	type;
-	rec_t* 		rec		= buf + REC_N_NEW_EXTRA_BYTES;
+	rec_t*		rec		= buf + REC_N_NEW_EXTRA_BYTES;
 	byte*		end;
 	byte*		nulls;
 	byte*		lens;
@@ -837,12 +841,11 @@ rec_convert_dtuple_to_rec_new(
 	const ulint	n_fields	= dtuple_get_n_fields(dtuple);
 	const ulint	status		= dtuple_get_info_bits(dtuple)
 					& REC_NEW_STATUS_MASK;
-	ut_ad(index->table->comp);
-
+	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(n_fields > 0);
 
 	/* Try to ensure that the memset() between the for() loops
-	completes fast.  The address is not exact, but UNIV_PREFETCH
+	completes fast.	 The address is not exact, but UNIV_PREFETCH
 	should never generate a memory fault. */
 	UNIV_PREFETCH_RW(rec - REC_N_NEW_EXTRA_BYTES - n_fields);
 	UNIV_PREFETCH_RW(rec);
@@ -998,7 +1001,7 @@ rec_convert_dtuple_to_rec(
 	ut_ad(dtuple_validate(dtuple));
 	ut_ad(dtuple_check_typed(dtuple));
 
-	if (UNIV_LIKELY(index->table->comp)) {
+	if (dict_table_is_comp(index->table)) {
 		rec = rec_convert_dtuple_to_rec_new(buf, index, dtuple);
 	} else {
 		rec = rec_convert_dtuple_to_rec_old(buf, dtuple);
@@ -1050,7 +1053,7 @@ rec_copy_prefix_to_dtuple(
 	ut_ad(dtuple_check_typed(tuple));
 
 	dtuple_set_info_bits(tuple,
-			rec_get_info_bits(rec, index->table->comp));
+		rec_get_info_bits(rec, dict_table_is_comp(index->table)));
 
 	for (i = 0; i < n_fields; i++) {
 
@@ -1138,7 +1141,7 @@ rec_copy_prefix_to_buf(
 
 	UNIV_PREFETCH_RW(*buf);
 
-	if (UNIV_UNLIKELY(!index->table->comp)) {
+	if (!dict_table_is_comp(index->table)) {
 		ut_ad(rec_validate_old(rec));
 		return(rec_copy_prefix_to_buf_old(rec, n_fields,
 			rec_get_field_start_offs(rec, n_fields),
@@ -1248,16 +1251,16 @@ rec_validate_old(
 							(ulong) n_fields);
 		return(FALSE);
 	}
-	
+
 	for (i = 0; i < n_fields; i++) {
 		data = rec_get_nth_field_old(rec, i, &len);
-		
+
 		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
 			fprintf(stderr,
 			"InnoDB: Error: record field %lu len %lu\n", (ulong) i,
 							(ulong) len);
 			return(FALSE);
-		}	
+		}
 
 		if (len != UNIV_SQL_NULL) {
 			len_sum += len;
@@ -1274,7 +1277,7 @@ rec_validate_old(
 		fprintf(stderr,
 		"InnoDB: Error: record len should be %lu, len %lu\n",
 				(ulong) len_sum,
-			        rec_get_data_size_old(rec));
+				rec_get_data_size_old(rec));
 		return(FALSE);
 	}
 
@@ -1338,7 +1341,7 @@ rec_validate(
 				(ulong) len_sum,
 				(ulong) (rec_get_end(rec, offsets) - rec));
 		return(FALSE);
-	}	
+	}
 
 	rec_dummy = sum; /* This is here only to fool the compiler */
 
@@ -1427,13 +1430,13 @@ rec_print_new(
 		" compact format; info bits %lu\n",
 		(ulong) rec_offs_n_fields(offsets),
 		(ulong) rec_get_info_bits(rec, TRUE));
-	
+
 	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
 
 		data = rec_get_nth_field(rec, offsets, i, &len);
 
 		fprintf(file, " %lu:", (ulong) i);
-	
+
 		if (len != UNIV_SQL_NULL) {
 			if (len <= 30) {
 
@@ -1466,7 +1469,7 @@ rec_print(
 {
 	ut_ad(index);
 
-	if (!index->table->comp) {
+	if (!dict_table_is_comp(index->table)) {
 		rec_print_old(file, rec);
 		return;
 	} else {

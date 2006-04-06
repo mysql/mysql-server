@@ -13,10 +13,10 @@ Created 2/2/1994 Heikki Tuuri
 
 /* Type of the index page */
 /* The following define eliminates a name collision on HP-UX */
-#define page_t     ib_page_t
+#define page_t	   ib_page_t
 typedef	byte		page_t;
 typedef struct page_search_struct	page_search_t;
 typedef struct page_cur_struct	page_cur_t;
 
 
-#endif 
+#endif

@@ -246,7 +246,7 @@ static int my_mb_wc_bin(CHARSET_INFO *cs __attribute__((unused)),
 			const unsigned char *end __attribute__((unused)))
 {
   if (str >= end)
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL;
   
   *wc=str[0];
   return 1;
@@ -295,10 +295,10 @@ void my_hash_sort_bin(CHARSET_INFO *cs __attribute__((unused)),
 #define INC_PTR(cs,A,B) (A)++
 
 
-static int my_wildcmp_bin(CHARSET_INFO *cs,
-			   const char *str,const char *str_end,
-			   const char *wildstr,const char *wildend,
-			   int escape, int w_one, int w_many)
+int my_wildcmp_bin(CHARSET_INFO *cs,
+                   const char *str,const char *str_end,
+                   const char *wildstr,const char *wildend,
+                   int escape, int w_one, int w_many)
 {
   int result= -1;			/* Not found, using wildcards */
   

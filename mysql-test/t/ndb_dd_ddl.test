@@ -20,7 +20,10 @@
 #       the file name. I know this is not an issue for *nix systems but
 #       will be when we expand to Windows and Mac. Better put it in now.
 ############################################
-
+#
+# Jonas 2006-03-10
+# Add verification that ndb currently is limited to 1 logfile group
+#
 
 
 -- source include/have_ndb.inc
@@ -40,6 +43,15 @@ ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB;
+
+# Verify that one currently can create only 1 logfile group
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE LOGFILE GROUP lg2
+ADD UNDOFILE 'undofile2.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE 1M
+ENGINE NDB;
+SHOW WARNINGS;
 
 --error ER_CREATE_FILEGROUP_FAILED
 CREATE LOGFILE GROUP lg1
@@ -263,7 +275,8 @@ CREATE TABLE t1
 TABLESPACE ts1 STORAGE DISK
 ENGINE NDB;
 
-CREATE INDEX c on t1(c);
+CREATE INDEX b_i on t1(b);
+CREATE INDEX bc_i on t1(b, c);
 
 DROP TABLE t1;
 

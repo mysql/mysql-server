@@ -339,7 +339,7 @@ public:
     if (min_flag || max_flag)
       return FALSE;
     byte *min_val= (byte *)min_value;
-    byte *max_val= (byte *)min_value;
+    byte *max_val= (byte *)max_value;
 
     if (maybe_null)
     {
@@ -878,7 +878,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
         DBUG_PRINT("info", ("Freeing separate handler %p (free=%d)", file,
                             free_file));
         file->ha_reset();
-        file->external_lock(current_thd, F_UNLCK);
+        file->ha_external_lock(current_thd, F_UNLCK);
         file->close();
         delete file;
       }
@@ -1042,14 +1042,14 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     /* Caller will free the memory */
     goto failure;
   }
-  if (file->external_lock(thd, F_RDLCK))
+  if (file->ha_external_lock(thd, F_RDLCK))
     goto failure;
 
   if (file->extra(HA_EXTRA_KEYREAD) ||
       file->ha_retrieve_all_pk() ||
       init() || reset())
   {
-    file->external_lock(thd, F_UNLCK);
+    file->ha_external_lock(thd, F_UNLCK);
     file->close();
     goto failure;
   }
@@ -1601,6 +1601,8 @@ public:
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) { /* Never called */ }
+  virtual ~TABLE_READ_PLAN() {}               /* Remove gcc warning */
+
 };
 
 class TRP_ROR_INTERSECT;
@@ -1624,6 +1626,7 @@ public:
   TRP_RANGE(SEL_ARG *key_arg, uint idx_arg)
    : key(key_arg), key_idx(idx_arg)
   {}
+  virtual ~TRP_RANGE() {}                     /* Remove gcc warning */
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc)
@@ -1645,6 +1648,8 @@ public:
 class TRP_ROR_INTERSECT : public TABLE_READ_PLAN
 {
 public:
+  TRP_ROR_INTERSECT() {}                      /* Remove gcc warning */
+  virtual ~TRP_ROR_INTERSECT() {}             /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
 
@@ -1666,6 +1671,8 @@ public:
 class TRP_ROR_UNION : public TABLE_READ_PLAN
 {
 public:
+  TRP_ROR_UNION() {}                          /* Remove gcc warning */
+  virtual ~TRP_ROR_UNION() {}                 /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
   TABLE_READ_PLAN **first_ror; /* array of ptrs to plans for merged scans */
@@ -1682,6 +1689,8 @@ public:
 class TRP_INDEX_MERGE : public TABLE_READ_PLAN
 {
 public:
+  TRP_INDEX_MERGE() {}                        /* Remove gcc warning */
+  virtual ~TRP_INDEX_MERGE() {}               /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
   TRP_RANGE **range_scans; /* array of ptrs to plans of merged scans */
@@ -1731,6 +1740,7 @@ public:
       if (key_infix_len)
         memcpy(this->key_infix, key_infix_arg, key_infix_len);
     }
+  virtual ~TRP_GROUP_MIN_MAX() {}             /* Remove gcc warning */
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
@@ -1951,9 +1961,12 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           read_time= (double) HA_POS_ERROR;
           goto free_mem;
         }
-        if (tree->type != SEL_TREE::KEY &&
-            tree->type != SEL_TREE::KEY_SMALLER)
-          goto free_mem;
+        /*
+          If the tree can't be used for range scans, proceed anyway, as we
+          can construct a group-min-max quick select
+        */
+        if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER)
+          tree= NULL;
       }
     }
 
@@ -2283,6 +2296,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   RANGE_OPT_PARAM  *range_par= &prune_param.range_param;
 
   prune_param.part_info= part_info;
+  prune_param.part_iter.has_null_value= FALSE;
 
   init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
   range_par->mem_root= &alloc;
@@ -2417,6 +2431,7 @@ void store_key_image_to_rec(Field *field, char *ptr, uint len)
       field->set_null();
       return;
     }
+    field->set_notnull();
     ptr++;
   }    
   field->set_key_image(ptr, len); 
@@ -2976,7 +2991,7 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
   ppar->last_subpart_partno= 
     used_subpart_fields?(int)(used_part_fields + used_subpart_fields - 1): -1;
 
-  if (is_sub_partitioned(part_info))
+  if (part_info->is_sub_partitioned())
   {
     ppar->mark_full_partition_used=  mark_full_partition_used_with_parts;
     ppar->get_top_partition_id_func= part_info->get_part_partition_id;
@@ -3105,7 +3120,7 @@ static void dbug_print_segment_range(SEL_ARG *arg, KEY_PART *part)
       fputs(" < ", DBUG_FILE);
     else
       fputs(" <= ", DBUG_FILE);
-    store_key_image_to_rec(part->field, (char*)(arg->min_value), part->length);
+    store_key_image_to_rec(part->field, (char*)(arg->max_value), part->length);
     dbug_print_field(part->field);
   }
   fputs("\n", DBUG_FILE);
@@ -4785,9 +4800,18 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
   /* Here when simple cond */
   if (cond->const_item())
   {
-    if (cond->val_int())
-      DBUG_RETURN(new SEL_TREE(SEL_TREE::ALWAYS));
-    DBUG_RETURN(new SEL_TREE(SEL_TREE::IMPOSSIBLE));
+    /*
+      During the cond->val_int() evaluation we can come across a subselect 
+      item which may allocate memory on the thd->mem_root and assumes 
+      all the memory allocated has the same life span as the subselect 
+      item itself. So we have to restore the thread's mem_root here.
+    */
+    MEM_ROOT *tmp_root= param->mem_root;
+    param->thd->mem_root= param->old_root;
+    tree= cond->val_int() ? new(tmp_root) SEL_TREE(SEL_TREE::ALWAYS) :
+                            new(tmp_root) SEL_TREE(SEL_TREE::IMPOSSIBLE);
+    param->thd->mem_root= tmp_root;
+    DBUG_RETURN(tree);
   }
 
   table_map ref_tables= 0;
@@ -6016,7 +6040,8 @@ SEL_ARG *
 SEL_ARG::insert(SEL_ARG *key)
 {
   SEL_ARG *element,**par,*last_element;
-  LINT_INIT(par); LINT_INIT(last_element);
+  LINT_INIT(par);
+  LINT_INIT(last_element);
 
   for (element= this; element != &null_element ; )
   {
@@ -8164,6 +8189,7 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
                    bool have_min, bool have_max,
                    double *read_cost, ha_rows *records);
 
+
 /*
   Test if this access method is applicable to a GROUP query with MIN/MAX
   functions, and if so, construct a new TRP object.
@@ -8570,11 +8596,36 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
       }
       else if (min_max_arg_part &&
                (min_max_arg_part - first_non_group_part > 0))
+      {
         /*
           There is a gap but no range tree, thus no predicates at all for the
           non-group keyparts.
         */
         goto next_index;
+      }
+      else if (first_non_group_part && join->conds)
+      {
+        /*
+          If there is no MIN/MAX function in the query, but some index
+          key part is referenced in the WHERE clause, then this index
+          cannot be used because the WHERE condition over the keypart's
+          field cannot be 'pushed' to the index (because there is no
+          range 'tree'), and the WHERE clause must be evaluated before
+          GROUP BY/DISTINCT.
+        */
+        /*
+          Store the first and last keyparts that need to be analyzed
+          into one array that can be passed as parameter.
+        */
+        KEY_PART_INFO *key_part_range[2];
+        key_part_range[0]= first_non_group_part;
+        key_part_range[1]= last_part;
+
+        /* Check if cur_part is referenced in the WHERE clause. */
+        if (join->conds->walk(&Item::find_item_in_field_list_processor,
+                              (byte*) key_part_range))
+          goto next_index;
+      }
     }
 
     /*

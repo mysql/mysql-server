@@ -74,9 +74,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_SR_OTHERNODEFAILED          2308
 #define NDBD_EXIT_NODE_NOT_DEAD               2309
 #define NDBD_EXIT_SR_REDOLOG                  2310
-/*
 #define NDBD_EXIT_SR_RESTARTCONFLICT          2311
-*/
 #define NDBD_EXIT_NO_MORE_UNDOLOG             2312 
 #define NDBD_EXIT_SR_UNDOLOG                  2313 
 #define NDBD_EXIT_MEMALLOC                    2327

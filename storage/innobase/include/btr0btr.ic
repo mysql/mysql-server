@@ -28,7 +28,7 @@ btr_page_get(
 	page = buf_page_get(space, page_no, mode, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	if (mode != RW_NO_LATCH) {
-	
+
 		buf_page_dbg_add_level(page, SYNC_TREE_NODE);
 	}
 #endif
@@ -72,7 +72,7 @@ btr_page_get_level_low(
 	ulint	level;
 
 	ut_ad(page);
-	
+
 	level = mach_read_from_2(page + PAGE_HEADER + PAGE_LEVEL);
 
 	ut_ad(level <= BTR_MAX_NODE_LEVEL);
@@ -92,7 +92,7 @@ btr_page_get_level(
 {
 	ut_ad(page && mtr);
 
-	return(btr_page_get_level_low(page));	
+	return(btr_page_get_level_low(page));
 }
 
 /************************************************************
@@ -124,9 +124,9 @@ btr_page_get_next(
 {
 	ut_ad(page && mtr);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-			      				MTR_MEMO_PAGE_X_FIX)
-	      || mtr_memo_contains(mtr, buf_block_align(page),
-			      				MTR_MEMO_PAGE_S_FIX));
+			MTR_MEMO_PAGE_X_FIX)
+		|| mtr_memo_contains(mtr, buf_block_align(page),
+			MTR_MEMO_PAGE_S_FIX));
 
 	return(mach_read_from_4(page + FIL_PAGE_NEXT));
 }
@@ -157,7 +157,7 @@ btr_page_get_prev(
 	mtr_t*	mtr __attribute__((unused))) /* in: mini-transaction handle */
 {
 	ut_ad(page && mtr);
-	
+
 	return(mach_read_from_4(page + FIL_PAGE_PREV));
 }
 
@@ -182,7 +182,7 @@ UNIV_INLINE
 ulint
 btr_node_ptr_get_child_page_no(
 /*===========================*/
-			   	/* out: child node address */
+				/* out: child node address */
 	rec_t*		rec,	/* in: node pointer record */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
@@ -192,12 +192,12 @@ btr_node_ptr_get_child_page_no(
 
 	ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
 
-	/* The child address is in the last field */	
+	/* The child address is in the last field */
 	field = rec_get_nth_field(rec, offsets,
 					rec_offs_n_fields(offsets) - 1, &len);
 
 	ut_ad(len == 4);
-	
+
 	page_no = mach_read_from_4(field);
 
 	if (UNIV_UNLIKELY(page_no == 0)) {
@@ -223,11 +223,11 @@ btr_leaf_page_release(
 	ut_ad(!mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_MODIFY));
 	if (latch_mode == BTR_SEARCH_LEAF) {
-		mtr_memo_release(mtr, buf_block_align(page), 
+		mtr_memo_release(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_S_FIX);
 	} else {
 		ut_ad(latch_mode == BTR_MODIFY_LEAF);
-		mtr_memo_release(mtr, buf_block_align(page), 
+		mtr_memo_release(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX);
 	}
 }

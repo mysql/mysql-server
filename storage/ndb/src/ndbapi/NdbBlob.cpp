@@ -61,22 +61,26 @@ NdbBlob::setState(State newState)
 int
 NdbBlob::getBlobTableName(char* btname, Ndb* anNdb, const char* tableName, const char* columnName)
 {
+  DBUG_ENTER("NdbBlob::getBlobTableName");
   NdbTableImpl* t = anNdb->theDictionary->m_impl.getTable(tableName);
   if (t == NULL)
-    return -1;
+    DBUG_RETURN(-1);
   NdbColumnImpl* c = t->getColumn(columnName);
   if (c == NULL)
-    return -1;
+    DBUG_RETURN(-1);
   getBlobTableName(btname, t, c);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void
 NdbBlob::getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnImpl* c)
 {
-  assert(t != 0 && c != 0 && c->getBlobType());
+  DBUG_ENTER("NdbBlob::getBlobTableName");
+  assert(t != 0 && c != 0 && c->getBlobType() && c->getPartSize() != 0);
   memset(btname, 0, NdbBlobImpl::BlobTableNameSize);
   sprintf(btname, "NDB$BLOB_%d_%d", (int)t->m_id, (int)c->m_column_no);
+  DBUG_PRINT("info", ("blob table name: %s", btname));
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -191,8 +195,9 @@ NdbBlob::getBlobEvent(NdbEventImpl& be, const NdbEventImpl* e, const NdbColumnIm
   assert(c->m_blobTable != NULL);
   const NdbTableImpl& bt = *c->m_blobTable;
   // blob event name
-  char bename[NdbBlobImpl::BlobTableNameSize];
+  char bename[MAX_TAB_NAME_SIZE+1];
   getBlobEventName(bename, e, c);
+  bename[sizeof(bename)-1]= 0;
   be.setName(bename);
   be.setTable(bt);
   // simple assigments
@@ -304,9 +309,16 @@ NdbBlob::Buf::alloc(unsigned n)
 }
 
 void
+NdbBlob::Buf::zerorest()
+{
+  assert(size <= maxsize);
+  memset(data + size, 0, maxsize - size);
+}
+
+void
 NdbBlob::Buf::copyfrom(const NdbBlob::Buf& src)
 {
-  assert(size == src.size);
+  size = src.size;
   memcpy(data, src.data, size);
 }
 
@@ -404,6 +416,76 @@ NdbBlob::getDistKey(Uint32 part)
   return (part / theStripeSize) % theStripeSize;
 }
 
+// pack/unpack table/index key  XXX support routines, shortcuts
+
+int
+NdbBlob::packKeyValue(const NdbTableImpl* aTable, const Buf& srcBuf)
+{
+  DBUG_ENTER("NdbBlob::packKeyValue");
+  const Uint32* data = (const Uint32*)srcBuf.data;
+  unsigned pos = 0;
+  Uint32* pack_data = (Uint32*)thePackKeyBuf.data;
+  unsigned pack_pos = 0;
+  for (unsigned i = 0; i < aTable->m_columns.size(); i++) {
+    NdbColumnImpl* c = aTable->m_columns[i];
+    assert(c != NULL);
+    if (c->m_pk) {
+      unsigned len = c->m_attrSize * c->m_arraySize;
+      Uint32 pack_len;
+      bool ok = c->get_var_length(&data[pos], pack_len);
+      if (! ok) {
+        setErrorCode(NdbBlobImpl::ErrCorruptPK);
+        DBUG_RETURN(-1);
+      }
+      memcpy(&pack_data[pack_pos], &data[pos], pack_len);
+      while (pack_len % 4 != 0) {
+        char* p = (char*)&pack_data[pack_pos] + pack_len++;
+        *p = 0;
+      }
+      pos += (len + 3) / 4;
+      pack_pos += pack_len / 4;
+    }
+  }
+  assert(4 * pos == srcBuf.size);
+  assert(4 * pack_pos <= thePackKeyBuf.maxsize);
+  thePackKeyBuf.size = 4 * pack_pos;
+  thePackKeyBuf.zerorest();
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::unpackKeyValue(const NdbTableImpl* aTable, Buf& dstBuf)
+{
+  DBUG_ENTER("NdbBlob::unpackKeyValue");
+  Uint32* data = (Uint32*)dstBuf.data;
+  unsigned pos = 0;
+  const Uint32* pack_data = (const Uint32*)thePackKeyBuf.data;
+  unsigned pack_pos = 0;
+  for (unsigned i = 0; i < aTable->m_columns.size(); i++) {
+    NdbColumnImpl* c = aTable->m_columns[i];
+    assert(c != NULL);
+    if (c->m_pk) {
+      unsigned len = c->m_attrSize * c->m_arraySize;
+      Uint32 pack_len;
+      bool ok = c->get_var_length(&pack_data[pack_pos], pack_len);
+      if (! ok) {
+        setErrorCode(NdbBlobImpl::ErrCorruptPK);
+        DBUG_RETURN(-1);
+      }
+      memcpy(&data[pos], &pack_data[pack_pos], pack_len);
+      while (pack_len % 4 != 0) {
+        char* p = (char*)&data[pos] + pack_len++;
+        *p = 0;
+      }
+      pos += (len + 3) / 4;
+      pack_pos += pack_len / 4;
+    }
+  }
+  assert(4 * pos == dstBuf.size);
+  assert(4 * pack_pos == thePackKeyBuf.size);
+  DBUG_RETURN(0);
+}
+
 // getters and setters
 
 int
@@ -485,12 +567,10 @@ int
 NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
 {
   DBUG_ENTER("NdbBlob::setPartKeyValue");
-  DBUG_PRINT("info", ("dist=%u part=%u key=", getDistKey(part), part));
-  DBUG_DUMP("info", theKeyBuf.data, 4 * theTable->m_keyLenInWords);
-  //Uint32* data = (Uint32*)theKeyBuf.data;
-  //unsigned size = theTable->m_keyLenInWords;
+  DBUG_PRINT("info", ("dist=%u part=%u packkey=", getDistKey(part), part));
+  DBUG_DUMP("info", thePackKeyBuf.data, 4 * thePackKeyBuf.size);
   // TODO use attr ids after compatibility with 4.1.7 not needed
-  if (anOp->equal("PK", theKeyBuf.data) == -1 ||
+  if (anOp->equal("PK", thePackKeyBuf.data) == -1 ||
       anOp->equal("DIST", getDistKey(part)) == -1 ||
       anOp->equal("PART", part) == -1) {
     setErrorCode(anOp);
@@ -519,6 +599,8 @@ NdbBlob::getHeadFromRecAttr()
   theNullFlag = theHeadInlineRecAttr->isNULL();
   assert(theEventBlobVersion >= 0 || theNullFlag != -1);
   theLength = ! theNullFlag ? theHead->length : 0;
+  DBUG_PRINT("info", ("theNullFlag=%d theLength=%llu",
+                      theNullFlag, theLength));
   DBUG_VOID_RETURN;
 }
 
@@ -1238,21 +1320,29 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
   if (isKeyOp()) {
     if (isTableOp()) {
       // get table key
-      Uint32* data = (Uint32*)theKeyBuf.data;
-      unsigned size = theTable->m_keyLenInWords;
+      Uint32* data = (Uint32*)thePackKeyBuf.data;
+      Uint32 size = theTable->m_keyLenInWords; // in-out
       if (theNdbOp->getKeyFromTCREQ(data, size) == -1) {
         setErrorCode(NdbBlobImpl::ErrUsage);
         DBUG_RETURN(-1);
       }
+      thePackKeyBuf.size = 4 * size;
+      thePackKeyBuf.zerorest();
+      if (unpackKeyValue(theTable, theKeyBuf) == -1)
+        DBUG_RETURN(-1);
     }
     if (isIndexOp()) {
       // get index key
-      Uint32* data = (Uint32*)theAccessKeyBuf.data;
-      unsigned size = theAccessTable->m_keyLenInWords;
+      Uint32* data = (Uint32*)thePackKeyBuf.data;
+      Uint32 size = theAccessTable->m_keyLenInWords; // in-out
       if (theNdbOp->getKeyFromTCREQ(data, size) == -1) {
         setErrorCode(NdbBlobImpl::ErrUsage);
         DBUG_RETURN(-1);
       }
+      thePackKeyBuf.size = 4 * size;
+      thePackKeyBuf.zerorest();
+      if (unpackKeyValue(theAccessTable, theAccessKeyBuf) == -1)
+        DBUG_RETURN(-1);
     }
     if (isReadOp()) {
       // add read of head+inline in this op
@@ -1299,6 +1389,7 @@ NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, 
   theEventOp = anOp;
   theBlobEventOp = aBlobOp;
   theTable = anOp->m_eventImpl->m_tableImpl;
+  theAccessTable = theTable;
   theColumn = aColumn;
   // prepare blob column and table
   if (prepareColumn() == -1)
@@ -1317,7 +1408,7 @@ NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, 
   if (theBlobEventOp != NULL) {
     if ((theBlobEventPkRecAttr =
            theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)0),
-                                    theKeyBuf.data, version)) == NULL ||
+                                    thePackKeyBuf.data, version)) == NULL ||
         (theBlobEventDistRecAttr =
            theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)1),
                                     (char*)0, version)) == NULL ||
@@ -1376,6 +1467,7 @@ NdbBlob::prepareColumn()
   }
   // these buffers are always used
   theKeyBuf.alloc(theTable->m_keyLenInWords << 2);
+  thePackKeyBuf.alloc(max(theTable->m_keyLenInWords, theAccessTable->m_keyLenInWords) << 2);
   theHeadInlineBuf.alloc(sizeof(Head) + theInlineSize);
   theHead = (Head*)theHeadInlineBuf.data;
   theInlineData = theHeadInlineBuf.data + sizeof(Head);
@@ -1460,7 +1552,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
         if (tOp == NULL ||
             tOp->readTuple() == -1 ||
             setAccessKeyValue(tOp) == -1 ||
-            tOp->getValue(pkAttrId, theKeyBuf.data) == NULL) {
+            tOp->getValue(pkAttrId, thePackKeyBuf.data) == NULL) {
           setErrorCode(tOp);
           DBUG_RETURN(-1);
         }
@@ -1549,10 +1641,13 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
   assert(isKeyOp());
   if (isIndexOp()) {
     NdbBlob* tFirstBlob = theNdbOp->theBlobList;
-    if (this != tFirstBlob) {
+    if (this == tFirstBlob) {
+      packKeyValue(theTable, theKeyBuf);
+    } else {
       // copy key from first blob
-      assert(theKeyBuf.size == tFirstBlob->theKeyBuf.size);
-      memcpy(theKeyBuf.data, tFirstBlob->theKeyBuf.data, tFirstBlob->theKeyBuf.size);
+      theKeyBuf.copyfrom(tFirstBlob->theKeyBuf);
+      thePackKeyBuf.copyfrom(tFirstBlob->thePackKeyBuf);
+      thePackKeyBuf.zerorest();
     }
   }
   if (isReadOp()) {
@@ -1706,12 +1801,17 @@ NdbBlob::atNextResult()
     DBUG_RETURN(-1);
   assert(isScanOp());
   // get primary key
-  { Uint32* data = (Uint32*)theKeyBuf.data;
-    unsigned size = theTable->m_keyLenInWords;
-    if (((NdbScanOperation*)theNdbOp)->getKeyFromKEYINFO20(data, size) == -1) {
+  { NdbScanOperation* tScanOp = (NdbScanOperation*)theNdbOp;
+    Uint32* data = (Uint32*)thePackKeyBuf.data;
+    unsigned size = theTable->m_keyLenInWords; // in-out
+    if (tScanOp->getKeyFromKEYINFO20(data, size) == -1) {
       setErrorCode(NdbBlobImpl::ErrUsage);
       DBUG_RETURN(-1);
     }
+    thePackKeyBuf.size = 4 * size;
+    thePackKeyBuf.zerorest();
+    if (unpackKeyValue(theTable, theKeyBuf) == -1)
+      DBUG_RETURN(-1);
   }
   getHeadFromRecAttr();
   if (setPos(0) == -1)
@@ -1738,10 +1838,13 @@ int
 NdbBlob::atNextEvent()
 {
   DBUG_ENTER("NdbBlob::atNextEvent");
-  DBUG_PRINT("info", ("this=%p op=%p blob op=%p version=%d", this, theEventOp, theBlobEventOp, theEventBlobVersion));
+  Uint32 optype = theEventOp->m_data_item->sdata->operation;
+  DBUG_PRINT("info", ("this=%p op=%p blob op=%p version=%d optype=%u", this, theEventOp, theBlobEventOp, theEventBlobVersion, optype));
   if (theState == Invalid)
     DBUG_RETURN(-1);
   assert(theEventBlobVersion >= 0);
+  if (optype >= NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT)
+    DBUG_RETURN(0);
   getHeadFromRecAttr();
   if (theNullFlag == -1) // value not defined
     DBUG_RETURN(0);

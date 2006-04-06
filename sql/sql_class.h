@@ -248,13 +248,15 @@ struct system_variables
 #endif /* HAVE_REPLICATION */
   my_bool innodb_table_locks;
   my_bool innodb_support_xa;
-  ulong ndb_autoincrement_prefetch_sz;
   my_bool ndb_force_send;
   my_bool ndb_use_exact_count;
   my_bool ndb_use_transactions;
   my_bool ndb_index_stat_enable;
+  ulong ndb_autoincrement_prefetch_sz;
   ulong ndb_index_stat_cache_entries;
   ulong ndb_index_stat_update_freq;
+  ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
+
   my_bool old_alter_table;
   my_bool old_passwords;
 
@@ -274,6 +276,7 @@ struct system_variables
   DATE_TIME_FORMAT *date_format;
   DATE_TIME_FORMAT *datetime_format;
   DATE_TIME_FORMAT *time_format;
+  my_bool sysdate_is_now;
 };
 
 
@@ -629,6 +632,7 @@ void xid_cache_delete(XID_STATE *xid_state);
 
 class Security_context {
 public:
+  Security_context() {}                       /* Remove gcc warning */
   /*
     host - host of the client
     user - user of the client, set to NULL until the user has been read from
@@ -738,11 +742,20 @@ public:
   ulong	version;
   uint current_tablenr;
 
+  enum enum_flags {
+    BACKUPS_AVAIL = (1U << 0)     /* There are backups available */
+  };
+
+  /*
+    Flags with information about the open tables state.
+  */
+  uint state_flags;
+
   /*
     This constructor serves for creation of Open_tables_state instances
     which are used as backup storage.
   */
-  Open_tables_state() {};
+  Open_tables_state() : state_flags(0U) { }
 
   Open_tables_state(ulong version_arg);
 
@@ -756,6 +769,7 @@ public:
     open_tables= temporary_tables= handler_tables= derived_tables= 0;
     lock= locked_tables= 0;
     prelocked_mode= NON_PRELOCKED;
+    state_flags= 0U;
   }
 };
 
@@ -906,8 +920,9 @@ public:
 #ifndef MYSQL_CLIENT
 
   /*
-    Public interface to write rows to the binlog
+    Public interface to write RBR events to the binlog
   */
+  int binlog_write_table_map(TABLE *table, bool is_transactional);
   int binlog_write_row(TABLE* table, bool is_transactional,
                        MY_BITMAP const* cols, my_size_t colcnt,
                        const byte *buf);
@@ -950,6 +965,11 @@ public:
 
   int binlog_flush_pending_rows_event(bool stmt_end);
   void binlog_delete_pending_rows_event();
+
+private:
+  uint binlog_table_maps; // Number of table maps currently in the binlog
+
+public:
 
 #endif
 #endif /* HAVE_ROW_BASED_REPLICATION */
@@ -1123,6 +1143,8 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   bool       slave_thread, one_shot_set;
+  /* tells if current statement should binlog row-based(1) or stmt-based(0) */
+  bool       current_stmt_binlog_row_based;
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password, is_fatal_error;
@@ -1184,6 +1206,9 @@ public:
     */
     query_id_t first_query_id;
   } binlog_evt_union;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  partition_info *work_part_info;
+#endif
   
   THD();
   ~THD();
@@ -1377,6 +1402,19 @@ public:
   void restore_sub_statement_state(Sub_statement_state *backup);
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
+  inline void set_current_stmt_binlog_row_based_if_mixed()
+  {
+    if (variables.binlog_format == BINLOG_FORMAT_MIXED)
+      current_stmt_binlog_row_based= 1;
+  }
+  inline void set_current_stmt_binlog_row_based()
+  {
+    current_stmt_binlog_row_based= 1;
+  }
+  inline void reset_current_stmt_binlog_row_based()
+  {
+    current_stmt_binlog_row_based= test(variables.binlog_format == BINLOG_FORMAT_ROW);
+  }
 };
 
 
@@ -1467,6 +1505,7 @@ public:
 class select_result_interceptor: public select_result
 {
 public:
+  select_result_interceptor() {}              /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_fields(List<Item> &fields, uint flag) { return FALSE; }
 };
@@ -1555,7 +1594,6 @@ class select_create: public select_insert {
   HA_CREATE_INFO *create_info;
   MYSQL_LOCK *lock;
   Field **field;
-  bool create_table_written;
 public:
   select_create (TABLE_LIST *table,
 		 HA_CREATE_INFO *create_info_par,
@@ -1564,15 +1602,17 @@ public:
 		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
     :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore), create_table(table),
     extra_fields(&fields_par),keys(&keys_par), create_info(create_info_par),
-    lock(0), create_table_written(FALSE)
+    lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   
-  void binlog_show_create_table();
+  void binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
   void abort();
+  // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
+  THD *get_thd(void) { return thd; }
 };
 
 #include <myisam.h>
@@ -1616,11 +1656,12 @@ public:
     aggregate functions as normal functions.
   */
   bool precomputed_group_by;
+  bool force_copy_fields;
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0), precomputed_group_by(0)
+     schema_table(0), precomputed_group_by(0), force_copy_fields(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -1757,6 +1798,7 @@ class Table_ident :public Sql_alloc
 class user_var_entry
 {
  public:
+  user_var_entry() {}                         /* Remove gcc warning */
   LEX_STRING name;
   char *value;
   ulong length;

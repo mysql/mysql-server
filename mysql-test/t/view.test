@@ -2375,3 +2375,67 @@ SELECT IF(x IS NULL, 'blank', 'not blank') AS x FROM v1 GROUP BY x;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# BUG#15943: mysql_next_result hangs on invalid SHOW CREATE VIEW
+#
+
+delimiter //;
+drop table if exists t1; 
+drop view if exists v1; 
+create table t1 (id int); 
+create view v1 as select * from t1; 
+drop table t1; 
+show create view v1; 
+drop view v1;
+//
+delimiter ;//
+
+#
+# Bug#17726 Not checked empty list caused endless loop
+#
+create table t1(f1 int, f2 int);
+create view v1 as select ta.f1 as a, tb.f1 as b from t1 ta, t1 tb where ta.f1=tb
+.f1 and ta.f2=tb.f2;
+insert into t1 values(1,1),(2,2);
+create view v2 as select * from v1 where a > 1 with check option;
+select * from v2;
+update v2 set b=3 where a=2;
+select * from v2;
+drop view v2, v1;
+drop table t1;
+
+#
+# Bug #18386: select from view over a table with ORDER BY view_col clause 
+#             given view_col is not an image of any column from the base table
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE VIEW v1 AS SELECT SQRT(a) my_sqrt FROM t1;
+
+SELECT my_sqrt FROM v1 ORDER BY my_sqrt;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug #18237: invalid count optimization applied to an outer join with a view 
+#             
+
+CREATE TABLE t1 (id int PRIMARY KEY);
+CREATE TABLE t2 (id int PRIMARY KEY);
+
+INSERT INTO t1 VALUES (1), (3);
+INSERT INTO t2 VALUES (1), (2), (3);
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+SELECT COUNT(*) FROM t1 LEFT JOIN t2 ON t1.id=t2.id;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.id=t2.id;
+
+SELECT COUNT(*) FROM t1 LEFT JOIN v2 ON t1.id=v2.id;
+
+DROP VIEW v2;
+
+DROP TABLE t1, t2;

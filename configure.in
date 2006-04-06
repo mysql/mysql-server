@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.1.7-beta)
+AM_INIT_AUTOMAKE(mysql, 5.1.9-beta)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -214,7 +214,7 @@ AC_PROG_INSTALL
 test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
 
 # Not critical since the generated file is distributed
-AC_PROG_YACC
+AC_CHECK_PROGS(YACC, ['bison -y -p MYSQL'])
 AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
 AC_CHECK_PROG(DVIS,      tex,    manual.dvi)
 
@@ -334,6 +334,9 @@ then
   # mysqld requires -fno-implicit-templates.
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
+  # We should use -Wno-invalid-offsetof flag to disable some warnings from gcc
+  # regarding offset() usage in C++ which are done in a safe manner in the
+  # server
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
   AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
     [1], [Defined by configure. Use explicit template instantiation.])
@@ -589,10 +592,10 @@ AC_ARG_WITH(named-curses-libs,
 
 # Make thread safe client
 AC_ARG_ENABLE(thread-safe-client,
-    [  --enable-thread-safe-client   
-                          Compile the client with threads.],
+    [  --disable-thread-safe-client   
+                          Compile the client without threads.],
     [ THREAD_SAFE_CLIENT=$enableval ],
-    [ THREAD_SAFE_CLIENT=no ]
+    [ THREAD_SAFE_CLIENT=yes ]
     )
 
 # compile with strings functions in assembler
@@ -1499,16 +1502,37 @@ else
 fi
 #---END:
 
-# Check for dlopen, needed for user definable functions
-# This must be checked after threads on AIX
-# We only need this for mysqld, not for the clients.
+# dlopen, dlerror
+case "$with_mysqld_ldflags " in
 
-my_save_LIBS="$LIBS"
-LIBS=""
-AC_CHECK_LIB(dl,dlopen)
-LIBDL=$LIBS
-LIBS="$my_save_LIBS"
-AC_SUBST(LIBDL)
+  *"-static "*)
+    # No need to check for dlopen when mysqld is linked with
+    # -all-static or -static as it won't be able to load any functions.
+    # NOTE! It would be better if it was possible to test if dlopen
+    # can be used, but a good way to test it couldn't be found
+
+    ;;
+
+  *)
+    # Check for dlopen, needed for user definable functions
+    # This must be checked after threads on AIX
+    # We only need this for mysqld, not for the clients.
+
+    my_save_LIBS="$LIBS"
+    LIBS=""
+    AC_CHECK_LIB(dl,dlopen)
+    LIBDL=$LIBS
+    LIBS="$my_save_LIBS"
+    AC_SUBST(LIBDL)
+
+    my_save_LIBS="$LIBS"
+    LIBS="$LIBS $LIBDL"
+    AC_CHECK_FUNCS(dlopen dlerror)
+    LIBS="$my_save_LIBS"
+
+    ;;
+esac
+
 
 # System characteristics
 case $SYSTEM_TYPE in
@@ -1564,7 +1588,8 @@ then
 fi
 
 AC_ARG_WITH(debug,
-    [  --without-debug         Build a production version without debugging code],
+    [  --with-debug            Add debug code
+  --with-debug=full       Add debug code (adds memory checker, very slow)],
     [with_debug=$withval],
     [with_debug=no])
 if test "$with_debug" = "yes"
@@ -1583,18 +1608,20 @@ else
   CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS"
 fi
 
-if test "$with_debug" = "no"
-then
-  AC_ARG_WITH([fast-mutexes],
-              AC_HELP_STRING([--with-fast-mutexes], 
-              [compile with fast mutexes (default is enabled)]),
-              [with_fast_mutexes=$withval], [with_fast_mutexes=yes])
-fi
+AC_ARG_WITH([fast-mutexes],
+	    AC_HELP_STRING([--with-fast-mutexes], 
+	    [Compile with fast mutexes (default is disabled)]),
+	    [with_fast_mutexes=$withval], [with_fast_mutexes=no])
 
-if test "$with_fast_mutexes" = "yes"
+if test "$with_fast_mutexes" != "no"
 then
-  AC_DEFINE([MY_PTHREAD_FASTMUTEX], [1], 
-            [Define to 1 if you want to use fast mutexes])
+  if test "$with_debug" != "no"
+  then
+    AC_MSG_WARN(['--with-fast-mutexes' ignored when '--with-debug' is given])
+  else
+    AC_DEFINE([MY_PTHREAD_FASTMUTEX], [1], 
+	      [Define to 1 if you want to use fast mutexes])
+  fi
 fi
 
 # Force static compilation to avoid linking problems/get more speed
@@ -1892,11 +1919,6 @@ then
   AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
 fi]
 )
-
-my_save_LIBS="$LIBS"
-LIBS="$LIBS $LIBDL"
-AC_CHECK_FUNCS(dlopen dlerror)
-LIBS="$my_save_LIBS"
 
 # Check definition of gethostbyaddr_r (glibc2 defines this with 8 arguments)
 ac_save_CXXFLAGS="$CXXFLAGS"
@@ -2443,7 +2465,8 @@ MYSQL_STORAGE_ENGINE(innobase,,innodb,,,,storage/innobase,ha_innodb.o,[ dnl
 MYSQL_STORAGE_ENGINE(berkeley,,berkeley-db,,,,storage/bdb,,,[
   MYSQL_SETUP_BERKELEY_DB
 ])
-MYSQL_STORAGE_ENGINE(example,,,,,no,storage/example,,,[
+MYSQL_STORAGE_ENGINE(example,,,,,,storage/example,no,
+ \$(top_builddir)/storage/example/libexample.a,[
   AC_CONFIG_FILES(storage/example/Makefile)
 ])
 MYSQL_STORAGE_ENGINE(archive,,,,,,storage/archive,,
@@ -2471,6 +2494,8 @@ dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
 sql_client_dirs="strings regex mysys libmysql client"
 linked_client_targets="linked_libmysql_sources"
+
+AM_CONDITIONAL(THREAD_SAFE_CLIENT, test "$THREAD_SAFE_CLIENT" != "no")
 
 if test "$THREAD_SAFE_CLIENT" != "no"
 then
@@ -2596,7 +2621,8 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  zlib/Makefile dnl
  cmd-line-utils/readline/Makefile dnl
  plugin/Makefile dnl
- plugin/fulltext/Makefile)
+ plugin/fulltext/Makefile dnl
+ win/Makefile)
  AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
  AC_OUTPUT
 

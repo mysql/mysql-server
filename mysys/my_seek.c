@@ -22,14 +22,15 @@
 my_off_t my_seek(File fd, my_off_t pos, int whence,
 		 myf MyFlags __attribute__((unused)))
 {
-  reg1 os_off_t newpos;
+  reg1 os_off_t newpos= -1;
   DBUG_ENTER("my_seek");
   DBUG_PRINT("my",("Fd: %d  Hpos: %lu  Pos: %lu  Whence: %d  MyFlags: %d",
 		   fd, (ulong) (((ulonglong) pos) >> 32), (ulong) pos, 
 		   whence, MyFlags));
   DBUG_ASSERT(pos != MY_FILEPOS_ERROR);		/* safety check */
 
-  newpos=lseek(fd, pos, whence);
+  if (-1 != fd)
+    newpos=lseek(fd, pos, whence);
   if (newpos == (os_off_t) -1)
   {
     my_errno=errno;

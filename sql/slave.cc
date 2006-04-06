@@ -1346,7 +1346,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   save_vio = thd->net.vio;
   thd->net.vio = 0;
   /* Rebuild the index file from the copied data file (with REPAIR) */
-  error=file->repair(thd,&check_opt) != 0;
+  error=file->ha_repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
   if (error)
     my_error(ER_INDEX_REBUILD, MYF(0), tables.table->s->table_name.str);
@@ -1444,6 +1444,8 @@ static int init_relay_log_info(RELAY_LOG_INFO* rli,
   rli->abort_pos_wait=0;
   rli->log_space_limit= relay_log_space_limit;
   rli->log_space_total= 0;
+  rli->tables_to_lock= 0;
+  rli->tables_to_lock_count= 0;
 
   /*
     The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE.
@@ -2306,7 +2308,9 @@ st_relay_log_info::st_relay_log_info()
    ignore_log_space_limit(0), last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), slave_run_id(0), sql_thd(0), last_slave_errno(0),
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
-   until_log_pos(0), retried_trans(0), m_reload_flags(RELOAD_NONE_F),
+   until_log_pos(0), retried_trans(0),
+   tables_to_lock(0), tables_to_lock_count(0),
+   m_reload_flags(RELOAD_NONE_F),
    unsafe_to_stop_at(0)
 {
   group_relay_log_name[0]= event_relay_log_name[0]=
@@ -3093,6 +3097,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
           else
           {
             exec_res= 0;
+            end_trans(thd, ROLLBACK);
 	    /* chance for concurrent connection to get more locks */
             safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
 		       (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);
@@ -3110,8 +3115,16 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
                           "the slave_transaction_retries variable.",
                           slave_trans_retries);
       }
-      if (!((thd->options & OPTION_BEGIN) && opt_using_transactions))
-         rli->trans_retries= 0; // restart from fresh
+      else if (!((thd->options & OPTION_BEGIN) && opt_using_transactions))
+      {
+        /*
+          Only reset the retry counter if the event succeeded or
+          failed with a non-transient error.  On a successful event,
+          the execution will proceed as usual; in the case of a
+          non-transient error, the slave will stop with an error.
+         */
+        rli->trans_retries= 0; // restart from fresh
+      }
      }
     return exec_res;
   }
@@ -3600,7 +3613,7 @@ Slave SQL thread aborted. Can't execute init_slave query");
                             thd->net.last_error ?
                             thd->net.last_error : "<no message>");
           }
-          else if (rli->last_slave_errno != thd->net.last_errno)
+          else if (rli->last_slave_errno != (int) thd->net.last_errno)
           {
             sql_print_error("Slave (additional info): %s Error_code: %d",
                             thd->net.last_error ?
@@ -4082,6 +4095,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
       buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
 
+  LINT_INIT(inc_pos);
   pthread_mutex_lock(&mi->data_lock);
 
   switch (buf[EVENT_TYPE_OFFSET]) {
@@ -4960,6 +4974,7 @@ void st_relay_log_info::cleanup_context(THD *thd, bool error)
   }
   m_table_map.clear_tables();
   close_thread_tables(thd);
+  clear_tables_to_lock();
   unsafe_to_stop_at= 0;
 }
 #endif

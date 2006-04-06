@@ -20,6 +20,8 @@
 #include "sp_cache.h"
 #include "sql_trigger.h"
 
+#include <my_user.h>
+
 static bool
 create_string(THD *thd, String *buf,
 	      int sp_type,
@@ -27,7 +29,9 @@ create_string(THD *thd, String *buf,
 	      const char *params, ulong paramslen,
 	      const char *returns, ulong returnslen,
 	      const char *body, ulong bodylen,
-	      st_sp_chistics *chistics);
+	      st_sp_chistics *chistics,
+              const LEX_STRING *definer_user,
+              const LEX_STRING *definer_host);
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 ulong sql_mode, const char *params, const char *returns,
@@ -264,7 +268,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 static int
 db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 {
-  extern int yyparse(void *thd);
+  extern int MYSQLparse(void *thd);
   TABLE *table;
   const char *params, *returns, *body;
   int ret;
@@ -405,6 +409,15 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   ulong old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
+  
+  char definer_user_name_holder[USERNAME_LENGTH + 1];
+  LEX_STRING_WITH_INIT definer_user_name(definer_user_name_holder,
+                                         USERNAME_LENGTH);
+
+  char definer_host_name_holder[HOSTNAME_LENGTH + 1];
+  LEX_STRING_WITH_INIT definer_host_name(definer_host_name_holder,
+                                         HOSTNAME_LENGTH);
+  
   int ret;
 
   thd->variables.sql_mode= sql_mode;
@@ -413,14 +426,25 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   thd->lex= &newlex;
   newlex.current_select= NULL;
 
+  parse_user(definer, strlen(definer),
+             definer_user_name.str, &definer_user_name.length,
+             definer_host_name.str, &definer_host_name.length);
+
   defstr.set_charset(system_charset_info);
+
+  /*
+    We have to add DEFINER clause and provide proper routine characterstics in
+    routine definition statement that we build here to be able to use this
+    definition for SHOW CREATE PROCEDURE later.
+   */
+
   if (!create_string(thd, &defstr,
 		     type,
 		     name,
 		     params, strlen(params),
 		     returns, strlen(returns),
 		     body, strlen(body),
-		     &chistics))
+		     &chistics, &definer_user_name, &definer_host_name))
   {
     ret= SP_INTERNAL_ERROR;
     goto end;
@@ -434,7 +458,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
 
   thd->spcont= 0;
-  if (yyparse(thd) || thd->is_fatal_error || newlex.sphead == NULL)
+  if (MYSQLparse(thd) || thd->is_fatal_error || newlex.sphead == NULL)
   {
     sp_head *sp= newlex.sphead;
 
@@ -448,7 +472,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
       goto end;
     *sphp= newlex.sphead;
-    (*sphp)->set_definer((char*) definer, (uint) strlen(definer));
+    (*sphp)->set_definer(&definer_user_name, &definer_host_name);
     (*sphp)->set_info(created, modified, &chistics, sql_mode);
     (*sphp)->optimize();
   }
@@ -501,15 +525,21 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   else
   {
     restore_record(table, s->default_values); // Get default values for fields
-    strxnmov(definer, sizeof(definer)-1, thd->security_ctx->priv_user, "@",
-            thd->security_ctx->priv_host, NullS);
+
+    /* NOTE: all needed privilege checks have been already done. */
+    strxnmov(definer, sizeof(definer)-1, thd->lex->definer->user.str, "@",
+            thd->lex->definer->host.str, NullS);
 
     if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
     {
       ret= SP_GET_FIELD_FAILED;
       goto done;
     }
-    if (sp->m_name.length > table->field[MYSQL_PROC_FIELD_NAME]->field_length)
+
+    if (system_charset_info->cset->numchars(system_charset_info,
+                                            sp->m_name.str,
+                                            sp->m_name.str+sp->m_name.length) >
+        table->field[MYSQL_PROC_FIELD_NAME]->char_length())
     {
       ret= SP_BAD_IDENTIFIER;
       goto done;
@@ -593,9 +623,17 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     else if (mysql_bin_log.is_open())
     {
       thd->clear_error();
+
+      String log_query;
+      log_query.set_charset(system_charset_info);
+      log_query.append(STRING_WITH_LEN("CREATE "));
+      append_definer(thd, &log_query, &thd->lex->definer->user,
+                     &thd->lex->definer->host);
+      log_query.append(thd->lex->stmt_definition_begin);
+
       /* Such a statement can always go directly to binlog, no trans cache */
       thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                        thd->query, thd->query_length, FALSE, FALSE);
+                        log_query.c_ptr(), log_query.length(), FALSE, FALSE);
     }
 
   }
@@ -634,7 +672,6 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 {
   TABLE *table;
   int ret;
-  bool opened;
   DBUG_ENTER("db_update_routine");
   DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
@@ -1013,6 +1050,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
 {
   TABLE_LIST *routine;
   bool result= 0;
+  bool sp_object_found;
   DBUG_ENTER("sp_exists_routine");
   for (routine= routines; routine; routine= routine->next_global)
   {
@@ -1025,10 +1063,12 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
     lex_name.str= thd->strmake(routine->table_name, lex_name.length);
     name= new sp_name(lex_db, lex_name);
     name->init_qname(thd);
-    if (sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
-                        &thd->sp_proc_cache, FALSE) != NULL ||
-        sp_find_routine(thd, TYPE_ENUM_FUNCTION, name,
-                        &thd->sp_func_cache, FALSE) != NULL)
+    sp_object_found= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
+                                     &thd->sp_proc_cache, FALSE) != NULL ||
+                     sp_find_routine(thd, TYPE_ENUM_FUNCTION, name,
+                                     &thd->sp_func_cache, FALSE) != NULL;
+    mysql_reset_errors(thd, TRUE);
+    if (sp_object_found)
     {
       if (any)
         DBUG_RETURN(1);
@@ -1721,14 +1761,18 @@ create_string(THD *thd, String *buf,
 	      const char *params, ulong paramslen,
 	      const char *returns, ulong returnslen,
 	      const char *body, ulong bodylen,
-	      st_sp_chistics *chistics)
+	      st_sp_chistics *chistics,
+              const LEX_STRING *definer_user,
+              const LEX_STRING *definer_host)
 {
   /* Make some room to begin with */
   if (buf->alloc(100 + name->m_qname.length + paramslen + returnslen + bodylen +
-		 chistics->comment.length))
+		 chistics->comment.length + 10 /* length of " DEFINER= "*/ +
+                 USER_HOST_BUFF_SIZE))
     return FALSE;
 
   buf->append(STRING_WITH_LEN("CREATE "));
+  append_definer(thd, buf, definer_user, definer_host);
   if (type == TYPE_ENUM_FUNCTION)
     buf->append(STRING_WITH_LEN("FUNCTION "));
   else

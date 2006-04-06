@@ -33,7 +33,7 @@ create database mysqltest;
 show databases;
 Database
 information_schema
-cluster_replication
+cluster
 mysql
 mysqltest
 mysqltest2
@@ -51,7 +51,7 @@ set sql_log_bin = 1;
 show databases;
 Database
 information_schema
-cluster_replication
+cluster
 mysql
 test
 create database mysqltest2;
@@ -71,7 +71,7 @@ load data from master;
 show databases;
 Database
 information_schema
-cluster_replication
+cluster
 mysql
 mysqltest
 mysqltest2

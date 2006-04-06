@@ -83,9 +83,7 @@ Tsman::Tsman(Block_context& ctx,
 
   addRecSignal(GSN_GET_TABINFOREQ, &Tsman::execGET_TABINFOREQ);
 
-  m_tablespace_pool.setSize(10);
   m_tablespace_hash.setSize(10);
-  m_file_pool.setSize(10);
   m_file_hash.setSize(10);
 }
   
@@ -108,6 +106,12 @@ Tsman::execREAD_CONFIG_REQ(Signal* signal)
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
+
+  Pool_context pc;
+  pc.m_block = this;
+
+  m_file_pool.init(RT_TSMAN_FILE, pc);
+  m_tablespace_pool.init(RT_TSMAN_FILEGROUP, pc);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -431,10 +435,10 @@ Tsman::execDROP_FILEGROUP_REQ(Signal* signal){
 
 bool 
 Tsman::find_file_by_id(Ptr<Datafile>& ptr, 
-		       DLList<Datafile>::Head& head, 
+		       Datafile_list::Head& head, 
 		       Uint32 id)
 {
-  LocalDLList<Datafile> list(m_file_pool, head);
+  Local_datafile_list list(m_file_pool, head);
   for(list.first(ptr); !ptr.isNull(); list.next(ptr))
     if(ptr.p->m_file_id == id)
       return true;
@@ -522,7 +526,7 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
     }
     
     new (file_ptr.p) Datafile(req);
-    LocalDLList<Datafile> tmp(m_file_pool, ptr.p->m_meta_files);
+    Local_datafile_list tmp(m_file_pool, ptr.p->m_meta_files);
     tmp.add(file_ptr);
 
     file_ptr.p->m_state = Datafile::FS_CREATING;
@@ -649,7 +653,7 @@ Tsman::execFSCLOSECONF(Signal* signal)
   
   {
     m_tablespace_pool.getPtr(lg_ptr, ptr.p->m_tablespace_ptr_i);
-    LocalDLList<Datafile> list(m_file_pool, lg_ptr.p->m_meta_files);
+    Local_datafile_list list(m_file_pool, lg_ptr.p->m_meta_files);
     list.release(ptr);
   }
 }
@@ -833,7 +837,7 @@ Tsman::create_file_ref(Signal* signal,
   sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_REF, signal, 
 	     CreateFileImplRef::SignalLength, JBB);
   
-  LocalDLList<Datafile> meta(m_file_pool, lg_ptr.p->m_meta_files);
+  Local_datafile_list meta(m_file_pool, lg_ptr.p->m_meta_files);
   meta.release(ptr);
 }
 
@@ -1104,8 +1108,8 @@ Tsman::load_extent_page_callback(Signal* signal,
       (getNodeState().getNodeRestartInProgress() &&
        getNodeState().starting.restartType == NodeState::ST_INITIAL_NODE_RESTART))
   {
-    LocalDLList<Datafile> free(m_file_pool, ts_ptr.p->m_free_files);
-    LocalDLList<Datafile> meta(m_file_pool, ts_ptr.p->m_meta_files);
+    Local_datafile_list free(m_file_pool, ts_ptr.p->m_free_files);
+    Local_datafile_list meta(m_file_pool, ts_ptr.p->m_meta_files);
     meta.remove(ptr);
     free.add(ptr);
   }
@@ -1144,7 +1148,7 @@ Tsman::scan_tablespace(Signal* signal, Uint32 ptrI)
 
   Ptr<Datafile> file_ptr;
   {
-    LocalDLList<Datafile> meta(m_file_pool, lg_ptr.p->m_meta_files);
+    Local_datafile_list meta(m_file_pool, lg_ptr.p->m_meta_files);
     meta.first(file_ptr);
   }
 
@@ -1249,18 +1253,18 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
   }
   ptr.p->m_online.m_first_free_extent= firstFree;
   
-  LocalDLList<Datafile> meta(m_file_pool, lg_ptr.p->m_meta_files);
+  Local_datafile_list meta(m_file_pool, lg_ptr.p->m_meta_files);
   Ptr<Datafile> next = ptr;
   meta.next(next);
   if(firstFree != RNIL)
   {
-    LocalDLList<Datafile> free(m_file_pool, lg_ptr.p->m_free_files);
+    Local_datafile_list free(m_file_pool, lg_ptr.p->m_free_files);
     meta.remove(ptr);
     free.add(ptr);
   }
   else
   {
-    LocalDLList<Datafile> full(m_file_pool, lg_ptr.p->m_full_files);
+    Local_datafile_list full(m_file_pool, lg_ptr.p->m_full_files);
     meta.remove(ptr);
     full.add(ptr);
   }
@@ -1299,13 +1303,13 @@ Tsman::execDROP_FILE_REQ(Signal* signal)
       if (find_file_by_id(file_ptr, fg_ptr.p->m_full_files, req.file_id))
       {
 	jam();
-	LocalDLList<Datafile> full(m_file_pool, fg_ptr.p->m_full_files);
+	Local_datafile_list full(m_file_pool, fg_ptr.p->m_full_files);
 	full.remove(file_ptr);
       }
       else if(find_file_by_id(file_ptr, fg_ptr.p->m_free_files, req.file_id))
       {
 	jam();
-	LocalDLList<Datafile> free(m_file_pool, fg_ptr.p->m_free_files);
+	Local_datafile_list free(m_file_pool, fg_ptr.p->m_free_files);
 	free.remove(file_ptr);
       }
       else
@@ -1314,7 +1318,7 @@ Tsman::execDROP_FILE_REQ(Signal* signal)
 	break;
       }
       
-      LocalDLList<Datafile> meta(m_file_pool, fg_ptr.p->m_meta_files);
+      Local_datafile_list meta(m_file_pool, fg_ptr.p->m_meta_files);
       meta.add(file_ptr);
       
       if (file_ptr.p->m_online.m_used_extent_cnt || 
@@ -1338,16 +1342,16 @@ Tsman::execDROP_FILE_REQ(Signal* signal)
     case DropFileImplReq::Abort:{
       ndbrequire(find_file_by_id(file_ptr, fg_ptr.p->m_meta_files, req.file_id));
       file_ptr.p->m_state = Datafile::FS_ONLINE;
-      LocalDLList<Datafile> meta(m_file_pool, fg_ptr.p->m_meta_files);
+      Local_datafile_list meta(m_file_pool, fg_ptr.p->m_meta_files);
       meta.remove(file_ptr);
       if (file_ptr.p->m_online.m_first_free_extent != RNIL)
       {
-	LocalDLList<Datafile> free(m_file_pool, fg_ptr.p->m_free_files);
+	Local_datafile_list free(m_file_pool, fg_ptr.p->m_free_files);
 	free.add(file_ptr);
       }
       else
       {
-	LocalDLList<Datafile> full(m_file_pool, fg_ptr.p->m_full_files);
+	Local_datafile_list full(m_file_pool, fg_ptr.p->m_full_files);
 	full.add(file_ptr);
       }
       break;
@@ -1407,7 +1411,7 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
   
   ndbrequire(m_tablespace_hash.find(ts_ptr, req.request.tablespace_id));
   Uint32 size = ts_ptr.p->m_extent_size;
-  LocalDLList<Datafile> tmp(m_file_pool, ts_ptr.p->m_free_files);
+  Local_datafile_list tmp(m_file_pool, ts_ptr.p->m_free_files);
   
   if (tmp.first(file_ptr))
   {
@@ -1456,7 +1460,7 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
       if (next_free == RNIL)
       {
 	jam();
-	LocalDLList<Datafile> full(m_file_pool, ts_ptr.p->m_full_files);
+	Local_datafile_list full(m_file_pool, ts_ptr.p->m_full_files);
 	tmp.remove(file_ptr);
 	full.add(file_ptr);
       }
@@ -1988,7 +1992,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
   switch(list){
   case 0:
   {
-    LocalDLList<Datafile> tmp(m_file_pool, ptr.p->m_free_files);
+    Local_datafile_list tmp(m_file_pool, ptr.p->m_free_files);
     if(file.i == RNIL)
     {
       if(!tmp.first(file))
@@ -2005,7 +2009,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
   }
   case 1:
   {
-    LocalDLList<Datafile> tmp(m_file_pool, ptr.p->m_full_files);
+    Local_datafile_list tmp(m_file_pool, ptr.p->m_full_files);
     if(file.i == RNIL)
     {
       if(!tmp.first(file))
@@ -2046,8 +2050,8 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       file.p->m_online.m_lcp_free_extent_head = RNIL;
       file.p->m_online.m_lcp_free_extent_tail = RNIL;
 
-      LocalDLList<Datafile> free(m_file_pool, ptr.p->m_free_files);
-      LocalDLList<Datafile> full(m_file_pool, ptr.p->m_full_files);
+      Local_datafile_list free(m_file_pool, ptr.p->m_free_files);
+      Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
       full.remove(file);
       free.add(file);
     }
@@ -2151,7 +2155,7 @@ void Tsman::execGET_TABINFOREQ(Signal* signal)
     return;
   }
 
-  DLHashTable<Datafile>::Iterator iter;
+  Datafile_hash::Iterator iter;
   ndbrequire(m_file_hash.first(iter));
 
   while(iter.curr.p->m_file_id != tableId && m_file_hash.next(iter))

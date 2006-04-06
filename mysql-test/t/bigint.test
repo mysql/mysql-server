@@ -270,3 +270,12 @@ VALUES (9, 99, 999, 9999, 99999, 999999, 9999999, 99999999, 999999999,
 
 SELECT * FROM t1;
 DROP TABLE t1;
+
+#bug #9088 BIGINT WHERE CLAUSE
+create table t1 (bigint_col bigint unsigned);
+insert into t1 values (17666000000000000000);
+select * from t1 where bigint_col=17666000000000000000;
+select * from t1 where bigint_col='17666000000000000000';
+drop table t1;
+
+

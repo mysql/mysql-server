@@ -748,10 +748,17 @@ BackupRestore::table(const TableS & table){
       my_event.addTableEvent(NdbDictionary::Event::TE_ALL);
 
       // add all columns to the event
+      bool has_blobs = false;
       for(int a= 0; a < tab->getNoOfColumns(); a++)
       {
 	my_event.addEventColumn(a);
+        NdbDictionary::Column::Type t = tab->getColumn(a)->getType();
+        if (t == NdbDictionary::Column::Blob ||
+            t == NdbDictionary::Column::Text)
+          has_blobs = true;
       }
+      if (has_blobs)
+        my_event.mergeEvents(true);
 
       while ( dict->createEvent(my_event) ) // Add event to database
       {

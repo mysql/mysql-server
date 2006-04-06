@@ -341,14 +341,14 @@ extern ibool		recv_recovery_on;
 extern ibool		recv_no_ibuf_operations;
 extern ibool		recv_needed_recovery;
 
-extern ibool            recv_lsn_checks_on;
+extern ibool		recv_lsn_checks_on;
 #ifdef UNIV_HOTBACKUP
 extern ibool		recv_is_making_a_backup;
 #endif /* UNIV_HOTBACKUP */
 extern ulint		recv_max_parsed_page_no;
 
 /* Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
-times! */ 
+times! */
 #define RECV_PARSING_BUF_SIZE	(2 * 1024 * 1024)
 
 /* Size of block reads when the log groups are scanned forward to do a

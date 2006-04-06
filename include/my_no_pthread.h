@@ -14,15 +14,34 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+
+#if !defined(_my_no_pthread_h) && !defined(THREAD)
+#define _my_no_pthread_h
+
+
+/*
+  This block is to access some thread-related type definitions
+  even in builds which do not need thread functions,
+  as some variables (based on these types) are declared
+  even in non-threaded builds.
+  Case in point: 'mf_keycache.c'
+*/
+#if defined(__WIN__) || defined(OS2)
+
+#elif defined(HAVE_UNIXWARE7_THREADS)
+/* #include <thread.h>   Currently, not relevant. Enable if needed. */
+
+#else /* Normal threads */
+#include <pthread.h>
+
+#endif /* defined(__WIN__) */
+
+
 /*
   This undefs some pthread mutex locks when one isn't using threads
   to make thread safe code, that should also work in single thread
   environment, easier to use.
 */
-
-#if !defined(_my_no_pthread_h) && !defined(THREAD)
-#define _my_no_pthread_h
-
 #define pthread_mutex_init(A,B)
 #define pthread_mutex_lock(A)
 #define pthread_mutex_unlock(A)
@@ -32,4 +51,5 @@
 #define rw_wrlock(A)
 #define rw_unlock(A)
 #define rwlock_destroy(A)
+
 #endif

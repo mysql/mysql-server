@@ -70,3 +70,39 @@ insert into t1 values (1,1,1);
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug #17812 Previous lock table for write causes "stray" lock
+# although table is recreated
+#
+# this creating, locking, and dropping causes a subsequent hang
+# on the delete below waiting for table t2  the locking in the
+# "other" connection is relevant, as without it there is no problem
+#
+connection con1;
+create table t3 (id2 int) engine=ndb;
+
+connection con2;
+lock tables t3 write;
+unlock tables;
+
+connection con1;
+drop table t3;
+
+connection con1;
+create table t2 (id int, j int) engine=ndb;
+insert into t2 values (2, 2);
+create table t3 (id int) engine=ndb;
+
+connection con2;
+lock tables t3 read;
+
+connection con1;
+# here we get a hang before bugfix although we shouldn't
+delete t2 from t2, t3 where t2.id = t3.id;
+
+connection con2;
+unlock tables;
+
+connection con1;
+drop table t2, t3;

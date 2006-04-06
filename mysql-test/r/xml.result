@@ -65,6 +65,9 @@ c1
 SELECT extractValue(@xml,'/a/child::*');
 extractValue(@xml,'/a/child::*')
 b1 b2
+SELECT extractValue(@xml,'/a/self::*');
+extractValue(@xml,'/a/self::*')
+a1 a2
 SELECT extractValue(@xml,'/a/descendant::*');
 extractValue(@xml,'/a/descendant::*')
 b1 c1 b2
@@ -520,3 +523,95 @@ UpdateXML(@xml, '/a/b/@bb2', '')
 select UpdateXML(@xml, '/a/b/@bb2', 'bb3="bb3"');
 UpdateXML(@xml, '/a/b/@bb2', 'bb3="bb3"')
 <a aa1="aa1" aa2="aa2"><b bb1="bb1" bb3="bb3">bb</b></a>
+SET @xml= '<order><clerk>lesser wombat</clerk></order>';
+select extractvalue(@xml,'order/clerk');
+extractvalue(@xml,'order/clerk')
+lesser wombat
+select extractvalue(@xml,'/order/clerk');
+extractvalue(@xml,'/order/clerk')
+lesser wombat
+select extractvalue('<a><b>B</b></a>','/a|/b');
+extractvalue('<a><b>B</b></a>','/a|/b')
+
+select extractvalue('<a><b>B</b></a>','/a|b');
+extractvalue('<a><b>B</b></a>','/a|b')
+
+select extractvalue('<a>a<b>B</b></a>','/a|/b');
+extractvalue('<a>a<b>B</b></a>','/a|/b')
+a
+select extractvalue('<a>a<b>B</b></a>','/a|b');
+extractvalue('<a>a<b>B</b></a>','/a|b')
+a
+select extractvalue('<a>a<b>B</b></a>','a|/b');
+extractvalue('<a>a<b>B</b></a>','a|/b')
+a
+select extractvalue('<a>A</a>','/<a>');
+ERROR HY000: XPATH syntax error: '<a>'
+select extractvalue('<a><b>b</b><b!>b!</b!></a>','//b!');
+ERROR HY000: XPATH syntax error: '!'
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant::*');
+extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant::*')
+B C
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/self::*');
+extractvalue('<a>A<b>B<c>C</c></b></a>','/a/self::*')
+A
+select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant-or-self::*');
+extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant-or-self::*')
+A B C
+select extractvalue('<A_B>A</A_B>','/A_B');
+extractvalue('<A_B>A</A_B>','/A_B')
+A
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[position()]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[position()]')
+B1 B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=last()]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=last()]')
+B1 B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()]')
+B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()-1]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()-1]')
+B1
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=1]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=1]')
+
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=2]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=2]')
+B1 B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=position()]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[last()=position()]')
+B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)]')
+B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)-1]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)-1]')
+B1
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=1]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=1]')
+
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=2]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=2]')
+B1 B2
+select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=position()]');
+extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=position()]')
+B2
+select extractvalue('<a>Jack</a>','/a[contains(../a,"J")]');
+extractvalue('<a>Jack</a>','/a[contains(../a,"J")]')
+Jack
+select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]');
+extractvalue('<a>Jack</a>','/a[contains(../a,"j")]')
+Jack
+select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin);
+extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin)
+
+select extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]');
+extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]')
+
+select extractValue('<e>1</e>','position()');
+ERROR HY000: XPATH syntax error: ''
+select extractValue('<e>1</e>','last()');
+ERROR HY000: XPATH syntax error: ''
+select extractValue('<e><a>1</a></e>','/e/');
+ERROR HY000: XPATH syntax error: ''

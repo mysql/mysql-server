@@ -57,7 +57,7 @@ page_cur_get_rec(
 				/* out: record */
 	page_cur_t*	cur);	/* in: page cursor */
 /*************************************************************
-Sets the cursor object to point before the first user record 
+Sets the cursor object to point before the first user record
 on the page. */
 UNIV_INLINE
 void
@@ -66,7 +66,7 @@ page_cur_set_before_first(
 	page_t*		page,	/* in: index page */
 	page_cur_t*	cur);	/* in: cursor */
 /*************************************************************
-Sets the cursor object to point after the last user record on 
+Sets the cursor object to point after the last user record on
 the page. */
 UNIV_INLINE
 void
@@ -178,13 +178,13 @@ page_copy_rec_list_end_to_created_page(
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr);		/* in: mtr */
 /***************************************************************
-Deletes a record at the page cursor. The cursor is moved to the 
+Deletes a record at the page cursor. The cursor is moved to the
 next record after the deleted one. */
 
 void
 page_cur_delete_rec(
 /*================*/
-	page_cur_t*  	cursor,	/* in: a page cursor */
+	page_cur_t*	cursor,	/* in: a page cursor */
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	offsets,/* in: rec_get_offsets(cursor->rec, index) */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
@@ -224,7 +224,7 @@ page_cur_search_with_match(
 	ulint*		ilow_matched_bytes,
 				/* in/out: already matched bytes in a field
 				not yet completely matched */
-	page_cur_t*	cursor); /* out: page cursor */ 
+	page_cur_t*	cursor); /* out: page cursor */
 /***************************************************************
 Positions a page cursor on a randomly chosen user record on a page. If there
 are no user records, sets the cursor on the infimum record. */
@@ -282,4 +282,4 @@ struct page_cur_struct{
 #include "page0cur.ic"
 #endif
 
-#endif 
+#endif
