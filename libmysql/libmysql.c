@@ -1530,6 +1530,9 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
   {
     char buff[MY_CS_NAME_SIZE + 10];
     charsets_dir= save_csdir;
+    /* Skip execution of "SET NAMES" for pre-4.1 servers */
+    if (mysql_get_server_version(mysql) < 40100)
+      return 0;
     sprintf(buff, "SET NAMES %s", cs_name);
     if (!mysql_query(mysql, buff))
     {
