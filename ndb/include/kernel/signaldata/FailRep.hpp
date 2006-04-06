@@ -18,6 +18,7 @@
 #define FAIL_REP_HPP
 
 #include "SignalData.hpp"
+#include <NodeBitmask.hpp>
 
 /**
  * 
@@ -27,6 +28,7 @@ class FailRep {
    * Sender(s) & Reciver(s)
    */
   friend class Qmgr;
+  friend class Ndbcntr;
   
   /**
    * For printing
@@ -35,7 +37,8 @@ class FailRep {
 
 public:
   STATIC_CONST( SignalLength = 2 );
-
+  STATIC_CONST( ExtraLength = 1 + NdbNodeBitmask::Size );
+  
   enum FailCause {
     ZOWN_FAILURE=0,
     ZOTHER_NODE_WHEN_WE_START=1,
@@ -43,13 +46,20 @@ public:
     ZSTART_IN_REGREQ=3,
     ZHEARTBEAT_FAILURE=4,
     ZLINK_FAILURE=5,
-    ZOTHERNODE_FAILED_DURING_START=6
+    ZOTHERNODE_FAILED_DURING_START=6,
+    ZMULTI_NODE_SHUTDOWN = 7,
+    ZPARTITIONED_CLUSTER = 8
   };
-
+  
 private:
   
   Uint32 failNodeId;
   Uint32 failCause;
+  /**
+   * Used when failCause == ZPARTITIONED_CLUSTER
+   */
+  Uint32 president;
+  Uint32 partition[NdbNodeBitmask::Size];
 };
 
 
