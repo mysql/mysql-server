@@ -5,7 +5,7 @@ ulint
 ib_vector_size(
 /*===========*/
 				/* out: number of elements in vector */
-	ib_vector*	vec)	/* in: vector */
+	ib_vector_t*	vec)	/* in: vector */
 {
 	return(vec->used);
 }
@@ -17,7 +17,7 @@ void*
 ib_vector_get(
 /*==========*/
 				/* out: n'th element */
-	ib_vector*	vec,	/* in: vector */
+	ib_vector_t*	vec,	/* in: vector */
 	ulint		n)	/* in: element index to get */
 {
 	ut_a(n < vec->used);
