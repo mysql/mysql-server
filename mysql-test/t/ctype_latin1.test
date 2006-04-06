@@ -95,4 +95,18 @@ SET collation_connection='latin1_bin';
 CREATE TABLE „a (a int);
 SELECT '„a' as str;
 
+
+#
+# Bug#18321: Can't store EuroSign with latin1_german1_ci and latin1_general_ci
+# The problem was in latin1->utf8->latin1 round trip.
+#
+set @str= _latin1 'ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc';
+SELECT convert(@str collate latin1_bin using utf8);
+SELECT convert(@str collate latin1_general_ci using utf8);
+SELECT convert(@str collate latin1_german1_ci using utf8);
+SELECT convert(@str collate latin1_danish_ci using utf8);
+SELECT convert(@str collate latin1_spanish_ci using utf8);
+SELECT convert(@str collate latin1_german2_ci using utf8);
+SELECT convert(@str collate latin1_swedish_ci using utf8);
+
 # End of 4.1 tests
