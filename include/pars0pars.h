@@ -15,6 +15,13 @@ Created 11/19/1996 Heikki Tuuri
 #include "pars0types.h"
 #include "row0types.h"
 #include "trx0types.h"
+#include "ut0vec.h"
+
+/* Type of the user functions. The first argument is always InnoDB-supplied
+and varies in type, while 'user_arg' is a user-supplied argument. The
+meaning of the return type also varies. See the individual use cases, e.g.
+the FETCH statement, for details on them. */
+typedef void* (*pars_user_func_cb_t)(void* arg, void* user_arg);
 
 extern int	yydebug;
 
@@ -440,6 +447,75 @@ pars_complete_graph_for_exec(
 	mem_heap_t*	heap);	/* in: memory heap from which allocated */
 
 /********************************************************************
+Create parser info struct.*/
+
+pars_info_t*
+pars_info_create(void);
+/*==================*/
+		/* out, own: info struct */
+
+/********************************************************************
+Free info struct and everything it contains.*/
+
+void
+pars_info_free(
+/*===========*/
+	pars_info_t*	info);	/* in: info struct */
+
+/********************************************************************
+Add bound literal. */
+
+void
+pars_info_add_literal(
+/*==================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const void*	address,	/* in: address */
+	ulint		length,		/* in: length of data */
+	ulint		type,		/* in: type, e.g. DATA_FIXBINARY */
+	ulint		prtype);	/* in: precise type, e.g.
+					DATA_UNSIGNED */
+
+/********************************************************************
+Equivalent to pars_info_add_literal(info, name, str, strlen(str),
+DATA_VARCHAR, DATA_ENGLISH). */
+
+void
+pars_info_add_str_literal(
+/*======================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const char*	str);		/* in: string */
+
+/********************************************************************
+Equivalent to:
+
+char buf[4];
+mach_write_to_4(buf, val);
+pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
+
+except that the buffer is dynamically allocated from the info struct's
+heap. */
+
+void
+pars_info_add_int4_literal(
+/*=======================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	lint		val);		/* in: value */
+
+/********************************************************************
+Add user function. */
+
+void
+pars_info_add_function(
+/*===================*/
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name,	/* in: function name */
+	pars_user_func_cb_t	func,	/* in: function address */
+	void*			arg);	/* in: user-supplied argument */
+
+/********************************************************************
 Get user function with the given name.*/
 
 pars_user_func_t*
@@ -462,21 +538,19 @@ pars_info_get_bound_lit(
 	const char*		name);	/* in: bound literal name to find */
 
 
-/* Extra information supplied for pars_sql(). All data is owned by the user
-who's responsible for freeing them as necessary.*/
+/* Extra information supplied for pars_sql(). */
 struct pars_info_struct {
-	pars_user_func_t*	funcs;		/* user functions */
-	ulint			n_funcs;	/* number of user functions */
+	mem_heap_t*	heap;		/* our own memory heap */
 
-	pars_bound_lit_t*	bound_lits;	/* bound literals */
-	ulint			n_bound_lits;	/* number of bound literals */
+	ib_vector*	funcs;		/* user functions, or NUll
+					(pars_user_func_t*) */
+	ib_vector*	bound_lits;	/* bound literals, or NULL
+					(pars_bound_lit_t*) */
+
+	ibool		pars_sql_owns_us;
+					/* if TRUE (which is the default),
+					pars_sql() free us before exiting */
 };
-
-/* Type of the user functions. The first argument is always InnoDB-supplied
-and varies in type, while 'user_arg' is a user-supplied argument. The
-meaning of the return type also varies. See the individual use cases, e.g.
-the FETCH statement, for details on them. */
-typedef void* (*pars_user_func_cb_t)(void* arg, void* user_arg);
 
 /* User-supplied function and argument. */
 struct pars_user_func_struct {
