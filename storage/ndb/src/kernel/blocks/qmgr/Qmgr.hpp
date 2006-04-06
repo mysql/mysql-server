@@ -433,7 +433,7 @@ private:
   Uint16 cfailedNodes[MAX_NDB_NODES];
   Uint16 cprepFailedNodes[MAX_NDB_NODES];
   Uint16 ccommitFailedNodes[MAX_NDB_NODES];
-
+  
   struct OpAllocNodeIdReq {
     RequestTracker m_tracker;
     AllocNodeIdReq m_req;
@@ -444,7 +444,7 @@ private:
   struct OpAllocNodeIdReq opAllocNodeIdReq;
   
   StopReq c_stopReq;
-  void check_multi_node_shutdown(Signal* signal);
+  bool check_multi_node_shutdown(Signal* signal);
 };
 
 #endif
