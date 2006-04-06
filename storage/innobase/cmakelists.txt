@@ -3,8 +3,7 @@
 ADD_DEFINITIONS(-DMYSQL_SERVER -D_WIN32 -DWIN32 -D_LIB)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include include)
-SET_SOURCE_FILES_PROPERTIES(ib_config.h PROPERTIES GENERATED 1)
-ADD_LIBRARY(innobase ib_config.h btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c 
+ADD_LIBRARY(innobase btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c 
 					 buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c 
 					 data/data0data.c data/data0type.c 
 					 dict/dict0boot.c dict/dict0crea.c dict/dict0dict.c dict/dict0load.c dict/dict0mem.c 
@@ -34,8 +33,3 @@ ADD_LIBRARY(innobase ib_config.h btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/
 					 trx/trx0purge.c trx/trx0rec.c trx/trx0roll.c trx/trx0rseg.c trx/trx0sys.c trx/trx0trx.c trx/trx0undo.c 
 					 usr/usr0sess.c 
 					 ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c)
-
-ADD_CUSTOM_COMMAND(
-	OUTPUT ib_config.h
-	COMMAND echo /*Generated file*/ > ib_config.h
-)
