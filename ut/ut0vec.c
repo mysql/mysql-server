@@ -7,14 +7,14 @@
 /********************************************************************
 Create a new vector with the given initial size. */
 
-ib_vector*
+ib_vector_t*
 ib_vector_create(
 /*=============*/
 				/* out: vector */
 	mem_heap_t*	heap,	/* in: heap */
 	ulint		size)	/* in: initial size */
 {
-	ib_vector*	vec;
+	ib_vector_t*	vec;
 
 	ut_a(size > 0);
 
@@ -34,7 +34,7 @@ Push a new element to the vector, increasing its size if necessary. */
 void
 ib_vector_push(
 /*===========*/
-	ib_vector*	vec,	/* in: vector */
+	ib_vector_t*	vec,	/* in: vector */
 	void*		elem)	/* in: data element */
 {
 	if (vec->used >= vec->total) {

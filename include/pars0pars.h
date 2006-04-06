@@ -542,9 +542,9 @@ pars_info_get_bound_lit(
 struct pars_info_struct {
 	mem_heap_t*	heap;		/* our own memory heap */
 
-	ib_vector*	funcs;		/* user functions, or NUll
+	ib_vector_t*	funcs;		/* user functions, or NUll
 					(pars_user_func_t*) */
-	ib_vector*	bound_lits;	/* bound literals, or NULL
+	ib_vector_t*	bound_lits;	/* bound literals, or NULL
 					(pars_bound_lit_t*) */
 
 	ibool		graph_owns_us;	/* if TRUE (which is the default),

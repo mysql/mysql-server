@@ -4,7 +4,7 @@
 #include "univ.i"
 #include "mem0mem.h"
 
-typedef struct ib_vector_struct ib_vector;
+typedef struct ib_vector_struct ib_vector_t;
 
 /* An automatically resizing vector datatype with the following properties:
 
@@ -23,7 +23,7 @@ typedef struct ib_vector_struct ib_vector;
 /********************************************************************
 Create a new vector with the given initial size. */
 
-ib_vector*
+ib_vector_t*
 ib_vector_create(
 /*=============*/
 				/* out: vector */
@@ -36,7 +36,7 @@ Push a new element to the vector, increasing its size if necessary. */
 void
 ib_vector_push(
 /*===========*/
-	ib_vector*	vec,	/* in: vector */
+	ib_vector_t*	vec,	/* in: vector */
 	void*		elem);	/* in: data element */
 
 /********************************************************************
@@ -46,7 +46,7 @@ ulint
 ib_vector_size(
 /*===========*/
 				/* out: number of elements in vector */
-	ib_vector*	vec);	/* in: vector */
+	ib_vector_t*	vec);	/* in: vector */
 
 /********************************************************************
 Get the n'th element. */
@@ -55,7 +55,7 @@ void*
 ib_vector_get(
 /*==========*/
 				/* out: n'th element */
-	ib_vector*	vec,	/* in: vector */
+	ib_vector_t*	vec,	/* in: vector */
 	ulint		n);	/* in: element index to get */
 
 /* See comment at beginning of file. */

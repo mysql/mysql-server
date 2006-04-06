@@ -2054,7 +2054,7 @@ pars_info_get_user_func(
 	const char*		name)	/* in: function name to find*/
 {
 	ulint		i;
-	ib_vector*	vec;
+	ib_vector_t*	vec;
 
 	if (!info || !info->funcs) {
 		return(NULL);
@@ -2085,7 +2085,7 @@ pars_info_get_bound_lit(
 	const char*		name)	/* in: bound literal name to find */
 {
 	ulint		i;
-	ib_vector*	vec;
+	ib_vector_t*	vec;
 
 	if (!info || !info->bound_lits) {
 		return(NULL);
