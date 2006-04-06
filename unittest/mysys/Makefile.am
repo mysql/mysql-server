@@ -1,14 +1,15 @@
 
-AM_CPPFLAGS      = -I$(srcdir) -I$(top_builddir)/include
-AM_CPPFLAGS     += -I$(top_builddir)/mytap
+AM_CPPFLAGS      = @ZLIB_INCLUDES@ -I$(top_builddir)/include 
+AM_CPPFLAGS     += -I$(top_srcdir)/include -I$(top_builddir)/unittest/mytap
 
-AM_CFLAGS        = -Wall -ansi -pedantic
+AM_LDFLAGS       = -L$(top_builddir)/unittest/mytap -L$(top_builddir)/mysys
+AM_LDFLAGS      += -L$(top_builddir)/strings -L$(top_builddir)/dbug
 
-AM_LDFLAGS       = -L$(top_builddir)/mytap -L$(top_builddir)/mysys
-AM_LDFLAGS      += -L$(top_builddir)/strings
+LDADD            = -lmytap -lmysys -lmystrings -ldbug
 
-LDADD            = -lmytap -lmysys -lmystrings
-
-noinst_PROGRAMS  = bitmap.t
+noinst_PROGRAMS  = bitmap.t base64.t
 
 bitmap_t_SOURCES = bitmap.t.c
+
+base64_t_SOURCES = base64.t.c
+
