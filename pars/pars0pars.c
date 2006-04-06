@@ -1878,6 +1878,10 @@ pars_sql(
 
 	/* fprintf(stderr, "SQL graph size %lu\n", mem_heap_get_size(heap)); */
 
+	if (info && info->pars_sql_owns_us) {
+		pars_info_free(info);
+	}
+
 	return(graph);
 }
 
@@ -1913,6 +1917,135 @@ pars_complete_graph_for_exec(
 }
 
 /********************************************************************
+Create parser info struct.*/
+
+pars_info_t*
+pars_info_create(void)
+/*==================*/
+		/* out, own: info struct */
+{
+	pars_info_t*	info;
+	mem_heap_t*	heap;
+
+	heap = mem_heap_create(512);
+
+	info = mem_heap_alloc(heap, sizeof(*info));
+
+	info->heap = heap;
+	info->funcs = NULL;
+	info->bound_lits = NULL;
+	info->pars_sql_owns_us = TRUE;
+
+	return(info);
+}
+
+/********************************************************************
+Free info struct and everything it contains.*/
+
+void
+pars_info_free(
+/*===========*/
+	pars_info_t*	info)	/* in: info struct */
+{
+	mem_heap_free(info->heap);
+}
+
+/********************************************************************
+Add bound literal. */
+
+void
+pars_info_add_literal(
+/*==================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const void*	address,	/* in: address */
+	ulint		length,		/* in: length of data */
+	ulint		type,		/* in: type, e.g. DATA_FIXBINARY */
+	ulint		prtype)		/* in: precise type, e.g.
+					DATA_UNSIGNED */
+{
+	pars_bound_lit_t*	pbl;
+
+	pbl = mem_heap_alloc(info->heap, sizeof(*pbl));
+
+	pbl->name = name;
+	pbl->address = address;
+	pbl->length = length;
+	pbl->type = type;
+	pbl->prtype = prtype;
+
+	if (!info->bound_lits) {
+		info->bound_lits = ib_vector_create(info->heap, 8);
+	}
+
+	ib_vector_push(info->bound_lits, pbl);
+}
+
+/********************************************************************
+Equivalent to pars_info_add_literal(info, name, str, strlen(str),
+DATA_VARCHAR, DATA_ENGLISH). */
+
+void
+pars_info_add_str_literal(
+/*======================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const char*	str)		/* in: string */
+{
+	pars_info_add_literal(info, name, str, strlen(str),
+		DATA_VARCHAR, DATA_ENGLISH);
+}
+
+/********************************************************************
+Equivalent to:
+
+char buf[4];
+mach_write_to_4(buf, val);
+pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
+
+except that the buffer is dynamically allocated from the info struct's
+heap. */
+
+void
+pars_info_add_int4_literal(
+/*=======================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	lint		val)		/* in: value */
+{
+	byte*	buf = mem_heap_alloc(info->heap, 4);
+
+	mach_write_to_4(buf, val);
+	pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
+}
+
+/********************************************************************
+Add user function. */
+
+void
+pars_info_add_function(
+/*===================*/
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name,	/* in: function name */
+	pars_user_func_cb_t	func,	/* in: function address */
+	void*			arg)	/* in: user-supplied argument */
+{
+	pars_user_func_t*	puf;
+
+	puf = mem_heap_alloc(info->heap, sizeof(*puf));
+
+	puf->name = name;
+	puf->func = func;
+	puf->arg = arg;
+
+	if (!info->funcs) {
+		info->funcs = ib_vector_create(info->heap, 8);
+	}
+
+	ib_vector_push(info->funcs, puf);
+}
+
+/********************************************************************
 Get user function with the given name.*/
 
 pars_user_func_t*
@@ -1923,15 +2056,20 @@ pars_info_get_user_func(
 	pars_info_t*		info,	/* in: info struct */
 	const char*		name)	/* in: function name to find*/
 {
-	ulint	i;
+	ulint		i;
+	ib_vector*	vec;
 
-	if (!info) {
+	if (!info || !info->funcs) {
 		return(NULL);
 	}
 
-	for (i = 0; i < info->n_funcs; i++) {
-		if (strcmp(info->funcs[i].name, name) == 0) {
-			return(&info->funcs[i]);
+	vec = info->funcs;
+
+	for (i = 0; i < ib_vector_size(vec); i++) {
+		pars_user_func_t*	puf = ib_vector_get(vec, i);
+
+		if (strcmp(puf->name, name) == 0) {
+			return(puf);
 		}
 	}
 
@@ -1949,15 +2087,20 @@ pars_info_get_bound_lit(
 	pars_info_t*		info,	/* in: info struct */
 	const char*		name)	/* in: bound literal name to find */
 {
-	ulint	i;
+	ulint		i;
+	ib_vector*	vec;
 
-	if (!info) {
+	if (!info || !info->bound_lits) {
 		return(NULL);
 	}
 
-	for (i = 0; i < info->n_bound_lits; i++) {
-		if (strcmp(info->bound_lits[i].name, name) == 0) {
-			return(&info->bound_lits[i]);
+	vec = info->bound_lits;
+
+	for (i = 0; i < ib_vector_size(vec); i++) {
+		pars_bound_lit_t*	pbl = ib_vector_get(vec, i);
+
+		if (strcmp(pbl->name, name) == 0) {
+			return(pbl);
 		}
 	}
 
