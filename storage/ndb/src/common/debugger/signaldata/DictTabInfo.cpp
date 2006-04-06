@@ -244,8 +244,10 @@ DictFilegroupInfo::Filegroup::init(){
   TS_DataGrow.GrowLimit = 0;
   TS_DataGrow.GrowSizeHi = 0;
   TS_DataGrow.GrowSizeLo = 0;
-  memset(TS_DataGrow.GrowPattern, sizeof(TS_DataGrow.GrowPattern), 0);
+  memset(TS_DataGrow.GrowPattern, 0, sizeof(TS_DataGrow.GrowPattern));
   TS_DataGrow.GrowMaxSize = 0;
+  LF_UndoFreeWordsHi= 0;
+  LF_UndoFreeWordsLo= 0;
 }
 
 void
