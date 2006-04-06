@@ -88,6 +88,8 @@ int mi_delete(MI_INFO *info,const byte *record)
                 _mi_make_key(info,i,old_key,record,info->lastpos)))
           goto err;
       }
+      /* The above changed info->lastkey2. Inform mi_rnext_same(). */
+      info->update&= ~HA_STATE_RNEXT_SAME;
     }
   }
 

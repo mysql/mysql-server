@@ -317,10 +317,7 @@ CREATE DEFINER='mysqltest_nonexs'@'localhost'
 
 # Check that trg2 will not be activated.
 
-# --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-#
-# TODO: Due to the BUG#13198(SP executes if definer does not exist) the
-# following statement does not fail as it should.
+--error ER_NO_SUCH_USER
 INSERT INTO t1 VALUES(6);
 
 #
@@ -362,9 +359,9 @@ CREATE TRIGGER trg5 BEFORE DELETE ON t1
   FOR EACH ROW
     SET @a = 5;
 
---exec egrep -v '^definers=' $MYSQLTEST_VARDIR/master-data/mysqltest_db1/t1.TRG > $MYSQLTEST_VARDIR/tmp/t1.TRG
---exec echo "definers='' '@' '@abc@def@@' '@hostname' '@abcdef@@@hostname'" >> $MYSQLTEST_VARDIR/tmp/t1.TRG
---exec mv $MYSQLTEST_VARDIR/tmp/t1.TRG $MYSQLTEST_VARDIR/master-data/mysqltest_db1/t1.TRG
+--system grep -v '^definers=' $MYSQLTEST_VARDIR/master-data/mysqltest_db1/t1.TRG > $MYSQLTEST_VARDIR/tmp/t1.TRG
+--system echo "definers='' '@' '@abc@def@@' '@hostname' '@abcdef@@@hostname'" >> $MYSQLTEST_VARDIR/tmp/t1.TRG
+--system mv $MYSQLTEST_VARDIR/tmp/t1.TRG $MYSQLTEST_VARDIR/master-data/mysqltest_db1/t1.TRG
 
 --echo
 

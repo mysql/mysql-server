@@ -411,16 +411,17 @@ clearConsumers()
   g_consumers.clear();
 }
 
-static bool
-checkSysTable(const char *tableName) 
+static inline bool
+checkSysTable(const TableS* table)
 {
-  return ga_dont_ignore_systab_0 ||
-    (strcmp(tableName, "SYSTAB_0") != 0 &&
-     strcmp(tableName, "NDB$EVENTS_0") != 0 &&
-     strcmp(tableName, "sys/def/SYSTAB_0") != 0 &&
-     strcmp(tableName, "sys/def/NDB$EVENTS_0") != 0 &&
-     strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) != 0 &&
-     strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE) != 0);
+  return ga_dont_ignore_systab_0 || ! table->getSysTable();
+}
+
+static inline bool
+checkSysTable(const RestoreMetaData& metaData, uint i)
+{
+  assert(i < metaData.getNoOfTables());
+  return checkSysTable(metaData[i]);
 }
 
 static void
@@ -534,7 +535,7 @@ main(int argc, char** argv)
   debug << "Restoring tables" << endl; 
   for(i = 0; i<metaData.getNoOfTables(); i++)
   {
-    if (checkSysTable(metaData[i]->getTableName()))
+    if (checkSysTable(metaData, i))
     {
       for(Uint32 j= 0; j < g_consumers.size(); j++)
 	if (!g_consumers[j]->table(* metaData[i]))
@@ -572,7 +573,7 @@ main(int argc, char** argv)
 	const TupleS* tuple;
 	while ((tuple = dataIter.getNextTuple(res= 1)) != 0)
 	{
-	  if (checkSysTable(tuple->getTable()->getTableName()))
+	  if (checkSysTable(tuple->getTable()))
 	    for(Uint32 i= 0; i < g_consumers.size(); i++) 
 	      g_consumers[i]->tuple(* tuple, fragmentId);
 	} // while (tuple != NULL);
@@ -617,7 +618,7 @@ main(int argc, char** argv)
       bool alloc_flag = false;
       while ((logEntry = logIter.getNextLogEntry(res= 0, &alloc_flag)) != 0)
       {
-	if (checkSysTable(logEntry->m_table->getTableName()))
+	if (checkSysTable(logEntry->m_table))
 	  for(Uint32 i= 0; i < g_consumers.size(); i++)
 	    g_consumers[i]->logEntry(* logEntry);
         if (alloc_flag)
@@ -638,7 +639,7 @@ main(int argc, char** argv)
     {
       for(i = 0; i<metaData.getNoOfTables(); i++)
       {
-	if (checkSysTable(metaData[i]->getTableName()))
+	if (checkSysTable(metaData, i))
 	{
 	  for(Uint32 j= 0; j < g_consumers.size(); j++)
 	    if (!g_consumers[j]->finalize_table(* metaData[i]))

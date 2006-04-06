@@ -22,19 +22,19 @@ proc_step(
 	proc_node_t*	node;
 
 	ut_ad(thr);
-	
+
 	node = thr->run_node;
 	ut_ad(que_node_get_type(node) == QUE_NODE_PROC);
 
 	if (thr->prev_node == que_node_get_parent(node)) {
 		/* Start execution from the first statement in the statement
 		list */
-		
+
 		thr->run_node = node->stat_list;
 	} else {
 		/* Move to the next statement */
 		ut_ad(que_node_get_next(thr->prev_node) == NULL);
-		
+
 		thr->run_node = NULL;
 	}
 
@@ -43,7 +43,7 @@ proc_step(
 	}
 
 	return(thr);
-} 
+}
 
 /**************************************************************************
 Performs an execution step of a procedure call node. */
@@ -57,15 +57,15 @@ proc_eval_step(
 	func_node_t*	node;
 
 	ut_ad(thr);
-	
+
 	node = thr->run_node;
 	ut_ad(que_node_get_type(node) == QUE_NODE_FUNC);
 
 	/* Evaluate the procedure */
 
 	eval_exp(node);
-	
+
 	thr->run_node = que_node_get_parent(node);
 
 	return(thr);
-} 
+}

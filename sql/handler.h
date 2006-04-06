@@ -43,6 +43,9 @@
 #define HA_ADMIN_TRY_ALTER       -7
 #define HA_ADMIN_WRONG_CHECKSUM  -8
 #define HA_ADMIN_NOT_BASE_TABLE  -9
+#define HA_ADMIN_NEEDS_UPGRADE  -10
+#define HA_ADMIN_NEEDS_ALTER    -11
+#define HA_ADMIN_NEEDS_CHECK    -12
 
 /* Bits in table_flags() to show what database can do */
 
@@ -94,13 +97,6 @@
 #define HA_NEED_READ_RANGE_BUFFER (1 << 29) /* for read_multi_range */
 #define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
 #define HA_NO_COPY_ON_ALTER    (1 << 31)
-
-/* Flags for partition handlers */
-#define HA_CAN_PARTITION       (1 << 0) /* Partition support */
-#define HA_CAN_UPDATE_PARTITION_KEY (1 << 1)
-#define HA_CAN_PARTITION_UNIQUE (1 << 2)
-#define HA_USE_AUTO_PARTITION (1 << 3)
-
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -304,6 +300,7 @@ struct xid_t {
   long bqual_length;
   char data[XIDDATASIZE];  // not \0-terminated !
 
+  xid_t() {}                                /* Remove gcc warning */  
   bool eq(struct xid_t *xid)
   { return eq(xid->gtrid_length, xid->bqual_length, xid->data); }
   bool eq(long g, long b, const char *d)
@@ -575,15 +572,15 @@ typedef struct
                            struct st_table_list *tables,
                            class Item *cond);
    uint32 flags;                                /* global handler flags */
-   /* 
-      Handlerton functions are not set in the different storage
-      engines static initialization.  They are initialized at handler init.
-      Thus, leave them last in the struct.
+   /*
+      Those handlerton functions below are properly initialized at handler
+      init.
    */
    int (*binlog_func)(THD *thd, enum_binlog_func fn, void *arg);
    void (*binlog_log_query)(THD *thd, enum_binlog_command binlog_command,
                             const char *query, uint query_length,
                             const char *db, const char *table_name);
+   int (*release_temporary_latches)(THD *thd);
 } handlerton;
 
 extern const handlerton default_hton;
@@ -601,6 +598,7 @@ struct show_table_alias_st {
 #define HTON_HIDDEN                  (1 << 3) //Engine does not appear in lists
 #define HTON_FLUSH_AFTER_RENAME      (1 << 4)
 #define HTON_NOT_USER_SELECTABLE     (1 << 5)
+#define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 
 typedef struct st_thd_trans
 {
@@ -618,33 +616,6 @@ enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 
 enum ndb_distribution { ND_KEYHASH= 0, ND_LINHASH= 1 };
 
-typedef struct {
-  uint32 start_part;
-  uint32 end_part;
-} part_id_range;
-
-
-/**
- * An enum and a struct to handle partitioning and subpartitioning.
- */
-enum partition_type {
-  NOT_A_PARTITION= 0,
-  RANGE_PARTITION,
-  HASH_PARTITION,
-  LIST_PARTITION
-};
-
-enum partition_state {
-  PART_NORMAL= 0,
-  PART_IS_DROPPED= 1,
-  PART_TO_BE_DROPPED= 2,
-  PART_TO_BE_ADDED= 3,
-  PART_TO_BE_REORGED= 4,
-  PART_REORGED_DROPPED= 5,
-  PART_CHANGED= 6,
-  PART_IS_CHANGED= 7,
-  PART_IS_ADDED= 8
-};
 
 typedef struct {
   ulonglong data_file_length;
@@ -662,400 +633,12 @@ typedef struct {
 #define UNDEF_NODEGROUP 65535
 class Item;
 
-class partition_element :public Sql_alloc {
-public:
-  List<partition_element> subpartitions;
-  List<longlong> list_val_list;
-  ulonglong part_max_rows;
-  ulonglong part_min_rows;
-  char *partition_name;
-  char *tablespace_name;
-  longlong range_value;
-  char* part_comment;
-  char* data_file_name;
-  char* index_file_name;
-  handlerton *engine_type;
-  enum partition_state part_state;
-  uint16 nodegroup_id;
-  
-  partition_element()
-  : part_max_rows(0), part_min_rows(0), partition_name(NULL),
-    tablespace_name(NULL), range_value(0), part_comment(NULL),
-    data_file_name(NULL), index_file_name(NULL),
-    engine_type(NULL),part_state(PART_NORMAL),
-    nodegroup_id(UNDEF_NODEGROUP)
-  {
-    subpartitions.empty();
-    list_val_list.empty();
-  }
-  ~partition_element() {}
-};
-
-typedef struct {
-  longlong list_value;
-  uint32 partition_id;
-} LIST_PART_ENTRY;
-
 class partition_info;
-
-typedef int (*get_part_id_func)(partition_info *part_info,
-                                 uint32 *part_id,
-                                 longlong *func_value);
-typedef uint32 (*get_subpart_id_func)(partition_info *part_info);
-
 
 struct st_partition_iter;
 #define NOT_A_PARTITION_ID ((uint32)-1)
 
-/*
-  A "Get next" function for partition iterator.
-  SYNOPSIS
-    partition_iter_func()
-      part_iter  Partition iterator, you call only "iter.get_next(&iter)"
 
-  RETURN 
-    NOT_A_PARTITION_ID if there are no more partitions.
-    [sub]partition_id  of the next partition
-*/
-
-typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
-
-
-/*
-  Partition set iterator. Used to enumerate a set of [sub]partitions
-  obtained in partition interval analysis (see get_partitions_in_range_iter).
-
-  For the user, the only meaningful field is get_next, which may be used as
-  follows:
-             part_iterator.get_next(&part_iterator);
-  
-  Initialization is done by any of the following calls:
-    - get_partitions_in_range_iter-type function call
-    - init_single_partition_iterator()
-    - init_all_partitions_iterator()
-  Cleanup is not needed.
-*/
-
-typedef struct st_partition_iter
-{
-  partition_iter_func get_next;
-  
-  struct st_part_num_range
-  {
-    uint32 start;
-    uint32 end;
-  };
-
-  struct st_field_value_range
-  {
-    longlong start;
-    longlong end;
-  };
-
-  union
-  {
-    struct st_part_num_range     part_nums;
-    struct st_field_value_range  field_vals;
-  };
-  partition_info *part_info;
-} PARTITION_ITERATOR;
-
-
-/*
-  Get an iterator for set of partitions that match given field-space interval
-
-  SYNOPSIS
-    get_partitions_in_range_iter()
-      part_info   Partitioning info
-      is_subpart  
-      min_val     Left edge,  field value in opt_range_key format.
-      max_val     Right edge, field value in opt_range_key format. 
-      flags       Some combination of NEAR_MIN, NEAR_MAX, NO_MIN_RANGE,
-                  NO_MAX_RANGE.
-      part_iter   Iterator structure to be initialized
-
-  DESCRIPTION
-    Functions with this signature are used to perform "Partitioning Interval
-    Analysis". This analysis is applicable for any type of [sub]partitioning 
-    by some function of a single fieldX. The idea is as follows:
-    Given an interval "const1 <=? fieldX <=? const2", find a set of partitions
-    that may contain records with value of fieldX within the given interval.
-
-    The min_val, max_val and flags parameters specify the interval.
-    The set of partitions is returned by initializing an iterator in *part_iter
-
-  NOTES
-    There are currently two functions of this type:
-     - get_part_iter_for_interval_via_walking
-     - get_part_iter_for_interval_via_mapping
-
-  RETURN 
-    0 - No matching partitions, iterator not initialized
-    1 - Some partitions would match, iterator intialized for traversing them
-   -1 - All partitions would match, iterator not initialized
-*/
-
-typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
-                                            bool is_subpart,
-                                            char *min_val, char *max_val,
-                                            uint flags,
-                                            PARTITION_ITERATOR *part_iter);
-
-
-class partition_info : public Sql_alloc
-{
-public:
-  /*
-   * Here comes a set of definitions needed for partitioned table handlers.
-   */
-  List<partition_element> partitions;
-  List<partition_element> temp_partitions;
-
-  List<char> part_field_list;
-  List<char> subpart_field_list;
-  
-  /* 
-    If there is no subpartitioning, use only this func to get partition ids.
-    If there is subpartitioning, use the this func to get partition id when
-    you have both partition and subpartition fields.
-  */
-  get_part_id_func get_partition_id;
-
-  /* Get partition id when we don't have subpartition fields */
-  get_part_id_func get_part_partition_id;
-
-  /* 
-    Get subpartition id when we have don't have partition fields by we do
-    have subpartition ids.
-    Mikael said that for given constant tuple 
-    {subpart_field1, ..., subpart_fieldN} the subpartition id will be the
-    same in all subpartitions
-  */
-  get_subpart_id_func get_subpartition_id;
- 
-  /* NULL-terminated array of fields used in partitioned expression */
-  Field **part_field_array;
-  /* NULL-terminated array of fields used in subpartitioned expression */
-  Field **subpart_field_array;
-
-  /* 
-    Array of all fields used in partition and subpartition expression,
-    without duplicates, NULL-terminated.
-  */
-  Field **full_part_field_array;
-
-  Item *part_expr;
-  Item *subpart_expr;
-
-  Item *item_free_list;
-  
-  /* 
-    A bitmap of partitions used by the current query. 
-    Usage pattern:
-    * The handler->extra(HA_EXTRA_RESET) call at query start/end sets all
-      partitions to be unused.
-    * Before index/rnd_init(), partition pruning code sets the bits for used
-      partitions.
-  */
-  MY_BITMAP used_partitions;
-
-  union {
-    longlong *range_int_array;
-    LIST_PART_ENTRY *list_array;
-  };
-  
-  /********************************************
-   * INTERVAL ANALYSIS
-   ********************************************/
-  /*
-    Partitioning interval analysis function for partitioning, or NULL if 
-    interval analysis is not supported for this kind of partitioning.
-  */
-  get_partitions_in_range_iter get_part_iter_for_interval;
-  /*
-    Partitioning interval analysis function for subpartitioning, or NULL if
-    interval analysis is not supported for this kind of partitioning.
-  */
-  get_partitions_in_range_iter get_subpart_iter_for_interval;
-  
-  /*
-    Valid iff
-    get_part_iter_for_interval=get_part_iter_for_interval_via_walking:
-      controls how we'll process "field < C" and "field > C" intervals.
-      If the partitioning function F is strictly increasing, then for any x, y
-      "x < y" => "F(x) < F(y)" (*), i.e. when we get interval "field < C" 
-      we can perform partition pruning on the equivalent "F(field) < F(C)".
-
-      If the partitioning function not strictly increasing (it is simply
-      increasing), then instead of (*) we get "x < y" => "F(x) <= F(y)"
-      i.e. for interval "field < C" we can perform partition pruning for
-      "F(field) <= F(C)".
-  */
-  bool range_analysis_include_bounds;
-  /********************************************
-   * INTERVAL ANALYSIS ENDS 
-   ********************************************/
-  
-  char* part_info_string;
-
-  char *part_func_string;
-  char *subpart_func_string;
-
-  uchar *part_state;
-
-  partition_element *curr_part_elem;
-  partition_element *current_partition;
-  /*
-    These key_map's are used for Partitioning to enable quick decisions
-    on whether we can derive more information about which partition to
-    scan just by looking at what index is used.
-  */
-  key_map all_fields_in_PF, all_fields_in_PPF, all_fields_in_SPF;
-  key_map some_fields_in_PF;
-
-  handlerton *default_engine_type;
-  Item_result part_result_type;
-  partition_type part_type;
-  partition_type subpart_type;
-
-  uint part_info_len;
-  uint part_state_len;
-  uint part_func_len;
-  uint subpart_func_len;
-
-  uint no_parts;
-  uint no_subparts;
-  uint count_curr_subparts;
-
-  uint part_error_code;
-
-  uint no_list_values;
-
-  uint no_part_fields;
-  uint no_subpart_fields;
-  uint no_full_part_fields;
-
-  /*
-    This variable is used to calculate the partition id when using
-    LINEAR KEY/HASH. This functionality is kept in the MySQL Server
-    but mainly of use to handlers supporting partitioning.
-  */
-  uint16 linear_hash_mask;
-
-  bool use_default_partitions;
-  bool use_default_no_partitions;
-  bool use_default_subpartitions;
-  bool use_default_no_subpartitions;
-  bool default_partitions_setup;
-  bool defined_max_value;
-  bool list_of_part_fields;
-  bool list_of_subpart_fields;
-  bool linear_hash_ind;
-  bool fixed;
-  bool from_openfrm;
-
-  partition_info()
-  : get_partition_id(NULL), get_part_partition_id(NULL),
-    get_subpartition_id(NULL),
-    part_field_array(NULL), subpart_field_array(NULL),
-    full_part_field_array(NULL),
-    part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
-    list_array(NULL),
-    part_info_string(NULL),
-    part_func_string(NULL), subpart_func_string(NULL),
-    part_state(NULL),
-    curr_part_elem(NULL), current_partition(NULL),
-    default_engine_type(NULL),
-    part_result_type(INT_RESULT),
-    part_type(NOT_A_PARTITION), subpart_type(NOT_A_PARTITION),
-    part_info_len(0), part_state_len(0),
-    part_func_len(0), subpart_func_len(0),
-    no_parts(0), no_subparts(0),
-    count_curr_subparts(0), part_error_code(0),
-    no_list_values(0), no_part_fields(0), no_subpart_fields(0),
-    no_full_part_fields(0), linear_hash_mask(0),
-    use_default_partitions(TRUE),
-    use_default_no_partitions(TRUE),
-    use_default_subpartitions(TRUE),
-    use_default_no_subpartitions(TRUE),
-    default_partitions_setup(FALSE),
-    defined_max_value(FALSE),
-    list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
-    linear_hash_ind(FALSE),
-    fixed(FALSE),
-    from_openfrm(FALSE)
-  {
-    all_fields_in_PF.clear_all();
-    all_fields_in_PPF.clear_all();
-    all_fields_in_SPF.clear_all();
-    some_fields_in_PF.clear_all();
-    partitions.empty();
-    temp_partitions.empty();
-    part_field_list.empty();
-    subpart_field_list.empty();
-  }
-  ~partition_info() {}
-};
-
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);
-
-/* Initialize the iterator to return a single partition with given part_id */
-
-static inline void init_single_partition_iterator(uint32 part_id,
-                                           PARTITION_ITERATOR *part_iter)
-{
-  part_iter->part_nums.start= part_id;
-  part_iter->part_nums.end= part_id+1;
-  part_iter->get_next= get_next_partition_id_range;
-}
-
-/* Initialize the iterator to enumerate all partitions */
-static inline
-void init_all_partitions_iterator(partition_info *part_info,
-                                  PARTITION_ITERATOR *part_iter)
-{
-  part_iter->part_nums.start= 0;
-  part_iter->part_nums.end= part_info->no_parts;
-  part_iter->get_next= get_next_partition_id_range;
-}
-
-/*
-  Answers the question if subpartitioning is used for a certain table
-  SYNOPSIS
-    is_sub_partitioned()
-    part_info          A reference to the partition_info struct
-  RETURN VALUE
-    Returns true if subpartitioning used and false otherwise
-  DESCRIPTION
-    A routine to check for subpartitioning for improved readability of code
-*/
-static inline
-bool is_sub_partitioned(partition_info *part_info)
-{ return (part_info->subpart_type == NOT_A_PARTITION ?  FALSE : TRUE); }
-
-
-/*
-  Returns the total number of partitions on the leaf level.
-  SYNOPSIS
-    get_tot_partitions()
-    part_info          A reference to the partition_info struct
-  RETURN VALUE
-    Returns the number of partitions
-  DESCRIPTION
-    A routine to check for number of partitions for improved readability
-    of code
-*/
-static inline
-uint get_tot_partitions(partition_info *part_info)
-{
-  return part_info->no_parts *
-         (is_sub_partitioned(part_info) ? part_info->no_subparts : 1);
-}
-
-
-#endif
 
 typedef struct st_ha_create_information
 {
@@ -1082,7 +665,37 @@ typedef struct st_ha_create_information
   bool store_on_disk;                   /* 1 if table stored on disk */
 } HA_CREATE_INFO;
 
+/*
+  Class for maintaining hooks used inside operations on tables such
+  as: create table functions, delete table functions, and alter table
+  functions.
 
+  Class is using the Template Method pattern to separate the public
+  usage interface from the private inheritance interface.  This
+  imposes no overhead, since the public non-virtual function is small
+  enough to be inlined.
+
+  The hooks are usually used for functions that does several things,
+  e.g., create_table_from_items(), which both create a table and lock
+  it.
+ */
+class TABLEOP_HOOKS
+{
+public:
+  inline void prelock(TABLE **tables, uint count)
+  {
+    do_prelock(tables, count);
+  }
+  virtual ~TABLEOP_HOOKS() {}
+  TABLEOP_HOOKS() {}
+
+private:
+  /* Function primitive that is called prior to locking tables */
+  virtual void do_prelock(TABLE **tables, uint count)
+  {
+    /* Default is to do nothing */
+  }
+};
 
 typedef struct st_savepoint SAVEPOINT;
 extern ulong savepoint_alloc_size;
@@ -1092,6 +705,7 @@ typedef class Item COND;
 
 typedef struct st_ha_check_opt
 {
+  st_ha_check_opt() {}                        /* Remove gcc warning */
   ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
@@ -1099,54 +713,6 @@ typedef struct st_ha_check_opt
   void init();
 } HA_CHECK_OPT;
 
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-bool is_partition_in_list(char *part_name, List<char> list_part_names);
-char *are_partitions_in_table(partition_info *new_part_info,
-                              partition_info *old_part_info);
-bool check_reorganise_list(partition_info *new_part_info,
-                           partition_info *old_part_info,
-                           List<char> list_part_names);
-bool set_up_defaults_for_partitioning(partition_info *part_info,
-                                      handler *file,
-                                      ulonglong max_rows,
-                                      uint start_no);
-handler *get_ha_partition(partition_info *part_info);
-int get_parts_for_update(const byte *old_data, byte *new_data,
-                         const byte *rec0, partition_info *part_info,
-                         uint32 *old_part_id, uint32 *new_part_id,
-                         longlong *func_value);
-int get_part_for_delete(const byte *buf, const byte *rec0,
-                        partition_info *part_info, uint32 *part_id);
-bool check_partition_info(partition_info *part_info,handlerton **eng_type,
-                          handler *file, ulonglong max_rows);
-bool fix_partition_func(THD *thd, const char *name, TABLE *table,
-                        bool create_table_ind);
-char *generate_partition_syntax(partition_info *part_info,
-                                uint *buf_length, bool use_sql_alloc,
-                                bool write_all);
-bool partition_key_modified(TABLE *table, List<Item> &fields);
-void prune_partition_set(const TABLE *table, part_id_range *part_spec);
-void get_partition_set(const TABLE *table, byte *buf, const uint index,
-                       const key_range *key_spec,
-                       part_id_range *part_spec);
-void get_full_part_id_from_key(const TABLE *table, byte *buf,
-                               KEY *key_info,
-                               const key_range *key_spec,
-                               part_id_range *part_spec);
-bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
-                            uint part_info_len,
-                            uchar *part_state, uint part_state_len,
-                            TABLE *table, bool is_create_table_ind,
-                            handlerton *default_db_type);
-void make_used_partitions_str(partition_info *part_info, String *parts_str);
-uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
-                                       bool left_endpoint,
-                                       bool include_endpoint);
-uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
-                                           bool left_endpoint,
-                                           bool include_endpoint);
-#endif
 
 
 /*
@@ -1165,11 +731,15 @@ typedef struct st_handler_buffer
 
 typedef struct system_status_var SSV;
 
+/*
+  The handler class is the interface for dynamically loadable
+  storage engines. Do not add ifdefs and take care when adding or
+  changing virtual functions to avoid vtable confusion
+ */
 class handler :public Sql_alloc
 {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
- friend class ha_partition;
-#endif
+  friend class ha_partition;
+
  protected:
   struct st_table_share *table_share;   /* The table definition */
   struct st_table *table;               /* The current open table */
@@ -1476,15 +1046,24 @@ public:
   uint get_index(void) const { return active_index; }
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
   virtual int close(void)=0;
-  virtual int ha_write_row(byte * buf);
-  virtual int ha_update_row(const byte * old_data, byte * new_data);
-  virtual int ha_delete_row(const byte * buf);
+
+  /*
+    These functions represent the public interface to *users* of the
+    handler class, hence they are *not* virtual. For the inheritance
+    interface, see the (private) functions write_row(), update_row(),
+    and delete_row() below.
+   */
+  int ha_external_lock(THD *thd, int lock_type);
+  int ha_write_row(byte * buf);
+  int ha_update_row(const byte * old_data, byte * new_data);
+  int ha_delete_row(const byte * buf);
+
   /*
     If the handler does it's own injection of the rows, this member function
     should return 'true'.
   */
   virtual bool is_injective() const { return false; }
-  
+
   /*
     SYNOPSIS
       start_bulk_update()
@@ -1616,7 +1195,6 @@ public:
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
-  virtual int external_lock(THD *thd, int lock_type) { return 0; }
   /*
     In an UPDATE or DELETE, if the row under the cursor was locked by another
     transaction, and the engine used an optimistic read of the last
@@ -1660,10 +1238,26 @@ public:
   { return HA_ERR_WRONG_COMMAND; }
 
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
+protected:
+  /* to be implemented in handlers */
 
   /* admin commands - called from mysql_admin_table */
   virtual int check(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
+
+  /*
+     in these two methods check_opt can be modified
+     to specify CHECK option to use to call check()
+     upon the table
+  */
+  virtual int check_for_upgrade(HA_CHECK_OPT *check_opt)
+  { return 0; }
+public:
+  int ha_check_for_upgrade(HA_CHECK_OPT *check_opt);
+  int check_old_types();
+  /* to be actually called to get 'check()' functionality*/
+  int ha_check(THD *thd, HA_CHECK_OPT *check_opt);
+   
   virtual int backup(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   /*
@@ -1672,8 +1266,11 @@ public:
   */
   virtual int restore(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
+protected:
   virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
+public:
+  int ha_repair(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)
@@ -1728,7 +1325,7 @@ public:
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
   virtual ulong table_flags(void) const =0;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
+
   virtual int get_default_no_partitions(ulonglong max_rows) { return 1;}
   virtual void set_auto_partitions(partition_info *part_info) { return; }
   virtual bool get_no_parts(const char *name,
@@ -1738,7 +1335,7 @@ public:
     return 0;
   }
   virtual void set_part_info(partition_info *part_info) {return;}
-#endif
+
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
   virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
@@ -1871,28 +1468,31 @@ public:
  { return COMPATIBLE_DATA_NO; }
 
 private:
-
   /*
-    Row-level primitives for storage engines. 
-    These should be overridden by the storage engine class. To call
-    these methods, use the corresponding 'ha_*' method above.
+    Row-level primitives for storage engines.  These should be
+    overridden by the storage engine class. To call these methods, use
+    the corresponding 'ha_*' method above.
   */
-  friend int ndb_add_binlog_index(THD *, void *);
+  virtual int external_lock(THD *thd __attribute__((unused)),
+                            int lock_type __attribute__((unused)))
+  {
+    return 0;
+  }
 
-  virtual int write_row(byte *buf __attribute__((unused))) 
-  { 
-    return HA_ERR_WRONG_COMMAND; 
+  virtual int write_row(byte *buf __attribute__((unused)))
+  {
+    return HA_ERR_WRONG_COMMAND;
   }
 
   virtual int update_row(const byte *old_data __attribute__((unused)),
                          byte *new_data __attribute__((unused)))
-  { 
-    return HA_ERR_WRONG_COMMAND; 
+  {
+    return HA_ERR_WRONG_COMMAND;
   }
 
   virtual int delete_row(const byte *buf __attribute__((unused)))
-  { 
-    return HA_ERR_WRONG_COMMAND; 
+  {
+    return HA_ERR_WRONG_COMMAND;
   }
 };
 
@@ -2007,11 +1607,6 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 */
 #define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
         !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
-
-/* semi-synchronous replication */
-int ha_repl_report_sent_binlog(THD *thd, char *log_file_name,
-                               my_off_t end_offset);
-int ha_repl_report_replication_stop(THD *thd);
 
 #ifdef HAVE_NDB_BINLOG
 int ha_reset_logs(THD *thd);

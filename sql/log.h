@@ -40,7 +40,8 @@ class TC_LOG
 
 class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
 {
-  public:
+public:
+  TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
   int log(THD *thd, my_xid xid)         { return 1; }
@@ -203,9 +204,11 @@ class MYSQL_LOG: public TC_LOG
   bool no_auto_events;
   friend class Log_event;
 
-public:
   ulonglong m_table_map_version;
 
+  int write_to_file(IO_CACHE *cache);
+
+public:
   /*
     These describe the log's format. This is used only for relay logs.
     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
@@ -232,8 +235,11 @@ public:
 #if !defined(MYSQL_CLIENT)
   bool is_table_mapped(TABLE *table) const
   {
-    return table->s->table_map_version == m_table_map_version;
+    return table->s->table_map_version == table_map_version();
   }
+
+  ulonglong table_map_version() const { return m_table_map_version; }
+  void update_table_map_version() { ++m_table_map_version; }
 
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event);
 
@@ -302,8 +308,6 @@ public:
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event);
 
-  bool write_table_map(THD *thd, IO_CACHE *cache, TABLE *table, bool is_trans);
-
   void start_union_events(THD *thd);
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
@@ -351,6 +355,7 @@ public:
 class Log_event_handler
 {
 public:
+  Log_event_handler() {}
   virtual bool init()= 0;
   virtual void cleanup()= 0;
 
@@ -506,5 +511,25 @@ public:
   void init_slow_log(uint slow_log_printer);
   void init_general_log(uint general_log_printer);
  };
+
+
+enum enum_binlog_format {
+  BINLOG_FORMAT_STMT= 0, // statement-based
+#ifdef HAVE_ROW_BASED_REPLICATION
+  BINLOG_FORMAT_ROW= 1, // row_based
+  /*
+    statement-based except for cases where only row-based can work (UUID()
+    etc):
+  */
+  BINLOG_FORMAT_MIXED= 2,
+#endif
+/*
+  This value is last, after the end of binlog_format_typelib: it has no
+  corresponding cell in this typelib. We use this value to be able to know if
+  the user has explicitely specified a binlog format at startup or not.
+*/
+  BINLOG_FORMAT_UNSPEC= 3
+};
+extern TYPELIB binlog_format_typelib;
 
 #endif /* LOG_H */

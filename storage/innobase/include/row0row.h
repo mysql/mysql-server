@@ -14,7 +14,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "trx0types.h"
 #include "que0types.h"
-#include "mtr0mtr.h"	
+#include "mtr0mtr.h"
 #include "rem0types.h"
 #include "read0types.h"
 #include "btr0types.h"
@@ -67,9 +67,9 @@ dtuple_t*
 row_build_index_entry(
 /*==================*/
 				/* out: index entry which should be inserted */
-	dtuple_t*	row, 	/* in: row which should be inserted to the
+	dtuple_t*	row,	/* in: row which should be inserted to the
 				table */
-	dict_index_t*	index, 	/* in: index on the table */
+	dict_index_t*	index,	/* in: index on the table */
 	mem_heap_t*	heap);	/* in: memory heap from which the memory for
 				the index entry is allocated */
 /***********************************************************************
@@ -81,7 +81,7 @@ row_build(
 /*======*/
 				/* out, own: row built; see the NOTE below! */
 	ulint		type,	/* in: ROW_COPY_POINTERS, ROW_COPY_DATA, or
-				ROW_COPY_ALSO_EXTERNALS, 
+				ROW_COPY_ALSO_EXTERNALS,
 				the two last copy also the data fields to
 				heap as the first only places pointers to
 				data fields on the index page, and thus is
@@ -232,7 +232,7 @@ row_search_index_entry(
 				be closed by the caller */
 	mtr_t*		mtr);	/* in: mtr */
 
-	
+
 #define ROW_COPY_DATA		1
 #define ROW_COPY_POINTERS	2
 #define ROW_COPY_ALSO_EXTERNALS	3
@@ -249,4 +249,4 @@ However, the kernel mutex can be reserved while latches are owned. */
 #include "row0row.ic"
 #endif
 
-#endif 
+#endif

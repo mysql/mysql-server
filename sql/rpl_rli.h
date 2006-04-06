@@ -276,7 +276,9 @@ typedef struct st_relay_log_info
 	    group_relay_log_pos);
   }
 
-  table_mapping m_table_map;
+  TABLE_LIST *tables_to_lock;               /* RBR: Tables to lock  */
+  uint tables_to_lock_count;        /* RBR: Count of tables to lock */
+  table_mapping m_table_map;      /* RBR: Mapping table-id to table */
 
   /*
     Last charset (6 bytes) seen by slave SQL thread is cached here; it helps
@@ -306,6 +308,18 @@ typedef struct st_relay_log_info
   void transaction_end(THD*);
 
   void cleanup_context(THD *, bool);
+  void clear_tables_to_lock() {
+    TABLE_LIST *ptr= tables_to_lock;
+    while (ptr)
+    {
+      char *to_free= reinterpret_cast<char*>(ptr);
+      ptr= ptr->next_global;
+      my_free(to_free, MYF(MY_WME));
+    }
+    tables_to_lock= 0;
+    tables_to_lock_count= 0;
+  }
+
   time_t unsafe_to_stop_at;
 } RELAY_LOG_INFO;
 

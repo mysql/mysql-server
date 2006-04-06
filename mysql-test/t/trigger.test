@@ -3,10 +3,11 @@
 #
 
 --disable_warnings
-drop table if exists t1, t2, t3;
+drop table if exists t1, t2, t3, t4;
 drop view if exists v1;
 drop database if exists mysqltest;
 drop function if exists f1;
+drop function if exists f2;
 drop procedure if exists p1;
 --enable_warnings
 
@@ -959,6 +960,119 @@ create trigger test.t1_bi before insert on t1 for each row set @a:=0;
 drop trigger t1_bi;
 connection default;
 
+#
+# Tests for bug #13525 "Rename table does not keep info of triggers"
+# and bug #17866 "Problem with renaming table with triggers with fully
+# qualified subject table".
+#
+create table t1 (id int);
+create trigger t1_bi before insert on t1 for each row set @a:=new.id;
+create trigger t1_ai after insert on test.t1 for each row set @b:=new.id;
+insert into t1 values (101);
+select @a, @b;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+rename table t1 to t2;
+# Trigger should work after rename
+insert into t2 values (102);
+select @a, @b;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+# Let us check that the same works for simple ALTER TABLE ... RENAME
+alter table t2 rename to t3;
+insert into t3 values (103);
+select @a, @b;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+# And for more complex ALTER TABLE
+alter table t3 rename to t4, add column val int default 0;
+insert into t4 values (104, 1);
+select @a, @b;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+# .TRN file should be updated with new table name
+drop trigger t1_bi;
+drop trigger t1_ai;
+drop table t4;
+# Rename between different databases if triggers exist should fail
+create database mysqltest;
+use mysqltest;
+create table t1 (id int);
+create trigger t1_bi before insert on t1 for each row set @a:=new.id;
+insert into t1 values (101);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+--error ER_TRG_IN_WRONG_SCHEMA
+rename table t1 to test.t2;
+insert into t1 values (102);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+# There should be no fantom .TRN files 
+--error ER_TRG_DOES_NOT_EXIST
+drop trigger test.t1_bi;
+# Let us also check handling of this restriction in ALTER TABLE ... RENAME
+--error ER_TRG_IN_WRONG_SCHEMA
+alter table t1 rename to test.t1;
+insert into t1 values (103);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+# Again there should be no fantom .TRN files 
+--error ER_TRG_DOES_NOT_EXIST
+drop trigger test.t1_bi;
+--error ER_TRG_IN_WRONG_SCHEMA
+alter table t1 rename to test.t1, add column val int default 0;
+insert into t1 values (104);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+# Table definition should not change
+show create table t1;
+# And once again check for fantom .TRN files 
+--error ER_TRG_DOES_NOT_EXIST
+drop trigger test.t1_bi;
+drop trigger t1_bi;
+drop table t1;
+drop database mysqltest;
+use test;
+# And now let us check that the properly handle rename if there is some
+# error during it (that we rollback such renames completely).
+create table t1 (id int);
+create trigger t1_bi before insert on t1 for each row set @a:=new.id;
+create trigger t1_ai after insert on t1 for each row set @b:=new.id;
+insert into t1 values (101);
+select @a, @b;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+# Trick which makes update of second .TRN file impossible
+system echo dummy >$MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
+system chmod 000 $MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
+--error 1
+rename table t1 to t2;
+# 't1' should be still there and triggers should work correctly
+insert into t1 values (102);
+select @a, @b;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test';
+system chmod 600 $MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
+system rm $MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
+# Let us check that updates to .TRN files were rolled back too
+drop trigger t1_bi;
+drop trigger t1_ai;
+drop table t1;
+
 # Test for bug #16829 "Firing trigger with RETURN crashes the server"
 # RETURN is not supposed to be used anywhere except functions, so error
 # should be returned when one attempts to create trigger with RETURN.
@@ -967,3 +1081,36 @@ create table t1 (i int);
 create trigger t1_bi before insert on t1 for each row return 0;
 insert into t1 values (1);
 drop table t1;
+
+# Test for bug #17764 "Trigger crashes MyISAM table"
+#
+# Table was reported as crashed when it was subject table of trigger invoked
+# by insert statement which was executed with enabled bulk insert mode (which
+# is actually set of optimizations enabled by handler::start_bulk_insert())
+# and this trigger also explicitly referenced it.
+# The same problem arose when table to which bulk insert was done was also
+# referenced in function called by insert statement.
+create table t1 (a varchar(64), b int);
+create table t2 like t1;
+create trigger t1_ai after insert on t1 for each row
+  set @a:= (select max(a) from t1);
+insert into t1 (a) values
+  ("Twas"),("brillig"),("and"),("the"),("slithy"),("toves"),
+  ("Did"),("gyre"),("and"),("gimble"),("in"),("the"),("wabe");
+create trigger t2_ai after insert on t2 for each row
+  set @a:= (select max(a) from t2);
+insert into t2 select * from t1;
+load data infile '../std_data_ln/words.dat' into table t1 (a);
+drop trigger t1_ai;
+drop trigger t2_ai;
+# Test that the problem for functions is fixed as well
+create function f1() returns int return (select max(b) from t1);
+insert into t1 values
+  ("All",f1()),("mimsy",f1()),("were",f1()),("the",f1()),("borogoves",f1()),
+  ("And",f1()),("the",f1()),("mome", f1()),("raths",f1()),("outgrabe",f1());
+create function f2() returns int return (select max(b) from t2);
+insert into t2 select a, f2() from t1;
+load data infile '../std_data_ln/words.dat' into table t1 (a) set b:= f1();
+drop table t1;
+drop function f1;
+drop function f2;

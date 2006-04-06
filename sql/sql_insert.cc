@@ -272,6 +272,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool log_on= (thd->options & OPTION_BIN_LOG) ||
     (!(thd->security_ctx->master_access & SUPER_ACL));
   bool transactional_table, joins_freed= FALSE;
+  bool changed;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -418,11 +419,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     let's *try* to start bulk inserts. It won't necessary
     start them as values_list.elements should be greater than
     some - handler dependent - threshold.
+    We should not start bulk inserts if this statement uses
+    functions or invokes triggers since they may access
+    to the same table and therefore should not see its
+    inconsistent state created by this optimization.
     So we call start_bulk_insert to perform nesessary checks on
     values_list.elements, and - if nothing else - to initialize
     the code to make the call of end_bulk_insert() below safe.
   */
-  if (lock_type != TL_WRITE_DELAYED)
+  if (lock_type != TL_WRITE_DELAYED && !thd->prelocked_mode)
     table->file->start_bulk_insert(values_list.elements);
 
   thd->no_trans_update= 0;
@@ -548,7 +553,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   else
 #endif
   {
-    if (table->file->end_bulk_insert() && !error)
+    if (!thd->prelocked_mode && table->file->end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno,MYF(0));
       error=1;
@@ -558,35 +563,33 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     else if (table->next_number_field && info.copied)
       id=table->next_number_field->val_int();	// Return auto_increment value
 
-    /*
-      Invalidate the table in the query cache if something changed.
-      For the transactional algorithm to work the invalidation must be
-      before binlog writing and ha_autocommit_or_rollback
-    */
-    if (info.copied || info.deleted || info.updated)
-    {
-      query_cache_invalidate3(thd, table_list, 1);
-    }
-
     transactional_table= table->file->has_transactions();
 
-    if ((info.copied || info.deleted || info.updated) &&
-	(error <= 0 || !transactional_table))
+    if ((changed= (info.copied || info.deleted || info.updated)))
     {
-      if (mysql_bin_log.is_open())
+      /*
+        Invalidate the table in the query cache if something changed.
+        For the transactional algorithm to work the invalidation must be
+        before binlog writing and ha_autocommit_or_rollback
+      */
+      query_cache_invalidate3(thd, table_list, 1);
+      if (error <= 0 || !transactional_table)
       {
-        if (error <= 0)
-          thd->clear_error();
-	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                              thd->query, thd->query_length,
-                              transactional_table, FALSE) &&
-            transactional_table)
+        if (mysql_bin_log.is_open())
         {
-          error=1;
+          if (error <= 0)
+            thd->clear_error();
+          if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+                                thd->query, thd->query_length,
+                                transactional_table, FALSE) &&
+              transactional_table)
+          {
+            error=1;
+          }
         }
+        if (!transactional_table)
+          thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
       }
-      if (!transactional_table)
-	thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
     }
     if (transactional_table)
       error=ha_autocommit_or_rollback(thd,error);
@@ -594,6 +597,16 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (thd->lock)
     {
       mysql_unlock_tables(thd, thd->lock);
+      /*
+        Invalidate the table in the query cache if something changed
+        after unlocking when changes become fisible.
+        TODO: this is workaround. right way will be move invalidating in
+        the unlock procedure.
+      */
+      if (lock_type ==  TL_WRITE_CONCURRENT_INSERT && changed)
+      {
+        query_cache_invalidate3(thd, table_list, 1);
+      }
       thd->lock=0;
     }
   }
@@ -1711,7 +1724,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   {
     thd->fatal_error();
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
-    goto end;
+    goto err;
   }
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
@@ -1724,13 +1737,13 @@ pthread_handler_t handle_delayed_insert(void *arg)
   if (!(di->table=open_ltable(thd,&di->table_list,TL_WRITE_DELAYED)))
   {
     thd->fatal_error();				// Abort waiting inserts
-    goto end;
+    goto err;
   }
   if (!(di->table->file->table_flags() & HA_CAN_INSERT_DELAYED))
   {
     thd->fatal_error();
     my_error(ER_ILLEGAL_HA, MYF(0), di->table_list.table_name);
-    goto end;
+    goto err;
   }
   di->table->copy_blobs=1;
 
@@ -1858,6 +1871,16 @@ pthread_handler_t handle_delayed_insert(void *arg)
     if (di->tables_in_use)
       pthread_cond_broadcast(&di->cond_client); // If waiting clients
   }
+
+err:
+  /*
+    mysql_lock_tables() can potentially start a transaction and write
+    a table map. In the event of an error, that transaction has to be
+    rolled back.  We only need to roll back a potential statement
+    transaction, since real transactions are rolled back in
+    close_thread_tables().
+   */
+  ha_rollback_stmt(thd);
 
 end:
   /*
@@ -2211,7 +2234,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     lex->current_select->options|= OPTION_BUFFER_RESULT;
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
-  else
+  else if (!thd->prelocked_mode)
   {
     /*
       We must not yet prepare the result table if it is the same as one of the 
@@ -2219,6 +2242,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       indexes on the result table, which may be used during the select, if it
       is the same table (Bug #6034). Do the preparation after the select phase
       in select_insert::prepare2().
+      We won't start bulk inserts at all if this statement uses functions or
+      should invoke triggers since they may access to the same table too.
     */
     table->file->start_bulk_insert((ha_rows) 0);
   }
@@ -2269,7 +2294,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
-  if (thd->lex->current_select->options & OPTION_BUFFER_RESULT)
+  if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
+      !thd->prelocked_mode)
     table->file->start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
 }
@@ -2372,7 +2398,8 @@ void select_insert::send_error(uint errcode,const char *err)
     */
     DBUG_VOID_RETURN;
   }
-  table->file->end_bulk_insert();
+  if (!thd->prelocked_mode)
+    table->file->end_bulk_insert();
   /*
     If at least one row has been inserted/modified and will stay in the table
     (the table doesn't have transactions) we must write to the binlog (and
@@ -2411,7 +2438,7 @@ void select_insert::send_error(uint errcode,const char *err)
       thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
                         table->file->has_transactions(), FALSE);
     }
-    if (!binlog_row_based && !table->s->tmp_table)
+    if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
   if (info.copied || info.deleted || info.updated)
@@ -2428,7 +2455,7 @@ bool select_insert::send_eof()
   int error,error2;
   DBUG_ENTER("select_insert::send_eof");
 
-  error=table->file->end_bulk_insert();
+  error= (!thd->prelocked_mode) ? table->file->end_bulk_insert():0;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   /*
@@ -2493,9 +2520,25 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("select_create::prepare");
 
+  class MY_HOOKS : public TABLEOP_HOOKS {
+  public:
+    MY_HOOKS(select_create *x) : ptr(x) { }
+    virtual void do_prelock(TABLE **tables, uint count)
+    {
+      if (ptr->get_thd()->current_stmt_binlog_row_based)
+        ptr->binlog_show_create_table(tables, count);
+    }
+
+  private:
+    select_create *ptr;
+  };
+
+  MY_HOOKS hooks(this);
+
   unit= u;
   table= create_table_from_items(thd, create_info, create_table,
-				 extra_fields, keys, &values, &lock);
+				 extra_fields, keys, &values, &lock,
+                                 &hooks);
   if (!table)
     DBUG_RETURN(-1);				// abort() deletes table
 
@@ -2521,7 +2564,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  table->file->start_bulk_insert((ha_rows) 0);
+  if (!thd->prelocked_mode)
+    table->file->start_bulk_insert((ha_rows) 0);
   thd->no_trans_update= 0;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
@@ -2533,7 +2577,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
 
 void
-select_create::binlog_show_create_table()
+select_create::binlog_show_create_table(TABLE **tables, uint count)
 {
   /*
     Note 1: In RBR mode, we generate a CREATE TABLE statement for the
@@ -2556,18 +2600,19 @@ select_create::binlog_show_create_table()
     on rollback, we clear the OPTION_STATUS_NO_TRANS_UPDATE bit of
     thd->options.
    */
-  DBUG_ASSERT(binlog_row_based && !create_table_written);
+  DBUG_ASSERT(thd->current_stmt_binlog_row_based);
+  DBUG_ASSERT(tables && *tables && count > 0);
 
   thd->options&= ~OPTION_STATUS_NO_TRANS_UPDATE;
   char buf[2048];
   String query(buf, sizeof(buf), system_charset_info);
   query.length(0);      // Have to zero it since constructor doesn't
   
-  TABLE_LIST tables;
-  memset(&tables, 0, sizeof(tables));
-  tables.table = table;
+  TABLE_LIST table_list;
+  memset(&table_list, 0, sizeof(table_list));
+  table_list.table = *tables;
 
-  int result= store_create_info(thd, &tables, &query, create_info);
+  int result= store_create_info(thd, &table_list, &query, create_info);
   DBUG_ASSERT(result == 0); /* store_create_info() always return 0 */
   thd->binlog_query(THD::STMT_QUERY_TYPE,
                     query.ptr(), query.length(),
@@ -2578,16 +2623,6 @@ select_create::binlog_show_create_table()
 
 void select_create::store_values(List<Item> &values)
 {
-  /*
-    Before writing the first row, we write the CREATE TABLE statement
-    to the binlog.
-   */
-  if (binlog_row_based && !create_table_written)
-  {
-    binlog_show_create_table();
-    create_table_written= TRUE;
-  }
-
   fill_record_n_invoke_before_triggers(thd, field, values, 1,
                                        table->triggers, TRG_EVENT_INSERT);
 }
@@ -2607,16 +2642,6 @@ void select_create::send_error(uint errcode,const char *err)
 
 bool select_create::send_eof()
 {
-  /*
-    If no rows where written to the binary log, we write the CREATE
-    TABLE statement to the binlog.
-   */
-  if (binlog_row_based && !create_table_written)
-  {
-    binlog_show_create_table();
-    create_table_written= TRUE;
-  }
-
   bool tmp=select_insert::send_eof();
   if (tmp)
     abort();

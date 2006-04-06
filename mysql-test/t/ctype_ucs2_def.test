@@ -1,0 +1,9 @@
+#
+# Bug#18004 Connecting crashes server when default charset is UCS2
+#
+show variables like "%character_set_ser%";
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+create table t1 (a int);
+drop table t1;

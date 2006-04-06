@@ -314,3 +314,108 @@ select * from db_bug14533.t1;
 ERROR 42000: SELECT command denied to user 'user_bug14533'@'localhost' for table 't1'
 drop user user_bug14533@localhost;
 drop database db_bug14533;
+CREATE DATABASE db_bug7787;
+use db_bug7787;
+CREATE PROCEDURE p1()
+SHOW INNODB STATUS;
+Warnings:
+Warning	1541	The syntax 'SHOW INNODB STATUS' is deprecated and will be removed in MySQL 5.2. Please use 'SHOW ENGINE INNODB STATUS' instead.
+GRANT EXECUTE ON PROCEDURE p1 TO user_bug7787@localhost;
+DROP DATABASE db_bug7787;
+use test;
+
+---> connection: root
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+CREATE USER mysqltest_1@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_1@localhost;
+CREATE USER mysqltest_2@localhost;
+GRANT SUPER ON *.* TO mysqltest_2@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
+
+---> connection: mysqltest_2_con
+use mysqltest;
+CREATE PROCEDURE wl2897_p1() SELECT 1;
+CREATE FUNCTION wl2897_f1() RETURNS INT RETURN 1;
+
+---> connection: mysqltest_1_con
+use mysqltest;
+CREATE DEFINER=root@localhost PROCEDURE wl2897_p2() SELECT 2;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+CREATE DEFINER=root@localhost FUNCTION wl2897_f2() RETURNS INT RETURN 2;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+
+---> connection: mysqltest_2_con
+use mysqltest;
+CREATE DEFINER='a @ b @ c'@localhost PROCEDURE wl2897_p3() SELECT 3;
+Warnings:
+Note	1449	There is no 'a @ b @ c'@'localhost' registered
+CREATE DEFINER='a @ b @ c'@localhost FUNCTION wl2897_f3() RETURNS INT RETURN 3;
+Warnings:
+Note	1449	There is no 'a @ b @ c'@'localhost' registered
+
+---> connection: con1root
+use mysqltest;
+SHOW CREATE PROCEDURE wl2897_p1;
+Procedure	sql_mode	Create Procedure
+wl2897_p1		CREATE DEFINER=`mysqltest_2`@`localhost` PROCEDURE `wl2897_p1`()
+SELECT 1
+SHOW CREATE PROCEDURE wl2897_p3;
+Procedure	sql_mode	Create Procedure
+wl2897_p3		CREATE DEFINER=`a @ b @ c`@`localhost` PROCEDURE `wl2897_p3`()
+SELECT 3
+SHOW CREATE FUNCTION wl2897_f1;
+Function	sql_mode	Create Function
+wl2897_f1		CREATE DEFINER=`mysqltest_2`@`localhost` FUNCTION `wl2897_f1`() RETURNS int(11)
+RETURN 1
+SHOW CREATE FUNCTION wl2897_f3;
+Function	sql_mode	Create Function
+wl2897_f3		CREATE DEFINER=`a @ b @ c`@`localhost` FUNCTION `wl2897_f3`() RETURNS int(11)
+RETURN 3
+DROP USER mysqltest_1@localhost;
+DROP USER mysqltest_2@localhost;
+DROP DATABASE mysqltest;
+
+---> connection: root
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+CREATE USER mysqltest_1@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_1@localhost;
+CREATE USER mysqltest_2@localhost;
+GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
+
+---> connection: mysqltest_1_con
+use mysqltest;
+CREATE PROCEDURE bug13198_p1()
+SELECT 1;
+CREATE FUNCTION bug13198_f1() RETURNS INT
+RETURN 1;
+CALL bug13198_p1();
+1
+1
+SELECT bug13198_f1();
+bug13198_f1()
+1
+
+---> connection: mysqltest_2_con
+use mysqltest;
+CALL bug13198_p1();
+1
+1
+SELECT bug13198_f1();
+bug13198_f1()
+1
+
+---> connection: root
+DROP USER mysqltest_1@localhost;
+
+---> connection: mysqltest_2_con
+use mysqltest;
+CALL bug13198_p1();
+ERROR HY000: There is no 'mysqltest_1'@'localhost' registered
+SELECT bug13198_f1();
+ERROR HY000: There is no 'mysqltest_1'@'localhost' registered
+
+---> connection: root
+DROP USER mysqltest_2@localhost;
+DROP DATABASE mysqltest;

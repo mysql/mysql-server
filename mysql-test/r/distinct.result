@@ -512,3 +512,24 @@ id	IFNULL(dsc, '-')
 2	line number two
 3	line number three
 drop table t1;
+CREATE TABLE t1 (
+ID int(11) NOT NULL auto_increment,
+x varchar(20) default NULL,
+y decimal(10,0) default NULL,
+PRIMARY KEY  (ID),
+KEY (y)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES
+(1,'ba','-1'),
+(2,'ba','1150'),
+(306,'ba','-1'),
+(307,'ba','1150'),
+(611,'ba','-1'),
+(612,'ba','1150');
+select count(distinct x,y) from t1;
+count(distinct x,y)
+2
+select count(distinct concat(x,y)) from t1;
+count(distinct concat(x,y))
+2
+drop table t1;

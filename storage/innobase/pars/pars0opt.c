@@ -106,7 +106,7 @@ opt_check_exp_determined_before(
 	}
 
 	for (i = 0; i < nth_table; i++) {
-	
+
 		table = sel_node_get_nth_plan(sel_node, i)->table;
 
 		if (sym_node->table == table) {
@@ -115,7 +115,7 @@ opt_check_exp_determined_before(
 		}
 	}
 
-	return(FALSE);	
+	return(FALSE);
 }
 
 /***********************************************************************
@@ -148,10 +148,10 @@ opt_look_for_col_in_comparison_before(
 	ut_ad(search_cond);
 
 	ut_a((search_cond->func == '<')
-	     || (search_cond->func == '>')		
-	     || (search_cond->func == '=')		
-	     || (search_cond->func == PARS_GE_TOKEN)
-	     || (search_cond->func == PARS_LE_TOKEN));
+		|| (search_cond->func == '>')
+		|| (search_cond->func == '=')
+		|| (search_cond->func == PARS_GE_TOKEN)
+		|| (search_cond->func == PARS_LE_TOKEN));
 
 	table = sel_node_get_nth_plan(sel_node, nth_table)->table;
 
@@ -161,7 +161,7 @@ opt_look_for_col_in_comparison_before(
 
 	} else if ((cmp_type == OPT_COMPARISON)
 			&& (search_cond->func != '<')
-			&& (search_cond->func != '>')			
+			&& (search_cond->func != '>')
 			&& (search_cond->func != PARS_GE_TOKEN)
 			&& (search_cond->func != PARS_LE_TOKEN)) {
 
@@ -176,14 +176,14 @@ opt_look_for_col_in_comparison_before(
 		if ((sym_node->token_type == SYM_COLUMN)
 				&& (sym_node->table == table)
 				&& (sym_node->col_no == col_no)) {
-				
+
 			/* sym_node contains the desired column id */
 
 			/* Check if the expression on the right side of the
 			operator is already determined */
 
 			exp = que_node_get_next(arg);
-				
+
 			if (opt_check_exp_determined_before(exp, sel_node,
 								nth_table)) {
 				*op = search_cond->func;
@@ -191,10 +191,10 @@ opt_look_for_col_in_comparison_before(
 				return(exp);
 			}
 		}
-    	}
+	}
 
-    	exp = search_cond->args;
-        arg = que_node_get_next(arg);
+	exp = search_cond->args;
+	arg = que_node_get_next(arg);
 
 	if (que_node_get_type(arg) == QUE_NODE_SYMBOL) {
 		sym_node = arg;
@@ -202,7 +202,7 @@ opt_look_for_col_in_comparison_before(
 		if ((sym_node->token_type == SYM_COLUMN)
 				&& (sym_node->table == table)
 				&& (sym_node->col_no == col_no)) {
-				
+
 			if (opt_check_exp_determined_before(exp, sel_node,
 								nth_table)) {
 				*op = opt_invert_cmp_op(search_cond->func);
@@ -210,8 +210,8 @@ opt_look_for_col_in_comparison_before(
 				return(exp);
 			}
 		}
-    	}
-	
+	}
+
 	return(NULL);
 }
 
@@ -243,12 +243,12 @@ opt_look_for_col_in_cond_before(
 	if (search_cond == NULL) {
 
 		return(NULL);
-	}		
+	}
 
 	ut_a(que_node_get_type(search_cond) == QUE_NODE_FUNC);
 	ut_a(search_cond->func != PARS_OR_TOKEN);
-	ut_a(search_cond->func != PARS_NOT_TOKEN);	
-	
+	ut_a(search_cond->func != PARS_NOT_TOKEN);
+
 	if (search_cond->func == PARS_AND_TOKEN) {
 		new_cond = search_cond->args;
 
@@ -260,7 +260,7 @@ opt_look_for_col_in_cond_before(
 		}
 
 		new_cond = que_node_get_next(new_cond);
-		
+
 		exp = opt_look_for_col_in_cond_before(cmp_type, col_no,
 					new_cond, sel_node, nth_table, op);
 		return(exp);
@@ -276,7 +276,7 @@ opt_look_for_col_in_cond_before(
 	/* If we will fetch in an ascending order, we cannot utilize an upper
 	limit for a column value; in a descending order, respectively, a lower
 	limit */
-	
+
 	if (sel_node->asc && ((*op == '<') || (*op == PARS_LE_TOKEN))) {
 
 		return(NULL);
@@ -323,11 +323,11 @@ opt_calc_index_goodness(
 	page addresses as the last field, we must not put more fields in
 	the search tuple than dict_index_get_n_unique_in_tree(index); see
 	the note in btr_cur_search_to_nth_level. */
-	
+
 	n_fields = dict_index_get_n_unique_in_tree(index);
 
 	mix_id_col_no = dict_table_get_sys_col_no(index->table, DATA_MIX_ID);
-	
+
 	for (j = 0; j < n_fields; j++) {
 
 		col_no = dict_index_get_nth_col_no(index, j);
@@ -337,11 +337,11 @@ opt_calc_index_goodness(
 						sel_node, nth_table, &op);
 		if (col_no == mix_id_col_no) {
 			ut_ad(exp == NULL);
-			
+
 			index_plan[j] = NULL;
 			*last_op = '=';
 			goodness += 4;
-		} else if (exp) {			
+		} else if (exp) {
 			/* The value for this column is exactly known already
 			at this stage of the join */
 
@@ -358,10 +358,10 @@ opt_calc_index_goodness(
 				index_plan[j] = exp;
 				*last_op = op;
 				goodness += 2;
-			}				
-		
+			}
+
 			break;
-		}	
+		}
 	}
 
 	if (goodness >= 4 * dict_index_get_n_unique(index)) {
@@ -412,7 +412,7 @@ opt_op_to_search_mode(
 			return(PAGE_CUR_GE);
 		} else {
 			return(PAGE_CUR_LE);
-		}	
+		}
 	} else if (op == '<') {
 		ut_a(!asc);
 		return(PAGE_CUR_L);
@@ -490,8 +490,8 @@ opt_check_order_by(
 	column defined in the order-by clause, and for all the other tables
 	we should get only at most a single row, otherwise we cannot presently
 	calculate the order-by, as we have no sort utility */
-		
-	for (i = 0; i < sel_node->n_tables; i++) {	
+
+	for (i = 0; i < sel_node->n_tables; i++) {
 
 		plan = sel_node_get_nth_plan(sel_node, i);
 
@@ -502,10 +502,10 @@ opt_check_order_by(
 			ut_a(plan->table == order_table);
 
 			ut_a((dict_index_get_n_unique(plan->index)
-						<= plan->n_exact_match)
-			     || (dict_index_get_nth_col_no(plan->index,
-			     				plan->n_exact_match)
-			   			== order_col_no));
+					<= plan->n_exact_match)
+				|| (dict_index_get_nth_col_no(plan->index,
+						plan->n_exact_match)
+					== order_col_no));
 		}
 	}
 }
@@ -547,7 +547,7 @@ opt_search_plan_for_table(
 	index = dict_table_get_first_index(table);
 	best_index = index; /* Eliminate compiler warning */
 	best_goodness = 0;
-	
+
 	/* should be do ... until ? comment by Jani */
 	while (index) {
 		goodness = opt_calc_index_goodness(index, sel_node, i,
@@ -564,7 +564,7 @@ opt_search_plan_for_table(
 		}
 
 		index = dict_table_get_next_index(index);
-	}	
+	}
 
 	plan->index = best_index;
 
@@ -577,24 +577,24 @@ opt_search_plan_for_table(
 		plan->tuple = dtuple_create(pars_sym_tab_global->heap,
 								n_fields);
 		dict_index_copy_types(plan->tuple, plan->index, n_fields);
-		
+
 		plan->tuple_exps = mem_heap_alloc(pars_sym_tab_global->heap,
 						n_fields * sizeof(void*));
 
 		ut_memcpy(plan->tuple_exps, best_index_plan,
-				  		n_fields * sizeof(void*));
+						n_fields * sizeof(void*));
 		if (best_last_op == '=') {
 			plan->n_exact_match = n_fields;
 		} else {
 			plan->n_exact_match = n_fields - 1;
 		}
-			
+
 		plan->mode = opt_op_to_search_mode(sel_node->asc,
 								best_last_op);
 	}
 
 	if ((best_index->type & DICT_CLUSTERED)
-	    && (plan->n_exact_match >= dict_index_get_n_unique(best_index))) {
+		&& (plan->n_exact_match >= dict_index_get_n_unique(best_index))) {
 
 		plan->unique_search = TRUE;
 	} else {
@@ -602,25 +602,25 @@ opt_search_plan_for_table(
 	}
 
 	if ((table->type != DICT_TABLE_ORDINARY)
-	    			&& (best_index->type & DICT_CLUSTERED)) {
+				&& (best_index->type & DICT_CLUSTERED)) {
 
-	    	plan->mixed_index = TRUE;
+		plan->mixed_index = TRUE;
 
-	    	mix_id_pos = table->mix_len;
+		mix_id_pos = table->mix_len;
 
-	    	if (mix_id_pos < n_fields) {
-	    		/* We have to add the mix id as a (string) literal
+		if (mix_id_pos < n_fields) {
+			/* We have to add the mix id as a (string) literal
 			expression to the tuple_exps */
 
 			plan->tuple_exps[mix_id_pos] =
 				sym_tab_add_str_lit(pars_sym_tab_global,
 							table->mix_id_buf,
 							table->mix_id_len);
-	    	}
+		}
 	} else {
 		plan->mixed_index = FALSE;
 	}
-	
+
 	plan->old_vers_heap = NULL;
 
 	btr_pcur_init(&(plan->pcur));
@@ -690,9 +690,9 @@ opt_classify_comparison(
 	the testing is necessary when the cursor is reversed. */
 
 	if ((n_fields > plan->n_exact_match)
-	    	&& opt_is_arg(plan->tuple_exps[n_fields - 1], cond)) {
+		&& opt_is_arg(plan->tuple_exps[n_fields - 1], cond)) {
 
-	    	return(OPT_SCROLL_COND);
+		return(OPT_SCROLL_COND);
 	}
 
 	/* If the condition is a non-exact match condition on the first field
@@ -701,12 +701,12 @@ opt_classify_comparison(
 	access the table, it is classified as OPT_END_COND */
 
 	if ((dict_index_get_n_fields(plan->index) > plan->n_exact_match)
-	    && opt_look_for_col_in_comparison_before(
-				OPT_COMPARISON,
-	    			dict_index_get_nth_col_no(plan->index,
-	    						plan->n_exact_match),
-	    			cond, sel_node, i, &op)) {
-	    				
+		&& opt_look_for_col_in_comparison_before(
+			OPT_COMPARISON,
+			dict_index_get_nth_col_no(plan->index,
+				plan->n_exact_match),
+			cond, sel_node, i, &op)) {
+
 		if (sel_node->asc && ((op == '<') || (op == PARS_LE_TOKEN))) {
 
 			return(OPT_END_COND);
@@ -749,7 +749,7 @@ opt_find_test_conds(
 		opt_find_test_conds(sel_node, i, new_cond);
 
 		new_cond = que_node_get_next(new_cond);
-		
+
 		opt_find_test_conds(sel_node, i, new_cond);
 
 		return;
@@ -808,7 +808,7 @@ opt_normalize_cmp_conds(
 
 		cond = UT_LIST_GET_NEXT(cond_list, cond);
 	}
-}	
+}
 
 /***********************************************************************
 Finds out the search condition conjuncts we can, and need, to test as the ith
@@ -827,7 +827,7 @@ opt_determine_and_normalize_test_conds(
 
 	UT_LIST_INIT(plan->end_conds);
 	UT_LIST_INIT(plan->other_conds);
-	
+
 	/* Recursively go through the conjuncts and classify them */
 
 	opt_find_test_conds(sel_node, i, sel_node->search_cond);
@@ -868,7 +868,7 @@ opt_find_all_cols(
 
 		return;
 	}
-	
+
 	if (que_node_get_type(exp) == QUE_NODE_FUNC) {
 		func_node = exp;
 
@@ -929,12 +929,12 @@ opt_find_all_cols(
 	sym_node->copy_val = copy_val;
 
 	/* Fill in the field_no fields in sym_node */
-	
+
 	sym_node->field_nos[SYM_CLUST_FIELD_NO]
 				= dict_index_get_nth_col_pos(
 				dict_table_get_first_index(index->table),
 							sym_node->col_no);
-	if (!(index->type & DICT_CLUSTERED)) {	
+	if (!(index->type & DICT_CLUSTERED)) {
 
 		ut_a(plan);
 
@@ -944,7 +944,7 @@ opt_find_all_cols(
 
 			plan->must_get_clust = TRUE;
 		}
-		
+
 		sym_node->field_nos[SYM_SEC_FIELD_NO] = col_pos;
 	}
 }
@@ -969,16 +969,16 @@ opt_find_copy_cols(
 
 		return;
 	}
-	
+
 	ut_ad(que_node_get_type(search_cond) == QUE_NODE_FUNC);
 
 	if (search_cond->func == PARS_AND_TOKEN) {
 		new_cond = search_cond->args;
 
 		opt_find_copy_cols(sel_node, i, new_cond);
-		
+
 		new_cond = que_node_get_next(new_cond);
-		
+
 		opt_find_copy_cols(sel_node, i, new_cond);
 
 		return;
@@ -991,7 +991,7 @@ opt_find_copy_cols(
 		fetch from the ith table */
 
 		plan = sel_node_get_nth_plan(sel_node, i);
-		
+
 		opt_find_all_cols(TRUE, plan->index, &(plan->columns), plan,
 								search_cond);
 	}
@@ -1036,7 +1036,7 @@ opt_classify_cols(
 
 	/* All remaining columns in the search condition are temporary
 	columns: therefore FALSE */
-	
+
 	opt_find_all_cols(FALSE, plan->index, &(plan->columns), plan,
 						sel_node->search_cond);
 }
@@ -1064,10 +1064,10 @@ opt_clust_access(
 	plan = sel_node_get_nth_plan(sel_node, n);
 
 	index = plan->index;
-	
+
 	/* The final value of the following field depends on the environment
 	of the select statement: */
-		
+
 	plan->no_prefetch = FALSE;
 
 	if (index->type & DICT_CLUSTERED) {
@@ -1088,9 +1088,9 @@ opt_clust_access(
 	plan->clust_ref = dtuple_create(heap, n_fields);
 
 	dict_index_copy_types(plan->clust_ref, clust_index, n_fields);
-	
+
 	plan->clust_map = mem_heap_alloc(heap, n_fields * sizeof(ulint));
-	
+
 	for (i = 0; i < n_fields; i++) {
 		pos = dict_index_get_nth_field_pos(index, clust_index, i);
 
@@ -1100,8 +1100,8 @@ opt_clust_access(
 		tables, and they should not contain column prefix indexes. */
 
 		if (dict_index_get_nth_field(index, pos)->prefix_len != 0
-		    || dict_index_get_nth_field(clust_index, i)
-							->prefix_len != 0) {
+			|| dict_index_get_nth_field(clust_index, i)
+			->prefix_len != 0) {
 			fprintf(stderr,
 "InnoDB: Error in pars0opt.c: table %s has prefix_len != 0\n",
 				index->table_name);
@@ -1111,15 +1111,15 @@ opt_clust_access(
 
 		ut_ad((pos != ULINT_UNDEFINED)
 			|| ((table->type == DICT_TABLE_CLUSTER_MEMBER)
-				 		&& (i == table->mix_len)));
+						&& (i == table->mix_len)));
 	}
 
 	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-		
+
 		/* Preset the mix id field to the mix id constant */
-		
+
 		dfield = dtuple_get_nth_field(plan->clust_ref, table->mix_len);
-		
+
 		dfield_set_data(dfield, mem_heap_alloc(heap,
 							table->mix_id_len),
 							table->mix_id_len);
@@ -1142,7 +1142,7 @@ opt_search_plan(
 	dict_table_t*	table;
 	order_node_t*	order_by;
 	ulint		i;
-	
+
 	sel_node->plans = mem_heap_alloc(pars_sym_tab_global->heap,
 					sel_node->n_tables * sizeof(plan_t));
 
@@ -1159,18 +1159,18 @@ opt_search_plan(
 
 		sel_node->asc = order_by->asc;
 	}
-	
+
 	for (i = 0; i < sel_node->n_tables; i++) {
 
 		table = table_node->table;
 
 		/* Choose index through which to access the table */
-	
+
 		opt_search_plan_for_table(sel_node, i, table);
 
 		/* Determine the search condition conjuncts we can test at
 		this table; normalize the end conditions */
-	
+
 		opt_determine_and_normalize_test_conds(sel_node, i);
 
 		table_node = que_node_get_next(table_node);
@@ -1192,10 +1192,10 @@ opt_search_plan(
 
 		table_node = que_node_get_next(table_node);
 	}
-	
+
 	/* Check that the plan obeys a possible order-by clause: if not,
 	an assertion error occurs */
-	
+
 	opt_check_order_by(sel_node);
 
 #ifdef UNIV_SQL_DEBUG
@@ -1244,8 +1244,8 @@ opt_print_query_plan(
 		fputs("Table ", stderr);
 		dict_index_name_print(stderr, NULL, plan->index);
 		fprintf(stderr,"; exact m. %lu, match %lu, end conds %lu\n",
-		        (unsigned long) plan->n_exact_match,
-		        (unsigned long) n_fields,
+			(unsigned long) plan->n_exact_match,
+			(unsigned long) n_fields,
 			(unsigned long) UT_LIST_GET_LEN(plan->end_conds));
 	}
 }

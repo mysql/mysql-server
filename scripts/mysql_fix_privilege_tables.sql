@@ -630,6 +630,9 @@ CREATE TABLE event (
 # EVENT privilege
 #
 
+SET @hadEventPriv := 0;
+SELECT @hadEventPriv :=1 FROM user WHERE Event_priv LIKE '%';
+
 ALTER TABLE user add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
 ALTER TABLE db add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
 ALTER TABLE event DROP PRIMARY KEY;
@@ -667,6 +670,9 @@ ALTER TABLE event ADD sql_mode
                             'HIGH_NOT_PRECEDENCE'
                             ) DEFAULT '' NOT NULL AFTER on_completion;
 
+UPDATE user SET Event_priv=Super_priv WHERE @hadEventPriv = 0;
+ALTER TABLE event MODIFY name char(64) CHARACTER SET utf8 NOT NULL default '';
+
 --
 -- TRIGGER privilege
 --
@@ -680,3 +686,9 @@ ALTER TABLE db   ADD Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 
 ALTER TABLE tables_priv MODIFY Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
 UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
+
+# Activate the new, possible modified privilege tables
+# This should not be needed, but gives us some extra testing that the above
+# changes was correct
+
+flush privileges;

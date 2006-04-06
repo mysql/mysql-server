@@ -37,7 +37,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   READ_RECORD	info;
   bool          using_limit=limit != HA_POS_ERROR;
   bool		transactional_table, safe_update, const_cond;
-  ha_rows	deleted;
+  ha_rows	deleted= 0;
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
   bool          ha_delete_all_rows= 0;
@@ -82,8 +82,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     ha_rows const maybe_deleted= table->file->records;
     /*
-      If all rows shall be deleted, we always log this statement-based
-      (see [binlog], below), so we set this flag and test it below.
+      If all rows shall be deleted, we (almost) always log this
+      statement-based (see [binlog], below), so we set this flag and
+      test it below.
     */
     ha_delete_all_rows= 1;
     if (!(error=table->file->delete_all_rows()))
@@ -211,7 +212,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   else
     init_read_record_idx(&info, thd, table, 1, usable_index);
 
-  deleted=0L;
   init_ftfuncs(thd, select_lex, 1);
   thd->proc_info="updating";
   will_batch= !table->file->start_bulk_delete();
@@ -330,12 +330,13 @@ cleanup:
         thd->clear_error();
 
       /*
-        [binlog]: If 'handler::delete_all_rows()' was called, we
-        replicate statement-based; otherwise, 'ha_delete_row()' was
-        used to delete specific rows which we might log row-based.
+        [binlog]: If 'handler::delete_all_rows()' was called and the
+        storage engine does not inject the rows itself, we replicate
+        statement-based; otherwise, 'ha_delete_row()' was used to
+        delete specific rows which we might log row-based.
       */
       THD::enum_binlog_query_type const
-	query_type(ha_delete_all_rows ?
+	query_type(ha_delete_all_rows && !table->file->is_injective() ?
 		   THD::STMT_QUERY_TYPE :
 		   THD::ROW_QUERY_TYPE);
       int log_result= thd->binlog_query(query_type,
@@ -915,8 +916,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       DBUG_RETURN(TRUE);
     }
     if (!ha_check_storage_engine_flag(ha_resolve_by_legacy_type(thd, table_type),
-                                      HTON_CAN_RECREATE)
-        || thd->lex->sphead)
+                                      HTON_CAN_RECREATE))
       goto trunc_by_del;
 
     if (lock_and_wait_for_table_name(thd, table_list))
@@ -962,7 +962,7 @@ end:
       {
         /*
           TRUNCATE must always be statement-based binlogged (not row-based) so
-          we don't test binlog_row_based.
+          we don't test current_stmt_binlog_row_based.
         */
         thd->clear_error();
         thd->binlog_query(THD::STMT_QUERY_TYPE,

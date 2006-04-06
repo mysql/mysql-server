@@ -220,6 +220,7 @@ public:
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** these are subject to change at any time */
+  const NdbDictionary::Table* getTable() const;
   const NdbDictionary::Event *getEvent() const;
   const NdbRecAttr *getFirstPkAttr() const;
   const NdbRecAttr *getFirstPkPreAttr() const;

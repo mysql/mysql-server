@@ -539,7 +539,7 @@ drop procedure if exists into_outfile|
 create procedure into_outfile(x char(16), y int)
 begin
 insert into test.t1 values (x, y);
-select * into outfile "/tmp/spout" from test.t1;
+select * into outfile "../tmp/spout" from test.t1;
 insert into test.t1 values (concat(x, "2"), y+2);
 end|
 call into_outfile("ofile", 1)|
@@ -549,7 +549,7 @@ drop procedure if exists into_dumpfile|
 create procedure into_dumpfile(x char(16), y int)
 begin
 insert into test.t1 values (x, y);
-select * into dumpfile "/tmp/spdump" from test.t1 limit 1;
+select * into dumpfile "../tmp/spdump" from test.t1 limit 1;
 insert into test.t1 values (concat(x, "2"), y+2);
 end|
 call into_dumpfile("dfile", 1)|
@@ -788,7 +788,7 @@ comment 'Characteristics procedure test'
   insert into t1 values ("chistics", 1)|
 show create procedure chistics|
 Procedure	sql_mode	Create Procedure
-chistics		CREATE PROCEDURE `chistics`()
+chistics		CREATE DEFINER=`root`@`localhost` PROCEDURE `chistics`()
     MODIFIES SQL DATA
     COMMENT 'Characteristics procedure test'
 insert into t1 values ("chistics", 1)
@@ -800,7 +800,7 @@ delete from t1|
 alter procedure chistics sql security invoker|
 show create procedure chistics|
 Procedure	sql_mode	Create Procedure
-chistics		CREATE PROCEDURE `chistics`()
+chistics		CREATE DEFINER=`root`@`localhost` PROCEDURE `chistics`()
     MODIFIES SQL DATA
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
@@ -815,7 +815,7 @@ comment 'Characteristics procedure test'
   return 42|
 show create function chistics|
 Function	sql_mode	Create Function
-chistics		CREATE FUNCTION `chistics`() RETURNS int(11)
+chistics		CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
@@ -828,7 +828,7 @@ no sql
 comment 'Characteristics function test'|
 show create function chistics|
 Function	sql_mode	Create Function
-chistics		CREATE FUNCTION `chistics`() RETURNS int(11)
+chistics		CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
     NO SQL
     DETERMINISTIC
     SQL SECURITY INVOKER
@@ -1287,7 +1287,7 @@ end while;
 end|
 show create procedure opp|
 Procedure	sql_mode	Create Procedure
-opp		CREATE PROCEDURE `opp`(n bigint unsigned, out pp bool)
+opp		CREATE DEFINER=`root`@`localhost` PROCEDURE `opp`(n bigint unsigned, out pp bool)
 begin
 declare r double;
 declare b, s bigint unsigned default 0;
@@ -1386,7 +1386,7 @@ alter procedure bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
 Procedure	sql_mode	Create Procedure
-bar		CREATE PROCEDURE `bar`(x char(16), y int)
+bar		CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x char(16), y int)
     COMMENT '3333333333'
 insert into test.t1 values (x, y)
 show procedure status like 'bar'|
@@ -1413,8 +1413,6 @@ select `foo` ()|
 5
 drop function `foo`|
 drop function if exists t1max|
-Warnings:
-Note	1305	FUNCTION t1max does not exist
 create function t1max() returns int
 begin
 declare x int;
@@ -1470,6 +1468,339 @@ zip	3
 foo	1
 drop table t3|
 drop function getcount|
+drop table if exists t3|
+drop procedure if exists h_ee|
+drop procedure if exists h_es|
+drop procedure if exists h_en|
+drop procedure if exists h_ew|
+drop procedure if exists h_ex|
+drop procedure if exists h_se|
+drop procedure if exists h_ss|
+drop procedure if exists h_sn|
+drop procedure if exists h_sw|
+drop procedure if exists h_sx|
+drop procedure if exists h_ne|
+drop procedure if exists h_ns|
+drop procedure if exists h_nn|
+drop procedure if exists h_we|
+drop procedure if exists h_ws|
+drop procedure if exists h_ww|
+drop procedure if exists h_xe|
+drop procedure if exists h_xs|
+drop procedure if exists h_xx|
+create table t3 (a smallint primary key)|
+insert into t3 (a) values (1)|
+create procedure h_ee()
+deterministic
+begin
+declare continue handler for 1062 -- ER_DUP_ENTRY
+select 'Outer (bad)' as 'h_ee';
+begin
+declare continue handler for 1062 -- ER_DUP_ENTRY
+select 'Inner (good)' as 'h_ee';
+insert into t3 values (1);
+end;
+end|
+create procedure h_es()
+deterministic
+begin
+declare continue handler for 1062 -- ER_DUP_ENTRY
+select 'Outer (good)' as 'h_es';
+begin
+-- integrity constraint violation
+declare continue handler for sqlstate '23000'
+      select 'Inner (bad)' as 'h_es';
+insert into t3 values (1);
+end;
+end|
+create procedure h_en()
+deterministic
+begin
+declare continue handler for 1329 -- ER_SP_FETCH_NO_DATA
+select 'Outer (good)' as 'h_en';
+begin
+declare x int;
+declare continue handler for sqlstate '02000' -- no data
+select 'Inner (bad)' as 'h_en';
+select a into x from t3 where a = 42;
+end;
+end|
+create procedure h_ew()
+deterministic
+begin
+declare continue handler for 1264 -- ER_WARN_DATA_OUT_OF_RANGE
+select 'Outer (good)' as 'h_ew';
+begin
+declare continue handler for sqlwarning
+select 'Inner (bad)' as 'h_ew';
+insert into t3 values (123456789012);
+end;
+delete from t3;
+insert into t3 values (1);
+end|
+create procedure h_ex()
+deterministic
+begin
+declare continue handler for 1062 -- ER_DUP_ENTRY
+select 'Outer (good)' as 'h_ex';
+begin
+declare continue handler for sqlexception
+select 'Inner (bad)' as 'h_ex';
+insert into t3 values (1);
+end;
+end|
+create procedure h_se()
+deterministic
+begin
+-- integrity constraint violation
+declare continue handler for sqlstate '23000' 
+select 'Outer (bad)' as 'h_se';
+begin
+declare continue handler for 1062 -- ER_DUP_ENTRY
+select 'Inner (good)' as 'h_se';
+insert into t3 values (1);
+end;
+end|
+create procedure h_ss()
+deterministic
+begin
+-- integrity constraint violation
+declare continue handler for sqlstate '23000' 
+select 'Outer (bad)' as 'h_ss';
+begin
+-- integrity constraint violation
+declare continue handler for sqlstate '23000' 
+select 'Inner (good)' as 'h_ss';
+insert into t3 values (1);
+end;
+end|
+create procedure h_sn()
+deterministic
+begin
+-- Note: '02000' is more specific than NOT FOUND ;
+--       there might be other not found states 
+declare continue handler for sqlstate '02000' -- no data
+select 'Outer (good)' as 'h_sn';
+begin
+declare x int;
+declare continue handler for not found
+select 'Inner (bad)' as 'h_sn';
+select a into x from t3 where a = 42;
+end;
+end|
+create procedure h_sw()
+deterministic
+begin
+-- data exception - numeric value out of range
+declare continue handler for sqlstate '22003'
+    select 'Outer (good)' as 'h_sw';
+begin
+declare continue handler for sqlwarning
+select 'Inner (bad)' as 'h_sw';
+insert into t3 values (123456789012);
+end;
+delete from t3;
+insert into t3 values (1);
+end|
+create procedure h_sx()
+deterministic
+begin
+-- integrity constraint violation
+declare continue handler for sqlstate '23000' 
+select 'Outer (good)' as 'h_sx';
+begin
+declare continue handler for sqlexception
+select 'Inner (bad)' as 'h_sx';
+insert into t3 values (1);
+end;
+end|
+create procedure h_ne()
+deterministic
+begin
+declare continue handler for not found
+select 'Outer (bad)' as 'h_ne';
+begin
+declare x int;
+declare continue handler for 1329 -- ER_SP_FETCH_NO_DATA
+select 'Inner (good)' as 'h_ne';
+select a into x from t3 where a = 42;
+end;
+end|
+create procedure h_ns()
+deterministic
+begin
+declare continue handler for not found
+select 'Outer (bad)' as 'h_ns';
+begin
+declare x int;
+declare continue handler for sqlstate '02000' -- no data
+select 'Inner (good)' as 'h_ns';
+select a into x from t3 where a = 42;
+end;
+end|
+create procedure h_nn()
+deterministic
+begin
+declare continue handler for not found
+select 'Outer (bad)' as 'h_nn';
+begin
+declare x int;
+declare continue handler for not found
+select 'Inner (good)' as 'h_nn';
+select a into x from t3 where a = 42;
+end;
+end|
+create procedure h_we()
+deterministic
+begin
+declare continue handler for sqlwarning
+select 'Outer (bad)' as 'h_we';
+begin
+declare continue handler for 1264 -- ER_WARN_DATA_OUT_OF_RANGE
+select 'Inner (good)' as 'h_we';
+insert into t3 values (123456789012);
+end;
+delete from t3;
+insert into t3 values (1);
+end|
+create procedure h_ws()
+deterministic
+begin
+declare continue handler for sqlwarning
+select 'Outer (bad)' as 'h_ws';
+begin
+-- data exception - numeric value out of range
+declare continue handler for sqlstate '22003'
+      select 'Inner (good)' as 'h_ws';
+insert into t3 values (123456789012);
+end;
+delete from t3;
+insert into t3 values (1);
+end|
+create procedure h_ww()
+deterministic
+begin
+declare continue handler for sqlwarning
+select 'Outer (bad)' as 'h_ww';
+begin
+declare continue handler for sqlwarning
+select 'Inner (good)' as 'h_ww';
+insert into t3 values (123456789012);
+end;
+delete from t3;
+insert into t3 values (1);
+end|
+create procedure h_xe()
+deterministic
+begin
+declare continue handler for sqlexception
+select 'Outer (bad)' as 'h_xe';
+begin
+declare continue handler for 1062 -- ER_DUP_ENTRY
+select 'Inner (good)' as 'h_xe';
+insert into t3 values (1);
+end;
+end|
+create procedure h_xs()
+deterministic
+begin
+declare continue handler for sqlexception
+select 'Outer (bad)' as 'h_xs';
+begin
+-- integrity constraint violation
+declare continue handler for sqlstate '23000'
+      select 'Inner (good)' as 'h_xs';
+insert into t3 values (1);
+end;
+end|
+create procedure h_xx()
+deterministic
+begin
+declare continue handler for sqlexception
+select 'Outer (bad)' as 'h_xx';
+begin
+declare continue handler for sqlexception
+select 'Inner (good)' as 'h_xx';
+insert into t3 values (1);
+end;
+end|
+call h_ee()|
+h_ee
+Inner (good)
+call h_es()|
+h_es
+Outer (good)
+call h_en()|
+h_en
+Outer (good)
+call h_ew()|
+h_ew
+Outer (good)
+call h_ex()|
+h_ex
+Outer (good)
+call h_se()|
+h_se
+Inner (good)
+call h_ss()|
+h_ss
+Inner (good)
+call h_sn()|
+h_sn
+Outer (good)
+call h_sw()|
+h_sw
+Outer (good)
+call h_sx()|
+h_sx
+Outer (good)
+call h_ne()|
+h_ne
+Inner (good)
+call h_ns()|
+h_ns
+Inner (good)
+call h_nn()|
+h_nn
+Inner (good)
+call h_we()|
+h_we
+Inner (good)
+call h_ws()|
+h_ws
+Inner (good)
+call h_ww()|
+h_ww
+Inner (good)
+call h_xe()|
+h_xe
+Inner (good)
+call h_xs()|
+h_xs
+Inner (good)
+call h_xx()|
+h_xx
+Inner (good)
+drop table t3|
+drop procedure h_ee|
+drop procedure h_es|
+drop procedure h_en|
+drop procedure h_ew|
+drop procedure h_ex|
+drop procedure h_se|
+drop procedure h_ss|
+drop procedure h_sn|
+drop procedure h_sw|
+drop procedure h_sx|
+drop procedure h_ne|
+drop procedure h_ns|
+drop procedure h_nn|
+drop procedure h_we|
+drop procedure h_ws|
+drop procedure h_ww|
+drop procedure h_xe|
+drop procedure h_xs|
+drop procedure h_xx|
 drop procedure if exists bug822|
 create procedure bug822(a_id char(16), a_data int)
 begin
@@ -1635,13 +1966,13 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 test	bug2267_4	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 call bug2267_3()|
 Procedure	sql_mode	Create Procedure
-bug2267_1		CREATE PROCEDURE `bug2267_1`()
+bug2267_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug2267_1`()
 begin
 show procedure status;
 end
 call bug2267_4()|
 Function	sql_mode	Create Function
-bug2267_4		CREATE FUNCTION `bug2267_4`() RETURNS int(11)
+bug2267_4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2267_4`() RETURNS int(11)
 return 100
 drop procedure bug2267_1|
 drop procedure bug2267_2|
@@ -1866,35 +2197,6 @@ select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
 2	01-01-1970 03:16:40
 drop procedure bug3426|
 create table t3 (
-a int primary key, 
-ach char(1)
-) engine = innodb|
-create table t4 (
-b int  primary key , 
-bch char(1)
-) engine = innodb|
-insert into t3 values (1 , 'aCh1' ) , ('2' , 'aCh2')|
-Warnings:
-Warning	1265	Data truncated for column 'ach' at row 1
-Warning	1265	Data truncated for column 'ach' at row 2
-insert into t4 values (1 , 'bCh1' )|
-Warnings:
-Warning	1265	Data truncated for column 'bch' at row 1
-drop procedure if exists bug3448|
-create procedure bug3448()
-select * from t3 inner join t4 on t3.a = t4.b|
-select * from t3 inner join t4 on t3.a = t4.b|
-a	ach	b	bch
-1	a	1	b
-call bug3448()|
-a	ach	b	bch
-1	a	1	b
-call bug3448()|
-a	ach	b	bch
-1	a	1	b
-drop procedure bug3448|
-drop table t3, t4|
-create table t3 (
 id int unsigned auto_increment not null primary key,
 title VARCHAR(200),
 body text,
@@ -2002,20 +2304,20 @@ return x || y$
 set @@sql_mode = ''|
 show create procedure bug2564_1|
 Procedure	sql_mode	Create Procedure
-bug2564_1		CREATE PROCEDURE `bug2564_1`()
+bug2564_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug2564_1`()
     COMMENT 'Joe''s procedure'
 insert into `t1` values ("foo", 1)
 show create procedure bug2564_2|
 Procedure	sql_mode	Create Procedure
-bug2564_2	ANSI_QUOTES	CREATE PROCEDURE "bug2564_2"()
+bug2564_2	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" PROCEDURE "bug2564_2"()
 insert into "t1" values ('foo', 1)
 show create function bug2564_3|
 Function	sql_mode	Create Function
-bug2564_3		CREATE FUNCTION `bug2564_3`(x int, y int) RETURNS int(11)
+bug2564_3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2564_3`(x int, y int) RETURNS int(11)
 return x || y
 show create function bug2564_4|
 Function	sql_mode	Create Function
-bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	CREATE FUNCTION "bug2564_4"(x int, y int) RETURNS int(11)
+bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	CREATE DEFINER="root"@"localhost" FUNCTION "bug2564_4"(x int, y int) RETURNS int(11)
 return x || y
 drop procedure bug2564_1|
 drop procedure bug2564_2|
@@ -2087,7 +2389,7 @@ create table t3 as select bug2773()|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `bug2773()` int(11) default NULL
+  `bug2773()` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t3|
 drop function bug2773|
@@ -2148,7 +2450,7 @@ tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
 tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` char(16) NOT NULL default '',
+  `id` char(16) NOT NULL DEFAULT '',
   `data` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Database	Create Database
@@ -2170,7 +2472,7 @@ Create view	Tables	To create new views
 Create user	Server Admin	To create new users
 Delete	Tables	To delete existing rows
 Drop	Databases,Tables	To drop databases, tables, and views
-Event	Server Admin	Creation, alteration, deletion and execution of events.
+Event	Server Admin	To create, alter, drop and execute events
 Execute	Functions,Procedures	To execute stored routines
 File	File access on server	To read and write files on the server
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
@@ -2202,7 +2504,7 @@ tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
 tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` char(16) NOT NULL default '',
+  `id` char(16) NOT NULL DEFAULT '',
   `data` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Database	Create Database
@@ -2224,7 +2526,7 @@ Create view	Tables	To create new views
 Create user	Server Admin	To create new users
 Delete	Tables	To delete existing rows
 Drop	Databases,Tables	To drop databases, tables, and views
-Event	Server Admin	Creation, alteration, deletion and execution of events.
+Event	Server Admin	To create, alter, drop and execute events
 Execute	Functions,Procedures	To execute stored routines
 File	File access on server	To read and write files on the server
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
@@ -3521,7 +3823,7 @@ end|
 call bug12589_1()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
-  `spv1` decimal(3,3) default NULL
+  `spv1` decimal(3,3) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Warnings:
 Warning	1264	Out of range value for column 'spv1' at row 1
@@ -3529,12 +3831,12 @@ Warning	1366	Incorrect decimal value: 'test' for column 'spv1' at row 1
 call bug12589_2()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
-  `spv1` decimal(6,3) default NULL
+  `spv1` decimal(6,3) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 call bug12589_3()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
-  `spv1` decimal(6,3) default NULL
+  `spv1` decimal(6,3) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop procedure bug12589_1|
 drop procedure bug12589_2|
@@ -3678,48 +3980,6 @@ DROP VIEW bug13095_v1
 DROP PROCEDURE IF EXISTS bug13095;
 DROP VIEW IF EXISTS bug13095_v1;
 DROP TABLE IF EXISTS bug13095_t1;
-drop procedure if exists bug14210|
-set @@session.max_heap_table_size=16384|
-select @@session.max_heap_table_size|
-@@session.max_heap_table_size
-16384
-create table t3 (a char(255)) engine=InnoDB|
-create procedure bug14210_fill_table()
-begin
-declare table_size, max_table_size int default 0;
-select @@session.max_heap_table_size into max_table_size;
-delete from t3;
-insert into t3 (a) values (repeat('a', 255));
-repeat
-insert into t3 select a from t3;
-select count(*)*255 from t3 into table_size;
-until table_size > max_table_size*2 end repeat;
-end|
-call bug14210_fill_table()|
-drop procedure bug14210_fill_table|
-create table t4 like t3|
-create procedure bug14210()
-begin
-declare a char(255);
-declare done int default 0;
-declare c cursor for select * from t3;
-declare continue handler for sqlstate '02000' set done = 1;
-open c;
-repeat
-fetch c into a;
-if not done then
-insert into t4 values (upper(a));
-end if;
-until done end repeat;
-close c;
-end|
-call bug14210()|
-select count(*) from t4|
-count(*)
-256
-drop table t3, t4|
-drop procedure bug14210|
-set @@session.max_heap_table_size=default|
 drop function if exists bug14723|
 drop procedure if exists bug14723|
 /*!50003 create function bug14723()
@@ -3729,7 +3989,7 @@ return 42;
 end */;;
 show create function bug14723;;
 Function	sql_mode	Create Function
-bug14723		CREATE FUNCTION `bug14723`() RETURNS bigint(20)
+bug14723		CREATE DEFINER=`root`@`localhost` FUNCTION `bug14723`() RETURNS bigint(20)
 main_loop: begin
 return 42;
 end
@@ -3742,7 +4002,7 @@ select 42;
 end */;;
 show create procedure bug14723;;
 Procedure	sql_mode	Create Procedure
-bug14723		CREATE PROCEDURE `bug14723`()
+bug14723		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug14723`()
 main_loop: begin
 select 42;
 end
@@ -4447,4 +4707,155 @@ Handler
 Inner
 drop procedure bug15011|
 drop table t3|
+drop function if exists bug17615|
+create table t3 (a varchar(256) unicode)|
+create function bug17615() returns varchar(256) unicode
+begin
+declare tmp_res varchar(256) unicode;
+set tmp_res= 'foo string';
+return tmp_res;
+end|
+insert into t3 values(bug17615())|
+select * from t3|
+a
+foo string
+drop function bug17615|
+drop table t3|
+drop procedure if exists bug17476|
+create table t3 ( d date )|
+insert into t3 values
+( '2005-01-01' ), ( '2005-01-02' ), ( '2005-01-03' ),
+( '2005-01-04' ), ( '2005-02-01' ), ( '2005-02-02' )|
+create procedure bug17476(pDateFormat varchar(10))
+select date_format(t3.d, pDateFormat), count(*)
+from t3 
+group by date_format(t3.d, pDateFormat)|
+call bug17476('%Y-%m')|
+date_format(t3.d, pDateFormat)	count(*)
+2005-01	4
+2005-02	2
+call bug17476('%Y-%m')|
+date_format(t3.d, pDateFormat)	count(*)
+2005-01	4
+2005-02	2
+drop table t3|
+drop procedure bug17476|
+drop table if exists t3|
+drop procedure if exists bug16887|
+create table t3 ( c varchar(1) )|
+insert into t3 values
+(' '),('.'),(';'),(','),('-'),('_'),('('),(')'),('/'),('\\')|
+create procedure bug16887()
+begin
+declare i int default 10;
+again:
+while i > 0 do
+begin
+declare breakchar varchar(1);
+declare done int default 0;
+declare t3_cursor cursor for select c from t3;
+declare continue handler for not found set done = 1;
+set i = i - 1;
+select i;
+if i = 3 then
+iterate again;
+end if;
+open t3_cursor;
+loop
+fetch t3_cursor into breakchar;
+if done = 1 then
+begin
+close t3_cursor;
+iterate again;
+end;
+end if;
+end loop;
+end;
+end while;
+end|
+call bug16887()|
+i
+9
+i
+8
+i
+7
+i
+6
+i
+5
+i
+4
+i
+3
+i
+2
+i
+1
+i
+0
+drop table t3|
+drop procedure bug16887|
+create table t3 (f1 int, f2 varchar(3), primary key(f1)) engine=innodb|
+insert into t3 values (1,'aaa'),(2,'bbb'),(3,'ccc')|
+CREATE FUNCTION bug13575 ( p1 integer ) 
+returns varchar(3) 
+BEGIN 
+DECLARE v1 VARCHAR(10) DEFAULT null;
+SELECT f2 INTO v1 FROM t3 WHERE f1 = p1; 
+RETURN v1;
+END|
+select distinct f1, bug13575(f1) from t3 order by f1|
+f1	bug13575(f1)
+1	aaa
+2	bbb
+3	ccc
+drop function bug13575;
+drop table t3|
+drop procedure if exists bug16474_1|
+drop procedure if exists bug16474_2|
+delete from t1|
+insert into t1 values ('c', 2), ('b', 3), ('a', 1)|
+create procedure bug16474_1()
+begin
+declare x int;
+select id from t1 order by x;
+end|
+drop procedure if exists bug14945|
+create table t3 (id int not null auto_increment primary key)|
+create procedure bug14945() deterministic truncate t3|
+insert into t3 values (null)|
+call bug14945()|
+insert into t3 values (null)|
+select * from t3|
+id
+1
+drop table t3|
+drop procedure bug14945|
+create procedure bug16474_2(x int)
+select id from t1 order by x|
+call bug16474_1()|
+id
+c
+b
+a
+call bug16474_2(1)|
+id
+c
+b
+a
+call bug16474_2(2)|
+id
+c
+b
+a
+drop procedure bug16474_1|
+drop procedure bug16474_2|
+set @x = 2|
+select * from t1 order by @x|
+id	data
+c	2
+b	3
+a	1
+delete from t1|
 drop table t1,t2;

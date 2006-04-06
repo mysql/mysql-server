@@ -19,3 +19,15 @@ gesuchnr	benutzer_id
 2	1
 3	2
 drop table t1;
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, 
+j INT, 
+k INT, 
+UNIQUE INDEX(j)
+) ENGINE = ndb;
+INSERT  INTO t1 VALUES (1,1,23),(2,2,24);
+REPLACE INTO t1 (j,k) VALUES (1,42);
+REPLACE INTO t1 (i,j) VALUES (17,2);
+SELECT * from t1 ORDER BY i;
+i	j	k
+3	1	42
+17	2	24

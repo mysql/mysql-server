@@ -154,7 +154,7 @@ row_update_prebuilt_trx(
 /*************************************************************************
 Unlocks an AUTO_INC type lock possibly reserved by trx. */
 
-void		  	
+void
 row_unlock_table_autoinc_for_mysql(
 /*===============================*/
 	trx_t*	trx);	/* in: transaction */
@@ -186,7 +186,7 @@ row_lock_table_for_mysql(
 					prebuilt->select_lock_type */
 	ulint		mode);		/* in: lock mode of table
 					(ignored if table==NULL) */
-					   
+
 /*************************************************************************
 Does an insert for MySQL. */
 
@@ -489,7 +489,7 @@ struct mysql_row_templ_struct {
 					length at the start of row in the MySQL
 					format (NOTE that the MySQL key value
 					format always uses 2 bytes for the data
-					len) */ 
+					len) */
 	ulint	charset;		/* MySQL charset-collation code
 					of the column, or zero */
 	ulint	mbminlen;		/* minimum length of a char, in bytes,
@@ -523,10 +523,10 @@ struct row_prebuilt_struct {
 					an SQL statement: we may have to set
 					an intention lock on the table,
 					create a consistent read view etc. */
-        ibool           mysql_has_locked; /* this is set TRUE when MySQL
-			                calls external_lock on this handle
-			                with a lock flag, and set FALSE when
-			                with the F_UNLOCK flag */
+	ibool		mysql_has_locked; /* this is set TRUE when MySQL
+					calls external_lock on this handle
+					with a lock flag, and set FALSE when
+					with the F_UNLOCK flag */
 	ibool		clust_index_was_generated;
 					/* if the user did not define a
 					primary key in MySQL, then Innobase
@@ -549,7 +549,7 @@ struct row_prebuilt_struct {
 					unique search from a clustered index,
 					because HANDLER allows NEXT and PREV
 					in such a situation */
-	ulint		template_type;	/* ROW_MYSQL_WHOLE_ROW, 
+	ulint		template_type;	/* ROW_MYSQL_WHOLE_ROW,
 					ROW_MYSQL_REC_FIELDS,
 					ROW_MYSQL_DUMMY_TEMPLATE, or
 					ROW_MYSQL_NO_TEMPLATE */
@@ -625,12 +625,12 @@ struct row_prebuilt_struct {
 					('semi-consistent read').  Then,
 					this field will be set to
 					ROW_READ_DID_SEMI_CONSISTENT to
-					indicate that.  If the row does not
+					indicate that.	If the row does not
 					match the WHERE condition, MySQL will
 					invoke handler::unlock_row() to
 					clear the flag back to
 					ROW_READ_TRY_SEMI_CONSISTENT and
-					to simply skip the row.  If
+					to simply skip the row.	 If
 					the row matches, the next call to
 					row_search_for_mysql() will lock
 					the row.
@@ -654,9 +654,9 @@ struct row_prebuilt_struct {
 					allocated mem buf start, because
 					there is a 4 byte magic number at the
 					start and at the end */
-	ibool		keep_other_fields_on_keyread; /* when using fetch 
-					cache with HA_EXTRA_KEYREAD, don't 
-					overwrite other fields in mysql row 
+	ibool		keep_other_fields_on_keyread; /* when using fetch
+					cache with HA_EXTRA_KEYREAD, don't
+					overwrite other fields in mysql row
 					row buffer.*/
 	ulint		fetch_cache_first;/* position of the first not yet
 					fetched row in fetch_cache */
@@ -687,9 +687,8 @@ struct row_prebuilt_struct {
 #define ROW_READ_TRY_SEMI_CONSISTENT	1
 #define ROW_READ_DID_SEMI_CONSISTENT	2
 
-
 #ifndef UNIV_NONINL
 #include "row0mysql.ic"
 #endif
 
-#endif 
+#endif

@@ -468,7 +468,6 @@ int key_rec_cmp(void *key, byte *first_rec, byte *second_rec)
   do
   {
     Field *field= key_part->field;
-    uint length;
 
     if (key_part->null_bit)
     {

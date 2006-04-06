@@ -15,7 +15,7 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#define NDB_REP_DB      "cluster_replication"
+#define NDB_REP_DB      "cluster"
 #define NDB_REP_TABLE   "binlog_index"
 #define NDB_APPLY_TABLE "apply_status"
 #define NDB_SCHEMA_TABLE "schema"

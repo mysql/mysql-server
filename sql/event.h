@@ -35,10 +35,10 @@
 #define EVEX_BODY_TOO_LONG      SP_BODY_TOO_LONG
 #define EVEX_BAD_PARAMS        -21
 #define EVEX_NOT_RUNNING       -22
+#define EVEX_MICROSECOND_UNSUP -23
 
 #define EVENT_EXEC_NO_MORE      (1L << 0)
 #define EVENT_NOT_USED          (1L << 1)
-
 
 extern ulong opt_event_executor;
 
@@ -75,10 +75,10 @@ enum evex_table_field
   EVEX_FIELD_COUNT /* a cool trick to count the number of fields :) */
 } ;
 
-class event_timed
+class Event_timed
 {
-  event_timed(const event_timed &);	/* Prevent use of these */
-  void operator=(event_timed &);
+  Event_timed(const Event_timed &);	/* Prevent use of these */
+  void operator=(Event_timed &);
   my_bool in_spawned_thread;
   ulong locked_by_thread_id;
   my_bool running;
@@ -102,6 +102,9 @@ public:
   TIME starts;
   TIME ends;
   TIME execute_at;
+  my_bool starts_null;
+  my_bool ends_null;
+  my_bool execute_at_null;
 
   longlong expression;
   interval_type interval;
@@ -112,14 +115,46 @@ public:
   enum enum_event_status status;
   sp_head *sphead;
   ulong sql_mode;
-
   const uchar *body_begin;
 
   bool dropped;
   bool free_sphead_on_delete;
   uint flags;//all kind of purposes
 
-  event_timed():in_spawned_thread(0),locked_by_thread_id(0),
+  static void *operator new(size_t size)
+  {
+    void *p;
+    DBUG_ENTER("Event_timed::new(size)");
+    p= my_malloc(size, MYF(0));
+    DBUG_PRINT("info", ("alloc_ptr=0x%lx", p));
+    DBUG_RETURN(p);
+  }
+
+  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  { return (void*) alloc_root(mem_root, (uint) size); }
+
+  static void operator delete(void *ptr, size_t size)
+  {
+    DBUG_ENTER("Event_timed::delete(ptr,size)");
+    DBUG_PRINT("enter", ("free_ptr=0x%lx", ptr));
+    TRASH(ptr, size);
+    my_free((gptr) ptr, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+
+  static void operator delete(void *ptr, MEM_ROOT *mem_root)
+  {
+    /*
+      Don't free the memory it will be done by the mem_root but
+      we need to call the destructor because we free other resources
+      which are not allocated on the root but on the heap, or we
+      deinit mutexes.
+    */
+    DBUG_ASSERT(0);
+  }
+
+
+  Event_timed():in_spawned_thread(0),locked_by_thread_id(0),
                 running(0), status_changed(false),
                 last_executed_changed(false), expression(0), created(0),
                 modified(0), on_completion(MYSQL_EVENT_ON_COMPLETION_DROP),
@@ -132,16 +167,22 @@ public:
     init();
   }
 
-  ~event_timed()
-  {
-    pthread_mutex_destroy(&this->LOCK_running);
-    if (free_sphead_on_delete)
-	    free_sp();
-  }
+  ~Event_timed()
+  {    
+    deinit_mutexes();
 
+    if (free_sphead_on_delete)
+      free_sp();
+  }
 
   void
   init();
+  
+  void
+  deinit_mutexes()
+  {
+    pthread_mutex_destroy(&this->LOCK_running);
+  }
 
   int
   init_definer(THD *thd);
@@ -256,15 +297,15 @@ protected:
 
 
 int
-evex_create_event(THD *thd, event_timed *et, uint create_options,
+evex_create_event(THD *thd, Event_timed *et, uint create_options,
                   uint *rows_affected);
 
 int
-evex_update_event(THD *thd, event_timed *et, sp_name *new_name,
+evex_update_event(THD *thd, Event_timed *et, sp_name *new_name,
                   uint *rows_affected);
 
 int
-evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
+evex_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
                 uint *rows_affected);
 
 int
@@ -293,7 +334,7 @@ shutdown_events();
 
 // auxiliary
 int
-event_timed_compare(event_timed **a, event_timed **b);
+event_timed_compare(Event_timed **a, Event_timed **b);
 
 
 

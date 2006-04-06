@@ -676,4 +676,12 @@ insert into t1 values (null);
 select format(d, 2) from t1;
 drop table t1;
 
+#
+# Bug #14676: substring_index() returns incorrect results
+#
+create table t1 (c varchar(40));
+insert into t1 values ('y,abc'),('y,abc');
+select c, substring_index(lcase(c), @q:=',', -1) as res from t1;
+drop table t1;
+
 # End of 5.0 tests

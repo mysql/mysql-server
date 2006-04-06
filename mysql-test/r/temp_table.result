@@ -108,7 +108,7 @@ This is temp. table
 show create table v1;
 Table	Create Table
 v1	CREATE TEMPORARY TABLE `v1` (
-  `A` varchar(19) NOT NULL default ''
+  `A` varchar(19) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show create view v1;
 View	Create View

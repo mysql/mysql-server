@@ -124,7 +124,6 @@ void sp_cache_clear(sp_cache **cp)
 void sp_cache_insert(sp_cache **cp, sp_head *sp)
 {
   sp_cache *c;
-  ulong v;
 
   if (!(c= *cp))
   {

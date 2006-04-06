@@ -1147,6 +1147,15 @@ public:
    */
   void setDatabaseSchemaName(const char * aDatabaseSchemaName);
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /** Set database and schema name to match previously retrieved table
+   *
+   * Returns non-zero if table internal name does not contain
+   * non-empty database and schema names
+   */
+  int setDatabaseAndSchemaName(const NdbDictionary::Table* t);
+#endif
+
   /**
    * Initializes the Ndb object
    *
@@ -1239,6 +1248,18 @@ public:
    * @return an event operations that has data, NULL if no events left with data.
    */
   NdbEventOperation *nextEvent();
+
+  /**
+   * Iterate over distinct event operations which are part of current
+   * GCI.  Valid after nextEvent.  Used to get summary information for
+   * the epoch (e.g. list of all tables) before processing event data.
+   *
+   * Set *iter=0 to start.  Returns NULL when no more.  If event_types
+   * is not NULL, it returns bitmask of received event types.
+   */
+  const NdbEventOperation*
+    getGCIEventOperations(Uint32* iter, Uint32* event_types);
+  
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   NdbEventOperation *getEventOperation(NdbEventOperation* eventOp= 0);

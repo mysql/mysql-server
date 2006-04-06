@@ -135,7 +135,7 @@ public:
   virtual void set_part_info(partition_info *part_info)
   {
      m_part_info= part_info;
-     m_is_sub_partitioned= is_sub_partitioned(part_info);
+     m_is_sub_partitioned= part_info->is_sub_partitioned();
   }
   /*
     -------------------------------------------------------------------------
@@ -197,6 +197,7 @@ public:
     DBUG_RETURN(0);
   }
 private:
+  int prepare_for_delete();
   int copy_partitions(ulonglong *copied, ulonglong *deleted);
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
@@ -523,8 +524,10 @@ public:
   virtual const char *index_type(uint inx);
 
   /* The name of the table type that will be used for display purposes */
-  virtual const char *table_type() const
-  { return "PARTITION"; }
+  virtual const char *table_type() const;
+
+  /* The name of the row type used for the underlying tables. */
+  virtual enum row_type get_row_type() const;
 
   /*
      Handler specific error messages

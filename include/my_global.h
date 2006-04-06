@@ -43,6 +43,15 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
+#if defined(__QNXNTO__) && !defined(FD_SETSIZE)
+#define FD_SETSIZE 1024         /* Max number of file descriptor bits in
+                                   fd_set, used when calling 'select'
+                                   Must be defined before including
+                                   "sys/select.h" and "sys/time.h"
+                                 */
+#endif
+
+
 /* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #define USE_PRAGMA_INTERFACE
@@ -1423,15 +1432,6 @@ do { doubleget_union _tmp; \
 #elif defined(HAVE_DLFCN_H)
 #include <dlfcn.h>
 #endif
-#endif
-
-/* FreeBSD 2.2.2 does not define RTLD_NOW) */
-#ifndef RTLD_NOW
-#define RTLD_NOW 1
-#endif
-
-#ifndef HAVE_DLERROR
-#define dlerror() ""
 #endif
 
 /* FreeBSD 2.2.2 does not define RTLD_NOW) */

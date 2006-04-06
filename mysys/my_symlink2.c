@@ -34,9 +34,11 @@ File my_create_with_symlink(const char *linkname, const char *filename,
   int create_link;
   char abs_linkname[FN_REFLEN];
   DBUG_ENTER("my_create_with_symlink");
+  DBUG_PRINT("enter", ("linkname: %s  filename: %s", linkname, filename));
 
   if (my_disable_symlinks)
   {
+    DBUG_PRINT("info", ("Symlinks disabled"));
     /* Create only the file, not the link and file */
     create_link= 0;
     if (linkname)

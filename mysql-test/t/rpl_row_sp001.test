@@ -119,8 +119,8 @@ SELECT * FROM t2 ORDER BY a;
 
 # time to dump the databases and so we can see if they match
 
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > ./var/tmp/sp001_master.sql
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > ./var/tmp/sp001_slave.sql
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/sp001_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/sp001_slave.sql
 
 # First lets cleanup
 
@@ -135,12 +135,12 @@ sync_slave_with_master;
 # the test will show that the diff statement failed and not reject file
 # will be created. You will need to go to the mysql-test dir and diff
 # the files your self to see what is not matching :-) Failed dump files
-# will be located in mysql-test/var/tmp
+# will be located in $MYSQLTEST_VARDIR/tmp
 
---exec diff ./var/tmp/sp001_master.sql ./var/tmp/sp001_slave.sql;
+--exec diff $MYSQLTEST_VARDIR/tmp/sp001_master.sql $MYSQLTEST_VARDIR/tmp/sp001_slave.sql;
 
 # If all is good, when can cleanup our dump files.
-system rm ./var/tmp/sp001_master.sql;
-system rm ./var/tmp/sp001_slave.sql;
+system rm $MYSQLTEST_VARDIR/tmp/sp001_master.sql;
+system rm $MYSQLTEST_VARDIR/tmp/sp001_slave.sql;
 
 # End of 5.0 test case

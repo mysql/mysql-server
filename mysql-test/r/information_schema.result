@@ -14,7 +14,7 @@ NULL	test	latin1	latin1_swedish_ci	NULL
 select schema_name from information_schema.schemata;
 schema_name
 information_schema
-cluster_replication
+cluster
 mysql
 test
 show databases like 't%';
@@ -23,7 +23,7 @@ test
 show databases;
 Database
 information_schema
-cluster_replication
+cluster
 mysql
 test
 show databases where `database` = 't%';
@@ -214,34 +214,34 @@ latin1	cp1252 West European	latin1_swedish_ci	1
 select * from information_schema.COLLATIONS
 where COLLATION_NAME like 'latin1%';
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
-latin1_german1_ci	latin1	5			0
-latin1_swedish_ci	latin1	8	Yes	Yes	1
-latin1_danish_ci	latin1	15			0
-latin1_german2_ci	latin1	31		Yes	2
-latin1_bin	latin1	47		Yes	1
-latin1_general_ci	latin1	48			0
-latin1_general_cs	latin1	49			0
-latin1_spanish_ci	latin1	94			0
+latin1_german1_ci	latin1	5		#	1
+latin1_swedish_ci	latin1	8	Yes	#	1
+latin1_danish_ci	latin1	15		#	1
+latin1_german2_ci	latin1	31		#	2
+latin1_bin	latin1	47		#	1
+latin1_general_ci	latin1	48		#	1
+latin1_general_cs	latin1	49		#	1
+latin1_spanish_ci	latin1	94		#	1
 SHOW COLLATION LIKE 'latin1%';
 Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_german1_ci	latin1	5			0
-latin1_swedish_ci	latin1	8	Yes	Yes	1
-latin1_danish_ci	latin1	15			0
-latin1_german2_ci	latin1	31		Yes	2
-latin1_bin	latin1	47		Yes	1
-latin1_general_ci	latin1	48			0
-latin1_general_cs	latin1	49			0
-latin1_spanish_ci	latin1	94			0
+latin1_german1_ci	latin1	5		#	1
+latin1_swedish_ci	latin1	8	Yes	#	1
+latin1_danish_ci	latin1	15		#	1
+latin1_german2_ci	latin1	31		#	2
+latin1_bin	latin1	47		#	1
+latin1_general_ci	latin1	48		#	1
+latin1_general_cs	latin1	49		#	1
+latin1_spanish_ci	latin1	94		#	1
 SHOW COLLATION WHERE collation like 'latin1%';
 Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_german1_ci	latin1	5			0
-latin1_swedish_ci	latin1	8	Yes	Yes	1
-latin1_danish_ci	latin1	15			0
-latin1_german2_ci	latin1	31		Yes	2
-latin1_bin	latin1	47		Yes	1
-latin1_general_ci	latin1	48			0
-latin1_general_cs	latin1	49			0
-latin1_spanish_ci	latin1	94			0
+latin1_german1_ci	latin1	5		#	1
+latin1_swedish_ci	latin1	8	Yes	#	1
+latin1_danish_ci	latin1	15		#	1
+latin1_german2_ci	latin1	31		#	2
+latin1_bin	latin1	47		#	1
+latin1_general_ci	latin1	48		#	1
+latin1_general_cs	latin1	49		#	1
+latin1_spanish_ci	latin1	94		#	1
 select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY
 where COLLATION_NAME like 'latin1%';
 COLLATION_NAME	CHARACTER_SET_NAME
@@ -294,6 +294,13 @@ sub1	sub1
 select count(*) from information_schema.ROUTINES;
 count(*)
 2
+create view v1 as select routine_schema, routine_name from information_schema.routines 
+order by routine_schema, routine_name;
+select * from v1;
+routine_schema	routine_name
+test	sel2
+test	sub1
+drop view v1;
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
 ROUTINE_NAME	ROUTINE_DEFINITION
 show create function sub1;
@@ -322,7 +329,7 @@ Function	sql_mode	Create Function
 sub1		
 show create function sub2;
 Function	sql_mode	Create Function
-sub2		CREATE FUNCTION `sub2`(i int) RETURNS int(11)
+sub2		CREATE DEFINER=`mysqltest_1`@`localhost` FUNCTION `sub2`(i int) RETURNS int(11)
 return i+1
 show function status like "sub2";
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
@@ -330,7 +337,7 @@ test	sub2	FUNCTION	mysqltest_1@localhost	#	#	DEFINER
 drop function sub2;
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure
-sel2		CREATE PROCEDURE `sel2`()
+sel2		CREATE DEFINER=`root`@`localhost` PROCEDURE `sel2`()
 begin
 select * from t1;
 select * from t2;
@@ -339,7 +346,7 @@ create view v0 (c) as select schema_name from information_schema.schemata;
 select * from v0;
 c
 information_schema
-cluster_replication
+cluster
 mysql
 test
 explain select * from v0;
@@ -433,8 +440,8 @@ alter table t1 add constraint constraint_2 unique key_2(a);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0',
-  PRIMARY KEY  (`a`),
+  `a` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`),
   UNIQUE KEY `constraint_1` (`a`),
   UNIQUE KEY `key_1` (`a`),
   UNIQUE KEY `key_2` (`a`)
@@ -506,19 +513,19 @@ drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
 CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
-  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
-  `DESCRIPTION` varchar(60) NOT NULL default '',
-  `MAXLEN` bigint(3) NOT NULL default '0'
+  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
+  `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
 CHARACTER_SETS	CREATE TEMPORARY TABLE `CHARACTER_SETS` (
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
-  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
-  `DESCRIPTION` varchar(60) NOT NULL default '',
-  `MAXLEN` bigint(3) NOT NULL default '0'
+  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
+  `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 set names latin1;
 create table t1 select * from information_schema.CHARACTER_SETS
@@ -530,10 +537,10 @@ alter table t1 default character set utf8;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
-  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
-  `DESCRIPTION` varchar(60) NOT NULL default '',
-  `MAXLEN` bigint(3) NOT NULL default '0'
+  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
+  `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 drop table t1;
 create view v1 as select * from information_schema.TABLES;
@@ -835,7 +842,7 @@ delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-cluster_replication	1
+cluster	1
 information_schema	22
 mysql	21
 create table t1 (i int, j int);

@@ -5355,7 +5355,7 @@ my_mb_wc_cp932(CHARSET_INFO *cs  __attribute__((unused)),
   int hi=s[0];
   
   if (s >= e)
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL;
   
   if (hi < 0x80)
   {
@@ -5370,10 +5370,10 @@ my_mb_wc_cp932(CHARSET_INFO *cs  __attribute__((unused)),
   }
   
   if (s+2>e)
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL2;
   
   if (!(pwc[0]=func_cp932_uni_onechar((hi<<8)+s[1])))
-    return MY_CS_ILSEQ;
+    return -2;
   
   return 2;
 }

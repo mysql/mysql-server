@@ -4,6 +4,9 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
 create table t1 (a int auto_increment, primary key (a), b int, rand_value double not null);
 create table t2 (a int auto_increment, primary key (a), b int);
 create table t3 (a int auto_increment, primary key (a), name varchar(64) not null, old_a int, old_b int, rand_value double not null);
@@ -102,7 +105,7 @@ t1_first	root@localhost
 SELECT routine_name, definer
 FROM information_schema.routines;
 routine_name	definer
-bug12480	@
+bug12480	root@localhost
 SELECT trigger_name, definer
 FROM information_schema.triggers;
 trigger_name	definer
@@ -855,3 +858,44 @@ f3
 drop trigger trg11;
 drop table t21,t31;
 drop table t11;
+STOP SLAVE;
+FLUSH LOGS;
+RESET SLAVE;
+START SLAVE;
+SELECT MASTER_POS_WAIT('master-bin.000001', 513) >= 0;
+MASTER_POS_WAIT('master-bin.000001', 513) >= 0
+1
+SHOW TABLES LIKE 't_';
+Tables_in_test (t_)
+t1
+t2
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+trg1	INSERT	t1	INSERT INTO t2 VALUES(CURRENT_USER())	AFTER	NULL		
+SELECT * FROM t1;
+c
+1
+SELECT * FROM t2;
+s
+@
+INSERT INTO t1 VALUES(2);
+SELECT * FROM t1;
+c
+1
+2
+SELECT * FROM t2;
+s
+@
+root@localhost
+DROP TRIGGER trg1;
+Warnings:
+Warning	1454	No definer attribute for trigger 'test'.'trg1'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger.
+DROP TABLE t1;
+DROP TABLE t2;
+STOP SLAVE;
+RESET SLAVE;
+SHOW TABLES LIKE 't_';
+Tables_in_test (t_)
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+RESET MASTER;

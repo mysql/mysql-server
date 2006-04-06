@@ -31,7 +31,7 @@ dyn_array_add_block(
 		UT_LIST_ADD_FIRST(list, arr->base, arr);
 
 		arr->heap = mem_heap_create(sizeof(dyn_block_t));
-	}	
+	}
 
 	block = dyn_array_get_last_block(arr);
 	block->used = block->used | DYN_BLOCK_FULL_FLAG;

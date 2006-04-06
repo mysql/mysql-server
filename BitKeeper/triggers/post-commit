@@ -14,6 +14,12 @@ else
  FROM=$REAL_EMAIL 
 fi
 
+if [ -x /usr/sbin/sendmail ]; then
+  SENDMAIL=/usr/sbin/sendmail
+else
+  SENDMAIL=sendmail
+fi
+
 BK_STATUS=$BK_STATUS$BK_COMMIT
 
 if [ "$BK_STATUS" = OK ]
@@ -58,7 +64,7 @@ $BH
 EOF
   bk changes -v -r+
   bk cset -r+ -d
- ) | /usr/sbin/sendmail -t
+ ) | $SENDMAIL -t
 
 #++
 # commits@ mail
@@ -82,7 +88,7 @@ see http://dev.mysql.com/doc/mysql/en/installing-source-tree.html
 EOF
   bk changes -v -r+
   bk cset -r+ -d
- ) | head -n $LIMIT | /usr/sbin/sendmail -t
+ ) | head -n $LIMIT | $SENDMAIL -t
 
 #++
 # docs-commit@ mail
@@ -102,7 +108,7 @@ Subject: bk commit - $VERSION tree (Manual) ($CHANGESET)$BS
 EOF
   bk changes -v -r+
   bk cset -r+ -d
- ) | /usr/sbin/sendmail -t
+ ) | $SENDMAIL -t
  fi
 
 else

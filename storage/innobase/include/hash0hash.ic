@@ -15,8 +15,8 @@ hash_cell_t*
 hash_get_nth_cell(
 /*==============*/
 				/* out: pointer to cell */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		n)	/* in: cell index */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		n)	/* in: cell index */
 {
 	ut_ad(n < table->n_cells);
 
@@ -55,8 +55,8 @@ ulint
 hash_get_mutex_no(
 /*==============*/
 				/* out: mutex number */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		fold)	/* in: fold */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold)	/* in: fold */
 {
 	return(ut_2pow_remainder(fold, table->n_mutexes));
 }
@@ -68,8 +68,8 @@ mem_heap_t*
 hash_get_nth_heap(
 /*==============*/
 				/* out: mem heap */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		i)	/* in: index of the heap */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		i)	/* in: index of the heap */
 {
 	ut_ad(i < table->n_mutexes);
 
@@ -83,8 +83,8 @@ mem_heap_t*
 hash_get_heap(
 /*==========*/
 				/* out: mem heap */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		fold)	/* in: fold */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold)	/* in: fold */
 {
 	ulint	i;
 
@@ -104,11 +104,11 @@ mutex_t*
 hash_get_nth_mutex(
 /*===============*/
 				/* out: mutex */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		i)	/* in: index of the mutex */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		i)	/* in: index of the mutex */
 {
 	ut_ad(i < table->n_mutexes);
-	
+
 	return(table->mutexes + i);
 }
 
@@ -119,8 +119,8 @@ mutex_t*
 hash_get_mutex(
 /*===========*/
 				/* out: mutex */
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		fold)	/* in: fold */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold)	/* in: fold */
 {
 	ulint	i;
 

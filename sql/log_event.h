@@ -28,14 +28,6 @@
 
 #include <my_bitmap.h>
 
-#if !defined(MYSQL_CLIENT)
-#ifdef HAVE_ROW_BASED_REPLICATION
-extern my_bool binlog_row_based;
-#else
-extern const my_bool binlog_row_based;
-#endif
-#endif
-
 #define LOG_READ_EOF    -1
 #define LOG_READ_BOGUS  -2
 #define LOG_READ_IO     -3
@@ -131,6 +123,7 @@ struct old_sql_ex
  ****************************************************************************/
 struct sql_ex_info
 {
+  sql_ex_info() {}                            /* Remove gcc warning */
   char* field_term;
   char* enclosed;
   char* line_term;
@@ -657,10 +650,15 @@ public:
   {
     return (void*) my_malloc((uint)size, MYF(MY_WME|MY_FAE));
   }
+
   static void operator delete(void *ptr, size_t size)
   {
     my_free((gptr) ptr, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
   }
+
+  /* Placement version of the above operators */
+  static void *operator new(size_t, void* ptr) { return ptr; }
+  static void operator delete(void*, void*) { }
 
 #ifndef MYSQL_CLIENT
   bool write_header(IO_CACHE* file, ulong data_length);
@@ -1795,9 +1793,7 @@ public:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual int exec_event(struct st_relay_log_info *rli);
-#ifdef DBUG_RBR
   virtual void pack_info(Protocol *protocol);
-#endif
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -1837,33 +1833,7 @@ public:
     return m_rows_buf && m_cols.bitmap;
   }
 
-  /*
-    If there is no table map active for the event, write one to the
-    binary log.
-
-    LOCK_log has to be aquired before calling this function.
-
-    PARAMETERS
-      thd - Thread to use when writing the table map
-
-    RETURN VALUE
-      Error code, or zero if write succeeded.
-  */
-#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
-  int maybe_write_table_map(THD *thd, IO_CACHE *file, MYSQL_LOG *log) const
-  {
-    /*
-      N.B., get_cache_stmt() returns the value of 'using_trans' that
-      was provided to the constructor, i.e., get_cache_stmt() == true
-      if and only if the table is transactional.
-    */
-
-    int result= 0;
-    if (!log->is_table_mapped(m_table))
-      result= log->write_table_map(thd, file, m_table, get_cache_stmt());
-    return result;
-  }
-#endif
+  uint     m_row_count;         /* The number of rows added to the event */
 
 protected:
   /* 
@@ -2012,7 +1982,7 @@ private:
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   gptr  m_memory;
-  byte *m_search_record;
+  byte *m_after_image;
 
   virtual int         do_before_row_operations(TABLE *table);
   virtual int         do_after_row_operations(TABLE *table, int error);
@@ -2076,7 +2046,7 @@ private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   gptr  m_memory;
   byte *m_key;
-  byte *m_search_record;
+  byte *m_after_image;
 
   virtual int         do_before_row_operations(TABLE *table);
   virtual int         do_after_row_operations(TABLE *table, int error);
@@ -2146,7 +2116,7 @@ private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   gptr  m_memory;
   byte *m_key;
-  byte *m_search_record;
+  byte *m_after_image;
 
   virtual int         do_before_row_operations(TABLE *table);
   virtual int         do_after_row_operations(TABLE *table, int error);

@@ -63,9 +63,11 @@ static int binlog_prepare(THD *thd, bool all);
   Don't add constructors, destructors, or virtual functions.
 */
 struct binlog_trx_data {
-  bool empty() const {
+  bool empty() const
+  {
     return pending == NULL && my_b_tell(&trans_log) == 0;
   }
+  binlog_trx_data() {}
   IO_CACHE trans_log;                         // The transaction cache
   Rows_log_event *pending;                // The pending binrows event
 };
@@ -102,7 +104,10 @@ handlerton binlog_hton = {
   NULL,                         /* Alter table flags */
   NULL,                         /* Alter Tablespace */
   NULL,                         /* Fill FILES table */
-  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN
+  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
+  NULL,                         /* binlog_func */
+  NULL,                         /* binlog_log_query */
+  NULL				/* release_temporary_latches */
 };
 
 
@@ -286,7 +291,7 @@ void Log_to_csv_event_handler::cleanup()
   Log command to the general log table
 
   SYNOPSIS
-    log_general_to_csv()
+    log_general()
 
     event_time        command start timestamp
     user_host         the pointer to the string with user@host info
@@ -320,18 +325,32 @@ bool Log_to_csv_event_handler::
   if (unlikely(!logger.is_log_tables_initialized))
     return FALSE;
 
+  /*
+    NOTE: we do not call restore_record() here, as all fields are
+    filled by the Logger (=> no need to load default ones).
+  */
+
   /* log table entries are not replicated at the moment */
   tmp_disable_binlog(current_thd);
 
+  /* Set current time. Required for CURRENT_TIMESTAMP to work */
   general_log_thd->start_time= event_time;
-  /* set default value (which is CURRENT_TIMESTAMP) */
-  table->field[0]->set_null();
+
+  /*
+    We do not set a value for table->field[0], as it will use
+    default value (which is CURRENT_TIMESTAMP).
+  */
 
   table->field[1]->store(user_host, user_host_len, client_cs);
+  table->field[1]->set_notnull();
   table->field[2]->store((longlong) thread_id);
+  table->field[2]->set_notnull();
   table->field[3]->store((longlong) server_id);
+  table->field[3]->set_notnull();
   table->field[4]->store(command_type, command_type_len, client_cs);
+  table->field[4]->set_notnull();
   table->field[5]->store(sql_text, sql_text_len, client_cs);
+  table->field[5]->set_notnull();
   table->file->ha_write_row(table->record[0]);
 
   reenable_binlog(current_thd);
@@ -344,7 +363,7 @@ bool Log_to_csv_event_handler::
   Log a query to the slow log table
 
   SYNOPSIS
-    log_slow_to_csv()
+    log_slow()
     thd               THD of the query
     current_time      current timestamp
     query_start_arg   command start timestamp
@@ -379,7 +398,7 @@ bool Log_to_csv_event_handler::
   TABLE *table= slow_log.table;
   CHARSET_INFO *client_cs= thd->variables.character_set_client;
 
-  DBUG_ENTER("log_slow_to_csv");
+  DBUG_ENTER("log_slow");
 
   /* below should never happen */
   if (unlikely(!logger.is_log_tables_initialized))
@@ -390,12 +409,15 @@ bool Log_to_csv_event_handler::
 
   /*
      Set start time for CURRENT_TIMESTAMP to the start of the query.
-     This will be default value for the field
+     This will be default value for the field[0]
   */
   slow_log_thd->start_time= query_start_arg;
+  restore_record(table, s->default_values);    // Get empty record
 
-  /* set default value (which is CURRENT_TIMESTAMP) */
-  table->field[0]->set_null();
+  /*
+    We do not set a value for table->field[0], as it will use
+    default value.
+  */
 
   /* store the value */
   table->field[1]->store(user_host, user_host_len, client_cs);
@@ -419,24 +441,28 @@ bool Log_to_csv_event_handler::
     table->field[5]->set_null();
   }
 
+  /* fill database field */
   if (thd->db)
-    /* fill database field */
+  {
     table->field[6]->store(thd->db, thd->db_length, client_cs);
-  else
-    table->field[6]->set_null();
+    table->field[6]->set_notnull();
+  }
 
   if (thd->last_insert_id_used)
+  {
     table->field[7]->store((longlong) thd->current_insert_id);
-  else
-    table->field[7]->set_null();
+    table->field[7]->set_notnull();
+  }
 
   /* set value if we do an insert on autoincrement column */
   if (thd->insert_id_used)
+  {
     table->field[8]->store((longlong) thd->last_insert_id);
-  else
-    table->field[8]->set_null();
+    table->field[8]->set_notnull();
+  }
 
   table->field[9]->store((longlong) server_id);
+  table->field[9]->set_notnull();
 
   /* sql_text */
   table->field[10]->store(sql_text,sql_text_len, client_cs);
@@ -694,8 +720,6 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   bool error= FALSE;
   Log_event_handler **current_handler= slow_log_handler_list;
   bool is_command= FALSE;
-
-  char message_buff[MAX_LOG_BUFFER_SIZE];
   char user_host_buff[MAX_USER_HOST_SIZE];
 
   my_time_t current_time;
@@ -712,7 +736,8 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   {
     current_time= time(NULL);
 
-    if (!(thd->options & OPTION_UPDATE_LOG))
+    /* do not log slow queries from replication threads */
+    if (thd->slave_thread)
       return 0;
 
     lock();
@@ -1041,6 +1066,12 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
 
   if (end_ev)
   {
+    /*
+      We can always end the statement when ending a transaction since
+      transactions are not allowed inside stored functions.  If they
+      were, we would have to ensure that we're not ending a statement
+      inside a stored function.
+     */
     thd->binlog_flush_pending_rows_event(true);
     error= mysql_bin_log.write(thd, trans_log, end_ev);
   }
@@ -1060,7 +1091,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
     generated instead of the one that was written to the thrown-away
     transaction cache.
   */
-  ++mysql_bin_log.m_table_map_version;
+  mysql_bin_log.update_table_map_version();
 
   statistic_increment(binlog_cache_use, &LOCK_status);
   if (trans_log->disk_writes != 0)
@@ -1099,6 +1130,7 @@ static int binlog_commit(THD *thd, bool all)
     DBUG_RETURN(0);
   }
   Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
+  qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
   DBUG_RETURN(binlog_end_trans(thd, trx_data, &qev));
 }
 
@@ -1125,6 +1157,7 @@ static int binlog_rollback(THD *thd, bool all)
   if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE);
+    qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
     error= binlog_end_trans(thd, trx_data, &qev);
   }
   else
@@ -2596,6 +2629,42 @@ int THD::binlog_setup_trx_data()
   DBUG_RETURN(0);
 }
 
+/*
+  Write a table map to the binary log.
+
+  This function is called from ha_external_lock() after the storage
+  engine has registered for the transaction.
+ */
+
+int THD::binlog_write_table_map(TABLE *table, bool is_trans)
+{
+  int error;
+  DBUG_ENTER("THD::binlog_write_table_map");
+  DBUG_PRINT("enter", ("table: %p  (%s: #%u)",
+                       table, table->s->table_name, table->s->table_map_id));
+
+  /* Pre-conditions */
+  DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
+
+  Table_map_log_event::flag_set const
+    flags= Table_map_log_event::TM_NO_FLAGS;
+
+  Table_map_log_event
+    the_event(this, table, table->s->table_map_id, is_trans, flags);
+
+  if (is_trans)
+    trans_register_ha(this, options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN),
+                      &binlog_hton);
+
+  if ((error= mysql_bin_log.write(&the_event)))
+    DBUG_RETURN(error);
+
+  binlog_table_maps++;
+  table->s->table_map_version= mysql_bin_log.table_map_version();
+  DBUG_RETURN(0);
+}
+
 Rows_log_event*
 THD::binlog_get_pending_rows_event() const
 {
@@ -2613,8 +2682,12 @@ THD::binlog_get_pending_rows_event() const
 void
 THD::binlog_set_pending_rows_event(Rows_log_event* ev)
 {
+  if (ha_data[binlog_hton.slot] == NULL)
+    binlog_setup_trx_data();
+
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) ha_data[binlog_hton.slot];
+
   DBUG_ASSERT(trx_data);
   trx_data->pending= ev;
 }
@@ -2628,7 +2701,7 @@ THD::binlog_set_pending_rows_event(Rows_log_event* ev)
 int MYSQL_LOG::flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
 {
   DBUG_ENTER("MYSQL_LOG::flush_and_set_pending_rows_event(event)");
-  DBUG_ASSERT(binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(thd->current_stmt_binlog_row_based && mysql_bin_log.is_open());
   DBUG_PRINT("enter", ("event=%p", event));
 
   int error= 0;
@@ -2637,6 +2710,8 @@ int MYSQL_LOG::flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
     (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
 
   DBUG_ASSERT(trx_data);
+
+  DBUG_PRINT("info", ("trx_data->pending=%p", trx_data->pending));
 
   if (Rows_log_event* pending= trx_data->pending)
   {
@@ -2656,15 +2731,6 @@ int MYSQL_LOG::flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
       by the LOCK_log mutex.
     */
     pthread_mutex_lock(&LOCK_log);
-
-    /*
-      Write a table map if necessary
-    */
-    if (pending->maybe_write_table_map(thd, file, this))
-    {
-      pthread_mutex_unlock(&LOCK_log);
-      DBUG_RETURN(2);
-    }
 
     /*
       Write pending event to log file or transaction cache
@@ -2707,18 +2773,8 @@ int MYSQL_LOG::flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
 
     pthread_mutex_unlock(&LOCK_log);
   }
-  else if (event && event->get_cache_stmt())  /* && pending == 0 */
-  {
-    /*
-      If we are setting a non-null event for a table that is
-      transactional, we start a transaction here as well.
-     */
-    trans_register_ha(thd,
-                      thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN),
-                      &binlog_hton);
-  }
 
-  trx_data->pending= event;
+  thd->binlog_set_pending_rows_event(event);
 
   DBUG_RETURN(error);
 }
@@ -2750,21 +2806,13 @@ bool MYSQL_LOG::write(Log_event *event_info)
     mutex, we do this before aquiring the LOCK_log mutex in this
     function.
 
-    This is not optimal, but necessary in the current implementation
-    since there is code that writes rows to system tables without
-    using some way to flush the pending event (e.g., binlog_query()).
-
-    TODO: There shall be no writes to any system table after calling
-    binlog_query(), so these writes has to be moved to before the call
-    of binlog_query() for correct functioning.
-
-    This is necessesary not only for RBR, but the master might crash
-    after binlogging the query but before changing the system tables.
-    This means that the slave and the master are not in the same state
-    (after the master has restarted), so therefore we have to
-    eliminate this problem.
+    We only end the statement if we are in a top-level statement.  If
+    we are inside a stored function, we do not end the statement since
+    this will close all tables on the slave.
   */
-  thd->binlog_flush_pending_rows_event(true);
+  bool const end_stmt=
+    thd->prelocked_mode && thd->lex->requires_prelocking();
+  thd->binlog_flush_pending_rows_event(end_stmt);
 
   pthread_mutex_lock(&LOCK_log);
 
@@ -2787,8 +2835,9 @@ bool MYSQL_LOG::write(Log_event *event_info)
 	(!binlog_filter->db_ok(local_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
-      DBUG_PRINT("info",("db_ok('%s')==%d", local_db, 
-			 binlog_filter->db_ok(local_db)));
+      DBUG_PRINT("info",("OPTION_BIN_LOG is %s, db_ok('%s') == %d",
+                         (thd->options & OPTION_BIN_LOG) ? "set" : "clear",
+                         local_db, binlog_filter->db_ok(local_db)));
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */
@@ -2845,7 +2894,7 @@ bool MYSQL_LOG::write(Log_event *event_info)
     */
     if (thd)
     {
-      if (!binlog_row_based)
+      if (!thd->current_stmt_binlog_row_based)
       {
         if (thd->last_insert_id_used)
         {
@@ -3019,7 +3068,9 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
         Imagine this is rollback due to net timeout, after all statements of
         the transaction succeeded. Then we want a zero-error code in BEGIN.
         In other words, if there was a really serious error code it's already
-        in the statement's events.
+        in the statement's events, there is no need to put it also in this
+        internally generated event, and as this event is generated late it
+        would lead to false alarms.
         This is safer than thd->clear_error() against kills at shutdown.
       */
       qinfo.error_code= 0;
@@ -3503,44 +3554,6 @@ void MYSQL_LOG::signal_update()
   pthread_cond_broadcast(&update_cond);
   DBUG_VOID_RETURN;
 }
-
-#ifndef MYSQL_CLIENT
-bool MYSQL_LOG::write_table_map(THD *thd, IO_CACHE *file, TABLE* table,
-                                bool is_transactional)
-{
-  DBUG_ENTER("MYSQL_LOG::write_table_map()");
-  DBUG_PRINT("enter", ("table=%p (%s: %u)",
-                       table, table->s->table_name, table->s->table_map_id));
-
-  /* Pre-conditions */
-  DBUG_ASSERT(binlog_row_based && is_open());
-  DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
-
-#ifndef DBUG_OFF
-  /*
-    We only need to execute under the LOCK_log mutex if we are writing
-    to the log file; otherwise, we are writing to a thread-specific
-    transaction cache and there is no need to serialize this event
-    with events in other threads.
-   */
-  if (file == &log_file)
-    safe_mutex_assert_owner(&LOCK_log);
-#endif
-
-  Table_map_log_event::flag_set const
-    flags= Table_map_log_event::TM_NO_FLAGS;
-
-  Table_map_log_event
-    the_event(thd, table, table->s->table_map_id, is_transactional, flags);
-
-  if (the_event.write(file))
-    DBUG_RETURN(1);
-
-  table->s->table_map_version= m_table_map_version;
-  DBUG_RETURN(0);
-}
-#endif /* !defined(MYSQL_CLIENT) */
-
 
 #ifdef __NT__
 void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,

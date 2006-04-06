@@ -19,23 +19,23 @@ Created 5/30/1994 Heikki Tuuri
 typedef struct big_rec_struct		big_rec_t;
 
 /* Some non-inlined functions used in the MySQL interface: */
-void 
+void
 dfield_set_data_noninline(
-	dfield_t* 	field,	/* in: field */
+	dfield_t*	field,	/* in: field */
 	void*		data,	/* in: data */
 	ulint		len);	/* in: length or UNIV_SQL_NULL */
-void* 
+void*
 dfield_get_data_noninline(
 	dfield_t* field);	/* in: field */
 ulint
 dfield_get_len_noninline(
 	dfield_t* field);	/* in: field */
-ulint 
+ulint
 dtuple_get_n_fields_noninline(
-	dtuple_t* 	tuple);	/* in: tuple */
-dfield_t* 
+	dtuple_t*	tuple);	/* in: tuple */
+dfield_t*
 dtuple_get_nth_field_noninline(
-	dtuple_t* 	tuple,	/* in: tuple */
+	dtuple_t*	tuple,	/* in: tuple */
 	ulint		n);	/* in: index of field */
 
 /*************************************************************************
@@ -57,7 +57,7 @@ dfield_set_type(
 /*************************************************************************
 Gets pointer to the data in a field. */
 UNIV_INLINE
-void* 
+void*
 dfield_get_data(
 /*============*/
 				/* out: pointer to data */
@@ -68,24 +68,24 @@ UNIV_INLINE
 ulint
 dfield_get_len(
 /*===========*/
-				/* out: length of data; UNIV_SQL_NULL if 
+				/* out: length of data; UNIV_SQL_NULL if
 				SQL null data */
 	dfield_t* field);	/* in: field */
 /*************************************************************************
 Sets length in a field. */
 UNIV_INLINE
-void 
+void
 dfield_set_len(
 /*===========*/
-	dfield_t* 	field,	/* in: field */
+	dfield_t*	field,	/* in: field */
 	ulint		len);	/* in: length or UNIV_SQL_NULL */
 /*************************************************************************
 Sets pointer to the data and length in a field. */
 UNIV_INLINE
-void 
+void
 dfield_set_data(
 /*============*/
-	dfield_t* 	field,	/* in: field */
+	dfield_t*	field,	/* in: field */
 	const void*	data,	/* in: data */
 	ulint		len);	/* in: length or UNIV_SQL_NULL */
 /**************************************************************************
@@ -99,10 +99,10 @@ data_write_sql_null(
 /*************************************************************************
 Copies the data and len fields. */
 UNIV_INLINE
-void 
+void
 dfield_copy_data(
 /*=============*/
-	dfield_t* 	field1,	/* in: field to copy to */
+	dfield_t*	field1,	/* in: field to copy to */
 	dfield_t*	field2);/* in: field to copy from */
 /*************************************************************************
 Copies a data field to another. */
@@ -134,19 +134,19 @@ dfield_data_is_binary_equal(
 /*************************************************************************
 Gets number of fields in a data tuple. */
 UNIV_INLINE
-ulint 
+ulint
 dtuple_get_n_fields(
 /*================*/
 				/* out: number of fields */
-	dtuple_t* 	tuple);	/* in: tuple */
+	dtuple_t*	tuple);	/* in: tuple */
 /*************************************************************************
 Gets nth field of a tuple. */
 UNIV_INLINE
-dfield_t* 
+dfield_t*
 dtuple_get_nth_field(
 /*=================*/
 				/* out: nth field */
-	dtuple_t* 	tuple,	/* in: tuple */
+	dtuple_t*	tuple,	/* in: tuple */
 	ulint		n);	/* in: index of field */
 /*************************************************************************
 Gets info bits in a data tuple. */
@@ -155,14 +155,14 @@ ulint
 dtuple_get_info_bits(
 /*=================*/
 				/* out: info bits */
-	dtuple_t* 	tuple);	/* in: tuple */
+	dtuple_t*	tuple);	/* in: tuple */
 /*************************************************************************
 Sets info bits in a data tuple. */
 UNIV_INLINE
 void
 dtuple_set_info_bits(
 /*=================*/
-	dtuple_t* 	tuple,		/* in: tuple */
+	dtuple_t*	tuple,		/* in: tuple */
 	ulint		info_bits);	/* in: info bits */
 /*************************************************************************
 Gets number of fields used in record comparisons. */
@@ -189,10 +189,10 @@ UNIV_INLINE
 dtuple_t*
 dtuple_create(
 /*==========*/
-	 	 		/* out, own: created tuple */
+				/* out, own: created tuple */
 	mem_heap_t*	heap,	/* in: memory heap where the tuple
 				is created */
-	ulint		n_fields); /* in: number of fields */	
+	ulint		n_fields); /* in: number of fields */
 
 /*************************************************************************
 Creates a dtuple for use in MySQL. */
@@ -201,7 +201,7 @@ dtuple_t*
 dtuple_create_for_mysql(
 /*====================*/
 			/* out, own created dtuple */
-	void** heap,    /* out: created memory heap */
+	void** heap,	/* out: created memory heap */
 	ulint n_fields); /* in: number of fields */
 /*************************************************************************
 Frees a dtuple used in MySQL. */
@@ -212,7 +212,7 @@ dtuple_free_for_mysql(
 	void* heap);
 /*************************************************************************
 Sets number of fields used in a tuple. Normally this is set in
-dtuple_create, but if you want later to set it smaller, you can use this. */ 
+dtuple_create, but if you want later to set it smaller, you can use this. */
 
 void
 dtuple_set_n_fields(
@@ -314,12 +314,20 @@ dfield_print(
 	dfield_t*	dfield);/* in: dfield */
 /*****************************************************************
 Pretty prints a dfield value according to its data type. Also the hex string
-is printed if a string contains non-printable characters. */ 
+is printed if a string contains non-printable characters. */
 
 void
 dfield_print_also_hex(
 /*==================*/
 	dfield_t*	dfield);	 /* in: dfield */
+/*****************************************************************
+Print a dfield value using ut_print_buf. */
+
+void
+dfield_print_raw(
+/*=============*/
+	FILE*		f,		/* in: output stream */
+	dfield_t*	dfield);	/* in: dfield */
 /**************************************************************
 The following function prints the contents of a tuple. */
 
@@ -395,13 +403,13 @@ struct dtuple_struct {
 	UT_LIST_NODE_T(dtuple_t) tuple_list;
 					/* data tuples can be linked into a
 					list using this field */
-	ulint		magic_n;	
+	ulint		magic_n;
 };
 #define	DATA_TUPLE_MAGIC_N	65478679
 
 /* A slot for a field in a big rec vector */
 
-typedef struct big_rec_field_struct 	big_rec_field_t;
+typedef struct big_rec_field_struct	big_rec_field_t;
 struct big_rec_field_struct {
 	ulint		field_no;	/* field number in record */
 	ulint		len;		/* stored data len */
@@ -416,7 +424,7 @@ struct big_rec_struct {
 	ulint		n_fields;	/* number of stored fields */
 	big_rec_field_t* fields;	/* stored fields */
 };
-	
+
 #ifndef UNIV_NONINL
 #include "data0data.ic"
 #endif

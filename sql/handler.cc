@@ -64,7 +64,12 @@ const handlerton default_hton =
   NULL, NULL, NULL,
   create_default,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-  HTON_NO_FLAGS
+  NULL,                         /* alter_tablespace */
+  NULL,                         /* fill_files_table */
+  HTON_NO_FLAGS,                /* flags */
+  NULL,                         /* binlog_func */
+  NULL,                          /* binlog_log_query */
+  NULL				/* release_temporary_latches */
 };
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
@@ -359,6 +364,7 @@ static int ha_init_errors(void)
   SETMSG(HA_ERR_NO_CONNECTION,          "Could not connect to storage engine");
   SETMSG(HA_ERR_TABLE_DEF_CHANGED,      ER(ER_TABLE_DEF_CHANGED));
   SETMSG(HA_ERR_FOREIGN_DUPLICATE_KEY,  "FK constraint would lead to duplicate key");
+  SETMSG(HA_ERR_TABLE_NEEDS_UPGRADE,    ER(ER_TABLE_NEEDS_UPGRADE));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -440,8 +446,6 @@ static my_bool init_handlerton(THD *unused1, st_plugin_int *plugin,
 int ha_init()
 {
   int error= 0;
-  handlerton **types;
-  show_table_alias_st *table_alias;
   total_ha= savepoint_alloc_size= 0;
 
   if (ha_init_errors())
@@ -1174,11 +1178,23 @@ bool mysql_xa_recover(THD *thd)
   return value:  always 0
 */
 
+static my_bool release_temporary_latches(THD *thd, st_plugin_int *plugin,
+                                 void *unused)
+{
+  handlerton *hton= (handlerton *) plugin->plugin->info;  
+
+  if (hton->state == SHOW_OPTION_YES && hton->release_temporary_latches)
+    hton->release_temporary_latches(thd);
+
+  return FALSE;
+}
+
+
 int ha_release_temporary_latches(THD *thd)
 {
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  innobase_release_temporary_latches(thd);
-#endif
+  plugin_foreach(thd, release_temporary_latches, MYSQL_STORAGE_ENGINE_PLUGIN, 
+                 NULL);
+
   return 0;
 }
 
@@ -1975,6 +1991,9 @@ void handler::print_error(int error, myf errflag)
     my_error(ER_DROP_INDEX_FK, MYF(0), ptr);
     DBUG_VOID_RETURN;
   }
+  case HA_ERR_TABLE_NEEDS_UPGRADE:
+    textno=ER_TABLE_NEEDS_UPGRADE;
+    break;
   default:
     {
       /* The error was "unknown" to this function.
@@ -2014,6 +2033,100 @@ bool handler::get_error_message(int error, String* buf)
 {
   return FALSE;
 }
+
+
+int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
+{
+  KEY *keyinfo, *keyend;
+  KEY_PART_INFO *keypart, *keypartend;
+
+  if (!table->s->mysql_version)
+  {
+    /* check for blob-in-key error */
+    keyinfo= table->key_info;
+    keyend= table->key_info + table->s->keys;
+    for (; keyinfo < keyend; keyinfo++)
+    {
+      keypart= keyinfo->key_part;
+      keypartend= keypart + keyinfo->key_parts;
+      for (; keypart < keypartend; keypart++)
+      {
+        if (!keypart->fieldnr)
+          continue;
+        Field *field= table->field[keypart->fieldnr-1];
+        if (field->type() == FIELD_TYPE_BLOB)
+        {
+          if (check_opt->sql_flags & TT_FOR_UPGRADE)
+            check_opt->flags= T_MEDIUM;
+          return HA_ADMIN_NEEDS_CHECK;
+        }
+      }
+    }
+  }
+  return check_for_upgrade(check_opt);
+}
+
+
+int handler::check_old_types()
+{
+  Field** field;
+
+  if (!table->s->mysql_version)
+  {
+    /* check for bad DECIMAL field */
+    for (field= table->field; (*field); field++)
+    {
+      if ((*field)->type() == FIELD_TYPE_NEWDECIMAL)
+      {
+        return HA_ADMIN_NEEDS_ALTER;
+      }
+    }
+  }
+  return 0;
+}
+
+
+static bool update_frm_version(TABLE *table, bool needs_lock)
+{
+  char path[FN_REFLEN];
+  File file;
+  int result= 1;
+  DBUG_ENTER("update_frm_version");
+
+  if (table->s->mysql_version != MYSQL_VERSION_ID)
+    DBUG_RETURN(0);
+
+  strxmov(path, table->s->normalized_path.str, reg_ext, NullS);
+
+  if (needs_lock)
+    pthread_mutex_lock(&LOCK_open);
+
+  if ((file= my_open(path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
+  {
+    uchar version[4];
+    char *key= table->s->table_cache_key.str;
+    uint key_length= table->s->table_cache_key.length;
+    TABLE *entry;
+    HASH_SEARCH_STATE state;
+
+    int4store(version, MYSQL_VERSION_ID);
+
+    if ((result= my_pwrite(file,(byte*) version,4,51L,MYF_RW)))
+      goto err;
+
+    for (entry=(TABLE*) hash_first(&open_cache,(byte*) key,key_length, &state);
+         entry;
+         entry= (TABLE*) hash_next(&open_cache,(byte*) key,key_length, &state))
+      entry->s->mysql_version= MYSQL_VERSION_ID;
+  }
+err:
+  if (file >= 0)
+    VOID(my_close(file,MYF(MY_WME)));
+  if (needs_lock)
+    pthread_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(result);
+}
+
 
 
 /* Return key if error because of duplicated keys */
@@ -2089,6 +2202,56 @@ void handler::drop_table(const char *name)
 {
   close();
   delete_table(name);
+}
+
+
+/*
+   Performs checks upon the table.
+
+   SYNOPSIS
+   check()
+   thd                thread doing CHECK TABLE operation
+   check_opt          options from the parser
+
+   NOTES
+
+   RETURN
+   HA_ADMIN_OK                 Successful upgrade
+   HA_ADMIN_NEEDS_UPGRADE      Table has structures requiring upgrade
+   HA_ADMIN_NEEDS_ALTER        Table has structures requiring ALTER TABLE
+   HA_ADMIN_NOT_IMPLEMENTED
+*/
+
+int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
+{
+  int error;
+
+  if ((table->s->mysql_version >= MYSQL_VERSION_ID) &&
+      (check_opt->sql_flags & TT_FOR_UPGRADE))
+    return 0;
+
+  if (table->s->mysql_version < MYSQL_VERSION_ID)
+  {
+    if ((error= check_old_types()))
+      return error;
+    error= ha_check_for_upgrade(check_opt);
+    if (error && (error != HA_ADMIN_NEEDS_CHECK))
+      return error;
+    if (!error && (check_opt->sql_flags & TT_FOR_UPGRADE))
+      return 0;
+  }
+  if ((error= check(thd, check_opt)))
+    return error;
+  return update_frm_version(table, 0);
+}
+
+
+int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  int result;
+  if ((result= repair(thd, check_opt)))
+    return result;
+  return update_frm_version(table, 0);
 }
 
 
@@ -2985,10 +3148,12 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   correct for the table.
 
   A row in the given table should be replicated if:
-  - Row-based replication is on
-  - It is not a temporary table
+  - Row-based replication is enabled in the current thread
   - The binlog is enabled
-  - The table shall be binlogged (binlog_*_db rules)
+  - It is not a temporary table
+  - The binary log is open
+  - The database the table resides in shall be binlogged (binlog_*_db rules)
+  - table is not mysql.event
 */
 
 #ifdef HAVE_ROW_BASED_REPLICATION
@@ -2996,13 +3161,47 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
    declared static, but it works by putting it into an anonymous
    namespace. */
 namespace {
+  struct st_table_data {
+    char const *db;
+    char const *name;
+  };
+
+  int table_name_compare(void const *a, void const *b)
+  {
+    st_table_data const *x = (st_table_data const*) a;
+    st_table_data const *y = (st_table_data const*) b;
+
+    /* Doing lexical compare in order (db,name) */
+    int const res= strcmp(x->db, y->db);
+    return res != 0 ? res : strcmp(x->name, y->name);
+  }
+
   bool check_table_binlog_row_based(THD *thd, TABLE *table)
   {
+    static st_table_data const ignore[] = {
+      { "mysql", "event" },
+      { "mysql", "general_log" },
+      { "mysql", "slow_log" }
+    };
+
+    my_size_t const ignore_size = sizeof(ignore)/sizeof(*ignore);
+    st_table_data const item = { table->s->db.str, table->s->table_name.str };
+
+    if (table->s->cached_row_logging_check == -1)
+      table->s->cached_row_logging_check=
+        (table->s->tmp_table == NO_TMP_TABLE) &&
+        binlog_filter->db_ok(table->s->db.str) &&
+        bsearch(&item, ignore, ignore_size,
+                sizeof(st_table_data), table_name_compare) == NULL;
+
+    DBUG_ASSERT(table->s->cached_row_logging_check == 0 ||
+                table->s->cached_row_logging_check == 1);
+
     return
-      binlog_row_based &&
+      thd->current_stmt_binlog_row_based &&
       thd && (thd->options & OPTION_BIN_LOG) &&
-      (table->s->tmp_table == NO_TMP_TABLE) &&
-      binlog_filter->db_ok(table->s->db.str);
+      mysql_bin_log.is_open() &&
+      table->s->cached_row_logging_check;
   }
 }
 
@@ -3052,91 +3251,88 @@ template int binlog_log_row<Update_rows_log_event>(TABLE *, const byte *, const 
 
 #endif /* HAVE_ROW_BASED_REPLICATION */
 
+int handler::ha_external_lock(THD *thd, int lock_type)
+{
+  DBUG_ENTER("handler::ha_external_lock");
+  int error;
+  if (unlikely(error= external_lock(thd, lock_type)))
+    DBUG_RETURN(error);
+#ifdef HAVE_ROW_BASED_REPLICATION
+  if (table->file->is_injective())
+    DBUG_RETURN(0);
+
+  /*
+    There is a number of statements that are logged statement-based
+    but call external lock. For these, we do not need to generate a
+    table map.
+
+    TODO: The need for this switch is an indication that the model for
+    locking combined with row-based replication needs to be looked
+    over. Ideally, no such special handling should be needed.
+   */
+  switch (thd->lex->sql_command)
+  {
+  case SQLCOM_TRUNCATE:
+  case SQLCOM_ALTER_TABLE:
+    DBUG_RETURN(0);
+  default:
+    break;
+  }
+
+  /*
+    If we are locking a table for writing, we generate a table map.
+    For all other kinds of locks, we don't do anything.
+   */
+  if (lock_type == F_WRLCK && check_table_binlog_row_based(thd, table))
+  {
+    int const has_trans= table->file->has_transactions();
+    error= thd->binlog_write_table_map(table, has_trans);
+    if (unlikely(error))
+      DBUG_RETURN(error);
+  }
+#endif
+  DBUG_RETURN(0);
+}
+
 int handler::ha_write_row(byte *buf)
 {
   int error;
-  if (likely(!(error= write_row(buf))))
-  {
+  if (unlikely(error= write_row(buf)))
+    return error;
 #ifdef HAVE_ROW_BASED_REPLICATION
-    error= binlog_log_row<Write_rows_log_event>(table, 0, buf);
+  if (unlikely(error= binlog_log_row<Write_rows_log_event>(table, 0, buf)))
+    return error;
 #endif
-  }
-  return error;
+  return 0;
 }
 
 int handler::ha_update_row(const byte *old_data, byte *new_data)
 {
   int error;
-  if (likely(!(error= update_row(old_data, new_data))))
-  {
+
+  /*
+    Some storage engines require that the new record is in record[0]
+    (and the old record is in record[1]).
+   */
+  DBUG_ASSERT(new_data == table->record[0]);
+
+  if (unlikely(error= update_row(old_data, new_data)))
+    return error;
 #ifdef HAVE_ROW_BASED_REPLICATION
-    error= binlog_log_row<Update_rows_log_event>(table, old_data, new_data);
+  if (unlikely(error= binlog_log_row<Update_rows_log_event>(table, old_data, new_data)))
+    return error;
 #endif
-  }
-  return error;
+  return 0;
 }
 
 int handler::ha_delete_row(const byte *buf)
 {
   int error;
-  if (likely(!(error= delete_row(buf))))
-  {
+  if (unlikely(error= delete_row(buf)))
+    return error;
 #ifdef HAVE_ROW_BASED_REPLICATION
-    error= binlog_log_row<Delete_rows_log_event>(table, buf, 0);
-#endif
-  }
-  return error;
-}
-
-
-#ifdef HAVE_REPLICATION
-/*
-  Reports to table handlers up to which position we have sent the binlog
-  to a slave in replication
-
-  SYNOPSIS
-    ha_repl_report_sent_binlog()
-    thd             thread doing the binlog communication to the slave
-    log_file_name   binlog file name
-    end_offse t     the offset in the binlog file up to which we sent the
-		    contents to the slave
-
-  NOTES
-    Only works for InnoDB at the moment
-
-  RETURN VALUE
-    Always 0 (= success)  
-*/
-
-int ha_repl_report_sent_binlog(THD *thd, char *log_file_name,
-                               my_off_t end_offset)
-{
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  innobase_repl_report_sent_binlog(thd, log_file_name, end_offset);
+  if (unlikely(error= binlog_log_row<Delete_rows_log_event>(table, buf, 0)))
+    return error;
 #endif
   return 0;
 }
-
-
-/*
-  Reports to table handlers that we stop replication to a specific slave
-
-  SYNOPSIS
-    ha_repl_report_replication_stop()
-    thd              thread doing the binlog communication to the slave
-
-  NOTES
-    Does nothing at the moment
-
-  RETURN VALUE
-    Always 0 (= success)  
-
-  PARAMETERS
-*/
-
-int ha_repl_report_replication_stop(THD *thd)
-{
-  return 0;
-}
-#endif /* HAVE_REPLICATION */
-

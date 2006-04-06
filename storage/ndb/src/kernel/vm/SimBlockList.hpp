@@ -19,7 +19,7 @@
 
 #include <SimulatedBlock.hpp>
 
-class Configuration;
+class EmulatorData;
 
 class SimBlockList 
 {
@@ -27,7 +27,7 @@ public:
   SimBlockList();
   ~SimBlockList();
   
-  void load(Configuration & conf);
+  void load(EmulatorData&);
   void unload();
 private:
   int noOfBlocks;

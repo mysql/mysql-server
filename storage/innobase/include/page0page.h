@@ -115,7 +115,7 @@ typedef	byte			page_dir_slot_t;
 typedef page_dir_slot_t		page_dir_t;
 
 /* Offset of the directory start down from the page end. We call the
-slot with the highest file address directory start, as it points to 
+slot with the highest file address directory start, as it points to
 the first record in the list of records. */
 #define	PAGE_DIR		FIL_PAGE_DATA_END
 
@@ -127,7 +127,7 @@ page end, when the page is empty */
 #define PAGE_EMPTY_DIR_START	(PAGE_DIR + 2 * PAGE_DIR_SLOT_SIZE)
 
 /* The maximum and minimum number of records owned by a directory slot. The
-number may drop below the minimum in the first and the last slot in the 
+number may drop below the minimum in the first and the last slot in the
 directory. */
 #define PAGE_DIR_SLOT_MAX_N_OWNED	8
 #define	PAGE_DIR_SLOT_MIN_N_OWNED	4
@@ -234,20 +234,20 @@ the positive infinity in the alphabetical order. */
 UNIV_INLINE
 int
 page_cmp_dtuple_rec_with_match(
-/*===========================*/	
-				/* out: 1, 0, -1, if dtuple is greater, equal, 
-				less than rec, respectively, when only the 
+/*===========================*/
+				/* out: 1, 0, -1, if dtuple is greater, equal,
+				less than rec, respectively, when only the
 				common first fields are compared */
 	dtuple_t*	dtuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: physical record on a page; may also 
-				be page infimum or supremum, in which case 
-				matched-parameter values below are not 
+	rec_t*		rec,	/* in: physical record on a page; may also
+				be page infimum or supremum, in which case
+				matched-parameter values below are not
 				affected */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint*	 	matched_fields, /* in/out: number of already completely 
+	ulint*		matched_fields, /* in/out: number of already completely
 				matched fields; when function returns
 				contains the value for current comparison */
-	ulint*	  	matched_bytes); /* in/out: number of already matched 
+	ulint*		matched_bytes); /* in/out: number of already matched
 				bytes within the first field not completely
 				matched; when function returns contains the
 				value for current comparison */
@@ -342,7 +342,7 @@ ulint
 page_dir_slot_get_n_owned(
 /*======================*/
 					/* out: number of records */
-	page_dir_slot_t* 	slot);	/* in: page directory slot */
+	page_dir_slot_t*	slot);	/* in: page directory slot */
 /*******************************************************************
 This is used to set the owned records field of a directory slot. */
 UNIV_INLINE
@@ -350,7 +350,7 @@ void
 page_dir_slot_set_n_owned(
 /*======================*/
 	page_dir_slot_t*	slot,	/* in: directory slot */
-	ulint			n);	/* in: number of records owned 
+	ulint			n);	/* in: number of records owned
 					by the slot */
 /****************************************************************
 Calculates the space reserved for directory slots of a given
@@ -397,7 +397,7 @@ page_rec_get_next(
 	rec_t*	rec);	/* in: pointer to record, must not be page
 			supremum */
 /****************************************************************
-Sets the pointer to the next record on the page. */ 
+Sets the pointer to the next record on the page. */
 UNIV_INLINE
 void
 page_rec_set_next(
@@ -436,7 +436,7 @@ TRUE if the record is the infimum record on a page. */
 UNIV_INLINE
 ibool
 page_rec_is_infimum_low(
-/*=====================*/
+/*====================*/
 			/* out: TRUE if the infimum record */
 	ulint	offset);/* in: record offset on page */
 
@@ -548,7 +548,7 @@ page_mem_free(
 /**************************************************************
 The index page creation function. */
 
-page_t* 
+page_t*
 page_create(
 /*========*/
 					/* out: pointer to the page */
@@ -651,19 +651,19 @@ Splits a directory slot which owns too many records. */
 void
 page_dir_split_slot(
 /*================*/
-	page_t*	page, 		/* in: the index page in question */
-	ulint	slot_no); 	/* in: the directory slot */
+	page_t*	page,		/* in: the index page in question */
+	ulint	slot_no);	/* in: the directory slot */
 /*****************************************************************
 Tries to balance the given directory slot with too few records
-with the upper neighbor, so that there are at least the minimum number 
-of records owned by the slot; this may result in the merging of 
+with the upper neighbor, so that there are at least the minimum number
+of records owned by the slot; this may result in the merging of
 two slots. */
 
 void
 page_dir_balance_slot(
 /*==================*/
 	page_t*	page,		/* in: index page */
-	ulint	slot_no); 	/* in: the directory slot */
+	ulint	slot_no);	/* in: the directory slot */
 /**************************************************************
 Parses a log record of a record list end or start deletion. */
 
@@ -695,7 +695,7 @@ page_parse_create(
 /****************************************************************
 Prints record contents including the data relevant only in
 the index page context. */
- 
+
 void
 page_rec_print(
 /*===========*/
@@ -733,7 +733,7 @@ debugging purposes. */
 
 void
 page_print(
-/*======*/
+/*=======*/
 	page_t*		page,	/* in: index page */
 	dict_index_t*	index,	/* in: dictionary index of the page */
 	ulint		dn,	/* in: print dn first and last entries
@@ -799,4 +799,4 @@ page_find_rec_with_heap_no(
 #include "page0page.ic"
 #endif
 
-#endif 
+#endif

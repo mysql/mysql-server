@@ -7,9 +7,9 @@ SPATIAL KEY(g)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `fid` int(11) NOT NULL auto_increment,
+  `fid` int(11) NOT NULL AUTO_INCREMENT,
   `g` geometry NOT NULL,
-  PRIMARY KEY  (`fid`),
+  PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`(32))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(150 150, 150 150)'));
@@ -290,9 +290,9 @@ ALTER TABLE t2 ADD SPATIAL KEY(g);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `fid` int(11) NOT NULL auto_increment,
+  `fid` int(11) NOT NULL AUTO_INCREMENT,
   `g` geometry NOT NULL,
-  PRIMARY KEY  (`fid`),
+  PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`(32))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT count(*) FROM t2;

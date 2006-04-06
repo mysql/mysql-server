@@ -313,6 +313,22 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
     conflicts
   */
   (void) pthread_mutex_lock(&share->mutex);
+
+  /*
+    We assign a new table id under the protection of the LOCK_open and
+    the share's own mutex.  We do this insted of creating a new mutex
+    and using it for the sole purpose of serializing accesses to a
+    static variable, we assign the table id here.  We assign it to the
+    share before inserting it into the table_def_cache to be really
+    sure that it cannot be read from the cache without having a table
+    id assigned.
+
+    CAVEAT. This means that the table cannot be used for
+    binlogging/replication purposes, unless get_table_share() has been
+    called directly or indirectly.
+   */
+  assign_new_table_id(share);
+
   if (my_hash_insert(&table_def_cache, (byte*) share))
   {
 #ifdef NOT_YET
@@ -917,6 +933,15 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
   DESCRIPTION
     Marks all tables in the list which were used by current substatement
     (they are marked by its query_id) as free for reuse.
+
+  NOTE
+    The reason we reset query_id is that it's not enough to just test
+    if table->query_id != thd->query_id to know if a table is in use.
+
+    For example
+    SELECT f1_that_uses_t1() FROM t1;
+    In f1_that_uses_t1() we will see one instance of t1 where query_id is
+    set to query_id of original query.
 */
 
 static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
@@ -1033,21 +1058,18 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     /* Fallthrough */
   }
 
-  /*
-    For RBR: before calling close_thread_tables(), storage engines
-    should autocommit. Hence if there is a a pending event, it belongs
-    to a non-transactional engine, which writes directly to the table,
-    and should therefore be flushed before unlocking and closing the
-    tables.  The test above for locked tables will not be triggered
-    since RBR locks and unlocks tables on a per-event basis.
-
-    TODO (WL#3023): Change the semantics so that RBR does not lock and
-    unlock tables on a per-event basis.
-  */
-  thd->binlog_flush_pending_rows_event(true);
-
   if (thd->lock)
   {
+    /*
+      For RBR we flush the pending event just before we unlock all the
+      tables.  This means that we are at the end of a topmost
+      statement, so we ensure that the STMT_END_F flag is set on the
+      pending event.  For statements that are *inside* stored
+      functions, the pending event will not be flushed: that will be
+      handled either before writing a query log event (inside
+      binlog_query()) or when preparing a pending event.
+     */
+    thd->binlog_flush_pending_rows_event(true);
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
@@ -1059,7 +1081,8 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     saves some work in 2pc too)
     see also sql_parse.cc - dispatch_command()
   */
-  bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
+  if (!(thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
+    bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
   if (!thd->active_transaction())
     thd->transaction.xid_state.xid.null();
 
@@ -1189,7 +1212,7 @@ void close_temporary_tables(THD *thd)
     close_temporary(table, 1, 1);
   }
   if (query && found_user_tables && mysql_bin_log.is_open() &&
-      !binlog_row_based) // CREATE TEMP TABLE not binlogged if row-based
+      !thd->current_stmt_binlog_row_based) // CREATE TEMP TABLE not binlogged if row-based
   {
     /* The -1 is to remove last ',' */
     thd->clear_error();
@@ -1230,11 +1253,11 @@ void close_temporary_tables(THD *thd)
 */
 
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               uint offset,
+                               st_table_list *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name)
 {
-  for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
+  for (; table; table= table->*link )
   {
     if ((table->table == 0 || table->table->s->tmp_table == NO_TMP_TABLE) &&
         strcmp(table->db, db_name) == 0 &&
@@ -1385,10 +1408,7 @@ void update_non_unique_table_error(TABLE_LIST *update,
 
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name)
 {
-  char	key[MAX_DBKEY_LENGTH];
-  uint	key_length;
   TABLE_LIST table_list;
-  TABLE *table;
 
   table_list.db= (char*) db;
   table_list.table_name= (char*) table_name;
@@ -1715,7 +1735,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   /* an open table operation needs a lot of the stack space */
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (char *)&alias))
-    return 0;
+    DBUG_RETURN(0);
 
   if (thd->killed)
     DBUG_RETURN(0);
@@ -1854,7 +1874,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (!thd->open_tables)
     thd->version=refresh_version;
   else if ((thd->version != refresh_version) &&
-           ! (flags & MYSQL_LOCK_IGNORE_FLUSH) && !table->s->log_table)
+           ! (flags & MYSQL_LOCK_IGNORE_FLUSH))
   {
     /* Someone did a refresh while thread was opening tables */
     if (refresh)
@@ -1916,7 +1936,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
   else
   {
-    TABLE_SHARE *share;
     /* Free cache if too big */
     while (open_cache.records > table_cache_size && unused_tables)
       VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
@@ -2286,7 +2305,7 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
           (search->locked_by_name && wait_for_name_lock ||
            search->locked_by_flush ||
            (search->db_stat && search->s->version < refresh_version)))
-        return 1;
+        DBUG_RETURN(1);
     }
   } while ((table=table->next));
   DBUG_RETURN(0);
@@ -2326,13 +2345,36 @@ bool wait_for_tables(THD *thd)
 }
 
 
-/* drop tables from locked list */
+/*
+  drop tables from locked list
 
-bool drop_locked_tables(THD *thd,const char *db, const char *table_name)
+  SYNOPSIS
+    drop_locked_tables()
+    thd			Thread thandler
+    db			Database
+    table_name		Table name
+
+  INFORMATION
+    This is only called on drop tables
+
+    The TABLE object for the dropped table is unlocked but still kept around
+    as a name lock, which means that the table will be available for other
+    thread as soon as we call unlock_table_names().
+    If there is multiple copies of the table locked, all copies except
+    the first, which acts as a name lock, is removed.
+
+  RETURN
+    #    If table existed, return table
+    0	 Table was not locked
+*/
+
+
+TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name)
 {
-  TABLE *table,*next,**prev;
-  bool found=0;
+  TABLE *table,*next,**prev, *found= 0;
   prev= &thd->open_tables;
+  DBUG_ENTER("drop_locked_tables");
+
   for (table= thd->open_tables; table ; table=next)
   {
     next=table->next;
@@ -2340,8 +2382,21 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name)
 	!strcmp(table->s->db.str, db))
     {
       mysql_lock_remove(thd, thd->locked_tables,table);
-      VOID(hash_delete(&open_cache,(byte*) table));
-      found=1;
+      if (!found)
+      {
+        found= table;
+        /* Close engine table, but keep object around as a name lock */
+        if (table->db_stat)
+        {
+          table->db_stat= 0;
+          table->file->close();
+        }
+      }
+      else
+      {
+        /* We already have a name lock, remove copy */
+        VOID(hash_delete(&open_cache,(byte*) table));
+      }
     }
     else
     {
@@ -2350,14 +2405,12 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name)
     }
   }
   *prev=0;
-  if (found)
-    VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
   if (thd->locked_tables && thd->locked_tables->table_count == 0)
   {
     my_free((gptr) thd->locked_tables,MYF(0));
     thd->locked_tables=0;
   }
-  return found;
+  DBUG_RETURN(found);
 }
 
 
@@ -2383,43 +2436,55 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 
 
 /*
-  Function to assign a new table map id to a table.
+  Function to assign a new table map id to a table share.
 
   PARAMETERS
 
-    table - Pointer to table structure
+    share - Pointer to table share structure
+
+  DESCRIPTION
+
+    We are intentionally not checking that share->mutex is locked
+    since this function should only be called when opening a table
+    share and before it is entered into the table_def_cache (meaning
+    that it cannot be fetched by another thread, even accidentally).
 
   PRE-CONDITION(S)
 
-    table is non-NULL
+    share is non-NULL
     The LOCK_open mutex is locked
 
   POST-CONDITION(S)
 
-    table->s->table_map_id is given a value that with a high certainty
-    is not used by any other table.
+    share->table_map_id is given a value that with a high certainty is
+    not used by any other table (the only case where a table id can be
+    reused is on wrap-around, which means more than 4 billion table
+    shares open at the same time).
 
-    table->s->table_map_id is not ULONG_MAX.
+    share->table_map_id is not ~0UL.
  */
-void assign_new_table_id(TABLE *table)
+void assign_new_table_id(TABLE_SHARE *share)
 {
-  static ulong last_table_id= ULONG_MAX;
+  static ulong last_table_id= ~0UL;
 
-  DBUG_ENTER("assign_new_table_id(TABLE*)");
+  DBUG_ENTER("assign_new_table_id");
 
   /* Preconditions */
-  DBUG_ASSERT(table != NULL);
+  DBUG_ASSERT(share != NULL);
   safe_mutex_assert_owner(&LOCK_open);
 
   ulong tid= ++last_table_id;                   /* get next id */
-  /* There is one reserved number that cannot be used. */
-  if (unlikely(tid == ULONG_MAX))
+  /*
+    There is one reserved number that cannot be used.  Remember to
+    change this when 6-byte global table id's are introduced.
+  */
+  if (unlikely(tid == ~0UL))
     tid= ++last_table_id;
-  table->s->table_map_id= tid;
+  share->table_map_id= tid;
   DBUG_PRINT("info", ("table_id=%lu", tid));
 
   /* Post conditions */
-  DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
+  DBUG_ASSERT(share->table_map_id != ~0UL);
 
   DBUG_VOID_RETURN;
 }
@@ -2573,20 +2638,6 @@ retry:
      break;
    }
 
-  /*
-    We assign a new table id under the protection of the LOCK_open
-    mutex.  We assign a new table id here instead of inside openfrm()
-    since that function can be used without acquiring any lock (e.g.,
-    inside ha_create_table()).  Insted of creatint a new mutex and
-    using it for the sole purpose of serializing accesses to a static
-    variable, we assign the table id here.
-
-    CAVEAT. This means that the table cannot be used for
-    binlogging/replication purposes, unless open_table() has been called
-    directly or indirectly.
-   */
-  assign_new_table_id(entry);
-
   if (Table_triggers_list::check_n_load(thd, share->db.str,
                                         share->table_name.str, entry, 0))
   {
@@ -2692,22 +2743,11 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     statement for which table list for prelocking is already built, let
     us cache routines and try to build such table list.
 
-    NOTE: We can't delay prelocking until we will met some sub-statement
-    which really uses tables, since this will imply that we have to restore
-    its table list to be able execute it in some other context.
-    And current views implementation assumes that view tables are added to
-    global table list only once during PS preparing/first SP execution.
-    Also locking at earlier stage is probably faster altough may decrease
-    concurrency a bit.
-
     NOTE: We will mark statement as requiring prelocking only if we will
     have non empty table list. But this does not guarantee that in prelocked
     mode we will have some locked tables, because queries which use only
     derived/information schema tables and views possible. Thus "counter"
     may be still zero for prelocked statement...
-
-    NOTE: The above notes may be out of date. Please wait for psergey to
-          document new prelocked behavior.
   */
 
   if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
@@ -2793,48 +2833,23 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
 
       if (refresh)				// Refresh in progress
       {
-	/* close all 'old' tables used by this thread */
-	pthread_mutex_lock(&LOCK_open);
-	// if query_id is not reset, we will get an error
-	// re-opening a temp table
-	thd->version=refresh_version;
-	TABLE **prev_table= &thd->open_tables;
-	bool found=0;
-	for (TABLE_LIST *tmp= *start; tmp; tmp= tmp->next_global)
-	{
-	  /* Close normal (not temporary) changed tables */
-	  if (tmp->table && ! tmp->table->s->tmp_table != NO_TMP_TABLE)
-	  {
-	    if (tmp->table->s->version != refresh_version ||
-		! tmp->table->db_stat)
-	    {
-	      VOID(hash_delete(&open_cache,(byte*) tmp->table));
-	      tmp->table=0;
-	      found=1;
-	    }
-	    else
-	    {
-	      *prev_table= tmp->table;		// Relink open list
-	      prev_table= &tmp->table->next;
-	    }
-	  }
-	}
-	*prev_table=0;
-	pthread_mutex_unlock(&LOCK_open);
-	if (found)
-	  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
         /*
-          Let us prepare for recalculation of set of prelocked tables.
-          First we pretend that we have finished calculation which we
-          were doing currently. Then we restore list of tables to be
-          opened and set of used routines to the state in which they were
-          before first open_tables() call for this statement (i.e. before
-          we have calculated current set of tables for prelocking).
+          We have met name-locked or old version of table. Now we have
+          to close all tables which are not up to date. We also have to
+          throw away set of prelocked tables (and thus close tables from
+          this set that were open by now) since it possible that one of
+          tables which determined its content was changed.
+
+          Instead of implementing complex/non-robust logic mentioned
+          above we simply close and then reopen all tables.
+
+          In order to prepare for recalculation of set of prelocked tables
+          we pretend that we have finished calculation which we were doing
+          currently.
         */
         if (query_tables_last_own)
           thd->lex->mark_as_requiring_prelocking(query_tables_last_own);
-        thd->lex->chop_off_not_own_tables();
-        sp_remove_not_own_routines(thd->lex);
+        close_tables_for_reopen(thd, start);
 	goto restart;
       }
       result= -1;				// Fatal error
@@ -3045,7 +3060,7 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
       break;
     if (!need_reopen)
       DBUG_RETURN(-1);
-    close_tables_for_reopen(thd, tables);
+    close_tables_for_reopen(thd, &tables);
   }
   DBUG_RETURN(0);
 }
@@ -3082,7 +3097,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
       break;
     if (!need_reopen)
       DBUG_RETURN(-1);
-    close_tables_for_reopen(thd, tables);
+    close_tables_for_reopen(thd, &tables);
   }
   if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
@@ -3310,18 +3325,24 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
 
   SYNOPSIS
     close_tables_for_reopen()
-      thd     Thread context
-      tables  List of tables which we were trying to open and lock
+      thd    in     Thread context
+      tables in/out List of tables which we were trying to open and lock
 
 */
 
-void close_tables_for_reopen(THD *thd, TABLE_LIST *tables)
+void close_tables_for_reopen(THD *thd, TABLE_LIST **tables)
 {
+  /*
+    If table list consists only from tables from prelocking set, table list
+    for new attempt should be empty, so we have to update list's root pointer.
+  */
+  if (thd->lex->first_not_own_table() == *tables)
+    *tables= 0;
   thd->lex->chop_off_not_own_tables();
   sp_remove_not_own_routines(thd->lex);
-  for (TABLE_LIST *tmp= tables; tmp; tmp= tmp->next_global)
-    if (tmp->table && !tmp->table->s->tmp_table)
-      tmp->table= 0;
+  for (TABLE_LIST *tmp= *tables; tmp; tmp= tmp->next_global)
+    tmp->table= 0;
+  mark_used_tables_as_free_for_reuse(thd, thd->temporary_tables);
   close_thread_tables(thd);
 }
 
@@ -3498,6 +3519,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
   Field_iterator_view field_it;
   field_it.set(table_list);
   Query_arena *arena, backup;  
+  LINT_INIT(arena);
   
   DBUG_ASSERT(table_list->schema_table_reformed ||
               (ref != 0 && table_list->view != 0));
@@ -3587,6 +3609,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   DBUG_ASSERT(table_ref->is_natural_join && table_ref->join_columns);
   DBUG_ASSERT(*actual_table == NULL);
 
+  LINT_INIT(arena);
   LINT_INIT(found_field);
 
   for (;;)
@@ -4437,10 +4460,19 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
 {
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
-  const char *field_name_1;
   Query_arena *arena, backup;
-  bool add_columns= TRUE;
   bool result= TRUE;
+  bool first_outer_loop= TRUE;
+  /*
+    Leaf table references to which new natural join columns are added
+    if the leaves are != NULL.
+  */
+  TABLE_LIST *leaf_1= (table_ref_1->nested_join &&
+                       !table_ref_1->is_natural_join) ?
+                      NULL : table_ref_1;
+  TABLE_LIST *leaf_2= (table_ref_2->nested_join &&
+                       !table_ref_2->is_natural_join) ?
+                      NULL : table_ref_2;
 
   DBUG_ENTER("mark_common_columns");
   DBUG_PRINT("info", ("operand_1: %s  operand_2: %s",
@@ -4449,34 +4481,13 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   *found_using_fields= 0;
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
-  /*
-    TABLE_LIST::join_columns could be allocated by the previous call to
-    store_natural_using_join_columns() for the lower level of nested tables.
-  */
-  if (!table_ref_1->join_columns)
-  {
-    if (!(table_ref_1->join_columns= new List<Natural_join_column>))
-      goto err;
-    table_ref_1->is_join_columns_complete= FALSE;
-  }
-  if (!table_ref_2->join_columns)
-  {
-    if (!(table_ref_2->join_columns= new List<Natural_join_column>))
-      goto err;
-    table_ref_2->is_join_columns_complete= FALSE;
-  }
-
   for (it_1.set(table_ref_1); !it_1.end_of_fields(); it_1.next())
   {
-    bool is_created_1;
     bool found= FALSE;
-    if (!(nj_col_1= it_1.get_or_create_column_ref(&is_created_1)))
+    const char *field_name_1;
+    if (!(nj_col_1= it_1.get_or_create_column_ref(leaf_1)))
       goto err;
     field_name_1= nj_col_1->name();
-
-    /* If nj_col_1 was just created add it to the list of join columns. */
-    if (is_created_1)
-      table_ref_1->join_columns->push_back(nj_col_1);
 
     /*
       Find a field with the same name in table_ref_2.
@@ -4488,16 +4499,11 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     nj_col_2= NULL;
     for (it_2.set(table_ref_2); !it_2.end_of_fields(); it_2.next())
     {
-      bool is_created_2;
       Natural_join_column *cur_nj_col_2;
       const char *cur_field_name_2;
-      if (!(cur_nj_col_2= it_2.get_or_create_column_ref(&is_created_2)))
+      if (!(cur_nj_col_2= it_2.get_or_create_column_ref(leaf_2)))
         goto err;
       cur_field_name_2= cur_nj_col_2->name();
-
-      /* If nj_col_1 was just created add it to the list of join columns. */
-      if (add_columns && is_created_2)
-        table_ref_2->join_columns->push_back(cur_nj_col_2);
 
       /*
         Compare the two columns and check for duplicate common fields.
@@ -4517,9 +4523,15 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         found= TRUE;
       }
     }
-    /* Force it_2.set() to use table_ref_2->join_columns. */
-    table_ref_2->is_join_columns_complete= TRUE;
-    add_columns= FALSE;
+    if (first_outer_loop && leaf_2)
+    {
+      /*
+        Make sure that the next inner loop "knows" that all columns
+        are materialized already.
+      */
+      leaf_2->is_join_columns_complete= TRUE;
+      first_outer_loop= FALSE;
+    }
     if (!found)
       continue;                                 // No matching field
 
@@ -4607,7 +4619,8 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         ++(*found_using_fields);
     }
   }
-  table_ref_1->is_join_columns_complete= TRUE;
+  if (leaf_1)
+    leaf_1->is_join_columns_complete= TRUE;
 
   /*
     Everything is OK.
@@ -4670,7 +4683,6 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
 {
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
-  bool is_created;
   Query_arena *arena, backup;
   bool result= TRUE;
   List<Natural_join_column> *non_join_columns;
@@ -5468,16 +5480,15 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
         if (tables->is_natural_join)
         {
-          bool is_created;
           TABLE *field_table;
           /*
             In this case we are sure that the column ref will not be created
             because it was already created and stored with the natural join.
           */
           Natural_join_column *nj_col;
-          if (!(nj_col= field_iterator.get_or_create_column_ref(&is_created)))
+          if (!(nj_col= field_iterator.get_natural_column_ref()))
             DBUG_RETURN(TRUE);
-          DBUG_ASSERT(nj_col->table_field && !is_created);
+          DBUG_ASSERT(nj_col->table_field);
           field_table= nj_col->table_ref->table;
           if (field_table)
           {

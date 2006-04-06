@@ -256,7 +256,6 @@ int Guardian_thread::init()
   Instance *instance;
   Instance_map::Iterator iterator(instance_map);
 
-  instance_map->lock();
   /* clear the list of guarded instances */
   free_root(&alloc, MYF(0));
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
@@ -272,7 +271,6 @@ int Guardian_thread::init()
       }
   }
 
-  instance_map->unlock();
   return 0;
 }
 

@@ -24,7 +24,7 @@ use mysqltest_to;
 select * from a;
 i
 3
-create table t1 (a int);
+create table t1 (a int primary key);
 create table t2 (a int);
 insert into t1 values (1);
 insert into t2 values (1);

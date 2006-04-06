@@ -24,10 +24,10 @@
 #
 #      3. The assignment of the DDL command to be tested to $my_stmt can
 #         be a bit difficult. "'" must be avoided, because the test
-#         routine "include/rpl_stmt_seq.inc" performs a
+#        routine "include/rpl_stmt_seq.inc" performs a
 #         eval SELECT CONCAT('######## ','$my_stmt','  ########') as "";
 #
-
+--source include/not_ndb_default.inc
 --source include/have_innodb.inc
 --source include/master-slave.inc
 let $engine_type= "InnoDB";

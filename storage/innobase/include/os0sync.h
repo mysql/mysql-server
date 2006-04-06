@@ -16,10 +16,10 @@ Created 9/6/1995 Heikki Tuuri
 
 #define os_fast_mutex_t CRITICAL_SECTION
 
-typedef HANDLE          os_native_event_t;
+typedef HANDLE		os_native_event_t;
 
-typedef struct os_event_struct os_event_struct_t;
-typedef os_event_struct_t*     os_event_t;
+typedef struct os_event_struct	os_event_struct_t;
+typedef os_event_struct_t*	os_event_t;
 
 struct os_event_struct {
 	os_native_event_t		  handle;
@@ -30,8 +30,8 @@ struct os_event_struct {
 #else
 typedef pthread_mutex_t	os_fast_mutex_t;
 
-typedef struct os_event_struct os_event_struct_t;
-typedef os_event_struct_t*     os_event_t;
+typedef struct os_event_struct	os_event_struct_t;
+typedef os_event_struct_t*	os_event_t;
 
 struct os_event_struct {
 	os_fast_mutex_t	os_mutex;	/* this mutex protects the next
@@ -79,7 +79,7 @@ Frees created events and OS 'slow' mutexes. */
 void
 os_sync_free(void);
 /*==============*/
-/************************************************************* 
+/*************************************************************
 Creates an event semaphore, i.e., a semaphore which may just have two states:
 signaled and nonsignaled. The created event is manual reset: it must be reset
 explicitly by calling sync_os_reset_event. */
@@ -158,9 +158,9 @@ os_event_wait_multiple(
 /*===================*/
 					/* out: index of the event
 					which was signaled */
-	ulint		        n,	/* in: number of events in the
+	ulint			n,	/* in: number of events in the
 					array */
-	os_native_event_t* 	native_event_array);
+	os_native_event_t*	native_event_array);
 					/* in: pointer to an array of event
 					handles */
 #endif
@@ -234,9 +234,9 @@ void
 os_fast_mutex_free(
 /*===============*/
 	os_fast_mutex_t*	fast_mutex);	/* in: mutex to free */
-	
+
 #ifndef UNIV_NONINL
 #include "os0sync.ic"
 #endif
 
-#endif 
+#endif

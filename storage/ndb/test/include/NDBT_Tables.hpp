@@ -44,6 +44,8 @@ public:
   static const NdbDictionary::Table* getTable(int _num);
   static int getNumTables();
 
+  static int create_default_tablespace(Ndb* pNdb);
+
 private:
   static const NdbDictionary::Table* tableWithPkSize(const char* _nam, Uint32 pkSize);
 };

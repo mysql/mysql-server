@@ -1353,6 +1353,8 @@ int bin2decimal(char *from, decimal_t *to, int precision, int scale)
     }
     from+=i;
     *buf=x ^ mask;
+    if (((uint32)*buf) >=  powers10[intg0x+1])
+      goto err;
     if (buf > to->buf || *buf != 0)
       buf++;
     else
@@ -1362,6 +1364,8 @@ int bin2decimal(char *from, decimal_t *to, int precision, int scale)
   {
     DBUG_ASSERT(sizeof(dec1) == 4);
     *buf=mi_sint4korr(from) ^ mask;
+    if (((uint32)*buf) > DIG_MAX)
+      goto err;
     if (buf > to->buf || *buf != 0)
       buf++;
     else
@@ -1372,6 +1376,8 @@ int bin2decimal(char *from, decimal_t *to, int precision, int scale)
   {
     DBUG_ASSERT(sizeof(dec1) == 4);
     *buf=mi_sint4korr(from) ^ mask;
+    if (((uint32)*buf) > DIG_MAX)
+      goto err;
     buf++;
   }
   if (frac0x)
@@ -1387,10 +1393,17 @@ int bin2decimal(char *from, decimal_t *to, int precision, int scale)
       default: DBUG_ASSERT(0);
     }
     *buf=(x ^ mask) * powers10[DIG_PER_DEC1 - frac0x];
+    if (((uint32)*buf) > DIG_MAX)
+      goto err;
     buf++;
   }
   my_afree(d_copy);
   return error;
+
+err:
+  my_afree(d_copy);
+  decimal_make_zero(((decimal_t*) to));
+  return(E_DEC_BAD_NUM);
 }
 
 /*

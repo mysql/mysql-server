@@ -196,6 +196,10 @@ public:
     Datafile = 22,          ///< Datafile
     Undofile = 23           ///< Undofile
   };
+
+  // used 1) until type BlobTable added 2) in upgrade code
+  static bool
+  isBlobTableName(const char* name, Uint32* ptab_id = 0, Uint32* pcol_no = 0);
   
   static inline bool
   isTable(int tableType) {
@@ -332,6 +336,7 @@ public:
     Uint32 RowGCIFlag;
     Uint32 RowChecksumFlag;
     
+    Table() {}
     void init();
   };
 
@@ -394,6 +399,7 @@ public:
     Uint32 AttributeStorageType;
     char   AttributeDefaultValue[MAX_ATTR_DEFAULT_VALUE_SIZE];
     
+    Attribute() {}
     void init();
 
     inline
@@ -681,6 +687,7 @@ struct DictFilegroupInfo {
     //GrowSpec LF_RedoGrow;
     Uint32 LF_UndoFreeWordsHi;
     Uint32 LF_UndoFreeWordsLo;
+    Filegroup() {}
     void init();
   };
   static const Uint32 MappingSize;
@@ -696,6 +703,8 @@ struct DictFilegroupInfo {
     Uint32 FileSizeHi;
     Uint32 FileSizeLo;
     Uint32 FileFreeExtents;
+
+    File() {}
     void init();
   };
   static const Uint32 FileMappingSize;

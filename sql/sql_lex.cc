@@ -17,6 +17,7 @@
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
+#define MYSQL_LEX 1
 #include "mysql_priv.h"
 #include "item_create.h"
 #include <m_ctype.h>
@@ -190,6 +191,7 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
+  lex->binlog_row_based_if_mixed= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -228,7 +230,7 @@ static int find_keyword(LEX *lex, uint len, bool function)
 
   SYNOPSIS
     is_keyword()
-    name      checked name
+    name      checked name (must not be empty)
     len       length of checked name
 
   RETURN VALUES
@@ -238,6 +240,7 @@ static int find_keyword(LEX *lex, uint len, bool function)
 
 bool is_keyword(const char *name, uint len)
 {
+  DBUG_ASSERT(len != 0);
   return get_hash_symbol(name,len,0)!=0;
 }
 
@@ -511,14 +514,14 @@ static inline uint int_token(const char *str,uint length)
 }
 
 /*
-  yylex remember the following states from the following yylex()
+  MYSQLlex remember the following states from the following MYSQLlex()
 
   - MY_LEX_EOQ			Found end of query
   - MY_LEX_OPERATOR_OR_IDENT	Last state was an ident, text or number
 				(which can't be followed by a signed number)
 */
 
-int yylex(void *arg, void *yythd)
+int MYSQLlex(void *arg, void *yythd)
 {
   reg1	uchar c;
   int	tokval, result_state;

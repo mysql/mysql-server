@@ -60,7 +60,7 @@ dict_table_t*
 dict_load_table_on_id(
 /*==================*/
 				/* out: table; NULL if table does not exist */
-	dulint	table_id);	/* in: table id */	
+	dulint	table_id);	/* in: table id */
 /************************************************************************
 This function is called when the database is booted.
 Loads system table index definitions except for the clustered index which
@@ -82,7 +82,8 @@ dict_load_foreigns(
 /*===============*/
 					/* out: DB_SUCCESS or error code */
 	const char*	table_name,	/* in: table name */
-	ibool		check_types);	/* in: TRUE=check type compatibility */
+	ibool		check_charsets);/* in: TRUE=check charsets
+					compatibility */
 /************************************************************************
 Prints to the standard output information on all tables found in the data
 dictionary system table. */

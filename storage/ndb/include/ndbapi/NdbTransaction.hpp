@@ -657,7 +657,7 @@ private:
   // Release all cursor operations in connection
   void releaseOps(NdbOperation*);	
   void releaseScanOperations(NdbIndexScanOperation*);	
-  void releaseExecutedScanOperation(NdbIndexScanOperation*);
+  void releaseScanOperation(NdbIndexScanOperation*);
 
   // Set the transaction identity of the transaction
   void		setTransactionId(Uint64 aTransactionId);
@@ -792,7 +792,7 @@ private:
   bool theBlobFlag;
   Uint8 thePendingBlobOps;
 
-  static void sendTC_COMMIT_ACK(NdbApiSignal *,
+  static void sendTC_COMMIT_ACK(class TransporterFacade *, NdbApiSignal *,
 				Uint32 transId1, Uint32 transId2, 
 				Uint32 aBlockRef);
 

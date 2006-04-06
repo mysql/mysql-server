@@ -27,7 +27,7 @@ class sp_instr;
 class sp_pcontext;
 class st_alter_tablespace;
 class partition_info;
-class event_timed;
+class Event_timed;
 
 #ifdef MYSQL_SERVER
 /*
@@ -41,14 +41,23 @@ class event_timed;
 #define LEX_YYSTYPE void *
 #else
 #include "lex_symbol.h"
+#if MYSQL_LEX
 #include "sql_yacc.h"
 #define LEX_YYSTYPE YYSTYPE *
+#else
+#define LEX_YYSTYPE void *
+#endif
 #endif
 #endif
 
 /*
   When a command is added here, be sure it's also added in mysqld.cc
   in "struct show_var_st status_vars[]= {" ...
+
+  If the command returns a result set or is not allowed in stored
+  functions or triggers, please also make sure that
+  sp_get_flags_for_command (sp_head.cc) returns proper flags for the
+  added SQLCOM_.
 */
 
 enum enum_sql_command {
@@ -696,6 +705,7 @@ typedef class st_select_lex SELECT_LEX;
 #define ALTER_ANALYZE_PARTITION  (1L << 22)
 #define ALTER_CHECK_PARTITION    (1L << 23)
 #define ALTER_REPAIR_PARTITION   (1L << 24)
+#define ALTER_REMOVE_PARTITIONING (1L << 25)
 
 typedef struct st_alter_info
 {
@@ -753,10 +763,11 @@ typedef struct st_lex
   const uchar *buf;		/* The beginning of string, used by SPs */
   const uchar *ptr,*tok_start,*tok_end,*end_of_query;
   
-  /* The values of tok_start/tok_end as they were one call of yylex before */
+  /* The values of tok_start/tok_end as they were one call of MYSQLlex before */
   const uchar *tok_start_prev, *tok_end_prev;
 
   char *length,*dec,*change,*name;
+  Table_ident *like_name;
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
@@ -876,7 +887,11 @@ typedef struct st_lex
   uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
-  bool tx_chain, tx_release;
+  /*
+    binlog_row_based_if_mixed tells if the parsing stage detected that some
+    items require row-based binlogging to give a reliable binlog/replication.
+  */
+  bool tx_chain, tx_release, binlog_row_based_if_mixed;
   /*
     Special JOIN::prepare mode: changing of query is prohibited.
     When creating a view, we need to just check its syntax omitting
@@ -932,7 +947,7 @@ typedef struct st_lex
 
   st_sp_chistics sp_chistics;
 
-  event_timed *et;
+  Event_timed *et;
   bool et_compile_phase;
 
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
@@ -957,12 +972,16 @@ typedef struct st_lex
   SQL_LIST trg_table_fields;
 
   /*
-    trigger_definition_begin points to the beginning of the word "TRIGGER" in
-    CREATE TRIGGER statement. This is used to add possibly omitted DEFINER
-    clause to the trigger definition statement before dumping it to the
-    binlog. 
+    stmt_definition_begin is intended to point to the next word after
+    DEFINER-clause in the following statements:
+      - CREATE TRIGGER (points to "TRIGGER");
+      - CREATE PROCEDURE (points to "PROCEDURE");
+      - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
+
+    This pointer is required to add possibly omitted DEFINER-clause to the
+    DDL-statement before dumping it to the binlog. 
   */
-  const char *trigger_definition_begin;
+  const char *stmt_definition_begin;
 
   /*
     If non-0 then indicates that query requires prelocking and points to
@@ -1111,7 +1130,7 @@ extern void lex_init(void);
 extern void lex_free(void);
 extern void lex_start(THD *thd, const uchar *buf, uint length);
 extern void lex_end(LEX *lex);
-extern int yylex(void *arg, void *yythd);
+extern int MYSQLlex(void *arg, void *yythd);
 
 extern pthread_key(LEX*,THR_LEX);
 

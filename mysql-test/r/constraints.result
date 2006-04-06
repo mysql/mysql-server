@@ -21,7 +21,7 @@ alter table t1 add constraint constraint_2 unique key_2(a);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) default NULL,
+  `a` int(11) DEFAULT NULL,
   UNIQUE KEY `constraint_1` (`a`),
   UNIQUE KEY `key_1` (`a`),
   UNIQUE KEY `key_2` (`a`)

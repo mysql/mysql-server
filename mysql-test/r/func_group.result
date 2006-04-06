@@ -677,21 +677,21 @@ latin2	2	latin2	2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(1) character set latin2 default NULL
+  `a` char(1) CHARACTER SET latin2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 create table t2 select max(a),min(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `max(a)` char(1) character set latin2 default NULL,
-  `min(a)` char(1) character set latin2 default NULL
+  `max(a)` char(1) CHARACTER SET latin2 DEFAULT NULL,
+  `min(a)` char(1) CHARACTER SET latin2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2;
 create table t2 select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `concat(a)` varchar(1) character set latin2 default NULL
+  `concat(a)` varchar(1) CHARACTER SET latin2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2,t1;
 create table t1 (a int);
@@ -780,7 +780,7 @@ create table t2 select MAX(b) from t1 group by a;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `MAX(b)` datetime default NULL
+  `MAX(b)` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1(f1 datetime);

@@ -973,6 +973,7 @@ static const String tz_SYSTEM_name("SYSTEM", 6, &my_charset_latin1);
 class Time_zone_system : public Time_zone
 {
 public:
+  Time_zone_system() {}                       /* Remove gcc warning */
   virtual my_time_t TIME_to_gmt_sec(const TIME *t,
                                     my_bool *in_dst_time_gap) const;
   virtual void gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
@@ -1066,6 +1067,7 @@ Time_zone_system::get_name() const
 class Time_zone_utc : public Time_zone
 {
 public:
+  Time_zone_utc() {}                          /* Remove gcc warning */
   virtual my_time_t TIME_to_gmt_sec(const TIME *t,
                                     my_bool *in_dst_time_gap) const;
   virtual void gmt_sec_to_TIME(TIME *tmp, my_time_t t) const;
@@ -2187,12 +2189,11 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
   TZ_NAMES_ENTRY *tmp_tzname;
   Time_zone *result_tz= 0;
   long offset;
-
   DBUG_ENTER("my_tz_find");
   DBUG_PRINT("enter", ("time zone name='%s'",
-                      name ? ((String *)name)->c_ptr() : "NULL"));
-
-  DBUG_ASSERT(!time_zone_tables_exist || tz_tables || current_thd->slave_thread);
+                       name ? ((String *)name)->c_ptr_safe() : "NULL"));
+  DBUG_ASSERT(!time_zone_tables_exist || tz_tables ||
+              current_thd->slave_thread);
 
   if (!name)
     DBUG_RETURN(0);

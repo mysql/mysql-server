@@ -84,6 +84,7 @@ public:
      * - Part of local key
      * - Set by pgman
      */
+    Uint32 m_magic;
     Uint32 m_file_no;
     Uint32 m_file_id;        // Used when talking to DICT
     Uint32 m_fd; // NDBFS
@@ -136,12 +137,18 @@ public:
       return m_file_no == rec.m_file_no;
     }
   };
-  
+
+  typedef RecordPool<Datafile, RWPool> Datafile_pool;
+  typedef DLListImpl<Datafile_pool, Datafile> Datafile_list;
+  typedef LocalDLListImpl<Datafile_pool, Datafile> Local_datafile_list;
+  typedef DLHashTableImpl<Datafile_pool, Datafile> Datafile_hash;
+
   struct Tablespace
   {
     Tablespace(){}
     Tablespace(Tsman*, Lgman*, const struct CreateFilegroupImplReq*);
     
+    Uint32 m_magic;
     union {
       Uint32 key;
       Uint32 m_tablespace_id;
@@ -157,11 +164,11 @@ public:
     };
 
     Uint32 m_extent_size;       // In pages
-    DLList<Datafile>::Head m_free_files; // Files w/ free space
+    Datafile_list::Head m_free_files; // Files w/ free space
     Logfile_client m_logfile_client;
 
-    DLList<Datafile>::Head m_full_files; // Files wo/ free space
-    DLList<Datafile>::Head m_meta_files; // Files being created/dropped
+    Datafile_list::Head m_full_files; // Files wo/ free space
+    Datafile_list::Head m_meta_files; // Files being created/dropped
     
     Uint32 nextHash;
     Uint32 prevHash;
@@ -179,14 +186,19 @@ public:
     }
   };
 
+  typedef RecordPool<Tablespace, RWPool> Tablespace_pool;
+  typedef DLListImpl<Tablespace_pool, Tablespace> Tablespace_list;
+  typedef LocalDLListImpl<Tablespace_pool, Tablespace> Local_tablespace_list;
+  typedef KeyTableImpl<Tablespace_pool, Tablespace> Tablespace_hash;
+
 private:
   friend class Tablespace_client;
-  ArrayPool<Datafile> m_file_pool;
-  ArrayPool<Tablespace> m_tablespace_pool;
+  Datafile_pool m_file_pool;
+  Tablespace_pool m_tablespace_pool;
   
-  DLHashTable<Datafile> m_file_hash;
-  DLList<Tablespace> m_tablespace_list;
-  KeyTable<Tablespace> m_tablespace_hash;
+  Datafile_hash m_file_hash;
+  Tablespace_list m_tablespace_list;
+  Tablespace_hash m_tablespace_hash;
   Page_cache_client m_page_cache_client;
   Lgman * const m_lgman;
   
@@ -209,7 +221,7 @@ private:
   void scan_datafile(Signal*, Uint32, Uint32);
   void scan_extent_headers(Signal*, Ptr<Datafile>);
 
-  bool find_file_by_id(Ptr<Datafile>&, DLList<Datafile>::Head&, Uint32 id);
+  bool find_file_by_id(Ptr<Datafile>&, Datafile_list::Head&, Uint32 id);
   void create_file_abort(Signal* signal, Ptr<Datafile>);
 
   void release_extent_pages(Signal* signal, Ptr<Datafile> ptr);

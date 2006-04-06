@@ -55,7 +55,7 @@ Releases the search latch if trx has reserved it. */
 void
 trx_search_latch_release_if_reserved(
 /*=================================*/
-        trx_t*     trx); /* in: transaction */
+	trx_t*	   trx); /* in: transaction */
 /**********************************************************************
 Set detailed error message for the transaction. */
 void
@@ -78,8 +78,8 @@ Retrieves the error_info field from a trx. */
 void*
 trx_get_error_info(
 /*===============*/
-		     /* out: the error info */
-	trx_t*  trx); /* in: trx object */
+			/* out: the error info */
+	trx_t*	trx);	/* in: trx object */
 /********************************************************************
 Creates and initializes a transaction object. */
 
@@ -141,7 +141,7 @@ trx_start(
 /*======*/
 			/* out: TRUE if success, FALSE if the rollback
 			segment could not support this many transactions */
-	trx_t* 	trx,	/* in: transaction */
+	trx_t*	trx,	/* in: transaction */
 	ulint	rseg_id);/* in: rollback segment id; if ULINT_UNDEFINED
 			is passed, the system chooses the rollback segment
 			automatically in a round-robin fashion */
@@ -152,7 +152,7 @@ ibool
 trx_start_low(
 /*==========*/
 			/* out: TRUE */
-	trx_t* 	trx,	/* in: transaction */
+	trx_t*	trx,	/* in: transaction */
 	ulint	rseg_id);/* in: rollback segment id; if ULINT_UNDEFINED
 			is passed, the system chooses the rollback segment
 			automatically in a round-robin fashion */
@@ -207,7 +207,7 @@ Does the transaction prepare for MySQL. */
 
 ulint
 trx_prepare_for_mysql(
-/*=================*/
+/*==================*/
 			/* out: 0 or error number */
 	trx_t*	trx);	/* in: trx handle */
 /**************************************************************************
@@ -218,7 +218,7 @@ int
 trx_recover_for_mysql(
 /*==================*/
 				/* out: number of prepared transactions */
-	XID*    xid_list, 	/* in/out: prepared transactions */
+	XID*	xid_list,	/* in/out: prepared transactions */
 	ulint	len);		/* in: number of slots in xid_list */
 /***********************************************************************
 This function is used to find one X/Open XA distributed transaction
@@ -278,7 +278,7 @@ trx_sig_send(
 	que_thr_t*	receiver_thr,	/* in: query thread which wants the
 					reply, or NULL; if type is
 					TRX_SIG_END_WAIT, this must be NULL */
-	trx_savept_t* 	savept,		/* in: possible rollback savepoint, or
+	trx_savept_t*	savept,		/* in: possible rollback savepoint, or
 					NULL */
 	que_thr_t**	next_thr);	/* in/out: next query thread to run;
 					if the value which is passed in is
@@ -357,7 +357,7 @@ trx_print(
 /*======*/
 	FILE*	f,		/* in: output stream */
 	trx_t*	trx,		/* in: transaction */
-	uint	max_query_len);	/* in: max query length to print, or 0 to
+	ulint	max_query_len);	/* in: max query length to print, or 0 to
 				   use the default max length */
 
 #ifndef UNIV_HOTBACKUP
@@ -411,9 +411,9 @@ struct trx_struct{
 					of view of concurrency control:
 					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
 					... */
-        time_t          start_time;     /* time the trx object was created
-                                        or the state last time became
-                                        TRX_ACTIVE */
+	time_t		start_time;	/* time the trx object was created
+					or the state last time became
+					TRX_ACTIVE */
 	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
 	ibool		check_foreigns;	/* normally TRUE, but if the user
 					wants to suppress foreign key checks,
@@ -427,8 +427,8 @@ struct trx_struct{
 					if we can use the insert buffer for
 					them, we set this FALSE */
 	dulint		id;		/* transaction id */
-	XID		xid;		/* X/Open XA transaction 
-					identification to identify a 
+	XID		xid;		/* X/Open XA transaction
+					identification to identify a
 					transaction branch */
 	ibool		support_xa;	/* normally we do the XA two-phase
 					commit steps, but by setting this to
@@ -436,7 +436,7 @@ struct trx_struct{
 					150 bytes in the undo log size as then
 					we skip XA steps */
 	dulint		no;		/* transaction serialization number ==
-					max trx id when the transaction is 
+					max trx id when the transaction is
 					moved to COMMITTED_IN_MEMORY state */
 	ibool		flush_log_later;/* when we commit the transaction
 					in MySQL's binlog write, we will
@@ -451,7 +451,7 @@ struct trx_struct{
 	dulint		commit_lsn;	/* lsn at the time of the commit */
 	ibool		dict_operation;	/* TRUE if the trx is used to create
 					a table, create an index, or drop a
-					table.  This is a hint that the table
+					table.	This is a hint that the table
 					may need to be dropped in crash
 					recovery. */
 	dulint		table_id;	/* table id if the preceding field is
@@ -459,8 +459,8 @@ struct trx_struct{
 	/*------------------------------*/
 	int		active_trans;	/* 1 - if a transaction in MySQL
 					is active. 2 - if prepare_commit_mutex
-                                        was taken */
-	void*           mysql_thd;      /* MySQL thread handle corresponding
+					was taken */
+	void*		mysql_thd;	/* MySQL thread handle corresponding
 					to this trx, or NULL */
 	char**		mysql_query_str;/* pointer to the field in mysqld_thd
 					which contains the pointer to the
@@ -507,17 +507,17 @@ struct trx_struct{
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current
 					SQL statement in MySQL */
-        ulint           mysql_n_tables_locked;
-                                        /* how many tables the current SQL
+	ulint		mysql_n_tables_locked;
+					/* how many tables the current SQL
 					statement uses, except those
 					in consistent read */
 	ibool		dict_operation_lock_mode;
 					/* 0, RW_S_LATCH, or RW_X_LATCH:
 					the latch mode trx currently holds
 					on dict_operation_lock */
-        ibool           has_search_latch;
-			                /* TRUE if this trx has latched the
-			                search system latch in S-mode */
+	ibool		has_search_latch;
+					/* TRUE if this trx has latched the
+					search system latch in S-mode */
 	ulint		search_latch_timeout;
 					/* If we notice that someone is
 					waiting for our S-lock on the search
@@ -538,7 +538,7 @@ struct trx_struct{
 					/* this can be > 0 only when
 					declared_to_... is TRUE; when we come
 					to srv_conc_innodb_enter, if the value
-					here is > 0, we decrement this by 1 */ 
+					here is > 0, we decrement this by 1 */
 	/*------------------------------*/
 	lock_t*		auto_inc_lock;	/* possible auto-inc lock reserved by
 					the transaction; note that it is also
@@ -570,7 +570,7 @@ struct trx_struct{
 					duplicate key error, a pointer to
 					the problematic index is stored here */
 	sess_t*		sess;		/* session of the trx, NULL if none */
- 	ulint		que_state;	/* TRX_QUE_RUNNING, TRX_QUE_LOCK_WAIT,
+	ulint		que_state;	/* TRX_QUE_RUNNING, TRX_QUE_LOCK_WAIT,
 					... */
 	que_t*		graph;		/* query currently run in the session,
 					or NULL if none; NOTE that the query
@@ -608,7 +608,7 @@ struct trx_struct{
 					if another transaction chooses this
 					transaction as a victim in deadlock
 					resolution, it sets this to TRUE */
-	time_t          wait_started;   /* lock wait started at this time */
+	time_t		wait_started;	/* lock wait started at this time */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			wait_thrs;	/* query threads belonging to this
 					trx that are in the QUE_THR_LOCK_WAIT
@@ -618,23 +618,23 @@ struct trx_struct{
 	/*------------------------------*/
 	mem_heap_t*	lock_heap;	/* memory heap for the locks of the
 					transaction */
-	UT_LIST_BASE_NODE_T(lock_t) 
+	UT_LIST_BASE_NODE_T(lock_t)
 			trx_locks;	/* locks reserved by the transaction */
 	/*------------------------------*/
-	mem_heap_t*	global_read_view_heap;	
-					/* memory heap for the global read 
+	mem_heap_t*	global_read_view_heap;
+					/* memory heap for the global read
 					view */
 	read_view_t*	global_read_view;
 					/* consistent read view associated
 					to a transaction or NULL */
 	read_view_t*	read_view;	/* consistent read view used in the
 					transaction or NULL, this read view
-					if defined can be normal read view 
-					associated to a transaction (i.e. 
+					if defined can be normal read view
+					associated to a transaction (i.e.
 					same as global_read_view) or read view
 					associated to a cursor */
 	/*------------------------------*/
-	UT_LIST_BASE_NODE_T(trx_named_savept_t) 
+	UT_LIST_BASE_NODE_T(trx_named_savept_t)
 			trx_savepoints;	/* savepoints set with SAVEPOINT ...,
 					oldest first */
 	/*------------------------------*/
@@ -654,9 +654,9 @@ struct trx_struct{
 	trx_rseg_t*	rseg;		/* rollback segment assigned to the
 					transaction, or NULL if not assigned
 					yet */
-	trx_undo_t*	insert_undo;	/* pointer to the insert undo log, or 
+	trx_undo_t*	insert_undo;	/* pointer to the insert undo log, or
 					NULL if no inserts performed yet */
-	trx_undo_t* 	update_undo;	/* pointer to the update undo log, or
+	trx_undo_t*	update_undo;	/* pointer to the update undo log, or
 					NULL if no update performed yet */
 	dulint		roll_limit;	/* least undo number to undo during
 					a rollback */
@@ -743,7 +743,7 @@ struct trx_struct{
 /* Signal states */
 #define	TRX_SIG_WAITING		1
 #define TRX_SIG_BEING_HANDLED	2
-					
+
 /* Commit command node in a query graph */
 struct commit_node_struct{
 	que_common_t	common;	/* node type: QUE_NODE_COMMIT */
@@ -759,4 +759,4 @@ struct commit_node_struct{
 #include "trx0trx.ic"
 #endif
 
-#endif 
+#endif

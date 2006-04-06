@@ -1,0 +1,87 @@
+drop table if exists t1;
+CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
+CREATE FUNCTION myfunc_double RETURNS REAL SONAME 'udf_example.so';
+CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME 'udf_example.so';
+ERROR HY000: Can't find symbol 'myfunc_nonexist' in library
+CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME 'udf_example.so';
+CREATE FUNCTION sequence RETURNS INTEGER SONAME "udf_example.so";
+CREATE FUNCTION lookup RETURNS STRING SONAME 'udf_example.so';
+CREATE FUNCTION reverse_lookup
+RETURNS STRING SONAME 'udf_example.so';
+CREATE AGGREGATE FUNCTION avgcost
+RETURNS REAL SONAME 'udf_example.so';
+select myfunc_double();
+ERROR HY000: myfunc_double must have at least one argument
+select myfunc_double(1);
+myfunc_double(1)
+49.00
+select myfunc_double(78654);
+myfunc_double(78654)
+54.00
+select myfunc_nonexist();
+ERROR 42000: FUNCTION test.myfunc_nonexist does not exist
+select myfunc_int();
+myfunc_int()
+0
+select lookup();
+ERROR HY000: Wrong arguments to lookup;  Use the source
+select lookup("127.0.0.1");
+lookup("127.0.0.1")
+127.0.0.1
+select lookup(127,0,0,1);
+ERROR HY000: Wrong arguments to lookup;  Use the source
+select lookup("localhost");
+lookup("localhost")
+127.0.0.1
+select reverse_lookup();
+ERROR HY000: Wrong number of arguments to reverse_lookup;  Use the source
+select reverse_lookup("127.0.0.1");
+select reverse_lookup(127,0,0,1);
+select reverse_lookup("localhost");
+reverse_lookup("localhost")
+NULL
+select avgcost();
+ERROR HY000: wrong number of arguments: AVGCOST() requires two arguments
+select avgcost(100,23.76);
+ERROR HY000: wrong argument type: AVGCOST() requires an INT and a REAL
+create table t1(sum int, price float(24));
+insert into t1 values(100, 50.00), (100, 100.00);
+select avgcost(sum, price) from t1;
+avgcost(sum, price)
+75.0000
+delete from t1;
+insert into t1 values(100, 54.33), (200, 199.99);
+select avgcost(sum, price) from t1;
+avgcost(sum, price)
+151.4367
+drop table t1;
+select metaphon('hello');
+metaphon('hello')
+HL
+CREATE PROCEDURE `XXX1`(in testval varchar(10))
+begin
+select metaphon(testval);
+end//
+call XXX1('hello');
+metaphon(testval)
+HL
+drop procedure xxx1;
+CREATE PROCEDURE `XXX2`()
+begin
+declare testval varchar(10);
+set testval = 'hello';
+select metaphon(testval);
+end//
+call XXX2();
+metaphon(testval)
+HL
+drop procedure xxx2;
+DROP FUNCTION metaphon;
+DROP FUNCTION myfunc_double;
+DROP FUNCTION myfunc_nonexist;
+ERROR 42000: FUNCTION test.myfunc_nonexist does not exist
+DROP FUNCTION myfunc_int;
+DROP FUNCTION sequence;
+DROP FUNCTION lookup;
+DROP FUNCTION reverse_lookup;
+DROP FUNCTION avgcost;

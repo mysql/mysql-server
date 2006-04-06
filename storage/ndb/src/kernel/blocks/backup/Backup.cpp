@@ -1298,7 +1298,7 @@ Backup::sendCreateTrig(Signal* signal,
     trigPtr.p->tab_ptr_i = tabPtr.i;
     trigPtr.p->logEntry = 0;
     trigPtr.p->event = j;
-    trigPtr.p->maxRecordSize = 2048;
+    trigPtr.p->maxRecordSize = 4096;
     trigPtr.p->operation =
       &ptr.p->files.getPtr(ptr.p->logFilePtr)->operation;
     trigPtr.p->operation->noOfBytes = 0;
@@ -2294,8 +2294,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   };
   const Uint32 maxInsert[] = {
     2048,  // Temporarily to solve TR515
-    //25,      // 100 bytes
-    2048,    // 4k
+    4096,    // 4k
     16*3000, // Max 16 tuples
   };
   Uint32 minWrite[] = {
@@ -2675,7 +2674,7 @@ Backup::openFilesReply(Signal* signal,
   
   const Uint32 sz = 
     (sizeof(BackupFormat::CtlFile::TableList) >> 2) +
-    ptr.p->tables.noOfElements() - 1;
+    ptr.p->tables.count() - 1;
   
   Uint32 * dst;
   ndbrequire(sz < buf.getMaxWrite());

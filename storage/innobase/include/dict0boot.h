@@ -26,7 +26,7 @@ Gets a pointer to the dictionary header and x-latches its page. */
 dict_hdr_t*
 dict_hdr_get(
 /*=========*/
-			/* out: pointer to the dictionary header, 
+			/* out: pointer to the dictionary header,
 			page x-latched */
 	mtr_t*	mtr);	/* in: mtr */
 /**************************************************************************
@@ -94,7 +94,7 @@ dict_create(void);
 					assigned as the id the number
 					DICT_IBUF_ID_MIN plus the space id */
 #define DICT_IBUF_ID_MIN	ut_dulint_create(0xFFFFFFFFUL, 0)
-					
+
 /* The offset of the dictionary header on the page */
 #define	DICT_HDR		FSEG_PAGE_DATA
 
@@ -120,7 +120,7 @@ clustered index */
 #define DICT_SYS_INDEXES_PAGE_NO_FIELD	 8
 #define DICT_SYS_INDEXES_SPACE_NO_FIELD	 7
 #define DICT_SYS_INDEXES_TYPE_FIELD	 6
-					
+
 /* When a row id which is zero modulo this number (which must be a power of
 two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is
 updated */
@@ -130,4 +130,4 @@ updated */
 #include "dict0boot.ic"
 #endif
 
-#endif 
+#endif

@@ -25,6 +25,7 @@ select get_lock("a",10);
 let $VERSION=`select version()`;
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events;
 drop database `drop-temp+table-test`;
 
