@@ -820,17 +820,9 @@ Ndbcntr::trySystemRestart(Signal* signal){
     return false;
   }
   
-  if(!allNodes && c_start.m_startPartialTimeout > now){
-    jam();
-    return false;
-  }
-
   NodeState::StartType srType = NodeState::ST_SYSTEM_RESTART;
-  if(c_start.m_waiting.equal(c_start.m_withoutLog)){
-    if(!allNodes){
-      jam();
-      return false;
-    }
+  if(c_start.m_waiting.equal(c_start.m_withoutLog))
+  {
     jam();
     srType = NodeState::ST_INITIAL_START;
     c_start.m_starting = c_start.m_withoutLog; // Used for starting...
@@ -860,10 +852,6 @@ Ndbcntr::trySystemRestart(Signal* signal){
 	ndbrequire(false); // All nodes -> partitioning, which is not allowed
       }
       
-      if(c_start.m_startPartitionedTimeout > now){
-	jam();
-	return false;
-      }
       break;
     }    
     
