@@ -15,7 +15,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "trx0types.h"
 #include "row0types.h"
-	
+
 /*******************************************************************
 Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
@@ -45,7 +45,7 @@ ins_node_create(
 /*============*/
 					/* out, own: insert node struct */
 	ulint		ins_type,	/* in: INS_VALUES, ... */
-	dict_table_t*	table, 		/* in: table where to insert */
+	dict_table_t*	table,		/* in: table where to insert */
 	mem_heap_t*	heap);		/* in: mem heap where created */
 /*************************************************************************
 Sets a new row to insert for an INS_DIRECT node. This function is only used
@@ -166,4 +166,4 @@ struct ins_node_struct{
 #include "row0ins.ic"
 #endif
 
-#endif 
+#endif

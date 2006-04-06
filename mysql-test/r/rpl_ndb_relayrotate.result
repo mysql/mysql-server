@@ -1,0 +1,16 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+stop slave;
+create table t1 (a int) engine=NDB;
+reset slave;
+start slave;
+stop slave;
+start slave;
+select max(a) from t1;
+max(a)
+8000
+drop table t1;

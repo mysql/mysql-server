@@ -367,7 +367,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (ignore ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-    table->file->start_bulk_insert((ha_rows) 0);
+    if (!thd->prelocked_mode)
+      table->file->start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
 
     thd->no_trans_update= 0;
@@ -384,7 +385,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error= read_sep_field(thd, info, table_list, fields_vars,
                             set_fields, set_values, read_info,
 			    *enclosed, skip_lines, ignore);
-    if (table->file->end_bulk_insert() && !error)
+    if (!thd->prelocked_mode && table->file->end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno, MYF(0));
       error= 1;
@@ -417,19 +418,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
     if (mysql_bin_log.is_open())
     {
-#ifdef HAVE_ROW_BASED_REPLICATION
-      /*
-        We need to do the job that is normally done inside
-        binlog_query() here, which is to ensure that the pending event
-        is written before tables are unlocked and before any other
-        events are written.  We also need to update the table map
-        version for the binary log to mark that table maps are invalid
-        after this point.
-      */
-      if (binlog_row_based)
-        thd->binlog_flush_pending_rows_event(true);
-      else
-#endif
       {
 	/*
 	  Make sure last block (the one which caused the error) gets
@@ -491,7 +479,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       version for the binary log to mark that table maps are invalid
       after this point.
      */
-    if (binlog_row_based)
+    if (thd->current_stmt_binlog_row_based)
       thd->binlog_flush_pending_rows_event(true);
     else
 #endif
@@ -948,7 +936,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
       if (get_it_from_net)
 	cache.read_function = _my_b_net_read;
 
-      if (!binlog_row_based && mysql_bin_log.is_open())
+      if (mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
 	  (IO_CACHE_CALLBACK) log_loaded_block;
 #endif

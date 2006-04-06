@@ -1633,7 +1633,7 @@ create table t1 (a enum (' ','a','b ') not null default 'b ');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('','a','b') NOT NULL default 'b'
+  `a` enum('','a','b') NOT NULL DEFAULT 'b'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a enum ('0','1'));
@@ -1658,7 +1658,7 @@ a	enum('ה','1','2')	NO		ה
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('ה','1','2') NOT NULL default 'ה'
+  `a` enum('ה','1','2') NOT NULL DEFAULT 'ה'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 set names latin1;
@@ -1669,7 +1669,7 @@ b ENUM('value','צהü_value','Êֳױ') character set latin1 NOT NULL
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) default '1',
+  `a` int(11) DEFAULT '1',
   `b` enum('value','צהü_value','Êֳױ') NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
@@ -1699,7 +1699,7 @@ a ENUM('ה','צ','ü') character set utf8 default 'ü'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('ה','צ','ü') character set utf8 default 'ü'
+  `a` enum('ה','צ','ü') CHARACTER SET utf8 DEFAULT 'ü'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('ה'), ('צ'), ('ü');
 select a from t1 order by a;
@@ -1717,7 +1717,7 @@ set names latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('ה','צ','ü') default 'ü'
+  `a` enum('ה','צ','ü') DEFAULT 'ü'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select a from t1 order by a;
 a

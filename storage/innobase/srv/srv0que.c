@@ -38,7 +38,7 @@ srv_que_task_queue_check(void)
 		}
 
 		UT_LIST_REMOVE(queue, srv_sys->tasks, thr);
-		
+
 		mutex_exit(&kernel_mutex);
 
 		que_run_threads(thr);
@@ -62,11 +62,11 @@ srv_que_round_robin(
 	ut_ad(thr->state == QUE_THR_RUNNING);
 
 	mutex_enter(&kernel_mutex);
-	
+
 	UT_LIST_ADD_LAST(queue, srv_sys->tasks, thr);
 
 	new_thr = UT_LIST_GET_FIRST(srv_sys->tasks);
-		
+
 	mutex_exit(&kernel_mutex);
 
 	return(new_thr);
@@ -106,8 +106,8 @@ srv_que_task_enqueue(
 	ut_a(0);	/* Under MySQL this is never called */
 
 	mutex_enter(&kernel_mutex);
-	
+
 	srv_que_task_enqueue_low(thr);
-	
+
 	mutex_exit(&kernel_mutex);
 }

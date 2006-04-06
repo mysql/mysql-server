@@ -173,8 +173,9 @@ public:
   virtual int cmp(const char *,const char *)=0;
   virtual int cmp_binary(const char *a,const char *b, uint32 max_length=~0L)
   { return memcmp(a,b,pack_length()); }
-  int cmp_offset(uint row_offset) { return cmp(ptr,ptr+row_offset); }
-  int cmp_binary_offset(uint row_offset)
+  virtual int cmp_offset(uint row_offset)
+  { return cmp(ptr,ptr+row_offset); }
+  virtual int cmp_binary_offset(uint row_offset)
   { return cmp_binary(ptr, ptr+row_offset); };
   virtual int key_cmp(const byte *a,const byte *b)
   { return cmp((char*) a,(char*) b); }
@@ -349,6 +350,12 @@ public:
   /* convert decimal to longlong with overflow check */
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     int *err);
+  /* The max. number of characters */
+  inline uint32 char_length() const
+  {
+    return field_length / charset()->mbmaxlen;
+  }
+
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -993,20 +1000,23 @@ public:
 
 class Field_string :public Field_longstr {
 public:
+  bool can_alter_field_type;
   Field_string(char *ptr_arg, uint32 len_arg,uchar *null_ptr_arg,
 	       uchar null_bit_arg,
 	       enum utype unireg_check_arg, const char *field_name_arg,
 	       CHARSET_INFO *cs)
     :Field_longstr(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-                   unireg_check_arg, field_name_arg, cs) {};
+                   unireg_check_arg, field_name_arg, cs),
+     can_alter_field_type(1) {};
   Field_string(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
                CHARSET_INFO *cs)
     :Field_longstr((char*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
-                   NONE, field_name_arg, cs) {};
+                   NONE, field_name_arg, cs),
+     can_alter_field_type(1) {};
 
   enum_field_types type() const
   {
-    return ((orig_table &&
+    return ((can_alter_field_type && orig_table &&
              orig_table->s->db_create_options & HA_OPTION_PACK_RECORD &&
 	     field_length >= 4) &&
             orig_table->s->frm_version < FRM_VER_TRUE_VARCHAR ?
@@ -1317,6 +1327,20 @@ public:
 };
 
 
+/*
+  Note:
+    To use Field_bit::cmp_binary() you need to copy the bits stored in
+    the beginning of the record (the NULL bytes) to each memory you
+    want to compare (where the arguments point).
+
+    This is the reason:
+    - Field_bit::cmp_binary() is only implemented in the base class
+      (Field::cmp_binary()).
+    - Field::cmp_binary() currenly use pack_length() to calculate how
+      long the data is.
+    - pack_length() includes size of the bits stored in the NULL bytes
+      of the record.
+*/
 class Field_bit :public Field {
 public:
   uchar *bit_ptr;     // position in record where 'uneven' bits store
@@ -1342,6 +1366,8 @@ public:
   my_decimal *val_decimal(my_decimal *);
   int cmp(const char *a, const char *b)
   { return cmp_binary(a, b); }
+  int cmp_binary_offset(uint row_offset)
+  { return cmp_offset(row_offset); }
   int cmp_max(const char *a, const char *b, uint max_length);
   int key_cmp(const byte *a, const byte *b)
   { return cmp_binary((char *) a, (char *) b); }
@@ -1410,9 +1436,10 @@ public:
   */
   ulong length;
   /*
-    The value of 'length' before a call to create_length_to_internal_length
+    The value of `length' as set by parser: is the number of characters
+    for most of the types, or of bytes for BLOBs or numeric types.
   */
-  uint32 chars_length;
+  uint32 char_length;
   uint  decimals, flags, pack_length, key_length;
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use

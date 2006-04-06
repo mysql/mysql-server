@@ -1,3 +1,4 @@
+
 %define mysql_version		@VERSION@
 
 # use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
@@ -199,9 +200,11 @@ client/server version.
 %{see_base}
 
 %prep
-# We unpack the source twice, once for debug and once for release build.
+# We unpack the source three times, for 'debug', 'max' and 'release' build.
 %setup -T -a 0 -c -n mysql-%{mysql_version}
 mv mysql-%{mysql_version} mysql-debug-%{mysql_version}
+%setup -D -T -a 0 -n mysql-%{mysql_version}
+mv mysql-%{mysql_version} mysql-max-%{mysql_version}
 %setup -D -T -a 0 -n mysql-%{mysql_version}
 mv mysql-%{mysql_version} mysql-release-%{mysql_version}
 
@@ -215,6 +218,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	CXX=\"${CXX:-$MYSQL_BUILD_CXX}\" \
 	CFLAGS=\"$CFLAGS\" \
 	CXXFLAGS=\"$CXXFLAGS\" \
+	LDFLAGS=\"$MYSQL_BUILD_LDFLAGS\" \
 	./configure \
  	    $* \
 	    --with-mysqld-ldflags='-static' \
@@ -222,6 +226,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --with-zlib-dir=bundled \
 	    --enable-assembler \
 	    --enable-local-infile \
+	    --with-fast-mutexes \
             --with-mysqld-user=%{mysqld_user} \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
             --prefix=/ \
@@ -239,9 +244,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
-	    --with-readline ; \
-	    # Add this for more debugging support
-	    # --with-debug
+	    --with-readline \
 	    "
 
  # benchdir does not fit in above model. Maybe a separate bench distribution
@@ -281,13 +284,18 @@ then
 	export CXX="gcc"
 fi
 
+##############################################################################
+#
+#  Build the debug version
+#
+##############################################################################
+
 # Strip -Oxxx, add -g and --with-debug.
 (cd mysql-debug-%{mysql_version} &&
 CFLAGS=`echo "${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" | sed -e 's/-O[0-9]*//g'` \
 CXXFLAGS=`echo "${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" | sed -e 's/-O[0-9]*//g'` \
 BuildMySQL "--enable-shared \
 		--with-debug \
-		--with-berkeley-db \
 		--with-innodb \
 		--with-ndbcluster \
 		--with-archive-storage-engine \
@@ -296,7 +304,7 @@ BuildMySQL "--enable-shared \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 	        --with-big-tables \
-		--with-comment=\"MySQL Community Edition - Debug (GPL)\"")
+		--with-comment=\"MySQL Community Server - Debug (GPL)\"")
 
 # We might want to save the config log file
 if test -n "$MYSQL_DEBUGCONFLOG_DEST"
@@ -304,10 +312,17 @@ then
   cp -fp mysql-debug-%{mysql_version}/config.log "$MYSQL_DEBUGCONFLOG_DEST"
 fi
 
-(cd mysql-debug-%{mysql_version} && make -i test-force) || true
+(cd mysql-debug-%{mysql_version} ; \
+ ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force ; \
+ true)
 
-# Build release binary.
-(cd mysql-release-%{mysql_version} &&
+##############################################################################
+#
+#  Build the max binary
+#
+##############################################################################
+
+(cd mysql-max-%{mysql_version} &&
 CFLAGS="${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" \
 CXXFLAGS="${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" \
 BuildMySQL "--enable-shared \
@@ -320,7 +335,37 @@ BuildMySQL "--enable-shared \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 	        --with-big-tables \
-		--with-comment=\"MySQL Community Edition (GPL)\"")
+		--with-comment=\"MySQL Community Server - Max (GPL)\"")
+
+# We might want to save the config log file
+if test -n "$MYSQL_MAXCONFLOG_DEST"
+then
+  cp -fp  mysql-max-%{mysql_version}/config.log "$MYSQL_MAXCONFLOG_DEST"
+fi
+
+(cd mysql-max-%{mysql_version} ; \
+ ./mysql-test-run.pl --comment=max --skip-ndbcluster --do-test=bdb --force ; \
+ true)
+
+##############################################################################
+#
+#  Build the release binary
+#
+##############################################################################
+
+(cd mysql-release-%{mysql_version} &&
+CFLAGS="${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" \
+CXXFLAGS="${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" \
+BuildMySQL "--enable-shared \
+		--with-innodb \
+		--with-ndbcluster \
+		--with-archive-storage-engine \
+		--with-csv-storage-engine \
+		--with-example-storage-engine \
+		--with-blackhole-storage-engine \
+		--with-federated-storage-engine \
+	        --with-big-tables \
+		--with-comment=\"MySQL Community Server (GPL)\"")
 
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
@@ -328,7 +373,14 @@ then
   cp -fp  mysql-release-%{mysql_version}/config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-(cd  mysql-release-%{mysql_version} && make -i test-force) || true
+(cd mysql-release-%{mysql_version} ; \
+ ./mysql-test-run.pl --comment=normal --force ; \
+ ./mysql-test-run.pl --comment=ps --ps-protocol --force ; \
+ ./mysql-test-run.pl --comment=normal+rowrepl --mysqld=--binlog-format=row --force ; \
+ ./mysql-test-run.pl --comment=ps+rowrepl --ps-protocol --mysqld=--binlog-format=row --force ; \
+ true)
+
+##############################################################################
 
 %install
 RBR=$RPM_BUILD_ROOT
@@ -350,12 +402,22 @@ install -d $RBR%{_sbindir}
 # the same here.
 mv $RBR/%{_libdir}/mysql/*.so* $RBR/%{_libdir}/
 
-# install mysqld-debug
+# install "mysqld-debug" and "mysqld-max"
 if test -f $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/.libs/mysqld
 then
-	install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/.libs/mysqld $RBR%{_sbindir}/mysqld-debug
+  install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/.libs/mysqld \
+                 $RBR%{_sbindir}/mysqld-debug
 else
-	install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld $RBR%{_sbindir}/mysqld-debug
+  install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
+                 $RBR%{_sbindir}/mysqld-debug
+fi
+if test -f $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-max-%{mysql_version}/sql/.libs/mysqld
+then
+  install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-max-%{mysql_version}/sql/.libs/mysqld \
+                 $RBR%{_sbindir}/mysqld-max
+else
+  install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-max-%{mysql_version}/sql/mysqld \
+                 $RBR%{_sbindir}/mysqld-max
 fi
 
 # install saved perror binary with NDB support (BUG#13740)
@@ -366,8 +428,7 @@ install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.
 install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Install embedded server library in the build root
-# FIXME No libmysqld on 5.0 yet
-#install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
+install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -534,6 +595,7 @@ fi
 
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
+%attr(755, root, root) %{_sbindir}/mysqld-max
 %attr(755, root, root) %{_sbindir}/mysqlmanager
 %attr(755, root, root) %{_sbindir}/rcmysql
 
@@ -629,7 +691,8 @@ fi
 %files shared
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
-%{_libdir}/*.so*
+%{_libdir}/libmysql*.so*
+%{_libdir}/libndb*.so*
 
 %files bench
 %defattr(-, root, root, 0755)
@@ -642,12 +705,31 @@ fi
 
 %files embedded
 %defattr(-, root, root, 0755)
-# %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
+%attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
 # The spec file changelog only includes changes made to the spec file
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Sat Apr 01 2006 Kent Boortz <kent@mysql.com>
+
+- Set $LDFLAGS from $MYSQL_BUILD_LDFLAGS
+
+* Wed Mar 07 2006 Kent Boortz <kent@mysql.com>
+
+- Changed product name from "Community Edition" to "Community Server"
+
+* Mon Mar 06 2006 Kent Boortz <kent@mysql.com>
+
+- Fast mutexes is now disabled by default, but should be
+  used in Linux builds.
+
+* Mon Feb 20 2006 Kent Boortz <kent@mysql.com>
+
+- Reintroduced a max build
+- Limited testing of 'debug' and 'max' servers
+- Berkeley DB only in 'max'
+
 * Mon Feb 13 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Use "-i" on "make test-force";

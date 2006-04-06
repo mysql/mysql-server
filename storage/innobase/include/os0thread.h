@@ -30,8 +30,8 @@ typedef void*			os_thread_t;
 typedef ulint			os_thread_id_t;	/* In Windows the thread id
 						is an unsigned long int */
 #else
-typedef pthread_t               os_thread_t;
-typedef os_thread_t          	os_thread_id_t;	/* In Unix we use the thread
+typedef pthread_t		os_thread_t;
+typedef os_thread_t		os_thread_id_t;	/* In Unix we use the thread
 						handle itself as the id of
 						the thread */
 #endif
@@ -69,7 +69,7 @@ os_thread_create(
 /*=============*/
 						/* out: handle to the thread */
 #ifndef __WIN__
-		 os_posix_f_t            start_f,
+		 os_posix_f_t		 start_f,
 #else
 	ulint (*start_f)(void*),		/* in: pointer to function
 						from which to start */
@@ -80,7 +80,7 @@ os_thread_create(
 						thread */
 int
 os_thread_join(
-/*=============*/
+/*===========*/
   os_thread_id_t  thread_id);	/* in: id of the thread to join */
 /*********************************************************************
 Exits the current thread. */
@@ -142,4 +142,4 @@ os_thread_get_last_error(void);
 #include "os0thread.ic"
 #endif
 
-#endif 
+#endif

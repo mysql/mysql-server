@@ -7,7 +7,7 @@ Created 5/27/1996 Heikki Tuuri
 *******************************************************/
 
 #include "que0que.h"
- 
+
 #ifdef UNIV_NONINL
 #include "que0que.ic"
 #endif
@@ -106,7 +106,7 @@ que_fork_create(
 	que_fork_t*	fork;
 
 	ut_ad(heap);
-	
+
 	fork = mem_heap_alloc(heap, sizeof(que_fork_t));
 
 	fork->common.type = QUE_NODE_FORK;
@@ -119,7 +119,7 @@ que_fork_create(
 	} else {
 		fork->graph = fork;
 	}
-	
+
 	fork->common.parent = parent;
 	fork->fork_type = fork_type;
 
@@ -128,9 +128,9 @@ que_fork_create(
 	UT_LIST_INIT(fork->thrs);
 
 	fork->sym_tab = NULL;
-	
+
 	fork->heap = heap;
-	
+
 	return(fork);
 }
 
@@ -145,9 +145,9 @@ que_thr_create(
 	mem_heap_t*	heap)	/* in: memory heap where created */
 {
 	que_thr_t*	thr;
-	
+
 	ut_ad(parent && heap);
-	
+
 	thr = mem_heap_alloc(heap, sizeof(que_thr_t));
 
 	thr->common.type = QUE_NODE_THR;
@@ -159,7 +159,7 @@ que_thr_create(
 
 	thr->state = QUE_THR_COMMAND_WAIT;
 
-	thr->is_active = FALSE;	
+	thr->is_active = FALSE;
 
 	thr->run_node = NULL;
 	thr->resource = 0;
@@ -197,20 +197,20 @@ que_thr_end_wait(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(thr);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
-	      || (thr->state == QUE_THR_PROCEDURE_WAIT)
-	      || (thr->state == QUE_THR_SIG_REPLY_WAIT));
+		|| (thr->state == QUE_THR_PROCEDURE_WAIT)
+		|| (thr->state == QUE_THR_SIG_REPLY_WAIT));
 	ut_ad(thr->run_node);
 
 	thr->prev_node = thr->run_node;
 
 	was_active = thr->is_active;
-	
+
 	que_thr_move_to_run_state(thr);
 
 	if (was_active) {
 
 		return;
-	}	
+	}
 
 	if (next_thr && *next_thr == NULL) {
 		*next_thr = thr;
@@ -218,7 +218,7 @@ que_thr_end_wait(
 		ut_a(0);
 		srv_que_task_enqueue_low(thr);
 	}
-}	
+}
 
 /**************************************************************************
 Same as que_thr_end_wait, but no parameter next_thr available. */
@@ -239,11 +239,11 @@ que_thr_end_wait_no_next_thr(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(thr);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
-	      || (thr->state == QUE_THR_PROCEDURE_WAIT)
-	      || (thr->state == QUE_THR_SIG_REPLY_WAIT));
+		|| (thr->state == QUE_THR_PROCEDURE_WAIT)
+		|| (thr->state == QUE_THR_SIG_REPLY_WAIT));
 
 	was_active = thr->is_active;
-	
+
 	que_thr_move_to_run_state(thr);
 
 	if (was_active) {
@@ -253,7 +253,7 @@ que_thr_end_wait_no_next_thr(
 
 	/* In MySQL we let the OS thread (not just the query thread) to wait
 	for the lock to be released: */
-	
+
 	srv_release_mysql_thread_if_suspended(thr);
 
 	/* srv_que_task_enqueue_low(thr); */
@@ -286,12 +286,12 @@ que_fork_start_command(
 				QUE_THR_RUNNING state, or NULL; the query
 				thread should be executed by que_run_threads
 				by the caller */
-	que_fork_t* 	fork)	/* in: a query fork */
+	que_fork_t*	fork)	/* in: a query fork */
 {
 	que_thr_t*	thr;
 
 	fork->state = QUE_FORK_ACTIVE;
-	
+
 	fork->last_sel_node = NULL;
 
 	/* Choose the query thread to run: usually there is just one thread,
@@ -300,7 +300,7 @@ que_fork_start_command(
 
 	/*---------------------------------------------------------------
 	First we try to find a query thread in the QUE_THR_COMMAND_WAIT state */
-	
+
 	thr = UT_LIST_GET_FIRST(fork->thrs);
 
 	while (thr != NULL) {
@@ -315,7 +315,7 @@ que_fork_start_command(
 		}
 
 		ut_ad(thr->state != QUE_THR_LOCK_WAIT);
-		
+
 		thr = UT_LIST_GET_NEXT(thrs, thr);
 	}
 
@@ -340,7 +340,7 @@ que_fork_start_command(
 
 	/*-----------------------------------------------------------------
 	Then we try to find a query thread in the QUE_THR_COMPLETED state */
-	
+
 	thr = UT_LIST_GET_FIRST(fork->thrs);
 
 	while (thr != NULL) {
@@ -384,16 +384,16 @@ que_fork_error_handle(
 		ut_ad(!thr->is_active);
 		ut_ad(thr->state != QUE_THR_SIG_REPLY_WAIT);
 		ut_ad(thr->state != QUE_THR_LOCK_WAIT);
-		
+
 		thr->run_node = thr;
 		thr->prev_node = thr->child;
 		thr->state = QUE_THR_COMPLETED;
-		
+
 		thr = UT_LIST_GET_NEXT(thrs, thr);
 	}
 
 	thr = UT_LIST_GET_FIRST(fork->thrs);
-	
+
 	que_thr_move_to_run_state(thr);
 
 	ut_a(0);
@@ -459,7 +459,7 @@ que_graph_free_recursive(
 	upd_node_t*	upd;
 	tab_node_t*	cre_tab;
 	ind_node_t*	cre_ind;
-	
+
 	if (node == NULL) {
 
 		return;
@@ -487,7 +487,7 @@ que_graph_free_recursive(
 			fprintf(stderr,
 		"que_thr struct appears corrupt; magic n %lu\n",
 				(unsigned long) thr->magic_n);
-			mem_analyze_corruption((byte*)thr);
+			mem_analyze_corruption(thr);
 			ut_error;
 		}
 
@@ -524,16 +524,16 @@ que_graph_free_recursive(
 		upd = node;
 
 		if (upd->in_mysql_interface) {
-		
+
 			btr_pcur_free_for_mysql(upd->pcur);
 		}
 
-		que_graph_free_recursive(upd->cascade_node);		
+		que_graph_free_recursive(upd->cascade_node);
 
 		if (upd->cascade_heap) {
 			mem_heap_free(upd->cascade_heap);
 		}
-		
+
 		que_graph_free_recursive(upd->select);
 
 		mem_heap_free(upd->heap);
@@ -541,7 +541,7 @@ que_graph_free_recursive(
 		break;
 	case QUE_NODE_CREATE_TABLE:
 		cre_tab = node;
-	
+
 		que_graph_free_recursive(cre_tab->tab_def);
 		que_graph_free_recursive(cre_tab->col_def);
 		que_graph_free_recursive(cre_tab->commit_node);
@@ -551,7 +551,7 @@ que_graph_free_recursive(
 		break;
 	case QUE_NODE_CREATE_INDEX:
 		cre_ind = node;
-	
+
 		que_graph_free_recursive(cre_ind->ind_def);
 		que_graph_free_recursive(cre_ind->field_def);
 		que_graph_free_recursive(cre_ind->commit_node);
@@ -599,7 +599,7 @@ que_graph_free_recursive(
 		fprintf(stderr,
 		"que_node struct appears corrupt; type %lu\n",
 			(unsigned long) que_node_get_type(node));
-		mem_analyze_corruption((byte*)node);
+		mem_analyze_corruption(node);
 		ut_error;
 	}
 }
@@ -622,7 +622,7 @@ que_graph_free(
 		/* The following call frees dynamic memory allocated
 		for variables etc. during execution. Frees also explicit
 		cursor definitions. */
-		
+
 		sym_tab_free_private(graph->sym_tab);
 	}
 
@@ -649,7 +649,7 @@ que_graph_try_free(
 #endif /* UNIV_SYNC_DEBUG */
 
 	sess = (graph->trx)->sess;
-	
+
 	if ((graph->state == QUE_FORK_BEING_FREED)
 					&& (graph->n_active_thrs == 0)) {
 
@@ -680,7 +680,7 @@ que_thr_handle_error(
 				function will take care of freeing of the
 				string! */
 	ulint		err_len __attribute__((unused)))
-				/* in: error string length */	
+				/* in: error string length */
 {
 	/* Does nothing */
 }
@@ -697,29 +697,29 @@ que_thr_node_step(
 				be the thread node itself */
 {
 	ut_ad(thr->run_node == thr);
-	
+
 	if (thr->prev_node == thr->common.parent) {
 		/* If control to the node came from above, it is just passed
 		on */
 
 		thr->run_node = thr->child;
-	
+
 		return(thr);
 	}
 
 	mutex_enter(&kernel_mutex);
 
 	if (que_thr_peek_stop(thr)) {
-	
+
 		mutex_exit(&kernel_mutex);
 
 		return(thr);
 	}
 
 	/* Thread execution completed */
-	
+
 	thr->state = QUE_THR_COMPLETED;
-	
+
 	mutex_exit(&kernel_mutex);
 
 	return(NULL);
@@ -754,7 +754,7 @@ que_thr_move_to_run_state(
 		ut_ad((thr->graph)->n_active_thrs == 1);
 		ut_ad(trx->n_active_thrs == 1);
 	}
-	
+
 	thr->state = QUE_THR_RUNNING;
 }
 
@@ -776,14 +776,14 @@ que_thr_dec_refer_count(
 					if the value which is passed in is
 					a pointer to a NULL pointer, then the
 					calling function can start running
-					a new query thread */ 
+					a new query thread */
 {
 	que_fork_t*	fork;
 	trx_t*		trx;
 	sess_t*		sess;
 	ulint		fork_type;
 	ibool		stopped;
-	
+
 	fork = thr->common.parent;
 	trx = thr->graph->trx;
 	sess = trx->sess;
@@ -815,7 +815,7 @@ que_thr_dec_refer_count(
 
 			return;
 		}
-	}	
+	}
 
 	ut_ad(fork->n_active_thrs == 1);
 	ut_ad(trx->n_active_thrs == 1);
@@ -831,7 +831,7 @@ que_thr_dec_refer_count(
 
 		return;
 	}
-	
+
 	fork_type = fork->fork_type;
 
 	/* Check if all query threads in the same fork are completed */
@@ -841,12 +841,12 @@ que_thr_dec_refer_count(
 		if (fork_type == QUE_FORK_ROLLBACK) {
 			/* This is really the undo graph used in rollback,
 			no roll_node in this graph */
-			
+
 			ut_ad(UT_LIST_GET_LEN(trx->signals) > 0);
 			ut_ad(trx->handling_signals == TRUE);
-			
+
 			trx_finish_rollback_off_kernel(fork, trx, next_thr);
-			
+
 		} else if (fork_type == QUE_FORK_PURGE) {
 
 			/* Do nothing */
@@ -863,7 +863,7 @@ que_thr_dec_refer_count(
 
 	if (UT_LIST_GET_LEN(trx->signals) > 0 && trx->n_active_thrs == 0) {
 
-	    	/* If the trx is signaled and its query thread count drops to
+		/* If the trx is signaled and its query thread count drops to
 		zero, then we start processing a signal; from it we may get
 		a new query thread to run */
 
@@ -896,7 +896,7 @@ que_thr_stop(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	
+
 	graph = thr->graph;
 	trx = graph->trx;
 
@@ -922,7 +922,7 @@ que_thr_stop(
 		ut_ad(graph->state == QUE_FORK_ACTIVE);
 
 		ret = FALSE;
-	}		        
+	}
 
 	return(ret);
 }
@@ -941,13 +941,13 @@ que_thr_stop_for_mysql(
 	trx_t*	trx;
 
 	trx = thr_get_trx(thr);
-	
+
 	mutex_enter(&kernel_mutex);
 
 	if (thr->state == QUE_THR_RUNNING) {
 
 		if (trx->error_state != DB_SUCCESS
-			   	&& trx->error_state != DB_LOCK_WAIT) {
+				&& trx->error_state != DB_LOCK_WAIT) {
 
 			/* Error handling built for the MySQL interface */
 			thr->state = QUE_THR_COMPLETED;
@@ -961,7 +961,7 @@ que_thr_stop_for_mysql(
 			return;
 		}
 	}
-		
+
 	ut_ad(thr->is_active == TRUE);
 	ut_ad(trx->n_active_thrs == 1);
 	ut_ad(thr->graph->n_active_thrs == 1);
@@ -990,7 +990,7 @@ que_thr_move_to_run_state_for_mysql(
 	"que_thr struct appears corrupt; magic n %lu\n",
 			(unsigned long) thr->magic_n);
 
-		mem_analyze_corruption((byte*)thr);
+		mem_analyze_corruption(thr);
 
 		ut_error;
 	}
@@ -1003,7 +1003,7 @@ que_thr_move_to_run_state_for_mysql(
 
 		thr->is_active = TRUE;
 	}
-	
+
 	thr->state = QUE_THR_RUNNING;
 }
 
@@ -1021,13 +1021,13 @@ que_thr_stop_for_mysql_no_error(
 	ut_ad(thr->is_active == TRUE);
 	ut_ad(trx->n_active_thrs == 1);
 	ut_ad(thr->graph->n_active_thrs == 1);
-		
+
 	if (thr->magic_n != QUE_THR_MAGIC_N) {
 		fprintf(stderr,
 	"que_thr struct appears corrupt; magic n %lu\n",
 			(unsigned long) thr->magic_n);
 
-		mem_analyze_corruption((byte*)thr);
+		mem_analyze_corruption(thr);
 
 		ut_error;
 	}
@@ -1108,23 +1108,23 @@ que_thr_step(
 /*=========*/
 				/* out: query thread to run next: it may
 				differ from the input parameter if, e.g., a
-				subprocedure call is made */ 
+				subprocedure call is made */
 	que_thr_t*	thr)	/* in: query thread */
 {
 	que_node_t*	node;
 	que_thr_t*	old_thr;
 	trx_t*		trx;
 	ulint		type;
-	
+
 	ut_ad(thr->state == QUE_THR_RUNNING);
 
 	thr->resource++;
-	
+
 	type = que_node_get_type(thr->run_node);
 	node = thr->run_node;
 
 	old_thr = thr;
-	
+
 #ifdef UNIV_DEBUG
 	if (que_trace_on) {
 		fputs("To execute: ", stderr);
@@ -1150,13 +1150,13 @@ que_thr_step(
 			/* We can access trx->undo_no without reserving
 			trx->undo_mutex, because there cannot be active query
 			threads doing updating or inserting at the moment! */
-	
+
 			if (thr->prev_node == que_node_get_parent(node)) {
 				trx = thr_get_trx(thr);
 				trx->last_sql_stat_start.least_undo_no
 							= trx->undo_no;
 			}
-			
+
 			proc_step(thr);
 		} else if (type == QUE_NODE_WHILE) {
 			while_step(thr);
@@ -1220,9 +1220,9 @@ que_run_threads(
 	que_thr_t*	thr)	/* in: query thread which is run initially */
 {
 	que_thr_t*	next_thr;
-	ulint		cumul_resource;	
+	ulint		cumul_resource;
 	ulint		loop_count;
-	
+
 	ut_ad(thr->state == QUE_THR_RUNNING);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
@@ -1232,7 +1232,7 @@ que_run_threads(
 	query thread) has spent in this function */
 
 	loop_count = QUE_MAX_LOOPS_WITHOUT_CHECK;
-	cumul_resource = 0;	
+	cumul_resource = 0;
 loop:
 	/* Check that there is enough space in the log to accommodate
 	possible log entries by this query step; if the operation can touch
@@ -1240,7 +1240,7 @@ loop:
 	step! */
 
 	log_free_check();
-	
+
 	/* Perform the actual query step: note that the query thread
 	may change if, e.g., a subprocedure call is made */
 
@@ -1254,7 +1254,7 @@ loop:
 /*	if (srv_test_extra_mutexes) {
 		mutex_enter(&kernel_mutex);
 		mutex_exit(&kernel_mutex);
-	}	
+	}
 */
 	loop_count++;
 

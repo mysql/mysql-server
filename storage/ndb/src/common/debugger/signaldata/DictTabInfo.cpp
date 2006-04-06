@@ -233,7 +233,7 @@ sizeof(SimpleProperties::SP2StructMapping);
 
 void
 DictFilegroupInfo::Filegroup::init(){
-  memset(FilegroupName, sizeof(FilegroupName), 0);
+  memset(FilegroupName, 0, sizeof(FilegroupName));
   FilegroupType = ~0;
   FilegroupId = ~0;
   FilegroupVersion = ~0;
@@ -244,8 +244,10 @@ DictFilegroupInfo::Filegroup::init(){
   TS_DataGrow.GrowLimit = 0;
   TS_DataGrow.GrowSizeHi = 0;
   TS_DataGrow.GrowSizeLo = 0;
-  memset(TS_DataGrow.GrowPattern, sizeof(TS_DataGrow.GrowPattern), 0);
+  memset(TS_DataGrow.GrowPattern, 0, sizeof(TS_DataGrow.GrowPattern));
   TS_DataGrow.GrowMaxSize = 0;
+  LF_UndoFreeWordsHi= 0;
+  LF_UndoFreeWordsLo= 0;
 }
 
 void
@@ -259,4 +261,34 @@ DictFilegroupInfo::File::init(){
   FileSizeHi = 0;
   FileSizeLo = 0;
   FileFreeExtents = 0;
+}
+
+// blob table name hack
+
+bool
+DictTabInfo::isBlobTableName(const char* name, Uint32* ptab_id, Uint32* pcol_no)
+{ 
+  const char* const prefix = "NDB$BLOB_";
+  const char* s = strrchr(name, table_name_separator);
+  s = (s == NULL ? name : s + 1);
+  if (strncmp(s, prefix, strlen(prefix)) != 0)
+    return false;
+  s += strlen(prefix);
+  uint i, n;
+  for (i = 0, n = 0; '0' <= s[i] && s[i] <= '9'; i++)
+    n = 10 * n + (s[i] - '0');
+  if (i == 0 || s[i] != '_')
+    return false;
+  const uint tab_id = n;
+  s = &s[i + 1];
+  for (i = 0, n = 0; '0' <= s[i] && s[i] <= '9'; i++)
+    n = 10 * n + (s[i] - '0');
+  if (i == 0 || s[i] != 0)
+    return false;
+  const uint col_no = n;
+  if (ptab_id)
+    *ptab_id = tab_id;
+  if (pcol_no)
+    *pcol_no = col_no;
+  return true;
 }

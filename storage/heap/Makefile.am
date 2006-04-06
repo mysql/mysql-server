@@ -15,9 +15,10 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include 
-LDADD =			libheap.a $(top_srcdir)/mysys/libmysys.a \
-			$(top_srcdir)/dbug/libdbug.a \
-			$(top_srcdir)/strings/libmystrings.a
+LDADD =			libheap.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a
 pkglib_LIBRARIES =	libheap.a
 noinst_PROGRAMS	=	hp_test1 hp_test2
 hp_test1_LDFLAGS = @NOINST_LDFLAGS@
@@ -29,6 +30,7 @@ libheap_a_SOURCES =	hp_open.c hp_extra.c hp_close.c hp_panic.c hp_info.c \
 			hp_rnext.c hp_rlast.c hp_rprev.c hp_clear.c \
 			hp_rkey.c hp_block.c \
 			hp_hash.c _check.c _rectest.c hp_static.c
+EXTRA_DIST =		cmakelists.txt
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

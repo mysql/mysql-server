@@ -1963,12 +1963,6 @@ select * from (select max(fld) from t1) as foo;
 drop table t1;
 
 #
-# BUG #10308: purge log with subselect
-#
-
-purge master logs before (select adddate(current_timestamp(), interval -4 day));
-
-#
 # Test for bug #11762: subquery with an aggregate function in HAVING
 #
 
@@ -2051,3 +2045,43 @@ SELECT t1.a, SUM(b) AS sum  FROM t1 GROUP BY t1.a
                     HAVING t2.c+sum > 20);
 
 DROP TABLE t1,t2,t3;
+
+#
+# Test for bug #16603: GROUP BY in a row subquery with a quantifier 
+#                      when an index is defined on the grouping field
+
+CREATE TABLE t1 (a varchar(5), b varchar(10));
+INSERT INTO t1 VALUES
+  ('AAA', 5), ('BBB', 4), ('BBB', 1), ('CCC', 2),
+  ('CCC', 7), ('AAA', 2), ('AAA', 4), ('BBB', 3), ('AAA', 8);
+
+SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
+EXPLAIN
+SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
+
+ALTER TABLE t1 ADD INDEX(a);
+
+SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
+EXPLAIN
+SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
+
+DROP TABLE t1;
+
+#
+# Bug#17366: Unchecked Item_int results in server crash
+#
+create table t1( f1 int,f2 int);
+insert into t1 values (1,1),(2,2);
+select tt.t from (select 'crash1' as t, f2 from t1) as tt left join t1 on tt.t = 'crash2' and tt.f2 = t1.f2 where tt.t = 'crash1';
+drop table t1;
+
+#
+# Bug #18306: server crash on delete using subquery.
+#
+
+create table t1 (c int, key(c));                              
+insert into t1 values (1142477582), (1142455969);
+create table t2 (a int, b int);
+insert into t2 values (2, 1), (1, 0);
+delete from t1 where c <= 1140006215 and (select b from t2 where a = 2) = 1;
+drop table t1, t2;

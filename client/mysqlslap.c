@@ -76,6 +76,9 @@ TODO:
 #define RAND_STRING_SIZE 126
 
 #include "client_priv.h"
+#ifdef HAVE_LIBPTHREAD
+#include <my_pthread.h>
+#endif
 #include <my_sys.h>
 #include <m_string.h>
 #include <mysql.h>
@@ -89,7 +92,6 @@ TODO:
 #include <sys/wait.h>
 #endif
 #include <ctype.h>
-#include <my_pthread.h>
 
 #define MYSLAPLOCK "/myslaplock.lck"
 #define MYSLAPLOCK_DIR "/tmp"
@@ -170,6 +172,7 @@ typedef struct thread_context thread_context;
 struct thread_context {
   statement *stmt;
   ulonglong limit;
+  bool thread;
 };
 
 typedef struct conclusions conclusions;
@@ -263,6 +266,7 @@ int main(int argc, char **argv)
     my_end(0);
     exit(1);
   }
+
   /* globals? Yes, so we only have to run strlen once */
   delimiter_length= strlen(delimiter);
 
@@ -292,9 +296,9 @@ int main(int argc, char **argv)
   client_flag|= CLIENT_MULTI_RESULTS;
   if (!opt_only_print) 
   {
-    if (!(mysql_real_connect(&mysql,host,user,opt_password,
-                             argv[0],opt_mysql_port,opt_mysql_unix_port,
-                             client_flag)))
+    if (!(mysql_real_connect(&mysql, host, user, opt_password,
+                             NULL, opt_mysql_port,
+                             opt_mysql_unix_port, client_flag)))
     {
       fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
       free_defaults(defaults_argv);
@@ -452,9 +456,10 @@ static struct my_option my_long_options[] =
     (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
     0},
   {"preserve-schema", OPT_MYSQL_PRESERVE_SCHEMA,
-    "Preserve the schema from the mysqlslap run.",
+    "Preserve the schema from the mysqlslap run, this happens unless \
+      --auto-generate-sql or --create are used.",
     (gptr*) &opt_preserve, (gptr*) &opt_preserve, 0, GET_BOOL,
-    NO_ARG, 0, 0, 0, 0, 0, 0},
+    NO_ARG, TRUE, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
     "The protocol of connection (tcp,socket,pipe,memory).",
     0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -747,6 +752,9 @@ get_options(int *argc,char ***argv)
   if (!user)
     user= (char *)"root";
 
+  if (create_string || auto_generate_sql )
+    opt_preserve= FALSE;
+
   if (auto_generate_sql && (create_string || user_supplied_query))
   {
       fprintf(stderr,
@@ -974,6 +982,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 
   con.stmt= stmts;
   con.limit= limit;
+  con.thread= opt_use_threads ? 1 :0;
 
   lock_file= my_open(lock_file_str, O_CREAT|O_WRONLY|O_TRUNC, MYF(0));
 
@@ -985,6 +994,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
       exit(0);
     }
 
+#ifdef HAVE_LIBPTHREAD
   if (opt_use_threads)
   {
     pthread_t mainthread;            /* Thread descriptor */
@@ -1006,8 +1016,11 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
       }
     }
   }
-#ifndef __WIN__
+#endif
+#if !(defined(__WIN__) || defined(__NETWARE__))
+#ifdef HAVE_LIBPTHREAD
   else
+#endif
   {
     fflush(NULL);
     for (x= 0; x < concur; x++)
@@ -1078,6 +1091,9 @@ WAIT:
       int status, pid;
       pid= wait(&status);
       DBUG_PRINT("info", ("Parent: child %d status %d", pid, status));
+      if (status != 0)
+        printf("%s: Child %d died with the status %d\n",
+               my_progname, pid, status);
     }
   }
 #endif
@@ -1096,8 +1112,8 @@ int
 run_task(thread_context *con)
 {
   ulonglong counter= 0, queries;
-  File lock_file;
-  MYSQL mysql;
+  File lock_file= -1;
+  MYSQL *mysql;
   MYSQL_RES *result;
   MYSQL_ROW row;
   statement *ptr;
@@ -1105,43 +1121,49 @@ run_task(thread_context *con)
   DBUG_ENTER("run_task");
   DBUG_PRINT("info", ("task script \"%s\"", con->stmt->string));
 
-  mysql_init(&mysql);
+  if (!(mysql= mysql_init(NULL)))
+    goto end;
+
+  if (con->thread && mysql_thread_init())
+    goto end;
 
   DBUG_PRINT("info", ("trying to connect to host %s as user %s", host, user));
   lock_file= my_open(lock_file_str, O_RDWR, MYF(0));
   my_lock(lock_file, F_RDLCK, 0, F_TO_EOF, MYF(0));
-  if (!opt_only_print) 
+  if (!opt_only_print)
   {
-    if (!(mysql_real_connect(&mysql, host, user, opt_password,
-                             "mysqlslap", opt_mysql_port, opt_mysql_unix_port,
-                             0)))
+    if (!(mysql= mysql_real_connect(mysql, host, user, opt_password,
+                                    create_schema_string,
+                                    opt_mysql_port,
+                                    opt_mysql_unix_port,
+                                    0)))
     {
-      fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
-      exit(1);
+      fprintf(stderr,"%s: %s\n",my_progname,mysql_error(mysql));
+      goto end;
     }
   }
   DBUG_PRINT("info", ("connected."));
 
-  queries= 0; 
+  queries= 0;
 
 limit_not_met:
     for (ptr= con->stmt; ptr && ptr->length; ptr= ptr->next)
     {
-      if (opt_only_print) 
+      if (opt_only_print)
       {
         printf("%.*s;\n", (uint)ptr->length, ptr->string);
       }
       else
       {
-        if (mysql_real_query(&mysql, ptr->string, ptr->length))
+        if (mysql_real_query(mysql, ptr->string, ptr->length))
         {
           fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
-                  my_progname, (uint)ptr->length, ptr->string, mysql_error(&mysql));
-          exit(1);
+                  my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+          goto end;
         }
-        if (mysql_field_count(&mysql))
+        if (mysql_field_count(mysql))
         {
-          result= mysql_store_result(&mysql);
+          result= mysql_store_result(mysql);
           while ((row = mysql_fetch_row(result)))
             counter++;
           mysql_free_result(result);
@@ -1150,18 +1172,25 @@ limit_not_met:
       queries++;
 
       if (con->limit && queries == con->limit)
-        DBUG_RETURN(0);
+        goto end;
     }
 
   if (con->limit && queries < con->limit)
     goto limit_not_met;
 
-  my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
-  my_close(lock_file, MYF(0));
+end:
+
+  if (lock_file != -1)
+  {
+    my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
+    my_close(lock_file, MYF(0));
+  }
 
   if (!opt_only_print) 
-    mysql_close(&mysql);
+    mysql_close(mysql);
 
+  if (con->thread)
+    my_thread_end();
   DBUG_RETURN(0);
 }
 

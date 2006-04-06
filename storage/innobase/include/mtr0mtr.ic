@@ -11,7 +11,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "mach0data.h"
 
 /*******************************************************************
-Starts a mini-transaction and creates a mini-transaction handle 
+Starts a mini-transaction and creates a mini-transaction handle
 and a buffer in the memory buffer given by the caller. */
 UNIV_INLINE
 mtr_t*
@@ -33,7 +33,7 @@ mtr_start(
 	mtr->magic_n = MTR_MAGIC_N;
 #endif
 	return(mtr);
-}		
+}
 
 /*******************************************************
 Pushes an object to an mtr memo stack. */
@@ -49,12 +49,12 @@ mtr_memo_push(
 	mtr_memo_slot_t*	slot;
 
 	ut_ad(object);
-	ut_ad(type >= MTR_MEMO_PAGE_S_FIX);	
+	ut_ad(type >= MTR_MEMO_PAGE_S_FIX);
 	ut_ad(type <= MTR_MEMO_X_LOCK);
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 
-	memo = &(mtr->memo);	
+	memo = &(mtr->memo);
 
 	slot = dyn_array_push(memo, sizeof(mtr_memo_slot_t));
 
@@ -72,11 +72,11 @@ mtr_set_savepoint(
 	mtr_t*	mtr)	/* in: mtr */
 {
 	dyn_array_t*	memo;
- 
+
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 
-	memo = &(mtr->memo);	
+	memo = &(mtr->memo);
 
 	return(dyn_array_get_data_size(memo));
 }
@@ -90,11 +90,11 @@ mtr_release_s_latch_at_savepoint(
 /*=============================*/
 	mtr_t*		mtr,		/* in: mtr */
 	ulint		savepoint,	/* in: savepoint */
-	rw_lock_t* 	lock)		/* in: latch to release */
+	rw_lock_t*	lock)		/* in: latch to release */
 {
 	mtr_memo_slot_t* slot;
 	dyn_array_t*	memo;
-	
+
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
@@ -102,7 +102,7 @@ mtr_release_s_latch_at_savepoint(
 	memo = &(mtr->memo);
 
 	ut_ad(dyn_array_get_data_size(memo) > savepoint);
-	
+
 	slot = dyn_array_get_element(memo, savepoint);
 
 	ut_ad(slot->object == lock);

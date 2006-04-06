@@ -73,7 +73,7 @@ ibool
 buf_LRU_search_and_free_block(
 /*==========================*/
 				/* out: TRUE if freed */
-	ulint	n_iterations);   /* in: how many times this has been called
+	ulint	n_iterations);	 /* in: how many times this has been called
 				repeatedly without result: a high value means
 				that we should search farther; if value is
 				k < 10, then we only search k/10 * number

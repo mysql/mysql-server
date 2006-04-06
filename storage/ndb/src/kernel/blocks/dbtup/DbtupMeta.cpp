@@ -201,6 +201,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     regTabPtr.p->m_no_of_attributes= noOfAttributes;
     
     regTabPtr.p->notNullAttributeMask.clear();
+    regTabPtr.p->blobAttributeMask.clear();
     
     Uint32 offset[10];
     Uint32 tableDescriptorRef= allocTabDescr(regTabPtr.p, offset);
@@ -286,6 +287,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   ptrCheckGuard(fragOperPtr, cnoOfFragoprec, fragoperrec);
   Uint32 attrId = signal->theData[2];
   Uint32 attrDescriptor = signal->theData[3];
+  Uint32 extType = AttributeDescriptor::getType(attrDescriptor);
   // DICT sends charset number in upper half
   Uint32 csNumber = (signal->theData[4] >> 16);
 
@@ -351,6 +353,10 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     else 
     {
       regTabPtr.p->notNullAttributeMask.set(attrId);
+    }
+
+    if (extType == NDB_TYPE_BLOB || extType == NDB_TYPE_TEXT) {
+      regTabPtr.p->blobAttributeMask.set(attrId);
     }
 
     switch (AttributeDescriptor::getArrayType(attrDescriptor)) {
@@ -548,8 +554,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   if (regTabPtr.p->m_no_of_disk_attributes)
   {
     ljam();
-    if(!(getNodeState().getSystemRestartInProgress() && 
-	 getNodeState().startLevel == NodeState::SL_STARTING && 
+    if(!(getNodeState().startLevel == NodeState::SL_STARTING && 
 	 getNodeState().starting.startPhase <= 4))
     {
       Callback cb;
@@ -605,7 +610,7 @@ Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
   getFragmentrec(regFragPtr, fragOperPtr.p->fragidFrag, regTabPtr.p);
   ndbrequire(regFragPtr.i != RNIL);
   
-  Logfile_client lsman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
+  Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
 
   Disk_undo::Create create;
   create.m_type_length= Disk_undo::UNDO_CREATE << 16 | (sizeof(create) >> 2);
@@ -613,14 +618,39 @@ Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
   
   Logfile_client::Change c[1] = {{ &create, sizeof(create) >> 2 } };
   
-  Uint64 lsn= lsman.add_entry(c, 1);
+  Uint64 lsn= lgman.add_entry(c, 1);
+
+  Logfile_client::Request req;
+  req.m_callback.m_callbackData= fragOperPtr.i;
+  req.m_callback.m_callbackFunction = 
+    safe_cast(&Dbtup::undo_createtable_logsync_callback);
+  
+  int ret = lgman.sync_lsn(signal, lsn, &req, 0);
+  switch(ret){
+  case 0:
+    return;
+  default:
+    ndbout_c("ret: %d", ret);
+    ndbrequire(false);
+  }
+  
+}
+
+void
+Dbtup::undo_createtable_logsync_callback(Signal* signal, Uint32 ptrI, 
+					 Uint32 res)
+{
+  jamEntry();
+  FragoperrecPtr fragOperPtr;
+  fragOperPtr.i= ptrI;
+  ptrCheckGuard(fragOperPtr, cnoOfFragoprec, fragoperrec);
   
   signal->theData[0] = fragOperPtr.p->lqhPtrFrag;
   signal->theData[1] = 1;
   sendSignal(fragOperPtr.p->lqhBlockrefFrag, GSN_TUP_ADD_ATTCONF, 
 	     signal, 2, JBB);
-
-  releaseFragoperrec(fragOperPtr);
+  
+  releaseFragoperrec(fragOperPtr);  
 }
 
 /*
@@ -904,7 +934,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     {
       if(alloc_info.m_curr_extent_info_ptr_i != RNIL)
       {
-	LocalDLList<Extent_info> 
+	Local_extent_info_list
 	  list(c_extent_pool, alloc_info.m_free_extents[0]);
 	Ptr<Extent_info> ext_ptr;
 	c_extent_pool.getPtr(ext_ptr, alloc_info.m_curr_extent_info_ptr_i);
@@ -991,7 +1021,7 @@ Dbtup::drop_fragment_free_exent(Signal *signal,
       if(!alloc_info.m_free_extents[pos].isEmpty())
       {
 	jam();
-	LocalDLList<Extent_info> 
+	Local_extent_info_list
 	  list(c_extent_pool, alloc_info.m_free_extents[pos]);
 	Ptr<Extent_info> ext_ptr;
 	list.first(ext_ptr);

@@ -159,6 +159,8 @@ enum ha_extra_function {
     Ignore if the a tuple is not found, continue processing the
     transaction and ignore that 'row'.  Needed for idempotency
     handling on the slave
+
+    Currently only used by NDB storage engine. Partition handler ignores flag.
   */
   HA_EXTRA_IGNORE_NO_KEY,
   HA_EXTRA_NO_IGNORE_NO_KEY,
@@ -370,9 +372,9 @@ enum ha_base_keytype {
 #define HA_ERR_FOREIGN_DUPLICATE_KEY 163 /* Upholding foreign key constraints
                                             would lead to a duplicate key
                                             error in some other table. */
+#define HA_ERR_TABLE_NEEDS_UPGRADE 164  /* The table changed in storage engine */
 
-#define HA_ERR_LAST               163  /* Copy last error no */
-
+#define HA_ERR_LAST              164  /*Copy last error nr.*/
 /* Add error numbers before HA_ERR_LAST and change it accordingly. */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
 
@@ -423,7 +425,7 @@ enum ha_base_keytype {
 #define HA_STATE_BUFF_SAVED	512	/* If current keybuff is info->buff */
 #define HA_STATE_ROW_CHANGED	1024	/* To invalide ROW cache */
 #define HA_STATE_EXTEND_BLOCK	2048
-#define HA_STATE_RNEXT_SAME	4096	/* rnext_same was called */
+#define HA_STATE_RNEXT_SAME	4096	/* rnext_same occupied lastkey2 */
 
 /* myisampack expects no more than 32 field types. */
 enum en_fieldtype {

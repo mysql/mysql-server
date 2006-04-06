@@ -123,4 +123,4 @@ row_vers_build_for_semi_consistent_read(
 #include "row0vers.ic"
 #endif
 
-#endif 
+#endif

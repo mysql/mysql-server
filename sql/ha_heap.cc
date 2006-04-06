@@ -58,7 +58,10 @@ handlerton heap_hton= {
   NULL,    /* Alter table flags */
   NULL,    /* Alter Tablespace */
   NULL,    /* Fill Files Table */
-  HTON_CAN_RECREATE
+  HTON_CAN_RECREATE,
+  NULL,    /* binlog_func */
+  NULL,    /* binlog_log_query */
+  NULL     /* release_temporary_latches */
 };
 
 static handler *heap_create_handler(TABLE_SHARE *table)
@@ -522,7 +525,6 @@ THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
 
 int ha_heap::delete_table(const char *name)
 {
-  char buff[FN_REFLEN];
   int error= heap_delete_table(name);
   return error == ENOENT ? 0 : error;
 }
@@ -559,7 +561,7 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
     return records;
 
   /* Assert that info() did run. We need current statistics here. */
-  DBUG_ASSERT(key_stat_version);
+  DBUG_ASSERT(key_stat_version == file->s->key_stat_version);
   return key->rec_per_key[key->key_parts-1];
 }
 

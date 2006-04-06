@@ -17,7 +17,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "trx0types.h"
 #include "que0types.h"
 #include "row0types.h"
-	
+
 /************************************************************************
 Creates a purge node to a query graph. */
 
@@ -77,4 +77,4 @@ struct purge_node_struct{
 #include "row0purge.ic"
 #endif
 
-#endif 
+#endif

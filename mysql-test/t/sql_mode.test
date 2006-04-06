@@ -255,4 +255,13 @@ create view v2 as select a from t2 where a in (select a from v1);
 drop view v2, v1;
 drop table t1, t2;
 
+select @@sql_mode;
+set sql_mode=2097152;
+select @@sql_mode;
+set sql_mode=16384+(65536*4);
+select @@sql_mode;
+--error 1231
+set sql_mode=2147483648; # that mode does not exist
+select @@sql_mode;
+
 SET @@SQL_MODE=@OLD_SQL_MODE;

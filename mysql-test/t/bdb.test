@@ -1046,3 +1046,24 @@ alter table t1 add primary key(a);
 drop table t1;
 
 --echo End of 5.0 tests
+
+#
+# Bug #7955: SET TRANSACTION ISIOLATION LEVEL lives longer than next
+# transaciton
+#
+create table t1 (a int) engine=bdb;
+set session transaction isolation level repeatable read;
+set transaction isolation level serializable;
+begin;
+select @@tx_isolation;
+insert into t1 values (1);
+--error ER_CANT_CHANGE_TX_ISOLATION
+set transaction isolation level read committed;
+rollback;
+begin;
+select @@tx_isolation;
+insert into t1 values (1);
+rollback;
+drop table t1;
+
+--echo End of 5.1 tests

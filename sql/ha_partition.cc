@@ -102,7 +102,10 @@ handlerton partition_hton = {
   alter_table_flags, /* Partition flags */
   NULL, /* Alter Tablespace */
   NULL, /* Fill FILES table */
-  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN
+  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
+  NULL, /* binlog_func */
+  NULL, /* binlog_log_query */
+  NULL	/* release_temporary_latches */
 };
 
 /*
@@ -186,7 +189,7 @@ ha_partition::ha_partition(TABLE_SHARE *share)
 ha_partition::ha_partition(partition_info *part_info)
   :handler(&partition_hton, NULL), m_part_info(part_info),
    m_create_handler(TRUE),
-   m_is_sub_partitioned(is_sub_partitioned(m_part_info))
+   m_is_sub_partitioned(m_part_info->is_sub_partitioned())
 
 {
   DBUG_ENTER("ha_partition::ha_partition(part_info)");
@@ -216,6 +219,7 @@ void ha_partition::init_handler_variables()
   m_engine_array= NULL;
   m_file= NULL;
   m_reorged_file= NULL;
+  m_new_file= NULL;
   m_reorged_parts= 0;
   m_added_file= NULL;
   m_tot_parts= 0;
@@ -251,6 +255,13 @@ void ha_partition::init_handler_variables()
   m_start_key.flag= 0;
   m_ordered= TRUE;
 #endif
+}
+
+
+const char *ha_partition::table_type() const
+{ 
+  // we can do this since we only support a single engine type
+  return m_file[0]->table_type(); 
 }
 
 
@@ -331,7 +342,7 @@ int ha_partition::ha_initialise()
 
   if (m_create_handler)
   {
-    m_tot_parts= get_tot_partitions(m_part_info);
+    m_tot_parts= m_part_info->get_tot_partitions();
     DBUG_ASSERT(m_tot_parts > 0);
     if (new_handlers_from_part_info())
       DBUG_RETURN(1);
@@ -1078,9 +1089,9 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
   else if (flag == ANALYZE_PARTS)
     error= file->analyze(thd, check_opt);
   else if (flag == CHECK_PARTS)
-    error= file->check(thd, check_opt);
+    error= file->ha_check(thd, check_opt);
   else if (flag == REPAIR_PARTS)
-    error= file->repair(thd, check_opt);
+    error= file->ha_repair(thd, check_opt);
   else
   {
     DBUG_ASSERT(FALSE);
@@ -1290,7 +1301,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
   DBUG_ENTER("ha_partition::change_partitions");
 
   m_reorged_parts= 0;
-  if (!is_sub_partitioned(m_part_info))
+  if (!m_part_info->is_sub_partitioned())
     no_subparts= 1;
 
   /*
@@ -1453,7 +1464,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
       if (part_elem->part_state == PART_CHANGED ||
           (part_elem->part_state == PART_TO_BE_ADDED && temp_partitions))
         name_variant= TEMP_PART_NAME;
-      if (is_sub_partitioned(m_part_info))
+      if (m_part_info->is_sub_partitioned())
       {
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         uint j= 0, part;
@@ -2600,22 +2611,13 @@ void ha_partition::unlock_row()
     ha_berkeley.cc has a variant of how to store it intact by "packing" it
     for ha_berkeley's own native storage type.
 
-    See the note for update_row() on auto_increments and timestamps. This
-    case also applied to write_row().
-
     Called from item_sum.cc, item_sum.cc, sql_acl.cc, sql_insert.cc,
     sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc, and sql_update.cc.
 
     ADDITIONAL INFO:
 
-    Most handlers set timestamp when calling write row if any such fields
-    exists. Since we are calling an underlying handler we assume the´
-    underlying handler will assume this responsibility.
-
-    Underlying handlers will also call update_auto_increment to calculate
-    the new auto increment value. We will catch the call to
-    get_auto_increment and ensure this increment value is maintained by
-    only one of the underlying handlers.
+    We have to set timestamp fields and auto_increment fields, because those
+    may be used in determining which partition the row should be written to.
 */
 
 int ha_partition::write_row(byte * buf)
@@ -2628,6 +2630,17 @@ int ha_partition::write_row(byte * buf)
 #endif
   DBUG_ENTER("ha_partition::write_row");
   DBUG_ASSERT(buf == m_rec0);
+
+  /* If we have a timestamp column, update it to the current time */
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
+
+  /*
+    If we have an auto_increment column and we are writing a changed row
+    or a new row, then update the auto_increment value in the record.
+  */
+  if (table->next_number_field && buf == table->record[0])
+    update_auto_increment();
 
 #ifdef NOT_NEEDED
   if (likely(buf == rec0))
@@ -2909,12 +2922,15 @@ int ha_partition::rnd_init(bool scan)
   
   /* Now we see what the index of our first important partition is */
   DBUG_PRINT("info", ("m_part_info->used_partitions 0x%x",
-             m_part_info->used_partitions.bitmap));
+                      m_part_info->used_partitions.bitmap));
   part_id= bitmap_get_first_set(&(m_part_info->used_partitions));
   DBUG_PRINT("info", ("m_part_spec.start_part %d", part_id));
 
   if (MY_BIT_NONE == part_id)
+  {
+    error= 0;
     goto err1;
+  }
 
   /*
     We have a partition and we are scanning with rnd_next
@@ -2953,7 +2969,7 @@ err:
   while ((int)--i >= (int)part_id)
   {
     if (bitmap_is_set(&(m_part_info->used_partitions), i))
-	  m_file[i]->ha_rnd_end();
+      m_file[i]->ha_rnd_end();
   }
 err1:
   m_scan_value= 2;
@@ -4678,11 +4694,13 @@ int ha_partition::extra(enum ha_extra_function operation)
   }
 
   /* Category 3), used by MyISAM handlers */
+  case HA_EXTRA_PREPARE_FOR_DELETE:
+    DBUG_RETURN(prepare_for_delete());
+    break;
   case HA_EXTRA_NORMAL:
   case HA_EXTRA_QUICK:
   case HA_EXTRA_NO_READCHECK:
   case HA_EXTRA_PREPARE_FOR_UPDATE:
-  case HA_EXTRA_PREPARE_FOR_DELETE:
   case HA_EXTRA_FORCE_REOPEN:
   case HA_EXTRA_FLUSH_CACHE:
   {
@@ -4696,10 +4714,20 @@ int ha_partition::extra(enum ha_extra_function operation)
     break;
   }
   case HA_EXTRA_NO_CACHE:
+  case HA_EXTRA_WRITE_CACHE:
   {
     m_extra_cache= FALSE;
     m_extra_cache_size= 0;
     DBUG_RETURN(loop_extra(operation));
+  }
+  case HA_EXTRA_IGNORE_NO_KEY:
+  case HA_EXTRA_NO_IGNORE_NO_KEY:
+  {
+    /*
+      Ignore as these are specific to NDB for handling
+      idempotency
+     */
+    break;
   }
   default:
   {
@@ -4792,6 +4820,37 @@ void ha_partition::prepare_extra_cache(uint cachesize)
 
 
 /*
+  Prepares our new and reorged handlers for rename or delete
+
+  SYNOPSIS
+    prepare_for_delete()
+
+  RETURN VALUE
+    >0                    Error code
+    0                     Success
+*/
+
+int ha_partition::prepare_for_delete()
+{
+  int result= 0, tmp;
+  handler **file;
+  DBUG_ENTER("ha_partition::prepare_for_delete()");
+  
+  if (m_new_file != NULL)
+  {
+    for (file= m_new_file; *file; file++)
+      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_DELETE)))
+        result= tmp;      
+    for (file= m_reorged_file; *file; file++)
+      if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_DELETE)))
+        result= tmp;   
+    DBUG_RETURN(result);   
+  }
+  
+  DBUG_RETURN(loop_extra(HA_EXTRA_PREPARE_FOR_DELETE));
+}
+
+/*
   Call extra on all partitions
 
   SYNOPSIS
@@ -4808,6 +4867,7 @@ int ha_partition::loop_extra(enum ha_extra_function operation)
   int result= 0, tmp;
   handler **file;
   DBUG_ENTER("ha_partition::loop_extra()");
+  
   /* 
     TODO, 5.2: this is where you could possibly add optimisations to add the bitmap
     _if_ a SELECT.
@@ -5078,6 +5138,22 @@ const char *ha_partition::index_type(uint inx)
 }
 
 
+enum row_type ha_partition::get_row_type() const
+{
+  handler **file;
+  enum row_type type= (*m_file)->get_row_type();
+
+  for (file= m_file, file++; *file; file++)
+  {
+    enum row_type part_type= (*file)->get_row_type();
+    if (part_type != type)
+      return ROW_TYPE_NOT_USED;
+  }
+
+  return type;
+}
+
+
 void ha_partition::print_error(int error, myf errflag)
 {
   DBUG_ENTER("ha_partition::print_error");
@@ -5090,6 +5166,7 @@ void ha_partition::print_error(int error, myf errflag)
   {
     char buf[100];
     my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
+             m_part_info->part_expr->null_value ? "NULL" :
              llstr(m_part_info->part_expr->val_int(), buf));
   }
   else

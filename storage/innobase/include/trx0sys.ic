@@ -11,12 +11,14 @@ Created 3/26/1996 Heikki Tuuri
 #include "data0type.h"
 
 /* The typedef for rseg slot in the file copy */
-typedef byte 	trx_sysf_rseg_t;
+typedef byte	trx_sysf_rseg_t;
 
 /* Rollback segment specification slot offsets */
 /*-------------------------------------------------------------*/
 #define	TRX_SYS_RSEG_SPACE	0	/* space where the the segment
-					header is placed */
+					header is placed; starting with
+					MySQL/InnoDB 5.1.7, this is
+					UNIV_UNDEFINED if the slot is unused */
 #define	TRX_SYS_RSEG_PAGE_NO	4	/*  page number where the the segment
 					header is placed; this is FIL_NULL
 					if the slot is unused */
@@ -96,7 +98,7 @@ trx_sysf_get(
 	trx_sysf_t*	header;
 
 	ut_ad(mtr);
-	
+
 	header = TRX_SYS + buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO,
 							RW_X_LATCH, mtr);
 
@@ -217,7 +219,7 @@ trx_write_trx_id(
 	dulint	id)	/* in: id */
 {
 	ut_ad(DATA_TRX_ID_LEN == 6);
-	
+
 	mach_write_to_6(ptr, id);
 }
 
@@ -233,7 +235,7 @@ trx_read_trx_id(
 	byte*	ptr)	/* in: pointer to memory from where to read */
 {
 	ut_ad(DATA_TRX_ID_LEN == 6);
-	
+
 	return(mach_read_from_6(ptr));
 }
 
@@ -325,8 +327,8 @@ trx_is_active(
 	}
 
 	trx = trx_get_on_id(trx_id);
-        if (trx && (trx->conc_state == TRX_ACTIVE ||
-                        trx->conc_state == TRX_PREPARED)) {
+	if (trx && (trx->conc_state == TRX_ACTIVE ||
+			trx->conc_state == TRX_PREPARED)) {
 
 		return(TRUE);
 	}
@@ -354,13 +356,13 @@ trx_sys_get_new_trx_id(void)
 	and the value for trx id will be written to disk-based header!
 	Thus trx id values will not overlap when the database is
 	repeatedly started! */
-	
+
 	if (ut_dulint_get_low(trx_sys->max_trx_id)
 				% TRX_SYS_TRX_ID_WRITE_MARGIN == 0) {
 
 		trx_sys_flush_max_trx_id();
 	}
-	
+
 	id = trx_sys->max_trx_id;
 
 	UT_DULINT_INC(trx_sys->max_trx_id);

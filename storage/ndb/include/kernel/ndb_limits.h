@@ -66,6 +66,7 @@
 #define MAX_FRAGMENT_DATA_BYTES (4+(2 * 8 * MAX_REPLICAS * MAX_NDB_NODES))
 #define MAX_NDB_PARTITIONS 1024
 #define MAX_RANGE_DATA (131072+MAX_NDB_PARTITIONS) //0.5 MByte of list data
+#define MAX_WORDS_META_FILE 16382
 
 #define MIN_ATTRBUF ((MAX_ATTRIBUTES_IN_TABLE/24) + 1)
 /*
@@ -148,11 +149,5 @@
  *   4M
  */
 #define LCP_RESTORE_BUFFER (4*32)
-
-/*
- * Log buffer pages
- *   8M
- */
-#define LGMAN_LOG_BUFFER (8*32)
 
 #endif

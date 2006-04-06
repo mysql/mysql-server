@@ -17,8 +17,8 @@ ulint	ut_dbg_zero	= 0;
 /* If this is set to TRUE all threads will stop into the next assertion
 and assert */
 ibool	ut_dbg_stop_threads	= FALSE;
-#ifdef __NETWARE__ 
-ibool panic_shutdown = FALSE;  	/* This is set to TRUE when on NetWare there
+#ifdef __NETWARE__
+ibool panic_shutdown = FALSE;	/* This is set to TRUE when on NetWare there
 				happens an InnoDB assertion failure or other
 				fatal error condition that requires an
 				immediate shutdown. */

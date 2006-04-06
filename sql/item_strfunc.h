@@ -471,7 +471,9 @@ public:
   void fix_length_and_dec()
   {
     collation.set(default_charset());
-    max_length=args[0]->max_length+(args[0]->max_length-args[0]->decimals)/3;
+    uint char_length= args[0]->max_length/args[0]->collation.collation->mbmaxlen;
+    max_length= ((char_length + (char_length-args[0]->decimals)/3) *
+                 collation.collation->mbmaxlen);
   }
   const char *func_name() const { return "format"; }
   void print(String *);

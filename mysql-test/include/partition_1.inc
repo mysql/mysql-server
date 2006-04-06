@@ -36,7 +36,7 @@ let $fixed_bug16370= 0;
 
 ##### Option, for displaying files #####
 #
-# Attention: Displaying the directory content via "ls var/master-data/test/t*"
+# Attention: Displaying the directory content via "ls $MYSQLTEST_VARDIR/master-data/test/t*"
 #            is probably not portable.
 #            let $ls= 0; disables the execution of "ls ....."
 let $ls= 0;

@@ -216,7 +216,8 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
-      Item *tmp=new Item_int_with_ref(field->val_int(), *item);
+      Item *tmp=new Item_int_with_ref(field->val_int(), *item,
+                                      test(field->flags & UNSIGNED_FLAG));
       field->table->in_use->variables.sql_mode= orig_sql_mode;
       if (tmp)
         thd->change_item_tree(item, tmp);
@@ -697,12 +698,6 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     return 1;
 
   cache->setup(args[0]);
-  /*
-    If it is preparation PS only then we do not know values of parameters =>
-    cant't get there values and do not need that values.
-  */
-  if (!thd->stmt_arena->is_stmt_prepare())
-    cache->store(args[0]);
   if (cache->cols() == 1)
   {
     if ((used_tables_cache= args[0]->used_tables()))
@@ -2552,7 +2547,8 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   {
     table_map tmp_table_map;
     while (item->type() == Item::COND_ITEM &&
-	   ((Item_cond*) item)->functype() == functype())
+	   ((Item_cond*) item)->functype() == functype() &&
+           !((Item_cond*) item)->list.is_empty())
     {						// Identical function
       li.replace(((Item_cond*) item)->list);
       ((Item_cond*) item)->list.empty();
@@ -2567,10 +2563,13 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 	(item= *li.ref())->check_cols(1))
       return TRUE; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
-    tmp_table_map=	    item->not_null_tables();
-    not_null_tables_cache|= tmp_table_map;
-    and_tables_cache&=      tmp_table_map;
-    const_item_cache&=      item->const_item();
+    if (!item->const_item())
+    {
+      tmp_table_map= item->not_null_tables();
+      not_null_tables_cache|= tmp_table_map;
+      and_tables_cache&= tmp_table_map;
+      const_item_cache= FALSE;
+    }  
     with_sum_func=	    with_sum_func || item->with_sum_func;
     if (item->maybe_null)
       maybe_null=1;
@@ -3603,7 +3602,8 @@ void Item_equal::add(Item *c)
   Item_func_eq *func= new Item_func_eq(c, const_item);
   func->set_cmp_func();
   func->quick_fix_field();
-  cond_false =  !(func->val_int());
+  if ((cond_false= !func->val_int()))
+    const_item_cache= 1;
 }
 
 void Item_equal::add(Item_field *f)
@@ -3735,13 +3735,45 @@ void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
   } while (swap);
 }
 
+
+/*
+  Check appearance of new constant items in the multiple equality object
+
+  SYNOPSIS
+    update_const()
+  
+  DESCRIPTION
+    The function checks appearance of new constant items among
+    the members of multiple equalities. Each new constant item is
+    compared with the designated constant item if there is any in the
+    multiple equality. If there is none the first new constant item
+    becomes designated.
+      
+  RETURN VALUES
+    none    
+*/
+
+void Item_equal::update_const()
+{
+  List_iterator<Item_field> it(fields);
+  Item *item;
+  while ((item= it++))
+  {
+    if (item->const_item())
+    {
+      it.remove();
+      add(item);
+    }
+  }
+}
+
 bool Item_equal::fix_fields(THD *thd, Item **ref)
 {
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 0;
-  while ((item=li++))
+  while ((item= li++))
   {
     table_map tmp_table_map;
     used_tables_cache|= item->used_tables();

@@ -185,6 +185,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...);
 void tee_fputs(const char *s, FILE *file);
 void tee_puts(const char *s, FILE *file);
 void tee_putc(int c, FILE *file);
+static void tee_print_sized_data(const char *data, unsigned int length, unsigned int width);
 /* The names of functions that actually do the manipulation. */
 static int get_options(int argc,char **argv);
 static int com_quit(String *str,char*),
@@ -652,7 +653,7 @@ static struct my_option my_long_options[] =
    "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"socket", 'S', "Socket file to use for connection.",
+  {"socket", 'S', "Socket file to use for connection. (This will override --port unless --protocol=TCP is specified.)",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
@@ -938,7 +939,14 @@ static int get_options(int argc, char **argv)
     opt_reconnect= 0;
     connect_flag= 0; /* Not in interactive mode */
   }
-  
+
+  if (opt_mysql_port && (!opt_protocol) && (!opt_mysql_unix_port))
+  {
+    /* Not checking return type since we are using a constant value */
+    /* straight from the initialization of sql_protocol_typelib.    */
+    opt_protocol= find_type("TCP", &sql_protocol_typelib, 0);
+  }
+
   if (strcmp(default_charset, charset_info->csname) &&
       !(charset_info= get_charset_by_csname(default_charset, 
 					    MY_CS_PRIMARY, MYF(MY_WME))))
@@ -2308,20 +2316,29 @@ print_table_data(MYSQL_RES *result)
     for (uint off= 0; off < mysql_num_fields(result); off++)
     {
       const char *str= cur[off] ? cur[off] : "NULL";
+      uint currlength;
+      uint maxlength;
+      uint numcells;
+
       field= mysql_fetch_field(result);
-      uint maxlength= field->max_length;
+      maxlength= field->max_length;
+      currlength= (uint) lengths[off];
+      numcells= charset_info->cset->numcells(charset_info, 
+                                                    str, str + currlength);
       if (maxlength > MAX_COLUMN_LENGTH)
       {
-	tee_fputs(str, PAGER);
-	tee_fputs(" |", PAGER);
+        tee_print_sized_data(str, currlength, maxlength);
+        tee_fputs(" |", PAGER);
       }
       else
       {
-        uint currlength= (uint) lengths[off];
-        uint numcells= charset_info->cset->numcells(charset_info, 
-                                                    str, str + currlength);
-        tee_fprintf(PAGER, num_flag[off] ? "%*s |" : " %-*s|",
-                    maxlength + currlength - numcells, str);
+        if (num_flag[off] != 0)
+          tee_fprintf(PAGER, " %-*s|", maxlength + currlength - numcells, str);
+        else 
+        {
+          tee_print_sized_data(str, currlength, maxlength);
+          tee_fputs(" |", PAGER);
+        }
       }
     }
     (void) tee_fputs("\n", PAGER);
@@ -2329,6 +2346,35 @@ print_table_data(MYSQL_RES *result)
   tee_puts((char*) separator.ptr(), PAGER);
   my_afree((gptr) num_flag);
 }
+
+
+static void
+tee_print_sized_data(const char *data, unsigned int length, unsigned int width)
+{
+  /* 
+    It is not a number, so print each character justified to the left.
+    For '\0's print ASCII spaces instead, as '\0' is eaten by (at
+    least my) console driver, and that messes up the pretty table
+    grid.  (The \0 is also the reason we can't use fprintf() .) 
+  */
+  unsigned int i;
+  const char *p;
+
+  tee_putc(' ', PAGER);
+
+  for (i= 0, p= data; i < length; i+= 1, p+= 1)
+  {
+    if (*p == '\0')
+      tee_putc((int)' ', PAGER);
+    else
+      tee_putc((int)*p, PAGER);
+  }
+
+  i+= 1; 
+  for (   ; i < width; i+= 1)
+    tee_putc((int)' ', PAGER);
+}
+
 
 
 static void

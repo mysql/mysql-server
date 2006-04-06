@@ -31,8 +31,9 @@
 
 #include "Bank.hpp"
 
+const char* _database = "BANK";
+
 int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
-  char * _database = "BANK";
   Bank bank(ctx->m_cluster_connection, _database);
   int overWriteExisting = true;
   if (bank.createAndLoadBank(overWriteExisting) != NDBT_OK)
@@ -41,7 +42,6 @@ int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runBankTimer(NDBT_Context* ctx, NDBT_Step* step){
-  char * _database = "BANK";
   Bank bank(ctx->m_cluster_connection, _database);
   int wait = 30; // Max seconds between each "day"
   int yield = 1; // Loops before bank returns 
@@ -53,7 +53,6 @@ int runBankTimer(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
-  char * _database = "BANK";
   Bank bank(ctx->m_cluster_connection, _database);
   int wait = 10; // Max ms between each transaction
   int yield = 100; // Loops before bank returns 
@@ -65,7 +64,6 @@ int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
-  char * _database = "BANK";
   Bank bank(ctx->m_cluster_connection, _database);
   int yield = 20; // Loops before bank returns 
   int result = NDBT_OK;
@@ -80,7 +78,6 @@ int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
-  char * _database = "BANK";
   Bank bank(ctx->m_cluster_connection, _database);
   int wait = 2000; // Max ms between each sum of accounts
   int yield = 1; // Loops before bank returns 
@@ -96,7 +93,6 @@ int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runDropBank(NDBT_Context* ctx, NDBT_Step* step){
-  char * _database = "BANK";
   Bank bank(ctx->m_cluster_connection, _database);
   if (bank.dropBank() != NDBT_OK)
     return NDBT_FAILED;

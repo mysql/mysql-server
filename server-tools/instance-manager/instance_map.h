@@ -63,21 +63,24 @@ public:
   void lock();
   void unlock();
   int init();
+  /*
+    Process a given option and assign it to appropricate instance. This is
+    required for the option handler, passed to my_search_option_files().
+  */
+  int process_one_option(const char *group, const char *option);
 
   Instance_map(const char *default_mysqld_path_arg);
   ~Instance_map();
-
-  /* loads options from config files */
-  int load();
-  /* adds instance to internal hash */
-  int add_instance(Instance *instance);
-  /* inits instances argv's after all options have been loaded */
-  int complete_initialization();
 
 public:
   const char *mysqld_path;
   Guardian_thread *guardian;
 
+private:
+  /* loads options from config files */
+  int load();
+  /* inits instances argv's after all options have been loaded */
+  int complete_initialization();
 private:
   enum { START_HASH_SIZE = 16 };
   pthread_mutex_t LOCK_instance_map;

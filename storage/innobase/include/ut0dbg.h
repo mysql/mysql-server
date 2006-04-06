@@ -74,7 +74,7 @@ ut_dbg_stop_thread(
 				__FILE__, (ulint) __LINE__);	\
 		UT_DBG_PANIC;					\
 	}							\
-	UT_DBG_STOP; 						\
+	UT_DBG_STOP;						\
 } while (0)
 
 /* Abort execution. */
@@ -84,7 +84,7 @@ ut_dbg_stop_thread(
 } while (0)
 
 #ifdef UNIV_DEBUG
-#define ut_ad(EXPR)  	ut_a(EXPR)
+#define ut_ad(EXPR)	ut_a(EXPR)
 #define ut_d(EXPR)	do {EXPR;} while (0)
 #else
 #define ut_ad(EXPR)

@@ -25,14 +25,14 @@ struct mem_area_struct{
 	ulint		size_and_free;	/* memory area size is obtained by
 					anding with ~MEM_AREA_FREE; area in
 					a free list if ANDing with
-					MEM_AREA_FREE results in nonzero */ 
+					MEM_AREA_FREE results in nonzero */
 	UT_LIST_NODE_T(mem_area_t)
 			free_list;	/* free list node */
 };
 
 /* Each memory area takes this many extra bytes for control information */
 #define MEM_AREA_EXTRA_SIZE	(ut_calc_align(sizeof(struct mem_area_struct),\
-                                              UNIV_MEM_ALIGNMENT))
+			UNIV_MEM_ALIGNMENT))
 
 /************************************************************************
 Creates a memory pool. */
@@ -97,7 +97,7 @@ Prints info of a memory pool. */
 void
 mem_pool_print_info(
 /*================*/
-	FILE*	        outfile,/* in: output file to write to */
+	FILE*		outfile,/* in: output file to write to */
 	mem_pool_t*	pool);	/* in: memory pool */
 
 
@@ -105,4 +105,4 @@ mem_pool_print_info(
 #include "mem0pool.ic"
 #endif
 
-#endif 
+#endif

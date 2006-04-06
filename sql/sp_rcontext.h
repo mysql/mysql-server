@@ -268,6 +268,7 @@ class Select_fetch_into_spvars: public select_result_interceptor
   List<struct sp_pvar> *spvar_list;
   uint field_count;
 public:
+  Select_fetch_into_spvars() {}               /* Remove gcc warning */
   uint get_field_count() { return field_count; }
   void set_spvar_list(List<struct sp_pvar> *vars) { spvar_list= vars; }
 

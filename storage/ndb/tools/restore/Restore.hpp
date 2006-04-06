@@ -134,7 +134,7 @@ class TableS {
   Uint32 m_auto_val_id;
   Uint64 m_max_auto_val;
 
-  int pos;
+  bool isSysTable;
 
   void createAttr(NdbDictionary::Column *column);
 
@@ -222,6 +222,10 @@ public:
     return allAttributesDesc[attributeId]; 
   }
 
+  bool getSysTable() const {
+    return isSysTable;
+  }
+
   TableS& operator=(TableS& org) ; 
 }; // TableS;
 
@@ -279,6 +283,7 @@ class RestoreMetaData : public BackupFile {
   Vector<TableS *> allTables;
   bool readMetaFileHeader();
   bool readMetaTableDesc();
+  bool markSysTables();
 		
   bool readGCPEntry();
   Uint32 readMetaTableList();

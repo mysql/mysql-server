@@ -14,7 +14,8 @@ AC_DEFUN([MYSQL_FIND_OPENSSL], [
       for d in /usr/ssl/lib /usr/local/ssl/lib /usr/lib/openssl \
 /usr/lib /usr/lib64 /opt/ssl/lib /opt/openssl/lib \
 /usr/freeware/lib32 /usr/local/lib/ ; do
-      if test -f $d/libssl.a || test -f $d/libssl.so || test -f $d/libssl.dylib ; then
+      # Just to be safe, we test for ".so" anyway
+      if test -f $d/libssl.a || test -f $d/libssl.so || test -f $d/libssl$shrext_cmds ; then
         OPENSSL_LIB=$d
       fi
       done
@@ -26,7 +27,8 @@ AC_DEFUN([MYSQL_FIND_OPENSSL], [
       if test -f $incs/openssl/ssl.h  ; then
         OPENSSL_INCLUDE=-I$incs
       fi
-      if test -f $libs/libssl.a || test -f $libs/libssl.so || test -f $libs/libssl.dylib ; then
+      # Just to be safe, we test for ".so" anyway
+      if test -f $libs/libssl.a || test -f $libs/libssl.so || test -f $libs/libssl$shrext_cmds ; then
         OPENSSL_LIB=$libs
       fi
       ;;

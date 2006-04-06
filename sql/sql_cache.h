@@ -69,6 +69,7 @@ class Query_cache;
 
 struct Query_cache_block_table
 {
+  Query_cache_block_table() {}                /* Remove gcc warning */
   TABLE_COUNTER_TYPE n;		// numbr in table (from 0)
   Query_cache_block_table *next, *prev;
   Query_cache_table *parent;
@@ -78,6 +79,7 @@ struct Query_cache_block_table
 
 struct Query_cache_block
 {
+  Query_cache_block() {}                      /* Remove gcc warning */
   enum block_type {FREE, QUERY, RESULT, RES_CONT, RES_BEG,
 		   RES_INCOMPLETE, TABLE, INCOMPLETE};
 
@@ -143,6 +145,7 @@ struct Query_cache_query
 
 struct Query_cache_table
 {
+  Query_cache_table() {}                      /* Remove gcc warning */
   char *tbl;
   uint32 key_len;
   uint8 table_type;
@@ -171,6 +174,7 @@ struct Query_cache_table
 
 struct Query_cache_result
 {
+  Query_cache_result() {}                     /* Remove gcc warning */
   Query_cache_block *query;
 
   inline gptr data()
@@ -197,6 +201,7 @@ extern "C" void query_cache_invalidate_by_MyISAM_filename(const char* filename);
 
 struct Query_cache_memory_bin
 {
+  Query_cache_memory_bin() {}                 /* Remove gcc warning */
 #ifndef DBUG_OFF
   ulong size;
 #endif
@@ -215,8 +220,7 @@ struct Query_cache_memory_bin
 
 struct Query_cache_memory_bin_step
 {
-public:
-  Query_cache_memory_bin_step() {}
+  Query_cache_memory_bin_step() {}            /* Remove gcc warning */
   ulong size;
   ulong increment;
   uint idx;

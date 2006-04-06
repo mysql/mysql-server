@@ -201,6 +201,7 @@ uint mi_mmap_pwrite(MI_INFO *info, byte *Buffer,
   }
   else
   {
+    info->s->nonmmaped_inserts++;
     if (info->s->concurrent_insert)
       rw_unlock(&info->s->mmap_lock);
     return my_pwrite(info->dfile, Buffer, Count, offset, MyFlags);

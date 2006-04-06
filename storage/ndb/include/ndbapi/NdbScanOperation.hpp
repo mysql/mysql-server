@@ -178,7 +178,8 @@ public:
   int restart(bool forceSend = false);
   
 protected:
-  NdbScanOperation(Ndb* aNdb);
+  NdbScanOperation(Ndb* aNdb,
+                   NdbOperation::Type aType = NdbOperation::TableScan);
   virtual ~NdbScanOperation();
 
   int nextResultImpl(bool fetchAllowed = true, bool forceSend = false);
@@ -240,13 +241,14 @@ protected:
   void receiver_completed(NdbReceiver*);
   void execCLOSE_SCAN_REP();
 
-  int getKeyFromKEYINFO20(Uint32* data, unsigned size);
+  int getKeyFromKEYINFO20(Uint32* data, Uint32 & size);
   NdbOperation*	takeOverScanOp(OperationType opType, NdbTransaction*);
   
   bool m_ordered;
   bool m_descending;
   Uint32 m_read_range_no;
   NdbRecAttr *m_curr_row; // Pointer to last returned row
+  bool m_executed; // Marker if operation should be released at close
 };
 
 inline

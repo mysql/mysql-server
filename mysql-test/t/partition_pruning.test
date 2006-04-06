@@ -447,5 +447,51 @@ show status like 'Handler_read_next';
 
 drop table t1, t2;
 
+# BUG#18025 
+#  part1: mediumint columns
+create table t1 ( f_int1 mediumint, f_int2 integer) 
+partition by list(mod(f_int1,4)) (
+  partition p_3 values in (-3),
+  partition p_2 values in (-2),
+  partition p_1 values in (-1),
+  partition p0 values in (0),
+  partition p1 values in (1),
+  partition p2 values in (2),
+  partition p3 values in (3)
+);
+
+insert into t1 values (9, 9), (8, 8), (7, 7), (6, 6), (5, 5), 
+                      (4, 4), (3, 3), (2, 2), (1, 1);
+select * from t1 where f_int1 between 5 and 15 order by f_int1;
+
+drop table t1;
+
+#  part2: bug in pruning code
+create table t1 (a char(10)) partition by list(length(a)) (
+  partition p1 values in (1),
+  partition p2 values in (2),
+  partition p3 values in (3),
+  partition p4 values in (4),
+  partition p5 values in (5)
+);
+insert into t1 values ('a'),('bb'),('ccc'),('dddd'),('eeEee');
+select * from t1 where a>='a' and a <= 'dddd';
+explain partitions select * from t1 where a>='a' and a <= 'dddd';
+drop table t1;
+
+# BUG#18659: Assertion failure when subpartitioning is used and partition is
+# "IS NULL"
+create table t1 (f_int1 integer) partition by list(abs(mod(f_int1,2)))
+  subpartition by hash(f_int1) subpartitions 2
+(
+  partition part1 values in (0),
+  partition part2 values in (1),
+  partition part4 values in (null)
+);
+insert into t1 set f_int1 = null;
+
+select * from t1 where f_int1 is null;
+explain partitions select * from t1 where f_int1 is null;
+
 # No tests for NULLs in RANGE(monotonic_expr()) - they depend on BUG#15447
 # being fixed.

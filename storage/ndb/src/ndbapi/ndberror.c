@@ -413,6 +413,7 @@ ErrorBundle ErrorCodes[] = {
   { 1511, DMEC, IE, "Out of memory" },
   { 1512, DMEC, SE, "File read error" },
   { 1513, DMEC, IE, "Filegroup not online" },
+  { 1514, DMEC, SE, "Currently there is a limit of one logfile group" },
   
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   
@@ -474,6 +475,8 @@ ErrorBundle ErrorCodes[] = {
   { 1415, DMEC, SE, "Subscription not unique in subscriber manager" },
   { 1416, DMEC, IS, "Can't accept more subscriptions, out of space in pool" },
   { 1417, DMEC, SE, "Table in suscription not defined, probably dropped" },
+  { 1418, DMEC, SE, "Subscription dropped, no new subscribers allowed" },
+  { 1419, DMEC, SE, "Subscription already dropped" },
 
   { 4004, DMEC, AE, "Attribute name not found in the Table" },
   
@@ -506,7 +509,7 @@ ErrorBundle ErrorCodes[] = {
   { 4315, DMEC, AE, "No more key attributes allowed after defining variable length key attribute" },
   { 4316, DMEC, AE, "Key attributes are not allowed to be NULL attributes" },
   { 4317, DMEC, AE, "Too many primary keys defined in table" },
-  { 4318, DMEC, AE, "Invalid attribute name" },
+  { 4318, DMEC, AE, "Invalid attribute name or number" },
   { 4319, DMEC, AE, "createAttribute called at erroneus place" },
   { 4322, DMEC, AE, "Attempt to define distribution key when not prepared to" },
   { 4323, DMEC, AE, "Distribution Key set on table but not defined on first attribute" },
@@ -577,7 +580,7 @@ ErrorBundle ErrorCodes[] = {
   { 4248, DMEC, AE, "Trigger/index name invalid" },
   { 4249, DMEC, AE, "Invalid table" },
   { 4250, DMEC, AE, "Invalid index type or index logging option" },
-  { 4251, DMEC, AE, "Cannot create unique index, duplicate keys found" },
+  { 4251, HA_ERR_FOUND_DUPP_UNIQUE, AE, "Cannot create unique index, duplicate keys found" },
   { 4252, DMEC, AE, "Failed to allocate space for index" },
   { 4253, DMEC, AE, "Failed to create index table" },
   { 4254, DMEC, AE, "Table not an index table" },
@@ -596,7 +599,11 @@ ErrorBundle ErrorCodes[] = {
   { 4269, DMEC, IE, "No connection to ndb management server" },
   { 4270, DMEC, IE, "Unknown blob error" },
   { 4335, DMEC, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" },
-  { 4271, DMEC, AE, "Invalid index object, not retrieved via getIndex()" }
+  { 4336, DMEC, AE, "Auto-increment value set below current value" },
+  { 4271, DMEC, AE, "Invalid index object, not retrieved via getIndex()" },
+  { 4272, DMEC, AE, "Table definition has undefined column" },
+  { 4273, DMEC, IE, "No blob table in dict cache" },
+  { 4274, DMEC, IE, "Corrupted main table PK in blob operation" }
 };
 
 static

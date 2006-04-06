@@ -377,3 +377,11 @@ insert INTO t2 SELECT * FROM t1;
 select * from t2; 
 drop table t1, t2;
 
+#
+# Bug #17826 'type_decimal' fails with ps-protocol
+#
+create table t1 (f1 decimal(5));
+insert into t1 values (40);
+flush tables;
+select f1 from t1 where f1 in (select f1 from t1);
+drop table t1;

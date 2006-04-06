@@ -4237,6 +4237,7 @@ double Field_double::val_real(void)
 longlong Field_double::val_int(void)
 {
   double j;
+  longlong res;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -4245,7 +4246,30 @@ longlong Field_double::val_int(void)
   else
 #endif
     doubleget(j,ptr);
+  /* Check whether we fit into longlong range */
+  if (j <= (double) LONGLONG_MIN)
+  {
+    res= (longlong) LONGLONG_MIN;
+    goto warn;
+  }
+  if (j >= (double) (ulonglong) LONGLONG_MAX)
+  {
+    res= (longlong) LONGLONG_MAX;
+    goto warn;
+  }
   return (longlong) rint(j);
+
+warn:
+  {
+    char buf[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
+    String tmp(buf, sizeof(buf), &my_charset_latin1), *str;
+    str= val_str(&tmp, 0);
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        str->c_ptr());
+  }
+  return res;
 }
 
 
@@ -5266,7 +5290,7 @@ int Field_date::store(longlong nr, bool unsigned_val)
   }
 
   if (nr >= 19000000000000.0 && nr <= 99991231235959.0)
-    nr=floor(nr/1000000.0);			// Timestamp to date
+    nr= (longlong) floor(nr/1000000.0);         // Timestamp to date
 
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -8297,13 +8321,11 @@ void Field_bit_as_char::sql_type(String &res) const
     create_field::create_length_to_internal_length()
   
   DESCRIPTION
-    Convert create_field::length from number of characters to number of bytes,
-    save original value in chars_length.
+    Convert create_field::length from number of characters to number of bytes.
 */
 
 void create_field::create_length_to_internal_length(void)
 {
-  chars_length= length;
   switch (sql_type) {
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
@@ -8355,7 +8377,7 @@ void create_field::init_for_tmp_table(enum_field_types sql_type_arg,
 {
   field_name= "";
   sql_type= sql_type_arg;
-  length= length_arg;;
+  char_length= length= length_arg;;
   unireg_check= Field::NONE;
   interval= 0;
   charset= &my_charset_bin;
@@ -8683,6 +8705,8 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   case FIELD_TYPE_DECIMAL:
     DBUG_ASSERT(0); /* Was obsolete */
   }
+  /* Remember the value of length */
+  char_length= length;
 
   if (!(flags & BLOB_FLAG) &&
       ((length > max_field_charlength && fld_type != FIELD_TYPE_SET &&
@@ -9023,6 +9047,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
   else
     interval=0;
   def=0;
+  char_length= length;
 
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
       old_field->ptr && orig_field &&

@@ -72,7 +72,7 @@ UNIV_INLINE
 void
 btr_cur_position(
 /*=============*/
-	dict_index_t*	index, 	/* in: index */
+	dict_index_t*	index,	/* in: index */
 	rec_t*		rec,	/* in: record in tree */
 	btr_cur_t*	cursor);/* in: cursor */
 /************************************************************************
@@ -550,7 +550,7 @@ btr_push_update_extern_fields(
 				to have space for all fields in rec */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	upd_t*		update);/* in: update vector or NULL */
-	
+
 
 /*######################################################################*/
 
@@ -697,5 +697,5 @@ extern ulint	btr_cur_n_sea_old;
 #ifndef UNIV_NONINL
 #include "btr0cur.ic"
 #endif
-				
+
 #endif

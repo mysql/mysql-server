@@ -14,7 +14,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "os0thread.h"
 
-typedef struct sync_cell_struct        	sync_cell_t;
+typedef struct sync_cell_struct		sync_cell_t;
 typedef struct sync_array_struct	sync_array_t;
 
 #define SYNC_ARRAY_OS_MUTEX	1
@@ -48,12 +48,12 @@ The event of the cell is reset to nonsignalled state. */
 void
 sync_array_reserve_cell(
 /*====================*/
-        sync_array_t*	arr,	/* in: wait array */
-        void*   	object, /* in: pointer to the object to wait for */
-        ulint		type,	/* in: lock request type */
+	sync_array_t*	arr,	/* in: wait array */
+	void*		object, /* in: pointer to the object to wait for */
+	ulint		type,	/* in: lock request type */
 	const char*	file,	/* in: file where requested */
-        ulint		line,	/* in: line where requested */
-        ulint*   	index); /* out: index of the reserved cell */
+	ulint		line,	/* in: line where requested */
+	ulint*		index); /* out: index of the reserved cell */
 /**********************************************************************
 This function should be called when a thread starts to wait on
 a wait array cell. In the debug version this function checks
@@ -63,17 +63,17 @@ case prints info and asserts. */
 void
 sync_array_wait_event(
 /*==================*/
-        sync_array_t*	arr,	/* in: wait array */
-        ulint   	index);  /* in: index of the reserved cell */
+	sync_array_t*	arr,	/* in: wait array */
+	ulint		index);	 /* in: index of the reserved cell */
 /**********************************************************************
-Frees the cell. NOTE! sync_array_wait_event frees the cell
-automatically! */
+Frees the cell safely by reserving the sync array mutex and decrementing
+n_reserved if necessary. Should only be called from mutex_spin_wait. */
 
 void
-sync_array_free_cell(
-/*=================*/
+sync_array_free_cell_protected(
+/*===========================*/
 	sync_array_t*	arr,	/* in: wait array */
-        ulint    	index);  /* in: index of the cell in array */
+	ulint		index);	/* in: index of the cell in array */
 /**************************************************************************
 Looks for the cells in the wait array which refer
 to the wait object specified,

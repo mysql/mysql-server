@@ -34,8 +34,8 @@ to the InnoDB redo log.
 2) Normally these changes are performed using a mlog_write_ulint()
 or similar function.
 
-3) In some page level operations only a code number of a 
-c-function and its parameters are written to the log to 
+3) In some page level operations only a code number of a
+c-function and its parameters are written to the log to
 reduce the size of the log.
 
   3a) You should not add parameters to these kind of functions
@@ -75,7 +75,7 @@ byte	log_archive_io;
 #endif /* UNIV_LOG_ARCHIVE */
 
 /* A margin for free space in the log buffer before a log entry is catenated */
-#define LOG_BUF_WRITE_MARGIN 	(4 * OS_FILE_LOG_BLOCK_SIZE)
+#define LOG_BUF_WRITE_MARGIN	(4 * OS_FILE_LOG_BLOCK_SIZE)
 
 /* Margins for free space in the log buffer after a log entry is catenated */
 #define LOG_BUF_FLUSH_RATIO	2
@@ -147,7 +147,7 @@ log_fsp_current_free_limit_set_and_checkpoint(
 	mutex_exit(&(log_sys->mutex));
 
 	/* Try to make a synchronous checkpoint */
-	
+
 	success = FALSE;
 
 	while (!success) {
@@ -202,7 +202,7 @@ log_reserve_and_open(
 	ut_a(len < log->buf_size / 2);
 loop:
 	mutex_enter(&(log->mutex));
-	
+
 	/* Calculate an upper limit for the space the string may take in the
 	log buffer */
 
@@ -217,7 +217,7 @@ loop:
 
 		log_buffer_flush_to_disk();
 
-                srv_log_waits++;
+		srv_log_waits++;
 
 		ut_ad(++count < 50);
 
@@ -226,22 +226,22 @@ loop:
 
 #ifdef UNIV_LOG_ARCHIVE
 	if (log->archiving_state != LOG_ARCH_OFF) {
-	
+
 		archived_lsn_age = ut_dulint_minus(log->lsn,
 							log->archived_lsn);
 		if (archived_lsn_age + len_upper_limit
 						> log->max_archived_lsn_age) {
 			/* Not enough free archived space in log groups: do a
 			synchronous archive write batch: */
-	
+
 			mutex_exit(&(log->mutex));
-	
+
 			ut_ad(len_upper_limit <= log->max_archived_lsn_age);
-	
+
 			log_archive_do(TRUE, &dummy);
-	
+
 			ut_ad(++count < 50);
-	
+
 			goto loop;
 		}
 	}
@@ -250,7 +250,7 @@ loop:
 #ifdef UNIV_LOG_DEBUG
 	log->old_buf_free = log->buf_free;
 	log->old_lsn = log->lsn;
-#endif	
+#endif
 	return(log->lsn);
 }
 
@@ -279,15 +279,15 @@ part_loop:
 
 	if (data_len <= OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE) {
 
-	    	/* The string fits within the current log block */
-	    
-	    	len = str_len;
+		/* The string fits within the current log block */
+
+		len = str_len;
 	} else {
 		data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE;
-		
-	    	len = OS_FILE_LOG_BLOCK_SIZE
+
+		len = OS_FILE_LOG_BLOCK_SIZE
 			- (log->buf_free % OS_FILE_LOG_BLOCK_SIZE)
-	    		- LOG_BLOCK_TRL_SIZE;
+			- LOG_BLOCK_TRL_SIZE;
 	}
 
 	ut_memcpy(log->buf + log->buf_free, str, len);
@@ -321,8 +321,8 @@ part_loop:
 	if (str_len > 0) {
 		goto part_loop;
 	}
-        
-        srv_log_write_requests++;
+
+	srv_log_write_requests++;
 }
 
 /****************************************************************
@@ -345,7 +345,7 @@ log_close(void)
 #endif /* UNIV_SYNC_DEBUG */
 
 	lsn = log->lsn;
-	
+
 	log_block = ut_align_down(log->buf + log->buf_free,
 						OS_FILE_LOG_BLOCK_SIZE);
 	first_rec_group = log_block_get_first_rec_group(log_block);
@@ -356,7 +356,7 @@ log_close(void)
 		will start within this block at the offset data_len */
 
 		log_block_set_first_rec_group(log_block,
-			 		log_block_get_data_len(log_block));
+					log_block_get_data_len(log_block));
 	}
 
 	if (log->buf_free > log->max_buf_free) {
@@ -374,12 +374,12 @@ log_close(void)
 		big_rec operations, but other operations are smaller. */
 
 		if (!log_has_printed_chkp_warning
-		    || difftime(time(NULL), log_last_warning_time) > 15) {
+			|| difftime(time(NULL), log_last_warning_time) > 15) {
 
-		        log_has_printed_chkp_warning = TRUE;
+			log_has_printed_chkp_warning = TRUE;
 			log_last_warning_time = time(NULL);
-			
-		        ut_print_timestamp(stderr);
+
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
 "  InnoDB: ERROR: the age of the last checkpoint is %lu,\n"
 "InnoDB: which exceeds the log group capacity %lu.\n"
@@ -399,9 +399,9 @@ log_close(void)
 	oldest_lsn = buf_pool_get_oldest_modification();
 
 	if (ut_dulint_is_zero(oldest_lsn)
-	    || (ut_dulint_minus(lsn, oldest_lsn)
-					> log->max_modified_age_async)
-	    || checkpoint_age > log->max_checkpoint_age_async) {
+		|| (ut_dulint_minus(lsn, oldest_lsn)
+			> log->max_modified_age_async)
+		|| checkpoint_age > log->max_checkpoint_age_async) {
 
 		log->check_flush_or_checkpoint = TRUE;
 	}
@@ -428,7 +428,7 @@ log_pad_current_log_block(void)
 	ulint	pad_length;
 	ulint	i;
 	dulint	lsn;
-	
+
 	/* We retrieve lsn only because otherwise gcc crashed on HP-UX */
 	lsn = log_reserve_and_open(OS_FILE_LOG_BLOCK_SIZE);
 
@@ -441,7 +441,7 @@ log_pad_current_log_block(void)
 	}
 
 	lsn = log_sys->lsn;
-		
+
 	log_close();
 	log_release();
 
@@ -464,7 +464,7 @@ log_group_get_capacity(
 	ut_ad(mutex_own(&(log_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	return((group->file_size - LOG_FILE_HDR_SIZE) * group->n_files); 
+	return((group->file_size - LOG_FILE_HDR_SIZE) * group->n_files);
 }
 
 /**********************************************************
@@ -515,12 +515,12 @@ log_group_calc_lsn_offset(
 				group->lsn */
 	log_group_t*	group)	/* in: log group */
 {
-        dulint	        gr_lsn;
-       	ib_longlong     gr_lsn_size_offset;
+	dulint		gr_lsn;
+	ib_longlong	gr_lsn_size_offset;
 	ib_longlong	difference;
 	ib_longlong	group_size;
 	ib_longlong	offset;
-	
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
@@ -531,12 +531,12 @@ log_group_calc_lsn_offset(
 	gr_lsn = group->lsn;
 
 	gr_lsn_size_offset = (ib_longlong)
-	               log_group_calc_size_offset(group->lsn_offset, group);
+		log_group_calc_size_offset(group->lsn_offset, group);
 
 	group_size = (ib_longlong) log_group_get_capacity(group);
 
 	if (ut_dulint_cmp(lsn, gr_lsn) >= 0) {
-			
+
 		difference = (ib_longlong) ut_dulint_minus(lsn, gr_lsn);
 	} else {
 		difference = (ib_longlong) ut_dulint_minus(gr_lsn, lsn);
@@ -552,7 +552,7 @@ log_group_calc_lsn_offset(
 
 	/* fprintf(stderr,
 		"Offset is %lu gr_lsn_offset is %lu difference is %lu\n",
-	       (ulint)offset,(ulint)gr_lsn_size_offset, (ulint)difference);
+		(ulint)offset,(ulint)gr_lsn_size_offset, (ulint)difference);
 	*/
 
 	return(log_group_calc_real_offset((ulint)offset, group));
@@ -581,7 +581,7 @@ log_calc_where_lsn_is(
 	ib_longlong	capacity	= log_file_size - LOG_FILE_HDR_SIZE;
 	ulint		file_no;
 	ib_longlong	add_this_many;
-	
+
 	ib_lsn = ut_conv_dulint_to_longlong(lsn);
 	ib_first_header_lsn = ut_conv_dulint_to_longlong(first_header_lsn);
 
@@ -589,11 +589,11 @@ log_calc_where_lsn_is(
 		add_this_many = 1 + (ib_first_header_lsn - ib_lsn)
 				/ (capacity * (ib_longlong)n_log_files);
 		ib_lsn += add_this_many
-		          * capacity * (ib_longlong)n_log_files;
+			  * capacity * (ib_longlong)n_log_files;
 	}
 
 	ut_a(ib_lsn >= ib_first_header_lsn);
-	
+
 	file_no = ((ulint)((ib_lsn - ib_first_header_lsn) / capacity))
 			  % n_log_files;
 	*log_file_offset = (ib_lsn - ib_first_header_lsn) % capacity;
@@ -634,7 +634,7 @@ log_calc_max_ages(void)
 	ulint		margin;
 	ulint		free;
 	ibool		success		= TRUE;
-	ulint		smallest_capacity;	
+	ulint		smallest_capacity;
 	ulint		archive_margin;
 	ulint		smallest_archive_margin;
 
@@ -665,10 +665,10 @@ log_calc_max_ages(void)
 
 			smallest_archive_margin = archive_margin;
 		}
-	
+
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
-	
+
 	/* Add extra safety */
 	smallest_capacity = smallest_capacity - smallest_capacity / 10;
 
@@ -676,7 +676,7 @@ log_calc_max_ages(void)
 	smallest log group that it can accommodate the log entries produced
 	by single query steps: running out of free log space is a serious
 	system error which requires rebooting the database. */
-	
+
 	free = LOG_CHECKPOINT_FREE_PER_THREAD * (10 + srv_thread_concurrency)
 						+ LOG_CHECKPOINT_EXTRA_FREE;
 	if (free >= smallest_capacity / 2) {
@@ -748,7 +748,7 @@ log_init(void)
 
 	/* Start the lsn from one log block from zero: this way every
 	log record has a start lsn != zero, a fact which we will use */
-	
+
 	log_sys->lsn = LOG_START_LSN;
 
 	ut_a(LOG_BUFFER_SIZE >= 16 * OS_FILE_LOG_BLOCK_SIZE);
@@ -766,12 +766,12 @@ log_init(void)
 	log_sys->check_flush_or_checkpoint = TRUE;
 	UT_LIST_INIT(log_sys->log_groups);
 
-	log_sys->n_log_ios = 0;	
+	log_sys->n_log_ios = 0;
 
 	log_sys->n_log_ios_old = log_sys->n_log_ios;
 	log_sys->last_printout_time = time(NULL);
 	/*----------------------------*/
-	
+
 	log_sys->buf_next_to_write = 0;
 
 	log_sys->write_lsn = ut_dulint_zero;
@@ -780,7 +780,7 @@ log_init(void)
 
 	log_sys->written_to_some_lsn = log_sys->lsn;
 	log_sys->written_to_all_lsn = log_sys->lsn;
-	
+
 	log_sys->n_pending_writes = 0;
 
 	log_sys->no_flush_event = os_event_create(NULL);
@@ -796,7 +796,7 @@ log_init(void)
 
 	log_sys->next_checkpoint_no = ut_dulint_zero;
 	log_sys->last_checkpoint_lsn = log_sys->lsn;
-	log_sys->n_pending_checkpoint_writes = 0; 
+	log_sys->n_pending_checkpoint_writes = 0;
 
 	rw_lock_create(&(log_sys->checkpoint_lock));
 	rw_lock_set_level(&(log_sys->checkpoint_lock), SYNC_NO_ORDER_CHECK);
@@ -838,7 +838,7 @@ log_init(void)
 
 	log_sys->buf_free = LOG_BLOCK_HDR_SIZE;
 	log_sys->lsn = ut_dulint_add(LOG_START_LSN, LOG_BLOCK_HDR_SIZE);
-	
+
 	mutex_exit(&(log_sys->mutex));
 
 #ifdef UNIV_LOG_DEBUG
@@ -873,7 +873,7 @@ log_group_init(
 					used */
 {
 	ulint	i;
-	
+
 	log_group_t*	group;
 
 	group = mem_alloc(sizeof(log_group_t));
@@ -908,7 +908,7 @@ log_group_init(
 							LOG_FILE_HDR_SIZE);
 #endif /* UNIV_LOG_ARCHIVE */
 	}
-	
+
 #ifdef UNIV_LOG_ARCHIVE
 	group->archive_space_id = archive_space_id;
 
@@ -919,14 +919,14 @@ log_group_init(
 	group->checkpoint_buf = ut_align(
 				mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE),
 						OS_FILE_LOG_BLOCK_SIZE);
-	
+
 	memset(group->checkpoint_buf, '\0', OS_FILE_LOG_BLOCK_SIZE);
 
 	UT_LIST_ADD_LAST(log_groups, log_sys->log_groups, group);
 
 	ut_a(log_calc_max_ages());
-}	
-	
+}
+
 /**********************************************************************
 Does the unlockings needed in flush i/o completion. */
 UNIV_INLINE
@@ -949,7 +949,7 @@ log_flush_do_unlocks(
 	this function would erroneously signal the NEW flush as completed.
 		Thus, the changes in the state of these events are performed
 	atomically in conjunction with the changes in the state of
-	log_sys->n_pending_writes etc. */ 
+	log_sys->n_pending_writes etc. */
 
 	if (code & LOG_UNLOCK_NONE_FLUSHED_LOCK) {
 		os_event_set(log_sys->one_flushed_event);
@@ -1012,7 +1012,7 @@ log_sys_check_flush_completion(void)
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (log_sys->n_pending_writes == 0) {
-	
+
 		log_sys->written_to_all_lsn = log_sys->write_lsn;
 		log_sys->buf_next_to_write = log_sys->write_end_offset;
 
@@ -1029,7 +1029,7 @@ log_sys_check_flush_completion(void)
 			ut_memmove(log_sys->buf, log_sys->buf + move_start,
 						move_end - move_start);
 			log_sys->buf_free -= move_start;
-		
+
 			log_sys->buf_next_to_write -= move_start;
 		}
 
@@ -1065,8 +1065,8 @@ log_io_complete(
 
 		if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
 		   && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
-		
-		        fil_flush(group->space_id);
+
+			fil_flush(group->space_id);
 		}
 
 #ifdef UNIV_DEBUG
@@ -1085,23 +1085,23 @@ log_io_complete(
 			logs and cannot end up here! */
 
 	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
-	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-	    && srv_flush_log_at_trx_commit != 2) {
+		&& srv_unix_file_flush_method != SRV_UNIX_NOSYNC
+		&& srv_flush_log_at_trx_commit != 2) {
 
-	        fil_flush(group->space_id);
+		fil_flush(group->space_id);
 	}
 
 	mutex_enter(&(log_sys->mutex));
 
 	ut_a(group->n_pending_writes > 0);
 	ut_a(log_sys->n_pending_writes > 0);
-	
+
 	group->n_pending_writes--;
 	log_sys->n_pending_writes--;
 
 	unlock = log_group_check_flush_completion(group);
 	unlock = unlock | log_sys_check_flush_completion();
-	
+
 	log_flush_do_unlocks(unlock);
 
 	mutex_exit(&(log_sys->mutex));
@@ -1145,17 +1145,17 @@ log_group_file_header_flush(
 	}
 #endif /* UNIV_DEBUG */
 	if (log_do_write) {
-		log_sys->n_log_ios++;	
-		
-                srv_os_log_pending_writes++;
-                
+		log_sys->n_log_ios++;
+
+		srv_os_log_pending_writes++;
+
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id,
 				dest_offset / UNIV_PAGE_SIZE,
 				dest_offset % UNIV_PAGE_SIZE,
 				OS_FILE_LOG_BLOCK_SIZE,
 				buf, group);
 
-                srv_os_log_pending_writes--;
+		srv_os_log_pending_writes--;
 	}
 }
 
@@ -1171,7 +1171,7 @@ log_block_store_checksum(
 {
 	log_block_set_checksum(block, log_block_calc_checksum(block));
 }
-	
+
 /**********************************************************
 Writes a buffer to a log file group. */
 
@@ -1194,7 +1194,7 @@ log_group_write_buf(
 	ibool	write_header;
 	ulint	next_offset;
 	ulint	i;
-	
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1215,13 +1215,13 @@ loop:
 	next_offset = log_group_calc_lsn_offset(start_lsn, group);
 
 	if ((next_offset % group->file_size == LOG_FILE_HDR_SIZE)
-	   						&& write_header) {
+							&& write_header) {
 		/* We start to write a new log file instance in the group */
 
 		log_group_file_header_flush(group,
 				next_offset / group->file_size, start_lsn);
-                srv_os_log_written+= OS_FILE_LOG_BLOCK_SIZE;
-                srv_log_writes++;
+		srv_os_log_written+= OS_FILE_LOG_BLOCK_SIZE;
+		srv_log_writes++;
 	}
 
 	if ((next_offset % group->file_size) + len > group->file_size) {
@@ -1240,7 +1240,7 @@ loop:
 		"start lsn %lu %lu\n"
 		"First block n:o %lu last block n:o %lu\n",
 			(ulong) group->id, (ulong) next_offset,
-		        (ulong) write_len,
+			(ulong) write_len,
 			(ulong) ut_dulint_get_high(start_lsn),
 			(ulong) ut_dulint_get_low(start_lsn),
 			(ulong) log_block_get_hdr_no(buf),
@@ -1248,7 +1248,7 @@ loop:
 				buf + write_len - OS_FILE_LOG_BLOCK_SIZE));
 		ut_a(log_block_get_hdr_no(buf)
 			== log_block_convert_lsn_to_no(start_lsn));
-		
+
 		for (i = 0; i < write_len / OS_FILE_LOG_BLOCK_SIZE; i++) {
 
 			ut_a(log_block_get_hdr_no(buf) + i
@@ -1265,18 +1265,18 @@ loop:
 	}
 
 	if (log_do_write) {
-		log_sys->n_log_ios++;	
+		log_sys->n_log_ios++;
 
-                srv_os_log_pending_writes++;                
-                
+		srv_os_log_pending_writes++;
+
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id,
 			next_offset / UNIV_PAGE_SIZE,
 			next_offset % UNIV_PAGE_SIZE, write_len, buf, group);
 
-                srv_os_log_pending_writes--;
+		srv_os_log_pending_writes--;
 
-                srv_os_log_written+= write_len; 
-                srv_log_writes++;
+		srv_os_log_written+= write_len;
+		srv_log_writes++;
 	}
 
 	if (write_len < len) {
@@ -1331,46 +1331,48 @@ loop:
 	if (loop_count > 2) {
 /*		fprintf(stderr, "Log loop count %lu\n", loop_count); */
 	}
-	
+
 	mutex_enter(&(log_sys->mutex));
 
 	if (flush_to_disk
-	    && ut_dulint_cmp(log_sys->flushed_to_disk_lsn, lsn) >= 0) {
-	    
+		&& ut_dulint_cmp(log_sys->flushed_to_disk_lsn, lsn) >= 0) {
+
 		mutex_exit(&(log_sys->mutex));
 
 		return;
 	}
 
 	if (!flush_to_disk
-	    && (ut_dulint_cmp(log_sys->written_to_all_lsn, lsn) >= 0
-	    	|| (ut_dulint_cmp(log_sys->written_to_some_lsn, lsn) >= 0
-	        			&& wait != LOG_WAIT_ALL_GROUPS))) {
+		&& (ut_dulint_cmp(log_sys->written_to_all_lsn, lsn) >= 0
+			|| (ut_dulint_cmp(log_sys->written_to_some_lsn, lsn)
+				>= 0
+				&& wait != LOG_WAIT_ALL_GROUPS))) {
 
 		mutex_exit(&(log_sys->mutex));
 
 		return;
 	}
-	
+
 	if (log_sys->n_pending_writes > 0) {
 		/* A write (+ possibly flush to disk) is running */
 
 		if (flush_to_disk
-		    && ut_dulint_cmp(log_sys->current_flush_lsn, lsn) >= 0) {
+			&& ut_dulint_cmp(log_sys->current_flush_lsn, lsn)
+			>= 0) {
 			/* The write + flush will write enough: wait for it to
 			complete  */
-	    
+
 			goto do_waits;
 		}
 
 		if (!flush_to_disk
-		    && ut_dulint_cmp(log_sys->write_lsn, lsn) >= 0) {
+			&& ut_dulint_cmp(log_sys->write_lsn, lsn) >= 0) {
 			/* The write will write enough: wait for it to
 			complete  */
 
 			goto do_waits;
 		}
-		
+
 		mutex_exit(&(log_sys->mutex));
 
 		/* Wait for the write to complete and try to start a new
@@ -1403,7 +1405,7 @@ loop:
 	log_sys->n_pending_writes++;
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
-	group->n_pending_writes++; 	/* We assume here that we have only
+	group->n_pending_writes++;	/* We assume here that we have only
 					one log group! */
 
 	os_event_reset(log_sys->no_flush_event);
@@ -1424,16 +1426,16 @@ loop:
 	}
 
 	log_sys->one_flushed = FALSE;
-	
+
 	log_block_set_flush_bit(log_sys->buf + area_start, TRUE);
 	log_block_set_checkpoint_no(
 			log_sys->buf + area_end - OS_FILE_LOG_BLOCK_SIZE,
 			log_sys->next_checkpoint_no);
-	
+
 	/* Copy the last, incompletely written, log block a log block length
 	up, so that when the flush operation writes from the log buffer, the
 	segment to write will not be changed by writers to the log */
-	
+
 	ut_memcpy(log_sys->buf + area_end,
 			log_sys->buf + area_end - OS_FILE_LOG_BLOCK_SIZE,
 			OS_FILE_LOG_BLOCK_SIZE);
@@ -1454,7 +1456,7 @@ loop:
 			start_offset - area_start);
 
 		log_group_set_fields(group, log_sys->write_lsn);
-						
+
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 
@@ -1470,7 +1472,7 @@ loop:
 
 		group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
-	        fil_flush(group->space_id);
+		fil_flush(group->space_id);
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
 	}
 
@@ -1480,19 +1482,19 @@ loop:
 
 	ut_a(group->n_pending_writes == 1);
 	ut_a(log_sys->n_pending_writes == 1);
-	
+
 	group->n_pending_writes--;
 	log_sys->n_pending_writes--;
 
 	unlock = log_group_check_flush_completion(group);
 	unlock = unlock | log_sys_check_flush_completion();
-	
+
 	log_flush_do_unlocks(unlock);
 
 	mutex_exit(&(log_sys->mutex));
 
 	return;
-	
+
 do_waits:
 	mutex_exit(&(log_sys->mutex));
 
@@ -1502,7 +1504,7 @@ do_waits:
 		os_event_wait(log_sys->no_flush_event);
 	} else {
 		ut_ad(wait == LOG_NO_WAIT);
-	}			
+	}
 }
 
 /********************************************************************
@@ -1538,7 +1540,7 @@ log_flush_margin(void)
 	mutex_enter(&(log->mutex));
 
 	if (log->buf_free > log->max_buf_free) {
-		
+
 		if (log->n_pending_writes > 0) {
 			/* A flush is running: hope that it will provide enough
 			free space */
@@ -1582,7 +1584,7 @@ log_preflush_pool_modified_pages(
 		not know how up-to-date the disk version of the database is,
 		and we could not make a new checkpoint on the basis of the
 		info on the buffer pool only. */
-	
+
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
@@ -1630,13 +1632,13 @@ log_io_complete_checkpoint(void)
 	mutex_enter(&(log_sys->mutex));
 
 	ut_ad(log_sys->n_pending_checkpoint_writes > 0);
-	
+
 	log_sys->n_pending_checkpoint_writes--;
 
 	if (log_sys->n_pending_checkpoint_writes == 0) {
 		log_complete_checkpoint();
-	}	
-	
+	}
+
 	mutex_exit(&(log_sys->mutex));
 }
 
@@ -1699,10 +1701,12 @@ log_group_checkpoint(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_a(LOG_CHECKPOINT_SIZE <= OS_FILE_LOG_BLOCK_SIZE);
-	
+#if LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE
+# error "LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE"
+#endif
+
 	buf = group->checkpoint_buf;
-	
+
 	mach_write_to_8(buf + LOG_CHECKPOINT_NO, log_sys->next_checkpoint_no);
 	mach_write_to_8(buf + LOG_CHECKPOINT_LSN,
 						log_sys->next_checkpoint_lsn);
@@ -1710,7 +1714,7 @@ log_group_checkpoint(
 	mach_write_to_4(buf + LOG_CHECKPOINT_OFFSET,
 			log_group_calc_lsn_offset(
 					log_sys->next_checkpoint_lsn, group));
-								
+
 	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, log_sys->buf_size);
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -1723,7 +1727,7 @@ log_group_checkpoint(
 					log_sys->next_archived_lsn)) {
 			next_archived_lsn = log_sys->next_archived_lsn;
 			/* For debugging only */
-		}	
+		}
 	}
 
 	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
@@ -1734,7 +1738,7 @@ log_group_checkpoint(
 	for (i = 0; i < LOG_MAX_N_GROUPS; i++) {
 		log_checkpoint_set_nth_group_info(buf, i, 0, 0);
 	}
-	
+
 	group2 = UT_LIST_GET_FIRST(log_sys->log_groups);
 
 	while (group2) {
@@ -1768,16 +1772,16 @@ log_group_checkpoint(
 
 	/* We alternate the physical place of the checkpoint info in the first
 	log file */
-	
+
 	if (ut_dulint_get_low(log_sys->next_checkpoint_no) % 2 == 0) {
 		write_offset = LOG_CHECKPOINT_1;
 	} else {
 		write_offset = LOG_CHECKPOINT_2;
 	}
-					
+
 	if (log_do_write) {
 		if (log_sys->n_pending_checkpoint_writes == 0) {
-	
+
 			rw_lock_x_lock_gen(&(log_sys->checkpoint_lock),
 							LOG_CHECKPOINT);
 		}
@@ -1785,11 +1789,11 @@ log_group_checkpoint(
 		log_sys->n_pending_checkpoint_writes++;
 
 		log_sys->n_log_ios++;
-		
+
 		/* We send as the last parameter the group machine address
 		added with 1, as we want to distinguish between a normal log
 		file write and a checkpoint field write */
-		
+
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, FALSE, group->space_id,
 				write_offset / UNIV_PAGE_SIZE,
 				write_offset % UNIV_PAGE_SIZE,
@@ -1816,7 +1820,7 @@ log_reset_first_header_and_checkpoint(
 	ulint	fold;
 	byte*	buf;
 	dulint	lsn;
-	
+
 	mach_write_to_4(hdr_buf + LOG_GROUP_ID, 0);
 	mach_write_to_8(hdr_buf + LOG_FILE_START_LSN, start);
 
@@ -1829,13 +1833,13 @@ log_reset_first_header_and_checkpoint(
 			(char*) hdr_buf + (LOG_FILE_WAS_CREATED_BY_HOT_BACKUP
 						+ (sizeof "ibbackup ") - 1));
 	buf = hdr_buf + LOG_CHECKPOINT_1;
-	
+
 	mach_write_to_8(buf + LOG_CHECKPOINT_NO, ut_dulint_zero);
 	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, lsn);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_OFFSET,
 				LOG_FILE_HDR_SIZE + LOG_BLOCK_HDR_SIZE);
-								
+
 	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, 2 * 1024 * 1024);
 
 	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, ut_dulint_max);
@@ -1866,7 +1870,7 @@ log_group_read_checkpoint_info(
 #endif /* UNIV_SYNC_DEBUG */
 
 	log_sys->n_log_ios++;
-	
+
 	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, group->space_id,
 			field / UNIV_PAGE_SIZE, field % UNIV_PAGE_SIZE,
 			OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
@@ -1921,7 +1925,7 @@ log_checkpoint(
 	}
 
 	if (srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
-	        fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_TABLESPACE);
 	}
 
 	mutex_enter(&(log_sys->mutex));
@@ -1951,7 +1955,7 @@ log_checkpoint(
 	}
 
 	ut_ad(ut_dulint_cmp(log_sys->written_to_all_lsn, oldest_lsn) >= 0);
-	
+
 	if (log_sys->n_pending_checkpoint_writes > 0) {
 		/* A checkpoint write is running */
 
@@ -2011,13 +2015,13 @@ log_make_checkpoint_at(
 	/* Preflush pages synchronously */
 
 	success = FALSE;
-	
+
 	while (!success) {
 		success = log_preflush_pool_modified_pages(lsn, TRUE);
 	}
 
 	success = FALSE;
-	
+
 	while (!success) {
 		success = log_checkpoint(TRUE, write_always);
 	}
@@ -2053,12 +2057,12 @@ loop:
 		mutex_exit(&(log->mutex));
 
 		return;
-	}	
+	}
 
 	oldest_lsn = log_buf_pool_get_oldest_modification();
 
 	age = ut_dulint_minus(log->lsn, oldest_lsn);
-	
+
 	if (age > log->max_modified_age_sync) {
 
 		/* A flush is urgent: we have to do a synchronous preflush */
@@ -2077,7 +2081,7 @@ loop:
 
 	if (checkpoint_age > log->max_checkpoint_age) {
 		/* A checkpoint is urgent: we do it synchronously */
-	
+
 		checkpoint_sync = TRUE;
 
 		do_checkpoint = TRUE;
@@ -2091,7 +2095,7 @@ loop:
 	} else {
 		log->check_flush_or_checkpoint = FALSE;
 	}
-	
+
 	mutex_exit(&(log->mutex));
 
 	if (advance) {
@@ -2109,7 +2113,7 @@ loop:
 			mutex_enter(&(log->mutex));
 
 			log->check_flush_or_checkpoint = TRUE;
-	
+
 			mutex_exit(&(log->mutex));
 			goto loop;
 		}
@@ -2164,13 +2168,13 @@ loop:
 
 #ifdef UNIV_LOG_ARCHIVE
 	if (type == LOG_ARCHIVE) {
-	
+
 		log_sys->n_pending_archive_ios++;
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
 	log_sys->n_log_ios++;
-	
+
 	fil_io(OS_FILE_READ | OS_FILE_LOG, sync, group->space_id,
 		source_offset / UNIV_PAGE_SIZE, source_offset % UNIV_PAGE_SIZE,
 		len, buf, NULL);
@@ -2233,7 +2237,7 @@ log_group_archive_file_header_write(
 	dest_offset = nth_file * group->file_size;
 
 	log_sys->n_log_ios++;
-	
+
 	fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->archive_space_id,
 				dest_offset / UNIV_PAGE_SIZE,
 				dest_offset % UNIV_PAGE_SIZE,
@@ -2268,7 +2272,7 @@ log_group_archive_completed_header_write(
 	dest_offset = nth_file * group->file_size + LOG_FILE_ARCH_COMPLETED;
 
 	log_sys->n_log_ios++;
-	
+
 	fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->archive_space_id,
 				dest_offset / UNIV_PAGE_SIZE,
 				dest_offset % UNIV_PAGE_SIZE,
@@ -2295,7 +2299,7 @@ log_group_archive(
 	ulint	next_offset;
 	ulint	n_files;
 	ulint	open_mode;
-	
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
@@ -2313,9 +2317,9 @@ log_group_archive(
 	n_files = 0;
 
 	next_offset = group->archived_offset;
-loop:				
+loop:
 	if ((next_offset % group->file_size == 0)
-	    || (fil_space_get_size(group->archive_space_id) == 0)) {
+		|| (fil_space_get_size(group->archive_space_id) == 0)) {
 
 		/* Add the file to the archive file space; create or open the
 		file */
@@ -2325,7 +2329,7 @@ loop:
 		} else {
 			open_mode = OS_FILE_OPEN;
 		}
-	
+
 		log_archived_file_name_gen(name, group->id,
 					group->archived_file_no + n_files);
 
@@ -2354,11 +2358,11 @@ loop:
 #endif /* UNIV_DEBUG */
 
 		ret = os_file_close(file_handle);
-	
+
 		ut_a(ret);
-	
+
 		/* Add the archive file as a node to the space */
-		
+
 		fil_node_create(name, group->file_size / UNIV_PAGE_SIZE,
 					group->archive_space_id, FALSE);
 
@@ -2368,7 +2372,7 @@ loop:
 					start_lsn);
 
 			next_offset += LOG_FILE_HDR_SIZE;
-		}				
+		}
 	}
 
 	len = ut_dulint_minus(end_lsn, start_lsn);
@@ -2391,7 +2395,7 @@ loop:
 	log_sys->n_pending_archive_ios++;
 
 	log_sys->n_log_ios++;
-	
+
 	fil_io(OS_FILE_WRITE | OS_FILE_LOG, FALSE, group->archive_space_id,
 		next_offset / UNIV_PAGE_SIZE, next_offset % UNIV_PAGE_SIZE,
 		ut_calc_align(len, OS_FILE_LOG_BLOCK_SIZE), buf,
@@ -2406,7 +2410,7 @@ loop:
 	}
 
 	if (ut_dulint_cmp(end_lsn, start_lsn) != 0) {
-	
+
 		goto loop;
 	}
 
@@ -2464,14 +2468,14 @@ log_archive_write_complete_groups(void)
 	file, or if it has been written full, all files */
 
 	n_files = (UNIV_PAGE_SIZE
-			    * fil_space_get_size(group->archive_space_id))
-			    				/ group->file_size;
+		* fil_space_get_size(group->archive_space_id))
+		/ group->file_size;
 	ut_ad(n_files > 0);
-		
+
 	end_offset = group->archived_offset;
 
 	if (end_offset % group->file_size == 0) {
-		
+
 		trunc_files = n_files;
 	} else {
 		trunc_files = n_files - 1;
@@ -2491,7 +2495,7 @@ log_archive_write_complete_groups(void)
 				+ trunc_files
 				  * (group->file_size - LOG_FILE_HDR_SIZE));
 	end_lsn = start_lsn;
-	
+
 	for (i = 0; i < trunc_files; i++) {
 
 		end_lsn = ut_dulint_add(end_lsn,
@@ -2502,7 +2506,7 @@ log_archive_write_complete_groups(void)
 
 		log_group_archive_completed_header_write(group, i, end_lsn);
 	}
-		
+
 	fil_space_truncate_start(group->archive_space_id,
 					trunc_files * group->file_size);
 
@@ -2533,22 +2537,22 @@ log_archive_check_completion_low(void)
 		}
 #endif /* UNIV_DEBUG */
 
-	    	/* Archive buffer has now been read in: start archive writes */
+		/* Archive buffer has now been read in: start archive writes */
 
 		log_sys->archiving_phase = LOG_ARCHIVE_WRITE;
 
 		log_archive_groups();
-	}	
+	}
 
 	if (log_sys->n_pending_archive_ios == 0
 			&& log_sys->archiving_phase == LOG_ARCHIVE_WRITE) {
 
-	     	log_archive_write_complete_groups();
+		log_archive_write_complete_groups();
 
 		log_sys->archived_lsn = log_sys->next_archived_lsn;
 
 		rw_lock_x_unlock_gen(&(log_sys->archive_lock), LOG_ARCHIVE);
-	}	
+	}
 }
 
 /**********************************************************
@@ -2567,11 +2571,11 @@ log_io_complete_archive(void)
 	mutex_exit(&(log_sys->mutex));
 
 	fil_flush(group->archive_space_id);
-	
+
 	mutex_enter(&(log_sys->mutex));
-	
+
 	ut_ad(log_sys->n_pending_archive_ios > 0);
-	
+
 	log_sys->n_pending_archive_ios--;
 
 	log_archive_check_completion_low();
@@ -2594,9 +2598,9 @@ log_archive_do(
 	ibool	calc_new_limit;
 	dulint	start_lsn;
 	dulint	limit_lsn;
-	
+
 	calc_new_limit = TRUE;
-loop:	
+loop:
 	mutex_enter(&(log_sys->mutex));
 
 	if (log_sys->archiving_state == LOG_ARCH_OFF) {
@@ -2607,26 +2611,26 @@ loop:
 		return(TRUE);
 
 	} else if (log_sys->archiving_state == LOG_ARCH_STOPPED
-	           || log_sys->archiving_state == LOG_ARCH_STOPPING2) {
+		   || log_sys->archiving_state == LOG_ARCH_STOPPING2) {
 
 		mutex_exit(&(log_sys->mutex));
-		
+
 		os_event_wait(log_sys->archiving_on);
 
 		mutex_enter(&(log_sys->mutex));
 
 		goto loop;
 	}
-	
+
 	start_lsn = log_sys->archived_lsn;
-	
+
 	if (calc_new_limit) {
-	        ut_a(log_sys->archive_buf_size % OS_FILE_LOG_BLOCK_SIZE == 0);
+		ut_a(log_sys->archive_buf_size % OS_FILE_LOG_BLOCK_SIZE == 0);
 		limit_lsn = ut_dulint_add(start_lsn,
 						log_sys->archive_buf_size);
 
 		*n_bytes = log_sys->archive_buf_size;
-						
+
 		if (ut_dulint_cmp(limit_lsn, log_sys->lsn) >= 0) {
 
 			limit_lsn = ut_dulint_align_down(log_sys->lsn,
@@ -2639,21 +2643,21 @@ loop:
 		mutex_exit(&(log_sys->mutex));
 
 		*n_bytes = 0;
-		
+
 		return(TRUE);
 	}
 
 	if (ut_dulint_cmp(log_sys->written_to_all_lsn, limit_lsn) < 0) {
 
 		mutex_exit(&(log_sys->mutex));
-	
+
 		log_write_up_to(limit_lsn, LOG_WAIT_ALL_GROUPS, TRUE);
 
 		calc_new_limit = FALSE;
 
 		goto loop;
 	}
-	
+
 	if (log_sys->n_pending_archive_ios > 0) {
 		/* An archiving operation is running */
 
@@ -2667,7 +2671,7 @@ loop:
 		*n_bytes = log_sys->archive_buf_size;
 
 		return(FALSE);
-	}		
+	}
 
 	rw_lock_x_lock_gen(&(log_sys->archive_lock), LOG_ARCHIVE);
 
@@ -2687,7 +2691,7 @@ loop:
 #endif /* UNIV_DEBUG */
 
 	/* Read the log segment to the archive buffer */
-	
+
 	log_group_read_log_seg(LOG_ARCHIVE, log_sys->archive_buf,
 				UT_LIST_GET_FIRST(log_sys->log_groups),
 				start_lsn, limit_lsn);
@@ -2700,7 +2704,7 @@ loop:
 	}
 
 	*n_bytes = log_sys->archive_buf_size;
-	
+
 	return(TRUE);
 }
 
@@ -2714,7 +2718,7 @@ log_archive_all(void)
 {
 	dulint	present_lsn;
 	ulint	dummy;
-	
+
 	mutex_enter(&(log_sys->mutex));
 
 	if (log_sys->archiving_state == LOG_ARCH_OFF) {
@@ -2728,22 +2732,22 @@ log_archive_all(void)
 	mutex_exit(&(log_sys->mutex));
 
 	log_pad_current_log_block();
-	
+
 	for (;;) {
 		mutex_enter(&(log_sys->mutex));
 
 		if (ut_dulint_cmp(present_lsn, log_sys->archived_lsn) <= 0) {
-			
+
 			mutex_exit(&(log_sys->mutex));
 
 			return;
 		}
-		
+
 		mutex_exit(&(log_sys->mutex));
 
 		log_archive_do(TRUE, &dummy);
 	}
-}	
+}
 
 /*********************************************************
 Closes the possible open archive log file (for each group) the first group,
@@ -2770,10 +2774,10 @@ log_archive_close_groups(
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
 	trunc_len = UNIV_PAGE_SIZE
-			    * fil_space_get_size(group->archive_space_id);
+		* fil_space_get_size(group->archive_space_id);
 	if (trunc_len > 0) {
 		ut_a(trunc_len == group->file_size);
-			    
+
 		/* Write a notice to the headers of archived log
 		files that the file write has been completed */
 
@@ -2792,7 +2796,7 @@ log_archive_close_groups(
 			fprintf(stderr,
 			"Incrementing arch file no to %lu in log group %lu\n",
 				(ulong) group->archived_file_no + 2,
-			        (ulong) group->id);
+				(ulong) group->id);
 		}
 #endif /* UNIV_DEBUG */
 	}
@@ -2818,10 +2822,10 @@ log_archive_stop(void)
 		mutex_exit(&(log_sys->mutex));
 
 		return(DB_ERROR);
-	}	
+	}
 
 	log_sys->archiving_state = LOG_ARCH_STOPPING;
-	
+
 	mutex_exit(&(log_sys->mutex));
 
 	log_archive_all();
@@ -2834,7 +2838,7 @@ log_archive_stop(void)
 	mutex_exit(&(log_sys->mutex));
 
 	/* Wait for a possible archiving operation to end */
-	
+
 	rw_lock_s_lock(&(log_sys->archive_lock));
 	rw_lock_s_unlock(&(log_sys->archive_lock));
 
@@ -2851,7 +2855,7 @@ log_archive_stop(void)
 	of new archived log files will start from the right value */
 
 	success = FALSE;
-	
+
 	while (!success) {
 		success = log_checkpoint(TRUE, TRUE);
 	}
@@ -2859,7 +2863,7 @@ log_archive_stop(void)
 	mutex_enter(&(log_sys->mutex));
 
 	log_sys->archiving_state = LOG_ARCH_STOPPED;
-	
+
 	mutex_exit(&(log_sys->mutex));
 
 	return(DB_SUCCESS);
@@ -2880,8 +2884,8 @@ log_archive_start(void)
 		mutex_exit(&(log_sys->mutex));
 
 		return(DB_ERROR);
-	}	
-	
+	}
+
 	log_sys->archiving_state = LOG_ARCH_ON;
 
 	os_event_set(log_sys->archiving_on);
@@ -2903,24 +2907,24 @@ loop:
 	mutex_enter(&(log_sys->mutex));
 
 	if (log_sys->archiving_state == LOG_ARCH_STOPPED
-	    || log_sys->archiving_state == LOG_ARCH_OFF) {
+		|| log_sys->archiving_state == LOG_ARCH_OFF) {
 
 		log_sys->archiving_state = LOG_ARCH_OFF;
-	
+
 		os_event_set(log_sys->archiving_on);
 
 		mutex_exit(&(log_sys->mutex));
 
 		return(DB_SUCCESS);
-	}	
+	}
 
 	mutex_exit(&(log_sys->mutex));
 
 	log_archive_stop();
 
 	os_thread_sleep(500000);
-	
-	goto loop;	
+
+	goto loop;
 }
 
 /********************************************************************
@@ -2942,11 +2946,11 @@ log_archive_archivelog(void)
 		mutex_exit(&(log_sys->mutex));
 
 		return(DB_SUCCESS);
-	}	
+	}
 
 	mutex_exit(&(log_sys->mutex));
 
-	return(DB_ERROR);	
+	return(DB_ERROR);
 }
 
 /********************************************************************
@@ -2972,17 +2976,17 @@ loop:
 	}
 
 	age = ut_dulint_minus(log->lsn, log->archived_lsn);
-	
+
 	if (age > log->max_archived_lsn_age) {
 
 		/* An archiving is urgent: we have to do synchronous i/o */
 
 		sync = TRUE;
-	
+
 	} else if (age > log->max_archived_lsn_age_async) {
 
 		/* An archiving is not urgent: we do asynchronous i/o */
-	
+
 		sync = FALSE;
 	} else {
 		/* No archiving required yet */
@@ -3024,7 +3028,7 @@ loop:
 #endif /* UNIV_LOG_ARCHIVE */
 
 	mutex_enter(&(log_sys->mutex));
-	
+
 	if (log_sys->check_flush_or_checkpoint) {
 
 		mutex_exit(&(log_sys->mutex));
@@ -3049,8 +3053,8 @@ logs_empty_and_mark_files_at_shutdown(void)
 	ulint	arch_log_no;
 
 	if (srv_print_verbose_log) {
-	        ut_print_timestamp(stderr);
-	        fprintf(stderr, "  InnoDB: Starting shutdown...\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Starting shutdown...\n");
 	}
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
@@ -3061,32 +3065,32 @@ loop:
 
 	mutex_enter(&kernel_mutex);
 
-       /* Check that there are no longer transactions. We need this wait even
-        for the 'very fast' shutdown, because the InnoDB layer may have
-        committed or prepared transactions and we don't want to lose them. */
+	/* Check that there are no longer transactions. We need this wait
+	even for the 'very fast' shutdown, because the InnoDB layer may have
+	committed or prepared transactions and we don't want to lose
+	them. */
 
 	if (trx_n_mysql_transactions > 0
 			|| UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
-		
+
 		mutex_exit(&kernel_mutex);
-		
+
 		goto loop;
 	}
 
-        if (srv_fast_shutdown == 2) {
-               /* In this fastest shutdown we do not flush the buffer pool:
-               it is essentially a 'crash' of the InnoDB server.
-               Make sure that the log is all flushed to disk, so that
-               we can recover all committed transactions in a crash
-               recovery.
-               We must not write the lsn stamps to the data files, since at a
-               startup InnoDB deduces from the stamps if the previous
-               shutdown was clean. */
+	if (srv_fast_shutdown == 2) {
+		/* In this fastest shutdown we do not flush the buffer pool:
+		it is essentially a 'crash' of the InnoDB server. Make sure
+		that the log is all flushed to disk, so that we can recover
+		all committed transactions in a crash recovery. We must not
+		write the lsn stamps to the data files, since at a startup
+		InnoDB deduces from the stamps if the previous shutdown was
+		clean. */
 
-               log_buffer_flush_to_disk();
-                return; /* We SKIP ALL THE REST !! */
-       }
+		log_buffer_flush_to_disk();
 
+		return; /* We SKIP ALL THE REST !! */
+	}
 
 	/* Check that the master thread is suspended */
 
@@ -3098,7 +3102,7 @@ loop:
 	}
 
 	mutex_exit(&kernel_mutex);
-	
+
 	mutex_enter(&(log_sys->mutex));
 
 	if (
@@ -3107,12 +3111,12 @@ loop:
 #endif /* UNIV_LOG_ARCHIVE */
 			log_sys->n_pending_checkpoint_writes ||
 			log_sys->n_pending_writes) {
-				
+
 		mutex_exit(&(log_sys->mutex));
 
 		goto loop;
-	}	
-	
+	}
+
 	mutex_exit(&(log_sys->mutex));
 
 	if (!buf_pool_check_no_pending_io()) {
@@ -3130,19 +3134,20 @@ loop:
 
 	lsn = log_sys->lsn;
 
-       if ((ut_dulint_cmp(lsn, log_sys->last_checkpoint_lsn) != 0)
+	if ((ut_dulint_cmp(lsn, log_sys->last_checkpoint_lsn) != 0)
 #ifdef UNIV_LOG_ARCHIVE
-	   || (srv_log_archive_on
-	       && ut_dulint_cmp(lsn,
-		    ut_dulint_add(log_sys->archived_lsn, LOG_BLOCK_HDR_SIZE))
-		   != 0)
+		|| (srv_log_archive_on
+			&& ut_dulint_cmp(lsn,
+				ut_dulint_add(log_sys->archived_lsn,
+					LOG_BLOCK_HDR_SIZE))
+			!= 0)
 #endif /* UNIV_LOG_ARCHIVE */
 	) {
 
-	    	mutex_exit(&(log_sys->mutex));
+		mutex_exit(&(log_sys->mutex));
 
-	    	goto loop;
-	}    
+		goto loop;
+	}
 
 	arch_log_no = 0;
 
@@ -3179,7 +3184,7 @@ loop:
 	completely flushed to disk! (We do not call fil_write... if the
 	'very fast' shutdown is enabled.) */
 
-       if (!buf_all_freed()) {
+	if (!buf_all_freed()) {
 
 		goto loop;
 	}
@@ -3192,7 +3197,7 @@ loop:
 	}
 
 	/* We now let also the InnoDB error monitor thread to exit */
-	
+
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	if (srv_error_monitor_active) {
@@ -3202,7 +3207,7 @@ loop:
 
 	/* Make some checks that the server really is quiet */
 	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
-       ut_a(buf_all_freed());
+	ut_a(buf_all_freed());
 	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
 
 	if (ut_dulint_cmp(lsn, srv_start_lsn) < 0) {
@@ -3225,7 +3230,7 @@ loop:
 
 	/* Make some checks that the server really is quiet */
 	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
-       ut_a(buf_all_freed());
+	ut_a(buf_all_freed());
 	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
 }
 
@@ -3256,7 +3261,7 @@ log_check_log_recs(
 
 		return(TRUE);
 	}
-	
+
 	start = ut_align_down(buf, OS_FILE_LOG_BLOCK_SIZE);
 	end = ut_align(buf + len, OS_FILE_LOG_BLOCK_SIZE);
 
@@ -3264,10 +3269,10 @@ log_check_log_recs(
 	scan_buf = ut_align(buf1, OS_FILE_LOG_BLOCK_SIZE);
 
 	ut_memcpy(scan_buf, start, end - start);
-	
+
 	recv_scan_log_recs(TRUE,
 				(buf_pool->n_frames -
-				recv_n_pool_free_frames) * UNIV_PAGE_SIZE,	
+				recv_n_pool_free_frames) * UNIV_PAGE_SIZE,
 				FALSE, scan_buf, end - start,
 				ut_dulint_align_down(buf_start_lsn,
 						OS_FILE_LOG_BLOCK_SIZE),
@@ -3278,7 +3283,7 @@ log_check_log_recs(
 	ut_a(ut_dulint_cmp(recv_sys->recovered_lsn, scanned_lsn) == 0);
 
 	mem_free(buf1);
-			
+
 	return(TRUE);
 }
 
@@ -3293,7 +3298,7 @@ log_peek_lsn(
 	dulint*	lsn)	/* out: if returns TRUE, current lsn is here */
 {
 	if (0 == mutex_enter_nowait(&(log_sys->mutex), __FILE__, __LINE__)) {
-	        *lsn = log_sys->lsn;
+		*lsn = log_sys->lsn;
 
 		mutex_exit(&(log_sys->mutex));
 
@@ -3318,8 +3323,8 @@ log_print(
 
 	fprintf(file,
 		"Log sequence number %lu %lu\n"
-	       "Log flushed up to   %lu %lu\n"
-	       "Last checkpoint at  %lu %lu\n",
+		"Log flushed up to   %lu %lu\n"
+		"Last checkpoint at  %lu %lu\n",
 			(ulong) ut_dulint_get_high(log_sys->lsn),
 			(ulong) ut_dulint_get_low(log_sys->lsn),
 			(ulong) ut_dulint_get_high(log_sys->flushed_to_disk_lsn),
@@ -3328,7 +3333,7 @@ log_print(
 			(ulong) ut_dulint_get_low(log_sys->last_checkpoint_lsn));
 
 	current_time = time(NULL);
-			
+
 	time_elapsed = 0.001 + difftime(current_time,
 					log_sys->last_printout_time);
 	fprintf(file,

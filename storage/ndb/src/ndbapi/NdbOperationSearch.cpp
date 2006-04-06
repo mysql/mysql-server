@@ -472,7 +472,8 @@ void
 NdbOperation::reorderKEYINFO()
 {
   Uint32 data[4000];
-  getKeyFromTCREQ(data, 4000);
+  Uint32 size = 4000;
+  getKeyFromTCREQ(data, size);
   Uint32 pos = 1;
   Uint32 k;
   for (k = 0; k < m_accessTable->m_noOfKeys; k++) {
@@ -501,7 +502,7 @@ NdbOperation::reorderKEYINFO()
 }
 
 int
-NdbOperation::getKeyFromTCREQ(Uint32* data, unsigned size)
+NdbOperation::getKeyFromTCREQ(Uint32* data, Uint32 & size)
 {
   assert(size >= theTupKeyLen && theTupKeyLen > 0);
   size = theTupKeyLen;

@@ -22,6 +22,7 @@ create table t1 engine=HEAP select 10 as a;
 insert into t1 values(11);
 save_master_pos;
 --replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events from 79;
 connection slave;
 reset slave;
@@ -40,6 +41,7 @@ select * from t1;
 select * from t1 limit 10;
 save_master_pos;
 --replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events in 'master-bin.002' from 79;
 
 connection slave;

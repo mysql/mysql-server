@@ -134,7 +134,10 @@ void my_end(int infoflag)
   */
   FILE *info_file= DBUG_FILE;
   my_bool print_info= (info_file != stderr);
-  DBUG_ENTER("my_end");
+  /* We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
+     operational, so we cannot use DBUG_RETURN.
+  */
+  DBUG_PRINT("info",("Shutting down"));
   if (!info_file)
   {
     info_file= stderr;
@@ -214,7 +217,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
     WSACleanup();
 #endif /* __WIN__ */
   my_init_done=0;
-  DBUG_VOID_RETURN;
 } /* my_end */
 
 

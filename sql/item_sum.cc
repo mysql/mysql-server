@@ -2495,6 +2495,7 @@ void Item_sum_count_distinct::make_unique()
 {
   table=0;
   original= 0;
+  force_copy_fields= 1;
   tree= 0;
   tmp_table_param= 0;
   always_null= FALSE;
@@ -2538,6 +2539,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
   if (always_null)
     return FALSE;
   count_field_types(tmp_table_param,list,0);
+  tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
 				0,
@@ -2564,9 +2566,9 @@ bool Item_sum_count_distinct::setup(THD *thd)
       Field *f= *field;
       enum enum_field_types type= f->type();
       tree_key_length+= f->pack_length();
-      if (!f->binary() && (type == MYSQL_TYPE_STRING ||
-                           type == MYSQL_TYPE_VAR_STRING ||
-                           type == MYSQL_TYPE_VARCHAR))
+      if ((type == MYSQL_TYPE_VARCHAR) ||
+          !f->binary() && (type == MYSQL_TYPE_STRING ||
+                           type == MYSQL_TYPE_VAR_STRING))
       {
         all_binary= FALSE;
         break;
@@ -3052,7 +3054,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
    count_cut_values(0),
    distinct(distinct_arg),
    warning_for_row(FALSE),
-   original(0)
+   force_copy_fields(0), original(0)
 {
   Item *item_select;
   Item **arg_ptr;
@@ -3109,6 +3111,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   distinct(item->distinct),
   warning_for_row(item->warning_for_row),
   always_null(item->always_null),
+  force_copy_fields(item->force_copy_fields),
   original(item)
 {
   quick_group= item->quick_group;
@@ -3310,6 +3313,7 @@ bool Item_func_group_concat::setup(THD *thd)
     DBUG_RETURN(TRUE);
 
   count_field_types(tmp_table_param,all_fields,0);
+  tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
   /*
     We have to create a temporary table to get descriptions of fields
@@ -3372,6 +3376,7 @@ void Item_func_group_concat::make_unique()
   tmp_table_param= 0;
   table=0;
   original= 0;
+  force_copy_fields= 1;
   tree= 0;
 }
 

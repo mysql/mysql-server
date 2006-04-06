@@ -52,6 +52,7 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     theReference(numberToRef(blockNumber, globalData.ownId)),
     m_ctx(ctx),
     m_global_page_pool(globalData.m_global_page_pool),
+    m_shared_page_pool(globalData.m_shared_page_pool),
     c_fragmentInfoHash(c_fragmentInfoPool),
     c_linearFragmentSendList(c_fragmentSendPool),
     c_segmentedFragmentSendList(c_fragmentSendPool),
@@ -2031,3 +2032,6 @@ SimulatedBlock::create_distr_key(Uint32 tableId,
   }
   return dstPos;
 }
+
+CArray<KeyDescriptor> g_key_descriptor_pool;
+

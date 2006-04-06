@@ -165,3 +165,6 @@ hex(a)
 A1A1
 A3A0
 DROP TABLE t1;
+select hex(convert(_gbk 0xA14041 using ucs2));
+hex(convert(_gbk 0xA14041 using ucs2))
+003F0041

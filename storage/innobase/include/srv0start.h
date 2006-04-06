@@ -89,18 +89,18 @@ void set_panic_flag_for_netware(void);
 extern	ibool	srv_have_fullfsync;
 #endif
 
-extern  ulint   srv_sizeof_trx_t_in_ha_innodb_cc;
+extern	ulint	srv_sizeof_trx_t_in_ha_innodb_cc;
 
-extern  ibool   srv_is_being_started;
+extern	ibool	srv_is_being_started;
 extern	ibool	srv_startup_is_before_trx_rollback_phase;
 extern	ibool	srv_is_being_shut_down;
 
-extern  ibool	srv_start_raw_disk_in_use;
+extern	ibool	srv_start_raw_disk_in_use;
 
 /* At a shutdown the value first climbs from 0 to SRV_SHUTDOWN_CLEANUP
 and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 
-extern  ulint   srv_shutdown_state;
+extern	ulint	srv_shutdown_state;
 
 #define SRV_SHUTDOWN_CLEANUP	   1
 #define SRV_SHUTDOWN_LAST_PHASE	   2

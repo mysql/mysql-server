@@ -115,8 +115,6 @@ typedef struct st_ndbcluster_share {
   TABLE *table;
   NdbValue *ndb_value[2];
   MY_BITMAP *subscriber_bitmap;
-  MY_BITMAP slock_bitmap;
-  uint32 slock[256/32]; // 256 bits for lock status of table
 #endif
 } NDB_SHARE;
 
@@ -685,12 +683,13 @@ static void set_tabname(const char *pathname, char *tabname);
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
 				  uint table_changes);
-  static int invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
-                                         const char *dbname, const char *tabname,
-                                         bool global);
 
 private:
   friend int ndbcluster_drop_database_impl(const char *path);
+  friend int ndb_handle_schema_change(THD *thd, 
+                                      Ndb *ndb, NdbEventOperation *pOp,
+                                      NDB_SHARE *share);
+
   int alter_table_name(const char *to);
   static int delete_table(ha_ndbcluster *h, Ndb *ndb,
 			  const char *path,
@@ -708,7 +707,7 @@ private:
   int create_indexes(Ndb *ndb, TABLE *tab);
   void clear_index(int i);
   void clear_indexes();
-  int open_indexes(Ndb *ndb, TABLE *tab);
+  int open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error);
   void renumber_indexes(Ndb *ndb, TABLE *tab);
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
@@ -718,7 +717,8 @@ private:
   void release_metadata();
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
-  NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info) const;
+  NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info, 
+                                         bool primary) const;
   int check_index_fields_not_null(uint index_no);
 
   uint set_up_partition_info(partition_info *part_info,
@@ -727,8 +727,8 @@ private:
   char* get_tablespace_name(THD *thd);
   int set_range_data(void *tab, partition_info* part_info);
   int set_list_data(void *tab, partition_info* part_info);
-  int complemented_pk_read(const byte *old_data, byte *new_data,
-                           uint32 old_part_id);
+  int complemented_read(const byte *old_data, byte *new_data,
+                        uint32 old_part_id);
   int pk_read(const byte *key, uint key_len, byte *buf, uint32 part_id);
   int ordered_index_scan(const key_range *start_key,
                          const key_range *end_key,
@@ -736,7 +736,11 @@ private:
                          part_id_range *part_spec);
   int full_table_scan(byte * buf);
 
-  int peek_row(const byte *record);
+  bool check_all_operations_for_error(NdbTransaction *trans,
+                                      const NdbOperation *first,
+                                      const NdbOperation *last,
+                                      uint errcode);
+  int peek_indexed_rows(const byte *record);
   int unique_index_read(const byte *key, uint key_len, 
                         byte *buf);
   int fetch_next(NdbScanOperation* op);
@@ -759,10 +763,13 @@ private:
   int set_ndb_value(NdbOperation*, Field *field, uint fieldnr,
 		    int row_offset= 0, bool *set_blob_value= 0);
   int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
+  int get_ndb_partition_id(NdbOperation *);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
   int set_primary_key(NdbOperation *op, const byte *key);
   int set_primary_key_from_record(NdbOperation *op, const byte *record);
+  int set_index_key_from_record(NdbOperation *op, const byte *record,
+                                uint keyno);
   int set_bounds(NdbIndexScanOperation*, uint inx, bool rir,
                  const key_range *keys[2], uint= 0);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
@@ -770,7 +777,7 @@ private:
   void print_results();
 
   ulonglong get_auto_increment();
-  void invalidate_dictionary_cache(bool global);
+  int invalidate_dictionary_cache(bool global);
   int ndb_err(NdbTransaction*);
   bool uses_blob_value();
 
@@ -822,12 +829,14 @@ private:
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   byte m_ref[NDB_HIDDEN_PRIMARY_KEY_LENGTH];
   partition_info *m_part_info;
+  uint32 m_part_id;
   byte *m_rec0;
   Field **m_part_field_array;
   bool m_use_partition_function;
   bool m_sorted;
   bool m_use_write;
   bool m_ignore_dup_key;
+  bool m_has_unique_index;
   bool m_primary_key_update;
   bool m_write_op;
   bool m_ignore_no_key;

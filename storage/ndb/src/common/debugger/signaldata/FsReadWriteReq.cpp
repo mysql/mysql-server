@@ -49,6 +49,8 @@ printFSREADWRITEREQ(FILE * output, const Uint32 * theData,
     break;
   case FsReadWriteReq::fsFormatGlobalPage:
     fprintf(output, "List of global pages)\n");
+  case FsReadWriteReq::fsFormatSharedPage:
+    fprintf(output, "List of shared pages)\n");
     break;
   default:
     fprintf(output, "fsFormatMax not handled\n");

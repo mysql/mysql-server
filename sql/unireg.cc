@@ -86,7 +86,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   uchar *screen_buff;
   char buff[32];
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  partition_info *part_info= thd->lex->part_info;
+  partition_info *part_info= thd->work_part_info;
 #endif
   DBUG_ENTER("mysql_create_frm");
 

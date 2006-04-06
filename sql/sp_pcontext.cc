@@ -122,30 +122,38 @@ sp_pcontext::pop_context()
 }
 
 uint
-sp_pcontext::diff_handlers(sp_pcontext *ctx)
+sp_pcontext::diff_handlers(sp_pcontext *ctx, bool exclusive)
 {
   uint n= 0;
   sp_pcontext *pctx= this;
+  sp_pcontext *last_ctx= NULL;
 
   while (pctx && pctx != ctx)
   {
     n+= pctx->m_handlers;
+    last_ctx= pctx;
     pctx= pctx->parent_context();
   }
   if (pctx)
-    return n;
+    return (exclusive && last_ctx ? n - last_ctx->m_handlers : n);
   return 0;			// Didn't find ctx
 }
 
 uint
-sp_pcontext::diff_cursors(sp_pcontext *ctx)
+sp_pcontext::diff_cursors(sp_pcontext *ctx, bool exclusive)
 {
+  uint n= 0;
   sp_pcontext *pctx= this;
+  sp_pcontext *last_ctx= NULL;
 
   while (pctx && pctx != ctx)
+  {
+    n+= pctx->m_cursor.elements;
+    last_ctx= pctx;
     pctx= pctx->parent_context();
+  }
   if (pctx)
-    return ctx->current_cursors() - pctx->current_cursors();
+    return  (exclusive && last_ctx ? n - last_ctx->m_cursor.elements : n);
   return 0;			// Didn't find ctx
 }
 

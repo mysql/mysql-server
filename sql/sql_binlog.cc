@@ -58,7 +58,7 @@ void mysql_client_binlog_statement(THD* thd)
 
   const char *error= 0;
   char *buf= (char *) my_malloc(event_len, MYF(MY_WME));
-  Log_event *ev;
+  Log_event *ev = 0;
   int res;
 
   /*

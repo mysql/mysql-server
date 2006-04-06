@@ -904,11 +904,25 @@ end|
 #
 # BUG#9529: Stored Procedures: No Warning on truncation of procedure name
 #           during creation.
-# Note: When using utf8 for mysql.proc, this limit is much higher than before
+# BUG#17015: Routine name truncation not an error
+#            When we started using utf8 for mysql.proc, this limit appeared
+#            to be higher, but in reality the names were truncated.
 --error ER_TOO_LONG_IDENT
-create procedure bug9529_90123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123()
+create procedure bug9529_901234567890123456789012345678901234567890123456789012345()
 begin
 end|
+
+--disable_warnings
+drop procedure if exists bug17015_0123456789012345678901234567890123456789012345678901234|
+--enable_warnings
+# Check the upper limit, just to make sure.
+create procedure bug17015_0123456789012345678901234567890123456789012345678901234()
+begin
+end|
+
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+show procedure status like 'bug17015%'|
+drop procedure bug17015_0123456789012345678901234567890123456789012345678901234|
 
 
 #
@@ -1680,6 +1694,35 @@ call bug15091();
 
 drop procedure bug15091;
 
+
+#
+# BUG#16896: Stored function: unused AGGREGATE-clause in CREATE FUNCTION
+#
+--disable_warnings
+drop function if exists bug16896;
+--enable_warnings
+
+--error ER_SP_NO_AGGREGATE
+create aggregate function bug16896() returns int return 1;
+
+#
+# End of 5.0 tests
+#
+
+#
+# Bug#16164 "Easter egg": check that SHOW AUTHORS is disabled in
+# stored functions/triggers
+#
+--disable_warnings
+drop function if exists bug16164;
+--enable_warnings
+delimiter |;
+--error ER_SP_NO_RETSET
+create function bug16164() returns int
+begin
+  show authors;
+  return 42;
+end|
 
 #
 # BUG#NNNN: New bug synopsis

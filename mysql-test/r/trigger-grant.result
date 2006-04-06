@@ -135,6 +135,7 @@ SET @new_sum = 0;
 Warnings:
 Note	1449	There is no 'mysqltest_nonexs'@'localhost' registered
 INSERT INTO t1 VALUES(6);
+ERROR HY000: There is no 'mysqltest_nonexs'@'localhost' registered
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 trg1	INSERT	t1	SET @new_sum = 0	BEFORE	NULL		mysqltest_inv@localhost

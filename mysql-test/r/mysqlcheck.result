@@ -1,4 +1,6 @@
-cluster_replication.binlog_index                   OK
+DROP SCHEMA test;
+CREATE SCHEMA test;
+cluster.binlog_index                               OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK

@@ -152,7 +152,7 @@ btr_pcur_open_on_user_rec(
 	ulint		mode,		/* in: PAGE_CUR_L, ... */
 	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF or
 					BTR_MODIFY_LEAF */
-	btr_pcur_t*	cursor, 	/* in: memory buffer for persistent
+	btr_pcur_t*	cursor,		/* in: memory buffer for persistent
 					cursor */
 	mtr_t*		mtr);		/* in: mtr */
 /**************************************************************************
@@ -208,7 +208,7 @@ btr_pcur_restore_position(
 					whose ordering fields are identical to
 					the ones of the original user record */
 	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF, ... */
-	btr_pcur_t*	cursor, 	/* in: detached persistent cursor */
+	btr_pcur_t*	cursor,		/* in: detached persistent cursor */
 	mtr_t*		mtr);		/* in: mtr */
 /******************************************************************
 If the latch mode of the cursor is BTR_LEAF_SEARCH or BTR_LEAF_MODIFY,
@@ -387,7 +387,7 @@ btr_pcur_is_on_user_rec(
 	btr_pcur_t*	cursor,	/* in: persistent cursor */
 	mtr_t*		mtr);	/* in: mtr */
 /*************************************************************
-Checks if the persistent cursor is after the last user record on 
+Checks if the persistent cursor is after the last user record on
 a page. */
 UNIV_INLINE
 ibool
@@ -396,7 +396,7 @@ btr_pcur_is_after_last_on_page(
 	btr_pcur_t*	cursor,	/* in: persistent cursor */
 	mtr_t*		mtr);	/* in: mtr */
 /*************************************************************
-Checks if the persistent cursor is before the first user record on 
+Checks if the persistent cursor is before the first user record on
 a page. */
 UNIV_INLINE
 ibool
@@ -512,5 +512,5 @@ struct btr_pcur_struct{
 #ifndef UNIV_NONINL
 #include "btr0pcur.ic"
 #endif
-				
+
 #endif

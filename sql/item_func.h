@@ -1421,9 +1421,21 @@ public:
 
   String *val_str(String *str)
   {
+    String buf;
+    char buff[20];
+    buf.set(buff, 20, str->charset());
+    buf.length(0);
     if (execute(&result_field))
       return NULL;
-    return result_field->val_str(str);
+    /*
+      result_field will set buf pointing to internal buffer
+      of the resul_field. Due to this it will change any time
+      when SP is executed. In order to prevent occasional
+      corruption of returned value, we make here a copy.
+    */
+    result_field->val_str(&buf);
+    str->copy(buf);
+    return str;
   }
 
   virtual bool change_context_processor(byte *cntx)

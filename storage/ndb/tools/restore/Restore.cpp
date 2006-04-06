@@ -26,6 +26,8 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <ndb_limits.h>
 
+#include "../../../../sql/ha_ndbcluster_tables.h"
+
 Uint16 Twiddle16(Uint16 in); // Byte shift 16-bit data
 Uint32 Twiddle32(Uint32 in); // Byte shift 32-bit data
 Uint64 Twiddle64(Uint64 in); // Byte shift 64-bit data
@@ -111,6 +113,8 @@ RestoreMetaData::loadContent()
       return 0;
     }
   }
+  if (! markSysTables())
+    return 0;
   if(!readGCPEntry())
     return 0;
   return 1;
@@ -276,6 +280,49 @@ end:
 }
 
 bool
+RestoreMetaData::markSysTables()
+{
+  Uint32 i;
+  for (i = 0; i < getNoOfTables(); i++) {
+    TableS* table = allTables[i];
+    const char* tableName = table->getTableName();
+    if ( // XXX should use type
+        strcmp(tableName, "SYSTAB_0") == 0 ||
+        strcmp(tableName, "NDB$EVENTS_0") == 0 ||
+        strcmp(tableName, "sys/def/SYSTAB_0") == 0 ||
+        strcmp(tableName, "sys/def/NDB$EVENTS_0") == 0 ||
+        strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0 ||
+        strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE)== 0 )
+      table->isSysTable = true;
+  }
+  for (i = 0; i < getNoOfTables(); i++) {
+    TableS* blobTable = allTables[i];
+    const char* blobTableName = blobTable->getTableName();
+    // yet another match blob
+    int cnt, id1, id2;
+    char buf[256];
+    cnt = sscanf(blobTableName, "%[^/]/%[^/]/NDB$BLOB_%d_%d",
+                 buf, buf, &id1, &id2);
+    if (cnt == 4) {
+      Uint32 j;
+      for (j = 0; j < getNoOfTables(); j++) {
+        TableS* table = allTables[j];
+        if (table->getTableId() == id1) {
+          if (table->isSysTable)
+            blobTable->isSysTable = true;
+          break;
+        }
+      }
+      if (j == getNoOfTables()) {
+        err << "Restore: Bad primary table id in " << blobTableName << endl;
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool
 RestoreMetaData::readGCPEntry() {
 
   Uint32 data[4];
@@ -312,6 +359,7 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   m_auto_val_id= ~(Uint32)0;
   m_max_auto_val= 0;
   backupVersion = version;
+  isSysTable = false;
   
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
@@ -515,7 +563,8 @@ RestoreDataIterator::getNextTuple(int  & res)
     const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
     
     // just a reminder - remove when backwards compat implemented
-    if(false && attr_desc->m_column->getNullable()){
+    if(m_currentTable->backupVersion < MAKE_VERSION(5,1,3) && 
+       attr_desc->m_column->getNullable()){
       const Uint32 ind = attr_desc->m_nullBitIndex;
       if(BitmaskImpl::get(m_currentTable->m_nullBitmaskSize, 
 			  buf_ptr,ind)){
@@ -523,6 +572,11 @@ RestoreDataIterator::getNextTuple(int  & res)
 	attr_data->void_value = NULL;
 	continue;
       }
+    }
+
+    if (m_currentTable->backupVersion < MAKE_VERSION(5,1,3))
+    {
+      sz *= 4;
     }
     
     attr_data->null = false;
@@ -842,7 +896,7 @@ void TableS::createAttr(NdbDictionary::Column *column)
   }
 
   // just a reminder - does not solve backwards compat
-  if (backupVersion < MAKE_VERSION(5,1,0))
+  if (backupVersion < MAKE_VERSION(5,1,3))
   {
     d->m_nullBitIndex = m_noOfNullable; 
     m_noOfNullable++;

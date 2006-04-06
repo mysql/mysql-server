@@ -20,7 +20,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-classic-nt"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -82,7 +81,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-max"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -143,12 +141,11 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-nt-max"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../storage/bdb/build_win32,../include,../regex,../extra/yassl/include,../zlib"
-				PreprocessorDefinitions="NDEBUG;__NT__;DBUG_OFF;HAVE_INNOBASE_DB;HAVE_BERKELEY_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_EXAMPLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN;WITH_INNOBASE_STORAGE_ENGINE;WITH_BERKELEY_STORAGE_ENGINE;WITH_ARCHIVE_STORAGE_ENGINE;WITH_BLACKHOLE_STORAGE_ENGINE;WITH_EXAMPLE_STORAGE_ENGINE;WITH_FEDERATED_STORAGE_ENGINE;WITH_PARTITION_STORAGE_ENGINE;HAVE_ROW_BASED_REPLICATION"
+				PreprocessorDefinitions="__NT__;NDEBUG;DBUG_OFF;HAVE_INNOBASE_DB;HAVE_BERKELEY_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_EXAMPLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN;WITH_INNOBASE_STORAGE_ENGINE;WITH_BERKELEY_STORAGE_ENGINE;WITH_ARCHIVE_STORAGE_ENGINE;WITH_BLACKHOLE_STORAGE_ENGINE;WITH_EXAMPLE_STORAGE_ENGINE;WITH_FEDERATED_STORAGE_ENGINE;WITH_PARTITION_STORAGE_ENGINE;HAVE_ROW_BASED_REPLICATION"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -207,12 +204,11 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-nt"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../include,../regex,../zlib,../extra/yassl/include"
-				PreprocessorDefinitions="__NT__;DBUG_OFF;NDEBUG;HAVE_INNOBASE_DB;HAVE_ARCHIVE_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN;WITH_INNOBASE_STORAGE_ENGINE;WITH_ARCHIVE_STORAGE_ENGINE;HAVE_ROW_BASED_REPLICATION"
+				PreprocessorDefinitions="__NT__;NDEBUG;DBUG_OFF;HAVE_INNOBASE_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_EXAMPLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN;WITH_INNOBASE_STORAGE_ENGINE;WITH_ARCHIVE_STORAGE_ENGINE;WITH_BLACKHOLE_STORAGE_ENGINE;WITH_EXAMPLE_STORAGE_ENGINE;WITH_FEDERATED_STORAGE_ENGINE;WITH_PARTITION_STORAGE_ENGINE;HAVE_ROW_BASED_REPLICATION"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -271,7 +267,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-pro-nt"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -336,7 +331,7 @@
 				Optimization="0"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../storage/bdb/build_win32,../include,../regex,../extra/yassl/include,../zlib"
-				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;HAVE_INNOBASE_DB;HAVE_BERKELEY_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_EXAMPLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN;WITH_INNOBASE_STORAGE_ENGINE;WITH_BERKELEY_STORAGE_ENGINE;WITH_ARCHIVE_STORAGE_ENGINE;WITH_BLACKHOLE_STORAGE_ENGINE;WITH_EXAMPLE_STORAGE_ENGINE;WITH_FEDERATED_STORAGE_ENGINE;WITH_PARTITION_STORAGE_ENGINE;HAVE_ROW_BASED_REPLICATION"
+				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;HAVE_INNOBASE_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_EXAMPLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN;WITH_INNOBASE_STORAGE_ENGINE;WITH_ARCHIVE_STORAGE_ENGINE;WITH_BLACKHOLE_STORAGE_ENGINE;WITH_EXAMPLE_STORAGE_ENGINE;WITH_FEDERATED_STORAGE_ENGINE;WITH_PARTITION_STORAGE_ENGINE;HAVE_ROW_BASED_REPLICATION"
 				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\debug/mysqld.pch"
 				AssemblerListingLocation=".\debug/"
@@ -393,7 +388,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-pro"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -455,7 +449,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-classic"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -521,7 +514,7 @@
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../zlib,../include,../regex,../extra/yassl/include"
-				PreprocessorDefinitions="NDEBUG;DBUG_OFF;HAVE_INNOBASE_DB;HAVE_ARCHIVE_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN;WITH_INNOBASE_STORAGE_ENGINE;WITH_ARCHIVE_STORAGE_ENGINE;HAVE_ROW_BASED_REPLICATION"
+				PreprocessorDefinitions="NDEBUG;DBUG_OFF;HAVE_INNOBASE_DB;HAVE_ARCHIVE_DB;HAVE_BLACKHOLE_DB;HAVE_EXAMPLE_DB;HAVE_FEDERATED_DB;MYSQL_SERVER;_WINDOWS;_CONSOLE;HAVE_DLOPEN;WITH_INNOBASE_STORAGE_ENGINE;WITH_ARCHIVE_STORAGE_ENGINE;WITH_BLACKHOLE_STORAGE_ENGINE;WITH_EXAMPLE_STORAGE_ENGINE;WITH_FEDERATED_STORAGE_ENGINE;WITH_PARTITION_STORAGE_ENGINE;HAVE_ROW_BASED_REPLICATION"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -1374,7 +1367,8 @@
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
-				Name="Debug|Win32">
+				Name="Debug|Win32"
+				ExcludedFromBuild="TRUE">
 				<Tool
 					Name="VCCLCompilerTool"
 					Optimization="0"
@@ -1437,8 +1431,7 @@
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
-				Name="nt|Win32"
-				ExcludedFromBuild="TRUE">
+				Name="nt|Win32">
 				<Tool
 					Name="VCCLCompilerTool"
 					Optimization="2"
@@ -1481,8 +1474,7 @@
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
-				Name="Release|Win32"
-				ExcludedFromBuild="TRUE">
+				Name="Release|Win32">
 				<Tool
 					Name="VCCLCompilerTool"
 					Optimization="2"
@@ -1518,8 +1510,7 @@
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
-				Name="nt|Win32"
-				ExcludedFromBuild="TRUE">
+				Name="nt|Win32">
 				<Tool
 					Name="VCCLCompilerTool"
 					Optimization="2"
@@ -1562,8 +1553,7 @@
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
-				Name="Release|Win32"
-				ExcludedFromBuild="TRUE">
+				Name="Release|Win32">
 				<Tool
 					Name="VCCLCompilerTool"
 					Optimization="2"
@@ -1901,8 +1891,7 @@
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
-				Name="nt|Win32"
-				ExcludedFromBuild="TRUE">
+				Name="nt|Win32">
 				<Tool
 					Name="VCCLCompilerTool"
 					Optimization="2"
@@ -1945,8 +1934,7 @@
 					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
-				Name="Release|Win32"
-				ExcludedFromBuild="TRUE">
+				Name="Release|Win32">
 				<Tool
 					Name="VCCLCompilerTool"
 					Optimization="2"
@@ -4458,6 +4446,81 @@
 		</File>
 		<File
 			RelativePath="pack.c">
+			<FileConfiguration
+				Name="classic nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Max|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Max nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="pro nt|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="0"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="pro|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="classic|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="partition_info.cpp">
 			<FileConfiguration
 				Name="classic nt|Win32">
 				<Tool

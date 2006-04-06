@@ -29,6 +29,8 @@ extern ulong ndb_extra_logging;
 
 #define INJECTOR_EVENT_LEN 200
 
+#define NDB_INVALID_SCHEMA_OBJECT 241
+
 /*
   The numbers below must not change as they
   are passed between mysql servers, and if changed
@@ -85,7 +87,8 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
                                    const char *table_name,
                                    my_bool share_may_exist);
 int ndbcluster_create_event(Ndb *ndb, const NDBTAB *table,
-                            const char *event_name, NDB_SHARE *share);
+                            const char *event_name, NDB_SHARE *share,
+                            int push_warning= 0);
 int ndbcluster_create_event_ops(NDB_SHARE *share,
                                 const NDBTAB *ndbtab,
                                 const char *event_name);
@@ -94,7 +97,9 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                              const char *db, const char *table_name,
                              uint32 ndb_table_id,
                              uint32 ndb_table_version,
-                             enum SCHEMA_OP_TYPE type);
+                             enum SCHEMA_OP_TYPE type,
+                             const char *old_db= 0,
+                             const char *old_table_name= 0);
 int ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
                                  NDB_SHARE *share);
 void ndb_rep_event_name(String *event_name,
@@ -122,6 +127,8 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
   prototypes for ndb handler utility function also needed by
   the ndb binlog code
 */
+int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
+            uint pack_length);
 int ndbcluster_find_all_files(THD *thd);
 #endif /* HAVE_NDB_BINLOG */
 

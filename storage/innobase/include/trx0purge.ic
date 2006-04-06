@@ -22,5 +22,5 @@ trx_purge_get_log_from_hist(
 	node_addr.boffset -= TRX_UNDO_HISTORY_NODE;
 
 	return(node_addr);
-}	
+}
 

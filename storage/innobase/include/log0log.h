@@ -19,7 +19,7 @@ typedef struct log_group_struct	log_group_t;
 
 #ifdef UNIV_DEBUG
 extern	ibool	log_do_write;
-extern 	ibool	log_debug_writes;
+extern	ibool	log_debug_writes;
 #else /* UNIV_DEBUG */
 # define log_do_write TRUE
 #endif /* UNIV_DEBUG */
@@ -493,9 +493,9 @@ Peeks the current lsn. */
 ibool
 log_peek_lsn(
 /*=========*/
-                       /* out: TRUE if success, FALSE if could not get the
-                       log system mutex */
-       dulint* lsn);   /* out: if returns TRUE, current lsn is here */
+			/* out: TRUE if success, FALSE if could not get the
+			log system mutex */
+       dulint*	lsn);	/* out: if returns TRUE, current lsn is here */
 /**************************************************************************
 Refreshes the statistics used to print per-second averages. */
 
@@ -514,7 +514,7 @@ extern log_t*	log_sys;
 /* The counting of lsn's starts from this value: this must be non-zero */
 #define LOG_START_LSN	ut_dulint_create(0, 16 * OS_FILE_LOG_BLOCK_SIZE)
 
-#define LOG_BUFFER_SIZE 	(srv_log_buffer_size * UNIV_PAGE_SIZE)
+#define LOG_BUFFER_SIZE		(srv_log_buffer_size * UNIV_PAGE_SIZE)
 #define LOG_ARCHIVE_BUF_SIZE	(srv_log_buffer_size * UNIV_PAGE_SIZE / 4)
 
 /* Offsets of a log block header */
@@ -571,8 +571,8 @@ extern log_t*	log_sys;
 
 #define	LOG_CHECKPOINT_ARRAY_END	(LOG_CHECKPOINT_GROUP_ARRAY\
 							+ LOG_MAX_N_GROUPS * 8)
-#define LOG_CHECKPOINT_CHECKSUM_1 	LOG_CHECKPOINT_ARRAY_END
-#define LOG_CHECKPOINT_CHECKSUM_2 	(4 + LOG_CHECKPOINT_ARRAY_END)
+#define LOG_CHECKPOINT_CHECKSUM_1	LOG_CHECKPOINT_ARRAY_END
+#define LOG_CHECKPOINT_CHECKSUM_2	(4 + LOG_CHECKPOINT_ARRAY_END)
 #define LOG_CHECKPOINT_FSP_FREE_LIMIT	(8 + LOG_CHECKPOINT_ARRAY_END)
 					/* current fsp free limit in
 					tablespace 0, in units of one
@@ -678,7 +678,7 @@ struct log_group_struct{
 					this buffer to the group */
 	UT_LIST_NODE_T(log_group_t)
 			log_groups;	/* list of log groups */
-};	
+};
 
 struct log_struct{
 	byte		pad[64];	/* padding to prevent other memory
@@ -731,13 +731,13 @@ struct log_struct{
 					be advanced, it is enough that the
 					write i/o has been completed for all
 					log groups */
-	dulint		write_lsn;	/* end lsn for the current running 
+	dulint		write_lsn;	/* end lsn for the current running
 					write */
 	ulint		write_end_offset;/* the data in buffer has been written
 					up to this offset when the current
 					write ends: this field will then
 					be copied to buf_next_to_write */
-	dulint		current_flush_lsn;/* end lsn for the current running 
+	dulint		current_flush_lsn;/* end lsn for the current running
 					write + flush operation */
 	dulint		flushed_to_disk_lsn;
 					/* how far we have written the log
@@ -774,11 +774,11 @@ struct log_struct{
 					called */
 
 	/* Fields involved in checkpoints */
-        ulint           log_group_capacity; /* capacity of the log group; if
-                                        the checkpoint age exceeds this, it is
-                                        a serious error because it is possible
-                                        we will then overwrite log and spoil
-                                        crash recovery */
+	ulint		log_group_capacity; /* capacity of the log group; if
+					the checkpoint age exceeds this, it is
+					a serious error because it is possible
+					we will then overwrite log and spoil
+					crash recovery */
 	ulint		max_modified_age_async;
 					/* when this recommended value for lsn
 					- buf_pool_get_oldest_modification()

@@ -22,22 +22,31 @@
 /**
  * KeyTable2 is DLHashTable2 with hardcoded Uint32 key named "key".
  */
-template <class T>
-class KeyTable : public DLHashTable<T> {
+template <typename P, typename T>
+class KeyTableImpl : public DLHashTableImpl<P, T> {
 public:
-  KeyTable(ArrayPool<T>& pool) :
-    DLHashTable<T>(pool) {
+  KeyTableImpl(P & pool) :
+    DLHashTableImpl<P, T>(pool) {
   }
 
   bool find(Ptr<T>& ptr, const T& rec) const {
-    return DLHashTable<T>::find(ptr, rec);
+    return DLHashTableImpl<P, T>::find(ptr, rec);
   }
 
   bool find(Ptr<T>& ptr, Uint32 key) const {
     T rec;
     rec.key = key;
-    return DLHashTable<T>::find(ptr, rec);
+    return DLHashTableImpl<P, T>::find(ptr, rec);
   }
+};
+
+// Specializations
+
+template <typename T>
+class KeyTable : public KeyTableImpl<ArrayPool<T>, T>
+{
+public:
+  KeyTable(ArrayPool<T> & p) : KeyTableImpl<ArrayPool<T>, T>(p) {}
 };
 
 #endif

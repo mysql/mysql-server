@@ -469,20 +469,21 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   struct Page_request 
   {
-    Page_request() {}
     Local_key m_key;
-    Uint16 m_estimated_free_space; // in bytes/records
-    Uint16 m_list_index; // in Disk_alloc_info.m_page_requests
     Uint32 m_frag_ptr_i;
     Uint32 m_extent_info_ptr;
-    Uint16 m_ref_count; // Waiters for page
+    Uint16 m_estimated_free_space; // in bytes/records
+    Uint16 m_list_index;           // in Disk_alloc_info.m_page_requests
+    Uint16 m_ref_count;            // Waiters for page
     Uint16 m_uncommitted_used_space;
-    union {
-      Uint32 nextList;
-      Uint32 nextPool;
-    };
+    Uint32 nextList;
     Uint32 prevList;
+    Uint32 m_magic;
   }; // 32 bytes
+  
+  typedef RecordPool<Page_request, WOPool> Page_request_pool;
+  typedef DLFifoListImpl<Page_request_pool, Page_request> Page_request_list;
+  typedef LocalDLFifoListImpl<Page_request_pool, Page_request> Local_page_request_list;
 
   STATIC_CONST( EXTENT_SEARCH_MATRIX_COLS = 4 ); // Guarantee size
   STATIC_CONST( EXTENT_SEARCH_MATRIX_ROWS = 5 ); // Total size
@@ -495,6 +496,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   struct Extent_info : public Extent_list_t
   {
+    Uint32 m_magic;
     Uint32 m_first_page_no;
     Local_key m_key;
     Uint32 m_free_space;
@@ -516,10 +518,13 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 	m_key.m_page_idx == rec.m_key.m_page_idx;
     }
   }; // 40 bytes
-  
-  typedef LocalDLList<Extent_info> Extent_list;
-  typedef LocalDLList<Page_request> Page_request_list;
 
+  typedef RecordPool<Extent_info, RWPool> Extent_info_pool;
+  typedef DLListImpl<Extent_info_pool, Extent_info> Extent_info_list;
+  typedef LocalDLListImpl<Extent_info_pool, Extent_info> Local_extent_info_list;
+  typedef DLHashTableImpl<Extent_info_pool, Extent_info> Extent_info_hash;
+  typedef SLListImpl<Extent_info_pool, Extent_info, Extent_list_t> Fragment_extent_list;
+  typedef LocalSLListImpl<Extent_info_pool, Extent_info, Extent_list_t> Local_fragment_extent_list;
   struct Tablerec;
   struct Disk_alloc_info 
   {
@@ -553,7 +558,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
      * Requests (for update) that have sufficient space left after request
      *   these are currently being "mapped"
      */
-    DLList<Page_request>::Head m_page_requests[MAX_FREE_LIST];
+    Page_request_list::Head m_page_requests[MAX_FREE_LIST];
 
     /**
      * Current extent
@@ -564,7 +569,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
      * 
      */
     STATIC_CONST( SZ = EXTENT_SEARCH_MATRIX_SIZE );
-    DLList<Extent_info>::Head m_free_extents[SZ];
+    Extent_info_list::Head m_free_extents[SZ];
     Uint32 m_total_extent_free_space_thresholds[EXTENT_SEARCH_MATRIX_ROWS];
     Uint32 m_page_free_bits_map[EXTENT_SEARCH_MATRIX_COLS];
 
@@ -588,7 +593,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
       return EXTENT_SEARCH_MATRIX_COLS - 1;
     }
 
-    SLList<Extent_info, Extent_list_t>::Head m_extent_list;
+    Fragment_extent_list::Head m_extent_list;
   };
   
   void dump_disk_alloc(Disk_alloc_info&);
@@ -873,6 +878,7 @@ ArrayPool<TupTriggerData> c_triggerPool;
       {}
     
     Bitmask<MAXNROFATTRIBUTESINWORDS> notNullAttributeMask;
+    Bitmask<MAXNROFATTRIBUTESINWORDS> blobAttributeMask;
     
     ReadFunction* readFunctionArray;
     UpdateFunction* updateFunctionArray;
@@ -1009,9 +1015,9 @@ ArrayPool<TupTriggerData> c_triggerPool;
     };
   };
   
-  ArrayPool<Extent_info> c_extent_pool;
-  ArrayPool<Page_request> c_page_request_pool;
-  DLHashTable<Extent_info> c_extent_hash;
+  Extent_info_pool c_extent_pool;
+  Extent_info_hash c_extent_hash;
+  Page_request_pool c_page_request_pool;
 
   typedef Ptr<Tablerec> TablerecPtr;
 
@@ -2609,13 +2615,6 @@ private:
   void disk_page_free(Signal*, 
 		      Tablerec*, Fragrecord*, Local_key*, PagePtr, Uint32);
   
-  void disk_page_update_free_space(Fragrecord*, Ptr<Page_request>,
-				   DLList<Page_request>::Head list[],
-				   Uint32 i, Uint32 sz);
-  void disk_page_update_free_space(Fragrecord*, PagePtr, Uint32 i,
-				   Int32 uncommitted_delta, 
-				   Int32 extent_delta);
-  
   void disk_page_commit_callback(Signal*, Uint32 opPtrI, Uint32 page_id);  
   
   void disk_page_log_buffer_callback(Signal*, Uint32 opPtrI, Uint32); 
@@ -2632,6 +2631,7 @@ private:
 			     Uint32 gci, Uint32 logfile_group_id);
 
   void undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused);
+  void undo_createtable_logsync_callback(Signal* signal, Uint32, Uint32);
 
   void disk_page_set_dirty(Ptr<Page>);
   void restart_setup_page(Disk_alloc_info&, Ptr<Page>);

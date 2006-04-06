@@ -15,10 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  This file was introduced as a container for general functionality related
+  This file is a container for general functionality related
   to partitioning introduced in MySQL version 5.1. It contains functionality
-  used by all handlers that support partitioning, which in the first version
-  is the partitioning handler itself and the NDB handler.
+  used by all handlers that support partitioning, such as
+  the partitioning handler itself and the NDB handler.
 
   The first version was written by Mikael Ronstrom.
 
@@ -26,13 +26,14 @@
   partitioning and composite partitioning (hereafter called subpartitioning)
   where each RANGE/LIST partitioning is HASH partitioned. The hash function
   can either be supplied by the user or by only a list of fields (also
-  called KEY partitioning, where the MySQL server will use an internal
+  called KEY partitioning), where the MySQL server will use an internal
   hash function.
   There are quite a few defaults that can be used as well.
 */
 
 /* Some general useful functions */
 
+#define MYSQL_LEX 1
 #include "mysql_priv.h"
 #include <errno.h>
 #include <m_ctype.h>
@@ -181,59 +182,6 @@ bool is_name_in_list(char *name,
 }
 
 
-/*
-  A support function to check partition names for duplication in a
-  partitioned table
-
-  SYNOPSIS
-    are_partitions_in_table()
-    new_part_info      New partition info
-    old_part_info      Old partition info
-
-  RETURN VALUES
-    TRUE               Duplicate names found
-    FALSE              Duplicate names not found
-
-  DESCRIPTION
-    Can handle that the new and old parts are the same in which case it
-    checks that the list of names in the partitions doesn't contain any
-    duplicated names.
-*/
-
-char *are_partitions_in_table(partition_info *new_part_info,
-                              partition_info *old_part_info)
-{
-  uint no_new_parts= new_part_info->partitions.elements;
-  uint no_old_parts= old_part_info->partitions.elements;
-  uint new_count, old_count;
-  List_iterator<partition_element> new_parts_it(new_part_info->partitions);
-  bool is_same_part_info= (new_part_info == old_part_info);
-  DBUG_ENTER("are_partitions_in_table");
-  DBUG_PRINT("enter", ("%u", no_new_parts));
-
-  new_count= 0;
-  do
-  {
-    List_iterator<partition_element> old_parts_it(old_part_info->partitions);
-    char *new_name= (new_parts_it++)->partition_name;
-    DBUG_PRINT("info", ("%s", new_name));
-    new_count++;
-    old_count= 0;
-    do
-    {
-      char *old_name= (old_parts_it++)->partition_name;
-      old_count++;
-      if (is_same_part_info && old_count == new_count)
-        break;
-      if (!(my_strcasecmp(system_charset_info, old_name, new_name)))
-      {
-        DBUG_PRINT("info", ("old_name = %s, not ok", old_name));
-        DBUG_RETURN(old_name);
-      }
-    } while (old_count < no_old_parts);
-  } while (new_count < no_new_parts);
-  DBUG_RETURN(NULL);
-}
 
 /*
   Set-up defaults for partitions. 
@@ -251,22 +199,25 @@ char *are_partitions_in_table(partition_info *new_part_info,
 */
 
 bool partition_default_handling(TABLE *table, partition_info *part_info,
+                                bool is_create_table_ind,
                                 const char *normalized_path)
 {
   DBUG_ENTER("partition_default_handling");
 
   if (part_info->use_default_no_partitions)
   {
-    if (table->file->get_no_parts(normalized_path, &part_info->no_parts))
+    if (!is_create_table_ind &&
+        table->file->get_no_parts(normalized_path, &part_info->no_parts))
     {
       DBUG_RETURN(TRUE);
     }
   }
-  else if (is_sub_partitioned(part_info) &&
+  else if (part_info->is_sub_partitioned() &&
            part_info->use_default_no_subpartitions)
   {
     uint no_parts;
-    if (table->file->get_no_parts(normalized_path, &no_parts))
+    if (!is_create_table_ind &&
+        (table->file->get_no_parts(normalized_path, &no_parts)))
     {
       DBUG_RETURN(TRUE);
     }
@@ -274,8 +225,8 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
     part_info->no_subparts= no_parts / part_info->no_parts;
     DBUG_ASSERT((no_parts % part_info->no_parts) == 0);
   }
-  set_up_defaults_for_partitioning(part_info, table->file,
-                                   (ulonglong)0, (uint)0);
+  part_info->set_up_defaults_for_partitioning(table->file,
+                                              (ulonglong)0, (uint)0);
   DBUG_RETURN(FALSE);
 }
 
@@ -460,599 +411,6 @@ int get_part_for_delete(const byte *buf, const byte *rec0,
 
 
 /*
-  This routine allocates an array for all range constants to achieve a fast
-  check what partition a certain value belongs to. At the same time it does
-  also check that the range constants are defined in increasing order and
-  that the expressions are constant integer expressions.
-
-  SYNOPSIS
-    check_range_constants()
-    part_info             Partition info
-
-  RETURN VALUE
-    TRUE                An error occurred during creation of range constants
-    FALSE               Successful creation of range constant mapping
-
-  DESCRIPTION
-    This routine is called from check_partition_info to get a quick error
-    before we came too far into the CREATE TABLE process. It is also called
-    from fix_partition_func every time we open the .frm file. It is only
-    called for RANGE PARTITIONed tables.
-*/
-
-static bool check_range_constants(partition_info *part_info)
-{
-  partition_element* part_def;
-  longlong current_largest_int= LONGLONG_MIN;
-  longlong part_range_value_int;
-  uint no_parts= part_info->no_parts;
-  uint i;
-  List_iterator<partition_element> it(part_info->partitions);
-  bool result= TRUE;
-  DBUG_ENTER("check_range_constants");
-  DBUG_PRINT("enter", ("INT_RESULT with %d parts", no_parts));
-
-  part_info->part_result_type= INT_RESULT;
-  part_info->range_int_array= 
-                      (longlong*)sql_alloc(no_parts * sizeof(longlong));
-  if (unlikely(part_info->range_int_array == NULL))
-  {
-    mem_alloc_error(no_parts * sizeof(longlong));
-    goto end;
-  }
-  i= 0;
-  do
-  {
-    part_def= it++;
-    if ((i != (no_parts - 1)) || !part_info->defined_max_value)
-      part_range_value_int= part_def->range_value; 
-    else
-      part_range_value_int= LONGLONG_MAX;
-    if (likely(current_largest_int < part_range_value_int))
-    {
-      current_largest_int= part_range_value_int;
-      part_info->range_int_array[i]= part_range_value_int;
-    }
-    else
-    {
-      my_error(ER_RANGE_NOT_INCREASING_ERROR, MYF(0));
-      goto end;
-    }
-  } while (++i < no_parts);
-  result= FALSE;
-end:
-  DBUG_RETURN(result);
-}
-
-
-/*
-  A support routine for check_list_constants used by qsort to sort the
-  constant list expressions.
-
-  SYNOPSIS
-    list_part_cmp()
-      a                First list constant to compare with
-      b                Second list constant to compare with
-
-  RETURN VALUE
-    +1                 a > b
-    0                  a  == b
-    -1                 a < b
-*/
-
-static int list_part_cmp(const void* a, const void* b)
-{
-  longlong a1= ((LIST_PART_ENTRY*)a)->list_value;
-  longlong b1= ((LIST_PART_ENTRY*)b)->list_value;
-  if (a1 < b1)
-    return -1;
-  else if (a1 > b1)
-    return +1;
-  else
-    return 0;
-}
-
-
-/*
-  This routine allocates an array for all list constants to achieve a fast
-  check what partition a certain value belongs to. At the same time it does
-  also check that there are no duplicates among the list constants and that
-  that the list expressions are constant integer expressions.
-
-  SYNOPSIS
-    check_list_constants()
-    part_info             Partition info
-
-  RETURN VALUE
-    TRUE                  An error occurred during creation of list constants
-    FALSE                 Successful creation of list constant mapping
-
-  DESCRIPTION
-    This routine is called from check_partition_info to get a quick error
-    before we came too far into the CREATE TABLE process. It is also called
-    from fix_partition_func every time we open the .frm file. It is only
-    called for LIST PARTITIONed tables.
-*/
-
-static bool check_list_constants(partition_info *part_info)
-{
-  uint i, no_parts;
-  uint no_list_values= 0;
-  uint list_index= 0;
-  longlong *list_value;
-  bool not_first;
-  bool result= TRUE;
-  longlong curr_value, prev_value;
-  partition_element* part_def;
-  List_iterator<partition_element> list_func_it(part_info->partitions);
-  DBUG_ENTER("check_list_constants");
-
-  part_info->part_result_type= INT_RESULT;
-
-  /*
-    We begin by calculating the number of list values that have been
-    defined in the first step.
-
-    We use this number to allocate a properly sized array of structs
-    to keep the partition id and the value to use in that partition.
-    In the second traversal we assign them values in the struct array.
-
-    Finally we sort the array of structs in order of values to enable
-    a quick binary search for the proper value to discover the
-    partition id.
-    After sorting the array we check that there are no duplicates in the
-    list.
-  */
-
-  no_parts= part_info->no_parts;
-  i= 0;
-  do
-  {
-    part_def= list_func_it++;
-    List_iterator<longlong> list_val_it1(part_def->list_val_list);
-    while (list_val_it1++)
-      no_list_values++;
-  } while (++i < no_parts);
-  list_func_it.rewind();
-  part_info->no_list_values= no_list_values;
-  part_info->list_array=
-      (LIST_PART_ENTRY*)sql_alloc(no_list_values*sizeof(LIST_PART_ENTRY));
-  if (unlikely(part_info->list_array == NULL))
-  {
-    mem_alloc_error(no_list_values * sizeof(LIST_PART_ENTRY));
-    goto end;
-  }
-
-  i= 0;
-  do
-  {
-    part_def= list_func_it++;
-    List_iterator<longlong> list_val_it2(part_def->list_val_list);
-    while ((list_value= list_val_it2++))
-    {
-      part_info->list_array[list_index].list_value= *list_value;
-      part_info->list_array[list_index++].partition_id= i;
-    }
-  } while (++i < no_parts);
-
-  qsort((void*)part_info->list_array, no_list_values,
-        sizeof(LIST_PART_ENTRY), &list_part_cmp);
-
-  not_first= FALSE;
-  i= prev_value= 0; //prev_value initialised to quiet compiler
-  do
-  {
-    curr_value= part_info->list_array[i].list_value;
-    if (likely(!not_first || prev_value != curr_value))
-    {
-      prev_value= curr_value;
-      not_first= TRUE;
-    }
-    else
-    {
-      my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
-      goto end;
-    }
-  } while (++i < no_list_values);
-  result= FALSE;
-end:
-  DBUG_RETURN(result);
-}
-
-
-/*
-  Create a memory area where default partition names are stored and fill it
-  up with the names.
-
-  SYNOPSIS
-    create_default_partition_names()
-    no_parts                        Number of partitions
-    start_no                        Starting partition number
-    subpart                         Is it subpartitions
-
-  RETURN VALUE
-    A pointer to the memory area of the default partition names
-
-  DESCRIPTION
-    A support routine for the partition code where default values are
-    generated.
-    The external routine needing this code is check_partition_info
-*/
-
-#define MAX_PART_NAME_SIZE 8
-
-static char *create_default_partition_names(uint no_parts, uint start_no,
-                                            bool is_subpart)
-{
-  char *ptr= sql_calloc(no_parts*MAX_PART_NAME_SIZE);
-  char *move_ptr= ptr;
-  uint i= 0;
-  DBUG_ENTER("create_default_partition_names");
-
-  if (likely(ptr != 0))
-  {
-    do
-    {
-      if (is_subpart)
-        my_sprintf(move_ptr, (move_ptr,"sp%u", (start_no + i)));
-      else
-        my_sprintf(move_ptr, (move_ptr,"p%u", (start_no + i)));
-      move_ptr+=MAX_PART_NAME_SIZE;
-    } while (++i < no_parts);
-  }
-  else
-  {
-    mem_alloc_error(no_parts*MAX_PART_NAME_SIZE);
-  }
-  DBUG_RETURN(ptr);
-}
-
-
-/*
-  Set up all the default partitions not set-up by the user in the SQL
-  statement. Also perform a number of checks that the user hasn't tried
-  to use default values where no defaults exists.
-
-  SYNOPSIS
-    set_up_default_partitions()
-    part_info           The reference to all partition information
-    file                A reference to a handler of the table
-    max_rows            Maximum number of rows stored in the table
-    start_no            Starting partition number
-
-  RETURN VALUE
-    TRUE                Error, attempted default values not possible
-    FALSE               Ok, default partitions set-up
-
-  DESCRIPTION
-    The routine uses the underlying handler of the partitioning to define
-    the default number of partitions. For some handlers this requires
-    knowledge of the maximum number of rows to be stored in the table.
-    This routine only accepts HASH and KEY partitioning and thus there is
-    no subpartitioning if this routine is successful.
-    The external routine needing this code is check_partition_info
-*/
-
-static bool set_up_default_partitions(partition_info *part_info,
-                                      handler *file, ulonglong max_rows,
-                                      uint start_no)
-{
-  uint no_parts, i;
-  char *default_name;
-  bool result= TRUE;
-  DBUG_ENTER("set_up_default_partitions");
-
-  if (part_info->part_type != HASH_PARTITION)
-  {
-    const char *error_string;
-    if (part_info->part_type == RANGE_PARTITION)
-      error_string= partition_keywords[PKW_RANGE].str;
-    else
-      error_string= partition_keywords[PKW_LIST].str;
-    my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), error_string);
-    goto end;
-  }
-  if (part_info->no_parts == 0)
-    part_info->no_parts= file->get_default_no_partitions(max_rows);
-  no_parts= part_info->no_parts;
-  if (unlikely(no_parts > MAX_PARTITIONS))
-  {
-    my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
-    goto end;
-  }
-  if (unlikely((!(default_name= create_default_partition_names(no_parts,
-                                                               start_no,
-                                                               FALSE)))))
-    goto end;
-  i= 0;
-  do
-  {
-    partition_element *part_elem= new partition_element();
-    if (likely(part_elem != 0 &&
-               (!part_info->partitions.push_back(part_elem))))
-    {
-      part_elem->engine_type= part_info->default_engine_type;
-      part_elem->partition_name= default_name;
-      default_name+=MAX_PART_NAME_SIZE;
-    }
-    else
-    {
-      mem_alloc_error(sizeof(partition_element));
-      goto end;
-    }
-  } while (++i < no_parts);
-  result= FALSE;
-end:
-  DBUG_RETURN(result);
-}
-
-
-/*
-  Set up all the default subpartitions not set-up by the user in the SQL
-  statement. Also perform a number of checks that the default partitioning
-  becomes an allowed partitioning scheme.
-
-  SYNOPSIS
-    set_up_default_subpartitions()
-    part_info           The reference to all partition information
-    file                A reference to a handler of the table
-    max_rows            Maximum number of rows stored in the table
-
-  RETURN VALUE
-    TRUE                Error, attempted default values not possible
-    FALSE               Ok, default partitions set-up
-
-  DESCRIPTION
-    The routine uses the underlying handler of the partitioning to define
-    the default number of partitions. For some handlers this requires
-    knowledge of the maximum number of rows to be stored in the table.
-    This routine is only called for RANGE or LIST partitioning and those
-    need to be specified so only subpartitions are specified.
-    The external routine needing this code is check_partition_info
-*/
-
-static bool set_up_default_subpartitions(partition_info *part_info,
-                                         handler *file, ulonglong max_rows)
-{
-  uint i, j, no_parts, no_subparts;
-  char *default_name, *name_ptr;
-  bool result= TRUE;
-  partition_element *part_elem;
-  List_iterator<partition_element> part_it(part_info->partitions);
-  DBUG_ENTER("set_up_default_subpartitions");
-
-  if (part_info->no_subparts == 0)
-    part_info->no_subparts= file->get_default_no_partitions(max_rows);
-  no_parts= part_info->no_parts;
-  no_subparts= part_info->no_subparts;
-  if (unlikely((no_parts * no_subparts) > MAX_PARTITIONS))
-  {
-    my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
-    goto end;
-  }
-  if (unlikely((!(default_name=
-             create_default_partition_names(no_subparts, (uint)0, TRUE)))))
-    goto end;
-  i= 0;
-  do
-  {
-    part_elem= part_it++;
-    j= 0;
-    name_ptr= default_name;
-    do
-    {
-      partition_element *subpart_elem= new partition_element();
-      if (likely(subpart_elem != 0 &&
-          (!part_elem->subpartitions.push_back(subpart_elem))))
-      {
-        subpart_elem->engine_type= part_info->default_engine_type;
-        subpart_elem->partition_name= name_ptr;
-        name_ptr+= MAX_PART_NAME_SIZE;
-      }
-      else
-      {
-        mem_alloc_error(sizeof(partition_element));
-        goto end;
-      }
-    } while (++j < no_subparts);
-  } while (++i < no_parts);
-  result= FALSE;
-end:
-  DBUG_RETURN(result);
-}
-
-
-/*
-  Support routine for check_partition_info
-
-  SYNOPSIS
-    set_up_defaults_for_partitioning()
-    part_info           The reference to all partition information
-    file                A reference to a handler of the table
-    max_rows            Maximum number of rows stored in the table
-    start_no            Starting partition number
-
-  RETURN VALUE
-    TRUE                Error, attempted default values not possible
-    FALSE               Ok, default partitions set-up
-
-  DESCRIPTION
-    Set up defaults for partition or subpartition (cannot set-up for both,
-    this will return an error.
-*/
-
-bool set_up_defaults_for_partitioning(partition_info *part_info,
-                                      handler *file,
-                                      ulonglong max_rows, uint start_no)
-{
-  DBUG_ENTER("set_up_defaults_for_partitioning");
-
-  if (!part_info->default_partitions_setup)
-  {
-    part_info->default_partitions_setup= TRUE;
-    if (part_info->use_default_partitions)
-      DBUG_RETURN(set_up_default_partitions(part_info, file, max_rows,
-                                            start_no));
-    if (is_sub_partitioned(part_info) && part_info->use_default_subpartitions)
-      DBUG_RETURN(set_up_default_subpartitions(part_info, file, max_rows));
-  }
-  DBUG_RETURN(FALSE);
-}
-
-
-/*
-  Check that all partitions use the same storage engine.
-  This is currently a limitation in this version.
-
-  SYNOPSIS
-    check_engine_mix()
-    engine_array           An array of engine identifiers
-    no_parts               Total number of partitions
-
-  RETURN VALUE
-    TRUE                   Error, mixed engines
-    FALSE                  Ok, no mixed engines
-  DESCRIPTION
-    Current check verifies only that all handlers are the same.
-    Later this check will be more sophisticated.
-*/
-
-static bool check_engine_mix(handlerton **engine_array, uint no_parts)
-{
-  uint i= 0;
-  bool result= FALSE;
-  DBUG_ENTER("check_engine_mix");
-
-  do
-  {
-    if (engine_array[i] != engine_array[0])
-    {
-      result= TRUE;
-      break;
-    }
-  } while (++i < no_parts);
-  DBUG_RETURN(result);
-}
-
-
-/*
-  This code is used early in the CREATE TABLE and ALTER TABLE process.
-
-  SYNOPSIS
-    check_partition_info()
-    part_info           The reference to all partition information
-    file                A reference to a handler of the table
-    max_rows            Maximum number of rows stored in the table
-    engine_type         Return value for used engine in partitions
-
-  RETURN VALUE
-    TRUE                 Error, something went wrong
-    FALSE                Ok, full partition data structures are now generated
-
-  DESCRIPTION
-    We will check that the partition info requested is possible to set-up in
-    this version. This routine is an extension of the parser one could say.
-    If defaults were used we will generate default data structures for all
-    partitions.
-
-*/
-
-bool check_partition_info(partition_info *part_info,handlerton **eng_type,
-                          handler *file, ulonglong max_rows)
-{
-  handlerton **engine_array= NULL;
-  uint part_count= 0;
-  uint i, no_parts, tot_partitions;
-  bool result= TRUE;
-  char *same_name;
-  DBUG_ENTER("check_partition_info");
-
-  if (unlikely(is_sub_partitioned(part_info) &&
-              (!(part_info->part_type == RANGE_PARTITION ||
-                 part_info->part_type == LIST_PARTITION))))
-  {
-    /* Only RANGE and LIST partitioning can be subpartitioned */
-    my_error(ER_SUBPARTITION_ERROR, MYF(0));
-    goto end;
-  }
-  if (unlikely(set_up_defaults_for_partitioning(part_info, file,
-                                                max_rows, (uint)0)))
-    goto end;
-  tot_partitions= get_tot_partitions(part_info);
-  if (unlikely(tot_partitions > MAX_PARTITIONS))
-  {
-    my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
-    goto end;
-  }
-  if (((same_name= are_partitions_in_table(part_info,
-                                           part_info))))
-  {
-    my_error(ER_SAME_NAME_PARTITION, MYF(0), same_name);
-    goto end;
-  }
-  engine_array= (handlerton**)my_malloc(tot_partitions * sizeof(handlerton *), 
-                                        MYF(MY_WME));
-  if (unlikely(!engine_array))
-    goto end;
-  i= 0;
-  no_parts= part_info->no_parts;
-  {
-    List_iterator<partition_element> part_it(part_info->partitions);
-    do
-    {
-      partition_element *part_elem= part_it++;
-      if (!is_sub_partitioned(part_info))
-      {
-        if (part_elem->engine_type == NULL)
-          part_elem->engine_type= part_info->default_engine_type;
-        DBUG_PRINT("info", ("engine = %d",
-                   ha_legacy_type(part_elem->engine_type)));
-        engine_array[part_count++]= part_elem->engine_type;
-      }
-      else
-      {
-        uint j= 0, no_subparts= part_info->no_subparts;;
-        List_iterator<partition_element> sub_it(part_elem->subpartitions);
-        do
-        {
-          part_elem= sub_it++;
-          if (part_elem->engine_type == NULL)
-            part_elem->engine_type= part_info->default_engine_type;
-          DBUG_PRINT("info", ("engine = %u",
-                     ha_legacy_type(part_elem->engine_type)));
-          engine_array[part_count++]= part_elem->engine_type;
-        } while (++j < no_subparts);
-      }
-    } while (++i < part_info->no_parts);
-  }
-  if (unlikely(check_engine_mix(engine_array, part_count)))
-  {
-    my_error(ER_MIX_HANDLER_ERROR, MYF(0));
-    goto end;
-  }
-
-  if (eng_type)
-    *eng_type= (handlerton*)engine_array[0];
-
-  /*
-    We need to check all constant expressions that they are of the correct
-    type and that they are increasing for ranges and not overlapping for
-    list constants.
-  */
-
-  if (unlikely((part_info->part_type == RANGE_PARTITION &&
-                check_range_constants(part_info)) ||
-               (part_info->part_type == LIST_PARTITION &&
-                check_list_constants(part_info))))
-    goto end;
-  result= FALSE;
-end:
-  my_free((char*)engine_array,MYF(MY_ALLOW_ZERO_PTR));
-  DBUG_RETURN(result);
-}
-
-
-/*
   This method is used to set-up both partition and subpartitioning
   field array and used for all types of partitioning.
   It is part of the logic around fix_partition_func.
@@ -1194,7 +552,7 @@ static bool create_full_part_field_array(TABLE *table,
   bool result= FALSE;
   DBUG_ENTER("create_full_part_field_array");
 
-  if (!is_sub_partitioned(part_info))
+  if (!part_info->is_sub_partitioned())
   {
     part_info->full_part_field_array= part_info->part_field_array;
     part_info->no_full_part_fields= part_info->no_part_fields;
@@ -1702,6 +1060,7 @@ static bool set_up_partition_bitmap(THD *thd, partition_info *part_info)
     DBUG_RETURN(TRUE);
   }
   bitmap_init(&part_info->used_partitions, bitmap_buf, bitmap_bytes*8, FALSE);
+  bitmap_set_all(&part_info->used_partitions);
   DBUG_RETURN(FALSE);
 }
 
@@ -1751,7 +1110,7 @@ static void set_up_partition_key_maps(TABLE *table,
       part_info->all_fields_in_PF.set_bit(i);
     if (some_fields)
       part_info->some_fields_in_PF.set_bit(i);
-    if (is_sub_partitioned(part_info))
+    if (part_info->is_sub_partitioned())
     {
       check_fields_in_PF(part_info->part_field_array,
                          &all_fields, &some_fields);
@@ -1789,7 +1148,7 @@ static void set_up_partition_func_pointers(partition_info *part_info)
 {
   DBUG_ENTER("set_up_partition_func_pointers");
 
-  if (is_sub_partitioned(part_info))
+  if (part_info->is_sub_partitioned())
   {
     if (part_info->part_type == RANGE_PARTITION)
     {
@@ -1977,6 +1336,7 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   char* db_name;
   partition_info *part_info= table->part_info;
   ulong save_set_query_id= thd->set_query_id;
+  Item *thd_free_list= thd->free_list;
   DBUG_ENTER("fix_partition_func");
 
   if (part_info->fixed)
@@ -2003,15 +1363,18 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   db_name= &db_name_string[home_dir_length];
   tables.db= db_name;
 
-  if (!is_create_table_ind)
+  if (!is_create_table_ind ||
+       thd->lex->sql_command != SQLCOM_CREATE_TABLE)
   {
     if (partition_default_handling(table, part_info,
+                                   is_create_table_ind,
                                    table->s->normalized_path.str))
     {
       DBUG_RETURN(TRUE);
     }
   }
-  if (is_sub_partitioned(part_info))
+  thd->free_list= part_info->item_free_list;
+  if (part_info->is_sub_partitioned())
   {
     DBUG_ASSERT(part_info->subpart_type == HASH_PARTITION);
     /*
@@ -2074,13 +1437,13 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
     if (part_info->part_type == RANGE_PARTITION)
     {
       error_str= partition_keywords[PKW_RANGE].str; 
-      if (unlikely(check_range_constants(part_info)))
+      if (unlikely(part_info->check_range_constants()))
         goto end;
     }
     else if (part_info->part_type == LIST_PARTITION)
     {
       error_str= partition_keywords[PKW_LIST].str; 
-      if (unlikely(check_list_constants(part_info)))
+      if (unlikely(part_info->check_list_constants()))
         goto end;
     }
     else
@@ -2120,6 +1483,7 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   set_up_range_analysis_info(part_info);
   result= FALSE;
 end:
+  thd->free_list= thd_free_list;
   thd->set_query_id= save_set_query_id;
   DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
   DBUG_RETURN(result);
@@ -2142,6 +1506,11 @@ static int add_write(File fptr, const char *buf, uint len)
     return 0;
   else
     return 1;
+}
+
+static int add_string_object(File fptr, String *string)
+{
+  return add_write(fptr, string->ptr(), string->length());
 }
 
 static int add_string(File fptr, const char *string)
@@ -2230,7 +1599,14 @@ static int add_key_partition(File fptr, List<char> field_list)
   while (i < no_fields)
   {
     const char *field_str= part_it++;
-    err+= add_string(fptr, field_str);
+    String field_string("", 0, system_charset_info);
+    THD *thd= current_thd;
+    ulonglong save_options= thd->options;
+    thd->options= 0;
+    append_identifier(thd, &field_string, field_str,
+                      strlen(field_str));
+    thd->options= save_options;
+    err+= add_string_object(fptr, &field_string);
     if (i != (no_fields-1))
       err+= add_comma(fptr);
     i++;
@@ -2300,7 +1676,7 @@ static int add_partition_options(File fptr, partition_element *p_elem)
     err+= add_keyword_string(fptr, "INDEX DIRECTORY", TRUE, 
                              p_elem->index_file_name);
   if (p_elem->part_comment)
-    err+= add_keyword_string(fptr, "COMMENT", FALSE, p_elem->part_comment);
+    err+= add_keyword_string(fptr, "COMMENT", TRUE, p_elem->part_comment);
   return err + add_engine(fptr,p_elem->engine_type);
 }
 
@@ -2328,6 +1704,16 @@ static int add_partition_values(File fptr, partition_info *part_info,
     err+= add_string(fptr, "VALUES IN ");
     uint no_items= p_elem->list_val_list.elements;
     err+= add_begin_parenthesis(fptr);
+    if (p_elem->has_null_value)
+    {
+      err+= add_string(fptr, "NULL");
+      if (no_items == 0)
+      {
+        err+= add_end_parenthesis(fptr);
+        goto end;
+      }
+      err+= add_comma(fptr);
+    }
     i= 0;
     do
     {
@@ -2338,6 +1724,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
     } while (++i < no_items);
     err+= add_end_parenthesis(fptr);
   }
+end:
   return err + add_space(fptr);
 }
 
@@ -2442,7 +1829,7 @@ char *generate_partition_syntax(partition_info *part_info,
     err+= add_int(fptr, part_info->no_parts);
     err+= add_space(fptr);
   }
-  if (is_sub_partitioned(part_info))
+  if (part_info->is_sub_partitioned())
   {
     err+= add_subpartition_by(fptr);
     /* Must be hash partitioning for subpartitioning */
@@ -2528,9 +1915,9 @@ char *generate_partition_syntax(partition_info *part_info,
         err+= add_string(fptr, part_elem->partition_name);
         err+= add_space(fptr);
         err+= add_partition_values(fptr, part_info, part_elem);
-        if (!is_sub_partitioned(part_info))
+        if (!part_info->is_sub_partitioned())
           err+= add_partition_options(fptr, part_elem);
-        if (is_sub_partitioned(part_info) &&
+        if (part_info->is_sub_partitioned() &&
             (write_all || (!part_info->use_default_subpartitions)))
         {
           err+= add_space(fptr);
@@ -2630,6 +2017,29 @@ bool partition_key_modified(TABLE *table, List<Item> &fields)
 
 
 /*
+  A function to handle correct handling of NULL values in partition
+  functions.
+  SYNOPSIS
+    part_val_int()
+    item_expr                 The item expression to evaluate
+  RETURN VALUES
+    The value of the partition function, LONGLONG_MIN if any null value
+    in function
+*/
+
+static
+inline
+longlong
+part_val_int(Item *item_expr)
+{
+  longlong value= item_expr->val_int();
+  if (item_expr->null_value)
+    value= LONGLONG_MIN;
+  return value;
+}
+
+
+/*
   The next set of functions are used to calculate the partition identity.
   A handler sets up a variable that corresponds to one of these functions
   to be able to quickly call it whenever the partition id needs to calculated
@@ -2725,7 +2135,7 @@ static uint32 get_part_id_hash(uint no_parts,
                                longlong *func_value)
 {
   DBUG_ENTER("get_part_id_hash");
-  *func_value= part_expr->val_int();
+  *func_value= part_val_int(part_expr);
   longlong int_hash_id= *func_value % no_parts;
   DBUG_RETURN(int_hash_id < 0 ? -int_hash_id : int_hash_id);
 }
@@ -2754,7 +2164,7 @@ static uint32 get_part_id_linear_hash(partition_info *part_info,
 {
   DBUG_ENTER("get_part_id_linear_hash");
 
-  *func_value= part_expr->val_int();
+  *func_value= part_val_int(part_expr);
   DBUG_RETURN(get_part_id_from_linear_hash(*func_value,
                                            part_info->linear_hash_mask,
                                            no_parts));
@@ -2892,9 +2302,18 @@ int get_partition_id_list(partition_info *part_info,
   longlong list_value;
   int min_list_index= 0;
   int max_list_index= part_info->no_list_values - 1;
-  longlong part_func_value= part_info->part_expr->val_int();
+  longlong part_func_value= part_val_int(part_info->part_expr);
   DBUG_ENTER("get_partition_id_list");
 
+  if (part_info->part_expr->null_value)
+  {
+    if (part_info->has_null_value)
+    {
+      *part_id= part_info->has_null_part_id;
+      DBUG_RETURN(0);
+    }
+    goto notfound;
+  }
   *func_value= part_func_value;
   while (max_list_index >= min_list_index)
   {
@@ -2968,7 +2387,7 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
   longlong list_value;
   uint min_list_index= 0, max_list_index= part_info->no_list_values - 1;
   /* Get the partitioning function value for the endpoint */
-  longlong part_func_value= part_info->part_expr->val_int();
+  longlong part_func_value= part_val_int(part_info->part_expr);
   while (max_list_index >= min_list_index)
   {
     list_index= (max_list_index + min_list_index) >> 1;
@@ -3002,9 +2421,14 @@ int get_partition_id_range(partition_info *part_info,
   uint min_part_id= 0;
   uint max_part_id= max_partition;
   uint loc_part_id;
-  longlong part_func_value= part_info->part_expr->val_int();
+  longlong part_func_value= part_val_int(part_info->part_expr);
   DBUG_ENTER("get_partition_id_int_range");
 
+  if (part_info->part_expr->null_value)
+  {
+    *part_id= 0;
+    DBUG_RETURN(0);
+  }
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
@@ -3077,7 +2501,8 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   uint max_partition= part_info->no_parts - 1;
   uint min_part_id= 0, max_part_id= max_partition, loc_part_id;
   /* Get the partitioning function value for the endpoint */
-  longlong part_func_value= part_info->part_expr->val_int();
+  longlong part_func_value= part_val_int(part_info->part_expr);
+
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
@@ -3680,7 +3105,7 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
                        const key_range *key_spec, part_id_range *part_spec)
 {
   partition_info *part_info= table->part_info;
-  uint no_parts= get_tot_partitions(part_info);
+  uint no_parts= part_info->get_tot_partitions();
   uint i, part_id;
   uint sub_part= no_parts;
   uint32 part_part= no_parts;
@@ -3720,7 +3145,7 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
         prune_partition_set(table, part_spec);
         DBUG_VOID_RETURN;
       }
-      else if (is_sub_partitioned(part_info))
+      else if (part_info->is_sub_partitioned())
       {
         if (part_info->all_fields_in_SPF.is_set(index))
           sub_part= get_sub_part_id_from_key(table, buf, key_info, key_spec);
@@ -3766,7 +3191,7 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
           prune_partition_set(table, part_spec);
           DBUG_VOID_RETURN; 
         }
-        else if (is_sub_partitioned(part_info))
+        else if (part_info->is_sub_partitioned())
         {
           if (check_part_func_bound(part_info->subpart_field_array))
             sub_part= get_sub_part_id_from_key(table, buf, key_info, key_spec);
@@ -3848,10 +3273,10 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
    | Forminfo     288 bytes      |
    -------------------------------
    | Screen buffer, to make      |
-   | field names readable        |
+   |field names readable        |
    -------------------------------
    | Packed field info           |
-   | 17 + 1 + strlen(field_name) |
+   |17 + 1 + strlen(field_name) |
    | + 1 end of file character   |
    -------------------------------
    | Partition info              |
@@ -3894,11 +3319,13 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   Item *thd_free_list= thd->free_list;
   bool result= TRUE;
   partition_info *part_info;
+  CHARSET_INFO *old_character_set_client= thd->variables.character_set_client;
   LEX *old_lex= thd->lex;
   LEX lex;
   DBUG_ENTER("mysql_unpack_partition");
 
   thd->lex= &lex;
+  thd->variables.character_set_client= system_charset_info;
   lex_start(thd, part_buf, part_info_len);
   /*
     We need to use the current SELECT_LEX since I need to keep the
@@ -3918,7 +3345,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
     we then save in the partition info structure.
   */
   thd->free_list= NULL;
-  lex.part_info= new partition_info();/* Indicates yyparse from this place */
+  lex.part_info= new partition_info();/* Indicates MYSQLparse from this place */
   if (!lex.part_info)
   {
     mem_alloc_error(sizeof(partition_info));
@@ -3927,7 +3354,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   lex.part_info->part_state= part_state;
   lex.part_info->part_state_len= part_state_len;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
-  if (yyparse((void*)thd) || thd->is_fatal_error)
+  if (MYSQLparse((void*)thd) || thd->is_fatal_error)
   {
     free_items(thd->free_list);
     goto end;
@@ -3952,28 +3379,46 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   DBUG_PRINT("info", ("default engine = %d, default_db_type = %d",
              ha_legacy_type(part_info->default_engine_type),
              ha_legacy_type(default_db_type)));
-  if (is_create_table_ind)
+  if (is_create_table_ind && old_lex->sql_command == SQLCOM_CREATE_TABLE)
   {
-    if (old_lex->name)
+    if (old_lex->like_name)
     {
       /*
         This code is executed when we do a CREATE TABLE t1 LIKE t2
-        old_lex->name contains the t2 and the table we are opening has 
+        old_lex->like_name contains the t2 and the table we are opening has 
         name t1.
       */
-      Table_ident *table_ident= (Table_ident *)old_lex->name;
+      Table_ident *table_ident= old_lex->like_name;
       char *src_db= table_ident->db.str ? table_ident->db.str : thd->db;
       char *src_table= table_ident->table.str;
       char buf[FN_REFLEN];
       build_table_filename(buf, sizeof(buf), src_db, src_table, "");
-      if (partition_default_handling(table, part_info, buf))
+      if (partition_default_handling(table, part_info,
+                                     FALSE, buf))
       {
         result= TRUE;
         goto end;
       }
     }
     else
-      part_info= old_lex->part_info;
+    {
+      /*
+        When we come here we are doing a create table. In this case we
+        have already done some preparatory work on the old part_info
+        object. We don't really need this new partition_info object.
+        Thus we go back to the old partition info object.
+        We need to free any memory objects allocated on item_free_list
+        by the parser since we are keeping the old info from the first
+        parser call in CREATE TABLE.
+        We'll ensure that this object isn't put into table cache also
+        just to ensure we don't get into strange situations with the
+        item objects.
+      */
+      free_items(thd->free_list);
+      part_info= thd->work_part_info;
+      thd->free_list= NULL;
+      table->s->version= 0UL;
+    }
   }
   table->part_info= part_info;
   table->file->set_part_info(part_info);
@@ -4024,10 +3469,47 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
 end:
   thd->free_list= thd_free_list;
   thd->lex= old_lex;
+  thd->variables.character_set_client= old_character_set_client;
   DBUG_RETURN(result);
 }
 
 
+/*
+  Set engine type on all partition element objects
+  SYNOPSIS
+    set_engine_all_partitions()
+    part_info                  Partition info
+    engine_type                Handlerton reference of engine
+  RETURN VALUES
+    NONE
+*/
+
+static
+void
+set_engine_all_partitions(partition_info *part_info,
+                          handlerton *engine_type)
+{
+  uint i= 0;
+  List_iterator<partition_element> part_it(part_info->partitions);
+  do
+  {
+    partition_element *part_elem= part_it++;
+
+    part_elem->engine_type= engine_type;
+    if (part_info->is_sub_partitioned())
+    {
+      List_iterator<partition_element> sub_it(part_elem->subpartitions);
+      uint j= 0;
+
+      do
+      {
+        partition_element *sub_elem= sub_it++;
+
+        sub_elem->engine_type= engine_type;
+      } while (++j < part_info->no_subparts);
+    }
+  } while (++i < part_info->no_parts);
+}
 /*
   SYNOPSIS
     fast_alter_partition_error_handler()
@@ -4130,17 +3612,34 @@ static bool check_engine_condition(partition_element *p_elem,
                                    handlerton **engine_type,
                                    bool *first)
 {
+  DBUG_ENTER("check_engine_condition");
+
+  DBUG_PRINT("enter", ("def_eng = %u, first = %u", default_engine, *first));
+  if (*engine_type)
+    DBUG_PRINT("info", ("engine_type = %s", (*engine_type)->name));
+  else
+    DBUG_PRINT("info", ("engine_type = NULL"));
   if (*first && default_engine)
+  {
     *engine_type= p_elem->engine_type;
+    if (*engine_type)
+      DBUG_PRINT("info", ("engine_type changed to = %s", (*engine_type)->name));
+    else
+      DBUG_PRINT("info", ("engine_type changed to = NULL"));
+  }
   *first= FALSE;
   if ((!default_engine &&
-      (p_elem->engine_type != *engine_type &&
-       !p_elem->engine_type)) ||
+      (p_elem->engine_type != (*engine_type) &&
+       p_elem->engine_type)) ||
       (default_engine &&
-       p_elem->engine_type != *engine_type))
-    return TRUE;
+       p_elem->engine_type != (*engine_type)))
+  {
+    DBUG_RETURN(TRUE);
+  }
   else
-    return FALSE;
+  {
+    DBUG_RETURN(FALSE);
+  }
 }
 
 /*
@@ -4177,8 +3676,8 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
   uint no_parts= part_info->partitions.elements;
   DBUG_ENTER("check_native_partitioned");
 
-  default_engine= (create_info->used_fields | HA_CREATE_USED_ENGINE) ?
-                   TRUE : FALSE;
+  default_engine= (create_info->used_fields & HA_CREATE_USED_ENGINE) ?
+                   FALSE : TRUE;
   DBUG_PRINT("info", ("engine_type = %u, default = %u",
                        ha_legacy_type(engine_type),
                        default_engine));
@@ -4187,7 +3686,7 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
     do
     {
       partition_element *part_elem= part_it++;
-      if (is_sub_partitioned(part_info) &&
+      if (part_info->is_sub_partitioned() &&
           part_elem->subpartitions.elements)
       {
         uint no_subparts= part_elem->subpartitions.elements;
@@ -4237,6 +3736,7 @@ error:
     Mixed engines not yet supported but when supported it will need
     the partition handler
   */
+  my_error(ER_MIX_HANDLER_ERROR, MYF(0));
   *ret_val= FALSE;
   DBUG_RETURN(TRUE);
 }
@@ -4280,6 +3780,20 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
 {
   DBUG_ENTER("prep_alter_part_table");
 
+  /*
+    We are going to manipulate the partition info on the table object
+    so we need to ensure that the data structure of the table object
+    is freed by setting version to 0. table->s->version= 0 forces a
+    flush of the table object in close_thread_tables().
+  */
+  if (table->part_info)
+    table->s->version= 0L;
+
+  thd->work_part_info= thd->lex->part_info;
+  if (thd->work_part_info &&
+      !(thd->work_part_info= thd->lex->part_info->get_clone()))
+    DBUG_RETURN(TRUE);
+
   if (alter_info->flags &
       (ALTER_ADD_PARTITION | ALTER_DROP_PARTITION |
        ALTER_COALESCE_PARTITION | ALTER_REORGANIZE_PARTITION |
@@ -4288,19 +3802,13 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
        ALTER_REPAIR_PARTITION | ALTER_REBUILD_PARTITION))
   {
     partition_info *tab_part_info= table->part_info;
+    partition_info *alt_part_info= thd->work_part_info;
+    uint flags= 0;
     if (!tab_part_info)
     {
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
       DBUG_RETURN(TRUE);
     }
-    /*
-      We are going to manipulate the partition info on the table object
-      so we need to ensure that the data structure of the table object
-      is freed by setting version to 0. table->s->version= 0 forces a
-      flush of the table object in close_thread_tables().
-    */
-    uint flags;
-    table->s->version= 0L;
     if (alter_info->flags == ALTER_TABLE_REORG)
     {
       uint new_part_no, curr_part_no;
@@ -4330,7 +3838,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
           setting the flag for no default number of partitions
         */
         alter_info->flags|= ALTER_ADD_PARTITION;
-        thd->lex->part_info->no_parts= new_part_no - curr_part_no;
+        thd->work_part_info->no_parts= new_part_no - curr_part_no;
       }
       else
       {
@@ -4348,7 +3856,39 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       DBUG_RETURN(1);
     }
-    *fast_alter_partition= flags ^ HA_PARTITION_FUNCTION_SUPPORTED;
+    *fast_alter_partition=
+      ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0);
+    DBUG_PRINT("info", ("*fast_alter_partition: %d  flags: 0x%x",
+                        *fast_alter_partition, flags));
+    if (((alter_info->flags & ALTER_ADD_PARTITION) ||
+         (alter_info->flags & ALTER_REORGANIZE_PARTITION)) &&
+         (thd->work_part_info->part_type != tab_part_info->part_type) &&
+         (thd->work_part_info->part_type != NOT_A_PARTITION))
+    {
+      if (thd->work_part_info->part_type == RANGE_PARTITION)
+      {
+        my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                 "RANGE", "LESS THAN");
+      }
+      else if (thd->work_part_info->part_type == LIST_PARTITION)
+      {
+        DBUG_ASSERT(thd->work_part_info->part_type == LIST_PARTITION);
+        my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                 "LIST", "IN");
+      }
+      else if (tab_part_info->part_type == RANGE_PARTITION)
+      {
+        my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                 "RANGE", "LESS THAN");
+      }
+      else
+      {
+        DBUG_ASSERT(tab_part_info->part_type == LIST_PARTITION);
+        my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                 "LIST", "IN");
+      }
+      DBUG_RETURN(TRUE);
+    }
     if (alter_info->flags & ALTER_ADD_PARTITION)
     {
       /*
@@ -4357,7 +3897,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
         partitioning scheme as currently set-up.
         Partitions are always added at the end in ADD PARTITION.
       */
-      partition_info *alt_part_info= thd->lex->part_info;
       uint no_new_partitions= alt_part_info->no_parts;
       uint no_orig_partitions= tab_part_info->no_parts;
       uint check_total_partitions= no_new_partitions + no_orig_partitions;
@@ -4377,7 +3916,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
         my_error(ER_ADD_PARTITION_NO_NEW_PARTITION, MYF(0));
         DBUG_RETURN(TRUE);
       }
-      if (is_sub_partitioned(tab_part_info))
+      if (tab_part_info->is_sub_partitioned())
       {
         if (alt_part_info->no_subparts == 0)
           alt_part_info->no_subparts= tab_part_info->no_subparts;
@@ -4395,10 +3934,9 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
         DBUG_RETURN(TRUE);
       }
       alt_part_info->part_type= tab_part_info->part_type;
-      if (set_up_defaults_for_partitioning(alt_part_info,
-                                           table->file,
-                                           ULL(0),
-                                           tab_part_info->no_parts))
+      if (alt_part_info->set_up_defaults_for_partitioning(table->file,
+                                                          ULL(0), 
+                                                          tab_part_info->no_parts))
       {
         DBUG_RETURN(TRUE);
       }
@@ -4802,8 +4340,8 @@ state of p1.
         This command can be used on RANGE and LIST partitions.
       */
       uint no_parts_reorged= alter_info->partition_names.elements;
-      uint no_parts_new= thd->lex->part_info->partitions.elements;
-      partition_info *alt_part_info= thd->lex->part_info;
+      uint no_parts_new= thd->work_part_info->partitions.elements;
+      partition_info *alt_part_info= thd->work_part_info;
       uint check_total_partitions;
       if (no_parts_reorged > tab_part_info->no_parts)
       {
@@ -4949,12 +4487,17 @@ the generated partition syntax in a correct manner.
       DBUG_ASSERT(FALSE);
     }
     *partition_changed= TRUE;
-    create_info->db_type= &partition_hton;
-    thd->lex->part_info= tab_part_info;
+    thd->work_part_info= tab_part_info;
     if (alter_info->flags == ALTER_ADD_PARTITION ||
         alter_info->flags == ALTER_REORGANIZE_PARTITION)
     {
-      if (check_partition_info(tab_part_info, (handlerton**)NULL,
+      if (tab_part_info->use_default_subpartitions &&
+          !alt_part_info->use_default_subpartitions)
+      {
+        tab_part_info->use_default_subpartitions= FALSE;
+        tab_part_info->use_default_no_subpartitions= FALSE;
+      }
+      if (tab_part_info->check_partition_info((handlerton**)NULL,
                                table->file, ULL(0)))
       {
         DBUG_RETURN(TRUE);
@@ -4977,7 +4520,7 @@ the generated partition syntax in a correct manner.
 
      Case IIa:
        There was a partitioning before and there is no new one defined.
-       Also the user has not specified an explicit engine to use.
+       Also the user has not specified to remove partitioning explicitly.
 
        We use the old partitioning also for the new table. We do this
        by assigning the partition_info from the table loaded in
@@ -4986,12 +4529,11 @@ the generated partition syntax in a correct manner.
 
      Case IIb:
        There was a partitioning before and there is no new one defined.
-       The user has specified an explicit engine to use.
+       The user has specified explicitly to remove partitioning
 
-       Since the user has specified an explicit engine to use we override
-       the old partitioning info and create a new table using the specified
-       engine. This is the reason for the extra check if old and new engine
-       is equal.
+       Since the user has specified explicitly to remove partitioning
+       we override the old partitioning info and create a new table using
+       the specified engine.
        In this case the partition also is changed.
 
      Case III:
@@ -5014,49 +4556,63 @@ the generated partition syntax in a correct manner.
     */
     if (table->part_info)
     {
-      if (!thd->lex->part_info &&
-          create_info->db_type == old_db_type)
-        thd->lex->part_info= table->part_info;
+      if (alter_info->flags & ALTER_REMOVE_PARTITIONING)
+      {
+        DBUG_PRINT("info", ("Remove partitioning"));
+        if (!(thd->lex->create_info.used_fields & HA_CREATE_USED_ENGINE))
+        {
+          DBUG_PRINT("info", ("No explicit engine used"));
+          create_info->db_type= table->part_info->default_engine_type;
+        }
+        DBUG_PRINT("info", ("New engine type = %s",
+                   create_info->db_type->name));
+        thd->work_part_info= NULL;
+        *partition_changed= TRUE;
+      }
+      else if (!thd->work_part_info)
+      {
+        /*
+          Retain partitioning but possibly with a new storage engine
+          beneath.
+        */
+        thd->work_part_info= table->part_info;
+        if (thd->lex->create_info.used_fields & HA_CREATE_USED_ENGINE &&
+            create_info->db_type != table->part_info->default_engine_type)
+        {
+          /*
+            Make sure change of engine happens to all partitions.
+          */
+          set_engine_all_partitions(thd->work_part_info, create_info->db_type);
+          *partition_changed= TRUE;
+        }
+      }
     }
-    if (thd->lex->part_info)
+    if (thd->work_part_info)
     {
+      partition_info *part_info= thd->work_part_info;
+      bool is_native_partitioned= FALSE;
       /*
         Need to cater for engine types that can handle partition without
         using the partition handler.
       */
-      if (thd->lex->part_info != table->part_info)
+      if (thd->work_part_info != table->part_info)
         *partition_changed= TRUE;
       if (create_info->db_type == &partition_hton)
-      {
-        if (table->part_info)
-        {
-          thd->lex->part_info->default_engine_type=
-                               table->part_info->default_engine_type;
-        }
-        else
-        {
-          thd->lex->part_info->default_engine_type= 
-                           ha_checktype(thd, DB_TYPE_DEFAULT, FALSE, FALSE);
-        }
-      }
+        part_info->default_engine_type= table->part_info->default_engine_type;
       else
-      {
-        bool is_native_partitioned= FALSE;
-        partition_info *part_info= thd->lex->part_info;
         part_info->default_engine_type= create_info->db_type;
-        if (check_native_partitioned(create_info, &is_native_partitioned,
-                                     part_info, thd))
-        {
-          DBUG_RETURN(TRUE);
-        }
-        if (!is_native_partitioned)
-        {
-          DBUG_ASSERT(create_info->db_type != &default_hton);
-          create_info->db_type= &partition_hton;
-        }
+      if (check_native_partitioned(create_info, &is_native_partitioned,
+                                   part_info, thd))
+      {
+        DBUG_RETURN(TRUE);
       }
-      DBUG_PRINT("info", ("default_db_type = %s",
-                 thd->lex->part_info->default_engine_type->name));
+      if (!is_native_partitioned)
+      {
+        DBUG_ASSERT(create_info->db_type != &default_hton);
+        create_info->db_type= &partition_hton;
+      }
+      DBUG_PRINT("info", ("default_engine_type = %s",
+                 thd->work_part_info->default_engine_type->name));
     }
   }
   DBUG_RETURN(FALSE);
@@ -5239,7 +4795,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   lpt->deleted= 0;
   lpt->pack_frm_data= NULL;
   lpt->pack_frm_len= 0;
-  thd->lex->part_info= part_info;
+  thd->work_part_info= part_info;
 
   if (alter_info->flags & ALTER_OPTIMIZE_PARTITION ||
       alter_info->flags & ALTER_ANALYZE_PARTITION ||
@@ -5606,7 +5162,7 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
   uint partition_id= 0;
   List_iterator<partition_element> it(part_info->partitions);
   
-  if (is_sub_partitioned(part_info))
+  if (part_info->is_sub_partitioned())
   {
     partition_element *head_pe;
     while ((head_pe= it++))
@@ -5722,6 +5278,7 @@ static void set_up_range_analysis_info(partition_info *part_info)
     switch (field->type()) {
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
       part_info->get_part_iter_for_interval=
@@ -5821,6 +5378,19 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   else
     DBUG_ASSERT(0);
 
+  if (field->real_maybe_null() && part_info->has_null_value)
+  {
+    if (*min_value)
+    {
+      if (*max_value && !(flags & (NO_MIN_RANGE | NO_MAX_RANGE)))
+      {
+        init_single_partition_iterator(part_info->has_null_part_id, part_iter);
+        return 1;
+      }
+      if (!(flags & NEAR_MIN))
+        part_iter->has_null_value= TRUE;
+    }
+  }
   /* Find minimum */
   if (flags & NO_MIN_RANGE)
     part_iter->part_nums.start= 0;
@@ -5951,7 +5521,11 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
     else
     {
       longlong dummy;
-      if (!part_info->get_partition_id(part_info, &part_id, &dummy))
+      int res= part_info->is_sub_partitioned() ?
+                  part_info->get_part_partition_id(part_info, &part_id,
+                                                   &dummy):
+                  part_info->get_partition_id(part_info, &part_id, &dummy);
+      if (!res)
       {
         init_single_partition_iterator(part_id, part_iter);
         return 1; /* Ok, iterator initialized */
@@ -6032,7 +5606,14 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
 {
   if (part_iter->part_nums.start == part_iter->part_nums.end)
+  {
+    if (part_iter->has_null_value)
+    {
+      part_iter->has_null_value= FALSE;
+      return part_iter->part_info->has_null_part_id;
+    }
     return NOT_A_PARTITION_ID;
+  }
   else
     return part_iter->part_info->list_array[part_iter->
                                             part_nums.start++].partition_id;
@@ -6065,7 +5646,7 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
     field->store(part_iter->field_vals.start, FALSE);
     part_iter->field_vals.start++;
     longlong dummy;
-    if (is_sub_partitioned(part_iter->part_info) &&
+    if (part_iter->part_info->is_sub_partitioned() &&
         !part_iter->part_info->get_part_partition_id(part_iter->part_info,
                                                      &part_id, &dummy) ||
         !part_iter->part_info->get_partition_id(part_iter->part_info,

@@ -158,7 +158,7 @@ int mysql_update(THD *thd,
       break;
     if (!need_reopen)
       DBUG_RETURN(1);
-    close_tables_for_reopen(thd, table_list);
+    close_tables_for_reopen(thd, &table_list);
   }
 
   if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
@@ -958,7 +958,7 @@ reopen_tables:
     for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
       tbl->cleanup_items();
 
-    close_tables_for_reopen(thd, table_list);
+    close_tables_for_reopen(thd, &table_list);
     goto reopen_tables;
   }
 
@@ -1229,6 +1229,11 @@ multi_update::initialize_tables(JOIN *join)
     Field_string offset(table->file->ref_length, 0, "offset",
 			&my_charset_bin);
     offset.init(table);
+    /*
+      The field will be converted to varstring when creating tmp table if
+      table to be updated was created by mysql 4.1. Deny this.
+    */
+    offset.can_alter_field_type= 0;
     if (!(ifield= new Item_field(((Field *) &offset))))
       DBUG_RETURN(1);
     ifield->maybe_null= 0;

@@ -114,7 +114,7 @@ void udf_init()
   READ_RECORD read_record_info;
   TABLE *table;
   int error;
-  DBUG_ENTER("ufd_init");
+  DBUG_ENTER("udf_init");
 
   if (initialized)
     DBUG_VOID_RETURN;
@@ -146,7 +146,7 @@ void udf_init()
   if (simple_open_n_lock_tables(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open udf table"));
-    sql_print_error("Can't open the mysql.func table. Please run the mysql_install_db script to create it.");
+    sql_print_error("Can't open the mysql.func table. Please run the mysql_upgrade script to create it.");
     goto end;
   }
 
@@ -177,7 +177,6 @@ void udf_init()
       continue;
     }
 
-
     if (!(tmp= add_udf(&name,(Item_result) table->field[1]->val_int(),
                        dl_name, udftype)))
     {
@@ -188,13 +187,10 @@ void udf_init()
     void *dl = find_udf_dl(tmp->dl);
     if (dl == NULL)
     {
-      char dlpath[FN_REFLEN];
-      strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", tmp->dl,
-               NullS);
-      if (!(dl= dlopen(dlpath, RTLD_NOW)))
+      if (!(dl= dlopen(tmp->dl, RTLD_NOW)))
       {
 	/* Print warning to log */
-	sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dlpath, errno, dlerror());
+	sql_print_error(ER(ER_CANT_OPEN_LIBRARY), tmp->dl, errno, dlerror());
 	/* Keep the udf in the hash so that we can remove it later */
 	continue;
       }
@@ -284,6 +280,10 @@ static void del_udf(udf_func *udf)
 void free_udf(udf_func *udf)
 {
   DBUG_ENTER("free_udf");
+  
+  if (!initialized)
+    DBUG_VOID_RETURN;
+
   rw_wrlock(&THR_LOCK_udf);
   if (!--udf->usage_count)
   {
@@ -307,6 +307,9 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
 {
   udf_func *udf=0;
   DBUG_ENTER("find_udf");
+
+  if (!initialized)
+    DBUG_RETURN(NULL);
 
   /* TODO: This should be changed to reader locks someday! */
   if (mark_used)
@@ -408,14 +411,12 @@ int mysql_create_function(THD *thd,udf_func *udf)
   }
   if (!(dl = find_udf_dl(udf->dl)))
   {
-    char dlpath[FN_REFLEN];
-    strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", udf->dl, NullS);
-    if (!(dl = dlopen(dlpath, RTLD_NOW)))
+    if (!(dl = dlopen(udf->dl, RTLD_NOW)))
     {
       DBUG_PRINT("error",("dlopen of %s failed, error: %d (%s)",
-			  dlpath, errno, dlerror()));
+			  udf->dl, errno, dlerror()));
       my_error(ER_CANT_OPEN_LIBRARY, MYF(0),
-                      dlpath, errno, dlerror());
+               udf->dl, errno, dlerror());
       goto err;
     }
     new_dl=1;

@@ -16,9 +16,6 @@ data LONGBLOB, PRIMARY KEY(c1))ENGINE=#;
 INSERT INTO test.t1 VALUES (NULL, NULL);
 INSERT INTO test.t1 VALUES (NULL, repeat('a',1*1024));
 INSERT INTO test.t1 VALUES (NULL, repeat('b',16*1024));
-CHECK TABLE test.t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
 
 **** Data Insert Validation Master Section test.t1 ****
 

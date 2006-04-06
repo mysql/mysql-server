@@ -96,8 +96,14 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
   */
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
+    TABLE_LIST *embedded;
+    for (embedded= tl ; embedded; embedded= embedded->embedding)
+    {
+      if (embedded->on_expr)
+        break;
+    }
+    if (embedded)
     /* Don't replace expression on a table that is part of an outer join */
-    if (tl->on_expr)
     {
       outer_tables|= tl->table->map;
 

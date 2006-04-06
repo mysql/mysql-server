@@ -36,12 +36,13 @@ defined and set_to_zero is TRUE. */
 void*
 ut_malloc_low(
 /*==========*/
-	                     /* out, own: allocated memory */
-        ulint   n,           /* in: number of bytes to allocate */
-	ibool   set_to_zero, /* in: TRUE if allocated memory should be set
-			     to zero if UNIV_SET_MEM_TO_ZERO is defined */
-	ibool	assert_on_error); /* in: if TRUE, we crash mysqld if the memory
-				cannot be allocated */
+					/* out, own: allocated memory */
+	ulint	n,			/* in: number of bytes to allocate */
+	ibool	set_to_zero,		/* in: TRUE if allocated memory
+					should be set to zero if
+					UNIV_SET_MEM_TO_ZERO is defined */
+	ibool	assert_on_error);	/* in: if TRUE, we crash mysqld if
+					the memory cannot be allocated */
 /**************************************************************************
 Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
 defined. */
@@ -49,8 +50,8 @@ defined. */
 void*
 ut_malloc(
 /*======*/
-	                /* out, own: allocated memory */
-        ulint   n);     /* in: number of bytes to allocate */
+			/* out, own: allocated memory */
+	ulint	n);	/* in: number of bytes to allocate */
 /**************************************************************************
 Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
 out. It cannot be used if we want to return an error message. Prints to
@@ -78,10 +79,10 @@ man realloc in Linux, 2004:
        realloc()  changes the size of the memory block pointed to
        by ptr to size bytes.  The contents will be  unchanged  to
        the minimum of the old and new sizes; newly allocated mem­
-       ory will be uninitialized.  If ptr is NULL,  the  call  is
+       ory will be uninitialized.  If ptr is NULL,  the	 call  is
        equivalent  to malloc(size); if size is equal to zero, the
-       call is equivalent to free(ptr).  Unless ptr is  NULL,  it
-       must  have  been  returned by an earlier call to malloc(),
+       call is equivalent to free(ptr).	 Unless ptr is	NULL,  it
+       must  have  been	 returned by an earlier call to malloc(),
        calloc() or realloc().
 
 RETURN VALUE
@@ -89,8 +90,8 @@ RETURN VALUE
        which is suitably aligned for any kind of variable and may
        be different from ptr, or NULL if the  request  fails.  If
        size  was equal to 0, either NULL or a pointer suitable to
-       be passed to free() is returned.  If realloc()  fails  the
-       original  block  is  left  untouched  - it is not freed or
+       be passed to free() is returned.	 If realloc()  fails  the
+       original	 block	is  left  untouched  - it is not freed or
        moved. */
 
 void*
@@ -154,7 +155,7 @@ ut_strlenq(
 	char		q);	/* in: the quote character */
 
 /**************************************************************************
-Make a quoted copy of a NUL-terminated string.  Leading and trailing
+Make a quoted copy of a NUL-terminated string.	Leading and trailing
 quotes will not be included; only embedded quotes will be escaped.
 See also ut_strlenq() and ut_memcpyq(). */
 

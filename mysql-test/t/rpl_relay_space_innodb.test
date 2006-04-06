@@ -15,6 +15,7 @@
 #Change Date: 2006-02-03          #
 #Change: Added Comments           #
 ###################################
+-- source include/not_ndb_default.inc
 -- source include/have_innodb.inc
 let $engine_type=InnoDB;
 -- source extra/rpl_tests/rpl_sv_relay_space.test

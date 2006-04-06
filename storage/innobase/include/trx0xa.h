@@ -52,27 +52,27 @@ struct xa_switch_t {
 	long flags;			/* resource manager specific options */
 	long version;			/* must be 0 */
 	int (*xa_open_entry)		/* xa_open function pointer */
-	    __P((char *, int, long));
+		__P((char *, int, long));
 	int (*xa_close_entry)		/* xa_close function pointer */
-	    __P((char *, int, long));
+		__P((char *, int, long));
 	int (*xa_start_entry)		/* xa_start function pointer */
-	    __P((XID *, int, long));
+		__P((XID *, int, long));
 	int (*xa_end_entry)		/* xa_end function pointer */
-	    __P((XID *, int, long));
+		__P((XID *, int, long));
 	int (*xa_rollback_entry)	/* xa_rollback function pointer */
-	    __P((XID *, int, long));
+		__P((XID *, int, long));
 	int (*xa_prepare_entry)		/* xa_prepare function pointer */
-	    __P((XID *, int, long));
+		__P((XID *, int, long));
 	int (*xa_commit_entry)		/* xa_commit function pointer */
-	    __P((XID *, int, long));
+		__P((XID *, int, long));
 	int (*xa_recover_entry)		/* xa_recover function pointer */
-	    __P((XID *, long, int, long));
+		__P((XID *, long, int, long));
 	int (*xa_forget_entry)		/* xa_forget function pointer */
-	    __P((XID *, int, long));
+		__P((XID *, int, long));
 	int (*xa_complete_entry)	/* xa_complete function pointer */
-	    __P((int *, int *, int, long));
+		__P((int *, int *, int, long));
 };
-#endif  /* NOTDEFINED */
+#endif	/* NOTDEFINED */
 
 
 /*

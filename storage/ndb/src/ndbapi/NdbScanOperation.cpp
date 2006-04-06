@@ -37,8 +37,8 @@
 
 #define DEBUG_NEXT_RESULT 0
 
-NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
-  NdbOperation(aNdb),
+NdbScanOperation::NdbScanOperation(Ndb* aNdb, NdbOperation::Type aType) :
+  NdbOperation(aNdb, aType),
   m_transConnection(NULL)
 {
   theParallelism = 0;
@@ -50,6 +50,7 @@ NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
   m_receivers = 0;
   m_array = new Uint32[1]; // skip if on delete in fix_receivers
   theSCAN_TABREQ = 0;
+  m_executed = false;
 }
 
 NdbScanOperation::~NdbScanOperation()
@@ -111,6 +112,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   theNdbCon->theMagicNumber = 0xFE11DF;
   theNoOfTupKeyLeft = tab->m_noOfDistributionKeys;
   m_read_range_no = 0;
+  m_executed = false;
   return 0;
 }
 
@@ -167,7 +169,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   { char* p = getenv("NDB_USE_TUPSCAN");
     if (p != 0) {
       unsigned n = atoi(p); // 0-10
-      if (::time(0) % 10 < n) tupScan = true;
+      if ((unsigned int) (::time(0) % 10) < n) tupScan = true;
     }
   }
 #endif
@@ -365,7 +367,7 @@ NdbScanOperation::getFirstATTRINFOScan()
 int
 NdbScanOperation::executeCursor(int nodeId){
   NdbTransaction * tCon = theNdbCon;
-  TransporterFacade* tp = TransporterFacade::instance();
+  TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
   Guard guard(tp->theMutexPtr);
 
   Uint32 magic = tCon->theMagicNumber;
@@ -387,6 +389,7 @@ NdbScanOperation::executeCursor(int nodeId){
     if (doSendScan(nodeId) == -1)
       return -1;
 
+    m_executed= true; // Mark operation as executed
     return 0;
   } else {
     if (!(tp->get_node_stopping(nodeId) &&
@@ -466,7 +469,7 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
   }
   
   Uint32 nodeId = theNdbCon->theDBnode;
-  TransporterFacade* tp = TransporterFacade::instance();
+  TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
   /*
     The PollGuard has an implicit call of unlock_and_signal through the
     ~PollGuard method. This method is called implicitly by the compiler
@@ -606,7 +609,7 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
     if(sent)
     {
       Uint32 nodeId = theNdbCon->theDBnode;
-      TransporterFacade * tp = TransporterFacade::instance();
+      TransporterFacade * tp = theNdb->theImpl->m_transporter_facade;
       if(cnt > 21){
 	tSignal.setLength(4);
 	LinearSectionPtr ptr[3];
@@ -661,7 +664,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
 	       m_conf_receivers_count,
 	       m_sent_receivers_count);
     
-    TransporterFacade* tp = TransporterFacade::instance();
+    TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
     /*
       The PollGuard has an implicit call of unlock_and_signal through the
       ~PollGuard method. This method is called implicitly by the compiler
@@ -680,7 +683,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
 
   if (releaseOp && tTransCon) {
     NdbIndexScanOperation* tOp = (NdbIndexScanOperation*)this;
-    tTransCon->releaseExecutedScanOperation(tOp);
+    tTransCon->releaseScanOperation(tOp);
   }
   
   tCon->theScanningOp = 0;
@@ -825,7 +828,7 @@ NdbScanOperation::doSendScan(int aProcessorId)
   req->requestInfo = tmp;
   tSignal->setLength(ScanTabReq::StaticLength + theDistrKeyIndicator_);
 
-  TransporterFacade *tp = TransporterFacade::instance();
+  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
   LinearSectionPtr ptr[3];
   ptr[0].p = m_prepared_receivers;
   ptr[0].sz = theParallelism;
@@ -909,13 +912,20 @@ NdbScanOperation::doSendScan(int aProcessorId)
  *     the scan process. 
  ****************************************************************************/
 int
-NdbScanOperation::getKeyFromKEYINFO20(Uint32* data, unsigned size)
+NdbScanOperation::getKeyFromKEYINFO20(Uint32* data, Uint32 & size)
 {
   NdbRecAttr * tRecAttr = m_curr_row;
   if(tRecAttr)
   {
     const Uint32 * src = (Uint32*)tRecAttr->aRef();
-    memcpy(data, src, 4*size);
+
+    assert(tRecAttr->get_size_in_bytes() > 0);
+    assert(tRecAttr->get_size_in_bytes() < 65536);
+    const Uint32 len = (tRecAttr->get_size_in_bytes() + 3)/4-1;
+
+    assert(size >= len);
+    memcpy(data, src, 4*len);
+    size = len;
     return 0;
   }
   return -1;
@@ -1022,7 +1032,7 @@ NdbScanOperation::getBlobHandle(Uint32 anAttrId)
 }
 
 NdbIndexScanOperation::NdbIndexScanOperation(Ndb* aNdb)
-  : NdbScanOperation(aNdb)
+  : NdbScanOperation(aNdb, NdbOperation::OrderedIndexScan)
 {
 }
 
@@ -1372,7 +1382,7 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
   if(fetchNeeded){
     if(fetchAllowed){
       if(DEBUG_NEXT_RESULT) ndbout_c("performing fetch...");
-      TransporterFacade* tp = TransporterFacade::instance();
+      TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
       /*
         The PollGuard has an implicit call of unlock_and_signal through the
         ~PollGuard method. This method is called implicitly by the compiler
@@ -1515,7 +1525,7 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx)
   m_sent_receivers_count = last + 1;
   
   Uint32 nodeId = theNdbCon->theDBnode;
-  TransporterFacade * tp = TransporterFacade::instance();
+  TransporterFacade * tp = theNdb->theImpl->m_transporter_facade;
   tSignal.setLength(4+1);
   int ret= tp->sendSignal(&tSignal, nodeId);
   return ret;
@@ -1648,7 +1658,7 @@ int
 NdbScanOperation::restart(bool forceSend)
 {
   
-  TransporterFacade* tp = TransporterFacade::instance();
+  TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
   /*
     The PollGuard has an implicit call of unlock_and_signal through the
     ~PollGuard method. This method is called implicitly by the compiler
@@ -1683,7 +1693,7 @@ NdbIndexScanOperation::reset_bounds(bool forceSend){
   int res;
   
   {
-    TransporterFacade* tp = TransporterFacade::instance();
+    TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
     /*
       The PollGuard has an implicit call of unlock_and_signal through the
       ~PollGuard method. This method is called implicitly by the compiler

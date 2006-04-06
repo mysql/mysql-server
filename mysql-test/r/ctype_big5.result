@@ -189,3 +189,6 @@ select hex(a) from t1 where a = _big5 0xF9DC;
 hex(a)
 E5ABBA
 drop table t1;
+select hex(convert(_big5 0xC84041 using ucs2));
+hex(convert(_big5 0xC84041 using ucs2))
+003F0041

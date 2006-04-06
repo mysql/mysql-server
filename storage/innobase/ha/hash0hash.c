@@ -19,8 +19,8 @@ Reserves the mutex for a fold value in a hash table. */
 void
 hash_mutex_enter(
 /*=============*/
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		fold)	/* in: fold */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold)	/* in: fold */
 {
 	mutex_enter(hash_get_mutex(table, fold));
 }
@@ -31,8 +31,8 @@ Releases the mutex for a fold value in a hash table. */
 void
 hash_mutex_exit(
 /*============*/
-	hash_table_t* 	table,	/* in: hash table */
-	ulint 		fold)	/* in: fold */
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold)	/* in: fold */
 {
 	mutex_exit(hash_get_mutex(table, fold));
 }
@@ -43,7 +43,7 @@ Reserves all the mutexes of a hash table, in an ascending order. */
 void
 hash_mutex_enter_all(
 /*=================*/
-	hash_table_t* 	table)	/* in: hash table */
+	hash_table_t*	table)	/* in: hash table */
 {
 	ulint	i;
 
@@ -59,7 +59,7 @@ Releases all the mutexes of a hash table. */
 void
 hash_mutex_exit_all(
 /*================*/
-	hash_table_t* 	table)	/* in: hash table */
+	hash_table_t*	table)	/* in: hash table */
 {
 	ulint	i;
 
@@ -84,13 +84,13 @@ hash_create(
 	hash_table_t*	table;
 	ulint		i;
 	hash_cell_t*	cell;
-	
+
 	prime = ut_find_prime(n);
 
 	table = mem_alloc(sizeof(hash_table_t));
 
 	array = ut_malloc(sizeof(hash_cell_t) * prime);
-	
+
 	table->adaptive = FALSE;
 	table->array = array;
 	table->n_cells = prime;
@@ -99,7 +99,7 @@ hash_create(
 	table->heaps = NULL;
 	table->heap = NULL;
 	table->magic_n = HASH_TABLE_MAGIC_N;
-	
+
 	/* Initialize the cell array */
 
 	for (i = 0; i < prime; i++) {

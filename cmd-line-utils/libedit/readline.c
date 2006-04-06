@@ -1109,7 +1109,7 @@ read_history(const char *filename)
 
 	if (h == NULL || e == NULL)
 		rl_initialize();
-	return (history(h, &ev, H_LOAD, filename));
+	return (history(h, &ev, H_LOAD, filename) == -1);
 }
 
 
@@ -1123,7 +1123,7 @@ write_history(const char *filename)
 
 	if (h == NULL || e == NULL)
 		rl_initialize();
-	return (history(h, &ev, H_SAVE, filename));
+	return (history(h, &ev, H_SAVE, filename) == -1);
 }
 
 

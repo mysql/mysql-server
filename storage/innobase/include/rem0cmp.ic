@@ -12,8 +12,8 @@ data type. */
 UNIV_INLINE
 int
 cmp_data_data(
-/*==========*/	
-				/* out: 1, 0, -1, if data1 is greater, equal, 
+/*==========*/
+				/* out: 1, 0, -1, if data1 is greater, equal,
 				less than data2, respectively */
 	dtype_t*	cur_type,/* in: data type of the fields */
 	byte*		data1,	/* in: data field (== a pointer to a memory
@@ -32,8 +32,8 @@ has its data type field set. */
 UNIV_INLINE
 int
 cmp_dfield_dfield(
-/*==============*/	
-				/* out: 1, 0, -1, if dfield1 is greater, equal, 
+/*==============*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
 				less than dfield2, respectively */
 	dfield_t*	dfield1,/* in: data field; must have type field set */
 	dfield_t*	dfield2)/* in: data field */
@@ -51,7 +51,7 @@ first fields are compared. */
 UNIV_INLINE
 int
 cmp_rec_rec(
-/*========*/	
+/*========*/
 				/* out: 1, 0 , -1 if rec1 is greater, equal,
 				less, respectively, than rec2; only the common
 				first fields are compared */
@@ -63,7 +63,7 @@ cmp_rec_rec(
 {
 	ulint	match_f		= 0;
 	ulint	match_b		= 0;
-	
+
 	return(cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index,
 					&match_f, &match_b));
 }

@@ -92,6 +92,15 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 #define all_bits_set(A,B) ((A) & (B) != (B))
 
+#define WARN_DEPRECATED(Thd,Ver,Old,New)                                  \
+  do {                                                                    \
+    DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) >= 0);  \
+    push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,       \
+                        ER_WARN_DEPRECATED, ER(ER_WARN_DEPRECATED),       \
+                        (Old), (Ver), (New));                             \
+  } while(0)
+
+
 extern CHARSET_INFO *system_charset_info, *files_charset_info ;
 extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
@@ -259,7 +268,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_BIG_TABLES       (LL(1) << 8)       // THD, user
 #define OPTION_BIG_SELECTS      (LL(1) << 9)       // THD, user
 #define OPTION_LOG_OFF          (LL(1) << 10)      // THD, user
-#define OPTION_UPDATE_LOG       (LL(1) << 11)      // THD, user, unused
+#define OPTION_QUOTE_SHOW_CREATE (LL(1) << 11)     // THD, user
 #define TMP_TABLE_ALL_COLUMNS   (LL(1) << 12)      // SELECT, intern
 #define OPTION_WARNINGS         (LL(1) << 13)      // THD, user
 #define OPTION_AUTO_IS_NULL     (LL(1) << 14)      // THD, user, binlog
@@ -271,7 +280,6 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_BEGIN            (LL(1) << 20)      // THD, intern
 #define OPTION_TABLE_LOCK       (LL(1) << 21)      // THD, intern
 #define OPTION_QUICK            (LL(1) << 22)      // SELECT (for DELETE)
-#define OPTION_QUOTE_SHOW_CREATE (LL(1) << 23)     // THD, user
 
 /* Thr following is used to detect a conflict with DISTINCT
    in the user query has requested */
@@ -434,6 +442,7 @@ typedef struct st_sql_list {
   byte *first;
   byte **next;
 
+  st_sql_list() {}                              /* Remove gcc warning */
   inline void empty()
   {
     elements=0;
@@ -503,6 +512,8 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "protocol.h"
 #include "sql_plugin.h"
 #include "sql_udf.h"
+#include "sql_partition.h"
+
 class user_var_entry;
 class Security_context;
 enum enum_var_type
@@ -536,8 +547,11 @@ bool delete_precheck(THD *thd, TABLE_LIST *tables);
 bool insert_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
+int append_query_string(CHARSET_INFO *csinfo,
+                        String const *from, String *to);
 
-bool get_default_definer(THD *thd, LEX_USER *definer);
+void get_default_definer(THD *thd, LEX_USER *definer);
+LEX_USER *create_default_definer(THD *thd);
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 
 enum enum_mysql_completiontype {
@@ -657,7 +671,7 @@ bool table_cache_init(void);
 void table_cache_free(void);
 bool table_def_init(void);
 void table_def_free(void);
-void assign_new_table_id(TABLE *table);
+void assign_new_table_id(TABLE_SHARE *share);
 uint cached_open_tables(void);
 uint cached_table_definitions(void);
 void kill_mysql(void);
@@ -742,6 +756,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item,
 			bool table_cant_handle_bit_fields,
+                        bool make_copy_field,
                         uint convert_blob_length);
 void sp_prepare_create_field(THD *thd, create_field *sql_field);
 int prepare_create_field(create_field *sql_field, 
@@ -758,7 +773,8 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       List<create_field> *extra_fields,
 			       List<Key> *keys,
 			       List<Item> *items,
-                               MYSQL_LOCK **lock);
+                               MYSQL_LOCK **lock,
+                               TABLEOP_HOOKS *hooks);
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
@@ -823,7 +839,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
 bool close_data_tables(THD *thd,const char *db, const char *table_name);
 bool wait_for_tables(THD *thd);
 bool table_is_used(TABLE *table, bool wait_for_name_lock);
-bool drop_locked_tables(THD *thd,const char *db, const char *table_name);
+TABLE *drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 void execute_init_command(THD *thd, sys_var_str *init_command_var,
 			  rw_lock_t *var_mutex);
@@ -1036,9 +1052,9 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
-void close_tables_for_reopen(THD *thd, TABLE_LIST *tables);
+void close_tables_for_reopen(THD *thd, TABLE_LIST **tables);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               uint offset_to_list,
+                               st_table_list *TABLE_LIST::*link,
                                const char *db_name,
                                const char *table_name);
 TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list);
@@ -1128,7 +1144,7 @@ inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
                                              const char *db_name,
                                              const char *table_name)
 {
-  return find_table_in_list(table, offsetof(TABLE_LIST, next_global),
+  return find_table_in_list(table, &TABLE_LIST::next_global,
                             db_name, table_name);
 }
 
@@ -1136,7 +1152,7 @@ inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
                                             const char *db_name,
                                             const char *table_name)
 {
-  return find_table_in_list(table, offsetof(TABLE_LIST, next_local),
+  return find_table_in_list(table, &TABLE_LIST::next_local,
                             db_name, table_name);
 }
 
@@ -1211,7 +1227,7 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
 
 /* mysqld.cc */
-extern void yyerror(const char*);
+extern void MYSQLerror(const char*);
 
 /* item_func.cc */
 extern bool check_reserved_words(LEX_STRING *name);
@@ -1286,12 +1302,8 @@ extern ulong what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
-extern const char *opt_binlog_format;
 #ifdef HAVE_ROW_BASED_REPLICATION
-extern my_bool binlog_row_based;
 extern ulong opt_binlog_rows_event_max_size;
-#else
-extern const my_bool binlog_row_based;
 #endif
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;
@@ -1435,7 +1447,7 @@ extern handlerton myisammrg_hton;
 extern handlerton heap_hton;
 
 extern SHOW_COMP_OPTION have_row_based_replication;
-extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
+extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
@@ -1626,7 +1638,7 @@ void free_list(I_List <i_string_pair> *list);
 void free_list(I_List <i_string> *list);
 
 /* sql_yacc.cc */
-extern int yyparse(void *thd);
+extern int MYSQLparse(void *thd);
 
 /* frm_crypt.cc */
 #ifdef HAVE_CRYPTED_FRM

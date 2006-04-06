@@ -263,7 +263,9 @@ my_bool acl_init(bool dont_read_acl_tables)
 
   acl_cache= new hash_filo(ACL_CACHE_SIZE, 0, 0,
                            (hash_get_key) acl_entry_get_key,
-                           (hash_free_key) free, system_charset_info);
+                           (hash_free_key) free,
+                           /* Use the case sensitive "binary" charset */
+                           &my_charset_bin);
   if (dont_read_acl_tables)
   {
     DBUG_RETURN(0); /* purecov: tested */
@@ -471,10 +473,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
 
       /*
-        if it is pre 5.1.4 privilege table then map CREATE privilege on
+        if it is pre 5.1.6 privilege table then map CREATE privilege on
         CREATE|ALTER|DROP|EXECUTE EVENT
       */
-      if (table->s->fields <= 37 && (user.access & CREATE_ACL))
+      if (table->s->fields <= 37 && (user.access & SUPER_ACL))
         user.access|= EVENT_ACL;
 
       /*
@@ -2385,7 +2387,10 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   {
     if (exact)
     {
-      if (compare_hostname(&grant_name->host, host, ip))
+      if ((host &&
+	   !my_strcasecmp(system_charset_info, host,
+                          grant_name->host.hostname)) ||
+	  (ip && !strcmp(ip, grant_name->host.hostname)))
 	return grant_name;
     }
     else
@@ -3266,16 +3271,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   }
   grant_option=TRUE;
   thd->mem_root= old_root;
-  /*
-    This flush is here only becuase there is code that writes rows to
-    system tables after executing a binlog_query().
-
-    TODO: Ensure that no writes are executed after a binlog_query() by
-    moving the writes to before calling binlog_query(). Then remove
-    this line (and add an assert inside send_ok() that checks that
-    everything is in a consistent state).
-   */
-  thd->binlog_flush_pending_rows_event(true);
   rw_unlock(&LOCK_grant);
   if (!result && !no_error)
     send_ok(thd);
@@ -3673,6 +3668,13 @@ end:
    RETURN
      0  ok
      1  Error: User did not have the requested privileges
+
+   NOTE
+     This functions assumes that either number of tables to be inspected
+     by it is limited explicitly (i.e. is is not UINT_MAX) or table list
+     used and thd->lex->query_tables_own_last value correspond to each
+     other (the latter should be either 0 or point to next_global member
+     of one of elements of this table list).
 ****************************************************************************/
 
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
@@ -5035,6 +5037,8 @@ static int handle_grant_struct(uint struct_no, bool drop,
   LINT_INIT(acl_user);
   LINT_INIT(acl_db);
   LINT_INIT(grant_name);
+  LINT_INIT(user);
+  LINT_INIT(host);
 
   /* Get the number of elements in the in-memory structure. */
   switch (struct_no) {
@@ -5107,8 +5111,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
     result= 1; /* At least one element found. */
     if ( drop )
     {
-      switch ( struct_no )
-      {
+      switch ( struct_no ) {
       case 0:
         delete_dynamic_element(&acl_users, idx);
         break;

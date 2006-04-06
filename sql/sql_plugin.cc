@@ -94,8 +94,10 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(struct st_plugin_dl *plugin_dl)
 
 static inline void free_plugin_mem(struct st_plugin_dl *p)
 {
+#ifdef HAVE_DLOPEN
   if (p->handle)
     dlclose(p->handle);
+#endif
   my_free(p->dl.str, MYF(MY_ALLOW_ZERO_PTR));
   if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION)
     my_free((gptr)p->plugins, MYF(MY_ALLOW_ZERO_PTR));
@@ -190,7 +192,8 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
 
   if (plugin_dl.version != MYSQL_PLUGIN_INTERFACE_VERSION)
   {
-    int i, sizeof_st_plugin;
+    int i;
+    uint sizeof_st_plugin;
     struct st_mysql_plugin *old, *cur;
     char *ptr= (char *)sym;
 
@@ -526,15 +529,8 @@ static int plugin_initialize(struct st_plugin_int *plugin)
   switch (plugin->plugin->type)
   {
   case MYSQL_STORAGE_ENGINE_PLUGIN:
-    if (ha_initialize_handlerton((handlerton*) plugin->plugin->info))
-    {
-      sql_print_error("Plugin '%s' handlerton init returned error.",
-                      plugin->name.str);
-      DBUG_PRINT("warning", ("Plugin '%s' handlerton init returned error.",
-                             plugin->name.str));
-      goto err;
-    }
-    break;
+    sql_print_error("Storage Engine plugins are unsupported in this version.");
+    goto err;
   default:
     break;
   }
@@ -688,7 +684,7 @@ void plugin_load(void)
   if (simple_open_n_lock_tables(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open plugin table"));
-    sql_print_error("Can't open the mysql.plugin table. Please run the mysql_install_db script to create it.");
+    sql_print_error("Can't open the mysql.plugin table. Please run the mysql_upgrade script to create it.");
     goto end;
   }
   table= tables.table;

@@ -192,9 +192,9 @@ TYPE is the node type, and BASE is the base node (not a pointer to it). */
 	ut_list_node_313 = (BASE).start;\
 \
 	for (ut_list_i_313 = 0; ut_list_i_313 < (BASE).count;\
-	 					ut_list_i_313++) {\
-	 	ut_a(ut_list_node_313);\
-	 	ut_list_node_313 = (ut_list_node_313->NAME).next;\
+						ut_list_i_313++) {\
+		ut_a(ut_list_node_313);\
+		ut_list_node_313 = (ut_list_node_313->NAME).next;\
 	}\
 \
 	ut_a(ut_list_node_313 == NULL);\
@@ -202,14 +202,14 @@ TYPE is the node type, and BASE is the base node (not a pointer to it). */
 	ut_list_node_313 = (BASE).end;\
 \
 	for (ut_list_i_313 = 0; ut_list_i_313 < (BASE).count;\
-	 					ut_list_i_313++) {\
-	 	ut_a(ut_list_node_313);\
-	 	ut_list_node_313 = (ut_list_node_313->NAME).prev;\
+						ut_list_i_313++) {\
+		ut_a(ut_list_node_313);\
+		ut_list_node_313 = (ut_list_node_313->NAME).prev;\
 	}\
 \
 	ut_a(ut_list_node_313 == NULL);\
 }\
-	
+
 
 #endif
 

@@ -2608,7 +2608,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       switch(arguments[i]->type()) {
       case Item::STRING_ITEM:			// Constant string !
       {
-	String *res=arguments[i]->val_str((String *) 0);
+	String *res=arguments[i]->val_str(&buffers[i]);
 	if (arguments[i]->null_value)
 	  continue;
 	f_args.args[i]=    (char*) res->ptr();
@@ -2807,9 +2807,6 @@ longlong Item_func_udf_int::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_int::val_int");
-  DBUG_PRINT("info",("result_type: %d  arg_count: %d",
-		     args[0]->result_type(), arg_count));
-
   DBUG_RETURN(udf.val_int(&null_value));
 }
 
@@ -4466,7 +4463,7 @@ double Item_func_match::val_real()
     DBUG_RETURN(-1.0);
 
   if (table->null_row) /* NULL row from an outer join */
-    return 0.0;
+    DBUG_RETURN(0.0);
 
   if (join_key)
   {
@@ -4483,9 +4480,8 @@ double Item_func_match::val_real()
     DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
 				      (byte *)a->ptr(), a->length()));
   }
-  else
-    DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
-                                                   table->record[0], 0));
+  DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
+                                                 table->record[0], 0));
 }
 
 void Item_func_match::print(String *str)
@@ -4880,6 +4876,7 @@ Item_func_sp::fix_length_and_dec()
   {
     decimals= result_field->decimals();
     max_length= result_field->field_length;
+    collation.set(result_field->charset());
     DBUG_VOID_RETURN;
   }
 
@@ -4890,6 +4887,7 @@ Item_func_sp::fix_length_and_dec()
   }
   decimals= field->decimals();
   max_length= field->field_length;
+  collation.set(field->charset());
   maybe_null= 1;
   delete field;
   DBUG_VOID_RETURN;

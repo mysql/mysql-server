@@ -191,6 +191,15 @@ typedef struct st_table_share
   bool waiting_on_cond;                 /* Protection against free */
   ulong table_map_id;                   /* for row-based replication */
   ulonglong table_map_version;
+
+  /*
+    Cache for row-based replication table share checks that does not
+    need to be repeated. Possible values are: -1 when cache value is
+    not calculated yet, 0 when table *shall not* be replicated, 1 when
+    table *may* be replicated.
+  */
+  int cached_row_logging_check;
+
   /*
     TRUE if this is a system table like 'mysql.proc', which we want to be
     able to open and lock even when we already have some tables open and
@@ -216,6 +225,8 @@ typedef struct st_table_share
 /* Information for one open table */
 
 struct st_table {
+  st_table() {}                               /* Remove gcc warning */
+
   TABLE_SHARE	*s;
   handler	*file;
 #ifdef NOT_YET
@@ -490,6 +501,7 @@ public:
 
 typedef struct st_table_list
 {
+  st_table_list() {}                          /* Remove gcc warning */
   /*
     List of tables local to a subquery (used by SQL_LIST). Considers
     views as leaves (unlike 'next_leaf' below). Created at parse time
@@ -544,7 +556,8 @@ typedef struct st_table_list
   struct st_table_list *next_name_resolution_table;
   /* Index names in a "... JOIN ... USE/IGNORE INDEX ..." clause. */
   List<String> *use_index, *ignore_index;
-  TABLE        *table;                   /* opened table */
+  TABLE        *table;                          /* opened table */
+  uint          table_id; /* table id (from binlog) for opened table */
   /*
     select_result for derived table to pass it from table creation to table
     filling procedure
@@ -722,6 +735,7 @@ class Item;
 class Field_iterator: public Sql_alloc
 {
 public:
+  Field_iterator() {}                         /* Remove gcc warning */
   virtual ~Field_iterator() {}
   virtual void set(TABLE_LIST *)= 0;
   virtual void next()= 0;
@@ -830,7 +844,7 @@ public:
   GRANT_INFO *grant();
   Item *create_item(THD *thd) { return field_it->create_item(thd); }
   Field *field() { return field_it->field(); }
-  Natural_join_column *get_or_create_column_ref(bool *is_created);
+  Natural_join_column *get_or_create_column_ref(TABLE_LIST *parent_table_ref);
   Natural_join_column *get_natural_column_ref();
 };
 

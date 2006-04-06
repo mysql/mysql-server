@@ -249,8 +249,8 @@ copy_dir_dirs() {
 # Input directories to be copied
 #
 
-for i in client dbug extra storage/heap include storage/archive storage/example \
-         libmysql libmysqld storage/myisam storage/example \
+for i in client dbug extra storage/heap include storage/archive storage/csv \
+         include/mysql libmysql libmysqld storage/myisam storage/example \
          storage/myisammrg mysys regex sql strings sql-common sql/examples \
          tools vio zlib
 do
@@ -266,7 +266,7 @@ make -C $SOURCE/storage/ndb windoze
 # Input directories to be copied recursively
 #
 
-for i in storage/bdb storage/innobase storage/ndb extra/yassl server-tools
+for i in storage/bdb storage/innobase storage/ndb extra/yassl server-tools plugin
 do
   copy_dir_dirs $i
 done

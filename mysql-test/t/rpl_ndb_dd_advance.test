@@ -1,0 +1,598 @@
+###############################################
+# Author: JBM                                 #
+# Date: 2006-03-07                            #
+# Purpose: To test advance DD and replication #
+###############################################
+
+#### Include Section ####
+--source include/have_ndb.inc
+--source include/have_binlog_format_row.inc
+#--source include/have_ndb_extra.inc
+--source include/master-slave.inc
+
+#### Test start cleanup section #####
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3;
+--enable_warnings
+
+######################################################
+# Requirment: Cluster DD and replication must be able#
+# to handle ALTER tables and indexes and must rpl    #
+# to the slave correctly                             #
+######################################################
+
+##  Test #1 replication of CDD and Alter Tables #####
+--echo ***** Test 1 RPL of CDD and Alter *****
+--echo ***** Test 1 setup *****
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE 4M 
+ENGINE=NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE=NDB;
+
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile02.dat'
+INITIAL_SIZE 4M 
+ENGINE=NDB;
+
+CREATE TABLE t1
+  (c1 INT NOT NULL PRIMARY KEY, 
+   c2 INT NOT NULL, 
+   c3 INT NOT NULL)
+   TABLESPACE ts1 STORAGE DISK
+   ENGINE=NDB;
+
+--echo ***** insert some data *****
+
+let $j= 900;
+--disable_query_log
+while ($j)
+{
+  eval INSERT INTO t1 VALUES($j,$j*2,$j+3);
+  dec $j;
+}
+--enable_query_log
+
+--echo ***** Select from Master *****
+
+SELECT * FROM t1 ORDER BY c1 LIMIT 5;
+
+--echo ***** Select from Slave *****
+--sync_slave_with_master
+connection slave;
+SELECT * FROM t1 ORDER BY c1 LIMIT 5;
+
+###################################
+# Just to some File Schema check  #
+###################################
+
+--disable_query_log
+SELECT DISTINCT FILE_NAME, FILE_TYPE, TABLESPACE_NAME, LOGFILE_GROUP_NAME   
+       FROM INFORMATION_SCHEMA.FILES
+       WHERE ENGINE="ndbcluster" ORDER BY FILE_NAME;
+--enable_query_log
+
+--echo **** Do First Set of ALTERs in the master table ****
+###################################################
+# On this first set of alters I expect: 
+# 1. To be able to create and index on 2 columns
+# 2. To be able to create a unique index
+# 3. To be able to add two columns and have
+# it all replicated correctly to the slave cluster.
+###################################################
+connection master;
+CREATE INDEX t1_i ON t1(c2, c3);
+#Bug 18039
+#CREATE UNIQUE INDEX t1_i2 ON t1(c2);
+ALTER TABLE t1 ADD c4 TIMESTAMP;
+ALTER TABLE t1 ADD c5 DOUBLE;
+ALTER TABLE t1 ADD INDEX (c5);  
+SHOW CREATE TABLE t1;
+
+--echo **** Show first set of ALTERs on SLAVE ****
+--sync_slave_with_master
+connection slave;
+SHOW CREATE TABLE t1;
+
+--echo **** Second set of alters test 1 ****
+############################################
+# With this next set of alters we have had
+# Some issues with renames of tables. So this
+# test renames our main table, drop and index off
+# of it, creates another table with then name
+# of the orginal table, inserts a row, drops 
+# the table and renames the orginal table back.
+# I want to make sure that 1) the cluster does
+# okay with this and 2) that it is replicated 
+# correctly.
+#############################################
+connection master;
+ALTER TABLE t1 RENAME t2;
+ALTER TABLE t2 DROP INDEX c5;
+CREATE TABLE t1(c1 INT)ENGINE=NDB;
+INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
+ALTER TABLE t2 RENAME t1;
+
+--echo **** Show second set of ALTERs on MASTER ****
+
+SHOW CREATE TABLE t1;
+
+--echo **** Show second set of ALTERs on SLAVE ****
+--sync_slave_with_master
+connection slave;
+SHOW CREATE TABLE t1;
+
+--echo **** Third and last set of alters for test1  ****
+#########################################################
+# In this last set of alters, we are messing with the 
+# cluster ability to rebuild indexes, drop a column that make up
+# an index with another column and change types several times in
+# a row. I have choosen the BLOB as it seems to have had many
+# issues in this release. I want to make sure that the cluster
+# deals with these radical changes and that the replication to
+# the slave cluster is dones correctly. 
+###########################################################
+connection master;
+ALTER TABLE t1 CHANGE c1 c1 DOUBLE;
+ALTER TABLE t1 CHANGE c2 c2 DECIMAL(10,2);
+ALTER TABLE t1 DROP COLUMN c3;
+ALTER TABLE t1 CHANGE c4 c4 TEXT CHARACTER SET utf8;
+ALTER TABLE t1 CHANGE c4 c4 BLOB;
+ALTER TABLE t1 CHANGE c4 c3 BLOB;
+set @b1 = 'b1';
+set @b1 = concat(@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1,@b1);
+UPDATE t1 SET c3=@b1 where c1 = 1;
+UPDATE t1 SET c3=@b1 where c1 = 2;
+ 
+--echo **** Show last set of ALTERs on MASTER ****
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1 ORDER BY c1 LIMIT 5;
+
+--echo **** Show last set of ALTERs on SLAVE ****
+--sync_slave_with_master
+connection slave;
+SHOW CREATE TABLE t1;
+# Bug 18094
+#SELECT * FROM t1 ORDER BY c1 LIMIT 5;
+SELECT * FROM t1 where c1 = 1;
+
+connection master;
+DROP TABLE t1;
+--sync_slave_with_master
+connection slave;
+STOP SLAVE;
+RESET SLAVE;
+connection master;
+RESET MASTER;
+connection slave;
+START SLAVE;
+
+################### TEST 2 TPCB for disk data ###########################
+# Requirement: To have Stored Procedures and Functions that are used to #
+# populate and post transactions to the data base using CDD that span   #
+# 2 tables spaces and also use a memory only cluster tables. In addition#
+# The slave is to be stopped, cleaned and restored and synced with the  #
+# Master cluster                                                        #
+#########################################################################
+
+--echo ******** Create additional TABLESPACE test 2 **************
+
+connection master;
+CREATE TABLESPACE ts2
+ADD DATAFILE 'datafile03.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE=NDB;
+
+ALTER TABLESPACE ts2
+ADD DATAFILE 'datafile04.dat'
+INITIAL_SIZE 12M
+ENGINE=NDB;
+
+###### CLEAN UP SECTION ##############
+DROP DATABASE IF EXISTS tpcb;
+CREATE DATABASE tpcb;
+######## Creat Table Section #########
+--echo *********** Create TPCB Tables *****************
+CREATE TABLE tpcb.account 
+             (id INT, bid INT, balance DECIMAL(10,2),
+              filler CHAR(255), PRIMARY KEY(id))
+              TABLESPACE ts1 STORAGE DISK 
+              ENGINE=NDB;
+
+CREATE TABLE tpcb.branch 
+            (bid INT, balance DECIMAL(10,2), filler VARCHAR(255),
+             PRIMARY KEY(bid))
+             ENGINE=NDB;
+
+CREATE TABLE tpcb.teller 
+             (tid INT, balance DECIMAL(10,2), filler VARCHAR(255),
+              PRIMARY KEY(tid))
+              TABLESPACE ts2 STORAGE DISK
+              ENGINE=NDB;
+
+CREATE TABLE tpcb.history 
+             (id MEDIUMINT NOT NULL AUTO_INCREMENT,aid INT,
+              tid INT, bid INT,  amount DECIMAL(10,2),
+              tdate DATETIME, teller CHAR(20), uuidf LONGBLOB,
+              filler CHAR(80),PRIMARY KEY (id))
+              TABLESPACE ts2 STORAGE DISK
+              ENGINE=NDB;
+
+--echo ********* Create Procedures and Functions ************
+delimiter |;
+CREATE PROCEDURE tpcb.load()
+BEGIN
+  DECLARE acct INT DEFAULT 1000;
+  DECLARE brch INT DEFAULT 100;
+  DECLARE tell INT DEFAULT 1000;
+  DECLARE tmp INT DEFAULT 100;
+  WHILE brch > 0 DO
+    SET tmp = 100;
+    WHILE tmp > 0 DO
+     INSERT INTO tpcb.account VALUES (acct, brch, 0.0, "FRESH ACCOUNT");
+     SET acct = acct - 1;
+     SET tmp = tmp -1;
+    END WHILE;
+    INSERT INTO tpcb.branch VALUES (brch, 0.0, "FRESH BRANCH");
+    SET brch = brch - 1;
+   END WHILE;
+  WHILE tell > 0 DO
+   INSERT INTO tpcb.teller VALUES (tell, 0.0, "FRESH TELLER");
+   SET tell = tell - 1;
+  END WHILE;
+END|
+
+CREATE FUNCTION tpcb.account_id () RETURNS INT
+BEGIN
+  DECLARE num INT;
+  DECLARE ran INT;
+  SELECT RAND() * 10 INTO ran;
+  IF (ran < 2)
+   THEN
+     SELECT RAND() * 10 INTO num;
+   ELSEIF (ran < 4)
+    THEN
+     SELECT RAND() * 100 INTO num;
+   ELSE 
+     SELECT RAND() * 1000 INTO num;
+   END IF;
+   IF (num < 1)
+    THEN
+      RETURN 1;
+   END IF;
+  RETURN  num;
+END|
+
+CREATE FUNCTION tpcb.teller_id () RETURNS INT
+BEGIN
+  DECLARE num INT;
+  DECLARE ran INT;
+  SELECT RAND() * 10 INTO ran;
+  IF (ran < 2)
+   THEN
+     SELECT RAND() * 10 INTO num;
+   ELSEIF (ran < 5)
+    THEN
+     SELECT RAND() * 100 INTO num;
+   ELSE
+     SELECT RAND() * 1000 INTO num;
+   END IF;
+   IF (num < 1)
+    THEN
+      RETURN 1;
+   END IF;
+   RETURN  num;
+END|
+
+CREATE PROCEDURE tpcb.trans()
+BEGIN
+  DECLARE acct INT DEFAULT 0;
+  DECLARE brch INT DEFAULT 0;
+  DECLARE tell INT DEFAULT 0;
+  DECLARE bal  DECIMAL(10,2) DEFAULT 0.0;
+  DECLARE amount DECIMAL(10,2) DEFAULT 1.00;
+  DECLARE test INT DEFAULT 0;
+  DECLARE bbal DECIMAL(10,2) DEFAULT 0.0;
+  DECLARE tbal DECIMAL(10,2) DEFAULT 0.0;
+  DECLARE local_uuid VARCHAR(255);
+  DECLARE local_user VARCHAR(255);
+  DECLARE local_time TIMESTAMP;
+
+  SELECT RAND() * 10 INTO test;
+  SELECT tpcb.account_id() INTO acct;
+  SELECT tpcb.teller_id() INTO tell;
+
+  SELECT account.balance INTO bal FROM tpcb.account WHERE id = acct;
+  SELECT account.bid INTO brch FROM tpcb.account WHERE id = acct;
+  SELECT teller.balance INTO tbal FROM tpcb.teller WHERE tid = tell;
+  SELECT branch.balance INTO bbal FROM tpcb.branch WHERE bid = brch;
+
+  IF (test < 5)
+   THEN
+     SET bal = bal + amount;
+     SET bbal = bbal + amount;
+     SET tbal = tbal + amount;
+     UPDATE tpcb.account SET balance = bal, filler = 'account updated'
+     WHERE id = acct;
+     UPDATE tpcb.branch SET balance = bbal, filler = 'branch updated'
+     WHERE bid = brch;
+     UPDATE tpcb.teller SET balance = tbal, filler = 'teller updated'
+     WHERE tid = tell;
+   ELSE
+     SET bal = bal - amount;
+     SET bbal = bbal - amount;
+     SET tbal = tbal - amount;
+     UPDATE tpcb.account SET balance = bal, filler = 'account updated'
+     WHERE id = acct;
+     UPDATE tpcb.branch SET balance = bbal, filler = 'branch updated'
+     WHERE bid = brch;
+     UPDATE tpcb.teller SET balance = tbal, filler = 'teller updated'
+     WHERE tid = tell;
+  END IF;
+
+  SET local_uuid=UUID();
+  SET local_user=USER();
+  SET local_time= NOW();
+  INSERT INTO tpcb.history VALUES(NULL,acct,tell,brch,amount, local_time,local_user,
+                           local_uuid,'completed trans');
+END|
+delimiter ;|
+
+--echo ****** TEST 2 test time *********************************
+USE tpcb;
+
+--echo *********** Load up the database ******************
+CALL tpcb.load();
+
+--echo ********** Check load master and slave **************
+SELECT COUNT(*) FROM account;
+--sync_slave_with_master
+connection slave;
+USE tpcb;
+SELECT COUNT(*) FROM account;
+
+--echo ******** Run in some transactions ***************
+
+connection master;
+let $j= 1000;
+--disable_query_log
+while ($j)
+{
+  CALL tpcb.trans();
+  dec $j;
+}
+--enable_query_log
+
+--echo ***** Time to try slave sync ***********
+--echo **** Must make sure slave is clean *****
+--connection slave
+STOP SLAVE;
+RESET SLAVE;
+DROP PROCEDURE tpcb.load;
+DROP PROCEDURE tpcb.trans;
+DROP TABLE tpcb.account;
+DROP TABLE tpcb.teller;
+DROP TABLE tpcb.branch;
+DROP TABLE tpcb.history;
+DROP DATABASE tpcb;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE=NDB;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile02.dat'
+ENGINE=NDB;
+
+DROP TABLESPACE ts1 ENGINE=NDB;
+
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile03.dat'
+ENGINE=NDB;
+
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile04.dat'
+ENGINE=NDB;
+
+DROP TABLESPACE ts2 ENGINE=NDB;
+
+DROP LOGFILE GROUP lg1 ENGINE=NDB;
+
+--echo ********** Take a backup of the Master *************
+connection master;
+
+SELECT COUNT(*) FROM history;
+
+let $j= 1000;
+--disable_query_log
+while ($j)
+{
+  CALL tpcb.trans();
+  dec $j;
+}
+--enable_query_log
+
+SELECT COUNT(*) FROM history;
+
+#RESET MASTER;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+--exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > $MYSQLTEST_VARDIR/tmp.dat
+
+CREATE TEMPORARY TABLE IF NOT EXISTS cluster.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+
+DELETE FROM cluster.backup_info;
+
+LOAD DATA INFILE '../tmp.dat' INTO TABLE cluster.backup_info FIELDS TERMINATED BY ',';
+
+--replace_column 1 <the_backup_id>
+
+SELECT @the_backup_id:=backup_id FROM cluster.backup_info;
+
+let the_backup_id=`select @the_backup_id`;
+
+DROP TABLE IF EXISTS cluster.backup_info;
+#RESET MASTER;
+
+--echo ************ Restore the slave ************************
+connection slave;
+CREATE DATABASE tpcb;
+--source include/ndb_restore_slave_eoption.inc
+
+--echo ***** Check a few slave restore values ***************
+connection slave;
+USE tpcb;
+SELECT COUNT(*) FROM account;
+
+--echo ***** Add some more records to master *********
+connection master;
+let $j= 1000;
+--disable_query_log
+while ($j)
+{
+  CALL tpcb.trans();
+  dec $j;
+}
+--enable_query_log
+
+#
+# now setup replication to continue from last epoch
+# 1. get apply_status epoch from slave
+# 2. get corresponding _next_ binlog postition from master
+# 3. change master on slave
+# 4. add some transaction for slave to process
+# 5. start the replication
+
+--echo ***** Finsh the slave sync process *******
+# 1.
+--echo * 1. *
+connection slave;
+--disable_query_log
+--replace_column 1 <the_epoch>
+SELECT @the_epoch:=MAX(epoch) FROM cluster.apply_status;
+--let $the_epoch= `select @the_epoch`
+
+# 2.
+--echo * 2. *
+connection master;
+--replace_column 1 <the_pos>
+eval SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
+   FROM cluster.binlog_index WHERE epoch > $the_epoch ORDER BY epoch ASC LIMIT 1;
+--let $the_pos= `SELECT @the_pos`
+--let $the_file= `SELECT @the_file`
+
+# 3.
+--echo * 3. *
+connection slave;
+eval CHANGE MASTER TO
+  master_log_file = '$the_file',
+  master_log_pos = $the_pos;
+--enable_query_log
+
+# 4.
+--echo * 4. *
+connection master;
+let $j= 1000;
+--disable_query_log
+while ($j)
+{
+  CALL tpcb.trans();
+  dec $j;
+}
+--enable_query_log
+
+# 5.
+--echo * 5. *
+connection slave;
+START SLAVE;
+
+--echo **** We should be ready to continue on *************
+
+connection master;
+let $j= 50;
+--disable_query_log
+while ($j)
+{
+  CALL tpcb.trans();
+  dec $j;
+}
+--enable_query_log
+
+--echo ****** Let's make sure we match *******
+--echo ***** MASTER *******
+USE tpcb;
+SELECT COUNT(*) FROM history;
+
+--echo ****** SLAVE ********
+--sync_slave_with_master
+connection slave;
+USE tpcb;
+SELECT COUNT(*) FROM history;
+
+--echo *** DUMP MASTER & SLAVE FOR COMPARE ********
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert tpcb account teller branch history > $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql
+
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert tpcb account teller branch history > $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
+
+--echo *************** TEST 2 CLEANUP SECTION ********************
+connection master;
+DROP PROCEDURE tpcb.load;
+DROP PROCEDURE tpcb.trans;
+DROP TABLE tpcb.account;
+DROP TABLE tpcb.teller;
+DROP TABLE tpcb.branch;
+DROP TABLE tpcb.history;
+DROP DATABASE tpcb;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE=NDB;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile02.dat'
+ENGINE=NDB;
+
+DROP TABLESPACE ts1 ENGINE=NDB;
+
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile03.dat'
+ENGINE=NDB;
+
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile04.dat'
+ENGINE=NDB;
+
+DROP TABLESPACE ts2 ENGINE=NDB;
+
+DROP LOGFILE GROUP lg1 ENGINE=NDB;
+
+--sync_slave_with_master
+
+connection master;
+
+--echo ****** Do dumps compare ************
+
+--exec diff $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
+
+## Note: Ths files should only get removed, if the above diff succeeds.
+
+--exec rm $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql
+--exec rm $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql
+
+# End 5.1 test case

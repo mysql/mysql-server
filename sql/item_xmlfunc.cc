@@ -30,7 +30,6 @@
   2. add nodeset_to_nodeset_comparator
   3. add lacking functions:
        - name()
-       - last()
        - lang()
        - string()
        - id()
@@ -75,6 +74,7 @@ typedef struct my_xpath_flt_st
 {
   uint num;     /* absolute position in MY_XML_NODE array */
   uint pos;     /* relative position in context           */
+  uint size;    /* context size                           */
 } MY_XPATH_FLT;
 
 
@@ -101,6 +101,7 @@ typedef struct my_xpath_st
   MY_XPATH_FUNC *func;   /* last scanned function creator             */
   Item *item;            /* current expression                        */
   Item *context;         /* last scanned context                      */
+  Item *rootelement;     /* The root element                          */
   String *context_cache; /* last context provider                     */
   String *pxml;          /* Parsed XML, an array of MY_XML_NODE       */
   CHARSET_INFO *cs;      /* character set/collation string comparison */
@@ -122,6 +123,15 @@ public:
     MY_XPATH_FLT add;
     add.num= num;
     add.pos= pos;
+    add.size= 0;
+    return append_element(&add);
+  }
+  inline bool append_element(uint32 num, uint32 pos, uint32 size)
+  {
+    MY_XPATH_FLT add;
+    add.num= num;
+    add.pos= pos;
+    add.size= size;
     return append_element(&add);
   }
   inline MY_XPATH_FLT *element(uint i)
@@ -205,7 +215,11 @@ public:
     return str;
   }
   enum Item_result result_type () const { return STRING_RESULT; }
-  void fix_length_and_dec() { max_length=  MAX_BLOB_WIDTH; }
+  void fix_length_and_dec()
+  {
+    max_length= MAX_BLOB_WIDTH;
+    collation.collation= pxml->charset();
+  }
   const char *func_name() const { return "nodeset"; }
 };
 
@@ -248,6 +262,18 @@ public:
     return (node_namelen == (uint) (n->end - n->beg)) &&
             !memcmp(node_name, n->beg, node_namelen);
   }
+};
+
+
+/* Returns self */
+class Item_nodeset_func_selfbyname: public Item_nodeset_func_axisbyname
+{
+public:
+  Item_nodeset_func_selfbyname(Item *a, const char *n_arg, uint l_arg,
+                                String *pxml): 
+    Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml) {}
+  const char *func_name() const { return "xpath_selfbyname"; }
+  String *val_nodeset(String *nodeset);
 };
 
 
@@ -438,7 +464,11 @@ public:
   void fix_length_and_dec() { max_length=10; }
   longlong val_int()
   {
+    uint predicate_supplied_context_size;
     String *res= args[0]->val_nodeset(&tmp_value);
+    if (res->length() == sizeof(MY_XPATH_FLT) &&
+        (predicate_supplied_context_size= ((MY_XPATH_FLT*)res->ptr())->size))
+      return predicate_supplied_context_size;
     return res->length() / sizeof(MY_XPATH_FLT);
   }
 };
@@ -566,6 +596,20 @@ String * Item_nodeset_func_union::val_nodeset(String *nodeset)
   {
     if (both[i])
      ((XPathFilter*)nodeset)->append_element(i, pos++);
+  }
+  return nodeset;
+}
+
+
+String *Item_nodeset_func_selfbyname::val_nodeset(String *nodeset)
+{
+  prepare(nodeset);
+  for (MY_XPATH_FLT *flt= fltbeg; flt < fltend; flt++)
+  {
+    uint pos= 0;
+    MY_XML_NODE *self= &nodebeg[flt->num];
+    if (validname(self))
+      ((XPathFilter*)nodeset)->append_element(flt->num,pos++);
   }
   return nodeset;
 }
@@ -704,13 +748,15 @@ String *Item_nodeset_func_predicate::val_nodeset(String *str)
 {
   Item_nodeset_func *nodeset_func= (Item_nodeset_func*) args[0];
   Item_func *comp_func= (Item_func*)args[1];
-  uint pos= 0;
+  uint pos= 0, size;
   prepare(str);
+  size= fltend - fltbeg;
   for (MY_XPATH_FLT *flt= fltbeg; flt < fltend; flt++)
   {
     nodeset_func->context_cache.length(0);
     ((XPathFilter*)(&nodeset_func->context_cache))->append_element(flt->num,
-                                                                   flt->pos);
+                                                                   flt->pos,
+                                                                   size);
     if (comp_func->val_int())
       ((XPathFilter*)str)->append_element(flt->num, pos++);
   }
@@ -720,17 +766,19 @@ String *Item_nodeset_func_predicate::val_nodeset(String *str)
 
 String *Item_nodeset_func_elementbyindex::val_nodeset(String *nodeset)
 {
+  Item_nodeset_func *nodeset_func= (Item_nodeset_func*) args[0];
   prepare(nodeset);
-  int index= args[1]->val_int() - 1;
-  if (index >= 0)
+  MY_XPATH_FLT *flt;
+  uint pos, size= fltend - fltbeg;
+  for (pos= 0, flt= fltbeg; flt < fltend; flt++)
   {
-    MY_XPATH_FLT *flt;
-    uint pos;
-    for (pos= 0, flt= fltbeg; flt < fltend; flt++)
-    {
-      if (flt->pos == (uint) index || args[1]->is_bool_func())
-        ((XPathFilter*)nodeset)->append_element(flt->num, pos++);
-    }
+    nodeset_func->context_cache.length(0);
+    ((XPathFilter*)(&nodeset_func->context_cache))->append_element(flt->num,
+                                                                   flt->pos,
+                                                                   size);
+    int index= args[1]->val_int() - 1;
+    if (index >= 0 && (flt->pos == (uint) index || args[1]->is_bool_func()))
+      ((XPathFilter*)nodeset)->append_element(flt->num, pos++);
   }
   return nodeset;
 }
@@ -944,6 +992,9 @@ static Item* nametestfunc(MY_XPATH *xpath,
   case MY_XPATH_AXIS_ATTRIBUTE:
     res= new Item_nodeset_func_attributebyname(arg, beg, len, xpath->pxml);
     break;
+  case MY_XPATH_AXIS_SELF:
+    res= new Item_nodeset_func_selfbyname(arg, beg, len, xpath->pxml);
+    break;
   default:
     res= new Item_nodeset_func_childbyname(arg, beg, len, xpath->pxml);
   }
@@ -1090,13 +1141,15 @@ static Item *create_func_round(MY_XPATH *xpath, Item **args, uint nargs)
 
 static Item *create_func_last(MY_XPATH *xpath, Item **args, uint nargs)
 {
-  return new Item_func_xpath_count(xpath->context, xpath->pxml);
+  return xpath->context ? 
+         new Item_func_xpath_count(xpath->context, xpath->pxml) : NULL;
 }
 
 
 static Item *create_func_position(MY_XPATH *xpath, Item **args, uint nargs)
 {
-  return new Item_func_xpath_position(xpath->context, xpath->pxml);
+  return xpath->context ? 
+         new Item_func_xpath_position(xpath->context, xpath->pxml) : NULL;
 }
 
 
@@ -1271,7 +1324,7 @@ my_xident_body(int c)
   return (((c) >= 'a' && (c) <= 'z') ||
           ((c) >= 'A' && (c) <= 'Z') ||
           ((c) >= '0' && (c) <= '9') ||
-          ((c)=='-'));
+          ((c)=='-') || ((c) == '_'));
 }
 
 
@@ -1464,6 +1517,8 @@ static int my_xpath_parse_LocationPath(MY_XPATH *xpath)
 {
   Item *context= xpath->context;
 
+  if (!xpath->context)
+    xpath->context= xpath->rootelement;
   int rc= my_xpath_parse_RelativeLocationPath(xpath) || 
           my_xpath_parse_AbsoluteLocationPath(xpath);
 
@@ -1496,7 +1551,7 @@ static int my_xpath_parse_AbsoluteLocationPath(MY_XPATH *xpath)
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH))
     return 0;
 
-  xpath->context= new Item_nodeset_func_rootelement(xpath->pxml);
+  xpath->context= xpath->rootelement;
 
   if (my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH))
   {
@@ -1506,10 +1561,8 @@ static int my_xpath_parse_AbsoluteLocationPath(MY_XPATH *xpath)
     return my_xpath_parse_RelativeLocationPath(xpath);
   }
 
-  if (my_xpath_parse_RelativeLocationPath(xpath))
-    return 1;
-
-  return 1;
+  return my_xpath_parse_term(xpath, MY_XPATH_LEX_EOF) ||
+         my_xpath_parse_RelativeLocationPath(xpath);
 }
 
 
@@ -1973,8 +2026,17 @@ static int my_xpath_parse_AndExpr(MY_XPATH *xpath)
 */
 static int my_xpath_parse_ne(MY_XPATH *xpath)
 { 
-  return my_xpath_parse_term(xpath, MY_XPATH_LEX_EXCL) &&
-         my_xpath_parse_term(xpath, MY_XPATH_LEX_EQ);
+  MY_XPATH_LEX prevtok= xpath->prevtok;
+  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_EXCL))
+    return 0;
+  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_EQ))
+  {
+    /* Unget the exclamation mark */
+    xpath->lasttok= xpath->prevtok;
+    xpath->prevtok= prevtok;
+    return 0;
+  }
+  return 1;
 }
 static int my_xpath_parse_EqualityOperator(MY_XPATH *xpath)
 {
@@ -2292,6 +2354,8 @@ my_xpath_parse(MY_XPATH *xpath, const char *str, const char *strend)
   my_xpath_lex_init(&xpath->prevtok, str, strend);
   my_xpath_lex_scan(xpath, &xpath->lasttok, str, strend);
 
+  xpath->rootelement= new Item_nodeset_func_rootelement(xpath->pxml);
+
   return
      my_xpath_parse_Expr(xpath) &&
      my_xpath_parse_term(xpath, MY_XPATH_LEX_EOF);
@@ -2330,6 +2394,7 @@ void Item_xml_str_func::fix_length_and_dec()
   xpath.cs= collation.collation;
   xpath.debug= 0;
   xpath.pxml= &pxml;
+  pxml.set_charset(collation.collation);
 
   rc= my_xpath_parse(&xpath, xp->ptr(), xp->ptr() + xp->length());
 
@@ -2338,8 +2403,7 @@ void Item_xml_str_func::fix_length_and_dec()
     char context[32];
     uint clen= xpath.query.end - xpath.lasttok.beg;
     set_if_bigger(clen, sizeof(context) - 1);
-    memcpy(context, xpath.lasttok.beg, clen);
-    context[clen]= '\0';
+    strmake(context, xpath.lasttok.beg, clen);
     my_printf_error(ER_UNKNOWN_ERROR, "XPATH syntax error: '%s'", 
                     MYF(0), context);
     return;

@@ -50,7 +50,7 @@ open_step(
 	ulint		err;
 
 	ut_ad(thr);
-	
+
 	node = thr->run_node;
 	ut_ad(que_node_get_type(node) == QUE_NODE_OPEN);
 
@@ -74,15 +74,15 @@ open_step(
 			err = DB_ERROR;
 		}
 	}
-			
+
 	if (UNIV_EXPECT(err, DB_SUCCESS) != DB_SUCCESS) {
 		/* SQL error detected */
 		fprintf(stderr, "SQL error %lu\n", (ulong) err);
 
 		ut_error;
 	}
-		
+
 	thr->run_node = que_node_get_parent(node);
-	
+
 	return(thr);
 }

@@ -29,9 +29,9 @@ INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
 include $(srcdir)/Makefile.shared
 
 libmysqlclient_la_SOURCES = $(target_sources)
-libmysqlclient_la_LIBADD = $(target_libadd) $(yassl_libs_with_path)
+libmysqlclient_la_LIBADD = $(target_libadd) $(yassl_las)
 libmysqlclient_la_LDFLAGS = $(target_ldflags)
-EXTRA_DIST = Makefile.shared libmysql.def
+EXTRA_DIST = Makefile.shared libmysql.def dll.c mytest.c cmakelists.txt
 noinst_HEADERS = client_settings.h
 
 # This is called from the toplevel makefile
