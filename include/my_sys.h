@@ -850,6 +850,7 @@ my_bool my_gethwaddr(uchar *to);
 #define PROT_WRITE       2
 #define MAP_NORESERVE    0
 #define MAP_SHARED       0x0001
+#define MAP_PRIVATE      0x0002
 #define MAP_NOSYNC       0x0800
 #define MAP_FAILED       ((void *)-1)
 #define MS_SYNC          0x0000
