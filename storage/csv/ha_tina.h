@@ -51,9 +51,9 @@ typedef struct st_tina_share {
   ha_rows rows_recorded;    /* Number of rows in tables */
 } TINA_SHARE;
 
-typedef struct tina_set {
-	off_t begin;
-	off_t end;
+struct tina_set {
+  off_t begin;
+  off_t end;
 };
 
 class ha_tina: public handler
