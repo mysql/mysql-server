@@ -98,6 +98,9 @@ Qmgr::Qmgr(const class Configuration & conf)
 
   addRecSignal(GSN_READ_NODESREF, &Qmgr::execREAD_NODESREF);
   addRecSignal(GSN_READ_NODESCONF, &Qmgr::execREAD_NODESCONF);
+
+  addRecSignal(GSN_DIH_RESTARTREF, &Qmgr::execDIH_RESTARTREF);
+  addRecSignal(GSN_DIH_RESTARTCONF, &Qmgr::execDIH_RESTARTCONF);
   
   initData();
 }//Qmgr::Qmgr()
