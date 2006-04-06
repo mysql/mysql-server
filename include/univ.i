@@ -199,9 +199,6 @@ typedef longlong		ib_longlong;
 #endif
 #endif
 
-/* The following type should be at least a 64-bit floating point number */
-typedef double			utfloat;
-
 /* The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
 
