@@ -11995,7 +11995,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
   Uint32 tmngNode;
   Uint32 tmngNodeGroup;
   Uint32 tmngLimit;
-  Uint32 i;
+  Uint32 i, j;
 
   /**-----------------------------------------------------------------------
    * ASSIGN ALL ACTIVE NODES INTO NODE GROUPS. HOT SPARE NODES ARE ASSIGNED 
@@ -12041,6 +12041,38 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
       Sysfile::setNodeGroup(mngNodeptr.i, SYSFILE->nodeGroups, mngNodeptr.p->nodeGroup);
     }//if
   }//for
+
+  for (i = 0; i<cnoOfNodeGroups; i++)
+  {
+    jam();
+    bool alive = false;
+    NodeGroupRecordPtr NGPtr;
+    NGPtr.i = i;
+    ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+    for (j = 0; j<NGPtr.p->nodeCount; j++)
+    {
+      jam();
+      mngNodeptr.i = NGPtr.p->nodesInGroup[j];
+      ptrCheckGuard(mngNodeptr, MAX_NDB_NODES, nodeRecord);
+      if (checkNodeAlive(NGPtr.p->nodesInGroup[j]))
+      {
+	alive = true;
+	break;
+      }
+    }
+
+    if (!alive)
+    {
+      char buf[255];
+      BaseString::snprintf
+	(buf, sizeof(buf), 
+	 "Illegal initial start, no alive node in nodegroup %u", i);
+      progError(__LINE__, 
+		NDBD_EXIT_SR_RESTARTCONFLICT,
+		buf);
+      
+    }
+  }
 }//Dbdih::makeNodeGroups()
 
 /**
@@ -12851,7 +12883,6 @@ void Dbdih::sendStartFragreq(Signal* signal,
 void Dbdih::setInitialActiveStatus()
 {
   NodeRecordPtr siaNodeptr;
-  Uint32 tsiaNodeActiveStatus;
   Uint32 tsiaNoActiveNodes;
 
   tsiaNoActiveNodes = csystemnodes - cnoHotSpare;
@@ -12859,39 +12890,34 @@ void Dbdih::setInitialActiveStatus()
     SYSFILE->nodeStatus[i] = 0;
   for (siaNodeptr.i = 1; siaNodeptr.i < MAX_NDB_NODES; siaNodeptr.i++) {
     ptrAss(siaNodeptr, nodeRecord);
-    if (siaNodeptr.p->nodeStatus == NodeRecord::ALIVE) {
+    switch(siaNodeptr.p->nodeStatus){
+    case NodeRecord::ALIVE:
+    case NodeRecord::DEAD:
       if (tsiaNoActiveNodes == 0) {
         jam();
         siaNodeptr.p->activeStatus = Sysfile::NS_HotSpare;
       } else {
         jam();
         tsiaNoActiveNodes = tsiaNoActiveNodes - 1;
-        siaNodeptr.p->activeStatus = Sysfile::NS_Active;
-      }//if
-    } else {
-      jam();
-      siaNodeptr.p->activeStatus = Sysfile::NS_NotDefined;
-    }//if
-    switch (siaNodeptr.p->activeStatus) {
-    case Sysfile::NS_Active:
-      jam();
-      tsiaNodeActiveStatus = Sysfile::NS_Active;
-      break;
-    case Sysfile::NS_HotSpare:
-      jam();
-      tsiaNodeActiveStatus = Sysfile::NS_HotSpare;
-      break;
-    case Sysfile::NS_NotDefined:
-      jam();
-      tsiaNodeActiveStatus = Sysfile::NS_NotDefined;
+        if (siaNodeptr.p->nodeStatus == NodeRecord::ALIVE)
+	{
+	  jam();
+	  siaNodeptr.p->activeStatus = Sysfile::NS_Active;
+	} 
+	else
+	{
+	  siaNodeptr.p->activeStatus = Sysfile::NS_NotActive_NotTakenOver;
+	}
+      }
       break;
     default:
-      ndbrequire(false);
-      return;
+      jam();
+      siaNodeptr.p->activeStatus = Sysfile::NS_NotDefined;
       break;
-    }//switch
-    Sysfile::setNodeStatus(siaNodeptr.i, SYSFILE->nodeStatus,
-                           tsiaNodeActiveStatus);
+    }//if
+    Sysfile::setNodeStatus(siaNodeptr.i, 
+			   SYSFILE->nodeStatus,
+                           siaNodeptr.p->activeStatus);
   }//for
 }//Dbdih::setInitialActiveStatus()
 
@@ -14613,11 +14639,36 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
     jam();
     conf->senderData = senderData;
     conf->gcp = cnewgcp;
+    conf->blockStatus = cgcpOrderBlocked;
     sendSignal(senderRef, GSN_WAIT_GCP_CONF, signal, 
 	       WaitGCPConf::SignalLength, JBB);
     return;
   }//if
 
+  if (requestType == WaitGCPReq::BlockStartGcp)
+  {
+    jam();
+    conf->senderData = senderData;
+    conf->gcp = cnewgcp;
+    conf->blockStatus = cgcpOrderBlocked;
+    sendSignal(senderRef, GSN_WAIT_GCP_CONF, signal, 
+	       WaitGCPConf::SignalLength, JBB);
+    cgcpOrderBlocked = 1;
+    return;
+  }
+
+  if (requestType == WaitGCPReq::UnblockStartGcp)
+  {
+    jam();
+    conf->senderData = senderData;
+    conf->gcp = cnewgcp;
+    conf->blockStatus = cgcpOrderBlocked;
+    sendSignal(senderRef, GSN_WAIT_GCP_CONF, signal, 
+	       WaitGCPConf::SignalLength, JBB);
+    cgcpOrderBlocked = 0;
+    return;
+  }
+  
   if(isMaster()) {
     /**
      * Master
@@ -14629,6 +14680,7 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
       jam();
       conf->senderData = senderData;
       conf->gcp = coldgcp;
+      conf->blockStatus = cgcpOrderBlocked;
       sendSignal(senderRef, GSN_WAIT_GCP_CONF, signal, 
 		 WaitGCPConf::SignalLength, JBB);
       return;
@@ -14715,6 +14767,7 @@ void Dbdih::execWAIT_GCP_CONF(Signal* signal)
 
   conf->senderData = ptr.p->clientData;
   conf->gcp = gcp;
+  conf->blockStatus = cgcpOrderBlocked;
   sendSignal(ptr.p->clientRef, GSN_WAIT_GCP_CONF, signal,
 	     WaitGCPConf::SignalLength, JBB);
   
@@ -14782,6 +14835,7 @@ void Dbdih::emptyWaitGCPMasterQueue(Signal* signal)
 
     c_waitGCPMasterList.next(ptr);    
     conf->senderData = clientData;
+    conf->blockStatus = cgcpOrderBlocked;
     sendSignal(clientRef, GSN_WAIT_GCP_CONF, signal,
 	       WaitGCPConf::SignalLength, JBB);
     
