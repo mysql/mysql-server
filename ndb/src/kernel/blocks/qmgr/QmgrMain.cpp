@@ -2474,9 +2474,11 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
   ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
 
   char buf[100];
-  if (getNodeState().startLevel < NodeState::SL_STARTED)
+  if (getNodeInfo(nodeId).getType() == NodeInfo::DB &&
+      getNodeState().startLevel < NodeState::SL_STARTED)
   {
     jam();
+    CRASH_INSERTION(932);
     BaseString::snprintf(buf, 100, "Node %u disconected", nodeId);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
