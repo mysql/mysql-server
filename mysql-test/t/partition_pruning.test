@@ -492,6 +492,65 @@ insert into t1 set f_int1 = null;
 
 select * from t1 where f_int1 is null;
 explain partitions select * from t1 where f_int1 is null;
+drop table t1;
+
+#
+# BUG#18558
+#
+create table t1 (a int not null, b int not null)
+partition by list(a) 
+  subpartition by hash(b) subpartitions 4 
+(
+  partition p0 values in (1),
+  partition p1 values in (2),
+  partition p2 values in (3)
+);
+insert into t1 values (1,1),(1,2),(1,3),(1,4),
+  (2,1),(2,2),(2,3),(2,4);
+explain partitions select * from t1 where a=1 AND (b=1 OR b=2);
+drop table t1;
+
+create table t1 (a int, b int not null)
+partition by list(a) 
+  subpartition by hash(b) subpartitions 2
+(
+  partition p0 values in (1),
+  partition p1 values in (2),
+  partition p2 values in (3),
+  partition pn values in (NULL)
+);
+insert into t1 values (1,1),(1,2),(1,3),(1,4),
+  (2,1),(2,2),(2,3),(2,4), (NULL,1);
+
+explain partitions select * from t1 where a IS NULL AND (b=1 OR b=2);
+
+explain partitions select * from t1 where (a IS NULL or a < 1) AND (b=1 OR b=2);
+explain partitions select * from t1 where (a IS NULL or a < 2) AND (b=1 OR b=2);
+explain partitions select * from t1 where (a IS NULL or a <= 1) AND (b=1 OR b=2);
+
+drop table t1;
+
+create table t1 ( a int)  partition by list (MOD(a, 10))
+( partition p0  values in (0), partition p1 values in (1),
+   partition p2 values in (2), partition p3 values in (3),
+   partition p4 values in (4), partition p5 values in (5),
+   partition p6 values in (6), partition pn values in (NULL)
+);
+insert into t1 values (NULL), (0),(1),(2),(3),(4),(5),(6);
+explain partitions select * from t1 where a is null or a < 2;
+drop table t1;
+
+# Testcase from BUG#18751
+create table t1 (s1 int) partition by list (s1) 
+  (partition p1 values in (0), 
+   partition p2 values in (1), 
+   partition p3 values in (null));
+ 
+insert into t1 values (0),(1),(null);
+ 
+select count(*) from t1 where s1 < 0 or s1 is null;
+explain partitions select count(*) from t1 where s1 < 0 or s1 is null;
+drop table t1;
 
 # No tests for NULLs in RANGE(monotonic_expr()) - they depend on BUG#15447
 # being fixed.
