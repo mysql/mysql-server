@@ -409,7 +409,7 @@ private:
   Uint16 ccommitFailedNodes[MAX_NDB_NODES];
   
   StopReq c_stopReq;
-  void check_multi_node_shutdown(Signal* signal);
+  bool check_multi_node_shutdown(Signal* signal);
 };
 
 #endif
