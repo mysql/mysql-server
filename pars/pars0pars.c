@@ -1875,12 +1875,9 @@ pars_sql(
 	graph = pars_sym_tab_global->query_graph;
 
 	graph->sym_tab = pars_sym_tab_global;
+	graph->info = info;
 
 	/* fprintf(stderr, "SQL graph size %lu\n", mem_heap_get_size(heap)); */
-
-	if (info && info->pars_sql_owns_us) {
-		pars_info_free(info);
-	}
 
 	return(graph);
 }
@@ -1934,7 +1931,7 @@ pars_info_create(void)
 	info->heap = heap;
 	info->funcs = NULL;
 	info->bound_lits = NULL;
-	info->pars_sql_owns_us = TRUE;
+	info->graph_owns_us = TRUE;
 
 	return(info);
 }

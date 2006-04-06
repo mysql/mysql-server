@@ -172,6 +172,7 @@ que_fork_create(
 	UT_LIST_INIT(fork->thrs);
 
 	fork->sym_tab = NULL;
+	fork->info = NULL;
 
 	fork->heap = heap;
 
@@ -669,6 +670,10 @@ que_graph_free(
 		cursor definitions. */
 
 		sym_tab_free_private(graph->sym_tab);
+	}
+
+	if (graph->info && graph->info->graph_owns_us) {
+		pars_info_free(graph->info);
 	}
 
 	que_graph_free_recursive(graph);
