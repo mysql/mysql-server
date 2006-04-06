@@ -2296,8 +2296,6 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   RANGE_OPT_PARAM  *range_par= &prune_param.range_param;
 
   prune_param.part_info= part_info;
-  prune_param.part_iter.has_null_value= FALSE;
-
   init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
   range_par->mem_root= &alloc;
   range_par->old_root= thd->mem_root;
@@ -2730,7 +2728,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
                                       key_tree->min_flag | key_tree->max_flag,
                                       &ppar->part_iter);
       if (!res)
-        goto go_right; /* res=0 --> no satisfying partitions */
+        goto go_right; /* res==0 --> no satisfying partitions */
       if (res == -1)
       {
         //get a full range iterator
