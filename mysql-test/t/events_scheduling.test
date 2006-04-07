@@ -24,10 +24,10 @@ SELECT IF(TIME_TO_SEC(TIMEDIFF(ENDS,STARTS))=6, 'OK', 'ERROR') FROM INFORMATION_
 SELECT IF(LAST_EXECUTED-ENDS < 2, 'OK', 'ERROR') FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA=DATABASE() AND EVENT_NAME='start_n_end' AND ENDS IS NOT NULL;
 DROP EVENT start_n_end;
 --echo "Already dropped because ended. Therefore an error."
---error 1517
+--error ER_EVENT_DOES_NOT_EXIST
 DROP EVENT only_one_time;
 --echo "Already dropped because ended. Therefore an error."
---error 1517
+--error ER_EVENT_DOES_NOT_EXIST
 DROP EVENT two_time;
 DROP TABLE table_1;
 DROP TABLE table_2;
