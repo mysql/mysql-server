@@ -28,7 +28,7 @@ b INT NOT NULL,
 c INT NOT NULL
 ) ENGINE=ndbcluster;
 select * from t1;
-ERROR HY000: Got error 241 'Invalid schema object version' from ndbcluster
+a	b	c
 select * from t1;
 a	b	c
 select * from t1;

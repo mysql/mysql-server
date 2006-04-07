@@ -556,6 +556,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
   ERR_PRINT(err);
   switch (err.classification) {
   case NdbError::SchemaError:
+  {
     invalidate_dictionary_cache(TRUE);
 
     /* Close other open handlers not used by any thread */
@@ -583,6 +584,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
       DBUG_PRINT("info", ("Table exists but must have changed"));
     }
     break;
+  }
   default:
     break;
   }
