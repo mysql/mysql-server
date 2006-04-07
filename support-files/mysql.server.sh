@@ -72,6 +72,10 @@ else
   libexecdir="$basedir/libexec"
 fi
 
+# datadir_set is used to determine if datadir was set (and so should be
+# *not* set inside of the --basedir= handler.)
+datadir_set=
+
 #
 # Use LSB init script functions for printing messages, if possible
 #
@@ -105,11 +109,15 @@ parse_server_arguments() {
     case "$arg" in
       --basedir=*)  basedir=`echo "$arg" | sed -e 's/^[^=]*=//'`
                     bindir="$basedir/bin"
-		    datadir="$basedir/data"
+		    if test -z "$datadir_set"; then
+		      datadir="$basedir/data"
+		    fi
 		    sbindir="$basedir/sbin"
 		    libexecdir="$basedir/libexec"
         ;;
-      --datadir=*)  datadir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --datadir=*)  datadir=`echo "$arg" | sed -e 's/^[^=]*=//'`
+		    datadir_set=1
+	;;
       --user=*)  user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --pid-file=*) server_pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --use-mysqld_safe) use_mysqld_safe=1;;
