@@ -25,15 +25,18 @@
 
 
 
-#if !defined(yaSSL_NEW_HPP) && defined(__GNUC__) 
-#if !(defined(__ICC) || defined(__INTEL_COMPILER))
+#if !defined(yaSSL_NEW_HPP) && defined(__GNUC__) && !defined(__ICC)
 
 #define yaSSL_NEW_HPP
 
 #if __GNUC__ > 2
 
 extern "C" {
-#include <assert.h>
+#if !defined(DO_TAOCRYPT_KERNEL_MODE)
+    #include <assert.h>
+#else
+    #include "kernelc.hpp"
+#endif
 
 /* Disallow inline __cxa_pure_virtual() */
 static int __cxa_pure_virtual() __attribute__((noinline, used));
@@ -47,6 +50,5 @@ static int __cxa_pure_virtual()
 } // extern "C"
 
 #endif // __GNUC__ > 2
-#endif // ! _ICC
 #endif // yaSSL_NEW_HPP && __GNUC__
 

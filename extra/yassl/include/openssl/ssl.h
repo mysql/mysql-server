@@ -23,6 +23,8 @@
  *
  */
 
+
+
 #ifndef ysSSL_openssl_h__
 #define yaSSL_openssl_h__
 
@@ -49,7 +51,7 @@ extern "C" {
     class X509_NAME;
 #else
     typedef struct SSL         SSL;          
-    typedef struct SSL_SESION  SSL_SESSION;
+    typedef struct SSL_SESSION  SSL_SESSION;
     typedef struct SSL_METHOD  SSL_METHOD;
     typedef struct SSL_CTX     SSL_CTX;
     typedef struct SSL_CIPHER  SSL_CIPHER;
@@ -258,6 +260,8 @@ int SSL_pending(SSL*);
 
 
 enum { /* ssl Constants */
+    SSL_BAD_STAT        = -7,
+    SSL_BAD_PATH        = -6,
     SSL_BAD_FILETYPE    = -5,
     SSL_BAD_FILE        = -4,
     SSL_NOT_IMPLEMENTED = -3,
@@ -341,7 +345,6 @@ long SSL_CTX_sess_set_cache_size(SSL_CTX*, long);
 long SSL_CTX_set_tmp_dh(SSL_CTX*, DH*);
 
 void OpenSSL_add_all_algorithms(void);
-void SSL_library_init();
 void SSLeay_add_ssl_algorithms(void);
 
 
