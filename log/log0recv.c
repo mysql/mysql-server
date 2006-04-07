@@ -894,6 +894,9 @@ recv_parse_or_apply_log_rec_body(
 							ULINT_UNDEFINED);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
+		ptr = page_zip_parse_write_node_ptr(
+				ptr, end_ptr, page, page_zip);
+		break;
 	case MLOG_ZIP_WRITE_HEADER:
 		ut_error; /* TODO */
 		break;
