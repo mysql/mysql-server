@@ -1093,6 +1093,11 @@ multi_update::initialize_tables(JOIN *join)
     /* ok to be on stack as this is not referenced outside of this func */
     Field_string offset(table->file->ref_length, 0, "offset",
 			table, &my_charset_bin);
+    /*
+      The field will be converted to varstring when creating tmp table if
+      table to be updated was created by mysql 4.1. Deny this.
+    */
+    offset.can_alter_field_type= 0;
     if (!(ifield= new Item_field(((Field *) &offset))))
       DBUG_RETURN(1);
     ifield->maybe_null= 0;

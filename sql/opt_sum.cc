@@ -96,8 +96,14 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
   */
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
+    TABLE_LIST *embedded;
+    for (embedded= tl ; embedded; embedded= embedded->embedding)
+    {
+      if (embedded->on_expr)
+        break;
+    }
+    if (embedded)
     /* Don't replace expression on a table that is part of an outer join */
-    if (tl->on_expr)
     {
       outer_tables|= tl->table->map;
 
@@ -117,8 +123,11 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
       If the storage manager of 'tl' gives exact row count, compute the total
       number of rows. If there are no outer table dependencies, this count
       may be used as the real count.
+      Schema tables are filled after this function is invoked, so we can't
+      get row count 
     */
-    if (tl->table->file->table_flags() & HA_NOT_EXACT_COUNT)
+    if ((tl->table->file->table_flags() & HA_NOT_EXACT_COUNT) ||
+        tl->schema_table)
     {
       is_exact_count= FALSE;
       count= 1;                                 // ensure count != 0
@@ -143,31 +152,15 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
       switch (item_sum->sum_func()) {
       case Item_sum::COUNT_FUNC:
         /*
-          If the expr in count(expr) can never be null we can change this
+          If the expr in COUNT(expr) can never be null we can change this
           to the number of rows in the tables if this number is exact and
           there are no outer joins.
         */
         if (!conds && !((Item_sum_count*) item)->args[0]->maybe_null &&
             !outer_tables && is_exact_count)
         {
-          longlong count= 1;
-          TABLE_LIST *table;
-          for (table= tables; table; table= table->next_leaf)
-          {
-            if (outer_tables || (table->table->file->table_flags() &
-                                 HA_NOT_EXACT_COUNT) || table->schema_table)
-            {
-              const_result= 0;			// Can't optimize left join
-              break;
-            }
-            tables->table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-            count*= table->table->file->records;
-          }
-          if (!table)
-          {
-            ((Item_sum_count*) item)->make_const(count);
-            recalc_const_item= 1;
-          }
+          ((Item_sum_count*) item)->make_const(count);
+          recalc_const_item= 1;
         }
         else
           const_result= 0;

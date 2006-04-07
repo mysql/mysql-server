@@ -842,8 +842,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
                table_list->db, table_list->table_name);
       DBUG_RETURN(TRUE);
     }
-    if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE)
-        || thd->lex->sphead)
+    if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
     if (lock_and_wait_for_table_name(thd, table_list))
       DBUG_RETURN(TRUE);
