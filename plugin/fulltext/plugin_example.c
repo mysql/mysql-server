@@ -17,7 +17,7 @@
 #include <ctype.h>
 #include <mysql/plugin.h>
 
-long number_of_calls= 0; /* for SHOW STATUS, see below */
+static long number_of_calls= 0; /* for SHOW STATUS, see below */
 
 /*
   Simple full-text parser plugin that acts as a replacement for the
@@ -84,7 +84,7 @@ static int simple_parser_plugin_deinit(void)
 
 
 /*
-  Initialize the parser at ... [WHEN]
+  Initialize the parser on the first use in the query
 
   SYNOPSIS
     simple_parser_init()
@@ -104,7 +104,7 @@ static int simple_parser_init(MYSQL_FTPARSER_PARAM *param)
 
 
 /*
-  Terminate the parser at ... [WHEN]
+  Terminate the parser at the end of the query
 
   SYNOPSIS
     simple_parser_deinit()
@@ -164,7 +164,7 @@ static void add_word(MYSQL_FTPARSER_PARAM *param, char *word, size_t len)
     and passes every word to the MySQL full-text indexing engine.
 */
 
-int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)
+static int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)
 {
   char *end, *start, *docend= param->doc + param->length;
 
@@ -205,7 +205,7 @@ static struct st_mysql_ftparser simple_parser_descriptor=
   Plugin status variables for SHOW STATUS
 */
 
-struct st_mysql_show_var simple_status[]=
+static struct st_mysql_show_var simple_status[]=
 {
   {"static",     (char *)"just a static text",     SHOW_CHAR},
   {"called",     (char *)&number_of_calls, SHOW_LONG},
@@ -229,3 +229,4 @@ mysql_declare_plugin
   simple_status               /* status variables                */
 }
 mysql_declare_plugin_end;
+
