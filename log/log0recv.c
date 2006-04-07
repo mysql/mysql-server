@@ -897,6 +897,10 @@ recv_parse_or_apply_log_rec_body(
 		ptr = page_zip_parse_write_node_ptr(
 				ptr, end_ptr, page, page_zip);
 		break;
+	case MLOG_ZIP_WRITE_BLOB_PTR:
+		ptr = page_zip_parse_write_blob_ptr(
+				ptr, end_ptr, page, page_zip);
+		break;
 	case MLOG_ZIP_WRITE_HEADER:
 		ptr = page_zip_parse_write_header(
 				ptr, end_ptr, page, page_zip);

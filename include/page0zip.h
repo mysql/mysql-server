@@ -117,8 +117,20 @@ page_zip_write_rec(
 	ulint		create)	/* in: nonzero=insert, zero=update */
 	__attribute__((nonnull));
 
+/***************************************************************
+Parses a log record of writing a BLOB pointer of a record. */
+
+byte*
+page_zip_parse_write_blob_ptr(
+/*==========================*/
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: redo log buffer */
+	byte*		end_ptr,/* in: redo log buffer end */
+	page_t*		page,	/* in/out: uncompressed page */
+	page_zip_des_t*	page_zip);/* in/out: compressed page */
+
 /**************************************************************************
-Write the BLOB pointer of a record on the leaf page of a clustered index.
+Write a BLOB pointer of a record on the leaf page of a clustered index.
 The information must already have been updated on the uncompressed page. */
 
 void
