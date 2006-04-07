@@ -785,4 +785,22 @@ select length(a) from t1;
 drop table t1;
 deallocate prepare stmt;
 
+#
+# Bug#16248 "WHERE (col1,col2) IN ((?,?)) gives wrong results":
+# check that ROW implementation is reexecution-friendly.
+#
+create table t1 (col1 integer, col2 integer);
+insert into t1 values(100,100),(101,101),(102,102),(103,103);
+prepare stmt from 'select col1, col2 from t1 where (col1, col2) in ((?,?))';
+set @a=100, @b=100;
+execute stmt using @a,@b;
+set @a=101, @b=101;
+execute stmt using @a,@b;
+set @a=102, @b=102;
+execute stmt using @a,@b;
+set @a=102, @b=103;
+execute stmt using @a,@b;
+deallocate prepare stmt;
+drop table t1;
+
 # End of 4.1 tests
