@@ -122,7 +122,7 @@ FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, const byte *record)
   TREE ptree;
   MYSQL_FTPARSER_PARAM *param;
   DBUG_ENTER("_mi_ft_parserecord");
-  if (! (param= ftparser_call_initializer(info, keynr)))
+  if (! (param= ftparser_call_initializer(info, keynr, 0)))
     DBUG_RETURN(NULL);
   bzero((char*) &ptree, sizeof(ptree));
   if (_mi_ft_parse(&ptree, info, keynr, record, 0, param))

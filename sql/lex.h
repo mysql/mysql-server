@@ -396,6 +396,7 @@ static SYMBOL symbols[] = {
   { "PASSWORD",		SYM(PASSWORD)},
   { "PHASE",            SYM(PHASE_SYM)},
   { "PLUGIN",           SYM(PLUGIN_SYM)},
+  { "PLUGINS",          SYM(PLUGINS_SYM)},
   { "POINT",		SYM(POINT_SYM)},
   { "POLYGON",		SYM(POLYGON)},
   { "PRECISION",	SYM(PRECISION)},

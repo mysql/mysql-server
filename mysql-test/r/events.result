@@ -106,7 +106,6 @@ drop event if exists event3;
 Warnings:
 Note	1305	Event event3 does not exist
 create event event3 on schedule every 50 + 10 minute starts date_add("20100101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
-set max_allowed_packet=128000000;
 select count(*) from t_event3;
 count(*)
 0
@@ -232,6 +231,9 @@ Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
 CREATE TABLE event_like LIKE mysql.event;
 INSERT INTO event_like SELECT * FROM mysql.event;
+ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
 ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
 SHOW CREATE TABLE mysql.event;
 Table	Create Table

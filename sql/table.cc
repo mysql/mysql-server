@@ -26,8 +26,8 @@
 
 void open_table_error(TABLE_SHARE *share, int error, int db_errno,
                       myf errortype, int errarg);
-static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
-                           File file);
+static int open_binary_frm(THD *thd, TABLE_SHARE *share,
+                           uchar *head, File file);
 static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
 static uint find_field(Field **fields, uint start, uint length);
@@ -717,8 +717,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         keyinfo->parser= plugin_lock(&parser_name, MYSQL_FTPARSER_PLUGIN);
         if (! keyinfo->parser)
         {
-          my_free(buff, MYF(0));
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
+          my_free(buff, MYF(0));
           goto err;
         }
       }
