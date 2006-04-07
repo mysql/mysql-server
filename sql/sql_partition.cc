@@ -5269,7 +5269,7 @@ static void set_up_range_analysis_info(partition_info *part_info)
   }
    
   /*
-    Check get_part_iter_for_interval_via_walking() can be used for
+    Check if get_part_iter_for_interval_via_walking() can be used for
     partitioning
   */
   if (part_info->no_part_fields == 1)
@@ -5291,7 +5291,7 @@ static void set_up_range_analysis_info(partition_info *part_info)
 
 setup_subparts:
   /*
-    Check get_part_iter_for_interval_via_walking() can be used for
+    Check if get_part_iter_for_interval_via_walking() can be used for
     subpartitioning
   */
   if (part_info->no_subpart_fields == 1)
@@ -5374,40 +5374,47 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     max_endpoint_val=    part_info->no_list_values;
     part_iter->get_next= get_next_partition_id_list;
     part_iter->part_info= part_info;
+    part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
   }
   else
     DBUG_ASSERT(0);
 
-  if (field->real_maybe_null() && part_info->has_null_value)
+  /* 
+    Find minimum: Do special handling if the interval has left bound in form
+     " NULL <= X ":
+  */
+  if (field->real_maybe_null() && part_info->has_null_value && 
+      !(flags & (NO_MIN_RANGE | NEAR_MIN)) && *min_value)
   {
-    if (*min_value)
+    part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+    part_iter->part_nums.start= part_iter->part_nums.cur= 0;
+    if (*max_value && !(flags & NO_MAX_RANGE))
     {
-      if (*max_value && !(flags & (NO_MIN_RANGE | NO_MAX_RANGE)))
-      {
-        init_single_partition_iterator(part_info->has_null_part_id, part_iter);
-        return 1;
-      }
-      if (!(flags & NEAR_MIN))
-        part_iter->has_null_value= TRUE;
+      /* The right bound is X <= NULL, i.e. it is a "X IS NULL" interval */
+      part_iter->part_nums.end= 0;
+      return 1;
     }
   }
-  /* Find minimum */
-  if (flags & NO_MIN_RANGE)
-    part_iter->part_nums.start= 0;
   else
   {
-    /*
-      Store the interval edge in the record buffer, and call the
-      function that maps the edge in table-field space to an edge
-      in ordered-set-of-partitions (for RANGE partitioning) or 
-      index-in-ordered-array-of-list-constants (for LIST) space.
-    */
-    store_key_image_to_rec(field, min_value, field_len);
-    bool include_endp= part_info->range_analysis_include_bounds ||
-                       !test(flags & NEAR_MIN);
-    part_iter->part_nums.start= get_endpoint(part_info, 1, include_endp);
-    if (part_iter->part_nums.start == max_endpoint_val)
-      return 0; /* No partitions */
+    if (flags & NO_MIN_RANGE)
+      part_iter->part_nums.start= part_iter->part_nums.cur= 0;
+    else
+    {
+      /*
+        Store the interval edge in the record buffer, and call the
+        function that maps the edge in table-field space to an edge
+        in ordered-set-of-partitions (for RANGE partitioning) or 
+        index-in-ordered-array-of-list-constants (for LIST) space.
+      */
+      store_key_image_to_rec(field, min_value, field_len);
+      bool include_endp= part_info->range_analysis_include_bounds ||
+                         !test(flags & NEAR_MIN);
+      part_iter->part_nums.start= get_endpoint(part_info, 1, include_endp);
+      part_iter->part_nums.cur= part_iter->part_nums.start;
+      if (part_iter->part_nums.start == max_endpoint_val)
+        return 0; /* No partitions */
+    }
   }
 
   /* Find maximum, do the same as above but for right interval bound */
@@ -5419,7 +5426,8 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     bool include_endp= part_info->range_analysis_include_bounds ||
                        !test(flags & NEAR_MAX);
     part_iter->part_nums.end= get_endpoint(part_info, 0, include_endp);
-    if (part_iter->part_nums.start== part_iter->part_nums.end)
+    if (part_iter->part_nums.start == part_iter->part_nums.end &&
+        !part_iter->ret_null_part)
       return 0; /* No partitions */
   }
   return 1; /* Ok, iterator initialized */
@@ -5534,8 +5542,13 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
     return 0; /* No partitions match */
   }
 
-  if (flags & (NO_MIN_RANGE | NO_MAX_RANGE))
+  if ((field->real_maybe_null() && 
+       ((!(flags & NO_MIN_RANGE) && *min_value) ||  // NULL <? X
+        (!(flags & NO_MAX_RANGE) && *max_value))) ||  // X <? NULL
+      (flags & (NO_MIN_RANGE | NO_MAX_RANGE)))    // -inf at any bound
+  {
     return -1; /* Can't handle this interval, have to use all partitions */
+  }
   
   /* Get integers for left and right interval bound */
   longlong a, b;
@@ -5553,7 +5566,7 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
   if (n_values > total_parts || n_values > MAX_RANGE_TO_WALK)
     return -1;
 
-  part_iter->field_vals.start= a;
+  part_iter->field_vals.start= part_iter->field_vals.cur= a;
   part_iter->field_vals.end=   b;
   part_iter->part_info= part_info;
   part_iter->get_next=  get_next_func;
@@ -5565,12 +5578,13 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
   PARTITION_ITERATOR::get_next implementation: enumerate partitions in range
 
   SYNOPSIS
-    get_next_partition_id_list()
+    get_next_partition_id_range()
       part_iter  Partition set iterator structure
 
   DESCRIPTION
     This is implementation of PARTITION_ITERATOR::get_next() that returns
     [sub]partition ids in [min_partition_id, max_partition_id] range.
+    The function conforms to partition_iter_func type.
 
   RETURN
     partition id
@@ -5579,10 +5593,13 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
 
 uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 {
-  if (part_iter->part_nums.start== part_iter->part_nums.end)
+  if (part_iter->part_nums.cur == part_iter->part_nums.end)
+  {
+    part_iter->part_nums.cur= part_iter->part_nums.start;
     return NOT_A_PARTITION_ID;
+  }
   else
-    return part_iter->part_nums.start++;
+    return part_iter->part_nums.cur++;
 }
 
 
@@ -5597,6 +5614,7 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
     This implementation of PARTITION_ITERATOR::get_next() is special for 
     LIST partitioning: it enumerates partition ids in 
     part_info->list_array[i] where i runs over [min_idx, max_idx] interval.
+    The function conforms to partition_iter_func type.
 
   RETURN 
     partition id
@@ -5605,18 +5623,20 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 
 uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
 {
-  if (part_iter->part_nums.start == part_iter->part_nums.end)
+  if (part_iter->part_nums.cur == part_iter->part_nums.end)
   {
-    if (part_iter->has_null_value)
+    if (part_iter->ret_null_part)
     {
-      part_iter->has_null_value= FALSE;
+      part_iter->ret_null_part= FALSE;
       return part_iter->part_info->has_null_part_id;
     }
+    part_iter->part_nums.cur= part_iter->part_nums.start;
+    part_iter->ret_null_part= part_iter->ret_null_part_orig;
     return NOT_A_PARTITION_ID;
   }
   else
     return part_iter->part_info->list_array[part_iter->
-                                            part_nums.start++].partition_id;
+                                            part_nums.cur++].partition_id;
 }
 
 
@@ -5631,6 +5651,7 @@ uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
     This implementation of PARTITION_ITERATOR::get_next() returns ids of
     partitions that contain records with partitioning field value within
     [start_val, end_val] interval.
+    The function conforms to partition_iter_func type.
 
   RETURN 
     partition id
@@ -5641,11 +5662,10 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
 {
   uint32 part_id;
   Field *field= part_iter->part_info->part_field_array[0];
-  while (part_iter->field_vals.start != part_iter->field_vals.end)
+  while (part_iter->field_vals.cur != part_iter->field_vals.end)
   {
-    field->store(part_iter->field_vals.start, FALSE);
-    part_iter->field_vals.start++;
     longlong dummy;
+    field->store(part_iter->field_vals.cur++, FALSE);
     if (part_iter->part_info->is_sub_partitioned() &&
         !part_iter->part_info->get_part_partition_id(part_iter->part_info,
                                                      &part_id, &dummy) ||
@@ -5653,6 +5673,9 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
                                                 &part_id, &dummy))
       return part_id;
   }
+  //psergey-todo: return partition(part_func(NULL)) here...
+  
+  part_iter->field_vals.cur= part_iter->field_vals.start;
   return NOT_A_PARTITION_ID;
 }
 
@@ -5663,10 +5686,12 @@ static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter)
 {
   uint32 part_id;
   Field *field= part_iter->part_info->subpart_field_array[0];
-  if (part_iter->field_vals.start == part_iter->field_vals.end)
+  if (part_iter->field_vals.cur == part_iter->field_vals.end)
+  {
+    part_iter->field_vals.cur= part_iter->field_vals.start;
     return NOT_A_PARTITION_ID;
-  field->store(part_iter->field_vals.start, FALSE);
-  part_iter->field_vals.start++;
+  }
+  field->store(part_iter->field_vals.cur++, FALSE);
   return part_iter->part_info->get_subpartition_id(part_iter->part_info);
 }
 #endif
