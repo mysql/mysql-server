@@ -250,6 +250,8 @@ START_WAIT_TIMEOUT=10
 STOP_WAIT_TIMEOUT=10
 MYSQL_TEST_SSL_OPTS=""
 
+$ECHO "Logging: $0 $*"   # To ensure we see all arguments in the output, for the test analysis tool
+
 while test $# -gt 0; do
   case "$1" in
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
