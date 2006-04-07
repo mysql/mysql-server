@@ -262,10 +262,11 @@ ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin d
 "This should work"
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test                                                 	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
+events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
+ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
 ALTER TABLE mysql.event MODIFY db varchar(64) character set utf8 collate utf8_bin default '';
-Warnings:
-Warning	1265	Data truncated for column 'db' at row 1
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
 ALTER TABLE mysql.event DROP comment, DROP starts;
