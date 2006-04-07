@@ -1010,22 +1010,6 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
     nodes.push_back(atoi(p));
   }
 
-  int stop_self= 0;
-  size_t i;
-  for(i=0; i < nodes.size(); i++) {
-    if (nodes[i] == m_mgmsrv.getOwnNodeId()) {
-      stop_self= 1;
-      if (i != nodes.size()-1) {
-	m_output->println("stop reply");
-	m_output->println("result: server must be stopped last");
-	m_output->println("");
-	return;
-      }
-      nodes.erase(i);
-      break;
-    }
-  }
-
   int stopped= 0;
   int result= 0;
   if (nodes.size())
@@ -1035,16 +1019,9 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
   if(result != 0)
     m_output->println("result: %s", get_error_text(result));
   else
-  {
     m_output->println("result: Ok");
-    if (stop_self)
-      stopped++;
-  }
   m_output->println("stopped: %d", stopped);
   m_output->println("");
-
-  if (stop_self)
-    g_StopServer= true;
 }
 
 

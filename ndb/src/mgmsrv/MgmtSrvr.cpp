@@ -987,41 +987,44 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 
   // send the signals
   NodeBitmask nodes;
-  NodeId nodeId;
+  NodeId nodeId= 0;
   int use_master_node= 0;
   int do_send= 0;
+  int do_stop_self= 0;
   NdbNodeBitmask nodes_to_stop;
   {
     for (unsigned i= 0; i < node_ids.size(); i++)
-      nodes_to_stop.set(node_ids[i]);
-  }
-  if (node_ids.size())
-  {
-    do_send= 1;
-    if (node_ids.size() == 1)
     {
-      nodeId= node_ids[0];
-      if (nodeId == getOwnNodeId())
-      {
-        if (restart)
-          g_RestartServer= true;
-        g_StopServer= true;
-        DBUG_RETURN(0);
-      }
-      else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM)
+      nodeId= node_ids[i];
+      if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_MGM)
+        nodes_to_stop.set(nodeId);
+      else if (nodeId != getOwnNodeId())
       {
         error= sendStopMgmd(nodeId, abort, stop, restart,
                             nostart, initialStart);
         if (error == 0)
           stoppedNodes.set(nodeId);
-        DBUG_RETURN(error);
       }
+      else
+        do_stop_self= 1;;
     }
-    else // multi node stop, send to master
+  }
+  int no_of_nodes_to_stop= nodes_to_stop.count();
+  if (node_ids.size())
+  {
+    if (no_of_nodes_to_stop)
     {
-      use_master_node= 1;
-      nodes_to_stop.copyto(NdbNodeBitmask::Size, stopReq->nodes);
-      StopReq::setStopNodes(stopReq->requestInfo, 1);
+      do_send= 1;
+      if (no_of_nodes_to_stop == 1)
+      {
+        nodeId= nodes_to_stop.find(0);
+      }
+      else // multi node stop, send to master
+      {
+        use_master_node= 1;
+        nodes_to_stop.copyto(NdbNodeBitmask::Size, stopReq->nodes);
+        StopReq::setStopNodes(stopReq->requestInfo, 1);
+      }
     }
   }
   else
@@ -1105,7 +1108,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       }
       else
       {
-        assert(node_ids.size() > 1);
+        assert(no_of_nodes_to_stop > 1);
         stoppedNodes.bitOR(nodes_to_stop);
       }
       nodes.clear(nodeId);
@@ -1149,6 +1152,12 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 #endif
       DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
     }
+  }
+  if (!error && do_stop_self)
+  {
+    if (restart)
+      g_RestartServer= true;
+    g_StopServer= true;
   }
   DBUG_RETURN(error);
 }
