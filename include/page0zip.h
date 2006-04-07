@@ -134,6 +134,18 @@ page_zip_write_blob_ptr(
 				or NULL if no logging is needed */
 	__attribute__((nonnull(1,2,3,4)));
 
+/***************************************************************
+Parses a log record of writing the node pointer of a record. */
+
+byte*
+page_zip_parse_write_node_ptr(
+/*==========================*/
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: redo log buffer */
+	byte*		end_ptr,/* in: redo log buffer end */
+	page_t*		page,	/* in/out: uncompressed page */
+	page_zip_des_t*	page_zip);/* in/out: compressed page */
+
 /**************************************************************************
 Write the node pointer of a record on a non-leaf compressed page. */
 
