@@ -27,6 +27,7 @@ typedef struct st_ft_docstat {
 
 typedef struct st_my_ft_parser_param
 {
+  MYSQL_FTPARSER_PARAM *up;
   TREE *wtree;
   my_bool with_alloc;
 } MY_FT_PARSER_PARAM;
@@ -268,16 +269,16 @@ static int ft_add_word(void *param, byte *word, uint word_len,
 }
 
 
-static int ft_parse_internal(void *param, byte *doc, uint doc_len)
+static int ft_parse_internal(void *param, byte *doc, int doc_len)
 {
   byte   *end=doc+doc_len;
+  MY_FT_PARSER_PARAM *ft_param=(MY_FT_PARSER_PARAM *)param;
+  TREE *wtree= ft_param->wtree;
   FT_WORD w;
-  TREE *wtree;
   DBUG_ENTER("ft_parse_internal");
 
-  wtree= ((MY_FT_PARSER_PARAM *)param)->wtree;
   while (ft_simple_get_word(wtree->custom_arg, &doc, end, &w, TRUE))
-    if (ft_add_word(param, w.pos, w.len, 0))
+    if (ft_param->up->mysql_add_word(param, w.pos, w.len, 0))
       DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
@@ -290,6 +291,8 @@ int ft_parse(TREE *wtree, byte *doc, int doclen, my_bool with_alloc,
   MY_FT_PARSER_PARAM my_param;
   DBUG_ENTER("ft_parse");
   DBUG_ASSERT(parser);
+
+  my_param.up= param;
   my_param.wtree= wtree;
   my_param.with_alloc= with_alloc;
 
@@ -300,11 +303,12 @@ int ft_parse(TREE *wtree, byte *doc, int doclen, my_bool with_alloc,
   param->doc= doc;
   param->length= doclen;
   param->mode= MYSQL_FTPARSER_SIMPLE_MODE;
-  DBUG_RETURN(parser->parse(param));  
+  DBUG_RETURN(parser->parse(param));
 }
 
-
-MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info, uint keynr)
+#define MAX_PARAM_NR 2
+MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
+                                                uint keynr, uint paramnr)
 {
   uint32 ftparser_nr;
   struct st_mysql_ftparser *parser;
@@ -343,8 +347,14 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info, uint keynr)
       }
       info->s->ftparsers= ftparsers;
     }
+    /*
+      We have to allocate two MYSQL_FTPARSER_PARAM structures per plugin
+      because in a boolean search a parser is called recursively
+      ftb_find_relevance* calls ftb_check_phrase*
+      (MAX_PARAM_NR=2)
+    */
     info->ftparser_param= (MYSQL_FTPARSER_PARAM *)
-      my_malloc(sizeof(MYSQL_FTPARSER_PARAM) *
+      my_malloc(MAX_PARAM_NR * sizeof(MYSQL_FTPARSER_PARAM) *
                 info->s->ftparsers, MYF(MY_WME|MY_ZEROFILL));
     if (! info->ftparser_param)
       return 0;
@@ -359,6 +369,8 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info, uint keynr)
     ftparser_nr= info->s->keyinfo[keynr].ftparser_nr;
     parser= info->s->keyinfo[keynr].parser;
   }
+  DBUG_ASSERT(paramnr < MAX_PARAM_NR);
+  ftparser_nr= ftparser_nr*MAX_PARAM_NR + paramnr;
   if (! info->ftparser_param[ftparser_nr].mysql_add_word)
   {
     /* Note, that mysql_add_word is used here as a flag:
@@ -372,22 +384,27 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info, uint keynr)
   return &info->ftparser_param[ftparser_nr];
 }
 
-
 void ftparser_call_deinitializer(MI_INFO *info)
 {
-  uint i, keys= info->s->state.header.keys;
+  uint i, j, keys= info->s->state.header.keys;
   if (! info->ftparser_param)
     return;
   for (i= 0; i < keys; i++)
   {
     MI_KEYDEF *keyinfo= &info->s->keyinfo[i];
-    MYSQL_FTPARSER_PARAM *ftparser_param=
-      &info->ftparser_param[keyinfo->ftparser_nr];
-    if (keyinfo->flag & HA_FULLTEXT && ftparser_param->mysql_add_word)
+    for (j=0; j < MAX_PARAM_NR; j++)
     {
-      if (keyinfo->parser->deinit)
-        keyinfo->parser->deinit(ftparser_param);
-      ftparser_param->mysql_add_word= 0;
+      MYSQL_FTPARSER_PARAM *ftparser_param=
+        &info->ftparser_param[keyinfo->ftparser_nr*MAX_PARAM_NR + j];
+      if (keyinfo->flag & HA_FULLTEXT && ftparser_param->mysql_add_word)
+      {
+        if (keyinfo->parser->deinit)
+          keyinfo->parser->deinit(ftparser_param);
+        ftparser_param->mysql_add_word= 0;
+      }
+      else
+        break;
     }
   }
 }
+
