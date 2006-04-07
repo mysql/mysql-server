@@ -277,6 +277,8 @@ our $opt_udiff;
 
 our $opt_skip_ndbcluster;
 our $opt_with_ndbcluster;
+our $opt_with_ndbcluster_only= 0;  # dummy, ignored
+
 our $opt_with_openssl;
 
 our $exe_ndb_mgm;
@@ -512,6 +514,7 @@ sub command_line_setup () {
              'force'                    => \$opt_force,
              'with-ndbcluster'          => \$opt_with_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
+             'with-ndbcluster-only'     => \$opt_with_ndbcluster_only,
              'do-test=s'                => \$opt_do_test,
              'suite=s'                  => \$opt_suite,
              'skip-rpl'                 => \$opt_skip_rpl,
@@ -594,6 +597,11 @@ sub command_line_setup () {
     print '#' x 78, "\n";
     print "# $opt_comment\n";
     print '#' x 78, "\n\n";
+  }
+
+  if ( $opt_with_ndbcluster_only )
+  {
+    print "# Option '--with-ndbcluster-only' is ignored in this release.\n";
   }
 
   foreach my $arg ( @ARGV )
