@@ -44,7 +44,7 @@ class sp_instr;
 class sp_instr_opt_meta;
 class sp_instr_jump_if_not;
 struct sp_cond_type;
-struct sp_pvar;
+struct sp_variable;
 
 class sp_name : public Sql_alloc
 {
@@ -1074,7 +1074,7 @@ public:
 
   virtual void print(String *str);
 
-  void add_to_varlist(struct sp_pvar *var)
+  void add_to_varlist(struct sp_variable *var)
   {
     m_varlist.push_back(var);
   }
@@ -1082,7 +1082,7 @@ public:
 private:
 
   uint m_cursor;
-  List<struct sp_pvar> m_varlist;
+  List<struct sp_variable> m_varlist;
 
 }; // class sp_instr_cfetch : public sp_instr
 
