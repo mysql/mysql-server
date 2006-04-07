@@ -87,6 +87,17 @@ row_fetch_print(
 				/* out: always returns non-NULL */
 	void*	row,		/* in:  sel_node_t* */
 	void*	user_arg);	/* in:  not used */
+/********************************************************************
+Callback function for fetch that stores an unsigned 4 byte integer to the
+location pointed. The column's type must be DATA_INT, DATA_UNSIGNED, length
+= 4. */
+
+void*
+row_fetch_store_uint4(
+/*==================*/
+				/* out: always returns NULL */
+	void*	row,		/* in:  sel_node_t* */
+	void*	user_arg);	/* in:  data pointer */
 /***************************************************************
 Prints a row in a select result. */
 
