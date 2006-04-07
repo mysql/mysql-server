@@ -2248,7 +2248,8 @@ page_zip_parse_write_node_ptr(
 
 	if (UNIV_UNLIKELY(offset < PAGE_ZIP_START)
 			|| UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)
-			|| UNIV_UNLIKELY(z_offset >= UNIV_PAGE_SIZE)) {
+			|| UNIV_UNLIKELY(z_offset >= UNIV_PAGE_SIZE)
+			|| UNIV_UNLIKELY(!page_zip)) {
 corrupt:
 		recv_sys->found_corrupt_log = TRUE;
 
@@ -2710,6 +2711,60 @@ page_zip_dir_add_slot(
 	/* Move the uncompressed area backwards to make space
 	for one directory slot. */
 	memmove(stored - PAGE_ZIP_DIR_SLOT_SIZE, stored, dir - stored);
+}
+
+/***************************************************************
+Parses a log record of writing to the header of a page. */
+
+byte*
+page_zip_parse_write_header(
+/*========================*/
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: redo log buffer */
+	byte*		end_ptr,/* in: redo log buffer end */
+	page_t*		page,	/* in/out: uncompressed page */
+	page_zip_des_t*	page_zip)/* in/out: compressed page */
+{
+	ulint	offset;
+	ulint	len;
+
+	ut_ad(!page == !page_zip);
+
+	if (UNIV_UNLIKELY(end_ptr < ptr + (2 + 1))) {
+
+		return(NULL);
+	}
+
+	offset = mach_read_from_2(ptr);
+	ptr += 2;
+	len = (ulint) *ptr++;
+
+	if (UNIV_UNLIKELY(!len) || UNIV_UNLIKELY(offset + len >= PAGE_DATA)
+			|| UNIV_UNLIKELY(!page_zip)) {
+		recv_sys->found_corrupt_log = TRUE;
+
+		return(NULL);
+	}
+
+	if (UNIV_UNLIKELY(end_ptr < ptr + len)) {
+
+		return(NULL);
+	}
+
+	if (page) {
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+		ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
+		memcpy(page + offset, ptr, len);
+		memcpy(page_zip->data + offset, ptr, len);
+
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+		ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+	}
+
+	return(ptr + len);
 }
 
 /**************************************************************************

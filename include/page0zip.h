@@ -232,6 +232,18 @@ page_zip_dir_add_slot(
 					zero for others */
 	__attribute__((nonnull));
 
+/***************************************************************
+Parses a log record of writing to the header of a page. */
+
+byte*
+page_zip_parse_write_header(
+/*========================*/
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: redo log buffer */
+	byte*		end_ptr,/* in: redo log buffer end */
+	page_t*		page,	/* in/out: uncompressed page */
+	page_zip_des_t*	page_zip);/* in/out: compressed page */
+
 /**************************************************************************
 Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page.
