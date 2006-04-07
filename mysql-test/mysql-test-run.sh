@@ -271,6 +271,8 @@ NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
 NDBD_EXTRA_OPTS=
 
+$ECHO "Logging: $0 $*"   # To ensure we see all arguments in the output, for the test analysis tool
+
 while test $# -gt 0; do
   case "$1" in
     --embedded-server)
