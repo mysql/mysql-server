@@ -1133,6 +1133,13 @@ static Item *create_func_number(MY_XPATH *xpath, Item **args, uint nargs)
 }
 
 
+static Item *create_func_string_length(MY_XPATH *xpath, Item **args, uint nargs)
+{
+  Item *arg= nargs ? args[0] : xpath->context;
+  return arg ? new Item_func_char_length(arg) : 0;
+}
+
+
 static Item *create_func_round(MY_XPATH *xpath, Item **args, uint nargs)
 {
   return new Item_func_round(args[0], new Item_int((char*)"0",0,1),0);
@@ -1243,9 +1250,11 @@ static MY_XPATH_FUNC my_func_names[] =
   {"substring"        , 9  ,  2 , 3  , create_func_substr},
   {"translate"        , 9  ,  3 , 3  , 0},
 
+
   {"local-name"       , 10 ,  0 , 1  , 0},
   {"starts-with"      , 11 ,  2 , 2  , 0},
   {"namespace-uri"    , 13 ,  0 , 1  , 0},
+  {"string-length"    , 13 ,  0 , 1  , create_func_string_length},
   {"substring-after"  , 15 ,  2 , 2  , 0},
   {"normalize-space"  , 15 ,  0 , 1  , 0},
   {"substring-before" , 16 ,  2 , 2  , 0},
@@ -1849,7 +1858,12 @@ static int my_xpath_parse_FunctionCall(MY_XPATH *xpath)
   for (nargs= 0 ; nargs < func->maxargs; )
   {
     if (!my_xpath_parse_Expr(xpath))
-     return 0;
+    {
+      if (nargs < func->minargs)
+        return 0;
+      else
+        goto right_paren;
+    }
     args[nargs++]= xpath->item;
     if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_COMMA))
     {
@@ -1859,6 +1873,8 @@ static int my_xpath_parse_FunctionCall(MY_XPATH *xpath)
         break;
     }
   }
+
+right_paren:
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_RP))
     return 0;
 
