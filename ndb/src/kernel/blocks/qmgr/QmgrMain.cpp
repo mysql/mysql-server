@@ -653,7 +653,6 @@ void Qmgr::execCM_REGREQ(Signal* signal)
 	jam();
 	c_start.m_president_candidate = addNodePtr.i;
 	c_start.m_president_candidate_gci = gci;
-	ndbout_c("assign candidate: %u %u", addNodePtr.i, gci);
       }
       sendCmRegrefLab(signal, Tblockref, CmRegRef::ZELECTION);
       return;
@@ -1106,7 +1105,6 @@ void Qmgr::execCM_REGREF(Signal* signal)
       signal->theData[3] = 2;
       c_start.m_president_candidate = candidate;
       c_start.m_president_candidate_gci = candidate_gci;
-      ndbout_c("assign candidate: %u %u", candidate, candidate_gci);
     } else {
       signal->theData[3] = 4;
     }//if
@@ -1409,7 +1407,6 @@ void Qmgr::regreqTimeLimitLab(Signal* signal)
     {
       jam();
       c_start.m_president_candidate = getOwnNodeId();
-      ndbout_c("Assigning candidate to self: %d", getOwnNodeId());
     }
     
     cmInfoconf010Lab(signal);
