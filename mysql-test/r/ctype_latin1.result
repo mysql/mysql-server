@@ -369,3 +369,25 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT '„a' as str;
 str
 „a
+set @str= _latin1 'ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc';
+SELECT convert(@str collate latin1_bin using utf8);
+convert(@str collate latin1_bin using utf8)
+ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
+SELECT convert(@str collate latin1_general_ci using utf8);
+convert(@str collate latin1_general_ci using utf8)
+ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
+SELECT convert(@str collate latin1_german1_ci using utf8);
+convert(@str collate latin1_german1_ci using utf8)
+ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
+SELECT convert(@str collate latin1_danish_ci using utf8);
+convert(@str collate latin1_danish_ci using utf8)
+ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
+SELECT convert(@str collate latin1_spanish_ci using utf8);
+convert(@str collate latin1_spanish_ci using utf8)
+ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
+SELECT convert(@str collate latin1_german2_ci using utf8);
+convert(@str collate latin1_german2_ci using utf8)
+ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
+SELECT convert(@str collate latin1_swedish_ci using utf8);
+convert(@str collate latin1_swedish_ci using utf8)
+ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc

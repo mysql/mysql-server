@@ -986,20 +986,23 @@ public:
 
 class Field_string :public Field_longstr {
 public:
+  bool can_alter_field_type;
   Field_string(char *ptr_arg, uint32 len_arg,uchar *null_ptr_arg,
 	       uchar null_bit_arg,
 	       enum utype unireg_check_arg, const char *field_name_arg,
 	       struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_longstr(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-                   unireg_check_arg, field_name_arg, table_arg, cs) {};
+                   unireg_check_arg, field_name_arg, table_arg, cs),
+     can_alter_field_type(1) {};
   Field_string(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
                struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_longstr((char*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
-                   NONE, field_name_arg, table_arg, cs) {};
+                   NONE, field_name_arg, table_arg, cs),
+     can_alter_field_type(1) {};
 
   enum_field_types type() const
   {
-    return ((orig_table &&
+    return ((can_alter_field_type && orig_table &&
              orig_table->s->db_create_options & HA_OPTION_PACK_RECORD &&
 	     field_length >= 4) &&
             orig_table->s->frm_version < FRM_VER_TRUE_VARCHAR ?
