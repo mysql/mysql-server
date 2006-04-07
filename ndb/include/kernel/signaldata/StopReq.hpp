@@ -92,7 +92,7 @@ class StopRef
   friend class Ndbcntr;
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
   
   enum ErrorCode {
     OK = 0,
@@ -107,6 +107,7 @@ public:
 public:
   Uint32 senderData;
   Uint32 errorCode;
+  Uint32 masterNodeId;
 };
 
 inline
