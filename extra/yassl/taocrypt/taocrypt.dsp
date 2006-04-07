@@ -41,7 +41,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "Release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /GX- /O2 /I "include" /I "..\mySTL" /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "include" /I "..\mySTL" /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -64,7 +64,7 @@ LIB32=link.exe -lib
 # PROP Intermediate_Dir "Debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
-# ADD CPP /nologo /MTd /W3 /Gm /GX- /ZI /Od /I "include" /I "..\mySTL" /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /FR /YX /FD /GZ /c
+# ADD CPP /nologo /MTd /W3 /Gm /ZI /Od /I "include" /I "..\mySTL" /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /FR /YX /FD /GZ /c
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
 BSC32=bscmake.exe
@@ -102,6 +102,14 @@ SOURCE=.\src\arc4.cpp
 # Begin Source File
 
 SOURCE=.\src\asn.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\src\bftables.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\src\blowfish.cpp
 # End Source File
 # Begin Source File
 
@@ -159,6 +167,14 @@ SOURCE=.\src\rsa.cpp
 
 SOURCE=.\src\sha.cpp
 # End Source File
+# Begin Source File
+
+SOURCE=.\src\tftables.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\src\twofish.cpp
+# End Source File
 # End Group
 # Begin Group "Header Files"
 
@@ -182,6 +198,10 @@ SOURCE=.\include\asn.hpp
 # Begin Source File
 
 SOURCE=.\include\block.hpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\include\blowfish.hpp
 # End Source File
 # Begin Source File
 
@@ -241,6 +261,10 @@ SOURCE=.\include\modes.hpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\include\pwdbased.hpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\include\random.hpp
 # End Source File
 # Begin Source File
@@ -254,6 +278,18 @@ SOURCE=.\include\rsa.hpp
 # Begin Source File
 
 SOURCE=.\include\sha.hpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\include\twofish.hpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\include\type_traits.hpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\include\types.hpp
 # End Source File
 # End Group
 # End Target
