@@ -747,3 +747,23 @@ length(a)
 10
 drop table t1;
 deallocate prepare stmt;
+create table t1 (col1 integer, col2 integer);
+insert into t1 values(100,100),(101,101),(102,102),(103,103);
+prepare stmt from 'select col1, col2 from t1 where (col1, col2) in ((?,?))';
+set @a=100, @b=100;
+execute stmt using @a,@b;
+col1	col2
+100	100
+set @a=101, @b=101;
+execute stmt using @a,@b;
+col1	col2
+101	101
+set @a=102, @b=102;
+execute stmt using @a,@b;
+col1	col2
+102	102
+set @a=102, @b=103;
+execute stmt using @a,@b;
+col1	col2
+deallocate prepare stmt;
+drop table t1;
