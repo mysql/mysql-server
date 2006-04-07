@@ -42,6 +42,8 @@ pthread_mutex_t LOCK_event_arrays,              // mutex for when working with t
                 LOCK_workers_count,             // mutex for when inc/dec uint workers_count
                 LOCK_evex_running;              // mutes for managing bool evex_is_running
 
+static pthread_mutex_t LOCK_evex_main_thread;   // mutex for when working with the queue
+bool scheduler_main_thread_running= false;
 
 bool evex_is_running= false;
 
@@ -111,6 +113,7 @@ evex_init_mutexes()
   pthread_mutex_init(&LOCK_event_arrays, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&LOCK_workers_count, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&LOCK_evex_running, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_evex_main_thread, MY_MUTEX_INIT_FAST);
 
   event_executor_running_global_var= opt_event_executor;
 }
@@ -241,6 +244,7 @@ shutdown_events()
     pthread_mutex_destroy(&LOCK_event_arrays);
     pthread_mutex_destroy(&LOCK_workers_count);
     pthread_mutex_destroy(&LOCK_evex_running);
+    pthread_mutex_destroy(&LOCK_evex_main_thread);
   }
   DBUG_VOID_RETURN;
 }
@@ -351,6 +355,7 @@ executor_wait_till_next_event_exec(THD *thd)
   t2sleep= evex_time_diff(&et->execute_at, &time_now);
   VOID(pthread_mutex_unlock(&LOCK_event_arrays));
 
+  t2sleep*=20;
   DBUG_PRINT("evex main thread",("unlocked LOCK_event_arrays"));
   if (t2sleep > 0)
   {
@@ -366,7 +371,7 @@ executor_wait_till_next_event_exec(THD *thd)
              modified))
     {
       DBUG_PRINT("evex main thread",("will sleep a bit more."));
-      my_sleep(1000000);
+      my_sleep(50000);
     }
     DBUG_PRINT("info",("saved_modified=%llu current=%llu", modified,
                evex_queue_num_elements(EVEX_EQ_NAME)? 
@@ -407,10 +412,23 @@ event_executor_main(void *arg)
   THD *thd;			/* needs to be first for thread_stack */
   uint i=0, j=0;
   my_ulonglong cnt= 0;
-
+  
   DBUG_ENTER("event_executor_main");
   DBUG_PRINT("event_executor_main", ("EVEX thread started"));
-
+  
+  pthread_mutex_lock(&LOCK_evex_main_thread);
+  if (!scheduler_main_thread_running)
+    scheduler_main_thread_running= true;
+  else 
+  {
+    DBUG_PRINT("event_executor_main", ("already running. thd_id=%d",
+                                      evex_main_thread_id));
+    pthread_mutex_unlock(&LOCK_evex_main_thread);
+    my_thread_end();
+    pthread_exit(0);
+    DBUG_RETURN(0);                               // Can't return anything here    
+  }
+  pthread_mutex_unlock(&LOCK_evex_main_thread);
 
   /* init memory root */
   init_alloc_root(&evex_mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
@@ -489,7 +507,7 @@ event_executor_main(void *arg)
 
     if (!evex_queue_num_elements(EVEX_EQ_NAME))
     {
-      my_sleep(1000000);// sleep 1s
+      my_sleep(100000);// sleep 0.1s
       continue;
     }
 
@@ -652,12 +670,17 @@ finish:
 err_no_thd:
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   evex_is_running= false;  
+  event_executor_running_global_var= false;
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
   free_root(&evex_mem_root, MYF(0));
   sql_print_information("SCHEDULER: Stopped.");
 
 #ifndef DBUG_FAULTY_THR
+  pthread_mutex_lock(&LOCK_evex_main_thread);
+  scheduler_main_thread_running= false;
+  pthread_mutex_unlock(&LOCK_evex_main_thread);
+
   my_thread_end();
   pthread_exit(0);
 #endif
