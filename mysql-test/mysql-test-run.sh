@@ -316,6 +316,8 @@ STRESS_INIT_FILE=""
 STRESS_TEST_FILE=""
 STRESS_TEST=""
 
+$ECHO "Logging: $0 $*"   # To ensure we see all arguments in the output, for the test analysis tool
+
 while test $# -gt 0; do
   case "$1" in
     --embedded-server)
