@@ -23,3 +23,23 @@ select 1;
 show status like 'last_query_cost';
 Variable_name	Value
 Last_query_cost	0.000000
+FLUSH STATUS;
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	3
+SET @save_thread_cache_size=@@thread_cache_size;
+SET GLOBAL thread_cache_size=3;
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	5
+FLUSH STATUS;
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	4
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	5
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	6
+SET GLOBAL thread_cache_size=@save_thread_cache_size;

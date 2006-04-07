@@ -39,8 +39,71 @@ drop table t1;
 # End of 4.1 tests
 
 #
-# lost_query_cost
+# last_query_cost
 #
 
 select 1;
 show status like 'last_query_cost';
+
+#
+# Test for Bug #15933 max_used_connections is wrong after FLUSH STATUS
+# if connections are cached
+#
+#
+# The first suggested fix from the bug report was chosen
+# (see http://bugs.mysql.com/bug.php?id=15933):
+#
+#   a) On flushing the status, set max_used_connections to
+#   threads_connected, not to 0.
+#
+#   b) Check if it is necessary to increment max_used_connections when
+#   taking a thread from the cache as well as when creating new threads
+#
+
+# Previous test uses con1, con2.  If we disconnect them, there will be
+# a race on when exactly this will happen, so we better leave them as
+# is.
+connection default;
+
+# Reset max_used_connections from previous tests.
+FLUSH STATUS;
+SHOW STATUS LIKE 'max_used_connections';
+
+# Save original setting.
+SET @save_thread_cache_size=@@thread_cache_size;
+SET GLOBAL thread_cache_size=3;
+
+connect (con3,localhost,root,,);
+connect (con4,localhost,root,,);
+
+connection con3;
+disconnect con4;
+
+# Check that max_used_connections still reflects maximum value.
+SHOW STATUS LIKE 'max_used_connections';
+
+# Check that after flush max_used_connections equals to current number
+# of connections.
+FLUSH STATUS;
+SHOW STATUS LIKE 'max_used_connections';
+
+# Check that max_used_connections is updated when cached thread is
+# reused...
+connect (con4,localhost,root,,);
+SHOW STATUS LIKE 'max_used_connections';
+
+# ...and when new thread is created.
+connect (con5,localhost,root,,);
+SHOW STATUS LIKE 'max_used_connections';
+
+# Restore original setting.
+connection default;
+SET GLOBAL thread_cache_size=@save_thread_cache_size;
+
+disconnect con5;
+disconnect con4;
+disconnect con3;
+disconnect con2;
+disconnect con1;
+
+# End of 5.0 tests
