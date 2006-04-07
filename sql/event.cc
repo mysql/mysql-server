@@ -1047,13 +1047,6 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, LEX_STRING definer,
   thd->restore_backup_open_tables_state(&backup);
   if (ret)
     goto done;
-
-  /*
-    allocate on evex_mem_root. if you call without evex_mem_root
-    then sphead will not be cleared!
-  */
-  if ((ret= ett->compile(thd, &evex_mem_root)))
-    goto done;
   
   ett->compute_next_execution_time();
   if (use_lock)
