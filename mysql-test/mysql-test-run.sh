@@ -243,6 +243,7 @@ EXTRA_MYSQLDUMP_OPT=""
 EXTRA_MYSQLBINLOG_OPT=""
 USE_RUNNING_SERVER=""
 USE_NDBCLUSTER=@USE_NDBCLUSTER@
+USE_NDBCLUSTER_ONLY=0
 USE_RUNNING_NDBCLUSTER=""
 USE_PURIFY=""
 PURIFY_LOGS=""
@@ -295,6 +296,10 @@ while test $# -gt 0; do
     --extern)  USE_RUNNING_SERVER="1" ;;
     --with-ndbcluster)
       USE_NDBCLUSTER="--ndbcluster" ;;
+    --with-ndbcluster-only)
+      USE_NDBCLUSTER="--ndbcluster"
+      USE_NDBCLUSTER_SLAVE="--ndbcluster"
+      USE_NDBCLUSTER_ONLY=1 ;;
     --ndb-connectstring=*)
       USE_NDBCLUSTER="--ndbcluster" ;
       USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndb-connectstring=;;"` ;;
@@ -1522,6 +1527,11 @@ run_testcase ()
  then
    comment=`$CAT $TESTDIR/$tname.disabled`;
    disable_test $tname "$comment"
+   return
+ fi
+ NDBCLUSTER_TEST=`$EXPR \( $tname : '.*ndb.*' \) != 0`
+ if [ "x$USE_NDBCLUSTER_ONLY" = "x1" -a "x$NDBCLUSTER_TEST" != "x1" ] ; then
+   skip_test $tname
    return
  fi
  if [ "$USE_MANAGER" = 1 ] ; then
