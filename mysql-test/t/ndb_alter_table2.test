@@ -72,7 +72,6 @@ CREATE TABLE t1 (
 
 connection server1;
 
---error 1296
 select * from t1;
 select * from t1;
 select * from t1;
