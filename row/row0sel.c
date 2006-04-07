@@ -2055,6 +2055,36 @@ row_fetch_print(
 	return((void*)42);
 }
 
+/********************************************************************
+Callback function for fetch that stores an unsigned 4 byte integer to the
+location pointed. The column's type must be DATA_INT, DATA_UNSIGNED, length
+= 4. */
+
+void*
+row_fetch_store_uint4(
+/*==================*/
+				/* out: always returns NULL */
+	void*	row,		/* in:  sel_node_t* */
+	void*	user_arg)	/* in:  data pointer */
+{
+	sel_node_t*	node = row;
+	ib_uint32_t*	val = user_arg;
+	ulint		tmp;
+
+	dfield_t*	dfield = que_node_get_val(node->select_list);
+	dtype_t*	type = dfield_get_type(dfield);
+	ulint		len = dfield_get_len(dfield);
+
+	ut_a(dtype_get_mtype(type) == DATA_INT);
+	ut_a(dtype_get_prtype(type) & DATA_UNSIGNED);
+	ut_a(len == 4);
+
+	tmp = mach_read_from_4(dfield_get_data(dfield));
+	*val = tmp;
+
+	return(NULL);
+}
+
 /***************************************************************
 Prints a row in a select result. */
 
