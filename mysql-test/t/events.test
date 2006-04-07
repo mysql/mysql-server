@@ -101,7 +101,6 @@ set global event_scheduler = 0;
 create table t_event3 (a int, b float);
 drop event if exists event3;
 create event event3 on schedule every 50 + 10 minute starts date_add("20100101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
-set max_allowed_packet=128000000;
 select count(*) from t_event3;
 drop event event3;
 drop table t_event3;
@@ -202,29 +201,25 @@ CREATE TABLE event_like LIKE mysql.event;
 INSERT INTO event_like SELECT * FROM mysql.event;
 #sleep a bit or we won't catch the change of time
 --sleep 1
+ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
+--error 1526
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
 #wait a bit or we won't see the difference because of seconds resolution
---sleep 1
 SHOW CREATE TABLE mysql.event;
 --error 1526
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 --sleep 1
 ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin default '';
---sleep 1
 --echo "This should work"
 --replace_column 8 # 9 #
 SHOW EVENTS;
 --sleep 1
-ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
---error 1526
-SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---sleep 1
 ALTER TABLE mysql.event MODIFY db varchar(64) character set utf8 collate utf8_bin default '';
+--sleep 2
 --error 1526
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---sleep 1
 ALTER TABLE mysql.event DROP comment, DROP starts;
---sleep 1
 --error 1525
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 DROP TABLE mysql.event;
