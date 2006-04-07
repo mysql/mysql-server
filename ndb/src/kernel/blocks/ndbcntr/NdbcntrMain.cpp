@@ -2125,6 +2125,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
     else
       ref->errorCode = StopRef::NodeShutdownInProgress;
     ref->senderData = senderData;
+    ref->masterNodeId = cmasterNodeId;
     
     if (senderRef != RNIL)
       sendSignal(senderRef, GSN_STOP_REF, signal, StopRef::SignalLength, JBB);
@@ -2136,6 +2137,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
     jam();
     ref->errorCode = StopRef::UnsupportedNodeShutdown;
     ref->senderData = senderData;
+    ref->masterNodeId = cmasterNodeId;
     if (senderRef != RNIL)
       sendSignal(senderRef, GSN_STOP_REF, signal, StopRef::SignalLength, JBB);
     return;
@@ -2146,6 +2148,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
     jam();
     ref->errorCode = StopRef::MultiNodeShutdownNotMaster;
     ref->senderData = senderData;
+    ref->masterNodeId = cmasterNodeId;
     if (senderRef != RNIL)
       sendSignal(senderRef, GSN_STOP_REF, signal, StopRef::SignalLength, JBB);
     return;
@@ -2289,6 +2292,7 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   
   ref->senderData = stopReq.senderData;
   ref->errorCode = StopRef::NodeShutdownWouldCauseSystemCrash;
+  ref->masterNodeId = cntr.cmasterNodeId;
   
   const BlockReference bref = stopReq.senderRef;
   if (bref != RNIL)
@@ -2437,6 +2441,7 @@ void Ndbcntr::execABORT_ALL_REF(Signal* signal){
   StopRef * const stopRef = (StopRef *)&signal->theData[0];
   stopRef->senderData = c_stopRec.stopReq.senderData;
   stopRef->errorCode = StopRef::TransactionAbortFailed;
+  stopRef->masterNodeId = cmasterNodeId;
   sendSignal(c_stopRec.stopReq.senderRef, GSN_STOP_REF, signal, StopRef::SignalLength, JBB);
 }
 

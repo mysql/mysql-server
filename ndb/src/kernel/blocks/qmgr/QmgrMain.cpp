@@ -1216,115 +1216,116 @@ Qmgr::check_startup(Signal* signal)
       goto start_report;
     }
   }
-  const bool all = c_start.m_starting_nodes.equal(c_definedNodes);
-  CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
-  
   {
-    /**
-     * Check for missing node group directly
-     */
-    char buf[100];
-    NdbNodeBitmask check;
-    check.assign(c_definedNodes);
-    check.bitANDC(c_start.m_starting_nodes);    // Not connected nodes
-    check.bitOR(c_start.m_starting_nodes_w_log);
-    
+    const bool all = c_start.m_starting_nodes.equal(c_definedNodes);
+    CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
+
+    {
+      /**
+       * Check for missing node group directly
+       */
+      char buf[100];
+      NdbNodeBitmask check;
+      check.assign(c_definedNodes);
+      check.bitANDC(c_start.m_starting_nodes);    // Not connected nodes
+      check.bitOR(c_start.m_starting_nodes_w_log);
+ 
+      sd->blockRef = reference();
+      sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
+      sd->mask = check;
+      EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
+                     CheckNodeGroups::SignalLength);
+
+      if (sd->output == CheckNodeGroups::Lose)
+      {
+        jam();
+        goto missing_nodegroup;
+      }
+    }
+  
     sd->blockRef = reference();
     sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
-    sd->mask = check;
+    sd->mask = c_start.m_starting_nodes;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		   CheckNodeGroups::SignalLength);
-    
-    if (sd->output == CheckNodeGroups::Lose)
+                   CheckNodeGroups::SignalLength);
+  
+    const Uint32 result = sd->output;
+  
+    sd->blockRef = reference();
+    sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
+    sd->mask = c_start.m_starting_nodes_w_log;
+    EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
+                   CheckNodeGroups::SignalLength);
+  
+    const Uint32 result_w_log = sd->output;
+
+    if (tmp.equal(c_definedNodes))
+    {
+      /**
+       * All nodes (wrt no-wait nodes) has connected...
+       *   this means that we will now start or die
+       */
+      jam();    
+      switch(result_w_log){
+      case CheckNodeGroups::Lose:
+      {
+        jam();
+        goto missing_nodegroup;
+      }
+      case CheckNodeGroups::Win:
+        signal->theData[1] = all ? 0x8001 : 0x8002;
+        report_mask.assign(c_definedNodes);
+        report_mask.bitANDC(c_start.m_starting_nodes);
+        retVal = 1;
+        goto start_report;
+      case CheckNodeGroups::Partitioning:
+        ndbrequire(result != CheckNodeGroups::Lose);
+        signal->theData[1] = 
+          all ? 0x8001 : (result == CheckNodeGroups::Win ? 0x8002 : 0x8003);
+        report_mask.assign(c_definedNodes);
+        report_mask.bitANDC(c_start.m_starting_nodes);
+        retVal = 1;
+        goto start_report;
+      }
+    }
+
+    if (now < partial_timeout)
     {
       jam();
-      goto missing_nodegroup;
-    }
-  }
-  
-  sd->blockRef = reference();
-  sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
-  sd->mask = c_start.m_starting_nodes;
-  EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		 CheckNodeGroups::SignalLength);
-  
-  const Uint32 result = sd->output;
-  
-  sd->blockRef = reference();
-  sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
-  sd->mask = c_start.m_starting_nodes_w_log;
-  EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		 CheckNodeGroups::SignalLength);
-  
-  const Uint32 result_w_log = sd->output;
-
-  if (tmp.equal(c_definedNodes))
-  {
-    /**
-     * All nodes (wrt no-wait nodes) has connected...
-     *   this means that we will now start or die
-     */
-    jam();    
-    switch(result_w_log){
-    case CheckNodeGroups::Lose:
-    {
-      jam();
-      goto missing_nodegroup;
-    }
-    case CheckNodeGroups::Win:
-      signal->theData[1] = all ? 0x8001 : 0x8002;
-      report_mask.assign(c_definedNodes);
-      report_mask.bitANDC(c_start.m_starting_nodes);
-      retVal = 1;
-      goto start_report;
-    case CheckNodeGroups::Partitioning:
-      ndbrequire(result != CheckNodeGroups::Lose);
-      signal->theData[1] = 
-	all ? 0x8001 : (result == CheckNodeGroups::Win ? 0x8002 : 0x8003);
-      report_mask.assign(c_definedNodes);
-      report_mask.bitANDC(c_start.m_starting_nodes);
-      retVal = 1;
-      goto start_report;
-    }
-  }
-
-  if (now < partial_timeout)
-  {
-    jam();
-    signal->theData[1] = c_restartPartialTimeout == ~0 ? 2 : 3;
-    signal->theData[2] = Uint32((partial_timeout - now + 500) / 1000);
-    report_mask.assign(wait);
-    retVal = 0;
-    goto start_report;
-  }
-  
-  /**
-   * Start partial has passed...check for partitioning...
-   */  
-  switch(result_w_log){
-  case CheckNodeGroups::Lose:
-    jam();
-    goto missing_nodegroup;
-  case CheckNodeGroups::Partitioning:
-    if (now < partitioned_timeout && result != CheckNodeGroups::Win)
-    {
-      signal->theData[1] = c_restartPartionedTimeout == ~0 ? 4 : 5;
-      signal->theData[2] = Uint32((partitioned_timeout - now + 500) / 1000);
-      report_mask.assign(c_definedNodes);
-      report_mask.bitANDC(c_start.m_starting_nodes);
+      signal->theData[1] = c_restartPartialTimeout == ~0 ? 2 : 3;
+      signal->theData[2] = Uint32((partial_timeout - now + 500) / 1000);
+      report_mask.assign(wait);
       retVal = 0;
       goto start_report;
     }
-    // Fall through...
-  case CheckNodeGroups::Win:
-    signal->theData[1] = 
-      all ? 0x8001 : (result == CheckNodeGroups::Win ? 0x8002 : 0x8003);
-    report_mask.assign(c_definedNodes);
-    report_mask.bitANDC(c_start.m_starting_nodes);
-    retVal = 1;
-    goto start_report;
+  
+    /**
+     * Start partial has passed...check for partitioning...
+     */  
+    switch(result_w_log){
+    case CheckNodeGroups::Lose:
+      jam();
+      goto missing_nodegroup;
+    case CheckNodeGroups::Partitioning:
+      if (now < partitioned_timeout && result != CheckNodeGroups::Win)
+      {
+        signal->theData[1] = c_restartPartionedTimeout == ~0 ? 4 : 5;
+        signal->theData[2] = Uint32((partitioned_timeout - now + 500) / 1000);
+        report_mask.assign(c_definedNodes);
+        report_mask.bitANDC(c_start.m_starting_nodes);
+        retVal = 0;
+        goto start_report;
+      }
+      // Fall through...
+    case CheckNodeGroups::Win:
+      signal->theData[1] = 
+        all ? 0x8001 : (result == CheckNodeGroups::Win ? 0x8002 : 0x8003);
+      report_mask.assign(c_definedNodes);
+      report_mask.bitANDC(c_start.m_starting_nodes);
+      retVal = 1;
+      goto start_report;
+    }
   }
-
   ndbrequire(false);
 
 start_report:
