@@ -4503,7 +4503,7 @@ static void init_var_hash(MYSQL *mysql)
 
 static void mark_progress(int line)
 {
-#if 0
+#ifdef NOT_YET
   static FILE* fp = NULL;
   static double first;
 
