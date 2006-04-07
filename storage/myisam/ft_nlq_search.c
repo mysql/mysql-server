@@ -226,7 +226,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
   aio.charset=info->s->keyinfo[keynr].seg->charset;
   aio.keybuff=info->lastkey+info->s->base.max_key_length;
   parser= info->s->keyinfo[keynr].parser;
-  if (! (ftparser_param= ftparser_call_initializer(info, keynr)))
+  if (! (ftparser_param= ftparser_call_initializer(info, keynr, 0)))
     goto err;
 
   bzero(&wtree,sizeof(wtree));
