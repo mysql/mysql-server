@@ -1882,7 +1882,11 @@ DBUG_skip_commit:
       rotate binlog, if necessary.
     */
     if (commit_event->get_type_code() == XID_EVENT)
-      thread_safe_increment(prepared_xids, &LOCK_prep_xids);
+    {
+      pthread_mutex_lock(&LOCK_prep_xids);
+      prepared_xids++;
+      pthread_mutex_unlock(&LOCK_prep_xids);
+    }
     else
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
   }
