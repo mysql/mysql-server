@@ -147,8 +147,8 @@ SHOW CREATE EVENT root19;
 create event root20 on schedule every '50:20:12:45' day_second do select 1;
 SHOW CREATE EVENT root20;
 set names cp1251;
-create event Г°ГіГіГІ21 on schedule every '50:23:59:95' day_second COMMENT 'ГІГ®ГўГ  ГҐ 1251 ГЄГ®Г¬ГҐГ­ГІГ Г°' do select 1;
-SHOW CREATE EVENT Г°ГіГіГІ21;
+create event руут21 on schedule every '50:23:59:95' day_second COMMENT 'това е 1251 коментар' do select 1;
+SHOW CREATE EVENT руут21;
 insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
 --error 1235
 show create event root22;
@@ -173,7 +173,7 @@ drop event root17_1;
 drop event root18;
 drop event root19;
 drop event root20;
-drop event Г°ГіГіГІ21;
+drop event руут21;
 
 set names latin1;
 #
@@ -202,7 +202,7 @@ INSERT INTO event_like SELECT * FROM mysql.event;
 #sleep a bit or we won't catch the change of time
 --sleep 1
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
---error 1526
+--error ER_CANNOT_LOAD_FROM_TABLE
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
 #wait a bit or we won't see the difference because of seconds resolution
