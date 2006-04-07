@@ -2817,6 +2817,36 @@ const char * STDCALL mysql_error(MYSQL *mysql)
   return mysql->net.last_error;
 }
 
+
+/*
+  Get version number for server in a form easy to test on
+
+  SYNOPSIS
+    mysql_get_server_version()
+    mysql		Connection
+
+  EXAMPLE
+    4.1.0-alfa ->  40100
+  
+  NOTES
+    We will ensure that a newer server always has a bigger number.
+
+  RETURN
+   Signed number > 323000
+*/
+
+ulong STDCALL
+mysql_get_server_version(MYSQL *mysql)
+{
+  uint major, minor, version;
+  char *pos= mysql->server_version, *end_pos;
+  major=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
+  minor=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
+  version= (uint) strtoul(pos, &end_pos, 10);
+  return (ulong) major*10000L+(ulong) (minor*100+version);
+}
+
+
 /* 
    mysql_set_character_set function sends SET NAMES cs_name to
    the server (which changes character_set_client, character_set_result
@@ -2836,6 +2866,9 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
   {
     char buff[MY_CS_NAME_SIZE + 10];
     charsets_dir= save_csdir;
+    /* Skip execution of "SET NAMES" for pre-4.1 servers */
+    if (mysql_get_server_version(mysql) < 40100)
+      return 0;
     sprintf(buff, "SET NAMES %s", cs_name);
     if (!mysql_real_query(mysql, buff, strlen(buff)))
     {
