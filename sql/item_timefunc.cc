@@ -2213,7 +2213,7 @@ longlong Item_extract::val_int()
   switch (int_type) {
   case INTERVAL_YEAR:		return ltime.year;
   case INTERVAL_YEAR_MONTH:	return ltime.year*100L+ltime.month;
-  case INTERVAL_QUARTER:	return ltime.month/3 + 1;
+  case INTERVAL_QUARTER:	return (ltime.month+2)/3;
   case INTERVAL_MONTH:		return ltime.month;
   case INTERVAL_WEEK:
   {
