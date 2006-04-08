@@ -659,14 +659,14 @@ bool partition_info::check_partition_info(handlerton **eng_type,
   DBUG_ENTER("partition_info::check_partition_info");
 
   if (part_type != HASH_PARTITION || !list_of_part_fields)
-    part_expr->walk(Item::check_partition_func_processor,
-                    (byte*)&part_expression_ok);
+    part_expr->walk(&Item::check_partition_func_processor,
+                    (byte*)(&part_expression_ok));
   if (is_sub_partitioned() && !list_of_subpart_fields)
-    subpart_expr->walk(Item::check_partition_func_processor,
-                       (byte*)&part_expression_ok);
+    subpart_expr->walk(&Item::check_partition_func_processor,
+                       (byte*)(&part_expression_ok));
   if (!part_expression_ok)
   {
-    my_error(ER_PARTITION_FUNC_NOT_ALLOWED, MYF(0));
+    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
     goto end;
   }
   if (unlikely(!is_sub_partitioned() && 
