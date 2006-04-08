@@ -11,10 +11,10 @@
 
 /* @(#) $Id$ */
 
+#include "azlib.h"
+
 #include <stdio.h>
 #include <string.h>
-
-#include "azlib.h"
 
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
 
