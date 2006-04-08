@@ -131,4 +131,30 @@ drop table t1,t2;
 create temporary table t3 (f int);
 sync_with_master;
 
+#
+# Bug#17284 erroneous temp table cleanup on slave
+#
+
+connection master;
+create temporary table t4 (f int);
+create table t5 (f int);
+sync_with_master;
+# find dumper's $id
+source include/get_binlog_dump_thread_id.inc;
+insert into t4 values (1);
+# a hint how to do that in 5.1
+--replace_result $id "`select id from information_schema.processlist where command='Binlog Dump'`"
+eval kill $id; # to stimulate reconnection by slave w/o timeout
+insert into t5 select * from t4;
+save_master_pos;
+
+connection slave;
+sync_with_master;
+select * from t5 /* must be 1 after reconnection */;
+
+connection master;
+drop temporary table t4;
+drop table t5;
+
 # The server will now close done
+# End of 5.1 tests
