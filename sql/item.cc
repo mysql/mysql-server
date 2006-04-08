@@ -3061,6 +3061,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   int         found_match_degree= 0;
   Item_ident *cur_field;
   int         cur_match_degree= 0;
+  char        name_buff[NAME_LEN+1];
 
   if (find_item->type() == Item::FIELD_ITEM ||
       find_item->type() == Item::REF_ITEM)
@@ -3071,6 +3072,14 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   }
   else
     return NULL;
+
+  if (db_name && lower_case_table_names)
+  {
+    /* Convert database to lower case for comparison */
+    strmake(name_buff, db_name, sizeof(name_buff)-1);
+    my_casedn_str(files_charset_info, name_buff);
+    db_name= name_buff;
+  }
 
   DBUG_ASSERT(field_name != 0);
 
