@@ -3980,7 +3980,7 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   if (!(!wild || !wild[0] || !wild_compare(et.name.str, wild, 0)))
     DBUG_RETURN(0);
   
-  //->field[0] is EVENT_CATALOG and is by default NULL
+  /* ->field[0] is EVENT_CATALOG and is by default NULL */
   
   sch_table->field[1]->store(et.dbname.str, et.dbname.length, scs);
   sch_table->field[2]->store(et.name.str, et.name.length, scs);
@@ -4000,12 +4000,9 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   if (et.expression)
   {
     String show_str;
-    //type
+    /* type */
     sch_table->field[5]->store(STRING_WITH_LEN("RECURRING"), scs);
-    /* execute_at */
-    sch_table->field[6]->set_null();
-    /* interval_value */
-    //interval_type
+
     if (event_reconstruct_interval_expression(&show_str, et.interval,
                                               et.expression))
       DBUG_RETURN(1);
@@ -4058,9 +4055,10 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   sch_table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
 
   if (et.last_executed.year)
+  {
+    sch_table->field[16]->set_notnull();
     sch_table->field[16]->store_time(&et.last_executed,MYSQL_TIMESTAMP_DATETIME);
-  else
-    sch_table->field[16]->set_null();
+  }
 
   sch_table->field[17]->store(et.comment.str, et.comment.length, scs);
 

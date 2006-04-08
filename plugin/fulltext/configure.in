@@ -1,0 +1,9 @@
+# configure.in example for a plugin
+
+AC_INIT(plugin_example, 0.1)
+AM_INIT_AUTOMAKE
+AC_DISABLE_STATIC
+AC_PROG_LIBTOOL
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
+

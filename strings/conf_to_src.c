@@ -22,7 +22,7 @@
 
 #define ROW_LEN		16
 #define ROW16_LEN	8
-#define MAX_BUF		16*1024
+#define MAX_BUF		64*1024
 
 static CHARSET_INFO all_charsets[256];
 
@@ -156,6 +156,7 @@ static int my_read_charset_file(const char *filename)
   }
   
   len=read(fd,buf,MAX_BUF);
+  DBUG_ASSERT(len < MAX_BUF);
   close(fd);
   
   if (my_parse_charset_xml(buf,len,add_collation))
@@ -221,15 +222,19 @@ void dispcset(FILE *f,CHARSET_INFO *cs)
   }
 
   fprintf(f,"  NULL,                       /* from_uni      */\n");
+  fprintf(f,"  my_unicase_default,         /* caseinfo      */\n");
   fprintf(f,"  NULL,                       /* state map     */\n");
   fprintf(f,"  NULL,                       /* ident map     */\n");
   fprintf(f,"  1,                          /* strxfrm_multiply*/\n");
+  fprintf(f,"  1,                          /* caseup_multiply*/\n");
+  fprintf(f,"  1,                          /* casedn_multiply*/\n");
   fprintf(f,"  1,                          /* mbminlen      */\n");
   fprintf(f,"  1,                          /* mbmaxlen      */\n");
   fprintf(f,"  0,                          /* min_sort_char */\n");
   fprintf(f,"  255,                        /* max_sort_char */\n");
+  fprintf(f,"  ' ',                        /* pad_char      */\n");
   fprintf(f,"  0,                          /* escape_with_backslash_is_dangerous */\n");
-            
+  
   fprintf(f,"  &my_charset_8bit_handler,\n");
   if (cs->state & MY_CS_BINSORT)
     fprintf(f,"  &my_collation_8bit_bin_handler,\n");

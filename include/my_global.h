@@ -917,7 +917,7 @@ typedef unsigned long	uint32; /* Short for unsigned integer >= 32 bits */
 #error "Neither int or long is of 4 bytes width"
 #endif
 
-#if !defined(HAVE_ULONG) && !defined(TARGET_OS_LINUX) && !defined(__USE_MISC)
+#if !defined(HAVE_ULONG) && !defined(__USE_MISC)
 typedef unsigned long	ulong;		  /* Short for unsigned long */
 #endif
 #ifndef longlong_defined
