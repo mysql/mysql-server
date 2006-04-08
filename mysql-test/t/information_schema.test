@@ -97,9 +97,12 @@ SHOW CHARACTER SET WHERE charset like 'latin1%';
 # Test for information_schema.COLLATIONS &
 # SHOW COLLATION
 
+--replace_column 5 #
 select * from information_schema.COLLATIONS
 where COLLATION_NAME like 'latin1%';
+--replace_column 5 #
 SHOW COLLATION LIKE 'latin1%';
+--replace_column 5 #
 SHOW COLLATION WHERE collation like 'latin1%';
 
 select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY
@@ -737,15 +740,6 @@ select 1 from (select 1 from test.t1) a;
 use information_schema;
 select 1 from (select 1 from test.t1) a;
 use test;
-drop table t1;
-
-#
-# Bug #14290: character_maximum_length for text fields
-#
-
-create table t1(a blob, b text charset utf8, c text charset ucs2);
-select data_type, character_octet_length, character_maximum_length 
-  from information_schema.columns where table_name='t1';
 drop table t1;
 
 #

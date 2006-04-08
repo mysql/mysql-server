@@ -593,28 +593,9 @@ Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
   et->created= table->field[EVEX_FIELD_CREATED]->val_int();
   et->modified= table->field[EVEX_FIELD_MODIFIED]->val_int();
 
-  /*
-    ToDo Andrey : Ask PeterG & Serg what to do in this case.
-                  Whether on load last_executed_at should be loaded
-                  or it must be 0ed. If last_executed_at is loaded
-                  then an event can be scheduled for execution
-                  instantly. Let's say an event has to be executed
-                  every 15 mins. The server has been stopped for
-                  more than this time and then started. If L_E_AT
-                  is loaded from DB, execution at L_E_AT+15min
-                  will be scheduled. However this time is in the past.
-                  Hence immediate execution. Due to patch of
-                  ::mark_last_executed() last_executed gets time_now
-                  and not execute_at. If not like this a big
-                  queue can be scheduled for times which are still in
-                  the past (2, 3 and more executions which will be
-                  consequent).
-  */
-  set_zero_time(&last_executed, MYSQL_TIMESTAMP_DATETIME);
-#ifdef ANDREY_0
   table->field[EVEX_FIELD_LAST_EXECUTED]->
                      get_date(&et->last_executed, TIME_NO_ZERO_DATE);
-#endif
+
   last_executed_changed= false;
 
   /* ToDo : Andrey . Find a way not to allocate ptr on event_mem_root */
@@ -648,70 +629,164 @@ error:
 
 
 /*
-  Computes the sum of a timestamp plus interval
+  Computes the sum of a timestamp plus interval. Presumed is that at least one
+  previous execution has occured.
 
   SYNOPSIS
     get_next_time(TIME *start, int interval_value, interval_type interval)
       next          the sum
       start         add interval_value to this time
+      time_now      current time
       i_value       quantity of time type interval to add
       i_type        type of interval to add (SECOND, MINUTE, HOUR, WEEK ...)
+  
+  RETURNS
+    0  OK
+    1  Error
+
+  NOTES
+    1) If the interval is conversible to SECOND, like MINUTE, HOUR, DAY, WEEK.
+       Then we use TIMEDIFF()'s implementation as underlying and number of
+       seconds as resolution for computation.
+    2) In all other cases - MONTH, QUARTER, YEAR we use MONTH as resolution
+       and PERIOD_DIFF()'s implementation
+    3) We get the difference between time_now and `start`, then divide it
+       by the months, respectively seconds and round up. Then we multiply
+       monts/seconds by the rounded value and add it to `start` -> we get
+       the next execution time.
 */
 
 static
-bool get_next_time(TIME *next, TIME *start, int i_value, interval_type i_type)
+bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
+                   int i_value, interval_type i_type)
 {
   bool ret;
   INTERVAL interval;
   TIME tmp;
+  longlong months=0, seconds=0;
+  DBUG_ENTER("get_next_time");
+  DBUG_PRINT("enter", ("start=%llu now=%llu", TIME_to_ulonglong_datetime(start),
+                      TIME_to_ulonglong_datetime(time_now)));
 
   bzero(&interval, sizeof(interval));
 
   switch (i_type) {
   case INTERVAL_YEAR:
-    interval.year= (ulong) i_value;
+    months= i_value*12;
     break;
   case INTERVAL_QUARTER:
-    interval.month= (ulong)(i_value*3);
-    break;
+    /* Has already been converted to months */
   case INTERVAL_YEAR_MONTH:
   case INTERVAL_MONTH:
-    interval.month= (ulong) i_value;
+    months= i_value;
     break;
   case INTERVAL_WEEK:
-    interval.day= (ulong)(i_value*7);
-    break;
+    /* WEEK has already been converted to days */
   case INTERVAL_DAY:
-    interval.day= (ulong) i_value;
+    seconds= i_value*24*3600;
     break;
   case INTERVAL_DAY_HOUR:
   case INTERVAL_HOUR:
-    interval.hour= (ulong) i_value;
+    seconds= i_value*3600;
     break;
   case INTERVAL_DAY_MINUTE:
   case INTERVAL_HOUR_MINUTE:
   case INTERVAL_MINUTE:
-    interval.minute=i_value;
+    seconds= i_value*60;
     break;
   case INTERVAL_DAY_SECOND:
   case INTERVAL_HOUR_SECOND:
   case INTERVAL_MINUTE_SECOND:
   case INTERVAL_SECOND:
-    interval.second=i_value;
+    seconds= i_value;
     break;
   case INTERVAL_DAY_MICROSECOND:
   case INTERVAL_HOUR_MICROSECOND:
   case INTERVAL_MINUTE_MICROSECOND:
   case INTERVAL_SECOND_MICROSECOND:
   case INTERVAL_MICROSECOND:
-    interval.second_part=i_value;
+    /*
+     We should return an error here so SHOW EVENTS/ SELECT FROM I_S.EVENTS
+     would give an error then.
+    */
+    DBUG_RETURN(1);
     break;
   }
-  tmp= *start;
-  if (!(ret= date_add_interval(&tmp, i_type, interval)))
-    *next= tmp;
+  DBUG_PRINT("info", ("seconds=%ld months=%ld", seconds, months));
+  if (seconds)
+  {
+    longlong seconds_diff;
+    long microsec_diff;
+    
+    if (calc_time_diff(time_now, start, 1, &seconds_diff, &microsec_diff))
+    {
+      DBUG_PRINT("error", ("negative difference"));
+      DBUG_ASSERT(0);
+    }
+    uint multiplier= seconds_diff / seconds;
+    /*
+      Increase the multiplier is the modulus is not zero to make round up.
+      Or if time_now==start then we should not execute the same 
+      event two times for the same time
+      get the next exec if the modulus is not
+    */
+    DBUG_PRINT("info", ("multiplier=%d", multiplier));
+    if (seconds_diff % seconds || (!seconds_diff && last_exec->year))
+      ++multiplier;
+    interval.second= seconds * multiplier;
+    DBUG_PRINT("info", ("multiplier=%u interval.second=%u", multiplier,
+                        interval.second));
+    tmp= *start;
+    if (!(ret= date_add_interval(&tmp, INTERVAL_SECOND, interval)))
+      *next= tmp;
+  }
+  else
+  {
+    /* PRESUMED is that at least one execution took already place */
+    int diff_months= (time_now->year - start->year)*12 +
+                     (time_now->month - start->month);
+    /*
+      Note: If diff_months is 0 that means we are in the same month as the
+      last execution which is also the first execution.
+    */
+    /*
+      First we try with the smaller if not then + 1, because if we try with
+      directly with +1 we will be after the current date but it could be that
+      we will be 1 month ahead, so 2 steps are necessary.
+    */
+    interval.month= (diff_months / months)*months;
+    /*
+      Check if the same month as last_exec (always set - prerequisite)
+      An event happens at most once per month so there is no way to schedule
+      it two times for the current month. This saves us from two calls to
+      date_add_interval() if the event was just executed.  But if the scheduler
+      is started and there was at least 1 scheduled date skipped this one does
+      not help and two calls to date_add_interval() will be done, which is a
+      bit more expensive but compared to the rareness of the case is neglectable.
+    */
+    if (time_now->year==last_exec->year && time_now->month==last_exec->month)
+      interval.month+= months;
 
-  return ret;
+    tmp= *start;
+    if ((ret= date_add_interval(&tmp, INTERVAL_MONTH, interval)))
+      goto done;
+    
+    /* If `tmp` is still before time_now just add one more time the interval */
+    if (my_time_compare(&tmp, time_now) == -1)
+    { 
+      interval.month+= months;
+      tmp= *start;
+      if ((ret= date_add_interval(&tmp, INTERVAL_MONTH, interval)))
+        goto done;
+    }
+    *next= tmp;
+    /* assert on that the next is after now */
+    DBUG_ASSERT(1==my_time_compare(next, time_now));
+  }
+
+done:
+  DBUG_PRINT("info", ("next=%llu", TIME_to_ulonglong_datetime(next)));
+  DBUG_RETURN(ret);
 }
 
 
@@ -734,6 +809,10 @@ Event_timed::compute_next_execution_time()
   int tmp;
 
   DBUG_ENTER("Event_timed::compute_next_execution_time");
+  DBUG_PRINT("enter", ("starts=%llu ends=%llu last_executed=%llu",
+                        TIME_to_ulonglong_datetime(&starts),
+                        TIME_to_ulonglong_datetime(&ends),
+                        TIME_to_ulonglong_datetime(&last_executed)));
 
   if (status == MYSQL_EVENT_DISABLED)
   {
@@ -757,29 +836,14 @@ Event_timed::compute_next_execution_time()
     }
     goto ret;
   }
-  time((time_t *)&now);
-  my_tz_UTC->gmt_sec_to_TIME(&time_now, now);
+  my_tz_UTC->gmt_sec_to_TIME(&time_now, current_thd->query_start());
 
-#ifdef ANDREY_0
-  sql_print_information("[%s.%s]", dbname.str, name.str);
-  sql_print_information("time_now : [%d-%d-%d %d:%d:%d ]",
-                         time_now.year, time_now.month, time_now.day,
-                         time_now.hour, time_now.minute, time_now.second);
-  sql_print_information("starts : [%d-%d-%d %d:%d:%d ]", starts.year,
-                        starts.month, starts.day, starts.hour,
-                        starts.minute, starts.second);
-  sql_print_information("ends   : [%d-%d-%d %d:%d:%d ]", ends.year,
-                        ends.month, ends.day, ends.hour,
-                        ends.minute, ends.second);
-  sql_print_information("m_last_ex: [%d-%d-%d %d:%d:%d ]", last_executed.year,
-                        last_executed.month, last_executed.day,
-                        last_executed.hour, last_executed.minute,
-                        last_executed.second);
-#endif
+  DBUG_PRINT("info",("NOW=[%llu]", TIME_to_ulonglong_datetime(&time_now)));
 
   /* if time_now is after ends don't execute anymore */
   if (!ends_null && (tmp= my_time_compare(&ends, &time_now)) == -1)
   {
+    DBUG_PRINT("info", ("NOW after ENDS, don't execute anymore"));
     /* time_now is after ends. don't execute anymore */
     set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
     execute_at_null= TRUE;
@@ -807,6 +871,7 @@ Event_timed::compute_next_execution_time()
     }
     else
     {
+      DBUG_PRINT("info", ("STARTS is future, NOW <= STARTS,sched for STARTS"));
       /*
         starts is in the future
         time_now before starts. Scheduling for starts
@@ -825,8 +890,10 @@ Event_timed::compute_next_execution_time()
       after m_ends set execute_at to 0. And check for on_completion
       If not set then schedule for now.
     */
+    DBUG_PRINT("info", ("Both STARTS & ENDS are set"));
     if (!last_executed.year)
     {
+      DBUG_PRINT("info", ("Not executed so far. Execute NOW."));
       execute_at= time_now;
       execute_at_null= FALSE;
     }
@@ -834,12 +901,15 @@ Event_timed::compute_next_execution_time()
     {
       TIME next_exec;
 
-      if (get_next_time(&next_exec, &last_executed, expression, interval))
+      DBUG_PRINT("info", ("Executed at least once"));
+      if (get_next_time(&next_exec, &starts, &time_now, &last_executed,
+                        expression, interval))
         goto err;
 
       /* There was previous execution */
       if (my_time_compare(&ends, &next_exec) == -1)
       {
+        DBUG_PRINT("info", ("Next execution after ENDS. Stop executing."));
         /* Next execution after ends. No more executions */
         set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
         execute_at_null= TRUE;
@@ -848,6 +918,7 @@ Event_timed::compute_next_execution_time()
       }
       else
       {
+        DBUG_PRINT("info",("Next[%llu]",TIME_to_ulonglong_datetime(&next_exec)));
         execute_at= next_exec;
         execute_at_null= FALSE;
       }
@@ -856,18 +927,24 @@ Event_timed::compute_next_execution_time()
   }
   else if (starts_null && ends_null)
   {
+    DBUG_PRINT("info", ("Neither STARTS nor ENDS are set"));
     /*
       Both starts and m_ends are not set, so we schedule for the next
       based on last_executed.
     */
     if (last_executed.year)
     {
-      if (get_next_time(&execute_at, &last_executed, expression, interval))
+      TIME next_exec;
+      if (get_next_time(&next_exec, &starts, &time_now, &last_executed,
+                        expression, interval))
         goto err;
+      execute_at= next_exec;
+      DBUG_PRINT("info",("Next[%llu]",TIME_to_ulonglong_datetime(&next_exec)));
     }
     else
     {
       /* last_executed not set. Schedule the event for now */
+      DBUG_PRINT("info", ("Execute NOW"));
       execute_at= time_now;
     }
     execute_at_null= FALSE;
@@ -877,6 +954,7 @@ Event_timed::compute_next_execution_time()
     /* either starts or m_ends is set */
     if (!starts_null)
     {
+      DBUG_PRINT("info", ("STARTS is set"));
       /*
         - starts is set.
         - starts is not in the future according to check made before
@@ -885,15 +963,24 @@ Event_timed::compute_next_execution_time()
       */
       if (last_executed.year)
       {
-        if (get_next_time(&execute_at, &last_executed, expression, interval))
+        TIME next_exec;
+        DBUG_PRINT("info", ("Executed at least once."));
+        if (get_next_time(&next_exec, &starts, &time_now, &last_executed,
+                          expression, interval))
           goto err;
+        execute_at= next_exec;
+        DBUG_PRINT("info",("Next[%llu]",TIME_to_ulonglong_datetime(&next_exec)));
       }
       else
+      {
+        DBUG_PRINT("info", ("Not executed so far. Execute at STARTS"));
         execute_at= starts;
+      }
       execute_at_null= FALSE;
     }
     else
     {
+      DBUG_PRINT("info", ("STARTS is not set. ENDS is set"));
       /*
         - m_ends is set
         - m_ends is after time_now or is equal
@@ -907,11 +994,13 @@ Event_timed::compute_next_execution_time()
       {
         TIME next_exec;
 
-        if (get_next_time(&next_exec, &last_executed, expression, interval))
+        if (get_next_time(&next_exec, &starts, &time_now, &last_executed,
+                          expression, interval))
           goto err;
 
         if (my_time_compare(&ends, &next_exec) == -1)
         {
+          DBUG_PRINT("info", ("Next execution after ENDS. Stop executing."));
           set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
           execute_at_null= TRUE;
           if (on_completion == MYSQL_EVENT_ON_COMPLETION_DROP)
@@ -919,6 +1008,8 @@ Event_timed::compute_next_execution_time()
         }
         else
         {
+          DBUG_PRINT("info", ("Next[%llu]",
+                              TIME_to_ulonglong_datetime(&next_exec)));
           execute_at= next_exec;
           execute_at_null= FALSE;
         }
@@ -927,9 +1018,10 @@ Event_timed::compute_next_execution_time()
     goto ret;
   }
 ret:
-
+  DBUG_PRINT("info", ("ret=0"));
   DBUG_RETURN(false);
 err:
+  DBUG_PRINT("info", ("ret=1"));
   DBUG_RETURN(true);
 }
 
@@ -1462,6 +1554,7 @@ Event_timed::spawn_now(void * (*thread_func)(void*))
   int ret= EVENT_EXEC_STARTED;
   static uint exec_num= 0;
   DBUG_ENTER("Event_timed::spawn_now");
+  DBUG_PRINT("info", ("this=0x%lx", this));
   DBUG_PRINT("info", ("[%s.%s]", dbname.str, name.str));
 
   VOID(pthread_mutex_lock(&this->LOCK_running));

@@ -101,7 +101,6 @@ set global event_scheduler = 0;
 create table t_event3 (a int, b float);
 drop event if exists event3;
 create event event3 on schedule every 50 + 10 minute starts date_add("20100101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
-set max_allowed_packet=128000000;
 select count(*) from t_event3;
 drop event event3;
 drop table t_event3;
@@ -202,6 +201,9 @@ CREATE TABLE event_like LIKE mysql.event;
 INSERT INTO event_like SELECT * FROM mysql.event;
 #sleep a bit or we won't catch the change of time
 --sleep 1
+ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
+--error ER_CANNOT_LOAD_FROM_TABLE
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
 #wait a bit or we won't see the difference because of seconds resolution
 --sleep 1
@@ -220,6 +222,7 @@ ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 --sleep 1
 ALTER TABLE mysql.event MODIFY db varchar(64) character set utf8 collate utf8_bin default '';
+--sleep 1
 --error ER_CANNOT_LOAD_FROM_TABLE
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 --sleep 1
@@ -412,7 +415,8 @@ select 1;
 select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
 drop event white_space;
 create event white_space on schedule every 10 hour disable do
-select 2;
+
+select 2;
 select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
 drop event white_space;
 create event white_space on schedule every 10 hour disable do	select 3;
@@ -422,7 +426,7 @@ drop event white_space;
 # END:  BUG #17453: Creating Event crash the server
 #
 
-#
+##set global event_scheduler=1;
 # Bug#17403 "Events: packets out of order with show create event"
 #
 create event e1 on schedule every 1 year do set @a = 5;
@@ -436,7 +440,7 @@ drop event e1;
 ##select get_lock("test_lock3", 20);
 ##create event закачка on schedule every 10 hour do select get_lock("test_lock3", 20);
 ##select sleep(2);
-##select /*7*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+##show processlist;
 ##drop event закачка;
 ##select release_lock("test_lock3");
 
@@ -446,13 +450,14 @@ drop event e1;
 ##select get_lock("test_lock4", 20);
 ##create event закачка4 on schedule every 1 second do select get_lock("test_lock4", 20);
 ##select sleep(3);
-##select /*8*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+##--replace_column 1 # 6 #
 ##drop event закачка4;
 ##select release_lock("test_lock4");
 
 ##set global event_scheduler=0;
 ##select sleep(2);
-##select /*9*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+##--replace_column 1 # 6 #
 ##select count(*) from mysql.event;
 
 drop database events_test;
+
