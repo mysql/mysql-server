@@ -144,7 +144,6 @@ our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
 our $glob_use_running_ndbcluster_slave= 0;
 our $glob_use_embedded_server=    0;
-our $glob_mysqld_restart=         0;
 our @glob_test_mode;
 
 our $using_ndbcluster_master= 0;
