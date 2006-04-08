@@ -2316,11 +2316,6 @@ sub run_mysqltest ($) {
 
   mtr_init_args(\$args);
 
-  if ( defined $opt_valgrind_mysqltest )
-  {
-    valgrind_arguments($args, \$exe);
-  }
-
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_mysock'});
   mtr_add_arg($args, "--database=test");
@@ -2397,6 +2392,17 @@ sub run_mysqltest ($) {
   # ----------------------------------------------------------------------
   # Add arguments that should not go into the MYSQL_TEST env var
   # ----------------------------------------------------------------------
+
+  if ( defined $opt_valgrind_mysqltest )
+  {
+    # Prefix the Valgrind options to the argument list.
+    # We do this here, since we do not want to Valgrind the nested invocations
+    # of mysqltest; that would mess up the stderr output causing test failure.
+    my @args_saved = @$args;
+    mtr_init_args(\$args);
+    valgrind_arguments($args, \$exe);
+    mtr_add_arg($args, "%s", $_) for @args_saved;
+  }
 
   mtr_add_arg($args, "-R");
   mtr_add_arg($args, $tinfo->{'result_file'});
