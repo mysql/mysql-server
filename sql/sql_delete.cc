@@ -916,8 +916,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       DBUG_RETURN(TRUE);
     }
     if (!ha_check_storage_engine_flag(ha_resolve_by_legacy_type(thd, table_type),
-                                      HTON_CAN_RECREATE)
-        || thd->lex->sphead)
+                                      HTON_CAN_RECREATE))
       goto trunc_by_del;
 
     if (lock_and_wait_for_table_name(thd, table_list))
