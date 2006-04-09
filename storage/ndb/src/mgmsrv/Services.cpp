@@ -866,14 +866,11 @@ MgmApiSession::restart(Parser<MgmApiSession>::Context &,
   }
 
   int restarted = 0;
-  int result = 0;
-
-  for(size_t i = 0; i < nodes.size(); i++)
-    if((result = m_mgmsrv.restartNode(nodes[i],
-				      nostart != 0,
-				      initialstart != 0,
-				      abort != 0)) == 0)
-      restarted++;
+  int result= m_mgmsrv.restartNodes(nodes,
+                                    &restarted,
+                                    nostart != 0,
+                                    initialstart != 0,
+                                    abort != 0);
   
   m_output->println("restart reply");
   if(result != 0){
@@ -998,7 +995,12 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
 
   args.get("node", (const char **)&nodes_str);
   if(nodes_str == NULL)
+  {
+    m_output->println("stop reply");
+    m_output->println("result: empty node list");
+    m_output->println("");
     return;
+  }
   args.get("abort", &abort);
 
   char *p, *last;
@@ -1008,29 +1010,10 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
     nodes.push_back(atoi(p));
   }
 
-  int stop_self= 0;
-  size_t i;
-
-  for(i=0; i < nodes.size(); i++) {
-    if (nodes[i] == m_mgmsrv.getOwnNodeId()) {
-      stop_self= 1;
-      if (i != nodes.size()-1) {
-	m_output->println("stop reply");
-	m_output->println("result: server must be stopped last");
-	m_output->println("");
-	return;
-      }
-    }
-  }
-
-  int stopped = 0, result = 0;
-  
-  for(i=0; i < nodes.size(); i++)
-    if (nodes[i] != m_mgmsrv.getOwnNodeId()) {
-      if((result = m_mgmsrv.stopNode(nodes[i], abort != 0)) == 0)
-	stopped++;
-    } else
-      stopped++;
+  int stopped= 0;
+  int result= 0;
+  if (nodes.size())
+    result= m_mgmsrv.stopNodes(nodes, &stopped, abort != 0);
 
   m_output->println("stop reply");
   if(result != 0)
@@ -1039,9 +1022,6 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
     m_output->println("result: Ok");
   m_output->println("stopped: %d", stopped);
   m_output->println("");
-
-  if (stop_self)
-    g_StopServer= true;
 }
 
 
