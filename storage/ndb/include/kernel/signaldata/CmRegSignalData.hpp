@@ -30,12 +30,17 @@ class CmRegReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 5 + NdbNodeBitmask::Size );
 private:
   
   Uint32 blockRef;
   Uint32 nodeId;
-  Uint32 version; // See ndb_version.h
+  Uint32 version;    // See ndb_version.h
+
+  Uint32 start_type; // As specified by cmd-line or mgm, NodeState::StartType
+  Uint32 latest_gci; // 0 means no fs
+  Uint32 skip_nodes[NdbNodeBitmask::Size]; // Nodes that does not _need_ 
+                                           // to be part of restart
 };
 
 /**
@@ -59,8 +64,7 @@ private:
    * The dynamic id that the node reciving this signal has
    */
   Uint32 dynamicId;
-  
-  Uint32 allNdbNodes[NdbNodeBitmask::Size];
+  Uint32 allNdbNodes[NdbNodeBitmask::Size];  
 };
 
 /**
@@ -73,7 +77,7 @@ class CmRegRef {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 7 + NdbNodeBitmask::Size );
   
   enum ErrorCode {
     ZBUSY = 0,          /* Only the president can send this */
@@ -85,14 +89,27 @@ public:
                          * as president. */
     ZNOT_PRESIDENT = 5, /* We are not president */
     ZNOT_DEAD = 6,       /* We are not dead when we are starting  */
-    ZINCOMPATIBLE_VERSION = 7
+    ZINCOMPATIBLE_VERSION = 7,
+    ZINCOMPATIBLE_START_TYPE = 8
   };
 private:
   
   Uint32 blockRef;
   Uint32 nodeId;
   Uint32 errorCode;
+  /**
+   * Applicable if ZELECTION
+   */
   Uint32 presidentCandidate;
+  Uint32 candidate_latest_gci; // 0 means non
+
+  /**
+   * Data for sending node sending node
+   */
+  Uint32 latest_gci; 
+  Uint32 start_type; 
+  Uint32 skip_nodes[NdbNodeBitmask::Size]; // Nodes that does not _need_ 
+                                           // to be part of restart
 };
 
 class CmAdd {
