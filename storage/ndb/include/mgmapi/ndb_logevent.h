@@ -169,9 +169,13 @@ extern "C" {
     NDB_LE_BackupAborted = 57,
 
     /** NDB_MGM_EVENT_CATEGORY_INFO */
-    NDB_LE_EventBufferStatus = 58
+    NDB_LE_EventBufferStatus = 58,
 
     /* 59 used */
+
+    /** NDB_MGM_EVENT_CATEGORY_STARTUP */
+    NDB_LE_StartReport = 60
+
     /* 60 unused */
     /* 61 unused */
     /* 62 unused */
@@ -637,6 +641,13 @@ extern "C" {
         unsigned type;
         unsigned node_id;
       } SingleUser;
+      /** Log even data @ref NDB_LE_StartReport */
+      struct {
+	unsigned report_type;
+	unsigned remaining_time;
+	unsigned bitmask_size;
+	unsigned bitmask_data[1];
+      } StartReport;
 #ifndef DOXYGEN_FIX
     };
 #else
