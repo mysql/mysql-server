@@ -3,9 +3,7 @@
 drop table if exists t999;
 --enable_warnings
 create temporary table t999 (f int);
-### --replace_result $MYSQL_TEST_DIR "."  #failed on solaris etc bug#18906
---disable_query_log
+--replace_result $MYSQLTEST_VARDIR "."
 eval LOAD DATA INFILE "$MYSQLTEST_VARDIR/tmp/bl_dump_thread_id" into table t999;
---enable_query_log
 let $id = `select f from t999`;
 drop table t999;
