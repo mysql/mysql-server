@@ -204,6 +204,7 @@ private:
   void execWAIT_GCP_CONF(Signal* signal);
 
   void execSTOP_REQ(Signal* signal);
+  void execSTOP_CONF(Signal* signal);
   void execRESUME_REQ(Signal* signal);
 
   void execCHANGE_NODE_STATE_CONF(Signal* signal);
@@ -339,6 +340,16 @@ public:
     void progError(int line, int cause, const char * extra) { 
       cntr.progError(line, cause, extra); 
     }
+
+    enum StopNodesStep {
+      SR_BLOCK_GCP_START_GCP = 0,
+      SR_WAIT_COMPLETE_GCP = 1,
+      SR_UNBLOCK_GCP_START_GCP = 2,
+      SR_QMGR_STOP_REQ = 3,
+      SR_WAIT_NODE_FAILURES = 4,
+      SR_CLUSTER_SHUTDOWN = 12
+    } m_state;
+    SignalCounter m_stop_req_counter;
   };
 private:
   StopRecord c_stopRec;
