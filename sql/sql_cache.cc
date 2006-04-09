@@ -830,6 +830,11 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
                           flags.sql_mode,
                           flags.max_sort_length,
                           flags.group_concat_max_len));
+    /*
+     Make InnoDB to release the adaptive hash index latch before
+     acquiring the query cache mutex.
+    */
+    ha_release_temporary_latches(thd);
     STRUCT_LOCK(&structure_guard_mutex);
 
     if (query_cache_size == 0)
