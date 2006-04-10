@@ -4624,7 +4624,18 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   LinearSectionPtr ptr[1];
   ptr[0].p  = (Uint32*)name;
   ptr[0].sz = (strLen + 3)/4;
-
+  
+#ifndef IGNORE_VALGRIND_WARNINGS
+  if (strLen & 3)
+  {
+    Uint32 pad = 0;
+    m_buffer.clear();
+    m_buffer.append(name, strLen);
+    m_buffer.append(&pad, 4);
+    ptr[0].p = m_buffer.get_data();
+  }
+#endif
+  
   int r = dictSignal(&tSignal, ptr, 1,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
@@ -4766,7 +4777,18 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
   LinearSectionPtr ptr[1];
   ptr[0].p  = (Uint32*)name;
   ptr[0].sz = (strLen + 3)/4;
-
+  
+#ifndef IGNORE_VALGRIND_WARNINGS
+  if (strLen & 3)
+  {
+    Uint32 pad = 0;
+    m_buffer.clear();
+    m_buffer.append(name, strLen);
+    m_buffer.append(&pad, 4);
+    ptr[0].p = m_buffer.get_data();
+  }
+#endif
+  
   int r = dictSignal(&tSignal, ptr, 1,
 		     node,
 		     WAIT_GET_TAB_INFO_REQ,
