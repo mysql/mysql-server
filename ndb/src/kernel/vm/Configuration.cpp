@@ -55,6 +55,12 @@ enum ndbd_options {
 NDB_STD_OPTS_VARS;
 // XXX should be my_bool ???
 static int _daemon, _no_daemon, _foreground,  _initial, _no_start;
+static int _initialstart;
+static const char* _nowait_nodes;
+
+extern Uint32 g_start_type;
+extern NdbNodeBitmask g_nowait_nodes;
+
 /**
  * Arguments to NDB process
  */ 
@@ -81,6 +87,14 @@ static struct my_option my_long_options[] =
     "Run real ndbd in foreground, provided for debugging purposes"
     " (implies --nodaemon)",
     (gptr*) &_foreground, (gptr*) &_foreground, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "nowait-nodes", NO_ARG, 
+    "Nodes that will not be waited for during start",
+    (gptr*) &_nowait_nodes, (gptr*) &_nowait_nodes, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "initial-start", NO_ARG, 
+    "Perform initial start",
+    (gptr*) &_initialstart, (gptr*) &_initialstart, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -150,6 +164,37 @@ Configuration::init(int argc, char** argv)
   
   globalData.ownId= 0;
 
+  if (_nowait_nodes)
+  {
+    BaseString str(_nowait_nodes);
+    Vector<BaseString> arr;
+    str.split(arr, ",");
+    for (Uint32 i = 0; i<arr.size(); i++)
+    {
+      char *endptr = 0;
+      long val = strtol(arr[i].c_str(), &endptr, 10);
+      if (*endptr)
+      {
+	ndbout_c("Unable to parse nowait-nodes argument: %s : %s", 
+		 arr[i].c_str(), _nowait_nodes);
+	exit(-1);
+      }
+      if (! (val > 0 && val < MAX_NDB_NODES))
+      {
+	ndbout_c("Invalid nodeid specified in nowait-nodes: %d : %s", 
+		 val, _nowait_nodes);
+	exit(-1);
+      }
+      g_nowait_nodes.set(val);
+    }
+  }
+
+  if (_initialstart)
+  {
+    _initialStart = true;
+    g_start_type |= (1 << NodeState::ST_INITIAL_START);
+  }
+  
   return true;
 }
 
