@@ -155,8 +155,6 @@ page_zip_alloc(
 				and successful */
 	const page_t*	page,	/* in: uncompressed page */
 	dict_index_t*	index,	/* in: index of the B-tree node */
-	mtr_t*		mtr,	/* in: mini-transaction handle,
-				or NULL if no logging is desired */
 	ulint		length,	/* in: combined size of the record */
 	ulint		create)	/* in: nonzero=add the record to the heap */
 {
@@ -173,7 +171,7 @@ page_zip_alloc(
 		return(FALSE);
 	}
 
-	if (!page_zip_compress(page_zip, page, index, mtr)) {
+	if (!page_zip_compress(page_zip, page, index)) {
 		/* Unable to compress the page */
 		return(FALSE);
 	}

@@ -78,16 +78,6 @@ make them consecutive on disk if possible. From the other file segment
 we allocate pages for the non-leaf levels of the tree.
 */
 
-/******************************************************************
-Creates a new index page to the tree (not the root, and also not
-used in page reorganization). */
-static
-void
-btr_page_create(
-/*============*/
-	page_t*		page,	/* in: page to be created */
-	dict_tree_t*	tree,	/* in: index tree */
-	mtr_t*		mtr);	/* in: mtr */
 /****************************************************************
 Returns the upper level node pointer to a page. It is assumed that
 mtr holds an x-latch on the tree. */
@@ -255,17 +245,34 @@ static
 void
 btr_page_create(
 /*============*/
-	page_t*		page,	/* in: page to be created */
+	page_t*		page,	/* in/out: page to be created */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dict_tree_t*	tree,	/* in: index tree */
+	ulint		level,	/* in: the B-tree level of the page */
+	ulint		prev,	/* in: number of the previous page */
+	ulint		next,	/* in: number of the next page */
 	mtr_t*		mtr)	/* in: mtr */
 {
+	dict_index_t*	index = UT_LIST_GET_FIRST(tree->tree_indexes);
+
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
-	page_create(page, NULL, mtr,
-			UT_LIST_GET_FIRST(tree->tree_indexes));
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_create_zip(page, page_zip, index, level, mtr);
+	} else {
+		page_create(page, mtr, dict_table_is_comp(index->table));
+		/* Set the level of the new index page */
+		btr_page_set_level(page, NULL, level, mtr);
+	}
+
+	/* Set the next node and previous node fields of new page */
+	btr_page_set_next(page, page_zip, prev, mtr);
+	btr_page_set_prev(page, page_zip, next, mtr);
+
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 
-	btr_page_set_index_id(page, NULL, tree->id, mtr);
+	btr_page_set_index_id(page, page_zip, tree->id, mtr);
 }
 
 /******************************************************************
@@ -735,18 +742,25 @@ btr_create(
 	}
 
 	/* Create a new index page on the the allocated segment page */
-	page = page_create(frame, NULL, mtr, index);
+	page_zip = buf_block_get_page_zip(buf_block_align(frame));
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page = page_create_zip(frame, page_zip, index, 0, mtr);
+	} else {
+		page = page_create(frame, mtr,
+				dict_table_is_comp(index->table));
+		/* Set the level of the new index page */
+		btr_page_set_level(page, NULL, 0, mtr);
+	}
+
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 
 	/* Set the index id of the page */
-	btr_page_set_index_id(page, NULL, index_id, mtr);
-
-	/* Set the level of the new index page */
-	btr_page_set_level(page, NULL, 0, mtr);
+	btr_page_set_index_id(page, page_zip, index_id, mtr);
 
 	/* Set the next node and previous node fields */
-	btr_page_set_next(page, NULL, FIL_NULL, mtr);
-	btr_page_set_prev(page, NULL, FIL_NULL, mtr);
+	btr_page_set_next(page, page_zip, FIL_NULL, mtr);
+	btr_page_set_prev(page, page_zip, FIL_NULL, mtr);
 
 	/* We reset the free bits for the page to allow creation of several
 	trees in the same mtr, otherwise the latch on a bitmap page would
@@ -759,15 +773,6 @@ btr_create(
 	correctness of split algorithms */
 
 	ut_ad(page_get_max_insert_size(page, 2) > 2 * BTR_PAGE_MAX_REC_SIZE);
-
-	page_zip = buf_block_get_page_zip(buf_block_align(page));
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		if (UNIV_UNLIKELY(!page_zip_compress(
-				page_zip, page, index, mtr))) {
-			/* An empty page should always be compressible */
-			ut_error;
-		}
-	}
 
 	return(page_no);
 }
@@ -894,7 +899,7 @@ btr_page_reorganize_low(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(page, NULL, mtr, index);
+	page_create(page, mtr, dict_table_is_comp(index->table));
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 
 	/* Copy the records from the temporary space to the recreated page;
@@ -907,7 +912,7 @@ btr_page_reorganize_low(
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_compress(
-				page_zip, page, index, mtr))) {
+				page_zip, page, index))) {
 
 			/* Restore the old page and exit. */
 			buf_frame_copy(page, new_page);
@@ -1012,7 +1017,13 @@ btr_page_empty(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(page, page_zip, mtr, index);
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_create_zip(page, page_zip, index,
+				btr_page_get_level(page, mtr), mtr);
+	} else {
+		page_create(page, mtr, dict_table_is_comp(index->table));
+	}
+
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 }
 
@@ -1066,19 +1077,12 @@ btr_root_raise_and_insert(
 	level = btr_page_get_level(root, mtr);
 
 	new_page = btr_page_alloc(tree, 0, FSP_NO_DIR, level, mtr);
+	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
 
-	btr_page_create(new_page, tree, mtr);
-
-	/* Set the level of the new index page */
-	btr_page_set_level(new_page, NULL, level, mtr);
-
-	/* Set the next node and previous node fields of new page */
-	btr_page_set_next(new_page, NULL, FIL_NULL, mtr);
-	btr_page_set_prev(new_page, NULL, FIL_NULL, mtr);
+	btr_page_create(new_page, new_page_zip, tree, level,
+				FIL_NULL, FIL_NULL, mtr);
 
 	/* Move the records from root to the new page */
-
-	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
 
 	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
 			page_get_infimum_rec(root), cursor->index, mtr))) {
@@ -1106,10 +1110,31 @@ btr_root_raise_and_insert(
 
 	node_ptr = dict_tree_build_node_ptr(tree, rec, new_page_no, heap,
 								level);
+	/* The node pointer must be marked as the predefined minimum record,
+	as there is no lower alphabetical limit to records in the leftmost
+	node of a level: */
+	dtuple_set_info_bits(node_ptr, dtuple_get_info_bits(node_ptr)
+				| REC_INFO_MIN_REC_FLAG);
+
 	/* Rebuild the root page to get free space */
 	root_page_zip = buf_block_get_page_zip(buf_block_align(root));
-	btr_page_set_level(root, NULL, level + 1, mtr);
-	page_create(root, root_page_zip, mtr, cursor->index);
+	if (UNIV_LIKELY_NULL(root_page_zip)) {
+		page_create_zip(root, root_page_zip, cursor->index,
+				level + 1, mtr);
+	} else {
+		page_create(root, mtr,
+				dict_table_is_comp(cursor->index->table));
+		btr_page_set_level(root, NULL, level + 1, mtr);
+	}
+
+	/* Set the next node and previous node fields, although
+	they should already have been set.  The previous node field
+	must be FIL_NULL if root_page_zip != NULL, because the
+	REC_INFO_MIN_REC_FLAG (of the first user record) will be
+	set if and only if btr_page_get_prev() == FIL_NULL. */
+	btr_page_set_next(root, root_page_zip, FIL_NULL, mtr);
+	btr_page_set_prev(root, root_page_zip, FIL_NULL, mtr);
+
 	buf_block_align(root)->check_index_page_at_flush = TRUE;
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -1118,25 +1143,12 @@ btr_root_raise_and_insert(
 
 	page_cur_set_before_first(root, page_cursor);
 
-	node_ptr_rec = page_cur_tuple_insert(page_cursor, NULL,
+	node_ptr_rec = page_cur_tuple_insert(page_cursor, root_page_zip,
 					node_ptr, cursor->index, NULL, 0, mtr);
 
-	ut_ad(node_ptr_rec);
-
-	/* The node pointer must be marked as the predefined minimum record,
-	as there is no lower alphabetical limit to records in the leftmost
-	node of a level: */
-
-	btr_set_min_rec_mark(node_ptr_rec, mtr);
-
-	if (UNIV_LIKELY_NULL(root_page_zip)
-		&& !UNIV_UNLIKELY(page_zip_compress(root_page_zip, root,
-							cursor->index, mtr))) {
-		/* The root page should only contain the
-		node pointer to new_page at this point.
-		Thus, the data should fit. */
-		ut_error;
-	}
+	/* The root page should only contain the node pointer
+	to new_page at this point.  Thus, the data should fit. */
+	ut_a(node_ptr_rec);
 
 	/* Free the memory heap */
 	mem_heap_free(heap);
@@ -1658,6 +1670,7 @@ btr_page_split_and_insert(
 	byte		direction;
 	ulint		hint_page_no;
 	page_t*		new_page;
+	page_zip_des_t*	new_page_zip;
 	rec_t*		split_rec;
 	page_t*		left_page;
 	page_t*		right_page;
@@ -1722,7 +1735,9 @@ func_start:
 	/* 2. Allocate a new page to the tree */
 	new_page = btr_page_alloc(tree, hint_page_no, direction,
 					btr_page_get_level(page, mtr), mtr);
-	btr_page_create(new_page, tree, mtr);
+	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
+	btr_page_create(new_page, new_page_zip, tree,
+			btr_page_get_level(page, mtr), 0, 0, mtr);
 
 	/* 3. Calculate the first record on the upper half-page, and the
 	first record (move_limit) on original page which ends up on the
@@ -1773,8 +1788,7 @@ func_start:
 /*		fputs("Split left\n", stderr); */
 
 		if (UNIV_UNLIKELY(!page_move_rec_list_start(
-					new_page, buf_block_get_page_zip(
-					buf_block_align(new_page)),
+					new_page, new_page_zip,
 					move_limit, page_zip,
 					cursor->index, mtr))) {
 			ut_error;
@@ -1788,8 +1802,7 @@ func_start:
 /*		fputs("Split right\n", stderr); */
 
 		if (UNIV_UNLIKELY(!page_move_rec_list_end(
-					new_page, buf_block_get_page_zip(
-					buf_block_align(new_page)),
+					new_page, new_page_zip,
 					move_limit, page_zip,
 					cursor->index, mtr))) {
 			ut_error;
