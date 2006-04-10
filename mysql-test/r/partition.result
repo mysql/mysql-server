@@ -839,4 +839,21 @@ SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Dynamic	0	0	0	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 DROP TABLE t1;
+create table t1 (s1 int auto_increment primary key)
+partition by list (s1)
+(partition p1 values in (1),
+partition p2 values in (2),
+partition p3 values in (3));
+insert into t1 values (null);
+insert into t1 values (null);
+insert into t1 values (null);
+select auto_increment from information_schema.tables where table_name='t1';
+auto_increment
+4
+select * from t1;
+s1
+1
+2
+3
+drop table t1;
 End of 5.1 tests
