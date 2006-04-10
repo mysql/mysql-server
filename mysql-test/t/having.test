@@ -354,7 +354,9 @@ drop table t1;
 # when the server is run on Windows or with --lower-case-table-names=1
 #
 
+--disable_warnings
 DROP SCHEMA IF EXISTS HU;
+--enable_warnings
 CREATE SCHEMA HU ;
 USE HU ;
 
