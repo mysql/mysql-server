@@ -839,4 +839,21 @@ SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Dynamic	0	0	0	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 DROP TABLE t1;
+create table t1 (a int)
+partition by list (a)
+(partition `s1 s2` values in (0));
+drop table t1;
+create table t1 (a int)
+partition by list (a)
+(partition `7` values in (0));
+drop table t1;
+create table t1 (a int)
+partition by list (a)
+(partition `s1 s2 ` values in (0));
+ERROR HY000: Incorrect partition name
+create table t1 (a int)
+partition by list (a)
+subpartition by hash (a)
+(partition p1 values in (0) (subpartition `p1 p2 `));
+ERROR HY000: Incorrect partition name
 End of 5.1 tests

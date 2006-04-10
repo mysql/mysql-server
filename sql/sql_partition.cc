@@ -1614,6 +1614,21 @@ static int add_key_partition(File fptr, List<char> field_list)
   return err;
 }
 
+static int add_name_string(File fptr, const char *name)
+{
+  int err;
+  String name_string("", 0, system_charset_info);
+  THD *thd= current_thd;
+  ulonglong save_options= thd->options;
+
+  thd->options= 0;
+  append_identifier(thd, &name_string, name,
+                    strlen(name));
+  thd->options= save_options;
+  err= add_string_object(fptr, &name_string);
+  return err;
+}
+
 static int add_int(File fptr, longlong number)
 {
   llstr(number, buff);
@@ -1912,7 +1927,7 @@ char *generate_partition_syntax(partition_info *part_info,
           part_info->part_state_len= part_state_id+1;
         }
         err+= add_partition(fptr);
-        err+= add_string(fptr, part_elem->partition_name);
+        err+= add_name_string(fptr, part_elem->partition_name);
         err+= add_space(fptr);
         err+= add_partition_values(fptr, part_info, part_elem);
         if (!part_info->is_sub_partitioned())
@@ -1928,7 +1943,7 @@ char *generate_partition_syntax(partition_info *part_info,
           {
             part_elem= sub_it++;
             err+= add_subpartition(fptr);
-            err+= add_string(fptr, part_elem->partition_name);
+            err+= add_name_string(fptr, part_elem->partition_name);
             err+= add_space(fptr);
             err+= add_partition_options(fptr, part_elem);
             if (j != (no_subparts-1))

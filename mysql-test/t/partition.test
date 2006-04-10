@@ -956,4 +956,28 @@ PARTITION p2 VALUES LESS THAN (30) ENGINE = MyISAM);
 SHOW TABLE STATUS;
 DROP TABLE t1;
 
+#
+#BUG 18750 Problems with partition names
+#
+create table t1 (a int)
+partition by list (a)
+(partition `s1 s2` values in (0));
+drop table t1;
+
+create table t1 (a int)
+partition by list (a)
+(partition `7` values in (0));
+drop table t1;
+
+--error ER_WRONG_PARTITION_NAME
+create table t1 (a int)
+partition by list (a)
+(partition `s1 s2 ` values in (0));
+
+--error ER_WRONG_PARTITION_NAME
+create table t1 (a int)
+partition by list (a)
+subpartition by hash (a)
+(partition p1 values in (0) (subpartition `p1 p2 `));
+
 --echo End of 5.1 tests
