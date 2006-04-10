@@ -40,6 +40,7 @@ private:
   Parser_t *m_parser;
   MgmtSrvr::Allocated_resources *m_allocated_resources;
   char m_err_str[1024];
+  int m_stopSelf; // -1 is restart, 0 do nothing, 1 stop
 
   void getConfig_common(Parser_t::Context &ctx,
 			const class Properties &args,
