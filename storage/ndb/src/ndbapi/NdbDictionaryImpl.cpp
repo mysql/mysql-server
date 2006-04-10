@@ -1789,9 +1789,14 @@ NdbDictInterface::getTable(const BaseString& name, bool fullyQualifiedNames)
 
   // Copy name to m_buffer to get a word sized buffer
   m_buffer.clear();
-  m_buffer.grow(namelen_words*4);
+  m_buffer.grow(namelen_words*4+4);
   m_buffer.append(name.c_str(), namelen);
 
+#ifndef IGNORE_VALGRIND_WARNINGS
+  Uint32 pad = 0;
+  m_buffer.append(&pad, 4);
+#endif
+  
   LinearSectionPtr ptr[1];
   ptr[0].p= (Uint32*)m_buffer.get_data();
   ptr[0].sz= namelen_words;
