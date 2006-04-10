@@ -55,8 +55,8 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
   bool all_constant= TRUE;
 
   /* If the first argument is a FIELD_ITEM, pull out the field. */
-  if (items[0]->type() == Item::FIELD_ITEM)
-    field=((Item_field *)items[0])->field;
+  if (items[0]->real_item()->type() == Item::FIELD_ITEM)
+    field=((Item_field *)(items[0]->real_item()))->field;
   /* But if it can't be compared as a longlong, we don't really care. */
   if (field && !field->can_be_compared_as_longlong())
     field= NULL;
