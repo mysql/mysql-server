@@ -27,6 +27,7 @@ ps_7ndb                 : dbug assert in RBR mode when executing test suite
 rpl_ndb_dd_basic        : Bug #18569
 rpl_row_basic_7ndb        : Bug #18923
 rpl_ndb_dd_advance        : Bug #18924
+rpl_ndb_multi_update2     : Bug #18928
 rpl_ndb_2innodb         : assertion in get_parts_for_update()
 rpl_ndb_2myisam         : assertion in get_parts_for_update()
 rpl_ndb_auto_inc        : Bug#17086
