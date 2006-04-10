@@ -564,3 +564,12 @@ b1+0	sum(b1)	sum(b2)
 1	4	4
 2	2	2
 drop table t1, t2;
+create table t1 (a bit(7));
+insert into t1 values (0x60);
+select * from t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	t1	a	a	16	7	1	Y	0	0	63
+a
+`
+drop table t1;
+End of 5.0 tests
