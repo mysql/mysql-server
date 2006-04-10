@@ -4632,7 +4632,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
     m_buffer.clear();
     m_buffer.append(name, strLen);
     m_buffer.append(&pad, 4);
-    ptr[0].p = m_buffer.get_data();
+    ptr[0].p = (Uint32*)m_buffer.get_data();
   }
 #endif
   
@@ -4642,6 +4642,9 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
 		     DICT_WAITFOR_TIMEOUT, 100);
   if (r)
   {
+    dst.m_id = -1;
+    dst.m_version = ~0;
+    
     DBUG_PRINT("info", ("get_filegroup failed dictSignal"));
     DBUG_RETURN(-1);
   }
@@ -4785,7 +4788,7 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
     m_buffer.clear();
     m_buffer.append(name, strLen);
     m_buffer.append(&pad, 4);
-    ptr[0].p = m_buffer.get_data();
+    ptr[0].p = (Uint32*)m_buffer.get_data();
   }
 #endif
   
@@ -4856,7 +4859,8 @@ NdbDictInterface::parseFileInfo(NdbFileImpl &dst,
   }
 
   dst.m_type= (NdbDictionary::Object::Type)f.FileType;
-  dst.m_id= f.FileNo;
+  dst.m_id= f.FileId;
+  dst.m_version = f.FileVersion;
 
   dst.m_size= ((Uint64)f.FileSizeHi << 32) | (f.FileSizeLo);
   dst.m_path.assign(f.FileName);
