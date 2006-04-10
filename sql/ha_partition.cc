@@ -4201,11 +4201,7 @@ void ha_partition::info(uint flag)
   if (flag & HA_STATUS_AUTO)
   {
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
-    /*
-      The auto increment value is only maintained by the first handler
-      so we will only call this.
-    */
-    m_file[0]->info(HA_STATUS_AUTO);
+    auto_increment_value= get_auto_increment();
   }
   if (flag & HA_STATUS_VARIABLE)
   {
@@ -5349,9 +5345,15 @@ void ha_partition::restore_auto_increment()
 
 ulonglong ha_partition::get_auto_increment()
 {
+  ulonglong auto_inc, max_auto_inc= 0;
   DBUG_ENTER("ha_partition::get_auto_increment");
 
-  DBUG_RETURN(m_file[0]->get_auto_increment());
+  for (uint i= 0; i < m_tot_parts; i++)
+  {
+    auto_inc= m_file[i]->get_auto_increment();
+    set_if_bigger(max_auto_inc, auto_inc);
+  }
+  DBUG_RETURN(max_auto_inc);
 }
 
 
