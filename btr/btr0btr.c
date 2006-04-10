@@ -2046,10 +2046,9 @@ btr_node_ptr_delete(
 If page is the only on its level, this function moves its records to the
 father page, thus reducing the tree height. */
 static
-ibool
+void
 btr_lift_page_up(
 /*=============*/
-				/* out: TRUE on success */
 	dict_tree_t*	tree,	/* in: index tree */
 	page_t*		page,	/* in: page which is the only on its level;
 				must not be empty: use
@@ -2076,28 +2075,18 @@ btr_lift_page_up(
 	btr_search_drop_page_hash_index(page);
 
 	/* Make the father empty */
-	btr_page_empty(father_page, NULL, mtr, index);
+	btr_page_empty(father_page, father_page_zip, mtr, index);
 
 	/* Move records to the father */
-	if (!page_copy_rec_list_end(father_page, NULL,
+	if (!page_copy_rec_list_end(father_page, father_page_zip,
 				page_get_infimum_rec(page), index, mtr)) {
+		/* This should always succeed, as father_page
+		is created from the scratch and receives
+		the records in sorted order. */
 		ut_error;
 	}
 
-	btr_page_set_level(father_page, NULL, page_level, mtr);
-
-	if (UNIV_LIKELY_NULL(father_page_zip)) {
-		if (UNIV_UNLIKELY(!page_zip_compress(
-				father_page_zip, father_page, index, mtr))) {
-			/* Restore the old page from temporary space */
-			if (UNIV_UNLIKELY(!page_zip_decompress(
-					father_page_zip, father_page, mtr))) {
-				ut_error; /* probably memory corruption */
-			}
-
-			return(FALSE);
-		}
-	}
+	btr_page_set_level(father_page, father_page_zip, page_level, mtr);
 
 	lock_update_copy_and_discard(father_page, page);
 
@@ -2108,8 +2097,6 @@ btr_lift_page_up(
 	ibuf_reset_free_bits(index, father_page);
 	ut_ad(page_validate(father_page, index));
 	ut_ad(btr_check_node_ptr(tree, father_page, mtr));
-
-	return(TRUE);
 }
 
 /*****************************************************************
@@ -2185,7 +2172,8 @@ btr_compress(
 	} else {
 		/* The page is the only one on the level, lift the records
 		to the father */
-		return(btr_lift_page_up(tree, page, mtr));
+		btr_lift_page_up(tree, page, mtr);
+		return(TRUE);
 	}
 
 	n_recs = page_get_n_recs(page);
