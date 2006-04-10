@@ -1593,10 +1593,12 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     }
   }
 
-  if (thd->stmt_map.insert(stmt))
+  if (thd->stmt_map.insert(thd, stmt))
   {
-    delete stmt;
-    send_error(thd, ER_OUT_OF_RESOURCES);
+    /*
+      The error is sent in the insert. The statement itself
+      will be also deleted there (this is how the hash works).
+    */
     DBUG_RETURN(1);
   }
 
