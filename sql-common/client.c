@@ -1552,7 +1552,7 @@ mysql_get_ssl_cipher(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_get_ssl_cipher");
   if (mysql->net.vio && mysql->net.vio->ssl_arg)
-    SSL_get_cipher_name((SSL*)mysql->net.vio->ssl_arg);
+    DBUG_RETURN(SSL_get_cipher_name((SSL*)mysql->net.vio->ssl_arg));
   DBUG_RETURN(NULL);
 }
 
