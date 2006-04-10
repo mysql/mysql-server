@@ -13,7 +13,7 @@ int has_feature() {
  */
 int main() {
   if (!has_feature())
-    skip_all("Missing feature");
+    skip_all("Example of skipping an entire test");
   plan(4);
   ok(1, NULL);
   ok(1, NULL);

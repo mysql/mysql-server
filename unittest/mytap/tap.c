@@ -1,3 +1,22 @@
+/* Copyright (C) 2006 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+   Library for providing TAP support for testing C and C++ was written
+   by Mats Kindahl <mats@mysql.com>.
+*/
 
 #include "tap.h"
 
@@ -10,8 +29,10 @@
    Test data structure.
 
    Data structure containing all information about the test suite.
+
+   @ingroup MyTAP
  */
-static TEST_DATA g_test = { 0 };
+static TEST_DATA g_test = { 0, 0, 0, "" };
 
 /**
    Output stream for test report message.
@@ -21,13 +42,20 @@ static TEST_DATA g_test = { 0 };
 #define tapout stdout
 
 /**
-  Emit a TAP result and optionally a description.
+  Emit the beginning of a test line, that is: "(not) ok", test number,
+  and description.
+
+  To emit the directive, use the emit_dir() function
+
+  @ingroup MyTAP
+
+  @see emit_dir
 
   @param pass  'true' if test passed, 'false' otherwise
   @param fmt   Description of test in printf() format.
   @param ap    Vararg list for the description string above.
  */
-static int
+static void
 emit_tap(int pass, char const *fmt, va_list ap)
 {
   fprintf(tapout, "%sok %d%s",
@@ -39,14 +67,30 @@ emit_tap(int pass, char const *fmt, va_list ap)
 }
 
 
-static int
+/**
+   Emit a TAP directive.
+
+   TAP directives are comments after a have the form
+
+   @code
+   ok 1 # skip reason for skipping
+   not ok 2 # todo some text explaining what remains
+   @endcode
+
+   @param dir  Directive as a string
+   @param exp  Explanation string
+ */
+static void
 emit_dir(const char *dir, const char *exp)
 {
   fprintf(tapout, " # %s %s", dir, exp);
 }
 
 
-static int
+/**
+   Emit a newline to the TAP output stream.
+ */
+static void
 emit_endl()
 {
   fprintf(tapout, "\n");
@@ -71,10 +115,9 @@ plan(int const count)
   switch (count)
   {
   case NO_PLAN:
-  case SKIP_ALL:
     break;
   default:
-    if (plan > 0)
+    if (count > 0)
       fprintf(tapout, "1..%d\n", count);
     break;
   }
@@ -103,13 +146,13 @@ ok(int const pass, char const *fmt, ...)
   emit_tap(pass, fmt, ap);
   va_end(ap);
   if (*g_test.todo != '\0')
-    emit_dir("TODO", g_test.todo);
+    emit_dir("todo", g_test.todo);
   emit_endl();
 }
 
 
 void
-skip(int how_many, char const *fmt, ...)
+skip(int how_many, char const *const fmt, ...)
 {
   char reason[80];
   if (fmt && *fmt)
@@ -126,7 +169,7 @@ skip(int how_many, char const *fmt, ...)
   {
     va_list ap;
     emit_tap(1, NULL, ap);
-    emit_dir("SKIP", reason);
+    emit_dir("skip", reason);
     emit_endl();
   }
 }
@@ -169,3 +212,87 @@ int exit_status() {
   return EXIT_SUCCESS;
 }
 
+/**
+   @mainpage Testing C and C++ using MyTAP
+
+   @section IntroSec Introduction
+
+   Unit tests are used to test individual components of a system. In
+   contrast, functional tests usually test the entire system.  The
+   rationale is that each component should be correct if the system is
+   to be correct.  Unit tests are usually small pieces of code that
+   tests an individual function, class, a module, or other unit of the
+   code.
+
+   Observe that a correctly functioning system can be built from
+   "faulty" components.  The problem with this approach is that as the
+   system evolves, the bugs surface in unexpected ways, making
+   maintenance harder.
+
+   The advantages of using unit tests to test components of the system
+   are several:
+
+   - The unit tests can make a more thorough testing than the
+     functional tests by testing correctness even for pathological use
+     (which shouldn't be present in the system).  This increases the
+     overall robustness of the system and makes maintenance easier.
+
+   - It is easier and faster to find problems with a malfunctioning
+     component than to find problems in a malfunctioning system.  This
+     shortens the compile-run-edit cycle and therefore improves the
+     overall performance of development.
+
+   - The component has to support at least two uses: in the system and
+     in a unit test.  This leads to more generic and stable interfaces
+     and in addition promotes the development of reusable components.
+
+   For example, the following are typical functional tests:
+   - Does transactions work according to specifications?
+   - Can we connect a client to the server and execute statements?
+
+   In contrast, the following are typical unit tests:
+
+   - Can the 'String' class handle a specified list of character sets?
+   - Does all operations for 'my_bitmap' produce the correct result?
+   - Does all the NIST test vectors for the AES implementation encrypt
+     correctly?
+
+
+   @section UnitTest Writing unit tests
+
+   The purpose of writing unit tests is to use them to drive component
+   development towards a solution that the tests.  This means that the
+   unit tests has to be as complete as possible, testing at least:
+
+   - Normal input
+   - Borderline cases
+   - Faulty input
+   - Error handling
+   - Bad environment
+
+   We will go over each case and explain it in more detail.
+
+   @subsection NormalSSec Normal input
+
+   @subsection BorderlineSSec Borderline cases
+
+   @subsection FaultySSec Faulty input
+
+   @subsection ErrorSSec Error handling
+
+   @subsection EnvironmentSSec Environment
+
+   Sometimes, modules has to behave well even when the environment
+   fails to work correctly.  Typical examples are: out of dynamic
+   memory, disk is full,
+
+   @section UnitTestSec How to structure a unit test
+
+   In this section we will give some advice on how to structure the
+   unit tests to make the development run smoothly.
+
+   @subsection PieceSec Test each piece separately
+
+   Don't test all functions using size 1, then all functions using
+   size 2, etc.
+ */
