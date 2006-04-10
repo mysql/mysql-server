@@ -487,7 +487,7 @@ pars_resolve_exp_columns(
 	while (t_node) {
 		table = t_node->table;
 
-		n_cols = dict_table_get_n_user_cols(table);
+		n_cols = dict_table_get_n_cols(table);
 
 		for (i = 0; i < n_cols; i++) {
 			col = dict_table_get_nth_col(table, i);
