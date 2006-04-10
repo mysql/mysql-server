@@ -554,3 +554,15 @@ drop table t1;
 
 # No tests for NULLs in RANGE(monotonic_expr()) - they depend on BUG#15447
 # being fixed.
+
+#
+#BUG 17946 Like searches fail with partitioning
+#
+create table t1 (a char(32) primary key)
+partition by key()
+partitions 100;
+insert into t1 values ('na');
+select * from t1;
+select * from t1 where a like 'n%';
+drop table t1;
+
