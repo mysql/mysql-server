@@ -1,12 +1,32 @@
+/* Copyright (C) 2006 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+   Library for providing TAP support for testing C and C++ was written
+   by Mats Kindahl <mats@mysql.com>.
+*/
+
 #ifndef TAP_H
 #define TAP_H
 
 /*
-  
- */
+  @defgroup MyTAP MySQL support for performing unit tests according to TAP.
+
+*/
 
 #define NO_PLAN  (0)
-#define SKIP_ALL (-1)
 
 /**
    Data about test plan.
@@ -40,12 +60,12 @@ extern "C" {
 /**
    Set number of tests that is planned to execute.
 
-   The function also accepts the predefined constants SKIP_ALL and
-   NO_PLAN.
+   The function also accepts the predefined constant
+   <code>NO_PLAN</code>.  If the function is not called, it is as if
+   it was called with <code>NO_PLAN</code>, i.e., the test plan will
+   be printed after all the test lines.
 
-   @param count
-   The planned number of tests to run.  Alternatively, the SKIP_ALL
-   and NO_PLAN can be supplied.
+   @param count The planned number of tests to run. 
 */
 void plan(int count);
 

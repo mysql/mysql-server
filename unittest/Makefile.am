@@ -1,11 +1,13 @@
 SUBDIRS      = mytap . mysys examples
 
-.PHONY: mytap mysys examples test
-
 noinst_SCRIPTS = unit
 
-test: mytap mysys examples
-	./unit run $^
+unittests = mysys examples
+
+.PHONY: all mytap mysys examples test
+
+test: unit all
+	@./unit run $(unittests)
 
 mytap:
 	cd mytap && $(MAKE)
