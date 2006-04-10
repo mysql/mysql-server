@@ -39,7 +39,7 @@ LDADD=				@CLIENT_EXTRA_LDFLAGS@ $(CLIENT_THREAD_LIBS) \
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
 				mysqldump mysqlimport mysqltest mysqlbinlog \
 				mysqltestmanagerc mysqltestmanager-pwgen \
-				mysqlslap
+				mysqlslap mysql_upgrade
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
@@ -72,11 +72,14 @@ mysqlslap_SOURCES=		mysqlslap.c \
 mysqldump_SOURCES=		mysqldump.c my_user.c $(yassl_dummy_link_fix)
 mysqlimport_SOURCES=		mysqlimport.c \
 				$(yassl_dummy_link_fix)
+mysql_upgrade_SOURCES=          mysql_upgrade.c $(yassl_dummy_link_fix)
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
 
 # Fix for mit-threads
-DEFS =			-DUNDEF_THREADS_HACK
+DEFS =			-DUNDEF_THREADS_HACK \
+			-DDEFAULT_MYSQL_HOME="\"$(prefix)\"" \
+			-DDATADIR="\"$(localstatedir)\"" 
 EXTRA_DIST =		get_password.c cmakelists.txt
 
 link_sources:
