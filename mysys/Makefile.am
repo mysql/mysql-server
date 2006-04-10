@@ -70,6 +70,7 @@ DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DDEFAULT_HOME_ENV=MYSQL_HOME \
 			-DDEFAULT_GROUP_SUFFIX_ENV=MYSQL_GROUP_SUFFIX \
+			-DDEFAULT_SYSCONFDIR="\"$(sysconfdir)\"" \
                         @DEFS@
 
 libmysys_a_DEPENDENCIES= @THREAD_LOBJECTS@
