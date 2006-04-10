@@ -427,19 +427,26 @@ NdbLinHash<C>::getNext(NdbElement_t<C> * curr){
     return curr->next;
   
   int dir = 0, seg = 0;
-
-  if(curr != 0){
+  int counts;
+  if(curr != 0)
+  {
     getBucket(curr->hash, &dir, &seg);
+    counts = seg + 1;
+  }
+  else
+  {
+    counts = 0;
   }
   
   for(int countd = dir; countd < DIRECTORYSIZE;countd++ ){
     if (directory[countd] != 0) {
-      for(int counts = seg + 1; counts < SEGMENTSIZE; counts++ ){
+      for(; counts < SEGMENTSIZE; counts++ ){
 	if (directory[countd]->elements[counts] != 0) {
 	  return directory[countd]->elements[counts];
 	}   
       }
     }
+    counts = 0;
   }
 
   return 0;
