@@ -586,7 +586,8 @@ public:
   enum Unimplemented
   {
     ScanOptimised      = 15, //Default updateOptimised
-    AttributeGroup     = 1012 //Default 0
+    AttributeGroup     = 1012, //Default 0
+    FileNo             = 102
   };
 };
 
@@ -618,13 +619,13 @@ struct DictFilegroupInfo {
      */
     FileName          = 100,
     FileType          = 101,
-    FileId            = 102,
-    FileNo            = 103, // Per Filegroup
+    FileId            = 103,
     FileFGroupId      = 104,
     FileFGroupVersion = 105,
     FileSizeHi        = 106,
     FileSizeLo        = 107,
     FileFreeExtents   = 108,
+    FileVersion       = 109,
     FileEnd           = 199, //    
 
     /**
@@ -696,8 +697,8 @@ struct DictFilegroupInfo {
   struct File {
     char FileName[PATH_MAX];
     Uint32 FileType;
-    Uint32 FileNo;
     Uint32 FileId;
+    Uint32 FileVersion;
     Uint32 FilegroupId;
     Uint32 FilegroupVersion;
     Uint32 FileSizeHi;

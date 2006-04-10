@@ -386,6 +386,7 @@ ErrorBundle ErrorCodes[] = {
   { 768,  DMEC, SE, "Cant drop filegroup, filegroup is used" },
   { 769,  DMEC, SE, "Drop undofile not supported, drop logfile group instead" },
   { 770,  DMEC, SE, "Cant drop file, file is used" },
+  { 774,  DMEC, SE, "Invalid schema object for drop" },
   { 241,  HA_ERR_TABLE_DEF_CHANGED, SE, "Invalid schema object version" },
   { 283,  HA_ERR_NO_SUCH_TABLE, SE, "Table is being dropped" },
   { 284,  HA_ERR_TABLE_DEF_CHANGED, SE, "Table not defined in transaction coordinator" },
