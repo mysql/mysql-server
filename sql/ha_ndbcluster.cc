@@ -5789,7 +5789,6 @@ int ndbcluster_find_all_files(THD *thd)
   DBUG_ENTER("ndbcluster_find_all_files");
   Ndb* ndb;
   char key[FN_REFLEN];
-  NdbDictionary::Dictionary::List list;
 
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
@@ -5799,6 +5798,7 @@ int ndbcluster_find_all_files(THD *thd)
   int unhandled, retries= 5, skipped;
   do
   {
+    NdbDictionary::Dictionary::List list;
     if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
       ERR_RETURN(dict->getNdbError());
     unhandled= 0;
@@ -10082,14 +10082,15 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
     }
   }
 
-  dict->listObjects(dflist, NdbDictionary::Object::Undofile);
+  NdbDictionary::Dictionary::List uflist;
+  dict->listObjects(uflist, NdbDictionary::Object::Undofile);
   ndberr= dict->getNdbError();
   if (ndberr.classification != NdbError::NoError)
     ERR_RETURN(ndberr);
 
-  for (i= 0; i < dflist.count; i++)
+  for (i= 0; i < uflist.count; i++)
   {
-    NdbDictionary::Dictionary::List::Element& elt= dflist.elements[i];
+    NdbDictionary::Dictionary::List::Element& elt= uflist.elements[i];
     Ndb_cluster_connection_node_iter iter;
     unsigned id;
 
