@@ -309,15 +309,7 @@ page_parse_create(
 	/* The record is empty, except for the record initial part */
 
 	if (page) {
-		dict_index_t*	index;
-
-		if (UNIV_LIKELY(comp)) {
-			index = srv_sys->dummy_ind2;
-		} else {
-			index = srv_sys->dummy_ind1;
-		}
-
-		page_create(page, NULL, mtr, index);
+		page_create(page, mtr, comp);
 	}
 
 	return(ptr);
@@ -325,16 +317,14 @@ page_parse_create(
 
 /**************************************************************
 The index page creation function. */
-
+static
 page_t*
-page_create(
-/*========*/
+page_create_low(
+/*============*/
 					/* out: pointer to the page */
 	buf_frame_t*	frame,		/* in/out: a buffer frame where the
 					page is created */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page, or NULL */
-	mtr_t*		mtr,		/* in: mini-transaction handle */
-	dict_index_t*	index)		/* in: the index of the page */
+	ulint		comp)		/* in: nonzero=compact page format */
 {
 	page_dir_slot_t* slot;
 	mem_heap_t*	heap;
@@ -344,11 +334,10 @@ page_create(
 	rec_t*		infimum_rec;
 	rec_t*		supremum_rec;
 	page_t*		page;
+	dict_index_t*	index;
 	ulint*		offsets;
-	const ibool	comp = dict_table_is_comp(index->table);
 
-	ut_ad(!page_zip || comp);
-	ut_ad(frame && mtr);
+	ut_ad(frame);
 #if PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA
 # error "PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA"
 #endif
@@ -365,9 +354,6 @@ page_create(
 
 	/* 1. INCREMENT MODIFY CLOCK */
 	buf_frame_modify_clock_inc(frame);
-
-	/* 2. WRITE LOG INFORMATION */
-	page_create_write_log(frame, mtr, comp);
 
 	page = frame;
 
@@ -477,17 +463,97 @@ page_create(
 		rec_set_next_offs_old(supremum_rec, 0);
 	}
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		ut_ad(comp);
+	return(page);
+}
 
-		if (!page_zip_compress(page_zip, page, index, mtr)) {
-			/* The compression of a newly created page
-			should always succeed. */
-			ut_error;
-		}
+/**************************************************************
+Create an uncompressed B-tree index page. */
+
+page_t*
+page_create(
+/*========*/
+					/* out: pointer to the page */
+	buf_frame_t*	frame,		/* in/out: a buffer frame where the
+					page is created */
+	mtr_t*		mtr,		/* in: mini-transaction handle */
+	ulint		comp)		/* in: nonzero=compact page format */
+{
+	page_create_write_log(frame, mtr, comp);
+	return(page_create_low(frame, comp));
+}
+
+/***************************************************************
+Parses a redo log record of creating a compressed page. */
+
+byte*
+page_parse_create_zip(
+/*==================*/
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	page_t*		page,	/* in/out: page or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page or NULL */
+	dict_index_t*	index,	/* in: index of the page */
+	mtr_t*		mtr)	/* in: mtr or NULL */
+{
+	ulint	level;
+
+	ut_ad(ptr && end_ptr && index);
+
+	if (UNIV_UNLIKELY(ptr + 2 > end_ptr)) {
+
+		return(NULL);
 	}
 
-	return(page);
+	level = mach_read_from_2(ptr);
+	ptr += 2;
+
+	if (page) {
+
+		page_create_zip(page, page_zip, index, level, mtr);
+	}
+
+	return(ptr);
+}
+
+/**************************************************************
+Create a compressed B-tree index page. */
+
+page_t*
+page_create_zip(
+/*============*/
+					/* out: pointer to the page */
+	buf_frame_t*	frame,		/* in/out: a buffer frame where the
+					page is created */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page, or NULL */
+	dict_index_t*	index,		/* in: the index of the page */
+	ulint		level,		/* in: the B-tree level of the page */
+	mtr_t*		mtr)		/* in: mini-transaction handle */
+{
+	byte*	log_ptr;
+
+	ut_ad(frame && page_zip && index);
+	ut_ad(dict_table_is_comp(index->table));
+
+	log_ptr = mlog_open(mtr, 11 + 2);
+	if (log_ptr) {
+		log_ptr = mlog_write_initial_log_record_fast(frame,
+				MLOG_ZIP_PAGE_CREATE, log_ptr, mtr);
+		mach_write_to_2(log_ptr, level);
+		log_ptr += 2;
+		mlog_close(mtr, log_ptr);
+	}
+
+	mach_write_to_2(frame + PAGE_HEADER + PAGE_LEVEL, level);
+	page_create_low(frame, TRUE);
+
+	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, frame, index))) {
+		/* The compression of a newly created page
+		should always succeed. */
+		ut_error;
+	}
+
+	return(frame);
 }
 
 /*****************************************************************
@@ -591,10 +657,10 @@ page_copy_rec_list_end(
 
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_compress(new_page_zip,
-					new_page, index, mtr))) {
+					new_page, index))) {
 
 			if (UNIV_UNLIKELY(!page_zip_decompress(
-					new_page_zip, new_page, mtr))) {
+					new_page_zip, new_page))) {
 				ut_error;
 			}
 			return(FALSE);
@@ -674,10 +740,10 @@ page_copy_rec_list_start(
 
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_compress(new_page_zip,
-					new_page, index, mtr))) {
+					new_page, index))) {
 
 			if (UNIV_UNLIKELY(!page_zip_decompress(
-					new_page_zip, new_page, mtr))) {
+					new_page_zip, new_page))) {
 				ut_error;
 			}
 			/* TODO: try btr_page_reorganize() */

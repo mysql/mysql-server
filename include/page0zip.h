@@ -39,10 +39,8 @@ page_zip_compress(
 	page_zip_des_t*	page_zip,/* in: size; out: data, n_blobs,
 				m_start, m_end */
 	const page_t*	page,	/* in: uncompressed page */
-	dict_index_t*	index,	/* in: index of the B-tree node */
-	mtr_t*		mtr)	/* in: mini-transaction handle,
-				or NULL if no logging is needed */
-	__attribute__((nonnull(1,2,3)));
+	dict_index_t*	index)	/* in: index of the B-tree node */
+	__attribute__((warn_unused_result, nonnull));
 
 /**************************************************************************
 Decompress a page.  This function should tolerate errors on the compressed
@@ -55,10 +53,8 @@ page_zip_decompress(
 				/* out: TRUE on success, FALSE on failure */
 	page_zip_des_t*	page_zip,/* in: data, size;
 				out: m_start, m_end, n_blobs */
-	page_t*		page,	/* out: uncompressed page, may be trashed */
-	mtr_t*		mtr)	/* in: mini-transaction handle,
-				or NULL if no logging is needed */
-	__attribute__((warn_unused_result, nonnull(1, 2)));
+	page_t*		page)	/* out: uncompressed page, may be trashed */
+	__attribute__((warn_unused_result, nonnull));
 
 #ifdef UNIV_DEBUG
 /**************************************************************************
@@ -97,11 +93,9 @@ page_zip_alloc(
 				and successful */
 	const page_t*	page,	/* in: uncompressed page */
 	dict_index_t*	index,	/* in: index of the B-tree node */
-	mtr_t*		mtr,	/* in: mini-transaction handle,
-				or NULL if no logging is desired */
 	ulint		length,	/* in: combined size of the record */
 	ulint		create)	/* in: nonzero=add the record to the heap */
-	__attribute__((warn_unused_result, nonnull(1,2,3)));
+	__attribute__((warn_unused_result, nonnull));
 
 /**************************************************************************
 Write an entire record on the compressed page.  The data must already

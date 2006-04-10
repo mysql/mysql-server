@@ -521,9 +521,7 @@ page_zip_compress(
 	page_zip_des_t*	page_zip,/* in: size; out: data, n_blobs,
 				m_start, m_end */
 	const page_t*	page,	/* in: uncompressed page */
-	dict_index_t*	index,	/* in: index of the B-tree node */
-	mtr_t*		mtr)	/* in: mini-transaction handle,
-				or NULL if no logging is needed */
+	dict_index_t*	index)	/* in: index of the B-tree node */
 {
 	z_stream	c_stream;
 	int		err;
@@ -880,11 +878,6 @@ zlib_error:
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
-
-	if (UNIV_LIKELY_NULL(mtr)) {
-		mlog_open_and_write_index(mtr, (page_t*) page, index,
-					MLOG_ZIP_COMPRESS, 0);
-	}
 
 	return(TRUE);
 }
@@ -1394,9 +1387,7 @@ page_zip_decompress(
 				/* out: TRUE on success, FALSE on failure */
 	page_zip_des_t*	page_zip,/* in: data, size;
 				out: m_start, m_end, n_blobs */
-	page_t*		page,	/* out: uncompressed page, may be trashed */
-	mtr_t*		mtr)	/* in: mini-transaction handle,
-				or NULL if no logging is needed */
+	page_t*		page)	/* out: uncompressed page, may be trashed */
 {
 	z_stream	d_stream;
 	dict_index_t*	index	= NULL;
@@ -1847,10 +1838,6 @@ recs_done:
 	ut_a(page_is_comp(page));
 	ut_ad(page_simple_validate_new(page));
 
-	if (UNIV_LIKELY_NULL(mtr)) {
-		mlog_write_initial_log_record(page, MLOG_ZIP_DECOMPRESS, mtr);
-	}
-
 	page_zip_fields_free(index);
 	mem_heap_free(heap);
 
@@ -1876,7 +1863,7 @@ page_zip_validate(
 		== page_zip);
 	ut_a(page_is_comp((page_t*) page));
 
-	valid = page_zip_decompress(&temp_page_zip, temp_page, NULL);
+	valid = page_zip_decompress(&temp_page_zip, temp_page);
 	if (!valid) {
 		fputs("page_zip_validate(): failed to decompress\n", stderr);
 		goto func_exit;
@@ -2491,8 +2478,7 @@ page_zip_clear_rec(
 	page_zip_des_t*	page_zip,/* in/out: compressed page */
 	byte*		rec,	/* in: record to clear */
 	dict_index_t*	index,	/* in: index of rec */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	mtr_t*		mtr)	/* in: mini-transaction */
+	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
 {
 	ulint	heap_no;
 	page_t*	page	= ut_align_down(rec, UNIV_PAGE_SIZE);
@@ -2560,8 +2546,7 @@ page_zip_clear_rec(
 		/* Do not touch the extra bytes, because the
 		decompressor depends on them. */
 		memset(rec, 0, rec_offs_data_size(offsets));
-		if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page,
-					index, mtr))) {
+		if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page, index))) {
 			/* Compression failed. Restore the block. */
 			memcpy(rec, buf, rec_offs_data_size(offsets));
 			/* From now on, page_zip_validate() would fail
@@ -2721,7 +2706,7 @@ page_zip_dir_delete(
 	to be 0 for deleted records. */
 	rec[-REC_N_NEW_EXTRA_BYTES] = 0; /* info_bits and n_owned */
 
-	page_zip_clear_rec(page_zip, rec, index, offsets, NULL);
+	page_zip_clear_rec(page_zip, rec, index, offsets);
 }
 
 /**************************************************************************

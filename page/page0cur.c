@@ -923,7 +923,7 @@ page_cur_insert_rec_low(
 
 	/* 2. Try to find suitable space from page memory management */
 	if (UNIV_LIKELY_NULL(page_zip)
-	    && !page_zip_alloc(page_zip, page, index, mtr, rec_size, 1)) {
+	    && !page_zip_alloc(page_zip, page, index, rec_size, 1)) {
 
 		return(NULL);
 	}
