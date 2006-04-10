@@ -47,3 +47,8 @@ rpl_until               : Unstable test case, bug#15886
 sp-goto                 : GOTO is currently is disabled - will be fixed in the future
 mysqldump               : BUG#18078
 udf             : Bug#18564 (Permission by Brian)
+ndb_cache_multi2        : Bugs#18974: Test fails randomly
+ndb_binlog_ddl_multi    : Bugs#18976: Test fails randomly
+rpl_ndb_trig004         : Bugs#18977: Test fails randomly
+rpl_ndb_multi_update2   : Bugs#18978: Test fails randomly
+rpl_row_blob_innodb     : Bugs#18980: Test fails randomly
