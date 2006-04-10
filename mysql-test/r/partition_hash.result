@@ -73,3 +73,29 @@ drop table t1;
 CREATE TABLE t1 (s1 int) ENGINE=BLACKHOLE PARTITION BY HASH (s1);
 INSERT INTO t1 VALUES (0);
 DROP TABLE t1;
+create table t1 (c1 int DEFAULT NULL,
+c2 varchar (30) DEFAULT NULL,
+c3 date DEFAULT NULL)
+engine = myisam
+partition by hash (to_days(c3))
+partitions 12;
+insert into t1 values
+(136,'abc','2002-01-05'),(142,'abc','2002-02-14'),(162,'abc','2002-06-28'),
+(182,'abc','2002-11-09'),(158,'abc','2002-06-01'),(184,'abc','2002-11-22');
+select * from t1;
+c1	c2	c3
+136	abc	2002-01-05
+158	abc	2002-06-01
+142	abc	2002-02-14
+162	abc	2002-06-28
+182	abc	2002-11-09
+184	abc	2002-11-22
+select * from t1 where c3 between '2002-01-01' and '2002-12-31';
+c1	c2	c3
+136	abc	2002-01-05
+158	abc	2002-06-01
+142	abc	2002-02-14
+162	abc	2002-06-28
+182	abc	2002-11-09
+184	abc	2002-11-22
+drop table t1;
