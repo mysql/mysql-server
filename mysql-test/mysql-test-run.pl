@@ -608,7 +608,7 @@ sub command_line_setup () {
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
-             'ndbcluster-port=i'        => \$opt_ndbcluster_port,
+             'ndbcluster-port|ndbcluster_port=i' => \$opt_ndbcluster_port,
              'ndbcluster-port-slave=i'  => \$opt_ndbcluster_port_slave,
              'manager-port=i'           => \$opt_manager_port, # Currently not used
              'im-port=i'                => \$im_port, # Instance Manager port.
