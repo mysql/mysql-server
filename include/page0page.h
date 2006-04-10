@@ -607,17 +607,30 @@ page_mem_free(
 	dict_index_t*	index,	/* in: index of rec */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**************************************************************
-The index page creation function. */
+Create an uncompressed B-tree index page. */
 
 page_t*
 page_create(
 /*========*/
 					/* out: pointer to the page */
-	buf_frame_t*	frame,		/* in: a buffer frame where the page is
-					created */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page, or NULL */
+	buf_frame_t*	frame,		/* in/out: a buffer frame where the
+					page is created */
 	mtr_t*		mtr,		/* in: mini-transaction handle */
-	dict_index_t*	index);		/* in: the index of the page */
+	ulint		comp);		/* in: nonzero=compact page format */
+/**************************************************************
+Create a compressed B-tree index page. */
+
+page_t*
+page_create_zip(
+/*============*/
+					/* out: pointer to the page */
+	buf_frame_t*	frame,		/* in/out: a buffer frame where the
+					page is created */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page, or NULL */
+	dict_index_t*	index,		/* in: the index of the page */
+	ulint		level,		/* in: the B-tree level of the page */
+	mtr_t*		mtr);		/* in: mini-transaction handle */
+
 /*****************************************************************
 Differs from page_copy_rec_list_end, because this function does not
 touch the lock table and max trx id on page or compress the page. */
@@ -766,6 +779,19 @@ page_parse_create(
 	byte*		end_ptr,/* in: buffer end */
 	ulint		comp,	/* in: nonzero=compact page format */
 	page_t*		page,	/* in: page or NULL */
+	mtr_t*		mtr);	/* in: mtr or NULL */
+/***************************************************************
+Parses a redo log record of creating a compressed page. */
+
+byte*
+page_parse_create_zip(
+/*==================*/
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	page_t*		page,	/* in/out: page or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page or NULL */
+	dict_index_t*	index,	/* in: index of the page */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /****************************************************************
 Prints record contents including the data relevant only in

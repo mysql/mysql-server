@@ -905,30 +905,17 @@ recv_parse_or_apply_log_rec_body(
 		ptr = page_zip_parse_write_header(
 				ptr, end_ptr, page, page_zip);
 		break;
-	case MLOG_ZIP_COMPRESS:
+	case MLOG_ZIP_PAGE_CREATE:
 		if (NULL != (ptr = mlog_parse_index(
-				ptr, end_ptr, TRUE, &index))
-				&& page) {
-			ut_a(page_is_comp(page));
-			ut_a(page_zip);
-			if (UNIV_UNLIKELY(!page_zip_compress(
-					page_zip, page, index, NULL))) {
-				ut_error;
-			}
+				ptr, end_ptr, TRUE, &index))) {
+			ptr = page_parse_create_zip(ptr, end_ptr,
+					page, page_zip, index, mtr);
 		}
 		break;
-	case MLOG_ZIP_DECOMPRESS:
-		/* TODO: remove this? */
-		if (NULL != (ptr = mlog_parse_index(
-				ptr, end_ptr, TRUE, &index))
-				&& page) {
-			ut_a(page_is_comp(page));
-			ut_a(page_zip);
-			if (UNIV_UNLIKELY(!page_zip_decompress(
-						page_zip, page, NULL))) {
-				ut_error;
-			}
-		}
+	case MLOG_ZIP_LIST_START_COPY:
+	case MLOG_ZIP_LIST_END_COPY:
+	case MLOG_ZIP_ROOT_RAISE:
+		ut_error; /* TODO */
 		break;
 	default:
 		ptr = NULL;

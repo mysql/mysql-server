@@ -135,13 +135,17 @@ flag value must give the length also! */
 #define MLOG_ZIP_WRITE_BLOB_PTR	((byte)48)	/* write the BLOB pointer
 						of an externally stored column
 						on a compressed page */
-#define MLOG_ZIP_COMPRESS	((byte)49)	/* compress a page */
-#define MLOG_ZIP_DECOMPRESS	((byte)50)	/* decompress a page
-						to undo a compressed page
-						overflow */
-#define MLOG_ZIP_WRITE_HEADER	((byte)51)	/* write to compressed page
+#define MLOG_ZIP_WRITE_HEADER	((byte)49)	/* write to compressed page
 						header */
-#define MLOG_BIGGEST_TYPE	((byte)51)	/* biggest value (used in
+#define MLOG_ZIP_PAGE_CREATE	((byte)50)	/* create a compressed
+						index page */
+#define MLOG_ZIP_LIST_START_COPY ((byte)51)	/* copy compact record list
+						start to a compressed page */
+#define MLOG_ZIP_LIST_END_COPY	((byte)52)	/* copy compact record list
+						end to a compressed page */
+#define MLOG_ZIP_ROOT_RAISE	((byte)53)	/* raise the root of a
+						compressed B-tree */
+#define MLOG_BIGGEST_TYPE	((byte)53)	/* biggest value (used in
 						asserts) */
 
 /*******************************************************************

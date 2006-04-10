@@ -1576,7 +1576,7 @@ btr_cur_update_in_place(
 	page_zip = buf_block_get_page_zip(block);
 	if (UNIV_LIKELY_NULL(page_zip)
 			&& UNIV_UNLIKELY(!page_zip_alloc(page_zip,
-					buf_block_get_frame(block), index, mtr,
+					buf_block_get_frame(block), index,
 					rec_offs_size(offsets), 0))) {
 		return(DB_ZIP_OVERFLOW);
 	}
@@ -1745,7 +1745,7 @@ btr_cur_optimistic_update(
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
 
 	if (UNIV_LIKELY_NULL(page_zip)
-			&& !page_zip_alloc(page_zip, page, index, mtr,
+			&& !page_zip_alloc(page_zip, page, index,
 					new_rec_size, 0)) {
 		mem_heap_free(heap);
 
