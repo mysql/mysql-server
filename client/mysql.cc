@@ -3212,9 +3212,9 @@ com_status(String *buffer __attribute__((unused)),
       mysql_free_result(result);
     } 
 #ifdef HAVE_OPENSSL
-    if (mysql_get_ssl_cipher(&mysql))
+    if ((status= mysql_get_ssl_cipher(&mysql)))
       tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
-		  mysql_get_ssl_cipher(&mysql));
+		  status);
     else
 #endif /* HAVE_OPENSSL */
       tee_puts("SSL:\t\t\tNot in use", stdout);
