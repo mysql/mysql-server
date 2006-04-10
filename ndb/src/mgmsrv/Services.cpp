@@ -35,6 +35,7 @@
 #include <base64.h>
 
 extern bool g_StopServer;
+extern bool g_RestartServer;
 extern EventLogger g_eventLogger;
 
 static const unsigned int MAX_READ_TIMEOUT = 1000 ;
@@ -267,6 +268,7 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock)
   m_output = new SocketOutputStream(sock);
   m_parser = new Parser_t(commands, *m_input, true, true, true);
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
+  m_stopSelf= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -286,6 +288,10 @@ MgmApiSession::~MgmApiSession()
     NDB_CLOSE_SOCKET(m_socket);
     m_socket= NDB_INVALID_SOCKET;
   }
+  if(m_stopSelf < 0)
+    g_RestartServer= true;
+  if(m_stopSelf)
+    g_StopServer= true;
   DBUG_VOID_RETURN;
 }
 
@@ -870,7 +876,8 @@ MgmApiSession::restart(Parser<MgmApiSession>::Context &,
                                     &restarted,
                                     nostart != 0,
                                     initialstart != 0,
-                                    abort != 0);
+                                    abort != 0,
+                                    &m_stopSelf);
   
   m_output->println("restart reply");
   if(result != 0){
@@ -894,7 +901,7 @@ MgmApiSession::restartAll(Parser<MgmApiSession>::Context &,
   args.get("nostart", &nostart);
   
   int count = 0;
-  int result = m_mgmsrv.restart(nostart, initialstart, abort, &count);
+  int result = m_mgmsrv.restartDB(nostart, initialstart, abort, &count);
 
   m_output->println("restart reply");
   if(result != 0)
@@ -1013,7 +1020,7 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
   int stopped= 0;
   int result= 0;
   if (nodes.size())
-    result= m_mgmsrv.stopNodes(nodes, &stopped, abort != 0);
+    result= m_mgmsrv.stopNodes(nodes, &stopped, abort != 0, &m_stopSelf);
 
   m_output->println("stop reply");
   if(result != 0)
@@ -1032,7 +1039,7 @@ MgmApiSession::stopAll(Parser<MgmApiSession>::Context &,
   Uint32 abort;
   args.get("abort", &abort);
 
-  int result = m_mgmsrv.stop(&stopped, abort != 0);
+  int result = m_mgmsrv.shutdownDB(&stopped, abort != 0);
 
   m_output->println("stop reply");
   if(result != 0)
