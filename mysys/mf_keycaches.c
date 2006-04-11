@@ -148,7 +148,8 @@ static void safe_hash_free(SAFE_HASH *hash)
   Return the value stored for a key or default value if no key
 */
 
-static byte *safe_hash_search(SAFE_HASH *hash, const byte *key, uint length)
+static byte *safe_hash_search(SAFE_HASH *hash, const byte *key, uint length,
+                              byte *def)
 {
   byte *result;
   DBUG_ENTER("safe_hash_search");
@@ -156,7 +157,7 @@ static byte *safe_hash_search(SAFE_HASH *hash, const byte *key, uint length)
   result= hash_search(&hash->hash, key, length);
   rw_unlock(&hash->mutex);
   if (!result)
-    result= hash->default_value;
+    result= def;
   else
     result= ((SAFE_HASH_ENTRY*) result)->data;
   DBUG_PRINT("exit",("data: 0x%lx", result));
@@ -316,6 +317,7 @@ void multi_keycache_free(void)
     multi_key_cache_search()
     key				key to find (usually table path)
     uint length			Length of key.
+    def				Default value if no key cache
 
   NOTES
     This function is coded in such a way that we will return the
@@ -326,11 +328,13 @@ void multi_keycache_free(void)
     key cache to use
 */
 
-KEY_CACHE *multi_key_cache_search(byte *key, uint length)
+KEY_CACHE *multi_key_cache_search(byte *key, uint length,
+                                  KEY_CACHE *def)
 {
   if (!key_cache_hash.hash.records)
-    return dflt_key_cache;
-  return (KEY_CACHE*) safe_hash_search(&key_cache_hash, key, length);
+    return def;
+  return (KEY_CACHE*) safe_hash_search(&key_cache_hash, key, length,
+                                       (void*) def);
 }
 
 

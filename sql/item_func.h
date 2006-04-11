@@ -1261,7 +1261,6 @@ public:
 
 
 /* for fulltext search */
-#include <ft_global.h>
 
 class Item_func_match :public Item_real_func
 {

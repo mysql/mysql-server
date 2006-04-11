@@ -15,9 +15,12 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-#include "my_handler.h"
+#include <my_global.h>
+#include <m_ctype.h>
+#include <my_base.h>
+#include <my_handler.h>
 
-int mi_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
+int ha_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
 		    uchar *b, uint b_length, my_bool part_key,
 		    my_bool skip_end_space)
 {
@@ -173,7 +176,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
         next_key_length=key_length-b_length-pack_length;
 
         if (piks &&
-            (flag=mi_compare_text(keyseg->charset,a,a_length,b,b_length,
+            (flag=ha_compare_text(keyseg->charset,a,a_length,b,b_length,
 				  (my_bool) ((nextflag & SEARCH_PREFIX) &&
 					     next_key_length <= 0),
 				  (my_bool)!(nextflag & SEARCH_PREFIX))))
@@ -186,7 +189,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       {
 	uint length=(uint) (end-a), a_length=length, b_length=length;
         if (piks &&
-            (flag= mi_compare_text(keyseg->charset, a, a_length, b, b_length,
+            (flag= ha_compare_text(keyseg->charset, a, a_length, b, b_length,
 				   (my_bool) ((nextflag & SEARCH_PREFIX) &&
 					      next_key_length <= 0),
 				   (my_bool)!(nextflag & SEARCH_PREFIX))))
@@ -234,7 +237,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
         next_key_length=key_length-b_length-pack_length;
 
         if (piks &&
-	    (flag= mi_compare_text(keyseg->charset,a,a_length,b,b_length,
+	    (flag= ha_compare_text(keyseg->charset,a,a_length,b,b_length,
                                    (my_bool) ((nextflag & SEARCH_PREFIX) &&
                                               next_key_length <= 0),
 				   (my_bool) ((nextflag & (SEARCH_FIND |
@@ -481,12 +484,15 @@ end:
 
   DESCRIPTION
     Find the first NULL value in index-suffix values tuple.
-    TODO Consider optimizing this fuction or its use so we don't search for
-         NULL values in completely NOT NULL index suffixes.
+
+  TODO
+    Consider optimizing this function or its use so we don't search for
+    NULL values in completely NOT NULL index suffixes.
 
   RETURN
-    First key part that has NULL as value in values tuple, or the last key part 
-    (with keyseg->type==HA_TYPE_END) if values tuple doesn't contain NULLs.
+    First key part that has NULL as value in values tuple, or the last key
+    part (with keyseg->type==HA_TYPE_END) if values tuple doesn't contain
+    NULLs.
 */
 
 HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
@@ -504,6 +510,7 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_TEXT:
     case HA_KEYTYPE_BINARY:
+    case HA_KEYTYPE_BIT:
       if (keyseg->flag & HA_SPACE_PACK)
       {
         int a_length;
@@ -516,6 +523,8 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
       break;
     case HA_KEYTYPE_VARTEXT1:
     case HA_KEYTYPE_VARBINARY1:
+    case HA_KEYTYPE_VARTEXT2:
+    case HA_KEYTYPE_VARBINARY2:
       {
         int a_length;
         get_key_length(a_length, a);
@@ -544,6 +553,9 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
     case HA_KEYTYPE_FLOAT:
     case HA_KEYTYPE_DOUBLE:
       a= end;
+      break;
+    case HA_KEYTYPE_END:
+      DBUG_ASSERT(0);
       break;
     }
   }

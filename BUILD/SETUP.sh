@@ -84,7 +84,7 @@ debug_extra_cflags="-O1 -Wuninitialized"
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 amd64_cxxflags=""				# If dropping '--with-big-tables', add here  "-DBIG_TABLES"
 
-base_configs="$prefix_configs --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-readline --with-big-tables"
+base_configs="$prefix_configs --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-readline --with-big-tables --with-maria-storage-engine"
 static_link="--with-mysqld-ldflags=-all-static --with-client-ldflags=-all-static"
 amd64_configs=""
 alpha_configs=""	# Not used yet
