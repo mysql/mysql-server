@@ -1430,14 +1430,6 @@ rec_loop:
 
 		/* Ok, no need to test end_conds or mix id */
 
-	} else if (plan->mixed_index) {
-		/* We have to check if the record in a mixed cluster belongs
-		to this table */
-
-		if (!dict_is_mixed_table_rec(plan->table, rec)) {
-
-			goto next_rec;
-		}
 	}
 
 	/* We are ready to look at a possible new index entry in the result
