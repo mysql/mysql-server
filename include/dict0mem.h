@@ -58,6 +58,13 @@ dict_mem_table_create(
 					a member of a cluster */
 	ulint		n_cols,		/* in: number of columns */
 	ulint		flags);		/* in: table flags */
+/********************************************************************
+Free a table memory object. */
+
+void
+dict_mem_table_free(
+/*================*/
+	dict_table_t*	table);		/* in: table */
 /**************************************************************************
 Adds a column definition to a table. */
 
