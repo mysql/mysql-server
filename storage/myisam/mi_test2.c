@@ -813,7 +813,7 @@ end:
     printf("Write records: %d\nUpdate records: %d\nSame-key-read: %d\nDelete records: %d\n", write_count,update,dupp_keys,opt_delete);
     if (rec_pointer_size)
       printf("Record pointer size:  %d\n",rec_pointer_size);
-    printf("myisam_block_size:    %u\n", myisam_block_size);
+    printf("myisam_block_size:    %lu\n", myisam_block_size);
     if (key_cacheing)
     {
       puts("Key cache used");

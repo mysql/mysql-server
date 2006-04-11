@@ -1759,3 +1759,16 @@ vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
 mysql-test/r/*.log
+storage/maria/ma_test1
+storage/maria/ma_test2
+storage/maria/ma_test3
+storage/maria/maria_ftdump
+storage/maria/ma_sp_test
+storage/maria/ma_rt_test
+storage/maria/maria_log
+storage/maria/maria_pack
+storage/maria/maria_chk
+storage/maria/ma_test_all
+storage/maria/maria.log
+storage/maria/*.MAD
+storage/maria/*.MAI

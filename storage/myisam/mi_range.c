@@ -217,7 +217,7 @@ static uint _mi_keynr(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
                       uchar *keypos, uint *ret_max_key)
 {
   uint nod_flag,keynr,max_key;
-  uchar t_buff[MI_MAX_KEY_BUFF],*end;
+  uchar t_buff[HA_MAX_KEY_BUFF],*end;
 
   end= page+mi_getint(page);
   nod_flag=mi_test_if_nod(page);

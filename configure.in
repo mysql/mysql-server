@@ -2483,6 +2483,10 @@ MYSQL_STORAGE_ENGINE(ndbcluster,,ndbcluster,,,,storage/ndb,,,[
   MYSQL_SETUP_NDBCLUSTER
 ])
 MYSQL_STORAGE_ENGINE(partition,,partition)
+MYSQL_STORAGE_ENGINE(maria,,,,,,storage/maria,,
+ \$(top_builddir)/storage/maria/libmaria.a, [
+  AC_CONFIG_FILES(storage/maria/Makefile)
+])
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=

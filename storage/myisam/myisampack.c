@@ -2726,6 +2726,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	  break;
 	}
 	case FIELD_LAST:
+        case FIELD_enum_val_count:
 	  abort();				/* Impossible */
 	}
 	start_pos+=count->max_zero_fill;
