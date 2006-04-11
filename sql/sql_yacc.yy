@@ -3639,7 +3639,7 @@ part_definition:
         ;
 
 part_name:
-        ident_or_text
+        ident
         {
           LEX *lex= Lex;
           partition_info *part_info= lex->part_info;
