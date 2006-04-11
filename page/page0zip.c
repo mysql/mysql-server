@@ -2262,13 +2262,16 @@ page_zip_write_blob_ptr(
 
 	if (mtr) {
 		byte*	log_ptr	= mlog_open(mtr,
-				11 + 2 + BTR_EXTERN_FIELD_REF_SIZE);
+				11 + 2 + 2 + BTR_EXTERN_FIELD_REF_SIZE);
 		if (UNIV_UNLIKELY(!log_ptr)) {
 			return;
 		}
 
 		log_ptr = mlog_write_initial_log_record_fast((byte*) field,
 				MLOG_ZIP_WRITE_BLOB_PTR, log_ptr, mtr);
+		mach_write_to_2(log_ptr,
+				ut_align_offset(field, UNIV_PAGE_SIZE));
+		log_ptr += 2;
 		mach_write_to_2(log_ptr, externs - page_zip->data);
 		log_ptr += 2;
 		memcpy(log_ptr, externs, BTR_EXTERN_FIELD_REF_SIZE);
@@ -2397,13 +2400,17 @@ page_zip_write_node_ptr(
 	memcpy(storage, field, REC_NODE_PTR_SIZE);
 
 	if (mtr) {
-		byte*	log_ptr	= mlog_open(mtr, 11 + 2 + REC_NODE_PTR_SIZE);
+		byte*	log_ptr	= mlog_open(mtr,
+				11 + 2 + 2 + REC_NODE_PTR_SIZE);
 		if (UNIV_UNLIKELY(!log_ptr)) {
 			return;
 		}
 
 		log_ptr = mlog_write_initial_log_record_fast(field,
 				MLOG_ZIP_WRITE_NODE_PTR, log_ptr, mtr);
+		mach_write_to_2(log_ptr,
+				ut_align_offset(field, UNIV_PAGE_SIZE));
+		log_ptr += 2;
 		mach_write_to_2(log_ptr, storage - page_zip->data);
 		log_ptr += 2;
 		memcpy(log_ptr, field, REC_NODE_PTR_SIZE);
@@ -2780,13 +2787,12 @@ page_zip_parse_write_header(
 
 	ut_ad(!page == !page_zip);
 
-	if (UNIV_UNLIKELY(end_ptr < ptr + (2 + 1))) {
+	if (UNIV_UNLIKELY(end_ptr < ptr + (1 + 1))) {
 
 		return(NULL);
 	}
 
-	offset = mach_read_from_2(ptr);
-	ptr += 2;
+	offset = (ulint) *ptr++;
 	len = (ulint) *ptr++;
 
 	if (UNIV_UNLIKELY(!len) || UNIV_UNLIKELY(offset + len >= PAGE_DATA)
@@ -2828,7 +2834,7 @@ page_zip_write_header_log(
 	ulint			length,	/* in: length of the data */
 	mtr_t*			mtr)	/* in: mini-transaction */
 {
-	byte*	log_ptr = mlog_open(mtr, 11 + 1);
+	byte*	log_ptr = mlog_open(mtr, 11 + 1 + 1);
 	ut_ad(offset < PAGE_DATA);
 	ut_ad(offset + length < PAGE_DATA);
 #if PAGE_DATA > 255
@@ -2844,6 +2850,7 @@ page_zip_write_header_log(
 
 	log_ptr = mlog_write_initial_log_record_fast(page_zip->data + offset,
 				MLOG_ZIP_WRITE_HEADER, log_ptr, mtr);
+	*log_ptr++ = (byte) offset;
 	*log_ptr++ = (byte) length;
 	mlog_close(mtr, log_ptr);
 

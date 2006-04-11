@@ -156,7 +156,8 @@ page_zip_alloc(
 	const page_t*	page,	/* in: uncompressed page */
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	ulint		length,	/* in: combined size of the record */
-	ulint		create)	/* in: nonzero=add the record to the heap */
+	ulint		create,	/* in: nonzero=add the record to the heap */
+	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
 {
 	ut_ad(page_is_comp((page_t*) page));
 	ut_ad(page_zip_validate(page_zip, page));
@@ -171,7 +172,11 @@ page_zip_alloc(
 		return(FALSE);
 	}
 
-	if (!page_zip_compress(page_zip, page, index)) {
+	if (page_zip_compress(page_zip, page, index)) {
+		if (mtr) {
+			page_zip_compress_write_log(page_zip, page, mtr);
+		}
+	} else {
 		/* Unable to compress the page */
 		return(FALSE);
 	}
