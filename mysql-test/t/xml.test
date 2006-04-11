@@ -295,3 +295,23 @@ select extractValue('<e>1</e>','last()');
 --error 1105
 select extractValue('<e><a>1</a></e>','/e/');
 
+#
+# Bug#16233: XML: ExtractValue() fails with special characters
+#
+set names utf8;
+select extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r');
+select extractValue('<r><Ñ>Ñ</Ñ></r>','/r/Ñ');
+select extractValue('<Ñ r="r"/>','/Ñ/@r');
+select extractValue('<r Ñ="Ñ"/>','/r/@Ñ');
+--disable_warnings
+DROP PROCEDURE IF EXISTS p2;
+--enable_warnings
+DELIMITER //;
+CREATE PROCEDURE p2 ()
+BEGIN
+ DECLARE p LONGTEXT CHARACTER SET UTF8 DEFAULT '<Ñ><r>A</r></Ñ>';
+ SELECT EXTRACTVALUE(p,'/Ñ/r');
+END//
+DELIMITER ;//
+CALL p2();
+DROP PROCEDURE p2;
