@@ -85,9 +85,11 @@ row_mysql_is_system_table(
 				 system table name */
 	const char*	name)
 {
-	if (memcmp(name, "mysql/", 6)) {
+	if (strncmp(name, "mysql/", 6) != 0) {
+
 		return(FALSE);
 	}
+
 	return(0 == strcmp(name + 6, "host")
 		|| 0 == strcmp(name + 6, "user")
 		|| 0 == strcmp(name + 6, "db"));
