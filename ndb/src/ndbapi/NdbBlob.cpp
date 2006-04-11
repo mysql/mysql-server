@@ -959,6 +959,8 @@ int
 NdbBlob::deletePartsUnknown(Uint32 part)
 {
   DBG("deletePartsUnknown [in] part=" << part << " count=all");
+  if (thePartSize == 0) // tinyblob
+    return 0;
   static const unsigned maxbat = 256;
   static const unsigned minbat = 1;
   unsigned bat = minbat;

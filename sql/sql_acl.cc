@@ -2001,7 +2001,10 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
   {
     if (exact)
     {
-      if (compare_hostname(&grant_table->host, host, ip))
+      if ((host &&
+	   !my_strcasecmp(system_charset_info, host,
+                          grant_table->host.hostname)) ||
+	  (ip && !strcmp(ip, grant_table->host.hostname)))
 	return grant_table;
     }
     else

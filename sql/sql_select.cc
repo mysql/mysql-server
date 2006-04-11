@@ -4107,6 +4107,20 @@ JOIN::join_free(bool full)
       problems in free_elements() as some of the elements are then deleted.
     */
     tmp_table_param.copy_funcs.empty();
+    /*
+      If we have tmp_join and 'this' JOIN is not tmp_join and
+      tmp_table_param.copy_field's  of them are equal then we have to remove
+      pointer to  tmp_table_param.copy_field from tmp_join, because it qill
+      be removed in tmp_table_param.cleanup().
+    */
+    if (tmp_join &&
+        tmp_join != this &&
+        tmp_join->tmp_table_param.copy_field ==
+        tmp_table_param.copy_field)
+    {
+      tmp_join->tmp_table_param.copy_field=
+        tmp_join->tmp_table_param.save_copy_field= 0;
+    }
     tmp_table_param.cleanup();
   }
   DBUG_VOID_RETURN;
@@ -4970,7 +4984,8 @@ static Field* create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         Item ***copy_func, Field **from_field,
-                        bool group, bool modify_item, uint convert_blob_length)
+                        bool group, bool modify_item, uint convert_blob_length,
+                        bool make_copy_field)
 {
   switch (type) {
   case Item::SUM_FUNC_ITEM:
@@ -5057,7 +5072,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
-    return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
+    if (make_copy_field)
+    {
+      DBUG_ASSERT(((Item_result_field*)item)->result_field);
+      *from_field= ((Item_result_field*)item)->result_field;
+    }
+    return create_tmp_field_from_item(thd, item, table, (make_copy_field ? 0 :
+                                      copy_func), modify_item,
                                       convert_blob_length);
   case Item::TYPE_HOLDER:
     return ((Item_type_holder *)item)->make_field_by_type(table);
@@ -5096,7 +5117,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   Item **copy_func;
   MI_COLUMNDEF *recinfo;
   uint temp_pool_slot=MY_BIT_NONE;
-
+  bool force_copy_fields= param->force_copy_fields;
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
 		      (int) distinct, (int) save_sum_fields,
@@ -5227,7 +5248,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  Field *new_field=
             create_tmp_field(thd, table, arg, arg->type(), &copy_func,
                              tmp_from_field, group != 0,not_all_columns,
-                             param->convert_blob_length);
+                             param->convert_blob_length, 0);
 	  if (!new_field)
 	    goto err;					// Should be OOM
 	  tmp_from_field++;
@@ -5265,8 +5286,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       */
       Field *new_field= create_tmp_field(thd, table, item, type, &copy_func,
                                          tmp_from_field, group != 0,
-                                         not_all_columns || group !=0,
-                                         param->convert_blob_length);
+                                         !force_copy_fields &&
+                                           (not_all_columns || group !=0),
+                                         param->convert_blob_length,
+                                         force_copy_fields);
       if (!new_field)
       {
 	if (thd->is_fatal_error)

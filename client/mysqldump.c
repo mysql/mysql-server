@@ -2557,8 +2557,11 @@ static const char *check_if_ignore_table(const char *table_name)
     mysql_free_result(res);
     return 0;					/* assume table is ok */
   }
-  if (strcmp(row[1], (result= "MRG_MyISAM")) &&
-      strcmp(row[1], (result= "MRG_ISAM")))
+  /* Some forward-compatibility: don't dump data from a VIEW */
+  if (!row[1])
+    result= "VIEW";
+  else if (strcmp(row[1], (result= "MRG_MyISAM")) &&
+           strcmp(row[1], (result= "MRG_ISAM")))
     result= 0;
   mysql_free_result(res);
   return result;

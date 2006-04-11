@@ -1,7 +1,7 @@
 baseport: 14000
 basedir: /space/autotest
 mgm: CHOOSE_host1
-ndb: CHOOSE_host1 CHOOSE_host1
+ndb: CHOOSE_host2 CHOOSE_host3 CHOOSE_host2 CHOOSE_host3
 api: CHOOSE_host1 CHOOSE_host1 CHOOSE_host1
 -- cluster config
 [DB DEFAULT]
@@ -17,3 +17,6 @@ FileSystemPath: /space/autotest/run
 PortNumber: 14000
 ArbitrationRank: 1
 DataDir: .
+
+[TCP DEFAULT]
+SendBufferMemory: 2M

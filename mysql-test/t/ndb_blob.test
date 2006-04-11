@@ -338,7 +338,7 @@ select * from t1 order by a;
 drop table t1;
 drop database test2;
 
-# -- bug-5252 tinytext crashes plus no-commit result --
+# -- bug-5252 tinytext crashes + no-commit result + replace --
 
 set autocommit=0;
 create table t1 (
@@ -352,6 +352,10 @@ select * from t1;
 delete from t1;
 select * from t1;
 commit;
+replace t1 set a=2, b='y';
+select * from t1;
+delete from t1;
+select * from t1;
 drop table t1;
 
 # -- bug-5013 insert empty string to text --

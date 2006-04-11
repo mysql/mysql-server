@@ -620,7 +620,7 @@ class Statement_map
 public:
   Statement_map();
 
-  int insert(Statement *statement);
+  int insert(THD *thd, Statement *statement);
 
   Statement *find_by_name(LEX_STRING *name)
   {
@@ -642,29 +642,10 @@ public:
     }
     return last_found_statement;
   }
-  void erase(Statement *statement)
-  {
-    if (statement == last_found_statement)
-      last_found_statement= 0;
-    if (statement->name.str)
-    {
-      hash_delete(&names_hash, (byte *) statement);  
-    }
-    hash_delete(&st_hash, (byte *) statement);
-  }
+  void erase(Statement *statement);
   /* Erase all statements (calls Statement destructor) */
-  void reset()
-  {
-    my_hash_reset(&names_hash);
-    my_hash_reset(&st_hash);
-    last_found_statement= 0;
-  }
-
-  ~Statement_map()
-  {
-    hash_free(&names_hash);
-    hash_free(&st_hash);
-  }
+  void reset();
+  ~Statement_map();
 private:
   HASH st_hash;
   HASH names_hash;
@@ -932,6 +913,7 @@ public:
   {
     my_bool my_bool_value;
     long    long_value;
+    ulong   ulong_value;
   } sys_var_tmp;
 
   THD();
@@ -1334,10 +1316,11 @@ public:
   bool  using_indirect_summary_function;
   /* If >0 convert all blob fields to varchar(convert_blob_length) */
   uint  convert_blob_length; 
-
+  bool force_copy_fields;
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
-    group_length(0), group_null_parts(0), convert_blob_length(0)
+    group_length(0), group_null_parts(0), convert_blob_length(0),
+    force_copy_fields(0)
   {}
   ~TMP_TABLE_PARAM()
   {
