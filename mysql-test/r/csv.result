@@ -5085,6 +5085,36 @@ Table	Op	Msg_type	Msg_text
 test.test_repair_table5	repair	status	OK
 SELECT * FROM test_repair_table5;
 num	magic_no	company_name	founded
+INSERT INTO test_repair_table5 VALUES (1, 102, "CORRECT", 1876);
+SELECT * FROM test_repair_table5;
+num	magic_no	company_name	founded
+1	0102	CORRECT	1876
+FLUSH TABLES;
+CHECK TABLE test_repair_table5;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table5	check	error	Corrupt
+REPAIR TABLE test_repair_table5;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table5	repair	status	OK
+SELECT * FROM test_repair_table5;
+num	magic_no	company_name	founded
+1	0102	CORRECT	1876
+INSERT INTO test_repair_table5 VALUES (1, 102, "CORRECT2", 1876);
+SELECT * FROM test_repair_table5;
+num	magic_no	company_name	founded
+1	0102	CORRECT	1876
+1	0102	CORRECT2	1876
+FLUSH TABLES;
+CHECK TABLE test_repair_table5;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table5	check	error	Corrupt
+REPAIR TABLE test_repair_table5;
+Table	Op	Msg_type	Msg_text
+test.test_repair_table5	repair	status	OK
+SELECT * FROM test_repair_table5;
+num	magic_no	company_name	founded
+1	0102	CORRECT	1876
+1	0102	CORRECT2	1876
 DROP TABLE test_repair_table5;
 create table t1 (a int) engine=csv;
 insert t1 values (1);
