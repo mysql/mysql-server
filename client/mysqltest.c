@@ -5088,6 +5088,35 @@ static void init_var_hash(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
+static void mark_progress(int line)
+{
+#ifdef NOT_YET
+  static FILE* fp = NULL;
+  static double first;
+
+  struct timeval tv;
+  double now;
+
+  if (!fp)
+  {
+
+    fp = fopen("/tmp/mysqltest_progress.log", "wt");
+
+    if (!fp)
+    {
+      abort();
+    }
+
+    gettimeofday(&tv, NULL);
+    first = tv.tv_sec * 1e6 + tv.tv_usec;
+  }
+
+  gettimeofday(&tv, NULL);
+  now = tv.tv_sec * 1e6 + tv.tv_usec;
+
+  fprintf(fp, "%d %f\n", parser.current_line, (now - first) / 1e6);
+#endif
+}
 
 int main(int argc, char **argv)
 {
@@ -5447,6 +5476,7 @@ int main(int argc, char **argv)
     }
 
     parser.current_line += current_line_inc;
+    mark_progress(parser.current_line);
   }
 
   start_lineno= 0;
