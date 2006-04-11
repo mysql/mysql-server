@@ -100,7 +100,8 @@ sub run_cmd (@) {
         # we are replacing the straps under the feet of Test::Harness,
         # we need to do some basic initializations in the new straps.
         $Test::Harness::Strap = MySQL::Straps->new;
-        $Test::Harness::Strap->{callback} = \&Test::Harness::strap_callback;
+        $Test::Harness::Strap->{callback} = \&Test::Harness::strap_callback
+          if defined &Test::Harness::strap_callback;
 
         runtests @files;
     }
