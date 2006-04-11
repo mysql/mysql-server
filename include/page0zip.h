@@ -266,6 +266,30 @@ page_zip_write_header(
 	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
 	__attribute__((nonnull(1,2)));
 
+/**************************************************************************
+Write a log record of compressing an index page. */
+
+void
+page_zip_compress_write_log(
+/*========================*/
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	const page_t*		page,	/* in: uncompressed page */
+	mtr_t*			mtr)	/* in: mini-transaction */
+	__attribute__((nonnull));
+
+/**************************************************************************
+Parses a log record of compressing an index page. */
+
+byte*
+page_zip_parse_compress(
+/*====================*/
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	page_t*		page,	/* out: uncompressed page */
+	page_zip_des_t*	page_zip)/* out: compressed page */
+	__attribute__((nonnull(1,2)));
+
 #ifdef UNIV_MATERIALIZE
 # undef UNIV_INLINE
 # define UNIV_INLINE	UNIV_INLINE_ORIGINAL

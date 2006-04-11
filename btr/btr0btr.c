@@ -2214,8 +2214,7 @@ btr_compress(
 		max_ins_size = page_get_max_insert_size(merge_page, n_recs);
 
 		ut_ad(page_validate(merge_page, cursor->index));
-		ut_ad(page_get_max_insert_size(merge_page, n_recs)
-							== max_ins_size_reorg);
+		ut_ad(max_ins_size == max_ins_size_reorg);
 
 		if (UNIV_UNLIKELY(data_size > max_ins_size)) {
 

@@ -482,40 +482,6 @@ page_create(
 	return(page_create_low(frame, comp));
 }
 
-/***************************************************************
-Parses a redo log record of creating a compressed page. */
-
-byte*
-page_parse_create_zip(
-/*==================*/
-				/* out: end of log record or NULL */
-	byte*		ptr,	/* in: buffer */
-	byte*		end_ptr,/* in: buffer end */
-	page_t*		page,	/* in/out: page or NULL */
-	page_zip_des_t*	page_zip,/* in/out: compressed page or NULL */
-	dict_index_t*	index,	/* in: index of the page */
-	mtr_t*		mtr)	/* in: mtr or NULL */
-{
-	ulint	level;
-
-	ut_ad(ptr && end_ptr && index);
-
-	if (UNIV_UNLIKELY(ptr + 2 > end_ptr)) {
-
-		return(NULL);
-	}
-
-	level = mach_read_from_2(ptr);
-	ptr += 2;
-
-	if (page) {
-
-		page_create_zip(page, page_zip, index, level, mtr);
-	}
-
-	return(ptr);
-}
-
 /**************************************************************
 Create a compressed B-tree index page. */
 
@@ -530,28 +496,19 @@ page_create_zip(
 	ulint		level,		/* in: the B-tree level of the page */
 	mtr_t*		mtr)		/* in: mini-transaction handle */
 {
-	byte*	log_ptr;
-
 	ut_ad(frame && page_zip && index);
 	ut_ad(dict_table_is_comp(index->table));
 
-	log_ptr = mlog_open(mtr, 11 + 2);
-	if (log_ptr) {
-		log_ptr = mlog_write_initial_log_record_fast(frame,
-				MLOG_ZIP_PAGE_CREATE, log_ptr, mtr);
-		mach_write_to_2(log_ptr, level);
-		log_ptr += 2;
-		mlog_close(mtr, log_ptr);
-	}
-
-	mach_write_to_2(frame + PAGE_HEADER + PAGE_LEVEL, level);
 	page_create_low(frame, TRUE);
+	mach_write_to_2(frame + PAGE_HEADER + PAGE_LEVEL, level);
 
 	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, frame, index))) {
 		/* The compression of a newly created page
 		should always succeed. */
 		ut_error;
 	}
+
+	page_zip_compress_write_log(page_zip, frame, mtr);
 
 	return(frame);
 }
@@ -643,19 +600,26 @@ page_copy_rec_list_end(
 	mtr_t*		mtr)		/* in: mtr */
 {
 	page_t*	page;
+	ulint	log_mode = 0; /* remove warning */
+
+	ut_ad(!new_page_zip || page_zip_validate(new_page_zip, new_page));
+
+	if (UNIV_LIKELY_NULL(new_page_zip)) {
+		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
+	}
 
 	if (page_dir_get_n_heap(new_page) == 2) {
 		page_copy_rec_list_end_to_created_page(
 						new_page, rec, index, mtr);
 	} else {
-		ut_ad(!new_page_zip
-			|| page_zip_validate(new_page_zip, new_page));
 		page_copy_rec_list_end_no_locks(new_page, rec, index, mtr);
 	}
 
 	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
+		mtr_set_log_mode(mtr, log_mode);
+
 		if (UNIV_UNLIKELY(!page_zip_compress(new_page_zip,
 					new_page, index))) {
 
@@ -665,6 +629,8 @@ page_copy_rec_list_end(
 			}
 			return(FALSE);
 		}
+
+		page_zip_compress_write_log(new_page_zip, new_page, mtr);
 	}
 
 	/* Update the lock table, MAX_TRX_ID, and possible hash index */
@@ -700,6 +666,7 @@ page_copy_rec_list_start(
 	page_cur_t	cur2;
 	page_t*		page;
 	rec_t*		old_end;
+	ulint		log_mode	= 0 /* remove warning */;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -708,6 +675,10 @@ page_copy_rec_list_start(
 	if (page_rec_is_infimum(rec)) {
 
 		return(TRUE);
+	}
+
+	if (UNIV_LIKELY_NULL(new_page_zip)) {
+		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 	}
 
 	page = ut_align_down(rec, UNIV_PAGE_SIZE);
@@ -739,6 +710,8 @@ page_copy_rec_list_start(
 	}
 
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
+		mtr_set_log_mode(mtr, log_mode);
+
 		if (UNIV_UNLIKELY(!page_zip_compress(new_page_zip,
 					new_page, index))) {
 
@@ -749,6 +722,8 @@ page_copy_rec_list_start(
 			/* TODO: try btr_page_reorganize() */
 			return(FALSE);
 		}
+
+		page_zip_compress_write_log(new_page_zip, new_page, mtr);
 	}
 
 	/* Update MAX_TRX_ID, the lock table, and possible hash index */

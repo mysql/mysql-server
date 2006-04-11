@@ -178,7 +178,7 @@ including that record. Infimum and supremum records are not copied. */
 void
 page_copy_rec_list_end_to_created_page(
 /*===================================*/
-	page_t*		new_page,	/* in: index page to copy to */
+	page_t*		new_page,	/* in/out: index page to copy to */
 	rec_t*		rec,		/* in: first record to copy */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr);		/* in: mtr */

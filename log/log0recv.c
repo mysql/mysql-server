@@ -905,16 +905,9 @@ recv_parse_or_apply_log_rec_body(
 		ptr = page_zip_parse_write_header(
 				ptr, end_ptr, page, page_zip);
 		break;
-	case MLOG_ZIP_PAGE_CREATE:
-		if (NULL != (ptr = mlog_parse_index(
-				ptr, end_ptr, TRUE, &index))) {
-			ptr = page_parse_create_zip(ptr, end_ptr,
-					page, page_zip, index, mtr);
-		}
-		break;
-	case MLOG_ZIP_LIST_START_COPY:
-	case MLOG_ZIP_LIST_END_COPY:
-		ut_error; /* TODO */
+	case MLOG_ZIP_PAGE_COMPRESS:
+		ptr = page_zip_parse_compress(
+				ptr, end_ptr, page, page_zip);
 		break;
 	default:
 		ptr = NULL;

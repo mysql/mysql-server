@@ -137,13 +137,8 @@ flag value must give the length also! */
 						on a compressed page */
 #define MLOG_ZIP_WRITE_HEADER	((byte)49)	/* write to compressed page
 						header */
-#define MLOG_ZIP_PAGE_CREATE	((byte)50)	/* create a compressed
-						index page */
-#define MLOG_ZIP_LIST_START_COPY ((byte)51)	/* copy compact record list
-						start to a compressed page */
-#define MLOG_ZIP_LIST_END_COPY	((byte)52)	/* copy compact record list
-						end to a compressed page */
-#define MLOG_BIGGEST_TYPE	((byte)52)	/* biggest value (used in
+#define MLOG_ZIP_PAGE_COMPRESS	((byte)50)	/* compress an index page */
+#define MLOG_BIGGEST_TYPE	((byte)50)	/* biggest value (used in
 						asserts) */
 
 /*******************************************************************
