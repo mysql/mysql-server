@@ -37,7 +37,7 @@ DIST_SUBDIRS =		. include @docs_dirs@ zlib \
                         strings mysys dbug extra regex storage \
                         vio sql libmysql_r libmysql client scripts \
 			@man_dirs@ tests SSL\
-			BUILD netware os2 @libmysqld_dirs@\
+			BUILD netware @libmysqld_dirs@\
 			@bench_dirs@ support-files server-tools tools \
 			plugin win
 
