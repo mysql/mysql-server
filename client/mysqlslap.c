@@ -756,8 +756,7 @@ get_options(int *argc,char ***argv)
   if (create_string || auto_generate_sql)
   {
     if (verbose >= 1)
-      fprintf(stderr,
-              "%s: Turning off preserve-schema!\n");
+      fprintf(stderr, "Turning off preserve-schema!\n");
     opt_preserve= FALSE;
   }
 
