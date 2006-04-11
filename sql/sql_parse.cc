@@ -2840,21 +2840,26 @@ unsent_create_error:
     if ((res= multi_update_precheck(thd, tables)))
       break;
 
-    if ((res= mysql_multi_update_lock(thd, tables, &select_lex->item_list,
-				      select_lex)))
-      break;
-
+    res= mysql_multi_update_lock(thd, tables, &select_lex->item_list,
+                                 select_lex);
 #ifdef HAVE_REPLICATION
     /* Check slave filtering rules */
     if (thd->slave_thread)
       if (all_tables_not_ok(thd,tables))
       {
+        if (res!= 0)
+        {
+          res= 0;             /* don't care of prev failure  */
+          thd->clear_error(); /* filters are of highest prior */
+        }
 	/* we warn the slave SQL thread */
 	my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
 	break;
       }
 #endif /* HAVE_REPLICATION */
-
+    if (res)
+      break;
+    
     res= mysql_multi_update(thd,tables,
 			    &select_lex->item_list,
 			    &lex->value_list,
@@ -4475,6 +4480,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 						  NOT_FIXED_DEC-1) : 0;
   new_field->sql_type=type;
   new_field->length=0;
+  new_field->char_length= 0;
   new_field->change=change;
   new_field->interval=0;
   new_field->pack_length=0;
@@ -4745,6 +4751,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 					    FIELD_TYPE_STRING :
 					    new_field->sql_type,
 					    new_field->length);
+  new_field->char_length= new_field->length;
   lex->create_list.push_back(new_field);
   lex->last_field=new_field;
   DBUG_RETURN(0);

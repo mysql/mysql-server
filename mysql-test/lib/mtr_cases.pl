@@ -85,11 +85,24 @@ sub collect_test_cases ($) {
   if ( $::opt_reorder )
   {
     @$cases = sort {
-      if ( $a->{'master_restart'} and $b->{'master_restart'} or
-           ! $a->{'master_restart'} and ! $b->{'master_restart'} )
+      if ( ! $a->{'master_restart'} and ! $b->{'master_restart'} )
       {
         return $a->{'name'} cmp $b->{'name'};
       }
+
+      if ( $a->{'master_restart'} and $b->{'master_restart'} )
+      {
+        my $cmp= mtr_cmp_opts($a->{'master_opt'}, $b->{'master_opt'});
+        if ( $cmp == 0 )
+        {
+          return $a->{'name'} cmp $b->{'name'};
+        }
+        else
+        {
+          return $cmp;
+        }
+      }
+
       if ( $a->{'master_restart'} )
       {
         return 1;                 # Is greater
@@ -189,8 +202,8 @@ sub collect_one_test_case($$$$$$) {
   my $slave_sh=        "$testdir/$tname-slave.sh";
   my $disabled_file=   "$testdir/$tname.disabled";
 
-  $tinfo->{'master_opt'}= $::glob_win32 ? ["--default-time-zone=+3:00"] : [];
-  $tinfo->{'slave_opt'}=  $::glob_win32 ? ["--default-time-zone=+3:00"] : [];
+  $tinfo->{'master_opt'}= [];
+  $tinfo->{'slave_opt'}=  [];
   $tinfo->{'slave_mi'}=   [];
 
   if ( -f $master_opt_file )
@@ -213,7 +226,6 @@ sub collect_one_test_case($$$$$$) {
         if ( defined $value )
         {
           $tinfo->{'timezone'}= $value;
-          $tinfo->{'skip'}= 1 if $::glob_win32; # FIXME server unsets TZ
           last MASTER_OPT;
         }
 

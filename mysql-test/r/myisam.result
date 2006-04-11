@@ -554,7 +554,7 @@ Warnings:
 Note	1031	Table storage engine for 't1' doesn't have this option
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	a	1	a	NULL	1000	NULL	NULL	YES	HASH	
+t1	1	a	1	a	NULL	500	NULL	NULL	YES	HASH	
 drop table t1,t2;
 create table t1 ( a tinytext, b char(1), index idx (a(1),b) );
 insert into t1 values (null,''), (null,'');
@@ -729,4 +729,22 @@ create index bug on t1 (bob(22), cip, time);
 select * from t1 where bob is null and cip=1;
 cip	time	score	bob
 1	00:01:00	0	NULL
+drop table t1;
+create table t1 (
+id1 int not null auto_increment,
+id2 int not null default '0',
+t text not null,
+primary key  (id1),
+key x (id2, t(32))
+) engine=myisam;
+insert into t1 (id2, t) values
+(10, 'abc'), (10, 'abc'), (10, 'abc'),
+(20, 'abc'), (20, 'abc'), (20, 'def'),
+(10, 'abc'), (10, 'abc');
+select count(*)   from t1 where id2 = 10;
+count(*)
+5
+select count(id1) from t1 where id2 = 10;
+count(id1)
+5
 drop table t1;

@@ -20,7 +20,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-nt-max"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -175,7 +174,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-nt"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"

@@ -3258,7 +3258,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     const char *old_cs, *old_derivation;
     old_cs= collation.collation->name;
     old_derivation= collation.derivation_name();
-    if (collation.aggregate(item->collation))
+    if (collation.aggregate(item->collation, MY_COLL_ALLOW_CONV))
     {
       my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
 	       old_cs, old_derivation,

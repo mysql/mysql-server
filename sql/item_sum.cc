@@ -1185,6 +1185,7 @@ void Item_sum_count_distinct::make_unique()
   original= 0;
   use_tree= 0; // to prevent delete_tree call on uninitialized tree
   tree= &tree_base;
+  force_copy_fields= 1;
 }
 
 
@@ -1219,6 +1220,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
     free_tmp_table(thd, table);
     tmp_table_param->cleanup();
   }
+  tmp_table_param->force_copy_fields= force_copy_fields;
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
 				0,
 				select_lex->options | thd->options,
@@ -1724,6 +1726,7 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
 					       String *is_separator)
   :Item_sum(), tmp_table_param(0), max_elements_in_tree(0), warning(0),
    key_length(0), tree_mode(0), distinct(is_distinct), warning_for_row(0),
+   force_copy_fields(0),
    separator(is_separator), tree(&tree_base), table(0),
    order(0), tables_list(0),
    arg_count_order(0), arg_count_field(0),
@@ -1785,6 +1788,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tree_mode(item->tree_mode),
   distinct(item->distinct),
   warning_for_row(item->warning_for_row),
+  force_copy_fields(item->force_copy_fields),
   separator(item->separator),
   tree(item->tree),
   table(item->table),
@@ -2004,6 +2008,7 @@ bool Item_func_group_concat::setup(THD *thd)
     free_tmp_table(thd, table);
     tmp_table_param->cleanup();
   }
+  tmp_table_param->force_copy_fields= force_copy_fields;
   /*
     We have to create a temporary table to get descriptions of fields 
     (types, sizes and so on).
@@ -2079,6 +2084,7 @@ void Item_func_group_concat::make_unique()
   original= 0;
   tree_mode= 0; // to prevent delete_tree call on uninitialized tree
   tree= &tree_base;
+  force_copy_fields= 1;
 }
 
 

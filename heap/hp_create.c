@@ -104,6 +104,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
       DBUG_RETURN(1);
     }
     share->keydef= (HP_KEYDEF*) (share + 1);
+    share->key_stat_version= 1;
     keyseg= (HA_KEYSEG*) (share->keydef + keys);
     init_block(&share->block, reclength + 1, min_records, max_records);
 	/* Fix keys */

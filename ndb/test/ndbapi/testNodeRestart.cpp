@@ -22,7 +22,7 @@
 #include <NdbRestarts.hpp>
 #include <Vector.hpp>
 #include <signaldata/DumpStateOrd.hpp>
-
+#include <Bitmask.hpp>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -433,12 +433,28 @@ int runBug15587(NDBT_Context* ctx, NDBT_Step* step){
   if (restarter.waitNodesNoStart(&nodeId, 1))
     return NDBT_FAILED; 
    
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  
+  if (restarter.dumpStateOneNode(nodeId, val2, 2))
+    return NDBT_FAILED;
+
   if (restarter.dumpStateOneNode(nodeId, dump, 2))
     return NDBT_FAILED;
 
   if (restarter.startNodes(&nodeId, 1))
     return NDBT_FAILED;
 
+  restarter.waitNodesStartPhase(&nodeId, 1, 3);
+  
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+    return NDBT_FAILED; 
+   
+  if (restarter.dumpStateOneNode(nodeId, val2, 1))
+    return NDBT_FAILED;
+  
+  if (restarter.startNodes(&nodeId, 1))
+    return NDBT_FAILED;
+  
   if (restarter.waitNodesStarted(&nodeId, 1))
     return NDBT_FAILED;
   
@@ -533,6 +549,323 @@ int runBug15685(NDBT_Context* ctx, NDBT_Step* step){
 err:
   ctx->stopTest();
   return NDBT_FAILED;
+}
+
+int 
+runBug16772(NDBT_Context* ctx, NDBT_Step* step){
+
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  int aliveNodeId = restarter.getRandomNotMasterNodeId(rand());
+  int deadNodeId = aliveNodeId;
+  while (deadNodeId == aliveNodeId)
+    deadNodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+  
+  if (restarter.insertErrorInNode(aliveNodeId, 930))
+    return NDBT_FAILED;
+
+  if (restarter.restartOneDbNode(deadNodeId,
+				 /** initial */ false, 
+				 /** nostart */ true,
+				 /** abort   */ true))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesNoStart(&deadNodeId, 1))
+    return NDBT_FAILED;
+
+  if (restarter.startNodes(&deadNodeId, 1))
+    return NDBT_FAILED;
+
+  // It should now be hanging since we throw away NDB_FAILCONF
+  int ret = restarter.waitNodesStartPhase(&deadNodeId, 1, 3, 10);
+  // So this should fail...i.e it should not reach startphase 3
+
+  // Now send a NDB_FAILCONF for deadNo
+  int dump[] = { 7020, 323, 252, 0 };
+  dump[3] = deadNodeId;
+  if (restarter.dumpStateOneNode(aliveNodeId, dump, 4))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesStarted(&deadNodeId, 1))
+    return NDBT_FAILED;
+
+  return ret ? NDBT_OK : NDBT_FAILED;
+}
+
+int 
+runBug18414(NDBT_Context* ctx, NDBT_Step* step){
+
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  Ndb* pNdb = GETNDB(step);
+  HugoOperations hugoOps(*ctx->getTab());
+  HugoTransactions hugoTrans(*ctx->getTab());
+  int loop = 0;
+  do 
+  {
+    if(hugoOps.startTransaction(pNdb) != 0)
+      goto err;
+    
+    if(hugoOps.pkUpdateRecord(pNdb, 0, 128, rand()) != 0)
+      goto err;
+    
+    if(hugoOps.execute_NoCommit(pNdb) != 0)
+      goto err;
+
+    int node1 = hugoOps.getTransaction()->getConnectedNodeId();
+    int node2 = restarter.getRandomNodeSameNodeGroup(node1, rand());
+    
+    if (node1 == -1 || node2 == -1)
+      break;
+    
+    if (loop & 1)
+    {
+      if (restarter.insertErrorInNode(node1, 8050))
+	goto err;
+    }
+    
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    if (restarter.dumpStateOneNode(node2, val2, 2))
+      goto err;
+    
+    if (restarter.insertErrorInNode(node2, 5003))
+      goto err;
+    
+    int res= hugoOps.execute_Rollback(pNdb);
+  
+    if (restarter.waitNodesNoStart(&node2, 1) != 0)
+      goto err;
+    
+    if (restarter.insertErrorInAllNodes(0))
+      goto err;
+    
+    if (restarter.startNodes(&node2, 1) != 0)
+      goto err;
+    
+    if (restarter.waitClusterStarted() != 0)
+      goto err;
+    
+    if (hugoTrans.scanUpdateRecords(pNdb, 128) != 0)
+      goto err;
+
+    hugoOps.closeTransaction(pNdb);
+    
+  } while(++loop < 5);
+  
+  return NDBT_OK;
+  
+err:
+  hugoOps.closeTransaction(pNdb);
+  return NDBT_FAILED;    
+}
+
+int 
+runBug18612(NDBT_Context* ctx, NDBT_Step* step){
+
+  // Assume two replicas
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  Uint32 cnt = restarter.getNumDbNodes();
+
+  for(int loop = 0; loop < ctx->getNumLoops(); loop++)
+  {
+    int partition0[256];
+    int partition1[256];
+    bzero(partition0, sizeof(partition0));
+    bzero(partition1, sizeof(partition1));
+    Bitmask<4> nodesmask;
+    
+    Uint32 node1 = restarter.getDbNodeId(rand()%cnt);
+    for (Uint32 i = 0; i<cnt/2; i++)
+    {
+      do { 
+	int tmp = restarter.getRandomNodeOtherNodeGroup(node1, rand());
+	if (tmp == -1)
+	  break;
+	node1 = tmp;
+      } while(nodesmask.get(node1));
+      
+      partition0[i] = node1;
+      partition1[i] = restarter.getRandomNodeSameNodeGroup(node1, rand());
+      
+      ndbout_c("nodes %d %d", node1, partition1[i]);
+      
+      assert(!nodesmask.get(node1));
+      assert(!nodesmask.get(partition1[i]));
+      nodesmask.set(node1);
+      nodesmask.set(partition1[i]);
+    } 
+    
+    ndbout_c("done");
+
+    int dump[255];
+    dump[0] = DumpStateOrd::NdbcntrStopNodes;
+    memcpy(dump + 1, partition0, sizeof(int)*cnt/2);
+    
+    Uint32 master = restarter.getMasterNodeId();
+    
+    if (restarter.dumpStateOneNode(master, dump, 1+cnt/2))
+      return NDBT_FAILED;
+    
+    if (restarter.waitNodesNoStart(partition0, cnt/2))
+      return NDBT_FAILED;
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    
+    if (restarter.dumpStateAllNodes(val2, 2))
+      return NDBT_FAILED;
+    
+    if (restarter.insertErrorInAllNodes(932))
+      return NDBT_FAILED;
+
+    dump[0] = 9000;
+    memcpy(dump + 1, partition0, sizeof(int)*cnt/2);    
+    for (Uint32 i = 0; i<cnt/2; i++)
+      if (restarter.dumpStateOneNode(partition1[i], dump, 1+cnt/2))
+	return NDBT_FAILED;
+
+    dump[0] = 9000;
+    memcpy(dump + 1, partition1, sizeof(int)*cnt/2);    
+    for (Uint32 i = 0; i<cnt/2; i++)
+      if (restarter.dumpStateOneNode(partition0[i], dump, 1+cnt/2))
+	return NDBT_FAILED;
+    
+    if (restarter.startNodes(partition0, cnt/2))
+      return NDBT_FAILED;
+    
+    if (restarter.waitNodesStartPhase(partition0, cnt/2, 2))
+      return NDBT_FAILED;
+    
+    dump[0] = 9001;
+    for (Uint32 i = 0; i<cnt/2; i++)
+      if (restarter.dumpStateAllNodes(dump, 2))
+	return NDBT_FAILED;
+
+    if (restarter.waitNodesNoStart(partition0, cnt/2))
+      return NDBT_FAILED;
+    
+    for (Uint32 i = 0; i<cnt/2; i++)
+      if (restarter.restartOneDbNode(partition0[i], true, true, true))
+	return NDBT_FAILED;
+    
+    if (restarter.waitNodesNoStart(partition0, cnt/2))
+      return NDBT_FAILED;
+    
+    if (restarter.startAll())
+      return NDBT_FAILED;
+
+    if (restarter.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int 
+runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
+
+  // Assume two replicas
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  Uint32 cnt = restarter.getNumDbNodes();
+
+  for(int loop = 0; loop < ctx->getNumLoops(); loop++)
+  {
+    int partition0[256];
+    int partition1[256];
+    bzero(partition0, sizeof(partition0));
+    bzero(partition1, sizeof(partition1));
+    Bitmask<4> nodesmask;
+    
+    Uint32 node1 = restarter.getDbNodeId(rand()%cnt);
+    for (Uint32 i = 0; i<cnt/2; i++)
+    {
+      do { 
+	int tmp = restarter.getRandomNodeOtherNodeGroup(node1, rand());
+	if (tmp == -1)
+	  break;
+	node1 = tmp;
+      } while(nodesmask.get(node1));
+      
+      partition0[i] = node1;
+      partition1[i] = restarter.getRandomNodeSameNodeGroup(node1, rand());
+      
+      ndbout_c("nodes %d %d", node1, partition1[i]);
+      
+      assert(!nodesmask.get(node1));
+      assert(!nodesmask.get(partition1[i]));
+      nodesmask.set(node1);
+      nodesmask.set(partition1[i]);
+    } 
+    
+    ndbout_c("done");
+
+    if (restarter.restartAll(false, true, false))
+      return NDBT_FAILED;
+
+    int dump[255];
+    dump[0] = 9000;
+    memcpy(dump + 1, partition0, sizeof(int)*cnt/2);    
+    for (Uint32 i = 0; i<cnt/2; i++)
+      if (restarter.dumpStateOneNode(partition1[i], dump, 1+cnt/2))
+	return NDBT_FAILED;
+
+    dump[0] = 9000;
+    memcpy(dump + 1, partition1, sizeof(int)*cnt/2);    
+    for (Uint32 i = 0; i<cnt/2; i++)
+      if (restarter.dumpStateOneNode(partition0[i], dump, 1+cnt/2))
+	return NDBT_FAILED;
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    
+    if (restarter.dumpStateAllNodes(val2, 2))
+      return NDBT_FAILED;
+    
+    if (restarter.insertErrorInAllNodes(932))
+      return NDBT_FAILED;
+    
+    if (restarter.startAll())
+      return NDBT_FAILED;
+    
+    if (restarter.waitClusterStartPhase(2))
+      return NDBT_FAILED;
+    
+    dump[0] = 9001;
+    for (Uint32 i = 0; i<cnt/2; i++)
+      if (restarter.dumpStateAllNodes(dump, 2))
+	return NDBT_FAILED;
+
+    if (restarter.waitClusterNoStart(30))
+      if (restarter.waitNodesNoStart(partition0, cnt/2, 10))
+	if (restarter.waitNodesNoStart(partition1, cnt/2, 10))
+	  return NDBT_FAILED;
+    
+    if (restarter.startAll())
+      return NDBT_FAILED;
+    
+    if (restarter.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+  return NDBT_OK;
 }
 
 
@@ -818,6 +1151,28 @@ TESTCASE("Bug15632",
 TESTCASE("Bug15685",
 	 "Test bug with NF during abort"){
   STEP(runBug15685);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug16772",
+	 "Test bug with restarting before NF handling is complete"){
+  STEP(runBug16772);
+}
+TESTCASE("Bug18414",
+	 "Test bug with NF during NR"){
+  INITIALIZER(runLoadTable);
+  STEP(runBug18414);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug18612",
+	 "Test bug with partitioned clusters"){
+  INITIALIZER(runLoadTable);
+  STEP(runBug18612);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug18612SR",
+	 "Test bug with partitioned clusters"){
+  INITIALIZER(runLoadTable);
+  STEP(runBug18612SR);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);

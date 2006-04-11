@@ -292,8 +292,8 @@ NdbBackup::NF(NdbRestarter& _restarter, int *NFDuringBackup_codes, const int sz,
 	   << masterNodeId << endl;
 
 
-    int val = DumpStateOrd::CmvmiSetRestartOnErrorInsert;
-    CHECK(_restarter.dumpStateOneNode(nodeId, &val, 1) == 0,
+    int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    CHECK(_restarter.dumpStateOneNode(nodeId, val, 2) == 0,
 	  "failed to set RestartOnErrorInsert");
     CHECK(_restarter.insertErrorInNode(nodeId, error) == 0,
 	  "failed to set error insert");

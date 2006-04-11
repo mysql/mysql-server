@@ -172,6 +172,7 @@ private:
    */
 public:
   STATIC_CONST( MAX_NO_THREADS = 4711 );
+  Uint32 m_waitfor_timeout; // in milli seconds...
 private:
 
   struct ThreadData {

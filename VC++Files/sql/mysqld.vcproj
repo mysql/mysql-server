@@ -20,7 +20,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-classic-nt"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -82,7 +81,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-max"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -143,7 +141,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-nt-max"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -207,7 +204,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-nt"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -271,7 +267,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-pro-nt"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -393,7 +388,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-pro"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
@@ -455,7 +449,6 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="/D MYSQL_SERVER_SUFFIX=-classic"
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"

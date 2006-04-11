@@ -454,8 +454,7 @@ sub mtr_kill_leftovers () {
 
         if ( kill(0, @pids) )           # Check if some left
         {
-          # FIXME maybe just mtr_warning() ?
-          mtr_error("can't kill process(es) " . join(" ", @pids));
+          mtr_warning("can't kill process(es) " . join(" ", @pids));
         }
       }
     }
@@ -468,7 +467,7 @@ sub mtr_kill_leftovers () {
   {
     if ( mtr_ping_mysqld_server($srv->{'port'}, $srv->{'sockfile'}) )
     {
-      mtr_error("can't kill old mysqld holding port $srv->{'port'}");
+      mtr_warning("can't kill old mysqld holding port $srv->{'port'}");
     }
   }
 }
@@ -770,7 +769,15 @@ sub mtr_record_dead_children () {
 }
 
 sub start_reap_all {
-  $SIG{CHLD}= 'IGNORE';                 # FIXME is this enough?
+  # This causes terminating processes to not become zombies, avoiding
+  # the need for (or possibility of) explicit waitpid().
+  $SIG{CHLD}= 'IGNORE';
+
+  # On some platforms (Linux, QNX, OSX, ...) there is potential race
+  # here. If a process terminated before setting $SIG{CHLD} (but after
+  # any attempt to waitpid() it), it will still be a zombie. So we
+  # have to handle any such process here.
+  while(waitpid(-1, &WNOHANG) > 0) { };
 }
 
 sub stop_reap_all {

@@ -78,6 +78,12 @@ sub mtr_timer_start($$$) {
     {
       # Child, redirect output and exec
       # FIXME do we need to redirect streams?
+
+      # Don't do the ^C cleanup in the timeout child processes!
+      # There is actually a race here, if we get ^C after fork(), but before
+      # clearing the signal handler.
+      $SIG{INT}= 'DEFAULT';
+
       $0= "mtr_timer(timers,$name,$duration)";
       sleep($duration);
       exit(0);

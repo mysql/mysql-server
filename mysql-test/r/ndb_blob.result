@@ -428,6 +428,13 @@ delete from t1;
 select * from t1;
 a	b
 commit;
+replace t1 set a=2, b='y';
+select * from t1;
+a	b
+2	y
+delete from t1;
+select * from t1;
+a	b
 drop table t1;
 set autocommit=0;
 create table t1 (

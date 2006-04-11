@@ -806,8 +806,18 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
       from++;
       wc= '?';
     }
+    else if (cnvres > MY_CS_TOOSMALL)
+    {
+      /*
+        A correct multibyte sequence detected
+        But it doesn't have Unicode mapping.
+      */
+      error_count++;
+      from+= (-cnvres);
+      wc= '?';
+    }
     else
-      break;					// Impossible char.
+      break;  // Not enough characters
 
 outp:
     if ((cnvres= (*wc_mb)(to_cs, wc, (uchar*) to, to_end)) > 0)

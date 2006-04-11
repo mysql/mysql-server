@@ -1,0 +1,28 @@
+source include/master-slave.inc;
+
+#
+# BUG#16487
+#  
+# Requirement:
+# Multi-updates on ignored tables should not fail even if the slave does 
+# not have the ignored tables.
+#
+# Note table t1, t2, and t3 are ignored in the option file to this test.
+#
+
+--echo **** Test case for BUG#16487 ****
+--echo **** Master ****
+connection master;
+CREATE TABLE test.t4 (a int);
+CREATE TABLE test.t1 (a int);
+
+# Expect: The row must *not* by updated on slave, since t1 is ignored
+UPDATE test.t4 NATURAL JOIN test.t1 SET t1.a=5;
+
+--echo **** Slave ****
+sync_slave_with_master;
+SELECT * FROM t4;
+
+connection master;
+DROP TABLE t1;
+DROP TABLE t4;
