@@ -137,7 +137,7 @@ else
 		  $(libmysqld_a_AR) libmysqld.a libmysqld_int.a $(INC_LIB) ; \
 		else \
 		  (for arc in ./libmysqld_int.a $(INC_LIB); do \
-		    arpath=`echo $$arc|sed 's|[^/]*$$||'`; \
+		    arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
 		    $(AR) t $$arc|xargs -n 1 find $$arpath -name; \
 		    $(AR) t $$arc|xargs -n 1 find `dirname $$arpath` -path \*/`basename $$arpath`/\* -name; \
 		  done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a ; \

@@ -501,6 +501,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PARAM_MARKER
 %token  PHASE_SYM
 %token  PLUGIN_SYM
+%token  PLUGINS_SYM
 %token  POINTFROMTEXT
 %token  POINT_SYM
 %token  POLYFROMTEXT
@@ -4167,6 +4168,9 @@ key_def:
 					    HA_KEY_ALG_UNDEF, 1,
 					    lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
+
+            /* Only used for ALTER TABLE. Ignored otherwise. */
+            lex->alter_info.flags|= ALTER_FOREIGN_KEY;
 	  }
 	| constraint opt_check_constraint
 	  {
@@ -5137,7 +5141,7 @@ alter_list_item:
 	  }
 	| DROP FOREIGN KEY_SYM opt_ident
           {
-	    Lex->alter_info.flags|= ALTER_DROP_INDEX;
+	    Lex->alter_info.flags|= ALTER_DROP_INDEX | ALTER_FOREIGN_KEY;
           }
 	| DROP PRIMARY_SYM KEY_SYM
 	  {
@@ -8172,6 +8176,15 @@ show_param:
         | PLUGIN_SYM
 	  {
 	    LEX *lex= Lex;
+	    WARN_DEPRECATED(yythd, "5.2", "SHOW PLUGIN", "'SHOW PLUGINS'");
+            lex->sql_command= SQLCOM_SELECT;
+            lex->orig_sql_command= SQLCOM_SHOW_PLUGINS;
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_PLUGINS))
+              YYABORT;
+	  }
+        | PLUGINS_SYM
+	  {
+	    LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_PLUGINS;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PLUGINS))
@@ -9358,7 +9371,6 @@ keyword:
 	| OPEN_SYM		{}
         | PARSER_SYM            {}
 	| PARTITION_SYM		{}
-        | PLUGIN_SYM            {}
         | PREPARE_SYM           {}
 	| REMOVE_SYM		{}
 	| REPAIR		{}
@@ -9539,6 +9551,8 @@ keyword_sp:
 	| PARTITIONS_SYM	{}
 	| PASSWORD		{}
         | PHASE_SYM             {}
+        | PLUGIN_SYM            {}
+        | PLUGINS_SYM           {}
 	| POINT_SYM		{}
 	| POLYGON		{}
         | PRESERVE_SYM          {}
@@ -9552,7 +9566,7 @@ keyword_sp:
         | REBUILD_SYM           {}
         | RECOVER_SYM           {}
 	| REDO_BUFFER_SIZE_SYM	{}
-	| REDOFILE_SYM  	{}
+	| REDOFILE_SYM          {}
         | REDUNDANT_SYM         {}
 	| RELAY_LOG_FILE_SYM	{}
 	| RELAY_LOG_POS_SYM	{}

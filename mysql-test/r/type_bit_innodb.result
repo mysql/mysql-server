@@ -402,3 +402,12 @@ t1	CREATE TABLE `t1` (
   `b` bit(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (a bit(7)) engine=innodb;
+insert into t1 values (0x60);
+select * from t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	t1	a	a	16	7	1	Y	0	0	63
+a
+`
+drop table t1;
+End of 5.0 tests

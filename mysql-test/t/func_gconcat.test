@@ -414,3 +414,11 @@ select charset(a) from t2;
 select charset(a) from t3;
 drop table t1, t2, t3;
 set names default;
+
+#
+# Bug#18281 group_concat changes charset to binary
+#
+create table t1 (c1 varchar(10), c2 int);
+select charset(group_concat(c1 order by c2)) from t1;
+drop table t1;
+
