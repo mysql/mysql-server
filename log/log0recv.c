@@ -914,7 +914,6 @@ recv_parse_or_apply_log_rec_body(
 		break;
 	case MLOG_ZIP_LIST_START_COPY:
 	case MLOG_ZIP_LIST_END_COPY:
-	case MLOG_ZIP_ROOT_RAISE:
 		ut_error; /* TODO */
 		break;
 	default:

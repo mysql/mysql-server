@@ -143,9 +143,7 @@ flag value must give the length also! */
 						start to a compressed page */
 #define MLOG_ZIP_LIST_END_COPY	((byte)52)	/* copy compact record list
 						end to a compressed page */
-#define MLOG_ZIP_ROOT_RAISE	((byte)53)	/* raise the root of a
-						compressed B-tree */
-#define MLOG_BIGGEST_TYPE	((byte)53)	/* biggest value (used in
+#define MLOG_BIGGEST_TYPE	((byte)52)	/* biggest value (used in
 						asserts) */
 
 /*******************************************************************
