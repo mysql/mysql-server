@@ -753,6 +753,7 @@ mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd)
 static const char *require_quotes(const char *name, uint name_length)
 {
   uint length;
+  bool pure_digit= TRUE;
   const char *end= name + name_length;
 
   for (; name < end ; name++)
@@ -761,7 +762,11 @@ static const char *require_quotes(const char *name, uint name_length)
     length= my_mbcharlen(system_charset_info, chr);
     if (length == 1 && !system_charset_info->ident_map[chr])
       return name;
+    if (length == 1 && (chr < '0' || chr > '9'))
+      pure_digit= FALSE;
   }
+  if (pure_digit)
+    return name;
   return 0;
 }
 
