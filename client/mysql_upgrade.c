@@ -144,7 +144,7 @@ static int create_check_file(const char *path)
 static int create_defaults_file(const char *path, const char *our_defaults_path)
 {
   uint b_read;
-  File our_defaults_file;
+  File our_defaults_file, defaults_file;
   char buffer[512];
   char *buffer_end;
   int error;
@@ -153,8 +153,8 @@ static int create_defaults_file(const char *path, const char *our_defaults_path)
   if (!opt_password)
     return 0;
 
-  File defaults_file= my_open(path, O_BINARY | O_CREAT | O_WRONLY,
-                              MYF(MY_FAE | MY_WME));
+  defaults_file= my_open(path, O_BINARY | O_CREAT | O_WRONLY,
+                         MYF(MY_FAE | MY_WME));
 
   if (defaults_file < 0)
     return 1;
