@@ -4687,8 +4687,9 @@ int ha_ndbcluster::create(const char *name,
   DBUG_RETURN(my_errno);
 }
 
-int ha_ndbcluster::create_handler_files(const char *file) 
+int ha_ndbcluster::create_handler_files(const char *file, HA_CREATE_INFO *info) 
 { 
+  char path[FN_REFLEN];
   const char *name;
   Ndb* ndb;
   const NDBTAB *tab;
@@ -4698,16 +4699,21 @@ int ha_ndbcluster::create_handler_files(const char *file)
 
   DBUG_ENTER("create_handler_files");
 
+  DBUG_PRINT("enter", ("file: %s", file));
   if (!(ndb= get_ndb()))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
   NDBDICT *dict= ndb->getDictionary();
-  if (!(tab= dict->getTable(m_tabname)))
+  if (!info->frm_only)
     DBUG_RETURN(0); // Must be a create, ignore since frm is saved in create
+  set_dbname(file);
+  set_tabname(file);
+  DBUG_PRINT("info", ("m_dbname: %s, m_tabname: %s", m_dbname, m_tabname));
+  if (!(tab= dict->getTable(m_tabname)))
+    DBUG_RETURN(0); // Unkown table, must be temporary table
+
   DBUG_ASSERT(get_ndb_share_state(m_share) == NSS_ALTERED);
-  name= table->s->normalized_path.str;
-  DBUG_PRINT("enter", ("m_tabname: %s, path: %s", m_tabname, name));
-  if (readfrm(name, &data, &length) ||
+  if (readfrm(file, &data, &length) ||
       packfrm(data, length, &pack_data, &pack_length))
   {
     DBUG_PRINT("info", ("Missing frm for %s", m_tabname));
@@ -4723,6 +4729,7 @@ int ha_ndbcluster::create_handler_files(const char *file)
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
   }
+  
   set_ndb_share_state(m_share, NSS_INITIAL);
   free_share(&m_share); // Decrease ref_count
 
@@ -4830,6 +4837,15 @@ int ha_ndbcluster::create_ndb_index(const char *name,
 }
 
 /*
+ Prepare for an on-line alter table
+*/ 
+void ha_ndbcluster::prepare_for_alter()
+{
+  ndbcluster_get_share(m_share); // Increase ref_count
+  set_ndb_share_state(m_share, NSS_ALTERED);
+}
+
+/*
   Add an index on-line to a table
 */
 int ha_ndbcluster::add_index(TABLE *table_arg, 
@@ -4841,7 +4857,7 @@ int ha_ndbcluster::add_index(TABLE *table_arg,
   int error= 0;
   uint idx;
 
-  DBUG_ASSERT(m_share->state == NSS_INITIAL);
+  DBUG_ASSERT(m_share->state == NSS_ALTERED);
   for (idx= 0; idx < num_of_keys; idx++)
   {
     KEY *key= key_info + idx;
@@ -4857,10 +4873,10 @@ int ha_ndbcluster::add_index(TABLE *table_arg,
     if((error= create_index(key_info[idx].name, key, idx_type, idx)))
       break;
   }
-  if (!error)
+  if (error)
   {
-    ndbcluster_get_share(m_share); // Increase ref_count
-    set_ndb_share_state(m_share, NSS_ALTERED);
+    set_ndb_share_state(m_share, NSS_INITIAL);
+    free_share(&m_share); // Decrease ref_count
   }
   DBUG_RETURN(error);  
 }
@@ -4885,7 +4901,7 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
                                       uint *key_num, uint num_of_keys)
 {
   DBUG_ENTER("ha_ndbcluster::prepare_drop_index");
-  DBUG_ASSERT(m_share->state == NSS_INITIAL);
+  DBUG_ASSERT(m_share->state == NSS_ALTERED);
   // Mark indexes for deletion
   uint idx;
   for (idx= 0; idx < num_of_keys; idx++)
@@ -4898,8 +4914,6 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   renumber_indexes(ndb, table_arg);
-  ndbcluster_get_share(m_share); // Increase ref_count
-  set_ndb_share_state(m_share, NSS_ALTERED);
   DBUG_RETURN(0);
 }
  
