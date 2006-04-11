@@ -1304,30 +1304,6 @@ my_xpath_init(MY_XPATH *xpath)
 }
 
 
-/*
-  Some ctype-alike helper functions. Note, we cannot
-  reuse cs->ident_map[], because in Xpath, unlike in SQL, 
-  dash character is a valid identifier part.
-*/
-static int
-my_xident_beg(int c)
-{
-  return (((c) >= 'a' && (c) <= 'z') ||
-          ((c) >= 'A' && (c) <= 'Z') ||
-          ((c) == '_'));
-}
-
-
-static int
-my_xident_body(int c)
-{
-  return (((c) >= 'a' && (c) <= 'z') ||
-          ((c) >= 'A' && (c) <= 'Z') ||
-          ((c) >= '0' && (c) <= '9') ||
-          ((c)=='-') || ((c) == '_'));
-}
-
-
 static int
 my_xdigit(int c)
 {
@@ -1350,7 +1326,7 @@ static void
 my_xpath_lex_scan(MY_XPATH *xpath,
                   MY_XPATH_LEX *lex, const char *beg, const char *end)
 {
-  int ch;
+  int ch, ctype, length;
   for ( ; beg < end && *beg == ' ' ; beg++); // skip leading spaces
   lex->beg= beg;
   
@@ -1360,20 +1336,20 @@ my_xpath_lex_scan(MY_XPATH *xpath,
     lex->term= MY_XPATH_LEX_EOF; // end of line reached
     return;
   }
-  ch= *beg++;
-  
-  if (ch > 0 && ch < 128 && simpletok[ch])
+
+  // Check ident, or a function call, or a keyword
+  if ((length= xpath->cs->cset->ctype(xpath->cs, &ctype,
+                                      (const uchar*) beg,
+                                      (const uchar*) end)) > 0 &&
+      ((ctype & (_MY_L | _MY_U)) || *beg == '_'))
   {
-    // a token consisting of one character found
-    lex->end= beg;
-    lex->term= ch;
-    return;
-  }
-  
-  if (my_xident_beg(ch)) // ident, or a function call, or a keyword
-  {
-    // scan until the end of the identifier
-    for ( ; beg < end && my_xident_body(*beg); beg++);
+    // scan untill the end of the idenfitier
+    for (beg+= length; 
+         (length= xpath->cs->cset->ctype(xpath->cs, &ctype,
+                                         (const uchar*) beg,
+                                         (const uchar*) end)) > 0 &&
+         ((ctype & (_MY_L | _MY_U | _MY_NMR)) || *beg == '_' || *beg == '-') ;
+         beg+= length) /* no op */;
     lex->end= beg;
 
     // check if a function call
@@ -1387,6 +1363,18 @@ my_xpath_lex_scan(MY_XPATH *xpath,
     lex->term= my_xpath_keyword(xpath, lex->beg, beg);
     return;
   }
+
+
+  ch= *beg++;
+  
+  if (ch > 0 && ch < 128 && simpletok[ch])
+  {
+    // a token consisting of one character found
+    lex->end= beg;
+    lex->term= ch;
+    return;
+  }
+
 
   if (my_xdigit(ch)) // a sequence of digits
   {
