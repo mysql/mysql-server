@@ -14,7 +14,9 @@ events_stress            : BUG#17619 2006-02-21 andrey  Test case unstable
 events                   : BUG#17619 2006-02-21 andrey  Test case unstable
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
+ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    Test fails randomly
 ndb_cache2               : BUG#18597 2006-03-28 brian
+ndb_cache_multi2         : BUG#18974 2006-04-10 kent    Test fails randomly
 ndb_gis                  : BUG#18600 2006-03-28 brian
 ndb_load                 : BUG#17233 2006-02-16 jmiller
 partition_03ndb          : BUG#16385 2006-03-24 mikael
@@ -34,7 +36,9 @@ rpl_ndb_myisam2ndb       : BUG#18261 2006-03-16 mats    Cluster Replication: tes
 rpl_ndb_multi_update3    : BUG#18627 2006-03-29 monty   Cluster Replication: rpl_ndb_multi_update3 fails on Intel 64 bit
 rpl_ndb_log              : BUG#18947 2006-03-21 tomas   Result not deterministic, TBD if should remove
 rpl_ndb_relay_space      : BUG#16993 2006-02-16 jmiller
+rpl_ndb_trig004          : BUG#18977 2006-04-10 kent    Test fails randomly
 rpl_switch_stm_row_mixed : BUG#18590 2006-03-28 brian
+rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
 rpl_row_inexist_tbl      : BUG#18948 2006-03-09 mats    Disabled since patch makes this test wait forever
 rpl_sp                   : BUG#16456 2006-02-16 jmiller
 rpl_until                : BUG#15886 2006-02-16 jmiller Unstable test case
