@@ -734,33 +734,6 @@ dict_tree_free(
 /**************************************************************************
 In an index tree, finds the index corresponding to a record in the tree. */
 
-dict_index_t*
-dict_tree_find_index(
-/*=================*/
-				/* out: index */
-	dict_tree_t*	tree,	/* in: index tree */
-	rec_t*		rec);	/* in: record for which to find correct index */
-/**************************************************************************
-In an index tree, finds the index corresponding to a dtuple which is used
-in a search to a tree. */
-
-dict_index_t*
-dict_tree_find_index_for_tuple(
-/*===========================*/
-				/* out: index; NULL if the tuple does not
-				contain the mix id field in a mixed tree */
-	dict_tree_t*	tree,	/* in: index tree */
-	dtuple_t*	tuple);	/* in: tuple for which to find index */
-/***********************************************************************
-Checks if a table which is a mixed cluster member owns a record. */
-
-ibool
-dict_is_mixed_table_rec(
-/*====================*/
-				/* out: TRUE if the record belongs to this
-				table */
-	dict_table_t*	table,	/* in: table in a mixed cluster */
-	rec_t*		rec);	/* in: user record in the clustered index */
 /**************************************************************************
 Returns an index object if it is found in the dictionary cache. */
 
@@ -769,6 +742,7 @@ dict_index_get_if_in_cache(
 /*=======================*/
 				/* out: index, NULL if not found */
 	dulint	index_id);	/* in: index id */
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer. */
@@ -779,6 +753,7 @@ dict_tree_check_search_tuple(
 				/* out: TRUE if ok */
 	dict_tree_t*	tree,	/* in: index tree */
 	dtuple_t*	tuple);	/* in: tuple used in a search */
+#endif /* UNIV_DEBUG */
 /**************************************************************************
 Builds a node pointer out of a physical record and a page number. */
 

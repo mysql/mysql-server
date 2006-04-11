@@ -140,7 +140,6 @@ row_ins_alloc_sys_fields(
 	mem_heap_t*	heap;
 	dict_col_t*	col;
 	dfield_t*	dfield;
-	ulint		len;
 	byte*		ptr;
 
 	row = node->row;
@@ -161,21 +160,6 @@ row_ins_alloc_sys_fields(
 	dfield_set_data(dfield, ptr, DATA_ROW_ID_LEN);
 
 	node->row_id_buf = ptr;
-
-	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-
-		/* 2. Fill in the dfield for mix id */
-
-		col = dict_table_get_sys_col(table, DATA_MIX_ID);
-
-		dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-
-		len = mach_dulint_get_compressed_size(table->mix_id);
-		ptr = mem_heap_alloc(heap, DATA_MIX_ID_LEN);
-
-		mach_dulint_write_compressed(ptr, table->mix_id);
-		dfield_set_data(dfield, ptr, len);
-	}
 
 	/* 3. Allocate buffer for trx id */
 

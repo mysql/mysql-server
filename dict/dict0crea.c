@@ -82,7 +82,7 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 4);
 
 	ptr = mem_heap_alloc(heap, 8);
-	mach_write_to_8(ptr, table->mix_id);
+	memset(ptr, 0, 8);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 7: MIX_LEN --------------------------*/
@@ -90,19 +90,13 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 5);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, table->mix_len);
+	memset(ptr, 0, 4);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: CLUSTER_NAME ---------------------*/
 	dfield = dtuple_get_nth_field(entry, 6);
+	dfield_set_data(dfield, NULL, UNIV_SQL_NULL); /* not supported */
 
-	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-		dfield_set_data(dfield, table->cluster_name,
-				ut_strlen(table->cluster_name));
-		ut_error; /* Oracle-style clusters are not supported yet */
-	} else {
-		dfield_set_data(dfield, NULL, UNIV_SQL_NULL);
-	}
 	/* 9: SPACE ----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 7);
 
@@ -208,7 +202,6 @@ dict_build_table_def_step(
 	tab_node_t*	node)	/* in: table create node */
 {
 	dict_table_t*	table;
-	dict_table_t*	cluster_table;
 	dtuple_t*	row;
 	ulint		error;
 	const char*	path_or_name;
@@ -234,23 +227,6 @@ dict_build_table_def_step(
 	}
 	if (row_len > BTR_PAGE_MAX_REC_SIZE) {
 		return(DB_TOO_BIG_RECORD);
-	}
-
-	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-
-		cluster_table = dict_table_get_low(table->cluster_name);
-
-		if (cluster_table == NULL) {
-
-			return(DB_CLUSTER_NOT_FOUND);
-		}
-
-		/* Inherit space and mix len from the cluster */
-
-		table->space = cluster_table->space;
-		table->mix_len = cluster_table->mix_len;
-
-		table->mix_id = dict_hdr_get_new_id(DICT_HDR_MIX_ID);
 	}
 
 	if (srv_file_per_table) {
@@ -614,15 +590,6 @@ dict_create_index_tree_step(
 	table = node->table;
 
 	sys_indexes = dict_sys->sys_indexes;
-
-	if (index->type & DICT_CLUSTERED
-			&& table->type == DICT_TABLE_CLUSTER_MEMBER) {
-
-		/* Do not create a new index tree: entries are put to the
-		cluster tree */
-
-		return(DB_SUCCESS);
-	}
 
 	/* Run a mini-transaction in which the index tree is allocated for
 	the index and its root address is written to the index entry in

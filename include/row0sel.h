@@ -224,8 +224,6 @@ struct plan_struct{
 	ulint		first_prefetched;/* index of the first cached row in
 					select buffer arrays for each column */
 	ibool		no_prefetch;	/* no prefetch for this table */
-	ibool		mixed_index;	/* TRUE if index is a clustered index
-					in a mixed cluster */
 	sym_node_list_t	columns;	/* symbol table nodes for the columns
 					to retrieve from the table */
 	UT_LIST_BASE_NODE_T(func_node_t)
