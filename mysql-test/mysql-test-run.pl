@@ -144,7 +144,6 @@ our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
 our $glob_use_running_ndbcluster_slave= 0;
 our $glob_use_embedded_server=    0;
-our $glob_mysqld_restart=         0;
 our @glob_test_mode;
 
 our $using_ndbcluster_master= 0;
@@ -609,7 +608,7 @@ sub command_line_setup () {
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
-             'ndbcluster-port=i'        => \$opt_ndbcluster_port,
+             'ndbcluster-port|ndbcluster_port=i' => \$opt_ndbcluster_port,
              'ndbcluster-port-slave=i'  => \$opt_ndbcluster_port_slave,
              'manager-port=i'           => \$opt_manager_port, # Currently not used
              'im-port=i'                => \$im_port, # Instance Manager port.
