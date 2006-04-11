@@ -954,23 +954,25 @@ Ndb::pollCompleted(NdbConnection** aCopyArray)
 void
 Ndb::check_send_timeout()
 {
+  Uint32 timeout = TransporterFacade::instance()->m_waitfor_timeout;
   NDB_TICKS current_time = NdbTick_CurrentMillisecond();
   if (current_time - the_last_check_time > 1000) {
     the_last_check_time = current_time;
     Uint32 no_of_sent = theNoOfSentTransactions;
     for (Uint32 i = 0; i < no_of_sent; i++) {
       NdbConnection* a_con = theSentTransactionsArray[i];
-      if ((current_time - a_con->theStartTransTime) >
-          WAITFOR_RESPONSE_TIMEOUT) {
+      if ((current_time - a_con->theStartTransTime) > timeout)
+      {
 #ifdef VM_TRACE
         a_con->printState();
 	Uint32 t1 = a_con->theTransactionId;
 	Uint32 t2 = a_con->theTransactionId >> 32;
-	ndbout_c("[%.8x %.8x]", t1, t2);
-	abort();
+	ndbout_c("4012 [%.8x %.8x]", t1, t2);
+	//abort();
 #endif
+        a_con->theReleaseOnClose = true;
         a_con->setOperationErrorCodeAbort(4012);
-        a_con->theCommitStatus = NdbConnection::Aborted;
+	a_con->theCommitStatus = NdbConnection::NeedAbort;
         a_con->theCompletionStatus = NdbConnection::CompletedFailure;
         a_con->handleExecuteCompletion();
         remove_sent_list(i);

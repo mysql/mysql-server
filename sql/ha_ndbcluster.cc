@@ -45,8 +45,6 @@ static const int max_transactions= 256;
 
 static const char *ha_ndb_ext=".ndb";
 
-#define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
-
 #define NDB_FAILED_AUTO_INCREMENT ~(Uint64)0
 #define NDB_AUTO_INCREMENT_RETRIES 10
 
@@ -747,7 +745,7 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
   }
 
   // Used for hidden key only
-  m_value[fieldnr].rec= ndb_op->getValue(fieldnr, NULL);
+  m_value[fieldnr].rec= ndb_op->getValue(fieldnr, m_ref);
   DBUG_RETURN(m_value[fieldnr].rec == NULL);
 }
 
@@ -2098,13 +2096,10 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       DBUG_PRINT("info", ("Using hidden key"));
       
       // Require that the PK for this record has previously been 
-      // read into m_value
-      uint no_fields= table->fields;
-      NdbRecAttr* rec= m_value[no_fields].rec;
-      DBUG_ASSERT(rec);
-      DBUG_DUMP("key", (char*)rec->aRef(), NDB_HIDDEN_PRIMARY_KEY_LENGTH);
+      // read into m_ref
+      DBUG_DUMP("key", m_ref, NDB_HIDDEN_PRIMARY_KEY_LENGTH);
       
-      if (set_hidden_key(op, no_fields, rec->aRef()))
+      if (set_hidden_key(op, table->fields, m_ref))
 	ERR_RETURN(op->getNdbError());
     } 
     else 
@@ -2181,11 +2176,8 @@ int ha_ndbcluster::delete_row(const byte *record)
     {
       // This table has no primary key, use "hidden" primary key
       DBUG_PRINT("info", ("Using hidden key"));
-      uint no_fields= table->fields;
-      NdbRecAttr* rec= m_value[no_fields].rec;
-      DBUG_ASSERT(rec != NULL);
       
-      if (set_hidden_key(op, no_fields, rec->aRef()))
+      if (set_hidden_key(op, table->fields, m_ref))
 	ERR_RETURN(op->getNdbError());
     } 
     else 
@@ -2792,7 +2784,7 @@ void ha_ndbcluster::position(const byte *record)
                 hidden_col->getAutoIncrement() &&
                 rec != NULL && 
                 ref_length == NDB_HIDDEN_PRIMARY_KEY_LENGTH);
-    memcpy(ref, (const void*)rec->aRef(), ref_length);
+    memcpy(ref, m_ref, ref_length);
   }
   
   DBUG_DUMP("ref", (char*)ref, ref_length);
@@ -3046,9 +3038,26 @@ int ha_ndbcluster::end_bulk_insert()
                         "rows_inserted:%d, bulk_insert_rows: %d", 
                         (int) m_rows_inserted, (int) m_bulk_insert_rows)); 
     m_bulk_insert_not_flushed= FALSE;
-    if (execute_no_commit(this,trans) != 0) {
-      no_uncommitted_rows_execute_failure();
-      my_errno= error= ndb_err(trans);
+    if (m_transaction_on)
+    {
+      if (execute_no_commit(this, trans) != 0)
+      {
+        no_uncommitted_rows_execute_failure();
+        my_errno= error= ndb_err(trans);
+      }
+    }
+    else
+    {
+      if (execute_commit(this, trans) != 0)
+      {
+        no_uncommitted_rows_execute_failure();
+        my_errno= error= ndb_err(trans);
+      }
+      else
+      {
+        int res= trans->restart();
+        DBUG_ASSERT(res == 0);
+      }
     }
   }
 
@@ -4867,7 +4876,7 @@ bool ha_ndbcluster::low_byte_first() const
 }
 bool ha_ndbcluster::has_transactions()
 {
-  return m_transaction_on;
+  return TRUE;
 }
 const char* ha_ndbcluster::index_type(uint key_number)
 {

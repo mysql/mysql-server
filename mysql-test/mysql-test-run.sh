@@ -215,11 +215,16 @@ MYSQL_MANAGER_USER=root
 # an environment variable can be used to control all ports. A small
 # number is to be used, 0 - 16 or similar.
 #
+# Note the MASTER_MYPORT has to be set the same in all 4.x and 5.x
+# versions of this script, else a 4.0 test run might conflict with a
+# 5.1 test run, even if different MTR_BUILD_THREAD is used. This means
+# all port numbers might not be used in this version of the script.
+#
 if [ -n "$MTR_BUILD_THREAD" ] ; then
-  MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 5 + 10000`
+  MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 10 + 10000`
   MYSQL_MANAGER_PORT=`expr $MASTER_MYPORT + 2`
   SLAVE_MYPORT=`expr $MASTER_MYPORT + 3`
-  NDBCLUSTER_PORT=`expr $MASTER_MYPORT + 4`
+  NDBCLUSTER_PORT=`expr $MASTER_MYPORT + 6`
 
   echo "Using MTR_BUILD_THREAD   = $MTR_BUILD_THREAD"
   echo "Using MASTER_MYPORT      = $MASTER_MYPORT"
@@ -238,6 +243,7 @@ EXTRA_MYSQLDUMP_OPT=""
 EXTRA_MYSQLBINLOG_OPT=""
 USE_RUNNING_SERVER=""
 USE_NDBCLUSTER=@USE_NDBCLUSTER@
+USE_NDBCLUSTER_ONLY=0
 USE_RUNNING_NDBCLUSTER=""
 USE_PURIFY=""
 PURIFY_LOGS=""
@@ -265,6 +271,8 @@ NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
 NDBD_EXTRA_OPTS=
 
+$ECHO "Logging: $0 $*"   # To ensure we see all arguments in the output, for the test analysis tool
+
 while test $# -gt 0; do
   case "$1" in
     --embedded-server)
@@ -290,6 +298,10 @@ while test $# -gt 0; do
     --extern)  USE_RUNNING_SERVER="1" ;;
     --with-ndbcluster)
       USE_NDBCLUSTER="--ndbcluster" ;;
+    --with-ndbcluster-only)
+      USE_NDBCLUSTER="--ndbcluster"
+      USE_NDBCLUSTER_SLAVE="--ndbcluster"
+      USE_NDBCLUSTER_ONLY=1 ;;
     --ndb-connectstring=*)
       USE_NDBCLUSTER="--ndbcluster" ;
       USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndb-connectstring=;;"` ;;
@@ -470,6 +482,13 @@ while test $# -gt 0; do
       ;;
     --fast)
       FAST_START=1
+      ;;
+    --comment=*)
+      TMP=`$ECHO "$1" | $SED -e "s;--comment=;;"`
+      echo
+      echo '############################################'
+      echo "# $TMP"
+      echo '############################################'
       ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
@@ -784,7 +803,7 @@ show_failed_diff ()
     $DIFF -c $result_file $reject_file
     echo "-------------------------------------------------------"
     echo "Please follow the instructions outlined at"
-    echo "http://www.mysql.com/doc/en/Reporting_mysqltest_bugs.html"
+    echo "http://dev.mysql.com/doc/mysql/en/reporting-mysqltest-bugs.html"
     echo "to find the reason to this problem and how to report this."
     echo ""
   fi
@@ -879,7 +898,7 @@ report_stats () {
         $ECHO "The log files in $MY_LOG_DIR may give you some hint"
 	$ECHO "of what when wrong."
 	$ECHO "If you want to report this error, please read first the documentation at"
-        $ECHO "http://www.mysql.com/doc/en/MySQL_test_suite.html"
+        $ECHO "http://dev.mysql.com/doc/mysql/en/mysql-test-suite.html"
     fi
 
     if test -z "$USE_RUNNING_SERVER"
@@ -1510,6 +1529,11 @@ run_testcase ()
  then
    comment=`$CAT $TESTDIR/$tname.disabled`;
    disable_test $tname "$comment"
+   return
+ fi
+ NDBCLUSTER_TEST=`$EXPR \( $tname : '.*ndb.*' \) != 0`
+ if [ "x$USE_NDBCLUSTER_ONLY" = "x1" -a "x$NDBCLUSTER_TEST" != "x1" ] ; then
+   skip_test $tname
    return
  fi
  if [ "$USE_MANAGER" = 1 ] ; then

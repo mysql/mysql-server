@@ -3564,9 +3564,8 @@ select_derived2:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables= 1;
-	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
-	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
-	       lex->sql_command == (int)SQLCOM_KILL)
+          if (lex->sql_command == (int)SQLCOM_HA_READ ||
+              lex->sql_command == (int)SQLCOM_KILL)
 	  {
 	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
@@ -4739,16 +4738,15 @@ purge_option:
 /* kill threads */
 
 kill:
-	KILL_SYM expr
+	KILL_SYM { Lex->sql_command= SQLCOM_KILL; } expr
 	{
 	  LEX *lex=Lex;
-	  if ($2->fix_fields(lex->thd, 0, &$2) || $2->check_cols(1))
+	  if ($3->fix_fields(lex->thd, 0, &$3) || $3->check_cols(1))
 	  {
 	    send_error(lex->thd, ER_SET_CONSTANTS_ONLY);
 	    YYABORT;
 	  }
-          lex->sql_command=SQLCOM_KILL;
-	  lex->thread_id= (ulong) $2->val_int();
+	  lex->thread_id= (ulong) $3->val_int();
 	};
 
 /* change database */
@@ -6162,9 +6160,8 @@ subselect_start:
 	'(' SELECT_SYM
 	{
 	  LEX *lex=Lex;
-	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
-	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
-	       lex->sql_command == (int)SQLCOM_KILL)
+          if (lex->sql_command == (int)SQLCOM_HA_READ ||
+              lex->sql_command == (int)SQLCOM_KILL)
 	  {
             yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
