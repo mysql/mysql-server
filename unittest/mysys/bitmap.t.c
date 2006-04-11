@@ -24,15 +24,7 @@
 #include <my_global.h>
 #include <my_bitmap.h>
 
-static void bitmap_print(MY_BITMAP *map)
-{
-  uint32 *to= map->bitmap, *end= map->last_word_ptr;
-  while (to <= end)
-  {
-    fprintf(stderr,"0x%x ", *to++);
-  }
-  fprintf(stderr,"\n");    
-}
+#include <string.h>
 
 uint get_rand_bit(uint bitsize)
 {
@@ -85,7 +77,8 @@ error2:
   return TRUE;
 }
 
-bool test_operators(MY_BITMAP *map, uint bitsize)
+bool test_operators(MY_BITMAP *map __attribute__((unused)),
+                    uint bitsize __attribute__((unused)))
 {
   return FALSE;
 }
@@ -266,7 +259,7 @@ error2:
 
 bool test_get_first_bit(MY_BITMAP *map, uint bitsize)
 {
-  uint i, j, test_bit;
+  uint i, test_bit;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
   for (i=0; i < no_loops; i++)
   {
@@ -385,8 +378,10 @@ error:
 int main()
 {
   int i;
-  plan(4095);
-  for (i= 1; i < 4096; i++)
+  int const min_size = 1;
+  int const max_size = 1024;
+  plan(max_size - min_size);
+  for (i= min_size; i < max_size; i++)
     ok(do_test(i) == 0, "bitmap size %d", i);
   return exit_status();
 }
