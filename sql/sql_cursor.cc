@@ -445,9 +445,8 @@ Sensitive_cursor::fetch(ulong num_rows)
   if (error == NESTED_LOOP_CURSOR_LIMIT)
     join->resume_nested_loop= TRUE;
 
-#ifdef USING_TRANSACTIONS
     ha_release_temporary_latches(thd);
-#endif
+
   /* Grab free_list here to correctly free it in close */
   thd->restore_active_arena(this, &backup_arena);
 

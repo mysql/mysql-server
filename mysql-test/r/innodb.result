@@ -3133,9 +3133,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
-  KEY `t2_ibfk_0` (`a`),
-  CONSTRAINT `t2_ibfk_0` FOREIGN KEY (`a`) REFERENCES `t1` (`a`),
-  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
+  KEY `t2_ibfk_0` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2,t1;
 create table t1(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
@@ -3214,3 +3212,34 @@ UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
 ERROR 23000: Upholding foreign key constraints for table 't1', entry 'other-somevalu', key 1 would lead to a duplicate entry
 DROP TABLE t2;
 DROP TABLE t1;
+create table t1 (
+c1 bigint not null,
+c2 bigint not null,
+primary key (c1),
+unique  key (c2)
+) engine=innodb;
+create table t2 (
+c1 bigint not null,
+primary key (c1)
+) engine=innodb;
+alter table t1 add constraint c2_fk foreign key (c2)
+references t2(c1) on delete cascade;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` bigint(20) NOT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `c2` (`c2`),
+  CONSTRAINT `c2_fk` FOREIGN KEY (`c2`) REFERENCES `t2` (`c1`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t1 drop foreign key c2_fk;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` bigint(20) NOT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1, t2;

@@ -743,6 +743,90 @@ void getTextSingleUser(QQQQ) {
   }
 }
 
+void getTextStartReport(QQQQ) {
+  Uint32 time = theData[2];
+  Uint32 sz = theData[3];
+  char mask1[100];
+  char mask2[100];
+  char mask3[100];
+  char mask4[100];
+  BitmaskImpl::getText(sz, theData + 4 + (0 * sz), mask1);
+  BitmaskImpl::getText(sz, theData + 4 + (1 * sz), mask2);
+  BitmaskImpl::getText(sz, theData + 4 + (2 * sz), mask3);
+  BitmaskImpl::getText(sz, theData + 4 + (3 * sz), mask4);
+  switch(theData[1]){
+  case 1: // Wait initial
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Initial start, waiting for %s to connect, "
+       " nodes [ all: %s connected: %s no-wait: %s ]",
+       mask4, mask1, mask2, mask3);
+    break;
+  case 2: // Wait partial
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Waiting until nodes: %s connects, "
+       "nodes [ all: %s connected: %s no-wait: %s ]",
+       mask4, mask1, mask2, mask3);
+    break;
+  case 3: // Wait partial timeout
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Waiting %u sec for nodes %s to connect, "
+       "nodes [ all: %s connected: %s no-wait: %s ]",
+       
+       time, mask4, mask1, mask2, mask3);
+    break;
+  case 4: // Wait partioned
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Waiting for non partitioned start, "
+       "nodes [ all: %s connected: %s missing: %s no-wait: %s ]",
+       
+       mask1, mask2, mask4, mask3);
+    break;
+  case 5:
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Waiting %u sec for non partitioned start, "
+       "nodes [ all: %s connected: %s missing: %s no-wait: %s ]",
+       
+       time, mask1, mask2, mask4, mask3);
+    break;
+  case 0x8000: // Do initial
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Initial start with nodes %s [ missing: %s no-wait: %s ]",
+       mask2, mask4, mask3);
+    break;
+  case 0x8001: // Do start
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Start with all nodes %s",
+       mask2);
+    break;
+  case 0x8002: // Do partial
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Start with nodes %s [ missing: %s no-wait: %s ]",
+       mask2, mask4, mask3);
+    break;
+  case 0x8003: // Do partioned
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Start potentially partitioned with nodes %s "
+       " [ missing: %s no-wait: %s ]",
+       mask2, mask4, mask3);
+    break;
+  default:
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Unknown startreport: 0x%x [ %s %s %s %s ]", 
+       theData[1],
+       mask1, mask2, mask3, mask4);
+  }
+}
+
 #if 0
 BaseString::snprintf(m_text, 
 		     m_text_len, 
@@ -791,6 +875,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(StartREDOLog,            LogLevel::llStartUp,    10, Logger::LL_INFO ),
   ROW(StartLog,                LogLevel::llStartUp,    10, Logger::LL_INFO ),
   ROW(UNDORecordsExecuted,     LogLevel::llStartUp,    15, Logger::LL_INFO ),
+  ROW(StartReport,             LogLevel::llStartUp,     4, Logger::LL_INFO ),
   
   // NODERESTART
   ROW(NR_CopyDict,             LogLevel::llNodeRestart, 8, Logger::LL_INFO ),

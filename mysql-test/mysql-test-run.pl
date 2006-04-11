@@ -144,7 +144,6 @@ our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
 our $glob_use_running_ndbcluster_slave= 0;
 our $glob_use_embedded_server=    0;
-our $glob_mysqld_restart=         0;
 our @glob_test_mode;
 
 our $using_ndbcluster_master= 0;
@@ -609,7 +608,7 @@ sub command_line_setup () {
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
-             'ndbcluster-port=i'        => \$opt_ndbcluster_port,
+             'ndbcluster-port|ndbcluster_port=i' => \$opt_ndbcluster_port,
              'ndbcluster-port-slave=i'  => \$opt_ndbcluster_port_slave,
              'manager-port=i'           => \$opt_manager_port, # Currently not used
              'im-port=i'                => \$im_port, # Instance Manager port.
@@ -3194,11 +3193,6 @@ sub run_mysqltest ($) {
 
   mtr_init_args(\$args);
 
-  if ( $opt_valgrind_mysqltest )
-  {
-    valgrind_arguments($args, \$exe);
-  }
-
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "-v");
@@ -3313,6 +3307,17 @@ sub run_mysqltest ($) {
   # ----------------------------------------------------------------------
   # Add arguments that should not go into the MYSQL_TEST env var
   # ----------------------------------------------------------------------
+
+  if ( $opt_valgrind_mysqltest )
+  {
+    # Prefix the Valgrind options to the argument list.
+    # We do this here, since we do not want to Valgrind the nested invocations
+    # of mysqltest; that would mess up the stderr output causing test failure.
+    my @args_saved = @$args;
+    mtr_init_args(\$args);
+    valgrind_arguments($args, \$exe);
+    mtr_add_arg($args, "%s", $_) for @args_saved;
+  }
 
   mtr_add_arg($args, "--test-file");
   mtr_add_arg($args, $tinfo->{'path'});
