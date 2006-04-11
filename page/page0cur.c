@@ -705,7 +705,6 @@ page_cur_parse_insert_rec(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	mtr_t*		mtr)	/* in: mtr or NULL */
 {
-	ulint	offset = 0; /* remove warning */
 	ulint	origin_offset;
 	ulint	end_seg_len;
 	ulint	mismatch_index;
@@ -720,24 +719,29 @@ page_cur_parse_insert_rec(
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	if (!is_short) {
+	if (is_short) {
+		cursor_rec = page_rec_get_prev(page_get_supremum_rec(page));
+	} else {
+		ulint	offset;
+
 		/* Read the cursor rec offset as a 2-byte ulint */
 
-		if (end_ptr < ptr + 2) {
+		if (UNIV_UNLIKELY(end_ptr < ptr + 2)) {
 
 			return(NULL);
 		}
 
 		offset = mach_read_from_2(ptr);
+		ptr += 2;
 
-		if (offset >= UNIV_PAGE_SIZE) {
+		cursor_rec = page + offset;
+
+		if (UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)) {
 
 			recv_sys->found_corrupt_log = TRUE;
 
 			return(NULL);
 		}
-
-		ptr += 2;
 	}
 
 	ptr = mach_parse_compressed(ptr, end_ptr, &end_seg_len);
@@ -783,7 +787,7 @@ page_cur_parse_insert_rec(
 		ut_a(mismatch_index < UNIV_PAGE_SIZE);
 	}
 
-	if (end_ptr < ptr + (end_seg_len >> 1)) {
+	if (UNIV_UNLIKELY(end_ptr < ptr + (end_seg_len >> 1))) {
 
 		return(NULL);
 	}
@@ -798,12 +802,6 @@ page_cur_parse_insert_rec(
 
 	/* Read from the log the inserted index record end segment which
 	differs from the cursor record */
-
-	if (is_short) {
-		cursor_rec = page_rec_get_prev(page_get_supremum_rec(page));
-	} else {
-		cursor_rec = page + offset;
-	}
 
 	offsets = rec_get_offsets(cursor_rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
@@ -832,7 +830,7 @@ page_cur_parse_insert_rec(
 			"mismatch index %lu, end_seg_len %lu\n"
 			"parsed len %lu\n",
 			(ulong) is_short, (ulong) info_and_status_bits,
-			(ulong) offset,
+			(ulong) ut_align_offset(cursor_rec, UNIV_PAGE_SIZE),
 			(ulong) origin_offset,
 			(ulong) mismatch_index, (ulong) end_seg_len,
 			(ulong) (ptr - ptr2));
@@ -1203,7 +1201,7 @@ including that record. Infimum and supremum records are not copied. */
 void
 page_copy_rec_list_end_to_created_page(
 /*===================================*/
-	page_t*		new_page,	/* in: index page to copy to */
+	page_t*		new_page,	/* in/out: index page to copy to */
 	rec_t*		rec,		/* in: first record to copy */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
