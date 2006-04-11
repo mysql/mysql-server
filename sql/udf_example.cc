@@ -497,7 +497,7 @@ char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
 	}
     }
   }
-  *length= (ulong) (max(0, result - org_result - 1));
+  *length= (unsigned long) (result - org_result);
   return org_result;
 }
 
