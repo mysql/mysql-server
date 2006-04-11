@@ -321,7 +321,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       if (!table_list->derived && !table_list->view)
         table_list->updatable= 1;  // usual table
     }
-    else
+    else if (thd->net.last_errno != ER_WRONG_OBJECT)
     {
       /* Too many delayed insert threads;  Use a normal insert */
       table_list->lock_type= lock_type= TL_WRITE;
