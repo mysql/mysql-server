@@ -201,8 +201,6 @@ void Guardian_thread::run()
 
     while (node != NULL)
     {
-      struct timespec timeout;
-
       GUARD_NODE *current_node= (GUARD_NODE *) node->data;
       instance= ((GUARD_NODE *) node->data)->instance;
       process_instance(instance, current_node, &guarded_instances, node);

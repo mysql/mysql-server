@@ -7,6 +7,18 @@
 # List of failed cases (--force) backported from 4.1 by Joerg
 # :-)
 
+
+echo "##################################################";
+echo "This script is deprecated and will soon be removed";
+echo "Use mysql-test-run.pl instead";
+echo "Now sleeping 20 seconds...";
+echo "##################################################";
+sleep 20;
+echo "continuing";
+echo;
+
+
+
 #++
 # Access Definitions
 #--

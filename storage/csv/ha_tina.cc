@@ -281,13 +281,6 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
                                    MYF(0))) == -1)
       goto error2;
 
-    /*
-      We only use share->data_file for writing, so we scan to
-      the end to append
-    */
-    if (my_seek(share->data_file, 0, SEEK_END, MYF(0)) == MY_FILEPOS_ERROR)
-      goto error2;
-
     share->mapped_file= NULL; // We don't know the state as we just allocated it
     if (get_mmap(share, 0) > 0)
       goto error3;
@@ -451,6 +444,7 @@ static int free_share(TINA_SHARE *share)
       result_code= 1;
     if (share->mapped_file)
       my_munmap(share->mapped_file, share->file_stat.st_size);
+    share->mapped_file= NULL;
     result_code= my_close(share->data_file,MYF(0));
     hash_delete(&tina_open_tables, (byte*) share);
     thr_lock_delete(&share->lock);
@@ -1228,9 +1222,10 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
 
   my_free((char*)buf, MYF(0));
 
-  /* The file is ok */
   if (rc == HA_ERR_END_OF_FILE)
   {
+    /* All rows were read ok until end of file, the file does not need repair. */
+
     /*
       If rows_recorded != rows_repaired, we should update
       rows_recorded value to the current amount of rows.
@@ -1258,11 +1253,25 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
 
   if (my_munmap(share->mapped_file, share->file_stat.st_size))
     DBUG_RETURN(-1);
-
-  my_rename(repaired_fname, share->data_file_name, MYF(0));
-
   /* We set it to null so that get_mmap() won't try to unmap it */
   share->mapped_file= NULL;
+
+  /*
+    Close the "to"-file before renaming
+    On Windows one cannot rename a file, which descriptor
+    is still open. EACCES will be returned when trying to delete 
+    the "to"-file in my_rename()
+  */
+  my_close(share->data_file,MYF(0));
+
+  if (my_rename(repaired_fname, share->data_file_name, MYF(0)))
+    DBUG_RETURN(-1);
+
+  /* Open the file again, it should now be repaired */
+  if ((share->data_file= my_open(share->data_file_name, O_RDWR|O_APPEND,
+                                   MYF(0))) == -1)
+     DBUG_RETURN(-1);
+
   if (get_mmap(share, 0) > 0)
     DBUG_RETURN(-1);
 
