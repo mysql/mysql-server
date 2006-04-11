@@ -24,13 +24,6 @@
 #define HAVE_EXTERNAL_CLIENT
 #endif
 
-#if defined( __EMX__) && !defined( MYSQL_SERVER)
-/* moved here to use below VOID macro redefinition */
-#define INCL_BASE
-#define INCL_NOPMAPI
-#include <os2.h>
-#endif /* __EMX__ */
-
 #ifdef __CYGWIN__
 /* We use a Unix API, so pretend it's not Windows */
 #undef WIN
@@ -72,8 +65,6 @@
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #include <config-win.h>
-#elif defined(OS2)
-#include <config-os2.h>
 #elif defined(__NETWARE__)
 #include <my_config.h>
 #include <config-netware.h>
