@@ -4722,7 +4722,9 @@ Item_func_sp::sp_result_field(void) const
     share->table_cache_key = empty_name;
     share->table_name = empty_name;
   }
-  field= m_sp->create_result_field(max_length, name, dummy_table);
+  if (!(field= m_sp->create_result_field(max_length, name, dummy_table)))
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+
   DBUG_RETURN(field);
 }
 
@@ -4750,8 +4752,9 @@ Item_func_sp::execute(Field **flp)
   {
     if (!(*flp= f= sp_result_field()))
     {
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      return 0;
+      /* Error set by sp_result_field() */
+      null_value= 1;
+      return TRUE;
     }
 
     f->move_field((f->pack_length() > sizeof(result_buf)) ?
@@ -4914,6 +4917,9 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
   
   if (!res) 
     res= Item_func::tmp_table_field(t_arg);
+
+  if (!res)
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
 
   DBUG_RETURN(res);
 }
