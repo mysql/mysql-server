@@ -1338,6 +1338,7 @@ public:
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
+  virtual void prepare_for_alter() { return; }
   virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
   { return (HA_ERR_WRONG_COMMAND); }
   virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
@@ -1378,7 +1379,8 @@ public:
   virtual void drop_table(const char *name);
   
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
-  virtual int create_handler_files(const char *name) { return FALSE;}
+  virtual int create_handler_files(const char *name, HA_CREATE_INFO *info) 
+  { return FALSE;}
 
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
