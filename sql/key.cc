@@ -192,7 +192,8 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
       Field_bit *field= (Field_bit *) (key_part->field);
       if (field->bit_len)
       {
-        uchar bits= *(from_key + key_part->length - field->field_length -1);
+        uchar bits= *(from_key + key_part->length -
+                      field->pack_length_in_rec() - 1);
         set_rec_bits(bits, to_record + key_part->null_offset +
                      (key_part->null_bit == 128),
                      field->bit_ofs, field->bit_len);
