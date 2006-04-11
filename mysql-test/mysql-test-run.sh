@@ -207,8 +207,13 @@ MYSQL_MANAGER_USER=root
 # an environment variable can be used to control all ports. A small
 # number is to be used, 0 - 16 or similar.
 #
+# Note the MASTER_MYPORT has to be set the same in all 4.x and 5.x
+# versions of this script, else a 4.0 test run might conflict with a
+# 5.1 test run, even if different MTR_BUILD_THREAD is used. This means
+# all port numbers might not be used in this version of the script.
+#
 if [ -n "$MTR_BUILD_THREAD" ] ; then
-  MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 5 + 10000`
+  MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 10 + 10000`
   MYSQL_MANAGER_PORT=`expr $MASTER_MYPORT + 2`
   SLAVE_MYPORT=`expr $MASTER_MYPORT + 3`
 
@@ -225,6 +230,9 @@ FAILED_CASES=
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
 USE_RUNNING_SERVER=1
+# backport from 5.1, disabled - this substitution is not done in 4.0
+# USE_NDBCLUSTER=@USE_NDBCLUSTER@
+# USE_NDBCLUSTER_ONLY=0
 DO_GCOV=""
 DO_GDB=""
 MANUAL_GDB=""
@@ -242,6 +250,8 @@ START_WAIT_TIMEOUT=10
 STOP_WAIT_TIMEOUT=10
 MYSQL_TEST_SSL_OPTS=""
 
+$ECHO "Logging: $0 $*"   # To ensure we see all arguments in the output, for the test analysis tool
+
 while test $# -gt 0; do
   case "$1" in
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
@@ -254,6 +264,14 @@ while test $# -gt 0; do
       SLAVE_MYSQLD=`$ECHO "$1" | $SED -e "s;--slave-binary=;;"` ;;
     --local)   USE_RUNNING_SERVER="" ;;
     --extern)   USE_RUNNING_SERVER="1" ;;
+    --with-ndbcluster)
+#     USE_NDBCLUSTER="--ndbcluster" ;;
+      $ECHO "Option '--with-ndbcluster' is ignored in this version" ;;
+    --with-ndbcluster-only)
+#     USE_NDBCLUSTER="--ndbcluster"
+#     USE_NDBCLUSTER_SLAVE="--ndbcluster"
+#     USE_NDBCLUSTER_ONLY=1 ;;
+      $ECHO "Option '--with-ndbcluster-only' is ignored in this version" ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
@@ -404,6 +422,13 @@ while test $# -gt 0; do
       ;;
     --fast)
       FAST_START=1
+      ;;
+    --comment=*)
+      TMP=`$ECHO "$1" | $SED -e "s;--comment=;;"`
+      echo
+      echo '############################################'
+      echo "# $TMP"
+      echo '############################################'
       ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;

@@ -216,3 +216,7 @@ select * from t1;
 a	b
 0	2
 drop table t1;
+create table t1(f1 int, `*f2` int);
+insert into t1 values (1,1);
+update t1 set `*f2`=1;
+drop table t1;
