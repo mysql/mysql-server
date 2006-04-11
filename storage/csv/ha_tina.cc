@@ -281,13 +281,6 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
                                    MYF(0))) == -1)
       goto error2;
 
-    /*
-      We only use share->data_file for writing, so we scan to
-      the end to append
-    */
-    if (my_seek(share->data_file, 0, SEEK_END, MYF(0)) == MY_FILEPOS_ERROR)
-      goto error2;
-
     share->mapped_file= NULL; // We don't know the state as we just allocated it
     if (get_mmap(share, 0) > 0)
       goto error3;
@@ -1278,10 +1271,6 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
   if ((share->data_file= my_open(share->data_file_name, O_RDWR|O_APPEND,
                                    MYF(0))) == -1)
      DBUG_RETURN(-1);
-
-  /* Seek to end of file, any inserts will be appended there */
-  if (my_seek(share->data_file, 0, SEEK_END, MYF(0)) == MY_FILEPOS_ERROR)
-    DBUG_RETURN(-1);
 
   if (get_mmap(share, 0) > 0)
     DBUG_RETURN(-1);
