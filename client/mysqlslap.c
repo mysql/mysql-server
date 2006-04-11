@@ -1174,8 +1174,8 @@ limit_not_met:
         goto end;
     }
 
-  if (con->limit && queries < con->limit)
-    goto limit_not_met;
+    if (!con->stmt && con->limit && queries < con->limit)
+      goto limit_not_met;
 
 end:
 
