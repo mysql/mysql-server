@@ -465,8 +465,7 @@ sub mtr_kill_leftovers () {
 
         if ( kill(0, @pids) )           # Check if some left
         {
-          # FIXME maybe just mtr_warning() ?
-          mtr_error("can't kill process(es) " . join(" ", @pids));
+          mtr_warning("can't kill process(es) " . join(" ", @pids));
         }
       }
     }
@@ -479,7 +478,7 @@ sub mtr_kill_leftovers () {
   {
     if ( mtr_ping_mysqld_server($srv->{'port'}, $srv->{'sockfile'}) )
     {
-      mtr_error("can't kill old mysqld holding port $srv->{'port'}");
+      mtr_warning("can't kill old mysqld holding port $srv->{'port'}");
     }
   }
 }
