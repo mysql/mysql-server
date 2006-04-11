@@ -1536,7 +1536,10 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
 
   /* Adjust in_use for pointing to client thread */
   copy->in_use= client_thd;
-  
+
+  /* Adjust lock_count. This table object is not part of a lock. */
+  copy->lock_count= 0;
+
   return copy;
 
   /* Got fatal error */
