@@ -2849,3 +2849,82 @@ page_zip_write_header_log(
 
 	mlog_catenate_string(mtr, page_zip->data + offset, length);
 }
+
+/**************************************************************************
+Write a log record of compressing an index page. */
+
+void
+page_zip_compress_write_log(
+/*========================*/
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	const page_t*		page,	/* in: uncompressed page */
+	mtr_t*			mtr)	/* in: mini-transaction */
+{
+	byte*	log_ptr;
+
+	ut_ad(page_zip_validate(page_zip, page));
+
+	log_ptr = mlog_open(mtr, 11 + 2);
+
+	if (!log_ptr) {
+
+		return;
+	}
+
+	log_ptr = mlog_write_initial_log_record_fast((page_t*) page,
+			MLOG_ZIP_PAGE_COMPRESS, log_ptr, mtr);
+	mach_write_to_2(log_ptr, page_zip->size);
+	log_ptr += 2;
+	mlog_close(mtr, log_ptr);
+
+	/* TODO: omit the unused bytes at page_zip->m_end */
+	mlog_catenate_string(mtr, page_zip->data, page_zip->size);
+}
+
+/**************************************************************************
+Parses a log record of compressing an index page. */
+
+byte*
+page_zip_parse_compress(
+/*====================*/
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	page_t*		page,	/* out: uncompressed page */
+	page_zip_des_t*	page_zip)/* out: compressed page */
+{
+	ulint	size;
+
+	ut_ad(ptr && end_ptr);
+
+	if (UNIV_UNLIKELY(ptr + 2 > end_ptr)) {
+
+		return(NULL);
+	}
+
+	size = mach_read_from_2(ptr);
+	ptr += 2;
+
+	if (UNIV_UNLIKELY(ptr + size > end_ptr)) {
+
+		return(NULL);
+	}
+
+	if (page) {
+		if (UNIV_UNLIKELY(!page_zip)
+				|| UNIV_UNLIKELY(page_zip->size != size)) {
+corrupt:
+			recv_sys->found_corrupt_log = TRUE;
+
+			return(NULL);
+		}
+
+		memcpy(page_zip->data, ptr, size);
+		if (UNIV_UNLIKELY(!page_zip_decompress(page_zip, page))) {
+
+			goto corrupt;
+		}
+	}
+
+	return(ptr + size);
+}
