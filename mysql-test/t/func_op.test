@@ -21,7 +21,9 @@ select -1 >> 1, -1 << 1;
 # Bug 13044: wrong bit_count() results
 #
 
+--disable_warnings
 drop table if exists t1,t2;
+--enable_warnings
 create table t1(a int);
 create table t2(a int, b int);
 insert into t1 values (1), (2), (3);
