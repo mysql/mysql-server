@@ -312,6 +312,9 @@ our $opt_udiff;
 
 our $opt_skip_ndbcluster;
 our $opt_with_ndbcluster;
+our $opt_with_ndbcluster_only= 0;  # dummy, ignored
+
+our $opt_with_openssl;
 
 our $exe_ndb_mgm;
 our $path_ndb_tools_dir;
@@ -572,6 +575,7 @@ sub command_line_setup () {
              'force'                    => \$opt_force,
              'with-ndbcluster'          => \$opt_with_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
+             'with-ndbcluster-only'     => \$opt_with_ndbcluster_only,
              'do-test=s'                => \$opt_do_test,
              'suite=s'                  => \$opt_suite,
              'skip-rpl'                 => \$opt_skip_rpl,
@@ -675,6 +679,11 @@ sub command_line_setup () {
     print '#' x 78, "\n";
     print "# $opt_comment\n";
     print '#' x 78, "\n\n";
+  }
+
+  if ( $opt_with_ndbcluster_only )
+  {
+    print "# Option '--with-ndbcluster-only' is ignored in this release.\n";
   }
 
   foreach my $arg ( @ARGV )
@@ -2933,11 +2942,6 @@ sub run_mysqltest ($) {
 
   mtr_init_args(\$args);
 
-  if ( $opt_valgrind_mysqltest )
-  {
-    valgrind_arguments($args, \$exe);
-  }
-
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "-v");
@@ -3052,6 +3056,17 @@ sub run_mysqltest ($) {
   # ----------------------------------------------------------------------
   # Add arguments that should not go into the MYSQL_TEST env var
   # ----------------------------------------------------------------------
+
+  if ( $opt_valgrind_mysqltest )
+  {
+    # Prefix the Valgrind options to the argument list.
+    # We do this here, since we do not want to Valgrind the nested invocations
+    # of mysqltest; that would mess up the stderr output causing test failure.
+    my @args_saved = @$args;
+    mtr_init_args(\$args);
+    valgrind_arguments($args, \$exe);
+    mtr_add_arg($args, "%s", $_) for @args_saved;
+  }
 
   mtr_add_arg($args, "--test-file");
   mtr_add_arg($args, $tinfo->{'path'});

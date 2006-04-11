@@ -3959,7 +3959,7 @@ static int create_ndb_column(NDBCOL &col,
     break;
   case MYSQL_TYPE_BIT:
   {
-    int no_of_bits= field->field_length*8 + ((Field_bit *) field)->bit_len;
+    int no_of_bits= field->field_length;
     col.setType(NDBCOL::Bit);
     if (!no_of_bits)
       col.setLength(1);
