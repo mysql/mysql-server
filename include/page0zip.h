@@ -94,8 +94,9 @@ page_zip_alloc(
 	const page_t*	page,	/* in: uncompressed page */
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	ulint		length,	/* in: combined size of the record */
-	ulint		create)	/* in: nonzero=add the record to the heap */
-	__attribute__((warn_unused_result, nonnull));
+	ulint		create,	/* in: nonzero=add the record to the heap */
+	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+	__attribute__((warn_unused_result, nonnull(1,2,3)));
 
 /**************************************************************************
 Write an entire record on the compressed page.  The data must already
