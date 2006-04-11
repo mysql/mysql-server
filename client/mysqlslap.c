@@ -1038,7 +1038,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
       case 0:
         /* child */
         DBUG_PRINT("info", ("fork returned 0, calling task(\"%s\"), pid %d gid %d",
-                            stmts->string, pid, getgid()));
+                            stmts ? stmts->string : "", pid, getgid()));
         if (verbose >= 2)
           fprintf(stderr,
                   "%s: fork returned 0, calling task pid %d gid %d\n",
@@ -1124,7 +1124,7 @@ run_task(thread_context *con)
   statement *ptr;
 
   DBUG_ENTER("run_task");
-  DBUG_PRINT("info", ("task script \"%s\"", con->stmt->string));
+  DBUG_PRINT("info", ("task script \"%s\"", con->stmt ? con->stmt->string : ""));
 
   if (!(mysql= mysql_init(NULL)))
     goto end;
