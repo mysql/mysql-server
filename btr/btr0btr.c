@@ -249,8 +249,6 @@ btr_page_create(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dict_tree_t*	tree,	/* in: index tree */
 	ulint		level,	/* in: the B-tree level of the page */
-	ulint		prev,	/* in: number of the previous page */
-	ulint		next,	/* in: number of the next page */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	dict_index_t*	index = UT_LIST_GET_FIRST(tree->tree_indexes);
@@ -265,10 +263,6 @@ btr_page_create(
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, level, mtr);
 	}
-
-	/* Set the next node and previous node fields of new page */
-	btr_page_set_next(page, page_zip, prev, mtr);
-	btr_page_set_prev(page, page_zip, next, mtr);
 
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 
@@ -1079,8 +1073,11 @@ btr_root_raise_and_insert(
 	new_page = btr_page_alloc(tree, 0, FSP_NO_DIR, level, mtr);
 	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
 
-	btr_page_create(new_page, new_page_zip, tree, level,
-				FIL_NULL, FIL_NULL, mtr);
+	btr_page_create(new_page, new_page_zip, tree, level, mtr);
+
+	/* Set the next node and previous node fields of new page */
+	btr_page_set_next(new_page, new_page_zip, FIL_NULL, mtr);
+	btr_page_set_prev(new_page, new_page_zip, FIL_NULL, mtr);
 
 	/* Move the records from root to the new page */
 
@@ -1519,12 +1516,12 @@ btr_attach_half_pages(
 /*==================*/
 	dict_tree_t*	tree,		/* in: the index tree */
 	page_t*		page,		/* in/out: page to be split */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page whose
-					uncompressed part will be updated,
-					or NULL */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page, or NULL */
 	rec_t*		split_rec,	/* in: first record on upper
 					half page */
-	page_t*		new_page,	/* in: the new half page */
+	page_t*		new_page,	/* in/out: the new half page */
+	page_zip_des_t*	new_page_zip,	/* in/out: compressed new_page,
+					or NULL */
 	ulint		direction,	/* in: FSP_UP or FSP_DOWN */
 	mtr_t*		mtr)		/* in: mtr */
 {
@@ -1560,8 +1557,7 @@ btr_attach_half_pages(
 		upper_page_no = buf_frame_get_page_no(page);
 		lower_page = new_page;
 		upper_page = page;
-		lower_page_zip = buf_block_get_page_zip(
-				buf_block_align(new_page));
+		lower_page_zip = new_page_zip;
 		upper_page_zip = page_zip;
 
 		/* Look from the tree for the node pointer to page */
@@ -1583,8 +1579,7 @@ btr_attach_half_pages(
 		lower_page = page;
 		upper_page = new_page;
 		lower_page_zip = page_zip;
-		upper_page_zip = buf_block_get_page_zip(
-				buf_block_align(new_page));
+		upper_page_zip = new_page_zip;
 	}
 
 	/* Get the level of the split pages */
@@ -1737,7 +1732,7 @@ func_start:
 					btr_page_get_level(page, mtr), mtr);
 	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
 	btr_page_create(new_page, new_page_zip, tree,
-			btr_page_get_level(page, mtr), 0, 0, mtr);
+			btr_page_get_level(page, mtr), mtr);
 
 	/* 3. Calculate the first record on the upper half-page, and the
 	first record (move_limit) on original page which ends up on the
@@ -1756,7 +1751,7 @@ func_start:
 	/* 4. Do first the modifications in the tree structure */
 
 	btr_attach_half_pages(tree, page, page_zip, first_rec,
-			new_page, direction, mtr);
+			new_page, new_page_zip, direction, mtr);
 
 	/* If the split is made on the leaf level and the insert will fit
 	on the appropriate half-page, we may release the tree x-latch.
