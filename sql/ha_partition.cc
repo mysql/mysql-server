@@ -562,6 +562,7 @@ int ha_partition::rename_table(const char *from, const char *to)
   SYNOPSIS
     create_handler_files()
     name                              Full path of table name
+    create_info                       Create info generated for CREATE TABLE
 
   RETURN VALUE
     >0                        Error
@@ -575,7 +576,8 @@ int ha_partition::rename_table(const char *from, const char *to)
     and types of engines in the partitions.
 */
 
-int ha_partition::create_handler_files(const char *name)
+int ha_partition::create_handler_files(const char *name,
+                                       HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("ha_partition::create_handler_files()");
 
