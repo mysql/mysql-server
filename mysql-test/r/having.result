@@ -360,8 +360,6 @@ s1	count(s1)
 y	1
 drop table t1;
 DROP SCHEMA IF EXISTS HU;
-Warnings:
-Note	1008	Can't drop database 'HU'; database doesn't exist
 CREATE SCHEMA HU ;
 USE HU ;
 CREATE TABLE STAFF
