@@ -31,6 +31,7 @@ static Ndb_cluster_connection *ndb_cluster_connection= 0;
 static Ndb* ndb = 0;
 static const NdbDictionary::Dictionary * dic = 0;
 static int _unqualified = 0;
+static int _parsable = 0;
 
 static void
 fatal(char const* fmt, ...)
@@ -76,10 +77,13 @@ list(const char * tabname,
 	if (dic->listIndexes(list, tabname) == -1)
 	    fatal_dict("listIndexes");
     }
-    if (ndb->usingFullyQualifiedNames())
-       ndbout_c("%-5s %-20s %-8s %-7s %-12s %-8s %s", "id", "type", "state", "logging", "database", "schema", "name");
-     else
-       ndbout_c("%-5s %-20s %-8s %-7s %s", "id", "type", "state", "logging", "name");
+    if (!_parsable)
+    {
+      if (ndb->usingFullyQualifiedNames())
+        ndbout_c("%-5s %-20s %-8s %-7s %-12s %-8s %s", "id", "type", "state", "logging", "database", "schema", "name");
+      else
+        ndbout_c("%-5s %-20s %-8s %-7s %s", "id", "type", "state", "logging", "name");
+    }
     for (unsigned i = 0; i < list.count; i++) {
 	NdbDictionary::Dictionary::List::Element& elt = list.elements[i];
         char type[100];
@@ -170,9 +174,19 @@ list(const char * tabname,
 	    }
 	}
 	if (ndb->usingFullyQualifiedNames())
-	  ndbout_c("%-5d %-20s %-8s %-7s %-12s %-8s %s", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
-       else
-	 ndbout_c("%-5d %-20s %-8s %-7s %s", elt.id, type, state, store, elt.name);
+        {
+          if (_parsable)
+            ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
+          else
+            ndbout_c("%-5d %-20s %-8s %-7s %-12s %-8s %s", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
+        }
+        else
+        {
+          if (_parsable)
+            ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, elt.name);
+          else
+            ndbout_c("%-5d %-20s %-8s %-7s %s", elt.id, type, state, store, elt.name);
+        }
     }
 }
 
@@ -195,6 +209,9 @@ static struct my_option my_long_options[] =
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "unqualified", 'u', "Use unqualified table names",
     (gptr*) &_unqualified, (gptr*) &_unqualified, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "parsable", 'p', "Return output suitable for mysql LOAD DATA INFILE",
+    (gptr*) &_parsable, (gptr*) &_parsable, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
