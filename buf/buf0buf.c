@@ -1914,8 +1914,7 @@ buf_page_io_complete(
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
-		if (buf_page_is_corrupted(block->frame,
-					block->space ? 16384 : 0/* TODO */)) {
+		if (buf_page_is_corrupted(block->frame, 0/*TODO:zip_size*/)) {
 			fprintf(stderr,
 		"InnoDB: Database page corruption on disk or a failed\n"
 		"InnoDB: file read of page %lu.\n", (ulong) block->offset);
