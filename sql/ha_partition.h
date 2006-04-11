@@ -179,7 +179,8 @@ public:
   virtual int rename_table(const char *from, const char *to);
   virtual int create(const char *name, TABLE *form,
 		     HA_CREATE_INFO *create_info);
-  virtual int create_handler_files(const char *name);
+  virtual int create_handler_files(const char *name, 
+                                   HA_CREATE_INFO *create_info);
   virtual void update_create_info(HA_CREATE_INFO *create_info);
   virtual char *update_table_comment(const char *comment);
   virtual int change_partitions(HA_CREATE_INFO *create_info,
