@@ -615,3 +615,26 @@ select extractValue('<e>1</e>','last()');
 ERROR HY000: XPATH syntax error: ''
 select extractValue('<e><a>1</a></e>','/e/');
 ERROR HY000: XPATH syntax error: ''
+set names utf8;
+select extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r');
+extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r')
+r
+select extractValue('<r><Ñ>Ñ</Ñ></r>','/r/Ñ');
+extractValue('<r><Ñ>Ñ</Ñ></r>','/r/Ñ')
+Ñ
+select extractValue('<Ñ r="r"/>','/Ñ/@r');
+extractValue('<Ñ r="r"/>','/Ñ/@r')
+r
+select extractValue('<r Ñ="Ñ"/>','/r/@Ñ');
+extractValue('<r Ñ="Ñ"/>','/r/@Ñ')
+Ñ
+DROP PROCEDURE IF EXISTS p2;
+CREATE PROCEDURE p2 ()
+BEGIN
+DECLARE p LONGTEXT CHARACTER SET UTF8 DEFAULT '<Ñ><r>A</r></Ñ>';
+SELECT EXTRACTVALUE(p,'/Ñ/r');
+END//
+CALL p2();
+EXTRACTVALUE(p,'/Ñ/r')
+A
+DROP PROCEDURE p2;
