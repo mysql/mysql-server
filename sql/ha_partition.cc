@@ -1135,7 +1135,6 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
     partition_element *part_elem= part_it++;
     if (all_parts || part_elem->part_state == PART_CHANGED)
     {
-      handler *file;
       if (m_is_sub_partitioned)
       {
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
@@ -2311,7 +2310,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
 err_handler:
   while (file-- != m_file)
     (*file)->close();
-err:
+
   DBUG_RETURN(error);
 }
 
@@ -2915,7 +2914,6 @@ int ha_partition::rnd_init(bool scan)
   int error;
   uint i= 0;
   uint32 part_id;
-  handler **file;
   DBUG_ENTER("ha_partition::rnd_init");
 
   include_partition_fields_in_used_fields();
