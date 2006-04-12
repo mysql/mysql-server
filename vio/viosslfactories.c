@@ -209,7 +209,6 @@ static void check_ssl_init()
   }
 
 #ifdef __NETWARE__
-  /* MASV, should it be done everytime? */
   netware_ssl_init();
 #endif
 
