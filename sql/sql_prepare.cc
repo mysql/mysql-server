@@ -1846,7 +1846,7 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   if (! (stmt= new Prepared_statement(thd, &thd->protocol_prep)))
     DBUG_VOID_RETURN; /* out of memory: error is set in Sql_alloc */
 
-  if (thd->stmt_map.insert(stmt))
+  if (thd->stmt_map.insert(thd, stmt))
   {
     /*
       The error is set in the insert. The statement itself
@@ -2029,14 +2029,15 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;                           /* out of memory */
   }
 
-  if (thd->stmt_map.insert(stmt))
-  {
-    /* The statement is deleted and an error is set if insert fails */
-    DBUG_VOID_RETURN;
-  }
+  /* Set the name first, insert should know that this statement has a name */
   if (stmt->set_name(name))
   {
-    thd->stmt_map.erase(stmt);
+    delete stmt;
+    DBUG_VOID_RETURN;
+  }
+  if (thd->stmt_map.insert(thd, stmt))
+  {
+    /* The statement is deleted and an error is set if insert fails */
     DBUG_VOID_RETURN;
   }
 

@@ -421,7 +421,7 @@ THD::~THD()
     net_end(&net);
   }
 #endif
-  stmt_map.destroy();                     /* close all prepared statements */
+  stmt_map.reset();                     /* close all prepared statements */
   DBUG_ASSERT(lock_info.n_cursors == 0);
   if (!cleanup_done)
     cleanup();
@@ -1757,20 +1757,10 @@ int Statement_map::insert(THD *thd, Statement *statement)
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     goto err_st_hash;
   }
-  if (statement->name.str)
+  if (statement->name.str && my_hash_insert(&names_hash, (byte*) statement))
   {
-    /*
-      If there is a statement with the same name, remove it. It is ok to
-      remove old and fail to insert new one at the same time.
-    */
-    Statement *old_stmt;
-    if ((old_stmt= find_by_name(&statement->name)))
-      erase(old_stmt);
-    if (my_hash_insert(&names_hash, (byte*) statement))
-    {
-      my_error(ER_OUT_OF_RESOURCES, MYF(0));
-      goto err_names_hash;
-    }
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    goto err_names_hash;
   }
   pthread_mutex_lock(&LOCK_prepared_stmt_count);
   /*
@@ -1783,7 +1773,8 @@ int Statement_map::insert(THD *thd, Statement *statement)
   if (prepared_stmt_count >= max_prepared_stmt_count)
   {
     pthread_mutex_unlock(&LOCK_prepared_stmt_count);
-    my_error(ER_UNKNOWN_ERROR, MYF(0));
+    my_error(ER_MAX_PREPARED_STMT_COUNT_REACHED, MYF(0),
+             max_prepared_stmt_count);
     goto err_max;
   }
   prepared_stmt_count++;
@@ -1817,9 +1808,8 @@ void Statement_map::erase(Statement *statement)
   if (statement == last_found_statement)
     last_found_statement= 0;
   if (statement->name.str)
-  {
     hash_delete(&names_hash, (byte *) statement);
-  }
+
   hash_delete(&st_hash, (byte *) statement);
   pthread_mutex_lock(&LOCK_prepared_stmt_count);
   DBUG_ASSERT(prepared_stmt_count > 0);
@@ -1852,7 +1842,6 @@ Statement_map::~Statement_map()
 
   hash_free(&names_hash);
   hash_free(&st_hash);
-
 }
 
 bool select_dumpvar::send_data(List<Item> &items)
