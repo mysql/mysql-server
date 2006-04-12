@@ -25,6 +25,7 @@ Created 5/27/1996 Heikki Tuuri
 #include "log0log.h"
 #include "eval0proc.h"
 #include "eval0eval.h"
+#include "pars0types.h"
 
 #define QUE_PARALLELIZE_LIMIT	(64 * 256 * 256 * 256)
 #define QUE_ROUND_ROBIN_LIMIT	(64 * 256 * 256 * 256)
@@ -1364,4 +1365,34 @@ loop:
 	}
 
 	goto loop;
+}
+
+/*************************************************************************
+Evaluate the given SQL */
+
+ulint
+que_eval_sql(
+/*=========*/
+	pars_info_t*	info,	/* out: error code or DB_SUCCESS */
+	const char*	sql,	/* in: info struct, or NULL */
+	trx_t*		trx)	/* in: trx */
+{
+	que_thr_t*	thr;
+	que_t*		graph;
+
+	graph = pars_sql(info, sql);
+	ut_a(graph);
+
+	graph->trx = trx;
+	trx->graph = NULL;
+
+	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
+
+	ut_a(thr = que_fork_start_command(graph));
+
+	que_run_threads(thr);
+
+	que_graph_free(graph);
+
+	return(trx->error_state);
 }
