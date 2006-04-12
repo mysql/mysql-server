@@ -1246,7 +1246,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 }
 
 /********************************************************************
-Evaluate the given SQL statement. */
+Evaluate the given foreign key SQL statement. */
 
 ulint
 dict_foreign_eval_sql(
@@ -1258,26 +1258,10 @@ dict_foreign_eval_sql(
 	dict_foreign_t*	foreign,/* in: foreign */
 	trx_t*		trx)	/* in: transaction */
 {
-	que_thr_t*	thr;
-	que_t*		graph;
 	ulint		error;
 	FILE*		ef	= dict_foreign_err_file;
 
-	graph = pars_sql(info, sql);
-	ut_a(graph);
-
-	graph->trx = trx;
-	trx->graph = NULL;
-
-	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
-
-	ut_a(thr = que_fork_start_command(graph));
-
-	que_run_threads(thr);
-
-	error = trx->error_state;
-
-	que_graph_free(graph);
+	error = que_eval_sql(info, sql, trx);
 
 	if (error == DB_DUPLICATE_KEY) {
 		mutex_enter(&dict_foreign_err_mutex);
