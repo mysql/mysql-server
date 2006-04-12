@@ -50,7 +50,6 @@ dict_mem_table_create(
 
 	table->heap = heap;
 
-	table->type = DICT_TABLE_ORDINARY;
 	table->flags = flags;
 	table->name = mem_heap_strdup(heap, name);
 	table->dir_path_of_temp_table = NULL;
