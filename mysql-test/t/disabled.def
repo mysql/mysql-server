@@ -17,15 +17,15 @@ ndb_autodiscover2       : Needs to be fixed w.r.t binlog
 #ndb_cache2              : Bug #18597 simultaneous drop table and ndb statistics update triggers node failure
 #ndb_gis                 : Bug #18600 ndb_gis test failure
 #ndb_load                : Bug#17233 failed load data from infile causes mysqld dbug_assert, binlog not flushed
-#partition_03ndb         : Bug#16385 Partitions: crash when updating a range partitioned NDB table
+partition_03ndb         : Bug#16385 Partitions: crash when updating a range partitioned NDB table
 ps_7ndb                 : dbug assert in RBR mode when executing test suite
-#rpl_ndb_2innodb         : assertion in get_parts_for_update()
-#rpl_ndb_2myisam         : assertion in get_parts_for_update()
+rpl_ndb_2innodb         : Bug #19004 ndb: partition by range and update hangs (note, test must also be updated to have primary key with blob table)
+rpl_ndb_2myisam         : Bug #19004 ndb: partition by range and update hangs (note, test must also be updated to have primary key with blob table)
 rpl_ndb_auto_inc        : Bug#17086 CR: auto_increment_increment and auto_increment_offset produce duplicate key er
 #rpl_ndb_basic           : Bug #18592 rpl_ndb_basic failure
 #rpl_ndb_dd_advance      : Bug #18924 rpl_ndb_dd_advance failure
 #rpl_ndb_dd_basic        : Bug #18569 rpl_ndb_dd_basic failure
-#rpl_ndb_ddl             : master hangs
+rpl_ndb_ddl             : result file needs update + test needs to checked
 #rpl_ndb_insert_ignore   : Bug #18567 rpl_ndb_insert_ignore failure
 #rpl_ndb_innodb2ndb      : Bug#18261: Cluster Replication: tests rpl_ndb_xxx2ndb fails
 #rpl_ndb_log             : result not deterministic, TBD if should remove
