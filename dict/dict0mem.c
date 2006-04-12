@@ -66,9 +66,6 @@ dict_mem_table_create(
 
 	table->cached = FALSE;
 
-	table->mix_id = ut_dulint_zero;
-	table->mix_len = 0;
-
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
 							* sizeof(dict_col_t));
 	UT_LIST_INIT(table->indexes);
@@ -97,42 +94,19 @@ dict_mem_table_create(
 	return(table);
 }
 
-/**************************************************************************
-Creates a cluster memory object. */
-
-dict_table_t*
-dict_mem_cluster_create(
-/*====================*/
-				/* out, own: cluster object */
-	const char*	name,	/* in: cluster name */
-	ulint		space,	/* in: space where the clustered indexes
-				of the member tables are placed */
-	ulint		n_cols,	/* in: number of columns */
-	ulint		mix_len)/* in: length of the common key prefix in the
-				cluster */
-{
-	dict_table_t*		cluster;
-
-	/* Clustered tables cannot work with the compact record format. */
-	cluster = dict_mem_table_create(name, space, n_cols, 0);
-
-	cluster->type = DICT_TABLE_CLUSTER;
-	cluster->mix_len = mix_len;
-
-	return(cluster);
-}
-
-/**************************************************************************
-Declares a non-published table as a member in a cluster. */
+/********************************************************************
+Free a table memory object. */
 
 void
-dict_mem_table_make_cluster_member(
-/*===============================*/
-	dict_table_t*	table,		/* in: non-published table */
-	const char*	cluster_name)	/* in: cluster name */
+dict_mem_table_free(
+/*================*/
+	dict_table_t*	table)		/* in: table */
 {
-	table->type = DICT_TABLE_CLUSTER_MEMBER;
-	table->cluster_name = cluster_name;
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	mutex_free(&(table->autoinc_mutex));
+	mem_heap_free(table->heap);
 }
 
 /**************************************************************************
@@ -286,5 +260,8 @@ dict_mem_index_free(
 /*================*/
 	dict_index_t*	index)	/* in: index */
 {
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
 	mem_heap_free(index->heap);
 }

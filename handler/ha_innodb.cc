@@ -132,6 +132,7 @@ extern "C" {
 #include "../storage/innobase/include/sync0sync.h"
 #include "../storage/innobase/include/fil0fil.h"
 #include "../storage/innobase/include/trx0xa.h"
+#include "../storage/innobase/include/thr0loc.h"
 }
 
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
@@ -231,7 +232,13 @@ handlerton innobase_hton = {
   innobase_start_trx_and_assign_read_view,    /* Start Consistent Snapshot */
   innobase_flush_logs,		/* Flush logs */
   innobase_show_status,		/* Show status */
-  HTON_NO_FLAGS
+  NULL,                         /* Partition flags */
+  NULL,                         /* Alter table flags */
+  NULL,                         /* alter_tablespace */
+  NULL,                         /* Fill FILES table */
+  HTON_NO_FLAGS,
+  NULL,                         /* binlog_func */
+  NULL                          /* binlog_log_query */
 };
 
 
@@ -533,11 +540,18 @@ convert_error_code_to_mysql(
 
 		return(HA_ERR_NO_SAVEPOINT);
 	} else if (error == (int) DB_LOCK_TABLE_FULL) {
+ 		/* Since we rolled back the whole transaction, we must
+ 		tell it also to MySQL so that MySQL knows to empty the
+ 		cached binlog for this transaction */
 
-		return(HA_ERR_LOCK_TABLE_FULL);
-	} else {
-		return(-1);			// Unknown error
-	}
+ 		if (thd) {
+ 			ha_rollback(thd);
+ 		}
+
+    		return(HA_ERR_LOCK_TABLE_FULL);
+    	} else {
+    		return(-1);			// Unknown error
+    	}
 }
 
 /*****************************************************************
@@ -792,7 +806,7 @@ check_trx_exists(
 		thd->ha_data[innobase_hton.slot] = trx;
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
-			mem_analyze_corruption((byte*)trx);
+			mem_analyze_corruption(trx);
 
 			ut_a(0);
 		}
@@ -1000,7 +1014,6 @@ innobase_query_caching_of_table_permitted(
 		mutex_enter_noninline(&kernel_mutex);
 		trx_print(stderr, trx, 1024);
 		mutex_exit_noninline(&kernel_mutex);
-		ut_error;
 	}
 
 	innobase_release_stat_resources(trx);
@@ -2286,6 +2299,7 @@ innobase_close_connection(
 
 	innobase_rollback_trx(trx);
 
+	thr_local_free(trx->mysql_thread_id);
 	trx_free_for_mysql(trx);
 
 	return(0);
@@ -2306,7 +2320,7 @@ ha_innobase::get_row_type() const
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
 	if (prebuilt && prebuilt->table) {
-		if (dict_table_is_comp(prebuilt->table)) {
+		if (dict_table_is_comp_noninline(prebuilt->table)) {
 			return(ROW_TYPE_COMPACT);
 		} else {
 			return(ROW_TYPE_REDUNDANT);
@@ -3699,7 +3713,8 @@ calc_row_difference(
 					TRUE,
 					new_mysql_row_col,
 					col_pack_len,
-					dict_table_is_comp(prebuilt->table));
+					dict_table_is_comp_noninline(
+							prebuilt->table));
 				ufield->new_val.data = dfield.data;
 				ufield->new_val.len = dfield.len;
 			} else {
@@ -3859,9 +3874,17 @@ ha_innobase::unlock_row(void)
 		ut_error;
 	}
 
+	/* Consistent read does not take any locks, thus there is
+	nothing to unlock. */
+
+	if (prebuilt->select_lock_type == LOCK_NONE) {
+		DBUG_VOID_RETURN;
+	}
+
 	switch (prebuilt->row_read_type) {
 	case ROW_READ_WITH_LOCKS:
-		if (!srv_locks_unsafe_for_binlog) {
+		if (!srv_locks_unsafe_for_binlog
+		|| prebuilt->trx->isolation_level == TRX_ISO_READ_COMMITTED) {
 			break;
 		}
 		/* fall through */
@@ -3893,7 +3916,13 @@ ha_innobase::try_semi_consistent_read(bool yes)
 {
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
-	if (yes && srv_locks_unsafe_for_binlog) {
+	/* Row read type is set to semi consistent read if this was
+	requested by the MySQL and either innodb_locks_unsafe_for_binlog
+	option is used or this session is using READ COMMITTED isolation
+	level. */
+
+	if (yes &&  (srv_locks_unsafe_for_binlog
+		|| prebuilt->trx->isolation_level == TRX_ISO_READ_COMMITTED)) {
 		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
 	} else {
 		prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
@@ -5794,7 +5823,7 @@ ha_innobase::analyze(
 }
 
 /**************************************************************************
-This is mapped to "ALTER TABLE tablename TYPE=InnoDB", which rebuilds
+This is mapped to "ALTER TABLE tablename ENGINE=InnoDB", which rebuilds
 the table in MySQL. */
 
 int
@@ -6376,12 +6405,6 @@ ha_innobase::external_lock(
 		trx->n_mysql_tables_in_use++;
 		prebuilt->mysql_has_locked = TRUE;
 
-		if (trx->n_mysql_tables_in_use == 1) {
-			trx->isolation_level = innobase_map_isolation_level(
-						(enum_tx_isolation)
-						thd->variables.tx_isolation);
-		}
-
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
 			&& prebuilt->select_lock_type == LOCK_NONE
 			&& (thd->options
@@ -6855,10 +6878,21 @@ ha_innobase::store_lock(
 						TL_IGNORE */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+	trx_t*		trx		= prebuilt->trx;
 
 	/* NOTE: MySQL	can call this function with lock 'type' TL_IGNORE!
 	Be careful to ignore TL_IGNORE if we are going to do something with
 	only 'real' locks! */
+
+	/* If no MySQL tables is use we need to set isolation level
+	of the transaction. */
+
+	if (lock_type != TL_IGNORE
+	&& trx->n_mysql_tables_in_use == 0) {
+		trx->isolation_level = innobase_map_isolation_level(
+						(enum_tx_isolation)
+						thd->variables.tx_isolation);
+	}
 
 	if ((lock_type == TL_READ && thd->in_lock_tables) ||
 		(lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
@@ -6884,18 +6918,26 @@ ha_innobase::store_lock(
 		unexpected if an obsolete consistent read view would be
 		used. */
 
-		if (srv_locks_unsafe_for_binlog &&
-			prebuilt->trx->isolation_level != TRX_ISO_SERIALIZABLE &&
-			(lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
-			(thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
-				thd->lex->sql_command == SQLCOM_UPDATE)) {
+		ulint	isolation_level;
 
-			/* In case we have innobase_locks_unsafe_for_binlog
-			option set and isolation level of the transaction
+		isolation_level = trx->isolation_level;
+
+		if ((srv_locks_unsafe_for_binlog
+			|| isolation_level == TRX_ISO_READ_COMMITTED)
+		&& isolation_level != TRX_ISO_SERIALIZABLE
+		&& (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT)
+		&& (thd->lex->sql_command == SQLCOM_INSERT_SELECT
+			|| thd->lex->sql_command == SQLCOM_UPDATE
+			|| thd->lex->sql_command == SQLCOM_CREATE_TABLE)) {
+
+			/* If we either have innobase_locks_unsafe_for_binlog
+			option set or this session is using READ COMMITTED
+			isolation level and isolation level of the transaction
 			is not set to serializable and MySQL is doing
-			INSERT INTO...SELECT or UPDATE ... = (SELECT ...)
-			without FOR UPDATE or IN SHARE MODE in select, then
-			we use consistent read for select. */
+			INSERT INTO...SELECT or UPDATE ... = (SELECT ...) or
+			CREATE  ... SELECT... without FOR UPDATE or
+			IN SHARE MODE in select, then we use consistent
+			read for select. */
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;
@@ -6949,17 +6991,18 @@ ha_innobase::store_lock(
 		< TL_WRITE_CONCURRENT_INSERT.
 
 		We especially allow multiple writers if MySQL is at the
-		start of a stored procedure call (SQLCOM_CALL)
-		(MySQL does have thd->in_lock_tables TRUE there). */
+		start of a stored procedure call (SQLCOM_CALL) or a
+		stored function call (MySQL does have thd->in_lock_tables
+		TRUE there). */
 
 		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT
-				&& lock_type <= TL_WRITE)
-			&& (!thd->in_lock_tables
-				|| thd->lex->sql_command == SQLCOM_CALL)
-			&& !thd->tablespace_op
-			&& thd->lex->sql_command != SQLCOM_TRUNCATE
-			&& thd->lex->sql_command != SQLCOM_OPTIMIZE
-			&& thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
+		&& lock_type <= TL_WRITE)
+		&& !(thd->in_lock_tables
+			&& thd->lex->sql_command == SQLCOM_LOCK_TABLES)
+		&& !thd->tablespace_op
+		&& thd->lex->sql_command != SQLCOM_TRUNCATE
+		&& thd->lex->sql_command != SQLCOM_OPTIMIZE
+		&& thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
 			lock_type = TL_WRITE_ALLOW_WRITE;
 		}

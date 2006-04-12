@@ -85,9 +85,11 @@ row_mysql_is_system_table(
 				 system table name */
 	const char*	name)
 {
-	if (memcmp(name, "mysql/", 6)) {
+	if (strncmp(name, "mysql/", 6) != 0) {
+
 		return(FALSE);
 	}
+
 	return(0 == strcmp(name + 6, "host")
 		|| 0 == strcmp(name + 6, "user")
 		|| 0 == strcmp(name + 6, "db"));
@@ -207,7 +209,7 @@ row_mysql_store_blob_ref(
 
 	mach_write_to_n_little_endian(dest, col_len - 8, len);
 
-	ut_memcpy(dest + col_len - 8, (byte*)&data, sizeof(byte*));
+	ut_memcpy(dest + col_len - 8, &data, sizeof(byte*));
 }
 
 /***********************************************************************
@@ -226,7 +228,7 @@ row_mysql_read_blob_ref(
 
 	*len = mach_read_from_n_little_endian(ref, col_len - 8);
 
-	ut_memcpy((byte*)&data, ref + col_len - 8, sizeof(byte*));
+	ut_memcpy(&data, ref + col_len - 8, sizeof(byte*));
 
 	return(data);
 }
@@ -681,7 +683,7 @@ row_prebuilt_free(
 		ut_print_name(stderr, NULL, prebuilt->table->name);
 		putc('\n', stderr);
 
-		mem_analyze_corruption((byte*)prebuilt);
+		mem_analyze_corruption(prebuilt);
 
 		ut_error;
 	}
@@ -761,7 +763,7 @@ row_update_prebuilt_trx(
 		"InnoDB: trx handle. Magic n %lu\n",
 		(ulong) trx->magic_n);
 
-		mem_analyze_corruption((byte*)trx);
+		mem_analyze_corruption(trx);
 
 		ut_error;
 	}
@@ -774,7 +776,7 @@ row_update_prebuilt_trx(
 		ut_print_name(stderr, NULL, prebuilt->table->name);
 		putc('\n', stderr);
 
-		mem_analyze_corruption((byte*)prebuilt);
+		mem_analyze_corruption(prebuilt);
 
 		ut_error;
 	}
@@ -1095,7 +1097,7 @@ row_insert_for_mysql(
 		ut_print_name(stderr, prebuilt->trx, prebuilt->table->name);
 		putc('\n', stderr);
 
-		mem_analyze_corruption((byte*)prebuilt);
+		mem_analyze_corruption(prebuilt);
 
 		ut_error;
 	}
@@ -1330,7 +1332,7 @@ row_update_for_mysql(
 		ut_print_name(stderr, prebuilt->trx, prebuilt->table->name);
 		putc('\n', stderr);
 
-		mem_analyze_corruption((byte*)prebuilt);
+		mem_analyze_corruption(prebuilt);
 
 		ut_error;
 	}
@@ -1435,7 +1437,8 @@ run_again:
 }
 
 /*************************************************************************
-This can only be used when srv_locks_unsafe_for_binlog is TRUE. Before
+This can only be used when srv_locks_unsafe_for_binlog is TRUE or
+this session is using a READ COMMITTED isolation level. Before
 calling this function we must use trx_reset_new_rec_lock_info() and
 trx_register_new_rec_lock() to store the information which new record locks
 really were set. This function removes a newly set lock under prebuilt->pcur,
@@ -1466,11 +1469,13 @@ row_unlock_for_mysql(
 	ut_ad(prebuilt && trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
-	if (!srv_locks_unsafe_for_binlog) {
+	if (!(srv_locks_unsafe_for_binlog
+	|| trx->isolation_level == TRX_ISO_READ_COMMITTED)) {
 
 		fprintf(stderr,
 "InnoDB: Error: calling row_unlock_for_mysql though\n"
-"InnoDB: srv_locks_unsafe_for_binlog is FALSE.\n");
+"InnoDB: srv_locks_unsafe_for_binlog is FALSE and\n"
+"InnoDB: this session is not using READ COMMITTED isolation level.\n");
 
 		return(DB_SUCCESS);
 	}
@@ -1670,7 +1675,9 @@ row_mysql_recover_tmp_table(
 
 	if (!ptr) {
 		/* table name does not begin with "/rsql" */
+		dict_mem_table_free(table);
 		trx_commit_for_mysql(trx);
+
 		return(DB_ERROR);
 	}
 	else {
@@ -1782,6 +1789,7 @@ row_create_table_for_mysql(
 	const char*	table_name;
 	ulint		table_name_len;
 	ulint		err;
+	ulint		i;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
@@ -1799,6 +1807,7 @@ row_create_table_for_mysql(
 		"InnoDB: with raw, and innodb_force_... is removed.\n",
 		stderr);
 
+		dict_mem_table_free(table);
 		trx_commit_for_mysql(trx);
 
 		return(DB_ERROR);
@@ -1813,9 +1822,23 @@ row_create_table_for_mysql(
     "InnoDB: MySQL system tables must be of the MyISAM type!\n",
 		table->name);
 
+		dict_mem_table_free(table);
 		trx_commit_for_mysql(trx);
 
 		return(DB_ERROR);
+	}
+
+	/* Check that no reserved column names are used. */
+	for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
+		dict_col_t*	col = dict_table_get_nth_col(table, i);
+
+		if (dict_col_name_is_reserved(col->name)) {
+
+			dict_mem_table_free(table);
+			trx_commit_for_mysql(trx);
+
+			return(DB_ERROR);
+		}
 	}
 
 	trx_start_if_not_started(trx);
@@ -2507,7 +2530,7 @@ do not allow the discard. We also reserve the data dictionary latch. */
 		(ulong) ut_dulint_get_high(new_id),
 		(ulong) ut_dulint_get_low(new_id));
 
-	graph = pars_sql(buf);
+	graph = pars_sql(NULL, buf);
 
 	ut_a(graph);
 
@@ -2939,7 +2962,7 @@ do not allow the TRUNCATE. We also reserve the data dictionary latch. */
 		(ulong) ut_dulint_get_high(new_id),
 		(ulong) ut_dulint_get_low(new_id));
 
-	graph = pars_sql(sql);
+	graph = pars_sql(NULL, sql);
 
 	ut_a(graph);
 
@@ -3163,7 +3186,7 @@ row_drop_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	graph = pars_sql(sql);
+	graph = pars_sql(NULL, sql);
 
 	ut_a(graph);
 	mem_free(sql);
@@ -3778,7 +3801,7 @@ row_rename_table_for_mysql(
 
 	ut_a(sqlend == sql + len + 1);
 
-	graph = pars_sql(sql);
+	graph = pars_sql(NULL, sql);
 
 	ut_a(graph);
 	mem_free(sql);

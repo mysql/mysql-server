@@ -120,7 +120,7 @@ buf_flush_ready_for_replace(
 		fprintf(stderr,
 "  InnoDB: Error: buffer block state %lu in the LRU list!\n",
 			(ulong)block->state);
-		ut_print_buf(stderr, (byte*)block, sizeof(buf_block_t));
+		ut_print_buf(stderr, block, sizeof(buf_block_t));
 
 		return(FALSE);
 	}
