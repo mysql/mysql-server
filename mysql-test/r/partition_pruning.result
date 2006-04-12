@@ -596,7 +596,7 @@ f_int1
 NULL
 explain partitions select * from t1 where f_int1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part4_p2sp0	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	part4_part4sp0	system	NULL	NULL	NULL	NULL	1	
 drop table t1;
 create table t1 (a int not null, b int not null)
 partition by list(a) 
@@ -625,16 +625,16 @@ insert into t1 values (1,1),(1,2),(1,3),(1,4),
 (2,1),(2,2),(2,3),(2,4), (NULL,1);
 explain partitions select * from t1 where a IS NULL AND (b=1 OR b=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pn_p3sp0,pn_p3sp1	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	pn_pnsp0,pn_pnsp1	system	NULL	NULL	NULL	NULL	1	
 explain partitions select * from t1 where (a IS NULL or a < 1) AND (b=1 OR b=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pn_p3sp0,pn_p3sp1	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	pn_pnsp0,pn_pnsp1	system	NULL	NULL	NULL	NULL	1	
 explain partitions select * from t1 where (a IS NULL or a < 2) AND (b=1 OR b=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,pn_p3sp0,pn_p3sp1	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,pn_pnsp0,pn_pnsp1	ALL	NULL	NULL	NULL	NULL	5	Using where
 explain partitions select * from t1 where (a IS NULL or a <= 1) AND (b=1 OR b=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,pn_p3sp0,pn_p3sp1	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,pn_pnsp0,pn_pnsp1	ALL	NULL	NULL	NULL	NULL	5	Using where
 drop table t1;
 create table t1 ( a int)  partition by list (MOD(a, 10))
 ( partition p0  values in (0), partition p1 values in (1),
