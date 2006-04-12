@@ -479,29 +479,9 @@ while ($j)
 # 5. start the replication
 
 --echo ***** Finsh the slave sync process *******
-# 1.
---echo * 1. *
-connection slave;
 --disable_query_log
---replace_column 1 <the_epoch>
-SELECT @the_epoch:=MAX(epoch) FROM cluster.apply_status;
---let $the_epoch= `select @the_epoch`
-
-# 2.
---echo * 2. *
-connection master;
---replace_column 1 <the_pos>
-eval SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
-   FROM cluster.binlog_index WHERE epoch > $the_epoch ORDER BY epoch ASC LIMIT 1;
---let $the_pos= `SELECT @the_pos`
---let $the_file= `SELECT @the_file`
-
-# 3.
---echo * 3. *
-connection slave;
-eval CHANGE MASTER TO
-  master_log_file = '$the_file',
-  master_log_pos = $the_pos;
+# 1. 2. 3.
+--source include/ndb_setup_slave.inc
 --enable_query_log
 
 # 4.
