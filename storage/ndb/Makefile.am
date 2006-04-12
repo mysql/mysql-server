@@ -1,6 +1,7 @@
 SUBDIRS = src tools . include @ndb_opt_subdirs@
 DIST_SUBDIRS = src tools include test docs
 EXTRA_DIST = config ndbapi-examples
+DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 

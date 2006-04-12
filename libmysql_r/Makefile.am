@@ -29,8 +29,6 @@ INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
 ## automake barfs if you don't use $(srcdir) or $(top_srcdir) in include
 include $(top_srcdir)/libmysql/Makefile.shared
 
-libmysql_dir = $(top_srcdir)/libmysql
-
 libmysqlclient_r_la_SOURCES = $(target_sources)
 libmysqlclient_r_la_LIBADD = $(target_libadd) $(yassl_las)
 libmysqlclient_r_la_LDFLAGS = $(target_ldflags)
@@ -38,7 +36,12 @@ libmysqlclient_r_la_LDFLAGS = $(target_ldflags)
 # This is called from the toplevel makefile
 link_sources:
 	set -x; \
-	for f in `cd $(libmysql_dir) && echo *.[ch]`; do \
+	for f in `cd $(top_srcdir)/libmysql && echo *.[ch]`; do \
 	  rm -f $$f; \
-	  @LN_CP_F@ $(libmysql_dir)/$$f $$f; \
+	  @LN_CP_F@ $(top_srcdir)/libmysql/$$f $$f; \
 	done
+	for f in `cd $(top_builddir)/libmysql && echo *.[ch]`; do \
+	  rm -f $$f; \
+	  @LN_CP_F@ $(top_builddir)/libmysql/$$f $$f; \
+	done
+
