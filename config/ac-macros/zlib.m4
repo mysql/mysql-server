@@ -63,7 +63,7 @@ case $SYSTEM_TYPE in
     ;;
   *)
     AC_ARG_WITH([zlib-dir],
-                AC_HELP_STRING([--with-zlib-dir=DIR],
+                AC_HELP_STRING([--with-zlib-dir=no|bundled|DIR],
                                [Provide MySQL with a custom location of
                                compression library. Given DIR, zlib binary is 
                                assumed to be in $DIR/lib and header files
@@ -113,6 +113,10 @@ case $SYSTEM_TYPE in
     fi
     ;;
 esac
+if test -n "$zlib_dir"
+then
+  AC_CONFIG_FILES(zlib/Makefile)
+fi
 ])
 
 dnl ------------------------------------------------------------------------
