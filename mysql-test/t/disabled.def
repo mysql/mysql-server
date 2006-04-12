@@ -31,7 +31,8 @@ rpl_ndb_blob            : interferes with following tests, causing hang
 rpl_ndb_blob2           : interferes with following tests, causing hang
 rpl_ndb_ddl             : master hangs
 #rpl_ndb_delete_nowhere  : Bug#17400: delete & update of rows in table without pk fails
-rpl_ndb_innodb2ndb      : Bug#18261: Cluster Replication: tests rpl_ndb_xxx2ndb fails
+rpl_ndb_innodb2ndb      : Bug#18094 - Slave caches invalid table definition...
+rpl_ndb_dd_partitions   : Bug#18094 - Slave caches invalid table definition...
 rpl_ndb_insert_ignore   : Bugs: #17431: INSERT IGNORE INTO returns failed: 1296
 rpl_ndb_myisam2ndb      : Bug#18261: Cluster Replication: tests rpl_ndb_xxx2ndb fails
 rpl_ndb_log             : result not deterministic, TBD if should remove
