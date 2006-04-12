@@ -57,6 +57,9 @@ uint Options::port_number= DEFAULT_PORT;
 char **Options::saved_argv= NULL;
 /* Remember if the config file was forced */
 bool Options::is_forced_default_file= 0;
+#ifndef DBUG_OFF
+const char *Options::default_dbug_option= "d:t:i:O,im.trace";
+#endif
 
 /*
   List of options, accepted by the instance manager.
@@ -87,6 +90,12 @@ static struct my_option my_long_options[] =
 {
   { "help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
+
+#ifndef DBUG_OFF
+  {"debug", '#', "Debug log.",
+   (gptr*) &Options::default_dbug_option, (gptr*) &Options::default_dbug_option,
+   0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
 
   { "log", OPT_LOG, "Path to log file. Used only with --run-as-service.",
     (gptr *) &Options::log_file_name, (gptr *) &Options::log_file_name,
@@ -226,7 +235,7 @@ C_MODE_START
 static my_bool
 get_one_option(int optid,
                const struct my_option *opt __attribute__((unused)),
-               char *argument __attribute__((unused)))
+               char *argument)
 {
   switch(optid) {
   case 'V':
@@ -238,6 +247,12 @@ get_one_option(int optid,
   case '?':
     usage();
     exit(0);
+  case '#':
+#ifndef DBUG_OFF
+    DBUG_SET(argument ? argument : Options::default_dbug_option);
+    DBUG_SET_INITIAL(argument ? argument : Options::default_dbug_option);
+#endif
+    break;
   }
   return 0;
 }

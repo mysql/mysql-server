@@ -51,6 +51,10 @@ struct Options
   /* argv pointer returned by load_defaults() to be used by free_defaults() */
   static char **saved_argv;
 
+#ifndef DBUG_OFF
+  static const char *default_dbug_option;
+#endif
+
   int load(int argc, char **argv);
   void cleanup();
 #ifdef __WIN__
