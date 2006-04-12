@@ -100,6 +100,15 @@ ulint
 dict_col_get_clust_pos(
 /*===================*/
 	dict_col_t*	col);
+/********************************************************************
+If the given column name is reserved for InnoDB system columns, return
+TRUE. */
+
+ibool
+dict_col_name_is_reserved(
+/*======================*/
+				/* out: TRUE if name is reserved */
+	const char*	name);	/* in: column name */
 /************************************************************************
 Initializes the autoinc counter. It is not an error to initialize an already
 initialized counter. */
@@ -321,6 +330,14 @@ dict_table_get_low(
 					/* out: table, NULL if not found */
 	const char*	table_name);	/* in: table name */
 /**************************************************************************
+A noninlined version of dict_table_get_low. */
+
+dict_table_t*
+dict_table_get_low_noninlined(
+/*==========================*/
+					/* out: table, NULL if not found */
+	const char*	table_name);	/* in: table name */
+/**************************************************************************
 Returns an index object. */
 UNIV_INLINE
 dict_index_t*
@@ -503,6 +520,15 @@ UNIV_INLINE
 ibool
 dict_table_is_comp(
 /*===============*/
+					/* out: TRUE if table uses the
+					compact page format */
+	const dict_table_t*	table);	/* in: table */
+/************************************************************************
+Check whether the table uses the compact page format. */
+
+ibool
+dict_table_is_comp_noninline(
+/*=========================*/
 					/* out: TRUE if table uses the
 					compact page format */
 	const dict_table_t*	table);	/* in: table */
@@ -745,33 +771,6 @@ dict_tree_free(
 /**************************************************************************
 In an index tree, finds the index corresponding to a record in the tree. */
 
-dict_index_t*
-dict_tree_find_index(
-/*=================*/
-				/* out: index */
-	dict_tree_t*	tree,	/* in: index tree */
-	rec_t*		rec);	/* in: record for which to find correct index */
-/**************************************************************************
-In an index tree, finds the index corresponding to a dtuple which is used
-in a search to a tree. */
-
-dict_index_t*
-dict_tree_find_index_for_tuple(
-/*===========================*/
-				/* out: index; NULL if the tuple does not
-				contain the mix id field in a mixed tree */
-	dict_tree_t*	tree,	/* in: index tree */
-	dtuple_t*	tuple);	/* in: tuple for which to find index */
-/***********************************************************************
-Checks if a table which is a mixed cluster member owns a record. */
-
-ibool
-dict_is_mixed_table_rec(
-/*====================*/
-				/* out: TRUE if the record belongs to this
-				table */
-	dict_table_t*	table,	/* in: table in a mixed cluster */
-	rec_t*		rec);	/* in: user record in the clustered index */
 /**************************************************************************
 Returns an index object if it is found in the dictionary cache.
 Assumes that dict_sys->mutex is already being held. */
@@ -789,6 +788,7 @@ dict_index_get_if_in_cache(
 /*=======================*/
 				/* out: index, NULL if not found */
 	dulint	index_id);	/* in: index id */
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer. */
@@ -799,6 +799,7 @@ dict_tree_check_search_tuple(
 				/* out: TRUE if ok */
 	dict_tree_t*	tree,	/* in: index tree */
 	dtuple_t*	tuple);	/* in: tuple used in a search */
+#endif /* UNIV_DEBUG */
 /**************************************************************************
 Builds a node pointer out of a physical record and a page number. */
 

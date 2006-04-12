@@ -19,6 +19,6 @@ include ../include/Makefile.i
 
 noinst_LIBRARIES =	libut.a
 
-libut_a_SOURCES =	ut0byte.c ut0dbg.c ut0mem.c ut0rnd.c ut0ut.c
+libut_a_SOURCES =	ut0byte.c ut0dbg.c ut0mem.c ut0rnd.c ut0ut.c ut0vec.c
 
 EXTRA_PROGRAMS =	

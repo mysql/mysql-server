@@ -445,7 +445,7 @@ mem_heap_validate_or_print(
 			&& (mem_block_get_len(block) > UNIV_PAGE_SIZE)) {
 
 			fprintf(stderr,
-"InnoDB: Error: mem block %p length %lu > UNIV_PAGE_SIZE\n", block,
+"InnoDB: Error: mem block %p length %lu > UNIV_PAGE_SIZE\n", (void*) block,
 				(ulong) mem_block_get_len(block));
 			/* error */
 
@@ -733,18 +733,18 @@ the neighborhood of a given pointer. */
 void
 mem_analyze_corruption(
 /*===================*/
-	byte*	ptr)	/* in: pointer to place of possible corruption */
+	void*	ptr)	/* in: pointer to place of possible corruption */
 {
 	byte*	p;
 	ulint	i;
 	ulint	dist;
 
 	fputs("InnoDB: Apparent memory corruption: mem dump ", stderr);
-	ut_print_buf(stderr, ptr - 250, 500);
+	ut_print_buf(stderr, (byte*)ptr - 250, 500);
 
 	fputs("\nInnoDB: Scanning backward trying to find previous allocated mem blocks\n", stderr);
 
-	p = ptr;
+	p = (byte*)ptr;
 	dist = 0;
 
 	for (i = 0; i < 10; i++) {
@@ -781,7 +781,7 @@ mem_analyze_corruption(
 	fprintf(stderr,
   "InnoDB: Scanning forward trying to find next allocated mem blocks\n");
 
-	p = ptr;
+	p = (byte*)ptr;
 	dist = 0;
 
 	for (i = 0; i < 10; i++) {

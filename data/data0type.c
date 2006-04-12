@@ -216,20 +216,43 @@ dtype_print(
 
 	mtype = type->mtype;
 	prtype = type->prtype;
-	if (mtype == DATA_VARCHAR) {
+
+	switch (mtype) {
+	case DATA_VARCHAR:
 		fputs("DATA_VARCHAR", stderr);
-	} else if (mtype == DATA_CHAR) {
+		break;
+
+	case DATA_CHAR:
 		fputs("DATA_CHAR", stderr);
-	} else if (mtype == DATA_BINARY) {
+		break;
+
+	case DATA_BINARY:
 		fputs("DATA_BINARY", stderr);
-	} else if (mtype == DATA_INT) {
+		break;
+
+	case DATA_FIXBINARY:
+		fputs("DATA_FIXBINARY", stderr);
+		break;
+
+	case DATA_BLOB:
+		fputs("DATA_BLOB", stderr);
+		break;
+
+	case DATA_INT:
 		fputs("DATA_INT", stderr);
-	} else if (mtype == DATA_MYSQL) {
+		break;
+
+	case DATA_MYSQL:
 		fputs("DATA_MYSQL", stderr);
-	} else if (mtype == DATA_SYS) {
+		break;
+
+	case DATA_SYS:
 		fputs("DATA_SYS", stderr);
-	} else {
+		break;
+
+	default:
 		fprintf(stderr, "type %lu", (ulong) mtype);
+		break;
 	}
 
 	len = type->len;
@@ -253,6 +276,18 @@ dtype_print(
 			fputs("DATA_ENGLISH", stderr);
 		} else {
 			fprintf(stderr, "prtype %lu", (ulong) prtype);
+		}
+	} else {
+		if (prtype & DATA_UNSIGNED) {
+			fputs(" DATA_UNSIGNED", stderr);
+		}
+
+		if (prtype & DATA_BINARY_TYPE) {
+			fputs(" DATA_BINARY_TYPE", stderr);
+		}
+
+		if (prtype & DATA_NOT_NULL) {
+			fputs(" DATA_NOT_NULL", stderr);
 		}
 	}
 

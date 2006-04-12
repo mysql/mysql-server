@@ -114,7 +114,7 @@ the neighborhood of a given pointer. */
 void
 mem_analyze_corruption(
 /*===================*/
-	byte*	ptr);	/* in: pointer to place of possible corruption */
+	void*	ptr);	/* in: pointer to place of possible corruption */
 /*********************************************************************
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers. Can only be used in the debug version. */
