@@ -36,9 +36,9 @@ DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@thread_dirs@ pstack \
                         strings mysys dbug extra regex storage \
                         vio sql libmysql_r libmysql client scripts \
-			@man_dirs@ tests SSL\
+			@man_dirs@ tests \
 			BUILD netware @libmysqld_dirs@\
-			@bench_dirs@ support-files server-tools tools \
+			@bench_dirs@ support-files server-tools \
 			plugin win
 
 # Run these targets before any others, also make part of clean target,
