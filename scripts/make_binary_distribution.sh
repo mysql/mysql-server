@@ -154,14 +154,11 @@ if [ $BASE_SYSTEM = "netware" ] ; then
 # For all other platforms:
 else
   BIN_FILES="$BIN_FILES \
-    client/mysqltestmanagerc \
-    client/mysqltestmanager-pwgen tools/mysqltestmanager \
     client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
     client/.libs/mysqlslap \
     client/.libs/mysqldump client/.libs/mysqlimport \
     client/.libs/mysqltest client/.libs/mysqlcheck \
-    client/.libs/mysqlbinlog client/.libs/mysqltestmanagerc \
-    client/.libs/mysqltestmanager-pwgen tools/.libs/mysqltestmanager \
+    client/.libs/mysqlbinlog \
     tests/.libs/mysql_client_test \
     libmysqld/examples/.libs/mysql_client_test_embedded \
     libmysqld/examples/.libs/mysqltest_embedded \
