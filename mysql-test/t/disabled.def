@@ -19,8 +19,8 @@ ndb_autodiscover2       : Needs to be fixed w.r.t binlog
 #ndb_load                : Bug#17233 failed load data from infile causes mysqld dbug_assert, binlog not flushed
 partition_03ndb         : Bug#16385 Partitions: crash when updating a range partitioned NDB table
 ps_7ndb                 : dbug assert in RBR mode when executing test suite
-rpl_ndb_2innodb         : Bug #19004 ndb: partition by range and update hangs (note, test must also be updated to have primary key with blob table)
-rpl_ndb_2myisam         : Bug #19004 ndb: partition by range and update hangs (note, test must also be updated to have primary key with blob table)
+rpl_ndb_2innodb         : Bug #19004 ndb: partition by range and update hangs
+rpl_ndb_2myisam         : Bug #19004 ndb: partition by range and update hangs
 rpl_ndb_auto_inc        : Bug#17086 CR: auto_increment_increment and auto_increment_offset produce duplicate key er
 #rpl_ndb_basic           : Bug #18592 rpl_ndb_basic failure
 #rpl_ndb_dd_advance      : Bug #18924 rpl_ndb_dd_advance failure
