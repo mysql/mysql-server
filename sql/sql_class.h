@@ -845,7 +845,7 @@ class Statement_map
 public:
   Statement_map();
 
-  int insert(Statement *statement);
+  int insert(THD *thd, Statement *statement);
 
   Statement *find_by_name(LEX_STRING *name)
   {
@@ -883,20 +883,10 @@ public:
     survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
   */
   void close_transient_cursors();
+  void erase(Statement *statement);
   /* Erase all statements (calls Statement destructor) */
-  void reset()
-  {
-    my_hash_reset(&names_hash);
-    my_hash_reset(&st_hash);
-    transient_cursor_list.empty();
-    last_found_statement= 0;
-  }
-
-  void destroy()
-  {
-    hash_free(&names_hash);
-    hash_free(&st_hash);
-  }
+  void reset();
+  ~Statement_map();
 private:
   HASH st_hash;
   HASH names_hash;
@@ -1373,6 +1363,7 @@ public:
   {
     my_bool my_bool_value;
     long    long_value;
+    ulong   ulong_value;
   } sys_var_tmp;
   
   struct {

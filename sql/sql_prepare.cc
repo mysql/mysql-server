@@ -1848,8 +1848,11 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
 
   if (thd->stmt_map.insert(stmt))
   {
-    delete stmt;
-    DBUG_VOID_RETURN;                           /* out of memory */
+    /*
+      The error is set in the insert. The statement itself
+      will be also deleted there (this is how the hash works).
+    */
+    DBUG_VOID_RETURN;
   }
 
   /* Reset warnings from previous command */
@@ -2026,9 +2029,14 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;                           /* out of memory */
   }
 
-  if (stmt->set_name(name) || thd->stmt_map.insert(stmt))
+  if (thd->stmt_map.insert(stmt))
   {
-    delete stmt;
+    /* The statement is deleted and an error is set if insert fails */
+    DBUG_VOID_RETURN;
+  }
+  if (stmt->set_name(name))
+  {
+    thd->stmt_map.erase(stmt);
     DBUG_VOID_RETURN;
   }
 

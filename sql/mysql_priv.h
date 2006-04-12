@@ -1166,6 +1166,7 @@ extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack;
+extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong rpl_recovery_rank, thread_cache_size;
@@ -1215,6 +1216,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
+       LOCK_prepared_stmt_count,
        LOCK_bytes_sent, LOCK_bytes_received;
 #ifdef HAVE_OPENSSL
 extern pthread_mutex_t LOCK_des_key_file;
