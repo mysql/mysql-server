@@ -2996,83 +2996,13 @@ row_drop_table_for_mysql(
 	dict_foreign_t*	foreign;
 	dict_table_t*	table;
 	ulint		space_id;
-	que_thr_t*	thr;
-	que_t*		graph;
 	ulint		err;
 	const char*	table_name;
 	ulint		namelen;
 	char*		dir_path_of_temp_table	= NULL;
 	ibool		success;
 	ibool		locked_dictionary	= FALSE;
-	char*		quoted_name;
-	char*		sql;
-
-	/* We use the private SQL parser of Innobase to generate the
-	query graphs needed in deleting the dictionary data from system
-	tables in Innobase. Deleting a row from SYS_INDEXES table also
-	frees the file segments of the B-tree associated with the index. */
-
-	static const char str1[] =
-	"PROCEDURE DROP_TABLE_PROC () IS\n"
-	"table_name CHAR;\n"
-	"sys_foreign_id CHAR;\n"
-	"table_id CHAR;\n"
-	"index_id CHAR;\n"
-	"foreign_id CHAR;\n"
-	"found INT;\n"
-	"BEGIN\n"
-	"table_name := ";
-	static const char str2[] =
-	";\n"
-	"SELECT ID INTO table_id\n"
-	"FROM SYS_TABLES\n"
-	"WHERE NAME = table_name;\n"
-	"IF (SQL % NOTFOUND) THEN\n"
-	"       COMMIT WORK;\n"
-	"       RETURN;\n"
-	"END IF;\n"
-	"found := 1;\n"
-	"SELECT ID INTO sys_foreign_id\n"
-	"FROM SYS_TABLES\n"
-	"WHERE NAME = 'SYS_FOREIGN';\n"
-	"IF (SQL % NOTFOUND) THEN\n"
-	"       found := 0;\n"
-	"END IF;\n"
-	"IF (table_name = 'SYS_FOREIGN') THEN\n"
-	"       found := 0;\n"
-	"END IF;\n"
-	"IF (table_name = 'SYS_FOREIGN_COLS') THEN\n"
-	"       found := 0;\n"
-	"END IF;\n"
-	"WHILE found = 1 LOOP\n"
-	"       SELECT ID INTO foreign_id\n"
-	"       FROM SYS_FOREIGN\n"
-	"       WHERE FOR_NAME = table_name\n"
-	"               AND TO_BINARY(FOR_NAME) = TO_BINARY(table_name);\n"
-	"       IF (SQL % NOTFOUND) THEN\n"
-	"               found := 0;\n"
-	"       ELSE"
-	"               DELETE FROM SYS_FOREIGN_COLS WHERE ID = foreign_id;\n"
-	"               DELETE FROM SYS_FOREIGN WHERE ID = foreign_id;\n"
-	"       END IF;\n"
-	"END LOOP;\n"
-	"found := 1;\n"
-	"WHILE found = 1 LOOP\n"
-	"       SELECT ID INTO index_id\n"
-	"       FROM SYS_INDEXES\n"
-	"       WHERE TABLE_ID = table_id;\n"
-	"       IF (SQL % NOTFOUND) THEN\n"
-	"               found := 0;\n"
-	"       ELSE"
-	"               DELETE FROM SYS_FIELDS WHERE INDEX_ID = index_id;\n"
-	"               DELETE FROM SYS_INDEXES WHERE ID = index_id\n"
-	"                                        AND TABLE_ID = table_id;\n"
-	"       END IF;\n"
-	"END LOOP;\n"
-	"DELETE FROM SYS_COLUMNS WHERE TABLE_ID = table_id;\n"
-	"DELETE FROM SYS_TABLES WHERE ID = table_id;\n"
-	"COMMIT WORK;\n"
-	"END;\n";
+	pars_info_t*    info			= NULL;
 
 	ut_a(name != NULL);
 
@@ -3127,14 +3057,6 @@ row_drop_table_for_mysql(
 		srv_print_innodb_table_monitor = FALSE;
 	}
 
-	quoted_name = mem_strdupq(name, '\'');
-	namelen = strlen(quoted_name);
-	sql = mem_alloc((sizeof str1) + (sizeof str2) - 2 + 1 + namelen);
-	memcpy(sql, str1, (sizeof str1) - 1);
-	memcpy(sql + (sizeof str1) - 1, quoted_name, namelen);
-	memcpy(sql + (sizeof str1) - 1 + namelen, str2, sizeof str2);
-	mem_free(quoted_name);
-
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
@@ -3151,16 +3073,6 @@ row_drop_table_for_mysql(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-
-	graph = pars_sql(NULL, sql);
-
-	ut_a(graph);
-	mem_free(sql);
-
-	graph->trx = trx;
-	trx->graph = NULL;
-
-	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
 	table = dict_table_get_low(name);
 
@@ -3285,18 +3197,80 @@ fputs("  InnoDB: You are trying to drop table ", stderr);
 	trx->dict_operation = TRUE;
 	trx->table_id = table->id;
 
-	ut_a(thr = que_fork_start_command(graph));
+	/* We use the private SQL parser of Innobase to generate the
+	query graphs needed in deleting the dictionary data from system
+	tables in Innobase. Deleting a row from SYS_INDEXES table also
+	frees the file segments of the B-tree associated with the index. */
 
-	que_run_threads(thr);
+	info = pars_info_create();
 
-	err = trx->error_state;
+	pars_info_add_str_literal(info, "table_name", name);
+
+	err = que_eval_sql(info,
+	"PROCEDURE DROP_TABLE_PROC () IS\n"
+	"sys_foreign_id CHAR;\n"
+	"table_id CHAR;\n"
+	"index_id CHAR;\n"
+	"foreign_id CHAR;\n"
+	"found INT;\n"
+	"BEGIN\n"
+	"SELECT ID INTO table_id\n"
+	"FROM SYS_TABLES\n"
+	"WHERE NAME = :table_name;\n"
+	"IF (SQL % NOTFOUND) THEN\n"
+	"       COMMIT WORK;\n"
+	"       RETURN;\n"
+	"END IF;\n"
+	"found := 1;\n"
+	"SELECT ID INTO sys_foreign_id\n"
+	"FROM SYS_TABLES\n"
+	"WHERE NAME = 'SYS_FOREIGN';\n"
+	"IF (SQL % NOTFOUND) THEN\n"
+	"       found := 0;\n"
+	"END IF;\n"
+	"IF (:table_name = 'SYS_FOREIGN') THEN\n"
+	"       found := 0;\n"
+	"END IF;\n"
+	"IF (:table_name = 'SYS_FOREIGN_COLS') THEN\n"
+	"       found := 0;\n"
+	"END IF;\n"
+	"WHILE found = 1 LOOP\n"
+	"       SELECT ID INTO foreign_id\n"
+	"       FROM SYS_FOREIGN\n"
+	"       WHERE FOR_NAME = :table_name\n"
+	"               AND TO_BINARY(FOR_NAME) = TO_BINARY(:table_name);\n"
+	"       IF (SQL % NOTFOUND) THEN\n"
+	"               found := 0;\n"
+	"       ELSE"
+	"               DELETE FROM SYS_FOREIGN_COLS WHERE ID = foreign_id;\n"
+	"               DELETE FROM SYS_FOREIGN WHERE ID = foreign_id;\n"
+	"       END IF;\n"
+	"END LOOP;\n"
+	"found := 1;\n"
+	"WHILE found = 1 LOOP\n"
+	"       SELECT ID INTO index_id\n"
+	"       FROM SYS_INDEXES\n"
+	"       WHERE TABLE_ID = table_id;\n"
+	"       IF (SQL % NOTFOUND) THEN\n"
+	"               found := 0;\n"
+	"       ELSE"
+	"               DELETE FROM SYS_FIELDS WHERE INDEX_ID = index_id;\n"
+	"               DELETE FROM SYS_INDEXES WHERE ID = index_id\n"
+	"                                        AND TABLE_ID = table_id;\n"
+	"       END IF;\n"
+	"END LOOP;\n"
+	"DELETE FROM SYS_COLUMNS WHERE TABLE_ID = table_id;\n"
+	"DELETE FROM SYS_TABLES WHERE ID = table_id;\n"
+	"COMMIT WORK;\n"
+	"END;\n"
+		, trx);
 
 	if (err != DB_SUCCESS) {
 		ut_a(err == DB_OUT_OF_FILE_SPACE);
 
 		err = DB_MUST_GET_MORE_FILE_SPACE;
 
-		row_mysql_handle_errors(&err, trx, thr, NULL);
+		row_mysql_handle_errors(&err, trx, NULL, NULL);
 
 		ut_error;
 	} else {
@@ -3373,8 +3347,6 @@ funct_exit:
 	if (dir_path_of_temp_table) {
 		mem_free(dir_path_of_temp_table);
 	}
-
-	que_graph_free(graph);
 
 	trx_commit_for_mysql(trx);
 
