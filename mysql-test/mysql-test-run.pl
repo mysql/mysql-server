@@ -2566,7 +2566,7 @@ sub mysqld_arguments ($$$$$$) {
     mtr_add_arg($args, "%s--server-id=%d", $prefix, $id);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
                 $master->[$idx]->{'path_mysock'});
-    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:128M:autoextend", $prefix);
+    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:10M:autoextend", $prefix);
     mtr_add_arg($args, "%s--local-infile", $prefix);
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
