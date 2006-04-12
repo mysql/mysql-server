@@ -3241,3 +3241,5 @@ where t2.a between t1.a - interval 2 day and t1.a + interval 2 day;
 a	a
 2005-10-01	2005-10-01
 drop table t1, t2;
+create table t1 (g geometry not null, spatial gk(g)) engine=innodb;
+ERROR HY000: The used table type doesn't support SPATIAL indexes
