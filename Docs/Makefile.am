@@ -14,7 +14,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-noinst_SCRIPTS =	Support/generate-text-files.pl
+noinst_SCRIPTS =	generate-text-files.pl
 
 EXTRA_DIST =		$(noinst_SCRIPTS) mysql.info INSTALL-BINARY
 
@@ -42,7 +42,7 @@ DISTCLEANFILES = $(TXT_FILES)
 CLEAN_FILES:		$(TXT_FILES)
 	touch $(TXT_FILES)
 
-GT = $(srcdir)/Support/generate-text-files.pl
+GT = $(srcdir)/generate-text-files.pl
 
 ../INSTALL-SOURCE:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "installing-source" "windows-source-build" > $@
