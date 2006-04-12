@@ -294,7 +294,7 @@ mem_pool_fill_free_list(
 	}
 
 	if (UT_LIST_GET_LEN(pool->free_list[i + 1]) == 0) {
-		mem_analyze_corruption((byte*)area);
+		mem_analyze_corruption(area);
 
 		ut_error;
 	}
@@ -363,7 +363,7 @@ mem_area_alloc(
 "InnoDB: element is not marked free!\n",
 			(ulong) n);
 
-		mem_analyze_corruption((byte*)area);
+		mem_analyze_corruption(area);
 
 		/* Try to analyze a strange assertion failure reported at
 		mysql@lists.mysql.com where the free bit IS 1 in the
@@ -382,7 +382,7 @@ mem_area_alloc(
 "InnoDB: Error: Removing element from mem pool free list %lu\n"
 "InnoDB: though the list length is 0!\n",
 			(ulong) n);
-		mem_analyze_corruption((byte*)area);
+		mem_analyze_corruption(area);
 
 		ut_error;
 	}
@@ -475,7 +475,7 @@ mem_area_free(
 "InnoDB: Error: Freeing element to mem pool free list though the\n"
 "InnoDB: element is marked free!\n");
 
-		mem_analyze_corruption((byte*)area);
+		mem_analyze_corruption(area);
 		ut_error;
 	}
 
@@ -486,7 +486,7 @@ mem_area_free(
 "InnoDB: Error: Mem area size is 0. Possibly a memory overrun of the\n"
 "InnoDB: previous allocated area!\n");
 
-		mem_analyze_corruption((byte*)area);
+		mem_analyze_corruption(area);
 		ut_error;
 	}
 
@@ -502,7 +502,7 @@ mem_area_free(
 "InnoDB: Error: Memory area size %lu, next area size %lu not a power of 2!\n"
 "InnoDB: Possibly a memory overrun of the buffer being freed here.\n",
 			  (ulong) size, (ulong) next_size);
-			mem_analyze_corruption((byte*)area);
+			mem_analyze_corruption(area);
 
 			ut_error;
 		}

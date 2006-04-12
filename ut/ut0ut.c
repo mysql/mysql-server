@@ -307,7 +307,7 @@ void
 ut_print_buf(
 /*=========*/
 	FILE*		file,	/* in: file where to print */
-	const byte*	buf,	/* in: memory buffer */
+	const void*	buf,	/* in: memory buffer */
 	ulint		len)	/* in: length of the buffer */
 {
 	const byte*	data;
@@ -315,13 +315,13 @@ ut_print_buf(
 
 	fprintf(file, " len %lu; hex ", len);
 
-	for (data = buf, i = 0; i < len; i++) {
+	for (data = (const byte*)buf, i = 0; i < len; i++) {
 		fprintf(file, "%02lx", (ulong)*data++);
 	}
 
 	fputs("; asc ", file);
 
-	data = buf;
+	data = (const byte*)buf;
 
 	for (i = 0; i < len; i++) {
 		int	c = (int) *data++;

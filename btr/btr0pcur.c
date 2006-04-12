@@ -158,7 +158,7 @@ btr_pcur_copy_stored_position(
 		mem_free(pcur_receive->old_rec_buf);
 	}
 
-	ut_memcpy((byte*)pcur_receive, (byte*)pcur_donate, sizeof(btr_pcur_t));
+	ut_memcpy(pcur_receive, pcur_donate, sizeof(btr_pcur_t));
 
 	if (pcur_donate->old_rec_buf) {
 
@@ -208,7 +208,7 @@ btr_pcur_restore_position(
 	if (UNIV_UNLIKELY(cursor->old_stored != BTR_PCUR_OLD_STORED)
 		|| UNIV_UNLIKELY(cursor->pos_state != BTR_PCUR_WAS_POSITIONED
 			&& cursor->pos_state != BTR_PCUR_IS_POSITIONED)) {
-		ut_print_buf(stderr, (const byte*)cursor, sizeof(btr_pcur_t));
+		ut_print_buf(stderr, cursor, sizeof(btr_pcur_t));
 		if (cursor->trx_if_known) {
 			trx_print(stderr, cursor->trx_if_known, 0);
 		}
@@ -259,10 +259,7 @@ btr_pcur_restore_position(
 				cursor->latch_mode = latch_mode;
 #ifdef UNIV_DEBUG
 				rec = btr_pcur_get_rec(cursor);
-				index = dict_tree_find_index(
-					btr_cur_get_tree(
-						btr_pcur_get_btr_cur(cursor)),
-					rec);
+				index = btr_pcur_get_btr_cur(cursor)->index;
 
 				heap = mem_heap_create(256);
 				offsets1 = rec_get_offsets(cursor->old_rec,

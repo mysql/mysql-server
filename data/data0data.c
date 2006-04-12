@@ -431,6 +431,22 @@ dfield_print_also_hex(
 	}
 }
 
+/*****************************************************************
+Print a dfield value using ut_print_buf. */
+
+void
+dfield_print_raw(
+/*=============*/
+	FILE*		f,		/* in: output stream */
+	dfield_t*	dfield)		/* in: dfield */
+{
+	if (dfield->len != UNIV_SQL_NULL) {
+		ut_print_buf(f, dfield->data, dfield->len);
+	} else {
+		fputs(" SQL NULL", f);
+	}
+}
+
 /**************************************************************
 The following function prints the contents of a tuple. */
 
@@ -440,7 +456,6 @@ dtuple_print(
 	FILE*		f,	/* in: output stream */
 	dtuple_t*	tuple)	/* in: tuple */
 {
-	dfield_t*	field;
 	ulint		n_fields;
 	ulint		i;
 
@@ -451,13 +466,7 @@ dtuple_print(
 	for (i = 0; i < n_fields; i++) {
 		fprintf(f, " %lu:", (ulong) i);
 
-		field = dtuple_get_nth_field(tuple, i);
-
-		if (field->len != UNIV_SQL_NULL) {
-			ut_print_buf(f, field->data, field->len);
-		} else {
-			fputs(" SQL NULL", f);
-		}
+		dfield_print_raw(f, dtuple_get_nth_field(tuple, i));
 
 		putc(';', f);
 	}

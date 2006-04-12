@@ -849,34 +849,10 @@ dict_load_table(
 
 	field = rec_get_nth_field_old(rec, 5, &len);
 	table->type = mach_read_from_4(field);
-
-	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-		ut_error;
-#if 0 /* clustered tables have not been implemented yet */
-		field = rec_get_nth_field_old(rec, 6, &len);
-		table->mix_id = mach_read_from_8(field);
-
-		field = rec_get_nth_field_old(rec, 8, &len);
-		table->cluster_name = mem_heap_strdupl(heap, (char*) field, len);
-#endif
-	}
-
-	if ((table->type == DICT_TABLE_CLUSTER)
-		|| (table->type == DICT_TABLE_CLUSTER_MEMBER)) {
-
-		field = rec_get_nth_field_old(rec, 7, &len);
-		ut_a(len == 4);
-		table->mix_len = mach_read_from_4(field);
-	}
+	ut_a(table->type == DICT_TABLE_ORDINARY);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
-
-	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-		/* Load the cluster table definition if not yet in
-		memory cache */
-		dict_table_get_low(table->cluster_name);
-	}
 
 	dict_load_columns(table, heap);
 

@@ -15,6 +15,7 @@ Created 12/15/1997 Heikki Tuuri
 #include "mem0mem.h"
 #include "data0type.h"
 #include "data0data.h"
+#include "pars0grm.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "eval0eval.h"
@@ -166,6 +167,74 @@ sym_tab_add_str_lit(
 }
 
 /**********************************************************************
+Add a bound literal to a symbol table. */
+
+sym_node_t*
+sym_tab_add_bound_lit(
+/*==================*/
+					/* out: symbol table node */
+	sym_tab_t*	sym_tab,	/* in: symbol table */
+	const char*	name,		/* in: name of bound literal */
+	ulint*		lit_type)	/* out: type of literal (PARS_*_LIT) */
+{
+	sym_node_t*		node;
+	pars_bound_lit_t*	blit;
+	ulint			len = 0;
+
+	blit = pars_info_get_bound_lit(sym_tab->info, name);
+	ut_a(blit);
+
+	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
+
+	node->common.type = QUE_NODE_SYMBOL;
+
+	node->resolved = TRUE;
+	node->token_type = SYM_LIT;
+
+	node->indirection = NULL;
+
+	switch (blit->type) {
+	case DATA_FIXBINARY:
+		len = blit->length;
+		*lit_type = PARS_FIXBINARY_LIT;
+		break;
+
+	case DATA_BLOB:
+		*lit_type = PARS_BLOB_LIT;
+		break;
+
+	case DATA_VARCHAR:
+		*lit_type = PARS_STR_LIT;
+		break;
+
+	case DATA_INT:
+		ut_a(blit->length > 0);
+		ut_a(blit->length <= 8);
+
+		len = blit->length;
+		*lit_type = PARS_INT_LIT;
+		break;
+
+	default:
+		ut_error;
+	}
+
+	dtype_set(&(node->common.val.type), blit->type, blit->prtype, len, 0);
+
+	dfield_set_data(&(node->common.val), blit->address, blit->length);
+
+	node->common.val_buf_size = 0;
+	node->prefetch_buf = NULL;
+	node->cursor_def = NULL;
+
+	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
+
+	node->sym_table = sym_tab;
+
+	return(node);
+}
+
+/**********************************************************************
 Adds an SQL null literal to a symbol table. */
 
 sym_node_t*
@@ -220,7 +289,7 @@ sym_tab_add_id(
 	node->resolved = FALSE;
 	node->indirection = NULL;
 
-	node->name = mem_heap_strdupl(sym_tab->heap, (char*) name, len + 1);
+	node->name = mem_heap_strdupl(sym_tab->heap, (char*) name, len);
 	node->name_len = len;
 
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
