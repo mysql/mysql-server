@@ -867,16 +867,6 @@ public:
     }
     return last_found_statement;
   }
-  void erase(Statement *statement)
-  {
-    if (statement == last_found_statement)
-      last_found_statement= 0;
-    if (statement->name.str)
-    {
-      hash_delete(&names_hash, (byte *) statement);  
-    }
-    hash_delete(&st_hash, (byte *) statement);
-  }
   /*
     Close all cursors of this connection that use tables of a storage
     engine that has transaction-specific state and therefore can not
