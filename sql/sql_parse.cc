@@ -2991,6 +2991,11 @@ end_with_restore_list:
 #else
     {
       ulong priv=0;
+      ulong priv_needed= ALTER_ACL;
+      /* We also require DROP priv for ALTER TABLE ... DROP PARTITION */
+      if (lex->alter_info.flags & ALTER_DROP_PARTITION)
+        priv_needed|= DROP_ACL;
+
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
 	my_error(ER_WRONG_TABLE_NAME, MYF(0), lex->name);
@@ -3015,7 +3020,7 @@ end_with_restore_list:
         else
           select_lex->db= first_table->db;
       }
-      if (check_access(thd, ALTER_ACL, first_table->db,
+      if (check_access(thd, priv_needed, first_table->db,
 		       &first_table->grant.privilege, 0, 0,
                        test(first_table->schema_table)) ||
 	  check_access(thd,INSERT_ACL | CREATE_ACL,select_lex->db,&priv,0,0,
@@ -3026,7 +3031,7 @@ end_with_restore_list:
 	goto error;				/* purecov: inspected */
       if (grant_option)
       {
-	if (check_grant(thd, ALTER_ACL, all_tables, 0, UINT_MAX, 0))
+	if (check_grant(thd, priv_needed, all_tables, 0, UINT_MAX, 0))
 	  goto error;
 	if (lex->name && !test_all_bits(priv,INSERT_ACL | CREATE_ACL))
 	{					// Rename of table

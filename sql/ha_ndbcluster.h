@@ -595,6 +595,7 @@ class ha_ndbcluster: public handler
   const char * table_type() const;
   const char ** bas_ext() const;
   ulong table_flags(void) const;
+  void prepare_for_alter();
   int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
   int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
   int final_drop_index(TABLE *table_arg);
@@ -609,7 +610,7 @@ class ha_ndbcluster: public handler
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
-  int create_handler_files(const char *file);
+  int create_handler_files(const char *file, HA_CREATE_INFO *info);
   int get_default_no_partitions(ulonglong max_rows);
   bool get_no_parts(const char *name, uint *no_parts);
   void set_auto_partitions(partition_info *part_info);
