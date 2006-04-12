@@ -71,14 +71,8 @@ Item *create_func_ceiling(Item* a)
 
 Item *create_func_connection_id(void)
 {
-  THD *thd=current_thd;
-  thd->lex->safe_to_cache_query= 0;
-  return new Item_static_int_func("connection_id()",
-                                  (longlong)
-                                  ((thd->slave_thread) ?
-                                   thd->variables.pseudo_thread_id :
-                                   thd->thread_id),
-                                  10);
+  current_thd->lex->safe_to_cache_query= 0;
+  return new Item_func_connection_id();
 }
 
 Item *create_func_conv(Item* a, Item *b, Item *c)
