@@ -21,6 +21,10 @@
 #ifndef TAP_H
 #define TAP_H
 
+#ifndef __GNUC__
+#define __attribute__(F)
+#endif
+
 /*
   @defgroup MyTAP MySQL support for performing unit tests according to TAP.
 
@@ -86,7 +90,7 @@ void plan(int count);
                which case nothing is printed.
 */
 void ok(int pass, char const *fmt, ...)
-  __attribute__ ((format(printf,2,3)));
+  __attribute__((format(printf,2,3)));
 
 /**
    Skip a determined number of tests.
@@ -113,7 +117,7 @@ void ok(int pass, char const *fmt, ...)
    @param reason     A reason for skipping the tests
  */
 void skip(int how_many, char const *reason, ...)
-    __attribute__ ((format(printf,2,3)));
+    __attribute__((format(printf,2,3)));
 
 
 /**
@@ -142,7 +146,7 @@ void skip(int how_many, char const *reason, ...)
    @param fmt  Diagnostics message in printf() format.
  */
 void diag(char const *fmt, ...)
-  __attribute__ ((format(printf,1,2)));
+  __attribute__((format(printf,1,2)));
 
 /**
    Print summary report and return exit status.
@@ -170,7 +174,7 @@ int exit_status(void);
    around it.
  */
 void skip_all(char const *reason, ...)
-  __attribute__ ((noreturn, format(printf, 1, 2)));
+  __attribute__((noreturn, format(printf, 1, 2)));
 
 /**
    Start section of tests that are not yet ready.
@@ -193,7 +197,7 @@ void skip_all(char const *reason, ...)
    @param message Message that will be printed before the todo tests.
 */
 void todo_start(char const *message, ...)
-  __attribute__ ((format (printf, 1, 2)));
+  __attribute__((format (printf, 1, 2)));
 
 /**
    End a section of tests that are not yet ready.

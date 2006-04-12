@@ -412,42 +412,44 @@ WARN_LOGFILE           =
 # configuration options related to the input files
 #---------------------------------------------------------------------------
 
-# The INPUT tag can be used to specify the files and/or directories that contain 
-# documented source files. You may enter file names like "myfile.cpp" or 
-# directories like "/usr/src/myproject". Separate the files or directories 
-# with spaces.
+# The INPUT tag can be used to specify the files and/or directories
+# that contain documented source files. You may enter file names like
+# "myfile.cpp" or directories like "/usr/src/myproject". Separate the
+# files or directories with spaces.
 
 INPUT                  = 
 
-# If the value of the INPUT tag contains directories, you can use the 
-# FILE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp 
-# and *.h) to filter out the source-files in the directories. If left 
-# blank the following patterns are tested: 
-# *.c *.cc *.cxx *.cpp *.c++ *.java *.ii *.ixx *.ipp *.i++ *.inl *.h *.hh *.hxx *.hpp 
-# *.h++ *.idl *.odl *.cs *.php *.php3 *.inc *.m *.mm
+# If the value of the INPUT tag contains directories, you can use the
+# FILE_PATTERNS tag to specify one or more wildcard pattern (like
+# *.cpp and *.h) to filter out the source-files in the directories. If
+# left blank the following patterns are tested: *.c *.cc *.cxx *.cpp
+# *.c++ *.java *.ii *.ixx *.ipp *.i++ *.inl *.h *.hh *.hxx *.hpp *.h++
+# *.idl *.odl *.cs *.php *.php3 *.inc *.m *.mm
 
 FILE_PATTERNS          = 
 
-# The RECURSIVE tag can be used to turn specify whether or not subdirectories 
-# should be searched for input files as well. Possible values are YES and NO. 
-# If left blank NO is used.
+# The RECURSIVE tag can be used to turn specify whether or not
+# subdirectories should be searched for input files as well. Possible
+# values are YES and NO.  If left blank NO is used.
 
-RECURSIVE              = NO
+RECURSIVE              = YES
 
-# The EXCLUDE tag can be used to specify files and/or directories that should 
-# excluded from the INPUT source files. This way you can easily exclude a 
-# subdirectory from a directory tree whose root is specified with the INPUT tag.
+# The EXCLUDE tag can be used to specify files and/or directories that
+# should excluded from the INPUT source files. This way you can easily
+# exclude a subdirectory from a directory tree whose root is specified
+# with the INPUT tag.
 
 EXCLUDE                = 
 
-# The EXCLUDE_SYMLINKS tag can be used select whether or not files or directories 
-# that are symbolic links (a Unix filesystem feature) are excluded from the input.
+# The EXCLUDE_SYMLINKS tag can be used select whether or not files or
+# directories that are symbolic links (a Unix filesystem feature) are
+# excluded from the input.
 
 EXCLUDE_SYMLINKS       = NO
 
-# If the value of the INPUT tag contains directories, you can use the 
-# EXCLUDE_PATTERNS tag to specify one or more wildcard patterns to exclude 
-# certain files from those directories.
+# If the value of the INPUT tag contains directories, you can use the
+# EXCLUDE_PATTERNS tag to specify one or more wildcard patterns to
+# exclude certain files from those directories.
 
 EXCLUDE_PATTERNS       = 
 
@@ -918,7 +920,7 @@ ENABLE_PREPROCESSING   = YES
 # compilation will be performed. Macro expansion can be done in a controlled 
 # way by setting EXPAND_ONLY_PREDEF to YES.
 
-MACRO_EXPANSION        = NO
+MACRO_EXPANSION        = YES
 
 # If the EXPAND_ONLY_PREDEF and MACRO_EXPANSION tags are both set to YES 
 # then the macro expansion is limited to the macros specified with the 
