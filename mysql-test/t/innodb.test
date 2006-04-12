@@ -2139,3 +2139,10 @@ insert into t2 values('2005-10-01');
 select * from t1, t2
   where t2.a between t1.a - interval 2 day and t1.a + interval 2 day;
 drop table t1, t2;
+
+#
+# Bug #15680 (SPATIAL key in innodb)
+#
+--error 1461
+create table t1 (g geometry not null, spatial gk(g)) engine=innodb;
+
