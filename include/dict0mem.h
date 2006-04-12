@@ -281,7 +281,6 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 /* Data structure for a database table */
 struct dict_table_struct{
 	dulint		id;	/* id of the table */
-	ulint		type;	/* DICT_TABLE_ORDINARY, ... */
 	ulint		flags;	/* DICT_TF_COMPACT, ... */
 	mem_heap_t*	heap;	/* memory heap */
 	const char*	name;	/* table name */
