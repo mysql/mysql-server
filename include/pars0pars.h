@@ -505,6 +505,22 @@ pars_info_add_int4_literal(
 	lint		val);		/* in: value */
 
 /********************************************************************
+Equivalent to:
+
+char buf[8];
+mach_write_to_8(buf, val);
+pars_info_add_literal(info, name, buf, 8, DATA_BINARY, 0);
+
+except that the buffer is dynamically allocated from the info struct's
+heap. */
+
+void
+pars_info_add_dulint_literal(
+/*=========================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	dulint		val);		/* in: value */
+/********************************************************************
 Add user function. */
 
 void
