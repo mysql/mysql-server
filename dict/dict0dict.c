@@ -1774,8 +1774,6 @@ dict_index_build_internal_clust(
 
 	new_index->id = index->id;
 
-	ut_a(table->type == DICT_TABLE_ORDINARY);
-
 	/* Copy the fields of index */
 	dict_index_copy(new_index, index, 0, index->n_fields);
 
