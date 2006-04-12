@@ -54,12 +54,12 @@ static void
 report_errors()
 {
   unsigned long	l;
-  const char*	file;
-  const char*	data;
-  int		line,flags;
+  const char *file;
+  const char *data;
+  int line,flags;
   DBUG_ENTER("report_errors");
 
-  while ((l=ERR_get_error_line_data(&file,&line,&data,&flags)))
+  while ((l= ERR_get_error_line_data(&file,&line,&data,&flags)))
   {
     char buf[512];
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l,buf),
@@ -70,7 +70,7 @@ report_errors()
 }
 
 
-int vio_ssl_read(Vio * vio, gptr buf, int size)
+int vio_ssl_read(Vio *vio, gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_ssl_read");
@@ -88,7 +88,7 @@ int vio_ssl_read(Vio * vio, gptr buf, int size)
 }
 
 
-int vio_ssl_write(Vio * vio, const gptr buf, int size)
+int vio_ssl_write(Vio *vio, const gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_ssl_write");
@@ -101,10 +101,10 @@ int vio_ssl_write(Vio * vio, const gptr buf, int size)
 }
 
 
-int vio_ssl_close(Vio * vio)
+int vio_ssl_close(Vio *vio)
 {
   int r= 0;
-  SSL* ssl= (SSL*)vio->ssl_arg;
+  SSL *ssl= (SSL*)vio->ssl_arg;
   DBUG_ENTER("vio_ssl_close");
 
   if (ssl)
@@ -129,10 +129,10 @@ int vio_ssl_close(Vio * vio)
 }
 
 
-int sslaccept(struct st_VioSSLFd* ptr, Vio* vio, long timeout)
+int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
 {
   SSL *ssl;
-  X509* client_cert;
+  X509 *client_cert;
   my_bool unused;
   my_bool net_blocking;
   enum enum_vio_type old_type;
@@ -204,7 +204,7 @@ int sslaccept(struct st_VioSSLFd* ptr, Vio* vio, long timeout)
 }
 
 
-int sslconnect(struct st_VioSSLFd* ptr, Vio* vio, long timeout)
+int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
 {
   SSL *ssl;
   X509 *server_cert;
@@ -265,7 +265,7 @@ int sslconnect(struct st_VioSSLFd* ptr, Vio* vio, long timeout)
 }
 
 
-int vio_ssl_blocking(Vio * vio __attribute__((unused)),
+int vio_ssl_blocking(Vio *vio __attribute__((unused)),
 		     my_bool set_blocking_mode,
 		     my_bool *old_mode)
 {
