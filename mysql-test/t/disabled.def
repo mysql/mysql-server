@@ -22,6 +22,7 @@ ndb_gis                  : BUG#18600 2006-03-28 brian
 ndb_load                 : BUG#17233 2006-02-16 jmiller
 partition_03ndb          : BUG#16385 2006-03-24 mikael
 ps_7ndb                  : BUG#18950 2006-02-16 jmiller Dbug assert in RBR mode when executing test suite
+rpl_deadlock_innodb      : BUG#16920 2006-04-12 kent    fails in show slave status (randomly)
 rpl_ndb_dd_basic         : BUG#18569 2006-03-28 brian
 rpl_row_basic_7ndb       : BUG#18923 2006-04-09 brian
 rpl_ndb_dd_advance       : BUG#18924 2006-04-09 brian
