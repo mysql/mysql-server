@@ -827,6 +827,7 @@ EXECUTE b12651;
 
 DROP VIEW b12651_V1;
 DROP TABLE b12651_T1, b12651_T2;
+DEALLOCATE PREPARE b12651;
 
 #
 # Bug#9359 "Prepared statements take snapshot of system vars at PREPARE
@@ -974,17 +975,17 @@ set global max_prepared_stmt_count=10000000000000000;
 select @@max_prepared_stmt_count;
 set global max_prepared_stmt_count=default;
 select @@max_prepared_stmt_count;
---error 1229 # ER_GLOBAL_VARIABLE
+--error ER_GLOBAL_VARIABLE
 set @@max_prepared_stmt_count=1;
---error 1229 # ER_GLOBAL_VARIABLE
+--error ER_GLOBAL_VARIABLE
 set max_prepared_stmt_count=1;
---error 1229 # ER_GLOBAL_VARIABLE
+--error ER_GLOBAL_VARIABLE
 set local max_prepared_stmt_count=1;
---error 1229 # ER_GLOBAL_VARIABLE
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set local prepared_stmt_count=0;
---error 1229 # ER_GLOBAL_VARIABLE
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set @@prepared_stmt_count=0;
---error 1232 # ER_WRONG_TYPE_FOR_VAR
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR 
 set global prepared_stmt_count=1;
 # set to a reasonable limit works
 set global max_prepared_stmt_count=1;
@@ -994,13 +995,13 @@ select @@max_prepared_stmt_count;
 #
 set global max_prepared_stmt_count=0;
 select @@max_prepared_stmt_count, @@prepared_stmt_count;
---error 1105 # ER_UNKNOWN_ERROR
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt from "select 1";
 select @@prepared_stmt_count;
 set global max_prepared_stmt_count=1;
 prepare stmt from "select 1";
 select @@prepared_stmt_count;
---error 1105 # ER_UNKNOWN_ERROR
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt1 from "select 1";
 select @@prepared_stmt_count;
 deallocate prepare stmt;
@@ -1019,13 +1020,13 @@ select @@prepared_stmt_count;
 #
 select @@prepared_stmt_count, @@max_prepared_stmt_count;
 set global max_prepared_stmt_count=0;
---error 1105 # ER_UNKNOWN_ERROR
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt from "select 1";
 # Result: the old statement is deallocated, the new is not created.
 --error 1243 # ER_UNKNOWN_STMT_HANDLER
 execute stmt;
 select @@prepared_stmt_count;
---error 1105 # ER_UNKNOWN_ERROR
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt from "select 1";
 select @@prepared_stmt_count;
 #
@@ -1039,10 +1040,10 @@ connect (con1,localhost,root,,);
 connection con1;
 prepare stmt from "select 2";
 prepare stmt1 from "select 3";
---error 1105 # ER_UNKNOWN_ERROR
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt2 from "select 4";
 connection default;
---error 1105 # ER_UNKNOWN_ERROR 
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt2 from "select 4";
 select @@max_prepared_stmt_count, @@prepared_stmt_count;
 disconnect con1;
@@ -1087,6 +1088,7 @@ insert into t1 (a,b) values (2,8),(1,9),(3,7);
 
 # Will order by index
 prepare stmt from "select * from t1 order by ?";
+set @a=NULL;
 execute stmt using @a;
 set @a=1;
 execute stmt using @a;
