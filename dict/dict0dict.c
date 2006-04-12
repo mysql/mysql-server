@@ -1724,8 +1724,6 @@ dict_table_copy_types(
 	dtype_t*	type;
 	ulint		i;
 
-	ut_ad(!(table->type & DICT_UNIVERSAL));
-
 	for (i = 0; i < dtuple_get_n_fields(tuple); i++) {
 
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
