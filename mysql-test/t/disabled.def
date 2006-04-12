@@ -27,13 +27,13 @@ rpl_ndb_auto_inc        : Bug#17086 CR: auto_increment_increment and auto_increm
 #rpl_ndb_dd_basic        : Bug #18569 rpl_ndb_dd_basic failure
 rpl_ndb_ddl             : result file needs update + test needs to checked
 #rpl_ndb_insert_ignore   : Bug #18567 rpl_ndb_insert_ignore failure
-#rpl_ndb_innodb2ndb      : Bug#18261: Cluster Replication: tests rpl_ndb_xxx2ndb fails
+rpl_ndb_innodb2ndb      : Bug #18094 Slave caches invalid table definition after atlters causes select failure
 #rpl_ndb_log             : result not deterministic, TBD if should remove
 #rpl_ndb_multi_update2   : Bug #18928 rpl_ndb_multi_update2 failed
 #rpl_ndb_multi_update3   : Bug#18627: Cluster Replication: rpl_ndb_multi_update3 fails on Intel 64 bit
-#rpl_ndb_myisam2ndb      : Bug#18261: Cluster Replication: tests rpl_ndb_xxx2ndb fails
+rpl_ndb_myisam2ndb      : Bug #18094 Slave caches invalid table definition after atlters causes select failure
 rpl_ndb_relay_space     : Bug#16993 RBR: ALTER TABLE ZEROFILL AUTO_INCREMENT is not replicated correctly
-#rpl_row_basic_7ndb      : Bug #18923 rpl_row_basic_7ndb failure
+rpl_row_basic_7ndb      : Bug #17400 Cluster Replication: delete & update of rows in table without pk fails on slave.
 rpl_switch_stm_row_mixed : Bug #18590
 rpl_row_inexist_tbl     : Disabled since patch makes this test wait forever
 rpl_sp                  : Bug#16456
