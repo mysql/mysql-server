@@ -1759,3 +1759,4 @@ vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
 mysql-test/r/*.log
+client/mysql_upgrade
