@@ -250,12 +250,8 @@ MASTER_MYPORT=9306
 SLAVE_RUNNING=0
 SLAVE_MYHOST=127.0.0.1
 SLAVE_MYPORT=9308 # leave room for 2 masters for cluster tests
-MYSQL_MANAGER_PORT=9305 # needs to be out of the way of slaves
 NDBCLUSTER_PORT=9350
 NDBCLUSTER_PORT_SLAVE=9358
-MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
-MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
-MYSQL_MANAGER_USER=root
 
 #
 # To make it easier for different devs to work on the same host,
@@ -269,14 +265,12 @@ MYSQL_MANAGER_USER=root
 #
 if [ -n "$MTR_BUILD_THREAD" ] ; then
   MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 10 + 10000`
-  MYSQL_MANAGER_PORT=`expr $MASTER_MYPORT + 2`
   SLAVE_MYPORT=`expr $MASTER_MYPORT + 3`
   NDBCLUSTER_PORT=`expr $MASTER_MYPORT + 6`
   NDBCLUSTER_PORT_SLAVE=`expr $MASTER_MYPORT + 7`
 
   echo "Using MTR_BUILD_THREAD      = $MTR_BUILD_THREAD"
   echo "Using MASTER_MYPORT         = $MASTER_MYPORT"
-  echo "Using MYSQL_MANAGER_PORT    = $MYSQL_MANAGER_PORT"
   echo "Using SLAVE_MYPORT          = $SLAVE_MYPORT"
   echo "Using NDBCLUSTER_PORT       = $NDBCLUSTER_PORT"
   echo "Using NDBCLUSTER_PORT_SLAVE = $NDBCLUSTER_PORT_SLAVE"
@@ -361,7 +355,6 @@ while test $# -gt 0; do
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
     --force)  FORCE=1 ;;
     --timer)  USE_TIMER=1 ;;
-    --verbose-manager)  MANAGER_QUIET_OPT="" ;;
     --old-master) MASTER_40_ARGS="";;
     --master-binary=*)
       MASTER_MYSQLD=`$ECHO "$1" | $SED -e "s;--master-binary=;;"` ;;
@@ -407,7 +400,6 @@ while test $# -gt 0; do
       LOCAL_MASTER=1 ;;
     --master_port=*) MASTER_MYPORT=`$ECHO "$1" | $SED -e "s;--master_port=;;"` ;;
     --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
-    --manager-port=*) MYSQL_MANAGER_PORT=`$ECHO "$1" | $SED -e "s;--manager_port=;;"` ;;
     --ndbcluster_port=*) NDBCLUSTER_PORT=`$ECHO "$1" | $SED -e "s;--ndbcluster_port=;;"` ;;
     --ndbcluster-port=*) NDBCLUSTER_PORT=`$ECHO "$1" | $SED -e "s;--ndbcluster-port=;;"` ;;
     --ndbcluster-port-slave=*) NDBCLUSTER_PORT_SLAVE=`$ECHO "$1" | $SED -e "s;--ndbcluster-port-slave=;;"` ;;
@@ -423,11 +415,6 @@ while test $# -gt 0; do
      MYSQL_TEST_SSL_OPTS="--ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem \
      --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem \
      --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem" ;;
-    --no-manager | --skip-manager) USE_MANAGER=0 ;;
-    --manager)
-     USE_MANAGER=1
-     USE_RUNNING_SERVER=0
-     ;;
     --start-and-exit)
      START_AND_EXIT=1
      ;;
@@ -645,7 +632,6 @@ fi
 #--
 
 MYRUN_DIR=$MYSQL_TEST_DIR/var/run
-MANAGER_PID_FILE="$MYRUN_DIR/manager.pid"
 
 MASTER_MYDDIR="$MYSQL_TEST_DIR/var/master-data"
 MASTER_MYSOCK="$MYSQL_TMP_DIR/master.sock"
@@ -759,9 +745,6 @@ if [ x$SOURCE_DIST = x1 ] ; then
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$BASEDIR/extra/mysql_waitpid"
  MYSQL_MY_PRINT_DEFAULTS="$BASEDIR/extra/my_print_defaults"
- MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqltestmanagerc"
- MYSQL_MANAGER="$BASEDIR/tools/mysqltestmanager"
- MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqltestmanager-pwgen"
  MYSQL="$CLIENT_BINDIR/mysql"
  LANGUAGE="$BASEDIR/sql/share/english/"
  CHARSETSDIR="$BASEDIR/sql/share/charsets"
@@ -822,9 +805,6 @@ else
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$CLIENT_BINDIR/mysql_waitpid"
  MYSQL_MY_PRINT_DEFAULTS="$CLIENT_BINDIR/my_print_defaults"
- MYSQL_MANAGER="$CLIENT_BINDIR/mysqltestmanager"
- MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqltestmanagerc"
- MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqltestmanager-pwgen"
  MYSQL="$CLIENT_BINDIR/mysql"
  INSTALL_DB="./install_test_db --bin"
  MYSQL_FIX_SYSTEM_TABLES="$CLIENT_BINDIR/mysql_fix_privilege_tables"
@@ -1214,96 +1194,27 @@ abort_if_failed()
  fi
 }
 
-start_manager()
+launch_in_background()
 {
- if [ $USE_MANAGER = 0 ] ; then
-   echo "Manager disabled, skipping manager start."
-   $RM -f $MYSQL_MANAGER_LOG
+  echo $@ | /bin/sh  >> $CUR_MYERR 2>&1  &
+  sleep 2 #hack
   return
- fi
- $ECHO "Starting MySQL Manager"
- if [ -f "$MANAGER_PID_FILE" ] ; then
-    kill `cat $MANAGER_PID_FILE`
-    sleep 1
-    if [ -f "$MANAGER_PID_FILE" ] ; then
-     kill -9 `cat $MANAGER_PID_FILE`
-     sleep 1
-    fi
- fi
-
- $RM -f $MANAGER_PID_FILE
- MYSQL_MANAGER_PW=`$MYSQL_MANAGER_PWGEN -u $MYSQL_MANAGER_USER \
- -o $MYSQL_MANAGER_PW_FILE`
- $MYSQL_MANAGER --log=$MYSQL_MANAGER_LOG --port=$MYSQL_MANAGER_PORT \
-  --password-file=$MYSQL_MANAGER_PW_FILE --pid-file=$MANAGER_PID_FILE
-  abort_if_failed "Could not start MySQL manager"
-  mysqltest_manager_args="--manager-host=localhost \
-  --manager-user=$MYSQL_MANAGER_USER \
-  --manager-password=$MYSQL_MANAGER_PW \
-  --manager-port=$MYSQL_MANAGER_PORT \
-  --manager-wait-timeout=$START_WAIT_TIMEOUT"
-  MYSQL_TEST="$MYSQL_TEST $mysqltest_manager_args"
-  MYSQL_TEST_ARGS="$MYSQL_TEST_ARGS $mysqltest_manager_args"
-  while [ ! -f $MANAGER_PID_FILE ] ; do
-   sleep 1
-  done
-  echo "Manager started"
 }
 
-stop_manager()
-{
- if [ $USE_MANAGER = 0 ] ; then
-  return
- fi
- $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT -u$MYSQL_MANAGER_USER \
-  -p$MYSQL_MANAGER_PW -P $MYSQL_MANAGER_PORT <<EOF
-shutdown
-EOF
- echo "Manager terminated"
-
-}
-
-manager_launch()
-{
-  ident=$1
-  shift
-  if [ $USE_MANAGER = 0 ] ; then
-    echo $@ | /bin/sh  >> $CUR_MYERR 2>&1  &
-    sleep 2 #hack
-    return
-  fi
-  $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
-   --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
-def_exec $ident "$@"
-set_exec_stdout $ident $CUR_MYERR
-set_exec_stderr $ident $CUR_MYERR
-set_exec_con $ident root localhost $CUR_MYSOCK
-start_exec $ident $START_WAIT_TIMEOUT
-EOF
-  abort_if_failed "Could not execute manager command"
-}
-
-manager_term()
+shutdown_mysqld()
 {
   pid=$1
   ident=$2
-  if [ $USE_MANAGER = 0 ] ; then
-    # Shutdown time must be high as slave may be in reconnect
-    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock$3 --connect_timeout=5 --shutdown_timeout=70 shutdown >> $MYSQL_MANAGER_LOG 2>&1
-    res=$?
-    # Some systems require an extra connect
-    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock$3 --connect_timeout=1 ping >> $MYSQL_MANAGER_LOG 2>&1
-    if test $res = 0
-    then
-      wait_for_pid $pid
-    fi
-    return $res
+  # Shutdown time must be high as slave may be in reconnect
+  $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock$3 --connect_timeout=5 --shutdown_timeout=70 shutdown >> $MYSQL_MANAGER_LOG 2>&1
+  res=$?
+  # Some systems require an extra connect
+  $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock$3 --connect_timeout=1 ping >> $MYSQL_MANAGER_LOG 2>&1
+  if test $res = 0
+  then
+    wait_for_pid $pid
   fi
-  $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
-   --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
-stop_exec $ident $STOP_WAIT_TIMEOUT
-EOF
- abort_if_failed "Could not execute manager command"
+  return $res
 }
 
 start_ndbcluster()
@@ -1486,7 +1397,7 @@ start_master()
   if [ x$DO_DDD = x1 ]
   then
     $ECHO "set args $master_args" > $GDB_MASTER_INIT$1
-    manager_launch master ddd -display $DISPLAY --debugger \
+    launch_in_background master ddd -display $DISPLAY --debugger \
     "gdb -x $GDB_MASTER_INIT$1" $MASTER_MYSQLD
   elif [ x$DO_GDB = x1 ]
   then
@@ -1507,11 +1418,11 @@ end
 r
 EOF
       fi )  > $GDB_MASTER_INIT$1
-      manager_launch master $XTERM -display $DISPLAY \
+      launch_in_background master $XTERM -display $DISPLAY \
       -title "Master" -e gdb -x $GDB_MASTER_INIT$1 $MASTER_MYSQLD
     fi
   else
-    manager_launch master $MASTER_MYSQLD $master_args
+    launch_in_background master $MASTER_MYSQLD $master_args
   fi
   sleep_until_file_created $MASTER_MYPID$1 $wait_for_master
   wait_for_master=$SLEEP_TIME_FOR_SECOND_MASTER
@@ -1644,7 +1555,7 @@ start_slave()
   if [ x$DO_DDD = x1 ]
   then
     $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
-    manager_launch $slave_ident ddd -display $DISPLAY --debugger \
+    launch_in_background $slave_ident ddd -display $DISPLAY --debugger \
      "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD
   elif [ x$DO_GDB = x1 ]
   then
@@ -1665,11 +1576,11 @@ end
 r
 EOF
       fi )  > $GDB_SLAVE_INIT
-      manager_launch $slave_ident $XTERM -display $DISPLAY -title "Slave" -e \
+      launch_in_background $slave_ident $XTERM -display $DISPLAY -title "Slave" -e \
       gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD
     fi
   else
-    manager_launch $slave_ident $SLAVE_MYSQLD $slave_args
+    launch_in_background $slave_ident $SLAVE_MYSQLD $slave_args
   fi
   eval "SLAVE$1_RUNNING=1"
   sleep_until_file_created $slave_pid $wait_for_slave
@@ -1701,7 +1612,7 @@ stop_slave ()
   if [ x$this_slave_running = x1 ]
   then
     pid=`$CAT $slave_pid`
-    manager_term $pid $slave_ident
+    shutdown_mysqld $pid $slave_ident
     if [ $? != 0 ] && [ -f $slave_pid ]
     then # try harder!
       $ECHO "slave not cooperating with mysqladmin, will try manual kill"
@@ -1748,7 +1659,7 @@ stop_master ()
     # MASTER_RUNNING=0 to get cleanup when calling start_master().
     if [ x$USE_EMBEDDED_SERVER != x1 ] ; then
       pid=`$CAT $MASTER_MYPID$1`
-      manager_term $pid master $1
+      shutdown_mysqld $pid master $1
       if [ $? != 0 ] && [ -f $MASTER_MYPID$1 ]
       then # try harder!
 	$ECHO "master not cooperating with mysqladmin, will try manual kill"
@@ -2074,7 +1985,6 @@ run_testcase ()
 	    [ -z "$DO_DDD" ] && [ -z "$USE_EMBEDDED_SERVER" ]
 	 then
 	   mysql_stop
-	   stop_manager
    	 fi
 	 exit 1
 	fi
@@ -2244,18 +2154,6 @@ then
     rm $MASTER_MYPID $MASTER_MYPID"1" $SLAVE_MYPID
   fi
 
-  # Kill any running managers
-  if [ -f "$MANAGER_PID_FILE" ]
-  then
-    kill `cat $MANAGER_PID_FILE`
-    sleep 1
-    if [ -f "$MANAGER_PID_FILE" ]
-    then
-      kill -9 `cat $MANAGER_PID_FILE`
-      sleep 1
-    fi
-  fi
-
   # just to force stopping anything from previous runs
   USE_NDBCLUSTER_OPT=$USE_NDBCLUSTER
   stop_ndbcluster
@@ -2279,10 +2177,8 @@ then
     USE_NDBCLUSTER_OPT=
   fi
 
-  start_manager
-
-# Do not automagically start daemons if we are in gdb or running only one test
-# case
+# Do not automagically start daemons if we are in gdb or running only one
+# test case
   if [ -z "$DO_GDB" ] && [ -z "$DO_DDD" ]
   then
     mysql_start
@@ -2329,7 +2225,6 @@ then
   fi
   cd $savedir
   mysql_stop
-  stop_manager
   exit
 fi
 
@@ -2351,7 +2246,6 @@ then
 
   if [ $USE_RUNNING_SERVER -eq 0 ] ; then
     mysql_stop
-    stop_manager
   fi
   
   exit
@@ -2398,7 +2292,6 @@ if [ -z "$DO_GDB" ] && [ $USE_RUNNING_SERVER -eq 0 ] && [ -z "$DO_DDD" ]
 then
     mysql_stop
 fi
-stop_manager
 report_stats
 $ECHO
 
