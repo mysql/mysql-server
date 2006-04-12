@@ -1514,8 +1514,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 static void
 mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 {
-  struct st_VioSSLConnectorFd *st= 
-    (struct st_VioSSLConnectorFd*) mysql->connector_fd;
+  struct st_VioSSLFd *ssl_fd= (struct st_VioSSLFd*) mysql->connector_fd;
   DBUG_ENTER("mysql_ssl_free");
 
   my_free(mysql->options.ssl_key, MYF(MY_ALLOW_ZERO_PTR));
@@ -1523,8 +1522,8 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));  
-  if (st)
-    SSL_CTX_free(st->ssl_context);
+  if (ssl_fd)
+    SSL_CTX_free(ssl_fd->ssl_context);
   my_free(mysql->connector_fd,MYF(MY_ALLOW_ZERO_PTR));
   mysql->options.ssl_key = 0;
   mysql->options.ssl_cert = 0;
@@ -1567,6 +1566,63 @@ static MYSQL_METHODS client_methods=
   cli_read_binary_rows
 #endif
 };
+
+int ssl_verify_server_cert(Vio *vio, const char* server_host)
+{
+  SSL *ssl;
+  X509 *server_cert;
+  char *cp1, *cp2;
+  char buf[256];
+  DBUG_ENTER("ssl_verify_server_cert");
+  DBUG_PRINT("enter", ("server_host: %s", server_host));
+
+  if (!(ssl= (SSL*)vio->ssl_arg))
+  {
+    DBUG_PRINT("error", ("No SSL pointer found"));
+    return 1;
+  }
+
+  if (!server_host)
+  {
+    DBUG_PRINT("error", ("No server hostname supplied"));
+    return 1;
+  }
+
+  if (!(server_cert= SSL_get_peer_certificate(ssl)))
+  {
+    DBUG_PRINT("error", ("Could not get server certificate"));
+    return 1;
+  }
+
+  /*
+    We already know that the certificate exchanged was valid; the SSL library
+    handled that. Now we need to verify that the contents of the certificate
+    are what we expect.
+  */
+
+  X509_NAME_oneline(X509_get_subject_name(server_cert), buf, sizeof(buf));
+  X509_free (server_cert);
+
+//  X509_NAME_get_text_by_NID(x509_get_subject_name(server_cert), NID_commonName, buf, sizeof(buf));... does the same thing
+
+  DBUG_PRINT("info", ("hostname in cert: %s", buf));
+  cp1 = strstr(buf, "/CN=");
+  if (cp1)
+  {
+    cp1 += 4; // Skip the "/CN=" that we found
+    cp2 = strchr(cp1, '/');
+    if (cp2)
+      *cp2 = '\0';
+    DBUG_PRINT("info", ("Server hostname in cert: ", cp1));
+    if (!strcmp(cp1, server_host))
+    {
+      /* Success */
+      DBUG_RETURN(0);
+    }
+  }
+  DBUG_PRINT("error", ("SSL certificate validation failure"));
+  DBUG_RETURN(1);
+}
 
 
 MYSQL *
@@ -2013,37 +2069,53 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   mysql->client_flag=client_flag;
 
 #ifdef HAVE_OPENSSL
-  /*
-    Oops.. are we careful enough to not send ANY information without
-    encryption?
-  */
   if (client_flag & CLIENT_SSL)
   {
+    /* Do the SSL layering. */
     struct st_mysql_options *options= &mysql->options;
+    struct st_VioSSLFd *ssl_fd;
+
+    /*
+      Send client_flag, max_packet_size - unencrypted otherwise
+      the server does not know we want to do SSL
+    */
     if (my_net_write(net,buff,(uint) (end-buff)) || net_flush(net))
     {
       set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
       goto error;
     }
-    /* Do the SSL layering. */
-    if (!(mysql->connector_fd=
-	  (gptr) new_VioSSLConnectorFd(options->ssl_key,
-				       options->ssl_cert,
-				       options->ssl_ca,
-				       options->ssl_capath,
-				       options->ssl_cipher)))
+
+    /* Create the VioSSLConnectorFd - init SSL and load certs */
+    if (!(ssl_fd= new_VioSSLConnectorFd(options->ssl_key,
+                                        options->ssl_cert,
+                                        options->ssl_ca,
+                                        options->ssl_capath,
+                                        options->ssl_cipher)))
     {
       set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
       goto error;
     }
+    mysql->connector_fd= (void*)ssl_fd;
+
+    /* Connect to the server */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
-		   mysql->net.vio, (long) (mysql->options.connect_timeout)))
+    if (sslconnect(ssl_fd, mysql->net.vio,
+                   (long) (mysql->options.connect_timeout)))
     {
       set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
       goto error;
     }
     DBUG_PRINT("info", ("IO layer change done!"));
+
+#if 0
+    /* Verify server cert */
+    if (mysql->options.ssl_verify_cert &&
+        ssl_verify_server_cert(mysql->net.vio, mysql->host))
+    {
+      set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
+      goto error;
+    }
+#endif
   }
 #endif /* HAVE_OPENSSL */
 
