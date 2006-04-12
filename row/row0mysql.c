@@ -2738,9 +2738,7 @@ row_truncate_table_for_mysql(
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
 	dulint		new_id;
-	char*		sql;
-	que_thr_t*	thr;
-	que_t*		graph			= NULL;
+	pars_info_t*	info = NULL;
 
 /* How do we prevent crashes caused by ongoing operations on the table? Old
 operations could try to access non-existent pages.
@@ -2767,30 +2765,6 @@ discard ongoing operations. (This will only be relevant for TRUNCATE TABLE
 by DISCARD TABLESPACE.)
 5) FOREIGN KEY operations: if table->n_foreign_key_checks_running > 0, we
 do not allow the TRUNCATE. We also reserve the data dictionary latch. */
-
-	static const char renumber_tablespace_proc[] =
-	"PROCEDURE RENUMBER_TABLESPACE_PROC () IS\n"
-	"old_id CHAR;\n"
-	"new_id CHAR;\n"
-	"old_id_low INT;\n"
-	"old_id_high INT;\n"
-	"new_id_low INT;\n"
-	"new_id_high INT;\n"
-	"BEGIN\n"
-	"old_id_high := %lu;\n"
-	"old_id_low := %lu;\n"
-	"new_id_high := %lu;\n"
-	"new_id_low := %lu;\n"
-   "old_id := CONCAT(TO_BINARY(old_id_high, 4), TO_BINARY(old_id_low, 4));\n"
-   "new_id := CONCAT(TO_BINARY(new_id_high, 4), TO_BINARY(new_id_low, 4));\n"
-	"UPDATE SYS_TABLES SET ID = new_id\n"
-	"WHERE ID = old_id;\n"
-	"UPDATE SYS_COLUMNS SET TABLE_ID = new_id\n"
-	"WHERE TABLE_ID = old_id;\n"
-	"UPDATE SYS_INDEXES SET TABLE_ID = new_id\n"
-	"WHERE TABLE_ID = old_id;\n"
-	"COMMIT WORK;\n"
-	"END;\n";
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(table);
@@ -2952,35 +2926,27 @@ do not allow the TRUNCATE. We also reserve the data dictionary latch. */
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
-
-	mem_heap_empty(heap);
-	sql = mem_heap_alloc(heap, (sizeof renumber_tablespace_proc) + 40);
-	sprintf(sql, renumber_tablespace_proc,
-		(ulong) ut_dulint_get_high(table->id),
-		(ulong) ut_dulint_get_low(table->id),
-		(ulong) ut_dulint_get_high(new_id),
-		(ulong) ut_dulint_get_low(new_id));
-
-	graph = pars_sql(NULL, sql);
-
-	ut_a(graph);
-
 	mem_heap_free(heap);
 
-	graph->trx = trx;
-	trx->graph = NULL;
+	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
 
-	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
+	info = pars_info_create();
 
-	thr = que_fork_start_command(graph);
-	ut_a(thr);
+	pars_info_add_dulint_literal(info, "old_id", table->id);
+	pars_info_add_dulint_literal(info, "new_id", new_id);
 
-	que_run_threads(thr);
-
-	que_graph_free(graph);
-
-	err = trx->error_state;
+	err = que_eval_sql(info,
+		"PROCEDURE RENUMBER_TABLESPACE_PROC () IS\n"
+		"BEGIN\n"
+		"UPDATE SYS_TABLES SET ID = :new_id\n"
+		" WHERE ID = :old_id;\n"
+		"UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
+		" WHERE TABLE_ID = :old_id;\n"
+		"UPDATE SYS_INDEXES SET TABLE_ID = :new_id\n"
+		" WHERE TABLE_ID = :old_id;\n"
+		"COMMIT WORK;\n"
+		"END;\n"
+		, trx);
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
