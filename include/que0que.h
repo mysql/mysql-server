@@ -331,8 +331,15 @@ void
 que_node_print_info(
 /*================*/
 	que_node_t*	node);	/* in: query graph node */
+/*************************************************************************
+Evaluate the given SQL */
 
-
+ulint
+que_eval_sql(
+/*=========*/
+	pars_info_t*	info,	/* out: error code or DB_SUCCESS */
+	const char*	sql,	/* in: info struct, or NULL */
+	trx_t*		trx);	/* in: trx */
 /* Query graph query thread node: the fields are protected by the kernel
 mutex with the exceptions named below */
 
