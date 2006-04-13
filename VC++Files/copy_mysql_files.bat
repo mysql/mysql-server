@@ -71,7 +71,6 @@ REM Copy share, docs etc
 xcopy share\*.* c:\mysql\share /E /Y
 xcopy scripts\*.* c:\mysql\scripts /E /Y
 xcopy docs\*.* c:\mysql\docs /E /Y
-xcopy sql-bench\*.* c:\mysql\bench /E /Y
 copy docs\readme c:\mysql\
 
 REM Copy privilege tables (Delete old ones as they may be from a newer version)
