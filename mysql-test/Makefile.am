@@ -27,9 +27,10 @@ EXTRA_DIST = 		$(EXTRA_SCRIPTS)
 GENSCRIPTS =		mysql-test-run install_test_db
 PRESCRIPTS =		mysql-test-run.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
-test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem \
-	std_data/server-cert.pem std_data/server-key.pem 
-CLEANFILES = 		$(GENSCRIPTS) $(test_DATA)
+test_DATA =		std_data/client-key.pem std_data/client-cert.pem \
+			std_data/cacert.pem std_data/server-cert.pem \
+			std_data/server-key.pem 
+CLEANFILES = 		$(GENSCRIPTS)
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
 
