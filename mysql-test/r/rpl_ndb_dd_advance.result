@@ -370,13 +370,10 @@ COUNT(*)
 10000
 ***** Add some more records to master *********
 ***** Finsh the slave sync process *******
-* 1. *
 @the_epoch:=MAX(epoch)
 <the_epoch>
-* 2. *
 @the_pos:=Position	@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
 <the_pos>	master-bin.000001
-* 3. *
 * 4. *
 * 5. *
 START SLAVE;
