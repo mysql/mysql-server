@@ -138,11 +138,12 @@ skip_all(char const *reason, ...)
 void
 ok(int const pass, char const *fmt, ...)
 {
+  va_list ap;
+  va_start(ap, fmt);
+
   if (!pass && *g_test.todo == '\0')
     ++g_test.failed;
 
-  va_list ap;
-  va_start(ap, fmt);
   emit_tap(pass, fmt, ap);
   va_end(ap);
   if (*g_test.todo != '\0')
