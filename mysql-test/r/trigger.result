@@ -952,3 +952,16 @@ load data infile '../std_data_ln/words.dat' into table t1 (a) set b:= f1();
 drop table t1;
 drop function f1;
 drop function f2;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+conn_id INT,
+trigger_conn_id INT
+);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+SET NEW.trigger_conn_id = CONNECTION_ID();
+INSERT INTO t1 (conn_id, trigger_conn_id) VALUES (CONNECTION_ID(), -1);
+INSERT INTO t1 (conn_id, trigger_conn_id) VALUES (CONNECTION_ID(), -1);
+SELECT * FROM t1 WHERE conn_id != trigger_conn_id;
+conn_id	trigger_conn_id
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
