@@ -1257,7 +1257,7 @@ end:
         max_timeout--;
         if (max_timeout == 0)
         {
-          sql_print_error("NDB %s: distibuting %s timed out. Ignoring...",
+          sql_print_error("NDB %s: distributing %s timed out. Ignoring...",
                           type_str, ndb_schema_object->key);
           break;
         }
@@ -1566,9 +1566,9 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
 
   share= 0;
   pOp->setCustomData(0);
-          
+
   pthread_mutex_lock(&injector_mutex);
-  injector_ndb->dropEventOperation(pOp);
+  ndb->dropEventOperation(pOp);
   pOp= 0;
   pthread_mutex_unlock(&injector_mutex);
 
@@ -2648,7 +2648,8 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
       max_timeout--;
       if (max_timeout == 0)
       {
-        sql_print_error("NDB %s: timed out. Ignoring...", type_str);
+        sql_print_error("NDB %s: %s timed out. Ignoring...",
+                        type_str, share->key);
         break;
       }
       if (ndb_extra_logging)
@@ -3273,7 +3274,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
       while (pOp != NULL)
       {
         if (!pOp->hasError())
-          ndb_binlog_thread_handle_schema_event(thd, schema_ndb, pOp,
+          ndb_binlog_thread_handle_schema_event(thd, s_ndb, pOp,
                                                 &post_epoch_log_list,
                                                 &post_epoch_unlock_list,
                                                 &mem_root);
@@ -3533,6 +3534,7 @@ err:
       DBUG_PRINT("info",("removing event operation on %s",
                          op->getEvent()->getName()));
       NDB_SHARE *share= (NDB_SHARE*) op->getCustomData();
+      DBUG_ASSERT(share != 0);
       DBUG_ASSERT(share->op == op ||
                   share->op_old == op);
       share->op= share->op_old= 0;
@@ -3552,6 +3554,7 @@ err:
       DBUG_PRINT("info",("removing event operation on %s",
                          op->getEvent()->getName()));
       NDB_SHARE *share= (NDB_SHARE*) op->getCustomData();
+      DBUG_ASSERT(share != 0);
       DBUG_ASSERT(share->op == op ||
                   share->op_old == op);
       share->op= share->op_old= 0;
