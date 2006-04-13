@@ -681,7 +681,7 @@ public:
 class Item_char_typecast :public Item_typecast
 {
   int cast_length;
-  CHARSET_INFO *cast_cs;
+  CHARSET_INFO *cast_cs, *from_cs;
   bool charset_conversion;
   String tmp_value;
 public:
