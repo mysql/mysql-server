@@ -28,7 +28,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ @yassl_dir@ \
 			@sql_server@ scripts @man_dirs@ tests \
 			@mysql_se_plugins@ \
 			netware @libmysqld_dirs@ \
-			@bench_dirs@ support-files @tools_dirs@ \
+			mysql-test support-files @tools_dirs@ \
 			plugin win
 
 DIST_SUBDIRS =		. include @docs_dirs@ zlib \
@@ -38,7 +38,7 @@ DIST_SUBDIRS =		. include @docs_dirs@ zlib \
                         vio sql libmysql_r libmysql client scripts \
 			@man_dirs@ tests \
 			BUILD netware @libmysqld_dirs@\
-			@bench_dirs@ support-files server-tools \
+			support-files server-tools \
 			plugin win
 
 # Run these targets before any others, also make part of clean target,
