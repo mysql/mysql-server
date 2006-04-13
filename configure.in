@@ -513,7 +513,7 @@ then
   AC_MSG_ERROR([MySQL requires an ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
 fi
 
-NOINST_LDFLAGS=
+NOINST_LDFLAGS="-static"
 
 static_nss=""
 STATIC_NSS_FLAGS=""
