@@ -679,8 +679,9 @@ fi
 %{_libdir}/libmysql*.so*
 %{_libdir}/libndb*.so*
 
-%files embedded defattr(-, root, root, 0755) attr(644, root, root)
-%%{_libdir}/mysql/libmysqld.a
+%files embedded
+%defattr(-, root, root, 0755) 
+%attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
 # The spec file changelog only includes changes made to the spec file
 # itself - note that they must be ordered by date (important when
