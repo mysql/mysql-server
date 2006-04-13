@@ -1158,16 +1158,22 @@ my_bool _mi_memmap_file(MI_INFO *info)
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("mi_memmap_file");
 
-  if (!info->s->file_map)
+  if (!share->file_map)
   {
+    my_off_t data_file_length= share->state.state.data_file_length;
+    if (data_file_length > (my_off_t) (~((size_t) 0)) - MEMMAP_EXTRA_MARGIN)
+    {
+      DBUG_PRINT("warning", ("File is too large for mmap"));
+      DBUG_RETURN(0);
+    }
     if (my_seek(info->dfile,0L,MY_SEEK_END,MYF(0)) <
-	share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN)
+        data_file_length + MEMMAP_EXTRA_MARGIN)
     {
       DBUG_PRINT("warning",("File isn't extended for memmap"));
       DBUG_RETURN(0);
     }
     file_map=(byte*)
-      mmap(0,share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN,PROT_READ,
+      mmap(0, data_file_length + MEMMAP_EXTRA_MARGIN, PROT_READ,
 	   MAP_SHARED | MAP_NORESERVE,info->dfile,0L);
     if (file_map == (byte*) MAP_FAILED)
     {
@@ -1175,7 +1181,7 @@ my_bool _mi_memmap_file(MI_INFO *info)
       my_errno=errno;
       DBUG_RETURN(0);
     }
-    info->s->file_map=file_map;
+    share->file_map= file_map;
   }
   info->opt_flag|= MEMMAP_USED;
   info->read_record=share->read_record=_mi_read_mempack_record;
