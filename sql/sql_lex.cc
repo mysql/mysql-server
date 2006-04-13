@@ -80,7 +80,7 @@ inline int lex_casecmp(const char *s, const char *t, uint len)
   return (int) len+1;
 }
 
-#include "lex_hash.h"
+#include <lex_hash.h>
 
 
 void lex_init(void)

@@ -2336,7 +2336,8 @@ AC_ARG_WITH(libedit,
     [ with_libedit=$withval ],
     [ with_libedit=undefined ]
     )
-if test -z "$with_readline$with_libedit" -a ! -e cmd-line-utils
+
+if test "$with_readline/$with_libedit" = "undefined/undefined" -a ! -e "$srcdir/cmd-line-utils"
 then
   with_readline=no
   with_libedit=no
