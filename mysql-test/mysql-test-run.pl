@@ -2940,6 +2940,12 @@ sub im_start($$) {
   mtr_add_arg($args, "--defaults-file=%s",
               $instance_manager->{'defaults_file'});
 
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/im.trace",
+                $opt_vardir_trace);
+  }
+
   foreach my $opt (@{$opts})
   {
     mtr_add_arg($args, $opt);
