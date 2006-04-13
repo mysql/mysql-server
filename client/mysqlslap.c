@@ -1132,7 +1132,7 @@ run_task(thread_context *con)
   my_lock(lock_file, F_RDLCK, 0, F_TO_EOF, MYF(0));
   if (!opt_only_print)
   {
-    if (!(mysql= mysql_real_connect(mysql, host, user, opt_password,
+    if (!(mysql_real_connect(mysql, host, user, opt_password,
                                     create_schema_string,
                                     opt_mysql_port,
                                     opt_mysql_unix_port,
