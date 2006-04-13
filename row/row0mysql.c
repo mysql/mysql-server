@@ -2384,11 +2384,9 @@ row_discard_tablespace_for_mysql(
 	dict_foreign_t*	foreign;
 	dulint		new_id;
 	dict_table_t*	table;
-	que_thr_t*	thr;
-	que_t*		graph			= NULL;
 	ibool		success;
 	ulint		err;
-	char*		buf;
+	pars_info_t*	info = NULL;
 
 /* How do we prevent crashes caused by ongoing operations on the table? Old
 operations could try to access non-existent pages.
@@ -2409,36 +2407,6 @@ different, and ongoing old insert buffer page merges get discarded.
 discard ongoing operations.
 5) FOREIGN KEY operations: if table->n_foreign_key_checks_running > 0, we
 do not allow the discard. We also reserve the data dictionary latch. */
-
-	static const char discard_tablespace_proc1[] =
-	"PROCEDURE DISCARD_TABLESPACE_PROC () IS\n"
-	"old_id CHAR;\n"
-	"new_id CHAR;\n"
-	"new_id_low INT;\n"
-	"new_id_high INT;\n"
-	"table_name CHAR;\n"
-	"BEGIN\n"
-	"table_name := '";
-	static const char discard_tablespace_proc2[] =
-	"';\n"
-	"new_id_high := %lu;\n"
-	"new_id_low := %lu;\n"
-   "new_id := CONCAT(TO_BINARY(new_id_high, 4), TO_BINARY(new_id_low, 4));\n"
-	"SELECT ID INTO old_id\n"
-	"FROM SYS_TABLES\n"
-	"WHERE NAME = table_name;\n"
-	"IF (SQL %% NOTFOUND) THEN\n"
-	"       COMMIT WORK;\n"
-	"       RETURN;\n"
-	"END IF;\n"
-	"UPDATE SYS_TABLES SET ID = new_id\n"
-	"WHERE ID = old_id;\n"
-	"UPDATE SYS_COLUMNS SET TABLE_ID = new_id\n"
-	"WHERE TABLE_ID = old_id;\n"
-	"UPDATE SYS_INDEXES SET TABLE_ID = new_id\n"
-	"WHERE TABLE_ID = old_id;\n"
-	"COMMIT WORK;\n"
-	"END;\n";
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
@@ -2519,35 +2487,34 @@ do not allow the discard. We also reserve the data dictionary latch. */
 
 	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
 
-	buf = mem_alloc((sizeof discard_tablespace_proc1) +
-			(sizeof discard_tablespace_proc2) +
-			20 + ut_strlenq(name, '\''));
-
-	memcpy(buf, discard_tablespace_proc1, sizeof discard_tablespace_proc1);
-	sprintf(ut_strcpyq(buf + (sizeof discard_tablespace_proc1 - 1),
-			'\'', name),
-		discard_tablespace_proc2,
-		(ulong) ut_dulint_get_high(new_id),
-		(ulong) ut_dulint_get_low(new_id));
-
-	graph = pars_sql(NULL, buf);
-
-	ut_a(graph);
-
 	/* Remove any locks there are on the table or its records */
-
 	lock_reset_all_on_table(table);
 
-	graph->trx = trx;
-	trx->graph = NULL;
+	info = pars_info_create();
 
-	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
+	pars_info_add_str_literal(info, "table_name", name);
+	pars_info_add_dulint_literal(info, "new_id", new_id);
 
-	ut_a(thr = que_fork_start_command(graph));
-
-	que_run_threads(thr);
-
-	err = trx->error_state;
+	err = que_eval_sql(info,
+	"PROCEDURE DISCARD_TABLESPACE_PROC () IS\n"
+	"old_id CHAR;\n"
+	"BEGIN\n"
+	"SELECT ID INTO old_id\n"
+	"FROM SYS_TABLES\n"
+	"WHERE NAME = :table_name;\n"
+	"IF (SQL % NOTFOUND) THEN\n"
+	"       COMMIT WORK;\n"
+	"       RETURN;\n"
+	"END IF;\n"
+	"UPDATE SYS_TABLES SET ID = :new_id\n"
+	" WHERE ID = old_id;\n"
+	"UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
+	" WHERE TABLE_ID = old_id;\n"
+	"UPDATE SYS_INDEXES SET TABLE_ID = :new_id\n"
+	" WHERE TABLE_ID = old_id;\n"
+	"COMMIT WORK;\n"
+	"END;\n"
+		, trx);
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
@@ -2571,12 +2538,9 @@ do not allow the discard. We also reserve the data dictionary latch. */
 			table->ibd_file_missing = TRUE;
 		}
 	}
+
 funct_exit:
 	row_mysql_unlock_data_dictionary(trx);
-
-	if (graph) {
-		que_graph_free(graph);
-	}
 
 	trx_commit_for_mysql(trx);
 
