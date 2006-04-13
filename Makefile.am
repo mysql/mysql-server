@@ -29,7 +29,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ @yassl_dir@ \
 			@mysql_se_plugins@ \
 			netware @libmysqld_dirs@ \
 			@bench_dirs@ support-files @tools_dirs@ \
-			plugin win
+			plugin unittest win
 
 DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@readline_topdir@ sql-common \
@@ -39,7 +39,7 @@ DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@man_dirs@ tests \
 			BUILD netware @libmysqld_dirs@\
 			@bench_dirs@ support-files server-tools \
-			plugin win
+			plugin unittest win
 
 # Run these targets before any others, also make part of clean target,
 # to make sure we create new links after a clean.
