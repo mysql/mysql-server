@@ -260,3 +260,25 @@ t_vers	t_rele	t_cust	filler1
 7.6 	a 	    	
 7.6 	a 	    	
 drop table t1;
+create table t1 (
+pk int(11) not null auto_increment,
+a int(11) not null default '0',
+b int(11) not null default '0',
+c int(11) not null default '0',
+filler1 datetime, filler2 varchar(15),
+filler3 longtext,
+kp1 varchar(4), kp2 varchar(7),
+kp3 varchar(2), kp4 varchar(4),
+kp5 varchar(7),
+filler4 char(1),
+primary key (pk),
+key idx1(a,b,c),
+key idx2(c),
+key idx3(kp1,kp2,kp3,kp4,kp5)
+) engine=innodb default charset=latin1;
+set @fill=NULL;
+SELECT COUNT(*) FROM t1 WHERE b = 0 AND a = 0 AND c = 13286427 AND 
+kp1='279' AND kp2='ELM0678' AND kp3='6' AND kp4='10' AND  kp5 = 'R        ';
+COUNT(*)
+1
+drop table t1;
