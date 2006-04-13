@@ -25,15 +25,20 @@ INCLUDES =              -I$(top_builddir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/sql \
                         -I$(srcdir)
-
-pkglib_LIBRARIES =	libcsv.a
-
 LDADD =
 
 DEFS =	@DEFS@
+noinst_HEADERS	  =	ha_tina.h
 
+EXTRA_LTLIBRARIES =	ha_csv.la
+pkglib_LTLIBRARIES =	@plugin_csv_shared_target@
+ha_csv_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir)
+ha_csv_la_CXXFLAGS =	$(AM_CFLAGS) -DMYSQL_PLUGIN
+ha_csv_la_SOURCES =	ha_tina.cc
+
+EXTRA_LIBRARIES =	libcsv.a
+noinst_LIBRARIES =	@plugin_csv_static_target@
 libcsv_a_CXXFLAGS =	$(AM_CFLAGS)
-noinst_HEADERS = 	ha_tina.h
 libcsv_a_SOURCES =	ha_tina.cc
 
 # Don't update the files from bitkeeper

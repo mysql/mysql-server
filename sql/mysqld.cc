@@ -2703,12 +2703,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   }
 
-  if (ha_register_builtin_plugins())
-  {
-    sql_print_error("Failed to register built-in storage engines.");
-    return 1;
-  }
-
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   get_options(argc,argv);
@@ -3077,6 +3071,19 @@ static int init_server_components()
     }
   }
 
+  if (xid_cache_init())
+  {
+    sql_print_error("Out of memory");
+    unireg_abort(1);
+  }
+
+  /* We have to initialize the storage engines before CSV logging */
+  if (ha_init())
+  {
+    sql_print_error("Can't init databases");
+    unireg_abort(1);
+  }
+
 #ifdef WITH_CSV_STORAGE_ENGINE
   if (opt_bootstrap)
     log_output_options= LOG_FILE;
@@ -3238,17 +3245,6 @@ server.");
       INSERT ... SELECT. This will change when we have row level logging.
     */
     using_update_log=1;
-  }
-
-  if (xid_cache_init())
-  {
-    sql_print_error("Out of memory");
-    unireg_abort(1);
-  }
-  if (ha_init())
-  {
-    sql_print_error("Can't init databases");
-    unireg_abort(1);
   }
 
   /*

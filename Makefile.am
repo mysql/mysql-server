@@ -24,9 +24,8 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ @yassl_dir@ \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack \
-			@sql_union_dirs@ @mysql_se_dirs@ \
+			@sql_union_dirs@ @mysql_plugin_dirs@ \
 			@sql_server@ scripts @man_dirs@ tests \
-			@mysql_se_plugins@ \
 			netware @libmysqld_dirs@ \
 			@bench_dirs@ support-files @tools_dirs@ \
 			plugin win

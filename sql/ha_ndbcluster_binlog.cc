@@ -16,6 +16,7 @@
 */
 
 #include "mysql_priv.h"
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
 
 #ifdef HAVE_NDB_BINLOG
@@ -3510,3 +3511,4 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
 }
 
 #endif /* HAVE_NDB_BINLOG */
+#endif

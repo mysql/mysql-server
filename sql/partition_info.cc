@@ -21,9 +21,10 @@
 #endif
 
 #include "mysql_priv.h"
-#include "ha_partition.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "ha_partition.h"
+
 
 partition_info *partition_info::get_clone()
 {
