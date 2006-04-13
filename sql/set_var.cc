@@ -205,7 +205,7 @@ sys_var_bool_ptr	sys_local_infile("local_infile",
 sys_var_trust_routine_creators
 sys_trust_routine_creators("log_bin_trust_routine_creators",
                            &trust_function_creators);
-sys_var_bool_ptr       
+sys_var_bool_ptr
 sys_trust_function_creators("log_bin_trust_function_creators",
                             &trust_function_creators);
 sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
@@ -742,7 +742,7 @@ sys_var *sys_variables[]=
   &sys_innodb_thread_concurrency,
   &sys_innodb_commit_concurrency,
   &sys_innodb_flush_log_at_trx_commit,
-#endif  
+#endif
   &sys_trust_routine_creators,
   &sys_trust_function_creators,
   &sys_engine_condition_pushdown,
@@ -803,7 +803,7 @@ struct show_var_st init_vars[]= {
   {sys_delayed_insert_timeout.name, (char*) &sys_delayed_insert_timeout, SHOW_SYS},
   {sys_delayed_queue_size.name,(char*) &sys_delayed_queue_size,     SHOW_SYS},
   {sys_div_precincrement.name,(char*) &sys_div_precincrement,SHOW_SYS},
-  {sys_engine_condition_pushdown.name, 
+  {sys_engine_condition_pushdown.name,
    (char*) &sys_engine_condition_pushdown,                          SHOW_SYS},
   {sys_expire_logs_days.name, (char*) &sys_expire_logs_days,        SHOW_SYS},
   {sys_flush.name,             (char*) &sys_flush,                  SHOW_SYS},
@@ -931,9 +931,9 @@ struct show_var_st init_vars[]= {
   {sys_myisam_repair_threads.name, (char*) &sys_myisam_repair_threads,
    SHOW_SYS},
   {sys_myisam_sort_buffer_size.name, (char*) &sys_myisam_sort_buffer_size, SHOW_SYS},
-  
+
   {sys_myisam_stats_method.name, (char*) &sys_myisam_stats_method, SHOW_SYS},
-  
+
 #ifdef __NT__
   {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_MY_BOOL},
 #endif
@@ -1204,7 +1204,7 @@ static void fix_tx_isolation(THD *thd, enum_var_type type)
 				thd->variables.tx_isolation);
 }
 
-static void fix_completion_type(THD *thd __attribute__(unused), 
+static void fix_completion_type(THD *thd __attribute__(unused),
 				enum_var_type type __attribute__(unused)) {}
 
 static int check_completion_type(THD *thd, set_var *var)
@@ -1272,7 +1272,7 @@ static void fix_query_cache_size(THD *thd, enum_var_type type)
 #ifdef HAVE_QUERY_CACHE
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type)
 {
-  query_cache_min_res_unit= 
+  query_cache_min_res_unit=
     query_cache.set_min_res_unit(query_cache_min_res_unit);
 }
 #endif
@@ -1336,7 +1336,7 @@ static int check_max_delayed_threads(THD *thd, set_var *var)
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
 #ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(max_connections + 
+  resize_thr_alarm(max_connections +
 		   global_system_variables.max_insert_delayed_threads + 10);
 #endif
 }
@@ -1514,7 +1514,7 @@ bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
-    pthread_mutex_lock(&LOCK_global_system_variables);    
+    pthread_mutex_lock(&LOCK_global_system_variables);
     global_system_variables.*offset= (ha_rows) tmp;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
@@ -1888,7 +1888,7 @@ bool sys_var_thd_date_time_format::check(THD *thd, set_var *var)
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, res->c_ptr());
     return 1;
   }
-  
+
   /*
     We must copy result to thread space to not get a memory leak if
     update is aborted
@@ -1945,7 +1945,7 @@ typedef struct old_names_map_st
   const char *new_name;
 } my_old_conv;
 
-static my_old_conv old_conv[]= 
+static my_old_conv old_conv[]=
 {
   {	"cp1251_koi8"		,	"cp1251"	},
   {	"cp1250_latin2"		,	"cp1250"	},
@@ -1963,7 +1963,7 @@ static my_old_conv old_conv[]=
 CHARSET_INFO *get_old_charset_by_name(const char *name)
 {
   my_old_conv *conv;
- 
+
   for (conv= old_conv; conv->old_name; conv++)
   {
     if (!my_strcasecmp(&my_charset_latin1, name, conv->old_name))
@@ -2344,7 +2344,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   key_cache= get_key_cache(base_name);
-                            
+
   if (!key_cache)
   {
     /* Key cache didn't exists */
@@ -2381,7 +2381,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 	Move tables using this key cache to the default key cache
 	and clear the old key cache.
       */
-      NAMED_LIST *list; 
+      NAMED_LIST *list;
       key_cache= (KEY_CACHE *) find_named(&key_caches, base_name->str,
 					      base_name->length, &list);
       key_cache->in_init= 1;
@@ -2410,7 +2410,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
     error= (bool)(ha_resize_key_cache(key_cache));
 
   pthread_mutex_lock(&LOCK_global_system_variables);
-  key_cache->in_init= 0;  
+  key_cache->in_init= 0;
 
 end:
   pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -2459,7 +2459,7 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
   error= (bool) (ha_resize_key_cache(key_cache));
 
   pthread_mutex_lock(&LOCK_global_system_variables);
-  key_cache->in_init= 0;  
+  key_cache->in_init= 0;
 
 end:
   pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -2632,7 +2632,7 @@ bool sys_var_thd_time_zone::update(THD *thd, set_var *var)
 byte *sys_var_thd_time_zone::value_ptr(THD *thd, enum_var_type type,
 				       LEX_STRING *base)
 {
-  /* 
+  /*
     We can use ptr() instead of c_ptr() here because String contaning
     time zone name is guaranteed to be zero ended.
   */
@@ -2786,7 +2786,7 @@ static bool set_log_update(THD *thd, set_var *var)
     See sql/mysqld.cc/, comments in function init_server_components() for an
     explaination of the different warnings we send below
   */
-    
+
   if (opt_sql_bin_update)
   {
     ((sys_var_thd_bit*) var->var)->bit_flag|= (OPTION_BIN_LOG |
@@ -2838,7 +2838,7 @@ static byte *get_warning_count(THD *thd)
 
 static byte *get_error_count(THD *thd)
 {
-  thd->sys_var_tmp.long_value= 
+  thd->sys_var_tmp.long_value=
     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR];
   return (byte*) &thd->sys_var_tmp.long_value;
 }
@@ -2878,7 +2878,7 @@ static byte *get_prepared_stmt_count(THD *thd)
     ptr		pointer to option structure
 */
 
-static struct my_option *find_option(struct my_option *opt, const char *name) 
+static struct my_option *find_option(struct my_option *opt, const char *name)
 {
   uint length=strlen(name);
   for (; opt->name; opt++)
@@ -3286,7 +3286,7 @@ void sys_var_thd_table_type::warn_deprecated(THD *thd)
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 		      ER_WARN_DEPRECATED_SYNTAX,
 		      ER(ER_WARN_DEPRECATED_SYNTAX), "table_type",
-                      "storage_engine"); 
+                      "storage_engine");
 }
 
 void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
@@ -3385,7 +3385,7 @@ void fix_sql_mode_var(THD *thd, enum_var_type type)
 ulong fix_sql_mode(ulong sql_mode)
 {
   /*
-    Note that we dont set 
+    Note that we dont set
     MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS | MODE_NO_FIELD_OPTIONS
     to allow one to get full use of MySQL in this mode.
   */
@@ -3394,7 +3394,7 @@ ulong fix_sql_mode(ulong sql_mode)
   {
     sql_mode|= (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
 		MODE_IGNORE_SPACE);
-    /* 
+    /*
       MODE_ONLY_FULL_GROUP_BY removed from ANSI mode because it is currently
       overly restrictive (see BUG#8510).
     */
@@ -3479,7 +3479,7 @@ static KEY_CACHE *create_key_cache(const char *name, uint length)
   KEY_CACHE *key_cache;
   DBUG_ENTER("create_key_cache");
   DBUG_PRINT("enter",("name: %.*s", length, name));
-  
+
   if ((key_cache= (KEY_CACHE*) my_malloc(sizeof(KEY_CACHE),
 					     MYF(MY_ZEROFILL | MY_WME))))
   {
@@ -3546,7 +3546,7 @@ void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 		      ER_WARN_DEPRECATED_SYNTAX,
 		      ER(ER_WARN_DEPRECATED_SYNTAX), "log_bin_trust_routine_creators",
-                      "log_bin_trust_function_creators"); 
+                      "log_bin_trust_function_creators");
 }
 
 void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)
