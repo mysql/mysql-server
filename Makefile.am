@@ -31,7 +31,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@bench_dirs@ support-files @tools_dirs@ \
 			plugin win
 
-DIST_SUBDIRS =		$(SUBDIRS) SSL BUILD
+DIST_SUBDIRS =		$(SUBDIRS) BUILD
 
 # Run these targets before any others, also make part of clean target,
 # to make sure we create new links after a clean.

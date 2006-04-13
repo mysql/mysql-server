@@ -2218,23 +2218,7 @@ then
             [Access checks in embedded library])
 fi
 
-AC_ARG_WITH(extra-tools,
-    [  --without-extra-tools   Skip building utilites in the tools directory.],
-    [with_tools=$withval],
-    [with_tools=yes]
-)
-
 tools_dirs=""
-if test "$with_tools" = "yes"
-then
-  if test "$THREAD_SAFE_CLIENT" = "no"
-  then
-    AC_MSG_WARN([extra-tools disabled because --enable-thread-safe-client wasn't used])
-  else
-    tools_dirs="tools"
-    AC_CONFIG_FILES(tools/Makefile)
-  fi
-fi
 
 AC_ARG_WITH([mysqlmanager],
   AC_HELP_STRING([--with-mysqlmanager], [Build the mysqlmanager binary: yes/no (default: build if server is built.)]),
@@ -2627,7 +2611,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
- sql/handlerton.cc sql-common/Makefile SSL/Makefile dnl
+ sql/handlerton.cc sql-common/Makefile dnl
  dbug/Makefile scripts/Makefile dnl
  include/Makefile dnl
  server-tools/Makefile server-tools/instance-manager/Makefile dnl
