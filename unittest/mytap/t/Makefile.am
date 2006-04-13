@@ -2,7 +2,7 @@
 AM_CPPFLAGS     = -I$(srcdir) -I$(top_builddir)/include
 AM_CPPFLAGS    += -I$(srcdir)/..
 
-AM_LDFLAGS      = -L$(srcdir)/..
+AM_LDFLAGS      = -L$(top_builddir)/unittest/mytap
 
 AM_CFLAGS       = -Wall -ansi -pedantic
 
