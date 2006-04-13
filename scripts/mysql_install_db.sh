@@ -262,9 +262,6 @@ then
     echo "You can start the MySQL daemon with:"
     echo "cd @prefix@ ; $bindir/mysqld_safe &"
     echo
-    echo "You can test the MySQL daemon with the benchmarks in the 'sql-bench' directory:"
-    echo "cd sql-bench ; perl run-all-tests"
-    echo
   fi
   echo "Please report any problems with the @scriptdir@/mysqlbug script!"
   echo
