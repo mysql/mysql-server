@@ -3,8 +3,6 @@ AM_CPPFLAGS       += -I$(top_srcdir)/unittest/mytap
 
 AM_LDFLAGS         = -L$(top_builddir)/unittest/mytap
 
-AM_CFLAGS          = -W -Wall -ansi -pedantic
-
 LDADD              = -lmytap
 
 noinst_PROGRAMS    = simple.t skip.t todo.t skip_all.t no_plan.t
