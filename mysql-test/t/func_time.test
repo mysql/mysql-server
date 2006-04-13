@@ -446,4 +446,26 @@ select timestampdiff(year,'1999-09-11','2001-9-11');
 select timestampdiff(year,'2004-02-28','2005-02-28');
 select timestampdiff(year,'2004-02-29','2005-02-28');
 
+#
+# Bug #18618: BETWEEN for dates with the second argument being a constant
+#             expression and the first and the third arguments being fields 
+#
+
+CREATE TABLE t1 (id int NOT NULL PRIMARY KEY, day date);
+CREATE TABLE t2 (id int NOT NULL PRIMARY KEY, day date);
+
+INSERT INTO t1 VALUES
+  (1, '2005-06-01'), (2, '2005-02-01'), (3, '2005-07-01');
+INSERT INTO t2 VALUES
+  (1, '2005-08-01'), (2, '2005-06-15'), (3, '2005-07-15');
+
+SELECT * FROM t1, t2 
+  WHERE t1.day BETWEEN 
+               '2005.09.01' - INTERVAL 6 MONTH AND t2.day;
+SELECT * FROM t1, t2 
+  WHERE CAST(t1.day AS DATE) BETWEEN 
+                             '2005.09.01' - INTERVAL 6 MONTH AND t2.day;
+ 
+DROP TABLE t1,t2;
+
 # End of 5.0 tests
