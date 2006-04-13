@@ -15,7 +15,7 @@ events                   : BUG#17619 2006-02-21 andrey  Test case unstable
 events_logs_tests        : BUG#18953 2006-04-12 kent    Test is randomly failing
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
-ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
+#ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
 ndb_cache2               : BUG#18597 2006-03-28 brian simultaneous drop table and ndb statistics update triggers node failure
 ndb_cache_multi2         : BUG#18597 2006-04-10 kent  simultaneous drop table and ndb statistics update triggers node failure
 #ndb_gis                  : BUG#18600 2006-03-28 brian ndb_gis test failure
@@ -47,13 +47,3 @@ rpl_until                : BUG#15886 2006-02-16 jmiller Unstable test case
 sp-goto                  : BUG#18949 2006-02-16 jmiller GOTO is currently is disabled - will be fixed in the future
 mysqldump                : BUG#18078 2006-03-10 lars
 udf                      : BUG#18564 2006-03-27 ian     (Permission by Brian)
-
-#ndb_alter_table_row      : sometimes wrong error 1015!=1046
-#ndb_binlog_basic         : Results are not deterministic, Tomas will fix
-#ndb_binlog_multi         : Results are not deterministic, Tomas will fix
-#rpl_bit_npk              : Bug#13418
-#rpl_ddl                  : Bug#15963 SBR does not show "Definer" correctly
-#rpl_ndb_blob             : interferes with following tests, causing hang
-#rpl_ndb_blob2            : interferes with following tests, causing hang
-#rpl_ndb_delete_nowhere   : Bug#17400: delete & update of rows in table without pk fails
-#rpl_ndb_multi_update3    : Bug#17400: delete & update of rows in table without pk fails
