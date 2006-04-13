@@ -1,6 +1,6 @@
 
 AM_CPPFLAGS      = @ZLIB_INCLUDES@ -I$(top_builddir)/include 
-AM_CPPFLAGS     += -I$(top_srcdir)/include -I$(top_builddir)/unittest/mytap
+AM_CPPFLAGS     += -I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
 
 AM_LDFLAGS       = -L$(top_builddir)/unittest/mytap -L$(top_builddir)/mysys
 AM_LDFLAGS      += -L$(top_builddir)/strings -L$(top_builddir)/dbug

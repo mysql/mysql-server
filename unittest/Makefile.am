@@ -2,6 +2,8 @@ SUBDIRS      = mytap . mysys examples
 
 noinst_SCRIPTS = unit
 
+DISTCLEANFILES = unit
+
 unittests = mysys examples
 
 .PHONY: all mytap mysys examples test
@@ -18,6 +20,6 @@ mysys:
 examples:
 	cd examples && $(MAKE)
 
-unit: unit.pl
+unit: $(srcdir)/unit.pl
 	cp $< $@
 	chmod +x $@
