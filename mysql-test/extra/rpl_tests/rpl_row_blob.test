@@ -183,3 +183,9 @@ connection master;
 
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
+# ensure cleanup on slave as well:
+# ndb blob tables consist of several tables
+# if cluster is shutdown while not all tables are
+# properly dropped, the table becomes inconsistent
+# and wrecks later test cases
+--sync_slave_with_master
