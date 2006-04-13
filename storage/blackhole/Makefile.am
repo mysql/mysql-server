@@ -23,38 +23,28 @@ MYSQLLIBdir=            $(pkglibdir)
 INCLUDES =              -I$(top_srcdir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/sql \
-                        -I$(srcdir) @ZLIB_INCLUDES@
+                        -I$(srcdir)
 WRAPLIBS=
 
 LDADD =
 
 DEFS =                  @DEFS@
 
-noinst_HEADERS =	ha_archive.h azlib.h
-noinst_PROGRAMS	=	archive_test
+noinst_HEADERS =	ha_blackhole.h
 
-EXTRA_LTLIBRARIES =	ha_archive.la
-pkglib_LTLIBRARIES =	@plugin_archive_shared_target@
-ha_archive_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir)
-ha_archive_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-ha_archive_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-ha_archive_la_SOURCES =	ha_archive.cc azio.c
-
-
-EXTRA_LIBRARIES =	libarchive.a
-noinst_LIBRARIES =	@plugin_archive_static_target@
-libarchive_a_CXXFLAGS =	$(AM_CFLAGS)
-libarchive_a_CFLAGS =	$(AM_CFLAGS)
-libarchive_a_SOURCES =	ha_archive.cc azio.c
+EXTRA_LTLIBRARIES =	ha_blackhole.la
+pkglib_LTLIBRARIES =	@plugin_blackhole_shared_target@
+ha_blackhole_la_LDFLAGS=-module -rpath $(MYSQLLIBdir)
+ha_blackhole_la_CXXFLAGS=$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_blackhole_la_CFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_blackhole_la_SOURCES=ha_blackhole.cc
 
 
-archive_test_SOURCES =	archive_test.c azio.c
-archive_test_CFLAGS =	$(AM_CFLAGS)
-archive_test_LDADD =	$(top_srcdir)/mysys/libmysys.a \
-			$(top_srcdir)/dbug/libdbug.a \
-			$(top_srcdir)/strings/libmystrings.a \
-			@ZLIB_LIBS@
-archive_test_LDFLAGS = @NOINST_LDFLAGS@
+EXTRA_LIBRARIES =	libblackhole.a
+noinst_LIBRARIES =	@plugin_blackhole_static_target@
+libblackhole_a_CXXFLAGS=$(AM_CFLAGS)
+libblackhole_a_CFLAGS =	$(AM_CFLAGS)
+libblackhole_a_SOURCES=	ha_blackhole.cc
 
 
 # Don't update the files from bitkeeper
