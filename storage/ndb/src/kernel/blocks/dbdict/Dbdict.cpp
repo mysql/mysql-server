@@ -631,7 +631,8 @@ Dbdict::packFileIntoPages(SimpleProperties::Writer & w,
   f.FileSizeHi = (f_ptr.p->m_file_size >> 32);
   f.FileSizeLo = (f_ptr.p->m_file_size & 0xFFFFFFFF);
   f.FileFreeExtents= free_extents;
-  f.FileNo =  f_ptr.p->key;
+  f.FileId =  f_ptr.p->key;
+  f.FileVersion = f_ptr.p->m_version;
 
   FilegroupPtr lfg_ptr;
   ndbrequire(c_filegroup_hash.find(lfg_ptr, f.FilegroupId));
@@ -13588,6 +13589,13 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
       break;
     }
     
+    if (file_ptr.p->m_version != version)
+    {
+      ref->errorCode = DropFileRef::InvalidSchemaObjectVersion;
+      ref->errorLine = __LINE__;
+      break;
+    }
+
     Ptr<SchemaTransaction> trans_ptr;
     if (! c_Trans.seize(trans_ptr))
     {
@@ -13659,6 +13667,13 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
     if (!c_filegroup_hash.find(filegroup_ptr, objId))
     {
       ref->errorCode = DropFilegroupRef::NoSuchFilegroup;
+      ref->errorLine = __LINE__;
+      break;
+    }
+
+    if (filegroup_ptr.p->m_version != version)
+    {
+      ref->errorCode = DropFilegroupRef::InvalidSchemaObjectVersion;
       ref->errorLine = __LINE__;
       break;
     }
@@ -15095,6 +15110,7 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
     filePtr.p->m_obj_ptr_i = obj_ptr.i;
     filePtr.p->m_filegroup_id = f.FilegroupId;
     filePtr.p->m_type = f.FileType;
+    filePtr.p->m_version = op->m_obj_version;
     
     obj_ptr.p->m_id = op->m_obj_id;
     obj_ptr.p->m_type = f.FileType;
