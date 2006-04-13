@@ -165,7 +165,7 @@ static void registerwithneb();
 static void getvolumename();
 static void getvolumeID(BYTE *volumeName);
 #endif /* __NETWARE__ */
-  
+
 
 #ifdef _AIX41
 int initgroups(const char *,unsigned int);
@@ -960,18 +960,18 @@ static void __cdecl kill_server(int sig_ptr)
   else
     sql_print_error(ER(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
-#if defined(HAVE_SMEM) && defined(__WIN__)    
-  /*    
-   Send event to smem_event_connect_request for aborting    
-   */    
-  if (!SetEvent(smem_event_connect_request))    
-  {      
+#if defined(HAVE_SMEM) && defined(__WIN__)
+  /*
+   Send event to smem_event_connect_request for aborting
+   */
+  if (!SetEvent(smem_event_connect_request))
+  {
 	  DBUG_PRINT("error",
 		("Got error: %ld from SetEvent of smem_event_connect_request",
-		 GetLastError()));    
+		 GetLastError()));
   }
-#endif  
-  
+#endif
+
 #if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2))
   my_thread_init();				// If this is a new thread
 #endif
@@ -1453,7 +1453,7 @@ static void network_init(void)
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    
+
     pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
     strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
 	     mysqld_unix_port, NullS);
@@ -1804,7 +1804,7 @@ static void registerwithneb()
 {
 
   ConsumerRegistrationInfo reg_info;
-    
+
   /* Clear NEB registration structure */
   bzero((char*) &reg_info, sizeof(struct ConsumerRegistrationInfo));
 
@@ -1820,7 +1820,7 @@ static void registerwithneb()
   reg_info.CRIOwnerID= (LoadDefinitionStructure *)getnlmhandle();
   reg_info.CRIConsumerESR= NULL;	    // No consumer ESR required
   reg_info.CRISecurityToken= 0;	            // No security token for the event
-  reg_info.CRIConsumerFlags= 0;             // SMP_ENABLED_BIT;	
+  reg_info.CRIConsumerFlags= 0;             // SMP_ENABLED_BIT;
   reg_info.CRIFilterName= 0;	            // No event filtering
   reg_info.CRIFilterDataLength= 0;          // No filtering data
   reg_info.CRIFilterData= 0;	            // No filtering data
@@ -1845,7 +1845,7 @@ static void registerwithneb()
     Get the NSS volume ID of the MySQL Data volume.
     Volume ID is stored in a global variable
   */
-  getvolumeID((BYTE*) datavolname);	
+  getvolumeID((BYTE*) datavolname);
 }
 
 
@@ -1910,7 +1910,7 @@ static void getvolumeID(BYTE *volumeName)
 
   strxmov(path, (const char *) ADMIN_VOL_PATH, (const char *) volumeName,
           NullS);
-  if ((status= zOpen(rootKey, zNSS_TASK, zNSPACE_LONG|zMODE_UTF8, 
+  if ((status= zOpen(rootKey, zNSS_TASK, zNSPACE_LONG|zMODE_UTF8,
                      (BYTE *) path, zRR_READ_ACCESS, &fileKey)) != zOK)
   {
     consoleprintf("\nGetNSSVolumeProperties - Failed to get file, status: %d\n.", (int) status);
@@ -1918,7 +1918,7 @@ static void getvolumeID(BYTE *volumeName)
   }
 
   getInfoMask= zGET_IDS | zGET_VOLUME_INFO ;
-  if ((status= zGetInfo(fileKey, getInfoMask, sizeof(info), 
+  if ((status= zGetInfo(fileKey, getInfoMask, sizeof(info),
                         zINFO_VERSION_A, &info)) != zOK)
   {
     consoleprintf("\nGetNSSVolumeProperties - Failed in zGetInfo, status: %d\n.", (int) status);
@@ -2041,7 +2041,7 @@ or misconfigured. This error can also be caused by malfunctioning hardware.\n",
 We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
-  fprintf(stderr, "key_buffer_size=%lu\n", 
+  fprintf(stderr, "key_buffer_size=%lu\n",
           (ulong) dflt_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
@@ -2385,7 +2385,7 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
         thd->spcont->find_handler(error, MYSQL_ERROR::WARN_LEVEL_ERROR))
     {
       if (! thd->spcont->found_handler_here())
-        thd->net.report_error= 1; /* Make "select" abort correctly */ 
+        thd->net.report_error= 1; /* Make "select" abort correctly */
       DBUG_RETURN(0);
     }
 
@@ -2588,13 +2588,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
  }
 #endif
   /*
-    We set SYSTEM time zone as reasonable default and 
+    We set SYSTEM time zone as reasonable default and
     also for failure of my_tz_init() and bootstrap mode.
     If user explicitly set time zone with --default-time-zone
     option we will change this value in my_tz_init().
   */
   global_system_variables.time_zone= my_tz_SYSTEM;
-  
+
   /*
     Init mutexes for the global MYSQL_LOG objects.
     As safe_mutex depends on what MY_INIT() does, we can't init the mutexes of
@@ -2604,7 +2604,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   mysql_log.init_pthread_objects();
   mysql_slow_log.init_pthread_objects();
   mysql_bin_log.init_pthread_objects();
-  
+
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
     strmov(glob_hostname,"mysql");
   strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
@@ -2699,7 +2699,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
 
-  if (!(character_set_filesystem= 
+  if (!(character_set_filesystem=
         get_charset_by_csname(character_set_filesystem_name,
                               MY_CS_PRIMARY, MYF(MY_WME))))
     return 1;
@@ -2798,7 +2798,7 @@ static int init_thread_environment()
   openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
                                                      sizeof(openssl_lock_t));
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
-    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL); 
+    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL);
   CRYPTO_set_dynlock_create_callback(openssl_dynlock_create);
   CRYPTO_set_dynlock_destroy_callback(openssl_dynlock_destroy);
   CRYPTO_set_dynlock_lock_callback(openssl_lock);
@@ -2839,20 +2839,20 @@ static int init_thread_environment()
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static unsigned long openssl_id_function()
-{ 
+{
   return (unsigned long) pthread_self();
-} 
+}
 
 
 static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
-{ 
+{
   openssl_lock_t *lock= new openssl_lock_t;
   my_rwlock_init(&lock->lock, NULL);
   return lock;
 }
 
 
-static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file, 
+static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
 				    int line)
 {
   rwlock_destroy(&lock->lock);
@@ -2872,7 +2872,7 @@ static void openssl_lock_function(int mode, int n, const char *file, int line)
 }
 
 
-static void openssl_lock(int mode, openssl_lock_t *lock, const char *file, 
+static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 			 int line)
 {
   int err;
@@ -2897,7 +2897,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
     sql_print_error("Fatal: OpenSSL interface problem (mode=0x%x)", mode);
     abort();
   }
-  if (err) 
+  if (err)
   {
     sql_print_error("Fatal: can't %s OpenSSL %s lock", what);
     abort();
@@ -3204,7 +3204,7 @@ static void create_shutdown_thread()
   if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
     sql_print_warning("Can't create thread to handle shutdown requests");
 #endif
-#endif // EMBEDDED_LIBRARY 
+#endif // EMBEDDED_LIBRARY
 }
 
 
@@ -3259,7 +3259,7 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#endif 
+#endif
 
   while (handler_count > 0)
     pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
@@ -3353,7 +3353,7 @@ int main(int argc, char **argv)
 #endif
 #ifdef __NETWARE__
   /* Increasing stacksize of threads on NetWare */
-  
+
   pthread_attr_setstacksize(&connection_attrib, NW_THD_STACKSIZE);
 #endif
 
@@ -3445,7 +3445,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #ifndef __NETWARE__
     (void) pthread_kill(signal_thread, MYSQL_KILL_SIGNAL);
 #endif /* __NETWARE__ */
-    
+
     if (!opt_bootstrap)
       (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
 
@@ -3513,7 +3513,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif /* __NT__ */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
-  
+
   DBUG_PRINT("quit",("Exiting main thread"));
 
 #ifndef __WIN__
@@ -3549,7 +3549,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   wait_for_signal_thread_to_end();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
- 
+
   exit(0);
   return(0);					/* purecov: deadcode */
 }
@@ -3993,7 +3993,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
       size_socket length=sizeof(struct sockaddr_in);
       new_sock = accept(sock, my_reinterpret_cast(struct sockaddr *) (&cAddr),
 			&length);
-#ifdef __NETWARE__ 
+#ifdef __NETWARE__
       // TODO: temporary fix, waiting for TCP/IP fix - DEFECT000303149
       if ((new_sock == INVALID_SOCKET) && (socket_errno == EINVAL))
       {
@@ -4397,7 +4397,7 @@ errorconn:
 	      NullS);
       sql_perror(buff);
     }
-    if (handle_client_file_map) 
+    if (handle_client_file_map)
       CloseHandle(handle_client_file_map);
     if (handle_client_map)
       UnmapViewOfFile(handle_client_map);
@@ -4442,8 +4442,8 @@ error:
 
 enum options_mysqld
 {
-  OPT_ISAM_LOG=256,            OPT_SKIP_NEW, 
-  OPT_SKIP_GRANT,              OPT_SKIP_LOCK, 
+  OPT_ISAM_LOG=256,            OPT_SKIP_NEW,
+  OPT_SKIP_GRANT,              OPT_SKIP_LOCK,
   OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
   OPT_SOCKET,                  OPT_UPDATE_LOG,
   OPT_BIN_LOG,                 OPT_SKIP_RESOLVE,
@@ -4622,7 +4622,7 @@ enum options_mysqld
 
 struct my_option my_long_options[] =
 {
-  {"help", '?', "Display this help and exit.", 
+  {"help", '?', "Display this help and exit.",
    (gptr*) &opt_help, (gptr*) &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
 #ifdef HAVE_REPLICATION
@@ -4957,7 +4957,7 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &myisam_log_filename, (gptr*) &myisam_log_filename, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-long-format", '0',
-   "Log some extra information to update log. Please note that this option is deprecated; see --log-short-format option.", 
+   "Log some extra information to update log. Please note that this option is deprecated; see --log-short-format option.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-queries-not-using-indexes", OPT_LOG_QUERIES_NOT_USING_INDEXES,
    "Log queries that are executed without benefit of any index to the slow log if it is open.",
@@ -5353,7 +5353,7 @@ log and this option does nothing anymore.",
    0, 0, 0, 0, 0},
   {"timed_mutexes", OPT_TIMED_MUTEXES,
    "Specify whether to time mutexes (only InnoDB mutexes are currently supported)",
-   (gptr*) &timed_mutexes, (gptr*) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0, 
+   (gptr*) &timed_mutexes, (gptr*) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0,
     0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files. Several paths may be specified, separated by a "
@@ -5588,7 +5588,7 @@ log and this option does nothing anymore.",
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
    (gptr*) &dflt_key_cache_var.param_age_threshold,
    (gptr*) 0,
-   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
+   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
    300, 100, ~0L, 0, 100, 0},
   {"key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,
    "The default size of key cache blocks",
@@ -6003,7 +6003,7 @@ struct show_var_st status_vars[]= {
   {"Com_drop_index",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_INDEX]), SHOW_LONG_STATUS},
   {"Com_drop_table",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_TABLE]), SHOW_LONG_STATUS},
   {"Com_drop_user",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_USER]), SHOW_LONG_STATUS},
-  {"Com_execute_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXECUTE]), SHOW_LONG_STATUS}, 
+  {"Com_execute_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXECUTE]), SHOW_LONG_STATUS},
   {"Com_flush",		       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_FLUSH]), SHOW_LONG_STATUS},
   {"Com_grant",		       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GRANT]), SHOW_LONG_STATUS},
   {"Com_ha_close",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_HA_CLOSE]), SHOW_LONG_STATUS},
@@ -6356,7 +6356,7 @@ static void mysql_init_variables(void)
   master_password= master_host= 0;
   master_info_file= (char*) "master.info",
     relay_log_info_file= (char*) "relay-log.info";
-  master_ssl_key= master_ssl_cert= master_ssl_ca= 
+  master_ssl_key= master_ssl_cert= master_ssl_ca=
     master_ssl_capath= master_ssl_cipher= 0;
   report_user= report_password = report_host= 0;	/* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
@@ -6377,7 +6377,7 @@ static void mysql_init_variables(void)
   global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
-  
+
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
@@ -7006,7 +7006,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       exit(1);
     }
     switch (method-1) {
-    case 0: 
+    case 0:
       method_conv= MI_STATS_METHOD_NULLS_EQUAL;
       break;
     case 1:
@@ -7420,7 +7420,7 @@ static void create_pid_file()
     (void) my_close(file, MYF(0));
   }
   sql_perror("Can't start server: can't create PID file");
-  exit(1);  
+  exit(1);
 }
 
 
