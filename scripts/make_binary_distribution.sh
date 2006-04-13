@@ -97,7 +97,7 @@ mkdir $BASE $BASE/bin $BASE/docs \
  $BASE/mysql-test/extra/binlog_tests $BASE/mysql-test/extra/rpl_tests
 
 if [ $BASE_SYSTEM != "netware" ] ; then
- mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man \
+ mkdir $BASE/share/mysql $BASE/tests $BASE/man \
   $BASE/man/man1 $BASE/data $BASE/data/mysql $BASE/data/test
 
  chmod o-rwx $BASE/data $BASE/data/*
@@ -263,8 +263,7 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   mv $BASE/support-files/binary-configure $BASE/configure
   chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-* \
       $BASE/support-files/mysql.server $BASE/configure
-  $CP -r sql-bench/* $BASE/sql-bench
-  rm -f $BASE/sql-bench/*.sh $BASE/sql-bench/Makefile* $BASE/lib/*.la
+  rm -f $BASE/lib/*.la
   rm -f $BASE/bin/*.sql
 fi
 
@@ -304,17 +303,9 @@ else
     rm -f $BASE/README.NW
 fi
 
-# Dropped with 5.1.6-beta
-# # Make safe_mysqld a symlink to mysqld_safe for backwards portability
-# # To be removed in MySQL 4.1
-# if [ $BASE_SYSTEM != "netware" ] ; then
-#   (cd $BASE/bin ; ln -s mysqld_safe safe_mysqld )
-# fi
-
 # Clean up if we did this from a bk tree
-if [ -d $BASE/sql-bench/SCCS ] ; then
+if [ -d $BASE/share/SCCS ] ; then
   find $BASE/share -name SCCS -print | xargs rm -rf
-  find $BASE/sql-bench -name SCCS -print | xargs rm -rf
 fi
 
 # NDB Cluster

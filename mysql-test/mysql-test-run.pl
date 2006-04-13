@@ -502,7 +502,9 @@ sub initial_setup () {
     chomp($glob_cygwin_shell);
   }
   $glob_basedir=         dirname($glob_mysql_test_dir);
-  $glob_mysql_bench_dir= "$glob_basedir/mysql-bench"; # FIXME make configurable
+  # Expect mysql-bench to be located adjacent to the source tree, by default
+  $glob_mysql_bench_dir= "$glob_basedir/../mysql-bench"
+    unless defined $glob_mysql_bench_dir;
 
   # needs to be same length to test logging (FIXME what???)
   $path_slave_load_tmpdir=  "../../var/tmp";
@@ -664,6 +666,7 @@ sub command_line_setup () {
 	     # Directories
              'tmpdir=s'                 => \$opt_tmpdir,
              'vardir=s'                 => \$opt_vardir,
+             'benchdir=s'               => \$glob_mysql_bench_dir,
 
              # Misc
              'comment=s'                => \$opt_comment,
@@ -1682,8 +1685,8 @@ sub run_benchmarks ($) {
     mtr_add_arg($args, "--create-options=TYPE=ndb");
   }
 
-  my $benchdir=  "$glob_basedir/sql-bench";
-  chdir($benchdir);             # FIXME check error
+  chdir($glob_mysql_bench_dir)
+    or mtr_error("Couldn't chdir to '$glob_mysql_bench_dir': $!");
 
   # FIXME write shorter....
 
