@@ -552,11 +552,7 @@ struct system_variables
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
-#ifdef HAVE_REPLICATION
-  ulong sync_replication;
-  ulong sync_replication_slave_id;
-  ulong sync_replication_timeout;
-#endif /* HAVE_REPLICATION */
+
 #ifdef HAVE_INNOBASE_DB
   my_bool innodb_table_locks;
   my_bool innodb_support_xa;
