@@ -647,6 +647,7 @@ public:
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   longlong val_int();
   bool get_date(TIME *res, uint fuzzy_date);
+  bool eq(const Item *item, bool binary_cmp) const;
   void print(String *str);
 };
 
