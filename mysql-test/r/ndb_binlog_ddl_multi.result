@@ -27,11 +27,13 @@ master-bin1.000001	#	Query	#	#	use `test`; alter table t2 add column (b int)
 reset master;
 reset master;
 ALTER DATABASE mysqltest CHARACTER SET latin1;
-drop table mysqltest.t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	ALTER DATABASE mysqltest CHARACTER SET latin1
-master-bin.000001	#	Query	#	#	use `mysqltest`; drop table `t1`
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	ALTER DATABASE mysqltest CHARACTER SET latin1
+drop table mysqltest.t1;
 reset master;
 reset master;
 use test;
@@ -79,7 +81,6 @@ DROP TABLESPACE ts1
 ENGINE = NDB;
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
-drop table t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin1.000001	#	Query	#	#	CREATE LOGFILE GROUP lg1
@@ -110,7 +111,37 @@ master-bin1.000001	#	Query	#	#	DROP TABLESPACE ts1
 ENGINE = NDB
 master-bin1.000001	#	Query	#	#	DROP LOGFILE GROUP lg1 
 ENGINE =NDB
-master-bin1.000001	#	Query	#	#	use `test`; drop table `t1`
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin1.000001	#	Query	#	#	CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB
+master-bin1.000001	#	Query	#	#	ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE = 4M 
+ENGINE=NDB
+master-bin1.000001	#	Query	#	#	CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB
+master-bin1.000001	#	Query	#	#	ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile02.dat'
+INITIAL_SIZE = 4M 
+ENGINE=NDB
+master-bin1.000001	#	Query	#	#	ALTER TABLESPACE ts1 
+DROP DATAFILE 'datafile.dat' 
+ENGINE = NDB
+master-bin1.000001	#	Query	#	#	ALTER TABLESPACE ts1 
+DROP DATAFILE 'datafile02.dat' 
+ENGINE = NDB
+master-bin1.000001	#	Query	#	#	DROP TABLESPACE ts1 
+ENGINE = NDB
+master-bin1.000001	#	Query	#	#	DROP LOGFILE GROUP lg1 
+ENGINE =NDB
+drop table t1;
 reset master;
 show tables;
 Tables_in_test
