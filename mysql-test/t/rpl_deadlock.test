@@ -67,7 +67,9 @@ select * from t2;
 # check that no error is reported
 --replace_column 1 # 8 # 9 # 23 # 33 #
 --replace_result $MASTER_MYPORT MASTER_MYPORT
+--vertical_results
 show slave status;
+--horizontal_results
 
 # 2) Test lock wait timeout
 
@@ -82,9 +84,11 @@ sync_with_master;
 select * from t1; # check that slave succeeded finally
 select * from t2;
 # check that no error is reported
---replace_column 1 # 8 # 9 # 23 # 33 #
+--replace_column 1 # 8 # 9 # 11 # 23 # 33 #
 --replace_result $MASTER_MYPORT MASTER_MYPORT
+--vertical_results
 show slave status;
+--horizontal_results
 
 # Now we repeat 2), but with BEGIN in the same relay log as
 # COMMIT (to see if seeking into hot log is ok).
@@ -104,7 +108,9 @@ select * from t1;
 select * from t2;
 --replace_column 1 # 8 # 9 # 11 # 23 # 33 #
 --replace_result $MASTER_MYPORT MASTER_MYPORT
+--vertical_results
 show slave status;
+--horizontal_results
 
 connection master;
 drop table t1,t2,t3,t4;
