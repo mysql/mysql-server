@@ -23,7 +23,7 @@
 int
 main(void)
 {
-  int i;
+  int i, cmp;
   size_t j, k, l, dst_len, needed_length;
 
   for (i= 0; i < 500; i++)
@@ -57,12 +57,12 @@ main(void)
     dst_len= base64_decode(str, strlen(str), dst);
     ok(dst_len == src_len, "Comparing lengths");
 
-    int cmp= memcmp(src, dst, src_len);
+    cmp= memcmp(src, dst, src_len);
     ok(cmp == 0, "Comparing encode-decode result");
     if (cmp != 0)
     {
-      diag("       --------- src ---------   --------- dst ---------");
       char buf[80];
+      diag("       --------- src ---------   --------- dst ---------");
       for (k= 0; k<src_len; k+=8)
       {
         sprintf(buf, "%.4x   ", (uint) k);
