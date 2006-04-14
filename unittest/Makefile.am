@@ -2,6 +2,8 @@ SUBDIRS      = mytap . mysys examples
 
 noinst_SCRIPTS = unit
 
+EXTRA_DIST = 		unit.pl
+
 DISTCLEANFILES = unit
 
 unittests = mysys examples
