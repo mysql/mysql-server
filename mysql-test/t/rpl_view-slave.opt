@@ -1,5 +1,1 @@
-#
-# BUG18715 create view with replicate*ignore-table
-# The option is needed to force slave executes tables_ok
-# which must return OK in conditions of this tests (no table foo is used)
 --replicate-ignore-table=test.foo
