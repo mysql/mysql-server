@@ -2129,6 +2129,60 @@ disconnect a;
 disconnect b;
 
 #
+# Test that cascading updates leading to duplicate keys give the correct
+# error message (bug #9680)
+#
+
+CREATE TABLE t1 (
+  field1 varchar(8) NOT NULL DEFAULT '',
+  field2 varchar(8) NOT NULL DEFAULT '',
+  PRIMARY KEY  (field1, field2)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  field1 varchar(8) NOT NULL DEFAULT '' PRIMARY KEY,
+  FOREIGN KEY (field1) REFERENCES t1 (field1)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('old', 'somevalu');
+INSERT INTO t1 VALUES ('other', 'anyvalue');
+
+INSERT INTO t2 VALUES ('old');
+INSERT INTO t2 VALUES ('other');
+
+--error ER_FOREIGN_DUPLICATE_KEY
+UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+#
+# Bug#18477 - MySQL/InnoDB Ignoring Foreign Keys in ALTER TABLE
+#
+create table t1 (
+  c1 bigint not null,
+  c2 bigint not null,
+  primary key (c1),
+  unique  key (c2)
+) engine=innodb;
+#
+create table t2 (
+  c1 bigint not null,
+  primary key (c1)
+) engine=innodb;
+#
+alter table t1 add constraint c2_fk foreign key (c2)
+  references t2(c1) on delete cascade;
+show create table t1;
+#
+alter table t1 drop foreign key c2_fk;
+show create table t1;
+#
+drop table t1, t2;
+
+
+#
 # Bug #14360: problem with intervals
 #
 
