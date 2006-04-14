@@ -185,7 +185,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...);
 void tee_fputs(const char *s, FILE *file);
 void tee_puts(const char *s, FILE *file);
 void tee_putc(int c, FILE *file);
-static void tee_print_sized_data(const char *data, unsigned int length, unsigned int width);
+static void tee_print_sized_data(const char *, unsigned int, unsigned int, bool);
 /* The names of functions that actually do the manipulation. */
 static int get_options(int argc,char **argv);
 static int com_quit(String *str,char*),
@@ -2311,35 +2311,52 @@ print_table_data(MYSQL_RES *result)
   while ((cur= mysql_fetch_row(result)))
   {
     ulong *lengths= mysql_fetch_lengths(result);
-    (void) tee_fputs("|", PAGER);
+    (void) tee_fputs("| ", PAGER);
     mysql_field_seek(result, 0);
     for (uint off= 0; off < mysql_num_fields(result); off++)
     {
-      const char *str= cur[off] ? cur[off] : "NULL";
-      uint currlength;
-      uint maxlength;
-      uint numcells;
+      const char *buffer;
+      uint data_length;
+      uint field_max_length;
+      bool right_justified;
+      uint visible_length;
+      uint extra_padding;
+
+      if (lengths[off] == 0) 
+      {
+        buffer= "NULL";
+        data_length= 4;
+      } 
+      else 
+      {
+        buffer= cur[off];
+        data_length= (uint) lengths[off];
+      }
 
       field= mysql_fetch_field(result);
-      maxlength= field->max_length;
-      currlength= (uint) lengths[off];
-      numcells= charset_info->cset->numcells(charset_info, 
-                                                    str, str + currlength);
-      if (maxlength > MAX_COLUMN_LENGTH)
-      {
-        tee_print_sized_data(str, currlength, maxlength);
-        tee_fputs(" |", PAGER);
-      }
+      field_max_length= field->max_length;
+
+      /* 
+       How many text cells on the screen will this string span?  If it contains
+       multibyte characters, then the number of characters we occupy on screen
+       will be fewer than the number of bytes we occupy in memory.
+
+       We need to find how much screen real-estate we will occupy to know how 
+       many extra padding-characters we should send with the printing function.
+      */
+      visible_length= charset_info->cset->numcells(charset_info, buffer, buffer + data_length);
+      extra_padding= data_length - visible_length;
+
+      if (field_max_length > MAX_COLUMN_LENGTH)
+        tee_print_sized_data(buffer, data_length, MAX_COLUMN_LENGTH+extra_padding, FALSE);
       else
       {
-        if (num_flag[off] != 0)
-          tee_fprintf(PAGER, " %-*s|", maxlength + currlength - numcells, str);
+        if (num_flag[off] != 0) /* if it is numeric, we right-justify it */
+          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, TRUE);
         else 
-        {
-          tee_print_sized_data(str, currlength, maxlength);
-          tee_fputs(" |", PAGER);
-        }
+          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, FALSE);
       }
+      tee_fputs(" | ", PAGER);
     }
     (void) tee_fputs("\n", PAGER);
   }
@@ -2349,10 +2366,9 @@ print_table_data(MYSQL_RES *result)
 
 
 static void
-tee_print_sized_data(const char *data, unsigned int length, unsigned int width)
+tee_print_sized_data(const char *data, unsigned int data_length, unsigned int total_bytes_to_send, bool right_justified)
 {
   /* 
-    It is not a number, so print each character justified to the left.
     For '\0's print ASCII spaces instead, as '\0' is eaten by (at
     least my) console driver, and that messes up the pretty table
     grid.  (The \0 is also the reason we can't use fprintf() .) 
@@ -2360,9 +2376,14 @@ tee_print_sized_data(const char *data, unsigned int length, unsigned int width)
   unsigned int i;
   const char *p;
 
-  tee_putc(' ', PAGER);
+  total_bytes_to_send -= 1;  
+  /* Off by one, perhaps mistakenly accounting for a terminating NUL. */
 
-  for (i= 0, p= data; i < length; i+= 1, p+= 1)
+  if (right_justified) 
+    for (i= 0; i < (total_bytes_to_send - data_length); i++)
+      tee_putc((int)' ', PAGER);
+
+  for (i= 0, p= data; i < data_length; i+= 1, p+= 1)
   {
     if (*p == '\0')
       tee_putc((int)' ', PAGER);
@@ -2370,9 +2391,9 @@ tee_print_sized_data(const char *data, unsigned int length, unsigned int width)
       tee_putc((int)*p, PAGER);
   }
 
-  i+= 1; 
-  for (   ; i < width; i+= 1)
-    tee_putc((int)' ', PAGER);
+  if (! right_justified) 
+    for (i= 0; i < (total_bytes_to_send - data_length); i++)
+      tee_putc((int)' ', PAGER);
 }
 
 
@@ -3360,7 +3381,7 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
     if (info_type == INFO_ERROR)
     {
       if (!opt_nobeep)
-	putchar('\007');		      	/* This should make a bell */
+        putchar('\a');		      	/* This should make a bell */
       vidattr(A_STANDOUT);
       if (error)
       {
