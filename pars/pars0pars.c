@@ -1963,6 +1963,8 @@ pars_info_add_literal(
 {
 	pars_bound_lit_t*	pbl;
 
+	ut_ad(!pars_info_get_bound_lit(info, name));
+
 	pbl = mem_heap_alloc(info->heap, sizeof(*pbl));
 
 	pbl->name = name;
@@ -2052,6 +2054,8 @@ pars_info_add_function(
 	void*			arg)	/* in: user-supplied argument */
 {
 	pars_user_func_t*	puf;
+
+	ut_ad(!pars_info_get_user_func(info, name));
 
 	puf = mem_heap_alloc(info->heap, sizeof(*puf));
 
