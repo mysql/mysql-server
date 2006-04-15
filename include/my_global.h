@@ -254,7 +254,7 @@
 #endif
 #endif
 
-#if defined(THREAD) && !defined(__WIN__) && !defined(OS2)
+#if defined(THREAD) && !defined(__WIN__)
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
 #endif
@@ -459,9 +459,7 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define POSIX_MISTAKE 1		/* regexp: Fix stupid spec error */
 #define USE_REGEX 1		/* We want the use the regex library */
 /* Do not define for ultra sparcs */
-#ifndef OS2
 #define USE_BMOVE512 1		/* Use this unless system bmove is faster */
-#endif
 
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
@@ -506,7 +504,7 @@ int	__void__;
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #endif
 
-#if defined(__EMX__) || !defined(HAVE_UINT)
+#if !defined(HAVE_UINT)
 #undef HAVE_UINT
 #define HAVE_UINT
 typedef unsigned int uint;
@@ -684,13 +682,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_DEVCHAR	':'
 
 #ifndef FN_LIBCHAR
-#ifdef __EMX__
-#define FN_LIBCHAR	'\\'
-#define FN_ROOTDIR	"\\"
-#else
 #define FN_LIBCHAR	'/'
 #define FN_ROOTDIR	"/"
-#endif
 #endif
 #define MY_NFILE	64	/* This is only used to save filenames */
 #ifndef OS_FILE_LIMIT
@@ -738,11 +731,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 #undef remove		/* Crashes MySQL on SCO 5.0.0 */
 #ifndef __WIN__
-#ifdef OS2
-#define closesocket(A)	soclose(A)
-#else
 #define closesocket(A)	close(A)
-#endif
 #ifndef ulonglong2double
 #define ulonglong2double(A) ((double) (ulonglong) (A))
 #define my_off_t2double(A)  ((double) (my_off_t) (A))
@@ -951,7 +940,7 @@ typedef ulonglong my_off_t;
 typedef unsigned long my_off_t;
 #endif
 #define MY_FILEPOS_ERROR	(~(my_off_t) 0)
-#if !defined(__WIN__) && !defined(OS2)
+#if !defined(__WIN__)
 typedef off_t os_off_t;
 #endif
 
@@ -964,16 +953,6 @@ typedef off_t os_off_t;
 #define SOCKET_EADDRINUSE WSAEADDRINUSE
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
-#elif defined(OS2)
-#define socket_errno	sock_errno()
-#define SOCKET_EINTR	SOCEINTR
-#define SOCKET_EAGAIN	SOCEINPROGRESS
-#define SOCKET_ETIMEDOUT SOCKET_EINTR
-#define SOCKET_EWOULDBLOCK SOCEWOULDBLOCK
-#define SOCKET_EADDRINUSE SOCEADDRINUSE
-#define SOCKET_ENFILE	SOCENFILE
-#define SOCKET_EMFILE	SOCEMFILE
-#define closesocket(A)	soclose(A)
 #else /* Unix */
 #define socket_errno	errno
 #define closesocket(A)	close(A)
