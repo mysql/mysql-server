@@ -26,11 +26,6 @@
 #ifdef __WIN__
 #include <sys/locking.h>
 #endif
-#ifdef __EMX__
-#define INCL_BASE
-#define INCL_NOPMAPI
-#include <os2emx.h>
-#endif
 #ifdef __NETWARE__
 #include <nks/fsio.h>
 #endif
@@ -96,11 +91,6 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
         DBUG_RETURN(0);
     }
   }
-#elif defined(__EMX__) || defined(OS2)
-
-   if (!_lock64( fd, locktype, start, length, MyFlags))
-    DBUG_RETURN(0);
-
 #elif defined(HAVE_LOCKING)
   /* Windows */
   {

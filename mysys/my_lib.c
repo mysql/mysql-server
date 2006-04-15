@@ -26,9 +26,7 @@
 # include <dirent.h>
 # define NAMLEN(dirent) strlen((dirent)->d_name)
 #else
-#ifndef OS2
 # define dirent direct
-#endif
 # define NAMLEN(dirent) (dirent)->d_namlen
 # if defined(HAVE_SYS_NDIR_H)
 #  include <sys/ndir.h>
@@ -50,10 +48,6 @@
 #include <rms.h>
 #include <iodef.h>
 #include <descrip.h>
-#endif
-
-#ifdef OS2
-#include "my_os2dirsrch.h"
 #endif
 
 #if defined(THREAD) && defined(HAVE_READDIR_R)

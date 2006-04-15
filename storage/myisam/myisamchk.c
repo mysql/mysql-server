@@ -34,10 +34,6 @@ SET_STACK_SIZE(9000)			/* Minimum stack size for program */
 #define my_raid_delete(A,B,C) my_delete(A,B)
 #endif
 
-#ifdef OS2
-#define _sanity(a,b)
-#endif
-
 static uint decode_bits;
 static char **default_argv;
 static const char *load_default_groups[]= { "myisamchk", 0 };
@@ -378,7 +374,7 @@ static void usage(void)
                       directly with '--variable-name=value'.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
                       specified, separated by ");
-#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+#if defined( __WIN__) || defined(__NETWARE__)
    printf("semicolon (;)");
 #else
    printf("colon (:)");
