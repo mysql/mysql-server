@@ -87,7 +87,7 @@ my_bool my_init(void)
 #endif
   if (my_thread_global_init())
     return 1;
-#if !defined( __WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined( __WIN__) && !defined(__NETWARE__)
   sigfillset(&my_signals);		/* signals blocked by mf_brkhant */
 #endif
 #endif /* THREAD */

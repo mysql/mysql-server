@@ -73,14 +73,6 @@ typedef struct st_thr_alarm_entry
   rf_SetTimer crono;
 } thr_alarm_entry;
 
-#elif defined(__EMX__) || defined(OS2)
-
-typedef struct st_thr_alarm_entry
-{
-  uint crono;
-  uint event;
-} thr_alarm_entry;
-
 #else /* System with posix threads */
 
 typedef int thr_alarm_entry;
