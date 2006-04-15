@@ -122,12 +122,12 @@ functions */
 
 /* Type information */
 
-#if defined(__EMX__) || !defined(HAVE_UINT)
+#if !defined(HAVE_UINT)
 #undef HAVE_UINT
 #define HAVE_UINT
 typedef unsigned short	ushort;
 typedef unsigned int	uint;
-#endif /* defined(__EMX__) || !defined(HAVE_UINT) */
+#endif /* !defined(HAVE_UINT) */
 
 typedef unsigned __int64 ulonglong;	/* Microsofts 64 bit types */
 typedef __int64 longlong;

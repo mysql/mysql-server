@@ -94,7 +94,7 @@ my_bool my_thread_global_init(void)
   pthread_mutex_init(&THR_LOCK_heap,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_net,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_charset,MY_MUTEX_INIT_FAST);
-#if defined( __WIN__) || defined(OS2)
+#if defined( __WIN__)
   win_pthread_init();
 #endif
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
@@ -222,14 +222,14 @@ void my_thread_end(void)
     pthread_cond_destroy(&tmp->suspend);
 #endif
     pthread_mutex_destroy(&tmp->mutex);
-#if (!defined(__WIN__) && !defined(OS2)) || defined(USE_TLS)
+#if !defined(__WIN__) || defined(USE_TLS)
     free(tmp);
 #else
     tmp->init= 0;
 #endif
   }
   /* The following free has to be done, even if my_thread_var() is 0 */
-#if (!defined(__WIN__) && !defined(OS2)) || defined(USE_TLS)
+#if !defined(__WIN__) || defined(USE_TLS)
   pthread_setspecific(THR_KEY_mysys,0);
 #endif
 }

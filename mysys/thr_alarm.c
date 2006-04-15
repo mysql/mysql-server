@@ -42,7 +42,7 @@ volatile my_bool alarm_thread_running= 0;
 
 static sig_handler process_alarm_part2(int sig);
 
-#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
+#if !defined(__WIN__)
 
 static pthread_mutex_t LOCK_alarm;
 static pthread_cond_t COND_alarm;
@@ -564,145 +564,6 @@ static void *alarm_handler(void *arg __attribute__((unused)))
 #endif /* USE_ALARM_THREAD */
 
 /*****************************************************************************
-  thr_alarm for OS/2
-*****************************************************************************/
-
-#elif defined(__EMX__) || defined(OS2)
-
-#define INCL_BASE
-#define INCL_NOPMAPI
-#include <os2.h>
-
-static pthread_mutex_t LOCK_alarm;
-static sigset_t full_signal_set;
-static QUEUE alarm_queue;
-pthread_t alarm_thread;
-
-#ifdef USE_ALARM_THREAD
-static pthread_cond_t COND_alarm;
-static void *alarm_handler(void *arg);
-#define reschedule_alarms() pthread_cond_signal(&COND_alarm)
-#else
-#define reschedule_alarms() pthread_kill(alarm_thread,THR_SERVER_ALARM)
-#endif
-
-sig_handler process_alarm(int sig __attribute__((unused)))
-{
-  sigset_t old_mask;
-  ALARM *alarm_data;
-  DBUG_PRINT("info",("sig: %d active alarms: %d",sig,alarm_queue.elements));
-}
-
-
-/*
-  Remove another thread from the alarm
-*/
-
-void thr_alarm_kill(pthread_t thread_id)
-{
-  uint i;
-
-  pthread_mutex_lock(&LOCK_alarm);
-  for (i=0 ; i < alarm_queue.elements ; i++)
-  {
-    if (pthread_equal(((ALARM*) queue_element(&alarm_queue,i))->thread,
-		      thread_id))
-    {
-      ALARM *tmp=(ALARM*) queue_remove(&alarm_queue,i);
-      tmp->expire_time=0;
-      queue_insert(&alarm_queue,(byte*) tmp);
-      reschedule_alarms();
-      break;
-    }
-  }
-  pthread_mutex_unlock(&LOCK_alarm);
-}
-
-bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
-{
-  APIRET rc;
-  if (alarm_aborted)
-  {
-    alarm->alarmed.crono=0;
-    alarm->alarmed.event=0;
-    return 1;
-  }
-  if (rc = DosCreateEventSem(NULL,(HEV *) &alarm->alarmed.event,
-			     DC_SEM_SHARED,FALSE))
-  {
-    printf("Error creating event semaphore! [%d] \n",rc);
-    alarm->alarmed.crono=0;
-    alarm->alarmed.event=0;
-    return 1;
-  }
-  if (rc = DosAsyncTimer((long) sec*1000L, (HSEM) alarm->alarmed.event,
-			 (HTIMER *) &alarm->alarmed.crono))
-  {
-    printf("Error starting async timer! [%d] \n",rc);
-    DosCloseEventSem((HEV) alarm->alarmed.event);
-    alarm->alarmed.crono=0;
-    alarm->alarmed.event=0;
-    return 1;
-  } /* endif */
-  (*alrm)= &alarm->alarmed;
-  return 1;
-}
-
-
-bool thr_got_alarm(thr_alarm_t *alrm_ptr)
-{
-  thr_alarm_t alrm= *alrm_ptr;
-  APIRET rc;
-
-  if (alrm->crono)
-  {
-    rc = DosWaitEventSem((HEV) alrm->event, SEM_IMMEDIATE_RETURN);
-    if (rc == 0) {
-      DosCloseEventSem((HEV) alrm->event);
-      alrm->crono = 0;
-      alrm->event = 0;
-    } /* endif */
-  }
-  return !alrm->crono || alarm_aborted;
-}
-
-
-void thr_end_alarm(thr_alarm_t *alrm_ptr)
-{
-  thr_alarm_t alrm= *alrm_ptr;
-  if (alrm->crono)
-  {
-    DosStopTimer((HTIMER) alrm->crono);
-    DosCloseEventSem((HEV) alrm->event);
-    alrm->crono = 0;
-    alrm->event = 0;
-  }
-}
-
-void end_thr_alarm(my_bool free_structures)
-{
-  DBUG_ENTER("end_thr_alarm");
-  alarm_aborted=1;				/* No more alarms */
-  DBUG_VOID_RETURN;
-}
-
-void init_thr_alarm(uint max_alarm)
-{
-  DBUG_ENTER("init_thr_alarm");
-  alarm_aborted=0;				/* Yes, Gimmie alarms */
-  DBUG_VOID_RETURN;
-}
-
-void thr_alarm_info(ALARM_INFO *info)
-{
-  bzero((char*) info, sizeof(*info));
-}
-
-void resize_thr_alarm(uint max_alarms)
-{
-}
-
-/*****************************************************************************
   thr_alarm for win95
 *****************************************************************************/
 
@@ -902,10 +763,8 @@ static sig_handler print_signal_warning(int sig)
 #ifdef DONT_REMEMBER_SIGNAL
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
-#ifndef OS2
   if (sig == SIGALRM)
     alarm(2);					/* reschedule alarm */
-#endif
 }
 #endif /* USE_ONE_SIGNAL_HAND */
 
@@ -922,7 +781,6 @@ static void *signal_hand(void *arg __attribute__((unused)))
   VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
 
-#ifndef OS2
   sigemptyset(&set);				/* Catch all signals */
   sigaddset(&set,SIGINT);
   sigaddset(&set,SIGQUIT);
@@ -939,7 +797,6 @@ static void *signal_hand(void *arg __attribute__((unused)))
 #else
   puts("Starting signal handling thread");
 #endif
-#endif /* OS2 */
   printf("server alarm: %d  thread alarm: %d\n",
 	 THR_SERVER_ALARM,THR_CLIENT_ALARM);
   DBUG_PRINT("info",("Starting signal and alarm handling thread"));
@@ -962,9 +819,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
     case SIGINT:
     case SIGQUIT:
     case SIGTERM:
-#ifndef OS2
     case SIGHUP:
-#endif
       printf("Aborting nicely\n");
       end_thr_alarm(0);
       break;
@@ -974,13 +829,11 @@ static void *signal_hand(void *arg __attribute__((unused)))
       exit(1);
       return 0;					/* Keep some compilers happy */
 #endif
-#ifndef OS2
 #ifdef USE_ONE_SIGNAL_HAND
      case THR_SERVER_ALARM:
        process_alarm(sig);
       break;
 #endif
-#endif /* OS2 */
     }
   }
 }
@@ -1002,7 +855,6 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   pthread_cond_init(&COND_thread_count,NULL);
 
   /* Start a alarm handling thread */
-#ifndef OS2
   sigemptyset(&set);
   sigaddset(&set,SIGINT);
   sigaddset(&set,SIGQUIT);
@@ -1020,7 +872,6 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   sigaddset(&set,THR_CLIENT_ALARM);
   VOID(pthread_sigmask(SIG_UNBLOCK, &set, (sigset_t*) 0));
 #endif
-#endif /* OS2 */
 
   pthread_attr_init(&thr_attr);
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);
