@@ -81,7 +81,7 @@ extern "C" {
 #endif
 
 #undef bcmp				// Fix problem with new readline
-#if defined( __WIN__) || defined(OS2)
+#if defined( __WIN__)
 #include <conio.h>
 #elif !defined(__NETWARE__)
 #include <readline/readline.h>
@@ -101,7 +101,7 @@ extern "C" {
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
-#if !defined( __WIN__) && !defined( OS2) && !defined(__NETWARE__) && (!defined(HAVE_mit_thread) || !defined(THREAD))
+#if !defined( __WIN__) && !defined(__NETWARE__) && !defined(THREAD)
 #define USE_POPEN
 #endif
 
@@ -969,7 +969,7 @@ static int get_options(int argc, char **argv)
 
 static int read_and_execute(bool interactive)
 {
-#if defined(OS2) || defined(__NETWARE__)
+#if defined(__NETWARE__)
   char linebuffer[254];
   String buffer;
 #endif
@@ -1006,7 +1006,7 @@ static int read_and_execute(bool interactive)
       if (opt_outfile && glob_buffer.is_empty())
 	fflush(OUTFILE);
 
-#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+#if defined( __WIN__) || defined(__NETWARE__)
       tee_fputs(prompt, stdout);
 #if defined(__NETWARE__)
       line=fgets(linebuffer, sizeof(linebuffer)-1, stdin);
@@ -1017,7 +1017,7 @@ static int read_and_execute(bool interactive)
         if (p != NULL)
           *p = '\0';
       }
-#elif defined(__WIN__)
+#else defined(__WIN__)
       if (!tmpbuf.is_alloced())
         tmpbuf.alloc(65535);
       tmpbuf.length(0);
@@ -1033,32 +1033,12 @@ static int read_and_execute(bool interactive)
         */
       } while (tmpbuf.alloced_length() <= clen);
       line= buffer.c_ptr();
-#else /* OS2 */
-      buffer.length(0);
-      /* _cgets() expects the buffer size - 3 as the first byte */
-      linebuffer[0]= (char) sizeof(linebuffer) - 3;
-      do
-      {
-        line= _cgets(linebuffer);
-        buffer.append(line, (unsigned char)linebuffer[1]);
-      /*
-        If _cgets() gets an input line that is linebuffer[0] bytes
-        long, the next call to _cgets() will return immediately with
-        linebuffer[1] == 0, and it does the same thing for input that
-        is linebuffer[0]-1 bytes long. So it appears that even though
-        _cgets() replaces the newline (which is two bytes on Window) with
-        a nil, it still needs the space in the linebuffer for it. This is,
-        naturally, undocumented.
-       */
-      } while ((unsigned char)linebuffer[0] <=
-               (unsigned char)linebuffer[1] + 1);
-      line= buffer.c_ptr();
 #endif /* __NETWARE__ */
 #else
       if (opt_outfile)
 	fputs(prompt, OUTFILE);
       line= readline(prompt);
-#endif /* defined( __WIN__) || defined(OS2) || defined(__NETWARE__) */
+#endif /* defined( __WIN__) || defined(__NETWARE__) */
 
       /*
         When Ctrl+d or Ctrl+z is pressed, the line may be NULL on some OS
@@ -1110,7 +1090,7 @@ static int read_and_execute(bool interactive)
     }
   }
 
-#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+#if defined( __WIN__) || defined(__NETWARE__)
   buffer.free();
 #endif
 #if defined( __WIN__)
@@ -3429,9 +3409,6 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
   NETWARE_YIELD;
   va_start(args, fmt);
   (void) vfprintf(file, fmt, args);
-#ifdef OS2
-  fflush( file);
-#endif
   va_end(args);
 
   if (opt_outfile)
@@ -3447,9 +3424,6 @@ void tee_fputs(const char *s, FILE *file)
 {
   NETWARE_YIELD;
   fputs(s, file);
-#ifdef OS2
-  fflush( file);
-#endif
   if (opt_outfile)
     fputs(s, OUTFILE);
 }
@@ -3460,9 +3434,6 @@ void tee_puts(const char *s, FILE *file)
   NETWARE_YIELD;
   fputs(s, file);
   fputs("\n", file);
-#ifdef OS2
-  fflush( file);
-#endif
   if (opt_outfile)
   {
     fputs(s, OUTFILE);
@@ -3473,14 +3444,11 @@ void tee_puts(const char *s, FILE *file)
 void tee_putc(int c, FILE *file)
 {
   putc(c, file);
-#ifdef OS2
-  fflush( file);
-#endif
   if (opt_outfile)
     putc(c, OUTFILE);
 }
 
-#if defined( __WIN__) || defined( OS2) || defined(__NETWARE__)
+#if defined( __WIN__) || defined(__NETWARE__)
 #include <time.h>
 #else
 #include <sys/times.h>
@@ -3492,7 +3460,7 @@ void tee_putc(int c, FILE *file)
 
 static ulong start_timer(void)
 {
-#if defined( __WIN__) || defined( OS2) || defined(__NETWARE__)
+#if defined( __WIN__) || defined(__NETWARE__)
  return clock();
 #else
   struct tms tms_tmp;

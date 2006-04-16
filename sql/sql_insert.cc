@@ -1713,7 +1713,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
     since it does not find one in the list.
   */
   pthread_mutex_lock(&di->mutex);
-#if !defined( __WIN__) && !defined(OS2)	/* Win32 calls this in pthread_create */
+#if !defined( __WIN__) /* Win32 calls this in pthread_create */
   if (my_thread_init())
   {
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
@@ -1729,7 +1729,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
     goto err;
   }
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));

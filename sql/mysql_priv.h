@@ -36,10 +36,6 @@
 #include "sql_bitmap.h"
 #include "sql_array.h"
 
-#ifdef __EMX__
-#undef write  /* remove pthread.h macro definition for EMX */
-#endif
-
 /* TODO convert all these three maps to Bitmap classes */
 typedef ulonglong table_map;          /* Used for table bits in join */
 #if MAX_INDEXES <= 64
@@ -206,7 +202,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define IF_NETWARE(A,B) (B)
 #endif
 
-#if defined(__WIN__) || defined(OS2)
+#if defined(__WIN__)
 #define IF_WIN(A,B) (A)
 #undef	FLUSH_TIME
 #define FLUSH_TIME	1800			/* Flush every half hour */

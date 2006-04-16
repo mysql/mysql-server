@@ -206,7 +206,6 @@
 /* The client defines this to avoid all thread code */
 #if defined(UNDEF_THREADS_HACK)
 #undef THREAD
-#undef HAVE_mit_thread
 #undef HAVE_LINUXTHREADS
 #undef HAVE_NPTL
 #undef HAVE_UNIXWARE7_THREADS
