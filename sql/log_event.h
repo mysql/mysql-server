@@ -18,10 +18,6 @@
 #ifndef _log_event_h
 #define _log_event_h
 
-#ifdef __EMX__
-#undef write  // remove pthread.h macro definition, conflict with write() class member
-#endif
-
 #if defined(USE_PRAGMA_INTERFACE) && !defined(MYSQL_CLIENT)
 #pragma interface			/* gcc class implementation */
 #endif

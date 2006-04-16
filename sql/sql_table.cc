@@ -3625,11 +3625,7 @@ err:
 
 bool mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
-#ifdef OS2
-  thr_lock_type lock_type = TL_WRITE;
-#else
   thr_lock_type lock_type = TL_READ_NO_INSERT;
-#endif
 
   DBUG_ENTER("mysql_analyze_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
@@ -3640,11 +3636,7 @@ bool mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 
 bool mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
 {
-#ifdef OS2
-  thr_lock_type lock_type = TL_WRITE;
-#else
   thr_lock_type lock_type = TL_READ_NO_INSERT;
-#endif
 
   DBUG_ENTER("mysql_check_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
@@ -4998,7 +4990,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
 
-#if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))
+#if !defined( __WIN__)
   if (table->file->has_transactions())
 #endif
   {
@@ -5011,7 +5003,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     table=0;					// Marker that table is closed
     no_table_reopen= TRUE;
   }
-#if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))
+#if !defined( __WIN__)
   else
     table->file->extra(HA_EXTRA_FORCE_REOPEN);	// Don't use this file anymore
 #endif

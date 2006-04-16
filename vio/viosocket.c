@@ -128,7 +128,7 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
   DBUG_PRINT("enter", ("set_blocking_mode: %d  old_mode: %d",
 		       (int) set_blocking_mode, (int) *old_mode));
 
-#if !defined(__WIN__) && !defined(__EMX__)
+#if !defined(__WIN__)
 #if !defined(NO_FCNTL_NONBLOCK)
   if (vio->sd >= 0)
   {
@@ -150,10 +150,8 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
 #else
   r= set_blocking_mode ? 0 : 1;
 #endif /* !defined(NO_FCNTL_NONBLOCK) */
-#else /* !defined(__WIN__) && !defined(__EMX__) */
-#ifndef __EMX__
+#else /* !defined(__WIN__) */
   if (vio->type != VIO_TYPE_NAMEDPIPE && vio->type != VIO_TYPE_SHARED_MEMORY)
-#endif
   { 
     ulong arg;
     int old_fcntl=vio->fcntl_mode;
@@ -170,11 +168,9 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
     if (old_fcntl != vio->fcntl_mode)
       r = ioctlsocket(vio->sd,FIONBIO,(void*) &arg);
   }
-#ifndef __EMX__
   else
     r=  test(!(vio->fcntl_mode & O_NONBLOCK)) != set_blocking_mode;
-#endif /* __EMX__ */
-#endif /* !defined(__WIN__) && !defined(__EMX__) */
+#endif /* !defined(__WIN__) */
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
 }
@@ -195,12 +191,12 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
   int r=0;
   DBUG_ENTER("vio_fastsend");
 
-#if defined(IPTOS_THROUGHPUT) && !defined(__EMX__)
+#if defined(IPTOS_THROUGHPUT)
   {
     int tos = IPTOS_THROUGHPUT;
     r= setsockopt(vio->sd, IPPROTO_IP, IP_TOS, (void *) &tos, sizeof(tos));
   }
-#endif                                    /* IPTOS_THROUGHPUT && !__EMX__ */
+#endif                                    /* IPTOS_THROUGHPUT */
   if (!r)
   {
 #ifdef __WIN__

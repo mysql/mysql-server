@@ -88,10 +88,6 @@ int main(int argc, char **argv)
   MY_INIT(argv[0]);
   my_progname_short= my_progname+dirname_length(my_progname);
 
-#ifdef __EMX__
-  _wildcard (&argc, &argv);
-#endif
-
   myisamchk_init(&check_param);
   check_param.opt_lock_memory=1;		/* Lock memory if possible */
   check_param.using_global_keycache = 0;
