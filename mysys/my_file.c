@@ -33,7 +33,7 @@
     May be more or less than max_file_limit!
 */
 
-#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE) && !defined(HAVE_mit_thread)
+#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE)
 
 #ifndef RLIM_INFINITY
 #define RLIM_INFINITY ((uint) 0xffffffff)

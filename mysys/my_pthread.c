@@ -24,7 +24,7 @@
 #include <m_string.h>
 #include <thr_alarm.h>
 
-#if (defined(__BSD__) || defined(_BSDI_VERSION)) && !defined(HAVE_mit_thread)
+#if (defined(__BSD__) || defined(_BSDI_VERSION))
 #define SCHED_POLICY SCHED_RR
 #else
 #define SCHED_POLICY SCHED_OTHER
@@ -190,7 +190,7 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res)
 ** Author: Gary Wisniewski <garyw@spidereye.com.au>, much modified by Monty
 ****************************************************************************/
 
-#if !defined(HAVE_SIGWAIT) && !defined(HAVE_mit_thread) && !defined(sigwait) && !defined(__WIN__) && !defined(HAVE_rts_threads) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS)
+#if !defined(HAVE_SIGWAIT) && !defined(sigwait) && !defined(__WIN__) && !defined(HAVE_rts_threads) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS)
 
 #if !defined(DONT_USE_SIGSUSPEND)
 
