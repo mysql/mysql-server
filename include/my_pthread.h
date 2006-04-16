@@ -249,21 +249,6 @@ extern int my_pthread_create_detached;
 #define PTHREAD_SCOPE_SYSTEM  PTHREAD_SCOPE_GLOBAL
 #define PTHREAD_SCOPE_PROCESS PTHREAD_SCOPE_LOCAL
 #define USE_ALARM_THREAD
-#elif defined(HAVE_mit_thread)
-#define USE_ALARM_THREAD
-#undef	HAVE_LOCALTIME_R
-#define HAVE_LOCALTIME_R
-#undef	HAVE_GMTIME_R
-#define HAVE_GMTIME_R
-#undef	HAVE_PTHREAD_ATTR_SETSCOPE
-#define HAVE_PTHREAD_ATTR_SETSCOPE
-#undef HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE	/* If we are running linux */
-#undef HAVE_RWLOCK_T
-#undef HAVE_RWLOCK_INIT
-#undef HAVE_PTHREAD_RWLOCK_RDLOCK
-#undef HAVE_SNPRINTF
-
-#define my_pthread_attr_setprio(A,B)
 #endif /* defined(PTHREAD_SCOPE_GLOBAL) && !defined(PTHREAD_SCOPE_SYSTEM) */
 
 #if defined(_BSDI_VERSION) && _BSDI_VERSION < 199910
@@ -291,7 +276,7 @@ extern int my_pthread_cond_init(pthread_cond_t *mp,
 #define pthread_sigmask(A,B,C) sigthreadmask((A),(B),(C))
 #endif
 
-#if !defined(HAVE_SIGWAIT) && !defined(HAVE_mit_thread) && !defined(HAVE_rts_threads) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
+#if !defined(HAVE_SIGWAIT) && !defined(HAVE_rts_threads) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
 int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #endif
 
