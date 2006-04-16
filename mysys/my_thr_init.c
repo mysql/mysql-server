@@ -217,7 +217,7 @@ void my_thread_end(void)
       tmp->dbug=0;
     }
 #endif
-#if !defined(__bsdi__) && !defined(__OpenBSD__) || defined(HAVE_mit_thread)
+#if !defined(__bsdi__) && !defined(__OpenBSD__)
  /* bsdi and openbsd 3.5 dumps core here */
     pthread_cond_destroy(&tmp->suspend);
 #endif
@@ -260,7 +260,7 @@ long my_thread_id()
 {
 #if defined(HAVE_PTHREAD_GETSEQUENCE_NP)
   return pthread_getsequence_np(pthread_self());
-#elif (defined(__sun) || defined(__sgi) || defined(__linux__)) && !defined(HAVE_mit_thread)
+#elif (defined(__sun) || defined(__sgi) || defined(__linux__))
   return pthread_self();
 #else
   return my_thread_var->id;

@@ -264,7 +264,6 @@
 #if !defined(_THREAD_SAFE) && !defined(_AIX)
 #define _THREAD_SAFE            /* Required for OSF1 */
 #endif
-#ifndef HAVE_mit_thread
 #ifdef HAVE_UNIXWARE7_THREADS
 #include <thread.h>
 #else
@@ -276,7 +275,6 @@ C_MODE_END
 #include <pthread.h>		/* AIX must have this included first */
 #endif
 #endif /* HAVE_UNIXWARE7_THREADS */
-#endif /* HAVE_mit_thread */
 #if !defined(SCO) && !defined(_REENTRANT)
 #define _REENTRANT	1	/* Threads requires reentrant code */
 #endif
@@ -606,19 +604,9 @@ C_MODE_START
 typedef int	(*qsort_cmp)(const void *,const void *);
 typedef int	(*qsort_cmp2)(void*, const void *,const void *);
 C_MODE_END
-#ifdef HAVE_mit_thread
-#define qsort_t void
-#undef QSORT_TYPE_IS_VOID
-#define QSORT_TYPE_IS_VOID
-#else
 #define qsort_t RETQSORTTYPE	/* Broken GCC cant handle typedef !!!! */
-#endif
-#ifdef HAVE_mit_thread
-#define size_socket socklen_t	/* Type of last arg to accept */
-#else
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
-#endif
 typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 
@@ -743,19 +731,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define ulong_to_double(X) ((double) (ulong) (X))
 #define SET_STACK_SIZE(X)	/* Not needed on real machines */
 
-#if !defined(HAVE_mit_thread) && !defined(HAVE_STRTOK_R)
+#if !defined(HAVE_STRTOK_R)
 #define strtok_r(A,B,C) strtok((A),(B))
-#endif
-
-/* Remove some things that mit_thread break or doesn't support */
-#if defined(HAVE_mit_thread) && defined(THREAD)
-#undef HAVE_PREAD
-#undef HAVE_REALPATH
-#undef HAVE_MLOCK
-#undef HAVE_TEMPNAM				/* Use ours */
-#undef HAVE_PTHREAD_SETPRIO
-#undef HAVE_FTRUNCATE
-#undef HAVE_READLINK
 #endif
 
 /* This is from the old m-machine.h file */
