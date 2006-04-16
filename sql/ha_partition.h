@@ -180,7 +180,7 @@ public:
   virtual int create(const char *name, TABLE *form,
 		     HA_CREATE_INFO *create_info);
   virtual int create_handler_files(const char *name,
-                                   const char *old_name, bool rename_flag);
+                                   const char *old_name, int action_flag);
   virtual void update_create_info(HA_CREATE_INFO *create_info);
   virtual char *update_table_comment(const char *comment);
   virtual int change_partitions(HA_CREATE_INFO *create_info,

@@ -3696,7 +3696,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   /* (void) pthread_attr_destroy(&connection_attrib); */
   
   DBUG_PRINT("quit",("Exiting main thread"));
-  release_ddl_log();
 
 #ifndef __WIN__
 #ifdef EXTRA_DEBUG2
@@ -3718,6 +3717,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
+  release_ddl_log();
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (Service.IsNT() && start_mode)
     Service.Stop();
