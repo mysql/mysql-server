@@ -52,7 +52,7 @@
 #endif
 
 /*  This is needed for the definitions of bzero... on solaris */
-#if defined(HAVE_STRINGS_H) && !defined(HAVE_mit_thread)
+#if defined(HAVE_STRINGS_H)
 #include <strings.h>
 #endif
 
@@ -95,7 +95,7 @@ extern "C" {
 extern void *(*my_str_malloc)(size_t);
 extern void (*my_str_free)(void *);
 
-#if defined(HAVE_STPCPY) && !defined(HAVE_mit_thread)
+#if defined(HAVE_STPCPY)
 #define strmov(A,B) stpcpy((A),(B))
 #ifndef stpcpy
 extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
@@ -243,7 +243,7 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #ifdef HAVE_LONG_LONG
 extern char *longlong2str(longlong val,char *dst,int radix);
 extern char *longlong10_to_str(longlong val,char *dst,int radix);
-#if (!defined(HAVE_STRTOULL) || defined(HAVE_mit_thread)) || defined(NO_STRTOLL_PROTO)
+#if (!defined(HAVE_STRTOULL) || defined(NO_STRTOLL_PROTO)
 extern longlong strtoll(const char *str, char **ptr, int base);
 extern ulonglong strtoull(const char *str, char **ptr, int base);
 #endif
