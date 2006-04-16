@@ -6140,9 +6140,8 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
     abort_and_upgrade_lock()
     lpt                           Parameter passing struct
     All parameters passed through the ALTER_PARTITION_PARAM_TYPE object
-  RETURN VALUES
-    TRUE                          Failure
-    FALSE                         Success
+  RETURN VALUE
+    0
   DESCRIPTION
     Remember old lock level (for possible downgrade later on), abort all
     waiting threads and ensure that all keeping locks currently are
@@ -6156,7 +6155,7 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
     old_lock_level                Old lock level
 */
 
-void abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
+int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   uint flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
   DBUG_ENTER("abort_and_upgrade_locks");
@@ -6166,7 +6165,7 @@ void abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
   mysql_lock_abort(lpt->thd, lpt->table, TRUE);
   VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags));
   VOID(pthread_mutex_unlock(&LOCK_open));
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 

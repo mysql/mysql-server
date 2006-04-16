@@ -495,7 +495,7 @@ int ha_partition::rename_table(const char *from, const char *to)
 
 int ha_partition::create_handler_files(const char *path,
                                        const char *old_path,
-                                       bool rename_flag)
+                                       int action_flag)
 {
   DBUG_ENTER("ha_partition::create_handler_files()");
 
@@ -503,15 +503,17 @@ int ha_partition::create_handler_files(const char *path,
     We need to update total number of parts since we might write the handler
     file as part of a partition management command
   */
-  if (rename_flag)
+  if (action_flag)
   {
     char name[FN_REFLEN];
     char old_name[FN_REFLEN];
 
     strxmov(name, path, ha_par_ext, NullS);
     strxmov(old_name, old_path, ha_par_ext, NullS);
-    if (my_delete(name, MYF(MY_WME)) ||
-        my_rename(old_name, name, MYF(MY_WME)))
+    if ((action_flag == CHF_DELETE_FLAG &&
+         my_delete(name, MYF(MY_WME))) ||
+        (action_flag == CHF_RENAME_FLAG &&
+         my_rename(old_name, name, MYF(MY_WME))))
     {
       DBUG_RETURN(TRUE);
     }
@@ -1153,7 +1155,6 @@ int ha_partition::prepare_new_partition(TABLE *table,
 error:
   if (create_flag)
     VOID(file->delete_table(part_name));
-  print_error(error, MYF(0));
   DBUG_RETURN(error);
 }
 
@@ -1280,7 +1281,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
                                               (m_reorged_parts + 1))))
   {
     mem_alloc_error(sizeof(partition_element*)*(m_reorged_parts+1));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(ER_OUTOFMEMORY);
   }
 
   /*
@@ -1312,7 +1313,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
                                               (2*(no_remain_partitions + 1)))))
   {
     mem_alloc_error(sizeof(handler*)*2*(no_remain_partitions+1));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(ER_OUTOFMEMORY);
   }
   m_added_file= &new_file_array[no_remain_partitions + 1];
 
@@ -1384,7 +1385,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
                                             part_elem->engine_type)))
         {
           mem_alloc_error(sizeof(handler));
-          DBUG_RETURN(TRUE);
+          DBUG_RETURN(ER_OUTOFMEMORY);
         }
       } while (++j < no_subparts);
     }
@@ -1432,7 +1433,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
                                             (const char *)part_name_buff)))
           {
             cleanup_new_partition(part_count);
-            DBUG_RETURN(TRUE);
+            DBUG_RETURN(error);
           }
           m_added_file[part_count++]= new_file_array[part];
         } while (++j < no_subparts);
@@ -1448,7 +1449,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
                                           (const char *)part_name_buff)))
         {
           cleanup_new_partition(part_count);
-          DBUG_RETURN(TRUE);
+          DBUG_RETURN(error);
         }
         m_added_file[part_count++]= new_file_array[i];
       }
@@ -1554,8 +1555,7 @@ int ha_partition::copy_partitions(ulonglong *copied, ulonglong *deleted)
   }
   DBUG_RETURN(FALSE);
 error:
-  print_error(result, MYF(0));
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(result);
 }
 
 

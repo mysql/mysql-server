@@ -270,6 +270,12 @@ static int mysql_copy_key_list(List<Key> *orig_key,
 
 typedef struct st_global_ddl_log
 {
+  /*
+    We need to adjust buffer size to be able to handle downgrades/upgrades
+    where IO_SIZE has changed. We'll set the buffer size such that we can
+    handle that the buffer size was upto 4 times bigger in the version
+    that wrote the DDL log.
+  */
   char file_entry_buf[4*IO_SIZE];
   char file_name_str[FN_REFLEN];
   char *file_name;
@@ -278,7 +284,6 @@ typedef struct st_global_ddl_log
   uint num_entries;
   File file_id;
   uint name_len;
-  uint handler_name_len;
   uint io_size;
   bool inited;
   bool recovery_phase;
@@ -296,8 +301,7 @@ pthread_mutex_t LOCK_gdl;
 
 #define DDL_LOG_NUM_ENTRY_POS 0
 #define DDL_LOG_NAME_LEN_POS 4
-#define DDL_LOG_HANDLER_TYPE_POS 8
-#define DDL_LOG_IO_SIZE_POS 12
+#define DDL_LOG_IO_SIZE_POS 8
 
 /*
   Read one entry from ddl log file
@@ -368,9 +372,6 @@ static bool write_ddl_log_header()
   const_var= FN_LEN;
   int4store(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_LEN_POS],
             const_var);
-  const_var= DDL_LOG_HANDLER_TYPE_LEN;
-  int4store(&global_ddl_log.file_entry_buf[DDL_LOG_HANDLER_TYPE_POS],
-            const_var);
   const_var= IO_SIZE;
   int4store(&global_ddl_log.file_entry_buf[DDL_LOG_IO_SIZE_POS],
             const_var);
@@ -424,7 +425,8 @@ static uint read_ddl_log_header()
   global_ddl_log.inited= FALSE;
   global_ddl_log.recovery_phase= TRUE;
   create_ddl_log_file_name(file_name);
-  if (!(my_open(file_name, O_RDWR | O_BINARY, MYF(MY_WME))))
+  if (!(global_ddl_log.file_id= my_open(file_name,
+                                        O_RDWR | O_BINARY, MYF(MY_WME))))
   {
     if (read_ddl_log_file_entry(0UL))
     {
@@ -436,10 +438,12 @@ static uint read_ddl_log_header()
   }
   entry_no= uint4korr(&file_entry_buf[DDL_LOG_NUM_ENTRY_POS]);
   global_ddl_log.name_len= uint4korr(&file_entry_buf[DDL_LOG_NAME_LEN_POS]);
-  global_ddl_log.handler_name_len=
-        uint4korr(&file_entry_buf[DDL_LOG_HANDLER_TYPE_POS]);
-  if (successful_open) 
+  if (successful_open)
+  {
     global_ddl_log.io_size= uint4korr(&file_entry_buf[DDL_LOG_IO_SIZE_POS]);
+    DBUG_ASSERT(global_ddl_log.io_size <=
+                sizeof(global_ddl_log.file_entry_buf));
+  }
   else
   {
     global_ddl_log.io_size= IO_SIZE;
@@ -790,7 +794,9 @@ bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
                                    to execute, if 0 = NULL it means that
                                    the entry is removed and the entries
                                    are put into the free list.
-    in:out:exec_entry              Entry to execute, 0 = NULL if the entry
+    complete                       Flag indicating we are simply writing
+                                   info about that entry has been completed
+    in:out:active_entry            Entry to execute, 0 = NULL if the entry
                                    is written first time and needs to be
                                    returned. In this case the entry written
                                    is returned in this parameter
@@ -1003,12 +1009,11 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry)
   uint read_entry= first_entry;
   DBUG_ENTER("execute_ddl_log_entry");
 
-  lock_global_ddl_log();
+  pthread_mutex_lock(&LOCK_gdl);
   do
   {
     if (read_ddl_log_entry(read_entry, &ddl_log_entry))
     {
-      DBUG_ASSERT(0);
       /* Write to error log and continue with next log entry */
       sql_print_error("Failed to read entry = %u from ddl log",
                       read_entry);
@@ -1019,7 +1024,6 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry)
 
     if (execute_ddl_log_action(thd, &ddl_log_entry))
     {
-      DBUG_ASSERT(0);
       /* Write to error log and continue with next log entry */
       sql_print_error("Failed to execute action for entry = %u from ddl log",
                       read_entry);
@@ -1027,7 +1031,7 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry)
     }
     read_entry= ddl_log_entry.next_entry;
   } while (read_entry);
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 }
 
@@ -1061,7 +1065,6 @@ void execute_ddl_log_recovery()
   {
     if (read_ddl_log_entry(i, &ddl_log_entry))
     {
-      DBUG_ASSERT(0);
       sql_print_error("Failed to read entry no = %u from ddl log",
                        i);
       continue;
@@ -1071,7 +1074,6 @@ void execute_ddl_log_recovery()
       if (execute_ddl_log_entry(thd, ddl_log_entry.next_entry))
       {
         /* Real unpleasant scenario but we continue anyways.  */
-        DBUG_ASSERT(0);
         continue;
       }
     }
@@ -1100,7 +1102,7 @@ void release_ddl_log()
   DDL_LOG_MEMORY_ENTRY *used_list= global_ddl_log.first_used;
   DBUG_ENTER("release_ddl_log");
 
-  lock_global_ddl_log();
+  pthread_mutex_lock(&LOCK_gdl);
   while (used_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
@@ -1114,42 +1116,8 @@ void release_ddl_log()
     free_list= tmp;
   }
   VOID(my_close(global_ddl_log.file_id, MYF(0)));
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   VOID(pthread_mutex_destroy(&LOCK_gdl));
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Lock mutex for global ddl log
-  SYNOPSIS
-    lock_global_ddl_log()
-  RETURN VALUES
-    NONE
-*/
-
-void lock_global_ddl_log()
-{
-  DBUG_ENTER("lock_global_ddl_log");
-
-  VOID(pthread_mutex_lock(&LOCK_gdl));
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Unlock mutex for global ddl log
-  SYNOPSIS
-    unlock_global_ddl_log()
-  RETURN VALUES
-    NONE
-*/
-
-void unlock_global_ddl_log()
-{
-  DBUG_ENTER("unlock_global_ddl_log");
-
-  VOID(pthread_mutex_unlock(&LOCK_gdl));
   DBUG_VOID_RETURN;
 }
 
@@ -1296,11 +1264,14 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     VOID(pthread_mutex_lock(&LOCK_open));
     if (my_delete(frm_name, MYF(MY_WME)) ||
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+        lpt->table->file->create_handler_files(path, shadow_path,
+                                               CHF_DELETE_FLAG) ||
         deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos) ||
         (sync_ddl_log(), FALSE) ||
 #endif
         my_rename(shadow_frm_name, frm_name, MYF(MY_WME)) ||
-        lpt->table->file->create_handler_files(path, shadow_path, TRUE))
+        lpt->table->file->create_handler_files(path, shadow_path,
+                                               CHF_RENAME_FLAG))
     {
       error= 1;
     }

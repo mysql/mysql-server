@@ -633,8 +633,7 @@ struct Query_cache_query_flags
 
 #else
 
-inline bool
-my_error_inject_name(const char *dbug_str)
+inline bool check_and_unset_keyword(const char *dbug_str)
 {
   const char *extra_str= "-d,";
   char total_str[200];
@@ -649,7 +648,7 @@ my_error_inject_name(const char *dbug_str)
 
 
 inline bool
-my_error_inject(int value)
+check_and_unset_inject_value(int value)
 {
   THD *thd= current_thd;
   if (thd->error_inject_value == (uint)value)
@@ -700,15 +699,15 @@ my_error_inject(int value)
 #define ERROR_INJECT_CRASH(code) \
   DBUG_EVALUATE_IF(code, (abort(), 0), 0)
 #define ERROR_INJECT_ACTION(code, action) \
-  (my_error_inject_name(code) ? ((action), 0) : 0)
+  (check_and_unset_keyword(code) ? ((action), 0) : 0)
 #define ERROR_INJECT(code) \
-  my_error_inject_name(code)
+  check_and_unset_keyword(code)
 #define ERROR_INJECT_VALUE(value) \
-  my_error_inject(value)
+  check_and_unset_inject_value(value)
 #define ERROR_INJECT_VALUE_ACTION(value,action) \
-  (my_error_inject(value) ? (action) : 0)
+  (check_and_unset_inject_value(value) ? (action) : 0)
 #define ERROR_INJECT_VALUE_CRASH(value) \
-  (my_error_inject(value) ? abort() : 0)
+  ERROR_INJECT_VALUE_ACTION(value, (abort(), 0))
 
 #endif
 
@@ -1300,14 +1299,14 @@ bool sync_ddl_log();
 void release_ddl_log();
 void execute_ddl_log_recovery();
 bool execute_ddl_log_entry(THD *thd, uint first_entry);
-void lock_global_ddl_log();
-void unlock_global_ddl_log();
+
+extern pthread_mutex_t LOCK_gdl;
 
 #define WFRM_WRITE_SHADOW 1
 #define WFRM_INSTALL_SHADOW 2
 #define WFRM_PACK_FRM 4
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
-void abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
+int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 

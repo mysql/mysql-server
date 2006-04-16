@@ -667,15 +667,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
       next_chunk+= 5 + partition_info_len;
     }
-#if 1
-    if (share->mysql_version == 50106 ||
-        share->mysql_version == 50107)
+#if MYSQL_VERSION_ID < 50200
+    if (share->mysql_version >= 50106 && share->mysql_version <= 50109)
     {
       /*
-         Partition state array was here in version 5.1.6, this code makes
-         it possible to load a 5.1.6 table in later versions. Can most
-         likely be removed at some point in time.
-       */
+         Partition state array was here in version 5.1.6 to 5.1.9, this code
+         makes it possible to load a 5.1.6 table in later versions. Can most
+         likely be removed at some point in time. Will only be used for
+         upgrades within 5.1 series of versions. Upgrade to 5.2 can only be
+         done from newer 5.1 versions.
+      */
       next_chunk+= 4;
     }
 #endif

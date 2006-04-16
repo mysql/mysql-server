@@ -612,7 +612,7 @@ class ha_ndbcluster: public handler
   int delete_table(const char *name);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
   int create_handler_files(const char *file, const char *old_name,
-                           bool rename_flag);
+                           int action_flag);
   int get_default_no_partitions(ulonglong max_rows);
   bool get_no_parts(const char *name, uint *no_parts);
   void set_auto_partitions(partition_info *part_info);

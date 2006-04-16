@@ -4588,12 +4588,17 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   DBUG_ENTER("mysql_change_partitions");
 
   build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "");
-  DBUG_RETURN(file->change_partitions(lpt->create_info,
-                                      path,
-                                      &lpt->copied,
-                                      &lpt->deleted,
-                                      lpt->pack_frm_data,
-                                      lpt->pack_frm_len));
+  if ((error= file->change_partitions(lpt->create_info, path, &lpt->copied,
+                                      &lpt->deleted, lpt->pack_frm_data,
+                                      lpt->pack_frm_len)))
+  {
+    if (error != ER_OUTOFMEMORY)
+      file->print_error(error, MYF(0));
+    else
+      lpt->thd->fatal_error();
+    DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -5016,7 +5021,7 @@ static bool write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
                        lpt->table_name, "#");
-  lock_global_ddl_log();
+  pthread_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, NULL,
                                   (const char*)shadow_path, FALSE))
     goto error;
@@ -5024,13 +5029,13 @@ static bool write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (write_execute_ddl_log_entry(log_entry->entry_pos,
                                     FALSE, &exec_log_entry))
     goto error;
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   set_part_info_exec_log_entry(part_info, exec_log_entry);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
@@ -5066,7 +5071,7 @@ static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
                        lpt->table_name, "");
   build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
                        lpt->table_name, "#");
-  lock_global_ddl_log();
+  pthread_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
     goto error;
   log_entry= part_info->first_log_entry;
@@ -5075,12 +5080,12 @@ static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
                                     FALSE, &exec_log_entry))
     goto error;
   release_part_info_log_entries(old_first_log_entry);
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= old_first_log_entry;
   part_info->frm_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
@@ -5120,7 +5125,7 @@ static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                        lpt->table_name, "");
   build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
                        lpt->table_name, "#");
-  lock_global_ddl_log();
+  pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    FALSE))
     goto error;
@@ -5133,12 +5138,12 @@ static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                                     FALSE, &exec_log_entry))
     goto error;
   release_part_info_log_entries(old_first_log_entry);
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= old_first_log_entry;
   part_info->frm_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
@@ -5177,7 +5182,7 @@ static bool write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                        lpt->table_name, "");
   build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
                        lpt->table_name, "#");
-  lock_global_ddl_log();
+  pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    FALSE))
     goto error;
@@ -5188,13 +5193,13 @@ static bool write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (write_execute_ddl_log_entry(log_entry->entry_pos,
                                     FALSE, &exec_log_entry))
     goto error;
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   set_part_info_exec_log_entry(part_info, exec_log_entry);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
@@ -5234,7 +5239,7 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                        lpt->table_name, "");
   build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
                        lpt->table_name, "#");
-  lock_global_ddl_log();
+  pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    TRUE))
     goto error;
@@ -5248,12 +5253,12 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                                     FALSE, &exec_log_entry))
     goto error;
   release_part_info_log_entries(old_first_log_entry);
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= old_first_log_entry;
   part_info->frm_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
@@ -5282,7 +5287,7 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
   DBUG_ENTER("write_log_completed");
 
   DBUG_ASSERT(log_entry);
-  lock_global_ddl_log();
+  pthread_mutex_lock(&LOCK_gdl);
   if (write_execute_ddl_log_entry(0UL, TRUE, &log_entry))
   {
     /*
@@ -5296,7 +5301,7 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
   }
   release_part_info_log_entries(part_info->first_log_entry);
   release_part_info_log_entries(part_info->exec_log_entry);
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   part_info->exec_log_entry= NULL;
   part_info->first_log_entry= NULL;
   DBUG_VOID_RETURN;
@@ -5314,10 +5319,10 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
 
 static void release_log_entries(partition_info *part_info)
 {
-  lock_global_ddl_log();
+  pthread_mutex_lock(&LOCK_gdl);
   release_part_info_log_entries(part_info->first_log_entry);
   release_part_info_log_entries(part_info->exec_log_entry);
-  unlock_global_ddl_log();
+  pthread_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= NULL;
   part_info->exec_log_entry= NULL;
 }
@@ -5643,8 +5648,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_drop_partition_2") ||
         write_log_drop_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
-        ((not_completed= FALSE), FALSE) ||
-        (abort_and_upgrade_lock(lpt), FALSE) ||
+        (not_completed= FALSE) ||
+        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
@@ -5702,13 +5707,13 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
-        (abort_and_upgrade_lock(lpt), FALSE) ||
+        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
         ERROR_INJECT_CRASH("crash_add_partition_4") ||
         write_log_rename_frm(lpt) ||
-        ((not_completed= FALSE), FALSE) ||
+        (not_completed= FALSE) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
         ((frm_install= TRUE), FALSE) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
@@ -5784,8 +5789,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_change_partition_3") ||
         write_log_final_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
-        ((not_completed= FALSE), FALSE) ||
-        (abort_and_upgrade_lock(lpt), FALSE) ||
+        (not_completed= FALSE) ||
+        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
@@ -6455,10 +6460,9 @@ static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter)
     the del_ren_cre_table method.
 */
 
-void
-create_partition_name(char *out, const char *in1,
-                      const char *in2, uint name_variant,
-                      bool translate)
+void create_partition_name(char *out, const char *in1,
+                           const char *in2, uint name_variant,
+                           bool translate)
 {
   char transl_part_name[FN_REFLEN];
   const char *transl_part;
@@ -6498,10 +6502,9 @@ create_partition_name(char *out, const char *in1,
   the del_ren_cre_table method.
 */
 
-void
-create_subpartition_name(char *out, const char *in1,
-                         const char *in2, const char *in3,
-                         uint name_variant)
+void create_subpartition_name(char *out, const char *in1,
+                              const char *in2, const char *in3,
+                              uint name_variant)
 {
   char transl_part_name[FN_REFLEN], transl_subpart_name[FN_REFLEN];
 

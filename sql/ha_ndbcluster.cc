@@ -4689,7 +4689,7 @@ int ha_ndbcluster::create(const char *name,
 
 int ha_ndbcluster::create_handler_files(const char *file,
                                         const char *old_name,
-                                        bool rename_flag) 
+                                        int action_flag) 
 { 
   const char *name;
   Ndb* ndb;
@@ -4700,7 +4700,7 @@ int ha_ndbcluster::create_handler_files(const char *file,
 
   DBUG_ENTER("create_handler_files");
 
-  if (rename_flag)
+  if (action_flag)
   {
     DBUG_RETURN(FALSE);
   }
