@@ -2288,26 +2288,6 @@ fi
 AC_SUBST(man_dirs)
 AC_SUBST(man1_files)
 
-if test -e sql-bench
-then
-# Shall we build the bench code?
-AC_ARG_WITH(bench,
-    [  --without-bench         Skip building of the benchmark suite.],
-    [with_bench=$withval],
-    [with_bench=yes]
-)
-fi
-
-if test "$with_bench" = "yes"
-then
-  bench_dirs="sql-bench"
-  AC_CONFIG_FILES(sql-bench/Makefile)
-else
-  bench_dirs=""
-fi
-bench_dirs="$bench_dirs mysql-test"
-AC_SUBST(bench_dirs)
-
 # Don't build readline, i have it already
 AC_ARG_WITH(readline,
     [  --without-readline      Use system readline instead of bundled copy.],
@@ -2606,6 +2586,9 @@ AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
+ unittest/Makefile dnl
+ unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
+ unittest/mysys/Makefile unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile storage/heap/Makefile dnl
  storage/myisam/Makefile storage/myisammrg/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl

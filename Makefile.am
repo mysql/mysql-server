@@ -28,8 +28,8 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@sql_server@ scripts @man_dirs@ tests \
 			@mysql_se_plugins@ \
 			netware @libmysqld_dirs@ \
-			@bench_dirs@ support-files @tools_dirs@ \
-			plugin win
+			mysql-test support-files @tools_dirs@ \
+			plugin unittest win
 
 DIST_SUBDIRS =		$(SUBDIRS) BUILD
 

@@ -135,7 +135,7 @@ my_bool my_net_init(NET *net, Vio* vio)
   if (vio != 0)					/* If real connection */
   {
     net->fd  = vio_fd(vio);			/* For perl DBI/DBD */
-#if defined(MYSQL_SERVER) && !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
+#if defined(MYSQL_SERVER) && !defined(__WIN__)
     if (!(test_flags & TEST_BLOCKING))
     {
       my_bool old_mode;
@@ -604,7 +604,7 @@ net_real_write(NET *net,const char *packet,ulong len)
     if ((long) (length=vio_write(net->vio,pos,(uint32) (end-pos))) <= 0)
     {
       my_bool interrupted = vio_should_retry(net->vio);
-#if (!defined(__WIN__) && !defined(__EMX__) && !defined(OS2))
+#if !defined(__WIN__)
       if ((interrupted || length==0) && !thr_alarm_in_use(&alarmed))
       {
         if (!thr_alarm(&alarmed,(uint) net->write_timeout,&alarm_buff))
@@ -631,7 +631,7 @@ net_real_write(NET *net,const char *packet,ulong len)
 	}
       }
       else
-#endif /* (!defined(__WIN__) && !defined(__EMX__)) */
+#endif /* !defined(__WIN__) */
 	if (thr_alarm_in_use(&alarmed) && !thr_got_alarm(&alarmed) &&
 	    interrupted)
       {
@@ -803,7 +803,7 @@ my_real_read(NET *net, ulong *complen)
 
 	  DBUG_PRINT("info",("vio_read returned %d,  errno: %d",
 			     length, vio_errno(net->vio)));
-#if (!defined(__WIN__) && !defined(__EMX__) && !defined(OS2)) || defined(MYSQL_SERVER)
+#if !defined(__WIN__) || defined(MYSQL_SERVER)
 	  /*
 	    We got an error that there was no data on the socket. We now set up
 	    an alarm to not 'read forever', change the socket to non blocking
@@ -839,7 +839,7 @@ my_real_read(NET *net, ulong *complen)
 	      continue;
 	    }
 	  }
-#endif /* (!defined(__WIN__) && !defined(__EMX__)) || defined(MYSQL_SERVER) */
+#endif /* (!defined(__WIN__) || defined(MYSQL_SERVER) */
 	  if (thr_alarm_in_use(&alarmed) && !thr_got_alarm(&alarmed) &&
 	      interrupted)
 	  {					/* Probably in MIT threads */

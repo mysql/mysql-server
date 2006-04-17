@@ -95,9 +95,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #endif
 #include <my_net.h>
 
-#if defined(OS2)
-#  include <sys/un.h>
-#elif !defined(__WIN__)
+#if !defined(__WIN__)
 #  ifndef __NETWARE__
 #include <sys/resource.h>
 #  endif /* __NETWARE__ */
@@ -648,10 +646,6 @@ static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
 #endif
 
-#ifdef OS2
-pthread_cond_t eventShutdown;
-#endif
-
 #ifndef EMBEDDED_LIBRARY
 bool mysqld_embedded=0;
 #else
@@ -751,7 +745,7 @@ static void close_connections(void)
   (void) pthread_mutex_unlock(&LOCK_manager);
 
   /* kill connection thread */
-#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   DBUG_PRINT("quit",("waiting for select thread: 0x%lx",select_thread));
   (void) pthread_mutex_lock(&LOCK_thread_count);
 
@@ -980,8 +974,6 @@ void kill_mysql(void)
     */
   }
 #endif
-#elif defined(OS2)
-  pthread_cond_signal(&eventShutdown);		// post semaphore
 #elif defined(HAVE_PTHREAD_KILL)
   if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL))
   {
@@ -1007,7 +999,7 @@ void kill_mysql(void)
 
 	/* Force server down. kill all connections and threads and exit */
 
-#if defined(OS2) || defined(__NETWARE__)
+#if defined(__NETWARE__)
 extern "C" void kill_server(int sig_ptr)
 #define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
 #elif !defined(__WIN__)
@@ -1044,7 +1036,7 @@ static void __cdecl kill_server(int sig_ptr)
   }
 #endif  
   
-#if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2))
+#if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__))
   my_thread_init();				// If this is a new thread
 #endif
   close_connections();
@@ -1082,7 +1074,7 @@ extern "C" sig_handler print_signal_warning(int sig)
 #ifdef DONT_REMEMBER_SIGNAL
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   if (sig == SIGALRM)
     alarm(2);					/* reschedule alarm */
 #endif
@@ -1336,7 +1328,7 @@ static void set_ports()
 
 static struct passwd *check_user(const char *user)
 {
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   struct passwd *user_info;
   uid_t user_id= geteuid();
 
@@ -1390,7 +1382,7 @@ err:
 
 static void set_user(const char *user, struct passwd *user_info)
 {
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   DBUG_ASSERT(user_info != 0);
 #ifdef HAVE_INITGROUPS
   /*
@@ -1419,7 +1411,7 @@ static void set_user(const char *user, struct passwd *user_info)
 
 static void set_effective_user(struct passwd *user_info)
 {
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   DBUG_ASSERT(user_info != 0);
   if (setregid((gid_t)-1, user_info->pw_gid) == -1)
   {
@@ -1439,7 +1431,7 @@ static void set_effective_user(struct passwd *user_info)
 
 static void set_root(const char *path)
 {
-#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   if (chroot(path) == -1)
   {
     sql_perror("chroot");
@@ -1786,7 +1778,7 @@ extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
   the signal thread is ready before continuing
 ******************************************************************************/
 
-#if defined(__WIN__) || defined(OS2)
+#if defined(__WIN__)
 static void init_signals(void)
 {
   int signals[] = {SIGINT,SIGILL,SIGFPE,SIGSEGV,SIGTERM,SIGABRT } ;
@@ -2046,44 +2038,7 @@ static void check_data_home(const char *path)
 {
 }
 
-#elif defined(__EMX__)
-static void sig_reload(int signo)
-{
- // Flush everything
-  bool not_used;
-  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0, &not_used);
-  signal(signo, SIG_ACK);
-}
-
-static void sig_kill(int signo)
-{
-  if (!kill_in_progress)
-  {
-    abort_loop=1;				// mark abort for threads
-    kill_server((void*) signo);
-  }
-  signal(signo, SIG_ACK);
-}
-
-static void init_signals(void)
-{
-  signal(SIGQUIT, sig_kill);
-  signal(SIGKILL, sig_kill);
-  signal(SIGTERM, sig_kill);
-  signal(SIGINT,  sig_kill);
-  signal(SIGHUP,  sig_reload);	// Flush everything
-  signal(SIGALRM, SIG_IGN);
-  signal(SIGBREAK,SIG_IGN);
-  signal_thread = pthread_self();
-}
-
-static void start_signal_handler(void)
-{}
-
-static void check_data_home(const char *path)
-{}
-
-#else /* if ! __WIN__ && ! __EMX__ */
+#else /* if ! __WIN__  */
 
 #ifdef HAVE_LINUXTHREADS
 #define UNSAFE_DEFAULT_LINUX_THREADS 200
@@ -2556,33 +2511,6 @@ int STDCALL handle_kill(ulong ctrl_type)
 }
 #endif
 
-
-#ifdef OS2
-pthread_handler_t handle_shutdown(void *arg)
-{
-  my_thread_init();
-
-  // wait semaphore
-  pthread_cond_wait(&eventShutdown, NULL);
-
-  // close semaphore and kill server
-  pthread_cond_destroy(&eventShutdown);
-
-  /*
-    Exit main loop on main thread, so kill will be done from
-    main thread (this is thread 2)
-  */
-  abort_loop = 1;
-
-  // unblock select()
-  so_cancel(ip_sock);
-  so_cancel(unix_sock);
-
-  return 0;
-}
-#endif
-
-
 static const char *load_default_groups[]= {
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 "mysql_cluster",
@@ -2650,14 +2578,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   mysql_init_variables();
 
-#ifdef OS2
-  {
-    // fix timezone for daylight saving
-    struct tm *ts = localtime(&start_time);
-    if (ts->tm_isdst > 0)
-      _timezone -= 3600;
-  }
-#endif
 #ifdef HAVE_TZNAME
   {
     struct tm tm_tmp;
@@ -3359,12 +3279,6 @@ static void create_shutdown_thread()
 
   // On "Stop Service" we have to do regular shutdown
   Service.SetShutdownEvent(hEventShutdown);
-#endif
-#ifdef OS2
-  pthread_cond_init(&eventShutdown, NULL);
-  pthread_t hThread;
-  if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
-    sql_print_warning("Can't create thread to handle shutdown requests");
 #endif
 #endif // EMBEDDED_LIBRARY 
 }
@@ -4292,10 +4206,6 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
     create_new_thread(thd);
   }
 
-#ifdef OS2
-  // kill server must be invoked from thread 1!
-  kill_server(MYSQL_KILL_SIGNAL);
-#endif
   decrement_handler_count();
   DBUG_RETURN(0);
 }
@@ -5666,7 +5576,7 @@ log and this option does nothing anymore.",
     0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files. Several paths may be specified, separated by a "
-#if defined(__WIN__) || defined(OS2) || defined(__NETWARE__)
+#if defined(__WIN__) || defined(__NETWARE__)
    "semicolon (;)"
 #else
    "colon (:)"
@@ -6864,6 +6774,10 @@ SHOW_VAR status_vars[]= {
 static void print_version(void)
 {
   set_server_version();
+  /*
+    Note: the instance manager keys off the string 'Ver' so it can find the
+    version from the output of 'mysqld --version', so don't change it!
+  */
   printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
