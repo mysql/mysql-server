@@ -641,3 +641,12 @@ CALL p2();
 EXTRACTVALUE(p,'/Ñ/r')
 A
 DROP PROCEDURE p2;
+select extractValue('<ns:element xmlns:ns="myns"/>','count(ns:element)');
+extractValue('<ns:element xmlns:ns="myns"/>','count(ns:element)')
+1
+select extractValue('<ns:element xmlns:ns="myns">a</ns:element>','/ns:element');
+extractValue('<ns:element xmlns:ns="myns">a</ns:element>','/ns:element')
+a
+select extractValue('<ns:element xmlns:ns="myns">a</ns:element>','/ns:element/@xmlns:ns');
+extractValue('<ns:element xmlns:ns="myns">a</ns:element>','/ns:element/@xmlns:ns')
+myns
