@@ -24,8 +24,6 @@
 #include <errmsg.h>
 #include <my_getopt.h>
 
-/* We have to define 'enum options' identical in all files to keep OS2 happy */
-
 enum options_client
 {
   OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,

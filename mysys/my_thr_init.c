@@ -94,7 +94,7 @@ my_bool my_thread_global_init(void)
   pthread_mutex_init(&THR_LOCK_heap,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_net,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_charset,MY_MUTEX_INIT_FAST);
-#if defined( __WIN__) || defined(OS2)
+#if defined( __WIN__)
   win_pthread_init();
 #endif
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
@@ -217,19 +217,19 @@ void my_thread_end(void)
       tmp->dbug=0;
     }
 #endif
-#if !defined(__bsdi__) && !defined(__OpenBSD__) || defined(HAVE_mit_thread)
+#if !defined(__bsdi__) && !defined(__OpenBSD__)
  /* bsdi and openbsd 3.5 dumps core here */
     pthread_cond_destroy(&tmp->suspend);
 #endif
     pthread_mutex_destroy(&tmp->mutex);
-#if (!defined(__WIN__) && !defined(OS2)) || defined(USE_TLS)
+#if !defined(__WIN__) || defined(USE_TLS)
     free(tmp);
 #else
     tmp->init= 0;
 #endif
   }
   /* The following free has to be done, even if my_thread_var() is 0 */
-#if (!defined(__WIN__) && !defined(OS2)) || defined(USE_TLS)
+#if !defined(__WIN__) || defined(USE_TLS)
   pthread_setspecific(THR_KEY_mysys,0);
 #endif
 }
@@ -260,7 +260,7 @@ long my_thread_id()
 {
 #if defined(HAVE_PTHREAD_GETSEQUENCE_NP)
   return pthread_getsequence_np(pthread_self());
-#elif (defined(__sun) || defined(__sgi) || defined(__linux__)) && !defined(HAVE_mit_thread)
+#elif (defined(__sun) || defined(__sgi) || defined(__linux__))
   return pthread_self();
 #else
   return my_thread_var->id;

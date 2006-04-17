@@ -989,6 +989,11 @@ PARTITION BY LIST (a)
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+--error 1064
+CREATE TABLE t1 (a int)
+PARTITION BY RANGE(a)
+(PARTITION p0 VALUES LESS THAN (NULL));
+
 #
 # Bug#18753 Partitions: auto_increment fails
 #

@@ -314,7 +314,7 @@ done
 # Raw dirs from source tree
 #
 
-for i in scripts sql-bench mysql-test SSL tests
+for i in scripts mysql-test SSL tests
 do
   print_debug "Copying directory '$i'"
   if [ -d $i ]

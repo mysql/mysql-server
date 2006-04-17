@@ -17,7 +17,7 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 
-#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+#if defined( __WIN__) || defined(__NETWARE__)
 #define DELIM ';'
 #else
 #define DELIM ':'
@@ -38,7 +38,7 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
   {
     /* Get default temporary directory */
     pathlist=getenv("TMPDIR");	/* Use this if possible */
-#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+#if defined( __WIN__) || defined(__NETWARE__)
     if (!pathlist)
       pathlist=getenv("TEMP");
     if (!pathlist)

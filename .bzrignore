@@ -1760,3 +1760,7 @@ zlib/*.ds?
 zlib/*.vcproj
 mysql-test/r/*.log
 client/mysql_upgrade
+unittest/examples/*.t
+unittest/mysys/*.t
+unittest/mytap/t/*.t
+unittest/unit

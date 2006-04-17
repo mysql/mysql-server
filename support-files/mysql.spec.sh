@@ -148,18 +148,6 @@ They should be used with caution.
 
 %{see_base}
 
-%package bench
-Requires: %{name}-client perl-DBI perl
-Summary: MySQL - Benchmarks and test system
-Group: Applications/Databases
-Provides: mysql-bench
-Obsoletes: mysql-bench
-
-%description bench
-This package contains MySQL benchmark scripts and data.
-
-%{see_base}
-
 %package devel
 Summary: MySQL - Development header files and libraries
 Group: Applications/Databases
@@ -246,9 +234,6 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --enable-thread-safe-client \
 	    --with-readline \
 	    "
-
- # benchdir does not fit in above model. Maybe a separate bench distribution
- make benchdir_root=$RPM_BUILD_ROOT/usr/share/
 }
 
 # Use our own copy of glibc
@@ -389,7 +374,7 @@ MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-release-%{mysql_version}
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
 install -d $RBR%{mysqldatadir}/mysql
-install -d $RBR%{_datadir}/{sql-bench,mysql-test}
+install -d $RBR%{_datadir}/mysql-test
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
@@ -397,7 +382,7 @@ install -d $RBR%{_sbindir}
 
 
 # Install all binaries 
-(cd $MBD && make install DESTDIR=$RBR benchdir_root=%{_datadir})
+(cd $MBD && make install DESTDIR=$RBR)
 # Old packages put shared libs in %{_libdir}/ (not %{_libdir}/mysql), so do
 # the same here.
 mv $RBR/%{_libdir}/mysql/*.so* $RBR/%{_libdir}/
@@ -694,14 +679,8 @@ fi
 %{_libdir}/libmysql*.so*
 %{_libdir}/libndb*.so*
 
-%files bench
-%defattr(-, root, root, 0755)
-%attr(-, root, root) %{_datadir}/sql-bench
-%attr(-, root, root) %{_datadir}/mysql-test
-%attr(755, root, root) %{_bindir}/mysql_client_test
-
 %files embedded
-%defattr(-, root, root, 0755)
+%defattr(-, root, root, 0755) 
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
 # The spec file changelog only includes changes made to the spec file
@@ -709,7 +688,12 @@ fi
 # merging BK trees)
 %changelog 
 
-* Sat Apr 11 2006 Jim Winstead <jimw@mysql.com>
+* Wed Apr 12 2006 Jim Winstead <jimw@mysql.com>
+
+- Remove sql-bench, and MySQL-bench RPM (will be built as an independent
+  project from the mysql-bench repository)
+
+* Tue Apr 11 2006 Jim Winstead <jimw@mysql.com>
 
 - Remove old mysqltestmanager and related programs
 
