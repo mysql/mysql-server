@@ -2378,8 +2378,8 @@ String *Item_char_typecast::val_str(String *str)
     // Convert character set if differ
     uint dummy_errors;
     if (!(res= args[0]->val_str(&tmp_value)) ||
-	str->copy(res->ptr(), res->length(), res->charset(),
-                  cast_cs, &dummy_errors))
+        str->copy(res->ptr(), res->length(), from_cs,
+        cast_cs, &dummy_errors))
     {
       null_value= 1;
       return 0;
@@ -2434,21 +2434,40 @@ String *Item_char_typecast::val_str(String *str)
 void Item_char_typecast::fix_length_and_dec()
 {
   uint32 char_length;
-  /*
-    We always force character set conversion if cast_cs is a
-    multi-byte character set. It garantees that the result of CAST is
-    a well-formed string.  For single-byte character sets we allow
-    just to copy from the argument. A single-byte character sets
-    string is always well-formed.
+  /* 
+     We always force character set conversion if cast_cs
+     is a multi-byte character set. It garantees that the
+     result of CAST is a well-formed string.
+     For single-byte character sets we allow just to copy
+     from the argument. A single-byte character sets string
+     is always well-formed. 
+     
+     There is a special trick to convert form a number to ucs2.
+     As numbers have my_charset_bin as their character set,
+     it wouldn't do conversion to ucs2 without an additional action.
+     To force conversion, we should pretend to be non-binary.
+     Let's choose from_cs this way:
+     - If the argument in a number and cast_cs is ucs2 (i.e. mbminlen > 1),
+       then from_cs is set to latin1, to perform latin1 -> ucs2 conversion.
+     - If the argument is a number and cast_cs is ASCII-compatible
+       (i.e. mbminlen == 1), then from_cs is set to cast_cs,
+       which allows just to take over the args[0]->val_str() result
+       and thus avoid unnecessary character set conversion.
+     - If the argument is not a number, then from_cs is set to
+       the argument's charset.
   */
-  charset_conversion= ((cast_cs->mbmaxlen > 1) ||
-                       !my_charset_same(args[0]->collation.collation,
-                                        cast_cs) &&
-                       args[0]->collation.collation != &my_charset_bin &&
-                       cast_cs != &my_charset_bin);
+  from_cs= (args[0]->result_type() == INT_RESULT || 
+            args[0]->result_type() == DECIMAL_RESULT ||
+            args[0]->result_type() == REAL_RESULT) ?
+           (cast_cs->mbminlen == 1 ? cast_cs : &my_charset_latin1) :
+           args[0]->collation.collation;
+  charset_conversion= (cast_cs->mbmaxlen > 1) ||
+                      !my_charset_same(from_cs, cast_cs) &&
+                      from_cs != &my_charset_bin &&
+                      cast_cs != &my_charset_bin;
   collation.set(cast_cs, DERIVATION_IMPLICIT);
   char_length= (cast_length >= 0) ? cast_length : 
-	       args[0]->max_length/args[0]->collation.collation->mbmaxlen;
+	       args[0]->max_length/from_cs->mbmaxlen;
   max_length= char_length * cast_cs->mbmaxlen;
 }
 
