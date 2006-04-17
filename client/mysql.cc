@@ -81,7 +81,7 @@ extern "C" {
 #endif
 
 #undef bcmp				// Fix problem with new readline
-#if defined( __WIN__) || defined(OS2)
+#if defined( __WIN__)
 #include <conio.h>
 #elif !defined(__NETWARE__)
 #include <readline/readline.h>
@@ -101,7 +101,7 @@ extern "C" {
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
-#if !defined( __WIN__) && !defined( OS2) && !defined(__NETWARE__) && (!defined(HAVE_mit_thread) || !defined(THREAD))
+#if !defined( __WIN__) && !defined(__NETWARE__) && !defined(THREAD)
 #define USE_POPEN
 #endif
 
@@ -185,7 +185,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...);
 void tee_fputs(const char *s, FILE *file);
 void tee_puts(const char *s, FILE *file);
 void tee_putc(int c, FILE *file);
-static void tee_print_sized_data(const char *data, unsigned int length, unsigned int width);
+static void tee_print_sized_data(const char *, unsigned int, unsigned int, bool);
 /* The names of functions that actually do the manipulation. */
 static int get_options(int argc,char **argv);
 static int com_quit(String *str,char*),
@@ -969,7 +969,7 @@ static int get_options(int argc, char **argv)
 
 static int read_and_execute(bool interactive)
 {
-#if defined(OS2) || defined(__NETWARE__)
+#if defined(__NETWARE__)
   char linebuffer[254];
   String buffer;
 #endif
@@ -1006,7 +1006,7 @@ static int read_and_execute(bool interactive)
       if (opt_outfile && glob_buffer.is_empty())
 	fflush(OUTFILE);
 
-#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+#if defined( __WIN__) || defined(__NETWARE__)
       tee_fputs(prompt, stdout);
 #if defined(__NETWARE__)
       line=fgets(linebuffer, sizeof(linebuffer)-1, stdin);
@@ -1017,7 +1017,7 @@ static int read_and_execute(bool interactive)
         if (p != NULL)
           *p = '\0';
       }
-#elif defined(__WIN__)
+#else defined(__WIN__)
       if (!tmpbuf.is_alloced())
         tmpbuf.alloc(65535);
       tmpbuf.length(0);
@@ -1033,32 +1033,12 @@ static int read_and_execute(bool interactive)
         */
       } while (tmpbuf.alloced_length() <= clen);
       line= buffer.c_ptr();
-#else /* OS2 */
-      buffer.length(0);
-      /* _cgets() expects the buffer size - 3 as the first byte */
-      linebuffer[0]= (char) sizeof(linebuffer) - 3;
-      do
-      {
-        line= _cgets(linebuffer);
-        buffer.append(line, (unsigned char)linebuffer[1]);
-      /*
-        If _cgets() gets an input line that is linebuffer[0] bytes
-        long, the next call to _cgets() will return immediately with
-        linebuffer[1] == 0, and it does the same thing for input that
-        is linebuffer[0]-1 bytes long. So it appears that even though
-        _cgets() replaces the newline (which is two bytes on Window) with
-        a nil, it still needs the space in the linebuffer for it. This is,
-        naturally, undocumented.
-       */
-      } while ((unsigned char)linebuffer[0] <=
-               (unsigned char)linebuffer[1] + 1);
-      line= buffer.c_ptr();
 #endif /* __NETWARE__ */
 #else
       if (opt_outfile)
 	fputs(prompt, OUTFILE);
       line= readline(prompt);
-#endif /* defined( __WIN__) || defined(OS2) || defined(__NETWARE__) */
+#endif /* defined( __WIN__) || defined(__NETWARE__) */
 
       /*
         When Ctrl+d or Ctrl+z is pressed, the line may be NULL on some OS
@@ -1110,7 +1090,7 @@ static int read_and_execute(bool interactive)
     }
   }
 
-#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+#if defined( __WIN__) || defined(__NETWARE__)
   buffer.free();
 #endif
 #if defined( __WIN__)
@@ -2311,35 +2291,52 @@ print_table_data(MYSQL_RES *result)
   while ((cur= mysql_fetch_row(result)))
   {
     ulong *lengths= mysql_fetch_lengths(result);
-    (void) tee_fputs("|", PAGER);
+    (void) tee_fputs("| ", PAGER);
     mysql_field_seek(result, 0);
     for (uint off= 0; off < mysql_num_fields(result); off++)
     {
-      const char *str= cur[off] ? cur[off] : "NULL";
-      uint currlength;
-      uint maxlength;
-      uint numcells;
+      const char *buffer;
+      uint data_length;
+      uint field_max_length;
+      bool right_justified;
+      uint visible_length;
+      uint extra_padding;
+
+      if (lengths[off] == 0) 
+      {
+        buffer= "NULL";
+        data_length= 4;
+      } 
+      else 
+      {
+        buffer= cur[off];
+        data_length= (uint) lengths[off];
+      }
 
       field= mysql_fetch_field(result);
-      maxlength= field->max_length;
-      currlength= (uint) lengths[off];
-      numcells= charset_info->cset->numcells(charset_info, 
-                                                    str, str + currlength);
-      if (maxlength > MAX_COLUMN_LENGTH)
-      {
-        tee_print_sized_data(str, currlength, maxlength);
-        tee_fputs(" |", PAGER);
-      }
+      field_max_length= field->max_length;
+
+      /* 
+       How many text cells on the screen will this string span?  If it contains
+       multibyte characters, then the number of characters we occupy on screen
+       will be fewer than the number of bytes we occupy in memory.
+
+       We need to find how much screen real-estate we will occupy to know how 
+       many extra padding-characters we should send with the printing function.
+      */
+      visible_length= charset_info->cset->numcells(charset_info, buffer, buffer + data_length);
+      extra_padding= data_length - visible_length;
+
+      if (field_max_length > MAX_COLUMN_LENGTH)
+        tee_print_sized_data(buffer, data_length, MAX_COLUMN_LENGTH+extra_padding, FALSE);
       else
       {
-        if (num_flag[off] != 0)
-          tee_fprintf(PAGER, " %-*s|", maxlength + currlength - numcells, str);
+        if (num_flag[off] != 0) /* if it is numeric, we right-justify it */
+          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, TRUE);
         else 
-        {
-          tee_print_sized_data(str, currlength, maxlength);
-          tee_fputs(" |", PAGER);
-        }
+          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, FALSE);
       }
+      tee_fputs(" | ", PAGER);
     }
     (void) tee_fputs("\n", PAGER);
   }
@@ -2349,10 +2346,9 @@ print_table_data(MYSQL_RES *result)
 
 
 static void
-tee_print_sized_data(const char *data, unsigned int length, unsigned int width)
+tee_print_sized_data(const char *data, unsigned int data_length, unsigned int total_bytes_to_send, bool right_justified)
 {
   /* 
-    It is not a number, so print each character justified to the left.
     For '\0's print ASCII spaces instead, as '\0' is eaten by (at
     least my) console driver, and that messes up the pretty table
     grid.  (The \0 is also the reason we can't use fprintf() .) 
@@ -2360,9 +2356,14 @@ tee_print_sized_data(const char *data, unsigned int length, unsigned int width)
   unsigned int i;
   const char *p;
 
-  tee_putc(' ', PAGER);
+  total_bytes_to_send -= 1;  
+  /* Off by one, perhaps mistakenly accounting for a terminating NUL. */
 
-  for (i= 0, p= data; i < length; i+= 1, p+= 1)
+  if (right_justified) 
+    for (i= 0; i < (total_bytes_to_send - data_length); i++)
+      tee_putc((int)' ', PAGER);
+
+  for (i= 0, p= data; i < data_length; i+= 1, p+= 1)
   {
     if (*p == '\0')
       tee_putc((int)' ', PAGER);
@@ -2370,9 +2371,9 @@ tee_print_sized_data(const char *data, unsigned int length, unsigned int width)
       tee_putc((int)*p, PAGER);
   }
 
-  i+= 1; 
-  for (   ; i < width; i+= 1)
-    tee_putc((int)' ', PAGER);
+  if (! right_justified) 
+    for (i= 0; i < (total_bytes_to_send - data_length); i++)
+      tee_putc((int)' ', PAGER);
 }
 
 
@@ -3360,7 +3361,7 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
     if (info_type == INFO_ERROR)
     {
       if (!opt_nobeep)
-	putchar('\007');		      	/* This should make a bell */
+        putchar('\a');		      	/* This should make a bell */
       vidattr(A_STANDOUT);
       if (error)
       {
@@ -3408,9 +3409,6 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
   NETWARE_YIELD;
   va_start(args, fmt);
   (void) vfprintf(file, fmt, args);
-#ifdef OS2
-  fflush( file);
-#endif
   va_end(args);
 
   if (opt_outfile)
@@ -3426,9 +3424,6 @@ void tee_fputs(const char *s, FILE *file)
 {
   NETWARE_YIELD;
   fputs(s, file);
-#ifdef OS2
-  fflush( file);
-#endif
   if (opt_outfile)
     fputs(s, OUTFILE);
 }
@@ -3439,9 +3434,6 @@ void tee_puts(const char *s, FILE *file)
   NETWARE_YIELD;
   fputs(s, file);
   fputs("\n", file);
-#ifdef OS2
-  fflush( file);
-#endif
   if (opt_outfile)
   {
     fputs(s, OUTFILE);
@@ -3452,14 +3444,11 @@ void tee_puts(const char *s, FILE *file)
 void tee_putc(int c, FILE *file)
 {
   putc(c, file);
-#ifdef OS2
-  fflush( file);
-#endif
   if (opt_outfile)
     putc(c, OUTFILE);
 }
 
-#if defined( __WIN__) || defined( OS2) || defined(__NETWARE__)
+#if defined( __WIN__) || defined(__NETWARE__)
 #include <time.h>
 #else
 #include <sys/times.h>
@@ -3471,7 +3460,7 @@ void tee_putc(int c, FILE *file)
 
 static ulong start_timer(void)
 {
-#if defined( __WIN__) || defined( OS2) || defined(__NETWARE__)
+#if defined( __WIN__) || defined(__NETWARE__)
  return clock();
 #else
   struct tms tms_tmp;

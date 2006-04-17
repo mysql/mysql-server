@@ -96,14 +96,14 @@ int parse_output_and_get_value(const char *command, const char *word,
     linebuf[sizeof(linebuf) - 1]= '\0';        /* safety */
 
     /*
-      Compare the start of our line with the word(s) we are looking for.
+      Find the word(s) we are looking for in the line
     */
-    if (!strncmp(word, linep, wordlen))
+    if ((linep= strstr(linep, word)))
     {
       /*
         If we have found our word(s), then move linep past the word(s)
       */
-      linep+= wordlen;                      
+      linep+= wordlen;
       if (flag & GET_VALUE)
       {
         trim_space((const char**) &linep, &found_word_len);

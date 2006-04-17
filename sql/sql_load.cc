@@ -294,7 +294,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     {
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
 		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
-#if !defined(__WIN__) && !defined(OS2) && ! defined(__NETWARE__)
+#if !defined(__WIN__) && ! defined(__NETWARE__)
       MY_STAT stat_info;
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
 	DBUG_RETURN(TRUE);
@@ -302,9 +302,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       // if we are not in slave thread, the file must be:
       if (!thd->slave_thread &&
 	  !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
-#ifndef __EMX__
 	    (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
-#endif
 	    ((stat_info.st_mode & S_IFREG) == S_IFREG ||
 	     (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
       {
