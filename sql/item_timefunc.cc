@@ -2457,6 +2457,7 @@ void Item_char_typecast::fix_length_and_dec()
        the argument's charset.
   */
   from_cs= (args[0]->result_type() == INT_RESULT || 
+            args[0]->result_type() == DECIMAL_RESULT ||
             args[0]->result_type() == REAL_RESULT) ?
            (cast_cs->mbminlen == 1 ? cast_cs : &my_charset_latin1) :
            args[0]->collation.collation;
