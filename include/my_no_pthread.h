@@ -27,10 +27,6 @@
   Case in point: 'mf_keycache.c'
 */
 #if defined(__WIN__)
-
-#elif defined(HAVE_UNIXWARE7_THREADS)
-/* #include <thread.h>   Currently, not relevant. Enable if needed. */
-
 #else /* Normal threads */
 #include <pthread.h>
 

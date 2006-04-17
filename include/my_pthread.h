@@ -142,68 +142,6 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 /*#define my_pthread_getprio(pthread_t thread_id) pthread_dummy(0) */
 #define my_pthread_getprio(thread_id) pthread_dummy(0)
 
-#elif defined(HAVE_UNIXWARE7_THREADS)
-
-#include <thread.h>
-#include <synch.h>
-
-#ifndef _REENTRANT
-#define _REENTRANT
-#endif
-
-#define HAVE_NONPOSIX_SIGWAIT
-#define pthread_t thread_t
-#define pthread_cond_t cond_t
-#define pthread_mutex_t mutex_t
-#define pthread_key_t thread_key_t
-typedef int pthread_attr_t;			/* Needed by Unixware 7.0.0 */
-
-#define pthread_key_create(A,B) thr_keycreate((A),(B))
-#define pthread_key_delete(A) thr_keydelete(A)
-
-#define pthread_handler_t EXTERNC void *
-#define pthread_key(T,V) pthread_key_t V
-
-void *	my_pthread_getspecific_imp(pthread_key_t key);
-#define my_pthread_getspecific(A,B) ((A) my_pthread_getspecific_imp(B))
-#define my_pthread_getspecific_ptr(T,V) my_pthread_getspecific(T,V)
-
-#define pthread_setspecific(A,B) thr_setspecific(A,B)
-#define my_pthread_setspecific_ptr(T,V) pthread_setspecific(T,V)
-
-#define pthread_create(A,B,C,D) thr_create(NULL,65536L,(C),(D),THR_DETACHED,(A))
-#define pthread_cond_init(a,b) cond_init((a),USYNC_THREAD,NULL)
-#define pthread_cond_destroy(a) cond_destroy(a)
-#define pthread_cond_signal(a) cond_signal(a)
-#define pthread_cond_wait(a,b) cond_wait((a),(b))
-#define pthread_cond_timedwait(a,b,c) cond_timedwait((a),(b),(c))
-#define pthread_cond_broadcast(a) cond_broadcast(a)
-
-#define pthread_mutex_init(a,b) mutex_init((a),USYNC_THREAD,NULL)
-#define pthread_mutex_lock(a) mutex_lock(a)
-#define pthread_mutex_unlock(a) mutex_unlock(a)
-#define pthread_mutex_destroy(a) mutex_destroy(a)
-
-#define pthread_self() thr_self()
-#define pthread_exit(A) thr_exit(A)
-#define pthread_equal(A,B) (((A) == (B)) ? 1 : 0)
-#define pthread_kill(A,B) thr_kill((A),(B))
-#define HAVE_PTHREAD_KILL
-
-#define pthread_sigmask(A,B,C) thr_sigsetmask((A),(B),(C))
-
-extern int my_sigwait(const sigset_t *set,int *sig);
-
-#define pthread_detach_this_thread() pthread_dummy(0)
-
-#define pthread_attr_init(A) pthread_dummy(0)
-#define pthread_attr_destroy(A) pthread_dummy(0)
-#define pthread_attr_setscope(A,B) pthread_dummy(0)
-#define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
-#define my_pthread_setprio(A,B) pthread_dummy (0)
-#define my_pthread_getprio(A) pthread_dummy (0)
-#define my_pthread_attr_setprio(A,B) pthread_dummy(0)
-
 #else /* Normal threads */
 
 #ifdef HAVE_rts_threads
