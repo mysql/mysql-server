@@ -640,10 +640,14 @@ NdbOperation::setPartitionId(Uint32 value)
 {
   theDistributionKey = value;
   theDistrKeyIndicator_ = 1;
+  DBUG_PRINT("info", ("NdbOperation::setPartitionId: %u",
+                       theDistributionKey));
 }
 
 Uint32
 NdbOperation::getPartitionId() const 
 {
+  DBUG_PRINT("info", ("NdbOperation::getPartitionId: %u ind=%d",
+                      theDistributionKey, theDistrKeyIndicator_));
   return theDistributionKey;
 }
