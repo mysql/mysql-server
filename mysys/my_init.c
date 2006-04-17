@@ -91,9 +91,6 @@ my_bool my_init(void)
   sigfillset(&my_signals);		/* signals blocked by mf_brkhant */
 #endif
 #endif /* THREAD */
-#ifdef UNIXWARE_7
-  (void) isatty(0);			/* Go around connect() bug in UW7 */
-#endif
   {
     DBUG_ENTER("my_init");
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
