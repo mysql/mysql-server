@@ -208,7 +208,6 @@
 #undef THREAD
 #undef HAVE_LINUXTHREADS
 #undef HAVE_NPTL
-#undef HAVE_UNIXWARE7_THREADS
 #endif
 
 #ifdef HAVE_THREADS_WITHOUT_SOCKETS
@@ -264,9 +263,6 @@
 #if !defined(_THREAD_SAFE) && !defined(_AIX)
 #define _THREAD_SAFE            /* Required for OSF1 */
 #endif
-#ifdef HAVE_UNIXWARE7_THREADS
-#include <thread.h>
-#else
 #if defined(HPUX10) || defined(HPUX11)
 C_MODE_START			/* HPUX needs this, signal.h bug */
 #include <pthread.h>
@@ -274,7 +270,6 @@ C_MODE_END
 #else
 #include <pthread.h>		/* AIX must have this included first */
 #endif
-#endif /* HAVE_UNIXWARE7_THREADS */
 #if !defined(SCO) && !defined(_REENTRANT)
 #define _REENTRANT	1	/* Threads requires reentrant code */
 #endif

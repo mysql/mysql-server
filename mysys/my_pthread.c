@@ -76,9 +76,6 @@ void my_pthread_attr_setprio(pthread_attr_t *attr, int priority)
 
 #ifdef HAVE_NONPOSIX_PTHREAD_GETSPECIFIC
 #undef pthread_getspecific
-#ifdef HAVE_UNIXWARE7_THREADS
-#define pthread_getspecific thr_getspecific
-#endif
 
 void *my_pthread_getspecific_imp(pthread_key_t key)
 {
@@ -429,7 +426,7 @@ int sigwait(sigset_t *setp, int *sigp)
 ** Patches for AIX and DEC OSF/1 3.2
 *****************************************************************************/
 
-#if (defined(HAVE_NONPOSIX_PTHREAD_MUTEX_INIT) && !defined(HAVE_UNIXWARE7_THREADS)) || defined(HAVE_DEC_3_2_THREADS)
+#if defined(HAVE_NONPOSIX_PTHREAD_MUTEX_INIT)
 
 #include <netdb.h>
 
