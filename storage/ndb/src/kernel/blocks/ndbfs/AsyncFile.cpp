@@ -385,16 +385,23 @@ void AsyncFile::openReq(Request* request)
     }
     new_flags |= O_CREAT;
   }
-  
+
 no_odirect:
   if (-1 == (theFd = ::open(theFileName.c_str(), new_flags, mode))) 
   {
     PRINT_ERRORANDFLAGS(new_flags);
-    if ((errno == ENOENT ) && (new_flags & O_CREAT)) 
+    if ((errno == ENOENT) && (new_flags & O_CREAT)) 
     {
       createDirectories();
       if (-1 == (theFd = ::open(theFileName.c_str(), new_flags, mode))) 
       {
+#ifdef O_DIRECT
+	if (new_flags & O_DIRECT)
+	{
+	  new_flags &= ~O_DIRECT;
+	  goto no_odirect;
+	}
+#endif
         PRINT_ERRORANDFLAGS(new_flags);
         request->error = errno;
 	return;
