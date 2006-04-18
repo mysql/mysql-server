@@ -116,7 +116,7 @@ sub collect_test_cases ($) {
       while ( <DISABLED> )
       {
         chomp;
-        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+        if ( /^\s*([^\s:]+)\s*:\s*(.*?)\s*$/ )
         {
           $disabled{$1}= $2;
         }
