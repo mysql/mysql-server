@@ -312,11 +312,12 @@ void AsyncFile::openReq(Request* request)
   Uint32 new_flags = 0;
 
   // Convert file open flags from Solaris to Liux
-  if(flags & FsOpenReq::OM_CREATE){
+  if (flags & FsOpenReq::OM_CREATE)
+  {
     new_flags |= O_CREAT;
   }
-
-  if(flags & FsOpenReq::OM_TRUNCATE){
+  
+  if (flags & FsOpenReq::OM_TRUNCATE){
 #if 0
     if(Global_unlinkO_CREAT){
       unlink(theFileName.c_str());
@@ -330,25 +331,25 @@ void AsyncFile::openReq(Request* request)
     m_syncFrequency = 1024*1024; // Hard coded to 1M
   }
 
-  if(flags & FsOpenReq::OM_APPEND){
+  if (flags & FsOpenReq::OM_APPEND){
     new_flags |= O_APPEND;
   }
 
-  if((flags & FsOpenReq::OM_SYNC) && ! (flags & FsOpenReq::OM_INIT))
+  if ((flags & FsOpenReq::OM_SYNC) && ! (flags & FsOpenReq::OM_INIT))
   {
 #ifdef O_SYNC
     new_flags |= O_SYNC;
 #endif
   }
   
-#ifndef NDB_NO_O_DIRECT  /* to allow tmpfs */
+//#ifndef NDB_NO_O_DIRECT  /* to allow tmpfs */
 #ifdef O_DIRECT
   if (flags & FsOpenReq::OM_DIRECT) 
   {
     new_flags |= O_DIRECT;
   }
 #endif
-#endif
+//#endif
   
   switch(flags & 0x3){
   case FsOpenReq::OM_READONLY:
@@ -370,8 +371,14 @@ void AsyncFile::openReq(Request* request)
   const int mode = S_IRUSR | S_IWUSR |
 	           S_IRGRP | S_IWGRP |
 		   S_IROTH | S_IWOTH;
-  if(flags & FsOpenReq::OM_CREATE_IF_NONE){
-    if((theFd = ::open(theFileName.c_str(), new_flags, mode)) != -1) {
+  if (flags & FsOpenReq::OM_CREATE_IF_NONE)
+  {
+    Uint32 tmp_flags = new_flags;
+#ifdef O_DIRECT
+    tmp_flags &= ~O_DIRECT;
+#endif
+    if ((theFd = ::open(theFileName.c_str(), tmp_flags, mode)) != -1) 
+    {
       close(theFd);
       request->error = FsRef::fsErrFileExists;      
       return;
@@ -379,35 +386,51 @@ void AsyncFile::openReq(Request* request)
     new_flags |= O_CREAT;
   }
   
-  if (-1 == (theFd = ::open(theFileName.c_str(), new_flags, mode))) {
+no_odirect:
+  if (-1 == (theFd = ::open(theFileName.c_str(), new_flags, mode))) 
+  {
     PRINT_ERRORANDFLAGS(new_flags);
-    if( (errno == ENOENT ) && (new_flags & O_CREAT ) ) {
+    if ((errno == ENOENT ) && (new_flags & O_CREAT)) 
+    {
       createDirectories();
-      if (-1 == (theFd = ::open(theFileName.c_str(), new_flags, mode))) {
+      if (-1 == (theFd = ::open(theFileName.c_str(), new_flags, mode))) 
+      {
         PRINT_ERRORANDFLAGS(new_flags);
         request->error = errno;
 	return;
       }
-    } else {
+    }
+#ifdef O_DIRECT
+    else if (new_flags & O_DIRECT)
+    {
+      new_flags &= ~O_DIRECT;
+      goto no_odirect;
+    }
+#endif
+    else
+    {
       request->error = errno;
       return;
     }
   }
   
-  if(flags & FsOpenReq::OM_CHECK_SIZE)
+  if (flags & FsOpenReq::OM_CHECK_SIZE)
   {
     struct stat buf;
-    if((fstat(theFd, &buf) == -1))
+    if ((fstat(theFd, &buf) == -1))
     {
       request->error = errno;
-    } else if(buf.st_size != request->par.open.file_size){
+    } 
+    else if(buf.st_size != request->par.open.file_size)
+    {
       request->error = FsRef::fsErrInvalidFileSize;
     }
-    if(request->error)
+    if (request->error)
       return;
   }
-
-  if(flags & FsOpenReq::OM_INIT){
+  
+  if (flags & FsOpenReq::OM_INIT)
+  {
     off_t off = 0;
     const off_t sz = request->par.open.file_size;
     Uint32 tmp[sizeof(SignalHeader)+25];
