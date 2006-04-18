@@ -343,7 +343,7 @@ execute(void * callbackObj, SignalHeader * const header,
 	 Uint32 aNodeId= refToNode(ref);
 	 tSignal.theReceiversBlockNumber= refToBlock(ref);
 	 tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
-	 theFacade->sendSignal(&tSignal, aNodeId);
+	 theFacade->sendSignalUnCond(&tSignal, aNodeId);
        }
        break;
      }
@@ -987,7 +987,7 @@ TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
       LinearSectionPtr ptr[3];
       signalLogger.sendSignal(* aSignal,
 			      1,
-			      aSignal->getDataPtr(),
+			      tDataPtr,
 			      aNode, ptr, 0);
       signalLogger.flushSignalLog();
       aSignal->theSendersBlockRef = tmp;
@@ -1014,6 +1014,7 @@ TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
 
 int
 TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, NodeId aNode){
+  Uint32* tDataPtr = aSignal->getDataPtrSend();
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
     Uint32 tmp = aSignal->theSendersBlockRef;
@@ -1021,7 +1022,7 @@ TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, NodeId aNode){
     LinearSectionPtr ptr[3];
     signalLogger.sendSignal(* aSignal,
 			    0,
-			    aSignal->getDataPtr(),
+			    tDataPtr,
 			    aNode, ptr, 0);
     signalLogger.flushSignalLog();
     aSignal->theSendersBlockRef = tmp;
@@ -1032,7 +1033,7 @@ TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, NodeId aNode){
          (aSignal->theReceiversBlockNumber != 0));
   SendStatus ss = theTransporterRegistry->prepareSend(aSignal, 
 						      0, 
-						      aSignal->getDataPtr(), 
+						      tDataPtr,
 						      aNode, 
 						      0);
   
