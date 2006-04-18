@@ -1500,6 +1500,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
   mysql->options.ssl_ca=     strdup_if_not_null(ca);
   mysql->options.ssl_capath= strdup_if_not_null(capath);
   mysql->options.ssl_cipher= strdup_if_not_null(cipher);
+  mysql->options.ssl_verify_server_cert= FALSE; /* Off by default */
 #endif /* HAVE_OPENSSL */
   DBUG_RETURN(0);
 }
@@ -1521,7 +1522,7 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   my_free(mysql->options.ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));  
+  my_free(mysql->options.ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
   if (ssl_fd)
     SSL_CTX_free(ssl_fd->ssl_context);
   my_free(mysql->connector_fd,MYF(MY_ALLOW_ZERO_PTR));
@@ -1534,6 +1535,77 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   mysql->connector_fd = 0;
   DBUG_VOID_RETURN;
 }
+
+/*
+  Check the server's (subject) Common Name against the
+  hostname we connected to
+
+  SYNOPSIS
+  ssl_verify_server_cert()
+    vio              pointer to a SSL connected vio
+    server_hostname  name of the server that we connected to
+
+  RETURN VALUES
+   0 Success
+   1 Failed to validate server
+
+ */
+static int ssl_verify_server_cert(Vio *vio, const char* server_hostname)
+{
+  SSL *ssl;
+  X509 *server_cert;
+  char *cp1, *cp2;
+  char buf[256];
+  DBUG_ENTER("ssl_verify_server_cert");
+  DBUG_PRINT("enter", ("server_hostname: %s", server_hostname));
+
+  if (!(ssl= (SSL*)vio->ssl_arg))
+  {
+    DBUG_PRINT("error", ("No SSL pointer found"));
+    DBUG_RETURN(1);
+  }
+
+  if (!server_hostname)
+  {
+    DBUG_PRINT("error", ("No server hostname supplied"));
+    DBUG_RETURN(1);
+  }
+
+  if (!(server_cert= SSL_get_peer_certificate(ssl)))
+  {
+    DBUG_PRINT("error", ("Could not get server certificate"));
+    DBUG_RETURN(1);
+  }
+
+  /*
+    We already know that the certificate exchanged was valid; the SSL library
+    handled that. Now we need to verify that the contents of the certificate
+    are what we expect.
+  */
+
+  X509_NAME_oneline(X509_get_subject_name(server_cert), buf, sizeof(buf));
+  X509_free (server_cert);
+
+  DBUG_PRINT("info", ("hostname in cert: %s", buf));
+  cp1 = strstr(buf, "/CN=");
+  if (cp1)
+  {
+    cp1 += 4; // Skip the "/CN=" that we found
+    // Search for next / which might be the delimiter for email
+    cp2 = strchr(cp1, '/');
+    if (cp2)
+      *cp2 = '\0';
+    DBUG_PRINT("info", ("Server hostname in cert: %s", cp1));
+    if (!strcmp(cp1, server_hostname))
+    {
+      /* Success */
+      DBUG_RETURN(0);
+    }
+  }
+  DBUG_PRINT("error", ("SSL certificate validation failure"));
+  DBUG_RETURN(1);
+}
+
 #endif /* HAVE_OPENSSL */
 
 
@@ -2049,7 +2121,14 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
     DBUG_PRINT("info", ("IO layer change done!"));
 
-    /* TODO Verify server cert */
+    /* Verify server cert */
+    if (mysql->options.ssl_verify_server_cert &&
+        ssl_verify_server_cert(mysql->net.vio, mysql->host))
+    {
+      set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
+      goto error;
+    }
+
   }
 #endif /* HAVE_OPENSSL */
 
@@ -2788,6 +2867,9 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     break;
   case MYSQL_OPT_RECONNECT:
     mysql->reconnect= *(my_bool *) arg;
+    break;
+  case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
+    mysql->options.ssl_verify_server_cert= *(my_bool *) arg;
     break;
   default:
     DBUG_RETURN(1);
