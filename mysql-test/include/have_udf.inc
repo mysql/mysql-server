@@ -1,12 +1,8 @@
 #
-# To check if the udf_example.so is available,
-# try to load one function from it.
-#
+# Check if server has support for loading udf's
+# i.e it will support dlopen
 #
 --require r/have_udf.require
---disable_abort_on_error
-CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
---disable_query_log
-DROP FUNCTION metaphon;
---enable_query_log
---enable_abort_on_error
+disable_query_log;
+show variables like "have_dynamic_loading";
+enable_query_log;
