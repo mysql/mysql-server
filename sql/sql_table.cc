@@ -574,7 +574,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
     DBUG_RETURN(TRUE);
   }
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0); 
-  if (strcmp("frm", ddl_log_entry->handler_name))
+  if (ddl_log_entry->handler_name[0] == 0)
     frm_action= TRUE;
   else
   {
@@ -1260,6 +1260,12 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     /*
       When we are changing to use new frm file we need to ensure that we
       don't collide with another thread in process to open the frm file.
+      We start by deleting the .frm file and possible .par file. Then we
+      write to the DDL log that we have completed the delete phase by
+      increasing the phase of the log entry. Next step is to rename the
+      new .frm file and the new .par file to the real name. After
+      completing this we write a new phase to the log entry that will
+      deactivate it.
     */
     VOID(pthread_mutex_lock(&LOCK_open));
     if (my_delete(frm_name, MYF(MY_WME)) ||
@@ -1269,9 +1275,13 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
         deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos) ||
         (sync_ddl_log(), FALSE) ||
 #endif
+#ifdef WITH_PARTITION_STORAGE_ENGINE
         my_rename(shadow_frm_name, frm_name, MYF(MY_WME)) ||
         lpt->table->file->create_handler_files(path, shadow_path,
                                                CHF_RENAME_FLAG))
+#else
+        my_rename(shadow_frm_name, frm_name, MYF(MY_WME)))
+#endif
     {
       error= 1;
     }
