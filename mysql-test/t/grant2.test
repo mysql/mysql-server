@@ -490,3 +490,4 @@ disconnect bug13310;
 
 connection default;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM `a@`@localhost;
+drop user `a@`@localhost;
