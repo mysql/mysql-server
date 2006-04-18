@@ -71,11 +71,6 @@ my_bool	net_flush(NET *net);
 #include <my_pthread.h>				/* because of signal()	*/
 #endif /* defined(THREAD) && !defined(__WIN__) */
 
-#if defined(OS2) && defined(MYSQL_SERVER)
-#undef  ER
-#define ER CER
-#endif /* defined( OS2) && defined(MYSQL_SERVER) */
-
 #include <sys/stat.h>
 #include <signal.h>
 #include <time.h>
@@ -126,7 +121,7 @@ const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 static void mysql_close_free_options(MYSQL *mysql);
 static void mysql_close_free(MYSQL *mysql);
 
-#if !(defined(__WIN__) || defined(OS2) || defined(__NETWARE__))
+#if !(defined(__WIN__) || defined(__NETWARE__))
 static int wait_for_data(my_socket fd, uint timeout);
 #endif
 
@@ -143,7 +138,7 @@ static int wait_for_data(my_socket fd, uint timeout);
 int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
 	       uint timeout)
 {
-#if defined(__WIN__) || defined(OS2) || defined(__NETWARE__)
+#if defined(__WIN__) || defined(__NETWARE__)
   return connect(fd, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;
@@ -183,7 +178,7 @@ int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
   If not, we will use select()
 */
 
-#if !(defined(__WIN__) || defined(OS2) || defined(__NETWARE__))
+#if !(defined(__WIN__) || defined(__NETWARE__))
 
 static int wait_for_data(my_socket fd, uint timeout)
 {
@@ -274,7 +269,7 @@ static int wait_for_data(my_socket fd, uint timeout)
   return (0);					/* ok */
 #endif /* HAVE_POLL */
 }
-#endif /* defined(__WIN__) || defined(OS2) || defined(__NETWARE__) */
+#endif /* defined(__WIN__) || defined(__NETWARE__) */
 
 
 /*

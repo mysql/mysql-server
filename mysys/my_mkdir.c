@@ -27,7 +27,7 @@ int my_mkdir(const char *dir, int Flags, myf MyFlags)
   DBUG_ENTER("my_dir");
   DBUG_PRINT("enter",("dir: %s",dir));
 
-#if  defined(__WIN__) || defined(OS2)
+#if  defined(__WIN__)
   if (mkdir((char*) dir))
 #else
   if (mkdir((char*) dir, Flags & my_umask_dir))

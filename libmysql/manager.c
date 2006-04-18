@@ -35,9 +35,7 @@
 #include <signal.h>
 #include <errno.h>
 
-#if defined(OS2)
-#  include <sys/un.h>
-#elif defined(__NETWARE__)
+#if defined(__NETWARE__)
 #include <netdb.h>
 #include <sys/select.h>
 #include <sys/utsname.h>

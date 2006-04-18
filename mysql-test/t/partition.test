@@ -957,6 +957,30 @@ SHOW TABLE STATUS;
 DROP TABLE t1;
 
 #
+#BUG 18750 Problems with partition names
+#
+create table t1 (a int)
+partition by list (a)
+(partition `s1 s2` values in (0));
+drop table t1;
+
+create table t1 (a int)
+partition by list (a)
+(partition `7` values in (0));
+drop table t1;
+
+--error ER_WRONG_PARTITION_NAME
+create table t1 (a int)
+partition by list (a)
+(partition `s1 s2 ` values in (0));
+
+--error ER_WRONG_PARTITION_NAME
+create table t1 (a int)
+partition by list (a)
+subpartition by hash (a)
+(partition p1 values in (0) (subpartition `p1 p2 `));
+
+#
 # BUG 18752 SHOW CREATE TABLE doesn't show NULL value in SHOW CREATE TABLE
 #
 CREATE TABLE t1 (a int)
@@ -964,6 +988,11 @@ PARTITION BY LIST (a)
 (PARTITION p0 VALUES IN (NULL));
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+--error 1064
+CREATE TABLE t1 (a int)
+PARTITION BY RANGE(a)
+(PARTITION p0 VALUES LESS THAN (NULL));
 
 #
 # Bug#18753 Partitions: auto_increment fails
