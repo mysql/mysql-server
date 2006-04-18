@@ -128,7 +128,8 @@ private:
   friend class GrepSS;
   friend class Ndb;
   friend class Ndb_cluster_connection_impl;
-
+  friend class NdbConnection;
+  
   int sendSignalUnCond(NdbApiSignal *, NodeId nodeId);
 
   bool isConnected(NodeId aNodeId);
