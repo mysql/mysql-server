@@ -111,6 +111,7 @@ EmulatorData::destroy(){
     delete theSimBlockList; theSimBlockList = 0;
   if(m_socket_server)
     delete m_socket_server; m_socket_server = 0;
+  NdbMutex_Destroy(theShutdownMutex);
   NdbMem_Destroy();
 }
 
