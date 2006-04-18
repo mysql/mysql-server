@@ -284,7 +284,7 @@ void bench_rsa()
     double each  = total / times;   // per second
     double milliEach = each * 1000; // milliseconds
 
-    printf("RSA 1024 encryption took  %3.2f milliseconds, avg over %d" 
+    printf("RSA 1024 encryption took %6.2f milliseconds, avg over %d" 
            " iterations\n", milliEach, times);
 
     RSAES_Decryptor dec(priv);
@@ -298,7 +298,7 @@ void bench_rsa()
     each  = total / times;   // per second
     milliEach = each * 1000; // milliseconds
 
-    printf("RSA 1024 decryption took %3.2f milliseconds, avg over %d" 
+    printf("RSA 1024 decryption took %6.2f milliseconds, avg over %d" 
            " iterations\n", milliEach, times);
 }
 
@@ -329,7 +329,7 @@ void bench_dh()
     double each  = total / times;   // per second
     double milliEach = each * 1000; // milliseconds
 
-    printf("DH  1024 key generation   %3.2f milliseconds, avg over %d" 
+    printf("DH  1024 key generation  %6.2f milliseconds, avg over %d" 
            " iterations\n", milliEach, times);
 
     DH dh2(dh); 
@@ -347,7 +347,7 @@ void bench_dh()
     each  = total / times;      // per second
     milliEach = each * 1000;   //  in milliseconds
 
-    printf("DH  1024 key agreement    %3.2f milliseconds, avg over %d"
+    printf("DH  1024 key agreement   %6.2f milliseconds, avg over %d"
            " iterations\n", milliEach, times);
 }
 
@@ -383,7 +383,7 @@ void bench_dsa()
     double each  = total / times;   // per second
     double milliEach = each * 1000; // milliseconds
 
-    printf("DSA 1024 sign   took      %3.2f milliseconds, avg over %d" 
+    printf("DSA 1024 sign   took     %6.2f milliseconds, avg over %d" 
            " iterations\n", milliEach, times);
 
     DSA_Verifier verifier(key);
@@ -397,7 +397,7 @@ void bench_dsa()
     each  = total / times;      // per second
     milliEach = each * 1000;   //  in milliseconds
 
-    printf("DSA 1024 verify took      %3.2f milliseconds, avg over %d"
+    printf("DSA 1024 verify took     %6.2f milliseconds, avg over %d"
            " iterations\n", milliEach, times);
 }
 

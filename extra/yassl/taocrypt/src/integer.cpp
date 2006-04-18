@@ -2709,21 +2709,33 @@ unsigned int Integer::Encode(byte* output, unsigned int outputLen,
 }
 
 
-const Integer Integer::zero_;
+static Integer* zero = 0;
 
 const Integer &Integer::Zero()
 {
-    return zero_;
+    if (!zero)
+        zero = NEW_TC Integer;
+    return *zero;
 }
 
 
-const Integer Integer::one_(1,2);
+static Integer* one = 0;
 
 const Integer &Integer::One()
 {
-    return one_;
+    if (!one)
+        one = NEW_TC Integer(1,2);
+    return *one;
 }
 
+
+// Clean up static singleton holders, not a leak, but helpful to have gone
+// when checking for leaks
+void CleanUp()
+{
+    tcDelete(one);
+    tcDelete(zero);
+}
 
 Integer::Integer(RandomNumberGenerator& rng, const Integer& min,
                  const Integer& max)

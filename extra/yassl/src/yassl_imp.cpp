@@ -1329,6 +1329,7 @@ input_buffer& operator>>(input_buffer& input, ClientHello& hello)
 
     // Compression
     hello.comp_len_ = input[AUTO];
+    while (hello.comp_len_--)  // ignore for now
     hello.compression_methods_ = CompressionMethod(input[AUTO]);
 
     return input;
