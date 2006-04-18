@@ -993,6 +993,7 @@ static int check_connection(THD *thd)
 
   char *user= end;
   char *passwd= strend(user)+1;
+  uint user_len= passwd - user - 1;
   char *db= passwd;
   char db_buff[NAME_LEN+1];                     // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH+1];		// buffer to store user in utf8
@@ -1018,10 +1019,18 @@ static int check_connection(THD *thd)
     db= db_buff;
   }
 
-  user_buff[copy_and_convert(user_buff, sizeof(user_buff)-1,
-                             system_charset_info, user, strlen(user),
-                             thd->charset(), &dummy_errors)]= '\0';
+  user_buff[user_len= copy_and_convert(user_buff, sizeof(user_buff)-1,
+                                       system_charset_info, user, user_len,
+                                       thd->charset(), &dummy_errors)]= '\0';
   user= user_buff;
+
+  /* If username starts and ends in "'", chop them off */
+  if (user_len > 1 && user[0] == '\'' && user[user_len - 1] == '\'')
+  {
+    user[user_len-1]= 0;
+    user++;
+    user_len-= 2;
+  }
 
   if (thd->main_security_ctx.user)
     x_free(thd->main_security_ctx.user);
