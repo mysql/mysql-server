@@ -290,20 +290,20 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
                       const char *cipher)
 {
   struct st_VioSSLFd *ssl_fd;
-  int verify= SSL_VERIFY_NONE;
+  int verify= SSL_VERIFY_PEER;
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
                              ca_path, cipher, TLSv1_client_method())))
   {
     return 0;
   }
+
   /* Init the the VioSSLFd as a "connector" ie. the client side */
 
   /*
     The verify_callback function is used to control the behaviour
-    when the SSL_VERIFY_PEER flag is set. Here it is SSL_VERIFY_NONE
-    and thus callback is set to NULL
+    when the SSL_VERIFY_PEER flag is set.
   */
-  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, NULL);
+  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, vio_verify_callback);
 
   return ssl_fd;
 }

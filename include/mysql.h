@@ -149,7 +149,8 @@ enum mysql_option
   MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
   MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
-  MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT
+  MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
+  MYSQL_OPT_SSL_VERIFY_SERVER_CERT
 };
 
 struct st_mysql_options {
@@ -164,6 +165,7 @@ struct st_mysql_options {
   char *ssl_ca;					/* PEM CA file */
   char *ssl_capath;				/* PEM directory of CA-s? */
   char *ssl_cipher;				/* cipher to use */
+  my_bool ssl_verify_server_cert;		/* if to verify server cert */
   char *shared_memory_base_name;
   unsigned long max_allowed_packet;
   my_bool use_ssl;				/* if to use SSL or not */
