@@ -1376,6 +1376,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   TABLE* table= share->table;
   TABLE_SHARE *table_share= table->s;
   const char *dbname= table_share->db.str;
+  const char *tabname= table_share->table_name.str;
   bool do_close_cached_tables= FALSE;
   bool is_online_alter_table= FALSE;
   bool is_rename_table= FALSE;
@@ -1405,8 +1406,8 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   Ndb* old_ndb= thd_ndb->ndb;
   thd_ndb->ndb= ndb;
   ha_ndbcluster table_handler(table_share);
-  table_handler.set_dbname(share->key);
-  table_handler.set_tabname(share->key);
+  (void)strxmov(table_handler.m_dbname, dbname, NullS);
+  (void)strxmov(table_handler.m_tabname, tabname, NullS);
   table_handler.open_indexes(ndb, table, TRUE);
   table_handler.invalidate_dictionary_cache(TRUE);
   thd_ndb->ndb= old_ndb;
@@ -1484,6 +1485,21 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     share->table->s->db.length= strlen(share->db);
     share->table->s->table_name.str= share->table_name;
     share->table->s->table_name.length= strlen(share->table_name);
+    /*
+      Refresh local dictionary cache by invalidating any 
+      old table with same name and all it's indexes
+    */
+    ndb->setDatabaseName(dbname);
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    DBUG_ASSERT(thd_ndb != NULL);
+    Ndb* old_ndb= thd_ndb->ndb;
+    thd_ndb->ndb= ndb;
+    ha_ndbcluster table_handler(table_share);
+    table_handler.set_dbname(share->key);
+    table_handler.set_tabname(share->key);
+    table_handler.open_indexes(ndb, table, TRUE);
+    table_handler.invalidate_dictionary_cache(TRUE);
+    thd_ndb->ndb= old_ndb;
   }
   DBUG_ASSERT(share->op == pOp || share->op_old == pOp);
   if (share->op_old == pOp)
