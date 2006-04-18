@@ -23,7 +23,7 @@
  *
  */
 
-#ifndef ysSSL_openssl_h__
+#ifndef yaSSL_openssl_h__
 #define yaSSL_openssl_h__
 
 #include <stdio.h>   /* ERR_print fp */
