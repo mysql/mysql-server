@@ -343,7 +343,7 @@ execute(void * callbackObj, SignalHeader * const header,
 	 Uint32 aNodeId= refToNode(ref);
 	 tSignal.theReceiversBlockNumber= refToBlock(ref);
 	 tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
-	 theFacade->sendSignal(&tSignal, aNodeId);
+	 theFacade->sendSignalUnCond(&tSignal, aNodeId);
        }
        break;
      }
