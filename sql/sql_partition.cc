@@ -4759,7 +4759,7 @@ static bool write_log_replace_delete_frm(ALTER_PARTITION_PARAM_TYPE *lpt,
   else
     ddl_log_entry.action_type= DDL_LOG_DELETE_ACTION;
   ddl_log_entry.next_entry= next_entry;
-  ddl_log_entry.handler_name= "frm";
+  ddl_log_entry.handler_name[0]= 0;
   ddl_log_entry.name= to_path;
   if (replace_flag)
     ddl_log_entry.from_name= from_path;
