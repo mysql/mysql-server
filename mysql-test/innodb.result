@@ -3125,9 +3125,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
-  KEY `t2_ibfk_0` (`a`),
-  CONSTRAINT `t2_ibfk_0` FOREIGN KEY (`a`) REFERENCES `t1` (`a`),
-  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
+  KEY `t2_ibfk_0` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2,t1;
 create table t1(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
