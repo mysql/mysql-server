@@ -3840,9 +3840,10 @@ NdbDictionaryImpl::dropBlobEvents(const NdbEventImpl& evnt)
       if (! c.getBlobType() || c.getPartSize() == 0)
         continue;
       n--;
-      char bename[MAX_TAB_NAME_SIZE];
-      NdbBlob::getBlobEventName(bename, &evnt, &c);
-      (void)dropEvent(bename);
+      NdbEventImpl* blob_evnt = getBlobEvent(evnt, i);
+      if (blob_evnt == NULL)
+        continue;
+      (void)dropEvent(*blob_evnt);
     }
   } else {
     // loop over MAX_ATTRIBUTES_IN_TABLE ...
