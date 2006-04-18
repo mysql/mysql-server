@@ -1435,8 +1435,7 @@ NdbTransaction::sendTC_COMMIT_ACK(TransporterFacade *tp,
   Uint32 * dataPtr = aSignal->getDataPtrSend();
   dataPtr[0] = transId1;
   dataPtr[1] = transId2;
-
-  tp->sendSignal(aSignal, refToNode(aTCRef));
+  tp->sendSignalUnCond(aSignal, refToNode(aTCRef));
 }
 
 int
