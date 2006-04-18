@@ -747,3 +747,8 @@ CREATE TABLE t1(a int)
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert into t1 values (10);
 drop table t1;
+
+--error ER_SIGNED_PARTITION_CONSTANT_ERROR
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (-1));
