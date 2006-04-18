@@ -30,6 +30,7 @@
 #define MY_XML_TEXT	'T'
 #define MY_XML_QUESTION	'?'
 #define MY_XML_EXCLAM   '!'
+#define MY_XML_CDATA    'D'
 
 typedef struct xml_attr_st
 {
@@ -45,6 +46,7 @@ static const char *lex2str(int lex)
     case MY_XML_EOF:      return "EOF";
     case MY_XML_STRING:   return "STRING";
     case MY_XML_IDENT:    return "IDENT";
+    case MY_XML_CDATA:    return "CDATA";
     case MY_XML_EQ:       return "'='";
     case MY_XML_LT:       return "'<'";
     case MY_XML_GT:       return "'>'";
@@ -89,6 +91,20 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
       p->cur+=3;
     a->end=p->cur;
     lex=MY_XML_COMMENT;
+  }
+  else if (!bcmp(p->cur, "<![CDATA[",9))
+  {
+    p->cur+= 9;
+    for (; p->cur < p->end - 2 ; p->cur++)
+    {
+      if (p->cur[0] == ']' && p->cur[1] == ']' && p->cur[2] == '>')
+      {
+        p->cur+= 3;
+        a->end= p->cur;
+        break;
+      }
+    }
+    lex= MY_XML_CDATA;
   }
   else if (strchr("?=/<>!",p->cur[0]))
   {
@@ -215,7 +231,13 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
       lex=my_xml_scan(p,&a);
       
       if (MY_XML_COMMENT == lex)
+        continue;
+      
+      if (lex == MY_XML_CDATA)
       {
+        a.beg+= 9;
+        a.end-= 3;
+        my_xml_value(p, a.beg, (uint) (a.end-a.beg));
         continue;
       }
       

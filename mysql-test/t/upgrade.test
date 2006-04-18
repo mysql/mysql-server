@@ -34,16 +34,16 @@ drop database `mysqltest-1`;
 # Bug#17142: Crash if create with encoded name
 #
 --disable_warnings
-drop table if exists `txu@0023P@0023p1`;
-drop table if exists `txu#P#p1`;
+drop table if exists `txu@0023p@0023p1`;
+drop table if exists `txu#p#p1`;
 --enable_warnings
-create table `txu#P#p1` (s1 int);
-insert into `txu#P#p1` values (1);
+create table `txu#p#p1` (s1 int);
+insert into `txu#p#p1` values (1);
 --error 1146
-select * from `txu@0023P@0023p1`;
-create table `txu@0023P@0023p1` (s1 int);
-insert into `txu@0023P@0023p1` values (2);
-select * from `txu@0023P@0023p1`;
-select * from `txu#P#p1`;
-drop table `txu@0023P@0023p1`;
-drop table `txu#P#p1`;
+select * from `txu@0023p@0023p1`;
+create table `txu@0023p@0023p1` (s1 int);
+insert into `txu@0023p@0023p1` values (2);
+select * from `txu@0023p@0023p1`;
+select * from `txu#p#p1`;
+drop table `txu@0023p@0023p1`;
+drop table `txu#p#p1`;

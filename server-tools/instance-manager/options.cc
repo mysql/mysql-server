@@ -57,6 +57,9 @@ uint Options::port_number= DEFAULT_PORT;
 char **Options::saved_argv= NULL;
 /* Remember if the config file was forced */
 bool Options::is_forced_default_file= 0;
+#ifndef DBUG_OFF
+const char *Options::default_dbug_option= "d:t:i:O,im.trace";
+#endif
 
 /*
   List of options, accepted by the instance manager.
@@ -88,40 +91,30 @@ static struct my_option my_long_options[] =
   { "help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
-  { "log", OPT_LOG, "Path to log file. Used only with --run-as-service.",
-    (gptr *) &Options::log_file_name, (gptr *) &Options::log_file_name,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-
-  { "pid-file", OPT_PID_FILE, "Pid file to use.",
-    (gptr *) &Options::pid_file_name, (gptr *) &Options::pid_file_name,
-   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-
-  { "socket", OPT_SOCKET, "Socket file to use for connection.",
-    (gptr *) &Options::socket_file_name, (gptr *) &Options::socket_file_name,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-
-  { "passwd", 'P', "Prepare entry for passwd file and exit.", 0, 0, 0,
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-
   { "bind-address", OPT_BIND_ADDRESS, "Bind address to use for connection.",
     (gptr *) &Options::bind_address, (gptr *) &Options::bind_address,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
-  { "port", OPT_PORT, "Port number to use for connections",
-    (gptr *) &Options::port_number, (gptr *) &Options::port_number,
-    0, GET_UINT, REQUIRED_ARG, DEFAULT_PORT, 0, 0, 0, 0, 0 },
-
-  { "password-file", OPT_PASSWORD_FILE, "Look for Instance Manager users"
-                                        " and passwords here.",
-    (gptr *) &Options::password_file_name,
-    (gptr *) &Options::password_file_name,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+#ifndef DBUG_OFF
+  {"debug", '#', "Debug log.",
+   (gptr*) &Options::default_dbug_option, (gptr*) &Options::default_dbug_option,
+   0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
 
   { "default-mysqld-path", OPT_MYSQLD_PATH, "Where to look for MySQL"
     " Server binary.",
     (gptr *) &Options::default_mysqld_path,
     (gptr *) &Options::default_mysqld_path,
     0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 },
+#ifdef __WIN__
+  { "install", OPT_INSTALL_SERVICE, "Install as system service.",
+    (gptr *) &Options::install_as_service, (gptr*) &Options::install_as_service,
+    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+#endif
+
+  { "log", OPT_LOG, "Path to log file. Used only with --run-as-service.",
+    (gptr *) &Options::log_file_name, (gptr *) &Options::log_file_name,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "monitoring-interval", OPT_MONITORING_INTERVAL, "Interval to monitor"
     " instances in seconds.",
@@ -129,26 +122,49 @@ static struct my_option my_long_options[] =
     (gptr *) &Options::monitoring_interval,
     0, GET_UINT, REQUIRED_ARG, DEFAULT_MONITORING_INTERVAL,
     0, 0, 0, 0, 0 },
+
+  { "passwd", 'P', "Prepare entry for passwd file and exit.", 0, 0, 0,
+    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "password-file", OPT_PASSWORD_FILE, "Look for Instance Manager users"
+                                        " and passwords here.",
+    (gptr *) &Options::password_file_name,
+    (gptr *) &Options::password_file_name,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "pid-file", OPT_PID_FILE, "Pid file to use.",
+    (gptr *) &Options::pid_file_name, (gptr *) &Options::pid_file_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "port", OPT_PORT, "Port number to use for connections",
+    (gptr *) &Options::port_number, (gptr *) &Options::port_number,
+    0, GET_UINT, REQUIRED_ARG, DEFAULT_PORT, 0, 0, 0, 0, 0 },
+
 #ifdef __WIN__
-  { "install", OPT_INSTALL_SERVICE, "Install as system service.",
-    (gptr *) &Options::install_as_service, (gptr*) &Options::install_as_service,
-    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
   { "remove", OPT_REMOVE_SERVICE, "Remove system service.",
     (gptr *)&Options::remove_service, (gptr*) &Options::remove_service,
-    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
-  { "standalone", OPT_STAND_ALONE, "Run the application in stand alone mode.",
-    (gptr *)&Options::stand_alone, (gptr*) &Options::stand_alone,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
 #else
   { "run-as-service", OPT_RUN_AS_SERVICE,
     "Daemonize and start angel process.", (gptr *) &Options::run_as_service,
     0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+#endif
 
+  { "socket", OPT_SOCKET, "Socket file to use for connection.",
+    (gptr *) &Options::socket_file_name, (gptr *) &Options::socket_file_name,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+
+#ifdef __WIN__
+  { "standalone", OPT_STAND_ALONE, "Run the application in stand alone mode.",
+    (gptr *)&Options::stand_alone, (gptr*) &Options::stand_alone,
+    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0},
+#else
   { "user", OPT_USER, "Username to start mysqlmanager",
     (gptr *) &Options::user,
     (gptr *) &Options::user,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
+
   { "version", 'V', "Output version information and exit.", 0, 0, 0,
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
@@ -226,7 +242,7 @@ C_MODE_START
 static my_bool
 get_one_option(int optid,
                const struct my_option *opt __attribute__((unused)),
-               char *argument __attribute__((unused)))
+               char *argument)
 {
   switch(optid) {
   case 'V':
@@ -238,6 +254,12 @@ get_one_option(int optid,
   case '?':
     usage();
     exit(0);
+  case '#':
+#ifndef DBUG_OFF
+    DBUG_SET(argument ? argument : Options::default_dbug_option);
+    DBUG_SET_INITIAL(argument ? argument : Options::default_dbug_option);
+#endif
+    break;
   }
   return 0;
 }

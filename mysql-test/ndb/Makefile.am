@@ -1,14 +1,11 @@
 
-BUILT_SOURCES =		ndbcluster
-
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test/ndb
 
-test_SCRIPTS = ndbcluster
-
-noinst_HEADERS = ndbcluster.sh
-
+EXTRA_DIST = ndbcluster.sh
+CLEANFILES = ndbcluster
 dist_test_DATA = ndb_config_2_node.ini ndb_config_1_node.ini
+test_SCRIPTS = ndbcluster
 
 SUFFIXES = .sh
 

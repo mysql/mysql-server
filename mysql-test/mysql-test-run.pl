@@ -502,7 +502,9 @@ sub initial_setup () {
     chomp($glob_cygwin_shell);
   }
   $glob_basedir=         dirname($glob_mysql_test_dir);
-  $glob_mysql_bench_dir= "$glob_basedir/mysql-bench"; # FIXME make configurable
+  # Expect mysql-bench to be located adjacent to the source tree, by default
+  $glob_mysql_bench_dir= "$glob_basedir/../mysql-bench"
+    unless defined $glob_mysql_bench_dir;
 
   # needs to be same length to test logging (FIXME what???)
   $path_slave_load_tmpdir=  "../../var/tmp";
@@ -664,6 +666,7 @@ sub command_line_setup () {
 	     # Directories
              'tmpdir=s'                 => \$opt_tmpdir,
              'vardir=s'                 => \$opt_vardir,
+             'benchdir=s'               => \$glob_mysql_bench_dir,
 
              # Misc
              'comment=s'                => \$opt_comment,
@@ -1682,8 +1685,8 @@ sub run_benchmarks ($) {
     mtr_add_arg($args, "--create-options=TYPE=ndb");
   }
 
-  my $benchdir=  "$glob_basedir/sql-bench";
-  chdir($benchdir);             # FIXME check error
+  chdir($glob_mysql_bench_dir)
+    or mtr_error("Couldn't chdir to '$glob_mysql_bench_dir': $!");
 
   # FIXME write shorter....
 
@@ -2561,7 +2564,7 @@ sub mysqld_arguments ($$$$$$) {
     mtr_add_arg($args, "%s--server-id=%d", $prefix, $id);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
                 $master->[$idx]->{'path_mysock'});
-    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:128M:autoextend", $prefix);
+    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:10M:autoextend", $prefix);
     mtr_add_arg($args, "%s--local-infile", $prefix);
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
@@ -2939,6 +2942,12 @@ sub im_start($$) {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s",
               $instance_manager->{'defaults_file'});
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/im.trace",
+                $opt_vardir_trace);
+  }
 
   foreach my $opt (@{$opts})
   {

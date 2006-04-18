@@ -535,6 +535,7 @@ public:
     
     Uint32 key;
     Uint32 m_magic;
+    Uint32 m_version;
     Uint32 m_obj_ptr_i;
     Uint32 m_filegroup_id;
     Uint32 m_type;

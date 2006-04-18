@@ -19,7 +19,7 @@
 #include "mysys_err.h"
 #include <my_dir.h>
 #include <errno.h>
-#if defined(MSDOS) || defined(__WIN__) || defined(__EMX__)
+#if defined(MSDOS) || defined(__WIN__)
 #include <share.h>
 #endif
 

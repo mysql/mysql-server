@@ -216,8 +216,8 @@ SimpleProperties::SP2StructMapping
 DictFilegroupInfo::FileMapping[] = {
   DFGIMAPS(File, FileName, FileName, 0, PATH_MAX),
   DFGIMAP2(File, FileType, FileType, 0, 1),
-  DFGIMAP(File, FileNo, FileNo),
   DFGIMAP(File, FileId, FileId),
+  DFGIMAP(File, FileVersion, FileVersion),
   DFGIMAP(File, FileFGroupId, FilegroupId),
   DFGIMAP(File, FileFGroupVersion, FilegroupVersion),
   DFGIMAP(File, FileSizeHi, FileSizeHi),
@@ -254,8 +254,8 @@ void
 DictFilegroupInfo::File::init(){
   memset(FileName, sizeof(FileName), 0);
   FileType = ~0;
-  FileNo = ~0;
   FileId = ~0;
+  FileVersion = ~0;
   FilegroupId = ~0;
   FilegroupVersion = ~0;
   FileSizeHi = 0;

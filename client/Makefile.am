@@ -38,7 +38,6 @@ LDADD=				@CLIENT_EXTRA_LDFLAGS@ $(CLIENT_THREAD_LIBS) \
 				$(top_builddir)/libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
 				mysqldump mysqlimport mysqltest mysqlbinlog \
-				mysqltestmanagerc mysqltestmanager-pwgen \
 				mysqlslap mysql_upgrade
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h
@@ -63,8 +62,6 @@ mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
 				$(top_builddir)/mysys/libmysys.a 
-mysqltestmanager_pwgen_SOURCES = mysqlmanager-pwgen.c 
-mysqltestmanagerc_SOURCES=	mysqlmanagerc.c $(yassl_dummy_link_fix)
 mysqlcheck_SOURCES=		 mysqlcheck.c $(yassl_dummy_link_fix)
 mysqlshow_SOURCES=		mysqlshow.c $(yassl_dummy_link_fix)
 mysqlslap_SOURCES=		mysqlslap.c \
