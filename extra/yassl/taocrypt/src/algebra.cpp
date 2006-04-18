@@ -78,7 +78,9 @@ const Integer& AbstractEuclideanDomain::Mod(const Element &a,
 const Integer& AbstractEuclideanDomain::Gcd(const Element &a,
                                             const Element &b) const
 {
-    Element g[3]={b, a};
+    mySTL::vector<Element> g(3);
+    g[0]= b;
+    g[1]= a;
     unsigned int i0=0, i1=1, i2=2;
 
     while (!Equal(g[i1], this->Identity()))

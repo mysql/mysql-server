@@ -39,7 +39,7 @@
     #include <string.h>
 #endif // _WIN32
 
-#ifdef __sun
+#if defined(__sun) || defined(__SCO_VERSION__)
     #include <sys/filio.h>
 #endif
 
@@ -95,11 +95,15 @@ void Socket::closeSocket()
 
 uint Socket::get_ready() const
 {
-    unsigned long ready = 0;
-
 #ifdef _WIN32
+    unsigned long ready = 0;
     ioctlsocket(socket_, FIONREAD, &ready);
 #else
+    /*
+       64-bit Solaris requires the variable passed to
+       FIONREAD be a 32-bit value.
+    */
+    unsigned int ready = 0;
     ioctl(socket_, FIONREAD, &ready);
 #endif
 

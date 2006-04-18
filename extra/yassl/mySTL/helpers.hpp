@@ -28,14 +28,14 @@
 #define mySTL_HELPERS_HPP
 
 #include <stdlib.h>
-#include <new>        // placement new
+#ifdef _MSC_VER
+    #include <new>
+#endif
 
-
-
-#ifdef __IBMCPP__
 /*
       Workaround for the lack of operator new(size_t, void*)
       in IBM VA C++ 6.0
+      Also used as a workaround to avoid including <new>
 */
     struct Dummy {};
 
@@ -45,10 +45,6 @@
     }
 
     typedef Dummy* yassl_pointer;
-#else
-    typedef void*  yassl_pointer;
-#endif
-
 
 namespace mySTL {
 

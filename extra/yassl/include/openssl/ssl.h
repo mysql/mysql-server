@@ -25,7 +25,7 @@
 
 
 
-#ifndef ysSSL_openssl_h__
+#ifndef yaSSL_openssl_h__
 #define yaSSL_openssl_h__
 
 #include <stdio.h>   /* ERR_print fp */
@@ -345,6 +345,7 @@ long SSL_CTX_sess_set_cache_size(SSL_CTX*, long);
 long SSL_CTX_set_tmp_dh(SSL_CTX*, DH*);
 
 void OpenSSL_add_all_algorithms(void);
+void SSL_library_init();
 void SSLeay_add_ssl_algorithms(void);
 
 
