@@ -243,11 +243,10 @@ dict_remove_db_name(
 	const char*	name)	/* in: table name in the form
 				dbname '/' tablename */
 {
-	const char*	s;
-	s = strchr(name, '/');
+	const char*	s = strchr(name, '/');
 	ut_a(s);
-	if (s) s++;
-	return(s);
+
+	return(s + 1);
 }
 
 /************************************************************************
