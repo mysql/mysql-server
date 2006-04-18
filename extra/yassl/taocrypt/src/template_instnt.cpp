@@ -41,6 +41,7 @@ template class RSA_Decryptor<RSA_BlockType2>;
 template class RSA_Encryptor<RSA_BlockType1>;
 template class RSA_Encryptor<RSA_BlockType2>;
 template void tcDelete<HASH>(HASH*);
+template void tcDelete<Integer>(Integer*);
 template void tcArrayDelete<byte>(byte*);
 template AllocatorWithCleanup<byte>::pointer StdReallocate<byte, AllocatorWithCleanup<byte> >(AllocatorWithCleanup<byte>&, byte*, AllocatorWithCleanup<byte>::size_type, AllocatorWithCleanup<byte>::size_type, bool);
 template void tcArrayDelete<word>(word*);
