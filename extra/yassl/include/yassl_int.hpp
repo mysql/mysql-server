@@ -121,8 +121,6 @@ public:
 
     friend sslFactory& GetSSL_Factory();        // singleton creator
 private:
-    static sslFactory instance_;
-
     sslFactory(const sslFactory&);              // hide copy
     sslFactory& operator=(const sslFactory&);   // and assign   
 };
@@ -214,8 +212,6 @@ public:
 
     friend Sessions& GetSessions(); // singleton creator
 private:
-    static Sessions instance_;
-
     Sessions(const Sessions&);              // hide copy
     Sessions& operator=(const Sessions&);   // and assign
 };

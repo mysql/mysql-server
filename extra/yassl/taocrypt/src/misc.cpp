@@ -24,7 +24,6 @@
 
 #include "runtime.hpp"
 #include "misc.hpp"
-#include <new>        // for NewHandler
 
 #ifdef YASSL_PURE_C
 

@@ -650,7 +650,6 @@ void build_certHashes(SSL& ssl, Hashes& hashes)
 }
 
 
-mySTL::auto_ptr<input_buffer> null_buffer(ysDelete);
 
 // do process input requests
 mySTL::auto_ptr<input_buffer>
@@ -659,7 +658,8 @@ DoProcessReply(SSL& ssl, mySTL::auto_ptr<input_buffer> buffered)
     // wait for input if blocking
     if (!ssl.getSocket().wait()) {
       ssl.SetError(receive_error);
-        return buffered = null_buffer;
+        buffered.reset(0);
+        return buffered;
     }
     uint ready = ssl.getSocket().get_ready();
     if (!ready) return buffered; 
@@ -669,10 +669,10 @@ DoProcessReply(SSL& ssl, mySTL::auto_ptr<input_buffer> buffered)
     input_buffer buffer(buffSz + ready);
     if (buffSz) {
         buffer.assign(buffered.get()->get_buffer(), buffSz);
-        buffered = null_buffer;
+        buffered.reset(0);
     }
 
-    // add NEW_YS data
+    // add new data
     uint read  = ssl.getSocket().receive(buffer.get_buffer() + buffSz, ready);
     buffer.add_size(read);
     uint offset = 0;
@@ -705,11 +705,15 @@ DoProcessReply(SSL& ssl, mySTL::auto_ptr<input_buffer> buffered)
             mySTL::auto_ptr<Message> msg(mf.CreateObject(hdr.type_), ysDelete);
             if (!msg.get()) {
                 ssl.SetError(factory_error);
-                return buffered = null_buffer;
+                buffered.reset(0);
+                return buffered;
             }
             buffer >> *msg;
             msg->Process(buffer, ssl);
-            if (ssl.GetError()) return buffered = null_buffer;
+            if (ssl.GetError()) {
+                buffered.reset(0);
+                return buffered;
+            }
         }
         offset += hdr.length_ + RECORD_HEADER;
     }

@@ -723,6 +723,10 @@ void OpenSSL_add_all_algorithms()  // compatibility only
 {}
 
 
+void SSL_library_init()  // compatiblity only
+{}
+
+
 DH* DH_new(void)
 {
     DH* dh = NEW_YS DH;

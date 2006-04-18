@@ -1363,19 +1363,31 @@ SSL_SESSION::~SSL_SESSION()
 }
 
 
-Sessions Sessions::instance_; // simple singleton
+static Sessions* sessionsInstance = 0;
 
 Sessions& GetSessions()
 {
-    return Sessions::instance_;
+    if (!sessionsInstance)
+        sessionsInstance = NEW_YS Sessions;
+    return *sessionsInstance;
 }
 
 
-sslFactory sslFactory::instance_; // simple singleton
+static sslFactory* sslFactoryInstance = 0;
 
 sslFactory& GetSSL_Factory()
 {   
-    return sslFactory::instance_;
+    if (!sslFactoryInstance)
+        sslFactoryInstance = NEW_YS sslFactory;
+    return *sslFactoryInstance;
+}
+
+
+void CleanUp()
+{
+    TaoCrypt::CleanUp();
+    ysDelete(sslFactoryInstance);
+    ysDelete(sessionsInstance);
 }
 
 
