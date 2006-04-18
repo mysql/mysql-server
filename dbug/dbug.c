@@ -2215,7 +2215,7 @@ static unsigned long Clock()
     return ru.ru_utime.tv_sec*1000 + ru.ru_utime.tv_usec/1000;
 }
 
-#elif defined(MSDOS) || defined(__WIN__) || defined(OS2)
+#elif defined(MSDOS) || defined(__WIN__)
 
 static ulong Clock()
 {

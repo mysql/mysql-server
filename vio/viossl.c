@@ -112,12 +112,12 @@ int vio_ssl_fastsend(Vio * vio __attribute__((unused)))
   int r=0;
   DBUG_ENTER("vio_ssl_fastsend");
 
-#if defined(IPTOS_THROUGHPUT) && !defined(__EMX__)
+#if defined(IPTOS_THROUGHPUT)
   {
     int tos= IPTOS_THROUGHPUT;
     r= setsockopt(vio->sd, IPPROTO_IP, IP_TOS, (void *) &tos, sizeof(tos));
   }
-#endif                                    /* IPTOS_THROUGHPUT && !__EMX__ */
+#endif                                    /* IPTOS_THROUGHPUT */
   if (!r)
   {
 #ifdef __WIN__

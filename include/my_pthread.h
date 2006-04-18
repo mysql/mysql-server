@@ -31,19 +31,9 @@ extern "C" {
 #define EXTERNC
 #endif /* __cplusplus */ 
 
-#if defined(__WIN__) || defined(OS2)
+#if defined(__WIN__)
 
-#ifdef OS2
-typedef ULONG     HANDLE;
-typedef ULONG     DWORD;
-typedef int sigset_t;
-#endif
-
-#ifdef OS2
-typedef HMTX             pthread_mutex_t;
-#else
 typedef CRITICAL_SECTION pthread_mutex_t;
-#endif
 typedef HANDLE		 pthread_t;
 typedef struct thread_attr {
     DWORD dwStackSize ;
@@ -62,30 +52,19 @@ typedef struct st_pthread_link {
 
 typedef struct {
   uint32 waiting;
-#ifdef OS2
-  HEV    semaphore;
-#else
   HANDLE semaphore;
-#endif
 } pthread_cond_t;
 
 
-#ifndef OS2
 struct timespec {		/* For pthread_cond_timedwait() */
     time_t tv_sec;
     long tv_nsec;
 };
-#endif
 
 typedef int pthread_mutexattr_t;
 #define win_pthread_self my_thread_var->pthread_self
-#ifdef OS2
-#define pthread_handler_t EXTERNC void * _Optlink
-typedef void * (_Optlink *pthread_handler)(void *);
-#else
 #define pthread_handler_t EXTERNC void * __cdecl
 typedef void * (__cdecl *pthread_handler)(void *);
-#endif
 
 void win_pthread_init(void);
 int win_pthread_setspecific(void *A,void *B,uint length);
@@ -107,10 +86,8 @@ struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
 void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 
-#ifndef OS2
 #define ETIMEDOUT 145		    /* Win32 doesn't have this */
 #define getpid() GetCurrentThreadId()
-#endif
 #define pthread_self() win_pthread_self
 #define HAVE_LOCALTIME_R		1
 #define _REENTRANT			1
@@ -145,15 +122,6 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #endif /* USE_TLS */
 
 #define pthread_equal(A,B) ((A) == (B))
-#ifdef OS2
-extern int pthread_mutex_init (pthread_mutex_t *, const pthread_mutexattr_t *);
-extern int pthread_mutex_lock (pthread_mutex_t *);
-extern int pthread_mutex_unlock (pthread_mutex_t *);
-extern int pthread_mutex_destroy (pthread_mutex_t *);
-#define my_pthread_setprio(A,B)  DosSetPriority(PRTYS_THREAD,PRTYC_NOCHANGE, B, A)
-#define pthread_kill(A,B) raise(B)
-#define pthread_exit(A) pthread_dummy()
-#else
 #define pthread_mutex_init(A,B)  (InitializeCriticalSection(A),0)
 #define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
 #define pthread_mutex_trylock(A) (WaitForSingleObject((A), 0) == WAIT_TIMEOUT)
@@ -161,7 +129,6 @@ extern int pthread_mutex_destroy (pthread_mutex_t *);
 #define pthread_mutex_destroy(A) DeleteCriticalSection(A)
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
 #define pthread_kill(A,B) pthread_dummy(0)
-#endif /* OS2 */
 
 /* Dummy defines for easier code */
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
@@ -174,68 +141,6 @@ extern int pthread_mutex_destroy (pthread_mutex_t *);
 /*Irena: compiler does not like this: */
 /*#define my_pthread_getprio(pthread_t thread_id) pthread_dummy(0) */
 #define my_pthread_getprio(thread_id) pthread_dummy(0)
-
-#elif defined(HAVE_UNIXWARE7_THREADS)
-
-#include <thread.h>
-#include <synch.h>
-
-#ifndef _REENTRANT
-#define _REENTRANT
-#endif
-
-#define HAVE_NONPOSIX_SIGWAIT
-#define pthread_t thread_t
-#define pthread_cond_t cond_t
-#define pthread_mutex_t mutex_t
-#define pthread_key_t thread_key_t
-typedef int pthread_attr_t;			/* Needed by Unixware 7.0.0 */
-
-#define pthread_key_create(A,B) thr_keycreate((A),(B))
-#define pthread_key_delete(A) thr_keydelete(A)
-
-#define pthread_handler_t EXTERNC void *
-#define pthread_key(T,V) pthread_key_t V
-
-void *	my_pthread_getspecific_imp(pthread_key_t key);
-#define my_pthread_getspecific(A,B) ((A) my_pthread_getspecific_imp(B))
-#define my_pthread_getspecific_ptr(T,V) my_pthread_getspecific(T,V)
-
-#define pthread_setspecific(A,B) thr_setspecific(A,B)
-#define my_pthread_setspecific_ptr(T,V) pthread_setspecific(T,V)
-
-#define pthread_create(A,B,C,D) thr_create(NULL,65536L,(C),(D),THR_DETACHED,(A))
-#define pthread_cond_init(a,b) cond_init((a),USYNC_THREAD,NULL)
-#define pthread_cond_destroy(a) cond_destroy(a)
-#define pthread_cond_signal(a) cond_signal(a)
-#define pthread_cond_wait(a,b) cond_wait((a),(b))
-#define pthread_cond_timedwait(a,b,c) cond_timedwait((a),(b),(c))
-#define pthread_cond_broadcast(a) cond_broadcast(a)
-
-#define pthread_mutex_init(a,b) mutex_init((a),USYNC_THREAD,NULL)
-#define pthread_mutex_lock(a) mutex_lock(a)
-#define pthread_mutex_unlock(a) mutex_unlock(a)
-#define pthread_mutex_destroy(a) mutex_destroy(a)
-
-#define pthread_self() thr_self()
-#define pthread_exit(A) thr_exit(A)
-#define pthread_equal(A,B) (((A) == (B)) ? 1 : 0)
-#define pthread_kill(A,B) thr_kill((A),(B))
-#define HAVE_PTHREAD_KILL
-
-#define pthread_sigmask(A,B,C) thr_sigsetmask((A),(B),(C))
-
-extern int my_sigwait(const sigset_t *set,int *sig);
-
-#define pthread_detach_this_thread() pthread_dummy(0)
-
-#define pthread_attr_init(A) pthread_dummy(0)
-#define pthread_attr_destroy(A) pthread_dummy(0)
-#define pthread_attr_setscope(A,B) pthread_dummy(0)
-#define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
-#define my_pthread_setprio(A,B) pthread_dummy (0)
-#define my_pthread_getprio(A) pthread_dummy (0)
-#define my_pthread_attr_setprio(A,B) pthread_dummy(0)
 
 #else /* Normal threads */
 
@@ -256,9 +161,6 @@ extern int my_sigwait(const sigset_t *set,int *sig);
 #endif
 #ifdef HAVE_SYNCH_H
 #include <synch.h>
-#endif
-#if defined(__EMX__) && (!defined(EMX_PTHREAD_REV) || (EMX_PTHREAD_REV < 2))
-#error Requires at least rev 2 of EMX pthreads library.
 #endif
 
 #ifdef __NETWARE__
@@ -285,21 +187,6 @@ extern int my_pthread_create_detached;
 #define PTHREAD_SCOPE_SYSTEM  PTHREAD_SCOPE_GLOBAL
 #define PTHREAD_SCOPE_PROCESS PTHREAD_SCOPE_LOCAL
 #define USE_ALARM_THREAD
-#elif defined(HAVE_mit_thread)
-#define USE_ALARM_THREAD
-#undef	HAVE_LOCALTIME_R
-#define HAVE_LOCALTIME_R
-#undef	HAVE_GMTIME_R
-#define HAVE_GMTIME_R
-#undef	HAVE_PTHREAD_ATTR_SETSCOPE
-#define HAVE_PTHREAD_ATTR_SETSCOPE
-#undef HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE	/* If we are running linux */
-#undef HAVE_RWLOCK_T
-#undef HAVE_RWLOCK_INIT
-#undef HAVE_PTHREAD_RWLOCK_RDLOCK
-#undef HAVE_SNPRINTF
-
-#define my_pthread_attr_setprio(A,B)
 #endif /* defined(PTHREAD_SCOPE_GLOBAL) && !defined(PTHREAD_SCOPE_SYSTEM) */
 
 #if defined(_BSDI_VERSION) && _BSDI_VERSION < 199910
@@ -327,7 +214,7 @@ extern int my_pthread_cond_init(pthread_cond_t *mp,
 #define pthread_sigmask(A,B,C) sigthreadmask((A),(B),(C))
 #endif
 
-#if !defined(HAVE_SIGWAIT) && !defined(HAVE_mit_thread) && !defined(HAVE_rts_threads) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
+#if !defined(HAVE_SIGWAIT) && !defined(HAVE_rts_threads) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
 int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #endif
 
@@ -382,15 +269,12 @@ extern int my_pthread_cond_timedwait(pthread_cond_t *cond,
 #define pthread_cond_timedwait(A,B,C) my_pthread_cond_timedwait((A),(B),(C))
 #endif
 
-#if defined(OS2)
-#define my_pthread_getspecific(T,A) ((T) &(A))
-#define pthread_setspecific(A,B) win_pthread_setspecific(&(A),(B),sizeof(A))
-#elif !defined( HAVE_NONPOSIX_PTHREAD_GETSPECIFIC)
+#if !defined( HAVE_NONPOSIX_PTHREAD_GETSPECIFIC)
 #define my_pthread_getspecific(A,B) ((A) pthread_getspecific(B))
 #else
 #define my_pthread_getspecific(A,B) ((A) my_pthread_getspecific_imp(B))
 void *my_pthread_getspecific_imp(pthread_key_t key);
-#endif /* OS2 */
+#endif
 
 #ifndef HAVE_LOCALTIME_R
 struct tm *localtime_r(const time_t *clock, struct tm *res);

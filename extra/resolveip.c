@@ -32,7 +32,7 @@
 #include <my_net.h>
 #include <my_getopt.h>
 
-#if !defined(_AIX) && !defined(HAVE_UNIXWARE7_THREADS) && !defined(HAVE_UNIXWARE7_POSIX) && !defined(h_errno)
+#if !defined(_AIX) && !defined(h_errno)
 extern int h_errno;
 #endif
 

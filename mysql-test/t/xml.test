@@ -279,6 +279,12 @@ select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin);
 select extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]');
 
 #
+# Bug#18285: ExtractValue not returning character
+# data within <![CDATA[]]> as expected
+#
+select ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1');
+
+#
 # Bug #18171 XML: ExtractValue: the XPath position()
 # function crashes the server!
 #
