@@ -36,15 +36,22 @@ enum partition_state {
   PART_IS_ADDED= 8
 };
 
+typedef struct p_elem_val
+{
+  longlong value;
+  bool null_value;
+  bool unsigned_flag;
+} part_elem_value;
+
 class partition_element :public Sql_alloc {
 public:
   List<partition_element> subpartitions;
-  List<longlong> list_val_list;
+  List<part_elem_value> list_val_list;
   ulonglong part_max_rows;
   ulonglong part_min_rows;
+  longlong range_value;
   char *partition_name;
   char *tablespace_name;
-  longlong range_value;
   char* part_comment;
   char* data_file_name;
   char* index_file_name;
@@ -52,13 +59,16 @@ public:
   enum partition_state part_state;
   uint16 nodegroup_id;
   bool has_null_value;
+  bool signed_flag;
+  bool max_value;
 
   partition_element()
-  : part_max_rows(0), part_min_rows(0), partition_name(NULL),
-    tablespace_name(NULL), range_value(0), part_comment(NULL),
+  : part_max_rows(0), part_min_rows(0), range_value(0),
+    partition_name(NULL), tablespace_name(NULL), part_comment(NULL),
     data_file_name(NULL), index_file_name(NULL),
-    engine_type(NULL),part_state(PART_NORMAL),
-    nodegroup_id(UNDEF_NODEGROUP), has_null_value(FALSE)
+    engine_type(NULL), part_state(PART_NORMAL),
+    nodegroup_id(UNDEF_NODEGROUP), has_null_value(FALSE),
+    signed_flag(FALSE), max_value(FALSE)
   {
     subpartitions.empty();
     list_val_list.empty();
