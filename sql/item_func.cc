@@ -4909,19 +4909,19 @@ longlong Item_func_found_rows::val_int()
 Field *
 Item_func_sp::tmp_table_field(TABLE *t_arg)
 {
-  Field *res= 0;
+  Field *field= 0;
   DBUG_ENTER("Item_func_sp::tmp_table_field");
 
   if (m_sp)
-    res= m_sp->create_result_field(max_length, (const char*) name, t_arg);
+    field= m_sp->create_result_field(max_length, (const char*) name, t_arg);
   
-  if (!res) 
-    res= Item_func::tmp_table_field(t_arg);
+  if (!field) 
+    field= Item_func::tmp_table_field(t_arg);
 
-  if (!res)
+  if (!field)
     my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
 
-  DBUG_RETURN(res);
+  DBUG_RETURN(field);
 }
 
 
