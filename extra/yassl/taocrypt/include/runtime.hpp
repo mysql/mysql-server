@@ -25,15 +25,35 @@
 
 
 
-#if !defined(yaSSL_NEW_HPP) && defined(__GNUC__) 
-#if !(defined(__ICC) || defined(__INTEL_COMPILER))
-
+#ifndef yaSSL_NEW_HPP
 #define yaSSL_NEW_HPP
+
+
+#ifdef __sun
+ 
+#include <assert.h>
+
+// Handler for pure virtual functions
+namespace __Crun {
+    static void pure_error(void)
+    {
+       assert("Pure virtual method called." == "Aborted");
+    }
+} // namespace __Crun
+
+#endif // __sun
+
+
+#if defined(__GNUC__) && !(defined(__ICC) || defined(__INTEL_COMPILER))
 
 #if __GNUC__ > 2
 
 extern "C" {
-#include <assert.h>
+#if !defined(DO_TAOCRYPT_KERNEL_MODE)
+    #include <assert.h>
+#else
+    #include "kernelc.hpp"
+#endif
 
 /* Disallow inline __cxa_pure_virtual() */
 static int __cxa_pure_virtual() __attribute__((noinline, used));
@@ -47,6 +67,6 @@ static int __cxa_pure_virtual()
 } // extern "C"
 
 #endif // __GNUC__ > 2
-#endif // ! _ICC
-#endif // yaSSL_NEW_HPP && __GNUC__
+#endif // compiler check
+#endif // yaSSL_NEW_HPP
 

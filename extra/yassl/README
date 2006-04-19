@@ -1,4 +1,137 @@
-yaSSL Release notes, version 0.9.6
+yaSSL Release notes, version 1.2.2 (03/27/06)
+
+
+    This release of yaSSL contains minor bug fixes and portability enhancements.
+
+See build instructions below under 1.0.6:
+
+
+
+*******************yaSSL Release notes, version 1.2.0
+
+
+    This release of yaSSL contains minor bug fixes, portability enhancements,
+    Diffie-Hellman compatibility fixes for other servers and client,
+    optimization improvements, and x86 ASM changes.
+
+See build instructions below under 1.0.6:
+
+
+
+*****************yaSSL Release notes, version 1.1.5
+
+    This release of yaSSL contains minor bug fixes, portability enhancements,
+    and user requested changes including the ability to add all certificates in
+    a directory, more robust socket handling, no new overloading unless
+    requested, and an SSL_VERIFY_NONE option.
+
+
+See build instructions below under 1.0.6:
+
+
+
+******************yaSSL Release notes, version 1.0.6
+
+This release of yaSSL contains minor bug fixes, portability enhancements,
+x86 assembly for ARC4, SHA, MD5, and RIPEMD, --enable-ia32-asm configure
+option, and a security patch for certificate chain processing.
+
+--To build on Linux, Solaris, *BSD, Mac OS X, or Cygwin:
+
+    ./configure
+    make
+
+    run testsuite from yaSSL-Home/testsuite to test the build
+
+to make a release build:
+
+    ./configure --disable-debug
+    make
+
+    run testsuite from yaSSL-Home/testsuite to test the build
+
+
+--To build on Win32
+
+Choose (Re)Build All from the project workspace
+
+run Debug\testsuite.exe from yaSSL-Home\testsuite to test the build
+
+
+--To enable ia32 assembly for TaoCrypt ciphers and message digests
+
+    On MSVC this is always on
+
+    On GCC **, use ./configure --enable-ia32-asm
+    
+    ** This isn't on by default because of the use of intel syntax and the
+    problem that olders versions of gas have with some addressing statements.
+    If you enable this and get assemler errors during compilation or can't
+    pass the TaoCrypt tests, please send todd@yassl.com a message and disable
+    this option in the meantime.
+
+
+***************** yaSSL Release notes, version 1.0.5
+
+This release of yaSSL contains minor bug fixes, portability enhancements,
+x86 assembly for AES, 3DES, BLOWFISH, and TWOFISH, --without-debug configure
+option, and --enable-kernel-mode configure option for using TaoCrypt with
+kernel modules.
+
+--To build on Linux, Solaris, *BSD, Mac OS X, or Cygwin:
+
+    ./configure
+    make
+
+    run testsuite from yaSSL-Home/testsuite to test the build
+
+to make a release build:
+
+    ./configure --without-debug
+    make
+
+    run testsuite from yaSSL-Home/testsuite to test the build
+
+
+--To build on Win32
+
+Choose (Re)Build All from the project workspace
+
+run Debug\testsuite.exe from yaSSL-Home\testsuite to test the build
+
+
+******************yaSSL Release notes, version 1.0.1
+
+This release of yaSSL contains minor bug fixes, portability enhancements,
+GCC 3.4.4 support, MSVC 2003 support, and more documentation.
+
+Please see build instructions in the release notes for 0.9.6 below.
+
+
+******************yaSSL Release notes, version 1.0
+
+This release of yaSSL contains minor bug fixes, portability enhancements,
+GCC 4.0 support, testsuite, improvements, and API additions.
+
+Please see build instructions in the release notes for 0.9.6 below.
+
+
+******************yaSSL Release notes, version 0.9.9
+
+This release of yaSSL contains minor bug fixes, portability enchancements,
+MSVC 7 support, memory improvements, and API additions.
+
+Please see build instructions in the release notes for 0.9.6 below.
+
+
+******************yaSSL Release notes, version 0.9.8
+
+This release of yaSSL contains minor bug fixes and portability enchancements.
+
+Please see build instructions in the release notes for 0.9.6 below.
+
+
+******************yaSSL Release notes, version 0.9.6
 
 This release of yaSSL contains minor bug fixes, removal of STL support, and
 removal of exceptions and rtti so that the library can be linked without the

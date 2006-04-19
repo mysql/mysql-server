@@ -24,8 +24,13 @@
  */
 
 
+#include "runtime.hpp"
 #include "integer.hpp"
 #include "rsa.hpp"
+#include "sha.hpp"
+#include "md5.hpp"
+#include "hmac.hpp"
+#include "pwdbased.hpp"
 #include "algebra.hpp"
 #include "vector.hpp"
 #include "hash.hpp"
@@ -41,6 +46,7 @@ template class RSA_Decryptor<RSA_BlockType2>;
 template class RSA_Encryptor<RSA_BlockType1>;
 template class RSA_Encryptor<RSA_BlockType2>;
 template void tcDelete<HASH>(HASH*);
+template void tcDelete<Integer>(Integer*);
 template void tcArrayDelete<byte>(byte*);
 template AllocatorWithCleanup<byte>::pointer StdReallocate<byte, AllocatorWithCleanup<byte> >(AllocatorWithCleanup<byte>&, byte*, AllocatorWithCleanup<byte>::size_type, AllocatorWithCleanup<byte>::size_type, bool);
 template void tcArrayDelete<word>(word*);
@@ -52,6 +58,10 @@ template AllocatorWithCleanup<word32>::pointer StdReallocate<word32, AllocatorWi
 #endif
 
 template void tcArrayDelete<char>(char*);
+
+template class PBKDF2_HMAC<SHA>;
+template class HMAC<MD5>;
+template class HMAC<SHA>;
 }
 
 namespace mySTL {
