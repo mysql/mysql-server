@@ -7,17 +7,11 @@
 # List of failed cases (--force) backported from 4.1 by Joerg
 # :-)
 
-
-echo "##################################################";
-echo "This script is deprecated and will soon be removed";
-echo "Use mysql-test-run.pl instead";
-echo "Now sleeping 20 seconds...";
-echo "##################################################";
-sleep 20;
-echo "continuing";
-echo;
-
-
+#echo "##################################################";
+#echo "This script is deprecated and will soon be removed";
+#echo "Use mysql-test-run.pl instead";
+#echo "##################################################";
+#echo
 
 #++
 # Access Definitions
@@ -250,6 +244,7 @@ MASTER_MYPORT=9306
 SLAVE_RUNNING=0
 SLAVE_MYHOST=127.0.0.1
 SLAVE_MYPORT=9308 # leave room for 2 masters for cluster tests
+MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 NDBCLUSTER_PORT=9350
 NDBCLUSTER_PORT_SLAVE=9358
 
@@ -1196,6 +1191,7 @@ abort_if_failed()
 
 launch_in_background()
 {
+  shift
   echo $@ | /bin/sh  >> $CUR_MYERR 2>&1  &
   sleep 2 #hack
   return

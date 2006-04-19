@@ -8,6 +8,7 @@ a	b	c
 2	two	two
 alter table t1 drop index c;
 select * from t1 where c = 'two';
+select * from t1 where c = 'two';
 a	b	c
 2	two	two
 drop table t1;
