@@ -18,10 +18,6 @@
 /* logging of commands */
 /* TODO: Abort logging when we get an error in reading or writing log files */
 
-#ifdef __EMX__
-#include <io.h>
-#endif
-
 #include "mysql_priv.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
@@ -680,20 +676,36 @@ bool LOGGER::flush_logs(THD *thd)
   /* reopen log files */
   file_log_handler->flush();
 
-  /*
-    this will lock and wait for all but the logger thread to release the
-    tables. Then we could reopen log tables. Then release the name locks.
-  */
-  lock_and_wait_for_table_name(thd, &close_slow_log);
-  lock_and_wait_for_table_name(thd, &close_general_log);
+  /* flush tables, in the case they are enabled */
+  if (logger.is_log_tables_initialized)
+  {
+    /*
+      This will lock and wait for all but the logger thread to release the
+      tables. Then we could reopen log tables. Then release the name locks.
 
-  /* deny others from logging to general and slow log, while reopening tables */
-  logger.lock();
+      NOTE: in fact, the first parameter used in lock_and_wait_for_table_name()
+      and table_log_handler->flush() could be any non-NULL THD, as the
+      underlying code makes certain assumptions about this.
+      Here we use one of the logger handler THD's. Simply because it
+      seems appropriate.
+    */
+    lock_and_wait_for_table_name(table_log_handler->general_log_thd,
+                                 &close_slow_log);
+    lock_and_wait_for_table_name(table_log_handler->general_log_thd,
+                                 &close_general_log);
 
-  table_log_handler->flush(thd, &close_slow_log, &close_general_log);
+    /*
+      Deny others from logging to general and slow log,
+      while reopening tables.
+    */
+    logger.lock();
 
-  /* end of log tables flush */
-  logger.unlock();
+    table_log_handler->flush(table_log_handler->general_log_thd,
+                             &close_slow_log, &close_general_log);
+
+    /* end of log tables flush */
+    logger.unlock();
+  }
   return FALSE;
 }
 

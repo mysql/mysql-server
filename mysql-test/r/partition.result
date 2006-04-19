@@ -865,6 +865,10 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY LIST (a) (PARTITION p0 VALUES IN (NULL) ENGINE = MyISAM)
 DROP TABLE t1;
+CREATE TABLE t1 (a int)
+PARTITION BY RANGE(a)
+(PARTITION p0 VALUES LESS THAN (NULL));
+ERROR 42000: Not allowed to use NULL value in VALUES LESS THAN near '))' at line 3
 create table t1 (s1 int auto_increment primary key)
 partition by list (s1)
 (partition p1 values in (1),

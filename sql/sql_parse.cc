@@ -118,10 +118,6 @@ static void  test_signal(int sig_ptr)
 #if !defined( DBUG_OFF)
   MessageBox(NULL,"Test signal","DBUG",MB_OK);
 #endif
-#if defined(OS2)
-  fprintf(stderr, "Test signal %d\n", sig_ptr);
-  fflush(stderr);
-#endif
 }
 static void init_signals(void)
 {
@@ -1092,7 +1088,7 @@ pthread_handler_t handle_one_connection(void *arg)
 
   pthread_detach_this_thread();
 
-#if !defined( __WIN__) && !defined(OS2)	// Win32 calls this in pthread_create
+#if !defined( __WIN__) // Win32 calls this in pthread_create
   /* The following calls needs to be done before we call DBUG_ macros */
   if (!(test_flags & TEST_NO_THREADS) & my_thread_init())
   {
@@ -1116,7 +1112,7 @@ pthread_handler_t handle_one_connection(void *arg)
 
 #if defined(__WIN__)
   init_signals();
-#elif !defined(OS2) && !defined(__NETWARE__)
+#elif !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -1240,7 +1236,7 @@ pthread_handler_t handle_bootstrap(void *arg)
 #ifndef EMBEDDED_LIBRARY
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd;
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -1969,9 +1965,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifdef __WIN__
     sleep(1);					// must wait after eof()
 #endif
-#ifndef OS2
     send_eof(thd);				// This is for 'quit request'
-#endif
     close_connection(thd, 0, 1);
     close_thread_tables(thd);			// Free before kill
     kill_mysql();

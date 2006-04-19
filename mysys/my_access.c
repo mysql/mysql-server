@@ -54,7 +54,7 @@ int my_access(const char *path, int amode)
 
 #endif /* __WIN__ */
 
-#if defined(MSDOS) || defined(__WIN__) || defined(__EMX__)
+#if defined(MSDOS) || defined(__WIN__)
 
 /*
   List of file names that causes problem on windows
@@ -112,11 +112,3 @@ int check_if_legal_filename(const char *path)
   DBUG_RETURN(0);
 }
 #endif
-
-
-#ifdef OS2
-int check_if_legal_filename(const char *path)
-{
-  return 0;
-}
-#endif /* OS2 */
