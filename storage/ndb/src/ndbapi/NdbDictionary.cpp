@@ -772,17 +772,17 @@ NdbDictionary::Index::getLogging() const {
 
 NdbDictionary::Object::Status
 NdbDictionary::Index::getObjectStatus() const {
-  return m_impl.m_status;
+  return m_impl.m_table->m_status;
 }
 
 int 
 NdbDictionary::Index::getObjectVersion() const {
-  return m_impl.m_version;
+  return m_impl.m_table->m_version;
 }
 
 int 
 NdbDictionary::Index::getObjectId() const {
-  return m_impl.m_id;
+  return m_impl.m_table->m_id;
 }
 
 
@@ -1396,10 +1396,22 @@ NdbDictionary::Dictionary::invalidateTable(const char * name){
 }
 
 void
+NdbDictionary::Dictionary::invalidateTable(const Table *table){
+  NdbTableImpl &t = NdbTableImpl::getImpl(*table);
+  m_impl.invalidateObject(t);
+}
+
+void
 NdbDictionary::Dictionary::removeCachedTable(const char * name){
   NdbTableImpl * t = m_impl.getTable(name);
   if(t)
     m_impl.removeCachedObject(* t);
+}
+
+void
+NdbDictionary::Dictionary::removeCachedTable(const Table *table){
+  NdbTableImpl &t = NdbTableImpl::getImpl(*table);
+  m_impl.removeCachedObject(t);
 }
 
 int
@@ -1426,6 +1438,15 @@ NdbDictionary::Dictionary::getIndex(const char * indexName,
 }
 
 void
+NdbDictionary::Dictionary::invalidateIndex(const Index *index){
+  DBUG_ENTER("NdbDictionary::Dictionary::invalidateIndex");
+  NdbIndexImpl &i = NdbIndexImpl::getImpl(*index);
+  assert(i.m_table != 0);
+  m_impl.invalidateObject(* i.m_table);
+  DBUG_VOID_RETURN;
+}
+
+void
 NdbDictionary::Dictionary::invalidateIndex(const char * indexName,
                                            const char * tableName){
   DBUG_ENTER("NdbDictionaryImpl::invalidateIndex");
@@ -1441,6 +1462,15 @@ int
 NdbDictionary::Dictionary::forceGCPWait()
 {
   return m_impl.forceGCPWait();
+}
+
+void
+NdbDictionary::Dictionary::removeCachedIndex(const Index *index){
+  DBUG_ENTER("NdbDictionary::Dictionary::removeCachedIndex");
+  NdbIndexImpl &i = NdbIndexImpl::getImpl(*index);
+  assert(i.m_table != 0);
+  m_impl.removeCachedObject(* i.m_table);
+  DBUG_VOID_RETURN;
 }
 
 void

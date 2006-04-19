@@ -1279,6 +1279,23 @@ find_bucket(Vector<Gci_container> * active, Uint64 gci)
   return find_bucket_chained(active,gci);
 }
 
+static
+void
+crash_on_invalid_SUB_GCP_COMPLETE_REP(const Gci_container* bucket,
+				      const SubGcpCompleteRep * const rep,
+				      Uint32 nodes)
+{
+  Uint32 old_cnt = bucket->m_gcp_complete_rep_count;
+  
+  ndbout_c("INVALID SUB_GCP_COMPLETE_REP");
+  ndbout_c("gci: %d", rep->gci);
+  ndbout_c("sender: %x", rep->senderRef);
+  ndbout_c("count: %d", rep->gcp_complete_rep_count);
+  ndbout_c("bucket count: %u", old_cnt);
+  ndbout_c("nodes: %u", nodes);
+  abort();
+}
+
 void
 NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
 {
@@ -1317,9 +1334,13 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
     old_cnt = m_system_nodes;
   }
   
-  assert(old_cnt >= cnt);
+  //assert(old_cnt >= cnt);
+  if (unlikely(! (old_cnt >= cnt)))
+  {
+    crash_on_invalid_SUB_GCP_COMPLETE_REP(bucket, rep, m_system_nodes);
+  }
   bucket->m_gcp_complete_rep_count = old_cnt - cnt;
-
+  
   if(old_cnt == cnt)
   {
     if(likely(gci == m_latestGCI + 1 || m_latestGCI == 0))

@@ -25,9 +25,9 @@ rpl_ndb_2innodb          : BUG#19004 2006-03-22 tomas ndb: partition by range an
 rpl_ndb_2myisam          : BUG#19004 2006-03-22 tomas ndb: partition by range and update hangs
 rpl_ndb_auto_inc         : BUG#17086 2006-02-16 jmiller CR: auto_increment_increment and auto_increment_offset produce duplicate key er
 rpl_ndb_ddl              : result file needs update + test needs to checked
-rpl_ndb_innodb2ndb       : BUG#18094 2006-03-16 mats Slave caches invalid table definition after atlters causes select failure
+rpl_ndb_innodb2ndb       : BUG#17400 2006-04-19 tomas Cluster Replication: delete & update of rows in table without pk fails on slave.
 rpl_ndb_log              : BUG#18947 2006-03-21 tomas CRBR: order in binlog of create table and insert (on different table) not determ
-rpl_ndb_myisam2ndb       : BUG#18094 2006-03-16 mats   Slave caches invalid table definition after atlters causes select failure
+rpl_ndb_myisam2ndb       : BUG#17400 2006-04-19 tomas Cluster Replication: delete & update of rows in table without pk fails on slave.
 rpl_ndb_relay_space      : BUG#16993 2006-02-16 jmiller RBR: ALTER TABLE ZEROFILL AUTO_INCREMENT is not replicated correctly
 rpl_switch_stm_row_mixed : BUG#18590 2006-03-28 brian
 rpl_row_basic_7ndb       : BUG#17400 2006-04-09 brian   Cluster Replication: delete & update of rows in table without pk fails on slave.

@@ -466,7 +466,7 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
     #   The mapped error code
 */
 
-int ha_ndbcluster::invalidate_dictionary_cache(bool global)
+int ha_ndbcluster::invalidate_dictionary_cache(bool global, const NDBTAB *ndbtab)
 {
   NDBDICT *dict= get_ndb()->getDictionary();
   DBUG_ENTER("invalidate_dictionary_cache");
@@ -494,20 +494,17 @@ int ha_ndbcluster::invalidate_dictionary_cache(bool global)
       DBUG_PRINT("info", ("Released ndbcluster mutex"));
     }
 #endif
-    const NDBTAB *tab= dict->getTable(m_tabname);
-    if (!tab)
-      DBUG_RETURN(1);
-    if (tab->getObjectStatus() == NdbDictionary::Object::Invalid)
+    if (!ndbtab)
     {
-      // Global cache has already been invalidated
-      dict->removeCachedTable(m_tabname);
-      global= FALSE;
-      DBUG_PRINT("info", ("global: %d", global));
+      ndbtab= dict->getTable(m_tabname);
+      if (!ndbtab)
+        DBUG_RETURN(1);
     }
-    else
-      dict->invalidateTable(m_tabname);
+    dict->invalidateTable(ndbtab);
     table_share->version= 0L;			/* Free when thread is ready */
   }
+  else if (ndbtab)
+    dict->removeCachedTable(ndbtab);
   else
     dict->removeCachedTable(m_tabname);
 
@@ -564,7 +561,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     table_list.alias= table_list.table_name= m_tabname;
     close_cached_tables(current_thd, 0, &table_list);
 
-    invalidate_dictionary_cache(TRUE);
+    invalidate_dictionary_cache(TRUE, m_table);
 
     if (err.code==284)
     {
@@ -1041,7 +1038,7 @@ int ha_ndbcluster::get_metadata(const char *path)
     // Check if thread has stale local cache
     if (tab->getObjectStatus() == NdbDictionary::Object::Invalid)
     {
-      invalidate_dictionary_cache(FALSE);
+      invalidate_dictionary_cache(FALSE, tab);
       if (!(tab= dict->getTable(m_tabname)))
          ERR_RETURN(dict->getNdbError());
       DBUG_PRINT("info", ("Table schema version: %d", tab->getObjectVersion()));
@@ -1064,7 +1061,7 @@ int ha_ndbcluster::get_metadata(const char *path)
       if (!invalidating_ndb_table)
       {
         DBUG_PRINT("info", ("Invalidating table"));
-        invalidate_dictionary_cache(TRUE);
+        invalidate_dictionary_cache(TRUE, tab);
         invalidating_ndb_table= TRUE;
       }
       else
@@ -1091,7 +1088,7 @@ int ha_ndbcluster::get_metadata(const char *path)
     DBUG_RETURN(error);
   
   m_table_version= tab->getObjectVersion();
-  m_table= (void *)tab; 
+  m_table= tab; 
   m_table_info= NULL; // Set in external lock
   
   DBUG_RETURN(open_indexes(ndb, table, FALSE));
@@ -1150,7 +1147,7 @@ int ha_ndbcluster::table_changed(const void *pack_frm_data, uint pack_frm_len)
   // Check if thread has stale local cache
   if (orig_tab->getObjectStatus() == NdbDictionary::Object::Invalid)
   {
-    dict->removeCachedTable(m_tabname);
+    dict->removeCachedTable(orig_tab);
     if (!(orig_tab= dict->getTable(m_tabname)))
       ERR_RETURN(dict->getNdbError());
   }
@@ -1219,13 +1216,31 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
   int error= 0;
   NDB_INDEX_TYPE idx_type= get_index_type_from_table(index_no);
   m_index[index_no].type= idx_type;
-  DBUG_ENTER("ha_ndbcluster::get_index_handle");
+  DBUG_ENTER("ha_ndbcluster::add_index_handle");
+  DBUG_PRINT("enter", ("table %s", m_tabname));
 
   if (idx_type != PRIMARY_KEY_INDEX && idx_type != UNIQUE_INDEX)
   {
     DBUG_PRINT("info", ("Get handle to index %s", index_name));
-    const NDBINDEX *index= dict->getIndex(index_name, m_tabname);
-    if (!index) ERR_RETURN(dict->getNdbError());
+    const NDBINDEX *index;
+    do
+    {
+      index= dict->getIndex(index_name, m_tabname);
+      if (!index)
+        ERR_RETURN(dict->getNdbError());
+      DBUG_PRINT("info", ("index: 0x%x  id: %d  version: %d.%d  status: %d",
+                          index,
+                          index->getObjectId(),
+                          index->getObjectVersion() & 0xFFFFFF,
+                          index->getObjectVersion() >> 24,
+                          index->getObjectStatus()));
+      if (index->getObjectStatus() != NdbDictionary::Object::Retrieved)
+      {
+        dict->removeCachedIndex(index);
+        continue;
+      }
+      break;
+    } while (1);
     m_index[index_no].index= (void *) index;
     // ordered index - add stats
     NDB_INDEX_DATA& d=m_index[index_no];
@@ -1254,8 +1269,25 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
     m_has_unique_index= TRUE;
     strxnmov(unique_index_name, FN_LEN, index_name, unique_suffix, NullS);
     DBUG_PRINT("info", ("Get handle to unique_index %s", unique_index_name));
-    const NDBINDEX *index= dict->getIndex(unique_index_name, m_tabname);
-    if (!index) ERR_RETURN(dict->getNdbError());
+    const NDBINDEX *index;
+    do
+    {
+      index= dict->getIndex(unique_index_name, m_tabname);
+      if (!index)
+        ERR_RETURN(dict->getNdbError());
+      DBUG_PRINT("info", ("index: 0x%x  id: %d  version: %d.%d  status: %d",
+                          index,
+                          index->getObjectId(),
+                          index->getObjectVersion() & 0xFFFFFF,
+                          index->getObjectVersion() >> 24,
+                          index->getObjectStatus()));
+      if (index->getObjectStatus() != NdbDictionary::Object::Retrieved)
+      {
+        dict->removeCachedIndex(index);
+        continue;
+      }
+      break;
+    } while (1);
     m_index[index_no].unique_index= (void *) index;
     error= fix_unique_index_attr_order(m_index[index_no], index, key_info);
   }
@@ -3954,7 +3986,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       if ((trans && tab->getObjectStatus() != NdbDictionary::Object::Retrieved)
 	  || tab->getObjectStatus() == NdbDictionary::Object::Invalid)
       {
-        invalidate_dictionary_cache(FALSE);
+        invalidate_dictionary_cache(FALSE, tab);
         if (!(tab= dict->getTable(m_tabname, &tab_info)))
           ERR_RETURN(dict->getNdbError());
         DBUG_PRINT("info", ("Table schema version: %d", 
@@ -3970,7 +4002,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       }
       if (m_table != (void *)tab)
       {
-        m_table= (void *)tab;
+        m_table= tab;
         m_table_version = tab->getObjectVersion();
         if (!(my_errno= open_indexes(ndb, table, FALSE)))
           DBUG_RETURN(my_errno);
@@ -4990,7 +5022,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   // Check if thread has stale local cache
   if (orig_tab->getObjectStatus() == NdbDictionary::Object::Invalid)
   {
-    dict->removeCachedTable(m_tabname);
+    dict->removeCachedTable(orig_tab);
     if (!(orig_tab= dict->getTable(m_tabname)))
       ERR_RETURN(dict->getNdbError());
   }
@@ -5002,7 +5034,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     DBUG_ASSERT(r == 0);
   }
 #endif
-  m_table= (void *)orig_tab;
+  m_table= orig_tab;
   // Change current database to that of target table
   set_dbname(to);
   ndb->setDatabaseName(m_dbname);
@@ -9988,7 +10020,7 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
     // Check if thread has stale local cache
     if (tab->getObjectStatus() == NdbDictionary::Object::Invalid)
     {
-      invalidate_dictionary_cache(FALSE);
+      invalidate_dictionary_cache(FALSE, tab);
       if (!(tab= dict->getTable(m_tabname)))
          ERR_BREAK(dict->getNdbError(), err);
     }
