@@ -30,7 +30,7 @@ rpl_ndb_log              : BUG#18947 2006-03-21 tomas CRBR: order in binlog of c
 rpl_ndb_myisam2ndb       : BUG#18094 2006-03-16 mats   Slave caches invalid table definition after atlters causes select failure
 rpl_ndb_relay_space      : BUG#16993 2006-02-16 jmiller RBR: ALTER TABLE ZEROFILL AUTO_INCREMENT is not replicated correctly
 rpl_switch_stm_row_mixed : BUG#18590 2006-03-28 brian
-rpl_row_basic_7ndb       : BUG#17400 2006-04-09 brian   Cluster Replication: delete & update of rows in table without pk fails on slave.
+#rpl_row_basic_7ndb       : BUG#17400 2006-04-09 brian   Cluster Replication: delete & update of rows in table without pk fails on slave.
 rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
 rpl_row_func003		 : BUG#19074 2006-13-04 andrei  test failed
 rpl_row_inexist_tbl      : BUG#18948 2006-03-09 mats    Disabled since patch makes this test wait forever
