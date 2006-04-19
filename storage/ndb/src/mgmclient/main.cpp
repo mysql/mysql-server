@@ -19,7 +19,7 @@
 
 // copied from mysql.cc to get readline
 extern "C" {
-#if defined( __WIN__) || defined(OS2)
+#if defined( __WIN__)
 #include <conio.h>
 #elif !defined(__NETWARE__)
 #include <readline/readline.h>

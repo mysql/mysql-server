@@ -25,8 +25,6 @@ void my_sleep(ulong m_seconds)
   delay(m_seconds/1000+1);
 #elif defined(__WIN__)
   Sleep(m_seconds/1000+1);      /* Sleep() has millisecond arg */
-#elif defined(OS2)
-  DosSleep(m_seconds/1000+1);
 #elif defined(HAVE_SELECT)
   struct timeval t;
   t.tv_sec=  m_seconds / 1000000L;

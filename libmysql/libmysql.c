@@ -739,7 +739,7 @@ void read_user_name(char *name)
   strmake(name, str ? str : "UNKNOWN_USER", USERNAME_LENGTH);
 }
 
-#elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__) && !defined(OS2)
+#elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__)
 
 void read_user_name(char *name)
 {

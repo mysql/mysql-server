@@ -601,7 +601,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     strmov(name,config_file);
   }
   fn_format(name,name,"","",4);
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   {
     MY_STAT stat_info;
     if (!my_stat(name,&stat_info,MYF(0)))
@@ -1001,10 +1001,6 @@ static void init_default_directories()
 #elif defined(__NETWARE__)
   *ptr++= "sys:/etc/";
 #else
-#if defined(__EMX__) || defined(OS2)
-  if ((env= getenv("ETC")))
-    *ptr++= env;
-#endif
   *ptr++= "/etc/";
 #endif
   if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV))))

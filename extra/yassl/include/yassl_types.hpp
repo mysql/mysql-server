@@ -34,6 +34,11 @@
 
 namespace yaSSL {
 
+
+// Delete static singleton memory holders
+void CleanUp();
+
+
 // library allocation
 struct new_t {};      // yaSSL New type
 extern new_t ys;      // pass in parameter
