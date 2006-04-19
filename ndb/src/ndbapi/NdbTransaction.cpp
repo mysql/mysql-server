@@ -1170,9 +1170,9 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
       if(tOp)
       {
 	tOp->m_currentTable = table;
+        // Mark that this really an NdbIndexScanOperation
+        tOp->m_type = NdbOperation::OrderedIndexScan;
       }
-      // Mark that this really an NdbIndexScanOperation
-      tOp->m_type = NdbOperation::OrderedIndexScan; 
       return tOp;
     } else {
       setOperationErrorCodeAbort(4271);
