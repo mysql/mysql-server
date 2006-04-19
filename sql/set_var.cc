@@ -161,6 +161,7 @@ static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
+static byte *get_prepared_stmt_count(THD *thd);
 
 /*
   Variable definition list
@@ -311,6 +312,10 @@ sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
 					      fix_max_join_size);
 #endif
+static sys_var_long_ptr_global
+sys_max_prepared_stmt_count("max_prepared_stmt_count",
+                            &max_prepared_stmt_count,
+                            &LOCK_prepared_stmt_count);
 sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
                                                &max_relay_log_size,
                                                fix_max_relay_log_size);
@@ -604,6 +609,9 @@ static sys_var_readonly		sys_warning_count("warning_count",
 						  OPT_SESSION,
 						  SHOW_LONG,
 						  get_warning_count);
+static sys_var_readonly	sys_prepared_stmt_count("prepared_stmt_count",
+                                                OPT_GLOBAL, SHOW_LONG,
+                                                get_prepared_stmt_count);
 
 /* alias for last_insert_id() to be compatible with Sybase */
 #ifdef HAVE_REPLICATION
@@ -847,6 +855,8 @@ SHOW_VAR init_vars[]= {
   {sys_max_join_size.name,	(char*) &sys_max_join_size,	    SHOW_SYS},
   {sys_max_length_for_sort_data.name, (char*) &sys_max_length_for_sort_data,
    SHOW_SYS},
+  {sys_max_prepared_stmt_count.name, (char*) &sys_max_prepared_stmt_count,
+    SHOW_SYS},
   {sys_max_relay_log_size.name, (char*) &sys_max_relay_log_size,    SHOW_SYS},
   {sys_max_seeks_for_key.name,  (char*) &sys_max_seeks_for_key,	    SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
@@ -900,6 +910,7 @@ SHOW_VAR init_vars[]= {
    SHOW_SYS},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"plugin_dir",              (char*) opt_plugin_dir,               SHOW_CHAR},
+  {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
@@ -1367,29 +1378,40 @@ static void fix_server_id(THD *thd, enum_var_type type)
   server_id_supplied = 1;
 }
 
-bool sys_var_long_ptr::check(THD *thd, set_var *var)
+
+sys_var_long_ptr::
+sys_var_long_ptr(const char *name_arg, ulong *value_ptr,
+                 sys_after_update_func after_update_arg)
+  :sys_var_long_ptr_global(name_arg, value_ptr,
+                           &LOCK_global_system_variables, after_update_arg)
+{}
+
+
+bool sys_var_long_ptr_global::check(THD *thd, set_var *var)
 {
   longlong v= var->value->val_int();
   var->save_result.ulonglong_value= v < 0 ? 0 : v;
   return 0;
 }
 
-bool sys_var_long_ptr::update(THD *thd, set_var *var)
+bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  pthread_mutex_lock(guard);
   if (option_limits)
     *value= (ulong) getopt_ull_limit_value(tmp, option_limits);
   else
     *value= (ulong) tmp;
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  pthread_mutex_unlock(guard);
   return 0;
 }
 
 
-void sys_var_long_ptr::set_default(THD *thd, enum_var_type type)
+void sys_var_long_ptr_global::set_default(THD *thd, enum_var_type type)
 {
+  pthread_mutex_lock(guard);
   *value= (ulong) option_limits->def_value;
+  pthread_mutex_unlock(guard);
 }
 
 
@@ -2824,6 +2846,13 @@ static byte *get_error_count(THD *thd)
   return (byte*) &thd->sys_var_tmp.long_value;
 }
 
+static byte *get_prepared_stmt_count(THD *thd)
+{
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  thd->sys_var_tmp.ulong_value= prepared_stmt_count;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+  return (byte*) &thd->sys_var_tmp.ulong_value;
+}
 
 /****************************************************************************
   Main handling of variables:
