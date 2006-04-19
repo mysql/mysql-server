@@ -1378,11 +1378,13 @@ public:
   virtual void drop_table(const char *name);
   
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
+
+#define CHF_DELETE_FLAG 1
+#define CHF_RENAME_FLAG 2
+
   virtual int create_handler_files(const char *name, const char *old_name,
-                                   bool rename_flag)
-  {
-    return FALSE;
-  }
+                                   int action_flag)
+  { return FALSE; }
 
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
@@ -1390,7 +1392,7 @@ public:
                                 ulonglong *deleted,
                                 const void *pack_frm_data,
                                 uint pack_frm_len)
-  { print_error(HA_ERR_WRONG_COMMAND, MYF(0)); return TRUE; }
+  { return HA_ERR_WRONG_COMMAND; }
   virtual int drop_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
