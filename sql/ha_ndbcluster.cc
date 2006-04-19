@@ -332,7 +332,7 @@ Thd_ndb::Thd_ndb()
   stmt= NULL;
   error= 0;
   options= 0;
-  (void) hash_init(&open_tables, system_charset_info, 32, 0, 0,
+  (void) hash_init(&open_tables, &my_charset_bin, 5, 0, 0,
                    (hash_get_key)thd_ndb_share_get_key, 0, 0);
 }
 
