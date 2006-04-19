@@ -778,7 +778,8 @@ private:
   void print_results();
 
   ulonglong get_auto_increment();
-  int invalidate_dictionary_cache(bool global);
+  int invalidate_dictionary_cache(bool global,
+                                  const NdbDictionary::Table *ndbtab);
   int ndb_err(NdbTransaction*);
   bool uses_blob_value();
 
@@ -816,7 +817,7 @@ private:
 
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
-  void *m_table;
+  const NdbDictionary::Table *m_table;
   int m_table_version;
   void *m_table_info;
   char m_dbname[FN_HEADLEN];
