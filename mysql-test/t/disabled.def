@@ -12,4 +12,3 @@
 
 sp-goto         : GOTO is currently is disabled - will be fixed in the future
 ndb_load        : Bug#17233
-udf             : Bug#18564 (Permission by Brian)
