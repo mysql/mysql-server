@@ -935,6 +935,7 @@ sp_head::execute(THD *thd)
   bool err_status= FALSE;
   uint ip= 0;
   ulong save_sql_mode;
+  bool save_abort_on_warning;
   Query_arena *old_arena;
   /* per-instruction arena */
   MEM_ROOT execute_mem_root;
@@ -995,6 +996,10 @@ sp_head::execute(THD *thd)
   thd->derived_tables= 0;
   save_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
+  save_abort_on_warning= thd->abort_on_warning;
+  thd->abort_on_warning=
+    (m_sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
+
   /*
     It is also more efficient to save/restore current thd->lex once when
     do it in each instruction
@@ -1127,6 +1132,7 @@ sp_head::execute(THD *thd)
   DBUG_ASSERT(!thd->derived_tables);
   thd->derived_tables= old_derived_tables;
   thd->variables.sql_mode= save_sql_mode;
+  thd->abort_on_warning= save_abort_on_warning;
 
   thd->stmt_arena= old_arena;
   state= EXECUTED;
