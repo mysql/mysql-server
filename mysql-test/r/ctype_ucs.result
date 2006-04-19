@@ -674,6 +674,18 @@ Warnings:
 Warning	1264	Out of range value adjusted for column 'Field1' at row 1
 DROP TABLE t1;
 SET NAMES latin1;
+SELECT CONVERT(103, CHAR(50) UNICODE);
+CONVERT(103, CHAR(50) UNICODE)
+103
+SELECT CONVERT(103.0, CHAR(50) UNICODE);
+CONVERT(103.0, CHAR(50) UNICODE)
+103.0
+SELECT CONVERT(-103, CHAR(50) UNICODE);
+CONVERT(-103, CHAR(50) UNICODE)
+-103
+SELECT CONVERT(-103.0, CHAR(50) UNICODE);
+CONVERT(-103.0, CHAR(50) UNICODE)
+-103.0
 CREATE TABLE t1 (
 a varchar(255) NOT NULL default '',
 KEY a (a)
@@ -719,3 +731,11 @@ lily
 river
 drop table t1;
 deallocate prepare stmt;
+create table t1(a blob, b text charset utf8, c text charset ucs2);
+select data_type, character_octet_length, character_maximum_length
+from information_schema.columns where table_name='t1';
+data_type	character_octet_length	character_maximum_length
+blob	65535	65535
+text	65535	65535
+text	65535	32767
+drop table t1;

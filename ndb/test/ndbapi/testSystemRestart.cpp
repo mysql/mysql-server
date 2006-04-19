@@ -1051,6 +1051,52 @@ int runSystemRestart9(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runBug18385(NDBT_Context* ctx, NDBT_Step* step){
+  NdbRestarter restarter;
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  if(nodeCount < 2){
+    g_info << "Bug18385 - Needs atleast 2 nodes to test" << endl;
+    return NDBT_OK;
+  }
+
+  int node1 = restarter.getDbNodeId(rand() % nodeCount);
+  int node2 = restarter.getRandomNodeSameNodeGroup(node1, rand());
+
+  if (node1 == -1 || node2 == -1)
+    return NDBT_OK;
+  
+  int dump[] = { DumpStateOrd::DihSetTimeBetweenGcp, 300 };
+  
+  int result = NDBT_OK;
+  do {
+    CHECK(restarter.dumpStateAllNodes(dump, 2) == 0);
+    CHECK(restarter.restartOneDbNode(node1, false, true, false) == 0);
+    NdbSleep_SecSleep(3);
+    CHECK(restarter.restartAll(false, true, false) == 0);
+    
+    Uint32 cnt = 0;
+    int nodes[128];
+    for(Uint32 i = 0; i<nodeCount; i++)
+      if ((nodes[cnt] = restarter.getDbNodeId(i)) != node2)
+	cnt++;
+    
+    assert(cnt == nodeCount - 1);
+    
+    CHECK(restarter.startNodes(nodes, cnt) == 0);
+    CHECK(restarter.waitNodesStarted(nodes, cnt, 300) == 0);
+    
+    CHECK(restarter.insertErrorInNode(node2, 7170) == 0);
+    CHECK(restarter.waitNodesNoStart(&node2, 1) == 0);
+    CHECK(restarter.restartOneDbNode(node2, true, false, true) == 0);
+    CHECK(restarter.waitNodesStarted(&node2, 1) == 0);
+
+  } while(0);
+  
+  g_info << "Bug18385 finished" << endl;  
+  
+  return result;
+}
+
 int runWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
@@ -1232,6 +1278,13 @@ TESTCASE("SR9",
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runSystemRestart9);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug18385", 
+	 "Perform partition system restart with other nodes with higher GCI"){
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runClearTable);
+  STEP(runBug18385);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testSystemRestart);

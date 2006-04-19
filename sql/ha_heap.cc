@@ -532,7 +532,7 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
     return records;
 
   /* Assert that info() did run. We need current statistics here. */
-  DBUG_ASSERT(key_stat_version);
+  DBUG_ASSERT(key_stat_version == file->s->key_stat_version);
   return key->rec_per_key[key->key_parts-1];
 }
 

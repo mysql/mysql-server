@@ -356,7 +356,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (ignore ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-    table->file->start_bulk_insert((ha_rows) 0);
+    if (!thd->prelocked_mode)
+      table->file->start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
 
     thd->no_trans_update= 0;
@@ -373,7 +374,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error= read_sep_field(thd, info, table_list, fields_vars,
                             set_fields, set_values, read_info,
 			    *enclosed, skip_lines, ignore);
-    if (table->file->end_bulk_insert() && !error)
+    if (!thd->prelocked_mode && table->file->end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno, MYF(0));
       error= 1;

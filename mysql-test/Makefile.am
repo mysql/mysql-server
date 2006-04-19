@@ -32,12 +32,14 @@ endif
 
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
-EXTRA_SCRIPTS = 	mysql-test-run.sh mysql-test-run.pl install_test_db.sh valgrind.supp
+EXTRA_SCRIPTS = 	mysql-test-run.sh install_test_db.sh valgrind.supp $(PRESCRIPTS)
 EXTRA_DIST = 		$(EXTRA_SCRIPTS) 
-test_SCRIPTS = 		mysql-test-run install_test_db 
+GENSCRIPTS =		mysql-test-run install_test_db
+PRESCRIPTS =		mysql-test-run.pl
+test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
 test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem \
 	std_data/server-cert.pem std_data/server-key.pem 
-CLEANFILES = 		$(test_SCRIPTS) $(test_DATA)
+CLEANFILES = 		$(GENSCRIPTS) $(test_DATA)
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
 EXTRA_PROGRAMS =	mysql_test_run_new

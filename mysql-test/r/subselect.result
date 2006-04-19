@@ -547,7 +547,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	Using index
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	select `test`.`t1`.`numreponse` AS `numreponse` from `test`.`t1` where ((`test`.`t1`.`numreponse` = (select max(`test`.`t1`.`numreponse`) AS `MAX(numreponse)` from `test`.`t1` where (`test`.`t1`.`numeropost` = _latin1'1'))) and (`test`.`t1`.`numeropost` = _latin1'1'))
+Note	1003	select `test`.`t1`.`numreponse` AS `numreponse` from `test`.`t1` where ((`test`.`t1`.`numeropost` = _latin1'1'))
 drop table t1;
 CREATE TABLE t1 (a int(1));
 INSERT INTO t1 VALUES (1);
@@ -3156,3 +3156,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
 2	DEPENDENT SUBQUERY	t1	index	NULL	a	8	NULL	9	Using filesort
 DROP TABLE t1;
+create table t1( f1 int,f2 int);
+insert into t1 values (1,1),(2,2);
+select tt.t from (select 'crash1' as t, f2 from t1) as tt left join t1 on tt.t = 'crash2' and tt.f2 = t1.f2 where tt.t = 'crash1';
+t
+crash1
+crash1
+drop table t1;
+create table t1 (c int, key(c));
+insert into t1 values (1142477582), (1142455969);
+create table t2 (a int, b int);
+insert into t2 values (2, 1), (1, 0);
+delete from t1 where c <= 1140006215 and (select b from t2 where a = 2) = 1;
+drop table t1, t2;

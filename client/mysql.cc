@@ -185,7 +185,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...);
 void tee_fputs(const char *s, FILE *file);
 void tee_puts(const char *s, FILE *file);
 void tee_putc(int c, FILE *file);
-static void tee_print_sized_data(const char *data, unsigned int length, unsigned int width);
+static void tee_print_sized_data(const char *, unsigned int, unsigned int, bool);
 /* The names of functions that actually do the manipulation. */
 static int get_options(int argc,char **argv);
 static int com_quit(String *str,char*),
@@ -653,7 +653,7 @@ static struct my_option my_long_options[] =
    "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"socket", 'S', "Socket file to use for connection.",
+  {"socket", 'S', "Socket file to use for connection. (This will override --port unless --protocol=TCP is specified.)",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
@@ -939,7 +939,14 @@ static int get_options(int argc, char **argv)
     opt_reconnect= 0;
     connect_flag= 0; /* Not in interactive mode */
   }
-  
+
+  if (opt_mysql_port && (!opt_protocol) && (!opt_mysql_unix_port))
+  {
+    /* Not checking return type since we are using a constant value */
+    /* straight from the initialization of sql_protocol_typelib.    */
+    opt_protocol= find_type("TCP", &sql_protocol_typelib, 0);
+  }
+
   if (strcmp(default_charset, charset_info->csname) &&
       !(charset_info= get_charset_by_csname(default_charset, 
 					    MY_CS_PRIMARY, MYF(MY_WME))))
@@ -2261,8 +2268,10 @@ print_table_data(MYSQL_RES *result)
   MYSQL_ROW	cur;
   MYSQL_FIELD	*field;
   bool		*num_flag;
+  bool		*not_null_flag;
 
   num_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
+  not_null_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
   if (info_flag)
   {
     print_field_types(result);
@@ -2280,7 +2289,7 @@ print_table_data(MYSQL_RES *result)
       length=max(length,field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
-    field->max_length=length+1;
+    field->max_length=length;
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
   }
@@ -2292,10 +2301,11 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("|", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
-      tee_fprintf(PAGER, " %-*s|",(int) min(field->max_length,
+      tee_fprintf(PAGER, " %-*s |",(int) min(field->max_length,
                                             MAX_COLUMN_LENGTH),
 		  field->name);
       num_flag[off]= IS_NUM(field->type);
+      not_null_flag[off]= IS_NOT_NULL(field->flags);
     }
     (void) tee_fputs("\n", PAGER);
     tee_puts((char*) separator.ptr(), PAGER);
@@ -2304,48 +2314,66 @@ print_table_data(MYSQL_RES *result)
   while ((cur= mysql_fetch_row(result)))
   {
     ulong *lengths= mysql_fetch_lengths(result);
-    (void) tee_fputs("|", PAGER);
+    (void) tee_fputs("| ", PAGER);
     mysql_field_seek(result, 0);
     for (uint off= 0; off < mysql_num_fields(result); off++)
     {
-      const char *str= cur[off] ? cur[off] : "NULL";
-      uint currlength;
-      uint maxlength;
-      uint numcells;
+      const char *buffer;
+      uint data_length;
+      uint field_max_length;
+      bool right_justified;
+      uint visible_length;
+      uint extra_padding;
+
+      /* If this column may have a null value, use "NULL" for empty.  */
+      if (! not_null_flag[off] && (lengths[off] == 0))
+      {
+        buffer= "NULL";
+        data_length= 4;
+      } 
+      else 
+      {
+        buffer= cur[off];
+        data_length= (uint) lengths[off];
+      }
 
       field= mysql_fetch_field(result);
-      maxlength= field->max_length;
-      currlength= (uint) lengths[off];
-      numcells= charset_info->cset->numcells(charset_info, 
-                                                    str, str + currlength);
-      if (maxlength > MAX_COLUMN_LENGTH)
-      {
-        tee_print_sized_data(str, currlength, maxlength);
-        tee_fputs(" |", PAGER);
-      }
+      field_max_length= field->max_length;
+
+      /* 
+       How many text cells on the screen will this string span?  If it contains
+       multibyte characters, then the number of characters we occupy on screen
+       will be fewer than the number of bytes we occupy in memory.
+
+       We need to find how much screen real-estate we will occupy to know how 
+       many extra padding-characters we should send with the printing function.
+      */
+      visible_length= charset_info->cset->numcells(charset_info, buffer, buffer + data_length);
+      extra_padding= data_length - visible_length;
+
+      if (field_max_length > MAX_COLUMN_LENGTH)
+        tee_print_sized_data(buffer, data_length, MAX_COLUMN_LENGTH+extra_padding, FALSE);
       else
       {
-        if (num_flag[off] != 0)
-          tee_fprintf(PAGER, " %-*s|", maxlength + currlength - numcells, str);
+        if (num_flag[off] != 0) /* if it is numeric, we right-justify it */
+          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, TRUE);
         else 
-        {
-          tee_print_sized_data(str, currlength, maxlength);
-          tee_fputs(" |", PAGER);
-        }
+          tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, FALSE);
       }
+      tee_fputs(" | ", PAGER);
     }
     (void) tee_fputs("\n", PAGER);
   }
   tee_puts((char*) separator.ptr(), PAGER);
   my_afree((gptr) num_flag);
+  my_afree((gptr) not_null_flag);
 }
 
 
 static void
-tee_print_sized_data(const char *data, unsigned int length, unsigned int width)
+tee_print_sized_data(const char *data, unsigned int data_length, unsigned int total_bytes_to_send, bool right_justified)
 {
   /* 
-    It is not a number, so print each character justified to the left.
     For '\0's print ASCII spaces instead, as '\0' is eaten by (at
     least my) console driver, and that messes up the pretty table
     grid.  (The \0 is also the reason we can't use fprintf() .) 
@@ -2353,9 +2381,11 @@ tee_print_sized_data(const char *data, unsigned int length, unsigned int width)
   unsigned int i;
   const char *p;
 
-  tee_putc(' ', PAGER);
+  if (right_justified) 
+    for (i= data_length; i < total_bytes_to_send; i++)
+      tee_putc((int)' ', PAGER);
 
-  for (i= 0, p= data; i < length; i+= 1, p+= 1)
+  for (i= 0, p= data; i < data_length; i+= 1, p+= 1)
   {
     if (*p == '\0')
       tee_putc((int)' ', PAGER);
@@ -2363,9 +2393,9 @@ tee_print_sized_data(const char *data, unsigned int length, unsigned int width)
       tee_putc((int)*p, PAGER);
   }
 
-  i+= 1; 
-  for (   ; i < width; i+= 1)
-    tee_putc((int)' ', PAGER);
+  if (! right_justified) 
+    for (i= data_length; i < total_bytes_to_send; i++)
+      tee_putc((int)' ', PAGER);
 }
 
 
@@ -3354,7 +3384,7 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
     if (info_type == INFO_ERROR)
     {
       if (!opt_nobeep)
-	putchar('\007');		      	/* This should make a bell */
+        putchar('\a');		      	/* This should make a bell */
       vidattr(A_STANDOUT);
       if (error)
       {

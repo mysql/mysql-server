@@ -52,11 +52,10 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
 {
   uint i;
   Field *field= NULL;
-  bool all_constant= TRUE;
 
   /* If the first argument is a FIELD_ITEM, pull out the field. */
-  if (items[0]->type() == Item::FIELD_ITEM)
-    field=((Item_field *)items[0])->field;
+  if (items[0]->real_item()->type() == Item::FIELD_ITEM)
+    field=((Item_field *)(items[0]->real_item()))->field;
   /* But if it can't be compared as a longlong, we don't really care. */
   if (field && !field->can_be_compared_as_longlong())
     field= NULL;
@@ -65,16 +64,9 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
   for (i= 1; i < nitems; i++)
   {
     type[0]= item_cmp_type(type[0], items[i]->result_type());
-    if (field && !convert_constant_item(thd, field, &items[i]))
-      all_constant= FALSE;
+    if (field && convert_constant_item(thd, field, &items[i]))
+      type[0]= INT_RESULT;
   }
-
-  /*
-    If we had a field that can be compared as a longlong, and all constant
-    items, then the aggregate result will be an INT_RESULT.
-  */
-  if (field && all_constant)
-    type[0]= INT_RESULT;
 }
 
 
@@ -2563,10 +2555,13 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 	(item= *li.ref())->check_cols(1))
       return TRUE; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
-    tmp_table_map=	    item->not_null_tables();
-    not_null_tables_cache|= tmp_table_map;
-    and_tables_cache&=      tmp_table_map;
-    const_item_cache&=      item->const_item();
+    if (!item->const_item())
+    {
+      tmp_table_map= item->not_null_tables();
+      not_null_tables_cache|= tmp_table_map;
+      and_tables_cache&= tmp_table_map;
+      const_item_cache= FALSE;
+    }  
     with_sum_func=	    with_sum_func || item->with_sum_func;
     if (item->maybe_null)
       maybe_null=1;
@@ -3599,7 +3594,8 @@ void Item_equal::add(Item *c)
   Item_func_eq *func= new Item_func_eq(c, const_item);
   func->set_cmp_func();
   func->quick_fix_field();
-  cond_false =  !(func->val_int());
+  if ((cond_false= !func->val_int()))
+    const_item_cache= 1;
 }
 
 void Item_equal::add(Item_field *f)
@@ -3731,13 +3727,45 @@ void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
   } while (swap);
 }
 
+
+/*
+  Check appearance of new constant items in the multiple equality object
+
+  SYNOPSIS
+    update_const()
+  
+  DESCRIPTION
+    The function checks appearance of new constant items among
+    the members of multiple equalities. Each new constant item is
+    compared with the designated constant item if there is any in the
+    multiple equality. If there is none the first new constant item
+    becomes designated.
+      
+  RETURN VALUES
+    none    
+*/
+
+void Item_equal::update_const()
+{
+  List_iterator<Item_field> it(fields);
+  Item *item;
+  while ((item= it++))
+  {
+    if (item->const_item())
+    {
+      it.remove();
+      add(item);
+    }
+  }
+}
+
 bool Item_equal::fix_fields(THD *thd, Item **ref)
 {
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 0;
-  while ((item=li++))
+  while ((item= li++))
   {
     table_map tmp_table_map;
     used_tables_cache|= item->used_tables();

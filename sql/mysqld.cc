@@ -165,7 +165,7 @@ static void registerwithneb();
 static void getvolumename();
 static void getvolumeID(BYTE *volumeName);
 #endif /* __NETWARE__ */
-  
+
 
 #ifdef _AIX41
 int initgroups(const char *,unsigned int);
@@ -409,6 +409,22 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 uint  max_user_connections= 0;
+/*
+  Limit of the total number of prepared statements in the server.
+  Is necessary to protect the server against out-of-memory attacks.
+*/
+ulong max_prepared_stmt_count;
+/*
+  Current total number of prepared statements in the server. This number
+  is exact, and therefore may not be equal to the difference between
+  `com_stmt_prepare' and `com_stmt_close' (global status variables), as
+  the latter ones account for all registered attempts to prepare
+  a statement (including unsuccessful ones).  Prepared statements are
+  currently connection-local: if the same SQL query text is prepared in
+  two different connections, this counts as two distinct prepared
+  statements.
+*/
+ulong prepared_stmt_count=0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
@@ -472,13 +488,10 @@ CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
 
-SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, have_ndbcluster, 
-  have_example_db, have_archive_db, have_csv_db;
-SHOW_COMP_OPTION have_federated_db;
+SHOW_COMP_OPTION have_isam;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
-SHOW_COMP_OPTION have_blackhole_db;
 
 /* Thread specific variables */
 
@@ -491,6 +504,14 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
+/*
+  The below lock protects access to two global server variables:
+  max_prepared_stmt_count and prepared_stmt_count. These variables
+  set the limit and hold the current total number of prepared statements
+  in the server, respectively. As PREPARE/DEALLOCATE rate in a loaded
+  server may be fairly high, we need a dedicated lock.
+*/
+pthread_mutex_t LOCK_prepared_stmt_count;
 #ifdef HAVE_OPENSSL
 pthread_mutex_t LOCK_des_key_file;
 #endif
@@ -939,18 +960,18 @@ static void __cdecl kill_server(int sig_ptr)
   else
     sql_print_error(ER(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
-#if defined(HAVE_SMEM) && defined(__WIN__)    
-  /*    
-   Send event to smem_event_connect_request for aborting    
-   */    
-  if (!SetEvent(smem_event_connect_request))    
-  {      
+#if defined(HAVE_SMEM) && defined(__WIN__)
+  /*
+   Send event to smem_event_connect_request for aborting
+   */
+  if (!SetEvent(smem_event_connect_request))
+  {
 	  DBUG_PRINT("error",
 		("Got error: %ld from SetEvent of smem_event_connect_request",
-		 GetLastError()));    
+		 GetLastError()));
   }
-#endif  
-  
+#endif
+
 #if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2))
   my_thread_init();				// If this is a new thread
 #endif
@@ -1200,6 +1221,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
   (void) pthread_mutex_destroy(&LOCK_uuid_generator);
+  (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
   (void) pthread_cond_destroy(&COND_thread_cache);
@@ -1431,7 +1453,7 @@ static void network_init(void)
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    
+
     pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
     strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
 	     mysqld_unix_port, NullS);
@@ -1642,17 +1664,6 @@ void end_thread(THD *thd, bool put_in_cache)
 }
 
 
-/* Start a cached thread. LOCK_thread_count is locked on entry */
-
-static void start_cached_thread(THD *thd)
-{
-  thread_cache.append(thd);
-  wake_thread++;
-  thread_count++;
-  pthread_cond_signal(&COND_thread_cache);
-}
-
-
 void flush_thread_cache()
 {
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -1782,7 +1793,7 @@ static void registerwithneb()
 {
 
   ConsumerRegistrationInfo reg_info;
-    
+
   /* Clear NEB registration structure */
   bzero((char*) &reg_info, sizeof(struct ConsumerRegistrationInfo));
 
@@ -1798,7 +1809,7 @@ static void registerwithneb()
   reg_info.CRIOwnerID= (LoadDefinitionStructure *)getnlmhandle();
   reg_info.CRIConsumerESR= NULL;	    // No consumer ESR required
   reg_info.CRISecurityToken= 0;	            // No security token for the event
-  reg_info.CRIConsumerFlags= 0;             // SMP_ENABLED_BIT;	
+  reg_info.CRIConsumerFlags= 0;             // SMP_ENABLED_BIT;
   reg_info.CRIFilterName= 0;	            // No event filtering
   reg_info.CRIFilterDataLength= 0;          // No filtering data
   reg_info.CRIFilterData= 0;	            // No filtering data
@@ -1823,7 +1834,7 @@ static void registerwithneb()
     Get the NSS volume ID of the MySQL Data volume.
     Volume ID is stored in a global variable
   */
-  getvolumeID((BYTE*) datavolname);	
+  getvolumeID((BYTE*) datavolname);
 }
 
 
@@ -1888,7 +1899,7 @@ static void getvolumeID(BYTE *volumeName)
 
   strxmov(path, (const char *) ADMIN_VOL_PATH, (const char *) volumeName,
           NullS);
-  if ((status= zOpen(rootKey, zNSS_TASK, zNSPACE_LONG|zMODE_UTF8, 
+  if ((status= zOpen(rootKey, zNSS_TASK, zNSPACE_LONG|zMODE_UTF8,
                      (BYTE *) path, zRR_READ_ACCESS, &fileKey)) != zOK)
   {
     consoleprintf("\nGetNSSVolumeProperties - Failed to get file, status: %d\n.", (int) status);
@@ -1896,7 +1907,7 @@ static void getvolumeID(BYTE *volumeName)
   }
 
   getInfoMask= zGET_IDS | zGET_VOLUME_INFO ;
-  if ((status= zGetInfo(fileKey, getInfoMask, sizeof(info), 
+  if ((status= zGetInfo(fileKey, getInfoMask, sizeof(info),
                         zINFO_VERSION_A, &info)) != zOK)
   {
     consoleprintf("\nGetNSSVolumeProperties - Failed in zGetInfo, status: %d\n.", (int) status);
@@ -2019,7 +2030,7 @@ or misconfigured. This error can also be caused by malfunctioning hardware.\n",
 We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
-  fprintf(stderr, "key_buffer_size=%lu\n", 
+  fprintf(stderr, "key_buffer_size=%lu\n",
           (ulong) dflt_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
@@ -2363,7 +2374,7 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
         thd->spcont->find_handler(error, MYSQL_ERROR::WARN_LEVEL_ERROR))
     {
       if (! thd->spcont->found_handler_here())
-        thd->net.report_error= 1; /* Make "select" abort correctly */ 
+        thd->net.report_error= 1; /* Make "select" abort correctly */
       DBUG_RETURN(0);
     }
 
@@ -2566,13 +2577,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
  }
 #endif
   /*
-    We set SYSTEM time zone as reasonable default and 
+    We set SYSTEM time zone as reasonable default and
     also for failure of my_tz_init() and bootstrap mode.
     If user explicitly set time zone with --default-time-zone
     option we will change this value in my_tz_init().
   */
   global_system_variables.time_zone= my_tz_SYSTEM;
-  
+
   /*
     Init mutexes for the global MYSQL_LOG objects.
     As safe_mutex depends on what MY_INIT() does, we can't init the mutexes of
@@ -2582,7 +2593,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   mysql_log.init_pthread_objects();
   mysql_slow_log.init_pthread_objects();
   mysql_bin_log.init_pthread_objects();
-  
+
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
     strmov(glob_hostname,"mysql");
   strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
@@ -2677,7 +2688,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
 
-  if (!(character_set_filesystem= 
+  if (!(character_set_filesystem=
         get_charset_by_csname(character_set_filesystem_name,
                               MY_CS_PRIMARY, MYF(MY_WME))))
     return 1;
@@ -2768,6 +2779,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
@@ -2775,7 +2787,7 @@ static int init_thread_environment()
   openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
                                                      sizeof(openssl_lock_t));
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
-    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL); 
+    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL);
   CRYPTO_set_dynlock_create_callback(openssl_dynlock_create);
   CRYPTO_set_dynlock_destroy_callback(openssl_dynlock_destroy);
   CRYPTO_set_dynlock_lock_callback(openssl_lock);
@@ -2816,20 +2828,20 @@ static int init_thread_environment()
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static unsigned long openssl_id_function()
-{ 
+{
   return (unsigned long) pthread_self();
-} 
+}
 
 
 static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
-{ 
+{
   openssl_lock_t *lock= new openssl_lock_t;
   my_rwlock_init(&lock->lock, NULL);
   return lock;
 }
 
 
-static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file, 
+static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
 				    int line)
 {
   rwlock_destroy(&lock->lock);
@@ -2849,7 +2861,7 @@ static void openssl_lock_function(int mode, int n, const char *file, int line)
 }
 
 
-static void openssl_lock(int mode, openssl_lock_t *lock, const char *file, 
+static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 			 int line)
 {
   int err;
@@ -2874,7 +2886,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
     sql_print_error("Fatal: OpenSSL interface problem (mode=0x%x)", mode);
     abort();
   }
-  if (err) 
+  if (err)
   {
     sql_print_error("Fatal: can't %s OpenSSL %s lock", what);
     abort();
@@ -3181,7 +3193,7 @@ static void create_shutdown_thread()
   if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
     sql_print_warning("Can't create thread to handle shutdown requests");
 #endif
-#endif // EMBEDDED_LIBRARY 
+#endif // EMBEDDED_LIBRARY
 }
 
 
@@ -3236,7 +3248,7 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#endif 
+#endif
 
   while (handler_count > 0)
     pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
@@ -3330,7 +3342,7 @@ int main(int argc, char **argv)
 #endif
 #ifdef __NETWARE__
   /* Increasing stacksize of threads on NetWare */
-  
+
   pthread_attr_setstacksize(&connection_attrib, NW_THD_STACKSIZE);
 #endif
 
@@ -3422,7 +3434,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #ifndef __NETWARE__
     (void) pthread_kill(signal_thread, MYSQL_KILL_SIGNAL);
 #endif /* __NETWARE__ */
-    
+
     if (!opt_bootstrap)
       (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
 
@@ -3490,7 +3502,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif /* __NT__ */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
-  
+
   DBUG_PRINT("quit",("Exiting main thread"));
 
 #ifndef __WIN__
@@ -3526,7 +3538,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   wait_for_signal_thread_to_end();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
- 
+
   exit(0);
   return(0);					/* purecov: deadcode */
 }
@@ -3783,6 +3795,25 @@ static bool read_init_file(char *file_name)
 
 
 #ifndef EMBEDDED_LIBRARY
+/*
+  Create new thread to handle incoming connection.
+
+  SYNOPSIS
+    create_new_thread()
+      thd in/out    Thread handle of future thread.
+
+  DESCRIPTION
+    This function will create new thread to handle the incoming
+    connection.  If there are idle cached threads one will be used.
+    'thd' will be pushed into 'threads'.
+
+    In single-threaded mode (#define ONE_THREAD) connection will be
+    handled inside this function.
+
+  RETURN VALUE
+    none
+*/
+
 static void create_new_thread(THD *thd)
 {
   DBUG_ENTER("create_new_thread");
@@ -3806,11 +3837,12 @@ static void create_new_thread(THD *thd)
   thd->real_id=pthread_self();			// Keep purify happy
 
   /* Start a new thread to handle connection */
+  thread_count++;
+
 #ifdef ONE_THREAD
   if (test_flags & TEST_NO_THREADS)		// For debugging under Linux
   {
     thread_cache_size=0;			// Safety
-    thread_count++;
     threads.append(thd);
     thd->real_id=pthread_self();
     (void) pthread_mutex_unlock(&LOCK_thread_count);
@@ -3819,18 +3851,20 @@ static void create_new_thread(THD *thd)
   else
 #endif
   {
+    if (thread_count-delayed_insert_threads > max_used_connections)
+      max_used_connections=thread_count-delayed_insert_threads;
+
     if (cached_thread_count > wake_thread)
     {
-      start_cached_thread(thd);
+      thread_cache.append(thd);
+      wake_thread++;
+      pthread_cond_signal(&COND_thread_cache);
     }
     else
     {
       int error;
-      thread_count++;
       thread_created++;
       threads.append(thd);
-      if (thread_count-delayed_insert_threads > max_used_connections)
-        max_used_connections=thread_count-delayed_insert_threads;
       DBUG_PRINT("info",(("creating thread %d"), thd->thread_id));
       thd->connect_time = time(NULL);
       if ((error=pthread_create(&thd->real_id,&connection_attrib,
@@ -3970,7 +4004,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
       size_socket length=sizeof(struct sockaddr_in);
       new_sock = accept(sock, my_reinterpret_cast(struct sockaddr *) (&cAddr),
 			&length);
-#ifdef __NETWARE__ 
+#ifdef __NETWARE__
       // TODO: temporary fix, waiting for TCP/IP fix - DEFECT000303149
       if ((new_sock == INVALID_SOCKET) && (socket_errno == EINVAL))
       {
@@ -4374,7 +4408,7 @@ errorconn:
 	      NullS);
       sql_perror(buff);
     }
-    if (handle_client_file_map) 
+    if (handle_client_file_map)
       CloseHandle(handle_client_file_map);
     if (handle_client_map)
       UnmapViewOfFile(handle_client_map);
@@ -4419,8 +4453,8 @@ error:
 
 enum options_mysqld
 {
-  OPT_ISAM_LOG=256,            OPT_SKIP_NEW, 
-  OPT_SKIP_GRANT,              OPT_SKIP_LOCK, 
+  OPT_ISAM_LOG=256,            OPT_SKIP_NEW,
+  OPT_SKIP_GRANT,              OPT_SKIP_LOCK,
   OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
   OPT_SOCKET,                  OPT_UPDATE_LOG,
   OPT_BIN_LOG,                 OPT_SKIP_RESOLVE,
@@ -4506,7 +4540,8 @@ enum options_mysqld
   OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
   OPT_MAX_CONNECTIONS, OPT_MAX_CONNECT_ERRORS,
   OPT_MAX_DELAYED_THREADS, OPT_MAX_HEP_TABLE_SIZE,
-  OPT_MAX_JOIN_SIZE, OPT_MAX_RELAY_LOG_SIZE, OPT_MAX_SORT_LENGTH, 
+  OPT_MAX_JOIN_SIZE, OPT_MAX_PREPARED_STMT_COUNT,
+  OPT_MAX_RELAY_LOG_SIZE, OPT_MAX_SORT_LENGTH,
   OPT_MAX_SEEKS_FOR_KEY, OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
@@ -4598,7 +4633,7 @@ enum options_mysqld
 
 struct my_option my_long_options[] =
 {
-  {"help", '?', "Display this help and exit.", 
+  {"help", '?', "Display this help and exit.",
    (gptr*) &opt_help, (gptr*) &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
 #ifdef HAVE_REPLICATION
@@ -4933,7 +4968,7 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &myisam_log_filename, (gptr*) &myisam_log_filename, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-long-format", '0',
-   "Log some extra information to update log. Please note that this option is deprecated; see --log-short-format option.", 
+   "Log some extra information to update log. Please note that this option is deprecated; see --log-short-format option.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-queries-not-using-indexes", OPT_LOG_QUERIES_NOT_USING_INDEXES,
    "Log queries that are executed without benefit of any index to the slow log if it is open.",
@@ -5315,8 +5350,12 @@ log and this option does nothing anymore.",
   {"symbolic-links", 's', "Enable symbolic link support.",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
+  {"sysdate-is-now", OPT_SYSDATE_IS_NOW,
+   "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. Since 5.0, SYSDATE() returns a `dynamic' value different for different invocations, even within the same statement.",
+   (gptr*) &global_system_variables.sysdate_is_now,
+   0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"tc-heuristic-recover", OPT_TC_HEURISTIC_RECOVER,
-   "Decision to use in heuristic recover process. Possible values are COMMIT or ROLLBACK",
+   "Decision to use in heuristic recover process. Possible values are COMMIT or ROLLBACK.",
    (gptr*) &opt_tc_heuristic_recover, (gptr*) &opt_tc_heuristic_recover,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"temp-pool", OPT_TEMP_POOL,
@@ -5325,7 +5364,7 @@ log and this option does nothing anymore.",
    0, 0, 0, 0, 0},
   {"timed_mutexes", OPT_TIMED_MUTEXES,
    "Specify whether to time mutexes (only InnoDB mutexes are currently supported)",
-   (gptr*) &timed_mutexes, (gptr*) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0, 
+   (gptr*) &timed_mutexes, (gptr*) &timed_mutexes, 0, GET_BOOL, NO_ARG, 0,
     0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files. Several paths may be specified, separated by a "
@@ -5530,7 +5569,7 @@ log and this option does nothing anymore.",
    "Sets the maximum number of threads allowed inside InnoDB. Value 0"
    " will disable the thread throttling.",
    (gptr*) &srv_thread_concurrency, (gptr*) &srv_thread_concurrency,
-   0, GET_LONG, REQUIRED_ARG, 0, 0, 1000, 0, 1, 0},
+   0, GET_LONG, REQUIRED_ARG, 8, 0, 1000, 0, 1, 0},
   {"innodb_thread_sleep_delay", OPT_INNODB_THREAD_SLEEP_DELAY,
    "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0"
     " disable a sleep",
@@ -5560,7 +5599,7 @@ log and this option does nothing anymore.",
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
    (gptr*) &dflt_key_cache_var.param_age_threshold,
    (gptr*) 0,
-   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
+   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
    300, 100, ~0L, 0, 100, 0},
   {"key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,
    "The default size of key cache blocks",
@@ -5637,6 +5676,10 @@ The minimum value for this variable is 4096.",
     (gptr*) &global_system_variables.max_length_for_sort_data,
     (gptr*) &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
+  {"max_prepared_stmt_count", OPT_MAX_PREPARED_STMT_COUNT,
+   "Maximum number of prepared statements in the server.",
+   (gptr*) &max_prepared_stmt_count, (gptr*) &max_prepared_stmt_count,
+   0, GET_ULONG, REQUIRED_ARG, 16382, 0, 1*1024*1024, 0, 1, 0},
   {"max_relay_log_size", OPT_MAX_RELAY_LOG_SIZE,
    "If non-zero: relay log will be rotated automatically when the size exceeds this value; if zero (the default): when the size exceeds max_binlog_size. 0 excepted, the minimum value for this variable is 4096.",
    (gptr*) &max_relay_log_size, (gptr*) &max_relay_log_size, 0, GET_ULONG,
@@ -5867,23 +5910,6 @@ The minimum value for this variable is 4096.",
   {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default.",
    (gptr*) &opt_sync_frm, (gptr*) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
    0, 0, 0, 0},
-#ifdef HAVE_REPLICATION
-  {"sync-replication", OPT_SYNC_REPLICATION,
-   "Enable synchronous replication.",
-   (gptr*) &global_system_variables.sync_replication,
-   (gptr*) &global_system_variables.sync_replication,
-   0, GET_ULONG, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
-  {"sync-replication-slave-id", OPT_SYNC_REPLICATION_SLAVE_ID,
-   "Synchronous replication is wished for this slave.",
-   (gptr*) &global_system_variables.sync_replication_slave_id,
-   (gptr*) &global_system_variables.sync_replication_slave_id,
-   0, GET_ULONG, REQUIRED_ARG, 0, 0, ~0L, 0, 1, 0},
-  {"sync-replication-timeout", OPT_SYNC_REPLICATION_TIMEOUT,
-   "Synchronous replication timeout.",
-   (gptr*) &global_system_variables.sync_replication_timeout,
-   (gptr*) &global_system_variables.sync_replication_timeout,
-   0, GET_ULONG, REQUIRED_ARG, 10, 0, ~0L, 0, 1, 0},
-#endif /* HAVE_REPLICATION */
   {"table_cache", OPT_TABLE_CACHE,
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
    (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,
@@ -5936,10 +5962,6 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
    0, 1, 0},
-  {"sysdate-is-now", OPT_SYSDATE_IS_NOW,
-   "Non-default flag to alias SYSDATE() to NOW() to be safe-replicatable. Since 5.0 SYSDATE returns a `dynamic' value different for different invocation even within a query",
-   (gptr*) &global_system_variables.sysdate_is_now,
-   0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -5975,7 +5997,7 @@ struct show_var_st status_vars[]= {
   {"Com_drop_index",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_INDEX]), SHOW_LONG_STATUS},
   {"Com_drop_table",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_TABLE]), SHOW_LONG_STATUS},
   {"Com_drop_user",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_USER]), SHOW_LONG_STATUS},
-  {"Com_execute_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXECUTE]), SHOW_LONG_STATUS}, 
+  {"Com_execute_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXECUTE]), SHOW_LONG_STATUS},
   {"Com_flush",		       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_FLUSH]), SHOW_LONG_STATUS},
   {"Com_grant",		       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GRANT]), SHOW_LONG_STATUS},
   {"Com_ha_close",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_HA_CLOSE]), SHOW_LONG_STATUS},
@@ -6328,7 +6350,7 @@ static void mysql_init_variables(void)
   master_password= master_host= 0;
   master_info_file= (char*) "master.info",
     relay_log_info_file= (char*) "relay-log.info";
-  master_ssl_key= master_ssl_cert= master_ssl_ca= 
+  master_ssl_key= master_ssl_cert= master_ssl_ca=
     master_ssl_capath= master_ssl_cipher= 0;
   report_user= report_password = report_host= 0;	/* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
@@ -6349,7 +6371,7 @@ static void mysql_init_variables(void)
   global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
-  
+
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
@@ -6978,7 +7000,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       exit(1);
     }
     switch (method-1) {
-    case 0: 
+    case 0:
       method_conv= MI_STATS_METHOD_NULLS_EQUAL;
       break;
     case 1:
@@ -7392,8 +7414,62 @@ static void create_pid_file()
     (void) my_close(file, MYF(0));
   }
   sql_perror("Can't start server: can't create PID file");
-  exit(1);  
+  exit(1);
 }
+
+
+/* Clear most status variables */
+void refresh_status(THD *thd)
+{
+  pthread_mutex_lock(&LOCK_status);
+
+  /* We must update the global status before cleaning up the thread */
+  add_to_status(&global_status_var, &thd->status_var);
+  bzero((char*) &thd->status_var, sizeof(thd->status_var));
+
+  for (struct show_var_st *ptr=status_vars; ptr->name; ptr++)
+  {
+    if (ptr->type == SHOW_LONG)
+      *(ulong*) ptr->value= 0;
+  }
+  /* Reset the counters of all key caches (default and named). */
+  process_key_caches(reset_key_cache_counters);
+  pthread_mutex_unlock(&LOCK_status);
+
+  /*
+    Set max_used_connections to the number of currently open
+    connections.  Lock LOCK_thread_count out of LOCK_status to avoid
+    deadlocks.  Status reset becomes not atomic, but status data is
+    not exact anyway.
+  */
+  pthread_mutex_lock(&LOCK_thread_count);
+  max_used_connections= thread_count-delayed_insert_threads;
+  pthread_mutex_unlock(&LOCK_thread_count);
+}
+
+
+/*****************************************************************************
+  Instantiate have_xyx for missing storage engines
+*****************************************************************************/
+#undef have_berkeley_db
+#undef have_innodb
+#undef have_ndbcluster
+#undef have_example_db
+#undef have_archive_db
+#undef have_csv_db
+#undef have_federated_db
+#undef have_partition_db
+#undef have_blackhole_db
+
+SHOW_COMP_OPTION have_berkeley_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_example_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_archive_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_csv_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_federated_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_partition_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
 
 
 /*****************************************************************************

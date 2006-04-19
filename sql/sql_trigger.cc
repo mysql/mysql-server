@@ -87,7 +87,7 @@ static File_option trigname_file_parameters[]=
   {
     {(char *) STRING_WITH_LEN("trigger_table")},
     offsetof(struct st_trigname, trigger_table),
-   FILE_OPTIONS_ESTRING
+    FILE_OPTIONS_ESTRING
   },
   { { 0, 0 }, 0, FILE_OPTIONS_STRING }
 };
@@ -109,10 +109,6 @@ const LEX_STRING trg_event_type_names[]=
 
 static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig);
 
-bool handle_old_incorrect_sql_modes(char *&unknown_key, gptr base,
-                                    MEM_ROOT *mem_root,
-                                    char *end, gptr hook_data);
-
 class Handle_old_incorrect_sql_modes_hook: public Unknown_key_hook
 {
 private:
@@ -123,6 +119,20 @@ public:
   {};
   virtual bool process_unknown_string(char *&unknown_key, gptr base,
                                       MEM_ROOT *mem_root, char *end);
+};
+
+class Handle_old_incorrect_trigger_table_hook: public Unknown_key_hook
+{
+public:
+  Handle_old_incorrect_trigger_table_hook(char *file_path,
+                                          LEX_STRING *trigger_table_arg)
+    :path(file_path), trigger_table_value(trigger_table_arg)
+  {};
+  virtual bool process_unknown_string(char *&unknown_key, gptr base,
+                                      MEM_ROOT *mem_root, char *end);
+private:
+  char *path;
+  LEX_STRING *trigger_table_value;
 };
 
 /*
@@ -1130,6 +1140,9 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
   LEX_STRING path;
   File_parser *parser;
   struct st_trigname trigname;
+  Handle_old_incorrect_trigger_table_hook trigger_table_hook(
+                                          path_buff, &trigname.trigger_table);
+  
   DBUG_ENTER("add_table_for_trigger");
 
   strxnmov(path_buff, FN_REFLEN, mysql_data_home, "/", trig->m_db.str, "/",
@@ -1155,7 +1168,7 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
 
   if (parser->parse((gptr)&trigname, thd->mem_root,
                     trigname_file_parameters, 1,
-                    &file_parser_dummy_hook))
+                    &trigger_table_hook))
     DBUG_RETURN(0);
 
   /* We need to reset statement table list to be PS/SP friendly. */
@@ -1373,6 +1386,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
     This method tries to leave trigger related files in consistent state,
     i.e. it either will complete successfully, or will fail leaving files
     in their initial state.
+    Also this method assumes that subject table is not renamed to itself.
 
   RETURN VALUE
     FALSE  Success
@@ -1393,6 +1407,9 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   init_alloc_root(&table.mem_root, 8192, 0);
 
   safe_mutex_assert_owner(&LOCK_open);
+
+  DBUG_ASSERT(my_strcasecmp(table_alias_charset, db, new_db) ||
+              my_strcasecmp(table_alias_charset, old_table, new_table));
 
   if (Table_triggers_list::check_n_load(thd, db, old_table, &table, TRUE))
   {
@@ -1538,7 +1555,7 @@ Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
                                                             MEM_ROOT *mem_root,
                                                             char *end)
 {
-  DBUG_ENTER("handle_old_incorrect_sql_modes");
+  DBUG_ENTER("Handle_old_incorrect_sql_modes_hook::process_unknown_string");
   DBUG_PRINT("info", ("unknown key:%60s", unknown_key));
 
   if (unknown_key + INVALID_SQL_MODES_LENGTH + 1 < end &&
@@ -1563,6 +1580,47 @@ Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
       1) to avoid problem with \0 in the junk after sql_modes
       2) to speed up skipping this line by parser.
     */
+    unknown_key= ptr-1;
+  }
+  DBUG_RETURN(FALSE);
+}
+
+/*
+  Trigger BUG#15921 compatibility hook. For details see
+  Handle_old_incorrect_sql_modes_hook::process_unknown_string().
+*/
+
+#define INVALID_TRIGGER_TABLE_LENGTH 15
+
+bool
+Handle_old_incorrect_trigger_table_hook::
+process_unknown_string(char *&unknown_key, gptr base, MEM_ROOT *mem_root,
+                       char *end)
+{
+  DBUG_ENTER("Handle_old_incorrect_trigger_table_hook::process_unknown_string");
+  DBUG_PRINT("info", ("unknown key:%60s", unknown_key));
+
+  if (unknown_key + INVALID_TRIGGER_TABLE_LENGTH + 1 < end &&
+      unknown_key[INVALID_TRIGGER_TABLE_LENGTH] == '=' &&
+      !memcmp(unknown_key, STRING_WITH_LEN("trigger_table")))
+  {
+    char *ptr= unknown_key + INVALID_TRIGGER_TABLE_LENGTH + 1;
+
+    DBUG_PRINT("info", ("trigger_table affected by BUG#15921 detected"));
+    push_warning_printf(current_thd,
+                        MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_OLD_FILE_FORMAT,
+                        ER(ER_OLD_FILE_FORMAT),
+                        (char *)path, "TRIGGER");
+
+    if (!(ptr= parse_escaped_string(ptr, end, mem_root, trigger_table_value)))
+    {
+      my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0), "trigger_table",
+               unknown_key);
+      DBUG_RETURN(TRUE);
+    }
+
+    /* Set parsing pointer to the last symbol of string (\n). */
     unknown_key= ptr-1;
   }
   DBUG_RETURN(FALSE);

@@ -93,9 +93,12 @@ SHOW CHARACTER SET WHERE charset like 'latin1%';
 # Test for information_schema.COLLATIONS &
 # SHOW COLLATION
 
+--replace_column 5 #
 select * from information_schema.COLLATIONS
 where COLLATION_NAME like 'latin1%';
+--replace_column 5 #
 SHOW COLLATION LIKE 'latin1%';
+--replace_column 5 #
 SHOW COLLATION WHERE collation like 'latin1%';
 
 select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY
@@ -141,6 +144,11 @@ a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
 mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) order by 1;
 select count(*) from information_schema.ROUTINES;
+
+create view v1 as select routine_schema, routine_name from information_schema.routines 
+order by routine_schema, routine_name;
+select * from v1;
+drop view v1;
 
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
@@ -728,15 +736,6 @@ select 1 from (select 1 from test.t1) a;
 use information_schema;
 select 1 from (select 1 from test.t1) a;
 use test;
-drop table t1;
-
-#
-# Bug #14290: character_maximum_length for text fields
-#
-
-create table t1(a blob, b text charset utf8, c text charset ucs2);
-select data_type, character_octet_length, character_maximum_length 
-  from information_schema.columns where table_name='t1';
 drop table t1;
 
 #

@@ -120,6 +120,7 @@ static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
+static byte *get_prepared_stmt_count(THD *thd);
 static byte *get_have_innodb(THD *thd);
 
 /*
@@ -204,7 +205,7 @@ sys_var_bool_ptr	sys_local_infile("local_infile",
 sys_var_trust_routine_creators
 sys_trust_routine_creators("log_bin_trust_routine_creators",
                            &trust_function_creators);
-sys_var_bool_ptr       
+sys_var_bool_ptr
 sys_trust_function_creators("log_bin_trust_function_creators",
                             &trust_function_creators);
 sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
@@ -257,6 +258,10 @@ sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
 					      fix_max_join_size);
 #endif
+static sys_var_long_ptr_global
+sys_max_prepared_stmt_count("max_prepared_stmt_count",
+                            &max_prepared_stmt_count,
+                            &LOCK_prepared_stmt_count);
 sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
                                                &max_relay_log_size,
                                                fix_max_relay_log_size);
@@ -371,17 +376,6 @@ sys_var_thd_table_type  sys_table_type("table_type",
 				       &SV::table_type);
 sys_var_thd_storage_engine sys_storage_engine("storage_engine",
 				       &SV::table_type);
-#ifdef HAVE_REPLICATION
-sys_var_sync_binlog_period sys_sync_binlog_period("sync_binlog", &sync_binlog_period);
-sys_var_thd_ulong	sys_sync_replication("sync_replication",
-                                               &SV::sync_replication);
-sys_var_thd_ulong	sys_sync_replication_slave_id(
-						"sync_replication_slave_id",
-                                               &SV::sync_replication_slave_id);
-sys_var_thd_ulong	sys_sync_replication_timeout(
-						"sync_replication_timeout",
-                                               &SV::sync_replication_timeout);
-#endif
 sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
 sys_var_long_ptr	sys_table_cache_size("table_cache",
 					     &table_cache_size);
@@ -531,6 +525,9 @@ static sys_var_readonly		sys_warning_count("warning_count",
 						  OPT_SESSION,
 						  SHOW_LONG,
 						  get_warning_count);
+static sys_var_readonly	sys_prepared_stmt_count("prepared_stmt_count",
+                                                OPT_GLOBAL, SHOW_LONG,
+                                                get_prepared_stmt_count);
 
 /* alias for last_insert_id() to be compatible with Sybase */
 #ifdef HAVE_REPLICATION
@@ -635,6 +632,7 @@ sys_var *sys_variables[]=
   &sys_max_heap_table_size,
   &sys_max_join_size,
   &sys_max_length_for_sort_data,
+  &sys_max_prepared_stmt_count,
   &sys_max_relay_log_size,
   &sys_max_seeks_for_key,
   &sys_max_sort_length,
@@ -658,6 +656,7 @@ sys_var *sys_variables[]=
   &sys_optimizer_prune_level,
   &sys_optimizer_search_depth,
   &sys_preload_buff_size,
+  &sys_prepared_stmt_count,
   &sys_pseudo_thread_id,
   &sys_query_alloc_block_size,
   &sys_query_cache_size,
@@ -698,12 +697,6 @@ sys_var *sys_variables[]=
   &sys_sql_warnings,
   &sys_sql_notes,
   &sys_storage_engine,
-#ifdef HAVE_REPLICATION
-  &sys_sync_binlog_period,
-  &sys_sync_replication,
-  &sys_sync_replication_slave_id,
-  &sys_sync_replication_timeout,
-#endif
   &sys_sync_frm,
   &sys_table_cache_size,
   &sys_table_lock_wait_timeout,
@@ -732,7 +725,7 @@ sys_var *sys_variables[]=
   &sys_innodb_thread_concurrency,
   &sys_innodb_commit_concurrency,
   &sys_innodb_flush_log_at_trx_commit,
-#endif  
+#endif
   &sys_trust_routine_creators,
   &sys_trust_function_creators,
   &sys_engine_condition_pushdown,
@@ -793,7 +786,7 @@ struct show_var_st init_vars[]= {
   {sys_delayed_insert_timeout.name, (char*) &sys_delayed_insert_timeout, SHOW_SYS},
   {sys_delayed_queue_size.name,(char*) &sys_delayed_queue_size,     SHOW_SYS},
   {sys_div_precincrement.name,(char*) &sys_div_precincrement,SHOW_SYS},
-  {sys_engine_condition_pushdown.name, 
+  {sys_engine_condition_pushdown.name,
    (char*) &sys_engine_condition_pushdown,                          SHOW_SYS},
   {sys_expire_logs_days.name, (char*) &sys_expire_logs_days,        SHOW_SYS},
   {sys_flush.name,             (char*) &sys_flush,                  SHOW_SYS},
@@ -903,6 +896,8 @@ struct show_var_st init_vars[]= {
   {sys_max_join_size.name,	(char*) &sys_max_join_size,	    SHOW_SYS},
   {sys_max_length_for_sort_data.name, (char*) &sys_max_length_for_sort_data,
    SHOW_SYS},
+  {sys_max_prepared_stmt_count.name, (char*) &sys_max_prepared_stmt_count,
+    SHOW_SYS},
   {sys_max_relay_log_size.name, (char*) &sys_max_relay_log_size,    SHOW_SYS},
   {sys_max_seeks_for_key.name,  (char*) &sys_max_seeks_for_key,	    SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
@@ -919,9 +914,9 @@ struct show_var_st init_vars[]= {
   {sys_myisam_repair_threads.name, (char*) &sys_myisam_repair_threads,
    SHOW_SYS},
   {sys_myisam_sort_buffer_size.name, (char*) &sys_myisam_sort_buffer_size, SHOW_SYS},
-  
+
   {sys_myisam_stats_method.name, (char*) &sys_myisam_stats_method, SHOW_SYS},
-  
+
 #ifdef __NT__
   {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_MY_BOOL},
 #endif
@@ -945,6 +940,7 @@ struct show_var_st init_vars[]= {
   {sys_optimizer_search_depth.name,(char*) &sys_optimizer_search_depth,
    SHOW_SYS},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
+  {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
@@ -996,15 +992,7 @@ struct show_var_st init_vars[]= {
   {"sql_notes",               (char*) &sys_sql_notes,               SHOW_BOOL},
   {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_BOOL},
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
-#ifdef HAVE_REPLICATION
-  {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
-#endif
   {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
-#ifdef HAVE_REPLICATION
-  {sys_sync_replication.name, (char*) &sys_sync_replication,        SHOW_SYS},
-  {sys_sync_replication_slave_id.name, (char*) &sys_sync_replication_slave_id,SHOW_SYS},
-  {sys_sync_replication_timeout.name, (char*) &sys_sync_replication_timeout,SHOW_SYS},
-#endif
 #ifdef HAVE_TZNAME
   {"system_time_zone",        system_time_zone,                     SHOW_CHAR},
 #endif
@@ -1191,7 +1179,7 @@ static void fix_tx_isolation(THD *thd, enum_var_type type)
 				thd->variables.tx_isolation);
 }
 
-static void fix_completion_type(THD *thd __attribute__(unused), 
+static void fix_completion_type(THD *thd __attribute__(unused),
 				enum_var_type type __attribute__(unused)) {}
 
 static int check_completion_type(THD *thd, set_var *var)
@@ -1259,7 +1247,7 @@ static void fix_query_cache_size(THD *thd, enum_var_type type)
 #ifdef HAVE_QUERY_CACHE
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type)
 {
-  query_cache_min_res_unit= 
+  query_cache_min_res_unit=
     query_cache.set_min_res_unit(query_cache_min_res_unit);
 }
 #endif
@@ -1323,7 +1311,7 @@ static int check_max_delayed_threads(THD *thd, set_var *var)
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
 #ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(max_connections + 
+  resize_thr_alarm(max_connections +
 		   global_system_variables.max_insert_delayed_threads + 10);
 #endif
 }
@@ -1354,29 +1342,40 @@ static void fix_server_id(THD *thd, enum_var_type type)
   server_id_supplied = 1;
 }
 
-bool sys_var_long_ptr::check(THD *thd, set_var *var)
+
+sys_var_long_ptr::
+sys_var_long_ptr(const char *name_arg, ulong *value_ptr,
+                 sys_after_update_func after_update_arg)
+  :sys_var_long_ptr_global(name_arg, value_ptr,
+                           &LOCK_global_system_variables, after_update_arg)
+{}
+
+
+bool sys_var_long_ptr_global::check(THD *thd, set_var *var)
 {
   longlong v= var->value->val_int();
   var->save_result.ulonglong_value= v < 0 ? 0 : v;
   return 0;
 }
 
-bool sys_var_long_ptr::update(THD *thd, set_var *var)
+bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  pthread_mutex_lock(guard);
   if (option_limits)
     *value= (ulong) getopt_ull_limit_value(tmp, option_limits);
   else
     *value= (ulong) tmp;
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  pthread_mutex_unlock(guard);
   return 0;
 }
 
 
-void sys_var_long_ptr::set_default(THD *thd, enum_var_type type)
+void sys_var_long_ptr_global::set_default(THD *thd, enum_var_type type)
 {
+  pthread_mutex_lock(guard);
   *value= (ulong) option_limits->def_value;
+  pthread_mutex_unlock(guard);
 }
 
 
@@ -1490,7 +1489,7 @@ bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
-    pthread_mutex_lock(&LOCK_global_system_variables);    
+    pthread_mutex_lock(&LOCK_global_system_variables);
     global_system_variables.*offset= (ha_rows) tmp;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
@@ -1864,7 +1863,7 @@ bool sys_var_thd_date_time_format::check(THD *thd, set_var *var)
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, res->c_ptr());
     return 1;
   }
-  
+
   /*
     We must copy result to thread space to not get a memory leak if
     update is aborted
@@ -1921,7 +1920,7 @@ typedef struct old_names_map_st
   const char *new_name;
 } my_old_conv;
 
-static my_old_conv old_conv[]= 
+static my_old_conv old_conv[]=
 {
   {	"cp1251_koi8"		,	"cp1251"	},
   {	"cp1250_latin2"		,	"cp1250"	},
@@ -1939,7 +1938,7 @@ static my_old_conv old_conv[]=
 CHARSET_INFO *get_old_charset_by_name(const char *name)
 {
   my_old_conv *conv;
- 
+
   for (conv= old_conv; conv->old_name; conv++)
   {
     if (!my_strcasecmp(&my_charset_latin1, name, conv->old_name))
@@ -2320,7 +2319,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   key_cache= get_key_cache(base_name);
-                            
+
   if (!key_cache)
   {
     /* Key cache didn't exists */
@@ -2357,7 +2356,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 	Move tables using this key cache to the default key cache
 	and clear the old key cache.
       */
-      NAMED_LIST *list; 
+      NAMED_LIST *list;
       key_cache= (KEY_CACHE *) find_named(&key_caches, base_name->str,
 					      base_name->length, &list);
       key_cache->in_init= 1;
@@ -2386,7 +2385,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
     error= (bool)(ha_resize_key_cache(key_cache));
 
   pthread_mutex_lock(&LOCK_global_system_variables);
-  key_cache->in_init= 0;  
+  key_cache->in_init= 0;
 
 end:
   pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -2435,7 +2434,7 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
   error= (bool) (ha_resize_key_cache(key_cache));
 
   pthread_mutex_lock(&LOCK_global_system_variables);
-  key_cache->in_init= 0;  
+  key_cache->in_init= 0;
 
 end:
   pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -2608,7 +2607,7 @@ bool sys_var_thd_time_zone::update(THD *thd, set_var *var)
 byte *sys_var_thd_time_zone::value_ptr(THD *thd, enum_var_type type,
 				       LEX_STRING *base)
 {
-  /* 
+  /*
     We can use ptr() instead of c_ptr() here because String contaning
     time zone name is guaranteed to be zero ended.
   */
@@ -2762,7 +2761,7 @@ static bool set_log_update(THD *thd, set_var *var)
     See sql/mysqld.cc/, comments in function init_server_components() for an
     explaination of the different warnings we send below
   */
-    
+
   if (opt_sql_bin_update)
   {
     ((sys_var_thd_bit*) var->var)->bit_flag|= (OPTION_BIN_LOG |
@@ -2814,7 +2813,7 @@ static byte *get_warning_count(THD *thd)
 
 static byte *get_error_count(THD *thd)
 {
-  thd->sys_var_tmp.long_value= 
+  thd->sys_var_tmp.long_value=
     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR];
   return (byte*) &thd->sys_var_tmp.long_value;
 }
@@ -2825,6 +2824,14 @@ static byte *get_have_innodb(THD *thd)
   return (byte*) show_comp_option_name[have_innodb];
 }
 
+
+static byte *get_prepared_stmt_count(THD *thd)
+{
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  thd->sys_var_tmp.ulong_value= prepared_stmt_count;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+  return (byte*) &thd->sys_var_tmp.ulong_value;
+}
 
 /****************************************************************************
   Main handling of variables:
@@ -2846,7 +2853,7 @@ static byte *get_have_innodb(THD *thd)
     ptr		pointer to option structure
 */
 
-static struct my_option *find_option(struct my_option *opt, const char *name) 
+static struct my_option *find_option(struct my_option *opt, const char *name)
 {
   uint length=strlen(name);
   for (; opt->name; opt++)
@@ -3254,7 +3261,7 @@ void sys_var_thd_table_type::warn_deprecated(THD *thd)
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 		      ER_WARN_DEPRECATED_SYNTAX,
 		      ER(ER_WARN_DEPRECATED_SYNTAX), "table_type",
-                      "storage_engine"); 
+                      "storage_engine");
 }
 
 void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
@@ -3353,7 +3360,7 @@ void fix_sql_mode_var(THD *thd, enum_var_type type)
 ulong fix_sql_mode(ulong sql_mode)
 {
   /*
-    Note that we dont set 
+    Note that we dont set
     MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS | MODE_NO_FIELD_OPTIONS
     to allow one to get full use of MySQL in this mode.
   */
@@ -3362,7 +3369,7 @@ ulong fix_sql_mode(ulong sql_mode)
   {
     sql_mode|= (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
 		MODE_IGNORE_SPACE);
-    /* 
+    /*
       MODE_ONLY_FULL_GROUP_BY removed from ANSI mode because it is currently
       overly restrictive (see BUG#8510).
     */
@@ -3447,7 +3454,7 @@ static KEY_CACHE *create_key_cache(const char *name, uint length)
   KEY_CACHE *key_cache;
   DBUG_ENTER("create_key_cache");
   DBUG_PRINT("enter",("name: %.*s", length, name));
-  
+
   if ((key_cache= (KEY_CACHE*) my_malloc(sizeof(KEY_CACHE),
 					     MYF(MY_ZEROFILL | MY_WME))))
   {
@@ -3514,7 +3521,7 @@ void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 		      ER_WARN_DEPRECATED_SYNTAX,
 		      ER(ER_WARN_DEPRECATED_SYNTAX), "log_bin_trust_routine_creators",
-                      "log_bin_trust_function_creators"); 
+                      "log_bin_trust_function_creators");
 }
 
 void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)

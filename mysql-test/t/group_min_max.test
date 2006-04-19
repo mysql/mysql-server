@@ -641,6 +641,14 @@ explain select a1,a2,count(a2) from t1 group by a1,a2,b;
 explain select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
 explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 
+
+#
+# Bug #16710: select distinct doesn't return all it should
+#
+
+explain select distinct(a1) from t1 where ord(a2) = 98;
+select distinct(a1) from t1 where ord(a2) = 98;
+
 #
 # BUG#11044: DISTINCT or GROUP BY queries with equality predicates instead of MIN/MAX.
 #
@@ -736,3 +744,41 @@ SELECT DISTINCT a FROM t1 WHERE a LIKE 'B%';
 SELECT a FROM t1 WHERE a LIKE 'B%' GROUP BY a;
 
 DROP TABLE t1;
+
+
+#
+# Bug #15102: select distinct returns empty result, select count 
+#             distinct > 0 (correct)
+#
+
+CREATE TABLE t1 (
+   a int(11) NOT NULL DEFAULT '0',
+   b varchar(16) COLLATE latin1_general_ci NOT NULL DEFAULT '',
+   PRIMARY KEY  (a,b)
+ ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+
+delimiter |;
+
+CREATE PROCEDURE a(x INT)
+BEGIN
+  DECLARE rnd INT;
+  DECLARE cnt INT;
+
+  WHILE x > 0 DO
+    SET rnd= x % 100;
+    SET cnt = (SELECT COUNT(*) FROM t1 WHERE a = rnd);
+    INSERT INTO t1(a,b) VALUES (rnd, CAST(cnt AS CHAR));
+    SET x= x - 1;
+  END WHILE;
+END|
+
+DELIMITER ;|
+
+CALL a(1000);
+
+SELECT a FROM t1 WHERE a=0;
+SELECT DISTINCT a FROM t1 WHERE a=0;
+SELECT COUNT(DISTINCT a) FROM t1 WHERE a=0;
+
+DROP TABLE t1;
+DROP PROCEDURE a;

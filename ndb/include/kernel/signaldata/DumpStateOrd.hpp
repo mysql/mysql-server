@@ -64,6 +64,7 @@ public:
     // 19 NDBFS Fipple with O_SYNC, O_CREATE etc.
     // 20-24 BACKUP
     NdbcntrTestStopOnError = 25,
+    NdbcntrStopNodes = 70,
     // 100-105 TUP and ACC  
     // 200-240 UTIL
     // 300-305 TRIX
@@ -126,7 +127,11 @@ public:
     DihAllAllowNodeStart = 7016,
     DihMinTimeBetweenLCP = 7017,
     DihMaxTimeBetweenLCP = 7018,
+    // 7019
+    // 7020
+    // 7021
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
+    DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,
     // 8000 Suma
     // 12000 Tux

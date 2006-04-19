@@ -1821,7 +1821,7 @@ Variable_name	Value
 innodb_sync_spin_loops	20
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
-innodb_thread_concurrency	0
+innodb_thread_concurrency	8
 set global innodb_thread_concurrency=1001;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
@@ -3232,3 +3232,47 @@ drop trigger t2t;
 drop trigger t3t;
 drop trigger t4t;
 drop table t1, t2, t3, t4, t5;
+create table t1(a date) engine=innodb;
+create table t2(a date, key(a)) engine=innodb;
+insert into t1 values('2005-10-01');
+insert into t2 values('2005-10-01');
+select * from t1, t2
+where t2.a between t1.a - interval 2 day and t1.a + interval 2 day;
+a	a
+2005-10-01	2005-10-01
+drop table t1, t2;
+CREATE TABLE t1 (
+a BIGINT(20) NOT NULL,
+PRIMARY KEY  (a)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+CREATE TABLE t2 (
+a BIGINT(20) NOT NULL,
+b VARCHAR(128) NOT NULL,
+c TEXT NOT NULL,
+PRIMARY KEY  (a,b),
+KEY idx_t2_b_c (b,c(200)),
+CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a) 
+ON DELETE CASCADE
+) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1, 'bar', 'vbar');
+INSERT INTO t2 VALUES (1, 'BAR2', 'VBAR');
+INSERT INTO t2 VALUES (1, 'bar_bar', 'bibi');
+INSERT INTO t2 VALUES (1, 'customer_over', '1');
+SELECT * FROM t2 WHERE b = 'customer_over';
+a	b	c
+1	customer_over	1
+SELECT * FROM t2 WHERE BINARY b = 'customer_over';
+a	b	c
+1	customer_over	1
+SELECT DISTINCT p0.a FROM t2 p0 WHERE p0.b = 'customer_over';
+a
+1
+/* Bang: Empty result set, above was expected: */
+SELECT DISTINCT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
+a
+1
+SELECT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
+a
+1
+drop table t2, t1;

@@ -72,6 +72,9 @@ bool get_file_options_ulllist(char *&ptr, char *end, char *line,
                               gptr base, File_option *parameter,
                               MEM_ROOT *mem_root);
 
+char *
+parse_escaped_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str);
+
 class File_parser;
 File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 			       MEM_ROOT *mem_root, bool bad_format_errors);

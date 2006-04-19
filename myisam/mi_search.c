@@ -1471,7 +1471,7 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
     if (!*key++)
     {
       s_temp->key=key;
-      s_temp->ref_length=s_temp->key_length=0;
+      s_temp->key_length= 0;
       s_temp->totlength=key_length-1+diff_flag;
       s_temp->next_key_pos=0;                   /* No next key */
       return (s_temp->totlength);
@@ -1626,12 +1626,12 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
             s_temp->prev_length= org_key_length;
             s_temp->n_ref_length=s_temp->n_length=  org_key_length;
             length+=           org_key_length;
-            /* +get_pack_length(org_key_length); */
           }
           return (int) length;
         }
 
         ref_length=n_length;
+        /* Get information about not packed key suffix */
         get_key_pack_length(n_length,next_length_pack,next_key);
 
         /* Test if new keys has fewer characters that match the previous key */
@@ -1640,7 +1640,6 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
           s_temp->part_of_prev_key=     0;
           s_temp->prev_length=          ref_length;
           s_temp->n_ref_length= s_temp->n_length= n_length+ref_length;
-          /* s_temp->prev_key+=         get_pack_length(org_key_length); */
           return (int) length+ref_length-next_length_pack;
         }
         if (ref_length+pack_marker > new_ref_length)
@@ -1651,9 +1650,7 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
           s_temp->prev_length=      ref_length - new_pack_length;
           s_temp->n_ref_length=s_temp->n_length=n_length + s_temp->prev_length;
           s_temp->prev_key+=        new_pack_length;
-/*                                  +get_pack_length(org_key_length); */
-          length= length-get_pack_length(ref_length)+
-            get_pack_length(new_pack_length);
+          length-= (next_length_pack - get_pack_length(s_temp->n_length));
           return (int) length + s_temp->prev_length;
         }
       }
@@ -1662,7 +1659,7 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
         /* Next key wasn't a prefix of previous key */
         ref_length=0;
         next_length_pack=0;
-     }
+      }
       DBUG_PRINT("test",("length: %d  next_key: %lx", length,
                          (long) next_key));
 

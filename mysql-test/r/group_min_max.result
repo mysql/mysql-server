@@ -1954,6 +1954,15 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	Using where; Using index
+explain select distinct(a1) from t1 where ord(a2) = 98;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	idx_t1_1	163	NULL	128	Using where; Using index
+select distinct(a1) from t1 where ord(a2) = 98;
+a1
+a
+b
+c
+d
 explain select a1 from t1 where a2 = 'b' group by a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	130	NULL	5	Using where; Using index for group-by
@@ -2070,3 +2079,40 @@ SELECT a FROM t1 WHERE a LIKE 'B%' GROUP BY a;
 a
 BB
 DROP TABLE t1;
+CREATE TABLE t1 (
+a int(11) NOT NULL DEFAULT '0',
+b varchar(16) COLLATE latin1_general_ci NOT NULL DEFAULT '',
+PRIMARY KEY  (a,b)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+CREATE PROCEDURE a(x INT)
+BEGIN
+DECLARE rnd INT;
+DECLARE cnt INT;
+WHILE x > 0 DO
+SET rnd= x % 100;
+SET cnt = (SELECT COUNT(*) FROM t1 WHERE a = rnd);
+INSERT INTO t1(a,b) VALUES (rnd, CAST(cnt AS CHAR));
+SET x= x - 1;
+END WHILE;
+END|
+CALL a(1000);
+SELECT a FROM t1 WHERE a=0;
+a
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+SELECT DISTINCT a FROM t1 WHERE a=0;
+a
+0
+SELECT COUNT(DISTINCT a) FROM t1 WHERE a=0;
+COUNT(DISTINCT a)
+1
+DROP TABLE t1;
+DROP PROCEDURE a;

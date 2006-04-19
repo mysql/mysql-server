@@ -5648,6 +5648,57 @@ drop function bug13575;
 drop table t3|
 
 #
+# BUG#16474: SP crashed MySQL
+# (when using "order by localvar", where 'localvar' is just that.
+#
+--disable_warnings
+drop procedure if exists bug16474_1|
+drop procedure if exists bug16474_2|
+--enable_warnings
+
+delete from t1|
+insert into t1 values ('c', 2), ('b', 3), ('a', 1)|
+
+create procedure bug16474_1()
+begin
+  declare x int;
+
+  select id from t1 order by x;
+end|
+
+# 
+# BUG#14945: Truncate table doesn't reset the auto_increment counter
+#
+--disable_warnings
+drop procedure if exists bug14945|
+--enable_warnings
+create table t3 (id int not null auto_increment primary key)|
+create procedure bug14945() deterministic truncate t3|
+insert into t3 values (null)|
+call bug14945()|
+insert into t3 values (null)|
+select * from t3|
+drop table t3|
+drop procedure bug14945|
+
+# This does NOT order by column index; variable is an expression.
+create procedure bug16474_2(x int)
+  select id from t1 order by x|
+
+call bug16474_1()|
+call bug16474_2(1)|
+call bug16474_2(2)|
+drop procedure bug16474_1|
+drop procedure bug16474_2|
+
+# For reference: user variables are expressions too and do not affect ordering.
+set @x = 2|
+select * from t1 order by @x|
+
+delete from t1|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

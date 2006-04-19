@@ -24,7 +24,7 @@
 
 struct sp_cond_type;
 class sp_cursor;
-struct sp_pvar;
+struct sp_variable;
 class sp_lex_keeper;
 class sp_instr_cpush;
 
@@ -265,12 +265,12 @@ private:
 
 class Select_fetch_into_spvars: public select_result_interceptor
 {
-  List<struct sp_pvar> *spvar_list;
+  List<struct sp_variable> *spvar_list;
   uint field_count;
 public:
   Select_fetch_into_spvars() {}               /* Remove gcc warning */
   uint get_field_count() { return field_count; }
-  void set_spvar_list(List<struct sp_pvar> *vars) { spvar_list= vars; }
+  void set_spvar_list(List<struct sp_variable> *vars) { spvar_list= vars; }
 
   virtual bool send_eof() { return FALSE; }
   virtual bool send_data(List<Item> &items);
@@ -307,7 +307,7 @@ public:
   }
 
   int
-  fetch(THD *, List<struct sp_pvar> *vars);
+  fetch(THD *, List<struct sp_variable> *vars);
 
   inline sp_instr_cpush *
   get_instr()

@@ -129,6 +129,11 @@ public:
    */
   int deleteTuple();
 
+  /**
+   * Get index object for this operation
+   */
+  const NdbDictionary::Index * getIndex() const;
+
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Define the NdbIndexOperation to be a standard operation of type 

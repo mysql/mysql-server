@@ -12,7 +12,7 @@ explain extended select count(a) as b from t1 where a=0 having b >=0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select count(`test`.`t1`.`a`) AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 0) having (count(`test`.`t1`.`a`) >= 0)
+Note	1003	select count(`test`.`t1`.`a`) AS `b` from `test`.`t1` where 0 having (count(`test`.`t1`.`a`) >= 0)
 drop table t1;
 CREATE TABLE t1 (
 raw_id int(10) NOT NULL default '0',
@@ -359,3 +359,36 @@ group by s1 collate latin1_swedish_ci having s1 = 'y';
 s1	count(s1)
 y	1
 drop table t1;
+DROP SCHEMA IF EXISTS HU;
+CREATE SCHEMA HU ;
+USE HU ;
+CREATE TABLE STAFF
+(EMPNUM   CHAR(3) NOT NULL UNIQUE,
+EMPNAME  CHAR(20),
+GRADE    DECIMAL(4),
+CITY     CHAR(15));
+CREATE TABLE PROJ
+(PNUM     CHAR(3) NOT NULL UNIQUE,
+PNAME    CHAR(20),
+PTYPE    CHAR(6),
+BUDGET   DECIMAL(9),
+CITY     CHAR(15));
+INSERT INTO STAFF VALUES ('E1','Alice',12,'Deale');
+INSERT INTO STAFF VALUES ('E2','Betty',10,'Vienna');
+INSERT INTO STAFF VALUES ('E3','Carmen',13,'Vienna');
+INSERT INTO STAFF VALUES ('E4','Don',12,'Deale');
+INSERT INTO STAFF VALUES ('E5','Ed',13,'Akron');
+INSERT INTO PROJ VALUES  ('P1','MXSS','Design',10000,'Deale');
+INSERT INTO PROJ VALUES  ('P2','CALM','Code',30000,'Vienna');
+INSERT INTO PROJ VALUES  ('P3','SDP','Test',30000,'Tampa');
+INSERT INTO PROJ VALUES  ('P4','SDP','Design',20000,'Deale');
+INSERT INTO PROJ VALUES  ('P5','IRM','Test',10000,'Vienna');
+INSERT INTO PROJ VALUES  ('P6','PAYR','Design',50000,'Deale');
+SELECT EMPNUM, GRADE*1000
+FROM HU.STAFF WHERE GRADE * 1000 > 
+ANY (SELECT SUM(BUDGET) FROM HU.PROJ
+GROUP BY CITY, PTYPE
+HAVING HU.PROJ.CITY = HU.STAFF.CITY);
+EMPNUM	GRADE*1000
+E3	13000
+DROP SCHEMA HU;

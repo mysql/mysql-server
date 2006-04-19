@@ -3176,7 +3176,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
                                                      sizeof(ROR_SCAN_INFO*)*
                                                      best_num)))
     DBUG_RETURN(NULL);
-  memcpy(trp->first_scan, ror_scan_mark, best_num*sizeof(ROR_SCAN_INFO*));
+  memcpy(trp->first_scan, tree->ror_scans, best_num*sizeof(ROR_SCAN_INFO*));
   trp->last_scan=  trp->first_scan + best_num;
   trp->is_covering= TRUE;
   trp->read_cost= total_cost;
@@ -3604,9 +3604,18 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   /* Here when simple cond */
   if (cond->const_item())
   {
-    if (cond->val_int())
-      DBUG_RETURN(new SEL_TREE(SEL_TREE::ALWAYS));
-    DBUG_RETURN(new SEL_TREE(SEL_TREE::IMPOSSIBLE));
+    /*
+      During the cond->val_int() evaluation we can come across a subselect 
+      item which may allocate memory on the thd->mem_root and assumes 
+      all the memory allocated has the same life span as the subselect 
+      item itself. So we have to restore the thread's mem_root here.
+    */
+    MEM_ROOT *tmp_root= param->mem_root;
+    param->thd->mem_root= param->old_root;
+    tree= cond->val_int() ? new(tmp_root) SEL_TREE(SEL_TREE::ALWAYS) :
+                            new(tmp_root) SEL_TREE(SEL_TREE::IMPOSSIBLE);
+    param->thd->mem_root= tmp_root;
+    DBUG_RETURN(tree);
   }
 
   table_map ref_tables= 0;
@@ -6886,6 +6895,7 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
                    bool have_min, bool have_max,
                    double *read_cost, ha_rows *records);
 
+
 /*
   Test if this access method is applicable to a GROUP query with MIN/MAX
   functions, and if so, construct a new TRP object.
@@ -7292,11 +7302,36 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
       }
       else if (min_max_arg_part &&
                (min_max_arg_part - first_non_group_part > 0))
+      {
         /*
           There is a gap but no range tree, thus no predicates at all for the
           non-group keyparts.
         */
         goto next_index;
+      }
+      else if (first_non_group_part && join->conds)
+      {
+        /*
+          If there is no MIN/MAX function in the query, but some index
+          key part is referenced in the WHERE clause, then this index
+          cannot be used because the WHERE condition over the keypart's
+          field cannot be 'pushed' to the index (because there is no
+          range 'tree'), and the WHERE clause must be evaluated before
+          GROUP BY/DISTINCT.
+        */
+        /*
+          Store the first and last keyparts that need to be analyzed
+          into one array that can be passed as parameter.
+        */
+        KEY_PART_INFO *key_part_range[2];
+        key_part_range[0]= first_non_group_part;
+        key_part_range[1]= last_part;
+
+        /* Check if cur_part is referenced in the WHERE clause. */
+        if (join->conds->walk(&Item::find_item_in_field_list_processor,
+                              (byte*) key_part_range))
+          goto next_index;
+      }
     }
 
     /*

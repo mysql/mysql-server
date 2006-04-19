@@ -356,7 +356,7 @@ static int my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)),
 
 #ifdef REAL_MYSQL
 
-#define min_sort_char 0
+#define min_sort_char ' '
 #define max_sort_char '9'
 
 #define EXAMPLE
@@ -595,7 +595,7 @@ static MY_COLLATION_HANDLER my_collation_latin2_czech_ci_handler =
   my_strnxfrm_czech,
   my_strnxfrmlen_simple,
   my_like_range_czech,
-  my_wildcmp_8bit,
+  my_wildcmp_bin,
   my_strcasecmp_8bit,
   my_instr_simple,
   my_hash_sort_simple,

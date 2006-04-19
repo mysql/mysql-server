@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.20)
+AM_INIT_AUTOMAKE(mysql, 5.0.21)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -19,7 +19,7 @@ SHARED_LIB_VERSION=$SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=20
+NDB_VERSION_BUILD=21
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -805,6 +805,9 @@ AC_SUBST(WRAPLIBS)
 if test "$TARGET_LINUX" = "true"; then
   AC_MSG_CHECKING([for atomic operations])
 
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+
   atom_ops=
   AC_TRY_RUN([
 #include <asm/atomic.h>
@@ -839,6 +842,8 @@ int main()
 
   if test -z "$atom_ops"; then atom_ops="no"; fi
   AC_MSG_RESULT($atom_ops)
+
+  AC_LANG_RESTORE
 
   AC_ARG_WITH(pstack,
     [  --with-pstack           Use the pstack backtrace library],
@@ -1547,16 +1552,37 @@ else
 fi
 #---END:
 
-# Check for dlopen, needed for user definable functions
-# This must be checked after threads on AIX
-# We only need this for mysqld, not for the clients.
+# dlopen, dlerror
+case "$with_mysqld_ldflags " in
 
-my_save_LIBS="$LIBS"
-LIBS=""
-AC_CHECK_LIB(dl,dlopen)
-LIBDL=$LIBS
-LIBS="$my_save_LIBS"
-AC_SUBST(LIBDL)
+  *"-static "*)
+    # No need to check for dlopen when mysqld is linked with
+    # -all-static or -static as it won't be able to load any functions.
+    # NOTE! It would be better if it was possible to test if dlopen
+    # can be used, but a good way to test it couldn't be found
+
+    ;;
+
+  *)
+    # Check for dlopen, needed for user definable functions
+    # This must be checked after threads on AIX
+    # We only need this for mysqld, not for the clients.
+
+    my_save_LIBS="$LIBS"
+    LIBS=""
+    AC_CHECK_LIB(dl,dlopen)
+    LIBDL=$LIBS
+    LIBS="$my_save_LIBS"
+    AC_SUBST(LIBDL)
+
+    my_save_LIBS="$LIBS"
+    LIBS="$LIBS $LIBDL"
+    AC_CHECK_FUNCS(dlopen dlerror)
+    LIBS="$my_save_LIBS"
+
+    ;;
+esac
+
 
 # System characteristics
 case $SYSTEM_TYPE in
@@ -1924,11 +1950,6 @@ then
   AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
 fi]
 )
-
-my_save_LIBS="$LIBS"
-LIBS="$LIBS $LIBDL"
-AC_CHECK_FUNCS(dlopen dlerror)
-LIBS="$my_save_LIBS"
 
 # Check definition of gethostbyaddr_r (glibc2 defines this with 8 arguments)
 ac_save_CXXFLAGS="$CXXFLAGS"

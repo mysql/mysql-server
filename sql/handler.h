@@ -106,7 +106,7 @@
   Index scan will not return records in rowid order. Not guaranteed to be
   set for unordered (e.g. HASH) indexes.
 */
-#define HA_KEY_SCAN_NOT_ROR     128 
+#define HA_KEY_SCAN_NOT_ROR     128
 
 
 /* operations for disable/enable indexes */
@@ -231,7 +231,7 @@ struct xid_t {
   long bqual_length;
   char data[XIDDATASIZE];  // not \0-terminated !
 
-  xid_t() {}                                /* Remove gcc warning */  
+  xid_t() {}                                /* Remove gcc warning */
   bool eq(struct xid_t *xid)
   { return eq(xid->gtrid_length, xid->bqual_length, xid->data); }
   bool eq(long g, long b, const char *d)
@@ -319,7 +319,7 @@ typedef struct
   const char *name;
 
   /*
-    Historical marker for if the engine is available of not 
+    Historical marker for if the engine is available of not
   */
   SHOW_COMP_OPTION state;
 
@@ -333,7 +333,7 @@ typedef struct
     This is going away and new engines will just use "name" for this.
   */
   enum db_type db_type;
-  /* 
+  /*
     Method that initizlizes a storage engine
   */
   bool (*init)();
@@ -573,7 +573,7 @@ public:
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   virtual bool has_transactions(){ return 0;}
   virtual uint extra_rec_buf_length() { return 0; }
-  
+
   /*
     Return upper bound of current number of records in the table
     (max. of how many records one will retrieve when doing a full table scan)
@@ -726,7 +726,7 @@ public:
   int check_old_types();
   /* to be actually called to get 'check()' functionality*/
   int ha_check(THD *thd, HA_CHECK_OPT *check_opt);
-   
+
   virtual int backup(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   /*
@@ -815,7 +815,7 @@ public:
   */
   virtual int rename_table(const char *from, const char *to);
   virtual int delete_table(const char *name);
-  
+
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
 
   /* lock_count() can be more than one if the table is a MERGE */
@@ -829,7 +829,7 @@ public:
   /* ask handler about permission to cache table when query is to be cached */
   virtual my_bool register_query_cache_table(THD *thd, char *table_key,
 					     uint key_length,
-					     qc_engine_callback 
+					     qc_engine_callback
 					     *engine_callback,
 					     ulonglong *engine_data)
   {
@@ -847,7 +847,7 @@ public:
  {
    return memcmp(ref1, ref2, ref_length);
  }
- 
+
  /*
    Condition pushdown to storage engines
  */
@@ -856,7 +856,7 @@ public:
    Push condition down to the table handler.
    SYNOPSIS
      cond_push()
-     cond   Condition to be pushed. The condition tree must not be            
+     cond   Condition to be pushed. The condition tree must not be
      modified by the by the caller.
    RETURN
      The 'remainder' condition that caller must use to filter out records.
@@ -865,14 +865,14 @@ public:
    NOTES
    The pushed conditions form a stack (from which one can remove the
    last pushed condition using cond_pop).
-   The table handler filters out rows using (pushed_cond1 AND pushed_cond2 
+   The table handler filters out rows using (pushed_cond1 AND pushed_cond2
    AND ... AND pushed_condN)
    or less restrictive condition, depending on handler's capabilities.
-   
+
    handler->extra(HA_EXTRA_RESET) call empties the condition stack.
    Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the
    condition stack.
- */ 
+ */
  virtual const COND *cond_push(const COND *cond) { return cond; };
  /*
    Pop the top condition from the condition stack of the handler instance.
@@ -965,8 +965,3 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 */
 #define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
         !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
-
-/* semi-synchronous replication */
-int ha_repl_report_sent_binlog(THD *thd, char *log_file_name,
-                               my_off_t end_offset);
-int ha_repl_report_replication_stop(THD *thd);
