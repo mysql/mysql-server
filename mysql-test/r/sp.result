@@ -4848,4 +4848,14 @@ c	2
 b	3
 a	1
 delete from t1|
+drop procedure if exists bug18787|
+create procedure bug18787()
+begin
+declare continue handler for sqlexception begin end;
+select no_such_function();
+end|
+call bug18787()|
+no_such_function()
+NULL
+drop procedure bug18787|
 drop table t1,t2;
