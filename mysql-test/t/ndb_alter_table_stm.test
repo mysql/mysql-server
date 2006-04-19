@@ -17,6 +17,12 @@ select * from t1 where c = 'two';
 connection server1;
 alter table t1 drop index c;
 connection server2;
+
+--disable_result_log
+--error 0,1412
+select * from t1 where c = 'two';
+--enable_result_log
+
 select * from t1 where c = 'two';
 connection server1;
 drop table t1;
