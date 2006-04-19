@@ -424,9 +424,10 @@ static uint read_ddl_log_header()
   bzero(file_entry_buf, sizeof(global_ddl_log.file_entry_buf));
   global_ddl_log.inited= FALSE;
   global_ddl_log.recovery_phase= TRUE;
+  global_ddl_log.io_size= IO_SIZE;
   create_ddl_log_file_name(file_name);
-  if (!(global_ddl_log.file_id= my_open(file_name,
-                                        O_RDWR | O_BINARY, MYF(MY_WME))))
+  if ((global_ddl_log.file_id= my_open(file_name,
+                                        O_RDWR | O_BINARY, MYF(MY_WME))) >= 0)
   {
     if (read_ddl_log_file_entry(0UL))
     {
@@ -446,7 +447,6 @@ static uint read_ddl_log_header()
   }
   else
   {
-    global_ddl_log.io_size= IO_SIZE;
     entry_no= 0;
   }
   global_ddl_log.first_free= NULL;
@@ -519,6 +519,7 @@ static bool init_ddl_log()
     DBUG_RETURN(FALSE);
   }
   global_ddl_log.io_size= IO_SIZE;
+  create_ddl_log_file_name(file_name);
   if ((global_ddl_log.file_id= my_create(file_name,
                                          CREATE_MODE,
                                          O_RDWR | O_TRUNC | O_BINARY,
@@ -567,18 +568,19 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
   }
   handler_name.str= (char*)ddl_log_entry->handler_name;
   handler_name.length= strlen(ddl_log_entry->handler_name);
-  hton= ha_resolve_by_name(thd, &handler_name);
-  if (!hton)
-  {
-    my_error(ER_ILLEGAL_HA, MYF(0), ddl_log_entry->handler_name);
-    DBUG_RETURN(TRUE);
-  }
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0); 
   if (ddl_log_entry->handler_name[0] == 0)
     frm_action= TRUE;
   else
   {
     TABLE_SHARE dummy;
+
+    hton= ha_resolve_by_name(thd, &handler_name);
+    if (!hton)
+    {
+      my_error(ER_ILLEGAL_HA, MYF(0), ddl_log_entry->handler_name);
+      goto error;
+    }
     bzero(&dummy, sizeof(TABLE_SHARE));
     file= get_new_handler(&dummy, &mem_root, hton);
     if (!file)
