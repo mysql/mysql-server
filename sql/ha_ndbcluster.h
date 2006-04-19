@@ -523,11 +523,26 @@ enum THD_NDB_OPTIONS
   TNO_NO_LOG_SCHEMA_OP= 1 << 0
 };
 
+struct Ndb_local_table_statistics {
+  int no_uncommitted_rows_count;
+  ulong last_count;
+  ha_rows records;
+};
+
+typedef struct st_thd_ndb_share {
+  const void *key;
+  struct Ndb_local_table_statistics stat;
+} THD_NDB_SHARE;
+
 class Thd_ndb 
 {
  public:
   Thd_ndb();
   ~Thd_ndb();
+
+  void init_open_tables();
+  THD_NDB_SHARE *get_open_table(THD *thd, const void *key);
+
   Ndb *ndb;
   ulong count;
   uint lock_count;
@@ -536,6 +551,7 @@ class Thd_ndb
   int error;
   uint32 options;
   List<NDB_SHARE> changed_tables;
+  HASH open_tables;
 };
 
 class ha_ndbcluster: public handler
@@ -819,7 +835,7 @@ private:
   NdbScanOperation *m_active_cursor;
   const NdbDictionary::Table *m_table;
   int m_table_version;
-  void *m_table_info;
+  struct Ndb_local_table_statistics *m_table_info;
   char m_dbname[FN_HEADLEN];
   //char m_schemaname[FN_HEADLEN];
   char m_tabname[FN_HEADLEN];
@@ -827,6 +843,7 @@ private:
   THR_LOCK_DATA m_lock;
   NDB_SHARE *m_share;
   NDB_INDEX_DATA  m_index[MAX_KEY];
+  THD_NDB_SHARE *m_thd_ndb_share;
   // NdbRecAttr has no reference to blob
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   byte m_ref[NDB_HIDDEN_PRIMARY_KEY_LENGTH];
