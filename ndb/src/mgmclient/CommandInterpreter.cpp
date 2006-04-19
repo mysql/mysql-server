@@ -1151,7 +1151,7 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	  }
 	  if (node_state->node_group >= 0) {
 	    ndbout << ", Nodegroup: " << node_state->node_group;
-	    if (node_state->dynamic_id == master_id)
+	    if (master_id && node_state->dynamic_id == master_id)
 	      ndbout << ", Master";
 	  }
 	}
