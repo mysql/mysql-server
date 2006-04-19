@@ -81,7 +81,7 @@ void CleanUp();
     ::operator delete[](ptr, TaoCrypt::tc);
     }
 
-    #define NEW_TC new (tc)
+    #define NEW_TC new (TaoCrypt::tc)
 
 
     // to resolve compiler generated operator delete on base classes with
