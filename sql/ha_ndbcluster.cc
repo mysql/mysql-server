@@ -370,8 +370,11 @@ THD_NDB_SHARE *
 Thd_ndb::get_open_table(THD *thd, const void *key)
 {
   DBUG_ENTER("Thd_ndb::get_open_table");
+  HASH_SEARCH_STATE state;
   THD_NDB_SHARE *thd_ndb_share=
-    (THD_NDB_SHARE*)hash_search(&open_tables, (byte *)key, sizeof(key));
+    (THD_NDB_SHARE*)hash_first(&open_tables, (byte *)key, sizeof(key), &state);
+  while (thd_ndb_share && thd_ndb_share->key != key)
+    thd_ndb_share= (THD_NDB_SHARE*)hash_next(&open_tables, (byte *)key, sizeof(key), &state);
   if (thd_ndb_share == 0)
   {
     thd_ndb_share= (THD_NDB_SHARE *) alloc_root(&thd->transaction.mem_root,
@@ -379,7 +382,7 @@ Thd_ndb::get_open_table(THD *thd, const void *key)
     thd_ndb_share->key= key;
     my_hash_insert(&open_tables, (byte *)thd_ndb_share);
   }
-  DBUG_PRINT("exit", ("thd_ndb_share: 0x%x", thd_ndb_share));
+  DBUG_PRINT("exit", ("thd_ndb_share: 0x%x  key: 0x%x", thd_ndb_share, key));
   DBUG_RETURN(thd_ndb_share);
 }
 
