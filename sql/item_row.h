@@ -19,7 +19,6 @@ class Item_row: public Item
   Item **items;
   table_map used_tables_cache;
   uint arg_count;
-  bool array_holder;
   bool const_item_cache;
   bool with_null;
 public:
@@ -29,7 +28,6 @@ public:
     items(item->items),
     used_tables_cache(item->used_tables_cache),
     arg_count(item->arg_count),
-    array_holder(0), 
     const_item_cache(item->const_item_cache),
     with_null(0)
   {}
@@ -62,6 +60,7 @@ public:
     return 0;
   };
   bool fix_fields(THD *thd, Item **ref);
+  void cleanup();
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   table_map used_tables() const { return used_tables_cache; };
   bool const_item() const { return const_item_cache; };
