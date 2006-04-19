@@ -74,6 +74,8 @@
 
 static handler* example_create_handler(TABLE_SHARE *table);
 static int example_init_func();
+static bool example_init_func_for_handlerton();
+static int example_panic(enum ha_panic_function flag);
 
 handlerton example_hton= {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
@@ -81,7 +83,7 @@ handlerton example_hton= {
   SHOW_OPTION_YES,
   "Example storage engine", 
   DB_TYPE_EXAMPLE_DB,
-  (bool (*)()) example_init_func,
+  example_init_func_for_handlerton,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -99,7 +101,7 @@ handlerton example_hton= {
   NULL,    /* close_cursor_read_view */
   example_create_handler,    /* Create a new handler */
   NULL,    /* Drop a database */
-  NULL,    /* Panic call */
+  example_panic,    /* Panic call */
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
@@ -107,7 +109,10 @@ handlerton example_hton= {
   NULL,    /* Alter table flags */
   NULL,    /* Alter tablespace */
   NULL,    /* Fill Files table */
-  HTON_CAN_RECREATE
+  HTON_CAN_RECREATE,
+  NULL,
+  NULL,
+  NULL,
 };
 
 /* Variables for example share methods */
@@ -126,32 +131,43 @@ static byte* example_get_key(EXAMPLE_SHARE *share,uint *length,
   return (byte*) share->table_name;
 }
 
-
 static int example_init_func()
 {
+  DBUG_ENTER("example_init_func");
   if (!example_init)
   {
-    example_init++;
+    example_init= 1;
     VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
     (void) hash_init(&example_open_tables,system_charset_info,32,0,0,
                      (hash_get_key) example_get_key,0,0);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 static int example_done_func()
 {
+  int error= 0;
+  DBUG_ENTER("example_done_func");
+
   if (example_init)
   {
+    example_init= 0;
     if (example_open_tables.records)
-    {
-      return 1;
-    }
+      error= 1;
     hash_free(&example_open_tables);
     pthread_mutex_destroy(&example_mutex);
-    example_init--;
   }
-  return 0;
+  DBUG_RETURN(0);
+}
+
+static bool example_init_func_for_handlerton()
+{
+  return example_init_func();
+}
+
+static int example_panic(enum ha_panic_function flag)
+{
+  return example_done_func();
 }
 
 

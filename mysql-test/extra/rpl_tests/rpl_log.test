@@ -77,6 +77,11 @@ connection slave;
 # to go into the relay log (the master always sends a fake one when replication
 # starts). 
 start slave;
+#
+# This is timing out in pushbuild and should be changed to use
+# wait_slave_status.inc
+#
+sleep 2;
 sync_with_master;
 flush logs;
 stop slave;
