@@ -71,6 +71,7 @@ using TaoCrypt::DH;
 using TaoCrypt::EncodeDSA_Signature;
 using TaoCrypt::DecodeDSA_Signature;
 using TaoCrypt::PBKDF2_HMAC;
+using TaoCrypt::tcArrayDelete;
 
 
 
@@ -117,10 +118,36 @@ struct func_args {
 };
 
 
+/* 
+   DES, AES, Blowfish, and Twofish need aligned (4 byte) input/output for
+   processing, can turn this off by setting gpBlock(assumeAligned = false)
+   but would hurt performance.  yaSSL always uses dynamic memory so we have
+   at least 8 byte alignment.  This test tried to force alignment for stack
+   variables (for convenience) but some compiler versions and optimizations
+   seemed to be off.  So we have msgTmp variable which we copy into dynamic
+   memory at runtime to ensure proper alignment, along with plain/cipher.
+   Whew!
+*/
+const byte msgTmp[] = { // "now is the time for all " w/o trailing 0
+    0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+    0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
+    0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
+};
+
+byte* msg    = 0;   // for block cipher input
+byte* plain  = 0;   // for cipher decrypt comparison 
+byte* cipher = 0;   // block output
+
+
 void taocrypt_test(void* args)
 {
     ((func_args*)args)->return_code = -1; // error state
     
+    msg    = NEW_TC byte[24];
+    plain  = NEW_TC byte[24];
+    cipher = NEW_TC byte[24];
+
+    memcpy(msg, msgTmp, 24);
 
     int ret = 0;
     if ( (ret = sha_test()) ) 
@@ -193,6 +220,9 @@ void taocrypt_test(void* args)
     else
         printf( "PBKDF2   test passed!\n");
 
+    tcArrayDelete(cipher);
+    tcArrayDelete(plain);
+    tcArrayDelete(msg);
 
     ((func_args*)args)->return_code = ret;
 }
@@ -507,35 +537,26 @@ int des_test()
     DES_ECB_Encryption enc;
     DES_ECB_Decryption dec;
 
- 
+    const int sz = TaoCrypt::DES_BLOCK_SIZE * 3;
     const byte key[] = { 0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef };
     const byte iv[] =  { 0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef };
 
-    const byte vector[] = { // "Now is the time for all " w/o trailing 0
-        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
-        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
-        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
-    };
-
-    byte plain[24];
-    byte cipher[24];
-
     enc.SetKey(key, sizeof(key));
-    enc.Process(cipher, vector, sizeof(vector));
+    enc.Process(cipher, msg, sz);
     dec.SetKey(key, sizeof(key));
-    dec.Process(plain, cipher, sizeof(cipher));
+    dec.Process(plain, cipher, sz);
 
-    if (memcmp(plain, vector, sizeof(plain)))
+    if (memcmp(plain, msg, sz))
         return -50;
 
     const byte verify1[] = 
     {
-        0x3f,0xa4,0x0e,0x8a,0x98,0x4d,0x48,0x15,
+        0xf9,0x99,0xb8,0x8e,0xaf,0xea,0x71,0x53,
         0x6a,0x27,0x17,0x87,0xab,0x88,0x83,0xf9,
         0x89,0x3d,0x51,0xec,0x4b,0x56,0x3b,0x53
     };
 
-    if (memcmp(cipher, verify1, sizeof(cipher)))
+    if (memcmp(cipher, verify1, sz))
         return -51;
 
     // CBC mode
@@ -543,21 +564,21 @@ int des_test()
     DES_CBC_Decryption dec2;
 
     enc2.SetKey(key, sizeof(key), iv);
-    enc2.Process(cipher, vector, sizeof(vector));
+    enc2.Process(cipher, msg, sz);
     dec2.SetKey(key, sizeof(key), iv);
-    dec2.Process(plain, cipher, sizeof(cipher));
+    dec2.Process(plain, cipher, sz);
 
-    if (memcmp(plain, vector, sizeof(plain)))
+    if (memcmp(plain, msg, sz))
         return -52;
 
     const byte verify2[] = 
     {
-        0xe5,0xc7,0xcd,0xde,0x87,0x2b,0xf2,0x7c,
-        0x43,0xe9,0x34,0x00,0x8c,0x38,0x9c,0x0f,
-        0x68,0x37,0x88,0x49,0x9a,0x7c,0x05,0xf6
+        0x8b,0x7c,0x52,0xb0,0x01,0x2b,0x6c,0xb8,
+        0x4f,0x0f,0xeb,0xf3,0xfb,0x5f,0x86,0x73,
+        0x15,0x85,0xb3,0x22,0x4b,0x86,0x2b,0x4b
     };
 
-    if (memcmp(cipher, verify2, sizeof(cipher)))
+    if (memcmp(cipher, verify2, sz))
         return -53;
 
     // EDE3 CBC mode
@@ -579,21 +600,21 @@ int des_test()
     };
 
     enc3.SetKey(key3, sizeof(key3), iv3);
-    enc3.Process(cipher, vector, sizeof(vector));
+    enc3.Process(cipher, msg, sz);
     dec3.SetKey(key3, sizeof(key3), iv3);
-    dec3.Process(plain, cipher, sizeof(cipher));
+    dec3.Process(plain, cipher, sz);
 
-    if (memcmp(plain, vector, sizeof(plain)))
+    if (memcmp(plain, msg, sz))
         return -54;
 
     const byte verify3[] = 
     {
-        0x43,0xa0,0x29,0x7e,0xd1,0x84,0xf8,0x0e,
-        0x89,0x64,0x84,0x32,0x12,0xd5,0x08,0x98,
-        0x18,0x94,0x15,0x74,0x87,0x12,0x7d,0xb0
+        0x08,0x8a,0xae,0xe6,0x9a,0xa9,0xc1,0x13,
+        0x93,0x7d,0xf7,0x3a,0x11,0x56,0x66,0xb3,
+        0x18,0xbc,0xbb,0x6d,0xd2,0xb1,0x16,0xda
     };
 
-    if (memcmp(cipher, verify3, sizeof(cipher)))
+    if (memcmp(cipher, verify3, sz))
         return -55;
 
     return 0;
@@ -606,17 +627,8 @@ int aes_test()
     AES_CBC_Decryption dec;
     const int bs(TaoCrypt::AES::BLOCK_SIZE);
 
-    const byte msg[] = { // "Now is the time for all " w/o trailing 0
-        0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
-        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
-        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
-    };
-
     byte key[] = "0123456789abcdef   ";  // align
     byte iv[]  = "1234567890abcdef   ";  // align
-
-    byte cipher[bs];
-    byte plain [bs];
 
     enc.SetKey(key, bs, iv);
     dec.SetKey(key, bs, iv);
@@ -667,17 +679,8 @@ int twofish_test()
     Twofish_CBC_Decryption dec;
     const int bs(TaoCrypt::Twofish::BLOCK_SIZE);
 
-    const byte msg[] = { // "Now is the time for all " w/o trailing 0
-        0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
-        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
-        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
-    };
-
     byte key[] = "0123456789abcdef   ";  // align
     byte iv[]  = "1234567890abcdef   ";  // align
-
-    byte cipher[bs];
-    byte plain [bs];
 
     enc.SetKey(key, bs, iv);
     dec.SetKey(key, bs, iv);
@@ -728,17 +731,8 @@ int blowfish_test()
     Blowfish_CBC_Decryption dec;
     const int bs(TaoCrypt::Blowfish::BLOCK_SIZE);
 
-    const byte msg[] = { // "Now is the time for all " w/o trailing 0
-        0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
-        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
-        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
-    };
-
     byte key[] = "0123456789abcdef   ";  // align
     byte iv[]  = "1234567890abcdef   ";  // align
-
-    byte cipher[bs * 2];
-    byte plain [bs * 2];
 
     enc.SetKey(key, 16, iv);
     dec.SetKey(key, 16, iv);
@@ -805,7 +799,7 @@ int rsa_test()
 
     RSAES_Decryptor dec(priv);
     byte plain[64];
-    dec.Decrypt(cipher, sizeof(cipher), plain, rng);
+    dec.Decrypt(cipher, sizeof(plain), plain, rng);
 
     if (memcmp(plain, message, len))
         return -70;
