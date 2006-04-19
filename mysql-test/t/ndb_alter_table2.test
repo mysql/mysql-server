@@ -72,7 +72,10 @@ CREATE TABLE t1 (
 
 connection server1;
 
+--disable_result_log
+--error 0,1412
 select * from t1;
+--enable_result_log
 select * from t1;
 select * from t1;
 select * from t1;

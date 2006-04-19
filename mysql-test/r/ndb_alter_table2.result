@@ -28,7 +28,6 @@ b INT NOT NULL,
 c INT NOT NULL
 ) ENGINE=ndbcluster;
 select * from t1;
-a	b	c
 select * from t1;
 a	b	c
 select * from t1;
