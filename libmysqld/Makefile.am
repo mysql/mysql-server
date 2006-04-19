@@ -136,14 +136,17 @@ else
 		then \
 		  $(libmysqld_a_AR) libmysqld.a libmysqld_int.a $(INC_LIB) ; \
 		else \
+		  current_dir=`pwd`; \
 		  rm -rf tmp; mkdir tmp; \
 		  (for arc in ./libmysqld_int.a $(INC_LIB); do \
 		    arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
 		    artmp=`echo $$arc|sed 's|^.*/|tmp/lib-|'`; \
 		    for F in `$(AR) t $$arc`; do \
 		      if test -e "$$arpath/$$F" ; then echo "$$arpath/$$F"; else \
-		      mkdir $$artmp; cd $$artmp; $(AR) x ../../$$arc; \
-		      cd ../..; ls $$artmp/*; \
+		      mkdir $$artmp; cd $$artmp > /dev/null; \
+		      $(AR) x ../../$$arc; \
+		      cd $$current_dir > /dev/null; \
+		      ls $$artmp/*; \
 		      continue 2; fi; done; \
 		  done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a ; \
 		  $(RANLIB) libmysqld.a	; \
