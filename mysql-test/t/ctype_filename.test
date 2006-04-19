@@ -1,0 +1,21 @@
+--disable_warnings
+drop table if exists con, aux, nul, lpt1, com1, `clock$`;
+--enable_warnings
+
+create table con (a int);
+drop table con;
+
+create table aux (a int);
+drop table aux;
+
+create table nul (a int);
+drop table nul;
+
+create table lpt1 (a int);
+drop table lpt1;
+
+create table com1 (a int);
+drop table com1;
+
+create table `clock$` (a int);
+drop table `clock$`;

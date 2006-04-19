@@ -653,7 +653,7 @@ static struct my_option my_long_options[] =
    "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"socket", 'S', "Socket file to use for connection. (This will override --port unless --protocol=TCP is specified.)",
+  {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
@@ -939,14 +939,7 @@ static int get_options(int argc, char **argv)
     opt_reconnect= 0;
     connect_flag= 0; /* Not in interactive mode */
   }
-
-  if (opt_mysql_port && (!opt_protocol) && (!opt_mysql_unix_port))
-  {
-    /* Not checking return type since we are using a constant value */
-    /* straight from the initialization of sql_protocol_typelib.    */
-    opt_protocol= find_type("TCP", &sql_protocol_typelib, 0);
-  }
-
+  
   if (strcmp(default_charset, charset_info->csname) &&
       !(charset_info= get_charset_by_csname(default_charset, 
 					    MY_CS_PRIMARY, MYF(MY_WME))))

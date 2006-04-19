@@ -1,8 +1,0 @@
-
-Note that you have to use gnumake to build
-
-On ndbs05:
-use 'gmake' instead of 'make'
-
-On hfXXX:
-do 'module add make'
