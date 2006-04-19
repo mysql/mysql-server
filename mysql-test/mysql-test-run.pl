@@ -532,10 +532,10 @@ sub command_line_setup () {
 
   my $opt_master_myport=       9306;
   my $opt_slave_myport=        9308;
-  $opt_ndbcluster_port=        9350;
-  $opt_ndbcluster_port_slave=  9358;
-  my $im_port=                 9310;
-  my $im_mysqld1_port=         9312;
+  $opt_ndbcluster_port=        9310;
+  $opt_ndbcluster_port_slave=  9311;
+  my $im_port=                 9312;
+  my $im_mysqld1_port=         9313;
   my $im_mysqld2_port=         9314;
 
   #
