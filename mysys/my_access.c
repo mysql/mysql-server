@@ -60,17 +60,105 @@ int my_access(const char *path, int amode)
   List of file names that causes problem on windows
 
   NOTE that one can also not have file names of type CON.TXT
+  
+  NOTE: it is important to keep "CLOCK$" on the first place,
+  we skip it in check_if_legal_tablename.
 */
-
 static const char *reserved_names[]=
 {
-  "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6",
-  "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6",
-  "LPT7", "LPT8", "LPT9", "CLOCK$",
+  "CLOCK$",
+  "CON", "PRN", "AUX", "NUL",
+  "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+  "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
   NullS
 };
 
 #define MAX_RESERVED_NAME_LENGTH 6
+
+
+/*
+  Looks up a null-terminated string in a list,
+  case insensitively.
+ 
+  SYNOPSIS
+    str_list_find()
+    list        list of items
+    str         item to find
+
+  RETURN
+    0  ok
+    1  reserved file name
+*/
+static int str_list_find(const char **list, const char *str)
+{
+  const char **name;
+  for (name= list; *name; name++)
+  {
+    if (!my_strcasecmp(&my_charset_latin1, *name, str))
+      return 1;
+  }
+  return 0;
+}
+
+
+/*
+  A map for faster reserved_names lookup,
+  helps to avoid loops in many cases.
+  1 - can be the first letter
+  2 - can be the second letter
+  4 - can be the third letter
+*/
+static char reserved_map[256]=
+{
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ................ */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ................ */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /*  !"#$%&'()*+,-./ */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0123456789:;<=>? */
+  0,1,0,1,0,0,0,0,0,0,0,0,7,4,5,2, /* @ABCDEFGHIJKLMNO */
+  3,0,2,0,4,2,0,0,4,0,0,0,0,0,0,0, /* PQRSTUVWXYZ[\]^_ */
+  0,1,0,1,0,0,0,0,0,0,0,0,7,4,5,2, /* bcdefghijklmno */
+  3,0,2,0,4,2,0,0,4,0,0,0,0,0,0,0, /* pqrstuvwxyz{|}~. */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ................ */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ................ */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ................ */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ................ */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ................ */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ................ */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ................ */
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  /* ................ */
+};
+
+
+/*
+  Check if a table name may cause problems
+ 
+  SYNOPSIS
+    check_if_legal_tablename
+    name 	Table name (without any extensions)
+
+  DESCRIPTION
+    We don't check 'CLOCK$' because dollar sign is encoded as @0024,
+    making table file name 'CLOCK@0024', which is safe.
+    This is why we start lookup from the second element
+    (i.e. &reserver_name[1])
+
+  RETURN
+    0  ok
+    1  reserved file name
+*/
+
+int check_if_legal_tablename(const char *name)
+{
+  DBUG_ENTER("check_if_legal_tablename");
+  DBUG_RETURN((reserved_map[(uchar) name[0]] & 1) &&
+              (reserved_map[(uchar) name[1]] & 2) &&
+              (reserved_map[(uchar) name[2]] & 4) &&
+              str_list_find(&reserved_names[1], name));
+}
+
+
+#if defined(MSDOS) || defined(__WIN__) || defined(__EMX__)
+
 
 /*
   Check if a path will access a reserverd file name that may cause problems
