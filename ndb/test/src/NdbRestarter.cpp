@@ -174,6 +174,39 @@ NdbRestarter::getRandomNodeOtherNodeGroup(int nodeId, int rand){
   return -1;
 }
 
+int
+NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
+  if (!isConnected())
+    return -1;
+  
+  if (getStatus() != 0)
+    return -1;
+  
+  int node_group = -1;
+  for(size_t i = 0; i < ndbNodes.size(); i++){
+    if(ndbNodes[i].node_id == nodeId){
+      node_group = ndbNodes[i].node_group;
+      break;
+    }
+  }
+  if(node_group == -1){
+    return -1;
+  }
+
+  Uint32 counter = 0;
+  rand = rand % ndbNodes.size();
+  while(counter++ < ndbNodes.size() && 
+	(ndbNodes[rand].node_id == nodeId || 
+	 ndbNodes[rand].node_group != node_group))
+    rand = (rand + 1) % ndbNodes.size();
+  
+  if(ndbNodes[rand].node_group == node_group &&
+     ndbNodes[rand].node_id != nodeId)
+    return ndbNodes[rand].node_id;
+  
+  return -1;
+}
+
 int 
 NdbRestarter::waitClusterStarted(unsigned int _timeout){
   return waitClusterState(NDB_MGM_NODE_STATUS_STARTED, _timeout);

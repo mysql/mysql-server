@@ -1600,14 +1600,30 @@ btr_search_validate(void)
 	ulint		n_page_dumps	= 0;
 	ibool		ok		= TRUE;
 	ulint		i;
+	ulint		cell_count;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
+	/* How many cells to check before temporarily releasing
+	btr_search_latch. */
+	ulint		chunk_size = 10000;
 	
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
 	rw_lock_x_lock(&btr_search_latch);
 
-	for (i = 0; i < hash_get_n_cells(btr_search_sys->hash_index); i++) {
+	cell_count = hash_get_n_cells(btr_search_sys->hash_index);
+	
+	for (i = 0; i < cell_count; i++) {
+		/* We release btr_search_latch every once in a while to
+		give other queries a chance to run. */
+		if ((i != 0) && ((i % chunk_size) == 0)) {
+			rw_lock_x_unlock(&btr_search_latch);
+			os_thread_yield();
+			rw_lock_x_lock(&btr_search_latch);
+		}
+		
 		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
 
 		while (node != NULL) {
@@ -1660,10 +1676,21 @@ btr_search_validate(void)
 			node = node->next;
 		}
 	}
-	
-	if (!ha_validate(btr_search_sys->hash_index)) {
 
-		ok = FALSE;
+	for (i = 0; i < cell_count; i += chunk_size) {
+		ulint end_index = ut_min(i + chunk_size - 1, cell_count - 1);
+		
+		/* We release btr_search_latch every once in a while to
+		give other queries a chance to run. */
+		if (i != 0) {
+			rw_lock_x_unlock(&btr_search_latch);
+			os_thread_yield();
+			rw_lock_x_lock(&btr_search_latch);
+		}
+
+		if (!ha_validate(btr_search_sys->hash_index, i, end_index)) {
+			ok = FALSE;
+		}
 	}
 
 	rw_lock_x_unlock(&btr_search_latch);

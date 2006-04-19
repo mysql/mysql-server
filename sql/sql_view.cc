@@ -771,6 +771,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
   SELECT_LEX *end, *view_select;
   LEX *old_lex, *lex;
   Query_arena *arena, backup;
+  TABLE_LIST *top_view= table->top_table();
   int res;
   bool result;
   DBUG_ENTER("mysql_make_view");
@@ -796,6 +797,24 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
                ("VIEW %s.%s is already processed on previous PS/SP execution",
                 table->view_db.str, table->view_name.str));
     DBUG_RETURN(0);
+  }
+
+  /* check loop via view definition */
+  for (TABLE_LIST *precedent= table->referencing_view;
+       precedent;
+       precedent= precedent->referencing_view)
+  {
+    if (precedent->view_name.length == table->table_name_length &&
+        precedent->view_db.length == table->db_length &&
+        my_strcasecmp(system_charset_info,
+                      precedent->view_name.str, table->table_name) == 0 &&
+        my_strcasecmp(system_charset_info,
+                      precedent->view_db.str, table->db) == 0)
+    {
+      my_error(ER_VIEW_RECURSIVE, MYF(0),
+               top_view->view_db.str, top_view->view_name.str);
+      DBUG_RETURN(TRUE);
+    }
   }
 
   /*
@@ -896,7 +915,6 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
   }
   if (!res && !thd->is_fatal_error)
   {
-    TABLE_LIST *top_view= table->top_table();
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;
     TABLE_LIST *tbl;
@@ -938,6 +956,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
       tbl->skip_temporary= 1;
       tbl->belong_to_view= top_view;
       tbl->referencing_view= table;
+      tbl->prelocking_placeholder= table->prelocking_placeholder;
       /*
         First we fill want_privilege with SELECT_ACL (this is needed for the
         tables which belongs to view subqueries and temporary table views,

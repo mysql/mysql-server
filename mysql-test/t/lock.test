@@ -61,6 +61,24 @@ insert into t1 select index1,nr from t1 as t1_alias;
 drop table t1,t2;
 
 #
+# BUG#5390 - problems with merge tables
+# Supplement test for the after-fix optimization
+# Check that a dropped table is correctly removed from a lock.
+create table t1 (c1 int);
+create table t2 (c1 int);
+create table t3 (c1 int);
+lock tables t1 write, t2 write, t3 write;
+# This removes one table after the other from the lock.
+drop table t2, t3, t1;
+#
+# Check that a lock merge works.
+create table t1 (c1 int);
+create table t2 (c1 int);
+create table t3 (c1 int);
+lock tables t1 write, t2 write, t3 write, t1 as t4 read;
+alter table t2 add column c2 int;
+drop table t1, t2, t3;
+
 # Bug7241 - Invalid response when DELETE .. USING and LOCK TABLES used.
 #
 create table t1 ( a int(11) not null auto_increment, primary key(a));

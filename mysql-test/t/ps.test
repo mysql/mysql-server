@@ -114,6 +114,9 @@ set @fvar= 123.4567;
 prepare stmt1 from @fvar;
 
 drop table t1,t2;
+deallocate prepare stmt3;
+deallocate prepare stmt4;
+deallocate prepare stmt5;
 
 #
 # Bug #4105: Server crash on attempt to prepare a statement with character
@@ -257,6 +260,7 @@ prepare `Ã¼` from 'select 1234';
 execute `Ã¼` ;
 set names latin1;
 execute `ü`;
+deallocate prepare `ü`;
 set names default;
 
 
@@ -823,6 +827,7 @@ EXECUTE b12651;
 
 DROP VIEW b12651_V1;
 DROP TABLE b12651_T1, b12651_T2;
+DEALLOCATE PREPARE b12651;
 
 #
 # Bug#9359 "Prepared statements take snapshot of system vars at PREPARE
@@ -921,6 +926,143 @@ select length(a) from t1;
 drop table t1;
 deallocate prepare stmt;
 
+#
+# Bug#16248 "WHERE (col1,col2) IN ((?,?)) gives wrong results":
+# check that ROW implementation is reexecution-friendly.
+#
+create table t1 (col1 integer, col2 integer);
+insert into t1 values(100,100),(101,101),(102,102),(103,103);
+prepare stmt from 'select col1, col2 from t1 where (col1, col2) in ((?,?))';
+set @a=100, @b=100;
+execute stmt using @a,@b;
+set @a=101, @b=101;
+execute stmt using @a,@b;
+set @a=102, @b=102;
+execute stmt using @a,@b;
+set @a=102, @b=103;
+execute stmt using @a,@b;
+deallocate prepare stmt;
+drop table t1;
+
+#
+# Bug#16365 Prepared Statements: DoS with too many open statements
+# Check that the limit @@max_prpeared_stmt_count works.
+#
+# Save the old value
+set @old_max_prepared_stmt_count= @@max_prepared_stmt_count;
+#
+# Disable prepared statement protocol: in this test we set
+# @@max_prepared_stmt_count to 0 or 1 and would like to test the limit
+# manually.
+#
+--disable_ps_protocol
+#
+# A. Check that the new variables are present in SHOW VARIABLES list.
+#
+show variables like 'max_prepared_stmt_count';
+show variables like 'prepared_stmt_count';
+#
+# B. Check that the new variables are selectable.
+#
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+#
+# C. Check that max_prepared_stmt_count is settable (global only),
+#    whereas prepared_stmt_count is readonly.
+#
+set global max_prepared_stmt_count=-1;
+select @@max_prepared_stmt_count;
+set global max_prepared_stmt_count=10000000000000000;
+select @@max_prepared_stmt_count;
+set global max_prepared_stmt_count=default;
+select @@max_prepared_stmt_count;
+--error ER_GLOBAL_VARIABLE
+set @@max_prepared_stmt_count=1;
+--error ER_GLOBAL_VARIABLE
+set max_prepared_stmt_count=1;
+--error ER_GLOBAL_VARIABLE
+set local max_prepared_stmt_count=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set local prepared_stmt_count=0;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@prepared_stmt_count=0;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR 
+set global prepared_stmt_count=1;
+# set to a reasonable limit works
+set global max_prepared_stmt_count=1;
+select @@max_prepared_stmt_count;
+#
+# D. Check that the variables actually work.
+#
+set global max_prepared_stmt_count=0;
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
+prepare stmt from "select 1";
+select @@prepared_stmt_count;
+set global max_prepared_stmt_count=1;
+prepare stmt from "select 1";
+select @@prepared_stmt_count;
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
+prepare stmt1 from "select 1";
+select @@prepared_stmt_count;
+deallocate prepare stmt;
+select @@prepared_stmt_count;
+#
+# E. Check that we can prepare a statement with the same name 
+# successfully, without hitting the limit.
+#
+prepare stmt from "select 1";
+select @@prepared_stmt_count;
+prepare stmt from "select 2";
+select @@prepared_stmt_count;
+#
+# F. We can set the max below the current count. In this case no new 
+# statements should be allowed to prepare.
+#
+select @@prepared_stmt_count, @@max_prepared_stmt_count;
+set global max_prepared_stmt_count=0;
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
+prepare stmt from "select 1";
+# Result: the old statement is deallocated, the new is not created.
+--error 1243 # ER_UNKNOWN_STMT_HANDLER
+execute stmt;
+select @@prepared_stmt_count;
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
+prepare stmt from "select 1";
+select @@prepared_stmt_count;
+#
+# G. Show that the variables are up to date even after a connection with all
+# statements in it was terminated.
+#
+set global max_prepared_stmt_count=3;
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+prepare stmt from "select 1";
+connect (con1,localhost,root,,);
+connection con1;
+prepare stmt from "select 2";
+prepare stmt1 from "select 3";
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
+prepare stmt2 from "select 4";
+connection default;
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
+prepare stmt2 from "select 4";
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+disconnect con1;
+connection default;
+# Wait for the connection to die: deal with a possible race
+deallocate prepare stmt;
+let $count= `select @@prepared_stmt_count`;
+if ($count)
+{
+--sleep 2
+  let $count= `select @@prepared_stmt_count`;
+}
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+#
+# Restore the old value.
+#
+set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
+--enable_ps_protocol
+
 # End of 4.1 tests
 
 #
@@ -931,6 +1073,41 @@ create table t1 (id int);
 prepare ins_call from "insert into t1 (id) values (1)";
 execute ins_call;
 select row_count();
+drop table t1;
+
+#
+# BUG#16474: SP crashed MySQL
+# (when using "order by localvar", where 'localvar' is just that.
+# The actual bug test is in sp.test, this is just testing that we get the
+# expected result for prepared statements too, i.e. place holders work as
+# textual substitution. If it's a single integer, it works as the (deprecated)
+# "order by column#", otherwise it's an expression.
+#
+create table t1 (a int, b int);
+insert into t1 (a,b) values (2,8),(1,9),(3,7);
+
+# Will order by index
+prepare stmt from "select * from t1 order by ?";
+set @a=NULL;
+execute stmt using @a;
+set @a=1;
+execute stmt using @a;
+set @a=2;
+execute stmt using @a;
+deallocate prepare stmt;
+# For reference:
+select * from t1 order by 1;
+
+# Will not order by index.
+prepare stmt from "select * from t1 order by ?+1";
+set @a=0;
+execute stmt using @a;
+set @a=1;
+execute stmt using @a;
+deallocate prepare stmt;
+# For reference:
+select * from t1 order by 1+1;
+
 drop table t1;
 
 # End of 5.0 tests

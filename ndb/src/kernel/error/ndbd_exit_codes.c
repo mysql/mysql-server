@@ -85,6 +85,9 @@ static const ErrStruct errArray[] =
    */
    {NDBD_EXIT_OS_SIGNAL_RECEIVED, XIE, "Error OS signal received"},
 
+   {NDBD_EXIT_SR_RESTARTCONFLICT, XRE,
+    "Partial system restart causing conflicting file systems"},
+   
    /* VM */
    {NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,    XCR,
     "Signal lost, out of long signal memory, please increase LongMessageBuffer"},

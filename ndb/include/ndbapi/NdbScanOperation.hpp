@@ -177,7 +177,8 @@ public:
   int restart(bool forceSend = false);
   
 protected:
-  NdbScanOperation(Ndb* aNdb);
+  NdbScanOperation(Ndb* aNdb,
+                   NdbOperation::Type aType = NdbOperation::TableScan);
   virtual ~NdbScanOperation();
 
   int nextResultImpl(bool fetchAllowed = true, bool forceSend = false);

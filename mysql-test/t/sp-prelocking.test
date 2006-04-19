@@ -241,3 +241,34 @@ drop function f2;
 drop function f3;
 drop procedure sp1;
 
+#
+# Bug#15683 "crash, Function on nested VIEWs, Prepared statement"
+# Check that when creating the prelocking list a nested view 
+# is not merged until it's used.
+#
+--disable_warnings
+drop table if exists t1;
+drop view if exists v1, v2, v3;
+drop function if exists bug15683;
+--enable_warnings
+create table t1 (f1 bigint, f2 varchar(20), f3 bigint);
+insert into t1 set f1 = 1, f2 = 'schoenenbourg', f3 = 1;
+create view v1 as select 1 from t1 union all select 1;
+create view v2 as select 1 from v1;
+create view v3 as select 1 as f1 from v2;
+
+delimiter |;
+create function bug15683() returns bigint
+begin
+return (select count(*) from v3);
+end|
+delimiter ;|
+
+prepare stmt from "select bug15683()";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+drop table t1;
+drop view v1, v2, v3;
+drop function bug15683;
+

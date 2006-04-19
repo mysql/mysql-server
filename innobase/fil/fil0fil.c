@@ -3557,6 +3557,7 @@ fil_extend_space_to_desired_size(
 
 	*actual_size = space->size;
 
+#ifndef UNIV_HOTBACKUP
 	if (space_id == 0) {
 		ulint pages_per_mb = (1024 * 1024) / UNIV_PAGE_SIZE;
 
@@ -3566,6 +3567,7 @@ fil_extend_space_to_desired_size(
 		srv_data_file_sizes[srv_n_data_files - 1] =
 				(node->size / pages_per_mb) * pages_per_mb;
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	/*
         printf("Extended %s to %lu, actual size %lu pages\n", space->name,
@@ -3821,6 +3823,31 @@ fil_node_complete_io(
 }
 
 /************************************************************************
+Report information about an invalid page access. */
+static
+void
+fil_report_invalid_page_access(
+/*===========================*/
+	ulint		block_offset,	/* in: block offset */
+	ulint		space_id,	/* in: space id */
+	const char*	space_name,	/* in: space name */
+	ulint		byte_offset,	/* in: byte offset */
+	ulint		len,		/* in: I/O length */
+	ulint		type)		/* in: I/O type */
+{
+	fprintf(stderr,
+	"InnoDB: Error: trying to access page number %lu in space %lu,\n"
+	"InnoDB: space name %s,\n"
+	"InnoDB: which is outside the tablespace bounds.\n"
+	"InnoDB: Byte offset %lu, len %lu, i/o type %lu.\n"
+	"InnoDB: If you get this error at mysqld startup, please check that\n"
+	"InnoDB: your my.cnf matches the ibdata files that you have in the\n"
+	"InnoDB: MySQL server.\n",
+		(ulong) block_offset, (ulong) space_id, space_name,
+		(ulong) byte_offset, (ulong) len, (ulong) type);
+}
+
+/************************************************************************
 Reads or writes data. This operation is asynchronous (aio). */
 
 ulint
@@ -3926,14 +3953,8 @@ fil_io(
 
 	for (;;) {
 		if (node == NULL) {
-			fprintf(stderr,
-	"InnoDB: Error: trying to access page number %lu in space %lu,\n"
-	"InnoDB: space name %s,\n"
-	"InnoDB: which is outside the tablespace bounds.\n"
-	"InnoDB: Byte offset %lu, len %lu, i/o type %lu\n", 
- 			(ulong) block_offset, (ulong) space_id,
-			space->name, (ulong) byte_offset, (ulong) len,
-			(ulong) type);
+			fil_report_invalid_page_access(block_offset, space_id,
+				space->name, byte_offset, len, type);
  			
 			ut_error;
 		}
@@ -3962,15 +3983,10 @@ fil_io(
 	if (space->purpose == FIL_TABLESPACE && space->id != 0
 	    && node->size <= block_offset) {
 
-	        fprintf(stderr,
-	"InnoDB: Error: trying to access page number %lu in space %lu,\n"
-	"InnoDB: space name %s,\n"
-	"InnoDB: which is outside the tablespace bounds.\n"
-	"InnoDB: Byte offset %lu, len %lu, i/o type %lu\n", 
- 			(ulong) block_offset, (ulong) space_id,
-			space->name, (ulong) byte_offset, (ulong) len,
-			(ulong) type);
- 		ut_a(0);
+		fil_report_invalid_page_access(block_offset, space_id,
+			space->name, byte_offset, len, type);
+
+		ut_error;
 	}
 
 	/* Now we have made the changes in the data structures of system */

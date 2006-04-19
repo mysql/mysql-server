@@ -373,8 +373,10 @@ const char *command_names[]=
   "enable_rpl_parse",
   "disable_rpl_parse",
   "eval_result",
+  /* Enable/disable that the _query_ is logged to result file */
   "enable_query_log",
   "disable_query_log",
+  /* Enable/disable that the _result_ from a query is logged to result file */
   "enable_result_log",
   "disable_result_log",
   "server_start",
@@ -425,6 +427,7 @@ static VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 static void var_free(void* v);
 
 void dump_result_to_reject_file(const char *record_file, char *buf, int size);
+void dump_result_to_log_file(const char *record_file, char *buf, int size);
 
 int close_connection(struct st_query*);
 static void set_charset(struct st_query*);
@@ -615,6 +618,8 @@ static void die(const char *fmt, ...)
 {
   va_list args;
   DBUG_ENTER("die");
+
+  /* Print the error message */
   va_start(args, fmt);
   if (fmt)
   {
@@ -629,6 +634,12 @@ static void die(const char *fmt, ...)
     fflush(stderr);
   }
   va_end(args);
+
+  /* Dump the result that has been accumulated so far to .log file */
+  if (result_file && ds_res.length)
+    dump_result_to_log_file(result_file, ds_res.str, ds_res.length);
+
+  /* Clean up and exit */
   free_used_memory();
   my_end(MY_CHECK_ERROR);
 
@@ -752,8 +763,8 @@ err:
   check_result
   ds - content to be checked
   fname - name of file to check against
-  require_option - if set and check fails, the test will be aborted with the special
-                   exit code "not supported test"
+  require_option - if set and check fails, the test will be aborted
+                   with the special exit code "not supported test"
 
   RETURN VALUES
    error - the function will not return
@@ -3129,6 +3140,12 @@ void dump_result_to_reject_file(const char *record_file, char *buf, int size)
   str_to_file(fn_format(reject_file, record_file,"",".reject",2), buf, size);
 }
 
+void dump_result_to_log_file(const char *record_file, char *buf, int size)
+{
+  char log_file[FN_REFLEN];
+  str_to_file(fn_format(log_file, record_file,"",".log",2), buf, size);
+}
+
 
 #ifdef __WIN__
 
@@ -3708,7 +3725,17 @@ static void handle_error(const char *query, struct st_query *q,
   DBUG_ENTER("handle_error");
 
   if (q->require_file)
+  {
+    /*
+      The query after a "--require" failed. This is fine as long the server
+      returned a valid reponse. Don't allow 2013 or 2006 to trigger an
+      abort_not_supported_test
+     */
+    if (err_errno == CR_SERVER_LOST ||
+        err_errno == CR_SERVER_GONE_ERROR)
+      die("require query '%s' failed: %d: %s", query, err_errno, err_error);
     abort_not_supported_test();
+  }
 
   if (q->abort_on_error)
     die("query '%s' failed: %d: %s", query, err_errno, err_error);
@@ -4474,6 +4501,35 @@ static void init_var_hash(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
+static void mark_progress(int line)
+{
+#ifdef NOT_YET
+  static FILE* fp = NULL;
+  static double first;
+
+  struct timeval tv;
+  double now;
+
+  if (!fp)
+  {
+
+    fp = fopen("/tmp/mysqltest_progress.log", "wt");
+
+    if (!fp)
+    {
+      abort();
+    }
+
+    gettimeofday(&tv, NULL);
+    first = tv.tv_sec * 1e6 + tv.tv_usec;
+  }
+
+  gettimeofday(&tv, NULL);
+  now = tv.tv_sec * 1e6 + tv.tv_usec;
+
+  fprintf(fp, "%d %f\n", parser.current_line, (now - first) / 1e6);
+#endif
+}
 
 int main(int argc, char **argv)
 {
@@ -4824,6 +4880,7 @@ int main(int argc, char **argv)
     }
 
     parser.current_line += current_line_inc;
+    mark_progress(parser.current_line);
   }
 
   start_lineno= 0;

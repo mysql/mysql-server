@@ -2,6 +2,7 @@ drop table if exists t1, t2, t3, t4;
 drop view if exists v1;
 drop database if exists mysqltest;
 drop function if exists f1;
+drop function if exists f2;
 drop procedure if exists p1;
 create table t1 (i int);
 create trigger trg before insert on t1 for each row set @a:=1;
@@ -860,6 +861,37 @@ trigger_schema	trigger_name	event_object_schema	event_object_table	action_statem
 mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist
+alter table t1 rename to test.t1;
+ERROR HY000: Trigger in wrong schema
+insert into t1 values (103);
+select @a;
+@a
+103
+select trigger_schema, trigger_name, event_object_schema,
+event_object_table, action_statement from information_schema.triggers
+where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
+drop trigger test.t1_bi;
+ERROR HY000: Trigger does not exist
+alter table t1 rename to test.t1, add column val int default 0;
+ERROR HY000: Trigger in wrong schema
+insert into t1 values (104);
+select @a;
+@a
+104
+select trigger_schema, trigger_name, event_object_schema,
+event_object_table, action_statement from information_schema.triggers
+where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop trigger test.t1_bi;
+ERROR HY000: Trigger does not exist
 drop trigger t1_bi;
 drop table t1;
 drop database mysqltest;
@@ -897,3 +929,39 @@ create trigger t1_bi before insert on t1 for each row return 0;
 ERROR 42000: RETURN is only allowed in a FUNCTION
 insert into t1 values (1);
 drop table t1;
+create table t1 (a varchar(64), b int);
+create table t2 like t1;
+create trigger t1_ai after insert on t1 for each row
+set @a:= (select max(a) from t1);
+insert into t1 (a) values
+("Twas"),("brillig"),("and"),("the"),("slithy"),("toves"),
+("Did"),("gyre"),("and"),("gimble"),("in"),("the"),("wabe");
+create trigger t2_ai after insert on t2 for each row
+set @a:= (select max(a) from t2);
+insert into t2 select * from t1;
+load data infile '../std_data_ln/words.dat' into table t1 (a);
+drop trigger t1_ai;
+drop trigger t2_ai;
+create function f1() returns int return (select max(b) from t1);
+insert into t1 values
+("All",f1()),("mimsy",f1()),("were",f1()),("the",f1()),("borogoves",f1()),
+("And",f1()),("the",f1()),("mome", f1()),("raths",f1()),("outgrabe",f1());
+create function f2() returns int return (select max(b) from t2);
+insert into t2 select a, f2() from t1;
+load data infile '../std_data_ln/words.dat' into table t1 (a) set b:= f1();
+drop table t1;
+drop function f1;
+drop function f2;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+conn_id INT,
+trigger_conn_id INT
+);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+SET NEW.trigger_conn_id = CONNECTION_ID();
+INSERT INTO t1 (conn_id, trigger_conn_id) VALUES (CONNECTION_ID(), -1);
+INSERT INTO t1 (conn_id, trigger_conn_id) VALUES (CONNECTION_ID(), -1);
+SELECT * FROM t1 WHERE conn_id != trigger_conn_id;
+conn_id	trigger_conn_id
+DROP TRIGGER t1_bi;
+DROP TABLE t1;

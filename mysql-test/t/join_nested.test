@@ -942,3 +942,55 @@ SELECT * FROM t1 p LEFT JOIN v1 ON p.id=v1.id
 
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
+
+
+#
+# Test for bug #18279: crash when on conditions are moved out of a nested join
+#                      to the on conditions for the nest
+
+CREATE TABLE t1 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t2 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t3 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t4 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t5 (id1 int PRIMARY KEY, id2 int);
+
+SELECT t1.id1 AS id, t5.id1 AS ngroupbynsa
+  FROM t1 INNER JOIN t2 ON t2.id2 = t1.id1
+       LEFT OUTER JOIN
+       (t3 INNER JOIN t4 ON t4.id1 = t3.id2 INNER JOIN t5 ON t4.id2 = t5.id1)
+       ON t3.id2 IS NOT NULL
+    WHERE t1.id1=2;
+
+PREPARE stmt FROM
+"SELECT t1.id1 AS id, t5.id1 AS ngroupbynsa
+  FROM t1 INNER JOIN t2 ON t2.id2 = t1.id1
+       LEFT OUTER JOIN
+       (t3 INNER JOIN t4 ON t4.id1 = t3.id2 INNER JOIN t5 ON t4.id2 = t5.id1)
+       ON t3.id2 IS NOT NULL
+    WHERE t1.id1=2";
+
+EXECUTE stmt; 
+EXECUTE stmt; 
+EXECUTE stmt; 
+EXECUTE stmt;
+
+INSERT INTO t1 VALUES (1,1), (2,1), (3,2);
+INSERT INTO t2 VALUES (2,1), (3,2), (4,3);
+INSERT INTO t3 VALUES (1,1), (3,2), (2,NULL);
+INSERT INTO t4 VALUES (1,1), (2,1), (3,3);
+INSERT INTO t5 VALUES (1,1), (2,2), (3,3), (4,3);
+
+EXECUTE stmt; 
+EXECUTE stmt; 
+EXECUTE stmt; 
+EXECUTE stmt;
+
+SELECT t1.id1 AS id, t5.id1 AS ngroupbynsa
+  FROM t1 INNER JOIN t2 ON t2.id2 = t1.id1
+       LEFT OUTER JOIN
+       (t3 INNER JOIN t4 ON t4.id1 = t3.id2 INNER JOIN t5 ON t4.id2 = t5.id1)
+       ON t3.id2 IS NOT NULL
+    WHERE t1.id1=2; 
+
+DROP TABLE t1,t2,t3,t4,t5;
+

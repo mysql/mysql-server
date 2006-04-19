@@ -74,7 +74,6 @@ static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_multi_update_lock(THD *thd);
 static void remove_escape(char *name);
-static void refresh_status(THD *thd);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
 
@@ -3314,6 +3313,19 @@ end_with_restore_list:
         select_lex->context.table_list= 
           select_lex->context.first_name_resolution_table= second_table;
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
+        /*
+          Invalidate the table in the query cache if something changed
+          after unlocking when changes become visible.
+          TODO: this is workaround. right way will be move invalidating in
+          the unlock procedure.
+        */
+        if (first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
+            thd->lock)
+        {
+          mysql_unlock_tables(thd, thd->lock);
+          query_cache_invalidate3(thd, first_table, 1);
+          thd->lock=0;
+        }
         delete result;
       }
       /* revert changes for SP */
@@ -3337,7 +3349,7 @@ end_with_restore_list:
       Don't allow this within a transaction because we want to use
       re-generate table
     */
-    if ((thd->locked_tables && !lex->sphead) || thd->active_transaction())
+    if (thd->locked_tables || thd->active_transaction())
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -6693,27 +6705,6 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     send_ok(thd);
   else
     my_error(error, MYF(0), id);
-}
-
-
-/* Clear most status variables */
-
-static void refresh_status(THD *thd)
-{
-  pthread_mutex_lock(&LOCK_status);
-
-  /* We must update the global status before cleaning up the thread */
-  add_to_status(&global_status_var, &thd->status_var);
-  bzero((char*) &thd->status_var, sizeof(thd->status_var));
-
-  for (struct show_var_st *ptr=status_vars; ptr->name; ptr++)
-  {
-    if (ptr->type == SHOW_LONG)
-      *(ulong*) ptr->value= 0;
-  }
-  /* Reset the counters of all key caches (default and named). */
-  process_key_caches(reset_key_cache_counters);
-  pthread_mutex_unlock(&LOCK_status);
 }
 
 

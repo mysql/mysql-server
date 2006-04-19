@@ -439,6 +439,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   }
   if (!(dl = find_udf_dl(udf->dl)))
   {
+    DBUG_PRINT("info", ("Calling dlopen, udf->dl: %s", udf->dl));
     if (!(dl = dlopen(udf->dl, RTLD_NOW)))
     {
       DBUG_PRINT("error",("dlopen of %s failed, error: %d (%s)",

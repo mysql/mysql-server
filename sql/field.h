@@ -320,6 +320,12 @@ public:
   /* convert decimal to longlong with overflow check */
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     int *err);
+  /* The max. number of characters */
+  inline uint32 char_length() const
+  {
+    return field_length / charset()->mbmaxlen;
+  }
+
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -980,20 +986,23 @@ public:
 
 class Field_string :public Field_longstr {
 public:
+  bool can_alter_field_type;
   Field_string(char *ptr_arg, uint32 len_arg,uchar *null_ptr_arg,
 	       uchar null_bit_arg,
 	       enum utype unireg_check_arg, const char *field_name_arg,
 	       struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_longstr(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-                   unireg_check_arg, field_name_arg, table_arg, cs) {};
+                   unireg_check_arg, field_name_arg, table_arg, cs),
+     can_alter_field_type(1) {};
   Field_string(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
                struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_longstr((char*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
-                   NONE, field_name_arg, table_arg, cs) {};
+                   NONE, field_name_arg, table_arg, cs),
+     can_alter_field_type(1) {};
 
   enum_field_types type() const
   {
-    return ((orig_table &&
+    return ((can_alter_field_type && orig_table &&
              orig_table->s->db_create_options & HA_OPTION_PACK_RECORD &&
 	     field_length >= 4) &&
             orig_table->s->frm_version < FRM_VER_TRUE_VARCHAR ?
@@ -1303,17 +1312,18 @@ public:
   uchar *bit_ptr;     // position in record where 'uneven' bits store
   uchar bit_ofs;      // offset to 'uneven' high bits
   uint bit_len;       // number of 'uneven' high bits
+  uint bytes_in_rec;
   Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
             uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
             enum utype unireg_check_arg, const char *field_name_arg,
             struct st_table *table_arg);
   enum_field_types type() const { return FIELD_TYPE_BIT; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BIT; }
-  uint32 key_length() const { return (uint32) field_length + (bit_len > 0); }
-  uint32 max_length() { return (uint32) field_length * 8 + bit_len; }
+  uint32 key_length() const { return (uint32) (field_length + 7) / 8; }
+  uint32 max_length() { return field_length; }
   uint size_of() const { return sizeof(*this); }
   Item_result result_type () const { return INT_RESULT; }
-  void reset(void) { bzero(ptr, field_length); }
+  void reset(void) { bzero(ptr, bytes_in_rec); }
   int store(const char *to, uint length, CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
@@ -1335,9 +1345,8 @@ public:
   { Field_bit::store(buff, length, &my_charset_bin); }
   void sort_string(char *buff, uint length)
   { get_key_image(buff, length, itRAW); }
-  uint32 pack_length() const 
-  { return (uint32) field_length + (bit_len > 0); }
-  uint32 pack_length_in_rec() const { return field_length; }
+  uint32 pack_length() const { return (uint32) (field_length + 7) / 8; }
+  uint32 pack_length_in_rec() const { return bytes_in_rec; }
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
@@ -1354,13 +1363,11 @@ public:
 
 class Field_bit_as_char: public Field_bit {
 public:
-  uchar create_length;
   Field_bit_as_char(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                     uchar null_bit_arg,
                     enum utype unireg_check_arg, const char *field_name_arg,
                     struct st_table *table_arg);
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
-  uint32 max_length() { return (uint32) create_length; }
   uint size_of() const { return sizeof(*this); }
   int store(const char *to, uint length, CHARSET_INFO *charset);
   int store(double nr) { return Field_bit::store(nr); }

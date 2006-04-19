@@ -180,5 +180,45 @@ drop procedure f3;
 drop procedure f4;
 drop table t1;
 
+#
+# bug#14767: INSERT in SF + concurrent SELECT with query cache
+#
+reset query cache;
+--disable_warnings
+drop function if exists f1;
+--enable_warnings
+create table t1 (id int);
+delimiter |;
+create function f1 ()
+  returns int
+begin
+  declare i_var int;
+  set i_var = sleep(3);
+  insert into t1 values(3);
+  set i_var = sleep(3);
+  return 0;
+end;|
+delimiter ;|
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+connection con1;
+send select f1();
+connection con2;
+select sleep(4);
+select * from t1;
+connection con1;
+reap;
+connection con2;
+# This gives wrong result i.e. 't' table seems to be empty
+select * from t1;
+reset query cache;
+select * from t1;
+drop table t1;
+drop function f1;
+disconnect con1;
+disconnect con2;
+connection default;
 
 set GLOBAL query_cache_size=0;

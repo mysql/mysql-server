@@ -529,6 +529,8 @@ bool delete_precheck(THD *thd, TABLE_LIST *tables);
 bool insert_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
+int append_query_string(CHARSET_INFO *csinfo,
+                        String const *from, String *to);
 
 void get_default_definer(THD *thd, LEX_USER *definer);
 LEX_USER *create_default_definer(THD *thd);
@@ -704,6 +706,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item,
 			bool table_cant_handle_bit_fields,
+                        bool make_copy_field,
                         uint convert_blob_length);
 void sp_prepare_create_field(THD *thd, create_field *sql_field);
 int prepare_create_field(create_field *sql_field, 
@@ -1094,6 +1097,7 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
 
 /* mysqld.cc */
 extern void MYSQLerror(const char*);
+void refresh_status(THD *thd);
 
 /* item_func.cc */
 extern bool check_reserved_words(LEX_STRING *name);
@@ -1163,6 +1167,7 @@ extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack;
+extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong rpl_recovery_rank, thread_cache_size;
@@ -1212,6 +1217,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
+       LOCK_prepared_stmt_count,
        LOCK_bytes_sent, LOCK_bytes_received;
 #ifdef HAVE_OPENSSL
 extern pthread_mutex_t LOCK_des_key_file;
@@ -1243,11 +1249,56 @@ extern const LEX_STRING view_type;
 
 /* optional things, have_* variables */
 
-extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
-extern SHOW_COMP_OPTION have_example_db, have_archive_db, have_csv_db;
+#ifdef HAVE_INNOBASE_DB
+extern handlerton innobase_hton;
+#define have_innodb innobase_hton.state
+#else
+extern SHOW_COMP_OPTION have_innodb;
+#endif
+#ifdef HAVE_BERKELEY_DB
+extern handlerton berkeley_hton;
+#define have_berkeley_db berkeley_hton.state
+#else
+extern SHOW_COMP_OPTION have_berkeley_db;
+#endif
+#ifdef HAVE_EXAMPLE_DB
+extern handlerton example_hton;
+#define have_example_db example_hton.state
+#else
+extern SHOW_COMP_OPTION have_example_db;
+#endif
+#ifdef HAVE_ARCHIVE_DB
+extern handlerton archive_hton;
+#define have_archive_db archive_hton.state
+#else
+extern SHOW_COMP_OPTION have_archive_db;
+#endif
+#ifdef HAVE_CSV_DB
+extern handlerton tina_hton;
+#define have_csv_db tina_hton.state
+#else
+extern SHOW_COMP_OPTION have_csv_db;
+#endif
+#ifdef HAVE_FEDERATED_DB
+extern handlerton federated_hton;
+#define have_federated_db federated_hton.state
+#else
 extern SHOW_COMP_OPTION have_federated_db;
+#endif
+#ifdef HAVE_BLACKHOLE_DB
+extern handlerton blackhole_hton;
+#define have_blackhole_db blackhole_hton.state
+#else
 extern SHOW_COMP_OPTION have_blackhole_db;
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+extern handlerton ndbcluster_hton;
+#define have_ndbcluster ndbcluster_hton.state
+#else
 extern SHOW_COMP_OPTION have_ndbcluster;
+#endif
+
+extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;

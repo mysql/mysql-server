@@ -496,7 +496,7 @@ bool Item_ident::remove_dependence_processor(byte * arg)
     arguments in a condition the method must return false.
 
   RETURN
-    false to force the evaluation of collect_item_field_processor
+    FALSE to force the evaluation of collect_item_field_processor
           for the subsequent items.
 */
 
@@ -514,6 +514,39 @@ bool Item_field::collect_item_field_processor(byte *arg)
   }
   item_list->push_back(this);
   DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Check if an Item_field references some field from a list of fields.
+
+  SYNOPSIS
+    Item_field::find_item_in_field_list_processor
+    arg   Field being compared, arg must be of type Field
+
+  DESCRIPTION
+    Check whether the Item_field represented by 'this' references any
+    of the fields in the keyparts passed via 'arg'. Used with the
+    method Item::walk() to test whether any keypart in a sequence of
+    keyparts is referenced in an expression.
+
+  RETURN
+    TRUE  if 'this' references the field 'arg'
+    FALSE otherwise
+*/
+
+bool Item_field::find_item_in_field_list_processor(byte *arg)
+{
+  KEY_PART_INFO *first_non_group_part= *((KEY_PART_INFO **) arg);
+  KEY_PART_INFO *last_part= *(((KEY_PART_INFO **) arg) + 1);
+  KEY_PART_INFO *cur_part;
+
+  for (cur_part= first_non_group_part; cur_part != last_part; cur_part++)
+  {
+    if (field->eq(cur_part->field))
+      return TRUE;
+  }
+  return FALSE;
 }
 
 
@@ -603,22 +636,6 @@ Item *Item_num::safe_charset_converter(CHARSET_INFO *tocs)
   String *s, tmp(buf, sizeof(buf), &my_charset_bin);
   s= val_str(&tmp);
   if ((conv= new Item_string(s->ptr(), s->length(), s->charset())))
-  {
-    conv->str_value.copy();
-    conv->str_value.mark_as_const();
-  }
-  return conv;
-}
-
-
-Item *Item_static_int_func::safe_charset_converter(CHARSET_INFO *tocs)
-{
-  Item_string *conv;
-  char buf[64];
-  String *s, tmp(buf, sizeof(buf), &my_charset_bin);
-  s= val_str(&tmp);
-  if ((conv= new Item_static_string_func(func_name, s->ptr(), s->length(),
-                                         s->charset())))
   {
     conv->str_value.copy();
     conv->str_value.mark_as_const();
@@ -2642,25 +2659,8 @@ const String *Item_param::query_val_str(String* str) const
   case STRING_VALUE:
   case LONG_DATA_VALUE:
     {
-      char *buf, *ptr;
       str->length(0);
-      if (str->reserve(str_value.length()*2+3))
-        break;
-
-      buf= str->c_ptr_quick();
-      ptr= buf;
-      if (value.cs_info.character_set_client->escape_with_backslash_is_dangerous)
-      {
-        ptr= str_to_hex(ptr, str_value.ptr(), str_value.length());
-      }
-      else
-      {
-        *ptr++= '\'';
-        ptr+= escape_string_for_mysql(str_value.charset(), ptr, 0,
-                                      str_value.ptr(), str_value.length());
-        *ptr++='\'';
-      }
-      str->length((uint32) (ptr - buf));
+      append_query_string(value.cs_info.character_set_client, &str_value, str);
       break;
     }
   case NULL_VALUE:
@@ -3038,6 +3038,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   int         found_match_degree= 0;
   Item_ident *cur_field;
   int         cur_match_degree= 0;
+  char        name_buff[NAME_LEN+1];
 
   if (find_item->type() == Item::FIELD_ITEM ||
       find_item->type() == Item::REF_ITEM)
@@ -3048,6 +3049,14 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   }
   else
     return NULL;
+
+  if (db_name && lower_case_table_names)
+  {
+    /* Convert database to lower case for comparison */
+    strmake(name_buff, db_name, sizeof(name_buff)-1);
+    my_casedn_str(files_charset_info, name_buff);
+    db_name= name_buff;
+  }
 
   DBUG_ASSERT(field_name != 0);
 
@@ -3761,7 +3770,7 @@ Item *Item_field::replace_equal_field(byte *arg)
   if (item_equal)
   {
     Item_field *subst= item_equal->get_first();
-    if (!field->eq(subst->field))
+    if (subst && !field->eq(subst->field))
       return subst;
   }
   return this;
@@ -5093,11 +5102,8 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   DESCRIPTION
     A view column reference is considered equal to another column
     reference if the second one is a view column and if both column
-    references point to the same field. For views 'same field' means
-    the same Item_field object in the view translation table, where
-    the view translation table contains all result columns of the
-    view. This definition ensures that view columns are resolved
-    in the same manner as table columns.
+    references resolve to the same item. It is assumed that both
+    items are of the same type.
 
   RETURN
     TRUE    Referenced item is equal to given item
@@ -5113,8 +5119,8 @@ bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
     if (item_ref->ref_type() == VIEW_REF)
     {
       Item *item_ref_ref= *(item_ref->ref);
-      DBUG_ASSERT((*ref)->real_item()->type() == FIELD_ITEM &&
-                  (item_ref_ref->real_item()->type() == FIELD_ITEM));
+      DBUG_ASSERT((*ref)->real_item()->type() == 
+                  item_ref_ref->real_item()->type());
       return ((*ref)->real_item() == item_ref_ref->real_item());
     }
   }

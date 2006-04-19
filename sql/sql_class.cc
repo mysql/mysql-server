@@ -421,7 +421,7 @@ THD::~THD()
     net_end(&net);
   }
 #endif
-  stmt_map.destroy();                     /* close all prepared statements */
+  stmt_map.reset();                     /* close all prepared statements */
   DBUG_ASSERT(lock_info.n_cursors == 0);
   if (!cleanup_done)
     cleanup();
@@ -919,14 +919,12 @@ bool select_send::send_data(List<Item> &items)
     return 0;
   }
 
-#ifdef HAVE_INNOBASE_DB
   /*
     We may be passing the control from mysqld to the client: release the
     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
     by thd
   */
     ha_release_temporary_latches(thd);
-#endif
 
   List_iterator_fast<Item> li(items);
   Protocol *protocol= thd->protocol;
@@ -956,12 +954,10 @@ bool select_send::send_data(List<Item> &items)
 
 bool select_send::send_eof()
 {
-#ifdef HAVE_INNOBASE_DB
   /* We may be passing the control from mysqld to the client: release the
      InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
      by thd */
     ha_release_temporary_latches(thd);
-#endif
 
   /* Unlock tables before sending packet to gain some speed */
   if (thd->lock)
@@ -1728,21 +1724,72 @@ Statement_map::Statement_map() :
 }
 
 
-int Statement_map::insert(Statement *statement)
+/*
+  Insert a new statement to the thread-local statement map.
+
+  DESCRIPTION
+    If there was an old statement with the same name, replace it with the
+    new one. Otherwise, check if max_prepared_stmt_count is not reached yet,
+    increase prepared_stmt_count, and insert the new statement. It's okay
+    to delete an old statement and fail to insert the new one.
+
+  POSTCONDITIONS
+    All named prepared statements are also present in names_hash.
+    Statement names in names_hash are unique.
+    The statement is added only if prepared_stmt_count < max_prepard_stmt_count
+    last_found_statement always points to a valid statement or is 0
+
+  RETURN VALUE
+    0  success
+    1  error: out of resources or max_prepared_stmt_count limit has been
+       reached. An error is sent to the client, the statement is deleted.
+*/
+
+int Statement_map::insert(THD *thd, Statement *statement)
 {
-  int res= my_hash_insert(&st_hash, (byte *) statement);
-  if (res)
-    return res;
-  if (statement->name.str)
+  if (my_hash_insert(&st_hash, (byte*) statement))
   {
-    if ((res= my_hash_insert(&names_hash, (byte*)statement)))
-    {
-      hash_delete(&st_hash, (byte*)statement);
-      return res;
-    }
+    /*
+      Delete is needed only in case of an insert failure. In all other
+      cases hash_delete will also delete the statement.
+    */
+    delete statement;
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    goto err_st_hash;
   }
+  if (statement->name.str && my_hash_insert(&names_hash, (byte*) statement))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    goto err_names_hash;
+  }
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  /*
+    We don't check that prepared_stmt_count is <= max_prepared_stmt_count
+    because we would like to allow to lower the total limit
+    of prepared statements below the current count. In that case
+    no new statements can be added until prepared_stmt_count drops below
+    the limit.
+  */
+  if (prepared_stmt_count >= max_prepared_stmt_count)
+  {
+    pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+    my_error(ER_MAX_PREPARED_STMT_COUNT_REACHED, MYF(0),
+             max_prepared_stmt_count);
+    goto err_max;
+  }
+  prepared_stmt_count++;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+
   last_found_statement= statement;
-  return res;
+  return 0;
+
+err_max:
+  if (statement->name.str)
+    hash_delete(&names_hash, (byte*) statement);
+err_names_hash:
+  hash_delete(&st_hash, (byte*) statement);
+err_st_hash:
+  return 1;
 }
 
 
@@ -1755,6 +1802,47 @@ void Statement_map::close_transient_cursors()
 #endif
 }
 
+
+void Statement_map::erase(Statement *statement)
+{
+  if (statement == last_found_statement)
+    last_found_statement= 0;
+  if (statement->name.str)
+    hash_delete(&names_hash, (byte *) statement);
+
+  hash_delete(&st_hash, (byte *) statement);
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  DBUG_ASSERT(prepared_stmt_count > 0);
+  prepared_stmt_count--;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+}
+
+
+void Statement_map::reset()
+{
+  /* Must be first, hash_free will reset st_hash.records */
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
+  prepared_stmt_count-= st_hash.records;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+
+  my_hash_reset(&names_hash);
+  my_hash_reset(&st_hash);
+  last_found_statement= 0;
+}
+
+
+Statement_map::~Statement_map()
+{
+  /* Must go first, hash_free will reset st_hash.records */
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
+  prepared_stmt_count-= st_hash.records;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+
+  hash_free(&names_hash);
+  hash_free(&st_hash);
+}
 
 bool select_dumpvar::send_data(List<Item> &items)
 {

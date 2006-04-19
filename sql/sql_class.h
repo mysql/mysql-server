@@ -552,11 +552,7 @@ struct system_variables
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
-#ifdef HAVE_REPLICATION
-  ulong sync_replication;
-  ulong sync_replication_slave_id;
-  ulong sync_replication_timeout;
-#endif /* HAVE_REPLICATION */
+
 #ifdef HAVE_INNOBASE_DB
   my_bool innodb_table_locks;
   my_bool innodb_support_xa;
@@ -755,7 +751,7 @@ class Server_side_cursor;
    - prepared, that is, contain placeholders,
    - opened as cursors. We maintain 1 to 1 relationship between
      statement and cursor - if user wants to create another cursor for his
-     query, we create another statement for it. 
+     query, we create another statement for it.
   To perform some action with statement we reset THD part to the state  of
   that statement, do the action, and then save back modified state from THD
   to the statement. It will be changed in near future, and Statement will
@@ -778,7 +774,7 @@ public:
    ulong id;
 
   /*
-    - if set_query_id=1, we set field->query_id for all fields. In that case 
+    - if set_query_id=1, we set field->query_id for all fields. In that case
     field list can not contain duplicates.
   */
   bool set_query_id;
@@ -803,7 +799,7 @@ public:
       it. We will see the query_length field as either 0, or the right value
       for it.
     Assuming that the write and read of an n-bit memory field in an n-bit
-    computer is atomic, we can avoid races in the above way. 
+    computer is atomic, we can avoid races in the above way.
     This printing is needed at least in SHOW PROCESSLIST and SHOW INNODB
     STATUS.
   */
@@ -845,7 +841,7 @@ class Statement_map
 public:
   Statement_map();
 
-  int insert(Statement *statement);
+  int insert(THD *thd, Statement *statement);
 
   Statement *find_by_name(LEX_STRING *name)
   {
@@ -867,36 +863,16 @@ public:
     }
     return last_found_statement;
   }
-  void erase(Statement *statement)
-  {
-    if (statement == last_found_statement)
-      last_found_statement= 0;
-    if (statement->name.str)
-    {
-      hash_delete(&names_hash, (byte *) statement);  
-    }
-    hash_delete(&st_hash, (byte *) statement);
-  }
   /*
     Close all cursors of this connection that use tables of a storage
     engine that has transaction-specific state and therefore can not
     survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
   */
   void close_transient_cursors();
+  void erase(Statement *statement);
   /* Erase all statements (calls Statement destructor) */
-  void reset()
-  {
-    my_hash_reset(&names_hash);
-    my_hash_reset(&st_hash);
-    transient_cursor_list.empty();
-    last_found_statement= 0;
-  }
-
-  void destroy()
-  {
-    hash_free(&names_hash);
-    hash_free(&st_hash);
-  }
+  void reset();
+  ~Statement_map();
 private:
   HASH st_hash;
   HASH names_hash;
@@ -1172,7 +1148,7 @@ public:
   /*
     One thread can hold up to one named user-level lock. This variable
     points to a lock object if the lock is present. See item_func.cc and
-    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
+    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK.
   */
   User_level_lock *ull;
 #ifndef DBUG_OFF
@@ -1373,11 +1349,12 @@ public:
   {
     my_bool my_bool_value;
     long    long_value;
+    ulong   ulong_value;
   } sys_var_tmp;
-  
+
   struct {
-    /* 
-      If true, mysql_bin_log::write(Log_event) call will not write events to 
+    /*
+      If true, mysql_bin_log::write(Log_event) call will not write events to
       binlog, and maintain 2 below variables instead (use
       mysql_bin_log.start_union_events to turn this on)
     */
@@ -1388,19 +1365,19 @@ public:
     */
     bool unioned_events;
     /*
-      If TRUE, at least one mysql_bin_log::write(Log_event e), where 
-      e.cache_stmt == TRUE call has been made after last 
+      If TRUE, at least one mysql_bin_log::write(Log_event e), where
+      e.cache_stmt == TRUE call has been made after last
       mysql_bin_log.start_union_events() call.
     */
     bool unioned_events_trans;
-    
-    /* 
+
+    /*
       'queries' (actually SP statements) that run under inside this binlog
       union have thd->query_id >= first_query_id.
     */
     query_id_t first_query_id;
   } binlog_evt_union;
-  
+
   THD();
   ~THD();
 
@@ -1412,7 +1389,7 @@ public:
     killing mysqld) where it's vital to not allocate excessive and not used
     memory. Note, that we still don't return error from init_for_queries():
     if preallocation fails, we should notice that at the first call to
-    alloc_root. 
+    alloc_root.
   */
   void init_for_queries();
   void change_user(void);
@@ -1608,7 +1585,7 @@ public:
 #define SYSTEM_THREAD_SLAVE_SQL 4
 
 /*
-  Used to hold information about file and file structure in exchainge 
+  Used to hold information about file and file structure in exchainge
   via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
   XXX: We never call destructor for objects of this class.
 */
@@ -1790,8 +1767,8 @@ public:
 
 #include <myisam.h>
 
-/* 
-  Param to create temporary tables when doing SELECT:s 
+/*
+  Param to create temporary tables when doing SELECT:s
   NOTE
     This structure is copied using memcpy as a part of JOIN.
 */
@@ -1819,8 +1796,8 @@ public:
   uint	quick_group;
   bool  using_indirect_summary_function;
   /* If >0 convert all blob fields to varchar(convert_blob_length) */
-  uint  convert_blob_length; 
-  CHARSET_INFO *table_charset; 
+  uint  convert_blob_length;
+  CHARSET_INFO *table_charset;
   bool schema_table;
   /*
     True if GROUP BY and its aggregate functions are already computed
@@ -1829,11 +1806,12 @@ public:
     aggregate functions as normal functions.
   */
   bool precomputed_group_by;
+  bool force_copy_fields;
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0), precomputed_group_by(0)
+     schema_table(0), precomputed_group_by(0), force_copy_fields(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -1950,12 +1928,12 @@ class Table_ident :public Sql_alloc
     else
       db= db_arg;
   }
-  inline Table_ident(LEX_STRING table_arg) 
+  inline Table_ident(LEX_STRING table_arg)
     :table(table_arg), sel((SELECT_LEX_UNIT *)0)
   {
     db.str=0;
   }
-  inline Table_ident(SELECT_LEX_UNIT *s) : sel(s) 
+  inline Table_ident(SELECT_LEX_UNIT *s) : sel(s)
   {
     /* We must have a table name here as this is used with add_table_to_list */
     db.str=0; table.str= internal_table_name; table.length=1;
@@ -1985,7 +1963,7 @@ class user_var_entry
 };
 
 /*
-   Unique -- class for unique (removing of duplicates). 
+   Unique -- class for unique (removing of duplicates).
    Puts all values to the TREE. If the tree becomes too big,
    it's dumped to the file. User can request sorted values, or
    just iterate through them. In the last case tree merging is performed in
@@ -2018,12 +1996,12 @@ public:
   }
 
   bool get(TABLE *table);
-  static double get_use_cost(uint *buffer, uint nkeys, uint key_size, 
+  static double get_use_cost(uint *buffer, uint nkeys, uint key_size,
                              ulong max_in_memory_size);
-  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size, 
+  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size,
                                             ulong max_in_memory_size)
   {
-    register ulong max_elems_in_tree= 
+    register ulong max_elems_in_tree=
       (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
     return sizeof(uint)*(1 + nkeys/max_elems_in_tree);
   }

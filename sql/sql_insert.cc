@@ -258,6 +258,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool log_on= (thd->options & OPTION_BIN_LOG) ||
     (!(thd->security_ctx->master_access & SUPER_ACL));
   bool transactional_table, joins_freed= FALSE;
+  bool changed;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -320,7 +321,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       if (!table_list->derived && !table_list->view)
         table_list->updatable= 1;  // usual table
     }
-    else
+    else if (thd->net.last_errno != ER_WRONG_OBJECT)
     {
       /* Too many delayed insert threads;  Use a normal insert */
       table_list->lock_type= lock_type= TL_WRITE;
@@ -404,11 +405,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     let's *try* to start bulk inserts. It won't necessary
     start them as values_list.elements should be greater than
     some - handler dependent - threshold.
+    We should not start bulk inserts if this statement uses
+    functions or invokes triggers since they may access
+    to the same table and therefore should not see its
+    inconsistent state created by this optimization.
     So we call start_bulk_insert to perform nesessary checks on
     values_list.elements, and - if nothing else - to initialize
     the code to make the call of end_bulk_insert() below safe.
   */
-  if (lock_type != TL_WRITE_DELAYED)
+  if (lock_type != TL_WRITE_DELAYED && !thd->prelocked_mode)
     table->file->start_bulk_insert(values_list.elements);
 
   thd->no_trans_update= 0;
@@ -534,7 +539,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   else
 #endif
   {
-    if (table->file->end_bulk_insert() && !error)
+    if (!thd->prelocked_mode && table->file->end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno,MYF(0));
       error=1;
@@ -544,32 +549,30 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     else if (table->next_number_field && info.copied)
       id=table->next_number_field->val_int();	// Return auto_increment value
 
-    /*
-      Invalidate the table in the query cache if something changed.
-      For the transactional algorithm to work the invalidation must be
-      before binlog writing and ha_autocommit_or_rollback
-    */
-    if (info.copied || info.deleted || info.updated)
-    {
-      query_cache_invalidate3(thd, table_list, 1);
-    }
-
     transactional_table= table->file->has_transactions();
 
-    if ((info.copied || info.deleted || info.updated) &&
-	(error <= 0 || !transactional_table))
+    if ((changed= (info.copied || info.deleted || info.updated)))
     {
-      if (mysql_bin_log.is_open())
+      /*
+        Invalidate the table in the query cache if something changed.
+        For the transactional algorithm to work the invalidation must be
+        before binlog writing and ha_autocommit_or_rollback
+      */
+      query_cache_invalidate3(thd, table_list, 1);
+      if (error <= 0 || !transactional_table)
       {
-        if (error <= 0)
-          thd->clear_error();
-	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      transactional_table, FALSE);
-	if (mysql_bin_log.write(&qinfo) && transactional_table)
-	  error=1;
+        if (mysql_bin_log.is_open())
+        {
+          if (error <= 0)
+            thd->clear_error();
+          Query_log_event qinfo(thd, thd->query, thd->query_length,
+                                transactional_table, FALSE);
+          if (mysql_bin_log.write(&qinfo) && transactional_table)
+            error=1;
+        }
+        if (!transactional_table)
+          thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
       }
-      if (!transactional_table)
-	thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
     }
     if (transactional_table)
       error=ha_autocommit_or_rollback(thd,error);
@@ -577,6 +580,16 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (thd->lock)
     {
       mysql_unlock_tables(thd, thd->lock);
+      /*
+        Invalidate the table in the query cache if something changed
+        after unlocking when changes become fisible.
+        TODO: this is workaround. right way will be move invalidating in
+        the unlock procedure.
+      */
+      if (lock_type ==  TL_WRITE_CONCURRENT_INSERT && changed)
+      {
+        query_cache_invalidate3(thd, table_list, 1);
+      }
       thd->lock=0;
     }
   }
@@ -1523,7 +1536,10 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
 
   /* Adjust in_use for pointing to client thread */
   copy->in_use= client_thd;
-  
+
+  /* Adjust lock_count. This table object is not part of a lock. */
+  copy->lock_count= 0;
+
   return copy;
 
   /* Got fatal error */
@@ -2181,7 +2197,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     lex->current_select->options|= OPTION_BUFFER_RESULT;
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
-  else
+  else if (!thd->prelocked_mode)
   {
     /*
       We must not yet prepare the result table if it is the same as one of the 
@@ -2189,6 +2205,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       indexes on the result table, which may be used during the select, if it
       is the same table (Bug #6034). Do the preparation after the select phase
       in select_insert::prepare2().
+      We won't start bulk inserts at all if this statement uses functions or
+      should invoke triggers since they may access to the same table too.
     */
     table->file->start_bulk_insert((ha_rows) 0);
   }
@@ -2229,7 +2247,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
-  if (thd->lex->current_select->options & OPTION_BUFFER_RESULT)
+  if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
+      !thd->prelocked_mode)
     table->file->start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
 }
@@ -2332,7 +2351,8 @@ void select_insert::send_error(uint errcode,const char *err)
     */
     DBUG_VOID_RETURN;
   }
-  table->file->end_bulk_insert();
+  if (!thd->prelocked_mode)
+    table->file->end_bulk_insert();
   /*
     If at least one row has been inserted/modified and will stay in the table
     (the table doesn't have transactions) (example: we got a duplicate key
@@ -2367,7 +2387,7 @@ bool select_insert::send_eof()
   int error,error2;
   DBUG_ENTER("select_insert::send_eof");
 
-  error=table->file->end_bulk_insert();
+  error= (!thd->prelocked_mode) ? table->file->end_bulk_insert():0;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   /*
@@ -2450,7 +2470,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  table->file->start_bulk_insert((ha_rows) 0);
+  if (!thd->prelocked_mode)
+    table->file->start_bulk_insert((ha_rows) 0);
   thd->no_trans_update= 0;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &

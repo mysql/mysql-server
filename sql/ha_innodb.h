@@ -165,15 +165,15 @@ class ha_innobase: public handler
         int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list);
 	bool can_switch_engines();
   	uint referenced_by_foreign_key();
-	void free_foreign_key_create_info(char* str);	
+	void free_foreign_key_create_info(char* str);
   	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     		enum thr_lock_type lock_type);
-	void init_table_handle_for_HANDLER(); 
+	void init_table_handle_for_HANDLER();
 	ulonglong get_auto_increment();
 	int reset_auto_increment(ulonglong value);
 
 	virtual bool get_error_message(int error, String *buf);
-	
+
         uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
         /*
           ask handler about permission to cache table during query registration
@@ -280,7 +280,7 @@ This function is used to recover X/Open XA distributed transactions   */
 
 int innobase_xa_recover(
 /*====================*/
-				/* out: number of prepared transactions 
+				/* out: number of prepared transactions
 				stored in xid_list */
 	XID*    xid_list, 	/* in/out: prepared transactions */
 	uint	len);		/* in: number of slots in xid_list */
@@ -303,13 +303,10 @@ int innobase_rollback_by_xid(
 	XID	*xid);	/* in : X/Open XA Transaction Identification */
 
 
-int innobase_repl_report_sent_binlog(THD *thd, char *log_file_name,
-                               my_off_t end_offset);
-
 /***********************************************************************
 Create a consistent view for a cursor based on current transaction
 which is created if the corresponding MySQL thread still lacks one.
-This consistent view is then used inside of MySQL when accessing records 
+This consistent view is then used inside of MySQL when accessing records
 using a cursor. */
 
 void*
@@ -319,7 +316,7 @@ innobase_create_cursor_view(void);
 
 /***********************************************************************
 Close the given consistent cursor view of a transaction and restore
-global read view to a transaction read view. Transaction is created if the 
+global read view to a transaction read view. Transaction is created if the
 corresponding MySQL thread still lacks one. */
 
 void
@@ -328,8 +325,8 @@ innobase_close_cursor_view(
 	void*	curview);	/* in: Consistent read view to be closed */
 
 /***********************************************************************
-Set the given consistent cursor view to a transaction which is created 
-if the corresponding MySQL thread still lacks one. If the given 
+Set the given consistent cursor view to a transaction which is created
+if the corresponding MySQL thread still lacks one. If the given
 consistent cursor view is NULL global read view of a transaction is
 restored to a transaction read view. */
 

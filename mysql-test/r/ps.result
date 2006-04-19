@@ -108,6 +108,9 @@ set @fvar= 123.4567;
 prepare stmt1 from @fvar;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '123.4567' at line 1
 drop table t1,t2;
+deallocate prepare stmt3;
+deallocate prepare stmt4;
+deallocate prepare stmt5;
 PREPARE stmt1 FROM "select _utf8 'A' collate utf8_bin = ?";
 set @var='A';
 EXECUTE stmt1 USING @var;
@@ -253,6 +256,7 @@ set names latin1;
 execute `ü`;
 1234
 1234
+deallocate prepare `ü`;
 set names default;
 create table t1 (a varchar(10)) charset=utf8;
 insert into t1 (a) values ('yahoo');
@@ -781,6 +785,7 @@ EXECUTE b12651;
 1
 DROP VIEW b12651_V1;
 DROP TABLE b12651_T1, b12651_T2;
+DEALLOCATE PREPARE b12651;
 prepare stmt from "select @@time_zone";
 execute stmt;
 @@time_zone
@@ -873,10 +878,181 @@ length(a)
 10
 drop table t1;
 deallocate prepare stmt;
+create table t1 (col1 integer, col2 integer);
+insert into t1 values(100,100),(101,101),(102,102),(103,103);
+prepare stmt from 'select col1, col2 from t1 where (col1, col2) in ((?,?))';
+set @a=100, @b=100;
+execute stmt using @a,@b;
+col1	col2
+100	100
+set @a=101, @b=101;
+execute stmt using @a,@b;
+col1	col2
+101	101
+set @a=102, @b=102;
+execute stmt using @a,@b;
+col1	col2
+102	102
+set @a=102, @b=103;
+execute stmt using @a,@b;
+col1	col2
+deallocate prepare stmt;
+drop table t1;
+set @old_max_prepared_stmt_count= @@max_prepared_stmt_count;
+show variables like 'max_prepared_stmt_count';
+Variable_name	Value
+max_prepared_stmt_count	16382
+show variables like 'prepared_stmt_count';
+Variable_name	Value
+prepared_stmt_count	0
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+@@max_prepared_stmt_count	@@prepared_stmt_count
+16382	0
+set global max_prepared_stmt_count=-1;
+select @@max_prepared_stmt_count;
+@@max_prepared_stmt_count
+0
+set global max_prepared_stmt_count=10000000000000000;
+select @@max_prepared_stmt_count;
+@@max_prepared_stmt_count
+1048576
+set global max_prepared_stmt_count=default;
+select @@max_prepared_stmt_count;
+@@max_prepared_stmt_count
+16382
+set @@max_prepared_stmt_count=1;
+ERROR HY000: Variable 'max_prepared_stmt_count' is a GLOBAL variable and should be set with SET GLOBAL
+set max_prepared_stmt_count=1;
+ERROR HY000: Variable 'max_prepared_stmt_count' is a GLOBAL variable and should be set with SET GLOBAL
+set local max_prepared_stmt_count=1;
+ERROR HY000: Variable 'max_prepared_stmt_count' is a GLOBAL variable and should be set with SET GLOBAL
+set local prepared_stmt_count=0;
+ERROR HY000: Variable 'prepared_stmt_count' is a read only variable
+set @@prepared_stmt_count=0;
+ERROR HY000: Variable 'prepared_stmt_count' is a read only variable
+set global prepared_stmt_count=1;
+ERROR HY000: Variable 'prepared_stmt_count' is a read only variable
+set global max_prepared_stmt_count=1;
+select @@max_prepared_stmt_count;
+@@max_prepared_stmt_count
+1
+set global max_prepared_stmt_count=0;
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+@@max_prepared_stmt_count	@@prepared_stmt_count
+0	0
+prepare stmt from "select 1";
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 0)
+select @@prepared_stmt_count;
+@@prepared_stmt_count
+0
+set global max_prepared_stmt_count=1;
+prepare stmt from "select 1";
+select @@prepared_stmt_count;
+@@prepared_stmt_count
+1
+prepare stmt1 from "select 1";
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 1)
+select @@prepared_stmt_count;
+@@prepared_stmt_count
+1
+deallocate prepare stmt;
+select @@prepared_stmt_count;
+@@prepared_stmt_count
+0
+prepare stmt from "select 1";
+select @@prepared_stmt_count;
+@@prepared_stmt_count
+1
+prepare stmt from "select 2";
+select @@prepared_stmt_count;
+@@prepared_stmt_count
+1
+select @@prepared_stmt_count, @@max_prepared_stmt_count;
+@@prepared_stmt_count	@@max_prepared_stmt_count
+1	1
+set global max_prepared_stmt_count=0;
+prepare stmt from "select 1";
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 0)
+execute stmt;
+ERROR HY000: Unknown prepared statement handler (stmt) given to EXECUTE
+select @@prepared_stmt_count;
+@@prepared_stmt_count
+0
+prepare stmt from "select 1";
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 0)
+select @@prepared_stmt_count;
+@@prepared_stmt_count
+0
+set global max_prepared_stmt_count=3;
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+@@max_prepared_stmt_count	@@prepared_stmt_count
+3	0
+prepare stmt from "select 1";
+prepare stmt from "select 2";
+prepare stmt1 from "select 3";
+prepare stmt2 from "select 4";
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 3)
+prepare stmt2 from "select 4";
+ERROR 42000: Can't create more than max_prepared_stmt_count statements (current value: 3)
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+@@max_prepared_stmt_count	@@prepared_stmt_count
+3	3
+deallocate prepare stmt;
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+@@max_prepared_stmt_count	@@prepared_stmt_count
+3	0
+set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
 create table t1 (id int);
 prepare ins_call from "insert into t1 (id) values (1)";
 execute ins_call;
 select row_count();
 row_count()
 1
+drop table t1;
+create table t1 (a int, b int);
+insert into t1 (a,b) values (2,8),(1,9),(3,7);
+prepare stmt from "select * from t1 order by ?";
+set @a=NULL;
+execute stmt using @a;
+a	b
+2	8
+1	9
+3	7
+set @a=1;
+execute stmt using @a;
+a	b
+1	9
+2	8
+3	7
+set @a=2;
+execute stmt using @a;
+a	b
+3	7
+2	8
+1	9
+deallocate prepare stmt;
+select * from t1 order by 1;
+a	b
+1	9
+2	8
+3	7
+prepare stmt from "select * from t1 order by ?+1";
+set @a=0;
+execute stmt using @a;
+a	b
+2	8
+1	9
+3	7
+set @a=1;
+execute stmt using @a;
+a	b
+2	8
+1	9
+3	7
+deallocate prepare stmt;
+select * from t1 order by 1+1;
+a	b
+2	8
+1	9
+3	7
 drop table t1;
