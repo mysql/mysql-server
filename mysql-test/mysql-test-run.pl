@@ -2157,6 +2157,14 @@ sub run_testcase ($) {
       if ( $using_ndbcluster_master and ! $master->[1]->{'pid'} )
       {
 	# Test needs cluster, start an extra mysqld connected to cluster
+        # First wait for first mysql server to have created ndb system tables ok
+	if ( ! sleep_until_file_created("$master->[0]->{'path_myddir'}/cluster/apply_status.ndb",
+					$master->[0]->{'start_timeout'},
+					$master->[0]->{'pid'}))
+	{
+          report_failure_and_restart($tinfo);
+          return;
+	}
         mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
         $master->[1]->{'pid'}=
           mysqld_start('master',1,$tinfo->{'master_opt'},[],
