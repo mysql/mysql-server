@@ -1250,7 +1250,6 @@ static MY_XPATH_FUNC my_func_names[] =
   {"substring"        , 9  ,  2 , 3  , create_func_substr},
   {"translate"        , 9  ,  3 , 3  , 0},
 
-
   {"local-name"       , 10 ,  0 , 1  , 0},
   {"starts-with"      , 11 ,  2 , 2  , 0},
   {"namespace-uri"    , 13 ,  0 , 1  , 0},
@@ -1849,8 +1848,7 @@ static int my_xpath_parse_FunctionCall(MY_XPATH *xpath)
     {
       if (nargs < func->minargs)
         return 0;
-      else
-        goto right_paren;
+      goto right_paren;
     }
     args[nargs++]= xpath->item;
     if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_COMMA))
