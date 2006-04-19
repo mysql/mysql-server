@@ -54,7 +54,6 @@ int my_access(const char *path, int amode)
 
 #endif /* __WIN__ */
 
-#if defined(MSDOS) || defined(__WIN__)
 
 /*
   List of file names that causes problem on windows
