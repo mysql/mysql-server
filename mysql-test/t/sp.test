@@ -5699,6 +5699,24 @@ delete from t1|
 
 
 #
+# BUG#18787: Server crashed when calling a stored procedure containing
+#            a misnamed function
+#
+--disable_warnings
+drop procedure if exists bug18787|
+--enable_warnings
+create procedure bug18787()
+begin
+  declare continue handler for sqlexception begin end;
+
+  select no_such_function();
+end|
+
+call bug18787()|
+drop procedure bug18787|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
