@@ -275,8 +275,6 @@ private:
     AlignedWordBlock reg_;
     Sign             sign_;
 
-    static const Integer zero_;
-    static const Integer one_;
 };
 
 inline bool operator==(const Integer& a, const Integer& b) 

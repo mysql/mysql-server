@@ -26,11 +26,7 @@
   even in non-threaded builds.
   Case in point: 'mf_keycache.c'
 */
-#if defined(__WIN__) || defined(OS2)
-
-#elif defined(HAVE_UNIXWARE7_THREADS)
-/* #include <thread.h>   Currently, not relevant. Enable if needed. */
-
+#if defined(__WIN__)
 #else /* Normal threads */
 #include <pthread.h>
 

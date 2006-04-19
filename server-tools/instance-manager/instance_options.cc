@@ -132,7 +132,7 @@ int Instance_options::fill_instance_version()
 
   bzero(result, MAX_VERSION_STRING_LENGTH);
 
-  rc= parse_output_and_get_value(cmd.buffer, mysqld_path,
+  rc= parse_output_and_get_value(cmd.buffer, "Ver",
                                  result, MAX_VERSION_STRING_LENGTH,
                                  GET_LINE);
 

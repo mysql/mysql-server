@@ -3721,6 +3721,11 @@ part_func_max:
             yyerror(ER(ER_PARTITION_MAXVALUE_ERROR));
             YYABORT;
           }
+          if (Lex->part_info->curr_part_elem->has_null_value)
+          {
+            yyerror(ER(ER_NULL_IN_VALUES_LESS_THAN));
+            YYABORT;
+          }
         }
         ;
 

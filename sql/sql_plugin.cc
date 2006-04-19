@@ -529,8 +529,16 @@ static int plugin_initialize(struct st_plugin_int *plugin)
   switch (plugin->plugin->type)
   {
   case MYSQL_STORAGE_ENGINE_PLUGIN:
-    sql_print_error("Storage Engine plugins are unsupported in this version.");
-    goto err;
+    if (ha_initialize_handlerton((handlerton*) plugin->plugin->info))
+    {
+      sql_print_error("Plugin '%s' handlerton init returned error.",
+                      plugin->name.str);
+      DBUG_PRINT("warning", ("Plugin '%s' handlerton init returned error.",
+                             plugin->name.str));
+      goto err;
+    }
+    break;
+
   default:
     break;
   }
