@@ -146,4 +146,35 @@ select * from t1 order by nid;
 # cleanup
 --connection master
 DROP TABLE t1;
+
+
+#
+# BUG#18094
+# Slave caches invalid table definition after atlters causes select failure
+#
+--connection master
+CREATE TABLE t1 (c1 INT KEY) ENGINE=NDB;
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+
+ALTER TABLE t1 ADD c2 INT;
+
+--sync_slave_with_master
+connection slave;
+SELECT * FROM t1 ORDER BY c1;
+
+connection master;
+ALTER TABLE t1 CHANGE c2 c2 TEXT CHARACTER SET utf8;
+ALTER TABLE t1 CHANGE c2 c2 BLOB;
+
+--sync_slave_with_master
+connection slave;
+# here we would get error 1412 prior to bug
+SELECT * FROM t1 ORDER BY c1 LIMIT 5;
+
+
+
+# cleanup
+--connection master
+DROP TABLE t1;
 -- source include/master-slave-end.inc
