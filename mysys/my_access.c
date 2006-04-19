@@ -155,6 +155,14 @@ int check_if_legal_tablename(const char *name)
               str_list_find(&reserved_names[1], name));
 }
 
+#else
+
+int check_if_legal_tablename(const char *name)
+{
+  return 0;
+}
+
+#endif /* defined(MSDOS) || defined(__WIN__) */
 
 #if defined(MSDOS) || defined(__WIN__) || defined(__EMX__)
 
@@ -198,4 +206,5 @@ int check_if_legal_filename(const char *path)
   }
   DBUG_RETURN(0);
 }
-#endif
+
+#endif /* defined(MSDOS) || defined(__WIN__) || defined(__EMX__) */
