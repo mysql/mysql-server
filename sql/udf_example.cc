@@ -113,6 +113,8 @@
 */
 
 #ifdef STANDARD
+/* STANDARD is defined, don't use any mysql functions */
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #ifdef __WIN__
@@ -125,10 +127,10 @@ typedef long long longlong;
 #else
 #include <my_global.h>
 #include <my_sys.h>
+#include <m_string.h>		// To get strmov()
 #endif
 #include <mysql.h>
-#include <m_ctype.h>
-#include <m_string.h>		// To get strmov()
+#include <ctype.h>
 
 static pthread_mutex_t LOCK_hostname;
 
@@ -290,8 +292,8 @@ char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
 
   for (n = ntrans + 1, n_end = ntrans + sizeof(ntrans)-2;
 	word != w_end && n < n_end; word++ )
-    if ( my_isalpha ( &my_charset_latin1, *word ))
-      *n++ = my_toupper ( &my_charset_latin1, *word );
+    if ( isalpha ( *word ))
+      *n++ = toupper ( *word );
 
   if ( n == ntrans + 1 )	/* return empty string if 0 bytes */
   {
@@ -495,7 +497,7 @@ char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
 	}
     }
   }
-  *length= (ulong) (result - org_result);
+  *length= (unsigned long) (result - org_result);
   return org_result;
 }
 
@@ -519,7 +521,7 @@ my_bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (!args->arg_count)
   {
-    strcpy(message,"myfunc_double must have at least on argument");
+    strcpy(message,"myfunc_double must have at least one argument");
     return 1;
   }
   /*

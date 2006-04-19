@@ -425,14 +425,34 @@ max-time: 500
 cmd: testNodeRestart
 args: -n Bug15685 T1
 
+max-time: 500
+cmd: testNodeRestart
+args: -n Bug16772 T1
+
+#max-time: 500
+#cmd: testSystemRestart
+#args: -n Bug18385 T1
+#
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug18414 T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug18612 T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug18612SR T1
+
 # OLD FLEX
 max-time: 500
 cmd: flexBench
-args: -c 25 -t 10
+args: -c 25 -t 10 
 
 max-time: 500
 cmd: flexHammer
-args: -r 5 -t 32
+args: -r 5 -t 32 
 
 #
 # DICT TESTS

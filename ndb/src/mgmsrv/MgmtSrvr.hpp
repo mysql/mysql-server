@@ -176,6 +176,7 @@ public:
   STATIC_CONST( NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH = 5028 );
 
   STATIC_CONST( NO_CONTACT_WITH_DB_NODES = 5030 );
+  STATIC_CONST( UNSUPPORTED_NODE_SHUTDOWN = 5031 );
 
   STATIC_CONST( NODE_NOT_API_NODE = 5062 );
   STATIC_CONST( OPERATION_NOT_ALLOWED_START_STOP = 5063 );
@@ -252,7 +253,7 @@ public:
    *   @param   processId: Id of the DB process to stop
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    */
-  int stopNode(int nodeId, bool abort = false);
+  int stopNodes(const Vector<NodeId> &node_ids, int *stopCount, bool abort);
 
   /**
    *   Stop the system
@@ -286,11 +287,12 @@ public:
  int start(int processId);
 
   /**
-   *   Restart a node
+   *   Restart nodes
    *   @param processId: Id of the DB process to start
    */
-  int restartNode(int processId, bool nostart, bool initialStart, 
-		  bool abort = false);
+  int restartNodes(const Vector<NodeId> &node_ids,
+                   int *stopCount, bool nostart,
+                   bool initialStart, bool abort);
   
   /**
    *   Restart the system
@@ -494,7 +496,7 @@ private:
                    bool nostart,
                    bool initialStart);
 
-  int sendSTOP_REQ(NodeId nodeId,
+  int sendSTOP_REQ(const Vector<NodeId> &node_ids,
 		   NodeBitmask &stoppedNodes,
 		   Uint32 singleUserNodeId,
 		   bool abort,
@@ -653,6 +655,8 @@ private:
   friend class Ndb_mgmd_event_service;
   Ndb_mgmd_event_service m_event_listner;
   
+  NodeId m_master_node;
+
   /**
    * Handles the thread wich upon a 'Node is started' event will
    * set the node's previous loglevel settings.

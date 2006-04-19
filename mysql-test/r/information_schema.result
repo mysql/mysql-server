@@ -201,34 +201,34 @@ latin1	cp1252 West European	latin1_swedish_ci	1
 select * from information_schema.COLLATIONS
 where COLLATION_NAME like 'latin1%';
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
-latin1_german1_ci	latin1	5			0
-latin1_swedish_ci	latin1	8	Yes	Yes	1
-latin1_danish_ci	latin1	15			0
-latin1_german2_ci	latin1	31		Yes	2
-latin1_bin	latin1	47		Yes	1
-latin1_general_ci	latin1	48			0
-latin1_general_cs	latin1	49			0
-latin1_spanish_ci	latin1	94			0
+latin1_german1_ci	latin1	5		#	1
+latin1_swedish_ci	latin1	8	Yes	#	1
+latin1_danish_ci	latin1	15		#	1
+latin1_german2_ci	latin1	31		#	2
+latin1_bin	latin1	47		#	1
+latin1_general_ci	latin1	48		#	1
+latin1_general_cs	latin1	49		#	1
+latin1_spanish_ci	latin1	94		#	1
 SHOW COLLATION LIKE 'latin1%';
 Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_german1_ci	latin1	5			0
-latin1_swedish_ci	latin1	8	Yes	Yes	1
-latin1_danish_ci	latin1	15			0
-latin1_german2_ci	latin1	31		Yes	2
-latin1_bin	latin1	47		Yes	1
-latin1_general_ci	latin1	48			0
-latin1_general_cs	latin1	49			0
-latin1_spanish_ci	latin1	94			0
+latin1_german1_ci	latin1	5		#	1
+latin1_swedish_ci	latin1	8	Yes	#	1
+latin1_danish_ci	latin1	15		#	1
+latin1_german2_ci	latin1	31		#	2
+latin1_bin	latin1	47		#	1
+latin1_general_ci	latin1	48		#	1
+latin1_general_cs	latin1	49		#	1
+latin1_spanish_ci	latin1	94		#	1
 SHOW COLLATION WHERE collation like 'latin1%';
 Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_german1_ci	latin1	5			0
-latin1_swedish_ci	latin1	8	Yes	Yes	1
-latin1_danish_ci	latin1	15			0
-latin1_german2_ci	latin1	31		Yes	2
-latin1_bin	latin1	47		Yes	1
-latin1_general_ci	latin1	48			0
-latin1_general_cs	latin1	49			0
-latin1_spanish_ci	latin1	94			0
+latin1_german1_ci	latin1	5		#	1
+latin1_swedish_ci	latin1	8	Yes	#	1
+latin1_danish_ci	latin1	15		#	1
+latin1_german2_ci	latin1	31		#	2
+latin1_bin	latin1	47		#	1
+latin1_general_ci	latin1	48		#	1
+latin1_general_cs	latin1	49		#	1
+latin1_spanish_ci	latin1	94		#	1
 select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY
 where COLLATION_NAME like 'latin1%';
 COLLATION_NAME	CHARACTER_SET_NAME
@@ -281,6 +281,13 @@ sub1	sub1
 select count(*) from information_schema.ROUTINES;
 count(*)
 2
+create view v1 as select routine_schema, routine_name from information_schema.routines 
+order by routine_schema, routine_name;
+select * from v1;
+routine_schema	routine_name
+test	sel2
+test	sub1
+drop view v1;
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
 ROUTINE_NAME	ROUTINE_DEFINITION
 show create function sub1;
@@ -1033,14 +1040,6 @@ select 1 from (select 1 from test.t1) a;
 1
 1
 use test;
-drop table t1;
-create table t1(a blob, b text charset utf8, c text charset ucs2);
-select data_type, character_octet_length, character_maximum_length 
-from information_schema.columns where table_name='t1';
-data_type	character_octet_length	character_maximum_length
-blob	65535	65535
-text	65535	65535
-text	65535	32767
 drop table t1;
 create table t1 (f1 int(11));
 create view v1 as select * from t1;

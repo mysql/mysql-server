@@ -1846,10 +1846,13 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   if (! (stmt= new Prepared_statement(thd, &thd->protocol_prep)))
     DBUG_VOID_RETURN; /* out of memory: error is set in Sql_alloc */
 
-  if (thd->stmt_map.insert(stmt))
+  if (thd->stmt_map.insert(thd, stmt))
   {
-    delete stmt;
-    DBUG_VOID_RETURN;                           /* out of memory */
+    /*
+      The error is set in the insert. The statement itself
+      will be also deleted there (this is how the hash works).
+    */
+    DBUG_VOID_RETURN;
   }
 
   /* Reset warnings from previous command */
@@ -2026,9 +2029,15 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;                           /* out of memory */
   }
 
-  if (stmt->set_name(name) || thd->stmt_map.insert(stmt))
+  /* Set the name first, insert should know that this statement has a name */
+  if (stmt->set_name(name))
   {
     delete stmt;
+    DBUG_VOID_RETURN;
+  }
+  if (thd->stmt_map.insert(thd, stmt))
+  {
+    /* The statement is deleted and an error is set if insert fails */
     DBUG_VOID_RETURN;
   }
 
@@ -2126,11 +2135,17 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     /* Reset is_schema_table_processed value(needed for I_S tables */
     tables->is_schema_table_processed= FALSE;
 
-    if (tables->prep_on_expr)
+    TABLE_LIST *embedded; /* The table at the current level of nesting. */
+    TABLE_LIST *embedding= tables; /* The parent nested table reference. */
+    do
     {
-      tables->on_expr= tables->prep_on_expr->copy_andor_structure(thd);
-      tables->on_expr->cleanup();
+      embedded= embedding;
+      if (embedded->prep_on_expr)
+        embedded->on_expr= embedded->prep_on_expr->copy_andor_structure(thd);
+      embedding= embedded->embedding;
     }
+    while (embedding &&
+           embedding->nested_join->join_list.head() == embedded);
   }
   lex->current_select= &lex->select_lex;
 

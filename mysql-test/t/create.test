@@ -646,6 +646,12 @@ show create table t2;
 
 drop table t1, t2;
 
+#
+# Bug #15316 SET value having comma not correctly handled
+#
+--error 1367
+create table t1(a set("a,b","c,d") not null);
+
 # End of 4.1 tests
 
 #

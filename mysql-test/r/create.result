@@ -746,6 +746,8 @@ t2	CREATE TABLE `t2` (
   `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
+create table t1(a set("a,b","c,d") not null);
+ERROR 22007: Illegal set 'a,b' value found during parsing
 create table t1 (i int) engine=myisam max_rows=100000000000;
 show create table t1;
 Table	Create Table

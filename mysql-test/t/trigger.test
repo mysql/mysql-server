@@ -7,6 +7,7 @@ drop table if exists t1, t2, t3, t4;
 drop view if exists v1;
 drop database if exists mysqltest;
 drop function if exists f1;
+drop function if exists f2;
 drop procedure if exists p1;
 --enable_warnings
 
@@ -1017,6 +1018,29 @@ select trigger_schema, trigger_name, event_object_schema,
 # There should be no fantom .TRN files 
 --error ER_TRG_DOES_NOT_EXIST
 drop trigger test.t1_bi;
+# Let us also check handling of this restriction in ALTER TABLE ... RENAME
+--error ER_TRG_IN_WRONG_SCHEMA
+alter table t1 rename to test.t1;
+insert into t1 values (103);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+# Again there should be no fantom .TRN files 
+--error ER_TRG_DOES_NOT_EXIST
+drop trigger test.t1_bi;
+--error ER_TRG_IN_WRONG_SCHEMA
+alter table t1 rename to test.t1, add column val int default 0;
+insert into t1 values (104);
+select @a;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test' or event_object_schema = 'mysqltest';
+# Table definition should not change
+show create table t1;
+# And once again check for fantom .TRN files 
+--error ER_TRG_DOES_NOT_EXIST
+drop trigger test.t1_bi;
 drop trigger t1_bi;
 drop table t1;
 drop database mysqltest;
@@ -1057,3 +1081,64 @@ create table t1 (i int);
 create trigger t1_bi before insert on t1 for each row return 0;
 insert into t1 values (1);
 drop table t1;
+
+# Test for bug #17764 "Trigger crashes MyISAM table"
+#
+# Table was reported as crashed when it was subject table of trigger invoked
+# by insert statement which was executed with enabled bulk insert mode (which
+# is actually set of optimizations enabled by handler::start_bulk_insert())
+# and this trigger also explicitly referenced it.
+# The same problem arose when table to which bulk insert was done was also
+# referenced in function called by insert statement.
+create table t1 (a varchar(64), b int);
+create table t2 like t1;
+create trigger t1_ai after insert on t1 for each row
+  set @a:= (select max(a) from t1);
+insert into t1 (a) values
+  ("Twas"),("brillig"),("and"),("the"),("slithy"),("toves"),
+  ("Did"),("gyre"),("and"),("gimble"),("in"),("the"),("wabe");
+create trigger t2_ai after insert on t2 for each row
+  set @a:= (select max(a) from t2);
+insert into t2 select * from t1;
+load data infile '../std_data_ln/words.dat' into table t1 (a);
+drop trigger t1_ai;
+drop trigger t2_ai;
+# Test that the problem for functions is fixed as well
+create function f1() returns int return (select max(b) from t1);
+insert into t1 values
+  ("All",f1()),("mimsy",f1()),("were",f1()),("the",f1()),("borogoves",f1()),
+  ("And",f1()),("the",f1()),("mome", f1()),("raths",f1()),("outgrabe",f1());
+create function f2() returns int return (select max(b) from t2);
+insert into t2 select a, f2() from t1;
+load data infile '../std_data_ln/words.dat' into table t1 (a) set b:= f1();
+drop table t1;
+drop function f1;
+drop function f2;
+
+#
+# Test for Bug #16461 connection_id() does not work properly inside trigger
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (
+    conn_id INT,
+    trigger_conn_id INT
+);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  SET NEW.trigger_conn_id = CONNECTION_ID();
+
+INSERT INTO t1 (conn_id, trigger_conn_id) VALUES (CONNECTION_ID(), -1);
+
+connect (con1,localhost,root,,);
+INSERT INTO t1 (conn_id, trigger_conn_id) VALUES (CONNECTION_ID(), -1);
+connection default;
+disconnect con1;
+
+SELECT * FROM t1 WHERE conn_id != trigger_conn_id;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+# End of 5.0 tests

@@ -23,6 +23,7 @@ NDB_STD_OPTS_VARS;
 
 static const char* _dbname = "TEST_DB";
 static int _unqualified = 0;
+static int _partinfo = 0;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
@@ -31,6 +32,9 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "unqualified", 'u', "Use unqualified table names",
     (gptr*) &_unqualified, (gptr*) &_unqualified, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "extra-partition-info", 'p', "Print more info per partition",
+    (gptr*) &_partinfo, (gptr*) &_partinfo, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -44,6 +48,8 @@ static void usage()
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
+
+static void print_part_info(Ndb* pNdb, NDBT_Table* pTab);
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
@@ -109,11 +115,83 @@ int main(int argc, char** argv){
 	  
 	ndbout << (*pIdx) << endl;
       }
+
       ndbout << endl;
+      
+      if (_partinfo)
+	print_part_info(&MyNdb, pTab);
     }
     else
       ndbout << argv[i] << ": " << dict->getNdbError() << endl;
   }
   
   return NDBT_ProgramExit(NDBT_OK);
+}
+
+struct InfoInfo
+{
+  const char * m_title;
+  NdbRecAttr* m_rec_attr;
+  const NdbDictionary::Column* m_column;
+};
+
+
+static 
+void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
+{
+  InfoInfo g_part_info[] = {
+    { "Partition", 0, NdbDictionary::Column::FRAGMENT },
+    { "Row count", 0, NdbDictionary::Column::ROW_COUNT },
+    { "Commit count", 0, NdbDictionary::Column::COMMIT_COUNT },
+    { "Frag memory", 0, NdbDictionary::Column::FRAGMENT_MEMORY },
+    { 0, 0, 0 }
+  };
+
+  ndbout << "-- Per partition info -- " << endl;
+  
+  NdbConnection* pTrans = pNdb->startTransaction();
+  if (pTrans == 0)
+    return;
+  
+  do
+  {
+    NdbScanOperation* pOp= pTrans->getNdbScanOperation(pTab->getName());
+    if (pOp == NULL)
+      break;
+    
+    int rs = pOp->readTuples(NdbOperation::LM_CommittedRead); 
+    if (rs != 0)
+      break;
+    
+    if (pOp->interpret_exit_last_row() != 0)
+      break;
+    
+    Uint32 i = 0;
+    for(i = 0; g_part_info[i].m_title != 0; i++)
+    {
+      if ((g_part_info[i].m_rec_attr = pOp->getValue(g_part_info[i].m_column)) == 0)
+	break;
+    }
+
+    if (g_part_info[i].m_title != 0)
+      break;
+
+    if (pTrans->execute(NoCommit) != 0)
+      break;
+	
+    for (i = 0; g_part_info[i].m_title != 0; i++)
+      ndbout << g_part_info[i].m_title << "\t";
+    ndbout << endl;
+    
+    while(pOp->nextResult() == 0)
+    {
+      for(i = 0; g_part_info[i].m_title != 0; i++)
+      {
+	ndbout << *g_part_info[i].m_rec_attr << "\t";
+      }
+      ndbout << endl;
+    }
+  } while(0);
+  
+  pTrans->close();
 }

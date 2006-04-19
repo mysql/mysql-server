@@ -25,6 +25,7 @@
 #endif
 
 #include <mgmapi.h>
+#include <util/BaseString.hpp>
 
 class MgmtSrvr;
 
@@ -70,6 +71,9 @@ private:
    */
   void analyseAfterFirstToken(int processId, char* allAfterFirstTokenCstr);
 
+  void executeCommand(Vector<BaseString> &command_list,
+                      unsigned command_pos,
+                      int *node_ids, int no_of_nodes);
   /**
    *   Parse the block specification part of the LOG* commands,
    *   things after LOG*: [BLOCK = {ALL|<blockName>+}]
@@ -104,10 +108,14 @@ private:
 
 public:
   void executeStop(int processId, const char* parameters, bool all);
+  void executeStop(Vector<BaseString> &command_list, unsigned command_pos,
+                   int *node_ids, int no_of_nodes);
   void executeEnterSingleUser(char* parameters);
   void executeExitSingleUser(char* parameters);
   void executeStart(int processId, const char* parameters, bool all);
   void executeRestart(int processId, const char* parameters, bool all);
+  void executeRestart(Vector<BaseString> &command_list, unsigned command_pos,
+                      int *node_ids, int no_of_nodes);
   void executeLogLevel(int processId, const char* parameters, bool all);
   void executeError(int processId, const char* parameters, bool all);
   void executeLog(int processId, const char* parameters, bool all);
@@ -643,9 +651,16 @@ CommandInterpreter::execute_impl(const char *_line)
     }
   } while (do_continue);
   // if there is anything in the line proceed
+  Vector<BaseString> command_list;
+  {
+    BaseString tmp(line);
+    tmp.split(command_list);
+    for (unsigned i= 0; i < command_list.size();)
+      command_list[i].c_str()[0] ? i++ : (command_list.erase(i),0);
+  }
   char* firstToken = strtok(line, " ");
   char* allAfterFirstToken = strtok(NULL, "");
-  
+
   if (strcasecmp(firstToken, "HELP") == 0 ||
       strcasecmp(firstToken, "?") == 0) {
     executeHelp(allAfterFirstToken);
@@ -723,22 +738,45 @@ CommandInterpreter::execute_impl(const char *_line)
     analyseAfterFirstToken(-1, allAfterFirstToken);
   } else {
     /**
-     * First token should be a digit, node ID
+     * First tokens should be digits, node ID's
      */
-    int nodeId;
-
-    if (! convert(firstToken, nodeId)) {
+    int node_ids[MAX_NODES];
+    unsigned pos;
+    for (pos= 0; pos < command_list.size(); pos++)
+    {
+      int node_id;
+      if (convert(command_list[pos].c_str(), node_id))
+      {
+        if (node_id <= 0) {
+          ndbout << "Invalid node ID: " << command_list[pos].c_str()
+                 << "." << endl;
+          DBUG_RETURN(true);
+        }
+        node_ids[pos]= node_id;
+        continue;
+      }
+      break;
+    }
+    int no_of_nodes= pos;
+    if (no_of_nodes == 0)
+    {
+      /* No digit found */
       invalid_command(_line);
       DBUG_RETURN(true);
     }
-
-    if (nodeId <= 0) {
-      ndbout << "Invalid node ID: " << firstToken << "." << endl;
+    if (pos == command_list.size())
+    {
+      /* No command found */
+      invalid_command(_line);
       DBUG_RETURN(true);
     }
-    
-    analyseAfterFirstToken(nodeId, allAfterFirstToken);
-    
+    if (no_of_nodes == 1)
+    {
+      analyseAfterFirstToken(node_ids[0], allAfterFirstToken);
+      DBUG_RETURN(true);
+    }
+    executeCommand(command_list, pos, node_ids, no_of_nodes);
+    DBUG_RETURN(true);
   }
   DBUG_RETURN(true);
 }
@@ -806,6 +844,27 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
     (this->*fun)(processId, allAfterSecondToken, false);
   }
   ndbout << endl;
+}
+
+void
+CommandInterpreter::executeCommand(Vector<BaseString> &command_list,
+                                   unsigned command_pos,
+                                   int *node_ids, int no_of_nodes)
+{
+  const char *cmd= command_list[command_pos].c_str();
+  if (strcasecmp("STOP", cmd) == 0)
+  {
+    executeStop(command_list, command_pos+1, node_ids, no_of_nodes);
+    return;
+  }
+  if (strcasecmp("RESTART", cmd) == 0)
+  {
+    executeRestart(command_list, command_pos+1, node_ids, no_of_nodes);
+    return;
+  }
+  ndbout_c("Invalid command: '%s' after multi node id list. "
+           "Expected STOP or RESTART.", cmd);
+  return;
 }
 
 /**
@@ -1092,7 +1151,7 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	  }
 	  if (node_state->node_group >= 0) {
 	    ndbout << ", Nodegroup: " << node_state->node_group;
-	    if (node_state->dynamic_id == master_id)
+	    if (master_id && node_state->dynamic_id == master_id)
 	      ndbout << ", Master";
 	  }
 	}
@@ -1400,24 +1459,60 @@ CommandInterpreter::executeClusterLog(char* parameters)
 //*****************************************************************************
 
 void
-CommandInterpreter::executeStop(int processId, const char *, bool all) 
+CommandInterpreter::executeStop(int processId, const char *parameters,
+                                bool all) 
 {
-  int result = 0;
-  if(all) {
-    result = ndb_mgm_stop(m_mgmsrv, 0, 0);
-  } else {
-    result = ndb_mgm_stop(m_mgmsrv, 1, &processId);
+  Vector<BaseString> command_list;
+  if (parameters)
+  {
+    BaseString tmp(parameters);
+    tmp.split(command_list);
+    for (unsigned i= 0; i < command_list.size();)
+      command_list[i].c_str()[0] ? i++ : (command_list.erase(i),0);
   }
-  if (result < 0) {
-    ndbout << "Shutdown failed." << endl;
-    printError();
-  } else
+  if (all)
+    executeStop(command_list, 0, 0, 0);
+  else
+    executeStop(command_list, 0, &processId, 1);
+}
+
+void
+CommandInterpreter::executeStop(Vector<BaseString> &command_list,
+                                unsigned command_pos,
+                                int *node_ids, int no_of_nodes)
+{
+  int abort= 0;
+  for (; command_pos < command_list.size(); command_pos++)
+  {
+    const char *item= command_list[command_pos].c_str();
+    if (strcasecmp(item, "-A") == 0)
     {
-      if(all)
-	ndbout << "NDB Cluster has shutdown." << endl;
-      else
-	ndbout << "Node " << processId << " has shutdown." << endl;
+      abort= 1;
+      continue;
     }
+    ndbout_c("Invalid option: %s. Expecting -A after STOP",
+             item);
+    return;
+  }
+
+  int result= ndb_mgm_stop2(m_mgmsrv, no_of_nodes, node_ids, abort);
+  if (result < 0)
+  {
+    ndbout_c("Shutdown failed.");
+    printError();
+  }
+  else
+  {
+    if (node_ids == 0)
+      ndbout_c("NDB Cluster has shutdown.");
+    else
+    {
+      ndbout << "Node";
+      for (int i= 0; i < no_of_nodes; i++)
+        ndbout << " " << node_ids[i];
+      ndbout_c(" has shutdown.");
+    }
+  }
 }
 
 void
@@ -1483,47 +1578,74 @@ CommandInterpreter::executeStart(int processId, const char* parameters,
 
 void
 CommandInterpreter::executeRestart(int processId, const char* parameters,
-				   bool all) 
+				   bool all)
+{
+  Vector<BaseString> command_list;
+  if (parameters)
+  {
+    BaseString tmp(parameters);
+    tmp.split(command_list);
+    for (unsigned i= 0; i < command_list.size();)
+      command_list[i].c_str()[0] ? i++ : (command_list.erase(i),0);
+  }
+  if (all)
+    executeRestart(command_list, 0, 0, 0);
+  else
+    executeRestart(command_list, 0, &processId, 1);
+}
+
+void
+CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
+                                   unsigned command_pos,
+                                   int *node_ids, int no_of_nodes)
 {
   int result;
-  int nostart = 0;
-  int initialstart = 0;
-  int abort = 0;
+  int nostart= 0;
+  int initialstart= 0;
+  int abort= 0;
 
-  if(parameters != 0 && strlen(parameters) != 0){
-    char * tmpString = my_strdup(parameters,MYF(MY_WME));
-    My_auto_ptr<char> ap1(tmpString);
-    char * tmpPtr = 0;
-    char * item = strtok_r(tmpString, " ", &tmpPtr);
-    while(item != NULL){
-      if(strcasecmp(item, "-N") == 0)
-	nostart = 1;
-      if(strcasecmp(item, "-I") == 0)
-	initialstart = 1;
-      if(strcasecmp(item, "-A") == 0)
-	abort = 1;
-      item = strtok_r(NULL, " ", &tmpPtr);
+  for (; command_pos < command_list.size(); command_pos++)
+  {
+    const char *item= command_list[command_pos].c_str();
+    if (strcasecmp(item, "-N") == 0)
+    {
+      nostart= 1;
+      continue;
     }
+    if (strcasecmp(item, "-I") == 0)
+    {
+      initialstart= 1;
+      continue;
+    }
+    if (strcasecmp(item, "-A") == 0)
+    {
+      abort= 1;
+      continue;
+    }
+    ndbout_c("Invalid option: %s. Expecting -A,-N or -I after RESTART",
+             item);
+    return;
   }
 
-  if(all) {
-    result = ndb_mgm_restart2(m_mgmsrv, 0, NULL, initialstart, nostart, abort);
-  } else {
-    int v[1];
-    v[0] = processId;
-    result = ndb_mgm_restart2(m_mgmsrv, 1, v, initialstart, nostart, abort);
-  }
+  result= ndb_mgm_restart2(m_mgmsrv, no_of_nodes, node_ids,
+                           initialstart, nostart, abort);
   
   if (result <= 0) {
-    ndbout.println("Restart failed.", result);
+    ndbout_c("Restart failed.");
     printError();
-  } else
+  }
+  else
+  {
+    if (node_ids == 0)
+      ndbout_c("NDB Cluster is being restarted.");
+    else
     {
-      if(all)
-	ndbout << "NDB Cluster is being restarted." << endl;
-      else
-	ndbout_c("Node %d is being restarted.", processId);
+      ndbout << "Node";
+      for (int i= 0; i < no_of_nodes; i++)
+        ndbout << " " << node_ids[i];
+      ndbout_c(" is being restarted");
     }
+  }
 }
 
 void

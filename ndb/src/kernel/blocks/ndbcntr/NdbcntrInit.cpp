@@ -87,6 +87,7 @@ Ndbcntr::Ndbcntr(const class Configuration & conf):
   addRecSignal(GSN_STOP_ME_CONF, &Ndbcntr::execSTOP_ME_CONF);
 
   addRecSignal(GSN_STOP_REQ, &Ndbcntr::execSTOP_REQ);
+  addRecSignal(GSN_STOP_CONF, &Ndbcntr::execSTOP_CONF);
   addRecSignal(GSN_RESUME_REQ, &Ndbcntr::execRESUME_REQ);
 
   addRecSignal(GSN_WAIT_GCP_REF, &Ndbcntr::execWAIT_GCP_REF);

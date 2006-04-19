@@ -410,6 +410,14 @@ DROP TABLE t1;
 SET NAMES latin1;
 
 #
+# Bug#18691 Converting number to UNICODE string returns invalid result
+#
+SELECT CONVERT(103, CHAR(50) UNICODE);
+SELECT CONVERT(103.0, CHAR(50) UNICODE);
+SELECT CONVERT(-103, CHAR(50) UNICODE);
+SELECT CONVERT(-103.0, CHAR(50) UNICODE);
+
+#
 # Bug#9557 MyISAM utf8 table crash
 #
 CREATE TABLE t1 (
@@ -455,3 +463,11 @@ execute stmt using @param1;
 select utext from t1 where utext like '%%';
 drop table t1;
 deallocate prepare stmt;
+
+#
+# Bug #14290: character_maximum_length for text fields
+#
+create table t1(a blob, b text charset utf8, c text charset ucs2);
+select data_type, character_octet_length, character_maximum_length
+  from information_schema.columns where table_name='t1';
+drop table t1;

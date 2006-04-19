@@ -2067,3 +2067,21 @@ SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 
 DROP TABLE t1;
 
+#
+# Bug#17366: Unchecked Item_int results in server crash
+#
+create table t1( f1 int,f2 int);
+insert into t1 values (1,1),(2,2);
+select tt.t from (select 'crash1' as t, f2 from t1) as tt left join t1 on tt.t = 'crash2' and tt.f2 = t1.f2 where tt.t = 'crash1';
+drop table t1;
+
+#
+# Bug #18306: server crash on delete using subquery.
+#
+
+create table t1 (c int, key(c));                              
+insert into t1 values (1142477582), (1142455969);
+create table t2 (a int, b int);
+insert into t2 values (2, 1), (1, 0);
+delete from t1 where c <= 1140006215 and (select b from t2 where a = 2) = 1;
+drop table t1, t2;

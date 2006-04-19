@@ -434,12 +434,12 @@ NdbTransaction::executeNoBlobs(ExecType aTypeOfExec,
 //------------------------------------------------------------------------
   Ndb* tNdb = theNdb;
 
+  Uint32 timeout = TransporterFacade::instance()->m_waitfor_timeout;
   m_waitForReply = false;
   executeAsynchPrepare(aTypeOfExec, NULL, NULL, abortOption);
   if (m_waitForReply){
     while (1) {
-      int noOfComp = tNdb->sendPollNdb((3 * WAITFOR_RESPONSE_TIMEOUT),
-                                       1, forceSend);
+      int noOfComp = tNdb->sendPollNdb(3 * timeout, 1, forceSend);
       if (noOfComp == 0) {
         /** 
          * This timeout situation can occur if NDB crashes.
@@ -1171,6 +1171,8 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
       {
 	tOp->m_currentTable = table;
       }
+      // Mark that this really an NdbIndexScanOperation
+      tOp->m_type = NdbOperation::OrderedIndexScan; 
       return tOp;
     } else {
       setOperationErrorCodeAbort(4271);
@@ -1232,6 +1234,8 @@ NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
   
   if (tOp->init(tab, this) != -1) {
     define_scan_op(tOp);
+    // Mark that this NdbIndexScanOperation is used as NdbScanOperation
+    tOp->m_type = NdbOperation::TableScan; 
     return tOp;
   } else {
     theNdb->releaseScanOperation(tOp);

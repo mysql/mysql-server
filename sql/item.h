@@ -701,6 +701,7 @@ public:
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
   virtual bool cleanup_processor(byte *arg);
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
+  virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
   virtual bool change_context_processor(byte *context) { return 0; }
   virtual bool reset_query_id_processor(byte *query_id) { return 0; }
 
@@ -1149,6 +1150,7 @@ public:
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(byte * arg);
+  bool find_item_in_field_list_processor(byte *arg);
   bool reset_query_id_processor(byte *arg)
   {
     field->query_id= *((query_id_t *) arg);
@@ -1382,18 +1384,6 @@ public:
   uint decimal_precision() const
   { return (uint)(max_length - test(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
-};
-
-
-class Item_static_int_func :public Item_int
-{
-  const char *func_name;
-public:
-  Item_static_int_func(const char *str_arg, longlong i, uint length)
-    :Item_int(NullS, i, length), func_name(str_arg)
-  {}
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
-  void print(String *str) { str->append(func_name); }
 };
 
 

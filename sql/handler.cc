@@ -35,9 +35,9 @@
 #include "ha_berkeley.h"
 extern handlerton berkeley_hton;
 #else
-handlerton berkeley_hton = { "BerkeleyDB", SHOW_OPTION_NO, 
-  "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB, NULL, 
-  0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+handlerton berkeley_hton = { "BerkeleyDB", SHOW_OPTION_NO,
+  "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB, NULL,
+  0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_BLACKHOLE_DB
@@ -46,8 +46,8 @@ extern handlerton blackhole_hton;
 #else
 handlerton blackhole_hton = { "BLACKHOLE", SHOW_OPTION_NO,
   "/dev/null storage engine (anything you write to it disappears)",
-  DB_TYPE_BLACKHOLE_DB, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  DB_TYPE_BLACKHOLE_DB, NULL, 0, 0, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_EXAMPLE_DB
@@ -55,9 +55,9 @@ handlerton blackhole_hton = { "BLACKHOLE", SHOW_OPTION_NO,
 extern handlerton example_hton;
 #else
 handlerton example_hton = { "EXAMPLE", SHOW_OPTION_NO,
-  "Example storage engine", 
-  DB_TYPE_EXAMPLE_DB, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  "Example storage engine",
+  DB_TYPE_EXAMPLE_DB, NULL, 0, 0, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   HTON_NO_FLAGS };
 #endif
 #if defined(HAVE_ARCHIVE_DB)
@@ -65,17 +65,17 @@ handlerton example_hton = { "EXAMPLE", SHOW_OPTION_NO,
 extern handlerton archive_hton;
 #else
 handlerton archive_hton = { "ARCHIVE", SHOW_OPTION_NO,
-  "Archive storage engine", DB_TYPE_ARCHIVE_DB, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  "Archive storage engine", DB_TYPE_ARCHIVE_DB, NULL, 0, 0, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_CSV_DB
 #include "examples/ha_tina.h"
 extern handlerton tina_hton;
 #else
-handlerton tina_hton = { "CSV", SHOW_OPTION_NO, "CSV storage engine", 
-  DB_TYPE_CSV_DB, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+handlerton tina_hton = { "CSV", SHOW_OPTION_NO, "CSV storage engine",
+  DB_TYPE_CSV_DB, NULL, 0, 0, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_INNOBASE_DB
@@ -83,9 +83,9 @@ handlerton tina_hton = { "CSV", SHOW_OPTION_NO, "CSV storage engine",
 extern handlerton innobase_hton;
 #else
 handlerton innobase_hton = { "InnoDB", SHOW_OPTION_NO,
-  "Supports transactions, row-level locking, and foreign keys", 
-  DB_TYPE_INNODB, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  "Supports transactions, row-level locking, and foreign keys",
+  DB_TYPE_INNODB, NULL, 0, 0, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
@@ -93,18 +93,18 @@ handlerton innobase_hton = { "InnoDB", SHOW_OPTION_NO,
 extern handlerton ndbcluster_hton;
 #else
 handlerton ndbcluster_hton = { "ndbcluster", SHOW_OPTION_NO,
-  "Clustered, fault-tolerant, memory-based tables", 
-  DB_TYPE_NDBCLUSTER, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  "Clustered, fault-tolerant, memory-based tables",
+  DB_TYPE_NDBCLUSTER, NULL, 0, 0, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_FEDERATED_DB
 #include "ha_federated.h"
 extern handlerton federated_hton;
 #else
-handlerton federated_hton = { "FEDERATED", SHOW_OPTION_NO, 
-  "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB, NULL, 0, 0, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+handlerton federated_hton = { "FEDERATED", SHOW_OPTION_NO,
+  "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB, NULL, 0, 0, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   HTON_NO_FLAGS };
 #endif
 #include <myisampack.h>
@@ -118,8 +118,8 @@ extern handlerton binlog_hton;
 /*
   Obsolete
 */
-handlerton isam_hton = { "ISAM", SHOW_OPTION_NO, "Obsolete storage engine", 
-  DB_TYPE_ISAM, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+handlerton isam_hton = { "ISAM", SHOW_OPTION_NO, "Obsolete storage engine",
+  DB_TYPE_ISAM, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL, NULL, NULL, HTON_NO_FLAGS };
 
 
@@ -283,7 +283,7 @@ enum db_type ha_checktype(THD *thd, enum db_type database_type,
   default:
     break;
   }
-  
+
   return ((enum db_type) thd->variables.table_type != DB_TYPE_UNKNOWN ?
           (enum db_type) thd->variables.table_type :
           ((enum db_type) global_system_variables.table_type !=
@@ -481,7 +481,7 @@ int ha_init()
   for (types= sys_table_types; *types; types++)
   {
     if (!(*types)->init || !(*types)->init())
-      ha_was_inited_ok(types); 
+      ha_was_inited_ok(types);
     else
       (*types)->state= SHOW_OPTION_DISABLED;
   }
@@ -1144,7 +1144,7 @@ int ha_release_temporary_latches(THD *thd)
 }
 
 
-/* 
+/*
   Export statistics for different engines. Currently we use it only for
   InnoDB.
 */
@@ -1480,7 +1480,7 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
   RETURN
     0	ok
     1 	get_auto_increment() was called and returned ~(ulonglong) 0
-    
+
 
   IMPLEMENTATION
 
@@ -2323,8 +2323,8 @@ int ha_discover(THD *thd, const char *db, const char *name,
 
 
 /*
-  Call this function in order to give the handler the possiblity 
-  to ask engine if there are any new tables that should be written to disk 
+  Call this function in order to give the handler the possiblity
+  to ask engine if there are any new tables that should be written to disk
   or any dropped tables that need to be removed from disk
 */
 
@@ -2334,7 +2334,7 @@ ha_find_files(THD *thd,const char *db,const char *path,
 {
   int error= 0;
   DBUG_ENTER("ha_find_files");
-  DBUG_PRINT("enter", ("db: %s, path: %s, wild: %s, dir: %d", 
+  DBUG_PRINT("enter", ("db: %s, path: %s, wild: %s, dir: %d",
 		       db, path, wild, dir));
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
@@ -2500,7 +2500,7 @@ int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
     read_range_first()
     start_key		Start key. Is 0 if no min range
     end_key		End key.  Is 0 if no max range
-    eq_range_arg	Set to 1 if start_key == end_key		
+    eq_range_arg	Set to 1 if start_key == end_key
     sorted		Set to 1 if result should be sorted per key
 
   NOTES
@@ -2538,7 +2538,7 @@ int handler::read_range_first(const key_range *start_key,
 		       start_key->length,
 		       start_key->flag);
   if (result)
-    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND) 
+    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND)
 		? HA_ERR_END_OF_FILE
 		: result);
 
@@ -2586,7 +2586,7 @@ int handler::read_range_next()
   SYNOPSIS
     compare_key
     range		range to compare to row. May be 0 for no range
- 
+
   NOTES
     See key.cc::key_cmp() for details
 
@@ -2626,7 +2626,7 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
 
   SYNOPSIS
     ha_known_exts()
- 
+
   NOTES
     No mutexes, worst case race is a minor surplus memory allocation
     We have to recreate the extension map if mysqld is restarted (for example
@@ -2673,7 +2673,7 @@ TYPELIB *ha_known_exts(void)
     ext= (const char **) my_once_alloc(sizeof(char *)*
                                        (found_exts.elements+1),
                                        MYF(MY_WME | MY_FAE));
-    
+
     DBUG_ASSERT(ext != 0);
     known_extensions.count= found_exts.elements;
     known_extensions.type_names= ext;
@@ -2684,56 +2684,3 @@ TYPELIB *ha_known_exts(void)
   }
   return &known_extensions;
 }
-
-
-#ifdef HAVE_REPLICATION
-/*
-  Reports to table handlers up to which position we have sent the binlog
-  to a slave in replication
-
-  SYNOPSIS
-    ha_repl_report_sent_binlog()
-    thd             thread doing the binlog communication to the slave
-    log_file_name   binlog file name
-    end_offse t     the offset in the binlog file up to which we sent the
-		    contents to the slave
-
-  NOTES
-    Only works for InnoDB at the moment
-
-  RETURN VALUE
-    Always 0 (= success)  
-*/
-
-int ha_repl_report_sent_binlog(THD *thd, char *log_file_name,
-                               my_off_t end_offset)
-{
-#ifdef HAVE_INNOBASE_DB
-  return innobase_repl_report_sent_binlog(thd,log_file_name,end_offset);
-#else
-  return 0;
-#endif
-}
-
-
-/*
-  Reports to table handlers that we stop replication to a specific slave
-
-  SYNOPSIS
-    ha_repl_report_replication_stop()
-    thd              thread doing the binlog communication to the slave
-
-  NOTES
-    Does nothing at the moment
-
-  RETURN VALUE
-    Always 0 (= success)  
-
-  PARAMETERS
-*/
-
-int ha_repl_report_replication_stop(THD *thd)
-{
-  return 0;
-}
-#endif /* HAVE_REPLICATION */

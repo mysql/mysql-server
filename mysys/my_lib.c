@@ -384,11 +384,10 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   DBUG_PRINT("my",("path: '%s' stat: %d  MyFlags: %d",path,MyFlags));
 
   /* Put LIB-CHAR as last path-character if not there */
-
   tmp_file=tmp_path;
   if (!*path)
     *tmp_file++ ='.';				/* From current dir */
-  tmp_file= strmov(tmp_file,path);
+  tmp_file= strnmov(tmp_file, path, FN_REFLEN-5);
   if (tmp_file[-1] == FN_DEVCHAR)
     *tmp_file++= '.';				/* From current dev-dir */
   if (tmp_file[-1] != FN_LIBCHAR)
@@ -397,14 +396,6 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   tmp_file[1]='.';
   tmp_file[2]='*';
   tmp_file[3]='\0';
-
-#ifdef __BORLANDC__
-  if ((handle= findfirst(tmp_path,&find,0)) == -1L)
-    goto error;
-#else
-  if ((handle=_findfirst(tmp_path,&find)) == -1L)
-    goto error;
-#endif
 
   if (!(buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
                           ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
@@ -425,72 +416,92 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   
   /* MY_DIR structure is allocated and completly initialized at this point */
   result= (MY_DIR*)buffer;
- 
-  do
-  {
-#ifdef __BORLANDC__
-    attrib= find.ff_attrib;
-#else
-    attrib= find.attrib;
-    /*
-      Do not show hidden and system files which Windows sometimes create.
-      Note. Because Borland's findfirst() is called with the third
-      argument = 0 hidden/system files are excluded from the search.
-    */
-    if (attrib & (_A_HIDDEN | _A_SYSTEM))
-      continue;
-#endif    
-#ifdef __BORLANDC__
-    if (!(finfo.name= strdup_root(names_storage, find.ff_name)))
-      goto error;
-#else
-    if (!(finfo.name= strdup_root(names_storage, find.name)))
-      goto error;
-#endif    
-    if (MyFlags & MY_WANT_STAT)
-    {
-      if (!(finfo.mystat= (MY_STAT*)alloc_root(names_storage, 
-                                               sizeof(MY_STAT))))
-        goto error;
-      
-      bzero(finfo.mystat, sizeof(MY_STAT));
-#ifdef __BORLANDC__
-      finfo.mystat->st_size=find.ff_fsize;
-#else
-      finfo.mystat->st_size=find.size;
-#endif
-      mode=MY_S_IREAD;
-      if (!(attrib & _A_RDONLY))
-	mode|=MY_S_IWRITE;
-      if (attrib & _A_SUBDIR)
-	mode|=MY_S_IFDIR;
-      finfo.mystat->st_mode=mode;
-#ifdef __BORLANDC__
-      finfo.mystat->st_mtime=((uint32) find.ff_ftime);
-#else
-      finfo.mystat->st_mtime=((uint32) find.time_write);
-#endif
-    }
-    else
-      finfo.mystat= NULL;
 
-    if (push_dynamic(dir_entries_storage, (gptr)&finfo))
-      goto error;
-    
 #ifdef __BORLANDC__
-  } while (findnext(&find) == 0);
+  if ((handle= findfirst(tmp_path,&find,0)) == -1L)
 #else
-  } while (_findnext(handle,&find) == 0);
-  
-  _findclose(handle);
+  if ((handle=_findfirst(tmp_path,&find)) == -1L)
 #endif
+  {
+    DBUG_PRINT("info", ("findfirst returned error, errno: %d", errno));
+    if  (errno != EINVAL)
+      goto error;
+    /*
+      Could not read the directory, no read access.
+      Probably because by "chmod -r".
+      continue and return zero files in dir
+    */
+  }
+  else
+  {
+
+    do
+    {
+#ifdef __BORLANDC__
+      attrib= find.ff_attrib;
+#else
+      attrib= find.attrib;
+      /*
+        Do not show hidden and system files which Windows sometimes create.
+        Note. Because Borland's findfirst() is called with the third
+        argument = 0 hidden/system files are excluded from the search.
+      */
+      if (attrib & (_A_HIDDEN | _A_SYSTEM))
+        continue;
+#endif
+#ifdef __BORLANDC__
+      if (!(finfo.name= strdup_root(names_storage, find.ff_name)))
+        goto error;
+#else
+      if (!(finfo.name= strdup_root(names_storage, find.name)))
+        goto error;
+#endif
+      if (MyFlags & MY_WANT_STAT)
+      {
+        if (!(finfo.mystat= (MY_STAT*)alloc_root(names_storage,
+                                                 sizeof(MY_STAT))))
+          goto error;
+
+        bzero(finfo.mystat, sizeof(MY_STAT));
+#ifdef __BORLANDC__
+        finfo.mystat->st_size=find.ff_fsize;
+#else
+        finfo.mystat->st_size=find.size;
+#endif
+        mode= MY_S_IREAD;
+        if (!(attrib & _A_RDONLY))
+          mode|= MY_S_IWRITE;
+        if (attrib & _A_SUBDIR)
+          mode|= MY_S_IFDIR;
+        finfo.mystat->st_mode= mode;
+#ifdef __BORLANDC__
+        finfo.mystat->st_mtime= ((uint32) find.ff_ftime);
+#else
+        finfo.mystat->st_mtime= ((uint32) find.time_write);
+#endif
+      }
+      else
+        finfo.mystat= NULL;
+
+      if (push_dynamic(dir_entries_storage, (gptr)&finfo))
+        goto error;
+    }
+#ifdef __BORLANDC__
+    while (findnext(&find) == 0);
+#else
+    while (_findnext(handle,&find) == 0);
+
+    _findclose(handle);
+#endif
+  }
 
   result->dir_entry= (FILEINFO *)dir_entries_storage->buffer;
   result->number_off_files= dir_entries_storage->elements;
-  
+
   if (!(MyFlags & MY_DONT_SORT))
     qsort((void *) result->dir_entry, result->number_off_files,
           sizeof(FILEINFO), (qsort_cmp) comp_names);
+  DBUG_PRINT(exit, ("found %d files", result->number_off_files));
   DBUG_RETURN(result);
 error:
   my_errno=errno;

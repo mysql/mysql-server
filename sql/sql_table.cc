@@ -741,6 +741,11 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
                                                sql_field->interval_list);
         List_iterator<String> it(sql_field->interval_list);
         String conv, *tmp;
+        char comma_buf[2];
+        int comma_length= cs->cset->wc_mb(cs, ',', (uchar*) comma_buf,
+                                          (uchar*) comma_buf + 
+                                          sizeof(comma_buf));
+        DBUG_ASSERT(comma_length > 0);
         for (uint i= 0; (tmp= it++); i++)
         {
           uint lengthsp;
@@ -759,6 +764,16 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
                                        interval->type_lengths[i]);
           interval->type_lengths[i]= lengthsp;
           ((uchar *)interval->type_names[i])[lengthsp]= '\0';
+          if (sql_field->sql_type == FIELD_TYPE_SET)
+          {
+            if (cs->coll->instr(cs, interval->type_names[i], 
+                                interval->type_lengths[i], 
+                                comma_buf, comma_length, NULL, 0))
+            {
+              my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "set", tmp->ptr());
+              DBUG_RETURN(-1);
+            }
+          }
         }
         sql_field->interval_list.empty(); // Don't need interval_list anymore
       }
@@ -1783,7 +1798,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       field=item->tmp_table_field(&tmp_table);
     else
       field=create_tmp_field(thd, &tmp_table, item, item->type(),
-                             (Item ***) 0, &tmp_field, 0, 0, 0, 0);
+                             (Item ***) 0, &tmp_field, 0, 0, 0, 0, 0);
     if (!field ||
 	!(cr_field=new create_field(field,(item->type() == Item::FIELD_ITEM ?
 					   ((Item_field *)item)->field :
@@ -3182,6 +3197,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
   bool need_copy_table;
+  bool no_table_reopen= FALSE;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -3831,9 +3847,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       Win32 and InnoDB can't drop a table that is in use, so we must
       close the original table at before doing the rename
     */
-    table_name=thd->strdup(table_name);		// must be saved
     close_cached_table(thd, table);
     table=0;					// Marker that table is closed
+    no_table_reopen= TRUE;
   }
 #if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))
   else
@@ -3872,7 +3888,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
-  if (thd->lock || new_name != table_name)	// True if WIN32
+  if (thd->lock || new_name != table_name || no_table_reopen)  // True if WIN32
   {
     /*
       Not table locking or alter table with rename

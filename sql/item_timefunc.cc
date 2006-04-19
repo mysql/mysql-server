@@ -2125,6 +2125,41 @@ longlong Item_date_add_interval::val_int()
     ((date*100L + ltime.hour)*100L+ ltime.minute)*100L + ltime.second;
 }
 
+
+
+bool Item_date_add_interval::eq(const Item *item, bool binary_cmp) const
+{
+  INTERVAL interval, other_interval;
+  String val= value;   // Because of const
+
+  if (this == item)
+    return TRUE;
+
+  if ((item->type() != FUNC_ITEM) ||
+      (arg_count != ((Item_func*) item)->arg_count) ||
+      (func_name() != ((Item_func*) item)->func_name()))
+    return FALSE;
+
+  Item_date_add_interval *other= (Item_date_add_interval*) item;
+
+  if ((int_type != other->int_type) ||
+      (!args[0]->eq(other->args[0], binary_cmp)) ||
+      (get_interval_value(args[1], int_type, &val, &interval)))
+    return FALSE;
+
+  val= other->value;
+
+  if ((get_interval_value(other->args[1], other->int_type, &val,
+                         &other_interval)) ||
+      ((date_sub_interval ^ interval.neg) ^
+       (other->date_sub_interval ^ other_interval.neg)))
+    return FALSE;
+
+  // Assume comparing same types here due to earlier check
+  return memcmp(&interval, &other_interval, sizeof(INTERVAL)) == 0;
+}
+
+
 static const char *interval_names[]=
 {
   "year", "quarter", "month", "day", "hour",
@@ -2213,7 +2248,7 @@ longlong Item_extract::val_int()
   switch (int_type) {
   case INTERVAL_YEAR:		return ltime.year;
   case INTERVAL_YEAR_MONTH:	return ltime.year*100L+ltime.month;
-  case INTERVAL_QUARTER:	return ltime.month/3 + 1;
+  case INTERVAL_QUARTER:	return (ltime.month+2)/3;
   case INTERVAL_MONTH:		return ltime.month;
   case INTERVAL_WEEK:
   {
@@ -2343,8 +2378,8 @@ String *Item_char_typecast::val_str(String *str)
     // Convert character set if differ
     uint dummy_errors;
     if (!(res= args[0]->val_str(&tmp_value)) ||
-	str->copy(res->ptr(), res->length(), res->charset(),
-                  cast_cs, &dummy_errors))
+        str->copy(res->ptr(), res->length(), from_cs,
+        cast_cs, &dummy_errors))
     {
       null_value= 1;
       return 0;
@@ -2399,21 +2434,40 @@ String *Item_char_typecast::val_str(String *str)
 void Item_char_typecast::fix_length_and_dec()
 {
   uint32 char_length;
-  /*
-    We always force character set conversion if cast_cs is a
-    multi-byte character set. It garantees that the result of CAST is
-    a well-formed string.  For single-byte character sets we allow
-    just to copy from the argument. A single-byte character sets
-    string is always well-formed.
+  /* 
+     We always force character set conversion if cast_cs
+     is a multi-byte character set. It garantees that the
+     result of CAST is a well-formed string.
+     For single-byte character sets we allow just to copy
+     from the argument. A single-byte character sets string
+     is always well-formed. 
+     
+     There is a special trick to convert form a number to ucs2.
+     As numbers have my_charset_bin as their character set,
+     it wouldn't do conversion to ucs2 without an additional action.
+     To force conversion, we should pretend to be non-binary.
+     Let's choose from_cs this way:
+     - If the argument in a number and cast_cs is ucs2 (i.e. mbminlen > 1),
+       then from_cs is set to latin1, to perform latin1 -> ucs2 conversion.
+     - If the argument is a number and cast_cs is ASCII-compatible
+       (i.e. mbminlen == 1), then from_cs is set to cast_cs,
+       which allows just to take over the args[0]->val_str() result
+       and thus avoid unnecessary character set conversion.
+     - If the argument is not a number, then from_cs is set to
+       the argument's charset.
   */
-  charset_conversion= ((cast_cs->mbmaxlen > 1) ||
-                       !my_charset_same(args[0]->collation.collation,
-                                        cast_cs) &&
-                       args[0]->collation.collation != &my_charset_bin &&
-                       cast_cs != &my_charset_bin);
+  from_cs= (args[0]->result_type() == INT_RESULT || 
+            args[0]->result_type() == DECIMAL_RESULT ||
+            args[0]->result_type() == REAL_RESULT) ?
+           (cast_cs->mbminlen == 1 ? cast_cs : &my_charset_latin1) :
+           args[0]->collation.collation;
+  charset_conversion= (cast_cs->mbmaxlen > 1) ||
+                      !my_charset_same(from_cs, cast_cs) &&
+                      from_cs != &my_charset_bin &&
+                      cast_cs != &my_charset_bin;
   collation.set(cast_cs, DERIVATION_IMPLICIT);
   char_length= (cast_length >= 0) ? cast_length : 
-	       args[0]->max_length/args[0]->collation.collation->mbmaxlen;
+	       args[0]->max_length/from_cs->mbmaxlen;
   max_length= char_length * cast_cs->mbmaxlen;
 }
 

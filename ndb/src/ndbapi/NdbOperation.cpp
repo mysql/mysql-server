@@ -37,7 +37,8 @@
  *                aTable: Pointers to the Table object
  * Remark:        Creat an object of NdbOperation. 
  ****************************************************************************/
-NdbOperation::NdbOperation(Ndb* aNdb) :
+NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
+  m_type(aType),
   theReceiver(aNdb),
   theErrorLine(0),
   theNdb(aNdb),

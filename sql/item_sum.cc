@@ -2472,6 +2472,7 @@ void Item_sum_count_distinct::make_unique()
 {
   table=0;
   original= 0;
+  force_copy_fields= 1;
   tree= 0;
   tmp_table_param= 0;
   always_null= FALSE;
@@ -2515,6 +2516,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
   if (always_null)
     return FALSE;
   count_field_types(tmp_table_param,list,0);
+  tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
 				0,
@@ -3029,7 +3031,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
    count_cut_values(0),
    distinct(distinct_arg),
    warning_for_row(FALSE),
-   original(0)
+   force_copy_fields(0), original(0)
 {
   Item *item_select;
   Item **arg_ptr;
@@ -3086,6 +3088,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   distinct(item->distinct),
   warning_for_row(item->warning_for_row),
   always_null(item->always_null),
+  force_copy_fields(item->force_copy_fields),
   original(item)
 {
   quick_group= item->quick_group;
@@ -3223,7 +3226,10 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   }
 
   if (agg_item_charsets(collation, func_name(),
-                        args, arg_count, MY_COLL_ALLOW_CONV))
+                        args,
+			/* skip charset aggregation for order columns */
+			arg_count - arg_count_order,
+			MY_COLL_ALLOW_CONV))
     return 1;
 
   result.set_charset(collation.collation);
@@ -3287,6 +3293,7 @@ bool Item_func_group_concat::setup(THD *thd)
     DBUG_RETURN(TRUE);
 
   count_field_types(tmp_table_param,all_fields,0);
+  tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
   /*
     We have to create a temporary table to get descriptions of fields
@@ -3349,6 +3356,7 @@ void Item_func_group_concat::make_unique()
   tmp_table_param= 0;
   table=0;
   original= 0;
+  force_copy_fields= 1;
   tree= 0;
 }
 

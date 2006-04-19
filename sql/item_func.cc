@@ -559,6 +559,31 @@ String *Item_int_func::val_str(String *str)
 }
 
 
+void Item_func_connection_id::fix_length_and_dec()
+{
+  Item_int_func::fix_length_and_dec();
+  max_length= 10;
+}
+
+
+bool Item_func_connection_id::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_int_func::fix_fields(thd, ref))
+    return TRUE;
+
+  /*
+    To replicate CONNECTION_ID() properly we should use
+    pseudo_thread_id on slave, which contains the value of thread_id
+    on master.
+  */
+  value= ((thd->slave_thread) ?
+          thd->variables.pseudo_thread_id :
+          thd->thread_id);
+
+  return FALSE;
+}
+
+
 /*
   Check arguments here to determine result's type for a numeric
   function of two arguments.
@@ -2462,11 +2487,8 @@ longlong Item_func_bit_count::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   ulonglong value= (ulonglong) args[0]->val_int();
-  if (args[0]->null_value)
-  {
-    null_value=1; /* purecov: inspected */
+  if ((null_value= args[0]->null_value))
     return 0; /* purecov: inspected */
-  }
   return (longlong) my_count_bits(value);
 }
 
@@ -2606,7 +2628,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       switch(arguments[i]->type()) {
       case Item::STRING_ITEM:			// Constant string !
       {
-	String *res=arguments[i]->val_str((String *) 0);
+	String *res=arguments[i]->val_str(&buffers[i]);
 	if (arguments[i]->null_value)
 	  continue;
 	f_args.args[i]=    (char*) res->ptr();
@@ -2805,9 +2827,6 @@ longlong Item_func_udf_int::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_int::val_int");
-  DBUG_PRINT("info",("result_type: %d  arg_count: %d",
-		     args[0]->result_type(), arg_count));
-
   DBUG_RETURN(udf.val_int(&null_value));
 }
 

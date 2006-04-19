@@ -276,20 +276,26 @@ ha_remove_all_nodes_to_page(
 }
 
 /*****************************************************************
-Validates a hash table. */
+Validates a given range of the cells in hash table. */
 
 ibool
 ha_validate(
 /*========*/
-				/* out: TRUE if ok */
-	hash_table_t*	table)	/* in: hash table */
+					/* out: TRUE if ok */
+	hash_table_t*	table,		/* in: hash table */
+	ulint		start_index,	/* in: start index */
+	ulint		end_index)	/* in: end index */
 {
 	hash_cell_t*	cell;
 	ha_node_t*	node;
 	ibool		ok	= TRUE;
 	ulint		i;
 
-	for (i = 0; i < hash_get_n_cells(table); i++) {
+	ut_a(start_index <= end_index);
+	ut_a(start_index < hash_get_n_cells(table));
+	ut_a(end_index < hash_get_n_cells(table));
+
+	for (i = start_index; i <= end_index; i++) {
 
 		cell = hash_get_nth_cell(table, i);
 

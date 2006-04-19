@@ -596,6 +596,21 @@ GROUP_CONCAT(a ORDER BY a)
 ,x
 ,z
 DROP TABLE t1;
+create table t1(f1 int);
+insert into t1 values(1),(2),(3);
+select f1, group_concat(f1+1) from t1 group by f1 with rollup;
+f1	group_concat(f1+1)
+1	2
+2	3
+3	4
+NULL	2,3,4
+select count(distinct (f1+1)) from t1 group by f1 with rollup;
+count(distinct (f1+1))
+1
+1
+1
+3
+drop table t1;
 set names latin1;
 create table t1 (a char, b char);
 insert into t1 values ('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b');
@@ -611,3 +626,8 @@ latin1
 latin1
 drop table t1, t2, t3;
 set names default;
+create table t1 (c1 varchar(10), c2 int);
+select charset(group_concat(c1 order by c2)) from t1;
+charset(group_concat(c1 order by c2))
+latin1
+drop table t1;

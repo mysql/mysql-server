@@ -2148,7 +2148,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	  s->type=JT_SYSTEM;
 	  join->const_table_map|=table->map;
 	  set_position(join,const_count++,s,(KEYUSE*) 0);
-	  if ((tmp= join_read_const_table(s,join->positions+const_count-1)))
+	  if ((tmp= join_read_const_table(s, join->positions+const_count-1)))
 	  {
 	    if (tmp > 0)
 	      DBUG_RETURN(1);			// Fatal error
@@ -2201,7 +2201,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 				     found_const_table_map))
 		DBUG_RETURN(1);
 	      if ((tmp=join_read_const_table(s,
-					     join->positions+const_count-1)))
+                                             join->positions+const_count-1)))
 	      {
 		if (tmp > 0)
 		  DBUG_RETURN(1);			// Fatal error
@@ -6796,8 +6796,8 @@ static COND *build_equal_items_for_cond(COND *cond,
       return item_equal;
     }
     /* 
-      For each field reference in cond, not from equalitym predicates,
-      set a pointer to the multiple equality if belongs to (if there is any)
+      For each field reference in cond, not from equal item predicates,
+      set a pointer to the multiple equality it belongs to (if there is any)
     */ 
     cond= cond->transform(&Item::equal_fields_propagator,
                             (byte *) inherited);
@@ -6982,7 +6982,7 @@ static int compare_fields_by_table_order(Item_field *field1,
 
   NOTES
     Before generating an equality function checks that it has not
-    been generated for multiple equalies of the upper levels.
+    been generated for multiple equalities of the upper levels.
     E.g. for the following where condition
     WHERE a=5 AND ((a=b AND b=c) OR  c>4)
     the upper level AND condition will contain =(5,a),
@@ -7066,7 +7066,10 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   if (!cond)
     cond= new Item_cond_and(eq_list);
   else
+  {
+    DBUG_ASSERT(cond->type() == Item::COND_ITEM);
     ((Item_cond *) cond)->add_at_head(&eq_list);
+  }
 
   cond->quick_fix_field();
   cond->update_used_tables();
@@ -7151,6 +7154,11 @@ static COND* substitute_for_best_equal_field(COND *cond,
       while ((item_equal= it++))
       {
         cond= eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
+        // This occurs when eliminate_item_equal() founds that cond is
+        // always false and substitutes it with Item_int 0.
+        // Due to this, value of item_equal will be 0, so just return it.
+        if (cond->type() != Item::COND_ITEM)
+          break;
       }
     }
   }
@@ -7166,6 +7174,44 @@ static COND* substitute_for_best_equal_field(COND *cond,
   else
     cond->transform(&Item::replace_equal_field, 0);
   return cond;
+}
+
+
+/* 
+  Check appearance of new constant items in multiple equalities
+  of a condition after reading a constant table
+ 
+  SYNOPSIS
+    update_const_equal_items()
+    cond       condition whose multiple equalities are to be checked
+    table      constant table that has been read 
+
+  DESCRIPTION
+    The function retrieves the cond condition and for each encountered
+    multiple equality checks whether new constants have appeared after
+    reading the constant (single row) table tab. If so it adjusts
+    the multiple equality appropriately.
+*/
+
+static void update_const_equal_items(COND *cond, JOIN_TAB *tab)
+{
+  if (!(cond->used_tables() & tab->table->map))
+    return;
+
+  if (cond->type() == Item::COND_ITEM)
+  {
+    List<Item> *cond_list= ((Item_cond*) cond)->argument_list(); 
+    List_iterator_fast<Item> li(*cond_list);
+    Item *item;
+    while ((item= li++))
+      update_const_equal_items(item, tab);
+  }
+  else if (cond->type() == Item::FUNC_ITEM && 
+           ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
+  {
+    Item_equal *item_equal= (Item_equal *) cond;
+    item_equal->update_const();
+  }
 }
 
 
@@ -7461,7 +7507,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       */
       if (table->on_expr)
       {
-        Item *expr= table->prep_on_expr ? table->prep_on_expr : table->on_expr;
+        Item *expr= table->on_expr;
         /* 
            If an on expression E is attached to the table, 
            check all null rejected predicates in this expression.
@@ -7472,7 +7518,9 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
 	*/ 
         expr= simplify_joins(join, &nested_join->join_list,
                              expr, FALSE);
-        table->prep_on_expr= table->on_expr= expr;
+        table->on_expr= expr;
+        if (!table->prep_on_expr)
+          table->prep_on_expr= expr->copy_andor_structure(join->thd);
       }
       nested_join->used_tables= (table_map) 0;
       nested_join->not_null_tables=(table_map) 0;
@@ -8286,6 +8334,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         Item ***copy_func, Field **from_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,
+                        bool make_copy_field,
                         uint convert_blob_length)
 {
   Item::Type orig_type= type;
@@ -8365,7 +8414,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
-    return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
+    if (make_copy_field)
+    {
+      DBUG_ASSERT(((Item_result_field*)item)->result_field);
+      *from_field= ((Item_result_field*)item)->result_field;
+    }
+    return create_tmp_field_from_item(thd, item, table, (make_copy_field ? 0 :
+                                      copy_func), modify_item,
                                       convert_blob_length);
   case Item::TYPE_HOLDER:
     return ((Item_type_holder *)item)->make_field_by_type(table);
@@ -8437,6 +8492,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   Item **copy_func;
   MI_COLUMNDEF *recinfo;
   uint total_uneven_bit_length= 0;
+  bool force_copy_fields= param->force_copy_fields;
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
 		      (int) distinct, (int) save_sum_fields,
@@ -8597,7 +8653,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  Field *new_field=
             create_tmp_field(thd, table, arg, arg->type(), &copy_func,
                              tmp_from_field, group != 0,not_all_columns,
-                             distinct,
+                             distinct, 0,
                              param->convert_blob_length);
 	  if (!new_field)
 	    goto err;					// Should be OOM
@@ -8653,8 +8709,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         create_tmp_field_for_schema(thd, item, table) :
         create_tmp_field(thd, table, item, type, &copy_func,
                          tmp_from_field, group != 0,
-                         not_all_columns || group != 0,
-                         item->marker == 4,
+                         !force_copy_fields &&
+                           (not_all_columns || group !=0),
+                         item->marker == 4, force_copy_fields,
                          param->convert_blob_length);
 
       if (!new_field)
@@ -10132,6 +10189,27 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   }
   if (!table->null_row)
     table->maybe_null=0;
+
+  /* Check appearance of new constant items in Item_equal objects */
+  JOIN *join= tab->join;
+  if (join->conds)
+    update_const_equal_items(join->conds, tab);
+  TABLE_LIST *tbl;
+  for (tbl= join->select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
+  {
+    TABLE_LIST *embedded;
+    TABLE_LIST *embedding= tbl;
+    do
+    {
+      embedded= embedding;
+      if (embedded->on_expr)
+         update_const_equal_items(embedded->on_expr, tab);
+      embedding= embedded->embedding;
+    }
+    while (embedding &&
+           embedding->nested_join->join_list.head() == embedded);
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -12325,7 +12403,11 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   Item **select_item; /* The corresponding item from the SELECT clause. */
   Field *from_field;  /* The corresponding field from the FROM clause. */
 
-  if (order_item->type() == Item::INT_ITEM)
+  /*
+    Local SP variables may be int but are expressions, not positions.
+    (And they can't be used before fix_fields is called for them).
+  */
+  if (order_item->type() == Item::INT_ITEM && order_item->basic_const_item())
   {						/* Order by position */
     uint count= (uint) order_item->val_int();
     if (!count || count > fields.elements)

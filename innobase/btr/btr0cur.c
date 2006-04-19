@@ -1915,13 +1915,13 @@ btr_cur_pessimistic_update(
 	ut_a(rec || optim_err != DB_UNDERFLOW);
 
 	if (rec) {
-		offsets = rec_get_offsets(rec, index, offsets,
-					ULINT_UNDEFINED, &heap);
-
 		lock_rec_restore_from_page_infimum(rec, page);
 		rec_set_field_extern_bits(rec, index,
 						ext_vect, n_ext_vect, mtr);
-		
+
+		offsets = rec_get_offsets(rec, index, offsets,
+					ULINT_UNDEFINED, &heap);
+
 		if (!rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
 			/* The new inserted record owns its possible externally
 			stored fields */
@@ -3329,7 +3329,10 @@ btr_store_big_rec_extern_fields(
 	dict_index_t*	index,		/* in: index of rec; the index tree
 					MUST be X-latched */
 	rec_t*		rec,		/* in: record */
-	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec, index);
+					the "external storage" flags in offsets
+					will not correspond to rec when
+					this function returns */
 	big_rec_t*	big_rec_vec,	/* in: vector containing fields
 					to be stored externally */
 	mtr_t*		local_mtr __attribute__((unused))) /* in: mtr

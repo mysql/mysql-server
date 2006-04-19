@@ -44,8 +44,8 @@ set -e
 export AM_MAKEFLAGS
 AM_MAKEFLAGS="-j 4"
 
-# SSL library to use. Should be changed to --with-yassl
-SSL_LIBRARY=--with-openssl
+# SSL library to use.
+SSL_LIBRARY=--with-yassl
 
 # If you are not using codefusion add "-Wpointer-arith" to WARNINGS
 # The following warning flag will give too many warnings:
