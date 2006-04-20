@@ -21,8 +21,7 @@ ndb_cache_multi2         : BUG#18597 2006-04-10 kent  simultaneous drop table an
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 ps_7ndb                  : BUG#18950 2006-02-16 jmiller create table like does not obtain LOCK_open
 rpl_deadlock_innodb      : BUG#16920 2006-04-12 kent    fails in show slave status (randomly)
-rpl_ndb_2innodb          : BUG#19004 2006-03-22 tomas ndb: partition by range and update hangs
-rpl_ndb_2myisam          : BUG#19004 2006-03-22 tomas ndb: partition by range and update hangs
+rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
 rpl_ndb_auto_inc         : BUG#17086 2006-02-16 jmiller CR: auto_increment_increment and auto_increment_offset produce duplicate key er
 rpl_ndb_ddl              : result file needs update + test needs to checked
 rpl_ndb_innodb2ndb       : BUG#17400 2006-04-19 tomas Cluster Replication: delete & update of rows in table without pk fails on slave.
