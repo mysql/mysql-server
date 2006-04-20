@@ -123,8 +123,8 @@ MYSQL_MODULE_DIRECTORY(ndbcluster,[storage/ndb])
 MYSQL_MODULE_STATIC(ndbcluster, [[\$(ndbcluster_libs) \$(ndbcluster_system_libs) \$(NDB_SCI_LIBS)]])
 MYSQL_MODULE_ACTIONS(ndbcluster,[MYSQL_SETUP_NDBCLUSTER])
 
-MYSQL_STORAGE_ENGINE(partition, partition, [Partition Engine],
-        [MySQL Table Partitioning Engine], [max,max-no-ndb])
+MYSQL_STORAGE_ENGINE(partition, partition, [Partition Support],
+        [MySQL Partitioning Support], [max,max-no-ndb])
 
 MYSQL_MODULE_MANDATORY(csv)     dnl Used for logging
 MYSQL_MODULE_MANDATORY(heap)    dnl Memory tables
@@ -2623,8 +2623,6 @@ for CONF in $other_configures; do
 done
 
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
-
-NDBCLUSTER_CONFIG_FILES
 
 # Output results
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl

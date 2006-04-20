@@ -5498,7 +5498,7 @@ mysql_declare_plugin(partition)
   &partition_hton,
   partition_hton.name,
   "Mikael Ronstrom, MySQL AB",
-  "Partitioning Engine",
+  "Partitioning Support",
   NULL, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
