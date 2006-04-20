@@ -261,6 +261,9 @@ it is read or written. */
 /* Tell the compiler that cond is unlikely to hold */
 #define UNIV_UNLIKELY(cond) UNIV_EXPECT(cond, FALSE)
 
+/* Compile-time constant of the given array's size. */
+#define UT_ARR_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+
 #include <stdio.h>
 #include "ut0dbg.h"
 #include "ut0ut.h"
