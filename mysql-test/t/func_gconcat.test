@@ -398,7 +398,6 @@ create table t1 (f1 int unsigned, f2 varchar(255));
 insert into t1 values (1,repeat('a',255)),(2,repeat('b',255));
 --enable_metadata
 select f2,group_concat(f1) from t1 group by f2;
-# select f2,group_concat(f1) from t1 group by f2 order by 2;
 --disable_metadata
 drop table t1;
 
