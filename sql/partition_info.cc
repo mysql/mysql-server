@@ -714,18 +714,18 @@ bool partition_info::check_partition_info(handlerton **eng_type,
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         do
         {
-          part_elem= sub_it++;
-          if (check_table_name(part_elem->partition_name,
-                               strlen(part_elem->partition_name)))
+          partition_element *sub_elem= sub_it++;
+          if (check_table_name(sub_elem->partition_name,
+                               strlen(sub_elem->partition_name)))
           {
             my_error(ER_WRONG_PARTITION_NAME, MYF(0));
             goto end;
           }
-          if (part_elem->engine_type == NULL)
-            part_elem->engine_type= default_engine_type;
+          if (sub_elem->engine_type == NULL)
+            sub_elem->engine_type= default_engine_type;
           DBUG_PRINT("info", ("engine = %u",
-                     ha_legacy_type(part_elem->engine_type)));
-          engine_array[part_count++]= part_elem->engine_type;
+                     ha_legacy_type(sub_elem->engine_type)));
+          engine_array[part_count++]= sub_elem->engine_type;
         } while (++j < no_subparts);
       }
     } while (++i < no_parts);
