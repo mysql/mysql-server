@@ -4726,7 +4726,7 @@ int ha_ndbcluster::create_handler_files(const char *file,
 
   DBUG_ENTER("create_handler_files");
 
-  if (action_flag)
+  if (action_flag != CHF_INDEX_FLAG)
   {
     DBUG_RETURN(FALSE);
   }
