@@ -48,6 +48,7 @@ udf                      : BUG#18564 2006-03-27 ian     (Permission by Brian)
 #ndb_load                 : BUG#17233 2006-02-16 jmiller failed load data from infile causes mysqld dbug_assert, binlog not flushed
 #rpl_ndb_basic            : BUG#18592 2006-03-28 brian rpl_ndb_basic failure
 #rpl_ndb_dd_advance       : BUG#18924 2006-04-09 brian rpl_ndb_dd_advance failure
+rpl_ndb_dd_partitions     : BUG#18094 2006-04-19 mats Slave caches invalid table definition...
 #rpl_ndb_dd_basic         : BUG#18569 2006-03-28 brian rpl_ndb_dd_basic failure
 #rpl_ndb_insert_ignore    : BUG#18567 2006-03-28 brian rpl_ndb_insert_ignore failure
 #rpl_ndb_multi_update2    : BUG#18928 2006-04-09 brian   rpl_ndb_multi_update2 failed
