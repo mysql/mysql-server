@@ -3197,7 +3197,8 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   thd->proc_info= "Waiting for ndbcluster to start";
 
   pthread_mutex_lock(&injector_mutex);
-  while (!schema_share || !apply_status_share)
+  while (!schema_share ||
+         (ndb_binlog_running && !apply_status_share))
   {
     /* ndb not connected yet */
     struct timespec abstime;
