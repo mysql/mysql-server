@@ -1,6 +1,5 @@
 
-AM_CPPFLAGS     = -I$(srcdir) -I$(top_builddir)/include
-AM_CPPFLAGS    += -I$(srcdir)/..
+AM_CPPFLAGS     = -I$(srcdir) -I$(top_builddir)/include -I$(srcdir)/.. -I$(top_srcdir)/include
 
 AM_LDFLAGS      = -L$(top_builddir)/unittest/mytap
 
