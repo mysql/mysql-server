@@ -1430,6 +1430,10 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
                          NDB_SHARE *share)
 {
   DBUG_ENTER("ndb_handle_schema_change");
+  TABLE* table= share->table;
+  TABLE_SHARE *table_share= table->s;
+  const char *dbname= table_share->db.str;
+  const char *tabname= table_share->table_name.str;
   bool do_close_cached_tables= FALSE;
   bool is_online_alter_table= FALSE;
   bool is_rename_table= FALSE;
@@ -1449,70 +1453,68 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     }
   }
 
-  if (is_remote_change) /* includes CLUSTER_FAILURE */
+  /*
+    Refresh local dictionary cache by
+    invalidating table and all it's indexes
+  */
+  ndb->setDatabaseName(dbname);
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  DBUG_ASSERT(thd_ndb != NULL);
+  Ndb* old_ndb= thd_ndb->ndb;
+  thd_ndb->ndb= ndb;
+  ha_ndbcluster table_handler(table_share);
+  (void)strxmov(table_handler.m_dbname, dbname, NullS);
+  (void)strxmov(table_handler.m_tabname, tabname, NullS);
+  table_handler.open_indexes(ndb, table, TRUE);
+  table_handler.invalidate_dictionary_cache(TRUE);
+  thd_ndb->ndb= old_ndb;
+  
+  /*
+    Refresh local frm file and dictionary cache if
+    remote on-line alter table
+  */
+  if (is_remote_change && is_online_alter_table)
   {
-    TABLE* table= share->table;
-    TABLE_SHARE *table_share= table->s;
-    const char *dbname= table_share->db.str;
+    const char *tabname= table_share->table_name.str;
+    char key[FN_REFLEN];
+    const void *data= 0, *pack_data= 0;
+    uint length, pack_length;
+    int error;
+    NDBDICT *dict= ndb->getDictionary();
+    const NDBTAB *altered_table= pOp->getTable();
     
-    /* 
-       Invalidate table and all it's indexes
+    DBUG_PRINT("info", ("Detected frm change of table %s.%s",
+                        dbname, tabname));
+    build_table_filename(key, FN_LEN-1, dbname, tabname, NullS);
+    /*
+      If the frm of the altered table is different than the one on
+      disk then overwrite it with the new table definition
     */
-    ndb->setDatabaseName(dbname);
-    Thd_ndb *thd_ndb= get_thd_ndb(thd);
-    DBUG_ASSERT(thd_ndb != NULL);
-    Ndb* old_ndb= thd_ndb->ndb;
-    thd_ndb->ndb= ndb;
-    ha_ndbcluster table_handler(table_share);
-    table_handler.set_dbname(share->key);
-    table_handler.set_tabname(share->key);
-    table_handler.open_indexes(ndb, table, TRUE);
-    table_handler.invalidate_dictionary_cache(TRUE);
-    thd_ndb->ndb= old_ndb;
-    
-    if (is_online_alter_table)
+    if (readfrm(key, &data, &length) == 0 &&
+        packfrm(data, length, &pack_data, &pack_length) == 0 &&
+        cmp_frm(altered_table, pack_data, pack_length))
     {
-      const char *tabname= table_share->table_name.str;
-      char key[FN_REFLEN];
-      const void *data= 0, *pack_data= 0;
-      uint length, pack_length;
-      int error;
-      NDBDICT *dict= ndb->getDictionary();
-      const NDBTAB *altered_table= pOp->getTable();
-
-      DBUG_PRINT("info", ("Detected frm change of table %s.%s",
-                          dbname, tabname));
-      build_table_filename(key, FN_LEN-1, dbname, tabname, NullS);
-      /*
-        If the frm of the altered table is different than the one on
-        disk then overwrite it with the new table definition
-      */
-      if (readfrm(key, &data, &length) == 0 &&
-          packfrm(data, length, &pack_data, &pack_length) == 0 &&
-          cmp_frm(altered_table, pack_data, pack_length))
+      DBUG_DUMP("frm", (char*)altered_table->getFrmData(), 
+                altered_table->getFrmLength());
+      pthread_mutex_lock(&LOCK_open);
+      const NDBTAB *old= dict->getTable(tabname);
+      if (!old &&
+          old->getObjectVersion() != altered_table->getObjectVersion())
+        dict->putTable(altered_table);
+      
+      if ((error= unpackfrm(&data, &length, altered_table->getFrmData())) ||
+          (error= writefrm(key, data, length)))
       {
-        DBUG_DUMP("frm", (char*)altered_table->getFrmData(), 
-                  altered_table->getFrmLength());
-        pthread_mutex_lock(&LOCK_open);
-        const NDBTAB *old= dict->getTable(tabname);
-        if (!old &&
-            old->getObjectVersion() != altered_table->getObjectVersion())
-          dict->putTable(altered_table);
-
-        if ((error= unpackfrm(&data, &length, altered_table->getFrmData())) ||
-            (error= writefrm(key, data, length)))
-        {
-          sql_print_information("NDB: Failed write frm for %s.%s, error %d",
-                                dbname, tabname, error);
-        }
-        ndbcluster_binlog_close_table(thd, share);
-        close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, TRUE);
-        if ((error= ndbcluster_binlog_open_table(thd, share, 
-                                                 table_share, table)))
-          sql_print_information("NDB: Failed to re-open table %s.%s",
-                                dbname, tabname);
-        pthread_mutex_unlock(&LOCK_open);
+        sql_print_information("NDB: Failed write frm for %s.%s, error %d",
+                              dbname, tabname, error);
       }
+      ndbcluster_binlog_close_table(thd, share);
+      close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, TRUE);
+      if ((error= ndbcluster_binlog_open_table(thd, share, 
+                                               table_share, table)))
+        sql_print_information("NDB: Failed to re-open table %s.%s",
+                              dbname, tabname);
+      pthread_mutex_unlock(&LOCK_open);
     }
   }
 
@@ -1540,6 +1542,21 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     share->table->s->db.length= strlen(share->db);
     share->table->s->table_name.str= share->table_name;
     share->table->s->table_name.length= strlen(share->table_name);
+    /*
+      Refresh local dictionary cache by invalidating any 
+      old table with same name and all it's indexes
+    */
+    ndb->setDatabaseName(dbname);
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    DBUG_ASSERT(thd_ndb != NULL);
+    Ndb* old_ndb= thd_ndb->ndb;
+    thd_ndb->ndb= ndb;
+    ha_ndbcluster table_handler(table_share);
+    table_handler.set_dbname(share->key);
+    table_handler.set_tabname(share->key);
+    table_handler.open_indexes(ndb, table, TRUE);
+    table_handler.invalidate_dictionary_cache(TRUE);
+    thd_ndb->ndb= old_ndb;
   }
   DBUG_ASSERT(share->op == pOp || share->op_old == pOp);
   if (share->op_old == pOp)
