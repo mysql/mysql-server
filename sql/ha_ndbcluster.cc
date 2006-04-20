@@ -363,6 +363,8 @@ Thd_ndb::~Thd_ndb()
 void
 Thd_ndb::init_open_tables()
 {
+  count= 0;
+  error= 0;
   my_hash_reset(&open_tables);
 }
 
@@ -380,7 +382,16 @@ Thd_ndb::get_open_table(THD *thd, const void *key)
     thd_ndb_share= (THD_NDB_SHARE *) alloc_root(&thd->transaction.mem_root,
                                                 sizeof(THD_NDB_SHARE));
     thd_ndb_share->key= key;
+    thd_ndb_share->stat.last_count= count;
+    thd_ndb_share->stat.no_uncommitted_rows_count= 0;
+    thd_ndb_share->stat.records == ~(ha_rows)0;
     my_hash_insert(&open_tables, (byte *)thd_ndb_share);
+  }
+  else if (thd_ndb_share->stat.last_count != count)
+  {
+    thd_ndb_share->stat.last_count= count;
+    thd_ndb_share->stat.no_uncommitted_rows_count= 0;
+    thd_ndb_share->stat.records == ~(ha_rows)0;
   }
   DBUG_PRINT("exit", ("thd_ndb_share: 0x%x  key: 0x%x", thd_ndb_share, key));
   DBUG_RETURN(thd_ndb_share);
@@ -441,25 +452,6 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure()
     return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_execute_failure");
   get_thd_ndb(current_thd)->error= 1;
-  DBUG_VOID_RETURN;
-}
-
-void ha_ndbcluster::no_uncommitted_rows_init(THD *thd)
-{
-  if (m_ha_not_exact_count)
-    return;
-  DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_init");
-  struct Ndb_local_table_statistics *info= m_table_info;
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  if (info->last_count != thd_ndb->count)
-  {
-    info->last_count= thd_ndb->count;
-    info->no_uncommitted_rows_count= 0;
-    info->records= ~(ha_rows)0;
-    DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
-                        ((const NDBTAB *)m_table)->getTableId(),
-                        info->no_uncommitted_rows_count));
-  }
   DBUG_VOID_RETURN;
 }
 
@@ -3946,7 +3938,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         if (trans == NULL)
           ERR_RETURN(ndb->getNdbError());
         thd_ndb->init_open_tables();
-        no_uncommitted_rows_reset(thd);
         thd_ndb->stmt= trans;
         trans_register_ha(thd, FALSE, &ndbcluster_hton);
       } 
@@ -3962,7 +3953,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           if (trans == NULL)
             ERR_RETURN(ndb->getNdbError());
           thd_ndb->init_open_tables();
-          no_uncommitted_rows_reset(thd);
           thd_ndb->all= trans; 
           trans_register_ha(thd, TRUE, &ndbcluster_hton);
 
@@ -4041,7 +4031,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     }
     m_thd_ndb_share= thd_ndb->get_open_table(thd, m_table);
     m_table_info= &m_thd_ndb_share->stat;
-    no_uncommitted_rows_init(thd);
   }
   else
   {
