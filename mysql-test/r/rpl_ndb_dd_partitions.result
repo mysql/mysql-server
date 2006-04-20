@@ -716,3 +716,11 @@ DELETE FROM t1;
 --- End test 5 key partition testing ---
 --- Do Cleanup ---
 DROP TABLE IF EXISTS t1;
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine=ndb;
+alter tablespace ts1
+drop datafile 'datafile02.dat'
+engine=ndb;
+DROP TABLESPACE ts1 ENGINE=NDB;
+DROP LOGFILE GROUP lg1 ENGINE=NDB;
