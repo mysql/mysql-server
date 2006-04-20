@@ -3949,6 +3949,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
         DBUG_RETURN(TRUE);
       }
       alt_part_info->part_type= tab_part_info->part_type;
+      alt_part_info->subpart_type= tab_part_info->subpart_type;
       if (alt_part_info->set_up_defaults_for_partitioning(table->file,
                                                           ULL(0), 
                                                           tab_part_info->no_parts))
@@ -4513,7 +4514,7 @@ the generated partition syntax in a correct manner.
         tab_part_info->use_default_no_subpartitions= FALSE;
       }
       if (tab_part_info->check_partition_info((handlerton**)NULL,
-                               table->file, ULL(0)))
+                                              table->file, ULL(0)))
       {
         DBUG_RETURN(TRUE);
       }
