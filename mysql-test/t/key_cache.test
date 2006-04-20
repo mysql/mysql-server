@@ -149,6 +149,7 @@ show status like 'key_blocks_used';
 --replace_result 1812 KEY_BLOCKS_UNUSED 1793 KEY_BLOCKS_UNUSED 1674 KEY_BLOCKS_UNUSED 1818 KEY_BLOCKS_UNUSED 1824 KEY_BLOCKS_UNUSED
 show status like 'key_blocks_unused';
 
+
 # Cleanup
 # We don't reset keycache2 as we want to ensure that mysqld will reset it
 set global keycache2.key_buffer_size=0;
@@ -157,7 +158,7 @@ set global keycache2.key_buffer_size=0;
 set global keycache3.key_buffer_size=100;
 set global keycache3.key_buffer_size=0;
 
-# Test case for buf 6447
+# Test case for bug 6447
 
 create table t1 (mytext text, FULLTEXT (mytext));
 insert t1 values ('aaabbb');
@@ -167,5 +168,43 @@ set GLOBAL key_cache_block_size=2048;
 check table t1;
 
 drop table t1;
+
+#
+# Bug #19079: corrupted index when key_cache_block_size is not multiple of
+#             myisam_block_size
+
+CREATE TABLE t1(a int NOT NULL AUTO_INCREMENT PRIMARY KEY);
+SET GLOBAL key_cache_block_size=1536;
+INSERT INTO t1 VALUES (1);
+SELECT @@key_cache_block_size;
+CHECK TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(a int NOT NULL AUTO_INCREMENT PRIMARY KEY, b int);
+CREATE TABLE t2(a int NOT NULL AUTO_INCREMENT PRIMARY KEY, b int);
+SET GLOBAL key_cache_block_size=1536;
+INSERT INTO t1 VALUES (1,0);
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+SELECT COUNT(*) FROM t1;
+SELECT @@key_cache_block_size;
+CHECK TABLE t1;
+DROP TABLE t1,t2;
 
 # End of 4.1 tests
