@@ -4733,8 +4733,9 @@ static void release_part_info_log_entries(DDL_LOG_MEMORY_ENTRY *log_entry)
     write_log_replace_delete_frm()
     lpt                            Struct for parameters
     next_entry                     Next reference to use in log record
-    path                           Name to rename from
-    rename_flag                    TRUE if rename, else delete
+    from_path                      Name to rename from
+    to_path                        Name to rename to
+    replace_flag                   TRUE if replace, else delete
   RETURN VALUES
     TRUE                           Error
     FALSE                          Success
@@ -4759,7 +4760,7 @@ static bool write_log_replace_delete_frm(ALTER_PARTITION_PARAM_TYPE *lpt,
   else
     ddl_log_entry.action_type= DDL_LOG_DELETE_ACTION;
   ddl_log_entry.next_entry= next_entry;
-  ddl_log_entry.handler_name[0]= 0;
+  ddl_log_entry.handler_name= reg_ext;
   ddl_log_entry.name= to_path;
   if (replace_flag)
     ddl_log_entry.from_name= from_path;
@@ -5072,7 +5073,7 @@ static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
                        lpt->table_name, "#");
   pthread_mutex_lock(&LOCK_gdl);
-  if (write_log_replace_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
+  if (write_log_replace_delete_frm(lpt, 0UL, shadow_path, path, TRUE))
     goto error;
   log_entry= part_info->first_log_entry;
   part_info->frm_log_entry= log_entry;
@@ -5129,8 +5130,8 @@ static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    FALSE))
     goto error;
-  if (write_log_replace_delete_frm(lpt, next_entry, (const char*)path,
-                                  (const char*)tmp_path, TRUE))
+  if (write_log_replace_delete_frm(lpt, next_entry, (const char*)tmp_path,
+                                  (const char*)path, TRUE))
     goto error;
   log_entry= part_info->first_log_entry;
   part_info->frm_log_entry= log_entry;
@@ -5245,7 +5246,7 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
     goto error;
   if (write_log_changed_partitions(lpt, &next_entry, (const char*)path))
     goto error;
-  if (write_log_replace_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
+  if (write_log_replace_delete_frm(lpt, 0UL, shadow_path, path, TRUE))
     goto error;
   log_entry= part_info->first_log_entry;
   part_info->frm_log_entry= log_entry;
