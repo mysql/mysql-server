@@ -91,7 +91,7 @@ partition_info *partition_info::get_clone()
 #define MAX_PART_NAME_SIZE 16
 
 char *partition_info::create_default_partition_names(uint part_no, uint no_parts, 
-                                                     uint start_no, bool is_subpart)
+                                                     uint start_no)
 {
   char *ptr= sql_calloc(no_parts*MAX_PART_NAME_SIZE);
   char *move_ptr= ptr;
@@ -102,16 +102,42 @@ char *partition_info::create_default_partition_names(uint part_no, uint no_parts
   {
     do
     {
-      if (is_subpart)
-        my_sprintf(move_ptr, (move_ptr,"p%usp%u", part_no, (start_no + i)));
-      else
-        my_sprintf(move_ptr, (move_ptr,"p%u", (start_no + i)));
+      my_sprintf(move_ptr, (move_ptr,"p%u", (start_no + i)));
       move_ptr+=MAX_PART_NAME_SIZE;
     } while (++i < no_parts);
   }
   else
   {
     mem_alloc_error(no_parts*MAX_PART_NAME_SIZE);
+  }
+  DBUG_RETURN(ptr);
+}
+
+
+/*
+  Create a unique name for the subpartition as part_name'sp''subpart_no'
+  SYNOPSIS
+    create_subpartition_name()
+    subpart_no                  Number of subpartition
+    part_name                   Name of partition
+  RETURN VALUES
+    >0                          A reference to the created name string
+    0                           Memory allocation error
+*/
+
+char *create_subpartition_name(uint subpart_no, const char *part_name)
+{
+  uint size_alloc= strlen(part_name) + MAX_PART_NAME_SIZE;
+  char *ptr= sql_calloc(size_alloc);
+  DBUG_ENTER("create_subpartition_name");
+
+  if (likely(ptr != NULL))
+  {
+    my_sprintf(ptr, (ptr, "%ssp%u", part_name, subpart_no));
+  }
+  else
+  {
+    mem_alloc_error(size_alloc);
   }
   DBUG_RETURN(ptr);
 }
@@ -167,8 +193,7 @@ bool partition_info::set_up_default_partitions(handler *file, ulonglong max_rows
     goto end;
   }
   if (unlikely((!(default_name= create_default_partition_names(0, no_parts,
-                                                               start_no,
-                                                               FALSE)))))
+                                                               start_no)))))
     goto end;
   i= 0;
   do
@@ -238,18 +263,17 @@ bool partition_info::set_up_default_subpartitions(handler *file,
   {
     part_elem= part_it++;
     j= 0;
-    name_ptr= create_default_partition_names(i, no_subparts, (uint)0, TRUE);
-    if (unlikely(!name_ptr))
-      goto end;
     do
     {
       partition_element *subpart_elem= new partition_element();
       if (likely(subpart_elem != 0 &&
           (!part_elem->subpartitions.push_back(subpart_elem))))
       {
+        char *ptr= create_subpartition_name(j, part_elem->partition_name);
+        if (!ptr)
+          goto end;
         subpart_elem->engine_type= default_engine_type;
-        subpart_elem->partition_name= name_ptr;
-        name_ptr+= MAX_PART_NAME_SIZE;
+        subpart_elem->partition_name= ptr;
       }
       else
       {
