@@ -809,7 +809,6 @@ private:
   void records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
-  void no_uncommitted_rows_init(THD *);
   void no_uncommitted_rows_reset(THD *);
 
   /*
