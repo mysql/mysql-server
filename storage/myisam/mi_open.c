@@ -96,7 +96,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   bzero((byte*) &info,sizeof(info));
 
   my_realpath(name_buff, fn_format(org_name,name,"",MI_NAME_IEXT,
-                                   MY_UNPACK_FILENAME|MY_APPEND_EXT),MYF(0));
+                                   MY_UNPACK_FILENAME),MYF(0));
   pthread_mutex_lock(&THR_LOCK_myisam);
   if (!(old_info=test_if_reopen(name_buff)))
   {
