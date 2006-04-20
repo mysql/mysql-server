@@ -386,7 +386,7 @@ public:
   RestoreLogIterator(const RestoreMetaData &);
   virtual ~RestoreLogIterator() {};
 
-  const LogEntry * getNextLogEntry(int & res, bool *alloc_flag);
+  const LogEntry * getNextLogEntry(int & res);
 };
 
 NdbOut& operator<<(NdbOut& ndbout, const TableS&);

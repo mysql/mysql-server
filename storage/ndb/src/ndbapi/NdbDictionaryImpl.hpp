@@ -454,7 +454,8 @@ public:
 
   static int parseTableInfo(NdbTableImpl ** dst, 
 			    const Uint32 * data, Uint32 len,
-			    bool fullyQualifiedNames);
+			    bool fullyQualifiedNames,
+                            Uint32 version= 0xFFFFFFFF);
 
   static int parseFileInfo(NdbFileImpl &dst,
 			   const Uint32 * data, Uint32 len);

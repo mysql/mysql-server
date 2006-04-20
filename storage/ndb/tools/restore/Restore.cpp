@@ -25,6 +25,7 @@
 #include <SimpleProperties.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <ndb_limits.h>
+#include <NdbAutoPtr.hpp>
 
 #include "../../../../sql/ha_ndbcluster_tables.h"
 
@@ -291,6 +292,7 @@ RestoreMetaData::markSysTables()
         strcmp(tableName, "NDB$EVENTS_0") == 0 ||
         strcmp(tableName, "sys/def/SYSTAB_0") == 0 ||
         strcmp(tableName, "sys/def/NDB$EVENTS_0") == 0 ||
+        strcmp(tableName, "cluster_replication/def/" NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE)== 0 )
       table->isSysTable = true;
@@ -377,7 +379,8 @@ bool
 RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 {
   NdbTableImpl* tableImpl = 0;
-  int ret = NdbDictInterface::parseTableInfo(&tableImpl, data, len, false);
+  int ret = NdbDictInterface::parseTableInfo(&tableImpl, data, len, false,
+                                             m_fileHeader.NdbVersion);
   
   if (ret != 0) {
     err << "parseTableInfo " << " failed" << endl;
@@ -956,13 +959,16 @@ RestoreLogIterator::RestoreLogIterator(const RestoreMetaData & md)
 }
 
 const LogEntry *
-RestoreLogIterator::getNextLogEntry(int & res, bool *alloc_flag) {
+RestoreLogIterator::getNextLogEntry(int & res) {
   // Read record length
   typedef BackupFormat::LogFile::LogEntry LogE;
-
+  typedef BackupFormat::LogFile::LogEntry_no_fragid LogE_no_fragid;
+  const Uint32 offset= 3;
+  assert(offset == (offsetof(LogE, Data) >> 2) - 1);
   LogE * logE= 0;
   Uint32 len= ~0;
   const Uint32 stopGCP = m_metaData.getStopGCP();
+  NdbAutoPtr<char> ap1;
   do {
     if (buffer_read_ahead(&len, sizeof(Uint32), 1) != 1){
       res= -1;
@@ -988,21 +994,33 @@ RestoreLogIterator::getNextLogEntry(int & res, bool *alloc_flag) {
         We set FragId to 0 in older versions (these versions
         do not support restore of user defined partitioned
         tables.
+
+        These log entries miss one Uint32 FragId, hence missing_len=1
+
+        Reconstruct a new log entry with old.
       */
+      const Uint32 missing_len= 1;
+      assert((offsetof(LogE, Data) - offsetof(LogE_no_fragid, Data)) >> 2 ==
+             missing_len);
+      LogE_no_fragid * logE_no_fragid= (LogE_no_fragid *)logE;
+      
       int i;
-      LogE *tmpLogE = (LogE*)NdbMem_Allocate(data_len + 4);
+      LogE *tmpLogE= (LogE*)NdbMem_Allocate(data_len + missing_len*4);
       if (!tmpLogE)
       {
         res = -2;
         return 0;
       }
-      tmpLogE->Length = logE->Length;
-      tmpLogE->TableId = logE->TableId;
-      tmpLogE->TriggerEvent = logE->TriggerEvent;
-      tmpLogE->FragId = 0;
-      for (i = 0; i < len - 3; i++)
-        tmpLogE->Data[i] = logE->Data[i-1];
-      *alloc_flag= true;
+      ap1.reset((char*)tmpLogE);
+      bzero(tmpLogE, data_len + missing_len*4);
+      /* correct len to reflect new logEntry version length */
+      len+= missing_len;
+      tmpLogE->Length = logE_no_fragid->Length;
+      tmpLogE->TableId = logE_no_fragid->TableId;
+      tmpLogE->TriggerEvent = logE_no_fragid->TriggerEvent;
+      for (i = 0; i < len - offset; i++)
+        tmpLogE->Data[i] = logE_no_fragid->Data[i];
+      logE= tmpLogE;
     }
     logE->TableId= ntohl(logE->TableId);
     logE->TriggerEvent= ntohl(logE->TriggerEvent);
@@ -1012,7 +1030,7 @@ RestoreLogIterator::getNextLogEntry(int & res, bool *alloc_flag) {
     
     if(hasGcp){
       len--;
-      m_last_gci = ntohl(logE->Data[len-2]);
+      m_last_gci = ntohl(logE->Data[len-offset]);
     }
   } while(m_last_gci > stopGCP + 1);
   
@@ -1036,7 +1054,7 @@ RestoreLogIterator::getNextLogEntry(int & res, bool *alloc_flag) {
   m_logEntry.clear();
 
   AttributeHeader * ah = (AttributeHeader *)&logE->Data[0];
-  AttributeHeader *end = (AttributeHeader *)&logE->Data[len - 3];
+  AttributeHeader *end = (AttributeHeader *)&logE->Data[len - offset];
   AttributeS *  attr;
   m_logEntry.m_frag_id = ntohl(logE->FragId);
   while(ah < end){
