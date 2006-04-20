@@ -136,7 +136,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   if (part_info)
   {
     create_info->extra_size+= part_info->part_info_len;
-    create_info->extra_size+= part_info->part_state_len;
   }
 #endif
 
@@ -208,12 +207,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     if (my_write(file, (const byte*)buff, 4, MYF_RW) ||
         my_write(file, (const byte*)part_info->part_info_string,
                  part_info->part_info_len + 1, MYF_RW))
-      goto err;
-    DBUG_PRINT("info", ("Part state len = %d", part_info->part_state_len));
-    int4store(buff, part_info->part_state_len);
-    if (my_write(file, (const byte*)buff, 4, MYF_RW) ||
-        my_write(file, (const byte*)part_info->part_state,
-                 part_info->part_state_len, MYF_RW))
       goto err;
   }
   else
@@ -330,7 +323,7 @@ int rea_create_table(THD *thd, const char *path,
 
   // Make sure mysql_create_frm din't remove extension
   DBUG_ASSERT(*fn_rext(frm_name));
-  if (file->create_handler_files(path, create_info))
+  if (file->create_handler_files(path, NULL, FALSE, create_info))
     goto err_handler;
   if (!create_info->frm_only && ha_create_table(thd, path, db, table_name,
                                                 create_info,0))

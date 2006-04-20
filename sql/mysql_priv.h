@@ -613,6 +613,100 @@ struct Query_cache_query_flags
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 #endif /*HAVE_QUERY_CACHE*/
 
+/*
+  Error injector Macros to enable easy testing of recovery after failures
+  in various error cases.
+*/
+#ifndef ERROR_INJECT_SUPPORT
+
+#define ERROR_INJECT(x) 0
+#define ERROR_INJECT_ACTION(x,action) 0
+#define ERROR_INJECT_CRASH(x) 0
+#define ERROR_INJECT_VALUE(x) 0
+#define ERROR_INJECT_VALUE_ACTION(x,action) 0
+#define ERROR_INJECT_VALUE_CRASH(x) 0
+#define SET_ERROR_INJECT_VALUE(x)
+
+#else
+
+inline bool check_and_unset_keyword(const char *dbug_str)
+{
+  const char *extra_str= "-d,";
+  char total_str[200];
+  if (_db_strict_keyword_ (dbug_str))
+  {
+    strxmov(total_str, extra_str, dbug_str, NullS);
+    DBUG_SET(total_str);
+    return 1;
+  }
+  return 0;
+}
+
+
+inline bool
+check_and_unset_inject_value(int value)
+{
+  THD *thd= current_thd;
+  if (thd->error_inject_value == (uint)value)
+  {
+    thd->error_inject_value= 0;
+    return 1;
+  }
+  return 0;
+}
+
+/*
+  ERROR INJECT MODULE:
+  --------------------
+  These macros are used to insert macros from the application code.
+  The event that activates those error injections can be activated
+  from SQL by using:
+  SET SESSION dbug=+d,code;
+
+  After the error has been injected, the macros will automatically
+  remove the debug code, thus similar to using:
+  SET SESSION dbug=-d,code
+  from SQL.
+
+  ERROR_INJECT_CRASH will inject a crash of the MySQL Server if code
+  is set when macro is called. ERROR_INJECT_CRASH can be used in
+  if-statements, it will always return FALSE unless of course it
+  crashes in which case it doesn't return at all.
+
+  ERROR_INJECT_ACTION will inject the action specified in the action
+  parameter of the macro, before performing the action the code will
+  be removed such that no more events occur. ERROR_INJECT_ACTION
+  can also be used in if-statements and always returns FALSE.
+  ERROR_INJECT can be used in a normal if-statement, where the action
+  part is performed in the if-block. The macro returns TRUE if the
+  error was activated and otherwise returns FALSE. If activated the
+  code is removed.
+
+  Sometimes it is necessary to perform error inject actions as a serie
+  of events. In this case one can use one variable on the THD object.
+  Thus one sets this value by using e.g. SET_ERROR_INJECT_VALUE(100).
+  Then one can later test for it by using ERROR_INJECT_CRASH_VALUE,
+  ERROR_INJECT_ACTION_VALUE and ERROR_INJECT_VALUE. This have the same
+  behaviour as the above described macros except that they use the
+  error inject value instead of a code used by DBUG macros.
+*/
+#define SET_ERROR_INJECT_VALUE(x) \
+  current_thd->error_inject_value= (x)
+#define ERROR_INJECT_CRASH(code) \
+  DBUG_EVALUATE_IF(code, (abort(), 0), 0)
+#define ERROR_INJECT_ACTION(code, action) \
+  (check_and_unset_keyword(code) ? ((action), 0) : 0)
+#define ERROR_INJECT(code) \
+  check_and_unset_keyword(code)
+#define ERROR_INJECT_VALUE(value) \
+  check_and_unset_inject_value(value)
+#define ERROR_INJECT_VALUE_ACTION(value,action) \
+  (check_and_unset_inject_value(value) ? (action) : 0)
+#define ERROR_INJECT_VALUE_CRASH(value) \
+  ERROR_INJECT_VALUE_ACTION(value, (abort(), 0))
+
+#endif
+
 uint build_table_path(char *buff, size_t bufflen, const char *db,
                       const char *table, const char *ext);
 void write_bin_log(THD *thd, bool clear_error,
@@ -1090,6 +1184,16 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
                              uint flags);
 
+#define NORMAL_PART_NAME 0
+#define TEMP_PART_NAME 1
+#define RENAMED_PART_NAME 2
+void create_partition_name(char *out, const char *in1,
+                           const char *in2, uint name_variant,
+                           bool translate);
+void create_subpartition_name(char *out, const char *in1,
+                              const char *in2, const char *in3,
+                              uint name_variant);
+
 typedef struct st_lock_param_type
 {
   ulonglong copied;
@@ -1109,14 +1213,97 @@ typedef struct st_lock_param_type
   uint key_count;
   uint db_options;
   uint pack_frm_len;
+  partition_info *part_info;
 } ALTER_PARTITION_PARAM_TYPE;
 
 void mem_alloc_error(size_t size);
-#define WFRM_INITIAL_WRITE 1
-#define WFRM_CREATE_HANDLER_FILES 2
+
+enum ddl_log_entry_code
+{
+  /*
+    DDL_LOG_EXECUTE_CODE:
+      This is a code that indicates that this is a log entry to
+      be executed, from this entry a linked list of log entries
+      can be found and executed.
+    DDL_LOG_ENTRY_CODE:
+      An entry to be executed in a linked list from an execute log
+      entry.
+    DDL_IGNORE_LOG_ENTRY_CODE:
+      An entry that is to be ignored
+  */
+  DDL_LOG_EXECUTE_CODE = 'e',
+  DDL_LOG_ENTRY_CODE = 'l',
+  DDL_IGNORE_LOG_ENTRY_CODE = 'i'
+};
+
+enum ddl_log_action_code
+{
+  /*
+    The type of action that a DDL_LOG_ENTRY_CODE entry is to
+    perform.
+    DDL_LOG_DELETE_ACTION:
+      Delete an entity
+    DDL_LOG_RENAME_ACTION:
+      Rename an entity
+    DDL_LOG_REPLACE_ACTION:
+      Rename an entity after removing the previous entry with the
+      new name, that is replace this entry.
+  */
+  DDL_LOG_DELETE_ACTION = 'd',
+  DDL_LOG_RENAME_ACTION = 'r',
+  DDL_LOG_REPLACE_ACTION = 's'
+};
+
+
+typedef struct st_ddl_log_entry
+{
+  const char *name;
+  const char *from_name;
+  const char *handler_name;
+  uint next_entry;
+  uint entry_pos;
+  enum ddl_log_entry_code entry_type;
+  enum ddl_log_action_code action_type;
+  /*
+    Most actions have only one phase. REPLACE does however have two
+    phases. The first phase removes the file with the new name if
+    there was one there before and the second phase renames the
+    old name to the new name.
+  */
+  char phase;
+} DDL_LOG_ENTRY;
+
+typedef struct st_ddl_log_memory_entry
+{
+  uint entry_pos;
+  struct st_ddl_log_memory_entry *next_log_entry;
+  struct st_ddl_log_memory_entry *prev_log_entry;
+  struct st_ddl_log_memory_entry *next_active_log_entry;
+} DDL_LOG_MEMORY_ENTRY;
+
+
+
+#define DDL_LOG_HANDLER_TYPE_LEN 32
+
+bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
+                           DDL_LOG_MEMORY_ENTRY **active_entry);
+bool write_execute_ddl_log_entry(uint first_entry,
+                                   bool complete,
+                                   DDL_LOG_MEMORY_ENTRY **active_entry);
+bool deactivate_ddl_log_entry(uint entry_no);
+void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry);
+bool sync_ddl_log();
+void release_ddl_log();
+void execute_ddl_log_recovery();
+bool execute_ddl_log_entry(THD *thd, uint first_entry);
+
+extern pthread_mutex_t LOCK_gdl;
+
+#define WFRM_WRITE_SHADOW 1
+#define WFRM_INSTALL_SHADOW 2
 #define WFRM_PACK_FRM 4
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
-bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
+int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 
@@ -1287,6 +1474,9 @@ extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern ulong delayed_insert_threads, delayed_insert_writes;
 extern ulong delayed_rows_in_use,delayed_insert_errors;
+#ifdef ERROR_INJECT_SUPPORT
+extern ulong error_inject_value;
+#endif
 extern ulong slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_threads, slow_launch_time;
