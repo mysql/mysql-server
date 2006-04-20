@@ -36,8 +36,8 @@ AC_DEFUN([_MYSQL_MODULE],[ dnl
  ],[ dnl 
   m4_define([$2], [$1]) dnl
   _MYSQL_PLUGAPPEND([__mysql_plugin_list__],[$1]) dnl
-  AC_DEFUN([MYSQL_MODULE_NAME_]AS_TR_CPP([$1]), [$3]) dnl
-  AC_DEFUN([MYSQL_MODULE_DESC_]AS_TR_CPP([$1]), [$4]) dnl
+  m4_define([MYSQL_MODULE_NAME_]AS_TR_CPP([$1]), [$3]) dnl
+  m4_define([MYSQL_MODULE_DESC_]AS_TR_CPP([$1]), [$4]) dnl
   ifelse([$5], [], [], [ dnl
    _MYSQL_PLUGAPPEND_OPTS([$1], $5) dnl
   ]) dnl
@@ -78,7 +78,7 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_MODULE_DEFINE],[ dnl
  REQUIRE_PLUGIN([$1]) dnl
- AC_DEFUN([MYSQL_MODULE_DEFINE_]AS_TR_CPP([$1]), [$2]) dnl
+ m4_define([MYSQL_MODULE_DEFINE_]AS_TR_CPP([$1]), [$2]) dnl
 ])
 
 
@@ -92,7 +92,7 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_MODULE_DIRECTORY],[ dnl
  REQUIRE_PLUGIN([$1]) dnl
- AC_DEFUN([MYSQL_MODULE_DIRECTORY_]AS_TR_CPP([$1]), [$2]) dnl
+ m4_define([MYSQL_MODULE_DIRECTORY_]AS_TR_CPP([$1]), [$2]) dnl
 ])
 
 
@@ -106,7 +106,7 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_MODULE_STATIC],[ dnl
  REQUIRE_PLUGIN([$1]) dnl
- AC_DEFUN([MYSQL_MODULE_STATIC_]AS_TR_CPP([$1]), [$2]) dnl
+ m4_define([MYSQL_MODULE_STATIC_]AS_TR_CPP([$1]), [$2]) dnl
 ])
 
 
@@ -120,7 +120,7 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_MODULE_DYNAMIC],[ dnl
  REQUIRE_PLUGIN([$1]) dnl
- AC_DEFUN([MYSQL_MODULE_DYNAMIC_]AS_TR_CPP([$1]), [$2]) dnl
+ m4_define([MYSQL_MODULE_DYNAMIC_]AS_TR_CPP([$1]), [$2]) dnl
 ])
 
 
@@ -216,7 +216,7 @@ AC_DEFUN([MYSQL_MODULE_ACTIONS],[ dnl
  m4_ifdef([$2],[ dnl
    m4_define([MYSQL_MODULE_ACTIONS_]AS_TR_CPP([$1]),m4_defn([$2])) dnl
  ],[ dnl
-   AC_DEFUN([MYSQL_MODULE_ACTIONS_]AS_TR_CPP([$1]), [$2]) dnl
+   m4_define([MYSQL_MODULE_ACTIONS_]AS_TR_CPP([$1]), [$2]) dnl
  ])
 ])
 
@@ -235,8 +235,9 @@ AC_DEFUN([MYSQL_CONFIGURE_PLUGINS],[ dnl
  ],[ dnl
    m4_define([__mysql_plugin_configured__],[done]) dnl
    m4_ifdef([__mysql_plugin_list__],[ dnl
-    _MYSQL_CHECK_PLUGIN_ARGS([none])
+    _MYSQL_CHECK_PLUGIN_ARGS([$1])
     _MYSQL_CONFIGURE_PLUGINS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
+    _MYSQL_DO_PLUGIN_ACTIONS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
    ]) dnl
  ]) dnl
 ])
@@ -272,32 +273,33 @@ AC_DEFUN([_DO_MYSQL_CHECK_PLUGIN],[ dnl
  ])
  AC_MSG_CHECKING([whether to use ]$3) dnl
  m4_ifdef([$10],[
-  if test "[$mysql_module_]m4_bpatsubst([$1], -, _)" == "yes" -a \
-          "[$with_module_]m4_bpatsubst([$1], -, _)" != "no" -o \
-          "[$with_module_]m4_bpatsubst([$1], -, _)" == "yes"; then
+  if test "[$mysql_module_]m4_bpatsubst([$1], -, _)" = yes -a \
+          "[$with_module_]m4_bpatsubst([$1], -, _)" != no -o \
+          "[$with_module_]m4_bpatsubst([$1], -, _)" = yes; then
     AC_MSG_ERROR([disabled])
   fi
   AC_MSG_RESULT([no]) dnl
  ],[ dnl
   m4_ifdef([$9],[
-   if test "[$with_module_]m4_bpatsubst([$1], -, _)" == "no"; then
+   if test "[$with_module_]m4_bpatsubst([$1], -, _)" = no; then
      AC_MSG_ERROR([cannot disable mandatory module])
    fi
-   [mysql_module_]m4_bpatsubst([$1], -, _)="yes" dnl
+   [mysql_module_]m4_bpatsubst([$1], -, _)=yes dnl
   ])
-  if test "[$with_module_]m4_bpatsubst([$1], -, _)" != "no"; then
-    if test "[$mysql_module_]m4_bpatsubst([$1], -, _)" != "yes" -a \
-            "[$with_module_]m4_bpatsubst([$1], -, _)" != "yes"; then dnl
+  if test "[$with_module_]m4_bpatsubst([$1], -, _)" != no; then
+    if test "[$mysql_module_]m4_bpatsubst([$1], -, _)" != yes -a \
+            "[$with_module_]m4_bpatsubst([$1], -, _)" != yes; then dnl
       m4_ifdef([$8],[ dnl
        m4_ifdef([$6],[
         mysql_plugin_dirs="$mysql_plugin_dirs $6" dnl
        ])
        AC_SUBST([plugin_]m4_bpatsubst([$1], -, _)[_shared_target], "$8")
        AC_SUBST([plugin_]m4_bpatsubst([$1], -, _)[_static_target], [""])
-       [with_module_]m4_bpatsubst([$1], -, _)="yes" dnl
+       [with_module_]m4_bpatsubst([$1], -, _)=yes
+       AC_MSG_RESULT([plugin]) dnl
       ],[
-       AC_MSG_RESULT([cannot build dynamically])
-       [with_module_]m4_bpatsubst([$1], -, _)="no" dnl
+       [with_module_]m4_bpatsubst([$1], -, _)=no
+       AC_MSG_RESULT([no]) dnl
       ])
     else dnl
       m4_ifdef([$7],[
@@ -338,19 +340,47 @@ AC_DEFUN([_DO_MYSQL_CHECK_PLUGIN],[ dnl
        ]) dnl
       ])
       mysql_plugin_defs="$mysql_plugin_defs, [builtin_]m4_bpatsubst([$2], -, _)"
-      [with_module_]m4_bpatsubst([$1], -, _)="yes"
+      [with_module_]m4_bpatsubst([$1], -, _)=yes
+      AC_MSG_RESULT([yes])
     fi
   else
     AC_MSG_RESULT([no])
-  fi
+  fi dnl
+ ]) dnl
+])
 
-  if test "[$with_module_]m4_bpatsubst([$1], -, _)" == "yes"; then
-    if test "[$plugin_]m4_bpatsubst([$1], -, _)[_static_target]" != ""; then
-      AC_MSG_RESULT([static])
-    elif test "[$plugin_]m4_bpatsubst([$1], -, _)[_shared_target]" != ""; then
-      AC_MSG_RESULT([plugin])
-    else
-      AC_MSG_ERROR([thats strange])
+AC_DEFUN([_MYSQL_DO_PLUGIN_ACTIONS],[ dnl
+ ifelse($#, 0, [], $#, 1, [ dnl
+  _MYSQL_PLUGIN_ACTIONS([$1]) dnl
+ ],[ dnl
+  _MYSQL_PLUGIN_ACTIONS([$1]) dnl
+  _MYSQL_DO_PLUGIN_ACTIONS(m4_shift($@)) dnl
+ ])
+])
+
+AC_DEFUN([_MYSQL_PLUGIN_ACTIONS],[ dnl
+ _DO_MYSQL_PLUGIN_ACTIONS(
+  [$1],
+  [$1-plugin],
+  [MYSQL_MODULE_NAME_]AS_TR_CPP([$1]),
+  [MYSQL_MODULE_DESC_]AS_TR_CPP([$1]),
+  [MYSQL_MODULE_DEFINE_]AS_TR_CPP([$1]),
+  [MYSQL_MODULE_DIRECTORY_]AS_TR_CPP([$1]),
+  [MYSQL_MODULE_STATIC_]AS_TR_CPP([$1]),
+  [MYSQL_MODULE_DYNAMIC_]AS_TR_CPP([$1]),
+  [MYSQL_MODULE_MANDATORY_]AS_TR_CPP([$1]),
+  [MYSQL_MODULE_DISABLED_]AS_TR_CPP([$1]),
+  [MYSQL_MODULE_ACTIONS_]AS_TR_CPP([$1])
+ ) dnl
+])
+
+
+AC_DEFUN([_DO_MYSQL_PLUGIN_ACTIONS],[ dnl
+ m4_ifdef([$10], [], [
+  if test "[$with_module_]m4_bpatsubst([$1], -, _)" = yes; then
+    if test -z "[$plugin_]m4_bpatsubst([$1], -, _)[_static_target]" -a \
+            -z "[$plugin_]m4_bpatsubst([$1], -, _)[_shared_target]"; then
+      AC_MSG_ERROR([thats strange, $1 failed sanity check])
     fi
     $11
   fi dnl
@@ -390,12 +420,13 @@ _MYSQL_MODULE_META_CHECK(m4_shift($@))]) dnl
 ])
 
 AC_DEFUN([_MYSQL_CHECK_PLUGIN_META], [
-  elif test "$mysql_modules" == "[$1]"; then dnl
+  [$1] ) dnl
 m4_ifdef([$2], [
-    mysql_modules="m4_bpatsubst($2, :, [,])" dnl
+    mysql_modules='m4_bpatsubst($2, :, [ ])' dnl
 ],[
-    mysql_modules="" dnl
-]) dnl
+    mysql_modules='' dnl
+])
+    ;; dnl
 ])
 
 
@@ -410,7 +441,7 @@ AC_DEFUN([_MYSQL_PLUGAPPEND],[ dnl
   m4_undefine([__plugin_append_tmp__]) dnl
  ],[ dnl
   m4_define([$1], [$2]) dnl
-  $3
+  $3 dnl
  ]) dnl
 ])
 
@@ -510,13 +541,30 @@ AC_DEFUN([_MYSQL_MODULE_ARGS_CHECK],[ dnl
 ])
 
 AC_DEFUN([_MYSQL_CHECK_PLUGIN_ARG],[ dnl
-m4_ifdef([$3], [], [AC_DEFUN([$3],[ ])])
-    elif test "$plugin" == "[$1]"; then dnl
-m4_ifdef([$2],[
+ m4_ifdef([$3], [], [m4_define([$3],[ ])])
+    [$1] ) dnl
+ m4_ifdef([$2],[
       AC_MSG_ERROR([plugin $1 is disabled]) dnl
-],[
-      [mysql_module_]m4_bpatsubst([$1], -, _)="yes" dnl
-]) dnl
+ ],[
+      [mysql_module_]m4_bpatsubst([$1], -, _)=yes dnl
+ ])
+      ;; dnl
+])
+
+AC_DEFUN([_MYSQL_SANE_VARS], [ dnl
+ ifelse($#, 0, [], $#, 1, [ dnl
+  _MYSQL_SANEVAR([$1]) dnl
+ ],[ dnl
+  _MYSQL_SANEVAR([$1]) dnl
+  _MYSQL_SANE_VARS(m4_shift($@)) dnl
+ ]) dnl
+])
+
+AC_DEFUN([_MYSQL_SANEVAR], [
+   test -z "[$mysql_module_]m4_bpatsubst([$1], -, _)" && dnl
+[mysql_module_]m4_bpatsubst([$1], -, _)='.'
+   test -z "[$with_module_]m4_bpatsubst([$1], -, _)" && dnl
+[with_module_]m4_bpatsubst([$1], -, _)='.' dnl
 ])
 
 AC_DEFUN([_MYSQL_CHECK_DEPENDENCIES], [ dnl
@@ -530,32 +578,35 @@ AC_DEFUN([_MYSQL_CHECK_DEPENDENCIES], [ dnl
 
 AC_DEFUN([_MYSQL_CHECK_DEPENDS], [ dnl
  m4_ifdef([$2], [
-   if test "[$mysql_module_]m4_bpatsubst([$1], -, _)" == "yes" -a \
-           "[$with_module_]m4_bpatsubst([$1], -, _)" != "no" -o \
-           "[$with_module_]m4_bpatsubst([$1], -, _)" == "yes"; then dnl
+   if test "[$mysql_module_]m4_bpatsubst([$1], -, _)" = yes -a \
+           "[$with_module_]m4_bpatsubst([$1], -, _)" != no -o \
+           "[$with_module_]m4_bpatsubst([$1], -, _)" = yes; then dnl
      _MYSQL_GEN_DEPENDS(m4_bpatsubst($2, :, [,]))
-   fi
+   fi dnl
  ]) dnl
 ])
 
 AC_DEFUN([_MYSQL_GEN_DEPENDS], [ dnl
- ifelse($#, 0, [], $#, 1, [
-      [mysql_module_]m4_bpatsubst([$1], -, _)="yes"
-      if test "[$with_module_]m4_bpatsubst([$1], -, _)" == "no"; then
-        AC_MSG_ERROR([depends upon disabled module $1])
-      fi dnl
- ],[
-      [mysql_module_]m4_bpatsubst([$1], -, _)="yes"
-      if test "[$with_module_]m4_bpatsubst([$1], -, _)" == "no"; then
-        AC_MSG_ERROR([depends upon disabled module $1])
-      fi dnl
+ ifelse($#, 0, [], $#, 1, [ dnl
+  _MYSQL_GEN_DEPEND([$1]) dnl
+ ],[ dnl
+  _MYSQL_GEN_DEPEND([$1]) dnl
   _MYSQL_GEN_DEPENDS(m4_shift($@)) dnl
  ]) dnl
 ])
-  
+
+AC_DEFUN([_MYSQL_GEN_DEPEND], [ dnl
+ m4_ifdef([MYSQL_MODULE_DISABLED_]AS_TR_CPP([$1]),[
+      AC_MSG_ERROR([depends upon disabled module $1]) dnl
+ ],[
+      [mysql_module_]m4_bpatsubst([$1], -, _)=yes
+      if test "[$with_module_]m4_bpatsubst([$1], -, _)" = no; then
+        AC_MSG_ERROR([depends upon disabled module $1])
+      fi dnl
+ ]) dnl
+])
 
 AC_DEFUN([_MYSQL_CHECK_PLUGIN_ARGS],[
-
  AC_ARG_WITH([modules], [
    --with-modules=PLUGIN[[,PLUGIN..]]
 m4_text_wrap([Plugin modules to include in mysqld. (default is: $1)
@@ -570,32 +621,43 @@ m4_bpatsubst(__mysql_plugin_list__, :, [ ])[.], [                          ])
   --without-module-PLUGIN
 m4_text_wrap([Disable the named module from being built. Otherwise, 
 for modules which are not selected for inclusion in mysqld will be 
-built dynamically (if supported)],[                          ])],
-[mysql_modules="$withval"], [mysql_modules=['$1']])
+built dynamically (if supported)],[                          ])
+],[mysql_modules="`echo $withval | tr ',.:;*[]' '       '`"], 
+  [mysql_modules=['$1']])
 
 m4_divert_once([HELP_VAR_END],[
 Description of plugin modules:
 m4_indir([MYSQL_LIST_PLUGINS])
 ])
 
-  if test "$mysql_modules" == "all"; then
-    mysql_modules="m4_bpatsubst(__mysql_plugin_list__, :, [,])"
-  elif test "$mysql_modules" == "none"; then
-    mysql_modules="" dnl
+  case "$mysql_modules" in
+  all )
+    mysql_modules='m4_bpatsubst(__mysql_plugin_list__, :, [ ])'
+    ;;
+  none )
+    mysql_modules=''
+    ;; dnl
 m4_ifdef([__mysql_metaplugin_list__],[ dnl
 _MYSQL_MODULE_META_CHECK(m4_bpatsubst(__mysql_metaplugin_list__, :, [,])) dnl
 ])
-  fi
+  esac
 
-  for plugin in `echo $mysql_modules | tr ",.:;" "    "`; do
-    if test "$plugin" == "all" -o "$plugin" == "none"; then
-      AC_MSG_ERROR([bad module name: $plugin]) dnl
+  for plugin in $mysql_modules; do
+    case "$plugin" in
+    all )
+      AC_MSG_ERROR([bad module name: $plugin])
+      ;;
+    none )
+      AC_MSG_ERROR([bad module name: $plugin])
+      ;; dnl
 _MYSQL_MODULE_ARGS_CHECK(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
-    else
+    * )
       AC_MSG_ERROR([unknown plugin module: $plugin])
-    fi
+      ;;
+    esac
   done
-  
+
+  _MYSQL_SANE_VARS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))  
   _MYSQL_CHECK_DEPENDENCIES(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
 ])
 
