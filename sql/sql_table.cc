@@ -1233,7 +1233,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                           lpt->table_name, lpt->create_info,
                           lpt->new_create_list, lpt->key_count,
                           lpt->key_info_buffer, lpt->table->file)) ||
-         lpt->table->file->create_handler_files(shadow_path, NULL, FALSE,
+         lpt->table->file->create_handler_files(shadow_path, NULL,
+                                                CHF_CREATE_FLAG,
                                                 lpt->create_info))
     {
       my_delete(shadow_frm_name, MYF(0));
@@ -1287,14 +1288,14 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     if (my_delete(frm_name, MYF(MY_WME)) ||
 #ifdef WITH_PARTITION_STORAGE_ENGINE
         lpt->table->file->create_handler_files(path, shadow_path,
-                                               CHF_DELETE_FLAG) ||
+                                               CHF_DELETE_FLAG, NULL) ||
         deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos) ||
         (sync_ddl_log(), FALSE) ||
 #endif
 #ifdef WITH_PARTITION_STORAGE_ENGINE
         my_rename(shadow_frm_name, frm_name, MYF(MY_WME)) ||
         lpt->table->file->create_handler_files(path, shadow_path,
-                                               CHF_RENAME_FLAG))
+                                               CHF_RENAME_FLAG, NULL))
 #else
         my_rename(shadow_frm_name, frm_name, MYF(MY_WME)))
 #endif
@@ -5717,7 +5718,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       error= (mysql_create_frm(thd, reg_path, db, table_name,
                                create_info, prepared_create_list, key_count,
                                key_info_buffer, table->file) ||
-              table->file->create_handler_files(reg_path, NULL, FALSE,
+              table->file->create_handler_files(reg_path, NULL, CHF_INDEX_FLAG,
                                                 create_info));
       VOID(pthread_mutex_unlock(&LOCK_open));
       if (error)
@@ -5764,7 +5765,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       error= (mysql_create_frm(thd, reg_path, db, table_name,
                                create_info, prepared_create_list, key_count,
                                key_info_buffer, table->file) ||
-              table->file->create_handler_files(reg_path, NULL, FALSE,
+              table->file->create_handler_files(reg_path, NULL, CHF_INDEX_FLAG,
                                                 create_info));
       VOID(pthread_mutex_unlock(&LOCK_open));
       if (error)
@@ -5989,7 +5990,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       VOID(pthread_mutex_lock(&LOCK_open));
     }
     /* Tell the handler that a new frm file is in place. */
-    if (table->file->create_handler_files(reg_path, NULL, FALSE,
+    if (table->file->create_handler_files(reg_path, NULL, CHF_INDEX_FLAG,
                                           create_info))
     {
       VOID(pthread_mutex_unlock(&LOCK_open));

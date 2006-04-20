@@ -1380,8 +1380,10 @@ public:
   
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
 
+#define CHF_CREATE_FLAG 0
 #define CHF_DELETE_FLAG 1
 #define CHF_RENAME_FLAG 2
+#define CHF_INDEX_FLAG  3
 
   virtual int create_handler_files(const char *name, const char *old_name,
                                    int action_flag, HA_CREATE_INFO *info)

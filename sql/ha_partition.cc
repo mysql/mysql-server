@@ -505,7 +505,8 @@ int ha_partition::create_handler_files(const char *path,
     We need to update total number of parts since we might write the handler
     file as part of a partition management command
   */
-  if (action_flag)
+  if (action_flag == CHF_DELETE_FLAG ||
+      action_flag == CHF_RENAME_FLAG)
   {
     char name[FN_REFLEN];
     char old_name[FN_REFLEN];
@@ -520,7 +521,7 @@ int ha_partition::create_handler_files(const char *path,
       DBUG_RETURN(TRUE);
     }
   }
-  else
+  else if (action_flag == CHF_CREATE_FLAG)
   {
     if (create_handler_file(path))
     {
