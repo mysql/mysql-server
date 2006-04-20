@@ -1377,6 +1377,38 @@ dict_col_reposition_in_cache(
 	HASH_INSERT(dict_col_t, hash, dict_sys->col_hash, fold, col);
 }
 
+/********************************************************************
+If the given column name is reserved for InnoDB system columns, return
+TRUE.*/
+
+ibool
+dict_col_name_is_reserved(
+/*======================*/
+				/* out: TRUE if name is reserved */
+	const char*	name)	/* in: column name */
+{
+	/* This check reminds that if a new system column is added to
+	the program, it should be dealt with here. */
+#if DATA_N_SYS_COLS != 4
+#error "DATA_N_SYS_COLS != 4"
+#endif
+
+	static const char*	reserved_names[] = {
+		"DB_ROW_ID", "DB_TRX_ID", "DB_ROLL_PTR", "DB_MIX_ID"
+	};
+
+	ulint			i;
+
+	for (i = 0; i < UT_ARR_SIZE(reserved_names); i++) {
+		if (strcmp(name, reserved_names[i]) == 0) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+
 /**************************************************************************
 Adds an index to the dictionary cache. */
 
@@ -2160,8 +2192,9 @@ dict_foreign_error_report(
 	fputs(msg, file);
 	fputs(" Constraint:\n", file);
 	dict_print_info_on_foreign_key_in_create_format(file, NULL, fk);
+	putc('\n', file);
 	if (fk->foreign_index) {
-		fputs("\nThe index in the foreign key in table is ", file);
+		fputs("The index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, fk->foreign_index->name);
 		fputs(
 "\nSee http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"

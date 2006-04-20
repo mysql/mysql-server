@@ -55,6 +55,13 @@ dict_mem_table_create(
 					is ignored if the table is made
 					a member of a cluster */
 	ulint		n_cols);	/* in: number of columns */
+/********************************************************************
+Free a table memory object. */
+
+void
+dict_mem_table_free(
+/*================*/
+	dict_table_t*	table);		/* in: table */
 /**************************************************************************
 Creates a cluster memory object. */
 
