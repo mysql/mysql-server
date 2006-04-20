@@ -872,8 +872,8 @@ NdbSqlUtil::likeLongvarbinary(const void* info, const void* p1, unsigned n1, con
 
 // check charset
 
-bool
-NdbSqlUtil::usable_in_pk(Uint32 typeId, const void* info)
+uint
+NdbSqlUtil::check_column_for_pk(Uint32 typeId, const void* info)
 {
   const Type& type = getType(typeId);
   switch (type.m_typeId) {
@@ -882,12 +882,14 @@ NdbSqlUtil::usable_in_pk(Uint32 typeId, const void* info)
   case Type::Longvarchar:
     {
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
-      return
-        cs != 0 &&
-        cs->cset != 0 &&
-        cs->coll != 0 &&
-        cs->coll->strnxfrm != 0 &&
-        cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY;
+      if(cs != 0 &&
+         cs->cset != 0 &&
+         cs->coll != 0 &&
+         cs->coll->strnxfrm != 0 &&
+         cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY)
+        return 0;
+      else
+        return 743;
     }
     break;
   case Type::Undefined:
@@ -896,19 +898,19 @@ NdbSqlUtil::usable_in_pk(Uint32 typeId, const void* info)
   case Type::Bit:
     break;
   default:
-    return true;
+    return 0;
   }
-  return false;
+  return 906;
 }
 
-bool
-NdbSqlUtil::usable_in_hash_index(Uint32 typeId, const void* info)
+uint
+NdbSqlUtil::check_column_for_hash_index(Uint32 typeId, const void* info)
 {
-  return usable_in_pk(typeId, info);
+  return check_column_for_pk(typeId, info);
 }
 
-bool
-NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
+uint
+NdbSqlUtil::check_column_for_ordered_index(Uint32 typeId, const void* info)
 {
   const Type& type = getType(typeId);
   if (type.m_cmp == NULL)
@@ -919,13 +921,15 @@ NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
   case Type::Longvarchar:
     {
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
-      return
-        cs != 0 &&
-        cs->cset != 0 &&
-        cs->coll != 0 &&
-        cs->coll->strnxfrm != 0 &&
-        cs->coll->strnncollsp != 0 &&
-        cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY;
+      if (cs != 0 &&
+          cs->cset != 0 &&
+          cs->coll != 0 &&
+          cs->coll->strnxfrm != 0 &&
+          cs->coll->strnncollsp != 0 &&
+          cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY)
+        return 0;
+      else
+        return 743;
     }
     break;
   case Type::Undefined:
@@ -934,9 +938,9 @@ NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
   case Type::Bit:       // can be fixed
     break;
   default:
-    return true;
+    return 0;
   }
-  return false;
+  return 906;
 }
 
 // utilities

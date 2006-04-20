@@ -217,11 +217,12 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       break;
     }
     if (descAttr.m_charset != 0) {
+      uint err;
       CHARSET_INFO *cs = all_charsets[descAttr.m_charset];
       ndbrequire(cs != 0);
-      if (! NdbSqlUtil::usable_in_ordered_index(descAttr.m_typeId, cs)) {
+      if ((err = NdbSqlUtil::check_column_for_ordered_index(descAttr.m_typeId, cs))) {
         jam();
-        errorCode = TuxAddAttrRef::InvalidCharset;
+        errorCode = (TuxAddAttrRef::ErrorCode) err;
         break;
       }
     }
