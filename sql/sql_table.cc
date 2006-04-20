@@ -550,13 +550,13 @@ static bool init_ddl_log()
     FALSE                      Success
 */
 
-static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
+static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
 {
   bool frm_action= FALSE;
   LEX_STRING handler_name;
   handler *file= NULL;
   MEM_ROOT mem_root;
-  bool error= TRUE;
+  int error= TRUE;
   char to_path[FN_REFLEN];
   char from_path[FN_REFLEN];
   char *par_ext= (char*)".par";
@@ -602,7 +602,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           strxmov(to_path, ddl_log_entry->name, reg_ext, NullS);
           if ((error= my_delete(to_path, MYF(MY_WME))))
           {
-            if (error != ENOENT)
+            if (my_errno != ENOENT)
               break;
           }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
