@@ -8245,20 +8245,13 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
       new_field= item->tmp_table_field_from_field_type(table);
-    else if (item->max_length/item->collation.collation->mbmaxlen >
-             CONVERT_IF_BIGGER_TO_BLOB)
-    {
-      if (convert_blob_length)
-        new_field= new Field_varstring(convert_blob_length, maybe_null,
-                                       item->name, table,
-                                       item->collation.collation);
-      else
-        new_field= new Field_blob(item->max_length, maybe_null, item->name,
-                                  table, item->collation.collation);
-    }
+    else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
+             convert_blob_length)
+      new_field= new Field_varstring(convert_blob_length, maybe_null,
+                                     item->name, table,
+                                     item->collation.collation);
     else
-      new_field= new Field_string(item->max_length, maybe_null, item->name, 
-                                  table, item->collation.collation);
+      new_field= item->make_string_field(table);
     break;
   case DECIMAL_RESULT:
     new_field= new Field_new_decimal(item->max_length, maybe_null, item->name,
