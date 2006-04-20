@@ -54,8 +54,8 @@ IF(WITH_BERKELEY_STORAGE_ENGINE)
   SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_berkeley_plugin")
 ENDIF(WITH_BERKELEY_STORAGE_ENGINE)
 
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/handlerton.cc.in 
-               ${CMAKE_SOURCE_DIR}/sql/handlerton.cc @ONLY)
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in 
+               ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc @ONLY)
 
 SET(localstatedir "C:\\mysql\\data")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-huge.cnf.sh
