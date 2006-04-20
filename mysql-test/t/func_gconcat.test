@@ -397,6 +397,18 @@ insert into t1 values(1),(2),(3);
 select f1, group_concat(f1+1) from t1 group by f1 with rollup;
 select count(distinct (f1+1)) from t1 group by f1 with rollup;
 drop table t1;
+
+#
+# Bug#14169 type of group_concat() result changed to blob if tmp_table was used
+#
+create table t1 (f1 int unsigned, f2 varchar(255));
+insert into t1 values (1,repeat('a',255)),(2,repeat('b',255));
+--enable_metadata
+select f2,group_concat(f1) from t1 group by f2;
+# select f2,group_concat(f1) from t1 group by f2 order by 2;
+--disable_metadata
+drop table t1;
+
 # End of 4.1 tests
 
 #
