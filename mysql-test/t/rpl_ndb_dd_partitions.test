@@ -297,5 +297,14 @@ SHOW CREATE TABLE t1;
 --echo --- Do Cleanup ---
 
 DROP TABLE IF EXISTS t1;
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine=ndb;
+alter tablespace ts1
+drop datafile 'datafile02.dat'
+engine=ndb;
+DROP TABLESPACE ts1 ENGINE=NDB;
+DROP LOGFILE GROUP lg1 ENGINE=NDB;
+--sync_slave_with_master
 
 # End of 5.1 test case
