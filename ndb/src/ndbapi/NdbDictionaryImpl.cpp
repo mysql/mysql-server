@@ -1573,7 +1573,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 				     bool alter)
 {
   DBUG_ENTER("NdbDictInterface::createOrAlterTable");
-  unsigned i;
+  unsigned i, err;
   if((unsigned)impl.getNoOfPrimaryKeys() > NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY){
     m_error.code= 4317;
     DBUG_RETURN(-1);
@@ -1683,8 +1683,10 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       DBUG_RETURN(-1);
     }
     // primary key type check
-    if (col->m_pk && ! NdbSqlUtil::usable_in_pk(col->m_type, col->m_cs)) {
-      m_error.code= (col->m_cs != 0 ? 743 : 739);
+    if (col->m_pk && 
+        (err = NdbSqlUtil::check_column_for_pk(col->m_type, col->m_cs)))
+    {
+      m_error.code= err;
       DBUG_RETURN(-1);
     }
     // distribution key not supported for Char attribute
@@ -2157,7 +2159,7 @@ NdbDictInterface::createIndex(Ndb & ndb,
 {
   //validate();
   //aggregate();
-  unsigned i;
+  unsigned i, err;
   UtilBufferWriter w(m_buffer);
   const size_t len = strlen(impl.m_externalName.c_str()) + 1;
   if(len > MAX_TAB_NAME_SIZE) {
@@ -2208,10 +2210,12 @@ NdbDictInterface::createIndex(Ndb & ndb,
 
     // index key type check
     if (it == DictTabInfo::UniqueHashIndex &&
-        ! NdbSqlUtil::usable_in_hash_index(col->m_type, col->m_cs) ||
+        (err = NdbSqlUtil::check_column_for_hash_index(col->m_type, col->m_cs))
+        ||
         it == DictTabInfo::OrderedIndex &&
-        ! NdbSqlUtil::usable_in_ordered_index(col->m_type, col->m_cs)) {
-      m_error.code = 743;
+        (err = NdbSqlUtil::check_column_for_ordered_index(col->m_type, col->m_cs)))
+    {
+      m_error.code = err;
       return -1;
     }
     attributeList.id[i] = col->m_attrId;
