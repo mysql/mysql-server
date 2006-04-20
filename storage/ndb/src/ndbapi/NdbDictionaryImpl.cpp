@@ -43,6 +43,7 @@
 #include <my_sys.h>
 #include <NdbEnv.h>
 #include <NdbMem.h>
+#include <ndb_version.h>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -1963,7 +1964,8 @@ indexTypeMapping[] = {
 int
 NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 const Uint32 * data, Uint32 len,
-				 bool fullyQualifiedNames)
+				 bool fullyQualifiedNames,
+                                 Uint32 version)
 {
   SimplePropertiesLinearReader it(data, len);
   DictTabInfo::Table *tableDesc;
@@ -2142,7 +2144,14 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   * ret = impl;
 
   NdbMem_Free((void*)tableDesc);
-  DBUG_ASSERT(impl->m_fragmentCount > 0);
+  if (version < MAKE_VERSION(5,1,3))
+  {
+    ;
+  } 
+  else
+  {
+    DBUG_ASSERT(impl->m_fragmentCount > 0);
+  }
   DBUG_RETURN(0);
 }
 
