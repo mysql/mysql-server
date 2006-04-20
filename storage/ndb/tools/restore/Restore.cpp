@@ -1036,7 +1036,7 @@ RestoreLogIterator::getNextLogEntry(int & res, bool *alloc_flag) {
   m_logEntry.clear();
 
   AttributeHeader * ah = (AttributeHeader *)&logE->Data[0];
-  AttributeHeader *end = (AttributeHeader *)&logE->Data[len - 2];
+  AttributeHeader *end = (AttributeHeader *)&logE->Data[len - 3];
   AttributeS *  attr;
   m_logEntry.m_frag_id = ntohl(logE->FragId);
   while(ah < end){
