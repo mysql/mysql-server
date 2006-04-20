@@ -1540,11 +1540,6 @@ NetWare. */
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
-	if (srv_measure_contention) {
-		/* os_thread_create(&test_measure_cont, NULL, thread_ids +
-		   SRV_MAX_N_IO_THREADS); */
-	}
-
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 				page_get_free_space_of_empty() / 2); */
 
