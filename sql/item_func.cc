@@ -380,7 +380,10 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
     res= new Field_double(max_length, maybe_null, name, t_arg, decimals);
     break;
   case STRING_RESULT:
-    res= make_string_field(t_arg);
+    if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
+      res= new Field_blob(max_length, maybe_null, name, t_arg, collation.collation);
+    else
+      res= new Field_string(max_length, maybe_null, name, t_arg, collation.collation);
     break;
   case DECIMAL_RESULT:
     res= new Field_new_decimal(my_decimal_precision_to_length(decimal_precision(),
