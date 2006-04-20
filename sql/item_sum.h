@@ -1124,7 +1124,7 @@ public:
     if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
       return FIELD_TYPE_BLOB;
     else
-      return MYSQL_TYPE_VARCHAR;
+      return MYSQL_TYPE_VAR_STRING;
   }
   void clear();
   bool add();
