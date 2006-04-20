@@ -3579,6 +3579,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
       unireg_abort(1);
     }
   }
+  execute_ddl_log_recovery();
 
   create_shutdown_thread();
   create_maintenance_thread();
@@ -3630,6 +3631,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
+  release_ddl_log();
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (Service.IsNT() && start_mode)
     Service.Stop();
