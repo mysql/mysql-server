@@ -1821,7 +1821,7 @@ Variable_name	Value
 innodb_sync_spin_loops	20
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
-innodb_thread_concurrency	8
+innodb_thread_concurrency	0
 set global innodb_thread_concurrency=1001;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
@@ -3232,12 +3232,5 @@ drop trigger t2t;
 drop trigger t3t;
 drop trigger t4t;
 drop table t1, t2, t3, t4, t5;
-create table t1(a date) engine=innodb;
-create table t2(a date, key(a)) engine=innodb;
-insert into t1 values('2005-10-01');
-insert into t2 values('2005-10-01');
-select * from t1, t2
-where t2.a between t1.a - interval 2 day and t1.a + interval 2 day;
-a	a
-2005-10-01	2005-10-01
-drop table t1, t2;
+CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
+ERROR HY000: Can't create table './test/t1.frm' (errno: -1)
