@@ -362,30 +362,6 @@ ibool	srv_print_innodb_lock_monitor	= FALSE;
 ibool	srv_print_innodb_tablespace_monitor = FALSE;
 ibool	srv_print_innodb_table_monitor = FALSE;
 
-/* The parameters below are obsolete: */
-
-ibool	srv_print_parsed_sql		= FALSE;
-
-ulint	srv_sim_disk_wait_pct		= ULINT_MAX;
-ulint	srv_sim_disk_wait_len		= ULINT_MAX;
-ibool	srv_sim_disk_wait_by_yield	= FALSE;
-ibool	srv_sim_disk_wait_by_wait	= FALSE;
-
-ibool	srv_measure_contention	= FALSE;
-ibool	srv_measure_by_spin	= FALSE;
-
-ibool	srv_test_extra_mutexes	= FALSE;
-ibool	srv_test_nocache	= FALSE;
-ibool	srv_test_cache_evict	= FALSE;
-
-ibool	srv_test_sync		= FALSE;
-ulint	srv_test_n_threads	= ULINT_MAX;
-ulint	srv_test_n_loops	= ULINT_MAX;
-ulint	srv_test_n_free_rnds	= ULINT_MAX;
-ulint	srv_test_n_reserved_rnds = ULINT_MAX;
-ulint	srv_test_array_size	= ULINT_MAX;
-ulint	srv_test_n_mutexes	= ULINT_MAX;
-
 /* Array of English strings describing the current state of an
 i/o handler thread */
 

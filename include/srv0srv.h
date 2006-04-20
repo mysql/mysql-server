@@ -157,32 +157,11 @@ extern	ulint	srv_pool_size;
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 
-extern	ulint	srv_sim_disk_wait_pct;
-extern	ulint	srv_sim_disk_wait_len;
-extern	ibool	srv_sim_disk_wait_by_yield;
-extern	ibool	srv_sim_disk_wait_by_wait;
-
-extern	ibool	srv_measure_contention;
-extern	ibool	srv_measure_by_spin;
-
 extern	ibool	srv_print_thread_releases;
 extern	ibool	srv_print_lock_waits;
 extern	ibool	srv_print_buf_io;
 extern	ibool	srv_print_log_io;
-extern	ibool	srv_print_parsed_sql;
 extern	ibool	srv_print_latch_waits;
-
-extern	ibool	srv_test_nocache;
-extern	ibool	srv_test_cache_evict;
-
-extern	ibool	srv_test_extra_mutexes;
-extern	ibool	srv_test_sync;
-extern	ulint	srv_test_n_threads;
-extern	ulint	srv_test_n_loops;
-extern	ulint	srv_test_n_free_rnds;
-extern	ulint	srv_test_n_reserved_rnds;
-extern	ulint	srv_test_n_mutexes;
-extern	ulint	srv_test_array_size;
 
 extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
