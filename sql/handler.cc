@@ -44,6 +44,9 @@
 #include "ha_innodb.h"
 #endif
 
+/* While we have legacy_db_type, we have this array to
+   check for dups and to find handlerton from legacy_db_type.
+   Remove when legacy_db_type is finally gone */
 static handlerton *installed_htons[128];
 
 #define BITMAP_STACKBUF_SIZE (128/8)
