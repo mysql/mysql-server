@@ -1340,14 +1340,6 @@ loop:
 	next_thr = que_thr_step(thr);
 	/*-------------------------*/
 
-	/* Test the effect on performance of adding extra mutex
-	reservations */
-
-/*	if (srv_test_extra_mutexes) {
-		mutex_enter(&kernel_mutex);
-		mutex_exit(&kernel_mutex);
-	}
-*/
 	loop_count++;
 
 	if (next_thr != thr) {
