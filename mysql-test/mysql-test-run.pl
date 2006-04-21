@@ -1457,7 +1457,8 @@ sub ndbcluster_start ($) {
   # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
   if ( mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
 	       ["--port=$opt_ndbcluster_port",
-		"--data-dir=$opt_vardir"],
+		"--data-dir=$opt_vardir",
+	        "--character-sets-dir=$path_charsetsdir"],
 	       "", "/dev/null", "", "") )
   {
     mtr_error("Error ndbcluster_start");
