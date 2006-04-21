@@ -1068,20 +1068,27 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   MY_BITMAP schema_subscribers;
   uint32 bitbuf[sizeof(ndb_schema_object->slock)/4];
   {
-    int i;
+    int i, updated= 0;
+    int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
     bitmap_init(&schema_subscribers, bitbuf, sizeof(bitbuf)*8, false);
     bitmap_set_all(&schema_subscribers);
     (void) pthread_mutex_lock(&schema_share->mutex);
-    for (i= 0; i < ndb_number_of_storage_nodes; i++)
+    for (i= 0; i < no_storage_nodes; i++)
     {
       MY_BITMAP *table_subscribers= &schema_share->subscriber_bitmap[i];
       if (!bitmap_is_clear_all(table_subscribers))
+      {
         bitmap_intersect(&schema_subscribers,
                          table_subscribers);
+        updated= 1;
+      }
     }
     (void) pthread_mutex_unlock(&schema_share->mutex);
-    bitmap_clear_bit(&schema_subscribers, node_id);
-      
+    if (updated)
+      bitmap_clear_bit(&schema_subscribers, node_id);
+    else
+      bitmap_clear_all(&schema_subscribers);
+
     if (ndb_schema_object)
     {
       (void) pthread_mutex_lock(&ndb_schema_object->mutex);
@@ -1227,13 +1234,14 @@ end:
     {
       struct timespec abstime;
       int i;
+      int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
       set_timespec(abstime, 1);
       int ret= pthread_cond_timedwait(&injector_cond,
                                       &ndb_schema_object->mutex,
                                       &abstime);
 
       (void) pthread_mutex_lock(&schema_share->mutex);
-      for (i= 0; i < ndb_number_of_storage_nodes; i++)
+      for (i= 0; i < no_storage_nodes; i++)
       {
         /* remove any unsubscribed from schema_subscribers */
         MY_BITMAP *tmp= &schema_share->subscriber_bitmap[i];
@@ -1466,7 +1474,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   (void)strxmov(table_handler.m_dbname, dbname, NullS);
   (void)strxmov(table_handler.m_tabname, tabname, NullS);
   table_handler.open_indexes(ndb, table, TRUE);
-  table_handler.invalidate_dictionary_cache(TRUE);
+  table_handler.invalidate_dictionary_cache(TRUE, 0);
   thd_ndb->ndb= old_ndb;
   
   /*
@@ -1555,7 +1563,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     table_handler.set_dbname(share->key);
     table_handler.set_tabname(share->key);
     table_handler.open_indexes(ndb, table, TRUE);
-    table_handler.invalidate_dictionary_cache(TRUE);
+    table_handler.invalidate_dictionary_cache(TRUE, 0);
     thd_ndb->ndb= old_ndb;
   }
   DBUG_ASSERT(share->op == pOp || share->op_old == pOp);
@@ -3087,6 +3095,9 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   Thd_ndb *thd_ndb=0;
   int ndb_update_binlog_index= 1;
   injector *inj= injector::instance();
+#ifdef RUN_NDB_BINLOG_TIMER
+  Timer main_timer;
+#endif
 
   pthread_mutex_lock(&injector_mutex);
   /*
@@ -3189,7 +3200,8 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   thd->proc_info= "Waiting for ndbcluster to start";
 
   pthread_mutex_lock(&injector_mutex);
-  while (!schema_share || !apply_status_share)
+  while (!schema_share ||
+         (ndb_binlog_running && !apply_status_share))
   {
     /* ndb not connected yet */
     struct timespec abstime;
@@ -3224,9 +3236,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     thd->db= db;
   }
 
-#ifdef RUN_NDB_BINLOG_TIMER
-  Timer main_timer;
-#endif
   for ( ; !((abort_loop || do_ndbcluster_binlog_close_connection) &&
             ndb_latest_handled_binlog_epoch >= g_latest_trans_gci); )
   {
@@ -3307,15 +3316,16 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     if (res > 0)
     {
       DBUG_PRINT("info", ("pollEvents res: %d", res));
-#ifdef RUN_NDB_BINLOG_TIMER
-      Timer gci_timer, write_timer;
-      int event_count= 0;
-#endif
       thd->proc_info= "Processing events";
       NdbEventOperation *pOp= i_ndb->nextEvent();
       Binlog_index_row row;
       while (pOp != NULL)
       {
+#ifdef RUN_NDB_BINLOG_TIMER
+        Timer gci_timer, write_timer;
+        int event_count= 0;
+        gci_timer.start();
+#endif
         gci= pOp->getGCI();
         DBUG_PRINT("info", ("Handling gci: %d", (unsigned)gci));
         // sometimes get TE_ALTER with invalid table
@@ -3494,6 +3504,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
           DBUG_PRINT("info", ("COMMIT gci: %lld", gci));
           if (ndb_update_binlog_index)
             ndb_add_binlog_index(thd, &row);
+          ndb_latest_applied_binlog_epoch= gci;
         }
         ndb_latest_handled_binlog_epoch= gci;
 #ifdef RUN_NDB_BINLOG_TIMER

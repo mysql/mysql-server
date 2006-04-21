@@ -5016,12 +5016,13 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
 
   Uint32 nextNodeId = regTcPtr->nextReplica;
   Uint32 nextVersion = getNodeInfo(nextNodeId).m_version;
+  UintR TAiLen = regTcPtr->reclenAiLqhkey;
 
   UintR TapplAddressIndicator = (regTcPtr->nextSeqNoReplica == 0 ? 0 : 1);
   LqhKeyReq::setApplicationAddressFlag(Treqinfo, TapplAddressIndicator);
   LqhKeyReq::setInterpretedFlag(Treqinfo, regTcPtr->opExec);
   LqhKeyReq::setSeqNoReplica(Treqinfo, regTcPtr->nextSeqNoReplica);
-  LqhKeyReq::setAIInLqhKeyReq(Treqinfo, regTcPtr->reclenAiLqhkey);
+  LqhKeyReq::setAIInLqhKeyReq(Treqinfo, TAiLen);
   
   if (unlikely(nextVersion < NDBD_ROWID_VERSION))
   {
@@ -5124,22 +5125,32 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   lqhKeyReq->variableData[nextPos + 0] = sig0;
   nextPos += LqhKeyReq::getGCIFlag(Treqinfo);
 
-  sig0 = regTcPtr->firstAttrinfo[0];
-  sig1 = regTcPtr->firstAttrinfo[1];
-  sig2 = regTcPtr->firstAttrinfo[2];
-  sig3 = regTcPtr->firstAttrinfo[3];
-  sig4 = regTcPtr->firstAttrinfo[4];
-  UintR TAiLen = regTcPtr->reclenAiLqhkey;
   BlockReference lqhRef = calcLqhBlockRef(regTcPtr->nextReplica);
+  
+  if (likely(nextPos + TAiLen + LqhKeyReq::FixedSignalLength <= 25))
+  {
+    jam();
+    sig0 = regTcPtr->firstAttrinfo[0];
+    sig1 = regTcPtr->firstAttrinfo[1];
+    sig2 = regTcPtr->firstAttrinfo[2];
+    sig3 = regTcPtr->firstAttrinfo[3];
+    sig4 = regTcPtr->firstAttrinfo[4];
 
-  lqhKeyReq->variableData[nextPos] = sig0;
-  lqhKeyReq->variableData[nextPos + 1] = sig1;
-  lqhKeyReq->variableData[nextPos + 2] = sig2;
-  lqhKeyReq->variableData[nextPos + 3] = sig3;
-  lqhKeyReq->variableData[nextPos + 4] = sig4;
-
-  nextPos += TAiLen;
-
+    lqhKeyReq->variableData[nextPos] = sig0;
+    lqhKeyReq->variableData[nextPos + 1] = sig1;
+    lqhKeyReq->variableData[nextPos + 2] = sig2;
+    lqhKeyReq->variableData[nextPos + 3] = sig3;
+    lqhKeyReq->variableData[nextPos + 4] = sig4;
+    
+    nextPos += TAiLen;
+    TAiLen = 0;
+  }
+  else
+  {
+    Treqinfo &= ~(Uint32)(RI_AI_IN_THIS_MASK << RI_AI_IN_THIS_SHIFT);
+    lqhKeyReq->requestInfo = Treqinfo;
+  }
+  
   sendSignal(lqhRef, GSN_LQHKEYREQ, signal, 
              nextPos + LqhKeyReq::FixedSignalLength, JBB);
   if (regTcPtr->primKeyLen > 4) {
@@ -5165,6 +5176,17 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   signal->theData[0] = sig0;
   signal->theData[1] = sig1;
   signal->theData[2] = sig2;
+  
+  if (unlikely(nextPos + TAiLen + LqhKeyReq::FixedSignalLength > 25))
+  {
+    jam();
+    /**
+     * 4 replicas...
+     */
+    memcpy(signal->theData+3, regTcPtr->firstAttrinfo, TAiLen << 2);
+    sendSignal(lqhRef, GSN_ATTRINFO, signal, 3 + TAiLen, JBB);    
+  }
+
   AttrbufPtr regAttrinbufptr;
   regAttrinbufptr.i = regTcPtr->firstAttrinbuf;
   while (regAttrinbufptr.i != RNIL) {

@@ -1034,6 +1034,38 @@ runMassiveRollback2(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int
+runMassiveRollback3(NDBT_Context* ctx, NDBT_Step* step){
+
+  int result = NDBT_OK;
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+
+  const Uint32 BATCH = 10;
+  const Uint32 OPS_TOTAL = 20;
+  const Uint32 LOOPS = 100;
+  
+  for(Uint32 loop = 0; loop<LOOPS; loop++)
+  {
+    CHECK(hugoOps.startTransaction(pNdb) == 0);  
+    bool ok = true;
+    for (Uint32 i = 0; i<OPS_TOTAL; i+= BATCH)
+    {
+      CHECK(hugoOps.pkInsertRecord(pNdb, i, BATCH, 0) == 0);
+      if (hugoOps.execute_NoCommit(pNdb) != 0)
+      {
+	ok = false;
+	break;
+      }
+    }
+    hugoOps.execute_Rollback(pNdb);
+    CHECK(hugoOps.closeTransaction(pNdb) == 0);
+  }
+  
+  hugoOps.closeTransaction(pNdb);
+  return result;
+}
+
 /**
  * TUP errors
  */
@@ -1358,6 +1390,13 @@ TESTCASE("MassiveRollback2",
 	 "Test rollback of 4096 operations"){
   INITIALIZER(runClearTable2);
   INITIALIZER(runMassiveRollback2);
+  FINALIZER(runClearTable2);
+}
+TESTCASE("MassiveRollback3", 
+	 "Test rollback of 4096 operations"){
+  INITIALIZER(runClearTable2);
+  STEP(runMassiveRollback3);
+  STEP(runMassiveRollback3);
   FINALIZER(runClearTable2);
 }
 TESTCASE("MassiveTransaction",

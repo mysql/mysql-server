@@ -321,6 +321,8 @@ our $opt_with_ndbcluster_slave;
 our $opt_with_ndbcluster_all= 0;
 our $opt_with_ndbcluster_only= 0;
 our $opt_ndb_extra_test= 0;
+our $opt_skip_master_binlog= 0;
+our $opt_skip_slave_binlog= 0;
 
 our $exe_ndb_mgm;
 our $path_ndb_tools_dir;
@@ -599,6 +601,8 @@ sub command_line_setup () {
              'with-ndbcluster-all'      => \$opt_with_ndbcluster_all,
              'with-ndbcluster-only'     => \$opt_with_ndbcluster_only,
              'ndb-extra-test'           => \$opt_ndb_extra_test,
+             'skip-master-binlog'       => \$opt_skip_master_binlog,
+             'skip-slave-binlog'        => \$opt_skip_slave_binlog,
              'do-test=s'                => \$opt_do_test,
              'start-from=s'             => \$opt_start_from,
              'suite=s'                  => \$opt_suite,
@@ -1520,6 +1524,7 @@ sub ndbcluster_start ($) {
   if ( mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
 	       ["--port=$opt_ndbcluster_port",
 		"--data-dir=$opt_vardir",
+	        "--character-sets-dir=$path_charsetsdir",
 		"--verbose=2",
 	        "--core"],
 	       "", "/dev/null", "", "") )
@@ -2157,6 +2162,14 @@ sub run_testcase ($) {
       if ( $using_ndbcluster_master and ! $master->[1]->{'pid'} )
       {
 	# Test needs cluster, start an extra mysqld connected to cluster
+        # First wait for first mysql server to have created ndb system tables ok
+	if ( ! sleep_until_file_created("$master->[0]->{'path_myddir'}/cluster/apply_status.ndb",
+					$master->[0]->{'start_timeout'},
+					$master->[0]->{'pid'}))
+	{
+          report_failure_and_restart($tinfo);
+          return;
+	}
         mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
         $master->[1]->{'pid'}=
           mysqld_start('master',1,$tinfo->{'master_opt'},[],
@@ -2555,8 +2568,11 @@ sub mysqld_arguments ($$$$$$) {
   {
     my $id= $idx > 0 ? $idx + 101 : 1;
 
-    mtr_add_arg($args, "%s--log-bin=%s/log/master-bin%s", $prefix,
-                $opt_vardir, $sidx);
+    if (! $opt_skip_master_binlog)
+    {
+      mtr_add_arg($args, "%s--log-bin=%s/log/master-bin%s", $prefix,
+                  $opt_vardir, $sidx);
+    }
     mtr_add_arg($args, "%s--pid-file=%s", $prefix,
                 $master->[$idx]->{'path_mypid'});
     mtr_add_arg($args, "%s--port=%d", $prefix,
@@ -2597,9 +2613,12 @@ sub mysqld_arguments ($$$$$$) {
     # FIXME slave get this option twice?!
     mtr_add_arg($args, "%s--exit-info=256", $prefix);
     mtr_add_arg($args, "%s--init-rpl-role=slave", $prefix);
-    mtr_add_arg($args, "%s--log-bin=%s/log/slave%s-bin", $prefix,
-                $opt_vardir, $sidx); # FIXME use own dir for binlogs
-    mtr_add_arg($args, "%s--log-slave-updates", $prefix);
+    if (! $opt_skip_slave_binlog)
+    {
+      mtr_add_arg($args, "%s--log-bin=%s/log/slave%s-bin", $prefix,
+                  $opt_vardir, $sidx); # FIXME use own dir for binlogs
+      mtr_add_arg($args, "%s--log-slave-updates", $prefix);
+    }
     # FIXME option duplicated for slave
     mtr_add_arg($args, "%s--log=%s", $prefix,
                 $slave->[$idx]->{'path_mylog'});

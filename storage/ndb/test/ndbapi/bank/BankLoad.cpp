@@ -58,7 +58,7 @@ int Bank::createAndLoadBank(bool ovrWrt, bool disk, int num_accounts){
   m_ndb.init();   
   if (m_ndb.waitUntilReady() != 0)
     return NDBT_FAILED;
-  
+
   const NdbDictionary::Table* pSysValTab = 
     m_ndb.getDictionary()->getTable("SYSTEM_VALUES");
   if (pSysValTab != NULL){
@@ -69,7 +69,7 @@ int Bank::createAndLoadBank(bool ovrWrt, bool disk, int num_accounts){
     }
   }
   
-  if (createTables(disk) != NDBT_OK)
+  if (!m_skip_create && createTables(disk) != NDBT_OK)
     return NDBT_FAILED;
   
   if (clearTables() != NDBT_OK)
