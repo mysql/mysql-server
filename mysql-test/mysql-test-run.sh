@@ -1230,7 +1230,7 @@ start_ndbcluster()
     then
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    OPTS="$NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --verbose=$NDB_VERBOSE --initial --relative-config-data-dir --core"
+    OPTS="$NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --character-sets-dir=$CHARSETSDIR --verbose=$NDB_VERBOSE --initial --relative-config-data-dir --core"
     if [ "x$NDB_VERBOSE" != "x0" ] ; then
       echo "Starting master ndbcluster " $OPTS
     fi
