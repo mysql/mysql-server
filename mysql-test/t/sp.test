@@ -5699,6 +5699,31 @@ delete from t1|
 
 
 #
+# BUG#15728: LAST_INSERT_ID function inside a stored function returns 0
+#
+# The solution is not to reset last_insert_id on enter to sub-statement.
+#
+--disable_warnings
+drop function if exists bug15728|
+drop table if exists t3|
+--enable_warnings
+
+create table t3 (
+  id int not null auto_increment,
+  primary key (id)
+)|
+create function bug15728() returns int(11)
+  return last_insert_id()|
+
+insert into t3 values (0)|
+select last_insert_id()|
+select bug15728()|
+
+drop function bug15728|
+drop table t3|
+
+
+#
 # BUG#18787: Server crashed when calling a stored procedure containing
 #            a misnamed function
 #
