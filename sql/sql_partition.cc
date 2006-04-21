@@ -1754,7 +1754,6 @@ end:
     buf_length                 A pointer to the returned buffer length
     use_sql_alloc              Allocate buffer from sql_alloc if true
                                otherwise use my_malloc
-    write_all                  Write everything, also default values
 
   RETURN VALUES
     NULL error
@@ -1782,8 +1781,7 @@ end:
 
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length,
-                                bool use_sql_alloc,
-                                bool write_all)
+                                bool use_sql_alloc)
 {
   uint i,j, tot_no_parts, no_subparts, no_parts;
   partition_element *part_elem;
@@ -1869,7 +1867,7 @@ char *generate_partition_syntax(partition_info *part_info,
   tot_no_parts= no_parts + no_temp_parts;
   no_subparts= part_info->no_subparts;
 
-  if (write_all || (!part_info->use_default_partitions))
+  if (!part_info->use_default_partitions)
   {
     err+= add_begin_parenthesis(fptr);
     i= 0;
@@ -1930,10 +1928,11 @@ char *generate_partition_syntax(partition_info *part_info,
         err+= add_name_string(fptr, part_elem->partition_name);
         err+= add_space(fptr);
         err+= add_partition_values(fptr, part_info, part_elem);
-        if (!part_info->is_sub_partitioned())
+        if (!part_info->is_sub_partitioned() ||
+            part_info->use_default_subpartitions)
           err+= add_partition_options(fptr, part_elem);
         if (part_info->is_sub_partitioned() &&
-            (write_all || (!part_info->use_default_subpartitions)))
+            (!part_info->use_default_subpartitions))
         {
           err+= add_space(fptr);
           err+= add_begin_parenthesis(fptr);
@@ -4376,6 +4375,15 @@ state of p1.
       if (check_total_partitions > MAX_PARTITIONS)
       {
         my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+      alt_part_info->part_type= tab_part_info->part_type;
+      alt_part_info->subpart_type= tab_part_info->subpart_type;
+      DBUG_ASSERT(!alt_part_info->use_default_partitions);
+      if (alt_part_info->set_up_defaults_for_partitioning(table->file,
+                                                          ULL(0), 
+                                                          0))
+      {
         DBUG_RETURN(TRUE);
       }
 /*
