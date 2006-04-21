@@ -473,13 +473,16 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);
 
   PagePtr page;
-  Tuple_header* tuple_ptr= 0;
+  Tuple_header* tuple_ptr= (Tuple_header*)
+    get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
+  
+  bool get_page = false;
   if(regOperPtr.p->op_struct.m_load_diskpage_on_commit)
   {
+    Page_cache_client::Request req;
     ndbassert(regOperPtr.p->is_first_operation() && 
 	      regOperPtr.p->is_last_operation());
 
-    Page_cache_client::Request req;
     /**
      * Check for page
      */
@@ -490,15 +493,33 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
       
       memcpy(&req.m_page, 
 	     tmp->get_disk_ref_ptr(regTabPtr.p), sizeof(Local_key));
+
+      if (unlikely(regOperPtr.p->op_struct.op_type == ZDELETE &&
+		   tmp->m_header_bits & Tuple_header::DISK_ALLOC))
+      {
+	jam();
+	/**
+	 * Insert+Delete
+	 */
+	regOperPtr.p->op_struct.m_load_diskpage_on_commit = 0;
+	regOperPtr.p->op_struct.m_wait_log_buffer = 0;	
+	disk_page_abort_prealloc(signal, regFragPtr.p, 
+				 &req.m_page, req.m_page.m_page_idx);
+	
+	c_lgman->free_log_space(regFragPtr.p->m_logfile_group_id, 
+				regOperPtr.p->m_undo_buffer_space);
+	ndbout_c("insert+delete");
+	goto skip_disk;
+      }
     } 
     else
     {
       // initial delete
       ndbassert(regOperPtr.p->op_struct.op_type == ZDELETE);
-      tuple_ptr= (Tuple_header*)
-	get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
       memcpy(&req.m_page, 
 	     tuple_ptr->get_disk_ref_ptr(regTabPtr.p), sizeof(Local_key));
+      
+      ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
     }
     req.m_callback.m_callbackData= regOperPtr.i;
     req.m_callback.m_callbackFunction = 
@@ -522,6 +543,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
       ndbrequire("NOT YET IMPLEMENTED" == 0);
       break;
     }
+    get_page = true;
     disk_page_set_dirty(*(Ptr<Page>*)&m_pgman.m_ptr);
     regOperPtr.p->m_commit_disk_callback_page= res;
     regOperPtr.p->op_struct.m_load_diskpage_on_commit= 0;
@@ -555,6 +577,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     tuple_ptr = (Tuple_header*)
       get_ptr(&page, &regOperPtr.p->m_tuple_location,regTabPtr.p);
   }
+skip_disk:
   req_struct.m_tuple_ptr = tuple_ptr;
   
   if(get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
@@ -599,6 +622,8 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     else
     {
       removeActiveOpList(regOperPtr.p, tuple_ptr);
+      if (get_page)
+	ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
       dealloc_tuple(signal, gci, page.p, tuple_ptr, 
 		    regOperPtr.p, regFragPtr.p, regTabPtr.p); 
     }

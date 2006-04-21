@@ -272,6 +272,11 @@ struct Gci_container
   EventBufData_hash m_data_hash;
 };
 
+struct Gci_container_pod
+{
+  char data[sizeof(Gci_container)];
+};
+
 class NdbEventOperationImpl : public NdbEventOperation {
 public:
   NdbEventOperationImpl(NdbEventOperation &f,
@@ -365,7 +370,7 @@ public:
   ~NdbEventBuffer();
 
   const Uint32 &m_system_nodes;
-  Vector<Gci_container> m_active_gci;
+  Vector<Gci_container_pod> m_active_gci;
   NdbEventOperation *createEventOperation(const char* eventName,
 					  NdbError &);
   NdbEventOperationImpl *createEventOperation(NdbEventImpl& evnt,
