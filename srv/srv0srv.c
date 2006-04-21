@@ -1819,11 +1819,7 @@ srv_export_innodb_status(void)
 A thread which wakes up threads whose lock wait may have lasted too long.
 This also prints the info output by various InnoDB monitors. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_lock_timeout_and_monitor_thread(
 /*================================*/
 			/* out: a dummy parameter */
@@ -1995,22 +1991,15 @@ exit_func:
 	thread should always use that to exit and not use return() to exit. */
 
 	os_thread_exit(NULL);
-#ifndef __WIN__
-	return(NULL);
-#else
-	return(0);
-#endif
+
+	OS_THREAD_DUMMY_RETURN;
 }
 
 /*************************************************************************
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_error_monitor_thread(
 /*=====================*/
 			/* out: a dummy parameter */
@@ -2092,11 +2081,7 @@ loop:
 
 	os_thread_exit(NULL);
 
-#ifndef __WIN__
-	return(NULL);
-#else
-	return(0);
-#endif
+	OS_THREAD_DUMMY_RETURN;
 }
 
 /***********************************************************************
@@ -2141,11 +2126,7 @@ srv_wake_master_thread(void)
 /*************************************************************************
 The master thread controlling the server. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_master_thread(
 /*==============*/
 			/* out: a dummy parameter */
@@ -2590,10 +2571,6 @@ suspend_thread:
 
 	os_thread_exit(NULL);
 
-#ifndef __WIN__
-	return(NULL);				/* Not reached */
-#else
-	return(0);
-#endif
+	OS_THREAD_DUMMY_RETURN;
 }
 #endif /* !UNIV_HOTBACKUP */
