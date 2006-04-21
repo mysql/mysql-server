@@ -1165,4 +1165,52 @@ SELECT * FROM t1 WHERE conn_id != trigger_conn_id;
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
 
+
+#
+# Bug#6951: Triggers/Traditional: SET @ result wrong
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i1 INT);
+
+SET @save_sql_mode=@@sql_mode;
+
+SET SQL_MODE='';
+
+CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW
+  SET @x = 5/0;
+
+SET SQL_MODE='traditional';
+
+CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW
+  SET @x = 5/0;
+
+SET @x=1;
+INSERT INTO t1 VALUES (@x);
+SELECT @x;
+
+SET @x=2;
+--error 1365
+UPDATE t1 SET i1 = @x;
+SELECT @x;
+
+SET SQL_MODE='';
+
+SET @x=3;
+INSERT INTO t1 VALUES (@x);
+SELECT @x;
+
+SET @x=4;
+--error 1365
+UPDATE t1 SET i1 = @x;
+SELECT @x;
+
+SET @@sql_mode=@save_sql_mode;
+
+DROP TRIGGER t1_ai;
+DROP TRIGGER t1_au;
+DROP TABLE t1;
+
 # End of 5.0 tests
