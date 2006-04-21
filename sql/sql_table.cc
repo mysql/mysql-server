@@ -764,20 +764,20 @@ bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
   int4store(&global_ddl_log.file_entry_buf[DDL_LOG_NEXT_ENTRY_POS],
             ddl_log_entry->next_entry);
   DBUG_ASSERT(strlen(ddl_log_entry->name) < FN_LEN);
-  strncpy(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS],
-          ddl_log_entry->name, FN_LEN);
+  strmake(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS],
+          ddl_log_entry->name, FN_LEN - 1);
   if (ddl_log_entry->action_type == DDL_LOG_RENAME_ACTION ||
       ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION)
   {
     DBUG_ASSERT(strlen(ddl_log_entry->from_name) < FN_LEN);
-    strncpy(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + FN_LEN],
-          ddl_log_entry->from_name, FN_LEN);
+    strmake(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + FN_LEN],
+          ddl_log_entry->from_name, FN_LEN - 1);
   }
   else
     global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + FN_LEN]= 0;
   DBUG_ASSERT(strlen(ddl_log_entry->handler_name) < FN_LEN);
-  strncpy(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + (2*FN_LEN)],
-          ddl_log_entry->handler_name, FN_LEN);
+  strmake(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + (2*FN_LEN)],
+          ddl_log_entry->handler_name, FN_LEN - 1);
   if (get_free_ddl_log_entry(active_entry, &write_header))
   {
     DBUG_RETURN(TRUE);

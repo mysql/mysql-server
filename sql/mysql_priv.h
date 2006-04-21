@@ -1282,9 +1282,6 @@ typedef struct st_ddl_log_memory_entry
 } DDL_LOG_MEMORY_ENTRY;
 
 
-
-#define DDL_LOG_HANDLER_TYPE_LEN 32
-
 bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
                            DDL_LOG_MEMORY_ENTRY **active_entry);
 bool write_execute_ddl_log_entry(uint first_entry,
@@ -1474,9 +1471,6 @@ extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern ulong delayed_insert_threads, delayed_insert_writes;
 extern ulong delayed_rows_in_use,delayed_insert_errors;
-#ifdef ERROR_INJECT_SUPPORT
-extern ulong error_inject_value;
-#endif
 extern ulong slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_threads, slow_launch_time;
