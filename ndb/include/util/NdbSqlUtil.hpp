@@ -117,9 +117,9 @@ public:
   /**
    * Check character set.
    */
-  static bool usable_in_pk(Uint32 typeId, const void* info);
-  static bool usable_in_hash_index(Uint32 typeId, const void* info);
-  static bool usable_in_ordered_index(Uint32 typeId, const void* info);
+  static uint check_column_for_pk(Uint32 typeId, const void* info);
+  static uint check_column_for_hash_index(Uint32 typeId, const void* info);
+  static uint check_column_for_ordered_index(Uint32 typeId, const void* info);
 
   /**
    * Get number of length bytes and length from variable length string.
