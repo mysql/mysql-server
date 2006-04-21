@@ -5719,7 +5719,7 @@ order_clause:
             SELECT_LEX *first_sl= unit->first_select();
             if (!first_sl->next_select() &&
                 (first_sl->order_list.elements || 
-                 first_sl->select_limit != HA_POS_ERROR) &&            
+                 first_sl->select_limit) &&            
                 unit->add_fake_select_lex(lex->thd))
               YYABORT;
           }

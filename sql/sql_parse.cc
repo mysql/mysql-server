@@ -6355,17 +6355,18 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd)
   SELECT_LEX *first_sl= first_select();
   DBUG_ENTER("add_fake_select_lex");
   DBUG_ASSERT(!fake_select_lex);
-  
+
   if (!(fake_select_lex= new (thd->mem_root) SELECT_LEX()))
       DBUG_RETURN(1);
   fake_select_lex->include_standalone(this, 
                                       (SELECT_LEX_NODE**)&fake_select_lex);
   fake_select_lex->select_number= INT_MAX;
+  fake_select_lex->parent_lex= thd->lex; /* Used in init_query. */
   fake_select_lex->make_empty_select();
   fake_select_lex->linkage= GLOBAL_OPTIONS_TYPE;
   fake_select_lex->select_limit= 0;
 
-  fake_select_lex->context.outer_context= first_sl->context.outer_context;
+  fake_select_lex->context.outer_context=first_sl->context.outer_context;
   /* allow item list resolving in fake select for ORDER BY */
   fake_select_lex->context.resolve_in_select_list= TRUE;
   fake_select_lex->context.select_lex= fake_select_lex;
