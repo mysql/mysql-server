@@ -29,6 +29,7 @@ public:
 
   Bank(Ndb_cluster_connection&, bool init = true, const char *dbase="BANK");
 
+  int setSkipCreate(bool skip) { m_skip_create = skip; }
   int createAndLoadBank(bool overWrite, bool disk= false, int num_accounts=10);
   int dropBank();
   
@@ -140,6 +141,7 @@ private:
   Ndb m_ndb;
   int m_maxAccount;
   bool m_initialized;
+  bool m_skip_create;
 };
 
 #endif
