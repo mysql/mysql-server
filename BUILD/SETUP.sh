@@ -116,6 +116,7 @@ valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
 # Used in -debug builds
 debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
 debug_cflags="$debug_cflags -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX"
+error_inject="--with-error-inject "
 #
 # Base C++ flags for all builds
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
