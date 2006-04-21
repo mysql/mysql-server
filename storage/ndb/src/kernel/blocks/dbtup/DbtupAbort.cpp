@@ -170,7 +170,6 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
       /**
        * Aborting last operation that performed ALLOC
        */
-      ndbout_c("clearing ALLOC");
       tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
       tuple_ptr->m_header_bits |= Tuple_header::FREED;
     }
