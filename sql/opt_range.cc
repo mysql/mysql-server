@@ -4370,7 +4370,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
                                                      sizeof(ROR_SCAN_INFO*)*
                                                      best_num)))
     DBUG_RETURN(NULL);
-  memcpy(trp->first_scan, ror_scan_mark, best_num*sizeof(ROR_SCAN_INFO*));
+  memcpy(trp->first_scan, tree->ror_scans, best_num*sizeof(ROR_SCAN_INFO*));
   trp->last_scan=  trp->first_scan + best_num;
   trp->is_covering= TRUE;
   trp->read_cost= total_cost;
