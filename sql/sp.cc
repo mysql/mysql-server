@@ -901,7 +901,7 @@ sp_drop_db_routines(THD *thd, char *db)
   ret= SP_OK;
   table->file->ha_index_init(0);
   if (! table->file->index_read(table->record[0],
-                                table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                (byte *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
 				key_len, HA_READ_KEY_EXACT))
   {
     int nxtres;
@@ -918,7 +918,7 @@ sp_drop_db_routines(THD *thd, char *db)
 	break;
       }
     } while (! (nxtres= table->file->index_next_same(table->record[0],
-                                        table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                (byte *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
 						     key_len)));
     if (nxtres != HA_ERR_END_OF_FILE)
       ret= SP_KEY_NOT_FOUND;
