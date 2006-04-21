@@ -84,7 +84,10 @@ const char *opt_debug= 0;
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
   { "core-file", OPT_WANT_CORE, "Write core on errors.",\
     (gptr*) &opt_core, (gptr*) &opt_core, 0,\
-    GET_BOOL, NO_ARG, OPT_WANT_CORE_DEFAULT, 0, 0, 0, 0, 0}
+    GET_BOOL, NO_ARG, OPT_WANT_CORE_DEFAULT, 0, 0, 0, 0, 0},\
+  {"character-sets-dir", OPT_CHARSETS_DIR,\
+     "Directory where character sets are.", (gptr*) &charsets_dir,\
+     (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0}\
 
 #ifndef DBUG_OFF
 #define NDB_STD_OPTS(prog_name) \
@@ -111,6 +114,7 @@ enum ndb_std_options {
   OPT_WANT_CORE,
   OPT_NDB_MGMD,
   OPT_NDB_NODEID,
+  OPT_CHARSETS_DIR,
   NDB_STD_OPTIONS_LAST /* should always be last in this enum */
 };
 

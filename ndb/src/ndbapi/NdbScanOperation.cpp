@@ -1086,6 +1086,11 @@ int
 NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo, 
 				int type, const void* aValue, Uint32 len)
 {
+  if (!tAttrInfo)
+  {
+    setErrorCodeAbort(4318);    // Invalid attribute
+    return -1;
+  }
   if (theOperationType == OpenRangeScanRequest &&
       (0 <= type && type <= 4) &&
       len <= 8000) {
