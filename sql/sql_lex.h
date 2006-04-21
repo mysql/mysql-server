@@ -400,6 +400,7 @@ public:
   bool check_updateable(char *db, char *table);
   void print(String *str);
 
+  bool add_fake_select_lex(THD *thd);
   ulong init_prepare_fake_select_lex(THD *thd);
   int change_result(select_subselect *result, select_subselect *old_result);
   inline bool is_prepared() { return prepared; }
