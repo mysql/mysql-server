@@ -202,7 +202,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   
   thd_arg->lex->current_select= sl= first_sl;
   found_rows_for_union= first_sl->options & OPTION_FOUND_ROWS;
-  is_union= test(first_select->next_select() || fake_select_lex);
+  is_union= first_sl->next_select() || fake_select_lex;
 
   /* Global option */
 
