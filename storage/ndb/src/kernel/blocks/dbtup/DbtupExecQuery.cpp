@@ -1407,6 +1407,8 @@ int Dbtup::handleInsertReq(Signal* signal,
     }
     req_struct->m_use_rowid = false;
     base->m_header_bits &= ~(Uint32)Tuple_header::FREE;
+    base->m_header_bits |= Tuple_header::ALLOC & 
+      (regOperPtr.p->is_first_operation() ? ~0 : 1);
   }
   else
   {
@@ -1415,6 +1417,8 @@ int Dbtup::handleInsertReq(Signal* signal,
     {
       ndbout_c("no mem insert but rowid (same)");
       base->m_header_bits &= ~(Uint32)Tuple_header::FREE;
+      base->m_header_bits |= Tuple_header::ALLOC & 
+	(regOperPtr.p->is_first_operation() ? ~0 : 1);
     }
     else
     {
