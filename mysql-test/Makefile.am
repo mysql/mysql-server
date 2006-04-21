@@ -78,6 +78,8 @@ install-data-local:
 		$(DESTDIR)$(testdir)/r \
 		$(DESTDIR)$(testdir)/include \
 		$(DESTDIR)$(testdir)/std_data \
+		$(DESTDIR)$(testdir)/std_data/ndb_backup50 \
+		$(DESTDIR)$(testdir)/std_data/ndb_backup51 \
 		$(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(DESTDIR)$(testdir)/t
