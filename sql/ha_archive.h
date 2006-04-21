@@ -34,6 +34,7 @@ typedef struct st_archive_share {
   THR_LOCK lock;
   File meta_file;           /* Meta file we use */
   gzFile archive_write;     /* Archive file we are working with */
+  bool archive_write_open;
   bool dirty;               /* Flag for if a flush should occur */
   bool crashed;             /* Meta file is crashed */
   ha_rows rows_recorded;    /* Number of rows in tables */
@@ -87,6 +88,7 @@ public:
   int write_meta_file(File meta_file, ha_rows rows, bool dirty);
   ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table, int *rc);
   int free_share(ARCHIVE_SHARE *share);
+  int init_archive_writer();
   bool auto_repair() const { return 1; } // For the moment we just do this
   int read_data_header(gzFile file_to_read);
   int write_data_header(gzFile file_to_write);

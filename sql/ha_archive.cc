@@ -396,6 +396,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
     share->table_name_length= length;
     share->table_name= tmp_name;
     share->crashed= FALSE;
+    share->archive_write_open= FALSE;
     fn_format(share->data_file_name,table_name,"",ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     fn_format(meta_file_name,table_name,"",ARM,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     strmov(share->table_name,table_name);
@@ -413,16 +414,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
     */
     if (read_meta_file(share->meta_file, &share->rows_recorded))
       share->crashed= TRUE;
-    else
-      (void)write_meta_file(share->meta_file, share->rows_recorded, TRUE);
 
-    /* 
-      It is expensive to open and close the data files and since you can't have
-      a gzip file that can be both read and written we keep a writer open
-      that is shared amoung all open tables.
-    */
-    if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
-      share->crashed= TRUE;
     VOID(my_hash_insert(&archive_open_tables, (byte*) share));
     thr_lock_init(&share->lock);
   }
@@ -460,8 +452,9 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
       (void)write_meta_file(share->meta_file, share->rows_recorded, TRUE);
     else
       (void)write_meta_file(share->meta_file, share->rows_recorded, FALSE);
-    if (gzclose(share->archive_write) == Z_ERRNO)
-      rc= 1;
+    if (share->archive_write_open)
+      if (gzclose(share->archive_write) == Z_ERRNO)
+        rc= 1;
     if (my_close(share->meta_file, MYF(0)))
       rc= 1;
     my_free((gptr) share, MYF(0));
@@ -469,6 +462,26 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
   pthread_mutex_unlock(&archive_mutex);
 
   DBUG_RETURN(rc);
+}
+
+int ha_archive::init_archive_writer()
+{
+  DBUG_ENTER("ha_archive::init_archive_writer");
+  (void)write_meta_file(share->meta_file, share->rows_recorded, TRUE);
+
+  /* 
+    It is expensive to open and close the data files and since you can't have
+    a gzip file that can be both read and written we keep a writer open
+    that is shared amoung all open tables.
+  */
+  if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
+  {
+    share->crashed= TRUE;
+    DBUG_RETURN(1);
+  }
+  share->archive_write_open= TRUE;
+
+  DBUG_RETURN(0);
 }
 
 
@@ -693,6 +706,10 @@ int ha_archive::write_row(byte *buf)
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   pthread_mutex_lock(&share->mutex);
+  if (!share->archive_write_open)
+    if (init_archive_writer())
+      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+
   share->rows_recorded++;
   rc= real_write_row(buf, share->archive_write);
   pthread_mutex_unlock(&share->mutex);
@@ -892,6 +909,10 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   int rc;
   gzFile writer;
   char writer_filename[FN_REFLEN];
+
+  /* Open up the writer if we haven't yet */
+  if (!share->archive_write_open)
+    init_archive_writer();
 
   /* Flush any waiting data */
   gzflush(share->archive_write, Z_SYNC_FLUSH);
