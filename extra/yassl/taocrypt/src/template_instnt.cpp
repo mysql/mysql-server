@@ -30,6 +30,7 @@
 #include "sha.hpp"
 #include "md5.hpp"
 #include "hmac.hpp"
+#include "ripemd.hpp"
 #include "pwdbased.hpp"
 #include "algebra.hpp"
 #include "vector.hpp"
@@ -62,6 +63,8 @@ template void tcArrayDelete<char>(char*);
 template class PBKDF2_HMAC<SHA>;
 template class HMAC<MD5>;
 template class HMAC<SHA>;
+template class HMAC<RIPEMD160>;
+
 }
 
 namespace mySTL {
