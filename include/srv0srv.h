@@ -344,11 +344,7 @@ srv_release_threads(
 /*************************************************************************
 The master thread controlling the server. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_master_thread(
 /*==============*/
 			/* out: a dummy parameter */
@@ -430,11 +426,7 @@ srv_release_mysql_thread_if_suspended(
 A thread which wakes up threads whose lock wait may have lasted too long.
 This also prints the info output by various InnoDB monitors. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_lock_timeout_and_monitor_thread(
 /*================================*/
 			/* out: a dummy parameter */
@@ -444,11 +436,7 @@ srv_lock_timeout_and_monitor_thread(
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_error_monitor_thread(
 /*=====================*/
 			/* out: a dummy parameter */
