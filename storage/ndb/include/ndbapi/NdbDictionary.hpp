@@ -1745,11 +1745,15 @@ public:
 		  const char * tableName);
     
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    void removeCachedTable(const Table *table);
+    void removeCachedIndex(const Index *index);
+    void invalidateTable(const Table *table);
     /**
      * Invalidate cached index object
      */
     void invalidateIndex(const char * indexName,
                          const char * tableName);
+    void invalidateIndex(const Index *index);
     /**
      * Force gcp and wait for gcp complete
      */

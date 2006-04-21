@@ -1382,8 +1382,9 @@ int Dbtup::handleInsertReq(Signal* signal,
 			regOperPtr.p->userpointer,
 			&regOperPtr.p->m_tuple_location);
     
-    ((Tuple_header*)ptr)->m_operation_ptr_i= regOperPtr.i;
-    ((Tuple_header*)ptr)->m_header_bits= Tuple_header::ALLOC | 
+    base = (Tuple_header*)ptr;
+    base->m_operation_ptr_i= regOperPtr.i;
+    base->m_header_bits= Tuple_header::ALLOC | 
       (varsize ? Tuple_header::CHAINED_ROW : 0);
     regOperPtr.p->m_tuple_location.m_page_no = real_page_id;
   }
@@ -1407,6 +1408,8 @@ int Dbtup::handleInsertReq(Signal* signal,
     }
     req_struct->m_use_rowid = false;
     base->m_header_bits &= ~(Uint32)Tuple_header::FREE;
+    base->m_header_bits |= Tuple_header::ALLOC & 
+      (regOperPtr.p->is_first_operation() ? ~0 : 1);
   }
   else
   {
@@ -1415,6 +1418,8 @@ int Dbtup::handleInsertReq(Signal* signal,
     {
       ndbout_c("no mem insert but rowid (same)");
       base->m_header_bits &= ~(Uint32)Tuple_header::FREE;
+      base->m_header_bits |= Tuple_header::ALLOC & 
+	(regOperPtr.p->is_first_operation() ? ~0 : 1);
     }
     else
     {
@@ -1467,7 +1472,7 @@ int Dbtup::handleInsertReq(Signal* signal,
 size_change_error:
   jam();
   terrorCode = ZMEM_NOMEM_ERROR;
-  goto disk_prealloc_error;
+  goto exit_error;
   
 undo_buffer_error:
   jam();
@@ -1501,9 +1506,13 @@ update_error:
     regOperPtr.p->op_struct.in_active_list = false;
     regOperPtr.p->m_tuple_location.setNull();
   }
-disk_prealloc_error:
+exit_error:
   tupkeyErrorLab(signal);
   return -1;
+
+disk_prealloc_error:
+  base->m_header_bits |= Tuple_header::FREED;
+  goto exit_error;
 }
 
 /* ---------------------------------------------------------------- */

@@ -144,6 +144,17 @@ struct BackupFormat {
       // If TriggerEvent & 0x10000 == true then GCI is right after data
       Uint32 TriggerEvent;
       Uint32 FragId;
+      Uint32 Data[1]; // Len = Length - 3
+    };
+
+    /**
+     * Log Entry pre NDBD_FRAGID_VERSION
+     */
+    struct LogEntry_no_fragid {
+      Uint32 Length;
+      Uint32 TableId;
+      // If TriggerEvent & 0x10000 == true then GCI is right after data
+      Uint32 TriggerEvent;
       Uint32 Data[1]; // Len = Length - 2
     };
   };
