@@ -5697,14 +5697,32 @@ order_clause:
 	ORDER_SYM BY
         {
 	  LEX *lex=Lex;
-	  if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	      lex->current_select->olap !=
-	      UNSPECIFIED_OLAP_TYPE)
+          SELECT_LEX *sel= lex->current_select;
+          SELECT_LEX_UNIT *unit= sel-> master_unit();
+	  if (sel->linkage != GLOBAL_OPTIONS_TYPE &&
+	      sel->olap != UNSPECIFIED_OLAP_TYPE)
 	  {
 	    my_error(ER_WRONG_USAGE, MYF(0),
                      "CUBE/ROLLUP", "ORDER BY");
 	    YYABORT;
 	  }
+          if (lex->sql_command != SQLCOM_ALTER_TABLE && !unit->fake_select_lex)
+          {
+            /*
+              A query of the of the form (SELECT ...) ORDER BY order_list is
+              executed in the same way as the query
+              SELECT ... ORDER BY order_list
+              unless the SELECT construct contains ORDER BY or LIMIT clauses.
+              Otherwise we create a fake SELECT_LEX if it has not been created
+              yet.
+            */
+            SELECT_LEX *first_sl= unit->first_select();
+            if (!first_sl->next_select() &&
+                (first_sl->order_list.elements || 
+                 first_sl->select_limit != HA_POS_ERROR) &&            
+                unit->add_fake_select_lex(lex->thd))
+              YYABORT;
+          }
 	} order_list;
 
 order_list:
