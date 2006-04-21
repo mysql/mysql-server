@@ -989,8 +989,8 @@ struct show_var_st init_vars[]= {
 #endif
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
-  {"sql_notes",               (char*) &sys_sql_notes,               SHOW_BOOL},
-  {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_BOOL},
+  {"sql_notes",               (char*) &sys_sql_notes,               SHOW_SYS},
+  {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_SYS},
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
   {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
 #ifdef HAVE_TZNAME
