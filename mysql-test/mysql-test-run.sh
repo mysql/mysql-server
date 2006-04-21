@@ -631,7 +631,9 @@ fi
 [ -d $MYSQL_TEST_DIR/var/tmp ] || mkdir $MYSQL_TEST_DIR/var/tmp
 [ -d $MYSQL_TEST_DIR/var/run ] || mkdir $MYSQL_TEST_DIR/var/run
 [ -d $MYSQL_TEST_DIR/var/log ] || mkdir $MYSQL_TEST_DIR/var/log
-if ! test -L $MYSQL_TEST_DIR/var/std_data_ln ; then
+
+# Use 'test', not '[' as the shell builtin might not have '-L
+if test ! -L "$MYSQL_TEST_DIR/var/std_data_ln" ; then
   ln -s $MYSQL_TEST_DIR/std_data/ $MYSQL_TEST_DIR/var/std_data_ln
 fi
 
