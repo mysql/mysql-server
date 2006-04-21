@@ -3235,10 +3235,9 @@ com_status(String *buffer __attribute__((unused)),
       mysql_free_result(result);
     } 
 #ifdef HAVE_OPENSSL
-    if (mysql.net.vio && mysql.net.vio->ssl_arg &&
-	SSL_get_cipher((SSL*) mysql.net.vio->ssl_arg))
+    if ((status= mysql_get_ssl_cipher(&mysql)))
       tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
-		  SSL_get_cipher((SSL*) mysql.net.vio->ssl_arg));
+		  status);
     else
 #endif /* HAVE_OPENSSL */
       tee_puts("SSL:\t\t\tNot in use", stdout);
