@@ -4848,6 +4848,23 @@ c	2
 b	3
 a	1
 delete from t1|
+drop function if exists bug15728|
+drop table if exists t3|
+create table t3 (
+id int not null auto_increment,
+primary key (id)
+)|
+create function bug15728() returns int(11)
+return last_insert_id()|
+insert into t3 values (0)|
+select last_insert_id()|
+last_insert_id()
+1
+select bug15728()|
+bug15728()
+1
+drop function bug15728|
+drop table t3|
 drop procedure if exists bug18787|
 create procedure bug18787()
 begin
