@@ -42,12 +42,6 @@
 #include <myisam.h>
 #include <myisammrg.h>
 
-typedef struct p_elem_val
-{ 
-  longlong value;
-  bool null_value;
-} part_elem_value;
-
 int yylex(void *yylval, void *yythd);
 
 const LEX_STRING null_lex_str={0,0};
@@ -3712,6 +3706,7 @@ part_func_max:
             YYABORT;
           }
           lex->part_info->defined_max_value= TRUE;
+          lex->part_info->curr_part_elem->max_value= TRUE;
           lex->part_info->curr_part_elem->range_value= LONGLONG_MAX;
         }
         | part_range_func
@@ -3732,7 +3727,10 @@ part_func_max:
 part_range_func:
         '(' part_bit_expr ')' 
         {
-          Lex->part_info->curr_part_elem->range_value= $2->value;
+          partition_info *part_info= Lex->part_info;
+          if (!($2->unsigned_flag))
+            part_info->curr_part_elem->signed_flag= TRUE;
+          part_info->curr_part_elem->range_value= $2->value;
         }
         ;
 
@@ -3745,9 +3743,12 @@ part_list_item:
         part_bit_expr
         {
           part_elem_value *value_ptr= $1;
+          partition_info *part_info= Lex->part_info;
+          if (!value_ptr->unsigned_flag)
+            part_info->curr_part_elem->signed_flag= TRUE;
           if (!value_ptr->null_value &&
-             Lex->part_info->curr_part_elem->
-              list_val_list.push_back((longlong*) &value_ptr->value))
+             part_info->curr_part_elem->
+              list_val_list.push_back(value_ptr))
           {
             mem_alloc_error(sizeof(part_elem_value));
             YYABORT;
@@ -3788,6 +3789,10 @@ part_bit_expr:
           }
           thd->where= save_where;
           value_ptr->value= part_expr->val_int();
+          value_ptr->unsigned_flag= TRUE;
+          if (!part_expr->unsigned_flag &&
+              value_ptr->value < 0)
+            value_ptr->unsigned_flag= FALSE;
           if ((value_ptr->null_value= part_expr->null_value))
           {
             if (Lex->part_info->curr_part_elem->has_null_value)

@@ -9,6 +9,13 @@
 drop table if exists t1;
 --enable_warnings
 
+create table t1 (a bigint unsigned);
+insert into t1 values (0xFFFFFFFFFFFFFFFD);
+insert into t1 values (0xFFFFFFFFFFFFFFFE);
+select * from t1 where (a + 1) < 10;
+select * from t1 where (a + 1) > 10;
+drop table t1;
+
 #
 # Partition by key no partition defined => OK
 #
@@ -955,6 +962,21 @@ PARTITION p2 VALUES LESS THAN (30) ENGINE = MyISAM);
 --replace_column 6 0 7 0 8 0 9 0 12 NULL 13 NULL 14 NULL
 SHOW TABLE STATUS;
 DROP TABLE t1;
+
+#
+#BUG 16002 Erroneus handling of unsigned partition functions
+#
+--error ER_SIGNED_PARTITION_CONSTANT_ERROR
+create table t1 (a bigint unsigned)
+partition by list (a)
+(partition p0 values in (0-1));
+
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (10));
+
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+insert into t1 values (0xFFFFFFFFFFFFFFFF);
 
 #
 #BUG 18750 Problems with partition names
