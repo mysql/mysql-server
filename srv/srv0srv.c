@@ -887,10 +887,6 @@ srv_init(void)
 		srv_meter_foreground[i] = 250;
 	}
 
-	srv_sys->operational = os_event_create(NULL);
-
-	ut_a(srv_sys->operational);
-
 	UT_LIST_INIT(srv_sys->tasks);
 
 	/* create dummy table and index for old-style infimum and supremum */
@@ -2188,7 +2184,6 @@ srv_master_thread(
 
 	mutex_exit(&kernel_mutex);
 
-	os_event_set(srv_sys->operational);
 loop:
 	/*****************************************************************/
 	/* ---- When there is database activity by users, we cycle in this
