@@ -407,22 +407,7 @@ sub main () {
     }
   }
 
-  if ( $opt_start_dirty )
-  {
-    if ( ndbcluster_start($opt_with_ndbcluster) )
-    {
-      mtr_error("Can't start ndbcluster");
-    }
-    if ( mysqld_start('master',0,[],[],$using_ndbcluster_master) )
-    {
-      mtr_report("Servers started, exiting");
-    }
-    else
-    {
-      mtr_error("Can't start the mysqld server");
-    }
-  }
-  elsif ( $opt_bench )
+  if ( $opt_bench )
   {
     run_benchmarks(shift);      # Shift what? Extra arguments?!
   }
@@ -2027,10 +2012,11 @@ sub run_testcase ($) {
   }
 
   # ----------------------------------------------------------------------
-  # If --start-and-exit given, stop here to let user manually run tests
+  # If --start-and-exit or --start-dirty given, stop here to let user manually
+  # run tests
   # ----------------------------------------------------------------------
 
-  if ( $opt_start_and_exit )
+  if ( $opt_start_and_exit or $opt_start_dirty )
   {
     mtr_report("\nServers started, exiting");
     exit(0);
@@ -3409,11 +3395,12 @@ Misc options
   comment=STR           Write STR to the output
   script-debug          Debug this script itself
   timer                 Show test case execution time
-  start-and-exit        Only initiate and start the "mysqld" servers, use the startup
-                        settings for the specified test case if any
-  start-dirty           Only start the "mysqld" servers without initiation
-  fast                  Don't try to cleanup from earlier runs
-  reorder               Reorder tests to get less server restarts
+  start-and-exit        Only initialize and start the servers, using the
+                        startup settings for the specified test case (if any)
+  start-dirty           Only start the servers (without initialization) for
+                        the specified test case (if any)
+  fast                  Don't try to clean up from earlier runs
+  reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
   unified-diff | udiff  When presenting differences, use unified diff
 
