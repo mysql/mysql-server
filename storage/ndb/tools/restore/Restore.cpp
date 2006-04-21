@@ -1021,7 +1021,6 @@ RestoreLogIterator::getNextLogEntry(int & res) {
     if(hasGcp){
       // last attr_data is gci info
       attr_data_len--;
-      len--;
       m_last_gci = ntohl(*(attr_data + attr_data_len));
     }
   } while(m_last_gci > stopGCP + 1);
@@ -1056,6 +1055,9 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       res = -1;
       return 0;
     }
+
+    if(unlikely(!m_hostByteOrder))
+      *(Uint32*)ah = Twiddle32(*(Uint32*)ah);
 
     attr->Desc = (* tab)[ah->getAttributeId()];
     assert(attr->Desc != 0);
