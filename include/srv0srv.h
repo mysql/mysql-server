@@ -546,9 +546,6 @@ struct export_var_struct{
 
 /* The server system struct */
 struct srv_sys_struct{
-	os_event_t	operational;	/* created threads must wait for the
-					server to become operational by
-					waiting for this event */
 	srv_table_t*	threads;	/* server thread table */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			tasks;		/* task queue */
