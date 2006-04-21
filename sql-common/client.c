@@ -1535,6 +1535,27 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   mysql->connector_fd = 0;
   DBUG_VOID_RETURN;
 }
+
+
+/*
+  Return the SSL cipher (if any) used for current
+  connection to the server.
+
+  SYNOPSYS
+    mysql_get_ssl_cipher()
+      mysql pointer to the mysql connection
+
+*/
+
+const char * STDCALL
+mysql_get_ssl_cipher(MYSQL *mysql)
+{
+  DBUG_ENTER("mysql_get_ssl_cipher");
+  if (mysql->net.vio && mysql->net.vio->ssl_arg)
+    DBUG_RETURN(SSL_get_cipher_name((SSL*)mysql->net.vio->ssl_arg));
+  DBUG_RETURN(NULL);
+}
+
 #endif /* HAVE_OPENSSL */
 
 
