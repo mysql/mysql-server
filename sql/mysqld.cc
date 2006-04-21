@@ -95,9 +95,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #endif
 #include <my_net.h>
 
-#if defined(OS2)
-#  include <sys/un.h>
-#elif !defined(__WIN__)
+#if !defined(__WIN__)
 #  ifndef __NETWARE__
 #include <sys/resource.h>
 #  endif /* __NETWARE__ */
@@ -502,6 +500,22 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 uint  max_user_connections= 0;
+/*
+  Limit of the total number of prepared statements in the server.
+  Is necessary to protect the server against out-of-memory attacks.
+*/
+ulong max_prepared_stmt_count;
+/*
+  Current total number of prepared statements in the server. This number
+  is exact, and therefore may not be equal to the difference between
+  `com_stmt_prepare' and `com_stmt_close' (global status variables), as
+  the latter ones account for all registered attempts to prepare
+  a statement (including unsuccessful ones).  Prepared statements are
+  currently connection-local: if the same SQL query text is prepared in
+  two different connections, this counts as two distinct prepared
+  statements.
+*/
+ulong prepared_stmt_count=0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
@@ -579,6 +593,14 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
+/*
+  The below lock protects access to two global server variables:
+  max_prepared_stmt_count and prepared_stmt_count. These variables
+  set the limit and hold the current total number of prepared statements
+  in the server, respectively. As PREPARE/DEALLOCATE rate in a loaded
+  server may be fairly high, we need a dedicated lock.
+*/
+pthread_mutex_t LOCK_prepared_stmt_count;
 #ifdef HAVE_OPENSSL
 pthread_mutex_t LOCK_des_key_file;
 #endif
@@ -646,10 +668,6 @@ static char pipe_name[512];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
-#endif
-
-#ifdef OS2
-pthread_cond_t eventShutdown;
 #endif
 
 #ifndef EMBEDDED_LIBRARY
@@ -751,7 +769,7 @@ static void close_connections(void)
   (void) pthread_mutex_unlock(&LOCK_manager);
 
   /* kill connection thread */
-#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   DBUG_PRINT("quit",("waiting for select thread: 0x%lx",select_thread));
   (void) pthread_mutex_lock(&LOCK_thread_count);
 
@@ -980,8 +998,6 @@ void kill_mysql(void)
     */
   }
 #endif
-#elif defined(OS2)
-  pthread_cond_signal(&eventShutdown);		// post semaphore
 #elif defined(HAVE_PTHREAD_KILL)
   if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL))
   {
@@ -1007,7 +1023,7 @@ void kill_mysql(void)
 
 	/* Force server down. kill all connections and threads and exit */
 
-#if defined(OS2) || defined(__NETWARE__)
+#if defined(__NETWARE__)
 extern "C" void kill_server(int sig_ptr)
 #define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
 #elif !defined(__WIN__)
@@ -1044,7 +1060,7 @@ static void __cdecl kill_server(int sig_ptr)
   }
 #endif  
   
-#if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2))
+#if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__))
   my_thread_init();				// If this is a new thread
 #endif
   close_connections();
@@ -1082,7 +1098,7 @@ extern "C" sig_handler print_signal_warning(int sig)
 #ifdef DONT_REMEMBER_SIGNAL
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   if (sig == SIGALRM)
     alarm(2);					/* reschedule alarm */
 #endif
@@ -1296,6 +1312,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
   (void) pthread_mutex_destroy(&LOCK_uuid_generator);
+  (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
   (void) pthread_cond_destroy(&COND_thread_cache);
@@ -1336,7 +1353,7 @@ static void set_ports()
 
 static struct passwd *check_user(const char *user)
 {
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   struct passwd *user_info;
   uid_t user_id= geteuid();
 
@@ -1390,7 +1407,7 @@ err:
 
 static void set_user(const char *user, struct passwd *user_info)
 {
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   DBUG_ASSERT(user_info != 0);
 #ifdef HAVE_INITGROUPS
   /*
@@ -1419,7 +1436,7 @@ static void set_user(const char *user, struct passwd *user_info)
 
 static void set_effective_user(struct passwd *user_info)
 {
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   DBUG_ASSERT(user_info != 0);
   if (setregid((gid_t)-1, user_info->pw_gid) == -1)
   {
@@ -1439,7 +1456,7 @@ static void set_effective_user(struct passwd *user_info)
 
 static void set_root(const char *path)
 {
-#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   if (chroot(path) == -1)
   {
     sql_perror("chroot");
@@ -1786,7 +1803,7 @@ extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
   the signal thread is ready before continuing
 ******************************************************************************/
 
-#if defined(__WIN__) || defined(OS2)
+#if defined(__WIN__)
 static void init_signals(void)
 {
   int signals[] = {SIGINT,SIGILL,SIGFPE,SIGSEGV,SIGTERM,SIGABRT } ;
@@ -2046,44 +2063,7 @@ static void check_data_home(const char *path)
 {
 }
 
-#elif defined(__EMX__)
-static void sig_reload(int signo)
-{
- // Flush everything
-  bool not_used;
-  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0, &not_used);
-  signal(signo, SIG_ACK);
-}
-
-static void sig_kill(int signo)
-{
-  if (!kill_in_progress)
-  {
-    abort_loop=1;				// mark abort for threads
-    kill_server((void*) signo);
-  }
-  signal(signo, SIG_ACK);
-}
-
-static void init_signals(void)
-{
-  signal(SIGQUIT, sig_kill);
-  signal(SIGKILL, sig_kill);
-  signal(SIGTERM, sig_kill);
-  signal(SIGINT,  sig_kill);
-  signal(SIGHUP,  sig_reload);	// Flush everything
-  signal(SIGALRM, SIG_IGN);
-  signal(SIGBREAK,SIG_IGN);
-  signal_thread = pthread_self();
-}
-
-static void start_signal_handler(void)
-{}
-
-static void check_data_home(const char *path)
-{}
-
-#else /* if ! __WIN__ && ! __EMX__ */
+#else /* if ! __WIN__  */
 
 #ifdef HAVE_LINUXTHREADS
 #define UNSAFE_DEFAULT_LINUX_THREADS 200
@@ -2556,33 +2536,6 @@ int STDCALL handle_kill(ulong ctrl_type)
 }
 #endif
 
-
-#ifdef OS2
-pthread_handler_t handle_shutdown(void *arg)
-{
-  my_thread_init();
-
-  // wait semaphore
-  pthread_cond_wait(&eventShutdown, NULL);
-
-  // close semaphore and kill server
-  pthread_cond_destroy(&eventShutdown);
-
-  /*
-    Exit main loop on main thread, so kill will be done from
-    main thread (this is thread 2)
-  */
-  abort_loop = 1;
-
-  // unblock select()
-  so_cancel(ip_sock);
-  so_cancel(unix_sock);
-
-  return 0;
-}
-#endif
-
-
 static const char *load_default_groups[]= {
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 "mysql_cluster",
@@ -2650,14 +2603,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   mysql_init_variables();
 
-#ifdef OS2
-  {
-    // fix timezone for daylight saving
-    struct tm *ts = localtime(&start_time);
-    if (ts->tm_isdst > 0)
-      _timezone -= 3600;
-  }
-#endif
 #ifdef HAVE_TZNAME
   {
     struct tm tm_tmp;
@@ -2890,6 +2835,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
@@ -3359,12 +3305,6 @@ static void create_shutdown_thread()
 
   // On "Stop Service" we have to do regular shutdown
   Service.SetShutdownEvent(hEventShutdown);
-#endif
-#ifdef OS2
-  pthread_cond_init(&eventShutdown, NULL);
-  pthread_t hThread;
-  if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
-    sql_print_warning("Can't create thread to handle shutdown requests");
 #endif
 #endif // EMBEDDED_LIBRARY 
 }
@@ -4292,10 +4232,6 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
     create_new_thread(thd);
   }
 
-#ifdef OS2
-  // kill server must be invoked from thread 1!
-  kill_server(MYSQL_KILL_SIGNAL);
-#endif
   decrement_handler_count();
   DBUG_RETURN(0);
 }
@@ -4724,7 +4660,8 @@ enum options_mysqld
   OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
   OPT_MAX_CONNECTIONS, OPT_MAX_CONNECT_ERRORS,
   OPT_MAX_DELAYED_THREADS, OPT_MAX_HEP_TABLE_SIZE,
-  OPT_MAX_JOIN_SIZE, OPT_MAX_RELAY_LOG_SIZE, OPT_MAX_SORT_LENGTH, 
+  OPT_MAX_JOIN_SIZE, OPT_MAX_PREPARED_STMT_COUNT,
+  OPT_MAX_RELAY_LOG_SIZE, OPT_MAX_SORT_LENGTH,
   OPT_MAX_SEEKS_FOR_KEY, OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
@@ -5666,7 +5603,7 @@ log and this option does nothing anymore.",
     0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files. Several paths may be specified, separated by a "
-#if defined(__WIN__) || defined(OS2) || defined(__NETWARE__)
+#if defined(__WIN__) || defined(__NETWARE__)
    "semicolon (;)"
 #else
    "colon (:)"
@@ -5980,6 +5917,10 @@ The minimum value for this variable is 4096.",
     (gptr*) &global_system_variables.max_length_for_sort_data,
     (gptr*) &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
+  {"max_prepared_stmt_count", OPT_MAX_PREPARED_STMT_COUNT,
+   "Maximum numbrer of prepared statements in the server.",
+   (gptr*) &max_prepared_stmt_count, (gptr*) &max_prepared_stmt_count,
+   0, GET_ULONG, REQUIRED_ARG, 16382, 0, 1*1024*1024, 0, 1, 0},
   {"max_relay_log_size", OPT_MAX_RELAY_LOG_SIZE,
    "If non-zero: relay log will be rotated automatically when the size exceeds this value; if zero (the default): when the size exceeds max_binlog_size. 0 excepted, the minimum value for this variable is 4096.",
    (gptr*) &max_relay_log_size, (gptr*) &max_relay_log_size, 0, GET_ULONG,
@@ -6864,6 +6805,10 @@ SHOW_VAR status_vars[]= {
 static void print_version(void)
 {
   set_server_version();
+  /*
+    Note: the instance manager keys off the string 'Ver' so it can find the
+    version from the output of 'mysqld --version', so don't change it!
+  */
   printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }

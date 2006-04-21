@@ -839,4 +839,51 @@ SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Dynamic	0	0	0	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 DROP TABLE t1;
+create table t1 (a int)
+partition by list (a)
+(partition `s1 s2` values in (0));
+drop table t1;
+create table t1 (a int)
+partition by list (a)
+(partition `7` values in (0));
+drop table t1;
+create table t1 (a int)
+partition by list (a)
+(partition `s1 s2 ` values in (0));
+ERROR HY000: Incorrect partition name
+create table t1 (a int)
+partition by list (a)
+subpartition by hash (a)
+(partition p1 values in (0) (subpartition `p1 p2 `));
+ERROR HY000: Incorrect partition name
+CREATE TABLE t1 (a int)
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (NULL));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY LIST (a) (PARTITION p0 VALUES IN (NULL) ENGINE = MyISAM)
+DROP TABLE t1;
+CREATE TABLE t1 (a int)
+PARTITION BY RANGE(a)
+(PARTITION p0 VALUES LESS THAN (NULL));
+ERROR 42000: Not allowed to use NULL value in VALUES LESS THAN near '))' at line 3
+create table t1 (s1 int auto_increment primary key)
+partition by list (s1)
+(partition p1 values in (1),
+partition p2 values in (2),
+partition p3 values in (3));
+insert into t1 values (null);
+insert into t1 values (null);
+insert into t1 values (null);
+select auto_increment from information_schema.tables where table_name='t1';
+auto_increment
+4
+select * from t1;
+s1
+1
+2
+3
+drop table t1;
 End of 5.1 tests

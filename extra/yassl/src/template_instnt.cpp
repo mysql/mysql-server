@@ -87,6 +87,8 @@ template void ysDelete<BulkCipher>(BulkCipher*);
 template void ysDelete<Digest>(Digest*);
 template void ysDelete<X509>(X509*);
 template void ysDelete<Message>(Message*);
+template void ysDelete<sslFactory>(sslFactory*);
+template void ysDelete<Sessions>(Sessions*);
 template void ysArrayDelete<unsigned char>(unsigned char*);
 template void ysArrayDelete<char>(char*);
 }

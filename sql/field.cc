@@ -5989,7 +5989,7 @@ int Field_str::store(double nr)
 
 uint Field::is_equal(create_field *new_field)
 {
-  return (new_field->sql_type == type());
+  return (new_field->sql_type == real_type());
 }
 
 
@@ -6001,7 +6001,7 @@ uint Field_str::is_equal(create_field *new_field)
 	(flags & (BINCMP_FLAG | BINARY_FLAG))))
     return 0; /* One of the fields is binary and the other one isn't */
 
-  return ((new_field->sql_type == type()) &&
+  return ((new_field->sql_type == real_type()) &&
 	  new_field->charset == field_charset &&
 	  new_field->length == max_length());
 }
@@ -6798,7 +6798,7 @@ Field *Field_varstring::new_key_field(MEM_ROOT *root,
 
 uint Field_varstring::is_equal(create_field *new_field)
 {
-  if (new_field->sql_type == type() &&
+  if (new_field->sql_type == real_type() &&
       new_field->charset == field_charset)
   {
     if (new_field->length == max_length())
@@ -7957,12 +7957,12 @@ bool Field_num::eq_def(Field *field)
 
 uint Field_num::is_equal(create_field *new_field)
 {
-  return ((new_field->sql_type == type()) &&
+  return ((new_field->sql_type == real_type()) &&
 	  ((new_field->flags & UNSIGNED_FLAG) == (uint) (flags &
 							 UNSIGNED_FLAG)) &&
 	  ((new_field->flags & AUTO_INCREMENT_FLAG) ==
 	   (uint) (flags & AUTO_INCREMENT_FLAG)) &&
-	  (new_field->length >= max_length()));
+	  (new_field->length <= max_length()));
 }
 
 
@@ -7998,9 +7998,10 @@ uint Field_num::is_equal(create_field *new_field)
 Field_bit::Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                      uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
                      enum utype unireg_check_arg, const char *field_name_arg)
-  : Field(ptr_arg, len_arg >> 3, null_ptr_arg, null_bit_arg,
+  : Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
           unireg_check_arg, field_name_arg),
-    bit_ptr(bit_ptr_arg), bit_ofs(bit_ofs_arg), bit_len(len_arg & 7)
+    bit_ptr(bit_ptr_arg), bit_ofs(bit_ofs_arg), bit_len(len_arg & 7),
+    bytes_in_rec(len_arg / 8)
 {
   /*
     Ensure that Field::eq() can distinguish between two different bit fields.
@@ -8036,14 +8037,14 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
   int delta;
 
   for (; length && !*from; from++, length--);          // skip left 0's
-  delta= field_length - length;
+  delta= bytes_in_rec - length;
 
   if (delta < -1 ||
       (delta == -1 && (uchar) *from > ((1 << bit_len) - 1)) ||
       (!bit_len && delta < 0))
   {
     set_rec_bits(0xff, bit_ptr, bit_ofs, bit_len);
-    memset(ptr, 0xff, field_length);
+    memset(ptr, 0xff, bytes_in_rec);
     if (table->in_use->really_abort_on_warning())
       set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
     else
@@ -8071,7 +8072,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
       set_rec_bits((uchar) *from, bit_ptr, bit_ofs, bit_len);
       from++;
     }
-    memcpy(ptr, from, field_length);
+    memcpy(ptr, from, bytes_in_rec);
   }
   return 0;
 }
@@ -8112,10 +8113,10 @@ longlong Field_bit::val_int(void)
   if (bit_len)
   {
     bits= get_rec_bits(bit_ptr, bit_ofs, bit_len);
-    bits<<= (field_length * 8);
+    bits<<= (bytes_in_rec * 8);
   }
 
-  switch (field_length) {
+  switch (bytes_in_rec) {
   case 0: return bits;
   case 1: return bits | (ulonglong) (uchar) ptr[0];
   case 2: return bits | mi_uint2korr(ptr);
@@ -8124,7 +8125,7 @@ longlong Field_bit::val_int(void)
   case 5: return bits | mi_uint5korr(ptr);
   case 6: return bits | mi_uint6korr(ptr);
   case 7: return bits | mi_uint7korr(ptr);
-  default: return mi_uint8korr(ptr + field_length - sizeof(longlong));
+  default: return mi_uint8korr(ptr + bytes_in_rec - sizeof(longlong));
   }
 }  
 
@@ -8206,7 +8207,7 @@ int Field_bit::cmp_offset(uint row_offset)
     if ((flag= (int) (bits_a - bits_b)))
       return flag;
   }
-  return memcmp(ptr, ptr + row_offset, field_length);
+  return memcmp(ptr, ptr + row_offset, bytes_in_rec);
 }
 
 
@@ -8218,7 +8219,7 @@ void Field_bit::get_key_image(char *buff, uint length, imagetype type)
     *buff++= bits;
     length--;
   }
-  memcpy(buff, ptr, min(length, field_length));
+  memcpy(buff, ptr, min(length, bytes_in_rec));
 }
 
 
@@ -8226,22 +8227,22 @@ void Field_bit::sql_type(String &res) const
 {
   CHARSET_INFO *cs= res.charset();
   ulong length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
-                                   "bit(%d)", 
-                                   (int) field_length * 8 + bit_len);
+                                   "bit(%d)", (int) field_length);
   res.length((uint) length);
 }
 
 
 char *Field_bit::pack(char *to, const char *from, uint max_length)
 {
-  uint length= min(field_length + (bit_len > 0), max_length);
+  DBUG_ASSERT(max_length);
+  uint length;
   if (bit_len)
   {
     uchar bits= get_rec_bits(bit_ptr, bit_ofs, bit_len);
     *to++= bits;
-    length--;
   }
-  memcpy(to, from, length); 
+  length= min(bytes_in_rec, max_length - (bit_len > 0));
+  memcpy(to, from, length);
   return to + length;
 }
 
@@ -8253,8 +8254,8 @@ const char *Field_bit::unpack(char *to, const char *from)
     set_rec_bits(*from, bit_ptr, bit_ofs, bit_len);
     from++;
   }
-  memcpy(to, from, field_length);
-  return from + field_length;
+  memcpy(to, from, bytes_in_rec);
+  return from + bytes_in_rec;
 }
 
 
@@ -8267,26 +8268,25 @@ Field_bit_as_char::Field_bit_as_char(char *ptr_arg, uint32 len_arg,
                                      enum utype unireg_check_arg,
                                      const char *field_name_arg)
   :Field_bit(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, 0, 0,
-             unireg_check_arg, field_name_arg),
-   create_length(len_arg)
+             unireg_check_arg, field_name_arg)
 {
   bit_len= 0;
-  field_length= ((len_arg + 7) & ~7) / 8;
+  bytes_in_rec= (len_arg + 7) / 8;
 }
 
 
 int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
 {
   int delta;
-  uchar bits= create_length & 7;
+  uchar bits= field_length & 7;
 
   for (; length && !*from; from++, length--);          // skip left 0's
-  delta= field_length - length;
+  delta= bytes_in_rec - length;
 
   if (delta < 0 ||
       (delta == 0 && bits && (uint) (uchar) *from >= (uint) (1 << bits)))
   {
-    memset(ptr, 0xff, field_length);
+    memset(ptr, 0xff, bytes_in_rec);
     if (bits)
       *ptr&= ((1 << bits) - 1); /* set first byte */
     if (table->in_use->really_abort_on_warning())
@@ -8305,7 +8305,7 @@ void Field_bit_as_char::sql_type(String &res) const
 {
   CHARSET_INFO *cs= res.charset();
   ulong length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
-                                   "bit(%d)", (int) create_length);
+                                   "bit(%d)", (int) field_length);
   res.length((uint) length);
 }
 
@@ -9033,11 +9033,6 @@ create_field::create_field(Field *old_field,Field *orig_field)
     geom_type= ((Field_geom*)old_field)->geom_type;
     break;
 #endif
-  case FIELD_TYPE_BIT:
-    length= (old_field->key_type() == HA_KEYTYPE_BIT) ?
-            ((Field_bit *) old_field)->bit_len + length * 8 :
-            ((Field_bit_as_char *) old_field)->create_length;
-    break;
   default:
     break;
   }

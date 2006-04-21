@@ -41,6 +41,7 @@ typedef struct st_archive_share {
   ulonglong auto_increment_value;
   ulonglong forced_flushes;
   ulonglong mean_rec_length;
+  char real_path[FN_REFLEN];
 } ARCHIVE_SHARE;
 
 /*
@@ -102,10 +103,12 @@ public:
   int get_row(azio_stream *file_to_read, byte *buf);
   int read_meta_file(File meta_file, ha_rows *rows, 
                      ulonglong *auto_increment,
-                     ulonglong *forced_flushes);
+                     ulonglong *forced_flushes,
+                     char *real_path);
   int write_meta_file(File meta_file, ha_rows rows, 
                       ulonglong auto_increment, 
                       ulonglong forced_flushes, 
+                      char *real_path,
                       bool dirty);
   ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table, int *rc);
   int free_share(ARCHIVE_SHARE *share);

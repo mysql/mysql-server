@@ -48,11 +48,7 @@ public:
 
   sys_after_update_func after_update;
   bool no_support_one_shot;
-  sys_var(const char *name_arg)
-    :name(name_arg), after_update(0)
-    , no_support_one_shot(1)
-  { add_sys_var(); }
-  sys_var(const char *name_arg,sys_after_update_func func)
+  sys_var(const char *name_arg,sys_after_update_func func= NULL)
     :name(name_arg), after_update(func)
     , no_support_one_shot(1)
   { add_sys_var(); }
@@ -83,21 +79,53 @@ public:
 };
 
 
-class sys_var_long_ptr :public sys_var
+/*
+  A base class for all variables that require its access to
+  be guarded with a mutex.
+*/
+
+class sys_var_global: public sys_var
+{
+protected:
+  pthread_mutex_t *guard;
+public:
+  sys_var_global(const char *name_arg, sys_after_update_func after_update_arg,
+                 pthread_mutex_t *guard_arg)
+    :sys_var(name_arg, after_update_arg), guard(guard_arg) {}
+};
+
+
+/*
+  A global-only ulong variable that requires its access to be
+  protected with a mutex.
+*/
+
+class sys_var_long_ptr_global: public sys_var_global
 {
 public:
   ulong *value;
-  sys_var_long_ptr(const char *name_arg, ulong *value_ptr)
-    :sys_var(name_arg),value(value_ptr) {}
-  sys_var_long_ptr(const char *name_arg, ulong *value_ptr,
-		   sys_after_update_func func)
-    :sys_var(name_arg,func), value(value_ptr) {}
+  sys_var_long_ptr_global(const char *name_arg, ulong *value_ptr,
+                        pthread_mutex_t *guard_arg,
+                        sys_after_update_func after_update_arg= NULL)
+    :sys_var_global(name_arg, after_update_arg, guard_arg), value(value_ptr) {}
   bool check(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   SHOW_TYPE type() { return SHOW_LONG; }
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
   { return (byte*) value; }
+};
+
+
+/*
+  A global ulong variable that is protected by LOCK_global_system_variables
+*/
+
+class sys_var_long_ptr :public sys_var_long_ptr_global
+{
+public:
+  sys_var_long_ptr(const char *name_arg, ulong *value_ptr,
+                   sys_after_update_func after_update_arg= NULL);
 };
 
 
@@ -179,7 +207,7 @@ class sys_var_const_str :public sys_var
 public:
   char *value;					// Pointer to const value
   sys_var_const_str(const char *name_arg, const char *value_arg)
-    :sys_var(name_arg), value((char*) value_arg)
+    :sys_var(name_arg),value((char*) value_arg)
   {}
   bool check(THD *thd, set_var *var)
   {
@@ -226,10 +254,7 @@ public:
 class sys_var_thd :public sys_var
 {
 public:
-  sys_var_thd(const char *name_arg)
-    :sys_var(name_arg)
-  {}
-  sys_var_thd(const char *name_arg, sys_after_update_func func)
+  sys_var_thd(const char *name_arg, sys_after_update_func func= NULL)
     :sys_var(name_arg,func)
   {}
   bool check_type(enum_var_type type) { return 0; }

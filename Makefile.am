@@ -21,25 +21,17 @@ AUTOMAKE_OPTIONS =	foreign
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 			README COPYING EXCEPTIONS-CLIENT cmakelists.txt
-SUBDIRS =		. include @docs_dirs@ @zlib_dir@ @yassl_dir@ \
+SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack \
-			@sql_union_dirs@ @mysql_se_dirs@ \
+			@sql_union_dirs@ storage \
 			@sql_server@ scripts @man_dirs@ tests \
 			@mysql_se_plugins@ \
 			netware @libmysqld_dirs@ \
-			@bench_dirs@ support-files @tools_dirs@ \
-			plugin win
+			mysql-test support-files @tools_dirs@ \
+			plugin unittest win
 
-DIST_SUBDIRS =		. include @docs_dirs@ zlib \
-			@readline_topdir@ sql-common \
-			@thread_dirs@ pstack \
-                        strings mysys dbug extra regex storage \
-                        vio sql libmysql_r libmysql client scripts \
-			@man_dirs@ tests SSL\
-			BUILD netware os2 @libmysqld_dirs@\
-			@bench_dirs@ support-files server-tools tools \
-			plugin win
+DIST_SUBDIRS =		$(SUBDIRS) BUILD
 
 # Run these targets before any others, also make part of clean target,
 # to make sure we create new links after a clean.
@@ -100,9 +92,11 @@ dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
 	if echo "$(distdir)" | grep -q '^/' ; then \
 	  scripts/mysql_install_db --no-defaults --windows \
+		--basedir=$(top_srcdir) \
 		--datadir="$(distdir)/win/data"; \
 	else \
 	  scripts/mysql_install_db --no-defaults --windows \
+		 --basedir=$(top_srcdir) \
 		 --datadir="$$(pwd)/$(distdir)/win/data"; \
 	fi
 
@@ -120,52 +114,35 @@ tags:
 
 test:
 	cd mysql-test ; \
-	./mysql-test-run --mysqld=--binlog-format=statement && \
-	./mysql-test-run --ps-protocol --mysqld=--binlog-format=row
-
-test-full:
-	cd mysql-test ; \
-	./mysql-test-run --mysqld=--binlog-format=statement && \
-	./mysql-test-run --ps-protocol --mysqld=--binlog-format=statement && \
-	./mysql-test-run --mysqld=--binlog-format=row && \
-	./mysql-test-run --ps-protocol --mysqld=--binlog-format=row
-
-test-force:
-	cd mysql-test ; \
-	./mysql-test-run --force --mysqld=--binlog-format=statement && \
-	./mysql-test-run --ps-protocol --force --mysqld=--binlog-format=row
-
-test-force-full:
-	cd mysql-test ; \
-	./mysql-test-run --force --mysqld=--binlog-format=statement && \
-	./mysql-test-run --force --ps-protocol --mysqld=--binlog-format=statement && \
-	./mysql-test-run --force --mysqld=--binlog-format=row && \
-	./mysql-test-run --force --ps-protocol --mysqld=--binlog-format=row
-
-# We are testing a new Perl version of the test script
-test-pl:
-	cd mysql-test ; \
 	./mysql-test-run.pl --mysqld=--binlog-format=statement && \
 	./mysql-test-run.pl --ps-protocol --mysqld=--binlog-format=row
 
-test-full-pl:
+test-full:
 	cd mysql-test ; \
 	./mysql-test-run.pl --mysqld=--binlog-format=statement && \
 	./mysql-test-run.pl --ps-protocol --mysqld=--binlog-format=statement && \
 	./mysql-test-run.pl --mysqld=--binlog-format=row && \
 	./mysql-test-run.pl --ps-protocol --mysqld=--binlog-format=row
 
-test-force-pl:
+test-force:
 	cd mysql-test ; \
 	./mysql-test-run.pl --force --mysqld=--binlog-format=statement && \
 	./mysql-test-run.pl --ps-protocol --force --mysqld=--binlog-format=row
 
-test-force-full-pl:
+test-force-full:
 	cd mysql-test ; \
 	./mysql-test-run.pl --force --mysqld=--binlog-format=statement && \
 	./mysql-test-run.pl --force --ps-protocol --mysqld=--binlog-format=statement && \
 	./mysql-test-run.pl --force --mysqld=--binlog-format=row && \
 	./mysql-test-run.pl --force --ps-protocol --mysqld=--binlog-format=row
+
+# Keep these for a while
+test-pl:	test
+test-full-pl:	test-full
+test-force-pl:	test-force
+test-force-full-pl: test-force-full
+
+
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

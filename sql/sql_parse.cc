@@ -118,10 +118,6 @@ static void  test_signal(int sig_ptr)
 #if !defined( DBUG_OFF)
   MessageBox(NULL,"Test signal","DBUG",MB_OK);
 #endif
-#if defined(OS2)
-  fprintf(stderr, "Test signal %d\n", sig_ptr);
-  fflush(stderr);
-#endif
 }
 static void init_signals(void)
 {
@@ -1092,7 +1088,7 @@ pthread_handler_t handle_one_connection(void *arg)
 
   pthread_detach_this_thread();
 
-#if !defined( __WIN__) && !defined(OS2)	// Win32 calls this in pthread_create
+#if !defined( __WIN__) // Win32 calls this in pthread_create
   /* The following calls needs to be done before we call DBUG_ macros */
   if (!(test_flags & TEST_NO_THREADS) & my_thread_init())
   {
@@ -1116,7 +1112,7 @@ pthread_handler_t handle_one_connection(void *arg)
 
 #if defined(__WIN__)
   init_signals();
-#elif !defined(OS2) && !defined(__NETWARE__)
+#elif !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -1240,7 +1236,7 @@ pthread_handler_t handle_bootstrap(void *arg)
 #ifndef EMBEDDED_LIBRARY
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd;
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -1969,9 +1965,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifdef __WIN__
     sleep(1);					// must wait after eof()
 #endif
-#ifndef OS2
     send_eof(thd);				// This is for 'quit request'
-#endif
     close_connection(thd, 0, 1);
     close_thread_tables(thd);			// Free before kill
     kill_mysql();
@@ -2991,6 +2985,11 @@ end_with_restore_list:
 #else
     {
       ulong priv=0;
+      ulong priv_needed= ALTER_ACL;
+      /* We also require DROP priv for ALTER TABLE ... DROP PARTITION */
+      if (lex->alter_info.flags & ALTER_DROP_PARTITION)
+        priv_needed|= DROP_ACL;
+
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
 	my_error(ER_WRONG_TABLE_NAME, MYF(0), lex->name);
@@ -3015,7 +3014,7 @@ end_with_restore_list:
         else
           select_lex->db= first_table->db;
       }
-      if (check_access(thd, ALTER_ACL, first_table->db,
+      if (check_access(thd, priv_needed, first_table->db,
 		       &first_table->grant.privilege, 0, 0,
                        test(first_table->schema_table)) ||
 	  check_access(thd,INSERT_ACL | CREATE_ACL,select_lex->db,&priv,0,0,
@@ -3026,7 +3025,7 @@ end_with_restore_list:
 	goto error;				/* purecov: inspected */
       if (grant_option)
       {
-	if (check_grant(thd, ALTER_ACL, all_tables, 0, UINT_MAX, 0))
+	if (check_grant(thd, priv_needed, all_tables, 0, UINT_MAX, 0))
 	  goto error;
 	if (lex->name && !test_all_bits(priv,INSERT_ACL | CREATE_ACL))
 	{					// Rename of table

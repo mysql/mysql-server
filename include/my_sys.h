@@ -608,6 +608,7 @@ extern File my_sopen(const char *path, int oflag, int shflag, int pmode);
 #define my_access access
 #endif
 extern int check_if_legal_filename(const char *path);
+extern int check_if_legal_tablename(const char *path);
 
 #ifndef TERMINATE
 extern void TERMINATE(FILE *file);

@@ -48,7 +48,7 @@ char *defaults_extra_file=0;
 
 /* Which directories are searched for options (and in which order) */
 
-#define MAX_DEFAULT_DIRS 6
+#define MAX_DEFAULT_DIRS 7
 const char *default_directories[MAX_DEFAULT_DIRS + 1];
 
 #ifdef __WIN__
@@ -601,7 +601,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     strmov(name,config_file);
   }
   fn_format(name,name,"","",4);
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   {
     MY_STAT stat_info;
     if (!my_stat(name,&stat_info,MYF(0)))
@@ -959,11 +959,13 @@ static uint my_get_system_windows_directory(char *buffer, uint size)
     4. getenv(DEFAULT_HOME_ENV)
     5. Directory above where the executable is located
     6. ""
+    7. --sysconfdir=<path>
 
   On Novell NetWare, this is:
     1. sys:/etc/
     2. getenv(DEFAULT_HOME_ENV)
     3. ""
+    4. --sysconfdir=<path>
 
   On OS/2, this is:
     1. getenv(ETC)
@@ -971,12 +973,14 @@ static uint my_get_system_windows_directory(char *buffer, uint size)
     3. getenv(DEFAULT_HOME_ENV)
     4. ""
     5. "~/"
+    6. --sysconfdir=<path>
 
   Everywhere else, this is:
     1. /etc/
     2. getenv(DEFAULT_HOME_ENV)
     3. ""
     4. "~/"
+    5. --sysconfdir=<path>
 
  */
 
@@ -997,10 +1001,6 @@ static void init_default_directories()
 #elif defined(__NETWARE__)
   *ptr++= "sys:/etc/";
 #else
-#if defined(__EMX__) || defined(OS2)
-  if ((env= getenv("ETC")))
-    *ptr++= env;
-#endif
   *ptr++= "/etc/";
 #endif
   if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV))))
@@ -1040,6 +1040,10 @@ static void init_default_directories()
     }
     *ptr++= (char *)&config_dir;
   }
+#endif
+#ifdef DEFAULT_SYSCONFDIR
+  if (DEFAULT_SYSCONFDIR != "")
+    *ptr++= DEFAULT_SYSCONFDIR;
 #endif
   *ptr= 0;			/* end marker */
 }

@@ -294,6 +294,8 @@ static ErrorItem errorTable[] =
   {MgmtSrvr::SYSTEM_SHUTDOWN_IN_PROGRESS, "System shutdown in progress" },
   {MgmtSrvr::NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH,
    "Node shutdown would cause system crash" },
+  {MgmtSrvr::UNSUPPORTED_NODE_SHUTDOWN,
+   "Unsupported multi node shutdown. Abort option required." },
   {MgmtSrvr::NODE_NOT_API_NODE, "The specified node is not an API node." },
   {MgmtSrvr::OPERATION_NOT_ALLOWED_START_STOP, 
    "Operation not allowed while nodes are starting or stopping."},
@@ -311,6 +313,9 @@ int MgmtSrvr::translateStopRef(Uint32 errCode)
     break;
   case StopRef::NodeShutdownWouldCauseSystemCrash:
     return NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH;
+    break;
+  case StopRef::UnsupportedNodeShutdown:
+    return UNSUPPORTED_NODE_SHUTDOWN;
     break;
   }
   return 4999;
@@ -386,8 +391,9 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
   _ownReference(0),
   theSignalIdleList(NULL),
   theWaitState(WAIT_SUBSCRIBE_CONF),
+  m_local_mgm_handle(0),
   m_event_listner(this),
-  m_local_mgm_handle(0)
+  m_master_node(0)
 {
     
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
@@ -672,23 +678,16 @@ MgmtSrvr::~MgmtSrvr()
 
 int MgmtSrvr::okToSendTo(NodeId nodeId, bool unCond) 
 {
-  if(nodeId == 0)
-    return 0;
-
-  if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_NDB)
+  if(nodeId == 0 || getNodeType(nodeId) != NDB_MGM_NODE_TYPE_NDB)
     return WRONG_PROCESS_TYPE;
-  
   // Check if we have contact with it
   if(unCond){
     if(theFacade->theClusterMgr->getNodeInfo(nodeId).connected)
       return 0;
-    return NO_CONTACT_WITH_PROCESS;
   }
-  if (theFacade->get_node_alive(nodeId) == 0) {
-    return NO_CONTACT_WITH_PROCESS;
-  } else {
+  else if (theFacade->get_node_alive(nodeId) == true)
     return 0;
-  }
+  return NO_CONTACT_WITH_PROCESS;
 }
 
 void report_unknown_signal(SimpleSignal *signal)
@@ -930,7 +929,7 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
  * distributed communication up.
  */
 
-int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
+int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 			   NodeBitmask &stoppedNodes,
 			   Uint32 singleUserNodeId,
 			   bool abort,
@@ -940,6 +939,12 @@ int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
 			   bool initialStart)
 {
   int error = 0;
+  DBUG_ENTER("MgmtSrvr::sendSTOP_REQ");
+  DBUG_PRINT("enter", ("no of nodes: %d  singleUseNodeId: %d  "
+                       "abort: %d  stop: %d  restart: %d  "
+                       "nostart: %d  initialStart: %d",
+                       node_ids.size(), singleUserNodeId,
+                       abort, stop, restart, nostart, initialStart));
 
   stoppedNodes.clear();
 
@@ -977,36 +982,49 @@ int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
 
   // send the signals
   NodeBitmask nodes;
-  if (nodeId)
+  NodeId nodeId= 0;
+  int use_master_node= 0;
+  int do_send= 0;
+  int do_stop_self= 0;
+  NdbNodeBitmask nodes_to_stop;
   {
-    if(nodeId==getOwnNodeId())
+    for (unsigned i= 0; i < node_ids.size(); i++)
     {
-      if(restart)
-        g_RestartServer= true;
-      g_StopServer= true;
-      return 0;
+      nodeId= node_ids[i];
+      if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_MGM)
+        nodes_to_stop.set(nodeId);
+      else if (nodeId != getOwnNodeId())
+      {
+        error= sendStopMgmd(nodeId, abort, stop, restart,
+                            nostart, initialStart);
+        if (error == 0)
+          stoppedNodes.set(nodeId);
+      }
+      else
+        do_stop_self= 1;;
     }
-    if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
+  }
+  int no_of_nodes_to_stop= nodes_to_stop.count();
+  if (node_ids.size())
+  {
+    if (no_of_nodes_to_stop)
     {
-      int r;
-      if((r= okToSendTo(nodeId, true)) != 0)
-        return r;
-      if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
-	return SEND_OR_RECEIVE_FAILED;
+      do_send= 1;
+      if (no_of_nodes_to_stop == 1)
+      {
+        nodeId= nodes_to_stop.find(0);
+      }
+      else // multi node stop, send to master
+      {
+        use_master_node= 1;
+        nodes_to_stop.copyto(NdbNodeBitmask::Size, stopReq->nodes);
+        StopReq::setStopNodes(stopReq->requestInfo, 1);
+      }
     }
-    else if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM)
-    {
-      error= sendStopMgmd(nodeId, abort, stop, restart, nostart, initialStart);
-      if(error==0)
-        stoppedNodes.set(nodeId);
-      return error;
-    }
-    else
-      return WRONG_PROCESS_TYPE;
-    nodes.set(nodeId);
   }
   else
   {
+    nodeId= 0;
     while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
     {
       if(okToSendTo(nodeId, true) == 0)
@@ -1027,8 +1045,30 @@ int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
   }
 
   // now wait for the replies
-  while (!nodes.isclear())
+  while (!nodes.isclear() || do_send)
   {
+    if (do_send)
+    {
+      int r;
+      assert(nodes.count() == 0);
+      if (use_master_node)
+        nodeId= m_master_node;
+      if ((r= okToSendTo(nodeId, true)) != 0)
+      {
+        bool next;
+        if (!use_master_node)
+          DBUG_RETURN(r);
+        m_master_node= nodeId= 0;
+        while((next= getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
+              (r= okToSendTo(nodeId, true)) != 0);
+        if (!next)
+          DBUG_RETURN(NO_CONTACT_WITH_DB_NODES);
+      }
+      if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
+        DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
+      nodes.set(nodeId);
+      do_send= 0;
+    }
     SimpleSignal *signal = ss.waitFor();
     int gsn = signal->readSignalNumber();
     switch (gsn) {
@@ -1040,6 +1080,13 @@ int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
 #endif
       assert(nodes.get(nodeId));
       nodes.clear(nodeId);
+      if (ref->errorCode == StopRef::MultiNodeShutdownNotMaster)
+      {
+        assert(use_master_node);
+        m_master_node= ref->masterNodeId;
+        do_send= 1;
+        continue;
+      }
       error = translateStopRef(ref->errorCode);
       break;
     }
@@ -1050,9 +1097,16 @@ int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
       ndbout_c("Node %d single user mode", nodeId);
 #endif
       assert(nodes.get(nodeId));
-      assert(singleUserNodeId != 0);
+      if (singleUserNodeId != 0)
+      {
+        stoppedNodes.set(nodeId);
+      }
+      else
+      {
+        assert(no_of_nodes_to_stop > 1);
+        stoppedNodes.bitOR(nodes_to_stop);
+      }
       nodes.clear(nodeId);
-      stoppedNodes.set(nodeId);
       break;
     }
     case GSN_NF_COMPLETEREP:{
@@ -1091,17 +1145,24 @@ int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
 #ifdef VM_TRACE
       ndbout_c("Unknown signal %d", gsn);
 #endif
-      return SEND_OR_RECEIVE_FAILED;
+      DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
     }
   }
-  return error;
+  if (!error && do_stop_self)
+  {
+    if (restart)
+      g_RestartServer= true;
+    g_StopServer= true;
+  }
+  DBUG_RETURN(error);
 }
 
 /*
- * Stop one node
+ * Stop one nodes
  */
 
-int MgmtSrvr::stopNode(int nodeId, bool abort)
+int MgmtSrvr::stopNodes(const Vector<NodeId> &node_ids,
+                        int *stopCount, bool abort)
 {
   if (!abort)
   {
@@ -1116,14 +1177,17 @@ int MgmtSrvr::stopNode(int nodeId, bool abort)
     }
   }
   NodeBitmask nodes;
-  return sendSTOP_REQ(nodeId,
-		      nodes,
-		      0,
-		      abort,
-		      false,
-		      false,
-		      false,
-		      false);
+  int ret= sendSTOP_REQ(node_ids,
+                        nodes,
+                        0,
+                        abort,
+                        false,
+                        false,
+                        false,
+                        false);
+  if (stopCount)
+    *stopCount= nodes.count();
+  return ret;
 }
 
 /*
@@ -1133,7 +1197,8 @@ int MgmtSrvr::stopNode(int nodeId, bool abort)
 int MgmtSrvr::stop(int * stopCount, bool abort)
 {
   NodeBitmask nodes;
-  int ret = sendSTOP_REQ(0,
+  Vector<NodeId> node_ids;
+  int ret = sendSTOP_REQ(node_ids,
 			 nodes,
 			 0,
 			 abort,
@@ -1164,7 +1229,8 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
       return OPERATION_NOT_ALLOWED_START_STOP;
   }
   NodeBitmask nodes;
-  int ret = sendSTOP_REQ(0,
+  Vector<NodeId> node_ids;
+  int ret = sendSTOP_REQ(node_ids,
 			 nodes,
 			 singleUserNodeId,
 			 false,
@@ -1181,18 +1247,22 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
  * Perform node restart
  */
 
-int MgmtSrvr::restartNode(int nodeId, bool nostart, bool initialStart, 
-			  bool abort)
+int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
+                           int * stopCount, bool nostart,
+                           bool initialStart, bool abort)
 {
   NodeBitmask nodes;
-  return sendSTOP_REQ(nodeId,
-		      nodes,
-		      0,
-		      abort,
-		      false,
-		      true,
-		      nostart,
-		      initialStart);
+  int ret= sendSTOP_REQ(node_ids,
+                        nodes,
+                        0,
+                        abort,
+                        false,
+                        true,
+                        nostart,
+                        initialStart);
+  if (stopCount)
+    *stopCount = nodes.count();
+  return ret;
 }
 
 /*
@@ -1203,7 +1273,8 @@ int MgmtSrvr::restart(bool nostart, bool initialStart,
 		      bool abort, int * stopCount )
 {
   NodeBitmask nodes;
-  int ret = sendSTOP_REQ(0,
+  Vector<NodeId> node_ids;
+  int ret = sendSTOP_REQ(node_ids,
 			 nodes,
 			 0,
 			 abort,
@@ -2241,12 +2312,16 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
   SignalSender ss(theFacade);
   ss.lock(); // lock will be released on exit
 
-  bool next;
-  NodeId nodeId = 0;
-  while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
-	theFacade->get_node_alive(nodeId) == false);
-  
-  if(!next) return NO_CONTACT_WITH_DB_NODES;
+  NodeId nodeId = m_master_node;
+  if (okToSendTo(nodeId, false) != 0)
+  {
+    bool next;
+    nodeId = m_master_node = 0;
+    while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
+          okToSendTo(nodeId, false) != 0);
+    if(!next)
+      return NO_CONTACT_WITH_DB_NODES;
+  }
 
   SimpleSignal ssig;
   BackupReq* req = CAST_PTR(BackupReq, ssig.getDataPtrSend());
@@ -2314,7 +2389,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
       const BackupRef * const ref = 
 	CAST_CONSTPTR(BackupRef, signal->getDataPtr());
       if(ref->errorCode == BackupRef::IAmNotMaster){
-	nodeId = refToNode(ref->masterRef);
+	m_master_node = nodeId = refToNode(ref->masterRef);
 #ifdef VM_TRACE
 	ndbout_c("I'm not master resending to %d", nodeId);
 #endif

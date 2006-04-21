@@ -274,7 +274,6 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("emb_stmt_execute");
   char header[5];
-  MYSQL_DATA *res;
   THD *thd;
 
   int4store(header, stmt->stmt_id);
@@ -1033,7 +1032,6 @@ void Protocol_simple::prepare_for_resend()
   data->embedded_info->prev_ptr= &cur->next;
   next_field=cur->data;
   next_mysql_field= data->embedded_info->fields_list;
-err:
   DBUG_VOID_RETURN;
 }
 

@@ -339,6 +339,27 @@ Package=<4>
 
 ###############################################################################
 
+Project: "mysql_upgrade"=".\client\mysql_upgrade.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysqlclient
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name zlib
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+}}}
+
+###############################################################################
+
 Project: "mysqlbinlog"=".\mysqlbinlog\mysqlbinlog.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -415,6 +436,8 @@ Package=<4>
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name mysqladmin
+    Begin Project Dependency
+    Project_Dep_Name myqsl_upgrade
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name mysqldump
@@ -786,27 +809,6 @@ Project: "mysql_client_test"=.\tests\mysql_client_test.dsp - Package Owner=<4>
 Package=<4>
 {{{
 }}}
-
-###############################################################################
-
-
-Project: "mysql_test_run_new"=".\mysql-test\mysql_test_run_new.dsp" - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{    Begin Project Dependency
-    Project_Dep_Name mysqltest
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name mysqladmin
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name mysql_client_test
-    End Project Dependency
-}}}
 
 
 ###############################################################################

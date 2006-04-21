@@ -63,8 +63,7 @@
   pool. For MyISAM its a question of how much the file system caches the
   MyISAM file. With enough free memory MyISAM is faster. Its only when the OS
   doesn't have enough memory to cache entire table that archive turns out 
-  to be any faster. For writes it is always a bit slower then MyISAM. It has no
-  internal limits though for row length.
+  to be any faster. 
 
   Examples between MyISAM (packed) and Archive.
 
@@ -81,11 +80,8 @@
   TODO:
    Add bzip optional support.
    Allow users to set compression level.
-   Add truncate table command.
    Implement versioning, should be easy.
    Allow for errors, find a way to mark bad rows.
-   Talk to the azip guys, come up with a writable format so that updates are doable
-     without switching to a block method.
    Add optional feature so that rows can be flushed at interval (which will cause less
      compression but may speed up ordered searches).
    Checkpoint the meta file to allow for faster rebuilds.
@@ -126,10 +122,12 @@ static HASH archive_open_tables;
 #define ARN ".ARN"               // Files used during an optimize call
 #define ARM ".ARM"               // Meta file
 /*
-  uchar + uchar + ulonglong + ulonglong + ulonglong + ulonglong + uchar
+  uchar + uchar + ulonglong + ulonglong + ulonglong + ulonglong + FN_REFLEN 
+  + uchar
 */
 #define META_BUFFER_SIZE sizeof(uchar) + sizeof(uchar) + sizeof(ulonglong) \
-  + sizeof(ulonglong) + sizeof(ulonglong) + sizeof(ulonglong) + sizeof(uchar)
+  + sizeof(ulonglong) + sizeof(ulonglong) + sizeof(ulonglong) + FN_REFLEN \
+  + sizeof(uchar)
 
 /*
   uchar + uchar
@@ -317,7 +315,8 @@ error:
 */
 int ha_archive::read_meta_file(File meta_file, ha_rows *rows, 
                                ulonglong *auto_increment,
-                               ulonglong *forced_flushes)
+                               ulonglong *forced_flushes,
+                               char *real_path)
 {
   uchar meta_buffer[META_BUFFER_SIZE];
   uchar *ptr= meta_buffer;
@@ -342,6 +341,8 @@ int ha_archive::read_meta_file(File meta_file, ha_rows *rows,
   ptr+= sizeof(ulonglong); // Move past auto_increment
   *forced_flushes= uint8korr(ptr);
   ptr+= sizeof(ulonglong); // Move past forced_flush
+  memmove(real_path, ptr, FN_REFLEN);
+  ptr+= FN_REFLEN; // Move past the possible location of the file
 
   DBUG_PRINT("ha_archive::read_meta_file", ("Check %d", (uint)meta_buffer[0]));
   DBUG_PRINT("ha_archive::read_meta_file", ("Version %d", (uint)meta_buffer[1]));
@@ -349,6 +350,7 @@ int ha_archive::read_meta_file(File meta_file, ha_rows *rows,
   DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %llu", check_point));
   DBUG_PRINT("ha_archive::read_meta_file", ("Auto-Increment %llu", *auto_increment));
   DBUG_PRINT("ha_archive::read_meta_file", ("Forced Flushes %llu", *forced_flushes));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Real Path %s", real_path));
   DBUG_PRINT("ha_archive::read_meta_file", ("Dirty %d", (int)(*ptr)));
 
   if ((meta_buffer[0] != (uchar)ARCHIVE_CHECK_HEADER) || 
@@ -368,6 +370,7 @@ int ha_archive::read_meta_file(File meta_file, ha_rows *rows,
 int ha_archive::write_meta_file(File meta_file, ha_rows rows, 
                                 ulonglong auto_increment, 
                                 ulonglong forced_flushes, 
+                                char *real_path,
                                 bool dirty)
 {
   uchar meta_buffer[META_BUFFER_SIZE];
@@ -388,6 +391,12 @@ int ha_archive::write_meta_file(File meta_file, ha_rows rows,
   ptr += sizeof(ulonglong);
   int8store(ptr, forced_flushes); 
   ptr += sizeof(ulonglong);
+  // No matter what, we pad with nulls
+  if (real_path)
+    strncpy((char *)ptr, real_path, FN_REFLEN);
+  else
+    bzero(ptr, FN_REFLEN);
+  ptr += FN_REFLEN;
   *ptr= (uchar)dirty;
   DBUG_PRINT("ha_archive::write_meta_file", ("Check %d", 
                                              (uint)ARCHIVE_CHECK_HEADER));
@@ -399,6 +408,8 @@ int ha_archive::write_meta_file(File meta_file, ha_rows rows,
                                              auto_increment));
   DBUG_PRINT("ha_archive::write_meta_file", ("Forced Flushes %llu", 
                                             forced_flushes));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Real path %s", 
+                                            real_path));
   DBUG_PRINT("ha_archive::write_meta_file", ("Dirty %d", (uint)dirty));
 
   VOID(my_seek(meta_file, 0, MY_SEEK_SET, MYF(0)));
@@ -448,8 +459,12 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
     share->table_name_length= length;
     share->table_name= tmp_name;
     share->crashed= FALSE;
-    fn_format(share->data_file_name,table_name,"",ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-    fn_format(meta_file_name,table_name,"",ARM,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    fn_format(share->data_file_name, table_name, "",
+              ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    fn_format(meta_file_name, table_name, "", ARM,
+              MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    DBUG_PRINT("info", ("archive opening (1) up write at %s", 
+                        share->data_file_name));
     strmov(share->table_name,table_name);
     /*
       We will use this lock for rows.
@@ -457,6 +472,8 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
     VOID(pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST));
     if ((share->meta_file= my_open(meta_file_name, O_RDWR, MYF(0))) == -1)
       share->crashed= TRUE;
+    DBUG_PRINT("info", ("archive opening (1) up write at %s", 
+                        share->data_file_name));
     
     /*
       After we read, we set the file to dirty. When we close, we will do the 
@@ -465,13 +482,21 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
     */
     if (read_meta_file(share->meta_file, &share->rows_recorded, 
                        &share->auto_increment_value,
-                       &share->forced_flushes))
+                       &share->forced_flushes,
+                       share->real_path))
       share->crashed= TRUE;
     else
       (void)write_meta_file(share->meta_file, share->rows_recorded,
                             share->auto_increment_value, 
                             share->forced_flushes, 
+                            share->real_path,
                             TRUE);
+    /*
+      Since we now possibly no real_path, we will use it instead if it exists.
+    */
+    if (*share->real_path)
+      fn_format(share->data_file_name, share->real_path, "", ARZ,
+                MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     /* 
       It is expensive to open and close the data files and since you can't have
       a gzip file that can be both read and written we keep a writer open
@@ -527,6 +552,7 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
     (void)write_meta_file(share->meta_file, share->rows_recorded,
                           share->auto_increment_value, 
                           share->forced_flushes, 
+                          share->real_path, 
                           share->crashed ? TRUE :FALSE);
     if (azclose(&(share->archive_write)))
       rc= 1;
@@ -566,7 +592,7 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   int rc= 0;
   DBUG_ENTER("ha_archive::open");
 
-  DBUG_PRINT("info", ("archive table was opened for crash %s", 
+  DBUG_PRINT("info", ("archive table was opened for crash: %s", 
                       (open_options & HA_OPEN_FOR_REPAIR) ? "yes" : "no"));
   share= get_share(name, table, &rc);
 
@@ -582,6 +608,7 @@ int ha_archive::open(const char *name, int mode, uint open_options)
 
   thr_lock_data_init(&share->lock,&lock,NULL);
 
+  DBUG_PRINT("info", ("archive data_file_name %s", share->data_file_name));
   if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
   {
     if (errno == EROFS || errno == EACCES)
@@ -679,18 +706,40 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     }
   }
 
-  write_meta_file(create_file, 0, auto_increment_value, 0, FALSE);
+  write_meta_file(create_file, 0, auto_increment_value, 0, 
+                  (char *)create_info->data_file_name,
+                  FALSE);
   my_close(create_file,MYF(0));
 
   /* 
     We reuse name_buff since it is available.
   */
-  if ((create_file= my_create(fn_format(name_buff,name,"",ARZ,
-                                        MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
-                              O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+  if (create_info->data_file_name)
   {
-    error= my_errno;
-    goto error;
+    char linkname[FN_REFLEN];
+    DBUG_PRINT("info", ("archive will create stream file %s", 
+                        create_info->data_file_name));
+                        
+    fn_format(name_buff, create_info->data_file_name, "", ARZ,
+              MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    fn_format(linkname, name, "", ARZ,
+              MY_UNPACK_FILENAME | MY_APPEND_EXT);
+    if ((create_file= my_create_with_symlink(linkname, name_buff, 0,
+                                O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+    {
+      error= my_errno;
+      goto error;
+    }
+  }
+  else
+  {
+    if ((create_file= my_create(fn_format(name_buff, name,"", ARZ,
+                                          MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
+                                O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+    {
+      error= my_errno;
+      goto error;
+    }
   }
   if (!azdopen(&archive, create_file, O_WRONLY|O_BINARY))
   {
@@ -1348,8 +1397,10 @@ void ha_archive::update_create_info(HA_CREATE_INFO *create_info)
   ha_archive::info(HA_STATUS_AUTO | HA_STATUS_CONST);
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
   {
-    create_info->auto_increment_value=auto_increment_value;
+    create_info->auto_increment_value= auto_increment_value;
   }
+  if (*share->real_path)
+    create_info->data_file_name= share->real_path;
 }
 
 

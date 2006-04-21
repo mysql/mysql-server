@@ -58,6 +58,7 @@ void Dbdih::initData()
   cwaitLcpSr       = false;
   c_blockCommit    = false;
   c_blockCommitNo  = 1;
+  cntrlblockref    = RNIL;
 }//Dbdih::initData()
 
 void Dbdih::initRecords() 

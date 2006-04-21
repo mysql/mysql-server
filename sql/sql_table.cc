@@ -72,12 +72,19 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 
 uint tablename_to_filename(const char *from, char *to, uint to_length)
 {
-  uint errors;
+  uint errors, length;
   if (from[0] == '#' && !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
                                  MYSQL50_TABLE_NAME_PREFIX_LENGTH))
     return my_snprintf(to, to_length, "%s", from + 9);
-  return strconvert(system_charset_info, from,
-                    &my_charset_filename, to, to_length, &errors);
+  length= strconvert(system_charset_info, from,
+                     &my_charset_filename, to, to_length, &errors);
+  if (check_if_legal_tablename(to) &&
+      length + 4 < to_length)
+  {
+    memcpy(to + length, "@@@", 4);
+    length+= 3;
+  }
+  return length;
 }
 
 
@@ -347,7 +354,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                         lpt->create_info, lpt->new_create_list, lpt->key_count,
                         lpt->key_info_buffer, lpt->table->file)) ||
       ((flags & WFRM_CREATE_HANDLER_FILES) &&
-       lpt->table->file->create_handler_files(path)))
+       lpt->table->file->create_handler_files(path, lpt->create_info)))
   {
     error= 1;
     goto end;
@@ -3625,11 +3632,7 @@ err:
 
 bool mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
-#ifdef OS2
-  thr_lock_type lock_type = TL_WRITE;
-#else
   thr_lock_type lock_type = TL_READ_NO_INSERT;
-#endif
 
   DBUG_ENTER("mysql_analyze_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
@@ -3640,11 +3643,7 @@ bool mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 
 bool mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
 {
-#ifdef OS2
-  thr_lock_type lock_type = TL_WRITE;
-#else
   thr_lock_type lock_type = TL_READ_NO_INSERT;
-#endif
 
   DBUG_ENTER("mysql_check_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
@@ -3964,6 +3963,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
+  char path[FN_REFLEN];
   char reg_path[FN_REFLEN+1];
   ha_rows copied,deleted;
   ulonglong next_insert_id;
@@ -4000,6 +4000,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
     new_db= db;
   build_table_filename(reg_path, sizeof(reg_path), db, table_name, reg_ext);
+  build_table_filename(path, sizeof(path), db, table_name, "");
 
   used_fields=create_info->used_fields;
 
@@ -4773,6 +4774,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     KEY_PART_INFO *part_end;
     DBUG_PRINT("info", ("No new_table, checking add/drop index"));
 
+    table->file->prepare_for_alter();
     if (index_add_count)
     {
 #ifdef XXX_TO_BE_DONE_LATER_BY_WL3020_AND_WL1892
@@ -4788,7 +4790,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       error= (mysql_create_frm(thd, reg_path, db, table_name,
                                create_info, prepared_create_list, key_count,
                                key_info_buffer, table->file) ||
-              table->file->create_handler_files(reg_path));
+              table->file->create_handler_files(path, create_info));
       VOID(pthread_mutex_unlock(&LOCK_open));
       if (error)
         goto err;
@@ -4834,7 +4836,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       error= (mysql_create_frm(thd, reg_path, db, table_name,
                                create_info, prepared_create_list, key_count,
                                key_info_buffer, table->file) ||
-              table->file->create_handler_files(reg_path));
+              table->file->create_handler_files(path, create_info));
       VOID(pthread_mutex_unlock(&LOCK_open));
       if (error)
         goto err;
@@ -4904,19 +4906,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     /*end of if (index_drop_count)*/
 
-    if (index_add_count || index_drop_count)
-    {
-      /*
-        The final .frm file is already created as a temporary file
-        and will be renamed to the original table name later.
-      */
+    /*
+      The final .frm file is already created as a temporary file
+      and will be renamed to the original table name later.
+    */
 
-      /* Need to commit before a table is unlocked (NDB requirement). */
-      DBUG_PRINT("info", ("Committing after add/drop index"));
-      if (ha_commit_stmt(thd) || ha_commit(thd))
-        goto err;
-      committed= 1;
-    }
+    /* Need to commit before a table is unlocked (NDB requirement). */
+    DBUG_PRINT("info", ("Committing before unlocking table"));
+    if (ha_commit_stmt(thd) || ha_commit(thd))
+      goto err;
+    committed= 1;
   }
   /*end of if (! new_table) for add/drop index*/
 
@@ -4998,7 +4997,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
 
-#if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))
+#if !defined( __WIN__)
   if (table->file->has_transactions())
 #endif
   {
@@ -5011,7 +5010,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     table=0;					// Marker that table is closed
     no_table_reopen= TRUE;
   }
-#if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))
+#if !defined( __WIN__)
   else
     table->file->extra(HA_EXTRA_FORCE_REOPEN);	// Don't use this file anymore
 #endif
@@ -5061,7 +5060,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       VOID(pthread_mutex_lock(&LOCK_open));
     }
     /* Tell the handler that a new frm file is in place. */
-    if (table->file->create_handler_files(reg_path))
+    if (table->file->create_handler_files(path, create_info))
     {
       VOID(pthread_mutex_unlock(&LOCK_open));
       goto err;

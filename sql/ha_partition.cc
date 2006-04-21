@@ -562,6 +562,7 @@ int ha_partition::rename_table(const char *from, const char *to)
   SYNOPSIS
     create_handler_files()
     name                              Full path of table name
+    create_info                       Create info generated for CREATE TABLE
 
   RETURN VALUE
     >0                        Error
@@ -575,7 +576,8 @@ int ha_partition::rename_table(const char *from, const char *to)
     and types of engines in the partitions.
 */
 
-int ha_partition::create_handler_files(const char *name)
+int ha_partition::create_handler_files(const char *name,
+                                       HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("ha_partition::create_handler_files()");
 
@@ -1135,7 +1137,6 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
     partition_element *part_elem= part_it++;
     if (all_parts || part_elem->part_state == PART_CHANGED)
     {
-      handler *file;
       if (m_is_sub_partitioned)
       {
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
@@ -2311,7 +2312,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
 err_handler:
   while (file-- != m_file)
     (*file)->close();
-err:
+
   DBUG_RETURN(error);
 }
 
@@ -2915,7 +2916,6 @@ int ha_partition::rnd_init(bool scan)
   int error;
   uint i= 0;
   uint32 part_id;
-  handler **file;
   DBUG_ENTER("ha_partition::rnd_init");
 
   include_partition_fields_in_used_fields();
@@ -4201,11 +4201,7 @@ void ha_partition::info(uint flag)
   if (flag & HA_STATUS_AUTO)
   {
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
-    /*
-      The auto increment value is only maintained by the first handler
-      so we will only call this.
-    */
-    m_file[0]->info(HA_STATUS_AUTO);
+    auto_increment_value= get_auto_increment();
   }
   if (flag & HA_STATUS_VARIABLE)
   {
@@ -5349,9 +5345,15 @@ void ha_partition::restore_auto_increment()
 
 ulonglong ha_partition::get_auto_increment()
 {
+  ulonglong auto_inc, max_auto_inc= 0;
   DBUG_ENTER("ha_partition::get_auto_increment");
 
-  DBUG_RETURN(m_file[0]->get_auto_increment());
+  for (uint i= 0; i < m_tot_parts; i++)
+  {
+    auto_inc= m_file[i]->get_auto_increment();
+    set_if_bigger(max_auto_inc, auto_inc);
+  }
+  DBUG_RETURN(max_auto_inc);
 }
 
 

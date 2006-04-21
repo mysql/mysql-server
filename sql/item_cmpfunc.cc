@@ -52,11 +52,10 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
 {
   uint i;
   Field *field= NULL;
-  bool all_constant= TRUE;
 
   /* If the first argument is a FIELD_ITEM, pull out the field. */
-  if (items[0]->type() == Item::FIELD_ITEM)
-    field=((Item_field *)items[0])->field;
+  if (items[0]->real_item()->type() == Item::FIELD_ITEM)
+    field=((Item_field *)(items[0]->real_item()))->field;
   /* But if it can't be compared as a longlong, we don't really care. */
   if (field && !field->can_be_compared_as_longlong())
     field= NULL;
@@ -65,16 +64,9 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
   for (i= 1; i < nitems; i++)
   {
     type[0]= item_cmp_type(type[0], items[i]->result_type());
-    if (field && !convert_constant_item(thd, field, &items[i]))
-      all_constant= FALSE;
+    if (field && convert_constant_item(thd, field, &items[i]))
+      type[0]= INT_RESULT;
   }
-
-  /*
-    If we had a field that can be compared as a longlong, and all constant
-    items, then the aggregate result will be an INT_RESULT.
-  */
-  if (field && all_constant)
-    type[0]= INT_RESULT;
 }
 
 
