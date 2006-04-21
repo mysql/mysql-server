@@ -3095,6 +3095,9 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   Thd_ndb *thd_ndb=0;
   int ndb_update_binlog_index= 1;
   injector *inj= injector::instance();
+#ifdef RUN_NDB_BINLOG_TIMER
+  Timer main_timer;
+#endif
 
   pthread_mutex_lock(&injector_mutex);
   /*
@@ -3233,9 +3236,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     thd->db= db;
   }
 
-#ifdef RUN_NDB_BINLOG_TIMER
-  Timer main_timer;
-#endif
   for ( ; !((abort_loop || do_ndbcluster_binlog_close_connection) &&
             ndb_latest_handled_binlog_epoch >= g_latest_trans_gci); )
   {
@@ -3316,15 +3316,16 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     if (res > 0)
     {
       DBUG_PRINT("info", ("pollEvents res: %d", res));
-#ifdef RUN_NDB_BINLOG_TIMER
-      Timer gci_timer, write_timer;
-      int event_count= 0;
-#endif
       thd->proc_info= "Processing events";
       NdbEventOperation *pOp= i_ndb->nextEvent();
       Binlog_index_row row;
       while (pOp != NULL)
       {
+#ifdef RUN_NDB_BINLOG_TIMER
+        Timer gci_timer, write_timer;
+        int event_count= 0;
+        gci_timer.start();
+#endif
         gci= pOp->getGCI();
         DBUG_PRINT("info", ("Handling gci: %d", (unsigned)gci));
         // sometimes get TE_ALTER with invalid table
@@ -3503,6 +3504,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
           DBUG_PRINT("info", ("COMMIT gci: %lld", gci));
           if (ndb_update_binlog_index)
             ndb_add_binlog_index(thd, &row);
+          ndb_latest_applied_binlog_epoch= gci;
         }
         ndb_latest_handled_binlog_epoch= gci;
 #ifdef RUN_NDB_BINLOG_TIMER
