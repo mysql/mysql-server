@@ -4397,7 +4397,7 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
   ptr[0].p = (Uint32*)m_buffer.get_data();
   ptr[0].sz = m_buffer.length() / 4;
 
-  int err[] = { CreateFileRef::Busy, 0};
+  int err[] = { CreateFileRef::Busy, CreateFileRef::NotMaster, 0};
   /*
     Send signal without time-out since creating files can take a very long
     time if the file is very big.
@@ -4441,7 +4441,7 @@ NdbDictInterface::drop_file(const NdbFileImpl & file){
   req->file_id = file.m_id;
   req->file_version = file.m_version;
 
-  int err[] = { DropFileRef::Busy, 0};
+  int err[] = { DropFileRef::Busy, DropFileRef::NotMaster, 0};
   DBUG_RETURN(dictSignal(&tSignal, 0, 0,
 	                 0, // master
 		         WAIT_CREATE_INDX_REQ,
