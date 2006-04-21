@@ -184,7 +184,7 @@ rm -r -f "$BASE/share/Makefile"
 rm -r -f "$BASE/share/Makefile.in"
 rm -r -f "$BASE/share/Makefile.am"
 
-mkdir $BASE/Docs $BASE/extra $BASE/include $BASE/storage
+mkdir $BASE/Docs $BASE/extra $BASE/include
 
 #
 # Copy directory files
@@ -251,7 +251,7 @@ copy_dir_dirs() {
 
 for i in client dbug extra storage/heap include storage/archive storage/csv \
          include/mysql libmysql libmysqld storage/myisam storage/example \
-         storage/myisammrg mysys regex sql strings sql-common sql/examples \
+         storage/myisammrg mysys regex sql strings sql-common \
          tools vio zlib
 do
   copy_dir_files $i
@@ -260,7 +260,7 @@ done
 #
 # Create project files for ndb
 #
-make -C $SOURCE/storage/ndb windoze
+#make -C $SOURCE/storage/ndb windoze
 
 #
 # Input directories to be copied recursively
@@ -298,8 +298,6 @@ do
   fi
 done
 
-cp extra/sql_state.h extra/mysqld_error.h $BASE/include
-
 #
 # support files
 #
@@ -316,7 +314,7 @@ done
 # Raw dirs from source tree
 #
 
-for i in scripts sql-bench mysql-test SSL tests
+for i in scripts mysql-test SSL tests
 do
   print_debug "Copying directory '$i'"
   if [ -d $i ]
@@ -350,8 +348,6 @@ find $BASE \( -name "*.cnf" -o -name "*.ini" \
   do
     unix_to_dos $v
   done
-# File extension '.txt' matches too many other files, error messages etc.
-unix_to_dos $BASE/Docs/*.txt 
 
 mv $BASE/README $BASE/README.txt
 

@@ -144,7 +144,6 @@ our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
 our $glob_use_running_ndbcluster_slave= 0;
 our $glob_use_embedded_server=    0;
-our $glob_mysqld_restart=         0;
 our @glob_test_mode;
 
 our $using_ndbcluster_master= 0;
@@ -285,7 +284,7 @@ our $opt_start_from;
 
 our $opt_strace_client;
 
-our $opt_timer;
+our $opt_timer= 1;
 
 our $opt_user;
 our $opt_user_test;
@@ -503,7 +502,9 @@ sub initial_setup () {
     chomp($glob_cygwin_shell);
   }
   $glob_basedir=         dirname($glob_mysql_test_dir);
-  $glob_mysql_bench_dir= "$glob_basedir/mysql-bench"; # FIXME make configurable
+  # Expect mysql-bench to be located adjacent to the source tree, by default
+  $glob_mysql_bench_dir= "$glob_basedir/../mysql-bench"
+    unless defined $glob_mysql_bench_dir;
 
   # needs to be same length to test logging (FIXME what???)
   $path_slave_load_tmpdir=  "../../var/tmp";
@@ -531,10 +532,10 @@ sub command_line_setup () {
 
   my $opt_master_myport=       9306;
   my $opt_slave_myport=        9308;
-  $opt_ndbcluster_port=        9350;
-  $opt_ndbcluster_port_slave=  9358;
-  my $im_port=                 9310;
-  my $im_mysqld1_port=         9312;
+  $opt_ndbcluster_port=        9310;
+  $opt_ndbcluster_port_slave=  9311;
+  my $im_port=                 9312;
+  my $im_mysqld1_port=         9313;
   my $im_mysqld2_port=         9314;
 
   #
@@ -609,7 +610,7 @@ sub command_line_setup () {
              # Specify ports
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
-             'ndbcluster-port=i'        => \$opt_ndbcluster_port,
+             'ndbcluster-port|ndbcluster_port=i' => \$opt_ndbcluster_port,
              'ndbcluster-port-slave=i'  => \$opt_ndbcluster_port_slave,
              'manager-port=i'           => \$opt_manager_port, # Currently not used
              'im-port=i'                => \$im_port, # Instance Manager port.
@@ -665,6 +666,7 @@ sub command_line_setup () {
 	     # Directories
              'tmpdir=s'                 => \$opt_tmpdir,
              'vardir=s'                 => \$opt_vardir,
+             'benchdir=s'               => \$glob_mysql_bench_dir,
 
              # Misc
              'comment=s'                => \$opt_comment,
@@ -680,7 +682,7 @@ sub command_line_setup () {
              'socket=s'                 => \$opt_socket,
              'start-dirty'              => \$opt_start_dirty,
              'start-and-exit'           => \$opt_start_and_exit,
-             'timer'                    => \$opt_timer,
+             'timer!'                   => \$opt_timer,
              'unified-diff|udiff'       => \$opt_udiff,
              'user-test=s'              => \$opt_user_test,
              'user=s'                   => \$opt_user,
@@ -1683,8 +1685,8 @@ sub run_benchmarks ($) {
     mtr_add_arg($args, "--create-options=TYPE=ndb");
   }
 
-  my $benchdir=  "$glob_basedir/sql-bench";
-  chdir($benchdir);             # FIXME check error
+  chdir($glob_mysql_bench_dir)
+    or mtr_error("Couldn't chdir to '$glob_mysql_bench_dir': $!");
 
   # FIXME write shorter....
 
@@ -2562,7 +2564,7 @@ sub mysqld_arguments ($$$$$$) {
     mtr_add_arg($args, "%s--server-id=%d", $prefix, $id);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
                 $master->[$idx]->{'path_mysock'});
-    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:128M:autoextend", $prefix);
+    mtr_add_arg($args, "%s--innodb_data_file_path=ibdata1:10M:autoextend", $prefix);
     mtr_add_arg($args, "%s--local-infile", $prefix);
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
@@ -2941,6 +2943,12 @@ sub im_start($$) {
   mtr_add_arg($args, "--defaults-file=%s",
               $instance_manager->{'defaults_file'});
 
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/im.trace",
+                $opt_vardir_trace);
+  }
+
   foreach my $opt (@{$opts})
   {
     mtr_add_arg($args, $opt);
@@ -3194,11 +3202,6 @@ sub run_mysqltest ($) {
 
   mtr_init_args(\$args);
 
-  if ( $opt_valgrind_mysqltest )
-  {
-    valgrind_arguments($args, \$exe);
-  }
-
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "-v");
@@ -3313,6 +3316,17 @@ sub run_mysqltest ($) {
   # ----------------------------------------------------------------------
   # Add arguments that should not go into the MYSQL_TEST env var
   # ----------------------------------------------------------------------
+
+  if ( $opt_valgrind_mysqltest )
+  {
+    # Prefix the Valgrind options to the argument list.
+    # We do this here, since we do not want to Valgrind the nested invocations
+    # of mysqltest; that would mess up the stderr output causing test failure.
+    my @args_saved = @$args;
+    mtr_init_args(\$args);
+    valgrind_arguments($args, \$exe);
+    mtr_add_arg($args, "%s", $_) for @args_saved;
+  }
 
   mtr_add_arg($args, "--test-file");
   mtr_add_arg($args, $tinfo->{'path'});
@@ -3581,15 +3595,17 @@ Options to control what engine/variation to run
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server
   skip-ssl              Dont start server with support for ssl connections
-  bench                 Run the benchmark suite FIXME
-  small-bench           FIXME
+  bench                 Run the benchmark suite
+  small-bench           Run the benchmarks with --small-tests --small-tables
 
 Options to control directories to use
-  vardir=DIR            The directory where files generated from the test run
-                        is stored(default: ./var). Specifying a ramdisk or tmpfs
-                        will speed up tests.
+  benchdir=DIR          The directory where the benchmark suite is stored
+                        (default: ../../mysql-bench)
   tmpdir=DIR            The directory where temporary files are stored
                         (default: ./var/tmp).
+  vardir=DIR            The directory where files generated from the test run
+                        is stored (default: ./var). Specifying a ramdisk or
+                        tmpfs will speed up tests.
 
 Options to control what test suites or cases to run
 
@@ -3604,8 +3620,9 @@ Options to control what test suites or cases to run
   skip-rpl              Skip the replication test cases.
   skip-im               Don't start IM, and skip the IM test cases
   skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
-  big-test              Pass "--big-test" to mysqltest which will set the environment
-                        variable BIG_TEST, which can be checked from test cases.
+  big-test              Pass "--big-test" to mysqltest which will set the
+                        environment variable BIG_TEST, which can be checked
+                        from test cases.
 
 Options that specify ports
 
@@ -3631,25 +3648,29 @@ Options to run test on running server
 
 Options for debugging the product
 
-  gdb                   Start the mysqld(s) in gdb
-  manual-gdb            Let user manually start mysqld in gdb, before running test(s)
-  manual-debug          Let user manually start mysqld in debugger, before running test(s)
+  client-ddd            Start mysqltest client in ddd
+  client-debugger=NAME  Start mysqltest in the selected debugger
   client-gdb            Start mysqltest client in gdb
   ddd                   Start mysqld in ddd
-  client-ddd            Start mysqltest client in ddd
+  debug                 Dump trace output for all servers and client programs
   debugger=NAME         Start mysqld in the selected debugger
-  client-debugger=NAME  Start mysqltest in the selected debugger
-  strace-client         FIXME
+  gdb                   Start the mysqld(s) in gdb
+  manual-debug          Let user manually start mysqld in debugger, before
+                        running test(s)
+  manual-gdb            Let user manually start mysqld in gdb, before running
+                        test(s)
   master-binary=PATH    Specify the master "mysqld" to use
   slave-binary=PATH     Specify the slave "mysqld" to use
+  strace-client         Create strace output for mysqltest client
 
 Options for coverage, profiling etc
 
   gcov                  FIXME
   gprof                 FIXME
-  valgrind              Run the "mysqltest" and "mysqld" executables using valgrind
-  valgrind-all          Same as "valgrind" but will also add "verbose" and "--show-reachable"
-                        flags to valgrind
+  valgrind              Run the "mysqltest" and "mysqld" executables using
+                        valgrind
+  valgrind-all          Same as "valgrind" but will also add "verbose" and
+                        "--show-reachable" flags to valgrind
   valgrind-mysqltest    Run the "mysqltest" executable with valgrind
   valgrind-mysqld       Run the "mysqld" executable with valgrind
   valgrind-options=ARGS Extra options to give valgrind
@@ -3658,10 +3679,10 @@ Options for coverage, profiling etc
 Misc options
 
   comment=STR           Write STR to the output
+  notimer               Don't show test case execution time
   script-debug          Debug this script itself
-  timer                 Show test case execution time
-  start-and-exit        Only initiate and start the "mysqld" servers, use the startup
-                        settings for the specified test case if any
+  start-and-exit        Only initiate and start the "mysqld" servers, use
+                        the startup settings for the specified test case if any
   start-dirty           Only start the "mysqld" servers without initiation
   fast                  Don't try to cleanup from earlier runs
   reorder               Reorder tests to get less server restarts
@@ -3676,7 +3697,6 @@ Deprecated options
 
 
 Options not yet described, or that I want to look into more
-  debug                 
   local                 
   local-master          
   netware               

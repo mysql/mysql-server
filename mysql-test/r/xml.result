@@ -468,6 +468,30 @@ extractValue(@xml, '/a/@b[substring(.,2,1)="1"]')
 select extractValue(@xml, '/a/@b[substring(.,2,1)="2"]');
 extractValue(@xml, '/a/@b[substring(.,2,1)="2"]')
 12 22
+SET @xml='<a><b>b1</b><b>b2</b></a>';
+SELECT extractValue(@xml, '/a/b[string-length("x")=1]');
+extractValue(@xml, '/a/b[string-length("x")=1]')
+b1 b2
+SELECT extractValue(@xml, '/a/b[string-length("xx")=2]');
+extractValue(@xml, '/a/b[string-length("xx")=2]')
+b1 b2
+SELECT extractValue(@xml, '/a/b[string-length("xxx")=2]');
+extractValue(@xml, '/a/b[string-length("xxx")=2]')
+
+SELECT extractValue(@xml, '/a/b[string-length("x")]');
+extractValue(@xml, '/a/b[string-length("x")]')
+b1
+SELECT extractValue(@xml, '/a/b[string-length("xx")]');
+extractValue(@xml, '/a/b[string-length("xx")]')
+b2
+SELECT extractValue(@xml, '/a/b[string-length()]');
+extractValue(@xml, '/a/b[string-length()]')
+b2
+SELECT extractValue(@xml, 'string-length()');
+ERROR HY000: XPATH syntax error: ''
+SELECT extractValue(@xml, 'string-length("x")');
+extractValue(@xml, 'string-length("x")')
+1
 SET @xml='<a b="b11" b="b12" b="b21" b="22"/>';
 select extractValue(@xml,'/a/@b');
 extractValue(@xml,'/a/@b')
@@ -609,9 +633,35 @@ extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin)
 select extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]');
 extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]')
 
+select ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1');
+ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1')
+test
 select extractValue('<e>1</e>','position()');
 ERROR HY000: XPATH syntax error: ''
 select extractValue('<e>1</e>','last()');
 ERROR HY000: XPATH syntax error: ''
 select extractValue('<e><a>1</a></e>','/e/');
 ERROR HY000: XPATH syntax error: ''
+set names utf8;
+select extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r');
+extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r')
+r
+select extractValue('<r><Ñ>Ñ</Ñ></r>','/r/Ñ');
+extractValue('<r><Ñ>Ñ</Ñ></r>','/r/Ñ')
+Ñ
+select extractValue('<Ñ r="r"/>','/Ñ/@r');
+extractValue('<Ñ r="r"/>','/Ñ/@r')
+r
+select extractValue('<r Ñ="Ñ"/>','/r/@Ñ');
+extractValue('<r Ñ="Ñ"/>','/r/@Ñ')
+Ñ
+DROP PROCEDURE IF EXISTS p2;
+CREATE PROCEDURE p2 ()
+BEGIN
+DECLARE p LONGTEXT CHARACTER SET UTF8 DEFAULT '<Ñ><r>A</r></Ñ>';
+SELECT EXTRACTVALUE(p,'/Ñ/r');
+END//
+CALL p2();
+EXTRACTVALUE(p,'/Ñ/r')
+A
+DROP PROCEDURE p2;

@@ -51,8 +51,8 @@ SHOW CREATE TABLE t1;
 # Okay lets see how it holds up to table changes
 --echo --- Check that simple Alter statements are replicated correctly --
 
-ALTER TABLE t1 MODIFY vc TEXT;
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(id, total);
+ALTER TABLE t1 MODIFY vc TEXT;
 
 --echo --- Show the new improved table on the master ---
 
@@ -117,6 +117,7 @@ SHOW CREATE TABLE t1;
 
 --echo --- Check that simple Alter statements are replicated correctly ---
 
+ALTER TABLE t1 ADD PRIMARY KEY(t,id);
 ALTER TABLE t1 MODIFY vc TEXT;
 
 --echo --- Show the new improved table on the master ---
@@ -183,6 +184,7 @@ SHOW CREATE TABLE t1;
 
 --echo --- Check that simple Alter statements are replicated correctly ---
 
+ALTER TABLE t1 ADD PRIMARY KEY(id);
 ALTER TABLE t1 MODIFY vc TEXT;
 
 --echo --- Show the new improved table on the master ---
@@ -239,6 +241,7 @@ SHOW CREATE TABLE t1;
 
 --echo --- Check that simple Alter statements are replicated correctly ---
 
+ALTER TABLE t1 ADD PRIMARY KEY(t,id);
 ALTER TABLE t1 MODIFY vc TEXT;
 
 --echo --- Show the new improved table on the master ---

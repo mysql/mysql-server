@@ -390,9 +390,11 @@ static SYMBOL symbols[] = {
   { "PACK_KEYS",	SYM(PACK_KEYS_SYM)},
   { "PARSER",           SYM(PARSER_SYM)},
   { "PARTIAL",		SYM(PARTIAL)},
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   { "PARTITION",        SYM(PARTITION_SYM)},
   { "PARTITIONING",     SYM(PARTITIONING_SYM)},
   { "PARTITIONS",       SYM(PARTITIONS_SYM)},
+#endif
   { "PASSWORD",		SYM(PASSWORD)},
   { "PHASE",            SYM(PHASE_SYM)},
   { "PLUGIN",           SYM(PLUGIN_SYM)},

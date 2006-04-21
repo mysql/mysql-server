@@ -535,6 +535,8 @@ NdbBlob::setTableKeyValue(NdbOperation* anOp)
       pos += (len + 3) / 4;
     }
   }
+  if (theNdbOp->theDistrKeyIndicator_)
+    anOp->setPartitionId(theNdbOp->getPartitionId());
   assert(pos == theKeyBuf.size / 4);
   DBUG_RETURN(0);
 }

@@ -146,4 +146,4 @@ select * from t1 order by nid;
 # cleanup
 --connection master
 DROP TABLE t1;
-sync_slave_with_master;
+-- source include/master-slave-end.inc

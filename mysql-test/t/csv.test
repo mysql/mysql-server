@@ -1477,8 +1477,29 @@ CREATE TABLE test_repair_table5 (
 CHECK TABLE test_repair_table5;
 REPAIR TABLE test_repair_table5;
 SELECT * FROM test_repair_table5;
-DROP TABLE test_repair_table5;
+INSERT INTO test_repair_table5 VALUES (1, 102, "CORRECT", 1876);
+SELECT * FROM test_repair_table5;
 
+# Corrupt a table -- put a row with wrong # of columns at end of file
+--exec perl -e 'print "\"1\",\"101\",\"IBM\"\n";' >> $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+
+FLUSH TABLES;
+CHECK TABLE test_repair_table5;
+REPAIR TABLE test_repair_table5;
+# The correct record inserted should still be in the file
+SELECT * FROM test_repair_table5;
+INSERT INTO test_repair_table5 VALUES (1, 102, "CORRECT2", 1876);
+SELECT * FROM test_repair_table5;
+
+# Corrupt table again -- put a row with wrong # of columns at end of file
+--exec perl -e 'print "\"1\",\"101\",\"IBM\"\n";' >> $MYSQLTEST_VARDIR/master-data/test/test_repair_table5.CSV
+
+FLUSH TABLES;
+CHECK TABLE test_repair_table5;
+REPAIR TABLE test_repair_table5;
+# The two correct records inserted should still be in the file
+SELECT * FROM test_repair_table5;
+DROP TABLE test_repair_table5;
 
 #
 # BUG#13406 - incorrect amount of "records deleted"

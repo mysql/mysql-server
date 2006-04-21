@@ -36,10 +36,6 @@
 #include "sql_bitmap.h"
 #include "sql_array.h"
 
-#ifdef __EMX__
-#undef write  /* remove pthread.h macro definition for EMX */
-#endif
-
 /* TODO convert all these three maps to Bitmap classes */
 typedef ulonglong table_map;          /* Used for table bits in join */
 #if MAX_INDEXES <= 64
@@ -206,7 +202,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define IF_NETWARE(A,B) (B)
 #endif
 
-#if defined(__WIN__) || defined(OS2)
+#if defined(__WIN__)
 #define IF_WIN(A,B) (A)
 #undef	FLUSH_TIME
 #define FLUSH_TIME	1800			/* Flush every half hour */
@@ -1300,6 +1296,7 @@ extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack;
+extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
 #ifdef HAVE_ROW_BASED_REPLICATION
@@ -1354,6 +1351,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
+       LOCK_prepared_stmt_count,
        LOCK_bytes_sent, LOCK_bytes_received;
 #ifdef HAVE_OPENSSL
 extern pthread_mutex_t LOCK_des_key_file;

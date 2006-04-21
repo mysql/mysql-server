@@ -254,10 +254,6 @@ int main(int argc, char **argv)
 
   MY_INIT(argv[0]);
 
-  /* Seed the random number generator if we will be using it. */
-  if (auto_generate_sql)
-    srandom((uint)time(NULL));
-
   load_defaults("my",load_default_groups,&argc,&argv);
   defaults_argv=argv;
   if (get_options(&argc,&argv))
@@ -266,6 +262,10 @@ int main(int argc, char **argv)
     my_end(0);
     exit(1);
   }
+
+  /* Seed the random number generator if we will be using it. */
+  if (auto_generate_sql)
+    srandom((uint)time(NULL));
 
   /* globals? Yes, so we only have to run strlen once */
   delimiter_length= strlen(delimiter);
@@ -300,7 +300,8 @@ int main(int argc, char **argv)
                              NULL, opt_mysql_port,
                              opt_mysql_unix_port, client_flag)))
     {
-      fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
+      fprintf(stderr,"%s: Error when connecting to server: %s\n",
+              my_progname,mysql_error(&mysql));
       free_defaults(defaults_argv);
       my_end(0);
       exit(1);
@@ -752,8 +753,12 @@ get_options(int *argc,char ***argv)
   if (!user)
     user= (char *)"root";
 
-  if (create_string || auto_generate_sql )
+  if (create_string || auto_generate_sql)
+  {
+    if (verbose >= 1)
+      fprintf(stderr, "Turning off preserve-schema!\n");
     opt_preserve= FALSE;
+  }
 
   if (auto_generate_sql && (create_string || user_supplied_query))
   {
@@ -800,6 +805,14 @@ get_options(int *argc,char ***argv)
       DBUG_PRINT("info", ("auto-generated insert is %s", query_statements->string));
       query_statements->next= build_query_string();
       DBUG_PRINT("info", ("auto-generated is %s", query_statements->next->string));
+      if (verbose >= 1)
+      {
+        fprintf(stderr, "auto-generated insert is:\n");
+        fprintf(stderr,  "%s\n", query_statements->string);
+        fprintf(stderr, "auto-generated is:\n");
+        fprintf(stderr,  "%s\n", query_statements->next->string);
+      }
+
   }
   else
   {
@@ -868,37 +881,48 @@ get_options(int *argc,char ***argv)
 }
 
 
+static int run_query(MYSQL *mysql, const char *query, int len)
+{
+  if (opt_only_print)
+  {
+    printf("%.*s;\n", len, query);
+    return 0;
+  }
+
+  if (verbose >= 2)
+    printf("%.*s;\n", len, query);
+  return mysql_real_query(mysql, query, len);
+}
+
+
+
 static int
 create_schema(MYSQL *mysql, const char *db, statement *stmt, 
               statement *engine_stmt)
 {
   char query[HUGE_STRING_LENGTH];
   statement *ptr;
-
+  int len;
   DBUG_ENTER("create_schema");
 
-  snprintf(query, HUGE_STRING_LENGTH, "CREATE SCHEMA `%s`", db);
+  len= snprintf(query, HUGE_STRING_LENGTH, "CREATE SCHEMA `%s`", db);
   DBUG_PRINT("info", ("query %s", query)); 
-  if (opt_only_print) 
+
+  if (run_query(mysql, query, len))
   {
-    printf("%s;\n", query);
-  }
-  else
-  {
-    if (mysql_query(mysql, query))
-    {
-      fprintf(stderr,"%s: Cannot create schema %s : %s\n", my_progname, db,
-              mysql_error(mysql));
-      exit(1);
-    }
+    fprintf(stderr,"%s: Cannot create schema %s : %s\n", my_progname, db,
+            mysql_error(mysql));
+    exit(1);
   }
 
-  if (opt_only_print) 
+  if (opt_only_print)
   {
     printf("use %s;\n", db);
   }
   else
   {
+    if (verbose >= 2)
+      printf("%s;\n", query);
     if (mysql_select_db(mysql,  db))
     {
       fprintf(stderr,"%s: Cannot select schema '%s': %s\n",my_progname, db,
@@ -909,64 +933,45 @@ create_schema(MYSQL *mysql, const char *db, statement *stmt,
 
   if (engine_stmt)
   {
-    snprintf(query, HUGE_STRING_LENGTH, "set storage_engine=`%s`",
-             engine_stmt->string);
-    if (opt_only_print) 
+    len= snprintf(query, HUGE_STRING_LENGTH, "set storage_engine=`%s`",
+                  engine_stmt->string);
+    if (run_query(mysql, query, len))
     {
-      printf("%s;\n", query);
-    }
-    else
-    {
-      if (mysql_query(mysql, query))
-      {
-        fprintf(stderr,"%s: Cannot set default engine: %s\n", my_progname,
-                mysql_error(mysql));
-        exit(1);
-      }
+      fprintf(stderr,"%s: Cannot set default engine: %s\n", my_progname,
+              mysql_error(mysql));
+      exit(1);
     }
   }
 
   for (ptr= stmt; ptr && ptr->length; ptr= ptr->next)
   {
-    if (opt_only_print) 
+    if (run_query(mysql, ptr->string, ptr->length))
     {
-      printf("%.*s;\n", (uint)ptr->length, ptr->string);
-    }
-    else
-    {
-      if (mysql_real_query(mysql, ptr->string, ptr->length))
-      {
-        fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
-                my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
-        exit(1);
-      }
+      fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+              my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+      exit(1);
     }
   }
 
   DBUG_RETURN(0);
 }
 
-
 static int
 drop_schema(MYSQL *mysql, const char *db)
 {
   char query[HUGE_STRING_LENGTH];
-
+  int len;
   DBUG_ENTER("drop_schema");
-  snprintf(query, HUGE_STRING_LENGTH, "DROP SCHEMA IF EXISTS `%s`", db);
-  if (opt_only_print) 
+  len= snprintf(query, HUGE_STRING_LENGTH, "DROP SCHEMA IF EXISTS `%s`", db);
+
+  if (run_query(mysql, query, len))
   {
-    printf("%s;\n", query);
+    fprintf(stderr,"%s: Cannot drop database '%s' ERROR : %s\n",
+            my_progname, db, mysql_error(mysql));
+    exit(1);
   }
-  else
-  {
-    if (mysql_query(mysql, query))
-    {
-      fprintf(stderr,"%s: Cannot drop database '%s' ERROR : %s\n",
-              my_progname, db, mysql_error(mysql));
-      exit(1);
-    }
-  }
+
+
 
   DBUG_RETURN(0);
 }
@@ -1033,7 +1038,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
       case 0:
         /* child */
         DBUG_PRINT("info", ("fork returned 0, calling task(\"%s\"), pid %d gid %d",
-                            stmts->string, pid, getgid()));
+                            stmts ? stmts->string : "", pid, getgid()));
         if (verbose >= 2)
           fprintf(stderr,
                   "%s: fork returned 0, calling task pid %d gid %d\n",
@@ -1119,7 +1124,7 @@ run_task(thread_context *con)
   statement *ptr;
 
   DBUG_ENTER("run_task");
-  DBUG_PRINT("info", ("task script \"%s\"", con->stmt->string));
+  DBUG_PRINT("info", ("task script \"%s\"", con->stmt ? con->stmt->string : ""));
 
   if (!(mysql= mysql_init(NULL)))
     goto end;
@@ -1132,42 +1137,36 @@ run_task(thread_context *con)
   my_lock(lock_file, F_RDLCK, 0, F_TO_EOF, MYF(0));
   if (!opt_only_print)
   {
-    if (!(mysql= mysql_real_connect(mysql, host, user, opt_password,
-                                    create_schema_string,
-                                    opt_mysql_port,
-                                    opt_mysql_unix_port,
-                                    0)))
+    if (!(mysql_real_connect(mysql, host, user, opt_password,
+                             create_schema_string,
+                             opt_mysql_port,
+                             opt_mysql_unix_port,
+                             0)))
     {
       fprintf(stderr,"%s: %s\n",my_progname,mysql_error(mysql));
       goto end;
     }
   }
   DBUG_PRINT("info", ("connected."));
-
+  if (verbose >= 3)
+    fprintf(stderr, "connected!\n");
   queries= 0;
 
 limit_not_met:
     for (ptr= con->stmt; ptr && ptr->length; ptr= ptr->next)
     {
-      if (opt_only_print)
+      if (run_query(mysql, ptr->string, ptr->length))
       {
-        printf("%.*s;\n", (uint)ptr->length, ptr->string);
+        fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+        goto end;
       }
-      else
+      if (mysql_field_count(mysql))
       {
-        if (mysql_real_query(mysql, ptr->string, ptr->length))
-        {
-          fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
-                  my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
-          goto end;
-        }
-        if (mysql_field_count(mysql))
-        {
-          result= mysql_store_result(mysql);
-          while ((row = mysql_fetch_row(result)))
-            counter++;
-          mysql_free_result(result);
-        }
+        result= mysql_store_result(mysql);
+        while ((row = mysql_fetch_row(result)))
+          counter++;
+        mysql_free_result(result);
       }
       queries++;
 
@@ -1175,8 +1174,8 @@ limit_not_met:
         goto end;
     }
 
-  if (con->limit && queries < con->limit)
-    goto limit_not_met;
+    if (!con->stmt && con->limit && queries < con->limit)
+      goto limit_not_met;
 
 end:
 

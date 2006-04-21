@@ -1346,16 +1346,17 @@ public:
   uchar *bit_ptr;     // position in record where 'uneven' bits store
   uchar bit_ofs;      // offset to 'uneven' high bits
   uint bit_len;       // number of 'uneven' high bits
+  uint bytes_in_rec;
   Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
             uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
             enum utype unireg_check_arg, const char *field_name_arg);
   enum_field_types type() const { return FIELD_TYPE_BIT; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BIT; }
-  uint32 key_length() const { return (uint32) field_length + (bit_len > 0); }
-  uint32 max_length() { return (uint32) field_length * 8 + bit_len; }
+  uint32 key_length() const { return (uint32) (field_length + 7) / 8; }
+  uint32 max_length() { return field_length; }
   uint size_of() const { return sizeof(*this); }
   Item_result result_type () const { return INT_RESULT; }
-  void reset(void) { bzero(ptr, field_length); }
+  void reset(void) { bzero(ptr, bytes_in_rec); }
   int store(const char *to, uint length, CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
@@ -1378,9 +1379,8 @@ public:
   { Field_bit::store(buff, length, &my_charset_bin); }
   void sort_string(char *buff, uint length)
   { get_key_image(buff, length, itRAW); }
-  uint32 pack_length() const 
-  { return (uint32) field_length + (bit_len > 0); }
-  uint32 pack_length_in_rec() const { return field_length; }
+  uint32 pack_length() const { return (uint32) (field_length + 7) / 8; }
+  uint32 pack_length_in_rec() const { return bytes_in_rec; }
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
@@ -1402,12 +1402,10 @@ public:
 
 class Field_bit_as_char: public Field_bit {
 public:
-  uchar create_length;
   Field_bit_as_char(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                     uchar null_bit_arg,
                     enum utype unireg_check_arg, const char *field_name_arg);
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
-  uint32 max_length() { return (uint32) create_length; }
   uint size_of() const { return sizeof(*this); }
   int store(const char *to, uint length, CHARSET_INFO *charset);
   int store(double nr) { return Field_bit::store(nr); }

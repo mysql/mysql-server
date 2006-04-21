@@ -870,7 +870,6 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   TABLE *table;
   bool error;
   uint closed_log_tables= 0, lock_logger= 0;
-  TABLE_LIST *tmp_table_list;
   uint path_length;
   DBUG_ENTER("mysql_truncate");
 

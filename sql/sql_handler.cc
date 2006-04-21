@@ -337,7 +337,6 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
                    ha_rows select_limit_cnt, ha_rows offset_limit_cnt)
 {
   TABLE_LIST    *hash_tables;
-  TABLE         **table_ptr;
   TABLE         *table;
   MYSQL_LOCK    *lock;
   List<Item>	list;

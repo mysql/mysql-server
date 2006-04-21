@@ -101,7 +101,8 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                              const char *old_db= 0,
                              const char *old_table_name= 0);
 int ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
-                                 NDB_SHARE *share);
+                                 NDB_SHARE *share,
+                                 const char *type_str);
 void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl);
 int ndb_create_table_from_engine(THD *thd, const char *db,
@@ -112,12 +113,13 @@ pthread_handler_t ndb_binlog_thread_func(void *arg);
 /*
   table cluster_replication.apply_status
 */
-void ndbcluster_setup_binlog_table_shares(THD *thd);
+int ndbcluster_setup_binlog_table_shares(THD *thd);
 extern NDB_SHARE *apply_status_share;
 extern NDB_SHARE *schema_share;
 
 extern THD *injector_thd;
 extern my_bool ndb_binlog_running;
+extern my_bool ndb_binlog_tables_inited;
 
 bool
 ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,

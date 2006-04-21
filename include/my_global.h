@@ -24,13 +24,6 @@
 #define HAVE_EXTERNAL_CLIENT
 #endif
 
-#if defined( __EMX__) && !defined( MYSQL_SERVER)
-/* moved here to use below VOID macro redefinition */
-#define INCL_BASE
-#define INCL_NOPMAPI
-#include <os2.h>
-#endif /* __EMX__ */
-
 #ifdef __CYGWIN__
 /* We use a Unix API, so pretend it's not Windows */
 #undef WIN
@@ -72,8 +65,6 @@
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #include <config-win.h>
-#elif defined(OS2)
-#include <config-os2.h>
 #elif defined(__NETWARE__)
 #include <my_config.h>
 #include <config-netware.h>
@@ -215,10 +206,8 @@
 /* The client defines this to avoid all thread code */
 #if defined(UNDEF_THREADS_HACK)
 #undef THREAD
-#undef HAVE_mit_thread
 #undef HAVE_LINUXTHREADS
 #undef HAVE_NPTL
-#undef HAVE_UNIXWARE7_THREADS
 #endif
 
 #ifdef HAVE_THREADS_WITHOUT_SOCKETS
@@ -263,7 +252,7 @@
 #endif
 #endif
 
-#if defined(THREAD) && !defined(__WIN__) && !defined(OS2)
+#if defined(THREAD) && !defined(__WIN__)
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
 #endif
@@ -274,10 +263,6 @@
 #if !defined(_THREAD_SAFE) && !defined(_AIX)
 #define _THREAD_SAFE            /* Required for OSF1 */
 #endif
-#ifndef HAVE_mit_thread
-#ifdef HAVE_UNIXWARE7_THREADS
-#include <thread.h>
-#else
 #if defined(HPUX10) || defined(HPUX11)
 C_MODE_START			/* HPUX needs this, signal.h bug */
 #include <pthread.h>
@@ -285,8 +270,6 @@ C_MODE_END
 #else
 #include <pthread.h>		/* AIX must have this included first */
 #endif
-#endif /* HAVE_UNIXWARE7_THREADS */
-#endif /* HAVE_mit_thread */
 #if !defined(SCO) && !defined(_REENTRANT)
 #define _REENTRANT	1	/* Threads requires reentrant code */
 #endif
@@ -468,9 +451,7 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define POSIX_MISTAKE 1		/* regexp: Fix stupid spec error */
 #define USE_REGEX 1		/* We want the use the regex library */
 /* Do not define for ultra sparcs */
-#ifndef OS2
 #define USE_BMOVE512 1		/* Use this unless system bmove is faster */
-#endif
 
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
@@ -515,7 +496,7 @@ int	__void__;
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #endif
 
-#if defined(__EMX__) || !defined(HAVE_UINT)
+#if !defined(HAVE_UINT)
 #undef HAVE_UINT
 #define HAVE_UINT
 typedef unsigned int uint;
@@ -618,21 +599,11 @@ C_MODE_START
 typedef int	(*qsort_cmp)(const void *,const void *);
 typedef int	(*qsort_cmp2)(void*, const void *,const void *);
 C_MODE_END
-#ifdef HAVE_mit_thread
-#define qsort_t void
-#undef QSORT_TYPE_IS_VOID
-#define QSORT_TYPE_IS_VOID
-#else
 #define qsort_t RETQSORTTYPE	/* Broken GCC cant handle typedef !!!! */
-#endif
-#ifdef HAVE_mit_thread
-#define size_socket socklen_t	/* Type of last arg to accept */
-#else
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 typedef SOCKET_SIZE_TYPE size_socket;
-#endif
 
 #ifndef SOCKOPT_OPTLEN_TYPE
 #define SOCKOPT_OPTLEN_TYPE size_socket
@@ -693,13 +664,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_DEVCHAR	':'
 
 #ifndef FN_LIBCHAR
-#ifdef __EMX__
-#define FN_LIBCHAR	'\\'
-#define FN_ROOTDIR	"\\"
-#else
 #define FN_LIBCHAR	'/'
 #define FN_ROOTDIR	"/"
-#endif
 #endif
 #define MY_NFILE	64	/* This is only used to save filenames */
 #ifndef OS_FILE_LIMIT
@@ -747,11 +713,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 #undef remove		/* Crashes MySQL on SCO 5.0.0 */
 #ifndef __WIN__
-#ifdef OS2
-#define closesocket(A)	soclose(A)
-#else
 #define closesocket(A)	close(A)
-#endif
 #ifndef ulonglong2double
 #define ulonglong2double(A) ((double) (ulonglong) (A))
 #define my_off_t2double(A)  ((double) (my_off_t) (A))
@@ -764,19 +726,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define ulong_to_double(X) ((double) (ulong) (X))
 #define SET_STACK_SIZE(X)	/* Not needed on real machines */
 
-#if !defined(HAVE_mit_thread) && !defined(HAVE_STRTOK_R)
+#if !defined(HAVE_STRTOK_R)
 #define strtok_r(A,B,C) strtok((A),(B))
-#endif
-
-/* Remove some things that mit_thread break or doesn't support */
-#if defined(HAVE_mit_thread) && defined(THREAD)
-#undef HAVE_PREAD
-#undef HAVE_REALPATH
-#undef HAVE_MLOCK
-#undef HAVE_TEMPNAM				/* Use ours */
-#undef HAVE_PTHREAD_SETPRIO
-#undef HAVE_FTRUNCATE
-#undef HAVE_READLINK
 #endif
 
 /* This is from the old m-machine.h file */
@@ -960,7 +911,7 @@ typedef ulonglong my_off_t;
 typedef unsigned long my_off_t;
 #endif
 #define MY_FILEPOS_ERROR	(~(my_off_t) 0)
-#if !defined(__WIN__) && !defined(OS2)
+#if !defined(__WIN__)
 typedef off_t os_off_t;
 #endif
 
@@ -973,16 +924,6 @@ typedef off_t os_off_t;
 #define SOCKET_EADDRINUSE WSAEADDRINUSE
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
-#elif defined(OS2)
-#define socket_errno	sock_errno()
-#define SOCKET_EINTR	SOCEINTR
-#define SOCKET_EAGAIN	SOCEINPROGRESS
-#define SOCKET_ETIMEDOUT SOCKET_EINTR
-#define SOCKET_EWOULDBLOCK SOCEWOULDBLOCK
-#define SOCKET_EADDRINUSE SOCEADDRINUSE
-#define SOCKET_ENFILE	SOCENFILE
-#define SOCKET_EMFILE	SOCEMFILE
-#define closesocket(A)	soclose(A)
 #else /* Unix */
 #define socket_errno	errno
 #define closesocket(A)	close(A)

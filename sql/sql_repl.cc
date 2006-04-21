@@ -464,6 +464,12 @@ impossible position";
            (rli->group_master_log_pos)
          */
          int4store((char*) packet->ptr()+LOG_POS_OFFSET+1, 0);
+         /*
+           if reconnect master sends FD event with `created' as 0
+           to avoid destroying temp tables.
+          */
+         int4store((char*) packet->ptr()+LOG_EVENT_MINIMAL_HEADER_LEN+
+                   ST_CREATED_OFFSET+1, (ulong) 0);
          /* send it */
          if (my_net_write(net, (char*)packet->ptr(), packet->length()))
          {

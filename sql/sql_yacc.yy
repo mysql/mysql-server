@@ -3639,7 +3639,7 @@ part_definition:
         ;
 
 part_name:
-        ident_or_text
+        ident
         {
           LEX *lex= Lex;
           partition_info *part_info= lex->part_info;
@@ -3719,6 +3719,11 @@ part_func_max:
           if (Lex->part_info->defined_max_value)
           {
             yyerror(ER(ER_PARTITION_MAXVALUE_ERROR));
+            YYABORT;
+          }
+          if (Lex->part_info->curr_part_elem->has_null_value)
+          {
+            yyerror(ER(ER_NULL_IN_VALUES_LESS_THAN));
             YYABORT;
           }
         }

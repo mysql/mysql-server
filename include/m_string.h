@@ -34,25 +34,12 @@
 /* need by my_vsnprintf */
 #include <stdarg.h> 
 
-/* Correct some things for UNIXWARE7 */
-#ifdef HAVE_UNIXWARE7_THREADS
-#undef HAVE_STRINGS_H
-#undef HAVE_MEMORY_H
-#define HAVE_MEMCPY
-#ifndef HAVE_MEMMOVE
-#define HAVE_MEMMOVE
-#endif
-#undef HAVE_BCMP
-#undef bcopy
-#undef bcmp
-#undef bzero
-#endif /* HAVE_UNIXWARE7_THREADS */
 #ifdef _AIX
 #undef HAVE_BCMP
 #endif
 
 /*  This is needed for the definitions of bzero... on solaris */
-#if defined(HAVE_STRINGS_H) && !defined(HAVE_mit_thread)
+#if defined(HAVE_STRINGS_H)
 #include <strings.h>
 #endif
 
@@ -84,7 +71,7 @@
 # define bmove_align(A,B,C)    memcpy((A),(B),(C))
 #endif
 
-#if defined(__cplusplus) && !defined(OS2)
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -95,7 +82,7 @@ extern "C" {
 extern void *(*my_str_malloc)(size_t);
 extern void (*my_str_free)(void *);
 
-#if defined(HAVE_STPCPY) && !defined(HAVE_mit_thread)
+#if defined(HAVE_STPCPY)
 #define strmov(A,B) stpcpy((A),(B))
 #ifndef stpcpy
 extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
@@ -243,7 +230,7 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #ifdef HAVE_LONG_LONG
 extern char *longlong2str(longlong val,char *dst,int radix);
 extern char *longlong10_to_str(longlong val,char *dst,int radix);
-#if (!defined(HAVE_STRTOULL) || defined(HAVE_mit_thread)) || defined(NO_STRTOLL_PROTO)
+#if (!defined(HAVE_STRTOULL) || defined(NO_STRTOLL_PROTO))
 extern longlong strtoll(const char *str, char **ptr, int base);
 extern ulonglong strtoull(const char *str, char **ptr, int base);
 #endif
@@ -256,7 +243,7 @@ extern int my_vsnprintf( char *str, size_t n,
                                 const char *format, va_list ap );
 extern int my_snprintf(char* to, size_t n, const char* fmt, ...);
 
-#if defined(__cplusplus) && !defined(OS2)
+#if defined(__cplusplus)
 }
 #endif
 #endif

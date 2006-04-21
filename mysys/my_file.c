@@ -33,7 +33,7 @@
     May be more or less than max_file_limit!
 */
 
-#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE) && !defined(HAVE_mit_thread)
+#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE)
 
 #ifndef RLIM_INFINITY
 #define RLIM_INFINITY ((uint) 0xffffffff)
@@ -70,25 +70,6 @@ static uint set_max_open_files(uint max_file_limit)
   }
   DBUG_PRINT("exit",("max_file_limit: %u", max_file_limit));
   DBUG_RETURN(max_file_limit);
-}
-
-#elif defined (OS2)
-
-static uint set_max_open_files(uint max_file_limit)
-{
-  LONG     cbReqCount;
-  ULONG    cbCurMaxFH0;
-  APIRET   ulrc;
-  DBUG_ENTER("set_max_open_files");
-
-  /* get current limit */
-  cbReqCount = 0;
-  DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH0);
-
-  /* set new limit */
-  if ((cbReqCount = max_file_limit - cbCurMaxFH0) > 0)
-    ulrc = DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH);
-  DBUG_RETURN(cbCurMaxFH0);
 }
 
 #else

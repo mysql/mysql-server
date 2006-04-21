@@ -1596,9 +1596,9 @@ wait_for_position:
       It may be that the slave SQL thread has not started yet, though START
       SLAVE has been issued ?
     */
-    if (tries++ == 3)
+    if (tries++ == 30)
       die("could not sync with master ('%s' returned NULL)", query_buf);
-    sleep(1); /* So at most we will wait 3 seconds and make 4 tries */
+    sleep(1); /* So at most we will wait 30 seconds and make 31 tries */
     mysql_free_result(res);
     goto wait_for_position;
   }
@@ -1664,14 +1664,14 @@ int do_save_master_pos()
     {
       ulonglong epoch=0, tmp_epoch= 0;
       int count= 0;
-
-      do
+      int do_continue= 1;
+      while (do_continue)
       {
         const char binlog[]= "binlog";
         const char latest_trans_epoch[]=
           "latest_trans_epoch=";
-        const char latest_applied_binlog_epoch[]=
-          "latest_applied_binlog_epoch=";
+        const char latest_handled_binlog_epoch[]=
+          "latest_handled_binlog_epoch=";
         if (count)
           sleep(1);
         if (mysql_query(mysql, query= "show engine ndb status"))
@@ -1701,26 +1701,32 @@ int do_save_master_pos()
                     start_lineno, latest_trans_epoch, query);
             }
             /* latest_applied_binlog_epoch */
-            while (*status && strncmp(status, latest_applied_binlog_epoch,
-                                      sizeof(latest_applied_binlog_epoch)-1))
+            while (*status && strncmp(status, latest_handled_binlog_epoch,
+                                      sizeof(latest_handled_binlog_epoch)-1))
               status++;
             if (*status)
             {
-              status+= sizeof(latest_applied_binlog_epoch)-1;
+              status+= sizeof(latest_handled_binlog_epoch)-1;
               tmp_epoch= strtoull(status, (char**) 0, 10);
             }
             else
               die("line %u: result does not contain '%s' in '%s'",
-                  start_lineno, latest_applied_binlog_epoch, query);
+                  start_lineno, latest_handled_binlog_epoch, query);
             break;
           }
         }
-        mysql_free_result(res);
         if (!row)
           die("line %u: result does not contain '%s' in '%s'",
               start_lineno, binlog, query);
         count++;
-      } while (tmp_epoch < epoch && count <= 3);
+        if (tmp_epoch >= epoch)
+          do_continue= 0;
+        else if (count > 30)
+        {
+          break;
+        }
+        mysql_free_result(res);
+      }
     }
   }
 #endif
@@ -5088,6 +5094,35 @@ static void init_var_hash(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
+static void mark_progress(int line)
+{
+#ifdef NOT_YET
+  static FILE* fp = NULL;
+  static double first;
+
+  struct timeval tv;
+  double now;
+
+  if (!fp)
+  {
+
+    fp = fopen("/tmp/mysqltest_progress.log", "wt");
+
+    if (!fp)
+    {
+      abort();
+    }
+
+    gettimeofday(&tv, NULL);
+    first = tv.tv_sec * 1e6 + tv.tv_usec;
+  }
+
+  gettimeofday(&tv, NULL);
+  now = tv.tv_sec * 1e6 + tv.tv_usec;
+
+  fprintf(fp, "%d %f\n", parser.current_line, (now - first) / 1e6);
+#endif
+}
 
 int main(int argc, char **argv)
 {
@@ -5447,6 +5482,7 @@ int main(int argc, char **argv)
     }
 
     parser.current_line += current_line_inc;
+    mark_progress(parser.current_line);
   }
 
   start_lineno= 0;
