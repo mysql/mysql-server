@@ -453,9 +453,17 @@ args: -n Bug16772 T1
 #cmd: testSystemRestart
 #args: -n Bug18385 T1
 #
-max-time: 500
+max-time: 1000
 cmd: testNodeRestart
 args: -n Bug18414 T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug18612 T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug18612SR T1
 
 #
 # DICT TESTS

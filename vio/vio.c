@@ -147,7 +147,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
     sprintf(vio->desc,
 	    (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
 	    vio->sd);
-#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
+#if !defined(__WIN__)
 #if !defined(NO_FCNTL_NONBLOCK)
     /*
       We call fcntl() to set the flags and then immediately read them back
@@ -166,7 +166,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
     (void) ioctl(sd,FIOSNBIO,0);
     vio->fcntl_mode &= ~O_NONBLOCK;
 #endif
-#else /* !defined(__WIN__) && !defined(__EMX__) */
+#else /* !defined(__WIN__) */
     {
       /* set to blocking mode by default */
       ulong arg=0, r;

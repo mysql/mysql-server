@@ -5829,3 +5829,11 @@ ER_PARTITION_NO_TEMPORARY
 ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
         eng "This partition function is not allowed"
         swe "Denna partitioneringsfunktion är inte tillåten"
+ER_NULL_IN_VALUES_LESS_THAN
+        eng "Not allowed to use NULL value in VALUES LESS THAN"
+        swe "Det är inte tillåtet att använda NULL-värden i VALUES LESS THAN"
+ER_WRONG_PARTITION_NAME
+        eng "Incorrect partition name"
+        swe "Felaktigt partitionsnamn"
+ER_MAX_PREPARED_STMT_COUNT_REACHED 42000
+        eng "Can't create more than max_prepared_stmt_count statements (current value: %lu)"

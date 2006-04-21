@@ -144,17 +144,6 @@ sub spawn_impl ($$$$$$$$) {
 
       $SIG{INT}= 'DEFAULT';         # Parent do some stuff, we don't
 
-      if ( $::glob_cygwin_shell and $mode eq 'test' )
-      {
-        # Programs started from mysqltest under Cygwin, are to
-        # execute them within Cygwin. Else simple things in test
-        # files like
-        # --system "echo 1 > file"
-        # will fail.
-        # FIXME not working :-(
-#       $ENV{'COMSPEC'}= "$::glob_cygwin_shell -c";
-      }
-
       my $log_file_open_mode = '>';
 
       if ($spawn_opts and $spawn_opts->{'append_log_file'})
@@ -164,7 +153,15 @@ sub spawn_impl ($$$$$$$$) {
 
       if ( $output )
       {
-        if ( ! open(STDOUT,$log_file_open_mode,$output) )
+	if ( $::glob_win32_perl )
+	{
+	  # Don't redirect stdout on ActiveState perl since this is
+          # just another thread in the same process.
+          # Should be fixed so that the thread that is created with fork
+          # executes the exe in another process and wait's for it to return.
+          # In the meanwhile, we get all the output from mysqld's to screen
+	}
+        elsif ( ! open(STDOUT,$log_file_open_mode,$output) )
         {
           mtr_child_error("can't redirect STDOUT to \"$output\": $!");
         }
@@ -216,8 +213,7 @@ sub spawn_parent_impl {
     {
       # Simple run of command, we wait for it to return
       my $ret_pid= waitpid($pid,0);
-
-      if ( $ret_pid <= 0 )
+      if ( $ret_pid != $pid )
       {
         mtr_error("$path ($pid) got lost somehow");
       }
@@ -245,7 +241,6 @@ sub spawn_parent_impl {
         # Someone terminated, don't know who. Collect
         # status info first before $? is lost,
         # but not $exit_value, this is flagged from
-        # 
 
         my $timer_name= mtr_timer_timeout($::glob_timers, $ret_pid);
         if ( $timer_name )
@@ -310,7 +305,7 @@ sub spawn_parent_impl {
 
         $ret_pid= waitpid($pid,0);
 
-        if ( $ret_pid == -1 )
+        if ( $ret_pid != $pid )
         {
           mtr_error("$path ($pid) got lost somehow");
         }
@@ -361,7 +356,6 @@ sub mtr_kill_leftovers () {
   # First, kill all masters and slaves that would conflict with
   # this run. Make sure to remove the PID file, if any.
   # FIXME kill IM manager first, else it will restart the servers, how?!
-
   my @args;
 
   for ( my $idx; $idx < 2; $idx++ )
@@ -650,22 +644,10 @@ sub mtr_mysqladmin_shutdown {
   my $adm_shutdown_tmo= shift;
 
   my %mysql_admin_pids;
-  my @to_kill_specs;
 
+  # Start one "mysqladmin shutdown" for each server
   foreach my $srv ( @$spec )
   {
-    if ( mtr_ping_mysqld_server($srv->{'port'}, $srv->{'sockfile'}) )
-    {
-      push(@to_kill_specs, $srv);
-    }
-  }
-
-
-  foreach my $srv ( @to_kill_specs )
-  {
-    # FIXME wrong log.....
-    # FIXME, stderr.....
-    # Shutdown time must be high as slave may be in reconnect
     my $args;
 
     mtr_init_args(\$args);
@@ -673,6 +655,7 @@ sub mtr_mysqladmin_shutdown {
     mtr_add_arg($args, "--no-defaults");
     mtr_add_arg($args, "--user=%s", $::opt_user);
     mtr_add_arg($args, "--password=");
+    mtr_add_arg($args, "--silent");
     if ( -e $srv->{'sockfile'} )
     {
       mtr_add_arg($args, "--socket=%s", $srv->{'sockfile'});
@@ -686,26 +669,27 @@ sub mtr_mysqladmin_shutdown {
       mtr_add_arg($args, "--protocol=tcp"); # Needed if no --socket
     }
     mtr_add_arg($args, "--connect_timeout=5");
+    # Shutdown time must be high as slave may be in reconnect
     mtr_add_arg($args, "--shutdown_timeout=$adm_shutdown_tmo");
     mtr_add_arg($args, "shutdown");
-    # We don't wait for termination of mysqladmin
+    # Start mysqladmin in paralell and wait for termination later
     my $pid= mtr_spawn($::exe_mysqladmin, $args,
                        "", $::path_manager_log, $::path_manager_log, "",
                        { append_log_file => 1 });
+    # Save the pid of the mysqladmin process
     $mysql_admin_pids{$pid}= 1;
   }
 
+  # Wait for all the started mysqladmin to exit
   # As mysqladmin is such a simple program, we trust it to terminate.
   # I.e. we wait blocking, and wait wait for them all before we go on.
-  while (keys %mysql_admin_pids)
+  foreach my $pid (keys %mysql_admin_pids)
   {
-    foreach my $pid (keys %mysql_admin_pids)
-    {
-      if ( waitpid($pid,0) > 0 )
-      {
-        delete $mysql_admin_pids{$pid};
-      }
-    }
+    my $ret_pid= waitpid($pid,0);
+
+    # If this was any of the mysqladmin's we waited for, delete its
+    # pid from list
+    delete $mysql_admin_pids{$ret_pid} if exists $mysql_admin_pids{$ret_pid};
   }
 
   # If we trusted "mysqladmin --shutdown_timeout= ..." we could just
@@ -720,7 +704,7 @@ sub mtr_mysqladmin_shutdown {
  TIME:
   while ( $timeout-- )
   {
-    foreach my $srv ( @to_kill_specs )
+    foreach my $srv ( @$spec )
     {
       $res= 1;                          # We are optimistic
       if ( mtr_ping_mysqld_server($srv->{'port'}, $srv->{'sockfile'}) )
@@ -753,9 +737,9 @@ sub mtr_record_dead_children () {
 
   my $ret_pid;
 
-  # FIXME the man page says to wait for -1 to terminate,
-  # but on OS X we get '0' all the time...
-  while ( ($ret_pid= waitpid(-1,&WNOHANG)) > 0 )
+  # Wait without blockinng to see if any processes had died
+  # -1 or 0 means there are no more procesess to wait for
+  while ( ($ret_pid= waitpid(-1,&WNOHANG)) != 0 and $ret_pid != -1)
   {
     mtr_debug("waitpid() catched exit of child $ret_pid");
     foreach my $idx (0..1)
@@ -788,7 +772,11 @@ sub start_reap_all {
   # here. If a process terminated before setting $SIG{CHLD} (but after
   # any attempt to waitpid() it), it will still be a zombie. So we
   # have to handle any such process here.
-  while(waitpid(-1, &WNOHANG) > 0) { };
+  my $pid;
+  while(($pid= waitpid(-1, &WNOHANG)) != 0 and $pid != -1)
+  {
+    print "start_reap_all: pid: $pid.\n";
+  };
 }
 
 sub stop_reap_all {
@@ -842,7 +830,7 @@ sub sleep_until_file_created ($$$) {
     }
 
     # Check if it died after the fork() was successful 
-    if ( $pid > 0 && waitpid($pid,&WNOHANG) == $pid )
+    if ( $pid != 0 && waitpid($pid,&WNOHANG) == $pid )
     {
       return 0;
     }
@@ -904,8 +892,8 @@ sub mtr_exit ($) {
   # set ourselves as the group leader at startup (with
   # POSIX::setpgrp(0,0)), but then care must be needed to always do
   # proper child process cleanup.
-  kill('HUP', -$$) if $$ == getpgrp();
-  sleep 2;
+  kill('HUP', -$$) if !$::glob_win32_perl and $$ == getpgrp();
+
   exit($code);
 }
 

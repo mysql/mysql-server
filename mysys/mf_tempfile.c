@@ -24,7 +24,7 @@
 #endif
 
 #ifdef HAVE_TEMPNAM
-#if !defined(MSDOS) && !defined(OS2) && !defined(__NETWARE__)
+#if !defined(MSDOS) && !defined(__NETWARE__)
 extern char **environ;
 #endif
 #endif
@@ -121,16 +121,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
       to[1]= 0;
       dir=to;
     }
-#ifdef OS2
-    /* changing environ variable doesn't work with VACPP */
-    char  buffer[256], *end;
-    buffer[sizeof(buffer)-1]= 0;
-    end= strxnmov(buffer, sizeof(buffer)-1, (char*) "TMP=", dir, NullS);
-    /* remove ending backslash */
-    if (end[-1] == '\\')
-      end[-1]= 0;
-    putenv(buffer);
-#elif !defined(__NETWARE__)
+#if !defined(__NETWARE__)
     old_env= (char**) environ;
     if (dir)
     {				/* Don't use TMPDIR if dir is given */
@@ -152,7 +143,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     {
       DBUG_PRINT("error",("Got error: %d from tempnam",errno));
     }
-#if !defined(OS2) && !defined(__NETWARE__)
+#if !defined(__NETWARE__)
     environ=(const char**) old_env;
 #endif
   }

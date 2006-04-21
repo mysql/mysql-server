@@ -556,6 +556,14 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
   ERR_PRINT(err);
   switch (err.classification) {
   case NdbError::SchemaError:
+  {
+    /* Close other open handlers not used by any thread */
+    TABLE_LIST table_list;
+    bzero((char*) &table_list,sizeof(table_list));
+    table_list.db= m_dbname;
+    table_list.alias= table_list.table_name= m_tabname;
+    close_cached_tables(current_thd, 0, &table_list);
+
     invalidate_dictionary_cache(TRUE);
 
     if (err.code==284)
@@ -576,6 +584,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
       DBUG_PRINT("info", ("Table exists but must have changed"));
     }
     break;
+  }
   default:
     break;
   }
@@ -4411,7 +4420,7 @@ static int create_ndb_column(NDBCOL &col,
     break;
   case MYSQL_TYPE_BIT:
   {
-    int no_of_bits= field->field_length*8 + ((Field_bit *) field)->bit_len;
+    int no_of_bits= field->field_length;
     col.setType(NDBCOL::Bit);
     if (!no_of_bits)
       col.setLength(1);
@@ -4479,6 +4488,21 @@ int ha_ndbcluster::create(const char *name,
 #endif /* HAVE_NDB_BINLOG */
     DBUG_RETURN(my_errno);
   }
+
+#ifdef HAVE_NDB_BINLOG
+  /*
+    Don't allow table creation unless
+    schema distribution table is setup
+    ( unless it is a creation of the schema dist table itself )
+  */
+  if (!schema_share &&
+      !(strcmp(m_dbname, NDB_REP_DB) == 0 &&
+        strcmp(m_tabname, NDB_SCHEMA_TABLE) == 0))
+  {
+    DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  }
+#endif /* HAVE_NDB_BINLOG */
 
   DBUG_PRINT("table", ("name: %s", m_tabname));  
   tab.setName(m_tabname);
@@ -4687,8 +4711,9 @@ int ha_ndbcluster::create(const char *name,
   DBUG_RETURN(my_errno);
 }
 
-int ha_ndbcluster::create_handler_files(const char *file) 
+int ha_ndbcluster::create_handler_files(const char *file, HA_CREATE_INFO *info) 
 { 
+  char path[FN_REFLEN];
   const char *name;
   Ndb* ndb;
   const NDBTAB *tab;
@@ -4698,16 +4723,21 @@ int ha_ndbcluster::create_handler_files(const char *file)
 
   DBUG_ENTER("create_handler_files");
 
+  DBUG_PRINT("enter", ("file: %s", file));
   if (!(ndb= get_ndb()))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
   NDBDICT *dict= ndb->getDictionary();
-  if (!(tab= dict->getTable(m_tabname)))
+  if (!info->frm_only)
     DBUG_RETURN(0); // Must be a create, ignore since frm is saved in create
+  set_dbname(file);
+  set_tabname(file);
+  DBUG_PRINT("info", ("m_dbname: %s, m_tabname: %s", m_dbname, m_tabname));
+  if (!(tab= dict->getTable(m_tabname)))
+    DBUG_RETURN(0); // Unkown table, must be temporary table
+
   DBUG_ASSERT(get_ndb_share_state(m_share) == NSS_ALTERED);
-  name= table->s->normalized_path.str;
-  DBUG_PRINT("enter", ("m_tabname: %s, path: %s", m_tabname, name));
-  if (readfrm(name, &data, &length) ||
+  if (readfrm(file, &data, &length) ||
       packfrm(data, length, &pack_data, &pack_length))
   {
     DBUG_PRINT("info", ("Missing frm for %s", m_tabname));
@@ -4723,6 +4753,7 @@ int ha_ndbcluster::create_handler_files(const char *file)
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
   }
+  
   set_ndb_share_state(m_share, NSS_INITIAL);
   free_share(&m_share); // Decrease ref_count
 
@@ -4830,6 +4861,15 @@ int ha_ndbcluster::create_ndb_index(const char *name,
 }
 
 /*
+ Prepare for an on-line alter table
+*/ 
+void ha_ndbcluster::prepare_for_alter()
+{
+  ndbcluster_get_share(m_share); // Increase ref_count
+  set_ndb_share_state(m_share, NSS_ALTERED);
+}
+
+/*
   Add an index on-line to a table
 */
 int ha_ndbcluster::add_index(TABLE *table_arg, 
@@ -4841,7 +4881,7 @@ int ha_ndbcluster::add_index(TABLE *table_arg,
   int error= 0;
   uint idx;
 
-  DBUG_ASSERT(m_share->state == NSS_INITIAL);
+  DBUG_ASSERT(m_share->state == NSS_ALTERED);
   for (idx= 0; idx < num_of_keys; idx++)
   {
     KEY *key= key_info + idx;
@@ -4857,10 +4897,10 @@ int ha_ndbcluster::add_index(TABLE *table_arg,
     if((error= create_index(key_info[idx].name, key, idx_type, idx)))
       break;
   }
-  if (!error)
+  if (error)
   {
-    ndbcluster_get_share(m_share); // Increase ref_count
-    set_ndb_share_state(m_share, NSS_ALTERED);
+    set_ndb_share_state(m_share, NSS_INITIAL);
+    free_share(&m_share); // Decrease ref_count
   }
   DBUG_RETURN(error);  
 }
@@ -4885,7 +4925,7 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
                                       uint *key_num, uint num_of_keys)
 {
   DBUG_ENTER("ha_ndbcluster::prepare_drop_index");
-  DBUG_ASSERT(m_share->state == NSS_INITIAL);
+  DBUG_ASSERT(m_share->state == NSS_ALTERED);
   // Mark indexes for deletion
   uint idx;
   for (idx= 0; idx < num_of_keys; idx++)
@@ -4898,8 +4938,6 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   renumber_indexes(ndb, table_arg);
-  ndbcluster_get_share(m_share); // Increase ref_count
-  set_ndb_share_state(m_share, NSS_ALTERED);
   DBUG_RETURN(0);
 }
  
@@ -5004,7 +5042,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     is_old_table_tmpfile= 0;
     String event_name(INJECTOR_EVENT_LEN);
     ndb_rep_event_name(&event_name, from + sizeof(share_prefix) - 1, 0);
-    ndbcluster_handle_drop_table(ndb, event_name.c_ptr(), share);
+    ndbcluster_handle_drop_table(ndb, event_name.c_ptr(), share,
+                                 "rename table");
   }
 
   if (!result && !IS_TMP_PREFIX(new_tabname))
@@ -5088,6 +5127,15 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
   DBUG_ENTER("ha_ndbcluster::ndbcluster_delete_table");
   NDBDICT *dict= ndb->getDictionary();
 #ifdef HAVE_NDB_BINLOG
+  /*
+    Don't allow drop table unless
+    schema distribution table is setup
+  */
+  if (!schema_share)
+  {
+    DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  }
   NDB_SHARE *share= get_share(path, 0, false);
 #endif
 
@@ -5156,7 +5204,7 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
     ndb_rep_event_name(&event_name, path + sizeof(share_prefix) - 1, 0);
     ndbcluster_handle_drop_table(ndb,
                                  table_dropped ? event_name.c_ptr() : 0,
-                                 share);
+                                 share, "delete table");
   }
 
   if (share)
@@ -5184,6 +5232,18 @@ int ha_ndbcluster::delete_table(const char *name)
   DBUG_PRINT("enter", ("name: %s", name));
   set_dbname(name);
   set_tabname(name);
+
+#ifdef HAVE_NDB_BINLOG
+  /*
+    Don't allow drop table unless
+    schema distribution table is setup
+  */
+  if (!schema_share)
+  {
+    DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  }
+#endif
 
   if (check_ndb_connection())
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
@@ -5405,6 +5465,11 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   res= get_metadata(name);
   if (!res)
     info(HA_STATUS_VARIABLE | HA_STATUS_CONST);
+
+#ifdef HAVE_NDB_BINLOG
+  if (!ndb_binlog_tables_inited && ndb_binlog_running)
+    table->db_stat|= HA_READ_ONLY;
+#endif
 
   DBUG_RETURN(res);
 }
@@ -5704,6 +5769,19 @@ int ndbcluster_drop_database_impl(const char *path)
 
 static void ndbcluster_drop_database(char *path)
 {
+  DBUG_ENTER("ndbcluster_drop_database");
+#ifdef HAVE_NDB_BINLOG
+  /*
+    Don't allow drop database unless
+    schema distribution table is setup
+  */
+  if (!schema_share)
+  {
+    DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_VOID_RETURN;
+    //DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  }
+#endif
   ndbcluster_drop_database_impl(path);
 #ifdef HAVE_NDB_BINLOG
   char db[FN_REFLEN];
@@ -5712,6 +5790,7 @@ static void ndbcluster_drop_database(char *path)
                            current_thd->query, current_thd->query_length,
                            db, "", 0, 0, SOT_DROP_DB);
 #endif
+  DBUG_VOID_RETURN;
 }
 /*
   find all tables in ndb and discover those needed
@@ -5733,36 +5812,37 @@ int ndbcluster_find_all_files(THD *thd)
   DBUG_ENTER("ndbcluster_find_all_files");
   Ndb* ndb;
   char key[FN_REFLEN];
-  NdbDictionary::Dictionary::List list;
 
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
   NDBDICT *dict= ndb->getDictionary();
 
-  int unhandled, retries= 5;
+  int unhandled, retries= 5, skipped;
   do
   {
+    NdbDictionary::Dictionary::List list;
     if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
       ERR_RETURN(dict->getNdbError());
     unhandled= 0;
+    skipped= 0;
+    retries--;
     for (uint i= 0 ; i < list.count ; i++)
     {
       NDBDICT::List::Element& elmt= list.elements[i];
-      int do_handle_table= 0;
       if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
       {
         DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
         continue;
       }
       DBUG_PRINT("info", ("Found %s.%s in NDB", elmt.database, elmt.name));
-      if (elmt.state == NDBOBJ::StateOnline ||
-          elmt.state == NDBOBJ::StateBackup)
-        do_handle_table= 1;
-      else if (!(elmt.state == NDBOBJ::StateBuilding))
+      if (elmt.state != NDBOBJ::StateOnline &&
+          elmt.state != NDBOBJ::StateBackup &&
+          elmt.state != NDBOBJ::StateBuilding)
       {
         sql_print_information("NDB: skipping setup table %s.%s, in state %d",
                               elmt.database, elmt.name, elmt.state);
+        skipped++;
         continue;
       }
 
@@ -5771,7 +5851,7 @@ int ndbcluster_find_all_files(THD *thd)
 
       if (!(ndbtab= dict->getTable(elmt.name)))
       {
-        if (do_handle_table)
+        if (retries == 0)
           sql_print_error("NDB: failed to setup table %s.%s, error: %d, %s",
                           elmt.database, elmt.name,
                           dict->getNdbError().code,
@@ -5840,9 +5920,9 @@ int ndbcluster_find_all_files(THD *thd)
       pthread_mutex_unlock(&LOCK_open);
     }
   }
-  while (unhandled && retries--);
+  while (unhandled && retries);
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(-(skipped + unhandled));
 }
 
 int ndbcluster_find_files(THD *thd,const char *db,const char *path,
@@ -7706,6 +7786,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     pthread_cond_wait(&COND_server_started, &LOCK_server_started);
   pthread_mutex_unlock(&LOCK_server_started);
 
+  ndbcluster_util_inited= 1;
+
   /*
     Wait for cluster to start
   */
@@ -7737,6 +7819,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   }
 
 #ifdef HAVE_NDB_BINLOG
+  if (ndb_extra_logging && ndb_binlog_running)
+    sql_print_information("NDB Binlog: Ndb tables initially read only.");
   /* create tables needed by the replication */
   ndbcluster_setup_binlog_table_shares(thd);
 #else
@@ -7746,17 +7830,9 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   ndbcluster_find_all_files(thd);
 #endif
 
-  ndbcluster_util_inited= 1;
-
-#ifdef HAVE_NDB_BINLOG
-  /* Signal injector thread that all is setup */
-  pthread_cond_signal(&injector_cond);
-#endif
-
   set_timespec(abstime, 0);
   for (;!abort_loop;)
   {
-
     pthread_mutex_lock(&LOCK_ndb_util_thread);
     pthread_cond_timedwait(&COND_ndb_util_thread,
                            &LOCK_ndb_util_thread,
@@ -7774,7 +7850,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       Check that the apply_status_share and schema_share has been created.
       If not try to create it
     */
-    if (!apply_status_share || !schema_share)
+    if (!ndb_binlog_tables_inited)
       ndbcluster_setup_binlog_table_shares(thd);
 #endif
 
@@ -10029,14 +10105,15 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
     }
   }
 
-  dict->listObjects(dflist, NdbDictionary::Object::Undofile);
+  NdbDictionary::Dictionary::List uflist;
+  dict->listObjects(uflist, NdbDictionary::Object::Undofile);
   ndberr= dict->getNdbError();
   if (ndberr.classification != NdbError::NoError)
     ERR_RETURN(ndberr);
 
-  for (i= 0; i < dflist.count; i++)
+  for (i= 0; i < uflist.count; i++)
   {
-    NdbDictionary::Dictionary::List::Element& elt= dflist.elements[i];
+    NdbDictionary::Dictionary::List::Element& elt= uflist.elements[i];
     Ndb_cluster_connection_node_iter iter;
     unsigned id;
 

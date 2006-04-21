@@ -97,7 +97,7 @@ mkdir $BASE $BASE/bin $BASE/docs \
  $BASE/mysql-test/extra/binlog_tests $BASE/mysql-test/extra/rpl_tests
 
 if [ $BASE_SYSTEM != "netware" ] ; then
- mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man \
+ mkdir $BASE/share/mysql $BASE/tests $BASE/man \
   $BASE/man/man1 $BASE/data $BASE/data/mysql $BASE/data/test
 
  chmod o-rwx $BASE/data $BASE/data/*
@@ -154,14 +154,11 @@ if [ $BASE_SYSTEM = "netware" ] ; then
 # For all other platforms:
 else
   BIN_FILES="$BIN_FILES \
-    client/mysqltestmanagerc \
-    client/mysqltestmanager-pwgen tools/mysqltestmanager \
     client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
     client/.libs/mysqlslap \
     client/.libs/mysqldump client/.libs/mysqlimport \
     client/.libs/mysqltest client/.libs/mysqlcheck \
-    client/.libs/mysqlbinlog client/.libs/mysqltestmanagerc \
-    client/.libs/mysqltestmanager-pwgen tools/.libs/mysqltestmanager \
+    client/.libs/mysqlbinlog \
     tests/.libs/mysql_client_test \
     libmysqld/examples/.libs/mysql_client_test_embedded \
     libmysqld/examples/.libs/mysqltest_embedded \
@@ -241,9 +238,10 @@ $CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
     mysql-test/std_data/*.cnf \
     $BASE/mysql-test/std_data
-$CP mysql-test/t/*.test mysql-test/t/*.imtest \
-    mysql-test/t/*.disabled mysql-test/t/*.opt \
-    mysql-test/t/*.slave-mi mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
+$CP mysql-test/t/*.test $BASE/mysql-test/t
+$CP mysql-test/t/*.imtest mysql-test/t/*.disabled $BASE/mysql-test/t
+$CP mysql-test/t/*.opt mysql-test/t/*.slave-mi $BASE/mysql-test/t
+$CP mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
 $CP mysql-test/r/*.result mysql-test/r/*.require \
     $BASE/mysql-test/r
 $CP mysql-test/extra/binlog_tests/*.test $BASE/mysql-test/extra/binlog_tests
@@ -265,8 +263,7 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   mv $BASE/support-files/binary-configure $BASE/configure
   chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-* \
       $BASE/support-files/mysql.server $BASE/configure
-  $CP -r sql-bench/* $BASE/sql-bench
-  rm -f $BASE/sql-bench/*.sh $BASE/sql-bench/Makefile* $BASE/lib/*.la
+  rm -f $BASE/lib/*.la
   rm -f $BASE/bin/*.sql
 fi
 
@@ -306,17 +303,9 @@ else
     rm -f $BASE/README.NW
 fi
 
-# Dropped with 5.1.6-beta
-# # Make safe_mysqld a symlink to mysqld_safe for backwards portability
-# # To be removed in MySQL 4.1
-# if [ $BASE_SYSTEM != "netware" ] ; then
-#   (cd $BASE/bin ; ln -s mysqld_safe safe_mysqld )
-# fi
-
 # Clean up if we did this from a bk tree
-if [ -d $BASE/sql-bench/SCCS ] ; then
+if [ -d $BASE/share/SCCS ] ; then
   find $BASE/share -name SCCS -print | xargs rm -rf
-  find $BASE/sql-bench -name SCCS -print | xargs rm -rf
 fi
 
 # NDB Cluster

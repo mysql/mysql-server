@@ -1,12 +1,12 @@
 SUBDIRS = src tools . include @ndb_opt_subdirs@
 DIST_SUBDIRS = src tools include test docs
 EXTRA_DIST = config ndbapi-examples
+DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 
 dist-hook:
 	-rm -rf `find $(distdir) -type d -name SCCS`
-	-rm -rf `find $(distdir) -type d -name old_files`
 	-rm -rf `find $(distdir)/ndbapi-examples -name '*.o'`
 	list='$(SUBDIRS)'; for subdir in $$list; do \
 	  if test "$$subdir" != "." -a "$$subdir" != "include"; then \

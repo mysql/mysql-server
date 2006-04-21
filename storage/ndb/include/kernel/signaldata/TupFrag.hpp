@@ -147,7 +147,8 @@ public:
   enum ErrorCode {
     NoError = 0,
     InvalidCharset = 743,
-    TooManyBitsUsed = 831
+    TooManyBitsUsed = 831,
+    UnsupportedType = 906
   };
 private:
   Uint32 userPtr;

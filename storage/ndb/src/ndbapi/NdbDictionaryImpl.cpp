@@ -1789,9 +1789,14 @@ NdbDictInterface::getTable(const BaseString& name, bool fullyQualifiedNames)
 
   // Copy name to m_buffer to get a word sized buffer
   m_buffer.clear();
-  m_buffer.grow(namelen_words*4);
+  m_buffer.grow(namelen_words*4+4);
   m_buffer.append(name.c_str(), namelen);
 
+#ifndef IGNORE_VALGRIND_WARNINGS
+  Uint32 pad = 0;
+  m_buffer.append(&pad, 4);
+#endif
+  
   LinearSectionPtr ptr[1];
   ptr[0].p= (Uint32*)m_buffer.get_data();
   ptr[0].sz= namelen_words;
@@ -2287,7 +2292,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 				     NdbTableImpl & impl,
 				     bool alter)
 {
-  unsigned i;
+  unsigned i, err;
   char *ts_names[MAX_NDB_PARTITIONS];
   DBUG_ENTER("NdbDictInterface::createOrAlterTable");
 
@@ -2588,8 +2593,10 @@ loop:
       DBUG_RETURN(-1);
     }
     // primary key type check
-    if (col->m_pk && ! NdbSqlUtil::usable_in_pk(col->m_type, col->m_cs)) {
-      m_error.code= (col->m_cs != 0 ? 743 : 739);
+    if (col->m_pk && 
+        (err = NdbSqlUtil::check_column_for_pk(col->m_type, col->m_cs)))
+    {
+      m_error.code= err;
       DBUG_RETURN(-1);
     }
     // distribution key not supported for Char attribute
@@ -3020,7 +3027,7 @@ NdbDictInterface::createIndex(Ndb & ndb,
 {
   //validate();
   //aggregate();
-  unsigned i;
+  unsigned i, err;
   UtilBufferWriter w(m_buffer);
   const size_t len = strlen(impl.m_externalName.c_str()) + 1;
   if(len > MAX_TAB_NAME_SIZE) {
@@ -3069,10 +3076,12 @@ NdbDictInterface::createIndex(Ndb & ndb,
 
     // index key type check
     if (it == DictTabInfo::UniqueHashIndex &&
-        ! NdbSqlUtil::usable_in_hash_index(col->m_type, col->m_cs) ||
+        (err = NdbSqlUtil::check_column_for_hash_index(col->m_type, col->m_cs))
+        ||
         it == DictTabInfo::OrderedIndex &&
-        ! NdbSqlUtil::usable_in_ordered_index(col->m_type, col->m_cs)) {
-      m_error.code = 743;
+        (err = NdbSqlUtil::check_column_for_ordered_index(col->m_type, col->m_cs)))
+    {
+      m_error.code = err;
       return -1;
     }
     // API uses external column number to talk to DICT
@@ -4619,13 +4628,27 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   LinearSectionPtr ptr[1];
   ptr[0].p  = (Uint32*)name;
   ptr[0].sz = (strLen + 3)/4;
-
+  
+#ifndef IGNORE_VALGRIND_WARNINGS
+  if (strLen & 3)
+  {
+    Uint32 pad = 0;
+    m_buffer.clear();
+    m_buffer.append(name, strLen);
+    m_buffer.append(&pad, 4);
+    ptr[0].p = (Uint32*)m_buffer.get_data();
+  }
+#endif
+  
   int r = dictSignal(&tSignal, ptr, 1,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
 		     DICT_WAITFOR_TIMEOUT, 100);
   if (r)
   {
+    dst.m_id = -1;
+    dst.m_version = ~0;
+    
     DBUG_PRINT("info", ("get_filegroup failed dictSignal"));
     DBUG_RETURN(-1);
   }
@@ -4761,7 +4784,18 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
   LinearSectionPtr ptr[1];
   ptr[0].p  = (Uint32*)name;
   ptr[0].sz = (strLen + 3)/4;
-
+  
+#ifndef IGNORE_VALGRIND_WARNINGS
+  if (strLen & 3)
+  {
+    Uint32 pad = 0;
+    m_buffer.clear();
+    m_buffer.append(name, strLen);
+    m_buffer.append(&pad, 4);
+    ptr[0].p = (Uint32*)m_buffer.get_data();
+  }
+#endif
+  
   int r = dictSignal(&tSignal, ptr, 1,
 		     node,
 		     WAIT_GET_TAB_INFO_REQ,
@@ -4829,7 +4863,8 @@ NdbDictInterface::parseFileInfo(NdbFileImpl &dst,
   }
 
   dst.m_type= (NdbDictionary::Object::Type)f.FileType;
-  dst.m_id= f.FileNo;
+  dst.m_id= f.FileId;
+  dst.m_version = f.FileVersion;
 
   dst.m_size= ((Uint64)f.FileSizeHi << 32) | (f.FileSizeLo);
   dst.m_path.assign(f.FileName);

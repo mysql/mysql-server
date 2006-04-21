@@ -52,7 +52,9 @@ fi
   --with-federated-storage-engine \
   --with-berkeley-db \
   --with-innodb \
+  --with-yassl \
   --enable-thread-safe-client \
   --with-extra-charsets=complex \
-  --with-ndbcluster
+  --with-ndbcluster \
+  --with-zlib-dir=bundled
 make

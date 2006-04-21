@@ -192,6 +192,20 @@ select extractValue(@xml, '/a/@b[substring(.,1,1)="2"]');
 select extractValue(@xml, '/a/@b[substring(.,2,1)="1"]');
 select extractValue(@xml, '/a/@b[substring(.,2,1)="2"]');
 
+#
+# Bug#16319: XML: extractvalue() returns syntax errors for some functions
+#
+SET @xml='<a><b>b1</b><b>b2</b></a>';
+SELECT extractValue(@xml, '/a/b[string-length("x")=1]');
+SELECT extractValue(@xml, '/a/b[string-length("xx")=2]');
+SELECT extractValue(@xml, '/a/b[string-length("xxx")=2]');
+SELECT extractValue(@xml, '/a/b[string-length("x")]');
+SELECT extractValue(@xml, '/a/b[string-length("xx")]');
+SELECT extractValue(@xml, '/a/b[string-length()]');
+--error 1105
+SELECT extractValue(@xml, 'string-length()');
+SELECT extractValue(@xml, 'string-length("x")');
+
 SET @xml='<a b="b11" b="b12" b="b21" b="22"/>';
 select extractValue(@xml,'/a/@b');
 select extractValue(@xml,'/a/@b[contains(.,"1")]');
@@ -279,6 +293,12 @@ select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin);
 select extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]');
 
 #
+# Bug#18285: ExtractValue not returning character
+# data within <![CDATA[]]> as expected
+#
+select ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1');
+
+#
 # Bug #18171 XML: ExtractValue: the XPath position()
 # function crashes the server!
 #
@@ -295,3 +315,23 @@ select extractValue('<e>1</e>','last()');
 --error 1105
 select extractValue('<e><a>1</a></e>','/e/');
 
+#
+# Bug#16233: XML: ExtractValue() fails with special characters
+#
+set names utf8;
+select extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r');
+select extractValue('<r><Ñ>Ñ</Ñ></r>','/r/Ñ');
+select extractValue('<Ñ r="r"/>','/Ñ/@r');
+select extractValue('<r Ñ="Ñ"/>','/r/@Ñ');
+--disable_warnings
+DROP PROCEDURE IF EXISTS p2;
+--enable_warnings
+DELIMITER //;
+CREATE PROCEDURE p2 ()
+BEGIN
+ DECLARE p LONGTEXT CHARACTER SET UTF8 DEFAULT '<Ñ><r>A</r></Ñ>';
+ SELECT EXTRACTVALUE(p,'/Ñ/r');
+END//
+DELIMITER ;//
+CALL p2();
+DROP PROCEDURE p2;

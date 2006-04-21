@@ -41,7 +41,7 @@ SELECT id,hex(b1),vc,bc,d,f,total,y,t FROM t1 WHERE id = 412;
 
 # Must give injector thread a little time to get update
 # into the binlog other wise we will miss the update.
-sleep 3;
+sleep 10;
 
 sync_slave_with_master;
 --echo --- Check Update on slave ---

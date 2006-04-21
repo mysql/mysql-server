@@ -53,12 +53,6 @@ C_MODE_START
 #endif
 #endif
 
-#if defined(__EMX__)
-#include <sys/ioctl.h>
-#define ioctlsocket(A,B,C) ioctl((A),(B),(void *)(C),sizeof(*(C)))
-#undef HAVE_FCNTL
-#endif	/* defined(__EMX__) */
-
 #if defined(MSDOS) || defined(__WIN__)
 #define O_NONBLOCK 1    /* For emulation of fcntl() */
 #endif

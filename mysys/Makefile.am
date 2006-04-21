@@ -22,10 +22,7 @@ INCLUDES =		@ZLIB_INCLUDES@ -I$(top_builddir)/include \
 pkglib_LIBRARIES =	libmysys.a
 LDADD =			libmysys.a ../dbug/libdbug.a \
 			../strings/libmystrings.a
-noinst_HEADERS =	mysys_priv.h my_static.h \
-			my_os2cond.c my_os2dirsrch.c my_os2dirsrch.h \
-			my_os2dlfcn.c my_os2file64.c my_os2mutex.c \
-			my_os2thread.c my_os2tls.c
+noinst_HEADERS =	mysys_priv.h my_static.h
 libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_path.c mf_loadpath.c my_file.c \
 			my_open.c my_create.c my_dup.c my_seek.c my_read.c \
@@ -73,6 +70,7 @@ DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DDEFAULT_HOME_ENV=MYSQL_HOME \
 			-DDEFAULT_GROUP_SUFFIX_ENV=MYSQL_GROUP_SUFFIX \
+			-DDEFAULT_SYSCONFDIR="\"$(sysconfdir)\"" \
                         @DEFS@
 
 libmysys_a_DEPENDENCIES= @THREAD_LOBJECTS@

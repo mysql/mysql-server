@@ -1362,7 +1362,7 @@ int my_mb_ctype_8bit(CHARSET_INFO *cs, int *ctype,
     *ctype= 0;
     return MY_CS_TOOSMALL;
   }
-  *ctype= cs->ctype[*s];
+  *ctype= cs->ctype[*s + 1];
   return 1;
 }
 

@@ -27,14 +27,12 @@ EXTRA_DIST = 		$(EXTRA_SCRIPTS)
 GENSCRIPTS =		mysql-test-run install_test_db
 PRESCRIPTS =		mysql-test-run.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
-test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem \
-	std_data/server-cert.pem std_data/server-key.pem 
-CLEANFILES = 		$(GENSCRIPTS) $(test_DATA)
+test_DATA =		std_data/client-key.pem std_data/client-cert.pem \
+			std_data/cacert.pem std_data/server-cert.pem \
+			std_data/server-key.pem 
+CLEANFILES = 		$(GENSCRIPTS)
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
-EXTRA_PROGRAMS =	mysql_test_run_new
-noinst_HEADERS =	my_manage.h
-mysql_test_run_new_SOURCES=		mysql_test_run_new.c my_manage.c my_create_tables.c
 
 
 dist-hook:
@@ -105,17 +103,6 @@ install-data-local:
 
 uninstall-local:
 	@RM@ -f -r $(DESTDIR)$(testdir)
-
-std_data/client-key.pem:
-	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/client-cert.pem:
-	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/cacert.pem:
-	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/server-cert.pem:
-	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/server-key.pem:
-	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
 
 SUFFIXES = .sh
 
