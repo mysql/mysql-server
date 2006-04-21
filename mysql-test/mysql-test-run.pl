@@ -3212,8 +3212,7 @@ sub ddd_arguments {
 	       "break mysql_parse\n" .
 	       "commands 1\n" .
 	       "disable 1\n" .
-	       "end\n" .
-	       "run");
+	       "end");
   }
 
   if ( $opt_manual_ddd )
