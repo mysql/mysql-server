@@ -88,7 +88,7 @@ partition_info *partition_info::get_clone()
     The external routine needing this code is check_partition_info
 */
 
-#define MAX_PART_NAME_SIZE 16
+#define MAX_PART_NAME_SIZE 8
 
 char *partition_info::create_default_partition_names(uint part_no, uint no_parts, 
                                                      uint start_no)
@@ -125,7 +125,8 @@ char *partition_info::create_default_partition_names(uint part_no, uint no_parts
     0                           Memory allocation error
 */
 
-char *create_subpartition_name(uint subpart_no, const char *part_name)
+char *partition_info::create_subpartition_name(uint subpart_no,
+                                               const char *part_name)
 {
   uint size_alloc= strlen(part_name) + MAX_PART_NAME_SIZE;
   char *ptr= sql_calloc(size_alloc);
