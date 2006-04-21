@@ -58,6 +58,7 @@ EXPORTS
 	mysql_get_host_info
 	mysql_get_proto_info
 	mysql_get_server_info
+	mysql_get_ssl_cipher
 	mysql_info
 	mysql_init
 	mysql_insert_id
