@@ -28,6 +28,7 @@ INSERT INTO t1 VALUES(412,1,'Testing MySQL databases is a cool ',
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 
 sync_slave_with_master;
+--sleep 5
 --echo --- Select from t1 on slave ---
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 
@@ -41,9 +42,9 @@ SELECT id,hex(b1),vc,bc,d,f,total,y,t FROM t1 WHERE id = 412;
 
 # Must give injector thread a little time to get update
 # into the binlog other wise we will miss the update.
-sleep 10;
 
 sync_slave_with_master;
+--sleep 5
 --echo --- Check Update on slave ---
 SELECT id,hex(b1),vc,bc,d,f,total,y,t FROM t1 WHERE id = 412;
 
@@ -55,6 +56,7 @@ DELETE FROM t1 WHERE id = 42;
 SELECT COUNT(*) FROM t1;
 
 sync_slave_with_master;
+--sleep 5
 --echo --- Show current count on slave for t1 --- 
 SELECT COUNT(*) FROM t1;
 
