@@ -363,3 +363,27 @@ SELECT COUNT(*) FROM t1 WHERE c3 < '2000-12-31';
 COUNT(*)
 10
 DROP TABLE t1;
+create table t1 (a int)
+partition by range (MOD(a,3))
+subpartition by hash(a)
+subpartitions 2
+(partition p0 values less than (1),
+partition p1 values less than (2),
+partition p2 values less than (3),
+partition p3 values less than (4));
+ALTER TABLE t1 DROP PARTITION p3;
+ALTER TABLE t1 DROP PARTITION p1;
+ALTER TABLE t1 DROP PARTITION p2;
+drop table t1;
+create table t1 (a int)
+partition by range (MOD(a,3))
+subpartition by hash(a)
+subpartitions 2
+(partition p0 values less than (1),
+partition p1 values less than (2),
+partition p2 values less than (3),
+partition p3 values less than (4));
+ALTER TABLE t1 DROP PARTITION p0;
+ALTER TABLE t1 DROP PARTITION p1;
+ALTER TABLE t1 DROP PARTITION p2;
+drop table t1;
