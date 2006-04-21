@@ -1243,7 +1243,7 @@ start_ndbcluster()
     else
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --initial || NDB_STATUS_OK=0
+    ./ndb/ndbcluster $NDBCLUSTER_OPTS --character-sets-dir=$CHARSETSDIR $NDBCLUSTER_EXTRA_OPTS --initial || NDB_STATUS_OK=0
     if [ x$NDB_STATUS_OK != x1 ] ; then
       if [ x$FORCE != x1 ] ; then
         exit 1
