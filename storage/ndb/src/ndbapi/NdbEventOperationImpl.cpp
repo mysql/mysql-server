@@ -46,7 +46,7 @@
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
 
-static Gci_container g_empty_gci_container;
+static Gci_container_pod g_empty_gci_container;
 static const Uint32 ACTIVE_GCI_DIRECTORY_SIZE = 4;
 static const Uint32 ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1;
 
@@ -1224,11 +1224,21 @@ operator<<(NdbOut& out, const Gci_container& gci)
 }
 
 static
+NdbOut&
+operator<<(NdbOut& out, const Gci_container_pod& gci)
+{
+  Gci_container* ptr = (Gci_container*)&gci;
+  out << *ptr;
+  return out;
+}
+
+
+static
 Gci_container*
-find_bucket_chained(Vector<Gci_container> * active, Uint64 gci)
+find_bucket_chained(Vector<Gci_container_pod> * active, Uint64 gci)
 {
   Uint32 pos = (gci & ACTIVE_GCI_MASK);
-  Gci_container *bucket= active->getBase() + pos;
+  Gci_container *bucket= ((Gci_container*)active->getBase()) + pos;
 
   if(gci > bucket->m_gci)
   {
@@ -1237,8 +1247,9 @@ find_bucket_chained(Vector<Gci_container> * active, Uint64 gci)
     do 
     {
       active->fill(move_pos, g_empty_gci_container);
-      bucket = active->getBase() + pos; // Needs to recomputed after fill
-      move = active->getBase() + move_pos;
+      // Needs to recomputed after fill
+      bucket = ((Gci_container*)active->getBase()) + pos; 
+      move = ((Gci_container*)active->getBase()) + move_pos;
       if(move->m_gcp_complete_rep_count == 0)
       {
 	memcpy(move, bucket, sizeof(Gci_container));
@@ -1269,10 +1280,10 @@ find_bucket_chained(Vector<Gci_container> * active, Uint64 gci)
 
 inline
 Gci_container*
-find_bucket(Vector<Gci_container> * active, Uint64 gci)
+find_bucket(Vector<Gci_container_pod> * active, Uint64 gci)
 {
   Uint32 pos = (gci & ACTIVE_GCI_MASK);
-  Gci_container *bucket= active->getBase() + pos;
+  Gci_container *bucket= ((Gci_container*)active->getBase()) + pos;
   if(likely(gci == bucket->m_gci))
     return bucket;
 
@@ -1370,7 +1381,8 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
     {
       /** out of order something */
       ndbout_c("out of order bucket: %d gci: %lld m_latestGCI: %lld", 
-	       bucket-m_active_gci.getBase(), gci, m_latestGCI);
+	       bucket-(Gci_container*)m_active_gci.getBase(), 
+	       gci, m_latestGCI);
       bucket->m_state = Gci_container::GC_COMPLETE;
       bucket->m_gcp_complete_rep_count = 1; // Prevent from being reused
       m_latest_complete_GCI = gci;
@@ -1387,7 +1399,7 @@ NdbEventBuffer::complete_outof_order_gcis()
   Uint64 stop_gci = m_latest_complete_GCI;
   
   const Uint32 size = m_active_gci.size();
-  Gci_container* array= m_active_gci.getBase();
+  Gci_container* array= (Gci_container*)m_active_gci.getBase();
   
   ndbout_c("complete_outof_order_gcis");
   for(Uint32 i = 0; i<size; i++)
@@ -1490,7 +1502,7 @@ NdbEventBuffer::completeClusterFailed()
   Uint32 sz= m_active_gci.size();
   Uint64 gci= ~0;
   Gci_container* bucket = 0;
-  Gci_container* array = m_active_gci.getBase();
+  Gci_container* array = (Gci_container*)m_active_gci.getBase();
   for(Uint32 i = 0; i<sz; i++)
   {
     if(array[i].m_gcp_complete_rep_count && array[i].m_gci < gci)
@@ -2538,5 +2550,5 @@ EventBufData_hash::search(Pos& hpos, NdbEventOperationImpl* op, LinearSectionPtr
   DBUG_VOID_RETURN_EVENT;
 }
 
-template class Vector<Gci_container>;
+template class Vector<Gci_container_pod>;
 template class Vector<NdbEventBuffer::EventBufData_chunk*>;
