@@ -4858,4 +4858,33 @@ call bug18787()|
 no_such_function()
 NULL
 drop procedure bug18787|
+create database bug18344_012345678901|
+use bug18344_012345678901|
+create procedure bug18344() begin end|
+create procedure bug18344_2() begin end|
+create database bug18344_0123456789012|
+use bug18344_0123456789012|
+create procedure bug18344() begin end|
+create procedure bug18344_2() begin end|
+use test|
+select schema_name from information_schema.schemata where 
+schema_name like 'bug18344%'|
+schema_name
+bug18344_012345678901
+bug18344_0123456789012
+select routine_name,routine_schema from information_schema.routines where
+routine_schema like 'bug18344%'|
+routine_name	routine_schema
+bug18344	bug18344_012345678901
+bug18344_2	bug18344_012345678901
+bug18344	bug18344_0123456789012
+bug18344_2	bug18344_0123456789012
+drop database bug18344_012345678901|
+drop database bug18344_0123456789012|
+select schema_name from information_schema.schemata where 
+schema_name like 'bug18344%'|
+schema_name
+select routine_name,routine_schema from information_schema.routines where
+routine_schema like 'bug18344%'|
+routine_name	routine_schema
 drop table t1,t2;
