@@ -384,14 +384,14 @@ Thd_ndb::get_open_table(THD *thd, const void *key)
     thd_ndb_share->key= key;
     thd_ndb_share->stat.last_count= count;
     thd_ndb_share->stat.no_uncommitted_rows_count= 0;
-    thd_ndb_share->stat.records == ~(ha_rows)0;
+    thd_ndb_share->stat.records= ~(ha_rows)0;
     my_hash_insert(&open_tables, (byte *)thd_ndb_share);
   }
   else if (thd_ndb_share->stat.last_count != count)
   {
     thd_ndb_share->stat.last_count= count;
     thd_ndb_share->stat.no_uncommitted_rows_count= 0;
-    thd_ndb_share->stat.records == ~(ha_rows)0;
+    thd_ndb_share->stat.records= ~(ha_rows)0;
   }
   DBUG_PRINT("exit", ("thd_ndb_share: 0x%x  key: 0x%x", thd_ndb_share, key));
   DBUG_RETURN(thd_ndb_share);
