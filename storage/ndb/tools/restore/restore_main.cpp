@@ -615,14 +615,11 @@ main(int argc, char** argv)
       }
       
       const LogEntry * logEntry = 0;
-      bool alloc_flag = false;
-      while ((logEntry = logIter.getNextLogEntry(res= 0, &alloc_flag)) != 0)
+      while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
       {
 	if (checkSysTable(logEntry->m_table))
 	  for(Uint32 i= 0; i < g_consumers.size(); i++)
 	    g_consumers[i]->logEntry(* logEntry);
-        if (alloc_flag)
-          NdbMem_Free((void*)logEntry);
       }
       if (res < 0)
       {
