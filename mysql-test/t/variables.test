@@ -472,4 +472,15 @@ select @@character_set_filesystem;
 set @@global.character_set_filesystem=default;
 select @@global.character_set_filesystem;
 
-# End of 5.0 tests
+#
+# Bug #16195: SHOW VARIABLES doesn't report correctly sql_warnings and
+# sql_notes values
+# 
+set @@sql_notes = 0, @@sql_warnings = 0;
+show variables like 'sql_notes';
+show variables like 'sql_warnings';
+set @@sql_notes = 1, @@sql_warnings = 1;
+show variables like 'sql_notes';
+show variables like 'sql_warnings';
+
+--echo End of 5.0 tests
