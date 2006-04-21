@@ -1488,8 +1488,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       Fix the partition functions and ensure they are not constant
       functions
     */
-    if (fix_partition_func(thd, share->normalized_path.str, outparam,
-                           is_create_table))
+    if (fix_partition_func(thd, outparam, is_create_table))
       goto err;
   }
 #endif

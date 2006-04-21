@@ -445,10 +445,12 @@ bool partition_info::check_range_constants()
 {
   partition_element* part_def;
   longlong current_largest_int= LONGLONG_MIN;
+  ulonglong current_largest_uint= 0;
   longlong part_range_value_int;
   uint i;
   List_iterator<partition_element> it(partitions);
   bool result= TRUE;
+  bool signed_flag= !part_expr->unsigned_flag;
   DBUG_ENTER("partition_info::check_range_constants");
   DBUG_PRINT("enter", ("INT_RESULT with %d parts", no_parts));
 
@@ -463,19 +465,40 @@ bool partition_info::check_range_constants()
   do
   {
     part_def= it++;
-    if ((i != (no_parts - 1)) || !defined_max_value)
-      part_range_value_int= part_def->range_value; 
-    else
-      part_range_value_int= LONGLONG_MAX;
-    if (likely(current_largest_int < part_range_value_int))
+    if (signed_flag)
     {
-      current_largest_int= part_range_value_int;
-      range_int_array[i]= part_range_value_int;
+      if ((i != (no_parts - 1)) || !defined_max_value)
+        part_range_value_int= part_def->range_value; 
+      else
+        part_range_value_int= LONGLONG_MAX;
+      if (likely(current_largest_int < part_range_value_int))
+      {
+        current_largest_int= part_range_value_int;
+        range_int_array[i]= part_range_value_int;
+      }
+      else
+      {
+        my_error(ER_RANGE_NOT_INCREASING_ERROR, MYF(0));
+        goto end;
+      }
     }
     else
     {
-      my_error(ER_RANGE_NOT_INCREASING_ERROR, MYF(0));
-      goto end;
+      ulonglong upart_range_value_int;
+      if ((i != (no_parts - 1)) || !defined_max_value)
+        upart_range_value_int= part_def->range_value; 
+      else
+        upart_range_value_int= ULONGLONG_MAX;
+      if (likely(current_largest_uint < upart_range_value_int))
+      {
+        current_largest_uint= upart_range_value_int;
+        range_int_array[i]= part_range_value_int;
+      }
+      else
+      {
+        my_error(ER_RANGE_NOT_INCREASING_ERROR, MYF(0));
+        goto end;
+      }
     }
   } while (++i < no_parts);
   result= FALSE;
@@ -485,8 +508,8 @@ end:
 
 
 /*
-  A support routine for check_list_constants used by qsort to sort the
-  constant list expressions.
+  Support routines for check_list_constants used by qsort to sort the
+  constant list expressions. One routine for unsigned and one for signed.
 
   SYNOPSIS
     list_part_cmp()
@@ -503,6 +526,18 @@ int partition_info::list_part_cmp(const void* a, const void* b)
 {
   longlong a1= ((LIST_PART_ENTRY*)a)->list_value;
   longlong b1= ((LIST_PART_ENTRY*)b)->list_value;
+  if (a1 < b1)
+    return -1;
+  else if (a1 > b1)
+    return +1;
+  else
+    return 0;
+}
+
+int partition_info::list_part_cmp_unsigned(const void* a, const void* b)
+{
+  ulonglong a1= ((LIST_PART_ENTRY*)a)->list_value;
+  ulonglong b1= ((LIST_PART_ENTRY*)b)->list_value;
   if (a1 < b1)
     return -1;
   else if (a1 > b1)
@@ -536,7 +571,7 @@ bool partition_info::check_list_constants()
 {
   uint i;
   uint list_index= 0;
-  longlong *list_value;
+  part_elem_value *list_value;
   bool not_first;
   bool result= TRUE;
   longlong curr_value, prev_value;
@@ -577,7 +612,7 @@ bool partition_info::check_list_constants()
       has_null_part_id= i;
       found_null= TRUE;
     }
-    List_iterator<longlong> list_val_it1(part_def->list_val_list);
+    List_iterator<part_elem_value> list_val_it1(part_def->list_val_list);
     while (list_val_it1++)
       no_list_values++;
   } while (++i < no_parts);
@@ -593,33 +628,40 @@ bool partition_info::check_list_constants()
   do
   {
     part_def= list_func_it++;
-    List_iterator<longlong> list_val_it2(part_def->list_val_list);
+    List_iterator<part_elem_value> list_val_it2(part_def->list_val_list);
     while ((list_value= list_val_it2++))
     {
-      list_array[list_index].list_value= *list_value;
+      list_array[list_index].list_value= list_value->value;
       list_array[list_index++].partition_id= i;
     }
   } while (++i < no_parts);
 
-  qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
-        &list_part_cmp);
-
-  not_first= FALSE;
-  i= prev_value= 0; //prev_value initialised to quiet compiler
-  do
+  if (fixed)
   {
-    curr_value= list_array[i].list_value;
-    if (likely(!not_first || prev_value != curr_value))
-    {
-      prev_value= curr_value;
-      not_first= TRUE;
-    }
+    if (!part_expr->unsigned_flag)
+      qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
+            &list_part_cmp);
     else
+      qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
+            &list_part_cmp_unsigned);
+
+    not_first= FALSE;
+    i= prev_value= 0; //prev_value initialised to quiet compiler
+    do
     {
-      my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
-      goto end;
-    }
-  } while (++i < no_list_values);
+      curr_value= list_array[i].list_value;
+      if (likely(!not_first || prev_value != curr_value))
+      {
+        prev_value= curr_value;
+        not_first= TRUE;
+      }
+      else
+      {
+        my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
+        goto end;
+      }
+    } while (++i < no_list_values);
+  }
   result= FALSE;
 end:
   DBUG_RETURN(result);
@@ -647,7 +689,7 @@ end:
 
 */
 
-bool partition_info::check_partition_info(handlerton **eng_type,
+bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
                                           handler *file, ulonglong max_rows)
 {
   handlerton **engine_array= NULL;
@@ -745,9 +787,12 @@ bool partition_info::check_partition_info(handlerton **eng_type,
     list constants.
   */
 
-  if (unlikely((part_type == RANGE_PARTITION && check_range_constants()) ||
-                (part_type == LIST_PARTITION && check_list_constants())))
-    goto end;
+  if (fixed)
+  {
+    if (unlikely((part_type == RANGE_PARTITION && check_range_constants()) ||
+                  (part_type == LIST_PARTITION && check_list_constants())))
+      goto end;
+  }
   result= FALSE;
 end:
   my_free((char*)engine_array,MYF(MY_ALLOW_ZERO_PTR));

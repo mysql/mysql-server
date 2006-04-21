@@ -5161,9 +5161,20 @@ void ha_partition::print_error(int error, myf errflag)
   if (error == HA_ERR_NO_PARTITION_FOUND)
   {
     char buf[100];
-    my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
-             m_part_info->part_expr->null_value ? "NULL" :
-             llstr(m_part_info->part_expr->val_int(), buf));
+    longlong value= m_part_info->part_expr->val_int();
+    if (!m_part_info->part_expr->unsigned_flag ||
+        m_part_info->part_expr->null_value)
+    {
+      my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
+               m_part_info->part_expr->null_value ? "NULL" :
+               llstr(m_part_info->part_expr->val_int(), buf));
+    }
+    else
+    {
+      ulonglong value= m_part_info->part_expr->val_int();
+      longlong2str(value, buf, 10);
+      my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf);
+    }
   }
   else
     m_file[0]->print_error(error, errflag);
