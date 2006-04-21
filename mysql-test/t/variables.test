@@ -169,7 +169,7 @@ set collation_connection=NULL;
 set global autocommit=1;
 --error 1238
 select @@global.timestamp;
---error 1193
+--error 1238 
 set @@version='';
 --error 1229
 set @@concurrent_insert=1;
@@ -258,6 +258,8 @@ select @@sql_max_join_size,@@max_join_size;
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
+# reset it, so later tests don't get confused
+set sql_select_limit=default;
 set sql_warnings=1;
 set global table_cache=100;
 set storage_engine=myisam;
@@ -472,4 +474,19 @@ select @@character_set_filesystem;
 set @@global.character_set_filesystem=default;
 select @@global.character_set_filesystem;
 
-# End of 5.0 tests
+#
+# Bug #12792: @@system_time_zone is not SELECTable.
+#
+# Don't actually output, since it depends on the system
+--replace_column 1 #
+select @@system_time_zone;
+
+#
+# Bug #15684: system variables cannot be SELECTed (e.g. @@version_comment)
+#
+# Don't actually output, since it depends on the system
+--replace_column 1 # 2 # 3 # 4 #
+select @@version, @@version_comment, @@version_compile_machine,
+       @@version_compile_os;
+
+--echo End of 5.0 tests

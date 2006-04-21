@@ -377,6 +377,8 @@ sys_var_thd_table_type  sys_table_type("table_type",
 sys_var_thd_storage_engine sys_storage_engine("storage_engine",
 				       &SV::table_type);
 sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
+sys_var_const_str	sys_system_time_zone("system_time_zone",
+                                             system_time_zone);
 sys_var_long_ptr	sys_table_cache_size("table_cache",
 					     &table_cache_size);
 sys_var_long_ptr	sys_table_lock_wait_timeout("table_lock_wait_timeout",
@@ -391,6 +393,16 @@ sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_bool_ptr  sys_timed_mutexes("timed_mutexes",
                                     &timed_mutexes);
+sys_var_const_str	sys_version("version", server_version);
+#ifdef HAVE_BERKELEY_DB
+sys_var_const_str	sys_version_bdb("version_bdb", DB_VERSION_STRING);
+#endif
+sys_var_const_str	sys_version_comment("version_comment",
+                                            MYSQL_COMPILATION_COMMENT);
+sys_var_const_str	sys_version_compile_machine("version_compile_machine",
+                                                    MACHINE_TYPE);
+sys_var_const_str	sys_version_compile_os("version_compile_os",
+                                               SYSTEM_TYPE);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
 
@@ -546,7 +558,6 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 
 /* Read only variables */
 
-sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
 sys_var_readonly                sys_have_innodb("have_innodb", OPT_GLOBAL,
                                                 SHOW_CHAR, get_have_innodb);
 /* Global read-only variable describing server license */
@@ -698,6 +709,7 @@ sys_var *sys_variables[]=
   &sys_sql_notes,
   &sys_storage_engine,
   &sys_sync_frm,
+  &sys_system_time_zone,
   &sys_table_cache_size,
   &sys_table_lock_wait_timeout,
   &sys_table_type,
@@ -710,7 +722,13 @@ sys_var *sys_variables[]=
   &sys_trans_alloc_block_size,
   &sys_trans_prealloc_size,
   &sys_tx_isolation,
-  &sys_os,
+  &sys_version,
+#ifdef HAVE_BERKELEY_DB
+  &sys_version_bdb,
+#endif
+  &sys_version_comment,
+  &sys_version_compile_machine,
+  &sys_version_compile_os,
 #ifdef HAVE_INNOBASE_DB
   &sys_innodb_fast_shutdown,
   &sys_innodb_max_dirty_pages_pct,
@@ -1015,13 +1033,14 @@ struct show_var_st init_vars[]= {
   {sys_tx_isolation.name,     (char*) &sys_tx_isolation,	    SHOW_SYS},
   {sys_updatable_views_with_limit.name,
                               (char*) &sys_updatable_views_with_limit,SHOW_SYS},
-  {"version",                 server_version,                       SHOW_CHAR},
+  {sys_version.name,          (char*) &sys_version,                 SHOW_SYS},
 #ifdef HAVE_BERKELEY_DB
-  {"version_bdb",             (char*) DB_VERSION_STRING,            SHOW_CHAR},
+  {sys_version_bdb.name,      (char*) &sys_version_bdb,             SHOW_SYS},
 #endif
-  {"version_comment",         (char*) MYSQL_COMPILATION_COMMENT,    SHOW_CHAR},
-  {"version_compile_machine", (char*) MACHINE_TYPE,		    SHOW_CHAR},
-  {sys_os.name,		      (char*) &sys_os,			    SHOW_SYS},
+  {sys_version_comment.name,  (char*) &sys_version_comment,         SHOW_SYS},
+  {sys_version_compile_machine.name, (char*) &sys_version_compile_machine,
+   SHOW_SYS},
+  {sys_version_compile_os.name,	(char*) &sys_version_compile_os,    SHOW_SYS},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
   {NullS, NullS, SHOW_LONG}
 };
