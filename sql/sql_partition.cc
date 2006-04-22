@@ -4532,6 +4532,7 @@ the generated partition syntax in a correct manner.
           /*
             Make sure change of engine happens to all partitions.
           */
+          DBUG_PRINT("info", ("partition changed"));
           set_engine_all_partitions(thd->work_part_info, create_info->db_type);
           *partition_changed= TRUE;
         }
@@ -4546,7 +4547,10 @@ the generated partition syntax in a correct manner.
         using the partition handler.
       */
       if (thd->work_part_info != table->part_info)
+      {
+        DBUG_PRINT("info", ("partition changed"));
         *partition_changed= TRUE;
+      }
       if (create_info->db_type == &partition_hton)
         part_info->default_engine_type= table->part_info->default_engine_type;
       else
