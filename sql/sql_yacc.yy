@@ -3558,75 +3558,14 @@ part_definition:
           LEX *lex= Lex;
           partition_info *part_info= lex->part_info;
           partition_element *p_elem= new partition_element();
-          uint part_id= part_info->partitions.elements +
-                        part_info->temp_partitions.elements;
-          enum partition_state part_state;
+          uint part_id= part_info->partitions.elements;
 
-          if (part_info->part_state)
-            part_state= (enum partition_state)part_info->part_state[part_id];
-          else
-            part_state= PART_NORMAL;
-          switch (part_state)
+          if (!p_elem || part_info->partitions.push_back(p_elem))
           {
-            case PART_TO_BE_DROPPED:
-            /*
-              This part is currently removed so we keep it in a
-              temporary list for REPAIR TABLE to be able to handle
-              failures during drop partition process.
-            */
-            case PART_TO_BE_ADDED:
-            /*
-              This part is currently being added so we keep it in a
-              temporary list for REPAIR TABLE to be able to handle
-              failures during add partition process.
-            */
-              if (!p_elem || part_info->temp_partitions.push_back(p_elem))
-              {
-                mem_alloc_error(sizeof(partition_element));
-                YYABORT;
-              }
-              break;
-            case PART_IS_ADDED:
-            /*
-              Part has been added and is now a normal partition
-            */
-            case PART_TO_BE_REORGED:
-            /*
-              This part is currently reorganised, it is still however
-              used so we keep it in the list of partitions. We do
-              however need the state to be able to handle REPAIR TABLE
-              after failures in the reorganisation process.
-            */
-            case PART_REORGED_DROPPED:
-            /*
-              This part is currently reorganised as part of a
-              COALESCE PARTITION and it will be dropped without a new
-              replacement partition after completing the reorganisation.
-            */
-            case PART_CHANGED:
-            /*
-              This part is currently split or merged as part of ADD
-              PARTITION for a hash partition or as part of COALESCE
-              PARTITION for a hash partitioned table.
-            */
-            case PART_IS_CHANGED:
-            /*
-              This part has been split or merged as part of ADD
-              PARTITION for a hash partition or as part of COALESCE
-              PARTITION for a hash partitioned table.
-            */
-            case PART_NORMAL:
-              if (!p_elem || part_info->partitions.push_back(p_elem))
-              {
-                mem_alloc_error(sizeof(partition_element));
-                YYABORT;
-              }
-              break;
-            default:
-              mem_alloc_error((part_id * 1000) + part_state);
-              YYABORT;
+            mem_alloc_error(sizeof(partition_element));
+            YYABORT;
           }
-          p_elem->part_state= part_state;
+          p_elem->part_state= PART_NORMAL;
           part_info->curr_part_elem= p_elem;
           part_info->current_partition= p_elem;
           part_info->use_default_partitions= FALSE;
@@ -4801,7 +4740,7 @@ alter:
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
 	    lex->create_view_mode= VIEW_ALTER;
 	    /* first table in list is target VIEW name */
-	    lex->select_lex.add_table_to_list(thd, $6, NULL, 0);
+	    lex->select_lex.add_table_to_list(thd, $6, NULL, TL_OPTION_UPDATING);
 	  }
 	  view_list_opt AS view_select view_check_option
 	  {}
@@ -10904,7 +10843,7 @@ view_tail:
 	  LEX *lex= thd->lex;
 	  lex->sql_command= SQLCOM_CREATE_VIEW;
 	  /* first table in list is target VIEW name */
-	  if (!lex->select_lex.add_table_to_list(thd, $3, NULL, 0))
+	  if (!lex->select_lex.add_table_to_list(thd, $3, NULL, TL_OPTION_UPDATING))
 	    YYABORT;
 	}
 	view_list_opt AS view_select view_check_option
