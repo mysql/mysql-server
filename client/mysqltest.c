@@ -1956,7 +1956,13 @@ static uint get_errcodes(match_err *to,struct st_query *q)
 	;
       for (; e->name; e++)
       {
-	if (!strncmp(start, e->name, (int) (p - start)))
+        /*
+          If we get a match, we need to check the length of the name we
+          matched against in case it was longer than what we are checking
+          (as in ER_WRONG_VALUE vs. ER_WRONG_VALUE_COUNT).
+        */
+	if (!strncmp(start, e->name, (int) (p - start)) &&
+            strlen(e->name) == (p - start))
 	{
 	  to[count].code.errnum= (uint) e->code;
 	  to[count].type= ERR_ERRNO;
