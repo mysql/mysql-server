@@ -165,6 +165,20 @@ ENGINE=NDB
 PARTITION BY KEY(c3) PARTITIONS 5;
 ALTER TABLE t1 COALESCE PARTITION 4;
 DROP TABLE t1;
+CREATE TABLE t1 (a int primary key)
+ENGINE=NDB
+PARTITION BY KEY(a);
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+ALTER TABLE t1 CHECK PARTITION p0;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+ALTER TABLE t1 REPAIR PARTITION p0;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+ALTER TABLE t1 ANALYZE PARTITION p0;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+ALTER TABLE t1 REBUILD PARTITION p0;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+DROP TABLE t1;
 CREATE TABLE t1 (
 c1 MEDIUMINT NOT NULL AUTO_INCREMENT,
 c2 TEXT NOT NULL,
