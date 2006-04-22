@@ -4740,7 +4740,7 @@ alter:
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
 	    lex->create_view_mode= VIEW_ALTER;
 	    /* first table in list is target VIEW name */
-	    lex->select_lex.add_table_to_list(thd, $6, NULL, 0);
+	    lex->select_lex.add_table_to_list(thd, $6, NULL, TL_OPTION_UPDATING);
 	  }
 	  view_list_opt AS view_select view_check_option
 	  {}
@@ -10843,7 +10843,7 @@ view_tail:
 	  LEX *lex= thd->lex;
 	  lex->sql_command= SQLCOM_CREATE_VIEW;
 	  /* first table in list is target VIEW name */
-	  if (!lex->select_lex.add_table_to_list(thd, $3, NULL, 0))
+	  if (!lex->select_lex.add_table_to_list(thd, $3, NULL, TL_OPTION_UPDATING))
 	    YYABORT;
 	}
 	view_list_opt AS view_select view_check_option
