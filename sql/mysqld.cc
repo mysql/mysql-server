@@ -3605,6 +3605,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
       unireg_abort(1);
     }
   }
+  execute_ddl_log_recovery();
 
   create_shutdown_thread();
   create_maintenance_thread();
@@ -3656,6 +3657,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
+  release_ddl_log();
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (Service.IsNT() && start_mode)
     Service.Stop();
@@ -6160,23 +6162,6 @@ The minimum value for this variable is 4096.",
   {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default.",
    (gptr*) &opt_sync_frm, (gptr*) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
    0, 0, 0, 0},
-#ifdef HAVE_REPLICATION
-  {"sync-replication", OPT_SYNC_REPLICATION,
-   "Enable synchronous replication.",
-   (gptr*) &global_system_variables.sync_replication,
-   (gptr*) &global_system_variables.sync_replication,
-   0, GET_ULONG, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
-  {"sync-replication-slave-id", OPT_SYNC_REPLICATION_SLAVE_ID,
-   "Synchronous replication is wished for this slave.",
-   (gptr*) &global_system_variables.sync_replication_slave_id,
-   (gptr*) &global_system_variables.sync_replication_slave_id,
-   0, GET_ULONG, REQUIRED_ARG, 0, 0, ~0L, 0, 1, 0},
-  {"sync-replication-timeout", OPT_SYNC_REPLICATION_TIMEOUT,
-   "Synchronous replication timeout.",
-   (gptr*) &global_system_variables.sync_replication_timeout,
-   (gptr*) &global_system_variables.sync_replication_timeout,
-   0, GET_ULONG, REQUIRED_ARG, 10, 0, ~0L, 0, 1, 0},
-#endif /* HAVE_REPLICATION */
   {"table_cache", OPT_TABLE_OPEN_CACHE,
    "Deprecated; use --table_open_cache instead.",
    (gptr*) &table_cache_size, (gptr*) &table_cache_size, 0, GET_ULONG,
