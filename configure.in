@@ -666,6 +666,7 @@ else
   AC_MSG_RESULT([no])
 fi
 
+  
 MYSQL_SYS_LARGEFILE
 
 # Types that must be checked AFTER large file support is checked
@@ -1606,6 +1607,21 @@ else
   # Optimized version. No debug
   CFLAGS="$OPTIMIZE_CFLAGS -DDBUG_OFF $CFLAGS"
   CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS"
+fi
+
+# If we should allow error injection tests
+AC_ARG_WITH(error-inject,
+    [ --with-error-inject    Enable error injection in MySQL Server],
+    [ with_error_inject=$withval ],
+    [ with_error_inject=no ])
+
+if test $with_debug != "no"
+then
+  if test "$with_error_inject" = "yes"
+  then
+    AC_DEFINE([ERROR_INJECT_SUPPORT], [1],
+              [Enable error injection in MySQL Server])
+  fi
 fi
 
 AC_ARG_WITH([fast-mutexes],
