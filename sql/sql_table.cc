@@ -5990,7 +5990,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       VOID(pthread_mutex_lock(&LOCK_open));
     }
     /* Tell the handler that a new frm file is in place. */
-    if (table->file->create_handler_files(reg_path, NULL, CHF_INDEX_FLAG,
+    if (table->file->create_handler_files(path, NULL, CHF_INDEX_FLAG,
                                           create_info))
     {
       VOID(pthread_mutex_unlock(&LOCK_open));
