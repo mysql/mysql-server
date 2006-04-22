@@ -223,6 +223,9 @@ THD::THD()
   cuted_fields= sent_row_count= 0L;
   limit_found_rows= 0;
   statement_id_counter= 0UL;
+#ifdef ERROR_INJECT_SUPPORT
+  error_inject_value= 0UL;
+#endif
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
   start_time=(time_t) 0;
