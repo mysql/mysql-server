@@ -60,6 +60,7 @@ ndb_imem=24M
 NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
 NDBD_EXTRA_OPTS=
+CHARSETSDIR=
 
 while test $# -gt 0; do
   case "$1" in
@@ -106,6 +107,9 @@ while test $# -gt 0; do
     --ndbd-extra-opts=*)
      NDBD_EXTRA_OPTS=`echo "$1" | sed -e "s;--ndbd-extra-opts=;;"`
      ;;
+    --character-sets-dir=*)
+     CHARSETSDIR=`echo "$1" | sed -e "s;--character-sets-dir=;;"`
+     ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
     * ) break ;;
@@ -135,7 +139,7 @@ fi
 
 exec_mgmtclient="$exec_mgmtclient --no-defaults $NDB_MGM_EXTRA_OPTS"
 exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults $NDB_MGMD_EXTRA_OPTS"
-exec_ndb="$exec_ndb --no-defaults $NDBD_EXTRA_OPTS"
+exec_ndb="$exec_ndb --no-defaults $NDBD_EXTRA_OPTS --character-sets-dir=$CHARSETSDIR"
 exec_waiter="$exec_waiter --no-defaults"
 
 ndb_host="localhost"

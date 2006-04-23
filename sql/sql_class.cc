@@ -2025,7 +2025,7 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   The following things is done
   - Disable binary logging for the duration of the statement
   - Disable multi-result-sets for the duration of the statement
-  - Value of last_insert_id() is reset and restored
+  - Value of last_insert_id() is saved and restored
   - Value set by 'SET INSERT_ID=#' is reset and restored
   - Value for found_rows() is reset and restored
   - examined_row_count is added to the total
@@ -2037,6 +2037,8 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
     We reset examined_row_count and cuted_fields and add these to the
     result to ensure that if we have a bug that would reset these within
     a function, we are not loosing any rows from the main statement.
+
+    We do not reset value of last_insert_id().
 ****************************************************************************/
 
 void THD::reset_sub_statement_state(Sub_statement_state *backup,
@@ -2062,7 +2064,6 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;
-  last_insert_id= 0;
   next_insert_id= 0;
   insert_id_used= 0;
   examined_row_count= 0;
