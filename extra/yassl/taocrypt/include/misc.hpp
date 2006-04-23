@@ -34,6 +34,11 @@
 
 namespace TaoCrypt {
 
+
+// Delete static singleton holders
+void CleanUp();
+
+
 // library allocation
 struct new_t {};      // TaoCrypt New type
 extern new_t tc;      // pass in parameter
