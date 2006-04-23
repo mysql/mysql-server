@@ -12,27 +12,11 @@ not automatically generate them from pars0grm.y and pars0lex.l.
 
 How to make the InnoDB parser and lexer C files:
 
-1. First do
-        bison -d pars0grm.y
-   That generates pars0grm.tab.c and pars0grm.tab.h.
+1. Run ./make_flex.sh to generate lexer files.
 
-2. Rename pars0grm.tab.c to pars0grm.c and pars0grm.tab.h to pars0grm.h.
+2. Run ./make_bison.sh to generate parser files.
 
-3. Copy pars0grm.h also to /innobase/include
-
-4. Do
-        flex pars0lex.l
-   That generates lex.yy.c.
-
-5. Rename lex.yy.c to lexyy.c.
-
-6. Add '#include "univ.i"' before #include <stdio.h> in lexyy.c
-   (Needed for AIX)
-
-7. Add a type cast to int to the assignment below the comment
-   'need more input.'  (Removes a warning on Win64)
-
-These instructions seem to work at least with bison-1.28 and flex-2.5.4 on
+These instructions seem to work at least with bison-1.875d and flex-2.5.31 on
 Linux.
 *******************************************************/
 
@@ -96,11 +80,14 @@ string_append(
 }
 
 %}
-								
+
 DIGIT	[0-9]
 ID	[a-z_A-Z][a-z_A-Z0-9]*
+BOUND_LIT	\:[a-z_A-Z0-9]+
+
 %x comment
 %x quoted
+%x id
 %%
 
 {DIGIT}+	{
@@ -113,6 +100,15 @@ ID	[a-z_A-Z][a-z_A-Z0-9]*
 			ut_error;	/* not implemented */
 
 			return(PARS_FLOAT_LIT);
+}
+
+{BOUND_LIT}	{
+			ulint	type;
+
+			yylval = sym_tab_add_bound_lit(pars_sym_tab_global,
+				yytext + 1, &type);
+
+			return(type);
 }
 
 "'"		{
@@ -150,6 +146,45 @@ In the state 'quoted', only two actions are possible (defined below). */
 					pars_sym_tab_global,
 					(byte*) stringbuf, stringbuf_len);
 				return(PARS_STR_LIT);
+			}
+}
+
+\"		{
+/* Quoted identifiers are handled in an explicit start state 'id'.
+This state is entered and the buffer for the scanned string is emptied
+upon encountering a starting quote.
+
+In the state 'id', only two actions are possible (defined below). */
+			BEGIN(id);
+			stringbuf_len = 0;
+}
+<id>[^\"]+	{
+			/* Got a sequence of characters other than '"':
+			append to string buffer */
+			string_append(yytext, yyleng);
+}
+<id>\"+	{
+			/* Got a sequence of '"' characters:
+			append half of them to string buffer,
+			as '""' represents a single '"'.
+			We apply truncating division,
+			so that '"""' will result in '"'. */
+
+			string_append(yytext, yyleng / 2);
+
+			/* If we got an odd number of quotes, then the
+			last quote we got is the terminating quote.
+			At the end of the string, we return to the
+			initial start state and report the scanned
+			identifier. */
+
+			if (yyleng % 2) {
+				BEGIN(INITIAL);
+				yylval = sym_tab_add_id(
+					pars_sym_tab_global,
+					(byte*) stringbuf, stringbuf_len);
+
+				return(PARS_ID_TOKEN);
 			}
 }
 
@@ -460,6 +495,18 @@ In the state 'quoted', only two actions are possible (defined below). */
 
 "WORK"		{
 			return(PARS_WORK_TOKEN);
+}
+
+"UNSIGNED"	{
+			return(PARS_UNSIGNED_TOKEN);
+}
+
+"EXIT"		{
+			return(PARS_EXIT_TOKEN);
+}
+
+"FUNCTION"	{
+			return(PARS_FUNCTION_TOKEN);
 }
 
 {ID}		{

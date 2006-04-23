@@ -63,6 +63,14 @@ proc_eval_step(
 				/* out: query thread to run next or NULL */
 	que_thr_t*	thr);	/* in: query thread */
 /**************************************************************************
+Performs an execution step of an exit statement node. */
+
+que_thr_t*
+exit_step(
+/*======*/
+				/* out: query thread to run next or NULL */
+	que_thr_t*	thr);	/* in: query thread */
+/**************************************************************************
 Performs an execution step of a return-statement node. */
 
 que_thr_t*
