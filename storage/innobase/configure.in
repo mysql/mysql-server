@@ -89,6 +89,25 @@ else
   CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS -DDEBUG_OFF"
 fi
 
+# NOTE: The flags below are disabled by default since we can't easily get
+# rid of the "string over 509 characters in length" warnings, and thus can't
+# add -Werror. But it's a good idea to enable these for a test compile
+# before shipping a new snapshot to MySQL to catch errors that could make
+# the compile fail on non-C99 compilers.
+
+# If using gcc, disallow usage of C99 features to avoid accidentally
+# introducing problems on compilers that only implement C89.
+#if test "$ac_cv_prog_gcc" = "yes"
+#then
+#  CFLAGS="$CFLAGS -std=c89 -ansi -pedantic -Wno-long-long"
+#fi
+
+# If using gcc, add some extra warning flags.
+if test "$ac_cv_prog_gcc" = "yes"
+then
+  CFLAGS="$CFLAGS -Werror-implicit-function-declaration"
+fi
+
 case "$target_os" in
        lin*)
 	 CFLAGS="$CFLAGS -DUNIV_LINUX";;

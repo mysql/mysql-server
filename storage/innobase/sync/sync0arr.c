@@ -524,7 +524,7 @@ sync_array_cell_print(
 			"Last time reserved in file %s line %lu, "
 #endif /* UNIV_SYNC_DEBUG */
 			"waiters flag %lu\n",
-			mutex, mutex->cfile_name, (ulong) mutex->cline,
+			(void*) mutex, mutex->cfile_name, (ulong) mutex->cline,
 			(ulong) mutex->lock_word,
 #ifdef UNIV_SYNC_DEBUG
 			mutex->file_name, (ulong) mutex->line,
@@ -539,7 +539,7 @@ sync_array_cell_print(
 
 		fprintf(file,
 			" RW-latch at %p created in file %s line %lu\n",
-			rwlock, rwlock->cfile_name,
+			(void*) rwlock, rwlock->cfile_name,
 			(ulong) rwlock->cline);
 		if (rwlock->writer != RW_LOCK_NOT_LOCKED) {
 			fprintf(file,
@@ -670,7 +670,6 @@ sync_array_detect_deadlock(
 	rw_lock_debug_t*debug;
 
 	ut_a(arr && start && cell);
-	ut_ad(cell->state == SC_RESERVED);
 	ut_ad(cell->wait_object);
 	ut_ad(os_thread_get_curr_id() == start->thread);
 	ut_ad(depth < 100);
@@ -703,7 +702,7 @@ sync_array_detect_deadlock(
 			if (ret) {
 				fprintf(stderr,
 			"Mutex %p owned by thread %lu file %s line %lu\n",
-					mutex,
+					(void*) mutex,
 					(ulong) os_thread_pf(mutex->thread_id),
 					mutex->file_name, (ulong) mutex->line);
 				sync_array_cell_print(stderr, cell);
@@ -740,7 +739,8 @@ sync_array_detect_deadlock(
 					thread, debug->pass, depth);
 				if (ret) {
 				print:
-					fprintf(stderr, "rw-lock %p ", lock);
+					fprintf(stderr, "rw-lock %p ",
+						(void*) lock);
 					sync_array_cell_print(stderr, cell);
 					rw_lock_debug_print(debug);
 					return(TRUE);
