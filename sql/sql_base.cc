@@ -483,11 +483,10 @@ void close_temporary(TABLE *table,bool delete_table)
   DBUG_VOID_RETURN;
 }
 
-/* close_temporary_tables' internal */
+/* close_temporary_tables' internal, 4 is due to uint4korr definition */
 static inline uint  tmpkeyval(THD *thd, TABLE *table)
 {
-  return uint4korr(table->table_cache_key + table->key_length - 
-                   sizeof(thd->variables.pseudo_thread_id));
+  return uint4korr(table->table_cache_key + table->key_length - 4);
 }
 
 /* Creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread */
@@ -513,7 +512,7 @@ void close_temporary_tables(THD *thd)
   */
   for (prev_table= thd->temporary_tables, 
          table= prev_table->next,
-         found_user_tables= (prev_table->table_name[0] != '#'); 
+         found_user_tables= (prev_table->real_name[0] != '#'); 
        table;
        prev_table= table, table= table->next)
   {
