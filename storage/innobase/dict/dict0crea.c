@@ -24,6 +24,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "pars0pars.h"
 #include "trx0roll.h"
 #include "usr0sess.h"
+#include "ut0vec.h"
 
 /*********************************************************************
 Based on a table object, this function builds the entry to be inserted
@@ -74,14 +75,14 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 3);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, table->type);
+	mach_write_to_4(ptr, DICT_TABLE_ORDINARY);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 6: MIX_ID ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 4);
 
 	ptr = mem_heap_alloc(heap, 8);
-	mach_write_to_8(ptr, table->mix_id);
+	memset(ptr, 0, 8);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 7: MIX_LEN --------------------------*/
@@ -89,19 +90,13 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 5);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, table->mix_len);
+	memset(ptr, 0, 4);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: CLUSTER_NAME ---------------------*/
 	dfield = dtuple_get_nth_field(entry, 6);
+	dfield_set_data(dfield, NULL, UNIV_SQL_NULL); /* not supported */
 
-	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-		dfield_set_data(dfield, table->cluster_name,
-				ut_strlen(table->cluster_name));
-		ut_error; /* Oracle-style clusters are not supported yet */
-	} else {
-		dfield_set_data(dfield, NULL, UNIV_SQL_NULL);
-	}
 	/* 9: SPACE ----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 7);
 
@@ -207,7 +202,6 @@ dict_build_table_def_step(
 	tab_node_t*	node)	/* in: table create node */
 {
 	dict_table_t*	table;
-	dict_table_t*	cluster_table;
 	dtuple_t*	row;
 	ulint		error;
 	const char*	path_or_name;
@@ -233,23 +227,6 @@ dict_build_table_def_step(
 	}
 	if (row_len > BTR_PAGE_MAX_REC_SIZE) {
 		return(DB_TOO_BIG_RECORD);
-	}
-
-	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-
-		cluster_table = dict_table_get_low(table->cluster_name);
-
-		if (cluster_table == NULL) {
-
-			return(DB_CLUSTER_NOT_FOUND);
-		}
-
-		/* Inherit space and mix len from the cluster */
-
-		table->space = cluster_table->space;
-		table->mix_len = cluster_table->mix_len;
-
-		table->mix_id = dict_hdr_get_new_id(DICT_HDR_MIX_ID);
 	}
 
 	if (srv_file_per_table) {
@@ -613,15 +590,6 @@ dict_create_index_tree_step(
 	table = node->table;
 
 	sys_indexes = dict_sys->sys_indexes;
-
-	if (index->type & DICT_CLUSTERED
-			&& table->type == DICT_TABLE_CLUSTER_MEMBER) {
-
-		/* Do not create a new index tree: entries are put to the
-		cluster tree */
-
-		return(DB_SUCCESS);
-	}
 
 	/* Run a mini-transaction in which the index tree is allocated for
 	the index and its root address is written to the index entry in
@@ -1159,11 +1127,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 {
 	dict_table_t*	table1;
 	dict_table_t*	table2;
-	que_thr_t*	thr;
-	que_t*		graph;
 	ulint		error;
 	trx_t*		trx;
-	const char*	str;
 
 	mutex_enter(&(dict_sys->mutex));
 
@@ -1215,7 +1180,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	VARBINARY, like in other InnoDB system tables, to get a clean
 	design. */
 
-	str =
+	error = que_eval_sql(NULL,
 	"PROCEDURE CREATE_FOREIGN_SYS_TABLES_PROC () IS\n"
 	"BEGIN\n"
 	"CREATE TABLE\n"
@@ -1227,22 +1192,8 @@ dict_create_or_check_foreign_constraint_tables(void)
   "SYS_FOREIGN_COLS(ID CHAR, POS INT, FOR_COL_NAME CHAR, REF_COL_NAME CHAR);\n"
 	"CREATE UNIQUE CLUSTERED INDEX ID_IND ON SYS_FOREIGN_COLS (ID, POS);\n"
 	"COMMIT WORK;\n"
-	"END;\n";
-
-	graph = pars_sql(str);
-
-	ut_a(graph);
-
-	graph->trx = trx;
-	trx->graph = NULL;
-
-	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
-
-	ut_a(thr = que_fork_start_command(graph));
-
-	que_run_threads(thr);
-
-	error = trx->error_state;
+	"END;\n"
+		, trx);
 
 	if (error != DB_SUCCESS) {
 		fprintf(stderr, "InnoDB: error %lu in creation\n",
@@ -1261,8 +1212,6 @@ dict_create_or_check_foreign_constraint_tables(void)
 		error = DB_MUST_GET_MORE_FILE_SPACE;
 	}
 
-	que_graph_free(graph);
-
 	trx->op_info = "";
 
 	row_mysql_unlock_data_dictionary(trx);
@@ -1277,150 +1226,23 @@ dict_create_or_check_foreign_constraint_tables(void)
 	return(error);
 }
 
-/************************************************************************
-Adds foreign key definitions to data dictionary tables in the database. We
-look at table->foreign_list, and also generate names to constraints that were
-not named by the user. A generated constraint has a name of the format
-databasename/tablename_ibfk_<number>, where the numbers start from 1, and are
-given locally for this table, that is, the number is not global, as in the
-old format constraints < 4.0.18 it used to be. */
+/********************************************************************
+Evaluate the given foreign key SQL statement. */
 
 ulint
-dict_create_add_foreigns_to_dictionary(
-/*===================================*/
+dict_foreign_eval_sql(
+/*==================*/
 				/* out: error code or DB_SUCCESS */
-	ulint		start_id,/* in: if we are actually doing ALTER TABLE
-				ADD CONSTRAINT, we want to generate constraint
-				numbers which are bigger than in the table so
-				far; we number the constraints from
-				start_id + 1 up; start_id should be set to 0 if
-				we are creating a new table, or if the table
-				so far has no constraints for which the name
-				was generated here */
+	pars_info_t*	info,	/* in: info struct, or NULL */
+	const char*	sql,	/* in: SQL string to evaluate */
 	dict_table_t*	table,	/* in: table */
+	dict_foreign_t*	foreign,/* in: foreign */
 	trx_t*		trx)	/* in: transaction */
 {
-	dict_foreign_t*	foreign;
-	que_thr_t*	thr;
-	que_t*		graph;
-	ulint		number	= start_id + 1;
-	ulint		len;
 	ulint		error;
 	FILE*		ef	= dict_foreign_err_file;
-	ulint		i;
-	char*		sql;
-	char*		sqlend;
-	/* This procedure builds an InnoDB stored procedure which will insert
-	the necessary rows into SYS_FOREIGN and SYS_FOREIGN_COLS. */
-	static const char str1[] = "PROCEDURE ADD_FOREIGN_DEFS_PROC () IS\n"
-	"BEGIN\n"
-	"INSERT INTO SYS_FOREIGN VALUES(";
-	static const char str2[] = ");\n";
-	static const char str3[] =
-	"INSERT INTO SYS_FOREIGN_COLS VALUES(";
-	static const char str4[] =
-	"COMMIT WORK;\n"
-	"END;\n";
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
-
-	if (NULL == dict_table_get_low("SYS_FOREIGN")) {
-		fprintf(stderr,
-"InnoDB: table SYS_FOREIGN not found from internal data dictionary\n");
-
-		return(DB_ERROR);
-	}
-
-	foreign = UT_LIST_GET_FIRST(table->foreign_list);
-loop:
-	if (foreign == NULL) {
-
-		return(DB_SUCCESS);
-	}
-
-	if (foreign->id == NULL) {
-		/* Generate a new constraint id */
-		ulint	namelen	= strlen(table->name);
-		char*	id	= mem_heap_alloc(foreign->heap, namelen + 20);
-		/* no overflow if number < 1e13 */
-		sprintf(id, "%s_ibfk_%lu", table->name, (ulong) number++);
-		foreign->id = id;
-	}
-
-	len = (sizeof str1) + (sizeof str2) + (sizeof str4) - 3
-		+ 9/* ' and , chars */ + 10/* 32-bit integer */
-		+ ut_strlenq(foreign->id, '\'') * (foreign->n_fields + 1)
-		+ ut_strlenq(table->name, '\'')
-		+ ut_strlenq(foreign->referenced_table_name, '\'');
-
-	for (i = 0; i < foreign->n_fields; i++) {
-		len += 9/* ' and , chars */ + 10/* 32-bit integer */
-			+ (sizeof str3) + (sizeof str2) - 2
-			+ ut_strlenq(foreign->foreign_col_names[i], '\'')
-			+ ut_strlenq(foreign->referenced_col_names[i], '\'');
-	}
-
-	sql = sqlend = mem_alloc(len + 1);
-
-	/* INSERT INTO SYS_FOREIGN VALUES(...); */
-	memcpy(sqlend, str1, (sizeof str1) - 1);
-	sqlend += (sizeof str1) - 1;
-	*sqlend++ = '\'';
-	sqlend = ut_strcpyq(sqlend, '\'', foreign->id);
-	*sqlend++ = '\'', *sqlend++ = ',', *sqlend++ = '\'';
-	sqlend = ut_strcpyq(sqlend, '\'', table->name);
-	*sqlend++ = '\'', *sqlend++ = ',', *sqlend++ = '\'';
-	sqlend = ut_strcpyq(sqlend, '\'', foreign->referenced_table_name);
-	*sqlend++ = '\'', *sqlend++ = ',';
-	sqlend += sprintf(sqlend, "%010lu",
-			foreign->n_fields + (foreign->type << 24));
-	memcpy(sqlend, str2, (sizeof str2) - 1);
-	sqlend += (sizeof str2) - 1;
-
-	for (i = 0; i < foreign->n_fields; i++) {
-		/* INSERT INTO SYS_FOREIGN_COLS VALUES(...); */
-		memcpy(sqlend, str3, (sizeof str3) - 1);
-		sqlend += (sizeof str3) - 1;
-		*sqlend++ = '\'';
-		sqlend = ut_strcpyq(sqlend, '\'', foreign->id);
-		*sqlend++ = '\''; *sqlend++ = ',';
-		sqlend += sprintf(sqlend, "%010lu", (ulong) i);
-		*sqlend++ = ','; *sqlend++ = '\'';
-		sqlend = ut_strcpyq(sqlend, '\'',
-			foreign->foreign_col_names[i]);
-		*sqlend++ = '\''; *sqlend++ = ','; *sqlend++ = '\'';
-		sqlend = ut_strcpyq(sqlend, '\'',
-			foreign->referenced_col_names[i]);
-		*sqlend++ = '\'';
-		memcpy(sqlend, str2, (sizeof str2) - 1);
-		sqlend += (sizeof str2) - 1;
-	}
-
-	memcpy(sqlend, str4, sizeof str4);
-	sqlend += sizeof str4;
-
-	ut_a(sqlend == sql + len + 1);
-
-	graph = pars_sql(sql);
-
-	ut_a(graph);
-
-	mem_free(sql);
-
-	graph->trx = trx;
-	trx->graph = NULL;
-
-	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
-
-	ut_a(thr = que_fork_start_command(graph));
-
-	que_run_threads(thr);
-
-	error = trx->error_state;
-
-	que_graph_free(graph);
+	error = que_eval_sql(info, sql, trx);
 
 	if (error == DB_DUPLICATE_KEY) {
 		mutex_enter(&dict_foreign_err_mutex);
@@ -1466,7 +1288,163 @@ loop:
 		return(error);
 	}
 
-	foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+	return(DB_SUCCESS);
+}
 
-	goto loop;
+/************************************************************************
+Add a single foreign key field definition to the data dictionary tables in
+the database.  */
+static
+ulint
+dict_create_add_foreign_field_to_dictionary(
+/*========================================*/
+					/* out: error code or DB_SUCCESS */
+	ulint		field_nr,	/* in: foreign field number */
+	dict_table_t*	table,		/* in: table */
+	dict_foreign_t*	foreign,	/* in: foreign */
+	trx_t*		trx)		/* in: transaction */
+{
+	pars_info_t*	info = pars_info_create();
+
+	pars_info_add_str_literal(info, "id", foreign->id);
+
+	pars_info_add_int4_literal(info, "pos", field_nr);
+
+	pars_info_add_str_literal(info, "for_col_name",
+		foreign->foreign_col_names[field_nr]);
+
+	pars_info_add_str_literal(info, "ref_col_name",
+		foreign->referenced_col_names[field_nr]);
+
+	return dict_foreign_eval_sql(info,
+		"PROCEDURE P () IS\n"
+		"BEGIN\n"
+		"INSERT INTO SYS_FOREIGN_COLS VALUES"
+		"(:id, :pos, :for_col_name, :ref_col_name);\n"
+		"END;\n"
+		, table, foreign, trx);
+}
+
+/************************************************************************
+Add a single foreign key definition to the data dictionary tables in the
+database. We also generate names to constraints that were not named by the
+user. A generated constraint has a name of the format
+databasename/tablename_ibfk_<number>, where the numbers start from 1, and
+are given locally for this table, that is, the number is not global, as in
+the old format constraints < 4.0.18 it used to be. */
+static
+ulint
+dict_create_add_foreign_to_dictionary(
+/*==================================*/
+				/* out: error code or DB_SUCCESS */
+	ulint*		id_nr,	/* in/out: number to use in id generation;
+				incremented if used */
+	dict_table_t*	table,	/* in: table */
+	dict_foreign_t*	foreign,/* in: foreign */
+	trx_t*		trx)	/* in: transaction */
+{
+	ulint		error;
+	ulint		i;
+
+	pars_info_t*	info = pars_info_create();
+
+	if (foreign->id == NULL) {
+		/* Generate a new constraint id */
+		ulint	namelen	= strlen(table->name);
+		char*	id	= mem_heap_alloc(foreign->heap, namelen + 20);
+		/* no overflow if number < 1e13 */
+		sprintf(id, "%s_ibfk_%lu", table->name, (ulong) (*id_nr)++);
+		foreign->id = id;
+	}
+
+	pars_info_add_str_literal(info, "id", foreign->id);
+
+	pars_info_add_str_literal(info, "for_name", table->name);
+
+	pars_info_add_str_literal(info, "ref_name",
+		foreign->referenced_table_name);
+
+	pars_info_add_int4_literal(info, "n_cols",
+		foreign->n_fields + (foreign->type << 24));
+
+	error = dict_foreign_eval_sql(info,
+		"PROCEDURE P () IS\n"
+		"BEGIN\n"
+		"INSERT INTO SYS_FOREIGN VALUES"
+		"(:id, :for_name, :ref_name, :n_cols);\n"
+		"END;\n"
+		, table, foreign, trx);
+
+	if (error != DB_SUCCESS) {
+
+		return(error);
+	}
+
+	for (i = 0; i < foreign->n_fields; i++) {
+		error = dict_create_add_foreign_field_to_dictionary(i,
+			table, foreign, trx);
+
+		if (error != DB_SUCCESS) {
+
+			return(error);
+		}
+	}
+
+	error = dict_foreign_eval_sql(NULL,
+		"PROCEDURE P () IS\n"
+		"BEGIN\n"
+		"COMMIT WORK;\n"
+		"END;\n"
+		, table, foreign, trx);
+
+	return(error);
+}
+
+/************************************************************************
+Adds foreign key definitions to data dictionary tables in the database. */
+
+ulint
+dict_create_add_foreigns_to_dictionary(
+/*===================================*/
+				/* out: error code or DB_SUCCESS */
+	ulint		start_id,/* in: if we are actually doing ALTER TABLE
+				ADD CONSTRAINT, we want to generate constraint
+				numbers which are bigger than in the table so
+				far; we number the constraints from
+				start_id + 1 up; start_id should be set to 0 if
+				we are creating a new table, or if the table
+				so far has no constraints for which the name
+				was generated here */
+	dict_table_t*	table,	/* in: table */
+	trx_t*		trx)	/* in: transaction */
+{
+	dict_foreign_t*	foreign;
+	ulint		number	= start_id + 1;
+	ulint		error;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+	if (NULL == dict_table_get_low("SYS_FOREIGN")) {
+		fprintf(stderr,
+"InnoDB: table SYS_FOREIGN not found from internal data dictionary\n");
+
+		return(DB_ERROR);
+	}
+
+	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+
+		error = dict_create_add_foreign_to_dictionary(&number,
+			table, foreign, trx);
+
+		if (error != DB_SUCCESS) {
+
+			return(error);
+		}
+	}
+
+	return(DB_SUCCESS);
 }

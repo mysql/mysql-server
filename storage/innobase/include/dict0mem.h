@@ -35,9 +35,11 @@ combination of types */
 
 /* Types for a table object */
 #define DICT_TABLE_ORDINARY		1
+#if 0 /* not implemented */
 #define	DICT_TABLE_CLUSTER_MEMBER	2
 #define	DICT_TABLE_CLUSTER		3 /* this means that the table is
 					  really a cluster definition */
+#endif
 
 /* Table flags */
 #define DICT_TF_COMPACT			1	/* compact page format */
@@ -56,29 +58,13 @@ dict_mem_table_create(
 					a member of a cluster */
 	ulint		n_cols,		/* in: number of columns */
 	ulint		flags);		/* in: table flags */
-/**************************************************************************
-Creates a cluster memory object. */
-
-dict_cluster_t*
-dict_mem_cluster_create(
-/*====================*/
-					/* out, own: cluster object (where the
-					type dict_cluster_t == dict_table_t) */
-	const char*	name,		/* in: cluster name */
-	ulint		space,		/* in: space where the clustered
-					indexes of the member tables are
-					placed */
-	ulint		n_cols,		/* in: number of columns */
-	ulint		mix_len);	/* in: length of the common key prefix
-					in the cluster */
-/**************************************************************************
-Declares a non-published table as a member in a cluster. */
+/********************************************************************
+Free a table memory object. */
 
 void
-dict_mem_table_make_cluster_member(
-/*===============================*/
-	dict_table_t*	table,		/* in: non-published table */
-	const char*	cluster_name);	/* in: cluster name */
+dict_mem_table_free(
+/*================*/
+	dict_table_t*	table);		/* in: table */
 /**************************************************************************
 Adds a column definition to a table. */
 
@@ -176,9 +162,7 @@ struct dict_field_struct{
 /* Data structure for an index tree */
 struct dict_tree_struct{
 	ulint		type;	/* tree type */
-	dulint		id;	/* id of the index stored in the tree, in the
-				case of a mixed index, the id of the clustered
-				index of the cluster table */
+	dulint		id;	/* id of the index stored in the tree */
 	ulint		space;	/* space of index tree */
 	ulint		page;	/* index tree root page number */
 	byte		pad[64];/* Padding to prevent other memory hotspots on
@@ -189,13 +173,8 @@ struct dict_tree_struct{
 				struct has been memoryfixed (by mini-
 				transactions wanting to access the index
 				tree) */
-	UT_LIST_BASE_NODE_T(dict_index_t)
-			tree_indexes; /* list of indexes stored in the
-				index tree: if the tree is not of the
-				mixed type there is only one index in
-				the list; if the tree is of the mixed
-				type, the first index in the list is the
-				index of the cluster which owns the tree */
+	dict_index_t*	tree_index; /* the index stored in the
+				index tree */
 	ulint		magic_n;/* magic number */
 };
 
@@ -301,8 +280,7 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 
 /* Data structure for a database table */
 struct dict_table_struct{
-	dulint		id;	/* id of the table or cluster */
-	ulint		type;	/* DICT_TABLE_ORDINARY, ... */
+	dulint		id;	/* id of the table */
 	ulint		flags;	/* DICT_TF_COMPACT, ... */
 	mem_heap_t*	heap;	/* memory heap */
 	const char*	name;	/* table name */
@@ -370,17 +348,6 @@ struct dict_table_struct{
 				had an IX lock on */
 	UT_LIST_BASE_NODE_T(lock_t)
 			locks; /* list of locks on the table */
-	/*----------------------*/
-	dulint		mix_id;	/* if the table is a member in a cluster,
-				this is its mix id */
-	ulint		mix_len;/* if the table is a cluster or a member
-				this is the common key prefix lenght */
-	ulint		mix_id_len;/* mix id length in a compressed form */
-	byte		mix_id_buf[12];
-				/* mix id of a mixed table written in
-				a compressed form */
-	const char*	cluster_name; /* if the table is a member in a
-				cluster, this is the name of the cluster */
 	/*----------------------*/
 	ibool		does_not_fit_in_memory;
 				/* this field is used to specify in simulations
