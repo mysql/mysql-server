@@ -1114,3 +1114,31 @@ load data infile '../std_data_ln/words.dat' into table t1 (a) set b:= f1();
 drop table t1;
 drop function f1;
 drop function f2;
+
+#
+# Test for Bug #16461 connection_id() does not work properly inside trigger
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (
+    conn_id INT,
+    trigger_conn_id INT
+);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  SET NEW.trigger_conn_id = CONNECTION_ID();
+
+INSERT INTO t1 (conn_id, trigger_conn_id) VALUES (CONNECTION_ID(), -1);
+
+connect (con1,localhost,root,,);
+INSERT INTO t1 (conn_id, trigger_conn_id) VALUES (CONNECTION_ID(), -1);
+connection default;
+disconnect con1;
+
+SELECT * FROM t1 WHERE conn_id != trigger_conn_id;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+# End of 5.0 tests
