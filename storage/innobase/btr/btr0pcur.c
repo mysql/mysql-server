@@ -259,10 +259,7 @@ btr_pcur_restore_position(
 				cursor->latch_mode = latch_mode;
 #ifdef UNIV_DEBUG
 				rec = btr_pcur_get_rec(cursor);
-				index = dict_tree_find_index(
-					btr_cur_get_tree(
-						btr_pcur_get_btr_cur(cursor)),
-					rec);
+				index = btr_pcur_get_btr_cur(cursor)->index;
 
 				heap = mem_heap_create(256);
 				offsets1 = rec_get_offsets(cursor->old_rec,
