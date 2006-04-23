@@ -1673,7 +1673,9 @@ row_mysql_recover_tmp_table(
 
 	if (!ptr) {
 		/* table name does not begin with "/rsql" */
+		dict_mem_table_free(table);
 		trx_commit_for_mysql(trx);
+
 		return(DB_ERROR);
 	}
 	else {
@@ -1785,6 +1787,7 @@ row_create_table_for_mysql(
 	const char*	table_name;
 	ulint		table_name_len;
 	ulint		err;
+	ulint		i;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
@@ -1802,6 +1805,7 @@ row_create_table_for_mysql(
 		"InnoDB: with raw, and innodb_force_... is removed.\n",
 		stderr);
 
+		dict_mem_table_free(table);
 		trx_commit_for_mysql(trx);
 
 		return(DB_ERROR);
@@ -1816,9 +1820,23 @@ row_create_table_for_mysql(
     "InnoDB: MySQL system tables must be of the MyISAM type!\n",
 		table->name);
 
+		dict_mem_table_free(table);
 		trx_commit_for_mysql(trx);
 
 		return(DB_ERROR);
+	}
+
+	/* Check that no reserved column names are used. */
+	for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
+		dict_col_t*	col = dict_table_get_nth_col(table, i);
+
+		if (dict_col_name_is_reserved(col->name)) {
+
+			dict_mem_table_free(table);
+			trx_commit_for_mysql(trx);
+
+			return(DB_ERROR);
+		}
 	}
 
 	trx_start_if_not_started(trx);
