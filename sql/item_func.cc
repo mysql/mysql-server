@@ -561,6 +561,31 @@ String *Item_int_func::val_str(String *str)
 }
 
 
+void Item_func_connection_id::fix_length_and_dec()
+{
+  Item_int_func::fix_length_and_dec();
+  max_length= 10;
+}
+
+
+bool Item_func_connection_id::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_int_func::fix_fields(thd, ref))
+    return TRUE;
+
+  /*
+    To replicate CONNECTION_ID() properly we should use
+    pseudo_thread_id on slave, which contains the value of thread_id
+    on master.
+  */
+  value= ((thd->slave_thread) ?
+          thd->variables.pseudo_thread_id :
+          thd->thread_id);
+
+  return FALSE;
+}
+
+
 /*
   Check arguments here to determine result's type for a numeric
   function of two arguments.
