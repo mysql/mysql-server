@@ -1713,6 +1713,8 @@ srv_printf_innodb_monitor(
 	"; in additional pool allocated " ULINTPF "\n",
 				ut_total_allocated_memory,
 				mem_pool_get_reserved(mem_comm_pool));
+	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
+		dict_sys->size);
 
 	if (srv_use_awe) {
 		fprintf(file,

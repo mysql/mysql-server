@@ -15,6 +15,13 @@ Created 11/19/1996 Heikki Tuuri
 #include "pars0types.h"
 #include "row0types.h"
 #include "trx0types.h"
+#include "ut0vec.h"
+
+/* Type of the user functions. The first argument is always InnoDB-supplied
+and varies in type, while 'user_arg' is a user-supplied argument. The
+meaning of the return type also varies. See the individual use cases, e.g.
+the FETCH statement, for details on them. */
+typedef void* (*pars_user_func_cb_t)(void* arg, void* user_arg);
 
 extern int	yydebug;
 
@@ -77,6 +84,7 @@ que_t*
 pars_sql(
 /*=====*/
 				/* out, own: the query graph */
+	pars_info_t*	info,	/* in: extra information, or NULL */
 	const char*	str);	/* in: SQL string */
 /*****************************************************************
 Retrieves characters to the lexical analyzer. */
@@ -156,6 +164,15 @@ pars_cursor_declaration(
 	sym_node_t*	sym_node,	/* in: cursor id node in the symbol
 					table */
 	sel_node_t*	select_node);	/* in: select node */
+/*************************************************************************
+Parses a function declaration. */
+
+que_node_t*
+pars_function_declaration(
+/*======================*/
+					/* out: sym_node */
+	sym_node_t*	sym_node);	/* in: function id node in the symbol
+					table */
 /*************************************************************************
 Parses a select statement. */
 
@@ -269,6 +286,13 @@ pars_while_statement(
 	que_node_t*	cond,		/* in: while-condition */
 	que_node_t*	stat_list);	/* in: statement list */
 /*************************************************************************
+Parses an exit statement. */
+
+exit_node_t*
+pars_exit_statement(void);
+/*=====================*/
+					/* out: exit statement node */
+/*************************************************************************
 Parses a return-statement. */
 
 return_node_t*
@@ -294,14 +318,16 @@ pars_assignment_statement(
 	sym_node_t*	var,	/* in: variable to assign */
 	que_node_t*	val);	/* in: value to assign */
 /*************************************************************************
-Parses a fetch statement. */
+Parses a fetch statement. into_list or user_func (but not both) must be
+non-NULL. */
 
 fetch_node_t*
 pars_fetch_statement(
 /*=================*/
 					/* out: fetch statement node */
 	sym_node_t*	cursor,		/* in: cursor node */
-	sym_node_t*	into_list);	/* in: variables to set */
+	sym_node_t*	into_list,	/* in: variables to set, or NULL */
+	sym_node_t*	user_func);	/* in: user function name, or NULL */
 /*************************************************************************
 Parses an open or close cursor statement. */
 
@@ -345,6 +371,8 @@ pars_column_def(
 	pars_res_word_t*	type,		/* in: data type */
 	sym_node_t*		len,		/* in: length of column, or
 						NULL */
+	void*			is_unsigned,	/* in: if not NULL, column
+						is of type UNSIGNED. */
 	void*			is_not_null);	/* in: if not NULL, column
 						is of type NOT NULL. */
 /*************************************************************************
@@ -418,6 +446,142 @@ pars_complete_graph_for_exec(
 	trx_t*		trx,	/* in: transaction handle */
 	mem_heap_t*	heap);	/* in: memory heap from which allocated */
 
+/********************************************************************
+Create parser info struct.*/
+
+pars_info_t*
+pars_info_create(void);
+/*==================*/
+		/* out, own: info struct */
+
+/********************************************************************
+Free info struct and everything it contains.*/
+
+void
+pars_info_free(
+/*===========*/
+	pars_info_t*	info);	/* in: info struct */
+
+/********************************************************************
+Add bound literal. */
+
+void
+pars_info_add_literal(
+/*==================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const void*	address,	/* in: address */
+	ulint		length,		/* in: length of data */
+	ulint		type,		/* in: type, e.g. DATA_FIXBINARY */
+	ulint		prtype);	/* in: precise type, e.g.
+					DATA_UNSIGNED */
+
+/********************************************************************
+Equivalent to pars_info_add_literal(info, name, str, strlen(str),
+DATA_VARCHAR, DATA_ENGLISH). */
+
+void
+pars_info_add_str_literal(
+/*======================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const char*	str);		/* in: string */
+
+/********************************************************************
+Equivalent to:
+
+char buf[4];
+mach_write_to_4(buf, val);
+pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
+
+except that the buffer is dynamically allocated from the info struct's
+heap. */
+
+void
+pars_info_add_int4_literal(
+/*=======================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	lint		val);		/* in: value */
+
+/********************************************************************
+Equivalent to:
+
+char buf[8];
+mach_write_to_8(buf, val);
+pars_info_add_literal(info, name, buf, 8, DATA_BINARY, 0);
+
+except that the buffer is dynamically allocated from the info struct's
+heap. */
+
+void
+pars_info_add_dulint_literal(
+/*=========================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	dulint		val);		/* in: value */
+/********************************************************************
+Add user function. */
+
+void
+pars_info_add_function(
+/*===================*/
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name,	/* in: function name */
+	pars_user_func_cb_t	func,	/* in: function address */
+	void*			arg);	/* in: user-supplied argument */
+
+/********************************************************************
+Get user function with the given name.*/
+
+pars_user_func_t*
+pars_info_get_user_func(
+/*====================*/
+					/* out: user func, or NULL if not
+					found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name);	/* in: function name to find*/
+
+/********************************************************************
+Get bound literal with the given name.*/
+
+pars_bound_lit_t*
+pars_info_get_bound_lit(
+/*====================*/
+					/* out: bound literal, or NULL if
+					not found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name);	/* in: bound literal name to find */
+
+
+/* Extra information supplied for pars_sql(). */
+struct pars_info_struct {
+	mem_heap_t*	heap;		/* our own memory heap */
+
+	ib_vector_t*	funcs;		/* user functions, or NUll
+					(pars_user_func_t*) */
+	ib_vector_t*	bound_lits;	/* bound literals, or NULL
+					(pars_bound_lit_t*) */
+
+	ibool		graph_owns_us;	/* if TRUE (which is the default),
+					que_graph_free() will free us */
+};
+
+/* User-supplied function and argument. */
+struct pars_user_func_struct {
+	const char*		name;		/* function name */
+	pars_user_func_cb_t	func;		/* function address */
+	void*			arg;		/* user-supplied argument */
+};
+
+/* Bound literal. */
+struct pars_bound_lit_struct {
+	const char*	name;		/* name */
+	const void*	address;	/* address */
+	ulint		length;		/* length of data */
+	ulint		type;		/* type, e.g. DATA_FIXBINARY */
+	ulint		prtype;		/* precise type, e.g. DATA_UNSIGNED */
+};
 
 /* Struct used to denote a reserved word in a parsing tree */
 struct pars_res_word_struct{
@@ -496,6 +660,11 @@ struct for_node_struct{
 					is entered, and will not change within
 					the loop */
 	que_node_t*	stat_list;	/* statement list */
+};
+
+/* exit statement node */
+struct exit_node_struct{
+	que_common_t	common;		/* type: QUE_NODE_EXIT */
 };
 
 /* return-statement node */
