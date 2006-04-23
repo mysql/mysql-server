@@ -74,3 +74,61 @@ SET FOREIGN_KEY_CHECKS=0;
 INSERT INTO t1 VALUES (1),(1);
 ERROR 23000: Duplicate entry '1' for key 1
 drop table t1;
+drop function if exists bug15728;
+drop function if exists bug15728_insert;
+drop table if exists t1, t2;
+create table t1 (
+id int not null auto_increment,
+last_id int,
+primary key (id)
+);
+create function bug15728() returns int(11)
+return last_insert_id();
+insert into t1 (last_id) values (0);
+insert into t1 (last_id) values (last_insert_id());
+insert into t1 (last_id) values (bug15728());
+create table t2 (
+id int not null auto_increment,
+last_id int,
+primary key (id)
+);
+create function bug15728_insert() returns int(11) modifies sql data
+begin
+insert into t2 (last_id) values (bug15728());
+return bug15728();
+end|
+create trigger t1_bi before insert on t1 for each row
+begin
+declare res int;
+select bug15728_insert() into res;
+set NEW.last_id = res;
+end|
+insert into t1 (last_id) values (0);
+drop trigger t1_bi;
+select last_insert_id();
+last_insert_id()
+4
+select bug15728_insert();
+bug15728_insert()
+2
+select last_insert_id();
+last_insert_id()
+4
+insert into t1 (last_id) values (bug15728());
+select last_insert_id();
+last_insert_id()
+5
+select * from t1;
+id	last_id
+1	0
+2	1
+3	2
+4	1
+5	4
+select * from t2;
+id	last_id
+1	3
+2	4
+drop function bug15728;
+drop function bug15728_insert;
+drop table t1, t2;
