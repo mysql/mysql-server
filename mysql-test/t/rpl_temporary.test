@@ -82,6 +82,7 @@ drop temporary table t3;
 select * from t2;
 
 --replace_result $VERSION VERSION
+--replace_column 2 # 5 #
 show binlog events;
 
 drop table t1, t2;
@@ -129,31 +130,30 @@ create temporary table t3 (f int);
 sync_with_master;
 
 #
-# BUG#17263 incorrect generation DROP temp tables
-# Temporary tables of connection are dropped in batches
-# where a batch correspond to pseudo_thread_id
-# value was set up at the moment of temp table creation
+# Bug#17284 erroneous temp table cleanup on slave
 #
-connection con1;
-set @session.pseudo_thread_id=100;
-create temporary table t101 (id int);
-create temporary table t102 (id int);
-set @session.pseudo_thread_id=200;
-create temporary table t201 (id int);
-create temporary table `#not_user_table_prefixed_with_hash_sign_no_harm` (id int);
-set @con1_id=connection_id();
-kill @con1_id;
 
-#now do something to show that slave is ok after DROP temp tables
 connection master;
-create table t1(f int);
-insert into t1 values (1);
+create temporary table t4 (f int);
+create table t5 (f int);
+sync_with_master;
+# find dumper's $id
+source include/get_binlog_dump_thread_id.inc;
+insert into t4 values (1);
+# a hint how to do that in 5.1
+--replace_result $id "`select id from information_schema.processlist where command='Binlog Dump'`"
+eval kill $id; # to stimulate reconnection by slave w/o timeout
+insert into t5 select * from t4;
+save_master_pos;
 
-sync_slave_with_master;
-#connection slave;
-select * from t1 /* must be 1 */;
+connection slave;
+sync_with_master;
+select * from t5 /* must be 1 after reconnection */;
 
-connection master; 
-drop table t1;
+connection master;
+drop temporary table t4;
+drop table t5;
 
-# End of 4.1 tests
+# The server will now close done
+
+# End of 5.0 tests
