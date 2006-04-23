@@ -1755,17 +1755,6 @@ void end_thread(THD *thd, bool put_in_cache)
 }
 
 
-/* Start a cached thread. LOCK_thread_count is locked on entry */
-
-static void start_cached_thread(THD *thd)
-{
-  thread_cache.append(thd);
-  wake_thread++;
-  thread_count++;
-  pthread_cond_signal(&COND_thread_cache);
-}
-
-
 void flush_thread_cache()
 {
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -3929,6 +3918,25 @@ static bool read_init_file(char *file_name)
 
 
 #ifndef EMBEDDED_LIBRARY
+/*
+  Create new thread to handle incoming connection.
+
+  SYNOPSIS
+    create_new_thread()
+      thd in/out    Thread handle of future thread.
+
+  DESCRIPTION
+    This function will create new thread to handle the incoming
+    connection.  If there are idle cached threads one will be used.
+    'thd' will be pushed into 'threads'.
+
+    In single-threaded mode (#define ONE_THREAD) connection will be
+    handled inside this function.
+
+  RETURN VALUE
+    none
+*/
+
 static void create_new_thread(THD *thd)
 {
   DBUG_ENTER("create_new_thread");
@@ -3952,11 +3960,12 @@ static void create_new_thread(THD *thd)
   thd->real_id=pthread_self();			// Keep purify happy
 
   /* Start a new thread to handle connection */
+  thread_count++;
+
 #ifdef ONE_THREAD
   if (test_flags & TEST_NO_THREADS)		// For debugging under Linux
   {
     thread_cache_size=0;			// Safety
-    thread_count++;
     threads.append(thd);
     thd->real_id=pthread_self();
     (void) pthread_mutex_unlock(&LOCK_thread_count);
@@ -3965,18 +3974,20 @@ static void create_new_thread(THD *thd)
   else
 #endif
   {
+    if (thread_count-delayed_insert_threads > max_used_connections)
+      max_used_connections=thread_count-delayed_insert_threads;
+
     if (cached_thread_count > wake_thread)
     {
-      start_cached_thread(thd);
+      thread_cache.append(thd);
+      wake_thread++;
+      pthread_cond_signal(&COND_thread_cache);
     }
     else
     {
       int error;
-      thread_count++;
       thread_created++;
       threads.append(thd);
-      if (thread_count-delayed_insert_threads > max_used_connections)
-        max_used_connections=thread_count-delayed_insert_threads;
       DBUG_PRINT("info",(("creating thread %d"), thd->thread_id));
       thd->connect_time = time(NULL);
       if ((error=pthread_create(&thd->real_id,&connection_attrib,
@@ -8047,7 +8058,37 @@ static void create_pid_file()
     (void) my_close(file, MYF(0));
   }
   sql_perror("Can't start server: can't create PID file");
-  exit(1);  
+  exit(1);
+}
+
+
+/* Clear most status variables */
+void refresh_status(THD *thd)
+{
+  pthread_mutex_lock(&LOCK_status);
+
+  /* We must update the global status before cleaning up the thread */
+  add_to_status(&global_status_var, &thd->status_var);
+  bzero((char*) &thd->status_var, sizeof(thd->status_var));
+
+  for (struct show_var_st *ptr=status_vars; ptr->name; ptr++)
+  {
+    if (ptr->type == SHOW_LONG)
+      *(ulong*) ptr->value= 0;
+  }
+  /* Reset the counters of all key caches (default and named). */
+  process_key_caches(reset_key_cache_counters);
+  pthread_mutex_unlock(&LOCK_status);
+
+  /*
+    Set max_used_connections to the number of currently open
+    connections.  Lock LOCK_thread_count out of LOCK_status to avoid
+    deadlocks.  Status reset becomes not atomic, but status data is
+    not exact anyway.
+  */
+  pthread_mutex_lock(&LOCK_thread_count);
+  max_used_connections= thread_count-delayed_insert_threads;
+  pthread_mutex_unlock(&LOCK_thread_count);
 }
 
 
