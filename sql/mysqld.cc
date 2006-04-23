@@ -8071,8 +8071,9 @@ void refresh_status(THD *thd)
   add_to_status(&global_status_var, &thd->status_var);
   bzero((char*) &thd->status_var, sizeof(thd->status_var));
 
-  for (struct show_var_st *ptr=status_vars; ptr->name; ptr++)
+  for (SHOW_VAR *ptr= status_vars; ptr->name; ptr++)
   {
+    /* Note that SHOW_LONG_NOFLUSH variables are not reset */
     if (ptr->type == SHOW_LONG)
       *(ulong*) ptr->value= 0;
   }
