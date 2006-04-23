@@ -2113,18 +2113,6 @@ disconnect a;
 disconnect b;
 
 #
-# Bug #14360: problem with intervals
-#
-
-create table t1(a date) engine=innodb;
-create table t2(a date, key(a)) engine=innodb; 
-insert into t1 values('2005-10-01');
-insert into t2 values('2005-10-01');
-select * from t1, t2
-  where t2.a between t1.a - interval 2 day and t1.a + interval 2 day;
-drop table t1, t2;
-
-#
 # Test that cascading updates leading to duplicate keys give the correct
 # error message (bug #9680)
 #
@@ -2176,6 +2164,7 @@ alter table t1 drop foreign key c2_fk;
 show create table t1;
 #
 drop table t1, t2;
+
 #
 # Bug #14360: problem with intervals
 #
