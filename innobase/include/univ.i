@@ -242,6 +242,9 @@ contains the sum of the following flag and the locally stored len. */
 
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE)
 
+/* Compile-time constant of the given array's size. */
+#define UT_ARR_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+
 #include <stdio.h>
 #include "ut0dbg.h"
 #include "ut0ut.h"
