@@ -595,6 +595,15 @@ ibool
 lock_validate(void);
 /*===============*/
 			/* out: TRUE if ok */
+/*************************************************************************
+Return approximate number or record locks (bits set in the bitmap) for
+this transaction. Since delete-marked records ma ybe removed, the
+record count will not be precise. */
+
+ulint
+lock_number_of_rows_locked(
+/*=======================*/
+	trx_t*	trx);	/* in: transaction */
 
 /* The lock system */
 extern lock_sys_t*	lock_sys;

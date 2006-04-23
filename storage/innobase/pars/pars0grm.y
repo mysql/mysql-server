@@ -29,10 +29,12 @@ que_node_t */
 int
 yylex(void);
 %}
-     
+
 %token PARS_INT_LIT
 %token PARS_FLOAT_LIT
 %token PARS_STR_LIT
+%token PARS_FIXBINARY_LIT
+%token PARS_BLOB_LIT
 %token PARS_NULL_LIT
 %token PARS_ID_TOKEN
 %token PARS_AND_TOKEN
@@ -115,6 +117,9 @@ yylex(void);
 %token PARS_COMMIT_TOKEN
 %token PARS_ROLLBACK_TOKEN
 %token PARS_WORK_TOKEN
+%token PARS_UNSIGNED_TOKEN
+%token PARS_EXIT_TOKEN
+%token PARS_FUNCTION_TOKEN
 
 %left PARS_AND_TOKEN PARS_OR_TOKEN
 %left PARS_NOT_TOKEN
@@ -133,6 +138,7 @@ statement:
 	| predefined_procedure_call ';'
 	| while_statement ';'
 	| for_statement ';'
+	| exit_statement ';'
 	| if_statement ';'
 	| return_statement ';'
 	| assignment_statement ';'
@@ -165,6 +171,8 @@ exp:
 	| PARS_INT_LIT		{ $$ = $1;}
 	| PARS_FLOAT_LIT	{ $$ = $1;}
 	| PARS_STR_LIT		{ $$ = $1;}
+	| PARS_FIXBINARY_LIT	{ $$ = $1;}
+	| PARS_BLOB_LIT		{ $$ = $1;}
 	| PARS_NULL_LIT		{ $$ = $1;}
 	| PARS_SQL_TOKEN	{ $$ = $1;}
 	| exp '+' exp        	{ $$ = pars_op('+', $1, $3); }
@@ -225,6 +233,10 @@ predefined_procedure_name:
 	| PARS_ASSERT_TOKEN	{ $$ = &pars_assert_token; }
 ;
 
+user_function_call:
+	PARS_ID_TOKEN '(' ')'	{ $$ = $1; }
+;
+
 table_list:
 	PARS_ID_TOKEN		{ $$ = que_node_list_add_last(NULL, $1); }
 	| table_list ',' PARS_ID_TOKEN
@@ -262,14 +274,14 @@ select_item:
 						que_node_list_add_last(NULL,
 									$3)); }
 ;
-							
+
 select_item_list:
 	/* Nothing */		{ $$ = NULL; }
 	| select_item		{ $$ = que_node_list_add_last(NULL, $1); }
 	| select_item_list ',' select_item
 				{ $$ = que_node_list_add_last($1, $3); }
 ;
-							
+
 select_list:
 	'*'			{ $$ = pars_select_list(&pars_star_denoter,
 								NULL); }
@@ -377,7 +389,7 @@ delete_statement_positioned:
 	delete_statement_start
 	cursor_positioned	{ $$ = pars_update_statement($1, $2, NULL); }
 ;
-	
+
 row_printf_statement:
 	PARS_ROW_PRINTF_TOKEN select_statement
 				{ $$ = pars_row_printf_statement($2); }
@@ -428,6 +440,10 @@ for_statement:
 				{ $$ = pars_for_statement($2, $4, $6, $8); }
 ;
 
+exit_statement:
+	PARS_EXIT_TOKEN		{ $$ = pars_exit_statement(); }
+;
+
 return_statement:
 	PARS_RETURN_TOKEN	{ $$ = pars_return_statement(); }
 ;
@@ -446,12 +462,14 @@ close_cursor_statement:
 
 fetch_statement:
 	PARS_FETCH_TOKEN PARS_ID_TOKEN PARS_INTO_TOKEN variable_list
-				{ $$ = pars_fetch_statement($2, $4); }
+				{ $$ = pars_fetch_statement($2, $4, NULL); }
+	| PARS_FETCH_TOKEN PARS_ID_TOKEN PARS_INTO_TOKEN user_function_call
+				{ $$ = pars_fetch_statement($2, NULL, $4); }
 ;
 
 column_def:
-	PARS_ID_TOKEN type_name	opt_column_len opt_not_null
-				{ $$ = pars_column_def($1, $2, $3, $4); }
+	PARS_ID_TOKEN type_name	opt_column_len opt_unsigned opt_not_null
+				{ $$ = pars_column_def($1, $2, $3, $4, $5); }
 ;
 
 column_def_list:
@@ -464,6 +482,13 @@ opt_column_len:
 	/* Nothing */		{ $$ = NULL; }
 	| '(' PARS_INT_LIT ')'
 				{ $$ = $2; }
+;
+
+opt_unsigned:
+	/* Nothing */		{ $$ = NULL; }
+	| PARS_UNSIGNED_TOKEN
+				{ $$ = &pars_int_token;
+					/* pass any non-NULL pointer */ }
 ;
 
 opt_not_null:
@@ -479,7 +504,7 @@ not_fit_in_memory:
 				{ $$ = &pars_int_token;
 					/* pass any non-NULL pointer */ }
 ;
-		
+
 create_table:
 	PARS_CREATE_TOKEN PARS_TABLE_TOKEN
 	PARS_ID_TOKEN '(' column_def_list ')'
@@ -550,8 +575,8 @@ variable_declaration:
 ;
 
 variable_declaration_list:
-	/* Nothing */		
-	| variable_declaration	
+	/* Nothing */
+	| variable_declaration
 	| variable_declaration_list variable_declaration
 ;
 
@@ -561,10 +586,20 @@ cursor_declaration:
 				{ $$ = pars_cursor_declaration($3, $5); }
 ;
 
+function_declaration:
+	PARS_DECLARE_TOKEN PARS_FUNCTION_TOKEN PARS_ID_TOKEN ';'
+				{ $$ = pars_function_declaration($3); }
+;
+
+declaration:
+	cursor_declaration
+	| function_declaration
+;
+
 declaration_list:
 	/* Nothing */
-	| cursor_declaration
-	| declaration_list cursor_declaration
+	| declaration
+	| declaration_list declaration
 ;
 
 procedure_definition:
@@ -577,5 +612,5 @@ procedure_definition:
 	PARS_END_TOKEN		{ $$ = pars_procedure_definition($2, $4,
 								$10); }
 ;
-	
+
 %%
