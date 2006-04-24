@@ -1911,12 +1911,16 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
 
   // loop twice where first loop only sets sizes
   int loop;
+  int result = 0;
   for (loop = 0; loop <= 1; loop++)
   {
     if (loop == 1)
     {
       if (alloc_mem(data, ptr) != 0)
-        DBUG_RETURN_EVENT(-1);
+      {
+        result = -1;
+        goto end;
+      }
       *data->sdata = *sdata;
       data->sdata->operation = tp->t3;
     }
@@ -2030,10 +2034,13 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
     }
   }
 
+end:
   // free old data
   NdbMem_Free((char*)olddata.memory);
+  assert(m_total_alloc >= olddata.sz);
+  m_total_alloc -= olddata.sz;
 
-  DBUG_RETURN_EVENT(0);
+  DBUG_RETURN_EVENT(result);
 }
  
 /*
