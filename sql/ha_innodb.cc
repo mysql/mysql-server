@@ -42,6 +42,7 @@ have disables the InnoDB inlining in this file. */
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_share_mutex,	/* to protect innobase_open_files */
@@ -7432,3 +7433,19 @@ bool ha_innobase::check_if_incompatible_data(
 
 	return COMPATIBLE_DATA_YES;
 }
+
+
+mysql_declare_plugin(innobase)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &innobase_hton,
+  innobase_hton.name,
+  "Innobase OY",
+  "InnoDB Storage Engine",
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;
+
+#endif

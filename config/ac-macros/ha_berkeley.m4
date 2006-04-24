@@ -120,12 +120,9 @@ AC_DEFUN([MYSQL_SETUP_BERKELEY_DB], [
        sh $rel_srcdir/$bdb/dist/configure $bdb_conf_flags) || \
         AC_MSG_ERROR([could not configure Berkeley DB])
  
-  mysql_se_libs="$mysql_se_libs $bdb_libs_with_path" 
-
   AC_SUBST(bdb_includes)
   AC_SUBST(bdb_libs)
   AC_SUBST(bdb_libs_with_path)
-  AC_CONFIG_FILES(storage/bdb/Makefile)
 ])
 
 AC_DEFUN([MYSQL_CHECK_INSTALLED_BDB], [
