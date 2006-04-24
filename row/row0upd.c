@@ -202,8 +202,7 @@ row_upd_check_references_constraints(
 					foreign->n_fields))) {
 
 			if (foreign->foreign_table == NULL) {
-				dict_table_get(foreign->foreign_table_name,
-									trx);
+				dict_table_get(foreign->foreign_table_name);
 			}
 
 			if (foreign->foreign_table) {

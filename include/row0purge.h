@@ -56,9 +56,7 @@ struct purge_node_struct{
 				determined by ref was found in the clustered
 				index, and we were able to position pcur on
 				it */
-	dict_table_t*	table;	/* table where purge is done; NOTE that the
-				table has to be released explicitly with
-				dict_table_release */
+	dict_table_t*	table;	/* table where purge is done */
 	ulint		cmpl_info;/* compiler analysis info of an update */
 	upd_t*		update;	/* update vector for a clustered index record */
 	dtuple_t*	ref;	/* NULL, or row reference to the next row to

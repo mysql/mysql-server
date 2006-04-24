@@ -265,17 +265,16 @@ dict_foreign_parse_drop_constraints(
 	const char***	constraints_to_drop);	/* out: id's of the
 						constraints to drop */
 /**************************************************************************
-Returns a table object and memoryfixes it. NOTE! This is a high-level
-function to be used mainly from outside the 'dict' directory. Inside this
-directory dict_table_get_low is usually the appropriate function. */
+Returns a table object. NOTE! This is a high-level function to be used
+mainly from outside the 'dict' directory. Inside this directory
+dict_table_get_low is usually the appropriate function. */
 
 dict_table_t*
 dict_table_get(
 /*===========*/
 					/* out: table, NULL if
 					does not exist */
-	const char*	table_name,	/* in: table name */
-	trx_t*		trx);		/* in: transaction handle */
+	const char*	table_name);	/* in: table name */
 /**************************************************************************
 Returns a table object and increments MySQL open handle count on the table.
 */
@@ -285,10 +284,9 @@ dict_table_get_and_increment_handle_count(
 /*======================================*/
 					/* out: table, NULL if
 					does not exist */
-	const char*	table_name,	/* in: table name */
-	trx_t*		trx);		/* in: transaction handle or NULL */
+	const char*	table_name);	/* in: table name */
 /**************************************************************************
-Returns a table object, based on table id, and memoryfixes it. */
+Returns a table object based on table id. */
 
 dict_table_t*
 dict_table_get_on_id(
@@ -297,21 +295,13 @@ dict_table_get_on_id(
 	dulint	table_id,	/* in: table id */
 	trx_t*	trx);		/* in: transaction handle */
 /**************************************************************************
-Returns a table object, based on table id, and memoryfixes it. */
+Returns a table object based on table id. */
 UNIV_INLINE
 dict_table_t*
 dict_table_get_on_id_low(
 /*=====================*/
 				/* out: table, NULL if does not exist */
-	dulint	table_id,	/* in: table id */
-	trx_t*	trx);		/* in: transaction handle */
-/**************************************************************************
-Releases a table from being memoryfixed. Currently this has no relevance. */
-UNIV_INLINE
-void
-dict_table_release(
-/*===============*/
-	dict_table_t*	table);	/* in: table to be released */
+	dulint	table_id);	/* in: table id */
 /**************************************************************************
 Checks if a table is in the dictionary cache. */
 UNIV_INLINE

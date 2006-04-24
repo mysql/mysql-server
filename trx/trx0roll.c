@@ -540,7 +540,7 @@ loop:
 			(ulong) ut_dulint_get_high(trx->table_id),
 			(ulong) ut_dulint_get_low(trx->table_id));
 
-		table = dict_table_get_on_id_low(trx->table_id, trx);
+		table = dict_table_get_on_id_low(trx->table_id);
 
 		if (table) {
 			fputs("InnoDB: Table found: dropping table ", stderr);
