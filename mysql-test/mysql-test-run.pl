@@ -3302,7 +3302,7 @@ sub valgrind_arguments {
 
   if ( $opt_valgrind_options )
   {
-    mtr_add_arg($args, split(' ', $opt_valgrind_options));
+    mtr_add_arg($args, '%s', $_) for (split(' ', $opt_valgrind_options));
   }
 
 
