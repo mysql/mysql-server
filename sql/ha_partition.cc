@@ -54,7 +54,10 @@
 
 #include "mysql_priv.h"
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
+
+#include <mysql/plugin.h>
 
 static const char *ha_par_ext= ".par";
 #ifdef NOT_USED
@@ -5438,3 +5441,19 @@ static int free_share(PARTITION_SHARE *share)
   return 0;
 }
 #endif /* NOT_USED */
+
+
+mysql_declare_plugin(partition)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &partition_hton,
+  partition_hton.name,
+  "Mikael Ronstrom, MySQL AB",
+  "Partitioning Support",
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;
+
+#endif

@@ -31,6 +31,8 @@
 #include "../storage/myisam/rt_index.h"
 #endif
 
+#include <mysql/plugin.h>
+
 ulong myisam_recover_options= HA_RECOVER_NONE;
 
 /* bits in myisam_recover_options */
@@ -1787,3 +1789,17 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
     return COMPATIBLE_DATA_NO;
   return COMPATIBLE_DATA_YES;
 }
+
+
+mysql_declare_plugin(myisam)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &myisam_hton,
+  myisam_hton.name,
+  "MySQL AB",
+  "MyISAM Storage Engine",
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;

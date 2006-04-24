@@ -56,9 +56,13 @@
 #include <m_ctype.h>
 #include <myisampack.h>
 #include <hash.h>
+
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
 #include "ha_berkeley.h"
 #include "sql_manager.h"
 #include <stdarg.h>
+
+#include <mysql/plugin.h>
 
 #define HA_BERKELEY_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_BERKELEY_RANGE_COUNT   100
@@ -2725,3 +2729,17 @@ bool ha_berkeley::check_if_incompatible_data(HA_CREATE_INFO *info,
 }
 
 
+mysql_declare_plugin(berkeley)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &berkeley_hton,
+  berkeley_hton.name,
+  "MySQL AB",
+  "BerkeleyDB Storage Engine",
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;
+
+#endif
