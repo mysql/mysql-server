@@ -729,6 +729,13 @@ class Item_func_group_concat : public Item_sum
   enum Sumfunctype sum_func () const {return GROUP_CONCAT_FUNC;}
   const char *func_name() const { return "group_concat"; }
   virtual Item_result result_type () const { return STRING_RESULT; }
+  enum_field_types field_type() const
+  {
+    if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
+      return FIELD_TYPE_BLOB;
+    else
+      return MYSQL_TYPE_VAR_STRING;
+  }
   void clear();
   bool add();
   void reset_field();

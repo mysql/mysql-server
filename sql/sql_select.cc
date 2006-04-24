@@ -171,7 +171,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
-  if (select_lex->next_select())
+  if (select_lex->next_select() || select_lex->master_unit()->fake_select_lex)
     res=mysql_union(thd, lex, result, &lex->unit);
   else
     res= mysql_select(thd, &select_lex->ref_pointer_array,
@@ -4925,7 +4925,8 @@ static Field* create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
       new_field= item->tmp_table_field_from_field_type(table);
-    else if (item->max_length/item->collation.collation->mbmaxlen > 255)
+    else if (item->max_length/item->collation.collation->mbmaxlen >
+             CONVERT_IF_BIGGER_TO_BLOB)
     {
       if (convert_blob_length)
         new_field= new Field_varstring(convert_blob_length, maybe_null,
@@ -5028,7 +5029,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 	return new Field_longlong(item_sum->max_length,maybe_null,
 				  item->name,table,item->unsigned_flag);
       case STRING_RESULT:
-	if (item_sum->max_length > 255)
+	if (item_sum->max_length/item_sum->collation.collation->mbmaxlen >
+            CONVERT_IF_BIGGER_TO_BLOB)
         {
           if (convert_blob_length)
             return new Field_varstring(convert_blob_length, maybe_null,
