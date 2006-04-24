@@ -710,12 +710,17 @@ row_sel_get_clust_rec(
 	if (!node->read_view) {
 		/* Try to place a lock on the index record */
 
-		/* If innodb_locks_unsafe_for_binlog option is used,
+		/* If innodb_locks_unsafe_for_binlog option is used
+		or this session is using READ COMMITTED isolation level
 		we lock only the record, i.e., next-key locking is
 		not used. */
 		ulint	lock_type;
+		trx_t*	trx;
 
-		if (srv_locks_unsafe_for_binlog) {
+		trx = thr_get_trx(thr);
+
+		if (srv_locks_unsafe_for_binlog
+		|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
 			lock_type = LOCK_REC_NOT_GAP;
 		} else {
 			lock_type = LOCK_ORDINARY;
@@ -1307,16 +1312,22 @@ rec_loop:
 
 		if (!consistent_read) {
 
-			/* If innodb_locks_unsafe_for_binlog option is used,
-			we lock only the record, i.e., next-key locking is
-			not used. */
+			/* If innodb_locks_unsafe_for_binlog option is used
+			or this session is using READ COMMITTED isolation
+			level, we lock only the record, i.e., next-key
+			locking is not used. */
 
 			rec_t*	next_rec = page_rec_get_next(rec);
 			ulint	lock_type;
+			trx_t*	trx;
+
+			trx = thr_get_trx(thr);
+
 			offsets = rec_get_offsets(next_rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
 
-			if (srv_locks_unsafe_for_binlog) {
+			if (srv_locks_unsafe_for_binlog
+			|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
 				lock_type = LOCK_REC_NOT_GAP;
 			} else {
 				lock_type = LOCK_ORDINARY;
@@ -1350,15 +1361,21 @@ rec_loop:
 	if (!consistent_read) {
 		/* Try to place a lock on the index record */
 
-		/* If innodb_locks_unsafe_for_binlog option is used,
+		/* If innodb_locks_unsafe_for_binlog option is used
+		or this session is using READ COMMITTED isolation level,
 		we lock only the record, i.e., next-key locking is
 		not used. */
 
 		ulint	lock_type;
+		trx_t*	trx;
+
 		offsets = rec_get_offsets(rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
 
-		if (srv_locks_unsafe_for_binlog) {
+		trx = thr_get_trx(thr);
+
+		if (srv_locks_unsafe_for_binlog
+		|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
 			lock_type = LOCK_REC_NOT_GAP;
 		} else {
 			lock_type = LOCK_ORDINARY;
@@ -1413,14 +1430,6 @@ rec_loop:
 
 		/* Ok, no need to test end_conds or mix id */
 
-	} else if (plan->mixed_index) {
-		/* We have to check if the record in a mixed cluster belongs
-		to this table */
-
-		if (!dict_is_mixed_table_rec(plan->table, rec)) {
-
-			goto next_rec;
-		}
 	}
 
 	/* We are ready to look at a possible new index entry in the result
@@ -1958,7 +1967,18 @@ fetch_step(
 
 		if (sel_node->state != SEL_NODE_NO_MORE_ROWS) {
 
-			sel_assign_into_var_values(node->into_list, sel_node);
+			if (node->into_list) {
+				sel_assign_into_var_values(node->into_list,
+					sel_node);
+			} else {
+				void* ret = (*node->func->func)(sel_node,
+					node->func->arg);
+
+				if (!ret) {
+					sel_node->state =
+						SEL_NODE_NO_MORE_ROWS;
+				}
+			}
 		}
 
 		thr->run_node = que_node_get_parent(node);
@@ -1974,8 +1994,8 @@ fetch_step(
 	sel_node->common.parent = node;
 
 	if (sel_node->state == SEL_NODE_CLOSED) {
-		/* SQL error detected */
-		fprintf(stderr, "SQL error %lu\n", (ulong)DB_ERROR);
+		fprintf(stderr,
+			"InnoDB: Error: fetch called on a closed cursor\n");
 
 		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
 
@@ -1985,6 +2005,76 @@ fetch_step(
 	thr->run_node = sel_node;
 
 	return(thr);
+}
+
+/********************************************************************
+Sample callback function for fetch that prints each row.*/
+
+void*
+row_fetch_print(
+/*============*/
+				/* out: always returns non-NULL */
+	void*	row,		/* in:  sel_node_t* */
+	void*	user_arg)	/* in:  not used */
+{
+	sel_node_t*	node = row;
+	que_node_t*	exp;
+	ulint		i = 0;
+
+	UT_NOT_USED(user_arg);
+
+	fprintf(stderr, "row_fetch_print: row %p\n", row);
+
+	exp = node->select_list;
+
+	while (exp) {
+		dfield_t*	dfield = que_node_get_val(exp);
+		dtype_t*	type = dfield_get_type(dfield);
+
+		fprintf(stderr, " column %lu:\n", (ulong)i);
+
+		dtype_print(type);
+		fprintf(stderr, "\n");
+
+		ut_print_buf(stderr, dfield_get_data(dfield),
+			dfield_get_len(dfield));
+		fprintf(stderr, "\n");
+
+		exp = que_node_get_next(exp);
+		i++;
+	}
+
+	return((void*)42);
+}
+
+/********************************************************************
+Callback function for fetch that stores an unsigned 4 byte integer to the
+location pointed. The column's type must be DATA_INT, DATA_UNSIGNED, length
+= 4. */
+
+void*
+row_fetch_store_uint4(
+/*==================*/
+				/* out: always returns NULL */
+	void*	row,		/* in:  sel_node_t* */
+	void*	user_arg)	/* in:  data pointer */
+{
+	sel_node_t*	node = row;
+	ib_uint32_t*	val = user_arg;
+	ulint		tmp;
+
+	dfield_t*	dfield = que_node_get_val(node->select_list);
+	dtype_t*	type = dfield_get_type(dfield);
+	ulint		len = dfield_get_len(dfield);
+
+	ut_a(dtype_get_mtype(type) == DATA_INT);
+	ut_a(dtype_get_prtype(type) & DATA_UNSIGNED);
+	ut_a(len == 4);
+
+	tmp = mach_read_from_4(dfield_get_data(dfield));
+	*val = tmp;
+
+	return(NULL);
 }
 
 /***************************************************************
@@ -2397,18 +2487,16 @@ row_sel_field_store_in_mysql_format(
 	} else if (templ->type == DATA_MYSQL) {
 		memcpy(dest, data, len);
 
-#if defined(UNIV_RELEASE_NOT_YET_STABLE) || defined(UNIV_DEBUG)
-		ut_a(templ->mysql_col_len >= len);
-		ut_a(templ->mbmaxlen >= templ->mbminlen);
+		ut_ad(templ->mysql_col_len >= len);
+		ut_ad(templ->mbmaxlen >= templ->mbminlen);
 
-		ut_a(templ->mbmaxlen > templ->mbminlen
+		ut_ad(templ->mbmaxlen > templ->mbminlen
 			|| templ->mysql_col_len == len);
-		ut_a(len * templ->mbmaxlen >= templ->mysql_col_len);
-#endif /* UNIV_RELEASE_NOT_YET_STABLE || UNIV_DEBUG */
 		/* The following assertion would fail for old tables
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
 			|| !(templ->mysql_col_len % templ->mbmaxlen));
+		ut_ad(len * templ->mbmaxlen >= templ->mysql_col_len);
 
 		if (templ->mbminlen != templ->mbmaxlen) {
 			/* Pad with spaces. This undoes the stripping
@@ -2418,15 +2506,13 @@ row_sel_field_store_in_mysql_format(
 			memset(dest + len, 0x20, templ->mysql_col_len - len);
 		}
 	} else {
-#if defined(UNIV_RELEASE_NOT_YET_STABLE) || defined(UNIV_DEBUG)
-		ut_a(templ->type == DATA_CHAR
+		ut_ad(templ->type == DATA_CHAR
 			|| templ->type == DATA_FIXBINARY
 			/*|| templ->type == DATA_SYS_CHILD
 			|| templ->type == DATA_SYS*/
 			|| templ->type == DATA_FLOAT
 			|| templ->type == DATA_DOUBLE
 			|| templ->type == DATA_DECIMAL);
-#endif /* UNIV_RELEASE_NOT_YET_STABLE || UNIV_DEBUG */
 		ut_ad(templ->mysql_col_len == len);
 
 		memcpy(dest, data, len);
@@ -3210,11 +3296,13 @@ stderr);
 	}
 
 	/* Reset the new record lock info if srv_locks_unsafe_for_binlog
-	is set. Then we are able to remove the record locks set here on an
-	individual row. */
+	is set or session is using a READ COMMITED isolation level. Then
+	we are able to remove the record locks set here on an individual
+	row. */
 
-	if (srv_locks_unsafe_for_binlog
-		&& prebuilt->select_lock_type != LOCK_NONE) {
+	if ((srv_locks_unsafe_for_binlog
+		|| trx->isolation_level == TRX_ISO_READ_COMMITTED)
+	&& prebuilt->select_lock_type != LOCK_NONE) {
 
 		trx_reset_new_rec_lock_info(trx);
 	}
@@ -3582,13 +3670,15 @@ rec_loop:
 	if (page_rec_is_supremum(rec)) {
 
 		if (set_also_gap_locks
-			&& !srv_locks_unsafe_for_binlog
-			&& prebuilt->select_lock_type != LOCK_NONE) {
+		&& !(srv_locks_unsafe_for_binlog
+			|| trx->isolation_level == TRX_ISO_READ_COMMITTED)
+		&& prebuilt->select_lock_type != LOCK_NONE) {
 
 			/* Try to place a lock on the index record */
 
-			/* If innodb_locks_unsafe_for_binlog option is used,
-			we do not lock gaps. Supremum record is really
+			/* If innodb_locks_unsafe_for_binlog option is used
+			or this session is using a READ COMMITTED isolation
+			level we do not lock gaps. Supremum record is really
 			a gap and therefore we do not set locks there. */
 
 			offsets = rec_get_offsets(rec, index, offsets,
@@ -3708,12 +3798,14 @@ wrong_offs:
 		if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {
 
 			if (set_also_gap_locks
-				&& !srv_locks_unsafe_for_binlog
-				&& prebuilt->select_lock_type != LOCK_NONE) {
+			&& !(srv_locks_unsafe_for_binlog
+				|| trx->isolation_level == TRX_ISO_READ_COMMITTED)
+			&& prebuilt->select_lock_type != LOCK_NONE) {
 
 				/* Try to place a gap lock on the index
 				record only if innodb_locks_unsafe_for_binlog
-				option is not set */
+				option is not set or this session is not
+				using a READ COMMITTED isolation level. */
 
 				err = sel_set_rec_lock(rec, index, offsets,
 						prebuilt->select_lock_type,
@@ -3739,12 +3831,14 @@ wrong_offs:
 		if (!cmp_dtuple_is_prefix_of_rec(search_tuple, rec, offsets)) {
 
 			if (set_also_gap_locks
-				&& !srv_locks_unsafe_for_binlog
-				&& prebuilt->select_lock_type != LOCK_NONE) {
+			&& !(srv_locks_unsafe_for_binlog
+				|| trx->isolation_level == TRX_ISO_READ_COMMITTED)
+			&& prebuilt->select_lock_type != LOCK_NONE) {
 
 				/* Try to place a gap lock on the index
 				record only if innodb_locks_unsafe_for_binlog
-				option is not set */
+				option is not set or this session is not
+				using a READ COMMITTED isolation level. */
 
 				err = sel_set_rec_lock(rec, index, offsets,
 						prebuilt->select_lock_type,
@@ -3775,16 +3869,18 @@ wrong_offs:
 		is a non-delete marked record, then it is enough to lock its
 		existence with LOCK_REC_NOT_GAP. */
 
-		/* If innodb_locks_unsafe_for_binlog option is used,
-		we lock only the record, i.e., next-key locking is
+		/* If innodb_locks_unsafe_for_binlog option is used
+		or this session is using a READ COMMITED isolation
+		level we lock only the record, i.e., next-key locking is
 		not used. */
 
 		ulint	lock_type;
 
 		if (!set_also_gap_locks
-			|| srv_locks_unsafe_for_binlog
-			|| (unique_search && !UNIV_UNLIKELY(
-				    rec_get_deleted_flag(rec, comp)))) {
+		|| srv_locks_unsafe_for_binlog
+		|| trx->isolation_level == TRX_ISO_READ_COMMITTED
+		|| (unique_search
+			&& !UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp)))) {
 
 			goto no_gap_lock;
 		} else {
@@ -3943,9 +4039,10 @@ no_gap_lock:
 
 		/* The record is delete-marked: we can skip it */
 
-		if (srv_locks_unsafe_for_binlog
-			&& prebuilt->select_lock_type != LOCK_NONE
-			&& !did_semi_consistent_read) {
+		if ((srv_locks_unsafe_for_binlog
+			|| trx->isolation_level == TRX_ISO_READ_COMMITTED)
+		&& prebuilt->select_lock_type != LOCK_NONE
+		&& !did_semi_consistent_read) {
 
 			/* No need to keep a lock on a delete-marked record
 			if we do not want to use next-key locking. */
@@ -3996,8 +4093,9 @@ requires_clust_rec:
 
 			/* The record is delete marked: we can skip it */
 
-			if (srv_locks_unsafe_for_binlog
-				&& prebuilt->select_lock_type != LOCK_NONE) {
+			if ((srv_locks_unsafe_for_binlog
+				|| trx->isolation_level == TRX_ISO_READ_COMMITTED)
+			&& prebuilt->select_lock_type != LOCK_NONE) {
 
 				/* No need to keep a lock on a delete-marked
 				record if we do not want to use next-key
@@ -4117,8 +4215,9 @@ next_rec:
 	}
 	did_semi_consistent_read = FALSE;
 
-	if (UNIV_UNLIKELY(srv_locks_unsafe_for_binlog)
-		&& prebuilt->select_lock_type != LOCK_NONE) {
+	if (UNIV_UNLIKELY(srv_locks_unsafe_for_binlog
+		|| trx->isolation_level == TRX_ISO_READ_COMMITTED)
+	&& prebuilt->select_lock_type != LOCK_NONE) {
 
 		trx_reset_new_rec_lock_info(trx);
 	}
@@ -4206,7 +4305,11 @@ lock_wait_or_error:
 		sel_restore_position_for_mysql(&same_user_rec,
 						BTR_SEARCH_LEAF, pcur,
 						moves_up, &mtr);
-		if (srv_locks_unsafe_for_binlog && !same_user_rec) {
+
+		if ((srv_locks_unsafe_for_binlog
+			|| trx->isolation_level == TRX_ISO_READ_COMMITTED)
+		&& !same_user_rec) {
+
 			/* Since we were not able to restore the cursor
 			on the same user record, we cannot use
 			row_unlock_for_mysql() to unlock any records, and

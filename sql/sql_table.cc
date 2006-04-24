@@ -328,7 +328,7 @@ static bool read_ddl_log_file_entry(uint entry_no)
   uint io_size= global_ddl_log.io_size;
   DBUG_ENTER("read_ddl_log_file_entry");
 
-  if (my_pread(file_id, file_entry_buf, io_size, io_size * entry_no,
+  if (my_pread(file_id, (byte*)file_entry_buf, io_size, io_size * entry_no,
                MYF(MY_WME)) != io_size)
     error= TRUE;
   DBUG_RETURN(error);
@@ -352,7 +352,7 @@ static bool write_ddl_log_file_entry(uint entry_no)
   char *file_entry_buf= (char*)global_ddl_log.file_entry_buf;
   DBUG_ENTER("write_ddl_log_file_entry");
 
-  if (my_pwrite(file_id, file_entry_buf,
+  if (my_pwrite(file_id, (byte*)file_entry_buf,
                 IO_SIZE, IO_SIZE * entry_no, MYF(MY_WME)) != IO_SIZE)
     error= TRUE;
   DBUG_RETURN(error);
