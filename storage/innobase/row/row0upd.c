@@ -28,6 +28,7 @@ Created 12/27/1996 Heikki Tuuri
 #include "log0log.h"
 #include "pars0sym.h"
 #include "eval0eval.h"
+#include "buf0lru.h"
 
 
 /* What kind of latch and lock can we assume when the control comes to
@@ -869,6 +870,10 @@ row_upd_index_replace_new_col_vals_index_pos(
 	upd_t*		update,	/* in: an update vector built for the index so
 				that the field number in an upd_field is the
 				index position */
+	ibool		order_only,
+				/* in: if TRUE, limit the replacement to
+				ordering fields of index; note that this
+				does not work for non-clustered indexes. */
 	mem_heap_t*	heap)	/* in: memory heap to which we allocate and
 				copy the new values, set this as NULL if you
 				do not want allocation */
@@ -879,13 +884,20 @@ row_upd_index_replace_new_col_vals_index_pos(
 	dfield_t*	new_val;
 	ulint		j;
 	ulint		i;
+	ulint		n_fields;
 	dtype_t*	cur_type;
 
 	ut_ad(index);
 
 	dtuple_set_info_bits(entry, update->info_bits);
 
-	for (j = 0; j < dict_index_get_n_fields(index); j++) {
+	if (order_only) {
+		n_fields = dict_index_get_n_unique(index);
+	} else {
+		n_fields = dict_index_get_n_fields(index);
+	}
+
+	for (j = 0; j < n_fields; j++) {
 
 		field = dict_index_get_nth_field(index, j);
 
@@ -1530,6 +1542,10 @@ row_upd_clust_rec(
 		return(err);
 	}
 
+	if (buf_LRU_buf_pool_running_out()) {
+
+		return(DB_LOCK_TABLE_FULL);
+	}
 	/* We may have to modify the tree structure: do a pessimistic descent
 	down the index tree */
 

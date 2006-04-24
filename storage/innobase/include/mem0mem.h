@@ -311,6 +311,17 @@ mem_heap_strdupl(
 	const char*	str,	/* in: string to be copied */
 	ulint		len);	/* in: length of str, in bytes */
 
+/**************************************************************************
+Concatenate two strings and return the result, using a memory heap. */
+
+char*
+mem_heap_strcat(
+/*============*/
+				/* out, own: the result */
+	mem_heap_t*	heap,	/* in: memory heap where string is allocated */
+	const char*	s1,	/* in: string 1 */
+	const char*	s2);	/* in: string 2 */
+
 #ifdef MEM_PERIODIC_CHECK
 /**********************************************************************
 Goes through the list of all allocated mem blocks, checks their magic

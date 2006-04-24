@@ -1606,7 +1606,7 @@ btr_cur_optimistic_update(
 	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-									NULL);
+		FALSE, NULL);
 	old_rec_size = rec_offs_size(offsets);
 	new_rec_size = rec_get_converted_size(index, new_entry);
 
@@ -1846,7 +1846,7 @@ btr_cur_pessimistic_update(
 	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-									heap);
+		FALSE, heap);
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 								roll_ptr);
@@ -1915,12 +1915,12 @@ btr_cur_pessimistic_update(
 	ut_a(rec || optim_err != DB_UNDERFLOW);
 
 	if (rec) {
-		offsets = rec_get_offsets(rec, index, offsets,
-					ULINT_UNDEFINED, &heap);
-
 		lock_rec_restore_from_page_infimum(rec, page);
 		rec_set_field_extern_bits(rec, index,
 						ext_vect, n_ext_vect, mtr);
+
+		offsets = rec_get_offsets(rec, index, offsets,
+					ULINT_UNDEFINED, &heap);
 
 		if (!rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
 			/* The new inserted record owns its possible externally
@@ -2371,8 +2371,7 @@ btr_cur_compress(
 	ut_ad(mtr_memo_contains(mtr,
 				dict_tree_get_lock(btr_cur_get_tree(cursor)),
 							MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(
-						btr_cur_get_page(cursor)),
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
 				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(btr_page_get_level(btr_cur_get_page(cursor), mtr) == 0);
 
@@ -2398,8 +2397,7 @@ btr_cur_compress_if_useful(
 	ut_ad(mtr_memo_contains(mtr,
 				dict_tree_get_lock(btr_cur_get_tree(cursor)),
 							MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(
-						btr_cur_get_page(cursor)),
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
 				MTR_MEMO_PAGE_X_FIX));
 
 	if (btr_cur_compress_recommendation(cursor, mtr)) {
@@ -2437,7 +2435,7 @@ btr_cur_optimistic_delete(
 	ibool		no_compress_needed;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_page(cursor)),
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
 							MTR_MEMO_PAGE_X_FIX));
 	/* This is intended only for leaf page deletions */
 
@@ -3330,7 +3328,10 @@ btr_store_big_rec_extern_fields(
 	dict_index_t*	index,		/* in: index of rec; the index tree
 					MUST be X-latched */
 	rec_t*		rec,		/* in: record */
-	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec, index);
+					the "external storage" flags in offsets
+					will not correspond to rec when
+					this function returns */
 	big_rec_t*	big_rec_vec,	/* in: vector containing fields
 					to be stored externally */
 	mtr_t*		local_mtr __attribute__((unused))) /* in: mtr
