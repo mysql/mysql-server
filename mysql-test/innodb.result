@@ -1632,6 +1632,30 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`b`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2, t1;
+flush status;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	0
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	0
+create table t1 (a int) engine=innodb;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	1
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+begin;
+delete from t1;
+commit;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	2
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+drop table t1;
 create table t1 (c char(10), index (c,c)) engine=innodb;
 ERROR 42S21: Duplicate column name 'c'
 create table t1 (c1 char(10), c2 char(10), index (c1,c2,c1)) engine=innodb;
@@ -3204,6 +3228,46 @@ UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
 ERROR 23000: Upholding foreign key constraints for table 't1', entry 'other-somevalu', key 1 would lead to a duplicate entry
 DROP TABLE t2;
 DROP TABLE t1;
+create table t1 (
+c1 bigint not null,
+c2 bigint not null,
+primary key (c1),
+unique  key (c2)
+) engine=innodb;
+create table t2 (
+c1 bigint not null,
+primary key (c1)
+) engine=innodb;
+alter table t1 add constraint c2_fk foreign key (c2)
+references t2(c1) on delete cascade;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` bigint(20) NOT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `c2` (`c2`),
+  CONSTRAINT `c2_fk` FOREIGN KEY (`c2`) REFERENCES `t2` (`c1`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t1 drop foreign key c2_fk;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` bigint(20) NOT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1, t2;
+create table t1(a date) engine=innodb;
+create table t2(a date, key(a)) engine=innodb;
+insert into t1 values('2005-10-01');
+insert into t2 values('2005-10-01');
+select * from t1, t2
+where t2.a between t1.a - interval 2 day and t1.a + interval 2 day;
+a	a
+2005-10-01	2005-10-01
+drop table t1, t2;
 create table t1 (id int not null, f_id int not null, f int not null,
 primary key(f_id, id)) engine=innodb;
 create table t2 (id int not null,s_id int not null,s varchar(200),
