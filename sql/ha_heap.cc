@@ -706,3 +706,16 @@ bool ha_heap::check_if_incompatible_data(HA_CREATE_INFO *info,
     return COMPATIBLE_DATA_NO;
   return COMPATIBLE_DATA_YES;
 }
+
+mysql_declare_plugin(heap)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &heap_hton,
+  heap_hton.name,
+  NULL,
+  heap_hton.comment,
+  NULL,
+  NULL,
+  0
+}
+mysql_declare_plugin_end;

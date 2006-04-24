@@ -30,10 +30,7 @@ libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
-LDADD =			$(top_builddir)/storage/myisam/libmyisam.a \
-			$(top_builddir)/storage/myisammrg/libmyisammrg.a \
-			$(top_builddir)/storage/heap/libheap.a \
-			$(top_builddir)/vio/libvio.a \
+LDADD =			$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/regex/libregex.a \
@@ -41,7 +38,7 @@ LDADD =			$(top_builddir)/storage/myisam/libmyisam.a \
 
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@pstack_libs@ \
-			@mysql_se_objs@ @mysql_se_libs@ \
+			@mysql_plugin_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
                         @yassl_libs@ @openssl_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
@@ -53,6 +50,9 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_manager.h sql_map.h sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
 			ha_heap.h ha_myisam.h ha_myisammrg.h ha_partition.h \
+			ha_innodb.h  ha_berkeley.h ha_federated.h \
+			ha_ndbcluster.h ha_ndbcluster_binlog.h \
+			ha_ndbcluster_tables.h
 			opt_range.h protocol.h rpl_tblmap.h \
 			log.h sql_show.h rpl_rli.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
@@ -61,12 +61,12 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			rpl_injector.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
 			spatial.h gstream.h client_settings.h tzfile.h \
-                        tztime.h my_decimal.h\
+			tztime.h my_decimal.h\
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
 			sql_array.h sql_cursor.h event.h event_priv.h \
 			sql_plugin.h authors.h sql_partition.h \
-                        partition_info.h partition_element.h
+			partition_info.h partition_element.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -79,7 +79,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
 			set_var.cc sql_parse.cc sql_yacc.yy \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
-                        sql_prepare.cc sql_error.cc \
+			sql_prepare.cc sql_error.cc \
 			sql_update.cc sql_delete.cc uniques.cc sql_do.cc \
 			procedure.cc item_uniq.cc sql_test.cc \
 			log.cc log_event.cc init.cc derror.cc sql_acl.cc \
@@ -87,6 +87,9 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			discover.cc time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
 			ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
+			ha_partition.cc ha_innodb.cc ha_berkeley.cc \
+			ha_federated.cc \
+                        ha_ndbcluster.cc ha_ndbcluster_binlog.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
@@ -102,15 +105,9 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
                         event_executor.cc event.cc event_timed.cc \
 			sql_plugin.cc sql_binlog.cc \
-			handlerton.cc sql_tablespace.cc partition_info.cc
-EXTRA_mysqld_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
-			ha_innodb.h  ha_berkeley.h  ha_archive.h \
-			ha_blackhole.cc ha_federated.cc ha_ndbcluster.cc \
-			ha_blackhole.h  ha_federated.h  ha_ndbcluster.h \
-			ha_ndbcluster_binlog.cc ha_ndbcluster_binlog.h \
-			ha_ndbcluster_tables.h \
-			ha_partition.cc ha_partition.h
-mysqld_DEPENDENCIES =	@mysql_se_objs@
+			sql_builtin.cc sql_tablespace.cc partition_info.cc
+
+
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql.cc
@@ -162,6 +159,7 @@ sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
 lex_hash.h:	gen_lex_hash$(EXEEXT)
 		./gen_lex_hash$(EXEEXT) > $@
 
+# the following three should eventually be moved out of this directory
 ha_berkeley.o:	ha_berkeley.cc ha_berkeley.h
 		$(CXXCOMPILE) @bdb_includes@ $(LM_CFLAGS) -c $<
 

@@ -31,7 +31,7 @@ sinclude(config/ac-macros/alloca.m4)
 sinclude(config/ac-macros/check_cpu.m4)
 sinclude(config/ac-macros/character_sets.m4)
 sinclude(config/ac-macros/compiler_flag.m4)
-sinclude(config/ac-macros/storage.m4)
+sinclude(config/ac-macros/plugins.m4)
 sinclude(config/ac-macros/ha_berkeley.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/large_file.m4)
@@ -47,6 +47,92 @@ AVAILABLE_LANGUAGES="\
 czech danish dutch english estonian french german greek hungarian \
 italian japanese korean norwegian norwegian-ny polish portuguese \
 romanian russian serbian slovak spanish swedish ukrainian"
+
+#--------------------------------------------------------------------
+# Declare our plugin modules
+#--------------------------------------------------------------------
+
+MYSQL_STORAGE_ENGINE(archive,,  [Archive Storage Engine],
+        [Archive Storage Engine], [max,max-no-ndb])
+MYSQL_MODULE_DIRECTORY(archive, [storage/archive])
+MYSQL_MODULE_STATIC(archive,    [libarchive.a])
+MYSQL_MODULE_DYNAMIC(archive,   [ha_archive.la])
+
+MYSQL_STORAGE_ENGINE(berkeley,  berkeley-db, [BerkeleyDB Storage Engine],
+        [Transactional Tables using BerkeleyDB], [max,max-no-ndb])
+MYSQL_MODULE_DIRECTORY(berkeley,[storage/bdb])
+MYSQL_MODULE_STATIC(berkeley,   [[\$(bdb_libs_with_path)]])
+MYSQL_MODULE_ACTIONS(berkeley,  [MYSQL_SETUP_BERKELEY_DB])
+
+MYSQL_STORAGE_ENGINE(blackhole,,[Blackhole Storage Engine],
+        [Basic Write-only Read-never tables], [max,max-no-ndb])
+MYSQL_MODULE_DIRECTORY(blackhole, [storage/blackhole])
+MYSQL_MODULE_STATIC(blackhole,  [libblackhole.a])
+MYSQL_MODULE_DYNAMIC(blackhole, [ha_blackhole.la])
+
+MYSQL_STORAGE_ENGINE(csv,,      [CSV Storage Engine],
+        [Stores tables in text CSV format])
+MYSQL_MODULE_DIRECTORY(csv,     [storage/csv])
+MYSQL_MODULE_STATIC(csv,        [libcsv.a])
+
+MYSQL_STORAGE_ENGINE(example,,  [Example Storage Engine],
+        [Skeleton for Storage Engines for developers], [max,max-no-ndb])
+MYSQL_MODULE_DIRECTORY(example, [storage/example])
+MYSQL_MODULE_STATIC(example,    [libexample.a])
+MYSQL_MODULE_DYNAMIC(example,   [ha_example.la])
+
+MYSQL_STORAGE_ENGINE(federated,,[Federated Storage Engine],
+        [Connects to tables on remote MySQL servers], [max,max-no-ndb])
+
+MYSQL_MODULE(ftexample,         [Simple Parser],
+        [Simple full-text parser plugin])
+MYSQL_MODULE_DIRECTORY(ftexample, [plugin/fulltext])
+MYSQL_MODULE_STATIC(ftexample,  [libftexample.a])
+MYSQL_MODULE_DYNAMIC(ftexample, [ft_example.la])
+
+MYSQL_STORAGE_ENGINE(heap,no,   [Memory Storage Engine],
+        [In memory hashed tables])
+MYSQL_MODULE_DIRECTORY(heap,    [storage/heap])
+MYSQL_MODULE_STATIC(heap,       [libheap.a])
+
+MYSQL_STORAGE_ENGINE(innobase,  innodb, [InnoDB Storage Engine],
+        [Transactional Tables using InnoDB], [max,max-no-ndb])
+MYSQL_MODULE_DIRECTORY(innobase, [storage/innobase])
+MYSQL_MODULE_STATIC(innobase,   [libinnobase.a])
+MYSQL_MODULE_ACTIONS(innobase,  [
+  AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
+  AC_SUBST(innodb_includes)
+  AC_SUBST(innodb_libs)
+  AC_SUBST(innodb_system_libs)
+  other_configures="$other_configures storage/innobase/configure"
+])
+
+MYSQL_STORAGE_ENGINE(myisam,no, [MyISAM Storage Engine],
+        [Traditional non-transactional MySQL tables])
+MYSQL_MODULE_DIRECTORY(myisam,  [storage/myisam])
+MYSQL_MODULE_STATIC(myisam,     [libmyisam.a])
+
+MYSQL_STORAGE_ENGINE(myisammrg,no,[MyISAM MERGE Engine],
+        [Merge multiple MySQL tables into one])
+MYSQL_MODULE_DIRECTORY(myisammrg,[storage/myisammrg])
+MYSQL_MODULE_STATIC(myisammrg,  [libmyisammrg.a])
+
+MYSQL_STORAGE_ENGINE(ndbcluster, ndbcluster, [Cluster Storage Engine],
+        [High Availability Clustered tables], [max])
+MYSQL_MODULE_DIRECTORY(ndbcluster,[storage/ndb])
+MYSQL_MODULE_STATIC(ndbcluster, [[\$(ndbcluster_libs) \$(ndbcluster_system_libs) \$(NDB_SCI_LIBS)]])
+MYSQL_MODULE_ACTIONS(ndbcluster,[MYSQL_SETUP_NDBCLUSTER])
+
+MYSQL_STORAGE_ENGINE(partition, partition, [Partition Support],
+        [MySQL Partitioning Support], [max,max-no-ndb])
+
+MYSQL_MODULE_MANDATORY(csv)     dnl Used for logging
+MYSQL_MODULE_MANDATORY(heap)    dnl Memory tables
+MYSQL_MODULE_MANDATORY(myisam)  dnl Default
+MYSQL_MODULE_MANDATORY(myisammrg)
+
+dnl -- ndbcluster requires partition to be enabled
+MYSQL_MODULE_DEPENDS(ndbcluster, partition)
 
 #####
 #####
@@ -671,6 +757,16 @@ MYSQL_SYS_LARGEFILE
 
 # Types that must be checked AFTER large file support is checked
 AC_TYPE_SIZE_T
+
+#--------------------------------------------------------------------
+# Check for requested features
+#--------------------------------------------------------------------
+
+MYSQL_CHECK_BIG_TABLES
+MYSQL_CHECK_MAX_INDEXES
+MYSQL_CHECK_REPLICATION
+
+MYSQL_CONFIGURE_PLUGINS([none])
 
 #--------------------------------------------------------------------
 # Check for system header files
@@ -2421,73 +2517,6 @@ AC_SUBST(readline_basedir)
 AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
-MYSQL_CHECK_BIG_TABLES
-MYSQL_CHECK_MAX_INDEXES
-MYSQL_CHECK_REPLICATION
-
-MYSQL_STORAGE_ENGINE(innobase,,innodb,,,,innobase,ha_innodb.o,[ dnl
-  \$(top_builddir)/storage/innobase/usr/libusr.a dnl
-  \$(top_builddir)/storage/innobase/srv/libsrv.a dnl
-  \$(top_builddir)/storage/innobase/dict/libdict.a dnl
-  \$(top_builddir)/storage/innobase/que/libque.a dnl
-  \$(top_builddir)/storage/innobase/srv/libsrv.a dnl
-  \$(top_builddir)/storage/innobase/ibuf/libibuf.a dnl
-  \$(top_builddir)/storage/innobase/row/librow.a dnl
-  \$(top_builddir)/storage/innobase/pars/libpars.a dnl
-  \$(top_builddir)/storage/innobase/btr/libbtr.a dnl
-  \$(top_builddir)/storage/innobase/trx/libtrx.a dnl
-  \$(top_builddir)/storage/innobase/read/libread.a dnl
-  \$(top_builddir)/storage/innobase/usr/libusr.a dnl
-  \$(top_builddir)/storage/innobase/buf/libbuf.a dnl
-  \$(top_builddir)/storage/innobase/ibuf/libibuf.a dnl
-  \$(top_builddir)/storage/innobase/eval/libeval.a dnl
-  \$(top_builddir)/storage/innobase/log/liblog.a dnl
-  \$(top_builddir)/storage/innobase/fsp/libfsp.a dnl
-  \$(top_builddir)/storage/innobase/fut/libfut.a dnl
-  \$(top_builddir)/storage/innobase/fil/libfil.a dnl
-  \$(top_builddir)/storage/innobase/lock/liblock.a dnl
-  \$(top_builddir)/storage/innobase/mtr/libmtr.a dnl
-  \$(top_builddir)/storage/innobase/page/libpage.a dnl
-  \$(top_builddir)/storage/innobase/rem/librem.a dnl
-  \$(top_builddir)/storage/innobase/thr/libthr.a dnl
-  \$(top_builddir)/storage/innobase/sync/libsync.a dnl
-  \$(top_builddir)/storage/innobase/data/libdata.a dnl
-  \$(top_builddir)/storage/innobase/mach/libmach.a dnl
-  \$(top_builddir)/storage/innobase/ha/libha.a dnl
-  \$(top_builddir)/storage/innobase/dyn/libdyn.a dnl
-  \$(top_builddir)/storage/innobase/mem/libmem.a dnl
-  \$(top_builddir)/storage/innobase/sync/libsync.a dnl
-  \$(top_builddir)/storage/innobase/ut/libut.a dnl
-  \$(top_builddir)/storage/innobase/os/libos.a dnl
-  \$(top_builddir)/storage/innobase/ut/libut.a],[
-  AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
-  AC_SUBST(innodb_includes)
-  AC_SUBST(innodb_libs)
-  AC_SUBST(innodb_system_libs)
-  other_configures="$other_configures storage/innobase/configure"
-])
-
-MYSQL_STORAGE_ENGINE(berkeley,,berkeley-db,,,,bdb,,,[
-  MYSQL_SETUP_BERKELEY_DB
-])
-MYSQL_STORAGE_ENGINE(example,,,,,,example,no,
- \$(top_builddir)/storage/example/libexample.a,[
-  AC_CONFIG_FILES(storage/example/Makefile)
-])
-MYSQL_STORAGE_ENGINE(archive,,,,,,archive,,
- \$(top_builddir)/storage/archive/libarchive.a, [
-  AC_CONFIG_FILES(storage/archive/Makefile)
-])
-MYSQL_STORAGE_ENGINE(csv,,,"yes",,tina_hton,csv,no,
-  \$(top_builddir)/storage/csv/libcsv.a,[
-  AC_CONFIG_FILES(storage/csv/Makefile)
-])
-MYSQL_STORAGE_ENGINE(blackhole)
-MYSQL_STORAGE_ENGINE(federated)
-MYSQL_STORAGE_ENGINE(ndbcluster,,ndbcluster,,,,ndb,,,[
-  MYSQL_SETUP_NDBCLUSTER
-])
-MYSQL_STORAGE_ENGINE(partition,,partition)
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
@@ -2544,7 +2573,7 @@ then
   AC_SUBST(THREAD_LOBJECTS)
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
-  mysql_se_dirs="myisam myisammrg heap $mysql_se_dirs"
+
   sql_server="$sql_server vio sql"
 fi
 
@@ -2560,12 +2589,9 @@ AC_SUBST(sql_server)
 AC_SUBST(thread_dirs)
 AC_SUBST(server_scripts)
 
-AC_SUBST(mysql_se_dirs)
-AC_SUBST(mysql_se_libs)
-AC_SUBST(mysql_se_objs)
-AC_SUBST(mysql_se_htons)
-AC_SUBST(mysql_se_decls)
-AC_SUBST(mysql_se_plugins)
+AC_SUBST(mysql_plugin_dirs)
+AC_SUBST(mysql_plugin_libs)
+AC_SUBST(mysql_plugin_defs)
 
 
 # Now that sql_client_dirs and sql_server_dirs are stable, determine the union.
@@ -2610,12 +2636,15 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  unittest/Makefile dnl
  unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/examples/Makefile dnl
- strings/Makefile regex/Makefile storage/Makefile storage/heap/Makefile dnl
+ strings/Makefile regex/Makefile dnl
+ storage/Makefile dnl
+ storage/archive/Makefile storage/bdb/Makefile storage/blackhole/Makefile dnl
+ storage/csv/Makefile storage/example/Makefile storage/heap/Makefile dnl
  storage/myisam/Makefile storage/myisammrg/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
- sql/handlerton.cc sql-common/Makefile dnl
+ sql/sql_builtin.cc sql-common/Makefile dnl
  dbug/Makefile scripts/Makefile dnl
  include/Makefile dnl
  server-tools/Makefile server-tools/instance-manager/Makefile dnl

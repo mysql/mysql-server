@@ -30,6 +30,8 @@
 #include "message.h"
 #endif
 
+#include <mysql/plugin.h>
+
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_USER_HOST_SIZE 512
@@ -4343,3 +4345,16 @@ err1:
   return 1;
 }
 
+
+mysql_declare_plugin(binlog)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &binlog_hton,
+  binlog_hton.name,
+  "MySQL AB",
+  "Binlog Engine",
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;
