@@ -1175,6 +1175,7 @@ sub environment_setup () {
   $ENV{'MYSQL_TCP_PORT'}=     3306;
 
   $ENV{'NDBCLUSTER_PORT'}=    $opt_ndbcluster_port;
+  $ENV{'NDB_STATUS_OK'}=      "YES";
 
   $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
   $ENV{'IM_PORT'}=            $instance_manager->{port};
@@ -1661,6 +1662,7 @@ sub mysql_install_db () {
       mtr_report("ndbcluster_install failed, continuing without cluster");
       $opt_with_ndbcluster= 0;
       $flag_ndb_status_ok= 0;
+      $ENV{'NDB_STATUS_OK'}= "NO";
     }
     else
     {
@@ -1682,7 +1684,7 @@ sub install_db ($$) {
   my $init_db_sql_tmp= "/tmp/init_db.sql$$";
   my $args;
 
-  mtr_report("Installing \u$type Databases");
+  mtr_report("Installing \u$type Database");
 
   open(IN, $init_db_sql)
     or mtr_error("Can't open $init_db_sql: $!");
@@ -2935,7 +2937,6 @@ sub run_mysqltest ($) {
   $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}=  $exe_my_print_defaults;
 
-  $ENV{'NDB_STATUS_OK'}=            $flag_ndb_status_ok;
   $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
   $ENV{'NDB_BACKUP_DIR'}=           $path_ndb_data_dir;
   $ENV{'NDB_DATA_DIR'}=             $path_ndb_data_dir;
