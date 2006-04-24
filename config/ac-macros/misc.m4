@@ -361,7 +361,8 @@ AC_CACHE_VAL(mysql_cv_termcap_lib,
 [AC_CHECK_LIB(ncurses, tgetent, mysql_cv_termcap_lib=libncurses,
     [AC_CHECK_LIB(curses, tgetent, mysql_cv_termcap_lib=libcurses,
 	[AC_CHECK_LIB(termcap, tgetent, mysql_cv_termcap_lib=libtermcap,
-	    mysql_cv_termcap_lib=NOT_FOUND)])])])
+          [AC_CHECK_LIB(tinfo, tgetent, mysql_cv_termcap_lib=libtinfo,
+	    mysql_cv_termcap_lib=NOT_FOUND)])])])])
 AC_MSG_CHECKING(for termcap functions library)
 if test "$mysql_cv_termcap_lib" = "NOT_FOUND"; then
 AC_MSG_ERROR([No curses/termcap library found])
@@ -369,6 +370,8 @@ elif test "$mysql_cv_termcap_lib" = "libtermcap"; then
 TERMCAP_LIB=-ltermcap
 elif test "$mysql_cv_termcap_lib" = "libncurses"; then
 TERMCAP_LIB=-lncurses
+elif test "$mysql_cv_termcap_lib" = "libtinfo"; then
+TERMCAP_LIB=-ltinfo
 else
 TERMCAP_LIB=-lcurses
 fi
