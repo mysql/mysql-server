@@ -238,6 +238,7 @@ AC_DEFUN([MYSQL_CONFIGURE_PLUGINS],[ dnl
     _MYSQL_CHECK_PLUGIN_ARGS([$1])
     _MYSQL_CONFIGURE_PLUGINS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
     _MYSQL_DO_PLUGIN_ACTIONS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
+    _MYSQL_POST_PLUGIN_FIXUP()
    ]) dnl
  ]) dnl
 ])
@@ -661,5 +662,22 @@ _MYSQL_MODULE_ARGS_CHECK(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
   _MYSQL_CHECK_DEPENDENCIES(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
 ])
 
+AC_DEFUN([_MYSQL_POST_PLUGIN_FIXUP],[
+  for plugdir in $mysql_plugin_dirs; do
+    case "$plugdir" in
+    storage/* )
+      mysql_se_dirs="$mysql_se_dirs `echo $plugdir | sed -e 's@^storage/@@'`"
+      ;;
+    plugin/* )
+      mysql_pg_dirs="$mysql_pg_dirs `echo $plugdir | sed -e 's@^plugin/@@'`"
+      ;;
+    *)
+      AC_MSG_ERROR([don't know how to handle plugin dir $plugdir])      
+      ;;    
+    esac
+  done
+  AC_SUBST(mysql_se_dirs)
+  AC_SUBST(mysql_pg_dirs)
+])
 
 dnl ===========================================================================
