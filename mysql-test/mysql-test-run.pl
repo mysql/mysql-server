@@ -1223,6 +1223,7 @@ sub signal_setup () {
   $SIG{INT}= \&handle_int_signal;
 }
 
+
 sub handle_int_signal () {
   $SIG{INT}= 'DEFAULT';         # If we get a ^C again, we die...
   mtr_warning("got INT signal, cleaning up.....");
@@ -1438,7 +1439,6 @@ sub check_ndbcluster_support () {
   return;
 }
 
-# FIXME why is there a different start below?!
 
 sub ndbcluster_install () {
 
@@ -1464,6 +1464,7 @@ sub ndbcluster_install () {
 
   return 0;
 }
+
 
 sub ndbcluster_start ($) {
   my $use_ndbcluster= shift;
@@ -1496,6 +1497,7 @@ sub ndbcluster_start ($) {
   $using_ndbcluster_master= 1;
   return 0;
 }
+
 
 sub ndbcluster_stop () {
   if ( ! $using_ndbcluster_master or $glob_use_running_ndbcluster )
@@ -1593,6 +1595,7 @@ sub run_benchmarks ($) {
 sub run_tests () {
   run_suite($opt_suite);
 }
+
 
 sub run_suite () {
   my $suite= shift;
@@ -1756,15 +1759,15 @@ sub im_create_passwd_file($) {
   my $instance_manager = shift;
 
   my $pwd_file_path = $instance_manager->{'password_file'};
-  
+
   mtr_report("Creating IM password file ($pwd_file_path)");
-  
+
   open(OUT, ">", $pwd_file_path)
     or mtr_error("Can't write to $pwd_file_path: $!");
-  
+
   print OUT $instance_manager->{'admin_login'}, ":",
         $instance_manager->{'admin_sha1'}, "\n";
-  
+
   close(OUT);
 }
 
@@ -1776,7 +1779,7 @@ sub im_create_defaults_file($) {
 
   open(OUT, ">", $defaults_file)
     or mtr_error("Can't write to $defaults_file: $!");
-  
+
   print OUT <<EOF
 [mysql]
 
@@ -1934,7 +1937,7 @@ sub run_testcase ($) {
     # ----------------------------------------------------------------------
 
     stop_slaves();
-  }    
+  }
 
   # ----------------------------------------------------------------------
   # Prepare to start masters. Even if we use embedded, we want to run
@@ -1947,9 +1950,9 @@ sub run_testcase ($) {
 
   mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
 
-# FIXME test cases that depend on each other, prevent this from
-# being at this location.
-#  do_before_start_master($tname,$tinfo->{'master_sh'});
+  # FIXME test cases that depend on each other, prevent this from
+  # being at this location.
+  # do_before_start_master($tname,$tinfo->{'master_sh'});
 
   # ----------------------------------------------------------------------
   # If any mysqld servers running died, we have to know
@@ -2125,6 +2128,7 @@ sub run_testcase ($) {
   }
 }
 
+
 #
 # Save a snapshot of the installed test db(s)
 # I.e take a snapshot of the var/ dir
@@ -2160,6 +2164,7 @@ sub save_files_before_restore($$) {
     rename("$core_file", "$save_name/$core_name");
   }
 }
+
 
 #
 # Restore snapshot of the installed test db(s)
@@ -2230,9 +2235,9 @@ sub report_failure_and_restart ($) {
 #
 ##############################################################################
 
+
 # The embedded server needs the cleanup so we do some of the start work
 # but stop before actually running mysqld or anything.
-
 sub do_before_start_master ($$) {
   my $tname=       shift;
   my $init_script= shift;
@@ -2265,12 +2270,13 @@ sub do_before_start_master ($$) {
     if ( $ret != 0 )
     {
       # FIXME rewrite those scripts to return 0 if successful
-#      mtr_warning("$init_script exited with code $ret");
+      # mtr_warning("$init_script exited with code $ret");
     }
   }
   # for gcov  FIXME needed? If so we need more absolute paths
-# chdir($glob_basedir);
+  # chdir($glob_basedir);
 }
+
 
 sub do_before_start_slave ($$) {
   my $tname=       shift;
@@ -2299,7 +2305,7 @@ sub do_before_start_slave ($$) {
     if ( $ret != 0 )
     {
       # FIXME rewrite those scripts to return 0 if successful
-#      mtr_warning("$init_script exited with code $ret");
+      # mtr_warning("$init_script exited with code $ret");
     }
   }
 
@@ -2308,6 +2314,7 @@ sub do_before_start_slave ($$) {
     unlink($bin);
   }
 }
+
 
 sub mysqld_arguments ($$$$$$) {
   my $args=              shift;
@@ -2532,14 +2539,6 @@ sub mysqld_arguments ($$$$$$) {
   return $args;
 }
 
-# FIXME
-#  if ( $type eq 'master' and $glob_use_embedded_server )
-#  {
-#    # Add a -A to each argument to pass it to embedded server
-#    my @mysqltest_opt=  map {("-A",$_)} @args;
-#    $opt_extra_mysqltest_opt=  \@mysqltest_opt;
-#    return;
-#  }
 
 ##############################################################################
 #
@@ -2639,6 +2638,7 @@ sub mysqld_start ($$$$$) {
   return 0;
 }
 
+
 sub stop_masters_slaves () {
 
   print  "Ending Tests\n";
@@ -2648,13 +2648,14 @@ sub stop_masters_slaves () {
     print  "Shutting-down Instance Manager\n";
     im_stop($instance_manager);
   }
-  
+
   print  "Shutting-down MySQL daemon\n\n";
   stop_masters();
   print "Master(s) shutdown finished\n";
   stop_slaves();
   print "Slave(s) shutdown finished\n";
 }
+
 
 sub stop_masters () {
 
@@ -2684,6 +2685,7 @@ sub stop_masters () {
 
   mtr_stop_mysqld_servers(\@args);
 }
+
 
 sub stop_slaves () {
   my $force= shift;
@@ -2727,7 +2729,7 @@ sub im_start($$) {
     mtr_add_arg($args, $opt);
   }
 
-  $instance_manager->{'pid'} = 
+  $instance_manager->{'pid'} =
     mtr_spawn(
       $exe_im,                          # path to the executable
       $args,                            # cmd-line args
@@ -2743,7 +2745,7 @@ sub im_start($$) {
     mtr_report('Could not start Instance Manager');
     return;
   }
-  
+
   # Instance Manager can be run in daemon mode. In this case, it creates
   # several processes and the parent process, created by mtr_spawn(), exits just
   # after start. So, we have to obtain Instance Manager PID from the PID file.
@@ -2760,6 +2762,7 @@ sub im_start($$) {
   $instance_manager->{'pid'} =
     mtr_get_pid_from_file($instance_manager->{'path_pid'});
 }
+
 
 sub im_stop($) {
   my $instance_manager = shift;
@@ -2795,11 +2798,12 @@ sub im_stop($) {
   # Kill processes.
 
   mtr_kill_processes(\@pids);
-  
+
   stop_reap_all();
 
   $instance_manager->{'pid'} = undef;
 }
+
 
 #
 # Run include/check-testcase.test
@@ -2848,6 +2852,7 @@ sub run_check_testcase ($) {
     mtr_error("Could not execute 'check-testcase' $mode testcase");
   }
 }
+
 
 sub run_mysqltest ($) {
   my $tinfo=       shift;
@@ -3185,6 +3190,7 @@ sub gdb_arguments {
   $$exe= "xterm";
 }
 
+
 #
 # Modify the exe and args so that program is run in ddd
 #
@@ -3430,18 +3436,18 @@ Deprecated options
 
 Options not yet described, or that I want to look into more
 
-  big-test              
-  debug                 
-  local                 
-  local-master          
-  netware               
-  old-master            
-  sleep=SECONDS         
-  socket=PATH           
-  user-test=s           
-  wait-timeout=SECONDS  
-  warnings              
-  log-warnings          
+  big-test
+  debug
+  local
+  local-master
+  netware
+  old-master
+  sleep=SECONDS
+  socket=PATH
+  user-test=s
+  wait-timeout=SECONDS
+  warnings
+  log-warnings
 
 HERE
   mtr_exit(1);
