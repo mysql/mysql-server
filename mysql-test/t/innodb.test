@@ -2133,12 +2133,16 @@ disconnect b;
 #
 
 create table t1(a date) engine=innodb;
-create table t2(a date, key(a)) engine=innodb; 
+create table t2(a date, key(a)) engine=innodb;
 insert into t1 values('2005-10-01');
 insert into t2 values('2005-10-01');
 select * from t1, t2
   where t2.a between t1.a - interval 2 day and t1.a + interval 2 day;
 drop table t1, t2;
+
+# bug 18934, "InnoDB crashes when table uses column names like DB_ROW_ID"
+--error 1005
+CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
 
 #
 # Bug #17152: Wrong result with BINARY comparison on aliased column

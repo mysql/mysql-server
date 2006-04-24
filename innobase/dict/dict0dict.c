@@ -1249,15 +1249,13 @@ dict_table_remove_from_cache(
 	/* Remove table from LRU list of tables */
 	UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
 
-	mutex_free(&(table->autoinc_mutex));
-
 	size = mem_heap_get_size(table->heap);
 
 	ut_ad(dict_sys->size >= size);
 
 	dict_sys->size -= size;
 
-	mem_heap_free(table->heap);
+	dict_mem_table_free(table);
 }
 
 /**************************************************************************
@@ -1376,6 +1374,38 @@ dict_col_reposition_in_cache(
 				  ut_fold_string(col->name));
 				  
 	HASH_INSERT(dict_col_t, hash, dict_sys->col_hash, fold, col);
+}
+
+/********************************************************************
+If the given column name is reserved for InnoDB system columns, return
+TRUE. */
+
+ibool
+dict_col_name_is_reserved(
+/*======================*/
+				/* out: TRUE if name is reserved */
+	const char*	name)	/* in: column name */
+{
+	/* This check reminds that if a new system column is added to
+	the program, it should be dealt with here. */
+#if DATA_N_SYS_COLS != 4
+#error "DATA_N_SYS_COLS != 4"
+#endif
+
+	static const char*	reserved_names[] = {
+		"DB_ROW_ID", "DB_TRX_ID", "DB_ROLL_PTR", "DB_MIX_ID"
+	};
+
+	ulint			i;
+
+	for (i = 0; i < UT_ARR_SIZE(reserved_names); i++) {
+		if (strcmp(name, reserved_names[i]) == 0) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
 }
 
 /**************************************************************************
@@ -1551,7 +1581,7 @@ dict_index_remove_from_cache(
 
 	dict_sys->size -= size;
 
-	mem_heap_free(index->heap);
+	dict_mem_index_free(index);
 }
 
 /***********************************************************************
