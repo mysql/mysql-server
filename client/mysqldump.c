@@ -134,7 +134,7 @@ static CHARSET_INFO *charset_info= &my_charset_latin1;
 const char *default_dbug_option="d:t:o,/tmp/mysqldump.trace";
 /* do we met VIEWs during tables scaning */
 my_bool was_views= 0;
-
+const char * cluster_db="cluster";
 const char *compatible_mode_names[]=
 {
   "MYSQL323", "MYSQL40", "POSTGRESQL", "ORACLE", "MSSQL", "DB2",
@@ -2937,6 +2937,8 @@ static int dump_all_tables_in_db(char *database)
   afterdot= strmov(hash_key, database);
   *afterdot++= '.';
 
+  if (!strcmp(database, cluster_db)) /* Skip cluster internal database */
+    return 0;
   if (init_dumping(database))
     return 1;
   if (opt_xml)
