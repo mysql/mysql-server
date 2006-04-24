@@ -1030,3 +1030,13 @@ c	res
 y,abc	abc
 y,abc	abc
 drop table t1;
+select cast(rtrim('  20.06 ') as decimal(19,2));
+cast(rtrim('  20.06 ') as decimal(19,2))
+20.06
+select cast(ltrim('  20.06 ') as decimal(19,2));
+cast(ltrim('  20.06 ') as decimal(19,2))
+20.06
+select cast(rtrim(ltrim('  20.06 ')) as decimal(19,2));
+cast(rtrim(ltrim('  20.06 ')) as decimal(19,2))
+20.06
+End of 5.0 tests
