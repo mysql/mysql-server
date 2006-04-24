@@ -31,10 +31,12 @@ int main(int argc, const char** argv){
   int _help = 0;
   char * _database = "BANK";
   int disk = 0;
+  int skip_create = 0;
 
   struct getargs args[] = {
     { "database", 'd', arg_string, &_database, "Database name", ""},
     { "disk", 0, arg_flag, &disk, "Use disk tables", "" },
+    { "skip-create", 0, arg_flag, &skip_create, "Skip create", "" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
@@ -55,6 +57,7 @@ int main(int argc, const char** argv){
 
   Bank bank(con,_database);
   int overWriteExisting = true;
+  bank.setSkipCreate(skip_create);
   if (bank.createAndLoadBank(overWriteExisting, disk) != NDBT_OK)
     return NDBT_ProgramExit(NDBT_FAILED);
   return NDBT_ProgramExit(NDBT_OK);
