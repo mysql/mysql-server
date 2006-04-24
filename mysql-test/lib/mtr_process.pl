@@ -663,8 +663,6 @@ sub mtr_mysqladmin_shutdown {
 
   foreach my $srv ( @to_kill_specs )
   {
-    # FIXME wrong log.....
-    # FIXME, stderr.....
     # Shutdown time must be high as slave may be in reconnect
     my $args;
 
@@ -688,11 +686,14 @@ sub mtr_mysqladmin_shutdown {
     mtr_add_arg($args, "--connect_timeout=5");
     mtr_add_arg($args, "--shutdown_timeout=$adm_shutdown_tmo");
     mtr_add_arg($args, "shutdown");
-    # We don't wait for termination of mysqladmin
+
+    my $path_mysqladmin_log= "$::opt_vardir/log/mysqladmin.log";
     my $pid= mtr_spawn($::exe_mysqladmin, $args,
-                       "", $::path_manager_log, $::path_manager_log, "",
+                       "", $path_mysqladmin_log, $path_mysqladmin_log, "",
                        { append_log_file => 1 });
     $mysql_admin_pids{$pid}= 1;
+
+    # We don't wait for termination of mysqladmin
   }
 
   # As mysqladmin is such a simple program, we trust it to terminate.

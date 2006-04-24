@@ -156,9 +156,9 @@ our $path_client_bindir;
 our $path_language;
 our $path_timefile;
 our $path_snapshot;
-our $path_manager_log;           # Used by mysqldadmin
 our $path_slave_load_tmpdir;     # What is this?!
 our $path_mysqltest_log;
+our $path_current_test_log;
 our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
 our $opt_vardir_trace;           # unix formatted opt_vardir for trace files
@@ -205,7 +205,6 @@ our $opt_sp_protocol;
 our $opt_cursor_protocol;
 our $opt_view_protocol;
 
-our $opt_current_test;
 our $opt_debug;
 our $opt_do_test;
 our @opt_cases;                  # The test cases names in argv
@@ -245,9 +244,6 @@ our $instance_manager;
 
 our $opt_ndbcluster_port;
 our $opt_ndbconnectstring;
-
-our $opt_no_manager;            # Does nothing now, we never use manager
-our $opt_manager_port;          # Does nothing now, we never use manager
 
 our $opt_old_master;
 
@@ -571,7 +567,6 @@ sub command_line_setup () {
              'compress'                 => \$opt_compress,
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
-             'no-manager'               => \$opt_no_manager, # Currently not used
 
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
@@ -588,7 +583,6 @@ sub command_line_setup () {
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
              'ndbcluster_port=i'        => \$opt_ndbcluster_port,
-             'manager-port=i'           => \$opt_manager_port, # Currently not used
              'im-port=i'                => \$im_port, # Instance Manager port.
              'im-mysqld1-port=i'        => \$im_mysqld1_port, # Port of mysqld, controlled by IM
              'im-mysqld2-port=i'        => \$im_mysqld2_port, # Port of mysqld, controlled by IM
@@ -730,11 +724,6 @@ sub command_line_setup () {
 
   $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
-  # FIXME maybe not needed?
-  $path_manager_log= "$opt_vardir/log/manager.log"
-    unless $path_manager_log;
-  $opt_current_test= "$opt_vardir/log/current_test"
-    unless $opt_current_test;
 
   # --------------------------------------------------------------------------
   # Do sanity checks of command line arguments
@@ -983,6 +972,7 @@ sub command_line_setup () {
 
   $path_timefile=  "$opt_vardir/log/mysqltest-time";
   $path_mysqltest_log=  "$opt_vardir/log/mysqltest.log";
+  $path_current_test_log= "$opt_vardir/log/current_test";
 
   $path_snapshot= "$opt_tmpdir/snapshot_$opt_master_myport/";
 
@@ -1736,8 +1726,15 @@ sub install_db ($$) {
     mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   }
 
+  # Log bootstrap command
+  my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
+  mtr_tofile($path_bootstrap_log,
+	     "$exe_mysqld " . join(" ", @$args) . "\n");
+
   if ( mtr_run($exe_mysqld, $args, $init_db_sql_tmp,
-               $path_manager_log, $path_manager_log, "") != 0 )
+               $path_bootstrap_log, $path_bootstrap_log,
+	       "", { append_log_file => 1 }) != 0 )
+
   {
     unlink($init_db_sql_tmp);
     mtr_error("Error executing mysqld --bootstrap\n" .
@@ -1858,7 +1855,7 @@ sub run_testcase ($) {
 
   my $tname= $tinfo->{'name'};
 
-  mtr_tonewfile($opt_current_test,"$tname\n"); # Always tell where we are
+  mtr_tonewfile($path_current_test_log,"$tname\n"); # Always tell where we are
 
   # output current test to ndbcluster log file to enable diagnostics
   mtr_tofile($file_ndb_testrun_log,"CURRENT TEST $tname\n");
