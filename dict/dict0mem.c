@@ -58,7 +58,6 @@ dict_mem_table_create(
 	table->tablespace_discarded = FALSE;
 	table->n_def = 0;
 	table->n_cols = n_cols + DATA_N_SYS_COLS;
-	table->mem_fix = 0;
 
 	table->n_mysql_handles_opened = 0;
 	table->n_foreign_key_checks_running = 0;

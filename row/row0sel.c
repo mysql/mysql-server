@@ -4402,7 +4402,7 @@ row_search_check_if_query_cache_permitted(
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
 
-	table = dict_table_get(norm_name, trx);
+	table = dict_table_get(norm_name);
 
 	if (table == NULL) {
 

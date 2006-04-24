@@ -2444,8 +2444,7 @@ ha_innobase::open(
 
 	/* Get pointer to a table object in InnoDB dictionary cache */
 
-	ib_table = dict_table_get_and_increment_handle_count(
-		norm_name, NULL);
+	ib_table = dict_table_get_and_increment_handle_count(norm_name);
 
 	if (NULL == ib_table) {
 		ut_print_timestamp(stderr);
@@ -5026,7 +5025,7 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_get(norm_name, NULL);
+	innobase_table = dict_table_get(norm_name);
 
 	DBUG_ASSERT(innobase_table != 0);
 
