@@ -256,7 +256,8 @@ private:
                                  uint start_no);
   bool set_up_default_subpartitions(handler *file, ulonglong max_rows);
   char *create_default_partition_names(uint part_no, uint no_parts,
-                                       uint start_no, bool is_subpart);
+                                       uint start_no);
+  char *create_subpartition_name(uint subpart_no, const char *part_name);
   bool has_unique_name(partition_element *element);
 };
 
