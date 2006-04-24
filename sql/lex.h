@@ -215,9 +215,6 @@ static SYMBOL symbols[] = {
   { "GEOMETRYCOLLECTION",SYM(GEOMETRYCOLLECTION)},
   { "GET_FORMAT",       SYM(GET_FORMAT)},
   { "GLOBAL",		SYM(GLOBAL_SYM)},
-#ifdef SP_GOTO
-  { "GOTO",             SYM(GOTO_SYM)},
-#endif
   { "GRANT",		SYM(GRANT)},
   { "GRANTS",	        SYM(GRANTS)},
   { "GROUP",		SYM(GROUP)},
@@ -265,10 +262,6 @@ static SYMBOL symbols[] = {
   { "KEY",		SYM(KEY_SYM)},
   { "KEYS",		SYM(KEYS)},
   { "KILL",		SYM(KILL_SYM)},
-#ifdef SP_GOTO
-  /* QQ This will go away when the GOTO label syntax is fixed */
-  { "LABEL",            SYM(LABEL_SYM)},
-#endif
   { "LANGUAGE",         SYM(LANGUAGE_SYM)},
   { "LAST",		SYM(LAST_SYM)},
   { "LEADING",		SYM(LEADING)},

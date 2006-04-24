@@ -1670,43 +1670,10 @@ sp_head::backpatch(sp_label_t *lab)
 
   while ((bp= li++))
   {
-    if (bp->lab == lab ||
-	(bp->lab->type == SP_LAB_REF &&
-	 my_strcasecmp(system_charset_info, bp->lab->name, lab->name) == 0))
-    {
-      if (bp->lab->type != SP_LAB_REF)
-	bp->instr->backpatch(dest, lab->ctx);
-      else
-      {
-	sp_label_t *dstlab= bp->lab->ctx->find_label(lab->name);
-
-	if (dstlab)
-	{
-	  bp->lab= lab;
-	  bp->instr->backpatch(dest, dstlab->ctx);
-	}
-      }
-    }
+    if (bp->lab == lab)
+      bp->instr->backpatch(dest, lab->ctx);
   }
 }
-
-int
-sp_head::check_backpatch(THD *thd)
-{
-  bp_t *bp;
-  List_iterator_fast<bp_t> li(m_backpatch);
-
-  while ((bp= li++))
-  {
-    if (bp->lab->type == SP_LAB_REF)
-    {
-      my_error(ER_SP_LILABEL_MISMATCH, MYF(0), "GOTO", bp->lab->name);
-      return -1;
-    }
-  }
-  return 0;
-}
-
 
 /*
   Prepare an instance of create_field for field creation (fill all necessary

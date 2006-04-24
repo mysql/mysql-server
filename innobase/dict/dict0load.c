@@ -767,7 +767,7 @@ dict_load_table(
 	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)
 			|| rec_get_deleted_flag(rec, sys_tables->comp)) {
 		/* Not found */
-
+	err_exit:
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
 		mem_heap_free(heap);
@@ -779,11 +779,8 @@ dict_load_table(
 
 	/* Check if the table name in record is the searched one */
 	if (len != ut_strlen(name) || ut_memcmp(name, field, len) != 0) {
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
-		
-		return(NULL);
+
+		goto err_exit;
 	}
 
 	ut_a(0 == ut_strcmp("SPACE",
@@ -843,6 +840,14 @@ dict_load_table(
 
 	field = rec_get_nth_field_old(rec, 5, &len);
 	table->type = mach_read_from_4(field);
+
+	if (UNIV_UNLIKELY(table->type != DICT_TABLE_ORDINARY)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: table %s: unknown table type %lu\n",
+			name, (ulong) table->type);
+		goto err_exit;
+	}
 
 	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
 		ut_error;
