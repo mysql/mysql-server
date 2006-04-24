@@ -98,6 +98,15 @@ ulint
 dict_col_get_clust_pos(
 /*===================*/
 	dict_col_t*	col);
+/********************************************************************
+If the given column name is reserved for InnoDB system columns, return
+TRUE. */
+
+ibool
+dict_col_name_is_reserved(
+/*======================*/
+				/* out: TRUE if name is reserved */
+	const char*	name);	/* in: column name */
 /************************************************************************
 Initializes the autoinc counter. It is not an error to initialize an already
 initialized counter. */

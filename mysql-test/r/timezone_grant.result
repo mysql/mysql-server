@@ -1,3 +1,5 @@
+drop tables if exists t1, t2;
+drop view if exists v1;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
@@ -59,3 +61,18 @@ delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
 flush privileges;
 drop table t1, t2;
+create table t1 (a int, b datetime);
+insert into t1 values (1, 20010101000000), (2, 20020101000000);
+grant all privileges on test.* to mysqltest_1@localhost;
+create view v1 as select a, convert_tz(b, 'UTC', 'Europe/Moscow') as lb from t1;
+select * from v1;
+a	lb
+1	2001-01-01 03:00:00
+2	2002-01-01 03:00:00
+select * from v1, mysql.time_zone;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'time_zone'
+drop view v1;
+create view v1 as select a, convert_tz(b, 'UTC', 'Europe/Moscow') as lb from t1, mysql.time_zone;
+ERROR 42000: ANY command denied to user 'mysqltest_1'@'localhost' for table 'time_zone'
+drop table t1;
+drop user mysqltest_1@localhost;
