@@ -3,6 +3,7 @@
 # Preparing playground
 --disable_warnings
 drop table if exists t1, t2;
+drop function if exists f1;
 --enable_warnings
 
 
@@ -222,3 +223,22 @@ select * from t1;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Test for bug #11081 "Using a CONVERT_TZ function in a stored function
+# or trigger fails".
+#
+create table t1 (ldt datetime, udt datetime);
+create function f1(i datetime) returns datetime
+  return convert_tz(i, 'UTC', 'Europe/Moscow');
+create trigger t1_bi before insert on t1 for each row
+  set new.udt:= convert_tz(new.ldt, 'Europe/Moscow', 'UTC');
+# This should work without errors
+insert into t1 (ldt) values ('2006-04-19 16:30:00');
+select * from t1;
+# This should work without errors as well
+select ldt, f1(udt) as ldt2 from t1;
+drop table t1;
+drop function f1;
+
+# End of 5.0 tests

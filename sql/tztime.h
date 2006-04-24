@@ -69,6 +69,15 @@ extern void        my_tz_free();
 extern TABLE_LIST fake_time_zone_tables_list;
 
 /*
+  Number of elements in table list produced by my_tz_get_table_list()
+  (this table list contains tables which are needed for dynamical loading
+  of time zone descriptions). Actually it is imlementation detail that
+  should not be used anywhere outside of tztime.h and tztime.cc.
+*/
+
+static const int MY_TZ_TABLES_COUNT= 4;
+
+/*
   Check if we have pointer to the begining of list of implicitly used time
   zone tables, set SELECT_ACL for them and fast-forward to its end.
 
@@ -90,9 +99,9 @@ inline bool my_tz_check_n_skip_implicit_tables(TABLE_LIST **table,
 {
   if (*table == tz_tables)
   {
-    for (int i= 0; i < 4; i++)
+    for (int i= 0; i < MY_TZ_TABLES_COUNT; i++)
       (*table)[i].grant.privilege= SELECT_ACL;
-    (*table)+= 3;
+    (*table)+= MY_TZ_TABLES_COUNT - 1;
     return TRUE;
   }
   return FALSE;
