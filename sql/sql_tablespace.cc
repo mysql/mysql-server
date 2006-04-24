@@ -28,7 +28,8 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
     If the user haven't defined an engine, this will fallback to using the
     default storage engine.
   */
-  hton= ha_resolve_by_legacy_type(thd, ts_info->storage_engine);
+  hton= ha_resolve_by_legacy_type(thd, ts_info->storage_engine != DB_TYPE_UNKNOWN ?
+                                  ts_info->storage_engine : DB_TYPE_DEFAULT);
 
   if (hton->state == SHOW_OPTION_YES &&
       hton->alter_tablespace && (error= hton->alter_tablespace(thd, ts_info)))
