@@ -1370,11 +1370,30 @@ static LS_INFO *tz_lsis= 0;
 static bool time_zone_tables_exist= 1;
 
 
-typedef struct st_tz_names_entry: public Sql_alloc
+/*
+  Names of tables (with their lengths) that are needed
+  for dynamical loading of time zone descriptions.
+*/
+
+static const LEX_STRING tz_tables_names[MY_TZ_TABLES_COUNT]=
 {
+  {(char *) STRING_WITH_LEN("time_zone_name")},
+  {(char *) STRING_WITH_LEN("time_zone")},
+  {(char *) STRING_WITH_LEN("time_zone_transition_type")},
+  {(char *) STRING_WITH_LEN("time_zone_transition")}
+};
+
+/* Name of database to which those tables belong. */
+
+static const LEX_STRING tz_tables_db_name= {(char *) STRING_WITH_LEN("mysql")};
+
+
+class Tz_names_entry: public Sql_alloc
+{
+public:
   String name;
   Time_zone *tz;
-} TZ_NAMES_ENTRY;
+};
 
 
 /*
@@ -1382,7 +1401,7 @@ typedef struct st_tz_names_entry: public Sql_alloc
   they should obey C calling conventions.
 */
 
-extern "C" byte* my_tz_names_get_key(TZ_NAMES_ENTRY *entry, uint *length,
+extern "C" byte* my_tz_names_get_key(Tz_names_entry *entry, uint *length,
                               my_bool not_used __attribute__((unused)))
 {
   *length= entry->name.length();
@@ -1403,7 +1422,8 @@ extern "C" byte* my_offset_tzs_get_key(Time_zone_offset *entry, uint *length,
 
   SYNOPSIS
     tz_init_table_list()
-      tz_tabs         - pointer to preallocated array of 4 TABLE_LIST objects
+      tz_tabs         - pointer to preallocated array of MY_TZ_TABLES_COUNT
+                        TABLE_LIST objects
       global_next_ptr - pointer to variable which points to global_next member
                         of last element of global table list (or list root
                         then list is empty) (in/out).
@@ -1418,27 +1438,27 @@ extern "C" byte* my_offset_tzs_get_key(Time_zone_offset *entry, uint *length,
 static void
 tz_init_table_list(TABLE_LIST *tz_tabs, TABLE_LIST ***global_next_ptr)
 {
-  bzero(tz_tabs, sizeof(TABLE_LIST) * 4);
-  tz_tabs[0].alias= tz_tabs[0].table_name= (char*)"time_zone_name";
-  tz_tabs[1].alias= tz_tabs[1].table_name= (char*)"time_zone";
-  tz_tabs[2].alias= tz_tabs[2].table_name= (char*)"time_zone_transition_type";
-  tz_tabs[3].alias= tz_tabs[3].table_name= (char*)"time_zone_transition";
-  tz_tabs[0].next_global= tz_tabs[0].next_local= tz_tabs+1;
-  tz_tabs[1].next_global= tz_tabs[1].next_local= tz_tabs+2;
-  tz_tabs[2].next_global= tz_tabs[2].next_local= tz_tabs+3;
-  tz_tabs[0].lock_type= tz_tabs[1].lock_type= tz_tabs[2].lock_type=
-    tz_tabs[3].lock_type= TL_READ;
-  tz_tabs[0].db= tz_tabs[1].db= tz_tabs[2].db= tz_tabs[3].db= (char *)"mysql";
+  bzero(tz_tabs, sizeof(TABLE_LIST) * MY_TZ_TABLES_COUNT);
+
+  for (int i= 0; i < MY_TZ_TABLES_COUNT; i++)
+  {
+    tz_tabs[i].alias= tz_tabs[i].table_name= tz_tables_names[i].str;
+    tz_tabs[i].table_name_length= tz_tables_names[i].length;
+    tz_tabs[i].db= tz_tables_db_name.str;
+    tz_tabs[i].db_length= tz_tables_db_name.length;
+    tz_tabs[i].lock_type= TL_READ;
+
+    if (i != MY_TZ_TABLES_COUNT - 1)
+      tz_tabs[i].next_global= tz_tabs[i].next_local= &tz_tabs[i+1];
+    if (i != 0)
+      tz_tabs[i].prev_global= &tz_tabs[i-1].next_global;
+  }
 
   /* Link into global list */
   tz_tabs[0].prev_global= *global_next_ptr;
-  tz_tabs[1].prev_global= &tz_tabs[0].next_global;
-  tz_tabs[2].prev_global= &tz_tabs[1].next_global;
-  tz_tabs[3].prev_global= &tz_tabs[2].next_global;
-
   **global_next_ptr= tz_tabs;
   /* Update last-global-pointer to point to pointer in last table */
-  *global_next_ptr= &tz_tabs[3].next_global;
+  *global_next_ptr= &tz_tabs[MY_TZ_TABLES_COUNT-1].next_global;
 }
 
 
@@ -1467,7 +1487,8 @@ TABLE_LIST fake_time_zone_tables_list;
 
   NOTE
     my_tz_check_n_skip_implicit_tables() function depends on fact that
-    elements of list created are allocated as TABLE_LIST[4] array.
+    elements of list created are allocated as TABLE_LIST[MY_TZ_TABLES_COUNT]
+    array.
 
   RETURN VALUES
     Returns pointer to first TABLE_LIST object, (could be 0 if time zone
@@ -1483,7 +1504,8 @@ my_tz_get_table_list(THD *thd, TABLE_LIST ***global_next_ptr)
   if (!time_zone_tables_exist)
     DBUG_RETURN(0);
 
-  if (!(tz_tabs= (TABLE_LIST *)thd->alloc(sizeof(TABLE_LIST) * 4)))
+  if (!(tz_tabs= (TABLE_LIST *)thd->alloc(sizeof(TABLE_LIST) *
+                                          MY_TZ_TABLES_COUNT)))
     DBUG_RETURN(&fake_time_zone_tables_list);
 
   tz_init_table_list(tz_tabs, global_next_ptr);
@@ -1522,9 +1544,9 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 {
   THD *thd;
   TABLE_LIST *tables= 0;
-  TABLE_LIST tables_buff[5], **last_global_next_ptr;
+  TABLE_LIST tables_buff[1+MY_TZ_TABLES_COUNT], **last_global_next_ptr;
   TABLE *table;
-  TZ_NAMES_ENTRY *tmp_tzname;
+  Tz_names_entry *tmp_tzname;
   my_bool return_val= 1;
   int res;
   DBUG_ENTER("my_tz_init");
@@ -1556,7 +1578,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   tz_inited= 1;
 
   /* Add 'SYSTEM' time zone to tz_names hash */
-  if (!(tmp_tzname= new (&tz_storage) TZ_NAMES_ENTRY()))
+  if (!(tmp_tzname= new (&tz_storage) Tz_names_entry()))
   {
     sql_print_error("Fatal error: OOM while initializing time zones");
     goto end_with_cleanup;
@@ -1752,7 +1774,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 {
   TABLE *table= 0;
   TIME_ZONE_INFO *tz_info;
-  TZ_NAMES_ENTRY *tmp_tzname;
+  Tz_names_entry *tmp_tzname;
   Time_zone *return_val= 0;
   int res;
   uint tzid, ttid;
@@ -2027,7 +2049,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   }
 
 
-  if (!(tmp_tzname= new (&tz_storage) TZ_NAMES_ENTRY()) ||
+  if (!(tmp_tzname= new (&tz_storage) Tz_names_entry()) ||
       !(tmp_tzname->tz= new (&tz_storage) Time_zone_db(tz_info,
                                             &(tmp_tzname->name))) ||
       (tmp_tzname->name.set(tz_name_buff, tz_name->length(),
@@ -2174,7 +2196,7 @@ str_to_offset(const char *str, uint length, long *offset)
 Time_zone *
 my_tz_find(const String * name, TABLE_LIST *tz_tables)
 {
-  TZ_NAMES_ENTRY *tmp_tzname;
+  Tz_names_entry *tmp_tzname;
   Time_zone *result_tz= 0;
   long offset;
 
@@ -2210,7 +2232,7 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
   else
   {
     result_tz= 0;
-    if ((tmp_tzname= (TZ_NAMES_ENTRY *)hash_search(&tz_names,
+    if ((tmp_tzname= (Tz_names_entry *)hash_search(&tz_names,
                                                    (const byte *)name->ptr(),
                                                    name->length())))
       result_tz= tmp_tzname->tz;
@@ -2262,7 +2284,7 @@ Time_zone *my_tz_find_with_opening_tz_tables(THD *thd, const String *name)
       our time zone tables. Note that if we don't have tz tables on this
       slave, we don't even try.
     */
-    TABLE_LIST tables[4];
+    TABLE_LIST tables[MY_TZ_TABLES_COUNT];
     TABLE_LIST *dummy;
     TABLE_LIST **dummyp= &dummy;
     tz_init_table_list(tables, &dummyp);
