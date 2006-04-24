@@ -2125,26 +2125,6 @@ sub run_testcase ($) {
   }
 }
 
-sub copy_dir($$) {
-  my $from_dir= shift;
-  my $to_dir= shift;
-
-  mkpath("$to_dir");
-  opendir(DIR, "$from_dir")
-    or mtr_error("Can't find $from_dir$!");
-  for(readdir(DIR)) {
-    next if "$_" eq "." or "$_" eq "..";
-    if ( -d "$from_dir/$_" )
-    {
-      copy_dir("$from_dir/$_", "$to_dir/$_");
-      next;
-    }
-    copy("$from_dir/$_", "$to_dir/$_");
-  }
-  closedir(DIR);
-
-}
-
 #
 # Save a snapshot of the installed test db(s)
 # I.e take a snapshot of the var/ dir
@@ -2157,7 +2137,7 @@ sub save_installed_db () {
   foreach my $data_dir (@data_dir_lst)
   {
     my $name= basename($data_dir);
-    copy_dir("$data_dir", "$path_snapshot/$name");
+    mtr_copy_dir("$data_dir", "$path_snapshot/$name");
   }
 }
 
@@ -2199,7 +2179,7 @@ sub restore_installed_db ($) {
       my $name= basename($data_dir);
       save_files_before_restore($test_name, $data_dir);
       rmtree("$data_dir");
-      copy_dir("$path_snapshot/$name", "$data_dir");
+      mtr_copy_dir("$path_snapshot/$name", "$data_dir");
     }
     if ($opt_with_ndbcluster)
     {
