@@ -338,6 +338,7 @@ sub environment_setup ();
 sub kill_running_server ();
 sub kill_and_cleanup ();
 sub check_ssl_support ();
+sub check_running_as_root();
 sub check_ndbcluster_support ();
 sub ndbcluster_install ();
 sub ndbcluster_start ($);
@@ -376,6 +377,7 @@ sub main () {
 
   check_ndbcluster_support();
   check_ssl_support();
+  check_running_as_root();
 
   environment_setup();
   signal_setup();
@@ -1333,6 +1335,33 @@ sub kill_and_cleanup () {
       copy("$glob_mysql_test_dir/std_data/$_", "$opt_vardir/std_data_ln/$_");
     }
     closedir(DIR);
+  }
+}
+
+
+sub  check_running_as_root () {
+  # Check if running as root
+  # i.e a file can be read regardless what mode we set it to
+  my $test_file= "test_running_as_root.txt";
+  mtr_tofile($test_file, "MySQL");
+  chmod(oct("0000"), $test_file);
+
+  my $result="";
+  if (open(FILE,"<",$test_file))
+  {
+    $result= join('', <FILE>);
+    close FILE;
+  }
+
+  chmod(oct("0755"), $test_file);
+  unlink($test_file);
+
+  $ENV{'MYSQL_TEST_ROOT'}= "NO";
+  if ($result eq "MySQL")
+  {
+    mtr_warning("running this script as _root_ will cause some " .
+                "tests to be skipped");
+    $ENV{'MYSQL_TEST_ROOT'}= "YES";
   }
 }
 
