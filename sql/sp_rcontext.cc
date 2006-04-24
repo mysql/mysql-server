@@ -73,16 +73,16 @@ bool sp_rcontext::init(THD *thd)
 
   return
     !(m_handler=
-      (sp_handler_t*)thd->alloc(m_root_parsing_ctx->max_handlers() *
+      (sp_handler_t*)thd->alloc(m_root_parsing_ctx->max_handler_index() *
                                 sizeof(sp_handler_t))) ||
     !(m_hstack=
-      (uint*)thd->alloc(m_root_parsing_ctx->max_handlers() *
+      (uint*)thd->alloc(m_root_parsing_ctx->max_handler_index() *
                         sizeof(uint))) ||
     !(m_in_handler=
-      (uint*)thd->alloc(m_root_parsing_ctx->max_handlers() *
+      (uint*)thd->alloc(m_root_parsing_ctx->max_handler_index() *
                         sizeof(uint))) ||
     !(m_cstack=
-      (sp_cursor**)thd->alloc(m_root_parsing_ctx->max_cursors() *
+      (sp_cursor**)thd->alloc(m_root_parsing_ctx->max_cursor_index() *
                               sizeof(sp_cursor*))) ||
     !(m_case_expr_holders=
       (Item_cache**)thd->calloc(m_root_parsing_ctx->get_num_case_exprs() *
@@ -105,12 +105,12 @@ sp_rcontext::init_var_table(THD *thd)
 {
   List<create_field> field_def_lst;
 
-  if (!m_root_parsing_ctx->total_pvars())
+  if (!m_root_parsing_ctx->max_var_index())
     return FALSE;
 
   m_root_parsing_ctx->retrieve_field_definitions(&field_def_lst);
 
-  DBUG_ASSERT(field_def_lst.elements == m_root_parsing_ctx->total_pvars());
+  DBUG_ASSERT(field_def_lst.elements == m_root_parsing_ctx->max_var_index());
   
   if (!(m_var_table= create_virtual_tmp_table(thd, field_def_lst)))
     return TRUE;
@@ -134,7 +134,7 @@ bool
 sp_rcontext::init_var_items()
 {
   uint idx;
-  uint num_vars= m_root_parsing_ctx->total_pvars();
+  uint num_vars= m_root_parsing_ctx->max_var_index();
 
   if (!(m_var_items= (Item**) sql_alloc(num_vars * sizeof (Item *))))
     return TRUE;
@@ -381,7 +381,7 @@ sp_cursor::destroy()
 
 
 int
-sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
+sp_cursor::fetch(THD *thd, List<struct sp_variable> *vars)
 {
   if (! server_side_cursor)
   {
@@ -528,9 +528,9 @@ int Select_fetch_into_spvars::prepare(List<Item> &fields, SELECT_LEX_UNIT *u)
 
 bool Select_fetch_into_spvars::send_data(List<Item> &items)
 {
-  List_iterator_fast<struct sp_pvar> pv_iter(*spvar_list);
+  List_iterator_fast<struct sp_variable> spvar_iter(*spvar_list);
   List_iterator_fast<Item> item_iter(items);
-  sp_pvar_t *pv;
+  sp_variable_t *spvar;
   Item *item;
 
   /* Must be ensured by the caller */
@@ -540,9 +540,9 @@ bool Select_fetch_into_spvars::send_data(List<Item> &items)
     Assign the row fetched from a server side cursor to stored
     procedure variables.
   */
-  for (; pv= pv_iter++, item= item_iter++; )
+  for (; spvar= spvar_iter++, item= item_iter++; )
   {
-    if (thd->spcont->set_variable(thd, pv->offset, item))
+    if (thd->spcont->set_variable(thd, spvar->offset, item))
       return TRUE;
   }
   return FALSE;

@@ -1819,22 +1819,23 @@ sp_fdparam:
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
 
-	    if (spc->find_pvar(&$1, TRUE))
+	    if (spc->find_variable(&$1, TRUE))
 	    {
 	      my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
 	      YYABORT;
 	    }
-	    sp_pvar_t *pvar= spc->push_pvar(&$1, (enum enum_field_types)$3,
-                                            sp_param_in);
+            sp_variable_t *spvar= spc->push_variable(&$1,
+                                                     (enum enum_field_types)$3,
+                                                     sp_param_in);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
                                                    (enum enum_field_types) $3,
-                                                   &pvar->field_def))
+                                                   &spvar->field_def))
             {
               YYABORT;
             }
-            pvar->field_def.field_name= pvar->name.str;
-            pvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
+            spvar->field_def.field_name= spvar->name.str;
+            spvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
 	  }
 	;
 
@@ -1855,22 +1856,23 @@ sp_pdparam:
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
 
-	    if (spc->find_pvar(&$3, TRUE))
+	    if (spc->find_variable(&$3, TRUE))
 	    {
 	      my_error(ER_SP_DUP_PARAM, MYF(0), $3.str);
 	      YYABORT;
 	    }
-	    sp_pvar_t *pvar= spc->push_pvar(&$3, (enum enum_field_types)$4,
-			                    (sp_param_mode_t)$1);
+            sp_variable_t *spvar= spc->push_variable(&$3,
+                                                     (enum enum_field_types)$4,
+                                                     (sp_param_mode_t)$1);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
                                                    (enum enum_field_types) $4,
-                                                   &pvar->field_def))
+                                                   &spvar->field_def))
             {
               YYABORT;
             }
-            pvar->field_def.field_name= pvar->name.str;
-            pvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
+            spvar->field_def.field_name= spvar->name.str;
+            spvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
 	  }
 	;
 
@@ -1934,7 +1936,7 @@ sp_decl:
           {
             LEX *lex= Lex;
             sp_pcontext *pctx= lex->spcont;
-            uint num_vars= pctx->context_pvars();
+            uint num_vars= pctx->context_var_count();
             enum enum_field_types var_type= (enum enum_field_types) $4;
             Item *dflt_value_item= $5;
             create_field *create_field_op;
@@ -1947,23 +1949,23 @@ sp_decl:
             
             for (uint i = num_vars-$2 ; i < num_vars ; i++)
             {
-              uint var_idx= pctx->pvar_context2index(i);
-              sp_pvar_t *pvar= pctx->find_pvar(var_idx);
+              uint var_idx= pctx->var_context2runtime(i);
+              sp_variable_t *spvar= pctx->find_variable(var_idx);
             
-              if (!pvar)
+              if (!spvar)
                 YYABORT;
             
-              pvar->type= var_type;
-              pvar->dflt= dflt_value_item;
+              spvar->type= var_type;
+              spvar->dflt= dflt_value_item;
             
               if (lex->sphead->fill_field_definition(YYTHD, lex, var_type,
-                                                     &pvar->field_def))
+                                                     &spvar->field_def))
               {
                 YYABORT;
               }
             
-              pvar->field_def.field_name= pvar->name.str;
-              pvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
+              spvar->field_def.field_name= spvar->name.str;
+              spvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
             
               /* The last instruction is responsible for freeing LEX. */
 
@@ -2000,7 +2002,7 @@ sp_decl:
 	    sp_pcontext *ctx= lex->spcont;
 	    sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, $2,
-	                              ctx->current_pvars());
+	                              ctx->current_var_count());
 
 	    sp->add_instr(i);
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
@@ -2017,7 +2019,7 @@ sp_decl:
 	    if ($2 == SP_HANDLER_CONTINUE)
 	    {
 	      i= new sp_instr_hreturn(sp->instructions(), ctx,
-	                              ctx->current_pvars());
+	                              ctx->current_var_count());
 	      sp->add_instr(i);
 	    }
 	    else
@@ -2048,7 +2050,7 @@ sp_decl:
 	      YYABORT;
 	    }
             i= new sp_instr_cpush(sp->instructions(), ctx, $5,
-                                  ctx->current_cursors());
+                                  ctx->current_cursor_count());
 	    sp->add_instr(i);
 	    ctx->push_cursor(&$2);
 	    $$.vars= $$.conds= $$.hndlrs= 0;
@@ -2203,12 +2205,12 @@ sp_decl_idents:
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
 
-	    if (spc->find_pvar(&$1, TRUE))
+	    if (spc->find_variable(&$1, TRUE))
 	    {
 	      my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
 	      YYABORT;
 	    }
-	    spc->push_pvar(&$1, (enum_field_types)0, sp_param_in);
+	    spc->push_variable(&$1, (enum_field_types)0, sp_param_in);
 	    $$= 1;
 	  }
 	| sp_decl_idents ',' ident
@@ -2218,12 +2220,12 @@ sp_decl_idents:
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
 
-	    if (spc->find_pvar(&$3, TRUE))
+	    if (spc->find_variable(&$3, TRUE))
 	    {
 	      my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
 	      YYABORT;
 	    }
-	    spc->push_pvar(&$3, (enum_field_types)0, sp_param_in);
+	    spc->push_variable(&$3, (enum_field_types)0, sp_param_in);
 	    $$= $1 + 1;
 	  }
 	;
@@ -2606,9 +2608,9 @@ sp_fetch_list:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *spc= lex->spcont;
-	    sp_pvar_t *spv;
+	    sp_variable_t *spv;
 
-	    if (!spc || !(spv = spc->find_pvar(&$1)))
+	    if (!spc || !(spv = spc->find_variable(&$1)))
 	    {
 	      my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
 	      YYABORT;
@@ -2627,9 +2629,9 @@ sp_fetch_list:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *spc= lex->spcont;
-	    sp_pvar_t *spv;
+	    sp_variable_t *spv;
 
-	    if (!spc || !(spv = spc->find_pvar(&$3)))
+	    if (!spc || !(spv = spc->find_variable(&$3)))
 	    {
 	      my_error(ER_SP_UNDECLARED_VAR, MYF(0), $3.str);
 	      YYABORT;
@@ -7534,9 +7536,9 @@ select_var_ident:
            | ident_or_text
            {
              LEX *lex=Lex;
-	     sp_pvar_t *t;
+	     sp_variable_t *t;
 
-	     if (!lex->spcont || !(t=lex->spcont->find_pvar(&$1)))
+	     if (!lex->spcont || !(t=lex->spcont->find_variable(&$1)))
 	     {
 	       my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
 	       YYABORT;
@@ -8973,10 +8975,10 @@ order_ident:
 simple_ident:
 	ident
 	{
-	  sp_pvar_t *spv;
+	  sp_variable_t *spv;
 	  LEX *lex = Lex;
           sp_pcontext *spc = lex->spcont;
-	  if (spc && (spv = spc->find_pvar(&$1)))
+	  if (spc && (spv = spc->find_variable(&$1)))
 	  {
             /* We're compiling a stored procedure and found a variable */
             Item_splocal *splocal;
@@ -9764,7 +9766,7 @@ sys_option_value:
           {
             /* An SP local variable */
             sp_pcontext *ctx= lex->spcont;
-            sp_pvar_t *spv;
+            sp_variable_t *spv;
             sp_instr_set *sp_set;
             Item *it;
             if ($1)
@@ -9773,7 +9775,7 @@ sys_option_value:
               YYABORT;
             }
 
-            spv= ctx->find_pvar(&$2.base_name);
+            spv= ctx->find_variable(&$2.base_name);
 
             if ($4)
               it= $4;
@@ -9822,7 +9824,7 @@ option_value:
 
 	    names.str= (char *)"names";
 	    names.length= 5;
-	    if (spc && spc->find_pvar(&names))
+	    if (spc && spc->find_variable(&names))
               my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
             else
               yyerror(ER(ER_SYNTAX_ERROR));
@@ -9852,7 +9854,7 @@ option_value:
 
 	    pw.str= (char *)"password";
 	    pw.length= 8;
-	    if (spc && spc->find_pvar(&pw))
+	    if (spc && spc->find_variable(&pw))
 	    {
               my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
 	      YYABORT;
@@ -9874,10 +9876,10 @@ internal_variable_name:
 	{
 	  LEX *lex= Lex;
           sp_pcontext *spc= lex->spcont;
-	  sp_pvar_t *spv;
+	  sp_variable_t *spv;
 
 	  /* We have to lookup here since local vars can shadow sysvars */
-	  if (!spc || !(spv = spc->find_pvar(&$1)))
+	  if (!spc || !(spv = spc->find_variable(&$1)))
 	  {
             /* Not an SP local variable */
 	    sys_var *tmp=find_sys_var($1.str, $1.length);

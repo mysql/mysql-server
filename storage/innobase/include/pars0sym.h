@@ -54,6 +54,16 @@ sym_tab_add_str_lit(
 					it */
 	ulint		len);		/* in: string length */
 /**********************************************************************
+Add a bound literal to a symbol table. */
+
+sym_node_t*
+sym_tab_add_bound_lit(
+/*==================*/
+					/* out: symbol table node */
+	sym_tab_t*	sym_tab,	/* in: symbol table */
+	const char*	name,		/* in: name of bound literal */
+	ulint*		lit_type);	/* out: type of literal (PARS_*_LIT) */
+/**********************************************************************
 Adds an SQL null literal to a symbol table. */
 
 sym_node_t*
@@ -82,6 +92,19 @@ struct sym_node_struct{
 	table node is not for a temporary column, the memory for the value has
 	been allocated from dynamic memory and it should be freed when the
 	symbol table is discarded */
+
+	/* 'alias' and 'indirection' are almost the same, but not quite.
+	'alias' always points to the primary instance of the variable, while
+	'indirection' does the same only if we should use the primary
+	instance's values for the node's data. This is usually the case, but
+	when initializing a cursor (e.g., "DECLARE CURSOR c IS SELECT * FROM
+	t WHERE id = x;"), we copy the values from the primary instance to
+	the cursor's instance so that they are fixed for the duration of the
+	cursor, and set 'indirection' to NULL. If we did not, the value of
+	'x' could change between fetches and things would break horribly.
+
+	TODO: It would be cleaner to make 'indirection' a boolean field and
+	always use 'alias' to refer to the primary node. */
 
 	sym_node_t*			indirection;	/* pointer to
 							another symbol table
@@ -158,6 +181,7 @@ struct sym_tab_struct{
 					/* position of the next character in
 					sql_string to give to the lexical
 					analyzer */
+	pars_info_t*		info;	/* extra information, or NULL */
 	sym_node_list_t		sym_list;
 					/* list of symbol nodes in the symbol
 					table */
@@ -180,6 +204,7 @@ struct sym_tab_struct{
 #define SYM_CURSOR		96	/* named cursor */
 #define SYM_PROCEDURE_NAME	97	/* stored procedure name */
 #define SYM_INDEX		98	/* database index name */
+#define SYM_FUNCTION		99	/* user function name */
 
 #ifndef UNIV_NONINL
 #include "pars0sym.ic"

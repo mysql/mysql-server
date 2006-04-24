@@ -25,6 +25,7 @@ Created 5/27/1996 Heikki Tuuri
 #include "log0log.h"
 #include "eval0proc.h"
 #include "eval0eval.h"
+#include "pars0types.h"
 
 #define QUE_PARALLELIZE_LIMIT	(64 * 256 * 256 * 256)
 #define QUE_ROUND_ROBIN_LIMIT	(64 * 256 * 256 * 256)
@@ -35,6 +36,50 @@ of SQL execution in the UNIV_SQL_DEBUG version */
 ibool	que_trace_on		= FALSE;
 
 ibool	que_always_false	= FALSE;
+
+/* Short introduction to query graphs
+   ==================================
+
+A query graph consists of nodes linked to each other in various ways. The
+execution starts at que_run_threads() which takes a que_thr_t parameter.
+que_thr_t contains two fields that control query graph execution: run_node
+and prev_node. run_node is the next node to execute and prev_node is the
+last node executed.
+
+Each node has a pointer to a 'next' statement, i.e., its brother, and a
+pointer to its parent node. The next pointer is NULL in the last statement
+of a block.
+
+Loop nodes contain a link to the first statement of the enclosed statement
+list. While the loop runs, que_thr_step() checks if execution to the loop
+node came from its parent or from one of the statement nodes in the loop. If
+it came from the parent of the loop node it starts executing the first
+statement node in the loop. If it came from one of the statement nodes in
+the loop, then it checks if the statement node has another statement node
+following it, and runs it if so.
+
+To signify loop ending, the loop statements (see e.g. while_step()) set
+que_thr_t->run_node to the loop node's parent node. This is noticed on the
+next call of que_thr_step() and execution proceeds to the node pointed to by
+the loop node's 'next' pointer.
+
+For example, the code:
+
+X := 1;
+WHILE X < 5 LOOP
+ X := X + 1;
+ X := X + 1;
+X := 5
+
+will result in the following node hierarchy, with the X-axis indicating
+'next' links and the Y-axis indicating parent/child links:
+
+A - W - A
+    |
+    |
+    A - A
+
+A = assign_node_t, W = while_node_t. */
 
 /* How a stored procedure containing COMMIT or ROLLBACK commands
 is executed?
@@ -128,6 +173,7 @@ que_fork_create(
 	UT_LIST_INIT(fork->thrs);
 
 	fork->sym_tab = NULL;
+	fork->info = NULL;
 
 	fork->heap = heap;
 
@@ -583,6 +629,7 @@ que_graph_free_recursive(
 		break;
 
 	case QUE_NODE_ASSIGNMENT:
+	case QUE_NODE_EXIT:
 	case QUE_NODE_RETURN:
 	case QUE_NODE_COMMIT:
 	case QUE_NODE_ROLLBACK:
@@ -624,6 +671,10 @@ que_graph_free(
 		cursor definitions. */
 
 		sym_tab_free_private(graph->sym_tab);
+	}
+
+	if (graph->info && graph->info->graph_owns_us) {
+		pars_info_free(graph->info);
 	}
 
 	que_graph_free_recursive(graph);
@@ -1040,6 +1091,37 @@ que_thr_stop_for_mysql_no_error(
 	trx->n_active_thrs--;
 }
 
+/********************************************************************
+Get the first containing loop node (e.g. while_node_t or for_node_t) for the
+given node, or NULL if the node is not within a loop. */
+
+que_node_t*
+que_node_get_containing_loop_node(
+/*==============================*/
+				/* out: containing loop node, or NULL. */
+	que_node_t*	node)	/* in: node */
+{
+	ut_ad(node);
+
+	for (;;) {
+		ulint	type;
+
+		node = que_node_get_parent(node);
+
+		if (!node) {
+			break;
+		}
+
+		type = que_node_get_type(node);
+
+		if ((type == QUE_NODE_FOR) || (type == QUE_NODE_WHILE)) {
+			break;
+		}
+	}
+
+	return(node);
+}
+
 /**************************************************************************
 Prints info of an SQL query graph node. */
 
@@ -1093,6 +1175,8 @@ que_node_print_info(
 		str = "FOR LOOP";
 	} else if (type == QUE_NODE_RETURN) {
 		str = "RETURN";
+	} else if (type == QUE_NODE_EXIT) {
+		str = "EXIT";
 	} else {
 		str = "UNKNOWN NODE TYPE";
 	}
@@ -1120,8 +1204,8 @@ que_thr_step(
 
 	thr->resource++;
 
-	type = que_node_get_type(thr->run_node);
 	node = thr->run_node;
+	type = que_node_get_type(node);
 
 	old_thr = thr;
 
@@ -1160,6 +1244,8 @@ que_thr_step(
 			proc_step(thr);
 		} else if (type == QUE_NODE_WHILE) {
 			while_step(thr);
+		} else {
+			ut_error;
 		}
 	} else if (type == QUE_NODE_ASSIGNMENT) {
 		assign_step(thr);
@@ -1192,6 +1278,8 @@ que_thr_step(
 		thr = row_purge_step(thr);
 	} else if (type == QUE_NODE_RETURN) {
 		thr = return_step(thr);
+	} else if (type == QUE_NODE_EXIT) {
+		thr = exit_step(thr);
 	} else if (type == QUE_NODE_ROLLBACK) {
 		thr = trx_rollback_step(thr);
 	} else if (type == QUE_NODE_CREATE_TABLE) {
@@ -1204,7 +1292,11 @@ que_thr_step(
 		ut_error;
 	}
 
-	old_thr->prev_node = node;
+	if (type == QUE_NODE_EXIT) {
+		old_thr->prev_node = que_node_get_containing_loop_node(node);
+	} else {
+		old_thr->prev_node = node;
+	}
 
 	return(thr);
 }
@@ -1273,4 +1365,34 @@ loop:
 	}
 
 	goto loop;
+}
+
+/*************************************************************************
+Evaluate the given SQL */
+
+ulint
+que_eval_sql(
+/*=========*/
+	pars_info_t*	info,	/* out: error code or DB_SUCCESS */
+	const char*	sql,	/* in: info struct, or NULL */
+	trx_t*		trx)	/* in: trx */
+{
+	que_thr_t*	thr;
+	que_t*		graph;
+
+	graph = pars_sql(info, sql);
+	ut_a(graph);
+
+	graph->trx = trx;
+	trx->graph = NULL;
+
+	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
+
+	ut_a(thr = que_fork_start_command(graph));
+
+	que_run_threads(thr);
+
+	que_graph_free(graph);
+
+	return(trx->error_state);
 }
