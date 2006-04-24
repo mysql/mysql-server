@@ -2241,8 +2241,10 @@ print_table_data(MYSQL_RES *result)
   MYSQL_ROW	cur;
   MYSQL_FIELD	*field;
   bool		*num_flag;
+  bool		*not_null_flag;
 
   num_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
+  not_null_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
   if (info_flag)
   {
     print_field_types(result);
@@ -2260,7 +2262,7 @@ print_table_data(MYSQL_RES *result)
       length=max(length,field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
-    field->max_length=length+1;
+    field->max_length=length;
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
   }
@@ -2272,10 +2274,11 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("|", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
-      tee_fprintf(PAGER, " %-*s|",(int) min(field->max_length,
+      tee_fprintf(PAGER, " %-*s |",(int) min(field->max_length,
                                             MAX_COLUMN_LENGTH),
 		  field->name);
       num_flag[off]= IS_NUM(field->type);
+      not_null_flag[off]= IS_NOT_NULL(field->flags);
     }
     (void) tee_fputs("\n", PAGER);
     tee_puts((char*) separator.ptr(), PAGER);
@@ -2295,7 +2298,8 @@ print_table_data(MYSQL_RES *result)
       uint visible_length;
       uint extra_padding;
 
-      if (lengths[off] == 0) 
+      /* If this column may have a null value, use "NULL" for empty.  */
+      if (! not_null_flag[off] && (lengths[off] == 0))
       {
         buffer= "NULL";
         data_length= 4;
@@ -2335,6 +2339,7 @@ print_table_data(MYSQL_RES *result)
   }
   tee_puts((char*) separator.ptr(), PAGER);
   my_afree((gptr) num_flag);
+  my_afree((gptr) not_null_flag);
 }
 
 
@@ -2349,11 +2354,8 @@ tee_print_sized_data(const char *data, unsigned int data_length, unsigned int to
   unsigned int i;
   const char *p;
 
-  total_bytes_to_send -= 1;  
-  /* Off by one, perhaps mistakenly accounting for a terminating NUL. */
-
   if (right_justified) 
-    for (i= 0; i < (total_bytes_to_send - data_length); i++)
+    for (i= data_length; i < total_bytes_to_send; i++)
       tee_putc((int)' ', PAGER);
 
   for (i= 0, p= data; i < data_length; i+= 1, p+= 1)
@@ -2365,7 +2367,7 @@ tee_print_sized_data(const char *data, unsigned int data_length, unsigned int to
   }
 
   if (! right_justified) 
-    for (i= 0; i < (total_bytes_to_send - data_length); i++)
+    for (i= data_length; i < total_bytes_to_send; i++)
       tee_putc((int)' ', PAGER);
 }
 
