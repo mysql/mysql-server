@@ -238,7 +238,8 @@ handlerton innobase_hton = {
   NULL,                         /* Fill FILES table */
   HTON_NO_FLAGS,
   NULL,                         /* binlog_func */
-  NULL                          /* binlog_log_query */
+  NULL,                          /* binlog_log_query */
+  innobase_release_temporary_latches
 };
 
 
