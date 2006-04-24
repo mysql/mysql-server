@@ -401,7 +401,7 @@ create table t1(f1 int);
 select f1 from t1 having max(f1)=f1;
 select f1 from t1 group by f1 having max(f1)=f1;
 set session sql_mode='ONLY_FULL_GROUP_BY';
---error 1461
+--error 1463
 select f1 from t1 having max(f1)=f1;
 select f1 from t1 group by f1 having max(f1)=f1;
 set session sql_mode='';
