@@ -78,6 +78,7 @@ extern HASH open_cache;
 
 static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table,uint count,
 				 uint flags, TABLE **write_locked);
+static void reset_lock_data(MYSQL_LOCK *sql_lock);
 static int lock_external(THD *thd, TABLE **table,uint count);
 static int unlock_external(THD *thd, TABLE **table,uint count);
 static void print_lock_error(int error);
@@ -120,12 +121,16 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
       */
       if (wait_if_global_read_lock(thd, 1, 1))
       {
+        /* Clear the lock type of all lock data to avoid reusage. */
+        reset_lock_data(sql_lock);
 	my_free((gptr) sql_lock,MYF(0));
 	sql_lock=0;
 	break;
-      }	
+      }
       if (thd->version != refresh_version)
       {
+        /* Clear the lock type of all lock data to avoid reusage. */
+        reset_lock_data(sql_lock);
 	my_free((gptr) sql_lock,MYF(0));
 	goto retry;
       }
@@ -134,6 +139,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
     thd->proc_info="System lock";
     if (lock_external(thd, tables, count))
     {
+      /* Clear the lock type of all lock data to avoid reusage. */
+      reset_lock_data(sql_lock);
       my_free((gptr) sql_lock,MYF(0));
       sql_lock=0;
       thd->proc_info=0;
@@ -639,6 +646,9 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       if (table->db_stat & HA_READ_ONLY)
       {
 	my_error(ER_OPEN_AS_READONLY,MYF(0),table->table_name);
+        /* Clear the lock type of the lock data that are stored already. */
+        sql_lock->lock_count= locks - sql_lock->locks;
+        reset_lock_data(sql_lock);
 	my_free((gptr) sql_lock,MYF(0));
 	DBUG_RETURN(0);
       }
@@ -660,6 +670,48 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 	(*org_locks)->debug_print_param= (void *) table;
   }
   DBUG_RETURN(sql_lock);
+}
+
+
+/*
+  Reset lock type in lock data.
+
+  SYNOPSIS
+    reset_lock_data()
+      sql_lock                  The MySQL lock.
+
+  DESCRIPTION
+
+    After a locking error we want to quit the locking of the table(s).
+    The test case in the bug report for Bug #18544 has the following
+    cases: 1. Locking error in lock_external() due to InnoDB timeout.
+    2. Locking error in get_lock_data() due to missing write permission.
+    3. Locking error in wait_if_global_read_lock() due to lock conflict.
+
+    In all these cases we have already set the lock type into the lock
+    data of the open table(s). If the table(s) are in the open table
+    cache, they could be reused with the non-zero lock type set. This
+    could lead to ignoring a different lock type with the next lock.
+
+    Clear the lock type of all lock data. This ensures that the next
+    lock request will set its lock type properly.
+
+  RETURN
+    void
+*/
+
+static void reset_lock_data(MYSQL_LOCK *sql_lock)
+{
+  THR_LOCK_DATA **ldata;
+  THR_LOCK_DATA **ldata_end;
+
+  for (ldata= sql_lock->locks, ldata_end= ldata + sql_lock->lock_count;
+       ldata < ldata_end;
+       ldata++)
+  {
+    /* Reset lock type. */
+    (*ldata)->type= TL_UNLOCK;
+  }
 }
 
 

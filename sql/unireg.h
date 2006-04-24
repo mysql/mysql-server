@@ -60,6 +60,7 @@
 
 #define MAX_MBWIDTH		3		/* Max multibyte sequence */
 #define MAX_FIELD_CHARLENGTH	255
+#define CONVERT_IF_BIGGER_TO_BLOB 255
 /* Max column width +1 */
 #define MAX_FIELD_WIDTH		(MAX_FIELD_CHARLENGTH*MAX_MBWIDTH+1)
 

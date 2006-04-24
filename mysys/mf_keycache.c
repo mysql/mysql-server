@@ -1741,6 +1741,7 @@ byte *key_cache_read(KEY_CACHE *keycache,
     uint status;
     int page_st;
 
+    offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     /* Read data in key_cache_block_size increments */
     do
     {
@@ -1750,7 +1751,6 @@ byte *key_cache_read(KEY_CACHE *keycache,
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	goto no_key_cache;
       }
-      offset= (uint) (filepos & (keycache->key_cache_block_size-1));
       filepos-= offset;
       read_length= length;
       set_if_smaller(read_length, keycache->key_cache_block_size-offset);
@@ -1826,6 +1826,7 @@ byte *key_cache_read(KEY_CACHE *keycache,
 #endif
       buff+= read_length;
       filepos+= read_length+offset;
+      offset= 0;
 
     } while ((length-= read_length));
     DBUG_RETURN(start);
@@ -1877,17 +1878,17 @@ int key_cache_insert(KEY_CACHE *keycache,
     uint read_length;
     int page_st;
     int error;
+    uint offset;
 
+    offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     do
     {
-      uint offset;
       keycache_pthread_mutex_lock(&keycache->cache_lock);
       if (!keycache->can_be_used)
       {
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	DBUG_RETURN(0);
       }
-      offset= (uint) (filepos & (keycache->key_cache_block_size-1));
       /* Read data into key cache from buff in key_cache_block_size incr. */
       filepos-= offset;
       read_length= length;
@@ -1945,6 +1946,7 @@ int key_cache_insert(KEY_CACHE *keycache,
 
       buff+= read_length;
       filepos+= read_length+offset;
+      offset= 0;
 
     } while ((length-= read_length));
   }
@@ -2011,17 +2013,17 @@ int key_cache_write(KEY_CACHE *keycache,
     /* Key cache is used */
     uint read_length;
     int page_st;
+    uint offset;
 
+    offset= (uint) (filepos & (keycache->key_cache_block_size-1));
     do
     {
-      uint offset;
       keycache_pthread_mutex_lock(&keycache->cache_lock);
       if (!keycache->can_be_used)
       {
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	goto no_key_cache;
       }
-      offset= (uint) (filepos & (keycache->key_cache_block_size-1));
       /* Write data in key_cache_block_size increments */
       filepos-= offset;
       read_length= length;

@@ -545,4 +545,18 @@ SELECT a FROM t1 ORDER BY a;
 (SELECT a FROM t1) ORDER BY a;
 DROP TABLE t1;
 
+#
+# Bug #18767: global ORDER BY applied to a SELECT with ORDER BY either was
+#             ignored or 'concatened' to the latter. 
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (1,30), (2,20), (1,10), (2,30), (1,20), (2,10);
+
+(SELECT b,a FROM t1 ORDER BY a,b) ORDER BY b,a;
+(SELECT b FROM t1 ORDER BY b DESC) ORDER BY b ASC;
+(SELECT b,a FROM t1 ORDER BY b,a) ORDER BY a,b;
+(SELECT b,a FROM t1 ORDER by b,a LIMIT 3) ORDER by a,b;
+
+DROP TABLE t1;
+
 # End of 4.1 tests
