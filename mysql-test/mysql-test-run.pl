@@ -2922,11 +2922,6 @@ sub run_mysqltest ($) {
     "--port=$master->[0]->{'path_myport'} " .
     "--socket=$master->[0]->{'path_mysock'}";
 
-
-
-  # FIXME really needing a PATH???
-  # $ENV{'PATH'}= "/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11:$ENV{'PATH'}";
-
   $ENV{'MYSQL'}=                    $cmdline_mysql;
   $ENV{'MYSQL_CHECK'}=              $cmdline_mysqlcheck;
   $ENV{'MYSQL_DUMP'}=               $cmdline_mysqldump;
