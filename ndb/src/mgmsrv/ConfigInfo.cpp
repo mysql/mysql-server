@@ -2344,6 +2344,7 @@ ConfigInfo::ConfigInfo()
       ndbout << "Edit file " << __FILE__ << "." << endl;
       require(false);
     }
+    delete section;
   }
 }
 
