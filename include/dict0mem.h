@@ -169,10 +169,6 @@ struct dict_tree_struct{
 				the same memory cache line */
 	rw_lock_t	lock;	/* read-write lock protecting the upper levels
 				of the index tree */
-	ulint		mem_fix;/* count of how many times this tree
-				struct has been memoryfixed (by mini-
-				transactions wanting to access the index
-				tree) */
 	dict_index_t*	tree_index; /* the index stored in the
 				index tree */
 	ulint		magic_n;/* magic number */
@@ -315,9 +311,6 @@ struct dict_table_struct{
 				which refer to this table */
 	UT_LIST_NODE_T(dict_table_t)
 			table_LRU; /* node of the LRU list of tables */
-	ulint		mem_fix;/* count of how many times the table
-				and its indexes has been fixed in memory;
-				currently NOT used */
 	ulint		n_mysql_handles_opened;
 				/* count of how many handles MySQL has opened
 				to this table; dropping of the table is
