@@ -3417,7 +3417,7 @@ Misc options
   comment=STR           Write STR to the output
   script-debug          Debug this script itself
   timer                 Show test case execution time
-  start-and-exit        Only initiate and start the "mysqld" servers, use the startup
+  start-and-exit        Only initiate and start all servers, use the startup
                         settings for the specified test case if any
   start-dirty           Only start the "mysqld" servers without initiation
   fast                  Don't try to cleanup from earlier runs
