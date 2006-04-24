@@ -798,9 +798,9 @@ DROP FUNCTION func2;
 #
 create database mysqltest;
 create table mysqltest.t1(a int);
---exec chmod 000 $MYSQLTEST_VARDIR/master-data/mysqltest
+--exec chmod -r $MYSQLTEST_VARDIR/master-data/mysqltest
 select table_schema from information_schema.tables where table_schema='mysqltest';
---exec chmod 600 $MYSQLTEST_VARDIR/master-data/mysqltest
+--exec chmod +r $MYSQLTEST_VARDIR/master-data/mysqltest
 drop database mysqltest;
 
 #
