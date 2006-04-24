@@ -736,8 +736,6 @@ sub mtr_mysqladmin_shutdown {
 
   $timeout or mtr_debug("At least one server is still listening to its port");
 
-  sleep(5) if $::glob_win32;            # FIXME next startup fails if no sleep
-
   return $res;
 }
 
