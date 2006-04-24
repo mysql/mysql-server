@@ -2436,7 +2436,7 @@ sub valgrind_arguments {
   if ( $opt_valgrind_options )
   {
     # FIXME split earlier and put into @glob_valgrind_*
-    mtr_add_arg($args, '%s', $_) for (split(' ', $opt_valgrind_options)));
+    mtr_add_arg($args, '%s', $_) for (split(' ', $opt_valgrind_options));
   }
 
   mtr_add_arg($args, $$exe);
