@@ -3187,13 +3187,13 @@ opt_ts_engine:
           opt_storage ENGINE_SYM opt_equal storage_engines
           {
             LEX *lex= Lex;
-            if (lex->alter_tablespace_info->storage_engine != DB_TYPE_UNKNOWN)
+            if (lex->alter_tablespace_info->storage_engine != NULL)
             {
               my_error(ER_FILEGROUP_OPTION_ONLY_ONCE,MYF(0),
                        "STORAGE ENGINE");
               YYABORT;
             }
-            lex->alter_tablespace_info->storage_engine= $4->db_type;
+            lex->alter_tablespace_info->storage_engine= $4 ? $4 : &default_hton;
           };
 
 opt_ts_wait:
