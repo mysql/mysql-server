@@ -2112,15 +2112,15 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 
   if(tableDesc->ReplicaDataLen > 0)
   {
-    Uint16 replicaCount = tableDesc->ReplicaData[0];
-    Uint16 fragCount = tableDesc->ReplicaData[1];
+    Uint16 replicaCount = ntohs(tableDesc->ReplicaData[0]);
+    Uint16 fragCount = ntohs(tableDesc->ReplicaData[1]);
 
     impl->m_replicaCount = replicaCount;
     impl->m_fragmentCount = fragCount;
     DBUG_PRINT("info", ("replicaCount=%x , fragCount=%x",replicaCount,fragCount));
     for(i = 0; i < (Uint32) (fragCount*replicaCount); i++)
     {
-      impl->m_fragments.push_back(tableDesc->ReplicaData[i+2]);
+      impl->m_fragments.push_back(ntohs(tableDesc->ReplicaData[i+2]));
     }
 
     Uint32 topBit = (1 << 31);
