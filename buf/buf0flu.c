@@ -455,7 +455,7 @@ buf_flush_init_for_writing(
 {
 	page_zip_des_t*	page_zip = page_zip_;
 
-	if (0/*space/* TODO: space_is_zip */) {
+	if (fil_space_get_zip_size(space)) {
 		switch (fil_page_get_type(page)) {
 		case FIL_PAGE_TYPE_ZBLOB:
 			ut_ad(!page_zip);

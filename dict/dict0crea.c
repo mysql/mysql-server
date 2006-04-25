@@ -253,6 +253,7 @@ dict_build_table_def_step(
 
 		error = fil_create_new_single_table_tablespace(
 					&(table->space), path_or_name, is_path,
+					dict_table_zip_size(table),
 					FIL_IBD_FILE_INITIAL_SIZE);
 		if (error != DB_SUCCESS) {
 
@@ -261,7 +262,8 @@ dict_build_table_def_step(
 
 		mtr_start(&mtr);
 
-		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
+		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE,
+					dict_table_zip_size(table), &mtr);
 
 		mtr_commit(&mtr);
 	}

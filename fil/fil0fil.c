@@ -166,6 +166,8 @@ struct fil_space_struct {
 				tablespace whose size we do not know yet;
 				last incomplete megabytes in data files may be
 				ignored if space == 0 */
+	ulint		zip_size;/* compressed page size in bytes; 0
+				if the pages are not compressed */
 	ulint		n_reserved_extents;
 				/* number of reserved free extents for
 				ongoing operations like B-tree page split */
@@ -487,6 +489,7 @@ fil_node_create(
 	}
 
 	space->size += size;
+	space->zip_size = 0;/* TODO */
 
 	node->space = space;
 
@@ -515,6 +518,7 @@ fil_node_open_file(
 	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
+	ulint		zip_size;
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_SYNC_DEBUG
@@ -579,6 +583,7 @@ fil_node_open_file(
 		success = os_file_read(node->handle, page, 0, 0,
 							UNIV_PAGE_SIZE);
 		space_id = fsp_header_get_space_id(page);
+		zip_size = fsp_header_get_zip_size(page);
 
 		ut_free(buf2);
 
@@ -601,6 +606,14 @@ fil_node_open_file(
 "InnoDB: but in file %s it is %lu!\n", space->id, node->name, space_id);
 
 			ut_a(0);
+		}
+
+		if (UNIV_UNLIKELY(zip_size != space->zip_size)) {
+			fprintf(stderr,
+"InnoDB: Error: compressed page size is %lu in the data dictionary\n"
+"InnoDB: but in file %s it is %lu!\n", space->zip_size, node->name, zip_size);
+
+			ut_error;
 		}
 
 		if (size_bytes >= FSP_EXTENT_SIZE * UNIV_PAGE_SIZE) {
@@ -950,11 +963,12 @@ fil_space_create(
 				/* out: TRUE if success */
 	const char*	name,	/* in: space name */
 	ulint		id,	/* in: space id */
+	ulint		zip_size,/* in: compressed page size, or
+				0 for uncompressed tablespaces */
 	ulint		purpose)/* in: FIL_TABLESPACE, or FIL_LOG if log */
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space;
-	ulint		namesake_id;
 try_again:
 	/*printf(
 	"InnoDB: Adding tablespace %lu of name %s, purpose %lu\n", id, name,
@@ -967,7 +981,9 @@ try_again:
 
 	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(name), space,
 					0 == strcmp(name, space->name));
-	if (space != NULL) {
+	if (UNIV_LIKELY_NULL(space)) {
+		ulint	namesake_id;
+
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 "  InnoDB: Warning: trying to init to the tablespace memory cache\n"
@@ -1005,7 +1021,7 @@ try_again:
 
 	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
 
-	if (space != NULL) {
+	if (UNIV_LIKELY_NULL(space)) {
 		fprintf(stderr,
 "InnoDB: Error: trying to add tablespace %lu of name ", (ulong) id);
 		ut_print_filename(stderr, name);
@@ -1039,6 +1055,7 @@ try_again:
 	space->is_being_deleted = FALSE;
 	space->purpose = purpose;
 	space->size = 0;
+	space->zip_size = zip_size;
 
 	space->n_reserved_extents = 0;
 
@@ -1252,6 +1269,56 @@ fil_space_get_size(
 	}
 
 	size = space->size;
+
+	mutex_exit(&(system->mutex));
+
+	return(size);
+}
+
+/***********************************************************************
+Returns the compressed page size of the space, or 0 if the space
+is not compressed. The tablespace must be cached in the memory cache. */
+
+ulint
+fil_space_get_zip_size(
+/*===================*/
+			/* out: compressed page size, ULINT_UNDEFINED
+			if space not found */
+	ulint	id)	/* in: space id */
+{
+	fil_system_t*	system		= fil_system;
+	fil_node_t*	node;
+	fil_space_t*	space;
+	ulint		size;
+
+	ut_ad(system);
+
+	fil_mutex_enter_and_prepare_for_io(id);
+
+	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+
+	if (space == NULL) {
+		mutex_exit(&(system->mutex));
+
+		return(ULINT_UNDEFINED);
+	}
+
+	if (space->size == 0 && space->purpose == FIL_TABLESPACE) {
+		ut_a(id != 0);
+
+		ut_a(1 == UT_LIST_GET_LEN(space->chain));
+
+		node = UT_LIST_GET_FIRST(space->chain);
+
+		/* It must be a single-table tablespace and we have not opened
+		the file yet; the following calls will open it and update the
+		size fields */
+
+		fil_node_prepare_for_io(node, system, space);
+		fil_node_complete_io(node, system, OS_FILE_READ);
+	}
+
+	size = space->zip_size;
 
 	mutex_exit(&(system->mutex));
 
@@ -1704,9 +1771,12 @@ void
 fil_op_write_log(
 /*=============*/
 	ulint		type,		/* in: MLOG_FILE_CREATE,
+					MLOG_ZIP_FILE_CREATE,
 					MLOG_FILE_DELETE, or
 					MLOG_FILE_RENAME */
 	ulint		space_id,	/* in: space id */
+	ulint		zip_size,	/* in: compressed page size
+					if type==MLOG_ZIP_FILE_CREATE */
 	const char*	name,		/* in: table name in the familiar
 					'databasename/tablename' format, or
 					the file path in the case of
@@ -1719,7 +1789,7 @@ fil_op_write_log(
 	byte*	log_ptr;
 	ulint	len;
 
-	log_ptr = mlog_open(mtr, 11 + 2);
+	log_ptr = mlog_open(mtr, 11 + 2 + 1);
 
 	if (!log_ptr) {
 		/* Logging in mtr is switched off during crash recovery:
@@ -1729,6 +1799,11 @@ fil_op_write_log(
 
 	log_ptr = mlog_write_initial_log_record_for_file_op(type, space_id, 0,
 								log_ptr, mtr);
+	if (type == MLOG_ZIP_FILE_CREATE) {
+		ut_a(zip_size && !(zip_size % 1024) && zip_size <= 16384);
+		mach_write_to_1(log_ptr, zip_size >> 10);
+		log_ptr++;
+	}
 	/* Let us store the strings as null-terminated for easier readability
 	and handling */
 
@@ -1741,7 +1816,7 @@ fil_op_write_log(
 	mlog_catenate_string(mtr, (byte*) name, len);
 
 	if (type == MLOG_FILE_RENAME) {
-		ulint	len = strlen(new_name) + 1;
+		len = strlen(new_name) + 1;
 		log_ptr = mlog_open(mtr, 2 + len);
 		ut_a(log_ptr);
 		mach_write_to_2(log_ptr, len);
@@ -1777,16 +1852,25 @@ fil_op_log_parse_or_replay(
 				not fir completely between ptr and end_ptr */
 	byte*	end_ptr,	/* in: buffer end */
 	ulint	type,		/* in: the type of this log record */
-	ibool	do_replay,	/* in: TRUE if we want to replay the
-				operation, and not just parse the log record */
-	ulint	space_id)	/* in: if do_replay is TRUE, the space id of
-				the tablespace in question; otherwise
-				ignored */
+	ulint	space_id)	/* in: the space id of the tablespace in
+				question, or 0 if the log record should
+				only be parsed but not replayed */
 {
 	ulint		name_len;
 	ulint		new_name_len;
 	const char*	name;
 	const char*	new_name	= NULL;
+	ulint		zip_size	= 0;
+
+	if (type == MLOG_ZIP_FILE_CREATE) {
+		if (end_ptr < ptr + 1) {
+
+			return(NULL);
+		}
+
+		zip_size = mach_read_from_1(ptr) << 10;
+		ptr++;
+	}
 
 	if (end_ptr < ptr + 2) {
 
@@ -1835,7 +1919,7 @@ fil_op_log_parse_or_replay(
 		printf("new name %s\n", new_name);
 	}
 */
-	if (do_replay == FALSE) {
+	if (!space_id) {
 
 		return(ptr);
 	}
@@ -1848,11 +1932,15 @@ fil_op_log_parse_or_replay(
 	were renames of tables during the backup. See ibbackup code for more
 	on the problem. */
 
-	if (type == MLOG_FILE_DELETE) {
+	switch (type) {
+	case MLOG_FILE_DELETE:
 		if (fil_tablespace_exists_in_mem(space_id)) {
 			ut_a(fil_delete_tablespace(space_id));
 		}
-	} else if (type == MLOG_FILE_RENAME) {
+
+		break;
+
+	case MLOG_FILE_RENAME:
 		/* We do the rename based on space id, not old file name;
 		this should guarantee that after the log replay each .ibd file
 		has the correct name for the latest log sequence number; the
@@ -1874,9 +1962,11 @@ fil_op_log_parse_or_replay(
 								new_name));
 			}
 		}
-	} else {
-		ut_a(type == MLOG_FILE_CREATE);
 
+		break;
+
+	case MLOG_FILE_CREATE:
+	case MLOG_ZIP_FILE_CREATE:
 		if (fil_tablespace_exists_in_mem(space_id)) {
 			/* Do nothing */
 		} else if (fil_get_space_id_for_table(name) !=
@@ -1887,13 +1977,17 @@ fil_op_log_parse_or_replay(
 			not exist yet */
 			fil_create_directory_for_tablename(name);
 
-			ut_a(space_id != 0);
-
 			ut_a(DB_SUCCESS ==
 				fil_create_new_single_table_tablespace(
 						&space_id, name, FALSE,
+						zip_size,
 						FIL_IBD_FILE_INITIAL_SIZE));
 		}
+
+		break;
+
+	default:
+		ut_error;
 	}
 
 	return(ptr);
@@ -2037,7 +2131,7 @@ try_again:
 		to write any log record */
 		mtr_start(&mtr);
 
-		fil_op_write_log(MLOG_FILE_DELETE, id, path, NULL, &mtr);
+		fil_op_write_log(MLOG_FILE_DELETE, id, 0, path, NULL, &mtr);
 		mtr_commit(&mtr);
 #endif
 		mem_free(path);
@@ -2305,7 +2399,7 @@ retry:
 
 		mtr_start(&mtr);
 
-		fil_op_write_log(MLOG_FILE_RENAME, id, old_name, new_name,
+		fil_op_write_log(MLOG_FILE_RENAME, id, 0, old_name, new_name,
 								&mtr);
 		mtr_commit(&mtr);
 	}
@@ -2333,6 +2427,8 @@ fil_create_new_single_table_tablespace(
 					table */
 	ibool		is_temp,	/* in: TRUE if a table created with
 					CREATE TEMPORARY TABLE */
+	ulint		zip_size,	/* in: compressed page size,
+					or 0 if uncompressed tablespace */
 	ulint		size)		/* in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
@@ -2463,7 +2559,7 @@ fil_create_new_single_table_tablespace(
 		goto error_exit2;
 	}
 
-	success = fil_space_create(path, *space_id, FIL_TABLESPACE);
+	success = fil_space_create(path, *space_id, zip_size, FIL_TABLESPACE);
 
 	if (!success) {
 		goto error_exit2;
@@ -2477,7 +2573,8 @@ fil_create_new_single_table_tablespace(
 
 	mtr_start(&mtr);
 
-	fil_op_write_log(MLOG_FILE_CREATE, *space_id, tablename, NULL, &mtr);
+	fil_op_write_log(zip_size ? MLOG_ZIP_FILE_CREATE : MLOG_FILE_CREATE,
+			*space_id, zip_size, tablename, NULL, &mtr);
 
 	mtr_commit(&mtr);
 	}
@@ -2659,6 +2756,8 @@ fil_open_single_table_tablespace(
 					faster (the OS caches them) than
 					accessing the first page of the file */
 	ulint		id,		/* in: space id */
+	ulint		zip_size,	/* in: compressed page size,
+					or 0 if uncompressed tablespace */
 	const char*	name)		/* in: table name in the
 					databasename/tablename format */
 {
@@ -2740,7 +2839,8 @@ fil_open_single_table_tablespace(
 	}
 
 skip_check:
-	success = fil_space_create(filepath, space_id, FIL_TABLESPACE);
+	success = fil_space_create(filepath, space_id, zip_size,
+				FIL_TABLESPACE);
 
 	if (!success) {
 		goto func_exit;
@@ -2796,6 +2896,7 @@ fil_load_single_table_tablespace(
 	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
+	ulint		zip_size;
 	ulint		size_low;
 	ulint		size_high;
 	ib_longlong	size;
@@ -2920,8 +3021,10 @@ fil_load_single_table_tablespace(
 		/* We have to read the tablespace id from the file */
 
 		space_id = fsp_header_get_space_id(page);
+		zip_size = fsp_header_get_zip_size(page);
 	} else {
 		space_id = ULINT_UNDEFINED;
+		zip_size = 0;
 	}
 
 #ifndef UNIV_HOTBACKUP
@@ -2992,7 +3095,8 @@ fil_load_single_table_tablespace(
 	}
 	mutex_exit(&(fil_system->mutex));
 #endif
-	success = fil_space_create(filepath, space_id, FIL_TABLESPACE);
+	success = fil_space_create(filepath, space_id, zip_size,
+				FIL_TABLESPACE);
 
 	if (!success) {
 

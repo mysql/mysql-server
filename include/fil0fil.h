@@ -183,6 +183,8 @@ fil_space_create(
 				/* out: TRUE if success */
 	const char*	name,	/* in: space name */
 	ulint		id,	/* in: space id */
+	ulint		zip_size,/* in: compressed page size, or
+				0 for uncompressed tablespaces */
 	ulint		purpose);/* in: FIL_TABLESPACE, or FIL_LOG if log */
 /***********************************************************************
 Frees a space object from a the tablespace memory cache. Closes the files in
@@ -201,6 +203,16 @@ ulint
 fil_space_get_size(
 /*===============*/
 			/* out: space size, 0 if space not found */
+	ulint	id);	/* in: space id */
+/***********************************************************************
+Returns the compressed page size of the space, or 0 if the space
+is not compressed. The tablespace must be cached in the memory cache. */
+
+ulint
+fil_space_get_zip_size(
+/*===================*/
+			/* out: compressed page size, ULINT_UNDEFINED
+			if space not found */
 	ulint	id);	/* in: space id */
 /***********************************************************************
 Checks if the pair space, page_no refers to an existing page in a tablespace
@@ -319,11 +331,9 @@ fil_op_log_parse_or_replay(
 				not fir completely between ptr and end_ptr */
 	byte*	end_ptr,	/* in: buffer end */
 	ulint	type,		/* in: the type of this log record */
-	ibool	do_replay,	/* in: TRUE if we want to replay the
-				operation, and not just parse the log record */
-	ulint	space_id);	/* in: if do_replay is TRUE, the space id of
-				the tablespace in question; otherwise
-				ignored */
+	ulint	space_id);	/* in: the space id of the tablespace in
+				question, or 0 if the log record should
+				only be parsed but not replayed */
 /***********************************************************************
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache. */
@@ -384,6 +394,8 @@ fil_create_new_single_table_tablespace(
 					table */
 	ibool		is_temp,	/* in: TRUE if a table created with
 					CREATE TEMPORARY TABLE */
+	ulint		zip_size,	/* in: compressed page size,
+					or 0 if uncompressed tablespace */
 	ulint		size);		/* in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
@@ -409,6 +421,8 @@ fil_open_single_table_tablespace(
 					faster (the OS caches them) than
 					accessing the first page of the file */
 	ulint		id,		/* in: space id */
+	ulint		zip_size,	/* in: compressed page size,
+					or 0 if uncompressed tablespace */
 	const char*	name);		/* in: table name in the
 					databasename/tablename format */
 /************************************************************************

@@ -42,7 +42,6 @@ dict_mem_table_create(
 	mem_heap_t*	heap;
 
 	ut_ad(name);
-	ut_ad(!(flags & ~(DICT_TF_COMPACT | DICT_TF_COMPRESSED)));
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 

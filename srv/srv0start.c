@@ -663,7 +663,7 @@ open_or_create_log_file(
 		which is for this log group */
 
 		fil_space_create(name,
-		2 * k + SRV_LOG_SPACE_FIRST_ID, FIL_LOG);
+		2 * k + SRV_LOG_SPACE_FIRST_ID, 0, FIL_LOG);
 	}
 
 	ut_a(fil_validate());
@@ -926,7 +926,7 @@ skip_size_check:
 		ut_a(ret);
 
 		if (i == 0) {
-			fil_space_create(name, 0, FIL_TABLESPACE);
+			fil_space_create(name, 0, 0, FIL_TABLESPACE);
 		}
 
 		ut_a(fil_validate());
@@ -1411,8 +1411,7 @@ NetWare. */
 
 	if (create_new_db) {
 		mtr_start(&mtr);
-
-		fsp_header_init(0, sum_of_new_sizes, &mtr);
+		fsp_header_init(0, sum_of_new_sizes, 0, &mtr);
 
 		mtr_commit(&mtr);
 
