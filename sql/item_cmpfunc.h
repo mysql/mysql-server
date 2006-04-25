@@ -712,7 +712,7 @@ public:
       We're created a signed INT, this may not be correct in 
       general case (see BUG#19342).
     */
-    return new Item_int(0);
+    return new Item_int((longlong)0);
   }
   void value_to_item(uint pos, Item *item)
   {
