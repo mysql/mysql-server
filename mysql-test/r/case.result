@@ -175,6 +175,14 @@ SELECT CASE '1' WHEN '2' THEN 'BUG' ELSE 'nobug' END;
 case+union+test
 case+union+test
 nobug
+create table t1(a float, b int default 3);
+insert into t1 (a) values (2), (11), (8);
+select min(a), min(case when 1=1 then a else NULL end),
+min(case when 1!=1 then NULL else a end) 
+from t1 where b=3 group by b;
+min(a)	min(case when 1=1 then a else NULL end)	min(case when 1!=1 then NULL else a end)
+2	2	2
+drop table t1;
 CREATE TABLE t1 (EMPNUM INT);
 INSERT INTO t1 VALUES (0), (2);
 CREATE TABLE t2 (EMPNUM DECIMAL (4, 2));
