@@ -83,6 +83,14 @@ fsp_header_get_space_id(
 			/* out: space id, ULINT UNDEFINED if error */
 	page_t* page);	 /* in: first page of a tablespace */
 /**************************************************************************
+Reads the compressed page size from the first page of a tablespace. */
+
+ulint
+fsp_header_get_zip_size(
+/*=====================*/
+			/* out: compressed page size, or 0 if uncompressed */
+	page_t*	page);	/* in: first page of a tablespace */
+/**************************************************************************
 Writes the space id to a tablespace header. This function is used past the
 buffer pool when we in fil0fil.c create a new single-table tablespace. */
 
@@ -98,9 +106,10 @@ insert buffer tree root if space == 0. */
 void
 fsp_header_init(
 /*============*/
-	ulint	space,	/* in: space id */
-	ulint	size,	/* in: current size in blocks */
-	mtr_t*	mtr);	/* in: mini-transaction handle */
+	ulint	space,		/* in: space id */
+	ulint	size,		/* in: current size in blocks */
+	ulint	zip_size,	/* in: compressed page size, or 0 */
+	mtr_t*	mtr);		/* in: mini-transaction handle */
 /**************************************************************************
 Increases the space size field of a space. */
 

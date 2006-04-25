@@ -206,6 +206,45 @@ loop:
 }
 
 /************************************************************************
+Determine the compressed page size of a table described in SYS_TABLES. */
+static
+ulint
+dict_sys_tables_get_zip_size(
+/*=========================*/
+			/* out: compressed page size in kilobytes;
+			or 0 if the tablespace is uncompressed,
+			ULINT_UNDEFINED on error */
+	rec_t*	rec)	/* in: a record of SYS_TABLES */
+{
+	byte*	field;
+	ulint	len;
+	ulint	n_cols;
+	ulint	table_type;
+
+	field = rec_get_nth_field_old(rec, 5, &len);
+	ut_a(len == 4);
+
+	table_type = mach_read_from_4(field);
+
+	field = rec_get_nth_field_old(rec, 4, &len);
+	n_cols = mach_read_from_4(field);
+
+	if (UNIV_EXPECT(n_cols & 0x80000000UL, 0x80000000UL)
+			&& UNIV_LIKELY(table_type > DICT_TABLE_COMPRESSED_BASE)
+			&& UNIV_LIKELY(table_type
+					<= DICT_TABLE_COMPRESSED_BASE + 16)) {
+
+		return(table_type - DICT_TABLE_COMPRESSED_BASE);
+	}
+
+	if (UNIV_LIKELY(table_type == DICT_TABLE_ORDINARY)) {
+		return(0);
+	}
+
+	return(ULINT_UNDEFINED);
+}
+
+/************************************************************************
 In a crash recovery we already have all the tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
 to what we already read with fil_load_single_table_tablespaces().
@@ -223,9 +262,6 @@ dict_check_tablespaces_and_store_max_id(
 	dict_index_t*	sys_index;
 	btr_pcur_t	pcur;
 	rec_t*		rec;
-	byte*		field;
-	ulint		len;
-	ulint		space_id;
 	ulint		max_space_id	= 0;
 	mtr_t		mtr;
 
@@ -262,13 +298,20 @@ loop:
 		return;
 	}
 
-	field = rec_get_nth_field_old(rec, 0, &len);
-
 	if (!rec_get_deleted_flag(rec, 0)) {
 
 		/* We found one */
+		byte*	field;
+		ulint	len;
+		ulint	space_id;
+		ulint	zip_size;
+		char*	name;
 
-		char*	name = mem_strdupl((char*) field, len);
+		field = rec_get_nth_field_old(rec, 0, &len);
+		name = mem_strdupl((char*) field, len);
+
+		zip_size = dict_sys_tables_get_zip_size(rec);
+		ut_a(zip_size != ULINT_UNDEFINED);
 
 		field = rec_get_nth_field_old(rec, 9, &len);
 		ut_a(len == 4);
@@ -292,7 +335,7 @@ loop:
 			object and check that the .ibd file exists. */
 
 			fil_open_single_table_tablespace(FALSE, space_id,
-									name);
+							zip_size, name);
 		}
 
 		mem_free(name);
@@ -741,6 +784,7 @@ dict_load_table(
 	ulint		n_cols;
 	ulint		flags;
 	ulint		err;
+	ulint		zip_size;
 	mtr_t		mtr;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -793,6 +837,9 @@ dict_load_table(
 
 	/* Check if the tablespace exists and has the right name */
 	if (space != 0) {
+		ulint	zip_size = dict_sys_tables_get_zip_size(rec);
+		ut_a(zip_size != ULINT_UNDEFINED);
+
 		if (fil_space_for_table_exists_in_mem(space, name, FALSE,
 							FALSE, FALSE)) {
 			/* Ok; (if we did a crash recovery then the tablespace
@@ -809,7 +856,7 @@ dict_load_table(
 							name, (ulong)space);
 			/* Try to open the tablespace */
 			if (!fil_open_single_table_tablespace(TRUE,
-							space, name)) {
+						space, zip_size, name)) {
 				/* We failed to find a sensible tablespace
 				file */
 
@@ -844,8 +891,10 @@ dict_load_table(
 	field = rec_get_nth_field_old(rec, 3, &len);
 	table->id = mach_read_from_8(field);
 
-	field = rec_get_nth_field_old(rec, 5, &len);
-	if (UNIV_UNLIKELY(mach_read_from_4(field) != DICT_TABLE_ORDINARY)) {
+	zip_size = dict_sys_tables_get_zip_size(rec);
+
+	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+		field = rec_get_nth_field_old(rec, 5, &len);
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: table %s: unknown table type %lu\n",

@@ -40,10 +40,12 @@ combination of types */
 #define	DICT_TABLE_CLUSTER		3 /* this means that the table is
 					  really a cluster definition */
 #endif
+#define DICT_TABLE_COMPRESSED_BASE	0x8000	/* compressed tablespace */
 
 /* Table flags */
 #define DICT_TF_COMPACT			1	/* compact page format */
-#define DICT_TF_COMPRESSED		2	/* compressed compact format */
+#define DICT_TF_COMPRESSED_MASK		62	/* compressed page size, KiB */
+#define DICT_TF_COMPRESSED_SHIFT	1
 
 /**************************************************************************
 Creates a table memory object. */

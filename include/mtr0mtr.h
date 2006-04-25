@@ -129,16 +129,18 @@ flag value must give the length also! */
 						/* copy compact record list end
 						to a new created index page */
 #define MLOG_COMP_PAGE_REORGANIZE ((byte)46)	/* reorganize an index page */
-#define MLOG_ZIP_WRITE_NODE_PTR	((byte)47)	/* write the node pointer of
+#define MLOG_ZIP_FILE_CREATE	((byte)47)	/* log record about creating a
+						compressed .ibd file */
+#define MLOG_ZIP_WRITE_NODE_PTR	((byte)48)	/* write the node pointer of
 						a record on a compressed
 						non-leaf B-tree page */
-#define MLOG_ZIP_WRITE_BLOB_PTR	((byte)48)	/* write the BLOB pointer
+#define MLOG_ZIP_WRITE_BLOB_PTR	((byte)49)	/* write the BLOB pointer
 						of an externally stored column
 						on a compressed page */
-#define MLOG_ZIP_WRITE_HEADER	((byte)49)	/* write to compressed page
+#define MLOG_ZIP_WRITE_HEADER	((byte)50)	/* write to compressed page
 						header */
-#define MLOG_ZIP_PAGE_COMPRESS	((byte)50)	/* compress an index page */
-#define MLOG_BIGGEST_TYPE	((byte)50)	/* biggest value (used in
+#define MLOG_ZIP_PAGE_COMPRESS	((byte)51)	/* compress an index page */
+#define MLOG_BIGGEST_TYPE	((byte)51)	/* biggest value (used in
 						asserts) */
 
 /*******************************************************************
