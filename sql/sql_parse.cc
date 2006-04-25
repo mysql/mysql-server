@@ -5723,48 +5723,17 @@ mysql_new_select(LEX *lex, bool move_down)
   }
   else
   {
-    Name_resolution_context *outer_context;
     if (lex->current_select->order_list.first && !lex->current_select->braces)
     {
       my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
       DBUG_RETURN(1);
     }
     select_lex->include_neighbour(lex->current_select);
-    /*
-      we are not sure that we have one level of SELECTs above, so we take
-      outer_context address from first select of unit
-    */
-    outer_context=
-      select_lex->master_unit()->first_select()->context.outer_context;
-    SELECT_LEX_UNIT *unit= select_lex->master_unit();
-    SELECT_LEX *fake= unit->fake_select_lex;
-    if (!fake)
-    {
-      /*
-	as far as we included SELECT_LEX for UNION unit should have
-	fake SELECT_LEX for UNION processing
-      */
-      if (!(fake= unit->fake_select_lex= new (thd->mem_root) SELECT_LEX()))
-        DBUG_RETURN(1);
-      fake->include_standalone(unit,
-			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
-      fake->select_number= INT_MAX;
-      fake->parent_lex= lex; /* Used in init_query. */
-      fake->make_empty_select();
-      fake->linkage= GLOBAL_OPTIONS_TYPE;
-      fake->select_limit= 0;
-
-      fake->context.outer_context= outer_context;
-      /* allow item list resolving in fake select for ORDER BY */
-      fake->context.resolve_in_select_list= TRUE;
-      fake->context.select_lex= fake;
-      /*
-        Remove the name resolution context of the fake select from the
-        context stack.
-       */
-      lex->pop_context();
-    }
-    select_lex->context.outer_context= outer_context;
+    SELECT_LEX_UNIT *unit= select_lex->master_unit();                              
+    if (!unit->fake_select_lex && unit->add_fake_select_lex(lex->thd))
+      DBUG_RETURN(1);
+    select_lex->context.outer_context= 
+                unit->first_select()->context.outer_context;
   }
 
   select_lex->master_unit()->global_parameters= select_lex;
@@ -6545,6 +6514,68 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
     tables->updating=  for_update;
   }
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Create a fake SELECT_LEX for a unit
+
+  SYNOPSIS:
+    add_fake_select_lex()
+    thd			   thread handle
+
+  DESCRIPTION
+    The method create a fake SELECT_LEX object for a unit.
+    This object is created for any union construct containing a union
+    operation and also for any single select union construct of the form
+    (SELECT ... ORDER BY order_list [LIMIT n]) ORDER BY ... 
+    or of the form
+    (SELECT ... ORDER BY LIMIT n) ORDER BY ...
+  
+  NOTES
+    The object is used to retrieve rows from the temporary table
+    where the result on the union is obtained.
+
+  RETURN VALUES
+    1     on failure to create the object
+    0     on success
+*/
+
+bool st_select_lex_unit::add_fake_select_lex(THD *thd)
+{
+  SELECT_LEX *first_sl= first_select();
+  DBUG_ENTER("add_fake_select_lex");
+  DBUG_ASSERT(!fake_select_lex);
+
+  if (!(fake_select_lex= new (thd->mem_root) SELECT_LEX()))
+      DBUG_RETURN(1);
+  fake_select_lex->include_standalone(this, 
+                                      (SELECT_LEX_NODE**)&fake_select_lex);
+  fake_select_lex->select_number= INT_MAX;
+  fake_select_lex->parent_lex= thd->lex; /* Used in init_query. */
+  fake_select_lex->make_empty_select();
+  fake_select_lex->linkage= GLOBAL_OPTIONS_TYPE;
+  fake_select_lex->select_limit= 0;
+
+  fake_select_lex->context.outer_context=first_sl->context.outer_context;
+  /* allow item list resolving in fake select for ORDER BY */
+  fake_select_lex->context.resolve_in_select_list= TRUE;
+  fake_select_lex->context.select_lex= fake_select_lex;
+
+  if (!first_sl->next_select())
+  {
+    /* 
+      This works only for 
+      (SELECT ... ORDER BY list [LIMIT n]) ORDER BY order_list [LIMIT m],
+      (SELECT ... LIMIT n) ORDER BY order_list [LIMIT m]
+      just before the parser starts processing order_list
+    */ 
+    global_parameters= fake_select_lex;
+    fake_select_lex->no_table_names_allowed= 1;
+    thd->lex->current_select= fake_select_lex;
+  }
+  thd->lex->pop_context();
+  DBUG_RETURN(0);
 }
 
 
