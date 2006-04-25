@@ -56,6 +56,7 @@ SET GLOBAL long_query_time=4;
 SET SESSION long_query_time=2;
 --echo "Check that logging is working"
 SELECT SLEEP(3);
+--replace_regex /00:00:0[3-5]/SLEEPVAL/
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 TRUNCATE mysql.slow_log;
 CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
@@ -79,6 +80,7 @@ CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_te
 --echo "Check our table. Should see 2 rows"
 SELECT * FROM slow_event_test;
 --echo "Check slow log. Should see 1 row because 5 is over the threshold of 4 for GLOBAL, though under SESSION which is 10"
+--replace_regex /00:00:0[5-7]/SLEEPVAL/
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 DROP EVENT long_event2;
 SET GLOBAL  long_query_time =@old_global_long_query_time;

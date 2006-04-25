@@ -41,10 +41,25 @@ static Item_result item_store_type(Item_result a,Item_result b)
 
 static void agg_result_type(Item_result *type, Item **items, uint nitems)
 {
-  uint i;
-  type[0]= items[0]->result_type();
-  for (i=1 ; i < nitems ; i++)
-    type[0]= item_store_type(type[0], items[i]->result_type());
+  Item **item, **item_end;
+
+  *type= STRING_RESULT;
+  /* Skip beginning NULL items */
+  for (item= items, item_end= item + nitems; item < item_end; item++)
+  {
+    if ((*item)->type() != Item::NULL_ITEM)
+    {
+      *type= (*item)->result_type();
+      item++;
+      break;
+    }
+  }
+  /* Combine result types. Note: NULL items don't affect the result */
+  for (; item < item_end; item++)
+  {
+    if ((*item)->type() != Item::NULL_ITEM)
+      *type= item_store_type(type[0], (*item)->result_type());
+  }
 }
 
 
