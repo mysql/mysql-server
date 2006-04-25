@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1, t2;
 select 1 in (1,2,3);
 1 in (1,2,3)
 1
@@ -225,3 +225,104 @@ a
 46
 DROP VIEW v1;
 DROP TABLE t1;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, filler char(200), key(a));
+insert into t2 select C.a*2,   'no'  from t1 A, t1 B, t1 C;
+insert into t2 select C.a*2+1, 'yes' from t1 C;
+explain 
+select * from t2 where a NOT IN (0, 2,4,6,8,10,12,14,16,18);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	5	NULL	12	Using where
+select * from t2 where a NOT IN (0, 2,4,6,8,10,12,14,16,18);
+a	filler
+1	yes
+3	yes
+5	yes
+7	yes
+9	yes
+11	yes
+13	yes
+15	yes
+17	yes
+19	yes
+explain select * from t2 force index(a) where a NOT IN (2,2,2,2,2,2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	5	NULL	912	Using where
+explain select * from t2 force index(a) where a <> 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	5	NULL	912	Using where
+drop table t2;
+create table t2 (a datetime, filler char(200), key(a));
+insert into t2 select '2006-04-25 10:00:00' + interval C.a minute,
+'no'  from t1 A, t1 B, t1 C where C.a % 2 = 0;
+insert into t2 select '2006-04-25 10:00:00' + interval C.a*2+1 minute,
+'yes' from t1 C;
+explain 
+select * from t2 where a NOT IN (
+'2006-04-25 10:00:00','2006-04-25 10:02:00','2006-04-25 10:04:00', 
+'2006-04-25 10:06:00', '2006-04-25 10:08:00');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	9	NULL	18	Using where
+select * from t2 where a NOT IN (
+'2006-04-25 10:00:00','2006-04-25 10:02:00','2006-04-25 10:04:00', 
+'2006-04-25 10:06:00', '2006-04-25 10:08:00');
+a	filler
+2006-04-25 10:01:00	yes
+2006-04-25 10:03:00	yes
+2006-04-25 10:05:00	yes
+2006-04-25 10:07:00	yes
+2006-04-25 10:09:00	yes
+2006-04-25 10:11:00	yes
+2006-04-25 10:13:00	yes
+2006-04-25 10:15:00	yes
+2006-04-25 10:17:00	yes
+2006-04-25 10:19:00	yes
+drop table t2;
+create table t2 (a varchar(10), filler char(200), key(a));
+insert into t2 select 'foo', 'no' from t1 A, t1 B;
+insert into t2 select 'barbar', 'no' from t1 A, t1 B;
+insert into t2 select 'bazbazbaz', 'no' from t1 A, t1 B;
+insert into t2 values ('fon', '1'), ('fop','1'), ('barbaq','1'), 
+('barbas','1'), ('bazbazbay', '1'),('zz','1');
+explain select * from t2 where a not in('foo','barbar', 'bazbazbaz');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	13	NULL	7	Using where
+drop table t2;
+create table t2 (a decimal(10,5), filler char(200), key(a));
+insert into t2 select 345.67890, 'no' from t1 A, t1 B;
+insert into t2 select 43245.34, 'no' from t1 A, t1 B;
+insert into t2 select 64224.56344, 'no' from t1 A, t1 B;
+insert into t2 values (0, '1'), (22334.123,'1'), (33333,'1'), 
+(55555,'1'), (77777, '1');
+explain
+select * from t2 where a not in (345.67890, 43245.34, 64224.56344);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	7	NULL	7	Using where
+select * from t2 where a not in (345.67890, 43245.34, 64224.56344);
+a	filler
+0.00000	1
+22334.12300	1
+33333.00000	1
+55555.00000	1
+77777.00000	1
+drop table t2;
+create table t2 (a int, key(a), b int);
+insert into t2 values (1,1),(2,2);
+set @cnt= 1;
+set @str="update t2 set b=1 where a not in (";
+select count(*) from (
+select @str:=concat(@str, @cnt:=@cnt+1, ",") 
+from t1 A, t1 B, t1 C, t1 D) Z;
+count(*)
+10000
+set @str:=concat(@str, "10000)");
+select substr(@str, 1, 50);
+substr(@str, 1, 50)
+update t2 set b=1 where a not in (2,3,4,5,6,7,8,9,
+prepare s from @str;
+execute s;
+deallocate prepare s;
+set @str=NULL;
+drop table t2;
+drop table t1;
