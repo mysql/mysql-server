@@ -241,7 +241,7 @@ sp_pcontext::push_label(char *name, uint ip)
   {
     lab->name= name;
     lab->ip= ip;
-    lab->type= SP_LAB_GOTO;
+    lab->type= SP_LAB_IMPL;
     lab->ctx= this;
     m_label.push_front(lab);
   }

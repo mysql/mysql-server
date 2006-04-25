@@ -1059,15 +1059,23 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
         !old_lex->can_not_use_merged())
     {
       List_iterator_fast<TABLE_LIST> ti(view_select->top_join_list);
+      /*
+        Currently 'view_main_select_tables' differs from 'view_tables'
+        only then view has CONVERT_TZ() function in its select list.
+        This may change in future, for example if we enable merging
+        of views with subqueries in select list.
+      */
+      TABLE_LIST *view_main_select_tables=
+                    (TABLE_LIST*)lex->select_lex.table_list.first;
       /* lex should contain at least one table */
-      DBUG_ASSERT(view_tables != 0);
+      DBUG_ASSERT(view_main_select_tables != 0);
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
       table->updatable= (table->updatable_view != 0);
       table->effective_with_check=
         old_lex->get_effective_with_check(table);
-      table->merge_underlying_list= view_tables;
+      table->merge_underlying_list= view_main_select_tables;
       /*
         Let us set proper lock type for tables of the view's main select
         since we may want to perform update or insert on view. This won't
@@ -1083,7 +1091,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
       }
 
       /* prepare view context */
-      lex->select_lex.context.resolve_in_table_list_only(view_tables);
+      lex->select_lex.context.resolve_in_table_list_only(view_main_select_tables);
       lex->select_lex.context.outer_context= 0;
       lex->select_lex.context.select_lex= table->select_lex;
       lex->select_lex.select_n_having_items+=
@@ -1099,7 +1107,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
         tbl->select_lex= table->select_lex;
 
       {
-        if (view_tables->next_local)
+        if (view_main_select_tables->next_local)
         {
           table->multitable_view= TRUE;
           if (table->belong_to_view)

@@ -2490,3 +2490,30 @@ rename table v2 to t1;
 select * from v1;
 drop function f1;
 drop view t1, v1;
+
+#
+# Bug #15153: CONVERT_TZ() is not allowed in all places in VIEWs
+#
+# Error was reported when one tried to use CONVERT_TZ() function
+# select list of view which was processed using MERGE algorithm.
+# (Also see additional test in timezone_grant.test)
+create table t1 (dt datetime);
+insert into t1 values (20040101000000), (20050101000000), (20060101000000);
+# Let us test that convert_tz() can be used in view's select list
+create view v1 as select convert_tz(dt, 'UTC', 'Europe/Moscow') as ldt from t1;
+select * from v1;
+drop view v1;
+# And in its where part 
+create view v1 as select * from t1 where convert_tz(dt, 'UTC', 'Europe/Moscow') >= 20050101000000;
+select * from v1;
+# Other interesting case - a view which uses convert_tz() function
+# through other view.
+create view v2 as select * from v1 where dt < 20060101000000;
+select * from v2;
+drop view v2;
+# And even more interesting case when view uses convert_tz() both
+# directly and indirectly
+create view v2 as select convert_tz(dt, 'UTC', 'Europe/Moscow') as ldt from v1;
+select * from v2;
+drop view v1, v2;
+drop table t1;
