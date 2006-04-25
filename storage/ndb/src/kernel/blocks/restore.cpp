@@ -547,9 +547,10 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 	parse_gcp_entry(signal, file_ptr, data, len);
 	break;
       case 0x4e444242: // 'NDBB'
-	if(ntohl(* (data+2)) != NDB_VERSION)
-	  parse_error(signal, file_ptr, __LINE__, ntohl(* (data+2)));
-	break;
+	if (check_file_version(signal, ntohl(* (data+2))) == 0)
+	{
+	  break;
+	}
       default:
 	parse_error(signal, file_ptr, __LINE__, ntohl(* data));
       }
@@ -719,7 +720,7 @@ Restore::parse_file_header(Signal* signal,
     return;
   }
   
-  if(ntohl(fh->NdbVersion) != NDB_VERSION)
+  if (check_file_version(signal, ntohl(fh->NdbVersion)))
   {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->NdbVersion));
     return;
@@ -1226,4 +1227,24 @@ operator << (NdbOut& ndbout, const Restore::Column& col)
 	 << "]";
 
   return ndbout;
+}
+
+int
+Restore::check_file_version(Signal* signal, Uint32 file_version)
+{
+  if (file_version < MAKE_VERSION(5,1,6))
+  {
+    char buf[255];
+    char verbuf[255];
+    getVersionString(file_version, 0, verbuf, sizeof(verbuf));
+    BaseString::snprintf(buf, sizeof(buf),
+			 "Unsupported version of LCP files found on disk, "
+			 " found: %s", verbuf);
+    
+    progError(__LINE__, 
+	      NDBD_EXIT_SR_RESTARTCONFLICT,
+	      buf);
+    return -1;
+  }
+  return 0;
 }
