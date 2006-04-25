@@ -16,8 +16,8 @@ events_scheduling        : BUG#18958 2006-04-13 andrey  Test case unstable
 events_logs_tests        : BUG#18953 2006-04-12 kent    Test is randomly failing
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
-ndb_cache2               : BUG#18597 2006-03-28 brian simultaneous drop table and ndb statistics update triggers node failure
-ndb_cache_multi2         : BUG#18597 2006-04-10 kent  simultaneous drop table and ndb statistics update triggers node failure
+#ndb_cache2               : BUG#18597 2006-03-28 brian simultaneous drop table and ndb statistics update triggers node failure
+#ndb_cache_multi2         : BUG#18597 2006-04-10 kent  simultaneous drop table and ndb statistics update triggers node failure
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 ps_7ndb                  : BUG#18950 2006-02-16 jmiller create table like does not obtain LOCK_open
 rpl_deadlock_innodb      : BUG#16920 2006-04-12 kent    fails in show slave status (randomly)
