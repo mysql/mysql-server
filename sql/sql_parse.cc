@@ -647,7 +647,7 @@ check_connections(THD *thd)
   char *db=0;
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
     db=strend(passwd)+1;
-  if (strend(db ? db : passwd) - (char*)net->read_pos > pkt_len)
+  if ((db ? db : passwd) - (char*)net->read_pos > pkt_len)
   {
     inc_host_errors(&thd->remote.sin_addr);
     return ER_HANDSHAKE_ERROR;
