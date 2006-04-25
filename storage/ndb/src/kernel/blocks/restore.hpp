@@ -140,6 +140,7 @@ private:
   Uint32 calulate_hash(Uint32 tableId, const Uint32 *src);
 
   void parse_error(Signal*, FilePtr, Uint32 line, Uint32 extra);
+  int check_file_version(Signal*, Uint32 file_version);
 public:
   
 private:
