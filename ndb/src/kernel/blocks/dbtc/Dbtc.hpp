@@ -1400,7 +1400,7 @@ private:
 		   const UintR scanParallel, 
 		   const UintR noOprecPerFrag);
   void initScanfragrec(Signal* signal);
-  void releaseScanResources(ScanRecordPtr);
+  void releaseScanResources(ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
   void sendScanFragReq(Signal*, ScanRecord*, ScanFragRec*);
   void sendScanTabConf(Signal* signal, ScanRecordPtr);
@@ -1543,7 +1543,8 @@ private:
   void signalErrorRefuseLab(Signal* signal);
   void abort080Lab(Signal* signal);
   void packKeyData000Lab(Signal* signal, BlockReference TBRef, Uint32 len);
-  void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode);
+  void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode, 
+		    bool not_started = false);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck);
   void abort010Lab(Signal* signal);
   void abort015Lab(Signal* signal);
