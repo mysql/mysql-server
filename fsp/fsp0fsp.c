@@ -60,11 +60,9 @@ descriptor page, but used only in the first. */
 					about the first extent, but have not
 					physically allocted those pages to the
 					file */
-#define	FSP_LOWEST_NO_WRITE	16	/* The lowest page offset for which
-					the page has not been written to disk
-					(if it has been written, we know that
-					the OS has really reserved the
-					physical space for the page) */
+#define	FSP_PAGE_ZIP_SIZE	16	/* The size of the compressed page
+					in bytes, or 0 for uncompressed
+					tablespaces */
 #define	FSP_FRAG_N_USED		20	/* number of used pages in the
 					FSP_FREE_FRAG list */
 #define	FSP_FREE		24	/* list of free extents */
@@ -794,17 +792,26 @@ fsp_init_file_page_low(
 /*===================*/
 	byte*	ptr)	/* in: pointer to a page */
 {
-	page_t*	page;
-	page = buf_frame_align(ptr);
+	buf_block_t*	block	= buf_block_align(ptr);
 
-	buf_block_align(page)->check_index_page_at_flush = FALSE;
+	page_t*		page	= buf_block_get_frame(block);
+	page_zip_des_t*	page_zip;
+
+	block->check_index_page_at_flush = FALSE;
+
+	page_zip = buf_block_get_page_zip(block);
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		memset(page, 0, UNIV_PAGE_SIZE);
+		memset(page_zip->data, 0, page_zip->size);
+		return;
+	}
 
 #ifdef UNIV_BASIC_LOG_DEBUG
 	memset(page, 0xff, UNIV_PAGE_SIZE);
 #endif
-	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
-							ut_dulint_zero);
-	mach_write_to_8(page + FIL_PAGE_LSN, ut_dulint_zero);
+	memset(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM, 0, 8);
+	memset(page + FIL_PAGE_LSN, 0, 8);
 }
 
 /***************************************************************
@@ -871,9 +878,10 @@ insert buffer tree root if space == 0. */
 void
 fsp_header_init(
 /*============*/
-	ulint	space,	/* in: space id */
-	ulint	size,	/* in: current size in blocks */
-	mtr_t*	mtr)	/* in: mini-transaction handle */
+	ulint	space,		/* in: space id */
+	ulint	size,		/* in: current size in blocks */
+	ulint	zip_size,	/* in: compressed page size, or 0 */
+	mtr_t*	mtr)		/* in: mini-transaction handle */
 {
 	fsp_header_t*	header;
 	page_t*		page;
@@ -902,7 +910,8 @@ fsp_header_init(
 
 	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_FREE_LIMIT, 0, MLOG_4BYTES, mtr);
-	mlog_write_ulint(header + FSP_LOWEST_NO_WRITE, 0, MLOG_4BYTES, mtr);
+	mlog_write_ulint(header + FSP_PAGE_ZIP_SIZE, zip_size,
+							MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_FRAG_N_USED, 0, MLOG_4BYTES, mtr);
 
 	flst_init(header + FSP_FREE, mtr);
@@ -947,6 +956,18 @@ fsp_header_get_space_id(
 	}
 
 	return(id);
+}
+
+/**************************************************************************
+Reads the compressed page size from the first page of a tablespace. */
+
+ulint
+fsp_header_get_zip_size(
+/*=====================*/
+			/* out: compressed page size, or 0 if uncompressed */
+	page_t*	page)	/* in: first page of a tablespace */
+{
+	return(mach_read_from_4(FSP_HEADER_OFFSET + FSP_PAGE_ZIP_SIZE + page));
 }
 
 /**************************************************************************

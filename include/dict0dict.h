@@ -535,11 +535,11 @@ dict_table_is_comp_noninline(
 /************************************************************************
 Check whether the table uses the compressed compact page format. */
 UNIV_INLINE
-ibool
-dict_table_is_zip(
-/*==============*/
-					/* out: TRUE if table uses the
-					compressed compact page format */
+ulint
+dict_table_zip_size(
+/*================*/
+					/* out: compressed page size,
+					or 0 if not compressed */
 	const dict_table_t*	table);	/* in: table */
 /************************************************************************
 Checks if a column is in the ordering columns of the clustered index of a

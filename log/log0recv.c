@@ -890,8 +890,8 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_RENAME:
 	case MLOG_FILE_DELETE:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, FALSE,
-							ULINT_UNDEFINED);
+	case MLOG_ZIP_FILE_CREATE:
+		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		ptr = page_zip_parse_write_node_ptr(
@@ -2086,34 +2086,7 @@ loop:
 		if (type == MLOG_DUMMY_RECORD) {
 			/* Do nothing */
 
-		} else if (store_to_hash && (type == MLOG_FILE_CREATE
-				|| type == MLOG_FILE_RENAME
-				|| type == MLOG_FILE_DELETE)) {
-#ifdef UNIV_HOTBACKUP
-			if (recv_replay_file_ops) {
-
-				/* In ibbackup --apply-log, replay an .ibd file
-				operation, if possible; note that
-				fil_path_to_mysql_datadir is set in ibbackup to
-				point to the datadir we should use there */
-
-				if (NULL == fil_op_log_parse_or_replay(body,
-						end_ptr, type, TRUE, space)) {
-					fprintf(stderr,
-"InnoDB: Error: file op log record of type %lu space %lu not complete in\n"
-"InnoDB: the replay phase. Path %s\n", (ulint)type, space, (char*)(body + 2));
-
-					ut_a(0);
-				}
-			}
-#endif
-			/* In normal mysqld crash recovery we do not try to
-			replay file operations */
-		} else if (store_to_hash) {
-			recv_add_to_hash_table(type, space, page_no, body,
-						ptr + len, old_lsn,
-						recv_sys->recovered_lsn);
-		} else {
+		} else if (!store_to_hash) {
 			/* In debug checking, update a replicate page
 			according to the log record, and check that it
 			becomes identical with the original page */
@@ -2126,6 +2099,35 @@ loop:
 			recv_compare_replicate(space, page_no);
 #endif /* UNIV_LOG_REPLICATE */
 
+		} else if (type == MLOG_FILE_CREATE
+				|| type == MLOG_ZIP_FILE_CREATE
+				|| type == MLOG_FILE_RENAME
+				|| type == MLOG_FILE_DELETE) {
+			ut_a(space);
+#ifdef UNIV_HOTBACKUP
+			if (recv_replay_file_ops) {
+
+				/* In ibbackup --apply-log, replay an .ibd file
+				operation, if possible; note that
+				fil_path_to_mysql_datadir is set in ibbackup to
+				point to the datadir we should use there */
+
+				if (NULL == fil_op_log_parse_or_replay(body,
+						end_ptr, type, space)) {
+					fprintf(stderr,
+"InnoDB: Error: file op log record of type %lu space %lu not complete in\n"
+"InnoDB: the replay phase. Path %s\n", (ulint)type, space, (char*)(body + 2));
+
+					ut_error;
+				}
+			}
+#endif
+			/* In normal mysqld crash recovery we do not try to
+			replay file operations */
+		} else {
+			recv_add_to_hash_table(type, space, page_no, body,
+						ptr + len, old_lsn,
+						recv_sys->recovered_lsn);
 		}
 	} else {
 		/* Check that all the records associated with the single mtr
