@@ -402,6 +402,7 @@ enum tablespace_access_mode
   TS_NOT_ACCESSIBLE = 2
 };
 
+struct handlerton;
 class st_alter_tablespace : public Sql_alloc
 {
   public:
@@ -419,7 +420,7 @@ class st_alter_tablespace : public Sql_alloc
   ulonglong autoextend_size;
   ulonglong max_size;
   uint nodegroup_id;
-  enum legacy_db_type storage_engine;
+  const handlerton *storage_engine;
   bool wait_until_completed;
   const char *ts_comment;
   enum tablespace_access_mode ts_access_mode;
@@ -437,7 +438,7 @@ class st_alter_tablespace : public Sql_alloc
     initial_size= 128*1024*1024;   //Default 128 MByte
     autoextend_size= 0;            //No autoextension as default
     max_size= 0;                   //Max size == initial size => no extension
-    storage_engine= DB_TYPE_UNKNOWN;
+    storage_engine= NULL;
     nodegroup_id= UNDEF_NODEGROUP;
     wait_until_completed= TRUE;
     ts_comment= NULL;
@@ -468,7 +469,7 @@ enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 
   savepoint_*, prepare, recover, and *_by_xid pointers can be 0.
 */
-typedef struct
+struct handlerton
 {
   /*
     handlerton structure version
@@ -581,7 +582,7 @@ typedef struct
                             const char *query, uint query_length,
                             const char *db, const char *table_name);
    int (*release_temporary_latches)(THD *thd);
-} handlerton;
+};
 
 extern const handlerton default_hton;
 
