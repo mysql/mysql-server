@@ -8767,17 +8767,17 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen)
 
 scanAttrinfo_attrbuf_error:
   jam();
-  abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR);
+  abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR, true);
   return;
 
 scanAttrinfo_attrbuf2_error:
   jam();
-  abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR);
+  abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR, true);
   return;
 
 scanAttrinfo_len_error:
   jam();
-  abortScanLab(signal, scanptr, ZLENGTH_ERROR);
+  abortScanLab(signal, scanptr, ZLENGTH_ERROR, true);
   return;
 }//Dbtc::scanAttrinfoLab()
 
@@ -8793,7 +8793,8 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
     ;
   } else {
     abortScanLab(signal, scanptr, 
-		 tabPtr.p->getErrorCode(scanptr.p->scanSchemaVersion));
+		 tabPtr.p->getErrorCode(scanptr.p->scanSchemaVersion),
+		 true);
     return;
   }
 
@@ -8831,13 +8832,13 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
   ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_FRAGMENT_COUNT);
   if (apiConnectptr.p->apiFailState == ZTRUE) {
     jam();
-    releaseScanResources(scanptr);
+    releaseScanResources(scanptr, true);
     handleApiFailState(signal, apiConnectptr.i);
     return;
   }//if
   if (tfragCount == 0) {
     jam();
-    abortScanLab(signal, scanptr, ZNO_FRAGMENT_ERROR);
+    abortScanLab(signal, scanptr, ZNO_FRAGMENT_ERROR, true);
     return;
   }//if
   
@@ -8851,7 +8852,8 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
     ;
   } else {
     abortScanLab(signal, scanptr,
-		 tabPtr.p->getErrorCode(scanptr.p->scanSchemaVersion));
+		 tabPtr.p->getErrorCode(scanptr.p->scanSchemaVersion),
+		 true);
     return;
   }
 
@@ -8906,20 +8908,22 @@ void Dbtc::execDI_FCOUNTREF(Signal* signal)
   ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_FRAGMENT_COUNT);
   if (apiConnectptr.p->apiFailState == ZTRUE) {
     jam();
-    releaseScanResources(scanptr);
+    releaseScanResources(scanptr, true);
     handleApiFailState(signal, apiConnectptr.i);
     return;
   }//if
-  abortScanLab(signal, scanptr, errCode);
+  abortScanLab(signal, scanptr, errCode, true);
 }//Dbtc::execDI_FCOUNTREF()
 
-void Dbtc::abortScanLab(Signal* signal, ScanRecordPtr scanptr, Uint32 errCode) 
+void Dbtc::abortScanLab(Signal* signal, ScanRecordPtr scanptr, Uint32 errCode,
+			bool not_started) 
 {
   scanTabRefLab(signal, errCode);
-  releaseScanResources(scanptr);
+  releaseScanResources(scanptr, not_started);
 }//Dbtc::abortScanLab()
 
-void Dbtc::releaseScanResources(ScanRecordPtr scanPtr)
+void Dbtc::releaseScanResources(ScanRecordPtr scanPtr,
+				bool not_started)
 {
   if (apiConnectptr.p->cachePtr != RNIL) {
     cachePtr.i = apiConnectptr.p->cachePtr;
@@ -8931,6 +8935,15 @@ void Dbtc::releaseScanResources(ScanRecordPtr scanPtr)
   ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   releaseTcCon();
 
+  if (not_started)
+  {
+    jam();
+    ScanFragList run(c_scan_frag_pool, scanPtr.p->m_running_scan_frags);
+    ScanFragList queue(c_scan_frag_pool, scanPtr.p->m_queued_scan_frags);
+    run.release();
+    queue.release();
+  }
+  
   ndbrequire(scanPtr.p->m_running_scan_frags.isEmpty());
   ndbrequire(scanPtr.p->m_queued_scan_frags.isEmpty());
   ndbrequire(scanPtr.p->m_delivered_scan_frags.isEmpty());
