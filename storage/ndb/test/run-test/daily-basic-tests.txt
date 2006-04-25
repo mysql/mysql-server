@@ -209,6 +209,10 @@ args: -n MassiveRollback2 T1 T6 T13 D1 D2
 
 max-time: 500
 cmd: testBasic
+args: -n MassiveRollback3 T1 D1
+
+max-time: 500
+cmd: testBasic
 args: -n TupError
 
 max-time: 500

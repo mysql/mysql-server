@@ -150,6 +150,7 @@ struct DropFileRef {
   enum ErrorCode {
     NoError = 0,
     Busy = 701,
+    NotMaster = 702,
     NoSuchFile = 766,
     DropUndoFileNotSupported = 769,
     InvalidSchemaObjectVersion = 774

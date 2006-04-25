@@ -666,6 +666,7 @@ else
   AC_MSG_RESULT([no])
 fi
 
+  
 MYSQL_SYS_LARGEFILE
 
 # Types that must be checked AFTER large file support is checked
@@ -774,6 +775,9 @@ AC_SUBST(WRAPLIBS)
 if test "$TARGET_LINUX" = "true"; then
   AC_MSG_CHECKING([for atomic operations])
 
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+
   atom_ops=
   AC_TRY_RUN([
 #include <asm/atomic.h>
@@ -808,6 +812,8 @@ int main()
 
   if test -z "$atom_ops"; then atom_ops="no"; fi
   AC_MSG_RESULT($atom_ops)
+
+  AC_LANG_RESTORE
 
   AC_ARG_WITH(pstack,
     [  --with-pstack           Use the pstack backtrace library],
@@ -1606,6 +1612,21 @@ else
   # Optimized version. No debug
   CFLAGS="$OPTIMIZE_CFLAGS -DDBUG_OFF $CFLAGS"
   CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS"
+fi
+
+# If we should allow error injection tests
+AC_ARG_WITH(error-inject,
+    [ --with-error-inject    Enable error injection in MySQL Server],
+    [ with_error_inject=$withval ],
+    [ with_error_inject=no ])
+
+if test $with_debug != "no"
+then
+  if test "$with_error_inject" = "yes"
+  then
+    AC_DEFINE([ERROR_INJECT_SUPPORT], [1],
+              [Enable error injection in MySQL Server])
+  fi
 fi
 
 AC_ARG_WITH([fast-mutexes],

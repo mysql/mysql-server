@@ -1524,6 +1524,7 @@ sub ndbcluster_start ($) {
   if ( mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
 	       ["--port=$opt_ndbcluster_port",
 		"--data-dir=$opt_vardir",
+	        "--character-sets-dir=$path_charsetsdir",
 		"--verbose=2",
 	        "--core"],
 	       "", "/dev/null", "", "") )
