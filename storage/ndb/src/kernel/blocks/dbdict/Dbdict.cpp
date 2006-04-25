@@ -472,6 +472,8 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
     Uint16 *data = (Uint16*)&signal->theData[25];
     Uint32 count = 2 + data[0] * data[1];
     w.add(DictTabInfo::ReplicaDataLen, 2*count);
+    for (Uint32 i = 0; i < count; i++)
+      data[i] = htons(data[i]);
     w.add(DictTabInfo::ReplicaData, data, 2*count);
   }
   else
