@@ -445,7 +445,7 @@ mem_heap_validate_or_print(
 			&& (mem_block_get_len(block) > UNIV_PAGE_SIZE)) {
 
 			fprintf(stderr,
-"InnoDB: Error: mem block %p length %lu > UNIV_PAGE_SIZE\n", block,
+"InnoDB: Error: mem block %p length %lu > UNIV_PAGE_SIZE\n", (void*) block,
 				(ulong) mem_block_get_len(block));
 			/* error */
 

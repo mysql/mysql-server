@@ -684,4 +684,11 @@ insert into t1 values ('y,abc'),('y,abc');
 select c, substring_index(lcase(c), @q:=',', -1) as res from t1;
 drop table t1;
 
-# End of 5.0 tests
+#
+# Bug #17043: Casting trimmed string to decimal loses precision
+#
+select cast(rtrim('  20.06 ') as decimal(19,2));
+select cast(ltrim('  20.06 ') as decimal(19,2));
+select cast(rtrim(ltrim('  20.06 ')) as decimal(19,2));
+
+--echo End of 5.0 tests

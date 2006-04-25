@@ -561,6 +561,31 @@ String *Item_int_func::val_str(String *str)
 }
 
 
+void Item_func_connection_id::fix_length_and_dec()
+{
+  Item_int_func::fix_length_and_dec();
+  max_length= 10;
+}
+
+
+bool Item_func_connection_id::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_int_func::fix_fields(thd, ref))
+    return TRUE;
+
+  /*
+    To replicate CONNECTION_ID() properly we should use
+    pseudo_thread_id on slave, which contains the value of thread_id
+    on master.
+  */
+  value= ((thd->slave_thread) ?
+          thd->variables.pseudo_thread_id :
+          thd->thread_id);
+
+  return FALSE;
+}
+
+
 /*
   Check arguments here to determine result's type for a numeric
   function of two arguments.
@@ -2464,11 +2489,8 @@ longlong Item_func_bit_count::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   ulonglong value= (ulonglong) args[0]->val_int();
-  if (args[0]->null_value)
-  {
-    null_value=1; /* purecov: inspected */
+  if ((null_value= args[0]->null_value))
     return 0; /* purecov: inspected */
-  }
   return (longlong) my_count_bits(value);
 }
 

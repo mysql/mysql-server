@@ -185,6 +185,10 @@ row_upd_index_replace_new_col_vals_index_pos(
 	upd_t*		update,	/* in: an update vector built for the index so
 				that the field number in an upd_field is the
 				index position */
+	ibool		order_only,
+				/* in: if TRUE, limit the replacement to
+				ordering fields of index; note that this
+				does not work for non-clustered indexes. */
 	mem_heap_t*	heap);	/* in: memory heap to which we allocate and
 				copy the new values, set this as NULL if you
 				do not want allocation */

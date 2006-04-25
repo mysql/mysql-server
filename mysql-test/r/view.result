@@ -2600,3 +2600,26 @@ id	td
 5	2005-01-04
 DROP VIEW v1;
 DROP TABLE t1;
+create table t1 (a int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+drop table t1;
+rename table v2 to t1;
+select * from v1;
+ERROR HY000: `test`.`v1` contain view recursion
+drop view t1, v1;
+create table t1 (a int);
+create function f1() returns int
+begin
+declare mx int;
+select max(a) from t1 into mx;
+return mx;
+end//
+create view v1 as select f1() as a;
+create view v2 as select * from v1;
+drop table t1;
+rename table v2 to t1;
+select * from v1;
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+drop function f1;
+drop view t1, v1;

@@ -436,14 +436,6 @@ sys_var_thd_storage_engine sys_storage_engine("storage_engine",
 				       &SV::table_type);
 #ifdef HAVE_REPLICATION
 sys_var_sync_binlog_period sys_sync_binlog_period("sync_binlog", &sync_binlog_period);
-sys_var_thd_ulong	sys_sync_replication("sync_replication",
-                                               &SV::sync_replication);
-sys_var_thd_ulong	sys_sync_replication_slave_id(
-						"sync_replication_slave_id",
-                                               &SV::sync_replication_slave_id);
-sys_var_thd_ulong	sys_sync_replication_timeout(
-						"sync_replication_timeout",
-                                               &SV::sync_replication_timeout);
 #endif
 sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
 sys_var_long_ptr	sys_table_def_size("table_definition_cache",
@@ -966,11 +958,6 @@ SHOW_VAR init_vars[]= {
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
 #endif
   {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
-#ifdef HAVE_REPLICATION
-  {sys_sync_replication.name, (char*) &sys_sync_replication,        SHOW_SYS},
-  {sys_sync_replication_slave_id.name, (char*) &sys_sync_replication_slave_id,SHOW_SYS},
-  {sys_sync_replication_timeout.name, (char*) &sys_sync_replication_timeout,SHOW_SYS},
-#endif
 #ifdef HAVE_TZNAME
   {"system_time_zone",        system_time_zone,                     SHOW_CHAR},
 #endif
