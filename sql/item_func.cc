@@ -4747,7 +4747,9 @@ Item_func_sp::sp_result_field(void) const
     dummy_table->s->table_name.str= empty_name;
     dummy_table->s->db.str= empty_name;
   }
-  field= m_sp->create_result_field(max_length, name, dummy_table);
+  if (!(field= m_sp->create_result_field(max_length, name, dummy_table)))
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+
   DBUG_RETURN(field);
 }
 
@@ -4773,8 +4775,14 @@ Item_func_sp::execute(Field **flp)
   
   if (!(f= *flp))
   {
-    *flp= f= sp_result_field();
-    f->move_field((f->pack_length() > sizeof(result_buf)) ? 
+    if (!(*flp= f= sp_result_field()))
+    {
+      /* Error set by sp_result_field() */
+      null_value= 1;
+      return TRUE;
+    }
+
+    f->move_field((f->pack_length() > sizeof(result_buf)) ?
                   sql_alloc(f->pack_length()) : result_buf);
     f->null_ptr= (uchar *)&null_value;
     f->null_bit= 1;
@@ -4926,16 +4934,19 @@ longlong Item_func_found_rows::val_int()
 Field *
 Item_func_sp::tmp_table_field(TABLE *t_arg)
 {
-  Field *res= 0;
+  Field *field= 0;
   DBUG_ENTER("Item_func_sp::tmp_table_field");
 
   if (m_sp)
-    res= m_sp->create_result_field(max_length, (const char*) name, t_arg);
+    field= m_sp->create_result_field(max_length, (const char*) name, t_arg);
   
-  if (!res) 
-    res= Item_func::tmp_table_field(t_arg);
+  if (!field) 
+    field= Item_func::tmp_table_field(t_arg);
 
-  DBUG_RETURN(res);
+  if (!field)
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+
+  DBUG_RETURN(field);
 }
 
 
