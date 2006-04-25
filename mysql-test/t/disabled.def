@@ -12,8 +12,6 @@
 events_bugs              : BUG#17619 2006-02-21 andrey  Race conditions
 events_stress            : BUG#17619 2006-02-21 andrey  Race conditions
 events                   : BUG#17619 2006-02-21 andrey  Race conditions
-events_scheduling        : BUG#18958 2006-04-13 andrey  Test case unstable
-events_logs_tests        : BUG#18953 2006-04-12 kent    Test is randomly failing
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 #ndb_cache2               : BUG#18597 2006-03-28 brian simultaneous drop table and ndb statistics update triggers node failure
