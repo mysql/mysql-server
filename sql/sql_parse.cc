@@ -647,6 +647,11 @@ check_connections(THD *thd)
   char *db=0;
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
     db=strend(passwd)+1;
+  if (strend(db ? db : passwd) - (char*)net->read_pos > pkt_len)
+  {
+    inc_host_errors(&thd->remote.sin_addr);
+    return ER_HANDSHAKE_ERROR;
+  }
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
     thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
@@ -1002,7 +1007,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       statistic_increment(com_other, &LOCK_status);
       slow_command = TRUE;
       uint db_len = *(uchar*)packet;
+      if (db_len >= packet_length || db_len > NAME_LEN)
+      {
+	send_error(&thd->net, ER_UNKNOWN_COM_ERROR);
+        break;
+      }
       uint tbl_len = *(uchar*)(packet + db_len + 1);
+      if (db_len+tbl_len+2 > packet_length || tbl_len > NAME_LEN)
+      {
+	send_error(&thd->net, ER_UNKNOWN_COM_ERROR);
+        break;
+      }
       char* db = thd->alloc(db_len + tbl_len + 2);
       memcpy(db, packet + 1, db_len);
       char* tbl_name = db + db_len;
