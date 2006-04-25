@@ -384,12 +384,13 @@ DROP DATABASE IF EXISTS BANK;
 CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
 USE BANK;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -p 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51 >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -e -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup51 >> $NDB_TOOLS_OUTPUT
 SHOW TABLES;
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
 SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
 SELECT COUNT(*) FROM TRANSACTION;
 SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
+SELECT * FROM cluster.apply_status WHERE server_id=0;
 
 #
 # verify restore of 5.0 backup
@@ -402,9 +403,10 @@ TRUNCATE TRANSACTION;
 TRUNCATE SYSTEM_VALUES;
 TRUNCATE ACCOUNT_TYPE;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup50 >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -e -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup50 >> $NDB_TOOLS_OUTPUT
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
 SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
 SELECT COUNT(*) FROM TRANSACTION;
 SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
+SELECT * FROM cluster.apply_status WHERE server_id=0;
 DROP DATABASE BANK;
