@@ -694,7 +694,7 @@ impossible position";
 
       if (loop_breaker)
         break;
-      
+
       end_io_cache(&log);
       (void) my_close(file, MYF(MY_WME));
 
@@ -834,7 +834,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
           /* Issuing warning then started without --skip-slave-start */
           if (!opt_skip_slave_start)
             push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                         ER_MISSING_SKIP_SLAVE, 
+                         ER_MISSING_SKIP_SLAVE,
                          ER(ER_MISSING_SKIP_SLAVE));
         }
 
@@ -860,7 +860,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_SLAVE_WAS_RUNNING,
                  ER(ER_SLAVE_WAS_RUNNING));
   }
-  
+
   unlock_slave_threads(mi);
 
   if (slave_errno)
@@ -1023,7 +1023,7 @@ err:
     slave_server_id     the slave's server id
 
 */
-  
+
 
 void kill_zombie_dump_threads(uint32 slave_server_id)
 {
@@ -1088,9 +1088,9 @@ bool change_master(THD* thd, MASTER_INFO* mi)
   */
 
   /*
-    If the user specified host or port without binlog or position, 
+    If the user specified host or port without binlog or position,
     reset binlog's name to FIRST and position to 4.
-  */ 
+  */
 
   if ((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
   {
@@ -1117,7 +1117,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
- 
+
   if (lex_mi->ssl != LEX_MASTER_INFO::SSL_UNCHANGED)
     mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::SSL_ENABLE);
   if (lex_mi->ssl_ca)
@@ -1133,7 +1133,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
 #ifndef HAVE_OPENSSL
   if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
       lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key )
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, 
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
 #endif
 
@@ -1500,7 +1500,7 @@ bool show_binlogs(THD* thd)
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));
-  field_list.push_back(new Item_return_int("File_size", 20, 
+  field_list.push_back(new Item_return_int("File_size", 20,
                                            MYSQL_TYPE_LONGLONG));
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))

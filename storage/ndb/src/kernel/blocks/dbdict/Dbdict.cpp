@@ -13396,6 +13396,24 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal){
   Uint32 requestInfo = req->requestInfo;
   
   do {
+    if(getOwnNodeId() != c_masterNodeId){
+      jam();
+      ref->errorCode = CreateFileRef::NotMaster;
+      ref->status    = 0;
+      ref->errorKey  = 0;
+      ref->errorLine = __LINE__;
+      break;
+    }
+    
+    if (c_blockState != BS_IDLE){
+      jam();
+      ref->errorCode = CreateFileRef::Busy;
+      ref->status    = 0;
+      ref->errorKey  = 0;
+      ref->errorLine = __LINE__;
+      break;
+    }
+
     Ptr<SchemaTransaction> trans_ptr;
     if (! c_Trans.seize(trans_ptr)){
       ref->errorCode = CreateFileRef::Busy;
@@ -13455,6 +13473,9 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal){
     tmp.init<CreateObjRef>(rg, GSN_CREATE_OBJ_REF, trans_key);
     sendSignal(rg, GSN_CREATE_OBJ_REQ, signal, 
 	       CreateObjReq::SignalLength, JBB);
+
+    c_blockState = BS_CREATE_TAB;
+
     return;
   } while(0);
   
@@ -13480,15 +13501,6 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal){
   Uint32 type = req->objType;
   
   do {
-    Ptr<SchemaTransaction> trans_ptr;
-    if (! c_Trans.seize(trans_ptr)){
-      ref->errorCode = CreateFilegroupRef::Busy;
-      ref->status    = 0;
-      ref->errorKey  = 0;
-      ref->errorLine = __LINE__;
-      break;
-    }
-
     if(getOwnNodeId() != c_masterNodeId){
       jam();
       ref->errorCode = CreateFilegroupRef::NotMaster;
@@ -13500,6 +13512,15 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal){
     
     if (c_blockState != BS_IDLE){
       jam();
+      ref->errorCode = CreateFilegroupRef::Busy;
+      ref->status    = 0;
+      ref->errorKey  = 0;
+      ref->errorLine = __LINE__;
+      break;
+    }
+
+    Ptr<SchemaTransaction> trans_ptr;
+    if (! c_Trans.seize(trans_ptr)){
       ref->errorCode = CreateFilegroupRef::Busy;
       ref->status    = 0;
       ref->errorKey  = 0;
@@ -13554,6 +13575,9 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal){
     tmp.init<CreateObjRef>(rg, GSN_CREATE_OBJ_REF, trans_key);
     sendSignal(rg, GSN_CREATE_OBJ_REQ, signal, 
 	       CreateObjReq::SignalLength, JBB);
+
+    c_blockState = BS_CREATE_TAB;
+
     return;
   } while(0);
   
@@ -13581,6 +13605,22 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
   Uint32 version = req->file_version;
   
   do {
+    if(getOwnNodeId() != c_masterNodeId){
+      jam();
+      ref->errorCode = DropFileRef::NotMaster;
+      ref->errorKey  = 0;
+      ref->errorLine = __LINE__;
+      break;
+    }
+    
+    if (c_blockState != BS_IDLE){
+      jam();
+      ref->errorCode = DropFileRef::Busy;
+      ref->errorKey  = 0;
+      ref->errorLine = __LINE__;
+      break;
+    }
+
     Ptr<File> file_ptr;
     if (!c_file_hash.find(file_ptr, objId))
     {
@@ -13636,6 +13676,9 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
     tmp.init<CreateObjRef>(rg, GSN_DROP_OBJ_REF, trans_key);
     sendSignal(rg, GSN_DROP_OBJ_REQ, signal, 
 	       DropObjReq::SignalLength, JBB);
+
+    c_blockState = BS_CREATE_TAB;
+
     return;
   } while(0);
   
@@ -13663,6 +13706,22 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
   Uint32 version = req->filegroup_version;
   
   do {
+    if(getOwnNodeId() != c_masterNodeId){
+      jam();
+      ref->errorCode = DropFilegroupRef::NotMaster;
+      ref->errorKey  = 0;
+      ref->errorLine = __LINE__;
+      break;
+    }
+    
+    if (c_blockState != BS_IDLE){
+      jam();
+      ref->errorCode = DropFilegroupRef::Busy;
+      ref->errorKey  = 0;
+      ref->errorLine = __LINE__;
+      break;
+    }
+    
     Ptr<Filegroup> filegroup_ptr;
     if (!c_filegroup_hash.find(filegroup_ptr, objId))
     {
@@ -13718,6 +13777,9 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
     tmp.init<CreateObjRef>(rg, GSN_DROP_OBJ_REF, trans_key);
     sendSignal(rg, GSN_DROP_OBJ_REQ, signal, 
 	       DropObjReq::SignalLength, JBB);
+
+    c_blockState = BS_CREATE_TAB;
+
     return;
   } while(0);
   
@@ -13892,6 +13954,7 @@ Dbdict::trans_commit_complete_done(Signal* signal,
     //@todo check api failed
     sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILEGROUP_CONF, signal, 
 	       CreateFilegroupConf::SignalLength, JBB);
+
     break;
   }
   case GSN_CREATE_FILE_REQ:{
@@ -13935,6 +13998,7 @@ Dbdict::trans_commit_complete_done(Signal* signal,
   }
   
   c_Trans.release(trans_ptr);
+  ndbrequire(c_blockState == BS_CREATE_TAB);
   c_blockState = BS_IDLE;
   return;
 }
@@ -14047,6 +14111,7 @@ Dbdict::trans_abort_complete_done(Signal* signal,
   }
   
   c_Trans.release(trans_ptr);
+  ndbrequire(c_blockState == BS_CREATE_TAB);
   c_blockState = BS_IDLE;
   return;
 }

@@ -313,7 +313,6 @@ opt_calc_index_goodness(
 	ulint		goodness;
 	ulint		n_fields;
 	ulint		col_no;
-	ulint		mix_id_col_no;
 	ulint		op;
 	ulint		j;
 
@@ -326,8 +325,6 @@ opt_calc_index_goodness(
 
 	n_fields = dict_index_get_n_unique_in_tree(index);
 
-	mix_id_col_no = dict_table_get_sys_col_no(index->table, DATA_MIX_ID);
-
 	for (j = 0; j < n_fields; j++) {
 
 		col_no = dict_index_get_nth_col_no(index, j);
@@ -335,13 +332,7 @@ opt_calc_index_goodness(
 		exp = opt_look_for_col_in_cond_before(OPT_EQUAL, col_no,
 						sel_node->search_cond,
 						sel_node, nth_table, &op);
-		if (col_no == mix_id_col_no) {
-			ut_ad(exp == NULL);
-
-			index_plan[j] = NULL;
-			*last_op = '=';
-			goodness += 4;
-		} else if (exp) {
+		if (exp) {
 			/* The value for this column is exactly known already
 			at this stage of the join */
 
@@ -531,7 +522,6 @@ opt_search_plan_for_table(
 							warning */
 	ulint		best_goodness;
 	ulint		best_last_op = 0; /* remove warning */
-	ulint		mix_id_pos;
 	que_node_t*	index_plan[256];
 	que_node_t*	best_index_plan[256];
 
@@ -599,26 +589,6 @@ opt_search_plan_for_table(
 		plan->unique_search = TRUE;
 	} else {
 		plan->unique_search = FALSE;
-	}
-
-	if ((table->type != DICT_TABLE_ORDINARY)
-				&& (best_index->type & DICT_CLUSTERED)) {
-
-		plan->mixed_index = TRUE;
-
-		mix_id_pos = table->mix_len;
-
-		if (mix_id_pos < n_fields) {
-			/* We have to add the mix id as a (string) literal
-			expression to the tuple_exps */
-
-			plan->tuple_exps[mix_id_pos] =
-				sym_tab_add_str_lit(pars_sym_tab_global,
-							table->mix_id_buf,
-							table->mix_id_len);
-		}
-	} else {
-		plan->mixed_index = FALSE;
 	}
 
 	plan->old_vers_heap = NULL;
@@ -1055,7 +1025,6 @@ opt_clust_access(
 	dict_table_t*	table;
 	dict_index_t*	clust_index;
 	dict_index_t*	index;
-	dfield_t*	dfield;
 	mem_heap_t*	heap;
 	ulint		n_fields;
 	ulint		pos;
@@ -1109,22 +1078,7 @@ opt_clust_access(
 
 		*(plan->clust_map + i) = pos;
 
-		ut_ad((pos != ULINT_UNDEFINED)
-			|| ((table->type == DICT_TABLE_CLUSTER_MEMBER)
-						&& (i == table->mix_len)));
-	}
-
-	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-
-		/* Preset the mix id field to the mix id constant */
-
-		dfield = dtuple_get_nth_field(plan->clust_ref, table->mix_len);
-
-		dfield_set_data(dfield, mem_heap_alloc(heap,
-							table->mix_id_len),
-							table->mix_id_len);
-		ut_memcpy(dfield_get_data(dfield), table->mix_id_buf,
-							table->mix_id_len);
+		ut_ad(pos != ULINT_UNDEFINED);
 	}
 }
 
