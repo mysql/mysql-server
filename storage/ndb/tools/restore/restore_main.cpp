@@ -502,7 +502,7 @@ main(int argc, char** argv)
   if (version > NDB_VERSION)
   {
     err << "Restore program older than backup version. Not supported. "
-        << "Use new restore program"
+        << "Use new restore program" << endl;
     exitHandler(NDBT_FAILED);
   }
 
