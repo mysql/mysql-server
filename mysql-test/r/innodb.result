@@ -1295,16 +1295,24 @@ insert into t2 (a) select b from t1;
 insert into t1 (a) select b from t2;
 insert into t2 (a) select b from t1;
 insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
+insert into t2 (a) select b from t1;
+insert into t1 (a) select b from t2;
 select count(*) from t1;
 count(*)
-623
+29267
 explain select * from t1 where c between 1 and 2500;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	c	c	5	NULL	#	Using where
 update t1 set c=a;
 explain select * from t1 where c between 1 and 2500;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	#	Using where
+1	SIMPLE	t1	range	c	c	5	NULL	#	Using where
 drop table t1,t2;
 create table t1 (id int primary key auto_increment, fk int, index index_fk (fk)) engine=innodb;
 insert into t1 (id) values (null),(null),(null),(null),(null);
@@ -1767,6 +1775,21 @@ select count(*) from t1 where x = 18446744073709551601;
 count(*)
 1
 drop table t1;
+show status like "Innodb_buffer_pool_pages_total";
+Variable_name	Value
+Innodb_buffer_pool_pages_total	512
+show status like "Innodb_page_size";
+Variable_name	Value
+Innodb_page_size	16384
+show status like "Innodb_rows_deleted";
+Variable_name	Value
+Innodb_rows_deleted	2070
+show status like "Innodb_rows_inserted";
+Variable_name	Value
+Innodb_rows_inserted	31727
+show status like "Innodb_rows_updated";
+Variable_name	Value
+Innodb_rows_updated	29530
 show status like "Innodb_row_lock_waits";
 Variable_name	Value
 Innodb_row_lock_waits	0
@@ -3397,3 +3420,38 @@ commit;
 drop table t1, t2, t3, t5, t6, t8, t9;
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
 ERROR HY000: Can't create table 'test.t1' (errno: -1)
+CREATE TABLE t1 (
+a BIGINT(20) NOT NULL,
+PRIMARY KEY  (a)
+) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+CREATE TABLE t2 (
+a BIGINT(20) NOT NULL,
+b VARCHAR(128) NOT NULL,
+c TEXT NOT NULL,
+PRIMARY KEY  (a,b),
+KEY idx_t2_b_c (b,c(200)),
+CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a) 
+ON DELETE CASCADE
+) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1, 'bar', 'vbar');
+INSERT INTO t2 VALUES (1, 'BAR2', 'VBAR');
+INSERT INTO t2 VALUES (1, 'bar_bar', 'bibi');
+INSERT INTO t2 VALUES (1, 'customer_over', '1');
+SELECT * FROM t2 WHERE b = 'customer_over';
+a	b	c
+1	customer_over	1
+SELECT * FROM t2 WHERE BINARY b = 'customer_over';
+a	b	c
+1	customer_over	1
+SELECT DISTINCT p0.a FROM t2 p0 WHERE p0.b = 'customer_over';
+a
+1
+/* Bang: Empty result set, above was expected: */
+SELECT DISTINCT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
+a
+1
+SELECT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
+a
+1
+drop table t2, t1;

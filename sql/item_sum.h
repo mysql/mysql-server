@@ -1121,7 +1121,7 @@ public:
   virtual Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const
   {
-    if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
+    if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB )
       return FIELD_TYPE_BLOB;
     else
       return MYSQL_TYPE_VARCHAR;

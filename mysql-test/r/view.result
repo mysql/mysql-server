@@ -2623,3 +2623,29 @@ select * from v1;
 ERROR HY000: Recursive stored functions and triggers are not allowed.
 drop function f1;
 drop view t1, v1;
+create table t1 (dt datetime);
+insert into t1 values (20040101000000), (20050101000000), (20060101000000);
+create view v1 as select convert_tz(dt, 'UTC', 'Europe/Moscow') as ldt from t1;
+select * from v1;
+ldt
+2004-01-01 03:00:00
+2005-01-01 03:00:00
+2006-01-01 03:00:00
+drop view v1;
+create view v1 as select * from t1 where convert_tz(dt, 'UTC', 'Europe/Moscow') >= 20050101000000;
+select * from v1;
+dt
+2005-01-01 00:00:00
+2006-01-01 00:00:00
+create view v2 as select * from v1 where dt < 20060101000000;
+select * from v2;
+dt
+2005-01-01 00:00:00
+drop view v2;
+create view v2 as select convert_tz(dt, 'UTC', 'Europe/Moscow') as ldt from v1;
+select * from v2;
+ldt
+2005-01-01 03:00:00
+2006-01-01 03:00:00
+drop view v1, v2;
+drop table t1;
