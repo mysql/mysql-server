@@ -317,7 +317,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  GEOMFROMWKB
 %token  GET_FORMAT
 %token  GLOBAL_SYM
-%token  GOTO_SYM
 %token  GRANT
 %token  GRANTS
 %token  GREATEST_SYM
@@ -1691,8 +1690,6 @@ create_function_tail:
             if (sp->is_not_allowed_in_function("function"))
               YYABORT;
 
-	    if (sp->check_backpatch(YYTHD))
-	      YYABORT;
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
 	    sp->init_strings(YYTHD, lex, lex->spname);
             if (!(sp->m_flags & sp_head::HAS_RETURN))
@@ -11064,8 +11061,6 @@ sp_tail:
 	  LEX *lex= Lex;
 	  sp_head *sp= lex->sphead;
 
-	  if (sp->check_backpatch(YYTHD))
-	    YYABORT;
 	  sp->init_strings(YYTHD, lex, $3);
 	  lex->sql_command= SQLCOM_CREATE_PROCEDURE;
           /*
