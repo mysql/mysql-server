@@ -171,7 +171,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_defaults.m_logBufferSize = szLogBuf;
   c_defaults.m_dataBufferSize = szDataBuf;
   c_defaults.m_minWriteSize = szWrite;
-  c_defaults.m_maxWriteSize = szWrite;
+  c_defaults.m_maxWriteSize = 256*1024;
   c_defaults.m_lcp_buffer_size = szDataBuf;
   
 

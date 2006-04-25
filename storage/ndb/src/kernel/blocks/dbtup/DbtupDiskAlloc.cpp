@@ -1053,7 +1053,6 @@ Dbtup::disk_page_abort_prealloc_callback(Signal* signal,
   Ptr<Fragrecord> fragPtr;
   getFragmentrec(fragPtr, pagePtr.p->m_fragment_id, tabPtr.p);
 
-  disk_page_set_dirty(pagePtr);
   disk_page_abort_prealloc_callback_1(signal, fragPtr.p, pagePtr, sz);
 }
 
@@ -1063,6 +1062,9 @@ Dbtup::disk_page_abort_prealloc_callback_1(Signal* signal,
 					   PagePtr pagePtr,
 					   Uint32 sz)
 {
+  jam();
+  disk_page_set_dirty(pagePtr);
+
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
   Uint32 page_idx = pagePtr.p->list_index;
   Uint32 used = pagePtr.p->uncommitted_used_space;
@@ -1075,13 +1077,6 @@ Dbtup::disk_page_abort_prealloc_callback_1(Signal* signal,
   ddassert(alloc.calc_page_free_bits(free - used) == old_idx);
   Uint32 new_idx = alloc.calc_page_free_bits(free - used + sz);
 
-#ifdef VM_TRACE
-  Local_key key;
-  key.m_page_no = pagePtr.p->m_page_no;
-  key.m_file_no = pagePtr.p->m_file_no;
-  ndbout << "disk_page_abort_prealloc_callback_1" << key << endl;
-#endif
-  
   Ptr<Extent_info> extentPtr;
   c_extent_pool.getPtr(extentPtr, ext);
   if (old_idx != new_idx)
