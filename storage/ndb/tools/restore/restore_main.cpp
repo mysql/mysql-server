@@ -483,10 +483,29 @@ main(int argc, char** argv)
   char buf[NDB_VERSION_STRING_BUF_SZ];
   info << "Ndb version in backup files: " 
 	 <<  getVersionString(version, 0, buf, sizeof(buf)) << endl;
-  
+
   /**
    * check wheater we can restore the backup (right version).
    */
+  // in these versions there was an error in how replica info was
+  // stored on disk
+  if (version >= MAKE_VERSION(5,1,3) && version <= MAKE_VERSION(5,1,9))
+  {
+    err << "Restore program incompatible with backup versions between "
+        << getVersionString(MAKE_VERSION(5,1,3), 0, buf, sizeof(buf))
+        << " and "
+        << getVersionString(MAKE_VERSION(5,1,9), 0, buf, sizeof(buf))
+        << endl;
+    exitHandler(NDBT_FAILED);
+  }
+
+  if (version > NDB_VERSION)
+  {
+    err << "Restore program older than backup version. Not supported. "
+        << "Use new restore program"
+    exitHandler(NDBT_FAILED);
+  }
+
   debug << "Load content" << endl;
   int res  = metaData.loadContent();
   
