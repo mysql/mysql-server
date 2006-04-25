@@ -289,6 +289,48 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+CREATE TABLE t1(a int NOT NULL AUTO_INCREMENT PRIMARY KEY);
+SET GLOBAL key_cache_block_size=1536;
+INSERT INTO t1 VALUES (1);
+SELECT @@key_cache_block_size;
+@@key_cache_block_size
+1536
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1(a int NOT NULL AUTO_INCREMENT PRIMARY KEY, b int);
+CREATE TABLE t2(a int NOT NULL AUTO_INCREMENT PRIMARY KEY, b int);
+SET GLOBAL key_cache_block_size=1536;
+INSERT INTO t1 VALUES (1,0);
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+INSERT INTO t2(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t2;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+4181
+SELECT @@key_cache_block_size;
+@@key_cache_block_size
+1536
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1,t2;
 set @@global.key_buffer_size=0;
 Warnings:
 Warning	1438	Cannot drop default keycache
