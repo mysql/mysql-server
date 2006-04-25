@@ -224,7 +224,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
-  if (select_lex->next_select())
+  if (select_lex->next_select() || select_lex->master_unit()->fake_select_lex)
     res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
   else
   {

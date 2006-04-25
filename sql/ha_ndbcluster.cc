@@ -8948,7 +8948,9 @@ void ndb_serialize_cond(const Item *item, void *arg)
           prev_cond->next= curr_cond;
           curr_cond->ndb_item= new Ndb_item(NDB_END_COND);
           // Pop rewrite stack
-          context->rewrite_stack= context->rewrite_stack->next;
+          context->rewrite_stack=  rewrite_context->next;
+          rewrite_context->next= NULL;
+          delete(rewrite_context);
         }
       }
     }
