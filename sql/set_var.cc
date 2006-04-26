@@ -993,7 +993,8 @@ struct show_var_st init_vars[]= {
 #ifdef HAVE_SYS_UN_H
   {"socket",                  (char*) &mysqld_unix_port,             SHOW_CHAR_PTR},
 #endif
-  {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
+  {sys_sort_buffer.name,      (char*) &sys_sort_buffer,             SHOW_SYS},
+  {sys_big_selects.name,      (char*) &sys_big_selects,             SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
   {"sql_notes",               (char*) &sys_sql_notes,               SHOW_BOOL},
   {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_BOOL},
