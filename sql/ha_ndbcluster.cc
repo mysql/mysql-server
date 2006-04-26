@@ -7267,11 +7267,24 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
 {
   DBUG_ENTER("ndb_get_table_statistics");
   DBUG_PRINT("enter", ("table: %s", table));
-  NdbTransaction* pTrans= ndb->startTransaction();
-  if (pTrans == NULL)
-    ERR_RETURN(ndb->getNdbError());
-  do 
+  NdbTransaction* pTrans;
+  int retries= 10;
+  int retry_sleep= 30 * 1000; /* 30 milliseconds */
+
+  do
   {
+    pTrans= ndb->startTransaction();
+    if (pTrans == NULL)
+    {
+      if (ndb->getNdbError().status == NdbError::TemporaryError &&
+          retries--)
+      {
+        my_sleep(retry_sleep);
+        continue;
+      }
+      ERR_RETURN(ndb->getNdbError());
+    }
+
     NdbScanOperation* pOp= pTrans->getNdbScanOperation(table);
     if (pOp == NULL)
       break;
@@ -7294,8 +7307,18 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
                            NdbTransaction::AbortOnError,
                            TRUE);
     if (check == -1)
+    {
+      if (pTrans->getNdbError().status == NdbError::TemporaryError &&
+          retries--)
+      {
+        ndb->closeTransaction(pTrans);
+        pTrans= 0;
+        my_sleep(retry_sleep);
+        continue;
+      }
       break;
-    
+    }
+
     Uint32 count= 0;
     Uint64 sum_rows= 0;
     Uint64 sum_commits= 0;
@@ -7329,7 +7352,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
                         sum_mem, count));
 
     DBUG_RETURN(0);
-  } while (0);
+  } while(1);
 
   if (pTrans)
     ndb->closeTransaction(pTrans);

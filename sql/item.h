@@ -1486,6 +1486,7 @@ public:
   }
   uint decimal_precision() const { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const;
+  void set_decimal_value(my_decimal *value_par);
 };
 
 
