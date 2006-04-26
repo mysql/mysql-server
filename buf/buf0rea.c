@@ -65,6 +65,7 @@ buf_read_page_low(
 			ORed to OS_AIO_SIMULATED_WAKE_LATER (see below
 			at read-ahead functions) */
 	ulint	space,	/* in: space id */
+	ulint	zip_size,/* in: compressed page size, or 0 */
 	ib_longlong tablespace_version, /* in: if the space memory object has
 			this timestamp different from what we are giving here,
 			treat the tablespace as dropped; this is a timestamp we
@@ -122,8 +123,8 @@ buf_read_page_low(
 	or is being dropped; if we succeed in initing the page in the buffer
 	pool for read, then DISCARD cannot proceed until the read has
 	completed */
-	block = buf_page_init_for_read(err, mode, space, tablespace_version,
-								offset);
+	block = buf_page_init_for_read(err, mode, space, zip_size,
+					tablespace_version, offset);
 	if (block == NULL) {
 
 		return(0);
@@ -177,6 +178,7 @@ buf_read_ahead_random(
 			wants to access */
 {
 	ib_longlong	tablespace_version;
+	ulint		zip_size;
 	buf_block_t*	block;
 	ulint		recent_blocks	= 0;
 	ulint		count;
@@ -199,6 +201,8 @@ buf_read_ahead_random(
 
 		return(0);
 	}
+
+	zip_size = fil_space_get_zip_size(space);
 
 	/* Remember the tablespace version before we ask te tablespace size
 	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
@@ -269,7 +273,8 @@ buf_read_ahead_random(
 		if (!ibuf_bitmap_page(i)) {
 			count += buf_read_page_low(&err, FALSE, ibuf_mode
 					| OS_AIO_SIMULATED_WAKE_LATER,
-					space, tablespace_version, i);
+					space, zip_size,
+					tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -316,10 +321,12 @@ buf_read_page(
 	ulint	offset)	/* in: page number */
 {
 	ib_longlong	tablespace_version;
+	ulint		zip_size;
 	ulint		count;
 	ulint		count2;
 	ulint		err;
 
+	zip_size = fil_space_get_zip_size(space);
 	tablespace_version = fil_space_get_version(space);
 
 	count = buf_read_ahead_random(space, offset);
@@ -328,7 +335,7 @@ buf_read_page(
 	switches: hence TRUE */
 
 	count2 = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
-					tablespace_version, offset);
+					zip_size, tablespace_version, offset);
 	srv_buf_pool_reads+= count2;
 	if (err == DB_TABLESPACE_DELETED) {
 		ut_print_timestamp(stderr);
@@ -377,6 +384,7 @@ buf_read_ahead_linear(
 			must want access to this page (see NOTE 3 above) */
 {
 	ib_longlong	tablespace_version;
+	ulint		zip_size;
 	buf_block_t*	block;
 	buf_frame_t*	frame;
 	buf_block_t*	pred_block	= NULL;
@@ -415,6 +423,8 @@ buf_read_ahead_linear(
 
 		return(0);
 	}
+
+	zip_size = fil_space_get_zip_size(space);
 
 	/* Remember the tablespace version before we ask te tablespace size
 	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
@@ -556,7 +566,8 @@ buf_read_ahead_linear(
 		if (!ibuf_bitmap_page(i)) {
 			count += buf_read_page_low(&err, FALSE, ibuf_mode
 					| OS_AIO_SIMULATED_WAKE_LATER,
-					space,	tablespace_version, i);
+					space, zip_size,
+					tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -623,13 +634,9 @@ buf_read_ibuf_merge_pages(
 	}
 
 	for (i = 0; i < n_stored; i++) {
-		if ((i + 1 == n_stored) && sync) {
-			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE,
-				space_ids[i], space_versions[i], page_nos[i]);
-		} else {
-			buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE,
-				space_ids[i], space_versions[i], page_nos[i]);
-		}
+		buf_read_page_low(&err, sync && (i + 1 == n_stored),
+				BUF_READ_ANY_PAGE, space_ids[i], 0,
+				space_versions[i], page_nos[i]);
 
 		if (err == DB_TABLESPACE_DELETED) {
 			/* We have deleted or are deleting the single-table
@@ -669,10 +676,12 @@ buf_read_recv_pages(
 	ulint	n_stored)	/* in: number of page numbers in the array */
 {
 	ib_longlong	tablespace_version;
+	ulint		zip_size;
 	ulint		count;
 	ulint		err;
 	ulint		i;
 
+	zip_size = fil_space_get_zip_size(space);
 	tablespace_version = fil_space_get_version(space);
 
 	for (i = 0; i < n_stored; i++) {
@@ -704,11 +713,11 @@ buf_read_recv_pages(
 
 		if ((i + 1 == n_stored) && sync) {
 			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
-				tablespace_version, page_nos[i]);
+				zip_size, tablespace_version, page_nos[i]);
 		} else {
 			buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
-				| OS_AIO_SIMULATED_WAKE_LATER,
-				space, tablespace_version, page_nos[i]);
+				| OS_AIO_SIMULATED_WAKE_LATER, space,
+				zip_size, tablespace_version, page_nos[i]);
 		}
 	}
 

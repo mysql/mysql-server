@@ -1559,6 +1559,7 @@ buf_page_get_known_nowait(
 	return(TRUE);
 }
 
+#ifdef UNIV_HOTBACKUP
 /************************************************************************
 Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
 
@@ -1594,9 +1595,12 @@ buf_page_init_for_backup_restore(
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
 	block->side		= BTR_SEARCH_LEFT_SIDE;
+	page_zip_des_init(&block->page_zip);
+	/* TODO: allocate page_zip->data? */
 
 	block->file_page_was_freed = FALSE;
 }
+#endif /* UNIV_HOTBACKUP */
 
 /************************************************************************
 Inits a page to the buffer buf_pool. */
@@ -1607,12 +1611,15 @@ buf_page_init(
 	ulint		space,	/* in: space id */
 	ulint		offset,	/* in: offset of the page within space
 				in units of a page */
+	ulint		zip_size,/* in: compressed page size in bytes,
+				or 0 if uncompressed tablespace */
 	buf_block_t*	block)	/* in: block to init */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(block->state != BUF_BLOCK_FILE_PAGE);
+	ut_a(space || !zip_size);
 
 	/* Set the state of the block */
 	block->magic_n		= BUF_BLOCK_MAGIC_N;
@@ -1627,11 +1634,19 @@ buf_page_init(
 	block->lock_hash_val	= lock_rec_hash(space, offset);
 	block->lock_mutex	= NULL;
 
+	block->page_zip.size	= zip_size;
+	if (UNIV_UNLIKELY(zip_size)) {
+		/* TODO: allocate this from a separate pool */
+		block->page_zip.data = ut_malloc(zip_size);
+	} else {
+		block->page_zip.data = NULL;
+	}
+
 	/* Insert into the hash table of file pages */
 
-	if (buf_page_hash_get(space, offset)) {
+	if (UNIV_LIKELY_NULL(buf_page_hash_get(space, offset))) {
 		fprintf(stderr,
-"InnoDB: Error: page %lu %lu already found from the hash table\n",
+"InnoDB: Error: page %lu %lu already found in the hash table\n",
 			(ulong) space,
 			(ulong) offset);
 #ifdef UNIV_DEBUG
@@ -1640,7 +1655,7 @@ buf_page_init(
 		buf_validate();
 		buf_LRU_validate();
 #endif /* UNIV_DEBUG */
-		ut_a(0);
+		ut_error;
 	}
 
 	HASH_INSERT(buf_block_t, hash, buf_pool->page_hash,
@@ -1683,6 +1698,7 @@ buf_page_init_for_read(
 	ulint*		err,	/* out: DB_SUCCESS or DB_TABLESPACE_DELETED */
 	ulint		mode,	/* in: BUF_READ_IBUF_PAGES_ONLY, ... */
 	ulint		space,	/* in: space id */
+	ulint		zip_size,/* in: compressed page size, or 0 */
 	ib_longlong	tablespace_version,/* in: prevents reading from a wrong
 				version of the tablespace in case we have done
 				DISCARD + IMPORT */
@@ -1743,7 +1759,7 @@ buf_page_init_for_read(
 
 	ut_ad(block);
 
-	buf_page_init(space, offset, block);
+	buf_page_init(space, offset, zip_size, block);
 
 	/* The block must be put to the LRU list, to the old blocks */
 
@@ -1784,6 +1800,7 @@ buf_page_create(
 	ulint	space,	/* in: space id */
 	ulint	offset,	/* in: offset of the page within space in units of
 			a page */
+	ulint	zip_size,/* in: compressed page size, or 0 */
 	mtr_t*	mtr)	/* in: mini-transaction handle */
 {
 	buf_frame_t*	frame;
@@ -1791,6 +1808,7 @@ buf_page_create(
 	buf_block_t*	free_block	= NULL;
 
 	ut_ad(mtr);
+	ut_ad(space || !zip_size);
 
 	free_block = buf_LRU_get_free_block();
 
@@ -1825,7 +1843,7 @@ buf_page_create(
 
 	block = free_block;
 
-	buf_page_init(space, offset, block);
+	buf_page_init(space, offset, zip_size, block);
 
 	/* The block must be put to the LRU list */
 	buf_LRU_add_block(block, FALSE);
@@ -1914,7 +1932,8 @@ buf_page_io_complete(
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
-		if (buf_page_is_corrupted(block->frame, 0/*TODO:zip_size*/)) {
+		if (buf_page_is_corrupted(block->frame/* TODO */,
+					block->page_zip.size)) {
 			fprintf(stderr,
 		"InnoDB: Database page corruption on disk or a failed\n"
 		"InnoDB: file read of page %lu.\n", (ulong) block->offset);
