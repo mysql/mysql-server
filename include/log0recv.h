@@ -214,6 +214,7 @@ void
 recv_recovery_from_archive_finish(void);
 /*===================================*/
 #endif /* UNIV_LOG_ARCHIVE */
+#ifdef UNIV_LOG_REPLICATE
 /***********************************************************************
 Checks that a replica of a space is identical to the original space. */
 
@@ -235,6 +236,7 @@ recv_compare_spaces_low(
 	ulint	space1,	/* in: space id */
 	ulint	space2,	/* in: space id */
 	ulint	n_pages);/* in: number of pages */
+#endif /* UNIV_LOG_REPLICATE */
 
 /* Block of log record data */
 typedef struct recv_data_struct	recv_data_t;

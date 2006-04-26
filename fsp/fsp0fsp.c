@@ -890,7 +890,7 @@ fsp_header_init(
 
 	mtr_x_lock(fil_space_get_latch(space), mtr);
 
-	page = buf_page_create(space, 0, mtr);
+	page = buf_page_create(space, 0, 0/* TODO: zip_size!=16k? */, mtr);
 	buf_page_get(space, 0, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_FSP_PAGE);
@@ -1272,7 +1272,8 @@ fsp_fill_free_list(
 			pages should be ignored. */
 
 			if (i > 0) {
-				descr_page = buf_page_create(space, i, mtr);
+				/* TODO: zip_size != 16384 */
+				descr_page = buf_page_create(space, i, 0, mtr);
 				buf_page_get(space, i, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 				buf_page_dbg_add_level(descr_page,
@@ -1290,8 +1291,10 @@ fsp_fill_free_list(
 
 			mtr_start(&ibuf_mtr);
 
+			/* TODO: no ibuf on compressed tablespaces */
 			ibuf_page = buf_page_create(space,
-					i + FSP_IBUF_BITMAP_OFFSET, &ibuf_mtr);
+					i + FSP_IBUF_BITMAP_OFFSET,
+					0, &ibuf_mtr);
 			buf_page_get(space, i + FSP_IBUF_BITMAP_OFFSET,
 							RW_X_LATCH, &ibuf_mtr);
 #ifdef UNIV_SYNC_DEBUG
@@ -1511,7 +1514,8 @@ fsp_alloc_free_page(
 	be obtained immediately with buf_page_get without need for a disk
 	read. */
 
-	buf_page_create(space, page_no, mtr);
+	buf_page_create(space, page_no,
+			mach_read_from_4(FSP_PAGE_ZIP_SIZE + header), mtr);
 
 	page = buf_page_get(space, page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
@@ -2544,9 +2548,14 @@ fseg_alloc_free_page_low(
 		can be obtained immediately with buf_page_get without need
 		for a disk read */
 
-		page = buf_page_create(space, ret_page, mtr);
+		page = buf_page_create(space, ret_page,
+				mach_read_from_4(FSP_PAGE_ZIP_SIZE
+				+ space_header), mtr);
 
-		ut_a(page == buf_page_get(space, ret_page, RW_X_LATCH, mtr));
+		if (UNIV_UNLIKELY(page != buf_page_get(
+				space, ret_page, RW_X_LATCH, mtr))) {
+			ut_error;
+		}
 
 #ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(page, SYNC_FSP_PAGE);

@@ -858,7 +858,7 @@ btr_page_reorganize_low(
 	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	page_t*	new_page;
+	page_t*	temp_page;
 	ulint	log_mode;
 	ulint	data_size1;
 	ulint	data_size2;
@@ -881,10 +881,10 @@ btr_page_reorganize_low(
 	/* Turn logging off */
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
-	new_page = buf_frame_alloc();
+	temp_page = buf_frame_alloc();
 
 	/* Copy the old page to temporary space */
-	buf_frame_copy(new_page, page);
+	buf_frame_copy(temp_page, page);
 
 	if (UNIV_LIKELY(!recovery)) {
 		btr_search_drop_page_hash_index(page);
@@ -900,16 +900,16 @@ btr_page_reorganize_low(
 	do not copy the lock bits yet */
 
 	page_copy_rec_list_end_no_locks(page,
-				page_get_infimum_rec(new_page), index, mtr);
+				page_get_infimum_rec(temp_page), index, mtr);
 	/* Copy max trx id to recreated page */
-	page_set_max_trx_id(page, NULL, page_get_max_trx_id(new_page));
+	page_set_max_trx_id(page, NULL, page_get_max_trx_id(temp_page));
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_compress(
 				page_zip, page, index))) {
 
 			/* Restore the old page and exit. */
-			buf_frame_copy(page, new_page);
+			buf_frame_copy(page, temp_page);
 
 			goto func_exit;
 		}
@@ -917,7 +917,7 @@ btr_page_reorganize_low(
 
 	if (UNIV_LIKELY(!recovery)) {
 		/* Update the record lock bitmaps */
-		lock_move_reorganize_page(page, new_page);
+		lock_move_reorganize_page(page, temp_page);
 	}
 
 	data_size2 = page_get_data_size(page);
@@ -926,7 +926,7 @@ btr_page_reorganize_low(
 	if (UNIV_UNLIKELY(data_size1 != data_size2)
 			|| UNIV_UNLIKELY(max_ins_size1 != max_ins_size2)) {
 		buf_page_print(page);
-		buf_page_print(new_page);
+		buf_page_print(temp_page);
 		fprintf(stderr,
 "InnoDB: Error: page old data size %lu new data size %lu\n"
 "InnoDB: Error: page old max ins size %lu new max ins size %lu\n"
@@ -940,7 +940,7 @@ btr_page_reorganize_low(
 
 func_exit:
 	ut_ad(!page_zip || page_zip_validate(page_zip, page));
-	buf_frame_free(new_page);
+	buf_frame_free(temp_page);
 
 	/* Restore logging mode */
 	mtr_set_log_mode(mtr, log_mode);

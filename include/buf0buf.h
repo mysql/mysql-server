@@ -238,6 +238,7 @@ buf_page_create(
 	ulint	space,	/* in: space id */
 	ulint	offset,	/* in: offset of the page within space in units of
 			a page */
+	ulint	zip_size,/* in: compressed page size, or 0 */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /************************************************************************
 Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
@@ -679,6 +680,7 @@ buf_page_init_for_read(
 	ulint*		err,	/* out: DB_SUCCESS or DB_TABLESPACE_DELETED */
 	ulint		mode,	/* in: BUF_READ_IBUF_PAGES_ONLY, ... */
 	ulint		space,	/* in: space id */
+	ulint		zip_size,/* in: compressed page size, or 0 */
 	ib_longlong	tablespace_version,/* in: prevents reading from a wrong
 				version of the tablespace in case we have done
 				DISCARD + IMPORT */
