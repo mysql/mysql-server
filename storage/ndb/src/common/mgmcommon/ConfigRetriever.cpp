@@ -355,12 +355,14 @@ ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds)
 	if(!ndb_mgm_connect(m_handle, 0, 0, 0))
 	  goto next;
 
-      res= ndb_mgm_alloc_nodeid(m_handle, m_version, m_node_type);
+      res= ndb_mgm_alloc_nodeid(m_handle, m_version, m_node_type,
+                                no_retries == 0 /* only log last retry */);
       if(res >= 0)
 	return _ownNodeId= (Uint32)res;
 
   next:
-      if (no_retries == 0)
+      int error = ndb_mgm_get_latest_error(m_handle);
+      if (no_retries == 0 || error == NDB_MGM_ALLOCID_CONFIG_MISMATCH)
 	break;
       no_retries--;
       NdbSleep_SecSleep(retry_delay_in_seconds);
