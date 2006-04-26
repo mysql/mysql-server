@@ -1598,13 +1598,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint db_len= *(uchar*) packet;
     if (db_len >= packet_length || db_len > NAME_LEN)
     {
-      send_error(thd, ER_UNKNOWN_COM_ERROR);
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       break;
     }
     uint tbl_len= *(uchar*) (packet + db_len + 1);
     if (db_len+tbl_len+2 > packet_length || tbl_len > NAME_LEN)
     {
-      send_error(thd, ER_UNKNOWN_COM_ERROR);
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       break;
     }
 
