@@ -48,9 +48,9 @@ select * from t1;
 delete from t1;
 
 connection default;
-delete from mysql.user where user='ssl_user%';
-delete from mysql.db where user='ssl_user%';
-flush privileges;
+drop user ssl_user1@localhost, ssl_user2@localhost,
+ssl_user3@localhost, ssl_user4@localhost;
+
 drop table t1;
 
 # End of 4.1 tests
