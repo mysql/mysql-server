@@ -273,6 +273,18 @@ it is read or written. */
 /* Compile-time constant of the given array's size. */
 #define UT_ARR_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
+/* The return type from a thread's start function differs between Unix and
+Windows, so define a typedef for it and a macro to use at the end of such
+functions. */
+
+#ifdef __WIN__
+typedef ulint os_thread_ret_t;
+#define OS_THREAD_DUMMY_RETURN return(0)
+#else
+typedef void* os_thread_ret_t;
+#define OS_THREAD_DUMMY_RETURN return(NULL)
+#endif
+
 #include <stdio.h>
 #include "ut0dbg.h"
 #include "ut0ut.h"
