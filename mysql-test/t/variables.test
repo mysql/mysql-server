@@ -472,4 +472,12 @@ select @@character_set_filesystem;
 set @@global.character_set_filesystem=default;
 select @@global.character_set_filesystem;
 
-# End of 5.0 tests
+#
+# Bug #17849: Show sql_big_selects in SHOW VARIABLES
+#
+set @old_sql_big_selects = @@sql_big_selects;
+set @@sql_big_selects = 1;
+show variables like 'sql_big_selects';
+set @@sql_big_selects = @old_sql_big_selects;
+
+--echo End of 5.0 tests
