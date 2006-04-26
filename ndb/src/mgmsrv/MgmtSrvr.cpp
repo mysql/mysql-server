@@ -2378,6 +2378,8 @@ MgmtSrvr::repCommand(Uint32* repReqId, Uint32 request, bool waitCompleted)
 MgmtSrvr::Allocated_resources::Allocated_resources(MgmtSrvr &m)
   : m_mgmsrv(m)
 {
+  m_reserved_nodes.clear();
+  m_alloc_timeout= 0;
 }
 
 MgmtSrvr::Allocated_resources::~Allocated_resources()
@@ -2396,9 +2398,22 @@ MgmtSrvr::Allocated_resources::~Allocated_resources()
 }
 
 void
-MgmtSrvr::Allocated_resources::reserve_node(NodeId id)
+MgmtSrvr::Allocated_resources::reserve_node(NodeId id, NDB_TICKS timeout)
 {
   m_reserved_nodes.set(id);
+  m_alloc_timeout= NdbTick_CurrentMillisecond() + timeout;
+}
+
+bool
+MgmtSrvr::Allocated_resources::is_timed_out(NDB_TICKS tick)
+{
+  if (m_alloc_timeout && tick > m_alloc_timeout)
+  {
+    g_eventLogger.info("Mgmt server state: nodeid %d timed out.",
+                       get_nodeid());
+    return true;
+  }
+  return false;
 }
 
 NodeId
