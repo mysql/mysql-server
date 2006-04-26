@@ -5614,4 +5614,4 @@ ER_SP_NO_AGGREGATE 42000
 ER_MAX_PREPARED_STMT_COUNT_REACHED 42000
         eng "Can't create more than max_prepared_stmt_count statements (current value: %lu)"
 ER_VIEW_RECURSIVE
-        eng "`%-.64s`.`%-.64s` contain view recursion"
+        eng "`%-.64s`.`%-.64s` contains view recursion"
