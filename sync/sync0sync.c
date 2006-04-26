@@ -1050,6 +1050,9 @@ sync_thread_add_level(
 	case SYNC_RECV:
 		ut_a(sync_thread_levels_g(array, SYNC_RECV));
 		break;
+	case SYNC_WORK_QUEUE:
+		ut_a(sync_thread_levels_g(array, SYNC_WORK_QUEUE));
+		break;
 	case SYNC_LOG:
 		ut_a(sync_thread_levels_g(array, SYNC_LOG));
 		break;

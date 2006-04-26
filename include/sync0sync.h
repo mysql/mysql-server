@@ -426,6 +426,7 @@ or row lock! */
 #define SYNC_TRX_SYS_HEADER	290
 #define SYNC_LOG		170
 #define SYNC_RECV		168
+#define SYNC_WORK_QUEUE		161
 #define	SYNC_SEARCH_SYS		160	/* NOTE that if we have a memory
 					heap that can be extended to the
 					buffer pool, its logical level is
