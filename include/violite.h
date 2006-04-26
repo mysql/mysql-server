@@ -105,33 +105,22 @@ void	vio_timeout(Vio *vio,uint which, uint timeout);
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-struct st_VioSSLAcceptorFd 
+struct st_VioSSLFd
 {
   SSL_CTX *ssl_context;
-  SSL_METHOD *ssl_method;
-  struct st_VioSSLAcceptorFd *session_id_context;
 };
 
-/* One copy for client */
-struct st_VioSSLConnectorFd
-{
-  SSL_CTX *ssl_context;
-  /* function pointers which are only once for SSL client */ 
-  SSL_METHOD *ssl_method;
-};
+int sslaccept(struct st_VioSSLFd*, Vio *, long timeout);
+int sslconnect(struct st_VioSSLFd*, Vio *, long timeout);
 
-int sslaccept(struct st_VioSSLAcceptorFd*, Vio *, long timeout);
-int sslconnect(struct st_VioSSLConnectorFd*, Vio *, long timeout);
-
-struct st_VioSSLConnectorFd
+struct st_VioSSLFd
 *new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
 		       const char *ca_file,  const char *ca_path,
 		       const char *cipher);
-struct st_VioSSLAcceptorFd
+struct st_VioSSLFd
 *new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
 		      const char *ca_file,const char *ca_path,
 		      const char *cipher);
-Vio *new_VioSSL(struct st_VioSSLAcceptorFd *fd, Vio *sd, int state);
 #endif /* HAVE_OPENSSL */
 
 #ifdef HAVE_SMEM
