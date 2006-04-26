@@ -584,3 +584,10 @@ set @@global.character_set_filesystem=default;
 select @@global.character_set_filesystem;
 @@global.character_set_filesystem
 binary
+set @old_sql_big_selects = @@sql_big_selects;
+set @@sql_big_selects = 1;
+show variables like 'sql_big_selects';
+Variable_name	Value
+sql_big_selects	ON
+set @@sql_big_selects = @old_sql_big_selects;
+End of 5.0 tests
