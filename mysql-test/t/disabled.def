@@ -19,7 +19,6 @@ ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t 
 #ndb_cache_multi2         : BUG#18597 2006-04-10 kent  simultaneous drop table and ndb statistics update triggers node failure
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 ps_7ndb                  : BUG#18950 2006-02-16 jmiller create table like does not obtain LOCK_open
-rpl_deadlock_innodb      : BUG#16920 2006-04-12 kent    fails in show slave status (randomly)
 rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
 rpl_ndb_2myisam          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
 rpl_ndb_auto_inc         : BUG#17086 2006-02-16 jmiller CR: auto_increment_increment and auto_increment_offset produce duplicate key er
@@ -33,7 +32,6 @@ rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
 rpl_row_func003		 : BUG#19074 2006-13-04 andrei  test failed
 rpl_row_inexist_tbl      : BUG#18948 2006-03-09 mats    Disabled since patch makes this test wait forever
 rpl_sp                   : BUG#16456 2006-02-16 jmiller
-rpl_until                : BUG#15886 2006-02-16 jmiller Unstable test case
 mysqldump                : BUG#18078 2006-03-10 lars
 udf                      : BUG#18564 2006-03-27 ian     (Permission by Brian)
 
