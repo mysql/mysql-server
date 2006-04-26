@@ -434,8 +434,10 @@ public:
    */
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
   bool alloc_node_id(NodeId * _nodeId, enum ndb_mgm_node_type type,
-		     struct sockaddr *client_addr, SOCKET_SIZE_TYPE *client_addr_len,
-		     BaseString &error_string);
+		     struct sockaddr *client_addr,
+                     SOCKET_SIZE_TYPE *client_addr_len,
+		     int &error_code, BaseString &error_string,
+                     int log_event = 1);
   
   /**
    *

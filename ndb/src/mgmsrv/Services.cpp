@@ -138,6 +138,7 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("endian", String, Optional, "Endianness"),
     MGM_ARG("name", String, Optional, "Name of connection"),
     MGM_ARG("timeout", Int, Optional, "Timeout in seconds"),
+    MGM_ARG("log_event", Int, Optional, "Log failure in cluster log"),
 
   MGM_CMD("get version", &MgmApiSession::getVersion, ""),
   
@@ -425,6 +426,8 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   const char * public_key;
   const char * endian= NULL;
   const char * name= NULL;
+  Uint32 log_event= 1;
+  bool log_event_version;
   union { long l; char c[sizeof(long)]; } endian_check;
 
   args.get("version", &version);
@@ -437,6 +440,8 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   args.get("endian", &endian);
   args.get("name", &name);
   args.get("timeout", &timeout);
+  /* for backwards compatability keep track if client uses new protocol */
+  log_event_version= args.get("log_event", &log_event);
 
   endian_check.l = 1;
   if(endian 
@@ -476,11 +481,15 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   NodeId tmp= nodeid;
   if(tmp == 0 || !m_allocated_resources->is_reserved(tmp)){
     BaseString error_string;
+    int error_code;
     NDB_TICKS tick= 0;
+    /* only report error on second attempt as not to clog the cluster log */
     while (!m_mgmsrv.alloc_node_id(&tmp, (enum ndb_mgm_node_type)nodetype, 
-                                   &addr, &addrlen, error_string))
+                                   &addr, &addrlen, error_code, error_string,
+                                   tick == 0 ? 0 : log_event))
     {
-      if (tick == 0)
+      /* NDB_MGM_ALLOCID_CONFIG_MISMATCH is a non retriable error */
+      if (tick == 0 && error_code != NDB_MGM_ALLOCID_CONFIG_MISMATCH)
       {
         // attempt to free any timed out reservations
         tick= NdbTick_CurrentMillisecond();
@@ -492,6 +501,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
         ps.tick= tick;
         m_mgmsrv.get_socket_server()->
           foreachSession(stop_session_if_timed_out,&ps);
+        error_string = "";
         continue;
       }
       const char *alias;
@@ -500,6 +510,9 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 						nodetype, &str);
       m_output->println(cmd);
       m_output->println("result: %s", error_string.c_str());
+      /* only use error_code protocol if client knows about it */
+      if (log_event_version)
+        m_output->println("error_code: %d", error_code);
       m_output->println("");
       return;
     }
