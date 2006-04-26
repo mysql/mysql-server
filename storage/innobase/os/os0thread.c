@@ -96,7 +96,7 @@ os_thread_create(
 	void*			arg,		/* in: argument to start
 						function */
 	os_thread_id_t*		thread_id)	/* out: id of the created
-						thread */
+						thread, or NULL */
 {
 #ifdef __WIN__
 	os_thread_t	thread;
@@ -122,7 +122,9 @@ os_thread_create(
 		ut_a(SetThreadPriority(thread, srv_query_thread_priority));
 	}
 
-	*thread_id = win_thread_id;
+	if (thread_id) {
+		*thread_id = win_thread_id;
+	}
 
 	return(thread);
 #else
@@ -180,7 +182,9 @@ os_thread_create(
 		my_pthread_setprio(pthread, srv_query_thread_priority);
 	}
 
-	*thread_id = pthread;
+	if (thread_id) {
+		*thread_id = pthread;
+	}
 
 	return(pthread);
 #endif
