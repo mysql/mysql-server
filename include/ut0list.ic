@@ -1,0 +1,23 @@
+/********************************************************************
+Get the first node in the list. */
+UNIV_INLINE
+ib_list_node_t*
+ib_list_get_first(
+/*==============*/
+				/* out: first node, or NULL */
+	ib_list_t*	list)	/* in: list */
+{
+	return(list->first);
+}
+
+/********************************************************************
+Get the last node in the list. */
+UNIV_INLINE
+ib_list_node_t*
+ib_list_get_last(
+/*=============*/
+				/* out: last node, or NULL */
+	ib_list_t*	list)	/* in: list */
+{
+	return(list->last);
+}
