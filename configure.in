@@ -219,45 +219,6 @@ else
   AC_PATH_PROG(AS, as, as)
 fi
 
-# These checks has to be made befoe we buil libtool as they affect
-# what is written into libtool.
-case $SYSTEM_TYPE in
-    *aix5*)
-       # Find out which ABI we are using.
-      echo 'int i;' > conftest.$ac_ext
-      if AC_TRY_EVAL(ac_compile); then
-        case `/usr/bin/file conftest.$ac_objext` in
-        *"32-bit XCOFF"*)
-          # OBJECT_MODE=32
-          ;;
-         *"64-bit XCOFF"*)
-	   AC_MSG_WARN([Setting 64-bit mode for AIX 5.*])
-           # It was detected that compiler is using 64-bit mode
-	   # Set flags for CC and NM so that those tools will work
-           # in 64-bit mode when called from libtool
-	   # The easiest way fix this is "export OBJECT_MODE=64"
-	   CC="$CC -q64"
-	   CXX="$CXX -q64"
-	   if test "X${NM+set}" != Xset; then
-	     NM="/usr/bin/nm -B -X64"
-           fi
-          ;;
-	esac
-      fi
-      rm -rf conftest*
-    ;;
-    *qnx*)
-    # Don't build shared libraries on QNX as it will run out of
-    # stack and segfault
-    AC_MSG_WARN([Turning off building of shared libraries])
-    AC_DISABLE_SHARED
-    ;;
-    *)
-    ;;
-esac
-
-LINK= "OBJECT_MODE=64 $LINK"
-
 # Still need ranlib for readline; local static use only so no libtool.
 AC_PROG_RANLIB
 # We use libtool
