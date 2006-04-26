@@ -272,10 +272,9 @@ Write a log record of writing to the uncompressed header portion of a page. */
 void
 page_zip_write_header_log(
 /*======================*/
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	ulint			offset,	/* in: offset to the data */
-	ulint			length,	/* in: length of the data */
-	mtr_t*			mtr);	/* in: mini-transaction */
+	const byte*	data,/* in: data on the uncompressed page */
+	ulint		length,	/* in: length of the data */
+	mtr_t*		mtr);	/* in: mini-transaction */
 
 /**************************************************************************
 Write data to the uncompressed header portion of a page.  The data must
@@ -307,7 +306,7 @@ page_zip_write_header(
 	/* ut_ad(page_zip_validate(page_zip, str - pos)); */
 
 	if (UNIV_LIKELY_NULL(mtr)) {
-		page_zip_write_header_log(page_zip, pos, length, mtr);
+		page_zip_write_header_log(str, length, mtr);
 	}
 }
 

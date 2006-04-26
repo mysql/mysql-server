@@ -1123,7 +1123,8 @@ byte*
 page_copy_rec_list_to_created_page_write_log(
 /*=========================================*/
 				/* out: 4-byte field where to
-				write the log data length */
+				write the log data length,
+				or NULL if logging is disabled */
 	page_t*		page,	/* in: index page */
 	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr)	/* in: mtr */
@@ -1136,8 +1137,9 @@ page_copy_rec_list_to_created_page_write_log(
 			page_is_comp(page)
 			? MLOG_COMP_LIST_END_COPY_CREATED
 			: MLOG_LIST_END_COPY_CREATED, 4);
-	ut_a(log_ptr);
-	mlog_close(mtr, log_ptr + 4);
+	if (UNIV_LIKELY(log_ptr != NULL)) {
+		mlog_close(mtr, log_ptr + 4);
+	}
 
 	return(log_ptr);
 }
@@ -1335,7 +1337,9 @@ page_copy_rec_list_end_to_created_page(
 
 	ut_a(log_data_len < 100 * UNIV_PAGE_SIZE);
 
-	mach_write_to_4(log_ptr, log_data_len);
+	if (UNIV_LIKELY(log_ptr != NULL)) {
+		mach_write_to_4(log_ptr, log_data_len);
+	}
 
 	if (page_is_comp(new_page)) {
 		rec_set_next_offs_new(insert_rec, PAGE_NEW_SUPREMUM);

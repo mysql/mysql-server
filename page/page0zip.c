@@ -2045,7 +2045,7 @@ page_zip_write_rec(
 						externs - ext_end);
 			}
 
-			ut_a(blob_no + n_ext < page_zip->n_blobs);
+			ut_a(blob_no + n_ext <= page_zip->n_blobs);
 		}
 
 		/* Store separately trx_id, roll_ptr and
@@ -2829,12 +2829,13 @@ Write a log record of writing to the uncompressed header portion of a page. */
 void
 page_zip_write_header_log(
 /*======================*/
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	ulint			offset,	/* in: offset to the data */
-	ulint			length,	/* in: length of the data */
-	mtr_t*			mtr)	/* in: mini-transaction */
+	const byte*	data,	/* in: data on the uncompressed page */
+	ulint		length,	/* in: length of the data */
+	mtr_t*		mtr)	/* in: mini-transaction */
 {
-	byte*	log_ptr = mlog_open(mtr, 11 + 1 + 1);
+	byte*	log_ptr	= mlog_open(mtr, 11 + 1 + 1);
+	ulint	offset	= ut_align_offset(data, UNIV_PAGE_SIZE);
+
 	ut_ad(offset < PAGE_DATA);
 	ut_ad(offset + length < PAGE_DATA);
 #if PAGE_DATA > 255
@@ -2848,13 +2849,13 @@ page_zip_write_header_log(
 		return;
 	}
 
-	log_ptr = mlog_write_initial_log_record_fast(page_zip->data + offset,
+	log_ptr = mlog_write_initial_log_record_fast((byte*) data,
 				MLOG_ZIP_WRITE_HEADER, log_ptr, mtr);
 	*log_ptr++ = (byte) offset;
 	*log_ptr++ = (byte) length;
 	mlog_close(mtr, log_ptr);
 
-	mlog_catenate_string(mtr, page_zip->data + offset, length);
+	mlog_catenate_string(mtr, data, length);
 }
 
 /**************************************************************************

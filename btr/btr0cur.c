@@ -3605,7 +3605,7 @@ btr_store_big_rec_extern_fields(
 			if (UNIV_LIKELY_NULL(page_zip)) {
 				int	err;
 
-				mach_write_to_4(page + FIL_PAGE_TYPE,
+				mach_write_to_2(page + FIL_PAGE_TYPE,
 						FIL_PAGE_TYPE_ZBLOB);
 
 				c_stream.next_out = page
