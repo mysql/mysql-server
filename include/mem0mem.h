@@ -297,8 +297,8 @@ char*
 mem_heap_strdup(
 /*============*/
 				/* out, own: a copy of the string */
-	mem_heap_t* heap,	/* in: memory heap where string is allocated */
-	const char* str);	/* in: string to be copied */
+	mem_heap_t*	heap,	/* in: memory heap where string is allocated */
+	const char*	str);	/* in: string to be copied */
 /**************************************************************************
 Makes a NUL-terminated copy of a nonterminated string,
 allocated from a memory heap. */
@@ -321,6 +321,17 @@ mem_heap_strcat(
 	mem_heap_t*	heap,	/* in: memory heap where string is allocated */
 	const char*	s1,	/* in: string 1 */
 	const char*	s2);	/* in: string 2 */
+
+/**************************************************************************
+Duplicate a block of data, allocated from a memory heap. */
+
+void*
+mem_heap_dup(
+/*=========*/
+				/* out, own: a copy of the data */
+	mem_heap_t*	heap,	/* in: memory heap where copy is allocated */
+	const void*	data,	/* in: data to be copied */
+	ulint		len);	/* in: length of data, in bytes */
 
 #ifdef MEM_PERIODIC_CHECK
 /**********************************************************************
