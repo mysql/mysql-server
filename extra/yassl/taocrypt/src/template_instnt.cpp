@@ -34,6 +34,7 @@
 #include "algebra.hpp"
 #include "vector.hpp"
 #include "hash.hpp"
+#include "ripemd.hpp"
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 namespace TaoCrypt {
