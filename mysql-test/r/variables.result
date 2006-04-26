@@ -590,4 +590,18 @@ show variables like 'sql_big_selects';
 Variable_name	Value
 sql_big_selects	ON
 set @@sql_big_selects = @old_sql_big_selects;
+set @@sql_notes = 0, @@sql_warnings = 0;
+show variables like 'sql_notes';
+Variable_name	Value
+sql_notes	OFF
+show variables like 'sql_warnings';
+Variable_name	Value
+sql_warnings	OFF
+set @@sql_notes = 1, @@sql_warnings = 1;
+show variables like 'sql_notes';
+Variable_name	Value
+sql_notes	ON
+show variables like 'sql_warnings';
+Variable_name	Value
+sql_warnings	ON
 End of 5.0 tests
