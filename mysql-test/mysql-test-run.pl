@@ -333,6 +333,7 @@ our @data_dir_lst;
 sub main ();
 sub initial_setup ();
 sub command_line_setup ();
+sub snapshot_setup ();
 sub executable_setup ();
 sub environment_setup ();
 sub kill_running_server ();
@@ -343,7 +344,7 @@ sub ndbcluster_install ();
 sub ndbcluster_start ($);
 sub ndbcluster_stop ();
 sub run_benchmarks ($);
-sub run_tests ();
+sub initialize_servers ();
 sub mysql_install_db ();
 sub install_db ($$);
 sub run_testcase ($);
@@ -374,7 +375,7 @@ sub main () {
   command_line_setup();
   executable_setup();
 
-  check_ndbcluster_support();
+  check_ndbcluster_support(); # We check whether to actually use it later
   check_ssl_support();
 
   environment_setup();
@@ -390,49 +391,37 @@ sub main () {
     gprof_prepare();
   }
 
-  if ( ! $glob_use_running_server )
+  if ( $opt_bench )
   {
-    if ( $opt_start_dirty )
-    {
-      kill_running_server();
-    }
-    else
-    {
-      kill_and_cleanup();
-      mysql_install_db();
-      if ( $opt_force )
-      {
-	save_installed_db();
-      }
-    }
-  }
-
-  if ( $opt_start_dirty )
-  {
-    if ( ndbcluster_start($opt_with_ndbcluster) )
-    {
-      mtr_error("Can't start ndbcluster");
-    }
-    if ( mysqld_start('master',0,[],[],$using_ndbcluster_master) )
-    {
-      mtr_report("Servers started, exiting");
-    }
-    else
-    {
-      mtr_error("Can't start the mysqld server");
-    }
-  }
-  elsif ( $opt_bench )
-  {
+    initialize_servers();
     run_benchmarks(shift);      # Shift what? Extra arguments?!
   }
   elsif ( $opt_stress )
   {
+    initialize_servers();
     run_stress_test()
   }
   else
   {
-    run_tests();
+    # Figure out which tests we are going to run
+    my $tests= collect_test_cases($opt_suite);
+
+    # Turn off NDB and other similar options if no tests use it
+    my ($need_ndbcluster,$need_im,$need_slave);
+    foreach my $test (@$tests)
+    {
+      $need_ndbcluster||= $test->{ndb_test};
+      $need_im||= $test->{component_id} eq 'im';
+      $need_slave||= $test->{slave_num};
+    }
+    $opt_with_ndbcluster= 0 unless $need_ndbcluster;
+    $opt_skip_im= 1 unless $need_im;
+    $opt_skip_rpl= 1 unless $need_slave;
+
+    snapshot_setup();
+    initialize_servers();
+
+    run_suite($opt_suite, $tests);
   }
 
   mtr_exit(0);
@@ -983,20 +972,29 @@ sub command_line_setup () {
   $path_mysqltest_log=  "$opt_vardir/log/mysqltest.log";
 
   $path_snapshot= "$opt_tmpdir/snapshot_$opt_master_myport/";
+}
+
+sub snapshot_setup () {
 
   # Make a list of all data_dirs
   @data_dir_lst = (
     $master->[0]->{'path_myddir'},
-    $master->[1]->{'path_myddir'},
-    $slave->[0]->{'path_myddir'},
-    $slave->[1]->{'path_myddir'},
-    $slave->[2]->{'path_myddir'});
+    $master->[1]->{'path_myddir'});
 
-  foreach my $instance (@{$instance_manager->{'instances'}})
+  unless ($opt_skip_rpl)
   {
-    push(@data_dir_lst, $instance->{'path_datadir'});
+    push @data_dir_lst, ($slave->[0]->{'path_myddir'},
+                         $slave->[1]->{'path_myddir'},
+                         $slave->[2]->{'path_myddir'});
   }
 
+  unless ($opt_skip_im)
+  {
+    foreach my $instance (@{$instance_manager->{'instances'}})
+    {
+      push(@data_dir_lst, $instance->{'path_datadir'});
+    }
+  }
 }
 
 
@@ -1388,7 +1386,7 @@ sub check_ndbcluster_support () {
 
   if ($opt_with_ndbcluster)
   {
-    mtr_report("Using ndbcluster");
+    mtr_report("Using ndbcluster if necessary");
     return;
   }
 
@@ -1404,7 +1402,7 @@ sub check_ndbcluster_support () {
     $opt_with_ndbcluster= 0;
     return;
   }
-  mtr_report("Using ndbcluster, mysqld supports it");
+  mtr_report("Using ndbcluster if necessary, mysqld supports it");
   $opt_with_ndbcluster= 1;
   return;
 }
@@ -1562,20 +1560,15 @@ sub run_benchmarks ($) {
 
 # FIXME how to specify several suites to run? Comma separated list?
 
-sub run_tests () {
-  run_suite($opt_suite);
-}
 
 sub run_suite () {
-  my $suite= shift;
+  my ($suite, $tests)= @_;
 
   mtr_print_thick_line();
 
   mtr_report("Finding  Tests in the '$suite' suite");
 
   mtr_timer_start($glob_timers,"suite", 60 * $opt_suite_timeout);
-
-  my $tests= collect_test_cases($suite);
 
   mtr_report("Starting Tests in the '$suite' suite");
 
@@ -1618,14 +1611,37 @@ sub run_suite () {
 #
 ##############################################################################
 
+sub initialize_servers () {
+  if ( ! $glob_use_running_server )
+  {
+    if ( $opt_start_dirty )
+    {
+      kill_running_server();
+    }
+    else
+    {
+      kill_and_cleanup();
+      mysql_install_db();
+      if ( $opt_force )
+      {
+	save_installed_db();
+      }
+    }
+  }
+}
+
 sub mysql_install_db () {
 
   # FIXME not exactly true I think, needs improvements
   install_db('master', $master->[0]->{'path_myddir'});
   install_db('master', $master->[1]->{'path_myddir'});
-  install_db('slave',  $slave->[0]->{'path_myddir'});
-  install_db('slave',  $slave->[1]->{'path_myddir'});
-  install_db('slave',  $slave->[2]->{'path_myddir'});
+
+  if ( ! $opt_skip_rpl )
+  {
+    install_db('slave',  $slave->[0]->{'path_myddir'});
+    install_db('slave',  $slave->[1]->{'path_myddir'});
+    install_db('slave',  $slave->[2]->{'path_myddir'});
+  }
 
   if ( ! $opt_skip_im )
   {
@@ -2028,10 +2044,11 @@ sub run_testcase ($) {
   }
 
   # ----------------------------------------------------------------------
-  # If --start-and-exit given, stop here to let user manually run tests
+  # If --start-and-exit or --start-dirty given, stop here to let user manually
+  # run tests
   # ----------------------------------------------------------------------
 
-  if ( $opt_start_and_exit )
+  if ( $opt_start_and_exit or $opt_start_dirty )
   {
     mtr_report("\nServers started, exiting");
     exit(0);
@@ -3410,11 +3427,12 @@ Misc options
   comment=STR           Write STR to the output
   script-debug          Debug this script itself
   timer                 Show test case execution time
-  start-and-exit        Only initiate and start the "mysqld" servers, use the startup
-                        settings for the specified test case if any
-  start-dirty           Only start the "mysqld" servers without initiation
-  fast                  Don't try to cleanup from earlier runs
-  reorder               Reorder tests to get less server restarts
+  start-and-exit        Only initialize and start the servers, using the
+                        startup settings for the specified test case (if any)
+  start-dirty           Only start the servers (without initialization) for
+                        the specified test case (if any)
+  fast                  Don't try to clean up from earlier runs
+  reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
   unified-diff | udiff  When presenting differences, use unified diff
 
