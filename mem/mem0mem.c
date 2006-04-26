@@ -107,11 +107,24 @@ char*
 mem_heap_strdup(
 /*============*/
 				/* out, own: a copy of the string */
-	mem_heap_t* heap,	/* in: memory heap where string is allocated */
-	const char* str)	/* in: string to be copied */
+	mem_heap_t*	heap,	/* in: memory heap where string is allocated */
+	const char*	str)	/* in: string to be copied */
 {
-	ulint	len = strlen(str) + 1;
-	return(memcpy(mem_heap_alloc(heap, len), str, len));
+	return(mem_heap_dup(heap, str, strlen(str) + 1));
+}
+
+/**************************************************************************
+Duplicate a block of data, allocated from a memory heap. */
+
+void*
+mem_heap_dup(
+/*=========*/
+				/* out, own: a copy of the data */
+	mem_heap_t*	heap,	/* in: memory heap where copy is allocated */
+	const void*	data,	/* in: data to be copied */
+	ulint		len)	/* in: length of data, in bytes */
+{
+	return(memcpy(mem_heap_alloc(heap, len), data, len));
 }
 
 /**************************************************************************
