@@ -30,7 +30,6 @@
 #include "sha.hpp"
 #include "md5.hpp"
 #include "hmac.hpp"
-#include "ripemd.hpp"
 #include "pwdbased.hpp"
 #include "algebra.hpp"
 #include "vector.hpp"
