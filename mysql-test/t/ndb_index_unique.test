@@ -32,8 +32,8 @@ select * from t1 order by a;
 alter table t1 drop index ib;
 insert into t1 values(1, 2, 3);
 # Bug# #18129
-#--error 1169
-#create unique index ib on t1(b);
+--error 1169
+create unique index ib on t1(b);
 
 drop table t1;
 
