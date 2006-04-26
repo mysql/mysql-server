@@ -623,15 +623,17 @@ public:
 
 /* Functions to handle the optimized IN */
 
+
+/* A vector of values of some type  */
+
 class in_vector :public Sql_alloc
 {
- protected:
+public:
   char *base;
   uint size;
   qsort2_cmp compare;
   CHARSET_INFO *collation;
   uint count;
-public:
   uint used_count;
   in_vector() {}
   in_vector(uint elements,uint element_length,qsort2_cmp cmp_func, 
@@ -647,6 +649,32 @@ public:
     qsort2(base,used_count,size,compare,collation);
   }
   int find(Item *item);
+  
+  /* 
+    Create an instance of Item_{type} (e.g. Item_decimal) constant object
+    which type allows it to hold an element of this vector without any
+    conversions.
+    The purpose of this function is to be able to get elements of this
+    vector in form of Item_xxx constants without creating Item_xxx object
+    for every array element you get (i.e. this implements "FlyWeight" pattern)
+  */
+  virtual Item* create_item() { return NULL; }
+  
+  /*
+    Store the value at position #pos into provided item object
+    SYNOPSIS
+      value_to_item()
+        pos   Index of value to store
+        item  Constant item to store value into. The item must be of the same
+              type that create_item() returns.
+  */
+  virtual void value_to_item(uint pos, Item *item) { }
+  
+  /* Compare values number pos1 and pos2 for equality */
+  bool compare_elems(uint pos1, uint pos2)
+  {
+    return test(compare(collation, base + pos1*size, base + pos2*size));
+  }
 };
 
 class in_string :public in_vector
@@ -658,6 +686,16 @@ public:
   ~in_string();
   void set(uint pos,Item *item);
   byte *get_value(Item *item);
+  Item* create_item()
+  { 
+    return new Item_string(collation);
+  }
+  void value_to_item(uint pos, Item *item)
+  {    
+    String *str=((String*) base)+pos;
+    Item_string *to= (Item_string*)item;
+    to->str_value= *str;
+  }
 };
 
 class in_longlong :public in_vector
@@ -667,6 +705,19 @@ public:
   in_longlong(uint elements);
   void set(uint pos,Item *item);
   byte *get_value(Item *item);
+  
+  Item* create_item()
+  { 
+    /* 
+      We're created a signed INT, this may not be correct in 
+      general case (see BUG#19342).
+    */
+    return new Item_int((longlong)0);
+  }
+  void value_to_item(uint pos, Item *item)
+  {
+    ((Item_int*)item)->value= ((longlong*)base)[pos];
+  }
 };
 
 class in_double :public in_vector
@@ -676,6 +727,15 @@ public:
   in_double(uint elements);
   void set(uint pos,Item *item);
   byte *get_value(Item *item);
+  Item *create_item()
+  { 
+    return new Item_float(0.0);
+  }
+  void value_to_item(uint pos, Item *item)
+  {
+    ((Item_float*)item)->value= ((double*) base)[pos];
+  }
+
 };
 
 class in_decimal :public in_vector
@@ -685,6 +745,16 @@ public:
   in_decimal(uint elements);
   void set(uint pos, Item *item);
   byte *get_value(Item *item);
+  Item *create_item()
+  { 
+    return new Item_decimal(0, FALSE);
+  }
+  void value_to_item(uint pos, Item *item)
+  {
+    my_decimal *dec= ((my_decimal *)base) + pos;
+    Item_decimal *item_dec= (Item_decimal*)item;
+    item_dec->set_decimal_value(dec);
+  }
 };
 
 
@@ -864,12 +934,13 @@ public:
 
 class Item_func_in :public Item_func_opt_neg
 {
+public:
   Item_result cmp_type;
   in_vector *array;
   cmp_item *in_item;
   bool have_null;
   DTCollation cmp_collation;
- public:
+
   Item_func_in(List<Item> &list)
     :Item_func_opt_neg(list), array(0), in_item(0), have_null(0)
   {

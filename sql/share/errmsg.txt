@@ -5818,6 +5818,10 @@ ER_WARN_DEPRECATED
         eng  "The syntax '%s' is deprecated and will be removed in MySQL %s. Please use %s instead."
 ER_SP_NO_AGGREGATE 42000
 	eng "AGGREGATE is not supported for stored functions"
+ER_MAX_PREPARED_STMT_COUNT_REACHED 42000
+        eng "Can't create more than max_prepared_stmt_count statements (current value: %lu)"
+ER_VIEW_RECURSIVE
+        eng "`%-.64s`.`%-.64s` contains view recursion"
 ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
 	eng "Cannot switch out of the row-based binary log format when the session has open temporary tables"
 ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT
@@ -5834,7 +5838,3 @@ ER_NULL_IN_VALUES_LESS_THAN
 ER_WRONG_PARTITION_NAME
         eng "Incorrect partition name"
         swe "Felaktigt partitionsnamn"
-ER_MAX_PREPARED_STMT_COUNT_REACHED 42000
-        eng "Can't create more than max_prepared_stmt_count statements (current value: %lu)"
-ER_VIEW_RECURSIVE
-        eng "`%-.64s`.`%-.64s` contain view recursion"

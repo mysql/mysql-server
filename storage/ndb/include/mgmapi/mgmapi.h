@@ -231,6 +231,12 @@ extern "C" {
     /** Could not connect to socker */
     NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET = 1011,
 
+    /* Alloc node id failures */
+    /** Generic error, retry may succeed */
+    NDB_MGM_ALLOCID_ERROR = 1101,
+    /** Non retriable error */
+    NDB_MGM_ALLOCID_CONFIG_MISMATCH = 1102,
+
     /* Service errors - Start/Stop Node or System */
     /** Start failed */
     NDB_MGM_START_FAILED = 2001,
@@ -998,7 +1004,7 @@ extern "C" {
   void ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *);
 
   int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
-			   unsigned version, int nodetype);
+			   unsigned version, int nodetype, int log_event);
 
   /**
    * End Session
