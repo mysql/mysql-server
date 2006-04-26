@@ -157,32 +157,11 @@ extern	ulint	srv_pool_size;
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 
-extern	ulint	srv_sim_disk_wait_pct;
-extern	ulint	srv_sim_disk_wait_len;
-extern	ibool	srv_sim_disk_wait_by_yield;
-extern	ibool	srv_sim_disk_wait_by_wait;
-
-extern	ibool	srv_measure_contention;
-extern	ibool	srv_measure_by_spin;
-
 extern	ibool	srv_print_thread_releases;
 extern	ibool	srv_print_lock_waits;
 extern	ibool	srv_print_buf_io;
 extern	ibool	srv_print_log_io;
-extern	ibool	srv_print_parsed_sql;
 extern	ibool	srv_print_latch_waits;
-
-extern	ibool	srv_test_nocache;
-extern	ibool	srv_test_cache_evict;
-
-extern	ibool	srv_test_extra_mutexes;
-extern	ibool	srv_test_sync;
-extern	ulint	srv_test_n_threads;
-extern	ulint	srv_test_n_loops;
-extern	ulint	srv_test_n_free_rnds;
-extern	ulint	srv_test_n_reserved_rnds;
-extern	ulint	srv_test_n_mutexes;
-extern	ulint	srv_test_array_size;
 
 extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
@@ -365,11 +344,7 @@ srv_release_threads(
 /*************************************************************************
 The master thread controlling the server. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_master_thread(
 /*==============*/
 			/* out: a dummy parameter */
@@ -451,11 +426,7 @@ srv_release_mysql_thread_if_suspended(
 A thread which wakes up threads whose lock wait may have lasted too long.
 This also prints the info output by various InnoDB monitors. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_lock_timeout_and_monitor_thread(
 /*================================*/
 			/* out: a dummy parameter */
@@ -465,11 +436,7 @@ srv_lock_timeout_and_monitor_thread(
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_error_monitor_thread(
 /*=====================*/
 			/* out: a dummy parameter */
@@ -567,9 +534,6 @@ struct export_var_struct{
 
 /* The server system struct */
 struct srv_sys_struct{
-	os_event_t	operational;	/* created threads must wait for the
-					server to become operational by
-					waiting for this event */
 	srv_table_t*	threads;	/* server thread table */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			tasks;		/* task queue */
