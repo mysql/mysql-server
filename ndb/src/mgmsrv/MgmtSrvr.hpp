@@ -106,7 +106,8 @@ public:
     ~Allocated_resources();
     // methods to reserve/allocate resources which
     // will be freed when running destructor
-    void reserve_node(NodeId id);
+    void reserve_node(NodeId id, NDB_TICKS timeout);
+    bool is_timed_out(NDB_TICKS tick);
     bool is_reserved(NodeId nodeId) { return m_reserved_nodes.get(nodeId); }
     bool is_reserved(NodeBitmask mask) { return !mask.bitAND(m_reserved_nodes).isclear(); }
     bool isclear() { return m_reserved_nodes.isclear(); }
@@ -114,6 +115,7 @@ public:
   private:
     MgmtSrvr &m_mgmsrv;
     NodeBitmask m_reserved_nodes;
+    NDB_TICKS m_alloc_timeout;
   };
   NdbMutex *m_node_id_mutex;
 
