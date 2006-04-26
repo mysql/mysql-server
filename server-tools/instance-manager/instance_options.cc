@@ -22,6 +22,7 @@
 
 #include "parse_output.h"
 #include "buffer.h"
+#include "log.h"
 
 #include <my_sys.h>
 #include <signal.h>
@@ -132,7 +133,7 @@ int Instance_options::fill_instance_version()
 
   bzero(result, MAX_VERSION_STRING_LENGTH);
 
-  rc= parse_output_and_get_value(cmd.buffer, mysqld_path,
+  rc= parse_output_and_get_value(cmd.buffer, mysqld_real_path,
                                  result, MAX_VERSION_STRING_LENGTH,
                                  GET_LINE);
 
@@ -143,6 +144,60 @@ int Instance_options::fill_instance_version()
     mysqld_version= strdup_root(&alloc, result);
   }
 err:
+  if (rc)
+    log_error("fill_instance_version: Failed to get version of '%s'",
+              mysqld_path);
+  return rc;
+}
+
+
+/*
+  Fill mysqld_real_path
+
+  SYNOPSYS
+    fill_mysqld_real_path()
+
+  DESCRIPTION
+
+  Get the real path to mysqld from "mysqld --help" output.
+  Will print the realpath of mysqld between "Usage: " and "[OPTIONS]"
+
+  This is needed if the mysqld_path variable is pointing at a
+  script(for example libtool) or a symlink.
+
+  RETURN
+    0 - ok
+    1 - error occured
+*/
+
+int Instance_options::fill_mysqld_real_path()
+{
+  char result[FN_REFLEN];
+  char help_option[]= " --no-defaults --help";
+  int rc= 1;
+  Buffer cmd(mysqld_path_len + sizeof(help_option));
+
+  if (create_mysqld_command(&cmd, mysqld_path, mysqld_path_len,
+                            help_option, sizeof(help_option)))
+    goto err;
+
+  bzero(result, FN_REFLEN);
+
+  rc= parse_output_and_get_value(cmd.buffer, "Usage: ",
+                                 result, FN_REFLEN,
+                                 GET_LINE);
+
+  if (*result != '\0')
+  {
+    char* options_str;
+    /* chop the path of at [OPTIONS] */
+    if ((options_str= strstr(result, "[OPTIONS]")))
+      *options_str= '\0';
+    mysqld_real_path= strdup_root(&alloc, result);
+  }
+err:
+  if (rc)
+    log_error("fill_mysqld_real_path: Failed to get real path of mysqld");
   return rc;
 }
 
@@ -405,7 +460,7 @@ int Instance_options::complete_initialization(const char *default_path,
          options_array.elements*sizeof(char*));
   argv[filled_default_options + options_array.elements]= 0;
 
-  if (fill_log_options() || fill_instance_version())
+  if (fill_log_options() || fill_mysqld_real_path() || fill_instance_version())
     goto err;
 
   return 0;
