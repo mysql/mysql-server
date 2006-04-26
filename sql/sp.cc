@@ -885,28 +885,23 @@ int
 sp_drop_db_routines(THD *thd, char *db)
 {
   TABLE *table;
-  byte key[64];			// db
-  uint keylen;
   int ret;
+  uint key_len;
   DBUG_ENTER("sp_drop_db_routines");
   DBUG_PRINT("enter", ("db: %s", db));
-
-  // Put the key used to read the row together
-  keylen= strlen(db);
-  if (keylen > 64)
-    keylen= 64;
-  memcpy(key, db, keylen);
-  memset(key+keylen, (int)' ', 64-keylen); // Pad with space
-  keylen= sizeof(key);
 
   ret= SP_OPEN_TABLE_FAILED;
   if (!(table= open_proc_table_for_update(thd)))
     goto err;
 
+  table->field[MYSQL_PROC_FIELD_DB]->store(db, strlen(db), system_charset_info);
+  key_len= table->key_info->key_part[0].store_length;
+
   ret= SP_OK;
   table->file->ha_index_init(0, 1);
   if (! table->file->index_read(table->record[0],
-				key, keylen, HA_READ_KEY_EXACT))
+                                (byte *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
+				key_len, HA_READ_KEY_EXACT))
   {
     int nxtres;
     bool deleted= FALSE;
@@ -922,7 +917,8 @@ sp_drop_db_routines(THD *thd, char *db)
 	break;
       }
     } while (! (nxtres= table->file->index_next_same(table->record[0],
-						     key, keylen)));
+                                (byte *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
+						     key_len)));
     if (nxtres != HA_ERR_END_OF_FILE)
       ret= SP_KEY_NOT_FOUND;
     if (deleted)

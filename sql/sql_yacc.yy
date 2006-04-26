@@ -317,7 +317,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  GEOMFROMWKB
 %token  GET_FORMAT
 %token  GLOBAL_SYM
-%token  GOTO_SYM
 %token  GRANT
 %token  GRANTS
 %token  GREATEST_SYM
@@ -366,7 +365,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  KEYS
 %token  KEY_SYM
 %token  KILL_SYM
-%token  LABEL_SYM
 %token  LANGUAGE_SYM
 %token  LAST_INSERT_ID
 %token  LAST_SYM
@@ -894,7 +892,7 @@ END_OF_INPUT
 %type <NONE> sp_proc_stmt_statement sp_proc_stmt_return
 %type <NONE> sp_proc_stmt_if sp_proc_stmt_case_simple sp_proc_stmt_case
 %type <NONE> sp_labeled_control sp_proc_stmt_unlabeled sp_proc_stmt_leave
-%type <NONE> sp_proc_stmt_iterate sp_proc_stmt_label sp_proc_stmt_goto
+%type <NONE> sp_proc_stmt_iterate
 %type <NONE> sp_proc_stmt_open sp_proc_stmt_fetch sp_proc_stmt_close
 
 %type <num>  sp_decl_idents sp_opt_inout sp_handler_type sp_hcond_list
@@ -1555,8 +1553,6 @@ ev_sql_stmt_inner:
         | sp_proc_stmt_unlabeled
         | sp_proc_stmt_leave
         | sp_proc_stmt_iterate
-        | sp_proc_stmt_label
-        | sp_proc_stmt_goto
         | sp_proc_stmt_open
         | sp_proc_stmt_fetch
         | sp_proc_stmt_close
@@ -1691,8 +1687,6 @@ create_function_tail:
             if (sp->is_not_allowed_in_function("function"))
               YYABORT;
 
-	    if (sp->check_backpatch(YYTHD))
-	      YYABORT;
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
 	    sp->init_strings(YYTHD, lex, lex->spname);
             if (!(sp->m_flags & sp_head::HAS_RETURN))
@@ -2245,8 +2239,6 @@ sp_proc_stmt:
 	| sp_proc_stmt_unlabeled
 	| sp_proc_stmt_leave
 	| sp_proc_stmt_iterate
-	| sp_proc_stmt_label
-	| sp_proc_stmt_goto
 	| sp_proc_stmt_open
 	| sp_proc_stmt_fetch
         | sp_proc_stmt_close
@@ -2446,97 +2438,6 @@ sp_proc_stmt_iterate:
 	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
               sp->add_instr(i);
 	    }
-	  }
-        ;
-
-sp_proc_stmt_label:
-	  LABEL_SYM IDENT
-	  {
-#ifdef SP_GOTO
-	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-	    sp_pcontext *ctx= lex->spcont;
-	    sp_label_t *lab= ctx->find_label($2.str);
-
-	    if (lab)
-	    {
-	      my_error(ER_SP_LABEL_REDEFINE, MYF(0), $2.str);
-	      YYABORT;
-	    }
-	    else
-	    {
-	      lab= ctx->push_label($2.str, sp->instructions());
-	      lab->type= SP_LAB_GOTO;
-	      lab->ctx= ctx;
-              sp->backpatch(lab);
-	    }
-#else
-	    yyerror(ER(ER_SYNTAX_ERROR));
-	    YYABORT;
-#endif
-	  }
-        ;
-
-sp_proc_stmt_goto:
-	  GOTO_SYM IDENT
-	  {
-#ifdef SP_GOTO
-	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-	    sp_pcontext *ctx= lex->spcont;
-	    uint ip= lex->sphead->instructions();
-	    sp_label_t *lab;
-	    sp_instr_jump *i;
-	    sp_instr_hpop *ih;
-	    sp_instr_cpop *ic;
-
-	    if (sp->m_in_handler)
-	    {
-	      my_message(ER_SP_GOTO_IN_HNDLR, ER(ER_SP_GOTO_IN_HNDLR), MYF(0));
-	      YYABORT;
-	    }
-	    lab= ctx->find_label($2.str);
-	    if (! lab)
-	    {
-	      lab= (sp_label_t *)YYTHD->alloc(sizeof(sp_label_t));
-	      lab->name= $2.str;
-	      lab->ip= 0;
-	      lab->type= SP_LAB_REF;
-	      lab->ctx= ctx;
-
-	      ih= new sp_instr_hpop(ip++, ctx, 0);
-	      sp->push_backpatch(ih, lab);
-	      sp->add_instr(ih);
-	      ic= new sp_instr_cpop(ip++, ctx, 0);
-	      sp->add_instr(ic);
-	      sp->push_backpatch(ic, lab);
-	      i= new sp_instr_jump(ip, ctx);
-	      sp->push_backpatch(i, lab);  /* Jumping forward */
-	      sp->add_instr(i);
-	    }
-	    else
-	    {
-	      uint n;
-
-	      n= ctx->diff_handlers(lab->ctx);
-	      if (n)
-	      {
-	        ih= new sp_instr_hpop(ip++, ctx, n);
-	        sp->add_instr(ih);
-	      }
-	      n= ctx->diff_cursors(lab->ctx);
-	      if (n)
-	      {
-	        ic= new sp_instr_cpop(ip++, ctx, n);
-	        sp->add_instr(ic);
-	      }
-	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
-	      sp->add_instr(i);
-	    }
-#else
-	    yyerror(ER(ER_SYNTAX_ERROR));
-	    YYABORT;
-#endif
 	  }
         ;
 
@@ -11064,8 +10965,6 @@ sp_tail:
 	  LEX *lex= Lex;
 	  sp_head *sp= lex->sphead;
 
-	  if (sp->check_backpatch(YYTHD))
-	    YYABORT;
 	  sp->init_strings(YYTHD, lex, $3);
 	  lex->sql_command= SQLCOM_CREATE_PROCEDURE;
           /*
