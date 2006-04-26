@@ -617,7 +617,7 @@ dict_load_indexes(
 			break;
 		}
 
-		if (rec_get_deleted_flag(rec, table->comp)) {
+		if (rec_get_deleted_flag(rec, 0)) {
 			dict_load_report_deleted_index(table->name,
 				ULINT_UNDEFINED);
 
