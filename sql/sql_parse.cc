@@ -908,7 +908,7 @@ static int check_connection(THD *thd)
     db + passwd_len + 1 : 0;
   uint db_len= db ? strlen(db) : 0;
 
-  if (passwd + passwd_len + db_len > net->read_pos + pkt_len)
+  if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
   {
     inc_host_errors(&thd->remote.sin_addr);
     return ER_HANDSHAKE_ERROR;
@@ -1388,13 +1388,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint db_len= *(uchar*) packet;
     if (db_len >= packet_length || db_len > NAME_LEN)
     {
-      send_error(&thd->net, ER_UNKNOWN_COM_ERROR);
+      send_error(thd, ER_UNKNOWN_COM_ERROR);
       break;
     }
     uint tbl_len= *(uchar*) (packet + db_len + 1);
     if (db_len+tbl_len+2 > packet_length || tbl_len > NAME_LEN)
     {
-      send_error(&thd->net, ER_UNKNOWN_COM_ERROR);
+      send_error(thd, ER_UNKNOWN_COM_ERROR);
       break;
     }
 
