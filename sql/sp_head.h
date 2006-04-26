@@ -264,13 +264,6 @@ public:
   void
   backpatch(struct sp_label *);
 
-  // Check that no unresolved references exist.
-  // If none found, 0 is returned, otherwise errors have been issued
-  // and -1 is returned.
-  // This is called by the parser at the end of a create procedure/function.
-  int
-  check_backpatch(THD *thd);
-
   // Start a new cont. backpatch level. If 'i' is NULL, the level is just incr.
   void
   new_cont_backpatch(sp_instr_opt_meta *i);

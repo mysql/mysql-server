@@ -86,3 +86,73 @@ INSERT INTO t1 VALUES (1),(1);
 sync_slave_with_master;
 
 # End of 4.1 tests
+
+
+#
+# BUG#15728: LAST_INSERT_ID function inside a stored function returns 0
+#
+# The solution is not to reset last_insert_id on enter to sub-statement.
+#
+connection master;
+--disable_warnings
+drop function if exists bug15728;
+drop function if exists bug15728_insert;
+drop table if exists t1, t2;
+--enable_warnings
+
+create table t1 (
+  id int not null auto_increment,
+  last_id int,
+  primary key (id)
+);
+create function bug15728() returns int(11)
+  return last_insert_id();
+
+insert into t1 (last_id) values (0);
+insert into t1 (last_id) values (last_insert_id());
+insert into t1 (last_id) values (bug15728());
+
+# Check that nested call replicates too.
+create table t2 (
+  id int not null auto_increment,
+  last_id int,
+  primary key (id)
+);
+delimiter |;
+create function bug15728_insert() returns int(11) modifies sql data
+begin
+  insert into t2 (last_id) values (bug15728());
+  return bug15728();
+end|
+create trigger t1_bi before insert on t1 for each row
+begin
+  declare res int;
+  select bug15728_insert() into res;
+  set NEW.last_id = res;
+end|
+delimiter ;|
+
+insert into t1 (last_id) values (0);
+
+drop trigger t1_bi;
+
+# Check that nested call doesn't affect outer context.
+select last_insert_id();
+select bug15728_insert();
+select last_insert_id();
+insert into t1 (last_id) values (bug15728());
+# This should be exactly one greater than in the previous call.
+select last_insert_id();
+
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;
+select * from t2;
+connection master;
+
+drop function bug15728;
+drop function bug15728_insert;
+drop table t1, t2;
+
+# End of 5.0 tests

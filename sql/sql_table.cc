@@ -5665,10 +5665,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       new_table=open_temporary_table(thd, path, new_db, tmp_name,0);
     }
     if (!new_table)
-    {
-      VOID(quick_rm_table(new_db_type,new_db,tmp_name));
-      goto err;
-    }
+      goto err1;
   }
 
   /* Copy the data if necessary. */
@@ -5722,7 +5719,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                                 create_info));
       VOID(pthread_mutex_unlock(&LOCK_open));
       if (error)
-        goto err;
+        goto err1;
 #endif
 
       /* The add_index() method takes an array of KEY structs. */
@@ -5750,7 +5747,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         table->key_info= key_info;
         table->file->print_error(error, MYF(0));
         table->key_info= save_key_info;
-        goto err;
+        goto err1;
       }
     }
     /*end of if (index_add_count)*/
@@ -5769,7 +5766,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                                 create_info));
       VOID(pthread_mutex_unlock(&LOCK_open));
       if (error)
-        goto err;
+        goto err1;
 
       if (! need_lock_for_indexes)
       {
@@ -5803,7 +5800,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                                   index_drop_count)))
       {
         table->file->print_error(error, MYF(0));
-        goto err;
+        goto err1;
       }
 
 #ifdef XXX_TO_BE_DONE_LATER_BY_WL3020
@@ -5831,7 +5828,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if ((error= table->file->final_drop_index(table)))
       {
         table->file->print_error(error, MYF(0));
-        goto err;
+        goto err1;
       }
     }
     /*end of if (index_drop_count)*/
@@ -5844,7 +5841,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* Need to commit before a table is unlocked (NDB requirement). */
     DBUG_PRINT("info", ("Committing before unlocking table"));
     if (ha_commit_stmt(thd) || ha_commit(thd))
-      goto err;
+      goto err1;
     committed= 1;
   }
   /*end of if (! new_table) for add/drop index*/
@@ -5853,17 +5850,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     /* We changed a temporary table */
     if (error)
-    {
-      /*
-	The following function call will free the new_table pointer,
-	in close_temporary_table(), so we can safely directly jump to err
-      */
-      if (new_table)
-        close_temporary_table(thd, new_table, 1, 1);
-      else
-        VOID(quick_rm_table(new_db_type,new_db,tmp_name));
-      goto err;
-    }
+      goto err1;
     /* Close lock if this is a transactional table */
     if (thd->lock)
     {
@@ -5874,16 +5861,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     close_temporary_table(thd, table, 1, 1);
     /* Should pass the 'new_name' as we store table name in the cache */
     if (rename_temporary_table(thd, new_table, new_db, new_name))
-    {						// Fatal error
-      if (new_table)
-      {
-        close_temporary_table(thd, new_table, 1, 1);
-        my_free((gptr) new_table,MYF(0));
-      }
-      else
-        VOID(quick_rm_table(new_db_type,new_db,tmp_name));
-      goto err;
-    }
+      goto err1;
     /* We don't replicate alter table statement on temporary tables */
     if (!thd->current_stmt_binlog_row_based)
       write_bin_log(thd, TRUE, thd->query, thd->query_length);
@@ -6098,6 +6076,15 @@ end_temporary:
     send_ok(thd,copied+deleted,0L,tmp_name);
   thd->some_tables_deleted=0;
   DBUG_RETURN(FALSE);
+
+ err1:
+  if (new_table)
+  {
+    /* close_temporary_table() frees the new_table pointer. */
+    close_temporary_table(thd, new_table, 1, 1);
+  }
+  else
+    VOID(quick_rm_table(new_db_type,new_db,tmp_name));
 
  err:
   DBUG_RETURN(TRUE);

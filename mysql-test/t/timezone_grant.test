@@ -1,6 +1,11 @@
 # Embedded server testing does not support grants
 -- source include/not_embedded.inc
 
+--disable_warnings
+drop tables if exists t1, t2;
+drop view if exists v1;
+--enable_warnings
+
 #
 # Test for bug #6116 "SET time_zone := ... requires access to mysql.time_zone
 # tables". We should allow implicit access to time zone description tables
@@ -82,3 +87,29 @@ flush privileges;
 drop table t1, t2;
 
 # End of 4.1 tests
+
+#
+# Additional test for bug #15153: CONVERT_TZ() is not allowed in all
+# places in views.
+#
+# Let us check that usage of CONVERT_TZ() function in view does not 
+# require additional privileges.
+
+# Let us rely on that previous tests done proper cleanups
+create table t1 (a int, b datetime);
+insert into t1 values (1, 20010101000000), (2, 20020101000000);
+grant all privileges on test.* to mysqltest_1@localhost;
+connect (tzuser3, localhost, mysqltest_1,,);
+create view v1 as select a, convert_tz(b, 'UTC', 'Europe/Moscow') as lb from t1;
+select * from v1;
+# Of course we should not be able select from mysql.time_zone tables
+--error ER_TABLEACCESS_DENIED_ERROR
+select * from v1, mysql.time_zone;
+drop view v1;
+--error ER_TABLEACCESS_DENIED_ERROR
+create view v1 as select a, convert_tz(b, 'UTC', 'Europe/Moscow') as lb from t1, mysql.time_zone;
+connection default;
+drop table t1;
+drop user mysqltest_1@localhost;
+
+# End of 5.0 tests
