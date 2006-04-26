@@ -1874,7 +1874,8 @@ const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz
 
 extern "C"
 int
-ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype)
+ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype,
+                     int log_event)
 {
   CHECK_HANDLE(handle, 0);
   CHECK_CONNECTED(handle, 0);
@@ -1894,9 +1895,11 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype)
   args.put("endian", (endian_check.c[sizeof(long)-1])?"big":"little");
   if (handle->m_name)
     args.put("name", handle->m_name);
+  args.put("log_event", log_event);
 
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("get nodeid reply", NULL, ""),
+      MGM_ARG("error_code", Int, Optional, "Error code"),
       MGM_ARG("nodeid", Int, Optional, "Error message"),
       MGM_ARG("result", String, Mandatory, "Error message"),
     MGM_END()
@@ -1909,14 +1912,16 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype)
   nodeid= -1;
   do {
     const char * buf;
-    if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+    if (!prop->get("result", &buf) || strcmp(buf, "Ok") != 0)
+    {
       const char *hostname= ndb_mgm_get_connected_host(handle);
       unsigned port=  ndb_mgm_get_connected_port(handle);
       BaseString err;
+      Uint32 error_code= NDB_MGM_ALLOCID_ERROR;
       err.assfmt("Could not alloc node id at %s port %d: %s",
 		 hostname, port, buf);
-      setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
-	       err.c_str());
+      prop->get("error_code", &error_code);
+      setError(handle, error_code, __LINE__, err.c_str());
       break;
     }
     Uint32 _nodeid;
