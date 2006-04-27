@@ -258,6 +258,9 @@ drop table t1, t2;
 select @@sql_mode;
 set sql_mode=2097152;
 select @@sql_mode;
+# BUG#14675
+set sql_mode=4194304;
+select @@sql_mode;
 set sql_mode=16384+(65536*4);
 select @@sql_mode;
 --error 1231
