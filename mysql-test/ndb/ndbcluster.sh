@@ -237,7 +237,7 @@ cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 # test if Ndb Cluster starts properly
 
 echo "Waiting for NDB data nodes to start..."
-if ( $exec_waiter ) | grep -q "NDBT_ProgramExit: 0 - OK"; then :; else
+if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK" > /dev/null 2>&1; then :; else
   echo "Ndbcluster startup failed"
   stop_default_ndbcluster
   exit 1
