@@ -188,6 +188,7 @@ our $exe_mysqltest;
 our $exe_slave_mysqld;
 our $exe_im;
 our $exe_my_print_defaults;
+our $lib_udf_example;
 
 our $opt_bench= 0;
 our $opt_small_bench= 0;
@@ -1057,6 +1058,8 @@ sub executable_setup () {
       mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables");
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/ndb/tools");
     $exe_ndb_mgm=        "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
+    $lib_udf_example=
+      mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so");
   }
   else
   {
@@ -2936,6 +2939,7 @@ sub run_mysqltest ($) {
   $ENV{'MYSQL_CLIENT_TEST'}=        $cmdline_mysql_client_test;
   $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}=  $exe_my_print_defaults;
+  $ENV{'UDF_EXAMPLE_LIB'}=          basename($lib_udf_example);
 
   $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
   $ENV{'NDB_BACKUP_DIR'}=           $path_ndb_data_dir;

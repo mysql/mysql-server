@@ -12,6 +12,7 @@ sub mtr_init_args ($);
 sub mtr_add_arg ($$@);
 sub mtr_path_exists(@);
 sub mtr_script_exists(@);
+sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
 sub mtr_copy_dir($$);
 sub mtr_same_opts($$);
@@ -83,6 +84,21 @@ sub mtr_script_exists (@) {
   foreach my $path ( @_ )
   {
     return $path if -x $path;
+  }
+  if ( @_ == 1 )
+  {
+    mtr_error("Could not find $_[0]");
+  }
+  else
+  {
+    mtr_error("Could not find any of " . join(" ", @_));
+  }
+}
+
+sub mtr_file_exists (@) {
+  foreach my $path ( @_ )
+  {
+    return $path if -e $path;
   }
   if ( @_ == 1 )
   {
