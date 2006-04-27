@@ -255,6 +255,7 @@ our $opt_result_ext;
 
 our $opt_skip;
 our $opt_skip_rpl;
+our $use_slaves;
 our $opt_skip_test;
 our $opt_skip_im;
 
@@ -406,16 +407,15 @@ sub main () {
     my $tests= collect_test_cases($opt_suite);
 
     # Turn off NDB and other similar options if no tests use it
-    my ($need_ndbcluster,$need_im,$need_slave);
+    my ($need_ndbcluster,$need_im);
     foreach my $test (@$tests)
     {
       $need_ndbcluster||= $test->{ndb_test};
       $need_im||= $test->{component_id} eq 'im';
-      $need_slave||= $test->{slave_num};
+      $use_slaves||= $test->{slave_num};
     }
     $opt_with_ndbcluster= 0 unless $need_ndbcluster;
     $opt_skip_im= 1 unless $need_im;
-    $opt_skip_rpl= 1 unless $need_slave;
 
     snapshot_setup();
     initialize_servers();
@@ -974,7 +974,7 @@ sub snapshot_setup () {
     $master->[0]->{'path_myddir'},
     $master->[1]->{'path_myddir'});
 
-  unless ($opt_skip_rpl)
+  if ($use_slaves)
   {
     push @data_dir_lst, ($slave->[0]->{'path_myddir'},
                          $slave->[1]->{'path_myddir'},
@@ -1661,7 +1661,7 @@ sub mysql_install_db () {
   install_db('master', $master->[0]->{'path_myddir'});
   install_db('master', $master->[1]->{'path_myddir'});
 
-  if ( ! $opt_skip_rpl )
+  if ( $use_slaves )
   {
     install_db('slave',  $slave->[0]->{'path_myddir'});
     install_db('slave',  $slave->[1]->{'path_myddir'});
