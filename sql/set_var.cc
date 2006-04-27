@@ -827,6 +827,7 @@ struct show_var_st init_vars[]= {
   {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_csv",	              (char*) &have_csv_db,	            SHOW_HAVE},
+  {"have_dynamic_loading",    (char*) &have_dlopen,	            SHOW_HAVE},
   {"have_example_engine",     (char*) &have_example_db,	            SHOW_HAVE},
   {"have_federated_engine",   (char*) &have_federated_db,           SHOW_HAVE},
   {"have_geometry",           (char*) &have_geometry,               SHOW_HAVE},

@@ -64,7 +64,7 @@ public:
     }
 
     void GenerateKeyPair(RandomNumberGenerator&, byte*, byte*);
-    void Agree(byte*, const byte*, const byte*);
+    void Agree(byte*, const byte*, const byte*, word32 otherSz = 0);
 
     void SetP(const Integer& p) { p_ = p; }
     void SetG(const Integer& g) { g_ = g; }
