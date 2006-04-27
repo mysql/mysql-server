@@ -2738,14 +2738,6 @@ void CleanUp()
 }
 
 
-// Clean up static singleton holders, not a leak, but helpful to have gone
-// when checking for leaks
-void CleanUp()
-{
-    tcDelete(one);
-    tcDelete(zero);
-}
-
 Integer::Integer(RandomNumberGenerator& rng, const Integer& min,
                  const Integer& max)
 {

@@ -1375,7 +1375,7 @@ Sessions& GetSessions()
 
 static sslFactory* sslFactoryInstance = 0;
 
-sslFactory& GetSSL_Factory()
+sslFactory& GetSSL_Factory(){
     if (!sslFactoryInstance)
         sslFactoryInstance = NEW_YS sslFactory;
     return *sslFactoryInstance;
