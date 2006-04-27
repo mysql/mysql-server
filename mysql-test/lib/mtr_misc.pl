@@ -100,14 +100,7 @@ sub mtr_file_exists (@) {
   {
     return $path if -e $path;
   }
-  if ( @_ == 1 )
-  {
-    mtr_error("Could not find $_[0]");
-  }
-  else
-  {
-    mtr_error("Could not find any of " . join(" ", @_));
-  }
+  return "";
 }
 
 sub mtr_exe_exists (@) {
