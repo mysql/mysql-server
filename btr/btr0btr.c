@@ -2082,6 +2082,10 @@ btr_lift_page_up(
 
 	/* Make the father empty */
 	btr_page_empty(father_page, father_page_zip, mtr, index);
+	/* Set the level before inserting records, because
+	page_zip_compress() requires that the first user record
+	on a non-leaf page has the min_rec_mark set. */
+	btr_page_set_level(father_page, father_page_zip, page_level, mtr);
 
 	/* Move records to the father */
 	if (!page_copy_rec_list_end(father_page, father_page_zip,
@@ -2091,8 +2095,6 @@ btr_lift_page_up(
 		the records in sorted order. */
 		ut_error;
 	}
-
-	btr_page_set_level(father_page, father_page_zip, page_level, mtr);
 
 	lock_update_copy_and_discard(father_page, page);
 
