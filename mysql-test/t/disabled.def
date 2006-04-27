@@ -23,7 +23,6 @@ rpl_deadlock_innodb      : BUG#16920 2006-04-12 kent    fails in show slave stat
 rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
 rpl_ndb_2myisam          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
 rpl_ndb_auto_inc         : BUG#17086 2006-02-16 jmiller CR: auto_increment_increment and auto_increment_offset produce duplicate key er
-rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on solaris
 rpl_ndb_ddl              : BUG#18946 result file needs update + test needs to checked
 rpl_ndb_innodb2ndb       : BUG#17400 2006-04-19 tomas Cluster Replication: delete & update of rows in table without pk fails on slave.
 rpl_ndb_log              : BUG#18947 2006-03-21 tomas CRBR: order in binlog of create table and insert (on different table) not determ
