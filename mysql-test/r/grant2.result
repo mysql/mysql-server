@@ -356,3 +356,17 @@ insert into mysql.user select * from t1;
 drop table t1, t2;
 drop database TESTDB;
 flush privileges;
+grant all privileges on test.* to `a@`@localhost;
+grant execute on * to `a@`@localhost;
+create table t2 (s1 int);
+insert into t2 values (1);
+drop function if exists f2;
+create function f2 () returns int begin declare v int; select s1 from t2
+into v; return v; end//
+select f2();
+f2()
+1
+drop function f2;
+drop table t2;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM `a@`@localhost;
+drop user `a@`@localhost;
