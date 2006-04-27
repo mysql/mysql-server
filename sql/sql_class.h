@@ -1381,6 +1381,7 @@ public:
   void restore_sub_statement_state(Sub_statement_state *backup);
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
+#ifdef HAVE_ROW_BASED_REPLICATION
   inline void set_current_stmt_binlog_row_based_if_mixed()
   {
     if (variables.binlog_format == BINLOG_FORMAT_MIXED)
@@ -1394,6 +1395,7 @@ public:
   {
     current_stmt_binlog_row_based= test(variables.binlog_format == BINLOG_FORMAT_ROW);
   }
+#endif /*HAVE_ROW_BASED_REPLICATION*/
 };
 
 

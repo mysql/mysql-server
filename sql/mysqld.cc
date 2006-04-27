@@ -3115,7 +3115,7 @@ with --log-bin instead.");
   }
   if (global_system_variables.binlog_format == BINLOG_FORMAT_UNSPEC)
   {
-#ifdef HAVE_NDB_BINLOG
+#if defined(HAVE_NDB_BINLOG) && defined(HAVE_ROW_BASED_REPLICATION)
     if (opt_bin_log && have_ndbcluster == SHOW_OPTION_YES)
       global_system_variables.binlog_format= BINLOG_FORMAT_ROW;
     else
