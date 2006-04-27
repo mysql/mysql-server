@@ -215,9 +215,6 @@ select @@version;
 select @@global.version;
 @@global.version
 #
-select @@session.VERSION;
-@@session.VERSION
-#
 set @first_var= NULL;
 create table t1 select @first_var;
 show create table t1;
