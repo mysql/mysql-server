@@ -894,6 +894,8 @@ static void acl_update_user(const char *user, const char *host,
 			    USER_RESOURCES  *mqh,
 			    ulong privileges)
 {
+  safe_mutex_assert_owner(&acl_cache->lock);
+
   for (uint i=0 ; i < acl_users.elements ; i++)
   {
     ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
@@ -942,6 +944,9 @@ static void acl_insert_user(const char *user, const char *host,
 			    ulong privileges)
 {
   ACL_USER acl_user;
+
+  safe_mutex_assert_owner(&acl_cache->lock);
+
   acl_user.user=*user ? strdup_root(&mem,user) : 0;
   update_hostname(&acl_user.host, *host ? strdup_root(&mem, host): 0);
   acl_user.access=privileges;
@@ -973,6 +978,8 @@ static void acl_insert_user(const char *user, const char *host,
 static void acl_update_db(const char *user, const char *host, const char *db,
 			  ulong privileges)
 {
+  safe_mutex_assert_owner(&acl_cache->lock);
+
   for (uint i=0 ; i < acl_dbs.elements ; i++)
   {
     ACL_DB *acl_db=dynamic_element(&acl_dbs,i,ACL_DB*);
@@ -1358,6 +1365,9 @@ find_acl_user(const char *host, const char *user, my_bool exact)
 {
   DBUG_ENTER("find_acl_user");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'",host,user));
+
+  safe_mutex_assert_owner(&acl_cache->lock);
+
   for (uint i=0 ; i < acl_users.elements ; i++)
   {
     ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
@@ -1370,7 +1380,7 @@ find_acl_user(const char *host, const char *user, my_bool exact)
     if (!acl_user->user && !user[0] ||
 	acl_user->user && !strcmp(user,acl_user->user))
     {
-      if (exact ? !my_strcasecmp(&my_charset_latin1, host,
+      if (exact ? !my_strcasecmp(system_charset_info, host,
                                  acl_user->host.hostname ?
 				 acl_user->host.hostname : "") :
           compare_hostname(&acl_user->host,host,host))
@@ -2445,6 +2455,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     create_new_users= test_if_create_new_users(thd);
   int result=0;
   rw_wrlock(&LOCK_grant);
+  pthread_mutex_lock(&acl_cache->lock);
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &memex;
 
@@ -2460,10 +2471,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       continue;
     }
     /* Create user if needed */
-    pthread_mutex_lock(&acl_cache->lock);
     error=replace_user_table(thd, tables[0].table, *Str,
 			     0, revoke_grant, create_new_users);
-    pthread_mutex_unlock(&acl_cache->lock);
     if (error)
     {
       result= -1;				// Remember error
@@ -2552,6 +2561,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
   grant_option=TRUE;
   thd->mem_root= old_root;
+  pthread_mutex_unlock(&acl_cache->lock);
   rw_unlock(&LOCK_grant);
   if (!result)
     send_ok(thd);
@@ -3203,6 +3213,9 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     DBUG_RETURN(-1);
   }
 
+  rw_rdlock(&LOCK_grant);
+  VOID(pthread_mutex_lock(&acl_cache->lock));
+
   for (counter=0 ; counter < acl_users.elements ; counter++)
   {
     const char *user,*host;
@@ -3217,6 +3230,9 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   }
   if (counter == acl_users.elements)
   {
+    VOID(pthread_mutex_unlock(&acl_cache->lock));
+    rw_unlock(&LOCK_grant);
+
     my_error(ER_NONEXISTING_GRANT, MYF(0),
              lex_user->user.str, lex_user->host.str);
     DBUG_RETURN(-1);
@@ -3230,10 +3246,12 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	  lex_user->host.str,NullS);
   field_list.push_back(field);
   if (protocol->send_fields(&field_list,1))
-    DBUG_RETURN(-1);
+  {
+    VOID(pthread_mutex_unlock(&acl_cache->lock));
+    rw_unlock(&LOCK_grant);
 
-  rw_wrlock(&LOCK_grant);
-  VOID(pthread_mutex_lock(&acl_cache->lock));
+    DBUG_RETURN(-1);
+  }
 
   /* Add first global access grants */
   {
@@ -3540,10 +3558,15 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
 void get_mqh(const char *user, const char *host, USER_CONN *uc)
 {
   ACL_USER *acl_user;
+
+  pthread_mutex_lock(&acl_cache->lock);
+
   if (initialized && (acl_user= find_acl_user(host,user, FALSE)))
     uc->user_resources= acl_user->user_resource;
   else
     bzero((char*) &uc->user_resources, sizeof(uc->user_resources));
+
+  pthread_mutex_unlock(&acl_cache->lock);
 }
 
 int open_grant_tables(THD *thd, TABLE_LIST *tables)
@@ -3601,6 +3624,8 @@ ACL_USER *check_acl_user(LEX_USER *user_name,
 {
   ACL_USER *acl_user= 0;
   uint counter;
+
+  safe_mutex_assert_owner(&acl_cache->lock);
 
   for (counter= 0 ; counter < acl_users.elements ; counter++)
   {
