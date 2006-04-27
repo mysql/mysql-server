@@ -197,7 +197,10 @@ THD::THD()
   :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
-   user_time(0), in_sub_stmt(0), binlog_table_maps(0),
+   user_time(0), in_sub_stmt(0),
+#ifdef HAVE_ROW_BASED_REPLICATION
+   binlog_table_maps(0),
+#endif /*HAVE_ROW_BASED_REPLICATION*/
    global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
@@ -333,7 +336,9 @@ void THD::init(void)
   bzero((char*) warn_count, sizeof(warn_count));
   total_warn_count= 0;
   update_charset();
+#ifdef HAVE_ROW_BASED_REPLICATION
   reset_current_stmt_binlog_row_based();
+#endif /*HAVE_ROW_BASED_REPLICATION*/
   bzero((char *) &status_var, sizeof(status_var));
 }
 
@@ -2714,8 +2719,10 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
         the flushing will be done inside the top-most
         close_thread_tables().
        */
+#ifdef HAVE_ROW_BASED_REPLICATION
       if (this->lock)
         DBUG_RETURN(binlog_flush_pending_rows_event(TRUE));
+#endif /*HAVE_ROW_BASED_REPLICATION*/
       DBUG_RETURN(0);
     }
     /* Otherwise, we fall through */
@@ -2734,7 +2741,9 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
         table maps were written.
        */
       int error= mysql_bin_log.write(&qinfo);
+#ifdef HAVE_ROW_BASED_REPLICATION
       binlog_table_maps= 0;
+#endif /*HAVE_ROW_BASED_REPLICATION*/
       DBUG_RETURN(error);
     }
     break;
