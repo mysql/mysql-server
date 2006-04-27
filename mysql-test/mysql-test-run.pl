@@ -1150,7 +1150,7 @@ sub environment_setup () {
   # Add the path where mysqld will find udf_example.so
   # --------------------------------------------------------------------------
   $ENV{'LD_LIBRARY_PATH'}=
-    "$glob_basedir/sql/.libs" .
+    ($lib_udf_example ?  dirname($lib_udf_example) : "") .
       ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
 
 
@@ -2956,7 +2956,8 @@ sub run_mysqltest ($) {
   $ENV{'MYSQL_CLIENT_TEST'}=        $cmdline_mysql_client_test;
   $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}=  $exe_my_print_defaults;
-  $ENV{'UDF_EXAMPLE_LIB'}=          basename($lib_udf_example);
+  $ENV{'UDF_EXAMPLE_LIB'}=
+    ($lib_udf_example ? basename($lib_udf_example) : "");
 
   $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
   $ENV{'NDB_BACKUP_DIR'}=           $path_ndb_data_dir;
