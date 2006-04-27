@@ -545,6 +545,7 @@ GRANT EXECUTE ON PROCEDURE p1 TO user_bug7787@localhost;
 # Cleanup.
 
 DROP DATABASE db_bug7787;
+drop user user_bug7787@localhost;
 use test;
 
 
