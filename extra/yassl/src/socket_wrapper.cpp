@@ -46,9 +46,11 @@
 #ifdef _WIN32
     const int SOCKET_EINVAL = WSAEINVAL;
     const int SOCKET_EWOULDBLOCK = WSAEWOULDBLOCK;
+    const int SOCKET_EAGAIN = WSAEWOULDBLOCK;
 #else
     const int SOCKET_EINVAL = EINVAL;
     const int SOCKET_EWOULDBLOCK = EWOULDBLOCK;
+    const int SOCKET_EAGAIN = EAGAIN;
 #endif // _WIN32
 
 
@@ -98,10 +100,10 @@ uint Socket::get_ready() const
     ioctlsocket(socket_, FIONREAD, &ready);
 #else
     /*
-      64-bit Solaris requires the variable passed to
-      FIONREAD be a 32-bit value.
+       64-bit Solaris requires the variable passed to
+       FIONREAD be a 32-bit value.
     */
-    int ready = 0;
+    unsigned int ready = 0;
     ioctl(socket_, FIONREAD, &ready);
 #endif
 
@@ -126,18 +128,24 @@ uint Socket::receive(byte* buf, unsigned int sz, int flags) const
     assert(socket_ != INVALID_SOCKET);
     int recvd = ::recv(socket_, reinterpret_cast<char *>(buf), sz, flags);
 
-    if (recvd == -1) 
+    // idea to seperate error from would block by arnetheduck@gmail.com
+    if (recvd == -1) {
+        if (get_lastError() == SOCKET_EWOULDBLOCK || 
+            get_lastError() == SOCKET_EAGAIN)
         return 0;
+    }
+    else if (recvd == 0)
+        return static_cast<uint>(-1);
 
     return recvd;
 }
 
 
-// wait if blocking for input, or error
-void Socket::wait() const
+// wait if blocking for input, return false for error
+bool Socket::wait() const
 {
     byte b;
-    receive(&b, 1, MSG_PEEK);
+    return receive(&b, 1, MSG_PEEK) != static_cast<uint>(-1);
 }
 
 
