@@ -26,16 +26,12 @@
 #include "runtime.hpp"
 #include "timer.hpp"
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#else
-#include <sys/time.h>
-#endif
-
 namespace yaSSL {
 
 #ifdef _WIN32
+
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
 
     timer_d timer()
     {
@@ -60,6 +56,8 @@ namespace yaSSL {
     }
 
 #else // _WIN32
+
+    #include <sys/time.h>
 
     timer_d timer()
     {
