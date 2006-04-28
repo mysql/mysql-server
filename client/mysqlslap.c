@@ -457,8 +457,8 @@ static struct my_option my_long_options[] =
     (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
     0},
   {"preserve-schema", OPT_MYSQL_PRESERVE_SCHEMA,
-    "Preserve the schema from the mysqlslap run, this happens unless \
-      --auto-generate-sql or --create are used.",
+    "Preserve the schema from the mysqlslap run, this happens unless "
+      "--auto-generate-sql or --create are used.",
     (gptr*) &opt_preserve, (gptr*) &opt_preserve, 0, GET_BOOL,
     NO_ARG, TRUE, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
