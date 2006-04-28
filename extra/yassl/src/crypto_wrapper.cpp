@@ -58,13 +58,13 @@ struct MD5::MD5Impl {
 };
 
 
-MD5::MD5() : pimpl_(new (ys) MD5Impl) {}
+MD5::MD5() : pimpl_(NEW_YS MD5Impl) {}
 
 
 MD5::~MD5() { ysDelete(pimpl_); }
 
 
-MD5::MD5(const MD5& that) : Digest(), pimpl_(new (ys) 
+MD5::MD5(const MD5& that) : Digest(), pimpl_(NEW_YS 
                                              MD5Impl(that.pimpl_->md5_)) {}
 
 
@@ -116,13 +116,13 @@ struct SHA::SHAImpl {
 };
 
 
-SHA::SHA() : pimpl_(new (ys) SHAImpl) {}
+SHA::SHA() : pimpl_(NEW_YS SHAImpl) {}
 
 
 SHA::~SHA() { ysDelete(pimpl_); }
 
 
-SHA::SHA(const SHA& that) : Digest(), pimpl_(new (ys) SHAImpl(that.pimpl_->sha_)) {}
+SHA::SHA(const SHA& that) : Digest(), pimpl_(NEW_YS SHAImpl(that.pimpl_->sha_)) {}
 
 SHA& SHA::operator=(const SHA& that)
 {
@@ -173,13 +173,13 @@ struct RMD::RMDImpl {
 };
 
 
-RMD::RMD() : pimpl_(new (ys) RMDImpl) {}
+RMD::RMD() : pimpl_(NEW_YS RMDImpl) {}
 
 
 RMD::~RMD() { ysDelete(pimpl_); }
 
 
-RMD::RMD(const RMD& that) : Digest(), pimpl_(new (ys) RMDImpl(that.pimpl_->rmd_)) {}
+RMD::RMD(const RMD& that) : Digest(), pimpl_(NEW_YS RMDImpl(that.pimpl_->rmd_)) {}
 
 RMD& RMD::operator=(const RMD& that)
 {
@@ -230,7 +230,7 @@ struct HMAC_MD5::HMAC_MD5Impl {
 
 
 HMAC_MD5::HMAC_MD5(const byte* secret, unsigned int len) 
-    : pimpl_(new (ys) HMAC_MD5Impl) 
+    : pimpl_(NEW_YS HMAC_MD5Impl) 
 {
     pimpl_->mac_.SetKey(secret, len);
 }
@@ -280,7 +280,7 @@ struct HMAC_SHA::HMAC_SHAImpl {
 
 
 HMAC_SHA::HMAC_SHA(const byte* secret, unsigned int len) 
-    : pimpl_(new (ys) HMAC_SHAImpl) 
+    : pimpl_(NEW_YS HMAC_SHAImpl) 
 {
     pimpl_->mac_.SetKey(secret, len);
 }
@@ -331,7 +331,7 @@ struct HMAC_RMD::HMAC_RMDImpl {
 
 
 HMAC_RMD::HMAC_RMD(const byte* secret, unsigned int len) 
-    : pimpl_(new (ys) HMAC_RMDImpl) 
+    : pimpl_(NEW_YS HMAC_RMDImpl) 
 {
     pimpl_->mac_.SetKey(secret, len);
 }
@@ -379,7 +379,7 @@ struct DES::DESImpl {
 };
 
 
-DES::DES() : pimpl_(new (ys) DESImpl) {}
+DES::DES() : pimpl_(NEW_YS DESImpl) {}
 
 DES::~DES() { ysDelete(pimpl_); }
 
@@ -415,7 +415,7 @@ struct DES_EDE::DES_EDEImpl {
 };
 
 
-DES_EDE::DES_EDE() : pimpl_(new (ys) DES_EDEImpl) {}
+DES_EDE::DES_EDE() : pimpl_(NEW_YS DES_EDEImpl) {}
 
 DES_EDE::~DES_EDE() { ysDelete(pimpl_); }
 
@@ -453,7 +453,7 @@ struct RC4::RC4Impl {
 };
 
 
-RC4::RC4() : pimpl_(new (ys) RC4Impl) {}
+RC4::RC4() : pimpl_(NEW_YS RC4Impl) {}
 
 RC4::~RC4() { ysDelete(pimpl_); }
 
@@ -495,7 +495,7 @@ struct AES::AESImpl {
 };
 
 
-AES::AES(unsigned int ks) : pimpl_(new (ys) AESImpl(ks)) {}
+AES::AES(unsigned int ks) : pimpl_(NEW_YS AESImpl(ks)) {}
 
 AES::~AES() { ysDelete(pimpl_); }
 
@@ -536,7 +536,7 @@ struct RandomPool::RandomImpl {
     TaoCrypt::RandomNumberGenerator RNG_;
 };
 
-RandomPool::RandomPool() : pimpl_(new (ys) RandomImpl) {}
+RandomPool::RandomPool() : pimpl_(NEW_YS RandomImpl) {}
 
 RandomPool::~RandomPool() { ysDelete(pimpl_); }
 
@@ -580,7 +580,7 @@ void DSS::DSSImpl::SetPrivate(const byte* key, unsigned int sz)
 
 // Set public or private key
 DSS::DSS(const byte* key, unsigned int sz, bool publicKey) 
-    : pimpl_(new (ys) DSSImpl)
+    : pimpl_(NEW_YS DSSImpl)
 {
     if (publicKey) 
         pimpl_->SetPublic(key, sz);
@@ -651,7 +651,7 @@ void RSA::RSAImpl::SetPrivate(const byte* key, unsigned int sz)
 
 // Set public or private key
 RSA::RSA(const byte* key, unsigned int sz, bool publicKey) 
-    : pimpl_(new (ys) RSAImpl)
+    : pimpl_(NEW_YS RSAImpl)
 {
     if (publicKey) 
         pimpl_->SetPublic(key, sz);
@@ -723,13 +723,13 @@ struct Integer::IntegerImpl {
     explicit IntegerImpl(const TaoCrypt::Integer& i) : int_(i) {}
 };
 
-Integer::Integer() : pimpl_(new (ys) IntegerImpl) {}
+Integer::Integer() : pimpl_(NEW_YS IntegerImpl) {}
 
 Integer::~Integer() { ysDelete(pimpl_); }
 
 
 
-Integer::Integer(const Integer& other) : pimpl_(new (ys) 
+Integer::Integer(const Integer& other) : pimpl_(NEW_YS 
                                                IntegerImpl(other.pimpl_->int_))
 {}
 
@@ -773,9 +773,9 @@ struct DiffieHellman::DHImpl {
 
     void AllocKeys(unsigned int pubSz, unsigned int privSz, unsigned int agrSz)
     {
-        publicKey_  = new (ys) byte[pubSz];
-        privateKey_ = new (ys) byte[privSz];
-        agreedKey_  = new (ys) byte[agrSz];
+        publicKey_  = NEW_YS byte[pubSz];
+        privateKey_ = NEW_YS byte[privSz];
+        agreedKey_  = NEW_YS byte[agrSz];
     }
 };
 
@@ -784,7 +784,7 @@ struct DiffieHellman::DHImpl {
 /*
 // server Side DH, server's view
 DiffieHellman::DiffieHellman(const char* file, const RandomPool& random)
-    : pimpl_(new (ys) DHImpl(random.pimpl_->RNG_))
+    : pimpl_(NEW_YS DHImpl(random.pimpl_->RNG_))
 {
     using namespace TaoCrypt;
     Source source;
@@ -808,12 +808,12 @@ DiffieHellman::DiffieHellman(const char* file, const RandomPool& random)
 DiffieHellman::DiffieHellman(const byte* p, unsigned int pSz, const byte* g,
                              unsigned int gSz, const byte* pub,
                              unsigned int pubSz, const RandomPool& random)
-    : pimpl_(new (ys) DHImpl(random.pimpl_->RNG_))
+    : pimpl_(NEW_YS DHImpl(random.pimpl_->RNG_))
 {
     using TaoCrypt::Integer;
 
     pimpl_->dh_.Initialize(Integer(p, pSz).Ref(), Integer(g, gSz).Ref());
-    pimpl_->publicKey_ = new (ys) opaque[pubSz];
+    pimpl_->publicKey_ = NEW_YS opaque[pubSz];
     memcpy(pimpl_->publicKey_, pub, pubSz);
 }
 
@@ -821,7 +821,7 @@ DiffieHellman::DiffieHellman(const byte* p, unsigned int pSz, const byte* g,
 // Server Side DH, server's view
 DiffieHellman::DiffieHellman(const Integer& p, const Integer& g,
                              const RandomPool& random)
-: pimpl_(new (ys) DHImpl(random.pimpl_->RNG_))
+: pimpl_(NEW_YS DHImpl(random.pimpl_->RNG_))
 {
     using TaoCrypt::Integer;
 
@@ -839,7 +839,7 @@ DiffieHellman::~DiffieHellman() { ysDelete(pimpl_); }
 
 // Client side and view, use server that for p and g
 DiffieHellman::DiffieHellman(const DiffieHellman& that) 
-    : pimpl_(new (ys) DHImpl(*that.pimpl_))
+    : pimpl_(NEW_YS DHImpl(*that.pimpl_))
 {   
     pimpl_->dh_.GenerateKeyPair(pimpl_->ranPool_, pimpl_->privateKey_,
                                                   pimpl_->publicKey_);
@@ -855,9 +855,9 @@ DiffieHellman& DiffieHellman::operator=(const DiffieHellman& that)
 }
 
 
-void DiffieHellman::makeAgreement(const byte* other)
+void DiffieHellman::makeAgreement(const byte* other, unsigned int otherSz)
 {
-    pimpl_->dh_.Agree(pimpl_->agreedKey_, pimpl_->privateKey_, other); 
+    pimpl_->dh_.Agree(pimpl_->agreedKey_, pimpl_->privateKey_, other, otherSz); 
 }
 
 
@@ -960,7 +960,7 @@ x509* PemToDer(const char* fname, CertType type)
     Base64Decoder b64Dec(der);
 
     uint sz = der.size();
-    mySTL::auto_ptr<x509> x(new (ys) x509(sz), ysDelete);
+    mySTL::auto_ptr<x509> x(NEW_YS x509(sz), ysDelete);
     memcpy(x->use_buffer(), der.get_buffer(), sz);
 
     fclose(file);
