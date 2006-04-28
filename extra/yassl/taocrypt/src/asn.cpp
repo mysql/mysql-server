@@ -213,21 +213,17 @@ void PublicKey::AddToEnd(const byte* data, word32 len)
 
 
 Signer::Signer(const byte* k, word32 kSz, const char* n, const byte* h)
-    : key_(k, kSz), name_(0)
+    : key_(k, kSz)
 {
-    if (n) {
         int sz = strlen(n);
-        name_ = NEW_TC char[sz + 1];
         memcpy(name_, n, sz);
         name_[sz] = 0;
-    }
 
     memcpy(hash_, h, SHA::DIGEST_SIZE);
 }
 
 Signer::~Signer()
 {
-    tcArrayDelete(name_);
 }
 
 
@@ -424,17 +420,19 @@ void DH_Decoder::Decode(DH& key)
 CertDecoder::CertDecoder(Source& s, bool decode, SignerList* signers,
                          bool noVerify, CertType ct)
     : BER_Decoder(s), certBegin_(0), sigIndex_(0), sigLength_(0),
-      signature_(0), issuer_(0), subject_(0), verify_(!noVerify)
+      signature_(0), verify_(!noVerify)
 { 
+    issuer_[0] = 0;
+    subject_[0] = 0;
+
     if (decode)
         Decode(signers, ct); 
+
 }
 
 
 CertDecoder::~CertDecoder()
 {
-    tcArrayDelete(subject_);
-    tcArrayDelete(issuer_);
     tcArrayDelete(signature_);
 }
 
@@ -672,7 +670,11 @@ void CertDecoder::GetName(NameType nt)
 
     SHA    sha;
     word32 length = GetSequence();  // length of all distinguished names
+    assert (length < NAME_MAX);
     length += source_.get_index();
+
+    char*  ptr = (nt == ISSUER) ? issuer_ : subject_;
+    word32 idx = 0;
 
     while (source_.get_index() < length) {
         GetSet();
@@ -694,13 +696,49 @@ void CertDecoder::GetName(NameType nt)
             byte   id      = source_.next();  
             b              = source_.next();    // strType
             word32 strLen  = GetLength(source_);
+            bool   copy    = false;
 
             if (id == COMMON_NAME) {
-                char*& ptr = (nt == ISSUER) ? issuer_ : subject_;
-                ptr = NEW_TC char[strLen + 1];
-                memcpy(ptr, source_.get_current(), strLen);
-                ptr[strLen] = 0;
+                memcpy(&ptr[idx], "/CN=", 4);
+                idx += 4;
+                copy = true;
             }
+            else if (id == SUR_NAME) {
+                memcpy(&ptr[idx], "/SN=", 4);
+                idx += 4;
+                copy = true;
+            }
+            else if (id == COUNTRY_NAME) {
+                memcpy(&ptr[idx], "/C=", 3);
+                idx += 3;
+                copy = true;
+            }
+            else if (id == LOCALITY_NAME) {
+                memcpy(&ptr[idx], "/L=", 3);
+                idx += 3;
+                copy = true;
+            }
+            else if (id == STATE_NAME) {
+                memcpy(&ptr[idx], "/ST=", 4);
+                idx += 4;
+                copy = true;
+            }
+            else if (id == ORG_NAME) {
+                memcpy(&ptr[idx], "/O=", 3);
+                idx += 3;
+                copy = true;
+            }
+            else if (id == ORGUNIT_NAME) {
+                memcpy(&ptr[idx], "/OU=", 4);
+                idx += 4;
+                copy = true;
+            }
+
+            if (copy) {
+                memcpy(&ptr[idx], source_.get_current(), strLen);
+                idx += strLen;
+            }
+
             sha.Update(source_.get_current(), strLen);
             source_.advance(strLen);
         }
@@ -711,6 +749,8 @@ void CertDecoder::GetName(NameType nt)
             source_.advance(length);
         }
     }
+    ptr[idx++] = 0;
+
     if (nt == ISSUER)
         sha.Final(issuerHash_);
     else
