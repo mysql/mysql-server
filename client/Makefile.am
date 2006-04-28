@@ -31,6 +31,7 @@ LDADD=				@CLIENT_EXTRA_LDFLAGS@ \
                                 $(top_builddir)/libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
 				mysqldump mysqlimport mysqltest mysqlbinlog \
+				mysql_upgrade \
 				mysqltestmanagerc mysqltestmanager-pwgen
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h
@@ -48,11 +49,14 @@ mysqlcheck_SOURCES=             mysqlcheck.c $(yassl_dummy_link_fix)
 mysqlshow_SOURCES=              mysqlshow.c $(yassl_dummy_link_fix)
 mysqldump_SOURCES=              mysqldump.c my_user.c $(yassl_dummy_link_fix)
 mysqlimport_SOURCES=            mysqlimport.c $(yassl_dummy_link_fix)
+mysql_upgrade_SOURCES=          mysql_upgrade.c $(yassl_dummy_link_fix)
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
 
 # Fix for mit-threads
-DEFS =			-DUNDEF_THREADS_HACK
+DEFS =			-DUNDEF_THREADS_HACK \
+			-DDEFAULT_MYSQL_HOME="\"$(prefix)\"" \
+			-DDATADIR="\"$(localstatedir)\"" 
 
 link_sources:
 	for f in $(sql_src) ; do \
