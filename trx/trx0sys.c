@@ -101,8 +101,7 @@ trx_doublewrite_init(
 	os_do_not_call_flush_at_each_write = TRUE;
 #endif /* UNIV_DO_FLUSH */
 
-	mutex_create(&(trx_doublewrite->mutex));
-	mutex_set_level(&(trx_doublewrite->mutex), SYNC_DOUBLEWRITE);
+	mutex_create(&trx_doublewrite->mutex, SYNC_DOUBLEWRITE);
 
 	trx_doublewrite->first_free = 0;
 

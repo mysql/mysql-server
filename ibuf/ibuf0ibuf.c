@@ -391,17 +391,12 @@ ibuf_init_at_db_start(void)
 		}
 	}
 #endif
-	mutex_create(&ibuf_pessimistic_insert_mutex);
+	mutex_create(&ibuf_pessimistic_insert_mutex,
+		SYNC_IBUF_PESS_INSERT_MUTEX);
 
-	mutex_set_level(&ibuf_pessimistic_insert_mutex,
-						SYNC_IBUF_PESS_INSERT_MUTEX);
-	mutex_create(&ibuf_mutex);
+	mutex_create(&ibuf_mutex, SYNC_IBUF_MUTEX);
 
-	mutex_set_level(&ibuf_mutex, SYNC_IBUF_MUTEX);
-
-	mutex_create(&ibuf_bitmap_mutex);
-
-	mutex_set_level(&ibuf_bitmap_mutex, SYNC_IBUF_BITMAP_MUTEX);
+	mutex_create(&ibuf_bitmap_mutex, SYNC_IBUF_BITMAP_MUTEX);
 
 	fil_ibuf_init_at_db_start();
 

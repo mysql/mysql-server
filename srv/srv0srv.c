@@ -849,11 +849,9 @@ srv_init(void)
 	srv_sys = mem_alloc(sizeof(srv_sys_t));
 
 	kernel_mutex_temp = mem_alloc(sizeof(mutex_t));
-	mutex_create(&kernel_mutex);
-	mutex_set_level(&kernel_mutex, SYNC_KERNEL);
+	mutex_create(&kernel_mutex, SYNC_KERNEL);
 
-	mutex_create(&srv_innodb_monitor_mutex);
-	mutex_set_level(&srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
 
 	srv_sys->threads = mem_alloc(OS_THREAD_MAX_N * sizeof(srv_slot_t));
 

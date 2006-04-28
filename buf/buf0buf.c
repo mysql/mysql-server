@@ -572,8 +572,7 @@ buf_pool_init(
 
 	/* 1. Initialize general fields
 	   ---------------------------- */
-	mutex_create(&(buf_pool->mutex));
-	mutex_set_level(&(buf_pool->mutex), SYNC_BUF_POOL);
+	mutex_create(&buf_pool->mutex, SYNC_BUF_POOL);
 
 	mutex_enter(&(buf_pool->mutex));
 

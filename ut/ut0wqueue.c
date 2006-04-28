@@ -10,8 +10,7 @@ ib_wqueue_create(void)
 {
 	ib_wqueue_t*	wq = mem_alloc(sizeof(ib_wqueue_t));
 
-	mutex_create(&wq->mutex);
-	mutex_set_level(&wq->mutex, SYNC_WORK_QUEUE);
+	mutex_create(&wq->mutex, SYNC_WORK_QUEUE);
 
 	wq->items = ib_list_create();
 	wq->event = os_event_create(NULL);

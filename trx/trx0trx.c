@@ -144,8 +144,7 @@ trx_create(
 	trx->repl_wait_binlog_name = NULL;
 	trx->repl_wait_binlog_pos = 0;
 
-	mutex_create(&(trx->undo_mutex));
-	mutex_set_level(&(trx->undo_mutex), SYNC_TRX_UNDO);
+	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
 
 	trx->rseg = NULL;
 

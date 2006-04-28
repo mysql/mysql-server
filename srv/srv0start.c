@@ -934,8 +934,7 @@ skip_size_check:
 
 	ios = 0;
 
-	mutex_create(&ios_mutex);
-	mutex_set_level(&ios_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&ios_mutex, SYNC_NO_ORDER_CHECK);
 
 	return(DB_SUCCESS);
 }
@@ -1167,8 +1166,8 @@ NetWare. */
 		return((int) err);
 	}
 
-	mutex_create(&srv_monitor_file_mutex);
-	mutex_set_level(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
+
 	if (srv_innodb_status) {
 		srv_monitor_file_name = mem_alloc(
 				strlen(fil_path_to_mysql_datadir) +
@@ -1189,15 +1188,15 @@ NetWare. */
 		}
 	}
 
-	mutex_create(&srv_dict_tmpfile_mutex);
-	mutex_set_level(&srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
+	mutex_create(&srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
+
 	srv_dict_tmpfile = os_file_create_tmpfile();
 	if (!srv_dict_tmpfile) {
 		return(DB_ERROR);
 	}
 
-	mutex_create(&srv_misc_tmpfile_mutex);
-	mutex_set_level(&srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
+	mutex_create(&srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
+
 	srv_misc_tmpfile = os_file_create_tmpfile();
 	if (!srv_misc_tmpfile) {
 		return(DB_ERROR);

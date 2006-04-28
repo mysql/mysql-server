@@ -214,8 +214,7 @@ trx_purge_sys_create(void)
 	rw_lock_create(&(purge_sys->latch));
 	rw_lock_set_level(&(purge_sys->latch), SYNC_PURGE_LATCH);
 
-	mutex_create(&(purge_sys->mutex));
-	mutex_set_level(&(purge_sys->mutex), SYNC_PURGE_SYS);
+	mutex_create(&purge_sys->mutex, SYNC_PURGE_SYS);
 
 	purge_sys->heap = mem_heap_create(256);
 

@@ -448,8 +448,8 @@ struct rw_lock_struct {
 				/* In the debug version: pointer to the debug
 				info list of the lock */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint	level;		/* Level in the global latching
-				order; default SYNC_LEVEL_NONE */
+
+	ulint	level;		/* Level in the global latching order. */
 	const char*	cfile_name;/* File name where lock created */
 	ulint	cline;		/* Line where created */
 	const char*	last_s_file_name;/* File name where last s-locked */

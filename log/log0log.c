@@ -741,8 +741,7 @@ log_init(void)
 
 	log_sys = mem_alloc(sizeof(log_t));
 
-	mutex_create(&(log_sys->mutex));
-	mutex_set_level(&(log_sys->mutex), SYNC_LOG);
+	mutex_create(&log_sys->mutex, SYNC_LOG);
 
 	mutex_enter(&(log_sys->mutex));
 
