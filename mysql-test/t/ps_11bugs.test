@@ -130,3 +130,17 @@ drop table t1, t2;
 # end of bug#1676
 
 # End of 4.1 tests
+
+# bug#18492: mysqld reports ER_ILLEGAL_REFERENCE in --ps-protocol
+
+create table t1 (a int primary key);
+insert into t1 values (1);
+
+explain select * from t1 where 3 in (select (1+1) union select 1);
+
+select * from t1 where 3 in (select (1+1) union select 1);
+
+prepare st_18492 from 'select * from t1 where 3 in (select (1+1) union select 1)';
+execute st_18492;
+
+drop table t1;
