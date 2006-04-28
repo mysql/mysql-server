@@ -1045,19 +1045,6 @@ public:
   }
 };
 
-class Item_null_helper :public Item_ref_null_helper
-{
-  Item *store;
-public:
-  Item_null_helper(Item_in_subselect* master, Item *item,
-		   const char *table_name_par, const char *field_name_par)
-    :Item_ref_null_helper(master, &item, table_name_par, field_name_par),
-     store(item)
-    { ref= &store; }
-  void print(String *str);
-};
-
-
 /*
   The following class is used to optimize comparing of date and bigint columns
   We need to save the original item ('ref') to be able to call
