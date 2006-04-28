@@ -82,8 +82,7 @@ dict_mem_table_create(
 
 	table->stat_modified_counter = 0;
 
-	mutex_create(&(table->autoinc_mutex));
-	mutex_set_level(&(table->autoinc_mutex), SYNC_DICT_AUTOINC_MUTEX);
+	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
 	table->autoinc_inited = FALSE;
 

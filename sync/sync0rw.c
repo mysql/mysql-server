@@ -90,18 +90,17 @@ rw_lock_create_func(
 /*================*/
 	rw_lock_t*	lock,		/* in: pointer to memory */
 	const char*	cfile_name,	/* in: file name where created */
-  ulint cline,	/* in: file line where created */
-  const char* cmutex_name)  /* in: mutex name */
+	ulint 		cline,		/* in: file line where created */
+	const char* 	cmutex_name)  	/* in: mutex name */
 {
-	/* If this is the very first time a synchronization
-	object is created, then the following call initializes
-	the sync system. */
+	/* If this is the very first time a synchronization object is
+	created, then the following call initializes the sync system. */
 
-	mutex_create(rw_lock_get_mutex(lock));
-	mutex_set_level(rw_lock_get_mutex(lock), SYNC_NO_ORDER_CHECK);
+	mutex_create(rw_lock_get_mutex(lock), SYNC_NO_ORDER_CHECK);
 
 	lock->mutex.cfile_name = cfile_name;
 	lock->mutex.cline = cline;
+
 #ifndef UNIV_HOTBACKUP
   lock->mutex.cmutex_name = cmutex_name;
   lock->mutex.mutex_type = 1;
@@ -117,8 +116,9 @@ rw_lock_create_func(
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_INIT(lock->debug_list);
 
-	lock->level = SYNC_LEVEL_NONE;
+	lock->level = SYNC_LEVEL_VARYING;
 #endif /* UNIV_SYNC_DEBUG */
+
 	lock->magic_n = RW_LOCK_MAGIC_N;
 
 	lock->cfile_name = cfile_name;

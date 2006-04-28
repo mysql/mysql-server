@@ -716,8 +716,7 @@ dict_init(void)
 {
 	dict_sys = mem_alloc(sizeof(dict_sys_t));
 
-	mutex_create(&(dict_sys->mutex));
-	mutex_set_level(&(dict_sys->mutex), SYNC_DICT);
+	mutex_create(&dict_sys->mutex, SYNC_DICT);
 
 	dict_sys->table_hash = hash_create(buf_pool_get_max_size() /
 					(DICT_POOL_PER_TABLE_HASH *
@@ -737,8 +736,7 @@ dict_init(void)
 
 	dict_foreign_err_file = os_file_create_tmpfile();
 	ut_a(dict_foreign_err_file);
-	mutex_create(&dict_foreign_err_mutex);
-	mutex_set_level(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
+	mutex_create(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
 }
 
 /**************************************************************************

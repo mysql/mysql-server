@@ -112,8 +112,7 @@ recv_sys_create(void)
 
 	recv_sys = mem_alloc(sizeof(recv_sys_t));
 
-	mutex_create(&(recv_sys->mutex));
-	mutex_set_level(&(recv_sys->mutex), SYNC_RECV);
+	mutex_create(&recv_sys->mutex, SYNC_RECV);
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;

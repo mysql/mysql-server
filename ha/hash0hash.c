@@ -144,9 +144,7 @@ hash_create_mutexes(
 	table->mutexes = mem_alloc(n_mutexes * sizeof(mutex_t));
 
 	for (i = 0; i < n_mutexes; i++) {
-		mutex_create(table->mutexes + i);
-
-		mutex_set_level(table->mutexes + i, sync_level);
+		mutex_create(table->mutexes + i, sync_level);
 	}
 
 	table->n_mutexes = n_mutexes;
