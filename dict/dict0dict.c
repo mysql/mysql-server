@@ -731,11 +731,11 @@ dict_init(void)
 
 	UT_LIST_INIT(dict_sys->table_LRU);
 
-	rw_lock_create(&dict_operation_lock);
-	rw_lock_set_level(&dict_operation_lock, SYNC_DICT_OPERATION);
+	rw_lock_create(&dict_operation_lock, SYNC_DICT_OPERATION);
 
 	dict_foreign_err_file = os_file_create_tmpfile();
 	ut_a(dict_foreign_err_file);
+
 	mutex_create(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
 }
 
@@ -3607,9 +3607,7 @@ dict_tree_create(
 
 	tree->magic_n = DICT_TREE_MAGIC_N;
 
-	rw_lock_create(&(tree->lock));
-
-	rw_lock_set_level(&(tree->lock), SYNC_INDEX_TREE);
+	rw_lock_create(&tree->lock, SYNC_INDEX_TREE);
 
 	return(tree);
 }
