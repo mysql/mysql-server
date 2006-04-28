@@ -61,7 +61,7 @@ Creates, or rather, initializes an rw-lock object in a specified memory
 location (which must be appropriately aligned). The rw-lock is initialized
 to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
 is necessary only if the memory block containing it is freed. */
-#define rw_lock_create(L) rw_lock_create_func((L), __FILE__, __LINE__, #L)
+#define rw_lock_create(L, level) rw_lock_create_func((L), (level), __FILE__, __LINE__, #L)
 
 /*=====================*/
 /**********************************************************************
@@ -74,9 +74,10 @@ void
 rw_lock_create_func(
 /*================*/
 	rw_lock_t*	lock,		/* in: pointer to memory */
+	ulint		level,		/* in: level */
 	const char*	cfile_name,	/* in: file name where created */
-  ulint cline,	/* in: file line where created */
-  const char* cmutex_name); /* in: mutex name */
+	ulint 		cline,		/* in: file line where created */
+	const char*	cmutex_name); 	/* in: mutex name */
 /**********************************************************************
 Calling this function is obligatory only if the memory buffer containing
 the rw-lock is freed. Removes an rw-lock object from the global list. The
@@ -298,14 +299,6 @@ void
 rw_lock_x_unlock_direct(
 /*====================*/
 	rw_lock_t*	lock);	/* in: rw-lock */
-/**********************************************************************
-Sets the rw-lock latching level field. */
-
-void
-rw_lock_set_level(
-/*==============*/
-	rw_lock_t*	lock,	/* in: rw-lock */
-	ulint		level);	/* in: level */
 /**********************************************************************
 Returns the value of writer_count for the lock. Does not reserve the lock
 mutex, so the caller must be sure it is not changed during the call. */
