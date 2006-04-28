@@ -905,6 +905,7 @@ page_cur_insert_rec_low(
 	ulint		heap_no;	/* heap number of the inserted record */
 	rec_t*		current_rec;	/* current record after which the
 					new record is inserted */
+	page_zip_des_t*	page_zip_orig	= page_zip;
 
 	ut_ad(cursor && mtr);
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -923,7 +924,8 @@ page_cur_insert_rec_low(
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && !page_zip_alloc(page_zip, page, index, rec_size, 1, mtr)) {
 
-		return(NULL);
+		/* Try compressing the whole page afterwards. */
+		page_zip = NULL;
 	}
 
 	insert_buf = page_header_get_ptr(page, PAGE_FREE);
@@ -1107,6 +1109,15 @@ use_heap:
 		page_zip_dir_rewrite(page_zip, page);
 
 		page_zip_write_rec(page_zip, insert_rec, index, offsets, 1);
+	} else if (UNIV_LIKELY_NULL(page_zip_orig)) {
+		/* Recompress the page. */
+		if (!page_zip_compress(page_zip_orig, page, index)) {
+			/* Out of space: restore the page */
+			if (!page_zip_decompress(page_zip_orig, page)) {
+				ut_error; /* Memory corrupted? */
+			}
+			return(NULL);
+		}
 	}
 
 	/* 9. Write log record of the insert */

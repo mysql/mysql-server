@@ -244,8 +244,8 @@ buf_calc_zblob_page_checksum(
 	const byte*	page,		/* in: compressed BLOB page */
 	ulint		zip_size)	/* in: size of the page, in bytes */
 {
-	return(ut_fold_binary(page + FIL_PAGE_SPACE_OR_CHKSUM,
-			zip_size - FIL_PAGE_SPACE_OR_CHKSUM) & 0xFFFFFFFFUL);
+	return(ut_fold_binary(page + FIL_PAGE_OFFSET,
+			zip_size - FIL_PAGE_OFFSET) & 0xFFFFFFFFUL);
 }
 
 /************************************************************************
