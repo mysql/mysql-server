@@ -2231,7 +2231,8 @@ buf_get_latched_pages_number(void)
 	}
 
 	mutex_exit(&(buf_pool->mutex));
-	return fixed_pages_number;
+
+	return(fixed_pages_number);
 }
 
 /*************************************************************************

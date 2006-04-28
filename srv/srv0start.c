@@ -108,8 +108,10 @@ static char*	srv_monitor_file_name;
 static int inno_bcmp(register const char *s1, register const char *s2,
 	register uint len)
 {
-  while (len-- != 0 && *s1++ == *s2++) ;
-  return len+1;
+	while ((len-- != 0) && (*s1++ == *s2++))
+		;
+
+	return(len + 1);
 }
 #define memcmp(A,B,C) inno_bcmp((A),(B),(C))
 #endif
