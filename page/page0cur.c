@@ -1112,12 +1112,19 @@ use_heap:
 	} else if (UNIV_LIKELY_NULL(page_zip_orig)) {
 		/* Recompress the page. */
 		if (!page_zip_compress(page_zip_orig, page, index)) {
+			/* TODO: reduce entropy by reorganizing the page */
+
 			/* Out of space: restore the page */
 			if (!page_zip_decompress(page_zip_orig, page)) {
 				ut_error; /* Memory corrupted? */
 			}
 			return(NULL);
 		}
+
+		/* 9. Write log record of compressing the page. */
+		page_zip_compress_write_log(page_zip_orig, page, mtr);
+
+		return(insert_rec);
 	}
 
 	/* 9. Write log record of the insert */
