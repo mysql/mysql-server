@@ -490,7 +490,7 @@ CHARSET_INFO *character_set_filesystem;
 
 SHOW_COMP_OPTION have_isam;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
-SHOW_COMP_OPTION have_geometry, have_rtree_keys;
+SHOW_COMP_OPTION have_geometry, have_rtree_keys, have_dlopen;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
 /* Thread specific variables */
@@ -6439,6 +6439,11 @@ static void mysql_init_variables(void)
   have_symlink=SHOW_OPTION_NO;
 #else
   have_symlink=SHOW_OPTION_YES;
+#endif
+#ifdef HAVE_DLOPEN
+  have_dlopen=SHOW_OPTION_YES;
+#else
+  have_dlopen=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_QUERY_CACHE
   have_query_cache=SHOW_OPTION_YES;

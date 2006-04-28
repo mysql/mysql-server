@@ -30,7 +30,7 @@
 
 
 #ifdef __sun
-
+ 
 #include <assert.h>
 
 // Handler for pure virtual functions
@@ -49,7 +49,11 @@ namespace __Crun {
 #if __GNUC__ > 2
 
 extern "C" {
-#include <assert.h>
+#if !defined(DO_TAOCRYPT_KERNEL_MODE)
+    #include <assert.h>
+#else
+    #include "kernelc.hpp"
+#endif
 
 /* Disallow inline __cxa_pure_virtual() */
 static int __cxa_pure_virtual() __attribute__((noinline, used));
