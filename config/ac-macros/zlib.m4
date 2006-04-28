@@ -90,8 +90,9 @@ case $SYSTEM_TYPE in
         ;;
       *)
         # Just to be safe, we test for ".so" anyway
+        eval shrexts=\"$shrext_cmds\"
         if test \( -f "$mysql_zlib_dir/lib/libz.a"  -o -f "$mysql_zlib_dir/lib/libz.so" -o \
-                   -f "$mysql_zlib_dir/lib/libz$shrext_cmds" \) \
+                   -f "$mysql_zlib_dir/lib/libz$shrext" \) \
                 -a -f "$mysql_zlib_dir/include/zlib.h"; then
           ZLIB_INCLUDES="-I$mysql_zlib_dir/include"
           ZLIB_LIBS="-L$mysql_zlib_dir/lib -lz"
