@@ -1310,7 +1310,7 @@ extern pthread_t signal_thread;
 #endif
 
 #ifdef HAVE_OPENSSL
-extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
+extern struct st_VioSSLFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
 MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
