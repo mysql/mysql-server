@@ -1295,9 +1295,7 @@ fil_system_create(
 
 	system = mem_alloc(sizeof(fil_system_t));
 
-	mutex_create(&(system->mutex));
-
-	mutex_set_level(&(system->mutex), SYNC_ANY_LATCH);
+	mutex_create(&system->mutex, SYNC_ANY_LATCH);
 
 	system->spaces = hash_create(hash_size);
 	system->name_hash = hash_create(hash_size);
