@@ -822,13 +822,13 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   }
   else
   {
-    select_lex->item_list.empty();
-    select_lex->item_list.push_back(new Item_int("Not_used",
-						 (longlong) 1, 21));
-    select_lex->ref_pointer_array[0]= select_lex->item_list.head();
     if (select_lex->table_list.elements)
     {
       Item *having= item, *orig_item= item;
+      select_lex->item_list.empty();
+      select_lex->item_list.push_back(new Item_int("Not_used",
+                                                   (longlong) 1, 21));
+      select_lex->ref_pointer_array[0]= select_lex->item_list.head();
       item= func->create(expr, item);
       if (!abort_on_null && orig_item->maybe_null)
       {
@@ -875,9 +875,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	select_lex->having=
 	  join->having=
 	  func->create(expr,
-		       new Item_null_helper(this, item,
-					    (char *)"<no matter>",
-					    (char *)"<result>"));
+                       new Item_ref_null_helper(this,
+                                            select_lex->ref_pointer_array,
+                                            (char *)"<no matter>",
+                                            (char *)"<result>"));
+
 	select_lex->having_fix_field= 1;
 	if (join->having->fix_fields(thd, join->tables_list,
 				     0))

@@ -2716,14 +2716,6 @@ void Item_ref_null_helper::print(String *str)
 }
 
 
-void Item_null_helper::print(String *str)
-{
-  str->append("<null_helper>(", 14);
-  store->print(str);
-  str->append(')');
-}
-
-
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == DEFAULT_VALUE_ITEM && 
