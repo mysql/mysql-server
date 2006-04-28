@@ -28,7 +28,7 @@ Release:	%{release}
 License:	%{license}
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
-Packager:	Lenz Grimmer <build@mysql.com>
+Packager:	MySQL Production Engineering Team <build@mysql.com>
 Vendor:		MySQL AB
 Provides:	msqlormysql MySQL-server mysql
 BuildRequires: ncurses-devel
@@ -297,7 +297,6 @@ then
 fi
 
 BuildMySQL "--enable-shared \
-		--without-openssl \
 		--with-berkeley-db \
 		--with-innodb \
 		--with-ndbcluster \
@@ -307,13 +306,25 @@ BuildMySQL "--enable-shared \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
 		--with-embedded-server \
-		--with-comment=\"MySQL Community Edition - Max (GPL)\" \
-		--with-server-suffix='-Max'"
+		--with-comment=\"MySQL Community Edition - Experimental (GPL)\" \
+		--with-server-suffix='-max'"
+
+# We might want to save the config log file
+if test -n "$MYSQL_MAXCONFLOG_DEST"
+then
+  cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
+fi
 
 make -i test-force || true
 
 # Save mysqld-max
-mv sql/mysqld sql/mysqld-max
+# check if mysqld was installed in .libs/
+if test -f sql/.libs/mysqld
+then
+	cp sql/.libs/mysqld sql/mysqld-max
+else
+	cp sql/mysqld sql/mysqld-max
+fi
 nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
 # Save the perror binary so it supports the NDB error codes (BUG#13740)
 mv extra/perror extra/perror.ndb
@@ -362,7 +373,18 @@ BuildMySQL "--disable-shared \
 		--with-innodb \
 		--without-vio \
 		--without-openssl"
-nm --numeric-sort sql/mysqld > sql/mysqld.sym
+if test -f sql/.libs/mysqld
+then
+	nm --numeric-sort sql/.libs/mysqld > sql/mysqld.sym
+else
+	nm --numeric-sort sql/mysqld > sql/mysqld.sym
+fi
+
+# We might want to save the config log file
+if test -n "$MYSQL_CONFLOG_DEST"
+then
+  cp -fp config.log "$MYSQL_CONFLOG_DEST"
+fi
 
 make -i test-force || true
 
@@ -456,7 +478,7 @@ usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # owns all database files.
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
-# Initiate databases
+# Initiate databases if needed
 %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
 
 # Change permissions again to fix any new files.
@@ -543,31 +565,31 @@ fi
 
 %attr(755, root, root) %{_bindir}/isamchk
 %attr(755, root, root) %{_bindir}/isamlog
-%attr(755, root, root) %{_bindir}/myisamchk
+%attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
+%attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
-%attr(755, root, root) %{_bindir}/my_print_defaults
-%attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
 %attr(755, root, root) %{_bindir}/mysql_create_system_tables
-%attr(755, root, root) %{_bindir}/mysqld_multi
-%attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysql_explain_log
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
-%attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
-%attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_zap
+%attr(755, root, root) %{_bindir}/mysqlbug
+%attr(755, root, root) %{_bindir}/mysqld_multi
+%attr(755, root, root) %{_bindir}/mysqld_safe
+%attr(755, root, root) %{_bindir}/mysqlhotcopy
+%attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/pack_isam
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
-%attr(755, root, root) %{_bindir}/resolveip
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
+%attr(755, root, root) %{_bindir}/resolveip
 %attr(755, root, root) %{_bindir}/safe_mysqld
 
 %attr(755, root, root) %{_sbindir}/mysqld
@@ -662,6 +684,11 @@ fi
 %{_libdir}/mysql/libmysys.a
 %{_libdir}/mysql/libnisam.a
 %{_libdir}/mysql/libvio.a
+%if %{STATIC_BUILD}
+%else
+%{_libdir}/mysql/libz.a
+%{_libdir}/mysql/libz.la
+%endif
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -694,10 +721,25 @@ fi
 
 - Set $LDFLAGS from $MYSQL_BUILD_LDFLAGS
 
+* Fri Mar 03 2006 Kent Boortz <kent@mysql.com>
+
+- Can't use bundled zlib when doing static build. Might be a
+  automake/libtool problem, having two .la files, "libmysqlclient.la"
+  and "libz.la", on the same command line to link "thread_test"
+  expands to too many "-lc", "-lpthread" and other libs giving hard
+  to nail down duplicate symbol defintion problems.
+
 * Fri Jan 10 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Use "-i" on "make test-force";
   this is essential for later evaluation of this log file.
+
+* Fri Dec 12 2005 Rodrigo Novo <rodrigo@mysql.com>
+
+- Added zlib to the list of (static) libraries installed
+- Added check against libtool wierdness (WRT: sql/mysqld || sql/.libs/mysqld)
+- Compile MySQL with bundled zlib
+- Fixed %packager name to "MySQL Production Engineering Team"
 
 * Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
 
