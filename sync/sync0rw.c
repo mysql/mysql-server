@@ -89,9 +89,10 @@ void
 rw_lock_create_func(
 /*================*/
 	rw_lock_t*	lock,		/* in: pointer to memory */
+	ulint		level,		/* in: level */
 	const char*	cfile_name,	/* in: file name where created */
 	ulint 		cline,		/* in: file line where created */
-	const char* 	cmutex_name)  	/* in: mutex name */
+	const char*	cmutex_name) 	/* in: mutex name */
 {
 	/* If this is the very first time a synchronization object is
 	created, then the following call initializes the sync system. */
@@ -115,9 +116,9 @@ rw_lock_create_func(
 
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_INIT(lock->debug_list);
-
-	lock->level = SYNC_LEVEL_VARYING;
 #endif /* UNIV_SYNC_DEBUG */
+
+	lock->level = level;
 
 	lock->magic_n = RW_LOCK_MAGIC_N;
 
@@ -668,18 +669,6 @@ rw_lock_remove_debug_info(
 	ut_error;
 }
 #endif /* UNIV_SYNC_DEBUG */
-
-/**********************************************************************
-Sets the rw-lock latching level field. */
-
-void
-rw_lock_set_level(
-/*==============*/
-	rw_lock_t*	lock,	/* in: rw-lock */
-	ulint		level)	/* in: level */
-{
-	lock->level = level;
-}
 
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************

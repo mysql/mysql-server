@@ -524,12 +524,11 @@ buf_block_init(
 
 	block->n_pointers = 0;
 
-	rw_lock_create(&(block->lock));
+	rw_lock_create(&block->lock, SYNC_LEVEL_VARYING);
 	ut_ad(rw_lock_validate(&(block->lock)));
 
 #ifdef UNIV_SYNC_DEBUG
-	rw_lock_create(&(block->debug_latch));
-	rw_lock_set_level(&(block->debug_latch), SYNC_NO_ORDER_CHECK);
+	rw_lock_create(&block->debug_latch, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 }
 
