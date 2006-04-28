@@ -472,9 +472,8 @@ trx_sys_doublewrite_init_or_restore_pages(
 					UNIV_PAGE_SIZE, read_buf, NULL);
 			/* Check if the page is corrupt */
 
-			if (space_id && fil_page_get_type(read_buf)
-					== FIL_PAGE_TYPE_ZBLOB) {
-				zip_size = 16384; /* TODO */
+			if (space_id) {
+				zip_size = fil_space_get_zip_size(space_id);
 			} else {
 				zip_size = 0;
 			}
