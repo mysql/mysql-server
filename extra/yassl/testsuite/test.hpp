@@ -305,8 +305,8 @@ inline void showPeer(SSL* ssl)
         char* subject = X509_NAME_oneline(X509_get_subject_name(peer), 0, 0);
 
         printf("peer's cert info:\n");
-        printf("issuer  is: %s\n", issuer);
-        printf("subject is: %s\n", subject);
+        printf("issuer : %s\n", issuer);
+        printf("subject: %s\n", subject);
 
         free(subject);
         free(issuer);
