@@ -454,8 +454,9 @@ buf_flush_init_for_writing(
 	ulint	page_no)	/* in: page number */
 {
 	page_zip_des_t*	page_zip = page_zip_;
+	ulint		zip_size = fil_space_get_zip_size(space);
 
-	if (fil_space_get_zip_size(space)) {
+	if (zip_size) {
 		switch (fil_page_get_type(page)) {
 		case FIL_PAGE_TYPE_ZBLOB:
 			ut_ad(!page_zip);
@@ -465,7 +466,7 @@ buf_flush_init_for_writing(
 			mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
 					srv_use_checksums
 					? buf_calc_zblob_page_checksum(
-							page, 16384/* TODO */)
+							page, zip_size)
 					: BUF_NO_CHECKSUM_MAGIC);
 			return;
 		case FIL_PAGE_INDEX:
