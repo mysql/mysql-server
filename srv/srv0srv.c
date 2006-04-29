@@ -2557,18 +2557,9 @@ suspend_thread:
 		os_thread_exit(NULL);
 	}
 
-	/* When there is user activity, InnoDB will set the event and the main
-	thread goes back to loop: */
+	/* When there is user activity, InnoDB will set the event and the
+	main thread goes back to loop. */
 
 	goto loop;
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit.
-	The thread actually never comes here because it is exited in an
-	os_event_wait(). */
-
-	os_thread_exit(NULL);
-
-	OS_THREAD_DUMMY_RETURN;
 }
 #endif /* !UNIV_HOTBACKUP */
