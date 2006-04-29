@@ -308,7 +308,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST(NDB_DEFS)
   AC_SUBST(ndb_cxxflags_fix)
 
-  AC_CONFIG_FILES(storage/ndb/Makefile storage/ndb/include/Makefile dnl
+  AC_CONFIG_FILES(storage/ndb/include/Makefile dnl
    storage/ndb/src/Makefile storage/ndb/src/common/Makefile dnl
    storage/ndb/docs/Makefile dnl
    storage/ndb/tools/Makefile dnl

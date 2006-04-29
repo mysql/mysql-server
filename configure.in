@@ -104,7 +104,6 @@ MYSQL_MODULE_ACTIONS(innobase,  [
   AC_SUBST(innodb_includes)
   AC_SUBST(innodb_libs)
   AC_SUBST(innodb_system_libs)
-  other_configures="$other_configures storage/innobase/configure"
 ])
 
 MYSQL_STORAGE_ENGINE(myisam,no, [MyISAM Storage Engine],
@@ -1712,7 +1711,7 @@ fi
 
 # If we should allow error injection tests
 AC_ARG_WITH(error-inject,
-    [ --with-error-inject    Enable error injection in MySQL Server],
+    AC_HELP_STRING([--with-error-inject],[Enable error injection in MySQL Server]),
     [ with_error_inject=$withval ],
     [ with_error_inject=no ])
 
@@ -2338,14 +2337,14 @@ fi
 tools_dirs=""
 
 AC_ARG_WITH([mysqlmanager],
-  AC_HELP_STRING([--with-mysqlmanager], [Build the mysqlmanager binary: yes/no (default: build if server is built.)]),
-  [if test "x${withval}" != "xno"; then
-    tools_dirs="$tools_dirs server-tools"
-   fi],
-  [if test "x${with_server}" = "xyes"; then
-     tools_dirs="$tools_dirs server-tools"
-   fi]
-)
+  AC_HELP_STRING([--with-mysqlmanager], [Build the mysqlmanager binary: yes/no (default: build if server is built.)]),,)
+
+if test "$with_mysqlmanager" = "yes" -o \
+        '(' "$with_mysqlmanager:$with_server" = ":yes" -a \
+            -d "$srcdir/server-tools" ')' ; then
+  tools_dirs="$tools_dirs server-tools"
+  AC_CONFIG_FILES(server-tools/Makefile server-tools/instance-manager/Makefile)
+fi
 
 AC_SUBST(tools_dirs)
 
@@ -2633,28 +2632,18 @@ AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
- unittest/Makefile dnl
- unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
+ unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/examples/Makefile dnl
- strings/Makefile regex/Makefile dnl
- storage/Makefile dnl
- storage/archive/Makefile storage/bdb/Makefile storage/blackhole/Makefile dnl
- storage/csv/Makefile storage/example/Makefile storage/heap/Makefile dnl
- storage/myisam/Makefile storage/myisammrg/Makefile dnl
+ strings/Makefile regex/Makefile storage/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
  sql/sql_builtin.cc sql-common/Makefile dnl
- dbug/Makefile scripts/Makefile dnl
- include/Makefile dnl
- server-tools/Makefile server-tools/instance-manager/Makefile dnl
+ dbug/Makefile scripts/Makefile include/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  mysql-test/ndb/Makefile netware/Makefile dnl
- include/mysql_version.h dnl
- plugin/Makefile dnl
- plugin/fulltext/Makefile dnl
- win/Makefile)
+ include/mysql_version.h plugin/Makefile win/Makefile)
  AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
  AC_OUTPUT
 

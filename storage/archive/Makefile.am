@@ -20,7 +20,7 @@ MYSQLDATAdir =          $(localstatedir)
 MYSQLSHAREdir =         $(pkgdatadir)
 MYSQLBASEdir=           $(prefix)
 MYSQLLIBdir=            $(pkglibdir)
-INCLUDES =              -I$(top_srcdir)/include \
+INCLUDES =              -I$(top_srcdir)/include -I$(top_builddir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/sql \
                         -I$(srcdir) @ZLIB_INCLUDES@
@@ -50,9 +50,9 @@ libarchive_a_SOURCES =	ha_archive.cc azio.c
 
 archive_test_SOURCES =	archive_test.c azio.c
 archive_test_CFLAGS =	$(AM_CFLAGS)
-archive_test_LDADD =	$(top_srcdir)/mysys/libmysys.a \
-			$(top_srcdir)/dbug/libdbug.a \
-			$(top_srcdir)/strings/libmystrings.a \
+archive_test_LDADD =	$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a \
 			@ZLIB_LIBS@
 archive_test_LDFLAGS = @NOINST_LDFLAGS@
 

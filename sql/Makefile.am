@@ -52,10 +52,10 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ha_heap.h ha_myisam.h ha_myisammrg.h ha_partition.h \
 			ha_innodb.h  ha_berkeley.h ha_federated.h \
 			ha_ndbcluster.h ha_ndbcluster_binlog.h \
-			ha_ndbcluster_tables.h
+			ha_ndbcluster_tables.h \
 			opt_range.h protocol.h rpl_tblmap.h \
 			log.h sql_show.h rpl_rli.h \
-			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
+			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h rpl_filter.h \
 			rpl_injector.h \
