@@ -98,13 +98,12 @@ libinnobase.a:		$(libinnobase_a_LIBADD)
 		-rm -f $@
 		if test "$(host_os)" = "netware" ; \
 		then \
-		  $(libmysqld_a_AR) $@ $(libinnobase_a_LIBADD) ; \
+		  $(libinnobase_a_AR) $@ $(libinnobase_a_LIBADD) ; \
 		else \
-		  (for arc in $(libinnobase_a_LIBADD); do \
-		    arpath=`echo $$arc|sed 's|[^/]*$$||'`; \
-		    $(AR) t $$arc|xargs -n 1 find $$arpath -name; \
-		    $(AR) t $$arc|xargs -n 1 find `dirname $$arpath` -path \*/`basename $$arpath`/\* -name; \
-		  done ) | sort -u | xargs $(AR) cq $@ ; \
+		  for arc in $(libinnobase_a_LIBADD); do \
+		     arpath=`echo $$arc|sed 's|[^/]*$$||'`; \
+		     $(AR) t $$arc|sed "s|^|$$arpath|"; \
+		  done | sort -u | xargs $(AR) cq $@ ; \
 		  $(RANLIB) $@	; \
 		fi
 
