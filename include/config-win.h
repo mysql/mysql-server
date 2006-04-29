@@ -22,6 +22,11 @@ functions */
 #define _WIN32_WINNT     0x0500
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER >= 1400
+/* Avoid endless warnings about sprintf() etc. being unsafe. */
+#define _CRT_SECURE_NO_DEPRECATE 1
+#endif
+
 #include <sys/locking.h>
 #include <windows.h>
 #include <math.h>			/* Because of rint() */
@@ -195,7 +200,7 @@ typedef uint rf_SetTimer;
 #define my_sigset(A,B) signal((A),(B))
 #define finite(A) _finite(A)
 #define sleep(A)  Sleep((A)*1000)
-#define popen(A) popen(A,B) _popen((A),(B))
+#define popen(A,B) _popen((A),(B))
 #define pclose(A) _pclose(A)
 
 #ifndef __BORLANDC__
@@ -385,7 +390,7 @@ inline double ulonglong2double(ulonglong value)
 #else
 #define MYSQL_DEFAULT_CHARSET_NAME "latin1"
 #define MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"
-#enfif
+#endif
 
 #define HAVE_SPATIAL 1
 #define HAVE_RTREE_KEYS 1
