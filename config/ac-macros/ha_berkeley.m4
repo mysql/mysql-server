@@ -8,23 +8,20 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_SETUP_BERKELEY_DB], [
   AC_ARG_WITH([berkeley-db],
-              [
-  --with-berkeley-db[=DIR]
-                          Use BerkeleyDB located in DIR],
+              AS_HELP_STRING([--with-berkeley-db[[[[[=DIR]]]]]],
+                             [Use BerkeleyDB located in DIR]),
               [bdb="$withval"],
               [bdb=yes])
 
   AC_ARG_WITH([berkeley-db-includes],
-              [
-  --with-berkeley-db-includes=DIR
-                          Find Berkeley DB headers in DIR],
+              AS_HELP_STRING([--with-berkeley-db-includes=DIR],
+                             [Find Berkeley DB headers in DIR]),
               [bdb_includes="$withval"],
               [bdb_includes=default])
 
   AC_ARG_WITH([berkeley-db-libs],
-              [
-  --with-berkeley-db-libs=DIR
-                          Find Berkeley DB libraries in DIR],
+              AS_HELP_STRING([--with-berkeley-db-libs=DIR],
+                             [Find Berkeley DB libraries in DIR]),
               [bdb_libs="$withval"],
               [bdb_libs=default])
 

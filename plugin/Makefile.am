@@ -18,10 +18,8 @@
 
 AUTOMAKE_OPTIONS =	foreign
 
-# These are built from source in the Docs directory
 EXTRA_DIST =	fulltext/configure.in	
-SUBDIRS =	
-DIST_SUBDIRS = . fulltext
+SUBDIRS =	@mysql_pg_dirs@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
