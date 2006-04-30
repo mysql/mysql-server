@@ -32,8 +32,8 @@ AC_DEFUN([MYSQL_MODULE],[
 
 AC_DEFUN([_MYSQL_MODULE],[
  m4_ifdef([$2], [
-  AC_FATAL([[Duplicate MYSQL_MODULE declaration for ]][$3])
- ],[ dnl 
+  AC_FATAL([Duplicate MYSQL_MODULE declaration for $3])
+ ],[
   m4_define([$2], [$1])
   _MYSQL_PLUGAPPEND([__mysql_plugin_list__],[$1])
   m4_define([MYSQL_MODULE_NAME_]AS_TR_CPP([$1]), [$3])
@@ -57,13 +57,14 @@ AC_DEFUN([MYSQL_STORAGE_ENGINE],[
  MYSQL_MODULE([$1], [$3], [$4], [[$5]])
  MYSQL_MODULE_DEFINE([$1], [WITH_]AS_TR_CPP([$1])[_STORAGE_ENGINE])
  ifelse([$2],[no],[],[
-  _MYSQL_LEGACY_STORAGE_ENGINE([$1],m4_default([$2], [$1-storage-engine]))
+  _MYSQL_LEGACY_STORAGE_ENGINE(
+      m4_bpatsubst(m4_default([$2], [$1-storage-engine]), -, _))
  ])
 ])
 
 AC_DEFUN([_MYSQL_LEGACY_STORAGE_ENGINE],[
-if test "[${with_]m4_bpatsubst($2, -, _)[+set}]" = set; then
-  [with_module_]m4_bpatsubst($1, -, _)="[$with_]m4_bpatsubst($2, -, _)"
+if test "[${with_]$1[+set}]" = set; then
+  [with_module_]$1="[$with_]$1"
 fi
 ])
 
@@ -188,7 +189,7 @@ dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_MODULE_DEPENDS],[
  REQUIRE_PLUGIN([$1])
  ifelse($#, 0, [], $#, 1, [
-  AC_FATAL([[bad number of arguments]])
+  AC_FATAL([bad number of arguments])
  ], $#, 2, [
   _MYSQL_MODULE_DEPEND([$1],[$2])
  ],[
@@ -238,7 +239,8 @@ AC_DEFUN([MYSQL_CONFIGURE_PLUGINS],[
     _MYSQL_CHECK_PLUGIN_ARGS([$1])
     _MYSQL_CONFIGURE_PLUGINS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
     _MYSQL_DO_PLUGIN_ACTIONS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
-    _MYSQL_POST_PLUGIN_FIXUP()
+    AC_SUBST([mysql_se_dirs])
+    AC_SUBST([mysql_pg_dirs])
    ])
  ])
 ])
@@ -273,16 +275,19 @@ AC_DEFUN([_DO_MYSQL_CHECK_PLUGIN],[
   AH_TEMPLATE($5, [Include ]$4[ into mysqld])
  ])
  AC_MSG_CHECKING([whether to use ]$3)
+ mysql_use_plugin_dir=""
  m4_ifdef([$10],[
   if test "[$mysql_module_]$2" = yes -a \
           "[$with_module_]$2" != no -o \
           "[$with_module_]$2" = yes; then
+    AC_MSG_RESULT([error])
     AC_MSG_ERROR([disabled])
   fi
   AC_MSG_RESULT([no])
  ],[
   m4_ifdef([$9],[
    if test "[$with_module_]$2" = no; then
+     AC_MSG_RESULT([error])
      AC_MSG_ERROR([cannot disable mandatory module])
    fi
    [mysql_module_]$2=yes
@@ -295,7 +300,7 @@ AC_DEFUN([_DO_MYSQL_CHECK_PLUGIN],[
       m4_ifdef([$8],[
        m4_ifdef([$6],[
          if test -d "$srcdir/$6" ; then
-           mysql_plugin_dirs="$mysql_plugin_dirs $6"
+           mysql_use_plugin_dir="$6"
        ])
        AC_SUBST([plugin_]$2[_shared_target], "$8")
        AC_SUBST([plugin_]$2[_static_target], [""])
@@ -315,19 +320,19 @@ AC_DEFUN([_DO_MYSQL_CHECK_PLUGIN],[
       m4_ifdef([$7],[
        ifelse(m4_bregexp($7, [^lib[^.]+\.a$]), -2, [
         m4_ifdef([$6],[
-         mysql_plugin_dirs="$mysql_plugin_dirs $6"
+         mysql_use_plugin_dir="$6"
          mysql_plugin_libs="$mysql_plugin_libs -L[\$(top_builddir)]/$6"
         ])
         mysql_plugin_libs="$mysql_plugin_libs
 [-l]m4_bregexp($7, [^lib\([^.]+\)], [\1])"
        ], m4_bregexp($7, [^\\\$]), 0, [
         m4_ifdef([$6],[
-         mysql_plugin_dirs="$mysql_plugin_dirs $6"
+         mysql_use_plugin_dir="$6"
         ])
         mysql_plugin_libs="$mysql_plugin_libs $7"
        ], [
         m4_ifdef([$6],[
-         mysql_plugin_dirs="$mysql_plugin_dirs $6"
+         mysql_use_plugin_dir="$6"
          mysql_plugin_libs="$mysql_plugin_libs \$(top_builddir)/$6/$7"
         ],[
          mysql_plugin_libs="$mysql_plugin_libs $7"
@@ -340,7 +345,8 @@ AC_DEFUN([_DO_MYSQL_CHECK_PLUGIN],[
        AC_SUBST([plugin_]$2[_shared_target], [""])
       ],[
        m4_ifdef([$6],[
-        AC_FATAL([plugin directory specified without library for ]$3)
+        AC_MSG_RESULT([error])
+        AC_MSG_ERROR([Plugin $1 does not support static linking])
        ],[
         m4_ifdef([$5],[
          AC_DEFINE($5)
@@ -353,6 +359,21 @@ AC_DEFUN([_DO_MYSQL_CHECK_PLUGIN],[
       [with_module_]$2=yes
       AC_MSG_RESULT([yes])
     fi
+    m4_ifdef([$6],[
+      if test -n "$mysql_use_plugin_dir" ; then
+        mysql_plugin_dirs="$mysql_plugin_dirs $6"
+        if test -f "$srcdir/$6/configure" ; then
+          other_configures="$other_configures $6/configure"
+        else
+          AC_CONFIG_FILES($6/Makefile)
+        fi
+        ifelse(m4_substr($6, 0, 8), [storage/],
+          [mysql_se_dirs="$mysql_se_dirs ]m4_substr($6, 8)",
+          m4_substr($6, 0, 7), [plugin/],
+          [mysql_pg_dirs="$mysql_pg_dirs ]m4_substr($6, 7)",
+          [AC_FATAL([don't know how to handle plugin dir ]$6)])
+      fi
+    ])
   fi
  ])
 ])
@@ -409,10 +430,10 @@ AC_DEFUN([REQUIRE_PLUGIN],[
 define([_REQUIRE_PLUGIN],[
  ifdef([$2],[
   ifelse($2, [$1], [], [
-   AC_FATAL([[Misspelt MYSQL_MODULE declaration for ]][$1])
+   AC_FATAL([Misspelt MYSQL_MODULE declaration for $1])
   ])
  ],[
-  AC_FATAL([[Missing MYSQL_MODULE declaration for ]][$1])
+  AC_FATAL([Missing MYSQL_MODULE declaration for $1])
  ])
 ])
 
@@ -455,7 +476,7 @@ AC_DEFUN([_MYSQL_PLUGAPPEND],[
 
 AC_DEFUN([_MYSQL_PLUGAPPEND_OPTS],[
  ifelse($#, 0, [], $#, 1, [
-  AC_FATAL([[bad number of args]])
+  AC_FATAL([bad number of args])
  ], $#, 2, [
   _MYSQL_PLUGAPPEND_OPTONE([$1],[$2])
  ],[
@@ -466,10 +487,10 @@ AC_DEFUN([_MYSQL_PLUGAPPEND_OPTS],[
 
 AC_DEFUN([_MYSQL_PLUGAPPEND_OPTONE],[
  ifelse([$2], [all], [
-  AC_FATAL([[protected plugin group: all]])
+  AC_FATAL([protected plugin group: all])
  ],[
   ifelse([$2], [none], [
-   AC_FATAL([[protected plugin group: none]])
+   AC_FATAL([protected plugin group: none])
   ],[
    _MYSQL_PLUGAPPEND([__mysql_$1_configs__],[$2])
    _MYSQL_PLUGAPPEND([__mysql_]m4_bpatsubst($2, -, _)[_plugins__],[$1], [
@@ -516,7 +537,7 @@ AC_DEFUN([MYSQL_SHOW_PLUGIN],[
 ])
 
 AC_DEFUN([_MYSQL_SHOW_PLUGIN],[dnl
-  === Plugin: $3 ===
+  === $3 ===
   Module Name:      [$1]
   Description:      $4
   Supports build:   _PLUGIN_BUILD_TYPE([$7],[$8])[]dnl
@@ -664,29 +685,6 @@ _MYSQL_MODULE_ARGS_CHECK(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
 
   _MYSQL_SANE_VARS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))  
   _MYSQL_CHECK_DEPENDENCIES(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
-])
-
-AC_DEFUN([_MYSQL_POST_PLUGIN_FIXUP],[
-  for plugdir in $mysql_plugin_dirs; do
-    case "$plugdir" in
-    storage/* )
-      mysql_se_dirs="$mysql_se_dirs `echo $plugdir | sed -e 's@^storage/@@'`"
-      ;;
-    plugin/* )
-      mysql_pg_dirs="$mysql_pg_dirs `echo $plugdir | sed -e 's@^plugin/@@'`"
-      ;;
-    *)
-      AC_MSG_ERROR([don't know how to handle plugin dir $plugdir])      
-      ;;    
-    esac
-    if test -f "$srcdir/$plugdir/configure" ; then
-      other_configures="$other_configures $plugdir/configure"
-    else
-      ac_config_files="$ac_config_files $plugdir/Makefile"
-    fi
-  done
-  AC_SUBST(mysql_se_dirs)
-  AC_SUBST(mysql_pg_dirs)
 ])
 
 dnl ===========================================================================

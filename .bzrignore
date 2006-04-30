@@ -1764,3 +1764,6 @@ unittest/examples/*.t
 unittest/mysys/*.t
 unittest/mytap/t/*.t
 unittest/unit
+compile
+libmysqld/sql_builtin.cc
+sql/sql_builtin.cc
