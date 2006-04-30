@@ -83,6 +83,7 @@ class CertManager {
     SignerList   signers_;              // decoded CA keys and names
                                         //    plus verified chained certs
     bool verifyPeer_;
+    bool verifyNone_;                   // no error if verify fails
     bool failNoCert_;
     bool sendVerify_;
 public:
@@ -107,10 +108,12 @@ public:
     uint get_privateKeyLength()    const;
 
     bool verifyPeer() const;
+    bool verifyNone() const;
     bool failNoCert() const;
     bool sendVerify() const;
 
     void setVerifyPeer();
+    void setVerifyNone();
     void setFailNoCert();
     void setSendVerify();
 private:

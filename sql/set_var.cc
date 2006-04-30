@@ -638,7 +638,7 @@ sys_var_have_variable sys_have_blackhole_db("have_blackhole_engine",
 sys_var_have_variable sys_have_compress("have_compress", &have_compress);
 sys_var_have_variable sys_have_crypt("have_crypt", &have_crypt);
 sys_var_have_variable sys_have_csv_db("have_csv", &have_csv_db);
-sys_var_have_variable sys_have_dlopen("have_dlopen", &have_dlopen);
+sys_var_have_variable sys_have_dlopen("have_dynamic_loading", &have_dlopen);
 sys_var_have_variable sys_have_example_db("have_example_engine",
                                           &have_example_db);
 sys_var_have_variable sys_have_federated_db("have_federated_engine",
@@ -913,6 +913,7 @@ SHOW_VAR init_vars[]= {
   {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
+  {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
    SHOW_SYS},

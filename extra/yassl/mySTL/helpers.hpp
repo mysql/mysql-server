@@ -28,6 +28,9 @@
 #define mySTL_HELPERS_HPP
 
 #include <stdlib.h>
+#ifdef _MSC_VER
+    #include <new>
+#endif
 
 /*
       Workaround for the lack of operator new(size_t, void*)
@@ -42,7 +45,6 @@
     }
 
     typedef Dummy* yassl_pointer;
-
 
 namespace mySTL {
 
