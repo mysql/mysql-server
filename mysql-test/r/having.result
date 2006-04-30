@@ -392,3 +392,16 @@ HAVING HU.PROJ.CITY = HU.STAFF.CITY);
 EMPNUM	GRADE*1000
 E3	13000
 DROP SCHEMA HU;
+USE test;
+create table t1(f1 int);
+select f1 from t1 having max(f1)=f1;
+f1
+select f1 from t1 group by f1 having max(f1)=f1;
+f1
+set session sql_mode='ONLY_FULL_GROUP_BY';
+select f1 from t1 having max(f1)=f1;
+ERROR 42000: non-grouping field 'f1' is used in HAVING clause
+select f1 from t1 group by f1 having max(f1)=f1;
+f1
+set session sql_mode='';
+drop table t1;
