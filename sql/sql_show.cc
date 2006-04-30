@@ -111,10 +111,6 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
   CHARSET_INFO *cs= system_charset_info;
   char version_buf[20];
 
-  /* we normally hide all the built-in plugins */
-  if (!plugin->plugin_dl && !thd->lex->verbose)
-    return 0;
-
   restore_record(table, s->default_values);
 
   table->field[0]->store(plugin->name.str, plugin->name.length, cs);
@@ -123,7 +119,7 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
         make_version_string(version_buf, sizeof(version_buf), plug->version),
         cs);
 
-    
+
   switch (plugin->state)
   {
   /* case PLUGIN_IS_FREED: does not happen */
@@ -3042,12 +3038,8 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
 
 int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
 {
-  const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
-  TABLE *table= tables->table;
-  CHARSET_INFO *scs= system_charset_info;
-
   return plugin_foreach(thd, iter_schema_engines, 
-                        MYSQL_STORAGE_ENGINE_PLUGIN, table);
+                        MYSQL_STORAGE_ENGINE_PLUGIN, tables->table);
 }
 
 
