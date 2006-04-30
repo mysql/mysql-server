@@ -459,12 +459,11 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
     share->table_name_length= length;
     share->table_name= tmp_name;
     share->crashed= FALSE;
+    share->archive_write_open= FALSE;
     fn_format(share->data_file_name, table_name, "",
               ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     fn_format(meta_file_name, table_name, "", ARM,
               MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-    DBUG_PRINT("info", ("archive opening (1) up write at %s", 
-                        share->data_file_name));
     strmov(share->table_name,table_name);
     /*
       We will use this lock for rows.
@@ -476,38 +475,20 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
                         share->data_file_name));
     
     /*
-      After we read, we set the file to dirty. When we close, we will do the 
-      opposite. If the meta file will not open we assume it is crashed and
-      leave it up to the user to fix.
+      We read the meta file, but do not mark it dirty unless we actually do
+      a write.
     */
     if (read_meta_file(share->meta_file, &share->rows_recorded, 
                        &share->auto_increment_value,
                        &share->forced_flushes,
                        share->real_path))
       share->crashed= TRUE;
-    else
-      (void)write_meta_file(share->meta_file, share->rows_recorded,
-                            share->auto_increment_value, 
-                            share->forced_flushes, 
-                            share->real_path,
-                            TRUE);
     /*
       Since we now possibly no real_path, we will use it instead if it exists.
     */
     if (*share->real_path)
       fn_format(share->data_file_name, share->real_path, "", ARZ,
                 MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-    /* 
-      It is expensive to open and close the data files and since you can't have
-      a gzip file that can be both read and written we keep a writer open
-      that is shared amoung all open tables.
-    */
-    if (!(azopen(&(share->archive_write), share->data_file_name, 
-                 O_WRONLY|O_APPEND|O_BINARY)))
-    {
-      DBUG_PRINT("info", ("Could not open archive write file"));
-      share->crashed= TRUE;
-    }
     VOID(my_hash_insert(&archive_open_tables, (byte*) share));
     thr_lock_init(&share->lock);
   }
@@ -554,8 +535,9 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
                           share->forced_flushes, 
                           share->real_path, 
                           share->crashed ? TRUE :FALSE);
-    if (azclose(&(share->archive_write)))
-      rc= 1;
+    if (share->archive_write_open)
+      if (azclose(&(share->archive_write)))
+        rc= 1;
     if (my_close(share->meta_file, MYF(0)))
       rc= 1;
     my_free((gptr) share, MYF(0));
@@ -563,6 +545,32 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
   pthread_mutex_unlock(&archive_mutex);
 
   DBUG_RETURN(rc);
+}
+
+int ha_archive::init_archive_writer()
+{
+  DBUG_ENTER("ha_archive::init_archive_writer");
+  (void)write_meta_file(share->meta_file, share->rows_recorded,
+                        share->auto_increment_value, 
+                        share->forced_flushes, 
+                        share->real_path,
+                        TRUE);
+
+  /* 
+    It is expensive to open and close the data files and since you can't have
+    a gzip file that can be both read and written we keep a writer open
+    that is shared amoung all open tables.
+  */
+  if (!(azopen(&(share->archive_write), share->data_file_name, 
+               O_WRONLY|O_APPEND|O_BINARY)))
+  {
+    DBUG_PRINT("info", ("Could not open archive write file"));
+    share->crashed= TRUE;
+    DBUG_RETURN(1);
+  }
+  share->archive_write_open= TRUE;
+
+  DBUG_RETURN(0);
 }
 
 
@@ -910,6 +918,9 @@ int ha_archive::write_row(byte *buf)
     Notice that the global auto_increment has been increased.
     In case of a failed row write, we will never try to reuse the value.
   */
+  if (!share->archive_write_open)
+    if (init_archive_writer())
+      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   share->rows_recorded++;
   rc= real_write_row(buf, &(share->archive_write));
@@ -1220,6 +1231,10 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   int rc;
   azio_stream writer;
   char writer_filename[FN_REFLEN];
+
+  /* Open up the writer if we haven't yet */
+  if (!share->archive_write_open)
+    init_archive_writer();
 
   /* Flush any waiting data */
   azflush(&(share->archive_write), Z_SYNC_FLUSH);
