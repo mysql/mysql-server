@@ -26,7 +26,6 @@
 #ifndef TAO_CRYPT_MODES_HPP
 #define TAO_CRYPT_MODES_HPP
 
-#include <string.h>
 #include "misc.hpp"
 
 namespace TaoCrypt {
@@ -68,14 +67,8 @@ public:
     }
     virtual ~Mode_BASE() {}
 
-    virtual void ProcessAndXorBlock(const byte*, const byte*, byte*) const = 0;
-
-    void ECB_Process(byte*, const byte*, word32);
-    void CBC_Encrypt(byte*, const byte*, word32);
-    void CBC_Decrypt(byte*, const byte*, word32);
-
     void SetIV(const byte* iv) { memcpy(reg_, iv, blockSz_); }
-private:
+protected:
     int   blockSz_;
     byte* reg_;
     byte* tmp_;
@@ -83,9 +76,15 @@ private:
     word32 r_[MaxBlockSz / sizeof(word32)];  // align reg_ on word32
     word32 t_[MaxBlockSz / sizeof(word32)];  // align tmp_ on word32
 
+    void ECB_Process(byte*, const byte*, word32);
+    void CBC_Encrypt(byte*, const byte*, word32);
+    void CBC_Decrypt(byte*, const byte*, word32);
 
     Mode_BASE(const Mode_BASE&);            // hide copy
     Mode_BASE& operator=(const Mode_BASE&); // and assign
+
+private:
+    virtual void ProcessAndXorBlock(const byte*, const byte*, byte*) const = 0;
 };
 
 

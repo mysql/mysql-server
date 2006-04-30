@@ -5192,14 +5192,6 @@ bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
   return FALSE;
 }
 
-void Item_null_helper::print(String *str)
-{
-  str->append(STRING_WITH_LEN("<null_helper>("));
-  store->print(str);
-  str->append(')');
-}
-
-
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == DEFAULT_VALUE_ITEM && 

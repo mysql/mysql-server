@@ -931,14 +931,14 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   {
     Item *item= (Item*) select_lex->item_list.head();
 
-    select_lex->item_list.empty();
-    select_lex->item_list.push_back(new Item_int("Not_used",
-						 (longlong) 1, 21));
-    select_lex->ref_pointer_array[0]= select_lex->item_list.head();
     if (select_lex->table_list.elements)
     {
       bool tmp;
       Item *having= item, *orig_item= item;
+      select_lex->item_list.empty();
+      select_lex->item_list.push_back(new Item_int("Not_used",
+                                                   (longlong) 1, 21));
+      select_lex->ref_pointer_array[0]= select_lex->item_list.head();
       item= func->create(expr, item);
       if (!abort_on_null && orig_item->maybe_null)
       {
@@ -993,17 +993,15 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  comparison functions can't be changed during fix_fields()
 	  we can assign select_lex->having here, and pass 0 as last
 	  argument (reference) to fix_fields()
-        */
-        item= func->create(expr,
-                           new Item_null_helper(&select_lex->context,
-                                                this, item,
-                                                (char *)"<no matter>",
-                                                (char *)"<result>"));
-#ifdef CORRECT_BUT_TOO_SLOW_TO_BE_USABLE
-        if (!abort_on_null && left_expr->maybe_null)
-          item= new Item_cond_or(new Item_func_isnull(left_expr), item);
-#endif
-	select_lex->having= join->having= item;
+	*/
+	select_lex->having=
+	  join->having=
+	  func->create(expr,
+                       new Item_ref_null_helper(&select_lex->context, this,
+                                            select_lex->ref_pointer_array,
+                                            (char *)"<no matter>",
+                                            (char *)"<result>"));
+
 	select_lex->having_fix_field= 1;
         /*
           we do not check join->having->fixed, because comparison function

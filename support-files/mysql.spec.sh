@@ -473,8 +473,11 @@ usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # owns all database files.
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
-# Initiate databases
+# Initiate databases if needed
 %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+
+# Upgrade databases if needed
+%{_bindir}/mysql_upgrade --user=%{mysqld_user}
 
 # Change permissions again to fix any new files.
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
@@ -541,6 +544,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlmanager.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
@@ -565,6 +569,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_explain_log
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
+%attr(755, root, root) %{_bindir}/mysql_upgrade
 %attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
@@ -688,6 +693,10 @@ fi
 # merging BK trees)
 %changelog 
 
+* Fri Apr 28 2006 Kent Boortz <kent@mysql.com>
+
+- Install and run "mysql_upgrade"
+
 * Wed Apr 12 2006 Jim Winstead <jimw@mysql.com>
 
 - Remove sql-bench, and MySQL-bench RPM (will be built as an independent
@@ -696,7 +705,6 @@ fi
 * Tue Apr 11 2006 Jim Winstead <jimw@mysql.com>
 
 - Remove old mysqltestmanager and related programs
-
 * Sat Apr 01 2006 Kent Boortz <kent@mysql.com>
 
 - Set $LDFLAGS from $MYSQL_BUILD_LDFLAGS
