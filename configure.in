@@ -87,8 +87,7 @@ MYSQL_STORAGE_ENGINE(federated,,[Federated Storage Engine],
 MYSQL_MODULE(ftexample,         [Simple Parser],
         [Simple full-text parser plugin])
 MYSQL_MODULE_DIRECTORY(ftexample, [plugin/fulltext])
-MYSQL_MODULE_STATIC(ftexample,  [libftexample.a])
-MYSQL_MODULE_DYNAMIC(ftexample, [ft_example.la])
+MYSQL_MODULE_DYNAMIC(ftexample, [mypluglib.la])
 
 MYSQL_STORAGE_ENGINE(heap,no,   [Memory Storage Engine],
         [In memory hashed tables])
@@ -101,8 +100,6 @@ MYSQL_MODULE_DIRECTORY(innobase, [storage/innobase])
 MYSQL_MODULE_STATIC(innobase,   [libinnobase.a])
 MYSQL_MODULE_ACTIONS(innobase,  [
   AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
-  AC_SUBST(innodb_includes)
-  AC_SUBST(innodb_libs)
   AC_SUBST(innodb_system_libs)
 ])
 
