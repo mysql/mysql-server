@@ -579,7 +579,7 @@ CHARSET_INFO *character_set_filesystem;
 
 SHOW_COMP_OPTION have_row_based_replication;
 SHOW_COMP_OPTION have_openssl, have_symlink, have_dlopen, have_query_cache;
-SHOW_COMP_OPTION have_geometry, have_rtree_keys;
+SHOW_COMP_OPTION have_geometry, have_rtree_keys, have_dlopen;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
 /* Thread specific variables */

@@ -1,2 +1,2 @@
 Variable_name	Value
-have_dlopen	YES
+have_dynamic_loading	YES

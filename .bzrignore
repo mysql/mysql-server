@@ -291,6 +291,7 @@ client/my_decimal.h
 client/my_user.c
 client/mysql
 client/mysql.cpp
+client/mysql_upgrade
 client/mysqladmin
 client/mysqladmin.c
 client/mysqladmin.cpp
@@ -367,6 +368,9 @@ extra/resolve_stack_dump
 extra/resolveip
 extra/sql_state.h
 extra/tztime.cc
+extra/yassl/taocrypt/benchmark/benchmark
+extra/yassl/taocrypt/test/test
+extra/yassl/testsuite/testsuite
 fcns.c
 fcns.h
 gdbinit
@@ -679,6 +683,7 @@ mysql-test/mysql-test-run.log
 mysql-test/mysql_test_run_new
 mysql-test/ndb/ndbcluster
 mysql-test/r/*.err
+mysql-test/r/*.log
 mysql-test/r/*.out
 mysql-test/r/*.reject
 mysql-test/r/alter_table.err
@@ -1747,6 +1752,10 @@ tools/mysqlmanager
 tools/mysqlmngd
 tools/mysqltestmanager
 tools/mysys_priv.h
+unittest/examples/*.t
+unittest/mysys/*.t
+unittest/mytap/t/*.t
+unittest/unit
 vi.h
 vio/*.ds?
 vio/*.vcproj
@@ -1758,9 +1767,3 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
-mysql-test/r/*.log
-client/mysql_upgrade
-unittest/examples/*.t
-unittest/mysys/*.t
-unittest/mytap/t/*.t
-unittest/unit
