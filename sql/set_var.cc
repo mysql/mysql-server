@@ -3207,10 +3207,6 @@ ulong fix_sql_mode(ulong sql_mode)
 		MODE_IGNORE_SPACE |
 		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
 		MODE_NO_FIELD_OPTIONS);
-  if (sql_mode & MODE_MYSQL40)
-    sql_mode|= MODE_NO_FIELD_OPTIONS;
-  if (sql_mode & MODE_MYSQL323)
-    sql_mode|= MODE_NO_FIELD_OPTIONS;
   return sql_mode;
 }
 
