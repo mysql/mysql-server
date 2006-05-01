@@ -318,16 +318,11 @@ fi
 make -i test-force || true
 
 # Save mysqld-max
-# check if mysqld was installed in .libs/
-if test -f sql/.libs/mysqld
-then
-	cp sql/.libs/mysqld sql/mysqld-max
-else
-	cp sql/mysqld sql/mysqld-max
-fi
-nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
+./libtool --mode=execute cp sql/mysqld sql/mysqld-max
+./libtool --mode=execute nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
+
 # Save the perror binary so it supports the NDB error codes (BUG#13740)
-mv extra/perror extra/perror.ndb
+./libtool --mode=execute cp extra/perror extra/perror.ndb
 
 # Install the ndb binaries
 (cd ndb; make install DESTDIR=$RBR)
@@ -373,12 +368,8 @@ BuildMySQL "--disable-shared \
 		--with-innodb \
 		--without-vio \
 		--without-openssl"
-if test -f sql/.libs/mysqld
-then
-	nm --numeric-sort sql/.libs/mysqld > sql/mysqld.sym
-else
-	nm --numeric-sort sql/mysqld > sql/mysqld.sym
-fi
+
+./libtool --mode=execute nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
@@ -717,6 +708,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon May 01 2006 Kent Boortz <kent@mysql.com>
+
+- Use "./libtool --mode=execute" instead of searching for the
+  executable in current directory and ".libs".
+
 * Sat Apr 01 2006 Kent Boortz <kent@mysql.com>
 
 - Set $LDFLAGS from $MYSQL_BUILD_LDFLAGS
