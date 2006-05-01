@@ -367,6 +367,7 @@ inline double ulonglong2double(ulonglong value)
 #include <custom_conf.h>
 #else
 #define DEFAULT_MYSQL_HOME	"c:\\mysql"
+#define DATADIR         	"c:\\mysql\\data"
 #define PACKAGE			"mysql"
 #define DEFAULT_BASEDIR		"C:\\"
 #define SHAREDIR		"share"

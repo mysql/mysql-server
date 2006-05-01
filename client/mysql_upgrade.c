@@ -135,7 +135,9 @@ static int create_check_file(const char *path)
   if (check_file < 0)
     return 1;
 
-  error= my_write(check_file, VERSION, strlen(VERSION), MYF(MY_WME | MY_FNABP));
+  error= my_write(check_file,
+                  MYSQL_SERVER_VERSION, strlen(MYSQL_SERVER_VERSION),
+                  MYF(MY_WME | MY_FNABP));
   error= my_close(check_file, MYF(MY_FAE | MY_WME)) || error;
   return error;
 }
@@ -243,7 +245,7 @@ int main(int argc, char **argv)
         && (test_file_exists("./bin", "mysqld") ||
             test_file_exists("./libexec", "mysqld")))
     {
-      getcwd(bindir, sizeof(bindir));
+      my_getwd(bindir, sizeof(bindir), MYF(0));
       bindir_end= bindir + strlen(bindir);
     }
     else
