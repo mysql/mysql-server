@@ -1281,3 +1281,4 @@ mysql-test/r/udf.log
 extra/yassl/taocrypt/benchmark/benchmark
 extra/yassl/taocrypt/test/test
 extra/yassl/testsuite/testsuite
+client/mysql_upgrade
