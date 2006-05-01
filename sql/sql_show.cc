@@ -1344,8 +1344,8 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     
     has_default= (field->type() != FIELD_TYPE_BLOB &&
 		  field->unireg_check != Field::NEXT_NUMBER &&
-                  !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)) &&
-                    has_now_default));
+                  !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+		    && has_now_default));
 
     if (has_default)
     {
@@ -1374,8 +1374,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
         packet->append(tmp);
     }
 
-    if (!(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS) &&
-        table->timestamp_field == field && 
+    if (!limited_mysql_mode && table->timestamp_field == field && 
         field->unireg_check != Field::TIMESTAMP_DN_FIELD)
       packet->append(" on update CURRENT_TIMESTAMP",28);
 
