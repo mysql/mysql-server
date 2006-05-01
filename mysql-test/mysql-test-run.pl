@@ -428,7 +428,8 @@ sub main () {
       $need_im||= $test->{component_id} eq 'im';
       $use_slaves||= $test->{slave_num};
     }
-    $opt_with_ndbcluster= 0 unless $need_ndbcluster;
+    $opt_with_ndbcluster= $opt_with_ndbcluster_slave= 0
+      unless $need_ndbcluster;
     $opt_skip_im= 1 unless $need_im;
 
     snapshot_setup();
@@ -3234,8 +3235,8 @@ sub run_mysqltest ($) {
   $ENV{'UDF_EXAMPLE_LIB'}=
     ($lib_udf_example ? basename($lib_udf_example) : "");
 
-  $ENV{'NDB_STATUS_OK'}=            $flag_ndb_status_ok;
-  $ENV{'NDB_SLAVE_STATUS_OK'}=      $flag_ndb_slave_status_ok;
+  $ENV{'NDB_STATUS_OK'}=            $flag_ndb_status_ok ? "YES" : "NO";
+  $ENV{'NDB_SLAVE_STATUS_OK'}=      $flag_ndb_slave_status_ok ? "YES" : "NO";
   $ENV{'NDB_EXTRA_TEST'}=           $opt_ndb_extra_test;
   $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
   $ENV{'NDB_BACKUP_DIR'}=           $path_ndb_data_dir;

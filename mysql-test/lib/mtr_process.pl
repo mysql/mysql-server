@@ -672,6 +672,7 @@ sub mtr_mysqladmin_shutdown {
     # Shutdown time must be high as slave may be in reconnect
     mtr_add_arg($args, "--shutdown_timeout=$adm_shutdown_tmo");
     mtr_add_arg($args, "shutdown");
+    my $path_mysqladmin_log= "$::opt_vardir/log/mysqladmin.log";
     # Start mysqladmin in paralell and wait for termination later
     my $pid= mtr_spawn($::exe_mysqladmin, $args,
                        "", $path_mysqladmin_log, $path_mysqladmin_log, "",

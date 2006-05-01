@@ -910,7 +910,6 @@ SHOW_VAR init_vars[]= {
    SHOW_SYS},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"plugin_dir",              (char*) opt_plugin_dir,               SHOW_CHAR},
-  {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
   {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
