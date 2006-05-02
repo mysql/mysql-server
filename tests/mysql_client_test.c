@@ -1213,7 +1213,7 @@ static void test_tran_bdb()
 
   /* create the table 'mytran_demo' of type BDB' or 'InnoDB' */
   rc= mysql_query(mysql, "CREATE TABLE my_demo_transaction( "
-                         "col1 int , col2 varchar(30)) TYPE= BDB");
+                         "col1 int , col2 varchar(30)) ENGINE= BDB");
   myquery(rc);
 
   /* insert a row and commit the transaction */
@@ -1286,7 +1286,7 @@ static void test_tran_innodb()
 
   /* create the table 'mytran_demo' of type BDB' or 'InnoDB' */
   rc= mysql_query(mysql, "CREATE TABLE my_demo_transaction(col1 int, "
-                         "col2 varchar(30)) TYPE= InnoDB");
+                         "col2 varchar(30)) ENGINE= InnoDB");
   myquery(rc);
 
   /* insert a row and commit the transaction */
@@ -9810,7 +9810,7 @@ static void test_derived()
   myquery(rc);
 
   rc= mysql_query(mysql, "create table t1 (id  int(8), primary key (id)) \
-TYPE=InnoDB DEFAULT CHARSET=utf8");
+ENGINE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
   rc= mysql_query(mysql, "insert into t1 values (1)");
@@ -9858,16 +9858,16 @@ static void test_xjoin()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1, t2, t3, t4");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t3 (id int(8), param1_id int(8), param2_id int(8)) TYPE=InnoDB DEFAULT CHARSET=utf8");
+  rc= mysql_query(mysql, "create table t3 (id int(8), param1_id int(8), param2_id int(8)) ENGINE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t1 ( id int(8), name_id int(8), value varchar(10)) TYPE=InnoDB DEFAULT CHARSET=utf8");
+  rc= mysql_query(mysql, "create table t1 ( id int(8), name_id int(8), value varchar(10)) ENGINE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t2 (id int(8), name_id int(8), value varchar(10)) TYPE=InnoDB DEFAULT CHARSET=utf8;");
+  rc= mysql_query(mysql, "create table t2 (id int(8), name_id int(8), value varchar(10)) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t4(id int(8), value varchar(10)) TYPE=InnoDB DEFAULT CHARSET=utf8");
+  rc= mysql_query(mysql, "create table t4(id int(8), value varchar(10)) ENGINE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
   rc= mysql_query(mysql, "insert into t3 values (1, 1, 1), (2, 2, null)");
@@ -14401,7 +14401,7 @@ static void test_bug14210()
     itself is not InnoDB related. In case the table is MyISAM this test
     is harmless.
   */
-  mysql_query(mysql, "create table t1 (a varchar(255)) type=InnoDB");
+  mysql_query(mysql, "create table t1 (a varchar(255)) engine=InnoDB");
   rc= mysql_query(mysql, "insert into t1 (a) values (repeat('a', 256))");
   myquery(rc);
   rc= mysql_query(mysql, "set @@session.max_heap_table_size=16384");
@@ -14757,6 +14757,24 @@ static void test_bug16143()
   mysql_stmt_close(stmt);
 }
 
+
+/* Bug #16144: mysql_stmt_attr_get type error */
+
+static void test_bug16144()
+{
+  const my_bool flag_orig= (my_bool) 0xde;
+  my_bool flag= flag_orig;
+  MYSQL_STMT *stmt;
+  myheader("test_bug16144");
+
+  /* Check that attr_get returns correct data on little and big endian CPUs */
+  stmt= mysql_stmt_init(mysql);
+  mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (const void*) &flag);
+  mysql_stmt_attr_get(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &flag);
+  DIE_UNLESS(flag == flag_orig);
+
+  mysql_stmt_close(stmt);
+}
 
 /*
   Bug #15613: "libmysqlclient API function mysql_stmt_prepare returns wrong
@@ -15180,10 +15198,11 @@ static struct my_tests_st my_tests[]= {
   { "test_bug13488", test_bug13488 },
   { "test_bug13524", test_bug13524 },
   { "test_bug14845", test_bug14845 },
-  { "test_bug15510", test_bug15510 },
   { "test_opt_reconnect", test_opt_reconnect },
+  { "test_bug15510", test_bug15510},
   { "test_bug12744", test_bug12744 },
   { "test_bug16143", test_bug16143 },
+  { "test_bug16144", test_bug16144 },
   { "test_bug15613", test_bug15613 },
   { "test_bug14169", test_bug14169 },
   { "test_bug17667", test_bug17667 },
@@ -15300,7 +15319,6 @@ int main(int argc, char **argv)
 {
   struct my_tests_st *fptr;
 
-  DEBUGGER_OFF;
   MY_INIT(argv[0]);
 
   load_defaults("my", client_test_load_default_groups, &argc, &argv);
