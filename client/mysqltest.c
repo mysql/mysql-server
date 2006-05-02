@@ -153,7 +153,7 @@ static uint global_expected_errors;
 
 /* ************************************************************************ */
 
-static int record = 0, opt_sleep=0;
+static int record= 0, opt_sleep= -1;
 static char *db = 0, *pass=0;
 const char *user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
 const char *opt_include= 0;
@@ -1880,11 +1880,12 @@ int do_sleep(struct st_query *query, my_bool real_sleep)
 		query->first_argument);
 
   /* Fixed sleep time selected by --sleep option */
-  if (opt_sleep && !real_sleep)
+  if (opt_sleep >= 0 && !real_sleep)
     sleep_val= opt_sleep;
 
   DBUG_PRINT("info", ("sleep_val: %f", sleep_val));
-  my_sleep((ulong) (sleep_val * 1000000L));
+  if (sleep_val)
+    my_sleep((ulong) (sleep_val * 1000000L));
   query->last_argument= sleep_end;
   return 0;
 }
@@ -1956,7 +1957,13 @@ static uint get_errcodes(match_err *to,struct st_query *q)
 	;
       for (; e->name; e++)
       {
-	if (!strncmp(start, e->name, (int) (p - start)))
+        /*
+          If we get a match, we need to check the length of the name we
+          matched against in case it was longer than what we are checking
+          (as in ER_WRONG_VALUE vs. ER_WRONG_VALUE_COUNT).
+        */
+	if (!strncmp(start, e->name, (int) (p - start)) &&
+            strlen(e->name) == (p - start))
 	{
 	  to[count].code.errnum= (uint) e->code;
 	  to[count].type= ERR_ERRNO;
@@ -3304,7 +3311,7 @@ static struct my_option my_long_options[] =
    "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"sleep", 'T', "Sleep always this many seconds on sleep commands.",
-   (gptr*) &opt_sleep, (gptr*) &opt_sleep, 0, GET_INT, REQUIRED_ARG, 0, 0, 0,
+   (gptr*) &opt_sleep, (gptr*) &opt_sleep, 0, GET_INT, REQUIRED_ARG, -1, 0, 0,
    0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &unix_sock, (gptr*) &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,

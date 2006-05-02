@@ -12690,6 +12690,10 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       if (item->type() != Item::SUM_FUNC_ITEM && !item->marker &&
 	  !item->const_item())
       {
+        /*
+          TODO: change ER_WRONG_FIELD_WITH_GROUP to more detailed
+          ER_NON_GROUPING_FIELD_USED
+        */
 	my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), item->full_name());
 	return 1;
       }
