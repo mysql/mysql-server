@@ -146,12 +146,15 @@ static handler *archive_create_handler(TABLE_SHARE *table);
 #define ARCHIVE_MIN_ROWS_TO_USE_BULK_INSERT 2
 
 
+static const char archive_hton_name[]= "ARCHIVE";
+static const char archive_hton_comment[]= "Archive storage engine";
+
 /* dummy handlerton - only to have something to return from archive_db_init */
 handlerton archive_hton = {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "ARCHIVE",
+  archive_hton_name,
   SHOW_OPTION_YES,
-  "Archive storage engine", 
+  archive_hton_comment, 
   DB_TYPE_ARCHIVE_DB,
   archive_db_init,
   0,       /* slot */
@@ -1577,9 +1580,9 @@ mysql_declare_plugin(archive)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &archive_hton,
-  archive_hton.name,
+  archive_hton_name,
   "Brian Aker, MySQL AB",
-  "Archive Storage Engine",
+  archive_hton_comment,
   NULL, /* Plugin Init */
   archive_db_done, /* Plugin Deinit */
   0x0100 /* 1.0 */,

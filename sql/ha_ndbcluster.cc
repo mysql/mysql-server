@@ -69,6 +69,9 @@ static bool ndbcluster_show_status(THD*,stat_print_fn *,enum ha_stat_type);
 static int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info);
 static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond);
 
+static const char ndbcluster_hton_name[]= "ndbcluster";
+static const char ndbcluster_hton_comment[]= "Clustered, fault-tolerant tables";
+
 handlerton ndbcluster_hton = {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   "ndbcluster",
@@ -10287,9 +10290,9 @@ mysql_declare_plugin(ndbcluster)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &ndbcluster_hton,
-  ndbcluster_hton.name,
+  ndbcluster_hton_name,
   "MySQL AB",
-  "NDB Storage Engine",
+  ndbcluster_hton_comment,
   NULL, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
