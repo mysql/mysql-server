@@ -388,22 +388,12 @@ install -d $RBR%{_sbindir}
 mv $RBR/%{_libdir}/mysql/*.so* $RBR/%{_libdir}/
 
 # install "mysqld-debug" and "mysqld-max"
-if test -f $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/.libs/mysqld
-then
-  install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/.libs/mysqld \
+./libtool --mode=execute install -m 755 \
+                 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
                  $RBR%{_sbindir}/mysqld-debug
-else
-  install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
-                 $RBR%{_sbindir}/mysqld-debug
-fi
-if test -f $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-max-%{mysql_version}/sql/.libs/mysqld
-then
-  install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-max-%{mysql_version}/sql/.libs/mysqld \
+./libtool --mode=execute install -m 755 \
+                 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-max-%{mysql_version}/sql/mysqld \
                  $RBR%{_sbindir}/mysqld-max
-else
-  install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-max-%{mysql_version}/sql/mysqld \
-                 $RBR%{_sbindir}/mysqld-max
-fi
 
 # install saved perror binary with NDB support (BUG#13740)
 install -m 755 $MBD/extra/perror $RBR%{_bindir}/perror
@@ -556,31 +546,31 @@ fi
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 %ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
 
-%attr(755, root, root) %{_bindir}/myisamchk
+%attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
+%attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
-%attr(755, root, root) %{_bindir}/my_print_defaults
-%attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
 %attr(755, root, root) %{_bindir}/mysql_create_system_tables
-%attr(755, root, root) %{_bindir}/mysqld_multi
-%attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysql_explain_log
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
-%attr(755, root, root) %{_bindir}/mysql_upgrade
-%attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
-%attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
+%attr(755, root, root) %{_bindir}/mysql_upgrade
 %attr(755, root, root) %{_bindir}/mysql_zap
+%attr(755, root, root) %{_bindir}/mysqlbug
+%attr(755, root, root) %{_bindir}/mysqld_multi
+%attr(755, root, root) %{_bindir}/mysqld_safe
+%attr(755, root, root) %{_bindir}/mysqlhotcopy
+%attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
-%attr(755, root, root) %{_bindir}/resolveip
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
+%attr(755, root, root) %{_bindir}/resolveip
 %attr(755, root, root) %{_bindir}/safe_mysqld
 
 %attr(755, root, root) %{_sbindir}/mysqld
@@ -692,6 +682,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon May 01 2006 Kent Boortz <kent@mysql.com>
+
+- Use "./libtool --mode=execute" instead of searching for the
+  executable in current directory and ".libs".
 
 * Fri Apr 28 2006 Kent Boortz <kent@mysql.com>
 
