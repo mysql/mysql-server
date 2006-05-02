@@ -191,7 +191,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"
   ndbcluster_system_libs=""
   ndb_mgmclient_libs="\$(top_builddir)/storage/ndb/src/mgmclient/libndbmgmclient.la"
-  mysql_se_objs="$mysql_se_objs ha_ndbcluster_binlog.o"
 
   MYSQL_CHECK_NDB_OPTIONS
   NDBCLUSTER_WORKAROUNDS
@@ -282,9 +281,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     ndb_bin_am_ldflags=""
   fi
 
-  mysql_se_libs="$mysql_se_libs $ndbcluster_libs $ndbcluster_system_libs"
-  mysql_se_libs="$mysql_se_libs $NDB_SCI_LIBS"
-
   AC_SUBST(NDB_VERSION_MAJOR)
   AC_SUBST(NDB_VERSION_MINOR)
   AC_SUBST(NDB_VERSION_BUILD)
@@ -302,6 +298,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
   AC_SUBST(ndb_mgmclient_libs)
+  AC_SUBST(NDB_SCI_LIBS)
 
   AC_SUBST(ndb_transporter_opt_objs)
   AC_SUBST(ndb_port)
@@ -311,7 +308,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST(NDB_DEFS)
   AC_SUBST(ndb_cxxflags_fix)
 
-  AC_CONFIG_FILES(storage/ndb/Makefile storage/ndb/include/Makefile dnl
+  AC_CONFIG_FILES(storage/ndb/include/Makefile dnl
    storage/ndb/src/Makefile storage/ndb/src/common/Makefile dnl
    storage/ndb/docs/Makefile dnl
    storage/ndb/tools/Makefile dnl

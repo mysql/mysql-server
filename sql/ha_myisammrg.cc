@@ -28,6 +28,8 @@
 #include "../storage/myisammrg/myrg_def.h"
 #endif
 
+#include <mysql/plugin.h>
+
 /*****************************************************************************
 ** MyISAM MERGE tables
 *****************************************************************************/
@@ -573,3 +575,16 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
   */
   return COMPATIBLE_DATA_NO;
 }
+
+mysql_declare_plugin(myisammrg)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &myisammrg_hton,
+  myisammrg_hton.name,
+  "MySQL AB",
+  "MyISAMMRG Storage Engine",
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;
