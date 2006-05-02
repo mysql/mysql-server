@@ -286,12 +286,12 @@ id	stmt_text	status
 1	select 1	supported
 2	flush tables	not supported
 3	handler t1 open as ha	not supported
-4	analyze table t1	not supported
+4	analyze table t1	supported
 5	check table t1	not supported
 6	checksum table t1	not supported
 7	check table t1	not supported
-8	optimize table t1	not supported
-9	repair table t1	not supported
+8	optimize table t1	supported
+9	repair table t1	supported
 10	describe extended select * from t1	supported
 11	help help	not supported
 12	show databases	supported
