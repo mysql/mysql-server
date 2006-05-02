@@ -1553,15 +1553,11 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
   TABLE *table= tables->table;
   CHARSET_INFO *cs= system_charset_info;
   char *user;
-  bool verbose;
-  ulong max_query_length;
   time_t now= time(0);
   DBUG_ENTER("fill_process_list");
 
   user= thd->security_ctx->master_access & PROCESS_ACL ?
         NullS : thd->security_ctx->priv_user;
-  verbose= thd->lex->verbose;
-  max_query_length= PROCESS_LIST_WIDTH;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
 
@@ -1645,7 +1641,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       if (tmp->query)
       {
         table->field[7]->store(tmp->query,
-                               min(max_query_length, tmp->query_length), cs);
+                               min(PROCESS_LIST_INFO_WIDTH,
+                                   tmp->query_length), cs);
         table->field[7]->set_notnull();
       }
 
@@ -5096,9 +5093,9 @@ ST_FIELD_INFO processlist_fields_info[]=
   {"HOST", LIST_PROCESS_HOST_LEN,  MYSQL_TYPE_STRING, 0, 0, "Host"},
   {"DB", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Db"},
   {"COMMAND", 16, MYSQL_TYPE_STRING, 0, 0, "Command"},
-  {"TIME", 4, MYSQL_TYPE_LONG, 0, 0, "Time"},
+  {"TIME", 7, MYSQL_TYPE_LONG, 0, 0, "Time"},
   {"STATE", 30, MYSQL_TYPE_STRING, 0, 1, "State"},
-  {"INFO", PROCESS_LIST_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info"},
+  {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
