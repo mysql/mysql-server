@@ -29,13 +29,17 @@
 static handler *blackhole_create_handler(TABLE_SHARE *table);
 
 
+static const char blackhole_hton_name[]= "BLACKHOLE";
+static const char blackhole_hton_comment[]=
+  "/dev/null storage engine (anything you write to it disappears)";
+
 /* Blackhole storage engine handlerton */
 
 handlerton blackhole_hton= {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "BLACKHOLE",
+  blackhole_hton_name,
   SHOW_OPTION_YES,
-  "/dev/null storage engine (anything you write to it disappears)",
+  blackhole_hton_comment,
   DB_TYPE_BLACKHOLE_DB,
   NULL,
   0,       /* slot */
@@ -256,9 +260,9 @@ mysql_declare_plugin(blackhole)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &blackhole_hton,
-  blackhole_hton.name,
+  blackhole_hton_name,
   "MySQL AB",
-  "Blackhole Storage Engine",
+  blackhole_hton_comment,
   NULL, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,

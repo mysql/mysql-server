@@ -370,11 +370,14 @@ static int federated_rollback(THD *thd, bool all);
 
 /* Federated storage engine handlerton */
 
+static const char federated_hton_name[]= "FEDERATED";
+static const char federated_hton_comment[]= "Federated MySQL storage engine";
+
 handlerton federated_hton= {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "FEDERATED",
+  federated_hton_name,
   SHOW_OPTION_YES,
-  "Federated MySQL storage engine", 
+  federated_hton_comment, 
   DB_TYPE_FEDERATED_DB,
   federated_db_init,
   0,       /* slot */
@@ -2813,9 +2816,9 @@ mysql_declare_plugin(federated)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &federated_hton,
-  federated_hton.name,
+  federated_hton_name,
   "Patrick Galbraith and Brian Aker, MySQL AB",
-  "Federated Storage Engine",
+  federated_hton_comment,
   NULL, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,

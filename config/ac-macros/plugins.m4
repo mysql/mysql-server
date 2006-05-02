@@ -38,9 +38,7 @@ AC_DEFUN([_MYSQL_PLUGIN],[
   _MYSQL_PLUGAPPEND([__mysql_plugin_list__],[$1])
   m4_define([MYSQL_PLUGIN_NAME_]AS_TR_CPP([$1]), [$3])
   m4_define([MYSQL_PLUGIN_DESC_]AS_TR_CPP([$1]), [$4])
-  ifelse([$5], [], [], [
-   _MYSQL_PLUGAPPEND_META([$1], $5)
-  ])
+  _MYSQL_PLUGAPPEND_META([$1], $5)
  ])
 ])
 
@@ -351,11 +349,13 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
     else
       m4_ifdef([$7],[
        ifelse(m4_bregexp($7, [^lib[^.]+\.a$]), -2, [
+dnl change above "-2" to "0" to enable this section
+dnl Although this is "pretty", it breaks libmysqld build
         m4_ifdef([$6],[
          mysql_use_plugin_dir="$6"
          mysql_plugin_libs="$mysql_plugin_libs -L[\$(top_builddir)]/$6"
         ])
-        mysql_plugin_libs="$mysql_plugin_libs
+        mysql_plugin_libs="$mysql_plugin_libs dnl
 [-l]m4_bregexp($7, [^lib\([^.]+\)], [\1])"
        ], m4_bregexp($7, [^\\\$]), 0, [
         m4_ifdef([$6],[

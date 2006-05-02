@@ -91,7 +91,7 @@ MYSQL_PLUGIN_DIRECTORY(ftexample, [plugin/fulltext])
 MYSQL_PLUGIN_DYNAMIC(ftexample, [mypluglib.la])
 
 MYSQL_STORAGE_ENGINE(heap,no,   [Memory Storage Engine],
-        [In memory hashed tables])
+        [Volatile memory based tables])
 MYSQL_PLUGIN_DIRECTORY(heap,    [storage/heap])
 MYSQL_PLUGIN_STATIC(heap,       [libheap.a])
 MYSQL_PLUGIN_MANDATORY(heap)    dnl Memory tables
