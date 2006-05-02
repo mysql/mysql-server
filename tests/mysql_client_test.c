@@ -14846,7 +14846,6 @@ static void test_bug15613()
 static void test_bug17667()
 {
   int rc;
-  myheader("test_bug17667");
   struct buffer_and_length {
     const char *buffer;
     const uint length;
@@ -14862,6 +14861,8 @@ static void test_bug17667()
 
   struct buffer_and_length *statement_cursor;
   FILE *log_file;
+
+  myheader("test_bug17667");
 
   for (statement_cursor= statements; statement_cursor->buffer != NULL;
       statement_cursor++) {

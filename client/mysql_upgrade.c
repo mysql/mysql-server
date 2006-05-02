@@ -307,7 +307,7 @@ int main(int argc, char **argv)
     b_read= my_read(check_file, chf_buffer, sizeof(chf_buffer)-1, MYF(0));
     chf_buffer[b_read]= 0;
     my_close(check_file, MYF(0));
-    if (!strcmp(chf_buffer, VERSION))
+    if (!strcmp(chf_buffer, MYSQL_SERVER_VERSION))
     {
       if (opt_verbose)
         puts("mysql_upgrade already done for this version");
