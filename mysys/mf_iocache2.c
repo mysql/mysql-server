@@ -252,36 +252,88 @@ uint my_b_printf(IO_CACHE *info, const char* fmt, ...)
 uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
 {
   uint out_length=0;
+  uint minimum_width; /* as yet unimplemented */
+  uint minimum_width_sign;
+  uint precision; /* as yet unimplemented for anything but %b */
 
-  for (; *fmt ; fmt++)
+  /*
+    Store the location of the beginning of a format directive, for the
+    case where we learn we shouldn't have been parsing a format string
+    at all, and we don't want to lose the flag/precision/width/size
+    information.
+   */
+  const char* backtrack;
+
+  for (; *fmt != '\0'; fmt++)
   {
-    if (*fmt++ != '%')
+    /* Copy everything until '%' or end of string */
+    const char *start=fmt;
+    uint length;
+    
+    for (; (*fmt != '\0') && (*fmt != '%'); fmt++) ;
+
+    length= (uint) (fmt - start);
+    out_length+=length;
+    if (my_b_write(info, start, length))
+      goto err;
+
+    if (*fmt == '\0')				/* End of format */
     {
-      /* Copy everything until '%' or end of string */
-      const char *start=fmt-1;
-      uint length;
-      for (; *fmt && *fmt != '%' ; fmt++ ) ;
-      length= (uint) (fmt - start);
-      out_length+=length;
-      if (my_b_write(info, start, length))
-	goto err;
-      if (!*fmt)				/* End of format */
-      {
-	return out_length;
-      }
-      fmt++;
-      /* Found one '%' */
+      return out_length;
     }
+
+    /* 
+      By this point, *fmt must be a percent;  Keep track of this location and
+      skip over the percent character. 
+    */
+    DBUG_ASSERT(*fmt == '%');
+    backtrack= fmt;
+    fmt++;
+
+    minimum_width= 0;
+    precision= 0;
+    minimum_width_sign= 1;
     /* Skip if max size is used (to be compatible with printf) */
-    while (my_isdigit(&my_charset_latin1, *fmt) || *fmt == '.' || *fmt == '-')
+    while (*fmt == '-') { fmt++; minimum_width_sign= -1; }
+    if (*fmt == '*') {
+      precision= (int) va_arg(args, int);
       fmt++;
+    } else {
+      while (my_isdigit(&my_charset_latin1, *fmt)) {
+        minimum_width=(minimum_width * 10) + (*fmt - '0');
+        fmt++;
+      }
+    }
+    minimum_width*= minimum_width_sign;
+
+    if (*fmt == '.') {
+      fmt++;
+      if (*fmt == '*') {
+        precision= (int) va_arg(args, int);
+        fmt++;
+      } else {
+        while (my_isdigit(&my_charset_latin1, *fmt)) {
+          precision=(precision * 10) + (*fmt - '0');
+          fmt++;
+        }
+      }
+    }
+
     if (*fmt == 's')				/* String parameter */
     {
       reg2 char *par = va_arg(args, char *);
       uint length = (uint) strlen(par);
+      /* TODO: implement minimum width and precision */
       out_length+=length;
       if (my_b_write(info, par, length))
 	goto err;
+    }
+    else if (*fmt == 'b')                       /* Sized buffer parameter, only precision makes sense */
+    {
+      char *par = va_arg(args, char *);
+      out_length+= precision;
+      if (my_b_write(info, par, precision))
+        goto err;
     }
     else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
     {
@@ -317,9 +369,9 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     else
     {
       /* %% or unknown code */
-      if (my_b_write(info, "%", 1))
-	goto err;
-      out_length++;
+      if (my_b_write(info, backtrack, fmt-backtrack))
+        goto err;
+      out_length+= fmt-backtrack;
     }
   }
   return out_length;
