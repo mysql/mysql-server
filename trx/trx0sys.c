@@ -489,10 +489,10 @@ trx_sys_doublewrite_init_or_restore_pages(
 				if (buf_page_is_corrupted(page, zip_size)) {
 					fprintf(stderr,
 		"InnoDB: Dump of the page:\n");
-					buf_page_print(read_buf);
+					buf_page_print(read_buf, zip_size);
 					fprintf(stderr,
 		"InnoDB: Dump of corresponding page in doublewrite buffer:\n");
-					buf_page_print(page);
+					buf_page_print(page, zip_size);
 
 					fprintf(stderr,
 		"InnoDB: Also the page in the doublewrite buffer is corrupt.\n"

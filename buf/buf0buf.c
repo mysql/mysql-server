@@ -410,19 +410,88 @@ Prints a page to stderr. */
 void
 buf_page_print(
 /*===========*/
-	byte*	read_buf)	/* in: a database page */
+	byte*	read_buf,	/* in: a database page */
+	ulint	zip_size)	/* in: compressed page size, or
+				0 for uncompressed pages */
 {
 	dict_index_t*	index;
 	ulint		checksum;
 	ulint		old_checksum;
+	ulint		size	= zip_size;
+
+	if (!size) {
+		size = UNIV_PAGE_SIZE;
+	}
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr, "  InnoDB: Page dump in ascii and hex (%lu bytes):\n",
-		(ulint)UNIV_PAGE_SIZE);
-	ut_print_buf(stderr, read_buf, UNIV_PAGE_SIZE);
+		(ulong) size);
+	ut_print_buf(stderr, read_buf, size);
 	fputs("InnoDB: End of page dump\n", stderr);
 
-	/* TODO: print zipped pages differently, esp. BLOB pages */
+	if (zip_size) {
+		/* Print compressed page. */
+
+		switch (fil_page_get_type(read_buf)) {
+		case FIL_PAGE_TYPE_ZBLOB:
+			checksum = srv_use_checksums
+					? buf_calc_zblob_page_checksum(
+							read_buf, zip_size)
+					: BUF_NO_CHECKSUM_MAGIC;
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: Compressed BLOB page checksum %lu, stored %lu\n"
+"InnoDB: Page lsn %lu %lu\n"
+"InnoDB: Page number (if stored to page already) %lu,\n"
+"InnoDB: space id (if stored to page already) %lu\n",
+				(ulong) checksum,
+				(ulong) mach_read_from_4(read_buf
+						+ FIL_PAGE_SPACE_OR_CHKSUM),
+				(ulong) mach_read_from_4(read_buf
+						+ FIL_PAGE_LSN),
+				(ulong) mach_read_from_4(read_buf
+						+ (FIL_PAGE_LSN + 4)),
+				(ulong) mach_read_from_4(read_buf
+						+ FIL_PAGE_OFFSET),
+				(ulong) mach_read_from_4(read_buf
+						+ FIL_PAGE_ZBLOB_SPACE_ID));
+			return;
+		default:
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: unknown page type %lu, assuming FIL_PAGE_INDEX\n",
+				fil_page_get_type(read_buf));
+			/* fall through */
+		case FIL_PAGE_INDEX:
+			checksum = srv_use_checksums
+					? page_zip_calc_checksum(
+							read_buf, zip_size)
+					: BUF_NO_CHECKSUM_MAGIC;
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: Compressed page checksum %lu, stored %lu\n"
+"InnoDB: Page lsn %lu %lu\n"
+"InnoDB: Page number (if stored to page already) %lu,\n"
+"InnoDB: space id (if stored to page already) %lu\n",
+				(ulong) checksum,
+				(ulong) mach_read_from_4(read_buf
+					+ FIL_PAGE_SPACE_OR_CHKSUM),
+				(ulong) mach_read_from_4(read_buf
+					+ FIL_PAGE_LSN),
+				(ulong) mach_read_from_4(read_buf
+					+ (FIL_PAGE_LSN + 4)),
+				(ulong) mach_read_from_4(read_buf
+					+ FIL_PAGE_OFFSET),
+				(ulong) mach_read_from_4(read_buf
+					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
+			return;
+		case FIL_PAGE_TYPE_XDES:
+			/* This is an uncompressed page. */
+			break;
+		}
+	}
+
 	checksum = srv_use_checksums ?
 		buf_calc_page_new_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
 	old_checksum = srv_use_checksums ?
@@ -465,18 +534,21 @@ buf_page_print(
 			(ulong) ut_dulint_get_high(btr_page_get_index_id(read_buf)),
 			(ulong) ut_dulint_get_low(btr_page_get_index_id(read_buf)));
 
+#ifdef UNIV_HOTBACKUP
 		/* If the code is in ibbackup, dict_sys may be uninitialized,
 		i.e., NULL */
 
-		if (dict_sys != NULL) {
+		if (dict_sys == NULL) {
+			break;
+		}
+#endif /* UNIV_HOTBACKUP */
 
-			index = dict_index_find_on_id_low(
-					btr_page_get_index_id(read_buf));
-			if (index) {
-				fputs("InnoDB: (", stderr);
-				dict_index_name_print(stderr, NULL, index);
-				fputs(")\n", stderr);
-			}
+		index = dict_index_find_on_id_low(
+				btr_page_get_index_id(read_buf));
+		if (index) {
+			fputs("InnoDB: (", stderr);
+			dict_index_name_print(stderr, NULL, index);
+			fputs(")\n", stderr);
 		}
 		break;
 	case FIL_PAGE_INODE:
@@ -1941,7 +2013,7 @@ buf_page_io_complete(
 			fputs(
 		"InnoDB: You may have to recover from a backup.\n", stderr);
 
-			buf_page_print(block->frame);
+			buf_page_print(block->frame, block->page_zip.size);
 
 			fprintf(stderr,
 		"InnoDB: Database page corruption on disk or a failed\n"

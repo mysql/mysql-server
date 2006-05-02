@@ -3928,6 +3928,8 @@ consecutive_loop:
 			is sensible; reported page checksum errors from
 			Linux seem to wipe over the page end */
 
+			/* TODO: disable this for compressed pages */
+
 			for (len2 = 0; len2 + UNIV_PAGE_SIZE <= total_len;
 						len2 += UNIV_PAGE_SIZE) {
 				if (mach_read_from_4(combined_buf + len2
@@ -3941,7 +3943,7 @@ consecutive_loop:
 					fprintf(stderr,
 "InnoDB: Writing a block of %lu bytes, currently writing at offset %lu\n",
 					(ulong)total_len, (ulong)len2);
-					buf_page_print(combined_buf + len2);
+					buf_page_print(combined_buf + len2, 0);
 					fprintf(stderr,
 "InnoDB: ERROR: The page to be written seems corrupt!\n");
 				}

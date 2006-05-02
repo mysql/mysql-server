@@ -140,7 +140,7 @@ page_dir_find_owner_slot(
 			fputs("\n"
 			"InnoDB: on that page!\n", stderr);
 
-			buf_page_print(page);
+			buf_page_print(page, 0);
 
 			ut_error;
 		}
@@ -559,8 +559,8 @@ page_copy_rec_list_end_no_locks(
 			/* Track an assertion failure reported on the mailing
 			list on June 18th, 2003 */
 
-			buf_page_print(new_page);
-			buf_page_print(ut_align_down(rec, UNIV_PAGE_SIZE));
+			buf_page_print(new_page, 0);
+			buf_page_print(ut_align_down(rec, UNIV_PAGE_SIZE), 0);
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
@@ -1720,20 +1720,21 @@ page_check_dir(
 
 	n_slots = page_dir_get_n_slots(page);
 
-	if (page_dir_slot_get_rec(page_dir_get_nth_slot(page, 0))
-		!= page_get_infimum_rec(page)) {
+	if (UNIV_UNLIKELY(page_dir_slot_get_rec(page_dir_get_nth_slot(page, 0))
+			!= page_get_infimum_rec(page))) {
 
 		fprintf(stderr,
-"InnoDB: Page directory corruption: supremum not pointed to\n");
-		buf_page_print(page);
+"InnoDB: Page directory corruption: infimum not pointed to\n");
+		buf_page_print(page, 0);
 	}
 
-	if (page_dir_slot_get_rec(page_dir_get_nth_slot(page, n_slots - 1))
-		!= page_get_supremum_rec(page)) {
+	if (UNIV_UNLIKELY(page_dir_slot_get_rec(page_dir_get_nth_slot(
+				page, n_slots - 1))
+			!= page_get_supremum_rec(page))) {
 
 		fprintf(stderr,
 "InnoDB: Page directory corruption: supremum not pointed to\n");
-		buf_page_print(page);
+		buf_page_print(page, 0);
 	}
 }
 
@@ -2389,7 +2390,7 @@ func_exit:
 			(ulong) buf_frame_get_page_no(page));
 		dict_index_name_print(stderr, NULL, index);
 		putc('\n', stderr);
-		buf_page_print(page);
+		buf_page_print(page, 0);
 	}
 
 	return(ret);

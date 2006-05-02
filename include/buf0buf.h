@@ -517,7 +517,9 @@ Prints a page to stderr. */
 void
 buf_page_print(
 /*===========*/
-	byte*	read_buf);	/* in: a database page */
+	byte*	read_buf,	/* in: a database page */
+	ulint	zip_size);	/* in: compressed page size, or
+				0 for uncompressed pages */
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
 

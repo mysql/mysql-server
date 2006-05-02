@@ -291,6 +291,17 @@ page_zip_parse_compress(
 	page_zip_des_t*	page_zip)/* out: compressed page */
 	__attribute__((nonnull(1,2)));
 
+/**************************************************************************
+Calculate the compressed page checksum. */
+
+ulint
+page_zip_calc_checksum(
+/*===================*/
+                                /* out: page checksum */
+        const void*     data,   /* in: compressed page */
+        ulint           size)   /* in: size of compressed page */
+	__attribute__((nonnull));
+
 #ifdef UNIV_MATERIALIZE
 # undef UNIV_INLINE
 # define UNIV_INLINE	UNIV_INLINE_ORIGINAL

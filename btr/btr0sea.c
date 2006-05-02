@@ -1672,7 +1672,7 @@ btr_search_validate(void)
 				(ulong) block->curr_n_bytes, (ulong) block->curr_side);
 
 				if (n_page_dumps < 20) {
-					buf_page_print(page);
+					buf_page_print(page, 0);
 					n_page_dumps++;
 				}
 			}
