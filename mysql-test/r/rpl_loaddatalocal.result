@@ -18,12 +18,12 @@ select * into outfile 'MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_out
 drop table t1;
 create table t1(a int primary key);
 load data local infile 'MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile' into table t1;
-select * from t1;
+SELECT * FROM t1 ORDER BY a;
 a
 1
 2
 3
-select * from t1;
+SELECT * FROM t1 ORDER BY a;
 a
 1
 2
