@@ -1213,7 +1213,7 @@ static void test_tran_bdb()
 
   /* create the table 'mytran_demo' of type BDB' or 'InnoDB' */
   rc= mysql_query(mysql, "CREATE TABLE my_demo_transaction( "
-                         "col1 int , col2 varchar(30)) ENGINE= BDB");
+                         "col1 int , col2 varchar(30)) TYPE= BDB");
   myquery(rc);
 
   /* insert a row and commit the transaction */
@@ -1286,7 +1286,7 @@ static void test_tran_innodb()
 
   /* create the table 'mytran_demo' of type BDB' or 'InnoDB' */
   rc= mysql_query(mysql, "CREATE TABLE my_demo_transaction(col1 int, "
-                         "col2 varchar(30)) ENGINE= InnoDB");
+                         "col2 varchar(30)) TYPE= InnoDB");
   myquery(rc);
 
   /* insert a row and commit the transaction */
@@ -9810,7 +9810,7 @@ static void test_derived()
   myquery(rc);
 
   rc= mysql_query(mysql, "create table t1 (id  int(8), primary key (id)) \
-ENGINE=InnoDB DEFAULT CHARSET=utf8");
+TYPE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
   rc= mysql_query(mysql, "insert into t1 values (1)");
@@ -9858,16 +9858,16 @@ static void test_xjoin()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1, t2, t3, t4");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t3 (id int(8), param1_id int(8), param2_id int(8)) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+  rc= mysql_query(mysql, "create table t3 (id int(8), param1_id int(8), param2_id int(8)) TYPE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t1 ( id int(8), name_id int(8), value varchar(10)) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+  rc= mysql_query(mysql, "create table t1 ( id int(8), name_id int(8), value varchar(10)) TYPE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t2 (id int(8), name_id int(8), value varchar(10)) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
+  rc= mysql_query(mysql, "create table t2 (id int(8), name_id int(8), value varchar(10)) TYPE=InnoDB DEFAULT CHARSET=utf8;");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t4(id int(8), value varchar(10)) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+  rc= mysql_query(mysql, "create table t4(id int(8), value varchar(10)) TYPE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
   rc= mysql_query(mysql, "insert into t3 values (1, 1, 1), (2, 2, null)");
@@ -14401,7 +14401,7 @@ static void test_bug14210()
     itself is not InnoDB related. In case the table is MyISAM this test
     is harmless.
   */
-  mysql_query(mysql, "create table t1 (a varchar(255)) engine=InnoDB");
+  mysql_query(mysql, "create table t1 (a varchar(255)) type=InnoDB");
   rc= mysql_query(mysql, "insert into t1 (a) values (repeat('a', 256))");
   myquery(rc);
   rc= mysql_query(mysql, "set @@session.max_heap_table_size=16384");
@@ -14758,24 +14758,6 @@ static void test_bug16143()
 }
 
 
-/* Bug #16144: mysql_stmt_attr_get type error */
-
-static void test_bug16144()
-{
-  const my_bool flag_orig= (my_bool) 0xde;
-  my_bool flag= flag_orig;
-  MYSQL_STMT *stmt;
-  myheader("test_bug16144");
-
-  /* Check that attr_get returns correct data on little and big endian CPUs */
-  stmt= mysql_stmt_init(mysql);
-  mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (const void*) &flag);
-  mysql_stmt_attr_get(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &flag);
-  DIE_UNLESS(flag == flag_orig);
-
-  mysql_stmt_close(stmt);
-}
-
 /*
   Bug #15613: "libmysqlclient API function mysql_stmt_prepare returns wrong
   field length"
@@ -14839,6 +14821,72 @@ static void test_bug15613()
   myquery(rc);
   mysql_stmt_close(stmt);
 }
+
+/*
+  Bug#17667: An attacker has the opportunity to bypass query logging.
+*/
+static void test_bug17667()
+{
+  int rc;
+  myheader("test_bug17667");
+  struct buffer_and_length {
+    const char *buffer;
+    const uint length;
+  } statements[]= {
+    { "drop table if exists bug17667", 29 },
+    { "create table bug17667 (c varchar(20))", 37 },
+    { "insert into bug17667 (c) values ('regular') /* NUL=\0 with comment */", 68 },
+    { "insert into bug17667 (c) values ('NUL=\0 in value')", 50 },
+    { "insert into bug17667 (c) values ('5 NULs=\0\0\0\0\0')", 48 },
+    { "/* NUL=\0 with comment */ insert into bug17667 (c) values ('encore')", 67 },
+    { "drop table bug17667", 19 },
+    { NULL, 0 } };  
+
+  struct buffer_and_length *statement_cursor;
+  FILE *log_file;
+
+  for (statement_cursor= statements; statement_cursor->buffer != NULL;
+      statement_cursor++) {
+    rc= mysql_real_query(mysql, statement_cursor->buffer,
+        statement_cursor->length);
+    myquery(rc);
+  }
+
+  sleep(1); /* The server may need time to flush the data to the log. */
+  log_file= fopen("var/log/master.log", "r");
+  if (log_file != NULL) {
+
+    for (statement_cursor= statements; statement_cursor->buffer != NULL;
+        statement_cursor++) {
+     char line_buffer[MAX_TEST_QUERY_LENGTH*2]; 
+     /* more than enough room for the query and some marginalia. */
+
+      do {
+        memset(line_buffer, '/', MAX_TEST_QUERY_LENGTH*2);
+
+        DIE_UNLESS(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) !=
+            NULL);
+        /* If we reach EOF before finishing the statement list, then we failed. */
+
+      } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
+            statement_cursor->buffer, statement_cursor->length) == NULL);
+    }
+
+    printf("success.  All queries found intact in the log.\n");
+
+  } else {
+    fprintf(stderr, "Could not find the log file, var/log/master.log, so "
+        "test_bug17667 is \ninconclusive.  Run test from the "
+        "mysql-test/mysql-test-run* program \nto set up the correct "
+        "environment for this test.\n\n");
+  }
+
+  if (log_file != NULL)
+    fclose(log_file);
+
+}
+
+
 /*
   Bug#14169: type of group_concat() result changed to blob if tmp_table was used
 */
@@ -15132,13 +15180,13 @@ static struct my_tests_st my_tests[]= {
   { "test_bug13488", test_bug13488 },
   { "test_bug13524", test_bug13524 },
   { "test_bug14845", test_bug14845 },
+  { "test_bug15510", test_bug15510 },
   { "test_opt_reconnect", test_opt_reconnect },
-  { "test_bug15510", test_bug15510},
   { "test_bug12744", test_bug12744 },
   { "test_bug16143", test_bug16143 },
-  { "test_bug16144", test_bug16144 },
   { "test_bug15613", test_bug15613 },
   { "test_bug14169", test_bug14169 },
+  { "test_bug17667", test_bug17667 },
   { 0, 0 }
 };
 
@@ -15252,6 +15300,7 @@ int main(int argc, char **argv)
 {
   struct my_tests_st *fptr;
 
+  DEBUGGER_OFF;
   MY_INIT(argv[0]);
 
   load_defaults("my", client_test_load_default_groups, &argc, &argv);
