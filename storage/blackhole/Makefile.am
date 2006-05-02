@@ -47,5 +47,6 @@ libblackhole_a_CFLAGS =	$(AM_CFLAGS)
 libblackhole_a_SOURCES=	ha_blackhole.cc
 
 
+EXTRA_DIST =		cmakelists.txt
 # Don't update the files from bitkeeper
 %::SCCS/s.%
