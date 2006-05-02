@@ -612,7 +612,7 @@ page_rec_get_next(
 				rec, buf_pool->frame_zero,
 				buf_pool->high_end,
 				(ulong)buf_block_align(rec)->buf_fix_count);
-		buf_page_print(page);
+		buf_page_print(page, 0);
 
 		ut_error;
 	}

@@ -3720,7 +3720,7 @@ rec_loop:
 wrong_offs:
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
 			ut_print_timestamp(stderr);
-			buf_page_print(buf_frame_align(rec));
+			buf_page_print(buf_frame_align(rec), 0);
 			fprintf(stderr,
 "\nInnoDB: rec address %p, first buffer frame %p\n"
 "InnoDB: buffer pool high end %p, buf block fix count %lu\n",

@@ -58,6 +58,8 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_OFFSET		4	/* page offset inside space */
 #define FIL_PAGE_PREV		8	/* if there is a 'natural' predecessor
 					of the page, its offset */
+#define FIL_PAGE_ZBLOB_SPACE_ID	8	/* space id of a compressed BLOB page,
+					4 bytes */
 #define FIL_PAGE_NEXT		12	/* if there is a 'natural' successor
 					of the page, its offset */
 #define FIL_PAGE_LSN		16	/* lsn of the end of the newest
