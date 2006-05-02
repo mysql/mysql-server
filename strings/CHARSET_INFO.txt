@@ -172,7 +172,7 @@ mb_wc       - converts the left multibyte sequence into it Unicode code.
 mc_mb       - converts the given Unicode code into multibyte sequence.
 
 
-Case and sort convertion
+Case and sort conversion
 ------------------------
 caseup_str  - converts the given 0-terminated string into the upper case
 casedn_str  - converts the given 0-terminated string into the lower case
