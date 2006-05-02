@@ -59,6 +59,10 @@ enum YasslError {
 
 
 enum Library { yaSSL_Lib = 0, CryptoLib, SocketLib };
+enum { MAX_ERROR_SZ = 80 };
+
+void SetErrorString(YasslError, char*);
+
 
 // Base class for all yaSSL exceptions
 class Error : public mySTL::runtime_error {

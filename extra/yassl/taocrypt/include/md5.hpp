@@ -45,10 +45,13 @@ public:
     MD5(const MD5&);
     MD5& operator= (const MD5&);
 
+    void Update(const byte*, word32);
+
     void Init();
     void Swap(MD5&);
 private:
     void Transform();
+    void AsmTransform(const byte* data, word32 times);
 };
 
 inline void swap(MD5& a, MD5& b)

@@ -11,8 +11,11 @@ AC_DEFUN([MYSQL_CHECK_YASSL], [
     AC_MSG_RESULT([using bundled yaSSL])
     AC_CONFIG_FILES(extra/yassl/Makefile dnl
     extra/yassl/taocrypt/Makefile dnl
+    extra/yassl/taocrypt/benchmark/Makefile dnl
     extra/yassl/taocrypt/src/Makefile dnl
-    extra/yassl/src/Makefile)
+    extra/yassl/taocrypt/test/Makefile dnl
+    extra/yassl/src/Makefile dnl
+    extra/yassl/testsuite/Makefile)
     yassl_dir="yassl"
     yassl_libs="-L\$(top_srcdir)/extra/yassl/src -lyassl -L\$(top_srcdir)/extra/yassl/taocrypt/src -ltaocrypt"
     yassl_includes="-I\$(top_srcdir)/extra/yassl/include"

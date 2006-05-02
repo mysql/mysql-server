@@ -462,3 +462,29 @@ drop table t1, t2;
 drop database TESTDB;
 flush privileges;
 
+#
+# BUG#13310 incorrect user parsing by SP
+#
+
+grant all privileges on test.* to `a@`@localhost;
+grant execute on * to `a@`@localhost;
+connect (bug13310,localhost,'a@',,test);
+connection bug13310;
+create table t2 (s1 int);
+insert into t2 values (1);
+--disable_warnings
+drop function if exists f2;
+--enable_warnings
+delimiter //;
+create function f2 () returns int begin declare v int; select s1 from t2
+into v; return v; end//
+delimiter ;//
+select f2();
+
+drop function f2;
+drop table t2;
+disconnect bug13310;
+
+connection default;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM `a@`@localhost;
+drop user `a@`@localhost;
