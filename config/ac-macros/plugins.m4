@@ -325,6 +325,7 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
   if test "X[$with_plugin_]$2" = Xno; then
     AC_MSG_RESULT([no])
   else
+    m4_ifdef([$8],m4_ifdef([$7],[],[[with_plugin_]$2='']))
     if test "X[$mysql_plugin_]$2" != Xyes -a \
             "X[$with_plugin_]$2" != Xyes; then
       m4_ifdef([$8],[
@@ -504,6 +505,8 @@ dnl   _MYSQL_PLUGAPPEND([name],[to-append])
 dnl
 dnl DESCRIPTION
 dnl   Helper macro for appending to colon-delimited lists
+dnl   Optinal 3rd argument is for actions only required when defining
+dnl   macro named for the first time.
 
 AC_DEFUN([_MYSQL_PLUGAPPEND],[
  m4_ifdef([$1],[
@@ -594,8 +597,8 @@ m4_ifdef([$9],[
 ])
 
 AC_DEFUN([_PLUGIN_BUILD_TYPE],
-[m4_ifdef([$1],[ifelse($1,[no],[],[static ]m4_ifdef([$2],[and dnl
-]))])[]m4_ifdef([$2],[dynamic],[m4_ifdef([$1],[],[static])])])
+[m4_ifdef([$1],[static ]m4_ifdef([$2],[and dnl
+]))[]m4_ifdef([$2],[dynamic],[m4_ifdef([$1],[],[static])])])
 
 
 dnl ---------------------------------------------------------------------------
@@ -610,11 +613,24 @@ AC_DEFUN([_MYSQL_EMIT_PLUGINS],[
   m4_ifdef([MYSQL_PLUGIN_DISABLED_]AS_TR_CPP([$1]),[
       AC_MSG_ERROR([plugin $1 is disabled])
   ],[
-      [mysql_plugin_]m4_bpatsubst([$1], -, _)=yes
+    _MYSQL_EMIT_PLUGIN_ENABLE([$1], m4_bpatsubst([$1], -, _),
+      [MYSQL_PLUGIN_NAME_]AS_TR_CPP([$1]),
+      [MYSQL_PLUGIN_STATIC_]AS_TR_CPP([$1]),
+      [MYSQL_PLUGIN_DYNAMIC_]AS_TR_CPP([$1]))
   ])
       ;;
   _MYSQL_EMIT_PLUGINS(m4_shift($@))
  ])
+])
+
+AC_DEFUN([_MYSQL_EMIT_PLUGIN_ENABLE],[
+    m4_ifdef([$5],m4_ifdef([$4],[
+      [mysql_plugin_]$2=yes
+    ],[
+      AC_MSG_WARN([$3 can only be built as a plugin])
+    ]),[
+      [mysql_plugin_]$2=yes
+    ])      
 ])
 
 AC_DEFUN([_MYSQL_EMIT_PLUGIN_DEPENDS], [

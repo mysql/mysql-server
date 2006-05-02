@@ -70,11 +70,15 @@ struct binlog_trx_data {
   Rows_log_event *pending;                // The pending binrows event
 };
 
+static const char binlog_hton_name[]= "binlog";
+static const char binlog_hton_comment[]=
+  "This is a meta storage engine to represent the binlog in a transaction";
+
 handlerton binlog_hton = {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "binlog",
+  binlog_hton_name,
   SHOW_OPTION_YES,
-  "This is a meta storage engine to represent the binlog in a transaction",
+  binlog_hton_comment,
   DB_TYPE_BINLOG,               /* IGNORE  for now */
   binlog_init,
   0,
@@ -4350,9 +4354,9 @@ mysql_declare_plugin(binlog)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &binlog_hton,
-  binlog_hton.name,
+  binlog_hton_name,
   "MySQL AB",
-  "Binlog Engine",
+  binlog_hton_comment,
   NULL, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
