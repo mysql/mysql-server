@@ -9,8 +9,9 @@
 void *my_memmem(const void *haystack, size_t haystacklen,
     const void *needle, size_t needlelen)
 {
-  const void *cursor;
-  const void *last_possible_needle_location = haystack + haystacklen - needlelen;
+  const unsigned char *cursor;
+  const unsigned char *last_possible_needle_location =
+    (unsigned char *)haystack + haystacklen - needlelen;
 
   /* Easy answers */
   if (needlelen > haystacklen) return(NULL);
