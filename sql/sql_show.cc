@@ -119,7 +119,7 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
         make_version_string(version_buf, sizeof(version_buf), plug->version),
         cs);
 
-    
+
   switch (plugin->state)
   {
   /* case PLUGIN_IS_FREED: does not happen */
@@ -3000,43 +3000,46 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
+static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
+                                   void *ptable)
 {
+  TABLE *table= (TABLE *) ptable;
+  handlerton *hton= (handlerton *) plugin->plugin->info;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
-  TABLE *table= tables->table;
   CHARSET_INFO *scs= system_charset_info;
-  handlerton **types;
+  DBUG_ENTER("iter_schema_engines");
 
-  DBUG_ENTER("fill_schema_engines");
-
-  for (types= sys_table_types; *types; types++)
+  if (!(hton->flags & HTON_HIDDEN))
   {
-    if ((*types)->flags & HTON_HIDDEN)
-      continue;
-
     if (!(wild && wild[0] &&
-          wild_case_compare(scs, (*types)->name,wild)))
+          wild_case_compare(scs, hton->name,wild)))
     {
       const char *tmp;
       restore_record(table, s->default_values);
 
-      table->field[0]->store((*types)->name, strlen((*types)->name), scs);
-      tmp= (*types)->state ? "DISABLED" : "ENABLED";
+      table->field[0]->store(hton->name, strlen(hton->name), scs);
+      tmp= hton->state ? "DISABLED" : "ENABLED";
       table->field[1]->store( tmp, strlen(tmp), scs);
-      table->field[2]->store((*types)->comment, strlen((*types)->comment), scs);
-      tmp= (*types)->commit ? "YES" : "NO";
+      table->field[2]->store(hton->comment, strlen(hton->comment), scs);
+      tmp= hton->commit ? "YES" : "NO";
       table->field[3]->store( tmp, strlen(tmp), scs);
-      tmp= (*types)->prepare ? "YES" : "NO";
+      tmp= hton->prepare ? "YES" : "NO";
       table->field[4]->store( tmp, strlen(tmp), scs);
-      tmp= (*types)->savepoint_set ? "YES" : "NO";
+      tmp= hton->savepoint_set ? "YES" : "NO";
       table->field[5]->store( tmp, strlen(tmp), scs);
 
       if (schema_table_store_record(thd, table))
         DBUG_RETURN(1);
     }
   }
-
   DBUG_RETURN(0);
+}
+
+
+int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  return plugin_foreach(thd, iter_schema_engines, 
+                        MYSQL_STORAGE_ENGINE_PLUGIN, tables->table);
 }
 
 

@@ -35,6 +35,7 @@
 #define NDB_MAX_ATTRIBUTES_IN_TABLE 128
 #include "ha_ndbcluster.h"
 #endif
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #endif
@@ -43,7 +44,10 @@
 #include "ha_innodb.h"
 #endif
 
-extern handlerton *sys_table_types[];
+/* While we have legacy_db_type, we have this array to
+   check for dups and to find handlerton from legacy_db_type.
+   Remove when legacy_db_type is finally gone */
+static handlerton *installed_htons[128];
 
 #define BITMAP_STACKBUF_SIZE (128/8)
 
@@ -138,30 +142,8 @@ handlerton *ha_resolve_by_name(THD *thd, LEX_STRING *name)
 }
 
 
-struct plugin_find_dbtype_st
-{
-  enum legacy_db_type db_type;
-  handlerton *hton;
-};
-
-
-static my_bool plugin_find_dbtype(THD *unused, st_plugin_int *plugin,
-                                  void *arg)
-{
-  handlerton *types= (handlerton *) plugin->plugin->info;
-  if (types->db_type == ((struct plugin_find_dbtype_st *)arg)->db_type)
-  {
-    ((struct plugin_find_dbtype_st *)arg)->hton= types;
-    return TRUE;
-  }
-  return FALSE;
-}
-
-
 const char *ha_get_storage_engine(enum legacy_db_type db_type)
 {
-  struct plugin_find_dbtype_st info;
-  
   switch (db_type)
   {
   case DB_TYPE_DEFAULT:
@@ -169,13 +151,10 @@ const char *ha_get_storage_engine(enum legacy_db_type db_type)
   case DB_TYPE_UNKNOWN:
     return "UNKNOWN";
   default:
-    info.db_type= db_type;
-
-    if (!plugin_foreach(NULL, plugin_find_dbtype, 
-                        MYSQL_STORAGE_ENGINE_PLUGIN, &info))
+    if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT &&
+        installed_htons[db_type])
+      return installed_htons[db_type]->name;
       return "*NONE*";
-
-    return info.hton->name;
   }
 }
 
@@ -190,8 +169,6 @@ static handler *create_default(TABLE_SHARE *table)
 
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
 {
-  struct plugin_find_dbtype_st info;
-
   switch (db_type)
   {
   case DB_TYPE_DEFAULT:
@@ -202,12 +179,9 @@ handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
   case DB_TYPE_UNKNOWN:
     return NULL;
   default:
-    info.db_type= db_type;
-    if (!plugin_foreach(NULL, plugin_find_dbtype, 
-                        MYSQL_STORAGE_ENGINE_PLUGIN, &info))
+    if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT)
+      return installed_htons[db_type];
       return NULL;
-
-    return info.hton;
   }
 }
 
@@ -394,32 +368,77 @@ static int ha_finish_errors(void)
 }
 
 
-static void ha_was_inited_ok(handlerton *ht)
+int ha_finalize_handlerton(st_plugin_int *plugin)
 {
-  uint tmp= ht->savepoint_offset;
-  ht->savepoint_offset= savepoint_alloc_size;
-  savepoint_alloc_size+= tmp;
-  ht->slot= total_ha++;
-  if (ht->prepare)
-    total_ha_2pc++;
-}
+  handlerton *hton;
+  DBUG_ENTER("ha_finalize_handlerton");
 
-
-int ha_initialize_handlerton(handlerton *hton)
-{
-  DBUG_ENTER("ha_initialize_handlerton");
-
-  if (hton == NULL)
+  if (!(hton= (handlerton *) plugin->plugin->info))
     DBUG_RETURN(1);
 
   switch (hton->state)
   {
   case SHOW_OPTION_NO:
+  case SHOW_OPTION_DISABLED:
+    break;
+  case SHOW_OPTION_YES:
+    if (hton->panic && hton->panic(HA_PANIC_CLOSE))
+      DBUG_RETURN(1);
+    if (installed_htons[hton->db_type] == hton)
+      installed_htons[hton->db_type]= NULL;
+    break;
+  };
+  DBUG_RETURN(0);
+}
+
+
+int ha_initialize_handlerton(st_plugin_int *plugin)
+{
+  handlerton *hton;
+  DBUG_ENTER("ha_initialize_handlerton");
+
+  if (!(hton= (handlerton *) plugin->plugin->info))
+    DBUG_RETURN(1);
+
+  /* for the sake of sanity, we set the handlerton name to be the
+     same as the plugin name */
+  hton->name= plugin->name.str;
+
+
+  switch (hton->state) {
+  case SHOW_OPTION_NO:
     break;
   case SHOW_OPTION_YES:
     if (!hton->init || !hton->init())
     {
-      ha_was_inited_ok(hton);
+      uint tmp= hton->savepoint_offset;
+      hton->savepoint_offset= savepoint_alloc_size;
+      savepoint_alloc_size+= tmp;
+      hton->slot= total_ha++;
+      if (hton->prepare)
+        total_ha_2pc++;
+        
+      /* now check the db_type for conflict */
+      if (hton->db_type <= DB_TYPE_UNKNOWN || 
+          hton->db_type >= DB_TYPE_DEFAULT ||
+          installed_htons[hton->db_type])
+      {
+        int idx= (int) DB_TYPE_FIRST_DYNAMIC;
+        
+        while (idx < (int) DB_TYPE_DEFAULT && installed_htons[idx])
+          idx++;
+
+        if (idx == (int) DB_TYPE_DEFAULT)
+        {
+          sql_print_warning("Too many storage engines!");
+          DBUG_RETURN(1);
+        }
+        if (hton->db_type != DB_TYPE_UNKNOWN)
+          sql_print_warning("Storage engine '%s' has conflicting typecode. "
+                            "Assigning value %d.", hton->name, idx);
+        hton->db_type= (enum legacy_db_type) idx;
+      }
+      installed_htons[hton->db_type]= hton;
       break;
     }
     /* fall through */
@@ -436,7 +455,7 @@ static my_bool init_handlerton(THD *unused1, st_plugin_int *plugin,
 {
   if (plugin->state == PLUGIN_IS_UNINITIALIZED)
   {
-    ha_initialize_handlerton((handlerton *) plugin->plugin->info);
+    ha_initialize_handlerton(plugin);
     plugin->state= PLUGIN_IS_READY;
   }
   return FALSE;
@@ -447,12 +466,15 @@ int ha_init()
 {
   int error= 0;
   total_ha= savepoint_alloc_size= 0;
+  DBUG_ENTER("ha_init");
+
+  bzero(installed_htons, sizeof(installed_htons));
 
   if (ha_init_errors())
-    return 1;
+    DBUG_RETURN(1);
 
   if (plugin_foreach(NULL, init_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0))
-    return 1;
+    DBUG_RETURN(1);
 
   DBUG_ASSERT(total_ha < MAX_HA);
   /*
@@ -462,37 +484,7 @@ int ha_init()
   */
   opt_using_transactions= total_ha>(ulong)opt_bin_log;
   savepoint_alloc_size+= sizeof(SAVEPOINT);
-  return error;
-}
-
-
-int ha_register_builtin_plugins()
-{
-  handlerton **hton;
-  uint size= 0;
-  struct st_mysql_plugin *plugin;
-  DBUG_ENTER("ha_register_builtin_plugins");
-
-  for (hton= sys_table_types; *hton; hton++)
-    size+= sizeof(struct st_mysql_plugin);
-  
-  if (!(plugin= (struct st_mysql_plugin *)
-        my_once_alloc(size, MYF(MY_WME | MY_ZEROFILL))))
-    DBUG_RETURN(1);
-  
-  for (hton= sys_table_types; *hton; hton++, plugin++)
-  {
-    plugin->type= MYSQL_STORAGE_ENGINE_PLUGIN;
-    plugin->info= *hton;
-    plugin->version= 0;
-    plugin->name= (*hton)->name;
-    plugin->author= NULL;
-    plugin->descr= (*hton)->comment;
-    
-    if (plugin_register_builtin(plugin))
-      DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 

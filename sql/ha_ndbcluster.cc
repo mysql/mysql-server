@@ -27,6 +27,7 @@
 #include "mysql_priv.h"
 
 #include <my_dir.h>
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/NdbScanFilter.hpp>
@@ -35,6 +36,8 @@
 
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_tables.h"
+
+#include <mysql/plugin.h>
 
 #ifdef ndb_dynamite
 #undef assert
@@ -10278,3 +10281,19 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
   }
   DBUG_RETURN(0);
 }
+
+
+mysql_declare_plugin(ndbcluster)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &ndbcluster_hton,
+  ndbcluster_hton.name,
+  "MySQL AB",
+  "NDB Storage Engine",
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;
+
+#endif

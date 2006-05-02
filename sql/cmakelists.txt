@@ -16,7 +16,7 @@ SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc
 							${CMAKE_SOURCE_DIR}/sql/sql_yacc.h 
 							${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
                             ${CMAKE_SOURCE_DIR}/include/mysql_version.h
-                            ${CMAKE_SOURCE_DIR}/sql/handlerton.cc
+                            ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc
                             ${CMAKE_SOURCE_DIR}/sql/lex_hash.h 
                             ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
                             ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
@@ -29,7 +29,8 @@ ADD_DEFINITIONS(-DHAVE_ROW_BASED_REPLICATION -DMYSQL_SERVER
 ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc field_conv.cc 
                filesort.cc gstream.cc  ha_heap.cc ha_myisam.cc ha_myisammrg.cc
-               ${mysql_se_ha_src} handler.cc hash_filo.cc hash_filo.h 
+               ha_innodb.cc ha_partition.cc ha_federated.cc ha_berkeley.cc
+               handler.cc hash_filo.cc hash_filo.h 
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
                item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
@@ -59,13 +60,19 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
 			   ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h 
 			   ${PROJECT_SOURCE_DIR}/include/sql_state.h
 			   ${PROJECT_SOURCE_DIR}/include/mysql_version.h 
-			   ${PROJECT_SOURCE_DIR}/sql/handlerton.cc
+			   ${PROJECT_SOURCE_DIR}/sql/sql_builtin.cc
 			   ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
 TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg mysys yassl zlib dbug yassl 
                       taocrypt strings vio regex wsock32)
 IF(WITH_ARCHIVE_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(mysqld archive)
 ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
+IF(WITH_BLACKHOLE_STORAGE_ENGINE)
+  TARGET_LINK_LIBRARIES(mysqld blackhole)
+ENDIF(WITH_BLACKHOLE_STORAGE_ENGINE)
+IF(WITH_CSV_STORAGE_ENGINE)
+  TARGET_LINK_LIBRARIES(mysqld csv)
+ENDIF(WITH_CSV_STORAGE_ENGINE)
 IF(WITH_EXAMPLE_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(mysqld example)
 ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)

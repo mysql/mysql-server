@@ -8,23 +8,20 @@ dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_SETUP_BERKELEY_DB], [
   AC_ARG_WITH([berkeley-db],
-              [
-  --with-berkeley-db[=DIR]
-                          Use BerkeleyDB located in DIR],
+              AS_HELP_STRING([--with-berkeley-db[[[[[=DIR]]]]]],
+                             [Use BerkeleyDB located in DIR]),
               [bdb="$withval"],
               [bdb=yes])
 
   AC_ARG_WITH([berkeley-db-includes],
-              [
-  --with-berkeley-db-includes=DIR
-                          Find Berkeley DB headers in DIR],
+              AS_HELP_STRING([--with-berkeley-db-includes=DIR],
+                             [Find Berkeley DB headers in DIR]),
               [bdb_includes="$withval"],
               [bdb_includes=default])
 
   AC_ARG_WITH([berkeley-db-libs],
-              [
-  --with-berkeley-db-libs=DIR
-                          Find Berkeley DB libraries in DIR],
+              AS_HELP_STRING([--with-berkeley-db-libs=DIR],
+                             [Find Berkeley DB libraries in DIR]),
               [bdb_libs="$withval"],
               [bdb_libs=default])
 
@@ -120,12 +117,9 @@ AC_DEFUN([MYSQL_SETUP_BERKELEY_DB], [
        sh $rel_srcdir/$bdb/dist/configure $bdb_conf_flags) || \
         AC_MSG_ERROR([could not configure Berkeley DB])
  
-  mysql_se_libs="$mysql_se_libs $bdb_libs_with_path" 
-
   AC_SUBST(bdb_includes)
   AC_SUBST(bdb_libs)
   AC_SUBST(bdb_libs_with_path)
-  AC_CONFIG_FILES(storage/bdb/Makefile)
 ])
 
 AC_DEFUN([MYSQL_CHECK_INSTALLED_BDB], [
