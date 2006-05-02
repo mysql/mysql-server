@@ -44,7 +44,8 @@ public:
   Instance_options() :
     mysqld_version(0), mysqld_socket(0), mysqld_datadir(0),
     mysqld_bind_address(0), mysqld_pid_file(0), mysqld_port(0),
-    mysqld_port_val(0), mysqld_path(0), nonguarded(0), shutdown_delay(0),
+    mysqld_port_val(0), mysqld_path(0), mysqld_real_path(0),
+    nonguarded(0), shutdown_delay(0),
     shutdown_delay_val(0), filled_default_options(0)
   {}
   ~Instance_options();
@@ -84,6 +85,7 @@ public:
   uint instance_name_len;
   const char *mysqld_path;
   uint mysqld_path_len;
+  const char *mysqld_real_path;
   const char *nonguarded;
   const char *shutdown_delay;
   uint shutdown_delay_val;
@@ -95,6 +97,7 @@ public:
 private:
   int fill_log_options();
   int fill_instance_version();
+  int fill_mysqld_real_path();
   int add_to_argv(const char *option);
   int get_default_option(char *result, size_t result_len,
                          const char *option_name);

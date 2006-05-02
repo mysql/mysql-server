@@ -26,8 +26,24 @@
 #include "runtime.hpp"
 #include "dh.hpp"
 #include "asn.hpp"
+#include <math.h>
 
 namespace TaoCrypt {
+
+
+namespace {  // locals
+
+unsigned int DiscreteLogWorkFactor(unsigned int n)
+{
+    // assuming discrete log takes about the same time as factoring
+    if (n<5)
+        return 0;
+    else
+        return (unsigned int)(2.4 * pow((double)n, 1.0/3.0) *
+                pow(log(double(n)), 2.0/3.0) - 5);
+}
+
+} // namespace locals
 
 
 // Generate a DH Key Pair
@@ -41,7 +57,8 @@ void DH::GenerateKeyPair(RandomNumberGenerator& rng, byte* priv, byte* pub)
 // Generate private value
 void DH::GeneratePrivate(RandomNumberGenerator& rng, byte* priv)
 {
-    Integer x(rng, Integer::One(), p_ - 1);
+    Integer x(rng, Integer::One(), mySTL::min(p_ - 1,
+        Integer::Power2(2*DiscreteLogWorkFactor(p_.BitCount())) ) );
     x.Encode(priv, p_.ByteCount());
 }
 
@@ -57,11 +74,16 @@ void DH::GeneratePublic(const byte* priv, byte* pub)
 
 
 // Generate Agreement
-void DH::Agree(byte* agree, const byte* priv, const byte* otherPub)
+void DH::Agree(byte* agree, const byte* priv, const byte* otherPub, word32
+               otherSz)
 {
     const word32 bc(p_.ByteCount());
     Integer x(priv, bc);
-    Integer y(otherPub, bc);
+    Integer y;
+    if (otherSz)
+        y.Decode(otherPub, otherSz);
+    else
+        y.Decode(otherPub, bc);
 
     Integer z(a_exp_b_mod_c(y, x, p_));
     z.Encode(agree, bc);

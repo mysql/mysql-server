@@ -143,8 +143,6 @@ select @@Max_Allowed_Packet;
 select @@version;
 --replace_column 1 #
 select @@global.version;
---replace_column 1 #
-select @@session.VERSION;
 
 # End of 4.1 tests
 

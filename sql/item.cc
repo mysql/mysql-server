@@ -3154,7 +3154,8 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
     both clauses contain different fields with the same names, a warning is
     issued that name of 'ref' is ambiguous. We extend ANSI SQL in that when no
     GROUP BY column is found, then a HAVING name is resolved as a possibly
-    derived SELECT column.
+    derived SELECT column. This extension is allowed only if the
+    MODE_ONLY_FULL_GROUP_BY sql mode isn't enabled.
 
   NOTES
     The resolution procedure is:
@@ -3164,7 +3165,9 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
       in the GROUP BY clause of Q.
     - If found different columns with the same name in GROUP BY and SELECT
       - issue a warning and return the GROUP BY column,
-      - otherwise return the found SELECT column.
+      - otherwise
+        - if the MODE_ONLY_FULL_GROUP_BY mode is enabled return error
+        - else return the found SELECT column.
 
 
   RETURN
@@ -3209,6 +3212,17 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     }
   }
 
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
+      select_ref != not_found_item && !group_by_ref)
+  {
+    /*
+      Report the error if fields was found only in the SELECT item list and
+      the strict mode is enabled.
+    */
+    my_error(ER_NON_GROUPING_FIELD_USED, MYF(0),
+             ref->name, "HAVING");
+    return NULL;
+  }
   if (select_ref != not_found_item || group_by_ref)
   {
     if (select_ref != not_found_item && !ambiguous_fields)
@@ -5177,14 +5191,6 @@ bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
   }
   return FALSE;
 }
-
-void Item_null_helper::print(String *str)
-{
-  str->append(STRING_WITH_LEN("<null_helper>("));
-  store->print(str);
-  str->append(')');
-}
-
 
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 {

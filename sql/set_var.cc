@@ -438,6 +438,8 @@ sys_var_thd_storage_engine sys_storage_engine("storage_engine",
 sys_var_sync_binlog_period sys_sync_binlog_period("sync_binlog", &sync_binlog_period);
 #endif
 sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
+sys_var_const_str	sys_system_time_zone("system_time_zone",
+                                             system_time_zone);
 sys_var_long_ptr	sys_table_def_size("table_definition_cache",
                                            &table_def_size);
 sys_var_long_ptr	sys_table_cache_size("table_open_cache",
@@ -455,6 +457,13 @@ sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_bool_ptr  sys_timed_mutexes("timed_mutexes",
                                     &timed_mutexes);
+sys_var_const_str	sys_version("version", server_version);
+sys_var_const_str	sys_version_comment("version_comment",
+                                            MYSQL_COMPILATION_COMMENT);
+sys_var_const_str	sys_version_compile_machine("version_compile_machine",
+                                                    MACHINE_TYPE);
+sys_var_const_str	sys_version_compile_os("version_compile_os",
+                                               SYSTEM_TYPE);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
 
@@ -622,7 +631,6 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 
 /* Read only variables */
 
-sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
 sys_var_have_variable sys_have_archive_db("have_archive", &have_archive_db);
 sys_var_have_variable sys_have_berkeley_db("have_bdb", &have_berkeley_db);
 sys_var_have_variable sys_have_blackhole_db("have_blackhole_engine",
@@ -630,7 +638,7 @@ sys_var_have_variable sys_have_blackhole_db("have_blackhole_engine",
 sys_var_have_variable sys_have_compress("have_compress", &have_compress);
 sys_var_have_variable sys_have_crypt("have_crypt", &have_crypt);
 sys_var_have_variable sys_have_csv_db("have_csv", &have_csv_db);
-sys_var_have_variable sys_have_dlopen("have_dlopen", &have_dlopen);
+sys_var_have_variable sys_have_dlopen("have_dynamic_loading", &have_dlopen);
 sys_var_have_variable sys_have_example_db("have_example_engine",
                                           &have_example_db);
 sys_var_have_variable sys_have_federated_db("have_federated_engine",
@@ -902,9 +910,9 @@ SHOW_VAR init_vars[]= {
    SHOW_SYS},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"plugin_dir",              (char*) opt_plugin_dir,               SHOW_CHAR},
-  {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
+  {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
    SHOW_SYS},
@@ -949,10 +957,11 @@ SHOW_VAR init_vars[]= {
 #ifdef HAVE_SYS_UN_H
   {"socket",                  (char*) &mysqld_unix_port,             SHOW_CHAR_PTR},
 #endif
-  {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
+  {sys_sort_buffer.name,      (char*) &sys_sort_buffer,             SHOW_SYS},
+  {sys_big_selects.name,      (char*) &sys_big_selects,             SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
-  {"sql_notes",               (char*) &sys_sql_notes,               SHOW_BOOL},
-  {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_BOOL},
+  {"sql_notes",               (char*) &sys_sql_notes,               SHOW_SYS},
+  {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_SYS},
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
@@ -981,10 +990,11 @@ SHOW_VAR init_vars[]= {
   {sys_tx_isolation.name,     (char*) &sys_tx_isolation,	    SHOW_SYS},
   {sys_updatable_views_with_limit.name,
                               (char*) &sys_updatable_views_with_limit,SHOW_SYS},
-  {"version",                 server_version,                       SHOW_CHAR},
-  {"version_comment",         (char*) MYSQL_COMPILATION_COMMENT,    SHOW_CHAR},
-  {"version_compile_machine", (char*) MACHINE_TYPE,		    SHOW_CHAR},
-  {sys_os.name,		      (char*) &sys_os,			    SHOW_SYS},
+  {sys_version.name,          (char*) &sys_version,                 SHOW_SYS},
+  {sys_version_comment.name,  (char*) &sys_version_comment,         SHOW_SYS},
+  {sys_version_compile_machine.name, (char*) &sys_version_compile_machine,
+   SHOW_SYS},
+  {sys_version_compile_os.name,	(char*) &sys_version_compile_os,    SHOW_SYS},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
   {NullS, NullS, SHOW_LONG}
 };

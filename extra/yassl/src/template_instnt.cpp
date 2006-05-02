@@ -35,13 +35,6 @@
 #include "openssl/ssl.h"
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-#if !defined(USE_CRYPTOPP_LIB)
-namespace TaoCrypt {
-template class HMAC<MD5>;
-template class HMAC<SHA>;
-template class HMAC<RIPEMD160>;
-}
-#endif  // USE_CRYPTOPP_LIB
 
 namespace mySTL {
 template class list<unsigned char*>;
