@@ -42,6 +42,7 @@ public:
     ARC4() {}
 
     void Process(byte*, const byte*, word32);
+    void AsmProcess(byte*, const byte*, word32);
     void SetKey(const byte*, word32);
 private:
     byte x_;

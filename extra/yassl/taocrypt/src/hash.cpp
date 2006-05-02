@@ -39,6 +39,15 @@ HASHwithTransform::HASHwithTransform(word32 digSz, word32 buffSz)
 }
 
 
+void HASHwithTransform::AddLength(word32 len)
+{
+    HashLengthType tmp = loLen_;
+    if ( (loLen_ += len) < tmp)
+        hiLen_++;                       // carry low to high
+    hiLen_ += SafeRightShift<8*sizeof(HashLengthType)>(len);
+}
+
+
 // Update digest with data of size len, do in blocks
 void HASHwithTransform::Update(const byte* data, word32 len)
 {
@@ -57,6 +66,8 @@ void HASHwithTransform::Update(const byte* data, word32 len)
         if (buffLen_ == blockSz) {
             ByteReverseIf(local, local, blockSz, getByteOrder());
             Transform();
+            AddLength(blockSz);
+            buffLen_ = 0;
         }
     }
 }
@@ -69,25 +80,29 @@ void HASHwithTransform::Final(byte* hash)
     word32    digestSz  = getDigestSize();
     word32    padSz     = getPadSize();
     ByteOrder order     = getByteOrder();
-    word32    prePadLen = length_ + buffLen_ * 8;  // in bits
+
+    AddLength(buffLen_);                        // before adding pads
+    HashLengthType preLoLen = GetBitCountLo();
+    HashLengthType preHiLen = GetBitCountHi();
     byte*     local     = reinterpret_cast<byte*>(buffer_);
 
     local[buffLen_++] = 0x80;  // add 1
 
     // pad with zeros
     if (buffLen_ > padSz) {
-        while (buffLen_ < blockSz) local[buffLen_++] = 0;
+        memset(&local[buffLen_], 0, blockSz - buffLen_);
+        buffLen_ += blockSz - buffLen_;
+
         ByteReverseIf(local, local, blockSz, order);
         Transform();
+        buffLen_ = 0;
     }
-    while (buffLen_ < padSz) local[buffLen_++] = 0;
+    memset(&local[buffLen_], 0, padSz - buffLen_);
 
     ByteReverseIf(local, local, blockSz, order);
     
-    word32 hiSize = 0;  // for future 64 bit length TODO:
-    memcpy(&local[padSz],   order ? &hiSize : &prePadLen, sizeof(prePadLen));
-    memcpy(&local[padSz+4], order ? &prePadLen : &hiSize, sizeof(prePadLen));
-
+    memcpy(&local[padSz],   order ? &preHiLen : &preLoLen, sizeof(preLoLen));
+    memcpy(&local[padSz+4], order ? &preLoLen : &preHiLen, sizeof(preLoLen));
 
     Transform();
     ByteReverseIf(digest_, digest_, digestSz, order);

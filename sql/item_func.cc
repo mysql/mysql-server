@@ -4559,12 +4559,6 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
   sys_var *var;
   LEX_STRING *base_name, *component_name;
 
-  if (component.str == 0 &&
-      !my_strcasecmp(system_charset_info, name.str, "VERSION"))
-    return new Item_string(NULL, server_version,
-			   (uint) strlen(server_version),
-			   system_charset_info, DERIVATION_SYSCONST);
-
   if (component.str)
   {
     base_name= &component;
