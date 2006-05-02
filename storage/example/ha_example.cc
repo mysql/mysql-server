@@ -77,11 +77,14 @@ static int example_init_func();
 static bool example_init_func_for_handlerton();
 static int example_panic(enum ha_panic_function flag);
 
+static const char example_hton_name[]= "EXAMPLE";
+static const char example_hton_comment[]= "Example storage engine";
+
 handlerton example_hton= {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "EXAMPLE",
+  example_hton_name,
   SHOW_OPTION_YES,
-  "Example storage engine", 
+  example_hton_comment, 
   DB_TYPE_EXAMPLE_DB,
   example_init_func_for_handlerton,
   0,       /* slot */
@@ -747,9 +750,9 @@ mysql_declare_plugin(example)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &example_hton,
-  example_hton.name,
+  example_hton_name,
   "Brian Aker, MySQL AB",
-  "Example Storage Engine",
+  example_hton_comment,
   example_init_func, /* Plugin Init */
   example_done_func, /* Plugin Deinit */
   0x0001 /* 0.1 */,

@@ -26,11 +26,15 @@
 
 static handler *heap_create_handler(TABLE_SHARE *table);
 
+static const char heap_hton_name[]= "MEMORY";
+static const char heap_hton_comment[]=
+  "Hash based, stored in memory, useful for temporary tables";
+
 handlerton heap_hton= {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "MEMORY",
+  heap_hton_name,
   SHOW_OPTION_YES,
-  "Hash based, stored in memory, useful for temporary tables", 
+  heap_hton_comment,
   DB_TYPE_HEAP,
   NULL,
   0,       /* slot */
@@ -711,9 +715,9 @@ mysql_declare_plugin(heap)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &heap_hton,
-  heap_hton.name,
-  NULL,
-  heap_hton.comment,
+  heap_hton_name,
+  "MySQL AB",
+  heap_hton_comment,
   NULL,
   NULL,
   0
