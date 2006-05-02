@@ -28,3 +28,4 @@ select * from t1 ignore index (primary) where tt like 'AA%';
 id	tt
 select * from t1 where tt like '%AA%';
 id	tt
+drop table t1;
