@@ -481,14 +481,22 @@ msg text NOT NULL
 insert into t1 (msg) values(
 'Tries to validate (8 byte length + inline bytes) as UTF8 :(
 Fast fix: removed validation for Text.  It is not yet indexable
-so bad data will not crash kernel.
-Proper fix: Set inline bytes to multiple of mbmaxlen and
-validate it (after the 8 byte length).');
+so bad data will not crash kernel.');
 select * from t1;
 id	msg
 1	Tries to validate (8 byte length + inline bytes) as UTF8 :(
 Fast fix: removed validation for Text.  It is not yet indexable
 so bad data will not crash kernel.
-Proper fix: Set inline bytes to multiple of mbmaxlen and
-validate it (after the 8 byte length).
+drop table t1;
+create table t1 (
+a int primary key not null auto_increment,
+b text
+) engine=ndbcluster;
+select count(*) from t1;
+count(*)
+500
+truncate t1;
+select count(*) from t1;
+count(*)
+0
 drop table t1;
