@@ -16,6 +16,7 @@ Created 11/11/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "ut0lst.h"
 #include "page0page.h"
+#include "page0zip.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
 #include "buf0lru.h"
@@ -254,6 +255,8 @@ buf_flush_buffered_writes(void)
 		block = trx_doublewrite->buf_block_arr[i];
 		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
+		/* TODO: page_zip */
+
 		if (mach_read_from_4(block->frame + FIL_PAGE_LSN + 4)
 			!= mach_read_from_4(block->frame + UNIV_PAGE_SIZE
 				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
@@ -269,7 +272,7 @@ buf_flush_buffered_writes(void)
 			if (UNIV_UNLIKELY(!page_simple_validate_new(
 						block->frame))) {
 corrupted_page:
-				buf_page_print(block->frame);
+				buf_page_print(block->frame, 0);
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -456,12 +459,12 @@ buf_flush_init_for_writing(
 	page_zip_des_t*	page_zip = page_zip_;
 	ulint		zip_size = fil_space_get_zip_size(space);
 
-	if (zip_size) {
-		switch (fil_page_get_type(page)) {
+	if (zip_size && zip_size != ULINT_UNDEFINED) {
+		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
 		case FIL_PAGE_TYPE_ZBLOB:
 			ut_ad(!page_zip);
 			mach_write_to_4(page + FIL_PAGE_OFFSET, page_no);
-			mach_write_to_4(page + FIL_PAGE_PREV, space);
+			mach_write_to_4(page + FIL_PAGE_ZBLOB_SPACE_ID, space);
 			mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 			mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
 					srv_use_checksums
@@ -469,9 +472,28 @@ buf_flush_init_for_writing(
 							page, zip_size)
 					: BUF_NO_CHECKSUM_MAGIC);
 			return;
-		case FIL_PAGE_INDEX:
-			/* TODO: special handling */
+		case FIL_PAGE_TYPE_XDES:
+			/* This is essentially an uncompressed page. */
 			break;
+		case FIL_PAGE_INDEX:
+			ut_a(zip_size == page_zip->size);
+			mach_write_to_4(page_zip->data
+					+ FIL_PAGE_OFFSET, page_no);
+			mach_write_to_8(page_zip->data
+					+ FIL_PAGE_LSN, newest_lsn);
+			mach_write_to_4(page_zip->data
+					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+					space);
+			memset(page_zip->data + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
+			mach_write_to_4(page_zip->data
+					+ FIL_PAGE_SPACE_OR_CHKSUM,
+					srv_use_checksums
+					? page_zip_calc_checksum(
+						page_zip->data, zip_size)
+					: BUF_NO_CHECKSUM_MAGIC);
+			return;
+		default:
+			ut_error;
 		}
 	}
 
@@ -490,16 +512,6 @@ buf_flush_init_for_writing(
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
 					srv_use_checksums ?
 		buf_calc_page_new_checksum(page) : BUF_NO_CHECKSUM_MAGIC);
-
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		/* Copy FIL_PAGE_SPACE_OR_CHKSUM and FIL_PAGE_OFFSET */
-		memcpy(page_zip->data, page, FIL_PAGE_PREV);
-		/* Copy FIL_PAGE_LSN */
-		memcpy(page_zip->data + FIL_PAGE_LSN, page + FIL_PAGE_LSN, 8);
-		/* Copy FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID */
-		memcpy(page_zip->data + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
-			page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4);
-	}
 
 	/* We overwrite the first 4 bytes of the end lsn field to store
 	the old formula checksum. Since it depends also on the field

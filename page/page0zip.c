@@ -538,6 +538,7 @@ page_zip_compress(
 	byte*		storage;/* storage of uncompressed columns */
 
 	ut_a(page_is_comp((page_t*) page));
+	ut_a(fil_page_get_type((page_t*) page) == FIL_PAGE_INDEX);
 	ut_ad(page_simple_validate_new((page_t*) page));
 	ut_ad(page_zip_simple_validate(page_zip));
 
@@ -870,8 +871,13 @@ zlib_error:
 
 	page_zip->m_end = page_zip->m_start = PAGE_DATA + c_stream.total_out;
 	page_zip->n_blobs = n_blobs;
-	/* Copy the page header */
-	memcpy(page_zip->data, page, PAGE_DATA);
+	/* Copy those header fields that will not be written
+	in buf_flush_init_for_writing() */
+	memcpy(page_zip->data + FIL_PAGE_PREV, page + FIL_PAGE_PREV,
+			FIL_PAGE_LSN - FIL_PAGE_PREV);
+	memcpy(page_zip->data + FIL_PAGE_TYPE, page + FIL_PAGE_TYPE, 2);
+	memcpy(page_zip->data + FIL_PAGE_DATA, page + FIL_PAGE_DATA,
+			PAGE_DATA - FIL_PAGE_DATA);
 	/* Copy the rest of the compressed page */
 	memcpy(page_zip->data + PAGE_DATA, buf, page_zip->size - PAGE_DATA);
 	mem_heap_free(heap);
@@ -1902,6 +1908,26 @@ func_exit:
 }
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
+#ifdef UNIV_DEBUG
+static
+ibool
+page_zip_header_cmp(
+/*================*/
+					/* out: TRUE */
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	const byte*		page)	/* in: uncompressed page */
+{
+	ut_ad(!memcmp(page_zip->data + FIL_PAGE_PREV, page + FIL_PAGE_PREV,
+			FIL_PAGE_LSN - FIL_PAGE_PREV));
+	ut_ad(!memcmp(page_zip->data + FIL_PAGE_TYPE, page + FIL_PAGE_TYPE,
+			2));
+	ut_ad(!memcmp(page_zip->data + FIL_PAGE_DATA, page + FIL_PAGE_DATA,
+			PAGE_DATA - FIL_PAGE_DATA));
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */
+
 /**************************************************************************
 Write an entire record on the compressed page.  The data must already
 have been written to the uncompressed page. */
@@ -1928,10 +1954,11 @@ page_zip_write_rec(
 	ut_ad(rec_offs_validate((rec_t*) rec, index, offsets));
 
 	ut_ad(page_zip->m_start >= PAGE_DATA);
-	ut_ad(!memcmp(ut_align_down((byte*) rec, UNIV_PAGE_SIZE),
-		page_zip->data, PAGE_DATA));
 
 	page = ut_align_down((rec_t*) rec, UNIV_PAGE_SIZE);
+
+	ut_ad(page_zip_header_cmp(page_zip, page));
+
 	slot = page_zip_dir_find(page_zip,
 			ut_align_offset(rec, UNIV_PAGE_SIZE));
 	ut_a(slot);
@@ -2228,7 +2255,7 @@ page_zip_write_blob_ptr(
 	ut_ad(rec_offs_nth_extern(offsets, n));
 
 	ut_ad(page_zip->m_start >= PAGE_DATA);
-	ut_ad(!memcmp(page, page_zip->data, PAGE_DATA));
+	ut_ad(page_zip_header_cmp(page_zip, page));
 
 	ut_ad(page_is_leaf(page));
 
@@ -2379,7 +2406,7 @@ page_zip_write_node_ptr(
 	ut_ad(page_rec_is_comp(rec));
 
 	ut_ad(page_zip->m_start >= PAGE_DATA);
-	ut_ad(!memcmp(page, page_zip->data, PAGE_DATA));
+	ut_ad(page_zip_header_cmp(page_zip, page));
 
 	ut_ad(!page_is_leaf(page));
 
@@ -2443,7 +2470,7 @@ page_zip_write_trx_id_and_roll_ptr(
 	ut_ad(rec_offs_comp(offsets));
 
 	ut_ad(page_zip->m_start >= PAGE_DATA);
-	ut_ad(!memcmp(page, page_zip->data, PAGE_DATA));
+	ut_ad(page_zip_header_cmp(page_zip, page));
 
 	ut_ad(page_is_leaf(page));
 
@@ -2935,4 +2962,20 @@ corrupt:
 	}
 
 	return(ptr + size);
+}
+
+/**************************************************************************
+Calculate the compressed page checksum. */
+
+ulint
+page_zip_calc_checksum(
+/*===================*/
+				/* out: page checksum */
+	const void*	data,	/* in: compressed page */
+	ulint		size)	/* in: size of compressed page */
+{
+	/* Exclude the 32-bit checksum field from the checksum. */
+	return((ulint) adler32(0,
+			((const Bytef*) data) + FIL_PAGE_OFFSET,
+			size - FIL_PAGE_OFFSET));
 }
