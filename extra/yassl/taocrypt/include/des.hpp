@@ -27,73 +27,87 @@
 #ifndef TAO_CRYPT_DES_HPP
 #define TAO_CRYPT_DES_HPP
 
-#include <string.h>
 #include "misc.hpp"
 #include "modes.hpp"
 
 namespace TaoCrypt {
 
-enum { DES_BLOCK_SIZE = 8 };
 
-// Base for all DES types
-class DES_BASE : public Mode_BASE {
+enum { DES_BLOCK_SIZE = 8, DES_KEY_SIZE = 32 };
+
+
+class BasicDES {
 public:
-    enum { BLOCK_SIZE = DES_BLOCK_SIZE, KEY_SIZE = 32, BOXES = 8,
-           BOX_SIZE = 64 };
-
-    DES_BASE(CipherDir DIR, Mode MODE) 
-        : Mode_BASE(BLOCK_SIZE), dir_(DIR), mode_(MODE) {}
-
-    void Process(byte*, const byte*, word32);
+    void SetKey(const byte*, word32, CipherDir dir);
+    void RawProcessBlock(word32&, word32&) const;
 protected:
-    CipherDir dir_;
-    Mode      mode_;
-private:
-    DES_BASE(const DES_BASE&);              // hide copy
-    DES_BASE& operator=(const DES_BASE&);   // and assign
+    word32 k_[DES_KEY_SIZE];
 };
 
 
 // DES 
-class DES : public DES_BASE {
+class DES : public Mode_BASE, public BasicDES {
 public:
-    DES(CipherDir DIR, Mode MODE) : DES_BASE(DIR, MODE) {}
+    DES(CipherDir DIR, Mode MODE) 
+        : Mode_BASE(DES_BLOCK_SIZE), dir_(DIR), mode_(MODE) {}
 
-    void SetKey(const byte*, word32, CipherDir dir);
-    void RawProcessBlock(word32&, word32&) const;
-    void ProcessAndXorBlock(const byte*, const byte*, byte*) const;
+    void Process(byte*, const byte*, word32);
 private:
-    word32 k_[KEY_SIZE];
+    CipherDir dir_;
+    Mode      mode_;
+
+    void ProcessAndXorBlock(const byte*, const byte*, byte*) const;
+
+    DES(const DES&);              // hide copy
+    DES& operator=(const DES&);   // and assign
 };
 
 
 // DES_EDE2
-class DES_EDE2 : public DES_BASE {
+class DES_EDE2 : public Mode_BASE {
 public:
     DES_EDE2(CipherDir DIR, Mode MODE) 
-        : DES_BASE(DIR, MODE), des1_(DIR, MODE), des2_(DIR, MODE) {}
+        : Mode_BASE(DES_BLOCK_SIZE), dir_(DIR), mode_(MODE) {}
 
     void SetKey(const byte*, word32, CipherDir dir);
-    void ProcessAndXorBlock(const byte*, const byte*, byte*) const;
+    void Process(byte*, const byte*, word32);
 private:
-    DES des1_;
-    DES des2_;
+    CipherDir dir_;
+    Mode      mode_;
+
+    BasicDES  des1_;
+    BasicDES  des2_;
+
+    void ProcessAndXorBlock(const byte*, const byte*, byte*) const;
+
+    DES_EDE2(const DES_EDE2&);              // hide copy
+    DES_EDE2& operator=(const DES_EDE2&);   // and assign
 };
 
 
+
 // DES_EDE3
-class DES_EDE3 : public DES_BASE {
+class DES_EDE3 : public Mode_BASE {
 public:
     DES_EDE3(CipherDir DIR, Mode MODE) 
-        : DES_BASE(DIR, MODE), des1_(DIR, MODE), des2_(DIR, MODE),
-                               des3_(DIR, MODE) {}
+        : Mode_BASE(DES_BLOCK_SIZE), dir_(DIR), mode_(MODE) {}
 
     void SetKey(const byte*, word32, CipherDir dir);
-    void ProcessAndXorBlock(const byte*, const byte*, byte*) const;
+    void SetIV(const byte* iv) { memcpy(r_, iv, DES_BLOCK_SIZE); }
+    void Process(byte*, const byte*, word32);
 private:
-    DES des1_;
-    DES des2_;
-    DES des3_;
+    CipherDir dir_;
+    Mode      mode_;
+
+    BasicDES  des1_;
+    BasicDES  des2_;
+    BasicDES  des3_;
+
+    void AsmProcess(const byte* in, byte* out, void* box) const;
+    void ProcessAndXorBlock(const byte*, const byte*, byte*) const;
+
+    DES_EDE3(const DES_EDE3&);              // hide copy
+    DES_EDE3& operator=(const DES_EDE3&);   // and assign
 };
 
 

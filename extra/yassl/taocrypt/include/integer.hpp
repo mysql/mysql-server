@@ -274,7 +274,6 @@ private:
                                Integer& dividend, const Integer& divisor);
     AlignedWordBlock reg_;
     Sign             sign_;
-
 };
 
 inline bool operator==(const Integer& a, const Integer& b) 
