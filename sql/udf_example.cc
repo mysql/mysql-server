@@ -344,7 +344,7 @@ char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
   KSflag = 0; /* state flag for KS translation */
 
   for (metaph_end = result + MAXMETAPH, n_start = n;
-	n <= n_end && result < metaph_end; n++ )
+	n < n_end && result < metaph_end; n++ )
   {
 
     if ( KSflag )
