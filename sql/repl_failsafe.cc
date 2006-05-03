@@ -860,7 +860,8 @@ bool load_master_data(THD* thd)
 
       if (!db_ok(db, replicate_do_db, replicate_ignore_db) ||
           !db_ok_with_wild_table(db) ||
-	  !strcmp(db,"mysql"))
+	  !strcmp(db,"mysql") ||
+          is_schema_db(db))
       {
 	*cur_table_res = 0;
 	continue;

@@ -130,7 +130,7 @@ void Base64Encoder::Encode()
     word32 outSz = bytes * 4 / 3;
     outSz += (outSz % 4);           // 4 byte integrals         
 
-    outSz += outSz / pemLineSz + ( (outSz % pemLineSz) ? 1 : 0);  // new lines
+    outSz += (outSz + pemLineSz - 1) / pemLineSz;  // new lines
     encoded_.New(outSz);
 
     word32 i = 0;
@@ -187,9 +187,8 @@ void Base64Encoder::Encode()
 void Base64Decoder::Decode()
 {
     word32 bytes = coded_.size();
-    word32 plainSz = bytes - (bytes / pemLineSz + ( (bytes % pemLineSz) ? 
-                                                                      1 : 0));
-    plainSz = plainSz * 3 / 4 + (( (plainSz * 3) % 4) ? 1 : 0);
+    word32 plainSz = bytes - ((bytes + (pemLineSz - 1)) / pemLineSz); 
+    plainSz = (plainSz * 3 + 3) / 4;
     decoded_.New(plainSz);
 
     word32 i = 0;

@@ -218,6 +218,7 @@ then
 else
   AC_PATH_PROG(AS, as, as)
 fi
+
 # Still need ranlib for readline; local static use only so no libtool.
 AC_PROG_RANLIB
 # We use libtool
@@ -228,6 +229,13 @@ AC_PROG_LIBTOOL
 # problems of 'mysql' with CXX=g++
 LIBTOOL="$LIBTOOL --preserve-dup-deps"
 AC_SUBST(LIBTOOL)dnl
+
+AC_SUBST(NM)dnl
+
+# NM= "$NM -X64"
+#archive_expsym_cmds= `echo "$archive_expsym_cmds" | sed -e '/"$(CC)"//'`
+#archive_expsym_cmds= "$CC -q64 $archive_expsym_cmds"
+#  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-ansi//; s/-pedantic//; s/-Wcheck//'`
 
 #AC_LIBTOOL_DLOPEN AC_LIBTOOL_WIN32_DLL AC_DISABLE_FAST_INSTALL AC_DISABLE_SHARED AC_DISABLE_STATIC
 
@@ -513,7 +521,7 @@ then
   AC_MSG_ERROR([MySQL requires an ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
 fi
 
-NOINST_LDFLAGS=
+NOINST_LDFLAGS="-static"
 
 static_nss=""
 STATIC_NSS_FLAGS=""
@@ -735,9 +743,8 @@ AC_CHECK_FUNC(yp_get_default_domain, ,
 AC_CHECK_FUNC(p2open, , AC_CHECK_LIB(gen, p2open))
 # This may get things to compile even if bind-8 is installed
 AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
-# For crypt() on Linux
-AC_CHECK_LIB(crypt, crypt)
-AC_CHECK_FUNC(crypt, AC_DEFINE([HAVE_CRYPT], [1], [crypt])) 
+# Check if crypt() exists in libc or libcrypt, sets LIBS if needed
+AC_SEARCH_LIBS(crypt, crypt, AC_DEFINE(HAVE_CRYPT, 1, [crypt]))
 
 # For sem_xxx functions on Solaris 2.6
 AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
