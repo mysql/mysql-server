@@ -27,6 +27,7 @@
     %#[l]d
     %#[l]u
     %#[l]x
+    %#.#b 	Local format; note first # is ignored and second is REQUIRED
     %#.#s	Note first # is ignored
     
   RETURN
@@ -40,7 +41,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 
   for (; *fmt ; fmt++)
   {
-    if (fmt[0] != '%')
+    if (*fmt != '%')
     {
       if (to == end)			/* End of buffer */
 	break;
@@ -93,6 +94,16 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       if (left_len <= plen)
 	plen = left_len - 1;
       to=strnmov(to,par,plen);
+      continue;
+    }
+    else if (*fmt == 'b')				/* Buffer parameter */
+    {
+      char *par = va_arg(ap, char *);
+      DBUG_ASSERT(to <= end);
+      if (to + abs(width) + 1 > end)
+        width= end - to - 1;  /* sign doesn't matter */
+      memmove(to, par, abs(width));
+      to+= width;
       continue;
     }
     else if (*fmt == 'd' || *fmt == 'u'|| *fmt== 'x')	/* Integer parameter */

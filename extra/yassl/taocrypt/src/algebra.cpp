@@ -20,6 +20,8 @@
  */
 
 /* based on Wei Dai's algebra.cpp from CryptoPP */
+#undef  NDEBUG
+#define DEBUG   // GCC 4.0 bug if NDEBUG and Optimize > 1
 
 #include "runtime.hpp"
 #include "algebra.hpp"

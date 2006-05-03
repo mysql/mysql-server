@@ -326,16 +326,11 @@ fi
 make -i test-force || true
 
 # Save mysqld-max
-# check if mysqld was installed in .libs/
-if test -f sql/.libs/mysqld
-then
-	cp sql/.libs/mysqld sql/mysqld-max
-else
-	cp sql/mysqld sql/mysqld-max
-fi
-nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
+./libtool --mode=execute cp sql/mysqld sql/mysqld-max
+./libtool --mode=execute nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
+
 # Save the perror binary so it supports the NDB error codes (BUG#13740)
-mv extra/perror extra/perror.ndb
+./libtool --mode=execute cp extra/perror extra/perror.ndb
 
 # Install the ndb binaries
 (cd ndb; make install DESTDIR=$RBR)
@@ -377,12 +372,8 @@ BuildMySQL "--disable-shared \
 		--with-archive-storage-engine \
 		--with-innodb \
 		--with-big-tables"
-if test -f sql/.libs/mysqld
-then
-	nm --numeric-sort sql/.libs/mysqld > sql/mysqld.sym
-else
-	nm --numeric-sort sql/mysqld > sql/mysqld.sym
-fi
+
+./libtool --mode=execute nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
@@ -488,8 +479,11 @@ usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # owns all database files.
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
-# Initiate databases
+# Initiate databases if needed
 %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+
+# Upgrade databases if needed
+%{_bindir}/mysql_upgrade --user=%{mysqld_user}
 
 # Change permissions again to fix any new files.
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
@@ -561,6 +555,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlmanager.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
@@ -572,30 +567,31 @@ fi
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 %ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
 
-%attr(755, root, root) %{_bindir}/myisamchk
+%attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
+%attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
-%attr(755, root, root) %{_bindir}/my_print_defaults
-%attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
 %attr(755, root, root) %{_bindir}/mysql_create_system_tables
-%attr(755, root, root) %{_bindir}/mysqld_multi
-%attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysql_explain_log
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
-%attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
-%attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
+%attr(755, root, root) %{_bindir}/mysql_upgrade
 %attr(755, root, root) %{_bindir}/mysql_zap
+%attr(755, root, root) %{_bindir}/mysqlbug
+%attr(755, root, root) %{_bindir}/mysqld_multi
+%attr(755, root, root) %{_bindir}/mysqld_safe
+%attr(755, root, root) %{_bindir}/mysqlhotcopy
+%attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
-%attr(755, root, root) %{_bindir}/resolveip
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
+%attr(755, root, root) %{_bindir}/resolveip
 %attr(755, root, root) %{_bindir}/safe_mysqld
 
 %attr(755, root, root) %{_sbindir}/mysqld
@@ -724,6 +720,15 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon May 01 2006 Kent Boortz <kent@mysql.com>
+
+- Use "./libtool --mode=execute" instead of searching for the
+  executable in current directory and ".libs".
+
+* Fri Apr 28 2006 Kent Boortz <kent@mysql.com>
+
+- Install and run "mysql_upgrade"
+
 * Sat Apr 01 2006 Kent Boortz <kent@mysql.com>
 
 - Set $LDFLAGS from $MYSQL_BUILD_LDFLAGS

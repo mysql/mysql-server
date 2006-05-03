@@ -1278,3 +1278,7 @@ include/openssl
 mysql-test/r/bdb.log
 mysql-test/r/im_client_port.log
 mysql-test/r/udf.log
+extra/yassl/taocrypt/benchmark/benchmark
+extra/yassl/taocrypt/test/test
+extra/yassl/testsuite/testsuite
+client/mysql_upgrade

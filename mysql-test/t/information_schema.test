@@ -1,6 +1,9 @@
 # This test  uses grants, which can't get tested for embedded server
 -- source include/not_embedded.inc
 
+# This test uses chmod, can't be run with root permissions
+-- source include/not_as_root.inc
+
 # Test for information_schema.schemata &
 # show databases
 

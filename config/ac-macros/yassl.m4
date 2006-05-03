@@ -1,7 +1,10 @@
 AC_CONFIG_FILES(extra/yassl/Makefile dnl
 extra/yassl/taocrypt/Makefile dnl
 extra/yassl/taocrypt/src/Makefile dnl
-extra/yassl/src/Makefile)
+extra/yassl/src/Makefile dnl
+extra/yassl/testsuite/Makefile dnl
+extra/yassl/taocrypt/test/Makefile dnl
+extra/yassl/taocrypt/benchmark/Makefile)
 
 AC_DEFUN([MYSQL_CHECK_YASSL], [
   AC_MSG_CHECKING(for yaSSL)
