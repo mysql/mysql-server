@@ -134,7 +134,6 @@ our $glob_win32=                  0; # OS and native Win32 executables
 our $glob_win32_perl=             0; # ActiveState Win32 Perl
 our $glob_cygwin_perl=            0; # Cygwin Perl
 our $glob_cygwin_shell=           undef;
-our $glob_use_libtool=            1;
 our $glob_mysql_test_dir=         undef;
 our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
@@ -443,13 +442,6 @@ sub initial_setup () {
   $glob_win32_perl=  ($^O eq "MSWin32");
   $glob_cygwin_perl= ($^O eq "cygwin");
   $glob_win32=       ($glob_win32_perl or $glob_cygwin_perl);
-
-  # Use libtool on all platforms except windows
-  if ( $glob_win32 )
-  {
-    $glob_use_libtool= 0;
-  }
-  $exe_libtool= "../libtool";
 
   # We require that we are in the "mysql-test" directory
   # to run mysql-test-run
@@ -1000,6 +992,21 @@ sub snapshot_setup () {
 ##############################################################################
 
 sub executable_setup () {
+
+  #
+  # Check if libtool is available in this distribution/clone
+  # we need it when valgrinding or debugging non installed binary
+  # Otherwise valgrind will valgrind the libtool wrapper or bash
+  # and gdb will not find the real executable to debug
+  #
+  if ( -x "../libtool")
+  {
+    $exe_libtool= "../libtool";
+    if ($opt_valgrind or $glob_debugger)
+    {
+      mtr_report("Using \"$exe_libtool\" when running valgrind or debugger");
+    }
+  }
 
   if ( $opt_source_dist )
   {
@@ -2626,7 +2633,7 @@ sub mysqld_start ($$$$$) {
     $exe= undef;
   }
 
-  if ($glob_use_libtool and $opt_valgrind)
+  if ($exe_libtool and $opt_valgrind)
   {
     # Add "libtool --mode-execute"
     # if running in valgrind(to avoid valgrinding bash)
@@ -3132,7 +3139,7 @@ sub run_mysqltest ($) {
     debugger_arguments(\$args, \$exe, "client");
   }
 
-  if ($glob_use_libtool and $opt_valgrind)
+  if ($exe_libtool and $opt_valgrind)
   {
     # Add "libtool --mode-execute" before the test to execute
     # if running in valgrind(to avoid valgrinding bash)
@@ -3207,7 +3214,7 @@ sub gdb_arguments {
   mtr_add_arg($$args, "$type");
   mtr_add_arg($$args, "-e");
 
-  if ( $glob_use_libtool )
+  if ( $exe_libtool )
   {
     mtr_add_arg($$args, $exe_libtool);
     mtr_add_arg($$args, "--mode=execute");
@@ -3270,7 +3277,7 @@ sub ddd_arguments {
 
   my $save_exe= $$exe;
   $$args= [];
-  if ( $glob_use_libtool )
+  if ( $exe_libtool )
   {
     $$exe= $exe_libtool;
     mtr_add_arg($$args, "--mode=execute");
