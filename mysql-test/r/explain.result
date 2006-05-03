@@ -53,3 +53,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	таб	ref	инд0,инд01	инд0	5	const	1	Using where; Using index
 drop table таб;
 set names latin1;
+select 3 into @v1;
+explain select 3 into @v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used

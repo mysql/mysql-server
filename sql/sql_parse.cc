@@ -5709,6 +5709,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     }
     else
     {
+      DBUG_ASSERT(thd->net.report_error);
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
       query_cache_abort(&thd->net);
