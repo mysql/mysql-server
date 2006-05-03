@@ -216,7 +216,7 @@ static struct st_mysql_show_var simple_status[]=
   Plugin library descriptor
 */
 
-mysql_declare_plugin
+mysql_declare_plugin(ftexample)
 {
   MYSQL_FTPARSER_PLUGIN,      /* type                            */
   &simple_parser_descriptor,  /* descriptor                      */

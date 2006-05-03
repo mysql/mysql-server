@@ -28,6 +28,8 @@
 #include "../storage/myisammrg/myrg_def.h"
 #endif
 
+#include <mysql/plugin.h>
+
 /*****************************************************************************
 ** MyISAM MERGE tables
 *****************************************************************************/
@@ -36,11 +38,15 @@ static handler *myisammrg_create_handler(TABLE_SHARE *table);
 
 /* MyISAM MERGE handlerton */
 
+static const char myisammrg_hton_name[]= "MRG_MYISAM";
+static const char myisammrg_hton_comment[]=
+  "Collection of identical MyISAM tables";
+
 handlerton myisammrg_hton= {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "MRG_MYISAM",
+  myisammrg_hton_name,
   SHOW_OPTION_YES,
-  "Collection of identical MyISAM tables", 
+  myisammrg_hton_comment, 
   DB_TYPE_MRG_MYISAM,
   NULL,
   0,       /* slot */
@@ -573,3 +579,16 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
   */
   return COMPATIBLE_DATA_NO;
 }
+
+mysql_declare_plugin(myisammrg)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &myisammrg_hton,
+  myisammrg_hton_name,
+  "MySQL AB",
+  myisammrg_hton_comment,
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;

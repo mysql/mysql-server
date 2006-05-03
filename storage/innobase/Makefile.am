@@ -79,5 +79,33 @@ EXTRA_DIST = 	include/btr0btr.h include/btr0btr.ic include/btr0cur.h include/btr
 		include/ut0sort.h include/ut0ut.h include/ut0ut.ic include/ut0vec.h include/ut0vec.ic \
 		cmakelists.txt
 
+noinst_LIBRARIES =	libinnobase.a
+libinnobase_a_LIBADD =	usr/libusr.a srv/libsrv.a dict/libdict.a \
+			que/libque.a srv/libsrv.a ibuf/libibuf.a \
+			row/librow.a pars/libpars.a btr/libbtr.a \
+			trx/libtrx.a read/libread.a usr/libusr.a \
+			buf/libbuf.a ibuf/libibuf.a eval/libeval.a \
+			log/liblog.a fsp/libfsp.a fut/libfut.a \
+			fil/libfil.a lock/liblock.a mtr/libmtr.a \
+			page/libpage.a rem/librem.a thr/libthr.a \
+			sync/libsync.a data/libdata.a mach/libmach.a \
+			ha/libha.a dyn/libdyn.a mem/libmem.a \
+			ut/libut.a os/libos.a ut/libut.a
+libinnobase_a_SOURCES =	
+
+
+libinnobase.a:		$(libinnobase_a_LIBADD)
+		-rm -f $@
+		if test "$(host_os)" = "netware" ; \
+		then \
+		  $(libinnobase_a_AR) $@ $(libinnobase_a_LIBADD) ; \
+		else \
+		  for arc in $(libinnobase_a_LIBADD); do \
+		     arpath=`echo $$arc|sed 's|[^/]*$$||'`; \
+		     $(AR) t $$arc|sed "s|^|$$arpath|"; \
+		  done | sort -u | xargs $(AR) cq $@ ; \
+		  $(RANLIB) $@	; \
+		fi
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%
