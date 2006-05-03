@@ -112,7 +112,7 @@ class Key :public Sql_alloc {
 public:
   enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT, SPATIAL, FOREIGN_KEY};
   enum Keytype type;
-  KEY_CREATE_INFO key_info;
+  KEY_CREATE_INFO key_create_info;
   List<key_part_spec> columns;
   const char *name;
   bool generated;
@@ -120,8 +120,8 @@ public:
   Key(enum Keytype type_par, const char *name_arg,
       KEY_CREATE_INFO *key_info_arg,
       bool generated_arg, List<key_part_spec> &cols)
-    :type(type_par), key_info(*key_info_arg), columns(cols), name(name_arg),
-    generated(generated_arg)
+    :type(type_par), key_create_info(*key_info_arg), columns(cols),
+    name(name_arg), generated(generated_arg)
   {}
   ~Key() {}
   /* Equality comparison of keys (ignoring name) */
