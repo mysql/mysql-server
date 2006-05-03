@@ -112,17 +112,16 @@ class Key :public Sql_alloc {
 public:
   enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT, SPATIAL, FOREIGN_KEY};
   enum Keytype type;
-  enum ha_key_alg algorithm;
+  KEY_CREATE_INFO key_info;
   List<key_part_spec> columns;
   const char *name;
   bool generated;
-  LEX_STRING *parser_name;
 
-  Key(enum Keytype type_par, const char *name_arg, enum ha_key_alg alg_par,
-      bool generated_arg, List<key_part_spec> &cols,
-      LEX_STRING *parser_arg= 0)
-    :type(type_par), algorithm(alg_par), columns(cols), name(name_arg),
-    generated(generated_arg), parser_name(parser_arg)
+  Key(enum Keytype type_par, const char *name_arg,
+      KEY_CREATE_INFO *key_info_arg,
+      bool generated_arg, List<key_part_spec> &cols)
+    :type(type_par), key_info(*key_info_arg), columns(cols), name(name_arg),
+    generated(generated_arg)
   {}
   ~Key() {}
   /* Equality comparison of keys (ignoring name) */
@@ -144,7 +143,7 @@ public:
   foreign_key(const char *name_arg, List<key_part_spec> &cols,
 	      Table_ident *table,   List<key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key(FOREIGN_KEY, name_arg, HA_KEY_ALG_UNDEF, 0, cols),
+    :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
     ref_table(table), ref_columns(cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
