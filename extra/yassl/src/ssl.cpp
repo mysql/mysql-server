@@ -1,4 +1,4 @@
-/* ssl.cpp                                
+ /* ssl.cpp                                
  *
  * Copyright (C) 2003 Sawtooth Consulting Ltd.
  *
@@ -36,6 +36,7 @@
 #include "openssl/ssl.h"
 #include "handshake.hpp"
 #include "yassl_int.hpp"
+#include "md5.hpp"              // for TaoCrypt MD5 size assert
 #include <stdio.h>
 
 #ifdef _WIN32
@@ -723,8 +724,10 @@ void OpenSSL_add_all_algorithms()  // compatibility only
 {}
 
 
-void SSL_library_init()  // compatiblity only
-{}
+int SSL_library_init()  // compatiblity only
+{
+    return 1;
+}
 
 
 DH* DH_new(void)
@@ -804,15 +807,13 @@ const char* X509_verify_cert_error_string(long /* error */)
 
 const EVP_MD* EVP_md5(void)
 {
-    // TODO: FIX add to some list for destruction
-    return NEW_YS MD5;
+    return GetCryptProvider().NewMd5();
 }
 
 
 const EVP_CIPHER* EVP_des_ede3_cbc(void)
 {
-    // TODO: FIX add to some list for destruction
-    return NEW_YS DES_EDE;
+    return GetCryptProvider().NewDesEde();
 }
 
 
@@ -894,6 +895,275 @@ void DES_ede3_cbc_encrypt(const byte* input, byte* output, long sz,
         des.set_decryptKey(key, *ivec);
         des.decrypt(output, input, sz);
     }
+}
+
+
+// functions for libcurl
+int RAND_status()
+{
+    return 1;  /* TaoCrypt provides enough seed */
+}
+
+
+int DES_set_key(const_DES_cblock* key, DES_key_schedule* schedule)
+{
+    memcpy(schedule, key, sizeof(const_DES_cblock));
+    return 1;
+}
+
+
+void DES_set_odd_parity(DES_cblock* key)
+{
+    // not needed now for TaoCrypt
+}
+
+
+void DES_ecb_encrypt(DES_cblock* input, DES_cblock* output,
+                     DES_key_schedule* key, int enc)
+{
+    DES  des;
+
+    if (enc) {
+        des.set_encryptKey(*key, 0);
+        des.encrypt(*output, *input, DES_BLOCK);
+    }
+    else {
+        des.set_decryptKey(*key, 0);
+        des.decrypt(*output, *input, DES_BLOCK);
+    }
+}
+
+
+void SSL_CTX_set_default_passwd_cb_userdata(SSL_CTX*, void* userdata)
+{
+    // yaSSL doesn't support yet, unencrypt your PEM file with userdata
+    // before handing off to yaSSL
+}
+
+
+X509* SSL_get_certificate(SSL* ssl)
+{
+    // only used to pass to get_privatekey which isn't used
+    return 0;
+}
+
+
+EVP_PKEY* SSL_get_privatekey(SSL* ssl)
+{
+    // only called, not used
+    return 0;
+}
+
+
+void SSL_SESSION_free(SSL_SESSION* session)
+{
+    // managed by singleton
+}
+
+
+
+EVP_PKEY* X509_get_pubkey(X509* x)
+{
+    // called, not used though
+    return 0;
+}
+
+
+int EVP_PKEY_copy_parameters(EVP_PKEY* to, const EVP_PKEY* from)
+{
+    // called, not used though
+    return 0;
+}
+
+
+void EVP_PKEY_free(EVP_PKEY* pkey)
+{
+    // never allocated from above
+}
+
+
+void ERR_error_string_n(unsigned long e, char *buf, size_t len)
+{
+    if (len) ERR_error_string(e, buf);
+}
+
+
+void ERR_free_strings(void)
+{
+    // handled internally
+}
+
+
+void EVP_cleanup(void)
+{
+    // nothing to do yet
+}
+
+
+ASN1_TIME* X509_get_notBefore(X509* x)
+{
+    if (x) return x->GetBefore();
+    return 0;
+}
+
+
+ASN1_TIME* X509_get_notAfter(X509* x)
+{
+    if (x) return x->GetAfter();
+    return 0;
+}
+
+
+SSL_METHOD* SSLv23_client_method(void)  /* doesn't actually roll back */
+{
+    return SSLv3_client_method();
+}
+
+
+SSL_METHOD* SSLv2_client_method(void)   /* will never work, no v 2    */
+{
+    return 0;
+}
+
+
+SSL_SESSION* SSL_get1_session(SSL* ssl)  /* what's ref count */
+{
+    return SSL_get_session(ssl);
+}
+
+
+void GENERAL_NAMES_free(STACK_OF(GENERAL_NAME) *x)
+{
+    // no extension names supported yet
+}
+
+
+int sk_GENERAL_NAME_num(STACK_OF(GENERAL_NAME) *x)
+{
+    // no extension names supported yet
+    return 0;
+}
+
+
+GENERAL_NAME* sk_GENERAL_NAME_value(STACK_OF(GENERAL_NAME) *x, int i)
+{
+    // no extension names supported yet
+    return 0;
+}
+
+
+unsigned char* ASN1_STRING_data(ASN1_STRING* x)
+{
+    if (x) return x->data;
+    return 0;
+}
+
+
+int ASN1_STRING_length(ASN1_STRING* x)
+{
+    if (x) return x->length;
+    return 0;
+}
+
+
+int ASN1_STRING_type(ASN1_STRING *x)
+{
+    if (x) return x->type;
+    return 0;
+}
+
+
+int X509_NAME_get_index_by_NID(X509_NAME* name,int nid, int lastpos)
+{
+    int idx = -1;  // not found
+    const char* start = &name->GetName()[lastpos + 1];
+
+    switch (nid) {
+    case NID_commonName:
+        char* found = strstr(start, "/CN=");
+        if (found) {
+            found += 4;  // advance to str
+            idx = found - start + lastpos + 1;
+        }
+        break;
+    }
+
+    return idx;
+}
+
+
+ASN1_STRING* X509_NAME_ENTRY_get_data(X509_NAME_ENTRY* ne)
+{
+    // the same in yaSSL
+    return ne;
+}
+
+
+X509_NAME_ENTRY* X509_NAME_get_entry(X509_NAME* name, int loc)
+{
+    return name->GetEntry(loc);
+}
+
+
+// already formatted, caller responsible for freeing *out
+int ASN1_STRING_to_UTF8(unsigned char** out, ASN1_STRING* in)
+{
+    if (!in) return 0;
+
+    *out = (unsigned char*)malloc(in->length + 1);
+    if (*out) {
+        memcpy(*out, in->data, in->length);
+        (*out)[in->length] = 0;
+    }
+    return in->length;
+}
+
+
+void* X509_get_ext_d2i(X509* x, int nid, int* crit, int* idx)
+{
+    // no extensions supported yet
+    return 0;
+}
+
+
+void MD4_Init(MD4_CTX* md4)
+{
+    assert(0);  // not yet supported, build compat. only
+}
+
+
+void MD4_Update(MD4_CTX* md4, const void* data, unsigned long sz)
+{
+}
+
+
+void MD4_Final(unsigned char* hash, MD4_CTX* md4)
+{
+}
+
+
+void MD5_Init(MD5_CTX* md5)
+{
+    // make sure we have a big enough buffer
+    typedef char ok[sizeof(md5->buffer) >= sizeof(TaoCrypt::MD5) ? 1 : -1];
+    (void) sizeof(ok);
+
+    // using TaoCrypt since no dynamic memory allocated
+    // and no destructor will be called
+    new (reinterpret_cast<yassl_pointer>(md5->buffer)) TaoCrypt::MD5();
+}
+
+
+void MD5_Update(MD5_CTX* md5, const void* data, unsigned long sz)
+{
+    reinterpret_cast<TaoCrypt::MD5*>(md5->buffer)->Update(
+                static_cast<const byte*>(data), static_cast<unsigned int>(sz));
+}
+
+
+void MD5_Final(unsigned char* hash, MD5_CTX* md5)
+{
+    reinterpret_cast<TaoCrypt::MD5*>(md5->buffer)->Final(hash);
 }
 
 
@@ -1098,8 +1368,10 @@ void DES_ede3_cbc_encrypt(const byte* input, byte* output, long sz,
     }
 
 
-    void SSLeay_add_ssl_algorithms()  // compatibility only
-    {}
+    int SSLeay_add_ssl_algorithms()  // compatibility only
+    {
+        return 1;
+    }
 
 
     void ERR_remove_state(unsigned long)

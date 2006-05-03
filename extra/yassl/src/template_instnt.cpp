@@ -50,12 +50,16 @@ template class list<yaSSL::SSL_SESSION*>;
 template class list<yaSSL::input_buffer*>;
 template class list<yaSSL::output_buffer*>;
 template class list<yaSSL::x509*>;
+template class list<yaSSL::Digest*>;
+template class list<yaSSL::BulkCipher*>;
 template void destroy<mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>*>(mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>*, mySTL::pair<int, yaSSL::ClientKeyBase* (*)()>*);
 template yaSSL::del_ptr_zero for_each<mySTL::list<TaoCrypt::Signer*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<TaoCrypt::Signer*>::iterator, mySTL::list<TaoCrypt::Signer*>::iterator, yaSSL::del_ptr_zero);
 template yaSSL::del_ptr_zero for_each<mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::SSL_SESSION*>::iterator, mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::del_ptr_zero);
 template yaSSL::del_ptr_zero for_each<mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::input_buffer*>::iterator, mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::del_ptr_zero);
 template yaSSL::del_ptr_zero for_each<mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::output_buffer*>::iterator, mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::del_ptr_zero);
 template yaSSL::del_ptr_zero for_each<mySTL::list<yaSSL::x509*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::x509*>::iterator, mySTL::list<yaSSL::x509*>::iterator, yaSSL::del_ptr_zero);
+template yaSSL::del_ptr_zero for_each<mySTL::list<yaSSL::Digest*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::Digest*>::iterator, mySTL::list<yaSSL::Digest*>::iterator, yaSSL::del_ptr_zero);
+template yaSSL::del_ptr_zero for_each<mySTL::list<yaSSL::BulkCipher*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::BulkCipher*>::iterator, mySTL::list<yaSSL::BulkCipher*>::iterator, yaSSL::del_ptr_zero);
 }
 
 namespace yaSSL {
@@ -81,6 +85,7 @@ template void ysDelete<X509>(X509*);
 template void ysDelete<Message>(Message*);
 template void ysDelete<sslFactory>(sslFactory*);
 template void ysDelete<Sessions>(Sessions*);
+template void ysDelete<CryptProvider>(CryptProvider*);
 template void ysArrayDelete<unsigned char>(unsigned char*);
 template void ysArrayDelete<char>(char*);
 }
