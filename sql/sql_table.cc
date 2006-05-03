@@ -1159,6 +1159,12 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     /* TODO: Add proper checks if handler supports key_type and algorithm */
     if (key_info->flags & HA_SPATIAL)
     {
+      if (!(file->table_flags() & HA_CAN_RTREEKEYS))
+      {
+        my_message(ER_TABLE_CANT_HANDLE_SPKEYS, ER(ER_TABLE_CANT_HANDLE_SPKEYS),
+                   MYF(0));
+        DBUG_RETURN(-1);
+      }
       if (key_info->key_parts != 1)
       {
 	my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
