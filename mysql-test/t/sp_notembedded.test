@@ -1,6 +1,10 @@
 # Can't test with embedded server
 -- source include/not_embedded.inc
 
+--sleep 2
+--disable_warnings
+drop table if exists t1,t3;
+--enable_warnings
 delimiter |;
 
 #
@@ -261,3 +265,4 @@ drop view v1|
 drop table t3|
 
 delimiter ;|
+drop table t3;
