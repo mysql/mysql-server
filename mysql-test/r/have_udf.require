@@ -1,1 +1,2 @@
-CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
+Variable_name	Value
+have_dynamic_loading	YES

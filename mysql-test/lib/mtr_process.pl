@@ -663,8 +663,6 @@ sub mtr_mysqladmin_shutdown {
 
   foreach my $srv ( @to_kill_specs )
   {
-    # FIXME wrong log.....
-    # FIXME, stderr.....
     # Shutdown time must be high as slave may be in reconnect
     my $args;
 
@@ -688,11 +686,14 @@ sub mtr_mysqladmin_shutdown {
     mtr_add_arg($args, "--connect_timeout=5");
     mtr_add_arg($args, "--shutdown_timeout=$adm_shutdown_tmo");
     mtr_add_arg($args, "shutdown");
-    # We don't wait for termination of mysqladmin
+
+    my $path_mysqladmin_log= "$::opt_vardir/log/mysqladmin.log";
     my $pid= mtr_spawn($::exe_mysqladmin, $args,
-                       "", $::path_manager_log, $::path_manager_log, "",
+                       "", $path_mysqladmin_log, $path_mysqladmin_log, "",
                        { append_log_file => 1 });
     $mysql_admin_pids{$pid}= 1;
+
+    # We don't wait for termination of mysqladmin
   }
 
   # As mysqladmin is such a simple program, we trust it to terminate.
@@ -735,8 +736,6 @@ sub mtr_mysqladmin_shutdown {
   }
 
   $timeout or mtr_debug("At least one server is still listening to its port");
-
-  sleep(5) if $::glob_win32;            # FIXME next startup fails if no sleep
 
   return $res;
 }
@@ -833,30 +832,36 @@ sub sleep_until_file_created ($$$) {
   my $pidfile= shift;
   my $timeout= shift;
   my $pid=     shift;
+  my $sleeptime= 100; # Milliseconds
+  my $loops= ($timeout * 1000) / $sleeptime;
 
-  for ( my $loop= 1; $loop <= $timeout; $loop++ )
+  for ( my $loop= 1; $loop <= $loops; $loop++ )
   {
     if ( -r $pidfile )
     {
       return $pid;
     }
 
-    # Check if it died after the fork() was successful 
-    if ( $pid > 0 && waitpid($pid,&WNOHANG) == $pid )
+    # Check if it died after the fork() was successful
+    if ( $pid != 0 && waitpid($pid,&WNOHANG) == $pid )
     {
       return 0;
     }
 
-    mtr_debug("Sleep 1 second waiting for creation of $pidfile");
+    mtr_debug("Sleep $sleeptime milliseconds waiting for ".
+	      "creation of $pidfile");
 
-    if ( $loop % 60 == 0 )
+    # Print extra message every 60 seconds
+    my $seconds= ($loop * $sleeptime) / 1000;
+    if ( $seconds > 1 and $seconds % 60 == 0 )
     {
-      my $left= $timeout - $loop;
-      mtr_warning("Waited $loop seconds for $pidfile to be created, " .
+      my $left= $timeout - $seconds;
+      mtr_warning("Waited $seconds seconds for $pidfile to be created, " .
                   "still waiting for $left seconds...");
     }
 
-    sleep(1);
+    # Millisceond sleep emulated with select
+    select(undef, undef, undef, ($sleeptime/1000));
   }
 
   return 0;

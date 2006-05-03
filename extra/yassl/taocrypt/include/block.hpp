@@ -99,7 +99,7 @@ public:
         CheckSize(n);
         if (n == 0)
             return 0;
-        return new (tc) T[n];
+        return NEW_TC T[n];
     }
 
     void deallocate(void* p, size_type n)
