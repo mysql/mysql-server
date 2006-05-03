@@ -1079,7 +1079,7 @@ report_stats () {
 
     found_error=0
     # Find errors
-    for i in "^Warning:" "^Error:" "^==.* at 0x" "InnoDB: Warning" "missing DBUG_RETURN"
+    for i in "^Warning:" "^Error:" "^==.* at 0x" "InnoDB: Warning" "missing DBUG_RETURN" "mysqld: Warning"
     do
       if $GREP "$i" $MY_LOG_DIR/warnings.tmp >> $MY_LOG_DIR/warnings
       then

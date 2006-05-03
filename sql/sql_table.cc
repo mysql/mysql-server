@@ -231,10 +231,9 @@ static int mysql_copy_key_list(List<Key> *orig_key,
       }
     }
     if (!(temp_key= new Key(prep_key->type, prep_key->name,
-                            prep_key->algorithm,
+                            &prep_key->key_create_info,
                             prep_key->generated,
-                            prep_columns,
-                            prep_key->parser_name)))
+                            prep_columns)))
     {
       mem_alloc_error(sizeof(Key));
       DBUG_RETURN(TRUE);
@@ -504,12 +503,14 @@ bool read_ddl_log_entry(uint read_entry, DDL_LOG_ENTRY *ddl_log_entry)
   Initialise ddl log
   SYNOPSIS
     init_ddl_log()
-  RETURN VALUES
-    TRUE                     Error
-    FALSE                    Success
+
   DESCRIPTION
     Write the header of the ddl log file and length of names. Also set
     number of entries to zero.
+
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
 */
 
 static bool init_ddl_log()
@@ -519,9 +520,8 @@ static bool init_ddl_log()
   DBUG_ENTER("init_ddl_log");
 
   if (global_ddl_log.inited)
-  {
-    DBUG_RETURN(FALSE);
-  }
+    goto end;
+
   global_ddl_log.io_size= IO_SIZE;
   create_ddl_log_file_name(file_name);
   if ((global_ddl_log.file_id= my_create(file_name,
@@ -536,9 +536,12 @@ static bool init_ddl_log()
   global_ddl_log.inited= TRUE;
   if (write_ddl_log_header())
   {
+    VOID(my_close(global_ddl_log.file_id, MYF(MY_WME)));
     global_ddl_log.inited= FALSE;
     DBUG_RETURN(TRUE);
   }
+
+end:
   DBUG_RETURN(FALSE);
 }
 
@@ -1135,8 +1138,11 @@ void release_ddl_log()
     my_free((char*)free_list, MYF(0));
     free_list= tmp;
   }
-  if (global_ddl_log.file_id != (File)-1)
-    VOID(my_close(global_ddl_log.file_id, MYF(0)));
+  if (global_ddl_log.inited)
+  {
+    global_ddl_log.inited= 0;
+    VOID(my_close(global_ddl_log.file_id, MYF(MY_WME)));
+  }
   pthread_mutex_unlock(&LOCK_gdl);
   VOID(pthread_mutex_destroy(&LOCK_gdl));
   DBUG_VOID_RETURN;
@@ -2501,14 +2507,16 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	break;
     }
 
-    switch(key->type){
+    switch (key->type) {
     case Key::MULTIPLE:
 	key_info->flags= 0;
 	break;
     case Key::FULLTEXT:
 	key_info->flags= HA_FULLTEXT;
-	if ((key_info->parser_name= key->parser_name))
+	if ((key_info->parser_name= &key->key_create_info.parser_name)->str)
           key_info->flags|= HA_USES_PARSER;
+        else
+          key_info->parser_name= 0;
 	break;
     case Key::SPATIAL:
 #ifdef HAVE_SPATIAL
@@ -2532,7 +2540,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     key_info->key_parts=(uint8) key->columns.elements;
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
-    key_info->algorithm=key->algorithm;
+    key_info->algorithm= key->key_create_info.algorithm;
 
     if (key->type == Key::FULLTEXT)
     {
@@ -2577,6 +2585,18 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(-1);
 #endif
     }
+
+    /* Take block size from key part or table part */
+    /*
+      TODO: Add warning if block size changes. We can't do it here, as
+      this may depend on the size of the key
+    */
+    key_info->block_size= (key->key_create_info.block_size ?
+                           key->key_create_info.block_size :
+                           create_info->key_block_size);
+
+    if (key_info->block_size)
+      key_info->flags|= HA_USES_BLOCK_SIZE;
 
     List_iterator<key_part_spec> cols(key->columns), cols2(key->columns);
     CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
@@ -5148,6 +5168,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->avg_row_length= table->s->avg_row_length;
   if (!(used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
     create_info->default_table_charset= table->s->table_charset;
+  if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
+    create_info->key_block_size= table->s->key_block_size;
 
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
@@ -5350,6 +5372,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 					    key_part_length));
     }
     if (key_parts.elements)
+    {
+      KEY_CREATE_INFO key_create_info;
+      bzero((char*) &key_create_info, sizeof(key_create_info));
+
+      key_create_info.algorithm= key_info->algorithm;
+      if (key_info->flags & HA_USES_BLOCK_SIZE)
+        key_create_info.block_size= key_info->block_size;
+      if (key_info->flags & HA_USES_PARSER)
+        key_create_info.parser_name= *key_info->parser_name;
+
       key_list.push_back(new Key(key_info->flags & HA_SPATIAL ? Key::SPATIAL :
 				 (key_info->flags & HA_NOSAME ?
 				 (!my_strcasecmp(system_charset_info,
@@ -5358,11 +5390,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				  (key_info->flags & HA_FULLTEXT ?
 				   Key::FULLTEXT : Key::MULTIPLE)),
 				 key_name,
-				 key_info->algorithm,
+                                 &key_create_info,
                                  test(key_info->flags & HA_GENERATED_KEY),
-				 key_parts,
-                                 key_info->flags & HA_USES_PARSER ?
-                                 &key_info->parser->name : 0));
+				 key_parts));
+    }
   }
   {
     Key *key;
@@ -5458,9 +5489,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       while ((prep_col= prep_col_it++))
         prep_columns.push_back(new key_part_spec(*prep_col));
       prepared_key_list.push_back(new Key(prep_key->type, prep_key->name,
-                                          prep_key->algorithm,
-                                          prep_key->generated, prep_columns,
-                                          prep_key->parser_name));
+                                          &prep_key->key_create_info,
+                                          prep_key->generated, prep_columns));
     }
 
     /* Create the prepared information. */

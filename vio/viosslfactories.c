@@ -296,7 +296,7 @@ ctor_failure:
   TODO:
        Add option --verify to mysqld to be able to change verification mode
 */
-struct st_VioSSLAcceptorFd*
+struct st_VioSSLAcceptorFd *
 new_VioSSLAcceptorFd(const char *key_file,
 		     const char *cert_file,
 		     const char *ca_file,
@@ -387,4 +387,12 @@ ctor_failure:
   my_free((gptr) ptr,MYF(0));
   DBUG_RETURN(0);
 }
+
+
+void free_vio_ssl_acceptor_fd(struct st_VioSSLAcceptorFd *fd)
+{
+  SSL_CTX_free(fd->ssl_context);
+  my_free((gptr) fd, MYF(0));
+}
+
 #endif /* HAVE_OPENSSL */

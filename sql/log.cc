@@ -1090,7 +1090,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
       were, we would have to ensure that we're not ending a statement
       inside a stored function.
      */
-    thd->binlog_flush_pending_rows_event(true);
+    thd->binlog_flush_pending_rows_event(TRUE);
     error= mysql_bin_log.write(thd, trans_log, end_ev);
   }
   else
@@ -1485,6 +1485,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
   }
   return log_name;
 }
+
 
 bool MYSQL_LOG::open_index_file(const char *index_file_name_arg,
                                 const char *log_name)
