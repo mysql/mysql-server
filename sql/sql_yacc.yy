@@ -5795,7 +5795,11 @@ select_var_ident:
 	     if (lex->result) 
 	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($2,0,0,(enum_field_types)0));
 	     else
-	       YYABORT;
+               /*
+                 The parser won't create select_result instance only
+	         if it's an EXPLAIN.
+               */
+               DBUG_ASSERT(lex->describe);
 	   }
            | ident_or_text
            {
@@ -5807,10 +5811,8 @@ select_var_ident:
 	       my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
 	       YYABORT;
 	     }
-	     if (! lex->result)
-	       YYABORT;
-	     else
-	     {
+	     if (lex->result)
+             {
                my_var *var;
 	       ((select_dumpvar *)lex->result)->
                  var_list.push_back(var= new my_var($1,1,t->offset,t->type));
@@ -5818,6 +5820,14 @@ select_var_ident:
 	       if (var)
 		 var->sp= lex->sphead;
 #endif
+             }
+	     else
+	     {
+               /*
+                 The parser won't create select_result instance only
+	         if it's an EXPLAIN.
+               */
+               DBUG_ASSERT(lex->describe);
 	     }
 	   }
            ;
