@@ -840,6 +840,7 @@ typedef struct st_lex
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
   HA_CREATE_INFO create_info;
+  KEY_CREATE_INFO key_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   USER_RESOURCES mqh;
   ulong type;

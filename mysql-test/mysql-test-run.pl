@@ -1224,17 +1224,20 @@ sub environment_setup () {
   $ENV{MTR_BUILD_THREAD}= 0 unless $ENV{MTR_BUILD_THREAD}; # Set if not set
 
   # We are nice and report a bit about our settings
-  print "Using MTR_BUILD_THREAD      = $ENV{MTR_BUILD_THREAD}\n";
-  print "Using MASTER_MYPORT         = $ENV{MASTER_MYPORT}\n";
-  print "Using MASTER_MYPORT1        = $ENV{MASTER_MYPORT1}\n";
-  print "Using SLAVE_MYPORT          = $ENV{SLAVE_MYPORT}\n";
-  print "Using SLAVE_MYPORT1         = $ENV{SLAVE_MYPORT1}\n";
-  print "Using SLAVE_MYPORT2         = $ENV{SLAVE_MYPORT2}\n";
-  print "Using NDBCLUSTER_PORT       = $ENV{NDBCLUSTER_PORT}\n";
-  print "Using NDBCLUSTER_PORT_SLAVE = $ENV{NDBCLUSTER_PORT_SLAVE}\n";
-  print "Using IM_PORT               = $ENV{IM_PORT}\n";
-  print "Using IM_MYSQLD1_PORT       = $ENV{IM_MYSQLD1_PORT}\n";
-  print "Using IM_MYSQLD2_PORT       = $ENV{IM_MYSQLD2_PORT}\n";
+  if (!$opt_extern)
+  {
+    print "Using MTR_BUILD_THREAD      = $ENV{MTR_BUILD_THREAD}\n";
+    print "Using MASTER_MYPORT         = $ENV{MASTER_MYPORT}\n";
+    print "Using MASTER_MYPORT1        = $ENV{MASTER_MYPORT1}\n";
+    print "Using SLAVE_MYPORT          = $ENV{SLAVE_MYPORT}\n";
+    print "Using SLAVE_MYPORT1         = $ENV{SLAVE_MYPORT1}\n";
+    print "Using SLAVE_MYPORT2         = $ENV{SLAVE_MYPORT2}\n";
+    print "Using NDBCLUSTER_PORT       = $ENV{NDBCLUSTER_PORT}\n";
+    print "Using NDBCLUSTER_PORT_SLAVE = $ENV{NDBCLUSTER_PORT_SLAVE}\n";
+    print "Using IM_PORT               = $ENV{IM_PORT}\n";
+    print "Using IM_MYSQLD1_PORT       = $ENV{IM_MYSQLD1_PORT}\n";
+    print "Using IM_MYSQLD2_PORT       = $ENV{IM_MYSQLD2_PORT}\n";
+  }
 }
 
 
@@ -1399,7 +1402,7 @@ sub  check_running_as_root () {
 
 sub check_ssl_support () {
 
-  if ($opt_skip_ssl)
+  if ($opt_skip_ssl || $opt_extern)
   {
     mtr_report("Skipping SSL");
     $opt_ssl_supported= 0;

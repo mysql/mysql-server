@@ -535,6 +535,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       keyinfo->key_length= (uint) uint2korr(strpos+2);
       keyinfo->key_parts=  (uint) strpos[4];
       keyinfo->algorithm=  (enum ha_key_alg) strpos[5];
+      keyinfo->block_size= uint2korr(strpos+6);
       strpos+=8;
     }
     else
@@ -706,6 +707,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
     my_free(buff, MYF(0));
   }
+  share->key_block_size= uint2korr(head+62);
 
   error=4;
   extra_rec_buf_length= uint2korr(head+59);
@@ -2065,6 +2067,11 @@ File create_frm(THD *thd, const char *name, const char *db,
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
     int4store(fileinfo+55, create_info->extra_size);
+    /*
+      59-60 is reserved for extra_rec_buf_length,
+      61 for default_part_db_type
+    */
+    int2store(fileinfo+62, create_info->key_block_size);
     bzero(fill,IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
