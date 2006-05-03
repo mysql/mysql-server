@@ -271,10 +271,13 @@ int CertManager::Validate()
         else
             peerKeyType_ = dsa_sa_algo;
 
-        int iSz = cert.GetIssuer() ? strlen(cert.GetIssuer()) + 1 : 0;
-        int sSz = cert.GetCommonName() ? strlen(cert.GetCommonName()) + 1 : 0;
+        int iSz = strlen(cert.GetIssuer()) + 1;
+        int sSz = strlen(cert.GetCommonName()) + 1;
+        int bSz = strlen(cert.GetBeforeDate()) + 1;
+        int aSz = strlen(cert.GetAfterDate()) + 1;
         peerX509_ = NEW_YS X509(cert.GetIssuer(), iSz, cert.GetCommonName(),
-                                  sSz);
+                                sSz, cert.GetBeforeDate(), bSz,
+                                cert.GetAfterDate(), aSz);
     }
     return 0;
 }
