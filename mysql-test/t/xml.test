@@ -335,3 +335,11 @@ END//
 DELIMITER ;//
 CALL p2();
 DROP PROCEDURE p2;
+
+#
+# Bug#18170: XML: ExtractValue():
+# XPath expression can't use QNames (colon in names)
+#
+select extractValue('<ns:element xmlns:ns="myns"/>','count(ns:element)');
+select extractValue('<ns:element xmlns:ns="myns">a</ns:element>','/ns:element');
+select extractValue('<ns:element xmlns:ns="myns">a</ns:element>','/ns:element/@xmlns:ns');
