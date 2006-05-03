@@ -189,6 +189,7 @@ our $exe_slave_mysqld;
 our $exe_im;
 our $exe_my_print_defaults;
 our $lib_udf_example;
+our $exe_libtool;
 
 our $opt_bench= 0;
 our $opt_small_bench= 0;
@@ -448,6 +449,7 @@ sub initial_setup () {
   {
     $glob_use_libtool= 0;
   }
+  $exe_libtool= "../libtool";
 
   # We require that we are in the "mysql-test" directory
   # to run mysql-test-run
@@ -2624,6 +2626,15 @@ sub mysqld_start ($$$$$) {
     $exe= undef;
   }
 
+  if ($glob_use_libtool and $opt_valgrind)
+  {
+    # Add "libtool --mode-execute"
+    # if running in valgrind(to avoid valgrinding bash)
+    unshift(@$args, "--mode=execute", $exe);
+    $exe= $exe_libtool;
+  }
+
+
   if ( $type eq 'master' )
   {
     if ( ! defined $exe or
@@ -3126,7 +3137,7 @@ sub run_mysqltest ($) {
     # Add "libtool --mode-execute" before the test to execute
     # if running in valgrind(to avoid valgrinding bash)
     unshift(@$args, "--mode=execute", $exe);
-    $exe= "libtool";
+    $exe= $exe_libtool;
   }
 
   if ( $opt_check_testcases )
@@ -3198,7 +3209,7 @@ sub gdb_arguments {
 
   if ( $glob_use_libtool )
   {
-    mtr_add_arg($$args, "libtool");
+    mtr_add_arg($$args, $exe_libtool);
     mtr_add_arg($$args, "--mode=execute");
   }
 
@@ -3261,7 +3272,7 @@ sub ddd_arguments {
   $$args= [];
   if ( $glob_use_libtool )
   {
-    $$exe= "libtool";
+    $$exe= $exe_libtool;
     mtr_add_arg($$args, "--mode=execute");
     mtr_add_arg($$args, "ddd");
   }
@@ -3282,6 +3293,8 @@ sub debugger_arguments {
   my $exe=  shift;
   my $debugger= $opt_debugger || $opt_client_debugger;
 
+  # FIXME Need to change the below "eq"'s to
+  # "case unsensitive string contains"
   if ( $debugger eq "vcexpress" or $debugger eq "vc")
   {
     # vc[express] /debugexe exe arg1 .. argn
