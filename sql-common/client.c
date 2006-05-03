@@ -1608,14 +1608,14 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname)
   X509_free (server_cert);
 
   DBUG_PRINT("info", ("hostname in cert: %s", buf));
-  cp1 = strstr(buf, "/CN=");
+  cp1= strstr(buf, "/CN=");
   if (cp1)
   {
-    cp1 += 4; // Skip the "/CN=" that we found
-    // Search for next / which might be the delimiter for email
-    cp2 = strchr(cp1, '/');
+    cp1+= 4; /* Skip the "/CN=" that we found */
+    /* Search for next / which might be the delimiter for email */
+    cp2= strchr(cp1, '/');
     if (cp2)
-      *cp2 = '\0';
+      *cp2= '\0';
     DBUG_PRINT("info", ("Server hostname in cert: %s", cp1));
     if (!strcmp(cp1, server_hostname))
     {
