@@ -275,6 +275,7 @@ static SYMBOL symbols[] = {
   { "JOIN",		SYM(JOIN_SYM)},
   { "KEY",		SYM(KEY_SYM)},
   { "KEYS",		SYM(KEYS)},
+  { "KEY_BLOCK_SIZE",	SYM(KEY_BLOCK_SIZE)},
   { "KILL",		SYM(KILL_SYM)},
   { "LANGUAGE",         SYM(LANGUAGE_SYM)},
   { "LAST",		SYM(LAST_SYM)},

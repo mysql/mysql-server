@@ -812,6 +812,7 @@ extern int unpackfrm(const void **, uint *, const void *);
 
 extern ha_checksum my_checksum(ha_checksum crc, const byte *mem, uint count);
 extern uint my_bit_log2(ulong value);
+extern uint32 my_round_up_to_next_power(uint32 v);
 extern uint my_count_bits(ulonglong v);
 extern uint my_count_bits_ushort(ushort v);
 extern void my_sleep(ulong m_seconds);

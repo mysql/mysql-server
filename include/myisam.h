@@ -192,7 +192,7 @@ typedef struct st_mi_keydef		/* Key definition with open & info */
   uint16 keylength;			/* Tot length of keyparts (auto) */
   uint16 minlength;			/* min length of (packed) key (auto) */
   uint16 maxlength;			/* max length of (packed) key (auto) */
-  uint16 block_size;			/* block_size (auto) */
+  uint16 block_size_index;		/* block_size (auto) */
   uint32 version;			/* For concurrent read/write */
   uint32 ftparser_nr;                   /* distinct ftparser number */
 
