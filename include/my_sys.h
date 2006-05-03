@@ -601,6 +601,11 @@ extern char *_my_strndup(const byte *from, uint length,
 				    const char *sFile, uint uLine,
 				    myf MyFlag);
 
+/* implemented in my_memmem.c */
+extern void *my_memmem(const void *haystack, size_t haystacklen,
+    const void *needle, size_t needlelen);
+
+
 #ifdef __WIN__
 extern int my_access(const char *path, int amode);
 extern File my_sopen(const char *path, int oflag, int shflag, int pmode);
