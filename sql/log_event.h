@@ -1854,6 +1854,7 @@ protected:
   ulong       m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
+  ulong       m_master_reclength; /* Length of record on master side */
 
   /* Bit buffer in the same memory as the class */
   uint32    m_bitbuf[128/(sizeof(uint32)*8)];
@@ -1907,12 +1908,15 @@ private:
       since SQL thread specific data is not available: that data is made
       available for the do_exec function.
 
-    RETURN VALUE
       A pointer to the start of the next row, or NULL if the preparation
       failed. Currently, preparation cannot fail, but don't rely on this
       behavior. 
+
+    RETURN VALUE
+      Error code, if something went wrong, 0 otherwise.
    */
-  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start) = 0;
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+                             char const *row_start, char const **row_end) = 0;
 
   /*
     Primitive to do the actual execution necessary for a row.
@@ -1980,10 +1984,11 @@ private:
   gptr  m_memory;
   byte *m_after_image;
 
-  virtual int         do_before_row_operations(TABLE *table);
-  virtual int         do_after_row_operations(TABLE *table, int error);
-  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start);
-  virtual int         do_exec_row(TABLE *table);
+  virtual int do_before_row_operations(TABLE *table);
+  virtual int do_after_row_operations(TABLE *table, int error);
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+                             char const *row_start, char const **row_end);
+  virtual int do_exec_row(TABLE *table);
 #endif
 };
 
@@ -2044,10 +2049,11 @@ private:
   byte *m_key;
   byte *m_after_image;
 
-  virtual int         do_before_row_operations(TABLE *table);
-  virtual int         do_after_row_operations(TABLE *table, int error);
-  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start);
-  virtual int         do_exec_row(TABLE *table);
+  virtual int do_before_row_operations(TABLE *table);
+  virtual int do_after_row_operations(TABLE *table, int error);
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+                             char const *row_start, char const **row_end);
+  virtual int do_exec_row(TABLE *table);
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
 };
 
@@ -2114,10 +2120,11 @@ private:
   byte *m_key;
   byte *m_after_image;
 
-  virtual int         do_before_row_operations(TABLE *table);
-  virtual int         do_after_row_operations(TABLE *table, int error);
-  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start);
-  virtual int         do_exec_row(TABLE *table);
+  virtual int do_before_row_operations(TABLE *table);
+  virtual int do_after_row_operations(TABLE *table, int error);
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+                             char const *row_start, char const **row_end);
+  virtual int do_exec_row(TABLE *table);
 #endif
 };
 
