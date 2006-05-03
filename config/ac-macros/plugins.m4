@@ -75,7 +75,7 @@ dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_PLUGIN_DEFINE
 dnl
 dnl SYNOPSIS
-dnl   MYSQL_PLUGIN_DEFILE([name],[MYSQL_CPP_DEFINE])
+dnl   MYSQL_PLUGIN_DEFINE([name],[MYSQL_CPP_DEFINE])
 dnl
 dnl DESCRIPTION
 dnl   When a plugin is to be statically linked, define the C macro
@@ -96,6 +96,7 @@ dnl   MYSQL_PLUGIN_DIRECTORY([name],[plugin/dir])
 dnl
 dnl DESCRIPTION
 dnl   Adds a directory to the build process
+dnl   if it contains 'configure' it will be picked up automatically
 dnl
 dnl ---------------------------------------------------------------------------
 
@@ -219,7 +220,7 @@ AC_DEFUN([MYSQL_PLUGIN_DEPENDS],[
 ])
 
 AC_DEFUN([_MYSQL_PLUGIN_DEPEND],[
- ifelse($#, 1, [], [$#:$2], [2:], [
+ ifelse($#, 1, [], [$#:$2], [2:], [], [
   MYSQL_REQUIRE_PLUGIN([$2])
   _MYSQL_PLUGAPPEND([__mysql_plugdepends_$1__],[$2])
   _MYSQL_PLUGIN_DEPEND([$1], m4_shift(m4_shift($@)))
@@ -652,7 +653,7 @@ AC_DEFUN([_MYSQL_EMIT_CHECK_DEPENDS], [
 ])
 
 AC_DEFUN([_MYSQL_EMIT_PLUGIN_DEPENDENCIES], [
- ifelse($#, 0, [], [
+ ifelse([$1], [], [], [
   m4_ifdef([MYSQL_PLUGIN_DISABLED_]AS_TR_CPP([$1]),[
        AC_MSG_ERROR([depends upon disabled plugin $1])
   ],[
