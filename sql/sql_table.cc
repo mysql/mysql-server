@@ -2564,11 +2564,16 @@ send_result_message:
         table->table->s->version=0;               // Force close of table
       else if (open_for_modify)
       {
-        pthread_mutex_lock(&LOCK_open);
-        remove_table_from_cache(thd, table->table->s->db,
-                                table->table->s->table_name, RTFC_NO_FLAG);
-        pthread_mutex_unlock(&LOCK_open);
-        /* Something may be modified, that's why we have to invalidate cache */
+        if (table->table->tmp_table)
+          table->table->file->info(HA_STATUS_CONST);
+        else
+        {
+          pthread_mutex_lock(&LOCK_open);
+          remove_table_from_cache(thd, table->table->s->db,
+                                  table->table->s->table_name, RTFC_NO_FLAG);
+          pthread_mutex_unlock(&LOCK_open);
+        }
+        /* May be something modified consequently we have to invalidate cache */
         query_cache_invalidate3(thd, table->table, 0);
       }
     }
