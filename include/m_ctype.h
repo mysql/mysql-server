@@ -176,7 +176,7 @@ typedef struct my_charset_handler_st
   uint    (*lengthsp)(struct charset_info_st *, const char *ptr, uint length);
   uint    (*numcells)(struct charset_info_st *, const char *b, const char *e);
   
-  /* Unicode convertion */
+  /* Unicode conversion */
   int (*mb_wc)(struct charset_info_st *cs,my_wc_t *wc,
 	       const unsigned char *s,const unsigned char *e);
   int (*wc_mb)(struct charset_info_st *cs,my_wc_t wc,
@@ -186,7 +186,7 @@ typedef struct my_charset_handler_st
   int (*ctype)(struct charset_info_st *cs, int *ctype,
                const unsigned char *s, const unsigned char *e);
   
-  /* Functions for case and sort convertion */
+  /* Functions for case and sort conversion */
   void    (*caseup_str)(struct charset_info_st *, char *);
   void    (*casedn_str)(struct charset_info_st *, char *);
   uint    (*caseup)(struct charset_info_st *, char *src, uint srclen,
@@ -204,7 +204,7 @@ typedef struct my_charset_handler_st
   
   void (*fill)(struct charset_info_st *, char *to, uint len, int fill);
   
-  /* String-to-number convertion routines */
+  /* String-to-number conversion routines */
   long        (*strntol)(struct charset_info_st *, const char *s, uint l,
 			 int base, char **e, int *err);
   ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l,

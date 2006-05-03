@@ -1553,15 +1553,11 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
   TABLE *table= tables->table;
   CHARSET_INFO *cs= system_charset_info;
   char *user;
-  bool verbose;
-  ulong max_query_length;
   time_t now= time(0);
   DBUG_ENTER("fill_process_list");
 
   user= thd->security_ctx->master_access & PROCESS_ACL ?
         NullS : thd->security_ctx->priv_user;
-  verbose= thd->lex->verbose;
-  max_query_length= PROCESS_LIST_WIDTH;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
 
@@ -1645,7 +1641,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       if (tmp->query)
       {
         table->field[7]->store(tmp->query,
-                               min(max_query_length, tmp->query_length), cs);
+                               min(PROCESS_LIST_INFO_WIDTH,
+                                   tmp->query_length), cs);
         table->field[7]->set_notnull();
       }
 
@@ -4235,6 +4232,75 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
 
 
 /*
+  Fill and store records into I_S.referential_constraints table
+
+  SYNOPSIS
+    get_referential_constraints_record()
+    thd                 thread handle
+    tables              table list struct(processed table)
+    table               I_S table
+    res                 1 means the error during opening of the processed table
+                        0 means processed table is opened without error
+    base_name           db name
+    file_name           table name
+
+  RETURN
+    0	ok
+    #   error
+*/
+
+static int
+get_referential_constraints_record(THD *thd, struct st_table_list *tables,
+                                   TABLE *table, bool res,
+                                   const char *base_name, const char *file_name)
+{
+  CHARSET_INFO *cs= system_charset_info;
+  DBUG_ENTER("get_referential_constraints_record");
+
+  if (res)
+  {
+    if (!tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+    DBUG_RETURN(0);
+  }
+  if (!tables->view)
+  {
+    List<FOREIGN_KEY_INFO> f_key_list;
+    TABLE *show_table= tables->table;
+    show_table->file->info(HA_STATUS_VARIABLE | 
+                           HA_STATUS_NO_LOCK |
+                           HA_STATUS_TIME);
+
+    show_table->file->get_foreign_key_list(thd, &f_key_list);
+    FOREIGN_KEY_INFO *f_key_info;
+    List_iterator_fast<FOREIGN_KEY_INFO> it(f_key_list);
+    while ((f_key_info= it++))
+    {
+      restore_record(table, s->default_values);
+      table->field[1]->store(base_name, strlen(base_name), cs);
+      table->field[9]->store(file_name, strlen(file_name), cs);
+      table->field[2]->store(f_key_info->forein_id->str,
+                             f_key_info->forein_id->length, cs);
+      table->field[4]->store(f_key_info->referenced_db->str, 
+                             f_key_info->referenced_db->length, cs);
+      table->field[5]->store(f_key_info->referenced_table->str, 
+                             f_key_info->referenced_table->length, cs);
+      table->field[6]->store(STRING_WITH_LEN("NONE"), cs);
+      table->field[7]->store(f_key_info->update_method->str, 
+                             f_key_info->update_method->length, cs);
+      table->field[8]->store(f_key_info->delete_method->str, 
+                             f_key_info->delete_method->length, cs);
+      if (schema_table_store_record(thd, table))
+        DBUG_RETURN(1);
+    }
+  }
+  DBUG_RETURN(0);
+}
+
+
+/*
   Find schema_tables elment by name
 
   SYNOPSIS
@@ -5099,9 +5165,9 @@ ST_FIELD_INFO processlist_fields_info[]=
   {"HOST", LIST_PROCESS_HOST_LEN,  MYSQL_TYPE_STRING, 0, 0, "Host"},
   {"DB", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Db"},
   {"COMMAND", 16, MYSQL_TYPE_STRING, 0, 0, "Command"},
-  {"TIME", 4, MYSQL_TYPE_LONG, 0, 0, "Time"},
+  {"TIME", 7, MYSQL_TYPE_LONG, 0, 0, "Time"},
   {"STATE", 30, MYSQL_TYPE_STRING, 0, 1, "State"},
-  {"INFO", PROCESS_LIST_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info"},
+  {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -5163,6 +5229,22 @@ ST_FIELD_INFO files_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
+ST_FIELD_INFO referential_constraints_fields_info[]=
+{
+  {"CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"CONSTRAINT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CONSTRAINT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"UNIQUE_CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"UNIQUE_CONSTRAINT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"UNIQUE_CONSTRAINT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"MATCH_OPTION", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"UPDATE_RULE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DELETE_RULE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+
 /*
   Description of ST_FIELD_INFO in table.h
 
@@ -5198,6 +5280,9 @@ ST_SCHEMA_TABLE schema_tables[]=
     fill_plugins, make_old_format, 0, -1, -1, 0},
   {"PROCESSLIST", processlist_fields_info, create_schema_table,
     fill_schema_processlist, make_old_format, 0, -1, -1, 0},
+  {"REFERENTIAL_CONSTRAINTS", referential_constraints_fields_info,
+   create_schema_table, get_all_tables, 0, get_referential_constraints_record,
+   1, 9, 0},
   {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0},
   {"SCHEMATA", schema_fields_info, create_schema_table,
