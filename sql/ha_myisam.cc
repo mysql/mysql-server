@@ -31,6 +31,8 @@
 #include "../storage/myisam/rt_index.h"
 #endif
 
+#include <mysql/plugin.h>
+
 ulong myisam_recover_options= HA_RECOVER_NONE;
 
 /* bits in myisam_recover_options */
@@ -54,11 +56,15 @@ static handler *myisam_create_handler(TABLE_SHARE *table);
 
 /* MyISAM handlerton */
 
+static const char myisam_hton_name[]= "MyISAM";
+static const char myisam_hton_comment[]=
+  "Default engine as of MySQL 3.23 with great performance";
+
 handlerton myisam_hton= {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "MyISAM",
+  myisam_hton_name,
   SHOW_OPTION_YES,
-  "Default engine as of MySQL 3.23 with great performance", 
+  myisam_hton_comment, 
   DB_TYPE_MYISAM,
   NULL,
   0,       /* slot */
@@ -1787,3 +1793,17 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
     return COMPATIBLE_DATA_NO;
   return COMPATIBLE_DATA_YES;
 }
+
+
+mysql_declare_plugin(myisam)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &myisam_hton,
+  myisam_hton_name,
+  "MySQL AB",
+  myisam_hton_comment,
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;

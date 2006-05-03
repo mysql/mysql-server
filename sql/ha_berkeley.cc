@@ -56,9 +56,13 @@
 #include <m_ctype.h>
 #include <myisampack.h>
 #include <hash.h>
+
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
 #include "ha_berkeley.h"
 #include "sql_manager.h"
 #include <stdarg.h>
+
+#include <mysql/plugin.h>
 
 #define HA_BERKELEY_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_BERKELEY_RANGE_COUNT   100
@@ -121,11 +125,15 @@ static int berkeley_savepoint(THD* thd, void *savepoint);
 static int berkeley_release_savepoint(THD* thd, void *savepoint);
 static handler *berkeley_create_handler(TABLE_SHARE *table);
 
+static const char berkeley_hton_name[]= "BerkeleyDB";
+static const char berkeley_hton_comment[]=
+  "Supports transactions and page-level locking";
+
 handlerton berkeley_hton = {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "BerkeleyDB",
+  berkeley_hton_name,
   SHOW_OPTION_YES,
-  "Supports transactions and page-level locking", 
+  berkeley_hton_comment, 
   DB_TYPE_BERKELEY_DB,
   berkeley_init,
   0, /* slot */
@@ -2725,3 +2733,17 @@ bool ha_berkeley::check_if_incompatible_data(HA_CREATE_INFO *info,
 }
 
 
+mysql_declare_plugin(berkeley)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &berkeley_hton,
+  berkeley_hton_name,
+  "Sleepycat Software",
+  berkeley_hton_comment,
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;
+
+#endif

@@ -177,6 +177,8 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 /* Characters shown for the command in 'show processlist' */
 #define PROCESS_LIST_WIDTH 100
+/* Characters shown for the command in 'information_schema.processlist' */
+#define PROCESS_LIST_INFO_WIDTH 65535
 
 /* Time handling defaults */
 #define TIMESTAMP_MAX_YEAR 2038

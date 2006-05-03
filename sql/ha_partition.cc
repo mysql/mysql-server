@@ -54,7 +54,10 @@
 
 #include "mysql_priv.h"
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
+
+#include <mysql/plugin.h>
 
 static const char *ha_par_ext= ".par";
 #ifdef NOT_USED
@@ -70,11 +73,14 @@ static handler *partition_create_handler(TABLE_SHARE *share);
 static uint partition_flags();
 static uint alter_table_flags(uint flags);
 
+static const char partition_hton_name[]= "partition";
+static const char partition_hton_comment[]= "Partition Storage Engine Helper";
+
 handlerton partition_hton = {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "partition",
+  partition_hton_name,
   SHOW_OPTION_YES,
-  "Partition Storage Engine Helper", /* A comment used by SHOW to describe an engine */
+  partition_hton_comment, /* A comment used by SHOW to describe an engine */
   DB_TYPE_PARTITION_DB,
   0, /* Method that initializes a storage engine */
   0, /* slot */
@@ -5438,3 +5444,19 @@ static int free_share(PARTITION_SHARE *share)
   return 0;
 }
 #endif /* NOT_USED */
+
+
+mysql_declare_plugin(partition)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &partition_hton,
+  partition_hton_name,
+  "Mikael Ronstrom, MySQL AB",
+  partition_hton_comment,
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;
+
+#endif
