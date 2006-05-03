@@ -5840,3 +5840,5 @@ ER_NULL_IN_VALUES_LESS_THAN
 ER_WRONG_PARTITION_NAME
         eng "Incorrect partition name"
         swe "Felaktigt partitionsnamn"
+ER_TABLE_CANT_HANDLE_SPKEYS
+        eng "The used table type doesn't support SPATIAL indexes"
