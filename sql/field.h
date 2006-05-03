@@ -1384,6 +1384,8 @@ public:
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
+  virtual void set_default();
+
   Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
                        char *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);
