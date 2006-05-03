@@ -3,8 +3,8 @@ create table t1(f1 int);
 insert into t1 values (5);
 grant select on test.* to ssl_user1@localhost require SSL;
 grant select on test.* to ssl_user2@localhost require cipher "DHE-RSA-AES256-SHA";
-grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com";
-grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/L=Uppsala/O=MySQL AB/CN=Abstract MySQL Developer/Email=abstract.mysql.developer@mysql.com";
+grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/emailAddress=abstract.mysql.developer@mysql.com";
+grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/emailAddress=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/L=Uppsala/O=MySQL AB/CN=Abstract MySQL Developer/emailAddress=abstract.mysql.developer@mysql.com";
 flush privileges;
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
@@ -41,3 +41,10 @@ ERROR 42000: DELETE command denied to user 'ssl_user4'@'localhost' for table 't1
 drop user ssl_user1@localhost, ssl_user2@localhost,
 ssl_user3@localhost, ssl_user4@localhost;
 drop table t1;
+mysqltest: Could not open connection 'default': 2026 SSL connection error
+mysqltest: Could not open connection 'default': 2026 SSL connection error
+mysqltest: Could not open connection 'default': 2026 SSL connection error
+Error when connection to server using SSL:Unable to get private key from ''
+mysqltest: Could not open connection 'default': 2026 SSL connection error
+Error when connection to server using SSL:Unable to get certificate from ''
+mysqltest: Could not open connection 'default': 2026 SSL connection error
