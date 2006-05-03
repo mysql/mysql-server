@@ -28,7 +28,6 @@
 #include "yassl_int.hpp"
 #include "handshake.hpp"
 #include "timer.hpp"
-#include "openssl/ssl.h"  // for DH
 
 
 #ifdef YASSL_PURE_C
@@ -1375,16 +1374,51 @@ Sessions& GetSessions()
 
 static sslFactory* sslFactoryInstance = 0;
 
-sslFactory& GetSSL_Factory(){
+sslFactory& GetSSL_Factory()
+{  
     if (!sslFactoryInstance)
         sslFactoryInstance = NEW_YS sslFactory;
     return *sslFactoryInstance;
 }
 
 
+static CryptProvider* cryptProviderInstance = 0;
+
+CryptProvider& GetCryptProvider()
+{
+    if (!cryptProviderInstance)
+        cryptProviderInstance = NEW_YS CryptProvider;
+    return *cryptProviderInstance;
+}
+
+
+CryptProvider::~CryptProvider()
+{
+    mySTL::for_each(digestList_.begin(), digestList_.end(), del_ptr_zero());
+    mySTL::for_each(cipherList_.begin(), cipherList_.end(), del_ptr_zero());
+}
+
+
+Digest* CryptProvider::NewMd5()
+{
+    Digest* ptr = NEW_YS MD5();
+    digestList_.push_back(ptr);
+    return ptr;
+}
+
+
+BulkCipher* CryptProvider::NewDesEde()
+{
+    BulkCipher* ptr = NEW_YS DES_EDE();
+    cipherList_.push_back(ptr);
+    return ptr;
+}
+
+
 void CleanUp()
 {
     TaoCrypt::CleanUp();
+    ysDelete(cryptProviderInstance);
     ysDelete(sslFactoryInstance);
     ysDelete(sessionsInstance);
 }
@@ -1978,18 +2012,20 @@ void Security::set_resuming(bool b)
 
 
 X509_NAME::X509_NAME(const char* n, size_t sz)
-    : name_(0)
+    : name_(0), sz_(sz)
 {
     if (sz) {
         name_ = NEW_YS char[sz];
         memcpy(name_, n, sz);
     }
+    entry_.data = 0;
 }
 
 
 X509_NAME::~X509_NAME()
 {
     ysArrayDelete(name_);
+    ysArrayDelete(entry_.data);
 }
 
 
@@ -1999,8 +2035,10 @@ char* X509_NAME::GetName()
 }
 
 
-X509::X509(const char* i, size_t iSz, const char* s, size_t sSz)
-    : issuer_(i, iSz), subject_(s, sSz)
+X509::X509(const char* i, size_t iSz, const char* s, size_t sSz,
+           const char* b, int bSz, const char* a, int aSz)
+    : issuer_(i, iSz), subject_(s, sSz),
+      beforeDate_(b, bSz), afterDate_(a, aSz)
 {}
    
 
@@ -2013,6 +2051,61 @@ X509_NAME* X509::GetIssuer()
 X509_NAME* X509::GetSubject()
 {
     return &subject_;
+}
+
+
+ASN1_STRING* X509::GetBefore()
+{
+    return beforeDate_.GetString();
+}
+
+
+ASN1_STRING* X509::GetAfter()
+{
+    return afterDate_.GetString();
+}
+
+
+ASN1_STRING* X509_NAME::GetEntry(int i)
+{
+    if (i < 0 || i >= int(sz_))
+        return 0;
+
+    if (entry_.data)
+        ysArrayDelete(entry_.data);
+    entry_.data = NEW_YS byte[sz_];       // max size;
+
+    memcpy(entry_.data, &name_[i], sz_ - i);
+    if (entry_.data[sz_ -i - 1]) {
+        entry_.data[sz_ - i] = 0;
+        entry_.length = sz_ - i;
+    }
+    else
+        entry_.length = sz_ - i - 1;
+    entry_.type = 0;
+
+    return &entry_;
+}
+
+
+StringHolder::StringHolder(const char* str, int sz)
+{
+    asnString_.length = sz;
+    asnString_.data = NEW_YS byte[sz + 1];
+    memcpy(asnString_.data, str, sz);
+    asnString_.type = 0;  // not used for now
+}
+
+
+StringHolder::~StringHolder()
+{
+    ysArrayDelete(asnString_.data);
+}
+
+
+ASN1_STRING* StringHolder::GetString()
+{
+    return &asnString_;
 }
 
 

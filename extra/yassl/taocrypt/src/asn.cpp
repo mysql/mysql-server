@@ -784,6 +784,16 @@ void CertDecoder::GetDate(DateType dt)
             source_.SetError(BEFORE_DATE_E);
         else
             source_.SetError(AFTER_DATE_E);
+
+    // save for later use
+    if (dt == BEFORE) {
+        memcpy(beforeDate_, date, length);
+        beforeDate_[length] = 0;
+    }
+    else {  // after
+        memcpy(afterDate_, date, length);
+        afterDate_[length] = 0;
+    }       
 }
 
 

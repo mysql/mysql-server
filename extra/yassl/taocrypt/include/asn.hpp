@@ -92,7 +92,7 @@ enum DNTags
 enum Constants
 {
     MIN_DATE_SZ   = 13,
-    MAX_DATE_SZ   = 15,
+    MAX_DATE_SZ   = 16,
     MAX_ALGO_SZ   = 16,
     MAX_LENGTH_SZ =  5,    
     MAX_SEQ_SZ    =  5,    // enum(seq|con) + length(4)
@@ -252,6 +252,8 @@ public:
     const char*      GetIssuer()     const { return issuer_; }
     const char*      GetCommonName() const { return subject_; }
     const byte*      GetHash()       const { return subjectHash_; }
+    const char*      GetBeforeDate() const { return beforeDate_; }
+    const char*      GetAfterDate()  const { return afterDate_; }
 
     void DecodeToKey();
 private:
@@ -266,6 +268,8 @@ private:
     byte*     signature_;
     char      issuer_[NAME_MAX];        // Names
     char      subject_[NAME_MAX];       // Names
+    char      beforeDate_[MAX_DATE_SZ]; // valid before date
+    char      afterDate_[MAX_DATE_SZ];  // valid after date
     bool      verify_;                  // Default to yes, but could be off
 
     void   ReadHeader();
