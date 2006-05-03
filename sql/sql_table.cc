@@ -2570,7 +2570,7 @@ send_result_message:
         table->table->s->version=0;               // Force close of table
       else if (open_for_modify)
       {
-        if (table->table->tmp_table)
+        if (table->table->s->tmp_table)
           table->table->file->info(HA_STATUS_CONST);
         else
         {
