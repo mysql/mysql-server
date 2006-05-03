@@ -217,7 +217,9 @@ sub mtr_report_stats ($) {
       my $found_problems= 0;            # Some warnings are errors...
 
       # We report different types of problems in order
-      foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x" )
+      foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x",
+			    "InnoDB: Warning", "missing DBUG_RETURN",
+			    "mysqld: Warning")
       {
         foreach my $errlog ( sort glob("$::opt_vardir/log/*.err") )
         {
