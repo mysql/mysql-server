@@ -103,7 +103,7 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file)
       /* FIX stderr */
       fprintf(stderr,"Error when connection to server using SSL:");
       ERR_print_errors_fp(stderr);
-      fprintf(stderr,"Unable to get private key from '%s'\n", cert_file);
+      fprintf(stderr,"Unable to get private key from '%s'\n", key_file);
       fflush(stderr);
       DBUG_RETURN(1);
     }
@@ -252,14 +252,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     DBUG_RETURN(0);
   }
 
-  if (vio_set_cert_stuff(ssl_fd->ssl_context, cert_file, key_file))
-  {
-    DBUG_PRINT("error", ("vio_set_cert_stuff failed"));
-    report_errors();
-    my_free((void*)ssl_fd,MYF(0));
-    DBUG_RETURN(0);
-  }
-
+  /* Load certs from the trusted ca */
   if (SSL_CTX_load_verify_locations(ssl_fd->ssl_context, ca_file, ca_path) == 0)
   {
     DBUG_PRINT("warning", ("SSL_CTX_load_verify_locations failed"));
@@ -270,6 +263,14 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
       my_free((void*)ssl_fd,MYF(0));
       DBUG_RETURN(0);
     }
+  }
+
+  if (vio_set_cert_stuff(ssl_fd->ssl_context, cert_file, key_file))
+  {
+    DBUG_PRINT("error", ("vio_set_cert_stuff failed"));
+    report_errors();
+    my_free((void*)ssl_fd,MYF(0));
+    DBUG_RETURN(0);
   }
 
   /* DH stuff */
@@ -297,7 +298,7 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
     return 0;
   }
 
-  /* Init the the VioSSLFd as a "connector" ie. the client side */
+  /* Init the VioSSLFd as a "connector" ie. the client side */
 
   /*
     The verify_callback function is used to control the behaviour
