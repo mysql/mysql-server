@@ -265,4 +265,3 @@ drop view v1|
 drop table t3|
 
 delimiter ;|
-drop table t3;
