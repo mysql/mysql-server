@@ -428,10 +428,6 @@ static uint read_ddl_log_header()
   bool successful_open= FALSE;
   DBUG_ENTER("read_ddl_log_header");
 
-  bzero(file_entry_buf, sizeof(global_ddl_log.file_entry_buf));
-  global_ddl_log.inited= FALSE;
-  global_ddl_log.recovery_phase= TRUE;
-  global_ddl_log.io_size= IO_SIZE;
   create_ddl_log_file_name(file_name);
   if ((global_ddl_log.file_id= my_open(file_name,
                                         O_RDWR | O_BINARY, MYF(MY_WME))) >= 0)
@@ -1068,6 +1064,15 @@ void execute_ddl_log_recovery()
   DBUG_ENTER("execute_ddl_log_recovery");
 
   /*
+    Initialise global_ddl_log struct
+  */
+  bzero(global_ddl_log.file_entry_buf, sizeof(global_ddl_log.file_entry_buf));
+  global_ddl_log.inited= FALSE;
+  global_ddl_log.recovery_phase= TRUE;
+  global_ddl_log.io_size= IO_SIZE;
+  global_ddl_log.file_id=(File)-1;
+
+  /*
     To be able to run this from boot, we allocate a temporary THD
   */
   if (!(thd=new THD))
@@ -1130,7 +1135,8 @@ void release_ddl_log()
     my_free((char*)free_list, MYF(0));
     free_list= tmp;
   }
-  VOID(my_close(global_ddl_log.file_id, MYF(0)));
+  if (global_ddl_log.file_id != (File)-1)
+    VOID(my_close(global_ddl_log.file_id, MYF(0)));
   pthread_mutex_unlock(&LOCK_gdl);
   VOID(pthread_mutex_destroy(&LOCK_gdl));
   DBUG_VOID_RETURN;
