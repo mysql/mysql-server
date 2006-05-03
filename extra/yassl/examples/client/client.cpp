@@ -33,10 +33,10 @@ void client_test(void* args)
     const char* cipher = 0;
     int index = 0;
     char list[1024];
-    strcpy(list, "cipherlist");
+    strncpy(list, "cipherlist", 11);
     while ( (cipher = SSL_get_cipher_list(ssl, index++)) ) {
-        strcat(list, ":");
-        strcat(list, cipher);
+        strncat(list, ":", 2);
+        strncat(list, cipher, strlen(cipher) + 1);
     }
     printf("%s\n", list);
     printf("Using Cipher Suite %s\n", SSL_get_cipher(ssl));
