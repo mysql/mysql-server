@@ -475,7 +475,7 @@ static int examine_log(my_string file_name, char **table_names)
       {
 	if (!curr_file_info->closed)
 	  files_open--;
-	VOID(tree_delete(&tree, (gptr) curr_file_info, tree.custom_arg));
+        VOID(tree_delete(&tree, (gptr) curr_file_info, 0, tree.custom_arg));
       }
       break;
     case MI_LOG_EXTRA:
