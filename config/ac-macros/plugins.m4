@@ -60,13 +60,14 @@ AC_DEFUN([MYSQL_STORAGE_ENGINE],[
  MYSQL_PLUGIN_DEFINE([$1], [WITH_]AS_TR_CPP([$1])[_STORAGE_ENGINE])
  ifelse([$2],[no],[],[
   _MYSQL_LEGACY_STORAGE_ENGINE(
+      m4_bpatsubst([$1], -, _),
       m4_bpatsubst(m4_default([$2], [$1-storage-engine]), -, _))
  ])
 ])
 
 AC_DEFUN([_MYSQL_LEGACY_STORAGE_ENGINE],[
-if test "[${with_]$1[+set}]" = set; then
-  [with_plugin_]$1="[$with_]$1"
+if test "[${with_]$2[+set}]" = set; then
+  [with_plugin_]$1="[$with_]$2"
 fi
 ])
 
