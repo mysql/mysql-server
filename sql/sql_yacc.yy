@@ -1239,12 +1239,12 @@ create:
 	   '(' key_list ')' key_options
 	  {
 	    LEX *lex=Lex;
-	    if ($2 != Key::FULLTEXT && lex->key_info.parser_name.str)
+	    if ($2 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
 	      yyerror(ER(ER_SYNTAX_ERROR));
 	      YYABORT;
 	    }
-	    lex->key_list.push_back(new Key($2, $4.str, &lex->key_info, 0,
+	    lex->key_list.push_back(new Key($2, $4.str, &lex->key_create_info, 0,
 					   lex->col_list));
 	    lex->col_list.empty();
 	  }
@@ -3996,12 +3996,12 @@ key_def:
 	key_type opt_ident key_alg '(' key_list ')' key_options
 	  {
 	    LEX *lex=Lex;
-	    if ($1 != Key::FULLTEXT && lex->key_info.parser_name.str)
+	    if ($1 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
 	      yyerror(ER(ER_SYNTAX_ERROR));
 	      YYABORT;
 	    }
-	    lex->key_list.push_back(new Key($1,$2, &lex->key_info, 0,
+	    lex->key_list.push_back(new Key($1,$2, &lex->key_create_info, 0,
 					   lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
@@ -4010,7 +4010,7 @@ key_def:
 	  {
 	    LEX *lex=Lex;
 	    const char *key_name= $3 ? $3 : $1;
-	    lex->key_list.push_back(new Key($2, key_name, &lex->key_info, 0,
+	    lex->key_list.push_back(new Key($2, key_name, &lex->key_create_info, 0,
 					    lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
@@ -4516,12 +4516,12 @@ opt_unique_or_fulltext:
 
 init_key_options:
 	{
-	  Lex->key_info= default_key_create_info;
+	  Lex->key_create_info= default_key_create_info;
 	}
 	;
 
 /*
-  For now, key_alg initializies lex->key_info.
+  For now, key_alg initializies lex->key_create_info.
   In the future, when all key options are after key definition,
   we can remove key_alg and move init_key_options to key_options
 */
@@ -4542,14 +4542,14 @@ key_opts:
 	;
 	
 key_opt:
-	USING opt_btree_or_rtree       { Lex->key_info.algorithm= $2; }
-	| TYPE_SYM opt_btree_or_rtree  { Lex->key_info.algorithm= $2; }
+	USING opt_btree_or_rtree       { Lex->key_create_info.algorithm= $2; }
+	| TYPE_SYM opt_btree_or_rtree  { Lex->key_create_info.algorithm= $2; }
 	| KEY_BLOCK_SIZE opt_equal ulong_num
-	  { Lex->key_info.block_size= $3; }
+	  { Lex->key_create_info.block_size= $3; }
 	| WITH PARSER_SYM IDENT_sys
           {
             if (plugin_is_ready(&$3, MYSQL_FTPARSER_PLUGIN))
-              Lex->key_info.parser_name= $3;
+              Lex->key_create_info.parser_name= $3;
             else
             {
               my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), $3.str);
