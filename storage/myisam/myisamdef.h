@@ -55,7 +55,7 @@ typedef struct st_mi_state_info
     uchar keys;				/* number of keys in file */
     uchar uniques;			/* number of UNIQUE definitions */
     uchar language;			/* Language for indexes */
-    uchar max_block_size;		/* max keyblock size */
+    uchar max_block_size_index;		/* max keyblock size */
     uchar fulltext_keys;
     uchar not_used;                     /* To align to 8 */
   } header;
@@ -431,7 +431,7 @@ typedef struct st_mi_sort_param
 #define MI_FOUND_WRONG_KEY 32738	/* Impossible value from ha_key_cmp */
 
 #define MI_MAX_KEY_BLOCK_SIZE	(MI_MAX_KEY_BLOCK_LENGTH/MI_MIN_KEY_BLOCK_LENGTH)
-#define MI_BLOCK_SIZE(key_length,data_pointer,key_pointer) (((((key_length)+(data_pointer)+(key_pointer))*4+(key_pointer)+2)/myisam_block_size+1)*myisam_block_size)
+#define MI_BLOCK_SIZE(key_length,data_pointer,key_pointer,block_size) (((((key_length)+(data_pointer)+(key_pointer))*4+(key_pointer)+2)/(block_size)+1)*(block_size))
 #define MI_MAX_KEYPTR_SIZE	5        /* For calculating block lengths */
 #define MI_MIN_KEYBLOCK_LENGTH	50         /* When to split delete blocks */
 
@@ -742,6 +742,8 @@ my_bool check_table_is_closed(const char *name, const char *where);
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup);
 int mi_open_keyfile(MYISAM_SHARE *share);
 void mi_setup_functions(register MYISAM_SHARE *share);
+my_bool mi_dynmap_file(MI_INFO *info, my_off_t size);
+void mi_remap_file(MI_INFO *info, my_off_t size);
 
     /* Functions needed by mi_check */
 volatile int *killed_ptr(MI_CHECK *param);

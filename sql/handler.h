@@ -281,6 +281,7 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_COMMENT          (1L << 16)
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 #define HA_CREATE_USED_CONNECTION       (1L << 18)
+#define HA_CREATE_USED_KEY_BLOCK_SIZE   (1L << 19)
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
@@ -654,6 +655,7 @@ typedef struct st_ha_create_information
   ulong table_options;
   ulong avg_row_length;
   ulong used_fields;
+  ulong key_block_size;
   SQL_LIST merge_list;
   handlerton *db_type;
   enum row_type row_type;
@@ -666,6 +668,15 @@ typedef struct st_ha_create_information
   bool varchar;                         /* 1 if table has a VARCHAR */
   bool store_on_disk;                   /* 1 if table stored on disk */
 } HA_CREATE_INFO;
+
+
+typedef struct st_key_create_information
+{
+  enum ha_key_alg algorithm;
+  ulong block_size;
+  LEX_STRING parser_name;
+} KEY_CREATE_INFO;
+
 
 /*
   Class for maintaining hooks used inside operations on tables such
@@ -701,6 +712,7 @@ private:
 
 typedef struct st_savepoint SAVEPOINT;
 extern ulong savepoint_alloc_size;
+extern KEY_CREATE_INFO default_key_create_info;
 
 /* Forward declaration for condition pushdown to storage engine */
 typedef class Item COND;
