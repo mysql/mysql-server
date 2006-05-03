@@ -51,20 +51,30 @@ static int SSL_set_fd_bsd(SSL *s, int fd)
 
 
 static void
-report_errors()
+report_errors(SSL* ssl)
 {
   unsigned long	l;
   const char *file;
   const char *data;
   int line,flags;
+  char buf[512];
+
   DBUG_ENTER("report_errors");
 
   while ((l= ERR_get_error_line_data(&file,&line,&data,&flags)))
   {
-    char buf[512];
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l,buf),
 			 file,line,(flags&ERR_TXT_STRING)?data:"")) ;
   }
+
+#ifdef HAVE_YASSL
+  /*
+    The above calls to ERR_* doesn't return any messages when we
+    are using yaSSL since error is stored in the SSL object we used.
+  */
+  if (ssl)
+    DBUG_PRINT("error", ("yaSSL: %s", ERR_error_string(SSL_get_error(ssl, l), buf)));
+#endif
   DBUG_PRINT("info", ("errno: %d", socket_errno));
   DBUG_VOID_RETURN;
 }
@@ -81,7 +91,7 @@ int vio_ssl_read(Vio *vio, gptr buf, int size)
   {
     int err= SSL_get_error((SSL*) vio->ssl_arg, r);
     DBUG_PRINT("error",("SSL_read(): %d  SSL_get_error(): %d", r, err));
-    report_errors();
+    report_errors((SSL*) vio->ssl_arg);
   }
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
@@ -95,7 +105,7 @@ int vio_ssl_write(Vio *vio, const gptr buf, int size)
   DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
 
   if ((r= SSL_write((SSL*) vio->ssl_arg, buf, size)) < 0)
-    report_errors();
+    report_errors((SSL*) vio->ssl_arg);
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
 }
@@ -148,7 +158,7 @@ int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
   if (!(ssl= SSL_new(ptr->ssl_context)))
   {
     DBUG_PRINT("error", ("SSL_new failure"));
-    report_errors();
+    report_errors(ssl);
     vio_reset(vio, old_type,vio->sd,0,FALSE);
     vio_blocking(vio, net_blocking, &unused);
     DBUG_RETURN(1);
@@ -162,7 +172,7 @@ int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
   if (SSL_do_handshake(ssl) < 1)
   {
     DBUG_PRINT("error", ("SSL_do_handshake failure"));
-    report_errors();
+    report_errors(ssl);
     SSL_free(ssl);
     vio->ssl_arg= 0;
     vio_reset(vio, old_type,vio->sd,0,FALSE);
@@ -223,7 +233,7 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
   if (!(ssl= SSL_new(ptr->ssl_context)))
   {
     DBUG_PRINT("error", ("SSL_new failure"));
-    report_errors();
+    report_errors(ssl);
     vio_reset(vio, old_type, vio->sd, 0, FALSE);
     vio_blocking(vio, net_blocking, &unused);
     DBUG_RETURN(1);
@@ -237,7 +247,7 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
   if (SSL_do_handshake(ssl) < 1)
   {
     DBUG_PRINT("error", ("SSL_do_handshake failure"));
-    report_errors();
+    report_errors(ssl);
     SSL_free(ssl);
     vio->ssl_arg= 0;
     vio_reset(vio, old_type, vio->sd, 0, FALSE);
