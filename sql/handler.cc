@@ -47,6 +47,8 @@ extern handlerton *sys_table_types[];
 
 #define BITMAP_STACKBUF_SIZE (128/8)
 
+KEY_CREATE_INFO default_key_create_info= { HA_KEY_ALG_UNDEF, 0 };
+
 /* static functions defined in this file */
 
 static handler *create_default(TABLE_SHARE *table);

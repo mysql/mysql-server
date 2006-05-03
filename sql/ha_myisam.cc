@@ -350,6 +350,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
     if (table->key_info[i].flags & HA_USES_PARSER)
       file->s->keyinfo[i].parser=
         (struct st_mysql_ftparser *)parser->plugin->info;
+    table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
   return (0);
 }
@@ -1368,7 +1369,7 @@ void ha_myisam::info(uint flag)
     sortkey= info.sortkey;
     ref_length= info.reflength;
     share->db_options_in_use= info.options;
-    block_size= myisam_block_size;
+    block_size= myisam_block_size;		/* record block size */
 
     /* Update share */
     if (share->tmp_table == NO_TMP_TABLE)
@@ -1501,6 +1502,8 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
     keydef[i].key_alg= pos->algorithm == HA_KEY_ALG_UNDEF ? 
       (pos->flags & HA_SPATIAL ? HA_KEY_ALG_RTREE : HA_KEY_ALG_BTREE) :
       pos->algorithm;
+    keydef[i].block_length= pos->block_size;
+
     keydef[i].seg=keyseg;
     keydef[i].keysegs=pos->key_parts;
     for (j=0 ; j < pos->key_parts ; j++)
