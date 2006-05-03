@@ -234,6 +234,7 @@ enum legacy_db_type
   DB_TYPE_BLACKHOLE_DB,
   DB_TYPE_PARTITION_DB,
   DB_TYPE_BINLOG,
+  DB_TYPE_FIRST_DYNAMIC=32,
   DB_TYPE_DEFAULT=127 // Must be last
 };
 
@@ -1554,8 +1555,8 @@ static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 
 /* basic stuff */
 int ha_init(void);
-int ha_register_builtin_plugins();
-int ha_initialize_handlerton(handlerton *hton);
+int ha_initialize_handlerton(st_plugin_int *plugin);
+int ha_finalize_handlerton(st_plugin_int *plugin);
 
 TYPELIB *ha_known_exts(void);
 int ha_panic(enum ha_panic_function flag);

@@ -42,6 +42,7 @@ have disables the InnoDB inlining in this file. */
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_share_mutex,	/* to protect innobase_open_files */
@@ -204,11 +205,15 @@ static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
 static handler *innobase_create_handler(TABLE_SHARE *table);
 
+static const char innobase_hton_name[]= "InnoDB";
+static const char innobase_hton_comment[]=
+  "Supports transactions, row-level locking, and foreign keys";
+
 handlerton innobase_hton = {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "InnoDB",
+  innobase_hton_name,
   SHOW_OPTION_YES,
-  "Supports transactions, row-level locking, and foreign keys",
+  innobase_hton_comment,
   DB_TYPE_INNODB,
   innobase_init,
   0,				/* slot */
@@ -7453,3 +7458,19 @@ bool ha_innobase::check_if_incompatible_data(
 
 	return COMPATIBLE_DATA_YES;
 }
+
+
+mysql_declare_plugin(innobase)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &innobase_hton,
+  innobase_hton_name,
+  "Innobase OY",
+  innobase_hton_comment,
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;
+
+#endif

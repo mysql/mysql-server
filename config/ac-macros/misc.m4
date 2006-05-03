@@ -675,8 +675,8 @@ dnl Sets BIG_TABLES if --with-big-tables is used
 dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_BIG_TABLES], [
   AC_ARG_WITH([big-tables],
-              [
-  --with-big-tables       Support tables with more than 4 G rows even on 32 bit platforms],
+  AS_HELP_STRING([--with-big-tables],
+              [Support tables with more than 4 G rows even on 32 bit platforms]),
               [bigtables="$withval"],
               [bigtables=no])
   AC_MSG_CHECKING([for big tables support])
@@ -703,8 +703,8 @@ dnl Sets MAX_INDEXES
 dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_MAX_INDEXES], [
   AC_ARG_WITH([max-indexes],
-              [
-  --with-max-indexes=\#      Sets the maximum number of indexes per table, default 64],
+              AS_HELP_STRING([--with-max-indexes=N],
+                             [Sets the maximum number of indexes per table, default 64]),
               [max_indexes="$withval"],
               [max_indexes=64])
   AC_MSG_CHECKING([max indexes per table])
