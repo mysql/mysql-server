@@ -403,10 +403,29 @@ create table t1 (
 insert into t1 (msg) values(
 'Tries to validate (8 byte length + inline bytes) as UTF8 :(
 Fast fix: removed validation for Text.  It is not yet indexable
-so bad data will not crash kernel.
-Proper fix: Set inline bytes to multiple of mbmaxlen and
-validate it (after the 8 byte length).');
+so bad data will not crash kernel.');
 select * from t1;
+drop table t1;
+
+# -- bug #19201
+create table t1 (
+  a int primary key not null auto_increment,
+  b text
+) engine=ndbcluster;
+--disable_query_log
+set autocommit=1;
+# more rows than batch size (64)
+# for this bug no blob parts would be necessary
+let $1 = 500;
+while ($1)
+{
+  insert into t1 (b) values (repeat('x',4000));
+  dec $1;
+}
+--enable_query_log
+select count(*) from t1;
+truncate t1;
+select count(*) from t1;
 drop table t1;
 
 # End of 4.1 tests
