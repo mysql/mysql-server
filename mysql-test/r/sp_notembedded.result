@@ -1,3 +1,4 @@
+drop table if exists t1,t3;
 drop procedure if exists bug4902|
 create procedure bug4902()
 begin
