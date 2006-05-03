@@ -1706,7 +1706,9 @@ mysql_rename_table(enum db_type base,
     }
   }
   delete file;
-  if (error)
+  if (error == HA_ERR_WRONG_COMMAND)
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
+  else if (error)
     my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
   DBUG_RETURN(error != 0);
 }
