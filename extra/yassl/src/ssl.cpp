@@ -1080,7 +1080,7 @@ int X509_NAME_get_index_by_NID(X509_NAME* name,int nid, int lastpos)
 
     switch (nid) {
     case NID_commonName:
-        char* found = strstr(start, "/CN=");
+        const char* found = strstr(start, "/CN=");
         if (found) {
             found += 4;  // advance to str
             idx = found - start + lastpos + 1;
