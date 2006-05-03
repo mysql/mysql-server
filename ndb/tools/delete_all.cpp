@@ -23,17 +23,21 @@
 #include <NDBT.hpp>
 
 static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
-                       bool commit_across_open_cursor, int parallelism=240);
+                       bool fetch_across_commit, int parallelism=240);
 
 NDB_STD_OPTS_VARS;
 
 static const char* _dbname = "TEST_DB";
+static my_bool _transactional = false;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
   { "database", 'd', "Name of database table is in",
     (gptr*) &_dbname, (gptr*) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "transactional", 't', "Single transaction (may run out of operations)",
+    (gptr*) &_transactional, (gptr*) &_transactional, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 static void usage()
@@ -84,18 +88,11 @@ int main(int argc, char** argv){
       ndbout << " Table " << argv[i] << " does not exist!" << endl;
       return NDBT_ProgramExit(NDBT_WRONGARGS);
     }
-    // Check if we have any blobs
-    bool commit_across_open_cursor = true;
-    for (int j = 0; j < pTab->getNoOfColumns(); j++) {
-      NdbDictionary::Column::Type t = pTab->getColumn(j)->getType();
-      if (t == NdbDictionary::Column::Blob ||
-          t == NdbDictionary::Column::Text) {
-        commit_across_open_cursor = false;
-        break;
-      }
-    }
-    ndbout << "Deleting all from " << argv[i] << "...";
-    if(clear_table(&MyNdb, pTab, commit_across_open_cursor) == NDBT_FAILED){
+    ndbout << "Deleting all from " << argv[i];
+    if (! _transactional)
+      ndbout << " (non-transactional)";
+    ndbout << " ...";
+    if(clear_table(&MyNdb, pTab, ! _transactional) == NDBT_FAILED){
       res = NDBT_FAILED;
       ndbout << "FAILED" << endl;
     }
@@ -105,7 +102,7 @@ int main(int argc, char** argv){
 
 
 int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
-                bool commit_across_open_cursor, int parallelism)
+                bool fetch_across_commit, int parallelism)
 {
   // Scan all records exclusive and delete 
   // them one by one
@@ -136,7 +133,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
       }
       goto failed;
     }
-    
+
     pOp = pTrans->getNdbScanOperation(pTab->getName());	
     if (pOp == NULL) {
       goto failed;
@@ -166,7 +163,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
       } while((check = pOp->nextResult(false)) == 0);
       
       if(check != -1){
-        if (commit_across_open_cursor) {
+        if (fetch_across_commit) {
           check = pTrans->execute(NdbTransaction::Commit);   
           pTrans->restart(); // new tx id
         } else {
@@ -197,7 +194,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
       }
       goto failed;
     }
-    if (! commit_across_open_cursor &&
+    if (! fetch_across_commit &&
         pTrans->execute(NdbTransaction::Commit) != 0) {
       err = pTrans->getNdbError();
       goto failed;
