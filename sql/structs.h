@@ -86,6 +86,7 @@ typedef struct st_key {
   uint	key_parts;			/* How many key_parts */
   uint  extra_length;
   uint	usable_key_parts;		/* Should normally be = key_parts */
+  uint  block_size;
   enum  ha_key_alg algorithm;
   /*
     Note that parser is used when the table is opened for use, and
