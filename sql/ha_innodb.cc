@@ -5832,34 +5832,55 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 			  break;
 	  }
 
-	  ulong length= 0;
-	  if (foreign->type == DICT_FOREIGN_ON_DELETE_CASCADE) {
-		  length=17;
-		  tmp_buff= "ON DELETE CASCADE";
-	  }
-	  else if (foreign->type == DICT_FOREIGN_ON_DELETE_SET_NULL) {
-		  length=18;
-		  tmp_buff= "ON DELETE SET NULL";
-	  }
-	  else if (foreign->type == DICT_FOREIGN_ON_DELETE_NO_ACTION) {
-		  length=19;
-		  tmp_buff= "ON DELETE NO ACTION";
-	  }
-	  else if (foreign->type == DICT_FOREIGN_ON_UPDATE_CASCADE) {
-		  length=17;
-		  tmp_buff= "ON UPDATE CASCADE";
-	  }
-	  else if (foreign->type == DICT_FOREIGN_ON_UPDATE_SET_NULL) {
-		  length=18;
-		  tmp_buff= "ON UPDATE SET NULL";
-	  }
-	  else if (foreign->type == DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
-		  length=19;
-		  tmp_buff= "ON UPDATE NO ACTION";
-	  }
-	  f_key_info.constraint_method= make_lex_string(thd,
-		  f_key_info.constraint_method,
-		  tmp_buff, length, 1);
+          ulong length;
+          if (foreign->type & DICT_FOREIGN_ON_DELETE_CASCADE)
+          {
+            length=7;
+            tmp_buff= "CASCADE";
+          }	
+          else if (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
+          {
+            length=8;
+            tmp_buff= "SET NULL";
+          }
+          else if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION)
+          {
+            length=9;
+            tmp_buff= "NO ACTION";
+          }
+          else
+          {
+            length=8;
+            tmp_buff= "RESTRICT";
+          }
+          f_key_info.delete_method= make_lex_string(thd, f_key_info.delete_method,
+                                                    tmp_buff, length, 1);
+ 
+ 
+          if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)
+          {
+            length=7;
+            tmp_buff= "CASCADE";
+          }
+          else if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)
+          {
+            length=8;
+            tmp_buff= "SET NULL";
+          }
+          else if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION)
+          {
+            length=9;
+            tmp_buff= "NO ACTION";
+          }
+          else
+          {
+            length=8;
+            tmp_buff= "RESTRICT";
+          }
+          f_key_info.update_method= make_lex_string(thd, f_key_info.update_method,
+                                                    tmp_buff, length, 1);
+
+
 
 	  FOREIGN_KEY_INFO *pf_key_info= ((FOREIGN_KEY_INFO *)
 		  thd->memdup((gptr) &f_key_info,
