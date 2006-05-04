@@ -720,6 +720,7 @@ mysql_declare_plugin(heap)
   heap_hton_comment,
   NULL,
   NULL,
+  0x0100, /* 1.0 */
   0
 }
 mysql_declare_plugin_end;
