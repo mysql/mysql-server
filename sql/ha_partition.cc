@@ -4169,6 +4169,8 @@ void ha_partition::info(uint flag)
       index_file_length: Length of index file, in principle bytes in
       indexes in the table
       We report sum
+      delete_length: Length of free space easily used by new records in table
+      We report sum
       mean_record_length:Mean record length in the table
       We calculate this
       check_time:        Time of last check (only applicable to MyISAM)
@@ -4178,6 +4180,7 @@ void ha_partition::info(uint flag)
     deleted= 0;
     data_file_length= 0;
     index_file_length= 0;
+    delete_length= 0;
     check_time= 0;
     file_array= m_file;
     do
@@ -4190,6 +4193,7 @@ void ha_partition::info(uint flag)
         deleted+= file->deleted;
         data_file_length+= file->data_file_length;
         index_file_length+= file->index_file_length;
+        delete_length+= file->delete_length;
         if (file->check_time > check_time)
           check_time= file->check_time;
       }
