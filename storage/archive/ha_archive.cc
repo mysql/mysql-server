@@ -19,9 +19,12 @@
 #endif
 
 #include "mysql_priv.h"
+#include <myisam.h>
 
 #include "ha_archive.h"
 #include <my_dir.h>
+
+#include <mysql/plugin.h>
 
 /*
   First, if you want to understand storage engines you should look at 
@@ -143,12 +146,15 @@ static handler *archive_create_handler(TABLE_SHARE *table);
 #define ARCHIVE_MIN_ROWS_TO_USE_BULK_INSERT 2
 
 
+static const char archive_hton_name[]= "ARCHIVE";
+static const char archive_hton_comment[]= "Archive storage engine";
+
 /* dummy handlerton - only to have something to return from archive_db_init */
 handlerton archive_hton = {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "ARCHIVE",
+  archive_hton_name,
   SHOW_OPTION_YES,
-  "Archive storage engine", 
+  archive_hton_comment, 
   DB_TYPE_ARCHIVE_DB,
   archive_db_init,
   0,       /* slot */
@@ -214,6 +220,8 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
 bool archive_db_init()
 {
   DBUG_ENTER("archive_db_init");
+  if (archive_inited)
+    DBUG_RETURN(FALSE);
   if (pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (hash_init(&archive_open_tables, system_charset_info, 32, 0, 0,
@@ -227,7 +235,6 @@ bool archive_db_init()
     DBUG_RETURN(FALSE);
   }
 error:
-  have_archive_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
   DBUG_RETURN(TRUE);
 }
 
@@ -235,14 +242,14 @@ error:
   Release the archive handler.
 
   SYNOPSIS
-    archive_db_end()
+    archive_db_done()
     void
 
   RETURN
     FALSE       OK
 */
 
-int archive_db_end(ha_panic_function type)
+int archive_db_done()
 {
   if (archive_inited)
   {
@@ -251,6 +258,12 @@ int archive_db_end(ha_panic_function type)
   }
   archive_inited= 0;
   return 0;
+}
+
+
+int archive_db_end(ha_panic_function type)
+{
+  return archive_db_done();
 }
 
 ha_archive::ha_archive(TABLE_SHARE *table_arg)
@@ -459,12 +472,11 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
     share->table_name_length= length;
     share->table_name= tmp_name;
     share->crashed= FALSE;
+    share->archive_write_open= FALSE;
     fn_format(share->data_file_name, table_name, "",
               ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     fn_format(meta_file_name, table_name, "", ARM,
               MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-    DBUG_PRINT("info", ("archive opening (1) up write at %s", 
-                        share->data_file_name));
     strmov(share->table_name,table_name);
     /*
       We will use this lock for rows.
@@ -476,38 +488,20 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
                         share->data_file_name));
     
     /*
-      After we read, we set the file to dirty. When we close, we will do the 
-      opposite. If the meta file will not open we assume it is crashed and
-      leave it up to the user to fix.
+      We read the meta file, but do not mark it dirty unless we actually do
+      a write.
     */
     if (read_meta_file(share->meta_file, &share->rows_recorded, 
                        &share->auto_increment_value,
                        &share->forced_flushes,
                        share->real_path))
       share->crashed= TRUE;
-    else
-      (void)write_meta_file(share->meta_file, share->rows_recorded,
-                            share->auto_increment_value, 
-                            share->forced_flushes, 
-                            share->real_path,
-                            TRUE);
     /*
       Since we now possibly no real_path, we will use it instead if it exists.
     */
     if (*share->real_path)
       fn_format(share->data_file_name, share->real_path, "", ARZ,
                 MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-    /* 
-      It is expensive to open and close the data files and since you can't have
-      a gzip file that can be both read and written we keep a writer open
-      that is shared amoung all open tables.
-    */
-    if (!(azopen(&(share->archive_write), share->data_file_name, 
-                 O_WRONLY|O_APPEND|O_BINARY)))
-    {
-      DBUG_PRINT("info", ("Could not open archive write file"));
-      share->crashed= TRUE;
-    }
     VOID(my_hash_insert(&archive_open_tables, (byte*) share));
     thr_lock_init(&share->lock);
   }
@@ -554,8 +548,9 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
                           share->forced_flushes, 
                           share->real_path, 
                           share->crashed ? TRUE :FALSE);
-    if (azclose(&(share->archive_write)))
-      rc= 1;
+    if (share->archive_write_open)
+      if (azclose(&(share->archive_write)))
+        rc= 1;
     if (my_close(share->meta_file, MYF(0)))
       rc= 1;
     my_free((gptr) share, MYF(0));
@@ -563,6 +558,32 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
   pthread_mutex_unlock(&archive_mutex);
 
   DBUG_RETURN(rc);
+}
+
+int ha_archive::init_archive_writer()
+{
+  DBUG_ENTER("ha_archive::init_archive_writer");
+  (void)write_meta_file(share->meta_file, share->rows_recorded,
+                        share->auto_increment_value, 
+                        share->forced_flushes, 
+                        share->real_path,
+                        TRUE);
+
+  /* 
+    It is expensive to open and close the data files and since you can't have
+    a gzip file that can be both read and written we keep a writer open
+    that is shared amoung all open tables.
+  */
+  if (!(azopen(&(share->archive_write), share->data_file_name, 
+               O_WRONLY|O_APPEND|O_BINARY)))
+  {
+    DBUG_PRINT("info", ("Could not open archive write file"));
+    share->crashed= TRUE;
+    DBUG_RETURN(1);
+  }
+  share->archive_write_open= TRUE;
+
+  DBUG_RETURN(0);
 }
 
 
@@ -830,7 +851,7 @@ int ha_archive::write_row(byte *buf)
   if (share->crashed)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
+  ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   pthread_mutex_lock(&share->mutex);
@@ -910,6 +931,9 @@ int ha_archive::write_row(byte *buf)
     Notice that the global auto_increment has been increased.
     In case of a failed row write, we will never try to reuse the value.
   */
+  if (!share->archive_write_open)
+    if (init_archive_writer())
+      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   share->rows_recorded++;
   rc= real_write_row(buf, &(share->archive_write));
@@ -1147,8 +1171,7 @@ int ha_archive::rnd_next(byte *buf)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   scan_rows--;
 
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   current_position= aztell(&archive);
   rc= get_row(&archive, buf);
 
@@ -1184,8 +1207,7 @@ void ha_archive::position(const byte *record)
 int ha_archive::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_archive::rnd_pos");
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   current_position= (my_off_t)my_get_ptr(pos, ref_length);
   (void)azseek(&archive, current_position, SEEK_SET);
 
@@ -1220,6 +1242,10 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   int rc;
   azio_stream writer;
   char writer_filename[FN_REFLEN];
+
+  /* Open up the writer if we haven't yet */
+  if (!share->archive_write_open)
+    init_archive_writer();
 
   /* Flush any waiting data */
   azflush(&(share->archive_write), Z_SYNC_FLUSH);
@@ -1369,8 +1395,8 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
     */
 
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd->in_lock_tables
-        && !thd->tablespace_op)
+         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd)
+        && !thd_tablespace_op(thd))
       lock_type = TL_WRITE_ALLOW_WRITE;
 
     /* 
@@ -1381,7 +1407,7 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
       concurrent inserts to t2. 
     */
 
-    if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables) 
+    if (lock_type == TL_READ_NO_INSERT && !thd_in_lock_tables(thd)) 
       lock_type = TL_READ;
 
     lock.type=lock_type;
@@ -1494,11 +1520,11 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
   int rc= 0;
   byte *buf; 
-  const char *old_proc_info=thd->proc_info;
+  const char *old_proc_info;
   ha_rows count= share->rows_recorded;
   DBUG_ENTER("ha_archive::check");
 
-  thd->proc_info= "Checking table";
+  old_proc_info= thd_proc_info(thd, "Checking table");
   /* Flush any waiting data */
   azflush(&(share->archive_write), Z_SYNC_FLUSH);
   share->forced_flushes++;
@@ -1523,7 +1549,7 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
 
   my_free((char*)buf, MYF(0));
 
-  thd->proc_info= old_proc_info;
+  thd_proc_info(thd, old_proc_info);
 
   if ((rc && rc != HA_ERR_END_OF_FILE) || count)  
   {
@@ -1548,3 +1574,17 @@ bool ha_archive::check_and_repair(THD *thd)
 
   DBUG_RETURN(repair(thd, &check_opt));
 }
+
+
+mysql_declare_plugin(archive)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &archive_hton,
+  archive_hton_name,
+  "Brian Aker, MySQL AB",
+  archive_hton_comment,
+  NULL, /* Plugin Init */
+  archive_db_done, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;

@@ -47,7 +47,7 @@ select cast('1a' as signed);
 select cast('' as signed);
 
 #
-# Character set convertion
+# Character set conversion
 #
 set names binary;
 select cast(_latin1'test' as char character set latin2);

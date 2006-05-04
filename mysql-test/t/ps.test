@@ -1110,4 +1110,40 @@ select * from t1 order by 1+1;
 
 drop table t1;
 
+#
+# Bug#19308 "REPAIR/OPTIMIZE/ANALYZE supported in SP but not in PS".
+# Add test coverage for the added commands.
+#
+create table t1 (a int);
+create table t2 like t1;
+create table t3 like t2;
+prepare stmt from "repair table t1";
+execute stmt;
+execute stmt;
+prepare stmt from "optimize table t1";
+execute stmt;
+execute stmt;
+prepare stmt from "analyze table t1";
+execute stmt;
+execute stmt;
+prepare stmt from "repair table t1, t2, t3";
+execute stmt;
+execute stmt;
+prepare stmt from "optimize table t1, t2, t3";
+execute stmt;
+execute stmt;
+prepare stmt from "analyze table t1, t2, t3";
+execute stmt;
+execute stmt;
+prepare stmt from "repair table t1, t4, t3";
+execute stmt;
+execute stmt;
+prepare stmt from "optimize table t1, t3, t4";
+execute stmt;
+execute stmt;
+prepare stmt from "analyze table t4, t1";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+
 # End of 5.0 tests

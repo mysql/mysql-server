@@ -37,10 +37,25 @@
   be a st_mysql_plugin struct for each plugin to be declared.
 */
 
-#define mysql_declare_plugin                                          \
-int _mysql_plugin_interface_version_= MYSQL_PLUGIN_INTERFACE_VERSION; \
-int _mysql_sizeof_struct_st_plugin_= sizeof(struct st_mysql_plugin); \
+
+#ifndef MYSQL_DYNAMIC_PLUGIN
+#define __MYSQL_DECLARE_PLUGIN(NAME, VERSION, PSIZE, DECLS)                   \
+int VERSION= MYSQL_PLUGIN_INTERFACE_VERSION;                                  \
+int PSIZE= sizeof(struct st_mysql_plugin);                                    \
+struct st_mysql_plugin DECLS[]= {
+#else
+#define __MYSQL_DECLARE_PLUGIN(NAME, VERSION, PSIZE, DECLS)                   \
+int _mysql_plugin_interface_version_= MYSQL_PLUGIN_INTERFACE_VERSION;         \
+int _mysql_sizeof_struct_st_plugin_= sizeof(struct st_mysql_plugin);          \
 struct st_mysql_plugin _mysql_plugin_declarations_[]= {
+#endif
+
+#define mysql_declare_plugin(NAME) \
+__MYSQL_DECLARE_PLUGIN(NAME, \
+                 builtin_ ## NAME ## _plugin_interface_version, \
+                 builtin_ ## NAME ## _sizeof_struct_st_plugin, \
+                 builtin_ ## NAME ## _plugin)
+
 #define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0}}
 
 /*

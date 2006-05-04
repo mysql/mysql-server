@@ -662,7 +662,7 @@ struct Parameters {
     uint8                suites_size_;
     Cipher               suites_[MAX_SUITE_SZ];
     char                 cipher_name_[MAX_SUITE_NAME];
-    char                 cipher_list_[MAX_CIPHER_LIST];
+    char                 cipher_list_[MAX_CIPHERS][MAX_SUITE_NAME];
 
     Parameters(ConnectionEnd, const Ciphers&, ProtocolVersion);
 

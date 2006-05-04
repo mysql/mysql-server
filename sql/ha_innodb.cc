@@ -42,6 +42,7 @@ have disables the InnoDB inlining in this file. */
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_share_mutex,	/* to protect innobase_open_files */
@@ -204,11 +205,15 @@ static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
 static handler *innobase_create_handler(TABLE_SHARE *table);
 
+static const char innobase_hton_name[]= "InnoDB";
+static const char innobase_hton_comment[]=
+  "Supports transactions, row-level locking, and foreign keys";
+
 handlerton innobase_hton = {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "InnoDB",
+  innobase_hton_name,
   SHOW_OPTION_YES,
-  "Supports transactions, row-level locking, and foreign keys",
+  innobase_hton_comment,
   DB_TYPE_INNODB,
   innobase_init,
   0,				/* slot */
@@ -5827,34 +5832,55 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 			  break;
 	  }
 
-	  ulong length= 0;
-	  if (foreign->type == DICT_FOREIGN_ON_DELETE_CASCADE) {
-		  length=17;
-		  tmp_buff= "ON DELETE CASCADE";
-	  }
-	  else if (foreign->type == DICT_FOREIGN_ON_DELETE_SET_NULL) {
-		  length=18;
-		  tmp_buff= "ON DELETE SET NULL";
-	  }
-	  else if (foreign->type == DICT_FOREIGN_ON_DELETE_NO_ACTION) {
-		  length=19;
-		  tmp_buff= "ON DELETE NO ACTION";
-	  }
-	  else if (foreign->type == DICT_FOREIGN_ON_UPDATE_CASCADE) {
-		  length=17;
-		  tmp_buff= "ON UPDATE CASCADE";
-	  }
-	  else if (foreign->type == DICT_FOREIGN_ON_UPDATE_SET_NULL) {
-		  length=18;
-		  tmp_buff= "ON UPDATE SET NULL";
-	  }
-	  else if (foreign->type == DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
-		  length=19;
-		  tmp_buff= "ON UPDATE NO ACTION";
-	  }
-	  f_key_info.constraint_method= make_lex_string(thd,
-		  f_key_info.constraint_method,
-		  tmp_buff, length, 1);
+          ulong length;
+          if (foreign->type & DICT_FOREIGN_ON_DELETE_CASCADE)
+          {
+            length=7;
+            tmp_buff= "CASCADE";
+          }	
+          else if (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
+          {
+            length=8;
+            tmp_buff= "SET NULL";
+          }
+          else if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION)
+          {
+            length=9;
+            tmp_buff= "NO ACTION";
+          }
+          else
+          {
+            length=8;
+            tmp_buff= "RESTRICT";
+          }
+          f_key_info.delete_method= make_lex_string(thd, f_key_info.delete_method,
+                                                    tmp_buff, length, 1);
+ 
+ 
+          if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)
+          {
+            length=7;
+            tmp_buff= "CASCADE";
+          }
+          else if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)
+          {
+            length=8;
+            tmp_buff= "SET NULL";
+          }
+          else if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION)
+          {
+            length=9;
+            tmp_buff= "NO ACTION";
+          }
+          else
+          {
+            length=8;
+            tmp_buff= "RESTRICT";
+          }
+          f_key_info.update_method= make_lex_string(thd, f_key_info.update_method,
+                                                    tmp_buff, length, 1);
+
+
 
 	  FOREIGN_KEY_INFO *pf_key_info= ((FOREIGN_KEY_INFO *)
 		  thd->memdup((gptr) &f_key_info,
@@ -7432,3 +7458,19 @@ bool ha_innobase::check_if_incompatible_data(
 
 	return COMPATIBLE_DATA_YES;
 }
+
+
+mysql_declare_plugin(innobase)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &innobase_hton,
+  innobase_hton_name,
+  "Innobase OY",
+  innobase_hton_comment,
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;
+
+#endif

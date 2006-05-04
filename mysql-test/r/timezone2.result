@@ -1,4 +1,5 @@
 drop table if exists t1, t2;
+drop function if exists f1;
 create table t1 (ts timestamp);
 set time_zone='+00:00';
 select unix_timestamp(utc_timestamp())-unix_timestamp(current_timestamp());
@@ -268,3 +269,17 @@ select * from t1;
 convert_tz(NULL, NULL, NULL)
 NULL
 drop table t1;
+create table t1 (ldt datetime, udt datetime);
+create function f1(i datetime) returns datetime
+return convert_tz(i, 'UTC', 'Europe/Moscow');
+create trigger t1_bi before insert on t1 for each row
+set new.udt:= convert_tz(new.ldt, 'Europe/Moscow', 'UTC');
+insert into t1 (ldt) values ('2006-04-19 16:30:00');
+select * from t1;
+ldt	udt
+2006-04-19 16:30:00	2006-04-19 12:30:00
+select ldt, f1(udt) as ldt2 from t1;
+ldt	ldt2
+2006-04-19 16:30:00	2006-04-19 16:30:00
+drop table t1;
+drop function f1;

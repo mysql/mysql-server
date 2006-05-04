@@ -4,11 +4,13 @@
 #
 --require r/have_udf.require
 disable_query_log;
-show variables like "have_dlopen";
+show variables like "have_dynamic_loading";
 enable_query_log;
 
 #
-# Check that the "udf_example.so" file has been created
+# Check if the variable UDF_EXAMPLE_LIB is set
 #
-
-# TODO
+--require r/have_udf_example.require
+disable_query_log;
+eval select LENGTH("$UDF_EXAMPLE_LIB") > 0 as "have_udf_example_lib";
+enable_query_log;

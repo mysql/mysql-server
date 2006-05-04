@@ -428,10 +428,6 @@ static uint read_ddl_log_header()
   bool successful_open= FALSE;
   DBUG_ENTER("read_ddl_log_header");
 
-  bzero(file_entry_buf, sizeof(global_ddl_log.file_entry_buf));
-  global_ddl_log.inited= FALSE;
-  global_ddl_log.recovery_phase= TRUE;
-  global_ddl_log.io_size= IO_SIZE;
   create_ddl_log_file_name(file_name);
   if ((global_ddl_log.file_id= my_open(file_name,
                                         O_RDWR | O_BINARY, MYF(MY_WME))) >= 0)
@@ -1068,6 +1064,15 @@ void execute_ddl_log_recovery()
   DBUG_ENTER("execute_ddl_log_recovery");
 
   /*
+    Initialise global_ddl_log struct
+  */
+  bzero(global_ddl_log.file_entry_buf, sizeof(global_ddl_log.file_entry_buf));
+  global_ddl_log.inited= FALSE;
+  global_ddl_log.recovery_phase= TRUE;
+  global_ddl_log.io_size= IO_SIZE;
+  global_ddl_log.file_id=(File)-1;
+
+  /*
     To be able to run this from boot, we allocate a temporary THD
   */
   if (!(thd=new THD))
@@ -1130,7 +1135,8 @@ void release_ddl_log()
     my_free((char*)free_list, MYF(0));
     free_list= tmp;
   }
-  VOID(my_close(global_ddl_log.file_id, MYF(0)));
+  if (global_ddl_log.file_id != (File)-1)
+    VOID(my_close(global_ddl_log.file_id, MYF(0)));
   pthread_mutex_unlock(&LOCK_gdl);
   VOID(pthread_mutex_destroy(&LOCK_gdl));
   DBUG_VOID_RETURN;
@@ -2184,7 +2190,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
         if (need_to_change_arena)
           thd->restore_active_arena(thd->stmt_arena, &backup_arena);
 
-        if (! sql_field->def)
+        if (sql_field->def == NULL)
         {
           /* Could not convert */
           my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
@@ -2195,15 +2201,30 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       if (sql_field->sql_type == FIELD_TYPE_SET)
       {
         uint32 field_length;
-        if (sql_field->def)
+        if (sql_field->def != NULL)
         {
           char *not_used;
           uint not_used2;
           bool not_found= 0;
           String str, *def= sql_field->def->val_str(&str);
-          def->length(cs->cset->lengthsp(cs, def->ptr(), def->length()));
-          (void) find_set(interval, def->ptr(), def->length(),
-                          cs, &not_used, &not_used2, &not_found);
+          if (def == NULL) /* SQL "NULL" maps to NULL */
+          {
+            if ((sql_field->flags & NOT_NULL_FLAG) != 0)
+            {
+              my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+              DBUG_RETURN(-1);
+            }
+
+            /* else, NULL is an allowed value */
+            (void) find_set(interval, NULL, 0,
+                            cs, &not_used, &not_used2, &not_found);
+          }
+          else /* not NULL */
+          {
+            (void) find_set(interval, def->ptr(), def->length(),
+                            cs, &not_used, &not_used2, &not_found);
+          }
+
           if (not_found)
           {
             my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
@@ -2216,14 +2237,28 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       else  /* FIELD_TYPE_ENUM */
       {
         uint32 field_length;
-        if (sql_field->def)
+        DBUG_ASSERT(sql_field->sql_type == FIELD_TYPE_ENUM);
+        if (sql_field->def != NULL)
         {
           String str, *def= sql_field->def->val_str(&str);
-          def->length(cs->cset->lengthsp(cs, def->ptr(), def->length()));
-          if (!find_type2(interval, def->ptr(), def->length(), cs))
+          if (def == NULL) /* SQL "NULL" maps to NULL */
           {
-            my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
-            DBUG_RETURN(-1);
+            if ((sql_field->flags & NOT_NULL_FLAG) != 0)
+            {
+              my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+              DBUG_RETURN(-1);
+            }
+
+            /* else, the defaults yield the correct length for NULLs. */
+          } 
+          else /* not NULL */
+          {
+            def->length(cs->cset->lengthsp(cs, def->ptr(), def->length()));
+            if (find_type2(interval, def->ptr(), def->length(), cs) == 0) /* not found */
+            {
+              my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+              DBUG_RETURN(-1);
+            }
           }
         }
         calculate_interval_lengths(cs, interval, &field_length, &dummy);
