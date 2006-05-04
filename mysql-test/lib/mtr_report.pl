@@ -157,6 +157,7 @@ sub mtr_report_stats ($) {
   my $tot_passed= 0;
   my $tot_failed= 0;
   my $tot_tests=  0;
+  my $found_problems= 0;            # Some warnings are errors...
 
   foreach my $tinfo (@$tests)
   {
@@ -214,8 +215,6 @@ sub mtr_report_stats ($) {
     }
     else
     {
-      my $found_problems= 0;            # Some warnings are errors...
-
       # We report different types of problems in order
       foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x" )
       {
@@ -266,6 +265,9 @@ sub mtr_report_stats ($) {
       }
     }
     print "\n";
+  }
+  if ( $tot_failed != 0 || $found_problems)
+  {
     mtr_error("there where failing test cases");
   }
 }
