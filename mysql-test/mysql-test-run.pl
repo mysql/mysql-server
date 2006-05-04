@@ -376,7 +376,6 @@ sub main () {
 
   check_ndbcluster_support(); # We check whether to actually use it later
   check_ssl_support();
-  check_running_as_root();
 
   environment_setup();
   signal_setup();
@@ -1661,6 +1660,7 @@ sub initialize_servers () {
 	save_installed_db();
       }
     }
+    check_running_as_root();
   }
 }
 
