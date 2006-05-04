@@ -3012,49 +3012,7 @@ static int init_server_components()
     unireg_abort(1);
   }
 
-  /* We have to initialize the storage engines before CSV logging */
-  if (ha_init())
-  {
-    sql_print_error("Can't init databases");
-    unireg_abort(1);
-  }
-
-#ifdef WITH_CSV_STORAGE_ENGINE
-  if (opt_bootstrap)
-    log_output_options= LOG_FILE;
-  else
-    logger.init_log_tables();
-
-  if (log_output_options & LOG_NONE)
-  {
-    /*
-      Issue a warining if there were specified additional options to the
-      log-output along with NONE. Probably this wasn't what user wanted.
-    */
-    if ((log_output_options & LOG_NONE) && (log_output_options & ~LOG_NONE))
-      sql_print_warning("There were other values specified to "
-                        "log-output besides NONE. Disabling slow "
-                        "and general logs anyway.");
-    logger.set_handlers(LOG_FILE, LOG_NONE, LOG_NONE);
-  }
-  else
-  {
-    /* fall back to the log files if tables are not present */
-    if (have_csv_db == SHOW_OPTION_NO)
-    {
-      sql_print_error("CSV engine is not present, falling back to the "
-                      "log files");
-      log_output_options= log_output_options & ~LOG_TABLE | LOG_FILE;
-    }
-
-    logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
-                        opt_log ? log_output_options:LOG_NONE);
-  }
-#else
-  logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
-                      opt_log ? LOG_FILE:LOG_NONE);
-#endif
-
+  /* need to configure logging before initializing storage engines */
   if (opt_update_log)
   {
     /*
@@ -3181,6 +3139,49 @@ server.");
     */
     using_update_log=1;
   }
+
+  /* We have to initialize the storage engines before CSV logging */
+  if (ha_init())
+  {
+    sql_print_error("Can't init databases");
+    unireg_abort(1);
+  }
+
+#ifdef WITH_CSV_STORAGE_ENGINE
+  if (opt_bootstrap)
+    log_output_options= LOG_FILE;
+  else
+    logger.init_log_tables();
+
+  if (log_output_options & LOG_NONE)
+  {
+    /*
+      Issue a warining if there were specified additional options to the
+      log-output along with NONE. Probably this wasn't what user wanted.
+    */
+    if ((log_output_options & LOG_NONE) && (log_output_options & ~LOG_NONE))
+      sql_print_warning("There were other values specified to "
+                        "log-output besides NONE. Disabling slow "
+                        "and general logs anyway.");
+    logger.set_handlers(LOG_FILE, LOG_NONE, LOG_NONE);
+  }
+  else
+  {
+    /* fall back to the log files if tables are not present */
+    if (have_csv_db == SHOW_OPTION_NO)
+    {
+      sql_print_error("CSV engine is not present, falling back to the "
+                      "log files");
+      log_output_options= log_output_options & ~LOG_TABLE | LOG_FILE;
+    }
+
+    logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
+                        opt_log ? log_output_options:LOG_NONE);
+  }
+#else
+  logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
+                      opt_log ? LOG_FILE:LOG_NONE);
+#endif
 
   /*
     Check that the default storage engine is actually available.
