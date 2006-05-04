@@ -320,16 +320,18 @@ buf_LRU_buf_pool_running_out(void)
 }
 
 /**********************************************************************
-Returns a free block from buf_pool. The block is taken off the free list.
-If it is empty, blocks are moved from the end of the LRU list to the free
-list. */
+Returns a free block from the buf_pool. The block is taken off the
+free list. If it is empty, blocks are moved from the end of the
+LRU list to the free list. */
 
 buf_block_t*
-buf_LRU_get_free_block(void)
-/*========================*/
+buf_LRU_get_free_block(
+/*===================*/
 				/* out: the free control block; also if AWE is
 				used, it is guaranteed that the block has its
 				page mapped to a frame when we return */
+	ulint	zip_size)	/* in: compressed page size in bytes,
+				or 0 if uncompressed tablespace */
 {
 	buf_block_t*	block		= NULL;
 	ibool		freed;
@@ -412,6 +414,20 @@ loop:
 				added to the awe_LRU_free_mapped list */
 
 				buf_awe_map_page_to_frame(block, FALSE);
+			}
+		}
+
+		if (block->page_zip.size != zip_size) {
+			block->page_zip.size = zip_size;
+			if (block->page_zip.data) {
+				ut_free(block->page_zip.data);
+			}
+
+			if (zip_size) {
+				/* TODO: allocate this from a separate pool */
+				block->page_zip.data = ut_malloc(zip_size);
+			} else {
+				block->page_zip.data = NULL;
 			}
 		}
 
@@ -832,6 +848,7 @@ buf_LRU_block_free_non_file_page(
 #ifdef UNIV_DEBUG
 	/* Wipe contents of page to reveal possible stale pointers to it */
 	memset(block->frame, '\0', UNIV_PAGE_SIZE);
+	memset(block->page_zip.data, 0xff, block->page_zip.size);
 #endif
 	UT_LIST_ADD_FIRST(free, buf_pool->free, block);
 	block->in_free_list = TRUE;

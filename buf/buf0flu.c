@@ -468,7 +468,7 @@ buf_flush_init_for_writing(
 			mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 			mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
 					srv_use_checksums
-					? buf_calc_zblob_page_checksum(
+					? page_zip_calc_checksum(
 							page, zip_size)
 					: BUF_NO_CHECKSUM_MAGIC);
 			return;
