@@ -1344,7 +1344,7 @@ sub kill_and_cleanup () {
 sub  check_running_as_root () {
   # Check if running as root
   # i.e a file can be read regardless what mode we set it to
-  my $test_file= "test_running_as_root.txt";
+  my $test_file= "$opt_vardir/test_running_as_root.txt";
   mtr_tofile($test_file, "MySQL");
   chmod(oct("0000"), $test_file);
 
