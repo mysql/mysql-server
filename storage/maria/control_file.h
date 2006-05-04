@@ -6,8 +6,8 @@
 
 /* Here is the interface of this module */
 
-LSN last_checkpoint_lsn_at_startup;
-char *last_log_name_at_startup;
+extern LSN last_checkpoint_lsn_at_startup;
+extern char *last_log_name_at_startup;
 
 /*
   Looks for the control file. If absent, it's a fresh start, create file.

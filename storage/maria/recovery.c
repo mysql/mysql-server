@@ -183,7 +183,8 @@ int recovery()
   /*
     Launch one or more threads to do the background rollback. Don't wait for
     them to complete their rollback (background rollback; for debugging, we
-    can have an option which waits).
+    can have an option which waits). Set a counter (total_of_rollback_threads)
+    to the number of threads to lauch.
 
     Note that InnoDB's rollback-in-background works as long as InnoDB is the
     last engine to recover, otherwise MySQL will refuse new connections until
@@ -221,4 +222,20 @@ pthread_handler_decl rollback_background_thread()
     }
     /* remove trans from list */
   }
+  lock_mutex(rollback_threads); /* or atomic counter */
+  if (--total_of_rollback_threads == 0)
+  {
+    /*
+      All rollback threads are done.  Print "rollback finished" to the error
+      log.  The UNDO phase has the reputation of being a slow operation
+      (slower than the REDO phase), so taking a checkpoint at the end of it is
+      intelligent, but as this UNDO phase generates REDOs and CLR_ENDs, if it
+      did a lot of work then the "automatic checkpoint when much has been
+      written to the log" will do it; and if the UNDO phase didn't do a lot of
+      work, no need for a checkpoint. If we change our mind and want to force
+      a checkpoint at the end of the UNDO phase, simply call it here.
+    */
+  }
+  unlock_mutex(rollback_threads);
+  pthread_exit();
 }
