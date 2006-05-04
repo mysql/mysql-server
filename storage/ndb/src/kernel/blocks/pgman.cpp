@@ -1330,6 +1330,24 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
   state |= Page_entry::MAPPED;
   set_page_state(ptr, state);
 
+  {
+    /**
+     * Update lsn record on page
+     *   as it can be modified/flushed wo/ update_lsn has been called
+     *   (e.g. prealloc) and it then would get lsn 0, which is bad
+     *   when running undo and following SR
+     */
+    Ptr<GlobalPage> pagePtr;
+    m_global_page_pool.getPtr(pagePtr, ptr.p->m_real_page_i);
+    File_formats::Datafile::Data_page* page =
+      (File_formats::Datafile::Data_page*)pagePtr.p;
+    
+    Uint64 lsn = 0;
+    lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
+    lsn += page->m_page_header.m_page_lsn_lo;
+    ptr.p->m_lsn = lsn;
+  }
+  
   ndbrequire(m_stats.m_current_io_waits > 0);
   m_stats.m_current_io_waits--;
 
