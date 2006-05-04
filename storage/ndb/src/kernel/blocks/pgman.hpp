@@ -256,12 +256,18 @@ private:
       ,DIRTY_REQ    = 0x0200 // make page dirty wo/ update_lsn
       ,UNLOCK_PAGE  = 0x0400
       ,CORR_REQ     = 0x0800 // correlated request (no LIRS update)
+#ifdef ERROR_INSERT
+      ,DELAY_REQ    = 0x1000 // Force request to be delayed
+#endif
     };
-
+    
     Uint16 m_block;
     Uint16 m_flags;
     SimulatedBlock::Callback m_callback;
 
+#ifdef ERROR_INSERT
+    Uint64 m_delay_until_time;
+#endif
     Uint32 nextList;
     Uint32 m_magic;
   };
@@ -508,6 +514,10 @@ public:
   struct Request {
     Local_key m_page;
     SimulatedBlock::Callback m_callback;
+    
+#ifdef ERROR_INSERT
+    Uint64 m_delay_until_time;
+#endif
   };
 
   Ptr<GlobalPage> m_ptr;        // TODO remove
@@ -520,6 +530,9 @@ public:
     ,DIRTY_REQ = Pgman::Page_request::DIRTY_REQ
     ,UNLOCK_PAGE = Pgman::Page_request::UNLOCK_PAGE
     ,CORR_REQ = Pgman::Page_request::CORR_REQ
+#ifdef ERROR_INSERT
+    ,DELAY_REQ = Pgman::Page_request::DELAY_REQ
+#endif
   };
   
   /**
@@ -588,7 +601,10 @@ Page_cache_client::get_page(Signal* signal, Request& req, Uint32 flags)
   page_req.m_block = m_block;
   page_req.m_flags = flags;
   page_req.m_callback = req.m_callback;
-
+#ifdef ERROR_INSERT
+  page_req.m_delay_until_time = req.m_delay_until_time;
+#endif
+  
   int i = m_pgman->get_page(signal, entry_ptr, page_req);
   if (i > 0)
   {
