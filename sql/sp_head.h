@@ -520,7 +520,10 @@ public:
   virtual ~sp_lex_keeper()
   {
     if (m_lex_resp)
+    {
+      lex_end(m_lex);
       delete m_lex;
+    }
   }
 
   /*
