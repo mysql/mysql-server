@@ -536,7 +536,7 @@ typedef unsigned short ushort;
 
 /*
   Wen using the embedded library, users might run into link problems,
-  dupicate declaration of __cxa_pure_virtual, solved by declaring it a
+  duplicate declaration of __cxa_pure_virtual, solved by declaring it a
   weak symbol.
 */
 #ifdef USE_MYSYS_NEW

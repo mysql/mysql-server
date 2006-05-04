@@ -264,7 +264,7 @@ done
 # test if Ndb Cluster starts properly
 
 if [ `expr $VERBOSE \> 1` = 1 ] ; then
-  echo "Waiting for started..."
+  echo "Waiting for NDB data nodes to start..."
 fi
 if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK" > /dev/null 2>&1 ; then :; else
   if [ `expr $VERBOSE \> 0` = 1 ] ; then

@@ -22,18 +22,24 @@
 #include "mysql_priv.h"
 #include "ha_blackhole.h"
 
+#include <mysql/plugin.h>
+
 /* Static declarations for handlerton */
 
 static handler *blackhole_create_handler(TABLE_SHARE *table);
 
 
+static const char blackhole_hton_name[]= "BLACKHOLE";
+static const char blackhole_hton_comment[]=
+  "/dev/null storage engine (anything you write to it disappears)";
+
 /* Blackhole storage engine handlerton */
 
 handlerton blackhole_hton= {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "BLACKHOLE",
+  blackhole_hton_name,
   SHOW_OPTION_YES,
-  "/dev/null storage engine (anything you write to it disappears)",
+  blackhole_hton_comment,
   DB_TYPE_BLACKHOLE_DB,
   NULL,
   0,       /* slot */
@@ -250,3 +256,15 @@ int ha_blackhole::index_last(byte * buf)
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
+mysql_declare_plugin(blackhole)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &blackhole_hton,
+  blackhole_hton_name,
+  "MySQL AB",
+  blackhole_hton_comment,
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;

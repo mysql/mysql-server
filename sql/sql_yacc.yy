@@ -8038,7 +8038,7 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_OPEN_TABLES))
               YYABORT;
 	  }
-        | PLUGIN_SYM
+        | opt_full PLUGIN_SYM
 	  {
 	    LEX *lex= Lex;
 	    WARN_DEPRECATED(yythd, "5.2", "SHOW PLUGIN", "'SHOW PLUGINS'");

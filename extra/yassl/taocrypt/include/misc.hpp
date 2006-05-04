@@ -24,9 +24,15 @@
 #ifndef TAO_CRYPT_MISC_HPP
 #define TAO_CRYPT_MISC_HPP
 
-#include <stdlib.h>
-#include <assert.h>
-#include <string.h>
+
+#if !defined(DO_TAOCRYPT_KERNEL_MODE)
+    #include <stdlib.h>
+    #include <assert.h>
+    #include <string.h>
+#else
+    #include "kernelc.hpp"
+#endif
+
 #include "types.hpp"
 #include "type_traits.hpp"
 
@@ -39,31 +45,33 @@ namespace TaoCrypt {
 void CleanUp();
 
 
-// library allocation
-struct new_t {};      // TaoCrypt New type
-extern new_t tc;      // pass in parameter
+#ifdef YASSL_PURE_C
 
-} // namespace TaoCrypt
+    // library allocation
+    struct new_t {};      // TaoCrypt New type
+    extern new_t tc;      // pass in parameter
 
-void* operator new  (size_t, TaoCrypt::new_t);
-void* operator new[](size_t, TaoCrypt::new_t);
+    } // namespace TaoCrypt
 
-void operator delete  (void*, TaoCrypt::new_t);
-void operator delete[](void*, TaoCrypt::new_t);
+    void* operator new  (size_t, TaoCrypt::new_t);
+    void* operator new[](size_t, TaoCrypt::new_t);
+
+    void operator delete  (void*, TaoCrypt::new_t);
+    void operator delete[](void*, TaoCrypt::new_t);
 
 
-namespace TaoCrypt {
+    namespace TaoCrypt {
 
-template<typename T>
-void tcDelete(T* ptr)
-{
+    template<typename T>
+    void tcDelete(T* ptr)
+    {
     if (ptr) ptr->~T();
     ::operator delete(ptr, TaoCrypt::tc);
-}
+    }
 
-template<typename T>
-void tcArrayDelete(T* ptr)
-{
+    template<typename T>
+    void tcArrayDelete(T* ptr)
+    {
     // can't do array placement destruction since not tracking size in
     // allocation, only allow builtins to use array placement since they
     // don't need destructors called
@@ -71,15 +79,39 @@ void tcArrayDelete(T* ptr)
     (void)sizeof(builtin);
 
     ::operator delete[](ptr, TaoCrypt::tc);
-}
+    }
+
+    #define NEW_TC new (TaoCrypt::tc)
 
 
-// to resolve compiler generated operator delete on base classes with
-// virtual destructors (when on stack), make sure doesn't get called
-class virtual_base {
-public:
+    // to resolve compiler generated operator delete on base classes with
+    // virtual destructors (when on stack), make sure doesn't get called
+    class virtual_base {
+    public:
     static void operator delete(void*) { assert(0); }
-};
+    };
+
+#else // YASSL_PURE_C
+
+
+    template<typename T>
+    void tcDelete(T* ptr)
+    {
+        delete ptr;
+    }
+
+    template<typename T>
+    void tcArrayDelete(T* ptr)
+    {
+        delete[] ptr;
+    }
+
+    #define NEW_TC new
+
+    class virtual_base {};
+   
+ 
+#endif // YASSL_PURE_C
 
 
 #if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
@@ -100,20 +132,32 @@ public:
     #define TAOCRYPT_DISABLE_X86ASM
 #endif
 
-
-// Disable assmebler when compiling with icc
-// Temporary workaround for bug12717
+// icc problem with -03 and integer, disable for now
 #if defined(__INTEL_COMPILER)
     #define TAOCRYPT_DISABLE_X86ASM
 #endif
 
 
-
+// Turn on ia32 ASM for Big Integer
 // CodeWarrior defines _MSC_VER
 #if !defined(TAOCRYPT_DISABLE_X86ASM) && ((defined(_MSC_VER) && \
    !defined(__MWERKS__) && defined(_M_IX86)) || \
    (defined(__GNUC__) && defined(__i386__)))
     #define TAOCRYPT_X86ASM_AVAILABLE
+#endif
+
+
+// Turn on ia32 ASM for Ciphers and Message Digests
+// Seperate define since these are more complex, use member offsets
+// and user may want to turn off while leaving Big Integer optos on 
+#if defined(TAOCRYPT_X86ASM_AVAILABLE) && !defined(DISABLE_TAO_ASM)
+    #define TAO_ASM
+#endif
+
+
+//  Extra word in older vtable implementations, for ASM member offset
+#if defined(__GNUC__) && __GNUC__ < 3
+    #define OLD_GCC_OFFSET
 #endif
 
 
@@ -435,6 +479,58 @@ inline void ByteReverseIf(T* out, const T* in, word32 bc, ByteOrder order)
     else if (out != in)
         memcpy(out, in, bc);
 }
+
+
+
+// do Asm Reverse is host is Little and x86asm 
+#ifdef LITTLE_ENDIAN_ORDER
+    #ifdef TAOCRYPT_X86ASM_AVAILABLE
+        #define LittleReverse AsmReverse
+    #else
+        #define LittleReverse ByteReverse
+    #endif
+#else
+    #define LittleReverse
+#endif
+
+
+// do Asm Reverse is host is Big and x86asm 
+#ifdef BIG_ENDIAN_ORDER
+    #ifdef TAOCRYPT_X86ASM_AVAILABLE
+        #define BigReverse AsmReverse
+    #else
+        #define BigReverse ByteReverse
+    #endif
+#else
+    #define BigReverse
+#endif
+
+
+#ifdef TAOCRYPT_X86ASM_AVAILABLE
+
+    // faster than rotate, use bswap
+
+    inline word32 AsmReverse(word32 wd)
+    {
+    #ifdef __GNUC__
+        __asm__ 
+        (
+            "bswap %1"
+            : "=r"(wd)
+            : "0"(wd)
+        );
+    #else
+        __asm 
+        {
+            mov   eax, wd
+            bswap eax
+            mov   wd, eax
+        }
+    #endif
+        return wd;
+    }
+
+#endif 
 
 
 template <class T>
