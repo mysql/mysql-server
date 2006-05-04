@@ -483,6 +483,14 @@ Dbtup::load_diskpage(Signal* signal,
     req.m_callback.m_callbackData= opRec;
     req.m_callback.m_callbackFunction= 
       safe_cast(&Dbtup::disk_page_load_callback);
+
+#ifdef ERROR_INSERTED
+    if (ERROR_INSERTED(4022))
+    {
+      flags |= Page_cache_client::DELAY_REQ;
+      req.m_delay_until_time = NdbTick_CurrentMillisecond()+(Uint64)3000;
+    }
+#endif
     
     if((res= m_pgman.get_page(signal, req, flags)) > 0)
     {
@@ -3119,6 +3127,35 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     preq.m_callback.m_callbackFunction =
       safe_cast(&Dbtup::nr_delete_page_callback);
     int flags = Page_cache_client::COMMIT_REQ;
+    
+#ifdef ERROR_INSERT
+    if (ERROR_INSERTED(4023) || ERROR_INSERTED(4024))
+    {
+      int rnd = rand() % 100;
+      int slp = 0;
+      if (ERROR_INSERTED(4024))
+      {
+	slp = 3000;
+      }
+      else if (rnd > 90)
+      {
+	slp = 3000;
+      }
+      else if (rnd > 70)
+      {
+	slp = 100;
+      }
+      
+      ndbout_c("rnd: %d slp: %d", rnd, slp);
+      
+      if (slp)
+      {
+	flags |= Page_cache_client::DELAY_REQ;
+	preq.m_delay_until_time = NdbTick_CurrentMillisecond()+(Uint64)slp;
+      }
+    }
+#endif
+    
     res = m_pgman.get_page(signal, preq, flags);
     if (res == 0)
     {
