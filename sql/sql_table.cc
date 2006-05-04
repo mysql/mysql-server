@@ -1706,7 +1706,9 @@ mysql_rename_table(enum db_type base,
     }
   }
   delete file;
-  if (error)
+  if (error == HA_ERR_WRONG_COMMAND)
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
+  else if (error)
     my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
   DBUG_RETURN(error != 0);
 }
@@ -2193,10 +2195,15 @@ send_result_message:
       table->table->version=0;			// Force close of table
     else if (open_for_modify)
     {
-      pthread_mutex_lock(&LOCK_open);
-      remove_table_from_cache(thd, table->table->table_cache_key,
-			      table->table->real_name, RTFC_NO_FLAG);
-      pthread_mutex_unlock(&LOCK_open);
+      if (table->table->tmp_table)
+        table->table->file->info(HA_STATUS_CONST);
+      else
+      {
+        pthread_mutex_lock(&LOCK_open);
+        remove_table_from_cache(thd, table->table->table_cache_key,
+                                table->table->real_name, RTFC_NO_FLAG);
+        pthread_mutex_unlock(&LOCK_open);
+      }
       /* May be something modified consequently we have to invalidate cache */
       query_cache_invalidate3(thd, table->table, 0);
     }
