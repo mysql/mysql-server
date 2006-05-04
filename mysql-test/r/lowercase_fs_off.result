@@ -1,0 +1,11 @@
+create database d1;
+grant all on d1.* to 'sample'@'localhost' identified by 'password';
+flush privileges;
+select database();
+database()
+d1
+create database d2;
+ERROR 42000: Access denied for user 'sample'@'localhost' to database 'd2'
+create database D1;
+ERROR 42000: Access denied for user 'sample'@'localhost' to database 'D1'
+drop database if exists d1;
