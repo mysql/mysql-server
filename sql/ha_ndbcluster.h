@@ -720,8 +720,6 @@ private:
                    NDB_INDEX_TYPE idx_type, uint idx_no);
 // Index list management
   int create_indexes(Ndb *ndb, TABLE *tab);
-  void clear_index(int i);
-  void clear_indexes();
   int open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error);
   void renumber_indexes(Ndb *ndb, TABLE *tab);
   int drop_indexes(Ndb *ndb, TABLE *tab);
