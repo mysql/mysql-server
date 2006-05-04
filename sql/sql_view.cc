@@ -943,7 +943,6 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
         goto err;
     }
 
-
     if (!(table->view_tables=
           (List<TABLE_LIST>*) new(thd->mem_root) List<TABLE_LIST>))
       goto err;
@@ -1194,6 +1193,7 @@ ok2:
     old_lex->time_zone_tables_used= thd->lex->time_zone_tables_used;
   result= !table->prelocking_placeholder && table->prepare_security(thd);
 
+  lex_end(thd->lex);
 end:
   if (arena)
     thd->restore_active_arena(arena, &backup);
@@ -1202,6 +1202,8 @@ end:
   DBUG_RETURN(result);
 
 err:
+  DBUG_ASSERT(thd->lex == table->view);
+  lex_end(thd->lex);
   delete table->view;
   table->view= 0;	// now it is not VIEW placeholder
   result= 1;
