@@ -191,8 +191,11 @@ void lex_start(THD *thd, uchar *buf,uint length)
 
 void lex_end(LEX *lex)
 {
+  DBUG_ENTER("lex_end");
+  DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
   x_free(lex->yacc_yyss);
   x_free(lex->yacc_yyvs);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1626,7 +1629,8 @@ void st_select_lex::print_limit(THD *thd, String *str)
 */
 
 st_lex::st_lex()
-  :result(0), sql_command(SQLCOM_END), query_tables_own_last(0)
+  :result(0), yacc_yyss(0), yacc_yyvs(0),
+   sql_command(SQLCOM_END), query_tables_own_last(0)
 {
   hash_init(&sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
   sroutines_list.empty();
