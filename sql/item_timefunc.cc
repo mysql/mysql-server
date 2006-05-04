@@ -609,7 +609,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	break;
       case 'l':
 	days_i= l_time->hour/24;
-	hours_i= (l_time->hour%24 + 11)%12+1 + 24*days_i;
+	hours_i= (l_time->hour%24 + 11)%12+1;
 	length= int10_to_str(hours_i, intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 1, '0');
 	break;
@@ -620,7 +620,8 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
       case 'r':
 	length= my_sprintf(intbuff, 
 		   (intbuff, 
-		    (l_time->hour < 12) ? "%02d:%02d:%02d AM" : "%02d:%02d:%02d PM",
+		    ((l_time->hour % 24) < 12) ?
+                    "%02d:%02d:%02d AM" : "%02d:%02d:%02d PM",
 		    (l_time->hour+11)%12+1,
 		    l_time->minute,
 		    l_time->second));
