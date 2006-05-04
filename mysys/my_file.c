@@ -107,7 +107,10 @@ uint my_set_max_open_files(uint files)
     DBUG_RETURN(MY_NFILE);
 
   /* Copy any initialized files */
-  memcpy((char*) tmp, (char*) my_file_info, sizeof(*tmp) * my_file_limit);
+  memcpy((char*) tmp, (char*) my_file_info,
+         sizeof(*tmp) * min(my_file_limit, files));
+  bzero((char*) (tmp + my_file_limit),
+        max((int) (files- my_file_limit), 0)*sizeof(*tmp));
   my_free_open_file_info();			/* Free if already allocated */
   my_file_info= tmp;
   my_file_limit= files;
@@ -121,8 +124,12 @@ void my_free_open_file_info()
   DBUG_ENTER("my_free_file_info");
   if (my_file_info != my_file_info_default)
   {
+    /* Copy data back for my_print_open_files */
+    memcpy((char*) my_file_info_default, my_file_info,
+           sizeof(*my_file_info_default)* MY_NFILE);
     my_free((char*) my_file_info, MYF(0));
     my_file_info= my_file_info_default;
+    my_file_limit= MY_NFILE;
   }
   DBUG_VOID_RETURN;
 }
