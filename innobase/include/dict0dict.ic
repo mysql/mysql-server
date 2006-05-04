@@ -93,7 +93,6 @@ dict_table_get_n_user_cols(
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-	ut_ad(table->cached);
 	
 	return(table->n_cols - DATA_N_SYS_COLS);
 }
@@ -127,7 +126,6 @@ dict_table_get_n_cols(
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-	ut_ad(table->cached);
 	
 	return(table->n_cols);
 }

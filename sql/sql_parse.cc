@@ -906,13 +906,20 @@ static int check_connection(THD *thd)
     *passwd++ : strlen(passwd);
   db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
     db + passwd_len + 1 : 0;
+  uint db_len= db ? strlen(db) : 0;
+
+  if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
+  {
+    inc_host_errors(&thd->remote.sin_addr);
+    return ER_HANDSHAKE_ERROR;
+  }
 
   /* Since 4.1 all database names are stored in utf8 */
   if (db)
   {
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info,
-                             db, strlen(db),
+                             db, db_len,
                              thd->charset(), &dummy_errors)]= 0;
     db= db_buff;
   }
@@ -1379,7 +1386,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     char *db, *tbl_name;
     uint db_len= *(uchar*) packet;
+    if (db_len >= packet_length || db_len > NAME_LEN)
+    {
+      send_error(thd, ER_UNKNOWN_COM_ERROR);
+      break;
+    }
     uint tbl_len= *(uchar*) (packet + db_len + 1);
+    if (db_len+tbl_len+2 > packet_length || tbl_len > NAME_LEN)
+    {
+      send_error(thd, ER_UNKNOWN_COM_ERROR);
+      break;
+    }
 
     statistic_increment(com_other, &LOCK_status);
     thd->enable_slow_log= opt_log_slow_admin_statements;

@@ -45,6 +45,7 @@ struct Opt {
   bool m_dbg;
   bool m_dbgall;
   const char* m_dbug;
+  bool m_fac;
   bool m_full;
   unsigned m_loop;
   unsigned m_parts;
@@ -73,6 +74,7 @@ struct Opt {
     m_dbg(false),
     m_dbgall(false),
     m_dbug(0),
+    m_fac(false),
     m_full(false),
     m_loop(1),
     m_parts(10),
@@ -111,6 +113,7 @@ printusage()
     << "  -dbg        print debug" << endl
     << "  -dbgall     print also NDB API debug (if compiled in)" << endl
     << "  -dbug opt   dbug options" << endl
+    << "  -fac        fetch across commit in scan delete [" << d.m_fac << "]" << endl
     << "  -full       read/write only full blob values" << endl
     << "  -loop N     loop N times 0=forever [" << d.m_loop << "]" << endl
     << "  -parts N    max parts in blob value [" << d.m_parts << "]" << endl
@@ -1260,23 +1263,11 @@ deleteScan(bool idx)
       CHK((ret = rs->nextResult(false)) == 0 || ret == 1 || ret == 2);
       if (++n == g_opt.m_batch || ret == 2) {
         DBG("execute batch: n=" << n << " ret=" << ret);
-        switch (0) {
-        case 0: // works normally
+        if (! g_opt.m_fac) {
           CHK(g_con->execute(NoCommit) == 0);
-          CHK(true || g_con->restart() == 0);
-          break;
-        case 1: // nonsense - g_con is invalid for 2nd batch
-          CHK(g_con->execute(Commit) == 0);
-          CHK(true || g_con->restart() == 0);
-          break;
-        case 2: // DBTC sendSignalErrorRefuseLab
-          CHK(g_con->execute(NoCommit) == 0);
-          CHK(g_con->restart() == 0);
-          break;
-        case 3: // 266 time-out
+        } else {
           CHK(g_con->execute(Commit) == 0);
           CHK(g_con->restart() == 0);
-          break;
         }
         n = 0;
       }
@@ -1823,6 +1814,10 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
         g_opt.m_dbug = strdup(argv[0]);
 	continue;
       }
+    }
+    if (strcmp(arg, "-fac") == 0) {
+      g_opt.m_fac = true;
+      continue;
     }
     if (strcmp(arg, "-full") == 0) {
       g_opt.m_full = true;
