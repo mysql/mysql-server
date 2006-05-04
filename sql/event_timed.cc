@@ -19,10 +19,6 @@
 #include "event.h"
 #include "sp.h"
 
-
-
-extern int MYSQLparse(void *thd);
-
 /*
   Init all member variables
 

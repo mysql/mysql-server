@@ -4898,10 +4898,7 @@ ER_WARN_NULL_TO_NOTNULL 22004
 	por "Dado truncado, NULL fornecido para NOT NULL coluna '%s' na linha %ld"
 	spa "Datos truncado, NULL suministrado para NOT NULL columna '%s' en la línea %ld"
 ER_WARN_DATA_OUT_OF_RANGE 22003 
-	eng "Out of range value adjusted for column '%s' at row %ld"
-	ger "Daten abgeschnitten, außerhalb des Wertebereichs für Feld '%s' in Zeile %ld"
-	por "Dado truncado, fora de alcance para coluna '%s' na linha %ld"
-	spa "Datos truncados, fuera de gama para columna '%s' en la línea %ld"
+	eng "Out of range value for column '%s' at row %ld"
 WARN_DATA_TRUNCATED 01000 
 	eng "Data truncated for column '%s' at row %ld"
 	ger "Daten abgeschnitten für Feld '%s' in Zeile %ld"
@@ -5619,11 +5616,8 @@ ER_NON_GROUPING_FIELD_USED 42000
 	eng "non-grouping field '%-.64s' is used in %-.64s clause"
 ER_TABLE_CANT_HANDLE_SPKEYS
         eng "The used table type doesn't support SPATIAL indexes"
-ER_WARN_DEPRECATED_SYNTAX  
-        eng  "The syntax '%s' is deprecated and will be removed in MySQL %s. Please use %s instead."
-	ger "'%s' ist veraltet. Bitte benutzen Sie '%s'"
-	por "'%s' é desatualizado. Use '%s' em seu lugar"
-	spa "'%s' está desaprobado, use '%s' en su lugar"
+ER_ILLEGAL_HA_CREATE_OPTION
+        eng "Table storage engine '%-.64s' does not support the create option '%.64s'"
 ER_PARTITION_REQUIRES_VALUES_ERROR
         eng "%-.64s PARTITIONING requires definition of VALUES %-.64s for each partition"
         swe "%-.64s PARTITIONering kräver definition av VALUES %-.64s för varje partition"
@@ -5820,6 +5814,8 @@ ER_EVENT_DATA_TOO_LONG
 ER_DROP_INDEX_FK
         eng "Cannot drop index '%-.64s': needed in a foreign key constraint"
         ger "Kann Index '%-.64s' nicht löschen: wird für einen Fremdschlüssel benötigt"
+ER_WARN_DEPRECATED_SYNTAX  
+        eng  "The syntax '%s' is deprecated and will be removed in MySQL %s. Please use %s instead."
 ER_CANT_WRITE_LOCK_LOG_TABLE
         eng "You can't write-lock a log table. Only read access is possible."
 ER_CANT_READ_LOCK_LOG_TABLE
@@ -5844,7 +5840,5 @@ ER_NULL_IN_VALUES_LESS_THAN
 ER_WRONG_PARTITION_NAME
         eng "Incorrect partition name"
         swe "Felaktigt partitionsnamn"
-ER_ILLEGAL_HA_CREATE_OPTION
-        eng "Table storage engine '%-.64s' does not support the create option '%.64s'"
 ER_CANT_CHANGE_TX_ISOLATION 25001
 	eng "Transaction isolation level can't be changed while a transaction is in progress"

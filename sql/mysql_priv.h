@@ -92,7 +92,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
   do {                                                                    \
     DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) >= 0);  \
     push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,       \
-                        ER_WARN_DEPRECATED, ER(ER_WARN_DEPRECATED),       \
+                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),       \
                         (Old), (Ver), (New));                             \
   } while(0)
 
