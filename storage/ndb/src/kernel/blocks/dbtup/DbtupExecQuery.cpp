@@ -484,7 +484,7 @@ Dbtup::load_diskpage(Signal* signal,
     req.m_callback.m_callbackFunction= 
       safe_cast(&Dbtup::disk_page_load_callback);
 
-#ifdef ERROR_INSERTED
+#ifdef ERROR_INSERT
     if (ERROR_INSERTED(4022))
     {
       flags |= Page_cache_client::DELAY_REQ;
