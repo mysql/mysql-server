@@ -2057,7 +2057,7 @@ page_zip_write_rec(
 					page_zip, rec, index);
 			byte*	ext_end = externs - page_zip->n_blobs
 					* BTR_EXTERN_FIELD_REF_SIZE;
-			ut_ad(blob_no < page_zip->n_blobs);
+			ut_ad(blob_no <= page_zip->n_blobs);
 			externs -= blob_no * BTR_EXTERN_FIELD_REF_SIZE;
 
 			if (create) {

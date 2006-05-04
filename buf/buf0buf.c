@@ -232,21 +232,6 @@ ibool		buf_debug_prints = FALSE; /* If this is set TRUE,
 					the program prints info whenever
 					read-ahead or flush occurs */
 #endif /* UNIV_DEBUG */
-/************************************************************************
-Calculates a compressed BLOB page checksum which is stored to the page
-when it is written to a file. Note that we must be careful to calculate
-the same value on 32-bit and 64-bit architectures. */
-
-ulint
-buf_calc_zblob_page_checksum(
-/*=========================*/
-					/* out: checksum */
-	const byte*	page,		/* in: compressed BLOB page */
-	ulint		zip_size)	/* in: size of the page, in bytes */
-{
-	return(ut_fold_binary(page + FIL_PAGE_OFFSET,
-			zip_size - FIL_PAGE_OFFSET) & 0xFFFFFFFFUL);
-}
 
 /************************************************************************
 Calculates a page checksum which is stored to the page when it is written
@@ -365,8 +350,7 @@ buf_page_is_corrupted(
 		if (UNIV_UNLIKELY(zip_size)) {
 			return(checksum_field != BUF_NO_CHECKSUM_MAGIC
 				&& checksum_field
-				!= buf_calc_zblob_page_checksum(
-						read_buf, zip_size));
+				!= page_zip_calc_checksum(read_buf, zip_size));
 		}
 
 		old_checksum_field = mach_read_from_4(read_buf + UNIV_PAGE_SIZE
@@ -435,7 +419,7 @@ buf_page_print(
 		switch (fil_page_get_type(read_buf)) {
 		case FIL_PAGE_TYPE_ZBLOB:
 			checksum = srv_use_checksums
-					? buf_calc_zblob_page_checksum(
+					? page_zip_calc_checksum(
 							read_buf, zip_size)
 					: BUF_NO_CHECKSUM_MAGIC;
 			ut_print_timestamp(stderr);
@@ -946,15 +930,17 @@ buf_awe_map_page_to_frame(
 Allocates a buffer block. */
 UNIV_INLINE
 buf_block_t*
-buf_block_alloc(void)
-/*=================*/
+buf_block_alloc(
+/*============*/
 				/* out, own: the allocated block; also if AWE
 				is used it is guaranteed that the page is
 				mapped to a frame */
+	ulint	zip_size)	/* in: compressed page size in bytes,
+				or 0 if uncompressed tablespace */
 {
 	buf_block_t*	block;
 
-	block = buf_LRU_get_free_block();
+	block = buf_LRU_get_free_block(zip_size);
 
 	return(block);
 }
@@ -1026,7 +1012,7 @@ buf_frame_alloc(void)
 /*=================*/
 				/* out: buffer frame */
 {
-	return(buf_block_alloc()->frame);
+	return(buf_block_alloc(0)->frame);
 }
 
 /*************************************************************************
@@ -1683,15 +1669,12 @@ buf_page_init(
 	ulint		space,	/* in: space id */
 	ulint		offset,	/* in: offset of the page within space
 				in units of a page */
-	ulint		zip_size,/* in: compressed page size in bytes,
-				or 0 if uncompressed tablespace */
 	buf_block_t*	block)	/* in: block to init */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(block->state != BUF_BLOCK_FILE_PAGE);
-	ut_a(space || !zip_size);
 
 	/* Set the state of the block */
 	block->magic_n		= BUF_BLOCK_MAGIC_N;
@@ -1705,14 +1688,6 @@ buf_page_init(
 
 	block->lock_hash_val	= lock_rec_hash(space, offset);
 	block->lock_mutex	= NULL;
-
-	block->page_zip.size	= zip_size;
-	if (UNIV_UNLIKELY(zip_size)) {
-		/* TODO: allocate this from a separate pool */
-		block->page_zip.data = ut_malloc(zip_size);
-	} else {
-		block->page_zip.data = NULL;
-	}
 
 	/* Insert into the hash table of file pages */
 
@@ -1801,7 +1776,7 @@ buf_page_init_for_read(
 		ut_ad(mode == BUF_READ_ANY_PAGE);
 	}
 
-	block = buf_block_alloc();
+	block = buf_block_alloc(zip_size);
 
 	ut_a(block);
 
@@ -1831,7 +1806,7 @@ buf_page_init_for_read(
 
 	ut_ad(block);
 
-	buf_page_init(space, offset, zip_size, block);
+	buf_page_init(space, offset, block);
 
 	/* The block must be put to the LRU list, to the old blocks */
 
@@ -1882,7 +1857,7 @@ buf_page_create(
 	ut_ad(mtr);
 	ut_ad(space || !zip_size);
 
-	free_block = buf_LRU_get_free_block();
+	free_block = buf_LRU_get_free_block(zip_size);
 
 	mutex_enter(&(buf_pool->mutex));
 
@@ -1915,7 +1890,7 @@ buf_page_create(
 
 	block = free_block;
 
-	buf_page_init(space, offset, zip_size, block);
+	buf_page_init(space, offset, block);
 
 	/* The block must be put to the LRU list */
 	buf_LRU_add_block(block, FALSE);
@@ -1987,20 +1962,34 @@ buf_page_io_complete(
 	io_type = block->io_fix;
 
 	if (io_type == BUF_IO_READ) {
+		if (block->page_zip.size) {
+			ut_a(block->space);
+
+			switch (fil_page_get_type(block->page_zip.data)) {
+			case FIL_PAGE_INDEX:
+			case FIL_PAGE_TYPE_ZBLOB:
+				/* TODO: checksum, but do not decompress */
+				break;
+			default:
+				/* TODO: how to distinguish uncompressed
+				and compressed pages? */
+				break;
+			}
+		}
+
 		/* If this page is not uninitialized and not in the
 		doublewrite buffer, then the page number should be the
 		same as in block */
 
 		read_page_no = mach_read_from_4((block->frame)
 						+ FIL_PAGE_OFFSET);
-		if (read_page_no != 0
-			&& !trx_doublewrite_page_inside(read_page_no)
-			&& read_page_no != block->offset) {
+		if (read_page_no && read_page_no != block->offset) {
 
 			fprintf(stderr,
 "InnoDB: Error: page n:o stored in the page read in is %lu, should be %lu!\n",
 				(ulong) read_page_no, (ulong) block->offset);
 		}
+
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
