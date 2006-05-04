@@ -339,7 +339,7 @@ new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
     Use the ssl_fd pointer
    */
   SSL_CTX_set_session_id_context(ssl_fd->ssl_context,
-				 ssl_fd,
+				 (const unsigned char *)ssl_fd,
 				 sizeof(ssl_fd));
 
   return ssl_fd;

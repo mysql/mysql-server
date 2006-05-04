@@ -56,8 +56,10 @@ report_errors(SSL* ssl)
   unsigned long	l;
   const char *file;
   const char *data;
-  int line,flags;
+  int line, flags;
+#ifndef DBUG_OFF
   char buf[512];
+#endif
 
   DBUG_ENTER("report_errors");
 
@@ -67,15 +69,11 @@ report_errors(SSL* ssl)
 			 file,line,(flags&ERR_TXT_STRING)?data:"")) ;
   }
 
-#ifdef HAVE_YASSL
-  /*
-    The above calls to ERR_* doesn't return any messages when we
-    are using yaSSL since error is stored in the SSL object we used.
-  */
   if (ssl)
-    DBUG_PRINT("error", ("yaSSL: %s", ERR_error_string(SSL_get_error(ssl, l), buf)));
-#endif
-  DBUG_PRINT("info", ("errno: %d", socket_errno));
+    DBUG_PRINT("error", ("error: %s",
+                         ERR_error_string(SSL_get_error(ssl, l), buf)));
+
+  DBUG_PRINT("info", ("socket_errno: %d", socket_errno));
   DBUG_VOID_RETURN;
 }
 
@@ -87,12 +85,11 @@ int vio_ssl_read(Vio *vio, gptr buf, int size)
   DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d, ssl_: 0x%p",
 		       vio->sd, buf, size, vio->ssl_arg));
 
-  if ((r= SSL_read((SSL*) vio->ssl_arg, buf, size)) < 0)
-  {
-    int err= SSL_get_error((SSL*) vio->ssl_arg, r);
-    DBUG_PRINT("error",("SSL_read(): %d  SSL_get_error(): %d", r, err));
+  r= SSL_read((SSL*) vio->ssl_arg, buf, size);
+#ifndef DBUG_OFF
+  if (r < 0)
     report_errors((SSL*) vio->ssl_arg);
-  }
+#endif
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
 }
@@ -104,8 +101,11 @@ int vio_ssl_write(Vio *vio, const gptr buf, int size)
   DBUG_ENTER("vio_ssl_write");
   DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
 
-  if ((r= SSL_write((SSL*) vio->ssl_arg, buf, size)) < 0)
+  r= SSL_write((SSL*) vio->ssl_arg, buf, size);
+#ifndef DBUG_OFF
+  if (r < 0)
     report_errors((SSL*) vio->ssl_arg);
+#endif
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
 }
@@ -142,7 +142,6 @@ int vio_ssl_close(Vio *vio)
 int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
 {
   SSL *ssl;
-  X509 *client_cert;
   my_bool unused;
   my_bool net_blocking;
   enum enum_vio_type old_type;
@@ -183,6 +182,7 @@ int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
 #ifndef DBUG_OFF
   {
     char buf[1024];
+    X509 *client_cert;
     DBUG_PRINT("info",("cipher_name= '%s'", SSL_get_cipher_name(ssl)));
 
     if ((client_cert= SSL_get_peer_certificate (ssl)))
@@ -217,7 +217,6 @@ int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
 int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
 {
   SSL *ssl;
-  X509 *server_cert;
   my_bool unused;
   my_bool net_blocking;
   enum enum_vio_type old_type;
@@ -255,20 +254,23 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
     DBUG_RETURN(1);
   }
 #ifndef DBUG_OFF
-  DBUG_PRINT("info",("cipher_name: '%s'" , SSL_get_cipher_name(ssl)));
-
-  if ((server_cert= SSL_get_peer_certificate (ssl)))
   {
-    char buf[256];
-    DBUG_PRINT("info",("Server certificate:"));
-    X509_NAME_oneline(X509_get_subject_name(server_cert), buf, sizeof(buf));
-    DBUG_PRINT("info",("\t subject: %s", buf));
-    X509_NAME_oneline (X509_get_issuer_name(server_cert), buf, sizeof(buf));
-    DBUG_PRINT("info",("\t issuer: %s", buf));
-    X509_free (server_cert);
+    X509 *server_cert;
+    DBUG_PRINT("info",("cipher_name: '%s'" , SSL_get_cipher_name(ssl)));
+
+    if ((server_cert= SSL_get_peer_certificate (ssl)))
+    {
+      char buf[256];
+      DBUG_PRINT("info",("Server certificate:"));
+      X509_NAME_oneline(X509_get_subject_name(server_cert), buf, sizeof(buf));
+      DBUG_PRINT("info",("\t subject: %s", buf));
+      X509_NAME_oneline (X509_get_issuer_name(server_cert), buf, sizeof(buf));
+      DBUG_PRINT("info",("\t issuer: %s", buf));
+      X509_free (server_cert);
+    }
+    else
+      DBUG_PRINT("info",("Server does not have certificate."));
   }
-  else
-    DBUG_PRINT("info",("Server does not have certificate."));
 #endif
 
   DBUG_RETURN(0);
