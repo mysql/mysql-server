@@ -249,7 +249,6 @@ AC_DEFUN([MYSQL_PLUGIN_ACTIONS],[
  ])
 ])
 
-
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CONFIGURE_PLUGINS
 dnl
@@ -267,6 +266,10 @@ AC_DEFUN([MYSQL_CONFIGURE_PLUGINS],[
    AC_FATAL([cannot use [MYSQL_CONFIGURE_PLUGINS] multiple times])
  ],[
    m4_define([__mysql_plugin_configured__],[done])
+   _MYSQL_INCLUDE_LIST(
+   m4_bpatsubst(m4_esyscmd([ls plugin/*/plug.in storage/*/plug.in 2>/dev/null]),
+[[ 
+]],[,]))
    m4_ifdef([__mysql_plugin_list__],[
     _MYSQL_CHECK_PLUGIN_ARGS([$1])
     _MYSQL_CONFIGURE_PLUGINS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
@@ -728,6 +731,23 @@ _MYSQL_EMIT_PLUGINS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
   done
 
   _MYSQL_EMIT_PLUGIN_DEPENDS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
+])
+
+dnl ---------------------------------------------------------------------------
+dnl Macro: _MYSQL_INCLUDE_LIST
+dnl
+dnl SYNOPSIS
+dnl   _MYSQL_INCLUDE_LIST([filename,filename...])
+dnl
+dnl DESCRIPTION
+dnl   includes all files from the list
+dnl
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([_MYSQL_INCLUDE_LIST],[
+ ifelse([$1], [], [], [
+  sinclude($1)
+  _MYSQL_INCLUDE_LIST(m4_shift($@))
+ ])
 ])
 
 dnl ===========================================================================
