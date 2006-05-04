@@ -711,7 +711,37 @@ select * from t1;
 select * from t1;
 
 drop table t1;
-# End of 4.1 tests
+
+#
+# BUG #19025 mysqldump doesn't correctly dump "auto_increment = [int]"
+#
+create table `t1` (
+    t1_name varchar(255) default null,
+    t1_id int(10) unsigned not null auto_increment,
+    key (t1_name),
+    primary key (t1_id)
+) auto_increment = 1000 default charset=latin1;
+
+insert into t1 (t1_name) values('bla');
+insert into t1 (t1_name) values('bla');
+insert into t1 (t1_name) values('bla');
+
+select * from t1;
+
+show create table `t1`;
+
+--exec $MYSQL_DUMP --skip-comments test t1 > $MYSQLTEST_VARDIR/tmp/bug19025.sql
+DROP TABLE `t1`;
+
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug19025.sql
+
+select * from t1;
+
+show create table `t1`;
+
+drop table `t1`;
+
+--echo End of 4.1 tests
 
 #
 # dump of view
