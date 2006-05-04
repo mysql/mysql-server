@@ -269,3 +269,45 @@ field('str1', null, 'STR1') as c05,
 c01	c02	c03	c04	c05	c08	c09
 str	str	0	1	2	1	1
 set names latin1;
+create table bug19145a (e enum('a','b','c')          default 'b' , s set('x', 'y', 'z')          default 'y' ) engine=MyISAM;
+create table bug19145b (e enum('a','b','c')          default null, s set('x', 'y', 'z')          default null) engine=MyISAM;
+create table bug19145c (e enum('a','b','c') not null default 'b' , s set('x', 'y', 'z') not null default 'y' ) engine=MyISAM;
+create table bug19145setnotnulldefaultnull (e enum('a','b','c')          default null, s set('x', 'y', 'z') not null default null) engine=MyISAM;
+ERROR 42000: Invalid default value for 's'
+create table bug19145enumnotnulldefaultnull (e enum('a','b','c') not null default null, s set('x', 'y', 'z')          default null) engine=MyISAM;
+ERROR 42000: Invalid default value for 'e'
+alter table bug19145a alter column e set default null;
+alter table bug19145a alter column s set default null;
+alter table bug19145a add column (i int);
+alter table bug19145b alter column e set default null;
+alter table bug19145b alter column s set default null;
+alter table bug19145b add column (i int);
+alter table bug19145c alter column e set default null;
+ERROR 42000: Invalid default value for 'e'
+alter table bug19145c alter column s set default null;
+ERROR 42000: Invalid default value for 's'
+alter table bug19145c add column (i int);
+show create table bug19145a;
+Table	Create Table
+bug19145a	CREATE TABLE `bug19145a` (
+  `e` enum('a','b','c') default NULL,
+  `s` set('x','y','z') default NULL,
+  `i` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table bug19145b;
+Table	Create Table
+bug19145b	CREATE TABLE `bug19145b` (
+  `e` enum('a','b','c') default NULL,
+  `s` set('x','y','z') default NULL,
+  `i` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table bug19145c;
+Table	Create Table
+bug19145c	CREATE TABLE `bug19145c` (
+  `e` enum('a','b','c') NOT NULL default 'b',
+  `s` set('x','y','z') NOT NULL default 'y',
+  `i` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table bug19145a;
+drop table bug19145b;
+drop table bug19145c;
