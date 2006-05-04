@@ -1,0 +1,5 @@
+MYSQL_STORAGE_ENGINE(archive,,  [Archive Storage Engine],
+        [Archive Storage Engine], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(archive, [storage/archive])
+MYSQL_PLUGIN_STATIC(archive,    [libarchive.a])
+MYSQL_PLUGIN_DYNAMIC(archive,   [ha_archive.la])
