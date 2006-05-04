@@ -1185,8 +1185,8 @@ void clean_up(bool print_message)
 #ifdef HAVE_DLOPEN
     udf_free();
 #endif
-    plugin_free();
   }
+  plugin_free();
   if (tc_log)
     tc_log->close();
   xid_cache_free();

@@ -18,6 +18,7 @@ ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t 
 ndb_binlog_discover      : BUG#19395 2006-04-28 tomas/knielsen mysqld does not always detect cluster shutdown
 #ndb_cache2               : BUG#18597 2006-03-28 brian simultaneous drop table and ndb statistics update triggers node failure
 #ndb_cache_multi2         : BUG#18597 2006-04-10 kent  simultaneous drop table and ndb statistics update triggers node failure
+ndb_load                  : Bug#17233 (This is also in 5.0)
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 ps_7ndb                  : BUG#18950 2006-02-16 jmiller create table like does not obtain LOCK_open
 rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
@@ -30,7 +31,7 @@ rpl_ndb_log              : BUG#18947 2006-03-21 tomas CRBR: order in binlog of c
 rpl_ndb_myisam2ndb       : BUG#17400 2006-04-19 tomas Cluster Replication: delete & update of rows in table without pk fails on slave.
 rpl_switch_stm_row_mixed : BUG#18590 2006-03-28 brian
 rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
-rpl_row_func003		 : BUG#19074 2006-13-04 andrei  test failed
+rpl_row_func003 	 : BUG#19074 2006-13-04 andrei  test failed
 rpl_row_inexist_tbl      : BUG#18948 2006-03-09 mats    Disabled since patch makes this test wait forever
 rpl_sp                   : BUG#16456 2006-02-16 jmiller
 udf                      : BUG#18564 2006-03-27 ian     (Permission by Brian)
