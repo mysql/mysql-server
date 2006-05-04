@@ -5319,6 +5319,82 @@ void ha_partition::init_table_handle_for_HANDLER()
 
 
 /****************************************************************************
+                MODULE enable/disable indexes
+****************************************************************************/
+
+/*
+  Disable indexes for a while
+  SYNOPSIS
+    disable_indexes()
+    mode                      Mode
+  RETURN VALUES
+    0                         Success
+    != 0                      Error
+*/
+
+int ha_partition::disable_indexes(uint mode)
+{
+  handler **file;
+  int error= 0;
+
+  for (file= m_file; *file; file++)
+  {
+    if ((error= (*file)->disable_indexes(mode)))
+      break;
+  }
+  return error;
+}
+
+
+/*
+  Enable indexes again
+  SYNOPSIS
+    enable_indexes()
+    mode                      Mode
+  RETURN VALUES
+    0                         Success
+    != 0                      Error
+*/
+
+int ha_partition::enable_indexes(uint mode)
+{
+  handler **file;
+  int error= 0;
+
+  for (file= m_file; *file; file++)
+  {
+    if ((error= (*file)->enable_indexes(mode)))
+      break;
+  }
+  return error;
+}
+
+
+/*
+  Check if indexes are disabled
+  SYNOPSIS
+    indexes_are_disabled()
+
+  RETURN VALUES
+    0                      Indexes are enabled
+    != 0                   Indexes are disabled
+*/
+
+int ha_partition::indexes_are_disabled(void)
+{
+  handler **file;
+  int error= 0;
+
+  for (file= m_file; *file; file++)
+  {
+    if ((error= (*file)->indexes_are_disabled()))
+      break;
+  }
+  return error;
+}
+
+
+/****************************************************************************
                 MODULE Partition Share
 ****************************************************************************/
 /*
