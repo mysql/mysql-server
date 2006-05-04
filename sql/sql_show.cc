@@ -870,8 +870,8 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     has_default= (field->type() != FIELD_TYPE_BLOB &&
                   !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
 		  field->unireg_check != Field::NEXT_NUMBER &&
-                  !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)) &&
-                    has_now_default));
+                  !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+		    && has_now_default));
 
     if (has_default)
     {
@@ -900,8 +900,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
         packet->append(tmp);
     }
 
-    if (!(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS) &&
-        table->timestamp_field == field && 
+    if (!limited_mysql_mode && table->timestamp_field == field && 
         field->unireg_check != Field::TIMESTAMP_DN_FIELD)
       packet->append(STRING_WITH_LEN(" on update CURRENT_TIMESTAMP"));
 
@@ -1004,6 +1003,25 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     else
       packet->append(STRING_WITH_LEN(" ENGINE="));
     packet->append(file->table_type());
+
+    /*
+      Add AUTO_INCREMENT=... if there is an AUTO_INCREMENT column,
+      and NEXT_ID > 1 (the default).  We must not print the clause
+      for engines that do not support this as it would break the
+      import of dumps, but as of this writing, the test for whether
+      AUTO_INCREMENT columns are allowed and wether AUTO_INCREMENT=...
+      is supported is identical, !(file->table_flags() & HA_NO_AUTO_INCREMENT))
+      Because of that, we do not explicitly test for the feature,
+      but may extrapolate its existence from that of an AUTO_INCREMENT column.
+    */
+
+    if(create_info.auto_increment_value > 1)
+    {
+      packet->append(" AUTO_INCREMENT=", 16);
+      end= longlong10_to_str(create_info.auto_increment_value, buff,10);
+      packet->append(buff, (uint) (end - buff));
+    }
+
     
     if (share->table_charset &&
 	!(thd->variables.sql_mode & MODE_MYSQL323) &&
