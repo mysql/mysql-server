@@ -84,6 +84,7 @@
   access on the table based on a given record.
 */ 
 #define HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS (1 << 16) 
+#define HA_CAN_RTREEKEYS       (1 << 17)
 #define HA_NOT_DELETE_WITH_CACHE (1 << 18)
 #define HA_NO_PREFIX_CHAR_KEYS (1 << 20)
 #define HA_CAN_FULLTEXT        (1 << 21)
