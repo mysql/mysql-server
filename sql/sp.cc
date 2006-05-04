@@ -269,7 +269,6 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 static int
 db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 {
-  extern int MYSQLparse(void *thd);
   TABLE *table;
   const char *params, *returns, *body;
   int ret;
@@ -478,6 +477,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     (*sphp)->optimize();
   }
 end:
+  lex_end(thd->lex);
   thd->spcont= old_spcont;
   thd->variables.sql_mode= old_sql_mode;
   thd->variables.select_limit= old_select_limit;
