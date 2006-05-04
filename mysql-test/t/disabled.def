@@ -24,6 +24,7 @@ rpl_deadlock_innodb      : BUG#16920 2006-04-12 kent    fails in show slave stat
 rpl_ndb_2innodb          : BUG#19004 2006-03-22 tomas ndb: partition by range and update hangs
 rpl_ndb_2myisam          : BUG#19004 2006-03-22 tomas ndb: partition by range and update hangs
 rpl_ndb_auto_inc         : BUG#17086 2006-02-16 jmiller CR: auto_increment_increment and auto_increment_offset produce duplicate key er
+rpl_ndb_commit_afterflush : LOCK TABLES cases hang in ndb injector thread
 rpl_ndb_ddl              : result file needs update + test needs to checked
 rpl_ndb_innodb2ndb       : BUG#18094 2006-03-16 mats Slave caches invalid table definition after atlters causes select failure
 rpl_ndb_log              : BUG#18947 2006-03-21 tomas CRBR: order in binlog of create table and insert (on different table) not determ

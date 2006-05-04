@@ -5294,12 +5294,11 @@ unpack_row(RELAY_LOG_INFO *rli,
 
       if (colcnt == 0)
         break;
-
+      --colcnt;
       if (bitmap_is_set(cols, field_ptr -  begin_ptr))
       {
         /* Field...::unpack() cannot return 0 */
         ptr= f->unpack(f->ptr + offset, ptr);
-        --colcnt;
       }
       else
         bitmap_clear_bit(write_set, (field_ptr - begin_ptr) + 1);
@@ -6076,6 +6075,7 @@ void Table_map_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
 }
 #endif
 
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 #ifndef DBUG_OFF
 static void
 print_column_values(char const *text, THD *thd, TABLE *table)
@@ -6093,6 +6093,7 @@ print_column_values(char const *text, THD *thd, TABLE *table)
   }
   table->in_use= old_thd;
 }
+#endif
 #endif
 
 /**************************************************************************
