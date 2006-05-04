@@ -1073,7 +1073,7 @@ void execute_ddl_log_recovery()
   global_ddl_log.inited= FALSE;
   global_ddl_log.recovery_phase= TRUE;
   global_ddl_log.io_size= IO_SIZE;
-  global_ddl_log.file_id=(File)-1;
+  global_ddl_log.file_id= (File) -1;
 
   /*
     To be able to run this from boot, we allocate a temporary THD
@@ -1138,11 +1138,12 @@ void release_ddl_log()
     my_free((char*)free_list, MYF(0));
     free_list= tmp;
   }
-  if (global_ddl_log.inited)
+  if (global_ddl_log.file_id >= 0)
   {
-    global_ddl_log.inited= 0;
     VOID(my_close(global_ddl_log.file_id, MYF(MY_WME)));
+    global_ddl_log.file_id= (File) -1;
   }
+  global_ddl_log.inited= 0;
   pthread_mutex_unlock(&LOCK_gdl);
   VOID(pthread_mutex_destroy(&LOCK_gdl));
   DBUG_VOID_RETURN;
