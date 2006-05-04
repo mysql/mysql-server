@@ -2563,6 +2563,12 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     /* TODO: Add proper checks if handler supports key_type and algorithm */
     if (key_info->flags & HA_SPATIAL)
     {
+      if (!(file->table_flags() & HA_CAN_RTREEKEYS))
+      {
+        my_message(ER_TABLE_CANT_HANDLE_SPKEYS, ER(ER_TABLE_CANT_HANDLE_SPKEYS),
+                   MYF(0));
+        DBUG_RETURN(-1);
+      }
       if (key_info->key_parts != 1)
       {
 	my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
@@ -3572,7 +3578,9 @@ mysql_rename_table(handlerton *base,
     }
   }
   delete file;
-  if (error)
+  if (error == HA_ERR_WRONG_COMMAND)
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
+  else if (error)
     my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
   DBUG_RETURN(error != 0);
 }
@@ -4217,11 +4225,16 @@ send_result_message:
         table->table->s->version=0;               // Force close of table
       else if (open_for_modify && !table->table->s->log_table)
       {
-        pthread_mutex_lock(&LOCK_open);
-        remove_table_from_cache(thd, table->table->s->db.str,
-                                table->table->s->table_name.str, RTFC_NO_FLAG);
-        pthread_mutex_unlock(&LOCK_open);
-        /* Something may be modified, that's why we have to invalidate cache */
+        if (table->table->s->tmp_table)
+          table->table->file->info(HA_STATUS_CONST);
+        else
+        {
+          pthread_mutex_lock(&LOCK_open);
+          remove_table_from_cache(thd, table->table->s->db.str,
+                                  table->table->s->table_name.str, RTFC_NO_FLAG);
+          pthread_mutex_unlock(&LOCK_open);
+        }
+        /* May be something modified consequently we have to invalidate cache */
         query_cache_invalidate3(thd, table->table, 0);
       }
     }

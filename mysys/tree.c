@@ -271,7 +271,7 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
   return element;
 }
 
-int tree_delete(TREE *tree, void *key, void *custom_arg)
+int tree_delete(TREE *tree, void *key, uint key_size, void *custom_arg)
 {
   int cmp,remove_colour;
   TREE_ELEMENT *element,***parent, ***org_parent, *nod;
@@ -326,8 +326,7 @@ int tree_delete(TREE *tree, void *key, void *custom_arg)
     rb_delete_fixup(tree,parent);
   if (tree->free)
     (*tree->free)(ELEMENT_KEY(tree,element), free_free, tree->custom_arg);
-  /* This doesn't include key_size, but better than nothing */
-  tree->allocated-= sizeof(TREE_ELEMENT)+tree->size_of_element;
+  tree->allocated-= sizeof(TREE_ELEMENT) + tree->size_of_element + key_size;
   my_free((gptr) element,MYF(0));
   tree->elements_in_tree--;
   return 0;
