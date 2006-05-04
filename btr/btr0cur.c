@@ -3515,7 +3515,8 @@ btr_store_big_rec_extern_fields(
 	space_id = buf_frame_get_space_id(rec);
 
 	page_zip = buf_block_get_page_zip(buf_block_align(rec));
-	ut_a(!dict_table_zip_size(index->table) == !page_zip);
+	ut_a(dict_table_zip_size(index->table)
+			== (page_zip ? page_zip->size : 0));
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		int	err;
@@ -3609,9 +3610,9 @@ btr_store_big_rec_extern_fields(
 						FIL_PAGE_TYPE_ZBLOB);
 
 				c_stream.next_out = page
-					+ FIL_PAGE_FILE_FLUSH_LSN;
+						+ FIL_PAGE_ZBLOB_DATA;
 				c_stream.avail_out = page_zip->size
-					- FIL_PAGE_FILE_FLUSH_LSN;
+						- FIL_PAGE_ZBLOB_DATA;
 
 				err = deflate(&c_stream, Z_FINISH);
 				ut_a(err == Z_OK || err == Z_STREAM_END);
@@ -4106,7 +4107,7 @@ btr_copy_externally_stored_field(
 				/* When the BLOB begins at page header,
 				the compressed data payload does not
 				immediately follow the next page pointer. */
-				offset = FIL_PAGE_FILE_FLUSH_LSN;
+				offset = FIL_PAGE_ZBLOB_DATA;
 			} else {
 				offset += 4;
 			}

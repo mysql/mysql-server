@@ -85,11 +85,14 @@ free list. If it is empty, blocks are moved from the end of the
 LRU list to the free list. */
 
 buf_block_t*
-buf_LRU_get_free_block(void);
-/*=========================*/
+buf_LRU_get_free_block(
+/*===================*/
 				/* out: the free control block; also if AWE is
 				used, it is guaranteed that the block has its
 				page mapped to a frame when we return */
+	ulint	zip_size);	/* in: compressed page size in bytes,
+				or 0 if uncompressed tablespace */
+
 /**********************************************************************
 Puts a block back to the free list. */
 

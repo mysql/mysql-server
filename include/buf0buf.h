@@ -391,17 +391,6 @@ buf_block_get_modify_clock(
 				/* out: value */
 	buf_block_t*	block);	/* in: block */
 /************************************************************************
-Calculates a compressed BLOB page checksum which is stored to the page
-when it is written to a file. Note that we must be careful to calculate
-the same value on 32-bit and 64-bit architectures. */
-
-ulint
-buf_calc_zblob_page_checksum(
-/*=========================*/
-					/* out: checksum */
-	const byte*	page,		/* in: compressed BLOB page */
-	ulint		zip_size);	/* in: size of the page, in bytes */
-/************************************************************************
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value
 on 32-bit and 64-bit architectures. */

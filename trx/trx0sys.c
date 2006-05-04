@@ -55,36 +55,6 @@ ib_longlong	trx_sys_mysql_bin_log_pos	= -1;
 
 
 /********************************************************************
-Determines if a page number is located inside the doublewrite buffer. */
-
-ibool
-trx_doublewrite_page_inside(
-/*========================*/
-				/* out: TRUE if the location is inside
-				the two blocks of the doublewrite buffer */
-	ulint	page_no)	/* in: page number */
-{
-	if (trx_doublewrite == NULL) {
-
-		return(FALSE);
-	}
-
-	if (page_no >= trx_doublewrite->block1
-		&& page_no < trx_doublewrite->block1
-		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
-		return(TRUE);
-	}
-
-	if (page_no >= trx_doublewrite->block2
-		&& page_no < trx_doublewrite->block2
-		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
-		return(TRUE);
-	}
-
-	return(FALSE);
-}
-
-/********************************************************************
 Creates or initialializes the doublewrite buffer at a database start. */
 static
 void
