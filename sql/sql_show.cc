@@ -1479,6 +1479,24 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append(" ENGINE=", 8);
     packet->append(file->table_type());
     
+    /*
+      Add AUTO_INCREMENT=... if there is an AUTO_INCREMENT column,
+      and NEXT_ID > 1 (the default).  We must not print the clause
+      for engines that do not support this as it would break the
+      import of dumps, but as of this writing, the test for whether
+      AUTO_INCREMENT columns are allowed and wether AUTO_INCREMENT=...
+      is supported is identical, !(file->table_flags() & HA_NO_AUTO_INCREMENT))
+      Because of that, we do not explicitly test for the feature,
+      but may extrapolate its existence from that of an AUTO_INCREMENT column.
+    */
+
+    if(create_info.auto_increment_value > 1)
+    {
+      packet->append(" AUTO_INCREMENT=", 16);
+      end= longlong10_to_str(create_info.auto_increment_value, buff,10);
+      packet->append(buff, (uint) (end - buff));
+    }
+    
     if (table->table_charset &&
 	!(thd->variables.sql_mode & MODE_MYSQL323) &&
 	!(thd->variables.sql_mode & MODE_MYSQL40))
