@@ -196,6 +196,7 @@ void lex_start(THD *thd, const uchar *buf, uint length)
 void lex_end(LEX *lex)
 {
   DBUG_ENTER("lex_end");
+  DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
   if (lex->yacc_yyss)
   {
     my_free(lex->yacc_yyss, MYF(0));
