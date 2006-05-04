@@ -2281,6 +2281,30 @@ static int my_xpath_parse_Number(MY_XPATH *xpath)
 
 
 /*
+  QName grammar can be found in a separate document
+  http://www.w3.org/TR/REC-xml-names/#NT-QName
+
+  [6] 	QName     ::= (Prefix ':')? LocalPart
+  [7] 	Prefix    ::= NCName
+  [8] 	LocalPart ::= NCName
+*/
+static int
+my_xpath_parse_QName(MY_XPATH *xpath)
+{
+  const char *beg;
+  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT))
+    return 0;
+  beg= xpath->prevtok.beg;
+  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_COLON))
+    return 1; /* Non qualified name */
+  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT))
+    return 0;
+  xpath->prevtok.beg= beg;
+  return 1;
+}
+
+
+/*
   Scan Variable reference
 
   SYNOPSYS
@@ -2313,7 +2337,7 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
 static int
 my_xpath_parse_NodeTest_QName(MY_XPATH *xpath)
 {
-  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT))
+  if (!my_xpath_parse_QName(xpath))
     return 0;
   DBUG_ASSERT(xpath->context);
   uint len= xpath->prevtok.end - xpath->prevtok.beg;
