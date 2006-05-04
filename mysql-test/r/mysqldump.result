@@ -1503,3 +1503,41 @@ select * from t1;
 a	b
 Osnabrück	Köln
 drop table t1;
+create table `t1` (
+t1_name varchar(255) default null,
+t1_id int(10) unsigned not null auto_increment,
+key (t1_name),
+primary key (t1_id)
+) auto_increment = 1000 default charset=latin1;
+insert into t1 (t1_name) values('bla');
+insert into t1 (t1_name) values('bla');
+insert into t1 (t1_name) values('bla');
+select * from t1;
+t1_name	t1_id
+bla	1000
+bla	1001
+bla	1002
+show create table `t1`;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `t1_name` varchar(255) default NULL,
+  `t1_id` int(10) unsigned NOT NULL auto_increment,
+  PRIMARY KEY  (`t1_id`),
+  KEY `t1_name` (`t1_name`)
+) ENGINE=MyISAM AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
+DROP TABLE `t1`;
+select * from t1;
+t1_name	t1_id
+bla	1000
+bla	1001
+bla	1002
+show create table `t1`;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `t1_name` varchar(255) default NULL,
+  `t1_id` int(10) unsigned NOT NULL auto_increment,
+  PRIMARY KEY  (`t1_id`),
+  KEY `t1_name` (`t1_name`)
+) ENGINE=MyISAM AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
+drop table `t1`;
+End of 4.1 tests
