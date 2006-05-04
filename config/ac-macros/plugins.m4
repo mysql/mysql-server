@@ -397,11 +397,11 @@ dnl Although this is "pretty", it breaks libmysqld build
     m4_ifdef([$6],[
       if test -n "$mysql_use_plugin_dir" ; then
         mysql_plugin_dirs="$mysql_plugin_dirs $6"
-        if test -f "$srcdir/$6/configure" ; then
-          other_configures="$other_configures $6/configure"
-        else
-          AC_CONFIG_FILES($6/Makefile)
-        fi
+        m4_syscmd(test -f "$6/configure")
+        ifelse(m4_sysval, 0,
+          [other_configures="$other_configures $6/configure"],
+          [AC_CONFIG_FILES($6/Makefile)]
+        )
         ifelse(m4_substr($6, 0, 8), [storage/],
           [mysql_se_dirs="$mysql_se_dirs ]m4_substr($6, 8)",
           m4_substr($6, 0, 7), [plugin/],
