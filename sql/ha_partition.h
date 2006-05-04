@@ -938,17 +938,18 @@ public:
     virtual uint checksum() const;
     virtual bool is_crashed() const;
     virtual bool auto_repair() const;
+  */
 
+  /*
     -------------------------------------------------------------------------
     MODULE enable/disable indexes
     -------------------------------------------------------------------------
-    Enable/Disable Indexes are not supported currently (Heap, MyISAM)
-    This means that the following methods are not implemented:
+    Enable/Disable Indexes are only supported by HEAP and MyISAM.
     -------------------------------------------------------------------------
+  */
     virtual int disable_indexes(uint mode);
     virtual int enable_indexes(uint mode);
     virtual int indexes_are_disabled(void);
-  */
 
   /*
     -------------------------------------------------------------------------
