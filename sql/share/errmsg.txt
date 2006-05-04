@@ -5617,3 +5617,5 @@ ER_VIEW_RECURSIVE
         eng "`%-.64s`.`%-.64s` contains view recursion"
 ER_NON_GROUPING_FIELD_USED 42000
 	eng "non-grouping field '%-.64s' is used in %-.64s clause"
+ER_TABLE_CANT_HANDLE_SPKEYS
+        eng "The used table type doesn't support SPATIAL indexes"
