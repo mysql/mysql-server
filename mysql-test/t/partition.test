@@ -1009,4 +1009,14 @@ select auto_increment from information_schema.tables where table_name='t1';
 select * from t1;
 drop table t1;
 
+#
+# BUG 19062 Partition clause ignored if CREATE TABLE ... AS SELECT ...;
+#
+create table t1 (a varchar(1))
+partition by key (a)
+as select 'a';
+
+show create table t1;
+drop table t1;
+
 --echo End of 5.1 tests
