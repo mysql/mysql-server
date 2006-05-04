@@ -620,7 +620,8 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
       case 'r':
 	length= my_sprintf(intbuff, 
 		   (intbuff, 
-		    (l_time->hour < 12) ? "%02d:%02d:%02d AM" : "%02d:%02d:%02d PM",
+		    ((l_time->hour % 24) < 12) ?
+                    "%02d:%02d:%02d AM" : "%02d:%02d:%02d PM",
 		    (l_time->hour+11)%12+1,
 		    l_time->minute,
 		    l_time->second));
