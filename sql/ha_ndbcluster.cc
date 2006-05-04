@@ -1061,22 +1061,30 @@ int ha_ndbcluster::create_indexes(Ndb *ndb, TABLE *tab)
   DBUG_RETURN(error);
 }
 
-void ha_ndbcluster::clear_index(int i)
+static void ndb_init_index(NDB_INDEX_DATA &data)
 {
-  m_index[i].type= UNDEFINED_INDEX;
-  m_index[i].status= UNDEFINED;
-  m_index[i].unique_index= NULL;
-  m_index[i].index= NULL;
-  m_index[i].unique_index_attrid_map= NULL;
-  m_index[i].index_stat=NULL;
-  m_index[i].index_stat_cache_entries=0;
-  m_index[i].index_stat_update_freq=0;
-  m_index[i].index_stat_query_count=0;
+  data.type= UNDEFINED_INDEX;
+  data.status= UNDEFINED;
+  data.unique_index= NULL;
+  data.index= NULL;
+  data.unique_index_attrid_map= NULL;
+  data.index_stat=NULL;
+  data.index_stat_cache_entries=0;
+  data.index_stat_update_freq=0;
+  data.index_stat_query_count=0;
 }
 
-void ha_ndbcluster::clear_indexes()
+static void ndb_clear_index(NDB_INDEX_DATA &data)
 {
-  for (int i= 0; i < MAX_KEY; i++) clear_index(i);
+  if (data.unique_index_attrid_map)
+  {
+    my_free((char*)data.unique_index_attrid_map, MYF(0));
+  }
+  if (data.index_stat)
+  {
+    delete data.index_stat;
+  }
+  ndb_init_index(data);
 }
 
 /*
@@ -1295,7 +1303,7 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
       }
       if (error)
         DBUG_RETURN(error);
-      clear_index(i);
+      ndb_clear_index(m_index[i]);
       continue;
     }
   }
@@ -1378,24 +1386,13 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
     {
       DBUG_ASSERT(m_table != NULL);
       dict->removeIndexGlobal(*m_index[i].unique_index, invalidate_indexes);
-      m_index[i].unique_index= NULL;
     }
     if (m_index[i].index)
     {
       DBUG_ASSERT(m_table != NULL);
       dict->removeIndexGlobal(*m_index[i].index, invalidate_indexes);
-      m_index[i].index= NULL;
     }
-    if (m_index[i].unique_index_attrid_map)
-    {
-      my_free((char *)m_index[i].unique_index_attrid_map, MYF(0));
-      m_index[i].unique_index_attrid_map= NULL;
-    }
-    if (m_index[i].index_stat)
-    {
-      delete m_index[i].index_stat;
-      m_index[i].index_stat= NULL;
-    }
+    ndb_clear_index(m_index[i]);
   }
 
   m_table= NULL;
@@ -5295,7 +5292,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE_SHARE *table_arg):
   records= ~(ha_rows)0; // uninitialized
   block_size= 1024;
 
-  clear_indexes();
+  for (i= 0; i < MAX_KEY; i++)
+    ndb_init_index(m_index[i]);
 
   DBUG_VOID_RETURN;
 }
