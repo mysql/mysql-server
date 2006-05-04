@@ -252,7 +252,7 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
   else
   {
     fprintf(DBUG_FILE,
-    "%s; idx:%u, best: %g, atime: %g, itime: %g, count: %g\n",
+    "%s; idx:%u, best: %g, accumulated: %g, increment: %g, count: %g\n",
     info, idx, join->best_read, current_read_time, read_time, record_count);
   }
 
@@ -272,9 +272,9 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
     Print the tables in JOIN->best_positions only if at least one complete plan
     has been found. An indicator for this is the value of 'join->best_read'.
   */
-  fputs("BEST_POSITIONS: ", DBUG_FILE);
   if (join->best_read < DBL_MAX)
   {
+    fputs("BEST_POSITIONS: ", DBUG_FILE);
     for (i= 0; i < idx ; i++)
     {
       pos= join->best_positions[i];
