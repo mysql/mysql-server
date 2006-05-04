@@ -558,6 +558,7 @@ extern File my_open(const char *FileName,int Flags,myf MyFlags);
 extern File my_register_filename(File fd, const char *FileName,
 				 enum file_type type_of_file,
 				 uint error_message_number, myf MyFlags);
+extern void my_print_open_files(void);
 extern File my_create(const char *FileName,int CreateFlags,
 		      int AccessFlags, myf MyFlags);
 extern int my_close(File Filedes,myf MyFlags);
@@ -645,6 +646,12 @@ extern void allow_break(void);
 #else
 #define dont_break()
 #define allow_break()
+#endif
+
+#ifdef EXTRA_DEBUG
+void my_print_open_files();
+#else
+#define my_print_open_files()
 #endif
 
 extern my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist);
