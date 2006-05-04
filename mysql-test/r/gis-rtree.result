@@ -294,7 +294,7 @@ t2	CREATE TABLE `t2` (
   `g` geometry NOT NULL default '',
   PRIMARY KEY  (`fid`),
   SPATIAL KEY `g` (`g`(32))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM AUTO_INCREMENT=101 DEFAULT CHARSET=latin1
 SELECT count(*) FROM t2;
 count(*)
 100
