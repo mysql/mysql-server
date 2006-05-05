@@ -89,6 +89,8 @@ void client_test(void* args)
         args.argv = argv;
 
         client_test(&args);
+        yaSSL_CleanUp();
+
         return args.return_code;
     }
 
