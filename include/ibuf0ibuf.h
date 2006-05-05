@@ -267,6 +267,7 @@ ibuf_parse_bitmap_init(
 	byte*	end_ptr,/* in: buffer end */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr);	/* in: mtr or NULL */
+#ifdef UNIV_IBUF_DEBUG
 /**********************************************************************
 Gets the ibuf count for a given page. */
 
@@ -277,6 +278,7 @@ ibuf_count_get(
 			currently buffered for this page */
 	ulint	space,	/* in: space id */
 	ulint	page_no);/* in: page number */
+#endif
 /**********************************************************************
 Looks if the insert buffer is empty. */
 
