@@ -2467,7 +2467,14 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
     DBUG_RETURN(0);
   }
 
-  if (!binlog_filter->db_ok(share->db))
+  int do_schema_share= 0, do_apply_status_share= 0;
+  if (!schema_share && strcmp(share->db, NDB_REP_DB) == 0 &&
+      strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
+    do_schema_share= 1;
+  else if (!apply_status_share && strcmp(share->db, NDB_REP_DB) == 0 &&
+           strcmp(share->table_name, NDB_APPLY_TABLE) == 0)
+    do_apply_status_share= 1;
+  else if (!binlog_filter->db_ok(share->db))
   {
     share->flags|= NSF_NO_BINLOG;
     DBUG_RETURN(0);
@@ -2485,15 +2492,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
 
   TABLE *table= share->table;
 
-  int do_schema_share= 0, do_apply_status_share= 0;
   int retries= 100;
-  if (!schema_share && strcmp(share->db, NDB_REP_DB) == 0 &&
-      strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
-    do_schema_share= 1;
-  else if (!apply_status_share && strcmp(share->db, NDB_REP_DB) == 0 &&
-           strcmp(share->table_name, NDB_APPLY_TABLE) == 0)
-    do_apply_status_share= 1;
-
   while (1)
   {
     pthread_mutex_lock(&injector_mutex);
