@@ -1197,7 +1197,6 @@ ok2:
 end:
   if (arena)
     thd->restore_active_arena(arena, &backup);
-  lex_end(thd->lex);
   thd->lex= old_lex;
   DBUG_RETURN(result);
 
