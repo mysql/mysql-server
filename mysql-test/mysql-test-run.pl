@@ -1860,7 +1860,7 @@ sub mysql_install_db () {
     }
   }
 
-  if ( ndbcluster_install_slave() )
+  if ( $use_slaves and ndbcluster_install_slave() )
   {
     if ( $opt_force)
     {
