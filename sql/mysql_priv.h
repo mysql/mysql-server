@@ -558,6 +558,7 @@ enum enum_mysql_completiontype {
 };
 
 bool begin_trans(THD *thd);
+bool end_active_trans(THD *thd);
 int end_trans(THD *thd, enum enum_mysql_completiontype completion);
 
 Item *negate_expression(THD *thd, Item *expr);
