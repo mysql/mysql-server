@@ -3394,19 +3394,19 @@ CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
 INSERT t1 SET i = 0;
 UPDATE t1 SET i = -1;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'i' at row 1
+Warning	1264	Out of range value for column 'i' at row 1
 SELECT * FROM t1;
 i
 0
 UPDATE t1 SET i = CAST(i - 1 AS SIGNED);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'i' at row 1
+Warning	1264	Out of range value for column 'i' at row 1
 SELECT * FROM t1;
 i
 0
 UPDATE t1 SET i = i - 1;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'i' at row 1
+Warning	1264	Out of range value for column 'i' at row 1
 SELECT * FROM t1;
 i
 255
