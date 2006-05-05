@@ -105,5 +105,6 @@ slave-bin.000001	1370	User var	2	1370	@`a`=5
 slave-bin.000001	1412	Query	1	1412	use `test`; insert into t1 values (@a),(@a)
 slave-bin.000001	1478	User var	2	1478	@`a`=NULL
 slave-bin.000001	1503	Query	1	1503	use `test`; insert into t1 values (@a),(@a),(@a*5)
+insert into t1 select * FROM (select @var1 union  select @var2) AS t2;
 drop table t1;
 stop slave;
