@@ -25,7 +25,7 @@
 
 /* inline since it's called below */
 inline
-injector::transaction::transaction(MYSQL_LOG *log, THD *thd)
+injector::transaction::transaction(MYSQL_BIN_LOG *log, THD *thd)
   : m_state(START_STATE), m_thd(thd)
 {
   /* 

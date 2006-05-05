@@ -470,7 +470,7 @@ enum Int_event_type
 
 #ifndef MYSQL_CLIENT
 class String;
-class MYSQL_LOG;
+class MYSQL_BIN_LOG;
 class THD;
 #endif
 
