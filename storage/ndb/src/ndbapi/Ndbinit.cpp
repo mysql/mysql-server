@@ -99,6 +99,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   for (i = 0; i < MAX_NDB_NODES ; i++) {
     theConnectionArray[i] = NULL;
   }//forg
+  m_sys_tab_0 = NULL;
   for (i = 0; i < 2048 ; i++) {
     theFirstTupleId[i] = 0;
     theLastTupleId[i] = 0;
@@ -136,6 +137,9 @@ Ndb::~Ndb()
 { 
   DBUG_ENTER("Ndb::~Ndb()");
   DBUG_PRINT("enter",("this=0x%x",this));
+
+  if (m_sys_tab_0)
+    getDictionary()->removeTableGlobal(*m_sys_tab_0, 0);
 
   assert(theImpl->m_ev_op == 0); // user should return NdbEventOperation's
   for (NdbEventOperationImpl *op= theImpl->m_ev_op; op; op=op->m_next)
