@@ -680,6 +680,7 @@ sp_head::destroy()
   DBUG_ASSERT(m_lex.is_empty() || m_thd);
   while ((lex= (LEX *)m_lex.pop()))
   {
+    lex_end(m_thd->lex);
     delete m_thd->lex;
     m_thd->lex= lex;
   }
@@ -1682,7 +1683,10 @@ sp_head::restore_lex(THD *thd)
   */
   merge_table_list(thd, sublex->query_tables, sublex);
   if (! sublex->sp_lex_in_use)
+  {
+    lex_end(sublex);
     delete sublex;
+  }
   thd->lex= oldlex;
   DBUG_VOID_RETURN;
 }

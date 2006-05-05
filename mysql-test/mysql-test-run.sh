@@ -205,6 +205,7 @@ TOT_SKIP=0
 TOT_PASS=0
 TOT_FAIL=0
 TOT_TEST=0
+GOT_WARNINGS=0
 USERT=0
 SYST=0
 REALT=0
@@ -1077,17 +1078,16 @@ report_stats () {
         | $SED -e 's!Warning:  Table:.* on rename!!g' \
         > $MY_LOG_DIR/warnings.tmp
 
-    found_error=0
     # Find errors
-    for i in "^Warning:" "^Error:" "^==.* at 0x" "InnoDB: Warning" "missing DBUG_RETURN"
+    for i in "^Warning:" "^Error:" "^==.* at 0x" "InnoDB: Warning" "missing DBUG_RETURN" "mysqld: Warning"
     do
       if $GREP "$i" $MY_LOG_DIR/warnings.tmp >> $MY_LOG_DIR/warnings
       then
-        found_error=1
+        GOT_WARNINGS=1
       fi
     done
     $RM -f $MY_LOG_DIR/warnings.tmp
-    if [ $found_error = "1" ]
+    if [ $GOT_WARNINGS = "1" ]
     then
       echo "WARNING: Got errors/warnings while running tests. Please examine"
       echo "$MY_LOG_DIR/warnings for details."
@@ -2300,6 +2300,8 @@ if [ $TOT_FAIL -ne 0 ]; then
   $ECHO "mysql-test-run in $TEST_MODE mode: *** Failing the test(s):$FAILED_CASES"
   $ECHO
   exit 1
-else
-  exit 0
 fi
+if [ $GOT_WARNINGS -ne 0 ]; then
+  exit 1
+fi
+exit 0

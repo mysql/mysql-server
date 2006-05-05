@@ -358,7 +358,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     puts("- check key delete-chain");
 
   param->key_file_blocks=info->s->base.keystart;
-  for (key=0 ; key < info->s->state.header.max_block_size ; key++)
+  for (key=0 ; key < info->s->state.header.max_block_size_index ; key++)
     if (check_k_link(param,info,key))
     {
       if (param->testflag & T_VERBOSE) puts("");
@@ -1411,7 +1411,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     share->state.key_root[i]= HA_OFFSET_ERROR;
 
   /* Drop the delete chain. */
-  for (i=0 ; i < share->state.header.max_block_size ; i++)
+  for (i=0 ; i < share->state.header.max_block_size_index ; i++)
     share->state.key_del[i]=  HA_OFFSET_ERROR;
 
   /*
@@ -1795,7 +1795,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   for (key=0 ; key < info->s->base.keys ; key++)
     info->s->state.key_root[key]=index_pos[key];
-  for (key=0 ; key < info->s->state.header.max_block_size ; key++)
+  for (key=0 ; key < info->s->state.header.max_block_size_index ; key++)
     info->s->state.key_del[key]=  HA_OFFSET_ERROR;
 
   info->s->state.changed&= ~STATE_NOT_SORTED_PAGES;
@@ -2095,7 +2095,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
-    for (i=0 ; i < share->state.header.max_block_size ; i++)
+    for (i=0 ; i < share->state.header.max_block_size_index ; i++)
       share->state.key_del[i]=  HA_OFFSET_ERROR;
     info->state->key_file_length=share->base.keystart;
   }
@@ -2463,7 +2463,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
-    for (i=0 ; i < share->state.header.max_block_size ; i++)
+    for (i=0 ; i < share->state.header.max_block_size_index ; i++)
       share->state.key_del[i]=  HA_OFFSET_ERROR;
     info->state->key_file_length=share->base.keystart;
   }

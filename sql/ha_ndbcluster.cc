@@ -10185,6 +10185,7 @@ mysql_declare_plugin(ndbcluster)
   NULL, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
+  0
 }
 mysql_declare_plugin_end;
 
