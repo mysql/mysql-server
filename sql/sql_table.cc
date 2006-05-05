@@ -3898,6 +3898,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   int result_code;
   DBUG_ENTER("mysql_admin_table");
 
+  if (end_active_trans(thd))
+    DBUG_RETURN(1);
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null = 1;
   field_list.push_back(item = new Item_empty_string("Op", 10));
@@ -3948,6 +3950,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     {
       switch ((*prepare_func)(thd, table, check_opt)) {
       case  1:           // error, message written to net
+        ha_autocommit_or_rollback(thd, 1);
         close_thread_tables(thd);
         continue;
       case -1:           // error, message could be written to net
@@ -3989,6 +3992,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         View opening can be interrupted in the middle of process so some
         tables can be left opening
       */
+      ha_autocommit_or_rollback(thd, 1);
       close_thread_tables(thd);
       if (protocol->write())
 	goto err;
@@ -4013,6 +4017,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       length= my_snprintf(buff, sizeof(buff), ER(ER_OPEN_AS_READONLY),
                           table_name);
       protocol->store(buff, length, system_charset_info);
+      ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
       table->table=0;				// For query cache
       if (protocol->write())
@@ -4058,6 +4063,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           (table->table->file->ha_check_for_upgrade(check_opt) ==
            HA_ADMIN_NEEDS_ALTER))
       {
+        ha_autocommit_or_rollback(thd, 1);
         close_thread_tables(thd);
         tmp_disable_binlog(thd); // binlogging is done by caller if wanted
         result_code= mysql_recreate_table(thd, table, 0);
@@ -4144,6 +4150,7 @@ send_result_message:
         "try with alter", so here we close the table, do an ALTER TABLE,
         reopen the table and do ha_innobase::analyze() on it.
       */
+      ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
@@ -4151,6 +4158,7 @@ send_result_message:
       tmp_disable_binlog(thd); // binlogging is done by caller if wanted
       result_code= mysql_recreate_table(thd, table, 0);
       reenable_binlog(thd);
+      ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
       {
@@ -4238,6 +4246,7 @@ send_result_message:
         query_cache_invalidate3(thd, table->table, 0);
       }
     }
+    ha_autocommit_or_rollback(thd, 0);
     close_thread_tables(thd);
     table->table=0;				// For query cache
     if (protocol->write())
@@ -4246,7 +4255,9 @@ send_result_message:
 
   send_eof(thd);
   DBUG_RETURN(FALSE);
+
  err:
+  ha_autocommit_or_rollback(thd, 1);
   close_thread_tables(thd);			// Shouldn't be needed
   if (table)
     table->table=0;
@@ -4701,7 +4712,9 @@ mysql_discard_or_import_tablespace(THD *thd,
   if (error)
     goto err;
   write_bin_log(thd, FALSE, thd->query, thd->query_length);
+
 err:
+  ha_autocommit_or_rollback(thd, error);
   close_thread_tables(thd);
   thd->tablespace_op=FALSE;
   
@@ -6388,7 +6401,8 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
 }
 
 
-bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
+bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
+                          HA_CHECK_OPT *check_opt)
 {
   TABLE_LIST *table;
   List<Item> field_list;

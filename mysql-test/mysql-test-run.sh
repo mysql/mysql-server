@@ -1073,13 +1073,13 @@ report_stats () {
     #
     $RM -f $MY_LOG_DIR/warnings $MY_LOG_DIR/warnings.tmp
     # Remove some non fatal warnings from the log files
-    $SED -e 's!Warning:  Table:.* on delete!!g' -e 's!Warning: Setting lower_case_table_names=2!!g' -e 's!Warning: One can only use the --user.*root!!g' \
+    $SED -e 's!Warning:  Table:.* on delete!!g' -e 's!Warning: Setting lower_case_table_names=2!!g' -e 's!Warning: One can only use the --user.*root!!g' -e 's|InnoDB: Warning: we did not need to do crash recovery||g' \
         $MY_LOG_DIR/*.err \
         | $SED -e 's!Warning:  Table:.* on rename!!g' \
         > $MY_LOG_DIR/warnings.tmp
 
     # Find errors
-    for i in "^Warning:" "^Error:" "^==.* at 0x" "InnoDB: Warning" "missing DBUG_RETURN" "mysqld: Warning"
+    for i in "^Warning:" "^Error:" "^==.* at 0x" "InnoDB: Warning" "missing DBUG_RETURN" "mysqld: Warning" "Attempting backtrace" "Assertion .* failed"
     do
       if $GREP "$i" $MY_LOG_DIR/warnings.tmp >> $MY_LOG_DIR/warnings
       then

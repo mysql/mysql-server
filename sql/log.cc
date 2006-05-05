@@ -2879,23 +2879,27 @@ bool MYSQL_LOG::write(Log_event *event_info)
       binlog_trx_data *const trx_data=
         (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
       IO_CACHE *trans_log= &trx_data->trans_log;
+      bool trans_log_in_use= my_b_tell(trans_log) != 0;
 
-      if (event_info->get_cache_stmt() && !my_b_tell(trans_log))
+      if (event_info->get_cache_stmt() && !trans_log_in_use)
         trans_register_ha(thd,
-                          thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN),
+                          (thd->options &
+                           (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)),
                           &binlog_hton);
-
-      if (event_info->get_cache_stmt() || my_b_tell(trans_log))
+      if (event_info->get_cache_stmt() || trans_log_in_use)
+      {
+        DBUG_PRINT("info", ("Using trans_log"));
         file= trans_log;
+      }
       /*
-        Note: as Mats suggested, for all the cases above where we write to
+        TODO as Mats suggested, for all the cases above where we write to
         trans_log, it sounds unnecessary to lock LOCK_log. We should rather
         test first if we want to write to trans_log, and if not, lock
-        LOCK_log. TODO.
+        LOCK_log.
       */
     }
 #endif
-    DBUG_PRINT("info",("event type=%d",event_info->get_type_code()));
+    DBUG_PRINT("info",("event type: %d",event_info->get_type_code()));
 
     /*
       No check for auto events flag here - this write method should
