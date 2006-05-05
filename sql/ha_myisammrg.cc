@@ -589,6 +589,7 @@ mysql_declare_plugin(myisammrg)
   myisammrg_hton_comment,
   NULL, /* Plugin Init */
   NULL, /* Plugin Deinit */
-  0x0100 /* 1.0 */,
+  0x0100, /* 1.0 */
+  0
 }
 mysql_declare_plugin_end;

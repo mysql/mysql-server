@@ -3360,33 +3360,46 @@ best_access_path(JOIN      *join,
     for (keyuse=s->keyuse ; keyuse->table == table ;)
     {
       key_part_map found_part= 0;
-      table_map found_ref=     0;
-      uint found_ref_or_null=  0;
-      uint key=     keyuse->key;
+      table_map found_ref= 0;
+      uint key= keyuse->key;
       KEY *keyinfo= table->key_info+key;
       bool ft_key=  (keyuse->keypart == FT_KEYPART);
+      uint found_ref_or_null= 0;
 
       /* Calculate how many key segments of the current key we can use */
       start_key= keyuse;
       do
       { /* for each keypart */
         uint keypart= keyuse->keypart;
-        uint found_part_ref_or_null= KEY_OPTIMIZE_REF_OR_NULL;
+        table_map best_part_found_ref= 0;
+        double best_prev_record_reads= DBL_MAX;
         do
         {
           if (!(remaining_tables & keyuse->used_tables) &&
               !(found_ref_or_null & keyuse->optimize))
           {
             found_part|= keyuse->keypart_map;
-            found_ref|=  keyuse->used_tables;
+            double tmp= prev_record_reads(join,
+					  (found_ref |
+					   keyuse->used_tables));
+            if (tmp < best_prev_record_reads)
+            {
+              best_part_found_ref= keyuse->used_tables;
+              best_prev_record_reads= tmp;
+            }
             if (rec > keyuse->ref_table_rows)
               rec= keyuse->ref_table_rows;
-            found_part_ref_or_null&= keyuse->optimize;
+	    /*
+	      If there is one 'key_column IS NULL' expression, we can
+	      use this ref_or_null optimisation of this field
+	    */
+	    found_ref_or_null|= (keyuse->optimize &
+				 KEY_OPTIMIZE_REF_OR_NULL);
           }
           keyuse++;
-          found_ref_or_null|= found_part_ref_or_null;
         } while (keyuse->table == table && keyuse->key == key &&
                  keyuse->keypart == keypart);
+	found_ref|= best_part_found_ref;
       } while (keyuse->table == table && keyuse->key == key);
 
       /*
@@ -3451,17 +3464,17 @@ best_access_path(JOIN      *join,
               }
             }
             /* Limit the number of matched rows */
-            tmp = records;
+            tmp= records;
             set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
             if (table->used_keys.is_set(key))
             {
               /* we can use only index tree */
               uint keys_per_block= table->file->block_size/2/
                 (keyinfo->key_length+table->file->ref_length)+1;
-              tmp = record_count*(tmp+keys_per_block-1)/keys_per_block;
+              tmp= record_count*(tmp+keys_per_block-1)/keys_per_block;
             }
             else
-              tmp = record_count*min(tmp,s->worst_seeks);
+              tmp= record_count*min(tmp,s->worst_seeks);
           }
         }
         else
@@ -3475,7 +3488,7 @@ best_access_path(JOIN      *join,
               (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
                found_part == PREV_BITS(uint,keyinfo->key_parts)))
           {
-            max_key_part=max_part_bit(found_part);
+            max_key_part= max_part_bit(found_part);
             /*
               Check if quick_range could determinate how many rows we
               will match
@@ -3486,8 +3499,8 @@ best_access_path(JOIN      *join,
             else
             {
               /* Check if we have statistic about the distribution */
-              if ((records = keyinfo->rec_per_key[max_key_part-1]))
-                tmp = records;
+              if ((records= keyinfo->rec_per_key[max_key_part-1]))
+                tmp= records;
               else
               {
                 /*
@@ -3548,13 +3561,13 @@ best_access_path(JOIN      *join,
               /* we can use only index tree */
               uint keys_per_block= table->file->block_size/2/
                 (keyinfo->key_length+table->file->ref_length)+1;
-              tmp = record_count*(tmp+keys_per_block-1)/keys_per_block;
+              tmp= record_count*(tmp+keys_per_block-1)/keys_per_block;
             }
             else
-              tmp = record_count*min(tmp,s->worst_seeks);
+              tmp= record_count*min(tmp,s->worst_seeks);
           }
           else
-            tmp = best_time;                    // Do nothing
+            tmp= best_time;                    // Do nothing
         }
       } /* not ft_key */
       if (tmp < best_time - records/(double) TIME_FOR_COMPARE)
@@ -3906,7 +3919,8 @@ optimize_straight_join(JOIN *join, table_map join_tables)
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
     /* Find the best access method from 's' to the current partial plan */
-    best_access_path(join, s, join->thd, join_tables, idx, record_count, read_time);
+    best_access_path(join, s, join->thd, join_tables, idx,
+                     record_count, read_time);
     /* compute the cost of the new plan extended with 's' */
     record_count*= join->positions[idx].records_read;
     read_time+=    join->positions[idx].read_time;
@@ -4029,8 +4043,9 @@ greedy_search(JOIN      *join,
         'join->best_positions' contains a complete optimal extension of the
         current partial QEP.
       */
-      DBUG_EXECUTE("opt", print_plan(join, read_time, record_count,
-                                     join->tables, "optimal"););
+      DBUG_EXECUTE("opt", print_plan(join, join->tables,
+                                     record_count, read_time, read_time,
+                                     "optimal"););
       DBUG_VOID_RETURN;
     }
 
@@ -4061,8 +4076,9 @@ greedy_search(JOIN      *join,
     --rem_size;
     ++idx;
 
-    DBUG_EXECUTE("opt",
-                 print_plan(join, read_time, record_count, idx, "extended"););
+    DBUG_EXECUTE("opt", print_plan(join, join->tables,
+                                   record_count, read_time, read_time,
+                                   "extended"););
   } while (TRUE);
 }
 
@@ -4085,13 +4101,14 @@ greedy_search(JOIN      *join,
     read_time        the cost of the best partial plan
     search_depth     maximum depth of the recursion and thus size of the found
                      optimal plan (0 < search_depth <= join->tables+1).
-    prune_level      pruning heuristics that should be applied during optimization
+    prune_level      pruning heuristics that should be applied during
+                     optimization
                      (values: 0 = EXHAUSTIVE, 1 = PRUNE_BY_TIME_OR_ROWS)
 
   DESCRIPTION
     The procedure searches for the optimal ordering of the query tables in set
-    'remaining_tables' of size N, and the corresponding optimal access paths to each
-    table. The choice of a table order and an access path for each table
+    'remaining_tables' of size N, and the corresponding optimal access paths to
+    each table. The choice of a table order and an access path for each table
     constitutes a query execution plan (QEP) that fully specifies how to
     execute the query.
    
@@ -4201,8 +4218,8 @@ best_extension_by_limited_search(JOIN      *join,
   double best_record_count= DBL_MAX;
   double best_read_time=    DBL_MAX;
 
-  DBUG_EXECUTE("opt",
-               print_plan(join, read_time, record_count, idx, "part_plan"););
+  DBUG_EXECUTE("opt", print_plan(join, idx, record_count, read_time, read_time,
+                                "part_plan"););
 
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
@@ -4214,7 +4231,8 @@ best_extension_by_limited_search(JOIN      *join,
       double current_record_count, current_read_time;
 
       /* Find the best access method from 's' to the current partial plan */
-      best_access_path(join, s, thd, remaining_tables, idx, record_count, read_time);
+      best_access_path(join, s, thd, remaining_tables, idx,
+                       record_count, read_time);
       /* Compute the cost of extending the plan with 's' */
       current_record_count= record_count * join->positions[idx].records_read;
       current_read_time=    read_time + join->positions[idx].read_time;
@@ -4223,7 +4241,12 @@ best_extension_by_limited_search(JOIN      *join,
       if ((current_read_time +
            current_record_count / (double) TIME_FOR_COMPARE) >= join->best_read)
       {
-        DBUG_EXECUTE("opt", print_plan(join, read_time, record_count, idx,
+        DBUG_EXECUTE("opt", print_plan(join, idx+1,
+                                       current_record_count,
+                                       read_time,
+                                       (current_read_time +
+                                        current_record_count / 
+                                        (double) TIME_FOR_COMPARE),
                                        "prune_by_cost"););
         restore_prev_nj_state(s);
         continue;
@@ -4252,7 +4275,10 @@ best_extension_by_limited_search(JOIN      *join,
         }
         else
         {
-          DBUG_EXECUTE("opt", print_plan(join, read_time, record_count, idx,
+          DBUG_EXECUTE("opt", print_plan(join, idx+1,
+                                         current_record_count,
+                                         read_time,
+                                         current_read_time,
                                          "pruned_by_heuristic"););
           restore_prev_nj_state(s);
           continue;
@@ -4280,7 +4306,8 @@ best_extension_by_limited_search(JOIN      *join,
         */
         current_read_time+= current_record_count / (double) TIME_FOR_COMPARE;
         if (join->sort_by_table &&
-            join->sort_by_table != join->positions[join->const_tables].table->table)
+            join->sort_by_table !=
+            join->positions[join->const_tables].table->table)
           /* We have to make a temp table */
           current_read_time+= current_record_count;
         if ((search_depth == 1) || (current_read_time < join->best_read))
@@ -4289,8 +4316,10 @@ best_extension_by_limited_search(JOIN      *join,
                  sizeof(POSITION) * (idx + 1));
           join->best_read= current_read_time - 0.001;
         }
-        DBUG_EXECUTE("opt", print_plan(join, current_read_time, 
-                                       current_record_count, idx, 
+        DBUG_EXECUTE("opt", print_plan(join, idx+1,
+                                       current_record_count,
+                                       read_time,
+                                       current_read_time,
                                        "full_plan"););
       }
       restore_prev_nj_state(s);
@@ -4311,7 +4340,6 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
   ha_rows rec;
   double tmp;
   THD *thd= join->thd;
-
   if (!rest_tables)
   {
     DBUG_PRINT("best",("read_time: %g  record_count: %g",read_time,

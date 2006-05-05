@@ -363,6 +363,10 @@ SOURCE=..\mysys\my_getopt.c
 SOURCE=..\sql-common\my_time.c
 # End Source File
 # Begin Source File
+ 
+SOURCE=..\sql-common\my_user.c
+# End Source File
+# Begin Source File
 
 SOURCE=..\sql\net_serv.cpp
 # End Source File
