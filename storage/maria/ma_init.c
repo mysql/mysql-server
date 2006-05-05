@@ -52,7 +52,6 @@ void maria_end(void)
   if (maria_inited)
   {
     maria_inited= 0;
-    VOID(maria_logging(0));			/* Close log if neaded */
     ft_free_stopwords();
     pthread_mutex_destroy(&THR_LOCK_maria);
   }

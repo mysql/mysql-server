@@ -372,8 +372,6 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
 			  const char *name, int rep_quick);
 int maria_change_to_newfile(const char *filename, const char *old_ext,
 		      const char *new_ext, uint raid_chunks, myf myflags);
-int maria_lock_file(HA_CHECK *param, File file, my_off_t start, int lock_type,
-	      const char *filetype, const char *filename);
 void maria_lock_memory(HA_CHECK *param);
 int maria_update_state_info(HA_CHECK *param, MARIA_HA *info, uint update);
 void maria_update_key_parts(MARIA_KEYDEF *keyinfo, ulong *rec_per_key_part,

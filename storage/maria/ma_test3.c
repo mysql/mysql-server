@@ -41,7 +41,7 @@
 
 
 const char *filename= "test3";
-uint tests=10,forks=10,key_cacheing=0,use_log=0;
+uint tests=10,forks=10,key_cacheing=0;
 
 static void get_options(int argc, char *argv[]);
 void start_test(int id);
@@ -127,9 +127,6 @@ static void get_options(int argc, char **argv)
 
   while (--argc >0 && *(pos = *(++argv)) == '-' ) {
     switch(*++pos) {
-    case 'l':
-      use_log=1;
-      break;
     case 'f':
       forks=atoi(++pos);
       break;
@@ -140,7 +137,7 @@ static void get_options(int argc, char **argv)
       key_cacheing=1;
       break;
     case 'A':				/* All flags */
-      use_log=key_cacheing=1;
+      key_cacheing=1;
       break;
    case '?':
     case 'I':
@@ -169,8 +166,6 @@ void start_test(int id)
   MARIA_INFO isam_info;
   MARIA_HA *file,*file1,*file2=0,*lock;
 
-  if (use_log)
-    maria_logging(1);
   if (!(file1=maria_open(filename,O_RDWR,HA_OPEN_WAIT_IF_LOCKED)) ||
       !(file2=maria_open(filename,O_RDWR,HA_OPEN_WAIT_IF_LOCKED)))
   {
@@ -214,8 +209,6 @@ void start_test(int id)
 
   maria_close(file1);
   maria_close(file2);
-  if (use_log)
-    maria_logging(0);
   if (error)
   {
     printf("%2d: Aborted\n",id); fflush(stdout);

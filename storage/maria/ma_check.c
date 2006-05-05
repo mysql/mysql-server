@@ -1928,25 +1928,7 @@ int maria_change_to_newfile(const char * filename, const char * old_ext,
 } /* maria_change_to_newfile */
 
 
-	/* Locks a whole file */
-	/* Gives an error-message if file can't be locked */
-
-int maria_lock_file(HA_CHECK *param, File file, my_off_t start, int lock_type,
-	      const char *filetype, const char *filename)
-{
-  if (my_lock(file,lock_type,start,F_TO_EOF,
-	      param->testflag & T_WAIT_FOREVER ? MYF(MY_SEEK_NOT_DONE) :
-	      MYF(MY_SEEK_NOT_DONE |  MY_DONT_WAIT)))
-  {
-    _ma_check_print_error(param," %d when locking %s '%s'",my_errno,filetype,filename);
-    param->error_printed=2;		/* Don't give that data is crashed */
-    return 1;
-  }
-  return 0;
-} /* maria_lock_file */
-
-
-	/* Copy a block between two files */
+/* Copy a block between two files */
 
 int maria_filecopy(HA_CHECK *param, File to,File from,my_off_t start,
 	     my_off_t length, const char *type)

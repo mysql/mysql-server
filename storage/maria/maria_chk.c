@@ -1158,7 +1158,6 @@ static int mariachk(HA_CHECK *param, my_string filename)
 				(state_updated ? UPDATE_STAT : 0) |
 				((param->testflag & T_SORT_RECORDS) ?
 				 UPDATE_SORT : 0)));
-    VOID(maria_lock_file(param, share->kfile,0L,F_UNLCK,"indexfile",filename));
     info->update&= ~HA_STATE_CHANGED;
   }
   maria_lock_database(info, F_UNLCK);

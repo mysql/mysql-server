@@ -24,9 +24,8 @@ LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 pkglib_LIBRARIES =	libmaria.a
-bin_PROGRAMS =		maria_chk maria_log maria_pack maria_ftdump
+bin_PROGRAMS =		maria_chk maria_pack maria_ftdump
 maria_chk_DEPENDENCIES=	$(LIBRARIES)
-maria_log_DEPENDENCIES=	$(LIBRARIES)
 maria_pack_DEPENDENCIES=$(LIBRARIES)
 noinst_PROGRAMS =	ma_test1 ma_test2 ma_test3 ma_rt_test ma_sp_test
 noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h ma_sp_defs.h ma_fulltext.h ma_ftdefs.h ma_ft_test1.h ma_ft_eval.h
@@ -47,7 +46,7 @@ libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_delete.c \
 			ma_rprev.c ma_rfirst.c ma_rlast.c ma_rsame.c \
 			ma_rsamepos.c ma_panic.c ma_close.c ma_create.c\
-			ma_range.c ma_dbug.c ma_checksum.c ma_log.c \
+			ma_range.c ma_dbug.c ma_checksum.c \
 			ma_changed.c ma_static.c ma_delete_all.c \
 			ma_delete_table.c ma_rename.c  ma_check.c \
 			ma_keycache.c ma_preload.c ma_ft_parser.c \

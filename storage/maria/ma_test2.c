@@ -44,7 +44,7 @@ static void copy_key(struct st_maria_info *info,uint inx,
 
 static	int verbose=0,testflag=0,
 	    first_key=0,async_io=0,key_cacheing=0,write_cacheing=0,locking=0,
-            rec_pointer_size=0,pack_fields=1,use_log=0,silent=0,
+            rec_pointer_size=0,pack_fields=1,silent=0,
             opt_quick_mode=0;
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1,
 	   create_flag=0;
@@ -209,8 +209,6 @@ int main(int argc, char *argv[])
 		0,(MARIA_UNIQUEDEF*) 0,
 		&create_info,create_flag))
     goto err;
-  if (use_log)
-    maria_logging(1);
   if (!(file=maria_open(filename,2,HA_OPEN_ABORT_IF_LOCKED)))
     goto err;
   if (!silent)
@@ -893,9 +891,6 @@ static void get_options(int argc, char **argv)
     case 'i':
       if (*++pos)
 	srand(atoi(pos));
-      break;
-    case 'l':
-      use_log=1;
       break;
     case 'L':
       locking=1;

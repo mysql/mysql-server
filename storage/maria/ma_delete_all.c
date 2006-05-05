@@ -22,7 +22,6 @@
 int maria_delete_all_rows(MARIA_HA *info)
 {
   uint i;
-  char buf[22];
   MARIA_SHARE *share=info->s;
   MARIA_STATE_INFO *state=&share->state;
   DBUG_ENTER("maria_delete_all_rows");
@@ -49,7 +48,6 @@ int maria_delete_all_rows(MARIA_HA *info)
   for (i=0 ; i < share->base.keys ; i++)
     state->key_root[i]= HA_OFFSET_ERROR;
 
-  maria_log_command(MARIA_LOG_DELETE_ALL,info,(byte*) 0,0,0);
   /*
     If we are using delayed keys or if the user has done changes to the tables
     since it was locked then there may be key blocks in the key cache

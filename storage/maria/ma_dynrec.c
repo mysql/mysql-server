@@ -1529,12 +1529,6 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info, byte *buf,
   if (info->lock_type == F_UNLCK)
   {
 #ifndef UNSAFE_LOCKING
-    if (share->tot_locks == 0)
-    {
-      if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
-		  MYF(MY_SEEK_NOT_DONE) | info->lock_wait))
-	DBUG_RETURN(my_errno);
-    }
 #else
     info->tmp_lock_type=F_RDLCK;
 #endif

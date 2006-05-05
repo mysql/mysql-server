@@ -30,7 +30,6 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
   int error;
   uint count;
   MARIA_SHARE *share=info->s;
-  uint flag;
   DBUG_ENTER("maria_lock_database");
   DBUG_PRINT("enter",("lock_type: %d  old lock %d  r_locks: %u  w_locks: %u "
                       "global_changed:  %d  open_count: %u  name: '%s'",
@@ -49,7 +48,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
     DBUG_RETURN(0);
   }
 
-  flag=error=0;
+  error=0;
   pthread_mutex_lock(&share->intern_lock);
   if (share->kfile >= 0)		/* May only be false on windows */
   {
@@ -117,23 +116,6 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	    maria_mark_crashed(info);
           }
 	}
-	if (info->lock_type != F_EXTRA_LCK)
-	{
-	  if (share->r_locks)
-	  {					/* Only read locks left */
-	    flag=1;
-	    if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
-			MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
-	      error=my_errno;
-	  }
-	  else if (!share->w_locks)
-	  {					/* No more locks */
-	    flag=1;
-	    if (my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
-			MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
-	      error=my_errno;
-	  }
-	}
       }
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
       info->lock_type= F_UNLCK;
@@ -147,16 +129,6 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
           mysqld does not turn write locks to read locks,
           so we're never here in mysqld.
         */
-	if (share->w_locks == 1)
-	{
-	  flag=1;
-          if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
-		      MYF(MY_SEEK_NOT_DONE)))
-	  {
-	    error=my_errno;
-	    break;
-	  }
-	}
 	share->w_locks--;
 	share->r_locks++;
 	info->lock_type=lock_type;
@@ -164,18 +136,9 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       }
       if (!share->r_locks && !share->w_locks)
       {
-	flag=1;
-	if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
-		    info->lock_wait | MY_SEEK_NOT_DONE))
-	{
-	  error=my_errno;
-	  break;
-	}
 	if (_ma_state_info_read_dsk(share->kfile, &share->state, 1))
 	{
 	  error=my_errno;
-	  VOID(my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE)));
-	  my_errno=error;
 	  break;
 	}
       }
@@ -189,13 +152,6 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       {						/* Change READONLY to RW */
 	if (share->r_locks == 1)
 	{
-	  flag=1;
-	  if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
-		      MYF(info->lock_wait | MY_SEEK_NOT_DONE)))
-	  {
-	    error=my_errno;
-	    break;
-	  }
 	  share->r_locks--;
 	  share->w_locks++;
 	  info->lock_type=lock_type;
@@ -206,21 +162,11 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       {
 	if (!share->w_locks)
 	{
-	  flag=1;
-	  if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
-		      info->lock_wait | MY_SEEK_NOT_DONE))
-	  {
-	    error=my_errno;
-	    break;
-	  }
 	  if (!share->r_locks)
 	  {
 	    if (_ma_state_info_read_dsk(share->kfile, &share->state, 1))
 	    {
 	      error=my_errno;
-	      VOID(my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
-			   info->lock_wait | MY_SEEK_NOT_DONE));
-	      my_errno=error;
 	      break;
 	    }
 	  }
@@ -238,11 +184,6 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
     }
   }
   pthread_mutex_unlock(&share->intern_lock);
-#if defined(FULL_LOG) || defined(_lint)
-  lock_type|=(int) (flag << 8);		/* Set bit to set if real lock */
-  maria_log_command(MARIA_LOG_LOCK,info,(byte*) &lock_type,sizeof(lock_type),
-		     error);
-#endif
   DBUG_RETURN(error);
 } /* maria_lock_database */
 
@@ -381,14 +322,9 @@ int _ma_readinfo(register MARIA_HA *info, int lock_type, int check_keybuffer)
     MARIA_SHARE *share=info->s;
     if (!share->tot_locks)
     {
-      if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
-		  info->lock_wait | MY_SEEK_NOT_DONE))
-	DBUG_RETURN(1);
       if (_ma_state_info_read_dsk(share->kfile, &share->state, 1))
       {
 	int error=my_errno ? my_errno : -1;
-	VOID(my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
-		     MYF(MY_SEEK_NOT_DONE)));
 	my_errno=error;
 	DBUG_RETURN(1);
       }
@@ -438,10 +374,6 @@ int _ma_writeinfo(register MARIA_HA *info, uint operation)
       }
 #endif
     }
-    if (!(operation & WRITEINFO_NO_UNLOCK) &&
-	my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
-		MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
-      DBUG_RETURN(1);
     my_errno=olderror;
   }
   else if (operation)

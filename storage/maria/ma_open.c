@@ -75,7 +75,7 @@ MARIA_HA *_ma_test_if_reopen(char *filename)
 
 MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 {
-  int lock_error,kfile,open_mode,save_errno,have_rtree=0;
+  int kfile,open_mode,save_errno,have_rtree=0;
   uint i,j,len,errpos,head_length,base_pos,offset,info_length,keys,
     key_parts,unique_key_parts,fulltext_keys,uniques;
   char name_buff[FN_REFLEN], org_name[FN_REFLEN], index_name[FN_REFLEN],
@@ -90,7 +90,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
   LINT_INIT(m_info);
   kfile= -1;
-  lock_error=1;
   errpos=0;
   head_length=sizeof(share_buff.state.header);
   bzero((byte*) &info,sizeof(info));
@@ -176,14 +175,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     errpos=2;
 
     VOID(my_seek(kfile,0L,MY_SEEK_SET,MYF(0)));
-    if (!(open_flags & HA_OPEN_TMP_TABLE))
-    {
-      if ((lock_error=my_lock(kfile,F_RDLCK,0L,F_TO_EOF,
-			      MYF(open_flags & HA_OPEN_WAIT_IF_LOCKED ?
-				  0 : MY_DONT_WAIT))) &&
-	  !(open_flags & HA_OPEN_IGNORE_IF_LOCKED))
-	goto err;
-    }
     errpos=3;
     if (my_read(kfile,disk_cache,info_length,MYF(MY_NABP)))
     {
@@ -451,12 +442,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     }
     share->rec[i].type=(int) FIELD_LAST;	/* End marker */
 
-    if (! lock_error)
-    {
-      VOID(my_lock(kfile,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE)));
-      lock_error=1;			/* Database unlocked */
-    }
-
     if (_ma_open_datafile(&info, share, -1))
       goto err;
     errpos=5;
@@ -613,11 +598,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   maria_open_list=list_add(maria_open_list,&m_info->open_list);
 
   pthread_mutex_unlock(&THR_LOCK_maria);
-  if (maria_log_file >= 0)
-  {
-    intern_filename(name_buff,share->index_file_name);
-    _ma_log(MARIA_LOG_OPEN,m_info,name_buff,(uint) strlen(name_buff));
-  }
   DBUG_RETURN(m_info);
 
 err:
@@ -639,8 +619,6 @@ err:
     my_free((gptr) share,MYF(0));
     /* fall through */
   case 3:
-    if (! lock_error)
-      VOID(my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE)));
     /* fall through */
   case 2:
     my_afree((gptr) disk_cache);

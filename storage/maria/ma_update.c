@@ -170,7 +170,6 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
 
   info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED | HA_STATE_AKTIV |
 		 key_changed);
-  maria_log_record(MARIA_LOG_UPDATE,info,newrec,info->lastpos,0);
   VOID(_ma_writeinfo(info,key_changed ?  WRITEINFO_UPDATE_KEYFILE : 0));
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
@@ -220,7 +219,6 @@ err:
 		 key_changed);
 
  err_end:
-  maria_log_record(MARIA_LOG_UPDATE,info,newrec,info->lastpos,my_errno);
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (save_errno == HA_ERR_KEY_NOT_FOUND)

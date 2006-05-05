@@ -427,8 +427,6 @@ extern LIST *maria_open_list;
 extern uchar NEAR maria_file_magic[], NEAR maria_pack_file_magic[];
 extern uint NEAR maria_read_vec[], NEAR maria_readnext_vec[];
 extern uint maria_quick_table_bits;
-extern File maria_log_file;
-extern ulong maria_pid;
 
 	/* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 
@@ -648,16 +646,6 @@ typedef struct st_maria_block_info
 #define SORT_BUFFER_INIT	(2048L*1024L-MALLOC_OVERHEAD)
 #define MIN_SORT_BUFFER		(4096-MALLOC_OVERHEAD)
 
-enum maria_log_commands
-{
-  MARIA_LOG_OPEN, MARIA_LOG_WRITE, MARIA_LOG_UPDATE, MARIA_LOG_DELETE,
-  MARIA_LOG_CLOSE, MARIA_LOG_EXTRA, MARIA_LOG_LOCK, MARIA_LOG_DELETE_ALL
-};
-
-#define maria_log(a,b,c,d) if (maria_log_file >= 0) _ma_log(a,b,c,d)
-#define maria_log_command(a,b,c,d,e) if (maria_log_file >= 0) _ma_log_command(a,b,c,d,e)
-#define maria_log_record(a,b,c,d,e) if (maria_log_file >= 0) _ma_log_record(a,b,c,d,e)
-
 #define fast_ma_writeinfo(INFO) if (!(INFO)->s->tot_locks) (void) _ma_writeinfo((INFO),0)
 #define fast_ma_readinfo(INFO) ((INFO)->lock_type == F_UNLCK) && _ma_readinfo((INFO),F_RDLCK,1)
 
@@ -666,14 +654,6 @@ extern uint _ma_rec_pack(MARIA_HA *info, byte *to, const byte *from);
 extern uint _ma_pack_get_block_info(MARIA_HA *, MARIA_BLOCK_INFO *, File,
                                     my_off_t);
 extern void _ma_store_blob_length(byte *pos, uint pack_length, uint length);
-extern void _ma_log(enum maria_log_commands command, MARIA_HA *info,
-                    const byte *buffert, uint length);
-extern void _ma_log_command(enum maria_log_commands command,
-                            MARIA_HA *info, const byte *buffert,
-                            uint length, int result);
-extern void _ma_log_record(enum maria_log_commands command, MARIA_HA *info,
-                           const byte *record, my_off_t filepos,
-                           int result);
 extern void _ma_report_error(int errcode, const char *file_name);
 extern my_bool _ma_memmap_file(MARIA_HA *info);
 extern void _ma_unmap_file(MARIA_HA *info);

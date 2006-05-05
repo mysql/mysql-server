@@ -28,8 +28,6 @@ uchar	NEAR maria_file_magic[]=
 { (uchar) 254, (uchar) 254,'\007', '\001', };
 uchar	NEAR maria_pack_file_magic[]=
 { (uchar) 254, (uchar) 254,'\010', '\002', };
-my_string maria_log_filename=(char*) "maria.log";
-File	maria_log_file= -1;
 uint	maria_quick_table_bits=9;
 ulong	maria_block_size= MARIA_KEY_BLOCK_LENGTH;
 my_bool maria_flush=0, maria_delay_key_write=0, maria_single_user=0;

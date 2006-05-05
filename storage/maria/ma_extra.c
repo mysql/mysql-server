@@ -397,7 +397,6 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function, void *extra_arg
   {
     char tmp[1];
     tmp[0]=function;
-    maria_log_command(MARIA_LOG_EXTRA,info,(byte*) tmp,1,error);
   }
   DBUG_RETURN(error);
 } /* maria_extra */

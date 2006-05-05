@@ -62,11 +62,6 @@ int maria_write(MARIA_HA *info, byte *record)
   if (_ma_readinfo(info,F_WRLCK,1))
     DBUG_RETURN(my_errno);
   dont_break();				/* Dont allow SIGHUP or SIGINT */
-#if !defined(NO_LOCKING) && defined(USE_RECORD_LOCK)
-  if (!info->locked && my_lock(info->dfile,F_WRLCK,0L,F_TO_EOF,
-			       MYF(MY_SEEK_NOT_DONE) | info->lock_wait))
-    goto err;
-#endif
   filepos= ((share->state.dellink != HA_OFFSET_ERROR &&
              !info->append_insert_at_end) ?
 	    share->state.dellink :
@@ -155,7 +150,6 @@ int maria_write(MARIA_HA *info, byte *record)
 		 HA_STATE_ROW_CHANGED);
   info->state->records++;
   info->lastpos=filepos;
-  maria_log_record(MARIA_LOG_WRITE,info,record,filepos,0);
   VOID(_ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE));
   if (info->invalidator != 0)
   {
@@ -220,7 +214,6 @@ err:
   my_errno=save_errno;
 err2:
   save_errno=my_errno;
-  maria_log_record(MARIA_LOG_WRITE,info,record,filepos,my_errno);
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(my_errno=save_errno);

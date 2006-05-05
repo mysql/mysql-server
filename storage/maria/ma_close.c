@@ -113,7 +113,6 @@ int maria_close(register MARIA_HA *info)
   if (info->dfile >= 0 && my_close(info->dfile,MYF(0)))
     error = my_errno;
 
-  maria_log_command(MARIA_LOG_CLOSE,info,NULL,0,error);
   my_free((gptr) info,MYF(0));
 
   if (error)
