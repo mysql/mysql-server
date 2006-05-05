@@ -144,6 +144,7 @@ static ulint ibuf_rnd		= 986058871;
 
 ulint	ibuf_flush_count	= 0;
 
+#ifdef UNIV_IBUF_DEBUG
 /* Dimensions for the ibuf_count array */
 #define IBUF_COUNT_N_SPACES	500
 #define IBUF_COUNT_N_PAGES	2000
@@ -152,6 +153,7 @@ ulint	ibuf_flush_count	= 0;
 static ulint*	ibuf_counts[IBUF_COUNT_N_SPACES];
 
 static ibool	ibuf_counts_inited	= FALSE;
+#endif
 
 /* The start address for an insert buffer bitmap page bitmap */
 #define IBUF_BITMAP		PAGE_DATA
@@ -314,6 +316,7 @@ ibuf_tree_root_get(
 	return(page);
 }
 
+#ifdef UNIV_IBUF_DEBUG
 /**********************************************************************
 Gets the ibuf count for a given page. */
 
@@ -338,7 +341,6 @@ ibuf_count_get(
 
 /**********************************************************************
 Sets the ibuf count for a given page. */
-#ifdef UNIV_IBUF_DEBUG
 static
 void
 ibuf_count_set(
@@ -389,6 +391,8 @@ ibuf_init_at_db_start(void)
 				ibuf_count_set(i, j, 0);
 			}
 		}
+
+		ibuf_counts_inited = TRUE;
 	}
 #endif
 	mutex_create(&ibuf_pessimistic_insert_mutex,
@@ -399,8 +403,6 @@ ibuf_init_at_db_start(void)
 	mutex_create(&ibuf_bitmap_mutex, SYNC_IBUF_BITMAP_MUTEX);
 
 	fil_ibuf_init_at_db_start();
-
-	ibuf_counts_inited = TRUE;
 }
 
 /**********************************************************************
