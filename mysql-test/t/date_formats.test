@@ -277,3 +277,33 @@ select str_to_date( 1, NULL );
 select str_to_date( NULL, 1 );
 select str_to_date( 1, IF(1=1,NULL,NULL) );
 # End of 4.1 tests
+
+#
+# Bug#11326
+# TIME_FORMAT using "%r" returns wrong hour using 24:00:00 in TIME column
+#
+# This tests that 24:00:00 does not return PM, when it should be AM.
+# Some other values are being tested same time.
+#
+
+SELECT TIME_FORMAT("24:00:00", '%r');
+SELECT TIME_FORMAT("00:00:00", '%r');
+SELECT TIME_FORMAT("12:00:00", '%r');
+SELECT TIME_FORMAT("15:00:00", '%r');
+SELECT TIME_FORMAT("01:00:00", '%r');
+SELECT TIME_FORMAT("25:00:00", '%r');
+
+#
+# Bug#11324
+# TIME_FORMAT using "%l:%i" returns 36:00 with 24:00:00 in TIME column
+#
+# This tests that 24:00:00 does not change to "36:00 AM". Testing
+# some other values same time.
+#
+
+SELECT TIME_FORMAT("00:00:00", '%l %p');
+SELECT TIME_FORMAT("01:00:00", '%l %p');
+SELECT TIME_FORMAT("12:00:00", '%l %p');
+SELECT TIME_FORMAT("23:00:00", '%l %p');
+SELECT TIME_FORMAT("24:00:00", '%l %p');
+SELECT TIME_FORMAT("25:00:00", '%l %p');
