@@ -1782,5 +1782,65 @@ select * from t5 where b like '%jo%' order by a;
 a	b
 1	jonas
 3	johan
+drop table t1;
+create table t1 (a int, b varchar(3), primary key using hash(a))
+engine=ndb;
+insert into t1 values (1,'a'), (2,'ab'), (3,'abc');
+set engine_condition_pushdown = off;
+select * from t1 where b like 'ab';
+a	b
+2	ab
+select * from t1 where b like 'ab' or b like 'ab';
+a	b
+2	ab
+select * from t1 where b like 'abc';
+a	b
+3	abc
+select * from t1 where b like 'abc' or b like 'abc';
+a	b
+3	abc
+set engine_condition_pushdown = on;
+select * from t1 where b like 'ab';
+a	b
+2	ab
+select * from t1 where b like 'ab' or b like 'ab';
+a	b
+2	ab
+select * from t1 where b like 'abc';
+a	b
+3	abc
+select * from t1 where b like 'abc' or b like 'abc';
+a	b
+3	abc
+drop table t1;
+create table t1 (a int, b char(3), primary key using hash(a))
+engine=ndb;
+insert into t1 values (1,'a'), (2,'ab'), (3,'abc');
+set engine_condition_pushdown = off;
+select * from t1 where b like 'ab';
+a	b
+2	ab
+select * from t1 where b like 'ab' or b like 'ab';
+a	b
+2	ab
+select * from t1 where b like 'abc';
+a	b
+3	abc
+select * from t1 where b like 'abc' or b like 'abc';
+a	b
+3	abc
+set engine_condition_pushdown = on;
+select * from t1 where b like 'ab';
+a	b
+2	ab
+select * from t1 where b like 'ab' or b like 'ab';
+a	b
+2	ab
+select * from t1 where b like 'abc';
+a	b
+3	abc
+select * from t1 where b like 'abc' or b like 'abc';
+a	b
+3	abc
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
