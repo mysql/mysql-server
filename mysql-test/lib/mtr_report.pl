@@ -218,7 +218,8 @@ sub mtr_report_stats ($) {
       # We report different types of problems in order
       foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x",
 			    "InnoDB: Warning", "missing DBUG_RETURN",
-			    "mysqld: Warning")
+			    "mysqld: Warning",
+			    "Attempting backtrace", "Assertion .* failed" )
       {
         foreach my $errlog ( sort glob("$::opt_vardir/log/*.err") )
         {
@@ -232,7 +233,8 @@ sub mtr_report_stats ($) {
             # Skip some non fatal warnings from the log files
             if ( /Warning:\s+Table:.* on (delete|rename)/ or
                  /Warning:\s+Setting lower_case_table_names=2/ or
-                 /Warning:\s+One can only use the --user.*root/ )
+                 /Warning:\s+One can only use the --user.*root/ or
+	         /InnoDB: Warning: we did not need to do crash recovery/)
             {
               next;                       # Skip these lines
             }
