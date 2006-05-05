@@ -805,7 +805,9 @@ NdbSqlUtil::likeChar(const void* info, const void* p1, unsigned n1, const void* 
   const char* v1 = (const char*)p1;
   const char* v2 = (const char*)p2;
   CHARSET_INFO* cs = (CHARSET_INFO*)(info);
-  int k = (cs->coll->wildcmp)(cs, v1, v1 + n1, v2, v2 + n2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
+  // strip end spaces to match (incorrect) MySQL behaviour
+  n1 = (*cs->cset->lengthsp)(cs, v1, n1);
+  int k = (*cs->coll->wildcmp)(cs, v1, v1 + n1, v2, v2 + n2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
   return k == 0 ? 0 : +1;
 }
 
@@ -820,16 +822,16 @@ int
 NdbSqlUtil::likeVarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const unsigned lb = 1;
-  if (n1 >= lb && n2 >= lb) {
+  if (n1 >= lb) {
     const uchar* v1 = (const uchar*)p1;
     const uchar* v2 = (const uchar*)p2;
     unsigned m1 = *v1;
-    unsigned m2 = *v2;
-    if (lb + m1 <= n1 && lb + m2 <= n2) {
+    unsigned m2 = n2;
+    if (lb + m1 <= n1) {
       const char* w1 = (const char*)v1 + lb;
-      const char* w2 = (const char*)v2 + lb;
+      const char* w2 = (const char*)v2;
       CHARSET_INFO* cs = (CHARSET_INFO*)(info);
-      int k = (cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
+      int k = (*cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
       return k == 0 ? 0 : +1;
     }
   }
@@ -847,16 +849,16 @@ int
 NdbSqlUtil::likeLongvarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const unsigned lb = 2;
-  if (n1 >= lb && n2 >= lb) {
+  if (n1 >= lb) {
     const uchar* v1 = (const uchar*)p1;
     const uchar* v2 = (const uchar*)p2;
     unsigned m1 = uint2korr(v1);
-    unsigned m2 = uint2korr(v2);
-    if (lb + m1 <= n1 && lb + m2 <= n2) {
+    unsigned m2 = n2;
+    if (lb + m1 <= n1) {
       const char* w1 = (const char*)v1 + lb;
-      const char* w2 = (const char*)v2 + lb;
+      const char* w2 = (const char*)v2;
       CHARSET_INFO* cs = (CHARSET_INFO*)(info);
-      int k = (cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
+      int k = (*cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
       return k == 0 ? 0 : +1;
     }
   }
