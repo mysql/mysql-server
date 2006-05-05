@@ -2036,8 +2036,13 @@ row_fetch_print(
 		dtype_print(type);
 		fprintf(stderr, "\n");
 
-		ut_print_buf(stderr, dfield_get_data(dfield),
-			dfield_get_len(dfield));
+		if (dfield_get_len(dfield) != UNIV_SQL_NULL) {
+			ut_print_buf(stderr, dfield_get_data(dfield),
+				dfield_get_len(dfield));
+		} else {
+			fprintf(stderr, " <NULL>;");
+		}
+
 		fprintf(stderr, "\n");
 
 		exp = que_node_get_next(exp);
