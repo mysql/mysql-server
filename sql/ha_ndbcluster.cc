@@ -6447,7 +6447,8 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
       }
 
       // Define scan op for the range
-      if ((trans=m_active_trans) == NULL)
+      if ((trans=m_active_trans) == NULL || 
+	  trans->commitStatus() != NdbTransaction::Started)
       {
         DBUG_PRINT("info", ("no active trans"));
         if (! (trans=ndb->startTransaction()))
