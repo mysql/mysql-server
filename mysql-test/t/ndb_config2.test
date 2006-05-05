@@ -1,0 +1,7 @@
+-- source include/have_ndb.inc
+-- source include/ndb_default_cluster.inc
+-- source include/not_embedded.inc
+
+# Following doesn't work in all configurations (if shm is not defined)
+
+--exec $NDB_TOOLS_DIR/ndb_config --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf2.cnf --ndb-shm --connections --query=type,nodeid1,nodeid2,group,nodeidserver --mycnf 2> /dev/null
