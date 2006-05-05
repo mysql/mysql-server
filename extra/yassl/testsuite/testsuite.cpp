@@ -91,6 +91,7 @@ int main(int argc, char** argv)
     assert(memcmp(input, output, sizeof(input)) == 0);
 
     printf("\nAll tests passed!\n");
+    yaSSL_CleanUp();
 
     return 0;
 }

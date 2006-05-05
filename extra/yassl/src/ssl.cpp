@@ -53,6 +53,53 @@ namespace yaSSL {
 using mySTL::min;
 
 
+int read_file(SSL_CTX* ctx, const char* file, int format, CertType type)
+{
+    if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM)
+        return SSL_BAD_FILETYPE;
+
+    FILE* input = fopen(file, "rb");
+    if (!input)
+        return SSL_BAD_FILE;
+
+    if (type == CA) {
+        x509* ptr = PemToDer(file, Cert);
+        if (!ptr) {
+            fclose(input);
+            return SSL_BAD_FILE;
+        }
+        ctx->AddCA(ptr);  // takes ownership
+    }
+    else {
+        x509*& x = (type == Cert) ? ctx->certificate_ : ctx->privateKey_;
+
+        if (format == SSL_FILETYPE_ASN1) {
+            fseek(input, 0, SEEK_END);
+            long sz = ftell(input);
+            rewind(input);
+            x = NEW_YS x509(sz); // takes ownership
+            size_t bytes = fread(x->use_buffer(), sz, 1, input);
+            if (bytes != 1) {
+                fclose(input);
+                return SSL_BAD_FILE;
+            }
+        }
+        else {
+            x = PemToDer(file, type);
+            if (!x) {
+                fclose(input);
+                return SSL_BAD_FILE;
+            }
+        }
+    }
+    fclose(input);
+    return SSL_SUCCESS;
+}
+
+
+extern "C" {
+
+
 SSL_METHOD* SSLv3_method()
 {
     return SSLv3_client_method();
@@ -446,50 +493,6 @@ long SSL_CTX_set_tmp_dh(SSL_CTX* ctx, DH* dh)
         return SSL_SUCCESS;
     else
         return SSL_FAILURE;
-}
-
-
-int read_file(SSL_CTX* ctx, const char* file, int format, CertType type)
-{
-    if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM)
-        return SSL_BAD_FILETYPE;
-
-    FILE* input = fopen(file, "rb");
-    if (!input)
-        return SSL_BAD_FILE;
-
-    if (type == CA) {
-        x509* ptr = PemToDer(file, Cert);
-        if (!ptr) {
-            fclose(input);
-            return SSL_BAD_FILE;
-        }
-        ctx->AddCA(ptr);  // takes ownership
-    }
-    else {
-        x509*& x = (type == Cert) ? ctx->certificate_ : ctx->privateKey_;
-
-        if (format == SSL_FILETYPE_ASN1) {
-            fseek(input, 0, SEEK_END);
-            long sz = ftell(input);
-            rewind(input);
-            x = NEW_YS x509(sz); // takes ownership
-            size_t bytes = fread(x->use_buffer(), sz, 1, input);
-            if (bytes != 1) {
-                fclose(input);
-                return SSL_BAD_FILE;
-            }
-        }
-        else {
-            x = PemToDer(file, type);
-            if (!x) {
-                fclose(input);
-                return SSL_BAD_FILE;
-            }
-        }
-    }
-    fclose(input);
-    return SSL_SUCCESS;
 }
 
 
@@ -1080,7 +1083,7 @@ int X509_NAME_get_index_by_NID(X509_NAME* name,int nid, int lastpos)
 
     switch (nid) {
     case NID_commonName:
-        char* found = strstr(start, "/CN=");
+        const char* found = strstr(start, "/CN=");
         if (found) {
             found += 4;  // advance to str
             idx = found - start + lastpos + 1;
@@ -1401,4 +1404,5 @@ void MD5_Final(unsigned char* hash, MD5_CTX* md5)
     // end stunnel needs
 
 
+} // extern "C"
 } // namespace

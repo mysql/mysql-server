@@ -1415,7 +1415,7 @@ BulkCipher* CryptProvider::NewDesEde()
 }
 
 
-void CleanUp()
+extern "C" void yaSSL_CleanUp()
 {
     TaoCrypt::CleanUp();
     ysDelete(cryptProviderInstance);
