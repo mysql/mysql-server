@@ -32,7 +32,7 @@ rpl_ndb_log              : BUG#18947 2006-03-21 tomas CRBR: order in binlog of c
 rpl_ndb_myisam2ndb       : BUG#17400 2006-04-19 tomas Cluster Replication: delete & update of rows in table without pk fails on slave.
 rpl_switch_stm_row_mixed : BUG#18590 2006-03-28 brian
 rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
-rpl_row_func003		 : BUG#19074 2006-13-04 andrei  test failed
+rpl_row_func003 	 : BUG#19074 2006-13-04 andrei  test failed
 rpl_row_inexist_tbl      : BUG#18948 2006-03-09 mats    Disabled since patch makes this test wait forever
 rpl_sp                   : BUG#16456 2006-02-16 jmiller
 udf                      : BUG#18564 2006-03-27 ian     (Permission by Brian)

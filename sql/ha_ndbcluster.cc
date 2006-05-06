@@ -6217,10 +6217,10 @@ static int ndbcluster_end(ha_panic_function type)
 #ifdef HAVE_NDB_BINLOG
   {
     pthread_mutex_lock(&ndbcluster_mutex);
-    for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+    while (ndbcluster_open_tables.records)
     {
       NDB_SHARE *share=
-        (NDB_SHARE*) hash_element(&ndbcluster_open_tables, i);
+        (NDB_SHARE*) hash_element(&ndbcluster_open_tables, 0);
 #ifndef DBUG_OFF
       fprintf(stderr, "NDB: table share %s with use_count %d not freed\n",
               share->key, share->use_count);
@@ -10185,6 +10185,7 @@ mysql_declare_plugin(ndbcluster)
   NULL, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
+  0
 }
 mysql_declare_plugin_end;
 

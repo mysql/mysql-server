@@ -157,6 +157,7 @@ sub mtr_report_stats ($) {
   my $tot_passed= 0;
   my $tot_failed= 0;
   my $tot_tests=  0;
+  my $found_problems= 0;            # Some warnings are errors...
 
   foreach my $tinfo (@$tests)
   {
@@ -214,10 +215,11 @@ sub mtr_report_stats ($) {
     }
     else
     {
-      my $found_problems= 0;            # Some warnings are errors...
-
       # We report different types of problems in order
-      foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x" )
+      foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x",
+			    "InnoDB: Warning", "missing DBUG_RETURN",
+			    "mysqld: Warning",
+			    "Attempting backtrace", "Assertion .* failed" )
       {
         foreach my $errlog ( sort glob("$::opt_vardir/log/*.err") )
         {
@@ -231,7 +233,8 @@ sub mtr_report_stats ($) {
             # Skip some non fatal warnings from the log files
             if ( /Warning:\s+Table:.* on (delete|rename)/ or
                  /Warning:\s+Setting lower_case_table_names=2/ or
-                 /Warning:\s+One can only use the --user.*root/ )
+                 /Warning:\s+One can only use the --user.*root/ or
+	         /InnoDB: Warning: we did not need to do crash recovery/)
             {
               next;                       # Skip these lines
             }
@@ -242,11 +245,11 @@ sub mtr_report_stats ($) {
             }
           }
         }
-        if ( $found_problems )
-        {
-          mtr_warning("Got errors/warnings while running tests, please examine",
-                      "\"$warnlog\" for details.");
-        }
+      }
+      if ( $found_problems )
+      {
+	mtr_warning("Got errors/warnings while running tests, please examine",
+		    "\"$warnlog\" for details.");
       }
     }
   }
@@ -266,6 +269,9 @@ sub mtr_report_stats ($) {
       }
     }
     print "\n";
+  }
+  if ( $tot_failed != 0 || $found_problems)
+  {
     mtr_error("there where failing test cases");
   }
 }

@@ -288,13 +288,13 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
 
   if (!(share= alloc_table_share(table_list, key, key_length)))
   {
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
     pthread_mutex_unlock(&LOCK_open);
 #endif
     DBUG_RETURN(0);
   }
 
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
   // We need a write lock to be able to add a new entry
   pthread_mutex_unlock(&LOCK_open);
   pthread_mutex_lock(&LOCK_open);
@@ -331,19 +331,19 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
 
   if (my_hash_insert(&table_def_cache, (byte*) share))
   {
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
     pthread_mutex_unlock(&LOCK_open);    
     (void) pthread_mutex_unlock(&share->mutex);
 #endif
     free_table_share(share);
     DBUG_RETURN(0);				// return error
   }
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
   pthread_mutex_unlock(&LOCK_open);
 #endif
   if (open_table_def(thd, share, db_flags))
   {
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
     /*
       No such table or wrong table definition file
       Lock first the table cache and then the mutex.
@@ -372,7 +372,7 @@ found:
 
   /* We must do a lock to ensure that the structure is initialized */
   (void) pthread_mutex_lock(&share->mutex);
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
   pthread_mutex_unlock(&LOCK_open);
 #endif
   if (share->error)
@@ -540,7 +540,7 @@ void release_table_share(TABLE_SHARE *share, enum release_type type)
   DBUG_VOID_RETURN;
 
 
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
   if (to_be_deleted)
   {
     /*
@@ -1069,7 +1069,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
       handled either before writing a query log event (inside
       binlog_query()) or when preparing a pending event.
      */
-    thd->binlog_flush_pending_rows_event(true);
+    thd->binlog_flush_pending_rows_event(TRUE);
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
