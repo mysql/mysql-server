@@ -688,10 +688,11 @@ static void die(const char *fmt, ...)
 
 /* Note that we will get some memory leaks when calling this! */
 
-static void abort_not_supported_test()
+static void abort_not_supported_test(const char *fname)
 {
   DBUG_ENTER("abort_not_supported_test");
-  fprintf(stderr, "This test is not supported by this installation\n");
+  fprintf(stderr, "The test '%s' is not supported by this installation\n",
+          fname);
   if (!silent)
     printf("skipped\n");
   free_used_memory();
@@ -814,7 +815,7 @@ static void check_result(DYNAMIC_STRING* ds, const char *fname,
   DBUG_ENTER("check_result");
 
   if (res && require_option)
-    abort_not_supported_test();
+    abort_not_supported_test(fname);
   switch (res) {
   case RESULT_OK:
     break; /* ok */
@@ -1036,7 +1037,7 @@ int do_wait_for_slave_to_stop(struct st_query *q __attribute__((unused)))
 int do_require_manager(struct st_query *query __attribute__((unused)) )
 {
   if (!manager)
-    abort_not_supported_test();
+    abort_not_supported_test("manager");
   return 0;
 }
 
@@ -1305,7 +1306,9 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
     uint i;
     ulong *lengths;
     char *end;
+#ifdef NOT_YET
     MYSQL_FIELD *fields= mysql_fetch_fields(res);
+#endif
 
     init_dynamic_string(&result, "", 16384, 65536);
     lengths= mysql_fetch_lengths(res);
@@ -1920,7 +1923,7 @@ static void set_charset(struct st_query *q)
   q->last_argument= p;
   charset_info= get_charset_by_csname(charset_name,MY_CS_PRIMARY,MYF(MY_WME));
   if (!charset_info)
-    abort_not_supported_test();
+    abort_not_supported_test(charset_name);
 }
 
 static uint get_errcodes(match_err *to,struct st_query *q)
@@ -1963,7 +1966,7 @@ static uint get_errcodes(match_err *to,struct st_query *q)
           (as in ER_WRONG_VALUE vs. ER_WRONG_VALUE_COUNT).
         */
 	if (!strncmp(start, e->name, (int) (p - start)) &&
-            strlen(e->name) == (p - start))
+            (uint) strlen(e->name) == (uint) (p - start))
 	{
 	  to[count].code.errnum= (uint) e->code;
 	  to[count].type= ERR_ERRNO;
@@ -4329,7 +4332,7 @@ static void handle_error(const char *query, struct st_query *q,
     if (err_errno == CR_SERVER_LOST ||
         err_errno == CR_SERVER_GONE_ERROR)
       die("require query '%s' failed: %d: %s", query, err_errno, err_error);
-    abort_not_supported_test();
+    abort_not_supported_test("failed_query");
   }
 
   if (q->abort_on_error)
@@ -5101,7 +5104,7 @@ static void init_var_hash(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-static void mark_progress(int line)
+static void mark_progress(int line __attribute__((unused)))
 {
 #ifdef NOT_YET
   static FILE* fp = NULL;

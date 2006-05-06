@@ -231,10 +231,9 @@ static int mysql_copy_key_list(List<Key> *orig_key,
       }
     }
     if (!(temp_key= new Key(prep_key->type, prep_key->name,
-                            prep_key->algorithm,
+                            &prep_key->key_create_info,
                             prep_key->generated,
-                            prep_columns,
-                            prep_key->parser_name)))
+                            prep_columns)))
     {
       mem_alloc_error(sizeof(Key));
       DBUG_RETURN(TRUE);
@@ -504,12 +503,14 @@ bool read_ddl_log_entry(uint read_entry, DDL_LOG_ENTRY *ddl_log_entry)
   Initialise ddl log
   SYNOPSIS
     init_ddl_log()
-  RETURN VALUES
-    TRUE                     Error
-    FALSE                    Success
+
   DESCRIPTION
     Write the header of the ddl log file and length of names. Also set
     number of entries to zero.
+
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
 */
 
 static bool init_ddl_log()
@@ -519,9 +520,8 @@ static bool init_ddl_log()
   DBUG_ENTER("init_ddl_log");
 
   if (global_ddl_log.inited)
-  {
-    DBUG_RETURN(FALSE);
-  }
+    goto end;
+
   global_ddl_log.io_size= IO_SIZE;
   create_ddl_log_file_name(file_name);
   if ((global_ddl_log.file_id= my_create(file_name,
@@ -536,9 +536,12 @@ static bool init_ddl_log()
   global_ddl_log.inited= TRUE;
   if (write_ddl_log_header())
   {
+    VOID(my_close(global_ddl_log.file_id, MYF(MY_WME)));
     global_ddl_log.inited= FALSE;
     DBUG_RETURN(TRUE);
   }
+
+end:
   DBUG_RETURN(FALSE);
 }
 
@@ -1070,7 +1073,7 @@ void execute_ddl_log_recovery()
   global_ddl_log.inited= FALSE;
   global_ddl_log.recovery_phase= TRUE;
   global_ddl_log.io_size= IO_SIZE;
-  global_ddl_log.file_id=(File)-1;
+  global_ddl_log.file_id= (File) -1;
 
   /*
     To be able to run this from boot, we allocate a temporary THD
@@ -1135,8 +1138,12 @@ void release_ddl_log()
     my_free((char*)free_list, MYF(0));
     free_list= tmp;
   }
-  if (global_ddl_log.file_id != (File)-1)
-    VOID(my_close(global_ddl_log.file_id, MYF(0)));
+  if (global_ddl_log.file_id >= 0)
+  {
+    VOID(my_close(global_ddl_log.file_id, MYF(MY_WME)));
+    global_ddl_log.file_id= (File) -1;
+  }
+  global_ddl_log.inited= 0;
   pthread_mutex_unlock(&LOCK_gdl);
   VOID(pthread_mutex_destroy(&LOCK_gdl));
   DBUG_VOID_RETURN;
@@ -2501,14 +2508,16 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	break;
     }
 
-    switch(key->type){
+    switch (key->type) {
     case Key::MULTIPLE:
 	key_info->flags= 0;
 	break;
     case Key::FULLTEXT:
 	key_info->flags= HA_FULLTEXT;
-	if ((key_info->parser_name= key->parser_name))
+	if ((key_info->parser_name= &key->key_create_info.parser_name)->str)
           key_info->flags|= HA_USES_PARSER;
+        else
+          key_info->parser_name= 0;
 	break;
     case Key::SPATIAL:
 #ifdef HAVE_SPATIAL
@@ -2532,7 +2541,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     key_info->key_parts=(uint8) key->columns.elements;
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
-    key_info->algorithm=key->algorithm;
+    key_info->algorithm= key->key_create_info.algorithm;
 
     if (key->type == Key::FULLTEXT)
     {
@@ -2554,6 +2563,12 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     /* TODO: Add proper checks if handler supports key_type and algorithm */
     if (key_info->flags & HA_SPATIAL)
     {
+      if (!(file->table_flags() & HA_CAN_RTREEKEYS))
+      {
+        my_message(ER_TABLE_CANT_HANDLE_SPKEYS, ER(ER_TABLE_CANT_HANDLE_SPKEYS),
+                   MYF(0));
+        DBUG_RETURN(-1);
+      }
       if (key_info->key_parts != 1)
       {
 	my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
@@ -2577,6 +2592,18 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(-1);
 #endif
     }
+
+    /* Take block size from key part or table part */
+    /*
+      TODO: Add warning if block size changes. We can't do it here, as
+      this may depend on the size of the key
+    */
+    key_info->block_size= (key->key_create_info.block_size ?
+                           key->key_create_info.block_size :
+                           create_info->key_block_size);
+
+    if (key_info->block_size)
+      key_info->flags|= HA_USES_BLOCK_SIZE;
 
     List_iterator<key_part_spec> cols(key->columns), cols2(key->columns);
     CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
@@ -3551,7 +3578,9 @@ mysql_rename_table(handlerton *base,
     }
   }
   delete file;
-  if (error)
+  if (error == HA_ERR_WRONG_COMMAND)
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
+  else if (error)
     my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
   DBUG_RETURN(error != 0);
 }
@@ -3869,6 +3898,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   int result_code;
   DBUG_ENTER("mysql_admin_table");
 
+  if (end_active_trans(thd))
+    DBUG_RETURN(1);
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null = 1;
   field_list.push_back(item = new Item_empty_string("Op", 10));
@@ -3919,6 +3950,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     {
       switch ((*prepare_func)(thd, table, check_opt)) {
       case  1:           // error, message written to net
+        ha_autocommit_or_rollback(thd, 1);
         close_thread_tables(thd);
         continue;
       case -1:           // error, message could be written to net
@@ -3960,6 +3992,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         View opening can be interrupted in the middle of process so some
         tables can be left opening
       */
+      ha_autocommit_or_rollback(thd, 1);
       close_thread_tables(thd);
       if (protocol->write())
 	goto err;
@@ -3984,6 +4017,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       length= my_snprintf(buff, sizeof(buff), ER(ER_OPEN_AS_READONLY),
                           table_name);
       protocol->store(buff, length, system_charset_info);
+      ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
       table->table=0;				// For query cache
       if (protocol->write())
@@ -4029,6 +4063,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           (table->table->file->ha_check_for_upgrade(check_opt) ==
            HA_ADMIN_NEEDS_ALTER))
       {
+        ha_autocommit_or_rollback(thd, 1);
         close_thread_tables(thd);
         tmp_disable_binlog(thd); // binlogging is done by caller if wanted
         result_code= mysql_recreate_table(thd, table, 0);
@@ -4115,6 +4150,7 @@ send_result_message:
         "try with alter", so here we close the table, do an ALTER TABLE,
         reopen the table and do ha_innobase::analyze() on it.
       */
+      ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
@@ -4122,6 +4158,7 @@ send_result_message:
       tmp_disable_binlog(thd); // binlogging is done by caller if wanted
       result_code= mysql_recreate_table(thd, table, 0);
       reenable_binlog(thd);
+      ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
       {
@@ -4196,14 +4233,20 @@ send_result_message:
         table->table->s->version=0;               // Force close of table
       else if (open_for_modify && !table->table->s->log_table)
       {
-        pthread_mutex_lock(&LOCK_open);
-        remove_table_from_cache(thd, table->table->s->db.str,
-                                table->table->s->table_name.str, RTFC_NO_FLAG);
-        pthread_mutex_unlock(&LOCK_open);
-        /* Something may be modified, that's why we have to invalidate cache */
+        if (table->table->s->tmp_table)
+          table->table->file->info(HA_STATUS_CONST);
+        else
+        {
+          pthread_mutex_lock(&LOCK_open);
+          remove_table_from_cache(thd, table->table->s->db.str,
+                                  table->table->s->table_name.str, RTFC_NO_FLAG);
+          pthread_mutex_unlock(&LOCK_open);
+        }
+        /* May be something modified consequently we have to invalidate cache */
         query_cache_invalidate3(thd, table->table, 0);
       }
     }
+    ha_autocommit_or_rollback(thd, 0);
     close_thread_tables(thd);
     table->table=0;				// For query cache
     if (protocol->write())
@@ -4212,7 +4255,9 @@ send_result_message:
 
   send_eof(thd);
   DBUG_RETURN(FALSE);
+
  err:
+  ha_autocommit_or_rollback(thd, 1);
   close_thread_tables(thd);			// Shouldn't be needed
   if (table)
     table->table=0;
@@ -4667,7 +4712,9 @@ mysql_discard_or_import_tablespace(THD *thd,
   if (error)
     goto err;
   write_bin_log(thd, FALSE, thd->query, thd->query_length);
+
 err:
+  ha_autocommit_or_rollback(thd, error);
   close_thread_tables(thd);
   thd->tablespace_op=FALSE;
   
@@ -5148,6 +5195,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->avg_row_length= table->s->avg_row_length;
   if (!(used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
     create_info->default_table_charset= table->s->table_charset;
+  if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
+    create_info->key_block_size= table->s->key_block_size;
 
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
@@ -5350,6 +5399,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 					    key_part_length));
     }
     if (key_parts.elements)
+    {
+      KEY_CREATE_INFO key_create_info;
+      bzero((char*) &key_create_info, sizeof(key_create_info));
+
+      key_create_info.algorithm= key_info->algorithm;
+      if (key_info->flags & HA_USES_BLOCK_SIZE)
+        key_create_info.block_size= key_info->block_size;
+      if (key_info->flags & HA_USES_PARSER)
+        key_create_info.parser_name= *key_info->parser_name;
+
       key_list.push_back(new Key(key_info->flags & HA_SPATIAL ? Key::SPATIAL :
 				 (key_info->flags & HA_NOSAME ?
 				 (!my_strcasecmp(system_charset_info,
@@ -5358,11 +5417,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				  (key_info->flags & HA_FULLTEXT ?
 				   Key::FULLTEXT : Key::MULTIPLE)),
 				 key_name,
-				 key_info->algorithm,
+                                 &key_create_info,
                                  test(key_info->flags & HA_GENERATED_KEY),
-				 key_parts,
-                                 key_info->flags & HA_USES_PARSER ?
-                                 &key_info->parser->name : 0));
+				 key_parts));
+    }
   }
   {
     Key *key;
@@ -5458,9 +5516,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       while ((prep_col= prep_col_it++))
         prep_columns.push_back(new key_part_spec(*prep_col));
       prepared_key_list.push_back(new Key(prep_key->type, prep_key->name,
-                                          prep_key->algorithm,
-                                          prep_key->generated, prep_columns,
-                                          prep_key->parser_name));
+                                          &prep_key->key_create_info,
+                                          prep_key->generated, prep_columns));
     }
 
     /* Create the prepared information. */
@@ -6344,7 +6401,8 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
 }
 
 
-bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
+bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
+                          HA_CHECK_OPT *check_opt)
 {
   TABLE_LIST *table;
   List<Item> field_list;

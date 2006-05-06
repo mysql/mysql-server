@@ -42,6 +42,9 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                grant_names, NULL};
 #endif
 
+static void store_key_options(THD *thd, String *packet, TABLE *table,
+                              KEY *key_info);
+
 /***************************************************************************
 ** List all table types supported 
 ***************************************************************************/
@@ -929,15 +932,12 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   handler *file= table->file;
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
-  my_bool foreign_db_mode=    (thd->variables.sql_mode & (MODE_POSTGRESQL |
-							  MODE_ORACLE |
-							  MODE_MSSQL |
-							  MODE_DB2 |
-							  MODE_MAXDB |
-							  MODE_ANSI)) != 0;
-  my_bool limited_mysql_mode= (thd->variables.sql_mode &
-			       (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323 |
-				MODE_MYSQL40)) != 0;
+  bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
+                                                     MODE_ORACLE |
+                                                     MODE_MSSQL |
+                                                     MODE_DB2 |
+                                                     MODE_MAXDB |
+                                                     MODE_ANSI)) != 0;
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s", table->s->table_name.str));
 
@@ -1100,22 +1100,12 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (!found_primary)
      append_identifier(thd, packet, key_info->name, strlen(key_info->name));
 
-    if (!(thd->variables.sql_mode & MODE_NO_KEY_OPTIONS) &&
-	!limited_mysql_mode && !foreign_db_mode)
-    {
-      if (key_info->algorithm == HA_KEY_ALG_BTREE)
-        packet->append(STRING_WITH_LEN(" USING BTREE"));
+#if MYSQL_VERSION_ID < 50300
+    /* Key options moved to after key parts in 5.3.0 */
+    if (!thd->variables.new_mode)
+      store_key_options(thd, packet, table, key_info);
+#endif
 
-      if (key_info->algorithm == HA_KEY_ALG_HASH)
-        packet->append(STRING_WITH_LEN(" USING HASH"));
-
-      // +BAR: send USING only in non-default case: non-spatial rtree
-      if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
-	  !(key_info->flags & HA_SPATIAL))
-        packet->append(STRING_WITH_LEN(" USING RTREE"));
-
-      // No need to send USING FULLTEXT, it is sent as FULLTEXT KEY
-    }
     packet->append(STRING_WITH_LEN(" ("));
 
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
@@ -1140,6 +1130,10 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       }
     }
     packet->append(')');
+#if MYSQL_VERSION_ID < 50300
+    if (thd->variables.new_mode)
+#endif
+      store_key_options(thd, packet, table, key_info);
     if (key_info->parser)
     {
       packet->append(" WITH PARSER ", 13);
@@ -1252,6 +1246,12 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
       packet->append(ha_row_type[(uint) share->row_type]);
     }
+    if (table->s->key_block_size)
+    {
+      packet->append(STRING_WITH_LEN(" KEY_BLOCK_SIZE="));
+      end= longlong10_to_str(table->s->key_block_size, buff, 10);
+      packet->append(buff, (uint) (end - buff));
+    }
     table->file->append_create_info(packet);
     if (share->comment && share->comment[0])
     {
@@ -1285,6 +1285,47 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 #endif
   DBUG_RETURN(0);
 }
+
+
+static void store_key_options(THD *thd, String *packet, TABLE *table,
+                              KEY *key_info)
+{
+  bool limited_mysql_mode= (thd->variables.sql_mode &
+                            (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323 |
+                             MODE_MYSQL40)) != 0;
+  bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
+                                                     MODE_ORACLE |
+                                                     MODE_MSSQL |
+                                                     MODE_DB2 |
+                                                     MODE_MAXDB |
+                                                     MODE_ANSI)) != 0;
+  char *end, buff[32];
+
+  if (!(thd->variables.sql_mode & MODE_NO_KEY_OPTIONS) &&
+      !limited_mysql_mode && !foreign_db_mode)
+  {
+
+    if (key_info->algorithm == HA_KEY_ALG_BTREE)
+      packet->append(STRING_WITH_LEN(" USING BTREE"));
+
+    if (key_info->algorithm == HA_KEY_ALG_HASH)
+      packet->append(STRING_WITH_LEN(" USING HASH"));
+
+    /* send USING only in non-default case: non-spatial rtree */
+    if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
+        !(key_info->flags & HA_SPATIAL))
+      packet->append(STRING_WITH_LEN(" USING RTREE"));
+
+    if ((key_info->flags & HA_USES_BLOCK_SIZE) &&
+        table->s->key_block_size != key_info->block_size)
+    {
+      packet->append(STRING_WITH_LEN(" KEY_BLOCK_SIZE="));
+      end= longlong10_to_str(key_info->block_size, buff, 10);
+      packet->append(buff, (uint) (end - buff));
+    }
+  }
+}
+
 
 void
 view_store_options(THD *thd, TABLE_LIST *table, String *buff)

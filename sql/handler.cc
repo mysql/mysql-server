@@ -51,6 +51,8 @@ static handlerton *installed_htons[128];
 
 #define BITMAP_STACKBUF_SIZE (128/8)
 
+KEY_CREATE_INFO default_key_create_info= { HA_KEY_ALG_UNDEF, 0, {NullS,0} };
+
 /* static functions defined in this file */
 
 static handler *create_default(TABLE_SHARE *table);
@@ -3262,10 +3264,11 @@ int handler::ha_external_lock(THD *thd, int lock_type)
     locking combined with row-based replication needs to be looked
     over. Ideally, no such special handling should be needed.
    */
-  switch (thd->lex->sql_command)
-  {
+  switch (thd->lex->sql_command) {
   case SQLCOM_TRUNCATE:
   case SQLCOM_ALTER_TABLE:
+  case SQLCOM_OPTIMIZE:
+  case SQLCOM_REPAIR:
     DBUG_RETURN(0);
   default:
     break;
