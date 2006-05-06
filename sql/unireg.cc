@@ -338,9 +338,9 @@ err_handler:
 
 	/* Pack screens to a screen for save in a form-file */
 
-static uchar * pack_screens(List<create_field> &create_fields,
-			    uint *info_length, uint *screens,
-			    bool small_file)
+static uchar *pack_screens(List<create_field> &create_fields,
+                           uint *info_length, uint *screens,
+                           bool small_file)
 {
   reg1 uint i;
   uint row,start_row,end_row,fields_on_screen;
@@ -431,7 +431,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
     int2store(pos+2,key->key_length);
     pos[4]= (uchar) key->key_parts;
     pos[5]= (uchar) key->algorithm;
-    pos[6]=pos[7]=0;				// For the future
+    int2store(pos+6, key->block_size);
     pos+=8;
     key_parts+=key->key_parts;
     DBUG_PRINT("loop",("flags: %d  key_parts: %d at 0x%lx",

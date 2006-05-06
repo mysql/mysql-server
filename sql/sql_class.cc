@@ -2688,8 +2688,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
   DBUG_ENTER("THD::binlog_query");
   DBUG_ASSERT(query && mysql_bin_log.is_open());
 
-  switch (qtype)
-  {
+  switch (qtype) {
   case THD::MYSQL_QUERY_TYPE:
     /*
       Using this query type is a conveniece hack, since we have been

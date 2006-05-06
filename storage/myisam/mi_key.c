@@ -127,7 +127,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     }
     if (keyseg->flag & HA_VAR_LENGTH_PART)
     {
-      uint pack_length= keyseg->bit_start;
+      uint pack_length= (keyseg->bit_start == 1 ? 1 : 2);
       uint tmp_length= (pack_length == 1 ? (uint) *(uchar*) pos :
                         uint2korr(pos));
       pos+= pack_length;			/* Skip VARCHAR length */

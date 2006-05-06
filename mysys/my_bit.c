@@ -76,3 +76,33 @@ uint my_count_bits_ushort(ushort v)
   return nbits[v];
 }
 
+
+/*
+  Next highest power of two
+
+  SYNOPSIS
+    my_round_up_to_next_power()
+    v		Value to check
+
+  RETURN
+    Next or equal power of 2
+    Note: 0 will return 0
+
+  NOTES
+    Algorithm by Sean Anderson, according to:
+    http://graphics.stanford.edu/~seander/bithacks.html
+    (Orignal code public domain)
+
+    Comments shows how this works with 01100000000000000000000000001011
+*/
+
+uint32 my_round_up_to_next_power(uint32 v)
+{
+  v--;			/* 01100000000000000000000000001010 */
+  v|= v >> 1;		/* 01110000000000000000000000001111 */
+  v|= v >> 2;		/* 01111100000000000000000000001111 */
+  v|= v >> 4;		/* 01111111110000000000000000001111 */
+  v|= v >> 8;		/* 01111111111111111100000000001111 */
+  v|= v >> 16;		/* 01111111111111111111111111111111 */
+  return v+1;		/* 10000000000000000000000000000000 */
+}

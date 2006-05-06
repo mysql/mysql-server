@@ -18,3 +18,8 @@ Table	Op	Msg_type	Msg_text
 test.non_existing	optimize	error	Table 'test.non_existing' doesn't exist
 Warnings:
 Error	1146	Table 'test.non_existing' doesn't exist
+select * from t1;
+a
+1
+commit;
+drop table t1;
