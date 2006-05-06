@@ -1209,18 +1209,20 @@ bool
 sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                           Field *return_value_fld)
 {
-  Item_cache **param_values;
   ulonglong binlog_save_options;
   bool need_binlog_call;
-  uint params;
+  uint arg_no;
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
+  char buf[STRING_BUFFER_USUAL_SIZE];
+  String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status= FALSE;
+  MEM_ROOT call_mem_root;
+  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena backup_arena;
 
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
-
-  params = m_pcont->context_var_count();
 
   /*
     Check that the function is called with all specified arguments.
@@ -1228,111 +1230,123 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     If it is not, use my_error() to report an error, or it will not terminate
     the invoking query properly.
   */
-
-  if (argcount != params)
+  if (argcount != m_pcont->context_var_count())
   {
     /*
       Need to use my_error here, or it will not terminate the
       invoking query properly.
     */
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
-             "FUNCTION", m_qname.str, params, argcount);
+             "FUNCTION", m_qname.str, m_pcont->context_var_count(), argcount);
     DBUG_RETURN(TRUE);
   }
-
-  /* Allocate param_values to be used for dumping the call into binlog. */
-
-  if (!(param_values= (Item_cache**)thd->alloc(sizeof(Item_cache*)*argcount)))
-    DBUG_RETURN(TRUE);
-
-  // QQ Should have some error checking here? (types, etc...)
+  /*
+    Prepare arena and memroot for objects which lifetime is whole
+    duration of function call (sp_rcontext, it's tables and items,
+    sp_cursor and Item_cache holders for case expressions).
+    We can't use caller's arena/memroot for those objects because
+    in this case some fixed amount of memory will be consumed for
+    each function/trigger invocation and so statements which involve
+    lot of them will hog memory.
+    TODO: we should create sp_rcontext once per command and reuse
+    it on subsequent executions of a function/trigger.
+  */
+  init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
   if (!(nctx= new sp_rcontext(m_pcont, return_value_fld, octx)) ||
       nctx->init(thd))
   {
-    delete nctx; /* Delete nctx if it was init() that failed. */
-    DBUG_RETURN(TRUE);
+    thd->restore_active_arena(&call_arena, &backup_arena);
+    err_status= TRUE;
+    goto err_with_cleanup;
   }
+
+  /*
+    We have to switch temporarily back to callers arena/memroot.
+    Function arguments belong to the caller and so the may reference
+    memory which they will allocate during calculation long after
+    this function call will be finished (e.g. in Item::cleanup()).
+  */
+  thd->restore_active_arena(&call_arena, &backup_arena);
 
 #ifndef DBUG_OFF
   nctx->sp= this;
 #endif
 
   /* Pass arguments. */
-
+  for (arg_no= 0; arg_no < argcount; arg_no++)
   {
-    uint i;
-    
-    for (i= 0 ; i < argcount ; i++)
+    /* Arguments must be fixed in Item_func_sp::fix_fields */
+    DBUG_ASSERT(argp[arg_no]->fixed);
+
+    if ((err_status= nctx->set_variable(thd, arg_no, argp[arg_no])))
+      goto err_with_cleanup;
+  }
+
+  need_binlog_call= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
+
+  /*
+    Remember the original arguments for unrolled replication of functions
+    before they are changed by execution.
+  */
+  if (need_binlog_call)
+  {
+    binlog_buf.length(0);
+    binlog_buf.append(STRING_WITH_LEN("SELECT "));
+    append_identifier(thd, &binlog_buf, m_name.str, m_name.length);
+    binlog_buf.append('(');
+    for (arg_no= 0; arg_no < argcount; arg_no++)
     {
-      if (!argp[i]->fixed && argp[i]->fix_fields(thd, &argp[i]))
-      {
-        err_status= TRUE;
-        break;
-      }
+      String str_value_holder;
+      String *str_value;
 
-      param_values[i]= Item_cache::get_cache(argp[i]->result_type());
-      param_values[i]->store(argp[i]);
+      if (arg_no)
+        binlog_buf.append(',');
 
-      if (nctx->set_variable(thd, i, param_values[i]))
-      {
-        err_status= TRUE;
-        break;
-      }
+      str_value= sp_get_item_value(nctx->get_item(arg_no),
+                                   &str_value_holder);
+
+      if (str_value)
+        binlog_buf.append(*str_value);
+      else
+        binlog_buf.append(STRING_WITH_LEN("NULL"));
     }
+    binlog_buf.append(')');
   }
-
-  if (err_status)
-  {
-    delete nctx;
-    DBUG_RETURN(TRUE);
-  }
-
   thd->spcont= nctx;
 
   binlog_save_options= thd->options;
-  need_binlog_call= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
   if (need_binlog_call)
   {
     reset_dynamic(&thd->user_var_events);
     mysql_bin_log.start_union_events(thd);
   }
-    
+
+  /*
+    Switch to call arena/mem_root so objects like sp_cursor or
+    Item_cache holders for case expressions can be allocated on it.
+
+    TODO: In future we should associate call arena/mem_root with
+          sp_rcontext and allocate all these objects (and sp_rcontext
+          itself) on it directly rather than juggle with arenas.
+  */
+  thd->set_n_backup_active_arena(&call_arena, &backup_arena);
+
   thd->options&= ~OPTION_BIN_LOG;
   err_status= execute(thd);
   thd->options= binlog_save_options;
-  
+
+  thd->restore_active_arena(&call_arena, &backup_arena);
+
   if (need_binlog_call)
     mysql_bin_log.stop_union_events(thd);
 
   if (need_binlog_call && thd->binlog_evt_union.unioned_events)
   {
-    char buf[256];
-    String bufstr(buf, sizeof(buf), &my_charset_bin);
-    bufstr.length(0);
-    bufstr.append(STRING_WITH_LEN("SELECT "));
-    append_identifier(thd, &bufstr, m_name.str, m_name.length);
-    bufstr.append('(');
-    for (uint i=0; i < argcount; i++)
-    {
-      String str_value_holder;
-      String *str_value;
-
-      if (i)
-        bufstr.append(',');
-
-      str_value= sp_get_item_value(param_values[i], &str_value_holder);
-
-      if (str_value)
-        bufstr.append(*str_value);
-      else
-        bufstr.append(STRING_WITH_LEN("NULL"));
-    }
-    bufstr.append(')');
-    
-    Query_log_event qinfo(thd, bufstr.ptr(), bufstr.length(),
+    Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
                           thd->binlog_evt_union.unioned_events_trans, FALSE);
-    if (mysql_bin_log.write(&qinfo) && 
+    if (mysql_bin_log.write(&qinfo) &&
         thd->binlog_evt_union.unioned_events_trans)
     {
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
@@ -1353,8 +1367,13 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     }
   }
 
+
   nctx->pop_all_cursors();	// To avoid memory leaks after an error
+
+err_with_cleanup:
   delete nctx;
+  call_arena.free_items();
+  free_root(&call_mem_root, MYF(0));
   thd->spcont= octx;
 
   DBUG_RETURN(err_status);
