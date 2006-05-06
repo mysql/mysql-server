@@ -39,6 +39,10 @@ AC_DEFUN([_MYSQL_PLUGIN],[
   m4_define([MYSQL_PLUGIN_NAME_]AS_TR_CPP([$1]), [$3])
   m4_define([MYSQL_PLUGIN_DESC_]AS_TR_CPP([$1]), [$4])
   _MYSQL_PLUGAPPEND_META([$1], $5)
+  ifelse(m4_bregexp(__mysql_include__,[/plug\.in$]),-1,[],[
+     MYSQL_PLUGIN_DIRECTORY([$1],
+         m4_bregexp(__mysql_include__,[^\(.*\)/plug\.in$],[\1]))
+  ])
  ])
 ])
 
@@ -745,7 +749,9 @@ dnl
 dnl ---------------------------------------------------------------------------
 AC_DEFUN([_MYSQL_INCLUDE_LIST],[
  ifelse([$1], [], [], [
+  m4_define([__mysql_include__],[$1])
   sinclude($1)
+  m4_undefine([__mysql_include__])
   _MYSQL_INCLUDE_LIST(m4_shift($@))
  ])
 ])
