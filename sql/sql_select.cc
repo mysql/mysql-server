@@ -2090,7 +2090,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
                                 new_fields->null_rejecting);
 	}
 	else if (old->eq_func && new_fields->eq_func &&
-		 (old->val->is_null() || new_fields->val->is_null()))
+		 ((!old->val->used_tables() && old->val->is_null()) || 
+                  new_fields->val->is_null()))
 	{
 	  /* field = expression OR field IS NULL */
 	  old->level= and_level;
