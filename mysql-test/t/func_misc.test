@@ -61,12 +61,14 @@ send SELECT GET_LOCK('bug16501',600);
 connection default;
 SELECT IS_USED_LOCK('bug16501') = CONNECTION_ID();
 SELECT RELEASE_LOCK('bug16501');
+connection con1;
+reap;
+connection default;
 SELECT IS_USED_LOCK('bug16501') = connection_id
 FROM t1
 WHERE conn = 'con1';
 
 connection con1;
-reap;
 SELECT IS_USED_LOCK('bug16501') = CONNECTION_ID();
 SELECT RELEASE_LOCK('bug16501');
 SELECT IS_USED_LOCK('bug16501');
