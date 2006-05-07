@@ -1145,7 +1145,7 @@ void st_select_lex::init_query()
   cond_count= with_wild= 0;
   conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
-  select_n_having_items= 0;}
+  select_n_having_items= 0;
   subquery_in_having= explicit_limit= 0;
   is_item_list_lookup= 0;
   first_execution= 1;
