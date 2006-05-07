@@ -48,9 +48,15 @@ sync_with_master;
 select * from t1;
 --replace_column 2 # 5 #
 show binlog events from 98;
+#
+# BUG19136: Crashing log-bin and uninitialized user variables in a derived table
+# just to check nothing bad happens anymore
+#
 connection master;
+insert into t1 select * FROM (select @var1 union  select @var2) AS t2;
 drop table t1;
 save_master_pos;
+
 connection slave;
 sync_with_master;
 stop slave;
