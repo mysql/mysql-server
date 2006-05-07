@@ -1,1 +1,56 @@
-drop table if exists t1;
+drop table if exists t1,t2;
+create table t1 (
+c_id int(11) not null default '0',
+org_id int(11) default null,
+unique key contacts$c_id (c_id),
+key contacts$org_id (org_id)
+) engine=innodb;
+insert into t1 values 
+(2,null),(120,null),(141,null),(218,7), (128,1),
+(151,2),(234,2),(236,2),(243,2),(255,2),(259,2),(232,3),(235,3),(238,3),
+(246,3),(253,3),(269,3),(285,3),(291,3),(293,3),(131,4),(230,4),(231,4);
+create table t2 (
+slai_id int(11) not null default '0',
+owner_tbl int(11) default null,
+owner_id int(11) default null,
+sla_id int(11) default null,
+inc_web int(11) default null,
+inc_email int(11) default null,
+inc_chat int(11) default null,
+inc_csr int(11) default null,
+inc_total int(11) default null,
+time_billed int(11) default null,
+activedate timestamp null default null,
+expiredate timestamp null default null,
+state int(11) default null,
+sla_set int(11) default null,
+unique key t2$slai_id (slai_id),
+key t2$owner_id (owner_id),
+key t2$sla_id (sla_id)
+) engine=innodb;
+insert into t2(slai_id, owner_tbl, owner_id, sla_id) values
+(1,3,1,1), (3,3,10,2), (4,3,3,6), (5,3,2,5), (6,3,8,3), (7,3,9,7),
+(8,3,6,8), (9,3,4,9), (10,3,5,10), (11,3,11,11), (12,3,7,12);
+flush tables;
+select si.slai_id
+from t1 c join t2 si on
+((si.owner_tbl = 3 and si.owner_id = c.org_id) or 
+( si.owner_tbl = 2 and si.owner_id = c.c_id)) 
+where 
+c.c_id = 218 and expiredate is null;
+slai_id
+12
+select * from t1 where org_id is null;
+c_id	org_id
+2	NULL
+120	NULL
+141	NULL
+select si.slai_id
+from t1 c join t2 si on
+((si.owner_tbl = 3 and si.owner_id = c.org_id) or 
+( si.owner_tbl = 2 and si.owner_id = c.c_id)) 
+where 
+c.c_id = 218 and expiredate is null;
+slai_id
+12
+drop table t1, t2;
