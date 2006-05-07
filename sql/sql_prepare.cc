@@ -1965,6 +1965,7 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
       memcpy(query_str, var_value->ptr(), var_value->length());
     query_str[len]= '\0';                       // Safety (mostly for debug)
     *query_len= len;
+  }
   else
   {
     query_str= lex->prepared_stmt_code.str;
@@ -2084,19 +2085,20 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       sl->exclude_from_table_unique_test= FALSE;
 
       /*
-        Copy WHERE, HAVING clause pointers to avoid damaging them by optimisation
+        Copy WHERE, HAVING clause pointers to avoid damaging them
+        by optimisation
       */
-     if (sl->prep_where)
-     {
-       sl->where= sl->prep_where->copy_andor_structure(thd);
-       sl->where->cleanup();
-     }
-     if (sl->prep_having)
-     {
-       sl->having= sl->prep_having->copy_andor_structure(thd);
-       sl->having->cleanup();
-     }
-     DBUG_ASSERT(sl->join == 0);
+      if (sl->prep_where)
+      {
+        sl->where= sl->prep_where->copy_andor_structure(thd);
+        sl->where->cleanup();
+      }
+      if (sl->prep_having)
+      {
+        sl->having= sl->prep_having->copy_andor_structure(thd);
+        sl->having->cleanup();
+      }
+      DBUG_ASSERT(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */
       for (order= (ORDER *)sl->group_list.first; order; order= order->next)
@@ -2104,6 +2106,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       /* Fix ORDER list */
       for (order= (ORDER *)sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
+    }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();
       unit->unclean();
