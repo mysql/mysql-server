@@ -2377,7 +2377,19 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
     {
       if (old->field == new_fields->field)
       {
-	if (new_fields->val->used_tables())
+        /*
+          NOTE: below const_item() call really works as "!used_tables()", i.e.
+          it can return FALSE where it is feasible to make it return TRUE.
+          
+          The cause is as follows: Some of the tables are already known to be
+          const tables (the detection code is in make_join_statistics(),
+          above the update_ref_and_keys() call), but we didn't propagate 
+          information about this: TABLE::const_table is not set to TRUE, and
+          Item::update_used_tables() hasn't been called for each item.
+          The result of this is that we're missing some 'ref' accesses.
+          TODO: OptimizerTeam: Fix this
+        */
+	if (!new_fields->val->const_item())
 	{
 	  /*
 	    If the value matches, we can use the key reference.
@@ -2407,7 +2419,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
                                 new_fields->null_rejecting);
 	}
 	else if (old->eq_func && new_fields->eq_func &&
-		 ((!old->val->used_tables() && old->val->is_null()) || 
+		 ((old->val->const_item() && old->val->is_null()) || 
                   new_fields->val->is_null()))
 	{
 	  /* field = expression OR field IS NULL */
