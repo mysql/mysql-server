@@ -2735,14 +2735,24 @@ int get_var_with_binlog(THD *thd, LEX_STRING &name,
       sql_set_variables(), we could instead manually call check() and update();
       this would save memory and time; but calling sql_set_variables() makes
       one unique place to maintain (sql_set_variables()). 
+
+      Manipulation with lex is necessary since free_underlaid_joins
+      is going to release memory belonging to the main query.
     */
 
     List<set_var_base> tmp_var_list;
+    LEX *sav_lex= thd->lex, lex_tmp;
+    thd->lex= &lex_tmp;
+    lex_start(thd, NULL, 0);
     tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
                                                                        new Item_null())));
     /* Create the variable */
     if (sql_set_variables(thd, &tmp_var_list))
+    {
+      thd->lex= sav_lex;
       goto err;
+    }
+    thd->lex= sav_lex;
     if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
       goto err;
   }
