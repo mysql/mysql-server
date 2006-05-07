@@ -1667,10 +1667,11 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     for (; sl; sl= sl->next_select_in_list())
     {
       /*
-        Save WHERE clause pointers, because they may be changed
+        Save WHERE, HAVING clause pointers, because they may be changed
         during query optimisation.
       */
       sl->prep_where= sl->where;
+      sl->prep_having= sl->having;
       /*
         Switch off a temporary flag that prevents evaluation of
         subqueries in statement prepare.
@@ -1696,12 +1697,17 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
     /* remove option which was put by mysql_explain_union() */
     sl->options&= ~SELECT_DESCRIBE;
     /*
-      Copy WHERE clause pointers to avoid damaging they by optimisation
+      Copy WHERE, HAVING clause pointers to avoid damaging they by optimisation
     */
     if (sl->prep_where)
     {
       sl->where= sl->prep_where->copy_andor_structure(thd);
       sl->where->cleanup();
+    }
+    if (sl->prep_having)
+    {
+      sl->having= sl->prep_having->copy_andor_structure(thd);
+      sl->having->cleanup();
     }
     DBUG_ASSERT(sl->join == 0);
     ORDER *order;
