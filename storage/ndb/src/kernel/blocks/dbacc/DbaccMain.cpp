@@ -984,8 +984,6 @@ void Dbacc::initOpRec(Signal* signal)
   operationRecPtr.p->insertIsDone = ZFALSE;
   operationRecPtr.p->elementIsDisappeared = ZFALSE;
   operationRecPtr.p->insertDeleteLen = fragrecptr.p->elementLength;
-  operationRecPtr.p->longPagePtr = RNIL;
-  operationRecPtr.p->longKeyPageIndex = RNIL;
   operationRecPtr.p->scanRecPtr = RNIL;
 
   // bit to mark lock operation
@@ -1405,7 +1403,7 @@ void Dbacc::placeSerialQueueRead(Signal* signal)
 {
   readWriteOpPtr.i = queOperPtr.p->nextSerialQue;
   ptrCheckGuard(readWriteOpPtr, coprecsize, operationrec);
- PSQR_LOOP:
+PSQR_LOOP:
   jam();
   if (readWriteOpPtr.p->nextSerialQue == RNIL) {
     jam();
@@ -1596,7 +1594,7 @@ Uint32 Dbacc::placeWriteInLockQueue(Signal* signal)
 void Dbacc::placeSerialQueueWrite(Signal* signal) 
 {
   readWriteOpPtr = queOperPtr;
- PSQW_LOOP:
+PSQW_LOOP:
   if (readWriteOpPtr.p->nextSerialQue == RNIL) {
     jam();
     /* --------------------------------------------------------------------------------- */
