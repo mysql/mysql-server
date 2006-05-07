@@ -477,7 +477,6 @@ struct Fragmentrec {
 /* OPERATIONREC                                                                      */
 /* --------------------------------------------------------------------------------- */
 struct Operationrec {
-  Uint32 keydata[8];
   Uint32 localdata[2];
   Uint32 elementIsforward;
   Uint32 elementPage;
@@ -487,16 +486,13 @@ struct Operationrec {
   Uint32 hashvaluePart;
   Uint32 hashValue;
   Uint32 insertDeleteLen;
-  Uint32 keyinfoPage;
   Uint32 nextLockOwnerOp;
   Uint32 nextOp;
   Uint32 nextParallelQue;
-  Uint32 nextQueOp;
   Uint32 nextSerialQue;
   Uint32 prevOp;
   Uint32 prevLockOwnerOp;
   Uint32 prevParallelQue;
-  Uint32 prevQueOp;
   Uint32 prevSerialQue;
   Uint32 scanRecPtr;
   Uint32 transId1;
