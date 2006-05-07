@@ -1965,7 +1965,6 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
       memcpy(query_str, var_value->ptr(), var_value->length());
     query_str[len]= '\0';                       // Safety (mostly for debug)
     *query_len= len;
-  }
   else
   {
     query_str= lex->prepared_stmt_code.str;
@@ -2105,7 +2104,6 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       /* Fix ORDER list */
       for (order= (ORDER *)sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
-    }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();
       unit->unclean();
