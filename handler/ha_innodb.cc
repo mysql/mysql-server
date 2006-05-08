@@ -4709,6 +4709,15 @@ ha_innobase::create(
 
 	if (form->s->row_type != ROW_TYPE_REDUNDANT) {
 		flags |= DICT_TF_COMPACT;
+#if 1 /* TODO: implement a proper way to specify zip_size */
+		if (create_info->used_fields & HA_CREATE_USED_AVG_ROW_LENGTH) {
+			switch (create_info->avg_row_length) {
+			case 1: case 2: case 4: case 8: case 16:
+				flags |= create_info->avg_row_length
+					<< DICT_TF_COMPRESSED_SHIFT;
+			}
+		}
+#endif
 	}
 
 	error = create_table_def(trx, form, norm_name,
