@@ -24,7 +24,7 @@
 #endif
 
 #ifdef HAVE_TEMPNAM
-#if !defined(MSDOS) && !defined(__NETWARE__)
+#if !defined(__NETWARE__)
 extern char **environ;
 #endif
 #endif
