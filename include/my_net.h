@@ -44,7 +44,7 @@ C_MODE_START
 #include <sys/ioctl.h>
 #endif
 
-#if !defined(MSDOS) && !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES) && !defined(__BEOS__) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES) && !defined(__BEOS__) && !defined(__NETWARE__)
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -53,7 +53,7 @@ C_MODE_START
 #endif
 #endif
 
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 #define O_NONBLOCK 1    /* For emulation of fcntl() */
 #endif
 
