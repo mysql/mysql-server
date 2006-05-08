@@ -32,6 +32,19 @@
 #include "opensslv.h" /* for version number */
 #include "rsa.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+ void yaSSL_CleanUp();   /* call once at end of application use to
+                                      free static singleton memory holders,
+                                      not a leak per se, but helpful when 
+                                      looking for them                      */
+
+#if defined(__cplusplus)
+} // extern
+#endif
+
 #if defined(__cplusplus) && !defined(YASSL_MYSQL_COMPATIBLE)
 namespace yaSSL {
 extern "C" {
