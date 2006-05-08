@@ -2977,7 +2977,6 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     some kind of updates to the mysql.% tables.
   */
   if (thd->slave_thread && rpl_filter->is_on())
-  if (thd->slave_thread && rpl_filter->is_on())
   {
     /*
       The tables must be marked "updating" so that tables_ok() takes them into
