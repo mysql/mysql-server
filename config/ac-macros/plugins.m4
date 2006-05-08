@@ -39,6 +39,10 @@ AC_DEFUN([_MYSQL_PLUGIN],[
   m4_define([MYSQL_PLUGIN_NAME_]AS_TR_CPP([$1]), [$3])
   m4_define([MYSQL_PLUGIN_DESC_]AS_TR_CPP([$1]), [$4])
   _MYSQL_PLUGAPPEND_META([$1], $5)
+  ifelse(m4_bregexp(__mysql_include__,[/plug\.in$]),-1,[],[
+     MYSQL_PLUGIN_DIRECTORY([$1],
+         m4_bregexp(__mysql_include__,[^\(.*\)/plug\.in$],[\1]))
+  ])
  ])
 ])
 
@@ -249,7 +253,6 @@ AC_DEFUN([MYSQL_PLUGIN_ACTIONS],[
  ])
 ])
 
-
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CONFIGURE_PLUGINS
 dnl
@@ -267,6 +270,10 @@ AC_DEFUN([MYSQL_CONFIGURE_PLUGINS],[
    AC_FATAL([cannot use [MYSQL_CONFIGURE_PLUGINS] multiple times])
  ],[
    m4_define([__mysql_plugin_configured__],[done])
+   _MYSQL_INCLUDE_LIST(
+   m4_bpatsubst(m4_esyscmd([ls plugin/*/plug.in storage/*/plug.in 2>/dev/null]),
+[[ 
+]],[,]))
    m4_ifdef([__mysql_plugin_list__],[
     _MYSQL_CHECK_PLUGIN_ARGS([$1])
     _MYSQL_CONFIGURE_PLUGINS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
@@ -397,11 +404,11 @@ dnl Although this is "pretty", it breaks libmysqld build
     m4_ifdef([$6],[
       if test -n "$mysql_use_plugin_dir" ; then
         mysql_plugin_dirs="$mysql_plugin_dirs $6"
-        if test -f "$srcdir/$6/configure" ; then
-          other_configures="$other_configures $6/configure"
-        else
-          AC_CONFIG_FILES($6/Makefile)
-        fi
+        m4_syscmd(test -f "$6/configure")
+        ifelse(m4_sysval, 0,
+          [other_configures="$other_configures $6/configure"],
+          [AC_CONFIG_FILES($6/Makefile)]
+        )
         ifelse(m4_substr($6, 0, 8), [storage/],
           [mysql_se_dirs="$mysql_se_dirs ]m4_substr($6, 8)",
           m4_substr($6, 0, 7), [plugin/],
@@ -728,6 +735,25 @@ _MYSQL_EMIT_PLUGINS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
   done
 
   _MYSQL_EMIT_PLUGIN_DEPENDS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
+])
+
+dnl ---------------------------------------------------------------------------
+dnl Macro: _MYSQL_INCLUDE_LIST
+dnl
+dnl SYNOPSIS
+dnl   _MYSQL_INCLUDE_LIST([filename,filename...])
+dnl
+dnl DESCRIPTION
+dnl   includes all files from the list
+dnl
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([_MYSQL_INCLUDE_LIST],[
+ ifelse([$1], [], [], [
+  m4_define([__mysql_include__],[$1])
+  sinclude($1)
+  m4_undefine([__mysql_include__])
+  _MYSQL_INCLUDE_LIST(m4_shift($@))
+ ])
 ])
 
 dnl ===========================================================================
