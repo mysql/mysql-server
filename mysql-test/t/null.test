@@ -190,4 +190,45 @@ select
 # Restore charset to the default value.
 set names latin1;
 
+#
+# Bug#19145: mysqld crashes if you set the default value of an enum field to NULL
+#
+create table bug19145a (e enum('a','b','c')          default 'b' , s set('x', 'y', 'z')          default 'y' ) engine=MyISAM;
+create table bug19145b (e enum('a','b','c')          default null, s set('x', 'y', 'z')          default null) engine=MyISAM;
+
+create table bug19145c (e enum('a','b','c') not null default 'b' , s set('x', 'y', 'z') not null default 'y' ) engine=MyISAM;
+
+# Invalid default value for 's'
+--error 1067
+create table bug19145setnotnulldefaultnull (e enum('a','b','c')          default null, s set('x', 'y', 'z') not null default null) engine=MyISAM;
+
+# Invalid default value for 'e'
+--error 1067
+create table bug19145enumnotnulldefaultnull (e enum('a','b','c') not null default null, s set('x', 'y', 'z')          default null) engine=MyISAM;
+
+alter table bug19145a alter column e set default null;
+alter table bug19145a alter column s set default null;
+alter table bug19145a add column (i int);
+
+alter table bug19145b alter column e set default null;
+alter table bug19145b alter column s set default null;
+alter table bug19145b add column (i int);
+
+# Invalid default value for 'e'
+--error 1067
+alter table bug19145c alter column e set default null;
+
+# Invalid default value for 's'
+--error 1067
+alter table bug19145c alter column s set default null;
+alter table bug19145c add column (i int);
+
+show create table bug19145a;
+show create table bug19145b;
+show create table bug19145c;
+
+drop table bug19145a;
+drop table bug19145b;
+drop table bug19145c;
+
 # End of 4.1 tests

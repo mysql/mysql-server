@@ -393,3 +393,16 @@ SELECT EMPNUM, GRADE*1000
                            HAVING HU.PROJ.CITY = HU.STAFF.CITY);
 
 DROP SCHEMA HU;
+USE test;
+#
+# Bug#18739: non-standard HAVING extension was allowed in strict ANSI sql mode.
+#
+create table t1(f1 int);
+select f1 from t1 having max(f1)=f1;
+select f1 from t1 group by f1 having max(f1)=f1;
+set session sql_mode='ONLY_FULL_GROUP_BY';
+--error ER_NON_GROUPING_FIELD_USED
+select f1 from t1 having max(f1)=f1;
+select f1 from t1 group by f1 having max(f1)=f1;
+set session sql_mode='';
+drop table t1;

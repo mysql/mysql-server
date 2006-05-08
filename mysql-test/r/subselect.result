@@ -744,7 +744,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	select `test`.`t2`.`id` AS `id` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(select 1 AS `Not_used` having (<cache>(`test`.`t2`.`id`) = <null_helper>(1)) union select 1 AS `Not_used` having (<cache>(`test`.`t2`.`id`) = <null_helper>(3))))
+Note	1003	select `test`.`t2`.`id` AS `id` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(select 1 AS `1` having (<cache>(`test`.`t2`.`id`) = <ref_null_helper>(1)) union select 3 AS `3` having (<cache>(`test`.`t2`.`id`) = <ref_null_helper>(3))))
 SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 3);
 id
 SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 2);
@@ -1354,10 +1354,10 @@ a
 explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	Using index
-2	DEPENDENT SUBQUERY	t1	ref	a	a	10	func,test.t3.a	1167	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	1001	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	Using where; Using index
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t3` where ((`test`.`t1`.`b` = `test`.`t3`.`a`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
 insert into t1 values (3,31);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a

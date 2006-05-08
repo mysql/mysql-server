@@ -53,6 +53,7 @@ stop slave;
 change master to master_user='root',master_password='', master_ssl=0;
 start slave;
 connection master;
+drop user replssl@localhost;
 drop table t1;
 save_master_pos;
 connection slave;

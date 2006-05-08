@@ -275,7 +275,7 @@ ERROR HY000: Variable 'autocommit' is a SESSION variable and can't be used with 
 select @@global.timestamp;
 ERROR HY000: Variable 'timestamp' is a SESSION variable
 set @@version='';
-ERROR HY000: Unknown system variable 'version'
+ERROR HY000: Variable 'version' is a read only variable
 set @@concurrent_insert=1;
 ERROR HY000: Variable 'concurrent_insert' is a GLOBAL variable and should be set with SET GLOBAL
 set @@global.sql_auto_is_null=1;
@@ -384,6 +384,7 @@ select @@sql_max_join_size,@@max_join_size;
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
+set sql_select_limit=default;
 set sql_warnings=1;
 set global table_open_cache=100;
 set storage_engine=myisam;
@@ -584,3 +585,31 @@ set @@global.character_set_filesystem=default;
 select @@global.character_set_filesystem;
 @@global.character_set_filesystem
 binary
+set @old_sql_big_selects = @@sql_big_selects;
+set @@sql_big_selects = 1;
+show variables like 'sql_big_selects';
+Variable_name	Value
+sql_big_selects	ON
+set @@sql_big_selects = @old_sql_big_selects;
+set @@sql_notes = 0, @@sql_warnings = 0;
+show variables like 'sql_notes';
+Variable_name	Value
+sql_notes	OFF
+show variables like 'sql_warnings';
+Variable_name	Value
+sql_warnings	OFF
+set @@sql_notes = 1, @@sql_warnings = 1;
+show variables like 'sql_notes';
+Variable_name	Value
+sql_notes	ON
+show variables like 'sql_warnings';
+Variable_name	Value
+sql_warnings	ON
+select @@system_time_zone;
+@@system_time_zone
+#
+select @@version, @@version_comment, @@version_compile_machine,
+@@version_compile_os;
+@@version	@@version_comment	@@version_compile_machine	@@version_compile_os
+#	#	#	#
+End of 5.0 tests

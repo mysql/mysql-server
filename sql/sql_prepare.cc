@@ -1755,6 +1755,9 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_CALL:
   case SQLCOM_CREATE_VIEW:
   case SQLCOM_DROP_VIEW:
+  case SQLCOM_REPAIR:
+  case SQLCOM_ANALYZE:
+  case SQLCOM_OPTIMIZE:
     break;
 
   default:

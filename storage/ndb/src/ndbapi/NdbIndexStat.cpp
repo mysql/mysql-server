@@ -377,7 +377,7 @@ NdbIndexStat::stat_select(const Uint32* key1, Uint32 keylen1, const Uint32* key2
 }
 
 int
-NdbIndexStat::records_in_range(NdbDictionary::Index* index, NdbIndexScanOperation* op, Uint64 table_rows, Uint64* count, int flags)
+NdbIndexStat::records_in_range(const NdbDictionary::Index* index, NdbIndexScanOperation* op, Uint64 table_rows, Uint64* count, int flags)
 {
   DBUG_ENTER("NdbIndexStat::records_in_range");
   Uint64 rows;

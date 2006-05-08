@@ -42,6 +42,7 @@ public:
     word32    getDigestSize() const { return DIGEST_SIZE; }
     word32    getPadSize()    const { return PAD_SIZE; }
 
+    void Update(const byte* data, word32 len);
     void Init();
 
     SHA(const SHA&);
@@ -50,6 +51,7 @@ public:
     void Swap(SHA&);
 private:
     void Transform();
+    void AsmTransform(const byte* data, word32 times);
 };
 
 

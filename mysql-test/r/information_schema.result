@@ -50,6 +50,7 @@ KEY_COLUMN_USAGE
 PARTITIONS
 PLUGINS
 PROCESSLIST
+REFERENTIAL_CONSTRAINTS
 ROUTINES
 SCHEMATA
 SCHEMA_PRIVILEGES
@@ -745,7 +746,7 @@ CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
 count(*)
-112
+113
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
@@ -759,6 +760,7 @@ information_schema	PARTITIONS	PARTITION_EXPRESSION
 information_schema	PARTITIONS	SUBPARTITION_EXPRESSION
 information_schema	PARTITIONS	PARTITION_DESCRIPTION
 information_schema	PLUGINS	PLUGIN_DESCRIPTION
+information_schema	PROCESSLIST	INFO
 information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	ROUTINES	SQL_MODE
 information_schema	TRIGGERS	ACTION_CONDITION
@@ -832,6 +834,7 @@ COLUMN_PRIVILEGES	TABLE_NAME	select
 FILES	TABLE_NAME	select
 KEY_COLUMN_USAGE	TABLE_NAME	select
 PARTITIONS	TABLE_NAME	select
+REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
 STATISTICS	TABLE_NAME	select
 TABLES	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
@@ -843,7 +846,7 @@ flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 cluster	1
-information_schema	22
+information_schema	23
 mysql	21
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row

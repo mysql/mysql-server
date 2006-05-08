@@ -19,24 +19,30 @@ set spv=spv+1;
 end while;
 end//
 call p1();
-select * from t1;
+SELECT * FROM t1 ORDER BY a;
 a
 1
 2
 3
 4
 5
-delete from t1;
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+4
+5
 create procedure p2()
 begin
 declare a int default 4;
 create table t2 as select a;
 end//
 call p2();
-select * from t2;
+SELECT * FROM t2 ORDER BY a;
 a
 4
-select * from t2;
+SELECT * FROM t2 ORDER BY a;
 a
 4
 drop procedure p1;
@@ -61,43 +67,58 @@ end//
 call p1(f1(1), f1(2));
 yes
 yes
-select * from t1;
+SELECT * FROM t1 ORDER BY a;
 a
 1
+1
 2
+2
+3
+4
+5
 5
 6
 7
 8
 create table t2(a int);
 insert into t2 values (10),(11);
-select a,f1(a) from t2;
+SELECT a,f1(a) FROM t2 ORDER BY a;
 a	f1(a)
 10	11
 11	12
 insert into t2 select f1(3);
-select 'master:',a from t1;
+SELECT 'master:',a FROM t1 ORDER BY a;
 master:	a
 master:	1
+master:	1
 master:	2
+master:	2
+master:	3
+master:	3
+master:	4
+master:	5
 master:	5
 master:	6
 master:	7
 master:	8
 master:	10
 master:	11
-master:	3
-select 'slave:',a from t1;
+SELECT 'slave:',a FROM t1 ORDER BY a;
 slave:	a
 slave:	1
+slave:	1
 slave:	2
+slave:	2
+slave:	3
+slave:	3
+slave:	4
+slave:	5
 slave:	5
 slave:	6
 slave:	7
 slave:	8
 slave:	10
 slave:	11
-slave:	3
 drop procedure p1;
 delete from t1;
 delete from t2;
@@ -108,11 +129,11 @@ select * from v1;
 f1(a)
 2
 3
-select 'master:',a from t1;
+SELECT 'master:',a FROM t1 ORDER BY a;
 master:	a
 master:	1
 master:	2
-select 'slave:',a from t1;
+SELECT 'slave:',a FROM t1 ORDER BY a;
 slave:	a
 slave:	1
 slave:	2
@@ -123,10 +144,10 @@ set @xx=123;
 execute s1 using @xx;
 f1(?)
 124
-select 'master:',a from t1;
+SELECT 'master:',a FROM t1 ORDER BY a;
 master:	a
 master:	123
-select 'slave:',a from t1;
+SELECT 'slave:',a FROM t1 ORDER BY a;
 slave:	a
 slave:	123
 delete from t1;
@@ -141,18 +162,18 @@ set spv= spv - 10;
 end while;
 end//
 call p1(15);
-select 'master:',a from t1;
+SELECT 'master:',a FROM t1 ORDER BY a;
 master:	a
-master:	15
-master:	15
 master:	6
 master:	6
-select 'slave:',a from t1;
+master:	15
+master:	15
+SELECT 'slave:',a FROM t1 ORDER BY a;
 slave:	a
-slave:	15
-slave:	15
 slave:	6
 slave:	6
+slave:	15
+slave:	15
 drop procedure p1;
 drop function f1;
 drop table t1,t2;
@@ -187,26 +208,26 @@ f1()
 0
 set @x=30;
 call p1();
-select 'master', a from t1;
+SELECT 'master', a FROM t1 ORDER BY a;
 master	a
-master	20
 master	10
 master	11
-master	100
-master	101
+master	20
 master	30
 master	31
+master	100
+master	101
 master	101
 master	102
-select 'slave', a from t1;
+SELECT 'slave', a FROM t1 ORDER BY a;
 slave	a
-slave	20
 slave	10
 slave	11
-slave	100
-slave	101
+slave	20
 slave	30
 slave	31
+slave	100
+slave	101
 slave	101
 slave	102
 drop table t1;

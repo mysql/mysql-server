@@ -39,6 +39,7 @@ class TcKeyReq {
   friend class NdbOperation; 
   friend class NdbIndexOperation;
   friend class NdbScanOperation;
+  friend class NdbBlob;
   friend class DbUtil;
 
   /**
