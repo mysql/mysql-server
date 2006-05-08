@@ -2,7 +2,6 @@ REM quick and dirty build file for testing different MSDEVs
 setlocal 
 
 set myFLAGS= /I../include /I../../mySTL /c /W3 /G6 /O2 
-#set myFLAGS= /I../include /I../../mySTL /c /W3 /O1
 
 cl %myFLAGS% aes.cpp
 cl %myFLAGS% aestables.cpp
