@@ -10,7 +10,7 @@ make distclean
 (cd storage/bdb/dist && sh s_all)
 (cd storage/innobase && aclocal && autoheader && \
     libtoolize --automake --force --copy && \
-    && automake --force --add-missing --copy && autoconf)
+    automake --force --add-missing --copy && autoconf)
 aclocal
 autoheader
 libtoolize --automake --force --copy
