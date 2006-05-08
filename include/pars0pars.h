@@ -532,6 +532,16 @@ pars_info_add_function(
 	void*			arg);	/* in: user-supplied argument */
 
 /********************************************************************
+Add bound id. */
+
+void
+pars_info_add_id(
+/*=============*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const char*	id);		/* in: id */
+
+/********************************************************************
 Get user function with the given name.*/
 
 pars_user_func_t*
@@ -553,6 +563,17 @@ pars_info_get_bound_lit(
 	pars_info_t*		info,	/* in: info struct */
 	const char*		name);	/* in: bound literal name to find */
 
+/********************************************************************
+Get bound id with the given name.*/
+
+pars_bound_id_t*
+pars_info_get_bound_id(
+/*===================*/
+					/* out: bound id, or NULL if not
+					found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name);	/* in: bound id name to find */
+
 
 /* Extra information supplied for pars_sql(). */
 struct pars_info_struct {
@@ -562,6 +583,8 @@ struct pars_info_struct {
 					(pars_user_func_t*) */
 	ib_vector_t*	bound_lits;	/* bound literals, or NULL
 					(pars_bound_lit_t*) */
+	ib_vector_t*	bound_ids;	/* bound ids, or NULL
+					(pars_bound_id_t*) */
 
 	ibool		graph_owns_us;	/* if TRUE (which is the default),
 					que_graph_free() will free us */
@@ -581,6 +604,12 @@ struct pars_bound_lit_struct {
 	ulint		length;		/* length of data */
 	ulint		type;		/* type, e.g. DATA_FIXBINARY */
 	ulint		prtype;		/* precise type, e.g. DATA_UNSIGNED */
+};
+
+/* Bound id. */
+struct pars_bound_id_struct {
+	const char*	name;		/* name */
+	const char*	id;		/* id */
 };
 
 /* Struct used to denote a reserved word in a parsing tree */
