@@ -508,4 +508,34 @@ select @@system_time_zone;
 select @@version, @@version_comment, @@version_compile_machine,
        @@version_compile_os;
 
+#
+# Bug #1039: make tmpdir and datadir available as @@variables (also included
+# basedir)
+#
+# Don't actually output, since it depends on the system
+--replace_column 1 # 2 # 3 #
+select @@basedir, @@datadir, @@tmpdir;
+--replace_column 2 #
+show variables like 'basedir';
+--replace_column 2 #
+show variables like 'datadir';
+--replace_column 2 #
+show variables like 'tmpdir';
+
+#
+# Bug #19606: make ssl settings available via SHOW VARIABLES and @@variables
+# 
+# Don't actually output, since it depends on the system
+--replace_column 1 # 2 # 3 # 4 # 5 #
+select @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_key;
+--replace_column 2 #
+show variables like 'ssl%';
+
+#
+# Bug #19616: make log_queries_not_using_indexes available in SHOW VARIABLES
+# and as @@log_queries_not_using_indexes
+#
+select @@log_queries_not_using_indexes;
+show variables like 'log_queries_not_using_indexes';
+
 --echo End of 5.0 tests

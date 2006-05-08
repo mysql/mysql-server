@@ -222,6 +222,35 @@ public:
 };
 
 
+class sys_var_const_str_ptr :public sys_var
+{
+public:
+  char **value;					// Pointer to const value
+  sys_var_const_str_ptr(const char *name_arg, char **value_arg)
+    :sys_var(name_arg),value(value_arg)
+  {}
+  bool check(THD *thd, set_var *var)
+  {
+    return 1;
+  }
+  bool update(THD *thd, set_var *var)
+  {
+    return 1;
+  }
+  SHOW_TYPE type() { return SHOW_CHAR; }
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+  {
+    return (byte*) *value;
+  }
+  bool check_update_type(Item_result type)
+  {
+    return 1;
+  }
+  bool check_default(enum_var_type type) { return 1; }
+  bool is_readonly() const { return 1; }
+};
+
+
 class sys_var_enum :public sys_var
 {
   uint	*value; 
