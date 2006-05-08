@@ -2212,12 +2212,6 @@ MYSQL_CHECK_YASSL
 # functions tested above
 #--------------------------------------------------------------------
 
-MYSQL_STORAGE_ENGINE(archive,,  [Archive Storage Engine],
-        [Archive Storage Engine], [max,max-no-ndb])
-MYSQL_PLUGIN_DIRECTORY(archive, [storage/archive])
-MYSQL_PLUGIN_STATIC(archive,    [libarchive.a])
-MYSQL_PLUGIN_DYNAMIC(archive,   [ha_archive.la])
-
 MYSQL_STORAGE_ENGINE(berkeley,  berkeley-db, [BerkeleyDB Storage Engine],
         [Transactional Tables using BerkeleyDB], [max,max-no-ndb])
 MYSQL_PLUGIN_DIRECTORY(berkeley,[storage/bdb])
@@ -2235,12 +2229,6 @@ MYSQL_STORAGE_ENGINE(csv,,      [CSV Storage Engine],
 MYSQL_PLUGIN_DIRECTORY(csv,     [storage/csv])
 MYSQL_PLUGIN_STATIC(csv,        [libcsv.a])
 MYSQL_PLUGIN_MANDATORY(csv)     dnl Used for logging
-
-MYSQL_STORAGE_ENGINE(example,,  [Example Storage Engine],
-        [Skeleton for Storage Engines for developers], [max,max-no-ndb])
-MYSQL_PLUGIN_DIRECTORY(example, [storage/example])
-MYSQL_PLUGIN_STATIC(example,    [libexample.a])
-MYSQL_PLUGIN_DYNAMIC(example,   [ha_example.la])
 
 MYSQL_STORAGE_ENGINE(federated,,[Federated Storage Engine],
         [Connects to tables on remote MySQL servers], [max,max-no-ndb])
