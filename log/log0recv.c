@@ -113,8 +113,7 @@ recv_sys_create(void)
 
 	recv_sys = mem_alloc(sizeof(recv_sys_t));
 
-	mutex_create(&(recv_sys->mutex));
-	mutex_set_level(&(recv_sys->mutex), SYNC_RECV);
+	mutex_create(&recv_sys->mutex, SYNC_RECV);
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
@@ -2969,7 +2968,6 @@ recv_recovery_from_checkpoint_finish(void)
 /*======================================*/
 {
 	int		i;
-	os_thread_id_t	recovery_thread_id;
 
 	/* Apply the hashed log records to the respective file pages */
 
@@ -3013,7 +3011,7 @@ recv_recovery_from_checkpoint_finish(void)
 		session */
 
 		os_thread_create(trx_rollback_or_clean_all_without_sess,
-				(void *)&i, &recovery_thread_id);
+				(void *)&i, NULL);
 	}
 }
 

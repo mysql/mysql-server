@@ -82,17 +82,18 @@ memory is read outside the allocated blocks. */
 
 /* Make a non-inline debug version */
 
+#if 0
 #define UNIV_DEBUG
-/*
 #define UNIV_MEM_DEBUG
 #define UNIV_IBUF_DEBUG
 #define UNIV_SYNC_DEBUG
 #define UNIV_SEARCH_DEBUG
 #define UNIV_SYNC_PERF_STAT
 #define UNIV_SEARCH_PERF_STAT
-#define UNIV_SRV_PRINT_LATCH_WAITS;
+#define UNIV_SRV_PRINT_LATCH_WAITS
 #define UNIV_ZIP_DEBUG
-*/
+#endif
+
 #define UNIV_LIGHT_MEM_DEBUG
 
 #define YYDEBUG			1
@@ -273,6 +274,18 @@ it is read or written. */
 
 /* Compile-time constant of the given array's size. */
 #define UT_ARR_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+
+/* The return type from a thread's start function differs between Unix and
+Windows, so define a typedef for it and a macro to use at the end of such
+functions. */
+
+#ifdef __WIN__
+typedef ulint os_thread_ret_t;
+#define OS_THREAD_DUMMY_RETURN return(0)
+#else
+typedef void* os_thread_ret_t;
+#define OS_THREAD_DUMMY_RETURN return(NULL)
+#endif
 
 #include <stdio.h>
 #include "ut0dbg.h"

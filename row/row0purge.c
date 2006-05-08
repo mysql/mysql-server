@@ -521,7 +521,7 @@ row_purge_parse_undo_rec(
 
 	mutex_enter(&(dict_sys->mutex));
 
-	node->table = dict_table_get_on_id_low(table_id, trx);
+	node->table = dict_table_get_on_id_low(table_id);
 
 	mutex_exit(&(dict_sys->mutex));
 

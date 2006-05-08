@@ -204,8 +204,7 @@ mem_pool_create(
 	pool->buf = ut_malloc_low(size, FALSE, TRUE);
 	pool->size = size;
 
-	mutex_create(&(pool->mutex));
-	mutex_set_level(&(pool->mutex), SYNC_MEM_POOL);
+	mutex_create(&pool->mutex, SYNC_MEM_POOL);
 
 	/* Initialize the free lists */
 

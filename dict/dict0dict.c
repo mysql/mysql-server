@@ -235,11 +235,10 @@ dict_remove_db_name(
 	const char*	name)	/* in: table name in the form
 				dbname '/' tablename */
 {
-	const char*	s;
-	s = strchr(name, '/');
+	const char*	s = strchr(name, '/');
 	ut_a(s);
-	if (s) s++;
-	return(s);
+
+	return(s + 1);
 }
 
 /************************************************************************
@@ -600,7 +599,7 @@ dict_index_get_nth_field_pos(
 }
 
 /**************************************************************************
-Returns a table object, based on table id, and memoryfixes it. */
+Returns a table object based on table id. */
 
 dict_table_t*
 dict_table_get_on_id(
@@ -622,12 +621,12 @@ dict_table_get_on_id(
 		ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-		return(dict_table_get_on_id_low(table_id, trx));
+		return(dict_table_get_on_id_low(table_id));
 	}
 
 	mutex_enter(&(dict_sys->mutex));
 
-	table = dict_table_get_on_id_low(table_id, trx);
+	table = dict_table_get_on_id_low(table_id);
 
 	mutex_exit(&(dict_sys->mutex));
 
@@ -709,8 +708,7 @@ dict_init(void)
 {
 	dict_sys = mem_alloc(sizeof(dict_sys_t));
 
-	mutex_create(&(dict_sys->mutex));
-	mutex_set_level(&(dict_sys->mutex), SYNC_DICT);
+	mutex_create(&dict_sys->mutex, SYNC_DICT);
 
 	dict_sys->table_hash = hash_create(buf_pool_get_max_size() /
 					(DICT_POOL_PER_TABLE_HASH *
@@ -725,31 +723,27 @@ dict_init(void)
 
 	UT_LIST_INIT(dict_sys->table_LRU);
 
-	rw_lock_create(&dict_operation_lock);
-	rw_lock_set_level(&dict_operation_lock, SYNC_DICT_OPERATION);
+	rw_lock_create(&dict_operation_lock, SYNC_DICT_OPERATION);
 
 	dict_foreign_err_file = os_file_create_tmpfile();
 	ut_a(dict_foreign_err_file);
-	mutex_create(&dict_foreign_err_mutex);
-	mutex_set_level(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
+
+	mutex_create(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
 }
 
 /**************************************************************************
-Returns a table object and memoryfixes it. NOTE! This is a high-level
-function to be used mainly from outside the 'dict' directory. Inside this
-directory dict_table_get_low is usually the appropriate function. */
+Returns a table object. NOTE! This is a high-level function to be used
+mainly from outside the 'dict' directory. Inside this directory
+dict_table_get_low is usually the appropriate function. */
 
 dict_table_t*
 dict_table_get(
 /*===========*/
 					/* out: table, NULL if
 					does not exist */
-	const char*	table_name,	/* in: table name */
-	trx_t*		trx)		/* in: transaction handle or NULL */
+	const char*	table_name)	/* in: table name */
 {
 	dict_table_t*	table;
-
-	UT_NOT_USED(trx);
 
 	mutex_enter(&(dict_sys->mutex));
 
@@ -774,12 +768,9 @@ dict_table_get_and_increment_handle_count(
 /*======================================*/
 					/* out: table, NULL if
 					does not exist */
-	const char*	table_name,	/* in: table name */
-	trx_t*		trx)		/* in: transaction handle or NULL */
+	const char*	table_name)	/* in: table name */
 {
 	dict_table_t*	table;
-
-	UT_NOT_USED(trx);
 
 	mutex_enter(&(dict_sys->mutex));
 
@@ -890,10 +881,7 @@ dict_table_add_to_cache(
 	/* Add table to LRU list of tables */
 	UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
 
-	/* If the dictionary cache grows too big, trim the table LRU list */
-
 	dict_sys->size += mem_heap_get_size(table->heap);
-	/* dict_table_LRU_trim(); */
 }
 
 /**************************************************************************
@@ -1259,38 +1247,6 @@ dict_table_remove_from_cache(
 }
 
 /**************************************************************************
-Frees tables from the end of table_LRU if the dictionary cache occupies
-too much space. Currently not used! */
-
-void
-dict_table_LRU_trim(void)
-/*=====================*/
-{
-	dict_table_t*	table;
-	dict_table_t*	prev_table;
-
-	ut_error;
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
-
-	table = UT_LIST_GET_LAST(dict_sys->table_LRU);
-
-	while (table && (dict_sys->size >
-			buf_pool_get_max_size() / DICT_POOL_PER_VARYING)) {
-
-		prev_table = UT_LIST_GET_PREV(table_LRU, table);
-
-		if (table->mem_fix == 0) {
-			dict_table_remove_from_cache(table);
-		}
-
-		table = prev_table;
-	}
-}
-
-/**************************************************************************
 Adds a column to the data dictionary hash table. */
 static
 void
@@ -1519,10 +1475,7 @@ dict_index_add_to_cache(
 	/* Add the index to the list of indexes stored in the tree */
 	tree->tree_index = new_index;
 
-	/* If the dictionary cache grows too big, trim the table LRU list */
-
 	dict_sys->size += mem_heap_get_size(new_index->heap);
-	/* dict_table_LRU_trim(); */
 
 	dict_mem_index_free(index);
 
@@ -2994,7 +2947,8 @@ loop:
 		   if so, immediately reject the command if the table is a
 		   temporary one. For now, this kludge will work. */
 		if (reject_fks && (UT_LIST_GET_LEN(table->foreign_list) > 0)) {
-			return DB_CANNOT_ADD_CONSTRAINT;
+
+			return(DB_CANNOT_ADD_CONSTRAINT);
 		}
 
 		/**********************************************************/
@@ -3664,9 +3618,7 @@ dict_tree_create(
 
 	tree->magic_n = DICT_TREE_MAGIC_N;
 
-	rw_lock_create(&(tree->lock));
-
-	rw_lock_set_level(&(tree->lock), SYNC_INDEX_TREE);
+	rw_lock_create(&tree->lock, SYNC_INDEX_TREE);
 
 	return(tree);
 }
