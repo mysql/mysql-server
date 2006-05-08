@@ -220,7 +220,7 @@ static void check_ssl_init()
 }
 
 /************************ VioSSLFd **********************************/
-struct st_VioSSLFd *
+static struct st_VioSSLFd *
 new_VioSSLFd(const char *key_file, const char *cert_file,
              const char *ca_file, const char *ca_path,
              const char *cipher, SSL_METHOD *method)

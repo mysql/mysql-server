@@ -129,6 +129,8 @@ int vio_write_shared_memory(Vio *vio, const gptr buf, int size);
 int vio_close_shared_memory(Vio * vio);
 #endif
 
+void vio_end(void);
+
 #ifdef	__cplusplus
 }
 #endif
@@ -193,7 +195,9 @@ struct st_vio
   my_bool (*was_interrupted)(Vio*);
   int     (*vioclose)(Vio*);
   void	  (*timeout)(Vio*, unsigned int which, unsigned int timeout);
+#ifdef HAVE_OPENSSL
   void	  *ssl_arg;
+#endif
 #ifdef HAVE_SMEM
   HANDLE  handle_file_map;
   char    *handle_map;

@@ -233,3 +233,16 @@ void vio_delete(Vio* vio)
     my_free((gptr) vio,MYF(0));
   }
 }
+
+
+/*
+  Cleanup memory allocated by vio or the
+  components below it when application finish
+
+*/
+void vio_end(void)
+{
+#ifdef HAVE_YASSL
+  yaSSL_CleanUp();
+#endif
+}
