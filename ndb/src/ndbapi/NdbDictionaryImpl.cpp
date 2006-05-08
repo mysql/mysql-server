@@ -759,10 +759,6 @@ NdbDictionaryImpl::fetchGlobalTableImpl(const BaseString& internalTableName)
     Ndb_local_table_info::create(impl, m_local_table_data_size);
 
   m_localHash.put(internalTableName.c_str(), info);
-
-  m_ndb.theFirstTupleId[impl->getTableId()] = ~0;
-  m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
-  
   return info;
 }
 
