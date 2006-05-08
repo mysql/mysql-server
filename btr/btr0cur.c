@@ -1131,6 +1131,11 @@ calculate_sizes_again:
 						entry, index, ext, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
+			if (UNIV_LIKELY(page_zip != NULL)) {
+
+				return(DB_FAIL);
+			}
+
 			fputs("InnoDB: Error: cannot insert tuple ", stderr);
 			dtuple_print(stderr, entry);
 			fputs(" into ", stderr);
