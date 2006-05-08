@@ -22,7 +22,7 @@
 #ifdef HAVE_GETWD
 #include <sys/param.h>
 #endif
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 #include <m_ctype.h>
 #include <dos.h>
 #include <direct.h>
@@ -39,11 +39,9 @@ int my_getwd(my_string buf, uint size, myf MyFlags)
   DBUG_ENTER("my_getwd");
   DBUG_PRINT("my",("buf: 0x%lx  size: %d  MyFlags %d", buf,size,MyFlags));
 
-#if ! defined(MSDOS)
   if (curr_dir[0])				/* Current pos is saved here */
     VOID(strmake(buf,&curr_dir[0],size-1));
   else
-#endif
   {
 #if defined(HAVE_GETCWD)
     if (!getcwd(buf,size-2) && MyFlags & MY_WME)
@@ -87,43 +85,13 @@ int my_setwd(const char *dir, myf MyFlags)
   int res;
   size_s length;
   my_string start,pos;
-#if defined(VMS) || defined(MSDOS)
+#if defined(VMS)
   char buff[FN_REFLEN];
 #endif
   DBUG_ENTER("my_setwd");
   DBUG_PRINT("my",("dir: '%s'  MyFlags %d", dir, MyFlags));
 
   start=(my_string) dir;
-#if defined(MSDOS) /* MSDOS chdir can't change drive */
-#if !defined(_DDL) && !defined(WIN32)
-  if ((pos=(char*) strchr(dir,FN_DEVCHAR)) != 0)
-  {
-    uint drive,drives;
-
-    pos++;				/* Skip FN_DEVCHAR */
-    drive=(uint) (my_toupper(&my_charset_latin1,dir[0])-'A'+1);
-    drives= (uint) -1;
-    if ((pos-(byte*) dir) == 2 && drive > 0 && drive < 32)
-    {
-      _dos_setdrive(drive,&drives);
-      _dos_getdrive(&drives);
-    }
-    if (drive != drives)
-    {
-      *pos='\0';			/* Dir is now only drive */
-      my_errno=errno;
-      my_error(EE_SETWD,MYF(ME_BELL+ME_WAITTANG),dir,ENOENT);
-      DBUG_RETURN(-1);
-    }
-    dir=pos;				/* drive changed, change now path */
-  }
-#endif
-  if (*((pos=strend(dir)-1)) == FN_LIBCHAR && pos != dir)
-  {
-    strmov(buff,dir)[-1]=0;			/* Remove last '/' */
-    dir=buff;
-  }
-#endif /* MSDOS*/
   if (! dir[0] || (dir[0] == FN_LIBCHAR && dir[1] == 0))
     dir=FN_ROOTDIR;
 #ifdef VMS
