@@ -4431,8 +4431,11 @@ int ha_ndbcluster::create(const char *name,
   if (readfrm(name, &data, &length))
     DBUG_RETURN(1);
   if (packfrm(data, length, &pack_data, &pack_length))
+  {
+    my_free((char*)data, MYF(0));
     DBUG_RETURN(2);
-  
+  }
+
   DBUG_PRINT("info", ("setFrm data=%lx  len=%d", pack_data, pack_length));
   tab.setFrm(pack_data, pack_length);      
   my_free((char*)data, MYF(0));

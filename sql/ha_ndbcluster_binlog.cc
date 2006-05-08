@@ -255,7 +255,7 @@ ndbcluster_binlog_close_table(THD *thd, NDB_SHARE *share)
   DBUG_ENTER("ndbcluster_binlog_close_table");
   if (share->table_share)
   {
-    free_table_share(share->table_share);
+    closefrm(share->table, 1);
     share->table_share= 0;
     share->table= 0;
   }
@@ -1458,7 +1458,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
 {
   DBUG_ENTER("ndb_handle_schema_change");
   TABLE* table= share->table;
-  TABLE_SHARE *table_share= table->s;
+  TABLE_SHARE *table_share= share->table_share;
   const char *dbname= table_share->db.str;
   const char *tabname= table_share->table_name.str;
   bool do_close_cached_tables= FALSE;
@@ -1527,6 +1527,8 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
           old->getObjectVersion() != altered_table->getObjectVersion())
         dict->putTable(altered_table);
       
+      my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+      data= NULL;
       if ((error= unpackfrm(&data, &length, altered_table->getFrmData())) ||
           (error= writefrm(key, data, length)))
       {
@@ -1547,6 +1549,8 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
                               dbname, tabname);
       pthread_mutex_unlock(&LOCK_open);
     }
+    my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
   }
 
   // If only frm was changed continue replicating
