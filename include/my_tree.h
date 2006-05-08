@@ -40,19 +40,11 @@ typedef int (*tree_walk_action)(void *,element_count,void *);
 typedef enum { free_init, free_free, free_end } TREE_FREE;
 typedef void (*tree_element_free)(void*, TREE_FREE, void *);
 
-#ifdef MSDOS
-typedef struct st_tree_element {
-  struct st_tree_element *left,*right;
-  unsigned long count;
-  uchar    colour;			/* black is marked as 1 */
-} TREE_ELEMENT;
-#else
 typedef struct st_tree_element {
   struct st_tree_element *left,*right;
   uint32 count:31,
 	 colour:1;			/* black is marked as 1 */
 } TREE_ELEMENT;
-#endif /* MSDOS */
 
 #define ELEMENT_CHILD(element, offs) (*(TREE_ELEMENT**)((char*)element + offs))
 

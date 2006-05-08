@@ -119,12 +119,6 @@ extern char NEAR _dig_vec_lower[];
 #define memcpy_fixed(A,B,C) memcpy((A),(B),(C))
 #endif
 
-#ifdef MSDOS
-#undef bmove_align
-#define bmove512(A,B,C) bmove_align(A,B,C)
-extern	void bmove_align(gptr dst,const gptr src,uint len);
-#endif
-
 #if (!defined(USE_BMOVE512) || defined(HAVE_purify)) && !defined(bmove512)
 #define bmove512(A,B,C) memcpy(A,B,C)
 #endif

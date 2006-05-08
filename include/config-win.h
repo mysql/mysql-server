@@ -95,7 +95,7 @@ functions */
 #define O_SHORT_LIVED	0
 #define SH_DENYNO	_SH_DENYNO
 #else
-#define O_BINARY	_O_BINARY	/* compability with MSDOS */
+#define O_BINARY	_O_BINARY	/* compability with older style names */
 #define FILE_BINARY	_O_BINARY	/* my_fopen in binary mode */
 #define O_TEMPORARY	_O_TEMPORARY
 #define O_SHORT_LIVED	_O_SHORT_LIVED
