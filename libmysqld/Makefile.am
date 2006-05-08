@@ -167,7 +167,7 @@ link_sources:
 	    rm -f $$f; \
 	    @LN_CP_F@ $(top_srcdir)/libmysql/$$f $$f; \
 	  done; \
-	  it test -n "$(sqlstoragesources)" \
+	  it test -n "$(sqlstoragesources)" ; \
 	  then \
 	    for f in "$(sqlstoragesources)"; do \
 	      rm -f "$$f"; \
