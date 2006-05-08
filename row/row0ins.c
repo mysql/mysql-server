@@ -1519,8 +1519,7 @@ row_ins_check_foreign_constraints(
 		if (foreign->foreign_index == index) {
 
 			if (foreign->referenced_table == NULL) {
-				dict_table_get(foreign->referenced_table_name,
-									trx);
+				dict_table_get(foreign->referenced_table_name);
 			}
 
 			if (0 == trx->dict_operation_lock_mode) {

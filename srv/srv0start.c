@@ -108,8 +108,10 @@ static char*	srv_monitor_file_name;
 static int inno_bcmp(register const char *s1, register const char *s2,
 	register uint len)
 {
-  while (len-- != 0 && *s1++ == *s2++) ;
-  return len+1;
+	while ((len-- != 0) && (*s1++ == *s2++))
+		;
+
+	return(len + 1);
 }
 #define memcmp(A,B,C) inno_bcmp((A),(B),(C))
 #endif
@@ -426,11 +428,7 @@ srv_parse_log_group_home_dirs(
 I/o-handler thread function. */
 static
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 io_handler_thread(
 /*==============*/
 	void*	arg)
@@ -459,11 +457,7 @@ io_handler_thread(
 
 	os_thread_exit(NULL);
 
-#ifndef __WIN__
-	return(NULL);				/* Not reached */
-#else
-	return(0);
-#endif
+	OS_THREAD_DUMMY_RETURN;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -942,8 +936,7 @@ skip_size_check:
 
 	ios = 0;
 
-	mutex_create(&ios_mutex);
-	mutex_set_level(&ios_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&ios_mutex, SYNC_NO_ORDER_CHECK);
 
 	return(DB_SUCCESS);
 }
@@ -1175,8 +1168,8 @@ NetWare. */
 		return((int) err);
 	}
 
-	mutex_create(&srv_monitor_file_mutex);
-	mutex_set_level(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
+
 	if (srv_innodb_status) {
 		srv_monitor_file_name = mem_alloc(
 				strlen(fil_path_to_mysql_datadir) +
@@ -1197,15 +1190,15 @@ NetWare. */
 		}
 	}
 
-	mutex_create(&srv_dict_tmpfile_mutex);
-	mutex_set_level(&srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
+	mutex_create(&srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
+
 	srv_dict_tmpfile = os_file_create_tmpfile();
 	if (!srv_dict_tmpfile) {
 		return(DB_ERROR);
 	}
 
-	mutex_create(&srv_misc_tmpfile_mutex);
-	mutex_set_level(&srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
+	mutex_create(&srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
+
 	srv_misc_tmpfile = os_file_create_tmpfile();
 	if (!srv_misc_tmpfile) {
 		return(DB_ERROR);
@@ -1538,11 +1531,6 @@ NetWare. */
 		}
 	}
 #endif /* UNIV_LOG_ARCHIVE */
-
-	if (srv_measure_contention) {
-		/* os_thread_create(&test_measure_cont, NULL, thread_ids +
-		   SRV_MAX_N_IO_THREADS); */
-	}
 
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 				page_get_free_space_of_empty() / 2); */

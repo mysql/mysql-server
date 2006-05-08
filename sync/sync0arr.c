@@ -213,8 +213,7 @@ sync_array_create(
 	if (protection == SYNC_ARRAY_OS_MUTEX) {
 		arr->os_mutex = os_mutex_create(NULL);
 	} else if (protection == SYNC_ARRAY_MUTEX) {
-		mutex_create(&(arr->mutex));
-		mutex_set_level(&(arr->mutex), SYNC_NO_ORDER_CHECK);
+		mutex_create(&arr->mutex, SYNC_NO_ORDER_CHECK);
 	} else {
 		ut_error;
 	}
