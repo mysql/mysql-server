@@ -84,6 +84,7 @@ string_append(
 DIGIT	[0-9]
 ID	[a-z_A-Z][a-z_A-Z0-9]*
 BOUND_LIT	\:[a-z_A-Z0-9]+
+BOUND_ID	\$[a-z_A-Z0-9]+
 
 %x comment
 %x quoted
@@ -109,6 +110,13 @@ BOUND_LIT	\:[a-z_A-Z0-9]+
 				yytext + 1, &type);
 
 			return(type);
+}
+
+{BOUND_ID}	{
+			yylval = sym_tab_add_bound_id(pars_sym_tab_global,
+				yytext + 1);
+
+			return(PARS_ID_TOKEN);
 }
 
 "'"		{
