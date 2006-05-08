@@ -45,6 +45,8 @@ a	b	c
 8	2	3
 alter table t1 drop index ib;
 insert into t1 values(1, 2, 3);
+create unique index ib on t1(b);
+ERROR 23000: Can't write, because of unique constraint, to table 't1'
 drop table t1;
 CREATE TABLE t1 (
 a int unsigned NOT NULL PRIMARY KEY,

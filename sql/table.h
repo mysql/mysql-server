@@ -160,6 +160,7 @@ typedef struct st_table_share
   uint ref_count;                       /* How many TABLE objects uses this */
   uint open_count;			/* Number of tables in open list */
   uint blob_ptr_size;			/* 4 or 8 */
+  uint key_block_size;			/* create key_block_size, if used */
   uint null_bytes, last_null_bit_pos;
   uint fields;				/* Number of fields */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
@@ -335,7 +336,8 @@ typedef struct st_foreign_key_info
   LEX_STRING *forein_id;
   LEX_STRING *referenced_db;
   LEX_STRING *referenced_table;
-  LEX_STRING *constraint_method;
+  LEX_STRING *update_method;
+  LEX_STRING *delete_method;
   List<LEX_STRING> foreign_fields;
   List<LEX_STRING> referenced_fields;
 } FOREIGN_KEY_INFO;
@@ -359,6 +361,7 @@ enum enum_schema_tables
   SCH_PARTITIONS,
   SCH_PLUGINS,
   SCH_PROCESSLIST,
+  SCH_REFERENTIAL_CONSTRAINTS,
   SCH_PROCEDURES,
   SCH_SCHEMATA,
   SCH_SCHEMA_PRIVILEGES,

@@ -42,6 +42,9 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                grant_names, NULL};
 #endif
 
+static void store_key_options(THD *thd, String *packet, TABLE *table,
+                              KEY *key_info);
+
 /***************************************************************************
 ** List all table types supported 
 ***************************************************************************/
@@ -119,7 +122,7 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
         make_version_string(version_buf, sizeof(version_buf), plug->version),
         cs);
 
-    
+
   switch (plugin->state)
   {
   /* case PLUGIN_IS_FREED: does not happen */
@@ -929,15 +932,12 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   handler *file= table->file;
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
-  my_bool foreign_db_mode=    (thd->variables.sql_mode & (MODE_POSTGRESQL |
-							  MODE_ORACLE |
-							  MODE_MSSQL |
-							  MODE_DB2 |
-							  MODE_MAXDB |
-							  MODE_ANSI)) != 0;
-  my_bool limited_mysql_mode= (thd->variables.sql_mode &
-			       (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323 |
-				MODE_MYSQL40)) != 0;
+  bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
+                                                     MODE_ORACLE |
+                                                     MODE_MSSQL |
+                                                     MODE_DB2 |
+                                                     MODE_MAXDB |
+                                                     MODE_ANSI)) != 0;
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s", table->s->table_name.str));
 
@@ -1100,22 +1100,12 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (!found_primary)
      append_identifier(thd, packet, key_info->name, strlen(key_info->name));
 
-    if (!(thd->variables.sql_mode & MODE_NO_KEY_OPTIONS) &&
-	!limited_mysql_mode && !foreign_db_mode)
-    {
-      if (key_info->algorithm == HA_KEY_ALG_BTREE)
-        packet->append(STRING_WITH_LEN(" USING BTREE"));
+#if MYSQL_VERSION_ID < 50300
+    /* Key options moved to after key parts in 5.3.0 */
+    if (!thd->variables.new_mode)
+      store_key_options(thd, packet, table, key_info);
+#endif
 
-      if (key_info->algorithm == HA_KEY_ALG_HASH)
-        packet->append(STRING_WITH_LEN(" USING HASH"));
-
-      // +BAR: send USING only in non-default case: non-spatial rtree
-      if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
-	  !(key_info->flags & HA_SPATIAL))
-        packet->append(STRING_WITH_LEN(" USING RTREE"));
-
-      // No need to send USING FULLTEXT, it is sent as FULLTEXT KEY
-    }
     packet->append(STRING_WITH_LEN(" ("));
 
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
@@ -1140,6 +1130,10 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       }
     }
     packet->append(')');
+#if MYSQL_VERSION_ID < 50300
+    if (thd->variables.new_mode)
+#endif
+      store_key_options(thd, packet, table, key_info);
     if (key_info->parser)
     {
       packet->append(" WITH PARSER ", 13);
@@ -1252,6 +1246,12 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
       packet->append(ha_row_type[(uint) share->row_type]);
     }
+    if (table->s->key_block_size)
+    {
+      packet->append(STRING_WITH_LEN(" KEY_BLOCK_SIZE="));
+      end= longlong10_to_str(table->s->key_block_size, buff, 10);
+      packet->append(buff, (uint) (end - buff));
+    }
     table->file->append_create_info(packet);
     if (share->comment && share->comment[0])
     {
@@ -1285,6 +1285,47 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 #endif
   DBUG_RETURN(0);
 }
+
+
+static void store_key_options(THD *thd, String *packet, TABLE *table,
+                              KEY *key_info)
+{
+  bool limited_mysql_mode= (thd->variables.sql_mode &
+                            (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323 |
+                             MODE_MYSQL40)) != 0;
+  bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
+                                                     MODE_ORACLE |
+                                                     MODE_MSSQL |
+                                                     MODE_DB2 |
+                                                     MODE_MAXDB |
+                                                     MODE_ANSI)) != 0;
+  char *end, buff[32];
+
+  if (!(thd->variables.sql_mode & MODE_NO_KEY_OPTIONS) &&
+      !limited_mysql_mode && !foreign_db_mode)
+  {
+
+    if (key_info->algorithm == HA_KEY_ALG_BTREE)
+      packet->append(STRING_WITH_LEN(" USING BTREE"));
+
+    if (key_info->algorithm == HA_KEY_ALG_HASH)
+      packet->append(STRING_WITH_LEN(" USING HASH"));
+
+    /* send USING only in non-default case: non-spatial rtree */
+    if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
+        !(key_info->flags & HA_SPATIAL))
+      packet->append(STRING_WITH_LEN(" USING RTREE"));
+
+    if ((key_info->flags & HA_USES_BLOCK_SIZE) &&
+        table->s->key_block_size != key_info->block_size)
+    {
+      packet->append(STRING_WITH_LEN(" KEY_BLOCK_SIZE="));
+      end= longlong10_to_str(key_info->block_size, buff, 10);
+      packet->append(buff, (uint) (end - buff));
+    }
+  }
+}
+
 
 void
 view_store_options(THD *thd, TABLE_LIST *table, String *buff)
@@ -1553,15 +1594,11 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
   TABLE *table= tables->table;
   CHARSET_INFO *cs= system_charset_info;
   char *user;
-  bool verbose;
-  ulong max_query_length;
   time_t now= time(0);
   DBUG_ENTER("fill_process_list");
 
   user= thd->security_ctx->master_access & PROCESS_ACL ?
         NullS : thd->security_ctx->priv_user;
-  verbose= thd->lex->verbose;
-  max_query_length= PROCESS_LIST_WIDTH;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
 
@@ -1645,7 +1682,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       if (tmp->query)
       {
         table->field[7]->store(tmp->query,
-                               min(max_query_length, tmp->query_length), cs);
+                               min(PROCESS_LIST_INFO_WIDTH,
+                                   tmp->query_length), cs);
         table->field[7]->set_notnull();
       }
 
@@ -3000,43 +3038,46 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
-int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
+static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
+                                   void *ptable)
 {
+  TABLE *table= (TABLE *) ptable;
+  handlerton *hton= (handlerton *) plugin->plugin->info;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
-  TABLE *table= tables->table;
   CHARSET_INFO *scs= system_charset_info;
-  handlerton **types;
+  DBUG_ENTER("iter_schema_engines");
 
-  DBUG_ENTER("fill_schema_engines");
-
-  for (types= sys_table_types; *types; types++)
+  if (!(hton->flags & HTON_HIDDEN))
   {
-    if ((*types)->flags & HTON_HIDDEN)
-      continue;
-
     if (!(wild && wild[0] &&
-          wild_case_compare(scs, (*types)->name,wild)))
+          wild_case_compare(scs, hton->name,wild)))
     {
       const char *tmp;
       restore_record(table, s->default_values);
 
-      table->field[0]->store((*types)->name, strlen((*types)->name), scs);
-      tmp= (*types)->state ? "DISABLED" : "ENABLED";
+      table->field[0]->store(hton->name, strlen(hton->name), scs);
+      tmp= hton->state ? "DISABLED" : "ENABLED";
       table->field[1]->store( tmp, strlen(tmp), scs);
-      table->field[2]->store((*types)->comment, strlen((*types)->comment), scs);
-      tmp= (*types)->commit ? "YES" : "NO";
+      table->field[2]->store(hton->comment, strlen(hton->comment), scs);
+      tmp= hton->commit ? "YES" : "NO";
       table->field[3]->store( tmp, strlen(tmp), scs);
-      tmp= (*types)->prepare ? "YES" : "NO";
+      tmp= hton->prepare ? "YES" : "NO";
       table->field[4]->store( tmp, strlen(tmp), scs);
-      tmp= (*types)->savepoint_set ? "YES" : "NO";
+      tmp= hton->savepoint_set ? "YES" : "NO";
       table->field[5]->store( tmp, strlen(tmp), scs);
 
       if (schema_table_store_record(thd, table))
         DBUG_RETURN(1);
     }
   }
-
   DBUG_RETURN(0);
+}
+
+
+int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  return plugin_foreach(thd, iter_schema_engines, 
+                        MYSQL_STORAGE_ENGINE_PLUGIN, tables->table);
 }
 
 
@@ -4232,6 +4273,75 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
 
 
 /*
+  Fill and store records into I_S.referential_constraints table
+
+  SYNOPSIS
+    get_referential_constraints_record()
+    thd                 thread handle
+    tables              table list struct(processed table)
+    table               I_S table
+    res                 1 means the error during opening of the processed table
+                        0 means processed table is opened without error
+    base_name           db name
+    file_name           table name
+
+  RETURN
+    0	ok
+    #   error
+*/
+
+static int
+get_referential_constraints_record(THD *thd, struct st_table_list *tables,
+                                   TABLE *table, bool res,
+                                   const char *base_name, const char *file_name)
+{
+  CHARSET_INFO *cs= system_charset_info;
+  DBUG_ENTER("get_referential_constraints_record");
+
+  if (res)
+  {
+    if (!tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+    DBUG_RETURN(0);
+  }
+  if (!tables->view)
+  {
+    List<FOREIGN_KEY_INFO> f_key_list;
+    TABLE *show_table= tables->table;
+    show_table->file->info(HA_STATUS_VARIABLE | 
+                           HA_STATUS_NO_LOCK |
+                           HA_STATUS_TIME);
+
+    show_table->file->get_foreign_key_list(thd, &f_key_list);
+    FOREIGN_KEY_INFO *f_key_info;
+    List_iterator_fast<FOREIGN_KEY_INFO> it(f_key_list);
+    while ((f_key_info= it++))
+    {
+      restore_record(table, s->default_values);
+      table->field[1]->store(base_name, strlen(base_name), cs);
+      table->field[9]->store(file_name, strlen(file_name), cs);
+      table->field[2]->store(f_key_info->forein_id->str,
+                             f_key_info->forein_id->length, cs);
+      table->field[4]->store(f_key_info->referenced_db->str, 
+                             f_key_info->referenced_db->length, cs);
+      table->field[5]->store(f_key_info->referenced_table->str, 
+                             f_key_info->referenced_table->length, cs);
+      table->field[6]->store(STRING_WITH_LEN("NONE"), cs);
+      table->field[7]->store(f_key_info->update_method->str, 
+                             f_key_info->update_method->length, cs);
+      table->field[8]->store(f_key_info->delete_method->str, 
+                             f_key_info->delete_method->length, cs);
+      if (schema_table_store_record(thd, table))
+        DBUG_RETURN(1);
+    }
+  }
+  DBUG_RETURN(0);
+}
+
+
+/*
   Find schema_tables elment by name
 
   SYNOPSIS
@@ -5096,9 +5206,9 @@ ST_FIELD_INFO processlist_fields_info[]=
   {"HOST", LIST_PROCESS_HOST_LEN,  MYSQL_TYPE_STRING, 0, 0, "Host"},
   {"DB", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Db"},
   {"COMMAND", 16, MYSQL_TYPE_STRING, 0, 0, "Command"},
-  {"TIME", 4, MYSQL_TYPE_LONG, 0, 0, "Time"},
+  {"TIME", 7, MYSQL_TYPE_LONG, 0, 0, "Time"},
   {"STATE", 30, MYSQL_TYPE_STRING, 0, 1, "State"},
-  {"INFO", PROCESS_LIST_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info"},
+  {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -5160,6 +5270,22 @@ ST_FIELD_INFO files_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
+ST_FIELD_INFO referential_constraints_fields_info[]=
+{
+  {"CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"CONSTRAINT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CONSTRAINT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"UNIQUE_CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"UNIQUE_CONSTRAINT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"UNIQUE_CONSTRAINT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"MATCH_OPTION", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"UPDATE_RULE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DELETE_RULE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+
 /*
   Description of ST_FIELD_INFO in table.h
 
@@ -5195,6 +5321,9 @@ ST_SCHEMA_TABLE schema_tables[]=
     fill_plugins, make_old_format, 0, -1, -1, 0},
   {"PROCESSLIST", processlist_fields_info, create_schema_table,
     fill_schema_processlist, make_old_format, 0, -1, -1, 0},
+  {"REFERENTIAL_CONSTRAINTS", referential_constraints_fields_info,
+   create_schema_table, get_all_tables, 0, get_referential_constraints_record,
+   1, 9, 0},
   {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0},
   {"SCHEMATA", schema_fields_info, create_schema_table,

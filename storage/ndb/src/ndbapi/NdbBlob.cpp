@@ -23,6 +23,7 @@
 #include <NdbBlob.hpp>
 #include "NdbBlobImpl.hpp"
 #include <NdbScanOperation.hpp>
+#include <signaldata/TcKeyReq.hpp>
 #include <NdbEventOperationImpl.hpp>
 
 /*
@@ -390,6 +391,13 @@ NdbBlob::isScanOp()
   return
     theNdbOp->theOperationType == NdbOperation::OpenScanRequest ||
     theNdbOp->theOperationType == NdbOperation::OpenRangeScanRequest;
+}
+
+inline bool
+NdbBlob::isTakeOverOp()
+{
+  return
+    TcKeyReq::getTakeOverScanFlag(theNdbOp->theScanInfo);
 }
 
 // computations (inline)
@@ -1527,8 +1535,22 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
     if (isUpdateOp() || isWriteOp() || isDeleteOp()) {
       // add operation before this one to read head+inline
       NdbOperation* tOp = theNdbCon->getNdbOperation(theTable, theNdbOp);
+      /*
+       * If main op is from take over scan lock, the added read is done
+       * as committed read:
+       *
+       * In normal transactional case, the row is locked by us and
+       * committed read returns same as normal read.
+       *
+       * In current TRUNCATE TABLE, the deleting trans is committed in
+       * batches and then restarted with new trans id.  A normal read
+       * would hang on the scan delete lock and then fail.
+       */
+      NdbOperation::LockMode lockMode =
+        ! isTakeOverOp() ?
+          NdbOperation::LM_Read : NdbOperation::LM_CommittedRead;
       if (tOp == NULL ||
-          tOp->readTuple() == -1 ||
+          tOp->readTuple(lockMode) == -1 ||
           setTableKeyValue(tOp) == -1 ||
           getHeadInlineValue(tOp) == -1) {
         setErrorCode(tOp);

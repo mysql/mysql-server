@@ -57,15 +57,24 @@ public:
     virtual void Update(const byte*, word32);
     virtual void Final(byte*);
 
+    word32  GetBitCountLo() const { return  loLen_ << 3; }
+    word32  GetBitCountHi() const { return (loLen_ >> (8*sizeof(loLen_) - 3)) +
+                                           (hiLen_ << 3); } 
+
     enum { MaxDigestSz = 5, MaxBufferSz = 64 };
 protected:
-    word32  buffLen_;
-    word32  length_;    // in Bits
+    typedef word32 HashLengthType;
+    word32          buffLen_;   // in bytes
+    HashLengthType  loLen_;     // length in bytes
+    HashLengthType  hiLen_;     // length in bytes
     word32  digest_[MaxDigestSz];
     word32  buffer_[MaxBufferSz / sizeof(word32)];
 
     virtual void Transform() = 0;
+
+    void AddLength(word32);
 };
+
 
 
 } // namespace

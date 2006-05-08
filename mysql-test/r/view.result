@@ -2606,7 +2606,7 @@ create view v2 as select * from v1;
 drop table t1;
 rename table v2 to t1;
 select * from v1;
-ERROR HY000: `test`.`v1` contain view recursion
+ERROR HY000: `test`.`v1` contains view recursion
 drop view t1, v1;
 create table t1 (a int);
 create function f1() returns int

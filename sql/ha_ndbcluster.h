@@ -70,8 +70,8 @@ typedef enum ndb_index_status {
 typedef struct ndb_index_data {
   NDB_INDEX_TYPE type;
   NDB_INDEX_STATUS status;  
-  void *index;
-  void *unique_index;
+  const NdbDictionary::Index *index;
+  const NdbDictionary::Index *unique_index;
   unsigned char *unique_index_attrid_map;
   // In this version stats are not shared between threads
   NdbIndexStat* index_stat;
@@ -560,6 +560,7 @@ class ha_ndbcluster: public handler
   ha_ndbcluster(TABLE_SHARE *table);
   ~ha_ndbcluster();
 
+  int ha_initialise();
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
 
@@ -708,23 +709,17 @@ private:
                                       Ndb *ndb, NdbEventOperation *pOp,
                                       NDB_SHARE *share);
 
-  int alter_table_name(const char *to);
   static int delete_table(ha_ndbcluster *h, Ndb *ndb,
 			  const char *path,
 			  const char *db,
 			  const char *table_name);
-  int drop_ndb_table();
   int create_ndb_index(const char *name, KEY *key_info, bool unique);
   int create_ordered_index(const char *name, KEY *key_info);
   int create_unique_index(const char *name, KEY *key_info);
   int create_index(const char *name, KEY *key_info, 
                    NDB_INDEX_TYPE idx_type, uint idx_no);
-  int drop_ndb_index(const char *name);
-  int table_changed(const void *pack_frm_data, uint pack_frm_len);
 // Index list management
   int create_indexes(Ndb *ndb, TABLE *tab);
-  void clear_index(int i);
-  void clear_indexes();
   int open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error);
   void renumber_indexes(Ndb *ndb, TABLE *tab);
   int drop_indexes(Ndb *ndb, TABLE *tab);
@@ -732,7 +727,7 @@ private:
                        KEY *key_info, const char *index_name, uint index_no);
   int initialize_autoincrement(const void *table);
   int get_metadata(const char* path);
-  void release_metadata();
+  void release_metadata(THD *thd, Ndb *ndb);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info, 
@@ -795,8 +790,6 @@ private:
   void print_results();
 
   ulonglong get_auto_increment();
-  int invalidate_dictionary_cache(bool global,
-                                  const NdbDictionary::Table *ndbtab);
   int ndb_err(NdbTransaction*);
   bool uses_blob_value();
 
@@ -834,7 +827,6 @@ private:
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
   const NdbDictionary::Table *m_table;
-  int m_table_version;
   struct Ndb_local_table_statistics *m_table_info;
   char m_dbname[FN_HEADLEN];
   //char m_schemaname[FN_HEADLEN];

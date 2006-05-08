@@ -30,6 +30,8 @@
 #include "message.h"
 #endif
 
+#include <mysql/plugin.h>
+
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_USER_HOST_SIZE 512
@@ -68,11 +70,15 @@ struct binlog_trx_data {
   Rows_log_event *pending;                // The pending binrows event
 };
 
+static const char binlog_hton_name[]= "binlog";
+static const char binlog_hton_comment[]=
+  "This is a meta storage engine to represent the binlog in a transaction";
+
 handlerton binlog_hton = {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "binlog",
+  binlog_hton_name,
   SHOW_OPTION_YES,
-  "This is a meta storage engine to represent the binlog in a transaction",
+  binlog_hton_comment,
   DB_TYPE_BINLOG,               /* IGNORE  for now */
   binlog_init,
   0,
@@ -1084,7 +1090,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
       were, we would have to ensure that we're not ending a statement
       inside a stored function.
      */
-    thd->binlog_flush_pending_rows_event(true);
+    thd->binlog_flush_pending_rows_event(TRUE);
     error= mysql_bin_log.write(thd, trans_log, end_ev);
   }
   else
@@ -1479,6 +1485,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
   }
   return log_name;
 }
+
 
 bool MYSQL_LOG::open_index_file(const char *index_file_name_arg,
                                 const char *log_name)
@@ -2872,23 +2879,27 @@ bool MYSQL_LOG::write(Log_event *event_info)
       binlog_trx_data *const trx_data=
         (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
       IO_CACHE *trans_log= &trx_data->trans_log;
+      bool trans_log_in_use= my_b_tell(trans_log) != 0;
 
-      if (event_info->get_cache_stmt() && !my_b_tell(trans_log))
+      if (event_info->get_cache_stmt() && !trans_log_in_use)
         trans_register_ha(thd,
-                          thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN),
+                          (thd->options &
+                           (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)),
                           &binlog_hton);
-
-      if (event_info->get_cache_stmt() || my_b_tell(trans_log))
+      if (event_info->get_cache_stmt() || trans_log_in_use)
+      {
+        DBUG_PRINT("info", ("Using trans_log"));
         file= trans_log;
+      }
       /*
-        Note: as Mats suggested, for all the cases above where we write to
+        TODO as Mats suggested, for all the cases above where we write to
         trans_log, it sounds unnecessary to lock LOCK_log. We should rather
         test first if we want to write to trans_log, and if not, lock
-        LOCK_log. TODO.
+        LOCK_log.
       */
     }
 #endif
-    DBUG_PRINT("info",("event type=%d",event_info->get_type_code()));
+    DBUG_PRINT("info",("event type: %d",event_info->get_type_code()));
 
     /*
       No check for auto events flag here - this write method should
@@ -4343,3 +4354,16 @@ err1:
   return 1;
 }
 
+
+mysql_declare_plugin(binlog)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &binlog_hton,
+  binlog_hton_name,
+  "MySQL AB",
+  binlog_hton_comment,
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;

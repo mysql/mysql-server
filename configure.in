@@ -31,7 +31,7 @@ sinclude(config/ac-macros/alloca.m4)
 sinclude(config/ac-macros/check_cpu.m4)
 sinclude(config/ac-macros/character_sets.m4)
 sinclude(config/ac-macros/compiler_flag.m4)
-sinclude(config/ac-macros/storage.m4)
+sinclude(config/ac-macros/plugins.m4)
 sinclude(config/ac-macros/ha_berkeley.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/large_file.m4)
@@ -50,7 +50,6 @@ romanian russian serbian slovak spanish swedish ukrainian"
 
 #####
 #####
-
 
 AC_SUBST(MYSQL_NO_DASH_VERSION)
 AC_SUBST(MYSQL_BASE_VERSION)
@@ -196,6 +195,7 @@ then
 else
   AC_PATH_PROG(AS, as, as)
 fi
+
 # Still need ranlib for readline; local static use only so no libtool.
 AC_PROG_RANLIB
 # We use libtool
@@ -206,6 +206,13 @@ AC_PROG_LIBTOOL
 # problems of 'mysql' with CXX=g++
 LIBTOOL="$LIBTOOL --preserve-dup-deps"
 AC_SUBST(LIBTOOL)dnl
+
+AC_SUBST(NM)dnl
+
+# NM= "$NM -X64"
+#archive_expsym_cmds= `echo "$archive_expsym_cmds" | sed -e '/"$(CC)"//'`
+#archive_expsym_cmds= "$CC -q64 $archive_expsym_cmds"
+#  CXXFLAGS=`echo "$CXXFLAGS -Werror" | sed -e 's/-fbranch-probabilities//; s/-Wall//; s/-ansi//; s/-pedantic//; s/-Wcheck//'`
 
 #AC_LIBTOOL_DLOPEN AC_LIBTOOL_WIN32_DLL AC_DISABLE_FAST_INSTALL AC_DISABLE_SHARED AC_DISABLE_STATIC
 
@@ -482,7 +489,7 @@ then
   AC_MSG_ERROR([MySQL requires an ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
 fi
 
-NOINST_LDFLAGS=
+NOINST_LDFLAGS="-static"
 
 static_nss=""
 STATIC_NSS_FLAGS=""
@@ -705,9 +712,8 @@ AC_CHECK_FUNC(yp_get_default_domain, ,
 AC_CHECK_FUNC(p2open, , AC_CHECK_LIB(gen, p2open))
 # This may get things to compile even if bind-8 is installed
 AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
-# For crypt() on Linux
-AC_CHECK_LIB(crypt, crypt)
-AC_CHECK_FUNC(crypt, AC_DEFINE([HAVE_CRYPT], [1], [crypt])) 
+# Check if crypt() exists in libc or libcrypt, sets LIBS if needed
+AC_SEARCH_LIBS(crypt, crypt, AC_DEFINE(HAVE_CRYPT, 1, [crypt]))
 
 # For sem_xxx functions on Solaris 2.6
 AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
@@ -1616,7 +1622,7 @@ fi
 
 # If we should allow error injection tests
 AC_ARG_WITH(error-inject,
-    [ --with-error-inject    Enable error injection in MySQL Server],
+    AC_HELP_STRING([--with-error-inject],[Enable error injection in MySQL Server]),
     [ with_error_inject=$withval ],
     [ with_error_inject=no ])
 
@@ -2189,6 +2195,102 @@ then
 fi
 AC_MSG_RESULT("$netinet_inc")
 
+#--------------------------------------------------------------------
+# Check for requested features
+#--------------------------------------------------------------------
+
+MYSQL_CHECK_BIG_TABLES
+MYSQL_CHECK_MAX_INDEXES
+MYSQL_CHECK_REPLICATION
+MYSQL_CHECK_VIO
+MYSQL_CHECK_OPENSSL
+MYSQL_CHECK_YASSL
+
+#--------------------------------------------------------------------
+# Declare our plugin modules
+# Has to be done late, as the plugin may need to check for existence of
+# functions tested above
+#--------------------------------------------------------------------
+
+MYSQL_STORAGE_ENGINE(archive,,  [Archive Storage Engine],
+        [Archive Storage Engine], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(archive, [storage/archive])
+MYSQL_PLUGIN_STATIC(archive,    [libarchive.a])
+MYSQL_PLUGIN_DYNAMIC(archive,   [ha_archive.la])
+
+MYSQL_STORAGE_ENGINE(berkeley,  berkeley-db, [BerkeleyDB Storage Engine],
+        [Transactional Tables using BerkeleyDB], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(berkeley,[storage/bdb])
+MYSQL_PLUGIN_STATIC(berkeley,   [[\$(bdb_libs_with_path)]])
+MYSQL_PLUGIN_ACTIONS(berkeley,  [MYSQL_SETUP_BERKELEY_DB])
+
+MYSQL_STORAGE_ENGINE(blackhole,,[Blackhole Storage Engine],
+        [Basic Write-only Read-never tables], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(blackhole, [storage/blackhole])
+MYSQL_PLUGIN_STATIC(blackhole,  [libblackhole.a])
+MYSQL_PLUGIN_DYNAMIC(blackhole, [ha_blackhole.la])
+
+MYSQL_STORAGE_ENGINE(csv,,      [CSV Storage Engine],
+        [Stores tables in text CSV format])
+MYSQL_PLUGIN_DIRECTORY(csv,     [storage/csv])
+MYSQL_PLUGIN_STATIC(csv,        [libcsv.a])
+MYSQL_PLUGIN_MANDATORY(csv)     dnl Used for logging
+
+MYSQL_STORAGE_ENGINE(example,,  [Example Storage Engine],
+        [Skeleton for Storage Engines for developers], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(example, [storage/example])
+MYSQL_PLUGIN_STATIC(example,    [libexample.a])
+MYSQL_PLUGIN_DYNAMIC(example,   [ha_example.la])
+
+MYSQL_STORAGE_ENGINE(federated,,[Federated Storage Engine],
+        [Connects to tables on remote MySQL servers], [max,max-no-ndb])
+
+MYSQL_PLUGIN(ftexample,         [Simple Parser],
+        [Simple full-text parser plugin])
+MYSQL_PLUGIN_DIRECTORY(ftexample, [plugin/fulltext])
+MYSQL_PLUGIN_DYNAMIC(ftexample, [mypluglib.la])
+
+MYSQL_STORAGE_ENGINE(heap,no,   [Memory Storage Engine],
+        [Volatile memory based tables])
+MYSQL_PLUGIN_DIRECTORY(heap,    [storage/heap])
+MYSQL_PLUGIN_STATIC(heap,       [libheap.a])
+MYSQL_PLUGIN_MANDATORY(heap)    dnl Memory tables
+
+MYSQL_STORAGE_ENGINE(innobase,  innodb, [InnoDB Storage Engine],
+        [Transactional Tables using InnoDB], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(innobase, [storage/innobase])
+MYSQL_PLUGIN_STATIC(innobase,   [libinnobase.a])
+MYSQL_PLUGIN_ACTIONS(innobase,  [
+  AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
+  AC_SUBST(innodb_system_libs)
+])
+
+MYSQL_STORAGE_ENGINE(myisam,no, [MyISAM Storage Engine],
+        [Traditional non-transactional MySQL tables])
+MYSQL_PLUGIN_DIRECTORY(myisam,  [storage/myisam])
+MYSQL_PLUGIN_STATIC(myisam,     [libmyisam.a])
+MYSQL_PLUGIN_MANDATORY(myisam)  dnl Default
+
+MYSQL_STORAGE_ENGINE(myisammrg,no,[MyISAM MERGE Engine],
+        [Merge multiple MySQL tables into one])
+MYSQL_PLUGIN_DIRECTORY(myisammrg,[storage/myisammrg])
+MYSQL_PLUGIN_STATIC(myisammrg,  [libmyisammrg.a])
+MYSQL_PLUGIN_MANDATORY(myisammrg)
+
+MYSQL_STORAGE_ENGINE(ndbcluster, ndbcluster, [Cluster Storage Engine],
+        [High Availability Clustered tables], [max])
+MYSQL_PLUGIN_DIRECTORY(ndbcluster,[storage/ndb])
+MYSQL_PLUGIN_STATIC(ndbcluster, [[\$(ndbcluster_libs) \$(ndbcluster_system_libs) \$(NDB_SCI_LIBS)]])
+MYSQL_PLUGIN_ACTIONS(ndbcluster,[MYSQL_SETUP_NDBCLUSTER])
+
+MYSQL_STORAGE_ENGINE(partition, partition, [Partition Support],
+        [MySQL Partitioning Support], [max,max-no-ndb])
+
+dnl -- ndbcluster requires partition to be enabled
+MYSQL_PLUGIN_DEPENDS(ndbcluster, [partition])
+
+MYSQL_CONFIGURE_PLUGINS([none])
+
 # Only build client code?
 AC_ARG_WITH(server,
     [  --without-server        Only build the client.],
@@ -2242,21 +2344,18 @@ fi
 tools_dirs=""
 
 AC_ARG_WITH([mysqlmanager],
-  AC_HELP_STRING([--with-mysqlmanager], [Build the mysqlmanager binary: yes/no (default: build if server is built.)]),
-  [if test "x${withval}" != "xno"; then
-    tools_dirs="$tools_dirs server-tools"
-   fi],
-  [if test "x${with_server}" = "xyes"; then
-     tools_dirs="$tools_dirs server-tools"
-   fi]
-)
+  AC_HELP_STRING([--with-mysqlmanager], [Build the mysqlmanager binary: yes/no (default: build if server is built.)]),,)
+
+if test "$with_mysqlmanager" = "yes" -o \
+        '(' "$with_mysqlmanager:$with_server" = ":yes" -a \
+            -d "$srcdir/server-tools" ')' ; then
+  tools_dirs="$tools_dirs server-tools"
+  AC_CONFIG_FILES(server-tools/Makefile server-tools/instance-manager/Makefile)
+fi
 
 AC_SUBST(tools_dirs)
 
 #MYSQL_CHECK_CPU
-MYSQL_CHECK_VIO
-MYSQL_CHECK_OPENSSL
-MYSQL_CHECK_YASSL
 
 libmysqld_dirs=
 linked_libmysqld_targets=
@@ -2421,73 +2520,6 @@ AC_SUBST(readline_basedir)
 AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
-MYSQL_CHECK_BIG_TABLES
-MYSQL_CHECK_MAX_INDEXES
-MYSQL_CHECK_REPLICATION
-
-MYSQL_STORAGE_ENGINE(innobase,,innodb,,,,innobase,ha_innodb.o,[ dnl
-  \$(top_builddir)/storage/innobase/usr/libusr.a dnl
-  \$(top_builddir)/storage/innobase/srv/libsrv.a dnl
-  \$(top_builddir)/storage/innobase/dict/libdict.a dnl
-  \$(top_builddir)/storage/innobase/que/libque.a dnl
-  \$(top_builddir)/storage/innobase/srv/libsrv.a dnl
-  \$(top_builddir)/storage/innobase/ibuf/libibuf.a dnl
-  \$(top_builddir)/storage/innobase/row/librow.a dnl
-  \$(top_builddir)/storage/innobase/pars/libpars.a dnl
-  \$(top_builddir)/storage/innobase/btr/libbtr.a dnl
-  \$(top_builddir)/storage/innobase/trx/libtrx.a dnl
-  \$(top_builddir)/storage/innobase/read/libread.a dnl
-  \$(top_builddir)/storage/innobase/usr/libusr.a dnl
-  \$(top_builddir)/storage/innobase/buf/libbuf.a dnl
-  \$(top_builddir)/storage/innobase/ibuf/libibuf.a dnl
-  \$(top_builddir)/storage/innobase/eval/libeval.a dnl
-  \$(top_builddir)/storage/innobase/log/liblog.a dnl
-  \$(top_builddir)/storage/innobase/fsp/libfsp.a dnl
-  \$(top_builddir)/storage/innobase/fut/libfut.a dnl
-  \$(top_builddir)/storage/innobase/fil/libfil.a dnl
-  \$(top_builddir)/storage/innobase/lock/liblock.a dnl
-  \$(top_builddir)/storage/innobase/mtr/libmtr.a dnl
-  \$(top_builddir)/storage/innobase/page/libpage.a dnl
-  \$(top_builddir)/storage/innobase/rem/librem.a dnl
-  \$(top_builddir)/storage/innobase/thr/libthr.a dnl
-  \$(top_builddir)/storage/innobase/sync/libsync.a dnl
-  \$(top_builddir)/storage/innobase/data/libdata.a dnl
-  \$(top_builddir)/storage/innobase/mach/libmach.a dnl
-  \$(top_builddir)/storage/innobase/ha/libha.a dnl
-  \$(top_builddir)/storage/innobase/dyn/libdyn.a dnl
-  \$(top_builddir)/storage/innobase/mem/libmem.a dnl
-  \$(top_builddir)/storage/innobase/sync/libsync.a dnl
-  \$(top_builddir)/storage/innobase/ut/libut.a dnl
-  \$(top_builddir)/storage/innobase/os/libos.a dnl
-  \$(top_builddir)/storage/innobase/ut/libut.a],[
-  AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
-  AC_SUBST(innodb_includes)
-  AC_SUBST(innodb_libs)
-  AC_SUBST(innodb_system_libs)
-  other_configures="$other_configures storage/innobase/configure"
-])
-
-MYSQL_STORAGE_ENGINE(berkeley,,berkeley-db,,,,bdb,,,[
-  MYSQL_SETUP_BERKELEY_DB
-])
-MYSQL_STORAGE_ENGINE(example,,,,,,example,no,
- \$(top_builddir)/storage/example/libexample.a,[
-  AC_CONFIG_FILES(storage/example/Makefile)
-])
-MYSQL_STORAGE_ENGINE(archive,,,,,,archive,,
- \$(top_builddir)/storage/archive/libarchive.a, [
-  AC_CONFIG_FILES(storage/archive/Makefile)
-])
-MYSQL_STORAGE_ENGINE(csv,,,"yes",,tina_hton,csv,no,
-  \$(top_builddir)/storage/csv/libcsv.a,[
-  AC_CONFIG_FILES(storage/csv/Makefile)
-])
-MYSQL_STORAGE_ENGINE(blackhole)
-MYSQL_STORAGE_ENGINE(federated)
-MYSQL_STORAGE_ENGINE(ndbcluster,,ndbcluster,,,,ndb,,,[
-  MYSQL_SETUP_NDBCLUSTER
-])
-MYSQL_STORAGE_ENGINE(partition,,partition)
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
@@ -2544,7 +2576,7 @@ then
   AC_SUBST(THREAD_LOBJECTS)
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
-  mysql_se_dirs="myisam myisammrg heap $mysql_se_dirs"
+
   sql_server="$sql_server vio sql"
 fi
 
@@ -2560,12 +2592,9 @@ AC_SUBST(sql_server)
 AC_SUBST(thread_dirs)
 AC_SUBST(server_scripts)
 
-AC_SUBST(mysql_se_dirs)
-AC_SUBST(mysql_se_libs)
-AC_SUBST(mysql_se_objs)
-AC_SUBST(mysql_se_htons)
-AC_SUBST(mysql_se_decls)
-AC_SUBST(mysql_se_plugins)
+AC_SUBST(mysql_plugin_dirs)
+AC_SUBST(mysql_plugin_libs)
+AC_SUBST(mysql_plugin_defs)
 
 
 # Now that sql_client_dirs and sql_server_dirs are stable, determine the union.
@@ -2607,25 +2636,18 @@ AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
- unittest/Makefile dnl
- unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
+ unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/examples/Makefile dnl
- strings/Makefile regex/Makefile storage/Makefile storage/heap/Makefile dnl
- storage/myisam/Makefile storage/myisammrg/Makefile dnl
+ strings/Makefile regex/Makefile storage/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
- sql/handlerton.cc sql-common/Makefile dnl
- dbug/Makefile scripts/Makefile dnl
- include/Makefile dnl
- server-tools/Makefile server-tools/instance-manager/Makefile dnl
+ sql/sql_builtin.cc sql-common/Makefile dnl
+ dbug/Makefile scripts/Makefile include/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  mysql-test/ndb/Makefile netware/Makefile dnl
- include/mysql_version.h dnl
- plugin/Makefile dnl
- plugin/fulltext/Makefile dnl
- win/Makefile)
+ include/mysql_version.h plugin/Makefile win/Makefile)
  AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
  AC_OUTPUT
 
