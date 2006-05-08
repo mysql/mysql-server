@@ -1100,12 +1100,6 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (!found_primary)
      append_identifier(thd, packet, key_info->name, strlen(key_info->name));
 
-#if MYSQL_VERSION_ID < 50300
-    /* Key options moved to after key parts in 5.3.0 */
-    if (!thd->variables.new_mode)
-      store_key_options(thd, packet, table, key_info);
-#endif
-
     packet->append(STRING_WITH_LEN(" ("));
 
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
@@ -1130,10 +1124,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       }
     }
     packet->append(')');
-#if MYSQL_VERSION_ID < 50300
-    if (thd->variables.new_mode)
-#endif
-      store_key_options(thd, packet, table, key_info);
+    store_key_options(thd, packet, table, key_info);
     if (key_info->parser)
     {
       packet->append(" WITH PARSER ", 13);

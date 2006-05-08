@@ -1421,15 +1421,6 @@ create table t3 (c1 int) engine=myisam pack_keys=default;
 create table t4 (c1 int) engine=myisam pack_keys=2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2' at line 1
 drop table t1, t2, t3;
-create table t1 (a int not null, key `a` key_block_size=1024 (a));
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  KEY `a` KEY_BLOCK_SIZE=1024 (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
-set @@new=1;
 create table t1 (a int not null, key `a` (a) key_block_size=1024);
 show create table t1;
 Table	Create Table
@@ -1574,4 +1565,5 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (a int not null, key key_block_size=1024 (a));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=1024 (a))' at line 1
-set @@new=0;
+create table t1 (a int not null, key `a` key_block_size=1024 (a));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_block_size=1024 (a))' at line 1

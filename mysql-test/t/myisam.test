@@ -811,13 +811,6 @@ drop table t1, t2, t3;
 # Test of key_block_size
 #
 
-# Old format, to be obsolete in 5.3
-create table t1 (a int not null, key `a` key_block_size=1024 (a));
-show create table t1;
-drop table t1;
-
-set @@new=1;
-
 create table t1 (a int not null, key `a` (a) key_block_size=1024);
 show create table t1;
 drop table t1;
@@ -874,5 +867,6 @@ drop table t1;
 
 --error 1064
 create table t1 (a int not null, key key_block_size=1024 (a));
+--error 1064
+create table t1 (a int not null, key `a` key_block_size=1024 (a));
 
-set @@new=0;
