@@ -133,6 +133,7 @@ static SYMBOL symbols[] = {
   { "CONSTRAINT",	SYM(CONSTRAINT)},
   { "CONTAINS",         SYM(CONTAINS_SYM)},
   { "CONTINUE",         SYM(CONTINUE_SYM)},
+  { "CONTRIBUTORS",     SYM(CONTRIBUTORS_SYM)},
   { "CONVERT",		SYM(CONVERT_SYM)},
   { "CREATE",		SYM(CREATE)},
   { "CROSS",		SYM(CROSS)},
