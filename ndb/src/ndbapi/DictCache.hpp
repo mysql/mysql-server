@@ -33,6 +33,11 @@ public:
   static Ndb_local_table_info *create(NdbTableImpl *table_impl, Uint32 sz=0);
   static void destroy(Ndb_local_table_info *);
   NdbTableImpl *m_table_impl;
+
+  // range of cached tuple ids per thread
+  Uint64 m_first_tuple_id;
+  Uint64 m_last_tuple_id;
+
   Uint64 m_local_data[1]; // Must be last member. Used to access extra space.
 private:
   Ndb_local_table_info(NdbTableImpl *table_impl);

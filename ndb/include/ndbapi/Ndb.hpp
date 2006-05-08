@@ -984,6 +984,7 @@ class BaseString;
 class NdbEventOperation;
 class NdbBlob;
 class NdbReceiver;
+class Ndb_local_table_info;
 template <class T> struct Ndb_free_list_t;
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
@@ -1443,15 +1444,12 @@ public:
 			     bool increase = false);
   bool setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, 
 			     bool increase = false);
-  Uint64 getTupleIdFromNdb(const char* aTableName, 
-			   Uint32 cacheSize = 1000);
-  Uint64 getTupleIdFromNdb(Uint32 aTableId, 
-			   Uint32 cacheSize = 1000);
-  Uint64 readTupleIdFromNdb(Uint32 aTableId);
-  bool setTupleIdInNdb(const char* aTableName, Uint64 val, 
-		       bool increase);
-  bool setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase);
-  Uint64 opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op);
+private:
+  Uint64 getTupleIdFromNdb(Ndb_local_table_info* info, Uint32 cacheSize);
+  Uint64 readTupleIdFromNdb(Ndb_local_table_info* info);
+  bool setTupleIdInNdb(Ndb_local_table_info* info, Uint64 val, bool increase);
+  Uint64 opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 opValue, Uint32 op);
+public:
 
   /**
    */
@@ -1650,11 +1648,6 @@ private:
   
   Uint64               the_last_check_time;
   Uint64               theFirstTransId;
-  
-  // The tupleId is retreived from DB the 
-  // tupleId is unique for each tableid. 
-  Uint64               theFirstTupleId[2048]; 
-  Uint64               theLastTupleId[2048];           
 
   Uint32		theRestartGCI;	// the Restart GCI used by DIHNDBTAMPER
   
