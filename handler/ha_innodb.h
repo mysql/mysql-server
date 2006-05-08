@@ -316,9 +316,6 @@ int innobase_rollback_by_xid(
 	XID	*xid);	/* in : X/Open XA Transaction Identification */
 
 
-int innobase_repl_report_sent_binlog(THD *thd, char *log_file_name,
-	my_off_t end_offset);
-
 /***********************************************************************
 Create a consistent view for a cursor based on current transaction
 which is created if the corresponding MySQL thread still lacks one.

@@ -391,11 +391,7 @@ transaction already was committed, then we clean up a possible insert
 undo log. If the transaction was not yet committed, then we roll it back.
 Note: this is done in a background thread. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 trx_rollback_or_clean_all_without_sess(
 /*===================================*/
 			/* out: a dummy parameter */
@@ -544,7 +540,7 @@ loop:
 			(ulong) ut_dulint_get_high(trx->table_id),
 			(ulong) ut_dulint_get_low(trx->table_id));
 
-		table = dict_table_get_on_id_low(trx->table_id, trx);
+		table = dict_table_get_on_id_low(trx->table_id);
 
 		if (table) {
 			fputs("InnoDB: Table found: dropping table ", stderr);
@@ -576,13 +572,7 @@ leave_function:
 
 	os_thread_exit(NULL);
 
-	/* The following is dummy code to keep the compiler happy: */
-
-#ifndef __WIN__
-	return(NULL);
-#else
-	return(0);
-#endif
+	OS_THREAD_DUMMY_RETURN;
 }
 
 /***********************************************************************

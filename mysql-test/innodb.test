@@ -1,3 +1,16 @@
+#######################################################################
+#                                                                     #
+# Please, DO NOT TOUCH this file as well as the innodb.result file.   #
+# These files are to be modified ONLY BY INNOBASE guys.               #
+#                                                                     #
+# Use innodb_mysql.[test|result] files instead.                       #
+#                                                                     #
+# If nevertheless you need to make some changes here, please, forward #
+# your commit message To: dev@innodb.com Cc: dev-innodb@mysql.com     #
+# (otherwise your changes may be erased).                             #
+#                                                                     #
+#######################################################################
+
 -- source include/have_innodb.inc
 
 #
@@ -1134,6 +1147,41 @@ drop table t2, t1;
 
 
 #
+# Let us test binlog_cache_use and binlog_cache_disk_use status vars.
+# Actually this test has nothing to do with innodb per se, it just requires
+# transactional table. 
+#
+flush status;
+show status like "binlog_cache_use";
+show status like "binlog_cache_disk_use";
+
+create table t1 (a int) engine=innodb;
+
+# Now we are going to create transaction which is long enough so its 
+# transaction binlog will be flushed to disk...
+let $1=2000;
+disable_query_log;
+begin;
+while ($1)
+{
+ eval insert into t1 values( $1 );
+ dec $1;
+}
+commit;
+enable_query_log;
+show status like "binlog_cache_use";
+show status like "binlog_cache_disk_use";
+
+# Transaction which should not be flushed to disk and so should not
+# increase binlog_cache_disk_use.
+begin;
+delete from t1;
+commit;
+show status like "binlog_cache_use";
+show status like "binlog_cache_disk_use";
+drop table t1;
+
+#
 # Bug #6126: Duplicate columns in keys gives misleading error message
 #
 --error 1060
@@ -2105,6 +2153,42 @@ UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
 
 DROP TABLE t2;
 DROP TABLE t1;
+
+#
+# Bug#18477 - MySQL/InnoDB Ignoring Foreign Keys in ALTER TABLE
+#
+create table t1 (
+  c1 bigint not null,
+  c2 bigint not null,
+  primary key (c1),
+  unique  key (c2)
+) engine=innodb;
+#
+create table t2 (
+  c1 bigint not null,
+  primary key (c1)
+) engine=innodb;
+#
+alter table t1 add constraint c2_fk foreign key (c2)
+  references t2(c1) on delete cascade;
+show create table t1;
+#
+alter table t1 drop foreign key c2_fk;
+show create table t1;
+#
+drop table t1, t2;
+
+#
+# Bug #14360: problem with intervals
+#
+
+create table t1(a date) engine=innodb;
+create table t2(a date, key(a)) engine=innodb;
+insert into t1 values('2005-10-01');
+insert into t2 values('2005-10-01');
+select * from t1, t2
+  where t2.a between t1.a - interval 2 day and t1.a + interval 2 day;
+drop table t1, t2;
 
 create table t1 (id int not null, f_id int not null, f int not null,
 primary key(f_id, id)) engine=innodb;

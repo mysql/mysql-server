@@ -202,6 +202,7 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
+	ulint		level,		/* in: level */
 	const char*	cfile_name,	/* in: file name where created */
   ulint cline,	/* in: file line where created */
   const char* cmutex_name)  /* in: mutex name */
@@ -218,7 +219,7 @@ mutex_create_func(
 	mutex->line = 0;
 	mutex->file_name = "not yet reserved";
 #endif /* UNIV_SYNC_DEBUG */
-	mutex->level = SYNC_LEVEL_NONE;
+	mutex->level = level;
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
 #ifndef UNIV_HOTBACKUP
@@ -598,19 +599,6 @@ mutex_get_debug_info(
 }
 #endif /* UNIV_SYNC_DEBUG */
 
-/**********************************************************************
-Sets the mutex latching level field. */
-
-void
-mutex_set_level(
-/*============*/
-	mutex_t*	mutex,	/* in: mutex */
-	ulint		level)	/* in: level */
-{
-	mutex->level = level;
-}
-
-
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Checks that the current thread owns the mutex. Works only in the debug
@@ -979,8 +967,8 @@ void
 sync_thread_add_level(
 /*==================*/
 	void*	latch,	/* in: pointer to a mutex or an rw-lock */
-	ulint	level)	/* in: level in the latching order; if SYNC_LEVEL_NONE,
-			nothing is done */
+	ulint	level)	/* in: level in the latching order; if
+			SYNC_LEVEL_VARYING, nothing is done */
 {
 	sync_level_t*	array;
 	sync_level_t*	slot;
@@ -1002,7 +990,7 @@ sync_thread_add_level(
 		return;
 	}
 
-	if (level == SYNC_LEVEL_NONE) {
+	if (level == SYNC_LEVEL_VARYING) {
 
 		return;
 	}
@@ -1049,6 +1037,9 @@ sync_thread_add_level(
 		break;
 	case SYNC_RECV:
 		ut_a(sync_thread_levels_g(array, SYNC_RECV));
+		break;
+	case SYNC_WORK_QUEUE:
+		ut_a(sync_thread_levels_g(array, SYNC_WORK_QUEUE));
 		break;
 	case SYNC_LOG:
 		ut_a(sync_thread_levels_g(array, SYNC_LOG));
@@ -1290,21 +1281,17 @@ sync_init(void)
 	/* Init the mutex list and create the mutex to protect it. */
 
 	UT_LIST_INIT(mutex_list);
-	mutex_create(&mutex_list_mutex);
-	mutex_set_level(&mutex_list_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&mutex_list_mutex, SYNC_NO_ORDER_CHECK);
 
-	mutex_create(&sync_thread_mutex);
-	mutex_set_level(&sync_thread_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&sync_thread_mutex, SYNC_NO_ORDER_CHECK);
 
 	/* Init the rw-lock list and create the mutex to protect it. */
 
 	UT_LIST_INIT(rw_lock_list);
-	mutex_create(&rw_lock_list_mutex);
-	mutex_set_level(&rw_lock_list_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&rw_lock_list_mutex, SYNC_NO_ORDER_CHECK);
 
 #ifdef UNIV_SYNC_DEBUG
-	mutex_create(&rw_lock_debug_mutex);
-	mutex_set_level(&rw_lock_debug_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&rw_lock_debug_mutex, SYNC_NO_ORDER_CHECK);
 
 	rw_lock_debug_event = os_event_create(NULL);
 	rw_lock_debug_waiters = FALSE;

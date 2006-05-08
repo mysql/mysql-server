@@ -1139,11 +1139,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 {
 	dict_table_t*	table1;
 	dict_table_t*	table2;
-	que_thr_t*	thr;
-	que_t*		graph;
 	ulint		error;
 	trx_t*		trx;
-	const char*	str;
 
 	mutex_enter(&(dict_sys->mutex));
 
@@ -1195,7 +1192,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	VARBINARY, like in other InnoDB system tables, to get a clean
 	design. */
 
-	str =
+	error = que_eval_sql(NULL,
 	"PROCEDURE CREATE_FOREIGN_SYS_TABLES_PROC () IS\n"
 	"BEGIN\n"
 	"CREATE TABLE\n"
@@ -1207,22 +1204,8 @@ dict_create_or_check_foreign_constraint_tables(void)
   "SYS_FOREIGN_COLS(ID CHAR, POS INT, FOR_COL_NAME CHAR, REF_COL_NAME CHAR);\n"
 	"CREATE UNIQUE CLUSTERED INDEX ID_IND ON SYS_FOREIGN_COLS (ID, POS);\n"
 	"COMMIT WORK;\n"
-	"END;\n";
-
-	graph = pars_sql(NULL, str);
-
-	ut_a(graph);
-
-	graph->trx = trx;
-	trx->graph = NULL;
-
-	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
-
-	ut_a(thr = que_fork_start_command(graph));
-
-	que_run_threads(thr);
-
-	error = trx->error_state;
+	"END;\n"
+		, trx);
 
 	if (error != DB_SUCCESS) {
 		fprintf(stderr, "InnoDB: error %lu in creation\n",
@@ -1240,8 +1223,6 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 		error = DB_MUST_GET_MORE_FILE_SPACE;
 	}
-
-	que_graph_free(graph);
 
 	trx->op_info = "";
 

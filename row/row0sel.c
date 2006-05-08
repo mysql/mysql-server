@@ -2036,8 +2036,13 @@ row_fetch_print(
 		dtype_print(type);
 		fprintf(stderr, "\n");
 
-		ut_print_buf(stderr, dfield_get_data(dfield),
-			dfield_get_len(dfield));
+		if (dfield_get_len(dfield) != UNIV_SQL_NULL) {
+			ut_print_buf(stderr, dfield_get_data(dfield),
+				dfield_get_len(dfield));
+		} else {
+			fprintf(stderr, " <NULL>;");
+		}
+
 		fprintf(stderr, "\n");
 
 		exp = que_node_get_next(exp);
@@ -4401,7 +4406,7 @@ row_search_check_if_query_cache_permitted(
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
 
-	table = dict_table_get(norm_name, trx);
+	table = dict_table_get(norm_name);
 
 	if (table == NULL) {
 
