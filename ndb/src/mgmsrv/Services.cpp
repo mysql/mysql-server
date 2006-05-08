@@ -468,9 +468,9 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     return;
   }
 
-  struct sockaddr addr;
+  struct sockaddr_in addr;
   SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-  int r = getpeername(m_socket, &addr, &addrlen);
+  int r = getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
   if (r != 0 ) {
     m_output->println(cmd);
     m_output->println("result: getpeername(%d) failed, err= %d", m_socket, r);
@@ -485,7 +485,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     NDB_TICKS tick= 0;
     /* only report error on second attempt as not to clog the cluster log */
     while (!m_mgmsrv.alloc_node_id(&tmp, (enum ndb_mgm_node_type)nodetype, 
-                                   &addr, &addrlen, error_code, error_string,
+                                   (struct sockaddr*)&addr, &addrlen, error_code, error_string,
                                    tick == 0 ? 0 : log_event))
     {
       /* NDB_MGM_ALLOCID_CONFIG_MISMATCH is a non retriable error */
