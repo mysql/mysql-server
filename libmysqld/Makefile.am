@@ -167,10 +167,13 @@ link_sources:
 	    rm -f $$f; \
 	    @LN_CP_F@ $(top_srcdir)/libmysql/$$f $$f; \
 	  done; \
-	  for f in $(sqlstoragesources); do \
-	    rm -f $$f; \
-	    @LN_CP_F@ `find $(srcdir)/../sql -name $$f` $$f; \
-	  done; \
+	  it test -n "$(sqlstoragesources)" \
+	  then \
+	    for f in "$(sqlstoragesources)"; do \
+	      rm -f "$$f"; \
+	      @LN_CP_F@ `find $(srcdir)/../sql -name "$$f"` "$$f"; \
+	    done; \
+	  fi; \
 	  rm -f client_settings.h; \
 	  @LN_CP_F@ $(top_srcdir)/libmysql/client_settings.h client_settings.h
 
