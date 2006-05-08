@@ -974,30 +974,18 @@ void Dbacc::initOpRec(Signal* signal)
   operationRecPtr.p->fragptr = fragrecptr.i;
   operationRecPtr.p->nextParallelQue = RNIL;
   operationRecPtr.p->prevParallelQue = RNIL;
-  operationRecPtr.p->prevQueOp = RNIL;
-  operationRecPtr.p->nextQueOp = RNIL;
   operationRecPtr.p->nextSerialQue = RNIL;
   operationRecPtr.p->prevSerialQue = RNIL;
   operationRecPtr.p->elementPage = RNIL;
-  operationRecPtr.p->keyinfoPage = RNIL;
   operationRecPtr.p->lockOwner = ZFALSE;
   operationRecPtr.p->insertIsDone = ZFALSE;
   operationRecPtr.p->elementIsDisappeared = ZFALSE;
   operationRecPtr.p->insertDeleteLen = fragrecptr.p->elementLength;
-  operationRecPtr.p->longPagePtr = RNIL;
-  operationRecPtr.p->longKeyPageIndex = RNIL;
   operationRecPtr.p->scanRecPtr = RNIL;
 
   // bit to mark lock operation
   operationRecPtr.p->isAccLockReq = (Treqinfo >> 31) & 0x1;
   // undo log is not run via ACCKEYREQ
-
-  if(ERROR_INSERTED(5900) || ERROR_INSERTED(5901))
-  {
-    for(unsigned i = 0; i<8 && i<signal->theData[4]; i++){
-      operationRecPtr.p->keydata[i] = signal->theData[i+7];
-    }
-  }
 
 }//Dbacc::initOpRec()
 
@@ -1405,7 +1393,7 @@ void Dbacc::placeSerialQueueRead(Signal* signal)
 {
   readWriteOpPtr.i = queOperPtr.p->nextSerialQue;
   ptrCheckGuard(readWriteOpPtr, coprecsize, operationrec);
- PSQR_LOOP:
+PSQR_LOOP:
   jam();
   if (readWriteOpPtr.p->nextSerialQue == RNIL) {
     jam();
@@ -1596,7 +1584,7 @@ Uint32 Dbacc::placeWriteInLockQueue(Signal* signal)
 void Dbacc::placeSerialQueueWrite(Signal* signal) 
 {
   readWriteOpPtr = queOperPtr;
- PSQW_LOOP:
+PSQW_LOOP:
   if (readWriteOpPtr.p->nextSerialQue == RNIL) {
     jam();
     /* --------------------------------------------------------------------------------- */
@@ -1642,13 +1630,6 @@ void Dbacc::placeSerialQueueWrite(Signal* signal)
 /* ------------------------------------------------------------------------- */
 void Dbacc::acckeyref1Lab(Signal* signal, Uint32 result_code) 
 {
-  if (operationRecPtr.p->keyinfoPage != RNIL) {
-    jam();
-    rpPageptr.i = operationRecPtr.p->keyinfoPage;
-    ptrCheckGuard(rpPageptr, cpagesize, page8);
-    releasePage(signal);
-    operationRecPtr.p->keyinfoPage = RNIL;
-  }//if
   operationRecPtr.p->transactionstate = WAIT_COMMIT_ABORT;
   /* ************************<< */
   /* ACCKEYREF                  */
@@ -4042,12 +4023,9 @@ void Dbacc::insertLockOwnersList(Signal* signal,
   insOperPtr.p->lockOwner = ZTRUE;
   insOperPtr.p->prevLockOwnerOp = RNIL;
   tmpOperPtr.i = fragrecptr.p->lockOwnersList;
-  const Uint32 seq = fragrecptr.p->m_current_sequence_no;
   insOperPtr.p->nextLockOwnerOp = tmpOperPtr.i;
-  insOperPtr.p->m_sequence_no = seq;
   
   fragrecptr.p->lockOwnersList = insOperPtr.i;
-  fragrecptr.p->m_current_sequence_no = seq+1;
   if (tmpOperPtr.i == RNIL) {
     return;
   } else {
@@ -6016,9 +5994,6 @@ void Dbacc::initScanOpRec(Signal* signal)
   operationRecPtr.p->prevParallelQue = RNIL;
   operationRecPtr.p->nextSerialQue = RNIL;
   operationRecPtr.p->prevSerialQue = RNIL;
-  operationRecPtr.p->prevQueOp = RNIL;
-  operationRecPtr.p->nextQueOp = RNIL;
-  operationRecPtr.p->keyinfoPage = RNIL; // Safety precaution 
   operationRecPtr.p->transId1 = scanPtr.p->scanTrid1;
   operationRecPtr.p->transId2 = scanPtr.p->scanTrid2;
   operationRecPtr.p->lockOwner = ZFALSE;
@@ -6038,7 +6013,6 @@ void Dbacc::initScanOpRec(Signal* signal)
     tisoLocalPtr = tisoLocalPtr + tisoIsforward;
   }//for
   arrGuard(tisoLocalPtr, 2048);
-  operationRecPtr.p->keydata[0] = isoPageptr.p->word32[tisoLocalPtr];
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
   operationRecPtr.p->xfrmtupkeylen = 0; // not used
 }//Dbacc::initScanOpRec()
@@ -7412,21 +7386,18 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("fid=%d, fragptr=%d, hashvaluePart=%d ",
 	      tmpOpPtr.p->fid, tmpOpPtr.p->fragptr, 
 	      tmpOpPtr.p->hashvaluePart);
-    infoEvent("hashValue=%d, insertDeleteLen=%d, keyinfoPage=%d ",
-	      tmpOpPtr.p->hashValue, tmpOpPtr.p->insertDeleteLen, 
-	      tmpOpPtr.p->keyinfoPage);
+    infoEvent("hashValue=%d, insertDeleteLen=%d",
+	      tmpOpPtr.p->hashValue, tmpOpPtr.p->insertDeleteLen);
     infoEvent("nextLockOwnerOp=%d, nextOp=%d, nextParallelQue=%d ",
 	      tmpOpPtr.p->nextLockOwnerOp, tmpOpPtr.p->nextOp, 
 	      tmpOpPtr.p->nextParallelQue);
-    infoEvent("nextQueOp=%d, nextSerialQue=%d, prevOp=%d ",
-	      tmpOpPtr.p->nextQueOp, tmpOpPtr.p->nextSerialQue, 
+    infoEvent("nextSerialQue=%d, prevOp=%d ",
+	      tmpOpPtr.p->nextSerialQue, 
 	      tmpOpPtr.p->prevOp);
-    infoEvent("prevLockOwnerOp=%d, prevParallelQue=%d, prevQueOp=%d ",
-	      tmpOpPtr.p->prevLockOwnerOp, tmpOpPtr.p->nextParallelQue, 
-	      tmpOpPtr.p->prevQueOp);
-    infoEvent("prevSerialQue=%d, scanRecPtr=%d, longPagePtr=%d ",
-	      tmpOpPtr.p->prevSerialQue, tmpOpPtr.p->scanRecPtr, 
-	      tmpOpPtr.p->longPagePtr);
+    infoEvent("prevLockOwnerOp=%d, prevParallelQue=%d",
+	      tmpOpPtr.p->prevLockOwnerOp, tmpOpPtr.p->nextParallelQue);
+    infoEvent("prevSerialQue=%d, scanRecPtr=%d",
+	      tmpOpPtr.p->prevSerialQue, tmpOpPtr.p->scanRecPtr);
     infoEvent("transactionstate=%d, elementIsDisappeared=%d, insertIsDone=%d ",
 	      tmpOpPtr.p->transactionstate, tmpOpPtr.p->elementIsDisappeared, 
 	      tmpOpPtr.p->insertIsDone);
