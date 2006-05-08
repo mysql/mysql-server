@@ -358,7 +358,6 @@ struct Fragmentrec {
 // List of lock owners and list of lock waiters to support LCP handling
 //-----------------------------------------------------------------------------
   Uint32 lockOwnersList;
-  Uint32 m_current_sequence_no;
 
 //-----------------------------------------------------------------------------
 // References to Directory Ranges (which in turn references directories, which
@@ -478,7 +477,6 @@ struct Fragmentrec {
 /* OPERATIONREC                                                                      */
 /* --------------------------------------------------------------------------------- */
 struct Operationrec {
-  Uint32 keydata[8];
   Uint32 localdata[2];
   Uint32 elementIsforward;
   Uint32 elementPage;
@@ -488,23 +486,17 @@ struct Operationrec {
   Uint32 hashvaluePart;
   Uint32 hashValue;
   Uint32 insertDeleteLen;
-  Uint32 keyinfoPage;
   Uint32 nextLockOwnerOp;
   Uint32 nextOp;
   Uint32 nextParallelQue;
-  Uint32 nextQueOp;
   Uint32 nextSerialQue;
   Uint32 prevOp;
   Uint32 prevLockOwnerOp;
   Uint32 prevParallelQue;
-  Uint32 prevQueOp;
   Uint32 prevSerialQue;
   Uint32 scanRecPtr;
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 longPagePtr;
-  Uint32 longKeyPageIndex;
-  Uint32 m_sequence_no;
   State opState;
   Uint32 userptr;
   State transactionstate;
