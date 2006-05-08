@@ -796,7 +796,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	key_type opt_unique_or_fulltext constraint_key_type
 
 %type <key_alg>
-	opt_btree_or_rtree
+	btree_or_rtree
 
 %type <string_list>
 	key_usage_list using_list
@@ -887,7 +887,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         view_suid view_tail view_list_opt view_list view_select
         view_check_option trigger_tail sp_tail
         install uninstall partition_entry binlog_base64_event
-	init_key_options key_options key_opts key_opt
+	init_key_options key_options key_opts key_opt key_using_alg
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -4528,7 +4528,7 @@ init_key_options:
 
 key_alg:
 	/* empty */ init_key_options
-	| init_key_options key_opts
+	| init_key_options key_using_alg
 	;
 
 key_options:
@@ -4540,10 +4540,14 @@ key_opts:
 	key_opt
 	| key_opts key_opt
 	;
-	
+
+key_using_alg:
+	USING btree_or_rtree       { Lex->key_create_info.algorithm= $2; }
+	| TYPE_SYM btree_or_rtree  { Lex->key_create_info.algorithm= $2; }
+        ;
+
 key_opt:
-	USING opt_btree_or_rtree       { Lex->key_create_info.algorithm= $2; }
-	| TYPE_SYM opt_btree_or_rtree  { Lex->key_create_info.algorithm= $2; }
+        key_using_alg
 	| KEY_BLOCK_SIZE opt_equal ulong_num
 	  { Lex->key_create_info.block_size= $3; }
 	| WITH PARSER_SYM IDENT_sys
@@ -4559,7 +4563,7 @@ key_opt:
         ;
 
 
-opt_btree_or_rtree:
+btree_or_rtree:
 	BTREE_SYM	{ $$= HA_KEY_ALG_BTREE; }
 	| RTREE_SYM
 	  {
@@ -4573,7 +4577,7 @@ key_list:
 
 key_part:
 	ident			{ $$=new key_part_spec($1.str); }
-	| ident '(' NUM ')'	
+	| ident '(' NUM ')'
         {
           int key_part_len= atoi($3.str);
           if (!key_part_len)
