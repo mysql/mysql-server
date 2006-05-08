@@ -1136,6 +1136,8 @@ void clean_up(bool print_message)
     my_free((gptr) ssl_acceptor_fd, MYF(0));
   }
 #endif /* HAVE_OPENSSL */
+  vio_end();
+
 #ifdef USE_REGEX
   my_regex_end();
 #endif
