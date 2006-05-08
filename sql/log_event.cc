@@ -5270,16 +5270,28 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
  */
 static int
 unpack_row(RELAY_LOG_INFO *rli,
-           TABLE *table, uint colcnt, byte *record,
+           TABLE *table, uint const colcnt, byte *record,
            char const *row, MY_BITMAP const *cols,
            char const **row_end, ulong *master_reclength)
 {
   DBUG_ASSERT(record && row);
   MY_BITMAP *write_set= table->file->write_set;
-
-  my_size_t const n_null_bytes= table->s->null_bytes;
   my_ptrdiff_t const offset= record - (byte*) table->record[0];
-  memcpy(record, row, n_null_bytes);            // [1]
+  my_size_t master_null_bytes= table->s->null_bytes;
+
+  if (colcnt != table->s->fields)
+  {
+    Field **fptr= &table->field[colcnt-1];
+    do
+      master_null_bytes= (*fptr)->last_null_byte();
+    while (master_null_bytes == 0 && fptr-- > table->field);
+
+    if (master_null_bytes == 0)
+      master_null_bytes= table->s->null_bytes;
+  }
+
+  DBUG_ASSERT(master_null_bytes <= table->s->null_bytes);
+  memcpy(record, row, master_null_bytes);            // [1]
   int error= 0;
 
   bitmap_set_all(write_set);
@@ -5287,14 +5299,12 @@ unpack_row(RELAY_LOG_INFO *rli,
   Field **const begin_ptr = table->field;
   Field **field_ptr;
   {
-    char const *ptr= row + n_null_bytes;
-    for (field_ptr= begin_ptr ; *field_ptr ; ++field_ptr)
+    char const *ptr= row + master_null_bytes;
+    Field **const end_ptr= begin_ptr + colcnt;
+    for (field_ptr= begin_ptr ; field_ptr < end_ptr ; ++field_ptr)
     {
       Field *const f= *field_ptr;
 
-      if (colcnt == 0)
-        break;
-      --colcnt;
       if (bitmap_is_set(cols, field_ptr -  begin_ptr))
       {
         /* Field...::unpack() cannot return 0 */
@@ -6190,7 +6200,7 @@ int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
 
   int error;
   error= unpack_row(rli,
-                    table, m_width, (byte*)table->record[0],
+                    table, m_width, table->record[0],
                     row_start, &m_cols, row_end, &m_master_reclength);
 #ifndef DBUG_OFF
   print_column_values("Unpacked value", thd, table);
@@ -6240,6 +6250,79 @@ namespace {
 
 }
 
+
+/*
+  Copy "extra" columns from record[1] to record[0].
+
+  Copy the extra fields that are not present on the master but are
+  present on the slave from record[1] to record[0].  This is used
+  after fetching a record that are to be updated, either inside
+  replace_record() or as part of executing an update_row().
+ */
+static int
+copy_extra_record_fields(TABLE *table,
+                         my_size_t master_reclength,
+                         my_ptrdiff_t master_fields)
+{
+  DBUG_PRINT("info", ("Copying to %p from field %d at offset %u to field %d at offset %u", 
+                      table->record[0], 
+                      master_fields, master_reclength,
+                      table->s->fields, table->s->reclength));
+  if (master_reclength < table->s->reclength)
+    bmove_align(table->record[0] + master_reclength,
+                table->record[1] + master_reclength,
+                table->s->reclength - master_reclength);
+    
+  /*
+    Bit columns are special.  We iterate over all the remaining
+    columns and copy the "extra" bits to the new record.  This is
+    not a very good solution: it should be refactored on
+    opportunity.
+
+    REFACTORING SUGGESTION (Matz).  Introduce a member function
+    similar to move_field_offset() called copy_field_offset() to
+    copy field values and implement it for all Field subclasses. Use
+    this function to copy data from the found record to the record
+    that are going to be inserted.
+
+    The copy_field_offset() function need to be a virtual function,
+    which in this case will prevent copying an entire range of
+    fields efficiently.
+  */
+  {
+    Field **field_ptr= table->field + master_fields;
+    for ( ; *field_ptr ; ++field_ptr)
+    {
+      /*
+        Set the null bit according to the values in record[1]
+       */
+      if ((*field_ptr)->maybe_null() &&
+          (*field_ptr)->is_null_in_record(reinterpret_cast<uchar*>(table->record[1])))
+        (*field_ptr)->set_null();
+      else
+        (*field_ptr)->set_notnull();
+
+      /*
+        Do the extra work for special columns.
+       */
+      switch ((*field_ptr)->real_type())
+      {
+      default:
+        /* Nothing to do */
+        break;
+
+      case FIELD_TYPE_BIT:
+        Field_bit *f= static_cast<Field_bit*>(*field_ptr);
+        my_ptrdiff_t const offset= table->record[1] - table->record[0];
+        uchar const bits=
+          get_rec_bits(f->bit_ptr + offset, f->bit_ofs, f->bit_len);
+        set_rec_bits(bits, f->bit_ptr, f->bit_ofs, f->bit_len);
+        break;
+      }
+    }
+  }
+  return 0;                                     // All OK
+}
 
 /*
   Replace the provided record in the database.
@@ -6327,54 +6410,7 @@ replace_record(THD *thd, TABLE *table,
        First we copy the columns into table->record[0] that are not
        present on the master from table->record[1], if there are any.
     */
-
-    DBUG_PRINT("info", ("Copying to %p from offset %u to %u", 
-                         table->record[0], 
-                         master_reclength, table->s->reclength));
-#ifndef DBUG_OFF
-    print_column_values("After copy value", thd, table);
-#endif
-    if (master_reclength < table->s->reclength)
-      bmove_align(table->record[0] + master_reclength,
-                  table->record[1] + master_reclength,
-                  table->s->reclength - master_reclength);
-    
-    /*
-      Bit columns are special.  We iterate over all the remaining
-      columns and copy the "extra" bits to the new record.  This is
-      not a very good solution: it should be refactored on
-      opportunity.
-
-      REFACTORING SUGGESTION (Matz).  Introduce a member function
-      similar to move_field_offset() called copy_field_offset() to
-      copy field values and implement it for all Field subclasses. Use
-      this function to copy data from the found record to the record
-      that are going to be inserted.
-
-      The copy_field_offset() function need to be a virtual function,
-      which in this case will prevent copying an entire range of
-      fields efficiently.
-     */
-    {
-      Field **field_ptr= table->field + master_fields;
-      for ( ; *field_ptr ; ++field_ptr)
-      {
-        switch ((*field_ptr)->real_type())
-        {
-        default:
-          /* Nothing to do */
-          break;
-
-        case FIELD_TYPE_BIT:
-          Field_bit *f= static_cast<Field_bit*>(*field_ptr);
-          my_ptrdiff_t const offset= table->record[1] - table->record[0];
-          uchar const bits=
-            get_rec_bits(f->bit_ptr + offset, f->bit_ofs, f->bit_len);
-          set_rec_bits(bits, f->bit_ptr, f->bit_ofs, f->bit_len);
-          break;
-        }
-      }
-    }
+    copy_extra_record_fields(table, master_reclength, master_fields);
     
     /*
        REPLACE is defined as either INSERT or DELETE + INSERT.  If
@@ -6887,17 +6923,20 @@ int Update_rows_log_event::do_exec_row(TABLE *table)
     example, the partition engine).
 
     Since find_and_fetch_row() puts the fetched record (i.e., the old
-    record) in record[0], we have to move it out of the way and into
-    record[1]. After that, we can put the new record (i.e., the after
-    image) into record[0].
+    record) in record[1], we can keep it there. We put the new record
+    (i.e., the after image) into record[0], and copy the fields that
+    are on the slave (i.e., in record[1]) into record[0], effectively
+    overwriting the default values that where put there by the
+    unpack_row() function.
   */
-  bmove_align(table->record[1], table->record[0], table->s->reclength);
   bmove_align(table->record[0], m_after_image, table->s->reclength);
+  copy_extra_record_fields(table, m_master_reclength, m_width);
 
   /*
-    Now we should have the right row to update.  The old row (the one
-    we're looking for) has to be in record[1] and the new row has to
-    be in record[0] for all storage engines to work correctly.
+    Now we have the right row to update.  The old row (the one we're
+    looking for) is in record[1] and the new row has is in record[0].
+    We also have copied the original values already in the slave's
+    database into the after image delivered from the master.
   */
   error= table->file->ha_update_row(table->record[1], table->record[0]);
 
