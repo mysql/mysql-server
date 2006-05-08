@@ -1191,7 +1191,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "32K",
-    "0",
+    "2K",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  { 
+    CFG_DB_BACKUP_MAX_WRITE_SIZE,
+    "BackupMaxWriteSize",
+    DB_TOKEN,
+    "Max size of filesystem writes made by backup (in bytes)",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "256K",
+    "2K",
     STR_VALUE(MAX_INT_RNIL) },
 
   /***************************************************************************
