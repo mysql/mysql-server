@@ -295,7 +295,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 			 &share->data_file_name,strlen(data_name)+1,
 			 &share->state.key_root,keys*sizeof(my_off_t),
 			 &share->state.key_del,
-			 (share->state.header.max_block_size*sizeof(my_off_t)),
+			 (share->state.header.max_block_size_index*sizeof(my_off_t)),
 #ifdef THREAD
 			 &share->key_root_lock,sizeof(rw_lock_t)*keys,
 #endif
@@ -310,7 +310,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	   (char*) key_root, sizeof(my_off_t)*keys);
     memcpy((char*) share->state.key_del,
 	   (char*) key_del, (sizeof(my_off_t) *
-			     share->state.header.max_block_size));
+			     share->state.header.max_block_size_index));
     strmov(share->unique_file_name, name_buff);
     share->unique_name_length= strlen(name_buff);
     strmov(share->index_file_name,  index_name);
@@ -820,7 +820,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
   uchar  buff[MI_STATE_INFO_SIZE + MI_STATE_EXTRA_SIZE];
   uchar *ptr=buff;
   uint	i, keys= (uint) state->header.keys,
-	key_blocks=state->header.max_block_size;
+	key_blocks=state->header.max_block_size_index;
   DBUG_ENTER("mi_state_info_write");
 
   memcpy_fixed(ptr,&state->header,sizeof(state->header));
@@ -886,7 +886,7 @@ uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
   ptr +=sizeof(state->header);
   keys=(uint) state->header.keys;
   key_parts=mi_uint2korr(state->header.key_parts);
-  key_blocks=state->header.max_block_size;
+  key_blocks=state->header.max_block_size_index;
 
   state->open_count = mi_uint2korr(ptr);	ptr +=2;
   state->changed= (bool) *ptr++;
@@ -1059,7 +1059,7 @@ char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef)
    keydef->keylength	= mi_uint2korr(ptr);	ptr +=2;
    keydef->minlength	= mi_uint2korr(ptr);	ptr +=2;
    keydef->maxlength	= mi_uint2korr(ptr);	ptr +=2;
-   keydef->block_size	= keydef->block_length/MI_MIN_KEY_BLOCK_LENGTH-1;
+   keydef->block_size_index= keydef->block_length/MI_MIN_KEY_BLOCK_LENGTH-1;
    keydef->underflow_block_length=keydef->block_length/3;
    keydef->version	= 0;			/* Not saved */
    keydef->parser       = &ft_default_parser;

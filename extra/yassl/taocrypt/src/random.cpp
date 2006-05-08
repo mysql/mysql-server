@@ -26,6 +26,8 @@
 
 #include "runtime.hpp"
 #include "random.hpp"
+#include <string.h>
+
 
 #if defined(_WIN32)
     #define _WIN32_WINNT 0x0400
@@ -52,6 +54,7 @@ RandomNumberGenerator::RandomNumberGenerator()
 // place a generated block in output
 void RandomNumberGenerator::GenerateBlock(byte* output, word32 sz)
 {
+    memset(output, 0, sz);
     cipher_.Process(output, output, sz);
 }
 
@@ -94,10 +97,9 @@ void OS_Seed::GenerateSeed(byte* output, word32 sz)
 OS_Seed::OS_Seed() 
 {
     fd_ = open("/dev/urandom",O_RDONLY);
+    if (fd_ == -1) {
+        fd_ = open("/dev/random",O_RDONLY);
     if (fd_ == -1)
-    {
-      fd_ = open("/dev/random",O_RDONLY);
-      if (fd_ == -1)
         error_.SetError(OPEN_RAN_E);
     }
 }

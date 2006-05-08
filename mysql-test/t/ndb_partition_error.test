@@ -66,6 +66,6 @@ partition by list(a)
 partitions 2
 (partition x123 values in (11, 12),
  partition x234 values in (5, 1));
---error 1505
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert into t1 values (NULL,1,1);
 drop table t1;

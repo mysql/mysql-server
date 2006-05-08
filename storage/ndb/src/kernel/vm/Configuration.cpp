@@ -286,7 +286,8 @@ Configuration::fetch_configuration(){
   if (globalData.ownId)
     cr.setNodeId(globalData.ownId);
 
-  globalData.ownId = cr.allocNodeId(2 /*retry*/,3 /*delay*/);
+  globalData.ownId = cr.allocNodeId(globalData.ownId ? 10 : 2 /*retry*/,
+                                    3 /*delay*/);
   
   if(globalData.ownId == 0){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, 

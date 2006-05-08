@@ -207,7 +207,7 @@ show status like "Qcache_queries_in_cache";
 drop table t1;
 
 #
-# Charset convertion (cp1251_koi8 always present)
+# Charset conversion (cp1251_koi8 always present)
 #
 create table t1 (a char(1) not null collate koi8r_general_ci);
 insert into t1 values(_koi8r"á");

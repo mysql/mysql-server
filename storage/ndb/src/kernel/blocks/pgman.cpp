@@ -1609,13 +1609,13 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
   }
   
   bool only_request = ptr.p->m_requests.isEmpty();
-  
+#ifdef ERROR_INSERT
   if (req_flags & Page_request::DELAY_REQ)
   {
     jam();
     only_request = false;
   }
-  
+#endif  
   if (only_request &&
       state & Page_entry::MAPPED)
   {

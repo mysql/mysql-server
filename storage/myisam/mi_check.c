@@ -358,7 +358,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     puts("- check key delete-chain");
 
   param->key_file_blocks=info->s->base.keystart;
-  for (key=0 ; key < info->s->state.header.max_block_size ; key++)
+  for (key=0 ; key < info->s->state.header.max_block_size_index ; key++)
     if (check_k_link(param,info,key))
     {
       if (param->testflag & T_VERBOSE) puts("");
@@ -1411,7 +1411,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     share->state.key_root[i]= HA_OFFSET_ERROR;
 
   /* Drop the delete chain. */
-  for (i=0 ; i < share->state.header.max_block_size ; i++)
+  for (i=0 ; i < share->state.header.max_block_size_index ; i++)
     share->state.key_del[i]=  HA_OFFSET_ERROR;
 
   /*
@@ -1795,7 +1795,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   for (key=0 ; key < info->s->base.keys ; key++)
     info->s->state.key_root[key]=index_pos[key];
-  for (key=0 ; key < info->s->state.header.max_block_size ; key++)
+  for (key=0 ; key < info->s->state.header.max_block_size_index ; key++)
     info->s->state.key_del[key]=  HA_OFFSET_ERROR;
 
   info->s->state.changed&= ~STATE_NOT_SORTED_PAGES;
@@ -2095,7 +2095,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
-    for (i=0 ; i < share->state.header.max_block_size ; i++)
+    for (i=0 ; i < share->state.header.max_block_size_index ; i++)
       share->state.key_del[i]=  HA_OFFSET_ERROR;
     info->state->key_file_length=share->base.keystart;
   }
@@ -2463,7 +2463,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
-    for (i=0 ; i < share->state.header.max_block_size ; i++)
+    for (i=0 ; i < share->state.header.max_block_size_index ; i++)
       share->state.key_del[i]=  HA_OFFSET_ERROR;
     info->state->key_file_length=share->base.keystart;
   }
@@ -3800,6 +3800,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   ha_rows max_records;
   ulonglong file_length,tmp_length;
   MI_CREATE_INFO create_info;
+  DBUG_ENTER("recreate_table");
 
   error=1;					/* Default error */
   info= **org_info;
@@ -3809,7 +3810,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   unpack= (share.options & HA_OPTION_COMPRESS_RECORD) &&
     (param->testflag & T_UNPACK);
   if (!(keyinfo=(MI_KEYDEF*) my_alloca(sizeof(MI_KEYDEF)*share.base.keys)))
-    return 0;
+    DBUG_RETURN(0);
   memcpy((byte*) keyinfo,(byte*) share.keyinfo,
 	 (size_t) (sizeof(MI_KEYDEF)*share.base.keys));
 
@@ -3818,14 +3819,14 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
 				       (key_parts+share.base.keys))))
   {
     my_afree((gptr) keyinfo);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (!(recdef=(MI_COLUMNDEF*)
 	my_alloca(sizeof(MI_COLUMNDEF)*(share.base.fields+1))))
   {
     my_afree((gptr) keyinfo);
     my_afree((gptr) keysegs);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (!(uniquedef=(MI_UNIQUEDEF*)
 	my_alloca(sizeof(MI_UNIQUEDEF)*(share.state.header.uniques+1))))
@@ -3833,7 +3834,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
     my_afree((gptr) recdef);
     my_afree((gptr) keyinfo);
     my_afree((gptr) keysegs);
-    return 1;
+    DBUG_RETURN(1);
   }
 
   /* Copy the column definitions */
@@ -3903,6 +3904,11 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   create_info.language = (param->language ? param->language :
 			  share.state.header.language);
   create_info.key_file_length=  status_info.key_file_length;
+  /*
+    Allow for creating an auto_increment key. This has an effect only if
+    an auto_increment key exists in the original table.
+  */
+  create_info.with_auto_increment= TRUE;
   /* We don't have to handle symlinks here because we are using
      HA_DONT_TOUCH_DATA */
   if (mi_create(filename,
@@ -3947,7 +3953,7 @@ end:
   my_afree((gptr) keyinfo);
   my_afree((gptr) recdef);
   my_afree((gptr) keysegs);
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -4050,6 +4056,8 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
 			       my_bool repair_only)
 {
   byte *record;
+  DBUG_ENTER("update_auto_increment_key");
+
   if (!info->s->base.auto_key ||
       ! mi_is_key_active(info->s->state.key_map, info->s->base.auto_key - 1))
   {
@@ -4057,7 +4065,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
       mi_check_print_info(param,
 			  "Table: %s doesn't have an auto increment key\n",
 			  param->isam_file_name);
-    return;
+    DBUG_VOID_RETURN;
   }
   if (!(param->testflag & T_SILENT) &&
       !(param->testflag & T_REP))
@@ -4070,7 +4078,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
 				  MYF(0))))
   {
     mi_check_print_error(param,"Not enough memory for extra record");
-    return;
+    DBUG_VOID_RETURN;
   }
 
   mi_extra(info,HA_EXTRA_KEYREAD,0);
@@ -4081,7 +4089,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
       mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
       my_free((char*) record, MYF(0));
       mi_check_print_error(param,"%d when reading last record",my_errno);
-      return;
+      DBUG_VOID_RETURN;
     }
     if (!repair_only)
       info->s->state.auto_increment=param->auto_increment_value;
@@ -4097,7 +4105,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
   mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
   my_free((char*) record, MYF(0));
   update_state_info(param, info, UPDATE_AUTO_INC);
-  return;
+  DBUG_VOID_RETURN;
 }
 
 

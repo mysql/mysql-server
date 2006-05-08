@@ -3430,6 +3430,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
 
   result= FALSE;
 end:
+  lex_end(thd->lex);
   thd->free_list= thd_free_list;
   thd->lex= old_lex;
   thd->variables.character_set_client= old_character_set_client;
