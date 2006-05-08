@@ -6,7 +6,7 @@ die() { echo "$@"; exit 1; }
 (cd storage/bdb/dist && sh s_all)
 (cd storage/innobase && aclocal && autoheader && \
     libtoolize --automake --force --copy && \
-    && automake --force --add-missing --copy && autoconf)
+    automake --force --add-missing --copy && autoconf)
 
 aclocal || die "Can't execute aclocal" 
 autoheader || die "Can't execute autoheader"
