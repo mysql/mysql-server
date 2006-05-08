@@ -2489,7 +2489,7 @@ String *Item_load_file::val_str(String *str)
   (void) fn_format(path, file_name->c_ptr(), mysql_real_data_home, "",
 		   MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
 
-  if (!my_stat(path, &stat_info, MYF(MY_WME)))
+  if (!my_stat(path, &stat_info, MYF(0)))
     goto err;
 
   if (!(stat_info.st_mode & S_IROTH))

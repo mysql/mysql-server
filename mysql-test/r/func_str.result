@@ -1000,3 +1000,10 @@ t
 1000000
 1      
 drop table t1;
+select load_file("lkjlkj");
+load_file("lkjlkj")
+NULL
+select ifnull(load_file("lkjlkj"),"it's null");
+ifnull(load_file("lkjlkj"),"it's null")
+it's null
+End of 4.1 tests
