@@ -50,7 +50,14 @@
 
 #define DICT_WAITFOR_TIMEOUT (7*24*60*60*1000)
 
+#define ERR_RETURN(a,b) \
+{\
+   DBUG_PRINT("exit", ("error %d", (a).code));\
+   DBUG_RETURN(b);\
+}
+
 extern Uint64 g_latest_trans_gci;
+int ndb_dictionary_is_mysqld = 0;
 
 bool
 is_ndb_blob_table(const char* name, Uint32* ptab_id, Uint32* pcol_no)
@@ -1015,7 +1022,7 @@ NdbTableImpl::get_nodes(Uint32 hashValue, const Uint16 ** nodes) const
  */
 
 NdbIndexImpl::NdbIndexImpl() : 
-  NdbDictionary::Index(* this), 
+  NdbDictionary::Index(* this),
   NdbDictObjectImpl(NdbDictionary::Object::OrderedIndex), m_facade(this)
 {
   init();
@@ -1288,44 +1295,30 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
   }
 }
 
-Ndb_local_table_info *
-NdbDictionaryImpl::fetchGlobalTableImpl(const BaseString& internalTableName)
+NdbTableImpl *
+NdbDictionaryImpl::fetchGlobalTableImplRef(const GlobalCacheInitObject &obj)
 {
+  DBUG_ENTER("fetchGlobalTableImplRef");
   NdbTableImpl *impl;
 
   m_globalHash->lock();
-  impl = m_globalHash->get(internalTableName.c_str());
+  impl = m_globalHash->get(obj.m_name.c_str());
   m_globalHash->unlock();
 
   if (impl == 0){
-    impl = m_receiver.getTable(internalTableName,
+    impl = m_receiver.getTable(obj.m_name.c_str(),
 			       m_ndb.usingFullyQualifiedNames());
-    if (impl != 0) {
-      int ret = getBlobTables(*impl);
-      if (ret != 0) {
-        delete impl;
-        impl = 0;
-      }
+    if (impl != 0 && obj.init(*impl))
+    {
+      delete impl;
+      impl = 0;
     }
-
     m_globalHash->lock();
-    m_globalHash->put(internalTableName.c_str(), impl);
+    m_globalHash->put(obj.m_name.c_str(), impl);
     m_globalHash->unlock();
-    
-    if(impl == 0){
-      return 0;
-    }
   }
 
-  Ndb_local_table_info *info=
-    Ndb_local_table_info::create(impl, m_local_table_data_size);
-
-  m_localHash.put(internalTableName.c_str(), info);
-
-  m_ndb.theFirstTupleId[impl->getTableId()] = ~0;
-  m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
-  
-  return info;
+  DBUG_RETURN(impl);
 }
 
 void
@@ -2276,16 +2269,28 @@ int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
   }
 
   // Alter the table
-  int ret = m_receiver.alterTable(m_ndb, impl);
-  if(ret == 0){
-    // Remove cached information and let it be refreshed at next access
+  int ret = alterTableGlobal(*local->m_table_impl, impl);
+  if(ret == 0)
+  {
     m_globalHash->lock();
-    local->m_table_impl->m_status = NdbDictionary::Object::Invalid;
-    m_globalHash->drop(local->m_table_impl);
+    m_globalHash->release(local->m_table_impl, 1);
     m_globalHash->unlock();
     m_localHash.drop(originalInternalName);
   }
   DBUG_RETURN(ret);
+}
+
+int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
+                                        NdbTableImpl &impl)
+{
+  DBUG_ENTER("NdbDictionaryImpl::alterTableGlobal");
+  // Alter the table
+  int ret = m_receiver.alterTable(m_ndb, impl);
+  old_impl.m_status = NdbDictionary::Object::Invalid;
+  if(ret == 0){
+    DBUG_RETURN(ret);
+  }
+  ERR_RETURN(getNdbError(), ret);
 }
 
 int 
@@ -2731,6 +2736,7 @@ NdbDictionaryImpl::dropTable(const char * name)
 {
   DBUG_ENTER("NdbDictionaryImpl::dropTable");
   DBUG_PRINT("enter",("name: %s", name));
+  ASSERT_NOT_MYSQLD;
   NdbTableImpl * tab = getTable(name);
   if(tab == 0){
     DBUG_RETURN(-1);
@@ -2743,8 +2749,7 @@ NdbDictionaryImpl::dropTable(const char * name)
     DBUG_PRINT("info",("INCOMPATIBLE_VERSION internal_name: %s", internalTableName.c_str()));
     m_localHash.drop(internalTableName.c_str());
     m_globalHash->lock();
-    tab->m_status = NdbDictionary::Object::Invalid;
-    m_globalHash->drop(tab);
+    m_globalHash->release(tab, 1);
     m_globalHash->unlock();
     DBUG_RETURN(dropTable(name));
   }
@@ -2792,14 +2797,57 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
     
     m_localHash.drop(internalTableName);
     m_globalHash->lock();
-    impl.m_status = NdbDictionary::Object::Invalid;
-    m_globalHash->drop(&impl);
+    m_globalHash->release(&impl, 1);
     m_globalHash->unlock();
 
     return 0;
   }
   
   return ret;
+}
+
+int
+NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl)
+{
+  int res;
+  const char * name = impl.getName();
+  DBUG_ENTER("NdbDictionaryImpl::dropTableGlobal");
+  DBUG_ASSERT(impl.m_status != NdbDictionary::Object::New);
+  DBUG_ASSERT(impl.m_indexType == NdbDictionary::Object::TypeUndefined);
+
+  List list;
+  if ((res = listIndexes(list, impl.m_id)) == -1){
+    ERR_RETURN(getNdbError(), -1);
+  }
+  for (unsigned i = 0; i < list.count; i++) {
+    const List::Element& element = list.elements[i];
+    NdbIndexImpl *idx= getIndexGlobal(element.name, impl);
+    if (idx == NULL)
+    {
+      ERR_RETURN(getNdbError(), -1);
+    }
+    if ((res = dropIndexGlobal(*idx)) == -1)
+    {
+      releaseIndexGlobal(*idx, 1);
+      ERR_RETURN(getNdbError(), -1);
+    }
+    releaseIndexGlobal(*idx, 1);
+  }
+  
+  if (impl.m_noOfBlobs != 0) {
+    if (dropBlobTables(impl) != 0){
+      ERR_RETURN(getNdbError(), -1);
+    }
+  }
+  
+  int ret = m_receiver.dropTable(impl);  
+  impl.m_status = NdbDictionary::Object::Invalid;
+  if(ret == 0 || m_error.code == 709 || m_error.code == 723)
+  {
+    DBUG_RETURN(0);
+  }
+  
+  ERR_RETURN(getNdbError(), ret);
 }
 
 int
@@ -2822,7 +2870,7 @@ NdbDictionaryImpl::dropBlobTables(NdbTableImpl & t)
       DBUG_PRINT("info", ("col %s: blob table %s: error %d",
                  c.m_name.c_str(), bt->m_internalName.c_str(), m_error.code));
       if (! (ret == 709 || ret == 723)) // "force" mode on
-        DBUG_RETURN(-1);
+        ERR_RETURN(getNdbError(), -1);
     }
     // leave c.m_blobTable defined
   }
@@ -2891,8 +2939,7 @@ NdbDictionaryImpl::invalidateObject(NdbTableImpl & impl)
 
   m_localHash.drop(internalTableName);
   m_globalHash->lock();
-  impl.m_status = NdbDictionary::Object::Invalid;
-  m_globalHash->drop(&impl);
+  m_globalHash->release(&impl, 1);
   m_globalHash->unlock();
   DBUG_RETURN(0);
 }
@@ -2918,6 +2965,7 @@ NdbIndexImpl*
 NdbDictionaryImpl::getIndexImpl(const char * externalName,
 				const BaseString& internalName)
 {
+  ASSERT_NOT_MYSQLD;
   Ndb_local_table_info * info = get_local_table_info(internalName);
   if(info == 0){
     m_error.code = 4243;
@@ -2938,26 +2986,41 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
     return 0;
   }
 
+  return getIndexImpl(externalName, internalName, *tab, *prim);
+}
+
+NdbIndexImpl*
+NdbDictionaryImpl::getIndexImpl(const char * externalName,
+                                const BaseString& internalName,
+				NdbTableImpl &tab,
+                                NdbTableImpl &prim)
+{
+  DBUG_ENTER("NdbDictionaryImpl::getIndexImpl");
+  DBUG_ASSERT(tab.m_indexType != NdbDictionary::Object::TypeUndefined);
   /**
    * Create index impl
    */
   NdbIndexImpl* idx;
-  if(NdbDictInterface::create_index_obj_from_table(&idx, tab, prim) == 0){
-    idx->m_table = tab;
+  if(NdbDictInterface::create_index_obj_from_table(&idx, &tab, &prim) == 0){
+    idx->m_table = &tab;
     idx->m_externalName.assign(externalName);
     idx->m_internalName.assign(internalName);
+    idx->m_table_id = prim.getObjectId();
+      idx->m_table_version = prim.getObjectVersion();
     // TODO Assign idx to tab->m_index
     // Don't do it right now since assign can't asign a table with index
     // tab->m_index = idx;
-    return idx;
+    DBUG_RETURN(idx);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int
 NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
 					      NdbTableImpl* tab,
-					      const NdbTableImpl* prim){
+					      const NdbTableImpl* prim)
+{
+  DBUG_ENTER("NdbDictInterface::create_index_obj_from_table");
   NdbIndexImpl *idx = new NdbIndexImpl();
   idx->m_version = tab->m_version;
   idx->m_status = tab->m_status;
@@ -3010,8 +3073,8 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   }
 
   * dst = idx;
-
-  return 0;
+  DBUG_PRINT("exit", ("m_id: %d  m_version: %d", idx->m_id, idx->m_version));
+  DBUG_RETURN(0);
 }
 
 /*****************************************************************
@@ -3020,6 +3083,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
 int
 NdbDictionaryImpl::createIndex(NdbIndexImpl &ix)
 {
+  ASSERT_NOT_MYSQLD;
   NdbTableImpl* tab = getTable(ix.getTable());
   if(tab == 0){
     m_error.code = 4249;
@@ -3027,6 +3091,12 @@ NdbDictionaryImpl::createIndex(NdbIndexImpl &ix)
   }
   
   return m_receiver.createIndex(m_ndb, ix, * tab);
+}
+
+int
+NdbDictionaryImpl::createIndex(NdbIndexImpl &ix, NdbTableImpl &tab)
+{
+  return m_receiver.createIndex(m_ndb, ix, tab);
 }
 
 int 
@@ -3135,6 +3205,7 @@ int
 NdbDictionaryImpl::dropIndex(const char * indexName, 
 			     const char * tableName)
 {
+  ASSERT_NOT_MYSQLD;
   NdbIndexImpl * idx = getIndex(indexName, tableName);
   if (idx == 0) {
     m_error.code = 4243;
@@ -3152,8 +3223,7 @@ NdbDictionaryImpl::dropIndex(const char * indexName,
 
     m_localHash.drop(internalIndexName.c_str());
     m_globalHash->lock();
-    idx->m_table->m_status = NdbDictionary::Object::Invalid;
-    m_globalHash->drop(idx->m_table);
+    m_globalHash->release(idx->m_table, 1);
     m_globalHash->unlock();
     return dropIndex(indexName, tableName);
   }
@@ -3183,13 +3253,13 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName)
       return dropIndex(indexName, tableName);
     }
 
-    int ret = m_receiver.dropIndex(impl, *timpl);
-    if(ret == 0){
-      m_localHash.drop(internalIndexName.c_str());
+    int ret= dropIndexGlobal(impl);
+    if (ret == 0)
+    {
       m_globalHash->lock();
-      impl.m_table->m_status = NdbDictionary::Object::Invalid;
-      m_globalHash->drop(impl.m_table);
+      m_globalHash->release(impl.m_table, 1);
       m_globalHash->unlock();
+      m_localHash.drop(internalIndexName.c_str());
     }
     return ret;
   }
@@ -3199,9 +3269,25 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName)
 }
 
 int
+NdbDictionaryImpl::dropIndexGlobal(NdbIndexImpl & impl)
+{
+  DBUG_ENTER("NdbDictionaryImpl::dropIndexGlobal");
+  int ret = m_receiver.dropIndex(impl, *impl.m_table);
+  impl.m_status = NdbDictionary::Object::Invalid;
+  if(ret == 0)
+  {
+    DBUG_RETURN(0);
+  }
+  ERR_RETURN(getNdbError(), ret);
+}
+
+int
 NdbDictInterface::dropIndex(const NdbIndexImpl & impl, 
 			    const NdbTableImpl & timpl)
 {
+  DBUG_ENTER("NdbDictInterface::dropIndex");
+  DBUG_PRINT("enter", ("indexId: %d  indexVersion: %d",
+                       timpl.m_id, timpl.m_version));
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
   tSignal.theVerId_signalNumber   = GSN_DROP_INDX_REQ;
@@ -3223,9 +3309,9 @@ NdbDictInterface::dropIndex(const NdbIndexImpl & impl,
 		     errCodes);
   if(m_error.code == DropIndxRef::InvalidIndexVersion) {
     // Clear caches and try again
-    return INCOMPATIBLE_VERSION;
+    ERR_RETURN(m_error, INCOMPATIBLE_VERSION);
   }
-  return r;
+  ERR_RETURN(m_error, r);
 }
 
 void
@@ -3262,7 +3348,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
     if(tab == 0){
       DBUG_PRINT("info",("NdbDictionaryImpl::createEvent: table not found: %s",
 			 evnt.getTableName()));
-      DBUG_RETURN(-1);
+      ERR_RETURN(getNdbError(), -1);
     }
     evnt.setTable(tab);
   }
@@ -3281,7 +3367,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
       ndbout_c("Attr id %u in table %s not found", evnt.m_attrIds[i],
 	       evnt.getTableName());
       m_error.code= 4713;
-      DBUG_RETURN(-1);
+      ERR_RETURN(getNdbError(), -1);
     }
   }
 
@@ -3302,7 +3388,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
       table.getColumn(evnt.m_columns[i]->m_name.c_str());
     if(col == 0){
       m_error.code= 4247;
-      DBUG_RETURN(-1);
+      ERR_RETURN(getNdbError(), -1);
     }
     // Copy column definition
     *evnt.m_columns[i] = *col;
@@ -3328,7 +3414,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
   for(i = 1; i<attributeList_sz; i++) {
     if (evnt.m_columns[i-1]->m_attrId == evnt.m_columns[i]->m_attrId) {
       m_error.code= 4258;
-      DBUG_RETURN(-1);
+      ERR_RETURN(getNdbError(), -1);
     }
   }
   
@@ -3340,14 +3426,14 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
 
   // NdbDictInterface m_receiver;
   if (m_receiver.createEvent(m_ndb, evnt, 0 /* getFlag unset */) != 0)
-    DBUG_RETURN(-1);
+    ERR_RETURN(getNdbError(), -1);
 
   // Create blob events
   if (evnt.m_mergeEvents && createBlobEvents(evnt) != 0) {
     int save_code = m_error.code;
     (void)dropEvent(evnt.m_name.c_str());
     m_error.code = save_code;
-    DBUG_RETURN(-1);
+    ERR_RETURN(getNdbError(), -1);
   }
   DBUG_RETURN(0);
 }
@@ -3367,7 +3453,7 @@ NdbDictionaryImpl::createBlobEvents(NdbEventImpl& evnt)
     NdbEventImpl blob_evnt;
     NdbBlob::getBlobEvent(blob_evnt, &evnt, &c);
     if (createEvent(blob_evnt) != 0)
-      DBUG_RETURN(-1);
+      ERR_RETURN(getNdbError(), -1);
   }
   DBUG_RETURN(0);
 }
@@ -3418,7 +3504,7 @@ NdbDictInterface::createEvent(class Ndb & ndb,
   const size_t len = strlen(evnt.m_name.c_str()) + 1;
   if(len > MAX_TAB_NAME_SIZE) {
     m_error.code= 4241;
-    DBUG_RETURN(-1);
+    ERR_RETURN(getNdbError(), -1);
   }
 
   w.add(SimpleProperties::StringValue, evnt.m_name.c_str());
@@ -3442,7 +3528,7 @@ NdbDictInterface::createEvent(class Ndb & ndb,
 		       0, -1);
 
   if (ret) {
-    DBUG_RETURN(ret);
+    ERR_RETURN(getNdbError(), ret);
   }
   
   char *dataPtr = (char *)m_buffer.get_data();
@@ -3468,7 +3554,7 @@ NdbDictInterface::createEvent(class Ndb & ndb,
 	//evnt.m_attrListBitmask != evntConf->getAttrListBitmask() ||
 	evnt.mi_type           != evntConf->getEventType()) {
       ndbout_c("ERROR*************");
-      DBUG_RETURN(1);
+      ERR_RETURN(getNdbError(), 1);
     }
   }
 
@@ -3555,7 +3641,7 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
   DBUG_ENTER("NdbDictionaryImpl::getEvent");
   DBUG_PRINT("enter",("eventName= %s", eventName));
 
- NdbEventImpl *ev =  new NdbEventImpl();
+  NdbEventImpl *ev =  new NdbEventImpl();
   if (ev == NULL) {
     DBUG_RETURN(NULL);
   }
@@ -3569,35 +3655,36 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
     DBUG_RETURN(NULL);
   }
 
-  if (tab == NULL) {
-    // We only have the table name with internal name
-    DBUG_PRINT("info",("table %s", ev->getTableName()));
-    Ndb_local_table_info *info;
-    info= get_local_table_info(ev->getTableName());
-    if (info == 0)
+  // We only have the table name with internal name
+  DBUG_PRINT("info",("table %s", ev->getTableName()));
+  if (tab == NULL)
+  {
+    tab= fetchGlobalTableImplRef(InitTable(this, ev->getTableName()));
+    if (tab == 0)
     {
       DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
       delete ev;
       DBUG_RETURN(NULL);
     }
-    if ((info->m_table_impl->m_status != NdbDictionary::Object::Retrieved) ||
-        (info->m_table_impl->m_id != ev->m_table_id) ||
-        (table_version_major(info->m_table_impl->m_version) !=
+    if ((tab->m_status != NdbDictionary::Object::Retrieved) ||
+        (tab->m_id != ev->m_table_id) ||
+        (table_version_major(tab->m_version) !=
          table_version_major(ev->m_table_version)))
     {
-      removeCachedObject(*info->m_table_impl);
-      info= get_local_table_info(ev->getTableName());
-      if (info == 0)
+      DBUG_PRINT("info", ("mismatch on verison in cache"));
+      releaseTableGlobal(*tab, 1);
+      tab= fetchGlobalTableImplRef(InitTable(this, ev->getTableName()));
+      if (tab == 0)
       {
         DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
         delete ev;
         DBUG_RETURN(NULL);
       }
     }
-    tab = info->m_table_impl;
   }
 
   ev->setTable(tab);
+
   ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));  
   // get the columns from the attrListBitmask
   NdbTableImpl &table = *ev->m_tableImpl;

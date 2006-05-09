@@ -19,7 +19,7 @@
 #endif
 
 #include <zlib.h>
-#include "../storage/archive/azlib.h"
+#include "azlib.h"
 
 /*
   Please read ha_archive.cc first. If you are looking for more general

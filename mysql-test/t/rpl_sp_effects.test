@@ -1,3 +1,9 @@
+##########################################
+# Change Author: JBM
+# Change Date: 2006-05-02
+# Change: Added Order By for NDB testing
+##########################################
+
 # Test of replication of stored procedures (WL#2146 for MySQL 5.0)
 -- source include/master-slave.inc
 
@@ -30,9 +36,9 @@ call p1();
 
 sync_slave_with_master;
 connection slave;
-select * from t1;
+SELECT * FROM t1 ORDER BY a;
 connection master;
-delete from t1;
+SELECT * FROM t1 ORDER BY a;
 
 # 2. Test SP variable name
 delimiter //;
@@ -44,10 +50,10 @@ end//
 delimiter ;//
 
 call p2();
-select * from t2;
+SELECT * FROM t2 ORDER BY a;
 sync_slave_with_master;
 connection slave;
-select * from t2;
+SELECT * FROM t2 ORDER BY a;
 
 connection master;
 drop procedure p1;
@@ -78,19 +84,19 @@ end//
 delimiter ;//
 
 call p1(f1(1), f1(2));
-select * from t1;
+SELECT * FROM t1 ORDER BY a;
 
 create table t2(a int);
 insert into t2 values (10),(11);
-select a,f1(a) from t2;
+SELECT a,f1(a) FROM t2 ORDER BY a;
 
 # This shouldn't put separate 'call f1(3)' into binlog:
 insert into t2 select f1(3);
-select 'master:',a from t1;
+SELECT 'master:',a FROM t1 ORDER BY a;
 
 sync_slave_with_master;
 connection slave;
-select 'slave:',a from t1;
+SELECT 'slave:',a FROM t1 ORDER BY a;
 
 connection master;
 drop procedure p1;
@@ -102,11 +108,11 @@ delete from t1;
 insert into t2 values(1),(2);
 create view v1 as select f1(a) from t2;
 select * from v1;
-select 'master:',a from t1;
+SELECT 'master:',a FROM t1 ORDER BY a;
 
 sync_slave_with_master;
 connection slave;
-select 'slave:',a from t1;
+SELECT 'slave:',a FROM t1 ORDER BY a;
 
 connection master;
 drop view v1;
@@ -116,11 +122,11 @@ delete from t1;
 prepare s1 from 'select f1(?)';
 set @xx=123;
 execute s1 using @xx;
-select 'master:',a from t1;
+SELECT 'master:',a FROM t1 ORDER BY a;
 
 sync_slave_with_master;
 connection slave;
-select 'slave:',a from t1;
+SELECT 'slave:',a FROM t1 ORDER BY a;
 
 connection master;
 delete from t1;
@@ -140,10 +146,10 @@ begin
 end//
 delimiter ;//
 call p1(15);
-select 'master:',a from t1;
+SELECT 'master:',a FROM t1 ORDER BY a;
 sync_slave_with_master;
 connection slave;
-select 'slave:',a from t1;
+SELECT 'slave:',a FROM t1 ORDER BY a;
 
 connection master;
 drop procedure p1;
@@ -188,10 +194,10 @@ select f1();
 set @x=30;
 call p1();
 
-select 'master', a from t1;
+SELECT 'master', a FROM t1 ORDER BY a;
 sync_slave_with_master;
 connection slave;
-select 'slave', a from t1;
+SELECT 'slave', a FROM t1 ORDER BY a;
 
 connection master;
 drop table t1;

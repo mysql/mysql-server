@@ -456,13 +456,10 @@ into table t1 fields terminated by ''\t'' ';
 prepare stmt1 from ' select * into outfile ''data.txt'' from t1 ';
 execute stmt1 ;
 ## 
---error 1295
 prepare stmt1 from ' optimize table t1 ' ;
---error 1295
 prepare stmt1 from ' analyze table t1 ' ;
 --error 1295
 prepare stmt1 from ' checksum table t1 ' ;
---error 1295
 prepare stmt1 from ' repair table t1 ' ;
 --error 1295
 prepare stmt1 from ' restore table t1 from ''data.txt'' ' ;
