@@ -1,0 +1,20 @@
+#
+# Due to "Bug#18474  Unlistable directories yield no info from
+# information_schema, part2" this test can't be run on Window with our
+# current test framework. When "chmod -r" is done within cygwin the
+# MySQL Server can still read the directory.
+# Manual testing shows the functionalty to skip unlistable directories
+# works on windows
+#
+--source include/not_windows.inc
+
+
+#
+# Bug #15851 Unlistable directories yield no info from information_schema
+#
+create database mysqltest;
+create table mysqltest.t1(a int);
+--exec chmod -r $MYSQLTEST_VARDIR/master-data/mysqltest
+select table_schema from information_schema.tables where table_schema='mysqltest';
+--exec chmod +r $MYSQLTEST_VARDIR/master-data/mysqltest
+drop database mysqltest;
