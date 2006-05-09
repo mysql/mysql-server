@@ -4306,7 +4306,8 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   DBUG_EXECUTE("info", print_ror_scans_arr(param->table,
                                            "building covering ROR-I",
                                            ror_scan_mark, ror_scans_end););
-  do {
+  do
+  {
     /*
       Update changed sorting info:
         #covered fields,
@@ -7387,64 +7388,69 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
   uint last_rowid_count=0;
   DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::get_next");
 
-  /* Get a rowid for first quick and save it as a 'candidate' */
-  quick= quick_it++;
-  if (cpk_quick)
+  do
   {
-    do {
-      error= quick->get_next();
-    }while (!error && !cpk_quick->row_in_ranges());
-  }
-  else
-    error= quick->get_next();
-
-  if (error)
-    DBUG_RETURN(error);
-
-  quick->file->position(quick->record);
-  memcpy(last_rowid, quick->file->ref, head->file->ref_length);
-  last_rowid_count= 1;
-
-  while (last_rowid_count < quick_selects.elements)
-  {
-    if (!(quick= quick_it++))
+    /* Get a rowid for first quick and save it as a 'candidate' */
+    quick= quick_it++;
+    if (cpk_quick)
     {
-      quick_it.rewind();
-      quick= quick_it++;
-    }
-
-    do {
-      if ((error= quick->get_next()))
-        DBUG_RETURN(error);
-      quick->file->position(quick->record);
-      cmp= head->file->cmp_ref(quick->file->ref, last_rowid);
-    } while (cmp < 0);
-
-    /* Ok, current select 'caught up' and returned ref >= cur_ref */
-    if (cmp > 0)
-    {
-      /* Found a row with ref > cur_ref. Make it a new 'candidate' */
-      if (cpk_quick)
+      do
       {
-        while (!cpk_quick->row_in_ranges())
-        {
-          if ((error= quick->get_next()))
-            DBUG_RETURN(error);
-        }
-      }
-      memcpy(last_rowid, quick->file->ref, head->file->ref_length);
-      last_rowid_count= 1;
+        error= quick->get_next();
+      }while (!error && !cpk_quick->row_in_ranges());
     }
     else
-    {
-      /* current 'candidate' row confirmed by this select */
-      last_rowid_count++;
-    }
-  }
+      error= quick->get_next();
 
-  /* We get here iff we got the same row ref in all scans. */
-  if (need_to_fetch_row)
-    error= head->file->rnd_pos(head->record[0], last_rowid);
+    if (error)
+      DBUG_RETURN(error);
+
+    quick->file->position(quick->record);
+    memcpy(last_rowid, quick->file->ref, head->file->ref_length);
+    last_rowid_count= 1;
+
+    while (last_rowid_count < quick_selects.elements)
+    {
+      if (!(quick= quick_it++))
+      {
+        quick_it.rewind();
+        quick= quick_it++;
+      }
+
+      do
+      {
+        if ((error= quick->get_next()))
+          DBUG_RETURN(error);
+        quick->file->position(quick->record);
+        cmp= head->file->cmp_ref(quick->file->ref, last_rowid);
+      } while (cmp < 0);
+
+      /* Ok, current select 'caught up' and returned ref >= cur_ref */
+      if (cmp > 0)
+      {
+        /* Found a row with ref > cur_ref. Make it a new 'candidate' */
+        if (cpk_quick)
+        {
+          while (!cpk_quick->row_in_ranges())
+          {
+            if ((error= quick->get_next()))
+              DBUG_RETURN(error);
+          }
+        }
+        memcpy(last_rowid, quick->file->ref, head->file->ref_length);
+        last_rowid_count= 1;
+      }
+      else
+      {
+        /* current 'candidate' row confirmed by this select */
+        last_rowid_count++;
+      }
+    }
+
+    /* We get here iff we got the same row ref in all scans. */
+    if (need_to_fetch_row)
+      error= head->file->rnd_pos(head->record[0], last_rowid);
+  } while (error == HA_ERR_RECORD_DELETED);
   DBUG_RETURN(error);
 }
 
@@ -7473,41 +7479,44 @@ int QUICK_ROR_UNION_SELECT::get_next()
 
   do
   {
-    if (!queue.elements)
-      DBUG_RETURN(HA_ERR_END_OF_FILE);
-    /* Ok, we have a queue with >= 1 scans */
-
-    quick= (QUICK_SELECT_I*)queue_top(&queue);
-    memcpy(cur_rowid, quick->last_rowid, rowid_length);
-
-    /* put into queue rowid from the same stream as top element */
-    if ((error= quick->get_next()))
+    do
     {
-      if (error != HA_ERR_END_OF_FILE)
-        DBUG_RETURN(error);
-      queue_remove(&queue, 0);
-    }
-    else
-    {
-      quick->save_last_pos();
-      queue_replaced(&queue);
-    }
+      if (!queue.elements)
+        DBUG_RETURN(HA_ERR_END_OF_FILE);
+      /* Ok, we have a queue with >= 1 scans */
 
-    if (!have_prev_rowid)
-    {
-      /* No rows have been returned yet */
-      dup_row= FALSE;
-      have_prev_rowid= TRUE;
-    }
-    else
-      dup_row= !head->file->cmp_ref(cur_rowid, prev_rowid);
-  }while (dup_row);
+      quick= (QUICK_SELECT_I*)queue_top(&queue);
+      memcpy(cur_rowid, quick->last_rowid, rowid_length);
 
-  tmp= cur_rowid;
-  cur_rowid= prev_rowid;
-  prev_rowid= tmp;
+      /* put into queue rowid from the same stream as top element */
+      if ((error= quick->get_next()))
+      {
+        if (error != HA_ERR_END_OF_FILE)
+          DBUG_RETURN(error);
+        queue_remove(&queue, 0);
+      }
+      else
+      {
+        quick->save_last_pos();
+        queue_replaced(&queue);
+      }
 
-  error= head->file->rnd_pos(quick->record, prev_rowid);
+      if (!have_prev_rowid)
+      {
+        /* No rows have been returned yet */
+        dup_row= FALSE;
+        have_prev_rowid= TRUE;
+      }
+      else
+        dup_row= !head->file->cmp_ref(cur_rowid, prev_rowid);
+    } while (dup_row);
+
+    tmp= cur_rowid;
+    cur_rowid= prev_rowid;
+    prev_rowid= tmp;
+
+    error= head->file->rnd_pos(quick->record, prev_rowid);
+  } while (error == HA_ERR_RECORD_DELETED);
   DBUG_RETURN(error);
 }
 
