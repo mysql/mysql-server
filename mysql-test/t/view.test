@@ -2459,3 +2459,61 @@ SELECT * FROM v1 WHERE td BETWEEN '2005.01.02' AND '2005.01.04';
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# BUG#14308: Recursive view definitions
+#
+# using view only
+create table t1 (a int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+drop table t1;
+rename table v2 to t1;
+-- error ER_VIEW_RECURSIVE
+select * from v1;
+drop view t1, v1;
+# using SP function
+create table t1 (a int);
+delimiter //;
+create function f1() returns int
+begin
+  declare mx int;
+  select max(a) from t1 into mx;
+  return mx;
+end//
+delimiter ;//
+create view v1 as select f1() as a;
+create view v2 as select * from v1;
+drop table t1;
+rename table v2 to t1;
+-- error ER_SP_NO_RECURSION
+select * from v1;
+drop function f1;
+drop view t1, v1;
+
+#
+# Bug #15153: CONVERT_TZ() is not allowed in all places in VIEWs
+#
+# Error was reported when one tried to use CONVERT_TZ() function
+# select list of view which was processed using MERGE algorithm.
+# (Also see additional test in timezone_grant.test)
+create table t1 (dt datetime);
+insert into t1 values (20040101000000), (20050101000000), (20060101000000);
+# Let us test that convert_tz() can be used in view's select list
+create view v1 as select convert_tz(dt, 'UTC', 'Europe/Moscow') as ldt from t1;
+select * from v1;
+drop view v1;
+# And in its where part 
+create view v1 as select * from t1 where convert_tz(dt, 'UTC', 'Europe/Moscow') >= 20050101000000;
+select * from v1;
+# Other interesting case - a view which uses convert_tz() function
+# through other view.
+create view v2 as select * from v1 where dt < 20060101000000;
+select * from v2;
+drop view v2;
+# And even more interesting case when view uses convert_tz() both
+# directly and indirectly
+create view v2 as select convert_tz(dt, 'UTC', 'Europe/Moscow') as ldt from v1;
+select * from v2;
+drop view v1, v2;
+drop table t1;

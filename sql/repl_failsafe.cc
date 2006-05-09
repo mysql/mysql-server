@@ -861,7 +861,8 @@ bool load_master_data(THD* thd)
 
       if (!rpl_filter->db_ok(db) || 
 	  !rpl_filter->db_ok_with_wild_table(db) || 
-	  !strcmp(db,"mysql"))
+	  !strcmp(db,"mysql") ||
+          is_schema_db(db))
       {
 	*cur_table_res = 0;
 	continue;

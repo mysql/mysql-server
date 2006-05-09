@@ -116,6 +116,7 @@ valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
 # Used in -debug builds
 debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
 debug_cflags="$debug_cflags -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX"
+error_inject="--with-error-inject "
 #
 # Base C++ flags for all builds
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
@@ -146,18 +147,9 @@ static_link="$static_link --with-client-ldflags=-all-static"
 local_infile_configs="--enable-local-infile"
 
 
-max_configs="--with-innodb --with-berkeley-db"
-max_configs="$max_configs --with-archive-storage-engine"
-max_configs="$max_configs --with-big-tables"
-max_configs="$max_configs --with-blackhole-storage-engine"
-max_configs="$max_configs --with-federated-storage-engine"
-max_configs="$max_configs --with-csv-storage-engine"
-max_configs="$max_configs --with-example-storage-engine"
-max_configs="$max_configs --with-partition $SSL_LIBRARY"
-
-max_no_embedded_configs="$max_configs --with-ndbcluster"
-max_no_ndb_configs="$max_configs --without-ndbcluster --with-embedded-server"
-max_configs="$max_configs --with-ndbcluster --with-embedded-server"
+max_no_embedded_configs="$SSL_LIBRARY --with-plugins=max"
+max_no_ndb_configs="$SSL_LIBRARY --with-plugins=max-no-ndb --with-embedded-server"
+max_configs="$SSL_LIBRARY --with-plugins=max --with-embedded-server"
 
 #
 # CPU and platform specific compilation flags.

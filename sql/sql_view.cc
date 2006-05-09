@@ -773,6 +773,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
   SELECT_LEX *end, *view_select;
   LEX *old_lex, *lex;
   Query_arena *arena, backup;
+  TABLE_LIST *top_view= table->top_table();
   int res;
   bool result;
   DBUG_ENTER("mysql_make_view");
@@ -798,6 +799,24 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
                ("VIEW %s.%s is already processed on previous PS/SP execution",
                 table->view_db.str, table->view_name.str));
     DBUG_RETURN(0);
+  }
+
+  /* check loop via view definition */
+  for (TABLE_LIST *precedent= table->referencing_view;
+       precedent;
+       precedent= precedent->referencing_view)
+  {
+    if (precedent->view_name.length == table->table_name_length &&
+        precedent->view_db.length == table->db_length &&
+        my_strcasecmp(system_charset_info,
+                      precedent->view_name.str, table->table_name) == 0 &&
+        my_strcasecmp(system_charset_info,
+                      precedent->view_db.str, table->db) == 0)
+    {
+      my_error(ER_VIEW_RECURSIVE, MYF(0),
+               top_view->view_db.str, top_view->view_name.str);
+      DBUG_RETURN(TRUE);
+    }
   }
 
   /*
@@ -898,7 +917,6 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
   }
   if (!res && !thd->is_fatal_error)
   {
-    TABLE_LIST *top_view= table->top_table();
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;
     TABLE_LIST *tbl;
@@ -924,7 +942,6 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
       if (check_table_access(thd, SHOW_VIEW_ACL, table, 0))
         goto err;
     }
-
 
     if (!(table->view_tables=
           (List<TABLE_LIST>*) new(thd->mem_root) List<TABLE_LIST>))
@@ -1041,15 +1058,23 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
         !old_lex->can_not_use_merged())
     {
       List_iterator_fast<TABLE_LIST> ti(view_select->top_join_list);
+      /*
+        Currently 'view_main_select_tables' differs from 'view_tables'
+        only then view has CONVERT_TZ() function in its select list.
+        This may change in future, for example if we enable merging
+        of views with subqueries in select list.
+      */
+      TABLE_LIST *view_main_select_tables=
+                    (TABLE_LIST*)lex->select_lex.table_list.first;
       /* lex should contain at least one table */
-      DBUG_ASSERT(view_tables != 0);
+      DBUG_ASSERT(view_main_select_tables != 0);
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
       table->updatable= (table->updatable_view != 0);
       table->effective_with_check=
         old_lex->get_effective_with_check(table);
-      table->merge_underlying_list= view_tables;
+      table->merge_underlying_list= view_main_select_tables;
       /*
         Let us set proper lock type for tables of the view's main select
         since we may want to perform update or insert on view. This won't
@@ -1065,7 +1090,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
       }
 
       /* prepare view context */
-      lex->select_lex.context.resolve_in_table_list_only(view_tables);
+      lex->select_lex.context.resolve_in_table_list_only(view_main_select_tables);
       lex->select_lex.context.outer_context= 0;
       lex->select_lex.context.select_lex= table->select_lex;
       lex->select_lex.select_n_having_items+=
@@ -1081,7 +1106,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
         tbl->select_lex= table->select_lex;
 
       {
-        if (view_tables->next_local)
+        if (view_main_select_tables->next_local)
         {
           table->multitable_view= TRUE;
           if (table->belong_to_view)
@@ -1168,6 +1193,7 @@ ok2:
     old_lex->time_zone_tables_used= thd->lex->time_zone_tables_used;
   result= !table->prelocking_placeholder && table->prepare_security(thd);
 
+  lex_end(thd->lex);
 end:
   if (arena)
     thd->restore_active_arena(arena, &backup);
@@ -1175,6 +1201,8 @@ end:
   DBUG_RETURN(result);
 
 err:
+  DBUG_ASSERT(thd->lex == table->view);
+  lex_end(thd->lex);
   delete table->view;
   table->view= 0;	// now it is not VIEW placeholder
   result= 1;

@@ -7,17 +7,11 @@
 # List of failed cases (--force) backported from 4.1 by Joerg
 # :-)
 
-
-echo "##################################################";
-echo "This script is deprecated and will soon be removed";
-echo "Use mysql-test-run.pl instead";
-echo "Now sleeping 20 seconds...";
-echo "##################################################";
-sleep 20;
-echo "continuing";
-echo;
-
-
+#echo "##################################################";
+#echo "This script is deprecated and will soon be removed";
+#echo "Use mysql-test-run.pl instead";
+#echo "##################################################";
+#echo
 
 #++
 # Access Definitions
@@ -211,6 +205,7 @@ TOT_SKIP=0
 TOT_PASS=0
 TOT_FAIL=0
 TOT_TEST=0
+GOT_WARNINGS=0
 USERT=0
 SYST=0
 REALT=0
@@ -250,6 +245,7 @@ MASTER_MYPORT=9306
 SLAVE_RUNNING=0
 SLAVE_MYHOST=127.0.0.1
 SLAVE_MYPORT=9308 # leave room for 2 masters for cluster tests
+MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 NDBCLUSTER_PORT=9350
 NDBCLUSTER_PORT_SLAVE=9358
 
@@ -674,7 +670,9 @@ fi
 [ -d $MYSQL_TEST_DIR/var/tmp ] || mkdir $MYSQL_TEST_DIR/var/tmp
 [ -d $MYSQL_TEST_DIR/var/run ] || mkdir $MYSQL_TEST_DIR/var/run
 [ -d $MYSQL_TEST_DIR/var/log ] || mkdir $MYSQL_TEST_DIR/var/log
-if ! test -L $MYSQL_TEST_DIR/var/std_data_ln ; then
+
+# Use 'test', not '[' as the shell builtin might not have '-L
+if test ! -L "$MYSQL_TEST_DIR/var/std_data_ln" ; then
   ln -s $MYSQL_TEST_DIR/std_data/ $MYSQL_TEST_DIR/var/std_data_ln
 fi
 
@@ -1075,22 +1073,21 @@ report_stats () {
     #
     $RM -f $MY_LOG_DIR/warnings $MY_LOG_DIR/warnings.tmp
     # Remove some non fatal warnings from the log files
-    $SED -e 's!Warning:  Table:.* on delete!!g' -e 's!Warning: Setting lower_case_table_names=2!!g' -e 's!Warning: One can only use the --user.*root!!g' \
+    $SED -e 's!Warning:  Table:.* on delete!!g' -e 's!Warning: Setting lower_case_table_names=2!!g' -e 's!Warning: One can only use the --user.*root!!g' -e 's|InnoDB: Warning: we did not need to do crash recovery||g' \
         $MY_LOG_DIR/*.err \
         | $SED -e 's!Warning:  Table:.* on rename!!g' \
         > $MY_LOG_DIR/warnings.tmp
 
-    found_error=0
     # Find errors
-    for i in "^Warning:" "^Error:" "^==.* at 0x" "InnoDB: Warning" "missing DBUG_RETURN"
+    for i in "^Warning:" "^Error:" "^==.* at 0x" "InnoDB: Warning" "missing DBUG_RETURN" "mysqld: Warning" "Attempting backtrace" "Assertion .* failed"
     do
       if $GREP "$i" $MY_LOG_DIR/warnings.tmp >> $MY_LOG_DIR/warnings
       then
-        found_error=1
+        GOT_WARNINGS=1
       fi
     done
     $RM -f $MY_LOG_DIR/warnings.tmp
-    if [ $found_error = "1" ]
+    if [ $GOT_WARNINGS = "1" ]
     then
       echo "WARNING: Got errors/warnings while running tests. Please examine"
       echo "$MY_LOG_DIR/warnings for details."
@@ -1196,6 +1193,7 @@ abort_if_failed()
 
 launch_in_background()
 {
+  shift
   echo $@ | /bin/sh  >> $CUR_MYERR 2>&1  &
   sleep 2 #hack
   return
@@ -1234,7 +1232,7 @@ start_ndbcluster()
     then
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    OPTS="$NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --verbose=$NDB_VERBOSE --initial --relative-config-data-dir --core"
+    OPTS="$NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --character-sets-dir=$CHARSETSDIR --verbose=$NDB_VERBOSE --initial --relative-config-data-dir --core"
     if [ "x$NDB_VERBOSE" != "x0" ] ; then
       echo "Starting master ndbcluster " $OPTS
     fi
@@ -2302,6 +2300,8 @@ if [ $TOT_FAIL -ne 0 ]; then
   $ECHO "mysql-test-run in $TEST_MODE mode: *** Failing the test(s):$FAILED_CASES"
   $ECHO
   exit 1
-else
-  exit 0
 fi
+if [ $GOT_WARNINGS -ne 0 ]; then
+  exit 1
+fi
+exit 0

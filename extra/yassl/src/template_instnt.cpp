@@ -35,13 +35,6 @@
 #include "openssl/ssl.h"
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-#if !defined(USE_CRYPTOPP_LIB)
-namespace TaoCrypt {
-template class HMAC<MD5>;
-template class HMAC<SHA>;
-template class HMAC<RIPEMD160>;
-}
-#endif  // USE_CRYPTOPP_LIB
 
 namespace mySTL {
 template class list<unsigned char*>;
@@ -87,6 +80,8 @@ template void ysDelete<BulkCipher>(BulkCipher*);
 template void ysDelete<Digest>(Digest*);
 template void ysDelete<X509>(X509*);
 template void ysDelete<Message>(Message*);
+template void ysDelete<sslFactory>(sslFactory*);
+template void ysDelete<Sessions>(Sessions*);
 template void ysArrayDelete<unsigned char>(unsigned char*);
 template void ysArrayDelete<char>(char*);
 }

@@ -483,10 +483,29 @@ main(int argc, char** argv)
   char buf[NDB_VERSION_STRING_BUF_SZ];
   info << "Ndb version in backup files: " 
 	 <<  getVersionString(version, 0, buf, sizeof(buf)) << endl;
-  
+
   /**
    * check wheater we can restore the backup (right version).
    */
+  // in these versions there was an error in how replica info was
+  // stored on disk
+  if (version >= MAKE_VERSION(5,1,3) && version <= MAKE_VERSION(5,1,9))
+  {
+    err << "Restore program incompatible with backup versions between "
+        << getVersionString(MAKE_VERSION(5,1,3), 0, buf, sizeof(buf))
+        << " and "
+        << getVersionString(MAKE_VERSION(5,1,9), 0, buf, sizeof(buf))
+        << endl;
+    exitHandler(NDBT_FAILED);
+  }
+
+  if (version > NDB_VERSION)
+  {
+    err << "Restore program older than backup version. Not supported. "
+        << "Use new restore program" << endl;
+    exitHandler(NDBT_FAILED);
+  }
+
   debug << "Load content" << endl;
   int res  = metaData.loadContent();
   
@@ -615,14 +634,11 @@ main(int argc, char** argv)
       }
       
       const LogEntry * logEntry = 0;
-      bool alloc_flag = false;
-      while ((logEntry = logIter.getNextLogEntry(res= 0, &alloc_flag)) != 0)
+      while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
       {
 	if (checkSysTable(logEntry->m_table))
 	  for(Uint32 i= 0; i < g_consumers.size(); i++)
 	    g_consumers[i]->logEntry(* logEntry);
-        if (alloc_flag)
-          NdbMem_Free((void*)logEntry);
       }
       if (res < 0)
       {

@@ -1431,18 +1431,6 @@ public:
 };
 
 
-class Item_static_int_func :public Item_int
-{
-  const char *func_name;
-public:
-  Item_static_int_func(const char *str_arg, longlong i, uint length)
-    :Item_int(NullS, i, length), func_name(str_arg)
-  {}
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
-  void print(String *str) { str->append(func_name); }
-};
-
-
 class Item_uint :public Item_int
 {
 public:
@@ -1498,6 +1486,7 @@ public:
   }
   uint decimal_precision() const { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const;
+  void set_decimal_value(my_decimal *value_par);
 };
 
 
@@ -1903,21 +1892,6 @@ public:
             (*ref)->used_tables() | RAND_TABLE_BIT);
   }
 };
-
-class Item_null_helper :public Item_ref_null_helper
-{
-  Item *store;
-public:
-  Item_null_helper(Name_resolution_context *context_arg,
-                   Item_in_subselect* master, Item *item,
-		   const char *table_name_arg, const char *field_name_arg)
-    :Item_ref_null_helper(context_arg, master, (store= 0, &store),
-                          table_name_arg, field_name_arg),
-     store(item)
-    { ref= &store; }
-  void print(String *str);
-};
-
 
 /*
   The following class is used to optimize comparing of date and bigint columns

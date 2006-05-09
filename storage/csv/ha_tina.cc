@@ -77,11 +77,14 @@ static int tina_init= 0;
 static handler *tina_create_handler(TABLE_SHARE *table);
 static int tina_init_func();
 
+static const char tina_hton_name[]= "CSV";
+static const char tina_hton_comment[]= "CSV storage engine";
+
 handlerton tina_hton= {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "CSV",
+  tina_hton_name,
   SHOW_OPTION_YES,
-  "CSV storage engine", 
+  tina_hton_comment, 
   DB_TYPE_CSV_DB,
   (bool (*)()) tina_init_func,
   0,       /* slot */
@@ -1398,17 +1401,17 @@ bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
-#ifdef MYSQL_PLUGIN
-mysql_declare_plugin
+
+mysql_declare_plugin(csv)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &tina_hton,
-  tina_hton.name,
+  tina_hton_name,
   "Brian Aker, MySQL AB",
-  "CSV Storage Engine",
+  tina_hton_comment,
   tina_init_func, /* Plugin Init */
   tina_done_func, /* Plugin Deinit */
   0x0100 /* 1.0 */,
 }
 mysql_declare_plugin_end;
-#endif
+

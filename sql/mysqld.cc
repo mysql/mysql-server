@@ -500,6 +500,22 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 uint  max_user_connections= 0;
+/*
+  Limit of the total number of prepared statements in the server.
+  Is necessary to protect the server against out-of-memory attacks.
+*/
+ulong max_prepared_stmt_count;
+/*
+  Current total number of prepared statements in the server. This number
+  is exact, and therefore may not be equal to the difference between
+  `com_stmt_prepare' and `com_stmt_close' (global status variables), as
+  the latter ones account for all registered attempts to prepare
+  a statement (including unsuccessful ones).  Prepared statements are
+  currently connection-local: if the same SQL query text is prepared in
+  two different connections, this counts as two distinct prepared
+  statements.
+*/
+ulong prepared_stmt_count=0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
@@ -577,6 +593,14 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
+/*
+  The below lock protects access to two global server variables:
+  max_prepared_stmt_count and prepared_stmt_count. These variables
+  set the limit and hold the current total number of prepared statements
+  in the server, respectively. As PREPARE/DEALLOCATE rate in a loaded
+  server may be fairly high, we need a dedicated lock.
+*/
+pthread_mutex_t LOCK_prepared_stmt_count;
 #ifdef HAVE_OPENSSL
 pthread_mutex_t LOCK_des_key_file;
 #endif
@@ -718,6 +742,7 @@ static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static int test_if_case_insensitive(const char *dir_name);
 static void create_pid_file();
+static void end_ssl();
 
 #ifndef EMBEDDED_LIBRARY
 /****************************************************************************
@@ -1160,8 +1185,8 @@ void clean_up(bool print_message)
 #ifdef HAVE_DLOPEN
     udf_free();
 #endif
-    plugin_free();
   }
+  plugin_free();
   if (tc_log)
     tc_log->close();
   xid_cache_free();
@@ -1193,10 +1218,7 @@ void clean_up(bool print_message)
 #endif
   delete binlog_filter;
   delete rpl_filter;
-#ifdef HAVE_OPENSSL
-  if (ssl_acceptor_fd)
-    my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
-#endif /* HAVE_OPENSSL */
+  end_ssl();
 #ifdef USE_REGEX
   my_regex_end();
 #endif
@@ -1288,6 +1310,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
   (void) pthread_mutex_destroy(&LOCK_uuid_generator);
+  (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
   (void) pthread_cond_destroy(&COND_thread_cache);
@@ -1727,17 +1750,6 @@ void end_thread(THD *thd, bool put_in_cache)
     pthread_exit(0);
   }
   DBUG_VOID_RETURN;
-}
-
-
-/* Start a cached thread. LOCK_thread_count is locked on entry */
-
-static void start_cached_thread(THD *thd)
-{
-  thread_cache.append(thd);
-  wake_thread++;
-  thread_count++;
-  pthread_cond_signal(&COND_thread_cache);
 }
 
 
@@ -2623,12 +2635,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   }
 
-  if (ha_register_builtin_plugins())
-  {
-    sql_print_error("Failed to register built-in storage engines.");
-    return 1;
-  }
-
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   get_options(argc,argv);
@@ -2810,6 +2816,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
@@ -2953,6 +2960,18 @@ static void init_ssl()
 }
 
 
+static void end_ssl()
+{
+#ifdef HAVE_OPENSSL
+  if (ssl_acceptor_fd)
+  {
+    free_vio_ssl_acceptor_fd(ssl_acceptor_fd);
+    ssl_acceptor_fd= 0;
+  }
+#endif /* HAVE_OPENSSL */
+}
+
+
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
@@ -2997,42 +3016,13 @@ static int init_server_components()
     }
   }
 
-#ifdef WITH_CSV_STORAGE_ENGINE
-  if (opt_bootstrap)
-    log_output_options= LOG_FILE;
-  else
-    logger.init_log_tables();
-
-  if (log_output_options & LOG_NONE)
+  if (xid_cache_init())
   {
-    /*
-      Issue a warining if there were specified additional options to the
-      log-output along with NONE. Probably this wasn't what user wanted.
-    */
-    if ((log_output_options & LOG_NONE) && (log_output_options & ~LOG_NONE))
-      sql_print_warning("There were other values specified to "
-                        "log-output besides NONE. Disabling slow "
-                        "and general logs anyway.");
-    logger.set_handlers(LOG_FILE, LOG_NONE, LOG_NONE);
+    sql_print_error("Out of memory");
+    unireg_abort(1);
   }
-  else
-  {
-    /* fall back to the log files if tables are not present */
-    if (have_csv_db == SHOW_OPTION_NO)
-    {
-      sql_print_error("CSV engine is not present, falling back to the "
-                      "log files");
-      log_output_options= log_output_options & ~LOG_TABLE | LOG_FILE;
-    }
 
-    logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
-                        opt_log ? log_output_options:LOG_NONE);
-  }
-#else
-  logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
-                      opt_log ? LOG_FILE:LOG_NONE);
-#endif
-
+  /* need to configure logging before initializing storage engines */
   if (opt_update_log)
   {
     /*
@@ -3160,16 +3150,48 @@ server.");
     using_update_log=1;
   }
 
-  if (xid_cache_init())
-  {
-    sql_print_error("Out of memory");
-    unireg_abort(1);
-  }
+  /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
   {
     sql_print_error("Can't init databases");
     unireg_abort(1);
   }
+
+#ifdef WITH_CSV_STORAGE_ENGINE
+  if (opt_bootstrap)
+    log_output_options= LOG_FILE;
+  else
+    logger.init_log_tables();
+
+  if (log_output_options & LOG_NONE)
+  {
+    /*
+      Issue a warining if there were specified additional options to the
+      log-output along with NONE. Probably this wasn't what user wanted.
+    */
+    if ((log_output_options & LOG_NONE) && (log_output_options & ~LOG_NONE))
+      sql_print_warning("There were other values specified to "
+                        "log-output besides NONE. Disabling slow "
+                        "and general logs anyway.");
+    logger.set_handlers(LOG_FILE, LOG_NONE, LOG_NONE);
+  }
+  else
+  {
+    /* fall back to the log files if tables are not present */
+    if (have_csv_db == SHOW_OPTION_NO)
+    {
+      sql_print_error("CSV engine is not present, falling back to the "
+                      "log files");
+      log_output_options= log_output_options & ~LOG_TABLE | LOG_FILE;
+    }
+
+    logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
+                        opt_log ? log_output_options:LOG_NONE);
+  }
+#else
+  logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
+                      opt_log ? LOG_FILE:LOG_NONE);
+#endif
 
   /*
     Check that the default storage engine is actually available.
@@ -3579,6 +3601,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
       unireg_abort(1);
     }
   }
+  execute_ddl_log_recovery();
 
   create_shutdown_thread();
   create_maintenance_thread();
@@ -3630,6 +3653,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
+  release_ddl_log();
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (Service.IsNT() && start_mode)
     Service.Stop();
@@ -3901,6 +3925,25 @@ static bool read_init_file(char *file_name)
 
 
 #ifndef EMBEDDED_LIBRARY
+/*
+  Create new thread to handle incoming connection.
+
+  SYNOPSIS
+    create_new_thread()
+      thd in/out    Thread handle of future thread.
+
+  DESCRIPTION
+    This function will create new thread to handle the incoming
+    connection.  If there are idle cached threads one will be used.
+    'thd' will be pushed into 'threads'.
+
+    In single-threaded mode (#define ONE_THREAD) connection will be
+    handled inside this function.
+
+  RETURN VALUE
+    none
+*/
+
 static void create_new_thread(THD *thd)
 {
   DBUG_ENTER("create_new_thread");
@@ -3924,11 +3967,12 @@ static void create_new_thread(THD *thd)
   thd->real_id=pthread_self();			// Keep purify happy
 
   /* Start a new thread to handle connection */
+  thread_count++;
+
 #ifdef ONE_THREAD
   if (test_flags & TEST_NO_THREADS)		// For debugging under Linux
   {
     thread_cache_size=0;			// Safety
-    thread_count++;
     threads.append(thd);
     thd->real_id=pthread_self();
     (void) pthread_mutex_unlock(&LOCK_thread_count);
@@ -3937,18 +3981,20 @@ static void create_new_thread(THD *thd)
   else
 #endif
   {
+    if (thread_count-delayed_insert_threads > max_used_connections)
+      max_used_connections=thread_count-delayed_insert_threads;
+
     if (cached_thread_count > wake_thread)
     {
-      start_cached_thread(thd);
+      thread_cache.append(thd);
+      wake_thread++;
+      pthread_cond_signal(&COND_thread_cache);
     }
     else
     {
       int error;
-      thread_count++;
       thread_created++;
       threads.append(thd);
-      if (thread_count-delayed_insert_threads > max_used_connections)
-        max_used_connections=thread_count-delayed_insert_threads;
       DBUG_PRINT("info",(("creating thread %d"), thd->thread_id));
       thd->connect_time = time(NULL);
       if ((error=pthread_create(&thd->real_id,&connection_attrib,
@@ -4634,7 +4680,8 @@ enum options_mysqld
   OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
   OPT_MAX_CONNECTIONS, OPT_MAX_CONNECT_ERRORS,
   OPT_MAX_DELAYED_THREADS, OPT_MAX_HEP_TABLE_SIZE,
-  OPT_MAX_JOIN_SIZE, OPT_MAX_RELAY_LOG_SIZE, OPT_MAX_SORT_LENGTH, 
+  OPT_MAX_JOIN_SIZE, OPT_MAX_PREPARED_STMT_COUNT,
+  OPT_MAX_RELAY_LOG_SIZE, OPT_MAX_SORT_LENGTH,
   OPT_MAX_SEEKS_FOR_KEY, OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
@@ -5890,6 +5937,10 @@ The minimum value for this variable is 4096.",
     (gptr*) &global_system_variables.max_length_for_sort_data,
     (gptr*) &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
+  {"max_prepared_stmt_count", OPT_MAX_PREPARED_STMT_COUNT,
+   "Maximum number of prepared statements in the server.",
+   (gptr*) &max_prepared_stmt_count, (gptr*) &max_prepared_stmt_count,
+   0, GET_ULONG, REQUIRED_ARG, 16382, 0, 1*1024*1024, 0, 1, 0},
   {"max_relay_log_size", OPT_MAX_RELAY_LOG_SIZE,
    "If non-zero: relay log will be rotated automatically when the size exceeds this value; if zero (the default): when the size exceeds max_binlog_size. 0 excepted, the minimum value for this variable is 4096.",
    (gptr*) &max_relay_log_size, (gptr*) &max_relay_log_size, 0, GET_ULONG,
@@ -6129,23 +6180,6 @@ The minimum value for this variable is 4096.",
   {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default.",
    (gptr*) &opt_sync_frm, (gptr*) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
    0, 0, 0, 0},
-#ifdef HAVE_REPLICATION
-  {"sync-replication", OPT_SYNC_REPLICATION,
-   "Enable synchronous replication.",
-   (gptr*) &global_system_variables.sync_replication,
-   (gptr*) &global_system_variables.sync_replication,
-   0, GET_ULONG, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
-  {"sync-replication-slave-id", OPT_SYNC_REPLICATION_SLAVE_ID,
-   "Synchronous replication is wished for this slave.",
-   (gptr*) &global_system_variables.sync_replication_slave_id,
-   (gptr*) &global_system_variables.sync_replication_slave_id,
-   0, GET_ULONG, REQUIRED_ARG, 0, 0, ~0L, 0, 1, 0},
-  {"sync-replication-timeout", OPT_SYNC_REPLICATION_TIMEOUT,
-   "Synchronous replication timeout.",
-   (gptr*) &global_system_variables.sync_replication_timeout,
-   (gptr*) &global_system_variables.sync_replication_timeout,
-   0, GET_ULONG, REQUIRED_ARG, 10, 0, ~0L, 0, 1, 0},
-#endif /* HAVE_REPLICATION */
   {"table_cache", OPT_TABLE_OPEN_CACHE,
    "Deprecated; use --table_open_cache instead.",
    (gptr*) &table_cache_size, (gptr*) &table_cache_size, 0, GET_ULONG,
@@ -8031,7 +8065,38 @@ static void create_pid_file()
     (void) my_close(file, MYF(0));
   }
   sql_perror("Can't start server: can't create PID file");
-  exit(1);  
+  exit(1);
+}
+
+
+/* Clear most status variables */
+void refresh_status(THD *thd)
+{
+  pthread_mutex_lock(&LOCK_status);
+
+  /* We must update the global status before cleaning up the thread */
+  add_to_status(&global_status_var, &thd->status_var);
+  bzero((char*) &thd->status_var, sizeof(thd->status_var));
+
+  for (SHOW_VAR *ptr= status_vars; ptr->name; ptr++)
+  {
+    /* Note that SHOW_LONG_NOFLUSH variables are not reset */
+    if (ptr->type == SHOW_LONG)
+      *(ulong*) ptr->value= 0;
+  }
+  /* Reset the counters of all key caches (default and named). */
+  process_key_caches(reset_key_cache_counters);
+  pthread_mutex_unlock(&LOCK_status);
+
+  /*
+    Set max_used_connections to the number of currently open
+    connections.  Lock LOCK_thread_count out of LOCK_status to avoid
+    deadlocks.  Status reset becomes not atomic, but status data is
+    not exact anyway.
+  */
+  pthread_mutex_lock(&LOCK_thread_count);
+  max_used_connections= thread_count-delayed_insert_threads;
+  pthread_mutex_unlock(&LOCK_thread_count);
 }
 
 

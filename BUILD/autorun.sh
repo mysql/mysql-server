@@ -3,6 +3,11 @@
 
 die() { echo "$@"; exit 1; }
 
+(cd storage/bdb/dist && sh s_all)
+(cd storage/innobase && aclocal && autoheader && \
+    libtoolize --automake --force --copy && \
+    automake --force --add-missing --copy && autoconf)
+
 aclocal || die "Can't execute aclocal" 
 autoheader || die "Can't execute autoheader"
 # --force means overwrite ltmain.sh script if it already exists 
@@ -17,5 +22,3 @@ fi
 # and --force to overwrite them if they already exist
 automake --add-missing --force || die "Can't execute automake"
 autoconf || die "Can't execute autoconf"
-(cd storage/bdb/dist && sh s_all)
-(cd storage/innobase && aclocal && autoheader && aclocal && automake && autoconf)

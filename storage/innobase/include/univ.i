@@ -82,10 +82,6 @@ memory is read outside the allocated blocks. */
 
 /* Make a non-inline debug version */
 
-/* You can remove this define when the release is stable. This define adds
-some consistency checks to code. They use a little CPU time. */
-#define UNIV_RELEASE_NOT_YET_STABLE
-
 /*
 #define UNIV_DEBUG
 #define UNIV_MEM_DEBUG
@@ -128,7 +124,7 @@ by one. */
 #ifdef __WIN__
 #define UNIV_INLINE	__inline
 #else
-#define UNIV_INLINE static inline
+#define UNIV_INLINE static __inline__
 #endif
 
 #else
@@ -178,6 +174,16 @@ management to ensure correct alignment for doubles etc. */
 /* Note that inside MySQL 'byte' is defined as char on Linux! */
 #define byte			unsigned char
 
+/* Define an unsigned integer type that is exactly 32 bits. */
+
+#if SIZEOF_INT == 4
+typedef unsigned int		ib_uint32_t;
+#elif SIZEOF_LONG == 4
+typedef unsigned long		ib_uint32_t;
+#else
+#error "Neither int or long is 4 bytes"
+#endif
+
 /* Another basic type we use is unsigned long integer which should be equal to
 the word size of the machine, that is on a 32-bit platform 32 bits, and on a
 64-bit platform 64 bits. We also give the printf format for the type as a
@@ -204,9 +210,6 @@ typedef longlong		ib_longlong;
 #error "Error: InnoDB's ulint must be of the same size as void*"
 #endif
 #endif
-
-/* The following type should be at least a 64-bit floating point number */
-typedef double			utfloat;
 
 /* The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
@@ -269,6 +272,18 @@ it is read or written. */
 
 /* Compile-time constant of the given array's size. */
 #define UT_ARR_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+
+/* The return type from a thread's start function differs between Unix and
+Windows, so define a typedef for it and a macro to use at the end of such
+functions. */
+
+#ifdef __WIN__
+typedef ulint os_thread_ret_t;
+#define OS_THREAD_DUMMY_RETURN return(0)
+#else
+typedef void* os_thread_ret_t;
+#define OS_THREAD_DUMMY_RETURN return(NULL)
+#endif
 
 #include <stdio.h>
 #include "ut0dbg.h"

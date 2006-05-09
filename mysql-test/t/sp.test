@@ -5705,6 +5705,81 @@ delete from t1|
 
 
 #
+# BUG#15728: LAST_INSERT_ID function inside a stored function returns 0
+#
+# The solution is not to reset last_insert_id on enter to sub-statement.
+#
+--disable_warnings
+drop function if exists bug15728|
+drop table if exists t3|
+--enable_warnings
+
+create table t3 (
+  id int not null auto_increment,
+  primary key (id)
+)|
+create function bug15728() returns int(11)
+  return last_insert_id()|
+
+insert into t3 values (0)|
+select last_insert_id()|
+select bug15728()|
+
+drop function bug15728|
+drop table t3|
+
+
+#
+# BUG#18787: Server crashed when calling a stored procedure containing
+#            a misnamed function
+#
+--disable_warnings
+drop procedure if exists bug18787|
+--enable_warnings
+create procedure bug18787()
+begin
+  declare continue handler for sqlexception begin end;
+
+  select no_such_function();
+end|
+
+call bug18787()|
+drop procedure bug18787|
+
+
+#
+# BUG#18344: DROP DATABASE does not drop associated routines
+# (... if the database name is longer than 21 characters)
+#
+#               1234567890123456789012
+create database bug18344_012345678901| 
+use bug18344_012345678901|
+create procedure bug18344() begin end|
+create procedure bug18344_2() begin end|
+
+create database bug18344_0123456789012| 
+use bug18344_0123456789012|
+create procedure bug18344() begin end|
+create procedure bug18344_2() begin end|
+
+use test|
+
+select schema_name from information_schema.schemata where 
+  schema_name like 'bug18344%'|
+select routine_name,routine_schema from information_schema.routines where
+  routine_schema like 'bug18344%'|
+
+drop database bug18344_012345678901| 
+drop database bug18344_0123456789012| 
+
+# Should be nothing left.
+select schema_name from information_schema.schemata where 
+  schema_name like 'bug18344%'|
+select routine_name,routine_schema from information_schema.routines where
+  routine_schema like 'bug18344%'|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

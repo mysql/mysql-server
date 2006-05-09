@@ -279,6 +279,19 @@ public:
 };
 
 
+class Item_func_connection_id :public Item_int_func
+{
+  longlong value;
+
+public:
+  Item_func_connection_id() {}
+  const char *func_name() const { return "connection_id"; }
+  void fix_length_and_dec();
+  bool fix_fields(THD *thd, Item **ref);
+  longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
+};
+
+
 class Item_func_signed :public Item_int_func
 {
 public:

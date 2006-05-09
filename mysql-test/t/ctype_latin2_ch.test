@@ -28,3 +28,5 @@ select * from t1 ignore index (primary) where tt like 'AA%';
 select * from t1 where tt like '%AA%';
 
 # End of 4.1 tests
+
+drop table t1;

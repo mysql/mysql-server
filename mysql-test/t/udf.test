@@ -14,18 +14,26 @@ drop table if exists t1;
 # Create the example functions from udf_example
 #
 
-CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
-CREATE FUNCTION myfunc_double RETURNS REAL SONAME 'udf_example.so';
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
 
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 --error ER_CANT_FIND_DL_ENTRY
-CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME 'udf_example.so';
-CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME 'udf_example.so';
-CREATE FUNCTION sequence RETURNS INTEGER SONAME "udf_example.so";
-CREATE FUNCTION lookup RETURNS STRING SONAME 'udf_example.so';
-CREATE FUNCTION reverse_lookup
-        RETURNS STRING SONAME 'udf_example.so';
-CREATE AGGREGATE FUNCTION avgcost
-        RETURNS REAL SONAME 'udf_example.so';
+eval CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION sequence RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION lookup RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION reverse_lookup
+        RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE AGGREGATE FUNCTION avgcost
+        RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
 
 --error 0
 select myfunc_double();

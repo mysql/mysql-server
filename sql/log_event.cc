@@ -6579,18 +6579,6 @@ int Delete_rows_log_event::do_before_row_operations(TABLE *table)
   if (!m_memory)
     return HA_ERR_OUT_OF_MEM;
 
-  if (table->s->keys > 0)
-  {
-    /* We have a key: search the table using the index */
-    if (!table->file->inited)
-      error= table->file->ha_index_init(0, FALSE);
-  }
-  else
-  {
-    /* We doesn't have a key: search the table using rnd_next() */
-    error= table->file->ha_rnd_init(1);
-  }
-
   return error;
 }
 
@@ -6638,6 +6626,20 @@ int Delete_rows_log_event::do_exec_row(TABLE *table)
 {
   DBUG_ASSERT(table != NULL);
 
+  if (table->s->keys > 0)
+  {
+    /* We have a key: search the table using the index */
+    if (!table->file->inited)
+      if (int error= table->file->ha_index_init(0, FALSE))
+        return error;
+  }
+  else
+  {
+    /* We doesn't have a key: search the table using rnd_next() */
+    if (int error= table->file->ha_rnd_init(1))
+      return error;
+  }
+
   int error= find_and_fetch_row(table, m_key);
   if (error)
     return error;
@@ -6648,6 +6650,11 @@ int Delete_rows_log_event::do_exec_row(TABLE *table)
      correct value.
   */
   error= table->file->ha_delete_row(table->record[0]);
+
+  /*
+    Have to restart the scan to be able to fetch the next row.
+   */
+  table->file->ha_index_or_rnd_end();
 
   return error;
 }

@@ -63,10 +63,10 @@ flush logs;
 # check locking of the log tables
 #
 
---error 1533
+--error ER_CANT_WRITE_LOCK_LOG_TABLE
 lock tables mysql.general_log WRITE;
 
---error 1533
+--error ER_CANT_WRITE_LOCK_LOG_TABLE
 lock tables mysql.slow_log WRITE;
 
 #
@@ -75,10 +75,10 @@ lock tables mysql.slow_log WRITE;
 # tables are always opened and locked by the logger.
 #
 
---error 1534
+--error ER_CANT_READ_LOCK_LOG_TABLE
 lock tables mysql.general_log READ;
 
---error 1534
+--error ER_CANT_READ_LOCK_LOG_TABLE
 lock tables mysql.slow_log READ;
 
 #

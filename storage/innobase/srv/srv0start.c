@@ -426,11 +426,7 @@ srv_parse_log_group_home_dirs(
 I/o-handler thread function. */
 static
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 io_handler_thread(
 /*==============*/
 	void*	arg)
@@ -459,11 +455,7 @@ io_handler_thread(
 
 	os_thread_exit(NULL);
 
-#ifndef __WIN__
-	return(NULL);				/* Not reached */
-#else
-	return(0);
-#endif
+	OS_THREAD_DUMMY_RETURN;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1539,11 +1531,6 @@ NetWare. */
 		}
 	}
 #endif /* UNIV_LOG_ARCHIVE */
-
-	if (srv_measure_contention) {
-		/* os_thread_create(&test_measure_cont, NULL, thread_ids +
-		   SRV_MAX_N_IO_THREADS); */
-	}
 
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 				page_get_free_space_of_empty() / 2); */

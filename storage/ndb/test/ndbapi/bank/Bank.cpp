@@ -22,7 +22,8 @@
 Bank::Bank(Ndb_cluster_connection& con, bool _init, const char * dbase):
   m_ndb(&con, dbase),
   m_maxAccount(-1),
-  m_initialized(false)
+  m_initialized(false),
+  m_skip_create(false)
 {
   if(_init)
     init();

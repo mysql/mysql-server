@@ -118,7 +118,8 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
   PagePtr page;
   Tuple_header *tuple_ptr= (Tuple_header*)
     get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
-  
+
+  Uint32 bits= tuple_ptr->m_header_bits;  
   if(regOperPtr.p->op_struct.op_type != ZDELETE)
   {
     Tuple_header *copy= (Tuple_header*)
@@ -132,7 +133,7 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
       disk_page_abort_prealloc(signal, regFragPtr.p, &key, key.m_page_idx);
     }
     
-    Uint32 bits= tuple_ptr->m_header_bits;
+
     Uint32 copy_bits= copy->m_header_bits;
     if(! (bits & Tuple_header::ALLOC))
     {
@@ -170,7 +171,15 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
       /**
        * Aborting last operation that performed ALLOC
        */
-      ndbout_c("clearing ALLOC");
+      tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
+      tuple_ptr->m_header_bits |= Tuple_header::FREED;
+    }
+  }
+  else if (regOperPtr.p->is_first_operation() && 
+	   regOperPtr.p->is_last_operation())
+  {
+    if (bits & Tuple_header::ALLOC)
+    {
       tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
       tuple_ptr->m_header_bits |= Tuple_header::FREED;
     }

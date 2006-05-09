@@ -423,7 +423,7 @@ spin_loop:
 #ifdef UNIV_SRV_PRINT_LATCH_WAITS
 	fprintf(stderr,
 		"Thread %lu spin wait mutex at %p cfile %s cline %lu rnds %lu\n",
-		(ulong) os_thread_pf(os_thread_get_curr_id()), mutex,
+		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
 		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
 #endif
 
@@ -485,7 +485,7 @@ spin_loop:
 			fprintf(stderr, "Thread %lu spin wait succeeds at 2:"
 				" mutex at %p\n",
 				(ulong) os_thread_pf(os_thread_get_curr_id()),
-				mutex);
+				(void*) mutex);
 #endif
 
 			goto finish_timing;
@@ -503,7 +503,7 @@ spin_loop:
 #ifdef UNIV_SRV_PRINT_LATCH_WAITS
 	fprintf(stderr,
 		"Thread %lu OS wait mutex at %p cfile %s cline %lu rnds %lu\n",
-		(ulong) os_thread_pf(os_thread_get_curr_id()), mutex,
+		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
 		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
 #endif
 
@@ -666,7 +666,7 @@ mutex_list_print_info(void)
 								&thread_id);
 			fprintf(stderr,
 			"Locked mutex: addr %p thread %ld file %s line %ld\n",
-				mutex, os_thread_pf(thread_id),
+				(void*) mutex, os_thread_pf(thread_id),
 				file_name, line);
 		}
 
@@ -852,10 +852,10 @@ sync_thread_levels_g(
 
 						fprintf(stderr,
 		"InnoDB: Locked mutex: addr %p thread %ld file %s line %ld\n",
-		mutex, os_thread_pf(thread_id), file_name, (ulong) line);
+		(void*) mutex, os_thread_pf(thread_id), file_name, (ulong) line);
 #else /* UNIV_SYNC_DEBUG */
 						fprintf(stderr,
-		"InnoDB: Locked mutex: addr %p\n", mutex);
+		"InnoDB: Locked mutex: addr %p\n", (void*) mutex);
 #endif /* UNIV_SYNC_DEBUG */
 					} else {
 						fputs("Not locked\n", stderr);
