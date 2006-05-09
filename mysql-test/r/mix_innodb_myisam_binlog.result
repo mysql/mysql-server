@@ -249,7 +249,8 @@ master-bin.000001	1056	Query	1	1056	use `test`; insert t0 select * from t1
 master-bin.000001	1117	Query	1	1117	use `test`; DO RELEASE_LOCK("a")
 master-bin.000001	1172	Query	1	1172	use `test`; insert into t0 select GET_LOCK("lock1",null)
 master-bin.000001	1251	Query	1	1251	use `test`; create table t2 (n int) engine=innodb
-master-bin.000001	1323	Query	1	1323	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`.`t1`,`test`.`ti`
-master-bin.000001	1424	Query	1	1424	use `test`; DO RELEASE_LOCK("lock1")
+master-bin.000001	1323	Query	1	1323	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=33,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=8
+master-bin.000001	1457	Query	1	1457	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`.`t1`,`test`.`ti`
+master-bin.000001	1558	Query	1	1558	use `test`; DO RELEASE_LOCK("lock1")
 do release_lock("lock1");
 drop table t0,t2;
