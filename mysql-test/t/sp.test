@@ -5774,6 +5774,29 @@ select routine_name,routine_schema from information_schema.routines where
 
 
 #
+# BUG#12472/BUG#15137 'CREATE TABLE ... SELECT ... which explicitly or
+# implicitly uses stored function gives "Table not locked" error'.
+#
+--disable_warnings
+drop function if exists bug12472|
+--enable_warnings
+create function bug12472() returns int return (select count(*) from t1)|
+# Check case when function is used directly
+create table t3 as select bug12472() as i|
+show create table t3|
+select * from t3|
+drop table t3|
+# Check case when function is used indirectly through view
+create view v1 as select bug12472() as j|
+create table t3 as select * from v1|
+show create table t3|
+select * from t3|
+drop table t3|
+drop view v1|
+drop function bug12472|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
