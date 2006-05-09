@@ -189,6 +189,17 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
   // m_bufferHandle->dropSubscribeEvent(m_bufferId);
   ; // ToDo? We should send stop signal here
   
+  if (theMainOp == NULL)
+  {
+    NdbEventOperationImpl* tBlobOp = theBlobOpList;
+    while (tBlobOp != NULL)
+    {
+      NdbEventOperationImpl *op = tBlobOp;
+      tBlobOp = tBlobOp->m_next;
+      delete op;
+    }
+  }
+
   m_ndb->theImpl->theNdbObjectIdMap.unmap(m_oid, this);
   DBUG_PRINT("exit",("this: %p/%p oid: %u main: %p",
              this, m_facade, m_oid, theMainOp));
