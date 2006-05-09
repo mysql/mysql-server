@@ -3105,8 +3105,8 @@ bool mysql_create_table_internal(THD *thd,
     }
     DBUG_PRINT("info", ("db_type = %d",
                          ha_legacy_type(part_info->default_engine_type)));
-    if (part_info->check_partition_info( &engine_type, file,
-                             create_info->max_rows))
+    if (part_info->check_partition_info(&engine_type, file,
+                                        create_info->max_rows))
       goto err;
     part_info->default_engine_type= engine_type;
 
@@ -3165,6 +3165,12 @@ bool mysql_create_table_internal(THD *thd,
     }
     else if (create_info->db_type != engine_type)
     {
+      /*
+        We come here when we don't use a partitioned handler.
+        Since we use a partitioned table it must be "native partitioned".
+        We have switched engine from defaults, most likely only specified
+        engines in partition clauses.
+      */
       delete file;
       if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, engine_type)))
       {
