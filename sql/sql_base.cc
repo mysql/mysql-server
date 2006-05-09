@@ -1076,6 +1076,8 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
                           MYSQL_LOCK_IGNORE_FLUSH - Open table even if
                           someone has done a flush or namelock on it.
                           No version number checking is done.
+                          MYSQL_OPEN_IGNORE_LOCKED_TABLES - Open table
+                          ignoring set of locked tables and prelocked mode.
 
   IMPLEMENTATION
     Uses a cache of open tables to find a table not in use.
@@ -1135,7 +1137,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
   }
 
-  if (thd->locked_tables || thd->prelocked_mode)
+  if (!(flags & MYSQL_OPEN_IGNORE_LOCKED_TABLES) &&
+      (thd->locked_tables || thd->prelocked_mode))
   {						// Using table locks
     TABLE *best_table= 0;
     int best_distance= INT_MIN;
