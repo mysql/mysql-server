@@ -5350,6 +5350,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
         slave_print_msg(ERROR_LEVEL, rli, error,
                         "Error in %s event: when locking tables",
                         get_type_str());
+        rli->clear_tables_to_lock();
         DBUG_RETURN(error);
       }
 
@@ -5385,6 +5386,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
                            "unexpected success or fatal error"));
           thd->query_error= 1;
         }
+        rli->clear_tables_to_lock();
         DBUG_RETURN(error);
       }
     }
@@ -5393,18 +5395,16 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       the table map and remove them from tables to lock.
      */
     
-    TABLE_LIST *ptr= rli->tables_to_lock;
-    while (ptr)
+    TABLE_LIST *ptr;
+    for (ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
     {
       rli->m_table_map.set_table(ptr->table_id, ptr->table);
       rli->touching_table(ptr->db, ptr->table_name, ptr->table_id);
-      char *to_free= reinterpret_cast<char*>(ptr);
-      ptr= ptr->next_global;
-      my_free(to_free, MYF(MY_WME));
     }
-    rli->tables_to_lock= 0;
-    rli->tables_to_lock_count= 0;
+    rli->clear_tables_to_lock();
   }
+
+  DBUG_ASSERT(rli->tables_to_lock == NULL && rli->tables_to_lock_count == 0);
 
   TABLE* table= rli->m_table_map.get_table(m_table_id);
 
@@ -5816,12 +5816,8 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
                     &tname_mem, NAME_LEN + 1,
                     NULL);
 
-  /*
-    If memory is allocated, it the pointer to it should be stored in
-    table_list.  If this is not true, the memory will not be correctly
-    free:ed later.
-  */
-  DBUG_ASSERT(memory == NULL || memory == table_list);
+  if (memory == NULL)
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   uint32 dummy_len;
   bzero(table_list, sizeof(*table_list));
@@ -5836,8 +5832,12 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
 
   int error= 0;
 
-  if (rpl_filter->db_ok(table_list->db) &&
-      (!rpl_filter->is_on() || rpl_filter->tables_ok("", table_list)))
+  if (!rpl_filter->db_ok(table_list->db) ||
+      (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list)))
+  {
+    my_free((gptr) memory, MYF(MY_WME));
+  }
+  else
   {
     /*
       Check if the slave is set to use SBR.  If so, it should switch
