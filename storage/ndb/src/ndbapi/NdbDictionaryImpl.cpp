@@ -80,7 +80,7 @@ NdbColumnImpl::NdbColumnImpl()
   : NdbDictionary::Column(* this), m_attrId(-1), m_facade(this)
 {
   DBUG_ENTER("NdbColumnImpl::NdbColumnImpl");
-  DBUG_PRINT("info", ("this: %x", this));
+  DBUG_PRINT("info", ("this: %p", this));
   init();
   DBUG_VOID_RETURN;
 }
@@ -89,7 +89,7 @@ NdbColumnImpl::NdbColumnImpl(NdbDictionary::Column & f)
   : NdbDictionary::Column(* this), m_attrId(-1), m_facade(&f)
 {
   DBUG_ENTER("NdbColumnImpl::NdbColumnImpl");
-  DBUG_PRINT("info", ("this: %x", this));
+  DBUG_PRINT("info", ("this: %p", this));
   init();
   DBUG_VOID_RETURN;
 }
@@ -98,7 +98,7 @@ NdbColumnImpl&
 NdbColumnImpl::operator=(const NdbColumnImpl& col)
 {
   DBUG_ENTER("NdbColumnImpl::operator=");
-  DBUG_PRINT("info", ("this: %x  &col: %x", this, &col));
+  DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
   m_attrId = col.m_attrId;
   m_name = col.m_name;
   m_type = col.m_type;
@@ -271,7 +271,7 @@ NdbColumnImpl::init(Type t)
 NdbColumnImpl::~NdbColumnImpl()
 {
   DBUG_ENTER("NdbColumnImpl::~NdbColumnImpl");
-  DBUG_PRINT("info", ("this: %x", this));
+  DBUG_PRINT("info", ("this: %p", this));
   if (m_blobTable != NULL)
     delete m_blobTable;
   m_blobTable = NULL;
@@ -282,7 +282,7 @@ bool
 NdbColumnImpl::equal(const NdbColumnImpl& col) const 
 {
   DBUG_ENTER("NdbColumnImpl::equal");
-  DBUG_PRINT("info", ("this: %x  &col: %x", this, &col));
+  DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
   if(strcmp(m_name.c_str(), col.m_name.c_str()) != 0){
     DBUG_RETURN(false);
   }
@@ -391,7 +391,7 @@ NdbTableImpl::NdbTableImpl()
     NdbDictObjectImpl(NdbDictionary::Object::UserTable), m_facade(this)
 {
   DBUG_ENTER("NdbTableImpl::NdbTableImpl");
-  DBUG_PRINT("info", ("this: %x", this));
+  DBUG_PRINT("info", ("this: %p", this));
   init();
   DBUG_VOID_RETURN;
 }
@@ -401,7 +401,7 @@ NdbTableImpl::NdbTableImpl(NdbDictionary::Table & f)
     NdbDictObjectImpl(NdbDictionary::Object::UserTable), m_facade(&f)
 {
   DBUG_ENTER("NdbTableImpl::NdbTableImpl");
-  DBUG_PRINT("info", ("this: %x", this));
+  DBUG_PRINT("info", ("this: %p", this));
   init();
   DBUG_VOID_RETURN;
 }
@@ -409,7 +409,7 @@ NdbTableImpl::NdbTableImpl(NdbDictionary::Table & f)
 NdbTableImpl::~NdbTableImpl()
 {
   DBUG_ENTER("NdbTableImpl::~NdbTableImpl");
-  DBUG_PRINT("info", ("this: %x", this));
+  DBUG_PRINT("info", ("this: %p", this));
   if (m_index != 0) {
     delete m_index;
     m_index = 0;
@@ -659,7 +659,7 @@ void
 NdbTableImpl::assign(const NdbTableImpl& org)
 {
   DBUG_ENTER("NdbColumnImpl::assign");
-  DBUG_PRINT("info", ("this: %x  &org: %x", this, &org));
+  DBUG_PRINT("info", ("this: %p  &org: %p", this, &org));
   /* m_changeMask intentionally not copied */
   m_primaryTableId = org.m_primaryTableId;
   m_internalName.assign(org.m_internalName);
@@ -1118,7 +1118,7 @@ NdbEventImpl::NdbEventImpl() :
   NdbDictObjectImpl(NdbDictionary::Object::TypeUndefined), m_facade(this)
 {
   DBUG_ENTER("NdbEventImpl::NdbEventImpl");
-  DBUG_PRINT("info", ("this: %x", this));
+  DBUG_PRINT("info", ("this: %p", this));
   init();
   DBUG_VOID_RETURN;
 }
@@ -1128,7 +1128,7 @@ NdbEventImpl::NdbEventImpl(NdbDictionary::Event & f) :
   NdbDictObjectImpl(NdbDictionary::Object::TypeUndefined), m_facade(&f)
 {
   DBUG_ENTER("NdbEventImpl::NdbEventImpl");
-  DBUG_PRINT("info", ("this: %x", this));
+  DBUG_PRINT("info", ("this: %p", this));
   init();
   DBUG_VOID_RETURN;
 }
@@ -1147,7 +1147,7 @@ void NdbEventImpl::init()
 NdbEventImpl::~NdbEventImpl()
 {
   DBUG_ENTER("NdbEventImpl::~NdbEventImpl");
-  DBUG_PRINT("info", ("this: %x", this));
+  DBUG_PRINT("info", ("this: %p", this));
   for (unsigned i = 0; i < m_columns.size(); i++)
     delete  m_columns[i];
   if (m_tableImpl)
@@ -1176,7 +1176,7 @@ void
 NdbEventImpl::setTable(NdbTableImpl *tableImpl)
 {
   DBUG_ENTER("NdbEventImpl::setTable");
-  DBUG_PRINT("info", ("this: %x  tableImpl: %x", this, tableImpl));
+  DBUG_PRINT("info", ("this: %p  tableImpl: %p", this, tableImpl));
   DBUG_ASSERT(tableImpl->m_status != NdbDictionary::Object::Invalid);
   if (!m_tableImpl) 
     m_tableImpl = new NdbTableImpl();
