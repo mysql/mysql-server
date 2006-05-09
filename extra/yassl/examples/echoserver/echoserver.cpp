@@ -15,6 +15,8 @@
         args.argv = argv;
 
         echoserver_test(&args);
+        yaSSL_CleanUp();
+
         return args.return_code;
     }
 

@@ -2428,7 +2428,7 @@ void PositiveMultiply(Integer& product, const Integer& a, const Integer& b)
     product.reg_.CleanNew(RoundupSize(aSize + bSize));
     product.sign_ = Integer::POSITIVE;
 
-    WordBlock workspace(aSize + bSize);
+    AlignedWordBlock workspace(aSize + bSize);
     AsymmetricMultiply(product.reg_.get_buffer(), workspace.get_buffer(),
                        a.reg_.get_buffer(), aSize, b.reg_.get_buffer(), bSize);
 }
@@ -3375,7 +3375,7 @@ void PositiveDivide(Integer& remainder, Integer& quotient,
     quotient.reg_.CleanNew(RoundupSize(aSize-bSize+2));
     quotient.sign_ = Integer::POSITIVE;
 
-    WordBlock T(aSize+2*bSize+4);
+    AlignedWordBlock T(aSize+2*bSize+4);
     Divide(remainder.reg_.get_buffer(), quotient.reg_.get_buffer(),
            T.get_buffer(), a.reg_.get_buffer(), aSize, b.reg_.get_buffer(),
            bSize);
@@ -3595,7 +3595,7 @@ Integer Integer::InverseMod(const Integer &m) const
         return !u ? Zero() : (m*(*this-u)+1)/(*this);
     }
 
-    WordBlock T(m.reg_.size() * 4);
+    AlignedWordBlock T(m.reg_.size() * 4);
     Integer r((word)0, m.reg_.size());
     unsigned k = AlmostInverse(r.reg_.get_buffer(), T.get_buffer(),
                                reg_.get_buffer(), reg_.size(),
