@@ -17,8 +17,8 @@
 ## Process this file with automake to create Makefile.in
 
 EXTRA_DIST=	NOTES cacert.pem client-cert.pem client-key.pem \
-		client-req.pem run-client run-server server-cert.pem \
-		server-key.pem server-req.pem
+		run-client run-server server-cert.pem \
+		server-key.pem
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
