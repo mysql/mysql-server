@@ -510,6 +510,36 @@ page_zip_free(
 	return(ut_free(address));
 }
 
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+/* Set this variable in a debugger to enable
+excessive logging in page_zip_compress(). */
+ibool	page_zip_compress_dbg;
+
+/**************************************************************************
+Wrapper for deflate().  Log the operation if page_zip_compress_dbg is set. */
+static
+ibool
+page_zip_compress_deflate(
+/*======================*/
+	z_streamp	strm,	/* in/out: compressed stream for deflate() */
+	int		flush)	/* in: deflate() flushing method */
+{
+	int	status;
+	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
+		ut_print_buf(stderr, strm->next_in, strm->avail_in);
+	}
+	status = deflate(strm, flush);
+	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
+		fprintf(stderr, " -> %d\n", status);
+	}
+	return(status);
+}
+
+/* Redefine deflate(). */
+# undef deflate
+# define deflate page_zip_compress_deflate
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
 /**************************************************************************
 Compress a page. */
 
@@ -566,6 +596,14 @@ page_zip_compress(
 
 	/* The dense directory excludes the infimum and supremum records. */
 	n_dense = page_dir_get_n_heap((page_t*) page) - 2;
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
+		fprintf(stderr, "compress %p %p %lu %lu %lu\n",
+			(void*) page_zip, (void*) page,
+			page_is_leaf(page),
+			n_fields, n_dense);
+	}
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
 					>= page_zip->size)) {
 		return(FALSE);
