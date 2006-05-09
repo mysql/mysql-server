@@ -886,4 +886,9 @@ s1
 2
 3
 drop table t1;
+create table t1 (a int) engine=memory
+partition by key(a);
+insert into t1 values (1);
+create index inx1 on t1(a);
+drop table t1;
 End of 5.1 tests
