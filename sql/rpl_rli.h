@@ -309,15 +309,14 @@ typedef struct st_relay_log_info
 
   void cleanup_context(THD *, bool);
   void clear_tables_to_lock() {
-    TABLE_LIST *ptr= tables_to_lock;
-    while (ptr)
+    while (tables_to_lock)
     {
-      char *to_free= reinterpret_cast<char*>(ptr);
-      ptr= ptr->next_global;
+      char *to_free= reinterpret_cast<gptr>(tables_to_lock);
+      tables_to_lock= tables_to_lock->next_global;
+      tables_to_lock_count--;
       my_free(to_free, MYF(MY_WME));
     }
-    tables_to_lock= 0;
-    tables_to_lock_count= 0;
+    DBUG_ASSERT(tables_to_lock == NULL && tables_to_lock_count == 0);
   }
 
   time_t unsafe_to_stop_at;
