@@ -12698,6 +12698,17 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
   {
     if (!item->const_item() && !item->with_sum_func && !item->marker)
     {
+      /* 
+        Don't put duplicate columns from the SELECT list into the 
+        GROUP BY list.
+      */
+      ORDER *ord_iter;
+      for (ord_iter= group; ord_iter; ord_iter= ord_iter->next)
+        if ((*ord_iter->item)->eq(item, 1))
+          break;
+      if (ord_iter)
+        continue;
+      
       ORDER *ord=(ORDER*) thd->calloc(sizeof(ORDER));
       if (!ord)
 	return 0;
