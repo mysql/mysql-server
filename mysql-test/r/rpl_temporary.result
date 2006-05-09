@@ -103,3 +103,7 @@ select * from t1 /* must be 1 */;
 f
 1
 drop table t1;
+select * from t1;
+a
+1
+drop table t1;
