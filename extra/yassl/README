@@ -1,4 +1,37 @@
-yaSSL Release notes, version 1.2.2 (03/27/06)
+yaSSL Release notes, version 1.3.0 (04/26/06)
+
+
+    This release of yaSSL contains minor bug fixes, portability enhancements,
+    and libcurl support.
+
+See normal build instructions below under 1.0.6.
+
+
+--To build for libcurl on Linux, Solaris, *BSD, Mac OS X, or Cygwin:
+
+  To build for libcurl the library needs to be built without C++ globals since
+  the linker will be called in a C context, also libcurl configure will expect
+  OpenSSL library names so some symbolic links are created.
+
+    ./configure --enable-pure-c
+    make
+    make openssl-links
+
+    (then go to your libcurl home and tell libcurl about yaSSL)
+    ./configure --with-ssl=/yaSSL-HomeDir
+    make
+
+
+--To build for libcurl on Win32:
+
+    Simply add the yaSSL project as a dependency to libcurl, add 
+    yaSSL-Home\include and yaSSL-Home\include\openssl to the include list, and
+    define USE_SSLEAY and USE_OPENSSL
+
+    please email todd@yassl.com if you have any questions.
+    
+
+*******************yaSSL Release notes, version 1.2.2 (03/27/06)
 
 
     This release of yaSSL contains minor bug fixes and portability enhancements.

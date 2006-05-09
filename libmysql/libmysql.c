@@ -186,6 +186,7 @@ void STDCALL mysql_server_end()
     mysql_thread_end();
   finish_client_errs();
   free_charsets();
+  vio_end();
   mysql_client_init= org_my_init_done= 0;
 #ifdef EMBEDDED_SERVER
   if (stderror_file)

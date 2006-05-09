@@ -67,6 +67,8 @@ THREAD_RETURN YASSL_API server_test(void* args)
         args.argv = argv;
 
         server_test(&args);
+        yaSSL_CleanUp();
+
         return args.return_code;
     }
 
