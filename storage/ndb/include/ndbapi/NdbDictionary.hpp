@@ -798,6 +798,7 @@ public:
      * Get object status
      */
     virtual Object::Status getObjectStatus() const;
+    void setStatusInvalid() const;
 
     /**
      * Get object version
@@ -1734,6 +1735,7 @@ public:
      * @return 0 if successful otherwise -1.
      */
     int createIndex(const Index &index);
+    int createIndex(const Index &index, const Table &table);
 
     /**
      * Drop index with given name
@@ -1745,11 +1747,15 @@ public:
 		  const char * tableName);
     
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    void removeCachedTable(const Table *table);
+    void removeCachedIndex(const Index *index);
+    void invalidateTable(const Table *table);
     /**
      * Invalidate cached index object
      */
     void invalidateIndex(const char * indexName,
                          const char * tableName);
+    void invalidateIndex(const Index *index);
     /**
      * Force gcp and wait for gcp complete
      */
@@ -1801,6 +1807,15 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const Table * getTable(const char * name, void **data) const;
     void set_local_table_data_size(unsigned sz);
+
+    const Index * getIndexGlobal(const char * indexName,
+                                 const Table &ndbtab) const;
+    const Table * getTableGlobal(const char * tableName) const;
+    int alterTableGlobal(const Table &f, const Table &t);
+    int dropTableGlobal(const Table &ndbtab);
+    int dropIndexGlobal(const Index &index);
+    int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
+    int removeTableGlobal(const Table &ndbtab, int invalidate) const;
 #endif
   };
 };

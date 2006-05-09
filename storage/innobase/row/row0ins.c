@@ -28,6 +28,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "eval0eval.h"
 #include "data0data.h"
 #include "usr0sess.h"
+#include "buf0lru.h"
 
 #define	ROW_INS_PREV	1
 #define	ROW_INS_NEXT	2
@@ -139,7 +140,6 @@ row_ins_alloc_sys_fields(
 	mem_heap_t*	heap;
 	dict_col_t*	col;
 	dfield_t*	dfield;
-	ulint		len;
 	byte*		ptr;
 
 	row = node->row;
@@ -160,21 +160,6 @@ row_ins_alloc_sys_fields(
 	dfield_set_data(dfield, ptr, DATA_ROW_ID_LEN);
 
 	node->row_id_buf = ptr;
-
-	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-
-		/* 2. Fill in the dfield for mix id */
-
-		col = dict_table_get_sys_col(table, DATA_MIX_ID);
-
-		dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-
-		len = mach_dulint_get_compressed_size(table->mix_id);
-		ptr = mem_heap_alloc(heap, DATA_MIX_ID_LEN);
-
-		mach_dulint_write_compressed(ptr, table->mix_id);
-		dfield_set_data(dfield, ptr, len);
-	}
 
 	/* 3. Allocate buffer for trx id */
 
@@ -279,10 +264,17 @@ row_ins_sec_index_entry_by_modify(
 		}
 	} else {
 		ut_a(mode == BTR_MODIFY_TREE);
+		if (buf_LRU_buf_pool_running_out()) {
+
+			err = DB_LOCK_TABLE_FULL;
+
+			goto func_exit;
+		}
+
 		err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG, cursor,
 					&dummy_big_rec, update, 0, thr, mtr);
 	}
-
+func_exit:
 	mem_heap_free(heap);
 
 	return(err);
@@ -344,10 +336,16 @@ row_ins_clust_index_entry_by_modify(
 		}
 	} else {
 		ut_a(mode == BTR_MODIFY_TREE);
+		if (buf_LRU_buf_pool_running_out()) {
+
+			err = DB_LOCK_TABLE_FULL;
+
+			goto func_exit;
+		}
 		err = btr_cur_pessimistic_update(0, cursor, big_rec, update,
 								0, thr, mtr);
 	}
-
+func_exit:
 	mem_heap_free(heap);
 
 	return(err);
@@ -1882,7 +1880,6 @@ row_ins_duplicate_error_in_clust(
 				err = DB_DUPLICATE_KEY;
 				goto func_exit;
 			}
-			mem_heap_free(heap);
 		}
 
 		ut_a(!(cursor->index->type & DICT_CLUSTERED));
@@ -1891,6 +1888,9 @@ row_ins_duplicate_error_in_clust(
 
 	err = DB_SUCCESS;
 func_exit:
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
+	}
 	return(err);
 #else /* UNIV_HOTBACKUP */
 	/* This function depends on MySQL code that is not included in
@@ -2091,6 +2091,12 @@ row_ins_index_entry_low(
 					&insert_rec, &big_rec, thr, &mtr);
 		} else {
 			ut_a(mode == BTR_MODIFY_TREE);
+			if (buf_LRU_buf_pool_running_out()) {
+
+				err = DB_LOCK_TABLE_FULL;
+
+				goto function_exit;
+			}
 			err = btr_cur_pessimistic_insert(0, &cursor, entry,
 					&insert_rec, &big_rec, thr, &mtr);
 		}
@@ -2429,7 +2435,15 @@ row_ins_step(
 
 	/* If this is the first time this node is executed (or when
 	execution resumes after wait for the table IX lock), set an
-	IX lock on the table and reset the possible select node. */
+	IX lock on the table and reset the possible select node. MySQL's
+	partitioned table code may also call an insert within the same
+	SQL statement AFTER it has used this table handle to do a search.
+	This happens, for example, when a row update moves it to another
+	partition. In that case, we have already set the IX lock on the
+	table during the search operation, and there is no need to set
+	it again here. But we must write trx->id to node->trx_id_buf. */
+
+	trx_write_trx_id(node->trx_id_buf, trx->id);
 
 	if (node->state == INS_NODE_SET_IX_LOCK) {
 
@@ -2437,12 +2451,10 @@ row_ins_step(
 		its transaction, or it has been committed: */
 
 		if (UT_DULINT_EQ(trx->id, node->trx_id)) {
-			/* No need to do IX-locking or write trx id to buf */
+			/* No need to do IX-locking */
 
 			goto same_trx;
 		}
-
-		trx_write_trx_id(node->trx_id_buf, trx->id);
 
 		err = lock_table(0, node->table, LOCK_IX, thr);
 

@@ -351,9 +351,13 @@
 #pragma implementation                          // gcc: Class implementation
 #endif
 
+#ifdef WITH_FEDERATED_STORAGE_ENGINE
 #include "ha_federated.h"
 
 #include "m_string.h"
+
+#include <mysql/plugin.h>
+
 /* Variables for federated share methods */
 static HASH federated_open_tables;              // To track open tables
 pthread_mutex_t federated_mutex;                // To init the hash
@@ -366,11 +370,14 @@ static int federated_rollback(THD *thd, bool all);
 
 /* Federated storage engine handlerton */
 
+static const char federated_hton_name[]= "FEDERATED";
+static const char federated_hton_comment[]= "Federated MySQL storage engine";
+
 handlerton federated_hton= {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "FEDERATED",
+  federated_hton_name,
   SHOW_OPTION_YES,
-  "Federated MySQL storage engine", 
+  federated_hton_comment, 
   DB_TYPE_FEDERATED_DB,
   federated_db_init,
   0,       /* slot */
@@ -2804,3 +2811,18 @@ int ha_federated::execute_simple_query(const char *query, int len)
   DBUG_RETURN(0);
 }
 
+
+mysql_declare_plugin(federated)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &federated_hton,
+  federated_hton_name,
+  "Patrick Galbraith and Brian Aker, MySQL AB",
+  federated_hton_comment,
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+}
+mysql_declare_plugin_end;
+
+#endif

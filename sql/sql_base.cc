@@ -288,13 +288,13 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
 
   if (!(share= alloc_table_share(table_list, key, key_length)))
   {
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
     pthread_mutex_unlock(&LOCK_open);
 #endif
     DBUG_RETURN(0);
   }
 
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
   // We need a write lock to be able to add a new entry
   pthread_mutex_unlock(&LOCK_open);
   pthread_mutex_lock(&LOCK_open);
@@ -331,19 +331,19 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
 
   if (my_hash_insert(&table_def_cache, (byte*) share))
   {
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
     pthread_mutex_unlock(&LOCK_open);    
     (void) pthread_mutex_unlock(&share->mutex);
 #endif
     free_table_share(share);
     DBUG_RETURN(0);				// return error
   }
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
   pthread_mutex_unlock(&LOCK_open);
 #endif
   if (open_table_def(thd, share, db_flags))
   {
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
     /*
       No such table or wrong table definition file
       Lock first the table cache and then the mutex.
@@ -372,7 +372,7 @@ found:
 
   /* We must do a lock to ensure that the structure is initialized */
   (void) pthread_mutex_lock(&share->mutex);
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
   pthread_mutex_unlock(&LOCK_open);
 #endif
   if (share->error)
@@ -540,7 +540,7 @@ void release_table_share(TABLE_SHARE *share, enum release_type type)
   DBUG_VOID_RETURN;
 
 
-#ifdef NOT_YET
+#ifdef WAITING_FOR_TABLE_DEF_CACHE_STAGE_3
   if (to_be_deleted)
   {
     /*
@@ -1069,7 +1069,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
       handled either before writing a query log event (inside
       binlog_query()) or when preparing a pending event.
      */
-    thd->binlog_flush_pending_rows_event(true);
+    thd->binlog_flush_pending_rows_event(TRUE);
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
@@ -1167,16 +1167,26 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
 }
 
 
+/* close_temporary_tables' internal, 4 is due to uint4korr definition */
+static inline uint  tmpkeyval(THD *thd, TABLE *table)
+{
+  return uint4korr(table->s->table_cache_key.str + table->s->table_cache_key.length - 4);
+}
+
+
 /*
   Close all temporary tables created by 'CREATE TEMPORARY TABLE' for thread
+  creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread 
 */
 
 void close_temporary_tables(THD *thd)
 {
-  TABLE *table,*next;
-  char *query, *end;
-  uint query_buf_size; 
-  bool found_user_tables = 0;
+  TABLE *next,
+    *prev_table /* prev link is not maintained in TABLE's double-linked list */,
+    *table;
+  char *query= (gptr) 0, *end;
+  uint query_buf_size, max_names_len; 
+  bool found_user_tables;
 
   if (!thd->temporary_tables)
     return;
@@ -1184,50 +1194,123 @@ void close_temporary_tables(THD *thd)
   LINT_INIT(end);
   query_buf_size= 50;   // Enough for DROP ... TABLE IF EXISTS
 
-  for (table=thd->temporary_tables ; table ; table=table->next)
+  /* 
+     insertion sort of temp tables by pseudo_thread_id to build ordered list 
+     of sublists of equal pseudo_thread_id
+  */
+  for (prev_table= thd->temporary_tables, 
+         table= prev_table->next,
+         found_user_tables= (prev_table->s->table_name.str[0] != '#'); 
+       table;
+       prev_table= table, table= table->next)
   {
+    TABLE *prev_sorted /* same as for prev_table */,
+      *sorted;
     /*
-      We are going to add 4 ` around the db/table names, so 1 does not look
-      enough; indeed it is enough, because table->table_cache_key.length is
-      greater (by 8, because of server_id and thread_id) than db||table.
+      table not created directly by the user is moved to the tail. 
+      Fixme/todo: nothing (I checked the manual) prevents user to create temp
+      with `#' 
     */
-    query_buf_size+= table->s->table_cache_key.length+1;
-  }
-
-  if ((query = alloc_root(thd->mem_root, query_buf_size)))
-    // Better add "if exists", in case a RESET MASTER has been done
-    end=strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ");
-
-  for (table=thd->temporary_tables ; table ; table=next)
-  {
-    if (query) // we might be out of memory, but this is not fatal
+    if (table->s->table_name.str[0] == '#')
+      continue;
+    else 
     {
-      // skip temporary tables not created directly by the user
-      if (table->s->table_name.str[0] != '#')
-	found_user_tables = 1;
-      end= strxmov(end, "`",table->s->db.str, "`.`",
-                   table->s->table_name.str, "`,", NullS);
+      found_user_tables = 1;
     }
-    next=table->next;
-    close_temporary(table, 1, 1);
-  }
-  if (query && found_user_tables && mysql_bin_log.is_open() &&
-      !thd->current_stmt_binlog_row_based) // CREATE TEMP TABLE not binlogged if row-based
+    for (prev_sorted= NULL, sorted= thd->temporary_tables; sorted != table; 
+         prev_sorted= sorted, sorted= sorted->next)
+    {
+      if (sorted->s->table_name.str[0] == '#' || tmpkeyval(thd, sorted) > tmpkeyval(thd, table))
+      {
+        /* move into the sorted part of the list from the unsorted */
+        prev_table->next= table->next;
+        table->next= sorted;
+        if (prev_sorted) 
+        {
+          prev_sorted->next= table;
+        }
+        else
+        {
+          thd->temporary_tables= table;
+        }
+        table= prev_table;
+        break;
+      }
+    }
+  }  
+  /* 
+     calc query_buf_size as max per sublists, one sublist per pseudo thread id.
+     Also stop at first occurence of `#'-named table that starts 
+     all implicitly created temp tables
+  */
+  for (max_names_len= 0, table=thd->temporary_tables; 
+       table && table->s->table_name.str[0] != '#';
+       table=table->next)
   {
-    /* The -1 is to remove last ',' */
-    thd->clear_error();
-    Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0, FALSE);
-    /*
-      Imagine the thread had created a temp table, then was doing a SELECT, and
-      the SELECT was killed. Then it's not clever to mark the statement above
-      as "killed", because it's not really a statement updating data, and there
-      are 99.99% chances it will succeed on slave.
-      If a real update (one updating a persistent table) was killed on the
-      master, then this real update will be logged with error_code=killed,
-      rightfully causing the slave to stop.
-    */
-    qinfo.error_code= 0;
-    mysql_bin_log.write(&qinfo);
+    uint tmp_names_len;
+    for (tmp_names_len= table->s->table_cache_key.length + 1;
+         table->next && table->s->table_name.str[0] != '#' &&
+           tmpkeyval(thd, table) == tmpkeyval(thd, table->next);
+         table=table->next)
+    {
+      /*
+        We are going to add 4 ` around the db/table names, so 1 might not look
+        enough; indeed it is enough, because table->s->table_cache_key.length is
+        greater (by 8, because of server_id and thread_id) than db||table.
+      */
+      tmp_names_len += table->next->s->table_cache_key.length + 1;
+    }
+    if (tmp_names_len > max_names_len) max_names_len= tmp_names_len;
+  }
+  
+  /* allocate */
+  if (found_user_tables && mysql_bin_log.is_open() &&
+      !thd->current_stmt_binlog_row_based &&
+      (query = alloc_root(thd->mem_root, query_buf_size+= max_names_len)))
+    // Better add "if exists", in case a RESET MASTER has been done
+    end= strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ");
+
+  /* scan sorted tmps to generate sequence of DROP */
+  for (table=thd->temporary_tables; table; table= next)
+  {
+    if (query // we might be out of memory, but this is not fatal 
+        && table->s->table_name.str[0] != '#') 
+    {
+      char *end_cur;
+      /* Set pseudo_thread_id to be that of the processed table */
+      thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
+      /* Loop forward through all tables within the sublist of
+         common pseudo_thread_id to create single DROP query */
+      for (end_cur= end;
+           table && table->s->table_name.str[0] != '#' &&
+             tmpkeyval(thd, table) == thd->variables.pseudo_thread_id;
+           table= next)
+      {
+        end_cur= strxmov(end_cur, "`", table->s->db.str, "`.`",
+                      table->s->table_name.str, "`,", NullS);
+        next= table->next;
+        close_temporary(table, 1, 1);
+      }
+      thd->clear_error();
+      /* The -1 is to remove last ',' */
+      Query_log_event qinfo(thd, query, (ulong)(end_cur - query) - 1, 0, FALSE);
+      /*
+        Imagine the thread had created a temp table, then was doing a SELECT,
+        and the SELECT was killed. Then it's not clever to mark the statement
+        above as "killed", because it's not really a statement updating data,
+        and there are 99.99% chances it will succeed on slave.  If a real update
+        (one updating a persistent table) was killed on the master, then this
+        real update will be logged with error_code=killed, rightfully causing
+        the slave to stop.
+      */
+      qinfo.error_code= 0;
+      mysql_bin_log.write(&qinfo);
+    }
+    else 
+    {
+      next= table->next;
+      close_temporary(table, 1, 1);
+    }
   }
   thd->temporary_tables=0;
 }
@@ -6140,9 +6223,8 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
     abort_and_upgrade_lock()
     lpt                           Parameter passing struct
     All parameters passed through the ALTER_PARTITION_PARAM_TYPE object
-  RETURN VALUES
-    TRUE                          Failure
-    FALSE                         Success
+  RETURN VALUE
+    0
   DESCRIPTION
     Remember old lock level (for possible downgrade later on), abort all
     waiting threads and ensure that all keeping locks currently are
@@ -6156,23 +6238,17 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
     old_lock_level                Old lock level
 */
 
-bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
+int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   uint flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
-  int error= FALSE;
   DBUG_ENTER("abort_and_upgrade_locks");
 
   lpt->old_lock_type= lpt->table->reginfo.lock_type;
   VOID(pthread_mutex_lock(&LOCK_open));
   mysql_lock_abort(lpt->thd, lpt->table, TRUE);
   VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags));
-  if (lpt->thd->killed)
-  {
-    lpt->thd->no_warnings_for_error= 0;
-    error= TRUE;
-  }
   VOID(pthread_mutex_unlock(&LOCK_open));
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
 
 

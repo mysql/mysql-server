@@ -109,7 +109,7 @@ int runCreateTheTable(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
 
   // Try to create table in db
-  if (pTab->createTableInDb(pNdb) != 0){
+  if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0){
     return NDBT_FAILED;
   }
 
@@ -151,7 +151,7 @@ int runCreateTableWhenDbIsFull(NDBT_Context* ctx, NDBT_Step* step){
     }
 
     // Try to create table in db
-    if (pTab->createTableInDb(pNdb) == 0){
+    if (NDBT_Tables::createTable(pNdb, pTab->getName()) == 0){
       result = NDBT_FAILED;
     }
 
@@ -203,7 +203,7 @@ int runCreateAndDrop(NDBT_Context* ctx, NDBT_Step* step){
 
     ndbout << i << ": ";    
     // Try to create table in db
-    if (pTab->createTableInDb(pNdb) != 0){
+    if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0){
       return NDBT_FAILED;
     }
 
@@ -254,7 +254,8 @@ int runCreateAndDropWithData(NDBT_Context* ctx, NDBT_Step* step){
   while (i < loops){
     ndbout << i << ": ";
     // Try to create table in db
-    if (pTab->createTableInDb(pNdb) != 0){
+    
+    if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0){
       return NDBT_FAILED;
     }
 
@@ -336,7 +337,7 @@ int runCreateAndDropDuring(NDBT_Context* ctx, NDBT_Step* step){
     Ndb* pNdb = GETNDB(step);
     g_debug << "Creating table" << endl;
 
-    if (pTab->createTableInDb(pNdb) != 0){
+    if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0){
       g_err << "createTableInDb failed" << endl;
       result =  NDBT_FAILED;
       continue;
@@ -356,7 +357,6 @@ int runCreateAndDropDuring(NDBT_Context* ctx, NDBT_Step* step){
     NdbSleep_MilliSleep(3000);
 
     g_debug << "Dropping table" << endl;
-
 
     if (pNdb->getDictionary()->dropTable(pTab2->getName()) != 0){
       g_err << "Failed to drop "<<pTab2->getName()<<" in db" << endl;

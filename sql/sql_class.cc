@@ -223,6 +223,9 @@ THD::THD()
   cuted_fields= sent_row_count= 0L;
   limit_found_rows= 0;
   statement_id_counter= 0UL;
+#ifdef ERROR_INJECT_SUPPORT
+  error_inject_value= 0UL;
+#endif
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
   start_time=(time_t) 0;
@@ -447,7 +450,7 @@ THD::~THD()
     net_end(&net);
   }
 #endif
-  stmt_map.destroy();                     /* close all prepared statements */
+  stmt_map.reset();                     /* close all prepared statements */
   DBUG_ASSERT(lock_info.n_cursors == 0);
   if (!cleanup_done)
     cleanup();
@@ -1769,21 +1772,72 @@ Statement_map::Statement_map() :
 }
 
 
-int Statement_map::insert(Statement *statement)
+/*
+  Insert a new statement to the thread-local statement map.
+
+  DESCRIPTION
+    If there was an old statement with the same name, replace it with the
+    new one. Otherwise, check if max_prepared_stmt_count is not reached yet,
+    increase prepared_stmt_count, and insert the new statement. It's okay
+    to delete an old statement and fail to insert the new one.
+
+  POSTCONDITIONS
+    All named prepared statements are also present in names_hash.
+    Statement names in names_hash are unique.
+    The statement is added only if prepared_stmt_count < max_prepard_stmt_count
+    last_found_statement always points to a valid statement or is 0
+
+  RETURN VALUE
+    0  success
+    1  error: out of resources or max_prepared_stmt_count limit has been
+       reached. An error is sent to the client, the statement is deleted.
+*/
+
+int Statement_map::insert(THD *thd, Statement *statement)
 {
-  int res= my_hash_insert(&st_hash, (byte *) statement);
-  if (res)
-    return res;
-  if (statement->name.str)
+  if (my_hash_insert(&st_hash, (byte*) statement))
   {
-    if ((res= my_hash_insert(&names_hash, (byte*)statement)))
-    {
-      hash_delete(&st_hash, (byte*)statement);
-      return res;
-    }
+    /*
+      Delete is needed only in case of an insert failure. In all other
+      cases hash_delete will also delete the statement.
+    */
+    delete statement;
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    goto err_st_hash;
   }
+  if (statement->name.str && my_hash_insert(&names_hash, (byte*) statement))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    goto err_names_hash;
+  }
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  /*
+    We don't check that prepared_stmt_count is <= max_prepared_stmt_count
+    because we would like to allow to lower the total limit
+    of prepared statements below the current count. In that case
+    no new statements can be added until prepared_stmt_count drops below
+    the limit.
+  */
+  if (prepared_stmt_count >= max_prepared_stmt_count)
+  {
+    pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+    my_error(ER_MAX_PREPARED_STMT_COUNT_REACHED, MYF(0),
+             max_prepared_stmt_count);
+    goto err_max;
+  }
+  prepared_stmt_count++;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+
   last_found_statement= statement;
-  return res;
+  return 0;
+
+err_max:
+  if (statement->name.str)
+    hash_delete(&names_hash, (byte*) statement);
+err_names_hash:
+  hash_delete(&st_hash, (byte*) statement);
+err_st_hash:
+  return 1;
 }
 
 
@@ -1796,6 +1850,47 @@ void Statement_map::close_transient_cursors()
 #endif
 }
 
+
+void Statement_map::erase(Statement *statement)
+{
+  if (statement == last_found_statement)
+    last_found_statement= 0;
+  if (statement->name.str)
+    hash_delete(&names_hash, (byte *) statement);
+
+  hash_delete(&st_hash, (byte *) statement);
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  DBUG_ASSERT(prepared_stmt_count > 0);
+  prepared_stmt_count--;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+}
+
+
+void Statement_map::reset()
+{
+  /* Must be first, hash_free will reset st_hash.records */
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
+  prepared_stmt_count-= st_hash.records;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+
+  my_hash_reset(&names_hash);
+  my_hash_reset(&st_hash);
+  last_found_statement= 0;
+}
+
+
+Statement_map::~Statement_map()
+{
+  /* Must go first, hash_free will reset st_hash.records */
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
+  prepared_stmt_count-= st_hash.records;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+
+  hash_free(&names_hash);
+  hash_free(&st_hash);
+}
 
 bool select_dumpvar::send_data(List<Item> &items)
 {
@@ -1979,7 +2074,7 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   The following things is done
   - Disable binary logging for the duration of the statement
   - Disable multi-result-sets for the duration of the statement
-  - Value of last_insert_id() is reset and restored
+  - Value of last_insert_id() is saved and restored
   - Value set by 'SET INSERT_ID=#' is reset and restored
   - Value for found_rows() is reset and restored
   - examined_row_count is added to the total
@@ -1991,6 +2086,8 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
     We reset examined_row_count and cuted_fields and add these to the
     result to ensure that if we have a bug that would reset these within
     a function, we are not loosing any rows from the main statement.
+
+    We do not reset value of last_insert_id().
 ****************************************************************************/
 
 void THD::reset_sub_statement_state(Sub_statement_state *backup,
@@ -2017,7 +2114,6 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;
-  last_insert_id= 0;
   next_insert_id= 0;
   insert_id_used= 0;
   examined_row_count= 0;
@@ -2592,8 +2688,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
   DBUG_ENTER("THD::binlog_query");
   DBUG_ASSERT(query && mysql_bin_log.is_open());
 
-  switch (qtype)
-  {
+  switch (qtype) {
   case THD::MYSQL_QUERY_TYPE:
     /*
       Using this query type is a conveniece hack, since we have been

@@ -1170,9 +1170,9 @@ ibuf_dummy_index_free(
 	dict_index_t*	index)	/* in: dummy index */
 {
 	dict_table_t*	table = index->table;
-	mem_heap_free(index->heap);
-	mutex_free(&(table->autoinc_mutex));
-	mem_heap_free(table->heap);
+
+	dict_mem_index_free(index);
+	dict_mem_table_free(table);
 }
 
 /*************************************************************************

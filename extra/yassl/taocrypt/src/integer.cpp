@@ -114,7 +114,7 @@ CPP_TYPENAME AllocatorBase<T>::pointer AlignedAllocator<T>::allocate(
         assert(IsAlignedOn(p, 16));
         return (T*)p;
     }
-    return new (tc) T[n];
+    return NEW_TC T[n];
 }
 
 
@@ -555,7 +555,7 @@ static word AtomicInverseModPower2(word A)
     for (unsigned i=3; i<WORD_BITS; i*=2)
         R = R*(2-R*A);
 
-    assert(R*A==1);
+    assert(word(R*A)==1);
     return R;
 }
 
@@ -568,21 +568,21 @@ public:
     static word Add(word *C, const word *A, const word *B, unsigned int N);
     static word Subtract(word *C, const word *A, const word*B, unsigned int N);
 
-    static inline void Multiply2(word *C, const word *A, const word *B);
-    static inline word Multiply2Add(word *C, const word *A, const word *B);
+    static void Multiply2(word *C, const word *A, const word *B);
+    static word Multiply2Add(word *C, const word *A, const word *B);
     static void Multiply4(word *C, const word *A, const word *B);
     static void Multiply8(word *C, const word *A, const word *B);
-    static inline unsigned int MultiplyRecursionLimit() {return 8;}
+    static unsigned int MultiplyRecursionLimit() {return 8;}
 
-    static inline void Multiply2Bottom(word *C, const word *A, const word *B);
+    static void Multiply2Bottom(word *C, const word *A, const word *B);
     static void Multiply4Bottom(word *C, const word *A, const word *B);
     static void Multiply8Bottom(word *C, const word *A, const word *B);
-    static inline unsigned int MultiplyBottomRecursionLimit() {return 8;}
+    static unsigned int MultiplyBottomRecursionLimit() {return 8;}
 
     static void Square2(word *R, const word *A);
     static void Square4(word *R, const word *A);
     static void Square8(word *R, const word *A) {assert(false);}
-    static inline unsigned int SquareRecursionLimit() {return 4;}
+    static unsigned int SquareRecursionLimit() {return 4;}
 };
 
 word Portable::Add(word *C, const word *A, const word *B, unsigned int N)
@@ -668,7 +668,7 @@ void Portable::Multiply2(word *C, const word *A, const word *B)
     C[3] = t.GetHighHalf();
 }
 
-inline void Portable::Multiply2Bottom(word *C, const word *A, const word *B)
+void Portable::Multiply2Bottom(word *C, const word *A, const word *B)
 {
     DWord t = DWord::Multiply(A[0], B[0]);
     C[0] = t.GetLowHalf();
@@ -2709,19 +2709,32 @@ unsigned int Integer::Encode(byte* output, unsigned int outputLen,
 }
 
 
-const Integer Integer::zero_;
+static Integer* zero = 0;
 
 const Integer &Integer::Zero()
 {
-    return zero_;
+    if (!zero)
+        zero = NEW_TC Integer;
+    return *zero;
 }
 
 
-const Integer Integer::one_(1,2);
+static Integer* one = 0;
 
 const Integer &Integer::One()
 {
-    return one_;
+    if (!one)
+        one = NEW_TC Integer(1,2);
+    return *one;
+}
+
+
+// Clean up static singleton holders, not a leak, but helpful to have gone
+// when checking for leaks
+void CleanUp()
+{
+    tcDelete(one);
+    tcDelete(zero);
 }
 
 

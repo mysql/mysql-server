@@ -21,31 +21,51 @@
 int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
 {
   int error= HA_ADMIN_NOT_IMPLEMENTED;
-  handlerton *hton;
+  const handlerton *hton= ts_info->storage_engine;
 
   DBUG_ENTER("mysql_alter_tablespace");
   /*
     If the user haven't defined an engine, this will fallback to using the
     default storage engine.
   */
-  hton= ha_resolve_by_legacy_type(thd, ts_info->storage_engine);
-
-  if (hton->state == SHOW_OPTION_YES &&
-      hton->alter_tablespace && (error= hton->alter_tablespace(thd, ts_info)))
+  if (hton == NULL || hton == &default_hton || hton->state != SHOW_OPTION_YES)
   {
-    if (error == HA_ADMIN_NOT_IMPLEMENTED)
+    hton= ha_resolve_by_legacy_type(thd, DB_TYPE_DEFAULT);
+    if (ts_info->storage_engine != 0)
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_WARN_USING_OTHER_HANDLER,
+                          ER(ER_WARN_USING_OTHER_HANDLER),
+                          hton->name,
+                          ts_info->tablespace_name
+                          ? ts_info->tablespace_name : ts_info->logfile_group_name);
+  }
+
+  if (hton->alter_tablespace)
+  {
+    if ((error= hton->alter_tablespace(thd, ts_info)))
     {
-      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "");
+      if (error == HA_ADMIN_NOT_IMPLEMENTED)
+      {
+        my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "");
+      }
+      else if (error == 1)
+      {
+        DBUG_RETURN(1);
+      }
+      else
+      {
+        my_error(error, MYF(0));
+      }
+      DBUG_RETURN(error);
     }
-    else if (error == 1)
-    {
-      DBUG_RETURN(1);
-    }
-    else
-    {
-      my_error(error, MYF(0));
-    }
-    DBUG_RETURN(error);
+  }
+  else
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                        hton->name,
+                        "TABLESPACE or LOGFILE GROUP");
   }
   if (mysql_bin_log.is_open())
   {

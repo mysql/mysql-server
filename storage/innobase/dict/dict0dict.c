@@ -243,11 +243,10 @@ dict_remove_db_name(
 	const char*	name)	/* in: table name in the form
 				dbname '/' tablename */
 {
-	const char*	s;
-	s = strchr(name, '/');
+	const char*	s = strchr(name, '/');
 	ut_a(s);
-	if (s) s++;
-	return(s);
+
+	return(s + 1);
 }
 
 /************************************************************************
@@ -658,6 +657,19 @@ dict_table_get_nth_col_pos(
 }
 
 /************************************************************************
+Check whether the table uses the compact page format. */
+
+ibool
+dict_table_is_comp_noninline(
+/*=========================*/
+					/* out: TRUE if table uses the
+					compact page format */
+	const dict_table_t*	table)	/* in: table */
+{
+	return(dict_table_is_comp(table));
+}
+
+/************************************************************************
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns. */
 
@@ -868,13 +880,6 @@ dict_table_add_to_cache(
 		HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold, table2,
 				(ut_dulint_cmp(table2->id, table->id) == 0));
 		ut_a(table2 == NULL);
-	}
-
-	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-
-		table->mix_id_len = mach_dulint_get_compressed_size(
-								table->mix_id);
-		mach_dulint_write_compressed(table->mix_id_buf, table->mix_id);
 	}
 
 	/* Add the columns to the column hash table */
@@ -1251,15 +1256,13 @@ dict_table_remove_from_cache(
 	/* Remove table from LRU list of tables */
 	UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
 
-	mutex_free(&(table->autoinc_mutex));
-
 	size = mem_heap_get_size(table->heap);
 
 	ut_ad(dict_sys->size >= size);
 
 	dict_sys->size -= size;
 
-	mem_heap_free(table->heap);
+	dict_mem_table_free(table);
 }
 
 /**************************************************************************
@@ -1380,6 +1383,38 @@ dict_col_reposition_in_cache(
 	HASH_INSERT(dict_col_t, hash, dict_sys->col_hash, fold, col);
 }
 
+/********************************************************************
+If the given column name is reserved for InnoDB system columns, return
+TRUE. */
+
+ibool
+dict_col_name_is_reserved(
+/*======================*/
+				/* out: TRUE if name is reserved */
+	const char*	name)	/* in: column name */
+{
+	/* This check reminds that if a new system column is added to
+	the program, it should be dealt with here. */
+#if DATA_N_SYS_COLS != 4
+#error "DATA_N_SYS_COLS != 4"
+#endif
+
+	static const char*	reserved_names[] = {
+		"DB_ROW_ID", "DB_TRX_ID", "DB_ROLL_PTR", "DB_MIX_ID"
+	};
+
+	ulint			i;
+
+	for (i = 0; i < UT_ARR_SIZE(reserved_names); i++) {
+		if (strcmp(name, reserved_names[i]) == 0) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+
 /**************************************************************************
 Adds an index to the dictionary cache. */
 
@@ -1394,7 +1429,6 @@ dict_index_add_to_cache(
 {
 	dict_index_t*	new_index;
 	dict_tree_t*	tree;
-	dict_table_t*	cluster;
 	dict_field_t*	field;
 	ulint		n_ord;
 	ibool		success;
@@ -1468,21 +1502,11 @@ dict_index_add_to_cache(
 		dict_field_get_col(field)->ord_part++;
 	}
 
-	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-		/* The index tree is found from the cluster object */
+	/* Create an index tree memory object for the index */
+	tree = dict_tree_create(new_index, page_no);
+	ut_ad(tree);
 
-		cluster = dict_table_get_low(table->cluster_name);
-
-		tree = dict_index_get_tree(
-					UT_LIST_GET_FIRST(cluster->indexes));
-		new_index->tree = tree;
-	} else {
-		/* Create an index tree memory object for the index */
-		tree = dict_tree_create(new_index, page_no);
-		ut_ad(tree);
-
-		new_index->tree = tree;
-	}
+	new_index->tree = tree;
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
@@ -1500,7 +1524,7 @@ dict_index_add_to_cache(
 	}
 
 	/* Add the index to the list of indexes stored in the tree */
-	UT_LIST_ADD_LAST(tree_indexes, tree->tree_indexes, new_index);
+	tree->tree_index = new_index;
 
 	/* If the dictionary cache grows too big, trim the table LRU list */
 
@@ -1532,7 +1556,7 @@ dict_index_remove_from_cache(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_ad(UT_LIST_GET_LEN((index->tree)->tree_indexes) == 1);
+	ut_ad(index->tree->tree_index);
 	dict_tree_free(index->tree);
 
 	/* Decrement the ord_part counts in columns which are ordering */
@@ -1553,7 +1577,7 @@ dict_index_remove_from_cache(
 
 	dict_sys->size -= size;
 
-	mem_heap_free(index->heap);
+	dict_mem_index_free(index);
 }
 
 /***********************************************************************
@@ -1699,8 +1723,6 @@ dict_table_copy_types(
 	dtype_t*	type;
 	ulint		i;
 
-	ut_ad(!(table->type & DICT_UNIVERSAL));
-
 	for (i = 0; i < dtuple_get_n_fields(tuple); i++) {
 
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
@@ -1749,22 +1771,8 @@ dict_index_build_internal_clust(
 
 	new_index->id = index->id;
 
-	if (table->type != DICT_TABLE_ORDINARY) {
-		/* The index is mixed: copy common key prefix fields */
-
-		dict_index_copy(new_index, index, 0, table->mix_len);
-
-		/* Add the mix id column */
-		dict_index_add_col(new_index,
-			  dict_table_get_sys_col(table, DATA_MIX_ID), 0);
-
-		/* Copy the rest of fields */
-		dict_index_copy(new_index, index, table->mix_len,
-							index->n_fields);
-	} else {
-		/* Copy the fields of index */
-		dict_index_copy(new_index, index, 0, index->n_fields);
-	}
+	/* Copy the fields of index */
+	dict_index_copy(new_index, index, 0, index->n_fields);
 
 	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
 		/* No fixed number of fields determines an entry uniquely */
@@ -3641,7 +3649,7 @@ dict_tree_create(
 
 	tree->id = index->id;
 
-	UT_LIST_INIT(tree->tree_indexes);
+	tree->tree_index = NULL;
 
 	tree->magic_n = DICT_TREE_MAGIC_N;
 
@@ -3667,135 +3675,7 @@ dict_tree_free(
 	mem_free(tree);
 }
 
-/**************************************************************************
-In an index tree, finds the index corresponding to a record in the tree. */
-UNIV_INLINE
-dict_index_t*
-dict_tree_find_index_low(
-/*=====================*/
-				/* out: index */
-	dict_tree_t*	tree,	/* in: index tree */
-	rec_t*		rec)	/* in: record for which to find correct
-				index */
-{
-	dict_index_t*	index;
-	dict_table_t*	table;
-	dulint		mix_id;
-	ulint		len;
-
-	index = UT_LIST_GET_FIRST(tree->tree_indexes);
-	ut_ad(index);
-	table = index->table;
-
-	if ((index->type & DICT_CLUSTERED)
-			&& UNIV_UNLIKELY(table->type != DICT_TABLE_ORDINARY)) {
-
-		/* Get the mix id of the record */
-		ut_a(!dict_table_is_comp(table));
-
-		mix_id = mach_dulint_read_compressed(
-			rec_get_nth_field_old(rec, table->mix_len, &len));
-
-		while (ut_dulint_cmp(table->mix_id, mix_id) != 0) {
-
-			index = UT_LIST_GET_NEXT(tree_indexes, index);
-			table = index->table;
-			ut_ad(index);
-		}
-	}
-
-	return(index);
-}
-
-/**************************************************************************
-In an index tree, finds the index corresponding to a record in the tree. */
-
-dict_index_t*
-dict_tree_find_index(
-/*=================*/
-				/* out: index */
-	dict_tree_t*	tree,	/* in: index tree */
-	rec_t*		rec)	/* in: record for which to find correct
-				index */
-{
-	dict_index_t*	index;
-
-	index = dict_tree_find_index_low(tree, rec);
-
-	return(index);
-}
-
-/**************************************************************************
-In an index tree, finds the index corresponding to a dtuple which is used
-in a search to a tree. */
-
-dict_index_t*
-dict_tree_find_index_for_tuple(
-/*===========================*/
-				/* out: index; NULL if the tuple does not
-				contain the mix id field in a mixed tree */
-	dict_tree_t*	tree,	/* in: index tree */
-	dtuple_t*	tuple)	/* in: tuple for which to find index */
-{
-	dict_index_t*	index;
-	dict_table_t*	table;
-	dulint		mix_id;
-
-	ut_ad(dtuple_check_typed(tuple));
-
-	if (UT_LIST_GET_LEN(tree->tree_indexes) == 1) {
-
-		return(UT_LIST_GET_FIRST(tree->tree_indexes));
-	}
-
-	index = UT_LIST_GET_FIRST(tree->tree_indexes);
-	ut_ad(index);
-	table = index->table;
-
-	if (dtuple_get_n_fields(tuple) <= table->mix_len) {
-
-		return(NULL);
-	}
-
-	/* Get the mix id of the record */
-
-	mix_id = mach_dulint_read_compressed(
-			dfield_get_data(
-				dtuple_get_nth_field(tuple, table->mix_len)));
-
-	while (ut_dulint_cmp(table->mix_id, mix_id) != 0) {
-
-		index = UT_LIST_GET_NEXT(tree_indexes, index);
-		table = index->table;
-		ut_ad(index);
-	}
-
-	return(index);
-}
-
-/***********************************************************************
-Checks if a table which is a mixed cluster member owns a record. */
-
-ibool
-dict_is_mixed_table_rec(
-/*====================*/
-				/* out: TRUE if the record belongs to this
-				table */
-	dict_table_t*	table,	/* in: table in a mixed cluster */
-	rec_t*		rec)	/* in: user record in the clustered index */
-{
-	byte*	mix_id_field;
-	ulint	len;
-
-	ut_ad(!dict_table_is_comp(table));
-
-	mix_id_field = rec_get_nth_field_old(rec,
-					table->mix_len, &len);
-
-	return(len == table->mix_id_len
-		&& !ut_memcmp(table->mix_id_buf, mix_id_field, len));
-}
-
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer. */
@@ -3807,19 +3687,14 @@ dict_tree_check_search_tuple(
 	dict_tree_t*	tree,	/* in: index tree */
 	dtuple_t*	tuple)	/* in: tuple used in a search */
 {
-	dict_index_t*	index;
+	dict_index_t*	index	= tree->tree_index;
 
-	index = dict_tree_find_index_for_tuple(tree, tuple);
-
-	if (index == NULL) {
-
-		return(TRUE);
-	}
-
+	ut_a(index);
 	ut_a(dtuple_get_n_fields_cmp(tuple)
 				<= dict_index_get_n_unique_in_tree(index));
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
 /**************************************************************************
 Builds a node pointer out of a physical record and a page number. */
@@ -3842,7 +3717,7 @@ dict_tree_build_node_ptr(
 	byte*		buf;
 	ulint		n_unique;
 
-	ind = dict_tree_find_index_low(tree, rec);
+	ind = tree->tree_index;
 
 	if (UNIV_UNLIKELY(tree->type & DICT_UNIVERSAL)) {
 		/* In a universal index tree, we take the whole record as
@@ -3910,7 +3785,7 @@ dict_tree_copy_rec_order_prefix(
 	ulint		n;
 
 	UNIV_PREFETCH_R(rec);
-	index = dict_tree_find_index_low(tree, rec);
+	index = tree->tree_index;
 
 	if (UNIV_UNLIKELY(tree->type & DICT_UNIVERSAL)) {
 		ut_a(!dict_table_is_comp(index->table));
@@ -3938,7 +3813,7 @@ dict_tree_build_data_tuple(
 	dtuple_t*	tuple;
 	dict_index_t*	ind;
 
-	ind = dict_tree_find_index_low(tree, rec);
+	ind = tree->tree_index;
 
 	ut_ad(dict_table_is_comp(ind->table)
 		|| n_fields <= rec_get_n_fields_old(rec));
@@ -4094,6 +3969,18 @@ dict_update_statistics(
 	dict_table_t*	table)	/* in: table */
 {
 	dict_update_statistics_low(table, FALSE);
+}
+
+/**************************************************************************
+A noninlined version of dict_table_get_low. */
+
+dict_table_t*
+dict_table_get_low_noninlined(
+/*==========================*/
+					/* out: table, NULL if not found */
+	const char*	table_name)	/* in: table name */
+{
+	return(dict_table_get_low(table_name));
 }
 
 /**************************************************************************
@@ -4519,16 +4406,4 @@ dict_index_name_print(
 	ut_print_name(file, trx, index->name);
 	fputs(" of table ", file);
 	ut_print_name(file, trx, index->table_name);
-}
-
-/************************************************************************
-Export an inlined function for use in ha_innodb.c. */
-ibool
-innodb_dict_table_is_comp(
-/*===============*/
-					/* out: TRUE if table uses the
-					compact page format */
-	const dict_table_t*	table)	/* in: table */
-{
-	return dict_table_is_comp(table);
 }

@@ -4370,7 +4370,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
                                                      sizeof(ROR_SCAN_INFO*)*
                                                      best_num)))
     DBUG_RETURN(NULL);
-  memcpy(trp->first_scan, ror_scan_mark, best_num*sizeof(ROR_SCAN_INFO*));
+  memcpy(trp->first_scan, tree->ror_scans, best_num*sizeof(ROR_SCAN_INFO*));
   trp->last_scan=  trp->first_scan + best_num;
   trp->is_covering= TRUE;
   trp->read_cost= total_cost;
@@ -4695,17 +4695,92 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
 
     if (inv)
     {
-      tree= get_ne_mm_tree(param, cond_func, field,
-                           func->arguments()[1], func->arguments()[1],
-                           cmp_type);
-      if (tree)
+      /*
+        We get here for conditions like "t.keypart NOT IN (....)".
+        
+        If the IN-list contains only constants (and func->array is an ordered
+        array of them), we construct the appropriate SEL_ARG tree manually, 
+        because constructing it using the range analyzer (as 
+        AND_i( t.keypart != c_i)) will cause lots of memory to be consumed
+        (see BUG#15872). 
+      */
+      if (func->array && func->cmp_type != ROW_RESULT)
       {
-        Item **arg, **end;
-        for (arg= func->arguments()+2, end= arg+func->argument_count()-2;
-             arg < end ; arg++)
+        /* 
+          Create one Item_type constant object. We'll need it as
+          get_mm_parts only accepts constant values wrapped in Item_Type
+          objects.
+          We create the Item on param->mem_root which points to
+          per-statement mem_root (while thd->mem_root is currently pointing
+          to mem_root local to range optimizer).
+        */
+        MEM_ROOT *tmp_root= param->mem_root;
+        param->thd->mem_root= param->old_root;
+        Item *value_item= func->array->create_item();
+        param->thd->mem_root= tmp_root;
+
+        if (!value_item)
+          break;
+        
+        /* Get a SEL_TREE for "-inf < X < c_0" interval */
+        func->array->value_to_item(0, value_item);
+        tree= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
+                           value_item, cmp_type);
+        if (!tree)
+          break;
+#define NOT_IN_IGNORE_THRESHOLD 1000        
+        SEL_TREE *tree2;
+        if (func->array->count < NOT_IN_IGNORE_THRESHOLD)
         {
-          tree=  tree_and(param, tree, get_ne_mm_tree(param, cond_func, field, 
-                                                      *arg, *arg, cmp_type));
+          for (uint i=1; i < func->array->count; i++)
+          {
+            if (func->array->compare_elems(i, i-1))
+            {
+              /* Get a SEL_TREE for "-inf < X < c_i" interval */
+              func->array->value_to_item(i, value_item);
+              tree2= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
+                                  value_item, cmp_type);
+              
+              /* Change all intervals to be "c_{i-1} < X < c_i" */
+              for (uint idx= 0; idx < param->keys; idx++)
+              {
+                SEL_ARG *new_interval;
+                if ((new_interval=  tree2->keys[idx]))
+                {
+                  SEL_ARG *last_val= tree->keys[idx]->last();
+                  new_interval->min_value= last_val->max_value;
+                  new_interval->min_flag= NEAR_MIN;
+                }
+              }
+              tree= tree_or(param, tree, tree2);
+            }
+          }
+        }
+        else
+          func->array->value_to_item(func->array->count - 1, value_item);
+
+        /* 
+          Get the SEL_TREE for the last "c_last < X < +inf" interval 
+          (value_item cotains c_last already)
+        */
+        tree2= get_mm_parts(param, cond_func, field, Item_func::GT_FUNC,
+                            value_item, cmp_type);
+        tree= tree_or(param, tree, tree2);
+      }
+      else
+      {
+        tree= get_ne_mm_tree(param, cond_func, field,
+                             func->arguments()[1], func->arguments()[1],
+                             cmp_type);
+        if (tree)
+        {
+          Item **arg, **end;
+          for (arg= func->arguments()+2, end= arg+func->argument_count()-2;
+               arg < end ; arg++)
+          {
+            tree=  tree_and(param, tree, get_ne_mm_tree(param, cond_func, field, 
+                                                        *arg, *arg, cmp_type));
+          }
         }
       }
     }

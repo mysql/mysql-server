@@ -410,13 +410,10 @@ ERROR HY000: This command is not supported in the prepared statement protocol ye
 prepare stmt1 from ' select * into outfile ''data.txt'' from t1 ';
 execute stmt1 ;
 prepare stmt1 from ' optimize table t1 ' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' analyze table t1 ' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' checksum table t1 ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' repair table t1 ' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' restore table t1 from ''data.txt'' ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' handler t1 open ';

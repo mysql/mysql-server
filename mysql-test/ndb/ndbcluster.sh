@@ -66,6 +66,7 @@ VERBOSE=100
 NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
 NDBD_EXTRA_OPTS=
+CHARSETSDIR=
 
 while test $# -gt 0; do
   case "$1" in
@@ -119,6 +120,9 @@ while test $# -gt 0; do
     --ndbd-extra-opts=*)
      NDBD_EXTRA_OPTS=`echo "$1" | sed -e "s;--ndbd-extra-opts=;;"`
      ;;
+    --character-sets-dir=*)
+     CHARSETSDIR=`echo "$1" | sed -e "s;--character-sets-dir=;;"`
+     ;;
     --core)
      opt_core="--core"
      ;;
@@ -159,7 +163,7 @@ fi
 
 exec_mgmtclient="$exec_mgmtclient --no-defaults $opt_core $NDB_MGM_EXTRA_OPTS"
 exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults $opt_core $NDB_MGMD_EXTRA_OPTS"
-exec_ndb="$exec_ndb --no-defaults $opt_core $NDBD_EXTRA_OPTS"
+exec_ndb="$exec_ndb --no-defaults $opt_core $NDBD_EXTRA_OPTS --character-sets-dir=$CHARSETSDIR"
 exec_waiter="$exec_waiter --no-defaults $opt_core"
 
 ndb_host="localhost"
@@ -260,7 +264,7 @@ done
 # test if Ndb Cluster starts properly
 
 if [ `expr $VERBOSE \> 1` = 1 ] ; then
-  echo "Waiting for started..."
+  echo "Waiting for NDB data nodes to start..."
 fi
 if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK" > /dev/null 2>&1 ; then :; else
   if [ `expr $VERBOSE \> 0` = 1 ] ; then

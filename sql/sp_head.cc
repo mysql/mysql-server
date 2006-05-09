@@ -680,6 +680,7 @@ sp_head::destroy()
   DBUG_ASSERT(m_lex.is_empty() || m_thd);
   while ((lex= (LEX *)m_lex.pop()))
   {
+    lex_end(m_thd->lex);
     delete m_thd->lex;
     m_thd->lex= lex;
   }
@@ -1229,7 +1230,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   DBUG_PRINT("info", ("function %s", m_name.str));
 
   LINT_INIT(binlog_save_options);
-  params = m_pcont->context_pvars();
+  params= m_pcont->context_var_count();
 
   /*
     Check that the function is called with all specified arguments.
@@ -1412,7 +1413,7 @@ bool
 sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   bool err_status= FALSE;
-  uint params = m_pcont->context_pvars();
+  uint params = m_pcont->context_var_count();
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
   bool save_enable_slow_log= false;
@@ -1466,15 +1467,15 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     for (uint i= 0 ; i < params ; i++)
     {
       Item *arg_item= it_args++;
-      sp_pvar_t *pvar= m_pcont->find_pvar(i);
+      sp_variable_t *spvar= m_pcont->find_variable(i);
 
       if (!arg_item)
         break;
 
-      if (!pvar)
+      if (!spvar)
         continue;
 
-      if (pvar->mode != sp_param_in)
+      if (spvar->mode != sp_param_in)
       {
         if (!arg_item->is_splocal() && !item_is_user_var(arg_item))
         {
@@ -1484,7 +1485,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
         }
       }
 
-      if (pvar->mode == sp_param_out)
+      if (spvar->mode == sp_param_out)
       {
         Item_null *null_item= new Item_null();
 
@@ -1560,9 +1561,9 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (!arg_item)
         break;
 
-      sp_pvar_t *pvar= m_pcont->find_pvar(i);
+      sp_variable_t *spvar= m_pcont->find_variable(i);
 
-      if (pvar->mode == sp_param_in)
+      if (spvar->mode == sp_param_in)
         continue;
 
       if (arg_item->is_splocal())
@@ -1682,7 +1683,10 @@ sp_head::restore_lex(THD *thd)
   */
   merge_table_list(thd, sublex->query_tables, sublex);
   if (! sublex->sp_lex_in_use)
+  {
+    lex_end(sublex);
     delete sublex;
+  }
   thd->lex= oldlex;
   DBUG_VOID_RETURN;
 }
@@ -1709,43 +1713,10 @@ sp_head::backpatch(sp_label_t *lab)
 
   while ((bp= li++))
   {
-    if (bp->lab == lab ||
-	(bp->lab->type == SP_LAB_REF &&
-	 my_strcasecmp(system_charset_info, bp->lab->name, lab->name) == 0))
-    {
-      if (bp->lab->type != SP_LAB_REF)
-	bp->instr->backpatch(dest, lab->ctx);
-      else
-      {
-	sp_label_t *dstlab= bp->lab->ctx->find_label(lab->name);
-
-	if (dstlab)
-	{
-	  bp->lab= lab;
-	  bp->instr->backpatch(dest, dstlab->ctx);
-	}
-      }
-    }
+    if (bp->lab == lab)
+      bp->instr->backpatch(dest, lab->ctx);
   }
 }
-
-int
-sp_head::check_backpatch(THD *thd)
-{
-  bp_t *bp;
-  List_iterator_fast<bp_t> li(m_backpatch);
-
-  while ((bp= li++))
-  {
-    if (bp->lab->type == SP_LAB_REF)
-    {
-      my_error(ER_SP_LILABEL_MISMATCH, MYF(0), "GOTO", bp->lab->name);
-      return -1;
-    }
-  }
-  return 0;
-}
-
 
 /*
   Prepare an instance of create_field for field creation (fill all necessary
@@ -2432,7 +2403,7 @@ sp_instr_set::print(String *str)
 {
   /* set name@offset ... */
   int rsrv = SP_INSTR_UINT_MAXLEN+6;
-  sp_pvar_t *var = m_ctx->find_pvar(m_offset);
+  sp_variable_t *var = m_ctx->find_variable(m_offset);
 
   /* 'var' should always be non-null, but just in case... */
   if (var)
@@ -3048,8 +3019,8 @@ sp_instr_cfetch::execute(THD *thd, uint *nextp)
 void
 sp_instr_cfetch::print(String *str)
 {
-  List_iterator_fast<struct sp_pvar> li(m_varlist);
-  sp_pvar_t *pv;
+  List_iterator_fast<struct sp_variable> li(m_varlist);
+  sp_variable_t *pv;
   LEX_STRING n;
   my_bool found= m_ctx->find_cursor(m_cursor, &n);
   /* cfetch name@offset vars... */

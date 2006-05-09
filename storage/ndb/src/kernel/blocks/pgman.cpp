@@ -944,12 +944,16 @@ Pgman::process_callback(Signal* signal)
   int max_count = 1;
   Page_sublist& pl_callback = *m_page_sublist[Page_entry::SL_CALLBACK];
 
-  while (! pl_callback.isEmpty() && --max_count >= 0)
+  Ptr<Page_entry> ptr;
+  pl_callback.first(ptr);
+
+  while (! ptr.isNull() && --max_count >= 0)
   {
     jam();
-    Ptr<Page_entry> ptr;
-    pl_callback.first(ptr);
-    if (! process_callback(signal, ptr))
+    Ptr<Page_entry> curr = ptr;
+    pl_callback.next(ptr);
+    
+    if (! process_callback(signal, curr))
     {
       jam();
       break;
@@ -987,6 +991,18 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
 #ifdef VM_TRACE
       debugOut << "PGMAN: " << req_ptr << " : process_callback" << endl;
 #endif
+
+#ifdef ERROR_INSERT
+      if (req_ptr.p->m_flags & Page_request::DELAY_REQ)
+      {
+	Uint64 now = NdbTick_CurrentMillisecond();
+	if (now < req_ptr.p->m_delay_until_time)
+	{
+	  break;
+	}
+      }
+#endif
+      
       b = globalData.getBlock(req_ptr.p->m_block);
       callback = req_ptr.p->m_callback;
       
@@ -1314,6 +1330,24 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
   state |= Page_entry::MAPPED;
   set_page_state(ptr, state);
 
+  {
+    /**
+     * Update lsn record on page
+     *   as it can be modified/flushed wo/ update_lsn has been called
+     *   (e.g. prealloc) and it then would get lsn 0, which is bad
+     *   when running undo and following SR
+     */
+    Ptr<GlobalPage> pagePtr;
+    m_global_page_pool.getPtr(pagePtr, ptr.p->m_real_page_i);
+    File_formats::Datafile::Data_page* page =
+      (File_formats::Datafile::Data_page*)pagePtr.p;
+    
+    Uint64 lsn = 0;
+    lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
+    lsn += page->m_page_header.m_page_lsn_lo;
+    ptr.p->m_lsn = lsn;
+  }
+  
   ndbrequire(m_stats.m_current_io_waits > 0);
   m_stats.m_current_io_waits--;
 
@@ -1575,7 +1609,13 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
   }
   
   bool only_request = ptr.p->m_requests.isEmpty();
-  
+#ifdef ERROR_INSERT
+  if (req_flags & Page_request::DELAY_REQ)
+  {
+    jam();
+    only_request = false;
+  }
+#endif  
   if (only_request &&
       state & Page_entry::MAPPED)
   {
@@ -1623,7 +1663,10 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
   req_ptr.p->m_block = page_req.m_block;
   req_ptr.p->m_flags = page_req.m_flags;
   req_ptr.p->m_callback = page_req.m_callback;
-
+#ifdef ERROR_INSERT
+  req_ptr.p->m_delay_until_time = page_req.m_delay_until_time;
+#endif
+  
   state |= Page_entry::REQUEST;
   if (only_request && req_flags & Page_request::EMPTY_PAGE)
   {

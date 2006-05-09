@@ -5,6 +5,10 @@
 -- source include/have_exampledb.inc
 
 --disable_warnings
+# Clean up if event's test fails
+drop database if exists events_test;
+drop database if exists events_test2;
+
 drop table if exists t1;
 --enable_warnings
 

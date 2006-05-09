@@ -361,7 +361,8 @@ AC_CACHE_VAL(mysql_cv_termcap_lib,
 [AC_CHECK_LIB(ncurses, tgetent, mysql_cv_termcap_lib=libncurses,
     [AC_CHECK_LIB(curses, tgetent, mysql_cv_termcap_lib=libcurses,
 	[AC_CHECK_LIB(termcap, tgetent, mysql_cv_termcap_lib=libtermcap,
-	    mysql_cv_termcap_lib=NOT_FOUND)])])])
+          [AC_CHECK_LIB(tinfo, tgetent, mysql_cv_termcap_lib=libtinfo,
+	    mysql_cv_termcap_lib=NOT_FOUND)])])])])
 AC_MSG_CHECKING(for termcap functions library)
 if test "$mysql_cv_termcap_lib" = "NOT_FOUND"; then
 AC_MSG_ERROR([No curses/termcap library found])
@@ -369,6 +370,8 @@ elif test "$mysql_cv_termcap_lib" = "libtermcap"; then
 TERMCAP_LIB=-ltermcap
 elif test "$mysql_cv_termcap_lib" = "libncurses"; then
 TERMCAP_LIB=-lncurses
+elif test "$mysql_cv_termcap_lib" = "libtinfo"; then
+TERMCAP_LIB=-ltinfo
 else
 TERMCAP_LIB=-lcurses
 fi
@@ -672,8 +675,8 @@ dnl Sets BIG_TABLES if --with-big-tables is used
 dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_BIG_TABLES], [
   AC_ARG_WITH([big-tables],
-              [
-  --with-big-tables       Support tables with more than 4 G rows even on 32 bit platforms],
+  AS_HELP_STRING([--with-big-tables],
+              [Support tables with more than 4 G rows even on 32 bit platforms]),
               [bigtables="$withval"],
               [bigtables=no])
   AC_MSG_CHECKING([for big tables support])
@@ -700,8 +703,8 @@ dnl Sets MAX_INDEXES
 dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_MAX_INDEXES], [
   AC_ARG_WITH([max-indexes],
-              [
-  --with-max-indexes=\#      Sets the maximum number of indexes per table, default 64],
+              AS_HELP_STRING([--with-max-indexes=N],
+                             [Sets the maximum number of indexes per table, default 64]),
               [max_indexes="$withval"],
               [max_indexes=64])
   AC_MSG_CHECKING([max indexes per table])

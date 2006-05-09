@@ -19,6 +19,8 @@
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
+extern struct st_mysql_plugin *mysqld_builtins[];
+
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
 LEX_STRING plugin_type_names[]=
@@ -529,7 +531,7 @@ static int plugin_initialize(struct st_plugin_int *plugin)
   switch (plugin->plugin->type)
   {
   case MYSQL_STORAGE_ENGINE_PLUGIN:
-    if (ha_initialize_handlerton((handlerton*) plugin->plugin->info))
+    if (ha_initialize_handlerton(plugin))
     {
       sql_print_error("Plugin '%s' handlerton init returned error.",
                       plugin->name.str);
@@ -543,6 +545,53 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     break;
   }
 
+  DBUG_RETURN(0);
+err:
+  DBUG_RETURN(1);
+}
+
+static int plugin_finalize(THD *thd, struct st_plugin_int *plugin)
+{
+  int rc;
+  DBUG_ENTER("plugin_finalize");
+  
+  if (plugin->ref_count)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                 "Plugin is busy and will be uninstalled on shutdown");
+    goto err;
+  }
+  
+  switch (plugin->plugin->type)
+  {
+  case MYSQL_STORAGE_ENGINE_PLUGIN:
+    if (ha_finalize_handlerton(plugin))
+    {
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "Storage engine shutdown failed. "
+                   "It will be uninstalled on shutdown");
+      sql_print_warning("Storage engine '%s' shutdown failed. "
+                        "It will be uninstalled on shutdown", plugin->name.str);
+      goto err;
+    }
+    break;
+  default:
+    break;
+  }
+
+  if (plugin->plugin->deinit)
+  {
+    if ((rc= plugin->plugin->deinit()))
+    {
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "Plugin deinit failed. "
+                   "It will be uninstalled on shutdown");
+      sql_print_warning("Plugin '%s' deinit failed. "
+                        "It will be uninstalled on shutdown", plugin->name.str);
+      goto err;
+    }
+  }
+  
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);
@@ -606,6 +655,8 @@ static byte *get_hash_key(const byte *buff, uint *length,
 int plugin_init(void)
 {
   int i;
+  struct st_mysql_plugin **builtins;
+  struct st_mysql_plugin *plugin;
   DBUG_ENTER("plugin_init");
 
   if (initialized)
@@ -624,6 +675,16 @@ int plugin_init(void)
     if (hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
                   get_hash_key, NULL, 0))
       goto err;
+  }
+  
+  /* Register all the built-in plugins */
+  for (builtins= mysqld_builtins; *builtins; builtins++)
+  {
+    for (plugin= *builtins; plugin->info; plugin++)
+    {
+      if (plugin_register_builtin(plugin))
+        goto err;
+    }
   }
 
   initialized= 1;
@@ -831,18 +892,10 @@ my_bool mysql_uninstall_plugin(THD *thd, LEX_STRING *name)
     goto err;
   }
 
-  if (plugin->ref_count)
-  {
-    plugin->state= PLUGIN_IS_DELETED;
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                 "Plugin is not deleted, waiting on tables.");
-  }
-  else
-  {
-    if (plugin->plugin->deinit)
-      plugin->plugin->deinit();
+  if (!plugin_finalize(thd, plugin))
     plugin_del(name);
-  }
+  else
+    plugin->state= PLUGIN_IS_DELETED;
 
   table->field[0]->store(name->str, name->length, system_charset_info);
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);

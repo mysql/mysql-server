@@ -77,7 +77,7 @@ os_thread_create(
 	void*			arg,		/* in: argument to start
 						function */
 	os_thread_id_t*		thread_id);	/* out: id of the created
-						thread */
+						thread, or NULL */
 int
 os_thread_join(
 /*===========*/

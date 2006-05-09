@@ -161,6 +161,7 @@ static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
+static byte *get_prepared_stmt_count(THD *thd);
 
 /*
   Variable definition list
@@ -311,6 +312,10 @@ sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
 					      fix_max_join_size);
 #endif
+static sys_var_long_ptr_global
+sys_max_prepared_stmt_count("max_prepared_stmt_count",
+                            &max_prepared_stmt_count,
+                            &LOCK_prepared_stmt_count);
 sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
                                                &max_relay_log_size,
                                                fix_max_relay_log_size);
@@ -431,16 +436,10 @@ sys_var_thd_storage_engine sys_storage_engine("storage_engine",
 				       &SV::table_type);
 #ifdef HAVE_REPLICATION
 sys_var_sync_binlog_period sys_sync_binlog_period("sync_binlog", &sync_binlog_period);
-sys_var_thd_ulong	sys_sync_replication("sync_replication",
-                                               &SV::sync_replication);
-sys_var_thd_ulong	sys_sync_replication_slave_id(
-						"sync_replication_slave_id",
-                                               &SV::sync_replication_slave_id);
-sys_var_thd_ulong	sys_sync_replication_timeout(
-						"sync_replication_timeout",
-                                               &SV::sync_replication_timeout);
 #endif
 sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
+sys_var_const_str	sys_system_time_zone("system_time_zone",
+                                             system_time_zone);
 sys_var_long_ptr	sys_table_def_size("table_definition_cache",
                                            &table_def_size);
 sys_var_long_ptr	sys_table_cache_size("table_open_cache",
@@ -458,6 +457,13 @@ sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_bool_ptr  sys_timed_mutexes("timed_mutexes",
                                     &timed_mutexes);
+sys_var_const_str	sys_version("version", server_version);
+sys_var_const_str	sys_version_comment("version_comment",
+                                            MYSQL_COMPILATION_COMMENT);
+sys_var_const_str	sys_version_compile_machine("version_compile_machine",
+                                                    MACHINE_TYPE);
+sys_var_const_str	sys_version_compile_os("version_compile_os",
+                                               SYSTEM_TYPE);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
 
@@ -604,6 +610,9 @@ static sys_var_readonly		sys_warning_count("warning_count",
 						  OPT_SESSION,
 						  SHOW_LONG,
 						  get_warning_count);
+static sys_var_readonly	sys_prepared_stmt_count("prepared_stmt_count",
+                                                OPT_GLOBAL, SHOW_LONG,
+                                                get_prepared_stmt_count);
 
 /* alias for last_insert_id() to be compatible with Sybase */
 #ifdef HAVE_REPLICATION
@@ -622,7 +631,6 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 
 /* Read only variables */
 
-sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
 sys_var_have_variable sys_have_archive_db("have_archive", &have_archive_db);
 sys_var_have_variable sys_have_berkeley_db("have_bdb", &have_berkeley_db);
 sys_var_have_variable sys_have_blackhole_db("have_blackhole_engine",
@@ -630,7 +638,7 @@ sys_var_have_variable sys_have_blackhole_db("have_blackhole_engine",
 sys_var_have_variable sys_have_compress("have_compress", &have_compress);
 sys_var_have_variable sys_have_crypt("have_crypt", &have_crypt);
 sys_var_have_variable sys_have_csv_db("have_csv", &have_csv_db);
-sys_var_have_variable sys_have_dlopen("have_dlopen", &have_dlopen);
+sys_var_have_variable sys_have_dlopen("have_dynamic_loading", &have_dlopen);
 sys_var_have_variable sys_have_example_db("have_example_engine",
                                           &have_example_db);
 sys_var_have_variable sys_have_federated_db("have_federated_engine",
@@ -847,6 +855,8 @@ SHOW_VAR init_vars[]= {
   {sys_max_join_size.name,	(char*) &sys_max_join_size,	    SHOW_SYS},
   {sys_max_length_for_sort_data.name, (char*) &sys_max_length_for_sort_data,
    SHOW_SYS},
+  {sys_max_prepared_stmt_count.name, (char*) &sys_max_prepared_stmt_count,
+    SHOW_SYS},
   {sys_max_relay_log_size.name, (char*) &sys_max_relay_log_size,    SHOW_SYS},
   {sys_max_seeks_for_key.name,  (char*) &sys_max_seeks_for_key,	    SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
@@ -902,6 +912,7 @@ SHOW_VAR init_vars[]= {
   {"plugin_dir",              (char*) opt_plugin_dir,               SHOW_CHAR},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
+  {sys_prepared_stmt_count.name, (char*) &sys_prepared_stmt_count, SHOW_SYS},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
    SHOW_SYS},
@@ -946,20 +957,16 @@ SHOW_VAR init_vars[]= {
 #ifdef HAVE_SYS_UN_H
   {"socket",                  (char*) &mysqld_unix_port,             SHOW_CHAR_PTR},
 #endif
-  {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
+  {sys_sort_buffer.name,      (char*) &sys_sort_buffer,             SHOW_SYS},
+  {sys_big_selects.name,      (char*) &sys_big_selects,             SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
-  {"sql_notes",               (char*) &sys_sql_notes,               SHOW_BOOL},
-  {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_BOOL},
+  {"sql_notes",               (char*) &sys_sql_notes,               SHOW_SYS},
+  {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_SYS},
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
 #endif
   {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
-#ifdef HAVE_REPLICATION
-  {sys_sync_replication.name, (char*) &sys_sync_replication,        SHOW_SYS},
-  {sys_sync_replication_slave_id.name, (char*) &sys_sync_replication_slave_id,SHOW_SYS},
-  {sys_sync_replication_timeout.name, (char*) &sys_sync_replication_timeout,SHOW_SYS},
-#endif
 #ifdef HAVE_TZNAME
   {"system_time_zone",        system_time_zone,                     SHOW_CHAR},
 #endif
@@ -983,10 +990,11 @@ SHOW_VAR init_vars[]= {
   {sys_tx_isolation.name,     (char*) &sys_tx_isolation,	    SHOW_SYS},
   {sys_updatable_views_with_limit.name,
                               (char*) &sys_updatable_views_with_limit,SHOW_SYS},
-  {"version",                 server_version,                       SHOW_CHAR},
-  {"version_comment",         (char*) MYSQL_COMPILATION_COMMENT,    SHOW_CHAR},
-  {"version_compile_machine", (char*) MACHINE_TYPE,		    SHOW_CHAR},
-  {sys_os.name,		      (char*) &sys_os,			    SHOW_SYS},
+  {sys_version.name,          (char*) &sys_version,                 SHOW_SYS},
+  {sys_version_comment.name,  (char*) &sys_version_comment,         SHOW_SYS},
+  {sys_version_compile_machine.name, (char*) &sys_version_compile_machine,
+   SHOW_SYS},
+  {sys_version_compile_os.name,	(char*) &sys_version_compile_os,    SHOW_SYS},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
   {NullS, NullS, SHOW_LONG}
 };
@@ -1367,29 +1375,40 @@ static void fix_server_id(THD *thd, enum_var_type type)
   server_id_supplied = 1;
 }
 
-bool sys_var_long_ptr::check(THD *thd, set_var *var)
+
+sys_var_long_ptr::
+sys_var_long_ptr(const char *name_arg, ulong *value_ptr,
+                 sys_after_update_func after_update_arg)
+  :sys_var_long_ptr_global(name_arg, value_ptr,
+                           &LOCK_global_system_variables, after_update_arg)
+{}
+
+
+bool sys_var_long_ptr_global::check(THD *thd, set_var *var)
 {
   longlong v= var->value->val_int();
   var->save_result.ulonglong_value= v < 0 ? 0 : v;
   return 0;
 }
 
-bool sys_var_long_ptr::update(THD *thd, set_var *var)
+bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
-  pthread_mutex_lock(&LOCK_global_system_variables);
+  pthread_mutex_lock(guard);
   if (option_limits)
     *value= (ulong) getopt_ull_limit_value(tmp, option_limits);
   else
     *value= (ulong) tmp;
-  pthread_mutex_unlock(&LOCK_global_system_variables);
+  pthread_mutex_unlock(guard);
   return 0;
 }
 
 
-void sys_var_long_ptr::set_default(THD *thd, enum_var_type type)
+void sys_var_long_ptr_global::set_default(THD *thd, enum_var_type type)
 {
+  pthread_mutex_lock(guard);
   *value= (ulong) option_limits->def_value;
+  pthread_mutex_unlock(guard);
 }
 
 
@@ -2824,6 +2843,13 @@ static byte *get_error_count(THD *thd)
   return (byte*) &thd->sys_var_tmp.long_value;
 }
 
+static byte *get_prepared_stmt_count(THD *thd)
+{
+  pthread_mutex_lock(&LOCK_prepared_stmt_count);
+  thd->sys_var_tmp.ulong_value= prepared_stmt_count;
+  pthread_mutex_unlock(&LOCK_prepared_stmt_count);
+  return (byte*) &thd->sys_var_tmp.ulong_value;
+}
 
 /****************************************************************************
   Main handling of variables:

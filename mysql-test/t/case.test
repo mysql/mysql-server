@@ -122,6 +122,17 @@ SELECT 'case+union+test'
 UNION 
 SELECT CASE '1' WHEN '2' THEN 'BUG' ELSE 'nobug' END;
 
+#
+# Bug #17896: problem with MIN(CASE...)
+#
+
+create table t1(a float, b int default 3);
+insert into t1 (a) values (2), (11), (8);
+select min(a), min(case when 1=1 then a else NULL end),
+  min(case when 1!=1 then NULL else a end) 
+from t1 where b=3 group by b;
+drop table t1;
+
 # End of 4.1 tests
 
 

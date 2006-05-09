@@ -84,6 +84,7 @@
   access on the table based on a given record.
 */ 
 #define HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS (1 << 16) 
+#define HA_CAN_RTREEKEYS       (1 << 17)
 #define HA_NOT_DELETE_WITH_CACHE (1 << 18)
 #define HA_NO_PREFIX_CHAR_KEYS (1 << 20)
 #define HA_CAN_FULLTEXT        (1 << 21)
@@ -233,6 +234,7 @@ enum legacy_db_type
   DB_TYPE_BLACKHOLE_DB,
   DB_TYPE_PARTITION_DB,
   DB_TYPE_BINLOG,
+  DB_TYPE_FIRST_DYNAMIC=32,
   DB_TYPE_DEFAULT=127 // Must be last
 };
 
@@ -280,6 +282,7 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_COMMENT          (1L << 16)
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 #define HA_CREATE_USED_CONNECTION       (1L << 18)
+#define HA_CREATE_USED_KEY_BLOCK_SIZE   (1L << 19)
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
@@ -402,6 +405,7 @@ enum tablespace_access_mode
   TS_NOT_ACCESSIBLE = 2
 };
 
+struct handlerton;
 class st_alter_tablespace : public Sql_alloc
 {
   public:
@@ -419,7 +423,7 @@ class st_alter_tablespace : public Sql_alloc
   ulonglong autoextend_size;
   ulonglong max_size;
   uint nodegroup_id;
-  enum legacy_db_type storage_engine;
+  const handlerton *storage_engine;
   bool wait_until_completed;
   const char *ts_comment;
   enum tablespace_access_mode ts_access_mode;
@@ -437,7 +441,7 @@ class st_alter_tablespace : public Sql_alloc
     initial_size= 128*1024*1024;   //Default 128 MByte
     autoextend_size= 0;            //No autoextension as default
     max_size= 0;                   //Max size == initial size => no extension
-    storage_engine= DB_TYPE_UNKNOWN;
+    storage_engine= NULL;
     nodegroup_id= UNDEF_NODEGROUP;
     wait_until_completed= TRUE;
     ts_comment= NULL;
@@ -468,7 +472,7 @@ enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 
   savepoint_*, prepare, recover, and *_by_xid pointers can be 0.
 */
-typedef struct
+struct handlerton
 {
   /*
     handlerton structure version
@@ -581,7 +585,7 @@ typedef struct
                             const char *query, uint query_length,
                             const char *db, const char *table_name);
    int (*release_temporary_latches)(THD *thd);
-} handlerton;
+};
 
 extern const handlerton default_hton;
 
@@ -632,12 +636,12 @@ typedef struct {
 
 #define UNDEF_NODEGROUP 65535
 class Item;
+struct st_table_log_memory_entry;
 
 class partition_info;
 
 struct st_partition_iter;
 #define NOT_A_PARTITION_ID ((uint32)-1)
-
 
 
 typedef struct st_ha_create_information
@@ -652,6 +656,7 @@ typedef struct st_ha_create_information
   ulong table_options;
   ulong avg_row_length;
   ulong used_fields;
+  ulong key_block_size;
   SQL_LIST merge_list;
   handlerton *db_type;
   enum row_type row_type;
@@ -664,6 +669,15 @@ typedef struct st_ha_create_information
   bool varchar;                         /* 1 if table has a VARCHAR */
   bool store_on_disk;                   /* 1 if table stored on disk */
 } HA_CREATE_INFO;
+
+
+typedef struct st_key_create_information
+{
+  enum ha_key_alg algorithm;
+  ulong block_size;
+  LEX_STRING parser_name;
+} KEY_CREATE_INFO;
+
 
 /*
   Class for maintaining hooks used inside operations on tables such
@@ -699,6 +713,7 @@ private:
 
 typedef struct st_savepoint SAVEPOINT;
 extern ulong savepoint_alloc_size;
+extern KEY_CREATE_INFO default_key_create_info;
 
 /* Forward declaration for condition pushdown to storage engine */
 typedef class Item COND;
@@ -1379,8 +1394,15 @@ public:
   virtual void drop_table(const char *name);
   
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
-  virtual int create_handler_files(const char *name, HA_CREATE_INFO *info) 
-  { return FALSE;}
+
+#define CHF_CREATE_FLAG 0
+#define CHF_DELETE_FLAG 1
+#define CHF_RENAME_FLAG 2
+#define CHF_INDEX_FLAG  3
+
+  virtual int create_handler_files(const char *name, const char *old_name,
+                                   int action_flag, HA_CREATE_INFO *info)
+  { return FALSE; }
 
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
@@ -1545,8 +1567,8 @@ static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 
 /* basic stuff */
 int ha_init(void);
-int ha_register_builtin_plugins();
-int ha_initialize_handlerton(handlerton *hton);
+int ha_initialize_handlerton(st_plugin_int *plugin);
+int ha_finalize_handlerton(st_plugin_int *plugin);
 
 TYPELIB *ha_known_exts(void);
 int ha_panic(enum ha_panic_function flag);

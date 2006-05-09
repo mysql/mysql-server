@@ -3943,6 +3943,11 @@ my_mb_wc_filename(CHARSET_INFO *cs __attribute__((unused)),
       *pwc= touni[code];
       return 3;
     }
+    if (byte1 == '@' && byte2 == '@')
+    {
+     *pwc= 0;
+      return 3;
+    }
   }
   
   if (s + 4 > e)

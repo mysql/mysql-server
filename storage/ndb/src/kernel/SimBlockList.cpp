@@ -120,8 +120,12 @@ SimBlockList::unload(){
   if(theList != 0){
     for(int i = 0; i<noOfBlocks; i++){
       if(theList[i] != 0){
+#ifdef VM_TRACE
 	theList[i]->~SimulatedBlock();
 	free(theList[i]);
+#else
+        delete(theList[i]);
+#endif
 	theList[i] = 0;
       }
     }

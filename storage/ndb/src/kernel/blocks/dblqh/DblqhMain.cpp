@@ -1394,6 +1394,7 @@ void Dblqh::execTUP_ADD_ATTCONF(Signal* signal)
         if (! DictTabInfo::isOrderedIndex(addfragptr.p->tableType))
 	{
 	  fragptr.p->m_copy_started_state = Fragrecord::AC_IGNORED;
+	  //fragptr.p->m_copy_started_state = Fragrecord::AC_NR_COPY;
           fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
 	}
         else
@@ -2470,6 +2471,8 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
   jamEntry();
   tcConnectptr.i = tcIndex;
   ptrCheckGuard(tcConnectptr, ttcConnectrecFileSize, regTcConnectionrec);
+  TcConnectionrec * regTcPtr = tcConnectptr.p;
+  Uint32 activeCreat = regTcPtr->activeCreat;
 
   FragrecordPtr regFragptr;
   regFragptr.i = tcConnectptr.p->fragmentptr;
@@ -2497,6 +2500,32 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
 // Abort was not ready to start until this signal came back. Now we are ready
 // to start the abort.
 /* ------------------------------------------------------------------------- */
+    if (unlikely(activeCreat == Fragrecord::AC_NR_COPY))
+    {
+      jam();
+      ndbrequire(regTcPtr->m_nr_delete.m_cnt);
+      regTcPtr->m_nr_delete.m_cnt--;
+      if (regTcPtr->m_nr_delete.m_cnt)
+      {
+	jam();
+	/**
+	 * Let operation wait for pending NR operations
+	 *   even for before writing log...(as it's simpler)
+	 */
+	
+#ifdef VM_TRACE
+	/**
+	 * Only disk table can have pending ops...
+	 */
+	TablerecPtr tablePtr;
+	tablePtr.i = regTcPtr->tableref;
+	ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
+	ndbrequire(tablePtr.p->m_disk_table);
+#endif
+	return;
+      }
+    }
+
     abortCommonLab(signal);
     break;
   case TcConnectionrec::WAIT_ACC_ABORT:
@@ -2523,13 +2552,23 @@ void Dblqh::execTUPKEYREF(Signal* signal)
   tcConnectptr.i = tupKeyRef->userRef;
   terrorCode = tupKeyRef->errorCode;
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+  TcConnectionrec* regTcPtr = tcConnectptr.p;
+  Uint32 activeCreat = regTcPtr->activeCreat;
 
   FragrecordPtr regFragptr;
-  regFragptr.i = tcConnectptr.p->fragmentptr;
+  regFragptr.i = regTcPtr->fragmentptr;
   c_fragment_pool.getPtr(regFragptr);
   fragptr = regFragptr;
+
+  if (unlikely(activeCreat == Fragrecord::AC_NR_COPY))
+  {
+    jam();
+    ndbrequire(regTcPtr->m_nr_delete.m_cnt);
+    regTcPtr->m_nr_delete.m_cnt--;
+    ndbassert(regTcPtr->transactionState == TcConnectionrec::WAIT_TUP ||
+	      regTcPtr->transactionState ==TcConnectionrec::WAIT_TUP_TO_ABORT);
+  }
   
-  TcConnectionrec* regTcPtr = tcConnectptr.p;
   switch (tcConnectptr.p->transactionState) {
   case TcConnectionrec::WAIT_TUP:
     jam();
@@ -3767,7 +3806,7 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
     EXECUTE_DIRECT(DBTUP, GSN_TUP_ABORTREQ, signal, 1);
     jamEntry();
     
-    execACC_ABORTCONF(signal);
+    packLqhkeyreqLab(signal);
   }
 }
 
@@ -3890,16 +3929,17 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
       if (TRACENR_FLAG)
 	TRACENR(" performing DELETE key: " 
 	       << dst[0] << endl); 
-      regTcPtr.p->tupkeyData[0] = regTcPtr.p->m_row_id.ref();
-      if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
+
+      nr_copy_delete_row(signal, regTcPtr, &regTcPtr.p->m_row_id, len);
+      ndbassert(regTcPtr.p->m_nr_delete.m_cnt);
+      regTcPtr.p->m_nr_delete.m_cnt--; // No real op is run
+      if (regTcPtr.p->m_nr_delete.m_cnt)
       {
-	regTcPtr.p->hashValue = calculateHash(tableId, dst);
+	jam();
+	return;
       }
-      else
-      {
-	regTcPtr.p->hashValue = md5_hash((Uint64*)dst, len);
-      }
-      goto run;
+      packLqhkeyreqLab(signal);
+      return;
     }
     else if (len == 0 && op == ZDELETE)
     {
@@ -3993,9 +4033,7 @@ update_gci_ignore:
   signal->theData[0] = regTcPtr.p->tupConnectrec;
   EXECUTE_DIRECT(DBTUP, GSN_TUP_ABORTREQ, signal, 1);
 
-  regTcPtr.p->transactionState = TcConnectionrec::WAIT_ACC_ABORT;
-  signal->theData[0] = regTcPtr.i;
-  execACC_ABORTCONF(signal);
+  packLqhkeyreqLab(signal);
 }
 
 int
@@ -4149,7 +4187,6 @@ Dblqh::get_nr_op_info(Nr_op_info* op, Uint32 page_id)
   op->m_gci = tcPtr.p->gci;
   op->m_tup_frag_ptr_i = fragPtr.p->tupFragptr;
 
-  ndbrequire(tcPtr.p->transactionState == TcConnectionrec::WAIT_TUP_COMMIT);
   ndbrequire(tcPtr.p->activeCreat == Fragrecord::AC_NR_COPY);
   ndbrequire(tcPtr.p->m_nr_delete.m_cnt);
   
@@ -4194,16 +4231,36 @@ Dblqh::nr_delete_complete(Signal* signal, Nr_op_info* op)
   tcPtr.i = op->m_ptr_i;
   ptrCheckGuard(tcPtr, ctcConnectrecFileSize, tcConnectionrec);
 
-  ndbrequire(tcPtr.p->transactionState == TcConnectionrec::WAIT_TUP_COMMIT);
   ndbrequire(tcPtr.p->activeCreat == Fragrecord::AC_NR_COPY);
   ndbrequire(tcPtr.p->m_nr_delete.m_cnt);
   
   tcPtr.p->m_nr_delete.m_cnt--;
   if (tcPtr.p->m_nr_delete.m_cnt == 0)
   {
+    jam();
     tcConnectptr = tcPtr;
     c_fragment_pool.getPtr(fragptr, tcPtr.p->fragmentptr);
-    packLqhkeyreqLab(signal);
+    
+    if (tcPtr.p->abortState != TcConnectionrec::ABORT_IDLE) 
+    {
+      jam();
+      tcPtr.p->activeCreat = Fragrecord::AC_NORMAL;
+      abortCommonLab(signal);
+    }
+    else if (tcPtr.p->operation == ZDELETE && 
+	     LqhKeyReq::getNrCopyFlag(tcPtr.p->reqinfo))
+    {
+      /**
+       * This is run directly in handle_nr_copy
+       */
+      jam();
+      packLqhkeyreqLab(signal);
+    }
+    else
+    {
+      jam();
+      rwConcludedLab(signal);
+    }
     return;
   }
 
@@ -4319,7 +4376,6 @@ void Dblqh::execACCKEYCONF(Signal* signal)
     return;
   }//if
 
-  // reset the activeCreat since that is only valid in cases where the record was not present.
   /* ------------------------------------------------------------------------
    * IT IS NOW TIME TO CONTACT THE TUPLE MANAGER. THE TUPLE MANAGER NEEDS THE
    * INFORMATION ON WHICH TABLE AND FRAGMENT, THE LOCAL KEY AND IT NEEDS TO
@@ -4536,6 +4592,7 @@ Dblqh::acckeyconf_load_diskpage(Signal* signal, TcConnectionrecPtr regTcPtr,
   }
   else 
   {
+    regTcPtr.p->transactionState = TcConnectionrec::WAIT_TUP;
     TupKeyRef * ref = (TupKeyRef *)signal->getDataPtr();
     ref->userRef= regTcPtr.i;
     ref->errorCode= ~0;
@@ -4571,6 +4628,7 @@ Dblqh::acckeyconf_load_diskpage_callback(Signal* signal,
   }
   else
   {
+    regTcPtr->transactionState = TcConnectionrec::WAIT_TUP;
     TupKeyRef * ref = (TupKeyRef *)signal->getDataPtr();
     ref->userRef= callbackData;
     ref->errorCode= disk_page;
@@ -4592,9 +4650,11 @@ Dblqh::acckeyconf_load_diskpage_callback(Signal* signal,
  * -------------------------------------------------------------------------- */
 void Dblqh::tupkeyConfLab(Signal* signal) 
 {
-/* ---- GET OPERATION TYPE AND CHECK WHAT KIND OF OPERATION IS REQUESTED ---- */
+/* ---- GET OPERATION TYPE AND CHECK WHAT KIND OF OPERATION IS REQUESTED --- */
   const TupKeyConf * const tupKeyConf = (TupKeyConf *)&signal->theData[0];
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
+  Uint32 activeCreat = regTcPtr->activeCreat;
+  
   if (regTcPtr->simpleRead) {
     jam();
     /* ----------------------------------------------------------------------
@@ -4616,6 +4676,34 @@ void Dblqh::tupkeyConfLab(Signal* signal)
   }//if
   regTcPtr->totSendlenAi = tupKeyConf->writeLength;
   ndbrequire(regTcPtr->totSendlenAi == regTcPtr->currTupAiLen);
+  
+  if (unlikely(activeCreat == Fragrecord::AC_NR_COPY))
+  {
+    jam();
+    ndbrequire(regTcPtr->m_nr_delete.m_cnt);
+    regTcPtr->m_nr_delete.m_cnt--;
+    if (regTcPtr->m_nr_delete.m_cnt)
+    {
+      jam();
+      /**
+       * Let operation wait for pending NR operations
+       *   even for before writing log...(as it's simpler)
+       */
+      
+#ifdef VM_TRACE
+      /**
+       * Only disk table can have pending ops...
+       */
+      TablerecPtr tablePtr;
+      tablePtr.i = regTcPtr->tableref;
+      ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
+      ndbrequire(tablePtr.p->m_disk_table);
+#endif
+      
+      return;
+    }
+  }
+
   rwConcludedLab(signal);
   return;
 }//Dblqh::tupkeyConfLab()
@@ -5016,12 +5104,13 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
 
   Uint32 nextNodeId = regTcPtr->nextReplica;
   Uint32 nextVersion = getNodeInfo(nextNodeId).m_version;
+  UintR TAiLen = regTcPtr->reclenAiLqhkey;
 
   UintR TapplAddressIndicator = (regTcPtr->nextSeqNoReplica == 0 ? 0 : 1);
   LqhKeyReq::setApplicationAddressFlag(Treqinfo, TapplAddressIndicator);
   LqhKeyReq::setInterpretedFlag(Treqinfo, regTcPtr->opExec);
   LqhKeyReq::setSeqNoReplica(Treqinfo, regTcPtr->nextSeqNoReplica);
-  LqhKeyReq::setAIInLqhKeyReq(Treqinfo, regTcPtr->reclenAiLqhkey);
+  LqhKeyReq::setAIInLqhKeyReq(Treqinfo, TAiLen);
   
   if (unlikely(nextVersion < NDBD_ROWID_VERSION))
   {
@@ -5124,22 +5213,32 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   lqhKeyReq->variableData[nextPos + 0] = sig0;
   nextPos += LqhKeyReq::getGCIFlag(Treqinfo);
 
-  sig0 = regTcPtr->firstAttrinfo[0];
-  sig1 = regTcPtr->firstAttrinfo[1];
-  sig2 = regTcPtr->firstAttrinfo[2];
-  sig3 = regTcPtr->firstAttrinfo[3];
-  sig4 = regTcPtr->firstAttrinfo[4];
-  UintR TAiLen = regTcPtr->reclenAiLqhkey;
   BlockReference lqhRef = calcLqhBlockRef(regTcPtr->nextReplica);
+  
+  if (likely(nextPos + TAiLen + LqhKeyReq::FixedSignalLength <= 25))
+  {
+    jam();
+    sig0 = regTcPtr->firstAttrinfo[0];
+    sig1 = regTcPtr->firstAttrinfo[1];
+    sig2 = regTcPtr->firstAttrinfo[2];
+    sig3 = regTcPtr->firstAttrinfo[3];
+    sig4 = regTcPtr->firstAttrinfo[4];
 
-  lqhKeyReq->variableData[nextPos] = sig0;
-  lqhKeyReq->variableData[nextPos + 1] = sig1;
-  lqhKeyReq->variableData[nextPos + 2] = sig2;
-  lqhKeyReq->variableData[nextPos + 3] = sig3;
-  lqhKeyReq->variableData[nextPos + 4] = sig4;
-
-  nextPos += TAiLen;
-
+    lqhKeyReq->variableData[nextPos] = sig0;
+    lqhKeyReq->variableData[nextPos + 1] = sig1;
+    lqhKeyReq->variableData[nextPos + 2] = sig2;
+    lqhKeyReq->variableData[nextPos + 3] = sig3;
+    lqhKeyReq->variableData[nextPos + 4] = sig4;
+    
+    nextPos += TAiLen;
+    TAiLen = 0;
+  }
+  else
+  {
+    Treqinfo &= ~(Uint32)(RI_AI_IN_THIS_MASK << RI_AI_IN_THIS_SHIFT);
+    lqhKeyReq->requestInfo = Treqinfo;
+  }
+  
   sendSignal(lqhRef, GSN_LQHKEYREQ, signal, 
              nextPos + LqhKeyReq::FixedSignalLength, JBB);
   if (regTcPtr->primKeyLen > 4) {
@@ -5165,6 +5264,17 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   signal->theData[0] = sig0;
   signal->theData[1] = sig1;
   signal->theData[2] = sig2;
+  
+  if (unlikely(nextPos + TAiLen + LqhKeyReq::FixedSignalLength > 25))
+  {
+    jam();
+    /**
+     * 4 replicas...
+     */
+    memcpy(signal->theData+3, regTcPtr->firstAttrinfo, TAiLen << 2);
+    sendSignal(lqhRef, GSN_ATTRINFO, signal, 3 + TAiLen, JBB);    
+  }
+
   AttrbufPtr regAttrinbufptr;
   regAttrinbufptr.i = regTcPtr->firstAttrinbuf;
   while (regAttrinbufptr.i != RNIL) {
@@ -6303,27 +6413,19 @@ Dblqh::tupcommit_conf(Signal* signal,
 /*SEND ANY COMMIT OR COMPLETE MESSAGES TO OTHER NODES. THEY WILL MERELY SEND */
 /*THOSE SIGNALS INTERNALLY.                                                  */
 /* ------------------------------------------------------------------------- */
-    if (tcPtrP->abortState == TcConnectionrec::ABORT_IDLE) {
+    if (tcPtrP->abortState == TcConnectionrec::ABORT_IDLE) 
+    {
       jam();
-      if (activeCreat == Fragrecord::AC_NR_COPY && 
-	  tcPtrP->m_nr_delete.m_cnt > 1)
+      if (activeCreat == Fragrecord::AC_NR_COPY)
       {
 	jam();
-	/**
-	 * Nr delete waiting for disk delete to complete...
-	 */
-#ifdef VM_TRACE
-	TablerecPtr tablePtr;
-	tablePtr.i = tcPtrP->tableref;
-	ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
-	ndbrequire(tablePtr.p->m_disk_table);
-#endif
-	tcPtrP->m_nr_delete.m_cnt--;
-	tcPtrP->transactionState = TcConnectionrec::WAIT_TUP_COMMIT;
-	return;
+	ndbrequire(LqhKeyReq::getNrCopyFlag(tcPtrP->reqinfo));
+	ndbrequire(tcPtrP->m_nr_delete.m_cnt == 0);
       }
       packLqhkeyreqLab(signal);
-    } else {
+    } 
+    else 
+    {
       ndbrequire(tcPtrP->abortState != TcConnectionrec::NEW_FROM_TC);
       jam();
       sendLqhTransconf(signal, LqhTransConf::Committed);
@@ -6527,7 +6629,7 @@ void Dblqh::execABORT(Signal* signal)
   }//if
   
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-
+  Uint32 activeCreat = regTcPtr->activeCreat;
   if (ERROR_INSERTED(5100))
   {
     SET_ERROR_INSERT_VALUE(5101);
@@ -6552,10 +6654,10 @@ void Dblqh::execABORT(Signal* signal)
     sendSignal(TLqhRef, GSN_ABORT, signal, 4, JBB);
   }//if
   regTcPtr->abortState = TcConnectionrec::ABORT_FROM_TC;
-  regTcPtr->activeCreat = Fragrecord::AC_NORMAL;
 
   const Uint32 commitAckMarker = regTcPtr->commitAckMarker;
-  if(commitAckMarker != RNIL){
+  if(commitAckMarker != RNIL)
+  {
     jam();
 #ifdef MARKER_TRACE
     {
@@ -6605,6 +6707,7 @@ void Dblqh::execABORTREQ(Signal* signal)
     return;
   }//if
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
+  Uint32 activeCreat = regTcPtr->activeCreat;
   if (regTcPtr->transactionState != TcConnectionrec::PREPARED) {
     warningReport(signal, 10);
     return;
@@ -6612,7 +6715,7 @@ void Dblqh::execABORTREQ(Signal* signal)
   regTcPtr->reqBlockref = reqBlockref;
   regTcPtr->reqRef = reqPtr;
   regTcPtr->abortState = TcConnectionrec::REQ_FROM_TC;
-  regTcPtr->activeCreat = Fragrecord::AC_NORMAL;
+
   abortCommonLab(signal);
   return;
 }//Dblqh::execABORTREQ()
@@ -6682,42 +6785,26 @@ void Dblqh::execACCKEYREF(Signal* signal)
     
   }
 
-  if (tcPtr->activeCreat == Fragrecord::AC_NR_COPY)
-  {
-    jam();
-    Uint32 op = tcPtr->operation;
-    switch(errCode){
-    case ZNO_TUPLE_FOUND:
-      ndbrequire(op == ZDELETE);
-      break;
-      break;
-    default:
-      ndbrequire(false);
-    }
-    tcPtr->activeCreat = Fragrecord::AC_IGNORED;
-  }
-  else 
-  {
-    ndbrequire(!LqhKeyReq::getNrCopyFlag(tcPtr->reqinfo));
-    
-    /**
-     * Only primary replica can get ZTUPLE_ALREADY_EXIST || ZNO_TUPLE_FOUND
-     *
-     * Unless it's a simple or dirty read
-     *
-     * NOT TRUE!
-     * 1) op1 - primary insert ok
-     * 2) op1 - backup insert fail (log full or what ever)
-     * 3) op1 - delete ok @ primary
-     * 4) op1 - delete fail @ backup
-     *
-     * -> ZNO_TUPLE_FOUND is possible
-     */
-    ndbrequire
-      (tcPtr->seqNoReplica == 0 ||
-       errCode != ZTUPLE_ALREADY_EXIST ||
-       (tcPtr->operation == ZREAD && (tcPtr->dirtyOp || tcPtr->opSimple)));
-  }
+  ndbrequire(tcPtr->activeCreat == Fragrecord::AC_NORMAL);
+  ndbrequire(!LqhKeyReq::getNrCopyFlag(tcPtr->reqinfo));
+  
+  /**
+   * Only primary replica can get ZTUPLE_ALREADY_EXIST || ZNO_TUPLE_FOUND
+   *
+   * Unless it's a simple or dirty read
+   *
+   * NOT TRUE!
+   * 1) op1 - primary insert ok
+   * 2) op1 - backup insert fail (log full or what ever)
+   * 3) op1 - delete ok @ primary
+   * 4) op1 - delete fail @ backup
+   *
+   * -> ZNO_TUPLE_FOUND is possible
+   */
+  ndbrequire
+    (tcPtr->seqNoReplica == 0 ||
+     errCode != ZTUPLE_ALREADY_EXIST ||
+     (tcPtr->operation == ZREAD && (tcPtr->dirtyOp || tcPtr->opSimple)));
   
   tcPtr->abortState = TcConnectionrec::ABORT_FROM_LQH;
   abortCommonLab(signal);
@@ -6731,7 +6818,6 @@ void Dblqh::localAbortStateHandlerLab(Signal* signal)
     jam();
     return;
   }//if
-  regTcPtr->activeCreat = Fragrecord::AC_NORMAL;
   regTcPtr->abortState = TcConnectionrec::ABORT_FROM_LQH;
   regTcPtr->errorCode = terrorCode;
   abortStateHandlerLab(signal);
@@ -6907,11 +6993,6 @@ void Dblqh::abortErrorLab(Signal* signal)
     regTcPtr->abortState = TcConnectionrec::ABORT_FROM_LQH;
     regTcPtr->errorCode = terrorCode;
   }//if
-  /* -----------------------------------------------------------------------
-   *       ACTIVE CREATION IS RESET FOR ALL ERRORS WHICH SHOULD BE HANDLED 
-   *       WITH NORMAL ABORT HANDLING.
-   * ----------------------------------------------------------------------- */
-  regTcPtr->activeCreat = Fragrecord::AC_NORMAL;
   abortCommonLab(signal);
   return;
 }//Dblqh::abortErrorLab()
@@ -6920,8 +7001,9 @@ void Dblqh::abortCommonLab(Signal* signal)
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   const Uint32 commitAckMarker = regTcPtr->commitAckMarker;
-  if(regTcPtr->activeCreat != Fragrecord::AC_IGNORED && 
-     commitAckMarker != RNIL){
+  const Uint32 activeCreat = regTcPtr->activeCreat;
+  if (commitAckMarker != RNIL)
+  {
     /**
      * There is no NR ongoing and we have a marker
      */
@@ -6935,6 +7017,29 @@ void Dblqh::abortCommonLab(Signal* signal)
 #endif
     m_commitAckMarkerHash.release(commitAckMarker);
     regTcPtr->commitAckMarker = RNIL;
+  }
+
+  if (unlikely(activeCreat == Fragrecord::AC_NR_COPY))
+  {
+    jam();
+    if (regTcPtr->m_nr_delete.m_cnt)
+    {
+      jam();
+      /**
+       * Let operation wait for pending NR operations
+       */
+      
+#ifdef VM_TRACE
+      /**
+       * Only disk table can have pending ops...
+       */
+      TablerecPtr tablePtr;
+      tablePtr.i = regTcPtr->tableref;
+      ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
+      ndbrequire(tablePtr.p->m_disk_table);
+#endif
+      return;
+    }
   }
   
   fragptr.i = regTcPtr->fragmentptr;
@@ -7012,25 +7117,6 @@ void Dblqh::execACC_ABORTCONF(Signal* signal)
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   ndbrequire(regTcPtr->transactionState == TcConnectionrec::WAIT_ACC_ABORT);
-  if (regTcPtr->activeCreat == Fragrecord::AC_IGNORED) {
-    /* ----------------------------------------------------------------------
-     * A NORMAL EVENT DURING CREATION OF A FRAGMENT. WE NOW NEED TO CONTINUE
-     * WITH NORMAL COMMIT PROCESSING.
-     * --------------------------------------------------------------------- */
-    if (regTcPtr->currTupAiLen == regTcPtr->totReclenAi) {
-      jam();
-      regTcPtr->abortState = TcConnectionrec::ABORT_IDLE;
-      fragptr.i = regTcPtr->fragmentptr;
-      c_fragment_pool.getPtr(fragptr);
-      rwConcludedLab(signal);
-      return;
-    } else {
-      ndbrequire(regTcPtr->currTupAiLen < regTcPtr->totReclenAi);
-      jam();
-      regTcPtr->transactionState = TcConnectionrec::WAIT_AI_AFTER_ABORT;
-      return;
-    }//if
-  }//if
   continueAbortLab(signal);
   return;
 }//Dblqh::execACC_ABORTCONF()
@@ -9428,7 +9514,7 @@ void Dblqh::initScanTc(const ScanFragReq* req,
   tcConnectptr.p->m_offset_current_keybuf = 0;
   tcConnectptr.p->m_scan_curr_range_no = 0;
   tcConnectptr.p->m_dealloc = 0;
-  
+  tcConnectptr.p->activeCreat = Fragrecord::AC_NORMAL;
   TablerecPtr tTablePtr;
   tTablePtr.i = tabptr.p->primaryTableId;
   ptrCheckGuard(tTablePtr, ctabrecFileSize, tablerec);
@@ -9907,16 +9993,21 @@ void Dblqh::continueFirstCopyAfterBlockedLab(Signal* signal)
    */
   fragptr.p->m_copy_started_state = Fragrecord::AC_NR_COPY;
 
-  if (0)
+  scanptr.i = tcConnectptr.p->tcScanRec;
+  c_scanRecordPool.getPtr(scanptr);
+  
+  if (false && fragptr.p->tabRef > 4)
   {
-    ndbout_c("STOPPING COPY (%d -> %d %d %d)",
-	     scanptr.p->scanBlockref,
+    ndbout_c("STOPPING COPY X = [ %d %d %d %d ]",
+	     refToBlock(scanptr.p->scanBlockref),
 	     scanptr.p->scanAccPtr, RNIL, NextScanReq::ZSCAN_NEXT);
+    
+    /**
+     * RESTART: > DUMP 7020 332 X
+     */
     return;
   }
   
-  scanptr.i = tcConnectptr.p->tcScanRec;
-  c_scanRecordPool.getPtr(scanptr);
   signal->theData[0] = scanptr.p->scanAccPtr;
   signal->theData[1] = RNIL;
   signal->theData[2] = NextScanReq::ZSCAN_NEXT;
@@ -18329,6 +18420,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	   << " tcBlockref = " << hex << tcRec.p->tcBlockref
 	   << " reqBlockref = " << hex << tcRec.p->reqBlockref
 	   << " primKeyLen = " << tcRec.p->primKeyLen
+	   << " nrcopyflag = " << LqhKeyReq::getNrCopyFlag(tcRec.p->reqinfo) 
 	   << endl;
     ndbout << " nextReplica = " << tcRec.p->nextReplica
 	   << " tcBlockref = " << hex << tcRec.p->tcBlockref
@@ -18399,6 +18491,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	   << endl;
     ndbout << " tupkeyData2 = " << tcRec.p->tupkeyData[2]
 	   << " tupkeyData3 = " << tcRec.p->tupkeyData[3]
+	   << " m_nr_delete.m_cnt = " << tcRec.p->m_nr_delete.m_cnt
 	   << endl;
     switch (tcRec.p->transactionState) {
 	

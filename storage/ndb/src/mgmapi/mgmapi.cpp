@@ -138,6 +138,12 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...){
     return ret; \
   }
 
+#define DBUG_CHECK_REPLY(reply, ret) \
+  if (reply == NULL) { \
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, ""); \
+    DBUG_RETURN(ret);                                    \
+  }
+
 /*****************************************************************************
  * Handles
  *****************************************************************************/
@@ -1868,7 +1874,8 @@ const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz
 
 extern "C"
 int
-ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype)
+ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype,
+                     int log_event)
 {
   CHECK_HANDLE(handle, 0);
   CHECK_CONNECTED(handle, 0);
@@ -1888,9 +1895,11 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype)
   args.put("endian", (endian_check.c[sizeof(long)-1])?"big":"little");
   if (handle->m_name)
     args.put("name", handle->m_name);
+  args.put("log_event", log_event);
 
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("get nodeid reply", NULL, ""),
+      MGM_ARG("error_code", Int, Optional, "Error code"),
       MGM_ARG("nodeid", Int, Optional, "Error message"),
       MGM_ARG("result", String, Mandatory, "Error message"),
     MGM_END()
@@ -1903,14 +1912,16 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype)
   nodeid= -1;
   do {
     const char * buf;
-    if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+    if (!prop->get("result", &buf) || strcmp(buf, "Ok") != 0)
+    {
       const char *hostname= ndb_mgm_get_connected_host(handle);
       unsigned port=  ndb_mgm_get_connected_port(handle);
       BaseString err;
+      Uint32 error_code= NDB_MGM_ALLOCID_ERROR;
       err.assfmt("Could not alloc node id at %s port %d: %s",
 		 hostname, port, buf);
-      setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
-	       err.c_str());
+      prop->get("error_code", &error_code);
+      setError(handle, error_code, __LINE__, err.c_str());
       break;
     }
     Uint32 _nodeid;
@@ -2171,9 +2182,9 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
 				     int param,
 				     int value,
 				     struct ndb_mgm_reply* mgmreply){
-  DBUG_ENTER("ndb_mgm_set_connection_int_parameter");
   CHECK_HANDLE(handle, 0);
   CHECK_CONNECTED(handle, 0);
+  DBUG_ENTER("ndb_mgm_set_connection_int_parameter");
   
   Properties args;
   args.put("node1", node1);
@@ -2190,7 +2201,7 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
   
   const Properties *prop;
   prop= ndb_mgm_call(handle, reply, "set connection parameter", &args);
-  CHECK_REPLY(prop, -1);
+  DBUG_CHECK_REPLY(prop, -1);
 
   int res= -1;
   do {
@@ -2214,9 +2225,9 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 				     int param,
 				     int *value,
 				     struct ndb_mgm_reply* mgmreply){
-  DBUG_ENTER("ndb_mgm_get_connection_int_parameter");
   CHECK_HANDLE(handle, -1);
   CHECK_CONNECTED(handle, -2);
+  DBUG_ENTER("ndb_mgm_get_connection_int_parameter");
   
   Properties args;
   args.put("node1", node1);
@@ -2232,7 +2243,7 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
   
   const Properties *prop;
   prop = ndb_mgm_call(handle, reply, "get connection parameter", &args);
-  CHECK_REPLY(prop, -3);
+  DBUG_CHECK_REPLY(prop, -3);
 
   int res= -1;
   do {
@@ -2280,9 +2291,9 @@ ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle)
 {
   Uint32 nodeid=0;
 
-  DBUG_ENTER("ndb_mgm_get_mgmd_nodeid");
   CHECK_HANDLE(handle, 0);
   CHECK_CONNECTED(handle, 0);
+  DBUG_ENTER("ndb_mgm_get_mgmd_nodeid");
   
   Properties args;
 
@@ -2294,7 +2305,7 @@ ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle)
   
   const Properties *prop;
   prop = ndb_mgm_call(handle, reply, "get mgmd nodeid", &args);
-  CHECK_REPLY(prop, 0);
+  DBUG_CHECK_REPLY(prop, 0);
 
   if(!prop->get("nodeid",&nodeid)){
     fprintf(handle->errstream, "Unable to get value\n");
@@ -2308,9 +2319,9 @@ ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle)
 extern "C"
 int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length)
 {
-  DBUG_ENTER("ndb_mgm_report_event");
   CHECK_HANDLE(handle, 0);
   CHECK_CONNECTED(handle, 0);
+  DBUG_ENTER("ndb_mgm_report_event");
 
   Properties args;
   args.put("length", length);
@@ -2329,7 +2340,7 @@ int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length)
   
   const Properties *prop;
   prop = ndb_mgm_call(handle, reply, "report event", &args);
-  CHECK_REPLY(prop, -1);
+  DBUG_CHECK_REPLY(prop, -1);
 
   DBUG_RETURN(0);
 }
@@ -2337,9 +2348,9 @@ int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length)
 extern "C"
 int ndb_mgm_end_session(NdbMgmHandle handle)
 {
-  DBUG_ENTER("ndb_mgm_end_session");
   CHECK_HANDLE(handle, 0);
   CHECK_CONNECTED(handle, 0);
+  DBUG_ENTER("ndb_mgm_end_session");
 
   SocketOutputStream s_output(handle->socket);
   s_output.println("end session");

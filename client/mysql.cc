@@ -136,7 +136,7 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
 	       default_charset_used= 0, opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
-         show_warnings = 0;
+               show_warnings= 0, executing_query= 0, interrupted_query= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
@@ -338,7 +338,7 @@ static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 static sig_handler mysql_end(int sig);
-
+static sig_handler handle_sigint(int sig);
 
 int main(int argc,char *argv[])
 {
@@ -420,7 +420,7 @@ int main(int argc,char *argv[])
   if (opt_sigint_ignore)
     signal(SIGINT, SIG_IGN);
   else
-    signal(SIGINT, mysql_end);			// Catch SIGINT to clean up
+    signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
 
   /*
@@ -520,6 +520,35 @@ sig_handler mysql_end(int sig)
   free_defaults(defaults_argv);
   my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(status.exit_status);
+}
+
+
+/*
+  This function handles sigint calls
+  If query is in process, kill query
+  no query in process, terminate like previous behavior
+ */
+sig_handler handle_sigint(int sig)
+{
+  char kill_buffer[40];
+  MYSQL *kill_mysql= NULL;
+
+  /* terminate if no query being executed, or we already tried interrupting */
+  if (!executing_query || interrupted_query)
+    mysql_end(sig);
+
+  kill_mysql= mysql_init(kill_mysql);
+  if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
+                          "", opt_mysql_port, opt_mysql_unix_port,0))
+    mysql_end(sig);
+
+  /* kill_buffer is always big enough because max length of %lu is 15 */
+  sprintf(kill_buffer, "KILL /*!50000 QUERY */ %lu", mysql_thread_id(&mysql));
+  mysql_real_query(kill_mysql, kill_buffer, strlen(kill_buffer));
+  mysql_close(kill_mysql);
+  tee_fprintf(stdout, "Query aborted by Ctrl+C\n");
+
+  interrupted_query= 1;
 }
 
 
@@ -653,7 +682,7 @@ static struct my_option my_long_options[] =
    "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"socket", 'S', "Socket file to use for connection. (This will override --port unless --protocol=TCP is specified.)",
+  {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
@@ -939,14 +968,7 @@ static int get_options(int argc, char **argv)
     opt_reconnect= 0;
     connect_flag= 0; /* Not in interactive mode */
   }
-
-  if (opt_mysql_port && (!opt_protocol) && (!opt_mysql_unix_port))
-  {
-    /* Not checking return type since we are using a constant value */
-    /* straight from the initialization of sql_protocol_typelib.    */
-    opt_protocol= find_type("TCP", &sql_protocol_typelib, 0);
-  }
-
+  
   if (strcmp(default_charset, charset_info->csname) &&
       !(charset_info= get_charset_by_csname(default_charset, 
 					    MY_CS_PRIMARY, MYF(MY_WME))))
@@ -1939,6 +1961,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   uint		error= 0;
   int           err= 0;
 
+  interrupted_query= 0;
   if (!status.batch)
   {
     old_buffer= *buffer;			// Save for edit command
@@ -1974,7 +1997,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   }
 
   timer=start_timer();
-
+  executing_query= 1;
   error= mysql_real_query_for_lazy(buffer->ptr(),buffer->length());
 
 #ifdef HAVE_READLINE
@@ -1988,6 +2011,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 
   if (error)
   {
+    executing_query= 0;
     buffer->length(0); // Remove query on error
     return error;
   }
@@ -1999,13 +2023,19 @@ com_go(String *buffer,char *line __attribute__((unused)))
     if (quick)
     {
       if (!(result=mysql_use_result(&mysql)) && mysql_field_count(&mysql))
-	return put_error(&mysql);
+      {
+        executing_query= 0;
+        return put_error(&mysql);
+      }
     }
     else
     {
       error= mysql_store_result_for_lazy(&result);
       if (error)
-	return error;
+      {
+        executing_query= 0;
+        return error;
+      }
     }
 
     if (verbose >= 3 || !opt_silent)
@@ -2080,6 +2110,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
       (mysql.server_status & SERVER_STATUS_DB_DROPPED))
     get_current_db();
 
+  executing_query= 0;
   return error;				/* New command follows */
 }
 
@@ -2248,8 +2279,10 @@ print_table_data(MYSQL_RES *result)
   MYSQL_ROW	cur;
   MYSQL_FIELD	*field;
   bool		*num_flag;
+  bool		*not_null_flag;
 
   num_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
+  not_null_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
   if (info_flag)
   {
     print_field_types(result);
@@ -2267,7 +2300,7 @@ print_table_data(MYSQL_RES *result)
       length=max(length,field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
-    field->max_length=length+1;
+    field->max_length=length;
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
   }
@@ -2279,10 +2312,11 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("|", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
-      tee_fprintf(PAGER, " %-*s|",(int) min(field->max_length,
+      tee_fprintf(PAGER, " %-*s |",(int) min(field->max_length,
                                             MAX_COLUMN_LENGTH),
 		  field->name);
       num_flag[off]= IS_NUM(field->type);
+      not_null_flag[off]= IS_NOT_NULL(field->flags);
     }
     (void) tee_fputs("\n", PAGER);
     tee_puts((char*) separator.ptr(), PAGER);
@@ -2290,6 +2324,8 @@ print_table_data(MYSQL_RES *result)
 
   while ((cur= mysql_fetch_row(result)))
   {
+    if (interrupted_query)
+      break;
     ulong *lengths= mysql_fetch_lengths(result);
     (void) tee_fputs("| ", PAGER);
     mysql_field_seek(result, 0);
@@ -2302,7 +2338,8 @@ print_table_data(MYSQL_RES *result)
       uint visible_length;
       uint extra_padding;
 
-      if (lengths[off] == 0) 
+      /* If this column may have a null value, use "NULL" for empty.  */
+      if (! not_null_flag[off] && (lengths[off] == 0))
       {
         buffer= "NULL";
         data_length= 4;
@@ -2342,6 +2379,7 @@ print_table_data(MYSQL_RES *result)
   }
   tee_puts((char*) separator.ptr(), PAGER);
   my_afree((gptr) num_flag);
+  my_afree((gptr) not_null_flag);
 }
 
 
@@ -2356,11 +2394,8 @@ tee_print_sized_data(const char *data, unsigned int data_length, unsigned int to
   unsigned int i;
   const char *p;
 
-  total_bytes_to_send -= 1;  
-  /* Off by one, perhaps mistakenly accounting for a terminating NUL. */
-
   if (right_justified) 
-    for (i= 0; i < (total_bytes_to_send - data_length); i++)
+    for (i= data_length; i < total_bytes_to_send; i++)
       tee_putc((int)' ', PAGER);
 
   for (i= 0, p= data; i < data_length; i+= 1, p+= 1)
@@ -2372,7 +2407,7 @@ tee_print_sized_data(const char *data, unsigned int data_length, unsigned int to
   }
 
   if (! right_justified) 
-    for (i= 0; i < (total_bytes_to_send - data_length); i++)
+    for (i= data_length; i < total_bytes_to_send; i++)
       tee_putc((int)' ', PAGER);
 }
 
@@ -2398,6 +2433,8 @@ print_table_data_html(MYSQL_RES *result)
   }
   while ((cur = mysql_fetch_row(result)))
   {
+    if (interrupted_query)
+      break;
     ulong *lengths=mysql_fetch_lengths(result);
     (void) tee_fputs("<TR>", PAGER);
     for (uint i=0; i < mysql_num_fields(result); i++)
@@ -2427,6 +2464,8 @@ print_table_data_xml(MYSQL_RES *result)
   fields = mysql_fetch_fields(result);
   while ((cur = mysql_fetch_row(result)))
   {
+    if (interrupted_query)
+      break;
     ulong *lengths=mysql_fetch_lengths(result);
     (void) tee_fputs("\n  <row>\n", PAGER);
     for (uint i=0; i < mysql_num_fields(result); i++)
@@ -2461,6 +2500,8 @@ print_table_data_vertically(MYSQL_RES *result)
   mysql_field_seek(result,0);
   for (uint row_count=1; (cur= mysql_fetch_row(result)); row_count++)
   {
+    if (interrupted_query)
+      break;
     mysql_field_seek(result,0);
     tee_fprintf(PAGER, 
 		"*************************** %d. row ***************************\n", row_count);

@@ -294,14 +294,14 @@ buf_LRU_try_free_flushed_blocks(void)
 }
 
 /**********************************************************************
-Returns TRUE if less than 15 % of the buffer pool is available. This can be
+Returns TRUE if less than 25 % of the buffer pool is available. This can be
 used in heuristics to prevent huge transactions eating up the whole buffer
 pool for their locks. */
 
 ibool
 buf_LRU_buf_pool_running_out(void)
 /*==============================*/
-				/* out: TRUE if less than 15 % of buffer pool
+				/* out: TRUE if less than 25 % of buffer pool
 				left */
 {
 	ibool	ret	= FALSE;
@@ -309,7 +309,7 @@ buf_LRU_buf_pool_running_out(void)
 	mutex_enter(&(buf_pool->mutex));
 
 	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
-	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 7) {
+	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 4) {
 
 		ret = TRUE;
 	}
@@ -340,11 +340,11 @@ loop:
 	mutex_enter(&(buf_pool->mutex));
 
 	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
-	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 10) {
+	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 20) {
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-"  InnoDB: ERROR: over 9 / 10 of the buffer pool is occupied by\n"
+"  InnoDB: ERROR: over 95 percent of the buffer pool is occupied by\n"
 "InnoDB: lock heaps or the adaptive hash index! Check that your\n"
 "InnoDB: transactions do not set too many row locks.\n"
 "InnoDB: Your buffer pool size is %lu MB. Maybe you should make\n"
@@ -356,17 +356,17 @@ loop:
 		ut_error;
 
 	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
-	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 5) {
+	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 3) {
 
 		if (!buf_lru_switched_on_innodb_mon) {
 
-			/* Over 80 % of the buffer pool is occupied by lock
+	   		/* Over 67 % of the buffer pool is occupied by lock
 			heaps or the adaptive hash index. This may be a memory
 			leak! */
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: WARNING: over 4 / 5 of the buffer pool is occupied by\n"
+"  InnoDB: WARNING: over 67 percent of the buffer pool is occupied by\n"
 "InnoDB: lock heaps or the adaptive hash index! Check that your\n"
 "InnoDB: transactions do not set too many row locks.\n"
 "InnoDB: Your buffer pool size is %lu MB. Maybe you should make\n"
@@ -881,10 +881,10 @@ buf_LRU_block_remove_hashed_page(
 		if (buf_page_hash_get(block->space, block->offset)) {
 			fprintf(stderr,
 "InnoDB: From hash table we find block %p of %lu %lu which is not %p\n",
-		buf_page_hash_get(block->space, block->offset),
+		(void*) buf_page_hash_get(block->space, block->offset),
 		(ulong) buf_page_hash_get(block->space, block->offset)->space,
 		(ulong) buf_page_hash_get(block->space, block->offset)->offset,
-		block);
+		(void*) block);
 		}
 
 #ifdef UNIV_DEBUG

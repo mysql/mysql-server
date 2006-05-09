@@ -317,7 +317,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  GEOMFROMWKB
 %token  GET_FORMAT
 %token  GLOBAL_SYM
-%token  GOTO_SYM
 %token  GRANT
 %token  GRANTS
 %token  GREATEST_SYM
@@ -365,8 +364,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  JOIN_SYM
 %token  KEYS
 %token  KEY_SYM
+%token  KEY_BLOCK_SIZE
 %token  KILL_SYM
-%token  LABEL_SYM
 %token  LANGUAGE_SYM
 %token  LAST_INSERT_ID
 %token  LAST_SYM
@@ -732,7 +731,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem
 
 %type <lex_str_ptr>
-	opt_table_alias opt_fulltext_parser
+	opt_table_alias
 
 %type <table>
 	table_ident table_ident_nodb references xid
@@ -797,7 +796,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	key_type opt_unique_or_fulltext constraint_key_type
 
 %type <key_alg>
-	key_alg opt_btree_or_rtree
+	btree_or_rtree
 
 %type <string_list>
 	key_usage_list using_list
@@ -888,13 +887,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         view_suid view_tail view_list_opt view_list view_select
         view_check_option trigger_tail sp_tail
         install uninstall partition_entry binlog_base64_event
+	init_key_options key_options key_opts key_opt key_using_alg
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
 %type <NONE> sp_proc_stmt_statement sp_proc_stmt_return
 %type <NONE> sp_proc_stmt_if sp_proc_stmt_case_simple sp_proc_stmt_case
 %type <NONE> sp_labeled_control sp_proc_stmt_unlabeled sp_proc_stmt_leave
-%type <NONE> sp_proc_stmt_iterate sp_proc_stmt_label sp_proc_stmt_goto
+%type <NONE> sp_proc_stmt_iterate
 %type <NONE> sp_proc_stmt_open sp_proc_stmt_fetch sp_proc_stmt_close
 
 %type <num>  sp_decl_idents sp_opt_inout sp_handler_type sp_hcond_list
@@ -1222,11 +1222,13 @@ create:
 	}
 	create2
 	  { Lex->current_select= &Lex->select_lex; }
-	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON table_ident
+	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
+	  table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $7, NULL,
+	    if (!lex->current_select->add_table_to_list(lex->thd, $7,
+							NULL,
 							TL_OPTION_UPDATING))
 	      YYABORT;
 	    lex->create_list.empty();
@@ -1234,15 +1236,16 @@ create:
 	    lex->col_list.empty();
 	    lex->change=NullS;
 	  }
-	   '(' key_list ')' opt_fulltext_parser
+	   '(' key_list ')' key_options
 	  {
 	    LEX *lex=Lex;
-	    if ($2 != Key::FULLTEXT && $12)
+	    if ($2 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
 	      yyerror(ER(ER_SYNTAX_ERROR));
 	      YYABORT;
 	    }
-	    lex->key_list.push_back(new Key($2,$4.str,$5,0,lex->col_list,$12));
+	    lex->key_list.push_back(new Key($2, $4.str, &lex->key_create_info, 0,
+					   lex->col_list));
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
@@ -1555,8 +1558,6 @@ ev_sql_stmt_inner:
         | sp_proc_stmt_unlabeled
         | sp_proc_stmt_leave
         | sp_proc_stmt_iterate
-        | sp_proc_stmt_label
-        | sp_proc_stmt_goto
         | sp_proc_stmt_open
         | sp_proc_stmt_fetch
         | sp_proc_stmt_close
@@ -1691,8 +1692,6 @@ create_function_tail:
             if (sp->is_not_allowed_in_function("function"))
               YYABORT;
 
-	    if (sp->check_backpatch(YYTHD))
-	      YYABORT;
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
 	    sp->init_strings(YYTHD, lex, lex->spname);
             if (!(sp->m_flags & sp_head::HAS_RETURN))
@@ -1819,22 +1818,23 @@ sp_fdparam:
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
 
-	    if (spc->find_pvar(&$1, TRUE))
+	    if (spc->find_variable(&$1, TRUE))
 	    {
 	      my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
 	      YYABORT;
 	    }
-	    sp_pvar_t *pvar= spc->push_pvar(&$1, (enum enum_field_types)$3,
-                                            sp_param_in);
+            sp_variable_t *spvar= spc->push_variable(&$1,
+                                                     (enum enum_field_types)$3,
+                                                     sp_param_in);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
                                                    (enum enum_field_types) $3,
-                                                   &pvar->field_def))
+                                                   &spvar->field_def))
             {
               YYABORT;
             }
-            pvar->field_def.field_name= pvar->name.str;
-            pvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
+            spvar->field_def.field_name= spvar->name.str;
+            spvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
 	  }
 	;
 
@@ -1855,22 +1855,23 @@ sp_pdparam:
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
 
-	    if (spc->find_pvar(&$3, TRUE))
+	    if (spc->find_variable(&$3, TRUE))
 	    {
 	      my_error(ER_SP_DUP_PARAM, MYF(0), $3.str);
 	      YYABORT;
 	    }
-	    sp_pvar_t *pvar= spc->push_pvar(&$3, (enum enum_field_types)$4,
-			                    (sp_param_mode_t)$1);
+            sp_variable_t *spvar= spc->push_variable(&$3,
+                                                     (enum enum_field_types)$4,
+                                                     (sp_param_mode_t)$1);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
                                                    (enum enum_field_types) $4,
-                                                   &pvar->field_def))
+                                                   &spvar->field_def))
             {
               YYABORT;
             }
-            pvar->field_def.field_name= pvar->name.str;
-            pvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
+            spvar->field_def.field_name= spvar->name.str;
+            spvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
 	  }
 	;
 
@@ -1934,7 +1935,7 @@ sp_decl:
           {
             LEX *lex= Lex;
             sp_pcontext *pctx= lex->spcont;
-            uint num_vars= pctx->context_pvars();
+            uint num_vars= pctx->context_var_count();
             enum enum_field_types var_type= (enum enum_field_types) $4;
             Item *dflt_value_item= $5;
             create_field *create_field_op;
@@ -1947,23 +1948,23 @@ sp_decl:
             
             for (uint i = num_vars-$2 ; i < num_vars ; i++)
             {
-              uint var_idx= pctx->pvar_context2index(i);
-              sp_pvar_t *pvar= pctx->find_pvar(var_idx);
+              uint var_idx= pctx->var_context2runtime(i);
+              sp_variable_t *spvar= pctx->find_variable(var_idx);
             
-              if (!pvar)
+              if (!spvar)
                 YYABORT;
             
-              pvar->type= var_type;
-              pvar->dflt= dflt_value_item;
+              spvar->type= var_type;
+              spvar->dflt= dflt_value_item;
             
               if (lex->sphead->fill_field_definition(YYTHD, lex, var_type,
-                                                     &pvar->field_def))
+                                                     &spvar->field_def))
               {
                 YYABORT;
               }
             
-              pvar->field_def.field_name= pvar->name.str;
-              pvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
+              spvar->field_def.field_name= spvar->name.str;
+              spvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
             
               /* The last instruction is responsible for freeing LEX. */
 
@@ -2000,7 +2001,7 @@ sp_decl:
 	    sp_pcontext *ctx= lex->spcont;
 	    sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, $2,
-	                              ctx->current_pvars());
+	                              ctx->current_var_count());
 
 	    sp->add_instr(i);
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
@@ -2017,7 +2018,7 @@ sp_decl:
 	    if ($2 == SP_HANDLER_CONTINUE)
 	    {
 	      i= new sp_instr_hreturn(sp->instructions(), ctx,
-	                              ctx->current_pvars());
+	                              ctx->current_var_count());
 	      sp->add_instr(i);
 	    }
 	    else
@@ -2048,7 +2049,7 @@ sp_decl:
 	      YYABORT;
 	    }
             i= new sp_instr_cpush(sp->instructions(), ctx, $5,
-                                  ctx->current_cursors());
+                                  ctx->current_cursor_count());
 	    sp->add_instr(i);
 	    ctx->push_cursor(&$2);
 	    $$.vars= $$.conds= $$.hndlrs= 0;
@@ -2203,12 +2204,12 @@ sp_decl_idents:
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
 
-	    if (spc->find_pvar(&$1, TRUE))
+	    if (spc->find_variable(&$1, TRUE))
 	    {
 	      my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
 	      YYABORT;
 	    }
-	    spc->push_pvar(&$1, (enum_field_types)0, sp_param_in);
+	    spc->push_variable(&$1, (enum_field_types)0, sp_param_in);
 	    $$= 1;
 	  }
 	| sp_decl_idents ',' ident
@@ -2218,12 +2219,12 @@ sp_decl_idents:
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
 
-	    if (spc->find_pvar(&$3, TRUE))
+	    if (spc->find_variable(&$3, TRUE))
 	    {
 	      my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
 	      YYABORT;
 	    }
-	    spc->push_pvar(&$3, (enum_field_types)0, sp_param_in);
+	    spc->push_variable(&$3, (enum_field_types)0, sp_param_in);
 	    $$= $1 + 1;
 	  }
 	;
@@ -2243,8 +2244,6 @@ sp_proc_stmt:
 	| sp_proc_stmt_unlabeled
 	| sp_proc_stmt_leave
 	| sp_proc_stmt_iterate
-	| sp_proc_stmt_label
-	| sp_proc_stmt_goto
 	| sp_proc_stmt_open
 	| sp_proc_stmt_fetch
         | sp_proc_stmt_close
@@ -2447,97 +2446,6 @@ sp_proc_stmt_iterate:
 	  }
         ;
 
-sp_proc_stmt_label:
-	  LABEL_SYM IDENT
-	  {
-#ifdef SP_GOTO
-	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-	    sp_pcontext *ctx= lex->spcont;
-	    sp_label_t *lab= ctx->find_label($2.str);
-
-	    if (lab)
-	    {
-	      my_error(ER_SP_LABEL_REDEFINE, MYF(0), $2.str);
-	      YYABORT;
-	    }
-	    else
-	    {
-	      lab= ctx->push_label($2.str, sp->instructions());
-	      lab->type= SP_LAB_GOTO;
-	      lab->ctx= ctx;
-              sp->backpatch(lab);
-	    }
-#else
-	    yyerror(ER(ER_SYNTAX_ERROR));
-	    YYABORT;
-#endif
-	  }
-        ;
-
-sp_proc_stmt_goto:
-	  GOTO_SYM IDENT
-	  {
-#ifdef SP_GOTO
-	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-	    sp_pcontext *ctx= lex->spcont;
-	    uint ip= lex->sphead->instructions();
-	    sp_label_t *lab;
-	    sp_instr_jump *i;
-	    sp_instr_hpop *ih;
-	    sp_instr_cpop *ic;
-
-	    if (sp->m_in_handler)
-	    {
-	      my_message(ER_SP_GOTO_IN_HNDLR, ER(ER_SP_GOTO_IN_HNDLR), MYF(0));
-	      YYABORT;
-	    }
-	    lab= ctx->find_label($2.str);
-	    if (! lab)
-	    {
-	      lab= (sp_label_t *)YYTHD->alloc(sizeof(sp_label_t));
-	      lab->name= $2.str;
-	      lab->ip= 0;
-	      lab->type= SP_LAB_REF;
-	      lab->ctx= ctx;
-
-	      ih= new sp_instr_hpop(ip++, ctx, 0);
-	      sp->push_backpatch(ih, lab);
-	      sp->add_instr(ih);
-	      ic= new sp_instr_cpop(ip++, ctx, 0);
-	      sp->add_instr(ic);
-	      sp->push_backpatch(ic, lab);
-	      i= new sp_instr_jump(ip, ctx);
-	      sp->push_backpatch(i, lab);  /* Jumping forward */
-	      sp->add_instr(i);
-	    }
-	    else
-	    {
-	      uint n;
-
-	      n= ctx->diff_handlers(lab->ctx);
-	      if (n)
-	      {
-	        ih= new sp_instr_hpop(ip++, ctx, n);
-	        sp->add_instr(ih);
-	      }
-	      n= ctx->diff_cursors(lab->ctx);
-	      if (n)
-	      {
-	        ic= new sp_instr_cpop(ip++, ctx, n);
-	        sp->add_instr(ic);
-	      }
-	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
-	      sp->add_instr(i);
-	    }
-#else
-	    yyerror(ER(ER_SYNTAX_ERROR));
-	    YYABORT;
-#endif
-	  }
-        ;
-
 sp_proc_stmt_open:
 	  OPEN_SYM ident
 	  {
@@ -2606,9 +2514,9 @@ sp_fetch_list:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *spc= lex->spcont;
-	    sp_pvar_t *spv;
+	    sp_variable_t *spv;
 
-	    if (!spc || !(spv = spc->find_pvar(&$1)))
+	    if (!spc || !(spv = spc->find_variable(&$1)))
 	    {
 	      my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
 	      YYABORT;
@@ -2627,9 +2535,9 @@ sp_fetch_list:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *spc= lex->spcont;
-	    sp_pvar_t *spv;
+	    sp_variable_t *spv;
 
-	    if (!spc || !(spv = spc->find_pvar(&$3)))
+	    if (!spc || !(spv = spc->find_variable(&$3)))
 	    {
 	      my_error(ER_SP_UNDECLARED_VAR, MYF(0), $3.str);
 	      YYABORT;
@@ -3185,13 +3093,13 @@ opt_ts_engine:
           opt_storage ENGINE_SYM opt_equal storage_engines
           {
             LEX *lex= Lex;
-            if (lex->alter_tablespace_info->storage_engine != DB_TYPE_UNKNOWN)
+            if (lex->alter_tablespace_info->storage_engine != NULL)
             {
               my_error(ER_FILEGROUP_OPTION_ONLY_ONCE,MYF(0),
                        "STORAGE ENGINE");
               YYABORT;
             }
-            lex->alter_tablespace_info->storage_engine= $4->db_type;
+            lex->alter_tablespace_info->storage_engine= $4 ? $4 : &default_hton;
           };
 
 opt_ts_wait:
@@ -3558,75 +3466,14 @@ part_definition:
           LEX *lex= Lex;
           partition_info *part_info= lex->part_info;
           partition_element *p_elem= new partition_element();
-          uint part_id= part_info->partitions.elements +
-                        part_info->temp_partitions.elements;
-          enum partition_state part_state;
+          uint part_id= part_info->partitions.elements;
 
-          if (part_info->part_state)
-            part_state= (enum partition_state)part_info->part_state[part_id];
-          else
-            part_state= PART_NORMAL;
-          switch (part_state)
+          if (!p_elem || part_info->partitions.push_back(p_elem))
           {
-            case PART_TO_BE_DROPPED:
-            /*
-              This part is currently removed so we keep it in a
-              temporary list for REPAIR TABLE to be able to handle
-              failures during drop partition process.
-            */
-            case PART_TO_BE_ADDED:
-            /*
-              This part is currently being added so we keep it in a
-              temporary list for REPAIR TABLE to be able to handle
-              failures during add partition process.
-            */
-              if (!p_elem || part_info->temp_partitions.push_back(p_elem))
-              {
-                mem_alloc_error(sizeof(partition_element));
-                YYABORT;
-              }
-              break;
-            case PART_IS_ADDED:
-            /*
-              Part has been added and is now a normal partition
-            */
-            case PART_TO_BE_REORGED:
-            /*
-              This part is currently reorganised, it is still however
-              used so we keep it in the list of partitions. We do
-              however need the state to be able to handle REPAIR TABLE
-              after failures in the reorganisation process.
-            */
-            case PART_REORGED_DROPPED:
-            /*
-              This part is currently reorganised as part of a
-              COALESCE PARTITION and it will be dropped without a new
-              replacement partition after completing the reorganisation.
-            */
-            case PART_CHANGED:
-            /*
-              This part is currently split or merged as part of ADD
-              PARTITION for a hash partition or as part of COALESCE
-              PARTITION for a hash partitioned table.
-            */
-            case PART_IS_CHANGED:
-            /*
-              This part has been split or merged as part of ADD
-              PARTITION for a hash partition or as part of COALESCE
-              PARTITION for a hash partitioned table.
-            */
-            case PART_NORMAL:
-              if (!p_elem || part_info->partitions.push_back(p_elem))
-              {
-                mem_alloc_error(sizeof(partition_element));
-                YYABORT;
-              }
-              break;
-            default:
-              mem_alloc_error((part_id * 1000) + part_state);
-              YYABORT;
+            mem_alloc_error(sizeof(partition_element));
+            YYABORT;
           }
-          p_elem->part_state= part_state;
+          p_elem->part_state= PART_NORMAL;
           part_info->curr_part_elem= p_elem;
           part_info->current_partition= p_elem;
           part_info->use_default_partitions= FALSE;
@@ -4048,6 +3895,11 @@ create_table_option:
         | STORAGE_SYM DISK_SYM {Lex->create_info.store_on_disk= TRUE;}
         | STORAGE_SYM MEMORY_SYM {Lex->create_info.store_on_disk= FALSE;}
 	| CONNECTION_SYM opt_equal TEXT_STRING_sys { Lex->create_info.connect_string.str= $3.str; Lex->create_info.connect_string.length= $3.length;  Lex->create_info.used_fields|= HA_CREATE_USED_CONNECTION; }
+	| KEY_BLOCK_SIZE opt_equal ulong_num
+	  {
+	    Lex->create_info.used_fields|= HA_CREATE_USED_KEY_BLOCK_SIZE;
+	    Lex->create_info.key_block_size= $3;
+	  }
         ;
 
 default_charset:
@@ -4141,23 +3993,25 @@ column_def:
 	;
 
 key_def:
-	key_type opt_ident key_alg '(' key_list ')' opt_fulltext_parser
+	key_type opt_ident key_alg '(' key_list ')' key_options
 	  {
 	    LEX *lex=Lex;
-	    if ($1 != Key::FULLTEXT && $7)
+	    if ($1 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
 	      yyerror(ER(ER_SYNTAX_ERROR));
 	      YYABORT;
 	    }
-	    lex->key_list.push_back(new Key($1,$2, $3, 0, lex->col_list, $7));
+	    lex->key_list.push_back(new Key($1,$2, &lex->key_create_info, 0,
+					   lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
-	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')'
+	| opt_constraint constraint_key_type opt_ident key_alg
+	  '(' key_list ')' key_options
 	  {
 	    LEX *lex=Lex;
-	    const char *key_name= $3 ? $3:$1;
-	    lex->key_list.push_back(new Key($2, key_name, $4, 0,
-				    lex->col_list));
+	    const char *key_name= $3 ? $3 : $1;
+	    lex->key_list.push_back(new Key($2, key_name, &lex->key_create_info, 0,
+					    lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
@@ -4170,7 +4024,7 @@ key_def:
 				    lex->fk_update_opt,
 				    lex->fk_match_option));
 	    lex->key_list.push_back(new Key(Key::MULTIPLE, $4 ? $4 : $1,
-					    HA_KEY_ALG_UNDEF, 1,
+					    &default_key_create_info, 1,
 					    lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 
@@ -4186,20 +4040,6 @@ key_def:
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	;
-
-opt_fulltext_parser:
-        /* empty */               { $$= (LEX_STRING *)0; }
-	| WITH PARSER_SYM IDENT_sys
-          {
-            if (plugin_is_ready(&$3, MYSQL_FTPARSER_PLUGIN))
-              $$= (LEX_STRING *)sql_memdup(&$3, sizeof(LEX_STRING));
-            else
-            {
-              my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), $3.str);
-              YYABORT;
-            }
-          }
-        ;
 
 opt_check_constraint:
 	/* empty */
@@ -4674,12 +4514,56 @@ opt_unique_or_fulltext:
 	  }
         ;
 
-key_alg:
-	/* empty */		   { $$= HA_KEY_ALG_UNDEF; }
-	| USING opt_btree_or_rtree { $$= $2; }
-	| TYPE_SYM opt_btree_or_rtree  { $$= $2; };
+init_key_options:
+	{
+	  Lex->key_create_info= default_key_create_info;
+	}
+	;
 
-opt_btree_or_rtree:
+/*
+  For now, key_alg initializies lex->key_create_info.
+  In the future, when all key options are after key definition,
+  we can remove key_alg and move init_key_options to key_options
+*/
+
+key_alg:
+	/* empty */ init_key_options
+	| init_key_options key_using_alg
+	;
+
+key_options:
+	/* empty */ {}
+	| key_opts
+	;
+
+key_opts:
+	key_opt
+	| key_opts key_opt
+	;
+
+key_using_alg:
+	USING btree_or_rtree       { Lex->key_create_info.algorithm= $2; }
+	| TYPE_SYM btree_or_rtree  { Lex->key_create_info.algorithm= $2; }
+        ;
+
+key_opt:
+        key_using_alg
+	| KEY_BLOCK_SIZE opt_equal ulong_num
+	  { Lex->key_create_info.block_size= $3; }
+	| WITH PARSER_SYM IDENT_sys
+          {
+            if (plugin_is_ready(&$3, MYSQL_FTPARSER_PLUGIN))
+              Lex->key_create_info.parser_name= $3;
+            else
+            {
+              my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), $3.str);
+              YYABORT;
+            }
+          }
+        ;
+
+
+btree_or_rtree:
 	BTREE_SYM	{ $$= HA_KEY_ALG_BTREE; }
 	| RTREE_SYM
 	  {
@@ -4693,7 +4577,7 @@ key_list:
 
 key_part:
 	ident			{ $$=new key_part_spec($1.str); }
-	| ident '(' NUM ')'	
+	| ident '(' NUM ')'
         {
           int key_part_len= atoi($3.str);
           if (!key_part_len)
@@ -4801,7 +4685,7 @@ alter:
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
 	    lex->create_view_mode= VIEW_ALTER;
 	    /* first table in list is target VIEW name */
-	    lex->select_lex.add_table_to_list(thd, $6, NULL, 0);
+	    lex->select_lex.add_table_to_list(thd, $6, NULL, TL_OPTION_UPDATING);
 	  }
 	  view_list_opt AS view_select view_check_option
 	  {}
@@ -7422,14 +7306,32 @@ order_clause:
 	ORDER_SYM BY
         {
 	  LEX *lex=Lex;
-	  if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	      lex->current_select->olap !=
-	      UNSPECIFIED_OLAP_TYPE)
+          SELECT_LEX *sel= lex->current_select;
+          SELECT_LEX_UNIT *unit= sel-> master_unit();
+	  if (sel->linkage != GLOBAL_OPTIONS_TYPE &&
+	      sel->olap != UNSPECIFIED_OLAP_TYPE)
 	  {
 	    my_error(ER_WRONG_USAGE, MYF(0),
                      "CUBE/ROLLUP", "ORDER BY");
 	    YYABORT;
 	  }
+          if (lex->sql_command != SQLCOM_ALTER_TABLE && !unit->fake_select_lex)
+          {
+            /*
+              A query of the of the form (SELECT ...) ORDER BY order_list is
+              executed in the same way as the query
+              SELECT ... ORDER BY order_list
+              unless the SELECT construct contains ORDER BY or LIMIT clauses.
+              Otherwise we create a fake SELECT_LEX if it has not been created
+              yet.
+            */
+            SELECT_LEX *first_sl= unit->first_select();
+            if (!first_sl->next_select() &&
+                (first_sl->order_list.elements || 
+                 first_sl->select_limit) &&            
+                unit->add_fake_select_lex(lex->thd))
+              YYABORT;
+          }
 	} order_list;
 
 order_list:
@@ -7595,9 +7497,9 @@ select_var_ident:
            | ident_or_text
            {
              LEX *lex=Lex;
-	     sp_pvar_t *t;
+	     sp_variable_t *t;
 
-	     if (!lex->spcont || !(t=lex->spcont->find_pvar(&$1)))
+	     if (!lex->spcont || !(t=lex->spcont->find_variable(&$1)))
 	     {
 	       my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
 	       YYABORT;
@@ -8178,7 +8080,7 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_OPEN_TABLES))
               YYABORT;
 	  }
-        | PLUGIN_SYM
+        | opt_full PLUGIN_SYM
 	  {
 	    LEX *lex= Lex;
 	    WARN_DEPRECATED(yythd, "5.2", "SHOW PLUGIN", "'SHOW PLUGINS'");
@@ -9034,10 +8936,10 @@ order_ident:
 simple_ident:
 	ident
 	{
-	  sp_pvar_t *spv;
+	  sp_variable_t *spv;
 	  LEX *lex = Lex;
           sp_pcontext *spc = lex->spcont;
-	  if (spc && (spv = spc->find_pvar(&$1)))
+	  if (spc && (spv = spc->find_variable(&$1)))
 	  {
             /* We're compiling a stored procedure and found a variable */
             Item_splocal *splocal;
@@ -9488,7 +9390,7 @@ keyword_sp:
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
-	| RELAY_THREAD		{}
+	| KEY_BLOCK_SIZE	{}
 	| LAST_SYM		{}
 	| LEAVES                {}
 	| LESS_SYM		{}
@@ -9575,6 +9477,7 @@ keyword_sp:
         | REDUNDANT_SYM         {}
 	| RELAY_LOG_FILE_SYM	{}
 	| RELAY_LOG_POS_SYM	{}
+	| RELAY_THREAD		{}
 	| RELOAD		{}
 	| REORGANIZE_SYM	{}
 	| REPEATABLE_SYM	{}
@@ -9825,7 +9728,7 @@ sys_option_value:
           {
             /* An SP local variable */
             sp_pcontext *ctx= lex->spcont;
-            sp_pvar_t *spv;
+            sp_variable_t *spv;
             sp_instr_set *sp_set;
             Item *it;
             if ($1)
@@ -9834,7 +9737,7 @@ sys_option_value:
               YYABORT;
             }
 
-            spv= ctx->find_pvar(&$2.base_name);
+            spv= ctx->find_variable(&$2.base_name);
 
             if ($4)
               it= $4;
@@ -9883,7 +9786,7 @@ option_value:
 
 	    names.str= (char *)"names";
 	    names.length= 5;
-	    if (spc && spc->find_pvar(&names))
+	    if (spc && spc->find_variable(&names))
               my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
             else
               yyerror(ER(ER_SYNTAX_ERROR));
@@ -9913,7 +9816,7 @@ option_value:
 
 	    pw.str= (char *)"password";
 	    pw.length= 8;
-	    if (spc && spc->find_pvar(&pw))
+	    if (spc && spc->find_variable(&pw))
 	    {
               my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
 	      YYABORT;
@@ -9935,10 +9838,10 @@ internal_variable_name:
 	{
 	  LEX *lex= Lex;
           sp_pcontext *spc= lex->spcont;
-	  sp_pvar_t *spv;
+	  sp_variable_t *spv;
 
 	  /* We have to lookup here since local vars can shadow sysvars */
-	  if (!spc || !(spv = spc->find_pvar(&$1)))
+	  if (!spc || !(spv = spc->find_variable(&$1)))
 	  {
             /* Not an SP local variable */
 	    sys_var *tmp=find_sys_var($1.str, $1.length);
@@ -10904,7 +10807,7 @@ view_tail:
 	  LEX *lex= thd->lex;
 	  lex->sql_command= SQLCOM_CREATE_VIEW;
 	  /* first table in list is target VIEW name */
-	  if (!lex->select_lex.add_table_to_list(thd, $3, NULL, 0))
+	  if (!lex->select_lex.add_table_to_list(thd, $3, NULL, TL_OPTION_UPDATING))
 	    YYABORT;
 	}
 	view_list_opt AS view_select view_check_option
@@ -11105,8 +11008,6 @@ sp_tail:
 	  LEX *lex= Lex;
 	  sp_head *sp= lex->sphead;
 
-	  if (sp->check_backpatch(YYTHD))
-	    YYABORT;
 	  sp->init_strings(YYTHD, lex, $3);
 	  lex->sql_command= SQLCOM_CREATE_PROCEDURE;
           /*
