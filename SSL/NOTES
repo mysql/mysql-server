@@ -40,7 +40,69 @@ openssl s_server -port 1111 -cert ../SSL/server-cert.pem -key ../SSL/server-key.
 
 
 
+-------------------------------------------
+How to generate new keys:
 
+First we need the private key of the CA cert. Since we always throw
+away the old private key for the CA, we need to generate a totally new
+CA cert. Our CA cert is self signed and we will use that to sign the
+server and client keys. As long as we distibute the cacert.pem they can
+b oth be validated against that.
+
+
+1) openssl genrsa 512 > cecert.pem
+
+2) openssl req -new -x509 -nodes -md5 -days 1000 -key cacert.pem > cacert.pem
+
+We now have a cacert.pem which is the public key and a cakey.pem which is the
+private key of the CA.
+
+Steps to generate the server key.
+
+3) openssl req -newkey rsa:512 -md5 -days 1000 -nodes -keyout server-key.pem > server-req.pem
+
+4) copy ca-key.pem ca-cert.srl
+
+5) openssl x509 -req -in server-req.pem -days 1000 -md5 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 01 > server-cert.pem
+
+
+-- adding metadata to beginning
+
+6) openssl x509 -in server-cert.pem -text > tmp.pem
+
+7) mv tmp.pem server-cert.pem
+
+-- And almost the same for the client.
+
+8) openssl req -newkey rsa:512 -md5 -days 1000 -nodes -keyout client-key.pem > client-req.pem
+
+9) openssl x509 -req -in client-req.pem -days 1000 -md5 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 01 > client-cert.pem
+
+
+-- adding metadata to beginning
+
+10) openssl x509 -in client-cert.pem -text > tmp.pem
+
+11) mv tmp.pem client-cert.pem
+
+The new certs are now generated. They can be verified against the cacert to test they are ok. This is actually what is done in the MySQL client and server.
+
+12) openssl verify -CAfile cacert.pem server-cert.pem
+server-cert.pem: OK
+13) openssl verify -CAfile cacert.pem client-cert.pm
+client-cert.pem: OK
+
+
+The files we add to our repository and thus distribute are
+* cacert.pem - CA's public key, used to verify the client/servers pblic keys
+* server-key.pem - servers private key
+* server-cert.pem - servers public key
+* client-key.pem - clients private key
+* client-cert.pem - clients public key
+
+
+
+== OLD NOTES below ==
 --------------------------------------------
 
 CA stuff:

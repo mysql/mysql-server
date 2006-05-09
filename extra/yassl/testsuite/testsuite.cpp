@@ -91,6 +91,7 @@ int main(int argc, char** argv)
     assert(memcmp(input, output, sizeof(input)) == 0);
 
     printf("\nAll tests passed!\n");
+    yaSSL_CleanUp();
 
     return 0;
 }
@@ -146,10 +147,10 @@ int test_openSSL_des()
                    (byte*)key, iv);
 
     byte cipher[16];
-    DES_ede3_cbc_encrypt((byte*)data, cipher, dataSz, &key[0], &key[8],
-                         &key[16], &iv, true);
+    DES_ede3_cbc_encrypt((byte*)data, cipher, dataSz, &key[0], &key[1],
+                         &key[2], &iv, true);
     byte plain[16];
-    DES_ede3_cbc_encrypt(cipher, plain, 16, &key[0], &key[8], &key[16],
+    DES_ede3_cbc_encrypt(cipher, plain, 16, &key[0], &key[1], &key[2],
                          &iv, false);
     return 0;
 }
