@@ -28,7 +28,7 @@ typedef int (*get_part_id_func)(partition_info *part_info,
                                  longlong *func_value);
 typedef uint32 (*get_subpart_id_func)(partition_info *part_info);
 
-
+struct st_ddl_log_memory_entry;
 
 class partition_info : public Sql_alloc
 {
@@ -76,7 +76,11 @@ public:
   Item *subpart_expr;
 
   Item *item_free_list;
-  
+
+  struct st_ddl_log_memory_entry *first_log_entry;
+  struct st_ddl_log_memory_entry *exec_log_entry;
+  struct st_ddl_log_memory_entry *frm_log_entry;
+
   /* 
     A bitmap of partitions used by the current query. 
     Usage pattern:
@@ -191,6 +195,7 @@ public:
     part_field_array(NULL), subpart_field_array(NULL),
     full_part_field_array(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
+    first_log_entry(NULL), exec_log_entry(NULL), frm_log_entry(NULL),
     list_array(NULL),
     part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
@@ -256,7 +261,8 @@ private:
                                  uint start_no);
   bool set_up_default_subpartitions(handler *file, ulonglong max_rows);
   char *create_default_partition_names(uint part_no, uint no_parts,
-                                       uint start_no, bool is_subpart);
+                                       uint start_no);
+  char *create_subpartition_name(uint subpart_no, const char *part_name);
   bool has_unique_name(partition_element *element);
 };
 

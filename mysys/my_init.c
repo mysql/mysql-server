@@ -150,6 +150,7 @@ void my_end(int infoflag)
       sprintf(errbuff[0],EE(EE_OPEN_WARNING),my_file_opened,my_stream_opened);
       (void) my_message_no_curses(EE_OPEN_WARNING,errbuff[0],ME_BELL);
       DBUG_PRINT("error",("%s",errbuff[0]));
+      my_print_open_files();
     }
   }
   free_charsets();

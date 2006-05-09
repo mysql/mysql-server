@@ -7,8 +7,9 @@ drop database if exists mysqltest;
 --enable_warnings
 
 # workaround for bug#16445
-# remove to reproduce bug and run tests drom ndb start
-# and with ndb_autodiscover disabled
+# remove to reproduce bug and run tests from ndb start
+# and with ndb_autodiscover disabled. Fails on Linux 50 % of the times
+
 CREATE TABLE t1 (
   pk1 INT NOT NULL PRIMARY KEY,
   attr1 INT NOT NULL,

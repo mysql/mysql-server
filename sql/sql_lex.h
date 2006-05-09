@@ -479,6 +479,7 @@ public:
 
   void print(String *str);
 
+  bool add_fake_select_lex(THD *thd);
   void init_prepare_fake_select_lex(THD *thd);
   inline bool is_prepared() { return prepared; }
   bool change_result(select_subselect *result, select_subselect *old_result);
@@ -839,6 +840,7 @@ typedef struct st_lex
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
   HA_CREATE_INFO create_info;
+  KEY_CREATE_INFO key_create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   USER_RESOURCES mqh;
   ulong type;

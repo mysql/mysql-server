@@ -67,6 +67,11 @@ static int _mi_cmp_buffer(File file, const byte *buff, my_off_t filepos,
 my_bool mi_dynmap_file(MI_INFO *info, my_off_t size)
 {
   DBUG_ENTER("mi_dynmap_file");
+  if (size > (my_off_t) (~((size_t) 0)) - MEMMAP_EXTRA_MARGIN)
+  {
+    DBUG_PRINT("warning", ("File is too large for mmap"));
+    DBUG_RETURN(1);
+  }
   info->s->file_map= (byte*)
                   my_mmap(0, (size_t)(size + MEMMAP_EXTRA_MARGIN),
                           info->s->mode==O_RDONLY ? PROT_READ :

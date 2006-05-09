@@ -34,32 +34,39 @@
 
 namespace yaSSL {
 
-// library allocation
-struct new_t {};      // yaSSL New type
-extern new_t ys;      // pass in parameter
 
-} // namespace yaSSL
-
-void* operator new  (size_t, yaSSL::new_t);
-void* operator new[](size_t, yaSSL::new_t);
-
-void operator delete  (void*, yaSSL::new_t);
-void operator delete[](void*, yaSSL::new_t);
+// Delete static singleton memory holders
+void CleanUp();
 
 
-namespace yaSSL {
+#ifdef YASSL_PURE_C
+
+    // library allocation
+    struct new_t {};      // yaSSL New type
+    extern new_t ys;      // pass in parameter
+
+    } // namespace yaSSL
+
+    void* operator new  (size_t, yaSSL::new_t);
+    void* operator new[](size_t, yaSSL::new_t);
+
+    void operator delete  (void*, yaSSL::new_t);
+    void operator delete[](void*, yaSSL::new_t);
 
 
-template<typename T>
-void ysDelete(T* ptr)
-{
+    namespace yaSSL {
+
+
+    template<typename T>
+    void ysDelete(T* ptr)
+    {
     if (ptr) ptr->~T();
     ::operator delete(ptr, yaSSL::ys);
-}
+    }
 
-template<typename T>
-void ysArrayDelete(T* ptr)
-{
+    template<typename T>
+    void ysArrayDelete(T* ptr)
+    {
     // can't do array placement destruction since not tracking size in
     // allocation, only allow builtins to use array placement since they
     // don't need destructors called
@@ -67,15 +74,40 @@ void ysArrayDelete(T* ptr)
     (void)sizeof(builtin);
 
     ::operator delete[](ptr, yaSSL::ys);
-}
+    }
 
+    #define NEW_YS new (ys) 
 
-// to resolve compiler generated operator delete on base classes with
-// virtual destructors (when on stack), make sure doesn't get called
-class virtual_base {
-public:
+    // to resolve compiler generated operator delete on base classes with
+    // virtual destructors (when on stack), make sure doesn't get called
+    class virtual_base {
+    public:
     static void operator delete(void*) { assert(0); }
-};
+    };
+
+
+#else   // YASSL_PURE_C
+
+
+    template<typename T>
+    void ysDelete(T* ptr)
+    {
+        delete ptr;
+    }
+
+    template<typename T>
+    void ysArrayDelete(T* ptr)
+    {
+        delete[] ptr;
+    }
+
+    #define NEW_YS new
+
+    class virtual_base {};
+
+
+
+#endif // YASSL_PURE_C
 
 
 typedef unsigned char  uint8;
@@ -105,7 +137,7 @@ const int KEY_PREFIX        =   7;  // up to 7 prefix letters for key rounds
 const int FORTEZZA_MAX      = 128;  // Maximum Fortezza Key length
 const int MAX_SUITE_SZ      =  64;  // 32 max suites * sizeof(suite)
 const int MAX_SUITE_NAME    =  48;  // max length of suite name
-const int MAX_CIPHER_LIST   = 512;  // max length of cipher list names
+const int MAX_CIPHERS       =  32;  // max supported ciphers for cipher list
 const int SIZEOF_ENUM       =   1;  // SSL considers an enum 1 byte, not 4
 const int SIZEOF_SENDER     =   4;  // Sender constant, for finished generation
 const int PAD_MD5           =  48;  // pad length 1 and 2 for md5 finished

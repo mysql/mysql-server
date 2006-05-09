@@ -188,6 +188,8 @@ list(const char * tabname,
             ndbout_c("%-5d %-20s %-8s %-7s %s", elt.id, type, state, store, elt.name);
         }
     }
+    if (_parsable)
+      exit(0);
 }
 
 NDB_STD_OPTS_VARS;

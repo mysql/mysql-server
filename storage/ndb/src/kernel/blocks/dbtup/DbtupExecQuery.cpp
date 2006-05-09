@@ -483,6 +483,14 @@ Dbtup::load_diskpage(Signal* signal,
     req.m_callback.m_callbackData= opRec;
     req.m_callback.m_callbackFunction= 
       safe_cast(&Dbtup::disk_page_load_callback);
+
+#ifdef ERROR_INSERT
+    if (ERROR_INSERTED(4022))
+    {
+      flags |= Page_cache_client::DELAY_REQ;
+      req.m_delay_until_time = NdbTick_CurrentMillisecond()+(Uint64)3000;
+    }
+#endif
     
     if((res= m_pgman.get_page(signal, req, flags)) > 0)
     {
@@ -1382,8 +1390,9 @@ int Dbtup::handleInsertReq(Signal* signal,
 			regOperPtr.p->userpointer,
 			&regOperPtr.p->m_tuple_location);
     
-    ((Tuple_header*)ptr)->m_operation_ptr_i= regOperPtr.i;
-    ((Tuple_header*)ptr)->m_header_bits= Tuple_header::ALLOC | 
+    base = (Tuple_header*)ptr;
+    base->m_operation_ptr_i= regOperPtr.i;
+    base->m_header_bits= Tuple_header::ALLOC | 
       (varsize ? Tuple_header::CHAINED_ROW : 0);
     regOperPtr.p->m_tuple_location.m_page_no = real_page_id;
   }
@@ -1422,6 +1431,9 @@ int Dbtup::handleInsertReq(Signal* signal,
       ndbrequire(false);
     }
   }
+
+  base->m_header_bits |= Tuple_header::ALLOC & 
+    (regOperPtr.p->is_first_operation() ? ~0 : 1);
   
   if (disk_insert)
   {
@@ -1467,7 +1479,7 @@ int Dbtup::handleInsertReq(Signal* signal,
 size_change_error:
   jam();
   terrorCode = ZMEM_NOMEM_ERROR;
-  goto disk_prealloc_error;
+  goto exit_error;
   
 undo_buffer_error:
   jam();
@@ -1501,9 +1513,13 @@ update_error:
     regOperPtr.p->op_struct.in_active_list = false;
     regOperPtr.p->m_tuple_location.setNull();
   }
-disk_prealloc_error:
+exit_error:
   tupkeyErrorLab(signal);
   return -1;
+
+disk_prealloc_error:
+  base->m_header_bits |= Tuple_header::FREED;
+  goto exit_error;
 }
 
 /* ---------------------------------------------------------------- */
@@ -2879,7 +2895,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     
     if(needed <= alloc)
     {
-      ndbassert(!regOperPtr->is_first_operation());
+      //ndbassert(!regOperPtr->is_first_operation());
       ndbout_c(" no grow");
       return 0;
     }
@@ -3111,6 +3127,35 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     preq.m_callback.m_callbackFunction =
       safe_cast(&Dbtup::nr_delete_page_callback);
     int flags = Page_cache_client::COMMIT_REQ;
+    
+#ifdef ERROR_INSERT
+    if (ERROR_INSERTED(4023) || ERROR_INSERTED(4024))
+    {
+      int rnd = rand() % 100;
+      int slp = 0;
+      if (ERROR_INSERTED(4024))
+      {
+	slp = 3000;
+      }
+      else if (rnd > 90)
+      {
+	slp = 3000;
+      }
+      else if (rnd > 70)
+      {
+	slp = 100;
+      }
+      
+      ndbout_c("rnd: %d slp: %d", rnd, slp);
+      
+      if (slp)
+      {
+	flags |= Page_cache_client::DELAY_REQ;
+	preq.m_delay_until_time = NdbTick_CurrentMillisecond()+(Uint64)slp;
+      }
+    }
+#endif
+    
     res = m_pgman.get_page(signal, preq, flags);
     if (res == 0)
     {
@@ -3122,6 +3167,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     }
 
     PagePtr disk_page = *(PagePtr*)&m_pgman.m_ptr;
+    disk_page_set_dirty(disk_page);
 
     preq.m_callback.m_callbackFunction =
       safe_cast(&Dbtup::nr_delete_logbuffer_callback);      
@@ -3156,7 +3202,7 @@ Dbtup::nr_delete_page_callback(Signal* signal,
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, page_id);
   PagePtr pagePtr= *(PagePtr*)&gpage;
-
+  disk_page_set_dirty(pagePtr);
   Dblqh::Nr_op_info op;
   op.m_ptr_i = userpointer;
   op.m_disk_ref.m_page_no = pagePtr.p->m_page_no;

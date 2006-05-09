@@ -45,10 +45,12 @@ public:
     RIPEMD160(const RIPEMD160&);
     RIPEMD160& operator= (const RIPEMD160&);
 
+    void Update(const byte*, word32);
     void Init();
     void Swap(RIPEMD160&);
 private:
     void Transform();
+    void AsmTransform(const byte* data, word32 times);
 };
 
 inline void swap(RIPEMD160& a, RIPEMD160& b)

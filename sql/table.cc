@@ -535,6 +535,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       keyinfo->key_length= (uint) uint2korr(strpos+2);
       keyinfo->key_parts=  (uint) strpos[4];
       keyinfo->algorithm=  (enum ha_key_alg) strpos[5];
+      keyinfo->block_size= uint2korr(strpos+6);
       strpos+=8;
     }
     else
@@ -667,36 +668,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
       next_chunk+= 5 + partition_info_len;
     }
-    if (share->mysql_version > 50105 && next_chunk + 5 < buff_end)
+#if MYSQL_VERSION_ID < 50200
+    if (share->mysql_version >= 50106 && share->mysql_version <= 50109)
     {
       /*
-        Partition state was introduced to support partition management in version 5.1.5
+         Partition state array was here in version 5.1.6 to 5.1.9, this code
+         makes it possible to load a 5.1.6 table in later versions. Can most
+         likely be removed at some point in time. Will only be used for
+         upgrades within 5.1 series of versions. Upgrade to 5.2 can only be
+         done from newer 5.1 versions.
       */
-      uint32 part_state_len= uint4korr(next_chunk);
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-      if ((share->part_state_len= part_state_len))
-        if (!(share->part_state=
-              (uchar*) memdup_root(&share->mem_root, next_chunk + 4,
-                                   part_state_len)))
-        {
-          my_free(buff, MYF(0));
-          goto err;
-        }
-#else
-      if (part_state_len)
-      {
-        DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        my_free(buff, MYF(0));
-        goto err;
-      }
-#endif
-      next_chunk+= 4 + part_state_len;
-    }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    else
-    {
-      share->part_state_len= 0;
-      share->part_state= NULL;
+      next_chunk+= 4;
     }
 #endif
     keyinfo= share->key_info;
@@ -725,6 +707,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
     my_free(buff, MYF(0));
   }
+  share->key_block_size= uint2korr(head+62);
 
   error=4;
   extra_rec_buf_length= uint2korr(head+59);
@@ -2084,6 +2067,11 @@ File create_frm(THD *thd, const char *name, const char *db,
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
     int4store(fileinfo+55, create_info->extra_size);
+    /*
+      59-60 is reserved for extra_rec_buf_length,
+      61 for default_part_db_type
+    */
+    int2store(fileinfo+62, create_info->key_block_size);
     bzero(fill,IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {

@@ -210,9 +210,13 @@ Configuration::Configuration()
   m_config_retriever= 0;
   m_clusterConfig= 0;
   m_clusterConfigIter= 0;
+  m_logLevel= 0;
 }
 
 Configuration::~Configuration(){
+  if (opt_connect_str)
+    free(_connectString);
+
   if(_programName != NULL)
     free(_programName);
 
@@ -224,6 +228,10 @@ Configuration::~Configuration(){
 
   if (m_config_retriever) {
     delete m_config_retriever;
+  }
+
+  if(m_logLevel) {
+    delete m_logLevel;
   }
 }
 
@@ -278,7 +286,8 @@ Configuration::fetch_configuration(){
   if (globalData.ownId)
     cr.setNodeId(globalData.ownId);
 
-  globalData.ownId = cr.allocNodeId(2 /*retry*/,3 /*delay*/);
+  globalData.ownId = cr.allocNodeId(globalData.ownId ? 10 : 2 /*retry*/,
+                                    3 /*delay*/);
   
   if(globalData.ownId == 0){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, 

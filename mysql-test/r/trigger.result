@@ -949,6 +949,52 @@ insert into t1 values
 create function f2() returns int return (select max(b) from t2);
 insert into t2 select a, f2() from t1;
 load data infile '../std_data_ln/words.dat' into table t1 (a) set b:= f1();
-drop table t1;
+drop table t1, t2;
 drop function f1;
 drop function f2;
+create table t1(i int not null, j int not null, n numeric(15,2), primary key(i,j));
+create table t2(i int not null, n numeric(15,2), primary key(i));
+create trigger t1_ai after insert on t1 for each row
+begin
+declare sn numeric(15,2);
+select sum(n) into sn from t1 where i=new.i;
+replace into t2 values(new.i, sn);
+end|
+insert into t1 values
+(1,1,10.00),(1,2,10.00),(1,3,10.00),(1,4,10.00),(1,5,10.00),
+(1,6,10.00),(1,7,10.00),(1,8,10.00),(1,9,10.00),(1,10,10.00),
+(1,11,10.00),(1,12,10.00),(1,13,10.00),(1,14,10.00),(1,15,10.00);
+select * from t1;
+i	j	n
+1	1	10.00
+1	2	10.00
+1	3	10.00
+1	4	10.00
+1	5	10.00
+1	6	10.00
+1	7	10.00
+1	8	10.00
+1	9	10.00
+1	10	10.00
+1	11	10.00
+1	12	10.00
+1	13	10.00
+1	14	10.00
+1	15	10.00
+select * from t2;
+i	n
+1	150.00
+drop tables t1, t2;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+conn_id INT,
+trigger_conn_id INT
+);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+SET NEW.trigger_conn_id = CONNECTION_ID();
+INSERT INTO t1 (conn_id, trigger_conn_id) VALUES (CONNECTION_ID(), -1);
+INSERT INTO t1 (conn_id, trigger_conn_id) VALUES (CONNECTION_ID(), -1);
+SELECT * FROM t1 WHERE conn_id != trigger_conn_id;
+conn_id	trigger_conn_id
+DROP TRIGGER t1_bi;
+DROP TABLE t1;

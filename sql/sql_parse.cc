@@ -68,7 +68,6 @@ static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_multi_update_lock(THD *thd);
 static void remove_escape(char *name);
-static void refresh_status(THD *thd);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -138,7 +137,7 @@ static void unlock_locked_tables(THD *thd)
 }
 
 
-static bool end_active_trans(THD *thd)
+bool end_active_trans(THD *thd)
 {
   int error=0;
   DBUG_ENTER("end_active_trans");
@@ -1009,6 +1008,7 @@ static int check_connection(THD *thd)
 
   char *user= end;
   char *passwd= strend(user)+1;
+  uint user_len= passwd - user - 1;
   char *db= passwd;
   char db_buff[NAME_LEN+1];                     // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH+1];		// buffer to store user in utf8
@@ -1023,21 +1023,36 @@ static int check_connection(THD *thd)
     *passwd++ : strlen(passwd);
   db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
     db + passwd_len + 1 : 0;
+  uint db_len= db ? strlen(db) : 0;
+
+  if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
+  {
+    inc_host_errors(&thd->remote.sin_addr);
+    return ER_HANDSHAKE_ERROR;
+  }
 
   /* Since 4.1 all database names are stored in utf8 */
   if (db)
   {
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info,
-                             db, strlen(db),
+                             db, db_len,
                              thd->charset(), &dummy_errors)]= 0;
     db= db_buff;
   }
 
-  user_buff[copy_and_convert(user_buff, sizeof(user_buff)-1,
-                             system_charset_info, user, strlen(user),
-                             thd->charset(), &dummy_errors)]= '\0';
+  user_buff[user_len= copy_and_convert(user_buff, sizeof(user_buff)-1,
+                                       system_charset_info, user, user_len,
+                                       thd->charset(), &dummy_errors)]= '\0';
   user= user_buff;
+
+  /* If username starts and ends in "'", chop them off */
+  if (user_len > 1 && user[0] == '\'' && user[user_len - 1] == '\'')
+  {
+    user[user_len-1]= 0;
+    user++;
+    user_len-= 2;
+  }
 
   if (thd->main_security_ctx.user)
     x_free(thd->main_security_ctx.user);
@@ -1607,7 +1622,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     char *db, *tbl_name;
     uint db_len= *(uchar*) packet;
+    if (db_len >= packet_length || db_len > NAME_LEN)
+    {
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      break;
+    }
     uint tbl_len= *(uchar*) (packet + db_len + 1);
+    if (db_len+tbl_len+2 > packet_length || tbl_len > NAME_LEN)
+    {
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      break;
+    }
 
     statistic_increment(thd->status_var.com_other, &LOCK_status);
     thd->enable_slow_log= opt_log_slow_admin_statements;
@@ -1728,7 +1753,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
     char *packet_end= thd->query + thd->query_length;
-    general_log_print(thd, command, "%s", thd->query);
+    general_log_print(thd, command, "%.*b", thd->query_length, thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -2936,8 +2961,7 @@ end_with_restore_list:
     thd->enable_slow_log= opt_log_slow_admin_statements;
     if (end_active_trans(thd))
       goto error;
-    else
-      res = mysql_create_index(thd, first_table, lex->key_list);
+    res= mysql_create_index(thd, first_table, lex->key_list);
     break;
 
 #ifdef HAVE_REPLICATION
@@ -3044,18 +3068,16 @@ end_with_restore_list:
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
 	goto error;
-      else
-      {
-        thd->enable_slow_log= opt_log_slow_admin_statements;
-	res= mysql_alter_table(thd, select_lex->db, lex->name,
-			       &lex->create_info,
-			       first_table, lex->create_list,
-			       lex->key_list,
-			       select_lex->order_list.elements,
-                               (ORDER *) select_lex->order_list.first,
-			       lex->duplicates, lex->ignore, &lex->alter_info,
-                               1);
-      }
+
+      thd->enable_slow_log= opt_log_slow_admin_statements;
+      res= mysql_alter_table(thd, select_lex->db, lex->name,
+                             &lex->create_info,
+                             first_table, lex->create_list,
+                             lex->key_list,
+                             select_lex->order_list.elements,
+                             (ORDER *) select_lex->order_list.first,
+                             lex->duplicates, lex->ignore, &lex->alter_info,
+                             1);
       break;
     }
 #endif /*DONT_ALLOW_SHOW_COMMANDS*/
@@ -3182,7 +3204,7 @@ end_with_restore_list:
 	check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
-    res = mysql_analyze_table(thd, first_table, &lex->check_opt);
+    res= mysql_analyze_table(thd, first_table, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
     {
@@ -3487,8 +3509,7 @@ end_with_restore_list:
       goto error;				/* purecov: inspected */
     if (end_active_trans(thd))
       goto error;
-    else
-      res = mysql_drop_index(thd, first_table, &lex->alter_info);
+    res= mysql_drop_index(thd, first_table, &lex->alter_info);
     break;
   case SQLCOM_SHOW_PROCESSLIST:
     if (!thd->security_ctx->priv_user[0] &&
@@ -5724,48 +5745,17 @@ mysql_new_select(LEX *lex, bool move_down)
   }
   else
   {
-    Name_resolution_context *outer_context;
     if (lex->current_select->order_list.first && !lex->current_select->braces)
     {
       my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
       DBUG_RETURN(1);
     }
     select_lex->include_neighbour(lex->current_select);
-    /*
-      we are not sure that we have one level of SELECTs above, so we take
-      outer_context address from first select of unit
-    */
-    outer_context=
-      select_lex->master_unit()->first_select()->context.outer_context;
-    SELECT_LEX_UNIT *unit= select_lex->master_unit();
-    SELECT_LEX *fake= unit->fake_select_lex;
-    if (!fake)
-    {
-      /*
-	as far as we included SELECT_LEX for UNION unit should have
-	fake SELECT_LEX for UNION processing
-      */
-      if (!(fake= unit->fake_select_lex= new (thd->mem_root) SELECT_LEX()))
-        DBUG_RETURN(1);
-      fake->include_standalone(unit,
-			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
-      fake->select_number= INT_MAX;
-      fake->parent_lex= lex; /* Used in init_query. */
-      fake->make_empty_select();
-      fake->linkage= GLOBAL_OPTIONS_TYPE;
-      fake->select_limit= 0;
-
-      fake->context.outer_context= outer_context;
-      /* allow item list resolving in fake select for ORDER BY */
-      fake->context.resolve_in_select_list= TRUE;
-      fake->context.select_lex= fake;
-      /*
-        Remove the name resolution context of the fake select from the
-        context stack.
-       */
-      lex->pop_context();
-    }
-    select_lex->context.outer_context= outer_context;
+    SELECT_LEX_UNIT *unit= select_lex->master_unit();                              
+    if (!unit->fake_select_lex && unit->add_fake_select_lex(lex->thd))
+      DBUG_RETURN(1);
+    select_lex->context.outer_context= 
+                unit->first_select()->context.outer_context;
   }
 
   select_lex->master_unit()->global_parameters= select_lex;
@@ -5979,14 +5969,16 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   if (type_modifier & PRI_KEY_FLAG)
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::PRIMARY, NullS, HA_KEY_ALG_UNDEF,
+    lex->key_list.push_back(new Key(Key::PRIMARY, NullS,
+                                    &default_key_create_info,
 				    0, lex->col_list));
     lex->col_list.empty();
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::UNIQUE, NullS, HA_KEY_ALG_UNDEF, 0,
+    lex->key_list.push_back(new Key(Key::UNIQUE, NullS,
+                                    &default_key_create_info, 0,
 				    lex->col_list));
     lex->col_list.empty();
   }
@@ -6550,6 +6542,68 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
 
 
 /*
+  Create a fake SELECT_LEX for a unit
+
+  SYNOPSIS:
+    add_fake_select_lex()
+    thd			   thread handle
+
+  DESCRIPTION
+    The method create a fake SELECT_LEX object for a unit.
+    This object is created for any union construct containing a union
+    operation and also for any single select union construct of the form
+    (SELECT ... ORDER BY order_list [LIMIT n]) ORDER BY ... 
+    or of the form
+    (SELECT ... ORDER BY LIMIT n) ORDER BY ...
+  
+  NOTES
+    The object is used to retrieve rows from the temporary table
+    where the result on the union is obtained.
+
+  RETURN VALUES
+    1     on failure to create the object
+    0     on success
+*/
+
+bool st_select_lex_unit::add_fake_select_lex(THD *thd)
+{
+  SELECT_LEX *first_sl= first_select();
+  DBUG_ENTER("add_fake_select_lex");
+  DBUG_ASSERT(!fake_select_lex);
+
+  if (!(fake_select_lex= new (thd->mem_root) SELECT_LEX()))
+      DBUG_RETURN(1);
+  fake_select_lex->include_standalone(this, 
+                                      (SELECT_LEX_NODE**)&fake_select_lex);
+  fake_select_lex->select_number= INT_MAX;
+  fake_select_lex->parent_lex= thd->lex; /* Used in init_query. */
+  fake_select_lex->make_empty_select();
+  fake_select_lex->linkage= GLOBAL_OPTIONS_TYPE;
+  fake_select_lex->select_limit= 0;
+
+  fake_select_lex->context.outer_context=first_sl->context.outer_context;
+  /* allow item list resolving in fake select for ORDER BY */
+  fake_select_lex->context.resolve_in_select_list= TRUE;
+  fake_select_lex->context.select_lex= fake_select_lex;
+
+  if (!first_sl->next_select())
+  {
+    /* 
+      This works only for 
+      (SELECT ... ORDER BY list [LIMIT n]) ORDER BY order_list [LIMIT m],
+      (SELECT ... LIMIT n) ORDER BY order_list [LIMIT m]
+      just before the parser starts processing order_list
+    */ 
+    global_parameters= fake_select_lex;
+    fake_select_lex->no_table_names_allowed= 1;
+    thd->lex->current_select= fake_select_lex;
+  }
+  thd->lex->pop_context();
+  DBUG_RETURN(0);
+}
+
+
+/*
   Push a new name resolution context for a JOIN ... ON clause to the
   context stack of a query block.
 
@@ -6902,26 +6956,6 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     send_ok(thd);
   else
     my_error(error, MYF(0), id);
-}
-
-
-/* Clear most status variables */
-
-static void refresh_status(THD *thd)
-{
-  pthread_mutex_lock(&LOCK_status);
-
-  /* We must update the global status before cleaning up the thread */
-  add_to_status(&global_status_var, &thd->status_var);
-  bzero((char*) &thd->status_var, sizeof(thd->status_var));
-
-  for (SHOW_VAR *ptr= status_vars; ptr->name; ptr++)
-    if (ptr->type == SHOW_LONG) // note that SHOW_LONG_NOFLUSH variables are not reset
-      *(ulong*) ptr->value= 0;
-
-  /* Reset the counters of all key caches (default and named). */
-  process_key_caches(reset_key_cache_counters);
-  pthread_mutex_unlock(&LOCK_status);
 }
 
 

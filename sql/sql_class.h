@@ -112,17 +112,16 @@ class Key :public Sql_alloc {
 public:
   enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT, SPATIAL, FOREIGN_KEY};
   enum Keytype type;
-  enum ha_key_alg algorithm;
+  KEY_CREATE_INFO key_create_info;
   List<key_part_spec> columns;
   const char *name;
   bool generated;
-  LEX_STRING *parser_name;
 
-  Key(enum Keytype type_par, const char *name_arg, enum ha_key_alg alg_par,
-      bool generated_arg, List<key_part_spec> &cols,
-      LEX_STRING *parser_arg= 0)
-    :type(type_par), algorithm(alg_par), columns(cols), name(name_arg),
-    generated(generated_arg), parser_name(parser_arg)
+  Key(enum Keytype type_par, const char *name_arg,
+      KEY_CREATE_INFO *key_info_arg,
+      bool generated_arg, List<key_part_spec> &cols)
+    :type(type_par), key_create_info(*key_info_arg), columns(cols),
+    name(name_arg), generated(generated_arg)
   {}
   ~Key() {}
   /* Equality comparison of keys (ignoring name) */
@@ -144,7 +143,7 @@ public:
   foreign_key(const char *name_arg, List<key_part_spec> &cols,
 	      Table_ident *table,   List<key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key(FOREIGN_KEY, name_arg, HA_KEY_ALG_UNDEF, 0, cols),
+    :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
     ref_table(table), ref_columns(cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
@@ -241,11 +240,6 @@ struct system_variables
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
-#ifdef HAVE_REPLICATION
-  ulong sync_replication;
-  ulong sync_replication_slave_id;
-  ulong sync_replication_timeout;
-#endif /* HAVE_REPLICATION */
   my_bool innodb_table_locks;
   my_bool innodb_support_xa;
   my_bool ndb_force_send;
@@ -545,7 +539,7 @@ class Statement_map
 public:
   Statement_map();
 
-  int insert(Statement *statement);
+  int insert(THD *thd, Statement *statement);
 
   Statement *find_by_name(LEX_STRING *name)
   {
@@ -567,36 +561,16 @@ public:
     }
     return last_found_statement;
   }
-  void erase(Statement *statement)
-  {
-    if (statement == last_found_statement)
-      last_found_statement= 0;
-    if (statement->name.str)
-    {
-      hash_delete(&names_hash, (byte *) statement);  
-    }
-    hash_delete(&st_hash, (byte *) statement);
-  }
   /*
     Close all cursors of this connection that use tables of a storage
     engine that has transaction-specific state and therefore can not
     survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
   */
   void close_transient_cursors();
+  void erase(Statement *statement);
   /* Erase all statements (calls Statement destructor) */
-  void reset()
-  {
-    my_hash_reset(&names_hash);
-    my_hash_reset(&st_hash);
-    transient_cursor_list.empty();
-    last_found_statement= 0;
-  }
-
-  void destroy()
-  {
-    hash_free(&names_hash);
-    hash_free(&st_hash);
-  }
+  void reset();
+  ~Statement_map();
 private:
   HASH st_hash;
   HASH names_hash;
@@ -1119,6 +1093,9 @@ public:
   query_id_t query_id, warn_id;
   ulong      thread_id, col_access;
 
+#ifdef ERROR_INJECT_SUPPORT
+  ulong      error_inject_value;
+#endif
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
@@ -1179,6 +1156,7 @@ public:
   {
     my_bool my_bool_value;
     long    long_value;
+    ulong   ulong_value;
   } sys_var_tmp;
   
   struct {

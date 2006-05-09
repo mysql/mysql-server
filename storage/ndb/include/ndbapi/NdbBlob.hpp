@@ -326,6 +326,7 @@ private:
   bool isWriteOp();
   bool isDeleteOp();
   bool isScanOp();
+  bool isTakeOverOp();
   // computations
   Uint32 getPartNumber(Uint64 pos);
   Uint32 getPartCount();

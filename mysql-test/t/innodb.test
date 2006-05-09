@@ -1,3 +1,16 @@
+#######################################################################
+#                                                                     #
+# Please, DO NOT TOUCH this file as well as the innodb.result file.   #
+# These files are to be modified ONLY BY INNOBASE guys.               #
+#                                                                     #
+# Use innodb_mysql.[test|result] files instead.                       #
+#                                                                     #
+# If nevertheless you need to make some changes here, please, forward #
+# your commit message To: dev@innodb.com Cc: dev-innodb@mysql.com     #
+# (otherwise your changes may be erased).                             #
+#                                                                     #
+#######################################################################
+
 -- source include/have_innodb.inc
 
 #
@@ -901,10 +914,10 @@ insert into t2 (a) select b from t1;
 insert into t1 (a) select b from t2;
 select count(*) from t1;
 --replace_column 9 #
-explain select * from t1 where c between 1 and 10000;
+explain select * from t1 where c between 1 and 2500;
 update t1 set c=a;
 --replace_column 9 #
-explain select * from t1 where c between 1 and 10000;
+explain select * from t1 where c between 1 and 2500;
 drop table t1,t2;
 
 #
@@ -2182,15 +2195,318 @@ show create table t1;
 #
 drop table t1, t2;
 
-
 #
 # Bug #14360: problem with intervals
 #
 
 create table t1(a date) engine=innodb;
-create table t2(a date, key(a)) engine=innodb; 
+create table t2(a date, key(a)) engine=innodb;
 insert into t1 values('2005-10-01');
 insert into t2 values('2005-10-01');
 select * from t1, t2
   where t2.a between t1.a - interval 2 day and t1.a + interval 2 day;
 drop table t1, t2;
+
+create table t1 (id int not null, f_id int not null, f int not null,
+primary key(f_id, id)) engine=innodb;
+create table t2 (id int not null,s_id int not null,s varchar(200),
+primary key(id)) engine=innodb;
+INSERT INTO t1 VALUES (8, 1, 3);
+INSERT INTO t1 VALUES (1, 2, 1);
+INSERT INTO t2 VALUES (1, 0, '');
+INSERT INTO t2 VALUES (8, 1, '');
+commit;
+DELETE ml.* FROM t1 AS ml LEFT JOIN t2 AS mm ON (mm.id=ml.id)
+WHERE mm.id IS NULL;
+select ml.* from t1 as ml left join t2 as mm on (mm.id=ml.id)
+where mm.id is null lock in share mode;
+drop table t1,t2;
+
+#
+# Test case where X-locks on unused rows should be released in a
+# update (because READ COMMITTED isolation level)
+#
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null, b int, primary key(a)) engine=innodb;
+insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2),(7,3);
+commit;
+set autocommit = 0; 
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+update t1 set b = 5 where b = 1;
+connection b;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+#
+# X-lock to record (7,3) should be released in a update 
+#
+select * from t1 where a = 7 and b = 3 for update;
+connection a;
+commit;
+connection b;
+commit;
+drop table t1;
+connection default;
+disconnect a;
+disconnect b;
+
+#
+# Test case where no locks should be released (because we are not
+# using READ COMMITTED isolation level)
+#
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null, b int, primary key(a)) engine=innodb;
+insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2);
+commit;
+set autocommit = 0; 
+select * from t1 lock in share mode;
+update t1 set b = 5 where b = 1;
+connection b;
+set autocommit = 0;
+#
+# S-lock to records (2,2),(4,2), and (6,2) should not be released in a update
+#
+--error 1205
+select * from t1 where a = 2 and b = 2 for update;
+#
+# X-lock to record (1,1),(3,1),(5,1) should not be released in a update
+#
+--error 1205
+connection a;
+commit;
+connection b;
+commit;
+connection default;
+disconnect a;
+disconnect b;
+drop table t1;
+
+#
+# Consistent read should be used in following selects
+#
+# 1) INSERT INTO ... SELECT
+# 2) UPDATE ... = ( SELECT ...)
+# 3) CREATE ... SELECT
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null, b int, primary key(a)) engine=innodb;
+insert into t1 values (1,2),(5,3),(4,2);
+create table t2(d int not null, e int, primary key(d)) engine=innodb;
+insert into t2 values (8,6),(12,1),(3,1);
+commit;
+set autocommit = 0;
+select * from t2 for update;
+connection b;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+insert into t1 select * from t2;
+update t1 set b = (select e from t2 where a = d);
+create table t3(d int not null, e int, primary key(d)) engine=innodb
+select * from t2;
+commit;
+connection a;
+commit;
+connection default;
+disconnect a;
+disconnect b;
+drop table t1, t2, t3;
+
+#
+# Consistent read should not be used if 
+#
+# (a) isolation level is serializable OR
+# (b) select ... lock in share mode OR
+# (c) select ... for update
+#
+# in following queries:
+#
+# 1) INSERT INTO ... SELECT
+# 2) UPDATE ... = ( SELECT ...)
+# 3) CREATE ... SELECT
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connect (c,localhost,root,,);
+connect (d,localhost,root,,);
+connect (e,localhost,root,,);
+connect (f,localhost,root,,);
+connect (g,localhost,root,,);
+connect (h,localhost,root,,);
+connect (i,localhost,root,,);
+connect (j,localhost,root,,);
+connection a;
+create table t1(a int not null, b int, primary key(a)) engine=innodb;
+insert into t1 values (1,2),(5,3),(4,2);
+create table t2(a int not null, b int, primary key(a)) engine=innodb;
+insert into t2 values (8,6),(12,1),(3,1);
+create table t3(d int not null, b int, primary key(d)) engine=innodb;
+insert into t3 values (8,6),(12,1),(3,1);
+create table t5(a int not null, b int, primary key(a)) engine=innodb;
+insert into t5 values (1,2),(5,3),(4,2);
+create table t6(d int not null, e int, primary key(d)) engine=innodb;
+insert into t6 values (8,6),(12,1),(3,1);
+create table t8(a int not null, b int, primary key(a)) engine=innodb;
+insert into t8 values (1,2),(5,3),(4,2);
+create table t9(d int not null, e int, primary key(d)) engine=innodb;
+insert into t9 values (8,6),(12,1),(3,1);
+commit;
+set autocommit = 0;
+select * from t2 for update;
+connection b;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+--send
+insert into t1 select * from t2;
+connection c;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+--send
+update t3 set b = (select b from t2 where a = d);
+connection d;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+--send
+create table t4(a int not null, b int, primary key(a)) engine=innodb select * from t2;
+connection e;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+insert into t5 (select * from t2 lock in share mode);
+connection f;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+update t6 set e = (select b from t2 where a = d lock in share mode);
+connection g;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+create table t7(a int not null, b int, primary key(a)) engine=innodb select * from t2 lock in share mode;
+connection h;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+insert into t8 (select * from t2 for update);
+connection i;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+update t9 set e = (select b from t2 where a = d for update);
+connection j;
+set autocommit = 0;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--send
+create table t10(a int not null, b int, primary key(a)) engine=innodb select * from t2 for update;
+
+connection b;
+--error 1205
+reap;
+
+connection c;
+--error 1205
+reap;
+
+connection d;
+--error 1205
+reap;
+
+connection e;
+--error 1205
+reap;
+
+connection f;
+--error 1205
+reap;
+
+connection g;
+--error 1205
+reap;
+
+connection h;
+--error 1205
+reap;
+
+connection i;
+--error 1205
+reap;
+
+connection j;
+--error 1205
+reap;
+
+connection a;
+commit;
+
+connection default;
+disconnect a;
+disconnect b;
+disconnect c;
+disconnect d;
+disconnect e;
+disconnect f;
+disconnect g;
+disconnect h;
+disconnect i;
+disconnect j;
+drop table t1, t2, t3, t5, t6, t8, t9;
+
+# bug 18934, "InnoDB crashes when table uses column names like DB_ROW_ID"
+--error 1005
+CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
+
+#
+# Bug #17152: Wrong result with BINARY comparison on aliased column
+#
+
+CREATE TABLE t1 (
+   a BIGINT(20) NOT NULL,
+    PRIMARY KEY  (a)
+ ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+
+CREATE TABLE t2 (
+  a BIGINT(20) NOT NULL,
+  b VARCHAR(128) NOT NULL,
+  c TEXT NOT NULL,
+  PRIMARY KEY  (a,b),
+  KEY idx_t2_b_c (b,c(200)),
+  CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a) 
+   ON DELETE CASCADE
+ ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1, 'bar', 'vbar');
+INSERT INTO t2 VALUES (1, 'BAR2', 'VBAR');
+INSERT INTO t2 VALUES (1, 'bar_bar', 'bibi');
+INSERT INTO t2 VALUES (1, 'customer_over', '1');
+
+SELECT * FROM t2 WHERE b = 'customer_over';
+SELECT * FROM t2 WHERE BINARY b = 'customer_over';
+SELECT DISTINCT p0.a FROM t2 p0 WHERE p0.b = 'customer_over';
+/* Bang: Empty result set, above was expected: */
+SELECT DISTINCT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
+SELECT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
+
+drop table t2, t1;
+
+#
+# Bug #15680 (SPATIAL key in innodb)
+#
+--error ER_TABLE_CANT_HANDLE_SPKEYS
+create table t1 (g geometry not null, spatial gk(g)) engine=innodb;
+
+#
+# Test optimize on table with open transaction
+#
+
+CREATE TABLE t1 ( a int ) ENGINE=innodb;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+OPTIMIZE TABLE t1;
+DROP TABLE t1;

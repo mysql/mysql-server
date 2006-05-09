@@ -1062,6 +1062,9 @@ Dbtup::disk_page_abort_prealloc_callback_1(Signal* signal,
 					   PagePtr pagePtr,
 					   Uint32 sz)
 {
+  jam();
+  disk_page_set_dirty(pagePtr);
+
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
   Uint32 page_idx = pagePtr.p->list_index;
   Uint32 used = pagePtr.p->uncommitted_used_space;

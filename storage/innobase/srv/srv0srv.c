@@ -362,30 +362,6 @@ ibool	srv_print_innodb_lock_monitor	= FALSE;
 ibool	srv_print_innodb_tablespace_monitor = FALSE;
 ibool	srv_print_innodb_table_monitor = FALSE;
 
-/* The parameters below are obsolete: */
-
-ibool	srv_print_parsed_sql		= FALSE;
-
-ulint	srv_sim_disk_wait_pct		= ULINT_MAX;
-ulint	srv_sim_disk_wait_len		= ULINT_MAX;
-ibool	srv_sim_disk_wait_by_yield	= FALSE;
-ibool	srv_sim_disk_wait_by_wait	= FALSE;
-
-ibool	srv_measure_contention	= FALSE;
-ibool	srv_measure_by_spin	= FALSE;
-
-ibool	srv_test_extra_mutexes	= FALSE;
-ibool	srv_test_nocache	= FALSE;
-ibool	srv_test_cache_evict	= FALSE;
-
-ibool	srv_test_sync		= FALSE;
-ulint	srv_test_n_threads	= ULINT_MAX;
-ulint	srv_test_n_loops	= ULINT_MAX;
-ulint	srv_test_n_free_rnds	= ULINT_MAX;
-ulint	srv_test_n_reserved_rnds = ULINT_MAX;
-ulint	srv_test_array_size	= ULINT_MAX;
-ulint	srv_test_n_mutexes	= ULINT_MAX;
-
 /* Array of English strings describing the current state of an
 i/o handler thread */
 
@@ -910,10 +886,6 @@ srv_init(void)
 		srv_meter_high_water2[i] = 200;
 		srv_meter_foreground[i] = 250;
 	}
-
-	srv_sys->operational = os_event_create(NULL);
-
-	ut_a(srv_sys->operational);
 
 	UT_LIST_INIT(srv_sys->tasks);
 
@@ -1713,6 +1685,8 @@ srv_printf_innodb_monitor(
 	"; in additional pool allocated " ULINTPF "\n",
 				ut_total_allocated_memory,
 				mem_pool_get_reserved(mem_comm_pool));
+	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
+		dict_sys->size);
 
 	if (srv_use_awe) {
 		fprintf(file,
@@ -1845,11 +1819,7 @@ srv_export_innodb_status(void)
 A thread which wakes up threads whose lock wait may have lasted too long.
 This also prints the info output by various InnoDB monitors. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_lock_timeout_and_monitor_thread(
 /*================================*/
 			/* out: a dummy parameter */
@@ -2021,22 +1991,15 @@ exit_func:
 	thread should always use that to exit and not use return() to exit. */
 
 	os_thread_exit(NULL);
-#ifndef __WIN__
-	return(NULL);
-#else
-	return(0);
-#endif
+
+	OS_THREAD_DUMMY_RETURN;
 }
 
 /*************************************************************************
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_error_monitor_thread(
 /*=====================*/
 			/* out: a dummy parameter */
@@ -2118,11 +2081,7 @@ loop:
 
 	os_thread_exit(NULL);
 
-#ifndef __WIN__
-	return(NULL);
-#else
-	return(0);
-#endif
+	OS_THREAD_DUMMY_RETURN;
 }
 
 /***********************************************************************
@@ -2167,11 +2126,7 @@ srv_wake_master_thread(void)
 /*************************************************************************
 The master thread controlling the server. */
 
-#ifndef __WIN__
-void*
-#else
-ulint
-#endif
+os_thread_ret_t
 srv_master_thread(
 /*==============*/
 			/* out: a dummy parameter */
@@ -2210,7 +2165,6 @@ srv_master_thread(
 
 	mutex_exit(&kernel_mutex);
 
-	os_event_set(srv_sys->operational);
 loop:
 	/*****************************************************************/
 	/* ---- When there is database activity by users, we cycle in this
@@ -2617,10 +2571,6 @@ suspend_thread:
 
 	os_thread_exit(NULL);
 
-#ifndef __WIN__
-	return(NULL);				/* Not reached */
-#else
-	return(0);
-#endif
+	OS_THREAD_DUMMY_RETURN;
 }
 #endif /* !UNIV_HOTBACKUP */

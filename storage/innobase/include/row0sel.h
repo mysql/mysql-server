@@ -78,6 +78,26 @@ fetch_step(
 /*=======*/
 				/* out: query thread to run next or NULL */
 	que_thr_t*	thr);	/* in: query thread */
+/********************************************************************
+Sample callback function for fetch that prints each row.*/
+
+void*
+row_fetch_print(
+/*============*/
+				/* out: always returns non-NULL */
+	void*	row,		/* in:  sel_node_t* */
+	void*	user_arg);	/* in:  not used */
+/********************************************************************
+Callback function for fetch that stores an unsigned 4 byte integer to the
+location pointed. The column's type must be DATA_INT, DATA_UNSIGNED, length
+= 4. */
+
+void*
+row_fetch_store_uint4(
+/*==================*/
+				/* out: always returns NULL */
+	void*	row,		/* in:  sel_node_t* */
+	void*	user_arg);	/* in:  data pointer */
 /***************************************************************
 Prints a row in a select result. */
 
@@ -204,8 +224,6 @@ struct plan_struct{
 	ulint		first_prefetched;/* index of the first cached row in
 					select buffer arrays for each column */
 	ibool		no_prefetch;	/* no prefetch for this table */
-	ibool		mixed_index;	/* TRUE if index is a clustered index
-					in a mixed cluster */
 	sym_node_list_t	columns;	/* symbol table nodes for the columns
 					to retrieve from the table */
 	UT_LIST_BASE_NODE_T(func_node_t)
@@ -311,6 +329,20 @@ struct fetch_node_struct{
 	que_common_t	common;		/* type: QUE_NODE_FETCH */
 	sel_node_t*	cursor_def;	/* cursor definition */
 	sym_node_t*	into_list;	/* variables to set */
+
+	pars_user_func_t*
+			func;		/* User callback function or NULL.
+					The first argument to the function
+					is a sel_node_t*, containing the
+					results of the SELECT operation for
+					one row. If the function returns
+					NULL, it is not interested in
+					further rows and the cursor is
+					modified so (cursor % NOTFOUND) is
+					true. If it returns not-NULL,
+					continue normally. See
+					row_fetch_print() for an example
+					(and a useful debugging tool). */
 };
 
 /* Open or close cursor statement node */

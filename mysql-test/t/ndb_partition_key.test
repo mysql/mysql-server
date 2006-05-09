@@ -45,7 +45,7 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (a INT, b CHAR(10) COLLATE latin1_bin, c INT, d INT,
-                 PRIMARY KEY USING HASH (a,b,c))
+                 PRIMARY KEY (a,b,c) USING HASH)
                  ENGINE=NDB
                  DEFAULT CHARSET=latin1
                  PARTITION BY KEY (b);
@@ -152,6 +152,24 @@ b'0',
 --enable_query_log
 ALTER TABLE t1 COALESCE PARTITION 4;
 
+DROP TABLE t1;
+
+#
+# Bug 16822: OPTIMIZE TABLE hangs test
+#
+CREATE TABLE t1 (a int primary key)
+ENGINE=NDB
+PARTITION BY KEY(a);
+--error 1031
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+--error 1031
+ALTER TABLE t1 CHECK PARTITION p0;
+--error 1031
+ALTER TABLE t1 REPAIR PARTITION p0;
+--error 1031
+ALTER TABLE t1 ANALYZE PARTITION p0;
+--error 1031
+ALTER TABLE t1 REBUILD PARTITION p0;
 DROP TABLE t1;
 
 #

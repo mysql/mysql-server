@@ -373,14 +373,15 @@ pars_resolve_exp_variables_and_types(
 	}
 
 	/* Not resolved yet: look in the symbol table for a variable
-	or a cursor with the same name */
+	or a cursor or a function with the same name */
 
 	node = UT_LIST_GET_FIRST(pars_sym_tab_global->sym_list);
 
 	while (node) {
 		if (node->resolved
 			&& ((node->token_type == SYM_VAR)
-					|| (node->token_type == SYM_CURSOR))
+				|| (node->token_type == SYM_CURSOR)
+				|| (node->token_type == SYM_FUNCTION))
 			&& node->name
 			&& (sym_node->name_len == node->name_len)
 			&& (ut_memcmp(sym_node->name, node->name,
@@ -486,7 +487,7 @@ pars_resolve_exp_columns(
 	while (t_node) {
 		table = t_node->table;
 
-		n_cols = dict_table_get_n_user_cols(table);
+		n_cols = dict_table_get_n_cols(table);
 
 		for (i = 0; i < n_cols; i++) {
 			col = dict_table_get_nth_col(table, i);
@@ -782,6 +783,26 @@ pars_cursor_declaration(
 
 	select_node->state = SEL_NODE_CLOSED;
 	select_node->explicit_cursor = sym_node;
+
+	return(sym_node);
+}
+
+/*************************************************************************
+Parses a function declaration. */
+
+que_node_t*
+pars_function_declaration(
+/*======================*/
+					/* out: sym_node */
+	sym_node_t*	sym_node)	/* in: function id node in the symbol
+					table */
+{
+	sym_node->resolved = TRUE;
+	sym_node->token_type = SYM_FUNCTION;
+
+	/* Check that the function exists. */
+	ut_a(pars_info_get_user_func(pars_sym_tab_global->info,
+		     sym_node->name));
 
 	return(sym_node);
 }
@@ -1085,6 +1106,8 @@ pars_set_dfield_type(
 	pars_res_word_t*	type,		/* in: pointer to a type
 						token */
 	ulint			len,		/* in: length, or 0 */
+	ibool			is_unsigned,	/* in: if TRUE, column is
+						UNSIGNED. */
 	ibool			is_not_null)	/* in: if TRUE, column is
 						NOT NULL. */
 {
@@ -1094,48 +1117,30 @@ pars_set_dfield_type(
 		flags |= DATA_NOT_NULL;
 	}
 
+	if (is_unsigned) {
+		flags |= DATA_UNSIGNED;
+	}
+
 	if (type == &pars_int_token) {
-		if (len != 0) {
-			ut_error;
-		}
+		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_INT, flags, 4, 0);
 
 	} else if (type == &pars_char_token) {
-		if (len != 0) {
-			ut_error;
-		}
+		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_VARCHAR,
 			DATA_ENGLISH | flags, 0, 0);
 	} else if (type == &pars_binary_token) {
-		if (len == 0) {
-			ut_error;
-		}
+		ut_a(len != 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_FIXBINARY,
 			DATA_BINARY_TYPE | flags, len, 0);
 	} else if (type == &pars_blob_token) {
-		if (len != 0) {
-			ut_error;
-		}
+		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_BLOB,
 			DATA_BINARY_TYPE | flags, 0, 0);
-	} else if (type == &pars_binary_token) {
-		if (len == 0) {
-			ut_error;
-		}
-
-		dtype_set(dfield_get_type(dfield), DATA_FIXBINARY,
-			DATA_BINARY_TYPE, len, 0);
-	} else if (type == &pars_blob_token) {
-		if (len != 0) {
-			ut_error;
-		}
-
-		dtype_set(dfield_get_type(dfield), DATA_BLOB,
-			DATA_BINARY_TYPE, 0, 0);
 	} else {
 		ut_error;
 	}
@@ -1158,7 +1163,7 @@ pars_variable_declaration(
 
 	node->param_type = PARS_NOT_PARAM;
 
-	pars_set_dfield_type(que_node_get_val(node), type, 0, FALSE);
+	pars_set_dfield_type(que_node_get_val(node), type, 0, FALSE, FALSE);
 
 	return(node);
 }
@@ -1347,6 +1352,22 @@ pars_for_statement(
 }
 
 /*************************************************************************
+Parses an exit statement. */
+
+exit_node_t*
+pars_exit_statement(void)
+/*=====================*/
+					/* out: exit statement node */
+{
+	exit_node_t*	node;
+
+	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(exit_node_t));
+	node->common.type = QUE_NODE_EXIT;
+
+	return(node);
+}
+
+/*************************************************************************
 Parses a return-statement. */
 
 return_node_t*
@@ -1411,26 +1432,42 @@ pars_procedure_call(
 }
 
 /*************************************************************************
-Parses a fetch statement. */
+Parses a fetch statement. into_list or user_func (but not both) must be
+non-NULL. */
 
 fetch_node_t*
 pars_fetch_statement(
 /*=================*/
 					/* out: fetch statement node */
 	sym_node_t*	cursor,		/* in: cursor node */
-	sym_node_t*	into_list)	/* in: variables to set */
+	sym_node_t*	into_list,	/* in: variables to set, or NULL */
+	sym_node_t*	user_func)	/* in: user function name, or NULL */
 {
 	sym_node_t*	cursor_decl;
 	fetch_node_t*	node;
+
+	/* Logical XOR. */
+	ut_a(!into_list != !user_func);
 
 	node = mem_heap_alloc(pars_sym_tab_global->heap, sizeof(fetch_node_t));
 
 	node->common.type = QUE_NODE_FETCH;
 
 	pars_resolve_exp_variables_and_types(NULL, cursor);
-	pars_resolve_exp_list_variables_and_types(NULL, into_list);
 
-	node->into_list = into_list;
+	if (into_list) {
+		pars_resolve_exp_list_variables_and_types(NULL, into_list);
+		node->into_list = into_list;
+		node->func = NULL;
+	} else {
+		pars_resolve_exp_variables_and_types(NULL, user_func);
+
+		node->func = pars_info_get_user_func(pars_sym_tab_global->info,
+			user_func->name);
+		ut_a(node->func);
+
+		node->into_list = NULL;
+	}
 
 	cursor_decl = cursor->alias;
 
@@ -1438,8 +1475,11 @@ pars_fetch_statement(
 
 	node->cursor_def = cursor_decl->cursor_def;
 
-	ut_a(que_node_list_get_len(into_list)
-		== que_node_list_get_len(node->cursor_def->select_list));
+	if (into_list) {
+		ut_a(que_node_list_get_len(into_list)
+			== que_node_list_get_len(
+				node->cursor_def->select_list));
+	}
 
 	return(node);
 }
@@ -1529,6 +1569,8 @@ pars_column_def(
 	pars_res_word_t*	type,		/* in: data type */
 	sym_node_t*		len,		/* in: length of column, or
 						NULL */
+	void*			is_unsigned,	/* in: if not NULL, column
+						is of type UNSIGNED. */
 	void*			is_not_null)	/* in: if not NULL, column
 						is of type NOT NULL. */
 {
@@ -1541,7 +1583,7 @@ pars_column_def(
 	}
 
 	pars_set_dfield_type(que_node_get_val(sym_node), type, len2,
-		is_not_null != NULL);
+		is_unsigned != NULL, is_not_null != NULL);
 
 	return(sym_node);
 }
@@ -1798,6 +1840,7 @@ que_t*
 pars_sql(
 /*=====*/
 				/* out, own: the query graph */
+	pars_info_t*	info,	/* in: extra information, or NULL */
 	const char*	str)	/* in: SQL string */
 {
 	sym_node_t*	sym_node;
@@ -1817,6 +1860,7 @@ pars_sql(
 	pars_sym_tab_global->sql_string = mem_heap_strdup(heap, str);
 	pars_sym_tab_global->string_len = strlen(str);
 	pars_sym_tab_global->next_char_pos = 0;
+	pars_sym_tab_global->info = info;
 
 	yyparse();
 
@@ -1831,6 +1875,7 @@ pars_sql(
 	graph = pars_sym_tab_global->query_graph;
 
 	graph->sym_tab = pars_sym_tab_global;
+	graph->info = info;
 
 	/* fprintf(stderr, "SQL graph size %lu\n", mem_heap_get_size(heap)); */
 
@@ -1866,4 +1911,223 @@ pars_complete_graph_for_exec(
 	trx->graph = NULL;
 
 	return(thr);
+}
+
+/********************************************************************
+Create parser info struct.*/
+
+pars_info_t*
+pars_info_create(void)
+/*==================*/
+		/* out, own: info struct */
+{
+	pars_info_t*	info;
+	mem_heap_t*	heap;
+
+	heap = mem_heap_create(512);
+
+	info = mem_heap_alloc(heap, sizeof(*info));
+
+	info->heap = heap;
+	info->funcs = NULL;
+	info->bound_lits = NULL;
+	info->graph_owns_us = TRUE;
+
+	return(info);
+}
+
+/********************************************************************
+Free info struct and everything it contains.*/
+
+void
+pars_info_free(
+/*===========*/
+	pars_info_t*	info)	/* in: info struct */
+{
+	mem_heap_free(info->heap);
+}
+
+/********************************************************************
+Add bound literal. */
+
+void
+pars_info_add_literal(
+/*==================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const void*	address,	/* in: address */
+	ulint		length,		/* in: length of data */
+	ulint		type,		/* in: type, e.g. DATA_FIXBINARY */
+	ulint		prtype)		/* in: precise type, e.g.
+					DATA_UNSIGNED */
+{
+	pars_bound_lit_t*	pbl;
+
+	ut_ad(!pars_info_get_bound_lit(info, name));
+
+	pbl = mem_heap_alloc(info->heap, sizeof(*pbl));
+
+	pbl->name = name;
+	pbl->address = address;
+	pbl->length = length;
+	pbl->type = type;
+	pbl->prtype = prtype;
+
+	if (!info->bound_lits) {
+		info->bound_lits = ib_vector_create(info->heap, 8);
+	}
+
+	ib_vector_push(info->bound_lits, pbl);
+}
+
+/********************************************************************
+Equivalent to pars_info_add_literal(info, name, str, strlen(str),
+DATA_VARCHAR, DATA_ENGLISH). */
+
+void
+pars_info_add_str_literal(
+/*======================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const char*	str)		/* in: string */
+{
+	pars_info_add_literal(info, name, str, strlen(str),
+		DATA_VARCHAR, DATA_ENGLISH);
+}
+
+/********************************************************************
+Equivalent to:
+
+char buf[4];
+mach_write_to_4(buf, val);
+pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
+
+except that the buffer is dynamically allocated from the info struct's
+heap. */
+
+void
+pars_info_add_int4_literal(
+/*=======================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	lint		val)		/* in: value */
+{
+	byte*	buf = mem_heap_alloc(info->heap, 4);
+
+	mach_write_to_4(buf, val);
+	pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
+}
+
+/********************************************************************
+Equivalent to:
+
+char buf[8];
+mach_write_to_8(buf, val);
+pars_info_add_literal(info, name, buf, 8, DATA_FIXBINARY, 0);
+
+except that the buffer is dynamically allocated from the info struct's
+heap. */
+
+void
+pars_info_add_dulint_literal(
+/*=========================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	dulint		val)		/* in: value */
+{
+	byte*	buf = mem_heap_alloc(info->heap, 8);
+
+	mach_write_to_8(buf, val);
+
+	pars_info_add_literal(info, name, buf, 8, DATA_FIXBINARY, 0);
+}
+
+/********************************************************************
+Add user function. */
+
+void
+pars_info_add_function(
+/*===================*/
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name,	/* in: function name */
+	pars_user_func_cb_t	func,	/* in: function address */
+	void*			arg)	/* in: user-supplied argument */
+{
+	pars_user_func_t*	puf;
+
+	ut_ad(!pars_info_get_user_func(info, name));
+
+	puf = mem_heap_alloc(info->heap, sizeof(*puf));
+
+	puf->name = name;
+	puf->func = func;
+	puf->arg = arg;
+
+	if (!info->funcs) {
+		info->funcs = ib_vector_create(info->heap, 8);
+	}
+
+	ib_vector_push(info->funcs, puf);
+}
+
+/********************************************************************
+Get user function with the given name.*/
+
+pars_user_func_t*
+pars_info_get_user_func(
+/*====================*/
+					/* out: user func, or NULL if not
+					found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: function name to find*/
+{
+	ulint		i;
+	ib_vector_t*	vec;
+
+	if (!info || !info->funcs) {
+		return(NULL);
+	}
+
+	vec = info->funcs;
+
+	for (i = 0; i < ib_vector_size(vec); i++) {
+		pars_user_func_t*	puf = ib_vector_get(vec, i);
+
+		if (strcmp(puf->name, name) == 0) {
+			return(puf);
+		}
+	}
+
+	return(NULL);
+}
+
+/********************************************************************
+Get bound literal with the given name.*/
+
+pars_bound_lit_t*
+pars_info_get_bound_lit(
+/*====================*/
+					/* out: bound literal, or NULL if
+					not found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: bound literal name to find */
+{
+	ulint		i;
+	ib_vector_t*	vec;
+
+	if (!info || !info->bound_lits) {
+		return(NULL);
+	}
+
+	vec = info->bound_lits;
+
+	for (i = 0; i < ib_vector_size(vec); i++) {
+		pars_bound_lit_t*	pbl = ib_vector_get(vec, i);
+
+		if (strcmp(pbl->name, name) == 0) {
+			return(pbl);
+		}
+	}
+
+	return(NULL);
 }

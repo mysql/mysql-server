@@ -19,10 +19,6 @@
 #include "event.h"
 #include "sp.h"
 
-
-
-extern int MYSQLparse(void *thd);
-
 /*
   Init all member variables
 
@@ -106,6 +102,9 @@ Event_timed::init_name(THD *thd, sp_name *spn)
   NOTE
     The body is extracted by copying all data between the
     start of the body set by another method and the current pointer in Lex.
+ 
+    Some questionable removal of characters is done in here, and that part
+    should be refactored when the parser is smarter.
 */
 
 void
@@ -116,9 +115,46 @@ Event_timed::init_body(THD *thd)
              body_begin, thd->lex->ptr));
 
   body.length= thd->lex->ptr - body_begin;
-  /* Trim nuls at the end */
-  while (body.length && body_begin[body.length-1] == '\0')
-    body.length--;
+  const uchar *body_end= body_begin + body.length - 1;
+
+  /* Trim nuls or close-comments ('*'+'/') or spaces at the end */
+  while (body_begin < body_end)
+  {
+
+    if ((*body_end == '\0') || 
+        (my_isspace(thd->variables.character_set_client, *body_end)))
+    { /* consume NULs and meaningless whitespace */
+      --body.length;
+      --body_end;
+      continue;
+    }
+
+    /*  
+       consume closing comments
+
+       This is arguably wrong, but it's the best we have until the parser is
+       changed to be smarter.   FIXME PARSER 
+
+       See also the sp_head code, where something like this is done also.
+
+       One idea is to keep in the lexer structure the count of the number of
+       open-comments we've entered, and scan left-to-right looking for a
+       closing comment IFF the count is greater than zero.
+
+       Another idea is to remove the closing comment-characters wholly in the
+       parser, since that's where it "removes" the opening characters.
+    */
+    if ((*(body_end - 1) == '*') && (*body_end == '/'))
+    {
+      DBUG_PRINT("info", ("consumend one '*" "/' comment in the query '%s'", 
+          body_begin));
+      body.length-= 2;
+      body_end-= 2;
+      continue;
+    }
+
+    break;  /* none were found, so we have excised all we can. */
+  }
 
   /* the first is always whitespace which I cannot skip in the parser */
   while (my_isspace(thd->variables.character_set_client, *body_begin))
@@ -731,7 +767,9 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
       get the next exec if the modulus is not
     */
     DBUG_PRINT("info", ("multiplier=%d", multiplier));
-    if (seconds_diff % seconds || (!seconds_diff && last_exec->year))
+    if (seconds_diff % seconds || (!seconds_diff && last_exec->year) ||
+        TIME_to_ulonglong_datetime(time_now) ==
+          TIME_to_ulonglong_datetime(last_exec))
       ++multiplier;
     interval.second= seconds * multiplier;
     DBUG_PRINT("info", ("multiplier=%u interval.second=%u", multiplier,
@@ -893,16 +931,15 @@ Event_timed::compute_next_execution_time()
     DBUG_PRINT("info", ("Both STARTS & ENDS are set"));
     if (!last_executed.year)
     {
-      DBUG_PRINT("info", ("Not executed so far. Execute NOW."));
-      execute_at= time_now;
-      execute_at_null= FALSE;
+      DBUG_PRINT("info", ("Not executed so far."));
     }
-    else
+
     {
       TIME next_exec;
 
       DBUG_PRINT("info", ("Executed at least once"));
-      if (get_next_time(&next_exec, &starts, &time_now, &last_executed,
+      if (get_next_time(&next_exec, &starts, &time_now,
+                        last_executed.year? &last_executed:&starts,
                         expression, interval))
         goto err;
 
@@ -925,8 +962,9 @@ Event_timed::compute_next_execution_time()
     }
     goto ret;
   }
-  else if (starts_null && ends_null)
+  else if (starts_null && ends_null) 
   {
+    /* starts is always set, so this is a dead branch !! */
     DBUG_PRINT("info", ("Neither STARTS nor ENDS are set"));
     /*
       Both starts and m_ends are not set, so we schedule for the next
@@ -961,25 +999,26 @@ Event_timed::compute_next_execution_time()
         Hence schedule for starts + m_expression in case last_executed
         is not set, otherwise to last_executed + m_expression
       */
-      if (last_executed.year)
+      if (!last_executed.year)
+      {
+        DBUG_PRINT("info", ("Not executed so far."));
+      }
+
       {
         TIME next_exec;
         DBUG_PRINT("info", ("Executed at least once."));
-        if (get_next_time(&next_exec, &starts, &time_now, &last_executed,
+        if (get_next_time(&next_exec, &starts, &time_now, 
+                          last_executed.year? &last_executed:&starts,
                           expression, interval))
           goto err;
         execute_at= next_exec;
         DBUG_PRINT("info",("Next[%llu]",TIME_to_ulonglong_datetime(&next_exec)));
       }
-      else
-      {
-        DBUG_PRINT("info", ("Not executed so far. Execute at STARTS"));
-        execute_at= starts;
-      }
       execute_at_null= FALSE;
     }
     else
     {
+      /* this is a dead branch, because starts is always set !!! */
       DBUG_PRINT("info", ("STARTS is not set. ENDS is set"));
       /*
         - m_ends is set
