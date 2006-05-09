@@ -1470,6 +1470,8 @@ public:
    *
    * @return tuple id or 0 on error
    */
+  int initAutoIncrement();
+
   Uint64 getAutoIncrementValue(const char* aTableName, 
 			       Uint32 cacheSize = 1);
   Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable, 
@@ -1694,6 +1696,7 @@ private:
   
   // The tupleId is retreived from DB the 
   // tupleId is unique for each tableid. 
+  const NdbDictionary::Table *m_sys_tab_0;
   Uint64               theFirstTupleId[2048]; 
   Uint64               theLastTupleId[2048];           
 

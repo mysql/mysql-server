@@ -262,15 +262,9 @@ static int keycache_pthread_cond_signal(pthread_cond_t *cond);
 #define keycache_pthread_cond_signal pthread_cond_signal
 #endif /* defined(KEYCACHE_DEBUG) */
 
-static uint next_power(uint value)
+static inline uint next_power(uint value)
 {
-  uint old_value= 1;
-  while (value)
-  {
-    old_value= value;
-    value&= value-1;
-  }
-  return (old_value << 1);
+  return (uint) my_round_up_to_next_power((uint32) value) << 1;
 }
 
 

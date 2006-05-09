@@ -35,6 +35,9 @@ is_ndb_blob_table(const char* name, Uint32* ptab_id = 0, Uint32* pcol_no = 0);
 bool
 is_ndb_blob_table(const class NdbTableImpl* t);
 
+extern int ndb_dictionary_is_mysqld;
+#define ASSERT_NOT_MYSQLD assert(ndb_dictionary_is_mysqld == 0)
+
 class NdbDictObjectImpl {
 public:
   int m_id;
@@ -253,6 +256,8 @@ public:
   BaseString m_internalName;
   BaseString m_externalName;
   BaseString m_tableName;
+  Uint32 m_table_id;
+  Uint32 m_table_version;
   Vector<NdbColumnImpl *> m_columns;
   Vector<int> m_key_ids;
 
@@ -539,6 +544,21 @@ private:
   UtilBuffer m_buffer;
 };
 
+class NdbDictionaryImpl;
+class GlobalCacheInitObject
+{
+public:
+  NdbDictionaryImpl *m_dict;
+  const BaseString &m_name;
+  GlobalCacheInitObject(NdbDictionaryImpl *dict,
+                        const BaseString &name) :
+    m_dict(dict),
+    m_name(name)
+  {}
+  virtual ~GlobalCacheInitObject() {}
+  virtual int init(NdbTableImpl &tab) const = 0;
+};
+
 class NdbDictionaryImpl : public NdbDictionary::Dictionary {
 public:
   NdbDictionaryImpl(Ndb &ndb);
@@ -558,6 +578,7 @@ public:
   int removeCachedObject(NdbTableImpl &);
 
   int createIndex(NdbIndexImpl &ix);
+  int createIndex(NdbIndexImpl &ix, NdbTableImpl & tab);
   int dropIndex(const char * indexName, 
 		const char * tableName);
   int dropIndex(NdbIndexImpl &, const char * tableName);
@@ -577,6 +598,15 @@ public:
 
   int listObjects(List& list, NdbDictionary::Object::Type type);
   int listIndexes(List& list, Uint32 indexId);
+
+  NdbTableImpl * getTableGlobal(const char * tableName);
+  NdbIndexImpl * getIndexGlobal(const char * indexName,
+                                NdbTableImpl &ndbtab);
+  int alterTableGlobal(NdbTableImpl &orig_impl, NdbTableImpl &impl);
+  int dropTableGlobal(NdbTableImpl &);
+  int dropIndexGlobal(NdbIndexImpl & impl);
+  int releaseTableGlobal(NdbTableImpl & impl, int invalidate);
+  int releaseIndexGlobal(NdbIndexImpl & impl, int invalidate);
 
   NdbTableImpl * getTable(const char * tableName, void **data= 0);
   NdbTableImpl * getBlobTable(const NdbTableImpl&, uint col_no);
@@ -616,10 +646,14 @@ public:
   NdbDictInterface m_receiver;
   Ndb & m_ndb;
 
-private:
+  NdbIndexImpl* getIndexImpl(const char * externalName,
+                             const BaseString& internalName,
+                             NdbTableImpl &tab,
+                             NdbTableImpl &prim);
   NdbIndexImpl * getIndexImpl(const char * name,
                               const BaseString& internalName);
-  Ndb_local_table_info * fetchGlobalTableImpl(const BaseString& internalName);
+private:
+  NdbTableImpl * fetchGlobalTableImplRef(const GlobalCacheInitObject &obj);
 };
 
 inline
@@ -852,6 +886,27 @@ NdbDictionaryImpl::getImpl(const NdbDictionary::Dictionary & t){
  * Inline:d getters
  */
 
+class InitTable : public GlobalCacheInitObject
+{
+public:
+  InitTable(NdbDictionaryImpl *dict,
+            const BaseString &name) :
+    GlobalCacheInitObject(dict, name)
+  {}
+  int init(NdbTableImpl &tab) const
+  {
+    return m_dict->getBlobTables(tab);
+  }
+};
+
+inline
+NdbTableImpl *
+NdbDictionaryImpl::getTableGlobal(const char * table_name)
+{
+  const BaseString internal_tabname(m_ndb.internalize_table_name(table_name));
+  return fetchGlobalTableImplRef(InitTable(this, internal_tabname));
+}
+
 inline
 NdbTableImpl *
 NdbDictionaryImpl::getTable(const char * table_name, void **data)
@@ -885,13 +940,126 @@ NdbDictionaryImpl::get_local_table_info(const BaseString& internalTableName)
   DBUG_PRINT("enter", ("table: %s", internalTableName.c_str()));
 
   Ndb_local_table_info *info= m_localHash.get(internalTableName.c_str());
-  if (info == 0) {
-    info= fetchGlobalTableImpl(internalTableName);
-    if (info == 0) {
-      DBUG_RETURN(0);
+  if (info == 0)
+  {
+    NdbTableImpl *tab=
+      fetchGlobalTableImplRef(InitTable(this, internalTableName));
+    if (tab)
+    {
+      info= Ndb_local_table_info::create(tab, m_local_table_data_size);
+      if (info)
+      {
+        m_localHash.put(internalTableName.c_str(), info);
+        m_ndb.theFirstTupleId[tab->getTableId()] = ~0;
+        m_ndb.theLastTupleId[tab->getTableId()]  = ~0;
+      }
     }
   }
   DBUG_RETURN(info); // autoincrement already initialized
+}
+
+class InitIndexGlobal : public GlobalCacheInitObject
+{
+public:
+  const char *m_index_name;
+  NdbTableImpl &m_prim;
+
+  InitIndexGlobal(NdbDictionaryImpl *dict,
+                  const BaseString &internal_indexname,
+                  const char *index_name,
+            NdbTableImpl &prim) :
+    GlobalCacheInitObject(dict, internal_indexname),
+    m_index_name(index_name),
+    m_prim(prim)
+  {}
+  int init(NdbTableImpl &tab) const
+  {
+    tab.m_index= m_dict->getIndexImpl(m_index_name, m_name, tab, m_prim);
+    if (tab.m_index == 0)
+      return 1;
+    tab.m_index->m_table= &tab;
+    return 0;
+  }
+};
+
+class InitIndex : public GlobalCacheInitObject
+{
+public:
+  const char *m_index_name;
+
+  InitIndex(NdbDictionaryImpl *dict,
+            const BaseString &internal_indexname,
+            const char *index_name) :
+    GlobalCacheInitObject(dict, internal_indexname),
+    m_index_name(index_name)
+  {}
+  int init(NdbTableImpl &tab) const
+  {
+    DBUG_ASSERT(tab.m_index == 0);
+    tab.m_index= m_dict->getIndexImpl(m_index_name, m_name);
+    if (tab.m_index)
+    {
+      tab.m_index->m_table= &tab;
+      return 0;
+    }
+    return 1;
+  }
+};
+
+inline
+NdbIndexImpl * 
+NdbDictionaryImpl::getIndexGlobal(const char * index_name,
+                                  NdbTableImpl &ndbtab)
+{
+  DBUG_ENTER("NdbDictionaryImpl::getIndexGlobal");
+  const BaseString
+    internal_indexname(m_ndb.internalize_index_name(&ndbtab, index_name));
+  int retry= 2;
+
+  while (retry)
+  {
+    NdbTableImpl *tab=
+      fetchGlobalTableImplRef(InitIndexGlobal(this, internal_indexname,
+                                              index_name, ndbtab));
+    if (tab)
+    {
+      // tab->m_index sould be set. otherwise tab == 0
+      NdbIndexImpl *idx= tab->m_index;
+      if (idx->m_table_id != ndbtab.getObjectId() ||
+          idx->m_table_version != ndbtab.getObjectVersion())
+      {
+        releaseIndexGlobal(*idx, 1);
+        retry--;
+        continue;
+      }
+      DBUG_RETURN(idx);
+    }
+    break;
+  }
+  m_error.code= 4243;
+  DBUG_RETURN(0);
+}
+
+inline int
+NdbDictionaryImpl::releaseTableGlobal(NdbTableImpl & impl, int invalidate)
+{
+  DBUG_ENTER("NdbDictionaryImpl::releaseTableGlobal");
+  DBUG_PRINT("enter", ("internal_name: %s", impl.m_internalName.c_str()));
+  m_globalHash->lock();
+  m_globalHash->release(&impl, invalidate);
+  m_globalHash->unlock();
+  DBUG_RETURN(0);
+}
+
+inline int
+NdbDictionaryImpl::releaseIndexGlobal(NdbIndexImpl & impl, int invalidate)
+{
+  DBUG_ENTER("NdbDictionaryImpl::releaseIndexGlobal");
+  DBUG_PRINT("enter", ("internal_name: %s", impl.m_internalName.c_str()));
+  m_globalHash->lock();
+  m_globalHash->release(impl.m_table, invalidate);
+  m_globalHash->unlock();
+  DBUG_RETURN(0);
 }
 
 inline
@@ -899,7 +1067,7 @@ NdbIndexImpl *
 NdbDictionaryImpl::getIndex(const char * index_name,
 			    const char * table_name)
 {
-  if (table_name || m_ndb.usingFullyQualifiedNames())
+  while (table_name || m_ndb.usingFullyQualifiedNames())
   {
     const BaseString internal_indexname(
       (table_name)
@@ -910,18 +1078,28 @@ NdbDictionaryImpl::getIndex(const char * index_name,
 
     if (internal_indexname.length())
     {
-      Ndb_local_table_info * info=
-        get_local_table_info(internal_indexname);
-      if (info)
+      Ndb_local_table_info *info= m_localHash.get(internal_indexname.c_str());
+      NdbTableImpl *tab;
+      if (info == 0)
       {
-	NdbTableImpl * tab= info->m_table_impl;
-        if (tab->m_index == 0)
-          tab->m_index= getIndexImpl(index_name, internal_indexname);
-        if (tab->m_index != 0)
-          tab->m_index->m_table= tab;
-        return tab->m_index;
+        tab= fetchGlobalTableImplRef(InitIndex(this, internal_indexname,
+                                               index_name));
+        if (tab)
+        {
+          info= Ndb_local_table_info::create(tab, 0);
+          if (info)
+            m_localHash.put(internal_indexname.c_str(), info);
+          else
+            break;
+        }
+        else
+          break;
       }
+      else
+        tab= info->m_table_impl;
+      return tab->m_index;
     }
+    break;
   }
 
   m_error.code= 4243;

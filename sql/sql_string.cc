@@ -331,7 +331,7 @@ bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
   return copy_aligned(str, arg_length, offset, cs);
 }
 
-	/* Copy with charset convertion */
+	/* Copy with charset conversion */
 
 bool String::copy(const char *str, uint32 arg_length,
 		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs, uint *errors)
