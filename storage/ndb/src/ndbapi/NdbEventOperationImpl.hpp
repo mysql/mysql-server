@@ -25,6 +25,20 @@
 #include <UtilBuffer.hpp>
 
 #define NDB_EVENT_OP_MAGIC_NUMBER 0xA9F301B4
+//#define EVENT_DEBUG
+#ifdef EVENT_DEBUG
+#define DBUG_ENTER_EVENT(A) DBUG_ENTER(A)
+#define DBUG_RETURN_EVENT(A) DBUG_RETURN(A)
+#define DBUG_VOID_RETURN_EVENT DBUG_VOID_RETURN
+#define DBUG_PRINT_EVENT(A,B) DBUG_PRINT(A,B)
+#define DBUG_DUMP_EVENT(A,B,C) DBUG_DUMP(A,B,C)
+#else
+#define DBUG_ENTER_EVENT(A)
+#define DBUG_RETURN_EVENT(A) return(A)
+#define DBUG_VOID_RETURN_EVENT return
+#define DBUG_PRINT_EVENT(A,B)
+#define DBUG_DUMP_EVENT(A,B,C)
+#endif
 
 class NdbEventOperationImpl;
 
@@ -149,19 +163,29 @@ EventBufData_list::EventBufData_list()
     m_gci_ops_list_tail(0),
     m_gci_op_alloc(0)
 {
+  DBUG_ENTER_EVENT("EventBufData_list::EventBufData_list");
+  DBUG_PRINT_EVENT("info", ("this: %p", this));
+  DBUG_VOID_RETURN_EVENT;
 }
 
 inline
 EventBufData_list::~EventBufData_list()
 {
+  DBUG_ENTER_EVENT("EventBufData_list::~EventBufData_list");
+  DBUG_PRINT_EVENT("info", ("this: %p  m_is_not_multi_list: %u",
+                            this, m_is_not_multi_list));
   if (m_is_not_multi_list)
+  {
+    DBUG_PRINT_EVENT("info", ("delete m_gci_op_list: %p", m_gci_op_list));
     delete [] m_gci_op_list;
+  }
   else
   {
     Gci_ops *op = first_gci_ops();
     while (op)
       op = next_gci_ops();
   }
+  DBUG_VOID_RETURN_EVENT;
 }
 
 inline
@@ -223,7 +247,11 @@ EventBufData_list::next_gci_ops()
   Gci_ops *first = m_gci_ops_list;
   m_gci_ops_list = first->m_next;
   if (first->m_gci_op_list)
+  {
+    DBUG_PRINT_EVENT("info", ("this: %p  delete m_gci_op_list: %p",
+                              this, first->m_gci_op_list));
     delete [] first->m_gci_op_list;
+  }
   delete first;
   if (m_gci_ops_list == 0)
     m_gci_ops_list_tail = 0;
