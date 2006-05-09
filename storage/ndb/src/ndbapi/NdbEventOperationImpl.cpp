@@ -966,6 +966,13 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
 NdbEventBuffer::~NdbEventBuffer()
 {
   // todo lock?  what if receive thread writes here?
+  NdbEventOperationImpl* op= m_dropped_ev_op;  
+  while ((op = m_dropped_ev_op))
+  {
+    m_dropped_ev_op = m_dropped_ev_op->m_next;
+    delete op->m_facade;
+  }
+
   for (unsigned j= 0; j < m_allocated_data.size(); j++)
   {
     unsigned sz= m_allocated_data[j]->sz;

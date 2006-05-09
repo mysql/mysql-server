@@ -63,11 +63,11 @@ public:
   GlobalDictCache();
   ~GlobalDictCache();
   
+  NdbTableImpl * get(NdbTableImpl *tab);
   NdbTableImpl * get(const char * name);
   
   NdbTableImpl* put(const char * name, NdbTableImpl *);
-  void drop(NdbTableImpl *);
-  void release(NdbTableImpl *);
+  void release(NdbTableImpl *, int invalidate = 0);
 
   void alter_table_rep(const char * name, 
 		       Uint32 tableId, Uint32 tableVersion, bool altered);

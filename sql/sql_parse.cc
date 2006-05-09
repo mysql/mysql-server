@@ -137,7 +137,7 @@ static void unlock_locked_tables(THD *thd)
 }
 
 
-static bool end_active_trans(THD *thd)
+bool end_active_trans(THD *thd)
 {
   int error=0;
   DBUG_ENTER("end_active_trans");
@@ -1753,7 +1753,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
     char *packet_end= thd->query + thd->query_length;
-    general_log_print(thd, command, "%s", thd->query);
+    general_log_print(thd, command, "%.*b", thd->query_length, thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -2961,8 +2961,7 @@ end_with_restore_list:
     thd->enable_slow_log= opt_log_slow_admin_statements;
     if (end_active_trans(thd))
       goto error;
-    else
-      res = mysql_create_index(thd, first_table, lex->key_list);
+    res= mysql_create_index(thd, first_table, lex->key_list);
     break;
 
 #ifdef HAVE_REPLICATION
@@ -3069,18 +3068,16 @@ end_with_restore_list:
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
 	goto error;
-      else
-      {
-        thd->enable_slow_log= opt_log_slow_admin_statements;
-	res= mysql_alter_table(thd, select_lex->db, lex->name,
-			       &lex->create_info,
-			       first_table, lex->create_list,
-			       lex->key_list,
-			       select_lex->order_list.elements,
-                               (ORDER *) select_lex->order_list.first,
-			       lex->duplicates, lex->ignore, &lex->alter_info,
-                               1);
-      }
+
+      thd->enable_slow_log= opt_log_slow_admin_statements;
+      res= mysql_alter_table(thd, select_lex->db, lex->name,
+                             &lex->create_info,
+                             first_table, lex->create_list,
+                             lex->key_list,
+                             select_lex->order_list.elements,
+                             (ORDER *) select_lex->order_list.first,
+                             lex->duplicates, lex->ignore, &lex->alter_info,
+                             1);
       break;
     }
 #endif /*DONT_ALLOW_SHOW_COMMANDS*/
@@ -3207,7 +3204,7 @@ end_with_restore_list:
 	check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
-    res = mysql_analyze_table(thd, first_table, &lex->check_opt);
+    res= mysql_analyze_table(thd, first_table, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
     {
@@ -3512,8 +3509,7 @@ end_with_restore_list:
       goto error;				/* purecov: inspected */
     if (end_active_trans(thd))
       goto error;
-    else
-      res = mysql_drop_index(thd, first_table, &lex->alter_info);
+    res= mysql_drop_index(thd, first_table, &lex->alter_info);
     break;
   case SQLCOM_SHOW_PROCESSLIST:
     if (!thd->security_ctx->priv_user[0] &&
@@ -5973,14 +5969,16 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   if (type_modifier & PRI_KEY_FLAG)
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::PRIMARY, NullS, HA_KEY_ALG_UNDEF,
+    lex->key_list.push_back(new Key(Key::PRIMARY, NullS,
+                                    &default_key_create_info,
 				    0, lex->col_list));
     lex->col_list.empty();
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::UNIQUE, NullS, HA_KEY_ALG_UNDEF, 0,
+    lex->key_list.push_back(new Key(Key::UNIQUE, NullS,
+                                    &default_key_create_info, 0,
 				    lex->col_list));
     lex->col_list.empty();
   }

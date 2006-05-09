@@ -28,9 +28,9 @@
 #endif
 #include <m_ctype.h>
 
-	/*
-	** Old options is used when recreating database, from isamchk
-	*/
+/*
+  Old options is used when recreating database, from myisamchk
+*/
 
 int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	      uint columns, MI_COLUMNDEF *recinfo,
@@ -45,6 +45,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
        key_length,info_length,key_segs,options,min_key_length_skip,
        base_pos,long_varchar_count,varchar_length,
        max_key_block_length,unique_key_parts,fulltext_keys,offset;
+  uint aligned_key_start, block_length;
   ulong reclength, real_reclength,min_pack_length;
   char filename[FN_REFLEN],linkname[FN_REFLEN], *linkname_ptr;
   ulong pack_reclength;
@@ -428,8 +429,16 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	key_segs)
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
+    /* Get block length for key, if defined by user */
+    block_length= (keydef->block_length ? 
+                   my_round_up_to_next_power(keydef->block_length) :
+                   myisam_block_size);
+    block_length= max(block_length, MI_MIN_KEY_BLOCK_LENGTH);
+    block_length= min(block_length, MI_MAX_KEY_BLOCK_LENGTH);
+
     keydef->block_length= MI_BLOCK_SIZE(length-real_length_diff,
-                                        pointer,MI_MAX_KEYPTR_SIZE);
+                                        pointer,MI_MAX_KEYPTR_SIZE,
+                                        block_length);
     if (keydef->block_length > MI_MAX_KEY_BLOCK_LENGTH ||
         length >= MI_MAX_KEY_BUFF)
     {
@@ -485,7 +494,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   mi_int2store(share.state.header.base_pos,base_pos);
   share.state.header.language= (ci->language ?
 				ci->language : default_charset_info->number);
-  share.state.header.max_block_size=max_key_block_length/MI_MIN_KEY_BLOCK_LENGTH;
+  share.state.header.max_block_size_index= max_key_block_length/MI_MIN_KEY_BLOCK_LENGTH;
 
   share.state.dellink = HA_OFFSET_ERROR;
   share.state.process=	(ulong) getpid();
@@ -512,8 +521,12 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   mi_int2store(share.state.header.unique_key_parts,unique_key_parts);
 
   mi_set_all_keys_active(share.state.key_map, keys);
-  share.base.keystart = share.state.state.key_file_length=
-    MY_ALIGN(info_length, myisam_block_size);
+  aligned_key_start= my_round_up_to_next_power(max_key_block_length ?
+                                               max_key_block_length :
+                                               myisam_block_size);
+
+  share.base.keystart= share.state.state.key_file_length=
+    MY_ALIGN(info_length, aligned_key_start);
   share.base.max_key_block_length=max_key_block_length;
   share.base.max_key_length=ALIGN_SIZE(max_key_length+4);
   share.base.records=ci->max_rows;
