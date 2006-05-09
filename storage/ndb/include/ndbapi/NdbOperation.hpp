@@ -636,6 +636,10 @@ public:
 		    bool nopad, Uint32 Label);
   int branch_col_ge(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
+  /**
+   * The argument is always plain char, even if the field is varchar
+   * (changed in 5.0.22).
+   */
   int branch_col_like(Uint32 ColId, const void *, Uint32 len, 
 		      bool nopad, Uint32 Label);
   int branch_col_notlike(Uint32 ColId, const void *, Uint32 len, 

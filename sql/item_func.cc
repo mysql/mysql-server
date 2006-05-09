@@ -2736,9 +2736,10 @@ String *udf_handler::val_str(String *str,String *save_str)
 {
   uchar is_null_tmp=0;
   ulong res_length;
+  DBUG_ENTER("udf_handler::val_str");
 
   if (get_arguments())
-    return 0;
+    DBUG_RETURN(0);
   char * (*func)(UDF_INIT *, UDF_ARGS *, char *, ulong *, uchar *, uchar *)=
     (char* (*)(UDF_INIT *, UDF_ARGS *, char *, ulong *, uchar *, uchar *))
     u_d->func;
@@ -2748,22 +2749,26 @@ String *udf_handler::val_str(String *str,String *save_str)
     if (str->alloc(MAX_FIELD_WIDTH))
     {
       error=1;
-      return 0;
+      DBUG_RETURN(0);
     }
   }
   char *res=func(&initid, &f_args, (char*) str->ptr(), &res_length,
 		 &is_null_tmp, &error);
+  DBUG_PRINT("info", ("udf func returned, res_length: %lu", res_length));
   if (is_null_tmp || !res || error)		// The !res is for safety
   {
-    return 0;
+    DBUG_PRINT("info", ("Null or error"));
+    DBUG_RETURN(0);
   }
   if (res == str->ptr())
   {
     str->length(res_length);
-    return str;
+    DBUG_PRINT("exit", ("str: %s", str->ptr()));
+    DBUG_RETURN(str);
   }
   save_str->set(res, res_length, str->charset());
-  return save_str;
+  DBUG_PRINT("exit", ("save_str: %s", save_str->ptr()));
+  DBUG_RETURN(save_str);
 }
 
 
@@ -3013,6 +3018,7 @@ void item_user_lock_free(void)
 void item_user_lock_release(User_level_lock *ull)
 {
   ull->locked=0;
+  ull->thread_id= 0;
   if (--ull->count)
     pthread_cond_signal(&ull->cond);
   else
@@ -3220,6 +3226,7 @@ longlong Item_func_get_lock::val_int()
   {
     ull->locked=1;
     ull->thread=thd->real_id;
+    ull->thread_id= thd->thread_id;
     thd->ull=ull;
     error=0;
   }
@@ -3946,14 +3953,24 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
       sql_set_variables(), we could instead manually call check() and update();
       this would save memory and time; but calling sql_set_variables() makes
       one unique place to maintain (sql_set_variables()). 
+
+      Manipulation with lex is necessary since free_underlaid_joins
+      is going to release memory belonging to the main query.
     */
 
     List<set_var_base> tmp_var_list;
+    LEX *sav_lex= thd->lex, lex_tmp;
+    thd->lex= &lex_tmp;
+    lex_start(thd, NULL, 0);
     tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
                                                                        new Item_null())));
     /* Create the variable */
     if (sql_set_variables(thd, &tmp_var_list))
+    {
+      thd->lex= sav_lex;
       goto err;
+    }
+    thd->lex= sav_lex;
     if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
       goto err;
   }

@@ -1,8 +1,4 @@
 ###################################
-# Change Author: JBM
-# Change Date: 2006-01-17
-# Change: Added order by
-###################################
 #
 # Test of replicating user variables
 #
@@ -54,7 +50,12 @@ insert into t1 values (@a),(@a),(@a*5);
 SELECT * FROM t1 ORDER BY n;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY n;
+#
+# BUG19136: Crashing log-bin and uninitialized user variables in a derived table
+# just to check nothing bad happens anymore
+#
 connection master;
+insert into t1 select * FROM (select @var1 union  select @var2) AS t2;
 drop table t1;
 sync_slave_with_master;
 stop slave;

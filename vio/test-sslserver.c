@@ -44,7 +44,7 @@ fatal_error(	const char*	r)
 
 typedef struct {
 	int	sd;
-	struct	st_VioSSLAcceptorFd*	ssl_acceptor;
+	struct	st_VioSSLFd*	ssl_acceptor;
 } TH_ARGS;
 
 static void
@@ -82,7 +82,7 @@ main(int argc __attribute__((unused)), char** argv)
 	char	ca_file[] = "../SSL/cacert.pem",
 		*ca_path = 0,
 		*cipher = 0;
-	struct	st_VioSSLAcceptorFd*	ssl_acceptor;
+	struct	st_VioSSLFd*	ssl_acceptor;
 	pthread_t	th;
 	TH_ARGS		th_args;
 

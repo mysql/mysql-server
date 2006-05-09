@@ -1649,5 +1649,42 @@ set engine_condition_pushdown = on;
 explain select * from t5 where b like '%jo%';
 select * from t5 where b like '%jo%' order by a;
 
+# bug#17421 -1
+drop table t1;
+create table t1 (a int, b varchar(3), primary key using hash(a))
+engine=ndb;
+insert into t1 values (1,'a'), (2,'ab'), (3,'abc');
+# in TUP the constants 'ab' 'abc' were expected in varchar format
+# "like" returned error which became "false"
+# scan filter negates "or" which exposes the bug
+set engine_condition_pushdown = off;
+select * from t1 where b like 'ab';
+select * from t1 where b like 'ab' or b like 'ab';
+select * from t1 where b like 'abc';
+select * from t1 where b like 'abc' or b like 'abc';
+set engine_condition_pushdown = on;
+select * from t1 where b like 'ab';
+select * from t1 where b like 'ab' or b like 'ab';
+select * from t1 where b like 'abc';
+select * from t1 where b like 'abc' or b like 'abc';
+
+# bug#17421 -2
+drop table t1;
+create table t1 (a int, b char(3), primary key using hash(a))
+engine=ndb;
+insert into t1 values (1,'a'), (2,'ab'), (3,'abc');
+# test that incorrect MySQL behaviour is preserved
+# 'ab ' LIKE 'ab' is true in MySQL
+set engine_condition_pushdown = off;
+select * from t1 where b like 'ab';
+select * from t1 where b like 'ab' or b like 'ab';
+select * from t1 where b like 'abc';
+select * from t1 where b like 'abc' or b like 'abc';
+set engine_condition_pushdown = on;
+select * from t1 where b like 'ab';
+select * from t1 where b like 'ab' or b like 'ab';
+select * from t1 where b like 'abc';
+select * from t1 where b like 'abc' or b like 'abc';
+
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;

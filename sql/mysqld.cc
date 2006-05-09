@@ -710,7 +710,7 @@ static void openssl_lock(int, openssl_lock_t *, const char *, int);
 static unsigned long openssl_id_function();
 #endif
 char *des_key_file;
-struct st_VioSSLAcceptorFd *ssl_acceptor_fd;
+struct st_VioSSLFd *ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
 
@@ -2969,6 +2969,7 @@ static void end_ssl()
     ssl_acceptor_fd= 0;
   }
 #endif /* HAVE_OPENSSL */
+  vio_end();
 }
 
 
