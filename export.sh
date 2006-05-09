@@ -21,16 +21,24 @@ fi
 set -u
 
 rm -rf to-mysql
-mkdir -p to-mysql/storage/
+mkdir to-mysql{,/storage,/patches,/mysql-test{,/t,/r,/include}}
 svn log -v -r "$(($1 + 1)):BASE" > to-mysql/log
 svn export -q . to-mysql/storage/innobase
-cd to-mysql
 
-mkdir -p sql mysql-test/t mysql-test/r mysql-test/include
-cd storage/innobase
+seq $(($1+1)) $2|while read REV
+do
+  PATCH=to-mysql/patches/r$REV.patch
+  svn log -v -r$REV > $PATCH
+  if [ $(wc -c < $PATCH) -gt 73 ]
+  then
+    svn diff -r$(($REV-1)):$REV >> $PATCH
+  else
+    rm $PATCH
+  fi
+done
 
-mv handler/* ../../sql
-rmdir handler
+cd to-mysql/storage/innobase
+mv handler ../../sql
 
 mv mysql-test/*.test mysql-test/*.opt ../../mysql-test/t
 mv mysql-test/*.result ../../mysql-test/r
