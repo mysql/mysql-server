@@ -1519,29 +1519,17 @@ NdbEventBuffer::completeClusterFailed()
   {
     NdbEventOperationImpl* impl= &op->m_impl;
     data.senderData = impl->m_oid;
-    insertDataL(impl, &data, ptr); 
+    insertDataL(impl, &data, ptr);
   } while((op = m_ndb->getEventOperation(op)));
   
   /**
-   * Find min not completed GCI
+   *  Release all GCI's with m_gci > gci
    */
   Uint32 i;
   Uint32 sz= m_active_gci.size();
-  Uint64 gci= ~0;
+  Uint64 gci= data.gci;
   Gci_container* bucket = 0;
   Gci_container* array = (Gci_container*)m_active_gci.getBase();
-  for(i = 0; i < sz; i++)
-  {
-    if(array[i].m_gcp_complete_rep_count && array[i].m_gci < gci)
-    {
-      bucket= array + i;
-      gci = bucket->m_gci;
-    }
-  }
-
-  /**
-   * Release all GCI's with m_gci > gci
-   */
   for(i = 0; i < sz; i++)
   {
     Gci_container* tmp = array + i;
@@ -1554,9 +1542,31 @@ NdbEventBuffer::completeClusterFailed()
       tmp->~Gci_container();
       bzero(tmp, sizeof(Gci_container));
     }
+    else if (tmp->m_gcp_complete_rep_count)
+    {
+      if (tmp->m_gci == gci)
+      {
+        bucket= tmp;
+        continue;
+      }
+      // we have found an old not-completed gci
+      // something is wrong, assert in debug, but try so salvage
+      // in release
+      ndbout_c("out of order bucket detected at cluster disconnect, "
+               "data.gci: %u.  tmp->m_gci: %u",
+               (unsigned)data.gci, (unsigned)tmp->m_gci);
+      assert(false);
+      if(!tmp->m_data.is_empty())
+      {
+        free_list(tmp->m_data);
+      }
+      tmp->~Gci_container();
+      bzero(tmp, sizeof(Gci_container));
+    }
   }
-  
-  assert(bucket != 0 && data.gci == gci);
+
+  assert(bucket != 0);
+
   const Uint32 cnt= bucket->m_gcp_complete_rep_count = 1; 
   bucket->m_gci = gci;
   bucket->m_gcp_complete_rep_count = cnt;
