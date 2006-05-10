@@ -3335,7 +3335,10 @@ best_access_path(JOIN      *join,
       uint key= keyuse->key;
       KEY *keyinfo= table->key_info+key;
       bool ft_key=  (keyuse->keypart == FT_KEYPART);
-      uint found_ref_or_null= 0;
+      /* Bitmap of keyparts where the ref access is over 'keypart=const': */
+      key_part_map const_part= 0;
+      /* The or-null keypart in ref-or-null access: */
+      key_part_map ref_or_null_part= 0;
 
       /* Calculate how many key segments of the current key we can use */
       start_key= keyuse;
@@ -3347,12 +3350,14 @@ best_access_path(JOIN      *join,
         do
         {
           if (!(remaining_tables & keyuse->used_tables) &&
-              !(found_ref_or_null & keyuse->optimize))
+              !(ref_or_null_part && (keyuse->optimize &
+                                     KEY_OPTIMIZE_REF_OR_NULL)))
           {
             found_part|= keyuse->keypart_map;
-            double tmp= prev_record_reads(join,
-					  (found_ref |
-					   keyuse->used_tables));
+            if (!(keyuse->used_tables & ~join->const_table_map))
+              const_part|= keyuse->keypart_map;
+            double tmp= prev_record_reads(join, (found_ref |
+                                                 keyuse->used_tables));
             if (tmp < best_prev_record_reads)
             {
               best_part_found_ref= keyuse->used_tables;
@@ -3364,8 +3369,8 @@ best_access_path(JOIN      *join,
 	      If there is one 'key_column IS NULL' expression, we can
 	      use this ref_or_null optimisation of this field
 	    */
-	    found_ref_or_null|= (keyuse->optimize &
-				 KEY_OPTIMIZE_REF_OR_NULL);
+            if (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL)
+              ref_or_null_part |= keyuse->keypart_map;
           }
           keyuse++;
         } while (keyuse->table == table && keyuse->key == key &&
@@ -3401,7 +3406,7 @@ best_access_path(JOIN      *join,
           Check if we found full key
         */
         if (found_part == PREV_BITS(uint,keyinfo->key_parts) &&
-            !found_ref_or_null)
+            !ref_or_null_part)
         {                                         /* use eq key */
           max_key_part= (uint) ~0;
           if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
@@ -3413,6 +3418,23 @@ best_access_path(JOIN      *join,
           {
             if (!found_ref)
             {                                     /* We found a const key */
+              /*
+                ReuseRangeEstimateForRef-1:
+                We get here if we've found a ref(const) (c_i are constants):
+                  "(keypart1=c1) AND ... AND (keypartN=cN)"   [ref_const_cond]
+                
+                If range optimizer was able to construct a "range" 
+                access on this index, then its condition "quick_cond" was
+                eqivalent to ref_const_cond (*), and we can re-use E(#rows)
+                from the range optimizer.
+                
+                Proof of (*): By properties of range and ref optimizers 
+                quick_cond will be equal or tighther than ref_const_cond. 
+                ref_const_cond already covers "smallest" possible interval - 
+                a singlepoint interval over all keyparts. Therefore, 
+                quick_cond is equivalent to ref_const_cond (if it was an 
+                empty interval we wouldn't have got here).
+              */
               if (table->quick_keys.is_set(key))
                 records= (double) table->quick_rows[key];
               else
@@ -3432,6 +3454,23 @@ best_access_path(JOIN      *join,
                      (double) table->s->max_key_length)));
                 if (records < 2.0)
                   records=2.0;               /* Can't be as good as a unique */
+              }
+              /*
+                ReuseRangeEstimateForRef-2:  We get here if we could not reuse
+                E(#rows) from range optimizer. Make another try:
+                
+                If range optimizer produced E(#rows) for a prefix of the ref
+                access we're considering, and that E(#rows) is lower then our
+                current estimate, make an adjustment. The criteria of when we
+                can make an adjustment is a special case of the criteria used
+                in ReuseRangeEstimateForRef-3.
+              */
+              if (table->quick_keys.is_set(key) &&
+                  const_part & (1 << table->quick_key_parts[key]) &&
+                  table->quick_n_ranges[key] == 1 &&
+                  records > (double) table->quick_rows[key])
+              {
+                records= (double) table->quick_rows[key];
               }
             }
             /* Limit the number of matched rows */
@@ -3461,12 +3500,50 @@ best_access_path(JOIN      *join,
           {
             max_key_part= max_part_bit(found_part);
             /*
-              Check if quick_range could determinate how many rows we
-              will match
+              ReuseRangeEstimateForRef-3:
+              We're now considering a ref[or_null] access via
+              (t.keypart1=e1 AND ... AND t.keypartK=eK) [ OR  
+              (same-as-above but with one cond replaced 
+               with "t.keypart_i IS NULL")]  (**)
+              
+              Try re-using E(#rows) from "range" optimizer:
+              We can do so if "range" optimizer used the same intervals as
+              in (**). The intervals used by range optimizer may be not 
+              available at this point (as "range" access might have choosen to
+              create quick select over another index), so we can't compare
+              them to (**). We'll make indirect judgements instead.
+              The sufficient conditions for re-use are:
+              (C1) All e_i in (**) are constants, i.e. found_ref==FALSE. (if
+                   this is not satisfied we have no way to know which ranges
+                   will be actually scanned by 'ref' until we execute the 
+                   join)
+              (C2) max #key parts in 'range' access == K == max_key_part (this
+                   is apparently a necessary requirement)
+
+              We also have a property that "range optimizer produces equal or 
+              tighter set of scan intervals than ref(const) optimizer". Each
+              of the intervals in (**) are "tightest possible" intervals when 
+              one limits itself to using keyparts 1..K (which we do in #2).              
+              From here it follows that range access used either one, or
+              both of the (I1) and (I2) intervals:
+              
+               (t.keypart1=c1 AND ... AND t.keypartK=eK)  (I1) 
+               (same-as-above but with one cond replaced  
+                with "t.keypart_i IS NULL")               (I2)
+
+              The remaining part is to exclude the situation where range
+              optimizer used one interval while we're considering
+              ref-or-null and looking for estimate for two intervals. This
+              is done by last limitation:
+
+              (C3) "range optimizer used (have ref_or_null?2:1) intervals"
             */
-            if (table->quick_keys.is_set(key) &&
-                table->quick_key_parts[key] == max_key_part)
+            if (table->quick_keys.is_set(key) && !found_ref &&          //(C1)
+                table->quick_key_parts[key] == max_key_part &&          //(C2)
+                table->quick_n_ranges[key] == 1+test(ref_or_null_part)) //(C3)
+            {
               tmp= records= (double) table->quick_rows[key];
+            }
             else
             {
               /* Check if we have statistic about the distribution */
@@ -3510,21 +3587,37 @@ best_access_path(JOIN      *join,
                 }
                 records = (ulong) tmp;
               }
-              /*
-                If quick_select was used on a part of this key, we know
-                the maximum number of rows that the key can match.
-              */
-              if (table->quick_keys.is_set(key) &&
-                  table->quick_key_parts[key] <= max_key_part &&
-                  records > (double) table->quick_rows[key])
-                tmp= records= (double) table->quick_rows[key];
-              else if (found_ref_or_null)
+
+              if (ref_or_null_part)
               {
                 /* We need to do two key searches to find key */
                 tmp *= 2.0;
                 records *= 2.0;
               }
+
+              /*
+                ReuseRangeEstimateForRef-4:  We get here if we could not reuse
+                E(#rows) from range optimizer. Make another try:
+                
+                If range optimizer produced E(#rows) for a prefix of the ref 
+                access we're considering, and that E(#rows) is lower then our
+                current estimate, make the adjustment.
+
+                The decision whether we can re-use the estimate from the range
+                optimizer is the same as in ReuseRangeEstimateForRef-3,
+                applied to first table->quick_key_parts[key] key parts.
+              */
+              if (table->quick_keys.is_set(key) &&
+                  table->quick_key_parts[key] <= max_key_part &&
+                  const_part & (1 << table->quick_key_parts[key]) &&
+                  table->quick_n_ranges[key] == 1 + test(ref_or_null_part &
+                                                         const_part) &&
+                  records > (double) table->quick_rows[key])
+              {
+                tmp= records= (double) table->quick_rows[key];
+              }
             }
+
             /* Limit the number of matched rows */
             set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
             if (table->used_keys.is_set(key))
