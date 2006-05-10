@@ -20,4 +20,6 @@ struct Options;
 
 void manager(const Options &options);
 
+int create_pid_file(const char *pid_file_name, int pid);
+
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
