@@ -1087,8 +1087,8 @@ btr_root_raise_and_insert(
 
 	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
 			page_get_infimum_rec(root), cursor->index, mtr))) {
-		ut_a(new_page_zip);
 		byte	page_no[4];
+		ut_a(new_page_zip);
 
 		/* Copy the pages byte for byte and restore the page offset.
 		This cannot fail, because the compressed page

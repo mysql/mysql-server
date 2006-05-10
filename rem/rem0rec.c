@@ -870,8 +870,9 @@ rec_set_field_extern_bits(
 		rec_set_field_extern_bits_new(rec, index, offsets,
 							vec, n_fields);
 	} else {
-		ut_a(!rec_get_1byte_offs_flag(rec));
 		ulint	i;
+
+		ut_a(!rec_get_1byte_offs_flag(rec));
 
 		for (i = 0; i < n_fields; i++) {
 			rec_set_nth_field_extern_bit_old(rec, vec[i]);

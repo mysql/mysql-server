@@ -507,7 +507,7 @@ page_zip_free(
 	 void*	opaque __attribute__((unused)),
 	 void*	address)
 {
-	return(ut_free(address));
+	ut_free(address);
 }
 
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
