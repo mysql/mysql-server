@@ -70,21 +70,6 @@ print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
  *
  */
 
-//#define EVENT_DEBUG
-#ifdef EVENT_DEBUG
-#define DBUG_ENTER_EVENT(A) DBUG_ENTER(A)
-#define DBUG_RETURN_EVENT(A) DBUG_RETURN(A)
-#define DBUG_VOID_RETURN_EVENT DBUG_VOID_RETURN
-#define DBUG_PRINT_EVENT(A,B) DBUG_PRINT(A,B)
-#define DBUG_DUMP_EVENT(A,B,C) DBUG_DUMP(A,B,C)
-#else
-#define DBUG_ENTER_EVENT(A)
-#define DBUG_RETURN_EVENT(A) return(A)
-#define DBUG_VOID_RETURN_EVENT return
-#define DBUG_PRINT_EVENT(A,B)
-#define DBUG_DUMP_EVENT(A,B,C)
-#endif
-
 // todo handle several ndb objects
 // todo free allocated data when closing NdbEventBuffer
 
@@ -189,6 +174,17 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
   // m_bufferHandle->dropSubscribeEvent(m_bufferId);
   ; // ToDo? We should send stop signal here
   
+  if (theMainOp == NULL)
+  {
+    NdbEventOperationImpl* tBlobOp = theBlobOpList;
+    while (tBlobOp != NULL)
+    {
+      NdbEventOperationImpl *op = tBlobOp;
+      tBlobOp = tBlobOp->m_next;
+      delete op;
+    }
+  }
+
   m_ndb->theImpl->theNdbObjectIdMap.unmap(m_oid, this);
   DBUG_PRINT("exit",("this: %p/%p oid: %u main: %p",
              this, m_facade, m_oid, theMainOp));
@@ -973,7 +969,15 @@ NdbEventBuffer::~NdbEventBuffer()
     delete op->m_facade;
   }
 
-  for (unsigned j= 0; j < m_allocated_data.size(); j++)
+  unsigned j;
+  Uint32 sz= m_active_gci.size();
+  Gci_container* array = (Gci_container*)m_active_gci.getBase();
+  for(j = 0; j < sz; j++)
+  {
+    array[j].~Gci_container();
+  }
+
+  for (j= 0; j < m_allocated_data.size(); j++)
   {
     unsigned sz= m_allocated_data[j]->sz;
     EventBufData *data= m_allocated_data[j]->data;
@@ -1476,6 +1480,7 @@ NdbEventBuffer::report_node_failure(Uint32 node_id)
   data.req_nodeid = (Uint8)node_id;
   data.ndbd_nodeid = (Uint8)node_id;
   data.logType = SubTableData::LOG;
+  data.gci = m_latestGCI + 1;
   /**
    * Insert this event for each operation
    */
@@ -1492,8 +1497,11 @@ NdbEventBuffer::report_node_failure(Uint32 node_id)
 void
 NdbEventBuffer::completeClusterFailed()
 {
-  DBUG_ENTER("NdbEventBuffer::completeClusterFailed");
+  NdbEventOperation* op= m_ndb->getEventOperation(0);
+  if (op == 0)
+    return;
 
+  DBUG_ENTER("NdbEventBuffer::completeClusterFailed");
   SubTableData data;
   LinearSectionPtr ptr[3];
   bzero(&data, sizeof(data));
@@ -1502,15 +1510,27 @@ NdbEventBuffer::completeClusterFailed()
   data.tableId = ~0;
   data.operation = NdbDictionary::Event::_TE_CLUSTER_FAILURE;
   data.logType = SubTableData::LOG;
-
+  data.gci = m_latestGCI + 1;
+  
+  /**
+   * Insert this event for each operation
+   */
+  do
+  {
+    NdbEventOperationImpl* impl= &op->m_impl;
+    data.senderData = impl->m_oid;
+    insertDataL(impl, &data, ptr); 
+  } while((op = m_ndb->getEventOperation(op)));
+  
   /**
    * Find min not completed GCI
    */
+  Uint32 i;
   Uint32 sz= m_active_gci.size();
   Uint64 gci= ~0;
   Gci_container* bucket = 0;
   Gci_container* array = (Gci_container*)m_active_gci.getBase();
-  for(Uint32 i = 0; i<sz; i++)
+  for(i = 0; i < sz; i++)
   {
     if(array[i].m_gcp_complete_rep_count && array[i].m_gci < gci)
     {
@@ -1519,56 +1539,27 @@ NdbEventBuffer::completeClusterFailed()
     }
   }
 
-  if(bucket == 0)
-  {
-    /**
-     * Did not find any not completed GCI's
-     *   lets fake one...
-     */
-    gci = m_latestGCI + 1;
-    bucket = array + ( gci & ACTIVE_GCI_MASK );
-    bucket->m_gcp_complete_rep_count = 1;
-  }
-  
-  const Uint32 cnt= bucket->m_gcp_complete_rep_count = 1; 
-
   /**
-   * Release all GCI's
+   * Release all GCI's with m_gci > gci
    */
-  for(Uint32 i = 0; i<sz; i++)
+  for(i = 0; i < sz; i++)
   {
     Gci_container* tmp = array + i;
-    if(!tmp->m_data.is_empty())
+    if (tmp->m_gci > gci)
     {
-      free_list(tmp->m_data);
-#if 0
-      m_free_data_count++;
-      EventBufData* loop= tmp->m_head;
-      while(loop != tmp->m_tail)
+      if(!tmp->m_data.is_empty())
       {
-	m_free_data_count++;
-	loop = loop->m_next;
+        free_list(tmp->m_data);
       }
-#endif
+      tmp->~Gci_container();
+      bzero(tmp, sizeof(Gci_container));
     }
-    bzero(tmp, sizeof(Gci_container));
   }
   
+  assert(bucket != 0 && data.gci == gci);
+  const Uint32 cnt= bucket->m_gcp_complete_rep_count = 1; 
   bucket->m_gci = gci;
   bucket->m_gcp_complete_rep_count = cnt;
-  
-  data.gci = gci;
-  
-  /**
-   * Insert this event for each operation
-   */
-  NdbEventOperation* op= 0;
-  while((op = m_ndb->getEventOperation(op)))
-  {
-    NdbEventOperationImpl* impl= &op->m_impl;
-    data.senderData = impl->m_oid;
-    insertDataL(impl, &data, ptr); 
-  }
   
   /**
    * And finally complete this GCI
@@ -2262,8 +2253,12 @@ EventBufData_list::add_gci_op(Gci_op g, bool del)
       if (m_gci_op_alloc != 0) {
         Uint32 bytes = m_gci_op_alloc * sizeof(Gci_op);
         memcpy(m_gci_op_list, old_list, bytes);
+        DBUG_PRINT_EVENT("info", ("this: %p  delete m_gci_op_list: %p",
+                                  this, old_list));
         delete [] old_list;
       }
+      DBUG_PRINT_EVENT("info", ("this: %p  new m_gci_op_list: %p",
+                                this, m_gci_op_list));
       m_gci_op_alloc = n;
     }
     assert(m_gci_op_count < m_gci_op_alloc);
@@ -2275,6 +2270,9 @@ EventBufData_list::add_gci_op(Gci_op g, bool del)
 void
 EventBufData_list::move_gci_ops(EventBufData_list *list, Uint64 gci)
 {
+  DBUG_ENTER_EVENT("EventBufData_list::move_gci_ops");
+  DBUG_PRINT_EVENT("info", ("this: %p  list: %p  gci: %llu",
+                            this, list, gci));
   assert(!m_is_not_multi_list);
   if (!list->m_is_not_multi_list)
   {
@@ -2290,6 +2288,8 @@ EventBufData_list::move_gci_ops(EventBufData_list *list, Uint64 gci)
   }
   {
     Gci_ops *new_gci_ops = new Gci_ops;
+    DBUG_PRINT_EVENT("info", ("this: %p  m_gci_op_list: %p",
+                        new_gci_ops, list->m_gci_op_list));
     if (m_gci_ops_list_tail)
       m_gci_ops_list_tail->m_next = new_gci_ops;
     else
@@ -2308,6 +2308,7 @@ end:
   list->m_gci_op_list = 0;
   list->m_gci_ops_list_tail = 0;
   list->m_gci_op_alloc = 0;
+  DBUG_VOID_RETURN_EVENT;
 }
 
 NdbEventOperation*
