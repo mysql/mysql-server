@@ -29,7 +29,21 @@
 #define yaSSL_openssl_h__
 
 #include <stdio.h>   /* ERR_print fp */
+#include "opensslv.h" /* for version number */
 #include "rsa.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+ void yaSSL_CleanUp();   /* call once at end of application use to
+                                      free static singleton memory holders,
+                                      not a leak per se, but helpful when 
+                                      looking for them                      */
+
+#if defined(__cplusplus)
+} // extern
+#endif
 
 #if defined(__cplusplus) && !defined(YASSL_MYSQL_COMPATIBLE)
 namespace yaSSL {
@@ -102,7 +116,6 @@ void X509_free(X509*);
 typedef struct BIO BIO;
 
 /* ASN stuff */
-typedef struct ASN1_TIME ASN1_TIME;
 
 
 
@@ -345,8 +358,8 @@ long SSL_CTX_sess_set_cache_size(SSL_CTX*, long);
 long SSL_CTX_set_tmp_dh(SSL_CTX*, DH*);
 
 void OpenSSL_add_all_algorithms(void);
-void SSL_library_init();
-void SSLeay_add_ssl_algorithms(void);
+int  SSL_library_init();
+int  SSLeay_add_ssl_algorithms(void);
 
 
 SSL_CIPHER* SSL_get_current_cipher(SSL*);
@@ -371,6 +384,10 @@ typedef unsigned char DES_cblock[8];
 typedef const  DES_cblock const_DES_cblock;
 typedef DES_cblock DES_key_schedule;
                                                           
+enum {
+    DES_ENCRYPT = 1,
+    DES_DECRYPT = 0
+};
                                                              
 const EVP_MD*     EVP_md5(void);
 const EVP_CIPHER* EVP_des_ede3_cbc(void);
@@ -390,6 +407,108 @@ void        RAND_screen(void);
 const char* RAND_file_name(char*, size_t);
 int         RAND_write_file(const char*);
 int         RAND_load_file(const char*, long);
+
+
+/* for libcurl */
+int  RAND_status(void);
+
+int  DES_set_key(const_DES_cblock*, DES_key_schedule*);
+void DES_set_odd_parity(DES_cblock*);
+void DES_ecb_encrypt(DES_cblock*, DES_cblock*, DES_key_schedule*, int);
+
+void SSL_CTX_set_default_passwd_cb_userdata(SSL_CTX*, void* userdata);
+void SSL_SESSION_free(SSL_SESSION* session);
+
+X509*     SSL_get_certificate(SSL* ssl);
+EVP_PKEY* SSL_get_privatekey(SSL* ssl);
+EVP_PKEY* X509_get_pubkey(X509* x);
+
+int  EVP_PKEY_copy_parameters(EVP_PKEY* to, const EVP_PKEY* from);
+void EVP_PKEY_free(EVP_PKEY* pkey);
+void ERR_error_string_n(unsigned long e, char *buf, size_t len);
+void ERR_free_strings(void);
+void EVP_cleanup(void);
+
+void* X509_get_ext_d2i(X509* x, int nid, int* crit, int* idx);
+
+#define GEN_IPADD 7
+#define NID_subject_alt_name 85
+#define STACK_OF(x) x
+
+
+/* defined here because libcurl dereferences */
+typedef struct ASN1_STRING {
+    int type;
+    int length;
+    unsigned char* data;
+} ASN1_STRING;
+
+
+typedef struct GENERAL_NAME {
+    int type;
+    union {
+        ASN1_STRING* ia5;
+    } d;
+} GENERAL_NAME;
+
+void GENERAL_NAMES_free(STACK_OF(GENERAL_NAME) *x);
+
+int           sk_GENERAL_NAME_num(STACK_OF(GENERAL_NAME) *x);
+GENERAL_NAME* sk_GENERAL_NAME_value(STACK_OF(GENERAL_NAME) *x, int i);
+
+
+unsigned char* ASN1_STRING_data(ASN1_STRING* x);
+int            ASN1_STRING_length(ASN1_STRING* x);
+int            ASN1_STRING_type(ASN1_STRING *x);
+
+typedef ASN1_STRING X509_NAME_ENTRY;
+
+int X509_NAME_get_index_by_NID(X509_NAME* name,int nid, int lastpos);
+
+ASN1_STRING* X509_NAME_ENTRY_get_data(X509_NAME_ENTRY* ne);
+X509_NAME_ENTRY* X509_NAME_get_entry(X509_NAME* name, int loc);
+
+#define OPENSSL_malloc(x) malloc(x)
+#define OPENSSL_free(x)   free(x)
+
+int ASN1_STRING_to_UTF8(unsigned char** out, ASN1_STRING* in);
+
+SSL_METHOD* SSLv23_client_method(void);  /* doesn't actually roll back */
+SSL_METHOD* SSLv2_client_method(void);   /* will never work, no v 2    */
+
+
+SSL_SESSION* SSL_get1_session(SSL* ssl);  /* what's ref count */
+
+
+#define CRYPTO_free(x) free(x)
+#define ASN1_TIME ASN1_STRING
+
+ASN1_TIME* X509_get_notBefore(X509* x);
+ASN1_TIME* X509_get_notAfter(X509* x);
+
+
+#define ASN1_UTCTIME ASN1_STRING
+#define NID_commonName    13
+#define V_ASN1_UTF8STRING 12
+#define GEN_DNS            2
+
+
+typedef struct MD4_CTX {
+    void* ptr;
+} MD4_CTX;
+
+void MD4_Init(MD4_CTX*);
+void MD4_Update(MD4_CTX*, const void*, unsigned long);
+void MD4_Final(unsigned char*, MD4_CTX*);
+
+
+typedef struct MD5_CTX {
+    int buffer[32];       /* big enough to hold, check size in Init */
+} MD5_CTX;
+
+void MD5_Init(MD5_CTX*);
+void MD5_Update(MD5_CTX*, const void*, unsigned long);
+void MD5_Final(unsigned char*, MD5_CTX*);
 
 
 #define SSL_DEFAULT_CIPHER_LIST ""   /* default all */
