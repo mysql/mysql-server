@@ -2726,6 +2726,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	  break;
 	}
 	case FIELD_LAST:
+        case FIELD_enum_val_count:
 	  abort();				/* Impossible */
 	}
 	start_pos+=count->max_zero_fill;
@@ -2965,7 +2966,7 @@ static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
   mi_clear_all_keys_active(share->state.key_map);
   for (key=0 ; key < share->base.keys ; key++)
     share->state.key_root[key]= HA_OFFSET_ERROR;
-  for (key=0 ; key < share->state.header.max_block_size ; key++)
+  for (key=0 ; key < share->state.header.max_block_size_index ; key++)
     share->state.key_del[key]= HA_OFFSET_ERROR;
   isam_file->state->checksum=crc;       /* Save crc here */
   share->changed=1;			/* Force write of header */

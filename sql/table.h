@@ -160,6 +160,7 @@ typedef struct st_table_share
   uint ref_count;                       /* How many TABLE objects uses this */
   uint open_count;			/* Number of tables in open list */
   uint blob_ptr_size;			/* 4 or 8 */
+  uint key_block_size;			/* create key_block_size, if used */
   uint null_bytes, last_null_bit_pos;
   uint fields;				/* Number of fields */
   uint rec_buff_length;                 /* Size of table->record[] buffer */

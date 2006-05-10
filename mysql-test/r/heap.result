@@ -556,9 +556,9 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` varchar(50) DEFAULT NULL,
-  KEY `v` USING BTREE (`v`),
-  KEY `c` USING BTREE (`c`),
-  KEY `t` USING BTREE (`t`(10))
+  KEY `v` (`v`) USING BTREE,
+  KEY `c` (`c`) USING BTREE,
+  KEY `t` (`t`(10)) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)

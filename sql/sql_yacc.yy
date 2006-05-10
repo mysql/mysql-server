@@ -364,6 +364,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  JOIN_SYM
 %token  KEYS
 %token  KEY_SYM
+%token  KEY_BLOCK_SIZE
 %token  KILL_SYM
 %token  LANGUAGE_SYM
 %token  LAST_INSERT_ID
@@ -730,7 +731,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem
 
 %type <lex_str_ptr>
-	opt_table_alias opt_fulltext_parser
+	opt_table_alias
 
 %type <table>
 	table_ident table_ident_nodb references xid
@@ -795,7 +796,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	key_type opt_unique_or_fulltext constraint_key_type
 
 %type <key_alg>
-	key_alg opt_btree_or_rtree
+	btree_or_rtree
 
 %type <string_list>
 	key_usage_list using_list
@@ -886,6 +887,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         view_suid view_tail view_list_opt view_list view_select
         view_check_option trigger_tail sp_tail
         install uninstall partition_entry binlog_base64_event
+	init_key_options key_options key_opts key_opt key_using_alg
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -1220,11 +1222,13 @@ create:
 	}
 	create2
 	  { Lex->current_select= &Lex->select_lex; }
-	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON table_ident
+	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON
+	  table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $7, NULL,
+	    if (!lex->current_select->add_table_to_list(lex->thd, $7,
+							NULL,
 							TL_OPTION_UPDATING))
 	      YYABORT;
 	    lex->create_list.empty();
@@ -1232,15 +1236,16 @@ create:
 	    lex->col_list.empty();
 	    lex->change=NullS;
 	  }
-	   '(' key_list ')' opt_fulltext_parser
+	   '(' key_list ')' key_options
 	  {
 	    LEX *lex=Lex;
-	    if ($2 != Key::FULLTEXT && $12)
+	    if ($2 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
 	      yyerror(ER(ER_SYNTAX_ERROR));
 	      YYABORT;
 	    }
-	    lex->key_list.push_back(new Key($2,$4.str,$5,0,lex->col_list,$12));
+	    lex->key_list.push_back(new Key($2, $4.str, &lex->key_create_info, 0,
+					   lex->col_list));
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
@@ -3890,6 +3895,11 @@ create_table_option:
         | STORAGE_SYM DISK_SYM {Lex->create_info.store_on_disk= TRUE;}
         | STORAGE_SYM MEMORY_SYM {Lex->create_info.store_on_disk= FALSE;}
 	| CONNECTION_SYM opt_equal TEXT_STRING_sys { Lex->create_info.connect_string.str= $3.str; Lex->create_info.connect_string.length= $3.length;  Lex->create_info.used_fields|= HA_CREATE_USED_CONNECTION; }
+	| KEY_BLOCK_SIZE opt_equal ulong_num
+	  {
+	    Lex->create_info.used_fields|= HA_CREATE_USED_KEY_BLOCK_SIZE;
+	    Lex->create_info.key_block_size= $3;
+	  }
         ;
 
 default_charset:
@@ -3983,23 +3993,25 @@ column_def:
 	;
 
 key_def:
-	key_type opt_ident key_alg '(' key_list ')' opt_fulltext_parser
+	key_type opt_ident key_alg '(' key_list ')' key_options
 	  {
 	    LEX *lex=Lex;
-	    if ($1 != Key::FULLTEXT && $7)
+	    if ($1 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
 	    {
 	      yyerror(ER(ER_SYNTAX_ERROR));
 	      YYABORT;
 	    }
-	    lex->key_list.push_back(new Key($1,$2, $3, 0, lex->col_list, $7));
+	    lex->key_list.push_back(new Key($1,$2, &lex->key_create_info, 0,
+					   lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
-	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')'
+	| opt_constraint constraint_key_type opt_ident key_alg
+	  '(' key_list ')' key_options
 	  {
 	    LEX *lex=Lex;
-	    const char *key_name= $3 ? $3:$1;
-	    lex->key_list.push_back(new Key($2, key_name, $4, 0,
-				    lex->col_list));
+	    const char *key_name= $3 ? $3 : $1;
+	    lex->key_list.push_back(new Key($2, key_name, &lex->key_create_info, 0,
+					    lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
@@ -4012,7 +4024,7 @@ key_def:
 				    lex->fk_update_opt,
 				    lex->fk_match_option));
 	    lex->key_list.push_back(new Key(Key::MULTIPLE, $4 ? $4 : $1,
-					    HA_KEY_ALG_UNDEF, 1,
+					    &default_key_create_info, 1,
 					    lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 
@@ -4028,20 +4040,6 @@ key_def:
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	;
-
-opt_fulltext_parser:
-        /* empty */               { $$= (LEX_STRING *)0; }
-	| WITH PARSER_SYM IDENT_sys
-          {
-            if (plugin_is_ready(&$3, MYSQL_FTPARSER_PLUGIN))
-              $$= (LEX_STRING *)sql_memdup(&$3, sizeof(LEX_STRING));
-            else
-            {
-              my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), $3.str);
-              YYABORT;
-            }
-          }
-        ;
 
 opt_check_constraint:
 	/* empty */
@@ -4516,12 +4514,56 @@ opt_unique_or_fulltext:
 	  }
         ;
 
-key_alg:
-	/* empty */		   { $$= HA_KEY_ALG_UNDEF; }
-	| USING opt_btree_or_rtree { $$= $2; }
-	| TYPE_SYM opt_btree_or_rtree  { $$= $2; };
+init_key_options:
+	{
+	  Lex->key_create_info= default_key_create_info;
+	}
+	;
 
-opt_btree_or_rtree:
+/*
+  For now, key_alg initializies lex->key_create_info.
+  In the future, when all key options are after key definition,
+  we can remove key_alg and move init_key_options to key_options
+*/
+
+key_alg:
+	/* empty */ init_key_options
+	| init_key_options key_using_alg
+	;
+
+key_options:
+	/* empty */ {}
+	| key_opts
+	;
+
+key_opts:
+	key_opt
+	| key_opts key_opt
+	;
+
+key_using_alg:
+	USING btree_or_rtree       { Lex->key_create_info.algorithm= $2; }
+	| TYPE_SYM btree_or_rtree  { Lex->key_create_info.algorithm= $2; }
+        ;
+
+key_opt:
+        key_using_alg
+	| KEY_BLOCK_SIZE opt_equal ulong_num
+	  { Lex->key_create_info.block_size= $3; }
+	| WITH PARSER_SYM IDENT_sys
+          {
+            if (plugin_is_ready(&$3, MYSQL_FTPARSER_PLUGIN))
+              Lex->key_create_info.parser_name= $3;
+            else
+            {
+              my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), $3.str);
+              YYABORT;
+            }
+          }
+        ;
+
+
+btree_or_rtree:
 	BTREE_SYM	{ $$= HA_KEY_ALG_BTREE; }
 	| RTREE_SYM
 	  {
@@ -4535,7 +4577,7 @@ key_list:
 
 key_part:
 	ident			{ $$=new key_part_spec($1.str); }
-	| ident '(' NUM ')'	
+	| ident '(' NUM ')'
         {
           int key_part_len= atoi($3.str);
           if (!key_part_len)
@@ -9348,7 +9390,7 @@ keyword_sp:
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
-	| RELAY_THREAD		{}
+	| KEY_BLOCK_SIZE	{}
 	| LAST_SYM		{}
 	| LEAVES                {}
 	| LESS_SYM		{}
@@ -9435,6 +9477,7 @@ keyword_sp:
         | REDUNDANT_SYM         {}
 	| RELAY_LOG_FILE_SYM	{}
 	| RELAY_LOG_POS_SYM	{}
+	| RELAY_THREAD		{}
 	| RELOAD		{}
 	| REORGANIZE_SYM	{}
 	| REPEATABLE_SYM	{}

@@ -742,6 +742,7 @@ static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static int test_if_case_insensitive(const char *dir_name);
 static void create_pid_file();
+static void end_ssl();
 
 #ifndef EMBEDDED_LIBRARY
 /****************************************************************************
@@ -1184,8 +1185,8 @@ void clean_up(bool print_message)
 #ifdef HAVE_DLOPEN
     udf_free();
 #endif
-    plugin_free();
   }
+  plugin_free();
   if (tc_log)
     tc_log->close();
   xid_cache_free();
@@ -1217,10 +1218,7 @@ void clean_up(bool print_message)
 #endif
   delete binlog_filter;
   delete rpl_filter;
-#ifdef HAVE_OPENSSL
-  if (ssl_acceptor_fd)
-    my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
-#endif /* HAVE_OPENSSL */
+  end_ssl();
 #ifdef USE_REGEX
   my_regex_end();
 #endif
@@ -2958,6 +2956,18 @@ static void init_ssl()
   }
   if (des_key_file)
     load_des_key_file(des_key_file);
+#endif /* HAVE_OPENSSL */
+}
+
+
+static void end_ssl()
+{
+#ifdef HAVE_OPENSSL
+  if (ssl_acceptor_fd)
+  {
+    free_vio_ssl_acceptor_fd(ssl_acceptor_fd);
+    ssl_acceptor_fd= 0;
+  }
 #endif /* HAVE_OPENSSL */
 }
 

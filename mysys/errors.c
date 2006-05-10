@@ -39,7 +39,7 @@ const char * NEAR globerrs[GLOBERRS]=
   "Can't get working dirctory (Errcode: %d)",
   "Can't change dir to '%s' (Errcode: %d)",
   "Warning: '%s' had %d links",
-  "%d files and %d streams is left open\n",
+  "Warning: %d files and %d streams is left open\n",
   "Disk is full writing '%s' (Errcode: %d). Waiting for someone to free space... Retry in %d secs",
   "Can't create directory '%s' (Errcode: %d)",
   "Character set '%s' is not a compiled character set and is not specified in the '%s' file",
@@ -50,6 +50,7 @@ const char * NEAR globerrs[GLOBERRS]=
   "Can't sync file '%s' to disk (Errcode: %d)",
   "Collation '%s' is not a compiled collation and is not specified in the '%s' file",
   "File '%s' not found (Errcode: %d)",
+  "File '%s' (fileno: %d) was not closed"
 };
 
 void init_glob_errs(void)
@@ -78,7 +79,7 @@ void init_glob_errs()
   EE(EE_GETWD)		= "Can't get working dirctory (Errcode: %d)";
   EE(EE_SETWD)		= "Can't change dir to '%s' (Errcode: %d)";
   EE(EE_LINK_WARNING)	= "Warning: '%s' had %d links";
-  EE(EE_OPEN_WARNING)	= "%d files and %d streams is left open\n";
+  EE(EE_OPEN_WARNING)	= "Warning: %d files and %d streams is left open\n";
   EE(EE_DISK_FULL)	= "Disk is full writing '%s'. Waiting for someone to free space...";
   EE(EE_CANT_MKDIR)	="Can't create directory '%s' (Errcode: %d)";
   EE(EE_UNKNOWN_CHARSET)= "Character set '%s' is not a compiled character set and is not specified in the %s file";
@@ -89,5 +90,6 @@ void init_glob_errs()
   EE(EE_SYNC)=		"Can't sync file '%s' to disk (Errcode: %d)";
   EE(EE_UNKNOWN_COLLATION)= "Collation '%s' is not a compiled collation and is not specified in the %s file";
   EE(EE_FILENOTFOUND)	= "File '%s' not found (Errcode: %d)";
+  EE(EE_FILE_NOT_CLOSED) = "File '%s' (fileno: %d) was not closed";
 }
 #endif
