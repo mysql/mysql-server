@@ -184,6 +184,7 @@ public:
   bool list_of_subpart_fields;
   bool linear_hash_ind;
   bool fixed;
+  bool is_auto_partitioned;
   bool from_openfrm;
   bool has_null_value;
   uint has_null_part_id;
@@ -219,6 +220,7 @@ public:
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE),
     fixed(FALSE),
+    is_auto_partitioned(FALSE),
     from_openfrm(FALSE),
     has_null_value(FALSE),
     has_null_part_id(0)

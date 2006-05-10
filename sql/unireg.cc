@@ -130,8 +130,14 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   /* str_db_type */
   create_info->extra_size= (2 + str_db_type.length +
                             2 + create_info->connect_string.length);
-  /* Partition */
-  create_info->extra_size+= 9;
+  /*
+    Partition:
+      Length of partition info = 4 byte
+      Potential NULL byte at end of partition info string = 1 byte
+      Indicator if auto-partitioned table = 1 byte
+      => Total 6 byte
+  */
+  create_info->extra_size+= 6;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
   {
@@ -203,17 +209,19 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
   {
+    char auto_partitioned= part_info->is_auto_partitioned ? 1 : 0;
     int4store(buff, part_info->part_info_len);
     if (my_write(file, (const byte*)buff, 4, MYF_RW) ||
         my_write(file, (const byte*)part_info->part_info_string,
-                 part_info->part_info_len + 1, MYF_RW))
+                 part_info->part_info_len + 1, MYF_RW) ||
+        my_write(file, (const byte*)&auto_partitioned, 1, MYF_RW))
       goto err;
   }
   else
 #endif
   {
-    bzero(buff, 9);
-    if (my_write(file, (byte*) buff, 9, MYF_RW))
+    bzero(buff, 6);
+    if (my_write(file, (byte*) buff, 6, MYF_RW))
       goto err;
   }
   for (i= 0; i < keys; i++)
