@@ -3045,6 +3045,7 @@ bool mysql_create_table_internal(THD *thd,
     }
     file->set_auto_partitions(part_info);
     part_info->default_engine_type= create_info->db_type;
+    part_info->is_auto_partitioned= TRUE;
   }
   if (part_info)
   {
