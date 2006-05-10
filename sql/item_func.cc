@@ -4735,6 +4735,7 @@ Item_func_sp::sp_result_field(void) const
     dummy_table->alias = empty_name;
     dummy_table->maybe_null = maybe_null;
     dummy_table->in_use= current_thd;
+    dummy_table->copy_blobs= TRUE;
     share->table_cache_key = empty_name;
     share->table_name = empty_name;
   }
