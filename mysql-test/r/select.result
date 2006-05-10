@@ -3411,3 +3411,19 @@ SELECT * FROM t1;
 i
 255
 DROP TABLE t1;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, b int, c int, e int, primary key(a,b,c));
+insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C;
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+select 'In next EXPLAIN, B.rows must be exactly 10:' Z;
+Z
+In next EXPLAIN, B.rows must be exactly 10:
+explain select * from t2 A, t2 B where A.a=5 and A.b=5 and A.C<5
+and B.a=5 and B.b=A.e and (B.b =1 or B.b = 3 or B.b=5);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	A	range	PRIMARY	PRIMARY	12	NULL	3	Using where
+1	SIMPLE	B	ref	PRIMARY	PRIMARY	8	const,test.A.e	10	
+drop table t1, t2;
