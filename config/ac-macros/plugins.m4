@@ -750,7 +750,7 @@ dnl ---------------------------------------------------------------------------
 AC_DEFUN([_MYSQL_INCLUDE_LIST],[
  ifelse([$1], [], [], [
   m4_define([__mysql_include__],[$1])
-  dnl We have to use builtin(), because sinclude($1) generates an error
+  dnl We have to use builtin(), because sinclude would generate an error
   dnl "file $1 does not exists" in aclocal-1.8 - which is a bug, clearly
   dnl violating m4 specs, and which is fixed in aclocal-1.9
   builtin([include],$1)
