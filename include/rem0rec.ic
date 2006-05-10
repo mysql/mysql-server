@@ -269,12 +269,13 @@ rec_get_next_ptr(
 			+ ut_align_offset(rec, UNIV_PAGE_SIZE)
 			< UNIV_PAGE_SIZE);
 #endif
-		return(ut_align_down(rec, UNIV_PAGE_SIZE)
+		return((byte*) ut_align_down(rec, UNIV_PAGE_SIZE)
 			+ ut_align_offset(rec + field_value, UNIV_PAGE_SIZE));
 	} else {
 		ut_ad(field_value < UNIV_PAGE_SIZE);
 
-		return(ut_align_down(rec, UNIV_PAGE_SIZE) + field_value);
+		return((byte*) ut_align_down(rec, UNIV_PAGE_SIZE)
+			+ field_value);
 	}
 }
 
@@ -362,10 +363,10 @@ rec_set_next_offs_new(
 	rec_t*	rec,	/* in/out: new-style physical record */
 	ulint	next)	/* in: offset of the next record */
 {
+	ulint field_value;
+
 	ut_ad(rec);
 	ut_ad(UNIV_PAGE_SIZE > next);
-
-	ulint field_value;
 
 	if (UNIV_UNLIKELY(!next)) {
 		field_value = 0;

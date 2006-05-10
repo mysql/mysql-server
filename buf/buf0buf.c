@@ -1959,6 +1959,9 @@ buf_page_io_complete(
 	io_type = block->io_fix;
 
 	if (io_type == BUF_IO_READ) {
+		ulint	read_page_no;
+		ulint	read_space_id;
+
 		if (block->page_zip.size) {
 			ut_a(block->space);
 
@@ -1977,10 +1980,10 @@ buf_page_io_complete(
 		/* If this page is not uninitialized and not in the
 		doublewrite buffer, then the page number and space id
 		should be the same as in block. */
-		ulint	read_page_no = mach_read_from_4((block->frame)
-						+ FIL_PAGE_OFFSET);
-		ulint	read_space_id = mach_read_from_4((block->frame)
-					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+		read_page_no = mach_read_from_4((block->frame)
+					+ FIL_PAGE_OFFSET);
+		read_space_id = mach_read_from_4((block->frame)
+					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 		if (!block->space && trx_doublewrite_page_inside(
 				block->offset)) {
