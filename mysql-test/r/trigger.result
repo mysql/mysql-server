@@ -951,6 +951,7 @@ insert into t2 select a, f2() from t1;
 load data infile '../std_data_ln/words.dat' into table t1 (a) set b:= f1();
 drop function f1;
 drop function f2;
+drop table t1, t2;
 create table t1(i int not null, j int not null, n numeric(15,2), primary key(i,j));
 create table t2(i int not null, n numeric(15,2), primary key(i));
 create trigger t1_ai after insert on t1 for each row
