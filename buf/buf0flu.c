@@ -477,6 +477,11 @@ buf_flush_init_for_writing(
 			break;
 		case FIL_PAGE_INDEX:
 			ut_a(zip_size == page_zip->size);
+			mach_write_to_4(page
+					+ FIL_PAGE_OFFSET, page_no);
+			mach_write_to_4(page
+					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+					space);
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_OFFSET, page_no);
 			mach_write_to_8(page_zip->data
