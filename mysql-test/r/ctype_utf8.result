@@ -412,7 +412,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8 DEFAULT NULL,
-  UNIQUE KEY `a` USING HASH (`c`(1))
+  UNIQUE KEY `a` (`c`(1)) USING HASH
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
@@ -448,7 +448,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8 DEFAULT NULL,
-  UNIQUE KEY `a` USING BTREE (`c`(1))
+  UNIQUE KEY `a` (`c`(1)) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
@@ -570,7 +570,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-  UNIQUE KEY `a` USING HASH (`c`(1))
+  UNIQUE KEY `a` (`c`(1)) USING HASH
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
@@ -606,7 +606,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
-  UNIQUE KEY `a` USING BTREE (`c`(1))
+  UNIQUE KEY `a` (`c`(1)) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
