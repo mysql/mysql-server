@@ -1,0 +1,4 @@
+MYSQL_STORAGE_ENGINE(example,,  [Example Storage Engine],
+        [Skeleton for Storage Engines for developers], [max,max-no-ndb])
+MYSQL_PLUGIN_STATIC(example,    [libexample.a])
+MYSQL_PLUGIN_DYNAMIC(example,   [ha_example.la])

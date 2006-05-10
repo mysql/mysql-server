@@ -45,7 +45,7 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (a INT, b CHAR(10) COLLATE latin1_bin, c INT, d INT,
-                 PRIMARY KEY USING HASH (a,b,c))
+                 PRIMARY KEY (a,b,c) USING HASH)
                  ENGINE=NDB
                  DEFAULT CHARSET=latin1
                  PARTITION BY KEY (b);
