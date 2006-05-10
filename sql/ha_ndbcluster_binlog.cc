@@ -1689,10 +1689,15 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           pthread_mutex_lock(&LOCK_open);
           if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
-            sql_print_error("Could not discover table '%s.%s' from "
-                            "binlog schema event '%s' from node %d",
+            sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
+                            "binlog schema event '%s' from node %d. "
+                            "my_errno: %d",
                             schema->db, schema->name, schema->query,
-                            schema->node_id);
+                            schema->node_id, my_errno);
+            List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+            MYSQL_ERROR *err;
+            while ((err= it++))
+              sql_print_warning("NDB binlog: (%d)%s", err->code, err->msg);
           }
           pthread_mutex_unlock(&LOCK_open);
           log_query= 1;
@@ -1916,7 +1921,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         // fall through
       case SOT_RENAME_TABLE_NEW:
         log_query= 1;
-        if (ndb_binlog_running)
+        if (ndb_binlog_running && (!share || !share->op))
         {
           /*
             we need to free any share here as command below
@@ -1930,10 +1935,14 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           pthread_mutex_lock(&LOCK_open);
           if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
-            sql_print_error("Could not discover table '%s.%s' from "
-                            "binlog schema event '%s' from node %d",
+            sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
+                            "binlog schema event '%s' from node %d. my_errno: %d",
                             schema->db, schema->name, schema->query,
-                            schema->node_id);
+                            schema->node_id, my_errno);
+            List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+            MYSQL_ERROR *err;
+            while ((err= it++))
+              sql_print_warning("NDB binlog: (%d)%s", err->code, err->msg);
           }
           pthread_mutex_unlock(&LOCK_open);
         }
