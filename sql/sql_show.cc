@@ -938,6 +938,9 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                      MODE_DB2 |
                                                      MODE_MAXDB |
                                                      MODE_ANSI)) != 0;
+  bool limited_mysql_mode= (thd->variables.sql_mode & (MODE_NO_FIELD_OPTIONS |
+                                                       MODE_MYSQL323 |
+                                                       MODE_MYSQL40)) != 0;
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s", table->s->table_name.str));
 
