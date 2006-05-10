@@ -2247,12 +2247,35 @@ btr_compress(
 	/* Remove the page from the level list */
 	btr_level_list_remove(tree, page, mtr);
 
+	/* Move records to the merge page */
 	if (is_left) {
+		rec_t*	orig_pred = page_rec_get_prev(
+					page_get_supremum_rec(merge_page));
+		if (UNIV_UNLIKELY(!page_copy_rec_list_start(
+				merge_page, buf_block_get_page_zip(
+					buf_block_align(merge_page)),
+				page_get_supremum_rec(page),
+				cursor->index, mtr))) {
+			return(FALSE);
+		}
+
 		btr_node_ptr_delete(tree, page, mtr);
+		lock_update_merge_left(merge_page, orig_pred, page);
 	} else {
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+		rec_t*		orig_succ = page_rec_get_next(
+					page_get_infimum_rec(merge_page));
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
+		if (UNIV_UNLIKELY(!page_copy_rec_list_end(
+				merge_page, buf_block_get_page_zip(
+					buf_block_align(merge_page)),
+				page_get_infimum_rec(page),
+				cursor->index, mtr))) {
+			return(FALSE);
+		}
+
 		/* Replace the address of the old child node (= page) with the
 		address of the merge page to the right */
 
@@ -2266,31 +2289,6 @@ btr_compress(
 			mem_heap_free(heap);
 		}
 		btr_node_ptr_delete(tree, merge_page, mtr);
-	}
-
-	/* Move records to the merge page */
-	if (is_left) {
-		rec_t*	orig_pred = page_rec_get_prev(
-					page_get_supremum_rec(merge_page));
-		if (UNIV_UNLIKELY(!page_copy_rec_list_start(
-				merge_page, buf_block_get_page_zip(
-					buf_block_align(merge_page)),
-				page_get_supremum_rec(page),
-				cursor->index, mtr))) {
-			return(FALSE);
-		}
-
-		lock_update_merge_left(merge_page, orig_pred, page);
-	} else {
-		rec_t*	orig_succ = page_rec_get_next(
-					page_get_infimum_rec(merge_page));
-		if (UNIV_UNLIKELY(!page_copy_rec_list_end(
-				merge_page, buf_block_get_page_zip(
-					buf_block_align(merge_page)),
-				page_get_infimum_rec(page),
-				cursor->index, mtr))) {
-			return(FALSE);
-		}
 
 		lock_update_merge_right(orig_succ, page);
 	}
