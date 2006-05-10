@@ -1055,6 +1055,7 @@ btr_root_raise_and_insert(
 	page_zip_des_t*	new_page_zip;
 
 	root = btr_cur_get_page(cursor);
+	root_page_zip = buf_block_get_page_zip(buf_block_align(root));
 	tree = btr_cur_get_tree(cursor);
 
 	ut_ad(dict_tree_get_page(tree) == buf_frame_get_page_no(root));
@@ -1072,6 +1073,9 @@ btr_root_raise_and_insert(
 
 	new_page = btr_page_alloc(tree, 0, FSP_NO_DIR, level, mtr);
 	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
+	ut_a(!new_page_zip == !root_page_zip);
+	ut_a(!new_page_zip || new_page_zip->size == root_page_zip->size);
+	ut_a(!root_page_zip || !root_page_zip->n_blobs);
 
 	btr_page_create(new_page, new_page_zip, tree, level, mtr);
 
@@ -1079,14 +1083,20 @@ btr_root_raise_and_insert(
 	btr_page_set_next(new_page, new_page_zip, FIL_NULL, mtr);
 	btr_page_set_prev(new_page, new_page_zip, FIL_NULL, mtr);
 
-	/* Move the records from root to the new page */
+	/* Copy the records from root to the new page one by one. */
 
 	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
 			page_get_infimum_rec(root), cursor->index, mtr))) {
-		/* This should always succeed, as new_page
-		is created from the scratch and receives
-		the records in sorted order. */
-		ut_error;
+		ut_a(new_page_zip);
+
+		/* Copy the pages byte for byte. This will succeed. */
+		buf_frame_copy(new_page, root);
+		memcpy(new_page_zip->data, root_page_zip->data,
+				new_page_zip->size);
+		new_page_zip->n_blobs = 0;
+		new_page_zip->m_start = root_page_zip->m_start;
+		new_page_zip->m_end = root_page_zip->m_end;
+		page_zip_compress_write_log(new_page_zip, new_page, mtr);
 	}
 
 	/* If this is a pessimistic insert which is actually done to
@@ -1114,7 +1124,6 @@ btr_root_raise_and_insert(
 				| REC_INFO_MIN_REC_FLAG);
 
 	/* Rebuild the root page to get free space */
-	root_page_zip = buf_block_get_page_zip(buf_block_align(root));
 	if (UNIV_LIKELY_NULL(root_page_zip)) {
 		page_create_zip(root, root_page_zip, cursor->index,
 				level + 1, mtr);
