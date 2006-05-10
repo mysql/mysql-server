@@ -77,10 +77,6 @@ connection slave;
 # to go into the relay log (the master always sends a fake one when replication
 # starts). 
 start slave;
-#
-# This is timing out in pushbuild and should be changed to use
-# wait_slave_status.inc
-#
 --disable_query_log
 --disable_result_log
 let $result_pattern= '%127.0.0.1%root%master-bin.000002%slave-relay-bin.000007%Yes%Yes%0%0%None%';
