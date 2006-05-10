@@ -4431,8 +4431,11 @@ int ha_ndbcluster::create(const char *name,
   if (readfrm(name, &data, &length))
     DBUG_RETURN(1);
   if (packfrm(data, length, &pack_data, &pack_length))
+  {
+    my_free((char*)data, MYF(0));
     DBUG_RETURN(2);
-  
+  }
+
   DBUG_PRINT("info", ("setFrm data=%lx  len=%d", pack_data, pack_length));
   tab.setFrm(pack_data, pack_length);      
   my_free((char*)data, MYF(0));
@@ -6447,7 +6450,8 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
       }
 
       // Define scan op for the range
-      if ((trans=m_active_trans) == NULL)
+      if ((trans=m_active_trans) == NULL || 
+	  trans->commitStatus() != NdbTransaction::Started)
       {
         DBUG_PRINT("info", ("no active trans"));
         if (! (trans=ndb->startTransaction()))
@@ -10185,6 +10189,7 @@ mysql_declare_plugin(ndbcluster)
   NULL, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
+  0
 }
 mysql_declare_plugin_end;
 

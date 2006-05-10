@@ -92,7 +92,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
   do {                                                                    \
     DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) >= 0);  \
     push_warning_printf(((THD *)Thd), MYSQL_ERROR::WARN_LEVEL_WARN,       \
-                        ER_WARN_DEPRECATED, ER(ER_WARN_DEPRECATED),       \
+                        ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),       \
                         (Old), (Ver), (New));                             \
   } while(0)
 
@@ -558,6 +558,7 @@ enum enum_mysql_completiontype {
 };
 
 bool begin_trans(THD *thd);
+bool end_active_trans(THD *thd);
 int end_trans(THD *thd, enum enum_mysql_completiontype completion);
 
 Item *negate_expression(THD *thd, Item *expr);
@@ -1365,8 +1366,8 @@ bool mysql_manager_submit(void (*action)());
 void print_where(COND *cond,const char *info);
 void print_cached_tables(void);
 void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
-void print_plan(JOIN* join, double read_time, double record_count,
-                uint idx, const char *info);
+void print_plan(JOIN* join,uint idx, double record_count, double read_time,
+                double current_read_time, const char *info);
 #endif
 void mysql_print_status();
 /* key.cc */
