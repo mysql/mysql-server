@@ -354,8 +354,10 @@ void Options::cleanup()
   if (Options::saved_argv != NULL)
     free_defaults(Options::saved_argv);
 
+#ifndef __WIN__
   if (Options::run_as_service)
     free((void *) Options::angel_pid_file_name);
+#endif
 }
 
 #ifdef __WIN__
