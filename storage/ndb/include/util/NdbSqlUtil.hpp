@@ -45,14 +45,11 @@ public:
   typedef int Cmp(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full);
 
   /**
-   * Prototype for "like" comparison.  Defined for string types.  Second
-   * argument must have same type-specific format.  Returns 0 on match,
-   * +1 on no match, and -1 on bad data.
+   * Prototype for "like" comparison.  Defined for string types.  First
+   * argument can be fixed or var* type, second argument is fixed.
+   * Returns 0 on match, +1 on no match, and -1 on bad data.
    *
    * Uses default special chars ( \ % _ ).
-   *
-   * TODO convert special chars to the cs so that ucs2 etc works
-   * TODO allow user-defined escape ( \ )
    */
   typedef int Like(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2);
 
