@@ -69,7 +69,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   KEY `t1_i` (`c2`,`c3`),
   KEY `c5` (`c5`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 **** Show first set of ALTERs on SLAVE ****
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -82,7 +82,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   KEY `t1_i` (`c2`,`c3`),
   KEY `c5` (`c5`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 **** Second set of alters test 1 ****
 ALTER TABLE t1 RENAME t2;
 ALTER TABLE t2 DROP INDEX c5;
@@ -101,7 +101,7 @@ t1	CREATE TABLE `t1` (
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `t1_i` (`c2`,`c3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 **** Show second set of ALTERs on SLAVE ****
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -113,7 +113,7 @@ t1	CREATE TABLE `t1` (
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `t1_i` (`c2`,`c3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 **** Third and last set of alters for test1  ****
 ALTER TABLE t1 CHANGE c1 c1 DOUBLE;
 ALTER TABLE t1 CHANGE c2 c2 DECIMAL(10,2);
@@ -135,7 +135,7 @@ t1	CREATE TABLE `t1` (
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `t1_i` (`c2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
@@ -153,7 +153,7 @@ t1	CREATE TABLE `t1` (
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `t1_i` (`c2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM t1 where c1 = 1;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
