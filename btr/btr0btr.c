@@ -1088,11 +1088,19 @@ btr_root_raise_and_insert(
 	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
 			page_get_infimum_rec(root), cursor->index, mtr))) {
 		ut_a(new_page_zip);
+		byte	page_no[4];
 
-		/* Copy the pages byte for byte. This will succeed. */
-		buf_frame_copy(new_page, root);
+		/* Copy the pages byte for byte and restore the page offset.
+		This cannot fail, because the compressed page
+		will be modified in place. */
+		memcpy(page_no, new_page + FIL_PAGE_OFFSET, 4);
+		memcpy(new_page, root, UNIV_PAGE_SIZE);
+		memcpy(new_page + FIL_PAGE_OFFSET, page_no, 4);
+
 		memcpy(new_page_zip->data, root_page_zip->data,
 				new_page_zip->size);
+		memcpy(new_page_zip->data + FIL_PAGE_OFFSET, page_no, 4);
+
 		new_page_zip->n_blobs = 0;
 		new_page_zip->m_start = root_page_zip->m_start;
 		new_page_zip->m_end = root_page_zip->m_end;
