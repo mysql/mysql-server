@@ -560,6 +560,7 @@ page_zip_compress(
 	byte*		buf;	/* compressed payload of the page */
 	byte*		buf_end;/* end of buf */
 	ulint		n_dense;
+	ulint		slot_size;/* amount of uncompressed bytes per record */
 	const rec_t**	recs;	/* dense page directory, sorted by address */
 	mem_heap_t*	heap;
 	ulint		trx_id_col;
@@ -641,8 +642,8 @@ page_zip_compress(
 			ut_ad(trx_id_col > 0);
 			ut_ad(trx_id_col != ULINT_UNDEFINED);
 
-			c_stream.avail_out -= n_dense * (PAGE_ZIP_DIR_SLOT_SIZE
-				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+			slot_size = PAGE_ZIP_DIR_SLOT_SIZE
+					+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 		} else {
 			/* Signal the absence of trx_id
 			in page_zip_fields_encode() */
@@ -650,14 +651,18 @@ page_zip_compress(
 					index, DATA_TRX_ID)
 					== ULINT_UNDEFINED);
 			trx_id_col = 0;
-			c_stream.avail_out -= n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
+			slot_size = PAGE_ZIP_DIR_SLOT_SIZE;
 		}
 	} else {
-		c_stream.avail_out -= n_dense * (PAGE_ZIP_DIR_SLOT_SIZE
-				+ REC_NODE_PTR_SIZE);
+		slot_size = PAGE_ZIP_DIR_SLOT_SIZE + REC_NODE_PTR_SIZE;
 		trx_id_col = ULINT_UNDEFINED;
 	}
 
+	if (UNIV_UNLIKELY(c_stream.avail_out < n_dense * slot_size)) {
+		goto zlib_error;
+	}
+
+	c_stream.avail_out -= n_dense * slot_size;
 	c_stream.avail_in = page_zip_fields_encode(
 					n_fields, index, trx_id_col, fields);
 	c_stream.next_in = fields;
@@ -2951,6 +2956,7 @@ page_zip_compress_write_log(
 	mlog_close(mtr, log_ptr);
 
 	/* TODO: omit the unused bytes at page_zip->m_end */
+	/* TODO: omit some bytes at page header */
 	mlog_catenate_string(mtr, page_zip->data, page_zip->size);
 }
 
