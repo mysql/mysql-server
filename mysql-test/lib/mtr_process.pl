@@ -20,6 +20,7 @@ sub mtr_record_dead_children ();
 sub mtr_exit ($);
 sub sleep_until_file_created ($$$);
 sub mtr_kill_processes ($);
+sub mtr_kill_process ($$$$);
 
 # static in C
 sub spawn_impl ($$$$$$$$);
@@ -882,6 +883,25 @@ sub mtr_kill_processes ($) {
       mtr_debug("Sleep 2 second waiting for processes to die");
       sleep(2);
     }
+  }
+}
+
+
+sub mtr_kill_process ($$$$) {
+  my $pid= shift;
+  my $signal= shift;
+  my $retries= shift;
+  my $timeout= shift;
+
+  while (1)
+  {
+    kill($signal, $pid);
+
+    last unless kill (0, $pid) and $retries--;
+
+    mtr_debug("Sleep $timeout second waiting for processes to die");
+
+    sleep($timeout);
   }
 }
 
