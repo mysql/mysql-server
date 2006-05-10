@@ -10,8 +10,8 @@ insert into t1 values (5);
 
 grant select on test.* to ssl_user1@localhost require SSL;
 grant select on test.* to ssl_user2@localhost require cipher "DHE-RSA-AES256-SHA";
-grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com";
-grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/L=Uppsala/O=MySQL AB/CN=Abstract MySQL Developer/Email=abstract.mysql.developer@mysql.com";
+grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/emailAddress=abstract.mysql.developer@mysql.com";
+grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/emailAddress=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/L=Uppsala/O=MySQL AB/CN=Abstract MySQL Developer/emailAddress=abstract.mysql.developer@mysql.com";
 flush privileges;
 
 connect (con1,localhost,ssl_user1,,,,,SSL);
@@ -54,3 +54,41 @@ ssl_user3@localhost, ssl_user4@localhost;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Test that we can't open connection to server if we are using
+# a different cacert
+#
+--exec echo "this query should not execute;" > $MYSQLTEST_VARDIR/tmp/test.sql
+--error 1
+--exec $MYSQL_TEST --ssl-ca=$MYSQL_TEST_DIR/std_data/untrusted-cacert.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+#
+# Test that we can't open connection to server if we are using
+# a blank ca
+#
+--error 1
+--exec $MYSQL_TEST --ssl-ca= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+#
+# Test that we can't open connection to server if we are using
+# a nonexistent ca file
+#
+--error 1
+--exec $MYSQL_TEST --ssl-ca=nonexisting_file.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+#
+# Test that we can't open connection to server if we are using
+# a blank client-key
+#
+--error 1
+--exec $MYSQL_TEST --ssl-key= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+#
+# Test that we can't open connection to server if we are using
+# a blank client-cert
+#
+--error 1
+--exec $MYSQL_TEST --ssl-cert= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+
+

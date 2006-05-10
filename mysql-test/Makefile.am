@@ -100,15 +100,15 @@ install-data-local:
 uninstall-local:
 	@RM@ -f -r $(DESTDIR)$(testdir)
 
-std_data/client-key.pem:
+std_data/client-key.pem: $(top_srcdir)/SSL/$(@F)
 	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/client-cert.pem:
+std_data/client-cert.pem: $(top_srcdir)/SSL/$(@F)
 	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/cacert.pem:
+std_data/cacert.pem: $(top_srcdir)/SSL/$(@F)
 	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/server-cert.pem:
+std_data/server-cert.pem: $(top_srcdir)/SSL/$(@F)
 	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
-std_data/server-key.pem:
+std_data/server-key.pem: $(top_srcdir)/SSL/$(@F)
 	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
 
 SUFFIXES = .sh

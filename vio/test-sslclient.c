@@ -46,7 +46,7 @@ main(	int	argc __attribute__((unused)),
 {
 	char	client_key[] = "../SSL/client-key.pem",	client_cert[] = "../SSL/client-cert.pem";
 	char	ca_file[] = "../SSL/cacert.pem",	*ca_path = 0, *cipher=0;
-	struct st_VioSSLConnectorFd* ssl_connector=0; 
+	struct st_VioSSLFd* ssl_connector= 0;
 	struct sockaddr_in sa;
 	Vio* client_vio=0;
 	int err;
