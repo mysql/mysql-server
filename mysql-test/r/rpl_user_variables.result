@@ -78,5 +78,6 @@ abcn1
 abcn1n2
 abc\def
 This is a test
+insert into t1 select * FROM (select @var1 union  select @var2) AS t2;
 drop table t1;
 stop slave;
