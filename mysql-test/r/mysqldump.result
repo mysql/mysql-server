@@ -1718,9 +1718,9 @@ bla	1002
 show create table `t1`;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `t1_name` varchar(255) default NULL,
-  `t1_id` int(10) unsigned NOT NULL auto_increment,
-  PRIMARY KEY  (`t1_id`),
+  `t1_name` varchar(255) DEFAULT NULL,
+  `t1_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`t1_id`),
   KEY `t1_name` (`t1_name`)
 ) ENGINE=MyISAM AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
 DROP TABLE `t1`;
@@ -1732,9 +1732,9 @@ bla	1002
 show create table `t1`;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `t1_name` varchar(255) default NULL,
-  `t1_id` int(10) unsigned NOT NULL auto_increment,
-  PRIMARY KEY  (`t1_id`),
+  `t1_name` varchar(255) DEFAULT NULL,
+  `t1_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`t1_id`),
   KEY `t1_name` (`t1_name`)
 ) ENGINE=MyISAM AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
 drop table `t1`;

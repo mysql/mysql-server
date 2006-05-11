@@ -1111,9 +1111,9 @@ insert into t1 values
 create function f2() returns int return (select max(b) from t2);
 insert into t2 select a, f2() from t1;
 load data infile '../std_data_ln/words.dat' into table t1 (a) set b:= f1();
-drop table t1, t2;
 drop function f1;
 drop function f2;
+drop table t1, t2;
 
 #
 # Test for bug #16021 "Wrong index given to function in trigger" which

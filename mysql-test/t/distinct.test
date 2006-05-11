@@ -382,3 +382,19 @@ INSERT INTO t1 VALUES
 select count(distinct x,y) from t1;
 select count(distinct concat(x,y)) from t1;
 drop table t1;
+
+#
+# Bug #18068: SELECT DISTINCT
+#
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a,b));
+
+INSERT INTO t1 VALUES (1, 101);
+INSERT INTO t1 SELECT a + 1, a + 101 FROM t1;
+INSERT INTO t1 SELECT a + 2, a + 102 FROM t1;
+INSERT INTO t1 SELECT a + 4, a + 104 FROM t1;
+INSERT INTO t1 SELECT a + 8, a + 108 FROM t1;
+
+EXPLAIN SELECT DISTINCT a,a FROM t1 WHERE b < 12 ORDER BY a;
+SELECT DISTINCT a,a FROM t1 WHERE b < 12 ORDER BY a;
+
+DROP TABLE t1;
