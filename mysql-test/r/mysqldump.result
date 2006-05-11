@@ -1503,3 +1503,4 @@ select * from t1;
 a	b
 Osnabrück	Köln
 drop table t1;
+--fields-optionally-enclosed-by="

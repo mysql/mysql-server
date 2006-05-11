@@ -647,4 +647,12 @@ select * from t1;
 select * from t1;
 
 drop table t1;
+
+#
+# BUG#15328 Segmentation fault occured if my.cnf is invalid for escape sequence
+#
+
+--exec $MYSQL_MY_PRINT_DEFAULTS --defaults-extra-file=$MYSQL_TEST_DIR/std_data/bug15328.cnf mysqldump
+
+
 # End of 4.1 tests
