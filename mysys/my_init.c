@@ -181,7 +181,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 	      rus.ru_msgsnd, rus.ru_msgrcv, rus.ru_nsignals,
 	      rus.ru_nvcsw, rus.ru_nivcsw);
 #endif
-#if ( defined(MSDOS) || defined(__NETWARE__) ) && !defined(__WIN__)
+#if defined(__NETWARE__) && !defined(__WIN__)
     fprintf(info_file,"\nRun time: %.1f\n",(double) clock()/CLOCKS_PER_SEC);
 #endif
 #if defined(SAFEMALLOC)
