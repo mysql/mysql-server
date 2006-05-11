@@ -94,6 +94,7 @@ memory is read outside the allocated blocks. */
 #define UNIV_ZIP_DEBUG
 #endif
 
+#define UNIV_BTR_DEBUG
 #define UNIV_LIGHT_MEM_DEBUG
 
 #define YYDEBUG			1
