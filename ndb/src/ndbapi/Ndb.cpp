@@ -813,6 +813,10 @@ Ndb::getTupleIdFromNdb(Ndb_local_table_info* info, Uint32 cacheSize)
     if (cacheSize == 0)
       cacheSize = 1;
     DBUG_PRINT("info", ("reading %u values from database", (uint)cacheSize));
+    /*
+     * reserve next cacheSize entries in db.  adds cacheSize to NEXTID
+     * and returns first tupleId in the new range.
+     */
     tupleId = opTupleIdOnNdb(info, cacheSize, 0);
   }
   DBUG_RETURN(tupleId);
@@ -865,8 +869,12 @@ Ndb::readTupleIdFromNdb(Ndb_local_table_info* info)
     assert(info->m_first_tuple_id < info->m_last_tuple_id);
     tupleId = info->m_first_tuple_id + 1;
   }
-  else // Cache is empty, check next in database
+  else
   {
+    /*
+     * peek at NEXTID.  does not reserve it so the value is valid
+     * only if no other transactions are allowed.
+     */
     tupleId = opTupleIdOnNdb(info, 0, 3);
   }
   DBUG_RETURN(tupleId);
@@ -913,7 +921,6 @@ Ndb::setTupleIdInNdb(Ndb_local_table_info* info, Uint64 val, bool increase)
   {
     if (info->m_first_tuple_id != info->m_last_tuple_id)
     {
-      // We have a cache sequence
       assert(info->m_first_tuple_id < info->m_last_tuple_id);
       if (val <= info->m_first_tuple_id + 1)
 	DBUG_RETURN(false);
@@ -922,11 +929,17 @@ Ndb::setTupleIdInNdb(Ndb_local_table_info* info, Uint64 val, bool increase)
 	info->m_first_tuple_id = val - 1;
 	DBUG_RETURN(true);
       }
-      // else continue;
     }
+    /*
+     * if value <= NEXTID, do nothing.  otherwise update NEXTID to
+     * value and set cached range to first = last = value - 1.
+     */
     DBUG_RETURN((opTupleIdOnNdb(info, val, 2) == val));
   }
   else
+    /*
+     * update NEXTID to given value.  reset cached range.
+     */
     DBUG_RETURN((opTupleIdOnNdb(info, val, 1) == val));
 }
 
@@ -980,7 +993,8 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 opValue, Uint32 op)
       ret = info->m_first_tuple_id;
       break;
     case 1:
-      tOperation->updateTuple();
+      // create on first use
+      tOperation->writeTuple();
       tOperation->equal("SYSKEY_0", aTableId );
       tOperation->setValue("NEXTID", opValue);
 
@@ -996,6 +1010,7 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 opValue, Uint32 op)
       tOperation->equal("SYSKEY_0", aTableId );
       tOperation->load_const_u64(1, opValue);
       tOperation->read_attr("NEXTID", 2);
+      // compare NEXTID >= opValue
       tOperation->branch_le(2, 1, 0);
       tOperation->write_attr("NEXTID", 1);
       tOperation->interpret_exit_ok();
@@ -1003,10 +1018,14 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 opValue, Uint32 op)
       tOperation->interpret_exit_nok(9999);
       
       if ( (result = tConnection->execute( Commit )) == -1 )
-        goto error_handler;
-      
-      if (result == 9999)
+      {
+        if (tConnection->theError.code != 9999)
+          goto error_handler;
+
+        // NEXTID >= opValue, return ~(Uint64)0 for now since
+        // there is no error check...
         ret = ~(Uint64)0;
+      }
       else
       {
         info->m_first_tuple_id = info->m_last_tuple_id = opValue - 1;
