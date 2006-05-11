@@ -134,6 +134,7 @@ extern "C" {
 #include "../storage/innobase/include/fil0fil.h"
 #include "../storage/innobase/include/trx0xa.h"
 #include "../storage/innobase/include/thr0loc.h"
+#include "../storage/innobase/include/ha_prototypes.h"
 }
 
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
@@ -778,6 +779,25 @@ innobase_mysql_tmpfile(void)
 		my_close(fd, MYF(MY_WME));
 	}
 	return(fd2);
+}
+
+/*************************************************************************
+Wrapper around MySQL's copy_and_convert function, see it for
+documentation. */
+extern "C"
+ulint
+innobase_convert_string(
+/*====================*/
+	void*		to,
+	ulint		to_length,
+	CHARSET_INFO*	to_cs,
+	const void*	from,
+	ulint		from_length,
+	CHARSET_INFO*	from_cs,
+	uint*		errors)
+{
+	return(copy_and_convert((char*)to, to_length, to_cs,
+		       (const char*)from, from_length, from_cs, errors));
 }
 
 /*************************************************************************
