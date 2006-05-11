@@ -1607,10 +1607,9 @@ void Ndbcntr::systemErrorLab(Signal* signal, int line)
 /*       |-2048| # 1 00000001    |                                           */
 /*       |  :  |   :             |                                           */
 /*       | -1  | # 1 00000001    |                                           */
-/*       |  0  |   0             |                                           */
-/*       |  1  |   0             |                                           */
-/*       |  :  |   :             |                                           */
-/*       | 2047|   0             |                                           */
+/*       |  1  |   0             | tupleid sequence now created on first use */
+/*       |  :  |   :             |                   v                       */
+/*       | 2048|   0             |                   v                       */
 /*---------------------------------------------------------------------------*/
 void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
 {
@@ -1819,8 +1818,7 @@ void Ndbcntr::crSystab8Lab(Signal* signal)
     jam();
     ckey = 1;
     ctransidPhase = ZFALSE;
-    crSystab7Lab(signal);
-    return;
+    // skip 2nd loop - tupleid sequence now created on first use
   }//if
   signal->theData[0] = ctcConnectionP;
   signal->theData[1] = reference();
