@@ -44,13 +44,13 @@ END|
 delimiter ;|
 
 CALL test.p1();
-SELECT * FROM test.t1;
-SELECT * FROM test.t2;
+SELECT * FROM test.t1 ORDER BY a;
+SELECT * FROM test.t2 ORDER BY a;
 save_master_pos;
 connection slave;
 sync_with_master;
-SELECT * FROM test.t1;
-SELECT * FROM test.t2;
+SELECT * FROM test.t1 ORDER BY a;
+SELECT * FROM test.t2 ORDER BY a;
 
 connection master;
 CALL test.p2();
@@ -66,14 +66,14 @@ SHOW TABLES;
 
 connection master;
 CALL test.p1();
-SELECT * FROM test.t1;
-SELECT * FROM test.t2;
+SELECT * FROM test.t1 ORDER BY a;
+SELECT * FROM test.t2 ORDER BY a;
 #SELECT * FROM test.t3;
 save_master_pos;
 connection slave;
 sync_with_master;
-SELECT * FROM test.t1;
-SELECT * FROM test.t2;
+SELECT * FROM test.t1 ORDER BY a;
+SELECT * FROM test.t2 ORDER BY a;
 #SELECT * FROM test.t3;
 
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/sp004_master.sql
