@@ -55,6 +55,7 @@ SELECT * FROM t1 ORDER BY n;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY n;
 connection master;
+insert into t1 select * FROM (select @var1 union  select @var2) AS t2;
 drop table t1;
 sync_slave_with_master;
 stop slave;
