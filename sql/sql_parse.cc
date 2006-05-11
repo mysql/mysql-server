@@ -3982,7 +3982,6 @@ end_with_restore_list:
     if (thd->security_ctx->user)              // If not replication
     {
       LEX_USER *user;
-      uint counter;
 
       List_iterator <LEX_USER> user_list(lex->users_list);
       while ((user= user_list++))
@@ -4000,7 +3999,8 @@ end_with_restore_list:
                           user->host.str, thd->security_ctx->host_or_ip))
         {
           // TODO: use check_change_password()
-          if (check_acl_user(user, &counter) && user->password.str &&
+          if (is_acl_user(user->host.str, user->user.str) &&
+              user->password.str &&
               check_access(thd, UPDATE_ACL,"mysql",0,1,1,0))
           {
             my_message(ER_PASSWORD_NOT_ALLOWED,
