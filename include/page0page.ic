@@ -589,10 +589,11 @@ page_dir_calc_reserved_space(
 Gets the pointer to the next record on the page. */
 UNIV_INLINE
 rec_t*
-page_rec_get_next(
-/*==============*/
+page_rec_get_next_low(
+/*==================*/
 			/* out: pointer to next record */
-	rec_t*	rec)	/* in: pointer to record */
+	rec_t*	rec,	/* in: pointer to record */
+	ulint	comp)	/* in: nonzero=compact page layout */
 {
 	ulint	offs;
 	page_t*	page;
@@ -601,7 +602,7 @@ page_rec_get_next(
 
 	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
-	offs = rec_get_next_offs(rec, page_is_comp(page));
+	offs = rec_get_next_offs(rec, comp);
 
 	if (UNIV_UNLIKELY(offs >= UNIV_PAGE_SIZE)) {
 		fprintf(stderr,
@@ -625,6 +626,17 @@ page_rec_get_next(
 	return(page + offs);
 }
 
+/****************************************************************
+Gets the pointer to the next record on the page. */
+UNIV_INLINE
+rec_t*
+page_rec_get_next(
+/*==============*/
+			/* out: pointer to next record */
+	rec_t*	rec)	/* in: pointer to record */
+{
+	return(page_rec_get_next_low(rec, page_rec_is_comp(rec)));
+}
 /****************************************************************
 Sets the pointer to the next record on the page. */
 UNIV_INLINE
@@ -688,9 +700,16 @@ page_rec_get_prev(
 
 	rec2 = page_dir_slot_get_rec(slot);
 
-	while (rec != rec2) {
-		prev_rec = rec2;
-		rec2 = page_rec_get_next(rec2);
+	if (page_is_comp(page)) {
+		while (rec != rec2) {
+			prev_rec = rec2;
+			rec2 = page_rec_get_next_low(rec2, TRUE);
+		}
+	} else {
+		while (rec != rec2) {
+			prev_rec = rec2;
+			rec2 = page_rec_get_next_low(rec2, FALSE);
+		}
 	}
 
 	ut_a(prev_rec);
