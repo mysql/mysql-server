@@ -18,8 +18,10 @@ Created 5/30/1994 Heikki Tuuri
 /* Maximum values for various fields (for non-blob tuples) */
 #define REC_MAX_N_FIELDS	(1024 - 1)
 
-/* Flag denoting the predefined minimum record: this bit is ORed in the 4
-info bits of a record */
+/* Info bit denoting the predefined minimum record: this bit is set
+if and only if the record is the first user record on a non-leaf
+B-tree page that is the leftmost page on its level
+(PAGE_LEVEL is nonzero and FIL_PAGE_PREV is FIL_NULL). */
 #define REC_INFO_MIN_REC_FLAG	0x10UL
 /* The deleted flag in info bits */
 #define REC_INFO_DELETED_FLAG	0x20UL	/* when bit is set to 1, it means the
