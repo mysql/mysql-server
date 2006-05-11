@@ -1095,24 +1095,11 @@ btr_root_raise_and_insert(
 
 	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
 			page_get_infimum_rec(root), cursor->index, mtr))) {
-		byte	page_no[4];
 		ut_a(new_page_zip);
 
-		/* Copy the pages byte for byte and restore the page offset.
-		This cannot fail, because the compressed page
-		will be modified in place. */
-		memcpy(page_no, new_page + FIL_PAGE_OFFSET, 4);
-		memcpy(new_page, root, UNIV_PAGE_SIZE);
-		memcpy(new_page + FIL_PAGE_OFFSET, page_no, 4);
-
-		memcpy(new_page_zip->data, root_page_zip->data,
-				new_page_zip->size);
-		memcpy(new_page_zip->data + FIL_PAGE_OFFSET, page_no, 4);
-
-		new_page_zip->n_blobs = 0;
-		new_page_zip->m_start = root_page_zip->m_start;
-		new_page_zip->m_end = root_page_zip->m_end;
-		page_zip_compress_write_log(new_page_zip, new_page, mtr);
+		/* Copy the page byte for byte. */
+		page_zip_copy(new_page_zip, new_page,
+				root_page_zip, root, mtr);
 	}
 
 	/* If this is a pessimistic insert which is actually done to
@@ -2964,8 +2951,8 @@ loop:
 			btr_validate_report2(index, level, page, right_page);
 			fputs("InnoDB: broken FIL_PAGE_NEXT"
 				" or FIL_PAGE_PREV links\n", stderr);
-			buf_page_print(page);
-			buf_page_print(right_page);
+			buf_page_print(page, 0);
+			buf_page_print(right_page, 0);
 
 			ret = FALSE;
 		}
@@ -2974,8 +2961,8 @@ loop:
 				!= page_is_comp(page))) {
 			btr_validate_report2(index, level, page, right_page);
 			fputs("InnoDB: 'compact' flag mismatch\n", stderr);
-			buf_page_print(page);
-			buf_page_print(right_page);
+			buf_page_print(page, 0);
+			buf_page_print(right_page, 0);
 
 			ret = FALSE;
 

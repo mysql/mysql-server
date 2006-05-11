@@ -2929,6 +2929,37 @@ page_zip_write_header_log(
 }
 
 /**************************************************************************
+Copy a page byte for byte, except for the file page header and trailer. */
+
+void
+page_zip_copy(
+/*==========*/
+	page_zip_des_t*		page_zip,	/* out: copy of src_zip */
+	page_t*			page,		/* out: copy of src */
+	const page_zip_des_t*	src_zip,	/* in: compressed page */
+	const page_t*		src,		/* in: page */
+	mtr_t*			mtr)		/* in: mini-transaction */
+{
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(page_zip_validate(src_zip, src));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+	ut_a(page_zip->size == src_zip->size);
+
+	/* Skip the file page header and trailer. */
+	memcpy(page + FIL_PAGE_DATA, src + FIL_PAGE_DATA,
+			UNIV_PAGE_SIZE - FIL_PAGE_DATA
+			- FIL_PAGE_DATA_END);
+	memcpy(page_zip->data + FIL_PAGE_DATA,
+			src_zip->data + FIL_PAGE_DATA,
+			page_zip->size - FIL_PAGE_DATA);
+
+	page_zip->n_blobs = src_zip->n_blobs;
+	page_zip->m_start = src_zip->m_start;
+	page_zip->m_end = src_zip->m_end;
+	page_zip_compress_write_log(page_zip, page, mtr);
+}
+
+/**************************************************************************
 Write a log record of compressing an index page. */
 
 void
