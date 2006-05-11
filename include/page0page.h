@@ -416,11 +416,19 @@ page_is_leaf(
 Gets the pointer to the next record on the page. */
 UNIV_INLINE
 rec_t*
+page_rec_get_next_low(
+/*==================*/
+			/* out: pointer to next record */
+	rec_t*	rec,	/* in: pointer to record */
+	ulint	comp);	/* in: nonzero=compact page layout */
+/****************************************************************
+Gets the pointer to the next record on the page. */
+UNIV_INLINE
+rec_t*
 page_rec_get_next(
 /*==============*/
 			/* out: pointer to next record */
-	rec_t*	rec);	/* in: pointer to record, must not be page
-			supremum */
+	rec_t*	rec);	/* in: pointer to record */
 /****************************************************************
 Sets the pointer to the next record on the page. */
 UNIV_INLINE
