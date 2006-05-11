@@ -1090,12 +1090,16 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
       were, we would have to ensure that we're not ending a statement
       inside a stored function.
      */
+#ifdef HAVE_ROW_BASED_REPLICATION
     thd->binlog_flush_pending_rows_event(TRUE);
+#endif
     error= mysql_bin_log.write(thd, trans_log, end_ev);
   }
   else
   {
+#ifdef HAVE_ROW_BASED_REPLICATION
     thd->binlog_delete_pending_rows_event();
+#endif
   }
 
   /*
@@ -2620,6 +2624,7 @@ bool MYSQL_LOG::is_query_in_union(THD *thd, query_id_t query_id_param)
 }
 
 
+#ifdef HAVE_ROW_BASED_REPLICATION
 /*
   These functions are placed in this file since they need access to
   binlog_hton, which has internal linkage.
@@ -2797,6 +2802,7 @@ int MYSQL_LOG::flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
 
   DBUG_RETURN(error);
 }
+#endif /*HAVE_ROW_BASED_REPLICATION*/
 
 /*
   Write an event to the binary log
@@ -2831,7 +2837,9 @@ bool MYSQL_LOG::write(Log_event *event_info)
   */
   bool const end_stmt=
     thd->prelocked_mode && thd->lex->requires_prelocking();
+#ifdef HAVE_ROW_BASED_REPLICATION
   thd->binlog_flush_pending_rows_event(end_stmt);
+#endif /*HAVE_ROW_BASED_REPLICATION*/
 
   pthread_mutex_lock(&LOCK_log);
 
@@ -2873,8 +2881,10 @@ bool MYSQL_LOG::write(Log_event *event_info)
     */
     if (opt_using_transactions && thd)
     {
+#ifdef HAVE_ROW_BASED_REPLICATION
       if (thd->binlog_setup_trx_data())
         goto err;
+#endif /*HAVE_ROW_BASED_REPLICATION*/
 
       binlog_trx_data *const trx_data=
         (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
