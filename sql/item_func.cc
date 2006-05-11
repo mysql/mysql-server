@@ -3013,6 +3013,7 @@ void item_user_lock_free(void)
 void item_user_lock_release(User_level_lock *ull)
 {
   ull->locked=0;
+  ull->thread_id= 0;
   if (--ull->count)
     pthread_cond_signal(&ull->cond);
   else
@@ -3220,6 +3221,7 @@ longlong Item_func_get_lock::val_int()
   {
     ull->locked=1;
     ull->thread=thd->real_id;
+    ull->thread_id= thd->thread_id;
     thd->ull=ull;
     error=0;
   }
