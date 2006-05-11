@@ -31,7 +31,6 @@ Usage: $0 [OPTIONS]
   --defaults-file=FILE       Use the specified defaults file
   --defaults-extra-file=FILE Also use defaults from the specified file
   --ledir=DIRECTORY          Look for mysqld in the specified directory
-  --log-error=FILE           Log errors to the specified log file
   --open-files-limit=LIMIT   Limit the number of open files
   --core-file-size=LIMIT     Limit core files to the specified size
   --timezone=TZ              Set the system timezone
@@ -46,6 +45,11 @@ EOF
         exit 1
 }
 
+shell_quote_string() {
+  # This sed command makes sure that any special chars are quoted,
+  # so the arg gets passed exactly to the server.
+  echo "$1" | sed -e 's,\([^a-zA-Z0-9/_.=-]\),\\\1,g'
+}
 
 parse_arguments() {
   # We only need to pass arguments through to the server if we don't
@@ -69,14 +73,14 @@ parse_arguments() {
       --pid-file=*) pid_file=`echo "$arg" | sed -e "s;--pid-file=;;"` ;;
       --user=*) user=`echo "$arg" | sed -e "s;--[^=]*=;;"` ; SET_USER=1 ;;
 
-      # these two might have been set in a [mysqld_safe] section of my.cnf
+      # these might have been set in a [mysqld_safe] section of my.cnf
       # they are added to mysqld command line to override settings from my.cnf
+      --log-error=*) err_log=`echo "$arg" | sed -e "s;--log-error=;;"` ;;
       --socket=*)  mysql_unix_port=`echo "$arg" | sed -e "s;--socket=;;"` ;;
       --port=*)    mysql_tcp_port=`echo "$arg" | sed -e "s;--port=;;"` ;;
 
       # mysqld_safe-specific options - must be set in my.cnf ([mysqld_safe])!
       --ledir=*)   ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
-      --log-error=*) err_log=`echo "$arg" | sed -e "s;--log-error=;;"` ;;
       --open-files-limit=*) open_files=`echo "$arg" | sed -e "s;--open-files-limit=;;"` ;;
       --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--core-file-size=;;"` ;;
       --timezone=*) TZ=`echo "$arg" | sed -e "s;--timezone=;;"` ; export TZ; ;;
@@ -97,9 +101,7 @@ parse_arguments() {
       *)
         if test -n "$pick_args"
         then
-          # This sed command makes sure that any special chars are quoted,
-          # so the arg gets passed exactly to the server.
-          args="$args "`echo "$arg" | sed -e 's,\([^a-zA-Z0-9_.-]\),\\\\\1,g'`
+          append_arg_to_args "$arg"
         fi
         ;;
     esac
@@ -194,6 +196,10 @@ else
   print_defaults="my_print_defaults"
 fi
 
+append_arg_to_args () {
+  args="$args "`shell_quote_string "$1"`
+}
+
 args=
 SET_USER=2
 parse_arguments `$print_defaults $defaults --loose-verbose mysqld server`
@@ -239,15 +245,39 @@ else
     * )  pid_file="$DATADIR/$pid_file" ;;
   esac
 fi
-test -z "$err_log"  && err_log=$DATADIR/`@HOSTNAME@`.err
+append_arg_to_args "--pid-file=$pid_file"
+
+if [ -n "$err_log" ]
+then
+  # mysqld adds ".err" if there is no extension on the --log-err
+  # argument; must match that here, or mysqld_safe will write to a
+  # different log file than mysqld
+
+  # mysqld does not add ".err" to "--log-error=foo."; it considers a
+  # trailing "." as an extension
+  if expr "$err_log" : '.*\.[^/]*$' > /dev/null
+  then
+      :
+  else
+    err_log="$err_log".err
+  fi
+
+  case "$err_log" in
+    /* ) ;;
+    * ) err_log="$DATADIR/$err_log" ;;
+  esac
+else
+  err_log=$DATADIR/`@HOSTNAME@`.err
+fi
+append_arg_to_args "--log-error=$err_log"
 
 if test -n "$mysql_unix_port"
 then
-  args="--socket=$mysql_unix_port $args"
+  append_arg_to_args "--socket=$mysql_unix_port"
 fi
 if test -n "$mysql_tcp_port"
 then
-  args="--port=$mysql_tcp_port $args"
+  append_arg_to_args "--port=$mysql_tcp_port"
 fi
 
 if test $niceness -eq 0
@@ -314,7 +344,7 @@ then
   if test -n "$open_files"
   then
     ulimit -n $open_files
-    args="--open-files-limit=$open_files $args"
+    append_arg_to_args "--open-files-limit=$open_files"
   fi
   if test -n "$core_file_size"
   then
@@ -372,12 +402,18 @@ echo "`date +'%y%m%d %H:%M:%S  mysqld started'`" >> $err_log
 while true
 do
   rm -f $safe_mysql_unix_port $pid_file	# Some extra safety
-  if test -z "$args"
-  then
-    $NOHUP_NICENESS $ledir/$MYSQLD $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR $USER_OPTION --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ >> $err_log 2>&1
-  else
-    eval "$NOHUP_NICENESS $ledir/$MYSQLD $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR $USER_OPTION --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ $args >> $err_log 2>&1"
-  fi
+
+  cmd="$NOHUP_NICENESS"
+
+  for i in  "$ledir/$MYSQLD" "$defaults" "--basedir=$MY_BASEDIR_VERSION" \
+    "--datadir=$DATADIR" "$USER_OPTION"
+  do
+    cmd="$cmd "`shell_quote_string "$i"`
+  done
+  cmd="$cmd $args >> "`shell_quote_string "$err_log"`" 2>&1"
+  #echo "Running mysqld: [$cmd]"
+  eval "$cmd"
+
   if test ! -f $pid_file		# This is removed if normal shutdown
   then
     echo "STOPPING server from pid file $pid_file"
