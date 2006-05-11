@@ -599,10 +599,12 @@ page_copy_rec_list_end(
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	page_t*	page;
-	ulint	log_mode = 0; /* remove warning */
+	page_t*	page	= ut_align_down(rec, UNIV_PAGE_SIZE);
+	ulint	log_mode= 0; /* remove warning */
 
 	ut_ad(!new_page_zip || page_zip_validate(new_page_zip, new_page));
+	ut_ad(page_is_leaf(page) == page_is_leaf(new_page));
+	ut_ad(page_is_comp(page) == page_is_comp(new_page));
 
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
@@ -614,8 +616,6 @@ page_copy_rec_list_end(
 	} else {
 		page_copy_rec_list_end_no_locks(new_page, rec, index, mtr);
 	}
-
-	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		mtr_set_log_mode(mtr, log_mode);

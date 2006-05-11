@@ -2535,12 +2535,8 @@ btr_cur_compress_if_useful(
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
 				MTR_MEMO_PAGE_X_FIX));
 
-	if (btr_cur_compress_recommendation(cursor, mtr)) {
-
-		return(btr_compress(cursor, mtr));
-	}
-
-	return(FALSE);
+	return(btr_cur_compress_recommendation(cursor, mtr)
+			&& btr_compress(cursor, mtr));
 }
 
 /***********************************************************
