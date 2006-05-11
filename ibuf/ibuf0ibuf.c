@@ -2345,6 +2345,10 @@ ibuf_get_volume_buffered(
 	}
 
 	prev_page = buf_page_get(0, prev_page_no, RW_X_LATCH, mtr);
+#ifdef UNIV_BTR_DEBUG
+	ut_a(btr_page_get_next(prev_page, mtr)
+			== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(prev_page, SYNC_TREE_NODE);
@@ -2408,6 +2412,10 @@ count_later:
 	}
 
 	next_page = buf_page_get(0, next_page_no, RW_X_LATCH, mtr);
+#ifdef UNIV_BTR_DEBUG
+	ut_a(btr_page_get_prev(next_page, mtr)
+			== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(next_page, SYNC_TREE_NODE);
