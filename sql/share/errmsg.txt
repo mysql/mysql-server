@@ -5840,7 +5840,5 @@ ER_NULL_IN_VALUES_LESS_THAN
 ER_WRONG_PARTITION_NAME
         eng "Incorrect partition name"
         swe "Felaktigt partitionsnamn"
-ER_TABLE_CANT_HANDLE_SPKEYS
-        eng "The used table type doesn't support SPATIAL indexes"
 ER_CANT_CHANGE_TX_ISOLATION 25001
 	eng "Transaction isolation level can't be changed while a transaction is in progress"
