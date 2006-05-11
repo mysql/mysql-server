@@ -15,7 +15,7 @@ AC_DEFUN([MYSQL_CHECK_REPLICATION], [
 
   case "$row_based" in
   yes )
-    AC_DEFINE([HAVE_ROW_BASED_REPLICATION], [1], [Define to have row-based replication])
+    AC_DEFINE([WITH_ROW_BASED_REPLICATION], [1], [Define to have row-based replication])
     AC_MSG_RESULT([-- including row-based replication])
     [have_row_based=yes]
     ;;
