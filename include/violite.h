@@ -121,7 +121,7 @@ struct st_VioSSLFd
 *new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
 		      const char *ca_file,const char *ca_path,
 		      const char *cipher);
-void free_vio_ssl_acceptor_fd(struct st_VioSSLAcceptorFd *fd);
+void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 #endif /* HAVE_OPENSSL */
 
 #ifdef HAVE_SMEM
