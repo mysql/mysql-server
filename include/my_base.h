@@ -340,7 +340,7 @@ enum ha_base_keytype {
 #define HA_ERR_WRONG_COMMAND	131	/* Command not supported */
 #define HA_ERR_OLD_FILE		132	/* old databasfile */
 #define HA_ERR_NO_ACTIVE_RECORD 133	/* No record read in update() */
-#define HA_ERR_RECORD_DELETED	134	/* Intern error-code */
+#define HA_ERR_RECORD_DELETED	134	/* A record is not there */
 #define HA_ERR_RECORD_FILE_FULL 135	/* No more room in file */
 #define HA_ERR_INDEX_FILE_FULL	136	/* No more room in file */
 #define HA_ERR_END_OF_FILE	137	/* end in next/prev/first/last */
