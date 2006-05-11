@@ -333,6 +333,33 @@ mem_heap_dup(
 	const void*	data,	/* in: data to be copied */
 	ulint		len);	/* in: length of data, in bytes */
 
+/**************************************************************************
+Concatenate two memory blocks and return the result, using a memory heap. */
+
+void*
+mem_heap_cat(
+/*=========*/
+				/* out, own: the result */
+	mem_heap_t*	heap,	/* in: memory heap where result is allocated */
+	const void*	b1,	/* in: block 1 */
+	ulint		len1,	/* in: length of b1, in bytes */
+	const void*	b2,	/* in: block 2 */
+	ulint		len2);	/* in: length of b2, in bytes */
+
+/********************************************************************
+A simple (s)printf replacement that dynamically allocates the space for the
+formatted string from the given heap. This supports a very limited set of
+the printf syntax: types 's' and 'u' and length modifier 'l' (which is
+required for the 'u' type). */
+
+char*
+mem_heap_printf(
+/*============*/
+				/* out: heap-allocated formatted string */
+	mem_heap_t*	heap,	/* in: memory heap */
+	const char*	format,	/* in: format string */
+	...) __attribute__ ((format (printf, 2, 3)));
+
 #ifdef MEM_PERIODIC_CHECK
 /**********************************************************************
 Goes through the list of all allocated mem blocks, checks their magic
