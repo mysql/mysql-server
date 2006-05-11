@@ -713,15 +713,6 @@ select * from t1;
 drop table t1;
 
 #
-# Bug #13318: Bad result with empty field and --hex-blob
-# 
-create table t1 (a binary(1), b blob);
-insert into t1 values ('','');
---exec $MYSQL_DUMP --skip-comments --skip-extended-insert --hex-blob test t1
---exec $MYSQL_DUMP --skip-comments --hex-blob test t1
-drop table t1;
-
-#
 # BUG #19025 mysqldump doesn't correctly dump "auto_increment = [int]"
 #
 create table `t1` (
