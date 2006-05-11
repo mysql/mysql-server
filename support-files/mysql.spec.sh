@@ -239,7 +239,6 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --with-mysqld-user=%{mysqld_user} \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
             --prefix=/ \
-	    --with-extra-charsets=complex \
             --exec-prefix=%{_exec_prefix} \
             --libexecdir=%{_sbindir} \
             --libdir=%{_libdir} \
@@ -297,6 +296,7 @@ then
 fi
 
 BuildMySQL "--enable-shared \
+		--with-extra-charsets=all \
 		--with-berkeley-db \
 		--with-innodb \
 		--with-ndbcluster \
@@ -361,6 +361,7 @@ BuildMySQL "--disable-shared \
 %else
 		--with-zlib-dir=bundled \
 %endif
+		--with-extra-charsets=complex \
 		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
 		--with-server-suffix='%{server_suffix}' \
 		--without-embedded-server \
@@ -708,6 +709,12 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed May 10 2006 Kent Boortz <kent@mysql.com>
+
+- Use character set "all" for the "max", to make Cluster nodes
+  independent on the character set directory, and the problem that
+  two RPM sub packages both wants to install this directory.
+
 * Mon May 01 2006 Kent Boortz <kent@mysql.com>
 
 - Use "./libtool --mode=execute" instead of searching for the
