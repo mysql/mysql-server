@@ -6416,12 +6416,17 @@ static int find_and_fetch_row(TABLE *table, byte *key)
   if (table->s->keys > 0)
   {
     int error;
-      /*
-        We need to set the null bytes to ensure that the filler bit
-        are all set when returning.  There are storage engines that
-        just set the necessary bits on the bytes and don't set the
-        filler bits correctly.
-      */
+    /* We have a key: search the table using the index */
+    if (!table->file->inited)
+      if ((error= table->file->ha_index_init(0, FALSE)))
+        return error;
+    
+    /*
+      We need to set the null bytes to ensure that the filler bit are
+      all set when returning.  There are storage engines that just set
+      the necessary bits on the bytes and don't set the filler bits
+      correctly.
+    */
     my_ptrdiff_t const pos=
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
     table->record[1][pos]= 0xFF;
@@ -6430,6 +6435,7 @@ static int find_and_fetch_row(TABLE *table, byte *key)
                                         HA_READ_KEY_EXACT)))
     {
       table->file->print_error(error, MYF(0));
+      table->file->ha_index_end();
       DBUG_RETURN(error);
     }
 
@@ -6448,7 +6454,10 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       chose the row to change only using a PK or an UNNI.
      */
     if (table->key_info->flags & HA_NOSAME)
+    {
+      table->file->ha_index_end();
       DBUG_RETURN(0);
+    }
 
     while (record_compare(table))
     {
@@ -6465,15 +6474,26 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       if ((error= table->file->index_next(table->record[1])))
       {
 	table->file->print_error(error, MYF(0));
+        table->file->ha_index_end();
 	DBUG_RETURN(error);
       }
     }
+
+    /*
+      Have to restart the scan to be able to fetch the next row.
+    */
+    table->file->ha_index_end();
   }
   else
   {
-    /* Continue until we find the right record or have made a full loop */
     int restart_count= 0; // Number of times scanning has restarted from top
-    int error= 0;
+    int error;
+
+    /* We don't have a key: search the table using rnd_next() */
+    if ((error= table->file->ha_rnd_init(1)))
+      return error;
+
+    /* Continue until we find the right record or have made a full loop */
     do
     {
       /*
@@ -6499,10 +6519,16 @@ static int find_and_fetch_row(TABLE *table, byte *key)
 
       default:
 	table->file->print_error(error, MYF(0));
+        table->file->ha_rnd_end();
 	DBUG_RETURN(error);
       }
     }
     while (restart_count < 2 && record_compare(table));
+
+    /*
+      Have to restart the scan to be able to fetch the next row.
+    */
+    table->file->ha_rnd_end();
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
     DBUG_RETURN(error);
@@ -6626,20 +6652,6 @@ int Delete_rows_log_event::do_exec_row(TABLE *table)
 {
   DBUG_ASSERT(table != NULL);
 
-  if (table->s->keys > 0)
-  {
-    /* We have a key: search the table using the index */
-    if (!table->file->inited)
-      if (int error= table->file->ha_index_init(0, FALSE))
-        return error;
-  }
-  else
-  {
-    /* We doesn't have a key: search the table using rnd_next() */
-    if (int error= table->file->ha_rnd_init(1))
-      return error;
-  }
-
   int error= find_and_fetch_row(table, m_key);
   if (error)
     return error;
@@ -6650,11 +6662,6 @@ int Delete_rows_log_event::do_exec_row(TABLE *table)
      correct value.
   */
   error= table->file->ha_delete_row(table->record[0]);
-
-  /*
-    Have to restart the scan to be able to fetch the next row.
-   */
-  table->file->ha_index_or_rnd_end();
 
   return error;
 }
@@ -6736,17 +6743,6 @@ int Update_rows_log_event::do_before_row_operations(TABLE *table)
   if (!m_memory)
     return HA_ERR_OUT_OF_MEM;
 
-  if (table->s->keys > 0)
-  {
-    /* We have a key: search the table using the index */
-    if (!table->file->inited)
-      error= table->file->ha_index_init(0, FALSE);
-  }
-  else
-  {
-    /* We doesn't have a key: search the table using rnd_next() */
-    error= table->file->ha_rnd_init(1);
-  }
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   return error;
