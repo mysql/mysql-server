@@ -57,9 +57,21 @@ extern fil_addr_t	fil_addr_null;
 					page */
 #define FIL_PAGE_OFFSET		4	/* page offset inside space */
 #define FIL_PAGE_PREV		8	/* if there is a 'natural' predecessor
-					of the page, its offset */
+					of the page, its offset.
+					Otherwise FIL_NULL.
+					This field is not set on BLOB pages,
+					which are stored as a singly-linked
+					list.  See also FIL_PAGE_NEXT. */
 #define FIL_PAGE_NEXT		12	/* if there is a 'natural' successor
-					of the page, its offset */
+					of the page, its offset.
+					Otherwise FIL_NULL.
+					B-tree index pages
+					(FIL_PAGE_TYPE contains FIL_PAGE_INDEX)
+					on the same PAGE_LEVEL are maintained
+					as a doubly linked list via
+					FIL_PAGE_PREV and FIL_PAGE_NEXT
+					in the collation order of the
+					smallest user record on each page. */
 #define FIL_PAGE_LSN		16	/* lsn of the end of the newest
 					modification log record to the page */
 #define	FIL_PAGE_TYPE		24	/* file page type: FIL_PAGE_INDEX,...,
