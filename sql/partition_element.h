@@ -67,5 +67,21 @@ public:
     subpartitions.empty();
     list_val_list.empty();
   }
+  partition_element(partition_element *part_elem)
+  : partition_name(NULL), range_value(0), has_null_value(FALSE)
+  {
+    subpartitions.empty();
+    list_val_list.empty();
+
+    part_max_rows= part_elem->part_max_rows;
+    part_min_rows= part_elem->part_min_rows;
+    tablespace_name= part_elem->tablespace_name;
+    part_comment= part_elem->part_comment;
+    data_file_name= part_elem->data_file_name;
+    index_file_name= part_elem->index_file_name;
+    engine_type= part_elem->engine_type;
+    part_state= part_elem->part_state;
+    nodegroup_id= part_elem->nodegroup_id;
+  }
   ~partition_element() {}
 };
