@@ -78,6 +78,15 @@
 #endif
 #endif /* _WIN32... */
 
+#ifndef EMBEDDED_LIBRARY
+#ifdef WITH_ROW_BASED_REPLICATION
+#define HAVE_ROW_BASED_REPLICATION 1
+#endif
+#ifdef WITH_NDB_BINLOG
+#define HAVE_NDB_BINLOG 1
+#endif
+#endif /* !EMBEDDED_LIBRARY */
+
 /* Some defines to avoid ifdefs in the code */
 #ifndef NETWARE_YIELD
 #define NETWARE_YIELD
