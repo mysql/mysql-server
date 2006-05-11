@@ -1,5 +1,8 @@
 # See if replication between MyISAM, MEMORY and InnoDB works.
 
+# Results files do not match when ndb is default
+-- source include/not_ndb_default.inc
+
 -- source include/master-slave.inc
 
 connection slave;

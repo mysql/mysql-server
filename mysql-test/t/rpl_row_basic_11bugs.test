@@ -1,5 +1,9 @@
 --source include/have_row_based.inc
 --source include/have_binlog_format_row.inc
+
+# Show binlog events will cause failure when ndb is default
+-- source include/not_ndb_default.inc
+
 --source include/master-slave.inc
 
 # Bug#15942 (RBR ignores --binlog_ignore_db and tries to map to table
