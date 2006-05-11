@@ -268,6 +268,19 @@ page_zip_write_header(
 	__attribute__((nonnull(1,2)));
 
 /**************************************************************************
+Copy a page byte for byte, except for the file page header and trailer. */
+
+void
+page_zip_copy(
+/*==========*/
+	page_zip_des_t*		page_zip,	/* out: copy of src_zip */
+	page_t*			page,		/* out: copy of src */
+	const page_zip_des_t*	src_zip,	/* in: compressed page */
+	const page_t*		src,		/* in: page */
+	mtr_t*			mtr)		/* in: mini-transaction */
+	__attribute__((nonnull(1,2,3,4)));
+
+/**************************************************************************
 Write a log record of compressing an index page. */
 
 void
