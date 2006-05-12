@@ -156,7 +156,7 @@ int check_if_legal_tablename(const char *name)
 }
 
 
-#if defined(MSDOS) || defined(__WIN__) || defined(__EMX__)
+#if defined(__WIN__) || defined(__EMX__)
 
 
 /*
@@ -199,4 +199,4 @@ int check_if_legal_filename(const char *path)
   DBUG_RETURN(0);
 }
 
-#endif /* defined(MSDOS) || defined(__WIN__) || defined(__EMX__) */
+#endif /* defined(__WIN__) || defined(__EMX__) */

@@ -84,14 +84,6 @@
     #define KEYCACHE_DEBUG_LOG  "my_key_cache_debug.log"
 */
 
-#if defined(MSDOS) && !defined(M_IC80386)
-/* we nead much memory */
-#undef my_malloc_lock
-#undef my_free_lock
-#define my_malloc_lock(A,B)  halloc((long) (A/IO_SIZE),IO_SIZE)
-#define my_free_lock(A,B)    hfree(A)
-#endif /* defined(MSDOS) && !defined(M_IC80386) */
-
 #define STRUCT_PTR(TYPE, MEMBER, a)                                           \
           (TYPE *) ((char *) (a) - offsetof(TYPE, MEMBER))
 
