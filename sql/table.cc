@@ -656,7 +656,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           my_free(buff, MYF(0));
           goto err;
         }
-	next_chunk++;
       }
 #else
       if (partition_info_len)
@@ -680,7 +679,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       */
       next_chunk+= 4;
     }
+    else if (share->mysql_version >= 50110)
 #endif
+    {
+      /* New auto_partitioned indicator introduced in 5.1.11 */
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      share->auto_partitioned= *next_chunk;
+#endif
+      next_chunk++;
+    }
     keyinfo= share->key_info;
     for (i= 0; i < keys; i++, keyinfo++)
     {
@@ -1471,6 +1478,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       Fix the partition functions and ensure they are not constant
       functions
     */
+    outparam->part_info->is_auto_partitioned= share->auto_partitioned;
+    DBUG_PRINT("info", ("autopartitioned = %u", share->auto_partitioned));
     if (fix_partition_func(thd, share->normalized_path.str, outparam,
                            is_create_table))
       goto err;
