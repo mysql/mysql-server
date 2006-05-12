@@ -1275,6 +1275,13 @@ inline int hexchar_to_int(char c)
   return -1;
 }
 
+inline void write_binlog_with_system_charset(THD * thd, Query_log_event * qinfo)
+{
+  CHARSET_INFO * cs_save= thd->variables.character_set_client;
+  thd->variables.character_set_client= system_charset_info;
+  mysql_bin_log.write(qinfo);
+  thd->variables.character_set_client= cs_save;
+}
 
 /*
   Some functions that are different in the embedded library and the normal
