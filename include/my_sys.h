@@ -558,6 +558,7 @@ extern File my_open(const char *FileName,int Flags,myf MyFlags);
 extern File my_register_filename(File fd, const char *FileName,
 				 enum file_type type_of_file,
 				 uint error_message_number, myf MyFlags);
+extern void my_print_open_files(void);
 extern File my_create(const char *FileName,int CreateFlags,
 		      int AccessFlags, myf MyFlags);
 extern int my_close(File Filedes,myf MyFlags);
@@ -601,6 +602,11 @@ extern char *_my_strndup(const byte *from, uint length,
 				    const char *sFile, uint uLine,
 				    myf MyFlag);
 
+/* implemented in my_memmem.c */
+extern void *my_memmem(const void *haystack, size_t haystacklen,
+    const void *needle, size_t needlelen);
+
+
 #ifdef __WIN__
 extern int my_access(const char *path, int amode);
 extern File my_sopen(const char *path, int oflag, int shflag, int pmode);
@@ -640,6 +646,12 @@ extern void allow_break(void);
 #else
 #define dont_break()
 #define allow_break()
+#endif
+
+#ifdef EXTRA_DEBUG
+void my_print_open_files();
+#else
+#define my_print_open_files()
 #endif
 
 extern my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist);
@@ -812,6 +824,7 @@ extern int unpackfrm(const void **, uint *, const void *);
 
 extern ha_checksum my_checksum(ha_checksum crc, const byte *mem, uint count);
 extern uint my_bit_log2(ulong value);
+extern uint32 my_round_up_to_next_power(uint32 v);
 extern uint my_count_bits(ulonglong v);
 extern uint my_count_bits_ushort(ushort v);
 extern void my_sleep(ulong m_seconds);

@@ -559,6 +559,11 @@ NdbDictionary::Table::getObjectStatus() const {
   return m_impl.m_status;
 }
 
+void
+NdbDictionary::Table::setStatusInvalid() const {
+  m_impl.m_status = NdbDictionary::Object::Invalid;
+}
+
 int 
 NdbDictionary::Table::getObjectVersion() const {
   return m_impl.m_version;
@@ -1331,6 +1336,11 @@ NdbDictionary::Dictionary::dropTable(Table & t){
 }
 
 int
+NdbDictionary::Dictionary::dropTableGlobal(const Table & t){
+  return m_impl.dropTableGlobal(NdbTableImpl::getImpl(t));
+}
+
+int
 NdbDictionary::Dictionary::dropTable(const char * name){
   return m_impl.dropTable(name);
 }
@@ -1340,6 +1350,14 @@ NdbDictionary::Dictionary::alterTable(const Table & t){
   return m_impl.alterTable(NdbTableImpl::getImpl(t));
 }
 
+int
+NdbDictionary::Dictionary::alterTableGlobal(const Table & f,
+                                            const Table & t)
+{
+  return m_impl.alterTableGlobal(NdbTableImpl::getImpl(f),
+                                 NdbTableImpl::getImpl(t));
+}
+
 const NdbDictionary::Table * 
 NdbDictionary::Dictionary::getTable(const char * name, void **data) const
 {
@@ -1347,6 +1365,40 @@ NdbDictionary::Dictionary::getTable(const char * name, void **data) const
   if(t)
     return t->m_facade;
   return 0;
+}
+
+const NdbDictionary::Index * 
+NdbDictionary::Dictionary::getIndexGlobal(const char * indexName,
+                                          const Table &ndbtab) const
+{
+  NdbIndexImpl * i = m_impl.getIndexGlobal(indexName,
+                                           NdbTableImpl::getImpl(ndbtab));
+  if(i)
+    return i->m_facade;
+  return 0;
+}
+
+const NdbDictionary::Table * 
+NdbDictionary::Dictionary::getTableGlobal(const char * name) const
+{
+  NdbTableImpl * t = m_impl.getTableGlobal(name);
+  if(t)
+    return t->m_facade;
+  return 0;
+}
+
+int
+NdbDictionary::Dictionary::removeIndexGlobal(const Index &ndbidx,
+                                             int invalidate) const
+{
+  return m_impl.releaseIndexGlobal(NdbIndexImpl::getImpl(ndbidx), invalidate);
+}
+
+int
+NdbDictionary::Dictionary::removeTableGlobal(const Table &ndbtab,
+                                             int invalidate) const
+{
+  return m_impl.releaseTableGlobal(NdbTableImpl::getImpl(ndbtab), invalidate);
 }
 
 void NdbDictionary::Dictionary::putTable(const NdbDictionary::Table * table)
@@ -1420,11 +1472,24 @@ NdbDictionary::Dictionary::createIndex(const Index & ind)
   return m_impl.createIndex(NdbIndexImpl::getImpl(ind));
 }
 
+int
+NdbDictionary::Dictionary::createIndex(const Index & ind, const Table & tab)
+{
+  return m_impl.createIndex(NdbIndexImpl::getImpl(ind),
+                            NdbTableImpl::getImpl(tab));
+}
+
 int 
 NdbDictionary::Dictionary::dropIndex(const char * indexName,
 				     const char * tableName)
 {
   return m_impl.dropIndex(indexName, tableName);
+}
+
+int 
+NdbDictionary::Dictionary::dropIndexGlobal(const Index &ind)
+{
+  return m_impl.dropIndexGlobal(NdbIndexImpl::getImpl(ind));
 }
 
 const NdbDictionary::Index * 

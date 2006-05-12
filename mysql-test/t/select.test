@@ -2871,3 +2871,18 @@ SELECT t2.sku, t2.sppr, t2.name, t1.sku, t1.pr
 
 
 DROP TABLE t1,t2;
+
+#
+# Bug#18712: Truncation problem (needs just documenting and test
+# cases to prevent fixing this accidently. It is intended behaviour)
+#
+
+CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
+INSERT t1 SET i = 0;
+UPDATE t1 SET i = -1;
+SELECT * FROM t1;
+UPDATE t1 SET i = CAST(i - 1 AS SIGNED);
+SELECT * FROM t1;
+UPDATE t1 SET i = i - 1;
+SELECT * FROM t1;
+DROP TABLE t1;

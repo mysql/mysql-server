@@ -14839,6 +14839,73 @@ static void test_bug15613()
   myquery(rc);
   mysql_stmt_close(stmt);
 }
+
+/*
+  Bug#17667: An attacker has the opportunity to bypass query logging.
+*/
+static void test_bug17667()
+{
+  int rc;
+  struct buffer_and_length {
+    const char *buffer;
+    const uint length;
+  } statements[]= {
+    { "drop table if exists bug17667", 29 },
+    { "create table bug17667 (c varchar(20))", 37 },
+    { "insert into bug17667 (c) values ('regular') /* NUL=\0 with comment */", 68 },
+    { "insert into bug17667 (c) values ('NUL=\0 in value')", 50 },
+    { "insert into bug17667 (c) values ('5 NULs=\0\0\0\0\0')", 48 },
+    { "/* NUL=\0 with comment */ insert into bug17667 (c) values ('encore')", 67 },
+    { "drop table bug17667", 19 },
+    { NULL, 0 } };  
+
+  struct buffer_and_length *statement_cursor;
+  FILE *log_file;
+
+  myheader("test_bug17667");
+
+  for (statement_cursor= statements; statement_cursor->buffer != NULL;
+      statement_cursor++) {
+    rc= mysql_real_query(mysql, statement_cursor->buffer,
+        statement_cursor->length);
+    myquery(rc);
+  }
+
+  sleep(1); /* The server may need time to flush the data to the log. */
+  log_file= fopen("var/log/master.log", "r");
+  if (log_file != NULL) {
+
+    for (statement_cursor= statements; statement_cursor->buffer != NULL;
+        statement_cursor++) {
+     char line_buffer[MAX_TEST_QUERY_LENGTH*2]; 
+     /* more than enough room for the query and some marginalia. */
+
+      do {
+        memset(line_buffer, '/', MAX_TEST_QUERY_LENGTH*2);
+
+        DIE_UNLESS(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) !=
+            NULL);
+        /* If we reach EOF before finishing the statement list, then we failed. */
+
+      } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
+            statement_cursor->buffer, statement_cursor->length) == NULL);
+    }
+
+    printf("success.  All queries found intact in the log.\n");
+
+  } else {
+    fprintf(stderr, "Could not find the log file, var/log/master.log, so "
+        "test_bug17667 is \ninconclusive.  Run test from the "
+        "mysql-test/mysql-test-run* program \nto set up the correct "
+        "environment for this test.\n\n");
+  }
+
+  if (log_file != NULL)
+    fclose(log_file);
+
+}
+
+
 /*
   Bug#14169: type of group_concat() result changed to blob if tmp_table was used
 */
@@ -15139,6 +15206,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug16144", test_bug16144 },
   { "test_bug15613", test_bug15613 },
   { "test_bug14169", test_bug14169 },
+  { "test_bug17667", test_bug17667 },
   { 0, 0 }
 };
 
