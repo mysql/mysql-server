@@ -2956,6 +2956,11 @@ page_zip_copy(
 	page_zip->n_blobs = src_zip->n_blobs;
 	page_zip->m_start = src_zip->m_start;
 	page_zip->m_end = src_zip->m_end;
+
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
 	page_zip_compress_write_log(page_zip, page, mtr);
 }
 
