@@ -40,7 +40,7 @@ $(top_builddir)/include/sql_state.h: $(top_builddir)/include/mysqld_error.h
 bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults \
 			resolve_stack_dump mysql_waitpid innochecksum
 noinst_PROGRAMS =	charset2html
-EXTRA_DIST =		cmakelists.txt
+EXTRA_DIST =		CMakeLists.txt
 
 perror.o: perror.c 
 	$(COMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<

@@ -122,7 +122,7 @@ DEFS =			-DMYSQL_SERVER \
 
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
 EXTRA_DIST =		udf_example.cc $(BUILT_SOURCES) \
-			nt_servc.cc nt_servc.h message.mc cmakelists.txt
+			nt_servc.cc nt_servc.h message.mc CMakeLists.txt
 CLEANFILES =        	lex_hash.h sql_yacc.cc sql_yacc.h
 AM_YFLAGS =		-d
 
