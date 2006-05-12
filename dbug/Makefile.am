@@ -20,7 +20,7 @@ LDADD =                 libdbug.a ../mysys/libmysys.a ../strings/libmystrings.a
 pkglib_LIBRARIES =      libdbug.a
 noinst_HEADERS =        dbug_long.h
 libdbug_a_SOURCES =     dbug.c sanity.c
-EXTRA_DIST =            cmakelists.txt example1.c example2.c example3.c \
+EXTRA_DIST =            CMakeLists.txt example1.c example2.c example3.c \
                         user.r monty.doc dbug_add_tags.pl \
                         my_main.c main.c factorial.c dbug_analyze.c
 NROFF_INC =             example1.r example2.r example3.r main.r \

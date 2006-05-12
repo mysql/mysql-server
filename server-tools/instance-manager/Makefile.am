@@ -88,7 +88,7 @@ mysqlmanager_LDADD=	@CLIENT_EXTRA_LDFLAGS@ \
 			@openssl_libs@ @yassl_libs@ @ZLIB_LIBS@
 
 EXTRA_DIST =		WindowsService.cpp WindowsService.h IMService.cpp \
-			IMService.h cmakelists.txt
+			IMService.h CMakeLists.txt
 
 tags:
 	ctags -R *.h *.cc
