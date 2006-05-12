@@ -4,8 +4,6 @@
 # Test of FLUSH NO_WRITE_TO_BINLOG by the way.
 #
 
-# Merge will not work with a default ndb engine
--- source include/not_ndb_default.inc
 
 -- source include/master-slave.inc
 
