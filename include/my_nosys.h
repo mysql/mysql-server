@@ -27,9 +27,6 @@ extern "C" {
 #ifndef __MY_NOSYS__
 #define __MY_NOSYS__
 
-#ifdef MSDOS
-#include <io.h>			/* Get prototypes for read()... */
-#endif
 #ifndef HAVE_STDLIB_H
 #include <malloc.h>
 #endif
