@@ -1380,19 +1380,6 @@ err_with_cleanup:
 }
 
 
-static Item_func_get_user_var *item_is_user_var(Item *it)
-{
-  if (it->type() == Item::FUNC_ITEM)
-  {
-    Item_func *fi= static_cast<Item_func*>(it);
-
-    if (fi->functype() == Item_func::GUSERVAR_FUNC)
-      return static_cast<Item_func_get_user_var*>(fi);
-  }
-  return NULL;
-}
-
-
 /*
   Execute a procedure. 
   SYNOPSIS
@@ -1468,22 +1455,28 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     for (uint i= 0 ; i < params ; i++)
     {
       Item *arg_item= it_args++;
-      sp_variable_t *spvar= m_pcont->find_variable(i);
 
       if (!arg_item)
         break;
+
+      sp_variable_t *spvar= m_pcont->find_variable(i);
 
       if (!spvar)
         continue;
 
       if (spvar->mode != sp_param_in)
       {
-        if (!arg_item->is_splocal() && !item_is_user_var(arg_item))
+        Settable_routine_parameter *srp=
+          arg_item->get_settable_routine_parameter();
+
+        if (!srp)
         {
           my_error(ER_SP_NOT_VAR_ARG, MYF(0), i+1, m_qname.str);
           err_status= TRUE;
           break;
         }
+
+        srp->set_required_privilege(spvar->mode == sp_param_inout);
       }
 
       if (spvar->mode == sp_param_out)
@@ -1551,36 +1544,16 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (spvar->mode == sp_param_in)
         continue;
 
-      if (arg_item->is_splocal())
+      Settable_routine_parameter *srp=
+        arg_item->get_settable_routine_parameter();
+
+      DBUG_ASSERT(srp);
+
+      if (srp->set_value(thd, octx, nctx->get_item(i)))
       {
-        if (octx->set_variable(thd,
-                               ((Item_splocal*) arg_item)->get_var_idx(),
-                               nctx->get_item(i)))
-        {
-          err_status= TRUE;
-          break;
-        }
+        err_status= TRUE;
+        break;
       }
-      else
-      {
-        Item_func_get_user_var *guv= item_is_user_var(arg_item);
-
-	if (guv)
-	{
-	  Item *item= nctx->get_item(i);
-	  Item_func_set_user_var *suv;
-
-	  suv= new Item_func_set_user_var(guv->get_name(), item);
-	  /*
-            Item_func_set_user_var is not fixed after construction,
-            call fix_fields().
-	  */
-          if ((err_status= test(!suv || suv->fix_fields(thd, &item) ||
-                                suv->check() || suv->update())))
-            break;
-	}
-      }
-
     }
   }
 
@@ -2414,12 +2387,7 @@ sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
 int
 sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 {
-  int res= 0;
-  Item *it= sp_prepare_func_item(thd, &value);
-  if (!it ||
-      !trigger_field->fixed && trigger_field->fix_fields(thd, 0) ||
-      (it->save_in_field(trigger_field->field, 0) < 0))
-    res= -1;
+  const int res= (trigger_field->set_value(thd, value) ? -1 : 0);
   *nextp = m_ip+1;
   return res;
 }
