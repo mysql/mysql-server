@@ -1099,3 +1099,12 @@ CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH
 1	3
 9	27
 drop table t1;
+use mysql;
+INSERT INTO `proc` VALUES ('test','','PROCEDURE','','SQL','CONTAINS_SQL',
+'NO','DEFINER','','','BEGIN\r\n  \r\nEND','root@%','2006-03-02 18:40:03',
+'2006-03-02 18:40:03','','');
+select routine_name from information_schema.routines;
+routine_name
+
+delete from proc where name='';
+use test;
