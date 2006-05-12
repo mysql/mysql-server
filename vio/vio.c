@@ -88,19 +88,19 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
   if (type == VIO_TYPE_SSL)
   {
     vio->viodelete	=vio_delete;
-    vio->vioerrno	=vio_ssl_errno;
+    vio->vioerrno	=vio_errno;
     vio->read		=vio_ssl_read;
     vio->write		=vio_ssl_write;
-    vio->fastsend	=vio_ssl_fastsend;
-    vio->viokeepalive	=vio_ssl_keepalive;
-    vio->should_retry	=vio_ssl_should_retry;
-    vio->was_interrupted=vio_ssl_was_interrupted;
+    vio->fastsend	=vio_fastsend;
+    vio->viokeepalive	=vio_keepalive;
+    vio->should_retry	=vio_should_retry;
+    vio->was_interrupted=vio_was_interrupted;
     vio->vioclose	=vio_ssl_close;
-    vio->peer_addr	=vio_ssl_peer_addr;
-    vio->in_addr	=vio_ssl_in_addr;
+    vio->peer_addr	=vio_peer_addr;
+    vio->in_addr	=vio_in_addr;
     vio->vioblocking	=vio_ssl_blocking;
     vio->is_blocking	=vio_is_blocking;
-    vio->timeout	=vio_ssl_timeout;
+    vio->timeout	=vio_timeout;
   }
   else					/* default is VIO_TYPE_TCPIP */
 #endif /* HAVE_OPENSSL */
@@ -232,4 +232,17 @@ void vio_delete(Vio* vio)
     my_free((gptr) vio->read_buffer, MYF(MY_ALLOW_ZERO_PTR));
     my_free((gptr) vio,MYF(0));
   }
+}
+
+
+/*
+  Cleanup memory allocated by vio or the
+  components below it when application finish
+
+*/
+void vio_end(void)
+{
+#ifdef HAVE_YASSL
+  yaSSL_CleanUp();
+#endif
 }

@@ -710,7 +710,7 @@ static void openssl_lock(int, openssl_lock_t *, const char *, int);
 static unsigned long openssl_id_function();
 #endif
 char *des_key_file;
-struct st_VioSSLAcceptorFd *ssl_acceptor_fd;
+struct st_VioSSLFd *ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
 
@@ -1219,6 +1219,7 @@ void clean_up(bool print_message)
   delete binlog_filter;
   delete rpl_filter;
   end_ssl();
+  vio_end();
 #ifdef USE_REGEX
   my_regex_end();
 #endif
