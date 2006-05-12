@@ -82,6 +82,7 @@ void echoclient_test(void* args)
         args.argv = argv;
 
         echoclient_test(&args);
+        yaSSL_CleanUp();
 
         return args.return_code;
     }
