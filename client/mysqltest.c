@@ -87,14 +87,6 @@
 #endif
 #define MAX_SERVER_ARGS 64
 
-/*
-  Sometimes in a test the client starts before
-  the server - to solve the problem, we try again
-  after some sleep if connection fails the first
-  time
-*/
-#define CON_RETRY_SLEEP 2
-#define MAX_CON_TRIES	5
 
 #define SLAVE_POLL_INTERVAL 300000 /* 0.3 of a sec */
 #define DEFAULT_DELIMITER ";"
@@ -108,7 +100,7 @@ enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
       OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
       OPT_SSL_CIPHER,OPT_PS_PROTOCOL,OPT_SP_PROTOCOL,OPT_CURSOR_PROTOCOL,
-      OPT_VIEW_PROTOCOL};
+      OPT_VIEW_PROTOCOL, OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES};
 
 /* ************************************************************************ */
 /*
@@ -158,6 +150,7 @@ static char *db = 0, *pass=0;
 const char *user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
 const char *opt_include= 0;
 static int port = 0;
+static int opt_max_connect_retries;
 static my_bool opt_big_test= 0, opt_compress= 0, silent= 0, verbose = 0;
 static my_bool tty_password= 0;
 static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
@@ -2501,9 +2494,16 @@ void init_manager()
       db, port, sock
 
   NOTE
-    This function will try to connect to the given server MAX_CON_TRIES
-    times and sleep CON_RETRY_SLEEP seconds between attempts before
-    finally giving up. This helps in situation when the client starts
+
+    Sometimes in a test the client starts before
+    the server - to solve the problem, we try again
+    after some sleep if connection fails the first
+    time
+
+    This function will try to connect to the given server
+    "opt_max_connect_retries" times and sleep "connection_retry_sleep"
+    seconds between attempts before finally giving up.
+    This helps in situation when the client starts
     before the server (which happens sometimes).
     It will ignore any errors during these retries. One should use
     connect_n_handle_errors() if he expects a connection error and wants
@@ -2518,8 +2518,9 @@ int safe_connect(MYSQL* mysql, const char *host, const char *user,
 {
   int con_error= 1;
   my_bool reconnect= 1;
+  static int connection_retry_sleep= 2; /* Seconds */
   int i;
-  for (i= 0; i < MAX_CON_TRIES; ++i)
+  for (i= 0; i < opt_max_connect_retries; i++)
   {
     if (mysql_real_connect(mysql, host,user, pass, db, port, sock,
 			   CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS))
@@ -2527,7 +2528,7 @@ int safe_connect(MYSQL* mysql, const char *host, const char *user,
       con_error= 0;
       break;
     }
-    sleep(CON_RETRY_SLEEP);
+    sleep(connection_retry_sleep);
   }
   /*
    TODO: change this to 0 in future versions, but the 'kill' test relies on
@@ -2755,8 +2756,12 @@ int do_connect(struct st_query *q)
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl || con_ssl)
+  {
     mysql_ssl_set(&next_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(&next_con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+                  &opt_ssl_verify_server_cert);
+  }
 #endif
   if (con_sock && !free_con_sock && *con_sock && *con_sock != FN_LIBCHAR)
     con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
@@ -3290,6 +3295,10 @@ static struct my_option my_long_options[] =
   {"manager-wait-timeout", OPT_MANAGER_WAIT_TIMEOUT,
    "Undocumented: Used for debugging.", (gptr*) &manager_wait_timeout,
    (gptr*) &manager_wait_timeout, 0, GET_INT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0},
+  {"max-connect-retries", OPT_MAX_CONNECT_RETRIES,
+   "Max number of connection attempts when connecting to server",
+   (gptr*) &opt_max_connect_retries, (gptr*) &opt_max_connect_retries, 0,
+   GET_INT, REQUIRED_ARG, 5, 1, 10, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &port,
@@ -5207,9 +5216,14 @@ int main(int argc, char **argv)
   mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
 
 #ifdef HAVE_OPENSSL
+  opt_ssl_verify_server_cert= TRUE; /* Always on in mysqltest */
   if (opt_use_ssl)
+  {
     mysql_ssl_set(&cur_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(&cur_con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+                  &opt_ssl_verify_server_cert);
+  }
 #endif
 
   if (!(cur_con->name = my_strdup("default", MYF(MY_WME))))
