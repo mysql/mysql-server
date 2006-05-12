@@ -346,7 +346,7 @@ new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
 }
 
 
-void free_vio_ssl_acceptor_fd(struct st_VioSSLAcceptorFd *fd)
+void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd)
 {
   SSL_CTX_free(fd->ssl_context);
   my_free((gptr) fd, MYF(0));
