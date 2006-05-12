@@ -84,7 +84,7 @@ TREE_ELEMENT *tree_insert(TREE *tree,void *key, uint key_size,
 void *tree_search(TREE *tree, void *key, void *custom_arg);
 int tree_walk(TREE *tree,tree_walk_action action,
 	      void *argument, TREE_WALK visit);
-int tree_delete(TREE *tree, void *key, void *custom_arg);
+int tree_delete(TREE *tree, void *key, uint key_size, void *custom_arg);
 void *tree_search_key(TREE *tree, const void *key, 
                       TREE_ELEMENT **parents, TREE_ELEMENT ***last_pos,
                       enum ha_rkey_function flag, void *custom_arg);

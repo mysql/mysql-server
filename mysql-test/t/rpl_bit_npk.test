@@ -70,18 +70,22 @@ UNLOCK TABLES;
 
 UPDATE test.t1 set x034 = 50 where bit3 = b'000000';
 UPDATE test.t1 set VNotSupp = 33 where bit1 = b'0';
-SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034 FROM test.t1;
-SELECT hex(bit1) from test.t1;
-SELECT hex(bit2) from test.t1;
-SELECT hex(bit3) from test.t1;
+SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034
+    FROM test.t1
+    ORDER BY oSupp, sSuppD, GSuppDf, VNotSupp, x034;
+SELECT hex(bit1) from test.t1 ORDER BY bit1;
+SELECT hex(bit2) from test.t1 ORDER BY bit2;
+SELECT hex(bit3) from test.t1 ORDER BY bit3;
 save_master_pos;
 
 connection slave;
 sync_with_master;
-SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034 FROM test.t1;
-SELECT hex(bit1) from test.t1;
-SELECT hex(bit2) from test.t1;
-SELECT hex(bit3) from test.t1;
+SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034
+    FROM test.t1
+    ORDER BY oSupp, sSuppD, GSuppDf, VNotSupp, x034;
+SELECT hex(bit1) from test.t1 ORDER BY bit1;
+SELECT hex(bit2) from test.t1 ORDER BY bit2;
+SELECT hex(bit3) from test.t1 ORDER BY bit3;
 
 connection master;
 CREATE TABLE test.t2 (a INT, b BIT(1));
@@ -94,14 +98,14 @@ INSERT INTO test.t3 VALUES (1, NULL);
 INSERT INTO test.t3 VALUES (1, 0);
 UPDATE test.t3 SET a = 2 WHERE b = 0;
 
-SELECT a, hex(b) FROM test.t2;
-SELECT * FROM test.t3;
+SELECT a, hex(b) FROM test.t2 ORDER BY a,b;
+SELECT * FROM test.t3 ORDER BY a,b;
 save_master_pos;
 
 connection slave;
 sync_with_master;
-SELECT a, hex(b) FROM test.t2;
-SELECT * FROM test.t3;
+SELECT a, hex(b) FROM test.t2 ORDER BY a,b;
+SELECT * FROM test.t3 ORDER BY a,b;
 
 connection master;
 DROP TABLE IF EXISTS test.t1;

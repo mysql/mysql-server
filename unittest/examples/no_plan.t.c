@@ -1,4 +1,6 @@
 
+#include "my_config.h"
+
 #include <stdlib.h>
 #include <tap.h>
 

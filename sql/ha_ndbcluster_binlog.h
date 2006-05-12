@@ -41,20 +41,60 @@ enum SCHEMA_OP_TYPE
 {
   SOT_DROP_TABLE= 0,
   SOT_CREATE_TABLE= 1,
-  SOT_RENAME_TABLE= 2,
+  SOT_RENAME_TABLE_NEW= 2,
   SOT_ALTER_TABLE= 3,
   SOT_DROP_DB= 4,
   SOT_CREATE_DB= 5,
   SOT_ALTER_DB= 6,
   SOT_CLEAR_SLOCK= 7,
   SOT_TABLESPACE= 8,
-  SOT_LOGFILE_GROUP= 9
+  SOT_LOGFILE_GROUP= 9,
+  SOT_RENAME_TABLE= 10
 };
 
 const uint max_ndb_nodes= 64; /* multiple of 32 */
 
 static const char *ha_ndb_ext=".ndb";
 static const char share_prefix[]= "./";
+
+class Ndb_table_guard
+{
+public:
+  Ndb_table_guard(NDBDICT *dict, const char *tabname)
+    : m_dict(dict)
+  {
+    DBUG_ENTER("Ndb_table_guard");
+    m_ndbtab= m_dict->getTableGlobal(tabname);
+    m_invalidate= 0;
+    DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
+    DBUG_VOID_RETURN;
+  }
+  ~Ndb_table_guard()
+  {
+    DBUG_ENTER("~Ndb_table_guard");
+    if (m_ndbtab)
+    {
+      DBUG_PRINT("info", ("m_ndbtab: %p  m_invalidate: %d",
+                          m_ndbtab, m_invalidate));
+      m_dict->removeTableGlobal(*m_ndbtab, m_invalidate);
+    }
+    DBUG_VOID_RETURN;
+  }
+  const NDBTAB *get_table() { return m_ndbtab; }
+  void invalidate() { m_invalidate= 1; }
+  const NDBTAB *release()
+  {
+    DBUG_ENTER("Ndb_table_guard::release");
+    const NDBTAB *tmp= m_ndbtab;
+    DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
+    m_ndbtab = 0;
+    DBUG_RETURN(tmp);
+  }
+private:
+  const NDBTAB *m_ndbtab;
+  NDBDICT *m_dict;
+  int m_invalidate;
+};
 
 #ifdef HAVE_NDB_BINLOG
 extern pthread_t ndb_binlog_thread;
@@ -98,8 +138,8 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                              uint32 ndb_table_id,
                              uint32 ndb_table_version,
                              enum SCHEMA_OP_TYPE type,
-                             const char *old_db= 0,
-                             const char *old_table_name= 0);
+                             const char *new_db= 0,
+                             const char *new_table_name= 0);
 int ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
                                  NDB_SHARE *share,
                                  const char *type_str);

@@ -44,7 +44,10 @@ libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
-	ha_heap.cc ha_myisam.cc ha_myisammrg.cc handler.cc sql_handler.cc \
+	ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
+	ha_innodb.cc ha_berkeley.cc ha_federated.cc ha_ndbcluster.cc \
+	ha_ndbcluster_binlog.cc ha_partition.cc \
+	handler.cc sql_handler.cc \
 	hostname.cc init.cc password.c \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
@@ -65,17 +68,12 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	spatial.cc gstream.cc sql_help.cc tztime.cc sql_cursor.cc \
 	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc sp_rcontext.cc \
 	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc \
-        event_executor.cc event.cc event_timed.cc \
-        rpl_filter.cc sql_partition.cc handlerton.cc sql_plugin.cc \
-        sql_tablespace.cc \
-        rpl_injector.cc my_user.c partition_info.cc
+	event_executor.cc event.cc event_timed.cc \
+	rpl_filter.cc sql_partition.cc sql_builtin.cc sql_plugin.cc \
+	sql_tablespace.cc \
+	rpl_injector.cc my_user.c partition_info.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
-EXTRA_libmysqld_a_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
-			ha_blackhole.cc ha_federated.cc ha_ndbcluster.cc \
-			ha_ndbcluster_binlog.cc \
-			ha_partition.cc
-libmysqld_a_DEPENDENCIES= @mysql_se_objs@
 libmysqld_a_SOURCES=
 
 sqlstoragesources =	$(EXTRA_libmysqld_a_SOURCES)
@@ -85,15 +83,11 @@ sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
 
 # The following libraries should be included in libmysqld.a
 INC_LIB=	$(top_builddir)/regex/libregex.a \
-		$(top_builddir)/storage/myisam/libmyisam.a \
-		$(top_builddir)/storage/myisammrg/libmyisammrg.a \
-		$(top_builddir)/storage/archive/libarchive.a \
-		$(top_builddir)/storage/heap/libheap.a \
 		$(top_builddir)/mysys/libmysys.a \
 		$(top_builddir)/strings/libmystrings.a \
 		$(top_builddir)/dbug/libdbug.a \
 		$(top_builddir)/vio/libvio.a \
-		@mysql_se_libs@ \
+		@mysql_plugin_libs@ \
 		$(yassl_las)
 
 if HAVE_YASSL
@@ -173,10 +167,13 @@ link_sources:
 	    rm -f $$f; \
 	    @LN_CP_F@ $(top_srcdir)/libmysql/$$f $$f; \
 	  done; \
-	  for f in $(sqlstoragesources); do \
-	    rm -f $$f; \
-	    @LN_CP_F@ `find $(srcdir)/../sql -name $$f` $$f; \
-	  done; \
+	  if test -n "$(sqlstoragesources)" ; \
+	  then \
+	    for f in "$(sqlstoragesources)"; do \
+	      rm -f "$$f"; \
+	      @LN_CP_F@ `find $(srcdir)/../sql -name "$$f"` "$$f"; \
+	    done; \
+	  fi; \
 	  rm -f client_settings.h; \
 	  @LN_CP_F@ $(top_srcdir)/libmysql/client_settings.h client_settings.h
 

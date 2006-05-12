@@ -322,6 +322,7 @@ cmd-line-utils/libedit/makelist
 comon.h
 comp_err/*.ds?
 comp_err/*.vcproj
+compile
 config.cache
 config.guess
 config.h
@@ -553,6 +554,7 @@ libmysqld/spatial.cc
 libmysqld/sql_acl.cc
 libmysqld/sql_analyse.cc
 libmysqld/sql_base.cc
+libmysqld/sql_builtin.cc
 libmysqld/sql_cache.cc
 libmysqld/sql_class.cc
 libmysqld/sql_command
@@ -1179,6 +1181,7 @@ sql/share/gmon.out
 sql/share/mysql
 sql/share/norwegian-ny/errmsg.sys
 sql/share/norwegian/errmsg.sys
+sql/sql_builtin.cc
 sql/sql_select.cc.orig
 sql/sql_yacc.cc
 sql/sql_yacc.h

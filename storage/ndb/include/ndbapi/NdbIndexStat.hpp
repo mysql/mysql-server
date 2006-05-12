@@ -56,7 +56,7 @@ public:
    * multiplied by a percentage obtained from the cache (result zero is
    * returned as 1).
    */
-  int records_in_range(NdbDictionary::Index* index,
+  int records_in_range(const NdbDictionary::Index* index,
                        NdbIndexScanOperation* op,
                        Uint64 table_rows,
                        Uint64* count,
