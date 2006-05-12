@@ -265,13 +265,8 @@ row_purge_remove_sec_if_poss_low(
 			ut_ad(mode == BTR_MODIFY_TREE);
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
 							FALSE, &mtr);
-			if (err == DB_SUCCESS) {
-				success = TRUE;
-			} else if (err == DB_OUT_OF_FILE_SPACE) {
-				success = FALSE;
-			} else {
-				ut_error;
-			}
+			success = err == DB_SUCCESS;
+			ut_a(success || err == DB_OUT_OF_FILE_SPACE);
 		}
 	}
 
