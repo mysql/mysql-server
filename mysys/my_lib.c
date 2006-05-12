@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* TODO: check for overun of memory for names. */
-/*	 Convert MSDOS-TIME to standar time_t */
+/*	 Convert MSDOS-TIME to standar time_t (still needed?) */
 
 #define USES_TYPES		/* sys/types is included */
 #include	"mysys_priv.h"
@@ -37,7 +37,7 @@
 # if defined(HAVE_NDIR_H)
 #  include <ndir.h>
 # endif
-# if defined(MSDOS) || defined(__WIN__)
+# if defined(__WIN__)
 # include <dos.h>
 # ifdef __BORLANDC__
 # include <dir.h>
@@ -94,7 +94,7 @@ static int comp_names(struct fileinfo *a, struct fileinfo *b)
 } /* comp_names */
 
 
-#if !defined(MSDOS) && !defined(__WIN__)
+#if !defined(__WIN__)
 
 MY_DIR	*my_dir(const char *path, myf MyFlags)
 {
@@ -347,7 +347,7 @@ my_string directory_file_name (my_string dst, const char *src)
 #endif	/* VMS */
 } /* directory_file_name */
 
-#elif defined(WIN32)
+#else
 
 /*
 *****************************************************************************
@@ -386,7 +386,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     *tmp_file++= '.';				/* From current dev-dir */
   if (tmp_file[-1] != FN_LIBCHAR)
     *tmp_file++ =FN_LIBCHAR;
-  tmp_file[0]='*';				/* MSDOS needs this !??? */
+  tmp_file[0]='*';				/* Windows needs this !??? */
   tmp_file[1]='.';
   tmp_file[2]='*';
   tmp_file[3]='\0';
@@ -509,109 +509,7 @@ error:
   DBUG_RETURN((MY_DIR *) NULL);
 } /* my_dir */
 
-#else /* MSDOS and not WIN32 */
-
-
-/******************************************************************************
-** At MSDOS you always get stat of files, but time is in packed MSDOS-format
-******************************************************************************/
-
-MY_DIR	*my_dir(const char* path, myf MyFlags)
-{
-  char          *buffer;
-  MY_DIR        *result= 0;
-  FILEINFO      finfo;
-  DYNAMIC_ARRAY *dir_entries_storage;
-  MEM_ROOT      *names_storage;
-  struct find_t find;
-  ushort	mode;
-  char		tmp_path[FN_REFLEN],*tmp_file,attrib;
-  DBUG_ENTER("my_dir");
-  DBUG_PRINT("my",("path: '%s' stat: %d  MyFlags: %d",path,MyFlags));
-
-  /* Put LIB-CHAR as last path-character if not there */
-
-  tmp_file=tmp_path;
-  if (!*path)
-    *tmp_file++ ='.';				/* From current dir */
-  tmp_file= strmov(tmp_file,path);
-  if (tmp_file[-1] == FN_DEVCHAR)
-    *tmp_file++= '.';				/* From current dev-dir */
-  if (tmp_file[-1] != FN_LIBCHAR)
-    *tmp_file++ =FN_LIBCHAR;
-  tmp_file[0]='*';				/* MSDOS needs this !??? */
-  tmp_file[1]='.';
-  tmp_file[2]='*';
-  tmp_file[3]='\0';
-
-  if (_dos_findfirst(tmp_path,_A_NORMAL | _A_SUBDIR, &find))
-    goto error;
-
-  if (!(buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
-                          ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
-                          sizeof(MEM_ROOT), MyFlags)))
-    goto error;
-
-  dir_entries_storage= (DYNAMIC_ARRAY*)(buffer + ALIGN_SIZE(sizeof(MY_DIR))); 
-  names_storage= (MEM_ROOT*)(buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
-                             ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
-  
-  if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
-                            ENTRIES_START_SIZE, ENTRIES_INCREMENT))
-  {
-    my_free((gptr) buffer,MYF(0));
-    goto error;
-  }
-  init_alloc_root(names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
-  
-  /* MY_DIR structure is allocated and completly initialized at this point */
-  result= (MY_DIR*)buffer;
- 
-  do
-  {
-    if (!(finfo.name= strdup_root(names_storage, find.name)))
-      goto error;
-    
-    if (MyFlags & MY_WANT_STAT)
-    {
-      if (!(finfo.mystat= (MY_STAT*)alloc_root(names_storage, 
-                                               sizeof(MY_STAT))))
-        goto error;
-      
-      bzero(finfo.mystat, sizeof(MY_STAT));
-      finfo.mystat->st_size= find.size;
-      mode= MY_S_IREAD; attrib= find.attrib;
-      if (!(attrib & _A_RDONLY))
-	mode|= MY_S_IWRITE;
-      if (attrib & _A_SUBDIR)
-	mode|= MY_S_IFDIR;
-      finfo.mystat->st_mode= mode;
-      finfo.mystat->st_mtime= ((uint32) find.wr_date << 16) + find.wr_time;
-    }
-    else
-      finfo.mystat= NULL;
-
-    if (push_dynamic(dir_entries_storage, (gptr)&finfo))
-      goto error;
-  
-  } while (_dos_findnext(&find) == 0);
-  
-  result->dir_entry= (FILEINFO *)dir_entries_storage->buffer;
-  result->number_off_files= dir_entries_storage->elements;
-  
-  if (!(MyFlags & MY_DONT_SORT))
-    qsort((void *) result->dir_entry, result->number_off_files,
-          sizeof(FILEINFO), (qsort_cmp) comp_names);
-  DBUG_RETURN(result);
-
-error:
-  my_dirend(result);
-  if (MyFlags & MY_FAE+MY_WME)
-    my_error(EE_DIR,MYF(ME_BELL+ME_WAITTANG),path,errno);
-  DBUG_RETURN((MY_DIR *) NULL);
-} /* my_dir */
-
-#endif /* WIN32 && MSDOS */
+#endif /* __WIN__ */
 
 /****************************************************************************
 ** File status
