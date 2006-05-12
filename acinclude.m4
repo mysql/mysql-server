@@ -310,10 +310,11 @@ case $SYSTEM_TYPE in
         fi
         ;;
       *)
-        # Just to be safe, we test for ".so" anyway
-	eval shrexts=\"$shrext_cmds\"
-        if test \( -f "$mysql_zlib_dir/lib/libz.a"  -o -f "$mysql_zlib_dir/lib/libz.so" -o \
-                   -f "$mysql_zlib_dir/lib/libz$shrexts" \) \
+        # Test for libz using all known library file endings
+        if test \( -f "$mysql_zlib_dir/lib/libz.a"  -o \
+                   -f "$mysql_zlib_dir/lib/libz.so" -o \
+                   -f "$mysql_zlib_dir/lib/libz.sl" -o \
+                   -f "$mysql_zlib_dir/lib/libz.dylib" \) \
                 -a -f "$mysql_zlib_dir/include/zlib.h"; then
           ZLIB_INCLUDES="-I$mysql_zlib_dir/include"
           ZLIB_LIBS="-L$mysql_zlib_dir/lib -lz"
@@ -968,7 +969,6 @@ AC_DEFUN([MYSQL_CHECK_VIO], [
 AC_DEFUN([MYSQL_FIND_OPENSSL], [
   incs="$1"
   libs="$2"
-  eval shrexts=\"$shrext_cmds\"
   case "$incs---$libs" in
     ---)
       for d in /usr/ssl/include /usr/local/ssl/include /usr/include \
@@ -982,8 +982,9 @@ AC_DEFUN([MYSQL_FIND_OPENSSL], [
       for d in /usr/ssl/lib /usr/local/ssl/lib /usr/lib/openssl \
 /usr/lib /usr/lib64 /opt/ssl/lib /opt/openssl/lib \
 /usr/freeware/lib32 /usr/local/lib/ ; do
-      # Just to be safe, we test for ".so" anyway
-      if test -f $d/libssl.a || test -f $d/libssl.so || test -f $d/libssl$shrexts ; then
+      # Test for libssl using all known library file endings
+      if test -f $d/libssl.a || test -f $d/libssl.so || \
+         test -f $d/libssl.sl || test -f $d/libssl.dylib ; then
         OPENSSL_LIB=$d
       fi
       done
@@ -995,8 +996,9 @@ AC_DEFUN([MYSQL_FIND_OPENSSL], [
       if test -f $incs/openssl/ssl.h  ; then
         OPENSSL_INCLUDE=-I$incs
       fi
-      # Just to be safe, we test for ".so" anyway
-      if test -f $libs/libssl.a || test -f $libs/libssl.so || test -f "$libs/libssl$shrexts" ; then
+      # Test for libssl using all known library file endings
+      if test -f $libs/libssl.a || test -f $libs/libssl.so || \
+         test -f $libs/libssl.sl || test -f $d/libssl.dylib ; then
         OPENSSL_LIB=$libs
       fi
       ;;
