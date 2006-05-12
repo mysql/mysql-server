@@ -7216,12 +7216,18 @@ simple_ident_q:
               YYABORT;
             }
 
+            DBUG_ASSERT(!new_row ||
+                        (lex->trg_chistics.event == TRG_EVENT_INSERT ||
+                         lex->trg_chistics.event == TRG_EVENT_UPDATE));
+            const bool read_only=
+              !(new_row && lex->trg_chistics.action_time == TRG_ACTION_BEFORE);
             if (!(trg_fld= new Item_trigger_field(Lex->current_context(),
                                                   new_row ?
                                                   Item_trigger_field::NEW_ROW:
                                                   Item_trigger_field::OLD_ROW,
                                                   $3.str,
-                                                  Item_trigger_field::AT_READ)))
+                                                  SELECT_ACL,
+                                                  read_only)))
               YYABORT;
 
             /*
@@ -7857,11 +7863,13 @@ sys_option_value:
               it= new Item_null();
             }
 
+            DBUG_ASSERT(lex->trg_chistics.action_time == TRG_ACTION_BEFORE &&
+                        (lex->trg_chistics.event == TRG_EVENT_INSERT ||
+                         lex->trg_chistics.event == TRG_EVENT_UPDATE));
             if (!(trg_fld= new Item_trigger_field(Lex->current_context(),
                                                   Item_trigger_field::NEW_ROW,
                                                   $2.base_name.str,
-                                                  Item_trigger_field::AT_UPDATE)
-                                                  ) ||
+                                                  UPDATE_ACL, FALSE)) ||
                 !(sp_fld= new sp_instr_set_trigger_field(lex->sphead->
                           	                         instructions(),
                                 	                 lex->spcont,
