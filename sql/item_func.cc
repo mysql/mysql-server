@@ -2736,9 +2736,10 @@ String *udf_handler::val_str(String *str,String *save_str)
 {
   uchar is_null_tmp=0;
   ulong res_length;
+  DBUG_ENTER("udf_handler::val_str");
 
   if (get_arguments())
-    return 0;
+    DBUG_RETURN(0);
   char * (*func)(UDF_INIT *, UDF_ARGS *, char *, ulong *, uchar *, uchar *)=
     (char* (*)(UDF_INIT *, UDF_ARGS *, char *, ulong *, uchar *, uchar *))
     u_d->func;
@@ -2748,22 +2749,26 @@ String *udf_handler::val_str(String *str,String *save_str)
     if (str->alloc(MAX_FIELD_WIDTH))
     {
       error=1;
-      return 0;
+      DBUG_RETURN(0);
     }
   }
   char *res=func(&initid, &f_args, (char*) str->ptr(), &res_length,
 		 &is_null_tmp, &error);
+  DBUG_PRINT("info", ("udf func returned, res_length: %lu", res_length));
   if (is_null_tmp || !res || error)		// The !res is for safety
   {
-    return 0;
+    DBUG_PRINT("info", ("Null or error"));
+    DBUG_RETURN(0);
   }
   if (res == str->ptr())
   {
     str->length(res_length);
-    return str;
+    DBUG_PRINT("exit", ("str: %s", str->ptr()));
+    DBUG_RETURN(str);
   }
   save_str->set(res, res_length, str->charset());
-  return save_str;
+  DBUG_PRINT("exit", ("save_str: %s", save_str->ptr()));
+  DBUG_RETURN(save_str);
 }
 
 

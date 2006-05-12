@@ -1,4 +1,4 @@
-# quick and dirty build file for testing different MSDEVs
+REM quick and dirty build file for testing different MSDEVs
 setlocal 
 
 set myFLAGS= /I../include /I../mySTL /I../taocrypt/include /W3 /c /ZI
