@@ -4076,6 +4076,7 @@ that are reorganised.
           tab_part_info->use_default_partitions= FALSE;
         }
         tab_part_info->use_default_no_partitions= FALSE;
+        tab_part_info->is_auto_partitioned= FALSE;
       }
     }
     else if (alter_info->flags == ALTER_DROP_PARTITION)
@@ -4091,6 +4092,8 @@ that are reorganised.
       uint no_parts_dropped= alter_info->partition_names.elements;
       uint no_parts_found= 0;
       List_iterator<partition_element> part_it(tab_part_info->partitions);
+
+      tab_part_info->is_auto_partitioned= FALSE;
       if (!(tab_part_info->part_type == RANGE_PARTITION ||
             tab_part_info->part_type == LIST_PARTITION))
       {
@@ -4275,7 +4278,10 @@ state of p1.
         tab_part_info->no_parts= no_parts_remain;
       }
       if (!(alter_info->flags & ALTER_TABLE_REORG))
+      {
         tab_part_info->use_default_no_partitions= FALSE;
+        tab_part_info->is_auto_partitioned= FALSE;
+      }
     }
     else if (alter_info->flags == ALTER_REORGANIZE_PARTITION)
     {
@@ -4294,6 +4300,8 @@ state of p1.
       uint no_parts_new= thd->work_part_info->partitions.elements;
       partition_info *alt_part_info= thd->work_part_info;
       uint check_total_partitions;
+
+      tab_part_info->is_auto_partitioned= FALSE;
       if (no_parts_reorged > tab_part_info->no_parts)
       {
         my_error(ER_REORG_PARTITION_NOT_EXIST, MYF(0));
@@ -4510,7 +4518,7 @@ the generated partition syntax in a correct manner.
       if (alter_info->flags & ALTER_REMOVE_PARTITIONING)
       {
         DBUG_PRINT("info", ("Remove partitioning"));
-        if (!(thd->lex->create_info.used_fields & HA_CREATE_USED_ENGINE))
+        if (!(create_info->used_fields & HA_CREATE_USED_ENGINE))
         {
           DBUG_PRINT("info", ("No explicit engine used"));
           create_info->db_type= table->part_info->default_engine_type;
@@ -4527,14 +4535,29 @@ the generated partition syntax in a correct manner.
           beneath.
         */
         thd->work_part_info= table->part_info;
-        if (thd->lex->create_info.used_fields & HA_CREATE_USED_ENGINE &&
+        if (create_info->used_fields & HA_CREATE_USED_ENGINE &&
             create_info->db_type != table->part_info->default_engine_type)
         {
           /*
             Make sure change of engine happens to all partitions.
           */
           DBUG_PRINT("info", ("partition changed"));
-          set_engine_all_partitions(thd->work_part_info, create_info->db_type);
+          if (table->part_info->is_auto_partitioned)
+          {
+            /*
+              If the user originally didn't specify partitioning to be
+              used we can remove it now.
+            */
+            thd->work_part_info= NULL;
+          }
+          else
+          {
+            /*
+              Ensure that all partitions have the proper engine set-up
+            */
+            set_engine_all_partitions(thd->work_part_info,
+                                      create_info->db_type);
+          }
           *partition_changed= TRUE;
         }
       }
