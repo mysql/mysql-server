@@ -47,6 +47,6 @@ libexample_a_CFLAGS =	$(AM_CFLAGS)
 libexample_a_SOURCES=	ha_example.cc
 
 
-EXTRA_DIST =		cmakelists.txt
+EXTRA_DIST =		CMakeLists.txt
 # Don't update the files from bitkeeper
 %::SCCS/s.%

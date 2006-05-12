@@ -34,6 +34,7 @@
 #include "cert_wrapper.hpp"
 #include "log.hpp"
 #include "lock.hpp"
+#include "openssl/ssl.h"  // ASN1_STRING and DH
 
 
 namespace yaSSL {
@@ -126,19 +127,51 @@ private:
 };
 
 
+// hold add crypt references provided to callers
+class CryptProvider {
+    mySTL::list<Digest*>     digestList_;
+    mySTL::list<BulkCipher*> cipherList_;
+    CryptProvider() {}                         // only GetCryptProvider creates
+public:
+    ~CryptProvider();
+
+    Digest*     NewMd5();
+    BulkCipher* NewDesEde();
+
+    friend CryptProvider& GetCryptProvider();
+private:
+    CryptProvider(const CryptProvider&);            // hide copy
+    CryptProvider& operator=(const CryptProvider&); // and assign
+};
+
+CryptProvider& GetCryptProvider();
+
 #undef X509_NAME  // wincrypt.h clash
 
 // openSSL X509 names
 class X509_NAME {
     char* name_;
+    size_t      sz_;
+    ASN1_STRING entry_;
 public:
     X509_NAME(const char*, size_t sz);
     ~X509_NAME();
 
     char* GetName();
+    ASN1_STRING* GetEntry(int i);
 private:
     X509_NAME(const X509_NAME&);                // hide copy
     X509_NAME& operator=(const X509_NAME&);     // and assign
+};
+
+
+class StringHolder {
+    ASN1_STRING  asnString_;
+public:
+    StringHolder(const char* str, int sz);
+    ~StringHolder();
+
+    ASN1_STRING* GetString();
 };
 
 
@@ -146,12 +179,18 @@ private:
 class X509 {
     X509_NAME issuer_;
     X509_NAME subject_;
+    StringHolder beforeDate_;   // not valid before
+    StringHolder afterDate_;    // not valid after
 public:
-    X509(const char* i, size_t, const char* s, size_t);
+    X509(const char* i, size_t, const char* s, size_t,
+         const char* b, int, const char* a, int);
     ~X509() {}
 
     X509_NAME* GetIssuer();
     X509_NAME* GetSubject();
+
+    ASN1_STRING* GetBefore();
+    ASN1_STRING* GetAfter();
 private:
     X509(const X509&);              // hide copy
     X509& operator=(const X509&);   // and assign

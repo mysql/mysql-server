@@ -134,7 +134,6 @@ our $glob_win32=                  0; # OS and native Win32 executables
 our $glob_win32_perl=             0; # ActiveState Win32 Perl
 our $glob_cygwin_perl=            0; # Cygwin Perl
 our $glob_cygwin_shell=           undef;
-our $glob_use_libtool=            1;
 our $glob_mysql_test_dir=         undef;
 our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
@@ -192,6 +191,7 @@ our $exe_slave_mysqld;
 our $exe_im;
 our $exe_my_print_defaults;
 our $lib_udf_example;
+our $exe_libtool;
 
 our $opt_bench= 0;
 our $opt_small_bench= 0;
@@ -390,7 +390,6 @@ sub main () {
 
   check_ndbcluster_support(); # We check whether to actually use it later
   check_ssl_support();
-  check_running_as_root();
 
   environment_setup();
   signal_setup();
@@ -457,12 +456,6 @@ sub initial_setup () {
   $glob_win32_perl=  ($^O eq "MSWin32");
   $glob_cygwin_perl= ($^O eq "cygwin");
   $glob_win32=       ($glob_win32_perl or $glob_cygwin_perl);
-
-  # Use libtool on all platforms except windows
-  if ( $glob_win32 )
-  {
-    $glob_use_libtool= 0;
-  }
 
   # We require that we are in the "mysql-test" directory
   # to run mysql-test-run
@@ -1013,6 +1006,21 @@ sub snapshot_setup () {
 
 sub executable_setup () {
 
+  #
+  # Check if libtool is available in this distribution/clone
+  # we need it when valgrinding or debugging non installed binary
+  # Otherwise valgrind will valgrind the libtool wrapper or bash
+  # and gdb will not find the real executable to debug
+  #
+  if ( -x "../libtool")
+  {
+    $exe_libtool= "../libtool";
+    if ($opt_valgrind or $glob_debugger)
+    {
+      mtr_report("Using \"$exe_libtool\" when running valgrind or debugger");
+    }
+  }
+
   if ( $opt_source_dist )
   {
     if ( $glob_win32 )
@@ -1375,7 +1383,7 @@ sub kill_and_cleanup () {
 sub  check_running_as_root () {
   # Check if running as root
   # i.e a file can be read regardless what mode we set it to
-  my $test_file= "test_running_as_root.txt";
+  my $test_file= "$opt_vardir/test_running_as_root.txt";
   mtr_tofile($test_file, "MySQL");
   chmod(oct("0000"), $test_file);
 
@@ -1821,6 +1829,7 @@ sub initialize_servers () {
 	save_installed_db();
       }
     }
+    check_running_as_root();
   }
 }
 
@@ -2869,6 +2878,15 @@ sub mysqld_start ($$$$$) {
     $exe= undef;
   }
 
+  if ($exe_libtool and $opt_valgrind)
+  {
+    # Add "libtool --mode-execute"
+    # if running in valgrind(to avoid valgrinding bash)
+    unshift(@$args, "--mode=execute", $exe);
+    $exe= $exe_libtool;
+  }
+
+
   if ( $type eq 'master' )
   {
     if ( ! defined $exe or
@@ -3403,12 +3421,12 @@ sub run_mysqltest ($) {
     debugger_arguments(\$args, \$exe, "client");
   }
 
-  if ($glob_use_libtool and $opt_valgrind)
+  if ($exe_libtool and $opt_valgrind)
   {
     # Add "libtool --mode-execute" before the test to execute
     # if running in valgrind(to avoid valgrinding bash)
     unshift(@$args, "--mode=execute", $exe);
-    $exe= "libtool";
+    $exe= $exe_libtool;
   }
 
   if ( $opt_check_testcases )
@@ -3478,9 +3496,9 @@ sub gdb_arguments {
   mtr_add_arg($$args, "$type");
   mtr_add_arg($$args, "-e");
 
-  if ( $glob_use_libtool )
+  if ( $exe_libtool )
   {
-    mtr_add_arg($$args, "libtool");
+    mtr_add_arg($$args, $exe_libtool);
     mtr_add_arg($$args, "--mode=execute");
   }
 
@@ -3540,9 +3558,9 @@ sub ddd_arguments {
 
   my $save_exe= $$exe;
   $$args= [];
-  if ( $glob_use_libtool )
+  if ( $exe_libtool )
   {
-    $$exe= "libtool";
+    $$exe= $exe_libtool;
     mtr_add_arg($$args, "--mode=execute");
     mtr_add_arg($$args, "ddd");
   }
@@ -3563,6 +3581,8 @@ sub debugger_arguments {
   my $exe=  shift;
   my $debugger= $opt_debugger || $opt_client_debugger;
 
+  # FIXME Need to change the below "eq"'s to
+  # "case unsensitive string contains"
   if ( $debugger eq "vcexpress" or $debugger eq "vc")
   {
     # vc[express] /debugexe exe arg1 .. argn

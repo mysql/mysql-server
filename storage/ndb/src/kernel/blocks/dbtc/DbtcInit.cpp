@@ -179,7 +179,7 @@ Dbtc::Dbtc(Block_context& ctx):
 
   ndb_mgm_get_int_parameter(p, CFG_DB_TRANS_BUFFER_MEM,  
 			    &transactionBufferMemory);
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_UNIQUE_HASH_INDEXES, 
+  ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE,
 			    &maxNoOfIndexes);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEX_OPS, 
 			    &maxNoOfConcurrentIndexOperations);
