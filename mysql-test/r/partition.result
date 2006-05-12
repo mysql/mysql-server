@@ -886,4 +886,36 @@ s1
 2
 3
 drop table t1;
+create table t1 (a varchar(1))
+partition by key (a)
+as select 'a';
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(1) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY KEY (a) 
+drop table t1;
+CREATE TABLE t1 (a int) ENGINE = MYISAM PARTITION BY KEY(a);
+INSERT into t1 values (1), (2);
+SHOW TABLE STATUS;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	2	7	14	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+DELETE from t1 where a = 1;
+SHOW TABLE STATUS;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	14	14	0	0	7	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+SHOW TABLE STATUS;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	7	7	0	1024	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+DROP TABLE t1;
+CREATE TABLE t1 (a int, index(a)) PARTITION BY KEY(a);
+ALTER TABLE t1 DISABLE KEYS;
+ALTER TABLE t1 ENABLE KEYS;
+DROP TABLE t1;
+create table t1 (a int) engine=memory
+partition by key(a);
+insert into t1 values (1);
+create index inx1 on t1(a);
+drop table t1;
 End of 5.1 tests
