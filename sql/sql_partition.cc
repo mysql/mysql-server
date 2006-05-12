@@ -4518,7 +4518,7 @@ the generated partition syntax in a correct manner.
       if (alter_info->flags & ALTER_REMOVE_PARTITIONING)
       {
         DBUG_PRINT("info", ("Remove partitioning"));
-        if (!(thd->lex->create_info.used_fields & HA_CREATE_USED_ENGINE))
+        if (!(create_info->used_fields & HA_CREATE_USED_ENGINE))
         {
           DBUG_PRINT("info", ("No explicit engine used"));
           create_info->db_type= table->part_info->default_engine_type;
@@ -4535,7 +4535,7 @@ the generated partition syntax in a correct manner.
           beneath.
         */
         thd->work_part_info= table->part_info;
-        if (thd->lex->create_info.used_fields & HA_CREATE_USED_ENGINE &&
+        if (create_info->used_fields & HA_CREATE_USED_ENGINE &&
             create_info->db_type != table->part_info->default_engine_type)
         {
           /*
