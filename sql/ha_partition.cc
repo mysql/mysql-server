@@ -4175,6 +4175,8 @@ void ha_partition::info(uint flag)
       index_file_length: Length of index file, in principle bytes in
       indexes in the table
       We report sum
+      delete_length: Length of free space easily used by new records in table
+      We report sum
       mean_record_length:Mean record length in the table
       We calculate this
       check_time:        Time of last check (only applicable to MyISAM)
@@ -4184,6 +4186,7 @@ void ha_partition::info(uint flag)
     deleted= 0;
     data_file_length= 0;
     index_file_length= 0;
+    delete_length= 0;
     check_time= 0;
     file_array= m_file;
     do
@@ -4196,6 +4199,7 @@ void ha_partition::info(uint flag)
         deleted+= file->deleted;
         data_file_length+= file->data_file_length;
         index_file_length+= file->index_file_length;
+        delete_length+= file->delete_length;
         if (file->check_time > check_time)
           check_time= file->check_time;
       }
@@ -5321,6 +5325,82 @@ ulonglong ha_partition::get_auto_increment()
 void ha_partition::init_table_handle_for_HANDLER()
 {
   return;
+}
+
+
+/****************************************************************************
+                MODULE enable/disable indexes
+****************************************************************************/
+
+/*
+  Disable indexes for a while
+  SYNOPSIS
+    disable_indexes()
+    mode                      Mode
+  RETURN VALUES
+    0                         Success
+    != 0                      Error
+*/
+
+int ha_partition::disable_indexes(uint mode)
+{
+  handler **file;
+  int error= 0;
+
+  for (file= m_file; *file; file++)
+  {
+    if ((error= (*file)->disable_indexes(mode)))
+      break;
+  }
+  return error;
+}
+
+
+/*
+  Enable indexes again
+  SYNOPSIS
+    enable_indexes()
+    mode                      Mode
+  RETURN VALUES
+    0                         Success
+    != 0                      Error
+*/
+
+int ha_partition::enable_indexes(uint mode)
+{
+  handler **file;
+  int error= 0;
+
+  for (file= m_file; *file; file++)
+  {
+    if ((error= (*file)->enable_indexes(mode)))
+      break;
+  }
+  return error;
+}
+
+
+/*
+  Check if indexes are disabled
+  SYNOPSIS
+    indexes_are_disabled()
+
+  RETURN VALUES
+    0                      Indexes are enabled
+    != 0                   Indexes are disabled
+*/
+
+int ha_partition::indexes_are_disabled(void)
+{
+  handler **file;
+  int error= 0;
+
+  for (file= m_file; *file; file++)
+  {
+    if ((error= (*file)->indexes_are_disabled()))
+      break;
+  }
+  return error;
 }
 
 
