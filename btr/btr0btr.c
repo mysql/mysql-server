@@ -2283,17 +2283,46 @@ btr_compress(
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_t*		orig_succ = page_rec_get_next(
 					page_get_infimum_rec(merge_page));
+		page_zip_des_t*	merge_page_zip = buf_block_get_page_zip(
+					buf_block_align(merge_page));
+		byte		fil_page_prev[4];
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
+		if (UNIV_LIKELY_NULL(merge_page_zip)) {
+			/* The function page_zip_compress(), which will be
+			invoked by page_copy_rec_list_end() below,
+			requires that FIL_PAGE_PREV be FIL_NULL.
+			Clear the field, but prepare to restore it. */
+			memcpy(fil_page_prev, merge_page + FIL_PAGE_PREV, 4);
+#if FIL_NULL != 0xffffffff
+# error "FIL_NULL != 0xffffffff"
+#endif
+			memset(merge_page + FIL_PAGE_PREV, 0xff, 4);
+		}
+
 		if (UNIV_UNLIKELY(!page_copy_rec_list_end(
-				merge_page, buf_block_get_page_zip(
-					buf_block_align(merge_page)),
+				merge_page, merge_page_zip,
 				page_get_infimum_rec(page),
 				cursor->index, mtr))) {
+			ut_a(merge_page_zip);
+			/* Restore FIL_PAGE_PREV. */
+			memcpy(merge_page + FIL_PAGE_PREV, fil_page_prev, 4);
 			return(FALSE);
 		}
 
 		btr_search_drop_page_hash_index(page);
+
+#ifdef UNIV_BTR_DEBUG
+		if (UNIV_LIKELY_NULL(merge_page_zip)) {
+			/* Restore FIL_PAGE_PREV in order to avoid an assertion
+			failure in btr_level_list_remove(), which will set
+			the field again to FIL_NULL.  Even though this makes
+			merge_page and merge_page_zip inconsistent for a
+			split second, it is harmless, because the pages
+			are X-latched. */
+			memcpy(merge_page + FIL_PAGE_PREV, fil_page_prev, 4);
+		}
+#endif /* UNIV_BTR_DEBUG */
 
 		/* Remove the page from the level list */
 		btr_level_list_remove(tree, page, mtr);
