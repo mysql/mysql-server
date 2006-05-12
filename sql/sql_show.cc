@@ -2662,7 +2662,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         field->real_type() == MYSQL_TYPE_STRING)     // For binary type
     {
       uint32 octet_max_length= field->max_length();
-      if (octet_max_length != (uint32) 4294967295U)
+      if (is_blob && octet_max_length != (uint32) 4294967295U)
         octet_max_length /= field->charset()->mbmaxlen;
       longlong char_max_len= is_blob ? 
         (longlong) octet_max_length / field->charset()->mbminlen :
