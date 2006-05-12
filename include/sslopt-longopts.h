@@ -39,7 +39,7 @@
    0, 0, 0, 0, 0, 0},
 #ifdef MYSQL_CLIENT
   {"ssl-verify-server-cert", OPT_SSL_VERIFY_SERVER_CERT,
-   "Verify servers \"Common Name\" in it's cert against hostname used when connecting. This option is disabled by default.",
+   "Verify server's \"Common Name\" in its cert against hostname used when connecting. This option is disabled by default.",
    (gptr*) &opt_ssl_verify_server_cert, (gptr*) &opt_ssl_verify_server_cert,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
