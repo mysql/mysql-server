@@ -2540,9 +2540,9 @@ do not allow the discard. We also reserve the data dictionary latch. */
 	}
 
 funct_exit:
-	row_mysql_unlock_data_dictionary(trx);
-
 	trx_commit_for_mysql(trx);
+
+	row_mysql_unlock_data_dictionary(trx);
 
 	trx->op_info = "";
 
@@ -2673,9 +2673,9 @@ row_import_tablespace_for_mysql(
 	}
 
 funct_exit:
-	row_mysql_unlock_data_dictionary(trx);
-
 	trx_commit_for_mysql(trx);
+
+	row_mysql_unlock_data_dictionary(trx);
 
 	trx->op_info = "";
 
@@ -3304,6 +3304,8 @@ fputs("  InnoDB: You are trying to drop table ", stderr);
 	}
 funct_exit:
 
+	trx_commit_for_mysql(trx);
+
 	if (locked_dictionary) {
 		row_mysql_unlock_data_dictionary(trx);
 	}
@@ -3311,8 +3313,6 @@ funct_exit:
 	if (dir_path_of_temp_table) {
 		mem_free(dir_path_of_temp_table);
 	}
-
-	trx_commit_for_mysql(trx);
 
 	trx->op_info = "";
 
@@ -3392,9 +3392,9 @@ loop:
 		}
 	}
 
-	row_mysql_unlock_data_dictionary(trx);
-
 	trx_commit_for_mysql(trx);
+
+	row_mysql_unlock_data_dictionary(trx);
 
 	trx->op_info = "";
 
@@ -3788,6 +3788,8 @@ end:
 	}
 
 funct_exit:
+	trx_commit_for_mysql(trx);
+
 	if (!recovering_temp_table) {
 		row_mysql_unlock_data_dictionary(trx);
 	}
@@ -3795,8 +3797,6 @@ funct_exit:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
-
-	trx_commit_for_mysql(trx);
 
 	trx->op_info = "";
 
