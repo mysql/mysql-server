@@ -1019,4 +1019,19 @@ as select 'a';
 show create table t1;
 drop table t1;
 
+#
+# BUG 19501 Partitions: SHOW TABLE STATUS shows wrong Data_free
+#
+CREATE TABLE t1 (a int) ENGINE = MYISAM PARTITION BY KEY(a);
+INSERT into t1 values (1), (2);
+--replace_column 9 0 12 NULL 13 NULL 14 NULL
+SHOW TABLE STATUS;
+DELETE from t1 where a = 1;
+--replace_column 9 0 12 NULL 13 NULL 14 NULL
+SHOW TABLE STATUS;
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+--replace_column 12 NULL 13 NULL 14 NULL
+SHOW TABLE STATUS;
+DROP TABLE t1;
+
 --echo End of 5.1 tests
