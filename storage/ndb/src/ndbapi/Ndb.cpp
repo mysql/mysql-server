@@ -901,6 +901,27 @@ Ndb::setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase )
     DBUG_RETURN((opTupleIdOnNdb(aTableId, val, 1) == val));
 }
 
+int Ndb::initAutoIncrement()
+{
+  if (m_sys_tab_0)
+    return 0;
+
+  BaseString currentDb(getDatabaseName());
+  BaseString currentSchema(getDatabaseSchemaName());
+
+  setDatabaseName("sys");
+  setDatabaseSchemaName("def");
+
+  m_sys_tab_0 = getDictionary()->getTableGlobal("SYSTAB_0");
+
+  // Restore current name space
+  setDatabaseName(currentDb.c_str());
+  setDatabaseSchemaName(currentSchema.c_str());
+
+
+  return (m_sys_tab_0 == NULL);
+}
+
 Uint64
 Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
 {
@@ -916,19 +937,14 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
 
   CHECK_STATUS_MACRO_ZERO;
 
-  BaseString currentDb(getDatabaseName());
-  BaseString currentSchema(getDatabaseSchemaName());
+  if (initAutoIncrement())
+    goto error_return;
 
-  setDatabaseName("sys");
-  setDatabaseSchemaName("def");
   tConnection = this->startTransaction();
   if (tConnection == NULL)
     goto error_return;
 
-  if (usingFullyQualifiedNames())
-    tOperation = tConnection->getNdbOperation("SYSTAB_0");
-  else
-    tOperation = tConnection->getNdbOperation("sys/def/SYSTAB_0");
+  tOperation = tConnection->getNdbOperation(m_sys_tab_0);
   if (tOperation == NULL)
     goto error_handler;
 
@@ -997,20 +1013,12 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
 
   this->closeTransaction(tConnection);
 
-  // Restore current name space
-  setDatabaseName(currentDb.c_str());
-  setDatabaseSchemaName(currentSchema.c_str());
-
   DBUG_RETURN(ret);
 
   error_handler:
     theError.code = tConnection->theError.code;
     this->closeTransaction(tConnection);
   error_return:
-    // Restore current name space
-    setDatabaseName(currentDb.c_str());
-    setDatabaseSchemaName(currentSchema.c_str());
-
   DBUG_PRINT("error", ("ndb=%d con=%d op=%d",
              theError.code,
              tConnection ? tConnection->theError.code : -1,

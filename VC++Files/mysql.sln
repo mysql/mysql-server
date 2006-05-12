@@ -257,6 +257,7 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mysql_client_test", "tests\mysql_client_test.vcproj", "{DA224DAB-5006-42BE-BB77-16E8BE5326D5}"
 	ProjectSection(ProjectDependencies) = postProject
 		{26383276-4843-494B-8BE0-8936ED3EBAAB} = {26383276-4843-494B-8BE0-8936ED3EBAAB}
+		{44D9C7DC-6636-4B82-BD01-6876C64017DF} = {44D9C7DC-6636-4B82-BD01-6876C64017DF}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mysqlmanager", "server-tools\instance-manager\mysqlmanager.vcproj", "{6D524B3E-210A-4FCD-8D41-FEC0D21E83AC}"

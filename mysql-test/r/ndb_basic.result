@@ -6,6 +6,13 @@ attr1 INT NOT NULL,
 attr2 INT,
 attr3 VARCHAR(10)
 ) ENGINE=ndbcluster;
+drop table t1;
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL,
+attr2 INT,
+attr3 VARCHAR(10)
+) ENGINE=ndbcluster;
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	pk1	A	0	NULL	NULL		BTREE	

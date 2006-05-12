@@ -31,6 +31,8 @@
 #include "../storage/myisam/rt_index.h"
 #endif
 
+#include <mysql/plugin.h>
+
 ulong myisam_recover_options= HA_RECOVER_NONE;
 
 /* bits in myisam_recover_options */
@@ -54,11 +56,15 @@ static handler *myisam_create_handler(TABLE_SHARE *table);
 
 /* MyISAM handlerton */
 
+static const char myisam_hton_name[]= "MyISAM";
+static const char myisam_hton_comment[]=
+  "Default engine as of MySQL 3.23 with great performance";
+
 handlerton myisam_hton= {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "MyISAM",
+  myisam_hton_name,
   SHOW_OPTION_YES,
-  "Default engine as of MySQL 3.23 with great performance", 
+  myisam_hton_comment, 
   DB_TYPE_MYISAM,
   NULL,
   0,       /* slot */
@@ -188,7 +194,7 @@ ha_myisam::ha_myisam(TABLE_SHARE *table_arg)
   int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                   HA_DUPP_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_READ_RND_SAME |
-                  HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD),
+                  HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS),
   can_enable_indexes(1)
 {}
 
@@ -350,6 +356,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
     if (table->key_info[i].flags & HA_USES_PARSER)
       file->s->keyinfo[i].parser=
         (struct st_mysql_ftparser *)parser->plugin->info;
+    table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
   return (0);
 }
@@ -1368,7 +1375,7 @@ void ha_myisam::info(uint flag)
     sortkey= info.sortkey;
     ref_length= info.reflength;
     share->db_options_in_use= info.options;
-    block_size= myisam_block_size;
+    block_size= myisam_block_size;		/* record block size */
 
     /* Update share */
     if (share->tmp_table == NO_TMP_TABLE)
@@ -1501,6 +1508,8 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
     keydef[i].key_alg= pos->algorithm == HA_KEY_ALG_UNDEF ? 
       (pos->flags & HA_SPATIAL ? HA_KEY_ALG_RTREE : HA_KEY_ALG_BTREE) :
       pos->algorithm;
+    keydef[i].block_length= pos->block_size;
+
     keydef[i].seg=keyseg;
     keydef[i].keysegs=pos->key_parts;
     for (j=0 ; j < pos->key_parts ; j++)
@@ -1787,3 +1796,18 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
     return COMPATIBLE_DATA_NO;
   return COMPATIBLE_DATA_YES;
 }
+
+
+mysql_declare_plugin(myisam)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &myisam_hton,
+  myisam_hton_name,
+  "MySQL AB",
+  myisam_hton_comment,
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100, /* 1.0 */
+  0
+}
+mysql_declare_plugin_end;

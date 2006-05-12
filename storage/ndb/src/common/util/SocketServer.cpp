@@ -27,7 +27,7 @@
 
 #define DEBUG(x) ndbout << x << endl;
 
-SocketServer::SocketServer(int maxSessions) :
+SocketServer::SocketServer(unsigned maxSessions) :
   m_sessions(10),
   m_services(5)
 {
@@ -136,7 +136,7 @@ SocketServer::setup(SocketServer::Service * service,
   }
 
   DBUG_PRINT("info",("bound to %u",ntohs(servaddr.sin_port)));
-  if (listen(sock, m_maxSessions) == -1){
+  if (listen(sock, m_maxSessions > 32 ? 32 : m_maxSessions) == -1){
     DBUG_PRINT("error",("listen() - %d - %s",
 			errno, strerror(errno)));
     NDB_CLOSE_SOCKET(sock);

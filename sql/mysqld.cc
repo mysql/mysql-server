@@ -742,6 +742,7 @@ static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static int test_if_case_insensitive(const char *dir_name);
 static void create_pid_file();
+static void end_ssl();
 
 #ifndef EMBEDDED_LIBRARY
 /****************************************************************************
@@ -1184,8 +1185,8 @@ void clean_up(bool print_message)
 #ifdef HAVE_DLOPEN
     udf_free();
 #endif
-    plugin_free();
   }
+  plugin_free();
   if (tc_log)
     tc_log->close();
   xid_cache_free();
@@ -1217,10 +1218,7 @@ void clean_up(bool print_message)
 #endif
   delete binlog_filter;
   delete rpl_filter;
-#ifdef HAVE_OPENSSL
-  if (ssl_acceptor_fd)
-    my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
-#endif /* HAVE_OPENSSL */
+  end_ssl();
 #ifdef USE_REGEX
   my_regex_end();
 #endif
@@ -2637,12 +2635,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   }
 
-  if (ha_register_builtin_plugins())
-  {
-    sql_print_error("Failed to register built-in storage engines.");
-    return 1;
-  }
-
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   get_options(argc,argv);
@@ -2968,6 +2960,18 @@ static void init_ssl()
 }
 
 
+static void end_ssl()
+{
+#ifdef HAVE_OPENSSL
+  if (ssl_acceptor_fd)
+  {
+    free_vio_ssl_acceptor_fd(ssl_acceptor_fd);
+    ssl_acceptor_fd= 0;
+  }
+#endif /* HAVE_OPENSSL */
+}
+
+
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
@@ -3012,42 +3016,13 @@ static int init_server_components()
     }
   }
 
-#ifdef WITH_CSV_STORAGE_ENGINE
-  if (opt_bootstrap)
-    log_output_options= LOG_FILE;
-  else
-    logger.init_log_tables();
-
-  if (log_output_options & LOG_NONE)
+  if (xid_cache_init())
   {
-    /*
-      Issue a warining if there were specified additional options to the
-      log-output along with NONE. Probably this wasn't what user wanted.
-    */
-    if ((log_output_options & LOG_NONE) && (log_output_options & ~LOG_NONE))
-      sql_print_warning("There were other values specified to "
-                        "log-output besides NONE. Disabling slow "
-                        "and general logs anyway.");
-    logger.set_handlers(LOG_FILE, LOG_NONE, LOG_NONE);
+    sql_print_error("Out of memory");
+    unireg_abort(1);
   }
-  else
-  {
-    /* fall back to the log files if tables are not present */
-    if (have_csv_db == SHOW_OPTION_NO)
-    {
-      sql_print_error("CSV engine is not present, falling back to the "
-                      "log files");
-      log_output_options= log_output_options & ~LOG_TABLE | LOG_FILE;
-    }
 
-    logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
-                        opt_log ? log_output_options:LOG_NONE);
-  }
-#else
-  logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
-                      opt_log ? LOG_FILE:LOG_NONE);
-#endif
-
+  /* need to configure logging before initializing storage engines */
   if (opt_update_log)
   {
     /*
@@ -3175,16 +3150,48 @@ server.");
     using_update_log=1;
   }
 
-  if (xid_cache_init())
-  {
-    sql_print_error("Out of memory");
-    unireg_abort(1);
-  }
+  /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
   {
     sql_print_error("Can't init databases");
     unireg_abort(1);
   }
+
+#ifdef WITH_CSV_STORAGE_ENGINE
+  if (opt_bootstrap)
+    log_output_options= LOG_FILE;
+  else
+    logger.init_log_tables();
+
+  if (log_output_options & LOG_NONE)
+  {
+    /*
+      Issue a warining if there were specified additional options to the
+      log-output along with NONE. Probably this wasn't what user wanted.
+    */
+    if ((log_output_options & LOG_NONE) && (log_output_options & ~LOG_NONE))
+      sql_print_warning("There were other values specified to "
+                        "log-output besides NONE. Disabling slow "
+                        "and general logs anyway.");
+    logger.set_handlers(LOG_FILE, LOG_NONE, LOG_NONE);
+  }
+  else
+  {
+    /* fall back to the log files if tables are not present */
+    if (have_csv_db == SHOW_OPTION_NO)
+    {
+      sql_print_error("CSV engine is not present, falling back to the "
+                      "log files");
+      log_output_options= log_output_options & ~LOG_TABLE | LOG_FILE;
+    }
+
+    logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
+                        opt_log ? log_output_options:LOG_NONE);
+  }
+#else
+  logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
+                      opt_log ? LOG_FILE:LOG_NONE);
+#endif
 
   /*
     Check that the default storage engine is actually available.
