@@ -21,4 +21,7 @@ static char *opt_ssl_cert   = 0;
 static char *opt_ssl_ca     = 0;
 static char *opt_ssl_capath = 0;
 static char *opt_ssl_cipher = 0;
+#ifdef MYSQL_CLIENT
+static my_bool opt_ssl_verify_server_cert= 0;
+#endif
 #endif
