@@ -1,7 +1,9 @@
 --source include/have_row_based.inc
 --source include/have_binlog_format_row.inc
 
-# Show binlog events will cause failure when ndb is default
+
+#This test case is not written for NDB, the result files 
+#will not match when NDB is the default engine
 -- source include/not_ndb_default.inc
 
 --source include/master-slave.inc
