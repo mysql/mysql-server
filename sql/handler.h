@@ -864,6 +864,7 @@ public:
   virtual int ha_initialise();
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   bool update_auto_increment();
+  void print_keydupp_error(uint key_nr, const char *msg);
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
