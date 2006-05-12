@@ -1219,6 +1219,7 @@ void clean_up(bool print_message)
   delete binlog_filter;
   delete rpl_filter;
   end_ssl();
+  vio_end();
 #ifdef USE_REGEX
   my_regex_end();
 #endif
