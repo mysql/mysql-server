@@ -615,7 +615,7 @@ void close_temporary_tables(THD *thd)
         rightfully causing the slave to stop.
       */
       qinfo.error_code= 0;
-      mysql_bin_log.write(&qinfo);
+      write_binlog_with_system_charset(thd, &qinfo);
     }
     else 
     {
