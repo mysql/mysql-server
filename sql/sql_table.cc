@@ -6323,6 +6323,20 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 	  (error != HA_ERR_FOUND_DUPP_KEY &&
 	   error != HA_ERR_FOUND_DUPP_UNIQUE))
       {
+         if (error == HA_ERR_FOUND_DUPP_KEY)
+         {
+           uint key_nr= to->file->get_dup_key(error);
+           if ((int) key_nr >= 0)
+           {
+             const char *err_msg= ER(ER_DUP_ENTRY);
+             if (key_nr == 0 &&
+                 (to->key_info[0].key_part[0].field->flags & AUTO_INCREMENT_FLAG))
+               err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
+             to->file->print_keydupp_error(key_nr, err_msg);
+             break;
+           }
+         }
+
 	to->file->print_error(error,MYF(0));
 	break;
       }
