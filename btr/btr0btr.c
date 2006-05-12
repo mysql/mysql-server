@@ -2111,13 +2111,15 @@ btr_lift_page_up(
 	on a non-leaf page has the min_rec_mark set. */
 	btr_page_set_level(father_page, father_page_zip, page_level, mtr);
 
-	/* Move records to the father */
-	if (!page_copy_rec_list_end(father_page, father_page_zip,
-				page_get_infimum_rec(page), index, mtr)) {
-		/* This should always succeed, as father_page
-		is created from the scratch and receives
-		the records in sorted order. */
-		ut_error;
+	/* Copy the records to the father page one by one. */
+	if (UNIV_UNLIKELY(!page_copy_rec_list_end(father_page, father_page_zip,
+				page_get_infimum_rec(page), index, mtr))) {
+		ut_a(father_page_zip);
+
+		/* Copy the page byte for byte. */
+		page_zip_copy(father_page_zip, father_page,
+				buf_block_get_page_zip(buf_block_align(page)),
+				page, mtr);
 	}
 
 	lock_update_copy_and_discard(father_page, page);
