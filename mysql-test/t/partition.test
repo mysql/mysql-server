@@ -9,6 +9,11 @@
 drop table if exists t1;
 --enable_warnings
 
+create table t1 (a int)
+partition by key(a)
+(partition p0 engine = MEMORY);
+drop table t1;
+
 #
 # Partition by key no partition defined => OK
 #
@@ -1008,5 +1013,47 @@ insert into t1 values (null);
 select auto_increment from information_schema.tables where table_name='t1';
 select * from t1;
 drop table t1;
+
+#
+# BUG 19140 Partitions: Create index for partitioned table crashes
+#
+create table t1 (a int) engine=memory
+partition by key(a);
+insert into t1 values (1);
+create index inx1 on t1(a);
+drop table t1;
+
+#
+# BUG 19062 Partition clause ignored if CREATE TABLE ... AS SELECT ...;
+#
+create table t1 (a varchar(1))
+partition by key (a)
+as select 'a';
+
+show create table t1;
+drop table t1;
+
+#
+# BUG 19501 Partitions: SHOW TABLE STATUS shows wrong Data_free
+#
+CREATE TABLE t1 (a int) ENGINE = MYISAM PARTITION BY KEY(a);
+INSERT into t1 values (1), (2);
+--replace_column 9 0 12 NULL 13 NULL 14 NULL
+SHOW TABLE STATUS;
+DELETE from t1 where a = 1;
+--replace_column 9 0 12 NULL 13 NULL 14 NULL
+SHOW TABLE STATUS;
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+--replace_column 12 NULL 13 NULL 14 NULL
+SHOW TABLE STATUS;
+DROP TABLE t1;
+
+#
+# BUG 19502: ENABLE/DISABLE Keys don't work for partitioned tables
+#
+CREATE TABLE t1 (a int, index(a)) PARTITION BY KEY(a);
+ALTER TABLE t1 DISABLE KEYS;
+ALTER TABLE t1 ENABLE KEYS;
+DROP TABLE t1;
 
 --echo End of 5.1 tests
