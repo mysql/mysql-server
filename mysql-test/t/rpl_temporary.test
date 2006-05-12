@@ -156,4 +156,16 @@ select * from t1 /* must be 1 */;
 connection master; 
 drop table t1;
 
+#
+#14157: utf8 encoding in binlog without set character_set_client
+#
+--exec $MYSQL --default-character-set=koi8r test -e 'create table t1 (a int); set names koi8r; create temporary table `только герои срезают рашпилем грим` (a int); insert into `только герои срезают рашпилем грим` values (1); insert into t1 select * from `только герои срезают рашпилем грим`'
+
+sync_slave_with_master;
+#connection slave;
+select * from t1;
+
+connection master; 
+drop table t1;
+
 # End of 4.1 tests
