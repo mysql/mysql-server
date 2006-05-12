@@ -2259,11 +2259,6 @@ btr_compress(
 		}
 	}
 
-	btr_search_drop_page_hash_index(page);
-
-	/* Remove the page from the level list */
-	btr_level_list_remove(tree, page, mtr);
-
 	/* Move records to the merge page */
 	if (is_left) {
 		rec_t*	orig_pred = page_rec_get_prev(
@@ -2275,6 +2270,11 @@ btr_compress(
 				cursor->index, mtr))) {
 			return(FALSE);
 		}
+
+		btr_search_drop_page_hash_index(page);
+
+		/* Remove the page from the level list */
+		btr_level_list_remove(tree, page, mtr);
 
 		btr_node_ptr_delete(tree, page, mtr);
 		lock_update_merge_left(merge_page, orig_pred, page);
@@ -2292,6 +2292,11 @@ btr_compress(
 				cursor->index, mtr))) {
 			return(FALSE);
 		}
+
+		btr_search_drop_page_hash_index(page);
+
+		/* Remove the page from the level list */
+		btr_level_list_remove(tree, page, mtr);
 
 		/* Replace the address of the old child node (= page) with the
 		address of the merge page to the right */
