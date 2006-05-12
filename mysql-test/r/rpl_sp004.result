@@ -26,25 +26,25 @@ DROP TABLE IF EXISTS test.t2;
 INSERT INTO test.t3 VALUES(NULL,11111111.233333,NOW());
 END|
 CALL test.p1();
-SELECT * FROM test.t1;
+SELECT * FROM test.t1 ORDER BY a;
 a
 1
 2
 3
 12
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 a
 1
 2
 3
 8
-SELECT * FROM test.t1;
+SELECT * FROM test.t1 ORDER BY a;
 a
 1
 2
 3
 12
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 a
 1
 2
@@ -62,25 +62,25 @@ t3
 CALL test.p1();
 Warnings:
 Note	1050	Table 't3' already exists
-SELECT * FROM test.t1;
+SELECT * FROM test.t1 ORDER BY a;
 a
 1
 2
 3
 12
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 a
 1
 2
 3
 8
-SELECT * FROM test.t1;
+SELECT * FROM test.t1 ORDER BY a;
 a
 1
 2
 3
 12
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 a
 1
 2
