@@ -448,6 +448,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  NUMERIC_SYM
 %token  NVARCHAR_SYM
 %token  OFFSET_SYM
+%token  OJ_SYM
 %token  OLD_PASSWORD
 %token  ON
 %token  ONE_SHOT_SYM
@@ -5246,11 +5247,14 @@ table_factor:
           }
           expr '}'
 	  {
+	    LEX *lex= Lex;
             YYERROR_UNLESS($3 && $7);
             add_join_on($7,$10);
             Lex->pop_context();
             $7->outer_join|=JOIN_TYPE_LEFT;
             $$=$7;
+            if (!($$= lex->current_select->nest_last_join(lex->thd)))
+              YYABORT;
           }
 	| select_derived_init get_select_lex select_derived2
           {
