@@ -2144,8 +2144,13 @@ bool Item_date_add_interval::eq(const Item *item, bool binary_cmp) const
   Item_date_add_interval *other= (Item_date_add_interval*) item;
 
   if ((int_type != other->int_type) ||
-      (!args[0]->eq(other->args[0], binary_cmp)) ||
-      (get_interval_value(args[1], int_type, &val, &interval)))
+      (!args[0]->eq(other->args[0], binary_cmp)))
+    return FALSE;
+
+  if (!args[1]->const_item() || !other->args[1]->const_item())
+    return (args[1]->eq(other->args[1], binary_cmp)); 
+
+  if (get_interval_value(args[1], int_type, &val, &interval))
     return FALSE;
 
   val= other->value;

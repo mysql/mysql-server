@@ -2512,3 +2512,19 @@ create view v2 as select convert_tz(dt, 'UTC', 'Europe/Moscow') as ldt from v1;
 select * from v2;
 drop view v1, v2;
 drop table t1;
+
+#
+# Bug #19490: usage of view specified by a query with GROUP BY
+#             an expression containing non-constant interval
+
+CREATE TABLE t1 (id int NOT NULL PRIMARY KEY, d datetime);
+
+CREATE VIEW v1 AS
+SELECT id, date(d) + INTERVAL TIME_TO_SEC(d) SECOND AS t, COUNT(*)
+  FROM t1 GROUP BY id, t;
+
+SHOW CREATE VIEW v1;
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
