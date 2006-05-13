@@ -264,6 +264,7 @@ struct st_table {
   ha_rows	quick_rows[MAX_KEY];
   key_part_map  const_key_parts[MAX_KEY];
   uint		quick_key_parts[MAX_KEY];
+  uint		quick_n_ranges[MAX_KEY];
 
   /*
     If this table has TIMESTAMP field with auto-set property (pointed by
