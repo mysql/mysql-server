@@ -15,6 +15,54 @@
 }
 
 {
+   pthread allocate_tls memory loss 2
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_allocate_tls
+   fun:pthread_create@@GLIBC_2.1
+}
+
+{
+   pthead_exit memory loss 1
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+}
+
+{
+   pthread_exit memory loss 2
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_map_object
+   fun:dl_open_worker
+}
+
+{
+   pthread_exit memory loss 3
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_map_object_deps
+   fun:dl_open_worker
+}
+
+{
+   pthread_exit memory loss 4
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_check_map_versions
+   fun:dl_open_worker
+}
+
+{
+   pthread_exit memory loss 5
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+}
+
+{
    pthread allocate_dtv memory loss
    Memcheck:Leak
    fun:calloc
@@ -135,6 +183,24 @@
 }
 
 {
+   libz longest_match3
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:azflush
+}
+
+{
+   libz longest_match3
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:azclose
+}
+
+{
    libz deflate
    Memcheck:Cond
    obj:*/libz.so.*
@@ -172,4 +238,11 @@
    fun:calloc
    fun:my_thread_init
    fun:kill_server_thread
+}
+
+# Red Hat AS 4 32 bit
+{
+   dl_relocate_object
+   Memcheck:Cond
+   fun:_dl_relocate_object
 }
