@@ -620,7 +620,7 @@ void close_temporary_tables(THD *thd)
   TABLE *table;
   if (!thd->temporary_tables)
     return;
-  
+
   if (!mysql_bin_log.is_open())
   {
     for (table= thd->temporary_tables; table; table= table->next)
@@ -642,12 +642,12 @@ void close_temporary_tables(THD *thd)
   String s_query= String(buf, sizeof(buf), system_charset_info);
   bool found_user_tables= false;
   LINT_INIT(next);
-  
-  /* 
-     insertion sort of temp tables by pseudo_thread_id to build ordered list 
+
+  /*
+     insertion sort of temp tables by pseudo_thread_id to build ordered list
      of sublists of equal pseudo_thread_id
   */
-  
+
   for (prev_table= thd->temporary_tables, table= prev_table->next;
        table;
        prev_table= table, table= table->next)
@@ -657,7 +657,7 @@ void close_temporary_tables(THD *thd)
     {
       if (!found_user_tables)
         found_user_tables= true;
-      for (prev_sorted= NULL, sorted= thd->temporary_tables; sorted != table; 
+      for (prev_sorted= NULL, sorted= thd->temporary_tables; sorted != table;
            prev_sorted= sorted, sorted= sorted->next)
       {
         if (!is_user_table(sorted) ||
@@ -666,7 +666,7 @@ void close_temporary_tables(THD *thd)
           /* move into the sorted part of the list from the unsorted */
           prev_table->next= table->next;
           table->next= sorted;
-          if (prev_sorted) 
+          if (prev_sorted)
           {
             prev_sorted->next= table;
           }
@@ -687,11 +687,11 @@ void close_temporary_tables(THD *thd)
   {
     thd->options |= OPTION_QUOTE_SHOW_CREATE;
   }
-  
+
   /* scan sorted tmps to generate sequence of DROP */
   for (table= thd->temporary_tables; table; table= next)
   {
-    if (is_user_table(table)) 
+    if (is_user_table(table))
     {
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
@@ -706,10 +706,10 @@ void close_temporary_tables(THD *thd)
           We are going to add 4 ` around the db/table names and possible more
           due to special characters in the names
         */
-        append_identifier(thd, &s_query, table->table_cache_key, strlen(table->table_cache_key));
+        append_identifier(thd, &s_query, table->s->db, strlen(table->s->db));
         s_query.q_append('.');
-        append_identifier(thd, &s_query, table->real_name,
-                          strlen(table->real_name));
+        append_identifier(thd, &s_query, table->s->table_name,
+                          strlen(table->s->table_name));
         s_query.q_append(',');
         next= table->next;
         close_temporary(table, 1);
@@ -730,7 +730,7 @@ void close_temporary_tables(THD *thd)
       qinfo.error_code= 0;
       write_binlog_with_system_charset(thd, &qinfo);
     }
-    else 
+    else
     {
       next= table->next;
       close_temporary(table, 1);
