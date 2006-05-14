@@ -1602,7 +1602,7 @@ inline void write_binlog_with_system_charset(THD * thd, Query_log_event * qinfo)
 
 inline bool is_user_table(TABLE * table)
 {
-  const char *name= table->real_name;
+  const char *name= table->s->table_name;
   return strncmp(name, tmp_file_prefix, tmp_file_prefix_length);
 }
 
