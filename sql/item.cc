@@ -958,6 +958,12 @@ void Item_splocal::print(String *str)
 }
 
 
+bool Item_splocal::set_value(THD *thd, sp_rcontext *ctx, Item *it)
+{
+  return ctx->set_variable(thd, get_var_idx(), it);
+}
+
+
 /*****************************************************************************
   Item_case_expr methods
 *****************************************************************************/
@@ -5359,6 +5365,25 @@ bool Item_trigger_field::eq(const Item *item, bool binary_cmp) const
 }
 
 
+void Item_trigger_field::set_required_privilege(const bool rw)
+{
+  /*
+    Require SELECT and UPDATE privilege if this field will be read and
+    set, and only UPDATE privilege for setting the field.
+  */
+  want_privilege= (rw ? SELECT_ACL | UPDATE_ACL : UPDATE_ACL);
+}
+
+
+bool Item_trigger_field::set_value(THD *thd, sp_rcontext */*ctx*/, Item *it)
+{
+  Item *item= sp_prepare_func_item(thd, &it);
+
+  return (!item || (!fixed && fix_fields(thd, 0)) ||
+          (item->save_in_field(field, 0) < 0));
+}
+
+
 bool Item_trigger_field::fix_fields(THD *thd, Item **items)
 {
   /*
@@ -5381,8 +5406,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
 
     if (table_grants)
     {
-      table_grants->want_privilege=
-        access_type == AT_READ ? SELECT_ACL : UPDATE_ACL;
+      table_grants->want_privilege= want_privilege;
 
       if (check_grant_column(thd, table_grants, triggers->table->s->db,
                              triggers->table->s->table_name, field_name,
@@ -5414,6 +5438,7 @@ void Item_trigger_field::print(String *str)
 
 void Item_trigger_field::cleanup()
 {
+  want_privilege= original_privilege;
   /*
     Since special nature of Item_trigger_field we should not do most of
     things from Item_field::cleanup() or Item_ident::cleanup() here.
