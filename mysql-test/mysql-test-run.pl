@@ -918,6 +918,7 @@ sub command_line_setup () {
    path_err =>        "$opt_vardir/log/im.err",
    path_log =>        "$opt_vardir/log/im.log",
    path_pid =>        "$opt_vardir/run/im.pid",
+   path_angel_pid =>  "$opt_vardir/run/im.angel.pid",
    path_sock =>       "$sockdir/im.sock",
    port =>            $im_port,
    start_timeout =>   $master->[0]->{'start_timeout'},
@@ -1188,6 +1189,7 @@ sub environment_setup () {
   $ENV{'NDB_STATUS_OK'}=      "YES";
 
   $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
+  $ENV{'IM_PATH_ANGEL_PID'}=  $instance_manager->{path_angel_pid};
   $ENV{'IM_PORT'}=            $instance_manager->{port};
 
   $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
@@ -1813,6 +1815,7 @@ sub im_create_defaults_file($) {
 
 [manager]
 pid-file            = $instance_manager->{path_pid}
+angel-pid-file      = $instance_manager->{path_angel_pid}
 socket              = $instance_manager->{path_sock}
 port                = $instance_manager->{port}
 password-file       = $instance_manager->{password_file}
@@ -1837,7 +1840,7 @@ log-slow-queries    = $instance->{path_datadir}/mysqld$server_id.slow.log
 language            = $path_language
 character-sets-dir  = $path_charsetsdir
 basedir             = $path_my_basedir
-server_id           =$server_id
+server_id           = $server_id
 skip-stack-trace
 skip-innodb
 skip-bdb
@@ -2805,6 +2808,18 @@ sub im_start($$) {
 sub im_stop($) {
   my $instance_manager = shift;
 
+  # Obtain mysqld-process pids before we start stopping IM (it can delete pid
+  # files).
+
+  my @mysqld_pids = ();
+  my $instances = $instance_manager->{'instances'};
+
+  push(@mysqld_pids, mtr_get_pid_from_file($instances->[0]->{'path_pid'}))
+    if -r $instances->[0]->{'path_pid'};
+
+  push(@mysqld_pids, mtr_get_pid_from_file($instances->[1]->{'path_pid'}))
+    if -r $instances->[1]->{'path_pid'};
+
   # Re-read pid from the file, since during tests Instance Manager could have
   # been restarted, so its pid could have been changed.
 
@@ -2812,34 +2827,79 @@ sub im_stop($) {
     mtr_get_pid_from_file($instance_manager->{'path_pid'})
       if -f $instance_manager->{'path_pid'};
 
+  if (-f $instance_manager->{'path_angel_pid'})
+  {
+    $instance_manager->{'angel_pid'} =
+      mtr_get_pid_from_file($instance_manager->{'path_angel_pid'})
+  }
+  else
+  {
+    $instance_manager->{'angel_pid'} = undef;
+  }
+
   # Inspired from mtr_stop_mysqld_servers().
 
   start_reap_all();
 
-  # Create list of pids. We should stop Instance Manager and all started
-  # mysqld-instances. Some of them may be nonguarded, so IM will not stop them
-  # on shutdown.
+  # Try graceful shutdown.
 
-  my @pids = ( $instance_manager->{'pid'} );
-  my $instances = $instance_manager->{'instances'};
+  mtr_kill_process($instance_manager->{'pid'}, 'TERM', 10, 1);
 
-  if ( -r $instances->[0]->{'path_pid'} )
+  # Check that all processes died.
+
+  my $clean_shutdown= 0;
+
+  while (1)
   {
-    push(@pids, mtr_get_pid_from_file($instances->[0]->{'path_pid'}));
+    last if kill (0, $instance_manager->{'pid'});
+
+    last if (defined $instance_manager->{'angel_pid'}) &&
+            kill (0, $instance_manager->{'angel_pid'});
+
+    foreach my $pid (@mysqld_pids)
+    {
+      last if kill (0, $pid);
+    }
+
+    $clean_shutdown= 1;
+    last;
   }
 
-  if ( -r $instances->[1]->{'path_pid'} )
+  # Kill leftovers (the order is important).
+
+  unless ($clean_shutdown)
   {
-    push(@pids, mtr_get_pid_from_file($instances->[1]->{'path_pid'}));
+    mtr_kill_process($instance_manager->{'angel_pid'}, 'KILL', 10, 1)
+      if defined $instance_manager->{'angel_pid'};
+    
+    mtr_kill_process($instance_manager->{'pid'}, 'KILL', 10, 1);
+
+    # Shutdown managed mysqld-processes. Some of them may be nonguarded, so IM
+    # will not stop them on shutdown. So, we should firstly try to end them
+    # legally.
+
+    mtr_kill_processes(\@mysqld_pids);
+
+    # Complain in error log so that a warning will be shown.
+
+    my $errlog= "$opt_vardir/log/mysql-test-run.pl.err";
+
+    open (ERRLOG, ">>$errlog") ||
+      mtr_error("Can not open error log ($errlog)");
+
+    my $ts= localtime();
+    print ERRLOG
+      "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
+
+    close ERRLOG;
   }
 
-  # Kill processes.
-
-  mtr_kill_processes(\@pids);
+  # That's all.
 
   stop_reap_all();
 
   $instance_manager->{'pid'} = undef;
+  $instance_manager->{'angel_pid'} = undef;
 }
 
 

@@ -61,9 +61,15 @@ connection con2;
 sleep 1;
 show tables;
 UNLOCK TABLES;
-sleep 1;
+connection con1;
+reap;
+connection con2;
 show tables;
 
 drop table t2, t4;
+
+disconnect con2;
+disconnect con1;
+connection default;
 
 # End of 4.1 tests
