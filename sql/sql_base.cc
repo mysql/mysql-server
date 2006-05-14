@@ -617,118 +617,107 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 
 void close_temporary_tables(THD *thd)
 {
-  TABLE *next,
-    *prev_table /* prev link is not maintained in TABLE's double-linked list */,
-    *table;
-  char *query= (gptr) 0, *end;
-  uint query_buf_size, max_names_len; 
-  bool found_user_tables;
-
+  TABLE *table;
   if (!thd->temporary_tables)
     return;
   
-  LINT_INIT(end);
-  query_buf_size= 50;   // Enough for DROP ... TABLE IF EXISTS
+  if (!mysql_bin_log.is_open())
+  {
+    for (table= thd->temporary_tables; table; table= table->next)
+    {
+      close_temporary(table, 1);
+    }
+    thd->temporary_tables= 0;
+    return;
+  }
 
+  TABLE *next,
+    *prev_table /* prev link is not maintained in TABLE's double-linked list */;
+  bool was_quote_show= true; /* to assume thd->options has OPTION_QUOTE_SHOW_CREATE */
+  // Better add "if exists", in case a RESET MASTER has been done
+  const char stub[]= "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ";
+  uint stub_len= sizeof(stub) - 1;
+  char buf[256];
+  memcpy(buf, stub, stub_len);
+  String s_query= String(buf, sizeof(buf), system_charset_info);
+  bool found_user_tables= false;
+  LINT_INIT(next);
+  
   /* 
      insertion sort of temp tables by pseudo_thread_id to build ordered list 
      of sublists of equal pseudo_thread_id
   */
-  for (prev_table= thd->temporary_tables, 
-         table= prev_table->next,
-         found_user_tables= (prev_table->s->table_name[0] != '#'); 
+  
+  for (prev_table= thd->temporary_tables, table= prev_table->next;
        table;
        prev_table= table, table= table->next)
   {
-    TABLE *prev_sorted /* same as for prev_table */,
-      *sorted;
-    /*
-      table not created directly by the user is moved to the tail. 
-      Fixme/todo: nothing (I checked the manual) prevents user to create temp
-      with `#' 
-    */
-    if (table->s->table_name[0] == '#')
-      continue;
-    else 
+    TABLE *prev_sorted /* same as for prev_table */, *sorted;
+    if (is_user_table(table))
     {
-      found_user_tables = 1;
-    }
-    for (prev_sorted= NULL, sorted= thd->temporary_tables; sorted != table; 
-         prev_sorted= sorted, sorted= sorted->next)
-    {
-      if (sorted->s->table_name[0] == '#' || tmpkeyval(thd, sorted) > tmpkeyval(thd, table))
+      if (!found_user_tables)
+        found_user_tables= true;
+      for (prev_sorted= NULL, sorted= thd->temporary_tables; sorted != table; 
+           prev_sorted= sorted, sorted= sorted->next)
       {
-        /* move into the sorted part of the list from the unsorted */
-        prev_table->next= table->next;
-        table->next= sorted;
-        if (prev_sorted) 
+        if (!is_user_table(sorted) ||
+            tmpkeyval(thd, sorted) > tmpkeyval(thd, table))
         {
-          prev_sorted->next= table;
+          /* move into the sorted part of the list from the unsorted */
+          prev_table->next= table->next;
+          table->next= sorted;
+          if (prev_sorted) 
+          {
+            prev_sorted->next= table;
+          }
+          else
+          {
+            thd->temporary_tables= table;
+          }
+          table= prev_table;
+          break;
         }
-        else
-        {
-          thd->temporary_tables= table;
-        }
-        table= prev_table;
-        break;
       }
     }
-  }  
-  /* 
-     calc query_buf_size as max per sublists, one sublist per pseudo thread id.
-     Also stop at first occurence of `#'-named table that starts 
-     all implicitly created temp tables
-  */
-  for (max_names_len= 0, table=thd->temporary_tables; 
-       table && table->s->table_name[0] != '#';
-       table=table->next)
+  }
+
+  /* We always quote db,table names though it is slight overkill */
+  if (found_user_tables &&
+      !(was_quote_show= (thd->options & OPTION_QUOTE_SHOW_CREATE)))
   {
-    uint tmp_names_len;
-    for (tmp_names_len= table->s->key_length + 1;
-         table->next && table->s->table_name[0] != '#' &&
-           tmpkeyval(thd, table) == tmpkeyval(thd, table->next);
-         table=table->next)
-    {
-      /*
-        We are going to add 4 ` around the db/table names, so 1 might not look
-        enough; indeed it is enough, because table->key_length is greater (by 8,
-        because of server_id and thread_id) than db||table.
-      */
-      tmp_names_len += table->next->s->key_length + 1;
-    }
-    if (tmp_names_len > max_names_len) max_names_len= tmp_names_len;
+    thd->options |= OPTION_QUOTE_SHOW_CREATE;
   }
   
-  /* allocate */
-  if (found_user_tables && mysql_bin_log.is_open() &&
-      (query = alloc_root(thd->mem_root, query_buf_size+= max_names_len)))
-    // Better add "if exists", in case a RESET MASTER has been done
-    end= strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ");
-
   /* scan sorted tmps to generate sequence of DROP */
-  for (table=thd->temporary_tables; table; table= next)
+  for (table= thd->temporary_tables; table; table= next)
   {
-    if (query // we might be out of memory, but this is not fatal 
-        && table->s->table_name[0] != '#') 
+    if (is_user_table(table)) 
     {
-      char *end_cur;
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
       /* Loop forward through all tables within the sublist of
          common pseudo_thread_id to create single DROP query */
-      for (end_cur= end;
-           table && table->s->table_name[0] != '#' &&
+      for (s_query.length(stub_len);
+           table && is_user_table(table) &&
              tmpkeyval(thd, table) == thd->variables.pseudo_thread_id;
            table= next)
       {
-        end_cur= strxmov(end_cur, "`", table->s->db, "`.`",
-                      table->s->table_name, "`,", NullS);
+        /*
+          We are going to add 4 ` around the db/table names and possible more
+          due to special characters in the names
+        */
+        append_identifier(thd, &s_query, table->table_cache_key, strlen(table->table_cache_key));
+        s_query.q_append('.');
+        append_identifier(thd, &s_query, table->real_name,
+                          strlen(table->real_name));
+        s_query.q_append(',');
         next= table->next;
         close_temporary(table, 1);
       }
       thd->clear_error();
-      /* The -1 is to remove last ',' */
-      Query_log_event qinfo(thd, query, (ulong)(end_cur - query) - 1, 0, FALSE);
+      Query_log_event qinfo(thd, s_query.ptr(),
+                            s_query.length() - 1 /* to remove trailing ',' */,
+                            0, FALSE);
       /*
         Imagine the thread had created a temp table, then was doing a SELECT, and
         the SELECT was killed. Then it's not clever to mark the statement above as
@@ -739,7 +728,7 @@ void close_temporary_tables(THD *thd)
         rightfully causing the slave to stop.
       */
       qinfo.error_code= 0;
-      mysql_bin_log.write(&qinfo);
+      write_binlog_with_system_charset(thd, &qinfo);
     }
     else 
     {
@@ -747,6 +736,8 @@ void close_temporary_tables(THD *thd)
       close_temporary(table, 1);
     }
   }
+  if (!was_quote_show)
+    thd->options &= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
   thd->temporary_tables=0;
 }
 

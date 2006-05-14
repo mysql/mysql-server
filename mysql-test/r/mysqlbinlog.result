@@ -189,4 +189,9 @@ HEX(f)
 select HEX(f) from t4;
 HEX(f)
 835C
-drop table t1, t2, t03, t04, t3, t4;
+flush logs;
+select * from t5  /* must be (1),(1) */;
+a
+1
+1
+drop table t1, t2, t03, t04, t3, t4, t5;
