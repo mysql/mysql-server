@@ -164,7 +164,7 @@ drop table t1;
 #
 #14157: utf8 encoding in binlog without set character_set_client
 #
---exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=koi8r test -e 'create table t1 (a int); set names koi8r; create temporary table `только герои срезают рашпилем грим` (a int); insert into `только герои срезают рашпилем грим` values (1); insert into t1 select * from `только герои срезают рашпилем грим`'
+--exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=koi8r test -e 'create table t1 (a int); set names koi8r; create temporary table `ящик` (a int); insert into `ящик` values (1); insert into t1 select * from `ящик`'
 
 sync_slave_with_master;
 #connection slave;
