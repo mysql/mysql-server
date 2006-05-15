@@ -79,6 +79,7 @@ public:
   Uint32        getNoOfConnectedNodes() const;
   void          hb_received(NodeId);
 
+  Uint32        m_connect_count;
 private:
   Uint32        noOfAliveNodes;
   Uint32        noOfConnectedNodes;
