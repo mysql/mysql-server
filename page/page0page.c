@@ -64,18 +64,6 @@ Assuming a page size of 8 kB, a typical index page of a secondary
 index contains 300 index entries, and the size of the page directory
 is 50 x 4 bytes = 200 bytes. */
 
-/*****************************************************************
-Deletes records from page, up to the given record, NOT including
-that record. Infimum and supremum records are not deleted. */
-static
-void
-page_delete_rec_list_start(
-/*=======================*/
-	rec_t*		rec,	/* in: record on page */
-	dict_index_t*	index,	/* in: record descriptor */
-	page_zip_des_t*	page_zip,/* in/out: compressed page of rec, or NULL */
-	mtr_t*		mtr);	/* in: mtr */
-
 /*******************************************************************
 Looks for the directory slot which owns the given record. */
 
@@ -996,7 +984,7 @@ page_delete_rec_list_end(
 /*****************************************************************
 Deletes records from page, up to the given record, NOT including
 that record. Infimum and supremum records are not deleted. */
-static
+
 void
 page_delete_rec_list_start(
 /*=======================*/
