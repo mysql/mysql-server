@@ -315,14 +315,16 @@ sp_prepare_func_item(THD* thd, Item **it_addr)
 */
 
 bool
-sp_eval_expr(THD *thd, Field *result_field, Item *expr_item)
+sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 {
+  Item *expr_item;
+
   DBUG_ENTER("sp_eval_expr");
 
-  if (!expr_item)
+  if (!*expr_item_ptr)
     DBUG_RETURN(TRUE);
 
-  if (!(expr_item= sp_prepare_func_item(thd, &expr_item)))
+  if (!(expr_item= sp_prepare_func_item(thd, expr_item_ptr)))
     DBUG_RETURN(TRUE);
 
   bool err_status= FALSE;
@@ -1284,7 +1286,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       param_values[i]= Item_cache::get_cache(argp[i]->result_type());
       param_values[i]->store(argp[i]);
 
-      if (nctx->set_variable(thd, i, param_values[i]))
+      if (nctx->set_variable(thd, i, (struct Item **)&(param_values[i])))
       {
         err_status= TRUE;
         break;
@@ -1490,7 +1492,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
         Item_null *null_item= new Item_null();
 
         if (!null_item ||
-            nctx->set_variable(thd, i, null_item))
+            nctx->set_variable(thd, i, (struct Item **)&null_item))
         {
           err_status= TRUE;
           break;
@@ -1498,7 +1500,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       }
       else
       {
-        if (nctx->set_variable(thd, i, *it_args.ref()))
+        if (nctx->set_variable(thd, i, it_args.ref()))
         {
           err_status= TRUE;
           break;
@@ -1570,7 +1572,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       {
         if (octx->set_variable(thd,
                                ((Item_splocal*) arg_item)->get_var_idx(),
-                               nctx->get_item(i)))
+                               nctx->get_item_addr(i)))
         {
           err_status= TRUE;
           break;
@@ -1582,15 +1584,15 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
 	if (guv)
 	{
-	  Item *item= nctx->get_item(i);
+	  Item **item= nctx->get_item_addr(i);
 	  Item_func_set_user_var *suv;
 
-	  suv= new Item_func_set_user_var(guv->get_name(), item);
+	  suv= new Item_func_set_user_var(guv->get_name(), *item);
 	  /*
             Item_func_set_user_var is not fixed after construction,
             call fix_fields().
 	  */
-          if ((err_status= test(!suv || suv->fix_fields(thd, &item) ||
+          if ((err_status= test(!suv || suv->fix_fields(thd, item) ||
                                 suv->check() || suv->update())))
             break;
 	}
@@ -2372,7 +2374,7 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 int
 sp_instr_set::exec_core(THD *thd, uint *nextp)
 {
-  int res= thd->spcont->set_variable(thd, m_offset, m_value);
+  int res= thd->spcont->set_variable(thd, m_offset, &m_value);
 
   if (res && thd->spcont->found_handler_here())
   {
@@ -2647,7 +2649,7 @@ sp_instr_freturn::exec_core(THD *thd, uint *nextp)
     do it in scope of execution the current context/block.
   */
 
-  return thd->spcont->set_return_value(thd, m_value);
+  return thd->spcont->set_return_value(thd, &m_value);
 }
 
 void
@@ -3091,7 +3093,7 @@ sp_instr_set_case_expr::execute(THD *thd, uint *nextp)
 int
 sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
 {
-  int res= thd->spcont->set_case_expr(thd, m_case_expr_id, m_case_expr);
+  int res= thd->spcont->set_case_expr(thd, m_case_expr_id, &m_case_expr);
 
   if (res &&
       !thd->spcont->get_case_expr(m_case_expr_id) &&
@@ -3105,7 +3107,7 @@ sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
     Item *null_item= new Item_null();
     
     if (!null_item ||
-        thd->spcont->set_case_expr(thd, m_case_expr_id, null_item))
+        thd->spcont->set_case_expr(thd, m_case_expr_id, &null_item))
     {
       /* If this also failed, we have to abort. */
 
