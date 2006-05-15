@@ -1975,7 +1975,9 @@ Connection::Connection(ProtocolVersion v, RandomPool& ran)
     : pre_master_secret_(0), sequence_number_(0), peer_sequence_number_(0),
       pre_secret_len_(0), send_server_key_(false), master_clean_(false),
       TLS_(v.major_ >= 3 && v.minor_ >= 1), version_(v), random_(ran) 
-{}
+{
+    memset(sessionID_, 0, sizeof(sessionID_));
+}
 
 
 Connection::~Connection() 
