@@ -4121,14 +4121,14 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 
 
 bool Item_func_get_user_var::set_value(THD *thd,
-                                       sp_rcontext */*ctx*/, Item *it)
+                                       sp_rcontext */*ctx*/, Item **it)
 {
-  Item_func_set_user_var *suv= new Item_func_set_user_var(get_name(), it);
+  Item_func_set_user_var *suv= new Item_func_set_user_var(get_name(), *it);
   /*
     Item_func_set_user_var is not fixed after construction, call
     fix_fields().
   */
-  return (!suv || suv->fix_fields(thd, &it) || suv->check() || suv->update());
+  return (!suv || suv->fix_fields(thd, it) || suv->check() || suv->update());
 }
 
 

@@ -150,7 +150,7 @@ sp_rcontext::init_var_items()
 
 
 bool
-sp_rcontext::set_return_value(THD *thd, Item *return_value_item)
+sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 {
   DBUG_ASSERT(m_return_value_fld);
 
@@ -279,14 +279,14 @@ sp_rcontext::pop_cursors(uint count)
 
 
 int
-sp_rcontext::set_variable(THD *thd, uint var_idx, Item *value)
+sp_rcontext::set_variable(THD *thd, uint var_idx, Item **value)
 {
   return set_variable(thd, m_var_table->field[var_idx], value);
 }
 
 
 int
-sp_rcontext::set_variable(THD *thd, Field *field, Item *value)
+sp_rcontext::set_variable(THD *thd, Field *field, Item **value)
 {
   if (!value)
   {
@@ -478,9 +478,10 @@ sp_rcontext::create_case_expr_holder(THD *thd, Item_result result_type)
 */
 
 int
-sp_rcontext::set_case_expr(THD *thd, int case_expr_id, Item *case_expr_item)
+sp_rcontext::set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr)
 {
-  if (!(case_expr_item= sp_prepare_func_item(thd, &case_expr_item)))
+  Item *case_expr_item= sp_prepare_func_item(thd, case_expr_item_ptr);
+  if (!case_expr_item)
     return TRUE;
 
   if (!m_case_expr_holders[case_expr_id] ||
@@ -542,7 +543,7 @@ bool Select_fetch_into_spvars::send_data(List<Item> &items)
   */
   for (; spvar= spvar_iter++, item= item_iter++; )
   {
-    if (thd->spcont->set_variable(thd, spvar->offset, item))
+    if (thd->spcont->set_variable(thd, spvar->offset, &item))
       return TRUE;
   }
   return FALSE;
