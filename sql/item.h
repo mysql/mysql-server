@@ -404,7 +404,7 @@ public:
       FALSE if parameter value has been set,
       TRUE if error has occured.
   */
-  virtual bool set_value(THD *thd, sp_rcontext *ctx, Item *it)= 0;
+  virtual bool set_value(THD *thd, sp_rcontext *ctx, Item **it)= 0;
 };
 
 
@@ -928,7 +928,7 @@ public:
   inline Item_result result_type() const;
 
 private:
-  bool set_value(THD *thd, sp_rcontext *ctx, Item *it);
+  bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
 
 public:
   Settable_routine_parameter *get_settable_routine_parameter()
@@ -2188,7 +2188,7 @@ public:
 
 private:
   void set_required_privilege(const bool rw);
-  bool set_value(THD *thd, sp_rcontext *ctx, Item *it);
+  bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
 
 public:
   Settable_routine_parameter *get_settable_routine_parameter()
@@ -2196,7 +2196,7 @@ public:
     return (read_only ? 0 : this);
   }
 
-  bool set_value(THD *thd, Item *it)
+  bool set_value(THD *thd, Item **it)
   {
     return set_value(thd, NULL, it);
   }
