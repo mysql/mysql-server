@@ -11,7 +11,7 @@
    fun:calloc
    fun:_dl_allocate_tls
    fun:allocate_stack
-   fun:pthread_create@@GLIBC_2.1
+   fun:pthread_create*
 }
 
 {
@@ -22,15 +22,6 @@
    fun:_dl_allocate_tls_storage
    fun:__GI__dl_allocate_tls
    fun:pthread_create
-}
-
-{
-   pthread allocate_dtv memory loss second
-   Memcheck:Leak
-   fun:calloc
-   fun:allocate_dtv
-   fun:_dl_allocate_tls
-   fun:pthread_create*
 }
 
 {
@@ -59,17 +50,6 @@
    fun:*
    fun:pthread_key_create
    fun:my_thread_global_init
-}
-
-{
-   pthread strstr uninit
-   Memcheck:Cond
-   fun:strstr
-   obj:/lib/tls/libpthread.so.*
-   obj:/lib/tls/libpthread.so.*
-   fun:call_init
-   fun:_dl_init
-   obj:/lib/ld-*.so
 }
 
 {
@@ -151,4 +131,164 @@
    fun:deflate
    obj:*/libz.so.*
    fun:gzflush
+}
+
+#
+# Leaks reported in _dl_* internal functions on Linux amd64 / glibc2.3.2.
+#
+
+{
+   _dl_start invalid write8
+   Memcheck:Addr8
+   fun:_dl_start
+}
+
+{
+   _dl_start invalid write4
+   Memcheck:Addr4
+   fun:_dl_start
+}
+
+{
+   _dl_start/_dl_setup_hash invalid read8
+   Memcheck:Addr8
+   fun:_dl_setup_hash
+   fun:_dl_start
+}
+
+{
+   _dl_sysdep_start invalid write8
+   Memcheck:Addr8
+   fun:_dl_sysdep_start
+}
+
+{
+   _dl_init invalid write8
+   Memcheck:Addr8
+   fun:_dl_init
+}
+
+{
+   _dl_init invalid write4
+   Memcheck:Addr4
+   fun:_dl_init
+}
+
+{
+   _dl_init/_dl_init invalid read8
+   Memcheck:Addr8
+   fun:_dl_debug_initialize
+   fun:_dl_init
+}
+
+{
+   _dl_init/_dl_debug_state invalid read8
+   Memcheck:Addr8
+   fun:_dl_debug_state
+   fun:_dl_init
+}
+
+{
+   init invalid write8
+   Memcheck:Addr8
+   fun:init
+}
+
+{
+   fixup invalid write8
+   Memcheck:Addr8
+   fun:fixup
+}
+
+{
+   fixup/_dl_lookup_versioned_symbol invalid read8
+   Memcheck:Addr8
+   fun:_dl_lookup_versioned_symbol
+   fun:fixup
+}
+
+{
+   _dl_runtime_resolve invalid read8
+   Memcheck:Addr8
+   fun:_dl_runtime_resolve
+}
+
+{
+   __libc_start_main invalid write8
+   Memcheck:Addr8
+   fun:__libc_start_main
+}
+
+{
+   __libc_start_main/__sigjmp_save invalid write4
+   Memcheck:Addr4
+   fun:__sigjmp_save
+   fun:__libc_start_main
+}
+
+#
+# These seem to be libc threading stuff, not related to MySQL code (allocations
+# during pthread_exit()). Googling shows other projects also using these
+# suppressions.
+#
+# Note that these all stem from pthread_exit() deeper in the call stack, but
+# Valgrind only allows the top four calls in the suppressions.
+#
+
+{
+   libc pthread_exit 1
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+}
+
+{
+   libc pthread_exit 2
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_map_object
+   fun:dl_open_worker
+   fun:_dl_catch_error
+}
+
+{
+   libc pthread_exit 3
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_map_object_deps
+   fun:dl_open_worker
+   fun:_dl_catch_error
+}
+
+{
+   libc pthread_exit 4
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_check_map_versions
+   fun:dl_open_worker
+   fun:_dl_catch_error
+}
+
+{
+   libc pthread_exit 5
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+}
+
+
+
+#
+# This is seen internally in the system libraries on 64-bit RHAS3.
+#
+
+{
+   __lll_mutex_unlock_wake uninitialized
+   Memcheck:Param
+   futex(utime)
+   fun:__lll_mutex_unlock_wake
 }
