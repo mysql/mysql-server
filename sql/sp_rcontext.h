@@ -91,7 +91,7 @@ class sp_rcontext : public Sql_alloc
   ~sp_rcontext();
 
   int
-  set_variable(THD *thd, uint var_idx, Item *value);
+  set_variable(THD *thd, uint var_idx, Item **value);
 
   Item *
   get_item(uint var_idx);
@@ -100,7 +100,7 @@ class sp_rcontext : public Sql_alloc
   get_item_addr(uint var_idx);
 
   bool
-  set_return_value(THD *thd, Item *return_value_item);
+  set_return_value(THD *thd, Item **return_value_item);
 
   inline bool
   is_return_value_set() const
@@ -200,7 +200,7 @@ class sp_rcontext : public Sql_alloc
   */
 
   int
-  set_case_expr(THD *thd, int case_expr_id, Item *case_expr_item);
+  set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr);
 
   Item *
   get_case_expr(int case_expr_id);
@@ -254,7 +254,7 @@ private:
 
   Item_cache *create_case_expr_holder(THD *thd, Item_result result_type);
 
-  int set_variable(THD *thd, Field *field, Item *value);
+  int set_variable(THD *thd, Field *field, Item **value);
 }; // class sp_rcontext : public Sql_alloc
 
 
