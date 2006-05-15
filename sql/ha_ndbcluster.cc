@@ -3512,8 +3512,23 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       {
         m_table= (void *)tab;
         m_table_version = tab->getObjectVersion();
-        if (!(my_errno= build_index_list(ndb, table, ILBP_OPEN)))
+        if ((my_errno= build_index_list(ndb, table, ILBP_OPEN)))
           DBUG_RETURN(my_errno);
+
+        const void *data, *pack_data;
+        uint length, pack_length;
+        if (readfrm(table->path, &data, &length) ||
+            packfrm(data, length, &pack_data, &pack_length) ||
+            pack_length != tab->getFrmLength() ||
+            memcmp(pack_data, tab->getFrmData(), pack_length))
+        {
+          my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+          my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+          NdbError err= ndb->getNdbError(NDB_INVALID_SCHEMA_OBJECT);
+          DBUG_RETURN(ndb_to_mysql_error(&err));
+        }
+        my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+        my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
       }
       m_table_info= tab_info;
     }
