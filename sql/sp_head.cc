@@ -1552,7 +1552,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
       DBUG_ASSERT(srp);
 
-      if (srp->set_value(thd, octx, nctx->get_item(i)))
+      if (srp->set_value(thd, octx, nctx->get_item_addr(i)))
       {
         err_status= TRUE;
         break;
@@ -2393,7 +2393,7 @@ sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
 int
 sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 {
-  const int res= (trigger_field->set_value(thd, value) ? -1 : 0);
+  const int res= (trigger_field->set_value(thd, &value) ? -1 : 0);
   *nextp = m_ip+1;
   return res;
 }
