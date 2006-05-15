@@ -3517,7 +3517,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 
         const void *data, *pack_data;
         uint length, pack_length;
-        if (readfrm(table->path, &data, &length) ||
+        if (readfrm(table->s->path, &data, &length) ||
             packfrm(data, length, &pack_data, &pack_length) ||
             pack_length != tab->getFrmLength() ||
             memcmp(pack_data, tab->getFrmData(), pack_length))
