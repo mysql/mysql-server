@@ -1787,7 +1787,7 @@ func_start:
 					NULL, NULL, tuple, heap);
 	}
 
-	if (insert_will_fit && page_is_leaf(page)) {
+	if (insert_will_fit && page_is_leaf(page) && !page_zip) {
 
 		mtr_memo_release(mtr, dict_tree_get_lock(tree),
 							MTR_MEMO_X_LOCK);
@@ -1801,7 +1801,21 @@ func_start:
 					new_page, new_page_zip,
 					move_limit, page_zip,
 					cursor->index, mtr))) {
-			ut_error;
+			/* For some reason, compressing new_page failed,
+			even though it should contain fewer records than
+			the original page.  Copy the page byte for byte
+			and then delete the records from both pages
+			as appropriate.  Deleting will always succeed. */
+			ut_a(new_page_zip);
+
+			page_zip_copy(new_page_zip, new_page,
+					page_zip, page, mtr);
+			page_delete_rec_list_end(move_limit - page
+					+ new_page, cursor->index,
+					ULINT_UNDEFINED, ULINT_UNDEFINED,
+					new_page_zip, mtr);
+			page_delete_rec_list_start(move_limit, cursor->index,
+					page_zip, mtr);
 		}
 
 		left_page = new_page;
@@ -1815,7 +1829,21 @@ func_start:
 					new_page, new_page_zip,
 					move_limit, page_zip,
 					cursor->index, mtr))) {
-			ut_error;
+			/* For some reason, compressing new_page failed,
+			even though it should contain fewer records than
+			the original page.  Copy the page byte for byte
+			and then delete the records from both pages
+			as appropriate.  Deleting will always succeed. */
+			ut_a(new_page_zip);
+
+			page_zip_copy(new_page_zip, new_page,
+					page_zip, page, mtr);
+			page_delete_rec_list_start(move_limit - page
+					+ new_page, cursor->index,
+					new_page_zip, mtr);
+			page_delete_rec_list_end(move_limit, cursor->index,
+					ULINT_UNDEFINED, ULINT_UNDEFINED,
+					page_zip, mtr);
 		}
 
 		left_page = page;
@@ -1888,7 +1916,7 @@ insert_failed:
 					buf_frame_get_page_no(page)); */
 		n_iterations++;
 		ut_ad(n_iterations < 2);
-		ut_ad(!insert_will_fit);
+		ut_ad(!insert_will_fit || insert_page_zip);
 
 		goto func_start;
 	}

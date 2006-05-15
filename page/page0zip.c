@@ -2957,6 +2957,22 @@ page_zip_copy(
 	page_zip->m_start = src_zip->m_start;
 	page_zip->m_end = src_zip->m_end;
 
+	if (!page_is_leaf(src)
+			&& UNIV_UNLIKELY(mach_read_from_4((byte*) src
+					+ FIL_PAGE_PREV) == FIL_NULL)
+			&& UNIV_LIKELY(mach_read_from_4(page
+					+ FIL_PAGE_PREV) != FIL_NULL)) {
+		/* Clear the REC_INFO_MIN_REC_FLAG of the first user record. */
+		ulint	offs = rec_get_next_offs(
+				page + PAGE_NEW_INFIMUM, TRUE);
+		if (UNIV_LIKELY(offs != PAGE_NEW_SUPREMUM)) {
+			rec_t*	rec = page + offs;
+			ut_a(rec[-REC_N_NEW_EXTRA_BYTES]
+					& REC_INFO_MIN_REC_FLAG);
+			rec[-REC_N_NEW_EXTRA_BYTES] &= ~ REC_INFO_MIN_REC_FLAG;
+		}
+	}
+
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */

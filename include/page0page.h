@@ -700,6 +700,18 @@ page_delete_rec_list_end(
 	mtr_t*		mtr)	/* in: mtr */
 	__attribute__((nonnull(1, 2, 6)));
 /*****************************************************************
+Deletes records from page, up to the given record, NOT including
+that record. Infimum and supremum records are not deleted. */
+
+void
+page_delete_rec_list_start(
+/*=======================*/
+	rec_t*		rec,	/* in: record on page */
+	dict_index_t*	index,	/* in: record descriptor */
+	page_zip_des_t*	page_zip,/* in/out: compressed page of rec, or NULL */
+	mtr_t*		mtr)	/* in: mtr */
+	__attribute__((nonnull(1, 2, 4)));
+/*****************************************************************
 Moves record list end to another page. Moved records include
 split_rec. */
 
