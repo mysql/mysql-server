@@ -1480,7 +1480,7 @@ Note	1003	select `test`.`t1`.`s1` AS `s1`,not(<in_optimizer>(`test`.`t1`.`s1`,<e
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	1	Using index; Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index; Using where
 Warnings:
 Note	1003	select `test`.`t1`.`s1` AS `s1`,not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where (`test`.`t2`.`s1` < _latin1'a2'))))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from `test`.`t1`
 drop table t1,t2;
