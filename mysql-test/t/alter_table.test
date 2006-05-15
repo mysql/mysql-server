@@ -469,3 +469,16 @@ ALTER TABLE t1 MODIFY s BINARY(10);
 SELECT HEX(s) FROM t1;
 SELECT LENGTH(s) FROM t1;
 DROP TABLE t1;
+
+#
+# Bug#19386: Multiple alter causes crashed table
+# The trailing column would get corrupted data, or server could not even read
+# it.
+#
+
+CREATE TABLE t1 (v VARCHAR(3), b INT);
+INSERT INTO t1 VALUES ('abc', 5);
+SELECT * FROM t1;
+ALTER TABLE t1 MODIFY COLUMN v VARCHAR(4);
+SELECT * FROM t1;
+DROP TABLE t1;
