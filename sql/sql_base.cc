@@ -715,9 +715,12 @@ void close_temporary_tables(THD *thd)
         close_temporary(table, 1);
       }
       thd->clear_error();
+      CHARSET_INFO *cs_save= thd->variables.character_set_client;
+      thd->variables.character_set_client= system_charset_info;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
                             0, FALSE);
+      thd->variables.character_set_client= cs_save;
       /*
         Imagine the thread had created a temp table, then was doing a SELECT, and
         the SELECT was killed. Then it's not clever to mark the statement above as
@@ -728,7 +731,7 @@ void close_temporary_tables(THD *thd)
         rightfully causing the slave to stop.
       */
       qinfo.error_code= 0;
-      write_binlog_with_system_charset(thd, &qinfo);
+      mysql_bin_log.write(&qinfo);
     }
     else
     {
