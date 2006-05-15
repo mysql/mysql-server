@@ -1786,7 +1786,8 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
   if (info->auto_increment_value != auto_increment_value ||
       info->data_file_name != data_file_name ||
       info->index_file_name != index_file_name ||
-      table_changes == IS_EQUAL_NO)
+      table_changes == IS_EQUAL_NO ||
+      table_changes & IS_EQUAL_PACK_LENGTH) // Not implemented yet
     return COMPATIBLE_DATA_NO;
 
   if ((options & (HA_OPTION_PACK_RECORD | HA_OPTION_CHECKSUM |
