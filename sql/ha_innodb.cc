@@ -4048,6 +4048,9 @@ ha_innobase::index_prev(
 	mysql_byte* 	buf)	/* in/out: buffer for previous row in MySQL
 				format */
 {
+  	statistic_increment(current_thd->status_var.ha_read_prev_count,
+			    &LOCK_status);
+
 	return(general_fetch(buf, ROW_SEL_PREV, 0));
 }
 
