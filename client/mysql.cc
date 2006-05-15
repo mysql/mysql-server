@@ -2339,7 +2339,7 @@ print_table_data(MYSQL_RES *result)
       uint extra_padding;
 
       /* If this column may have a null value, use "NULL" for empty.  */
-      if (! not_null_flag[off] && (lengths[off] == 0))
+      if (! not_null_flag[off] && (cur[off] == NULL))
       {
         buffer= "NULL";
         data_length= 4;
