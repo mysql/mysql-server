@@ -255,6 +255,42 @@ GlobalDictCache::drop(NdbTableImpl * tab)
   abort();
 }
 
+
+unsigned
+GlobalDictCache::get_size()
+{
+  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
+  int sz = 0;
+  while(curr != 0){
+    sz += curr->theData->size();
+    curr = m_tableHash.getNext(curr);
+  }
+  return sz;
+}
+
+void
+GlobalDictCache::invalidate_all()
+{
+  DBUG_ENTER("GlobalDictCache::invalidate_all");
+  NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
+  while(curr != 0){
+    Vector<TableVersion> * vers = curr->theData;
+    if (vers->size())
+    {
+      TableVersion * ver = & vers->back();
+      ver->m_impl->m_status = NdbDictionary::Object::Invalid;
+      ver->m_status = DROPPED;
+      if (ver->m_refCount == 0)
+      {
+        delete ver->m_impl;
+        vers->erase(vers->size() - 1);
+      }
+    }
+    curr = m_tableHash.getNext(curr);
+  }
+  DBUG_VOID_RETURN;
+}
+
 void
 GlobalDictCache::release(NdbTableImpl * tab){
   unsigned i;

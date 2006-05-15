@@ -265,6 +265,12 @@ TransporterFacade::unlock_mutex()
 #include "ClusterMgr.hpp"
 
 inline
+unsigned Ndb_cluster_connection_impl::get_connect_count() const
+{
+  return TransporterFacade::instance()->theClusterMgr->m_connect_count;
+}
+
+inline
 bool
 TransporterFacade::check_send_size(Uint32 node_id, Uint32 send_size)
 {
