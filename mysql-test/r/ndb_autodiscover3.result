@@ -1,0 +1,9 @@
+drop table if exists t1;
+create table t1 (a int key) engine=ndbcluster;
+begin;
+insert into t1 values (1);
+insert into t1 values (2);
+ERROR HY000: Got temporary error 4025 'Node failure caused abort of transaction' from ndbcluster
+commit;
+ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
+drop table t1;
