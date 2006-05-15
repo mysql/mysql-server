@@ -958,7 +958,7 @@ void Item_splocal::print(String *str)
 }
 
 
-bool Item_splocal::set_value(THD *thd, sp_rcontext *ctx, Item *it)
+bool Item_splocal::set_value(THD *thd, sp_rcontext *ctx, Item **it)
 {
   return ctx->set_variable(thd, get_var_idx(), it);
 }
@@ -5375,9 +5375,9 @@ void Item_trigger_field::set_required_privilege(const bool rw)
 }
 
 
-bool Item_trigger_field::set_value(THD *thd, sp_rcontext */*ctx*/, Item *it)
+bool Item_trigger_field::set_value(THD *thd, sp_rcontext */*ctx*/, Item **it)
 {
-  Item *item= sp_prepare_func_item(thd, &it);
+  Item *item= sp_prepare_func_item(thd, it);
 
   return (!item || (!fixed && fix_fields(thd, 0)) ||
           (item->save_in_field(field, 0) < 0));
