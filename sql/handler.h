@@ -603,6 +603,7 @@ struct show_table_alias_st {
 #define HTON_FLUSH_AFTER_RENAME      (1 << 4)
 #define HTON_NOT_USER_SELECTABLE     (1 << 5)
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
+#define HTON_ALTER_CANNOT_CREATE     (1 << 7) //Cannot use alter to create
 
 typedef struct st_thd_trans
 {
