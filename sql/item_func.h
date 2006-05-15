@@ -1209,7 +1209,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
 
 private:
-  bool set_value(THD *thd, sp_rcontext *ctx, Item *it);
+  bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
 
 public:
   Settable_routine_parameter *get_settable_routine_parameter()
