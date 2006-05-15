@@ -321,7 +321,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   DBUG_ENTER("sp_eval_expr");
 
-  if (!expr_item)
+  if (!*expr_item_ptr)
     DBUG_RETURN(TRUE);
 
   if (!(expr_item= sp_prepare_func_item(thd, expr_item_ptr)))
