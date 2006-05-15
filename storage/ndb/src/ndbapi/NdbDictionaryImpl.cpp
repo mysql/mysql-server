@@ -3725,9 +3725,12 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
         DBUG_RETURN(NULL);
       }
     }
+    ev->setTable(tab);
+    releaseTableGlobal(*tab, 0);
   }
-
-  ev->setTable(tab);
+  else
+    ev->setTable(tab);
+  tab = 0;
 
   ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));  
   // get the columns from the attrListBitmask
