@@ -5365,7 +5365,7 @@ bool Item_trigger_field::eq(const Item *item, bool binary_cmp) const
 }
 
 
-void Item_trigger_field::set_required_privilege(const bool rw)
+void Item_trigger_field::set_required_privilege(bool rw)
 {
   /*
     Require SELECT and UPDATE privilege if this field will be read and
