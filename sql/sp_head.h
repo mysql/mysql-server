@@ -1169,6 +1169,6 @@ Item *
 sp_prepare_func_item(THD* thd, Item **it_addr);
 
 bool
-sp_eval_expr(THD *thd, Field *result_field, Item *expr_item);
+sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr);
 
 #endif /* _SP_HEAD_H_ */
