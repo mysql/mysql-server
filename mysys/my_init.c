@@ -196,8 +196,10 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
    _CrtDumpMemoryLeaks();
 #endif
   }
+
+  if (!(infoflag & MY_DONT_FREE_DBUG))
+    DBUG_END();                /* Must be done before my_thread_end */
 #ifdef THREAD
-  DBUG_POP();				/* Must be done before my_thread_end */
   my_thread_end();
   my_thread_global_end();
 #if defined(SAFE_MUTEX)
