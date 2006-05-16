@@ -858,8 +858,8 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
       if (acl_user->x509_issuer)
       {
         DBUG_PRINT("info",("checkpoint 3"));
-	char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
-	DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
+        char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
+        DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
 			   acl_user->x509_issuer, ptr));
         if (strcmp(acl_user->x509_issuer, ptr))
         {

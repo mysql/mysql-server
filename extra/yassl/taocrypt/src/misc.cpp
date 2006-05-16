@@ -25,6 +25,15 @@
 #include "runtime.hpp"
 #include "misc.hpp"
 
+
+extern "C" {
+
+    // for libcurl configure test, these are the signatures they use
+    // locking handled internally by library
+    char CRYPTO_lock() { return 0;}
+    char CRYPTO_add_lock() { return 0;}
+}  // extern "C"
+
 #ifdef YASSL_PURE_C
 
     void* operator new(size_t sz, TaoCrypt::new_t)

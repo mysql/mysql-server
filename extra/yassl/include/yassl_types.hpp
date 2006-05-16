@@ -35,10 +35,6 @@
 namespace yaSSL {
 
 
-// Delete static singleton memory holders
-void CleanUp();
-
-
 #ifdef YASSL_PURE_C
 
     // library allocation

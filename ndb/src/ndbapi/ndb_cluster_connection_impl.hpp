@@ -49,6 +49,7 @@ class Ndb_cluster_connection_impl : public Ndb_cluster_connection
   void init_get_next_node(Ndb_cluster_connection_node_iter &iter);
   Uint32 get_next_node(Ndb_cluster_connection_node_iter &iter);
 
+  inline unsigned get_connect_count() const;
 private:
   friend class Ndb;
   friend class NdbImpl;

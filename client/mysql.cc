@@ -448,6 +448,14 @@ int main(int argc,char *argv[])
 				 MYF(MY_WME));
       if (histfile)
 	sprintf(histfile,"%s/.mysql_history",getenv("HOME"));
+      char link_name[FN_REFLEN];
+      if (my_readlink(link_name, histfile, 0) == 0 &&
+          strncmp(link_name, "/dev/null", 10) == 0)
+      {
+        /* The .mysql_history file is a symlink to /dev/null, don't use it */
+        my_free(histfile, MYF(MY_ALLOW_ZERO_PTR));
+        histfile= 0;
+      }
     }
     if (histfile)
     {
@@ -484,7 +492,7 @@ sig_handler mysql_end(int sig)
 {
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
-  if (!status.batch && !quick && !opt_html && !opt_xml)
+  if (!status.batch && !quick && !opt_html && !opt_xml && histfile)
   {
     /* write-history */
     if (verbose)
@@ -2319,7 +2327,7 @@ print_table_data(MYSQL_RES *result)
       uint extra_padding;
 
       /* If this column may have a null value, use "NULL" for empty.  */
-      if (! not_null_flag[off] && (lengths[off] == 0))
+      if (! not_null_flag[off] && (cur[off] == NULL))
       {
         buffer= "NULL";
         data_length= 4;
@@ -3118,6 +3126,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+  mysql_options(&mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+                (char*)&opt_ssl_verify_server_cert);
 #endif
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
