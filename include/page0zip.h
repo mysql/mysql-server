@@ -39,8 +39,9 @@ page_zip_compress(
 	page_zip_des_t*	page_zip,/* in: size; out: data, n_blobs,
 				m_start, m_end */
 	const page_t*	page,	/* in: uncompressed page */
-	dict_index_t*	index)	/* in: index of the B-tree node */
-	__attribute__((warn_unused_result, nonnull));
+	dict_index_t*	index,	/* in: index of the B-tree node */
+	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+	__attribute__((warn_unused_result, nonnull(1,2,3)));
 
 /**************************************************************************
 Decompress a page.  This function should tolerate errors on the compressed
@@ -268,6 +269,23 @@ page_zip_write_header(
 	__attribute__((nonnull(1,2)));
 
 /**************************************************************************
+Reorganize and compress a page.  This is a low-level operation for
+compressed pages, to be used when page_zip_compress() fails.
+The function btr_page_reorganize() should be preferred whenever possible. */
+
+ibool
+page_zip_reorganize(
+/*================*/
+				/* out: TRUE on success, FALSE on failure;
+				page and page_zip will be left intact
+				on failure. */
+	page_zip_des_t*	page_zip,/* in: size; out: data, n_blobs,
+				m_start, m_end */
+	page_t*		page,	/* in/out: uncompressed page */
+	dict_index_t*	index,	/* in: index of the B-tree node */
+	mtr_t*		mtr)	/* in: mini-transaction */
+	__attribute__((warn_unused_result, nonnull));
+/**************************************************************************
 Copy a page byte for byte, except for the file page header and trailer. */
 
 void
@@ -280,18 +298,6 @@ page_zip_copy(
 	dict_index_t*		index,		/* in: index of the B-tree */
 	mtr_t*			mtr)		/* in: mini-transaction */
 	__attribute__((nonnull(1,2,3,4)));
-
-/**************************************************************************
-Write a log record of compressing an index page. */
-
-void
-page_zip_compress_write_log(
-/*========================*/
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	const page_t*		page,	/* in: uncompressed page */
-	dict_index_t*		index,	/* in: index of the B-tree node */
-	mtr_t*			mtr)	/* in: mini-transaction */
-	__attribute__((nonnull));
 
 /**************************************************************************
 Parses a log record of compressing an index page. */

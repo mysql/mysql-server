@@ -1110,9 +1110,29 @@ use_heap:
 
 		page_zip_write_rec(page_zip, insert_rec, index, offsets, 1);
 	} else if (UNIV_LIKELY_NULL(page_zip_orig)) {
-		/* Recompress the page. */
-		if (!page_zip_compress(page_zip_orig, page, index)) {
-			/* TODO: reduce entropy by reorganizing the page */
+		ut_a(page_is_comp(page));
+
+		/* Recompress or reorganize and recompress the page. */
+		if (UNIV_UNLIKELY(!page_zip_compress(
+				page_zip_orig, page, index, mtr))) {
+			/* Before trying to reorganize the page,
+			store the number of preceding records on the page. */
+			ulint	insert_pos
+				= page_rec_get_n_recs_before(insert_rec);
+
+			if (page_zip_reorganize(
+					page_zip_orig, page, index, mtr)) {
+				/* The page was reorganized:
+				Seek to insert_pos to find insert_rec. */
+				insert_rec = page + PAGE_NEW_INFIMUM;
+
+				do {
+					insert_rec = rec_get_next_ptr(
+							insert_rec, TRUE);
+				} while (--insert_pos);
+
+				return(insert_rec);
+			}
 
 			/* Out of space: restore the page */
 			if (!page_zip_decompress(page_zip_orig, page)) {
@@ -1120,9 +1140,6 @@ use_heap:
 			}
 			return(NULL);
 		}
-
-		/* 9. Write log record of compressing the page. */
-		page_zip_compress_write_log(page_zip_orig, page, index, mtr);
 
 		return(insert_rec);
 	}

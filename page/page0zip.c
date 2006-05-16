@@ -17,8 +17,10 @@ Created June 2005 by Marko Makela
 #include "ut0sort.h"
 #include "dict0boot.h"
 #include "dict0dict.h"
+#include "btr0sea.h"
 #include "btr0cur.h"
 #include "page0types.h"
+#include "lock0lock.h"
 #include "log0recv.h"
 #include "zlib.h"
 
@@ -178,6 +180,73 @@ page_zip_dir_get(
 	ut_ad(slot < page_zip_dir_size(page_zip) / PAGE_ZIP_DIR_SLOT_SIZE);
 	return(mach_read_from_2(page_zip->data + page_zip->size
 			- PAGE_ZIP_DIR_SLOT_SIZE * (slot + 1)));
+}
+
+/**************************************************************************
+Write a log record of compressing an index page. */
+static
+void
+page_zip_compress_write_log(
+/*========================*/
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	const page_t*		page,	/* in: uncompressed page */
+	dict_index_t*		index,	/* in: index of the B-tree node */
+	mtr_t*			mtr)	/* in: mini-transaction */
+{
+	byte*	log_ptr;
+	ulint	trailer_size;
+
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
+	log_ptr = mlog_open(mtr, 11 + 2 + 2);
+
+	if (!log_ptr) {
+
+		return;
+	}
+
+	/* Read the number of user records.
+	Subtract 2 for the infimum and supremum records. */
+	trailer_size = page_dir_get_n_heap(page_zip->data) - 2;
+	/* Multiply by uncompressed of size stored per record */
+	if (page_is_leaf(page)) {
+		if (dict_index_is_clust(index)) {
+			trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE
+					+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+		} else {
+			trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE;
+		}
+	} else {
+		trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE + REC_NODE_PTR_SIZE;
+	}
+	/* Add the space occupied by BLOB pointers. */
+	trailer_size += page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
+	ut_a(page_zip->m_end > PAGE_DATA);
+#if FIL_PAGE_DATA > PAGE_DATA
+# error "FIL_PAGE_DATA > PAGE_DATA"
+#endif
+	ut_a(page_zip->m_end + trailer_size <= page_zip->size);
+
+	log_ptr = mlog_write_initial_log_record_fast((page_t*) page,
+			MLOG_ZIP_PAGE_COMPRESS, log_ptr, mtr);
+	mach_write_to_2(log_ptr, page_zip->m_end - FIL_PAGE_TYPE);
+	log_ptr += 2;
+	mach_write_to_2(log_ptr, trailer_size);
+	log_ptr += 2;
+	mlog_close(mtr, log_ptr);
+
+	/* Write FIL_PAGE_PREV and FIL_PAGE_NEXT */
+	mlog_catenate_string(mtr, page_zip->data + FIL_PAGE_PREV, 4);
+	mlog_catenate_string(mtr, page_zip->data + FIL_PAGE_NEXT, 4);
+	/* Write most of the page header, the compressed stream and
+	the modification log. */
+	mlog_catenate_string(mtr, page_zip->data + FIL_PAGE_TYPE,
+					page_zip->m_end - FIL_PAGE_TYPE);
+	/* Write the uncompressed trailer of the compressed page. */
+	mlog_catenate_string(mtr, page_zip->data + page_zip->size
+					- trailer_size, trailer_size);
 }
 
 /**********************************************************
@@ -551,7 +620,8 @@ page_zip_compress(
 	page_zip_des_t*	page_zip,/* in: size; out: data, n_blobs,
 				m_start, m_end */
 	const page_t*	page,	/* in: uncompressed page */
-	dict_index_t*	index)	/* in: index of the B-tree node */
+	dict_index_t*	index,	/* in: index of the B-tree node */
+	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
 {
 	z_stream	c_stream;
 	int		err;
@@ -927,6 +997,10 @@ zlib_error:
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
+	if (mtr) {
+		page_zip_compress_write_log(page_zip, page, index, mtr);
+	}
 
 	return(TRUE);
 }
@@ -2623,7 +2697,8 @@ page_zip_clear_rec(
 		/* Do not touch the extra bytes, because the
 		decompressor depends on them. */
 		memset(rec, 0, rec_offs_data_size(offsets));
-		if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page, index))) {
+		if (UNIV_UNLIKELY(!page_zip_compress(
+				page_zip, page, index, NULL))) {
 			/* Compression failed. Restore the block. */
 			memcpy(rec, buf, rec_offs_data_size(offsets));
 			/* From now on, page_zip_validate() would fail
@@ -2934,6 +3009,71 @@ page_zip_write_header_log(
 }
 
 /**************************************************************************
+Reorganize and compress a page.  This is a low-level operation for
+compressed pages, to be used when page_zip_compress() fails.
+The function btr_page_reorganize() should be preferred whenever possible. */
+
+ibool
+page_zip_reorganize(
+/*================*/
+				/* out: TRUE on success, FALSE on failure;
+				page and page_zip will be left intact
+				on failure. */
+	page_zip_des_t*	page_zip,/* in: size; out: data, n_blobs,
+				m_start, m_end */
+	page_t*		page,	/* in/out: uncompressed page */
+	dict_index_t*	index,	/* in: index of the B-tree node */
+	mtr_t*		mtr)	/* in: mini-transaction */
+{
+	page_t*	temp_page;
+	ulint	log_mode;
+
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
+							MTR_MEMO_PAGE_X_FIX));
+	ut_ad(page_is_comp(page));
+	/* Note that page_zip_validate(page_zip, page) may fail here. */
+
+	/* Disable logging */
+	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
+
+	temp_page = buf_frame_alloc();
+
+	/* Copy the old page to temporary space */
+	buf_frame_copy(temp_page, page);
+
+	/* Recreate the page: note that global data on page (possible
+	segment headers, next page-field, etc.) is preserved intact */
+
+	page_create(page, mtr, dict_table_is_comp(index->table));
+	buf_block_align(page)->check_index_page_at_flush = TRUE;
+
+	/* Copy the records from the temporary space to the recreated page;
+	do not copy the lock bits yet */
+
+	page_copy_rec_list_end_no_locks(page,
+				page_get_infimum_rec(temp_page), index, mtr);
+	/* Copy max trx id to recreated page */
+	page_set_max_trx_id(page, NULL, page_get_max_trx_id(temp_page));
+
+	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page, index, mtr))) {
+
+		/* Restore the old page and exit. */
+		buf_frame_copy(page, temp_page);
+
+		buf_frame_free(temp_page);
+		mtr_set_log_mode(mtr, log_mode);
+		return(FALSE);
+	}
+
+	lock_move_reorganize_page(page, temp_page);
+	btr_search_drop_page_hash_index(page);
+
+	buf_frame_free(temp_page);
+	mtr_set_log_mode(mtr, log_mode);
+	return(TRUE);
+}
+
+/**************************************************************************
 Copy a page byte for byte, except for the file page header and trailer. */
 
 void
@@ -2946,6 +3086,10 @@ page_zip_copy(
 	dict_index_t*		index,		/* in: index of the B-tree */
 	mtr_t*			mtr)		/* in: mini-transaction */
 {
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
+							MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(mtr, buf_block_align((page_t*) src),
+							MTR_MEMO_PAGE_X_FIX));
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(src_zip, src));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
@@ -2984,73 +3128,6 @@ page_zip_copy(
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	page_zip_compress_write_log(page_zip, page, index, mtr);
-}
-
-/**************************************************************************
-Write a log record of compressing an index page. */
-
-void
-page_zip_compress_write_log(
-/*========================*/
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	const page_t*		page,	/* in: uncompressed page */
-	dict_index_t*		index,	/* in: index of the B-tree node */
-	mtr_t*			mtr)	/* in: mini-transaction */
-{
-	byte*	log_ptr;
-	ulint	trailer_size;
-
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
-	ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
-
-	log_ptr = mlog_open(mtr, 11 + 2 + 2);
-
-	if (!log_ptr) {
-
-		return;
-	}
-
-	/* Read the number of user records.
-	Subtract 2 for the infimum and supremum records. */
-	trailer_size = page_dir_get_n_heap(page_zip->data) - 2;
-	/* Multiply by uncompressed of size stored per record */
-	if (page_is_leaf(page)) {
-		if (dict_index_is_clust(index)) {
-			trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE
-					+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
-		} else {
-			trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE;
-		}
-	} else {
-		trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE + REC_NODE_PTR_SIZE;
-	}
-	/* Add the space occupied by BLOB pointers. */
-	trailer_size += page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
-	ut_a(page_zip->m_end > PAGE_DATA);
-#if FIL_PAGE_DATA > PAGE_DATA
-# error "FIL_PAGE_DATA > PAGE_DATA"
-#endif
-	ut_a(page_zip->m_end + trailer_size <= page_zip->size);
-
-	log_ptr = mlog_write_initial_log_record_fast((page_t*) page,
-			MLOG_ZIP_PAGE_COMPRESS, log_ptr, mtr);
-	mach_write_to_2(log_ptr, page_zip->m_end - FIL_PAGE_TYPE);
-	log_ptr += 2;
-	mach_write_to_2(log_ptr, trailer_size);
-	log_ptr += 2;
-	mlog_close(mtr, log_ptr);
-
-	/* Write FIL_PAGE_PREV and FIL_PAGE_NEXT */
-	mlog_catenate_string(mtr, page_zip->data + FIL_PAGE_PREV, 4);
-	mlog_catenate_string(mtr, page_zip->data + FIL_PAGE_NEXT, 4);
-	/* Write most of the page header, the compressed stream and
-	the modification log. */
-	mlog_catenate_string(mtr, page_zip->data + FIL_PAGE_TYPE,
-					page_zip->m_end - FIL_PAGE_TYPE);
-	/* Write the uncompressed trailer of the compressed page. */
-	mlog_catenate_string(mtr, page_zip->data + page_zip->size
-					- trailer_size, trailer_size);
 }
 
 /**************************************************************************
