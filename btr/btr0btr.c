@@ -1083,7 +1083,6 @@ btr_root_raise_and_insert(
 	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
 	ut_a(!new_page_zip == !root_page_zip);
 	ut_a(!new_page_zip || new_page_zip->size == root_page_zip->size);
-	ut_a(!root_page_zip || !root_page_zip->n_blobs);
 
 	btr_page_create(new_page, new_page_zip, tree, level, mtr);
 
