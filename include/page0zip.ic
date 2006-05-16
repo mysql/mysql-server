@@ -172,12 +172,7 @@ page_zip_alloc(
 		return(FALSE);
 	}
 
-	if (page_zip_compress(page_zip, page, index)) {
-		if (mtr) {
-			page_zip_compress_write_log(
-					page_zip, page, index, mtr);
-		}
-	} else {
+	if (!page_zip_compress(page_zip, page, index, mtr)) {
 		/* Unable to compress the page */
 		return(FALSE);
 	}
