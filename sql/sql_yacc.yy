@@ -448,6 +448,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  NUMERIC_SYM
 %token  NVARCHAR_SYM
 %token  OFFSET_SYM
+%token  OJ_SYM
 %token  OLD_PASSWORD
 %token  ON
 %token  ONE_SHOT_SYM
@@ -5246,11 +5247,14 @@ table_factor:
           }
           expr '}'
 	  {
+	    LEX *lex= Lex;
             YYERROR_UNLESS($3 && $7);
             add_join_on($7,$10);
             Lex->pop_context();
             $7->outer_join|=JOIN_TYPE_LEFT;
             $$=$7;
+            if (!($$= lex->current_select->nest_last_join(lex->thd)))
+              YYABORT;
           }
 	| select_derived_init get_select_lex select_derived2
           {
@@ -5795,7 +5799,11 @@ select_var_ident:
 	     if (lex->result) 
 	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($2,0,0,(enum_field_types)0));
 	     else
-	       YYABORT;
+               /*
+                 The parser won't create select_result instance only
+	         if it's an EXPLAIN.
+               */
+               DBUG_ASSERT(lex->describe);
 	   }
            | ident_or_text
            {
@@ -5807,10 +5815,8 @@ select_var_ident:
 	       my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
 	       YYABORT;
 	     }
-	     if (! lex->result)
-	       YYABORT;
-	     else
-	     {
+	     if (lex->result)
+             {
                my_var *var;
 	       ((select_dumpvar *)lex->result)->
                  var_list.push_back(var= new my_var($1,1,t->offset,t->type));
@@ -5818,6 +5824,14 @@ select_var_ident:
 	       if (var)
 		 var->sp= lex->sphead;
 #endif
+             }
+	     else
+	     {
+               /*
+                 The parser won't create select_result instance only
+	         if it's an EXPLAIN.
+               */
+               DBUG_ASSERT(lex->describe);
 	     }
 	   }
            ;
@@ -7206,12 +7220,18 @@ simple_ident_q:
               YYABORT;
             }
 
+            DBUG_ASSERT(!new_row ||
+                        (lex->trg_chistics.event == TRG_EVENT_INSERT ||
+                         lex->trg_chistics.event == TRG_EVENT_UPDATE));
+            const bool read_only=
+              !(new_row && lex->trg_chistics.action_time == TRG_ACTION_BEFORE);
             if (!(trg_fld= new Item_trigger_field(Lex->current_context(),
                                                   new_row ?
                                                   Item_trigger_field::NEW_ROW:
                                                   Item_trigger_field::OLD_ROW,
                                                   $3.str,
-                                                  Item_trigger_field::AT_READ)))
+                                                  SELECT_ACL,
+                                                  read_only)))
               YYABORT;
 
             /*
@@ -7847,11 +7867,13 @@ sys_option_value:
               it= new Item_null();
             }
 
+            DBUG_ASSERT(lex->trg_chistics.action_time == TRG_ACTION_BEFORE &&
+                        (lex->trg_chistics.event == TRG_EVENT_INSERT ||
+                         lex->trg_chistics.event == TRG_EVENT_UPDATE));
             if (!(trg_fld= new Item_trigger_field(Lex->current_context(),
                                                   Item_trigger_field::NEW_ROW,
                                                   $2.base_name.str,
-                                                  Item_trigger_field::AT_UPDATE)
-                                                  ) ||
+                                                  UPDATE_ACL, FALSE)) ||
                 !(sp_fld= new sp_instr_set_trigger_field(lex->sphead->
                           	                         instructions(),
                                 	                 lex->spcont,

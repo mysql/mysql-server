@@ -2437,6 +2437,153 @@ bool select_insert::send_eof()
   CREATE TABLE (SELECT) ...
 ***************************************************************************/
 
+/*
+  Create table from lists of fields and items (or open existing table
+  with same name).
+
+  SYNOPSIS
+    create_table_from_items()
+      thd          in     Thread object
+      create_info  in     Create information (like MAX_ROWS, ENGINE or
+                          temporary table flag)
+      create_table in     Pointer to TABLE_LIST object providing database
+                          and name for table to be created or to be open
+      extra_fields in/out Initial list of fields for table to be created
+      keys         in     List of keys for table to be created
+      items        in     List of items which should be used to produce rest
+                          of fields for the table (corresponding fields will
+                          be added to the end of 'extra_fields' list)
+      lock         out    Pointer to the MYSQL_LOCK object for table created
+                          (open) will be returned in this parameter. Since
+                          this table is not included in THD::lock caller is
+                          responsible for explicitly unlocking this table.
+
+  NOTES
+    If 'create_info->options' bitmask has HA_LEX_CREATE_IF_NOT_EXISTS
+    flag and table with name provided already exists then this function will
+    simply open existing table.
+    Also note that create, open and lock sequence in this function is not
+    atomic and thus contains gap for deadlock and can cause other troubles.
+    Since this function contains some logic specific to CREATE TABLE ... SELECT
+    it should be changed before it can be used in other contexts.
+
+  RETURN VALUES
+    non-zero  Pointer to TABLE object for table created or opened
+    0         Error
+*/
+
+static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
+                                      TABLE_LIST *create_table,
+                                      List<create_field> *extra_fields,
+                                      List<Key> *keys, List<Item> *items,
+                                      MYSQL_LOCK **lock)
+{
+  TABLE tmp_table;		// Used during 'create_field()'
+  TABLE *table= 0;
+  uint select_field_count= items->elements;
+  /* Add selected items to field list */
+  List_iterator_fast<Item> it(*items);
+  Item *item;
+  Field *tmp_field;
+  bool not_used;
+  DBUG_ENTER("create_table_from_items");
+
+  tmp_table.alias= 0;
+  tmp_table.timestamp_field= 0;
+  tmp_table.s= &tmp_table.share_not_to_be_used;
+  tmp_table.s->db_create_options=0;
+  tmp_table.s->blob_ptr_size= portable_sizeof_char_ptr;
+  tmp_table.s->db_low_byte_first= test(create_info->db_type == DB_TYPE_MYISAM ||
+                                       create_info->db_type == DB_TYPE_HEAP);
+  tmp_table.null_row=tmp_table.maybe_null=0;
+
+  while ((item=it++))
+  {
+    create_field *cr_field;
+    Field *field;
+    if (item->type() == Item::FUNC_ITEM)
+      field=item->tmp_table_field(&tmp_table);
+    else
+      field=create_tmp_field(thd, &tmp_table, item, item->type(),
+                             (Item ***) 0, &tmp_field, 0, 0, 0, 0, 0);
+    if (!field ||
+	!(cr_field=new create_field(field,(item->type() == Item::FIELD_ITEM ?
+					   ((Item_field *)item)->field :
+					   (Field*) 0))))
+      DBUG_RETURN(0);
+    if (item->maybe_null)
+      cr_field->flags &= ~NOT_NULL_FLAG;
+    extra_fields->push_back(cr_field);
+  }
+  /*
+    create and lock table
+
+    We don't log the statement, it will be logged later.
+
+    If this is a HEAP table, the automatic DELETE FROM which is written to the
+    binlog when a HEAP table is opened for the first time since startup, must
+    not be written: 1) it would be wrong (imagine we're in CREATE SELECT: we
+    don't want to delete from it) 2) it would be written before the CREATE
+    TABLE, which is a wrong order. So we keep binary logging disabled when we
+    open_table().
+    NOTE: By locking table which we just have created (or for which we just have
+    have found that it already exists) separately from other tables used by the
+    statement we create potential window for deadlock.
+    TODO: create and open should be done atomic !
+  */
+  {
+    tmp_disable_binlog(thd);
+    if (!mysql_create_table(thd, create_table->db, create_table->table_name,
+                            create_info, *extra_fields, *keys, 0,
+                            select_field_count))
+    {
+      /*
+        If we are here in prelocked mode we either create temporary table
+        or prelocked mode is caused by the SELECT part of this statement.
+      */
+      DBUG_ASSERT(!thd->prelocked_mode ||
+                  create_info->options & HA_LEX_CREATE_TMP_TABLE ||
+                  thd->lex->requires_prelocking());
+
+      /*
+        NOTE: We don't want to ignore set of locked tables here if we are
+              under explicit LOCK TABLES since it will open gap for deadlock
+              too wide (and also is not backward compatible).
+      */
+      if (! (table= open_table(thd, create_table, thd->mem_root, (bool*) 0,
+                               (MYSQL_LOCK_IGNORE_FLUSH |
+                                ((thd->prelocked_mode == PRELOCKED) ?
+                                 MYSQL_OPEN_IGNORE_LOCKED_TABLES:0)))))
+        quick_rm_table(create_info->db_type, create_table->db,
+                       table_case_name(create_info, create_table->table_name));
+    }
+    reenable_binlog(thd);
+    if (!table)                                   // open failed
+      DBUG_RETURN(0);
+  }
+
+  /*
+    FIXME: What happens if trigger manages to be created while we are
+           obtaining this lock ? May be it is sensible just to disable
+           trigger execution in this case ? Or will MYSQL_LOCK_IGNORE_FLUSH
+           save us from that ?
+  */
+  table->reginfo.lock_type=TL_WRITE;
+  if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
+                                    MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
+  {
+    VOID(pthread_mutex_lock(&LOCK_open));
+    hash_delete(&open_cache,(byte*) table);
+    VOID(pthread_mutex_unlock(&LOCK_open));
+    quick_rm_table(create_info->db_type, create_table->db,
+		   table_case_name(create_info, create_table->table_name));
+    DBUG_RETURN(0);
+  }
+  table->file->extra(HA_EXTRA_WRITE_CACHE);
+  DBUG_RETURN(table);
+}
+
+
 int
 select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {

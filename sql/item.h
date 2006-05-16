@@ -372,6 +372,42 @@ public:
 
 /*************************************************************************/
 
+class sp_rcontext;
+
+
+class Settable_routine_parameter
+{
+public:
+  /*
+    Set required privileges for accessing the parameter.
+
+    SYNOPSIS
+      set_required_privilege()
+        rw        if 'rw' is true then we are going to read and set the
+                  parameter, so SELECT and UPDATE privileges might be
+                  required, otherwise we only reading it and SELECT
+                  privilege might be required.
+  */
+  virtual void set_required_privilege(bool rw) {};
+
+  /*
+    Set parameter value.
+
+    SYNOPSIS
+      set_value()
+        thd       thread handle
+        ctx       context to which parameter belongs (if it is local
+                  variable).
+        it        item which represents new value
+
+    RETURN
+      FALSE if parameter value has been set,
+      TRUE if error has occured.
+  */
+  virtual bool set_value(THD *thd, sp_rcontext *ctx, Item **it)= 0;
+};
+
+
 typedef bool (Item::*Item_processor)(byte *arg);
 typedef Item* (Item::*Item_transformer) (byte *arg);
 typedef void (*Cond_traverser) (const Item *item, void *arg);
@@ -744,6 +780,15 @@ public:
   }
 
   virtual bool is_splocal() { return 0; } /* Needed for error checking */
+
+  /*
+    Return Settable_routine_parameter interface of the Item.  Return 0
+    if this Item is not Settable_routine_parameter.
+  */
+  virtual Settable_routine_parameter *get_settable_routine_parameter()
+  {
+    return 0;
+  }
 };
 
 
@@ -842,7 +887,8 @@ inline bool Item_sp_variable::send(Protocol *protocol, String *str)
   runtime.
 *****************************************************************************/
 
-class Item_splocal :public Item_sp_variable
+class Item_splocal :public Item_sp_variable,
+                    private Settable_routine_parameter
 {
   uint m_var_idx;
 
@@ -880,6 +926,15 @@ public:
 
   inline enum Type type() const;
   inline Item_result result_type() const;
+
+private:
+  bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
+
+public:
+  Settable_routine_parameter *get_settable_routine_parameter()
+  {
+    return this;
+  }
 };
 
 /*****************************************************************************
@@ -2100,14 +2155,13 @@ class Table_triggers_list;
         two Field instances representing either OLD or NEW version of this
         field.
 */
-class Item_trigger_field : public Item_field
+class Item_trigger_field : public Item_field,
+                           private Settable_routine_parameter
 {
 public:
   /* Is this item represents row from NEW or OLD row ? */
   enum row_version_type {OLD_ROW, NEW_ROW};
   row_version_type row_version;
-  /* Is this item used for reading or updating the value? */
-  enum access_types { AT_READ = 0x1, AT_UPDATE = 0x2 };
   /* Next in list of all Item_trigger_field's in trigger */
   Item_trigger_field *next_trg_field;
   /* Index of the field in the TABLE::field array */
@@ -2118,11 +2172,11 @@ public:
   Item_trigger_field(Name_resolution_context *context_arg,
                      row_version_type row_ver_arg,
                      const char *field_name_arg,
-                     access_types access_type_arg)
+                     ulong priv, const bool ro)
     :Item_field(context_arg,
                (const char *)NULL, (const char *)NULL, field_name_arg),
-     row_version(row_ver_arg), field_idx((uint)-1),
-     access_type(access_type_arg), table_grants(NULL)
+     row_version(row_ver_arg), field_idx((uint)-1), original_privilege(priv),
+     want_privilege(priv), table_grants(NULL), read_only (ro)
   {}
   void setup_field(THD *thd, TABLE *table, GRANT_INFO *table_grant_info);
   enum Type type() const { return TRIGGER_FIELD_ITEM; }
@@ -2133,8 +2187,39 @@ public:
   void cleanup();
 
 private:
-  access_types access_type;
+  void set_required_privilege(const bool rw);
+  bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
+
+public:
+  Settable_routine_parameter *get_settable_routine_parameter()
+  {
+    return (read_only ? 0 : this);
+  }
+
+  bool set_value(THD *thd, Item **it)
+  {
+    return set_value(thd, NULL, it);
+  }
+
+private:
+  /*
+    'want_privilege' holds privileges required to perform operation on
+    this trigger field (SELECT_ACL if we are going to read it and
+    UPDATE_ACL if we are going to update it).  It is initialized at
+    parse time but can be updated later if this trigger field is used
+    as OUT or INOUT parameter of stored routine (in this case
+    set_required_privilege() is called to appropriately update
+    want_privilege and cleanup() is responsible for restoring of
+    original want_privilege once parameter's value is updated).
+  */
+  ulong original_privilege;
+  ulong want_privilege;
   GRANT_INFO *table_grants;
+  /*
+    Trigger field is read-only unless it belongs to the NEW row in a
+    BEFORE INSERT of BEFORE UPDATE trigger.
+  */
+  bool read_only;
 };
 
 

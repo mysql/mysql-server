@@ -43,3 +43,12 @@ drop table таб;
 set names latin1;
 
 # End of 4.1 tests
+
+
+#
+# Bug#15463: EXPLAIN SELECT..INTO hangs the client (QB, command line)
+#
+select 3 into @v1;
+explain select 3 into @v1;
+
+# End of 5.0 tests.

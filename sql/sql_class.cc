@@ -1877,7 +1877,7 @@ bool select_dumpvar::send_data(List<Item> &items)
       if ((yy=var_li++)) 
       {
 	if (thd->spcont->set_variable(current_thd, yy->get_var_idx(),
-                                      *it.ref()))
+                                      it.ref()))
 	  DBUG_RETURN(1);
       }
     }

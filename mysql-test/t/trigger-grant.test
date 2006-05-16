@@ -564,3 +564,176 @@ SELECT @mysqltest_var;
 DROP USER mysqltest_u1@localhost;
 
 DROP DATABASE mysqltest_db1;
+
+
+#
+# Test for bug #14635 Accept NEW.x as INOUT parameters to stored
+# procedures from within triggers
+#
+# We require UPDATE privilege when NEW.x passed as OUT parameter, and
+# SELECT and UPDATE when NEW.x passed as INOUT parameter.
+#
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db1;
+USE mysqltest_db1;
+
+CREATE TABLE t1 (i1 INT);
+CREATE TABLE t2 (i1 INT);
+
+CREATE USER mysqltest_dfn@localhost;
+CREATE USER mysqltest_inv@localhost;
+
+GRANT EXECUTE, CREATE ROUTINE, SUPER ON *.* TO mysqltest_dfn@localhost;
+GRANT INSERT ON mysqltest_db1.* TO mysqltest_inv@localhost;
+
+connect (definer,localhost,mysqltest_dfn,,mysqltest_db1);
+connect (invoker,localhost,mysqltest_inv,,mysqltest_db1);
+
+connection definer;
+CREATE PROCEDURE p1(OUT i INT) DETERMINISTIC NO SQL SET i = 3;
+CREATE PROCEDURE p2(INOUT i INT) DETERMINISTIC NO SQL SET i = i * 5;
+
+# Check that having no privilege won't work.
+connection definer;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+  CALL p2(NEW.i1);
+
+connection invoker;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES (7);
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t2 VALUES (11);
+
+connection definer;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+
+# Check that having only SELECT privilege is not enough.
+connection default;
+GRANT SELECT ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+connection definer;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+  CALL p2(NEW.i1);
+
+connection invoker;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES (13);
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t2 VALUES (17);
+
+connection default;
+REVOKE SELECT ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+
+connection definer;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+
+# Check that having only UPDATE privilege is enough for OUT parameter,
+# but not for INOUT parameter.
+connection default;
+GRANT UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+connection definer;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+  CALL p2(NEW.i1);
+
+connection invoker;
+INSERT INTO t1 VALUES (19);
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t2 VALUES (23);
+
+connection default;
+REVOKE UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+
+connection definer;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+
+# Check that having SELECT and UPDATE privileges is enough.
+connection default;
+GRANT SELECT, UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+connection definer;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+  CALL p2(NEW.i1);
+
+connection invoker;
+INSERT INTO t1 VALUES (29);
+INSERT INTO t2 VALUES (31);
+
+connection default;
+REVOKE SELECT, UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+
+connection definer;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+
+connection default;
+DROP PROCEDURE p2;
+DROP PROCEDURE p1;
+
+# Check that late procedure redefining won't open a security hole.
+connection default;
+GRANT UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+connection definer;
+CREATE PROCEDURE p1(OUT i INT) DETERMINISTIC NO SQL SET i = 37;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+
+connection invoker;
+INSERT INTO t1 VALUES (41);
+
+connection definer;
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1(IN i INT) DETERMINISTIC NO SQL SET @v1 = i + 43;
+
+connection invoker;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES (47);
+
+connection definer;
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1(INOUT i INT) DETERMINISTIC NO SQL SET i = i + 51;
+
+connection invoker;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES (53);
+
+connection default;
+DROP PROCEDURE p1;
+REVOKE UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+
+connection definer;
+DROP TRIGGER t1_bi;
+
+# Cleanup.
+disconnect definer;
+disconnect invoker;
+connection default;
+DROP USER mysqltest_inv@localhost;
+DROP USER mysqltest_dfn@localhost;
+DROP TABLE t2;
+DROP TABLE t1;
+DROP DATABASE mysqltest_db1;
+USE test;
+
+--echo End of 5.0 tests.

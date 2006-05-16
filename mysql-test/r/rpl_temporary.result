@@ -103,15 +103,24 @@ f
 1
 drop temporary table t4;
 drop table t5;
-set @session.pseudo_thread_id=100;
+set @@session.pseudo_thread_id=100;
 create temporary table t101 (id int);
 create temporary table t102 (id int);
-set @session.pseudo_thread_id=200;
+set @@session.pseudo_thread_id=200;
 create temporary table t201 (id int);
-create temporary table `#not_user_table_prefixed_with_hash_sign_no_harm` (id int);
+create temporary table `t``201` (id int);
+create temporary table `#sql_not_user_table202` (id int);
+set @@session.pseudo_thread_id=300;
+create temporary table t301 (id int);
+create temporary table t302 (id int);
+create temporary table `#sql_not_user_table303` (id int);
 create table t1(f int);
 insert into t1 values (1);
 select * from t1 /* must be 1 */;
 f
+1
+drop table t1;
+select * from t1;
+a
 1
 drop table t1;

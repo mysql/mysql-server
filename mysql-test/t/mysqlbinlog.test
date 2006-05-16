@@ -122,9 +122,22 @@ select HEX(f) from t3;
 select HEX(f) from t04;
 select HEX(f) from t4;
 
+#
+# BUG#14157: utf8 encoding in binlog without set character_set_client
+#
+# BUG:
+# This test only works on the MySQL-internal rpl machines.
+# Needs to be fixed.  Problem is that koi8r is not installed 
+# on many machines.
+#
+flush logs;
+# --exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=koi8r test -e 'create table if not exists t5 (a int); set names koi8r; create temporary table `ящик` (a int); insert into `ящик` values (1); insert into t5 select * from `ящик`'
 
+# resulted log is client charset insensitive (latin1 not koi8r) as it must be
+# --exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000006 | $MYSQL --default-character-set=latin1
+#select * from t5  /* must be (1),(1) */;
 
 # clean up
 drop table t1, t2, t03, t04, t3, t4; 
 
-# End of 4.1 tests
+# End of 5.0 tests

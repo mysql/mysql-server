@@ -310,3 +310,87 @@ SELECT @mysqltest_var;
 Hello, world!
 DROP USER mysqltest_u1@localhost;
 DROP DATABASE mysqltest_db1;
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+DROP DATABASE IF EXISTS mysqltest_db1;
+CREATE DATABASE mysqltest_db1;
+USE mysqltest_db1;
+CREATE TABLE t1 (i1 INT);
+CREATE TABLE t2 (i1 INT);
+CREATE USER mysqltest_dfn@localhost;
+CREATE USER mysqltest_inv@localhost;
+GRANT EXECUTE, CREATE ROUTINE, SUPER ON *.* TO mysqltest_dfn@localhost;
+GRANT INSERT ON mysqltest_db1.* TO mysqltest_inv@localhost;
+CREATE PROCEDURE p1(OUT i INT) DETERMINISTIC NO SQL SET i = 3;
+CREATE PROCEDURE p2(INOUT i INT) DETERMINISTIC NO SQL SET i = i * 5;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+CALL p2(NEW.i1);
+INSERT INTO t1 VALUES (7);
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't1'
+INSERT INTO t2 VALUES (11);
+ERROR 42000: SELECT,UPDATE command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't2'
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+GRANT SELECT ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+CALL p2(NEW.i1);
+INSERT INTO t1 VALUES (13);
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't1'
+INSERT INTO t2 VALUES (17);
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't2'
+REVOKE SELECT ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+GRANT UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+CALL p2(NEW.i1);
+INSERT INTO t1 VALUES (19);
+INSERT INTO t2 VALUES (23);
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't2'
+REVOKE UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+GRANT SELECT, UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+CALL p2(NEW.i1);
+INSERT INTO t1 VALUES (29);
+INSERT INTO t2 VALUES (31);
+REVOKE SELECT, UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+DROP PROCEDURE p2;
+DROP PROCEDURE p1;
+GRANT UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+CREATE PROCEDURE p1(OUT i INT) DETERMINISTIC NO SQL SET i = 37;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+CALL p1(NEW.i1);
+INSERT INTO t1 VALUES (41);
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1(IN i INT) DETERMINISTIC NO SQL SET @v1 = i + 43;
+INSERT INTO t1 VALUES (47);
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't1'
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1(INOUT i INT) DETERMINISTIC NO SQL SET i = i + 51;
+INSERT INTO t1 VALUES (53);
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't1'
+DROP PROCEDURE p1;
+REVOKE UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+DROP TRIGGER t1_bi;
+DROP USER mysqltest_inv@localhost;
+DROP USER mysqltest_dfn@localhost;
+DROP TABLE t2;
+DROP TABLE t1;
+DROP DATABASE mysqltest_db1;
+USE test;
+End of 5.0 tests.

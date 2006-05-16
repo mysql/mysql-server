@@ -642,7 +642,8 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 
 void field_conv(Field *to,Field *from)
 {
-  if (to->real_type() == from->real_type())
+  if (to->real_type() == from->real_type() &&
+      !(to->type() == FIELD_TYPE_BLOB && to->table->copy_blobs))
   {
     if (to->pack_length() == from->pack_length() &&
         !(to->flags & UNSIGNED_FLAG && !(from->flags & UNSIGNED_FLAG)) &&
