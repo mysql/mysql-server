@@ -40,7 +40,6 @@ eval select * into dumpfile "../tmp/outfile-test.2" from t1;
 --error 1086
 eval select * into dumpfile "../tmp/outfile-test.3" from t1;
 enable_query_log;
---error 13,2
 select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
 --exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.1
 --exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.2
