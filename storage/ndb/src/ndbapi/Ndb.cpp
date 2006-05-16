@@ -1287,6 +1287,7 @@ NdbEventOperation* Ndb::createEventOperation(const char* eventName)
 int Ndb::dropEventOperation(NdbEventOperation* tOp)
 {
   DBUG_ENTER("Ndb::dropEventOperation");
+  DBUG_PRINT("info", ("name: %s", tOp->getEvent()->getTable()->getName()));
   // remove it from list
   NdbEventOperationImpl *op=
     NdbEventBuffer::getEventOperationImpl(tOp);
@@ -1297,6 +1298,8 @@ int Ndb::dropEventOperation(NdbEventOperation* tOp)
   else
     theImpl->m_ev_op= op->m_next;
 
+  DBUG_PRINT("info", ("first: %s",
+                      theImpl->m_ev_op ? theImpl->m_ev_op->getEvent()->getTable()->getName() : "<empty>"));
   assert(theImpl->m_ev_op == 0 || theImpl->m_ev_op->m_prev == 0);
 
   theEventBuffer->dropEventOperation(tOp);

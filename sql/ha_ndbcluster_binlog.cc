@@ -1775,6 +1775,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       // skip
       break;
     case NDBEVENT::TE_CLUSTER_FAILURE:
+      if (ndb_extra_logging)
+        sql_print_information("NDB Binlog: cluster failure for %s.", schema_share->key);
       // fall through
     case NDBEVENT::TE_DROP:
       if (ndb_extra_logging &&
@@ -1784,6 +1786,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       free_share(&schema_share);
       schema_share= 0;
       ndb_binlog_tables_inited= FALSE;
+      close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, FALSE);
       // fall through
     case NDBEVENT::TE_ALTER:
       ndb_handle_schema_change(thd, ndb, pOp, tmp_share);
@@ -2101,7 +2104,14 @@ add_binlog_index_err:
   Functions for start, stop, wait for ndbcluster binlog thread
 *********************************************************************/
 
-static int do_ndbcluster_binlog_close_connection= 0;
+enum Binlog_thread_state
+{
+  BCCC_running= 0,
+  BCCC_exit= 1,
+  BCCC_restart= 2
+};
+
+static enum Binlog_thread_state do_ndbcluster_binlog_close_connection= BCCC_restart;
 
 int ndbcluster_binlog_start()
 {
@@ -2139,7 +2149,7 @@ static void ndbcluster_binlog_close_connection(THD *thd)
   DBUG_ENTER("ndbcluster_binlog_close_connection");
   const char *save_info= thd->proc_info;
   thd->proc_info= "ndbcluster_binlog_close_connection";
-  do_ndbcluster_binlog_close_connection= 1;
+  do_ndbcluster_binlog_close_connection= BCCC_exit;
   while (ndb_binlog_thread_running > 0)
     sleep(1);
   thd->proc_info= save_info;
@@ -3296,10 +3306,48 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     thd->db= db;
   }
 
-  for ( ; !((abort_loop || do_ndbcluster_binlog_close_connection) &&
-            ndb_latest_handled_binlog_epoch >= g_latest_trans_gci); )
+restart:
   {
+    // wait for the first event
+    thd->proc_info= "Waiting for first event from ndbcluster";
+    DBUG_PRINT("info", ("Waiting for the first event"));
+    int schema_res= 0;
+    Uint64 schema_gci= 0;
+    while (schema_res == 0 && !abort_loop)
+    {
+      schema_res= s_ndb->pollEvents(100, &schema_gci);
+    }
+    // now check that we have epochs consistant with what we had before the restart
+    if (schema_res > 0)
+    {
+      if (schema_gci < ndb_latest_handled_binlog_epoch)
+      {
+        sql_print_error("NDB Binlog: cluster has been restarted --initial or with older filesystem. "
+                        "ndb_latest_handled_binlog_epoch: %u, while current epoch: %u. "
+                        "RESET MASTER should be issued. Resetting ndb_latest_handled_binlog_epoch.",
+                        (unsigned) ndb_latest_handled_binlog_epoch, (unsigned) schema_gci);
+        g_latest_trans_gci= 0;
+        ndb_latest_handled_binlog_epoch= 0;
+        ndb_latest_applied_binlog_epoch= 0;
+        ndb_latest_received_binlog_epoch= 0;
+      }
+    }
+  }
 
+  do_ndbcluster_binlog_close_connection= BCCC_running;
+  for ( ; !((abort_loop || do_ndbcluster_binlog_close_connection) &&
+            ndb_latest_handled_binlog_epoch >= g_latest_trans_gci) &&
+          do_ndbcluster_binlog_close_connection != BCCC_restart; )
+  {
+#ifndef DBUG_OFF
+    if (do_ndbcluster_binlog_close_connection)
+    {
+      DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection: %d, "
+                          "ndb_latest_handled_binlog_epoch: %llu, "
+                          "g_latest_trans_gci: %llu", do_ndbcluster_binlog_close_connection,
+                          ndb_latest_handled_binlog_epoch, g_latest_trans_gci));
+    }
+#endif
 #ifdef RUN_NDB_BINLOG_TIMER
     main_timer.stop();
     sql_print_information("main_timer %ld ms",  main_timer.elapsed_ms());
@@ -3324,7 +3372,13 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     ndb_latest_received_binlog_epoch= gci;
 
     while (gci > schema_gci && schema_res >= 0)
+    {
+      static char buf[64];
+      thd->proc_info= "Waiting for schema epoch";
+      my_snprintf(buf, sizeof(buf), "%s %u(%u)", thd->proc_info, (unsigned) schema_gci, (unsigned) gci);
+      thd->proc_info= buf;
       schema_res= s_ndb->pollEvents(10, &schema_gci);
+    }
 
     if ((abort_loop || do_ndbcluster_binlog_close_connection) &&
         (ndb_latest_handled_binlog_epoch >= g_latest_trans_gci ||
@@ -3360,10 +3414,31 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
       while (pOp != NULL)
       {
         if (!pOp->hasError())
+        {
           ndb_binlog_thread_handle_schema_event(thd, s_ndb, pOp,
                                                 &post_epoch_log_list,
                                                 &post_epoch_unlock_list,
                                                 &mem_root);
+          DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
+                              s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
+                              "<empty>"));
+          DBUG_PRINT("info", ("i_ndb first: %s", i_ndb->getEventOperation() ?
+                              i_ndb->getEventOperation()->getEvent()->getTable()->getName() :
+                              "<empty>"));
+          if (i_ndb->getEventOperation() == NULL &&
+              s_ndb->getEventOperation() == NULL &&
+              do_ndbcluster_binlog_close_connection == BCCC_running)
+          {
+            DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
+            do_ndbcluster_binlog_close_connection= BCCC_restart;
+            if (ndb_latest_received_binlog_epoch < g_latest_trans_gci && ndb_binlog_running)
+            {
+              sql_print_error("NDB Binlog: latest transaction in epoch %lld not in binlog "
+                              "as latest received epoch is %lld",
+                              g_latest_trans_gci, ndb_latest_received_binlog_epoch);
+            }
+          }
+        }
         else
           sql_print_error("NDB: error %lu (%s) on handling "
                           "binlog schema event",
@@ -3532,6 +3607,25 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
             ndb_binlog_thread_handle_non_data_event(thd, i_ndb, pOp, row);
             // reset to catch errors
             i_ndb->setDatabaseName("");
+            DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
+                                s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
+                                "<empty>"));
+            DBUG_PRINT("info", ("i_ndb first: %s", i_ndb->getEventOperation() ?
+                                i_ndb->getEventOperation()->getEvent()->getTable()->getName() :
+                                "<empty>"));
+            if (i_ndb->getEventOperation() == NULL &&
+                s_ndb->getEventOperation() == NULL &&
+                do_ndbcluster_binlog_close_connection == BCCC_running)
+            {
+              DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
+              do_ndbcluster_binlog_close_connection= BCCC_restart;
+              if (ndb_latest_received_binlog_epoch < g_latest_trans_gci && ndb_binlog_running)
+              {
+                sql_print_error("NDB Binlog: latest transaction in epoch %lld not in binlog "
+                                "as latest received epoch is %lld",
+                                g_latest_trans_gci, ndb_latest_received_binlog_epoch);
+              }
+            }
           }
 
           pOp= i_ndb->nextEvent();
@@ -3587,6 +3681,8 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     *root_ptr= old_root;
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
   }
+  if (do_ndbcluster_binlog_close_connection != BCCC_exit)
+    goto restart;
 err:
   DBUG_PRINT("info",("Shutting down cluster binlog thread"));
   thd->proc_info= "Shutting down";
