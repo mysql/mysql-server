@@ -22,6 +22,13 @@ if HAVE_YASSL
 else
   yassl_dummy_link_fix=
 endif
+
+if THREAD_SAFE_CLIENT
+LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql_r/libmysqlclient_r.la
+else
+LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql/libmysqlclient.la
+endif
+
 EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			function.res function.tst lock_test.pl lock_test.res \
 			export.pl big_record.pl \
@@ -42,7 +49,7 @@ INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			$(openssl_includes)
 LIBS =			@CLIENT_LIBS@
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ \
-                        $(top_builddir)/libmysql/libmysqlclient.la
+                        $(LIBMYSQLCLIENT_LA)
 mysql_client_test_LDADD= $(LDADD) $(CXXLDFLAGS) -L../mysys -lmysys
 mysql_client_test_SOURCES= mysql_client_test.c $(yassl_dummy_link_fix)
 insert_test_SOURCES=       insert_test.c $(yassl_dummy_link_fix)
