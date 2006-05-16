@@ -695,10 +695,12 @@ ndb_mgm_get_status(NdbMgmHandle handle)
   Vector<BaseString> split;
   tmp.split(split, ":");
   if(split.size() != 2){
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     return NULL;
   }
  
   if(!(split[0].trim() == "nodes")){
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     return NULL;
   }
 
@@ -746,6 +748,7 @@ ndb_mgm_get_status(NdbMgmHandle handle)
 
   if(i+1 != noOfNodes){
     free(state);
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Node count mismatch");
     return NULL;
   }
 
