@@ -367,18 +367,10 @@ select last_day('2005-01-00');
 select monthname(str_to_date(null, '%m')), monthname(str_to_date(null, '%m')),
        monthname(str_to_date(1, '%m')), monthname(str_to_date(0, '%m'));
 
-# End of 4.1 tests
+--echo End of 4.1 tests
 
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
 			timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;
-
-#
-# Bug #10568
-#
-
-select last_day('2005-00-00');
-select last_day('2005-00-01');
-select last_day('2005-01-00');
 
 #
 # Bug #10590: %h, %I, and %l format specifies should all return results in
@@ -482,4 +474,23 @@ SELECT * FROM t1, t2
  
 DROP TABLE t1,t2;
 
-# End of 5.0 tests
+--echo End of 5.0 tests
+
+#
+# Bug #18997
+#
+
+select date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND);
+select date_sub("0199-01-01 00:00:01",INTERVAL 2 SECOND);
+select date_add("0199-12-31 23:59:59",INTERVAL 2 SECOND);
+select date_sub("0200-01-01 00:00:01",INTERVAL 2 SECOND);
+select date_sub("0200-01-01 00:00:01",INTERVAL 1 SECOND);
+select date_sub("0200-01-01 00:00:01",INTERVAL 2 SECOND);
+select date_add("2001-01-01 23:59:59",INTERVAL -2000 YEAR);
+select date_sub("50-01-01 00:00:01",INTERVAL 2 SECOND);
+select date_sub("90-01-01 00:00:01",INTERVAL 2 SECOND);
+select date_sub("0069-01-01 00:00:01",INTERVAL 2 SECOND);
+select date_sub("0169-01-01 00:00:01",INTERVAL 2 SECOND);
+
+
+--echo End of 5.1 tests
