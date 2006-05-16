@@ -79,7 +79,7 @@ connection slave;
 start slave;
 --disable_query_log
 --disable_result_log
-let $result_pattern= '%127.0.0.1%root%master-bin.000002%slave-relay-bin.000007%Yes%Yes%0%0%None%';
+let $result_pattern= '%127.0.0.1%root%master-bin.000002%slave-relay-bin.000005%Yes%Yes%0%0%None%';
 --source include/wait_slave_status.inc
 --enable_query_log
 --enable_result_log
