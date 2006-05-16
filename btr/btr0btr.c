@@ -912,15 +912,14 @@ btr_page_reorganize_low(
 	/* Copy max trx id to recreated page */
 	page_set_max_trx_id(page, NULL, page_get_max_trx_id(temp_page));
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		if (UNIV_UNLIKELY(!page_zip_compress(
-				page_zip, page, index))) {
+	if (UNIV_LIKELY_NULL(page_zip)
+			&& UNIV_UNLIKELY(!page_zip_compress(
+			page_zip, page, index, NULL))) {
 
-			/* Restore the old page and exit. */
-			buf_frame_copy(page, temp_page);
+		/* Restore the old page and exit. */
+		buf_frame_copy(page, temp_page);
 
-			goto func_exit;
-		}
+		goto func_exit;
 	}
 
 	if (UNIV_LIKELY(!recovery)) {

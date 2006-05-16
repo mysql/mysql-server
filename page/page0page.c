@@ -490,13 +490,11 @@ page_create_zip(
 	page_create_low(frame, TRUE);
 	mach_write_to_2(frame + PAGE_HEADER + PAGE_LEVEL, level);
 
-	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, frame, index))) {
+	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, frame, index, mtr))) {
 		/* The compression of a newly created page
 		should always succeed. */
 		ut_error;
 	}
-
-	page_zip_compress_write_log(page_zip, frame, index, mtr);
 
 	return(frame);
 }
@@ -608,8 +606,10 @@ page_copy_rec_list_end(
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		mtr_set_log_mode(mtr, log_mode);
 
-		if (UNIV_UNLIKELY(!page_zip_compress(new_page_zip,
-					new_page, index))) {
+		if (UNIV_UNLIKELY(!page_zip_compress(
+				new_page_zip, new_page, index, mtr))
+				&& UNIV_UNLIKELY(!page_zip_reorganize(
+				new_page_zip, new_page, index, mtr))) {
 
 			if (UNIV_UNLIKELY(!page_zip_decompress(
 					new_page_zip, new_page))) {
@@ -617,9 +617,6 @@ page_copy_rec_list_end(
 			}
 			return(FALSE);
 		}
-
-		page_zip_compress_write_log(new_page_zip,
-					new_page, index, mtr);
 	}
 
 	/* Update the lock table, MAX_TRX_ID, and possible hash index */
@@ -701,19 +698,18 @@ page_copy_rec_list_start(
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		mtr_set_log_mode(mtr, log_mode);
 
-		if (UNIV_UNLIKELY(!page_zip_compress(new_page_zip,
-					new_page, index))) {
+		if (UNIV_UNLIKELY(!page_zip_compress(
+				new_page_zip, new_page, index, mtr))
+				&& UNIV_UNLIKELY(!page_zip_reorganize(
+				new_page_zip, new_page, index, mtr))) {
 
 			if (UNIV_UNLIKELY(!page_zip_decompress(
 					new_page_zip, new_page))) {
 				ut_error;
 			}
-			/* TODO: try btr_page_reorganize() */
+
 			return(FALSE);
 		}
-
-		page_zip_compress_write_log(new_page_zip,
-					new_page, index, mtr);
 	}
 
 	/* Update MAX_TRX_ID, the lock table, and possible hash index */
@@ -1071,10 +1067,6 @@ page_move_rec_list_end(
 
 	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
 					split_rec, index, mtr))) {
-		/* This should always succeed, as new_page
-		is created from the scratch and receives a contiguous
-		part of the records from split_rec onwards */
-
 		return(FALSE);
 	}
 
