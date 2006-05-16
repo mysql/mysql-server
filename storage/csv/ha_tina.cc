@@ -146,6 +146,11 @@ static byte* tina_get_key(TINA_SHARE *share,uint *length,
 int get_mmap(TINA_SHARE *share, int write)
 {
   DBUG_ENTER("ha_tina::get_mmap");
+#ifdef __NETWARE__
+  my_message(errno, "Sorry, no mmap() on Netware", 0);
+  DBUG_ASSERT(0);
+  DBUG_RETURN(1);
+#else
   if (share->mapped_file && my_munmap(share->mapped_file,
                                       share->file_stat.st_size))
     DBUG_RETURN(1);
@@ -180,6 +185,7 @@ int get_mmap(TINA_SHARE *share, int write)
     share->mapped_file= NULL;
 
   DBUG_RETURN(0);
+#endif /* __NETWARE__ */
 }
 
 
