@@ -44,6 +44,11 @@
         return static_cast<void*>(d);
     }
 
+    // for compilers that want matching delete
+    inline void operator delete(void* ptr, Dummy* d) 
+    { 
+    }
+
     typedef Dummy* yassl_pointer;
 
 namespace mySTL {

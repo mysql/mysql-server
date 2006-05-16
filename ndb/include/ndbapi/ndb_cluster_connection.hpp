@@ -95,6 +95,7 @@ public:
 
   unsigned no_db_nodes();
   unsigned node_id();
+  unsigned get_connect_count() const;
 #endif
 
 private:

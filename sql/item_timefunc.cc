@@ -917,9 +917,9 @@ String* Item_func_monthname::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
   const char *month_name;
-  uint   month=(uint) Item_func_month::val_int();
+  uint   month= (uint) val_int();
 
-  if (!month)					// This is also true for NULL
+  if (null_value || !month)
   {
     null_value=1;
     return (String*) 0;

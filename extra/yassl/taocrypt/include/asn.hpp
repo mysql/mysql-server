@@ -79,20 +79,27 @@ enum ASNIdFlag
 
 enum DNTags
 {
-    COMMON_NAME         = 0x03
+    COMMON_NAME         = 0x03,  // CN
+    SUR_NAME            = 0x04,  // SN
+    COUNTRY_NAME        = 0x06,  // C
+    LOCALITY_NAME       = 0x07,  // L
+    STATE_NAME          = 0x08,  // ST
+    ORG_NAME            = 0x0a,  // O
+    ORGUNIT_NAME        = 0x0b   // OU
 };
 
 
 enum Constants
 {
     MIN_DATE_SZ   = 13,
-    MAX_DATE_SZ   = 15,
+    MAX_DATE_SZ   = 16,
     MAX_ALGO_SZ   = 16,
     MAX_LENGTH_SZ =  5,    
     MAX_SEQ_SZ    =  5,    // enum(seq|con) + length(4)
     MAX_ALGO_SIZE =  9,
     MAX_DIGEST_SZ = 25,    // SHA + enum(Bit or Octet) + length(4)
-    DSA_SIG_SZ    = 40
+    DSA_SIG_SZ    = 40,
+    NAME_MAX      = 512    // max total of all included names
 };
 
 
@@ -205,14 +212,14 @@ enum { SHA_SIZE = 20 };
 // A Signing Authority
 class Signer {
     PublicKey key_;
-    char*     name_;
+    char      name_[NAME_MAX];
     byte      hash_[SHA_SIZE];
 public:
     Signer(const byte* k, word32 kSz, const char* n, const byte* h);
     ~Signer();
 
     const PublicKey& GetPublicKey()  const { return key_; }
-    const char*      GetCommonName() const { return name_; }
+    const char*      GetName()       const { return name_; }
     const byte*      GetHash()       const { return hash_; }
 
 private:
@@ -245,6 +252,8 @@ public:
     const char*      GetIssuer()     const { return issuer_; }
     const char*      GetCommonName() const { return subject_; }
     const byte*      GetHash()       const { return subjectHash_; }
+    const char*      GetBeforeDate() const { return beforeDate_; }
+    const char*      GetAfterDate()  const { return afterDate_; }
 
     void DecodeToKey();
 private:
@@ -257,8 +266,10 @@ private:
     byte      subjectHash_[SHA_SIZE];   // hash of all Names
     byte      issuerHash_[SHA_SIZE];    // hash of all Names
     byte*     signature_;
-    char*     issuer_;                  // CommonName
-    char*     subject_;                 // CommonName
+    char      issuer_[NAME_MAX];        // Names
+    char      subject_[NAME_MAX];       // Names
+    char      beforeDate_[MAX_DATE_SZ]; // valid before date
+    char      afterDate_[MAX_DATE_SZ];  // valid after date
     bool      verify_;                  // Default to yes, but could be off
 
     void   ReadHeader();
