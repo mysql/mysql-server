@@ -163,24 +163,19 @@ drop table t5;
 # value was set up at the moment of temp table creation
 #
 connection con1;
-set @session.pseudo_thread_id=100;
+set @@session.pseudo_thread_id=100;
 create temporary table t101 (id int);
 create temporary table t102 (id int);
-set @session.pseudo_thread_id=200;
+set @@session.pseudo_thread_id=200;
 create temporary table t201 (id int);
-create temporary table `#not_user_table_prefixed_with_hash_sign_no_harm` (id int);
-
-#
-# Don't kill our own connection to the server as
-# the result code differs depending on platform.
-#
-# Select the id to kill into a variable of mysqltest
-let $con1_id= `select connection_id()`;
-# Switch connection to avoid killing our own connection
-connection master;
---disable_query_log
-eval kill $con1_id;
---enable_query_log
+create temporary table `t``201` (id int);
+# emulate internal temp table not to come to binlog
+create temporary table `#sql_not_user_table202` (id int);
+set @@session.pseudo_thread_id=300;
+create temporary table t301 (id int);
+create temporary table t302 (id int);
+create temporary table `#sql_not_user_table303` (id int);
+disconnect con1;
 
 #now do something to show that slave is ok after DROP temp tables
 connection master;
@@ -190,6 +185,18 @@ insert into t1 values (1);
 sync_slave_with_master;
 #connection slave;
 select * from t1 /* must be 1 */;
+
+connection master; 
+drop table t1;
+
+#
+#14157: utf8 encoding in binlog without set character_set_client
+#
+--exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=koi8r test -e 'create table t1 (a int); set names koi8r; create temporary table `ящик` (a int); insert into `ящик` values (1); insert into t1 select * from `ящик`'
+
+sync_slave_with_master;
+#connection slave;
+select * from t1;
 
 connection master; 
 drop table t1;

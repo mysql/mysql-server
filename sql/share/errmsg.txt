@@ -5475,7 +5475,7 @@ ER_SP_DUP_HANDLER 42000
 	eng "Duplicate handler declared in the same block"
 	ger "Doppelter Handler im selben Block deklariert"
 ER_SP_NOT_VAR_ARG 42000
-	eng "OUT or INOUT argument %d for routine %s is not a variable"
+	eng "OUT or INOUT argument %d for routine %s is not a variable or NEW pseudo-variable in BEFORE trigger"
 	ger "OUT- oder INOUT-Argument %d für Routine %s ist keine Variable"
 ER_SP_NO_RETSET 0A000
 	eng "Not allowed to return a result set from a %s"
