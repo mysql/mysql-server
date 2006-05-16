@@ -2187,7 +2187,7 @@ public:
   void cleanup();
 
 private:
-  void set_required_privilege(const bool rw);
+  void set_required_privilege(bool rw);
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
 
 public:
