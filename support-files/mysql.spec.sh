@@ -311,7 +311,6 @@ fi
 CFLAGS="${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" \
 CXXFLAGS="${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" \
 BuildMySQL "--enable-shared \
-		--with-berkeley-db \
 		--with-innodb \
 		--with-ndbcluster \
 		--with-archive-storage-engine \
@@ -683,6 +682,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Tue May 16 2006 Kent Boortz <kent@mysql.com>
+
+- Removed Berkeley DB
+
 * Mon May 01 2006 Kent Boortz <kent@mysql.com>
 
 - Use "./libtool --mode=execute" instead of searching for the

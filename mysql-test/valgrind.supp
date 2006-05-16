@@ -131,6 +131,15 @@
    obj:/lib/ld-*.so
 }
 
+{  
+   strlen/_dl_init_paths/dl_main/_dl_sysdep_start(Cond)
+   Memcheck:Cond
+   fun:strlen
+   fun:_dl_init_paths
+   fun:dl_main
+   fun:_dl_sysdep_start
+}
+
 {
    pthread errno
    Memcheck:Leak
