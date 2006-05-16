@@ -6023,20 +6023,21 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   }
 
   /* table privileges */
+  rw_rdlock(&LOCK_grant);
   if (grant->version != grant_version)
   {
-    rw_rdlock(&LOCK_grant);
     grant->grant_table=
       table_hash_search(sctx->host, sctx->ip, db,
 			sctx->priv_user,
 			table, 0);              /* purecov: inspected */
     grant->version= grant_version;              /* purecov: inspected */
-    rw_unlock(&LOCK_grant);
   }
   if (grant->grant_table != 0)
   {
     grant->privilege|= grant->grant_table->privs;
   }
+  rw_unlock(&LOCK_grant);
+
   DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
   DBUG_VOID_RETURN;
 }
