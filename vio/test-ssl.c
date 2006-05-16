@@ -57,8 +57,8 @@ main(int argc, char**	argv)
   char*	cipher=0;
   int	child_pid,sv[2];
   my_bool unused;
-  struct st_VioSSLAcceptorFd* ssl_acceptor=0;
-  struct st_VioSSLConnectorFd* ssl_connector=0; 
+  struct st_VioSSLFd* ssl_acceptor= 0;
+  struct st_VioSSLFd* ssl_connector= 0;
   Vio* client_vio=0, *server_vio=0;
   MY_INIT(argv[0]);
   DBUG_PROCESS(argv[0]);

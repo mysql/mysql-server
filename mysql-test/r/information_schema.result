@@ -1083,11 +1083,6 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP FUNCTION func1;
 DROP FUNCTION func2;
-create database mysqltest;
-create table mysqltest.t1(a int);
-select table_schema from information_schema.tables where table_schema='mysqltest';
-table_schema
-drop database mysqltest;
 select column_type, group_concat(table_schema, '.', table_name), count(*) as num
 from information_schema.columns where
 table_schema='information_schema' and
@@ -1096,3 +1091,20 @@ group by column_type order by num;
 column_type	group_concat(table_schema, '.', table_name)	num
 varchar(20)	information_schema.COLUMNS	1
 varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
+create table t1(f1 char(1) not null, f2 char(9) not null)
+default character set utf8;
+select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
+information_schema.columns where table_schema='test' and table_name = 't1';
+CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH
+1	3
+9	27
+drop table t1;
+use mysql;
+INSERT INTO `proc` VALUES ('test','','PROCEDURE','','SQL','CONTAINS_SQL',
+'NO','DEFINER','','','BEGIN\r\n  \r\nEND','root@%','2006-03-02 18:40:03',
+'2006-03-02 18:40:03','','');
+select routine_name from information_schema.routines;
+routine_name
+
+delete from proc where name='';
+use test;

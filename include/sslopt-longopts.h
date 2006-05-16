@@ -37,5 +37,10 @@
   {"ssl-cipher", OPT_SSL_CIPHER, "SSL cipher to use (implies --ssl).",
    (gptr*) &opt_ssl_cipher, (gptr*) &opt_ssl_cipher, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-
+#ifdef MYSQL_CLIENT
+  {"ssl-verify-server-cert", OPT_SSL_VERIFY_SERVER_CERT,
+   "Verify server's \"Common Name\" in its cert against hostname used when connecting. This option is disabled by default.",
+   (gptr*) &opt_ssl_verify_server_cert, (gptr*) &opt_ssl_verify_server_cert,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
 #endif /* HAVE_OPENSSL */

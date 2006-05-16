@@ -620,7 +620,7 @@ static void openssl_lock(int, openssl_lock_t *, const char *, int);
 static unsigned long openssl_id_function();
 #endif
 char *des_key_file;
-struct st_VioSSLAcceptorFd *ssl_acceptor_fd;
+struct st_VioSSLFd *ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
 
@@ -1131,8 +1131,13 @@ void clean_up(bool print_message)
 #endif
 #ifdef HAVE_OPENSSL
   if (ssl_acceptor_fd)
-    my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
+  {
+    SSL_CTX_free(ssl_acceptor_fd->ssl_context);
+    my_free((gptr) ssl_acceptor_fd, MYF(0));
+  }
 #endif /* HAVE_OPENSSL */
+  vio_end();
+
 #ifdef USE_REGEX
   my_regex_end();
 #endif

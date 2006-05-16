@@ -347,8 +347,10 @@ typedef struct st_qsel_param {
   uint *imerge_cost_buff;     /* buffer for index_merge cost estimates */
   uint imerge_cost_buff_size; /* size of the buffer */
 
- /* TRUE if last checked tree->key can be used for ROR-scan */
+  /* TRUE if last checked tree->key can be used for ROR-scan */
   bool is_ror_scan;
+  /* Number of ranges in the last checked tree->key */
+  uint n_ranges;
 } PARAM;
 
 class TABLE_READ_PLAN;
@@ -5297,6 +5299,7 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
                param->table->file->primary_key_is_clustered());
     param->is_ror_scan= !cpk_scan;
   }
+  param->n_ranges= 0;
 
   records=check_quick_keys(param,idx,tree,param->min_key,0,param->max_key,0);
   if (records != HA_POS_ERROR)
@@ -5304,7 +5307,7 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
     param->table->quick_keys.set_bit(key);
     param->table->quick_rows[key]=records;
     param->table->quick_key_parts[key]=param->max_key_part+1;
-
+    param->table->quick_n_ranges[key]= param->n_ranges;
     if (cpk_scan)
       param->is_ror_scan= TRUE;
   }
@@ -5440,7 +5443,10 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       HA_NOSAME &&
       min_key_length == max_key_length &&
       !memcmp(param->min_key,param->max_key,min_key_length))
+  {
     tmp=1;					// Max one record
+    param->n_ranges++;
+  }
   else
   {
     if (param->is_ror_scan)
@@ -5460,6 +5466,7 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
             is_key_scan_ror(param, keynr, key_tree->part + 1)))
         param->is_ror_scan= FALSE;
     }
+    param->n_ranges++;
 
     if (tmp_min_flag & GEOM_FLAG)
     {
