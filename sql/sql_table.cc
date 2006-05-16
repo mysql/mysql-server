@@ -3507,7 +3507,8 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
            save us from that ?
   */
   table->reginfo.lock_type=TL_WRITE;
-  hooks->prelock(&table, 1);                    // Call prelock hooks
+  if (hooks)
+    hooks->prelock(&table, 1);                  // Call prelock hooks
   if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
   {
