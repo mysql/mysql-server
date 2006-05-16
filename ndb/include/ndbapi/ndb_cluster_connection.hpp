@@ -83,6 +83,7 @@ public:
   void set_optimized_node_selection(int val);
 
   unsigned no_db_nodes();
+  unsigned get_connect_count() const;
 #endif
 
 private:
