@@ -153,7 +153,7 @@ BackupRestore::finalize_table(const TableS & table){
     Uint64 max_val= table.get_max_auto_val();
     Uint64 auto_val= m_ndb->readAutoIncrementValue(get_table(table.m_dictTable));
     if (max_val+1 > auto_val || auto_val == ~(Uint64)0)
-      ret= m_ndb->setAutoIncrementValue(get_table(table.m_dictTable), max_val+1, false);
+      ret= m_ndb->setAutoIncrementValue(get_table(table.m_dictTable), max_val+1, false) != ~(Uint64)0;
   }
   return ret;
 }
