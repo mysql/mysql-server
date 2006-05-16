@@ -66,15 +66,16 @@ Backup::Backup(const Configuration & conf) :
 
   Uint32 szDataBuf = (2 * 1024 * 1024);
   Uint32 szLogBuf = (2 * 1024 * 1024);
-  Uint32 szWrite = 32768;
+  Uint32 szWrite = 32768, maxWriteSize = (256 * 1024);
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_DATA_BUFFER_MEM, &szDataBuf);
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MAX_WRITE_SIZE, &maxWriteSize);
   
   c_defaults.m_logBufferSize = szLogBuf;
   c_defaults.m_dataBufferSize = szDataBuf;
   c_defaults.m_minWriteSize = szWrite;
-  c_defaults.m_maxWriteSize = szWrite;
+  c_defaults.m_maxWriteSize = maxWriteSize;
   
   { // Init all tables
     ArrayList<Table> tables(c_tablePool);
