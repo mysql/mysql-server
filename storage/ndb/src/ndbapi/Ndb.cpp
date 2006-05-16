@@ -921,13 +921,13 @@ Ndb::setTupleIdInNdb(Ndb_local_table_info* info, Uint64 val, bool increase)
      * if value <= NEXTID, do nothing.  otherwise update NEXTID to
      * value and set cached range to first = last = value - 1.
      */
-    DBUG_RETURN((opTupleIdOnNdb(info, val, 2) == val));
+    DBUG_RETURN((opTupleIdOnNdb(info, val, 2)));
   }
   else
     /*
      * update NEXTID to given value.  reset cached range.
      */
-    DBUG_RETURN((opTupleIdOnNdb(info, val, 1) == val));
+    DBUG_RETURN((opTupleIdOnNdb(info, val, 1)));
 }
 
 int Ndb::initAutoIncrement()
