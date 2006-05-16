@@ -2875,7 +2875,7 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
                        MY_BITMAP *defined, byte *buf)
 {
   Field **p_field= table->field, *field= *p_field;
-  uint row_offset= (uint) (buf - table->record[0]);
+  my_ptrdiff_t row_offset= buf - table->record[0];
   DBUG_ENTER("ndb_unpack_record");
 
   // Set null flag(s)
@@ -2906,24 +2906,34 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
         }
         else if (field->type() == MYSQL_TYPE_BIT)
         {
-          byte *save_field_ptr= field->ptr;
-          field->ptr= save_field_ptr + row_offset;
+          Field_bit *field_bit= static_cast<Field_bit*>(field);
+
+          /*
+            Move internal field pointer to point to 'buf'.  Calling
+            the correct member function directly since we know the
+            type of the object.
+           */
+          field_bit->Field_bit::move_field_offset(row_offset);
           if (field->pack_length() < 5)
           {
             DBUG_PRINT("info", ("bit field H'%.8X", 
                                 (*value).rec->u_32_value()));
-            ((Field_bit*) field)->store((longlong)
-                                        (*value).rec->u_32_value(), FALSE);
+            field_bit->Field_bit::store((longlong) (*value).rec->u_32_value(),
+                                        FALSE);
           }
           else
           {
             DBUG_PRINT("info", ("bit field H'%.8X%.8X",
                                 *(Uint32*) (*value).rec->aRef(),
                                 *((Uint32*) (*value).rec->aRef()+1)));
-            ((Field_bit*) field)->store((longlong)
-                                         (*value).rec->u_64_value(),TRUE);
+            field_bit->Field_bit::store((longlong) (*value).rec->u_64_value(), 
+                                        TRUE);
           }
-          field->ptr= save_field_ptr;
+          /*
+            Move back internal field pointer to point to original
+            value (usually record[0]).
+           */
+          field_bit->Field_bit::move_field_offset(-row_offset);
           DBUG_PRINT("info",("[%u] SET",
                              (*value).rec->getColumn()->getColumnNo()));
           DBUG_DUMP("info", (const char*) field->ptr, field->field_length);
