@@ -815,7 +815,8 @@ static void die(const char* fmt, ...)
   fprintf(stderr, "\n");
   va_end(args);
   cleanup();
-  my_end(0);
+  /* We cannot free DBUG, it is used in global destructors after exit(). */
+  my_end(MY_DONT_FREE_DBUG);
   exit(1);
 }
 
@@ -1487,7 +1488,8 @@ int main(int argc, char** argv)
   cleanup();
   free_defaults(defaults_argv);
   my_free_open_file_info();
-  my_end(0);
+  /* We cannot free DBUG, it is used in global destructors after exit(). */
+  my_end(MY_DONT_FREE_DBUG);
   exit(exit_value);
   DBUG_RETURN(exit_value);			// Keep compilers happy
 }
