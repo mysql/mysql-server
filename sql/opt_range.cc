@@ -3503,17 +3503,46 @@ static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func,
 
     if (inv)
     {
-      /*
-        We get here for conditions like "t.keypart NOT IN (....)".
-        
-        If the IN-list contains only constants (and func->array is an ordered
-        array of them), we construct the appropriate SEL_ARG tree manually, 
-        because constructing it using the range analyzer (as 
-        AND_i( t.keypart != c_i)) will cause lots of memory to be consumed
-        (see BUG#15872). 
-      */
       if (func->array && func->cmp_type != ROW_RESULT)
       {
+        /*
+          We get here for conditions in form "t.key NOT IN (c1, c2, ...)" 
+          (where c{i} are constants).
+          Our goal is to produce a SEL_ARG graph that represents intervals:
+          
+          ($MIN<t.key<c1) OR (c1<t.key<c2) OR (c2<t.key<c3) OR ...    (*)
+          
+          where $MIN is either "-inf" or NULL.
+          
+          The most straightforward way to handle NOT IN would be to convert
+          it to "(t.key != c1) AND (t.key != c2) AND ..." and let the range
+          optimizer to build SEL_ARG graph from that. However that will cause
+          the range optimizer to use O(N^2) memory (it's a bug, not filed),
+          and people do use big NOT IN lists (see BUG#15872). Also, for big          
+          NOT IN lists constructing/using graph (*) does not make the query
+          faster.
+          
+          So, we will handle NOT IN manually in the following way:
+          * if the number of entries in the NOT IN list is less then 
+            NOT_IN_IGNORE_THRESHOLD, we will construct SEL_ARG graph (*)
+            manually.
+          * Otherwise, we will construct a smaller graph: for 
+            "t.key NOT IN (c1,...cN)" we construct a graph representing 
+            ($MIN < t.key) OR (cN < t.key)  // here sequence of c_i is
+                                            // ordered.
+
+          A note about partially-covering indexes: for those (e.g. for 
+          "a CHAR(10), KEY(a(5))") the handling is correct (albeit not very
+          efficient):
+          Instead of "t.key < c1" we get "t.key <= prefix-val(c1)".
+          Combining the intervals in (*) together, we get:
+          (-inf<=t.key<=c1) OR (c1<=t.key<=c2) OR (c2<=t.key<=c3) OR ...
+          i.e. actually we get intervals combined into one interval:
+          (-inf<=t.key<=+inf). This doesn't make much sense but it doesn't
+          cause any problems.
+        */
+        MEM_ROOT *tmp_root= param->mem_root;
+        param->thd->mem_root= param->old_root;
         /* 
           Create one Item_type constant object. We'll need it as
           get_mm_parts only accepts constant values wrapped in Item_Type
@@ -3522,24 +3551,13 @@ static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func,
           per-statement mem_root (while thd->mem_root is currently pointing
           to mem_root local to range optimizer).
         */
-        MEM_ROOT *tmp_root= param->mem_root;
-        param->thd->mem_root= param->old_root;
         Item *value_item= func->array->create_item();
         param->thd->mem_root= tmp_root;
 
         if (!value_item)
           break;
         
-        /* 
-          Get a SEL_TREE for "(-inf|NULL) < X < c_0" interval.
-          Note: for partially-covering keys the returned tree may represent
-          a half-closed interval (-inf < X <= c_0). In that case the for the
-          whole NOT IN statement the (-inf < X < +inf) interval will be
-          constructed. It doesn't make sense to consider range access over
-          such intervals, but we don't eliminate them here as 1) they are 
-          handled correctly by all parts of the code, and 2) the case where
-          such intervals are constructed is rare.
-        */
+        /* Get a SEL_TREE for "(-inf|NULL) < X < c_0" interval.  */
         uint i=0;
         do 
         {
