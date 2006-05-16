@@ -781,8 +781,7 @@ Uint64
 Ndb::getAutoIncrementValue(const NdbDictionary::Table * aTable, Uint32 cacheSize)
 {
   DBUG_ENTER("getAutoIncrementValue");
-  if (aTable == 0)
-    DBUG_RETURN(~(Uint64)0);
+  assert(aTable != 0);
   const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
   const BaseString& internal_tabname = table->m_internalName;
 
@@ -843,8 +842,7 @@ Uint64
 Ndb::readAutoIncrementValue(const NdbDictionary::Table * aTable)
 {
   DBUG_ENTER("readAutoIncrementValue");
-  if (aTable == 0)
-    DBUG_RETURN(~(Uint64)0);
+  assert(aTable != 0);
   const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
   const BaseString& internal_tabname = table->m_internalName;
 
@@ -880,7 +878,7 @@ Ndb::readTupleIdFromNdb(Ndb_local_table_info* info)
   DBUG_RETURN(tupleId);
 }
 
-bool
+Uint64
 Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase)
 {
   DBUG_ENTER("setAutoIncrementValue");
@@ -890,17 +888,16 @@ Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase)
     theDictionary->get_local_table_info(internal_tabname, false);
   if (info == 0) {
     theError.code = theDictionary->getNdbError().code;
-    DBUG_RETURN(false);
+    DBUG_RETURN(~(Uint64)0);
   }
   DBUG_RETURN(setTupleIdInNdb(info, val, increase));
 }
 
-bool
+Uint64
 Ndb::setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, bool increase)
 {
   DBUG_ENTER("setAutoIncrementValue");
-  if (aTable == 0)
-    DBUG_RETURN(false);
+  assert(aTable != 0);
   const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
   const BaseString& internal_tabname = table->m_internalName;
 
@@ -908,12 +905,12 @@ Ndb::setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, bool
     theDictionary->get_local_table_info(internal_tabname, false);
   if (info == 0) {
     theError.code = theDictionary->getNdbError().code;
-    DBUG_RETURN(false);
+    DBUG_RETURN(~(Uint64)0);
   }
   DBUG_RETURN(setTupleIdInNdb(info, val, increase));
 }
 
-bool
+Uint64
 Ndb::setTupleIdInNdb(Ndb_local_table_info* info, Uint64 val, bool increase)
 {
   DBUG_ENTER("setTupleIdInNdb");
@@ -923,11 +920,14 @@ Ndb::setTupleIdInNdb(Ndb_local_table_info* info, Uint64 val, bool increase)
     {
       assert(info->m_first_tuple_id < info->m_last_tuple_id);
       if (val <= info->m_first_tuple_id + 1)
-	DBUG_RETURN(false);
+	DBUG_RETURN(val);
       if (val <= info->m_last_tuple_id)
       {
 	info->m_first_tuple_id = val - 1;
-	DBUG_RETURN(true);
+        DBUG_PRINT("info", 
+                   ("Setting next auto increment cached value to %llu",
+                    (ulonglong)val));  
+	DBUG_RETURN(val);
       }
     }
     /*
@@ -954,8 +954,7 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 opValue, Uint32 op)
   NdbOperation*      tOperation= 0; // Compiler warning if not initialized
   Uint64             tValue;
   NdbRecAttr*        tRecAttrResult;
-  int                result;
-  Uint64 ret;
+  Uint64 ret = ~(Uint64)0;
 
   CHECK_STATUS_MACRO_ZERO;
 
@@ -1017,17 +1016,17 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 opValue, Uint32 op)
       tOperation->def_label(0);
       tOperation->interpret_exit_nok(9999);
       
-      if ( (result = tConnection->execute( Commit )) == -1 )
+      if (tConnection->execute( Commit ) == -1)
       {
         if (tConnection->theError.code != 9999)
           goto error_handler;
-
-        // NEXTID >= opValue, return ~(Uint64)0 for now since
-        // there is no error check...
-        ret = ~(Uint64)0;
+        ret = opValue;
       }
       else
       {
+        DBUG_PRINT("info", 
+                   ("Setting next auto increment value (db) to %llu",
+                    (ulonglong)opValue));  
         info->m_first_tuple_id = info->m_last_tuple_id = opValue - 1;
 	ret = opValue;
       }

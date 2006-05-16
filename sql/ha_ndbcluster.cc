@@ -2197,11 +2197,11 @@ int ha_ndbcluster::write_row(byte *record)
     Ndb *ndb= get_ndb();
     Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
     DBUG_PRINT("info", 
-               ("Trying to set next auto increment value to %lu",
-                (ulong) next_val));
-    if (ndb->setAutoIncrementValue((const NDBTAB *) m_table, next_val, TRUE))
-      DBUG_PRINT("info", 
-                 ("Setting next auto increment value to %u", next_val));  
+               ("Trying to set next auto increment value to %llu",
+                (ulonglong) next_val));
+    if (ndb->setAutoIncrementValue((const NDBTAB *) m_table, next_val, TRUE)
+        == ~(Uint64)0)
+      ERR_RETURN(ndb->getNdbError());
   }
   m_skip_auto_increment= TRUE;
 
