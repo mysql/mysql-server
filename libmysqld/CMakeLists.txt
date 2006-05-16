@@ -33,7 +33,7 @@ ADD_LIBRARY(mysqldemb emb_qcache.cc libmysqld.c lib_sql.cc
             ../sql/field_conv.cc ../sql/field.cc ../sql/filesort.cc
             ../sql/gstream.cc ../sql/ha_heap.cc ../sql/ha_myisam.cc
             ../sql/ha_myisammrg.cc ${mysql_se_ha_src}
-            ../sql/handler.cc ../sql/handlerton-win.cc ../sql/hash_filo.cc
+            ../sql/handler.cc ../sql/hash_filo.cc
             ../sql/hostname.cc ../sql/init.cc ../sql/item_buff.cc
             ../sql/item_cmpfunc.cc ../sql/item.cc ../sql/item_create.cc
             ../sql/item_func.cc ../sql/item_geofunc.cc ../sql/item_row.cc

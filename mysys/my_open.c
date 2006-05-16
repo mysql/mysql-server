@@ -19,7 +19,7 @@
 #include "mysys_err.h"
 #include <my_dir.h>
 #include <errno.h>
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
 #include <share.h>
 #endif
 
@@ -45,7 +45,7 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
   DBUG_ENTER("my_open");
   DBUG_PRINT("my",("Name: '%s'  Flags: %d  MyFlags: %d",
 		   FileName, Flags, MyFlags));
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(__WIN__)
   /* 
     Check that we don't try to open or create a file name that may
     cause problems for us in the future (like PRN)
