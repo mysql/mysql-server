@@ -1136,6 +1136,23 @@ table_schema='information_schema' and
 group by column_type order by num;
 column_type	group_concat(table_schema, '.', table_name)	num
 varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
+create table t1(f1 char(1) not null, f2 char(9) not null)
+default character set utf8;
+select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
+information_schema.columns where table_schema='test' and table_name = 't1';
+CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH
+1	3
+9	27
+drop table t1;
+use mysql;
+INSERT INTO `proc` VALUES ('test','','PROCEDURE','','SQL','CONTAINS_SQL',
+'NO','DEFINER','','','BEGIN\r\n  \r\nEND','root@%','2006-03-02 18:40:03',
+'2006-03-02 18:40:03','','');
+select routine_name from information_schema.routines;
+routine_name
+
+delete from proc where name='';
+use test;
 varchar(20)	information_schema.COLUMNS,information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS	6
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
