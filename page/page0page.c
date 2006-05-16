@@ -496,7 +496,7 @@ page_create_zip(
 		ut_error;
 	}
 
-	page_zip_compress_write_log(page_zip, frame, mtr);
+	page_zip_compress_write_log(page_zip, frame, index, mtr);
 
 	return(frame);
 }
@@ -618,7 +618,8 @@ page_copy_rec_list_end(
 			return(FALSE);
 		}
 
-		page_zip_compress_write_log(new_page_zip, new_page, mtr);
+		page_zip_compress_write_log(new_page_zip,
+					new_page, index, mtr);
 	}
 
 	/* Update the lock table, MAX_TRX_ID, and possible hash index */
@@ -711,7 +712,8 @@ page_copy_rec_list_start(
 			return(FALSE);
 		}
 
-		page_zip_compress_write_log(new_page_zip, new_page, mtr);
+		page_zip_compress_write_log(new_page_zip,
+					new_page, index, mtr);
 	}
 
 	/* Update MAX_TRX_ID, the lock table, and possible hash index */

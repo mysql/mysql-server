@@ -1122,7 +1122,7 @@ use_heap:
 		}
 
 		/* 9. Write log record of compressing the page. */
-		page_zip_compress_write_log(page_zip_orig, page, mtr);
+		page_zip_compress_write_log(page_zip_orig, page, index, mtr);
 
 		return(insert_rec);
 	}
