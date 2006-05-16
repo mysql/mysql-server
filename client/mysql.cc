@@ -448,6 +448,14 @@ int main(int argc,char *argv[])
 				 MYF(MY_WME));
       if (histfile)
 	sprintf(histfile,"%s/.mysql_history",getenv("HOME"));
+      char link_name[FN_REFLEN];
+      if (my_readlink(link_name, histfile, 0) == 0 &&
+          strncmp(link_name, "/dev/null", 10) == 0)
+      {
+        /* The .mysql_history file is a symlink to /dev/null, don't use it */
+        my_free(histfile, MYF(MY_ALLOW_ZERO_PTR));
+        histfile= 0;
+      }
     }
     if (histfile)
     {
@@ -484,7 +492,7 @@ sig_handler mysql_end(int sig)
 {
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
-  if (!status.batch && !quick && !opt_html && !opt_xml)
+  if (!status.batch && !quick && !opt_html && !opt_xml && histfile)
   {
     /* write-history */
     if (verbose)
