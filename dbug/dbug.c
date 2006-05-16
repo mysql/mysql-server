@@ -271,6 +271,8 @@ static unsigned long Clock (void);
 static void CloseFile(FILE *fp);
 	/* Push current debug state */
 static void PushState(void);
+	/* Free memory associated with debug state. */
+static void FreeState (struct state *state);
 	/* Test for tracing enabled */
 static BOOLEAN DoTrace(CODE_STATE *state);
 	/* Test to see if file is writable */
@@ -630,22 +632,7 @@ void _db_pop_ ()
     stack = discard -> next_state;
     _db_fp_ = stack -> out_file;
     _db_pfp_ = stack -> prof_file;
-    if (discard -> keywords != NULL) {
-      FreeList (discard -> keywords);
-    }
-    if (discard -> functions != NULL) {
-      FreeList (discard -> functions);
-    }
-    if (discard -> processes != NULL) {
-      FreeList (discard -> processes);
-    }
-    if (discard -> p_functions != NULL) {
-      FreeList (discard -> p_functions);
-    }
-    CloseFile (discard -> out_file);
-    if (discard -> prof_file)
-      CloseFile (discard -> prof_file);
-    free ((char *) discard);
+    FreeState(discard);
     if (!(stack->flags & DEBUG_ON))
       _db_on_=0;
   }
@@ -1158,6 +1145,71 @@ static void PushState ()
   new_malloc -> processes = NULL;
   new_malloc -> next_state = stack;
   stack=new_malloc;
+}
+
+/*
+ *  FUNCTION
+ *
+ *	FreeState    Free memory associated with a struct state.
+ *
+ *  SYNOPSIS
+ *
+ *	static void FreeState (state)
+ *	struct state *state;
+ *
+ *  DESCRIPTION
+ *
+ *	Deallocates the memory allocated for various information in a
+ *	state.
+ *
+ */
+static void FreeState (
+struct state *state)
+{
+  if (state -> keywords != NULL) {
+    FreeList (state -> keywords);
+  }
+  if (state -> functions != NULL) {
+    FreeList (state -> functions);
+  }
+  if (state -> processes != NULL) {
+    FreeList (state -> processes);
+  }
+  if (state -> p_functions != NULL) {
+    FreeList (state -> p_functions);
+  }
+  CloseFile (state -> out_file);
+  if (state -> prof_file)
+    CloseFile (state -> prof_file);
+  free ((char *) state);
+}
+
+
+/*
+ *  FUNCTION
+ *
+ *	_db_end_    End debugging, freeing state stack memory.
+ *
+ *  SYNOPSIS
+ *
+ *	static VOID _db_end_ ()
+ *
+ *  DESCRIPTION
+ *
+ *	Ends debugging, de-allocating the memory allocated to the
+ *	state stack.
+ *
+ *	To be called at the very end of the program.
+ *
+ */
+void _db_end_ ()
+{
+  reg1 struct state *discard;
+  while((discard= stack) != NULL) {
+    stack= discard -> next_state;
+    FreeState (discard);
+  }
+  _db_on_=0;
 }
 
 
