@@ -197,7 +197,10 @@ THD::THD()
   :Statement(CONVENTIONAL_EXECUTION, 0, ALLOC_ROOT_MIN_BLOCK_SIZE, 0),
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
-   user_time(0), in_sub_stmt(0), binlog_table_maps(0),
+   user_time(0), in_sub_stmt(0),
+#ifdef HAVE_ROW_BASED_REPLICATION
+   binlog_table_maps(0),
+#endif
    global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
@@ -2110,7 +2113,9 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !current_stmt_binlog_row_based)
+  {
     options&= ~OPTION_BIN_LOG;
+  }    
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;
@@ -2699,6 +2704,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
       to how you treat this.
     */
   case THD::ROW_QUERY_TYPE:
+#ifdef HAVE_ROW_BASED_REPLICATION
     if (current_stmt_binlog_row_based)
     {
       /*
@@ -2717,6 +2723,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
         DBUG_RETURN(binlog_flush_pending_rows_event(TRUE));
       DBUG_RETURN(0);
     }
+#endif
     /* Otherwise, we fall through */
   case THD::STMT_QUERY_TYPE:
     /*
@@ -2725,7 +2732,9 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
      */
     {
       Query_log_event qinfo(this, query, query_len, is_trans, suppress_use);
+#ifdef HAVE_ROW_BASED_REPLICATION
       qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
+#endif
       /*
         Binlog table maps will be irrelevant after a Query_log_event
         (they are just removed on the slave side) so after the query
@@ -2733,7 +2742,9 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
         table maps were written.
        */
       int error= mysql_bin_log.write(&qinfo);
+#ifdef HAVE_ROW_BASED_REPLICATION
       binlog_table_maps= 0;
+#endif
       DBUG_RETURN(error);
     }
     break;

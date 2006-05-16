@@ -2468,8 +2468,10 @@ mysql_execute_command(THD *thd)
     statistic_increment(thd->status_var.com_stat[lex->sql_command],
                         &LOCK_status);
 
+#ifdef HAVE_ROW_BASED_REPLICATION
   if (lex->binlog_row_based_if_mixed)
     thd->set_current_stmt_binlog_row_based_if_mixed();
+#endif
 
   switch (lex->sql_command) {
   case SQLCOM_SELECT:

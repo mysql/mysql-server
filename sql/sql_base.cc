@@ -1069,7 +1069,9 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
       handled either before writing a query log event (inside
       binlog_query()) or when preparing a pending event.
      */
+#ifdef HAVE_ROW_BASED_REPLICATION
     thd->binlog_flush_pending_rows_event(TRUE);
+#endif
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
