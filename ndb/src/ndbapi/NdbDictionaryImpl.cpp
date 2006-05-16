@@ -1742,14 +1742,11 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       DBUG_RETURN(ret);
 
     if (haveAutoIncrement) {
-      if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
-				     autoIncrementValue)) {
-	if (ndb.theError.code == 0) {
-	  m_error.code= 4336;
-	  ndb.theError = m_error;
-	} else
-	  m_error= ndb.theError;
-	ret = -1; // errorcode set in initialize_autoincrement
+      if (ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
+				    autoIncrementValue) == ~(Uint64)0) {
+        DBUG_ASSERT(ndb.theError.code != 0);
+        m_error= ndb.theError;
+	ret = -1;
       }
     }
   }

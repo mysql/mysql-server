@@ -1432,7 +1432,7 @@ public:
    *
    * @param cacheSize number of values to cache in this Ndb object
    *
-   * @return tuple id or 0 on error
+   * @return tuple id or ~(Uint64)0 on error.
    */
   Uint64 getAutoIncrementValue(const char* aTableName, 
 			       Uint32 cacheSize = 1);
@@ -1440,14 +1440,14 @@ public:
 			       Uint32 cacheSize = 1);
   Uint64 readAutoIncrementValue(const char* aTableName);
   Uint64 readAutoIncrementValue(const NdbDictionary::Table * aTable);
-  bool setAutoIncrementValue(const char* aTableName, Uint64 val, 
-			     bool increase = false);
-  bool setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, 
-			     bool increase = false);
+  Uint64 setAutoIncrementValue(const char* aTableName, Uint64 val, 
+			      bool increase = false);
+  Uint64 setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, 
+			      bool increase = false);
 private:
   Uint64 getTupleIdFromNdb(Ndb_local_table_info* info, Uint32 cacheSize);
   Uint64 readTupleIdFromNdb(Ndb_local_table_info* info);
-  bool setTupleIdInNdb(Ndb_local_table_info* info, Uint64 val, bool increase);
+  Uint64 setTupleIdInNdb(Ndb_local_table_info* info, Uint64 val, bool increase);
   Uint64 opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 opValue, Uint32 op);
 public:
 
