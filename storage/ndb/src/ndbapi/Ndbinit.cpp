@@ -100,10 +100,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     theConnectionArray[i] = NULL;
   }//forg
   m_sys_tab_0 = NULL;
-  for (i = 0; i < 2048 ; i++) {
-    theFirstTupleId[i] = 0;
-    theLastTupleId[i] = 0;
-  }//for
 
   theImpl->m_dbname.assign(aDataBase);
   theImpl->m_schemaname.assign(aSchema);
