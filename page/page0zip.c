@@ -2855,6 +2855,7 @@ page_zip_parse_write_header(
 	ulint	offset;
 	ulint	len;
 
+	ut_ad(ptr && end_ptr);
 	ut_ad(!page == !page_zip);
 
 	if (UNIV_UNLIKELY(end_ptr < ptr + (1 + 1))) {
@@ -2865,8 +2866,8 @@ page_zip_parse_write_header(
 	offset = (ulint) *ptr++;
 	len = (ulint) *ptr++;
 
-	if (UNIV_UNLIKELY(!len) || UNIV_UNLIKELY(offset + len >= PAGE_DATA)
-			|| UNIV_UNLIKELY(!page_zip)) {
+	if (UNIV_UNLIKELY(!len) || UNIV_UNLIKELY(offset + len >= PAGE_DATA)) {
+corrupt:
 		recv_sys->found_corrupt_log = TRUE;
 
 		return(NULL);
@@ -2878,6 +2879,10 @@ page_zip_parse_write_header(
 	}
 
 	if (page) {
+		if (UNIV_UNLIKELY(!page_zip)) {
+
+			goto corrupt;
+		}
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 		ut_a(page_zip_validate(page_zip, page));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
@@ -2938,6 +2943,7 @@ page_zip_copy(
 	page_t*			page,		/* out: copy of src */
 	const page_zip_des_t*	src_zip,	/* in: compressed page */
 	const page_t*		src,		/* in: page */
+	dict_index_t*		index,		/* in: index of the B-tree */
 	mtr_t*			mtr)		/* in: mini-transaction */
 {
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
@@ -2977,7 +2983,7 @@ page_zip_copy(
 	ut_a(page_zip_validate(page_zip, page));
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
-	page_zip_compress_write_log(page_zip, page, mtr);
+	page_zip_compress_write_log(page_zip, page, index, mtr);
 }
 
 /**************************************************************************
@@ -2988,28 +2994,63 @@ page_zip_compress_write_log(
 /*========================*/
 	const page_zip_des_t*	page_zip,/* in: compressed page */
 	const page_t*		page,	/* in: uncompressed page */
+	dict_index_t*		index,	/* in: index of the B-tree node */
 	mtr_t*			mtr)	/* in: mini-transaction */
 {
 	byte*	log_ptr;
+	ulint	trailer_size;
 
-	ut_ad(page_zip_validate(page_zip, page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
-	log_ptr = mlog_open(mtr, 11 + 2);
+	log_ptr = mlog_open(mtr, 11 + 2 + 2);
 
 	if (!log_ptr) {
 
 		return;
 	}
 
+	/* Read the number of user records.
+	Subtract 2 for the infimum and supremum records. */
+	trailer_size = page_dir_get_n_heap(page_zip->data) - 2;
+	/* Multiply by uncompressed of size stored per record */
+	if (page_is_leaf(page)) {
+		if (dict_index_is_clust(index)) {
+			trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE
+					+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+		} else {
+			trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE;
+		}
+	} else {
+		trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE + REC_NODE_PTR_SIZE;
+	}
+	/* Add the space occupied by BLOB pointers. */
+	trailer_size += page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
+	ut_a(page_zip->m_end > PAGE_DATA);
+#if FIL_PAGE_DATA > PAGE_DATA
+# error "FIL_PAGE_DATA > PAGE_DATA"
+#endif
+	ut_a(page_zip->m_end + trailer_size <= page_zip->size);
+
 	log_ptr = mlog_write_initial_log_record_fast((page_t*) page,
 			MLOG_ZIP_PAGE_COMPRESS, log_ptr, mtr);
-	mach_write_to_2(log_ptr, page_zip->size);
+	mach_write_to_2(log_ptr, page_zip->m_end - FIL_PAGE_TYPE);
+	log_ptr += 2;
+	mach_write_to_2(log_ptr, trailer_size);
 	log_ptr += 2;
 	mlog_close(mtr, log_ptr);
 
-	/* TODO: omit the unused bytes at page_zip->m_end */
-	/* TODO: omit some bytes at page header */
-	mlog_catenate_string(mtr, page_zip->data, page_zip->size);
+	/* Write FIL_PAGE_PREV and FIL_PAGE_NEXT */
+	mlog_catenate_string(mtr, page_zip->data + FIL_PAGE_PREV, 4);
+	mlog_catenate_string(mtr, page_zip->data + FIL_PAGE_NEXT, 4);
+	/* Write most of the page header, the compressed stream and
+	the modification log. */
+	mlog_catenate_string(mtr, page_zip->data + FIL_PAGE_TYPE,
+					page_zip->m_end - FIL_PAGE_TYPE);
+	/* Write the uncompressed trailer of the compressed page. */
+	mlog_catenate_string(mtr, page_zip->data + page_zip->size
+					- trailer_size, trailer_size);
 }
 
 /**************************************************************************
@@ -3025,39 +3066,51 @@ page_zip_parse_compress(
 	page_zip_des_t*	page_zip)/* out: compressed page */
 {
 	ulint	size;
+	ulint	trailer_size;
 
 	ut_ad(ptr && end_ptr);
+	ut_ad(!page == !page_zip);
 
-	if (UNIV_UNLIKELY(ptr + 2 > end_ptr)) {
+	if (UNIV_UNLIKELY(ptr + (2 + 2) > end_ptr)) {
 
 		return(NULL);
 	}
 
 	size = mach_read_from_2(ptr);
 	ptr += 2;
+	trailer_size = mach_read_from_2(ptr);
+	ptr += 2;
 
-	if (UNIV_UNLIKELY(ptr + size > end_ptr)) {
+	if (UNIV_UNLIKELY(ptr + 8 + size + trailer_size > end_ptr)) {
 
 		return(NULL);
 	}
 
 	if (page) {
 		if (UNIV_UNLIKELY(!page_zip)
-				|| UNIV_UNLIKELY(page_zip->size != size)) {
+				|| UNIV_UNLIKELY(page_zip->size < size)) {
 corrupt:
 			recv_sys->found_corrupt_log = TRUE;
 
 			return(NULL);
 		}
 
-		memcpy(page_zip->data, ptr, size);
+		memcpy(page_zip->data + FIL_PAGE_PREV, ptr, 4);
+		memcpy(page_zip->data + FIL_PAGE_NEXT, ptr + 4, 4);
+		memcpy(page_zip->data + FIL_PAGE_TYPE, ptr + 8, size);
+		memset(page_zip->data + FIL_PAGE_TYPE + size, 0,
+					page_zip->size - trailer_size
+					- (FIL_PAGE_TYPE + size));
+		memcpy(page_zip->data + page_zip->size - trailer_size,
+					ptr + 8 + size, trailer_size);
+
 		if (UNIV_UNLIKELY(!page_zip_decompress(page_zip, page))) {
 
 			goto corrupt;
 		}
 	}
 
-	return(ptr + size);
+	return(ptr + 8 + size + trailer_size);
 }
 
 /**************************************************************************
