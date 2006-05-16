@@ -2408,6 +2408,7 @@ int
 MgmtSrvr::abortBackup(Uint32 backupId)
 {
   SignalSender ss(theFacade);
+  ss.lock(); // lock will be released on exit
 
   bool next;
   NodeId nodeId = 0;
