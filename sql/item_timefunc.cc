@@ -1963,6 +1963,9 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
   if (date_sub_interval)
     interval.neg = !interval.neg;
 
+  if (ltime->year < YY_MAGIC_BELOW)
+    return (null_value=1);
+
   return (null_value= date_add_interval(ltime, int_type, interval));
 }
 

@@ -689,7 +689,7 @@ long calc_daynr(uint year,uint month,uint day)
 
   if (year == 0 && month == 0 && day == 0)
     DBUG_RETURN(0);				/* Skip errors */
-  if (year < 200)
+  if (year < YY_MAGIC_BELOW)
   {
     if ((year=year+1900) < 1900+YY_PART_YEAR)
       year+=100;
