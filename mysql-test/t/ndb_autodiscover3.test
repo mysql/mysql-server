@@ -36,23 +36,26 @@ select * from t2 order by a limit 3;
 
 --exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults >> $NDB_TOOLS_OUTPUT
+# to ensure mysqld has connected again, and recreated system tables
+--sleep 3
 
 --connection server2
+show tables like 't2';
 create table t2 (a int key) engine=ndbcluster;
 insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 select * from t2 order by a limit 3;
 
 # server 1 should have a stale cache, and in this case wrong frm, transaction must be retried
 --connection server1
---error 1015
-select * from t2 order by a limit 3;
 select * from t2 order by a limit 3;
 
 --exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults >> $NDB_TOOLS_OUTPUT
+# to ensure mysqld has connected again, and recreated system tables
+--sleep 3
 
 --connection server1
-show tables;
+show tables like 't2';
 create table t2 (a int key) engine=ndbcluster;
 insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 select * from t2 order by a limit 3;

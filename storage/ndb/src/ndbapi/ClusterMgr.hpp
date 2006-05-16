@@ -57,6 +57,11 @@ private:
   class TransporterFacade & theFacade;
   
 public:
+  enum Cluster_state {
+    CS_waiting_for_clean_cache = 0,
+    CS_waiting_for_first_connect,
+    CS_connected
+  };
   struct Node {
     Node();
     bool defined;
@@ -86,7 +91,7 @@ private:
   Uint32        noOfConnectedNodes;
   Node          theNodes[MAX_NODES];
   NdbThread*    theClusterMgrThread;
-  
+  enum Cluster_state m_cluster_state;
   /**
    * Used for controlling start/stop of the thread
    */
