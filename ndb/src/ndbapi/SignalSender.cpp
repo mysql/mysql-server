@@ -75,7 +75,9 @@ SignalSender::SignalSender(TransporterFacade *facade)
 {
   m_cond = NdbCondition_Create();
   theFacade = facade;
+  lock();
   m_blockNo = theFacade->open(this, execSignal, execNodeStatus);
+  unlock();
   assert(m_blockNo > 0);
 }
 
