@@ -71,6 +71,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   noOfConnectedNodes= 0;
   theClusterMgrThread= 0;
   m_connect_count = 0;
+  m_cluster_state = CS_waiting_for_clean_cache;
   DBUG_VOID_RETURN;
 }
 
@@ -175,6 +176,16 @@ ClusterMgr::threadMain( ){
     int send_heartbeat_now= global_flag_send_heartbeat_now;
     global_flag_send_heartbeat_now= 0;
 
+    if (m_cluster_state == CS_waiting_for_clean_cache)
+    {
+      theFacade.m_globalDictCache.lock();
+      unsigned sz= theFacade.m_globalDictCache.get_size();
+      theFacade.m_globalDictCache.unlock();
+      if (sz)
+        goto next;
+      m_cluster_state = CS_waiting_for_first_connect;
+    }
+
     theFacade.lock_mutex();
     for (int i = 1; i < MAX_NODES; i++){
       /**
@@ -223,6 +234,7 @@ ClusterMgr::threadMain( ){
      */
     theFacade.unlock_mutex();
     
+next:
     // Sleep for 100 ms between each Registration Heartbeat
     Uint64 before = now;
     NdbSleep_MilliSleep(100); 
@@ -450,6 +462,7 @@ ClusterMgr::reportNodeFailed(NodeId nodeId){
     theFacade.m_globalDictCache.invalidate_all();
     theFacade.m_globalDictCache.unlock();
     m_connect_count ++;
+    m_cluster_state = CS_waiting_for_clean_cache;
     NFCompleteRep rep;
     for(Uint32 i = 1; i<MAX_NODES; i++){
       if(theNodes[i].defined && theNodes[i].nfCompleteRep == false){
