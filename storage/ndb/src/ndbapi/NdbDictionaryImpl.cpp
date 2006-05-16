@@ -79,18 +79,26 @@ is_ndb_blob_table(const NdbTableImpl* t)
 NdbColumnImpl::NdbColumnImpl()
   : NdbDictionary::Column(* this), m_attrId(-1), m_facade(this)
 {
+  DBUG_ENTER("NdbColumnImpl::NdbColumnImpl");
+  DBUG_PRINT("info", ("this: %p", this));
   init();
+  DBUG_VOID_RETURN;
 }
 
 NdbColumnImpl::NdbColumnImpl(NdbDictionary::Column & f)
   : NdbDictionary::Column(* this), m_attrId(-1), m_facade(&f)
 {
+  DBUG_ENTER("NdbColumnImpl::NdbColumnImpl");
+  DBUG_PRINT("info", ("this: %p", this));
   init();
+  DBUG_VOID_RETURN;
 }
 
 NdbColumnImpl&
 NdbColumnImpl::operator=(const NdbColumnImpl& col)
 {
+  DBUG_ENTER("NdbColumnImpl::operator=");
+  DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
   m_attrId = col.m_attrId;
   m_name = col.m_name;
   m_type = col.m_type;
@@ -112,13 +120,14 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
   if (col.m_blobTable == NULL)
     m_blobTable = NULL;
   else {
-    m_blobTable = new NdbTableImpl();
+    if (m_blobTable == NULL)
+      m_blobTable = new NdbTableImpl();
     m_blobTable->assign(*col.m_blobTable);
   }
   m_column_no = col.m_column_no;
   // Do not copy m_facade !!
 
-  return *this;
+  DBUG_RETURN(*this);
 }
 
 void
@@ -261,15 +270,19 @@ NdbColumnImpl::init(Type t)
 
 NdbColumnImpl::~NdbColumnImpl()
 {
+  DBUG_ENTER("NdbColumnImpl::~NdbColumnImpl");
+  DBUG_PRINT("info", ("this: %p", this));
   if (m_blobTable != NULL)
     delete m_blobTable;
   m_blobTable = NULL;
+  DBUG_VOID_RETURN;
 }
 
 bool
 NdbColumnImpl::equal(const NdbColumnImpl& col) const 
 {
   DBUG_ENTER("NdbColumnImpl::equal");
+  DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
   if(strcmp(m_name.c_str(), col.m_name.c_str()) != 0){
     DBUG_RETURN(false);
   }
@@ -377,24 +390,33 @@ NdbTableImpl::NdbTableImpl()
   : NdbDictionary::Table(* this), 
     NdbDictObjectImpl(NdbDictionary::Object::UserTable), m_facade(this)
 {
+  DBUG_ENTER("NdbTableImpl::NdbTableImpl");
+  DBUG_PRINT("info", ("this: %p", this));
   init();
+  DBUG_VOID_RETURN;
 }
 
 NdbTableImpl::NdbTableImpl(NdbDictionary::Table & f)
   : NdbDictionary::Table(* this), 
     NdbDictObjectImpl(NdbDictionary::Object::UserTable), m_facade(&f)
 {
+  DBUG_ENTER("NdbTableImpl::NdbTableImpl");
+  DBUG_PRINT("info", ("this: %p", this));
   init();
+  DBUG_VOID_RETURN;
 }
 
 NdbTableImpl::~NdbTableImpl()
 {
+  DBUG_ENTER("NdbTableImpl::~NdbTableImpl");
+  DBUG_PRINT("info", ("this: %p", this));
   if (m_index != 0) {
     delete m_index;
     m_index = 0;
   }
   for (unsigned i = 0; i < m_columns.size(); i++)
-    delete m_columns[i];  
+    delete m_columns[i];
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -636,6 +658,8 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
 void
 NdbTableImpl::assign(const NdbTableImpl& org)
 {
+  DBUG_ENTER("NdbColumnImpl::assign");
+  DBUG_PRINT("info", ("this: %p  &org: %p", this, &org));
   /* m_changeMask intentionally not copied */
   m_primaryTableId = org.m_primaryTableId;
   m_internalName.assign(org.m_internalName);
@@ -662,7 +686,14 @@ NdbTableImpl::assign(const NdbTableImpl& org)
     m_columnHashMask, m_columnHash, m_hashValueMask, m_hashpointerValue
     is state calculated by computeAggregates and buildColumnHash
   */
-  for(unsigned i = 0; i<org.m_columns.size(); i++){
+  unsigned i;
+  for(i = 0; i < m_columns.size(); i++)
+  {
+    delete m_columns[i];
+  }
+  m_columns.clear();
+  for(i = 0; i < org.m_columns.size(); i++)
+  {
     NdbColumnImpl * col = new NdbColumnImpl();
     const NdbColumnImpl * iorg = org.m_columns[i];
     (* col) = (* iorg);
@@ -702,6 +733,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_tablespace_name = org.m_tablespace_name;
   m_tablespace_id= org.m_tablespace_id;
   m_tablespace_version = org.m_tablespace_version;
+  DBUG_VOID_RETURN;
 }
 
 void NdbTableImpl::setName(const char * name)
@@ -1085,14 +1117,20 @@ NdbEventImpl::NdbEventImpl() :
   NdbDictionary::Event(* this),
   NdbDictObjectImpl(NdbDictionary::Object::TypeUndefined), m_facade(this)
 {
+  DBUG_ENTER("NdbEventImpl::NdbEventImpl");
+  DBUG_PRINT("info", ("this: %p", this));
   init();
+  DBUG_VOID_RETURN;
 }
 
 NdbEventImpl::NdbEventImpl(NdbDictionary::Event & f) : 
   NdbDictionary::Event(* this),
   NdbDictObjectImpl(NdbDictionary::Object::TypeUndefined), m_facade(&f)
 {
+  DBUG_ENTER("NdbEventImpl::NdbEventImpl");
+  DBUG_PRINT("info", ("this: %p", this));
   init();
+  DBUG_VOID_RETURN;
 }
 
 void NdbEventImpl::init()
@@ -1108,10 +1146,13 @@ void NdbEventImpl::init()
 
 NdbEventImpl::~NdbEventImpl()
 {
+  DBUG_ENTER("NdbEventImpl::~NdbEventImpl");
+  DBUG_PRINT("info", ("this: %p", this));
   for (unsigned i = 0; i < m_columns.size(); i++)
     delete  m_columns[i];
   if (m_tableImpl)
     delete m_tableImpl;
+  DBUG_VOID_RETURN;
 }
 
 void NdbEventImpl::setName(const char * name)
@@ -1134,11 +1175,14 @@ NdbEventImpl::setTable(const NdbDictionary::Table& table)
 void 
 NdbEventImpl::setTable(NdbTableImpl *tableImpl)
 {
+  DBUG_ENTER("NdbEventImpl::setTable");
+  DBUG_PRINT("info", ("this: %p  tableImpl: %p", this, tableImpl));
   DBUG_ASSERT(tableImpl->m_status != NdbDictionary::Object::Invalid);
   if (!m_tableImpl) 
     m_tableImpl = new NdbTableImpl();
   // Copy table, since event might be accessed from different threads
   m_tableImpl->assign(*tableImpl);
+  DBUG_VOID_RETURN;
 }
 
 const NdbDictionary::Table *
@@ -3681,9 +3725,12 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
         DBUG_RETURN(NULL);
       }
     }
+    ev->setTable(tab);
+    releaseTableGlobal(*tab, 0);
   }
-
-  ev->setTable(tab);
+  else
+    ev->setTable(tab);
+  tab = 0;
 
   ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));  
   // get the columns from the attrListBitmask
@@ -3944,6 +3991,7 @@ NdbDictionaryImpl::dropBlobEvents(const NdbEventImpl& evnt)
       if (blob_evnt == NULL)
         continue;
       (void)dropEvent(*blob_evnt);
+      delete blob_evnt;
     }
   } else {
     // loop over MAX_ATTRIBUTES_IN_TABLE ...

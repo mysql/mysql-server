@@ -134,8 +134,8 @@ void GlobalDictCache::printCache()
       const unsigned sz = vers->size();
       for(unsigned i = 0; i<sz ; i++){
         TableVersion tv= (*vers)[i];
-        DBUG_PRINT("  ", ("vers[%d]: ver: %d, refCount: %d, status: %d",
-                          sz, tv.m_version, tv.m_refCount, tv.m_status));
+        DBUG_PRINT("  ", ("impl: %p  vers[%d]: ver: %d, refCount: %d, status: %d",
+                          tv.m_impl, i, tv.m_version, tv.m_refCount, tv.m_status));
         if(tv.m_impl != 0)
         {
           DBUG_PRINT("  ", ("m_impl: internalname: %s",
