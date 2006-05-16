@@ -40,6 +40,7 @@ extern	void _db_doprnt_ _VARARGS((const char *format,...));
 extern	void _db_dump_(uint _line_,const char *keyword,const char *memory,
 		       uint length);
 extern	void _db_output_(uint flag);
+extern	void _db_end_(void);
 extern	void _db_lock_file(void);
 extern	void _db_unlock_file(void);
 
@@ -66,6 +67,7 @@ extern	void _db_unlock_file(void);
 #define DBUG_IN_USE (_db_fp_ && _db_fp_ != stderr)
 #define DEBUGGER_OFF _no_db_=1;_db_on_=0;
 #define DEBUGGER_ON  _no_db_=0
+#define DBUG_END()  _db_end_ ()
 #define DBUG_LOCK_FILE { _db_lock_file(); }
 #define DBUG_UNLOCK_FILE { _db_unlock_file(); }
 #define DBUG_OUTPUT(A) { _db_output_(A); }
@@ -90,6 +92,7 @@ extern	void _db_unlock_file(void);
 #define DBUG_IN_USE 0
 #define DEBUGGER_OFF
 #define DEBUGGER_ON
+#define DBUG_END()
 #define DBUG_LOCK_FILE
 #define DBUG_UNLOCK_FILE
 #define DBUG_OUTPUT(A)
