@@ -39,6 +39,10 @@ master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 flush logs;
 create table t3 (a int)ENGINE=MyISAM;
 start slave;
+
+let $result_pattern= '%127.0.0.1%root%master-bin.000002%slave-relay-bin.000005%Yes%Yes%0%0%None%' ;
+
+--source include/wait_slave_status.inc
 flush logs;
 stop slave;
 create table t2 (n int)ENGINE=MyISAM;
