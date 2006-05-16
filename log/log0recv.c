@@ -913,7 +913,6 @@ recv_parse_or_apply_log_rec_body(
 		recv_sys->found_corrupt_log = TRUE;
 	}
 
-	ut_ad(!page || ptr);
 	if (index) {
 		dict_table_t*	table = index->table;
 

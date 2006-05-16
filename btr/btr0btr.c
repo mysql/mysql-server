@@ -1099,7 +1099,7 @@ btr_root_raise_and_insert(
 
 		/* Copy the page byte for byte. */
 		page_zip_copy(new_page_zip, new_page,
-				root_page_zip, root, mtr);
+				root_page_zip, root, cursor->index, mtr);
 	}
 
 	/* If this is a pessimistic insert which is actually done to
@@ -1809,7 +1809,7 @@ func_start:
 			ut_a(new_page_zip);
 
 			page_zip_copy(new_page_zip, new_page,
-					page_zip, page, mtr);
+					page_zip, page, cursor->index, mtr);
 			page_delete_rec_list_end(move_limit - page
 					+ new_page, cursor->index,
 					ULINT_UNDEFINED, ULINT_UNDEFINED,
@@ -1837,7 +1837,7 @@ func_start:
 			ut_a(new_page_zip);
 
 			page_zip_copy(new_page_zip, new_page,
-					page_zip, page, mtr);
+					page_zip, page, cursor->index, mtr);
 			page_delete_rec_list_start(move_limit - page
 					+ new_page, cursor->index,
 					new_page_zip, mtr);
@@ -2147,7 +2147,7 @@ btr_lift_page_up(
 		/* Copy the page byte for byte. */
 		page_zip_copy(father_page_zip, father_page,
 				buf_block_get_page_zip(buf_block_align(page)),
-				page, mtr);
+				page, index, mtr);
 	}
 
 	lock_update_copy_and_discard(father_page, page);
