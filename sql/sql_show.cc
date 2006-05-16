@@ -2932,7 +2932,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         field->real_type() == MYSQL_TYPE_STRING)     // For binary type
     {
       uint32 octet_max_length= field->max_length();
-      if (octet_max_length != (uint32) 4294967295U)
+      if (is_blob && octet_max_length != (uint32) 4294967295U)
         octet_max_length /= field->charset()->mbmaxlen;
       longlong char_max_len= is_blob ? 
         (longlong) octet_max_length / field->charset()->mbminlen :
@@ -3169,17 +3169,18 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                        const char *wild, bool full_access, const char *sp_user)
 {
   String tmp_string;
+  String sp_db, sp_name, definer;
   TIME time;
   LEX *lex= thd->lex;
   CHARSET_INFO *cs= system_charset_info;
-  const char *sp_db, *sp_name, *definer;
-  sp_db= get_field(thd->mem_root, proc_table->field[0]);
-  sp_name= get_field(thd->mem_root, proc_table->field[1]);
-  definer= get_field(thd->mem_root, proc_table->field[11]);
+  get_field(thd->mem_root, proc_table->field[0], &sp_db);
+  get_field(thd->mem_root, proc_table->field[1], &sp_name);
+  get_field(thd->mem_root, proc_table->field[11], &definer);
   if (!full_access)
-    full_access= !strcmp(sp_user, definer);
-  if (!full_access && check_some_routine_access(thd, sp_db, sp_name,
-			proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE))
+    full_access= !strcmp(sp_user, definer.ptr());
+  if (!full_access && check_some_routine_access(thd, sp_db.ptr(), sp_name.ptr(),
+                                                proc_table->field[2]->val_int() ==
+                                                TYPE_ENUM_PROCEDURE))
     return 0;
 
   if (lex->orig_sql_command == SQLCOM_SHOW_STATUS_PROC &&
@@ -3189,13 +3190,13 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       lex->orig_sql_command == SQLCOM_END)
   {
     restore_record(table, s->default_values);
-    if (!wild || !wild[0] || !wild_compare(sp_name, wild, 0))
+    if (!wild || !wild[0] || !wild_compare(sp_name.ptr(), wild, 0))
     {
       int enum_idx= proc_table->field[5]->val_int();
-      table->field[3]->store(sp_name, strlen(sp_name), cs);
+      table->field[3]->store(sp_name.ptr(), sp_name.length(), cs);
       get_field(thd->mem_root, proc_table->field[3], &tmp_string);
       table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      table->field[2]->store(sp_db, strlen(sp_db), cs);
+      table->field[2]->store(sp_db.ptr(), sp_db.length(), cs);
       get_field(thd->mem_root, proc_table->field[2], &tmp_string);
       table->field[4]->store(tmp_string.ptr(), tmp_string.length(), cs);
       if (proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION)
@@ -3227,7 +3228,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       table->field[17]->store(tmp_string.ptr(), tmp_string.length(), cs);
       get_field(thd->mem_root, proc_table->field[15], &tmp_string);
       table->field[18]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      table->field[19]->store(definer, strlen(definer), cs);
+      table->field[19]->store(definer.ptr(), definer.length(), cs);
       return schema_table_store_record(thd, table);
     }
   }
