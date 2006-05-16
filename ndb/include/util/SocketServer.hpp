@@ -74,7 +74,7 @@ public:
   /**
    * Constructor / Destructor
    */
-  SocketServer(int maxSessions = 32);
+  SocketServer(unsigned maxSessions = ~(unsigned)0);
   ~SocketServer();
   
   /**

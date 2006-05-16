@@ -644,6 +644,7 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_desc
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_test_platform
+%attr(755, root, root) %{_bindir}/ndb_config
 
 %files ndb-extra
 %defattr(-,root,root,0755)
