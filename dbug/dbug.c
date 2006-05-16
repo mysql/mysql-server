@@ -255,6 +255,8 @@ static void DBUGOpenFile(CODE_STATE *,const char *, const char *, int);
 static void DBUGCloseFile(CODE_STATE *cs, FILE *fp);
         /* Push current debug settings */
 static void PushState(CODE_STATE *cs);
+	/* Free memory associated with debug state. */
+static void FreeState (struct state *state);
         /* Test for tracing enabled */
 static BOOLEAN DoTrace(CODE_STATE *cs);
 
@@ -742,19 +744,7 @@ void _db_pop_()
   if (discard->next != NULL)
   {
     cs->stack= discard->next;
-    if (!is_shared(discard, keywords))
-      FreeList(discard->keywords);
-    if (!is_shared(discard, functions))
-      FreeList(discard->functions);
-    if (!is_shared(discard, processes))
-      FreeList(discard->processes);
-    if (!is_shared(discard, p_functions))
-      FreeList(discard->p_functions);
-    if (!is_shared(discard, out_file))
-      DBUGCloseFile(cs, discard->out_file);
-    if (discard->prof_file)
-      DBUGCloseFile(cs, discard->prof_file);
-    free((char *) discard);
+    FreeState(discard);
   }
 }
 
@@ -1423,6 +1413,68 @@ static void PushState(CODE_STATE *cs)
   new_malloc->next= cs->stack;
   new_malloc->out_file= NULL;
   cs->stack= new_malloc;
+}
+
+/*
+ *  FUNCTION
+ *
+ *	FreeState    Free memory associated with a struct state.
+ *
+ *  SYNOPSIS
+ *
+ *	static void FreeState (state)
+ *	struct state *state;
+ *
+ *  DESCRIPTION
+ *
+ *	Deallocates the memory allocated for various information in a
+ *	state.
+ *
+ */
+static void FreeState (
+struct state *state)
+{
+  if (!is_shared(state, keywords))
+    FreeList(state->keywords);
+  if (!is_shared(state, functions))
+    FreeList(state->functions);
+  if (!is_shared(state, processes))
+    FreeList(state->processes);
+  if (!is_shared(state, p_functions))
+    FreeList(state->p_functions);
+  if (!is_shared(state, out_file))
+    DBUGCloseFile(cs, state->out_file);
+  if (state->prof_file)
+    DBUGCloseFile(cs, state->prof_file);
+  free((char *) state);
+}
+
+
+/*
+ *  FUNCTION
+ *
+ *	_db_end_    End debugging, freeing state stack memory.
+ *
+ *  SYNOPSIS
+ *
+ *	static VOID _db_end_ ()
+ *
+ *  DESCRIPTION
+ *
+ *	Ends debugging, de-allocating the memory allocated to the
+ *	state stack.
+ *
+ *	To be called at the very end of the program.
+ *
+ */
+void _db_end_ ()
+{
+  reg1 struct state *discard;
+  while((discard= stack) != NULL) {
+    stack= discard -> next_state;
+    FreeState (discard);
+  }
+  _db_on_=0;
 }
 
 

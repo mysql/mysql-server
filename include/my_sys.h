@@ -75,6 +75,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
+#define MY_DONT_FREE_DBUG 4     /* Do not call DBUG_END() in my_end() */
 
 #define ME_HIGHBYTE	8	/* Shift for colours */
 #define ME_NOCUR	1	/* Don't use curses message */
