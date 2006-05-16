@@ -5709,6 +5709,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     }
     else
     {
+      DBUG_ASSERT(thd->net.report_error);
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
       query_cache_abort(&thd->net);
@@ -7226,7 +7227,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 			       lex->create_info.merge_list.first))
     goto err;
   if (grant_option && want_priv != CREATE_TMP_ACL &&
-      check_grant(thd, want_priv, create_table, 0, UINT_MAX, 0))
+      check_grant(thd, want_priv, create_table, 0, 1, 0))
     goto err;
 
   if (select_lex->item_list.elements)

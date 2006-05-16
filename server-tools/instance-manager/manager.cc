@@ -35,12 +35,12 @@
 #endif
 
 
-static int create_pid_file(const char *pid_file_name)
+int create_pid_file(const char *pid_file_name, int pid)
 {
   if (FILE *pid_file= my_fopen(pid_file_name,
                                O_WRONLY | O_CREAT | O_BINARY, MYF(0)))
   {
-    fprintf(pid_file, "%d\n", (int) getpid());
+    fprintf(pid_file, "%d\n", (int) pid);
     my_fclose(pid_file, MYF(0));
     return 0;
   }
@@ -138,8 +138,13 @@ void manager(const Options &options)
   if (user_map.load(options.password_file_name))
     return;
 
-  /* write pid file */
-  if (create_pid_file(options.pid_file_name))
+  /* write Instance Manager pid file */
+
+  log_info("IM pid file: '%s'; PID: %d.",
+           (const char *) options.pid_file_name,
+           (int) manager_pid);
+
+  if (create_pid_file(options.pid_file_name, manager_pid))
     return;
 
   sigset_t mask;
