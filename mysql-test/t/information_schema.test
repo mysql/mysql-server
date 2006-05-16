@@ -808,6 +808,26 @@ table_schema='information_schema' and
 group by column_type order by num;
 
 #
+# Bug#19236 bad COLUMNS.CHARACTER_MAXIMUM_LENGHT and CHARACTER_OCTET_LENGTH
+#
+create table t1(f1 char(1) not null, f2 char(9) not null)
+default character set utf8;
+select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
+information_schema.columns where table_schema='test' and table_name = 't1';
+drop table t1;
+
+#
+# Bug#18177 any access to INFORMATION_SCHEMA.ROUTINES crashes
+#
+use mysql;
+INSERT INTO `proc` VALUES ('test','','PROCEDURE','','SQL','CONTAINS_SQL',
+'NO','DEFINER','','','BEGIN\r\n  \r\nEND','root@%','2006-03-02 18:40:03',
+'2006-03-02 18:40:03','','');
+select routine_name from information_schema.routines;
+delete from proc where name='';
+use test;
+
+#
 # End of 5.0 tests.
 #
 # Show engines
