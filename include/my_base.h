@@ -33,9 +33,6 @@
 #define EOVERFLOW 84
 #endif
 
-#ifdef MSDOS
-#include <share.h>			/* Neaded for sopen() */
-#endif
 #if !defined(USE_MY_FUNC) && !defined(THREAD)
 #include <my_nosys.h>			/* For faster code, after test */
 #endif	/* USE_MY_FUNC */
