@@ -5350,6 +5350,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
         slave_print_msg(ERROR_LEVEL, rli, error,
                         "Error in %s event: when locking tables",
                         get_type_str());
+        rli->clear_tables_to_lock();
         DBUG_RETURN(error);
       }
 
@@ -5385,6 +5386,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
                            "unexpected success or fatal error"));
           thd->query_error= 1;
         }
+        rli->clear_tables_to_lock();
         DBUG_RETURN(error);
       }
     }
@@ -5393,18 +5395,16 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       the table map and remove them from tables to lock.
      */
     
-    TABLE_LIST *ptr= rli->tables_to_lock;
-    while (ptr)
+    TABLE_LIST *ptr;
+    for (ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
     {
       rli->m_table_map.set_table(ptr->table_id, ptr->table);
       rli->touching_table(ptr->db, ptr->table_name, ptr->table_id);
-      char *to_free= reinterpret_cast<char*>(ptr);
-      ptr= ptr->next_global;
-      my_free(to_free, MYF(MY_WME));
     }
-    rli->tables_to_lock= 0;
-    rli->tables_to_lock_count= 0;
+    rli->clear_tables_to_lock();
   }
+
+  DBUG_ASSERT(rli->tables_to_lock == NULL && rli->tables_to_lock_count == 0);
 
   TABLE* table= rli->m_table_map.get_table(m_table_id);
 
@@ -5816,12 +5816,8 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
                     &tname_mem, NAME_LEN + 1,
                     NULL);
 
-  /*
-    If memory is allocated, it the pointer to it should be stored in
-    table_list.  If this is not true, the memory will not be correctly
-    free:ed later.
-  */
-  DBUG_ASSERT(memory == NULL || memory == table_list);
+  if (memory == NULL)
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   uint32 dummy_len;
   bzero(table_list, sizeof(*table_list));
@@ -5836,8 +5832,12 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
 
   int error= 0;
 
-  if (rpl_filter->db_ok(table_list->db) &&
-      (!rpl_filter->is_on() || rpl_filter->tables_ok("", table_list)))
+  if (!rpl_filter->db_ok(table_list->db) ||
+      (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list)))
+  {
+    my_free((gptr) memory, MYF(MY_WME));
+  }
+  else
   {
     /*
       Check if the slave is set to use SBR.  If so, it should switch
@@ -6416,12 +6416,17 @@ static int find_and_fetch_row(TABLE *table, byte *key)
   if (table->s->keys > 0)
   {
     int error;
-      /*
-        We need to set the null bytes to ensure that the filler bit
-        are all set when returning.  There are storage engines that
-        just set the necessary bits on the bytes and don't set the
-        filler bits correctly.
-      */
+    /* We have a key: search the table using the index */
+    if (!table->file->inited)
+      if ((error= table->file->ha_index_init(0, FALSE)))
+        return error;
+    
+    /*
+      We need to set the null bytes to ensure that the filler bit are
+      all set when returning.  There are storage engines that just set
+      the necessary bits on the bytes and don't set the filler bits
+      correctly.
+    */
     my_ptrdiff_t const pos=
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
     table->record[1][pos]= 0xFF;
@@ -6430,6 +6435,7 @@ static int find_and_fetch_row(TABLE *table, byte *key)
                                         HA_READ_KEY_EXACT)))
     {
       table->file->print_error(error, MYF(0));
+      table->file->ha_index_end();
       DBUG_RETURN(error);
     }
 
@@ -6448,7 +6454,10 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       chose the row to change only using a PK or an UNNI.
      */
     if (table->key_info->flags & HA_NOSAME)
+    {
+      table->file->ha_index_end();
       DBUG_RETURN(0);
+    }
 
     while (record_compare(table))
     {
@@ -6465,15 +6474,26 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       if ((error= table->file->index_next(table->record[1])))
       {
 	table->file->print_error(error, MYF(0));
+        table->file->ha_index_end();
 	DBUG_RETURN(error);
       }
     }
+
+    /*
+      Have to restart the scan to be able to fetch the next row.
+    */
+    table->file->ha_index_end();
   }
   else
   {
-    /* Continue until we find the right record or have made a full loop */
     int restart_count= 0; // Number of times scanning has restarted from top
-    int error= 0;
+    int error;
+
+    /* We don't have a key: search the table using rnd_next() */
+    if ((error= table->file->ha_rnd_init(1)))
+      return error;
+
+    /* Continue until we find the right record or have made a full loop */
     do
     {
       /*
@@ -6499,10 +6519,16 @@ static int find_and_fetch_row(TABLE *table, byte *key)
 
       default:
 	table->file->print_error(error, MYF(0));
+        table->file->ha_rnd_end();
 	DBUG_RETURN(error);
       }
     }
     while (restart_count < 2 && record_compare(table));
+
+    /*
+      Have to restart the scan to be able to fetch the next row.
+    */
+    table->file->ha_rnd_end();
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
     DBUG_RETURN(error);
@@ -6626,20 +6652,6 @@ int Delete_rows_log_event::do_exec_row(TABLE *table)
 {
   DBUG_ASSERT(table != NULL);
 
-  if (table->s->keys > 0)
-  {
-    /* We have a key: search the table using the index */
-    if (!table->file->inited)
-      if (int error= table->file->ha_index_init(0, FALSE))
-        return error;
-  }
-  else
-  {
-    /* We doesn't have a key: search the table using rnd_next() */
-    if (int error= table->file->ha_rnd_init(1))
-      return error;
-  }
-
   int error= find_and_fetch_row(table, m_key);
   if (error)
     return error;
@@ -6650,11 +6662,6 @@ int Delete_rows_log_event::do_exec_row(TABLE *table)
      correct value.
   */
   error= table->file->ha_delete_row(table->record[0]);
-
-  /*
-    Have to restart the scan to be able to fetch the next row.
-   */
-  table->file->ha_index_or_rnd_end();
 
   return error;
 }
@@ -6736,17 +6743,6 @@ int Update_rows_log_event::do_before_row_operations(TABLE *table)
   if (!m_memory)
     return HA_ERR_OUT_OF_MEM;
 
-  if (table->s->keys > 0)
-  {
-    /* We have a key: search the table using the index */
-    if (!table->file->inited)
-      error= table->file->ha_index_init(0, FALSE);
-  }
-  else
-  {
-    /* We doesn't have a key: search the table using rnd_next() */
-    error= table->file->ha_rnd_init(1);
-  }
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   return error;
