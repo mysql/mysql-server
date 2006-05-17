@@ -304,6 +304,7 @@ Item::Item():
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
   decimals= 0; max_length= 0;
+  with_subselect= 0;
 
   /* Put item in free list so that we can free all items at end */
   THD *thd= current_thd;
