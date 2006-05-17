@@ -152,7 +152,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `COALESCE(1)` int(1) NOT NULL DEFAULT '0',
-  `COALESCE(1.0)` decimal(2,1) unsigned NOT NULL DEFAULT '0.0',
+  `COALESCE(1.0)` decimal(2,1) NOT NULL DEFAULT '0.0',
   `COALESCE('a')` varchar(1) NOT NULL DEFAULT '',
   `COALESCE(1,1.0)` decimal(2,1) NOT NULL DEFAULT '0.0',
   `COALESCE(1,'1')` varbinary(1) NOT NULL DEFAULT '',
