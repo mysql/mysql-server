@@ -489,7 +489,6 @@ fil_node_create(
 	}
 
 	space->size += size;
-	space->zip_size = 0;/* TODO */
 
 	node->space = space;
 
@@ -2674,6 +2673,7 @@ fil_reset_too_high_lsns(
 
 	file_size = os_file_get_size_as_iblonglong(file);
 
+	/* TODO: page_zip */
 	for (offset = 0; offset < file_size; offset += UNIV_PAGE_SIZE) {
 		success = os_file_read(file, page,
 				(ulint)(offset & 0xFFFFFFFFUL),

@@ -309,6 +309,7 @@ corrupted_page:
 
 	write_buf = trx_doublewrite->write_buf;
 
+	/* TODO: page_zip */
 	for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len; len2 += UNIV_PAGE_SIZE) {
 		if (mach_read_from_4(write_buf + len2 + FIL_PAGE_LSN + 4)
 			!= mach_read_from_4(write_buf + len2 + UNIV_PAGE_SIZE
@@ -333,6 +334,7 @@ corrupted_page:
 
 		write_buf = trx_doublewrite->write_buf
 			+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
+		/* TODO: page_zip */
 		for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len;
 						len2 += UNIV_PAGE_SIZE) {
 			if (mach_read_from_4(write_buf + len2
@@ -358,7 +360,7 @@ corrupted_page:
 
 	for (i = 0; i < trx_doublewrite->first_free; i++) {
 		block = trx_doublewrite->buf_block_arr[i];
-
+		/* TODO: page_zip */
 		if (mach_read_from_4(block->frame + FIL_PAGE_LSN + 4)
 			!= mach_read_from_4(block->frame + UNIV_PAGE_SIZE
 				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
@@ -472,6 +474,9 @@ buf_flush_init_for_writing(
 							page, zip_size)
 					: BUF_NO_CHECKSUM_MAGIC);
 			return;
+		case FIL_PAGE_INODE:
+		case FIL_PAGE_IBUF_BITMAP:
+		case FIL_PAGE_TYPE_FSP_HDR:
 		case FIL_PAGE_TYPE_XDES:
 			/* This is essentially an uncompressed page. */
 			break;
