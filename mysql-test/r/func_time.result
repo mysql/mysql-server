@@ -630,3 +630,10 @@ select monthname(str_to_date(null, '%m')), monthname(str_to_date(null, '%m')),
 monthname(str_to_date(1, '%m')), monthname(str_to_date(0, '%m'));
 monthname(str_to_date(null, '%m'))	monthname(str_to_date(null, '%m'))	monthname(str_to_date(1, '%m'))	monthname(str_to_date(0, '%m'))
 NULL	NULL	January	NULL
+set time_zone='-6:00';
+create table t1(a timestamp);
+insert into t1 values (19691231190001);
+select * from t1;
+a
+1969-12-31 19:00:01
+drop table t1;
