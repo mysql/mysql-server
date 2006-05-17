@@ -890,8 +890,10 @@ public:
   /* container for handler's private per-connection data */
   void *ha_data[MAX_HA];
 
-#ifdef HAVE_ROW_BASED_REPLICATION
 #ifndef MYSQL_CLIENT
+  int binlog_setup_trx_data();
+
+#ifdef HAVE_ROW_BASED_REPLICATION
 
   /*
     Public interface to write RBR events to the binlog
@@ -921,7 +923,6 @@ public:
 				      RowsEventT* hint);
   Rows_log_event* binlog_get_pending_rows_event() const;
   void            binlog_set_pending_rows_event(Rows_log_event* ev);
-  int             binlog_setup_trx_data();
   
   my_size_t max_row_length_blob(TABLE* table, const byte *data) const;
   my_size_t max_row_length(TABLE* table, const byte *data) const
@@ -945,8 +946,9 @@ private:
 
 public:
 
-#endif
 #endif /* HAVE_ROW_BASED_REPLICATION */
+#endif /* MYSQL_CLIENT */
+
 #ifndef MYSQL_CLIENT
   enum enum_binlog_query_type {
       /*
@@ -1384,15 +1386,21 @@ public:
   inline void set_current_stmt_binlog_row_based_if_mixed()
   {
     if (variables.binlog_format == BINLOG_FORMAT_MIXED)
-      current_stmt_binlog_row_based= 1;
+      current_stmt_binlog_row_based= TRUE;
   }
   inline void set_current_stmt_binlog_row_based()
   {
-    current_stmt_binlog_row_based= 1;
+    current_stmt_binlog_row_based= TRUE;
   }
+#endif
   inline void reset_current_stmt_binlog_row_based()
   {
-    current_stmt_binlog_row_based= test(variables.binlog_format == BINLOG_FORMAT_ROW);
+#ifdef HAVE_ROW_BASED_REPLICATION
+    current_stmt_binlog_row_based=
+      test(variables.binlog_format == BINLOG_FORMAT_ROW);
+#else
+    current_stmt_binlog_row_based= FALSE;
+#endif
   }
 #endif /*HAVE_ROW_BASED_REPLICATION*/
 };
@@ -1586,7 +1594,9 @@ public:
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   
+#ifdef HAVE_ROW_BASED_REPLICATION
   void binlog_show_create_table(TABLE **tables, uint count);
+#endif
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();

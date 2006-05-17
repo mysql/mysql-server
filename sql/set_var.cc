@@ -1269,8 +1269,14 @@ bool sys_var_thd_binlog_format::is_readonly() const
     if global or not here.
     And this test will also prevent switching from RBR to RBR (a no-op which
     should not happen too often).
+
+    If we don't have row-based replication compiled in, the variable
+    is always read-only.
   */
-#ifdef HAVE_ROW_BASED_REPLICATION
+#ifndef HAVE_ROW_BASED_REPLICATION
+  my_error(ER_RBR_NOT_AVAILABLE, MYF(0));
+  return 1;
+#else
   if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW) &&
       thd->temporary_tables)
   {
@@ -1297,14 +1303,17 @@ bool sys_var_thd_binlog_format::is_readonly() const
   }
 #endif
   return sys_var_thd_enum::is_readonly();
+#endif
 }
 
+#ifdef HAVE_ROW_BASED_REPLICATION
 void fix_binlog_format_after_update(THD *thd, enum_var_type type)
 {
 #ifdef HAVE_ROW_BASED_REPLICATION
   thd->reset_current_stmt_binlog_row_based();
 #endif /*HAVE_ROW_BASED_REPLICATION*/
 }
+#endif
 
 static void fix_max_binlog_size(THD *thd, enum_var_type type)
 {

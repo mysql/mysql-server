@@ -2523,6 +2523,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("select_create::prepare");
 
+  TABLEOP_HOOKS *hook_ptr= NULL;
+#ifdef HAVE_ROW_BASED_REPLICATION
   class MY_HOOKS : public TABLEOP_HOOKS {
   public:
     MY_HOOKS(select_create *x) : ptr(x) { }
@@ -2537,11 +2539,14 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   };
 
   MY_HOOKS hooks(this);
+  hook_ptr= &hooks;
+#endif
 
   unit= u;
   table= create_table_from_items(thd, create_info, create_table,
 				 extra_fields, keys, &values, &lock,
-                                 &hooks);
+                                 hook_ptr);
+
   if (!table)
     DBUG_RETURN(-1);				// abort() deletes table
 
@@ -2579,6 +2584,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 }
 
 
+#ifdef HAVE_ROW_BASED_REPLICATION
 void
 select_create::binlog_show_create_table(TABLE **tables, uint count)
 {
@@ -2622,7 +2628,7 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
                     /* is_trans */ TRUE,
                     /* suppress_use */ FALSE);
 }
-
+#endif // HAVE_ROW_BASED_REPLICATION
 
 void select_create::store_values(List<Item> &values)
 {

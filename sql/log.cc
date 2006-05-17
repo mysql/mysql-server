@@ -63,11 +63,17 @@ static int binlog_prepare(THD *thd, bool all);
 struct binlog_trx_data {
   bool empty() const
   {
+#ifdef HAVE_ROW_BASED_REPLICATION
     return pending == NULL && my_b_tell(&trans_log) == 0;
+#else
+    return my_b_tell(&trans_log) == 0;
+#endif
   }
   binlog_trx_data() {}
   IO_CACHE trans_log;                         // The transaction cache
+#ifdef HAVE_ROW_BASED_REPLICATION
   Rows_log_event *pending;                // The pending binrows event
+#endif
 };
 
 static const char binlog_hton_name[]= "binlog";
@@ -1095,6 +1101,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
 #endif
     error= mysql_bin_log.write(thd, trans_log, end_ev);
   }
+#ifdef HAVE_ROW_BASED_REPLICATION
   else
   {
 #ifdef HAVE_ROW_BASED_REPLICATION
@@ -1114,6 +1121,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
     transaction cache.
   */
   mysql_bin_log.update_table_map_version();
+#endif
 
   statistic_increment(binlog_cache_use, &LOCK_status);
   if (trans_log->disk_writes != 0)
@@ -2660,6 +2668,7 @@ int THD::binlog_setup_trx_data()
   engine has registered for the transaction.
  */
 
+#ifdef HAVE_ROW_BASED_REPLICATION
 int THD::binlog_write_table_map(TABLE *table, bool is_trans)
 {
   int error;
@@ -2835,6 +2844,7 @@ bool MYSQL_LOG::write(Log_event *event_info)
     we are inside a stored function, we do not end the statement since
     this will close all tables on the slave.
   */
+#ifdef HAVE_ROW_BASED_REPLICATION
   bool const end_stmt=
     thd->prelocked_mode && thd->lex->requires_prelocking();
 #ifdef HAVE_ROW_BASED_REPLICATION
@@ -2890,7 +2900,6 @@ bool MYSQL_LOG::write(Log_event *event_info)
         (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
       IO_CACHE *trans_log= &trx_data->trans_log;
       bool trans_log_in_use= my_b_tell(trans_log) != 0;
-
       if (event_info->get_cache_stmt() && !trans_log_in_use)
         trans_register_ha(thd,
                           (thd->options &
