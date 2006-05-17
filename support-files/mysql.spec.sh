@@ -319,7 +319,7 @@ BuildMySQL "--enable-shared \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
-	        --with-big-tables \
+		--with-big-tables \
 		--with-comment=\"MySQL Community Server - Max (GPL)\"")
 
 # We might want to save the config log file
@@ -686,9 +686,9 @@ fi
  %changelog 
 * Wed May 10 2006 Kent Boortz <kent@mysql.com>
 
-- Use character set "all" for the "max", to make Cluster nodes
-  independent on the character set directory, and the problem that
-  two RPM sub packages both wants to install this directory.
+- Use character set "all" when compiling with Cluster, to make Cluster
+  nodes independent on the character set directory, and the problem
+  that two RPM sub packages both wants to install this directory.
 
 * Mon May 01 2006 Kent Boortz <kent@mysql.com>
 

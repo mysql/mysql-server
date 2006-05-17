@@ -2,7 +2,7 @@
 #include "my_config.h"
 
 #include <stdlib.h>
-#include <tap.h>
+#include "../tap.h"
 
 int main() {
   plan(5);
