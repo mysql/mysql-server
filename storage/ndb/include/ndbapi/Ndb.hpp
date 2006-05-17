@@ -1469,25 +1469,30 @@ public:
    *
    * @param cacheSize number of values to cache in this Ndb object
    *
-   * @return tuple id or ~(Uint64)0 on error.
+   * @return 0 or -1 on error, and tupleId in out parameter
    */
   int initAutoIncrement();
 
-  Uint64 getAutoIncrementValue(const char* aTableName, 
-			       Uint32 cacheSize = 1);
-  Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable, 
-			       Uint32 cacheSize = 1);
-  Uint64 readAutoIncrementValue(const char* aTableName);
-  Uint64 readAutoIncrementValue(const NdbDictionary::Table * aTable);
-  Uint64 setAutoIncrementValue(const char* aTableName, Uint64 val, 
-			      bool increase = false);
-  Uint64 setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, 
-			      bool increase = false);
+  int getAutoIncrementValue(const char* aTableName, 
+                            Uint64 & tupleId, Uint32 cacheSize);
+  int getAutoIncrementValue(const NdbDictionary::Table * aTable, 
+                            Uint64 & tupleId, Uint32 cacheSize);
+  int readAutoIncrementValue(const char* aTableName,
+                             Uint64 & tupleId);
+  int readAutoIncrementValue(const NdbDictionary::Table * aTable,
+                             Uint64 & tupleId);
+  int setAutoIncrementValue(const char* aTableName,
+                            Uint64 tupleId, bool increase);
+  int setAutoIncrementValue(const NdbDictionary::Table * aTable,
+                            Uint64 tupleId, bool increase);
 private:
-  Uint64 getTupleIdFromNdb(Ndb_local_table_info* info, Uint32 cacheSize);
-  Uint64 readTupleIdFromNdb(Ndb_local_table_info* info);
-  Uint64 setTupleIdInNdb(Ndb_local_table_info* info, Uint64 val, bool increase);
-  Uint64 opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 opValue, Uint32 op);
+  int getTupleIdFromNdb(Ndb_local_table_info* info,
+                        Uint64 & tupleId, Uint32 cacheSize);
+  int readTupleIdFromNdb(Ndb_local_table_info* info,
+                         Uint64 & tupleId);
+  int setTupleIdInNdb(Ndb_local_table_info* info,
+                      Uint64 tupleId, bool increase);
+  int opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op);
 public:
 
   /**
