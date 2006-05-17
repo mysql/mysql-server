@@ -1890,7 +1890,6 @@ Item_decimal::Item_decimal(const char *str_arg, uint length,
   name= (char*) str_arg;
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
                                              decimals, unsigned_flag);
 }
@@ -1900,7 +1899,6 @@ Item_decimal::Item_decimal(longlong val, bool unsig)
   int2my_decimal(E_DEC_FATAL_ERROR, val, unsig, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
                                              decimals, unsigned_flag);
 }
@@ -1911,7 +1909,6 @@ Item_decimal::Item_decimal(double val, int precision, int scale)
   double2my_decimal(E_DEC_FATAL_ERROR, val, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
                                              decimals, unsigned_flag);
 }
@@ -1924,7 +1921,6 @@ Item_decimal::Item_decimal(const char *str, const my_decimal *val_arg,
   name= (char*) str;
   decimals= (uint8) decimal_par;
   max_length= length;
-  unsigned_flag= !decimal_value.sign();
   fixed= 1;
 }
 
@@ -1934,7 +1930,6 @@ Item_decimal::Item_decimal(my_decimal *value_par)
   my_decimal2decimal(value_par, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
                                              decimals, unsigned_flag);
 }
@@ -1946,7 +1941,6 @@ Item_decimal::Item_decimal(const char *bin, int precision, int scale)
                     &decimal_value, precision, scale);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(precision, decimals,
                                              unsigned_flag);
 }
