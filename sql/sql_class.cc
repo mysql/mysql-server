@@ -2115,7 +2115,9 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !current_stmt_binlog_row_based)
+  {
     options&= ~OPTION_BIN_LOG;
+  }    
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;
@@ -2704,6 +2706,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
       to how you treat this.
     */
   case THD::ROW_QUERY_TYPE:
+#ifdef HAVE_ROW_BASED_REPLICATION
     if (current_stmt_binlog_row_based)
     {
       /*
@@ -2724,6 +2727,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
 #endif /*HAVE_ROW_BASED_REPLICATION*/
       DBUG_RETURN(0);
     }
+#endif
     /* Otherwise, we fall through */
   case THD::STMT_QUERY_TYPE:
     /*
@@ -2732,7 +2736,9 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
      */
     {
       Query_log_event qinfo(this, query, query_len, is_trans, suppress_use);
+#ifdef HAVE_ROW_BASED_REPLICATION
       qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
+#endif
       /*
         Binlog table maps will be irrelevant after a Query_log_event
         (they are just removed on the slave side) so after the query
