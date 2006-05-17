@@ -1345,7 +1345,6 @@ start_master()
           --innodb_data_file_path=ibdata1:128M:autoextend \
 	  --open-files-limit=1024 \
           --log-bin-trust-function-creators \
-          --loose-binlog-show-xid=0 \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $MASTER_MYSQLD_BINLOG_OPT \
@@ -1369,7 +1368,6 @@ start_master()
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:128M:autoextend \
           --log-bin-trust-function-creators \
-          --loose-binlog-show-xid=0 \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $MASTER_MYSQLD_BINLOG_OPT \
@@ -1542,7 +1540,6 @@ start_slave()
           --master-retry-count=10 \
           -O slave_net_timeout=10 \
           --log-bin-trust-function-creators \
-          --loose-binlog-show-xid=0 \
            $SMALL_SERVER \
            $SLAVE_MYSQLD_BINLOG_OPT \
            $EXTRA_SLAVE_MYSQLD_OPT $EXTRA_SLAVE_OPT \
