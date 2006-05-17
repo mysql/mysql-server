@@ -106,7 +106,6 @@ static uint ndbcluster_alter_table_flags(uint flags)
 
 }
 
-#define NDB_FAILED_AUTO_INCREMENT ~(Uint64)0
 #define NDB_AUTO_INCREMENT_RETRIES 10
 
 #define ERR_PRINT(err) \
@@ -2461,14 +2460,15 @@ int ha_ndbcluster::write_row(byte *record)
   {
     // Table has hidden primary key
     Ndb *ndb= get_ndb();
-    Uint64 auto_value= NDB_FAILED_AUTO_INCREMENT;
+    int ret;
+    Uint64 auto_value;
     uint retries= NDB_AUTO_INCREMENT_RETRIES;
     do {
-      auto_value= ndb->getAutoIncrementValue(m_table);
-    } while (auto_value == NDB_FAILED_AUTO_INCREMENT && 
+      ret= ndb->getAutoIncrementValue(m_table, auto_value, 1);
+    } while (ret == -1 && 
              --retries &&
              ndb->getNdbError().status == NdbError::TemporaryError);
-    if (auto_value == NDB_FAILED_AUTO_INCREMENT)
+    if (ret == -1)
       ERR_RETURN(ndb->getNdbError());
     if (set_hidden_key(op, table_share->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
@@ -2566,7 +2566,7 @@ int ha_ndbcluster::write_row(byte *record)
                ("Trying to set next auto increment value to %llu",
                 (ulonglong) next_val));
     if (ndb->setAutoIncrementValue(m_table, next_val, TRUE)
-        == ~(Uint64)0)
+        == -1)
       ERR_RETURN(ndb->getNdbError());
   }
   m_skip_auto_increment= TRUE;
@@ -3529,8 +3529,14 @@ void ha_ndbcluster::info(uint flag)
     {
       Ndb *ndb= get_ndb();
       
-      auto_increment_value= 
-        ndb->readAutoIncrementValue(m_table);
+      if (ndb->readAutoIncrementValue(m_table,
+                                      auto_increment_value) == -1)
+      {
+        const NdbError err= ndb->getNdbError();
+        sql_print_error("Error %lu in readAutoIncrementValue(): %s",
+                        (ulong) err.code, err.message);
+        auto_increment_value= ~(Uint64)0;
+      }
     }
   }
   DBUG_VOID_RETURN;
@@ -5222,17 +5228,17 @@ ulonglong ha_ndbcluster::get_auto_increment()
            m_rows_to_insert - m_rows_inserted :
            ((m_rows_to_insert > m_autoincrement_prefetch) ?
             m_rows_to_insert : m_autoincrement_prefetch));
-  auto_value= NDB_FAILED_AUTO_INCREMENT;
+  int ret;
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
   do {
-    auto_value=
-      (m_skip_auto_increment) ? 
-      ndb->readAutoIncrementValue(m_table)
-      : ndb->getAutoIncrementValue(m_table, cache_size);
-  } while (auto_value == NDB_FAILED_AUTO_INCREMENT && 
+    ret=
+      m_skip_auto_increment ? 
+      ndb->readAutoIncrementValue(m_table, auto_value) :
+      ndb->getAutoIncrementValue(m_table, auto_value, cache_size);
+  } while (ret == -1 && 
            --retries &&
            ndb->getNdbError().status == NdbError::TemporaryError);
-  if (auto_value == NDB_FAILED_AUTO_INCREMENT)
+  if (ret == -1)
   {
     const NdbError err= ndb->getNdbError();
     sql_print_error("Error %lu in ::get_auto_increment(): %s",
