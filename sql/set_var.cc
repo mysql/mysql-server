@@ -1283,7 +1283,6 @@ bool sys_var_thd_binlog_format::is_readonly() const
     my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
     return 1;
   }
-#endif /*HAVE_ROW_BASED_REPLICATION*/
   /*
     if in a stored function, it's too late to change mode
   */
@@ -1301,19 +1300,19 @@ bool sys_var_thd_binlog_format::is_readonly() const
     my_error(ER_NDB_CANT_SWITCH_BINLOG_FORMAT, MYF(0));
     return 1;
   }
-#endif
+#endif /* HAVE_NDB_BINLOG */
+#endif /* HAVE_ROW_BASED_REPLICATION */
   return sys_var_thd_enum::is_readonly();
-#endif
 }
 
-#ifdef HAVE_ROW_BASED_REPLICATION
+
 void fix_binlog_format_after_update(THD *thd, enum_var_type type)
 {
 #ifdef HAVE_ROW_BASED_REPLICATION
   thd->reset_current_stmt_binlog_row_based();
 #endif /*HAVE_ROW_BASED_REPLICATION*/
 }
-#endif
+
 
 static void fix_max_binlog_size(THD *thd, enum_var_type type)
 {
