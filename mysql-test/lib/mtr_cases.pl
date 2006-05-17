@@ -455,6 +455,10 @@ sub collect_one_test_case($$$$$$$) {
         "Test case '$tname' is skipped.");
     }
   }
+  else
+  {
+    mtr_options_from_test_file($tinfo,"$testdir/${tname}.test");
+  }
 
   # We can't restart a running server that may be in use
 
@@ -463,7 +467,46 @@ sub collect_one_test_case($$$$$$$) {
   {
     $tinfo->{'skip'}= 1;
   }
+
 }
 
+sub mtr_options_from_test_file($$$) {
+  my $tinfo= shift;
+  my $file= shift;
+
+  open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
+  my @args;
+  while ( <FILE> )
+  {
+    chomp;
+
+    # Check if test uses innodb
+    if ( defined mtr_match_substring($_,"include/have_innodb.inc"))
+    {
+      $tinfo->{'innodb_test'} = 1;
+    }
+
+    # If test sources another file, open it as well
+    my $value= mtr_match_prefix($_, "--source");
+    if ( defined $value)
+    {
+      $value=~ s/^\s+//;  # Remove leading space
+      $value=~ s/\s+$//;  # Remove ending space
+
+      my $sourced_file= "$::glob_mysql_test_dir/$value";
+      mtr_options_from_test_file($tinfo, $sourced_file);
+    }
+
+  }
+  close FILE;
+
+  if ( ! $tinfo->{'innodb_test'} )
+  {
+    # mtr_report("Adding '--skip-innodb' to $tinfo->{'name'}");
+    push(@{$tinfo->{'master_opt'}}, "--skip-innodb");
+  }
+
+
+}
 
 1;
