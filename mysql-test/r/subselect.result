@@ -3177,3 +3177,9 @@ ERROR 42S22: Unknown column 'no_such_column' in 'where clause'
 SELECT * FROM t1 WHERE no_such_column = ANY (SELECT 1);
 ERROR 42S22: Unknown column 'no_such_column' in 'IN/ALL/ANY subquery'
 DROP TABLE t1;
+create table t1 (i int, j bigint);
+insert into t1 values (1, 2), (2, 2), (3, 2);
+select * from (select min(i) from t1 where j=(select * from (select min(j) from t1) t2)) t3;
+min(i)
+1
+drop table t1;
