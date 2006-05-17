@@ -1743,7 +1743,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 
     if (haveAutoIncrement) {
       if (ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
-				    autoIncrementValue) == ~(Uint64)0) {
+				    autoIncrementValue, false) == -1) {
         DBUG_ASSERT(ndb.theError.code != 0);
         m_error= ndb.theError;
 	ret = -1;
