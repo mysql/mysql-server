@@ -4840,7 +4840,16 @@ void Item_ref::cleanup()
 void Item_ref::print(String *str)
 {
   if (ref)
-    (*ref)->print(str);
+  {
+    if ((*ref)->type() != Item::CACHE_ITEM && ref_type() != VIEW_REF &&
+        name && alias_name_used)
+    {
+      THD *thd= current_thd;
+      append_identifier(thd, str, name, (uint) strlen(name));
+    }
+    else
+      (*ref)->print(str);
+  }
   else
     Item_ident::print(str);
 }
