@@ -75,7 +75,14 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 3);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, DICT_TABLE_ORDINARY);
+	if (table->flags & DICT_TF_COMPRESSED_MASK) {
+		ut_a(table->flags & DICT_TF_COMPACT);
+		mach_write_to_4(ptr, DICT_TABLE_COMPRESSED_BASE
+				+ ((table->flags & DICT_TF_COMPRESSED_MASK)
+				>> DICT_TF_COMPRESSED_SHIFT));
+	} else {
+		mach_write_to_4(ptr, DICT_TABLE_ORDINARY);
+	}
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 6: MIX_ID ---------------------------*/
