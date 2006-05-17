@@ -70,7 +70,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `nullif(1.1, 1.1)` decimal(2,1) DEFAULT NULL,
   `nullif(1.1, 1.2)` decimal(2,1) DEFAULT NULL,
-  `nullif(1.1, 0.11e1)` decimal(2,1) unsigned DEFAULT NULL,
+  `nullif(1.1, 0.11e1)` decimal(2,1) DEFAULT NULL,
   `nullif(1.0, 1)` decimal(2,1) DEFAULT NULL,
   `nullif(1, 1.0)` int(1) DEFAULT NULL,
   `nullif(1, 1.1)` int(1) DEFAULT NULL
@@ -176,7 +176,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `round(15.4,-1)` decimal(3,0) NOT NULL DEFAULT '0',
   `truncate(-5678.123451,-3)` decimal(4,0) NOT NULL DEFAULT '0',
-  `abs(-1.1)` decimal(2,1) NOT NULL DEFAULT '0.0',
+  `abs(-1.1)` decimal(3,1) NOT NULL DEFAULT '0.0',
   `-(-1.1)` decimal(2,1) NOT NULL DEFAULT '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
