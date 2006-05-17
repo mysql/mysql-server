@@ -237,7 +237,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
 
   if test X"$have_ndb_binlog" = Xyes
   then
-    AC_DEFINE([HAVE_NDB_BINLOG], [1],
+    AC_DEFINE([WITH_NDB_BINLOG], [1],
               [Including Ndb Cluster Binlog])
     AC_MSG_RESULT([Including Ndb Cluster Binlog])
   else
