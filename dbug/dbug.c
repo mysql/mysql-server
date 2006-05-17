@@ -256,7 +256,7 @@ static void DBUGCloseFile(CODE_STATE *cs, FILE *fp);
         /* Push current debug settings */
 static void PushState(CODE_STATE *cs);
 	/* Free memory associated with debug state. */
-static void FreeState (struct state *state);
+static void FreeState (CODE_STATE *cs, struct settings *state);
         /* Test for tracing enabled */
 static BOOLEAN DoTrace(CODE_STATE *cs);
 
@@ -744,7 +744,7 @@ void _db_pop_()
   if (discard->next != NULL)
   {
     cs->stack= discard->next;
-    FreeState(discard);
+    FreeState(cs, discard);
   }
 }
 
@@ -1432,7 +1432,8 @@ static void PushState(CODE_STATE *cs)
  *
  */
 static void FreeState (
-struct state *state)
+CODE_STATE *cs,
+struct settings *state)
 {
   if (!is_shared(state, keywords))
     FreeList(state->keywords);
@@ -1469,12 +1470,17 @@ struct state *state)
  */
 void _db_end_ ()
 {
-  reg1 struct state *discard;
-  while((discard= stack) != NULL) {
-    stack= discard -> next_state;
-    FreeState (discard);
+  struct settings *discard;
+  CODE_STATE *cs=0;
+
+  get_code_state_or_return;
+
+  while((discard= cs->stack) != NULL) {
+    if(discard == &init_settings)
+      break;
+    cs->stack= discard->next;
+    FreeState (cs, discard);
   }
-  _db_on_=0;
 }
 
 
