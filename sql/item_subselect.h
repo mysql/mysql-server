@@ -258,6 +258,7 @@ public:
   void top_level_item() { abort_on_null=1; }
   bool test_limit(st_select_lex_unit *unit);
   void print(String *str);
+  bool fix_fields(THD *thd, Item **ref);
 
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
