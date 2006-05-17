@@ -7,6 +7,7 @@
 # partition tables with same engine (MyISAM) in both ends. #
 ############################################################
 
+--source include/have_row_based.inc
 --source include/have_partition.inc
 --source include/master-slave.inc
 connection master;
