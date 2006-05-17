@@ -925,13 +925,8 @@ skip_size_check:
 
 		ut_a(fil_validate());
 
-		if (srv_data_file_is_raw_partition[i]) {
-
-			fil_node_create(name, srv_data_file_sizes[i], 0, TRUE);
-		} else {
-			fil_node_create(name, srv_data_file_sizes[i], 0,
-									FALSE);
-		}
+		fil_node_create(name, srv_data_file_sizes[i], 0,
+				srv_data_file_is_raw_partition[i] != 0);
 	}
 
 	ios = 0;
