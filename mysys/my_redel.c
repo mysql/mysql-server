@@ -90,14 +90,14 @@ int my_copystat(const char *from, const char *to, int MyFlags)
     return 1;
   VOID(chmod(to, statbuf.st_mode & 07777));		/* Copy modes */
 
-#if !defined(MSDOS) && !defined(__WIN__) && !defined(__NETWARE__)
+#if !defined(__WIN__) && !defined(__NETWARE__)
   if (statbuf.st_nlink > 1 && MyFlags & MY_LINK_WARNING)
   {
     if (MyFlags & MY_LINK_WARNING)
       my_error(EE_LINK_WARNING,MYF(ME_BELL+ME_WAITTANG),from,statbuf.st_nlink);
   }
   VOID(chown(to, statbuf.st_uid, statbuf.st_gid));	/* Copy ownership */
-#endif /* MSDOS */
+#endif /* !__WIN__ && !__NETWARE__ */
 
 #ifndef VMS
 #ifndef __ZTC__

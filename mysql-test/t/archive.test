@@ -5,7 +5,7 @@
 -- source include/have_archive.inc
 
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 --enable_warnings
 
 CREATE TABLE t1 (
