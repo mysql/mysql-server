@@ -3481,24 +3481,12 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
   Xid_log_event methods
 **************************************************************************/
 
-#if !defined(DBUG_OFF) && !defined(MYSQL_CLIENT)
-/*
-  This static class member could be removed when mysqltest is made to support
-  a --replace-regex command: then tests which have XIDs in their output can
-  use this command to suppress non-deterministic XID values.
-*/
-my_bool Xid_log_event::show_xid;
-#endif
-
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 void Xid_log_event::pack_info(Protocol *protocol)
 {
   char buf[128], *pos;
   pos= strmov(buf, "COMMIT /* xid=");
-#if !defined(DBUG_OFF) && !defined(MYSQL_CLIENT)
-  if (show_xid)
-#endif
-    pos= longlong10_to_str(xid, pos, 10);
+  pos= longlong10_to_str(xid, pos, 10);
   pos= strmov(pos, " */");
   protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
 }
