@@ -2958,63 +2958,6 @@ NdbDictionaryImpl::removeCachedObject(NdbTableImpl & impl)
   DBUG_RETURN(0);
 }
 
-/*****************************************************************
- * Get index info
- */
-NdbIndexImpl*
-NdbDictionaryImpl::getIndexImpl(const char * externalName,
-				const BaseString& internalName)
-{
-  ASSERT_NOT_MYSQLD;
-  Ndb_local_table_info * info = get_local_table_info(internalName);
-  if(info == 0){
-    m_error.code = 4243;
-    return 0;
-  }
-  NdbTableImpl * tab = info->m_table_impl;
-
-  if(tab->m_indexType == NdbDictionary::Object::TypeUndefined)
-  {
-    // Not an index
-    m_error.code = 4243;
-    return 0;
-  }
-
-  NdbTableImpl* prim = getTable(tab->m_primaryTable.c_str());
-  if(prim == 0){
-    m_error.code = 4243;
-    return 0;
-  }
-
-  return getIndexImpl(externalName, internalName, *tab, *prim);
-}
-
-NdbIndexImpl*
-NdbDictionaryImpl::getIndexImpl(const char * externalName,
-                                const BaseString& internalName,
-				NdbTableImpl &tab,
-                                NdbTableImpl &prim)
-{
-  DBUG_ENTER("NdbDictionaryImpl::getIndexImpl");
-  DBUG_ASSERT(tab.m_indexType != NdbDictionary::Object::TypeUndefined);
-  /**
-   * Create index impl
-   */
-  NdbIndexImpl* idx;
-  if(NdbDictInterface::create_index_obj_from_table(&idx, &tab, &prim) == 0){
-    idx->m_table = &tab;
-    idx->m_externalName.assign(externalName);
-    idx->m_internalName.assign(internalName);
-    idx->m_table_id = prim.getObjectId();
-      idx->m_table_version = prim.getObjectVersion();
-    // TODO Assign idx to tab->m_index
-    // Don't do it right now since assign can't asign a table with index
-    // tab->m_index = idx;
-    DBUG_RETURN(idx);
-  }
-  DBUG_RETURN(0);
-}
-
 int
 NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
 					      NdbTableImpl* tab,
@@ -3072,6 +3015,9 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
       tab->m_columns[i]->m_distributionKey = 0;
   }
 
+  idx->m_table_id = prim->getObjectId();
+  idx->m_table_version = prim->getObjectVersion();
+  
   * dst = idx;
   DBUG_PRINT("exit", ("m_id: %d  m_version: %d", idx->m_id, idx->m_version));
   DBUG_RETURN(0);
