@@ -42,6 +42,7 @@ extern	void _db_pargs_(uint _line_,const char *keyword);
 extern	void _db_doprnt_ _VARARGS((const char *format,...));
 extern	void _db_dump_(uint _line_,const char *keyword,const char *memory,
 		       uint length);
+extern	void _db_end_(void);
 extern	void _db_lock_file_(void);
 extern	void _db_unlock_file_(void);
 extern FILE *_db_fp_(void);
@@ -73,6 +74,7 @@ extern FILE *_db_fp_(void);
 #define DBUG_SETJMP(a1) (_db_setjmp_ (), setjmp (a1))
 #define DBUG_LONGJMP(a1,a2) (_db_longjmp_ (), longjmp (a1, a2))
 #define DBUG_DUMP(keyword,a1,a2) _db_dump_(__LINE__,keyword,a1,a2)
+#define DBUG_END()  _db_end_ ()
 #define DBUG_LOCK_FILE _db_lock_file_()
 #define DBUG_UNLOCK_FILE _db_unlock_file_()
 #define DBUG_ASSERT(A) assert(A)
@@ -97,6 +99,7 @@ extern FILE *_db_fp_(void);
 #define DBUG_SETJMP(a1) setjmp(a1)
 #define DBUG_LONGJMP(a1) longjmp(a1)
 #define DBUG_DUMP(keyword,a1,a2)
+#define DBUG_END()
 #define DBUG_ASSERT(A)
 #define DBUG_LOCK_FILE
 #define DBUG_FILE (stderr)
