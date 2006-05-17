@@ -2632,7 +2632,6 @@ bool MYSQL_LOG::is_query_in_union(THD *thd, query_id_t query_id_param)
 }
 
 
-#ifdef HAVE_ROW_BASED_REPLICATION
 /*
   These functions are placed in this file since they need access to
   binlog_hton, which has internal linkage.
@@ -2847,7 +2846,6 @@ bool MYSQL_LOG::write(Log_event *event_info)
 #ifdef HAVE_ROW_BASED_REPLICATION
   bool const end_stmt=
     thd->prelocked_mode && thd->lex->requires_prelocking();
-#ifdef HAVE_ROW_BASED_REPLICATION
   thd->binlog_flush_pending_rows_event(end_stmt);
 #endif /*HAVE_ROW_BASED_REPLICATION*/
 
