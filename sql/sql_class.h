@@ -942,11 +942,12 @@ public:
   void binlog_delete_pending_rows_event();
 
 private:
+#ifdef HAVE_ROW_BASED_REPLICATION
   uint binlog_table_maps; // Number of table maps currently in the binlog
+#endif /* HAVE_ROW_BASED_REPLICATION */
 
 public:
 
-#endif /* HAVE_ROW_BASED_REPLICATION */
 #endif /* MYSQL_CLIENT */
 
 #ifndef MYSQL_CLIENT
