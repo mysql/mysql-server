@@ -14,6 +14,8 @@ a	b
 1	1
 2	1
 3	1
+select * from t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
 show tables like 't2';
 Tables_in_test (t2)
 create table t2 (a int key) engine=ndbcluster;
@@ -28,6 +30,8 @@ a
 1
 2
 3
+select * from t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
 show tables like 't2';
 Tables_in_test (t2)
 create table t2 (a int key) engine=ndbcluster;
