@@ -18,6 +18,7 @@
 #include <ndb_opts.h>
 #include <NDBT.hpp>
 #include <NdbApi.hpp>
+#include <NdbSleep.h>
 
 void desc_AutoGrowSpecification(struct NdbDictionary::AutoGrowSpecification ags);
 int desc_logfilegroup(Ndb *myndb, char* name);
@@ -31,6 +32,7 @@ NDB_STD_OPTS_VARS;
 static const char* _dbname = "TEST_DB";
 static int _unqualified = 0;
 static int _partinfo = 0;
+static int _retries = 0;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
@@ -43,6 +45,9 @@ static struct my_option my_long_options[] =
   { "extra-partition-info", 'p', "Print more info per partition",
     (gptr*) &_partinfo, (gptr*) &_partinfo, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "retries", 'r', "Retry every second for # retries",
+    (gptr*) &_retries, (gptr*) &_retries, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 static void usage()
@@ -231,7 +236,8 @@ int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
 int desc_table(Ndb *myndb, char* name)
 {
   NdbDictionary::Dictionary * dict= myndb->getDictionary();
-  NDBT_Table* pTab = (NDBT_Table*)dict->getTable(name);
+  NDBT_Table* pTab;
+  while ((pTab = (NDBT_Table*)dict->getTable(name)) == NULL && --_retries >= 0) NdbSleep_SecSleep(1);
   if (!pTab)
     return 0;
 

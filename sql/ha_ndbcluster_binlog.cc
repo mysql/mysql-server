@@ -3318,6 +3318,7 @@ restart:
       schema_res= s_ndb->pollEvents(100, &schema_gci);
     }
     // now check that we have epochs consistant with what we had before the restart
+    DBUG_PRINT("info", ("schema_res: %d  schema_gci: %d", schema_res, schema_gci));
     if (schema_res > 0)
     {
       if (schema_gci < ndb_latest_handled_binlog_epoch)
@@ -3681,7 +3682,7 @@ restart:
     *root_ptr= old_root;
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
   }
-  if (do_ndbcluster_binlog_close_connection != BCCC_exit)
+  if (do_ndbcluster_binlog_close_connection == BCCC_restart)
     goto restart;
 err:
   DBUG_PRINT("info",("Shutting down cluster binlog thread"));

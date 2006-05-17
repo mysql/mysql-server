@@ -178,6 +178,11 @@ GlobalDictCache::get(const char * name)
       {
         ver->m_status = DROPPED;
         retreive = true; // Break loop
+        if (ver->m_refCount == 0)
+        {
+          delete ver->m_impl;
+          versions->erase(versions->size() - 1);
+        }
         break;
       }
       ver->m_refCount++;
@@ -288,6 +293,10 @@ GlobalDictCache::get_size()
   while(curr != 0){
     sz += curr->theData->size();
     curr = m_tableHash.getNext(curr);
+  }
+  if (sz)
+  {
+    printCache();
   }
   return sz;
 }
@@ -408,6 +417,11 @@ GlobalDictCache::alter_table_rep(const char * name,
       ver.m_status = DROPPED;
       ver.m_impl->m_status = altered ? 
 	NdbDictionary::Object::Altered : NdbDictionary::Object::Invalid;
+      if (ver.m_refCount == 0)
+      {
+        delete ver.m_impl;
+        vers->erase(i);
+      }
       DBUG_VOID_RETURN;
     }
 
