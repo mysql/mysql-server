@@ -33,8 +33,6 @@
 // primary key is stored in TUP
 #include "../dbtup/Dbtup.hpp"
 
-#include "../dbacc/Dbacc.hpp"
-
 #ifdef DBLQH_C
 // Constants
 /* ------------------------------------------------------------------------- */
@@ -2556,7 +2554,18 @@ private:
   
   Dbtup* c_tup;
   Dbacc* c_acc;
+
+  /**
+   * Read primary key from tup
+   */
   Uint32 readPrimaryKeys(ScanRecord*, TcConnectionrec*, Uint32 * dst);
+
+  /**
+   * Read primary key from operation
+   */
+public:
+  Uint32 readPrimaryKeys(Uint32 opPtrI, Uint32 * dst, bool xfrm);
+private:
 
   void acckeyconf_tupkeyreq(Signal*, TcConnectionrec*, Fragrecord*, Uint32, Uint32);
   void acckeyconf_load_diskpage(Signal*,TcConnectionrecPtr,Fragrecord*,Uint32);
@@ -2924,6 +2933,11 @@ public:
   }
 
   DLHashTable<ScanRecord> c_scanTakeOverHash;
+
+#ifdef ERROR_INSERT
+  inline bool TRACE_OP_CHECK(const TcConnectionrec* regTcPtr);
+  void TRACE_OP_DUMP(const TcConnectionrec* regTcPtr, const char * pos);
+#endif
 };
 
 inline
@@ -2991,10 +3005,19 @@ Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
   signal->theData[1] = key->m_page_no << MAX_TUPLES_BITS | key->m_page_idx;
   c_acc->execACCMINUPDATE(signal);
   
-  if (ERROR_INSERTED(5712))
+  if (ERROR_INSERTED(5712) || ERROR_INSERTED(5713))
     ndbout << " LK: " << *key;
   regTcPtr.p->m_row_id = *key;
 }
 
+inline
+bool
+Dblqh::TRACE_OP_CHECK(const TcConnectionrec* regTcPtr)
+{
+  return (ERROR_INSERTED(5712) && 
+	  (regTcPtr->operation == ZINSERT ||
+	   regTcPtr->operation == ZDELETE)) ||
+    ERROR_INSERTED(5713);
+}
 
 #endif

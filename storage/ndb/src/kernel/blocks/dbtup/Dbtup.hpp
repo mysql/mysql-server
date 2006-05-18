@@ -297,7 +297,6 @@ enum TransState {
 };
 
 enum TupleState {
-  TUPLE_INITIAL_INSERT = 0,
   TUPLE_PREPARED = 1,
   TUPLE_ALREADY_ABORTED = 2,
   TUPLE_TO_BE_COMMITTED = 3
@@ -305,7 +304,6 @@ enum TupleState {
   
 enum State {
   NOT_INITIALIZED = 0,
-  COMMON_AREA_PAGES = 1,
   IDLE = 17,
   ACTIVE = 18,
   SYSTEM_RESTART = 19,
@@ -1441,7 +1439,6 @@ private:
   void execSET_VAR_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execALTER_TAB_REQ(Signal* signal);
-  void execTUP_ALLOCREQ(Signal* signal);
   void execTUP_DEALLOCREQ(Signal* signal);
   void execTUP_WRITELOG_REQ(Signal* signal);
 
