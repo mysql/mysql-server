@@ -1324,6 +1324,12 @@ Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
   return theEventBuffer->pollEvents(aMillisecondNumber, latestGCI);
 }
 
+int
+Ndb::flushIncompleteEvents(Uint64 gci)
+{
+  return theEventBuffer->flushIncompleteEvents(gci);
+}
+
 NdbEventOperation *Ndb::nextEvent()
 {
   return theEventBuffer->nextEvent();
