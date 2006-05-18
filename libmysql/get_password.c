@@ -75,7 +75,7 @@
 #define _cputs(A) putstring(A)
 #endif
 
-char *get_tty_password(char *opt_message)
+char *get_tty_password(const char *opt_message)
 {
   char to[80];
   char *pos=to,*end=to+sizeof(to)-1;
@@ -159,7 +159,7 @@ static void get_password(char *to,uint length,int fd,bool echo)
 #endif /* ! HAVE_GETPASS */
 
 
-char *get_tty_password(char *opt_message)
+char *get_tty_password(const char *opt_message)
 {
 #ifdef HAVE_GETPASS
   char *passbuff;

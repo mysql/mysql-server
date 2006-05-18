@@ -14,14 +14,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
 #include "messages.h"
+
+#include <my_global.h>
+#include <mysql_com.h>
 
 #include "mysqld_error.h"
 #include "mysql_manager_error.h"
-
-#include <mysql_com.h>
-#include <assert.h>
 
 
 static const char *mysqld_error_message(unsigned sql_errno)
@@ -70,6 +69,23 @@ static const char *mysqld_error_message(unsigned sql_errno)
            "in the instance options";
   case ER_ACCESS_OPTION_FILE:
     return "Cannot open the option file to edit. Check permissions";
+  case ER_DROP_ACTIVE_INSTANCE:
+    return "Cannot drop an active instance. You should stop it first";
+  case ER_CREATE_EXISTING_INSTANCE:
+    return "Instance already exists";
+  case ER_INSTANCE_MISCONFIGURED:
+    return "Instance is misconfigured. Cannot start it";
+  case ER_MALFORMED_INSTANCE_NAME:
+    return "Malformed instance name.";
+  case ER_INSTANCE_IS_ACTIVE:
+    return "The instance is active. Stop the instance first";
+  case ER_THERE_IS_ACTIVE_INSTACE:
+    return "At least one instance is active. Stop all instances first";
+  case ER_INCOMPATIBLE_OPTION:
+    return "Instance Manager-specific options are prohibited from being used "
+           "in the configuration of mysqld-compatible instances";
+  case ER_CONF_FILE_DOES_NOT_EXIST:
+    return "Configuration file does not exist";
   default:
     DBUG_ASSERT(0);
     return 0;

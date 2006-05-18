@@ -1,0 +1,196 @@
+--------------------------------------------------------------------
+server_id           =1
+server_id           =2
+--------------------------------------------------------------------
+SHOW INSTANCES;
+instance_name	state
+mysqld1	online
+mysqld2	offline
+
+---> connection: mysql1_con
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	1
+
+---> connection: default
+CREATE INSTANCE mysqld3;
+SHOW INSTANCES;
+instance_name	state
+mysqld3	offline
+mysqld2	offline
+mysqld1	online
+--------------------------------------------------------------------
+server_id           =1
+server_id           =2
+--------------------------------------------------------------------
+CREATE INSTANCE mysqld1;
+ERROR HY000: Instance already exists
+CREATE INSTANCE mysqld2;
+ERROR HY000: Instance already exists
+CREATE INSTANCE mysqld3;
+ERROR HY000: Instance already exists
+--------------------------------------------------------------------
+nonguarded
+--------------------------------------------------------------------
+CREATE INSTANCE mysqld4 nonguarded;
+SHOW INSTANCES;
+instance_name	state
+mysqld3	offline
+mysqld4	offline
+mysqld1	online
+mysqld2	offline
+--------------------------------------------------------------------
+nonguarded
+nonguarded
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+CREATE INSTANCE mysqld5 test-A = 000, test-B = test;
+SHOW INSTANCES;
+instance_name	state
+mysqld1	online
+mysqld4	offline
+mysqld5	offline
+mysqld2	offline
+mysqld3	offline
+--------------------------------------------------------------------
+test-A=000
+--------------------------------------------------------------------
+test-B=test
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+CREATE INSTANCE mysqld6  test-C1  =  10  ,  test-C2  =  02  ;
+SHOW INSTANCES;
+instance_name	state
+mysqld1	online
+mysqld2	offline
+mysqld5	offline
+mysqld6	offline
+mysqld3	offline
+mysqld4	offline
+--------------------------------------------------------------------
+test-C1=10
+--------------------------------------------------------------------
+test-C2=02
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+CREATE INSTANCE mysqld7  test-D  =  test-D-value  ;
+ERROR 42000: You have an error in your command syntax. Check the manual that corresponds to your MySQL Instance Manager version for the right syntax to use
+SHOW INSTANCES;
+instance_name	state
+mysqld1	online
+mysqld2	offline
+mysqld5	offline
+mysqld6	offline
+mysqld3	offline
+mysqld4	offline
+CREATE INSTANCE mysqld8  test-E  0  ;
+ERROR 42000: You have an error in your command syntax. Check the manual that corresponds to your MySQL Instance Manager version for the right syntax to use
+SHOW INSTANCES;
+instance_name	state
+mysqld1	online
+mysqld2	offline
+mysqld5	offline
+mysqld6	offline
+mysqld3	offline
+mysqld4	offline
+CREATE INSTANCE mysqld8  test-F  =  ;
+ERROR 42000: You have an error in your command syntax. Check the manual that corresponds to your MySQL Instance Manager version for the right syntax to use
+SHOW INSTANCES;
+instance_name	state
+mysqld1	online
+mysqld2	offline
+mysqld5	offline
+mysqld6	offline
+mysqld3	offline
+mysqld4	offline
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+CREATE INSTANCE mysqld9 test-1=" hello world ", test-2='  ';
+SHOW INSTANCES;
+instance_name	state
+mysqld1	online
+mysqld2	offline
+mysqld5	offline
+mysqld6	offline
+mysqld3	offline
+mysqld4	offline
+mysqld9	offline
+CREATE INSTANCE mysqld9a test-3='\b\babc\sdef';
+SHOW INSTANCES;
+instance_name	state
+mysqld1	online
+mysqld9a	offline
+mysqld5	offline
+mysqld6	offline
+mysqld3	offline
+mysqld4	offline
+mysqld9	offline
+mysqld2	offline
+CREATE INSTANCE mysqld9b test-4='abc\tdef', test-5='abc\ndef';
+SHOW INSTANCES;
+instance_name	state
+mysqld9b	offline
+mysqld9a	offline
+mysqld5	offline
+mysqld6	offline
+mysqld3	offline
+mysqld4	offline
+mysqld9	offline
+mysqld2	offline
+mysqld1	online
+CREATE INSTANCE mysqld9c test-6="abc\rdef", test-7="abc\\def";
+SHOW INSTANCES;
+instance_name	state
+mysqld9b	offline
+mysqld6	offline
+mysqld5	offline
+mysqld9c	offline
+mysqld3	offline
+mysqld4	offline
+mysqld9	offline
+mysqld2	offline
+mysqld1	online
+mysqld9a	offline
+CREATE INSTANCE mysqld10 test-bad=' \ ';
+ERROR 42000: You have an error in your command syntax. Check the manual that corresponds to your MySQL Instance Manager version for the right syntax to use
+SHOW INSTANCES;
+instance_name	state
+mysqld9b	offline
+mysqld6	offline
+mysqld5	offline
+mysqld9c	offline
+mysqld3	offline
+mysqld4	offline
+mysqld9	offline
+mysqld2	offline
+mysqld1	online
+mysqld9a	offline
+--------------------------------------------------------------------
+test-1= hello world 
+--------------------------------------------------------------------
+test-2=  
+--------------------------------------------------------------------
+test-3=abc def
+--------------------------------------------------------------------
+test-4=abc	def
+--------------------------------------------------------------------
+test-5=abc
+--------------------------------------------------------------------
+test-6=abcdef
+--------------------------------------------------------------------
+test-7=abc\def
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+CREATE INSTANCE qqq1;
+ERROR HY000: Malformed instance name.
