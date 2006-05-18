@@ -1075,6 +1075,10 @@ static void __cdecl kill_server(int sig_ptr)
     pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
 
+#if defined(__NETWARE__) || (defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2))
+  my_thread_end();
+#endif
+
   pthread_exit(0);				/* purecov: deadcode */
 
 #endif /* EMBEDDED_LIBRARY */
