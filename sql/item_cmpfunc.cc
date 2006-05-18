@@ -2570,7 +2570,9 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 	(item= *li.ref())->check_cols(1))
       return TRUE; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
-    if (!item->const_item())
+    if (item->const_item())
+      and_tables_cache= (table_map) 0;
+    else
     {
       tmp_table_map= item->not_null_tables();
       not_null_tables_cache|= tmp_table_map;
