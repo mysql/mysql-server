@@ -2974,7 +2974,6 @@ static void end_ssl()
     ssl_acceptor_fd= 0;
   }
 #endif /* HAVE_OPENSSL */
-  vio_end();
 }
 
 
