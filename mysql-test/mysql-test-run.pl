@@ -876,6 +876,7 @@ sub command_line_setup () {
    start_timeout =>  400, # enough time create innodb tables
 
    ndbcluster    =>  1, # ndbcluster not started
+   master_opt    => [],
   };
 
   $master->[1]=
@@ -2140,6 +2141,14 @@ sub run_testcase ($) {
     {
       $do_restart= 1;
     }
+    # Check that running master was started with same options
+    # as the current test requires
+    elsif (! mtr_same_opts($master->[0]->{'master_opt'},
+			   $tinfo->{'master_opt'}) )
+    {
+      $do_restart= 1;
+    }
+
 
     if ( $do_restart )
     {
@@ -2219,6 +2228,8 @@ sub run_testcase ($) {
           report_failure_and_restart($tinfo);
           return;
         }
+	# Remember options used to start
+	$master->[0]->{'master_opt'}= $tinfo->{'master_opt'};
       }
       if ( $using_ndbcluster_master and ! $master->[1]->{'pid'} )
       {
