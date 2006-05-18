@@ -44,6 +44,7 @@ const char *Options::user= 0;                   /* No default value */
 const char *default_password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
 const char *default_log_file_name= QUOTE(DEFAULT_LOG_FILE_NAME);
 const char *Options::config_file= QUOTE(DEFAULT_CONFIG_FILE);
+const char *Options::angel_pid_file_name= NULL;
 #endif
 const char *Options::log_file_name= default_log_file_name;
 const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
@@ -61,6 +62,9 @@ bool Options::is_forced_default_file= 0;
 const char *Options::default_dbug_option= "d:t:i:O,im.trace";
 #endif
 
+static const char * const ANGEL_PID_FILE_SUFFIX= ".angel.pid";
+static const int ANGEL_PID_FILE_SUFFIX_LEN= strlen(ANGEL_PID_FILE_SUFFIX);
+
 /*
   List of options, accepted by the instance manager.
   List must be closed with empty option.
@@ -75,6 +79,7 @@ enum options {
 #ifndef __WIN__
   OPT_RUN_AS_SERVICE,
   OPT_USER,
+  OPT_ANGEL_PID_FILE,
 #else
   OPT_INSTALL_SERVICE,
   OPT_REMOVE_SERVICE,
@@ -90,6 +95,13 @@ static struct my_option my_long_options[] =
 {
   { "help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
+
+#ifndef __WIN__
+  { "angel-pid-file", OPT_ANGEL_PID_FILE, "Pid file for angel process.",
+    (gptr *) &Options::angel_pid_file_name,
+    (gptr *) &Options::angel_pid_file_name,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+#endif
 
   { "bind-address", OPT_BIND_ADDRESS, "Bind address to use for connection.",
     (gptr *) &Options::bind_address, (gptr *) &Options::bind_address,
@@ -312,6 +324,46 @@ int Options::load(int argc, char **argv)
                       get_one_option)) != 0)
     goto err;
 
+#ifndef __WIN__
+  if (Options::run_as_service)
+  {
+    if (Options::angel_pid_file_name == NULL)
+    {
+      /*
+        Calculate angel pid file on the IM pid file basis: replace the
+        extension (everything after the last dot) of the pid file basename to
+        '.angel.pid'.
+      */
+
+      char *angel_pid_file_name;
+      char *base_name_ptr;
+      char *ext_ptr;
+
+      angel_pid_file_name= (char *) malloc(strlen(Options::pid_file_name) +
+                                           ANGEL_PID_FILE_SUFFIX_LEN);
+
+      strcpy(angel_pid_file_name, Options::pid_file_name);
+
+      base_name_ptr= strrchr(angel_pid_file_name, '/');
+
+      if (!base_name_ptr)
+        base_name_ptr= angel_pid_file_name + 1;
+
+      ext_ptr= strrchr(base_name_ptr, '.');
+      if (ext_ptr)
+        *ext_ptr= 0;
+
+      strcat(angel_pid_file_name, ANGEL_PID_FILE_SUFFIX);
+
+      Options::angel_pid_file_name= angel_pid_file_name;
+    }
+    else
+    {
+      Options::angel_pid_file_name= strdup(Options::angel_pid_file_name);
+    }
+  }
+#endif
+
   return 0;
 
 err:
@@ -323,6 +375,11 @@ void Options::cleanup()
   /* free_defaults returns nothing */
   if (Options::saved_argv != NULL)
     free_defaults(Options::saved_argv);
+
+#ifndef __WIN__
+  if (Options::run_as_service)
+    free((void *) Options::angel_pid_file_name);
+#endif
 }
 
 #ifdef __WIN__
