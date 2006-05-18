@@ -36,10 +36,9 @@ sinclude(config/ac-macros/ha_berkeley.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
-sinclude(config/ac-macros/openssl.m4)
 sinclude(config/ac-macros/readline.m4)
 sinclude(config/ac-macros/replication.m4)
-sinclude(config/ac-macros/yassl.m4)
+sinclude(config/ac-macros/ssl.m4)
 sinclude(config/ac-macros/zlib.m4)
 
 # Remember to add a directory sql/share/LANGUAGE
@@ -2203,8 +2202,7 @@ MYSQL_CHECK_BIG_TABLES
 MYSQL_CHECK_MAX_INDEXES
 MYSQL_CHECK_REPLICATION
 MYSQL_CHECK_VIO
-MYSQL_CHECK_OPENSSL
-MYSQL_CHECK_YASSL
+MYSQL_CHECK_SSL
 
 #--------------------------------------------------------------------
 # Declare our plugin modules
