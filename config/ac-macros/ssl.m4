@@ -23,7 +23,7 @@ AC_DEFUN([MYSQL_USE_BUNDLED_YASSL], [
     extra/yassl/src/Makefile dnl
     extra/yassl/testsuite/Makefile)
 
-  with_yassl="yes"
+  with_bundled_yassl="yes"
 
   yassl_dir="yassl"
   AC_SUBST([yassl_dir])
@@ -196,5 +196,5 @@ AC_MSG_CHECKING(for SSL)
       MYSQL_FIND_OPENSSL([$mysql_ssl_dir])
       ;;
   esac
-  AM_CONDITIONAL([HAVE_YASSL], [ test "$with_yassl" = "yes" ])
+  AM_CONDITIONAL([HAVE_YASSL], [ test "$with_bundled_yassl" = "yes" ])
 ])
