@@ -552,6 +552,45 @@ drop table t3, t4|
 drop procedure bug14210|
 set @@session.max_heap_table_size=default|
 
+#
+# BUG#7787: Stored procedures: improper warning for "grant execute" statement
+#
+
+# Prepare.
+
+CREATE DATABASE db_bug7787|
+use db_bug7787|
+
+# Test.
+
+CREATE PROCEDURE p1()
+  SHOW INNODB STATUS; |
+
+GRANT EXECUTE ON PROCEDURE p1 TO user_bug7787@localhost|
+
+# Cleanup.
+
+DROP DATABASE db_bug7787|
+drop user user_bug7787@localhost|
+use test|
+
+#
+# Bug#13575 SP funcs in select with distinct/group and order by can
+#           produce bad data
+#
+create table t3 (f1 int, f2 varchar(3), primary key(f1)) engine=innodb|
+insert into t3 values (1,'aaa'),(2,'bbb'),(3,'ccc')|
+CREATE FUNCTION bug13575 ( p1 integer ) 
+returns varchar(3) 
+BEGIN 
+DECLARE v1 VARCHAR(10) DEFAULT null;
+SELECT f2 INTO v1 FROM t3 WHERE f1 = p1; 
+RETURN v1;
+END|
+select distinct f1, bug13575(f1) from t3 order by f1|
+drop function bug13575|
+drop table t3|
+
 
 #
 # BUG#NNNN: New bug synopsis
