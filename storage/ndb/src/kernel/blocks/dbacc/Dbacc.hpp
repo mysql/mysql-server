@@ -17,13 +17,12 @@
 #ifndef DBACC_H
 #define DBACC_H
 
-
+#ifdef VM_TRACE
+#define ACC_SAFE_QUEUE
+#endif
 
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
-
-// primary key is stored in TUP
-#include "../dbtup/Dbtup.hpp"
 
 #ifdef DBACC_C
 // Debug Macros
@@ -135,7 +134,10 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZRIGHT 2
 #define ZROOTFRAGMENTSIZE 32
 #define ZSCAN_LOCK_ALL 3
-#define ZSCAN_OP 5
+/**
+ * Check kernel_types for other operation types
+ */
+#define ZSCAN_OP 6
 #define ZSCAN_REC_SIZE 256
 #define ZSTAND_BY 2
 #define ZTABLESIZE 16
@@ -477,6 +479,7 @@ struct Fragmentrec {
 /* OPERATIONREC                                                                      */
 /* --------------------------------------------------------------------------------- */
 struct Operationrec {
+  Uint32 m_op_bits;
   Uint32 localdata[2];
   Uint32 elementIsforward;
   Uint32 elementPage;
@@ -485,36 +488,62 @@ struct Operationrec {
   Uint32 fragptr;
   Uint32 hashvaluePart;
   Uint32 hashValue;
-  Uint32 insertDeleteLen;
   Uint32 nextLockOwnerOp;
   Uint32 nextOp;
   Uint32 nextParallelQue;
-  Uint32 nextSerialQue;
+  union {
+    Uint32 nextSerialQue;      
+    Uint32 m_lock_owner_ptr_i; // if nextParallelQue = RNIL, else undefined
+  };
   Uint32 prevOp;
   Uint32 prevLockOwnerOp;
-  Uint32 prevParallelQue;
-  Uint32 prevSerialQue;
+  union {
+    Uint32 prevParallelQue;
+    Uint32 m_lo_last_parallel_op_ptr_i;
+  };
+  union {
+    Uint32 prevSerialQue;
+    Uint32 m_lo_last_serial_op_ptr_i;
+  };
   Uint32 scanRecPtr;
   Uint32 transId1;
   Uint32 transId2;
-  State opState;
   Uint32 userptr;
-  State transactionstate;
   Uint16 elementContainer;
   Uint16 tupkeylen;
   Uint32 xfrmtupkeylen;
   Uint32 userblockref;
   Uint32 scanBits;
-  Uint8 elementIsDisappeared;
-  Uint8 insertIsDone;
-  Uint8 lockMode;
-  Uint8 lockOwner;
-  Uint8 nodeType;
-  Uint8 operation;
-  Uint8 opSimple;
-  Uint8 dirtyRead;
-  Uint8 commitDeleteCheckFlag;
-  Uint8 isAccLockReq;
+
+  enum OpBits {
+    OP_MASK                 = 0x0000F // 4 bits for operation type
+    ,OP_LOCK_MODE           = 0x00010 // 0 - shared lock, 1 = exclusive lock
+    ,OP_ACC_LOCK_MODE       = 0x00020 // Or:de lock mode of all operation
+                                      // before me
+    ,OP_LOCK_OWNER          = 0x00040
+    ,OP_RUN_QUEUE           = 0x00080 // In parallell queue of lock owner
+    ,OP_DIRTY_READ          = 0x00100
+    ,OP_LOCK_REQ            = 0x00200 // isAccLockReq
+    ,OP_COMMIT_DELETE_CHECK = 0x00400
+    ,OP_INSERT_IS_DONE      = 0x00800
+    ,OP_ELEMENT_DISAPPEARED = 0x01000
+    
+    ,OP_STATE_MASK          = 0xF0000
+    ,OP_STATE_IDLE          = 0xF0000
+    ,OP_STATE_WAITING       = 0x00000
+    ,OP_STATE_RUNNING       = 0x10000
+    ,OP_STATE_EXECUTED      = 0x30000
+    ,OP_STATE_RUNNING_ABORT = 0x20000
+    
+    ,OP_EXECUTED_DIRTY_READ = 0x3050F
+    ,OP_INITIAL             = ~(Uint32)0
+  };
+  
+  bool is_same_trans(const Operationrec* op) const {
+    return 
+      transId1 == op->transId1 && transId2 == op->transId2;
+  }
+  
 }; /* p2c: size = 168 bytes */
 
   typedef Ptr<Operationrec> OperationrecPtr;
@@ -577,7 +606,6 @@ struct ScanRec {
   Uint32 scanUserblockref;
   Uint32 scanMask;
   Uint8 scanLockMode;
-  Uint8 scanKeyinfoFlag;
   Uint8 scanTimer;
   Uint8 scanContinuebCounter;
   Uint8 scanReadCommittedFlag;
@@ -602,7 +630,8 @@ public:
   virtual ~Dbacc();
 
   // pointer to TUP instance in this thread
-  Dbtup* c_tup;
+  class Dbtup* c_tup;
+  class Dblqh* c_lqh;
 
   void execACCMINUPDATE(Signal* signal);
 
@@ -640,7 +669,8 @@ private:
   void ACCKEY_error(Uint32 fromWhere);
 
   void commitDeleteCheck();
-
+  void report_dealloc(Signal* signal, const Operationrec* opPtrP);
+  
   typedef void * RootfragmentrecPtr;
   void initRootFragPageZero(FragmentrecPtr, Page8Ptr);
   void initFragAdd(Signal*, FragmentrecPtr);
@@ -679,14 +709,30 @@ private:
   bool addfragtotab(Signal* signal, Uint32 rootIndex, Uint32 fragId);
   void initOpRec(Signal* signal);
   void sendAcckeyconf(Signal* signal);
-  Uint32 placeReadInLockQueue(Signal* signal);
-  void placeSerialQueueRead(Signal* signal);
-  void checkOnlyReadEntry(Signal* signal);
   Uint32 getNoParallelTransaction(const Operationrec*);
-  void moveLastParallelQueue(Signal* signal);
-  void moveLastParallelQueueWrite(Signal* signal);
-  Uint32 placeWriteInLockQueue(Signal* signal);
-  void placeSerialQueueWrite(Signal* signal);
+
+#ifdef VM_TRACE
+  Uint32 getNoParallelTransactionFull(const Operationrec*);
+#endif
+#ifdef ACC_SAFE_QUEUE
+  bool validate_lock_queue(OperationrecPtr opPtr);
+  Uint32 get_parallel_head(OperationrecPtr opPtr);
+  void dump_lock_queue(OperationrecPtr loPtr);
+#else
+  bool validate_lock_queue(OperationrecPtr) { return true;}
+#endif
+  
+public:  
+  void execACCKEY_ORD(Signal* signal, Uint32 opPtrI);
+  void startNext(Signal* signal, OperationrecPtr lastOp);
+  
+private:
+  Uint32 placeReadInLockQueue(OperationrecPtr lockOwnerPtr);
+  Uint32 placeWriteInLockQueue(OperationrecPtr lockOwnerPtr);
+  void placeSerialQueue(OperationrecPtr lockOwner, OperationrecPtr op);
+  void abortSerieQueueOperation(Signal* signal, OperationrecPtr op);  
+  void abortParallelQueueOperation(Signal* signal, OperationrecPtr op);  
+  
   void expandcontainer(Signal* signal);
   void shrinkcontainer(Signal* signal);
   void nextcontainerinfoExp(Signal* signal);
@@ -716,8 +762,8 @@ private:
   void increaselistcont(Signal* signal);
   void seizeLeftlist(Signal* signal);
   void seizeRightlist(Signal* signal);
-  Uint32 readTablePk(Uint32 localkey1);
-  void getElement(Signal* signal);
+  Uint32 readTablePk(Uint32 localkey1, Uint32 eh, const Operationrec*);
+  Uint32 getElement(Signal* signal, OperationrecPtr& lockOwner);
   void getdirindex(Signal* signal);
   void commitdelete(Signal* signal);
   void deleteElement(Signal* signal);
@@ -726,12 +772,17 @@ private:
   void releaseRightlist(Signal* signal);
   void checkoverfreelist(Signal* signal);
   void abortOperation(Signal* signal);
-  void accAbortReqLab(Signal* signal);
   void commitOperation(Signal* signal);
-  void copyOpInfo(Signal* signal);
+  void copyOpInfo(OperationrecPtr dst, OperationrecPtr src);
   Uint32 executeNextOperation(Signal* signal);
   void releaselock(Signal* signal);
+  void release_lockowner(Signal* signal, OperationrecPtr, bool commit);
+  void startNew(Signal* signal, OperationrecPtr newOwner);
+  void abortWaitingOperation(Signal*, OperationrecPtr);
+  void abortExecutedOperation(Signal*, OperationrecPtr);
+  
   void takeOutFragWaitQue(Signal* signal);
+  void check_lock_upgrade(Signal* signal, OperationrecPtr release_op, bool lo);
   void check_lock_upgrade(Signal* signal, OperationrecPtr lock_owner,
 			  OperationrecPtr release_op);
   void allocOverflowPage(Signal* signal);
@@ -780,8 +831,8 @@ private:
   void senddatapagesLab(Signal* signal);
   void sttorrysignalLab(Signal* signal);
   void sendholdconfsignalLab(Signal* signal);
-  void accIsLockedLab(Signal* signal);
-  void insertExistElemLab(Signal* signal);
+  void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr);
+  void insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr);
   void refaccConnectLab(Signal* signal);
   void releaseScanLab(Signal* signal);
   void ndbrestart1Lab(Signal* signal);
@@ -840,8 +891,6 @@ private:
   Operationrec *operationrec;
   OperationrecPtr operationRecPtr;
   OperationrecPtr idrOperationRecPtr;
-  OperationrecPtr copyInOperPtr;
-  OperationrecPtr copyOperPtr;
   OperationrecPtr mlpqOperPtr;
   OperationrecPtr queOperPtr;
   OperationrecPtr readWriteOpPtr;
@@ -885,8 +934,6 @@ private:
   Page8Ptr lcnPageptr;
   Page8Ptr lcnCopyPageptr;
   Page8Ptr lupPageptr;
-  Page8Ptr priPageptr;
-  Page8Ptr pwiPageptr;
   Page8Ptr ciPageidptr;
   Page8Ptr gsePageidptr;
   Page8Ptr isoPageptr;
@@ -926,8 +973,6 @@ private:
   Tabrec *tabrec;
   TabrecPtr tabptr;
   Uint32 ctablesize;
-  Uint32 tpwiElementptr;
-  Uint32 tpriElementptr;
   Uint32 tgseElementptr;
   Uint32 tgseContainerptr;
   Uint32 trlHead;
@@ -961,8 +1006,6 @@ private:
   Uint32 tdelForward;
   Uint32 tiopPageId;
   Uint32 tipPageId;
-  Uint32 tgeLocked;
-  Uint32 tgeResult;
   Uint32 tgeContainerptr;
   Uint32 tgeElementptr;
   Uint32 tgeForward;
