@@ -133,6 +133,7 @@ void manager()
 {
   int err_code;
   const char *err_msg;
+  bool shutdown_complete= FALSE;
 
   Thread_registry thread_registry;
   /*
@@ -243,25 +244,23 @@ void manager()
     To work nicely with LinuxThreads, the signal thread is the first thread
     in the process.
   */
-  int signo;
-  bool shutdown_complete;
 
-  shutdown_complete= FALSE;
-
-  instance_map.guardian->lock();
-  instance_map.lock();
-
-  int flush_instances_status= instance_map.flush_instances();
-
-  instance_map.unlock();
-  instance_map.guardian->unlock();
-
-  if (flush_instances_status)
   {
-    log_error("Cannot init instances repository. This might be caused by "
-               "the wrong config file options. For instance, missing mysqld "
-               "binary. Aborting.");
-    return;
+    instance_map.guardian->lock();
+    instance_map.lock();
+
+    int flush_instances_status= instance_map.flush_instances();
+
+    instance_map.unlock();
+    instance_map.guardian->unlock();
+
+    if (flush_instances_status)
+    {
+      log_error("Cannot init instances repository. This might be caused by "
+        "the wrong config file options. For instance, missing mysqld "
+        "binary. Aborting.");
+      return;
+    }
   }
 
   /*
@@ -272,6 +271,7 @@ void manager()
 
   while (!shutdown_complete)
   {
+    int signo;
     int status= 0;
 
     if ((status= my_sigwait(&mask, &signo)) != 0)
