@@ -25,7 +25,7 @@
 #include <UtilBuffer.hpp>
 
 #define NDB_EVENT_OP_MAGIC_NUMBER 0xA9F301B4
-//#define EVENT_DEBUG
+#define EVENT_DEBUG
 #ifdef EVENT_DEBUG
 #define DBUG_ENTER_EVENT(A) DBUG_ENTER(A)
 #define DBUG_RETURN_EVENT(A) DBUG_RETURN(A)
@@ -367,6 +367,8 @@ public:
   Uint32 m_eventId;
   Uint32 m_oid;
 
+  Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> m_node_bit_mask;
+  int m_ref_count;
   bool m_mergeEvents;
   
   EventBufData *m_data_item;
@@ -406,10 +408,10 @@ public:
   void dropEventOperation(NdbEventOperation *);
   static NdbEventOperationImpl* getEventOperationImpl(NdbEventOperation* tOp);
 
-  void add_drop_lock();
-  void add_drop_unlock();
-  void lock();
-  void unlock();
+  void add_drop_lock() { NdbMutex_Lock(p_add_drop_mutex); }
+  void add_drop_unlock() { NdbMutex_Unlock(p_add_drop_mutex); }
+  void lock() { NdbMutex_Lock(m_mutex); }
+  void unlock() { NdbMutex_Unlock(m_mutex); }
 
   void add_op();
   void remove_op();
@@ -430,9 +432,11 @@ public:
   Uint32 getEventId(int bufferId);
 
   int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
+  int flushIncompleteEvents(Uint64 gci);
   NdbEventOperation *nextEvent();
   NdbEventOperationImpl* getGCIEventOperations(Uint32* iter,
                                                Uint32* event_types);
+  void NdbEventBuffer::deleteUsedEventOperations();
 
   NdbEventOperationImpl *move_data();
 
