@@ -93,7 +93,6 @@ create temporary table t101 (id int);
 create temporary table t102 (id int);
 set @@session.pseudo_thread_id=200;
 create temporary table t201 (id int);
-create temporary table `t``201` (id int);
 create temporary table `#sql_not_user_table202` (id int);
 set @@session.pseudo_thread_id=300;
 create temporary table t301 (id int);

@@ -1183,7 +1183,13 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 
 void close_temporary_tables(THD *thd)
 {
-  TABLE *table;
+  TABLE *next,
+    *prev_table /* prev link is not maintained in TABLE's double-linked list */,
+    *table;
+  char *query= (gptr) 0, *end;
+  uint query_buf_size, max_names_len; 
+  bool found_user_tables;
+
   if (!thd->temporary_tables)
     return;
   
@@ -1283,7 +1289,7 @@ void close_temporary_tables(THD *thd)
            table= next)
       {
         end_cur= strxmov(end_cur, "`", table->s->db.str, "`.`",
-                      table->s->table_name.str, "`,", NullS);
+                         table->s->table_name.str, "`,", NullS);
         next= table->next;
         close_temporary(table, 1, 1);
       }
@@ -1310,7 +1316,6 @@ void close_temporary_tables(THD *thd)
   }
   thd->temporary_tables=0;
 }
-
 
 /*
   Find table in list.
