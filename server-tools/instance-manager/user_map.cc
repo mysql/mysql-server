@@ -19,32 +19,31 @@
 #endif
 
 #include "user_map.h"
-
-#include <mysql_com.h>
-#include <m_string.h>
-
+#include "exit_codes.h"
 #include "log.h"
 
-struct User
+User::User(const LEX_STRING *user_name_arg, const char *password)
 {
-  char user[USERNAME_LENGTH + 1];
-  uint8 user_length;
-  uint8 salt[SCRAMBLE_LENGTH];
-  int init(const char *line);
-};
+  user_length= strmake(user, user_name_arg->str, USERNAME_LENGTH + 1) - user;
 
+  set_password(password);
+}
 
 int User::init(const char *line)
 {
   const char *name_begin, *name_end, *password;
-  int line_ending_len= 1;
+  int password_length;
 
   if (line[0] == '\'' || line[0] == '"')
   {
     name_begin= line + 1;
     name_end= strchr(name_begin, line[0]);
     if (name_end == 0 || name_end[1] != ':')
-      goto err;
+    {
+      log_info("Error: invalid format (unmatched quote) of user line (%s).",
+                (const char *) line);
+      return 1;
+    }
     password= name_end + 2;
   }
   else
@@ -52,33 +51,47 @@ int User::init(const char *line)
     name_begin= line;
     name_end= strchr(name_begin, ':');
     if (name_end == 0)
-      goto err;
+    {
+      log_info("Error: invalid format (no delimiter) of user line (%s).",
+                (const char *) line);
+      return 1;
+    }
     password= name_end + 1;
   }
+
   user_length= name_end - name_begin;
   if (user_length > USERNAME_LENGTH)
-    goto err;
+  {
+    log_info("Error: user name is too long (%d). Max length: %d. "
+              "User line: '%s'.",
+              (int) user_length,
+              (int) USERNAME_LENGTH,
+              (const char *) line);
+    return 1;
+  }
 
-  /*
-    assume that newline characater is present
-    we support reading password files that end in \n or \r\n on
-    either platform.
-  */
-  if (password[strlen(password)-2] == '\r')
-    line_ending_len= 2;
-  if (strlen(password) != (uint) (SCRAMBLED_PASSWORD_CHAR_LENGTH +
-                                  line_ending_len))
-    goto err;
+  password_length= strlen(password);
+  if (password_length > SCRAMBLED_PASSWORD_CHAR_LENGTH)
+  {
+    log_info("Error: password is too long (%d). Max length: %d. ",
+              "User line: '%s'.",
+              (int) password_length,
+              (int) SCRAMBLED_PASSWORD_CHAR_LENGTH,
+              (const char *) line);
+    return 1;
+  }
 
   memcpy(user, name_begin, user_length);
   user[user_length]= 0;
+
+  memcpy(scrambled_password, password, password_length);
+  scrambled_password[password_length]= 0;
+
   get_salt_from_password(salt, password);
-  log_info("loaded user %s", user);
+
+  log_info("loaded user '%s'.", user);
 
   return 0;
-err:
-  log_error("error parsing user and password at line %s", line);
-  return 1;
 }
 
 
@@ -101,30 +114,70 @@ static void delete_user(void *u)
 C_MODE_END
 
 
+void User_map::Iterator::reset()
+{
+  cur_idx= 0;
+}
+
+
+User *User_map::Iterator::next()
+{
+  if (cur_idx < user_map->hash.records)
+    return (User *) hash_element(&user_map->hash, cur_idx++);
+
+  return NULL;
+}
+
+
 int User_map::init()
 {
   enum { START_HASH_SIZE= 16 };
   if (hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
       get_user_key, delete_user, 0))
     return 1;
+
+  initialized= TRUE;
+
   return 0;
+}
+
+
+User_map::User_map()
+  :initialized(FALSE)
+{
 }
 
 
 User_map::~User_map()
 {
-  hash_free(&hash);
+  if (initialized)
+    hash_free(&hash);
 }
 
 
 /*
-  Load all users from the password file. Must be called once right after
-  construction.
-  In case of failure, puts error message to the log file and returns 1
+  Load password database.
+
+  SYNOPSYS
+    load()
+    password_file_name  [IN] password file path
+    err_msg             [OUT] error message
+
+  DESCRIPTION
+    Load all users from the password file. Must be called once right after
+    construction. In case of failure, puts error message to the log file and
+    returns specific error code.
+
+  RETURN
+    0   on success
+    !0  on error
 */
 
-int User_map::load(const char *password_file_name)
+int User_map::load(const char *password_file_name, const char **err_msg)
 {
+  static const int ERR_MSG_BUF_SIZE = 255;
+  static char err_msg_buf[ERR_MSG_BUF_SIZE];
+
   FILE *file;
   char line[USERNAME_LENGTH + SCRAMBLED_PASSWORD_CHAR_LENGTH +
             2 +                               /* for possible quotes */
@@ -134,33 +187,172 @@ int User_map::load(const char *password_file_name)
   User *user;
   int rc= 1;
 
+  if (my_access(password_file_name, F_OK) != 0)
+  {
+    if (err_msg)
+    {
+      snprintf(err_msg_buf, ERR_MSG_BUF_SIZE,
+               "password file (%s) does not exist",
+               (const char *) password_file_name);
+      *err_msg= err_msg_buf;
+    }
+
+    return ERR_PASSWORD_FILE_DOES_NOT_EXIST;
+  }
+
   if ((file= my_fopen(password_file_name, O_RDONLY | O_BINARY, MYF(0))) == 0)
   {
-    /* Probably the password file wasn't specified. Try to leave without it */
-    log_info("[WARNING] can't open password file %s: errno=%d, %s", password_file_name,
-              errno, strerror(errno));
-    return 0;
+    if (err_msg)
+    {
+      snprintf(err_msg_buf, ERR_MSG_BUF_SIZE,
+               "can not open password file (%s): %s",
+               (const char *) password_file_name,
+               (const char *) strerror(errno));
+      *err_msg= err_msg_buf;
+    }
+
+    return ERR_IO_ERROR;
   }
+
+  log_info("loading the password database...");
 
   while (fgets(line, sizeof(line), file))
   {
+    char *user_line= line;
+
+    /*
+      We need to skip EOL-symbols also from the beginning of the line, because
+      if the previous line was ended by \n\r sequence, we get \r in our line.
+    */
+
+    while (user_line[0] == '\r' || user_line[0] == '\n')
+      ++user_line;
+
+    /* Skip EOL-symbols in the end of the line. */
+
+    {
+      char *ptr;
+
+      if ((ptr= strchr(user_line, '\n')))
+        *ptr= 0;
+
+      if ((ptr= strchr(user_line, '\r')))
+        *ptr= 0;
+    }
+
     /* skip comments and empty lines */
-    if (line[0] == '#' || line[0] == '\n' &&
-        (line[1] == '\0' || line[1] == '\r'))
+    if (!user_line[0] || user_line[0] == '#')
       continue;
+
     if ((user= new User) == 0)
-      goto done;
-    if (user->init(line) || my_hash_insert(&hash, (byte *) user))
-      goto err_init_user;
+    {
+      my_fclose(file, MYF(0));
+
+      if (err_msg)
+      {
+        snprintf(err_msg_buf, ERR_MSG_BUF_SIZE,
+                 "out of memory while parsing password file (%s)",
+                 (const char *) password_file_name);
+        *err_msg= err_msg_buf;
+      }
+
+      return ERR_OUT_OF_MEMORY;
+    }
+
+    if (user->init(user_line))
+    {
+      delete user;
+      my_fclose(file, MYF(0));
+
+      if (err_msg)
+      {
+        snprintf(err_msg_buf, ERR_MSG_BUF_SIZE,
+                 "password file (%s) corrupted",
+                 (const char *) password_file_name);
+        *err_msg= err_msg_buf;
+      }
+
+      return ERR_PASSWORD_FILE_CORRUPTED;
+    }
+
+    if (my_hash_insert(&hash, (byte *) user))
+    {
+      delete user;
+      my_fclose(file, MYF(0));
+
+      if (err_msg)
+      {
+        snprintf(err_msg_buf, ERR_MSG_BUF_SIZE,
+                 "out of memory while parsing password file (%s)",
+                 (const char *) password_file_name);
+        *err_msg= err_msg_buf;
+      }
+
+      return ERR_OUT_OF_MEMORY;
+    }
   }
-  if (feof(file))
-    rc= 0;
-  goto done;
-err_init_user:
-  delete user;
-done:
+
+  log_info("the password database loaded successfully.");
+
   my_fclose(file, MYF(0));
-  return rc;
+
+  if (err_msg)
+    *err_msg= NULL;
+
+  return ERR_OK;
+}
+
+
+int User_map::save(const char *password_file_name, const char **err_msg)
+{
+  static const int ERR_MSG_BUF_SIZE = 255;
+  static char err_msg_buf[ERR_MSG_BUF_SIZE];
+
+  FILE *file;
+
+  if ((file= my_fopen(password_file_name, O_WRONLY | O_TRUNC | O_BINARY,
+                      MYF(0))) == 0)
+  {
+    if (err_msg)
+    {
+      snprintf(err_msg_buf, ERR_MSG_BUF_SIZE,
+               "can not open password file (%s) for writing: %s",
+               (const char *) password_file_name,
+               (const char *) strerror(errno));
+      *err_msg= err_msg_buf;
+    }
+
+    return ERR_IO_ERROR;
+  }
+
+  {
+    User_map::Iterator it(this);
+    User *user;
+
+    while ((user= it.next()))
+    {
+      if (fprintf(file, "%s:%s\n", (const char *) user->user,
+                  (const char *) user->scrambled_password) < 0)
+      {
+        if (err_msg)
+        {
+          snprintf(err_msg_buf, ERR_MSG_BUF_SIZE,
+                   "can not write to password file (%s): %s",
+                   (const char *) password_file_name,
+                   (const char *) strerror(errno));
+          *err_msg= err_msg_buf;
+        }
+
+        my_fclose(file, MYF(0));
+
+        return ERR_IO_ERROR;
+      }
+    }
+  }
+
+  my_fclose(file, MYF(0));
+
+  return ERR_OK;
 }
 
 
@@ -172,13 +364,33 @@ done:
     2 - user not found
 */
 
-int User_map::authenticate(const char *user_name, uint length,
+int User_map::authenticate(const LEX_STRING *user_name,
                            const char *scrambled_password,
                            const char *scramble) const
 {
-  const User *user= (const User *) hash_search((HASH *) &hash,
-                                               (byte *) user_name, length);
-  if (user)
-    return check_scramble(scrambled_password, scramble, user->salt);
-  return 2;
+  const User *user= find_user(user_name);
+  return user ? check_scramble(scrambled_password, scramble, user->salt) : 2;
+}
+
+
+User *User_map::find_user(const LEX_STRING *user_name)
+{
+  return (User*) hash_search(&hash, (byte*) user_name->str, user_name->length);
+}
+
+const User *User_map::find_user(const LEX_STRING *user_name) const
+{
+  return const_cast<User_map *> (this)->find_user(user_name);
+}
+
+
+bool User_map::add_user(User *user)
+{
+  return my_hash_insert(&hash, (byte*) user) == 0 ? FALSE : TRUE;
+}
+
+
+bool User_map::remove_user(User *user)
+{
+  return hash_delete(&hash, (byte*) user) == 0 ? FALSE : TRUE;
 }

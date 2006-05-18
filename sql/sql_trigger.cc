@@ -1412,8 +1412,8 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   }
   if (table.triggers)
   {
-    LEX_STRING_WITH_INIT old_table_name(old_table, strlen(old_table));
-    LEX_STRING_WITH_INIT new_table_name(new_table, strlen(new_table));
+    LEX_STRING old_table_name= { (char *) STRING_WITH_LEN(old_table) };
+    LEX_STRING new_table_name= { (char *) STRING_WITH_LEN(new_table) };
     /*
       Since triggers should be in the same schema as their subject tables
       moving table with them between two schemas raises too many questions.

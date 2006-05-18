@@ -1212,8 +1212,11 @@ sub environment_setup () {
   $ENV{'NDBCLUSTER_PORT'}=    $opt_ndbcluster_port;
   $ENV{'NDBCLUSTER_PORT_SLAVE'}=$opt_ndbcluster_port_slave;
 
+  $ENV{'IM_EXE'}=             $exe_im;
   $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
   $ENV{'IM_PORT'}=            $instance_manager->{port};
+  $ENV{'IM_DEFAULTS_PATH'}=   $instance_manager->{defaults_file};
+  $ENV{'IM_PASSWORD_PATH'}=   $instance_manager->{password_file};
 
   $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
   $ENV{'IM_MYSQLD1_PORT'}=    $instance_manager->{instances}->[0]->{port};

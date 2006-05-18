@@ -265,7 +265,10 @@ case "$mode" in
     then
       # Give extra arguments to mysqld with the my.cnf file. This script may
       # be overwritten at next upgrade.
-      $manager --user=$user --pid-file=$pid_file >/dev/null 2>&1 &
+      "$manager" \
+        --mysqld-safe-compatible \
+        --user="$user" \
+        --pid-file="$pid_file" >/dev/null 2>&1 &
       wait_for_pid created
 
       # Make lock for RedHat / SuSE

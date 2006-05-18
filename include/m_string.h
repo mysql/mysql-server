@@ -246,4 +246,16 @@ extern int my_snprintf(char* to, size_t n, const char* fmt, ...);
 #if defined(__cplusplus)
 }
 #endif
+
+/* LEX_STRING */
+
+typedef struct LEX_STRING
+{
+  char *str;
+  uint length;
+};
+
+#define STRING_WITH_LEN(X) (X), ((uint) (sizeof(X) - 1))
+#define C_STRING_WITH_SIZE(X) ((char *) (X)), ((uint) (sizeof(X) - 1))
+
 #endif

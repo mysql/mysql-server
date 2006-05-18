@@ -20,14 +20,20 @@
 
 #include "instance_map.h"
 
-#include "buffer.h"
-#include "instance.h"
-#include "log.h"
-#include "options.h"
-
+#include <my_global.h>
 #include <m_ctype.h>
 #include <mysql_com.h>
 #include <m_string.h>
+
+#include "buffer.h"
+#include "guardian.h"
+#include "instance.h"
+#include "log.h"
+#include "manager.h"
+#include "mysqld_error.h"
+#include "mysql_manager_error.h"
+#include "options.h"
+#include "priv.h"
 
 /*
   Note:  As we are going to suppost different types of connections,
@@ -45,8 +51,8 @@ static byte* get_instance_key(const byte* u, uint* len,
                           my_bool __attribute__((unused)) t)
 {
   const Instance *instance= (const Instance *) u;
-  *len= instance->options.instance_name_len;
-  return (byte *) instance->options.instance_name;
+  *len= instance->options.instance_name.length;
+  return (byte *) instance->options.instance_name.str;
 }
 
 static void delete_instance(void *u)
@@ -79,13 +85,57 @@ static void delete_instance(void *u)
 
 static int process_option(void *ctx, const char *group, const char *option)
 {
-  Instance_map *map= NULL;
+  Instance_map *map= (Instance_map*) ctx;
+  LEX_STRING group_str;
 
-  map = (Instance_map*) ctx;
-  return map->process_one_option(group, option);
+  group_str.str= (char *) group;
+  group_str.length= strlen(group);
+
+  return map->process_one_option(&group_str, option);
 }
 
 C_MODE_END
+
+
+/*
+   Parse option string.
+
+  SYNOPSIS
+    parse_option()
+      option_str        [IN] option string (e.g. "--name=value")
+      option_name_buf   [OUT] parsed name of the option.
+                        Must be of (MAX_OPTION_LEN + 1) size.
+      option_value_buf  [OUT] parsed value of the option.
+                        Must be of (MAX_OPTION_LEN + 1) size.
+
+  DESCRIPTION
+    This is an auxiliary function and should not be used externally. It is
+    intended to parse whole option string into option name and option value.
+*/
+
+static void parse_option(const char *option_str,
+                         char *option_name_buf,
+                         char *option_value_buf)
+{
+  char *eq_pos;
+  const char *ptr= option_str;
+
+  while (*ptr == '-')
+    ++ptr;
+
+  strmake(option_name_buf, ptr, MAX_OPTION_LEN + 1);
+
+  eq_pos= strchr(ptr, '=');
+  if (eq_pos)
+  {
+    option_name_buf[eq_pos - ptr]= 0;
+    strmake(option_value_buf, eq_pos + 1, MAX_OPTION_LEN + 1);
+  }
+  else
+  {
+    option_value_buf[0]= 0;
+  }
+}
 
 
 /*
@@ -103,34 +153,64 @@ C_MODE_END
     of the instance map object.
 */
 
-int Instance_map::process_one_option(const char *group, const char *option)
+int Instance_map::process_one_option(const LEX_STRING *group,
+                                     const char *option)
 {
   Instance *instance= NULL;
-  static const char prefix[]= { 'm', 'y', 's', 'q', 'l', 'd' };
 
-  if (strncmp(group, prefix, sizeof prefix) == 0 &&
-      ((my_isdigit(default_charset_info, group[sizeof prefix]))
-       || group[sizeof(prefix)] == '\0'))
+  if (!Instance::is_name_valid(group))
+  {
+    /*
+      Current section name is not a valid instance name.
+      We should skip it w/o error.
+    */
+    return 0;
+  }
+
+  if (!(instance= (Instance *) hash_search(&hash, (byte *) group->str,
+                                           group->length)))
+  {
+    if (!(instance= new Instance()))
+      return 1;
+
+    if (instance->init(group) || add_instance(instance))
     {
-      if (!(instance= (Instance *) hash_search(&hash, (byte *) group,
-                                               strlen(group))))
-      {
-        if (!(instance= new Instance))
-          goto err;
-        if (instance->init(group) || my_hash_insert(&hash, (byte *) instance))
-          goto err_instance;
-      }
-
-      if (instance->options.add_option(option))
-        goto err;   /* the instance'll be deleted when we destroy the map */
+      delete instance;
+      return 1;
     }
 
-  return 0;
+    if (instance->is_mysqld_compatible())
+      log_info("Warning: instance name '%s' is mysqld-compatible.",
+               (const char *) group->str);
 
-err_instance:
-  delete instance;
-err:
-  return 1;
+    log_info("mysqld instance '%s' has been added successfully.",
+             (const char *) group->str);
+  }
+
+  if (option)
+  {
+    char option_name[MAX_OPTION_LEN + 1];
+    char option_value[MAX_OPTION_LEN + 1];
+
+    parse_option(option, option_name, option_value);
+
+    if (instance->is_mysqld_compatible() &&
+        Instance_options::is_option_im_specific(option_name))
+    {
+      log_info("Warning: configuration of mysqld-compatible instance '%s' "
+               "contains IM-specific option '%s'. "
+               "This breaks backward compatibility for the configuration file.",
+               (const char *) group->str,
+               (const char *) option_name);
+    }
+
+    Named_value option(option_name, option_value);
+
+    if (instance->options.set_option(&option))
+      return 1;   /* the instance'll be deleted when we destroy the map */
+  }
+
+  return 0;
 }
 
 
@@ -181,7 +261,7 @@ void Instance_map::unlock()
      - pass on the new map to the guardian thread: it will start
        all instances that are marked `guarded' and not yet started.
     Note, as the check whether an instance is started is currently
-    very simple (returns true if there is a MySQL server running
+    very simple (returns TRUE if there is a MySQL server running
     at the given port), this function has some peculiar
     side-effects:
      * if the port number of a running instance was changed, the
@@ -194,9 +274,9 @@ void Instance_map::unlock()
     In order to avoid such side effects one should never call
     FLUSH INSTANCES without prior stop of all running instances.
 
-  TODO
-    FLUSH INSTANCES should return an error if it's called
-    while there is a running instance.
+  NOTE: The operation should be invoked with the following locks acquired:
+    - Guardian_thread;
+    - Instance_map;
 */
 
 int Instance_map::flush_instances()
@@ -209,67 +289,169 @@ int Instance_map::flush_instances()
     guardian (2) reload the instance map (3) reinitialize the guardian
     with new instances.
   */
-  guardian->lock();
-  pthread_mutex_lock(&LOCK_instance_map);
   hash_free(&hash);
   hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
             get_instance_key, delete_instance, 0);
+
   rc= load();
   guardian->init();
-  pthread_mutex_unlock(&LOCK_instance_map);
-  guardian->unlock();
   return rc;
 }
 
 
-Instance *
-Instance_map::find(const char *name, uint name_len)
+bool Instance_map::is_there_active_instance()
 {
   Instance *instance;
-  pthread_mutex_lock(&LOCK_instance_map);
-  instance= (Instance *) hash_search(&hash, (byte *) name, name_len);
-  pthread_mutex_unlock(&LOCK_instance_map);
-  return instance;
+  Iterator iterator(this);
+
+  while ((instance= iterator.next()))
+  {
+    if (guardian->find_instance_node(instance) != NULL ||
+        instance->is_running())
+    {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
 }
 
 
-int Instance_map::complete_initialization()
+int Instance_map::add_instance(Instance *instance)
 {
-  Instance *instance;
-  uint i= 0;
+  return my_hash_insert(&hash, (byte *) instance);
+}
 
 
-  if (hash.records == 0)                        /* no instances found */
+int Instance_map::remove_instance(Instance *instance)
+{
+  return hash_delete(&hash, (byte *) instance);
+}
+
+
+int Instance_map::create_instance(const LEX_STRING *instance_name,
+                                  const Named_value_arr *options)
+{
+  Instance *instance= new Instance();
+
+  if (!instance)
   {
-    if ((instance= new Instance) == 0)
-      goto err;
-
-    if (instance->init("mysqld") || my_hash_insert(&hash, (byte *) instance))
-      goto err_instance;
-
-    /*
-      After an instance have been added to the instance_map,
-      hash_free should handle it's deletion => goto err, not
-      err_instance.
-    */
-    if (instance->complete_initialization(this, mysqld_path,
-                                          DEFAULT_SINGLE_INSTANCE))
-      goto err;
+    log_error("Error: can not initialize (name: '%s').",
+              (const char *) instance_name->str);
+    return ER_OUT_OF_RESOURCES;
   }
-  else
-    while (i < hash.records)
+
+  if (instance->init(instance_name))
+  {
+    log_error("Error: can not initialize (name: '%s').",
+              (const char *) instance_name->str);
+    delete instance;
+    return ER_OUT_OF_RESOURCES;
+  }
+
+  for (int i= 0; options && i < options->get_size(); ++i)
+  {
+    Named_value option= options->get_element(i);
+
+    if (instance->is_mysqld_compatible() &&
+        Instance_options::is_option_im_specific(option.get_name()))
     {
-      instance= (Instance *) hash_element(&hash, i);
-      if (instance->complete_initialization(this, mysqld_path, USUAL_INSTANCE))
-        goto err;
-      i++;
+      log_error("Error: IM-option (%s) can not be used "
+                "in configuration of mysqld-compatible instance (%s).",
+                (const char *) option.get_name(),
+                (const char *) instance_name->str);
+      delete instance;
+      return ER_INCOMPATIBLE_OPTION;
     }
 
+    instance->options.set_option(&option);
+  }
+
+  if (instance->is_mysqld_compatible())
+    log_info("Warning: instance name '%s' is mysqld-compatible.",
+             (const char *) instance_name->str);
+
+  if (instance->complete_initialization(this, mysqld_path))
+  {
+    log_error("Error: can not complete initialization of instance (name: '%s').",
+              (const char *) instance_name->str);
+    delete instance;
+    return ER_OUT_OF_RESOURCES;
+    /* TODO: return more appropriate error code in this case. */
+  }
+
+  if (add_instance(instance))
+  {
+    log_error("Error: can not register instance (name: '%s').",
+              (const char *) instance_name->str);
+    delete instance;
+    return ER_OUT_OF_RESOURCES;
+  }
+
   return 0;
-err_instance:
-  delete instance;
-err:
-  return 1;
+}
+
+
+Instance * Instance_map::find(const LEX_STRING *name)
+{
+  return (Instance *) hash_search(&hash, (byte *) name->str, name->length);
+}
+
+
+bool Instance_map::complete_initialization()
+{
+  bool mysqld_found;
+
+  /* Complete initialization of all registered instances. */
+
+  for (uint i= 0; i < hash.records; ++i)
+  {
+    Instance *instance= (Instance *) hash_element(&hash, i);
+
+    if (instance->complete_initialization(this, mysqld_path))
+      return TRUE;
+  }
+
+  /* That's all if we are runnning in an ordinary mode. */
+
+  if (!Options::Main::mysqld_safe_compatible)
+    return FALSE;
+
+  /* In mysqld-compatible mode we must ensure that there 'mysqld' instance. */
+
+  mysqld_found= find(&Instance::DFLT_INSTANCE_NAME) != NULL;
+
+  if (mysqld_found)
+    return FALSE;
+
+  if (create_instance(&Instance::DFLT_INSTANCE_NAME, NULL))
+  {
+    log_error("Error: could not create default instance.");
+    return TRUE;
+  }
+
+  switch (create_instance_in_file(&Instance::DFLT_INSTANCE_NAME, NULL))
+  {
+  case 0:
+  case ER_CONF_FILE_DOES_NOT_EXIST:
+    /*
+      Continue if the instance has been added to the config file
+      successfully, or the config file just does not exist.
+    */
+    break;
+
+  default:
+    log_error("Error: could not add default instance to the config file.");
+
+    Instance *instance= find(&Instance::DFLT_INSTANCE_NAME);
+
+    if (instance)
+      remove_instance(instance); /* instance is deleted here. */
+
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
 
@@ -297,10 +479,10 @@ int Instance_map::load()
     name and start looking for files named "my.cnf.cnf" in all
     default dirs. Which is not what we want.
   */
-  if (Options::is_forced_default_file)
+  if (Options::Main::is_forced_default_file)
   {
     snprintf(defaults_file_arg, FN_REFLEN, "--defaults-file=%s",
-             Options::config_file);
+             Options::Main::config_file);
 
     argv_options[1]= defaults_file_arg;
     argv_options[2]= '\0';
@@ -314,15 +496,12 @@ int Instance_map::load()
     If the routine failed, we'll simply fallback to defaults in
     complete_initialization().
   */
-  if (my_search_option_files(Options::config_file, &argc,
+  if (my_search_option_files(Options::Main::config_file, &argc,
                              (char ***) &argv, &args_used,
                              process_option, (void*) this))
     log_info("Falling back to compiled-in defaults");
 
-  if (complete_initialization())
-    return 1;
-
-  return 0;
+  return complete_initialization();
 }
 
 
@@ -343,3 +522,105 @@ Instance *Instance_map::Iterator::next()
   return NULL;
 }
 
+
+const char *Instance_map::get_instance_state_name(Instance *instance)
+{
+  LIST *instance_node;
+
+  if (!instance->is_configured())
+    return "misconfigured";
+
+  if ((instance_node= guardian->find_instance_node(instance)) != NULL)
+  {
+    /* The instance is managed by Guardian: we can report precise state. */
+
+    return Guardian_thread::get_instance_state_name(
+      guardian->get_instance_state(instance_node));
+  }
+
+  /* The instance is not managed by Guardian: we can report status only.  */
+
+  return instance->is_running() ? "online" : "offline";
+}
+
+
+/*
+  Create a new configuration section for mysqld-instance in the config file.
+
+  SYNOPSYS
+    create_instance_in_file()
+    instance_name       mysqld-instance name
+    options             options for the new mysqld-instance
+
+  RETURN
+    0     On success
+    ER_CONF_FILE_DOES_NOT_EXIST     If config file does not exist
+    ER_ACCESS_OPTION_FILE           If config file is not writable or some I/O
+                                    error ocurred during writing configuration
+*/
+
+int create_instance_in_file(const LEX_STRING *instance_name,
+                            const Named_value_arr *options)
+{
+  File cnf_file;
+
+  if (my_access(Options::Main::config_file, W_OK))
+  {
+    log_error("Error: configuration file (%s) does not exist.",
+              (const char *) Options::Main::config_file);
+    return ER_CONF_FILE_DOES_NOT_EXIST;
+  }
+
+  cnf_file= my_open(Options::Main::config_file, O_WRONLY | O_APPEND, MYF(0));
+
+  if (cnf_file <= 0)
+  {
+    log_error("Error: can not open configuration file (%s): %s.",
+              (const char *) Options::Main::config_file,
+              (const char *) strerror(errno));
+    return ER_ACCESS_OPTION_FILE;
+  }
+
+  if (my_write(cnf_file, (byte*)NEWLINE, NEWLINE_LEN, MYF(MY_NABP)) ||
+      my_write(cnf_file, (byte*)"[", 1, MYF(MY_NABP)) ||
+      my_write(cnf_file, (byte*)instance_name->str, instance_name->length,
+               MYF(MY_NABP)) ||
+      my_write(cnf_file, (byte*)"]", 1,   MYF(MY_NABP)) ||
+      my_write(cnf_file, (byte*)NEWLINE, NEWLINE_LEN, MYF(MY_NABP)))
+  {
+    log_error("Error: can not write to configuration file (%s): %s.",
+              (const char *) Options::Main::config_file,
+              (const char *) strerror(errno));
+    my_close(cnf_file, MYF(0));
+    return ER_ACCESS_OPTION_FILE;
+  }
+
+  for (int i= 0; options && i < options->get_size(); ++i)
+  {
+    char option_str[MAX_OPTION_STR_LEN];
+    char *ptr;
+    int option_str_len;
+    Named_value option= options->get_element(i);
+
+    ptr= strxnmov(option_str, MAX_OPTION_LEN + 1, option.get_name(), NullS);
+
+    if (option.get_value()[0])
+      ptr= strxnmov(ptr, MAX_OPTION_LEN + 2, "=", option.get_value(), NullS);
+
+    option_str_len= ptr - option_str;
+
+    if (my_write(cnf_file, (byte*)option_str, option_str_len, MYF(MY_NABP)) ||
+        my_write(cnf_file, (byte*)NEWLINE, NEWLINE_LEN, MYF(MY_NABP)))
+    {
+      log_error("Error: can not write to configuration file (%s): %s.",
+                (const char *) Options::Main::config_file,
+                (const char *) strerror(errno));
+      my_close(cnf_file, MYF(0));
+      return ER_ACCESS_OPTION_FILE;
+    }
+  }
+
+  my_close(cnf_file, MYF(0));
+
+  return 0;
+}

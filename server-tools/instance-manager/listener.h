@@ -27,23 +27,19 @@
 pthread_handler_t listener(void *arg);
 
 class Thread_registry;
-struct Options;
 class User_map;
 class Instance_map;
 
 struct Listener_thread_args
 {
   Thread_registry &thread_registry;
-  const Options &options;
   const User_map &user_map;
   Instance_map &instance_map;
 
   Listener_thread_args(Thread_registry &thread_registry_arg,
-                       const Options &options_arg,
                        const User_map &user_map_arg,
                        Instance_map &instance_map_arg) :
     thread_registry(thread_registry_arg)
-    ,options(options_arg)
     ,user_map(user_map_arg)
     ,instance_map(instance_map_arg)
   {}

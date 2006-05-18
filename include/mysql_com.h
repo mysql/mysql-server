@@ -423,17 +423,11 @@ char *octet2hex(char *to, const char *str, unsigned int len);
 
 /* end of password.c */
 
-char *get_tty_password(char *opt_message);
+char *get_tty_password(const char *opt_message);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
 
-my_bool my_init(void);
-extern int modify_defaults_file(const char *file_location, const char *option,
-                                const char *option_value,
-                                const char *section_name, int remove_option);
-int load_defaults(const char *conf_file, const char **groups,
-		  int *argc, char ***argv);
 my_bool my_thread_init(void);
 void my_thread_end(void);
 

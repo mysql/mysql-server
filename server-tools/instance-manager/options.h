@@ -17,49 +17,86 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  Options - all possible options for the instance manager grouped in one
-  struct.
+  Options - all possible command-line options for the Instance Manager grouped
+  in one struct.
 */
+
 #include <my_global.h>
 
 #if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
 
+class User_management_cmd;
+
 struct Options
 {
-#ifdef __WIN__
-  static char install_as_service;
-  static char remove_service;
-  static char stand_alone;
-#else
-  static char run_as_service;        /* handle_options doesn't support bool */
-  static const char *user;
-#endif
-  static bool is_forced_default_file;
-  static const char *log_file_name;
-  static const char *pid_file_name;
-  static const char *socket_file_name;
-  static const char *password_file_name;
-  static const char *default_mysqld_path;
-  /* the option which should be passed to process_default_option_files */
-  static uint monitoring_interval;
-  static uint port_number;
-  static const char *bind_address;
-  static const char *config_file;
+  /*
+    NOTE: handle_options() expects value of my_bool type for GET_BOOL
+    accessor (i.e. bool must not be used).
+  */
 
-  /* argv pointer returned by load_defaults() to be used by free_defaults() */
-  static char **saved_argv;
+  struct User_management
+  {
+    static User_management_cmd *cmd;
+
+    static char *user_name;
+    static char *password;
+  };
+
+  struct Main
+  {
+    /* this is not an option parsed by handle_options(). */
+    static bool is_forced_default_file;
+
+    static const char *pid_file_name;
+    static const char *socket_file_name;
+    static const char *password_file_name;
+    static const char *default_mysqld_path;
+    static uint monitoring_interval;
+    static uint port_number;
+    static const char *bind_address;
+    static const char *config_file;
+    static my_bool mysqld_safe_compatible;
+  };
 
 #ifndef DBUG_OFF
-  static const char *default_dbug_option;
+  struct Debug
+  {
+    static const char *config_str;
+  };
 #endif
 
-  int load(int argc, char **argv);
-  void cleanup();
-#ifdef __WIN__
-  int setup_windows_defaults();
+#ifndef __WIN__
+
+  struct Daemon
+  {
+    static my_bool run_as_service;
+    static const char *log_file_name;
+    static const char *user;
+  };
+
+#else
+
+  struct Service
+  {
+    static my_bool install_as_service;
+    static my_bool remove_service;
+    static my_bool stand_alone;
+  };
+
 #endif
+
+public:
+  static int load(int argc, char **argv);
+  static void cleanup();
+
+private:
+  Options(); /* Deny instantiation of this class. */
+
+private:
+  /* argv pointer returned by load_defaults() to be used by free_defaults() */
+  static char **saved_argv;
 };
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_OPTIONS_H
