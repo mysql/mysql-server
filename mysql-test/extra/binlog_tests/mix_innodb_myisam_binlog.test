@@ -30,7 +30,7 @@ insert into t2 select * from t1;
 commit;
 
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 delete from t1;
@@ -44,7 +44,7 @@ insert into t2 select * from t1;
 rollback;
 
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 delete from t1;
@@ -60,7 +60,7 @@ rollback to savepoint my_savepoint;
 commit;
 
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 delete from t1;
@@ -78,7 +78,7 @@ commit;
 select a from t1 order by a; # check that savepoints work :)
 
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 # and when ROLLBACK is not explicit?
@@ -100,7 +100,7 @@ connection con2;
 # logging has been done, we use a user lock.
 select get_lock("a",10);
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 # and when not in a transact1on?
@@ -112,7 +112,7 @@ insert into t1 values(9);
 insert into t2 select * from t1;
 
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 # Check that when the query updat1ng the MyISAM table is the first in the
@@ -125,13 +125,13 @@ insert into t1 values(10); # first make t1 non-empty
 begin;
 insert into t2 select * from t1;
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 insert into t1 values(11);
 commit;
 
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 
@@ -150,7 +150,7 @@ insert into t2 select * from t1;
 commit;
 
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 delete from t1;
@@ -163,7 +163,7 @@ insert into t2 select * from t1;
 rollback;
 
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 delete from t1;
@@ -179,7 +179,7 @@ rollback to savepoint my_savepoint;
 commit;
 
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 delete from t1;
@@ -197,7 +197,7 @@ commit;
 select a from t1 order by a; # check that savepoints work :)
 
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 # Test for BUG#5714, where a MyISAM update in the transaction used to
@@ -258,7 +258,7 @@ disconnect con2;
 connection con3;
 select get_lock("lock1",60);
 --replace_column 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 do release_lock("lock1");
 drop table t0,t2;
