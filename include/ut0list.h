@@ -29,12 +29,24 @@ typedef struct ib_list_node_struct ib_list_node_t;
 typedef struct ib_list_helper_struct ib_list_helper_t;
 
 /********************************************************************
-Create a new list. */
+Create a new list using mem_alloc. Lists created with this function must be
+freed with ib_list_free. */
 
 ib_list_t*
 ib_list_create(void);
 /*=================*/
 			/* out: list */
+
+
+/********************************************************************
+Create a new list using the given heap. ib_list_free MUST NOT BE CALLED for
+lists created with this function. */
+
+ib_list_t*
+ib_list_create_heap(
+/*================*/
+				/* out: list */
+	mem_heap_t*	heap);	/* in: memory heap to use */
 
 /********************************************************************
 Free a list. */
@@ -110,6 +122,8 @@ ib_list_get_last(
 struct ib_list_struct {
 	ib_list_node_t*		first;		/* first node */
 	ib_list_node_t*		last;		/* last node */
+	ibool			is_heap_list;	/* TRUE if this list was
+						allocated through a heap */
 };
 
 /* A list node. */

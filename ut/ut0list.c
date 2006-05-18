@@ -15,6 +15,26 @@ ib_list_create(void)
 
 	list->first = NULL;
 	list->last = NULL;
+	list->is_heap_list = FALSE;
+
+	return(list);
+}
+
+/********************************************************************
+Create a new list using the given heap. ib_list_free MUST NOT BE CALLED for
+lists created with this function. */
+
+ib_list_t*
+ib_list_create_heap(
+/*================*/
+				/* out: list */
+	mem_heap_t*	heap)	/* in: memory heap to use */
+{
+	ib_list_t*	list = mem_heap_alloc(heap, sizeof(ib_list_t));
+
+	list->first = NULL;
+	list->last = NULL;
+	list->is_heap_list = TRUE;
 
 	return(list);
 }
@@ -27,6 +47,8 @@ ib_list_free(
 /*=========*/
 	ib_list_t*	list)	/* in: list */
 {
+	ut_a(!list->is_heap_list);
+
 	/* We don't check that the list is empty because it's entirely valid
 	to e.g. have all the nodes allocated from a single heap that is then
 	freed after the list itself is freed. */
