@@ -1,0 +1,9 @@
+--source include/have_innodb.inc
+
+#
+# Bug #14673: Wrong InnoDB default row format
+#
+create table t1 (a int) engine=innodb partition by hash(a) ;
+show table status like 't1';
+drop table t1;
+
