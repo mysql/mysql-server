@@ -5842,3 +5842,6 @@ ER_WRONG_PARTITION_NAME
         swe "Felaktigt partitionsnamn"
 ER_CANT_CHANGE_TX_ISOLATION 25001
 	eng "Transaction isolation level can't be changed while a transaction is in progress"
+ER_DUP_ENTRY_AUTOINCREMENT_CASE
+        eng "ALTER TABLE causes auto_increment resequencing, resulting in duplicate entry '%-.64s' for key '%-.64s'"
+
