@@ -2,6 +2,8 @@
 # test of left outer join
 #
 
+--source include/have_innodb.inc
+
 --disable_warnings
 drop table if exists t0,t1,t2,t3,t4,t5;
 --enable_warnings
