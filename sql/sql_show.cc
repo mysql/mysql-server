@@ -25,6 +25,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "authors.h"
+#include "contributors.h"
 #include "event.h"
 #include <my_dir.h>
 
@@ -228,6 +229,41 @@ bool mysqld_show_authors(THD *thd)
   send_eof(thd);
   DBUG_RETURN(FALSE);
 }
+
+
+/***************************************************************************
+** List all Contributors.
+** Please get permission before updating
+***************************************************************************/
+
+bool mysqld_show_contributors(THD *thd)
+{
+  List<Item> field_list;
+  Protocol *protocol= thd->protocol;
+  DBUG_ENTER("mysqld_show_contributors");
+
+  field_list.push_back(new Item_empty_string("Name",40));
+  field_list.push_back(new Item_empty_string("Location",40));
+  field_list.push_back(new Item_empty_string("Comment",80));
+
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(TRUE);
+
+  show_table_contributors_st *contributors;
+  for (contributors= show_table_contributors; contributors->name; contributors++)
+  {
+    protocol->prepare_for_resend();
+    protocol->store(contributors->name, system_charset_info);
+    protocol->store(contributors->location, system_charset_info);
+    protocol->store(contributors->comment, system_charset_info);
+    if (protocol->write())
+      DBUG_RETURN(TRUE);
+  }
+  send_eof(thd);
+  DBUG_RETURN(FALSE);
+}
+
 
 /***************************************************************************
  List all privileges supported
