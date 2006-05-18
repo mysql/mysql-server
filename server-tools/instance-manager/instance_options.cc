@@ -358,6 +358,7 @@ pid_t Instance_options::get_pid()
 
 int Instance_options::complete_initialization(const char *default_path)
 {
+  int arg_idx;
   const char *tmp;
   char *end;
 
@@ -428,7 +429,7 @@ int Instance_options::complete_initialization(const char *default_path)
   if (add_to_argv(tmp))
     goto err;
 
-  int arg_idx= filled_default_options;
+  arg_idx= filled_default_options;
   for (int opt_idx= 0; opt_idx < get_num_options(); ++opt_idx)
   {
     char option_str[MAX_OPTION_STR_LEN];
