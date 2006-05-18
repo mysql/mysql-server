@@ -82,8 +82,11 @@ path=`dirname $0`
 export AM_MAKEFLAGS
 AM_MAKEFLAGS="-j 4"
 
-# SSL library to use.
-SSL_LIBRARY=--with-yassl
+# SSL library to use.--with-ssl will select our bundled yaSSL
+# implementation of SSL. To use openSSl you will nee too point out
+# the location of openSSL headers and lbs on your system.
+# Ex --with-ssl=/usr
+SSL_LIBRARY=--with-ssl
 
 if [ "x$warning_mode" != "xpedantic" ]; then
 # Both C and C++ warnings
