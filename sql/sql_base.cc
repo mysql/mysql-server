@@ -1183,13 +1183,7 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 
 void close_temporary_tables(THD *thd)
 {
-  TABLE *next,
-    *prev_table /* prev link is not maintained in TABLE's double-linked list */,
-    *table;
-  char *query= (gptr) 0, *end;
-  uint query_buf_size, max_names_len; 
-  bool found_user_tables;
-
+  TABLE *table;
   if (!thd->temporary_tables)
     return;
   
