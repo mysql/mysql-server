@@ -200,7 +200,7 @@ public:
   class Class_info
   {
   public:
-    LEX_STRING_WITH_INIT m_name;
+    LEX_STRING m_name;
     int m_type_id;
     void (*m_create_func)(void *);
     Class_info(const char *name, int type_id, void(*create_func)(void *));

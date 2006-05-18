@@ -17,10 +17,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
-#include "thread_registry.h"
-
 #include <my_sys.h>
 #include <my_list.h>
+
+#include "thread_registry.h"
 
 #if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
@@ -79,6 +79,8 @@ public:
     time_t last_checked;
   };
 
+  /* Return client state name. */
+  static const char *get_instance_state_name(enum_instance_state state);
 
   Guardian_thread(Thread_registry &thread_registry_arg,
                   Instance_map *instance_map_arg,
@@ -94,10 +96,27 @@ public:
   int guard(Instance *instance, bool nolock= FALSE);
   /* Stop instance protection */
   int stop_guard(Instance *instance);
-  /* Returns true if guardian thread is stopped */
+  /* Returns TRUE if guardian thread is stopped */
   int is_stopped();
   void lock();
   void unlock();
+
+  /*
+    Return an internal list node for the given instance if the instance is
+    managed by Guardian. Otherwise, return NULL.
+
+    MT-NOTE: must be called under acquired lock.
+  */
+  LIST *find_instance_node(Instance *instance);
+
+  /* The operation is used to check if the instance is active or not. */
+  bool is_active(Instance *instance);
+
+  /*
+    Return state of the given instance list node. The pointer must specify
+    a valid list node.
+  */
+  inline enum_instance_state get_instance_state(LIST *instance_node);
 
 public:
   pthread_cond_t COND_guardian;
@@ -108,6 +127,7 @@ private:
   /* check instance state and act accordingly */
   void process_instance(Instance *instance, GUARD_NODE *current_node,
                         LIST **guarded_instances, LIST *elem);
+
   int stopped;
 
 private:
@@ -115,9 +135,15 @@ private:
   Thread_info thread_info;
   LIST *guarded_instances;
   MEM_ROOT alloc;
-  enum { MEM_ROOT_BLOCK_SIZE= 512 };
   /* this variable is set to TRUE when we want to stop Guardian thread */
   bool shutdown_requested;
 };
+
+
+inline Guardian_thread::enum_instance_state
+Guardian_thread::get_instance_state(LIST *instance_node)
+{
+  return ((GUARD_NODE *) instance_node->data)->state;
+}
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_GUARDIAN_H */

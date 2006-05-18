@@ -1,5 +1,5 @@
 SHOW INSTANCES;
-instance_name	status
+instance_name	state
 mysqld1	online
 mysqld2	offline
 Killing the process...

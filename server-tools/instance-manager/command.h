@@ -22,9 +22,11 @@
 #pragma interface
 #endif
 
-/* Class responsible for allocation of im commands. */
+/* Class responsible for allocation of IM commands. */
 
 class Instance_map;
+
+struct st_net;
 
 /*
   Command - entry point for any command.
@@ -37,8 +39,18 @@ public:
   Command(Instance_map *instance_map_arg= 0);
   virtual ~Command();
 
-  /* method of executing: */
-  virtual int execute(struct st_net *net, ulong connection_id) = 0;
+  /*
+    This operation incapsulates behaviour of the command.
+
+    SYNOPSYS
+      net             The network connection to the client.
+      connection_id   Client connection ID
+
+    RETURN
+      0               On success
+      non 0           On error. Client error code is returned.
+  */
+  virtual int execute(st_net *net, ulong connection_id) = 0;
 
 protected:
   Instance_map *instance_map;

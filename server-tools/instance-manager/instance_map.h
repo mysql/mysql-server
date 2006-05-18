@@ -17,10 +17,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
-
-#include "protocol.h"
-#include "guardian.h"
-
 #include <my_sys.h>
 #include <hash.h>
 
@@ -28,9 +24,17 @@
 #pragma interface
 #endif
 
+struct LEX_STRING;
+
+class Guardian_thread;
 class Instance;
+class Named_value_arr;
+
 extern int load_all_groups(char ***groups, const char *filename);
 extern void free_groups(char **groups);
+
+extern int create_instance_in_file(const LEX_STRING *instance_name,
+                                   const Named_value_arr *options);
 
 
 /*
@@ -56,21 +60,63 @@ public:
   };
   friend class Iterator;
 public:
-  /* returns a pointer to the instance or NULL, if there is no such instance */
-  Instance *find(const char *name, uint name_len);
+  /*
+    Return a pointer to the instance or NULL, if there is no such instance.
+    MT-NOTE: must be called under acquired lock.
+  */
+  Instance *find(const LEX_STRING *name);
 
+  /* Clear the configuration cache and reload the configuration file. */
   int flush_instances();
+
+  /* The operation is used to check if there is an active instance or not. */
+  bool is_there_active_instance();
+
   void lock();
   void unlock();
+
   int init();
+
   /*
     Process a given option and assign it to appropricate instance. This is
     required for the option handler, passed to my_search_option_files().
   */
-  int process_one_option(const char *group, const char *option);
+  int process_one_option(const LEX_STRING *group, const char *option);
+
+  /*
+    Add an instance into the internal hash.
+
+    MT-NOTE: the operation must be called under acquired lock.
+  */
+  int add_instance(Instance *instance);
+
+  /*
+    Remove instance from the internal hash.
+
+    MT-NOTE: the operation must be called under acquired lock.
+  */
+  int remove_instance(Instance *instance);
+
+  /*
+    Create a new instance and register it in the internal hash.
+
+    MT-NOTE: the operation must be called under acquired lock.
+  */
+  int create_instance(const LEX_STRING *instance_name,
+                      const Named_value_arr *options);
 
   Instance_map(const char *default_mysqld_path_arg);
   ~Instance_map();
+
+  /*
+    Retrieve client state name of the given instance.
+
+    MT-NOTE: the options must be called under acquired locks of the following
+    objects:
+      - Instance_map;
+      - Guardian_thread;
+  */
+  const char *get_instance_state_name(Instance *instance);
 
 public:
   const char *mysqld_path;
@@ -80,7 +126,7 @@ private:
   /* loads options from config files */
   int load();
   /* inits instances argv's after all options have been loaded */
-  int complete_initialization();
+  bool complete_initialization();
 private:
   enum { START_HASH_SIZE = 16 };
   pthread_mutex_t LOCK_instance_map;

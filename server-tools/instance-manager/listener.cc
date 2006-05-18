@@ -19,21 +19,23 @@
 #endif
 
 #include "listener.h"
-#include "priv.h"
-#include <m_string.h>
+
+#include <my_global.h>
 #include <mysql.h>
 #include <violite.h>
+
+#include <sys/stat.h>
 #ifndef __WIN__
 #include <sys/un.h>
 #endif
-#include <sys/stat.h>
 
-#include "thread_registry.h"
-#include "options.h"
 #include "instance_map.h"
 #include "log.h"
 #include "mysql_connection.h"
+#include "options.h"
 #include "portability.h"
+#include "priv.h"
+#include "thread_registry.h"
 
 
 /*
@@ -62,8 +64,7 @@ private:
 
 
 Listener_thread::Listener_thread(const Listener_thread_args &args) :
-  Listener_thread_args(args.thread_registry, args.options, args.user_map,
-                       args.instance_map)
+  Listener_thread_args(args.thread_registry, args.user_map, args.instance_map)
   ,total_connection_count(0)
   ,thread_info(pthread_self())
   ,num_sockets(0)
@@ -234,14 +235,16 @@ int Listener_thread::create_tcp_socket()
   bzero(&ip_socket_address, sizeof(ip_socket_address));
 
   ulong im_bind_addr;
-  if (options.bind_address != 0)
+  if (Options::Main::bind_address != 0)
   {
-    if ((im_bind_addr= (ulong) inet_addr(options.bind_address)) == INADDR_NONE)
+    im_bind_addr= (ulong) inet_addr(Options::Main::bind_address);
+
+    if (im_bind_addr == INADDR_NONE)
       im_bind_addr= htonl(INADDR_ANY);
   }
   else
     im_bind_addr= htonl(INADDR_ANY);
-  uint im_port= options.port_number;
+  uint im_port= Options::Main::port_number;
 
   ip_socket_address.sin_family= AF_INET;
   ip_socket_address.sin_addr.s_addr= im_bind_addr;
@@ -295,7 +298,7 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
   bzero(&unix_socket_address, sizeof(unix_socket_address));
 
   unix_socket_address.sun_family= AF_UNIX;
-  strmake(unix_socket_address.sun_path, options.socket_file_name,
+  strmake(unix_socket_address.sun_path, Options::Main::socket_file_name,
           sizeof(unix_socket_address.sun_path));
   unlink(unix_socket_address.sun_path); // in case we have stale socket file
 

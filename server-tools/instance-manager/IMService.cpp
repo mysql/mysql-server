@@ -20,7 +20,7 @@ IMService::~IMService(void)
 void IMService::Stop()
 {
   ReportStatus(SERVICE_STOP_PENDING);
-  
+
   // stop the IM work
   raise(SIGTERM);
 }
@@ -32,7 +32,7 @@ void IMService::Run(DWORD argc, LPTSTR *argv)
 
   Options o;
   o.load(argc, argv);
-  
+
   // init goes here
   ReportStatus((DWORD)SERVICE_RUNNING);
 
@@ -46,13 +46,13 @@ void IMService::Log(const char *msg)
   log_info(msg);
 }
 
-int HandleServiceOptions(Options options)
+int HandleServiceOptions()
 {
   int ret_val= 0;
 
   IMService winService;
 
-  if (options.install_as_service)
+  if (Options::Service::install_as_service)
   {
     if (winService.IsInstalled())
       log_info("Service is already installed");
@@ -64,7 +64,7 @@ int HandleServiceOptions(Options options)
       ret_val= 1;
     }
   }
-  else if (options.remove_service)
+  else if (Options::Service::remove_service)
   {
     if (! winService.IsInstalled())
       log_info("Service is not installed");
@@ -77,6 +77,19 @@ int HandleServiceOptions(Options options)
     }
   }
   else
-    ret_val= !winService.Init();
+  {
+    log_info("Initializing Instance Manager service...");
+
+    if (!winService.Init())
+    {
+      log_info("Service failed to initialize.");
+      fprintf(stderr,
+              "The service should be started by Windows Service Manager.\n"
+              "The MySQL Manager should be started with '--standalone'\n"
+              "to run from command line.");
+      ret_val= 1;
+    }
+  }
+
   return ret_val;
 }
