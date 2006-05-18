@@ -458,6 +458,12 @@ sub collect_one_test_case($$$$$$$) {
   else
   {
     mtr_options_from_test_file($tinfo,"$testdir/${tname}.test");
+
+    if ( ! $tinfo->{'innodb_test'} )
+    {
+      # mtr_report("Adding '--skip-innodb' to $tinfo->{'name'}");
+      push(@{$tinfo->{'master_opt'}}, "--skip-innodb");
+    }
   }
 
   # We can't restart a running server that may be in use
@@ -499,13 +505,6 @@ sub mtr_options_from_test_file($$$) {
 
   }
   close FILE;
-
-  if ( ! $tinfo->{'innodb_test'} )
-  {
-    # mtr_report("Adding '--skip-innodb' to $tinfo->{'name'}");
-    push(@{$tinfo->{'master_opt'}}, "--skip-innodb");
-  }
-
 
 }
 
