@@ -338,6 +338,14 @@ spawn:
     /* Here we return to main, and fall into manager */
     break;
   default:                                    // parent, success
+    pid= getpid(); /* Get our pid. */
+
+    log_info("Angel pid file: '%s'; PID: %d.",
+             (const char *) options.angel_pid_file_name,
+             (int) pid);
+
+    create_pid_file(Options::angel_pid_file_name, pid);
+
     while (child_status == CHILD_OK && is_terminated == 0)
       sigsuspend(&zeromask);
 
