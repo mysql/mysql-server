@@ -3321,6 +3321,9 @@ restart:
     DBUG_PRINT("info", ("schema_res: %d  schema_gci: %d", schema_res, schema_gci));
     if (schema_res > 0)
     {
+      i_ndb->pollEvents(0);
+      i_ndb->flushIncompleteEvents(schema_gci);
+      s_ndb->flushIncompleteEvents(schema_gci);
       if (schema_gci < ndb_latest_handled_binlog_epoch)
       {
         sql_print_error("NDB Binlog: cluster has been restarted --initial or with older filesystem. "
