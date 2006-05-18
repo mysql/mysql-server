@@ -429,14 +429,14 @@ emptyString(const char* s)
 void
 CommandInterpreter::printError() 
 {
-  if (ndb_mgm_check_connection(m_mgmsrv))
-  {
-    disconnect();
-  }
   ndbout_c("* %5d: %s", 
 	   ndb_mgm_get_latest_error(m_mgmsrv),
 	   ndb_mgm_get_latest_error_msg(m_mgmsrv));
   ndbout_c("*        %s", ndb_mgm_get_latest_error_desc(m_mgmsrv));
+  if (ndb_mgm_check_connection(m_mgmsrv))
+  {
+    disconnect();
+  }
 }
 
 //*****************************************************************************
