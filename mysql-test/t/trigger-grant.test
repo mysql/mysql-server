@@ -718,7 +718,7 @@ CREATE TABLE t2 (i1 INT);
 CREATE USER mysqltest_dfn@localhost;
 CREATE USER mysqltest_inv@localhost;
 
-GRANT EXECUTE, CREATE ROUTINE, SUPER ON *.* TO mysqltest_dfn@localhost;
+GRANT EXECUTE, CREATE ROUTINE, TRIGGER ON *.* TO mysqltest_dfn@localhost;
 GRANT INSERT ON mysqltest_db1.* TO mysqltest_inv@localhost;
 
 connect (definer,localhost,mysqltest_dfn,,mysqltest_db1);

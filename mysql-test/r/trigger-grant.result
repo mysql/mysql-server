@@ -376,7 +376,7 @@ CREATE TABLE t1 (i1 INT);
 CREATE TABLE t2 (i1 INT);
 CREATE USER mysqltest_dfn@localhost;
 CREATE USER mysqltest_inv@localhost;
-GRANT EXECUTE, CREATE ROUTINE, SUPER ON *.* TO mysqltest_dfn@localhost;
+GRANT EXECUTE, CREATE ROUTINE, TRIGGER ON *.* TO mysqltest_dfn@localhost;
 GRANT INSERT ON mysqltest_db1.* TO mysqltest_inv@localhost;
 CREATE PROCEDURE p1(OUT i INT) DETERMINISTIC NO SQL SET i = 3;
 CREATE PROCEDURE p2(INOUT i INT) DETERMINISTIC NO SQL SET i = i * 5;

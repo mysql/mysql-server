@@ -2538,6 +2538,7 @@ bool select_insert::send_eof()
                           (open) will be returned in this parameter. Since
                           this table is not included in THD::lock caller is
                           responsible for explicitly unlocking this table.
+      hooks
 
   NOTES
     If 'create_info->options' bitmask has HA_LEX_CREATE_IF_NOT_EXISTS
@@ -2556,10 +2557,13 @@ bool select_insert::send_eof()
 static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                       TABLE_LIST *create_table,
                                       List<create_field> *extra_fields,
-                                      List<Key> *keys, List<Item> *items,
-                                      MYSQL_LOCK **lock)
+                                      List<Key> *keys,
+                                      List<Item> *items,
+                                      MYSQL_LOCK **lock,
+                                      TABLEOP_HOOKS *hooks)
 {
   TABLE tmp_table;		// Used during 'create_field()'
+  TABLE_SHARE share;
   TABLE *table= 0;
   uint select_field_count= items->elements;
   /* Add selected items to field list */
@@ -2571,11 +2575,14 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   tmp_table.alias= 0;
   tmp_table.timestamp_field= 0;
-  tmp_table.s= &tmp_table.share_not_to_be_used;
+  tmp_table.s= &share;
+  init_tmp_table_share(&share, "", 0, "", "");
+
   tmp_table.s->db_create_options=0;
   tmp_table.s->blob_ptr_size= portable_sizeof_char_ptr;
-  tmp_table.s->db_low_byte_first= test(create_info->db_type == DB_TYPE_MYISAM ||
-                                       create_info->db_type == DB_TYPE_HEAP);
+  tmp_table.s->db_low_byte_first= 
+        test(create_info->db_type == &myisam_hton ||
+             create_info->db_type == &heap_hton);
   tmp_table.null_row=tmp_table.maybe_null=0;
 
   while ((item=it++))
@@ -2631,6 +2638,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
               under explicit LOCK TABLES since it will open gap for deadlock
               too wide (and also is not backward compatible).
       */
+
       if (! (table= open_table(thd, create_table, thd->mem_root, (bool*) 0,
                                (MYSQL_LOCK_IGNORE_FLUSH |
                                 ((thd->prelocked_mode == PRELOCKED) ?
@@ -2650,6 +2658,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
            save us from that ?
   */
   table->reginfo.lock_type=TL_WRITE;
+  hooks->prelock(&table, 1);                    // Call prelock hooks
   if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
   {
