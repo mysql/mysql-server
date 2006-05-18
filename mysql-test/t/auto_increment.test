@@ -275,3 +275,14 @@ update t1 set a=2 where a=1;
 insert into t1 (val) values (1);
 select * from t1;
 drop table t1;
+
+#
+# Test key duplications with auto-increment in ALTER TABLE
+# bug #14573
+#
+CREATE TABLE t1 (t1 INT(10) PRIMARY KEY, t2 INT(10));
+INSERT INTO t1 VALUES(0, 0);
+INSERT INTO t1 VALUES(1, 1);
+--error ER_DUP_ENTRY
+ALTER TABLE t1 CHANGE t1 t1 INT(10) auto_increment;
+DROP TABLE t1;
