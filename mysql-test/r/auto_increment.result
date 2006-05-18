@@ -422,5 +422,5 @@ CREATE TABLE t1 (t1 INT(10) PRIMARY KEY, t2 INT(10));
 INSERT INTO t1 VALUES(0, 0);
 INSERT INTO t1 VALUES(1, 1);
 ALTER TABLE t1 CHANGE t1 t1 INT(10) auto_increment;
-ERROR 23000: ALTER TABLE causes auto_increment resequencing, causing Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: ALTER TABLE causes auto_increment resequencing, resulting in duplicate entry '1' for key 'PRIMARY'
 DROP TABLE t1;
