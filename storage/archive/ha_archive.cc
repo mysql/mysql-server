@@ -1239,7 +1239,7 @@ int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
 int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("ha_archive::optimize");
-  int rc;
+  int rc= 0;
   azio_stream writer;
   char writer_filename[FN_REFLEN];
 
@@ -1342,7 +1342,20 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   azclose(&writer);
   share->dirty= FALSE;
   share->forced_flushes= 0;
+  
+  // now we close both our writer and our reader for the rename
   azclose(&(share->archive_write));
+  azclose(&archive);
+
+  // make the file we just wrote be our data file
+  rc = my_rename(writer_filename,share->data_file_name,MYF(0));
+
+  /*
+    now open the shared writer back up
+    we don't check rc here because we want to open the file back up even
+    if the optimize failed but we will return rc below so that we will
+    know it failed.
+  */
   DBUG_PRINT("info", ("Reopening archive data file"));
   if (!(azopen(&(share->archive_write), share->data_file_name, 
                O_WRONLY|O_APPEND|O_BINARY)))
@@ -1352,20 +1365,14 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     goto error;
   }
 
-  my_rename(writer_filename,share->data_file_name,MYF(0));
-
   /*
     Now we need to reopen our read descriptor since it has changed.
   */
-  azclose(&archive);
   if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
   {
     rc= HA_ERR_CRASHED_ON_USAGE;
     goto error;
   }
-
-
-  DBUG_RETURN(0); 
 
 error:
   azclose(&writer);
