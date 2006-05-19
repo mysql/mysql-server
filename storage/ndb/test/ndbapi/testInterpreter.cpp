@@ -79,46 +79,46 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
 
 
- NdbConnection* pTrans = pNdb->startTransaction();
- if (pTrans == NULL){
-   ERR(pNdb->getNdbError());
-   return NDBT_FAILED;
- }
- 
- NdbOperation* pOp = pTrans->getNdbOperation(pTab->getName());
- if (pOp == NULL) {
-   ERR(pTrans->getNdbError());
-   pNdb->closeTransaction(pTrans);
-   return NDBT_FAILED;
- }
- 
- int check = pOp->interpretedUpdateTuple();
- if( check == -1 ) {
-   ERR(pTrans->getNdbError());
-   pNdb->closeTransaction(pTrans);
-   return NDBT_FAILED;
- }
-
-
- // Primary keys
- Uint32 pkVal = 1;
- check = pOp->equal("KOL1", pkVal );
- if( check == -1 ) {
-   ERR(pTrans->getNdbError());
-   pNdb->closeTransaction(pTrans);
-   return NDBT_FAILED;
- }
-
- // Attributes
-
- // Update column
- Uint32 valToIncWith = 1;
- check = pOp->incValue("KOL2", valToIncWith);
- if( check == -1 ) {
-   ERR(pTrans->getNdbError());
-   pNdb->closeTransaction(pTrans);
-   return NDBT_FAILED;
- }
+  NdbConnection* pTrans = pNdb->startTransaction();
+  if (pTrans == NULL){
+    ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  NdbOperation* pOp = pTrans->getNdbOperation(pTab->getName());
+  if (pOp == NULL) {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+  
+  int check = pOp->interpretedUpdateTuple();
+  if( check == -1 ) {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+  
+  
+  // Primary keys
+  Uint32 pkVal = 1;
+  check = pOp->equal("KOL1", pkVal );
+  if( check == -1 ) {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+  
+  // Attributes
+  
+  // Update column
+  Uint32 valToIncWith = 1;
+  check = pOp->incValue("KOL2", valToIncWith);
+  if( check == -1 ) {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
 
   NdbRecAttr* valueRec = pOp->getValue("KOL2");
   if( valueRec == NULL ) {
@@ -142,6 +142,122 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+
+  if (strcmp(pTab->getName(), "T1") != 0) {
+    g_err << "runTestBug19537: skip, table != T1" << endl;
+    return NDBT_OK;
+  }
+
+
+  NdbConnection* pTrans = pNdb->startTransaction();
+  if (pTrans == NULL){
+    ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  NdbOperation* pOp = pTrans->getNdbOperation(pTab->getName());
+  if (pOp == NULL) {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+  
+  if (pOp->interpretedUpdateTuple() == -1) {
+    ERR(pOp->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+  
+  
+  // Primary keys
+  const Uint32 pkVal = 1;
+  if (pOp->equal("KOL1", pkVal) == -1) {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+  
+  // Load 64-bit constant into register 1 and
+  // write from register 1 to 32-bit column KOL2
+  const Uint64 reg_val = 0x0102030405060708ULL;
+
+  const Uint32* reg_ptr32 = (const Uint32*)&reg_val;
+  if (reg_ptr32[0] == 0x05060708 && reg_ptr32[1] == 0x01020304) {
+    g_err << "runTestBug19537: platform is LITTLE endian" << endl;
+  } else if (reg_ptr32[0] == 0x01020304 && reg_ptr32[1] == 0x05060708) {
+    g_err << "runTestBug19537: platform is BIG endian" << endl;
+  } else {
+    g_err << "runTestBug19537: impossible platform"
+          << hex << " [0]=" << reg_ptr32[0] << " [1]=" <<reg_ptr32[1] << endl;
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (pOp->load_const_u64(1, reg_val) == -1 ||
+      pOp->write_attr("KOL2", 1) == -1) {
+    ERR(pOp->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (pTrans->execute(Commit) == -1) {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  // Read value via a new transaction
+
+  pTrans = pNdb->startTransaction();
+  if (pTrans == NULL){
+    ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  pOp = pTrans->getNdbOperation(pTab->getName());
+  if (pOp == NULL) {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+  
+  Uint32 kol2 = 0x09090909;
+  if (pOp->readTuple() == -1 ||
+      pOp->equal("KOL1", pkVal) == -1 ||
+      pOp->getValue("KOL2", (char*)&kol2) == 0) {
+    ERR(pOp->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (pTrans->execute(Commit) == -1) {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  // Expected conversion as in C - truncate to lower (logical) word
+
+  if (kol2 == 0x01020304) {
+    g_err << "runTestBug19537: the bug manifests itself !" << endl;
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  if (kol2 != 0x05060708) {
+    g_err << "runTestBug19537: impossible KOL2 " << hex << kol2 << endl;
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
+  pNdb->closeTransaction(pTrans);
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testInterpreter);
 TESTCASE("IncValue32", 
@@ -154,6 +270,12 @@ TESTCASE("IncValue64",
 	 "Test incValue for 64 bit integer\n"){ 
   INITIALIZER(runLoadTable);
   INITIALIZER(runTestIncValue64);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug19537",
+         "Test big-endian write_attr of 32 bit integer\n"){
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runTestBug19537);
   FINALIZER(runClearTable);
 }
 #if 0
