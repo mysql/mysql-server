@@ -1107,9 +1107,10 @@ NdbEventBuffer::flushIncompleteEvents(Uint64 gci)
   for(i = 0; i < sz; i++)
   {
     Gci_container* tmp = array + i;
-    if (tmp->m_gci < gci)
+    if (tmp->m_gci && tmp->m_gci < gci)
     {
       // we have found an old not-completed gci, remove it
+      ndbout_c("ndb: flushing incomplete epoch %lld (<%lld)", tmp->m_gci, gci);
       if(!tmp->m_data.is_empty())
       {
         free_list(tmp->m_data);
@@ -1257,7 +1258,6 @@ NdbEventBuffer::deleteUsedEventOperations()
         op->m_prev->m_next = op->m_next;
       else
         m_dropped_ev_op = op->m_next;
-      ndbout_c("deleting NdbEventOperation %p", op->m_facade);
       delete op->m_facade;
     }
   }
@@ -2506,7 +2506,6 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
   {
     DBUG_PRINT("info", ("deleting op: %p", op));
     DBUG_ASSERT(op->m_node_bit_mask.isclear());
-    ndbout_c("deleting NdbEventOperation %p", op->m_facade);
     delete op->m_facade;
   }
   else
