@@ -7132,10 +7132,6 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
 #ifndef DBUG_OFF
     bzero((gptr)(*share)->table_share, sizeof(*(*share)->table_share));
     bzero((gptr)(*share)->table, sizeof(*(*share)->table));
-#endif
-    my_free((gptr) (*share)->table_share, MYF(0));
-    my_free((gptr) (*share)->table, MYF(0));
-#ifndef DBUG_OFF
     (*share)->table_share= 0;
     (*share)->table= 0;
 #endif
