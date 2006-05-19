@@ -21,6 +21,7 @@
 #include "user_map.h"
 #include "exit_codes.h"
 #include "log.h"
+#include "portability.h"
 
 User::User(const LEX_STRING *user_name_arg, const char *password)
 {

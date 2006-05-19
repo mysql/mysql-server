@@ -18,6 +18,7 @@
 
 #include <my_global.h>
 #include <my_sys.h>
+#include <m_string.h>
 #include <hash.h>
 
 #include "command.h"
@@ -28,7 +29,6 @@
 #pragma interface
 #endif
 
-struct LEX_STRING;
 
 /*
   Print all instances of this instance manager.

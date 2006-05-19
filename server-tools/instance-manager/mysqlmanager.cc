@@ -34,7 +34,8 @@
 #include "user_management_commands.h"
 
 #ifdef __WIN__
-#include "windowsservice.h"
+#include "IMService.h"
+#include "WindowsService.h"
 #endif
 
 
