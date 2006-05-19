@@ -1132,7 +1132,8 @@ public:
       _TE_NODE_FAILURE=10,
       _TE_SUBSCRIBE=11,
       _TE_UNSUBSCRIBE=12,
-      _TE_NUL=13 // internal (e.g. INS o DEL within same GCI)
+      _TE_NUL=13, // internal (e.g. INS o DEL within same GCI)
+      _TE_ACTIVE=14 // internal (node becomes active)
     };
 #endif
     /**

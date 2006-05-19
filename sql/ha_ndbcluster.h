@@ -113,6 +113,7 @@ typedef struct st_ndbcluster_share {
   char *old_names; // for rename table
   TABLE_SHARE *table_share;
   TABLE *table;
+  byte *record[2]; // pointer to allocated records for receiving data
   NdbValue *ndb_value[2];
   MY_BITMAP *subscriber_bitmap;
 #endif

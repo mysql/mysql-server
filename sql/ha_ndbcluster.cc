@@ -182,6 +182,8 @@ static const char * ndb_connected_host= 0;
 static long ndb_connected_port= 0;
 static long ndb_number_of_replicas= 0;
 long ndb_number_of_storage_nodes= 0;
+long ndb_number_of_ready_storage_nodes= 0;
+long ndb_connect_count= 0;
 
 static int update_status_variables(Ndb_cluster_connection *c)
 {
@@ -190,6 +192,8 @@ static int update_status_variables(Ndb_cluster_connection *c)
   ndb_connected_host=          c->get_connected_host();
   ndb_number_of_replicas=      0;
   ndb_number_of_storage_nodes= c->no_db_nodes();
+  ndb_number_of_ready_storage_nodes= c->get_no_ready();
+  ndb_connect_count= c->get_connect_count();
   return 0;
 }
 
@@ -7128,10 +7132,6 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
 #ifndef DBUG_OFF
     bzero((gptr)(*share)->table_share, sizeof(*(*share)->table_share));
     bzero((gptr)(*share)->table, sizeof(*(*share)->table));
-#endif
-    my_free((gptr) (*share)->table_share, MYF(0));
-    my_free((gptr) (*share)->table, MYF(0));
-#ifndef DBUG_OFF
     (*share)->table_share= 0;
     (*share)->table= 0;
 #endif
@@ -9361,11 +9361,15 @@ ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
                 "cluster_node_id=%u, "
                 "connected_host=%s, "
                 "connected_port=%u, "
-                "number_of_storage_nodes=%u",
+                "number_of_storage_nodes=%u, "
+                "number_of_ready_storage_nodes=%u, "
+                "connect_count=%u",
                 ndb_cluster_node_id,
                 ndb_connected_host,
                 ndb_connected_port,
-                ndb_number_of_storage_nodes);
+                ndb_number_of_storage_nodes,
+                ndb_number_of_ready_storage_nodes,
+                ndb_connect_count);
   if (stat_print(thd, ndbcluster_hton.name, strlen(ndbcluster_hton.name),
                  "connection", strlen("connection"),
                  buf, buflen))

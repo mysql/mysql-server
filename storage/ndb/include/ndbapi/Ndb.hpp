@@ -1262,6 +1262,7 @@ public:
   
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  int flushIncompleteEvents(Uint64 gci);
   NdbEventOperation *getEventOperation(NdbEventOperation* eventOp= 0);
   Uint64 getLatestGCI();
   void forceGCP();
