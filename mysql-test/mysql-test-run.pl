@@ -2946,10 +2946,6 @@ sub run_testcase_stop_servers($) {
     $do_restart= 1;
     mtr_report("Restart because: master_restart or running_master_is_special");
   }
-  else
-  {
-    mtr_report("Skip restart: " . join(" ", @{$tinfo->{'master_opt'}}));
-  }
 
   my $pid;
   my %admin_pids; # hash of admin processes that requests shutdown
