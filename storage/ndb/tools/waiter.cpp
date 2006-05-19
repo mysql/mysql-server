@@ -92,7 +92,7 @@ int main(int argc, char** argv){
     wait_status= NDB_MGM_NODE_STATUS_STARTED;
   }
 
-  if (waitClusterStatus(_hostName, wait_status, _timeout) != 0)
+  if (waitClusterStatus(_hostName, wait_status, _timeout*10) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
   return NDBT_ProgramExit(NDBT_OK);
 }
@@ -311,7 +311,7 @@ waitClusterStatus(const char* _addr,
     }
     g_info << "Waiting for cluster enter state " 
 	    << ndb_mgm_get_node_status_string(_status)<< endl;
-    NdbSleep_SecSleep(1);
+    NdbSleep_MilliSleep(100);
     attempts++;
   }
   return 0;
