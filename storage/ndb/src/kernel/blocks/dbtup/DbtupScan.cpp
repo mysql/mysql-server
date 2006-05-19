@@ -156,7 +156,7 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
       conf->scanPtr = scan.m_userPtr;
       unsigned signalLength = 1;
       sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
-          signal, signalLength, JBB);
+		 signal, signalLength, JBB);
       return;
     }
     break;
@@ -171,7 +171,7 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
       lockReq->requestInfo = AccLockReq::AbortWithConf;
       lockReq->accOpPtr = scan.m_accLockOp;
       EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ,
-          signal, AccLockReq::UndoSignalLength);
+		     signal, AccLockReq::UndoSignalLength);
       jamEntry();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       scan.m_state = ScanOp::Aborting;
@@ -182,10 +182,10 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
       ndbrequire(scan.m_accLockOp != RNIL);
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
-      lockReq->requestInfo = AccLockReq::Unlock;
+      lockReq->requestInfo = AccLockReq::Abort;
       lockReq->accOpPtr = scan.m_accLockOp;
       EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ,
-          signal, AccLockReq::UndoSignalLength);
+		     signal, AccLockReq::UndoSignalLength);
       jamEntry();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       scan.m_accLockOp = RNIL;
@@ -433,7 +433,7 @@ Dbtup::execACCKEYCONF(Signal* signal)
     jam();
     AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
     lockReq->returnCode = RNIL;
-    lockReq->requestInfo = AccLockReq::Unlock;
+    lockReq->requestInfo = AccLockReq::Abort;
     lockReq->accOpPtr = scan.m_accLockOp;
     EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
     jamEntry();
