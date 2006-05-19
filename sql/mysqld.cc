@@ -954,7 +954,8 @@ static void __cdecl kill_server(int sig_ptr)
     RETURN_FROM_KILL_SERVER;
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
-  my_sigset(sig,SIG_IGN);
+  if (sig != 0) // 0 is not a valid signal number
+    my_sigset(sig,SIG_IGN);
   if (sig == MYSQL_KILL_SIGNAL || sig == 0)
     sql_print_information(ER(ER_NORMAL_SHUTDOWN),my_progname);
   else
