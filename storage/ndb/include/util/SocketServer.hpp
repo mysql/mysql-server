@@ -106,7 +106,8 @@ public:
   void stopSessions(bool wait = false);
   
   void foreachSession(void (*f)(Session*, void*), void *data);
-
+  void checkSessions();
+  
 private:
   struct SessionInstance {
     Service * m_service;
@@ -117,12 +118,13 @@ private:
     Service * m_service;
     NDB_SOCKET_TYPE m_socket;
   };
-  MutexVector<SessionInstance> m_sessions;
+  NdbLockable m_session_mutex;
+  Vector<SessionInstance> m_sessions;
   MutexVector<ServiceInstance> m_services;
   unsigned m_maxSessions;
   
   void doAccept();
-  void checkSessions();
+  void checkSessionsImpl();
   void startSession(SessionInstance &);
   
   /**
