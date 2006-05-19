@@ -4698,17 +4698,46 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
 
     if (inv)
     {
-      /*
-        We get here for conditions like "t.keypart NOT IN (....)".
-        
-        If the IN-list contains only constants (and func->array is an ordered
-        array of them), we construct the appropriate SEL_ARG tree manually, 
-        because constructing it using the range analyzer (as 
-        AND_i( t.keypart != c_i)) will cause lots of memory to be consumed
-        (see BUG#15872). 
-      */
       if (func->array && func->cmp_type != ROW_RESULT)
       {
+        /*
+          We get here for conditions in form "t.key NOT IN (c1, c2, ...)" 
+          (where c{i} are constants).
+          Our goal is to produce a SEL_ARG graph that represents intervals:
+          
+          ($MIN<t.key<c1) OR (c1<t.key<c2) OR (c2<t.key<c3) OR ...    (*)
+          
+          where $MIN is either "-inf" or NULL.
+          
+          The most straightforward way to handle NOT IN would be to convert
+          it to "(t.key != c1) AND (t.key != c2) AND ..." and let the range
+          optimizer to build SEL_ARG graph from that. However that will cause
+          the range optimizer to use O(N^2) memory (it's a bug, not filed),
+          and people do use big NOT IN lists (see BUG#15872). Also, for big          
+          NOT IN lists constructing/using graph (*) does not make the query
+          faster.
+          
+          So, we will handle NOT IN manually in the following way:
+          * if the number of entries in the NOT IN list is less then 
+            NOT_IN_IGNORE_THRESHOLD, we will construct SEL_ARG graph (*)
+            manually.
+          * Otherwise, we will construct a smaller graph: for 
+            "t.key NOT IN (c1,...cN)" we construct a graph representing 
+            ($MIN < t.key) OR (cN < t.key)  // here sequence of c_i is
+                                            // ordered.
+
+          A note about partially-covering indexes: for those (e.g. for 
+          "a CHAR(10), KEY(a(5))") the handling is correct (albeit not very
+          efficient):
+          Instead of "t.key < c1" we get "t.key <= prefix-val(c1)".
+          Combining the intervals in (*) together, we get:
+          (-inf<=t.key<=c1) OR (c1<=t.key<=c2) OR (c2<=t.key<=c3) OR ...
+          i.e. actually we get intervals combined into one interval:
+          (-inf<=t.key<=+inf). This doesn't make much sense but it doesn't
+          cause any problems.
+        */
+        MEM_ROOT *tmp_root= param->mem_root;
+        param->thd->mem_root= param->old_root;
         /* 
           Create one Item_type constant object. We'll need it as
           get_mm_parts only accepts constant values wrapped in Item_Type
@@ -4717,25 +4746,35 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
           per-statement mem_root (while thd->mem_root is currently pointing
           to mem_root local to range optimizer).
         */
-        MEM_ROOT *tmp_root= param->mem_root;
-        param->thd->mem_root= param->old_root;
         Item *value_item= func->array->create_item();
         param->thd->mem_root= tmp_root;
 
         if (!value_item)
           break;
         
-        /* Get a SEL_TREE for "-inf < X < c_0" interval */
-        func->array->value_to_item(0, value_item);
-        tree= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
-                           value_item, cmp_type);
-        if (!tree)
+        /* Get a SEL_TREE for "(-inf|NULL) < X < c_0" interval.  */
+        uint i=0;
+        do 
+        {
+          func->array->value_to_item(i, value_item);
+          tree= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
+                             value_item, cmp_type);
+          if (!tree)
+            break;
+          i++;
+        } while (i < func->array->count && tree->type == SEL_TREE::IMPOSSIBLE);
+
+        if (!tree || tree->type == SEL_TREE::IMPOSSIBLE)
+        {
+          /* We get here in cases like "t.unsigned NOT IN (-1,-2,-3) */
+          tree= NULL;
           break;
+        }
 #define NOT_IN_IGNORE_THRESHOLD 1000        
         SEL_TREE *tree2;
         if (func->array->count < NOT_IN_IGNORE_THRESHOLD)
         {
-          for (uint i=1; i < func->array->count; i++)
+          for (; i < func->array->count; i++)
           {
             if (func->array->compare_elems(i, i-1))
             {
@@ -4743,32 +4782,44 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
               func->array->value_to_item(i, value_item);
               tree2= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
                                   value_item, cmp_type);
-              
+              if (!tree2)
+              {
+                tree= NULL;
+                break;
+              }
+
               /* Change all intervals to be "c_{i-1} < X < c_i" */
               for (uint idx= 0; idx < param->keys; idx++)
               {
-                SEL_ARG *new_interval;
-                if ((new_interval=  tree2->keys[idx]))
+                SEL_ARG *new_interval, *last_val;
+                if (((new_interval= tree2->keys[idx])) && 
+                    ((last_val= tree->keys[idx]->last())))
                 {
-                  SEL_ARG *last_val= tree->keys[idx]->last();
                   new_interval->min_value= last_val->max_value;
                   new_interval->min_flag= NEAR_MIN;
                 }
               }
+              /* 
+                The following doesn't try to allocate memory so no need to
+                check for NULL.
+              */
               tree= tree_or(param, tree, tree2);
             }
           }
         }
         else
           func->array->value_to_item(func->array->count - 1, value_item);
-
-        /* 
-          Get the SEL_TREE for the last "c_last < X < +inf" interval 
-          (value_item cotains c_last already)
-        */
-        tree2= get_mm_parts(param, cond_func, field, Item_func::GT_FUNC,
-                            value_item, cmp_type);
-        tree= tree_or(param, tree, tree2);
+        
+        if (tree && tree->type != SEL_TREE::IMPOSSIBLE)
+        {
+          /* 
+            Get the SEL_TREE for the last "c_last < X < +inf" interval 
+            (value_item cotains c_last already)
+          */
+          tree2= get_mm_parts(param, cond_func, field, Item_func::GT_FUNC,
+                              value_item, cmp_type);
+          tree= tree_or(param, tree, tree2);
+        }
       }
       else
       {
