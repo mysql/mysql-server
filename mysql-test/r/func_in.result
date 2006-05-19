@@ -326,3 +326,20 @@ deallocate prepare s;
 set @str=NULL;
 drop table t2;
 drop table t1;
+create table t1 (
+some_id smallint(5) unsigned,
+key (some_id)
+);
+insert into t1 values (1),(2);
+select some_id from t1 where some_id not in(2,-1);
+some_id
+1
+select some_id from t1 where some_id not in(-4,-1,-4);
+some_id
+1
+2
+select some_id from t1 where some_id not in(-4,-1,3423534,2342342);
+some_id
+1
+2
+drop table t1;
