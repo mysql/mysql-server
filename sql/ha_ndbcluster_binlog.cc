@@ -25,6 +25,7 @@
 #include "slave.h"
 #include "ha_ndbcluster_binlog.h"
 #include "NdbDictionary.hpp"
+#include <util/NdbAutoPtr.hpp>
 
 #ifdef ndb_dynamite
 #undef assert
@@ -265,7 +266,8 @@ ndbcluster_binlog_close_table(THD *thd, NDB_SHARE *share)
 
 static int
 ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
-                             TABLE_SHARE *table_share, TABLE *table)
+                             TABLE_SHARE *table_share, TABLE *table,
+                             int reopen)
 {
   int error;
   DBUG_ENTER("ndbcluster_binlog_open_table");
@@ -278,27 +280,34 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
                     share->key, error);
     DBUG_PRINT("error", ("open_table_def failed %d", error));
     free_table_share(table_share);
-    my_free((gptr) table_share, MYF(0));
-    my_free((gptr) table, MYF(0));
     DBUG_RETURN(error);
   }
-  if ((error= open_table_from_share(thd, table_share, "", 0, 
+  if ((error= open_table_from_share(thd, table_share, "", 0 /* fon't allocate buffers */, 
                                     (uint) READ_ALL, 0, table, FALSE)))
   {
     sql_print_error("Unable to open table for %s, error=%d(%d)",
                     share->key, error, my_errno);
     DBUG_PRINT("error", ("open_table_from_share failed %d", error));
     free_table_share(table_share);
-    my_free((gptr) table_share, MYF(0));
-    my_free((gptr) table, MYF(0));
     DBUG_RETURN(error);
   }
   assign_new_table_id(table_share);
-  if (!table->record[1] || table->record[1] == table->record[0])
+
+  if (!reopen)
   {
-    table->record[1]= alloc_root(&table->mem_root,
-                                 table->s->rec_buff_length);
+    // allocate memory on ndb share so it can be reused after online alter table
+    share->record[0]= (byte*) alloc_root(&share->mem_root, table->s->rec_buff_length);
+    share->record[1]= (byte*) alloc_root(&share->mem_root, table->s->rec_buff_length);
   }
+  {
+    my_ptrdiff_t row_offset= share->record[0] - table->record[0];
+    Field **p_field;
+    for (p_field= table->field; *p_field; p_field++)
+      (*p_field)->move_field_offset(row_offset);
+    table->record[0]= share->record[0];
+    table->record[1]= share->record[1];
+  }
+
   table->in_use= injector_thd;
   
   table->s->db.str= share->db;
@@ -366,10 +375,9 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
   while (1) 
   {
     int error;
-    TABLE_SHARE *table_share= 
-      (TABLE_SHARE *) my_malloc(sizeof(*table_share), MYF(MY_WME));
-    TABLE *table= (TABLE*) my_malloc(sizeof(*table), MYF(MY_WME));
-    if ((error= ndbcluster_binlog_open_table(thd, share, table_share, table)))
+    TABLE_SHARE *table_share= (TABLE_SHARE *) alloc_root(mem_root, sizeof(*table_share));
+    TABLE *table= (TABLE*) alloc_root(mem_root, sizeof(*table));
+    if ((error= ndbcluster_binlog_open_table(thd, share, table_share, table, 0)))
       break;
     /*
       ! do not touch the contents of the table
@@ -1535,6 +1543,10 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
         sql_print_information("NDB: Failed write frm for %s.%s, error %d",
                               dbname, tabname, error);
       }
+      
+      // copy names as memory will be freed
+      NdbAutoPtr<char> a1((char *)(dbname= strdup(dbname)));
+      NdbAutoPtr<char> a2((char *)(tabname= strdup(tabname)));
       ndbcluster_binlog_close_table(thd, share);
 
       TABLE_LIST table_list;
@@ -1543,10 +1555,16 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
       table_list.alias= table_list.table_name= (char *)tabname;
       close_cached_tables(thd, 0, &table_list, TRUE);
 
-      if ((error= ndbcluster_binlog_open_table(thd, share, 
-                                               table_share, table)))
+      if ((error= ndbcluster_binlog_open_table(thd, share,
+                                               table_share, table, 1)))
         sql_print_information("NDB: Failed to re-open table %s.%s",
                               dbname, tabname);
+
+      table= share->table;
+      table_share= share->table_share;
+      dbname= table_share->db.str;
+      tabname= table_share->table_name.str;
+
       pthread_mutex_unlock(&LOCK_open);
     }
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
@@ -1776,7 +1794,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       break;
     case NDBEVENT::TE_CLUSTER_FAILURE:
       if (ndb_extra_logging)
-        sql_print_information("NDB Binlog: cluster failure for %s.", schema_share->key);
+        sql_print_information("NDB Binlog: cluster failure for %s at epoch %u.",
+                              schema_share->key, (unsigned) pOp->getGCI());
       // fall through
     case NDBEVENT::TE_DROP:
       if (ndb_extra_logging &&
@@ -1785,7 +1804,6 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                               "read only on reconnect.");
       free_share(&schema_share);
       schema_share= 0;
-      ndb_binlog_tables_inited= FALSE;
       close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, FALSE);
       // fall through
     case NDBEVENT::TE_ALTER:
@@ -2829,7 +2847,8 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
   {
   case NDBEVENT::TE_CLUSTER_FAILURE:
     if (ndb_extra_logging)
-      sql_print_information("NDB Binlog: cluster failure for %s.", share->key);
+      sql_print_information("NDB Binlog: cluster failure for %s at epoch %u.",
+                            share->key, (unsigned) pOp->getGCI());
     if (apply_status_share == share)
     {
       if (ndb_extra_logging &&
@@ -2838,7 +2857,6 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
                               "read only on reconnect.");
       free_share(&apply_status_share);
       apply_status_share= 0;
-      ndb_binlog_tables_inited= FALSE;
     }
     DBUG_PRINT("info", ("CLUSTER FAILURE EVENT: "
                         "%s  received share: 0x%lx  op: %lx  share op: %lx  "
@@ -2854,7 +2872,6 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
                               "read only on reconnect.");
       free_share(&apply_status_share);
       apply_status_share= 0;
-      ndb_binlog_tables_inited= FALSE;
     }
     /* ToDo: remove printout */
     if (ndb_extra_logging)
@@ -3267,46 +3284,43 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_mutex_unlock(&injector_mutex);
   pthread_cond_signal(&injector_cond);
 
-  thd->proc_info= "Waiting for ndbcluster to start";
-
-  pthread_mutex_lock(&injector_mutex);
-  while (!schema_share ||
-         (ndb_binlog_running && !apply_status_share))
-  {
-    /* ndb not connected yet */
-    struct timespec abstime;
-    set_timespec(abstime, 1);
-    pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
-    if (abort_loop)
-    {
-      pthread_mutex_unlock(&injector_mutex);
-      goto err;
-    }
-  }
-  pthread_mutex_unlock(&injector_mutex);
-
+restart:
   /*
     Main NDB Injector loop
   */
-
-  DBUG_ASSERT(ndbcluster_hton.slot != ~(uint)0);
-  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
   {
-    sql_print_error("Could not allocate Thd_ndb object");
-    goto err;
-  }
-  set_thd_ndb(thd, thd_ndb);
-  thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
-  thd->query_id= 0; // to keep valgrind quiet
-  {
-    static char db[]= "";
-    thd->db= db;
-    if (ndb_binlog_running)
-      open_binlog_index(thd, &binlog_tables, &binlog_index);
-    thd->db= db;
+    thd->proc_info= "Waiting for ndbcluster to start";
+
+    pthread_mutex_lock(&injector_mutex);
+    while (!schema_share ||
+           (ndb_binlog_running && !apply_status_share))
+    {
+      /* ndb not connected yet */
+      struct timespec abstime;
+      set_timespec(abstime, 1);
+      pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
+      if (abort_loop)
+      {
+        pthread_mutex_unlock(&injector_mutex);
+        goto err;
+      }
+    }
+    pthread_mutex_unlock(&injector_mutex);
+
+    if (thd_ndb == NULL)
+    {
+      DBUG_ASSERT(ndbcluster_hton.slot != ~(uint)0);
+      if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+      {
+        sql_print_error("Could not allocate Thd_ndb object");
+        goto err;
+      }
+      set_thd_ndb(thd, thd_ndb);
+      thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
+      thd->query_id= 0; // to keep valgrind quiet
+    }
   }
 
-restart:
   {
     // wait for the first event
     thd->proc_info= "Waiting for first event from ndbcluster";
@@ -3321,6 +3335,9 @@ restart:
     DBUG_PRINT("info", ("schema_res: %d  schema_gci: %d", schema_res, schema_gci));
     if (schema_res > 0)
     {
+      i_ndb->pollEvents(0);
+      i_ndb->flushIncompleteEvents(schema_gci);
+      s_ndb->flushIncompleteEvents(schema_gci);
       if (schema_gci < ndb_latest_handled_binlog_epoch)
       {
         sql_print_error("NDB Binlog: cluster has been restarted --initial or with older filesystem. "
@@ -3334,7 +3351,13 @@ restart:
       }
     }
   }
-
+  {
+    static char db[]= "";
+    thd->db= db;
+    if (ndb_binlog_running)
+      open_binlog_index(thd, &binlog_tables, &binlog_index);
+    thd->db= db;
+  }
   do_ndbcluster_binlog_close_connection= BCCC_running;
   for ( ; !((abort_loop || do_ndbcluster_binlog_close_connection) &&
             ndb_latest_handled_binlog_epoch >= g_latest_trans_gci) &&
@@ -3683,7 +3706,12 @@ restart:
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
   }
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)
+  {
+    ndb_binlog_tables_inited= FALSE;
+    close_thread_tables(thd);
+    binlog_index= 0;
     goto restart;
+  }
 err:
   DBUG_PRINT("info",("Shutting down cluster binlog thread"));
   thd->proc_info= "Shutting down";
