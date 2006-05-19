@@ -1776,7 +1776,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       break;
     case NDBEVENT::TE_CLUSTER_FAILURE:
       if (ndb_extra_logging)
-        sql_print_information("NDB Binlog: cluster failure for %s.", schema_share->key);
+        sql_print_information("NDB Binlog: cluster failure for %s at epoch %u.",
+                              schema_share->key, (unsigned) pOp->getGCI());
       // fall through
     case NDBEVENT::TE_DROP:
       if (ndb_extra_logging &&
@@ -1785,7 +1786,6 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                               "read only on reconnect.");
       free_share(&schema_share);
       schema_share= 0;
-      ndb_binlog_tables_inited= FALSE;
       close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, FALSE);
       // fall through
     case NDBEVENT::TE_ALTER:
@@ -2829,7 +2829,8 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
   {
   case NDBEVENT::TE_CLUSTER_FAILURE:
     if (ndb_extra_logging)
-      sql_print_information("NDB Binlog: cluster failure for %s.", share->key);
+      sql_print_information("NDB Binlog: cluster failure for %s at epoch %u.",
+                            share->key, (unsigned) pOp->getGCI());
     if (apply_status_share == share)
     {
       if (ndb_extra_logging &&
@@ -2838,7 +2839,6 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
                               "read only on reconnect.");
       free_share(&apply_status_share);
       apply_status_share= 0;
-      ndb_binlog_tables_inited= FALSE;
     }
     DBUG_PRINT("info", ("CLUSTER FAILURE EVENT: "
                         "%s  received share: 0x%lx  op: %lx  share op: %lx  "
@@ -2854,7 +2854,6 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
                               "read only on reconnect.");
       free_share(&apply_status_share);
       apply_status_share= 0;
-      ndb_binlog_tables_inited= FALSE;
     }
     /* ToDo: remove printout */
     if (ndb_extra_logging)
@@ -3267,24 +3266,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_mutex_unlock(&injector_mutex);
   pthread_cond_signal(&injector_cond);
 
-  thd->proc_info= "Waiting for ndbcluster to start";
-
-  pthread_mutex_lock(&injector_mutex);
-  while (!schema_share ||
-         (ndb_binlog_running && !apply_status_share))
-  {
-    /* ndb not connected yet */
-    struct timespec abstime;
-    set_timespec(abstime, 1);
-    pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
-    if (abort_loop)
-    {
-      pthread_mutex_unlock(&injector_mutex);
-      goto err;
-    }
-  }
-  pthread_mutex_unlock(&injector_mutex);
-
   /*
     Main NDB Injector loop
   */
@@ -3298,15 +3279,28 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   set_thd_ndb(thd, thd_ndb);
   thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
   thd->query_id= 0; // to keep valgrind quiet
-  {
-    static char db[]= "";
-    thd->db= db;
-    if (ndb_binlog_running)
-      open_binlog_index(thd, &binlog_tables, &binlog_index);
-    thd->db= db;
-  }
 
 restart:
+  {
+    thd->proc_info= "Waiting for ndbcluster to start";
+
+    pthread_mutex_lock(&injector_mutex);
+    while (!schema_share ||
+           (ndb_binlog_running && !apply_status_share))
+    {
+      /* ndb not connected yet */
+      struct timespec abstime;
+      set_timespec(abstime, 1);
+      pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
+      if (abort_loop)
+      {
+        pthread_mutex_unlock(&injector_mutex);
+        goto err;
+      }
+    }
+    pthread_mutex_unlock(&injector_mutex);
+  }
+
   {
     // wait for the first event
     thd->proc_info= "Waiting for first event from ndbcluster";
@@ -3337,7 +3331,13 @@ restart:
       }
     }
   }
-
+  {
+    static char db[]= "";
+    thd->db= db;
+    if (ndb_binlog_running)
+      open_binlog_index(thd, &binlog_tables, &binlog_index);
+    thd->db= db;
+  }
   do_ndbcluster_binlog_close_connection= BCCC_running;
   for ( ; !((abort_loop || do_ndbcluster_binlog_close_connection) &&
             ndb_latest_handled_binlog_epoch >= g_latest_trans_gci) &&
@@ -3686,7 +3686,12 @@ restart:
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
   }
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)
+  {
+    ndb_binlog_tables_inited= FALSE;
+    close_thread_tables(thd);
+    binlog_index= 0;
     goto restart;
+  }
 err:
   DBUG_PRINT("info",("Shutting down cluster binlog thread"));
   thd->proc_info= "Shutting down";
