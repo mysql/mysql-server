@@ -2604,11 +2604,6 @@ void Dblqh::execTUPKEYREF(Signal* signal)
     ndbassert(regTcPtr->transactionState == TcConnectionrec::WAIT_TUP ||
 	      regTcPtr->transactionState ==TcConnectionrec::WAIT_TUP_TO_ABORT);
   }
-  else if (getNodeState().startLevel == NodeState::SL_STARTED)
-  {
-    if (terrorCode == 899)
-      ndbout << "899: " << regTcPtr->m_row_id << endl;
-  }
 
   switch (tcConnectptr.p->transactionState) {
   case TcConnectionrec::WAIT_TUP:
@@ -9095,6 +9090,7 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
   if (accOpPtr != (Uint32)-1)
   {
     c_acc->execACCKEY_ORD(signal, accOpPtr);
+    jamEntry();
   }
   else
   {
@@ -9419,7 +9415,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   const Uint32 readCommitted = ScanFragReq::getReadCommittedFlag(reqinfo);
   const Uint32 rangeScan = ScanFragReq::getRangeScanFlag(reqinfo);
   const Uint32 descending = ScanFragReq::getDescendingFlag(reqinfo);
-  const Uint32 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
+  Uint32 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
   const Uint32 attrLen = ScanFragReq::getAttrLen(reqinfo);
   const Uint32 scanPrio = ScanFragReq::getScanPrio(reqinfo);
 
@@ -9458,7 +9454,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->scanApiOpPtr = scanFragReq->clientOpPtr;
   scanptr.p->m_last_row = 0;
   scanptr.p->scanStoredProcId = RNIL;
-
+  scanptr.p->copyPtr = RNIL;
   if (max_rows == 0 || (max_bytes > 0 && max_rows > max_bytes)){
     jam();
     return ScanFragRef::ZWRONG_BATCH_SIZE;
@@ -9479,8 +9475,10 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
    * !idx uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1)  =  1-11
    *  idx uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-42)
    */
-  Uint32 start = (rangeScan || tupScan ? MAX_PARALLEL_SCANS_PER_FRAG : 1 );
-  Uint32 stop = (rangeScan || tupScan ? MAX_PARALLEL_INDEX_SCANS_PER_FRAG : MAX_PARALLEL_SCANS_PER_FRAG - 1);
+  tupScan = 0; // Make sure that close tup scan does not start acc scan incorrectly
+  Uint32 start = (rangeScan || tupScan) ? MAX_PARALLEL_SCANS_PER_FRAG : 1 ;
+  Uint32 stop = (rangeScan || tupScan) ? MAX_PARALLEL_INDEX_SCANS_PER_FRAG : 
+    MAX_PARALLEL_SCANS_PER_FRAG - 1;
   stop += start;
   Uint32 free = tFragPtr.p->m_scanNumberMask.find(start);
     
