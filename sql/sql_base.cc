@@ -1289,7 +1289,7 @@ void close_temporary_tables(THD *thd)
            table= next)
       {
         end_cur= strxmov(end_cur, "`", table->s->db.str, "`.`",
-                      table->s->table_name.str, "`,", NullS);
+                         table->s->table_name.str, "`,", NullS);
         next= table->next;
         close_temporary(table, 1, 1);
       }
@@ -1316,7 +1316,6 @@ void close_temporary_tables(THD *thd)
   }
   thd->temporary_tables=0;
 }
-
 
 /*
   Find table in list.

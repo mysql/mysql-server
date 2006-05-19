@@ -54,7 +54,7 @@ fi
   --with-federated-storage-engine \
   --with-berkeley-db \
   --with-innodb \
-  --with-yassl \
+  --with-ssl \
   --enable-thread-safe-client \
   --with-extra-charsets=complex \
   --with-ndbcluster \
