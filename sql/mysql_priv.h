@@ -1936,7 +1936,6 @@ inline int hexchar_to_int(char c)
   return -1;
 }
 
-
 /*
   Some functions that are different in the embedded library and the normal
   server
