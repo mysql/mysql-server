@@ -282,8 +282,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
       share->crashed= TRUE;
 
     /*
-      After we read, we set the file to dirty. When we close, we will do the
-      opposite. If the meta file will not open we assume it is crashed and
+      If the meta file will not open we assume it is crashed and
       mark it as such.
     */
     if (read_meta_file(share->meta_file, &share->rows_recorded))
@@ -524,6 +523,7 @@ ha_tina::ha_tina(TABLE_SHARE *table_arg)
   /* Set our original buffers from pre-allocated memory */
   buffer.set((char*)byte_buffer, IO_SIZE, system_charset_info);
   chain= chain_buffer;
+  file_buff= new Transparent_file();
 }
 
 
@@ -856,8 +856,6 @@ int ha_tina::open(const char *name, int mode, uint open_options)
 
   if ((data_file= my_open(share->data_file_name, O_RDONLY, MYF(0))) == -1)
     DBUG_RETURN(0);
-
-  file_buff= new Transparent_file(data_file);
 
   /*
     Init locking. Pass handler object to the locking routines,
@@ -1268,6 +1266,12 @@ int ha_tina::rnd_end()
     if (((data_file= my_open(share->data_file_name, O_RDONLY, MYF(0))) == -1)
         || my_sync(data_file, MYF(MY_WME)))
       DBUG_RETURN(-1);
+    /*
+      The datafile is consistent at this point and the write filedes is
+      closed, so nothing worrying will happen to it in case of a crash.
+      Here we record this fact to the meta-file.
+    */
+    (void)write_meta_file(share->meta_file, share->rows_recorded, FALSE);
   }
 
   DBUG_RETURN(0);

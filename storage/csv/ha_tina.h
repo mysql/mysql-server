@@ -19,7 +19,6 @@
 #include <my_dir.h>
 
 #define DEFAULT_CHAIN_LENGTH 512
-#define DEFAULT_FILE_WINDOW_SIZE 4096
 /*
   Version for file format.
   1 - Initial Version. That is, the version when the metafile was introduced.
@@ -68,13 +67,8 @@ class Transparent_file
 
  public:
 
-   Transparent_file(File filedes_arg) : lower_bound(0),
-                                        buff_size(DEFAULT_FILE_WINDOW_SIZE)
-   {
-     buff= (byte *) my_malloc(buff_size*sizeof(byte),  MYF(MY_WME));
-     /* read the beginning of the file */
-     init_buff(filedes_arg);
-   }
+   Transparent_file() : lower_bound(0), buff_size(IO_SIZE)
+   { buff= (byte *) my_malloc(buff_size*sizeof(byte),  MYF(MY_WME)); }
 
    ~Transparent_file()
    { my_free(buff, MYF(MY_ALLOW_ZERO_PTR)); }
