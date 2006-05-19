@@ -539,6 +539,7 @@ sub mtr_check_stop_servers ($) {
       $ret_pid= waitpid($srv->{'pid'},&WNOHANG);
       if ($ret_pid == $srv->{'pid'})
       {
+	mtr_verbose("Catched exit of process $ret_pid");
 	$srv->{'pid'}= 0;
       }
       else
@@ -754,7 +755,7 @@ sub mtr_ping_with_timeout($) {
       $res= 1;                          # We are optimistic
       if ( $srv->{'pid'} and mtr_ping_port($srv->{'port'}) )
       {
-        mtr_report("waiting for process $srv->{'pid'} to stop ".
+        mtr_verbose("waiting for process $srv->{'pid'} to stop ".
 		   "using port $srv->{'port'}");
 
 	# Millisceond sleep emulated with select
