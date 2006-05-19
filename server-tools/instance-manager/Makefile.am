@@ -93,9 +93,6 @@ mysqlmanager_LDADD=	@CLIENT_EXTRA_LDFLAGS@ \
 EXTRA_DIST =		WindowsService.cpp WindowsService.h IMService.cpp \
 			IMService.h cmakelists.txt
 
-AM_CFLAGS = -Werror
-AM_CXXFLAGS = -Werror
-
 tags:
 	ctags -R *.h *.cc
 

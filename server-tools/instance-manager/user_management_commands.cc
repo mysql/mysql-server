@@ -216,7 +216,6 @@ int Add_user_cmd::execute()
 {
   LEX_STRING user_name;
   const char *password;
-  char scrambled_password_buf[SCRAMBLED_PASSWORD_CHAR_LENGTH + 1];
 
   User_map user_map;
   User *new_user;
@@ -310,7 +309,6 @@ int Edit_user_cmd::execute()
 {
   LEX_STRING user_name;
   const char *password;
-  char scrambled_password_buf[SCRAMBLED_PASSWORD_CHAR_LENGTH + 1];
 
   User_map user_map;
   User *user;

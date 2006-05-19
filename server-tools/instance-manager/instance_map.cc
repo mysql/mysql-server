@@ -23,7 +23,6 @@
 #include <my_global.h>
 #include <m_ctype.h>
 #include <mysql_com.h>
-#include <m_string.h>
 
 #include "buffer.h"
 #include "guardian.h"
@@ -117,7 +116,7 @@ static void parse_option(const char *option_str,
                          char *option_name_buf,
                          char *option_value_buf)
 {
-  char *eq_pos;
+  const char *eq_pos;
   const char *ptr= option_str;
 
   while (*ptr == '-')
