@@ -2,7 +2,7 @@
 --source include/not_embedded.inc
 
 --disable_warnings
-DROP TABLE IF EXISTS t1, `"t"1`;
+DROP TABLE IF EXISTS t1, `"t"1`, t2, t3;
 --enable_warnings
 
 # XML output
@@ -676,5 +676,16 @@ select * from t1;
 show create table `t1`;
 
 drop table `t1`;
+
+#
+# Bug #18536: wrong table order
+#
+
+create table t1(a int);
+create table t2(a int);
+create table t3(a int);
+--error 6
+--exec $MYSQL_DUMP --skip-comments --force --no-data test t3 t1 non_existing t2
+drop table t1, t2, t3;
 
 --echo End of 4.1 tests
