@@ -168,6 +168,7 @@ our $opt_suite;
 our $opt_netware;
 
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
+our $opt_verbose= 1;  # Verbose output, enable with --verbose
 
 # Options FIXME not all....
 
@@ -656,6 +657,7 @@ sub command_line_setup () {
              'old-master'               => \$opt_old_master,
              'reorder'                  => \$opt_reorder,
              'script-debug'             => \$opt_script_debug,
+             'verbose'                  => \$opt_verbose,
              'sleep=i'                  => \$opt_sleep,
              'socket=s'                 => \$opt_socket,
              'start-dirty'              => \$opt_start_dirty,
@@ -1635,7 +1637,7 @@ sub ndbcluster_wait_started($){
 		  "--ndb-connectstring=$cluster->{'connect_string'}",
 		  "--timeout=60"],
 		 "", $path_waiter_log, $path_waiter_log, "");
-  # mtr_report("ndbcluster_wait_started, returns: $res") if $res;
+  mtr_verbose("ndbcluster_wait_started, returns: $res") if $res;
   return $res;
 }
 
@@ -1662,7 +1664,7 @@ sub ndb_mgmd_start ($) {
 
   # Remember pid of ndb_mgmd
   $cluster->{'pid'}= $pid;
-  # mtr_report("ndb_mgmd_start, pid: $pid");
+  mtr_verbose("ndb_mgmd_start, pid: $pid");
   return $pid;
 }
 
@@ -1694,7 +1696,7 @@ sub ndbd_start ($$$) {
   # Add pid to list of pids for this cluster
   $cluster->{'ndbds'}->[$idx]->{'pid'}= $pid;
 
-  # mtr_report("ndbd_start, pid: $pid");
+  mtr_verbose("ndbd_start, pid: $pid");
 
   return $pid;
 }
@@ -1704,7 +1706,7 @@ sub ndbcluster_start ($$) {
   my $cluster= shift;
   my $extra_args= shift;
 
-  # mtr_report("ndbcluster_start '$cluster->{'name'}'");
+  mtr_verbose("ndbcluster_start '$cluster->{'name'}'");
 
   if ( $glob_use_running_ndbcluster )
   {
@@ -2806,7 +2808,7 @@ sub mysqld_start ($$$) {
 
   # Remember pid of the started process
   $mysqld->{'pid'}= $pid;
-  # mtr_report("mysqld pid: $pid");
+  mtr_verbose("mysqld pid: $pid");
   return $pid;
 }
 
@@ -3948,6 +3950,7 @@ Misc options
   comment=STR           Write STR to the output
   notimer               Don't show test case execution time
   script-debug          Debug this script itself
+  verbose               More verbose output
   start-and-exit        Only initialize and start the servers, using the
                         startup settings for the specified test case (if any)
   start-dirty           Only start the servers (without initialization) for
