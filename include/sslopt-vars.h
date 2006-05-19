@@ -15,13 +15,18 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifdef HAVE_OPENSSL
-static my_bool opt_use_ssl  = 0;
-static char *opt_ssl_key    = 0;
-static char *opt_ssl_cert   = 0;
-static char *opt_ssl_ca     = 0;
-static char *opt_ssl_capath = 0;
-static char *opt_ssl_cipher = 0;
+#ifdef SSL_VARS_NOT_STATIC
+#define SSL_STATIC
+#else
+#define SSL_STATIC static
+#endif
+SSL_STATIC my_bool opt_use_ssl  = 0;
+SSL_STATIC char *opt_ssl_ca     = 0;
+SSL_STATIC char *opt_ssl_capath = 0;
+SSL_STATIC char *opt_ssl_cert   = 0;
+SSL_STATIC char *opt_ssl_cipher = 0;
+SSL_STATIC char *opt_ssl_key    = 0;
 #ifdef MYSQL_CLIENT
-static my_bool opt_ssl_verify_server_cert= 0;
+SSL_STATIC my_bool opt_ssl_verify_server_cert= 0;
 #endif
 #endif
