@@ -533,7 +533,6 @@ struct Operationrec {
     ,OP_STATE_WAITING       = 0x00000
     ,OP_STATE_RUNNING       = 0x10000
     ,OP_STATE_EXECUTED      = 0x30000
-    ,OP_STATE_RUNNING_ABORT = 0x20000
     
     ,OP_EXECUTED_DIRTY_READ = 0x3050F
     ,OP_INITIAL             = ~(Uint32)0

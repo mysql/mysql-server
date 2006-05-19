@@ -1181,6 +1181,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 void
 Dbacc::execACCKEY_ORD(Signal* signal, Uint32 opPtrI)
 {
+  jamEntry();
   OperationrecPtr lastOp;
   lastOp.i = opPtrI;
   ptrCheckGuard(lastOp, coprecsize, operationrec);
@@ -1200,9 +1201,6 @@ Dbacc::execACCKEY_ORD(Signal* signal, Uint32 opPtrI)
     startNext(signal, lastOp);
     return;
   } 
-  else if (opstate == Operationrec::OP_STATE_RUNNING_ABORT)
-  {
-  }
   else
   {
   }
@@ -1240,15 +1238,14 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   {
     jam();
     ptrCheckGuard(loPtr, coprecsize, operationrec);
-    nextOp.i = loPtr.p->nextSerialQue;
   }
   else
   {
     jam();
-    nextOp.i = loPtr.i;
     loPtr = lastOp;
   }
   
+  nextOp.i = loPtr.p->nextSerialQue;
   ndbassert(loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER);
   
   if (nextOp.i == RNIL)
@@ -1411,6 +1408,9 @@ conf:
   else
   {
     jam();
+    fragrecptr.i = nextOp.p->fragptr;
+    ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+    
     sendAcckeyconf(signal);
     sendSignal(nextOp.p->userblockref, GSN_ACCKEYCONF, 
 	       signal, 6, JBA);
@@ -1680,8 +1680,7 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)
   bool running = false;
   {
     Uint32 opstate = loPtr.p->m_op_bits & Operationrec::OP_STATE_MASK;
-    if (opstate == Operationrec::OP_STATE_RUNNING ||
-	opstate == Operationrec::OP_STATE_RUNNING_ABORT)
+    if (opstate == Operationrec::OP_STATE_RUNNING)
       running = true;
     else
     {
@@ -1719,8 +1718,7 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)
       }
       else
       {
-	if (opstate == Operationrec::OP_STATE_RUNNING ||
-	    opstate == Operationrec::OP_STATE_RUNNING_ABORT)
+	if (opstate == Operationrec::OP_STATE_RUNNING)
 	  running = true;
 	else
 	  vlqrequire(opstate == Operationrec::OP_STATE_EXECUTED);
@@ -1830,8 +1828,6 @@ operator<<(NdbOut & out, Dbacc::OperationrecPtr ptr)
     out << " RUNNING "; break;
   case Dbacc::Operationrec::OP_STATE_EXECUTED:
     out << " EXECUTED "; break;
-  case Dbacc::Operationrec::OP_STATE_RUNNING_ABORT:
-    out << " RUNNIG_ABORT "; break;
   case Dbacc::Operationrec::OP_STATE_IDLE:
     out << " IDLE "; break;
   default:
@@ -1857,7 +1853,6 @@ operator<<(NdbOut & out, Dbacc::OperationrecPtr ptr)
     ,OP_STATE_WAITING       = 0x0000
     ,OP_STATE_RUNNING       = 0x1000
     ,OP_STATE_EXECUTED      = 0x3000
-    ,OP_STATE_RUNNING_ABORT = 0x2000
   };
 */
   if (opbits & Dbacc::Operationrec::OP_LOCK_OWNER)
@@ -3950,6 +3945,7 @@ void Dbacc::checkoverfreelist(Signal* signal)
 void
 Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
 {
+  jam();
   OperationrecPtr nextP;
   OperationrecPtr prevP;
   OperationrecPtr loPtr;
@@ -3992,13 +3988,21 @@ Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
   else
   {
     jam();
+    /**
+     * P0 - P1
+     *
+     * Abort P1, check start next
+     */
     ndbassert(prevP.p->m_op_bits & Operationrec::OP_LOCK_OWNER);
     prevP.p->m_lo_last_parallel_op_ptr_i = RNIL;
     startNext(signal, prevP);
     validate_lock_queue(prevP);
     return;
   }
-  
+
+  /**
+   * Abort P1/P2
+   */
   if (opbits & Operationrec::OP_LOCK_MODE)
   {
     Uint32 nextbits = nextP.p->m_op_bits;
@@ -4024,12 +4028,23 @@ Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
   /**
    * Abort P1, P2
    */
+  if (opstate == Operationrec::OP_STATE_RUNNING)
+  {
+    jam();
+    startNext(signal, prevP);
+    validate_lock_queue(prevP);
+    return;
+  }
+  
+  ndbassert(opstate == Operationrec::OP_STATE_EXECUTED ||
+	    opstate == Operationrec::OP_STATE_WAITING);
   
   /**
    * Scan to last of run queue
    */
   while (nextP.p->nextParallelQue != RNIL)
   {
+    jam();
     nextP.i = nextP.p->nextParallelQue;
     ptrCheckGuard(nextP, coprecsize, operationrec);
   }
@@ -4049,6 +4064,7 @@ Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
 void 
 Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr) 
 {
+  jam();
   OperationrecPtr prevS, nextS;
   OperationrecPtr prevP, nextP;
   OperationrecPtr loPtr;
@@ -4620,7 +4636,25 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
        * Aborting an operation can *always* lead to lock upgrade
        */
       action = CHECK_LOCK_UPGRADE;
-
+      Uint32 opstate = opbits & Operationrec::OP_STATE_MASK;
+      if (opstate != Operationrec::OP_STATE_EXECUTED)
+      {
+	ndbassert(opstate == Operationrec::OP_STATE_RUNNING);
+	if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
+	{
+	  jam();
+	  report_dealloc(signal, opPtr.p);
+	  newOwner.p->localdata[0] = ~0;
+	}
+	else
+	{
+	  jam();
+	  newOwner.p->localdata[0] = opPtr.p->localdata[0];
+	  newOwner.p->localdata[1] = opPtr.p->localdata[1];
+	}
+	action = START_NEW;
+      }
+      
       /**
        * Update ACC_LOCK_MODE
        */
