@@ -21,6 +21,7 @@ sub mtr_warning (@);
 sub mtr_error (@);
 sub mtr_child_error (@);
 sub mtr_debug (@);
+sub mtr_verbose (@);
 
 
 ##############################################################################
@@ -340,6 +341,12 @@ sub mtr_debug (@) {
   if ( $::opt_script_debug )
   {
     print STDERR "####: ",join(" ", @_),"\n";
+  }
+}
+sub mtr_verbose (@) {
+  if ( $::opt_verbose )
+  {
+    print STDERR "> ",join(" ", @_),"\n";
   }
 }
 

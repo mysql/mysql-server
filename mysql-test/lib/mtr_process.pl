@@ -661,14 +661,13 @@ sub mtr_wait_blocking($) {
   # Return if no processes defined
   return if ! %$admin_pids;
 
-  # mtr_report("mtr_wait_blocking");
+  mtr_verbose("mtr_wait_blocking");
 
   # Wait for all the started processes to exit
   # As mysqladmin is such a simple program, we trust it to terminate itself.
   # I.e. we wait blocking, and wait wait for them all before we go on.
   foreach my $pid (keys %{$admin_pids})
   {
-    # mtr_report("pid: $pid");
     my $ret_pid= waitpid($pid,0);
 
   }
@@ -708,7 +707,7 @@ sub mtr_mysqladmin_start($$$) {
   my $pid= mtr_spawn($::exe_mysqladmin, $args,
 		     "", $path_mysqladmin_log, $path_mysqladmin_log, "",
 		     { append_log_file => 1 });
-  # mtr_report("mtr_mysqladmin_start, pid: $pid");
+  mtr_verbose("mtr_mysqladmin_start, pid: $pid");
   return $pid;
 
 }
@@ -733,7 +732,7 @@ sub mtr_ndbmgm_start($$) {
   my $pid= mtr_spawn($::exe_ndb_mgm, $args,
 		     "", "/dev/null", "/dev/null", "",
 		     {});
-  # mtr_report("mtr_ndbmgm_start, pid: $pid");
+  mtr_verbose("mtr_ndbmgm_start, pid: $pid");
   return $pid;
 
 }
@@ -926,7 +925,7 @@ sub sleep_until_file_created ($$$) {
 
 sub mtr_kill_processes ($) {
   my $pids = shift;
-  # mtr_report("mtr_kill_processes " . join(" ", @$pids));
+  mtr_verbose("mtr_kill_processes " . join(" ", @$pids));
   foreach my $sig (15, 9)
   {
     my $retries= 10;
