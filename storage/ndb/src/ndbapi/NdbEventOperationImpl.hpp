@@ -436,7 +436,7 @@ public:
   NdbEventOperation *nextEvent();
   NdbEventOperationImpl* getGCIEventOperations(Uint32* iter,
                                                Uint32* event_types);
-  void NdbEventBuffer::deleteUsedEventOperations();
+  void deleteUsedEventOperations();
 
   NdbEventOperationImpl *move_data();
 
