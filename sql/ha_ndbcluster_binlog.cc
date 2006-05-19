@@ -1545,8 +1545,8 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
       }
       
       // copy names as memory will be freed
-      NdbAutoPtr<char> a1((char *)dbname= strdup(dbname));
-      NdbAutoPtr<char> a2((char *)tabname= strdup(tabname));
+      NdbAutoPtr<char> a1((char *)(dbname= strdup(dbname)));
+      NdbAutoPtr<char> a2((char *)(tabname= strdup(tabname)));
       ndbcluster_binlog_close_table(thd, share);
 
       TABLE_LIST table_list;
