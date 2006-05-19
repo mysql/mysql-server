@@ -3284,21 +3284,10 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_mutex_unlock(&injector_mutex);
   pthread_cond_signal(&injector_cond);
 
+restart:
   /*
     Main NDB Injector loop
   */
-
-  DBUG_ASSERT(ndbcluster_hton.slot != ~(uint)0);
-  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
-  {
-    sql_print_error("Could not allocate Thd_ndb object");
-    goto err;
-  }
-  set_thd_ndb(thd, thd_ndb);
-  thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
-  thd->query_id= 0; // to keep valgrind quiet
-
-restart:
   {
     thd->proc_info= "Waiting for ndbcluster to start";
 
@@ -3317,6 +3306,19 @@ restart:
       }
     }
     pthread_mutex_unlock(&injector_mutex);
+
+    if (thd_ndb == NULL)
+    {
+      DBUG_ASSERT(ndbcluster_hton.slot != ~(uint)0);
+      if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+      {
+        sql_print_error("Could not allocate Thd_ndb object");
+        goto err;
+      }
+      set_thd_ndb(thd, thd_ndb);
+      thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
+      thd->query_id= 0; // to keep valgrind quiet
+    }
   }
 
   {
