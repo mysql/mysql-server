@@ -1655,7 +1655,7 @@ sub ndb_mgmd_start ($) {
   mtr_add_arg($args, "--config-file=%s", "$cluster->{'data_dir'}/config.ini");
 
 
-  my $path_ndb_mgmd_log= "$opt_vardir/log/$cluster->{'name'}_ndb_mgmd.log";
+  my $path_ndb_mgmd_log= "$opt_vardir/log/\l$cluster->{'name'}_ndb_mgmd.log";
   $pid= mtr_spawn($exe_ndb_mgmd, $args, "",
 		  $path_ndb_mgmd_log,
 		  $path_ndb_mgmd_log,
@@ -1686,7 +1686,7 @@ sub ndbd_start ($$$) {
   mtr_add_arg($args, "$extra_args");
 
 
-  my $path_ndbd_log= "$opt_vardir/log/$cluster->{'name'}_ndbd_$idx.log";
+  my $path_ndbd_log= "$opt_vardir/log/\l$cluster->{'name'}_ndbd_$idx.log";
   $pid= mtr_spawn($exe_ndbd, $args, "",
 		  $path_ndbd_log,
 		  $path_ndbd_log,
@@ -3082,6 +3082,24 @@ sub run_testcase_stop_servers($) {
   }
 }
 
+sub workaround_hang_in_select($$) {
+  my $tinfo= shift;
+  my $mysqld= shift;
+
+  # Wait until mysqld has started and created apply_status table
+  # FIXME this is a workaround for mysqld not being able to shutdown
+  # before having connected to ndb_mgmd
+
+  if ( ! sleep_until_file_created("$mysqld->{'path_myddir'}/cluster/apply_status.ndb",
+				  $mysqld->{'start_timeout'},
+				  $mysqld->{'pid'}))
+  {
+    mtr_report("Failed to create 'cluster/apply_status' table");
+    report_failure_and_restart($tinfo);
+    return;
+  }
+}
+
 
 sub run_testcase_start_servers($) {
   my $tinfo= shift;
@@ -3178,19 +3196,15 @@ sub run_testcase_start_servers($) {
   if ( $clusters->[0]->{'pid'} and $master->[1]->{'pid'} )
   {
     # Test needs cluster, extra mysqld started
-    # Wait until it has started and created apply_status table
-    # FIXME this is a workaround for mysqld not being able to shutdown
-    # before having connected to ndb_mgmd
+    workaround_hang_in_select($tinfo, $master->[1]);
+  }
 
-    if ( ! sleep_until_file_created(
-		"$master->[1]->{'path_myddir'}/cluster/apply_status.ndb",
-				    $master->[1]->{'start_timeout'},
-				    $master->[1]->{'pid'}))
-    {
-      mtr_report("Failed to create 'cluster/apply_status' table");
-      report_failure_and_restart($tinfo);
-      return;
-    }
+  if ( $tinfo->{'slave_num'}  and
+       $clusters->[0]->{'pid'} and
+       $slave->[0]->{'pid'} )
+  {
+    # Slaves are started, test needs cluster, slave mysqld started
+    workaround_hang_in_select($tinfo, $slave->[0]);
   }
 }
 
