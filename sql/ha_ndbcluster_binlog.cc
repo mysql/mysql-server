@@ -25,6 +25,7 @@
 #include "slave.h"
 #include "ha_ndbcluster_binlog.h"
 #include "NdbDictionary.hpp"
+#include <util/NdbAutoPtr.hpp>
 
 #ifdef ndb_dynamite
 #undef assert
@@ -265,7 +266,8 @@ ndbcluster_binlog_close_table(THD *thd, NDB_SHARE *share)
 
 static int
 ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
-                             TABLE_SHARE *table_share, TABLE *table)
+                             TABLE_SHARE *table_share, TABLE *table,
+                             int reopen)
 {
   int error;
   DBUG_ENTER("ndbcluster_binlog_open_table");
@@ -280,7 +282,7 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
     free_table_share(table_share);
     DBUG_RETURN(error);
   }
-  if ((error= open_table_from_share(thd, table_share, "", 0, 
+  if ((error= open_table_from_share(thd, table_share, "", 0 /* fon't allocate buffers */, 
                                     (uint) READ_ALL, 0, table, FALSE)))
   {
     sql_print_error("Unable to open table for %s, error=%d(%d)",
@@ -290,11 +292,22 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
     DBUG_RETURN(error);
   }
   assign_new_table_id(table_share);
-  if (!table->record[1] || table->record[1] == table->record[0])
+
+  if (!reopen)
   {
-    table->record[1]= alloc_root(&table->mem_root,
-                                 table->s->rec_buff_length);
+    // allocate memory on ndb share so it can be reused after online alter table
+    share->record[0]= (byte*) alloc_root(&share->mem_root, table->s->rec_buff_length);
+    share->record[1]= (byte*) alloc_root(&share->mem_root, table->s->rec_buff_length);
   }
+  {
+    my_ptrdiff_t row_offset= share->record[0] - table->record[0];
+    Field **p_field;
+    for (p_field= table->field; *p_field; p_field++)
+      (*p_field)->move_field_offset(row_offset);
+    table->record[0]= share->record[0];
+    table->record[1]= share->record[1];
+  }
+
   table->in_use= injector_thd;
   
   table->s->db.str= share->db;
@@ -364,7 +377,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
     int error;
     TABLE_SHARE *table_share= (TABLE_SHARE *) alloc_root(mem_root, sizeof(*table_share));
     TABLE *table= (TABLE*) alloc_root(mem_root, sizeof(*table));
-    if ((error= ndbcluster_binlog_open_table(thd, share, table_share, table)))
+    if ((error= ndbcluster_binlog_open_table(thd, share, table_share, table, 0)))
       break;
     /*
       ! do not touch the contents of the table
@@ -1530,6 +1543,10 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
         sql_print_information("NDB: Failed write frm for %s.%s, error %d",
                               dbname, tabname, error);
       }
+      
+      // copy names as memory will be freed
+      NdbAutoPtr<char> a1((char *)dbname= strdup(dbname));
+      NdbAutoPtr<char> a2((char *)tabname= strdup(tabname));
       ndbcluster_binlog_close_table(thd, share);
 
       TABLE_LIST table_list;
@@ -1538,10 +1555,16 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
       table_list.alias= table_list.table_name= (char *)tabname;
       close_cached_tables(thd, 0, &table_list, TRUE);
 
-      if ((error= ndbcluster_binlog_open_table(thd, share, 
-                                               table_share, table)))
+      if ((error= ndbcluster_binlog_open_table(thd, share,
+                                               table_share, table, 1)))
         sql_print_information("NDB: Failed to re-open table %s.%s",
                               dbname, tabname);
+
+      table= share->table;
+      table_share= share->table_share;
+      dbname= table_share->db.str;
+      tabname= table_share->table_name.str;
+
       pthread_mutex_unlock(&LOCK_open);
     }
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
