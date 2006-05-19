@@ -22,6 +22,8 @@
 
 #include <stdarg.h>
 
+#include "portability.h" /* for vsnprintf() on Windows. */
+
 /*
   TODO:
   - add flexible header support
