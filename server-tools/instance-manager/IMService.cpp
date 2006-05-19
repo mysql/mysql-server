@@ -30,15 +30,14 @@ void IMService::Run(DWORD argc, LPTSTR *argv)
   // report to the SCM that we're about to start
   ReportStatus((DWORD)SERVICE_START_PENDING);
 
-  Options o;
-  o.load(argc, argv);
+  Options::load(argc, argv);
 
   // init goes here
   ReportStatus((DWORD)SERVICE_RUNNING);
 
   // wait for main loop to terminate
-  manager(o);
-  o.cleanup();
+  manager();
+  Options::cleanup();
 }
 
 void IMService::Log(const char *msg)

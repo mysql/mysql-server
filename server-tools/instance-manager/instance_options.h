@@ -20,6 +20,7 @@
 #include <my_sys.h>
 
 #include "parse.h"
+#include "portability.h" /* for pid_t on Win32 */
 
 #if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface

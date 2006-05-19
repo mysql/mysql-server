@@ -18,13 +18,12 @@
 
 #include <my_global.h>
 #include <my_sys.h>
+#include <m_string.h>
 #include <hash.h>
 
 #if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
 #endif
-
-struct LEX_STRING;
 
 class Guardian_thread;
 class Instance;
