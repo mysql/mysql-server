@@ -278,8 +278,6 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
                     share->key, error);
     DBUG_PRINT("error", ("open_table_def failed %d", error));
     free_table_share(table_share);
-    my_free((gptr) table_share, MYF(0));
-    my_free((gptr) table, MYF(0));
     DBUG_RETURN(error);
   }
   if ((error= open_table_from_share(thd, table_share, "", 0, 
@@ -289,8 +287,6 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
                     share->key, error, my_errno);
     DBUG_PRINT("error", ("open_table_from_share failed %d", error));
     free_table_share(table_share);
-    my_free((gptr) table_share, MYF(0));
-    my_free((gptr) table, MYF(0));
     DBUG_RETURN(error);
   }
   assign_new_table_id(table_share);
@@ -366,9 +362,8 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
   while (1) 
   {
     int error;
-    TABLE_SHARE *table_share= 
-      (TABLE_SHARE *) my_malloc(sizeof(*table_share), MYF(MY_WME));
-    TABLE *table= (TABLE*) my_malloc(sizeof(*table), MYF(MY_WME));
+    TABLE_SHARE *table_share= (TABLE_SHARE *) alloc_root(mem_root, sizeof(*table_share));
+    TABLE *table= (TABLE*) alloc_root(mem_root, sizeof(*table));
     if ((error= ndbcluster_binlog_open_table(thd, share, table_share, table)))
       break;
     /*
