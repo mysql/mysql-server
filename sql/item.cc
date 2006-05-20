@@ -304,6 +304,7 @@ Item::Item():
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
   decimals= 0; max_length= 0;
+  with_subselect= 0;
 
   /* Put item in free list so that we can free all items at end */
   THD *thd= current_thd;
@@ -4881,7 +4882,16 @@ void Item_ref::cleanup()
 void Item_ref::print(String *str)
 {
   if (ref)
-    (*ref)->print(str);
+  {
+    if ((*ref)->type() != Item::CACHE_ITEM && ref_type() != VIEW_REF &&
+        name && alias_name_used)
+    {
+      THD *thd= current_thd;
+      append_identifier(thd, str, name, (uint) strlen(name));
+    }
+    else
+      (*ref)->print(str);
+  }
   else
     Item_ident::print(str);
 }
@@ -5413,7 +5423,7 @@ bool Item_trigger_field::eq(const Item *item, bool binary_cmp) const
 }
 
 
-void Item_trigger_field::set_required_privilege(const bool rw)
+void Item_trigger_field::set_required_privilege(bool rw)
 {
   /*
     Require SELECT and UPDATE privilege if this field will be read and
