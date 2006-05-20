@@ -184,6 +184,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --enable-local-infile \
             --with-mysqld-user=%{mysqld_user} \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
+	    --with-pic \
             --prefix=/ \
 	    --with-extra-charsets=complex \
             --exec-prefix=%{_exec_prefix} \
@@ -577,6 +578,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Sat May 20 2006 Kent Boortz <kent@mysql.com>
+
+- Always compile for PIC, position independent code.
+
 * Thu Oct 27 2005 Lenz Grimmer <lenz@grimmer.com>
 
 - added more man pages
