@@ -639,6 +639,35 @@ select @@version, @@version_comment, @@version_compile_machine,
 @@version_compile_os;
 @@version	@@version_comment	@@version_compile_machine	@@version_compile_os
 #	#	#	#
+select @@basedir, @@datadir, @@tmpdir;
+@@basedir	@@datadir	@@tmpdir
+#	#	#
+show variables like 'basedir';
+Variable_name	Value
+basedir	#
+show variables like 'datadir';
+Variable_name	Value
+datadir	#
+show variables like 'tmpdir';
+Variable_name	Value
+tmpdir	#
+select @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_key;
+@@ssl_ca	@@ssl_capath	@@ssl_cert	@@ssl_cipher	@@ssl_key
+#	#	#	#	#
+show variables like 'ssl%';
+Variable_name	Value
+ssl_ca	#
+ssl_capath	#
+ssl_cert	#
+ssl_cipher	#
+ssl_key	#
+select @@log_queries_not_using_indexes;
+@@log_queries_not_using_indexes
+0
+show variables like 'log_queries_not_using_indexes';
+Variable_name	Value
+log_queries_not_using_indexes	OFF
+End of 5.0 tests
 set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
 set global delayed_insert_timeout    =@my_delayed_insert_timeout;
@@ -666,4 +695,3 @@ set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
-End of 5.0 tests

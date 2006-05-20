@@ -162,6 +162,7 @@ void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
 static byte *get_prepared_stmt_count(THD *thd);
+static byte *get_tmpdir(THD *thd);
 
 /*
   Variable definition list
@@ -184,6 +185,7 @@ sys_var_thd_ulong	sys_auto_increment_offset("auto_increment_offset",
 sys_var_bool_ptr	sys_automatic_sp_privileges("automatic_sp_privileges",
 					      &sp_automatic_privileges);
 
+sys_var_const_str       sys_basedir("basedir", mysql_home);
 sys_var_long_ptr	sys_binlog_cache_size("binlog_cache_size",
 					      &binlog_cache_size);
 sys_var_thd_binlog_format sys_binlog_format("binlog_format",
@@ -209,6 +211,7 @@ sys_var_long_ptr	sys_concurrent_insert("concurrent_insert",
                                               &myisam_concurrent_insert);
 sys_var_long_ptr	sys_connect_timeout("connect_timeout",
 					    &connect_timeout);
+sys_var_const_str       sys_datadir("datadir", mysql_real_data_home);
 #ifndef DBUG_OFF
 sys_var_thd_dbug        sys_dbug("debug");
 #endif
@@ -262,6 +265,9 @@ sys_trust_routine_creators("log_bin_trust_routine_creators",
 sys_var_bool_ptr       
 sys_trust_function_creators("log_bin_trust_function_creators",
                             &trust_function_creators);
+sys_var_bool_ptr
+  sys_log_queries_not_using_indexes("log_queries_not_using_indexes",
+                                    &opt_log_queries_not_using_indexes);
 sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
 sys_var_thd_ulong	sys_long_query_time("long_query_time",
 					     &SV::long_query_time);
@@ -389,6 +395,7 @@ sys_var_thd_ulong	sys_query_alloc_block_size("query_alloc_block_size",
 sys_var_thd_ulong	sys_query_prealloc_size("query_prealloc_size",
 						&SV::query_prealloc_size,
 						0, fix_thd_mem_root);
+sys_var_readonly        sys_tmpdir("tmpdir", OPT_GLOBAL, SHOW_CHAR, get_tmpdir);
 sys_var_thd_ulong	sys_trans_alloc_block_size("transaction_alloc_block_size",
 						   &SV::trans_alloc_block_size,
 						   0, fix_trans_mem_root);
@@ -425,6 +432,21 @@ sys_var_thd_ulong	sys_sort_buffer("sort_buffer_size",
 					&SV::sortbuff_size);
 sys_var_thd_sql_mode    sys_sql_mode("sql_mode",
                                      &SV::sql_mode);
+#ifdef HAVE_OPENSSL
+extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
+            *opt_ssl_key;
+sys_var_const_str_ptr	sys_ssl_ca("ssl_ca", &opt_ssl_ca);
+sys_var_const_str_ptr	sys_ssl_capath("ssl_capath", &opt_ssl_capath);
+sys_var_const_str_ptr	sys_ssl_cert("ssl_cert", &opt_ssl_cert);
+sys_var_const_str_ptr	sys_ssl_cipher("ssl_cipher", &opt_ssl_cipher);
+sys_var_const_str_ptr	sys_ssl_key("ssl_key", &opt_ssl_key);
+#else
+sys_var_const_str	sys_ssl_ca("ssl_ca", NULL);
+sys_var_const_str	sys_ssl_capath("ssl_capath", NULL);
+sys_var_const_str	sys_ssl_cert("ssl_cert", NULL);
+sys_var_const_str	sys_ssl_cipher("ssl_cipher", NULL);
+sys_var_const_str	sys_ssl_key("ssl_key", NULL);
+#endif
 sys_var_thd_enum
 sys_updatable_views_with_limit("updatable_views_with_limit",
                                &SV::updatable_views_with_limit,
@@ -696,7 +718,6 @@ static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff)
 }
 #endif /* HAVE_REPLICATION */
 
-
 /*
   Variables shown by SHOW variables in alphabetical order
 */
@@ -706,7 +727,7 @@ SHOW_VAR init_vars[]= {
   {"auto_increment_offset",   (char*) &sys_auto_increment_offset, SHOW_SYS},
   {sys_automatic_sp_privileges.name,(char*) &sys_automatic_sp_privileges,       SHOW_SYS},
   {"back_log",                (char*) &back_log,                    SHOW_LONG},
-  {"basedir",                 mysql_home,                           SHOW_CHAR},
+  {sys_basedir.name,          (char*) &sys_basedir,                 SHOW_SYS},
   {"bdb_cache_parts",         (char*) &berkeley_cache_parts,        SHOW_LONG},
   {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONGLONG},
   {"bdb_home",                (char*) &berkeley_home,               SHOW_CHAR_PTR},
@@ -733,7 +754,7 @@ SHOW_VAR init_vars[]= {
   {sys_completion_type.name,  (char*) &sys_completion_type,	    SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
-  {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
+  {sys_datadir.name,          (char*) &sys_datadir,                 SHOW_SYS},
   {sys_date_format.name,      (char*) &sys_date_format,		    SHOW_SYS},
   {sys_datetime_format.name,  (char*) &sys_datetime_format,	    SHOW_SYS},
 #ifndef DBUG_OFF
@@ -833,6 +854,8 @@ SHOW_VAR init_vars[]= {
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
   {sys_trust_function_creators.name,(char*) &sys_trust_function_creators, SHOW_SYS},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
+  {sys_log_queries_not_using_indexes.name,
+    (char*) &sys_log_queries_not_using_indexes, SHOW_SYS},
 #ifdef HAVE_REPLICATION
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
 #endif
@@ -962,6 +985,11 @@ SHOW_VAR init_vars[]= {
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
   {"sql_notes",               (char*) &sys_sql_notes,               SHOW_SYS},
   {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_SYS},
+  {sys_ssl_ca.name,           (char*) &sys_ssl_ca,                  SHOW_SYS},
+  {sys_ssl_capath.name,       (char*) &sys_ssl_capath,              SHOW_SYS},
+  {sys_ssl_cert.name,         (char*) &sys_ssl_cert,                SHOW_SYS},
+  {sys_ssl_cipher.name,       (char*) &sys_ssl_cipher,              SHOW_SYS},
+  {sys_ssl_key.name,          (char*) &sys_ssl_key,                 SHOW_SYS},
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
@@ -983,7 +1011,7 @@ SHOW_VAR init_vars[]= {
   {"time_zone",               (char*) &sys_time_zone,               SHOW_SYS},
   {sys_timed_mutexes.name,    (char*) &sys_timed_mutexes,       SHOW_SYS},
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
-  {"tmpdir",                  (char*) &opt_mysql_tmpdir,            SHOW_CHAR_PTR},
+  {sys_tmpdir.name,           (char*) &sys_tmpdir,	            SHOW_SYS},
   {sys_trans_alloc_block_size.name, (char*) &sys_trans_alloc_block_size,
    SHOW_SYS},
   {sys_trans_prealloc_size.name, (char*) &sys_trans_prealloc_size,  SHOW_SYS},
@@ -2853,6 +2881,31 @@ static byte *get_prepared_stmt_count(THD *thd)
   thd->sys_var_tmp.ulong_value= prepared_stmt_count;
   pthread_mutex_unlock(&LOCK_prepared_stmt_count);
   return (byte*) &thd->sys_var_tmp.ulong_value;
+}
+
+
+/*
+  Get the tmpdir that was specified or chosen by default
+
+  SYNOPSIS
+    get_tmpdir()
+    thd		thread handle
+
+  DESCRIPTION
+    This is necessary because if the user does not specify a temporary
+    directory via the command line, one is chosen based on the environment
+    or system defaults.  But we can't just always use mysql_tmpdir, because
+    that is actually a call to my_tmpdir() which cycles among possible
+    temporary directories.
+
+  RETURN VALUES
+    ptr		pointer to NUL-terminated string
+ */
+static byte *get_tmpdir(THD *thd)
+{
+  if (opt_mysql_tmpdir)
+    return (byte *)opt_mysql_tmpdir;
+  return (byte*)mysql_tmpdir;
 }
 
 /****************************************************************************
