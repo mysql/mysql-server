@@ -39,6 +39,7 @@ Item_subselect::Item_subselect():
   engine(0), old_engine(0), used_tables_cache(0), have_to_be_excluded(0),
   const_item_cache(1), engine_changed(0), changed(0)
 {
+  with_subselect= 1;
   reset();
   /*
     item value is NULL if select_subselect not changed this value
