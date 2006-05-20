@@ -698,4 +698,10 @@ select cast(rtrim('  20.06 ') as decimal(19,2));
 select cast(ltrim('  20.06 ') as decimal(19,2));
 select cast(rtrim(ltrim('  20.06 ')) as decimal(19,2));
 
+#
+# Bug #13975: "same string" + 0 has 2 different results
+#
+select conv("18383815659218730760",10,10) + 0;
+select "18383815659218730760" + 0;
+
 --echo End of 5.0 tests
