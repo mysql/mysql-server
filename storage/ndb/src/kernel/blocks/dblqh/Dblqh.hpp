@@ -33,6 +33,9 @@
 // primary key is stored in TUP
 #include "../dbtup/Dbtup.hpp"
 
+class Dbacc;
+class Dbtup;
+
 #ifdef DBLQH_C
 // Constants
 /* ------------------------------------------------------------------------- */
@@ -2934,8 +2937,8 @@ public:
 
   DLHashTable<ScanRecord> c_scanTakeOverHash;
 
-#ifdef ERROR_INSERT
   inline bool TRACE_OP_CHECK(const TcConnectionrec* regTcPtr);
+#ifdef ERROR_INSERT
   void TRACE_OP_DUMP(const TcConnectionrec* regTcPtr, const char * pos);
 #endif
 };
