@@ -204,10 +204,28 @@ longlong Item_func_nop_all::val_int()
 
 
 /*
-  Convert a constant expression or string to an integer.
-  This is done when comparing DATE's of different formats and
-  also when comparing bigint to strings (in which case the string
-  is converted once to a bigint).
+  Convert a constant item to an int and replace the original item
+
+  SYNOPSIS
+    convert_constant_item()
+    thd             thread handle
+    field           item will be converted using the type of this field
+    item  [in/out]  reference to the item to convert
+
+  DESCRIPTION
+    The function converts a constant expression or string to an integer.
+    On successful conversion the original item is substituted for the
+    result of the item evaluation.
+    This is done when comparing DATE/TIME of different formats and
+    also when comparing bigint to strings (in which case strings
+    are converted to bigints).
+
+  NOTES
+    This function is called only at prepare stage.
+    As all derived tables are filled only after all derived tables
+    are prepared we do not evaluate items with subselects here because
+    they can contain derived tables and thus we may attempt to use a
+    table that has not been populated yet.
 
   RESULT VALUES
   0	Can't convert item
@@ -216,7 +234,7 @@ longlong Item_func_nop_all::val_int()
 
 static bool convert_constant_item(THD *thd, Field *field, Item **item)
 {
-  if ((*item)->const_item())
+  if (!(*item)->with_subselect && (*item)->const_item())
   {
     /* For comparison purposes allow invalid dates like 2000-01-32 */
     ulong orig_sql_mode= field->table->in_use->variables.sql_mode;
@@ -2570,7 +2588,9 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 	(item= *li.ref())->check_cols(1))
       return TRUE; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
-    if (!item->const_item())
+    if (item->const_item())
+      and_tables_cache= (table_map) 0;
+    else
     {
       tmp_table_map= item->not_null_tables();
       not_null_tables_cache|= tmp_table_map;
@@ -2578,6 +2598,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       const_item_cache= FALSE;
     }  
     with_sum_func=	    with_sum_func || item->with_sum_func;
+    with_subselect|=        item->with_subselect;
     if (item->maybe_null)
       maybe_null=1;
   }
