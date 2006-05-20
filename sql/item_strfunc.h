@@ -542,7 +542,7 @@ public:
   void fix_length_and_dec()
   {
     collation.set(default_charset());
-    decimals=0; max_length=64;
+    max_length= 64;
   }
 };
 
