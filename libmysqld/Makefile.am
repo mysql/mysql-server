@@ -88,11 +88,11 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/dbug/libdbug.a \
 		$(top_builddir)/vio/libvio.a \
 		@mysql_plugin_libs@ \
-		$(yassl_las)
+		$(yassl_inc_libs)
 
 if HAVE_YASSL
-yassl_las = $(top_srcdir)/extra/yassl/src/libyassl.la \
-	    $(top_srcdir)/extra/yassl/taocrypt/src/libtaocrypt.la
+yassl_inc_libs=	$(top_srcdir)/extra/yassl/src/.libs/libyassl.a \
+		$(top_srcdir)/extra/yassl/taocrypt/src/.libs/libtaocrypt.a
 endif
 
 # Storage engine specific compilation options
@@ -135,12 +135,12 @@ else
 		  (for arc in ./libmysqld_int.a $(INC_LIB); do \
 		    arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
 		    artmp=`echo $$arc|sed 's|^.*/|tmp/lib-|'`; \
-		    for F in `$(AR) t $$arc`; do \
+		    for F in `$(AR) t $$arc | grep -v SYMDEF`; do \
 		      if test -e "$$arpath/$$F" ; then echo "$$arpath/$$F"; else \
 		      mkdir $$artmp; cd $$artmp > /dev/null; \
 		      $(AR) x ../../$$arc; \
 		      cd $$current_dir > /dev/null; \
-		      ls $$artmp/*; \
+		      ls $$artmp/* | grep -v SYMDEF; \
 		      continue 2; fi; done; \
 		  done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a ; \
 		  $(RANLIB) libmysqld.a	; \
