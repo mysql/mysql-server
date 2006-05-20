@@ -311,7 +311,6 @@ static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_bdb, opt_isam, opt_ndbcluster;
 static my_bool opt_short_log_format= 0;
-static my_bool opt_log_queries_not_using_indexes= 0;
 static uint kill_cached_threads, wake_thread;
 static ulong killed_threads, thread_created;
 static ulong max_used_connections;
@@ -337,6 +336,7 @@ static my_bool opt_sync_bdb_logs;
 /* Global variables */
 
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
+my_bool opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 my_bool opt_character_set_client_handshake= 1;
@@ -603,6 +603,7 @@ my_bool opt_enable_shared_memory;
 HANDLE smem_event_connect_request= 0;
 #endif
 
+#define SSL_VARS_NOT_STATIC
 #include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
 #include <openssl/crypto.h>
@@ -954,7 +955,8 @@ static void __cdecl kill_server(int sig_ptr)
     RETURN_FROM_KILL_SERVER;
   kill_in_progress=TRUE;
   abort_loop=1;					// This should be set
-  my_sigset(sig,SIG_IGN);
+  if (sig != 0) // 0 is not a valid signal number
+    my_sigset(sig,SIG_IGN);
   if (sig == MYSQL_KILL_SIGNAL || sig == 0)
     sql_print_information(ER(ER_NORMAL_SHUTDOWN),my_progname);
   else

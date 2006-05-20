@@ -1151,8 +1151,8 @@ EXPLAIN
 SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id 
 WHERE t1.name LIKE 'A%' OR FALSE;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	PRIMARY,name	name	23	NULL	3	Using where; Using index
-1	SIMPLE	t2	ref	fkey	fkey	5	test.t1.id	1	Using where; Using index
+1	SIMPLE	t2	index	NULL	fkey	5	NULL	5	Using index
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.fkey	1	Using where
 DROP TABLE t1,t2;
 DROP VIEW IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2;
@@ -1175,4 +1175,39 @@ a	b
 2	NULL
 3	3
 DROP VIEW v1,v2;
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t2 VALUES (2), (3);
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1);
+a	b
+1	NULL
+2	2
+3	3
+4	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1 OR 1);
+a	b
+1	NULL
+2	2
+3	3
+4	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (0 OR 1);
+a	b
+1	NULL
+2	2
+3	3
+4	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 2=2);
+a	b
+1	NULL
+2	2
+3	3
+4	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 1=0);
+a	b
+1	NULL
+2	2
+3	3
+4	NULL
 DROP TABLE t1,t2;

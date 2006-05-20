@@ -805,3 +805,21 @@ SELECT v1.a, v2. b
 
 DROP VIEW v1,v2;
 DROP TABLE t1,t2;
+
+#
+# Bug 19816: LEFT OUTER JOIN with constant ORed predicates in WHERE clause
+# 
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t2 VALUES (2), (3);
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1);
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1 OR 1);
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (0 OR 1);
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 2=2);
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 1=0);
+
+DROP TABLE t1,t2;
