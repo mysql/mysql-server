@@ -238,6 +238,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --enable-local-infile \
             --with-mysqld-user=%{mysqld_user} \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
+	    --with-pic \
             --prefix=/ \
             --exec-prefix=%{_exec_prefix} \
             --libexecdir=%{_sbindir} \
@@ -710,6 +711,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Sat May 20 2006 Kent Boortz <kent@mysql.com>
+
+- Always compile for PIC, position independent code.
+
 * Wed May 10 2006 Kent Boortz <kent@mysql.com>
 
 - Use character set "all" for the "max", to make Cluster nodes
