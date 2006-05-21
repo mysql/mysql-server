@@ -236,6 +236,12 @@ Ndb_cluster_connection::wait_until_ready(int timeout,
   } while (1);
 }
 
+unsigned Ndb_cluster_connection::get_connect_count() const
+{
+  return m_impl.get_connect_count();
+}
+
+
 
 
 /*
