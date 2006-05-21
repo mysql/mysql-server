@@ -91,6 +91,10 @@ public:
   NdbDictionary::Column * m_facade;
 
   static NdbDictionary::Column * create_psuedo(const char *);
+
+  // Get total length in bytes, used by NdbOperation
+  // backported from 5.1
+  bool get_var_length(const void* value, Uint32& len) const;
 };
 
 class NdbTableImpl : public NdbDictionary::Table, public NdbDictObjectImpl {
@@ -487,6 +491,27 @@ bool
 NdbColumnImpl::getBlobType() const {
   return (m_type == NdbDictionary::Column::Blob ||
 	  m_type == NdbDictionary::Column::Text);
+}
+
+inline
+bool
+NdbColumnImpl::get_var_length(const void* value, Uint32& len) const
+{
+  Uint32 max_len = m_attrSize * m_arraySize;
+  switch (m_type) {
+  case NdbDictionary::Column::Varchar:
+  case NdbDictionary::Column::Varbinary:
+    len = 1 + *((Uint8*)value);
+    break;
+  case NdbDictionary::Column::Longvarchar:
+  case NdbDictionary::Column::Longvarbinary:
+    len = 2 + uint2korr((char*)value);
+    break;
+  default:
+    len = max_len;
+    return true;
+  }
+  return (len <= max_len);
 }
 
 inline
