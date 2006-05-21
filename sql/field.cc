@@ -1233,6 +1233,7 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
   flags=null_ptr ? 0: NOT_NULL_FLAG;
   comment.str= (char*) "";
   comment.length=0;
+  dflt_field= 0;
 }
 
 uint Field::offset()
