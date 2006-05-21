@@ -70,6 +70,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   noOfAliveNodes= 0;
   noOfConnectedNodes= 0;
   theClusterMgrThread= 0;
+  m_connect_count = 0;
   DBUG_VOID_RETURN;
 }
 
@@ -456,6 +457,10 @@ ClusterMgr::reportNodeFailed(NodeId nodeId){
   theNode.nfCompleteRep = false;
   
   if(noOfAliveNodes == 0){
+    theFacade.m_globalDictCache.lock();
+    theFacade.m_globalDictCache.invalidate_all();
+    theFacade.m_globalDictCache.unlock();
+    m_connect_count ++;
     NFCompleteRep rep;
     for(Uint32 i = 1; i<MAX_NODES; i++){
       if(theNodes[i].defined && theNodes[i].nfCompleteRep == false){
