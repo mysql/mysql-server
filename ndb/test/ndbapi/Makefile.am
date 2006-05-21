@@ -24,6 +24,7 @@ testOIBasic \
 testOperations \
 testRestartGci \
 testScan \
+testInterpreter \
 testScanInterpreter \
 testScanPerf \
 testSystemRestart \
@@ -61,6 +62,7 @@ testOIBasic_SOURCES = testOIBasic.cpp
 testOperations_SOURCES = testOperations.cpp
 testRestartGci_SOURCES = testRestartGci.cpp
 testScan_SOURCES = testScan.cpp ScanFunctions.hpp
+testInterpreter_SOURCES = testInterpreter.cpp
 testScanInterpreter_SOURCES = testScanInterpreter.cpp ScanFilter.hpp ScanInterpretTest.hpp 
 testScanPerf_SOURCES = testScanPerf.cpp
 testSystemRestart_SOURCES = testSystemRestart.cpp
@@ -152,3 +154,4 @@ testScan.dsp: Makefile \
 	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
 	@$(top_srcdir)/ndb/config/win-sources $@ $(testScan_SOURCES)
 	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+
