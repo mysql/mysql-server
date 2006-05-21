@@ -217,6 +217,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --with-fast-mutexes \
             --with-mysqld-user=%{mysqld_user} \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
+	    --with-pic \
             --prefix=/ \
 	    --with-extra-charsets=all \
 %if %{YASSL_BUILD}
@@ -683,7 +684,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
- %changelog 
+* Sat May 20 2006 Kent Boortz <kent@mysql.com>
+
+- Always compile for PIC, position independent code.
+
 * Wed May 10 2006 Kent Boortz <kent@mysql.com>
 
 - Use character set "all" when compiling with Cluster, to make Cluster
