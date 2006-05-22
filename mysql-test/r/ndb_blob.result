@@ -500,3 +500,69 @@ select count(*) from t1;
 count(*)
 0
 drop table t1;
+create table t1 (
+a varchar(40) not null,
+b mediumint not null,
+t text,
+c varchar(2) not null,
+d bigint not null,
+primary key (a,b,c),
+key (c,a),
+unique key (d)
+) engine=ndb;
+insert into t1 (a,b,c,d,t) values ('a',1110,'a',1,@v1);
+insert into t1 (a,b,c,d,t) values ('b',1110,'a',2,@v2);
+insert into t1 (a,b,c,d,t) values ('a',1110,'b',3,@v3);
+insert into t1 (a,b,c,d,t) values ('b',1110,'b',4,@v4);
+select a,b,c,d,sha1(t) from t1 order by c,a;
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+b	1110	a	2	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+b	1110	b	4	NULL
+select a,b,c,d,sha1(t) from t1 where a='a' and b=1110 and c='a';
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+select a,b,c,d,sha1(t) from t1 where a='a' and b=1110 and c='b';
+a	b	c	d	sha1(t)
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+update t1 set t=@v4 where a='b' and b=1110 and c='a';
+update t1 set t=@v2 where a='b' and b=1110 and c='b';
+select a,b,c,d,sha1(t) from t1 order by c,a;
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+b	1110	a	2	NULL
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+b	1110	b	4	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+update t1 set t=@v2 where d=2;
+update t1 set t=@v4 where d=4;
+select a,b,c,d,sha1(t) from t1 order by c,a;
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+b	1110	a	2	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+b	1110	b	4	NULL
+update t1 set t=@v4 where a='b' and c='a';
+update t1 set t=@v2 where a='b' and c='b';
+select a,b,c,d,sha1(t) from t1 order by c,a;
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+b	1110	a	2	NULL
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+b	1110	b	4	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+update t1 set t=@v2 where b+d=1112;
+update t1 set t=@v4 where b+d=1114;
+select a,b,c,d,sha1(t) from t1 order by c,a;
+a	b	c	d	sha1(t)
+a	1110	a	1	558a30713786aa72f66abc1e6a521d55aacdeeb5
+b	1110	a	2	b238654911689bfb626a3ef9dba4a1ca074e6a5e
+a	1110	b	3	2b6515f29c20b8e9e17cc597527e516c0de8d612
+b	1110	b	4	NULL
+delete from t1 where a='a' and b=1110 and c='a';
+delete from t1 where a='b' and c='a';
+delete from t1 where d=3;
+delete from t1 where b+d=1114;
+select count(*) from t1;
+count(*)
+0
+drop table t1;

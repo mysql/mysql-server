@@ -2649,6 +2649,22 @@ Suma::reportAllSubscribers(Signal *signal,
                            SubscriptionPtr subPtr,
                            SubscriberPtr subbPtr)
 {
+  SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
+
+  if (table_event == NdbDictionary::Event::_TE_SUBSCRIBE)
+  {
+    data->gci            = m_last_complete_gci + 1;
+    data->tableId        = subPtr.p->m_tableId;
+    data->operation      = NdbDictionary::Event::_TE_ACTIVE;
+    data->ndbd_nodeid    = refToNode(reference());
+    data->changeMask     = 0;
+    data->totalLen       = 0;
+    data->req_nodeid     = refToNode(subbPtr.p->m_senderRef);
+    data->senderData     = subbPtr.p->m_senderData;
+    sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
+               SubTableData::SignalLength, JBB);
+  }
+
   if (!(subPtr.p->m_options & Subscription::REPORT_SUBSCRIBE))
   {
     return;
@@ -2663,7 +2679,6 @@ Suma::reportAllSubscribers(Signal *signal,
   ndbout_c("reportAllSubscribers  subPtr.i: %d  subPtr.p->n_subscribers: %d",
            subPtr.i, subPtr.p->n_subscribers);
 //#endif
-  SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
   data->gci            = m_last_complete_gci + 1;
   data->tableId        = subPtr.p->m_tableId;
   data->operation      = table_event;
