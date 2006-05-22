@@ -273,6 +273,7 @@ int SSL_pending(SSL*);
 
 
 enum { /* ssl Constants */
+    SSL_WOULD_BLOCK     = -8,
     SSL_BAD_STAT        = -7,
     SSL_BAD_PATH        = -6,
     SSL_BAD_FILETYPE    = -5,
@@ -494,7 +495,7 @@ ASN1_TIME* X509_get_notAfter(X509* x);
 
 
 typedef struct MD4_CTX {
-    void* ptr;
+    int buffer[32];      /* big enough to hold, check size in Init */
 } MD4_CTX;
 
 void MD4_Init(MD4_CTX*);
