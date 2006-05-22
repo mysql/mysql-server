@@ -4136,11 +4136,6 @@ btr_copy_externally_stored_field(
 			d_stream.next_in = page + offset;
 			d_stream.avail_in = zip_size - offset;
 
-			/* On other BLOB pages except the first
-			the BLOB header always is at the page header: */
-
-			offset = FIL_PAGE_NEXT;
-
 			err = inflate(&d_stream, Z_NO_FLUSH);
 			switch (err) {
 			case Z_OK:
@@ -4181,6 +4176,11 @@ end_of_blob:
 			}
 
 			mtr_commit(&mtr);
+
+			/* On other BLOB pages except the first
+			the BLOB header always is at the page header: */
+
+			offset = FIL_PAGE_NEXT;
 		} else {
 			byte*	blob_header	= page + offset;
 			ulint	part_len	= btr_blob_get_part_len(
@@ -4192,11 +4192,6 @@ end_of_blob:
 
 			page_no = btr_blob_get_next_page_no(blob_header);
 
-			/* On other BLOB pages except the first the BLOB header
-			always is at the page data start: */
-
-			offset = FIL_PAGE_DATA;
-
 			mtr_commit(&mtr);
 
 			if (page_no == FIL_NULL) {
@@ -4206,6 +4201,11 @@ end_of_blob:
 
 				return(buf);
 			}
+
+			/* On other BLOB pages except the first the BLOB header
+			always is at the page data start: */
+
+			offset = FIL_PAGE_DATA;
 
 			ut_a(copied_len < local_len + extern_len);
 		}
