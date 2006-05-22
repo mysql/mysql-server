@@ -2049,7 +2049,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     statistic_increment(thd->status_var.com_stat[SQLCOM_KILL], &LOCK_status);
     ulong id=(ulong) uint4korr(packet);
-    kill_one_thread(thd,id,false);
+    sql_kill(thd,id,false);
     break;
   }
   case COM_SET_OPTION:
@@ -3836,14 +3836,17 @@ end_with_restore_list:
 
       switch (lex->sql_command) {
       case SQLCOM_CREATE_EVENT:
-        res= evex_create_event(thd, lex->et, (uint) lex->create_info.options,
-                               &rows_affected);
+        res= Events::create_event(thd, lex->et,
+                                            (uint) lex->create_info.options,
+                                            &rows_affected);
         break;
       case SQLCOM_ALTER_EVENT:
-        res= evex_update_event(thd, lex->et, lex->spname, &rows_affected);
+        res= Events::update_event(thd, lex->et, lex->spname,
+                                            &rows_affected);
         break;
       case SQLCOM_DROP_EVENT:
-        res= evex_drop_event(thd, lex->et, lex->drop_if_exists, &rows_affected);
+        res= Events::drop_event(thd, lex->et, lex->drop_if_exists,
+                                          &rows_affected);
       default:;
       }
       DBUG_PRINT("info", ("CREATE/ALTER/DROP returned error code=%d af_rows=%d",
@@ -3881,9 +3884,16 @@ end_with_restore_list:
       my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
       goto error;
     }
-    res= evex_show_create_event(thd, lex->spname, lex->et->definer);
+    res= Events::show_create_event(thd, lex->spname, lex->et->definer);
     break;
   }
+#ifndef DBUG_OFF
+  case SQLCOM_SHOW_SCHEDULER_STATUS:
+  {
+    res= Events::dump_internal_status(thd);
+    break;
+  }
+#endif
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
   {
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
@@ -4123,7 +4133,7 @@ end_with_restore_list:
 		 MYF(0));
       goto error;
     }
-    kill_one_thread(thd, (ulong)it->val_int(), lex->type & ONLY_KILL_QUERY);
+    sql_kill(thd, (ulong)it->val_int(), lex->type & ONLY_KILL_QUERY);
     break;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -6917,22 +6927,26 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
  return result;
 }
 
+
 /*
-  kill on thread
+  kills a thread
 
   SYNOPSIS
     kill_one_thread()
     thd			Thread class
     id			Thread id
+    only_kill_query     Should it kill the query or the connection
 
   NOTES
     This is written such that we have a short lock on LOCK_thread_count
 */
 
-void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
+uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 {
   THD *tmp;
   uint error=ER_NO_SUCH_THREAD;
+  DBUG_ENTER("kill_one_thread");
+  DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
@@ -6958,8 +6972,25 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
       error=ER_KILL_DENIED_ERROR;
     pthread_mutex_unlock(&tmp->LOCK_delete);
   }
+  DBUG_PRINT("exit", ("%d", error));
+  DBUG_RETURN(error);
+}
 
-  if (!error)
+
+/*
+  kills a thread and sends response
+
+  SYNOPSIS
+    sql_kill()
+    thd			Thread class
+    id			Thread id
+    only_kill_query     Should it kill the query or the connection
+*/
+
+void sql_kill(THD *thd, ulong id, bool only_kill_query)
+{
+  uint error;
+  if (!(error= kill_one_thread(thd, id, only_kill_query)))
     send_ok(thd);
   else
     my_error(error, MYF(0), id);
