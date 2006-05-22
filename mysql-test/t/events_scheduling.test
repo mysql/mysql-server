@@ -15,7 +15,7 @@ CREATE EVENT start_n_end
   DO INSERT INTO table_2 VALUES(1);
 --sleep 5
 CREATE EVENT only_one_time ON SCHEDULE EVERY 2 SECOND ENDS NOW() + INTERVAL 1 SECOND DO INSERT INTO table_3 VALUES(1);
-CREATE EVENT two_time ON SCHEDULE EVERY 1 SECOND ENDS NOW() + INTERVAL 1 SECOND DO INSERT INTO table_4 VALUES(1);
+CREATE EVENT two_time ON SCHEDULE EVERY 1 SECOND ENDS NOW() + INTERVAL 1 SECOND ON COMPLETION PRESERVE DO INSERT INTO table_4 VALUES(1);
 --sleep 5
 SELECT IF(SUM(a) >= 4, 'OK', 'ERROR') FROM table_1;
 SELECT IF(SUM(a) >= 5, 'OK', 'ERROR') FROM table_2;
@@ -28,8 +28,8 @@ DROP EVENT start_n_end;
 --echo "Already dropped because ended. Therefore an error."
 --error ER_EVENT_DOES_NOT_EXIST
 DROP EVENT only_one_time;
---echo "Already dropped because ended. Therefore an error."
---error ER_EVENT_DOES_NOT_EXIST
+--echo "Should be preserved"
+SELECT EVENT_NAME, STATUS FROM INFORMATION_SCHEMA.EVENTS;
 DROP EVENT two_time;
 DROP TABLE table_1;
 DROP TABLE table_2;
