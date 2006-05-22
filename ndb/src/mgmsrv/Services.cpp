@@ -501,6 +501,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
         ps.tick= tick;
         m_mgmsrv.get_socket_server()->
           foreachSession(stop_session_if_timed_out,&ps);
+	m_mgmsrv.get_socket_server()->checkSessions();
         error_string = "";
         continue;
       }
@@ -1558,6 +1559,7 @@ MgmApiSession::purge_stale_sessions(Parser_t::Context &ctx,
   ps.free_nodes.bitXORC(NodeBitmask()); // invert connected_nodes to get free nodes
 
   m_mgmsrv.get_socket_server()->foreachSession(stop_session_if_not_connected,&ps);
+  m_mgmsrv.get_socket_server()->checkSessions();
 
   m_output->println("purge stale sessions reply");
   if (str.length() > 0)
