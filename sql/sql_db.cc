@@ -871,7 +871,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
 exit:
   (void)sp_drop_db_routines(thd, db); /* QQ Ignore errors for now  */
-  (void)evex_drop_db_events(thd, db); /* QQ Ignore errors for now  */
+  error= Events::drop_schema_events(thd, db);
   start_waiting_global_read_lock(thd);
   /*
     If this database was the client's selected database, we silently change the

@@ -253,7 +253,8 @@ THD::THD()
   net.last_error[0]=0;                          // If error on boot
   net.query_cache_query=0;                      // If error on boot
   ull=0;
-  system_thread= cleanup_done= abort_on_warning= no_warnings_for_error= 0;
+  system_thread= NON_SYSTEM_THREAD;
+  cleanup_done= abort_on_warning= no_warnings_for_error= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
 #ifdef HAVE_ROW_BASED_REPLICATION
   transaction.m_pending_rows_event= 0;
@@ -512,6 +513,8 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
 
 void THD::awake(THD::killed_state state_to_set)
 {
+  DBUG_ENTER("THD::awake");
+  DBUG_PRINT("enter", ("this=0x%lx", this));
   THD_CHECK_SENTRY(this);
   safe_mutex_assert_owner(&LOCK_delete); 
 
@@ -555,6 +558,7 @@ void THD::awake(THD::killed_state state_to_set)
     }
     pthread_mutex_unlock(&mysys_var->mutex);
   }
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -2030,6 +2034,13 @@ void Security_context::skip_grants()
   *priv_host= '\0';
 }
 
+
+bool Security_context::set_user(char *user_arg)
+{
+  safeFree(user);
+  user= my_strdup(user_arg, MYF(0));
+  return user == 0;
+}
 
 /****************************************************************************
   Handling of open and locked tables states.
