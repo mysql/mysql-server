@@ -505,7 +505,6 @@ event_worker_thread(void *arg)
   THD *thd; /* needs to be first for thread_stack */
   Worker_thread_param *param= (Worker_thread_param *) arg;
   Event_timed *event= param->et;
-  MEM_ROOT worker_mem_root;
   int ret;
   bool startup_error= FALSE;
   Security_context *save_ctx;
@@ -550,8 +549,6 @@ event_worker_thread(void *arg)
 
   if (!startup_error)
   {
-    uint flags;
-
     thd->init_for_queries();
     thd->enable_slow_log= TRUE;
 
@@ -1272,10 +1269,7 @@ Event_scheduler::run(THD *thd)
   abstime.tv_nsec= 0;
   while (is_running_or_suspended())
   {
-    TIME time_now_utc;
     Event_timed *et;
-    my_bool tmp;
-    time_t now_utc;
 
     LOCK_SCHEDULER_DATA();
     if (check_n_wait_for_non_empty_queue(thd))
@@ -1356,7 +1350,7 @@ Event_scheduler::run(THD *thd)
         break;
     }
   }
-end_loop:
+
   thd->proc_info= (char *)"Cleaning";
 
   LOCK_SCHEDULER_DATA();
@@ -1509,7 +1503,6 @@ Event_scheduler::clean_queue(THD *thd)
 {
   CHARSET_INFO *scs= system_charset_info;
   uint i;
-  int ret;
   DBUG_ENTER("Event_scheduler::clean_queue");
   DBUG_PRINT("enter", ("thd=%p", thd));
 
@@ -1630,7 +1623,6 @@ Event_scheduler::stop_all_running_events(THD *thd)
 enum Event_scheduler::enum_error_code
 Event_scheduler::stop()
 {
-  int ret;
   THD *thd= current_thd;
   DBUG_ENTER("Event_scheduler::stop");
   DBUG_PRINT("enter", ("thd=%p", current_thd));
@@ -1697,7 +1689,6 @@ enum Event_scheduler::enum_error_code
 Event_scheduler::suspend_or_resume(
               enum Event_scheduler::enum_suspend_or_resume action)
 {
-  enum enum_error_code ret;
   DBUG_ENTER("Event_scheduler::suspend_or_resume");
   DBUG_PRINT("enter", ("action=%d", action));
 
@@ -1887,18 +1878,17 @@ Event_scheduler::check_n_wait_for_non_empty_queue(THD *thd)
     Error code of pthread_mutex_lock()
 */
 
-inline int
+inline void
 Event_scheduler::lock_data(const char *func, uint line)
 {
-  int ret;
   DBUG_ENTER("Event_scheduler::lock_mutex");
   DBUG_PRINT("enter", ("mutex_lock=%p func=%s line=%u",
              &LOCK_scheduler_data, func, line));
-  ret= pthread_mutex_lock(&LOCK_scheduler_data);
+  pthread_mutex_lock(&LOCK_scheduler_data);
   mutex_last_locked_in_func= func;
   mutex_last_locked_at_line= line;
   mutex_scheduler_data_locked= TRUE;
-  DBUG_RETURN(ret);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1909,12 +1899,9 @@ Event_scheduler::lock_data(const char *func, uint line)
     Event_scheduler::unlock_data()
       mutex Mutex to unlock
       line  The line number on which the unlock is done
-
-  RETURN VALUE
-    Error code of pthread_mutex_lock()
 */
 
-inline int
+inline void
 Event_scheduler::unlock_data(const char *func, uint line)
 {
   DBUG_ENTER("Event_scheduler::UNLOCK_mutex");
@@ -1923,7 +1910,8 @@ Event_scheduler::unlock_data(const char *func, uint line)
   mutex_last_unlocked_at_line= line;
   mutex_scheduler_data_locked= FALSE;
   mutex_last_unlocked_in_func= func;
-  DBUG_RETURN(pthread_mutex_unlock(&LOCK_scheduler_data));
+  pthread_mutex_unlock(&LOCK_scheduler_data);
+  DBUG_VOID_RETURN;
 }
 
 
