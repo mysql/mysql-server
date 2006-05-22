@@ -3791,11 +3791,6 @@ btr_copy_externally_stored_field(
 
 		page_no = btr_blob_get_next_page_no(blob_header);
 
-		/* On other BLOB pages except the first the BLOB header
-		always is at the page data start: */
-
-		offset = FIL_PAGE_DATA;
-
 		mtr_commit(&mtr);
 
 		if (page_no == FIL_NULL) {
@@ -3805,6 +3800,11 @@ btr_copy_externally_stored_field(
 
 			return(buf);
 		}
+
+		/* On other BLOB pages except the first the BLOB header
+		always is at the page data start: */
+
+		offset = FIL_PAGE_DATA;
 
 		ut_a(copied_len < local_len + extern_len);
 	}
