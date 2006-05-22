@@ -15,24 +15,29 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
-#include "manager.h"
-
-#include "options.h"
-#include "log.h"
-
 #include <my_sys.h>
+
 #include <string.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #ifndef __WIN__
 #include <pwd.h>
 #include <grp.h>
 #include <sys/wait.h>
 #endif
-#include <sys/types.h>
-#include <sys/stat.h>
+
+#include "log.h"
+#include "manager.h"
+#include "options.h"
+#include "user_management_commands.h"
+
 #ifdef __WIN__
-#include "windowsservice.h"
+#include "IMService.h"
+#include "WindowsService.h"
 #endif
+
 
 /*
   Few notes about Instance Manager architecture:
@@ -59,13 +64,12 @@
 */
 
 static void init_environment(char *progname);
+
 #ifndef __WIN__
 static void daemonize(const char *log_file_name);
-static void angel(const Options &options);
+static void angel();
 static struct passwd *check_user(const char *user);
 static int set_user(const char *user, struct passwd *user_info);
-#else
-int HandleServiceOptions(Options options);
 #endif
 
 
@@ -81,41 +85,61 @@ int main(int argc, char *argv[])
 {
   int return_value= 1;
   init_environment(argv[0]);
-  Options options;
 
-  if (options.load(argc, argv))
-    goto err;
+  if ((return_value= Options::load(argc, argv)))
+    goto main_end;
+
+  if (Options::User_management::cmd)
+  {
+    return_value= Options::User_management::cmd->execute();
+
+    goto main_end;
+  }
 
 #ifndef __WIN__
+
   struct passwd *user_info;
 
-  if ((user_info= check_user(options.user)))
+  if ((user_info= check_user(Options::Daemon::user)))
   {
-      if (set_user(options.user, user_info))
-        goto err;
+      if (set_user(Options::Daemon::user, user_info))
+      {
+        return_value= 1;
+        goto main_end;
+      }
   }
 
-  if (options.run_as_service)
+  if (Options::Daemon::run_as_service)
   {
     /* forks, and returns only in child */
-    daemonize(options.log_file_name);
+    daemonize(Options::Daemon::log_file_name);
     /* forks again, and returns only in child: parent becomes angel */
-    angel(options);
+    angel();
   }
+
+  manager();
+
 #else
-  if (!options.stand_alone)
+
+  if (!Options::Service::stand_alone)
   {
-    if (HandleServiceOptions(options))
-      goto err;
+    if (HandleServiceOptions())
+    {
+      return_value= 1;
+      goto main_end;
+    }
   }
   else
+  {
+    manager();
+  }
+
 #endif
 
-  manager(options);
   return_value= 0;
 
-err:
-  options.cleanup();
+main_end:
+  Options::cleanup();
   my_end(0);
   return return_value;
 }
@@ -200,7 +224,7 @@ static void init_environment(char *progname)
   MY_INIT(progname);
   log_init();
   umask(0117);
-  srand(time(0));
+  srand((unsigned int) time(0));
 }
 
 
@@ -298,7 +322,7 @@ void terminate(int signo)
   Angel process will exit silently if mysqlmanager exits normally.
 */
 
-static void angel(const Options &options)
+static void angel()
 {
   /* install signal handlers */
   sigset_t zeromask;                            // to sigsuspend in parent

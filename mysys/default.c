@@ -244,7 +244,8 @@ err:
                             handle_option_ctx structure.
     group_name              The name of the group the option belongs to.
     option                  The very option to be processed. It is already
-                            prepared to be used in argv (has -- prefix)
+                            prepared to be used in argv (has -- prefix). If it
+                            is NULL, we are handling a new group (section).
 
   DESCRIPTION
     This handler checks whether a group is one of the listed and adds an option
@@ -262,6 +263,9 @@ static int handle_default_option(void *in_ctx, const char *group_name,
 {
   char *tmp;
   struct handle_option_ctx *ctx= (struct handle_option_ctx *) in_ctx;
+
+  if (!option)
+    return 0;
 
   if (find_type((char *)group_name, ctx->group, 3))
   {
@@ -719,6 +723,10 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       end[0]=0;
 
       strnmov(curr_gr, ptr, min((uint) (end-ptr)+1, 4096));
+
+      /* signal that a new group is found */
+      opt_handler(handler_ctx, curr_gr, NULL);
+
       continue;
     }
     if (!found_group)
