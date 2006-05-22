@@ -67,7 +67,7 @@ static int setup_windows_defaults();
 my_bool Options::Daemon::run_as_service= FALSE;
 const char *Options::Daemon::log_file_name= QUOTE(DEFAULT_LOG_FILE_NAME);
 const char *Options::Daemon::user= NULL; /* No default value */
-const char *Options::angel_pid_file_name= NULL;
+const char *Options::Daemon::angel_pid_file_name= NULL;
 
 const char *Options::Main::config_file= QUOTE(DEFAULT_CONFIG_FILE);
 const char *
@@ -155,8 +155,8 @@ static struct my_option my_long_options[] =
 
 #ifndef __WIN__
   { "angel-pid-file", OPT_ANGEL_PID_FILE, "Pid file for angel process.",
-    (gptr *) &Options::angel_pid_file_name,
-    (gptr *) &Options::angel_pid_file_name,
+    (gptr *) &Options::Daemon::angel_pid_file_name,
+    (gptr *) &Options::Daemon::angel_pid_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
 
@@ -507,8 +507,8 @@ void Options::cleanup()
   delete User_management::cmd;
 
 #ifndef __WIN__
-  if (Options::run_as_service)
-    free((void *) Options::angel_pid_file_name);
+  if (Options::Daemon::run_as_service)
+    free((void *) Options::Daemon::angel_pid_file_name);
 #endif
 }
 
