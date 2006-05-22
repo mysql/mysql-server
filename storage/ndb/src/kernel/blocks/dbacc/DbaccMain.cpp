@@ -1688,21 +1688,6 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)
     }
   }
   
-  bool exists = true;
-  switch (loPtr.p->m_op_bits & Operationrec::OP_MASK){
-  case ZREAD:
-  case ZINSERT:
-  case ZUPDATE:
-  case ZSCAN_OP:
-    exists = true;
-    break;
-  case ZDELETE:
-    exists = false;
-    break;
-  case ZWRITE:
-    vlqrequire(false);
-  }
-
   // Validate parallel queue
   {
     bool many = false;
@@ -1753,26 +1738,6 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)
       if (many)
       {
 	vlqrequire(orlockmode == 0);
-      }
-
-      if (opstate == Operationrec::OP_STATE_RUNNING ||
-	  opstate == Operationrec::OP_STATE_EXECUTED)
-      {
-	switch (lastP.p->m_op_bits & Operationrec::OP_MASK){
-	case ZREAD:
-	case ZUPDATE:
-	case ZSCAN_OP:
-	  vlqrequire(exists);
-	  break;
-	case ZDELETE:
-	  vlqrequire(exists);
-	  exists = false;
-	  break;
-	case ZINSERT:
-	  vlqrequire(!exists);
-	  exists = true;
-	  break;
-	}
       }
     }
     
