@@ -3663,15 +3663,16 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
     DBUG_RETURN(true);
   }
 
-  if (var->save_result.ulong_value < 1 || var->save_result.ulong_value > 2)
+  if (var->save_result.ulonglong_value < 1 ||
+      var->save_result.ulonglong_value > 2)
   {
     char buf[64];
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "event_scheduler",
-             llstr(var->save_result.ulong_value, buf));
+             llstr(var->save_result.ulonglong_value, buf));
     DBUG_RETURN(true);
   }
-  if ((res= scheduler->suspend_or_resume(var->save_result.ulong_value == 1?
-                                         Event_scheduler::RESUME:
+  if ((res= scheduler->suspend_or_resume(var->save_result.ulonglong_value == 1?
+                                         Event_scheduler::RESUME :
                                          Event_scheduler::SUSPEND)))
     my_error(ER_EVENT_SET_VAR_ERROR, MYF(0), (uint) res);
   DBUG_RETURN((bool) res);
