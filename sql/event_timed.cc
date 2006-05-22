@@ -931,7 +931,6 @@ bool
 Event_timed::compute_next_execution_time()
 {
   TIME time_now;
-  my_time_t now;
   int tmp;
 
   DBUG_ENTER("Event_timed::compute_next_execution_time");
@@ -1372,7 +1371,6 @@ Event_timed::get_create_event(THD *thd, String *buf)
 int
 Event_timed::execute(THD *thd, MEM_ROOT *mem_root)
 {
-  Security_context *save_ctx;
   /* this one is local and not needed after exec */
   Security_context security_ctx;
   int ret= 0;
@@ -1392,8 +1390,6 @@ Event_timed::execute(THD *thd, MEM_ROOT *mem_root)
 
   if (!sphead && (ret= compile(thd, mem_root)))
     goto done;
-  /* Now we are sure we have valid this->sphead so we can copy the context */
-  sphead->m_security_ctx= security_ctx;
   /*
     THD::~THD will clean this or if there is DROP DATABASE in the SP then
     it will be free there. It should not point to our buffer which is allocated
