@@ -2563,9 +2563,6 @@ row_sel_store_mysql_rec(
 
 		templ = prebuilt->mysql_template + i;
 
-		data = rec_get_nth_field(rec, offsets,
-					templ->rec_field_no, &len);
-
 		if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets,
 						templ->rec_field_no))) {
 
@@ -2585,6 +2582,11 @@ row_sel_store_mysql_rec(
 					extern_field_heap);
 
 			ut_a(len != UNIV_SQL_NULL);
+		} else {
+			/* Field is stored in the row. */
+
+			data = rec_get_nth_field(rec, offsets,
+				templ->rec_field_no, &len);
 		}
 
 		if (len != UNIV_SQL_NULL) {
