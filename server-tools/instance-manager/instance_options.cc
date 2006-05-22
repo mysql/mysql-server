@@ -20,28 +20,24 @@
 
 #include "instance_options.h"
 
-#include "parse_output.h"
-#include "buffer.h"
-#include "log.h"
-
+#include <my_global.h>
 #include <my_sys.h>
-#include <signal.h>
 #include <m_string.h>
 
-#ifdef __WIN__
-#define NEWLINE_LEN 2
-#else
-#define NEWLINE_LEN 1
-#endif
+#include <signal.h>
+
+#include "buffer.h"
+#include "instance.h"
+#include "log.h"
+#include "parse_output.h"
+#include "priv.h"
 
 
 /* Create "mysqld ..." command in the buffer */
 
 static inline int create_mysqld_command(Buffer *buf,
-                                        const char *mysqld_path_str,
-                                        uint mysqld_path_len,
-                                        const char *option,
-                                        uint option_len)
+                                        const LEX_STRING *mysqld_path,
+                                        const LEX_STRING *option)
 {
   int position= 0;
 
@@ -50,17 +46,50 @@ static inline int create_mysqld_command(Buffer *buf,
 #ifdef __WIN__
     buf->append(position++, "\"", 1);
 #endif
-    buf->append(position, mysqld_path_str, mysqld_path_len);
-    position+= mysqld_path_len;
+    buf->append(position, mysqld_path->str, mysqld_path->length);
+    position+= mysqld_path->length;
 #ifdef __WIN__
     buf->append(position++, "\"", 1);
 #endif
     /* here the '\0' character is copied from the option string */
-    buf->append(position, option, option_len);
+    buf->append(position, option->str, option->length + 1);
 
     return buf->is_error();
   }
   return 1;
+}
+
+
+bool Instance_options::is_option_im_specific(const char *option_name)
+{
+  static const char *IM_SPECIFIC_OPTIONS[] =
+  {
+    "nonguarded",
+    "mysqld-path",
+    "shutdown-delay",
+    NULL
+  };
+
+  for (int i= 0; IM_SPECIFIC_OPTIONS[i]; ++i)
+  {
+    if (!strcmp(option_name, IM_SPECIFIC_OPTIONS[i]))
+      return TRUE;
+  }
+
+  return FALSE;
+}
+
+
+Instance_options::Instance_options()
+  :mysqld_version(NULL), mysqld_socket(NULL), mysqld_datadir(NULL),
+  mysqld_pid_file(NULL), mysqld_port(NULL), mysqld_port_val(0),
+  nonguarded(NULL), shutdown_delay(NULL), shutdown_delay_val(0),
+  filled_default_options(0)
+{
+  mysqld_path.str= NULL;
+  mysqld_path.length= 0;
+
+  memset(logs, 0, sizeof(logs));
 }
 
 
@@ -87,13 +116,13 @@ int Instance_options::get_default_option(char *result, size_t result_len,
                                          const char *option_name)
 {
   int rc= 1;
-  char verbose_option[]= " --no-defaults --verbose --help";
+  LEX_STRING verbose_option=
+    { C_STRING_WITH_SIZE(" --no-defaults --verbose --help") };
 
-  /* reserve space fot the path + option + final '\0' */
-  Buffer cmd(mysqld_path_len + sizeof(verbose_option));
+  /* reserve space for the path + option + final '\0' */
+  Buffer cmd(mysqld_path.length + verbose_option.length + 1);
 
-  if (create_mysqld_command(&cmd, mysqld_path, mysqld_path_len,
-                            verbose_option, sizeof(verbose_option)))
+  if (create_mysqld_command(&cmd, &mysqld_path, &verbose_option))
     goto err;
 
   /* +2 eats first "--" from the option string (E.g. "--datadir") */
@@ -121,21 +150,19 @@ err:
 
 int Instance_options::fill_instance_version()
 {
-  enum { MAX_VERSION_STRING_LENGTH= 160 };
-  char result[MAX_VERSION_STRING_LENGTH];
-  char version_option[]= " --no-defaults --version";
+  char result[MAX_VERSION_LENGTH];
+  LEX_STRING version_option=
+    { C_STRING_WITH_SIZE(" --no-defaults --version") };
   int rc= 1;
-  Buffer cmd(mysqld_path_len + sizeof(version_option));
+  Buffer cmd(mysqld_path.length + version_option.length + 1);
 
-  if (create_mysqld_command(&cmd, mysqld_path, mysqld_path_len,
-                            version_option, sizeof(version_option)))
+  if (create_mysqld_command(&cmd, &mysqld_path, &version_option))
     goto err;
 
-  bzero(result, MAX_VERSION_STRING_LENGTH);
+  bzero(result, MAX_VERSION_LENGTH);
 
-  rc= parse_output_and_get_value(cmd.buffer, "Ver",
-                                 result, MAX_VERSION_STRING_LENGTH,
-                                 GET_LINE);
+  rc= parse_output_and_get_value(cmd.buffer, "Ver", result,
+                                 MAX_VERSION_LENGTH, GET_LINE);
 
   if (*result != '\0')
   {
@@ -146,6 +173,7 @@ int Instance_options::fill_instance_version()
     start= result;
     while (my_isspace(default_charset_info, *start))
       ++start;
+
     mysqld_version= strdup_root(&alloc, start);
   }
 err:
@@ -255,8 +283,7 @@ int Instance_options::fill_log_options()
   else
   {
     /* below is safe, as --datadir always has a value */
-    strmake(datadir,
-            strchr(mysqld_datadir, '=') + 1, MAX_LOG_OPTION_LENGTH - 1);
+    strmake(datadir, mysqld_datadir, MAX_LOG_OPTION_LENGTH - 1);
   }
 
   if (gethostname(hostname,sizeof(hostname)-1) < 0)
@@ -342,7 +369,6 @@ err:
 
 int Instance_options::get_pid_filename(char *result)
 {
-  const char *pid_file= mysqld_pid_file;
   char datadir[MAX_PATH_LEN];
 
   if (mysqld_datadir == NULL)
@@ -352,14 +378,10 @@ int Instance_options::get_pid_filename(char *result)
       return 1;
   }
   else
-    strxnmov(datadir, MAX_PATH_LEN - 1, strchr(mysqld_datadir, '=') + 1,
-             "/", NullS);
-
-  DBUG_ASSERT(mysqld_pid_file);
-  pid_file= strchr(pid_file, '=') + 1;
+    strxnmov(datadir, MAX_PATH_LEN - 1, mysqld_datadir, "/", NullS);
 
   /* get the full path to the pidfile */
-  my_load_path(result, pid_file, datadir);
+  my_load_path(result, mysqld_pid_file, datadir);
   return 0;
 }
 
@@ -388,23 +410,23 @@ pid_t Instance_options::get_pid()
 }
 
 
-int Instance_options::complete_initialization(const char *default_path,
-                                              uint instance_type)
+int Instance_options::complete_initialization(const char *default_path)
 {
+  int arg_idx;
   const char *tmp;
   char *end;
 
-  if (!mysqld_path && !(mysqld_path= strdup_root(&alloc, default_path)))
+  if (!mysqld_path.str && !(mysqld_path.str= strdup_root(&alloc, default_path)))
     goto err;
 
   // it's safe to cast this to char* since this is a buffer we are allocating
-  end= convert_dirname((char*)mysqld_path, mysqld_path, NullS);
+  end= convert_dirname((char*)mysqld_path.str, mysqld_path.str, NullS);
   end[-1]= 0;
 
-  mysqld_path_len= strlen(mysqld_path);
+  mysqld_path.length= strlen(mysqld_path.str);
 
   if (mysqld_port)
-    mysqld_port_val= atoi(strchr(mysqld_port, '=') + 1);
+    mysqld_port_val= atoi(mysqld_port);
 
   if (shutdown_delay)
     shutdown_delay_val= atoi(shutdown_delay);
@@ -412,7 +434,7 @@ int Instance_options::complete_initialization(const char *default_path,
   if (!(tmp= strdup_root(&alloc, "--no-defaults")))
     goto err;
 
-  if (!(mysqld_pid_file))
+  if (!mysqld_pid_file)
   {
     char pidfilename[MAX_PATH_LEN];
     char hostname[MAX_PATH_LEN];
@@ -421,26 +443,27 @@ int Instance_options::complete_initialization(const char *default_path,
       If we created only one istance [mysqld], because no config. files were
       found, we would like to model mysqld pid file values.
     */
+
     if (!gethostname(hostname, sizeof(hostname) - 1))
     {
-      if (instance_type & DEFAULT_SINGLE_INSTANCE)
-        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", hostname,
-                 ".pid", NullS);
+      if (Instance::is_mysqld_compatible_name(&instance_name))
+        strxnmov(pidfilename, MAX_PATH_LEN - 1, hostname, ".pid", NullS);
       else
-        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name,
-                 "-", hostname, ".pid", NullS);
+        strxnmov(pidfilename, MAX_PATH_LEN - 1, instance_name.str, "-",
+                 hostname, ".pid", NullS);
     }
     else
     {
-      if (instance_type & DEFAULT_SINGLE_INSTANCE)
-        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", "mysql",
-                 ".pid", NullS);
+      if (Instance::is_mysqld_compatible_name(&instance_name))
+        strxnmov(pidfilename, MAX_PATH_LEN - 1, "mysql", ".pid", NullS);
       else
-        strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name,
-                 ".pid", NullS);
+        strxnmov(pidfilename, MAX_PATH_LEN - 1, instance_name.str, ".pid",
+                 NullS);
     }
 
-    add_option(pidfilename);
+    Named_value option((char *) "pid-file", pidfilename);
+
+    set_option(&option);
   }
 
   if (get_pid_filename(pid_file_with_path))
@@ -448,20 +471,37 @@ int Instance_options::complete_initialization(const char *default_path,
 
   /* we need to reserve space for the final zero + possible default options */
   if (!(argv= (char**)
-        alloc_root(&alloc, (options_array.elements + 1
+        alloc_root(&alloc, (get_num_options() + 1
                             + MAX_NUMBER_OF_DEFAULT_OPTIONS) * sizeof(char*))))
     goto err;
+  filled_default_options= 0;
 
   /* the path must be first in the argv */
-  if (add_to_argv(mysqld_path))
+  if (add_to_argv(mysqld_path.str))
     goto err;
 
   if (add_to_argv(tmp))
     goto err;
 
-  memcpy((gptr) (argv + filled_default_options), options_array.buffer,
-         options_array.elements*sizeof(char*));
-  argv[filled_default_options + options_array.elements]= 0;
+  arg_idx= filled_default_options;
+  for (int opt_idx= 0; opt_idx < get_num_options(); ++opt_idx)
+  {
+    char option_str[MAX_OPTION_STR_LEN];
+    Named_value option= get_option(opt_idx);
+
+    if (is_option_im_specific(option.get_name()))
+      continue;
+
+    char *ptr= strxnmov(option_str, MAX_OPTION_LEN + 3, "--", option.get_name(),
+                        NullS);
+
+    if (option.get_value()[0])
+      strxnmov(ptr, MAX_OPTION_LEN + 2, "=", option.get_value(), NullS);
+
+    argv[arg_idx++]= strdup_root(&alloc, option_str);
+  }
+
+  argv[arg_idx]= 0;
 
   if (fill_log_options() || fill_mysqld_real_path() || fill_instance_version())
     goto err;
@@ -473,75 +513,91 @@ err:
 }
 
 
-/*
-  Assigns given value to the appropriate option from the class.
-
-  SYNOPSYS
-    add_option()
-    option            string with the option prefixed by --
-
-  DESCRIPTION
-
-    The method is called from the option handling routine.
-
-  RETURN
-    0 - ok
-    1 - error occured
-*/
-
-int Instance_options::add_option(const char* option)
+bool Instance_options::set_option(Named_value *option)
 {
-  char *tmp;
-  enum { SAVE_VALUE= 1, SAVE_WHOLE, SAVE_WHOLE_AND_ADD };
-  struct selected_options_st
+  bool err_status;
+  int idx= find_option(option->get_name());
+  char *option_name_str;
+  char *option_value_str;
+
+  if (!(option_name_str= Named_value::alloc_str(option->get_name())))
+    return TRUE;
+
+  if (!(option_value_str= Named_value::alloc_str(option->get_value())))
+  {
+    Named_value::free_str(&option_name_str);
+    return TRUE;
+  }
+
+  Named_value option_copy(option_name_str, option_value_str);
+
+  if (idx < 0)
+    err_status= options.add_element(&option_copy);
+  else
+    err_status= options.replace_element(idx, &option_copy);
+
+  if (!err_status)
+    update_var(option_copy.get_name(), option_copy.get_value());
+  else
+    option_copy.free();
+
+  return err_status;
+}
+
+
+void Instance_options::unset_option(const char *option_name)
+{
+  int idx= find_option(option_name);
+
+  if (idx < 0)
+    return; /* the option has not been set. */
+
+  options.remove_element(idx);
+
+  update_var(option_name, NULL);
+}
+
+
+void Instance_options::update_var(const char *option_name,
+                                  const char *option_value)
+{
+  struct options_st
   {
     const char *name;
-    uint length;
-    const char **value;
-    uint type;
-  } options[]=
+    uint name_len;
+    const char **var;
+  } options_def[]=
   {
-    {"--socket=", 9, &mysqld_socket, SAVE_WHOLE_AND_ADD},
-    {"--port=", 7, &mysqld_port, SAVE_WHOLE_AND_ADD},
-    {"--datadir=", 10, &mysqld_datadir, SAVE_WHOLE_AND_ADD},
-    {"--bind-address=", 15, &mysqld_bind_address, SAVE_WHOLE_AND_ADD},
-    {"--pid-file=", 11, &mysqld_pid_file, SAVE_WHOLE_AND_ADD},
-    {"--mysqld-path=", 14, &mysqld_path, SAVE_VALUE},
-    {"--nonguarded", 9, &nonguarded, SAVE_WHOLE},
-    {"--shutdown_delay", 9, &shutdown_delay, SAVE_VALUE},
-    {NULL, 0, NULL, 0}
+    {"socket",          6,  &mysqld_socket},
+    {"port",            4,  &mysqld_port},
+    {"datadir",         7,  &mysqld_datadir},
+    {"pid-file",        8,  &mysqld_pid_file},
+    {"nonguarded",      10, &nonguarded},
+    {"mysqld-path",     11, (const char **) &mysqld_path.str},
+    {"shutdown-delay",  14, &shutdown_delay},
+    {NULL, 0, NULL}
   };
-  struct selected_options_st *selected_options;
 
-  if (!(tmp= strdup_root(&alloc, option)))
-    goto err;
+  for (options_st *opt= options_def; opt->name; ++opt)
+  {
+    if (!strncmp(opt->name, option_name, opt->name_len))
+    {
+      *(opt->var)= option_value;
+      break;
+    }
+  }
+}
 
-   for (selected_options= options; selected_options->name; selected_options++)
-   {
-     if (strncmp(tmp, selected_options->name, selected_options->length) == 0)
-       switch (selected_options->type) {
-       case SAVE_WHOLE_AND_ADD:
-         *(selected_options->value)= tmp;
-         insert_dynamic(&options_array,(gptr) &tmp);
-         return 0;
-       case SAVE_VALUE:
-         *(selected_options->value)= strchr(tmp, '=') + 1;
-         return 0;
-       case SAVE_WHOLE:
-         *(selected_options->value)= tmp;
-         return 0;
-       default:
-         break;
-       }
-   }
 
-  /* if we haven't returned earlier we should just save the option */
-  insert_dynamic(&options_array,(gptr) &tmp);
+int Instance_options::find_option(const char *option_name)
+{
+  for (int i= 0; i < get_num_options(); i++)
+  {
+    if (!strcmp(get_option(i).get_name(), option_name))
+      return i;
+  }
 
-  return 0;
-
-err:
-  return 1;
+  return -1;
 }
 
 
@@ -559,7 +615,10 @@ int Instance_options::add_to_argv(const char* option)
 void Instance_options::print_argv()
 {
   int i;
-  printf("printing out an instance %s argv:\n", instance_name);
+
+  printf("printing out an instance %s argv:\n",
+         (const char *) instance_name.str);
+
   for (i=0; argv[i] != NULL; i++)
     printf("argv: %s\n", argv[i]);
 }
@@ -570,17 +629,17 @@ void Instance_options::print_argv()
   Return value: 0 - ok. 1 - unable to allocate memory.
 */
 
-int Instance_options::init(const char *instance_name_arg)
+int Instance_options::init(const LEX_STRING *instance_name_arg)
 {
-  instance_name_len= strlen(instance_name_arg);
+  instance_name.length= instance_name_arg->length;
 
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
 
-  if (my_init_dynamic_array(&options_array, sizeof(char*), 0, 32))
+  if (options.init())
     goto err;
 
-  if (!(instance_name= strmake_root(&alloc, (char*) instance_name_arg,
-                                    instance_name_len)))
+  if (!(instance_name.str= strmake_root(&alloc, instance_name_arg->str,
+                                        instance_name_arg->length)))
     goto err;
 
   return 0;
@@ -593,6 +652,4 @@ err:
 Instance_options::~Instance_options()
 {
   free_root(&alloc, MYF(0));
-  delete_dynamic(&options_array);
 }
-

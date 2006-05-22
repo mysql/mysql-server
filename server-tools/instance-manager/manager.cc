@@ -14,39 +14,55 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
 #include "manager.h"
 
-#include "priv.h"
-#include "thread_registry.h"
-#include "listener.h"
-#include "instance_map.h"
-#include "options.h"
-#include "user_map.h"
-#include "log.h"
-#include "guardian.h"
-
-#include <my_sys.h>
+#include <my_global.h>
 #include <m_string.h>
-#include <signal.h>
+#include <my_sys.h>
 #include <thr_alarm.h>
+
+#include <signal.h>
 #ifndef __WIN__
 #include <sys/wait.h>
 #endif
 
+#include "exit_codes.h"
+#include "guardian.h"
+#include "instance_map.h"
+#include "listener.h"
+#include "log.h"
+#include "options.h"
+#include "priv.h"
+#include "thread_registry.h"
+#include "user_map.h"
+
 
 int create_pid_file(const char *pid_file_name, int pid)
 {
-  if (FILE *pid_file= my_fopen(pid_file_name,
-                               O_WRONLY | O_CREAT | O_BINARY, MYF(0)))
+  FILE *pid_file;
+
+  if (!(pid_file= my_fopen(pid_file_name, O_WRONLY | O_CREAT | O_BINARY,
+                           MYF(0))))
   {
-    fprintf(pid_file, "%d\n", (int) pid);
-    my_fclose(pid_file, MYF(0));
-    return 0;
+    log_error("Error: can not create pid file '%s': %s (errno: %d)",
+              (const char *) pid_file_name,
+              (const char *) strerror(errno),
+              (int) errno);
+    return 1;
   }
-  log_error("can't create pid file %s: errno=%d, %s",
-            pid_file_name, errno, strerror(errno));
-  return 1;
+
+  if (fprintf(pid_file, "%d\n", (int) pid) <= 0)
+  {
+    log_error("Error: can not write to pid file '%s': %s (errno: %d)",
+              (const char *) pid_file_name,
+              (const char *) strerror(errno),
+              (int) errno);
+    return 1;
+  }
+
+  my_fclose(pid_file, MYF(0));
+
+  return 0;
 }
 
 #ifndef __WIN__
@@ -82,14 +98,14 @@ bool have_signal;
 
 void onsignal(int signo)
 {
-  have_signal= true;
+  have_signal= TRUE;
 }
 
 void set_signals(sigset_t *set)
 {
   signal(SIGINT, onsignal);
   signal(SIGTERM, onsignal);
-  have_signal= false;
+  have_signal= FALSE;
 }
 
 int my_sigwait(const sigset_t *set, int *sig)
@@ -109,10 +125,16 @@ int my_sigwait(const sigset_t *set, int *sig)
   listener thread, write pid file and enter into signal handling.
   See also comments in mysqlmanager.cc to picture general Instance Manager
   architecture.
+
+  TODO: how about returning error status.
 */
 
-void manager(const Options &options)
+void manager()
 {
+  int err_code;
+  const char *err_msg;
+  bool shutdown_complete= FALSE;
+
   Thread_registry thread_registry;
   /*
     All objects created in the manager() function live as long as
@@ -121,31 +143,60 @@ void manager(const Options &options)
   */
 
   User_map user_map;
-  Instance_map instance_map(options.default_mysqld_path);
+  Instance_map instance_map(Options::Main::default_mysqld_path);
   Guardian_thread guardian_thread(thread_registry,
                                   &instance_map,
-                                  options.monitoring_interval);
+                                  Options::Main::monitoring_interval);
 
-  Listener_thread_args listener_args(thread_registry, options, user_map,
-                                     instance_map);
+  Listener_thread_args listener_args(thread_registry, user_map, instance_map);
 
   manager_pid= getpid();
   instance_map.guardian= &guardian_thread;
 
-  if (instance_map.init() || user_map.init())
-    return;
+  /* Initialize instance map. */
 
-  if (user_map.load(options.password_file_name))
+  if (instance_map.init())
+  {
+    log_error("Error: can not initialize instance list: out of memory.");
     return;
+  }
+
+  /* Initialize user map and load password file. */
+
+  if (user_map.init())
+  {
+    log_error("Error: can not initialize user list: out of memory.");
+    return;
+  }
+
+  if ((err_code= user_map.load(Options::Main::password_file_name, &err_msg)))
+  {
+    if (err_code == ERR_PASSWORD_FILE_DOES_NOT_EXIST &&
+        Options::Main::mysqld_safe_compatible)
+    {
+      /*
+        The password file does not exist, but we are running in
+        mysqld_safe-compatible mode. Continue, but complain in log.
+      */
+
+      log_error("Warning: password file does not exist, "
+                "nobody will be able to connect to Instance Manager.");
+    }
+    else
+    {
+      log_error("Error: %s.", (const char *) err_msg);
+      return;
+    }
+  }
 
   /* write Instance Manager pid file */
 
   log_info("IM pid file: '%s'; PID: %d.",
-           (const char *) options.pid_file_name,
+           (const char *) Options::Main::pid_file_name,
            (int) manager_pid);
 
-  if (create_pid_file(options.pid_file_name, manager_pid))
-    return;
+  if (create_pid_file(Options::Main::pid_file_name, manager_pid))
+    return; /* necessary logging has been already done. */
 
   sigset_t mask;
   set_signals(&mask);
@@ -198,17 +249,23 @@ void manager(const Options &options)
     To work nicely with LinuxThreads, the signal thread is the first thread
     in the process.
   */
-  int signo;
-  bool shutdown_complete;
 
-  shutdown_complete= FALSE;
-
-  if (instance_map.flush_instances())
   {
-    log_error("Cannot init instances repository. This might be caused by "
-               "the wrong config file options. For instance, missing mysqld "
-               "binary. Aborting.");
-    return;
+    instance_map.guardian->lock();
+    instance_map.lock();
+
+    int flush_instances_status= instance_map.flush_instances();
+
+    instance_map.unlock();
+    instance_map.guardian->unlock();
+
+    if (flush_instances_status)
+    {
+      log_error("Cannot init instances repository. This might be caused by "
+        "the wrong config file options. For instance, missing mysqld "
+        "binary. Aborting.");
+      return;
+    }
   }
 
   /*
@@ -219,6 +276,7 @@ void manager(const Options &options)
 
   while (!shutdown_complete)
   {
+    int signo;
     int status= 0;
 
     if ((status= my_sigwait(&mask, &signo)) != 0)
@@ -245,7 +303,7 @@ void manager(const Options &options)
     {
       if (!guardian_thread.is_stopped())
       {
-        bool stop_instances= true;
+        bool stop_instances= TRUE;
         guardian_thread.request_shutdown(stop_instances);
         pthread_cond_signal(&guardian_thread.COND_guardian);
       }
@@ -259,7 +317,7 @@ void manager(const Options &options)
 
 err:
   /* delete the pid file */
-  my_delete(options.pid_file_name, MYF(0));
+  my_delete(Options::Main::pid_file_name, MYF(0));
 
 #ifndef __WIN__
   /* free alarm structures */
@@ -267,4 +325,3 @@ err:
   /* don't pthread_exit to kill all threads who did not shut down in time */
 #endif
 }
-

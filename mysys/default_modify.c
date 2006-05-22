@@ -40,11 +40,13 @@ static char *add_option(char *dst, const char *option_value,
   SYNOPSYS
     modify_defaults_file()
     file_location     The location of configuration file to edit
-    option            option to look for
-    option value      The value of the option we would like to set
-    section_name      the name of the section
-    remove_option     This is true if we want to remove the option.
-                      False otherwise.
+    option            The name of the option to look for (can be NULL)
+    option value      The value of the option we would like to set (can be NULL)
+    section_name      The name of the section (must be NOT NULL)
+    remove_option     This defines what we want to remove:
+                        - MY_REMOVE_NONE -- nothing to remove;
+                        - MY_REMOVE_OPTION -- remove the specified option;
+                        - MY_REMOVE_SECTION -- remove the specified section;
   IMPLEMENTATION
     We open the option file first, then read the file line-by-line,
     looking for the section we need. At the same time we put these lines
@@ -67,7 +69,9 @@ int modify_defaults_file(const char *file_location, const char *option,
   FILE *cnf_file;
   MY_STAT file_stat;
   char linebuff[BUFF_SIZE], *src_ptr, *dst_ptr, *file_buffer;
-  uint opt_len, optval_len, sect_len, nr_newlines= 0, buffer_size;
+  uint opt_len= 0;
+  uint optval_len= 0;
+  uint sect_len, nr_newlines= 0, buffer_size;
   my_bool in_section= FALSE, opt_applied= 0;
   uint reserve_extended;
   uint new_opt_len;
@@ -81,8 +85,11 @@ int modify_defaults_file(const char *file_location, const char *option,
   if (my_fstat(fileno(cnf_file), &file_stat, MYF(0)))
     goto malloc_err;
 
-  opt_len= (uint) strlen(option);
-  optval_len= (uint) strlen(option_value);
+  if (option && option_value)
+  {
+    opt_len= (uint) strlen(option);
+    optval_len= (uint) strlen(option_value);
+  }
 
   new_opt_len= opt_len + 1 + optval_len + NEWLINE_LEN;
 
@@ -119,8 +126,8 @@ int modify_defaults_file(const char *file_location, const char *option,
       continue;
     }
 
-    /* correct the option */
-    if (in_section && !strncmp(src_ptr, option, opt_len) &&
+    /* correct the option (if requested) */
+    if (option && in_section && !strncmp(src_ptr, option, opt_len) &&
         (*(src_ptr + opt_len) == '=' ||
          my_isspace(&my_charset_latin1, *(src_ptr + opt_len)) ||
          *(src_ptr + opt_len) == '\0'))
@@ -143,7 +150,12 @@ int modify_defaults_file(const char *file_location, const char *option,
     }
     else
     {
-      /* If going to new group and we have option to apply, do it now */
+      /*
+        If we are going to the new group and have an option to apply, do
+        it now. If we are removing a single option or the whole section
+        this will only trigger opt_applied flag.
+      */
+
       if (in_section && !opt_applied && *src_ptr == '[')
       {
         dst_ptr= add_option(dst_ptr, option_value, option, remove_option);
@@ -153,7 +165,10 @@ int modify_defaults_file(const char *file_location, const char *option,
 
       for (; nr_newlines; nr_newlines--)
         dst_ptr= strmov(dst_ptr, NEWLINE);
-      dst_ptr= strmov(dst_ptr, linebuff);
+
+      /* Skip the section if MY_REMOVE_SECTION was given */
+      if (!in_section || remove_option != MY_REMOVE_SECTION)
+        dst_ptr= strmov(dst_ptr, linebuff);
     }
     /* Look for a section */
     if (*src_ptr == '[')
@@ -167,18 +182,31 @@ int modify_defaults_file(const char *file_location, const char *option,
         {}
 
         if (*src_ptr != ']')
+        {
+          in_section= FALSE;
           continue; /* Missing closing parenthesis. Assume this was no group */
+        }
+
+        if (remove_option == MY_REMOVE_SECTION)
+          dst_ptr= dst_ptr - strlen(linebuff);
+
         in_section= TRUE;
       }
       else
         in_section= FALSE; /* mark that this section is of no interest to us */
     }
   }
-  /* File ended. */
-  if (!opt_applied && !remove_option && in_section)
+
+  /*
+    File ended. Apply an option or set opt_applied flag (in case of
+    MY_REMOVE_SECTION) so that the changes are saved. Do not do anything
+    if we are removing non-existent option.
+  */
+
+  if (!opt_applied && in_section && (remove_option != MY_REMOVE_OPTION))
   {
     /* New option still remains to apply at the end */
-    if (*(dst_ptr - 1) != '\n')
+    if (!remove_option && *(dst_ptr - 1) != '\n')
       dst_ptr= strmov(dst_ptr, NEWLINE);
     dst_ptr= add_option(dst_ptr, option_value, option, remove_option);
     opt_applied= 1;
