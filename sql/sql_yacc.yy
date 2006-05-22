@@ -567,6 +567,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RTREE_SYM
 %token  SAVEPOINT_SYM
 %token  SCHEDULE_SYM
+%token  SCHEDULER_SYM
 %token  SECOND_MICROSECOND_SYM
 %token  SECOND_SYM
 %token  SECURITY_SYM
@@ -1400,7 +1401,7 @@ opt_ev_status: /* empty */ { $$= 0; }
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->status= MYSQL_EVENT_ENABLED;
+              lex->et->status= Event_timed::ENABLED;
             $$= 1;
           }
         | DISABLE_SYM
@@ -1408,7 +1409,7 @@ opt_ev_status: /* empty */ { $$= 0; }
             LEX *lex=Lex;
 
             if (!lex->et_compile_phase)
-              lex->et->status= MYSQL_EVENT_DISABLED;
+              lex->et->status= Event_timed::DISABLED;
             $$= 1;
           }
       ;
@@ -1472,14 +1473,14 @@ ev_on_completion:
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_PRESERVE;
+              lex->et->on_completion= Event_timed::ON_COMPLETION_PRESERVE;
             $$= 1;
           }
         | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_DROP;
+              lex->et->on_completion= Event_timed::ON_COMPLETION_DROP;
             $$= 1;
           }
       ;
@@ -8049,15 +8050,24 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TRIGGERS))
                YYABORT;
            }
-         | opt_full EVENTS_SYM opt_db wild_and_where
+         | EVENTS_SYM opt_db wild_and_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SELECT;
              lex->orig_sql_command= SQLCOM_SHOW_EVENTS;
-             lex->select_lex.db= $3;
+             lex->select_lex.db= $2;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
                YYABORT;
            }
+         | SCHEDULER_SYM STATUS_SYM
+           {
+#ifndef DBUG_OFF
+             Lex->sql_command= SQLCOM_SHOW_SCHEDULER_STATUS;
+#else
+             yyerror(ER(ER_SYNTAX_ERROR));
+             YYABORT;           
+#endif
+           }         
          | TABLE_SYM STATUS_SYM opt_db wild_and_where
            {
              LEX *lex= Lex;
@@ -9488,6 +9498,7 @@ keyword_sp:
 	| ROW_SYM		{}
 	| RTREE_SYM		{}
 	| SCHEDULE_SYM		{}	
+	| SCHEDULER_SYM		{}	
 	| SECOND_SYM		{}
 	| SERIAL_SYM		{}
 	| SERIALIZABLE_SYM	{}

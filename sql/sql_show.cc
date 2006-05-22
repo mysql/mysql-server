@@ -4049,8 +4049,9 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     /* type */
     sch_table->field[5]->store(STRING_WITH_LEN("RECURRING"), scs);
 
-    if (event_reconstruct_interval_expression(&show_str, et.interval,
-                                              et.expression))
+    if (Events::reconstruct_interval_expression(&show_str,
+                                                          et.interval,
+                                                          et.expression))
       DBUG_RETURN(1);
 
     sch_table->field[7]->set_notnull();
@@ -4080,13 +4081,13 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   }
 
   //status
-  if (et.status == MYSQL_EVENT_ENABLED)
+  if (et.status == Event_timed::ENABLED)
     sch_table->field[12]->store(STRING_WITH_LEN("ENABLED"), scs);
   else
     sch_table->field[12]->store(STRING_WITH_LEN("DISABLED"), scs);
 
   //on_completion
-  if (et.on_completion == MYSQL_EVENT_ON_COMPLETION_DROP)
+  if (et.on_completion == Event_timed::ON_COMPLETION_DROP)
     sch_table->field[13]->store(STRING_WITH_LEN("NOT PRESERVE"), scs);
   else
     sch_table->field[13]->store(STRING_WITH_LEN("PRESERVE"), scs);
@@ -4138,7 +4139,7 @@ int fill_schema_events(THD *thd, TABLE_LIST *tables, COND *cond)
 
   thd->reset_n_backup_open_tables_state(&backup);
 
-  if ((ret= evex_open_event_table(thd, TL_READ, &event_table)))
+  if ((ret= Events::open_event_table(thd, TL_READ, &event_table)))
   {
     sql_print_error("Table mysql.event is damaged.");
     ret= 1;
@@ -4147,13 +4148,10 @@ int fill_schema_events(THD *thd, TABLE_LIST *tables, COND *cond)
   
   event_table->file->ha_index_init(0, 1);
 
-  /* 
-    see others' events only if you have PROCESS_ACL !!
-    thd->lex->verbose is set either if SHOW FULL EVENTS or
-    in case of SELECT FROM I_S.EVENTS
-  */
-  verbose= (thd->lex->verbose
-            && (thd->security_ctx->master_access & PROCESS_ACL));
+  /* see others' events only if you have PROCESS_ACL !! */
+  verbose= ((thd->lex->verbose ||
+             thd->lex->orig_sql_command != SQLCOM_SHOW_EVENTS) &&
+            (thd->security_ctx->master_access & PROCESS_ACL));
 
   if (verbose && thd->security_ctx->user)
   {    
@@ -4162,12 +4160,13 @@ int fill_schema_events(THD *thd, TABLE_LIST *tables, COND *cond)
   }
   else
   {
-    event_table->field[EVEX_FIELD_DEFINER]->store(definer, strlen(definer), scs);    
+    event_table->field[Events::FIELD_DEFINER]->
+                                         store(definer, strlen(definer), scs);
     key_len= event_table->key_info->key_part[0].store_length;
 
     if (thd->lex->select_lex.db)
     {
-      event_table->field[EVEX_FIELD_DB]->
+      event_table->field[Events::FIELD_DB]->
             store(thd->lex->select_lex.db, strlen(thd->lex->select_lex.db), scs);
       key_len+= event_table->key_info->key_part[1].store_length;
     }
