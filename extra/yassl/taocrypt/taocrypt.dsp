@@ -146,6 +146,10 @@ SOURCE=.\src\md2.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\src\md4.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\src\md5.cpp
 # End Source File
 # Begin Source File
@@ -243,6 +247,10 @@ SOURCE=.\include\integer.hpp
 # Begin Source File
 
 SOURCE=.\include\md2.hpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\include\md4.hpp
 # End Source File
 # Begin Source File
 
