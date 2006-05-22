@@ -52,6 +52,10 @@
 #include <signal.h>
 #include <errno.h>
 
+#ifdef __NETWARE__
+#include <sys/select.h>
+#endif
+
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
 #undef MYSQL_CLIENT

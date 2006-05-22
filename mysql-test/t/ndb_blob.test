@@ -428,4 +428,60 @@ truncate t1;
 select count(*) from t1;
 drop table t1;
 
+# -- bug#19956 - var* key, complex key
+
+create table t1 (
+  a varchar(40) not null,
+  b mediumint not null,
+  t text,
+  c varchar(2) not null,
+  d bigint not null,
+  primary key (a,b,c),
+  key (c,a),
+  unique key (d)
+) engine=ndb;
+
+--disable_query_log
+set @s1 = 'rggurloniukyehuxdbfkkyzlceixzrehqhvxvxbpwizzvjzpucqmzrhzxzfau';
+set @s2 = 'ykyymbzqgqlcjhlhmyqelfoaaohvtbekvifukdtnvcrrjveevfakxarxexomz';
+set @s3 = 'dbnfqyzgtqxalcrwtfsqabknvtfcbpoonxsjiqvmhnfikxxhcgoexlkoezvah';
+set @v1 = repeat(@s1,123);
+set @v2 = repeat(@s2,234);
+set @v3 = repeat(@s3,345);
+set @v4 = NULL;
+--enable_query_log
+
+insert into t1 (a,b,c,d,t) values ('a',1110,'a',1,@v1);
+insert into t1 (a,b,c,d,t) values ('b',1110,'a',2,@v2);
+insert into t1 (a,b,c,d,t) values ('a',1110,'b',3,@v3);
+insert into t1 (a,b,c,d,t) values ('b',1110,'b',4,@v4);
+select a,b,c,d,sha1(t) from t1 order by c,a;
+
+select a,b,c,d,sha1(t) from t1 where a='a' and b=1110 and c='a';
+select a,b,c,d,sha1(t) from t1 where a='a' and b=1110 and c='b';
+
+update t1 set t=@v4 where a='b' and b=1110 and c='a';
+update t1 set t=@v2 where a='b' and b=1110 and c='b';
+select a,b,c,d,sha1(t) from t1 order by c,a;
+
+update t1 set t=@v2 where d=2;
+update t1 set t=@v4 where d=4;
+select a,b,c,d,sha1(t) from t1 order by c,a;
+
+update t1 set t=@v4 where a='b' and c='a';
+update t1 set t=@v2 where a='b' and c='b';
+select a,b,c,d,sha1(t) from t1 order by c,a;
+
+update t1 set t=@v2 where b+d=1112;
+update t1 set t=@v4 where b+d=1114;
+select a,b,c,d,sha1(t) from t1 order by c,a;
+
+delete from t1 where a='a' and b=1110 and c='a';
+delete from t1 where a='b' and c='a';
+delete from t1 where d=3;
+delete from t1 where b+d=1114;
+select count(*) from t1;
+
+drop table t1;
+
 # End of 4.1 tests
