@@ -116,6 +116,37 @@ static int inno_bcmp(register const char *s1, register const char *s2,
 #define memcmp(A,B,C) inno_bcmp((A),(B),(C))
 #endif
 
+static
+char*
+srv_parse_megabytes(
+/*================*/
+			/* out: next character in string */
+	char*	str,	/* in: string containing a quantity in bytes */
+	ulint*	megs)	/* out: the number in megabytes */
+{
+	char*	endp;
+	ulint	size;
+
+	size = strtoul(str, &endp, 10);
+
+	str = endp;
+
+	switch (*str) {
+	case 'G': case 'g':
+		size *= 1024;
+		/* fall through */
+	case 'M': case 'm':
+		str++;
+		break;
+	default:
+		size /= 1024 * 1024;
+		break;
+	}
+
+	*megs = size;
+	return(str);
+}
+
 /*************************************************************************
 Reads the data files and their sizes from a character string given in
 the .cnf file. */
@@ -140,7 +171,6 @@ srv_parse_data_file_paths_and_sizes(
 					last file if specified, 0 if not */
 {
 	char*	input_str;
-	char*	endp;
 	char*	path;
 	ulint	size;
 	ulint	i	= 0;
@@ -170,18 +200,7 @@ srv_parse_data_file_paths_and_sizes(
 
 		str++;
 
-		size = strtoul(str, &endp, 10);
-
-		str = endp;
-
-		if (*str != 'M' && *str != 'G') {
-			size = size / (1024 * 1024);
-		} else if (*str == 'G') {
-			size = size * 1024;
-			str++;
-		} else {
-			str++;
-		}
+		str = srv_parse_megabytes(str, &size);
 
 		if (0 == memcmp(str, ":autoextend", (sizeof ":autoextend") - 1)) {
 
@@ -191,18 +210,7 @@ srv_parse_data_file_paths_and_sizes(
 
 				str += (sizeof ":max:") - 1;
 
-				size = strtoul(str, &endp, 10);
-
-				str = endp;
-
-				if (*str != 'M' && *str != 'G') {
-					size = size / (1024 * 1024);
-				} else if (*str == 'G') {
-					size = size * 1024;
-					str++;
-				} else {
-					str++;
-				}
+				str = srv_parse_megabytes(str, &size);
 			}
 
 			if (*str != '\0') {
@@ -275,18 +283,7 @@ srv_parse_data_file_paths_and_sizes(
 			str++;
 		}
 
-		size = strtoul(str, &endp, 10);
-
-		str = endp;
-
-		if ((*str != 'M') && (*str != 'G')) {
-			size = size / (1024 * 1024);
-		} else if (*str == 'G') {
-			size = size * 1024;
-			str++;
-		} else {
-			str++;
-		}
+		str = srv_parse_megabytes(str, &size);
 
 		(*data_file_names)[i] = path;
 		(*data_file_sizes)[i] = size;
@@ -301,20 +298,8 @@ srv_parse_data_file_paths_and_sizes(
 
 				str += (sizeof ":max:") - 1;
 
-				size = strtoul(str, &endp, 10);
-
-				str = endp;
-
-				if (*str != 'M' && *str != 'G') {
-					size = size / (1024 * 1024);
-				} else if (*str == 'G') {
-					size = size * 1024;
-					str++;
-				} else {
-					str++;
-				}
-
-				*max_auto_extend_size = size;
+				str = srv_parse_megabytes(str,
+						max_auto_extend_size);
 			}
 
 			if (*str != '\0') {
