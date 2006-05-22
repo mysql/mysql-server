@@ -71,6 +71,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
   Uint32 tKeyInfoPosition;
   const char* aValue = aValuePassed;
   Uint64 tempData[512];
+  Uint64 tempData2[512];
 
   if ((theStatus == OperationDefined) &&
       (aValue != NULL) &&
@@ -130,6 +131,19 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 
     OperationType tOpType = theOperationType;
     Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+
+    Uint32 real_len;
+    if (! tAttrInfo->get_var_length(aValue, real_len)) {
+      setErrorCodeAbort(4209);
+      DBUG_RETURN(-1);
+    }
+
+    // 5.0 fixed storage + NdbBlob uses full size => pad var* with nulls
+    if (real_len < sizeInBytes && m_currentTable->m_noOfBlobs != 0) {
+      memcpy(tempData2, aValue, real_len);
+      memset((char*)tempData2 + real_len, 0, sizeInBytes - real_len);
+      aValue = (char*)tempData2;
+    }
 
     {
       /************************************************************************
