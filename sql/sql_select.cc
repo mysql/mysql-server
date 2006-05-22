@@ -8697,7 +8697,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       if (is_null)
         field->set_null();
       else
+      {
+        field->set_notnull();
         memcpy(field->ptr, from, field->pack_length());
+      }
     } 
 
     if (from_field[i])

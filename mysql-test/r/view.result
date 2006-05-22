@@ -2716,7 +2716,7 @@ SELECT * FROM t2;
 a	m
 xxx	1
 yyy	5
-NULL	0
+xxx	0
 DROP VIEW v1;
 DROP TABLE t1,t2;
 CREATE TABLE t1 (id int PRIMARY KEY, e ENUM('a','b') NOT NULL DEFAULT 'b');

@@ -53,6 +53,11 @@ public:
 
   char		*ptr;			// Position to field in record
   uchar		*null_ptr;		// Byte where null_bit is
+  /*
+    dflt_field is used only for the fields of temporary tables.
+    It points to the default value of the field in another table
+    from which this field has been created.
+  */ 
   Field         *dflt_field;            // Field to copy default value from
   /*
     Note that you can use table->in_use as replacement for current_thd member 
