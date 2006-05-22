@@ -236,10 +236,10 @@ private:
   bool mutex_scheduler_data_locked;
 
   /* helper functions for working with mutexes & conditionals */
-  int
+  void
   lock_data(const char *func, uint line);
 
-  int
+  void
   unlock_data(const char *func, uint line);
 
   int
