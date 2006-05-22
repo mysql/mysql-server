@@ -49,7 +49,9 @@ extern EventLogger g_eventLogger;
 enum ndbd_options {
   OPT_INITIAL = NDB_STD_OPTIONS_LAST,
   OPT_NODAEMON,
-  OPT_FOREGROUND
+  OPT_FOREGROUND,
+  OPT_NOWAIT_NODES,
+  OPT_INITIAL_START
 };
 
 NDB_STD_OPTS_VARS;
@@ -88,11 +90,11 @@ static struct my_option my_long_options[] =
     " (implies --nodaemon)",
     (gptr*) &_foreground, (gptr*) &_foreground, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "nowait-nodes", NO_ARG, 
+  { "nowait-nodes", OPT_NOWAIT_NODES, 
     "Nodes that will not be waited for during start",
     (gptr*) &_nowait_nodes, (gptr*) &_nowait_nodes, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "initial-start", NO_ARG, 
+  { "initial-start", OPT_INITIAL_START, 
     "Perform initial start",
     (gptr*) &_initialstart, (gptr*) &_initialstart, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
