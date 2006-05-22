@@ -89,6 +89,9 @@ Instance_options::Instance_options()
   mysqld_path.str= NULL;
   mysqld_path.length= 0;
 
+  mysqld_real_path.str= NULL;
+  mysqld_real_path.length= 0;
+
   memset(logs, 0, sizeof(logs));
 }
 
@@ -206,12 +209,12 @@ err:
 int Instance_options::fill_mysqld_real_path()
 {
   char result[FN_REFLEN];
-  char help_option[]= " --no-defaults --help";
+  LEX_STRING help_option=
+    { C_STRING_WITH_SIZE(" --no-defaults --help") };
   int rc= 1;
-  Buffer cmd(mysqld_path_len + sizeof(help_option));
+  Buffer cmd(mysqld_path.length + help_option.length);
 
-  if (create_mysqld_command(&cmd, mysqld_path, mysqld_path_len,
-                            help_option, sizeof(help_option)))
+  if (create_mysqld_command(&cmd, &mysqld_path, &help_option))
     goto err;
 
   bzero(result, FN_REFLEN);
@@ -226,7 +229,8 @@ int Instance_options::fill_mysqld_real_path()
     /* chop the path of at [OPTIONS] */
     if ((options_str= strstr(result, "[OPTIONS]")))
       *options_str= '\0';
-    mysqld_real_path= strdup_root(&alloc, result);
+    mysqld_real_path.str= strdup_root(&alloc, result);
+    mysqld_real_path.length= strlen(mysqld_real_path.str);
   }
 err:
   if (rc)

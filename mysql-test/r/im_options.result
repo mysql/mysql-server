@@ -1,6 +1,6 @@
 --------------------------------------------------------------------
-server_id           =1
-server_id           =2
+server_id           = 1
+server_id           = 2
 --------------------------------------------------------------------
 SHOW VARIABLES LIKE 'server_id';
 Variable_name	Value
@@ -99,13 +99,13 @@ ERROR HY000: The instance is active. Stop the instance first
 UNSET mysqld2.server_id, mysqld3.server_id, mysqld.ccc;
 ERROR HY000: Bad instance name. Check that the instance with such a name exists
 --------------------------------------------------------------------
-server_id           =1
+server_id           = 1
 server_id=2
 --------------------------------------------------------------------
 UNSET mysqld2.server_id, mysqld3.server_id, mysqld1.ccc;
 ERROR HY000: The instance is active. Stop the instance first
 --------------------------------------------------------------------
-server_id           =1
+server_id           = 1
 server_id=2
 --------------------------------------------------------------------
 DROP INSTANCE mysqld3;
@@ -115,7 +115,7 @@ SET   mysqld2.server_id   =  222  ;
 SET   mysqld2  .  server_id  =  222  ;
 SET   mysqld2  .  server_id  =  222  , mysqld2  .  aaa  , mysqld2  .  bbb  ;
 --------------------------------------------------------------------
-server_id           =1
+server_id           = 1
 server_id=222
 --------------------------------------------------------------------
 aaa
@@ -124,13 +124,13 @@ bbb
 --------------------------------------------------------------------
 UNSET mysqld2  . aaa  ,  mysqld2  .  bbb ;
 --------------------------------------------------------------------
-server_id           =1
+server_id           = 1
 server_id=222
 --------------------------------------------------------------------
 --------------------------------------------------------------------
 --------------------------------------------------------------------
 --------------------------------------------------------------------
-server_id           =1
+server_id           = 1
 server_id=222
 --------------------------------------------------------------------
 SHOW VARIABLES LIKE 'server_id';

@@ -1,6 +1,6 @@
 --------------------------------------------------------------------
-server_id           =1
-server_id           =2
+server_id           = 1
+server_id           = 2
 --------------------------------------------------------------------
 SHOW INSTANCES;
 instance_name	state
@@ -20,8 +20,8 @@ mysqld3	offline
 mysqld2	offline
 mysqld1	online
 --------------------------------------------------------------------
-server_id           =1
-server_id           =2
+server_id           = 1
+server_id           = 2
 --------------------------------------------------------------------
 CREATE INSTANCE mysqld1;
 ERROR HY000: Instance already exists
