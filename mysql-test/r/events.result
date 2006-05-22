@@ -17,13 +17,13 @@ db_x
 SHOW TABLES FROM db_x;
 Tables_in_db_x
 x_table
-SET GLOBAL event_scheduler=0;
+SET GLOBAL event_scheduler=2;
 DROP EVENT e_x1;
 DROP EVENT e_x2;
 DROP DATABASE db_x;
 DROP USER pauline@localhost;
 USE events_test;
-SET GLOBAL event_scheduler=0;
+SET GLOBAL event_scheduler=2;
 drop event if exists event1;
 Warnings:
 Note	1305	Event event1 does not exist
@@ -100,7 +100,7 @@ a
 800219
 drop event non_qualif_ev;
 drop table non_qualif;
-set global event_scheduler = 0;
+set global event_scheduler = 2;
 create table t_event3 (a int, b float);
 drop event if exists event3;
 Warnings:
@@ -324,18 +324,18 @@ events_test	one_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 "This should show us only 3 events:";
-SHOW FULL EVENTS;
+SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	one_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 "This should show us only 2 events:";
-SHOW FULL EVENTS LIKE 't%event';
+SHOW EVENTS LIKE 't%event';
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 "This should show us no events:";
-SHOW FULL EVENTS FROM test LIKE '%';
+SHOW EVENTS FROM test LIKE '%';
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 DROP DATABASE events_test2;
 "should see 1 event:";
@@ -343,11 +343,8 @@ SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	one_event	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
 "we should see 4 events now:";
-SHOW FULL EVENTS;
+SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 events_test	one_event	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
 SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_BODY	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	STATUS	ON_COMPLETION	EVENT_COMMENT
@@ -373,12 +370,12 @@ ERROR HY000: Incorrect AT value: 'definitely not a datetime'
 set names utf8;
 create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;
 drop event задачка;
-set event_scheduler=0;
+set event_scheduler=2;
 ERROR HY000: Variable 'event_scheduler' is a GLOBAL variable and should be set with SET GLOBAL
-set global event_scheduler=2;
-ERROR 42000: Variable 'event_scheduler' can't be set to the value of '2'
+set global event_scheduler=3;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of '3'
 "DISABLE the scheduler. Testing that it does not work when the variable is 0"
-set global event_scheduler=0;
+set global event_scheduler=2;
 select definer, name, db from mysql.event;
 definer	name	db
 select get_lock("test_lock1", 20);
@@ -389,9 +386,10 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 select definer, name, db from mysql.event;
 definer	name	db
 root@localhost	закачка	events_test
-"Should be 0 processes"
+"Should be only 1 process"
 select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
+event_scheduler	localhost	NULL	Connect	Suspended	NULL
 select release_lock("test_lock1");
 release_lock("test_lock1")
 1
@@ -409,10 +407,11 @@ get_lock("test_lock2", 20)
 create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
 "Let some time pass to the event starts"
 "Should have only 2 processes: the scheduler and the locked event"
-select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Connect	Sleeping	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2", 20)
+"Release the mutex, the event worker should finish."
 "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
 release_lock("test_lock2")
@@ -423,21 +422,17 @@ select get_lock("test_lock2_1", 20);
 get_lock("test_lock2_1", 20)
 1
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
-"Should see 1 process, locked on get_lock("
-"Shutting down the scheduler, it should wait for the running event"
-set global event_scheduler=0;
-"Should have only 2 processes: the scheduler and the locked event"
-select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+"Should have only 3 processes: the scheduler, our conn and the locked event"
+select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Connect	Sleeping	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
-"Release the lock so the child process should finish. Hence the scheduler also"
-select release_lock("test_lock2_1");
-release_lock("test_lock2_1")
-1
-"Should see 0 processes now:"
-select /*5*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+set global event_scheduler=2;
+"Should have only our process now:"
+select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
+event_scheduler	localhost	NULL	Connect	Suspended	NULL
+root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
 drop event закачка21;
 create table t_16 (s1 int);
 create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
@@ -454,6 +449,9 @@ events_test	white_space	root@localhost	select 1
 drop event white_space;
 create event white_space on schedule every 10 hour disable do
 select 2;
+select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
+event_schema	event_name	definer	event_body
+events_test	white_space	root@localhost	select 2
 select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
 event_schema	event_name	definer	event_body
 events_test	white_space	root@localhost	select 2
