@@ -827,7 +827,7 @@ void Qmgr::execCM_REGCONF(Signal* signal)
   ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
   
   ndbrequire(c_start.m_gsn == GSN_CM_REGREQ);
-  ndbrequire(myNodePtr.p->phase = ZSTARTING);
+  ndbrequire(myNodePtr.p->phase == ZSTARTING);
   
   cpdistref    = cmRegConf->presidentBlockRef;
   cpresident   = cmRegConf->presidentNodeId;
