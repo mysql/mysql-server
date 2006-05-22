@@ -31,6 +31,7 @@
 #include "hmac.hpp"
 #include "md5.hpp"
 #include "sha.hpp"
+#include "ripemd.hpp"
 #include "openssl/ssl.h"
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
