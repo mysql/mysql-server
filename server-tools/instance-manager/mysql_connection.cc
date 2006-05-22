@@ -20,22 +20,24 @@
 
 #include "mysql_connection.h"
 
-#include "priv.h"
-#include "mysql_manager_error.h"
-#include "mysqld_error.h"
-#include "thread_registry.h"
-#include "log.h"
-#include "user_map.h"
-#include "protocol.h"
-#include "messages.h"
-#include "command.h"
-#include "parse.h"
-
-#include <mysql.h>
-#include <violite.h>
-#include <mysql_com.h>
 #include <m_string.h>
+#include <m_string.h>
+#include <my_global.h>
+#include <mysql_com.h>
+#include <mysql.h>
 #include <my_sys.h>
+#include <violite.h>
+
+#include "command.h"
+#include "log.h"
+#include "messages.h"
+#include "mysqld_error.h"
+#include "mysql_manager_error.h"
+#include "parse.h"
+#include "priv.h"
+#include "protocol.h"
+#include "thread_registry.h"
+#include "user_map.h"
 
 
 Mysql_connection_thread_args::Mysql_connection_thread_args(
@@ -56,7 +58,7 @@ Mysql_connection_thread_args::Mysql_connection_thread_args(
   See also comments in mysqlmanager.cc to picture general Instance Manager
   architecture.
   We use conventional technique to work with classes without exceptions:
-  class acquires all vital resource in init(); Thus if init() succeed, 
+  class acquires all vital resource in init(); Thus if init() succeed,
   a user must call cleanup(). All other methods are valid only between
   init() and cleanup().
 */
@@ -190,8 +192,6 @@ void Mysql_connection_thread::run()
 int Mysql_connection_thread::check_connection()
 {
   ulong pkt_len=0;                              // to hold client reply length
-  /* maximum size of the version string */
-  enum { MAX_VERSION_LENGTH= 80 };
 
   /* buffer for the first packet */             /* packet contains: */
   char buff[MAX_VERSION_LENGTH + 1 +            // server version, 0-ended
@@ -202,8 +202,8 @@ int Mysql_connection_thread::check_connection()
   char *pos= buff;
   ulong server_flags;
 
-  memcpy(pos, mysqlmanager_version, mysqlmanager_version_length + 1);
-  pos+= mysqlmanager_version_length + 1;
+  memcpy(pos, mysqlmanager_version.str, mysqlmanager_version.length + 1);
+  pos+= mysqlmanager_version.length + 1;
 
   int4store((uchar*) pos, connection_id);
   pos+= 4;
@@ -271,12 +271,14 @@ int Mysql_connection_thread::check_connection()
   const char *user= pos;
   const char *password= strend(user)+1;
   ulong password_len= *password++;
+  LEX_STRING user_name= { (char *) user, password - user - 2 };
+
   if (password_len != SCRAMBLE_LENGTH)
   {
     net_send_error(&net, ER_ACCESS_DENIED_ERROR);
     return 1;
   }
-  if (user_map.authenticate(user, password-user-2, password, scramble))
+  if (user_map.authenticate(&user_name, password, scramble))
   {
     net_send_error(&net, ER_ACCESS_DENIED_ERROR);
     return 1;
@@ -312,7 +314,7 @@ int Mysql_connection_thread::do_command()
     packet= (char*) net.read_pos;
     enum enum_server_command command= (enum enum_server_command)
                                       (uchar) *packet;
-    log_info("connection %d: packet_length=%d, command=%d", 
+    log_info("connection %d: packet_length=%d, command=%d",
              connection_id, packet_length, command);
     return dispatch_command(command, packet + 1, packet_length - 1);
   }
@@ -336,7 +338,7 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
     if (Command *command= parse_command(&instance_map, packet))
     {
       int res= 0;
-      log_info("query for connection %d successefully parsed",connection_id);
+      log_info("query for connection %d successfully parsed",connection_id);
       res= command->execute(&net, connection_id);
       delete command;
       if (!res)
@@ -380,5 +382,5 @@ pthread_handler_t mysql_connection(void *arg)
 }
 
 /*
-  vim: fdm=marker 
+  vim: fdm=marker
 */

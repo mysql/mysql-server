@@ -17,6 +17,9 @@
 #  - the second instance is offline;
 #
 
+--sleep 3
+# should be longer than monitoring interval and enough to start instance.
+
 SHOW INSTANCES;
 
 #
@@ -41,8 +44,9 @@ SHOW INSTANCE OPTIONS mysqld2;
 
 START INSTANCE mysqld2;
 
-# FIXME
--- sleep 3
+# FIXME: START INSTANCE should be synchronous.
+--sleep 3
+# should be longer than monitoring interval and enough to start instance.
 
 STOP INSTANCE mysqld2;
 
