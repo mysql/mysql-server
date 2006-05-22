@@ -257,9 +257,9 @@ buf_flush_buffered_writes(void)
 
 		/* TODO: page_zip */
 
-		if (mach_read_from_4(block->frame + FIL_PAGE_LSN + 4)
-			!= mach_read_from_4(block->frame + UNIV_PAGE_SIZE
-				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
+		if (UNIV_UNLIKELY(memcmp(block->frame + (FIL_PAGE_LSN + 4),
+				block->frame + (UNIV_PAGE_SIZE
+				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 "  InnoDB: ERROR: The page to be written seems corrupt!\n"
@@ -311,9 +311,9 @@ corrupted_page:
 
 	/* TODO: page_zip */
 	for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len; len2 += UNIV_PAGE_SIZE) {
-		if (mach_read_from_4(write_buf + len2 + FIL_PAGE_LSN + 4)
-			!= mach_read_from_4(write_buf + len2 + UNIV_PAGE_SIZE
-				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
+		if (UNIV_UNLIKELY(memcmp(write_buf + len2 + (FIL_PAGE_LSN + 4),
+			write_buf + len2 + (UNIV_PAGE_SIZE
+				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 "  InnoDB: ERROR: The page to be written seems corrupt!\n"
@@ -337,11 +337,12 @@ corrupted_page:
 		/* TODO: page_zip */
 		for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len;
 						len2 += UNIV_PAGE_SIZE) {
-			if (mach_read_from_4(write_buf + len2
-					+ FIL_PAGE_LSN + 4)
-				!= mach_read_from_4(write_buf + len2
-					+ UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
+			if (UNIV_UNLIKELY(memcmp(write_buf + len2
+					+ (FIL_PAGE_LSN + 4),
+					write_buf + len2
+					+ (UNIV_PAGE_SIZE
+					- FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
+					4))) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
 "  InnoDB: ERROR: The page to be written seems corrupt!\n"
@@ -361,9 +362,9 @@ corrupted_page:
 	for (i = 0; i < trx_doublewrite->first_free; i++) {
 		block = trx_doublewrite->buf_block_arr[i];
 		/* TODO: page_zip */
-		if (mach_read_from_4(block->frame + FIL_PAGE_LSN + 4)
-			!= mach_read_from_4(block->frame + UNIV_PAGE_SIZE
-				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
+		if (UNIV_UNLIKELY(memcmp(block->frame + (FIL_PAGE_LSN + 4),
+				block->frame + (UNIV_PAGE_SIZE
+				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 "  InnoDB: ERROR: The page to be written seems corrupt!\n"
