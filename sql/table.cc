@@ -2401,9 +2401,7 @@ table_check_intact(TABLE *table, uint table_f_count,
              table running on a old server will be valid.
         */ 
         field->sql_type(sql_type);
-        if (sql_type.length() < table_def->type.length - 1 ||
-            strncmp(sql_type.ptr(),
-                    table_def->type.str,
+        if (strncmp(sql_type.c_ptr_safe(), table_def->type.str,
                     table_def->type.length - 1))
         {
           sql_print_error("(%s) Expected field %s at position %d to have type "

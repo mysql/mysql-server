@@ -1,4 +1,6 @@
-/* Copyright (C) 2004-2005 MySQL AB
+#ifndef _EVENT_H_
+#define _EVENT_H_
+/* Copyright (C) 2004-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,66 +16,109 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef _EVENT_H_
-#define _EVENT_H_
 
-#include "sp.h"
-#include "sp_head.h"
 
-#define EVEX_OK                 SP_OK
-#define EVEX_KEY_NOT_FOUND      SP_KEY_NOT_FOUND
-#define EVEX_OPEN_TABLE_FAILED  SP_OPEN_TABLE_FAILED
-#define EVEX_WRITE_ROW_FAILED   SP_WRITE_ROW_FAILED
-#define EVEX_DELETE_ROW_FAILED  SP_DELETE_ROW_FAILED
-#define EVEX_GET_FIELD_FAILED   SP_GET_FIELD_FAILED
-#define EVEX_PARSE_ERROR        SP_PARSE_ERROR
-#define EVEX_INTERNAL_ERROR     SP_INTERNAL_ERROR
-#define EVEX_NO_DB_ERROR        SP_NO_DB_ERROR
+#define EVEX_OK                  0
+#define EVEX_KEY_NOT_FOUND      -1
+#define EVEX_OPEN_TABLE_FAILED  -2
+#define EVEX_WRITE_ROW_FAILED   -3
+#define EVEX_DELETE_ROW_FAILED  -4
+#define EVEX_GET_FIELD_FAILED   -5
+#define EVEX_PARSE_ERROR        -6
+#define EVEX_INTERNAL_ERROR     -7
+#define EVEX_NO_DB_ERROR        -8
 #define EVEX_COMPILE_ERROR     -19
 #define EVEX_GENERAL_ERROR     -20
-#define EVEX_BAD_IDENTIFIER     SP_BAD_IDENTIFIER
-#define EVEX_BODY_TOO_LONG      SP_BODY_TOO_LONG
-#define EVEX_BAD_PARAMS        -21
-#define EVEX_NOT_RUNNING       -22
-#define EVEX_MICROSECOND_UNSUP -23
+#define EVEX_BAD_IDENTIFIER    -21 
+#define EVEX_BODY_TOO_LONG     -22
+#define EVEX_BAD_PARAMS        -23
+#define EVEX_NOT_RUNNING       -24
+#define EVEX_MICROSECOND_UNSUP -25
+#define EVEX_CANT_KILL         -26
 
 #define EVENT_EXEC_NO_MORE      (1L << 0)
 #define EVENT_NOT_USED          (1L << 1)
+#define EVENT_FREE_WHEN_FINISHED (1L << 2)
 
-extern ulong opt_event_executor;
+class Event_timed;
 
-enum enum_event_on_completion
+class Events
 {
-  MYSQL_EVENT_ON_COMPLETION_DROP = 1,
-  MYSQL_EVENT_ON_COMPLETION_PRESERVE
+public:
+  static ulong opt_event_scheduler;
+  static TYPELIB opt_typelib;
+
+  enum enum_table_field
+  {
+    FIELD_DB = 0,
+    FIELD_NAME,
+    FIELD_BODY,
+    FIELD_DEFINER,
+    FIELD_EXECUTE_AT,
+    FIELD_INTERVAL_EXPR,
+    FIELD_TRANSIENT_INTERVAL,
+    FIELD_CREATED,
+    FIELD_MODIFIED,
+    FIELD_LAST_EXECUTED,
+    FIELD_STARTS,
+    FIELD_ENDS,
+    FIELD_STATUS,
+    FIELD_ON_COMPLETION,
+    FIELD_SQL_MODE,
+    FIELD_COMMENT,
+    FIELD_COUNT /* a cool trick to count the number of fields :) */
+  };
+
+  static int
+  create_event(THD *thd, Event_timed *et, uint create_options,
+               uint *rows_affected);
+
+  static int
+  update_event(THD *thd, Event_timed *et, sp_name *new_name,
+               uint *rows_affected);
+
+  static int
+  drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
+             uint *rows_affected);
+
+  static int
+  open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
+
+  static int
+  show_create_event(THD *thd, sp_name *spn, LEX_STRING definer);
+
+  static int
+  reconstruct_interval_expression(String *buf, interval_type interval,
+                                  longlong expression);
+
+  static int
+  drop_schema_events(THD *thd, char *db);
+  
+  static int
+  dump_internal_status(THD *thd);
+  
+  static int
+  init();
+  
+  static void
+  shutdown();
+
+  static void
+  init_mutexes();
+  
+  static void
+  destroy_mutexes();
+
+
+private:
+  /* Prevent use of these */
+  Events(const Events &);
+  void operator=(Events &);
 };
 
-enum enum_event_status
-{
-  MYSQL_EVENT_ENABLED = 1,
-  MYSQL_EVENT_DISABLED
-};
 
-enum evex_table_field
-{
-  EVEX_FIELD_DB = 0,
-  EVEX_FIELD_NAME,
-  EVEX_FIELD_BODY,
-  EVEX_FIELD_DEFINER,
-  EVEX_FIELD_EXECUTE_AT,
-  EVEX_FIELD_INTERVAL_EXPR,
-  EVEX_FIELD_TRANSIENT_INTERVAL,
-  EVEX_FIELD_CREATED,
-  EVEX_FIELD_MODIFIED,
-  EVEX_FIELD_LAST_EXECUTED,
-  EVEX_FIELD_STARTS,
-  EVEX_FIELD_ENDS,
-  EVEX_FIELD_STATUS,
-  EVEX_FIELD_ON_COMPLETION,
-  EVEX_FIELD_SQL_MODE,
-  EVEX_FIELD_COMMENT,
-  EVEX_FIELD_COUNT /* a cool trick to count the number of fields :) */
-} ;
+
+class sp_head;
 
 class Event_timed
 {
@@ -82,12 +127,26 @@ class Event_timed
   my_bool in_spawned_thread;
   ulong locked_by_thread_id;
   my_bool running;
+  ulong thread_id;
   pthread_mutex_t LOCK_running;
+  pthread_cond_t COND_finished;
 
   bool status_changed;
   bool last_executed_changed;
 
 public:
+  enum enum_status
+  {
+    ENABLED = 1,
+    DISABLED
+  };
+
+  enum enum_on_completion
+  {
+    ON_COMPLETION_DROP = 1,
+    ON_COMPLETION_PRESERVE
+  };
+
   TIME last_executed;
 
   LEX_STRING dbname;
@@ -111,8 +170,8 @@ public:
 
   ulonglong created;
   ulonglong modified;
-  enum enum_event_on_completion on_completion;
-  enum enum_event_status status;
+  enum enum_on_completion on_completion;
+  enum enum_status status;
   sp_head *sphead;
   ulong sql_mode;
   const uchar *body_begin;
@@ -153,36 +212,15 @@ public:
     DBUG_ASSERT(0);
   }
 
+  Event_timed();
 
-  Event_timed():in_spawned_thread(0),locked_by_thread_id(0),
-                running(0), status_changed(false),
-                last_executed_changed(false), expression(0), created(0),
-                modified(0), on_completion(MYSQL_EVENT_ON_COMPLETION_DROP),
-                status(MYSQL_EVENT_ENABLED), sphead(0), sql_mode(0), 
-                body_begin(0), dropped(false),
-                free_sphead_on_delete(true), flags(0)
-                
-  {
-    pthread_mutex_init(&this->LOCK_running, MY_MUTEX_INIT_FAST);
-    init();
-  }
-
-  ~Event_timed()
-  {    
-    deinit_mutexes();
-
-    if (free_sphead_on_delete)
-      free_sp();
-  }
+  ~Event_timed();
 
   void
   init();
-  
+
   void
-  deinit_mutexes()
-  {
-    pthread_mutex_destroy(&this->LOCK_running);
-  }
+  deinit_mutexes();
 
   int
   init_definer(THD *thd);
@@ -214,11 +252,11 @@ public:
   bool
   compute_next_execution_time();
 
-  void
-  mark_last_executed(THD *thd);
-
   int
   drop(THD *thd);
+
+  void
+  mark_last_executed(THD *thd);
 
   bool
   update_fields(THD *thd);
@@ -227,142 +265,32 @@ public:
   get_create_event(THD *thd, String *buf);
 
   int
-  execute(THD *thd, MEM_ROOT *mem_root= NULL);
+  execute(THD *thd, MEM_ROOT *mem_root);
 
   int
-  compile(THD *thd, MEM_ROOT *mem_root= NULL);
+  compile(THD *thd, MEM_ROOT *mem_root);
 
-  my_bool
-  is_running()
-  {
-    my_bool ret;
-
-    VOID(pthread_mutex_lock(&this->LOCK_running));
-    ret= running;
-    VOID(pthread_mutex_unlock(&this->LOCK_running));
-
-    return ret;
-  }
-
-  /*
-    Checks whether the object is being used in a spawned thread.
-    This method is for very basic checking. Use ::can_spawn_now_n_lock()
-    for most of the cases.
-  */
-
-  my_bool
-  can_spawn_now()
-  {
-    my_bool ret;
-    VOID(pthread_mutex_lock(&this->LOCK_running));
-    ret= !in_spawned_thread;
-    VOID(pthread_mutex_unlock(&this->LOCK_running));
-    return ret;  
-  }
-
-  /*
-    Checks whether this thread can lock the object for modification ->
-    preventing being spawned for execution, and locks if possible.
-    use ::can_spawn_now() only for basic checking because a race
-    condition may occur between the check and eventual modification (deletion)
-    of the object.
-  */
-
-  my_bool
-  can_spawn_now_n_lock(THD *thd);
+  bool
+  is_running();
 
   int
-  spawn_unlock(THD *thd);
-
-  int
-  spawn_now(void * (*thread_func)(void*));
+  spawn_now(void * (*thread_func)(void*), void *arg);
   
-  void
+  bool
   spawn_thread_finish(THD *thd);
   
   void
-  free_sp()
-  {
-    delete sphead;
-    sphead= 0;
-  }
-protected:
+  free_sp();
+
   bool
-  change_security_context(THD *thd, Security_context *s_ctx,
-                                       Security_context **backup);
+  has_equal_db(Event_timed *etn);
+
+  int
+  kill_thread(THD *thd);
 
   void
-  restore_security_context(THD *thd, Security_context *backup);
+  set_thread_id(ulong tid) { thread_id= tid; }
 };
 
-
-int
-evex_create_event(THD *thd, Event_timed *et, uint create_options,
-                  uint *rows_affected);
-
-int
-evex_update_event(THD *thd, Event_timed *et, sp_name *new_name,
-                  uint *rows_affected);
-
-int
-evex_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
-                uint *rows_affected);
-
-int
-evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
-
-int
-evex_show_create_event(THD *thd, sp_name *spn, LEX_STRING definer);
-
-int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
-
-int
-event_reconstruct_interval_expression(String *buf,
-                                      interval_type interval,
-                                      longlong expression);
-
-int
-evex_drop_db_events(THD *thd, char *db);
-
-
-int
-init_events();
-
-void
-shutdown_events();
-
-
-// auxiliary
-int
-event_timed_compare(Event_timed **a, Event_timed **b);
-
-
-
-/*
-CREATE TABLE event (
-  db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  name char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  body longblob NOT NULL,
-  definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  execute_at DATETIME default NULL,
-  interval_value int(11) default NULL,
-  interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK',
-                       'SECOND','MICROSECOND', 'YEAR_MONTH','DAY_HOUR',
-                       'DAY_MINUTE','DAY_SECOND',
-                       'HOUR_MINUTE','HOUR_SECOND',
-                       'MINUTE_SECOND','DAY_MICROSECOND',
-                       'HOUR_MICROSECOND','MINUTE_MICROSECOND',
-                       'SECOND_MICROSECOND') default NULL,
-  created TIMESTAMP NOT NULL,
-  modified TIMESTAMP NOT NULL,
-  last_executed DATETIME default NULL,
-  starts DATETIME default NULL,
-  ends DATETIME default NULL,
-  status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
-  on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
-  comment varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  PRIMARY KEY  (definer,db,name)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
-*/
 
 #endif /* _EVENT_H_ */

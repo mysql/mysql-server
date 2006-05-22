@@ -56,6 +56,8 @@
 #include <thr_alarm.h>
 #include <myisam.h>
 
+#include "event_scheduler.h"
+
 /* WITH_BERKELEY_STORAGE_ENGINE */
 extern bool berkeley_shared_data;
 extern ulong berkeley_max_lock, berkeley_log_buffer_size;
@@ -106,7 +108,6 @@ extern ulong ndb_report_thresh_binlog_mem_usage;
 
 
 
-extern my_bool event_executor_running_global_var;
 
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
@@ -225,9 +226,8 @@ sys_var_long_ptr	sys_delayed_insert_timeout("delayed_insert_timeout",
 						   &delayed_insert_timeout);
 sys_var_long_ptr	sys_delayed_queue_size("delayed_queue_size",
 					       &delayed_queue_size);
-sys_var_event_executor  sys_event_executor("event_scheduler",
-					   (my_bool *)
-					   &event_executor_running_global_var);
+
+sys_var_event_scheduler sys_event_scheduler("event_scheduler");
 sys_var_long_ptr	sys_expire_logs_days("expire_logs_days",
 					     &expire_logs_days);
 sys_var_bool_ptr	sys_flush("flush", &myisam_flush);
@@ -768,7 +768,7 @@ SHOW_VAR init_vars[]= {
   {sys_div_precincrement.name,(char*) &sys_div_precincrement,SHOW_SYS},
   {sys_engine_condition_pushdown.name,
    (char*) &sys_engine_condition_pushdown,                          SHOW_SYS},
-  {sys_event_executor.name,   (char*) &sys_event_executor,          SHOW_SYS},
+  {sys_event_scheduler.name,  (char*) &sys_event_scheduler,         SHOW_SYS},
   {sys_expire_logs_days.name, (char*) &sys_expire_logs_days,        SHOW_SYS},
   {sys_flush.name,             (char*) &sys_flush,                  SHOW_SYS},
   {sys_flush_time.name,        (char*) &sys_flush_time,             SHOW_SYS},
@@ -3631,6 +3631,68 @@ byte *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
     DBUG_EXPLAIN(buf, sizeof(buf));
   return (byte*) thd->strdup(buf);
 }
+
+
+/*
+   The update method of the global variable event_scheduler.
+   If event_scheduler is switched from 0 to 1 then the scheduler main
+   thread is resumed and if from 1 to 0 the scheduler thread is suspended
+
+   SYNOPSIS
+     sys_var_event_scheduler::update()
+       thd  Thread context (unused)
+       var  The new value
+
+   Returns
+     FALSE  OK
+     TRUE   Error
+*/
+
+bool
+sys_var_event_scheduler::update(THD *thd, set_var *var)
+{
+  enum Event_scheduler::enum_error_code res;
+  Event_scheduler *scheduler= Event_scheduler::get_instance();
+  /* here start the thread if not running. */
+  DBUG_ENTER("sys_var_event_scheduler::update");
+
+  DBUG_PRINT("new_value", ("%lu", (bool)var->save_result.ulong_value));
+  if (!scheduler->initialized())
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--event-scheduler=0");
+    DBUG_RETURN(true);
+  }
+
+  if (var->save_result.ulong_value < 1 || var->save_result.ulong_value > 2)
+  {
+    char buf[64];
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "event_scheduler",
+             llstr(var->save_result.ulong_value, buf));
+    DBUG_RETURN(true);
+  }
+  if ((res= scheduler->suspend_or_resume(var->save_result.ulong_value == 1?
+                                         Event_scheduler::RESUME:
+                                         Event_scheduler::SUSPEND)))
+    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0), (uint) res);
+  DBUG_RETURN((bool) res);
+}
+
+
+byte *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
+                                         LEX_STRING *base)
+{
+  Event_scheduler *scheduler= Event_scheduler::get_instance();
+
+  if (!scheduler->initialized())
+    thd->sys_var_tmp.long_value= 0;
+  else if (scheduler->get_state() == Event_scheduler::RUNNING)
+    thd->sys_var_tmp.long_value= 1;
+  else
+    thd->sys_var_tmp.long_value= 2;
+
+  return (byte*) &thd->sys_var_tmp;
+}
+
 
 /****************************************************************************
   Used templates
