@@ -8,6 +8,9 @@
 #
 --source include/not_windows.inc
 
+# This test uses chmod, can't be run with root permissions
+-- source include/not_as_root.inc
+
 
 #
 # Bug #15851 Unlistable directories yield no info from information_schema
