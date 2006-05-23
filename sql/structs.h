@@ -20,22 +20,6 @@
 struct st_table;
 class Field;
 
-typedef struct st_lex_string
-{
-  char *str;
-  uint length;
-} LEX_STRING;
-
-typedef struct st_lex_string_with_init :public st_lex_string
-{
-  st_lex_string_with_init(const char *str_arg, uint length_arg)
-  {
-    str= (char*) str_arg;
-    length= length_arg;
-  }
-} LEX_STRING_WITH_INIT;
-
-
 typedef struct st_date_time_format {
   uchar positions[8];
   char  time_separator;			/* Separator between hour and minute */

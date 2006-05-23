@@ -240,4 +240,22 @@ extern int my_snprintf(char* to, size_t n, const char* fmt, ...);
 #if defined(__cplusplus)
 }
 #endif
+
+/*
+  LEX_STRING -- a pair of a C-string and its length.
+
+  NOTE: this exactly form of declaration is required for some C-compilers
+  (for one, Sun C 5.7 2005/01/07). Unfortunatelt with such declaration
+  LEX_STRING can not be forward declared.
+*/
+
+typedef struct
+{
+  char *str;
+  uint length;
+} LEX_STRING;
+
+#define STRING_WITH_LEN(X) (X), ((uint) (sizeof(X) - 1))
+#define C_STRING_WITH_SIZE(X) ((char *) (X)), ((uint) (sizeof(X) - 1))
+
 #endif

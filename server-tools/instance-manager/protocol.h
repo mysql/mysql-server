@@ -20,11 +20,6 @@
 
 #include <my_list.h>
 
-typedef struct field {
-  char *name;
-  uint length;
-} NAME_WITH_LENGTH;
-
 /* default field length to be used in various field-realted functions */
 enum { DEFAULT_FIELD_LENGTH= 20 };
 

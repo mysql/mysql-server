@@ -16,13 +16,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <my_global.h>
+#include <m_string.h>
+#include <my_pthread.h>
+
 #include <sys/types.h>
-#ifdef __WIN__
-#include "portability.h"
-#else
+
+#ifndef __WIN__
 #include <unistd.h>
 #endif
-#include "my_pthread.h"
+
+#include "portability.h"
 
 /* IM-wide platform-independent defines */
 #define SERVER_DEFAULT_PORT 3306
@@ -30,6 +34,21 @@
 #define DEFAULT_PORT 2273
 /* three-week timeout should be enough */
 #define LONG_TIMEOUT ((ulong) 3600L*24L*21L)
+
+const int MEM_ROOT_BLOCK_SIZE= 512;
+
+/* The maximal length of option name and option value. */
+const int MAX_OPTION_LEN= 1024;
+
+/*
+  The maximal length of whole option string:
+    --<option name>=<option value>
+*/
+const int MAX_OPTION_STR_LEN= 2 + MAX_OPTION_LEN + 1 + MAX_OPTION_LEN + 1;
+
+const int MAX_VERSION_LENGTH= 160;
+
+const int MAX_INSTANCE_NAME_SIZE= FN_REFLEN;
 
 /* the pid of the manager process (of the signal thread on the LinuxThreads) */
 extern pid_t manager_pid;
@@ -42,8 +61,7 @@ extern pid_t manager_pid;
 extern bool linuxthreads;
 #endif
 
-extern const char mysqlmanager_version[];
-extern const int mysqlmanager_version_length;
+extern const LEX_STRING mysqlmanager_version;
 
 /* MySQL client-server protocol version: substituted from configure */
 extern const unsigned char protocol_version;

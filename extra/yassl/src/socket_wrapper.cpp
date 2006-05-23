@@ -58,7 +58,7 @@ namespace yaSSL {
 
 
 Socket::Socket(socket_t s) 
-    : socket_(s) 
+    : socket_(s), wouldBlock_(false)
 {}
 
 
@@ -123,16 +123,20 @@ uint Socket::send(const byte* buf, unsigned int sz, int flags) const
 }
 
 
-uint Socket::receive(byte* buf, unsigned int sz, int flags) const
+uint Socket::receive(byte* buf, unsigned int sz, int flags)
 {
     assert(socket_ != INVALID_SOCKET);
+    wouldBlock_ = false;
+
     int recvd = ::recv(socket_, reinterpret_cast<char *>(buf), sz, flags);
 
     // idea to seperate error from would block by arnetheduck@gmail.com
     if (recvd == -1) {
         if (get_lastError() == SOCKET_EWOULDBLOCK || 
-            get_lastError() == SOCKET_EAGAIN)
+            get_lastError() == SOCKET_EAGAIN) {
+            wouldBlock_ = true;
         return 0;
+    }
     }
     else if (recvd == 0)
         return static_cast<uint>(-1);
@@ -142,7 +146,7 @@ uint Socket::receive(byte* buf, unsigned int sz, int flags) const
 
 
 // wait if blocking for input, return false for error
-bool Socket::wait() const
+bool Socket::wait()
 {
     byte b;
     return receive(&b, 1, MSG_PEEK) != static_cast<uint>(-1);
@@ -163,6 +167,12 @@ int Socket::get_lastError()
 #else
     return errno;
 #endif
+}
+
+
+bool Socket::WouldBlock() const
+{
+    return wouldBlock_;
 }
 
 

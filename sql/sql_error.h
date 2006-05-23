@@ -40,3 +40,5 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
 			 uint code, const char *format, ...);
 void mysql_reset_errors(THD *thd, bool force);
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
+
+extern LEX_STRING warning_level_names[];
