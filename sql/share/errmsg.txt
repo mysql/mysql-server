@@ -5840,3 +5840,6 @@ ER_NULL_IN_VALUES_LESS_THAN
 ER_WRONG_PARTITION_NAME
         eng "Incorrect partition name"
         swe "Felaktigt partitionsnamn"
+ER_PARTITION_MERGE_ERROR
+        eng "MyISAM Merge handler cannot be used in partitioned tables"
+        swe "MyISAM Merge kan inte anändas i en partitionerad tabell"
