@@ -886,4 +886,8 @@ s1
 2
 3
 drop table t1;
+create table t1 (a int)
+partition by key (a)
+(partition p0 engine = MERGE);
+ERROR HY000: MyISAM Merge handler cannot be used in partitioned tables
 End of 5.1 tests
