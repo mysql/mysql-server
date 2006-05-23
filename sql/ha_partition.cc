@@ -1108,8 +1108,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                      part));
           if ((error= handle_opt_part(thd, check_opt, m_file[part], flag)))
           {
-            my_error(ER_GET_ERRNO, MYF(0), error);
-            DBUG_RETURN(TRUE);
+            DBUG_RETURN(error);
           }
         } while (++j < no_subparts);
       }
@@ -1118,8 +1117,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
         DBUG_PRINT("info", ("Optimize partition %u", i));
         if ((error= handle_opt_part(thd, check_opt, m_file[i], flag)))
         {
-          my_error(ER_GET_ERRNO, MYF(0), error);
-          DBUG_RETURN(TRUE);
+          DBUG_RETURN(error);
         }
       }
     }
