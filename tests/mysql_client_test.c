@@ -11554,25 +11554,26 @@ static void test_bug7990()
 static void test_bug8378()
 {
 #if defined(HAVE_CHARSET_gbk) && !defined(EMBEDDED_LIBRARY)
-  MYSQL *lmysql;
+  MYSQL *old_mysql=mysql;
   char out[9]; /* strlen(TEST_BUG8378)*2+1 */
-  int len;
+  char buf[256];
+  int len, rc;
 
   myheader("test_bug8378");
 
   if (!opt_silent)
     fprintf(stdout, "\n Establishing a test connection ...");
-  if (!(lmysql= mysql_init(NULL)))
+  if (!(mysql= mysql_init(NULL)))
   {
     myerror("mysql_init() failed");
     exit(1);
   }
-  if (mysql_options(lmysql, MYSQL_SET_CHARSET_NAME, "gbk"))
+  if (mysql_options(mysql, MYSQL_SET_CHARSET_NAME, "gbk"))
   {
     myerror("mysql_options() failed");
     exit(1);
   }
-  if (!(mysql_real_connect(lmysql, opt_host, opt_user,
+  if (!(mysql_real_connect(mysql, opt_host, opt_user,
                            opt_password, current_db, opt_port,
                            opt_unix_socket, 0)))
   {
@@ -11582,12 +11583,18 @@ static void test_bug8378()
   if (!opt_silent)
     fprintf(stdout, " OK");
 
-  len= mysql_real_escape_string(lmysql, out, TEST_BUG8378_IN, 4);
+  len= mysql_real_escape_string(mysql, out, TEST_BUG8378_IN, 4);
 
   /* No escaping should have actually happened. */
   DIE_UNLESS(memcmp(out, TEST_BUG8378_OUT, len) == 0);
 
-  mysql_close(lmysql);
+  sprintf(buf, "SELECT '%s'", out);
+  rc=mysql_real_query(mysql, buf, strlen(buf));
+  myquery(rc);
+
+  mysql_close(mysql);
+
+  mysql=old_mysql;
 #endif
 }
 
