@@ -256,6 +256,8 @@ public:
   int stopNodes(const Vector<NodeId> &node_ids, int *stopCount, bool abort,
                 int *stopSelf);
 
+  int shutdownMGM(int *stopCount, bool abort, int *stopSelf);
+
   /**
    * shutdown the DB nodes
    */
