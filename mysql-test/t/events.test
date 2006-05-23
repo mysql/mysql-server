@@ -15,11 +15,10 @@ CREATE EVENT e_x2 ON SCHEDULE EVERY 1 SECOND DO DROP TABLE x_table;
 connection default;
 SHOW DATABASES LIKE 'db_x';
 SET GLOBAL event_scheduler=1;
---sleep 2
+--sleep 1.5
 SHOW DATABASES LIKE 'db_x';
 SHOW TABLES FROM db_x;
-SET GLOBAL event_scheduler=0;
---sleep 1
+SET GLOBAL event_scheduler=2;
 connection priv_conn;
 DROP EVENT e_x1;
 DROP EVENT e_x2;
@@ -31,8 +30,7 @@ USE events_test;
 #
 # END:    BUG #17289 Events: missing privilege check for drop database
 #
-SET GLOBAL event_scheduler=0;
---sleep 1
+SET GLOBAL event_scheduler=2;
 drop event if exists event1;
 create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
 alter event event1 rename to event2 enable;
@@ -92,11 +90,11 @@ drop event e_43;
 --echo "Let's check whether we can use non-qualified names"
 create table non_qualif(a int);
 create event non_qualif_ev on schedule every 10 minute do insert into non_qualif values (800219);
---sleep 2
+--sleep 1
 select * from non_qualif;
 drop event non_qualif_ev;
 drop table non_qualif;
-set global event_scheduler = 0;
+set global event_scheduler = 2;
 
 create table t_event3 (a int, b float);
 drop event if exists event3;
@@ -281,15 +279,15 @@ SHOW EVENTS;
 
 --echo "This should show us only 3 events:";
 --replace_column 8 # 9 #
-SHOW FULL EVENTS;
+SHOW EVENTS;
 
 --echo "This should show us only 2 events:";
 --replace_column 8 # 9 #
-SHOW FULL EVENTS LIKE 't%event';
+SHOW EVENTS LIKE 't%event';
 
 --echo "This should show us no events:";
 --replace_column 8 # 9 #
-SHOW FULL EVENTS FROM test LIKE '%';
+SHOW EVENTS FROM test LIKE '%';
 #ok, we are back
 connection default;
 DROP DATABASE events_test2;
@@ -300,7 +298,7 @@ SHOW EVENTS;
 
 --echo "we should see 4 events now:";
 --replace_column 8 # 9 #
-SHOW FULL EVENTS;
+SHOW EVENTS;
 SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
 
 connection ev_con1;
@@ -330,21 +328,21 @@ create event задачка on schedule every 123 minute starts now() ends now()
 drop event задачка;
 
 # event_scheduler is a global var
---error 1229
-set event_scheduler=0;
-# event_scheduler could be only either 0 or 1
---error 1231
-set global event_scheduler=2;
+--error ER_GLOBAL_VARIABLE
+set event_scheduler=2;
+# event_scheduler could be only either 1 or 2
+--error ER_WRONG_VALUE_FOR_VAR
+set global event_scheduler=3;
 
 --echo "DISABLE the scheduler. Testing that it does not work when the variable is 0"
-set global event_scheduler=0;
+set global event_scheduler=2;
 select definer, name, db from mysql.event;
 select get_lock("test_lock1", 20);
 create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
 --echo "Should return 1 row"
 select definer, name, db from mysql.event;
 
---echo "Should be 0 processes"
+--echo "Should be only 1 process"
 select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock("test_lock1");
 drop event закачка;
@@ -362,7 +360,7 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 --echo "Let some time pass to the event starts"
 --sleep 2
 --echo "Should have only 2 processes: the scheduler and the locked event"
-select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;--echo "Release the mutex, the event worker should finish."
 --echo "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
 drop event закачка;
@@ -379,18 +377,11 @@ set global event_scheduler=1;
 select get_lock("test_lock2_1", 20);
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
 --sleep 1
---echo "Should see 1 process, locked on get_lock("
-#select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
---echo "Shutting down the scheduler, it should wait for the running event"
-set global event_scheduler=0;
---sleep 1
---echo "Should have only 2 processes: the scheduler and the locked event"
+--echo "Should have only 3 processes: the scheduler, our conn and the locked event"
+select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+set global event_scheduler=2;
+--echo "Should have only our process now:"
 select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
---echo "Release the lock so the child process should finish. Hence the scheduler also"
-select release_lock("test_lock2_1");
---sleep 1
---echo "Should see 0 processes now:"
-select /*5*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 drop event закачка21;
 
 ####
@@ -418,6 +409,7 @@ create event white_space on schedule every 10 hour disable do
 
 select 2;
 select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
+select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
 drop event white_space;
 create event white_space on schedule every 10 hour disable do	select 3;
 select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
@@ -426,7 +418,7 @@ drop event white_space;
 # END:  BUG #17453: Creating Event crash the server
 #
 
-##set global event_scheduler=1;
+#
 # Bug#17403 "Events: packets out of order with show create event"
 #
 create event e1 on schedule every 1 year do set @a = 5;
@@ -440,7 +432,7 @@ drop event e1;
 ##select get_lock("test_lock3", 20);
 ##create event закачка on schedule every 10 hour do select get_lock("test_lock3", 20);
 ##select sleep(2);
-##show processlist;
+##select /*5*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 ##drop event закачка;
 ##select release_lock("test_lock3");
 
@@ -450,14 +442,14 @@ drop event e1;
 ##select get_lock("test_lock4", 20);
 ##create event закачка4 on schedule every 1 second do select get_lock("test_lock4", 20);
 ##select sleep(3);
-##--replace_column 1 # 6 #
+##select /*6*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 ##drop event закачка4;
 ##select release_lock("test_lock4");
 
-##set global event_scheduler=0;
+##set global event_scheduler=2;
 ##select sleep(2);
 ##--replace_column 1 # 6 #
+##show processlist;
 ##select count(*) from mysql.event;
 
 drop database events_test;
-

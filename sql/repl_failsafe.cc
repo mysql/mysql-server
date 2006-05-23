@@ -61,12 +61,13 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
 static int init_failsafe_rpl_thread(THD* thd)
 {
   DBUG_ENTER("init_failsafe_rpl_thread");
+  thd->system_thread = SYSTEM_THREAD_DELAYED_INSERT;
   /*
     thd->bootstrap is to report errors barely to stderr; if this code is
     enable again one day, one should check if bootstrap is still needed (maybe
     this thread has no other error reporting method).
   */
-  thd->system_thread = thd->bootstrap = 1;
+  thd->bootstrap = 1;
   thd->security_ctx->skip_grants();
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
