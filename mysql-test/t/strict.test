@@ -1145,3 +1145,13 @@ create table t1(a bit(2));
 insert into t1 values(b'101');
 select * from t1;
 drop table t1;
+
+#
+# Bug#17626 CREATE TABLE ... SELECT failure with TRADITIONAL SQL mode
+#
+set sql_mode='traditional';
+create table t1 (date date not null);
+create table t2 select date from t1;
+show create table t2;
+drop table t2,t1;
+set @@sql_mode= @org_mode;
