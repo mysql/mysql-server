@@ -849,16 +849,6 @@ extern "C" {
 				enum ndb_mgm_event_category category,
 				int level,
 				struct ndb_mgm_reply* reply);
-
-  /**
-   * Returns the port number where statistics information is sent
-   *
-   * @param   handle        NDB management handle.
-   * @param   reply         Reply message.
-   * @return                -1 on error.
-   */
-  int ndb_mgm_get_stat_port(NdbMgmHandle handle,
-			    struct ndb_mgm_reply* reply);
 #endif
 
   /**
