@@ -2573,6 +2573,7 @@ row_sel_store_mysql_rec(
 {
 	mysql_row_templ_t*	templ;
 	mem_heap_t*		extern_field_heap	= NULL;
+	mem_heap_t*		heap;
 	byte*			data;
 	ulint			len;
 	ulint			i;
@@ -2597,7 +2598,19 @@ row_sel_store_mysql_rec(
 
 			ut_a(!prebuilt->trx->has_search_latch);
 
-			extern_field_heap = mem_heap_create(UNIV_PAGE_SIZE);
+			if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
+				if (prebuilt->blob_heap == NULL) {
+					prebuilt->blob_heap =
+						mem_heap_create(UNIV_PAGE_SIZE);
+				}
+
+				heap = prebuilt->blob_heap;
+			} else {
+				extern_field_heap =
+					mem_heap_create(UNIV_PAGE_SIZE);
+
+				heap = extern_field_heap;
+			}
 
 			/* NOTE: if we are retrieving a big BLOB, we may
 			already run out of memory in the next call, which
@@ -2605,7 +2618,7 @@ row_sel_store_mysql_rec(
 
 			data = btr_rec_copy_externally_stored_field(rec,
 					offsets, templ->rec_field_no, &len,
-					extern_field_heap);
+					heap);
 
 			ut_a(len != UNIV_SQL_NULL);
 		} else {
@@ -2616,48 +2629,6 @@ row_sel_store_mysql_rec(
 		}
 
 		if (len != UNIV_SQL_NULL) {
-			if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
-
-				ut_a(prebuilt->templ_contains_blob);
-
-				/* A heuristic test that we can allocate the
-				memory for a big BLOB. We have a safety margin
-				of 1000000 bytes. Since the test takes some
-				CPU time, we do not use it for small BLOBs. */
-
-				if (UNIV_UNLIKELY(len > 2000000)
-					&& UNIV_UNLIKELY(!ut_test_malloc(
-								 len + 1000000))) {
-
-					ut_print_timestamp(stderr);
-					fprintf(stderr,
-"  InnoDB: Warning: could not allocate %lu + 1000000 bytes to retrieve\n"
-"InnoDB: a big column. Table name ", (ulong) len);
-					ut_print_name(stderr,
-						prebuilt->trx,
-						prebuilt->table->name);
-					putc('\n', stderr);
-
-					if (extern_field_heap) {
-						mem_heap_free(
-							extern_field_heap);
-					}
-					return(FALSE);
-				}
-
-				/* Copy the BLOB data to the BLOB heap of
-				prebuilt */
-
-				if (prebuilt->blob_heap == NULL) {
-					prebuilt->blob_heap =
-						mem_heap_create(len);
-				}
-
-				data = memcpy(mem_heap_alloc(
-						prebuilt->blob_heap, len),
-						data, len);
-			}
-
 			row_sel_field_store_in_mysql_format(
 				mysql_rec + templ->mysql_col_offset,
 				templ, data, len);
