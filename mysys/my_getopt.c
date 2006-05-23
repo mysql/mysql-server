@@ -486,7 +486,7 @@ invalid value '%s'\n",
       }
       get_one_option(optp->id, optp, argument);
 
-      (*argc)--; /* option handled (short or long), decrease argument count */
+      (*argc)--; /* option handled (short or long), decrease argument count */
     }
     else /* non-option found */
       (*argv)[argvpos++]= cur_arg;
