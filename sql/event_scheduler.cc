@@ -236,9 +236,16 @@
   about conditional variables used.
 */
 
+#ifdef __GNUC__
+#if __GNUC__ >= 2
+#define SCHED_FUNC __FUNCTION__
+#endif
+#else
+#define SCHED_FUNC "<unknown>"
+#endif
 
-#define LOCK_SCHEDULER_DATA()   lock_data(__FUNCTION__,__LINE__)
-#define UNLOCK_SCHEDULER_DATA() unlock_data(__FUNCTION__,__LINE__)
+#define LOCK_SCHEDULER_DATA()   lock_data(SCHED_FUNC, __LINE__)
+#define UNLOCK_SCHEDULER_DATA() unlock_data(SCHED_FUNC, __LINE__)
 
 
 #ifndef DBUG_OFF
