@@ -20,18 +20,27 @@
 
 #include "instance.h"
 
-#include "mysql_manager_error.h"
-#include "log.h"
-#include "instance_map.h"
-#include "priv.h"
-#include "portability.h"
+#include <my_global.h>
+#include <mysql.h>
+
+#include <signal.h>
 #ifndef __WIN__
 #include <sys/wait.h>
 #endif
-#include <my_sys.h>
-#include <signal.h>
-#include <m_string.h>
-#include <mysql.h>
+
+#include "guardian.h"
+#include "instance_map.h"
+#include "log.h"
+#include "mysql_manager_error.h"
+#include "portability.h"
+#include "priv.h"
+
+
+const LEX_STRING
+Instance::DFLT_INSTANCE_NAME= { C_STRING_WITH_SIZE("mysqld") };
+
+static const char * const INSTANCE_NAME_PREFIX= Instance::DFLT_INSTANCE_NAME.str;
+static const int INSTANCE_NAME_PREFIX_LEN= Instance::DFLT_INSTANCE_NAME.length;
 
 
 static void start_and_monitor_instance(Instance_options *old_instance_options,
@@ -152,7 +161,7 @@ static int start_process(Instance_options *instance_options,
 
   switch (*pi) {
   case 0:                                       /* never happens on QNX */
-    execv(instance_options->mysqld_path, instance_options->argv);
+    execv(instance_options->mysqld_path.str, instance_options->argv);
     /* exec never returns */
     exit(1);
   case -1:
@@ -180,7 +189,7 @@ static int start_process(Instance_options *instance_options,
   char *cmdline= new char[cmdlen];
   if (cmdline == NULL)
     return 1;
-    
+
   cmdline[0]= 0;
   for (int i= 0; instance_options->argv[i] != 0; i++)
   {
@@ -232,9 +241,7 @@ static int start_process(Instance_options *instance_options,
 static void start_and_monitor_instance(Instance_options *old_instance_options,
                                        Instance_map *instance_map)
 {
-  enum { MAX_INSTANCE_NAME_LEN= 512 };
-  char instance_name_buff[MAX_INSTANCE_NAME_LEN];
-  uint instance_name_len;
+  Instance_name instance_name(&old_instance_options->instance_name);
   Instance *current_instance;
   My_process_info process_info;
 
@@ -248,11 +255,8 @@ static void start_and_monitor_instance(Instance_options *old_instance_options,
     Save the instance name in the case if Instance object we
     are using is destroyed. (E.g. by "FLUSH INSTANCES")
   */
-  strmake(instance_name_buff, old_instance_options->instance_name,
-          MAX_INSTANCE_NAME_LEN - 1);
-  instance_name_len= old_instance_options->instance_name_len;
 
-  log_info("starting instance %s", instance_name_buff);
+  log_info("starting instance %s", (const char *) instance_name.get_c_str());
 
   if (start_process(old_instance_options, &process_info))
   {
@@ -266,12 +270,33 @@ static void start_and_monitor_instance(Instance_options *old_instance_options,
   /* don't check for return value */
   wait_process(&process_info);
 
-  current_instance= instance_map->find(instance_name_buff, instance_name_len);
+  instance_map->lock();
+
+  current_instance= instance_map->find(instance_name.get_str());
 
   if (current_instance)
     current_instance->set_crash_flag_n_wake_all();
 
+  instance_map->unlock();
+
   return;
+}
+
+
+bool Instance::is_name_valid(const LEX_STRING *name)
+{
+  const char *name_suffix= name->str + INSTANCE_NAME_PREFIX_LEN;
+
+  if (strncmp(name->str, INSTANCE_NAME_PREFIX, INSTANCE_NAME_PREFIX_LEN) != 0)
+    return FALSE;
+
+  return *name_suffix == 0 || my_isdigit(default_charset_info, *name_suffix);
+}
+
+
+bool Instance::is_mysqld_compatible_name(const LEX_STRING *name)
+{
+  return strcmp(name->str, INSTANCE_NAME_PREFIX) == 0;
 }
 
 
@@ -309,11 +334,11 @@ int Instance::start()
 {
   /* clear crash flag */
   pthread_mutex_lock(&LOCK_instance);
-  crashed= 0;
+  crashed= FALSE;
   pthread_mutex_unlock(&LOCK_instance);
 
 
-  if (!is_running())
+  if (configured && !is_running())
   {
     remove_pid();
 
@@ -339,8 +364,8 @@ int Instance::start()
     return 0;
   }
 
-  /* the instance is started already */
-  return ER_INSTANCE_ALREADY_STARTED;
+  /* The instance is started already or misconfigured. */
+  return configured ? ER_INSTANCE_ALREADY_STARTED : ER_INSTANCE_MISCONFIGURED;
 }
 
 /*
@@ -363,7 +388,7 @@ void Instance::set_crash_flag_n_wake_all()
 {
   /* set instance state to crashed */
   pthread_mutex_lock(&LOCK_instance);
-  crashed= 1;
+  crashed= TRUE;
   pthread_mutex_unlock(&LOCK_instance);
 
   /*
@@ -378,7 +403,7 @@ void Instance::set_crash_flag_n_wake_all()
 
 
 
-Instance::Instance(): crashed(0)
+Instance::Instance(): crashed(FALSE), configured(FALSE)
 {
   pthread_mutex_init(&LOCK_instance, 0);
   pthread_cond_init(&COND_instance_stopped, 0);
@@ -392,9 +417,9 @@ Instance::~Instance()
 }
 
 
-int Instance::is_crashed()
+bool Instance::is_crashed()
 {
-  int val;
+  bool val;
   pthread_mutex_lock(&LOCK_instance);
   val= crashed;
   pthread_mutex_unlock(&LOCK_instance);
@@ -413,10 +438,17 @@ bool Instance::is_running()
   bool return_val;
 
   if (options.mysqld_port)
+  {
+    /*
+      NOTE: it is important to check mysqld_port here, but use
+      mysqld_port_val. The idea is that if the option is unset, mysqld_port
+      will be NULL, but mysqld_port_val will not be reset.
+    */
     port= options.mysqld_port_val;
+  }
 
   if (options.mysqld_socket)
-    socket= strchr(options.mysqld_socket, '=') + 1;
+    socket= options.mysqld_socket;
 
   /* no port was specified => instance falled back to default value */
   if (!options.mysqld_port && !options.mysqld_socket)
@@ -469,8 +501,15 @@ int Instance::stop()
   struct timespec timeout;
   uint waitchild= (uint)  DEFAULT_SHUTDOWN_DELAY;
 
-  if (options.shutdown_delay_val)
+  if (options.shutdown_delay)
+  {
+    /*
+      NOTE: it is important to check shutdown_delay here, but use
+      shutdown_delay_val. The idea is that if the option is unset,
+      shutdown_delay will be NULL, but shutdown_delay_val will not be reset.
+    */
     waitchild= options.shutdown_delay_val;
+  }
 
   kill_instance(SIGTERM);
   /* sleep on condition to wait for SIGCHLD */
@@ -588,20 +627,33 @@ void Instance::kill_instance(int signum)
 }
 
 /*
-  We execute this function to initialize instance parameters.
-  Return value: 0 - ok. 1 - unable to init DYNAMIC_ARRAY.
+  Initialize instance parameters.
+
+  SYNOPSYS
+    Instance::init()
+    name_arg      name of the instance
+
+  RETURN:
+    0             ok
+    !0            error
 */
 
-int Instance::init(const char *name_arg)
+int Instance::init(const LEX_STRING *name_arg)
 {
+  mysqld_compatible= is_mysqld_compatible_name(name_arg);
+
   return options.init(name_arg);
 }
 
 
 int Instance::complete_initialization(Instance_map *instance_map_arg,
-                                      const char *mysqld_path,
-                                      uint instance_type)
+                                      const char *mysqld_path)
 {
   instance_map= instance_map_arg;
-  return options.complete_initialization(mysqld_path, instance_type);
+  configured= !options.complete_initialization(mysqld_path);
+  return 0;
+  /*
+    TODO: return actual status (from
+    Instance_options::complete_initialization()) here.
+  */
 }

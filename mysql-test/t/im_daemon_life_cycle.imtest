@@ -10,6 +10,9 @@
 
 ###########################################################################
 
+--sleep 3
+# should be longer than monitoring interval and enough to start instance.
+
 SHOW INSTANCES;
 
 --exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted

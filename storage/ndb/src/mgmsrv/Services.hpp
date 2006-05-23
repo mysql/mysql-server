@@ -53,7 +53,6 @@ public:
   virtual ~MgmApiSession();
   void runSession();
 
-  void getStatPort(Parser_t::Context &ctx, const class Properties &args);
   void getConfig(Parser_t::Context &ctx, const class Properties &args);
 #ifdef MGM_GET_CONFIG_BACKWARDS_COMPAT
   void getConfig_old(Parser_t::Context &ctx);

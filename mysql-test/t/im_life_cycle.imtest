@@ -17,11 +17,15 @@
 #
 ###########################################################################
 
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.1.
+--echo --------------------------------------------------------------------
+
+--sleep 3
+# should be longer than monitoring interval and enough to start instance.
+
 SHOW INSTANCES;
---replace_column 3 VERSION_NUMBER 4 VERSION
-SHOW INSTANCE STATUS mysqld1;
---replace_column 3 VERSION_NUMBER 4 VERSION
-SHOW INSTANCE STATUS mysqld2;
 
 ###########################################################################
 #
@@ -33,20 +37,22 @@ SHOW INSTANCE STATUS mysqld2;
 #
 ###########################################################################
 
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.2.
+--echo --------------------------------------------------------------------
+
 START INSTANCE mysqld2;
-# FIXME
+# FIXME: START INSTANCE should be synchronous.
 --sleep 3
+# should be longer than monitoring interval and enough to start instance.
 
 SHOW INSTANCES;
---replace_column 3 VERSION_NUMBER 4 VERSION
-SHOW INSTANCE STATUS mysqld1;
---replace_column 3 VERSION_NUMBER 4 VERSION
-SHOW INSTANCE STATUS mysqld2;
 
---connect (mysql_con,localhost,root,,mysql,$IM_MYSQLD1_PORT,$IM_MYSQLD1_SOCK)
+--connect (mysql_con,localhost,root,,mysql,$IM_MYSQLD2_PORT,$IM_MYSQLD2_SOCK)
 --connection mysql_con
 
---replace_result $IM_MYSQLD1_PORT IM_MYSQLD1_PORT
+--replace_result $IM_MYSQLD2_PORT IM_MYSQLD2_PORT
 SHOW VARIABLES LIKE 'port';
 
 --connection default
@@ -61,9 +67,15 @@ SHOW VARIABLES LIKE 'port';
 #
 ###########################################################################
 
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.3.
+--echo --------------------------------------------------------------------
+
 STOP INSTANCE mysqld2;
-# FIXME
+# FIXME: STOP INSTANCE should be synchronous.
 --sleep 3
+# should be longer than monitoring interval and enough to stop instance.
 
 SHOW INSTANCES;
 --replace_column 3 VERSION_NUMBER 4 VERSION
@@ -81,15 +93,16 @@ SHOW INSTANCE STATUS mysqld2;
 #
 ###########################################################################
 
---error 3000
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.4.
+--echo --------------------------------------------------------------------
+
+--error 3000 # ER_BAD_INSTANCE_NAME
 START INSTANCE mysqld3;
 
---error 3002
+--error 3002 # ER_INSTANCE_ALREADY_STARTED
 START INSTANCE mysqld1;
-
-# FIXME TODO
-# BUG#12813: START/STOP INSTANCE commands accept a list as argument
-# START INSTANCE mysqld1, mysqld2;
 
 ###########################################################################
 #
@@ -101,17 +114,18 @@ START INSTANCE mysqld1;
 #
 ###########################################################################
 
---error 3000
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.5.
+--echo --------------------------------------------------------------------
+
+--error 3000 # ER_BAD_INSTANCE_NAME
 STOP INSTANCE mysqld3;
 
 # TODO: IM should be fixed.
 # BUG#12673: Instance Manager allows to stop the instance many times
-# --error 3002
+# --error 3002 # ER_INSTANCE_ALREADY_STARTED
 # STOP INSTANCE mysqld2;
-
-# FIXME TODO
-# BUG#12813: START/STOP INSTANCE commands accept a list as argument
-# STOP INSTANCE mysqld1, mysqld2;
 
 ###########################################################################
 #
@@ -119,9 +133,17 @@ STOP INSTANCE mysqld3;
 #
 ###########################################################################
 
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.6.
+--echo --------------------------------------------------------------------
+
 SHOW INSTANCES;
 
 --exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD1_PATH_PID restarted
+
+--sleep 3
+# should be longer than monitoring interval and enough to start instance.
 
 ###########################################################################
 #
@@ -129,11 +151,17 @@ SHOW INSTANCES;
 #
 ###########################################################################
 
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.7.
+--echo --------------------------------------------------------------------
+
 SHOW INSTANCES;
 
 START INSTANCE mysqld2;
-# FIXME
+# FIXME: START INSTANCE should be synchronous.
 --sleep 3
+# should be longer than monitoring interval and enough to start instance.
 
 SHOW INSTANCES;
 
@@ -147,7 +175,13 @@ SHOW INSTANCES;
 # incomplete SHOW INSTANCE STATUS command.
 #
 ###########################################################################
---error 1149
+
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.8.
+--echo --------------------------------------------------------------------
+
+--error ER_SYNTAX_ERROR
 SHOW INSTANCE STATUS;
 
 #
@@ -159,8 +193,13 @@ SHOW INSTANCE STATUS;
 #                                 a list as argument.
 #
 
---error 1149
+--echo
+--echo --------------------------------------------------------------------
+--echo -- BUG#12813
+--echo --------------------------------------------------------------------
+
+--error ER_SYNTAX_ERROR
 START INSTANCE mysqld1,mysqld2,mysqld3;
 
---error 1149
+--error ER_SYNTAX_ERROR
 STOP INSTANCE mysqld1,mysqld2,mysqld3;

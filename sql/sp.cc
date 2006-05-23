@@ -408,15 +408,13 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   ulong old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
-  
+
   char definer_user_name_holder[USERNAME_LENGTH + 1];
-  LEX_STRING_WITH_INIT definer_user_name(definer_user_name_holder,
-                                         USERNAME_LENGTH);
+  LEX_STRING definer_user_name= { definer_user_name_holder, USERNAME_LENGTH };
 
   char definer_host_name_holder[HOSTNAME_LENGTH + 1];
-  LEX_STRING_WITH_INIT definer_host_name(definer_host_name_holder,
-                                         HOSTNAME_LENGTH);
-  
+  LEX_STRING definer_host_name= { definer_host_name_holder, HOSTNAME_LENGTH };
+
   int ret;
 
   thd->variables.sql_mode= sql_mode;

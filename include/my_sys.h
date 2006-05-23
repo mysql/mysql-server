@@ -77,6 +77,10 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
 #define MY_DONT_FREE_DBUG 4     /* Do not call DBUG_END() in my_end() */
 
+#define MY_REMOVE_NONE    0     /* Params for modify_defaults_file */
+#define MY_REMOVE_OPTION  1
+#define MY_REMOVE_SECTION 2
+
 #define ME_HIGHBYTE	8	/* Shift for colours */
 #define ME_NOCUR	1	/* Don't use curses message */
 #define ME_OLDWIN	2	/* Use old window */

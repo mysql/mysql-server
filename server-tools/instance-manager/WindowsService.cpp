@@ -7,9 +7,9 @@ static WindowsService *gService;
 WindowsService::WindowsService(void) :
   statusCheckpoint(0),
   serviceName(NULL),
-  inited(false),
+  inited(FALSE),
   dwAcceptedControls(SERVICE_ACCEPT_STOP),
-  debugging(false)
+  debugging(FALSE)
 {
   gService= this;
   status.dwServiceType= SERVICE_WIN32_OWN_PROCESS;
@@ -22,11 +22,12 @@ WindowsService::~WindowsService(void)
 
 BOOL WindowsService::Install()
 {
-  bool ret_val= false;
+  bool ret_val= FALSE;
   SC_HANDLE newService;
   SC_HANDLE scm;
 
-  if (IsInstalled()) return true;
+  if (IsInstalled())
+    return TRUE;
 
   // determine the name of the currently executing file
   char szFilePath[_MAX_PATH];
@@ -34,7 +35,7 @@ BOOL WindowsService::Install()
 
   // open a connection to the SCM
   if (!(scm= OpenSCManager(0, 0,SC_MANAGER_CREATE_SERVICE)))
-    return false;
+    return FALSE;
 
   newService= CreateService(scm, serviceName, displayName,
                             SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
@@ -45,7 +46,7 @@ BOOL WindowsService::Install()
   if (newService)
   {
     CloseServiceHandle(newService);
-    ret_val= true;
+    ret_val= TRUE;
   }
 
   CloseServiceHandle(scm);
@@ -56,34 +57,35 @@ BOOL WindowsService::Init()
 {
   assert(serviceName != NULL);
 
-  if (inited) return true;
+  if (inited)
+    return TRUE;
 
   SERVICE_TABLE_ENTRY stb[] =
   {
     { (LPSTR)serviceName, (LPSERVICE_MAIN_FUNCTION) ServiceMain},
     { NULL, NULL }
   };
-  inited= true;
+  inited= TRUE;
   return StartServiceCtrlDispatcher(stb); //register with the Service Manager
 }
 
 BOOL WindowsService::Remove()
 {
-  bool  ret_val= false;
+  bool ret_val= FALSE;
 
-  if (! IsInstalled())
-    return true;
+  if (!IsInstalled())
+    return TRUE;
 
   // open a connection to the SCM
   SC_HANDLE scm= OpenSCManager(0, 0,SC_MANAGER_CREATE_SERVICE);
-  if (! scm)
-    return false;
+  if (!scm)
+    return FALSE;
 
   SC_HANDLE service= OpenService(scm, serviceName, DELETE);
   if (service)
   {
     if (DeleteService(service))
-      ret_val= true;
+      ret_val= TRUE;
     DWORD dw= ::GetLastError();
     CloseServiceHandle(service);
   }
@@ -116,7 +118,8 @@ void WindowsService::SetAcceptedControls(DWORD acceptedControls)
 BOOL WindowsService::ReportStatus(DWORD currentState, DWORD waitHint,
                                   DWORD dwError)
 {
-  if(debugging) return TRUE;
+  if (debugging)
+    return TRUE;
 
   if(currentState == SERVICE_START_PENDING)
     status.dwControlsAccepted= 0;
