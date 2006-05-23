@@ -1009,4 +1009,17 @@ select auto_increment from information_schema.tables where table_name='t1';
 select * from t1;
 drop table t1;
 
+#
+# Bug 17455 Partitions: Wrong message and error when using Repair/Optimize
+#                       table on partitioned table
+#
+create table t1 (a int)
+engine=MEMORY
+partition by key (a);
+
+REPAIR TABLE t1;
+OPTIMIZE TABLE t1;
+
+drop table t1;
+
 --echo End of 5.1 tests
