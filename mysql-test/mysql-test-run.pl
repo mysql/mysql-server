@@ -350,6 +350,7 @@ sub rm_ndbcluster_tables ($);
 sub ndbcluster_start_install ($);
 sub ndbcluster_start ($$);
 sub ndbcluster_wait_started ($);
+sub mysqld_wait_started($);
 sub run_benchmarks ($);
 sub initialize_servers ();
 sub mysql_install_db ();
@@ -1643,6 +1644,15 @@ sub ndbcluster_wait_started($){
   return $res;
 }
 
+
+sub mysqld_wait_started($){
+  my $mysqld= shift;
+
+  my $res= sleep_until_file_created($mysqld->{'path_pid'},
+				    $mysqld->{'start_timeout'},
+				    $mysqld->{'pid'});
+  return $res == 0;
+}
 
 
 sub ndb_mgmd_start ($) {
@@ -3092,25 +3102,6 @@ sub run_testcase_stop_servers($) {
   }
 }
 
-sub workaround_hang_in_select($$) {
-  my $tinfo= shift;
-  my $mysqld= shift;
-
-  # Wait until mysqld has started and created apply_status table
-  # FIXME this is a workaround for mysqld not being able to shutdown
-  # before having connected to ndb_mgmd
-
-  if ( ! sleep_until_file_created("$mysqld->{'path_myddir'}/cluster/apply_status.ndb",
-				  $mysqld->{'start_timeout'},
-				  $mysqld->{'pid'}))
-  {
-    mtr_report("Failed to create 'cluster/apply_status' table");
-    report_failure_and_restart($tinfo);
-    return;
-  }
-}
-
-
 sub run_testcase_start_servers($) {
   my $tinfo= shift;
 
@@ -3206,18 +3197,29 @@ sub run_testcase_start_servers($) {
     }
   }
 
-  if ( $clusters->[0]->{'pid'} and $master->[1]->{'pid'} )
+  # Wait for clusters to start
+  foreach my $cluster (@{$clusters})
   {
-    # Test needs cluster, extra mysqld started
-    workaround_hang_in_select($tinfo, $master->[1]);
+
+    next if !$cluster->{'pid'};
+
+    if (ndbcluster_wait_started($cluster))
+    {
+      # failed to start
+      mtr_report("Start of $cluster->{'name'} cluster failed, ");
+    }
   }
 
-  if ( $tinfo->{'slave_num'}  and
-       $clusters->[0]->{'pid'} and
-       $slave->[0]->{'pid'} )
+  # Wait for mysqld's to start
+  foreach my $mysqld (@{$master},@{$slave})
   {
-    # Slaves are started, test needs cluster, slave mysqld started
-    workaround_hang_in_select($tinfo, $slave->[0]);
+
+    next if !$mysqld->{'pid'};
+
+    if (mysqld_wait_started($mysqld))
+    {
+      mtr_error("Failed to start $mysqld->{'type'} mysqld $mysqld->{'idx'}");
+    }
   }
 }
 
