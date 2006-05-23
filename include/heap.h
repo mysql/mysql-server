@@ -111,7 +111,7 @@ struct st_heap_info;			/* For referense */
 
 typedef struct st_hp_keydef		/* Key definition with open */
 {
-  uint flag;				/* HA_NOSAME | HA_NULL_PART_KEY */
+  uint flag;				/* HA_NOSAME | HA_NULL_PART_KEY */
   uint keysegs;				/* Number of key-segment */
   uint length;				/* Length of key (automatic) */
   uint8 algorithm;			/* HASH / BTREE */
