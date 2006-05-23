@@ -116,6 +116,10 @@ disconnect conn3;
 connection default;
 USE events_test;
 DROP TABLE fill_it;
+--disable_query_log
+DROP USER event_user2@localhost;
+DROP USER event_user3@localhost;
+--enable_query_log
 #
 # DROP DATABASE test end (bug #16406)
 #
