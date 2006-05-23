@@ -927,14 +927,14 @@ sub sleep_until_file_created ($$$) {
 
 sub mtr_kill_processes ($) {
   my $pids = shift;
+
   mtr_verbose("mtr_kill_processes " . join(" ", @$pids));
-  foreach my $sig (15, 9)
+
+  foreach my $pid (@$pids)
   {
-    my $retries= 10;
-    while (1)
+    foreach my $sig (15, 9)
     {
-      kill($sig, @{$pids});
-      last unless kill (0, @{$pids}) and $retries--;
+      last if mtr_kill_process($pid, $sig, 10, 1);
     }
   }
 }
@@ -945,17 +945,20 @@ sub mtr_kill_process ($$$$) {
   my $signal= shift;
   my $retries= shift;
   my $timeout= shift;
+  my $max_loop= $timeout*10; # Sleeping 0.1 between each kill attempt
 
   while (1)
   {
     kill($signal, $pid);
 
-    last unless kill (0, $pid) and $retries--;
+    last unless kill (0, $pid) and $max_loop--;
 
-    mtr_debug("Sleep $timeout second waiting for processes to die");
+    mtr_verbose("Sleep 0.1 second waiting for processes to die");
 
-    sleep($timeout);
+    select(undef, undef, undef, 0.1);
   }
+
+  return $max_loop;
 }
 
 ##############################################################################
