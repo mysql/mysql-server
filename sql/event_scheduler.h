@@ -152,7 +152,7 @@ private:
   stop_all_running_events(THD *thd);
 
   enum enum_error_code
-  load_event(THD *thd, Event_timed *etn, Event_timed **etn_new);
+  load_named_event(THD *thd, Event_timed *etn, Event_timed **etn_new);
 
   int
   load_events_from_db(THD *thd);
