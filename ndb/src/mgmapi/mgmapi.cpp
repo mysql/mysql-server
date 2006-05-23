@@ -678,7 +678,11 @@ ndb_mgm_get_status(NdbMgmHandle handle)
   out.println("");
 
   char buf[1024];
-  in.gets(buf, sizeof(buf));
+  if(!in.gets(buf, sizeof(buf)))
+  {
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
+    return NULL;
+  }
   if(buf[strlen(buf)-1] == '\n')
     buf[strlen(buf)-1] = '\0';
 
@@ -687,7 +691,11 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     return NULL;
   }
 
-  in.gets(buf, sizeof(buf));
+  if(!in.gets(buf, sizeof(buf)))
+  {
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
+    return NULL;
+  }
   if(buf[strlen(buf)-1] == '\n')
     buf[strlen(buf)-1] = '\0';
   
@@ -710,6 +718,13 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     malloc(sizeof(ndb_mgm_cluster_state)+
 	   noOfNodes*(sizeof(ndb_mgm_node_state)+sizeof("000.000.000.000#")));
 
+  if(!state)
+  {
+    SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY,
+              "Allocating ndb_mgm_cluster_state");
+    return NULL;
+  }
+
   state->no_of_nodes= noOfNodes;
   ndb_mgm_node_state * ptr = &state->node_states[0];
   int nodeId = 0;
@@ -719,7 +734,13 @@ ndb_mgm_get_status(NdbMgmHandle handle)
   }
   i = -1; ptr--;
   for(; i<noOfNodes; ){
-    in.gets(buf, sizeof(buf));
+    if(!in.gets(buf, sizeof(buf)))
+    {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+                "Probably disconnected");
+      return NULL;
+    }
     tmp.assign(buf);
 
     if(tmp.trim() == ""){
