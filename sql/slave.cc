@@ -3950,11 +3950,13 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   pthread_mutex_unlock(&LOCK_thread_count);
   pthread_cond_broadcast(&rli->stop_cond);
 
+#ifndef DBUG_OFF
   /*
     Bug #19938 Valgrind error (race) in handle_slave_sql()
     Read the value of rli->event_till_abort before releasing the mutex
   */
   const int eta= rli->events_till_abort;
+#endif
 
   // tell the world we are done
   pthread_mutex_unlock(&rli->run_lock);
