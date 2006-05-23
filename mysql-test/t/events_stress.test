@@ -13,7 +13,7 @@ GRANT ALL ON *.* TO event_user3@localhost;
 connect (conn2,localhost,event_user2,,events_conn2_db);
 --echo "In the second connection we create some events which won't be dropped till the end"
 --disable_query_log
-let $1= 100;
+let $1= 50;
 while ($1)
 {
   eval CREATE EVENT conn2_ev$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it VALUES("conn2_ev$1", NOW());
@@ -23,7 +23,7 @@ while ($1)
 connect (conn3,localhost,event_user3,,events_conn3_db);
 --echo "In the second connection we create some events which won't be dropped till the end"
 --disable_query_log
-let $1= 100;
+let $1= 50;
 while ($1)
 {
   eval CREATE EVENT conn3_ev$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it VALUES("conn3_ev$1", NOW());
@@ -45,7 +45,7 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_
 CREATE DATABASE events_conn1_test2;
 USE events_conn1_test2;
 --disable_query_log
-let $1= 100;
+let $1= 50;
 while ($1)
 {
   eval CREATE EVENT conn1_round1_ev$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it VALUES("conn1_round1_ev$1", NOW());
@@ -62,7 +62,7 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_
 CREATE DATABASE events_conn1_test3;
 USE events_conn1_test3;
 --disable_query_log
-let $1= 100;
+let $1= 50;
 while ($1)
 {
   eval CREATE EVENT conn1_round2_ev$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it VALUES("conn1_round2_ev$1", NOW());
@@ -74,7 +74,7 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_
 CREATE DATABASE events_conn1_test4;
 USE events_conn1_test4;
 --disable_query_log
-let $1= 100;
+let $1= 50;
 while ($1)
 {
   eval CREATE EVENT conn1_round3_ev$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it VALUES("conn1_round3_ev$1", NOW());
@@ -85,7 +85,7 @@ while ($1)
 CREATE DATABASE events_conn1_test2;
 USE events_conn1_test2;
 --disable_query_log
-let $1= 100;
+let $1= 50;
 while ($1)
 {
   eval CREATE EVENT ev_round4_drop$1 ON SCHEDULE EVERY 1 SECOND DO INSERT INTO events_test.fill_it VALUES("conn1_round4_ev$1", NOW());
@@ -116,6 +116,10 @@ disconnect conn3;
 connection default;
 USE events_test;
 DROP TABLE fill_it;
+--disable_query_log
+DROP USER event_user2@localhost;
+DROP USER event_user3@localhost;
+--enable_query_log
 #
 # DROP DATABASE test end (bug #16406)
 #

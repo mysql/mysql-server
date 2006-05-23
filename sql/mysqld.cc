@@ -3575,7 +3575,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (!opt_noacl)
   {
-    Events::init();
     plugin_load();
 #ifdef HAVE_DLOPEN
     udf_init();
@@ -3626,6 +3625,10 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   mysqld_server_started= 1;
   pthread_cond_signal(&COND_server_started);
 
+  if (!opt_noacl)
+  {
+    Events::init();
+  }
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
 #else
