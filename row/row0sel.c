@@ -302,18 +302,44 @@ row_sel_fetch_columns(
 	}
 
 	while (column) {
+		mem_heap_t*	heap = NULL;
+		ibool		needs_copy;
+
 		field_no = column->field_nos[index_type];
 
 		if (field_no != ULINT_UNDEFINED) {
 
-			data = rec_get_nth_field(rec, offsets, field_no, &len);
+			if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets,
+						  field_no))) {
 
-			if (column->copy_val) {
+				/* Copy an externally stored field to the
+				temporary heap */
+
+				heap = mem_heap_create(1);
+
+				data = btr_rec_copy_externally_stored_field(
+					rec, offsets, field_no, &len, heap);
+
+				ut_a(len != UNIV_SQL_NULL);
+
+				needs_copy = TRUE;
+			} else {
+				data = rec_get_nth_field(rec, offsets,
+					field_no, &len);
+
+				needs_copy = column->copy_val;
+			}
+
+			if (needs_copy) {
 				eval_node_copy_and_alloc_val(column, data,
 									len);
 			} else {
 				val = que_node_get_val(column);
 				dfield_set_data(val, data, len);
+			}
+
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
 			}
 		}
 
