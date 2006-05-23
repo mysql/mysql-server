@@ -1602,18 +1602,7 @@ sub ndbcluster_start_install ($) {
     s/CHOOSE_PORT_MGM/$cluster->{'port'}/;
     s/CHOOSE_DiskPageBufferMemory/$ndb_pbmem/;
 
-#    if ( /^\s*$/ )
-#    {
-#      print OUT "\n";
-#    }
-#    elsif (/;$/)
-#    {
-#      print OUT "$_\n";
-#    }
-#    else
-#    {
-      print OUT "$_ \n";
-#    }
+    print OUT "$_ \n";
   }
   close OUT;
   close IN;
@@ -2178,13 +2167,22 @@ sub run_testcase ($) {
     return;
   }
 
-  # FIXME if test need slave cluster, check if that is installed_ok
+  # If test needs cluster, check that master installed ok
   if ( $tinfo->{'ndb_test'}  and $clusters->[0]->{'installed_ok'} eq "NO" )
   {
     mtr_report_test_name($tinfo);
     mtr_report_test_failed($tinfo);
     return;
-  }  
+  }
+
+  # If test needs slave cluster, check that it installed ok
+  if ( $tinfo->{'ndb_test'}  and $tinfo->{'slave_num'} and
+       $clusters->[1]->{'installed_ok'} eq "NO" )
+  {
+    mtr_report_test_name($tinfo);
+    mtr_report_test_failed($tinfo);
+    return;
+  }
 
   run_testcase_stop_servers($tinfo);
 
