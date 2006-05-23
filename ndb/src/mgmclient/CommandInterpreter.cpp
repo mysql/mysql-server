@@ -1057,7 +1057,8 @@ CommandInterpreter::executeShutdown(char* parameters)
   NdbAutoPtr<char> ap1((char*)state);
 
   int result = 0;
-  result = ndb_mgm_stop(m_mgmsrv, 0, 0);
+  int need_disconnect;
+  result = ndb_mgm_stop3(m_mgmsrv, -1, 0, 0, &need_disconnect);
   if (result < 0) {
     ndbout << "Shutdown of NDB Cluster node(s) failed." << endl;
     printError();
@@ -1066,39 +1067,11 @@ CommandInterpreter::executeShutdown(char* parameters)
 
   ndbout << result << " NDB Cluster node(s) have shutdown." << endl;
 
-  int nodeId= 0;
-  int this_mgmd= 0;
-  this_mgmd= ndb_mgm_get_mgmd_nodeid(m_mgmsrv);
-  while(get_next_nodeid(state, &nodeId, NDB_MGM_NODE_TYPE_MGM))
-  {
-    if(nodeId==this_mgmd)
-      continue;
-    ndbout << "Shutting down NDB Cluster management server nodeId="
-           << nodeId << "...";
-    result = ndb_mgm_stop(m_mgmsrv, 1, &nodeId);
-    if (result <= 0) {
-      ndbout << " failed." << endl;
-      printError();
-    }
-    else
-      ndbout << "Done." << endl;
-  }
-
-  ndbout << "Shutting down NDB Cluster management server nodeId="
-         << this_mgmd << "...";
-  result= ndb_mgm_stop(m_mgmsrv, 1, &this_mgmd);
-  if (result <= 0) {
-    ndbout << " failed." << endl;
-    printError();
-  }
-  else
-  {
-    ndbout << "Done." << endl;
+  if(need_disconnect) {
     ndbout << "Disconnecting to allow management server to shutdown."
            << endl;
     disconnect();
   }
-  ndbout << "NDB Cluster management servers shutdown." << endl;
   return 0;
 }
 
@@ -1487,6 +1460,7 @@ CommandInterpreter::executeStop(Vector<BaseString> &command_list,
                                 unsigned command_pos,
                                 int *node_ids, int no_of_nodes)
 {
+  int need_disconnect;
   int abort= 0;
   for (; command_pos < command_list.size(); command_pos++)
   {
@@ -1501,7 +1475,8 @@ CommandInterpreter::executeStop(Vector<BaseString> &command_list,
     return;
   }
 
-  int result= ndb_mgm_stop2(m_mgmsrv, no_of_nodes, node_ids, abort);
+  int result= ndb_mgm_stop3(m_mgmsrv, no_of_nodes, node_ids, abort,
+                            &need_disconnect);
   if (result < 0)
   {
     ndbout_c("Shutdown failed.");
@@ -1513,27 +1488,19 @@ CommandInterpreter::executeStop(Vector<BaseString> &command_list,
       ndbout_c("NDB Cluster has shutdown.");
     else
     {
-      int mgm_id= 0;
-      int need_reconnect= 0;
-      mgm_id= ndb_mgm_get_mgmd_nodeid(m_mgmsrv);
       ndbout << "Node";
       for (int i= 0; i < no_of_nodes; i++)
-      {
-        if(node_ids[i] == mgm_id)
-          need_reconnect= 1;
-        else
           ndbout << " " << node_ids[i];
-      }
       ndbout_c(" has shutdown.");
-      if(need_reconnect)
-      {
-        ndbout << "You are connected to node " << mgm_id
-               << ", disconnecting to allow it to shutdown"
-               << endl;
-        disconnect();
-      }
     }
   }
+
+  if(need_disconnect)
+  {
+    ndbout << "Disconnecting to allow Management Server to shutdown" << endl;
+    disconnect();
+  }
+
 }
 
 void
@@ -1624,6 +1591,7 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
   int nostart= 0;
   int initialstart= 0;
   int abort= 0;
+  int need_disconnect= 0;
 
   for (; command_pos < command_list.size(); command_pos++)
   {
@@ -1648,9 +1616,9 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
     return;
   }
 
-  result= ndb_mgm_restart2(m_mgmsrv, no_of_nodes, node_ids,
-                           initialstart, nostart, abort);
-  
+  result= ndb_mgm_restart3(m_mgmsrv, no_of_nodes, node_ids,
+                           initialstart, nostart, abort, &need_disconnect);
+
   if (result <= 0) {
     ndbout_c("Restart failed.");
     printError();
@@ -1661,18 +1629,13 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
       ndbout_c("NDB Cluster is being restarted.");
     else
     {
-      int mgm_id= 0;
-      mgm_id= ndb_mgm_get_mgmd_nodeid(m_mgmsrv);
-
       ndbout << "Node";
       for (int i= 0; i < no_of_nodes; i++)
-      {
-        if(node_ids[i] == mgm_id)
-          disconnect();
         ndbout << " " << node_ids[i];
-      }
       ndbout_c(" is being restarted");
     }
+    if(need_disconnect)
+      disconnect();
   }
 }
 

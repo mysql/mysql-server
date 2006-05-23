@@ -1196,6 +1196,27 @@ int MgmtSrvr::stopNodes(const Vector<NodeId> &node_ids,
   return ret;
 }
 
+int MgmtSrvr::shutdownMGM(int *stopCount, bool abort, int *stopSelf)
+{
+  NodeId nodeId = 0;
+  int error;
+
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_MGM))
+  {
+    if(nodeId==getOwnNodeId())
+      continue;
+    error= sendStopMgmd(nodeId, abort, true, false,
+                        false, false);
+    if (error == 0)
+      *stopCount++;
+  }
+
+  *stopSelf= 1;
+  *stopCount++;
+
+  return 0;
+}
+
 /*
  * Perform DB nodes shutdown.
  * MGM servers are left in their current state
