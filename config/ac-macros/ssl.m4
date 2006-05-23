@@ -23,7 +23,7 @@ AC_DEFUN([MYSQL_USE_BUNDLED_YASSL], [
     extra/yassl/src/Makefile dnl
     extra/yassl/testsuite/Makefile)
 
-  with_yassl="yes"
+  with_bundled_yassl="yes"
 
   yassl_dir="yassl"
   AC_SUBST([yassl_dir])
@@ -174,6 +174,16 @@ AC_MSG_CHECKING(for SSL)
               [mysql_ssl_dir="$withval"],
               [mysql_ssl_dir=no])
 
+  if test "$with_yassl"
+  then
+    AC_MSG_ERROR([The flag --with-yassl is deprecated, use --with-ssl])
+  fi
+
+  if test "$with_openssl"
+  then
+    AC_MSG_ERROR([The flag --with-openssl is deprecated, use --with-ssl])
+  fi
+
   case "$mysql_ssl_dir" in
     "no")
       #
@@ -196,5 +206,5 @@ AC_MSG_CHECKING(for SSL)
       MYSQL_FIND_OPENSSL([$mysql_ssl_dir])
       ;;
   esac
-  AM_CONDITIONAL([HAVE_YASSL], [ test "$with_yassl" = "yes" ])
+  AM_CONDITIONAL([HAVE_YASSL], [ test "$with_bundled_yassl" = "yes" ])
 ])
