@@ -192,7 +192,7 @@ private:
     */
     COND_suspend_or_resume,
     /* Must be always last */
-    COND_LAST,
+    COND_LAST
   };
 
   /* Singleton instance */
