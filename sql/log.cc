@@ -55,6 +55,14 @@ static int binlog_commit(THD *thd, bool all);
 static int binlog_rollback(THD *thd, bool all);
 static int binlog_prepare(THD *thd, bool all);
 
+sql_print_message_func sql_print_message_handlers[3] =
+{
+  sql_print_information,
+  sql_print_warning,
+  sql_print_error
+};
+
+
 /*
   This is a POD. Please keep it that way!
 

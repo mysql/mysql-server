@@ -21,16 +21,14 @@
 
 #include "guardian.h"
 
-#include "instance_map.h"
-#include "instance.h"
-#include "mysql_manager_error.h"
-#include "log.h"
-#include "portability.h"
-
 #include <string.h>
 #include <sys/types.h>
 #include <signal.h>
 
+#include "instance.h"
+#include "instance_map.h"
+#include "log.h"
+#include "mysql_manager_error.h"
 
 
 pthread_handler_t guardian(void *arg)
@@ -39,6 +37,37 @@ pthread_handler_t guardian(void *arg)
   guardian_thread->run();
   return 0;
 }
+
+
+const char *
+Guardian_thread::get_instance_state_name(enum_instance_state state)
+{
+  switch (state) {
+  case NOT_STARTED:
+    return "offline";
+
+  case STARTING:
+    return "starting";
+
+  case STARTED:
+    return "online";
+
+  case JUST_CRASHED:
+    return "failed";
+
+  case CRASHED:
+    return "crashed";
+
+  case CRASHED_AND_ABANDONED:
+    return "abandoned";
+
+  case STOPPING:
+    return "stopping";
+  }
+
+  return NULL; /* just to ignore compiler warning. */
+}
+
 
 Guardian_thread::Guardian_thread(Thread_registry &thread_registry_arg,
                                  Instance_map *instance_map_arg,
@@ -89,10 +118,17 @@ void Guardian_thread::process_instance(Instance *instance,
   if (current_node->state == STOPPING)
   {
     /* this brach is executed during shutdown */
-    if (instance->options.shutdown_delay_val)
+    if (instance->options.shutdown_delay)
+    {
+      /*
+        NOTE: it is important to check shutdown_delay here, but use
+        shutdown_delay_val. The idea is that if the option is unset,
+        shutdown_delay will be NULL, but shutdown_delay_val will not be reset.
+      */
       waitchild= instance->options.shutdown_delay_val;
+    }
 
-    /* this returns true if and only if an instance was stopped for sure */
+    /* this returns TRUE if and only if an instance was stopped for sure */
     if (instance->is_crashed())
       *guarded_instances= list_delete(*guarded_instances, node);
     else if ( (uint) (current_time - current_node->last_checked) > waitchild)
@@ -159,7 +195,11 @@ void Guardian_thread::process_instance(Instance *instance,
                    instance->options.instance_name);
         }
         else
+        {
+          log_info("guardian: cannot start instance %s. Abandoning attempts "
+                   "to (re)start it", instance->options.instance_name);
           current_node->state= CRASHED_AND_ABANDONED;
+        }
       }
       break;
     case CRASHED_AND_ABANDONED:
@@ -242,7 +282,9 @@ int Guardian_thread::is_stopped()
   SYNOPSYS
     Guardian_thread::init()
 
-  NOTE: One should always lock guardian before calling this routine.
+  NOTE: The operation should be invoked with the following locks acquired:
+    - Guardian_thread;
+    - Instance_map;
 
   RETURN
     0 - ok
@@ -261,12 +303,11 @@ int Guardian_thread::init()
 
   while ((instance= iterator.next()))
   {
-    if (!(instance->options.nonguarded))
-      if (guard(instance, TRUE))                /* do not lock guardian */
-      {
-        instance_map->unlock();
-        return 1;
-      }
+    if (instance->options.nonguarded)
+      continue;
+
+    if (guard(instance, TRUE))                /* do not lock guardian */
+      return 1;
   }
 
   return 0;
@@ -334,24 +375,14 @@ int Guardian_thread::stop_guard(Instance *instance)
   LIST *node;
 
   pthread_mutex_lock(&LOCK_guardian);
-  node= guarded_instances;
 
-  while (node != NULL)
-  {
-    /*
-      We compare only pointers, as we always use pointers from the
-      instance_map's MEM_ROOT.
-    */
-    if (((GUARD_NODE *) node->data)->instance == instance)
-    {
-      guarded_instances= list_delete(guarded_instances, node);
-      pthread_mutex_unlock(&LOCK_guardian);
-      return 0;
-    }
-    else
-      node= node->next;
-  }
+  node= find_instance_node(instance);
+
+  if (node != NULL)
+    guarded_instances= list_delete(guarded_instances, node);
+
   pthread_mutex_unlock(&LOCK_guardian);
+
   /* if there is nothing to delete it is also fine */
   return 0;
 }
@@ -420,11 +451,49 @@ int Guardian_thread::stop_instances(bool stop_instances_arg)
 
 void Guardian_thread::lock()
 {
-  pthread_mutex_lock(&LOCK_guardian); 
+  pthread_mutex_lock(&LOCK_guardian);
 }
 
 
 void Guardian_thread::unlock()
 {
   pthread_mutex_unlock(&LOCK_guardian);
+}
+
+
+LIST *Guardian_thread::find_instance_node(Instance *instance)
+{
+  LIST *node= guarded_instances;
+
+  while (node != NULL)
+  {
+    /*
+      We compare only pointers, as we always use pointers from the
+      instance_map's MEM_ROOT.
+    */
+    if (((GUARD_NODE *) node->data)->instance == instance)
+      return node;
+
+    node= node->next;
+  }
+
+  return NULL;
+}
+
+
+bool Guardian_thread::is_active(Instance *instance)
+{
+  bool guarded;
+
+  lock();
+
+  guarded= find_instance_node(instance) != NULL;
+
+  /* is_running() can take a long time, so let's unlock mutex first. */
+  unlock();
+
+  if (guarded)
+    return true;
+
+  return instance->is_running();
 }

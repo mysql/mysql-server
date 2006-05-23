@@ -1,11 +1,10 @@
 SHOW INSTANCES;
-instance_name	status
+instance_name	state
 mysqld1	online
 mysqld2	offline
 SHOW INSTANCE OPTIONS mysqld1;
 option_name	value
 instance_name	VALUE
-mysqld-path	VALUE
 socket	VALUE
 pid-file	VALUE
 port	VALUE
@@ -25,8 +24,6 @@ log-output	VALUE
 SHOW INSTANCE OPTIONS mysqld2;
 option_name	value
 instance_name	VALUE
-mysqld-path	VALUE
-nonguarded	VALUE
 socket	VALUE
 pid-file	VALUE
 port	VALUE
@@ -42,6 +39,7 @@ skip-stack-trace	VALUE
 skip-innodb	VALUE
 skip-bdb	VALUE
 skip-ndbcluster	VALUE
+nonguarded	VALUE
 log-output	VALUE
 START INSTANCE mysqld2;
 STOP INSTANCE mysqld2;

@@ -20,11 +20,12 @@
 
 #include "thread_registry.h"
 
-#include "log.h"
-
-#include <assert.h>
-#include <signal.h>
+#include <my_global.h>
 #include <thr_alarm.h>
+
+#include <signal.h>
+
+#include "log.h"
 
 
 #ifndef __WIN__
@@ -52,7 +53,7 @@ Thread_info::Thread_info(pthread_t thread_id_arg) :
 */
 
 Thread_registry::Thread_registry() :
-   shutdown_in_progress(false)
+   shutdown_in_progress(FALSE)
   ,sigwait_thread_pid(pthread_self())
 {
   pthread_mutex_init(&LOCK_thread_registry, 0);
@@ -186,7 +187,7 @@ void Thread_registry::deliver_shutdown()
   set_timespec(shutdown_time, 1);
 
   pthread_mutex_lock(&LOCK_thread_registry);
-  shutdown_in_progress= true;
+  shutdown_in_progress= TRUE;
 
 #ifndef __WIN__
   /* to stop reading from the network we need to flush alarm queue */

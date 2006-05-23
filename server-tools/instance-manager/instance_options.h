@@ -18,8 +18,9 @@
 
 #include <my_global.h>
 #include <my_sys.h>
+
 #include "parse.h"
-#include "portability.h"
+#include "portability.h" /* for pid_t on Win32 */
 
 #if defined(__GNUC__) && defined(USE_PRAGMA_INTERFACE)
 #pragma interface
@@ -35,25 +36,26 @@
   don't have to synchronize between threads.
 */
 
-#define USUAL_INSTANCE 0
-#define DEFAULT_SINGLE_INSTANCE 1
-
 class Instance_options
 {
 public:
-  Instance_options() :
-    mysqld_version(0), mysqld_socket(0), mysqld_datadir(0),
-    mysqld_bind_address(0), mysqld_pid_file(0), mysqld_port(0),
-    mysqld_port_val(0), mysqld_path(0), mysqld_real_path(0),
-    nonguarded(0), shutdown_delay(0),
-    shutdown_delay_val(0), filled_default_options(0)
-  {}
+  /* The operation is used to check if the option is IM-specific or not. */
+   static bool is_option_im_specific(const char *option_name);
+
+public:
+  Instance_options();
   ~Instance_options();
   /* fills in argv */
-  int complete_initialization(const char *default_path, uint instance_type);
+  int complete_initialization(const char *default_path);
 
-  int add_option(const char* option);
-  int init(const char *instance_name_arg);
+  bool set_option(Named_value *option);
+  void unset_option(const char *option_name);
+
+  inline int get_num_options() const;
+  inline Named_value get_option(int idx) const;
+
+public:
+  int init(const LEX_STRING *instance_name_arg);
   pid_t get_pid();
   int get_pid_filename(char *result);
   int unlink_pidfile();
@@ -66,7 +68,6 @@ public:
   */
   enum { MAX_PATH_LEN= 512 };
   enum { MAX_NUMBER_OF_DEFAULT_OPTIONS= 2 };
-  enum { MEM_ROOT_BLOCK_SIZE= 512 };
   char pid_file_with_path[MAX_PATH_LEN];
   char **argv;
   /*
@@ -77,23 +78,18 @@ public:
   /* We need the some options, so we store them as a separate pointers */
   const char *mysqld_socket;
   const char *mysqld_datadir;
-  const char *mysqld_bind_address;
   const char *mysqld_pid_file;
   const char *mysqld_port;
   uint mysqld_port_val;
-  const char *instance_name;
-  uint instance_name_len;
-  const char *mysqld_path;
-  uint mysqld_path_len;
-  const char *mysqld_real_path;
+  LEX_STRING instance_name;
+  LEX_STRING mysqld_path;
+  LEX_STRING mysqld_real_path;
   const char *nonguarded;
   const char *shutdown_delay;
   uint shutdown_delay_val;
   /* log enums are defined in parse.h */
   char *logs[3];
 
-  /* this value is computed and cashed here */
-  DYNAMIC_ARRAY options_array;
 private:
   int fill_log_options();
   int fill_instance_version();
@@ -101,9 +97,27 @@ private:
   int add_to_argv(const char *option);
   int get_default_option(char *result, size_t result_len,
                          const char *option_name);
+
+  void update_var(const char *option_name, const char *option_value);
+  int find_option(const char *option_name);
+
 private:
   uint filled_default_options;
   MEM_ROOT alloc;
+
+  Named_value_arr options;
 };
+
+
+inline int Instance_options::get_num_options() const
+{
+  return options.get_size();
+}
+
+
+inline Named_value Instance_options::get_option(int idx) const
+{
+  return options.get_element(idx);
+}
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_INSTANCE_OPTIONS_H */

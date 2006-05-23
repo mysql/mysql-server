@@ -28,10 +28,6 @@
 #ifndef yaSSL_NEW_HPP
 #define yaSSL_NEW_HPP
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 
 #ifdef __sun
  

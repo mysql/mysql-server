@@ -864,8 +864,8 @@ static void close_connections(void)
   {
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
-    /* We skip slave threads on this first loop through. */
-    if (tmp->slave_thread)
+    /* We skip slave threads & scheduler on this first loop through. */
+    if (tmp->slave_thread || tmp->system_thread == SYSTEM_THREAD_EVENT_SCHEDULER)
       continue;
 
     tmp->killed= THD::KILL_CONNECTION;
@@ -884,6 +884,7 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
+  Events::shutdown();
   end_slave();
 
   if (thread_count)
@@ -1299,6 +1300,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
+  Events::destroy_mutexes();
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
@@ -2854,6 +2856,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_server_started,NULL);
   sp_cache_init();
+  Events::init_mutexes();
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
@@ -2999,7 +3002,6 @@ static int init_server_components()
 #ifdef HAVE_REPLICATION
   init_slave_list();
 #endif
-  init_events();
 
   /* Setup logs */
 
@@ -3623,6 +3625,10 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   mysqld_server_started= 1;
   pthread_cond_signal(&COND_server_started);
 
+  if (!opt_noacl)
+  {
+    Events::init();
+  }
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
 #else
@@ -3674,7 +3680,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   clean_up(1);
   wait_for_signal_thread_to_end();
   clean_up_mutexes();
-  shutdown_events();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
   exit(0);
@@ -4665,7 +4670,7 @@ enum options_mysqld
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
   OPT_SAFE_USER_CREATE, OPT_SQL_MODE,
   OPT_HAVE_NAMED_PIPE,
-  OPT_DO_PSTACK, OPT_EVENT_EXECUTOR, OPT_REPORT_HOST,
+  OPT_DO_PSTACK, OPT_EVENT_SCHEDULER, OPT_REPORT_HOST,
   OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
   OPT_SHOW_SLAVE_AUTH_INFO,
   OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
@@ -4998,9 +5003,9 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &global_system_variables.engine_condition_pushdown,
    (gptr*) &global_system_variables.engine_condition_pushdown,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"event-scheduler", OPT_EVENT_EXECUTOR, "Enable/disable the event scheduler.",
-   (gptr*) &opt_event_executor, (gptr*) &opt_event_executor, 0, GET_BOOL, NO_ARG,
-   0/*default*/, 0/*min-value*/, 1/*max-value*/, 0, 0, 0},
+  {"event-scheduler", OPT_EVENT_SCHEDULER, "Enable/disable the event scheduler.",
+   (gptr*) &Events::opt_event_scheduler, (gptr*) &Events::opt_event_scheduler, 0, GET_STR,
+    REQUIRED_ARG, 2/*default*/, 0/*min-value*/, 2/*max-value*/, 0, 0, 0},
   {"exit-info", 'T', "Used for debugging;  Use at your own risk!", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"external-locking", OPT_USE_LOCKING, "Use system (external) locking.  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running.",
@@ -7327,6 +7332,24 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   }
 #endif
+  case OPT_EVENT_SCHEDULER:
+    if (!argument)
+      Events::opt_event_scheduler= 2;
+    else
+    {
+      int type;
+      if ((type=find_type(argument, &Events::opt_typelib, 1)) <= 0)
+      {
+	fprintf(stderr,"Unknown option to event-scheduler: %s\n",argument);
+	exit(1);
+      }
+      /* 
+        type=  1     2      3   4     5    6
+             (OFF |  0) - (ON | 1) - (2 | SUSPEND)
+      */
+      Events::opt_event_scheduler= (type-1) / 2;
+    }
+    break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;

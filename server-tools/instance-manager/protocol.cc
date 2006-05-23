@@ -163,7 +163,7 @@ int send_fields(struct st_net *net, LIST *fields)
   Buffer send_buff;
   char small_buff[4];
   uint position= 0;
-  NAME_WITH_LENGTH *field;
+  LEX_STRING *field;
 
   /* send the number of fileds */
   net_store_length(small_buff, (uint) list_length(fields));
@@ -173,7 +173,7 @@ int send_fields(struct st_net *net, LIST *fields)
   while (tmp)
   {
     position= 0;
-    field= (NAME_WITH_LENGTH *) tmp->data;
+    field= (LEX_STRING *) tmp->data;
 
     store_to_protocol_packet(&send_buff,
                              (char*) "", &position);    /* catalog name */
@@ -184,9 +184,9 @@ int send_fields(struct st_net *net, LIST *fields)
     store_to_protocol_packet(&send_buff,
                              (char*) "", &position);    /* table name alias */
     store_to_protocol_packet(&send_buff,
-                             field->name, &position);   /* column name */
+                             field->str, &position);    /* column name */
     store_to_protocol_packet(&send_buff,
-                             field->name, &position);   /* column name alias */
+                             field->str, &position);    /* column name alias */
     send_buff.reserve(position, 12);
     if (send_buff.is_error())
       goto err;

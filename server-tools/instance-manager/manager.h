@@ -16,9 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-struct Options;
-
-void manager(const Options &options);
+void manager();
 
 int create_pid_file(const char *pid_file_name, int pid);
 

@@ -14,10 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "priv.h"
+
 #include <my_global.h>
 #include <mysql_com.h>
-#include "priv.h"
-#include "portability.h"
 
 #if defined(__ia64__) || defined(__ia64)
 /*
@@ -43,9 +43,7 @@ bool linuxthreads;
   The following string must be less then 80 characters, as
   mysql_connection.cc relies on it
 */
-const char mysqlmanager_version[] = "0.2-alpha";
-
-const int mysqlmanager_version_length= sizeof(mysqlmanager_version) - 1;
+const LEX_STRING mysqlmanager_version= { C_STRING_WITH_SIZE("1.0-beta") };
 
 const unsigned char protocol_version= PROTOCOL_VERSION;
 

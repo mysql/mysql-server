@@ -35,7 +35,7 @@ create event e_55 on schedule every 10 hour starts 99990101000000 do drop table 
 ERROR HY000: Incorrect STARTS value: '99990101000000'
 create event e_55 on schedule every 10 minute ends 99990101000000 do drop table t;
 ERROR HY000: ENDS is either invalid or before STARTS
-set global event_scheduler=0;
+set global event_scheduler=2;
 "Wait a bit to settle down"
 delete from mysql.event;
 set global event_scheduler= 1;
@@ -57,7 +57,7 @@ root	localhost	events_test	Connect	User lock	select get_lock('test_bug16407', 60
 select release_lock('test_bug16407');
 release_lock('test_bug16407')
 1
-set global event_scheduler= 0;
+set global event_scheduler= 2;
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
 events_test	e_16407	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
@@ -115,7 +115,7 @@ release_lock('ee_16407_2')
 select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Connect	Sleeping	NULL
-set global event_scheduler= 0;
+set global event_scheduler= 2;
 select * from events_smode_test order by ev_name, a;
 ev_name	a
 ee_16407_3	1980-02-19
@@ -175,7 +175,7 @@ drop event ee_16407_5;
 drop event ee_16407_6;
 drop procedure ee_16407_5_pendant;
 drop procedure ee_16407_6_pendant;
-set global event_scheduler= 0;
+set global event_scheduler= 2;
 drop table events_smode_test;
 set sql_mode=@old_sql_mode;
 drop database events_test;
