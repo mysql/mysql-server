@@ -629,6 +629,8 @@ public:
   {
     return (*priv_host ? priv_host : (char *)"%");
   }
+  
+  bool set_user(char *user_arg);
 };
 
 
@@ -767,6 +769,19 @@ public:
   bool enable_slow_log, insert_id_used, clear_next_insert_id;
   my_bool no_send_ok;
   SAVEPOINT *savepoints;
+};
+
+
+/* Flags for the THD::system_thread variable */
+enum enum_thread_type
+{
+  NON_SYSTEM_THREAD= 0,
+  SYSTEM_THREAD_DELAYED_INSERT= 1,
+  SYSTEM_THREAD_SLAVE_IO= 2,
+  SYSTEM_THREAD_SLAVE_SQL= 4,
+  SYSTEM_THREAD_NDBCLUSTER_BINLOG= 8,
+  SYSTEM_THREAD_EVENT_SCHEDULER= 16,
+  SYSTEM_THREAD_EVENT_WORKER= 32
 };
 
 
@@ -1103,7 +1118,8 @@ public:
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     tmp_table, global_read_lock;
-  uint	     server_status,open_options,system_thread;
+  uint	     server_status,open_options;
+  enum enum_thread_type system_thread;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
   /* variables.transaction_isolation is reset to this after each commit */
@@ -1404,11 +1420,6 @@ public:
 
 #define reenable_binlog(A)   (A)->options= tmp_disable_binlog__save_options;}
 
-/* Flags for the THD::system_thread (bitmap) variable */
-#define SYSTEM_THREAD_DELAYED_INSERT 1
-#define SYSTEM_THREAD_SLAVE_IO 2
-#define SYSTEM_THREAD_SLAVE_SQL 4
-#define SYSTEM_THREAD_NDBCLUSTER_BINLOG 8
 
 /*
   Used to hold information about file and file structure in exchainge 
