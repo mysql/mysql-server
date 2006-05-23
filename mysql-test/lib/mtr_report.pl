@@ -204,7 +204,7 @@ sub mtr_report_stats ($) {
       "http://www.mysql.com/doc/en/MySQL_test_suite.html\n";
   }
   print
-    "The servers was restarted $tot_restarts times\n";
+    "The servers were restarted $tot_restarts times\n";
 
   # ----------------------------------------------------------------------
   # If a debug run, there might be interesting information inside

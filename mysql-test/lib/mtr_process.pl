@@ -297,7 +297,7 @@ sub spawn_parent_impl {
           }
         }
 
-        mtr_debug("waitpid() catched exit of unknown child $ret_pid, " .
+        mtr_debug("waitpid() caught exit of unknown child $ret_pid, " .
                   "exit during mysqltest run");
       }
 
@@ -505,9 +505,9 @@ sub mtr_kill_leftovers () {
 }
 
 
-# Check that all processes in list is killed
+# Check that all processes in list are killed
 # The argument is a list of 'ports', 'pids', 'pidfiles' and 'socketfiles'
-# for which shutdown has been started. Make sure they all get killes
+# for which shutdown has been started. Make sure they all get killed
 # in one way or the other.
 #
 # FIXME On Cygwin, and maybe some other platforms, $srv->{'pid'} and
@@ -540,12 +540,12 @@ sub mtr_check_stop_servers ($) {
       $ret_pid= waitpid($srv->{'pid'},&WNOHANG);
       if ($ret_pid == $srv->{'pid'})
       {
-	mtr_verbose("Catched exit of process $ret_pid");
+	mtr_verbose("Caught exit of process $ret_pid");
 	$srv->{'pid'}= 0;
       }
       else
       {
-	# mtr_warning("catched exit of unknown child $ret_pid");
+	# mtr_warning("caught exit of unknown child $ret_pid");
       }
     }
   }
@@ -667,7 +667,7 @@ sub mtr_wait_blocking($) {
 
   # Wait for all the started processes to exit
   # As mysqladmin is such a simple program, we trust it to terminate itself.
-  # I.e. we wait blocking, and wait wait for them all before we go on.
+  # I.e. we wait blocking, and wait for them all before we go on.
   foreach my $pid (keys %{$admin_pids})
   {
     my $ret_pid= waitpid($pid,0);
@@ -789,7 +789,7 @@ sub mtr_record_dead_children () {
   # -1 or 0 means there are no more procesess to wait for
   while ( ($ret_pid= waitpid(-1,&WNOHANG)) != 0 and $ret_pid != -1)
   {
-    mtr_warning("waitpid() catched exit of child $ret_pid");
+    mtr_warning("waitpid() caught exit of child $ret_pid");
     foreach my $idx (0..1)
     {
       if ( $::master->[$idx]->{'pid'} eq $ret_pid )
