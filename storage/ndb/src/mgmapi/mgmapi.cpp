@@ -1308,33 +1308,6 @@ ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
 
 extern "C"
 int 
-ndb_mgm_get_stat_port(NdbMgmHandle handle, struct ndb_mgm_reply* /*reply*/)
-{
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_stat_port");
-  const ParserRow<ParserDummy> stat_reply[] = {
-    MGM_CMD("error", NULL, ""),
-    MGM_ARG("result", String, Mandatory, "Error message"),
-    MGM_CMD("get statport reply", NULL, ""),
-    MGM_ARG("tcpport", Int, Mandatory, "TCP port for statistics"),
-    MGM_END()
-  };
-  CHECK_HANDLE(handle, -1);
-  CHECK_CONNECTED(handle, -1);
-  
-  Properties args;
-  const Properties *reply;
-  reply = ndb_mgm_call(handle, stat_reply, "get statport", &args);
-  CHECK_REPLY(reply, -1);
-
-  Uint32 port;
-  reply->get("tcpport", &port);
-
-  delete reply;
-  return port;
-}
-
-extern "C"
-int 
 ndb_mgm_dump_state(NdbMgmHandle handle, int nodeId, int* _args,
 		   int _num_args, struct ndb_mgm_reply* /* reply */) 
 {
