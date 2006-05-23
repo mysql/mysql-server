@@ -121,8 +121,6 @@ static const unsigned int MAX_WRITE_TIMEOUT = 100 ;
 
 const
 ParserRow<MgmApiSession> commands[] = {
-  MGM_CMD("get statport", &MgmApiSession::getStatPort, ""),
-  
   MGM_CMD("get config", &MgmApiSession::getConfig, ""),
     MGM_ARG("version", Int, Mandatory, "Configuration version number"),
     MGM_ARG("node", Int, Optional, "Node ID"),
@@ -647,15 +645,6 @@ MgmApiSession::getConfig_common(Parser_t::Context &,
 
   free(tmp_str);
   return;
-}
-
-void
-MgmApiSession::getStatPort(Parser_t::Context &, 
-			   const class Properties &) {
-
-  m_output->println("get statport reply");
-  m_output->println("tcpport: %d", 0);
-  m_output->println("");
 }
 
 void

@@ -871,13 +871,14 @@ public:
 };
 
 
-class sys_var_event_executor :public sys_var_bool_ptr
+class sys_var_event_scheduler :public sys_var_long_ptr
 {
   /* We need a derived class only to have a warn_deprecated() */
 public:
-  sys_var_event_executor(const char *name_arg, my_bool *value_arg) :
-    sys_var_bool_ptr(name_arg, value_arg) {};
+  sys_var_event_scheduler(const char *name_arg) :
+    sys_var_long_ptr(name_arg, NULL, NULL) {};
   bool update(THD *thd, set_var *var);
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
 };
 
 extern void fix_binlog_format_after_update(THD *thd, enum_var_type type);

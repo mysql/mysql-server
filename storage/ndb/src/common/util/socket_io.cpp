@@ -48,58 +48,66 @@ read_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 
 extern "C"
 int
-readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, 
+readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 	      char * buf, int buflen){
   if(buflen <= 1)
     return 0;
 
+  int sock_flags= fcntl(socket, F_GETFL);
+  if(fcntl(socket, F_SETFL, sock_flags | O_NONBLOCK) == -1)
+    return -1;
+
   fd_set readset;
   FD_ZERO(&readset);
   FD_SET(socket, &readset);
-  
+
   struct timeval timeout;
   timeout.tv_sec  = (timeout_millis / 1000);
   timeout.tv_usec = (timeout_millis % 1000) * 1000;
 
   const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
-  if(selectRes == 0)
+  if(selectRes == 0){
     return 0;
-  
+  }
+
   if(selectRes == -1){
+    fcntl(socket, F_SETFL, sock_flags);
     return -1;
   }
-  
-  int pos = 0; buf[pos] = 0;
-  while(true){
-    const int t = recv(socket, &buf[pos], 1, 0);
-    if(t != 1){
-      return -1;
-    }
-    if(buf[pos] == '\n'){
-      buf[pos] = 0;
 
-      if(pos > 0 && buf[pos-1] == '\r'){
-	pos--;
-	buf[pos] = 0;
+  buf[0] = 0;
+  const int t = recv(socket, buf, buflen, MSG_PEEK);
+
+  if(t < 1)
+  {
+    fcntl(socket, F_SETFL, sock_flags);
+    return -1;
+  }
+
+  for(int i=0; i< t;i++)
+  {
+    if(buf[i] == '\n'){
+      recv(socket, buf, i+1, 0);
+      buf[i] = 0;
+
+      if(i > 0 && buf[i-1] == '\r'){
+        i--;
+        buf[i] = 0;
       }
 
-      return pos;
-    }
-    pos++;
-    if(pos == (buflen - 1)){
-      buf[pos] = 0;
-      return buflen;
-    }
-    
-    FD_ZERO(&readset);
-    FD_SET(socket, &readset);
-    timeout.tv_sec  = (timeout_millis / 1000);
-    timeout.tv_usec = (timeout_millis % 1000) * 1000;
-    const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
-    if(selectRes != 1){
-      return -1;
+      fcntl(socket, F_SETFL, sock_flags);
+      return t;
     }
   }
+
+  if(t == (buflen - 1)){
+    recv(socket, buf, t, 0);
+    buf[t] = 0;
+    fcntl(socket, F_SETFL, sock_flags);
+    return buflen;
+  }
+
+  return 0;
 }
 
 extern "C"
