@@ -145,7 +145,13 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("get info clusterlog", &MgmApiSession::getInfoClusterLog, ""),
 
-  MGM_CMD("restart node", &MgmApiSession::restart, ""),
+  MGM_CMD("restart node", &MgmApiSession::restart_v1, ""),
+    MGM_ARG("node", String, Mandatory, "Nodes to restart"),
+    MGM_ARG("initialstart", Int, Optional, "Initial start"),
+    MGM_ARG("nostart", Int, Optional, "No start"),
+    MGM_ARG("abort", Int, Optional, "Abort"),
+
+  MGM_CMD("restart node v2", &MgmApiSession::restart_v2, ""),
     MGM_ARG("node", String, Mandatory, "Nodes to restart"),
     MGM_ARG("initialstart", Int, Optional, "Initial start"),
     MGM_ARG("nostart", Int, Optional, "No start"),
@@ -186,13 +192,21 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("abort backup", &MgmApiSession::abortBackup, ""),
     MGM_ARG("id", Int, Mandatory, "Backup id"),
 
-  MGM_CMD("stop", &MgmApiSession::stop, ""),
+  MGM_CMD("stop", &MgmApiSession::stop_v1, ""),
     MGM_ARG("node", String, Mandatory, "Node"),
     MGM_ARG("abort", Int, Mandatory, "Node"),
 
-  MGM_CMD("stop all", &MgmApiSession::stopAll, ""),
+  MGM_CMD("stop v2", &MgmApiSession::stop_v2, ""),
+    MGM_ARG("node", String, Mandatory, "Node"),
     MGM_ARG("abort", Int, Mandatory, "Node"),
-  
+
+  MGM_CMD("stop all", &MgmApiSession::stopAll_v1, ""),
+    MGM_ARG("abort", Int, Mandatory, "Node"),
+
+  MGM_CMD("stop all v2", &MgmApiSession::stopAll_v2, ""),
+    MGM_ARG("abort", Int, Mandatory, "Node"),
+    MGM_ARG("stop", String, Mandatory, "MGM/DB or both"),
+
   MGM_CMD("enter single user", &MgmApiSession::enterSingleUser, ""),
     MGM_ARG("nodeId", Int, Mandatory, "Node"),
   
@@ -850,8 +864,19 @@ MgmApiSession::stopSignalLog(Parser<MgmApiSession>::Context &,
 }
 
 void
-MgmApiSession::restart(Parser<MgmApiSession>::Context &,
+MgmApiSession::restart_v1(Parser<MgmApiSession>::Context &,
 		       Properties const &args) {
+  restart(args,1);
+}
+
+void
+MgmApiSession::restart_v2(Parser<MgmApiSession>::Context &,
+		       Properties const &args) {
+  restart(args,2);
+}
+
+void
+MgmApiSession::restart(Properties const &args, int version) {
   Uint32
     nostart = 0,
     initialstart = 0,
@@ -885,6 +910,8 @@ MgmApiSession::restart(Parser<MgmApiSession>::Context &,
   } else
     m_output->println("result: Ok");
   m_output->println("restarted: %d", restarted);
+  if(version>1)
+    m_output->println("disconnect: %d", (m_stopSelf)?1:0);
   m_output->println("");
 }
 
@@ -994,8 +1021,19 @@ MgmApiSession::getInfoClusterLog(Parser<MgmApiSession>::Context &,
 }
 
 void
-MgmApiSession::stop(Parser<MgmApiSession>::Context &,
-		    Properties const &args) {
+MgmApiSession::stop_v1(Parser<MgmApiSession>::Context &,
+                       Properties const &args) {
+  stop(args,1);
+}
+
+void
+MgmApiSession::stop_v2(Parser<MgmApiSession>::Context &,
+                       Properties const &args) {
+  stop(args,2);
+}
+
+void
+MgmApiSession::stop(Properties const &args, int version) {
   Uint32 abort;
   char *nodes_str;
   Vector<NodeId> nodes;
@@ -1028,25 +1066,46 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
   else
     m_output->println("result: Ok");
   m_output->println("stopped: %d", stopped);
+  if(version>1)
+    m_output->println("disconnect: %d", (m_stopSelf)?1:0);
   m_output->println("");
 }
 
 
 void
-MgmApiSession::stopAll(Parser<MgmApiSession>::Context &,
+MgmApiSession::stopAll_v1(Parser<MgmApiSession>::Context &,
 			      Properties const &args) {
-  int stopped = 0;
+  stopAll(args,"db",1);
+}
+
+void
+MgmApiSession::stopAll_v2(Parser<MgmApiSession>::Context &,
+			      Properties const &args) {
+  BaseString tostop;
+  args.get("stop", tostop);
+  stopAll(args, tostop.c_str(), 2);
+}
+
+void
+MgmApiSession::stopAll(Properties const &args, const char* tostop, int ver) {
+  int stopped[2] = {0,0};
   Uint32 abort;
   args.get("abort", &abort);
 
-  int result = m_mgmsrv.shutdownDB(&stopped, abort != 0);
+  int result= 0;
+  if(strstr(tostop,"db"))
+    result= m_mgmsrv.shutdownDB(&stopped[0], abort != 0);
+  if(strstr(tostop,"mgm"))
+    result= m_mgmsrv.shutdownMGM(&stopped[1], abort!=0, &m_stopSelf);
 
   m_output->println("stop reply");
   if(result != 0)
     m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
-  m_output->println("stopped: %d", stopped);
+  m_output->println("stopped: %d", stopped[0]+stopped[1]);
+  if(ver >1)
+    m_output->println("disconnect: %d", (m_stopSelf)?1:0);
   m_output->println("");
 }
 
