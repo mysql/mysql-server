@@ -1625,6 +1625,12 @@ extern handlerton partition_hton;
 #else
 extern SHOW_COMP_OPTION have_partition_db;
 #endif
+#ifdef WITH_MARIA_STORAGE_ENGINE
+extern handlerton maria_hton;
+#define have_maria maria_hton.state
+#else
+extern SHOW_COMP_OPTION have_maria;
+#endif
 
 extern handlerton myisam_hton;
 extern handlerton myisammrg_hton;

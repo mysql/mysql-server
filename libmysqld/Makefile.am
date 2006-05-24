@@ -46,7 +46,7 @@ noinst_HEADERS =	embedded_priv.h emb_qcache.h
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
 	ha_innodb.cc ha_berkeley.cc ha_federated.cc ha_ndbcluster.cc \
-	ha_ndbcluster_binlog.cc ha_partition.cc \
+	ha_ndbcluster_binlog.cc ha_partition.cc ha_maria.cc\
 	handler.cc sql_handler.cc \
 	hostname.cc init.cc password.c \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \

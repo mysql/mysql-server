@@ -35,7 +35,9 @@
    the callback function 'unpack_addon_fields'.
 */
 
-typedef struct st_sort_addon_field {  /* Sort addon packed field */
+typedef struct st_sort_addon_field
+{
+  /* Sort addon packed field */
   Field *field;          /* Original field */
   uint   offset;         /* Offset from the last sorted field */
   uint   null_offset;    /* Offset to to null bit from the last sorted field */
@@ -43,13 +45,6 @@ typedef struct st_sort_addon_field {  /* Sort addon packed field */
   uint8  null_bit;       /* Null bit mask for the field */
 } SORT_ADDON_FIELD;
 
-typedef struct st_buffpek {		/* Struktur om sorteringsbuffrarna */
-  my_off_t file_pos;			/* Where we are in the sort file */
-  uchar *base,*key;			/* key pointers */
-  ha_rows count;			/* Number of rows in table */
-  ulong mem_count;			/* numbers of keys in memory */
-  ulong max_keys;			/* Max keys in buffert */
-} BUFFPEK;
 
 typedef struct st_sort_param {
   uint rec_length;          /* Length of sorted records */

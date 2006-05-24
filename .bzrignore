@@ -458,6 +458,7 @@ libmysqld/emb_qcache.cpp
 libmysqld/errmsg.c
 libmysqld/event.cc
 libmysqld/event_executor.cc
+libmysqld/event_scheduler.cc
 libmysqld/event_timed.cc
 libmysqld/examples/client_test.c
 libmysqld/examples/client_test.cc
@@ -1376,6 +1377,19 @@ storage/innobase/ib_config.h
 storage/innobase/ib_config.h.in
 storage/innobase/mkinstalldirs
 storage/innobase/stamp-h1
+storage/maria/*.MAD
+storage/maria/*.MAI
+storage/maria/ma_rt_test
+storage/maria/ma_sp_test
+storage/maria/ma_test1
+storage/maria/ma_test2
+storage/maria/ma_test3
+storage/maria/ma_test_all
+storage/maria/maria.log
+storage/maria/maria_chk
+storage/maria/maria_ftdump
+storage/maria/maria_log
+storage/maria/maria_pack
 storage/myisam/FT1.MYD
 storage/myisam/FT1.MYI
 storage/myisam/ft_dump
@@ -1770,4 +1784,3 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
-libmysqld/event_scheduler.cc
