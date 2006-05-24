@@ -702,6 +702,7 @@ inline
 NdbIndexImpl * 
 NdbDictionaryImpl::getIndex(const char * index_name,
 			    const char * table_name)
+{
   return getIndex(index_name, (table_name) ? getTable(table_name) : NULL);
 }
 
@@ -710,7 +711,7 @@ NdbIndexImpl *
 NdbDictionaryImpl::getIndex(const char * index_name,
 			    NdbTableImpl * table)
 {
-  if (table || m_ndb.usingFullyQualifiedNames()) {
+  if (table || m_ndb.usingFullyQualifiedNames())
   {
     const BaseString internal_indexname(
       (table)
