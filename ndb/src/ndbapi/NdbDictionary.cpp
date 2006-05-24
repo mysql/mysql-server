@@ -818,7 +818,7 @@ NdbDictionary::Dictionary::getIndex(const char * indexName,
 
 const NdbDictionary::Index * 
 NdbDictionary::Dictionary::getIndex(const char * indexName,
-				    const Table & t)
+				    const Table & t) const
 {
   NdbIndexImpl * i = m_impl.getIndex(indexName, & NdbTableImpl::getImpl(t));
   if(i)
