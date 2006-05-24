@@ -1222,13 +1222,13 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     uchar null_bit_arg,
 	     utype unireg_check_arg, const char *field_name_arg,
 	     struct st_table *table_arg)
-  :ptr(ptr_arg),null_ptr(null_ptr_arg),
+  :ptr(ptr_arg), null_ptr(null_ptr_arg),
    table(table_arg),orig_table(table_arg),
    table_name(table_arg ? &table_arg->alias : &unknown_table_name),
    field_name(field_name_arg),
    query_id(0), key_start(0), part_of_key(0), part_of_sortkey(0),
    unireg_check(unireg_check_arg),
-   field_length(length_arg), null_bit(null_bit_arg), dflt_field(0)
+   field_length(length_arg), null_bit(null_bit_arg) 
 {
   flags=null_ptr ? 0: NOT_NULL_FLAG;
   comment.str= (char*) "";
@@ -8964,22 +8964,21 @@ create_field::create_field(Field *old_field,Field *orig_field)
        old_field->table->timestamp_field != old_field ||  /* timestamp field */ 
        unireg_check == Field::TIMESTAMP_UN_FIELD))        /* has default val */
   {
-    char buff[MAX_FIELD_WIDTH],*pos;
-    String tmp(buff,sizeof(buff), charset), *res;
     my_ptrdiff_t diff;
 
     /* Get the value from default_values */
     diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
                           orig_field->table->record[0]);
     orig_field->move_field(diff);		// Points now at default_values
-    bool is_null=orig_field->is_real_null();
-    res= orig_field->val_str(&tmp);
-    orig_field->move_field(-diff);		// Back to record[0]
-    if (!is_null)
+    if (!orig_field->is_real_null())
     {
+      char buff[MAX_FIELD_WIDTH],*pos;
+      String tmp(buff,sizeof(buff), charset), *res;
+      res= orig_field->val_str(&tmp);
       pos= (char*) sql_strmake(res->ptr(), res->length());
       def= new Item_string(pos, res->length(), charset);
     }
+    orig_field->move_field(-diff);		// Back to record[0]
   }
 }
 

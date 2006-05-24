@@ -388,6 +388,8 @@ public:
                   required, otherwise we only reading it and SELECT
                   privilege might be required.
   */
+  Settable_routine_parameter() {}
+  virtual ~Settable_routine_parameter() {}
   virtual void set_required_privilege(bool rw) {};
 
   /*
