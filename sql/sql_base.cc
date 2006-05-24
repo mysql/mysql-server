@@ -316,7 +316,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info",
-	       ("Waiting for others threads to close their open tables"));
+	       ("Waiting for other threads to close their open tables"));
     while (found && ! thd->killed)
     {
       found=0;
@@ -326,6 +326,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 	if ((table->s->version) < refresh_version && table->db_stat)
 	{
 	  found=1;
+          DBUG_PRINT("signal", ("Waiting for COND_refresh"));
 	  pthread_cond_wait(&COND_refresh,&LOCK_open);
 	  break;
 	}
@@ -1046,6 +1047,7 @@ TABLE *unlink_open_table(THD *thd, TABLE *list, TABLE *find)
 
 void wait_for_refresh(THD *thd)
 {
+  DBUG_ENTER("wait_for_refresh");
   safe_mutex_assert_owner(&LOCK_open);
 
   /* Wait until the current table is up to date */
@@ -1063,6 +1065,7 @@ void wait_for_refresh(THD *thd)
   thd->mysys_var->current_cond= 0;
   thd->proc_info= proc_info;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1346,6 +1349,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {
     if (table->s->version != refresh_version)
     {
+      DBUG_PRINT("note",
+                 ("Found table '%s.%s' with different refresh version",
+                  table_list->db, table_list->table_name));
       if (flags & MYSQL_LOCK_IGNORE_FLUSH)
       {
         /* Force close at once after usage */
@@ -5123,6 +5129,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   TABLE *table;
   bool result=0, signalled= 0;
   DBUG_ENTER("remove_table_from_cache");
+  DBUG_PRINT("enter", ("Table: '%s.%s'  flags: %u", db, table_name, flags));
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   for (;;)
@@ -5147,7 +5154,10 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       {
         in_use->some_tables_deleted=1;
         if (table->db_stat)
+        {
+          DBUG_PRINT("info", ("Found another active instance of the table"));
   	  result=1;
+        }
         /* Kill delayed insert threads */
         if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
             ! in_use->killed)
@@ -5182,6 +5192,12 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       VOID(hash_delete(&open_cache,(byte*) unused_tables));
     if (result && (flags & RTFC_WAIT_OTHER_THREAD_FLAG))
     {
+      /*
+        Signal any thread waiting for tables to be freed to
+        reopen their tables
+      */
+      (void) pthread_cond_broadcast(&COND_refresh);
+      DBUG_PRINT("info", ("Waiting for refresh signal"));
       if (!(flags & RTFC_CHECK_KILLED_FLAG) || !thd->killed)
       {
         dropping_tables++;
