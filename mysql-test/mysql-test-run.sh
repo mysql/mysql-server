@@ -602,6 +602,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  CLIENT_BINDIR="$BASEDIR/client"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$BASEDIR/extra/mysql_waitpid"
+ MYSQL_MY_PRINT_DEFAULTS="$BASEDIR/extra/my_print_defaults"
  MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
  MYSQL_MANAGER="$BASEDIR/tools/mysqlmanager"
  MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqlmanager-pwgen"
@@ -662,6 +663,7 @@ else
  MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$CLIENT_BINDIR/mysql_waitpid"
+ MYSQL_MY_PRINT_DEFAULTS="$CLIENT_BINDIR/my_print_defaults"
  MYSQL_MANAGER="$CLIENT_BINDIR/mysqlmanager"
  MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
  MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqlmanager-pwgen"
@@ -743,7 +745,7 @@ MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYS
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
 export MYSQL MYSQL_DUMP MYSQL_IMPORT MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
-export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR
+export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR MYSQL_MY_PRINT_DEFAULTS
 export NDB_TOOLS_DIR
 export NDB_MGM
 export NDB_BACKUP_DIR
