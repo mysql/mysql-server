@@ -30,7 +30,6 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysql_find_rows \
 			mysqlhotcopy \
 			mysqldumpslow \
-			mysql_explain_log \
 			mysqld_multi \
 			mysql_create_system_tables
 
@@ -55,7 +54,6 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysql_find_rows.sh \
 			mysqlhotcopy.sh \
 			mysqldumpslow.sh \
-			mysql_explain_log.sh \
 			mysqld_multi.sh \
 			mysqld_safe.sh \
 			mysql_create_system_tables.sh
@@ -83,7 +81,6 @@ CLEANFILES =		@server_scripts@ \
 			mysql_find_rows \
 			mysqlhotcopy \
 			mysqldumpslow \
-			mysql_explain_log \
 			mysql_tableinfo \
 			mysqld_multi \
 			make_win_src_distribution \
