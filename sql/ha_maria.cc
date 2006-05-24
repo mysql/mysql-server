@@ -63,13 +63,16 @@ TYPELIB maria_stats_method_typelib=
 static handler *maria_create_handler(TABLE_SHARE * table);
 
 /* MARIA handlerton */
+static const char maria_hton_name[]= "MARIA";
+static const char maria_hton_comment[]=
+  "Transactional storage engine, optimized for long running transactions";
 
 handlerton maria_hton=
 {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "MARIA",
+  maria_hton_name,
   SHOW_OPTION_YES,
-  "Transactional storage engine, optimized for long running transactions",
+  maria_hton_comment,
   DB_TYPE_MARIA,
   ha_maria_init,
   0,                                            /* slot */
@@ -1834,3 +1837,17 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *info,
     return COMPATIBLE_DATA_NO;
   return COMPATIBLE_DATA_YES;
 }
+
+mysql_declare_plugin(maria)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &maria_hton,
+  maria_hton_name,
+  "MySQL AB",
+  maria_hton_comment,
+  NULL, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100, /* 1.0 */
+  0
+}
+mysql_declare_plugin_end;

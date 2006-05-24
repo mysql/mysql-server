@@ -141,7 +141,6 @@ base_configs="--prefix=$prefix --enable-assembler "
 base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client --with-readline "
 base_configs="$base_configs --with-big-tables"
-base_configs="$base_configs --with-maria-storage-engine"
 
 # we need local-infile in all binaries for rpl000001
 # if you need to disable local-infile in the client, write a build script
