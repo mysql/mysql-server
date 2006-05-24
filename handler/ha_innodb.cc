@@ -1248,7 +1248,6 @@ innobase_print_identifier(
 
 		q = '"';
 	} else {
-		/* TODO: convert from UTF-8 to trx->mysql_thd->charset() ? */
 		q = get_quote_char_for_identifier((THD*) trx->mysql_thd,
 						s, (int) namelen);
 	}
