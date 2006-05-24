@@ -8754,10 +8754,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       /* Get the value from default_values */
       diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
                             orig_field->table->record[0]);
-      orig_field->move_field(diff);        // Points now at default_values
+      orig_field->move_field_offset(diff);      // Points now at default_values
       bool is_null= orig_field->is_real_null();
       char *from= orig_field->ptr;
-      orig_field->move_field(-diff);       // Back to record[0]
+      orig_field->move_field_offset(-diff);     // Back to record[0]
       if (is_null)
         field->set_null();
       else
