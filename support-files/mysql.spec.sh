@@ -554,7 +554,6 @@ fi
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
 %attr(755, root, root) %{_bindir}/mysql_create_system_tables
-%attr(755, root, root) %{_bindir}/mysql_explain_log
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
 %attr(755, root, root) %{_bindir}/mysql_install_db
