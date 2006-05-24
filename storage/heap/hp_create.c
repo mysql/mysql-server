@@ -85,6 +85,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
           if (!my_binary_compare(keyinfo->seg[j].charset))
             keyinfo->flag|= HA_END_SPACE_KEY;
           keyinfo->flag|= HA_VAR_LENGTH_KEY;
+          length+= 2;
           /* Save number of bytes used to store length */
           keyinfo->seg[j].bit_start= 1;
           break;
@@ -95,6 +96,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
           if (!my_binary_compare(keyinfo->seg[j].charset))
             keyinfo->flag|= HA_END_SPACE_KEY;
           keyinfo->flag|= HA_VAR_LENGTH_KEY;
+          length+= 2;
           /* Save number of bytes used to store length */
           keyinfo->seg[j].bit_start= 2;
           /*
