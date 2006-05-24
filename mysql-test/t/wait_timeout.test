@@ -4,10 +4,41 @@
 #
 # Bug #8731: wait_timeout does not work on Mac OS X
 #
+
+
+# Connect with another connection and reset counters
+--disable_query_log
+connect (wait_con,localhost,root,,test,,);
+flush status; # Reset counters
+connection wait_con;
+let $retries=300;
+let $aborted_clients = `SHOW STATUS LIKE 'aborted_clients'`;
+set @aborted_clients= 0;
+--enable_query_log
+
+# Disable reconnect and do the query
+connection default;
 --disable_reconnect
 select 1;
-# wait_timeout is 1, so we should get disconnected now
---sleep 2
+
+# Switch to wait_con and wait until server has aborted the connection
+--disable_query_log
+connection wait_con;
+while (!`select @aborted_clients`)
+{
+  sleep 0.1;
+  let $aborted_clients = `SHOW STATUS LIKE 'aborted_clients'`;
+  eval set @aborted_clients= SUBSTRING('$aborted_clients', 16)+0;
+
+  dec $retries;
+  if (!$retries)
+  {
+    Failed to detect that client has been aborted;
+  }
+}
+--enable_query_log
+
+connection default;
 # When the connection is closed in this way, the error code should
 # be consistent see bug#2845 for an explanation
 --error 2006
@@ -15,12 +46,41 @@ select 2;
 --enable_reconnect
 select 3;
 
+#
 # Do the same test as above on a TCP connection
+# (which we get by specifying a ip adress)
+
+# Connect with another connection and reset counters
+--disable_query_log
+connection wait_con;
+flush status; # Reset counters
+let $retries=300;
+let $aborted_clients = `SHOW STATUS LIKE 'aborted_clients'`;
+set @aborted_clients= 0;
+--enable_query_log
+
 connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT,);
 --disable_reconnect
 select 1;
-# wait_timeout is 1, so we should get disconnected now
---sleep 2
+
+# Switch to wait_con and wait until server has aborted the connection
+--disable_query_log
+connection wait_con;
+while (!`select @aborted_clients`)
+{
+  sleep 0.1;
+  let $aborted_clients = `SHOW STATUS LIKE 'aborted_clients'`;
+  eval set @aborted_clients= SUBSTRING('$aborted_clients', 16)+0;
+
+  dec $retries;
+  if (!$retries)
+  {
+    Failed to detect that client has been aborted;
+  }
+}
+--enable_query_log
+
+connection con1;
 # When the connection is closed in this way, the error code should
 # be consistent see bug#2845 for an explanation
 --error 2006
