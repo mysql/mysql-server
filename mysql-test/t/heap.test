@@ -458,4 +458,16 @@ create table t2 (c varchar(10)) engine=memory;
 show table status like 't_';
 drop table t1, t2;
 
+#
+# BUG#18233 - Memory tables INDEX USING HASH (a,b) returns 1 row on
+#             SELECT WHERE a= AND b=
+#
+CREATE TABLE t1(a VARCHAR(1), b VARCHAR(2), c VARCHAR(256),
+                KEY(a), KEY(b), KEY(c)) ENGINE=MEMORY;
+INSERT INTO t1 VALUES('a','aa',REPEAT('a', 256)),('a','aa',REPEAT('a',256));
+SELECT COUNT(*) FROM t1 WHERE a='a';
+SELECT COUNT(*) FROM t1 WHERE b='aa';
+SELECT COUNT(*) FROM t1 WHERE c=REPEAT('a',256);
+DROP TABLE t1;
+
 # End of 5.0 tests
