@@ -472,13 +472,20 @@ int tina_end(ha_panic_function type)
 
 /*
   Finds the end of a line.
-  Currently only supports files written on a UNIX OS.
+  Supports DOS, Unix, or Mac OS line endings.
 */
-byte * find_eoln(byte *data, off_t begin, off_t end)
+byte * find_eoln(byte *data, off_t begin, off_t end, int *eoln_len)
 {
+  off_t dataend= begin;
+  *eoln_len= 0;
+  
   for (off_t x= begin; x < end; x++)
-    if (data[x] == '\n')
-      return data + x;
+    if (data[x] == '\r' || data[x] == '\n')
+      (*eoln_len)++;
+    else if (!(*eoln_len))
+      dataend++;
+    else
+      return data+dataend;
 
   return 0;
 }
@@ -627,6 +634,7 @@ int ha_tina::find_current_row(byte *buf)
 {
   byte *mapped_ptr;
   byte *end_ptr;
+  int eoln_len;
   DBUG_ENTER("ha_tina::find_current_row");
 
   mapped_ptr= (byte *)share->mapped_file + current_position;
@@ -636,7 +644,7 @@ int ha_tina::find_current_row(byte *buf)
     not to conflict with undergoing concurrent insert.
   */
   if ((end_ptr=  find_eoln(share->mapped_file, current_position,
-                           local_saved_data_file_length)) == 0)
+                           local_saved_data_file_length, &eoln_len)) == 0)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   for (Field **field=table->field ; *field ; field++)
@@ -684,7 +692,7 @@ int ha_tina::find_current_row(byte *buf)
     }
     (*field)->store(buffer.ptr(), buffer.length(), system_charset_info);
   }
-  next_position= (end_ptr - share->mapped_file)+1;
+  next_position= (end_ptr - share->mapped_file)+eoln_len;
   /* Maybe use \N for null? */
   memset(buf, 0, table->s->null_bytes); /* We do not implement nulls! */
 
