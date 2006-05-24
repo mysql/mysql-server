@@ -20,18 +20,20 @@ Created 5/11/1994 Heikki Tuuri
 
 ibool	ut_always_false	= FALSE;
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
-Get the quote character to be used in SQL identifiers.
+Display an SQL identifier.
 This definition must match the one in sql/ha_innodb.cc! */
 extern
-int
-mysql_get_identifier_quote_char(
-/*============================*/
-				/* out: quote character to be
-				used in SQL identifiers; EOF if none */
+void
+innobase_print_identifier(
+/*======================*/
+	FILE*		f,	/* in: output stream */
 	trx_t*		trx,	/* in: transaction */
+	ibool		table_id,/* in: TRUE=decode table name */
 	const char*	name,	/* in: name to print */
 	ulint		namelen);/* in: length of name */
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
@@ -398,9 +400,10 @@ ut_print_name(
 /*==========*/
 	FILE*		f,	/* in: output stream */
 	trx_t*		trx,	/* in: transaction */
+	ibool		table_id,/* in: TRUE=decode table name */
 	const char*	name)	/* in: name to print */
 {
-	ut_print_namel(f, trx, name, strlen(name));
+	ut_print_namel(f, trx, table_id, name, strlen(name));
 }
 
 /**************************************************************************
@@ -411,29 +414,27 @@ ut_print_namel(
 /*===========*/
 	FILE*		f,	/* in: output stream */
 	trx_t*		trx,	/* in: transaction (NULL=no quotes) */
+	ibool		table_id,/* in: TRUE=decode table name */
 	const char*	name,	/* in: name to print */
 	ulint		namelen)/* in: length of name */
 {
-	const char*	s = name;
-	const char*	e = s + namelen;
 #ifdef UNIV_HOTBACKUP
-	int		q = '"';
+	fwrite(name, 1, namelen, f);
 #else
-	int		q = mysql_get_identifier_quote_char(trx, name, namelen);
+	char*	slash = strchr(name, '/');
+
+	if (UNIV_LIKELY_NULL(slash)) {
+		/* Print the database name and table name separately. */
+		ut_ad(table_id);
+
+		innobase_print_identifier(f, trx, TRUE, name, slash - name);
+		putc('.', f);
+		innobase_print_identifier(f, trx, TRUE, slash + 1,
+				namelen - (slash - name) - 1);
+	} else {
+		innobase_print_identifier(f, trx, table_id, name, namelen);
+	}
 #endif
-	if (q == EOF) {
-		fwrite(name, 1, namelen, f);
-		return;
-	}
-	putc(q, f);
-	while (s < e) {
-		int	c = *s++;
-		if (c == q) {
-			putc(c, f);
-		}
-		putc(c, f);
-	}
-	putc(q, f);
 }
 
 /**************************************************************************

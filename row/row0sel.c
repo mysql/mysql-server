@@ -3248,7 +3248,7 @@ row_search_for_mysql(
 		"InnoDB: Error: trying to free a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name ",
 		(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, trx, prebuilt->table->name);
+		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption(prebuilt);
@@ -3534,15 +3534,13 @@ shortcut_fails_too_big_rec:
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 		&& prebuilt->select_lock_type != LOCK_NONE
-		&& trx->mysql_query_str) {
+		&& trx->mysql_query_str && trx->mysql_thd) {
 
 		/* Scan the MySQL query string; check if SELECT is the first
 		word there */
-		ibool	success;
 
-		dict_accept(*trx->mysql_query_str, "SELECT", &success);
-
-		if (success) {
+		if (dict_str_starts_with_keyword(trx->mysql_thd,
+				*trx->mysql_query_str, "SELECT")) {
 			/* It is a plain locking SELECT and the isolation
 			level is low: do not lock gaps */
 
