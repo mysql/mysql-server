@@ -37,9 +37,6 @@
   HFTODO this must be hidden if we don't want client capabilities in 
   embedded library
  */
-#ifdef __WIN__
-#include <winsock.h>
-#endif
 #include <my_global.h>
 #include <mysql.h>
 #include <mysql_embed.h>
@@ -51,7 +48,9 @@
 #include <violite.h>
 #include <signal.h>
 #include <errno.h>
-
+#ifdef __WIN__
+#include <winsock.h>
+#endif
 #ifdef __NETWARE__
 #include <sys/select.h>
 #endif
