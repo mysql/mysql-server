@@ -432,18 +432,22 @@ char *partition_info::has_unique_names()
 bool partition_info::check_engine_mix(handlerton **engine_array, uint no_parts)
 {
   uint i= 0;
-  bool result= FALSE;
   DBUG_ENTER("partition_info::check_engine_mix");
 
   do
   {
     if (engine_array[i] != engine_array[0])
     {
-      result= TRUE;
-      break;
+      my_error(ER_MIX_HANDLER_ERROR, MYF(0));
+      DBUG_RETURN(TRUE);
     }
   } while (++i < no_parts);
-  DBUG_RETURN(result);
+  if (ha_legacy_type(engine_array[0]) == DB_TYPE_MRG_MYISAM)
+  {
+    my_error(ER_PARTITION_MERGE_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -757,10 +761,7 @@ bool partition_info::check_partition_info(handlerton **eng_type,
     } while (++i < no_parts);
   }
   if (unlikely(partition_info::check_engine_mix(engine_array, part_count)))
-  {
-    my_error(ER_MIX_HANDLER_ERROR, MYF(0));
     goto end;
-  }
 
   if (eng_type)
     *eng_type= (handlerton*)engine_array[0];
