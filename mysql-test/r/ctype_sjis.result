@@ -172,6 +172,6 @@ c2h
 ab_def
 drop table t1;
 SET NAMES sjis;
-SELECT HEX('佐淘　\圭') FROM DUAL;
-HEX('佐淘　＼圭')
+SELECT HEX('佐淘　圭') FROM DUAL;
+HEX('佐淘　圭')
 8DB2939181408C5C
