@@ -442,7 +442,7 @@ bool partition_info::check_engine_mix(handlerton **engine_array, uint no_parts)
       DBUG_RETURN(TRUE);
     }
   } while (++i < no_parts);
-  if (ha_legacy_type(engine_array[0]) == DB_TYPE_MRG_MYISAM)
+  if (engine_array[0] == &myisammrg_hton)
   {
     my_error(ER_PARTITION_MERGE_ERROR, MYF(0));
     DBUG_RETURN(TRUE);
