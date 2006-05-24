@@ -704,6 +704,7 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
 bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
+                        Field **def_field,
 			bool group, bool modify_item,
 			bool table_cant_handle_bit_fields,
                         bool make_copy_field,
