@@ -1860,7 +1860,7 @@ lock_rec_enqueue_waiting(
 		fputs(
 "  InnoDB: Error: a record lock wait happens in a dictionary operation!\n"
 "InnoDB: Table name ", stderr);
-		ut_print_name(stderr, trx, index->table_name);
+		ut_print_name(stderr, trx, TRUE, index->table_name);
 		fputs(".\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n",
 			stderr);
@@ -1899,7 +1899,7 @@ lock_rec_enqueue_waiting(
 	if (lock_print_waits) {
 		fprintf(stderr, "Lock wait for trx %lu in index ",
 			(ulong) ut_dulint_get_low(trx->id));
-		ut_print_name(stderr, trx, index->name);
+		ut_print_name(stderr, trx, FALSE, index->name);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -3555,7 +3555,7 @@ lock_table_enqueue_waiting(
 		fputs(
 "  InnoDB: Error: a table lock wait happens in a dictionary operation!\n"
 "InnoDB: Table name ", stderr);
-		ut_print_name(stderr, trx, table->name);
+		ut_print_name(stderr, trx, TRUE, table->name);
 		fputs(".\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n",
 			stderr);
@@ -4074,7 +4074,8 @@ lock_table_print(
 	ut_a(lock_get_type(lock) == LOCK_TABLE);
 
 	fputs("TABLE LOCK table ", file);
-	ut_print_name(file, lock->trx, lock->un_member.tab_lock.table->name);
+	ut_print_name(file, lock->trx, TRUE,
+				lock->un_member.tab_lock.table->name);
 	fprintf(file, " trx id %lu %lu",
 		(ulong) (lock->trx)->id.high, (ulong) (lock->trx)->id.low);
 
