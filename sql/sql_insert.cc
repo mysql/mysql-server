@@ -2759,7 +2759,9 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
     on rollback, we clear the OPTION_STATUS_NO_TRANS_UPDATE bit of
     thd->options.
    */
+#ifdef HAVE_ROW_BASED_REPLICATION
   DBUG_ASSERT(thd->current_stmt_binlog_row_based);
+#endif
   DBUG_ASSERT(tables && *tables && count > 0);
 
   thd->options&= ~OPTION_STATUS_NO_TRANS_UPDATE;
