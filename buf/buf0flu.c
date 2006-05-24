@@ -255,7 +255,10 @@ buf_flush_buffered_writes(void)
 		block = trx_doublewrite->buf_block_arr[i];
 		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
-		/* TODO: page_zip */
+		if (UNIV_LIKELY_NULL(block->page_zip.data)) {
+			/* No simple validate for compressed pages exists. */
+			continue;
+		}
 
 		if (UNIV_UNLIKELY(memcmp(block->frame + (FIL_PAGE_LSN + 4),
 				block->frame + (UNIV_PAGE_SIZE
@@ -296,23 +299,23 @@ corrupted_page:
 	srv_dblwr_pages_written+= trx_doublewrite->first_free;
 	srv_dblwr_writes++;
 
-	if (trx_doublewrite->first_free > TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
-		len = TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
-	} else {
-		len = trx_doublewrite->first_free * UNIV_PAGE_SIZE;
-	}
-
-	fil_io(OS_FILE_WRITE,
-		TRUE, TRX_SYS_SPACE,
-		trx_doublewrite->block1, 0, len,
-			(void*)trx_doublewrite->write_buf, NULL);
+	len = ut_min(TRX_SYS_DOUBLEWRITE_BLOCK_SIZE,
+			trx_doublewrite->first_free) * UNIV_PAGE_SIZE;
 
 	write_buf = trx_doublewrite->write_buf;
+	i = 0;
 
-	/* TODO: page_zip */
-	for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len; len2 += UNIV_PAGE_SIZE) {
-		if (UNIV_UNLIKELY(memcmp(write_buf + len2 + (FIL_PAGE_LSN + 4),
-			write_buf + len2 + (UNIV_PAGE_SIZE
+	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE,
+			trx_doublewrite->block1, 0, len,
+			(void*) write_buf, NULL);
+
+	for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len;
+			len2 += UNIV_PAGE_SIZE, i++) {
+		block = trx_doublewrite->buf_block_arr[i];
+		if (UNIV_LIKELY(!block->page_zip.data)
+				&& UNIV_UNLIKELY(memcmp(write_buf + len2
+				+ (FIL_PAGE_LSN + 4),
+				write_buf + len2 + (UNIV_PAGE_SIZE
 				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
@@ -321,36 +324,37 @@ corrupted_page:
 		}
 	}
 
-	if (trx_doublewrite->first_free > TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
-		len = (trx_doublewrite->first_free
-			- TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) * UNIV_PAGE_SIZE;
+	if (trx_doublewrite->first_free <= TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+		goto flush;
+	}
 
-		fil_io(OS_FILE_WRITE,
-			TRUE, TRX_SYS_SPACE,
-			trx_doublewrite->block2, 0, len,
-			(void*)(trx_doublewrite->write_buf
-			+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE),
-			NULL);
+	len = (trx_doublewrite->first_free - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
+				* UNIV_PAGE_SIZE;
 
-		write_buf = trx_doublewrite->write_buf
+	write_buf = trx_doublewrite->write_buf
 			+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
-		/* TODO: page_zip */
-		for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len;
-						len2 += UNIV_PAGE_SIZE) {
-			if (UNIV_UNLIKELY(memcmp(write_buf + len2
-					+ (FIL_PAGE_LSN + 4),
-					write_buf + len2
-					+ (UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
-					4))) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
+	ut_ad(i == TRX_SYS_DOUBLEWRITE_BLOCK_SIZE);
+
+	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE,
+			trx_doublewrite->block2, 0, len,
+			(void*) write_buf, NULL);
+
+	for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len;
+			len2 += UNIV_PAGE_SIZE, i++) {
+		block = trx_doublewrite->buf_block_arr[i];
+		if (UNIV_LIKELY(!block->page_zip.data)
+				&& UNIV_UNLIKELY(memcmp(write_buf + len2
+				+ (FIL_PAGE_LSN + 4),
+				write_buf + len2 + (UNIV_PAGE_SIZE
+				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
 "  InnoDB: ERROR: The page to be written seems corrupt!\n"
 "InnoDB: The lsn fields do not match! Noticed in the doublewrite block2.\n");
-			}
 		}
 	}
 
+flush:
 	/* Now flush the doublewrite buffer data to disk */
 
 	fil_flush(TRX_SYS_SPACE);
@@ -361,8 +365,8 @@ corrupted_page:
 
 	for (i = 0; i < trx_doublewrite->first_free; i++) {
 		block = trx_doublewrite->buf_block_arr[i];
-		/* TODO: page_zip */
-		if (UNIV_UNLIKELY(memcmp(block->frame + (FIL_PAGE_LSN + 4),
+		if (UNIV_LIKELY(!block->page_zip.data) && UNIV_UNLIKELY(
+				memcmp(block->frame + (FIL_PAGE_LSN + 4),
 				block->frame + (UNIV_PAGE_SIZE
 				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
 			ut_print_timestamp(stderr);
@@ -427,7 +431,8 @@ try_again:
 		goto try_again;
 	}
 
-	ut_memcpy(trx_doublewrite->write_buf
+	/* TODO: page_zip */
+	memcpy(trx_doublewrite->write_buf
 				+ UNIV_PAGE_SIZE * trx_doublewrite->first_free,
 			block->frame, UNIV_PAGE_SIZE);
 
