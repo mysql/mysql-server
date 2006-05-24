@@ -16,10 +16,10 @@ use mysql;
 #
 
 truncate table general_log;
---replace_column 1 TIMESTAMP 3 THREAD_ID
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 THREAD_ID
 select * from general_log;
 truncate table slow_log;
---replace_column 1 TIMESTAMP
+--replace_column 1 TIMESTAMP 2 USER_HOST
 select * from slow_log;
 
 #
@@ -31,7 +31,7 @@ select * from slow_log;
 #
 
 truncate table general_log;
---replace_column 1 TIMESTAMP 3 THREAD_ID
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 THREAD_ID
 select * from general_log where argument like '%general_log%';
 
 
@@ -47,6 +47,7 @@ insert into join_test values ("User performed a usual SQL query", "Query");
 insert into join_test values ("New DB connection was registered", "Connect");
 insert into join_test values ("Get the table info", "Field List");
 
+--replace_column 2 USER_HOST
 select verbose_comment, user_host, argument
   from  mysql.general_log join join_test
     on (mysql.general_log.command_type = join_test.command_type);
@@ -156,7 +157,7 @@ truncate table mysql.general_log;
 set names utf8;
 create table bug16905 (s char(15) character set utf8 default 'пусто');
 insert into bug16905 values ('новое');
---replace_column 1 TIMESTAMP 3 THREAD_ID
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 THREAD_ID
 select * from mysql.general_log;
 drop table bug16905;
 
@@ -167,7 +168,7 @@ drop table bug16905;
 truncate table mysql.slow_log;
 set session long_query_time=1;
 select sleep(2);
---replace_column 1 TIMESTAMP, 3 USER_HOST, 4 QUERY_TIME
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME
 select * from mysql.slow_log;
 
 # kill all connections

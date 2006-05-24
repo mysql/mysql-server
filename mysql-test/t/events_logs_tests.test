@@ -14,11 +14,13 @@ SET GLOBAL event_scheduler=2;
 create event log_general on schedule every 1 minute do SELect 'alabala', sleep(3) from dual;
 TRUNCATE mysql.general_log;
 --echo "1 row, the current statement!"
+--replace_column 1 USER_HOST
 call select_general_log();
 SET GLOBAL event_scheduler=1;
 --echo "Wait the scheduler to start"
 --echo "Should see 3 rows - the 'SELect' is in the middle. The other two are selects from general_log"
 --sleep 2
+--replace_column 1 USER_HOST
 call select_general_log();
 DROP PROCEDURE select_general_log;
 DROP EVENT log_general;
@@ -50,13 +52,14 @@ SET @old_session_long_query_time:=@@long_query_time;
 SHOW VARIABLES LIKE 'log_slow_queries';
 DROP FUNCTION get_value;
 TRUNCATE mysql.slow_log;
+--replace_column 1 USER_HOST
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 --echo "Set new values"
 SET GLOBAL long_query_time=4;
 SET SESSION long_query_time=1;
 --echo "Check that logging is working"
 SELECT SLEEP(2);
---replace_regex /00:00:0[2-4]/SLEEPVAL/
+--replace_column 1 USER_HOST 2 SLEEPVAL
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 TRUNCATE mysql.slow_log;
 CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
@@ -81,7 +84,7 @@ CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_te
 --echo "Check our table. Should see 2 rows"
 SELECT * FROM slow_event_test;
 --echo "Check slow log. Should see 1 row because 4 is over the threshold of 3 for GLOBAL, though under SESSION which is 10"
---replace_regex /00:00:0[2-4]/SLEEPVAL/
+--replace_column 1 USER_HOST 2 SLEEPVAL
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 DROP EVENT long_event2;
 SET GLOBAL  long_query_time =@old_global_long_query_time;

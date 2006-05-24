@@ -2674,23 +2674,23 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 }
 
 
+class MY_HOOKS : public TABLEOP_HOOKS {
+public:
+  MY_HOOKS(select_create *x) : ptr(x) { }
+  virtual void do_prelock(TABLE **tables, uint count)
+  {
+    if (ptr->get_thd()->current_stmt_binlog_row_based)
+      ptr->binlog_show_create_table(tables, count);
+  }
+
+private:
+  select_create *ptr;
+};
+
 int
 select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("select_create::prepare");
-
-  class MY_HOOKS : public TABLEOP_HOOKS {
-  public:
-    MY_HOOKS(select_create *x) : ptr(x) { }
-    virtual void do_prelock(TABLE **tables, uint count)
-    {
-      if (ptr->get_thd()->current_stmt_binlog_row_based)
-        ptr->binlog_show_create_table(tables, count);
-    }
-
-  private:
-    select_create *ptr;
-  };
 
   MY_HOOKS hooks(this);
 
