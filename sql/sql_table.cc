@@ -3140,7 +3140,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
   bool need_copy_table;
-  bool no_table_reopen= FALSE;
+  bool no_table_reopen= FALSE, varchar= FALSE;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -3344,6 +3344,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   Field **f_ptr,*field;
   for (f_ptr=table->field ; (field= *f_ptr) ; f_ptr++)
   {
+    if (field->type() == MYSQL_TYPE_STRING)
+      varchar= TRUE;
     /* Check if field should be dropped */
     Alter_drop *drop;
     drop_it.rewind();
@@ -3605,12 +3607,18 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     better have a negative test here, instead of positive, like
     alter_info->flags & ALTER_ADD_COLUMN|ALTER_ADD_INDEX|...
     so that ALTER TABLE won't break when somebody will add new flag
+
+    MySQL uses frm version to determine the type of the data fields and
+    their layout. See Field_string::type() for details.
+    Thus, if the table is too old we may have to rebuild the data to
+    update the layout.
   */
   need_copy_table= (alter_info->flags &
                     ~(ALTER_CHANGE_COLUMN_DEFAULT|ALTER_OPTIONS) ||
                     (create_info->used_fields &
                      ~(HA_CREATE_USED_COMMENT|HA_CREATE_USED_PASSWORD)) ||
-                    table->s->tmp_table);
+                    table->s->tmp_table ||
+                    (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar));
   create_info->frm_only= !need_copy_table;
 
   /*
