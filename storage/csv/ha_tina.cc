@@ -487,6 +487,13 @@ byte * find_eoln(byte *data, off_t begin, off_t end, int *eoln_len)
     else
       return data+dataend;
 
+  /*
+    if we only have one record in the file then our for loop will break
+    before we return.  we should still have seen end of line markers and
+    so we just return the line here
+  */
+  if (*eoln_len > 0)
+    return data+dataend;
   return 0;
 }
 
