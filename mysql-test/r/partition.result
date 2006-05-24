@@ -926,4 +926,14 @@ CREATE TABLE t1 (a int, index(a)) PARTITION BY KEY(a);
 ALTER TABLE t1 DISABLE KEYS;
 ALTER TABLE t1 ENABLE KEYS;
 DROP TABLE t1;
+create table t1 (a int)
+engine=MEMORY
+partition by key (a);
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	note	The storage engine for the table doesn't support repair
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
+drop table t1;
 End of 5.1 tests
