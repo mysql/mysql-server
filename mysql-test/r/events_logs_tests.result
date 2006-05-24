@@ -19,7 +19,7 @@ SET GLOBAL event_scheduler=1;
 "Should see 3 rows - the 'SELect' is in the middle. The other two are selects from general_log"
 call select_general_log();
 user_host	argument
-root[root] @ localhost [localhost]	SELect 'alabala', sleep(3) from dual
+USER_HOST	SELect 'alabala', sleep(3) from dual
 DROP PROCEDURE select_general_log;
 DROP EVENT log_general;
 SET GLOBAL event_scheduler=2;
@@ -43,7 +43,7 @@ SLEEP(2)
 0
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 user_host	query_time	db	sql_text
-root[root] @ localhost []	SLEEPVAL	events_test	SELECT SLEEP(2)
+USER_HOST	SLEEPVAL	events_test	SELECT SLEEP(2)
 TRUNCATE mysql.slow_log;
 CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
 "This won't go to the slow log"
@@ -76,7 +76,7 @@ slo_val	val
 "Check slow log. Should see 1 row because 4 is over the threshold of 3 for GLOBAL, though under SESSION which is 10"
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 user_host	query_time	db	sql_text
-root[root] @ localhost [localhost]	SLEEPVAL	events_test	INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(2)
+USER_HOST	SLEEPVAL	events_test	INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(2)
 DROP EVENT long_event2;
 SET GLOBAL  long_query_time =@old_global_long_query_time;
 SET SESSION long_query_time =@old_session_long_query_time;

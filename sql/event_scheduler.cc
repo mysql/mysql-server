@@ -236,9 +236,16 @@
   about conditional variables used.
 */
 
+#ifdef __GNUC__
+#if __GNUC__ >= 2
+#define SCHED_FUNC __FUNCTION__
+#endif
+#else
+#define SCHED_FUNC "<unknown>"
+#endif
 
-#define LOCK_SCHEDULER_DATA()   lock_data(__FUNCTION__,__LINE__)
-#define UNLOCK_SCHEDULER_DATA() unlock_data(__FUNCTION__,__LINE__)
+#define LOCK_SCHEDULER_DATA()   lock_data(SCHED_FUNC, __LINE__)
+#define UNLOCK_SCHEDULER_DATA() unlock_data(SCHED_FUNC, __LINE__)
 
 
 #ifndef DBUG_OFF
@@ -767,7 +774,7 @@ Event_scheduler::add_event(THD *thd, Event_timed *et, bool check_existence)
   }
 
   /* We need to load the event on scheduler_root */
-  if (!(res= load_event(thd, et, &et_new)))
+  if (!(res= load_named_event(thd, et, &et_new)))
   {
     queue_insert_safe(&queue, (byte *) et_new);
     DBUG_PRINT("info", ("Sending COND_new_work"));
@@ -902,7 +909,7 @@ Event_scheduler::replace_event(THD *thd, Event_timed *et, LEX_STRING *new_schema
     1. Error occured
     2. If the replace is DISABLED, we don't load it into the queue.
   */
-  if (!(res= load_event(thd, et, &et_new)))
+  if (!(res= load_named_event(thd, et, &et_new)))
   {
     queue_insert_safe(&queue, (byte *) et_new);
     DBUG_PRINT("info", ("Sending COND_new_work"));
@@ -2025,7 +2032,7 @@ Event_scheduler::events_count()
   the table, compiles and inserts it into the cache.
 
   SYNOPSIS
-    Event_scheduler::load_event()
+    Event_scheduler::load_named_event()
       thd      THD
       etn      The name of the event to load and compile on scheduler's root
       etn_new  The loaded event
@@ -2036,7 +2043,7 @@ Event_scheduler::events_count()
 */
 
 enum Event_scheduler::enum_error_code
-Event_scheduler::load_event(THD *thd, Event_timed *etn, Event_timed **etn_new)
+Event_scheduler::load_named_event(THD *thd, Event_timed *etn, Event_timed **etn_new)
 {
   int ret= 0;
   MEM_ROOT *tmp_mem_root;
