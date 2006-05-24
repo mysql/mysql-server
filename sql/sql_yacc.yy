@@ -204,6 +204,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CONSTRAINT
 %token  CONTAINS_SYM
 %token  CONTINUE_SYM
+%token  CONTRIBUTORS_SYM
 %token  CONVERT_SYM
 %token  CONVERT_TZ_SYM
 %token  COUNT_SYM
@@ -8193,6 +8194,11 @@ show_param:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_AUTHORS;
+	  }
+	| CONTRIBUTORS_SYM
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_CONTRIBUTORS;
 	  }
 	| PRIVILEGES
 	  {
