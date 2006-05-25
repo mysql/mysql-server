@@ -3183,3 +3183,24 @@ select * from (select min(i) from t1 where j=(select * from (select min(j) from 
 min(i)
 1
 drop table t1;
+CREATE TABLE t1 (i BIGINT UNSIGNED);
+INSERT INTO t1 VALUES (10000000000000000000);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (i BIGINT UNSIGNED);
+INSERT INTO t2 VALUES (10000000000000000000);
+INSERT INTO t2 VALUES (1);
+/* simple test */
+SELECT t1.i FROM t1 JOIN t2 ON t1.i = t2.i;
+i
+10000000000000000000
+1
+/* subquery test */
+SELECT t1.i FROM t1 WHERE t1.i = (SELECT MAX(i) FROM t2);
+i
+10000000000000000000
+/* subquery test with cast*/
+SELECT t1.i FROM t1 WHERE t1.i = CAST((SELECT MAX(i) FROM t2) AS UNSIGNED);
+i
+10000000000000000000
+DROP TABLE t1;
+DROP TABLE t2;
