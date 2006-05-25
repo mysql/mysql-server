@@ -45,6 +45,8 @@ void Ndb_local_table_info::destroy(Ndb_local_table_info *info)
 Ndb_local_table_info::Ndb_local_table_info(NdbTableImpl *table_impl)
 {
   m_table_impl= table_impl;
+  m_first_tuple_id = ~(Uint64)0;
+  m_last_tuple_id = ~(Uint64)0;
 }
 
 Ndb_local_table_info::~Ndb_local_table_info()
