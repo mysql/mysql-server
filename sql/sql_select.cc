@@ -8034,6 +8034,7 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
       item->result_field= new_field;
     else
       new_field->field_name= name;
+    new_field->flags|= (org_field->flags & NO_DEFAULT_VALUE_FLAG);
     if (org_field->maybe_null() || (item && item->maybe_null))
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == MYSQL_TYPE_VAR_STRING ||
@@ -8197,6 +8198,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         bool make_copy_field,
                         uint convert_blob_length)
 {
+  Field *result;
   Item::Type orig_type= type;
   Item *orig_item= 0;
 
@@ -8214,8 +8216,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::SUM_FUNC_ITEM:
   {
     Item_sum *item_sum=(Item_sum*) item;
-    Field *result= item_sum->create_tmp_field(group, table,
-                                              convert_blob_length);
+    result= item_sum->create_tmp_field(group, table, convert_blob_length);
     if (!result)
       thd->fatal_error();
     return result;
@@ -8225,7 +8226,6 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   {
     Item_field *field= (Item_field*) item;
     bool orig_modify= modify_item;
-    Field *result;
     if (orig_type == Item::REF_ITEM)
       modify_item= 0;
     /*
@@ -8259,6 +8259,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                           convert_blob_length);
     if (orig_type == Item::REF_ITEM && orig_modify)
       ((Item_ref*)orig_item)->set_result_field(result);
+    if (field->field->eq_def(result))
+      result->dflt_field= field->field;
     return result;
   }
   /* Fall through */
@@ -8281,10 +8283,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       DBUG_ASSERT(((Item_result_field*)item)->result_field);
       *from_field= ((Item_result_field*)item)->result_field;
     }
-    return create_tmp_field_from_item(thd, item, table, (make_copy_field ? 0 :
-                                      copy_func), modify_item,
-                                      convert_blob_length);
-  case Item::TYPE_HOLDER:
+    return create_tmp_field_from_item(thd, item, table,
+                                      (make_copy_field ? 0 : copy_func),
+                                       modify_item, convert_blob_length);
+  case Item::TYPE_HOLDER:  
     return ((Item_type_holder *)item)->make_field_by_type(table);
   default:					// Dosen't have to be stored
     return 0;
@@ -8739,6 +8741,33 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       null_count+= (field->field_length & 7);
     }
     field->reset();
+
+    if (field->dflt_field && field->dflt_field->ptr)
+    {
+      /* 
+        field->dflt_field is set only in the cases  when 'field' can
+        inherit the default value that is defined for the field referred
+        by the Item_field object from which 'field' has been created.
+        For a field created not from a Item_field item dflt_field == 0.
+      */
+      my_ptrdiff_t diff;
+      Field *orig_field= field->dflt_field;
+      /* Get the value from default_values */
+      diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
+                            orig_field->table->record[0]);
+      orig_field->move_field_offset(diff);      // Points now at default_values
+      bool is_null= orig_field->is_real_null();
+      char *from= orig_field->ptr;
+      orig_field->move_field_offset(-diff);     // Back to record[0]
+      if (is_null)
+        field->set_null();
+      else
+      {
+        field->set_notnull();
+        memcpy(field->ptr, from, field->pack_length());
+      }
+    } 
+
     if (from_field[i])
     {						/* Not a table Item */
       copy->set(field,from_field[i],save_sum_fields);
