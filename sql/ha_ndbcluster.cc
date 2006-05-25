@@ -3056,7 +3056,8 @@ void ha_ndbcluster::info(uint flag)
                         (ulong) err.code, err.message);
         auto_increment_value= ~(Uint64)0;
       }
-      auto_increment_value= (ulonglong)auto_increment_value64;
+      else
+        auto_increment_value= (ulonglong)auto_increment_value64;
     }
   }
   DBUG_VOID_RETURN;
