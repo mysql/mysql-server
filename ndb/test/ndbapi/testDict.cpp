@@ -1139,9 +1139,13 @@ runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
 
     for (int i = 0; i < 16; i++) {
 
-      Uint64 value = myNdb->getAutoIncrementValue(tabname, 1);
-
-      if (value != (startvalue+i)) {
+      Uint64 value;
+      if (myNdb->getAutoIncrementValue(tabname, value, 1) == -1) {
+        g_err << "getAutoIncrementValue failed on " << tabname << endl;
+        APIERROR(myNdb->getNdbError());
+        return NDBT_FAILED;
+      }
+      else if (value != (startvalue+i)) {
         g_err << "value = " << value << " expected " << startvalue+i << endl;;
         APIERROR(myNdb->getNdbError());
         //      ret = NDBT_FAILED;
