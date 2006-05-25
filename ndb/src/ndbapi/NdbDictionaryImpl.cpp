@@ -759,10 +759,6 @@ NdbDictionaryImpl::fetchGlobalTableImpl(const BaseString& internalTableName)
     Ndb_local_table_info::create(impl, m_local_table_data_size);
 
   m_localHash.put(internalTableName.c_str(), info);
-
-  m_ndb.theFirstTupleId[impl->getTableId()] = ~0;
-  m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
-  
   return info;
 }
 
@@ -1746,14 +1742,11 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       DBUG_RETURN(ret);
 
     if (haveAutoIncrement) {
-      if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
-				     autoIncrementValue)) {
-	if (ndb.theError.code == 0) {
-	  m_error.code= 4336;
-	  ndb.theError = m_error;
-	} else
-	  m_error= ndb.theError;
-	ret = -1; // errorcode set in initialize_autoincrement
+      if (ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
+				    autoIncrementValue, false) == -1) {
+        DBUG_ASSERT(ndb.theError.code != 0);
+        m_error= ndb.theError;
+	ret = -1;
       }
     }
   }
