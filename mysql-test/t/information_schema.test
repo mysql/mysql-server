@@ -846,4 +846,22 @@ select user,db from information_schema.processlist;
 connection default;
 drop user user3148@localhost;
 
+#
+# Bug#16681 information_schema shows forbidden VIEW details
+#
+grant select on test.* to mysqltest_1@localhost;
+create table t1 (id int);
+create view v1 as select * from t1;
+create definer = mysqltest_1@localhost
+sql security definer view v2 as select 1;
+
+connect (con16681,localhost,mysqltest_1,,test);
+connection con16681;
+
+select * from information_schema.views
+where table_name='v1' or table_name='v2';
+connection default;
+drop view v1, v2;
+drop table t1;
+drop user mysqltest_1@localhost;
 
