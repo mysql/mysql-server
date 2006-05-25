@@ -1463,7 +1463,9 @@ public:
 
   /**
    * Return a unique tuple id for a table.  The id sequence is
-   * ascending but may contain gaps.
+   * ascending but may contain gaps.  Methods which have no
+   * TupleIdRange argument use NDB API dict cache.  They may
+   * not be called from mysqld.
    *
    * @param aTableName table name
    *
@@ -1471,28 +1473,47 @@ public:
    *
    * @return 0 or -1 on error, and tupleId in out parameter
    */
+  struct TupleIdRange {
+    Uint64 m_first_tuple_id;
+    Uint64 m_last_tuple_id;
+    void reset() {
+      m_first_tuple_id = ~(Uint64)0;
+      m_last_tuple_id = ~(Uint64)0;
+    };
+  };
+
   int initAutoIncrement();
 
   int getAutoIncrementValue(const char* aTableName, 
                             Uint64 & tupleId, Uint32 cacheSize);
   int getAutoIncrementValue(const NdbDictionary::Table * aTable, 
                             Uint64 & tupleId, Uint32 cacheSize);
+  int getAutoIncrementValue(const NdbDictionary::Table * aTable, 
+                            TupleIdRange & range, Uint64 & tupleId,
+                            Uint32 cacheSize);
   int readAutoIncrementValue(const char* aTableName,
                              Uint64 & tupleId);
   int readAutoIncrementValue(const NdbDictionary::Table * aTable,
                              Uint64 & tupleId);
+  int readAutoIncrementValue(const NdbDictionary::Table * aTable,
+                             TupleIdRange & range, Uint64 & tupleId);
   int setAutoIncrementValue(const char* aTableName,
                             Uint64 tupleId, bool increase);
   int setAutoIncrementValue(const NdbDictionary::Table * aTable,
                             Uint64 tupleId, bool increase);
+  int setAutoIncrementValue(const NdbDictionary::Table * aTable,
+                            TupleIdRange & range, Uint64 tupleId,
+                            bool increase);
 private:
-  int getTupleIdFromNdb(Ndb_local_table_info* info,
-                        Uint64 & tupleId, Uint32 cacheSize);
-  int readTupleIdFromNdb(Ndb_local_table_info* info,
-                         Uint64 & tupleId);
-  int setTupleIdInNdb(Ndb_local_table_info* info,
-                      Uint64 tupleId, bool increase);
-  int opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op);
+  int getTupleIdFromNdb(const NdbTableImpl* table,
+                        TupleIdRange & range, Uint64 & tupleId,
+                        Uint32 cacheSize);
+  int readTupleIdFromNdb(const NdbTableImpl* table,
+                         TupleIdRange & range, Uint64 & tupleId);
+  int setTupleIdInNdb(const NdbTableImpl* table,
+                      TupleIdRange & range, Uint64 tupleId, bool increase);
+  int opTupleIdOnNdb(const NdbTableImpl* table,
+                     TupleIdRange & range, Uint64 & opValue, Uint32 op);
 public:
 
   /**
