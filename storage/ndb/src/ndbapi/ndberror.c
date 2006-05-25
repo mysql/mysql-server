@@ -600,7 +600,6 @@ ErrorBundle ErrorCodes[] = {
   { 4269, DMEC, IE, "No connection to ndb management server" },
   { 4270, DMEC, IE, "Unknown blob error" },
   { 4335, DMEC, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" },
-  { 4336, DMEC, AE, "Auto-increment value set below current value" },
   { 4271, DMEC, AE, "Invalid index object, not retrieved via getIndex()" },
   { 4272, DMEC, AE, "Table definition has undefined column" },
   { 4273, DMEC, IE, "No blob table in dict cache" },
