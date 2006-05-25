@@ -64,3 +64,10 @@ select 'a' union select concat('a', -0.0);
 a
 a
 good
+select concat((select x from (select 'a' as x) as t1 ),
+(select y from (select 'b' as y) as t2 )) from (select 1 union select 2 )
+as t3;
+concat((select x from (select 'a' as x) as t1 ),
+(select y from (select 'b' as y) as t2 ))
+ab
+ab
