@@ -23,5 +23,5 @@ examples:
 	cd examples && $(MAKE)
 
 unit: $(srcdir)/unit.pl
-	cp $< $@
+	cp $(srcdir)/unit.pl $@
 	chmod +x $@
