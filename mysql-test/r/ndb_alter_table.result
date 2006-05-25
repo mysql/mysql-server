@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1, t2;
 drop database if exists mysqltest;
 CREATE TABLE t1 (
 a INT NOT NULL,
@@ -328,3 +328,24 @@ select 'no_copy' from ndb_show_tables where id = @t1_id and name like '%t1%';
 no_copy
 no_copy
 DROP TABLE t1, ndb_show_tables;
+create table t1 (a int primary key auto_increment, b int) engine=ndb;
+insert into t1 (b) values (101),(102),(103);
+select * from t1 where a = 3;
+a	b
+3	103
+alter table t1 rename t2;
+insert into t2 (b) values (201),(202),(203);
+select * from t2 where a = 6;
+a	b
+6	203
+alter table t2 add c int;
+insert into t2 (b) values (301),(302),(303);
+select * from t2 where a = 9;
+a	b	c
+9	303	NULL
+alter table t2 rename t1;
+insert into t1 (b) values (401),(402),(403);
+select * from t1 where a = 12;
+a	b	c
+12	403	NULL
+drop table t1;
