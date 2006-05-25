@@ -2243,6 +2243,7 @@ public:
     max_length= item->max_length;
     decimals= item->decimals;
     collation.set(item->collation);
+    unsigned_flag= item->unsigned_flag;
     return 0;
   };
   virtual void store(Item *)= 0;
