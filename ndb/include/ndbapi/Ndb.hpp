@@ -984,6 +984,7 @@ class BaseString;
 class NdbEventOperation;
 class NdbBlob;
 class NdbReceiver;
+class Ndb_local_table_info;
 template <class T> struct Ndb_free_list_t;
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
@@ -1431,27 +1432,29 @@ public:
    *
    * @param cacheSize number of values to cache in this Ndb object
    *
-   * @return tuple id or 0 on error
+   * @return 0 or -1 on error, and tupleId in out parameter
    */
-  Uint64 getAutoIncrementValue(const char* aTableName, 
-			       Uint32 cacheSize = 1);
-  Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable, 
-			       Uint32 cacheSize = 1);
-  Uint64 readAutoIncrementValue(const char* aTableName);
-  Uint64 readAutoIncrementValue(const NdbDictionary::Table * aTable);
-  bool setAutoIncrementValue(const char* aTableName, Uint64 val, 
-			     bool increase = false);
-  bool setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, 
-			     bool increase = false);
-  Uint64 getTupleIdFromNdb(const char* aTableName, 
-			   Uint32 cacheSize = 1000);
-  Uint64 getTupleIdFromNdb(Uint32 aTableId, 
-			   Uint32 cacheSize = 1000);
-  Uint64 readTupleIdFromNdb(Uint32 aTableId);
-  bool setTupleIdInNdb(const char* aTableName, Uint64 val, 
-		       bool increase);
-  bool setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase);
-  Uint64 opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op);
+  int getAutoIncrementValue(const char* aTableName, 
+                            Uint64 & tupleId, Uint32 cacheSize);
+  int getAutoIncrementValue(const NdbDictionary::Table * aTable, 
+                            Uint64 & tupleId, Uint32 cacheSize);
+  int readAutoIncrementValue(const char* aTableName,
+                             Uint64 & tupleId);
+  int readAutoIncrementValue(const NdbDictionary::Table * aTable,
+                             Uint64 & tupleId);
+  int setAutoIncrementValue(const char* aTableName,
+                            Uint64 tupleId, bool increase);
+  int setAutoIncrementValue(const NdbDictionary::Table * aTable,
+                            Uint64 tupleId, bool increase);
+private:
+  int getTupleIdFromNdb(Ndb_local_table_info* info,
+                        Uint64 & tupleId, Uint32 cacheSize);
+  int readTupleIdFromNdb(Ndb_local_table_info* info,
+                         Uint64 & tupleId);
+  int setTupleIdInNdb(Ndb_local_table_info* info,
+                      Uint64 tupleId, bool increase);
+  int opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op);
+public:
 
   /**
    */
@@ -1650,11 +1653,6 @@ private:
   
   Uint64               the_last_check_time;
   Uint64               theFirstTransId;
-  
-  // The tupleId is retreived from DB the 
-  // tupleId is unique for each tableid. 
-  Uint64               theFirstTupleId[2048]; 
-  Uint64               theLastTupleId[2048];           
 
   Uint32		theRestartGCI;	// the Restart GCI used by DIHNDBTAMPER
   
