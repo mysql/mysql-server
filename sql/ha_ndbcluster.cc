@@ -3047,14 +3047,16 @@ void ha_ndbcluster::info(uint flag)
     {
       Ndb *ndb= get_ndb();
       
+      Uint64 auto_increment_value64;
       if (ndb->readAutoIncrementValue((const NDBTAB *) m_table,
-                                      auto_increment_value) == -1)
+                                      auto_increment_value64) == -1)
       {
         const NdbError err= ndb->getNdbError();
         sql_print_error("Error %lu in readAutoIncrementValue(): %s",
                         (ulong) err.code, err.message);
         auto_increment_value= ~(Uint64)0;
       }
+      auto_increment_value= (ulonglong)auto_increment_value64;
     }
   }
   DBUG_VOID_RETURN;
