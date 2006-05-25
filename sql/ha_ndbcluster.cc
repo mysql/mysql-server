@@ -2464,7 +2464,8 @@ int ha_ndbcluster::write_row(byte *record)
     Uint64 auto_value;
     uint retries= NDB_AUTO_INCREMENT_RETRIES;
     do {
-      ret= ndb->getAutoIncrementValue(m_table, auto_value, 1);
+      Ndb_tuple_id_range_guard g(m_share);
+      ret= ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1);
     } while (ret == -1 && 
              --retries &&
              ndb->getNdbError().status == NdbError::TemporaryError);
@@ -2565,7 +2566,8 @@ int ha_ndbcluster::write_row(byte *record)
     DBUG_PRINT("info", 
                ("Trying to set next auto increment value to %llu",
                 (ulonglong) next_val));
-    if (ndb->setAutoIncrementValue(m_table, next_val, TRUE)
+    Ndb_tuple_id_range_guard g(m_share);
+    if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
         == -1)
       ERR_RETURN(ndb->getNdbError());
   }
@@ -3528,8 +3530,9 @@ void ha_ndbcluster::info(uint flag)
     if (m_table)
     {
       Ndb *ndb= get_ndb();
+      Ndb_tuple_id_range_guard g(m_share);
       
-      if (ndb->readAutoIncrementValue(m_table,
+      if (ndb->readAutoIncrementValue(m_table, g.range,
                                       auto_increment_value) == -1)
       {
         const NdbError err= ndb->getNdbError();
@@ -5231,10 +5234,11 @@ ulonglong ha_ndbcluster::get_auto_increment()
   int ret;
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
   do {
+    Ndb_tuple_id_range_guard g(m_share);
     ret=
       m_skip_auto_increment ? 
-      ndb->readAutoIncrementValue(m_table, auto_value) :
-      ndb->getAutoIncrementValue(m_table, auto_value, cache_size);
+      ndb->readAutoIncrementValue(m_table, g.range, auto_value) :
+      ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size);
   } while (ret == -1 && 
            --retries &&
            ndb->getNdbError().status == NdbError::TemporaryError);
