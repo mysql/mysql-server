@@ -1343,9 +1343,6 @@ NdbDictionaryImpl::putTable(NdbTableImpl *impl)
     Ndb_local_table_info::create(impl, m_local_table_data_size);
   
   m_localHash.put(impl->m_internalName.c_str(), info);
-
-  m_ndb.theFirstTupleId[impl->getTableId()] = ~0;
-  m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
 }
 
 int
@@ -2205,11 +2202,11 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
     }
     if (autoIncrement) {
       // XXX unlikely race condition - t.m_id may no longer be same table
-      if (! m_ndb.setTupleIdInNdb(t.m_id, initialValue, false)) {
-        if (m_ndb.theError.code)
-          m_error.code = m_ndb.theError.code;
-        else
-          m_error.code = 4336;
+      // the tuple id range is not used on input
+      Ndb::TupleIdRange range;
+      if (m_ndb.setTupleIdInNdb(&t, range, initialValue, false) == -1) {
+        assert(m_ndb.theError.code != 0);
+        m_error.code = m_ndb.theError.code;
         delete t2;
         DBUG_RETURN(-1);
       }
