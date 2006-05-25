@@ -426,11 +426,12 @@ void THD::awake(bool prepare_to_die)
   THD_CHECK_SENTRY(this);
   safe_mutex_assert_owner(&LOCK_delete); 
 
+  thr_alarm_kill(real_id);
   if (prepare_to_die)
     killed = 1;
-  thr_alarm_kill(real_id);
 #ifdef SIGNAL_WITH_VIO_CLOSE
-  close_active_vio();
+  else
+    close_active_vio();
 #endif    
   if (mysys_var)
   {
