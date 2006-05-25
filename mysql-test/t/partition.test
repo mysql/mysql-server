@@ -1076,6 +1076,5 @@ REPAIR TABLE t1;
 OPTIMIZE TABLE t1;
 
 drop table t1;
->>>>>>>
 
 --echo End of 5.1 tests
