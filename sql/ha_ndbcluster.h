@@ -106,6 +106,7 @@ typedef struct st_ndbcluster_share {
   ulonglong commit_count;
   char *db;
   char *table_name;
+  Ndb::TupleIdRange tuple_id_range;
 #ifdef HAVE_NDB_BINLOG
   uint32 flags;
   NdbEventOperation *op;
@@ -137,6 +138,19 @@ set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
   share->state= state;
   pthread_mutex_unlock(&share->mutex);
 }
+
+struct Ndb_tuple_id_range_guard {
+  Ndb_tuple_id_range_guard(NDB_SHARE* _share) :
+    share(_share),
+    range(share->tuple_id_range) {
+    pthread_mutex_lock(&share->mutex);
+  }
+  ~Ndb_tuple_id_range_guard() {
+    pthread_mutex_unlock(&share->mutex);
+  }
+  NDB_SHARE* share;
+  Ndb::TupleIdRange& range;
+};
 
 #ifdef HAVE_NDB_BINLOG
 /* NDB_SHARE.flags */
@@ -725,7 +739,6 @@ private:
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *index_name, uint index_no);
-  int initialize_autoincrement(const void *table);
   int get_metadata(const char* path);
   void release_metadata(THD *thd, Ndb *ndb);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
