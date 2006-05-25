@@ -35,8 +35,7 @@ public:
   NdbTableImpl *m_table_impl;
 
   // range of cached tuple ids per thread
-  Uint64 m_first_tuple_id;
-  Uint64 m_last_tuple_id;
+  Ndb::TupleIdRange m_tuple_id_range;
 
   Uint64 m_local_data[1]; // Must be last member. Used to access extra space.
 private:
