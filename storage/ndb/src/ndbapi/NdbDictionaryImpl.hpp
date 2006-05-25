@@ -951,8 +951,6 @@ NdbDictionaryImpl::get_local_table_info(const BaseString& internalTableName)
       if (info)
       {
         m_localHash.put(internalTableName.c_str(), info);
-        m_ndb.theFirstTupleId[tab->getTableId()] = ~0;
-        m_ndb.theLastTupleId[tab->getTableId()]  = ~0;
       }
     }
   }
