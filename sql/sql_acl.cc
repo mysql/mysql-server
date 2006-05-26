@@ -959,6 +959,8 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
 
   sctx->master_access= 0;
   sctx->db_access= 0;
+  sctx->priv_user= (char *) "";
+  *sctx->priv_host= 0;
 
   /*
      Find acl entry in user database.

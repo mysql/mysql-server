@@ -533,3 +533,18 @@ View	Create View
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`some_user`@`localhost` SQL SECURITY INVOKER VIEW `v2` AS select 1 AS `1`
 drop view v1;
 drop view v2;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE DEFINER = 'no-such-user'@localhost VIEW v AS SELECT a from t1;
+Warnings:
+Note	1449	There is no 'no-such-user'@'localhost' registered
+SHOW CREATE VIEW v;
+View	Create View
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`no-such-user`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`a` AS `a` from `t1`
+Warnings:
+Note	1449	There is no 'no-such-user'@'localhost' registered
+SELECT * FROM v;
+ERROR HY000: There is no 'no-such-user'@'localhost' registered
+DROP VIEW v;
+DROP TABLE t1;
+USE test;
