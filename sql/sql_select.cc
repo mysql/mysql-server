@@ -337,9 +337,10 @@ JOIN::prepare(Item ***rref_pointer_array,
   /* Check that all tables, fields, conds and order are ok */
 
   if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
-       setup_tables(thd, &select_lex->context, join_list,
-                    tables_list, &conds, &select_lex->leaf_tables,
-                    FALSE)) ||
+       setup_tables_and_check_access(thd, &select_lex->context, join_list,
+                                     tables_list, &conds, 
+                                     &select_lex->leaf_tables, FALSE, 
+                                     SELECT_ACL)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), fields_list, 1,
