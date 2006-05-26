@@ -357,12 +357,12 @@ show grants for grant_user@localhost;
 Grants for grant_user@localhost
 GRANT USAGE ON *.* TO 'grant_user'@'localhost'
 GRANT INSERT (a, d, c, b) ON `test`.`t1` TO 'grant_user'@'localhost'
-select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv;
+select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv order by Column_name;
 Host	Db	User	Table_name	Column_name	Column_priv
-localhost	test	grant_user	t1	b	Insert
-localhost	test	grant_user	t1	d	Insert
 localhost	test	grant_user	t1	a	Insert
+localhost	test	grant_user	t1	b	Insert
 localhost	test	grant_user	t1	c	Insert
+localhost	test	grant_user	t1	d	Insert
 revoke ALL PRIVILEGES on t1 from grant_user@localhost;
 show grants for grant_user@localhost;
 Grants for grant_user@localhost
@@ -381,13 +381,27 @@ grant update (a) on mysqltest_1.t1 to mysqltest_3@localhost;
 grant select (b) on mysqltest_1.t2 to mysqltest_3@localhost;
 grant select (c) on mysqltest_2.t1 to mysqltest_3@localhost;
 grant update (d) on mysqltest_2.t2 to mysqltest_3@localhost;
-show grants for mysqltest_3@localhost;
-Grants for mysqltest_3@localhost
-GRANT USAGE ON *.* TO 'mysqltest_3'@'localhost'
-GRANT SELECT (b) ON `mysqltest_1`.`t2` TO 'mysqltest_3'@'localhost'
-GRANT UPDATE (a) ON `mysqltest_1`.`t1` TO 'mysqltest_3'@'localhost'
-GRANT UPDATE (d) ON `mysqltest_2`.`t2` TO 'mysqltest_3'@'localhost'
-GRANT SELECT (c) ON `mysqltest_2`.`t1` TO 'mysqltest_3'@'localhost'
+SELECT * FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES 
+WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
+ORDER BY TABLE_NAME,COLUMN_NAME,PRIVILEGE_TYPE;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'mysqltest_3'@'localhost'	NULL	mysqltest_1	t1	a	UPDATE	NO
+'mysqltest_3'@'localhost'	NULL	mysqltest_2	t1	c	SELECT	NO
+'mysqltest_3'@'localhost'	NULL	mysqltest_1	t2	b	SELECT	NO
+'mysqltest_3'@'localhost'	NULL	mysqltest_2	t2	d	UPDATE	NO
+SELECT * FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES
+WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
+ORDER BY TABLE_NAME,PRIVILEGE_TYPE;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+SELECT * from INFORMATION_SCHEMA.SCHEMA_PRIVILEGES
+WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
+ORDER BY TABLE_SCHEMA,PRIVILEGE_TYPE;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+SELECT * from INFORMATION_SCHEMA.USER_PRIVILEGES
+WHERE GRANTEE = '''mysqltest_3''@''localhost'''
+ ORDER BY TABLE_CATALOG,PRIVILEGE_TYPE;
+GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
+'mysqltest_3'@'localhost'	NULL	USAGE	NO
 update mysqltest_1.t1, mysqltest_1.t2 set q=10 where b=1;
 ERROR 42000: UPDATE command denied to user 'mysqltest_3'@'localhost' for column 'q' in table 't1'
 update mysqltest_1.t2, mysqltest_2.t2 set d=20 where d=1;
