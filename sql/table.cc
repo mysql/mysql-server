@@ -2068,7 +2068,8 @@ void st_table_list::hide_view_error(THD *thd)
   if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
       thd->net.last_errno == ER_SP_DOES_NOT_EXIST ||
       thd->net.last_errno == ER_PROCACCESS_DENIED_ERROR ||
-      thd->net.last_errno == ER_COLUMNACCESS_DENIED_ERROR)
+      thd->net.last_errno == ER_COLUMNACCESS_DENIED_ERROR ||
+      thd->net.last_errno == ER_TABLEACCESS_DENIED_ERROR)
   {
     TABLE_LIST *top= top_table();
     thd->clear_error();

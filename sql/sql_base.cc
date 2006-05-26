@@ -4504,6 +4504,58 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
 
 
 /*
+  prepare tables and check access for the view tables
+
+  SYNOPSIS
+    setup_tables_and_check_view_access()
+    thd		  Thread handler
+    context       name resolution contest to setup table list there
+    from_clause   Top-level list of table references in the FROM clause
+    tables	  Table list (select_lex->table_list)
+    conds	  Condition of current SELECT (can be changed by VIEW)
+    leaves        List of join table leaves list (select_lex->leaf_tables)
+    refresh       It is onle refresh for subquery
+    select_insert It is SELECT ... INSERT command
+    want_access   what access is needed
+
+  NOTE
+    a wrapper for check_tables that will also check the resulting
+    table leaves list for access to all the tables that belong to a view
+
+  RETURN
+    FALSE ok;  In this case *map will include the chosen index
+    TRUE  error
+*/
+bool setup_tables_and_check_access(THD *thd, 
+                                   Name_resolution_context *context,
+                                   List<TABLE_LIST> *from_clause,
+                                   TABLE_LIST *tables,
+                                   Item **conds, TABLE_LIST **leaves,
+                                   bool select_insert,
+                                   ulong want_access)
+{
+  TABLE_LIST *leaves_tmp = NULL;
+
+  if (setup_tables (thd, context, from_clause, tables, conds, 
+                    &leaves_tmp, select_insert))
+    return TRUE;
+
+  if (leaves)
+    *leaves = leaves_tmp;
+
+  for (; leaves_tmp; leaves_tmp= leaves_tmp->next_leaf)
+    if (leaves_tmp->belong_to_view && 
+        check_one_table_access(thd, want_access,  leaves_tmp))
+    {
+      tables->hide_view_error(thd);
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
+
+/*
    Create a key_map from a list of index names
 
    SYNOPSIS

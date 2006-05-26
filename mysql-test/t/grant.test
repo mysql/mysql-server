@@ -302,7 +302,7 @@ DROP DATABASE testdb10;
 create table t1(a int, b int, c int, d int);
 grant insert(b), insert(c), insert(d), insert(a) on t1 to grant_user@localhost;
 show grants for grant_user@localhost;
-select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv;
+select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv order by Column_name;
 revoke ALL PRIVILEGES on t1 from grant_user@localhost;
 show grants for grant_user@localhost;
 select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv;
@@ -326,7 +326,18 @@ grant select (c) on mysqltest_2.t1 to mysqltest_3@localhost;
 grant update (d) on mysqltest_2.t2 to mysqltest_3@localhost;
 connect (conn1,localhost,mysqltest_3,,);
 connection conn1;
-show grants for mysqltest_3@localhost;
+SELECT * FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES 
+ WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
+ ORDER BY TABLE_NAME,COLUMN_NAME,PRIVILEGE_TYPE;
+SELECT * FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES
+ WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
+ ORDER BY TABLE_NAME,PRIVILEGE_TYPE;
+SELECT * from INFORMATION_SCHEMA.SCHEMA_PRIVILEGES
+ WHERE GRANTEE = '''mysqltest_3''@''localhost''' 
+ ORDER BY TABLE_SCHEMA,PRIVILEGE_TYPE;
+SELECT * from INFORMATION_SCHEMA.USER_PRIVILEGES
+ WHERE GRANTEE = '''mysqltest_3''@''localhost'''
+ ORDER BY TABLE_CATALOG,PRIVILEGE_TYPE;
 --error 1143
 update mysqltest_1.t1, mysqltest_1.t2 set q=10 where b=1;
 --error 1143
