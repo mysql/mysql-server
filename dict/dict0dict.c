@@ -2678,13 +2678,6 @@ dict_scan_table_name(
 	*ref_name = ref;
 	*table = dict_table_get_low(ref);
 
-	if (!*table) {
-		/* Try to look up the table with UTF-8 encoded name. */
-
-		innobase_convert_from_filename(ref);
-		*table = dict_table_get_low(ref);
-	}
-
 	return(ptr);
 }
 
