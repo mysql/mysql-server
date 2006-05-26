@@ -712,3 +712,17 @@ show create view v1;
 show create view v2;
 drop view v1;
 drop view v2;
+
+#
+# BUG#14875: Bad view DEFINER makes SHOW CREATE VIEW fail
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE DEFINER = 'no-such-user'@localhost VIEW v AS SELECT a from t1;
+--warning 1448
+SHOW CREATE VIEW v;
+--error 1449
+SELECT * FROM v;
+DROP VIEW v;
+DROP TABLE t1;
+USE test;
