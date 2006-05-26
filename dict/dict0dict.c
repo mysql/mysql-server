@@ -861,6 +861,7 @@ dict_table_add_to_cache(
 	ulint	fold;
 	ulint	id_fold;
 	ulint	i;
+	ulint	row_len;
 
 	ut_ad(table);
 #ifdef UNIV_SYNC_DEBUG
@@ -907,6 +908,24 @@ dict_table_add_to_cache(
 #if DATA_N_SYS_COLS != 4
 #error "DATA_N_SYS_COLS != 4"
 #endif
+
+	row_len = 0;
+	for (i = 0; i < table->n_def; i++) {
+		ulint	col_len = dtype_get_max_size(
+			dict_col_get_type(dict_table_get_nth_col(table, i)));
+
+		/* If we have a single unbounded field, or several gigantic
+		fields, mark the maximum row size as ULINT_MAX. */
+		if (ut_max(col_len, row_len) >= (ULINT_MAX / 2)) {
+			row_len = ULINT_MAX;
+
+			break;
+		}
+
+		row_len += col_len;
+	}
+
+	table->max_row_size = row_len;
 
 	/* Look for a table with the same name: error if such exists */
 	{
