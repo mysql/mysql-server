@@ -886,4 +886,15 @@ s1
 2
 3
 drop table t1;
+create table t1 (a int)
+partition by key (a)
+(partition p1 engine = innodb);
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+drop table t1;
 End of 5.1 tests
