@@ -3546,14 +3546,17 @@ void ha_ndbcluster::info(uint flag)
       Ndb *ndb= get_ndb();
       Ndb_tuple_id_range_guard g(m_share);
       
+      Uint64 auto_increment_value64;
       if (ndb->readAutoIncrementValue(m_table, g.range,
-                                      auto_increment_value) == -1)
+                                      auto_increment_value64) == -1)
       {
         const NdbError err= ndb->getNdbError();
         sql_print_error("Error %lu in readAutoIncrementValue(): %s",
                         (ulong) err.code, err.message);
         auto_increment_value= ~(Uint64)0;
       }
+      else
+        auto_increment_value= (ulonglong)auto_increment_value64;
     }
   }
   DBUG_VOID_RETURN;
