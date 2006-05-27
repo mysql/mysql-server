@@ -1009,4 +1009,16 @@ select auto_increment from information_schema.tables where table_name='t1';
 select * from t1;
 drop table t1;
 
+#
+# Bug 19695 Partitions: SHOW CREATE TABLE shows table options even when it
+#                       shouldn't
+#
+create table t1 (a int)
+PARTITION BY KEY (a)
+(PARTITION p0);
+set session sql_mode='no_table_options';
+show create table t1;
+set session sql_mode='';
+drop table t1;
+
 --echo End of 5.1 tests
