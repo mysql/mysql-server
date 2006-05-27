@@ -179,6 +179,7 @@ our $exe_mysqlshow;              # Called from test case
 our $exe_mysql_fix_system_tables;
 our $exe_mysqltest;
 our $exe_slave_mysqld;
+our $exe_my_print_defaults;
 
 our $opt_bench= 0;
 our $opt_small_bench= 0;
@@ -894,6 +895,8 @@ sub executable_setup () {
                                            "$path_client_bindir/mysqld-max");
       $path_language=      mtr_path_exists("$glob_basedir/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
+      $exe_my_print_defaults=
+	mtr_exe_exists("$path_client_bindir/my_print_defaults");
     }
     else
     {
@@ -901,6 +904,8 @@ sub executable_setup () {
       $exe_mysqld=         mtr_exe_exists ("$glob_basedir/sql/mysqld");
       $path_language=      mtr_path_exists("$glob_basedir/sql/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/sql/share/charsets");
+      $exe_my_print_defaults=
+	mtr_exe_exists("$glob_basedir/extra/my_print_defaults");
     }
 
     if ( $glob_use_embedded_server )
@@ -953,6 +958,8 @@ sub executable_setup () {
     $exe_mysql_fix_system_tables=
       mtr_script_exists("$path_client_bindir/mysql_fix_privilege_tables",
 			"$glob_basedir/scripts/mysql_fix_privilege_tables");
+    $exe_my_print_defaults=
+      mtr_exe_exists("$path_client_bindir/my_print_defaults");
 
     $path_language=      mtr_path_exists("$glob_basedir/share/mysql/english/",
                                          "$glob_basedir/share/english/");
@@ -2304,6 +2311,7 @@ sub run_mysqltest ($) {
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
   $ENV{'MYSQL_CLIENT_TEST'}=        $cmdline_mysql_client_test;
   $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
+  $ENV{'MYSQL_MY_PRINT_DEFAULTS'}=  $exe_my_print_defaults;
 
   $ENV{'NDB_STATUS_OK'}=            $flag_ndb_status_ok;
   $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
