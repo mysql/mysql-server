@@ -4968,8 +4968,7 @@ static bool write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
             DBUG_RETURN(TRUE);
           }
           *next_entry= log_entry->entry_pos;
-          if (temp_list)
-            sub_elem->log_entry= log_entry;
+          sub_elem->log_entry= log_entry;
           insert_part_info_log_entry_list(part_info, log_entry);
         } while (++j < no_subparts);
       }
@@ -4987,8 +4986,7 @@ static bool write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
           DBUG_RETURN(TRUE);
         }
         *next_entry= log_entry->entry_pos;
-        if (temp_list)
-          part_elem->log_entry= log_entry;
+        part_elem->log_entry= log_entry;
         insert_part_info_log_entry_list(part_info, log_entry);
       }
     }
@@ -5262,7 +5260,7 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                        lpt->table_name, "#");
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
-                                   TRUE))
+                      lpt->alter_info->flags & ALTER_REORGANIZE_PARTITION))
     goto error;
   if (write_log_changed_partitions(lpt, &next_entry, (const char*)path))
     goto error;
@@ -5516,6 +5514,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
 
   lpt->thd= thd;
   lpt->part_info= part_info;
+  lpt->alter_info= alter_info;
   lpt->create_info= create_info;
   lpt->create_list= create_list;
   lpt->key_list= key_list;
@@ -5818,6 +5817,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_change_partition_5") ||
         (table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE), FALSE) ||
         ERROR_INJECT_CRASH("crash_change_partition_6") ||
+        mysql_drop_partitions(lpt) ||
+        ERROR_INJECT_CRASH("crash_change_partition_61") ||
         mysql_rename_partitions(lpt) ||
         ((frm_install= TRUE), FALSE) ||
         ERROR_INJECT_CRASH("crash_change_partition_7") ||
