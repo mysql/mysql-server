@@ -634,6 +634,8 @@ int ha_partition::drop_partitions(const char *path)
           DBUG_PRINT("info", ("Drop subpartition %s", part_name_buff));
           if ((ret_error= file->delete_table((const char *) part_name_buff)))
             error= ret_error;
+          if (deactivate_ddl_log_entry(sub_elem->log_entry->entry_pos))
+            error= 1;
         } while (++j < no_subparts);
       }
       else
@@ -645,6 +647,8 @@ int ha_partition::drop_partitions(const char *path)
         DBUG_PRINT("info", ("Drop partition %s", part_name_buff));
         if ((ret_error= file->delete_table((const char *) part_name_buff)))
           error= ret_error;
+        if (deactivate_ddl_log_entry(part_elem->log_entry->entry_pos))
+          error= 1;
       }
       if (part_elem->part_state == PART_IS_CHANGED)
         part_elem->part_state= PART_NORMAL;
@@ -652,6 +656,7 @@ int ha_partition::drop_partitions(const char *path)
         part_elem->part_state= PART_IS_DROPPED;
     }
   } while (++i < no_parts);
+  VOID(sync_ddl_log());
   DBUG_RETURN(error);
 }
 
@@ -768,6 +773,7 @@ int ha_partition::rename_partitions(const char *path)
     */
     part_elem= part_it++;
     if (part_elem->part_state == PART_IS_CHANGED ||
+        part_elem->part_state == PART_TO_BE_DROPPED ||
         (part_elem->part_state == PART_IS_ADDED && temp_partitions))
     {
       if (m_is_sub_partitioned)
