@@ -489,6 +489,7 @@ inline THD *_current_thd(void)
 my_bool thd_in_lock_tables(const THD *thd);
 my_bool thd_tablespace_op(const THD *thd);
 const char *thd_proc_info(THD *thd, const char *info);
+void **thd_ha_data(const THD *thd, const struct handlerton *hton);
 
 /*
   External variables
