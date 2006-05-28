@@ -52,62 +52,10 @@ TYPELIB myisam_stats_method_typelib= {
 ** MyISAM tables
 *****************************************************************************/
 
-static handler *myisam_create_handler(TABLE_SHARE *table);
-
-/* MyISAM handlerton */
-
-static const char myisam_hton_name[]= "MyISAM";
-static const char myisam_hton_comment[]=
-  "Default engine as of MySQL 3.23 with great performance";
-
-handlerton myisam_hton= {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  myisam_hton_name,
-  SHOW_OPTION_YES,
-  myisam_hton_comment, 
-  DB_TYPE_MYISAM,
-  NULL,
-  0,       /* slot */
-  0,       /* savepoint size. */
-  NULL,    /* close_connection */
-  NULL,    /* savepoint */
-  NULL,    /* rollback to savepoint */
-  NULL,    /* release savepoint */
-  NULL,    /* commit */
-  NULL,    /* rollback */
-  NULL,    /* prepare */
-  NULL,    /* recover */
-  NULL,    /* commit_by_xid */
-  NULL,    /* rollback_by_xid */
-  NULL,    /* create_cursor_read_view */
-  NULL,    /* set_cursor_read_view */
-  NULL,    /* close_cursor_read_view */
-  /*
-    MyISAM doesn't support transactions and doesn't have
-    transaction-dependent context: cursors can survive a commit.
-  */
-  myisam_create_handler,    /* Create a new handler */
-  NULL,    /* Drop a database */
-  mi_panic,/* Panic call */
-  NULL,    /* Start Consistent Snapshot */
-  NULL,    /* Flush logs */
-  NULL,    /* Show status */
-  NULL,    /* Partition flags */
-  NULL,    /* Alter table flags */
-  NULL,    /* Alter Tablespace */
-  NULL,    /* Fill Files Table */
-  HTON_CAN_RECREATE,
-  NULL,    /* binlog_func */
-  NULL,    /* binlog_log_query */
-  NULL     /* release_temporary_latches */
-};
-
-
 static handler *myisam_create_handler(TABLE_SHARE *table)
 {
   return new ha_myisam(table);
 }
-
 
 // collect errors printed by mi_check routines
 
@@ -1798,17 +1746,32 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
+handlerton myisam_hton;
+
+static int myisam_init()
+{
+  myisam_hton.state=SHOW_OPTION_YES;
+  myisam_hton.db_type=DB_TYPE_MYISAM;
+  myisam_hton.create=myisam_create_handler;
+  myisam_hton.panic=mi_panic;
+  myisam_hton.flags=HTON_CAN_RECREATE;
+  return 0;
+}
+
+struct st_mysql_storage_engine myisam_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &myisam_hton };
 
 mysql_declare_plugin(myisam)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &myisam_hton,
-  myisam_hton_name,
+  &myisam_storage_engine,
+  "MyISAM",
   "MySQL AB",
-  myisam_hton_comment,
-  NULL, /* Plugin Init */
+  "Default engine as of MySQL 3.23 with great performance",
+  myisam_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */
   0
 }
 mysql_declare_plugin_end;
+

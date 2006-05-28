@@ -1172,6 +1172,8 @@ sub executable_setup () {
 
 sub environment_setup () {
 
+  umask(022);
+
   # --------------------------------------------------------------------------
   # We might not use a standard installation directory, like /usr/lib.
   # Set LD_LIBRARY_PATH to make sure we find our installed libraries.
@@ -3281,7 +3283,7 @@ sub run_mysqltest ($) {
   }
 
   my $cmdline_mysql=
-    "$exe_mysql --host=localhost  --user=root --password= " .
+    "$exe_mysql --no-defaults --host=localhost  --user=root --password= " .
     "--port=$master->[0]->{'path_myport'} " .
     "--socket=$master->[0]->{'path_mysock'}";
 

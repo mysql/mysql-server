@@ -47,7 +47,7 @@ ulong sync_binlog_counter= 0;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
-static bool binlog_init();
+static int binlog_init();
 static int binlog_close_connection(THD *thd);
 static int binlog_savepoint_set(THD *thd, void *sv);
 static int binlog_savepoint_rollback(THD *thd, void *sv);
@@ -78,49 +78,7 @@ struct binlog_trx_data {
   Rows_log_event *pending;                // The pending binrows event
 };
 
-static const char binlog_hton_name[]= "binlog";
-static const char binlog_hton_comment[]=
-  "This is a meta storage engine to represent the binlog in a transaction";
-
-handlerton binlog_hton = {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  binlog_hton_name,
-  SHOW_OPTION_YES,
-  binlog_hton_comment,
-  DB_TYPE_BINLOG,               /* IGNORE  for now */
-  binlog_init,
-  0,
-  sizeof(my_off_t),             /* savepoint size = binlog offset */
-  binlog_close_connection,
-  binlog_savepoint_set,
-  binlog_savepoint_rollback,
-  NULL,                         /* savepoint_release */
-  binlog_commit,
-  binlog_rollback,
-  binlog_prepare,
-  NULL,                         /* recover */
-  NULL,                         /* commit_by_xid */
-  NULL,                         /* rollback_by_xid */
-  NULL,                         /* create_cursor_read_view */
-  NULL,                         /* set_cursor_read_view */
-  NULL,                         /* close_cursor_read_view */
-  NULL,                         /* Create a new handler */
-  NULL,                         /* Drop a database */
-  NULL,                         /* Panic call */
-  NULL,                         /* Start Consistent Snapshot */
-  NULL,                         /* Flush logs */
-  NULL,                         /* Show status */
-  NULL,                         /* Partition flags */
-  NULL,                         /* Alter table flags */
-  NULL,                         /* Alter Tablespace */
-  NULL,                         /* Fill FILES table */
-  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
-  NULL,                         /* binlog_func */
-  NULL,                         /* binlog_log_query */
-  NULL				/* release_temporary_latches */
-};
-
-
+handlerton binlog_hton;
 
 /*
   Open log table of a given type (general or slow log)
@@ -1066,9 +1024,20 @@ void Log_to_csv_event_handler::
   should be moved here.
 */
 
-bool binlog_init()
+int binlog_init()
 {
-  return !opt_bin_log;
+
+  binlog_hton.state=opt_bin_log ? SHOW_OPTION_YES : SHOW_OPTION_NO;
+  binlog_hton.db_type=DB_TYPE_BINLOG;
+  binlog_hton.savepoint_offset= sizeof(my_off_t);
+  binlog_hton.close_connection= binlog_close_connection;
+  binlog_hton.savepoint_set= binlog_savepoint_set;
+  binlog_hton.savepoint_rollback= binlog_savepoint_rollback;
+  binlog_hton.commit= binlog_commit;
+  binlog_hton.rollback= binlog_rollback;
+  binlog_hton.prepare= binlog_prepare;
+  binlog_hton.flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
+  return 0;
 }
 
 static int binlog_close_connection(THD *thd)
@@ -4372,15 +4341,17 @@ err1:
   return 1;
 }
 
+struct st_mysql_storage_engine binlog_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &binlog_hton };
 
 mysql_declare_plugin(binlog)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &binlog_hton,
-  binlog_hton_name,
+  &binlog_storage_engine,
+  "binlog",
   "MySQL AB",
-  binlog_hton_comment,
-  NULL, /* Plugin Init */
+  "This is a pseudo storage engine to represent the binlog in a transaction",
+  binlog_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
 }

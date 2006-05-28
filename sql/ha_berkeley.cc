@@ -97,6 +97,9 @@ pthread_mutex_t bdb_mutex;
 static DB_ENV *db_env;
 static HASH bdb_open_tables;
 
+static const char berkeley_hton_name[]= "BerkeleyDB";
+static const int berkeley_hton_name_length=sizeof(berkeley_hton_name)-1;
+
 const char *berkeley_lock_names[] =
 { "DEFAULT", "OLDEST", "RANDOM", "YOUNGEST", "EXPIRE", "MAXLOCKS",
   "MAXWRITE", "MINLOCKS", "MINWRITE", 0 };
@@ -125,47 +128,7 @@ static int berkeley_savepoint(THD* thd, void *savepoint);
 static int berkeley_release_savepoint(THD* thd, void *savepoint);
 static handler *berkeley_create_handler(TABLE_SHARE *table);
 
-static const char berkeley_hton_name[]= "BerkeleyDB";
-static const char berkeley_hton_comment[]=
-  "Supports transactions and page-level locking";
-
-handlerton berkeley_hton = {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  berkeley_hton_name,
-  SHOW_OPTION_YES,
-  berkeley_hton_comment, 
-  DB_TYPE_BERKELEY_DB,
-  berkeley_init,
-  0, /* slot */
-  sizeof(DB_TXN *), /* savepoint size */
-  berkeley_close_connection,
-  berkeley_savepoint, /* savepoint_set */
-  berkeley_rollback_to_savepoint, /* savepoint_rollback */
-  berkeley_release_savepoint, /* savepoint_release */
-  berkeley_commit,
-  berkeley_rollback,
-  NULL, /* prepare */
-  NULL, /* recover */
-  NULL, /* commit_by_xid */
-  NULL, /* rollback_by_xid */
-  NULL, /* create_cursor_read_view */
-  NULL, /* set_cursor_read_view */
-  NULL, /* close_cursor_read_view */
-  berkeley_create_handler, /* Create a new handler */
-  NULL, /* Drop a database */
-  berkeley_end, /* Panic call */
-  NULL, /* Start Consistent Snapshot */
-  berkeley_flush_logs, /* Flush logs */
-  berkeley_show_status, /* Show status */
-  NULL, /* Partition flags */
-  NULL, /* Alter table flags */
-  NULL, /* Alter Tablespace */
-  NULL, /* Fill Files Table */
-  HTON_CLOSE_CURSORS_AT_COMMIT | HTON_FLUSH_AFTER_RENAME,
-  NULL, /* binlog_func */
-  NULL,  /* binlog_log_query */
-  NULL	/* release_temporary_latches */
-};
+handlerton berkeley_hton;
 
 handler *berkeley_create_handler(TABLE_SHARE *table)
 {
@@ -181,12 +144,27 @@ typedef struct st_berkeley_trx_data {
 
 /* General functions */
 
-bool berkeley_init(void)
+int berkeley_init(void)
 {
   DBUG_ENTER("berkeley_init");
 
+  berkeley_hton.state=SHOW_OPTION_YES;
+  berkeley_hton.db_type=DB_TYPE_BERKELEY_DB;
+  berkeley_hton.savepoint_offset=sizeof(DB_TXN *);
+  berkeley_hton.close_connection=berkeley_close_connection;
+  berkeley_hton.savepoint_set=berkeley_savepoint;
+  berkeley_hton.savepoint_rollback=berkeley_rollback_to_savepoint;
+  berkeley_hton.savepoint_release=berkeley_release_savepoint;
+  berkeley_hton.commit=berkeley_commit;
+  berkeley_hton.rollback=berkeley_rollback;
+  berkeley_hton.create=berkeley_create_handler;
+  berkeley_hton.panic=berkeley_end;
+  berkeley_hton.flush_logs=berkeley_flush_logs;
+  berkeley_hton.show_status=berkeley_show_status;
+  berkeley_hton.flags=HTON_CLOSE_CURSORS_AT_COMMIT | HTON_FLUSH_AFTER_RENAME;
+
   if (have_berkeley_db != SHOW_OPTION_YES)
-    goto error;
+    return 0; // nothing else to do
 
   if (!berkeley_tmpdir)
     berkeley_tmpdir=mysql_tmpdir;
@@ -373,7 +351,6 @@ static int berkeley_release_savepoint(THD* thd, void *savepoint)
 static bool berkeley_show_logs(THD *thd, stat_print_fn *stat_print)
 {
   char **all_logs, **free_logs, **a, **f;
-  uint hton_name_len= strlen(berkeley_hton.name);
   int error=1;
   MEM_ROOT **root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,THR_MALLOC);
   MEM_ROOT show_logs_root, *old_mem_root= *root_ptr;
@@ -401,15 +378,15 @@ static bool berkeley_show_logs(THD *thd, stat_print_fn *stat_print)
       if (f && *f && strcmp(*a, *f) == 0)
       {
         f++;
-        if ((error= stat_print(thd, berkeley_hton.name, hton_name_len,
-                               *a, strlen(*a),
+        if ((error= stat_print(thd, berkeley_hton_name,
+                               berkeley_hton_name_length, *a, strlen(*a),
                                STRING_WITH_LEN(SHOW_LOG_STATUS_FREE))))
           break;
       }
       else
       {
-        if ((error= stat_print(thd, berkeley_hton.name, hton_name_len,
-                               *a, strlen(*a),
+        if ((error= stat_print(thd, berkeley_hton_name,
+                               berkeley_hton_name_length, *a, strlen(*a),
                                STRING_WITH_LEN(SHOW_LOG_STATUS_INUSE))))
           break;
       }
@@ -2732,15 +2709,17 @@ bool ha_berkeley::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
+struct st_mysql_storage_engine berkeley_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &berkeley_hton };
 
 mysql_declare_plugin(berkeley)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &berkeley_hton,
+  &berkeley_storage_engine,
   berkeley_hton_name,
   "Sleepycat Software",
-  berkeley_hton_comment,
-  NULL, /* Plugin Init */
+  "Supports transactions and page-level locking",
+  berkeley_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */
   0

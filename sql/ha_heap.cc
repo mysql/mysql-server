@@ -26,47 +26,17 @@
 
 static handler *heap_create_handler(TABLE_SHARE *table);
 
-static const char heap_hton_name[]= "MEMORY";
-static const char heap_hton_comment[]=
-  "Hash based, stored in memory, useful for temporary tables";
+handlerton heap_hton;
 
-handlerton heap_hton= {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  heap_hton_name,
-  SHOW_OPTION_YES,
-  heap_hton_comment,
-  DB_TYPE_HEAP,
-  NULL,
-  0,       /* slot */
-  0,       /* savepoint size. */
-  NULL,    /* close_connection */
-  NULL,    /* savepoint */
-  NULL,    /* rollback to savepoint */
-  NULL,    /* release savepoint */
-  NULL,    /* commit */
-  NULL,    /* rollback */
-  NULL,    /* prepare */
-  NULL,    /* recover */
-  NULL,    /* commit_by_xid */
-  NULL,    /* rollback_by_xid */
-  NULL,    /* create_cursor_read_view */
-  NULL,    /* set_cursor_read_view */
-  NULL,    /* close_cursor_read_view */
-  heap_create_handler,    /* Create a new handler */
-  NULL,    /* Drop a database */
-  heap_panic,    /* Panic call */
-  NULL,    /* Start Consistent Snapshot */
-  NULL,    /* Flush logs */
-  NULL,    /* Show status */
-  NULL,    /* Partition flags */
-  NULL,    /* Alter table flags */
-  NULL,    /* Alter Tablespace */
-  NULL,    /* Fill Files Table */
-  HTON_CAN_RECREATE,
-  NULL,    /* binlog_func */
-  NULL,    /* binlog_log_query */
-  NULL     /* release_temporary_latches */
-};
+int heap_init()
+{
+  heap_hton.state=      SHOW_OPTION_YES;
+  heap_hton.db_type=    DB_TYPE_HEAP;
+  heap_hton.create=     heap_create_handler;
+  heap_hton.panic=      heap_panic;
+  heap_hton.flags=      HTON_CAN_RECREATE;
+  return 0;
+}
 
 static handler *heap_create_handler(TABLE_SHARE *table)
 {
@@ -711,14 +681,17 @@ bool ha_heap::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
+struct st_mysql_storage_engine heap_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &heap_hton};
+
 mysql_declare_plugin(heap)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &heap_hton,
-  heap_hton_name,
+  &heap_storage_engine,
+  "MEMORY",
   "MySQL AB",
-  heap_hton_comment,
-  NULL,
+  "Hash based, stored in memory, useful for temporary tables",
+  heap_init,
   NULL,
   0x0100, /* 1.0 */
   0

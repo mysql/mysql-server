@@ -73,46 +73,18 @@ static handler *partition_create_handler(TABLE_SHARE *share);
 static uint partition_flags();
 static uint alter_table_flags(uint flags);
 
-static const char partition_hton_name[]= "partition";
-static const char partition_hton_comment[]= "Partition Storage Engine Helper";
+handlerton partition_hton;
 
-handlerton partition_hton = {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  partition_hton_name,
-  SHOW_OPTION_YES,
-  partition_hton_comment, /* A comment used by SHOW to describe an engine */
-  DB_TYPE_PARTITION_DB,
-  0, /* Method that initializes a storage engine */
-  0, /* slot */
-  0, /* savepoint size */
-  NULL /*ndbcluster_close_connection*/,
-  NULL, /* savepoint_set */
-  NULL, /* savepoint_rollback */
-  NULL, /* savepoint_release */
-  NULL /*ndbcluster_commit*/,
-  NULL /*ndbcluster_rollback*/,
-  NULL, /* prepare */
-  NULL, /* recover */
-  NULL, /* commit_by_xid */
-  NULL, /* rollback_by_xid */
-  NULL,
-  NULL,
-  NULL,
-  partition_create_handler, /* Create a new handler */
-  NULL, /* Drop a database */
-  NULL, /* Panic call */
-  NULL, /* Start Consistent Snapshot */
-  NULL, /* Flush logs */
-  NULL, /* Show status */
-  partition_flags, /* Partition flags */
-  alter_table_flags, /* Partition flags */
-  NULL, /* Alter Tablespace */
-  NULL, /* Fill FILES table */
-  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
-  NULL, /* binlog_func */
-  NULL, /* binlog_log_query */
-  NULL	/* release_temporary_latches */
-};
+static int partition_initialize()
+{
+  partition_hton.state= SHOW_OPTION_YES;
+  partition_hton.db_type= DB_TYPE_PARTITION_DB;
+  partition_hton.create= partition_create_handler;
+  partition_hton.partition_flags= partition_flags;
+  partition_hton.alter_table_flags= alter_table_flags;
+  partition_hton.flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
+  return 0;
+}
 
 /*
   Create new partition handler
@@ -5523,15 +5495,17 @@ static int free_share(PARTITION_SHARE *share)
 }
 #endif /* NOT_USED */
 
+struct st_mysql_storage_engine partition_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &partition_hton };
 
 mysql_declare_plugin(partition)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &partition_hton,
-  partition_hton_name,
+  &partition_storage_engine,
+  "partition",
   "Mikael Ronstrom, MySQL AB",
-  partition_hton_comment,
-  NULL, /* Plugin Init */
+  "Partition Storage Engine Helper",
+  partition_initialize, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */
   0

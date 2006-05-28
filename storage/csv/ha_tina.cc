@@ -77,45 +77,7 @@ static int tina_init= 0;
 static handler *tina_create_handler(TABLE_SHARE *table);
 static int tina_init_func();
 
-static const char tina_hton_name[]= "CSV";
-static const char tina_hton_comment[]= "CSV storage engine";
-
-handlerton tina_hton= {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  tina_hton_name,
-  SHOW_OPTION_YES,
-  tina_hton_comment, 
-  DB_TYPE_CSV_DB,
-  (bool (*)()) tina_init_func,
-  0,       /* slot */
-  0,       /* savepoint size. */
-  NULL,    /* close_connection */
-  NULL,    /* savepoint */
-  NULL,    /* rollback to savepoint */
-  NULL,    /* release savepoint */
-  NULL,    /* commit */
-  NULL,    /* rollback */
-  NULL,    /* prepare */
-  NULL,    /* recover */
-  NULL,    /* commit_by_xid */
-  NULL,    /* rollback_by_xid */
-  NULL,    /* create_cursor_read_view */
-  NULL,    /* set_cursor_read_view */
-  NULL,    /* close_cursor_read_view */
-  tina_create_handler,    /* Create a new handler */
-  NULL,    /* Drop a database */
-  tina_end,    /* Panic call */
-  NULL,    /* Start Consistent Snapshot */
-  NULL,    /* Flush logs */
-  NULL,    /* Show status */
-  NULL,    /* Partition flags */
-  NULL,    /* Alter table flags */
-  NULL,    /* Alter Tablespace */
-  NULL,    /* Fill FILES Table */
-  HTON_CAN_RECREATE,
-  NULL, /* binlog_func */
-  NULL /* binlog_log_query */
-};
+handlerton tina_hton;
 
 /*****************************************************************************
  ** TINA tables
@@ -197,6 +159,11 @@ static int tina_init_func()
     VOID(pthread_mutex_init(&tina_mutex,MY_MUTEX_INIT_FAST));
     (void) hash_init(&tina_open_tables,system_charset_info,32,0,0,
                      (hash_get_key) tina_get_key,0,0);
+    tina_hton.state= SHOW_OPTION_YES;
+    tina_hton.db_type= DB_TYPE_CSV_DB;
+    tina_hton.create= tina_create_handler;
+    tina_hton.panic= tina_end;
+    tina_hton.flags= HTON_CAN_RECREATE;
   }
   return 0;
 }
@@ -1422,14 +1389,16 @@ bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
+struct st_mysql_storage_engine csv_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &tina_hton };
 
 mysql_declare_plugin(csv)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &tina_hton,
-  tina_hton_name,
+  &csv_storage_engine,
+  "CSV",
   "Brian Aker, MySQL AB",
-  tina_hton_comment,
+  "CSV storage engine",
   tina_init_func, /* Plugin Init */
   tina_done_func, /* Plugin Deinit */
   0x0100 /* 1.0 */,
