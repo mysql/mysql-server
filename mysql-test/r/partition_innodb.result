@@ -79,6 +79,14 @@ INTO @exp_row_count;
 ALTER TABLE t1 PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER));
 #  1.1.5 Add two named partitions + test
 ALTER TABLE t1 ADD PARTITION (PARTITION part1, PARTITION part7);
+drop table t1;
+CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30))
+ENGINE=InnoDB
+PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER));
+# This statement crashes the server.
+#   CREATE partitioned table with three partitions in one step
+#   would be harmless.
+ALTER TABLE t1 ADD PARTITION PARTITIONS 1;
 DROP VIEW  IF EXISTS v1;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t0_aux;
