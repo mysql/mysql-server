@@ -172,7 +172,7 @@ extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 extern long berkeley_lock_scan_time;
 extern TYPELIB berkeley_lock_typelib;
 
-bool berkeley_init(void);
+int berkeley_init(void);
 int berkeley_end(ha_panic_function type);
 bool berkeley_flush_logs(void);
 bool berkeley_show_status(THD *thd, stat_print_fn *print, enum ha_stat_type);

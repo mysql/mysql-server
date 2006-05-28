@@ -2323,9 +2323,9 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
         push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                             ER_ILLEGAL_HA_CREATE_OPTION,
                             ER(ER_ILLEGAL_HA_CREATE_OPTION),
-                            ndbcluster_hton.name,
+                            ndbcluster_hton_name,
                             "Binlog of table with BLOB attribute and no PK");
-        
+
       share->flags|= NSF_NO_BINLOG;
       DBUG_RETURN(-1);
     }
@@ -3688,7 +3688,7 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
                ndb_latest_received_binlog_epoch,
                ndb_latest_handled_binlog_epoch,
                ndb_latest_applied_binlog_epoch);
-    if (stat_print(thd, ndbcluster_hton.name, strlen(ndbcluster_hton.name),
+    if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
                    "binlog", strlen("binlog"),
                    buf, buflen))
       DBUG_RETURN(TRUE);

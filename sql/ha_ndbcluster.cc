@@ -63,26 +63,13 @@ static const int max_transactions= 3; // should really be 2 but there is a trans
 
 static uint ndbcluster_partition_flags();
 static uint ndbcluster_alter_table_flags(uint flags);
-static bool ndbcluster_init(void);
+static int ndbcluster_init(void);
 static int ndbcluster_end(ha_panic_function flag);
 static bool ndbcluster_show_status(THD*,stat_print_fn *,enum ha_stat_type);
 static int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info);
 static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond);
 
-static const char ndbcluster_hton_name[]= "ndbcluster";
-static const char ndbcluster_hton_comment[]= "Clustered, fault-tolerant tables";
-
-handlerton ndbcluster_hton = {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  "ndbcluster",
-  SHOW_OPTION_YES,
-  "Clustered, fault-tolerant tables", 
-  DB_TYPE_NDBCLUSTER,
-  ndbcluster_init,
-  ~(uint)0, /* slot */
-  /* below are initialized by name in ndbcluster_init() */
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-};
+handlerton ndbcluster_hton;
 
 static handler *ndbcluster_create_handler(TABLE_SHARE *table)
 {
@@ -6080,17 +6067,18 @@ static int connect_callback()
 }
 
 extern int ndb_dictionary_is_mysqld;
-static bool ndbcluster_init()
+
+static int ndbcluster_init()
 {
   int res;
   DBUG_ENTER("ndbcluster_init");
 
   ndb_dictionary_is_mysqld= 1;
-  if (have_ndbcluster != SHOW_OPTION_YES)
-    goto ndbcluster_init_error;
 
   {
     handlerton &h= ndbcluster_hton;
+    h.state=            have_ndbcluster;
+    h.db_type=          DB_TYPE_NDBCLUSTER;
     h.close_connection= ndbcluster_close_connection;
     h.commit=           ndbcluster_commit;
     h.rollback=         ndbcluster_rollback;
@@ -6107,6 +6095,9 @@ static bool ndbcluster_init()
 #endif
     h.flags=            HTON_TEMPORARY_NOT_SUPPORTED;
   }
+
+  if (have_ndbcluster != SHOW_OPTION_YES)
+    DBUG_RETURN(0); // nothing else to do
 
   // Set connectstring if specified
   if (opt_ndbcluster_connectstring != 0)
@@ -6179,7 +6170,7 @@ static bool ndbcluster_init()
   if (ndbcluster_binlog_start())
     goto ndbcluster_init_error;
 #endif /* HAVE_NDB_BINLOG */
-  
+
   pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_ndb_util_thread, NULL);
 
@@ -6195,7 +6186,7 @@ static bool ndbcluster_init()
     pthread_cond_destroy(&COND_ndb_util_thread);
     goto ndbcluster_init_error;
   }
-  
+
   ndbcluster_inited= 1;
   DBUG_RETURN(FALSE);
 
@@ -9356,9 +9347,8 @@ ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
                 ndb_connected_host,
                 ndb_connected_port,
                 ndb_number_of_storage_nodes);
-  if (stat_print(thd, ndbcluster_hton.name, strlen(ndbcluster_hton.name),
-                 "connection", strlen("connection"),
-                 buf, buflen))
+  if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
+                 STRING_WITH_LEN("connection"), buf, buflen))
     DBUG_RETURN(TRUE);
 
   if (get_thd_ndb(thd) && get_thd_ndb(thd)->ndb)
@@ -9372,7 +9362,7 @@ ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
         my_snprintf(buf, sizeof(buf),
                   "created=%u, free=%u, sizeof=%u",
                   tmp.m_created, tmp.m_free, tmp.m_sizeof);
-      if (stat_print(thd, ndbcluster_hton.name, strlen(ndbcluster_hton.name),
+      if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
                      tmp.m_name, strlen(tmp.m_name), buf, buflen))
         DBUG_RETURN(TRUE);
     }
@@ -10037,8 +10027,8 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
                                strlen(ts.getDefaultLogfileGroup()),
                                system_charset_info);
       table->field[c++]->set_null(); // LOGFILE_GROUP_NUMBER
-      table->field[c++]->store(ndbcluster_hton.name,
-                               strlen(ndbcluster_hton.name),
+      table->field[c++]->store(ndbcluster_hton_name,
+                               ndbcluster_hton_name_length,
                                system_charset_info); // ENGINE
 
       table->field[c++]->set_null(); // FULLTEXT_KEYS
@@ -10131,8 +10121,8 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
                                strlen(uf.getLogfileGroup()),
                                system_charset_info);
       table->field[c++]->store(uf.getLogfileGroupId()); // LOGFILE_GROUP_NUMBER
-      table->field[c++]->store(ndbcluster_hton.name,
-                               strlen(ndbcluster_hton.name),
+      table->field[c++]->store(ndbcluster_hton_name,
+                               ndbcluster_hton_name_length,
                                system_charset_info); // ENGINE
 
       table->field[c++]->set_null(); // FULLTEXT_KEYS
@@ -10178,15 +10168,17 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
   DBUG_RETURN(0);
 }
 
+struct st_mysql_storage_engine ndbcluster_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &ndbcluster_hton };
 
 mysql_declare_plugin(ndbcluster)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &ndbcluster_hton,
+  &ndbcluster_storage_engine,
   ndbcluster_hton_name,
   "MySQL AB",
-  ndbcluster_hton_comment,
-  NULL, /* Plugin Init */
+  "Clustered, fault-tolerant tables",
+  ndbcluster_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   0
