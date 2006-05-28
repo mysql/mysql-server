@@ -28,7 +28,7 @@
 */
 #define MYSQL_UDF_PLUGIN             0  /* User-defined function        */
 #define MYSQL_STORAGE_ENGINE_PLUGIN  1  /* Storage Engine               */
-#define MYSQL_FTPARSER_PLUGIN        2  /* Full-text [pre]parser        */
+#define MYSQL_FTPARSER_PLUGIN        2  /* Full-text parser plugin      */
 #define MYSQL_MAX_PLUGIN_TYPE_NUM    3  /* The number of plugin types   */
 
 /*
@@ -95,7 +95,7 @@ struct st_mysql_plugin
 };
 
 /*************************************************************************
-  API for Full-text [pre]parser plugin. (MYSQL_FTPARSER_PLUGIN)
+  API for Full-text parser plugin. (MYSQL_FTPARSER_PLUGIN)
 */
 
 #define MYSQL_FTPARSER_INTERFACE_VERSION 0x0000
@@ -265,5 +265,25 @@ struct st_mysql_ftparser
   int (*init)(MYSQL_FTPARSER_PARAM *param);
   int (*deinit)(MYSQL_FTPARSER_PARAM *param);
 };
+
+/*************************************************************************
+  API for Storage Engine plugin. (MYSQL_STORAGE_ENGINE_PLUGIN)
+*/
+
+/* handlertons of different MySQL releases are incompatible */
+#define MYSQL_HANDLERTON_INTERFACE_VERSION (MYSQL_VERSION_ID << 8)
+
+/*
+  The real API is in the sql/handler.h
+  Here we define only the descriptor structure, that is referred from
+  st_mysql_plugin.
+*/
+
+struct st_mysql_storage_engine
+{
+  int interface_version;
+  struct handlerton *handlerton;
+};
+
 #endif
 
