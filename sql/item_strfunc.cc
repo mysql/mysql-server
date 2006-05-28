@@ -118,7 +118,15 @@ String *Item_func_md5::val_str(String *str)
 
 void Item_func_md5::fix_length_and_dec()
 {
-   max_length=32;
+  max_length=32;
+  /*
+    The MD5() function treats its parameter as being a case sensitive. Thus
+    we set binary collation on it so different instances of MD5() will be
+    compared properly.
+  */
+  args[0]->collation.set(
+      get_charset_by_csname(args[0]->collation.collation->csname,
+                            MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
 }
 
 
@@ -159,7 +167,15 @@ String *Item_func_sha::val_str(String *str)
 
 void Item_func_sha::fix_length_and_dec()
 {
-   max_length=SHA1_HASH_SIZE*2; // size of hex representation of hash
+  max_length=SHA1_HASH_SIZE*2; // size of hex representation of hash
+  /*
+    The SHA() function treats its parameter as being a case sensitive. Thus
+    we set binary collation on it so different instances of MD5() will be
+    compared properly.
+  */
+  args[0]->collation.set(
+      get_charset_by_csname(args[0]->collation.collation->csname,
+                            MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
 }
 
 
