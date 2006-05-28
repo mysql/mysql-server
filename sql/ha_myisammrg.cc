@@ -38,47 +38,7 @@ static handler *myisammrg_create_handler(TABLE_SHARE *table);
 
 /* MyISAM MERGE handlerton */
 
-static const char myisammrg_hton_name[]= "MRG_MYISAM";
-static const char myisammrg_hton_comment[]=
-  "Collection of identical MyISAM tables";
-
-handlerton myisammrg_hton= {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  myisammrg_hton_name,
-  SHOW_OPTION_YES,
-  myisammrg_hton_comment, 
-  DB_TYPE_MRG_MYISAM,
-  NULL,
-  0,       /* slot */
-  0,       /* savepoint size. */
-  NULL,    /* close_connection */
-  NULL,    /* savepoint */
-  NULL,    /* rollback to savepoint */
-  NULL,    /* release savepoint */
-  NULL,    /* commit */
-  NULL,    /* rollback */
-  NULL,    /* prepare */
-  NULL,    /* recover */
-  NULL,    /* commit_by_xid */
-  NULL,    /* rollback_by_xid */
-  NULL,    /* create_cursor_read_view */
-  NULL,    /* set_cursor_read_view */
-  NULL,    /* close_cursor_read_view */
-  myisammrg_create_handler,    /* Create a new handler */
-  NULL,    /* Drop a database */
-  myrg_panic,    /* Panic call */
-  NULL,    /* Start Consistent Snapshot */
-  NULL,    /* Flush logs */
-  NULL,    /* Show status */
-  NULL,    /* Partition flags */
-  NULL,    /* Alter table flags */
-  NULL,    /* Alter Tablespace */
-  NULL,    /* Fill Files Table */
-  HTON_CAN_RECREATE | HTON_ALTER_CANNOT_CREATE,
-  NULL,    /* binlog_func */
-  NULL,    /* binlog_log_query */
-  NULL	   /* release_temporary_latches */
-};
+handlerton myisammrg_hton;
 
 static handler *myisammrg_create_handler(TABLE_SHARE *table)
 {
@@ -580,14 +540,27 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_NO;
 }
 
+static int myisammrg_init()
+{
+  myisammrg_hton.state=SHOW_OPTION_YES;
+  myisammrg_hton.db_type=DB_TYPE_MRG_MYISAM;
+  myisammrg_hton.create=myisammrg_create_handler;
+  myisammrg_hton.panic=myrg_panic;
+  myisammrg_hton.flags= HTON_CAN_RECREATE | HTON_ALTER_CANNOT_CREATE;
+  return 0;
+}
+
+struct st_mysql_storage_engine myisammrg_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &myisammrg_hton };
+
 mysql_declare_plugin(myisammrg)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &myisammrg_hton,
-  myisammrg_hton_name,
+  &myisammrg_storage_engine,
+  "MRG_MYISAM",
   "MySQL AB",
-  myisammrg_hton_comment,
-  NULL, /* Plugin Init */
+  "Collection of identical MyISAM tables",
+  myisammrg_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */
   0
