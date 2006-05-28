@@ -160,7 +160,6 @@ static int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
 
 typedef struct st_my_ftb_param
 {
-  MYSQL_FTPARSER_PARAM *up;
   FTB *ftb;
   FTB_EXPR *ftbe;
   byte *up_quot;
@@ -168,10 +167,11 @@ typedef struct st_my_ftb_param
 } MY_FTB_PARAM;
 
 
-static int ftb_query_add_word(void *param, char *word, int word_len,
+static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
+                              char *word, int word_len,
                               MYSQL_FTPARSER_BOOLEAN_INFO *info)
 {
-  MY_FTB_PARAM *ftb_param= (MY_FTB_PARAM *)param;
+  MY_FTB_PARAM *ftb_param= param->mysql_ftparam;
   FTB_WORD *ftbw;
   FTB_EXPR *ftbe, *tmp_expr;
   FT_WORD *phrase_word;
@@ -269,9 +269,10 @@ static int ftb_query_add_word(void *param, char *word, int word_len,
 }
 
 
-static int ftb_parse_query_internal(void *param, char *query, int len)
+static int ftb_parse_query_internal(MYSQL_FTPARSER_PARAM *param,
+                                    char *query, int len)
 {
-  MY_FTB_PARAM *ftb_param= (MY_FTB_PARAM *)param;
+  MY_FTB_PARAM *ftb_param= param->mysql_ftparam;
   MYSQL_FTPARSER_BOOLEAN_INFO info;
   CHARSET_INFO *cs= ftb_param->ftb->charset;
   char **start= &query;
@@ -281,7 +282,7 @@ static int ftb_parse_query_internal(void *param, char *query, int len)
   info.prev= ' ';
   info.quot= 0;
   while (ft_get_word(cs, start, end, &w, &info))
-    ftb_param->up->mysql_add_word(param, w.pos, w.len, &info);
+    param->mysql_add_word(param, w.pos, w.len, &info);
   return(0);
 }
 
@@ -299,7 +300,6 @@ static void _ftb_parse_query(FTB *ftb, byte *query, uint len,
   if (! (param= ftparser_call_initializer(ftb->info, ftb->keynr, 0)))
     DBUG_VOID_RETURN;
 
-  ftb_param.up= param;
   ftb_param.ftb= ftb;
   ftb_param.depth= 0;
   ftb_param.ftbe= ftb->root;
@@ -571,7 +571,6 @@ err:
 
 typedef struct st_my_ftb_phrase_param
 {
-  MYSQL_FTPARSER_PARAM *up;
   LIST *phrase;
   LIST *document;
   CHARSET_INFO *cs;
@@ -581,10 +580,11 @@ typedef struct st_my_ftb_phrase_param
 } MY_FTB_PHRASE_PARAM;
 
 
-static int ftb_phrase_add_word(void *param, char *word, int word_len,
+static int ftb_phrase_add_word(MYSQL_FTPARSER_PARAM *param,
+                               char *word, int word_len,
     MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
 {
-  MY_FTB_PHRASE_PARAM *phrase_param= (MY_FTB_PHRASE_PARAM *)param;
+  MY_FTB_PHRASE_PARAM *phrase_param= param->mysql_ftparam;
   FT_WORD *w= (FT_WORD *)phrase_param->document->data;
   LIST *phrase, *document;
   w->pos= word;
@@ -611,14 +611,15 @@ static int ftb_phrase_add_word(void *param, char *word, int word_len,
 }
 
 
-static int ftb_check_phrase_internal(void *param, char *document, int len)
+static int ftb_check_phrase_internal(MYSQL_FTPARSER_PARAM *param,
+                                     char *document, int len)
 {
   FT_WORD word;
-  MY_FTB_PHRASE_PARAM *phrase_param= (MY_FTB_PHRASE_PARAM *)param;
+  MY_FTB_PHRASE_PARAM *phrase_param= param->mysql_ftparam;
   const char *docend= document + len;
   while (ft_simple_get_word(phrase_param->cs, &document, docend, &word, FALSE))
   {
-    phrase_param->up->mysql_add_word(param, word.pos, word.len, 0);
+    param->mysql_add_word(param, word.pos, word.len, 0);
     if (phrase_param->match)
       return 1;
   }
@@ -651,7 +652,6 @@ static int _ftb_check_phrase(FTB *ftb, const byte *document, uint len,
   if (! (param= ftparser_call_initializer(ftb->info, ftb->keynr, 1)))
     DBUG_RETURN(0);
 
-  ftb_param.up= param;
   ftb_param.phrase= ftbe->phrase;
   ftb_param.document= ftbe->document;
   ftb_param.cs= ftb->charset;
@@ -820,16 +820,16 @@ err:
 
 typedef struct st_my_ftb_find_param
 {
-  MYSQL_FTPARSER_PARAM *up;
   FT_INFO *ftb;
   FT_SEG_ITERATOR *ftsi;
 } MY_FTB_FIND_PARAM;
 
 
-static int ftb_find_relevance_add_word(void *param, char *word, int len,
+static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
+                                       char *word, int len,
              MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
 {
-  MY_FTB_FIND_PARAM *ftb_param= (MY_FTB_FIND_PARAM *)param;
+  MY_FTB_FIND_PARAM *ftb_param= param->mysql_ftparam;
   FT_INFO *ftb= ftb_param->ftb;
   FTB_WORD *ftbw;
   int a, b, c;
@@ -859,14 +859,15 @@ static int ftb_find_relevance_add_word(void *param, char *word, int len,
 }
 
 
-static int ftb_find_relevance_parse(void *param, char *doc, int len)
+static int ftb_find_relevance_parse(MYSQL_FTPARSER_PARAM *param,
+                                    char *doc, int len)
 {
-  MY_FTB_FIND_PARAM *ftb_param=(MY_FTB_FIND_PARAM *)param;
+  MY_FTB_FIND_PARAM *ftb_param= param->mysql_ftparam;
   FT_INFO *ftb= ftb_param->ftb;
   char *end= doc + len;
   FT_WORD w;
   while (ft_simple_get_word(ftb->charset, &doc, end, &w, TRUE))
-    ftb_param->up->mysql_add_word(param, w.pos, w.len, 0);
+    param->mysql_add_word(param, w.pos, w.len, 0);
   return(0);
 }
 
@@ -910,7 +911,6 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
     _mi_ft_segiterator_init(ftb->info, ftb->keynr, record, &ftsi);
   memcpy(&ftsi2, &ftsi, sizeof(ftsi));
 
-  ftb_param.up= param;
   ftb_param.ftb= ftb;
   ftb_param.ftsi= &ftsi2;
   param->mysql_parse= ftb_find_relevance_parse;
