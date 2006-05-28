@@ -47,6 +47,16 @@ SELECT IF(9999 - 1000 + 1 > @max_row, @max_row , 9999 - 1000 + 1)
 ALTER TABLE t1 PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER));
 --echo #  1.1.5 Add two named partitions + test
 ALTER TABLE t1 ADD PARTITION (PARTITION part1, PARTITION part7);
+drop table t1;
+
+CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30))
+ENGINE=InnoDB
+PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER));
+
+--echo # This statement crashes the server.
+--echo #   CREATE partitioned table with three partitions in one step
+--echo #   would be harmless.
+ALTER TABLE t1 ADD PARTITION PARTITIONS 1;
 
 --disable_warnings
 DROP VIEW  IF EXISTS v1;
