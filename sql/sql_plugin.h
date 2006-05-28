@@ -61,6 +61,8 @@ struct st_plugin_int
   uint ref_count;           /* number of threads using the plugin */
 };
 
+typedef int (*plugin_type_init)(struct st_plugin_int *);
+
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern LEX_STRING plugin_type_names[];

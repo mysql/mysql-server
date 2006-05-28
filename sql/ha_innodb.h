@@ -249,7 +249,7 @@ extern ulong srv_thread_concurrency;
 extern ulong srv_commit_concurrency;
 }
 
-bool innobase_init(void);
+int innobase_init(void);
 int innobase_end(ha_panic_function type);
 bool innobase_flush_logs(void);
 uint innobase_get_free_space(void);

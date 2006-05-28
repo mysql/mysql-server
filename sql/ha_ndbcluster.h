@@ -903,3 +903,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
 int ndbcluster_table_exists_in_engine(THD* thd,
                                       const char *db, const char *name);
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
+
+static const char ndbcluster_hton_name[]= "ndbcluster";
+static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
+
