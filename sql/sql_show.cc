@@ -47,7 +47,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
 
 /***************************************************************************
-** List all table types supported 
+** List all table types supported
 ***************************************************************************/
 
 static my_bool show_handlerton(THD *thd, st_plugin_int *plugin,
@@ -55,25 +55,25 @@ static my_bool show_handlerton(THD *thd, st_plugin_int *plugin,
 {
   handlerton *default_type= (handlerton *) arg;
   Protocol *protocol= thd->protocol;
-  handlerton *hton= (handlerton *) plugin->plugin->info;
+  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
 
   if (!(hton->flags & HTON_HIDDEN))
   {
     protocol->prepare_for_resend();
-    protocol->store(hton->name, system_charset_info);
+    protocol->store(plugin->plugin->name, system_charset_info);
     const char *option_name= show_comp_option_name[(int) hton->state];
 
     if (hton->state == SHOW_OPTION_YES && default_type == hton)
       option_name= "DEFAULT";
     protocol->store(option_name, system_charset_info);
-    protocol->store(hton->comment, system_charset_info);
+    protocol->store(plugin->plugin->descr, system_charset_info);
     protocol->store(hton->commit ? "YES" : "NO", system_charset_info);
     protocol->store(hton->prepare ? "YES" : "NO", system_charset_info);
     protocol->store(hton->savepoint_set ? "YES" : "NO", system_charset_info);
-    
+
     return protocol->write() ? 1 : 0;
   }
-  return 0;  
+  return 0;
 }
 
 bool mysqld_show_storage_engines(THD *thd)
@@ -93,7 +93,7 @@ bool mysqld_show_storage_engines(THD *thd)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  if (plugin_foreach(thd, show_handlerton, 
+  if (plugin_foreach(thd, show_handlerton,
                      MYSQL_STORAGE_ENGINE_PLUGIN, thd->variables.table_type))
     DBUG_RETURN(TRUE);
 
@@ -3091,7 +3091,7 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
                                    void *ptable)
 {
   TABLE *table= (TABLE *) ptable;
-  handlerton *hton= (handlerton *) plugin->plugin->info;
+  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
   DBUG_ENTER("iter_schema_engines");
@@ -3099,21 +3099,26 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
   if (!(hton->flags & HTON_HIDDEN))
   {
     if (!(wild && wild[0] &&
-          wild_case_compare(scs, hton->name,wild)))
+          wild_case_compare(scs, plugin->plugin->name,wild)))
     {
-      const char *tmp;
+      LEX_STRING state[2]={{STRING_WITH_LEN("ENABLED")},
+                           {STRING_WITH_LEN("DISABLED")}};
+      LEX_STRING yesno[2]={{STRING_WITH_LEN("NO")}, {STRING_WITH_LEN("YES")}};
+      LEX_STRING *tmp;
       restore_record(table, s->default_values);
 
-      table->field[0]->store(hton->name, strlen(hton->name), scs);
-      tmp= hton->state ? "DISABLED" : "ENABLED";
-      table->field[1]->store( tmp, strlen(tmp), scs);
-      table->field[2]->store(hton->comment, strlen(hton->comment), scs);
-      tmp= hton->commit ? "YES" : "NO";
-      table->field[3]->store( tmp, strlen(tmp), scs);
-      tmp= hton->prepare ? "YES" : "NO";
-      table->field[4]->store( tmp, strlen(tmp), scs);
-      tmp= hton->savepoint_set ? "YES" : "NO";
-      table->field[5]->store( tmp, strlen(tmp), scs);
+      table->field[0]->store(plugin->plugin->name,
+                             strlen(plugin->plugin->name), scs);
+      tmp= &state[test(hton->state)];
+      table->field[1]->store(tmp->str, tmp->length, scs);
+      table->field[2]->store(plugin->plugin->descr,
+                             strlen(plugin->plugin->descr), scs);
+      tmp= &yesno[test(hton->commit)];
+      table->field[3]->store(tmp->str, tmp->length, scs);
+      tmp= &yesno[test(hton->prepare)];
+      table->field[4]->store(tmp->str, tmp->length, scs);
+      tmp= &yesno[test(hton->savepoint_set)];
+      table->field[5]->store(tmp->str, tmp->length, scs);
 
       if (schema_table_store_record(thd, table))
         DBUG_RETURN(1);
@@ -3125,7 +3130,7 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
 
 int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
 {
-  return plugin_foreach(thd, iter_schema_engines, 
+  return plugin_foreach(thd, iter_schema_engines,
                         MYSQL_STORAGE_ENGINE_PLUGIN, tables->table);
 }
 
@@ -3140,7 +3145,7 @@ int fill_schema_collation(THD *thd, TABLE_LIST *tables, COND *cond)
   {
     CHARSET_INFO **cl;
     CHARSET_INFO *tmp_cs= cs[0];
-    if (!tmp_cs || !(tmp_cs->state & MY_CS_AVAILABLE) || 
+    if (!tmp_cs || !(tmp_cs->state & MY_CS_AVAILABLE) ||
          (tmp_cs->state & MY_CS_HIDDEN) ||
         !(tmp_cs->state & MY_CS_PRIMARY))
       continue;
@@ -4897,7 +4902,7 @@ static my_bool run_hton_fill_schema_files(THD *thd, st_plugin_int *plugin,
 {
   struct run_hton_fill_schema_files_args *args=
     (run_hton_fill_schema_files_args *) arg;
-  handlerton *hton= (handlerton *) plugin->plugin->info;
+  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
   if(hton->fill_files_table)
     hton->fill_files_table(thd, args->tables, args->cond);
   return false;
