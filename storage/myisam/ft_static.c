@@ -629,7 +629,7 @@ const char *ft_precompiled_stopwords[] = {
 
 static int ft_default_parser_parse(MYSQL_FTPARSER_PARAM *param)
 {
-  return param->mysql_parse(param->mysql_ftparam, param->doc, param->length);
+  return param->mysql_parse(param, param->doc, param->length);
 }
 
 struct st_mysql_ftparser ft_default_parser=

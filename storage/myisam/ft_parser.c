@@ -27,7 +27,6 @@ typedef struct st_ft_docstat {
 
 typedef struct st_my_ft_parser_param
 {
-  MYSQL_FTPARSER_PARAM *up;
   TREE *wtree;
   my_bool with_alloc;
 } MY_FT_PARSER_PARAM;
@@ -241,14 +240,16 @@ void ft_parse_init(TREE *wtree, CHARSET_INFO *cs)
 }
 
 
-static int ft_add_word(void *param, byte *word, uint word_len,
+static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
+                       char *word, int word_len,
              MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
 {
   TREE *wtree;
   FT_WORD w;
+  MY_FT_PARSER_PARAM *ft_param=param->mysql_ftparam;
   DBUG_ENTER("ft_add_word");
-  wtree= ((MY_FT_PARSER_PARAM *)param)->wtree;
-  if (((MY_FT_PARSER_PARAM *)param)->with_alloc)
+  wtree= ft_param->wtree;
+  if (ft_param->with_alloc)
   {
     byte *ptr;
     /* allocating the data in the tree - to avoid mallocs and frees */
@@ -269,16 +270,17 @@ static int ft_add_word(void *param, byte *word, uint word_len,
 }
 
 
-static int ft_parse_internal(void *param, byte *doc, int doc_len)
+static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
+                             byte *doc, int doc_len)
 {
   byte   *end=doc+doc_len;
-  MY_FT_PARSER_PARAM *ft_param=(MY_FT_PARSER_PARAM *)param;
+  MY_FT_PARSER_PARAM *ft_param=param->mysql_ftparam;
   TREE *wtree= ft_param->wtree;
   FT_WORD w;
   DBUG_ENTER("ft_parse_internal");
 
   while (ft_simple_get_word(wtree->custom_arg, &doc, end, &w, TRUE))
-    if (ft_param->up->mysql_add_word(param, w.pos, w.len, 0))
+    if (param->mysql_add_word(param, w.pos, w.len, 0))
       DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
@@ -292,7 +294,6 @@ int ft_parse(TREE *wtree, byte *doc, int doclen, my_bool with_alloc,
   DBUG_ENTER("ft_parse");
   DBUG_ASSERT(parser);
 
-  my_param.up= param;
   my_param.wtree= wtree;
   my_param.with_alloc= with_alloc;
 
