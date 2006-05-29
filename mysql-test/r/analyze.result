@@ -46,6 +46,7 @@ Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_
 execute stmt1;
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
 deallocate prepare stmt1;
+drop table t1;
 create temporary table t1(a int, index(a));
 insert into t1 values('1'),('2'),('3'),('4'),('5');
 analyze table t1;
