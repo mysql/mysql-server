@@ -250,6 +250,7 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_TRUNCATE:
   case SQLCOM_COMMIT:
   case SQLCOM_ROLLBACK:
+  case SQLCOM_LOAD:
   case SQLCOM_LOAD_MASTER_DATA:
   case SQLCOM_LOCK_TABLES:
   case SQLCOM_CREATE_PROCEDURE:
