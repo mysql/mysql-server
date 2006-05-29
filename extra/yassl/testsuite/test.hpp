@@ -33,10 +33,16 @@
 
 
 // HPUX doesn't use socklent_t for third parameter to accept
-#if !defined(__hpux__)
+#if !defined(__hpux)
     typedef socklen_t* ACCEPT_THIRD_T;
 #else
     typedef int*       ACCEPT_THIRD_T;
+
+// HPUX does not define _POSIX_THREADS as it's not _fully_ implemented
+#ifndef _POSIX_THREADS
+#define _POSIX_THREADS
+#endif
+
 #endif
 
 

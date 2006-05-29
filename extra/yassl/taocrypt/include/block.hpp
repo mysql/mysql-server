@@ -96,7 +96,7 @@ public:
 
     pointer allocate(size_type n, const void* = 0)
     {
-        CheckSize(n);
+        this->CheckSize(n);
         if (n == 0)
             return 0;
         return NEW_TC T[n];
