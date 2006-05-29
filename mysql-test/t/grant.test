@@ -490,6 +490,7 @@ insert into tables_priv values ('','test_db','mysqltest_1','test_table','test_gr
 flush privileges;
 delete from tables_priv where host = '' and user = 'mysqltest_1';
 flush privileges;
+use test;
 
 #
 # Bug #10892 user variables not auto cast for comparisons
@@ -518,7 +519,6 @@ create user mysqltest_7@;
 set password for mysqltest_7@ = password('systpass');
 show grants for mysqltest_7@;
 drop user mysqltest_7@;
-flush privileges; # BUG#16297(flush should be removed when that bug is fixed)
 --error 1141
 show grants for mysqltest_7@;
 
@@ -539,3 +539,145 @@ flush privileges;
 drop database mysqltest;
 
 # End of 4.1 tests
+
+#
+# Bug #16297 In memory grant tables not flushed when users's hostname is ""
+#
+use test;
+create table t1 (a int);
+
+# Backup anonymous users and remove them. (They get in the way of
+# the one we test with here otherwise.)
+create table t2 as select * from mysql.user where user='';
+delete from mysql.user where user='';
+flush privileges;
+
+# Create some users with different hostnames
+create user mysqltest_8@'';
+create user mysqltest_8;
+create user mysqltest_8@host8;
+
+# Try to create them again
+--error 1396
+create user mysqltest_8@'';
+--error 1396
+create user mysqltest_8;
+--error 1396
+create user mysqltest_8@host8;
+
+select user, QUOTE(host) from mysql.user where user="mysqltest_8";
+
+--echo Schema privileges
+grant select on mysqltest.* to mysqltest_8@'';
+show grants for mysqltest_8@'';
+grant select on mysqltest.* to mysqltest_8@;
+show grants for mysqltest_8@;
+grant select on mysqltest.* to mysqltest_8;
+show grants for mysqltest_8;
+select * from  information_schema.schema_privileges
+where grantee like "'mysqltest_8'%";
+connect (conn3,localhost,mysqltest_8,,);
+select * from t1;
+disconnect conn3;
+connection master;
+revoke select on mysqltest.* from mysqltest_8@'';
+revoke select on mysqltest.* from mysqltest_8;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+select * from  information_schema.schema_privileges
+where grantee like "'mysqltest_8'%";
+flush privileges;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8@;
+grant select on mysqltest.* to mysqltest_8@'';
+flush privileges;
+show grants for mysqltest_8@;
+revoke select on mysqltest.* from mysqltest_8@'';
+flush privileges;
+
+--echo Column privileges
+grant update (a) on t1 to mysqltest_8@'';
+grant update (a) on t1 to mysqltest_8;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+flush privileges;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+select * from  information_schema.column_privileges;
+connect (conn4,localhost,mysqltest_8,,);
+select * from t1;
+disconnect conn4;
+connection master;
+revoke update (a) on t1 from mysqltest_8@'';
+revoke update (a) on t1 from mysqltest_8;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+select * from  information_schema.column_privileges;
+flush privileges;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+
+--echo Table privileges
+grant update on t1 to mysqltest_8@'';
+grant update on t1 to mysqltest_8;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+flush privileges;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+select * from  information_schema.table_privileges;
+connect (conn5,localhost,mysqltest_8,,);
+select * from t1;
+disconnect conn5;
+connection master;
+revoke update on t1 from mysqltest_8@'';
+revoke update on t1 from mysqltest_8;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+select * from  information_schema.table_privileges;
+flush privileges;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+
+--echo "DROP USER" should clear privileges
+grant all privileges on mysqltest.* to mysqltest_8@'';
+grant select on mysqltest.* to mysqltest_8@'';
+grant update on t1 to mysqltest_8@'';
+grant update (a) on t1 to mysqltest_8@'';
+grant all privileges on mysqltest.* to mysqltest_8;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+select * from  information_schema.user_privileges
+where grantee like "'mysqltest_8'%";
+connect (conn5,localhost,mysqltest_8,,);
+select * from t1;
+disconnect conn5;
+connection master;
+flush privileges;
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+drop user mysqltest_8@'';
+--error 1141
+show grants for mysqltest_8@'';
+show grants for mysqltest_8;
+select * from  information_schema.user_privileges
+where grantee like "'mysqltest_8'%";
+drop user mysqltest_8;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error 1045
+connect (conn6,localhost,mysqltest_8,,);
+connection master;
+--error 1141
+show grants for mysqltest_8;
+drop user mysqltest_8@host8;
+--error 1141
+show grants for mysqltest_8@host8;
+
+# Restore the anonymous users.
+insert into mysql.user select * from t2;
+flush privileges;
+drop table t2;
+
+drop table t1;
+
+
