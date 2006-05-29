@@ -2813,12 +2813,13 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
     my_ulonglong num_rows= mysql_num_rows(table_res);
     if (num_rows > 0)
     {
+      ulong *lengths;
       /*
         Return first row
         TODO: Return all matching rows
       */
       row= mysql_fetch_row(table_res);
-      ulong *lengths= mysql_fetch_lengths(table_res);
+      lengths= mysql_fetch_lengths(table_res);
       name= strmake_root(root, row[0], lengths[0]);
     }
     mysql_free_result(table_res);
