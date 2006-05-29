@@ -58,12 +58,45 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
   }
 }
 
+
+/*
+  Aggregates result types from the array of items.
+
+  SYNOPSIS:
+    agg_cmp_type()
+    type   [out] the aggregated type
+    items        array of items to aggregate the type from
+    nitems       number of items in the array
+
+  DESCRIPTION
+    This function aggregates result types from the array of items. Found type
+    supposed to be used later for comparison of values of these items.
+    Aggregation itself is performed by the item_cmp_type() function.
+
+  NOTES
+    Aggregation rules:
+    If all items are constants the type will be aggregated from all items.
+    If there are some non-constant items then only types of non-constant
+    items will be used for aggregation.
+*/
 static void agg_cmp_type(Item_result *type, Item **items, uint nitems)
 {
   uint i;
   type[0]= items[0]->result_type();
-  for (i=1 ; i < nitems ; i++)
-    type[0]= item_cmp_type(type[0], items[i]->result_type());
+  /* Reset to 0 on first occurence of non-const item. 1 otherwise */
+  bool is_const= items[0]->const_item();
+
+  for (i= 1 ; i < nitems ; i++)
+  {
+    if (!items[i]->const_item())
+    {
+      type[0]= is_const ? items[i]->result_type() :
+                 item_cmp_type(type[0], items[i]->result_type());
+      is_const= 0;
+    }
+    else if (is_const)
+      type[0]= item_cmp_type(type[0], items[i]->result_type());
+  }
 }
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
