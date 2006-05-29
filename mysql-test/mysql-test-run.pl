@@ -1618,7 +1618,7 @@ sub ndbcluster_start_install ($) {
 
 sub ndbcluster_wait_started($){
   my $cluster= shift;
-  my $path_waiter_log= "$opt_vardir/log/ndb_waiter.log";
+  my $path_waiter_log= "$cluster->{'data_dir'}/ndb_waiter.log";
 
   # Start the ndb_waiter which will connect to the ndb_mgmd
   # and poll it for state of the ndbd's, will return when
@@ -1656,7 +1656,7 @@ sub ndb_mgmd_start ($) {
   mtr_add_arg($args, "--config-file=%s", "$cluster->{'data_dir'}/config.ini");
 
 
-  my $path_ndb_mgmd_log= "$opt_vardir/log/\l$cluster->{'name'}_ndb_mgmd.log";
+  my $path_ndb_mgmd_log= "$cluster->{'data_dir'}/\l$cluster->{'name'}_ndb_mgmd.log";
   $pid= mtr_spawn($exe_ndb_mgmd, $args, "",
 		  $path_ndb_mgmd_log,
 		  $path_ndb_mgmd_log,
@@ -1686,8 +1686,7 @@ sub ndbd_start ($$$) {
   mtr_add_arg($args, "--nodaemon");
   mtr_add_arg($args, "$extra_args");
 
-
-  my $path_ndbd_log= "$opt_vardir/log/\l$cluster->{'name'}_ndbd_$idx.log";
+  my $path_ndbd_log= "$cluster->{'data_dir'}/\l$cluster->{'name'}_ndbd_$idx.log";
   $pid= mtr_spawn($exe_ndbd, $args, "",
 		  $path_ndbd_log,
 		  $path_ndbd_log,
