@@ -37,6 +37,7 @@
 #include "handshake.hpp"
 #include "yassl_int.hpp"
 #include "md5.hpp"              // for TaoCrypt MD5 size assert
+#include "md4.hpp"              // for TaoCrypt MD4 size assert
 #include <stdio.h>
 
 #ifdef _WIN32
@@ -1131,17 +1132,26 @@ void* X509_get_ext_d2i(X509* x, int nid, int* crit, int* idx)
 
 void MD4_Init(MD4_CTX* md4)
 {
-    assert(0);  // not yet supported, build compat. only
+    // make sure we have a big enough buffer
+    typedef char ok[sizeof(md4->buffer) >= sizeof(TaoCrypt::MD4) ? 1 : -1];
+    (void) sizeof(ok);
+
+    // using TaoCrypt since no dynamic memory allocated
+    // and no destructor will be called
+    new (reinterpret_cast<yassl_pointer>(md4->buffer)) TaoCrypt::MD4();
 }
 
 
 void MD4_Update(MD4_CTX* md4, const void* data, unsigned long sz)
 {
+    reinterpret_cast<TaoCrypt::MD4*>(md4->buffer)->Update(
+                static_cast<const byte*>(data), static_cast<unsigned int>(sz));
 }
 
 
 void MD4_Final(unsigned char* hash, MD4_CTX* md4)
 {
+    reinterpret_cast<TaoCrypt::MD4*>(md4->buffer)->Final(hash);
 }
 
 
