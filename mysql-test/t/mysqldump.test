@@ -607,6 +607,13 @@ drop table t1, t2;
 drop database db1;
 
 #
+# BUG#15328 Segmentation fault occured if my.cnf is invalid for escape sequence
+#
+
+--exec $MYSQL_MY_PRINT_DEFAULTS --defaults-extra-file=$MYSQL_TEST_DIR/std_data/bug15328.cnf mysqldump
+
+
+#
 # Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
 #
 
