@@ -186,6 +186,11 @@ const char *thd_proc_info(THD *thd, const char *info)
   return old_info;
 }
 
+void **thd_ha_data(const THD *thd, const struct handlerton *hton)
+{
+  return (void **) thd->ha_data + hton->slot;
+}
+
 
 /*
   Pass nominal parameters to Statement constructor only to ensure that
