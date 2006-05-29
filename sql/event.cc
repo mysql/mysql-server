@@ -456,7 +456,7 @@ Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
   SYNOPSIS
     evex_db_find_event_aux()
       thd    Thread context
-      et     evet_timed object containing dbname, name & definer
+      et     event_timed object containing dbname & name
       table  TABLE object for open mysql.event table.
 
   RETURN VALUE
@@ -467,8 +467,7 @@ Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
 inline int
 evex_db_find_event_aux(THD *thd, Event_timed *et, TABLE *table)
 {
-  return evex_db_find_event_by_name(thd, et->dbname, et->name,
-                                    et->definer, table);
+  return evex_db_find_event_by_name(thd, et->dbname, et->name, table);
 }
 
 
@@ -490,7 +489,6 @@ evex_db_find_event_aux(THD *thd, Event_timed *et, TABLE *table)
 int
 evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
                           const LEX_STRING ev_name,
-                          const LEX_STRING user_name,
                           TABLE *table)
 {
   byte key[MAX_KEY_LENGTH];
@@ -505,18 +503,14 @@ evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
     same fields.
   */
   if (dbname.length > table->field[Events::FIELD_DB]->field_length ||
-      ev_name.length > table->field[Events::FIELD_NAME]->field_length ||
-      user_name.length > table->field[Events::FIELD_DEFINER]->field_length)
+      ev_name.length > table->field[Events::FIELD_NAME]->field_length)
       
     DBUG_RETURN(EVEX_KEY_NOT_FOUND);
 
   table->field[Events::FIELD_DB]->store(dbname.str, dbname.length,
-                                                  &my_charset_bin);
+                                        &my_charset_bin);
   table->field[Events::FIELD_NAME]->store(ev_name.str, ev_name.length,
-                                                    &my_charset_bin);
-  table->field[Events::FIELD_DEFINER]->store(user_name.str,
-                                                       user_name.length,
-                                                       &my_charset_bin);
+                                          &my_charset_bin);
 
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
@@ -553,6 +547,7 @@ evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
 static int
 evex_fill_row(THD *thd, TABLE *table, Event_timed *et, my_bool is_update)
 {
+  CHARSET_INFO *scs= system_charset_info;
   enum Events::enum_table_field field_num;
 
   DBUG_ENTER("evex_fill_row");
@@ -561,20 +556,23 @@ evex_fill_row(THD *thd, TABLE *table, Event_timed *et, my_bool is_update)
   DBUG_PRINT("info", ("name  =[%s]", et->name.str));
   DBUG_PRINT("info", ("body  =[%s]", et->body.str));
 
+  if (table->field[field_num= Events::FIELD_DEFINER]->
+                  store(et->definer.str, et->definer.length, scs))
+    goto err_truncate;
+
   if (table->field[field_num= Events::FIELD_DB]->
-                  store(et->dbname.str, et->dbname.length, system_charset_info))
-    goto trunc_err;
+                  store(et->dbname.str, et->dbname.length, scs))
+    goto err_truncate;
 
   if (table->field[field_num= Events::FIELD_NAME]->
-                  store(et->name.str, et->name.length, system_charset_info))
-    goto trunc_err;
+                  store(et->name.str, et->name.length, scs))
+    goto err_truncate;
 
   /* both ON_COMPLETION and STATUS are NOT NULL thus not calling set_notnull()*/
   table->field[Events::FIELD_ON_COMPLETION]->
                                        store((longlong)et->on_completion, true);
 
-  table->field[Events::FIELD_STATUS]->
-                                       store((longlong)et->status, true);
+  table->field[Events::FIELD_STATUS]->store((longlong)et->status, true);
 
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
@@ -586,8 +584,8 @@ evex_fill_row(THD *thd, TABLE *table, Event_timed *et, my_bool is_update)
                                store((longlong)thd->variables.sql_mode, true);
 
     if (table->field[field_num= Events::FIELD_BODY]->
-                     store(et->body.str, et->body.length, system_charset_info))
-      goto trunc_err;
+                     store(et->body.str, et->body.length, scs))
+      goto err_truncate;
   }
 
   if (et->expression)
@@ -645,12 +643,12 @@ evex_fill_row(THD *thd, TABLE *table, Event_timed *et, my_bool is_update)
   if (et->comment.str)
   {
     if (table->field[field_num= Events::FIELD_COMMENT]->
-                 store(et->comment.str, et->comment.length, system_charset_info))
-      goto trunc_err;
+                 store(et->comment.str, et->comment.length, scs))
+      goto err_truncate;
   }
 
   DBUG_RETURN(0);
-trunc_err:
+err_truncate:
   my_error(ER_EVENT_DATA_TOO_LONG, MYF(0), table->field[field_num]->field_name);
   DBUG_RETURN(EVEX_GENERAL_ERROR);
 }
@@ -746,13 +744,6 @@ db_create_event(THD *thd, Event_timed *et, my_bool create_if_not,
     goto err;
   }
 
-  if ((ret=table->field[Events::FIELD_DEFINER]->
-                               store(et->definer.str, et->definer.length, scs)))
-  {
-    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str, ret);
-    goto err;
-  }
-
   ((Field_timestamp *)table->field[Events::FIELD_CREATED])->set_time();
 
   /*
@@ -816,6 +807,7 @@ err:
 static int
 db_update_event(THD *thd, Event_timed *et, sp_name *new_name)
 {
+  CHARSET_INFO *scs= system_charset_info;
   TABLE *table;
   int ret= EVEX_OPEN_TABLE_FAILED;
   DBUG_ENTER("db_update_event");
@@ -835,22 +827,21 @@ db_update_event(THD *thd, Event_timed *et, sp_name *new_name)
   /* first look whether we overwrite */
   if (new_name)
   {
-    if (!sortcmp_lex_string(et->name, new_name->m_name, system_charset_info) &&
-        !sortcmp_lex_string(et->dbname, new_name->m_db, system_charset_info))
+    if (!sortcmp_lex_string(et->name, new_name->m_name, scs) &&
+        !sortcmp_lex_string(et->dbname, new_name->m_db, scs))
     {
       my_error(ER_EVENT_SAME_NAME, MYF(0), et->name.str);
       goto err;    
     }
   
-    if (!evex_db_find_event_by_name(thd, new_name->m_db, new_name->m_name,
-                                et->definer, table))
+    if (!evex_db_find_event_by_name(thd,new_name->m_db,new_name->m_name,table))
     {
       my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), new_name->m_name.str);
       goto err;
     }  
   }
   /*
-    ...and then whether there is such an event. don't exchange the blocks
+    ...and then if there is such an event. Don't exchange the blocks
     because you will get error 120 from table handler because new_name will
     overwrite the key and SE will tell us that it cannot find the already found
     row (copied into record[1] later
@@ -866,16 +857,19 @@ db_update_event(THD *thd, Event_timed *et, sp_name *new_name)
   /* Don't update create on row update. */
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
-  /* evex_fill_row() calls my_error() in case of error so no need to handle it here */
+  /*
+    evex_fill_row() calls my_error() in case of error so no need to
+    handle it here
+  */
   if ((ret= evex_fill_row(thd, table, et, true)))
     goto err;
 
   if (new_name)
   {    
     table->field[Events::FIELD_DB]->
-      store(new_name->m_db.str, new_name->m_db.length, system_charset_info);
+      store(new_name->m_db.str, new_name->m_db.length, scs);
     table->field[Events::FIELD_NAME]->
-      store(new_name->m_name.str, new_name->m_name.length, system_charset_info);
+      store(new_name->m_name.str, new_name->m_name.length, scs);
   }
 
   if ((ret= table->file->ha_update_row(table->record[1], table->record[0])))
@@ -903,7 +897,6 @@ err:
     db_find_event()
       thd      THD
       name     the name of the event to find
-      definer  who owns the event
       ett      event's data if event is found
       tbl      TABLE object to use when not NULL
 
@@ -917,12 +910,12 @@ err:
 */
 
 int
-db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, Event_timed **ett,
-              TABLE *tbl, MEM_ROOT *root)
+db_find_event(THD *thd, sp_name *name, Event_timed **ett, TABLE *tbl,
+              MEM_ROOT *root)
 {
   TABLE *table;
   int ret;
-  Event_timed *et=NULL;
+  Event_timed *et= NULL;
   DBUG_ENTER("db_find_event");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
@@ -938,8 +931,7 @@ db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, Event_timed **ett,
     goto done;
   }
 
-  if ((ret= evex_db_find_event_by_name(thd, name->m_db, name->m_name, *definer,
-                                       table)))
+  if ((ret= evex_db_find_event_by_name(thd, name->m_db, name->m_name, table)))
   {
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name->m_name.str);
     goto done;    
@@ -959,7 +951,7 @@ db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, Event_timed **ett,
   }
 
 done:
-  if (ret && et)
+  if (ret)
   {
     delete et;
     et= 0;
@@ -994,7 +986,7 @@ done:
 
 int
 Events::create_event(THD *thd, Event_timed *et, uint create_options,
-                               uint *rows_affected)
+                     uint *rows_affected)
 {
   int ret;
 
@@ -1166,7 +1158,6 @@ Events::drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
     Events::show_create_event()
       thd        THD
       spn        the name of the event (db, name)
-      definer    the definer of the event
 
   RETURN VALUE
     0  OK
@@ -1174,7 +1165,7 @@ Events::drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
 */
 
 int
-Events::show_create_event(THD *thd, sp_name *spn, LEX_STRING definer)
+Events::show_create_event(THD *thd, sp_name *spn)
 {
   int ret;
   Event_timed *et= NULL;
@@ -1184,7 +1175,7 @@ Events::show_create_event(THD *thd, sp_name *spn, LEX_STRING definer)
   DBUG_PRINT("enter", ("name: %*s", spn->m_name.length, spn->m_name.str));
 
   thd->reset_n_backup_open_tables_state(&backup);
-  ret= db_find_event(thd, spn, &definer, &et, NULL, thd->mem_root);
+  ret= db_find_event(thd, spn, &et, NULL, thd->mem_root);
   thd->restore_backup_open_tables_state(&backup);
 
   if (!ret)

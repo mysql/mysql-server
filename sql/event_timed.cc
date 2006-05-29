@@ -961,7 +961,7 @@ Event_timed::compute_next_execution_time()
     }
     goto ret;
   }
-  current_thd->end_time();
+
   my_tz_UTC->gmt_sec_to_TIME(&time_now, current_thd->query_start());
 
   DBUG_PRINT("info",("NOW=[%llu]", TIME_to_ulonglong_datetime(&time_now)));
@@ -975,6 +975,7 @@ Event_timed::compute_next_execution_time()
     execute_at_null= TRUE;
     if (on_completion == Event_timed::ON_COMPLETION_DROP)
       dropped= true;
+    DBUG_PRINT("info", ("Dropped=%d", dropped));
     status= Event_timed::DISABLED;
     status_changed= true;
 
@@ -1225,7 +1226,7 @@ Event_timed::update_fields(THD *thd)
 {
   TABLE *table;
   Open_tables_state backup;
-  int ret= 0;
+  int ret;
 
   DBUG_ENTER("Event_timed::update_time_fields");
 
@@ -1233,7 +1234,7 @@ Event_timed::update_fields(THD *thd)
 
   /* No need to update if nothing has changed */
   if (!(status_changed || last_executed_changed))
-    goto done;
+    DBUG_RETURN(0);
 
   thd->reset_n_backup_open_tables_state(&backup);
 
@@ -1244,7 +1245,7 @@ Event_timed::update_fields(THD *thd)
   }
 
 
-  if ((ret= evex_db_find_event_by_name(thd, dbname, name, definer, table)))
+  if ((ret= evex_db_find_event_by_name(thd, dbname, name, table)))
     goto done;
 
   store_record(table,record[1]);
