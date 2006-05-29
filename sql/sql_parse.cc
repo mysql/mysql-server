@@ -3840,16 +3840,16 @@ end_with_restore_list:
       switch (lex->sql_command) {
       case SQLCOM_CREATE_EVENT:
         res= Events::create_event(thd, lex->et,
-                                            (uint) lex->create_info.options,
-                                            &rows_affected);
+                                  (uint) lex->create_info.options,
+                                  &rows_affected);
         break;
       case SQLCOM_ALTER_EVENT:
         res= Events::update_event(thd, lex->et, lex->spname,
-                                            &rows_affected);
+                                  &rows_affected);
         break;
       case SQLCOM_DROP_EVENT:
         res= Events::drop_event(thd, lex->et, lex->drop_if_exists,
-                                          &rows_affected);
+                                &rows_affected);
       default:;
       }
       DBUG_PRINT("info", ("CREATE/ALTER/DROP returned error code=%d af_rows=%d",
@@ -3887,7 +3887,7 @@ end_with_restore_list:
       my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
       goto error;
     }
-    res= Events::show_create_event(thd, lex->spname, lex->et->definer);
+    res= Events::show_create_event(thd, lex->spname);
     break;
   }
 #ifndef DBUG_OFF

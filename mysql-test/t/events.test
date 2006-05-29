@@ -148,9 +148,9 @@ set names cp1251;
 create event руут21 on schedule every '50:23:59:95' day_second COMMENT 'това е 1251 коментар' do select 1;
 SHOW CREATE EVENT руут21;
 insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
---error 1235
+--error ER_NOT_SUPPORTED_YET
 show create event root22;
---error 1235
+--error ER_NOT_SUPPORTED_YET
 SHOW EVENTS;
 drop event root22;
 drop event root6;
@@ -239,82 +239,6 @@ DROP EVENT intact_check;
 # mysql.event intact checking end
 #
 
-#
-#INFORMATION_SCHEMA.EVENTS test begin
-#
-create event one_event on schedule every 10 second do select 123;
---replace_column 8 # 9 #
-SHOW EVENTS;
-SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
-CREATE DATABASE events_test2;
-CREATE USER ev_test@localhost;
-GRANT ALL ON events_test.* to ev_test@localhost;
-GRANT ALL on events_test2.* to ev_test@localhost;
-REVOKE EVENT ON events_test2.* FROM ev_test@localhost;
-REVOKE PROCESS on *.* from ev_test@localhost;
-#now we are on con1
-connect (ev_con1,localhost,ev_test,,events_test2);
-select "NEW CONNECTION";
-SELECT USER(), DATABASE();
-SHOW GRANTS;
-
---echo "Here comes an error:";
-#NO EVENT_ACL on events_test2
---error 1044
-SHOW EVENTS;
-USE events_test;
-
---echo "Now the list should be empty:";
---replace_column 8 # 9 #
-SHOW EVENTS;
-#now create an event with the same name but we are different user
-select concat("Let's create some new events from the name of ",user());
-create event one_event on schedule every 20 second do select 123;
-create event two_event on schedule every 20 second on completion not preserve comment "two event" do select 123;
-create event three_event on schedule every 20 second on completion preserve comment "three event" do select 123;
-
---echo "Now we should see 3 events:";
---replace_column 8 # 9 #
-SHOW EVENTS;
-
---echo "This should show us only 3 events:";
---replace_column 8 # 9 #
-SHOW EVENTS;
-
---echo "This should show us only 2 events:";
---replace_column 8 # 9 #
-SHOW EVENTS LIKE 't%event';
-
---echo "This should show us no events:";
---replace_column 8 # 9 #
-SHOW EVENTS FROM test LIKE '%';
-#ok, we are back
-connection default;
-DROP DATABASE events_test2;
-
---echo "should see 1 event:";
---replace_column 8 # 9 #
-SHOW EVENTS;
-
---echo "we should see 4 events now:";
---replace_column 8 # 9 #
-SHOW EVENTS;
-SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
-
-connection ev_con1;
-drop event one_event;
-drop event two_event;
-drop event three_event;
-disconnect ev_con1;
-connection default;
-drop user ev_test@localhost;
-drop event one_event;
-#
-##INFORMATION_SCHEMA.EVENTS test end
-#
-
---echo "Sleep a bit so the server closes the second connection"
---sleep 2
 create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 drop event e_26;
@@ -358,7 +282,7 @@ select get_lock("test_lock2", 20);
 --echo "Create an event which tries to acquire a mutex. The event locks on the mutex"
 create event Р·Р°РєР°С‡РєР° on schedule every 10 hour do select get_lock("test_lock2", 20);
 --echo "Let some time pass to the event starts"
---sleep 2
+--sleep 1
 --echo "Should have only 2 processes: the scheduler and the locked event"
 select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;--echo "Release the mutex, the event worker should finish."
 --echo "Release the mutex, the event worker should finish."
@@ -408,7 +332,6 @@ drop event white_space;
 create event white_space on schedule every 10 hour disable do
 
 select 2;
-select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
 select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
 drop event white_space;
 create event white_space on schedule every 10 hour disable do	select 3;
