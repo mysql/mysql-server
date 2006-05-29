@@ -755,7 +755,9 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 	value_end=value;
 
       /* remove quotes around argument */
-      if ((*value == '\"' || *value == '\'') && *value == value_end[-1])
+      if ((*value == '\"' || *value == '\'') && /* First char is quote */
+          (value + 1 < value_end ) && /* String is longer than 1 */
+          *value == value_end[-1] ) /* First char is equal to last char */
       {
 	value++;
 	value_end--;
