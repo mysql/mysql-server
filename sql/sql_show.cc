@@ -4078,8 +4078,24 @@ static interval_type get_real_interval_type(interval_type i_type)
 
 extern LEX_STRING interval_type_to_name[];
 
+
+/*
+  Loads an event from mysql.event and copies it's data to a row of
+  I_S.EVENTS
+
+  Synopsis
+    copy_event_to_schema_table()
+      thd         Thread
+      sch_table   The schema table (information_schema.event)
+      event_table The event table to use for loading (mysql.event).
+
+  Returns
+    0  OK
+    1  Error
+*/
+
 static int
-fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
+copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 {
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
@@ -4097,9 +4113,19 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   if (!(!wild || !wild[0] || !wild_compare(et.name.str, wild, 0)))
     DBUG_RETURN(0);
-  
+
+  /*
+    Skip events in schemas one does not have access to. The check is
+    optimized. It's guaranteed in case of SHOW EVENTS that the user
+    has access.
+  */
+  if (thd->lex->orig_sql_command != SQLCOM_SHOW_EVENTS &&
+      check_access(thd, EVENT_ACL, et.dbname.str, 0, 0, 1,
+                   is_schema_db(et.dbname.str)))
+    DBUG_RETURN(0);
+
   /* ->field[0] is EVENT_CATALOG and is by default NULL */
-  
+
   sch_table->field[1]->store(et.dbname.str, et.dbname.length, scs);
   sch_table->field[2]->store(et.name.str, et.name.length, scs);
   sch_table->field[3]->store(et.definer.str, et.definer.length, scs);
@@ -4111,19 +4137,18 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     ulong sql_mode_len=0;
     sql_mode_str=
            sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
-                                                              &sql_mode_len);  
+                                                              &sql_mode_len);
     sch_table->field[9]->store((const char*)sql_mode_str, sql_mode_len, scs);
   }
-  
+
   if (et.expression)
   {
     String show_str;
     /* type */
     sch_table->field[5]->store(STRING_WITH_LEN("RECURRING"), scs);
 
-    if (Events::reconstruct_interval_expression(&show_str,
-                                                          et.interval,
-                                                          et.expression))
+    if (Events::reconstruct_interval_expression(&show_str, et.interval,
+                                                et.expression))
       DBUG_RETURN(1);
 
     sch_table->field[7]->set_notnull();
@@ -4133,7 +4158,7 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[8]->set_notnull();
     sch_table->field[8]->store(ival->str, ival->length, scs);
 
-    //starts & ends    
+    /* starts & ends */
     sch_table->field[10]->set_notnull();
     sch_table->field[10]->store_time(&et.starts, MYSQL_TIMESTAMP_DATETIME);
 
@@ -4152,13 +4177,13 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[6]->store_time(&et.execute_at, MYSQL_TIMESTAMP_DATETIME);
   }
 
-  //status
+  /* status */
   if (et.status == Event_timed::ENABLED)
     sch_table->field[12]->store(STRING_WITH_LEN("ENABLED"), scs);
   else
     sch_table->field[12]->store(STRING_WITH_LEN("DISABLED"), scs);
 
-  //on_completion
+  /* on_completion */
   if (et.on_completion == Event_timed::ON_COMPLETION_DROP)
     sch_table->field[13]->store(STRING_WITH_LEN("NOT PRESERVE"), scs);
   else
@@ -4188,98 +4213,179 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 }
 
 
-int fill_schema_events(THD *thd, TABLE_LIST *tables, COND *cond)
+/*
+  Performs an index scan of event_table (mysql.event) and fills schema_table.
+
+  Synopsis
+    events_table_index_read_for_db()
+      thd          Thread
+      schema_table The I_S.EVENTS table
+      event_table  The event table to use for loading (mysql.event)
+
+  Returns
+    0  OK
+    1  Error
+*/
+
+static
+int events_table_index_read_for_db(THD *thd, TABLE *schema_table,
+                                TABLE *event_table)
 {
-  TABLE *table= tables->table;
-  CHARSET_INFO *scs= system_charset_info;
-  TABLE *event_table= NULL;
-  Open_tables_state backup;
   int ret=0;
-  bool verbose= false;
-  char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
-  bool use_prefix_scanning= true;
-  uint key_len= 0;
+  CHARSET_INFO *scs= system_charset_info;
+  KEY *key_info;
+  uint key_len;
   byte *key_buf= NULL;
   LINT_INIT(key_buf);
 
-  DBUG_ENTER("fill_schema_events");
+  DBUG_ENTER("schema_events_do_index_scan");
 
-  strxmov(definer, thd->security_ctx->priv_user,"@",thd->security_ctx->priv_host,
-          NullS);
-
-  DBUG_PRINT("info",("db=%s current_user=%s", thd->lex->select_lex.db, definer));
-
-  thd->reset_n_backup_open_tables_state(&backup);
-
-  if ((ret= Events::open_event_table(thd, TL_READ, &event_table)))
-  {
-    sql_print_error("Table mysql.event is damaged.");
-    ret= 1;
-    goto err;
-  }
-  
+  DBUG_PRINT("info", ("Using prefix scanning on PK"));
   event_table->file->ha_index_init(0, 1);
+  event_table->field[Events::FIELD_DB]->
+        store(thd->lex->select_lex.db, strlen(thd->lex->select_lex.db), scs);
+  key_info= event_table->key_info;
+  key_len= key_info->key_part[0].store_length;
 
-  /* see others' events only if you have PROCESS_ACL !! */
-  verbose= ((thd->lex->verbose ||
-             thd->lex->orig_sql_command != SQLCOM_SHOW_EVENTS) &&
-            (thd->security_ctx->master_access & PROCESS_ACL));
-
-  if (verbose && thd->security_ctx->user)
-  {    
-    ret= event_table->file->index_first(event_table->record[0]);
-    use_prefix_scanning= false;
+  if (!(key_buf= (byte *)alloc_root(thd->mem_root, key_len)))
+  {
+    ret= 1;
+    /* don't send error, it would be done by sql_alloc_error_handler() */
   }
   else
   {
-    event_table->field[Events::FIELD_DEFINER]->
-                                         store(definer, strlen(definer), scs);
-    key_len= event_table->key_info->key_part[0].store_length;
-
-    if (thd->lex->select_lex.db)
+    key_copy(key_buf, event_table->record[0], key_info, key_len);
+    if (!(ret= event_table->file->index_read(event_table->record[0], key_buf,
+                                             key_len, HA_READ_PREFIX)))
     {
-      event_table->field[Events::FIELD_DB]->
-            store(thd->lex->select_lex.db, strlen(thd->lex->select_lex.db), scs);
-      key_len+= event_table->key_info->key_part[1].store_length;
+      DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
+      do
+      {
+        ret= copy_event_to_schema_table(thd, schema_table, event_table);
+        if (ret == 0)
+          ret= event_table->file->index_next_same(event_table->record[0],
+                                                  key_buf, key_len); 
+      } while (ret == 0);
     }
-    if (!(key_buf= (byte *)alloc_root(thd->mem_root, key_len)))
-    {
-      ret= 1;
-      goto err;
-    }
-    
-    key_copy(key_buf, event_table->record[0], event_table->key_info, key_len);
-    ret= event_table->file->index_read(event_table->record[0], key_buf, key_len,
-                                       HA_READ_PREFIX);
+    DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
   }
+  event_table->file->ha_index_end(); 
+  /*  ret is guaranteed to be != 0 */
+  if (ret == HA_ERR_END_OF_FILE || ret == HA_ERR_KEY_NOT_FOUND)
+    DBUG_RETURN(0);
+  DBUG_RETURN(1);
+}
 
-  if (ret)
+
+/*
+  Performs a table scan of event_table (mysql.event) and fills schema_table.
+
+  Synopsis
+    events_table_scan_all()
+      thd          Thread
+      schema_table The I_S.EVENTS in memory table
+      event_table  The event table to use for loading.
+
+  Returns
+    0  OK
+    1  Error
+*/
+
+static
+int events_table_scan_all(THD *thd, TABLE *schema_table,
+                                TABLE *event_table)
+{
+  int ret;
+  READ_RECORD read_record_info;
+
+  DBUG_ENTER("schema_events_do_table_scan");
+  init_read_record(&read_record_info, thd, event_table, NULL, 1, 0);
+
+  /*
+    rr_sequential, in read_record(), returns 137==HA_ERR_END_OF_FILE,
+    but rr_handle_error returns -1 for that reason. Thus, read_record()
+    returns -1 eventually.
+  */
+  do
   {
-    ret= (ret == HA_ERR_END_OF_FILE || ret == HA_ERR_KEY_NOT_FOUND) ? 0 : 1;
-    goto err;
+    ret= read_record_info.read_record(&read_record_info);
+    if (ret == 0)
+      ret= copy_event_to_schema_table(thd, schema_table, event_table);
   }
+  while (ret == 0);
 
-  while (!ret)
+  DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
+  end_read_record(&read_record_info);
+
+  /*  ret is guaranteed to be != 0 */
+  DBUG_RETURN(ret == -1? 0:1);
+}
+
+
+/*
+  Fills I_S.EVENTS with data loaded from mysql.event. Also used by
+  SHOW EVENTS
+
+  Synopsis
+    fill_schema_events()
+      thd     Thread
+      tables  The schema table
+      cond    Unused
+
+  Returns
+    0  OK
+    1  Error
+*/
+
+int fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
+{
+  TABLE *schema_table= tables->table;
+  TABLE *event_table= NULL;
+  Open_tables_state backup;
+  int ret= 0;
+
+  DBUG_ENTER("fill_schema_events");
+  /*
+    If it's SHOW EVENTS then thd->lex->select_lex.db is guaranteed not to
+    be NULL. Let's do an assert anyway.
+  */
+  if (thd->lex->orig_sql_command == SQLCOM_SHOW_EVENTS)
   {
-    if ((ret= fill_events_copy_to_schema_table(thd, table, event_table)))
-      goto err;
-
-    if (use_prefix_scanning)
-      ret= event_table->file->
-                       index_next_same(event_table->record[0], key_buf, key_len);                                  
-    else
-      ret= event_table->file->index_next(event_table->record[0]);
+    DBUG_ASSERT(thd->lex->select_lex.db);
+    if (check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
+                     is_schema_db(thd->lex->select_lex.db)))
+      DBUG_RETURN(1);
   }
-  // ret is guaranteed to be != 0
-  ret= (ret != HA_ERR_END_OF_FILE);
-err:
-  if (event_table)
+
+  DBUG_PRINT("info",("db=%s", thd->lex->select_lex.db?
+              thd->lex->select_lex.db:"(null)"));
+
+  thd->reset_n_backup_open_tables_state(&backup);
+  if (Events::open_event_table(thd, TL_READ, &event_table))
   {
-    event_table->file->ha_index_end();
-    close_thread_tables(thd);
+    sql_print_error("Table mysql.event is damaged.");
+    thd->restore_backup_open_tables_state(&backup);
+    DBUG_RETURN(1);
   }
 
+  /*
+    1. SELECT I_S => use table scan. I_S.EVENTS does not guarantee order
+                     thus we won't order it. OTOH, SHOW EVENTS will be
+                     ordered.
+    2. SHOW EVENTS => PRIMARY KEY with prefix scanning on (db)
+       Reasoning: Events are per schema, therefore a scan over an index
+                  will save use from doing a table scan and comparing
+                  every single row's `db` with the schema which we show.
+  */
+  if (thd->lex->orig_sql_command == SQLCOM_SHOW_EVENTS)
+    ret= events_table_index_read_for_db(thd, schema_table, event_table);
+  else
+    ret= events_table_scan_all(thd, schema_table, event_table);
+
+  close_thread_tables(thd);
   thd->restore_backup_open_tables_state(&backup);
+
+  DBUG_PRINT("info", ("Return code=%d", ret));
   DBUG_RETURN(ret);
 }
 
