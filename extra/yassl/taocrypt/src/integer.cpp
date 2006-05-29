@@ -2735,8 +2735,11 @@ void CleanUp()
 {
     tcDelete(one);
     tcDelete(zero);
-}
 
+    // In case user calls more than once, prevent seg fault
+    one  = 0;
+    zero = 0;
+}
 
 Integer::Integer(RandomNumberGenerator& rng, const Integer& min,
                  const Integer& max)
