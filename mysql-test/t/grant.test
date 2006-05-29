@@ -532,7 +532,7 @@ drop database mysqltest;
 #
 # Bug #16297 In memory grant tables not flushed when users's hostname is ""
 #
-
+use test;
 create table t1 (a int);
 
 # Backup anonymous users and remove them. (They get in the way of

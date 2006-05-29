@@ -2273,7 +2273,8 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   {
     if (exact)
     {
-      if ((host &&
+      if (!grant_name->host.hostname ||
+          (host &&
 	   !my_strcasecmp(system_charset_info, host,
                           grant_name->host.hostname)) ||
 	  (ip && !strcmp(ip, grant_name->host.hostname)))
@@ -4956,6 +4957,9 @@ static int handle_grant_struct(uint struct_no, bool drop,
     }
     if (! user)
       user= "";
+    if (! host)
+      host= "";
+
 #ifdef EXTRA_DEBUG
     DBUG_PRINT("loop",("scan struct: %u  index: %u  user: '%s'  host: '%s'",
                        struct_no, idx, user, host));

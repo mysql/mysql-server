@@ -624,6 +624,25 @@ GRANT USAGE ON *.* TO 'mysqltest_7'@'' IDENTIFIED BY PASSWORD '*2FB071A056F9BB74
 drop user mysqltest_7@;
 show grants for mysqltest_7@;
 ERROR 42000: There is no such grant defined for user 'mysqltest_7' on host ''
+create database mysqltest;
+use mysqltest;
+create table t1(f1 int);
+GRANT DELETE ON mysqltest.t1 TO mysqltest1@'%';
+GRANT SELECT ON mysqltest.t1 TO mysqltest1@'192.%';
+show grants for mysqltest1@'192.%';
+Grants for mysqltest1@192.%
+GRANT USAGE ON *.* TO 'mysqltest1'@'192.%'
+GRANT SELECT ON `mysqltest`.`t1` TO 'mysqltest1'@'192.%'
+show grants for mysqltest1@'%';
+Grants for mysqltest1@%
+GRANT USAGE ON *.* TO 'mysqltest1'@'%'
+GRANT DELETE ON `mysqltest`.`t1` TO 'mysqltest1'@'%'
+delete from mysql.user where user='mysqltest1';
+delete from mysql.db where user='mysqltest1';
+delete from mysql.tables_priv where user='mysqltest1';
+flush privileges;
+drop database mysqltest;
+use test;
 create table t1 (a int);
 create table t2 as select * from mysql.user where user='';
 delete from mysql.user where user='';
@@ -834,21 +853,3 @@ insert into mysql.user select * from t2;
 flush privileges;
 drop table t2;
 drop table t1;
-create database mysqltest;
-use mysqltest;
-create table t1(f1 int);
-GRANT DELETE ON mysqltest.t1 TO mysqltest1@'%';
-GRANT SELECT ON mysqltest.t1 TO mysqltest1@'192.%';
-show grants for mysqltest1@'192.%';
-Grants for mysqltest1@192.%
-GRANT USAGE ON *.* TO 'mysqltest1'@'192.%'
-GRANT SELECT ON `mysqltest`.`t1` TO 'mysqltest1'@'192.%'
-show grants for mysqltest1@'%';
-Grants for mysqltest1@%
-GRANT USAGE ON *.* TO 'mysqltest1'@'%'
-GRANT DELETE ON `mysqltest`.`t1` TO 'mysqltest1'@'%'
-delete from mysql.user where user='mysqltest1';
-delete from mysql.db where user='mysqltest1';
-delete from mysql.tables_priv where user='mysqltest1';
-flush privileges;
-drop database mysqltest;
