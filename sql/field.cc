@@ -1218,7 +1218,7 @@ String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
 Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     uchar null_bit_arg,
 	     utype unireg_check_arg, const char *field_name_arg)
-  :ptr(ptr_arg),null_ptr(null_ptr_arg),
+  :ptr(ptr_arg), null_ptr(null_ptr_arg),
    table(0), orig_table(0), table_name(0),
    field_name(field_name_arg),
    query_id(0), key_start(0), part_of_key(0), part_of_sortkey(0),
@@ -9059,14 +9059,15 @@ create_field::create_field(Field *old_field,Field *orig_field)
     diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
                           orig_field->table->record[0]);
     orig_field->move_field_offset(diff);	// Points now at default_values
-    is_null= orig_field->is_real_null();
-    res= orig_field->val_str(&tmp);
-    orig_field->move_field_offset(-diff);	// Back to record[0]
-    if (!is_null)
+    if (!orig_field->is_real_null())
     {
+      char buff[MAX_FIELD_WIDTH], *pos;
+      String tmp(buff, sizeof(buff), charset), *res;
+      res= orig_field->val_str(&tmp);
       pos= (char*) sql_strmake(res->ptr(), res->length());
       def= new Item_string(pos, res->length(), charset);
     }
+    orig_field->move_field_offset(-diff);	// Back to record[0]
   }
 }
 

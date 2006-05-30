@@ -752,9 +752,95 @@ extern sys_var *trg_new_row_fake_var;
 enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
 
+
+/*
+  Class representing list of all tables used by statement.
+  It also contains information about stored functions used by statement
+  since during its execution we may have to add all tables used by its
+  stored functions/triggers to this list in order to pre-open and lock
+  them.
+
+  Also used by st_lex::reset_n_backup/restore_backup_query_tables_list()
+  methods to save and restore this information.
+*/
+
+class Query_tables_list
+{
+public:
+  /* Global list of all tables used by this statement */
+  TABLE_LIST *query_tables;
+  /* Pointer to next_global member of last element in the previous list. */
+  TABLE_LIST **query_tables_last;
+  /*
+    If non-0 then indicates that query requires prelocking and points to
+    next_global member of last own element in query table list (i.e. last
+    table which was not added to it as part of preparation to prelocking).
+    0 - indicates that this query does not need prelocking.
+  */
+  TABLE_LIST **query_tables_own_last;
+  /* Set of stored routines called by statement. */
+  HASH sroutines;
+  /*
+    List linking elements of 'sroutines' set. Allows you to add new elements
+    to this set as you iterate through the list of existing elements.
+    'sroutines_list_own_last' is pointer to ::next member of last element of
+    this list which represents routine which is explicitly used by query.
+    'sroutines_list_own_elements' number of explicitly used routines.
+    We use these two members for restoring of 'sroutines_list' to the state
+    in which it was right after query parsing.
+  */
+  SQL_LIST sroutines_list;
+  byte     **sroutines_list_own_last;
+  uint     sroutines_list_own_elements;
+
+  /*
+    These constructor and destructor serve for creation/destruction
+    of Query_tables_list instances which are used as backup storage.
+  */
+  Query_tables_list() {}
+  ~Query_tables_list() {}
+
+  /* Initializes (or resets) Query_tables_list object for "real" use. */
+  void reset_query_tables_list(bool init);
+  void destroy_query_tables_list();
+  void set_query_tables_list(Query_tables_list *state)
+  {
+    *this= *state;
+  }
+
+  void add_to_query_tables(TABLE_LIST *table)
+  {
+    *(table->prev_global= query_tables_last)= table;
+    query_tables_last= &table->next_global;
+  }
+  bool requires_prelocking()
+  {
+    return test(query_tables_own_last);
+  }
+  void mark_as_requiring_prelocking(TABLE_LIST **tables_own_last)
+  {
+    query_tables_own_last= tables_own_last;
+  }
+  /* Return pointer to first not-own table in query-tables or 0 */
+  TABLE_LIST* first_not_own_table()
+  {
+    return ( query_tables_own_last ? *query_tables_own_last : 0);
+  }
+  void chop_off_not_own_tables()
+  {
+    if (query_tables_own_last)
+    {
+      *query_tables_own_last= 0;
+      query_tables_last= query_tables_own_last;
+      query_tables_own_last= 0;
+    }
+  }
+};
+
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
-typedef struct st_lex
+typedef struct st_lex : public Query_tables_list
 {
   uint	 yylineno,yytoklen;			/* Simulate lex */
   LEX_YYSTYPE yylval;
@@ -787,14 +873,6 @@ typedef struct st_lex
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
   CHARSET_INFO *charset;
-  TABLE_LIST *query_tables;	/* global list of all tables in this query */
-  /*
-    last element next_global of previous list (used only for list building
-    during parsing and VIEW processing. This pointer could be invalid during
-    processing of information schema tables(see get_schema_tables_result
-    function)
-  */
-  TABLE_LIST **query_tables_last;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
   /* Position (first character index) of SELECT of CREATE VIEW statement */
@@ -935,20 +1013,6 @@ typedef struct st_lex
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   sp_pcontext *spcont;
-  /* Set of stored routines called by statement. */
-  HASH sroutines;
-  /*
-    List linking elements of 'sroutines' set. Allows you to add new elements
-    to this set as you iterate through the list of existing elements.
-    'sroutines_list_own_last' is pointer to ::next member of last element of
-    this list which represents routine which is explicitly used by query.
-    'sroutines_list_own_elements' number of explicitly used routines.
-    We use these two members for restoring of 'sroutines_list' to the state
-    in which it was right after query parsing.
-  */
-  SQL_LIST sroutines_list;
-  byte     **sroutines_list_own_last;
-  uint     sroutines_list_own_elements;
 
   st_sp_chistics sp_chistics;
 
@@ -989,14 +1053,6 @@ typedef struct st_lex
   const char *stmt_definition_begin;
 
   /*
-    If non-0 then indicates that query requires prelocking and points to
-    next_global member of last own element in query table list (i.e. last
-    table which was not added to it as part of preparation to prelocking).
-    0 - indicates that this query does not need prelocking.
-  */
-  TABLE_LIST **query_tables_own_last;
-
-  /*
     Pointers to part of LOAD DATA statement that should be rewritten
     during replication ("LOCAL 'filename' REPLACE INTO" part).
   */
@@ -1014,7 +1070,7 @@ typedef struct st_lex
 
   virtual ~st_lex()
   {
-    hash_free(&sroutines);
+    destroy_query_tables_list();
   }
 
   inline void uncacheable(uint8 cause)
@@ -1039,11 +1095,6 @@ typedef struct st_lex
   TABLE_LIST *unlink_first_table(bool *link_to_local);
   void link_first_table_back(TABLE_LIST *first, bool link_to_local);
   void first_lists_tables_same();
-  inline void add_to_query_tables(TABLE_LIST *table)
-  {
-    *(table->prev_global= query_tables_last)= table;
-    query_tables_last= &table->next_global;
-  }
   bool add_time_zone_tables_to_query_tables(THD *thd);
 
   bool can_be_merged();
@@ -1075,28 +1126,7 @@ typedef struct st_lex
       return FALSE;
     }
   }
-  inline bool requires_prelocking()
-  {
-    return test(query_tables_own_last);
-  }
-  inline void mark_as_requiring_prelocking(TABLE_LIST **tables_own_last)
-  {
-    query_tables_own_last= tables_own_last;
-  }
-  /* Return pointer to first not-own table in query-tables or 0 */
-  TABLE_LIST* first_not_own_table()
-  {
-    return ( query_tables_own_last ? *query_tables_own_last : 0);
-  }
-  void chop_off_not_own_tables()
-  {
-    if (query_tables_own_last)
-    {
-      *query_tables_own_last= 0;
-      query_tables_last= query_tables_own_last;
-      query_tables_own_last= 0;
-    }
-  }
+
   void cleanup_after_one_table_open();
 
   bool push_context(Name_resolution_context *context)
@@ -1113,6 +1143,9 @@ typedef struct st_lex
   {
     return context_stack.head();
   }
+
+  void reset_n_backup_query_tables_list(Query_tables_list *backup);
+  void restore_backup_query_tables_list(Query_tables_list *backup);
 } LEX;
 
 struct st_lex_local: public st_lex
