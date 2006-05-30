@@ -631,7 +631,7 @@ CREATE TABLE event (
                         'HIGH_NOT_PRECEDENCE'
                     ) DEFAULT '' NOT NULL,
   comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  PRIMARY KEY  (definer, db, name)
+  PRIMARY KEY  (db, name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 
 CREATE DATABASE IF NOT EXISTS cluster;

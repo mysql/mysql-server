@@ -85,7 +85,7 @@ public:
   open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 
   static int
-  show_create_event(THD *thd, sp_name *spn, LEX_STRING definer);
+  show_create_event(THD *thd, sp_name *spn);
 
   static int
   reconstruct_interval_expression(String *buf, interval_type interval,

@@ -254,7 +254,7 @@ event	CREATE TABLE `event` (
   `on_completion` enum('DROP','PRESERVE') NOT NULL DEFAULT 'DROP',
   `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE') NOT NULL DEFAULT '',
   `comment` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-  PRIMARY KEY (`definer`,`db`,`name`)
+  PRIMARY KEY (`db`,`name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
@@ -280,84 +280,6 @@ SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
 DROP EVENT intact_check;
-create event one_event on schedule every 10 second do select 123;
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
-SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
-EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_BODY	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	STATUS	ON_COMPLETION	EVENT_COMMENT
-NULL	events_test	one_event	root@localhost	select 123	RECURRING	NULL	10	SECOND	ENABLED	NOT PRESERVE	
-CREATE DATABASE events_test2;
-CREATE USER ev_test@localhost;
-GRANT ALL ON events_test.* to ev_test@localhost;
-GRANT ALL on events_test2.* to ev_test@localhost;
-REVOKE EVENT ON events_test2.* FROM ev_test@localhost;
-REVOKE PROCESS on *.* from ev_test@localhost;
-select "NEW CONNECTION";
-NEW CONNECTION
-NEW CONNECTION
-SELECT USER(), DATABASE();
-USER()	DATABASE()
-ev_test@localhost	events_test2
-SHOW GRANTS;
-Grants for ev_test@localhost
-GRANT USAGE ON *.* TO 'ev_test'@'localhost'
-GRANT ALL PRIVILEGES ON `events_test`.* TO 'ev_test'@'localhost'
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, TRIGGER ON `events_test2`.* TO 'ev_test'@'localhost'
-"Here comes an error:";
-SHOW EVENTS;
-ERROR 42000: Access denied for user 'ev_test'@'localhost' to database 'events_test2'
-USE events_test;
-"Now the list should be empty:";
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-select concat("Let's create some new events from the name of ",user());
-concat("Let's create some new events from the name of ",user())
-Let's create some new events from the name of ev_test@localhost
-create event one_event on schedule every 20 second do select 123;
-create event two_event on schedule every 20 second on completion not preserve comment "two event" do select 123;
-create event three_event on schedule every 20 second on completion preserve comment "three event" do select 123;
-"Now we should see 3 events:";
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-"This should show us only 3 events:";
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-"This should show us only 2 events:";
-SHOW EVENTS LIKE 't%event';
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-"This should show us no events:";
-SHOW EVENTS FROM test LIKE '%';
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-DROP DATABASE events_test2;
-"should see 1 event:";
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
-"we should see 4 events now:";
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
-SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
-EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_BODY	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	STATUS	ON_COMPLETION	EVENT_COMMENT
-NULL	events_test	one_event	ev_test@localhost	select 123	RECURRING	NULL	20	SECOND	ENABLED	NOT PRESERVE	
-NULL	events_test	three_event	ev_test@localhost	select 123	RECURRING	NULL	20	SECOND	ENABLED	PRESERVE	three event
-NULL	events_test	two_event	ev_test@localhost	select 123	RECURRING	NULL	20	SECOND	ENABLED	NOT PRESERVE	two event
-NULL	events_test	one_event	root@localhost	select 123	RECURRING	NULL	10	SECOND	ENABLED	NOT PRESERVE	
-drop event one_event;
-drop event two_event;
-drop event three_event;
-drop user ev_test@localhost;
-drop event one_event;
-"Sleep a bit so the server closes the second connection"
 create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 db	name	body	definer	convert_tz(execute_at, 'UTC', 'SYSTEM')	on_completion
@@ -449,9 +371,6 @@ events_test	white_space	root@localhost	select 1
 drop event white_space;
 create event white_space on schedule every 10 hour disable do
 select 2;
-select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
-event_schema	event_name	definer	event_body
-events_test	white_space	root@localhost	select 2
 select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
 event_schema	event_name	definer	event_body
 events_test	white_space	root@localhost	select 2
