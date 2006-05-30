@@ -407,6 +407,7 @@ void Item_singlerow_subselect::fix_length_and_dec()
     engine->fix_length_and_dec(row);
     value= *row;
   }
+  unsigned_flag= value->unsigned_flag;
   /*
     If there are not tables in subquery then ability to have NULL value
     depends on SELECT list (if single row subquery have tables then it

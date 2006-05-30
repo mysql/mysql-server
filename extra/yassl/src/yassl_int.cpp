@@ -2106,9 +2106,14 @@ ASN1_STRING* StringHolder::GetString()
 extern "C" void yaSSL_CleanUp()
 {
     TaoCrypt::CleanUp();
-    ysDelete(yaSSL::cryptProviderInstance);
-    ysDelete(yaSSL::sslFactoryInstance);
-    ysDelete(yaSSL::sessionsInstance);
+    yaSSL::ysDelete(yaSSL::cryptProviderInstance);
+    yaSSL::ysDelete(yaSSL::sslFactoryInstance);
+    yaSSL::ysDelete(yaSSL::sessionsInstance);
+
+    // In case user calls more than once, prevent seg fault
+    yaSSL::cryptProviderInstance = 0;
+    yaSSL::sslFactoryInstance = 0;
+    yaSSL::sessionsInstance = 0;
 }
 
 

@@ -1,3 +1,7 @@
+drop table if exists t1,t2;
+drop view if exists v1,v2;
+drop function if exists f1;
+drop function if exists f2;
 use INFORMATION_SCHEMA;
 show tables;
 Tables_in_information_schema
@@ -31,10 +35,12 @@ TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
 TRIGGERS
 create database `inf%`;
+create database mbase;
 use `inf%`;
 show tables;
 Tables_in_inf%
 grant all privileges on `inf%`.* to 'mysqltest_1'@'localhost';
+grant all privileges on `mbase`.* to 'mysqltest_1'@'localhost';
 create table t1 (f1 int);
 create function func1(curr_int int) returns int
 begin
@@ -43,9 +49,58 @@ select max(f1) from t1 into ret_val;
 return ret_val;
 end|
 create view v1 as select f1 from t1 where f1 = func1(f1);
+create function func2() returns int return 1;
+use mbase;
+create procedure p1 ()
+begin
+select table_name from information_schema.key_column_usage
+order by table_name;
+end|
+create table t1 
+(f1 int(10) unsigned not null,
+f2 varchar(100) not null,
+primary key (f1), unique key (f2));
 select * from information_schema.tables;
+call mbase.p1();
+call mbase.p1();
+call mbase.p1();
+use `inf%`;
 drop user mysqltest_1@localhost;
+drop table t1;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='inf%' and func2();
+table_name	table_type	table_comment
+v1	VIEW	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or define
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='inf%' and func2();
+table_name	table_type	table_comment
+v1	VIEW	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or define
 drop view v1;
 drop function func1;
-drop table t1;
+drop function func2;
 drop database `inf%`;
+drop procedure mbase.p1;
+drop database mbase;
+use test;
+create table t1 (i int);
+create function f1 () returns int return (select max(i) from t1);
+create view v1 as select f1();
+create table t2 (id int);
+create function f2 () returns int return (select max(i) from t2);
+create view v2 as select f2();
+drop table t2;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='test';
+table_name	table_type	table_comment
+t1	BASE TABLE	
+v1	VIEW	VIEW
+v2	VIEW	View 'test.v2' references invalid table(s) or column(s) or function(s) or define
+drop table t1;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='test';
+table_name	table_type	table_comment
+v1	VIEW	View 'test.v1' references invalid table(s) or column(s) or function(s) or define
+v2	VIEW	View 'test.v2' references invalid table(s) or column(s) or function(s) or define
+drop function f1;
+drop function f2;
+drop view v1, v2;
