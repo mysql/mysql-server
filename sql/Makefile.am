@@ -35,7 +35,7 @@ LDADD =			$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/regex/libregex.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-
+mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(LDADD)
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@pstack_libs@ \
 			@mysql_plugin_libs@ \
