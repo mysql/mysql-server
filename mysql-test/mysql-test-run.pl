@@ -2603,7 +2603,6 @@ sub mysqld_arguments ($$$$$$) {
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
   mtr_add_arg($args, "%s--core", $prefix);
   mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
-  mtr_add_arg($args, "%s--loose-binlog-show-xid=0", $prefix);
   mtr_add_arg($args, "%s--default-character-set=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
@@ -2749,7 +2748,6 @@ sub mysqld_arguments ($$$$$$) {
   mtr_add_arg($args, "%s--sort_buffer=256K", $prefix);
   mtr_add_arg($args, "%s--max_heap_table_size=1M", $prefix);
   mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
-  mtr_add_arg($args, "%s--loose-binlog-show-xid=0", $prefix);
 
   if ( $opt_ssl_supported )
   {
