@@ -534,6 +534,7 @@ mlog_parse_index(
 		n = mach_read_from_2(ptr);
 		ptr += 2;
 		n_uniq = mach_read_from_2(ptr);
+		ptr += 2;
 		ut_ad(n_uniq <= n);
 		if (end_ptr < ptr + (n + 1) * 2) {
 			return(NULL);
@@ -548,13 +549,13 @@ mlog_parse_index(
 	ind->table = table;
 	ind->n_uniq = n_uniq;
 	if (n_uniq != n) {
+		ut_a(n_uniq + DATA_ROLL_PTR <= n);
 		ind->type = DICT_CLUSTERED;
 	}
-	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
-	ind->cached = TRUE;
 	if (comp) {
 		for (i = 0; i < n; i++) {
-			ulint	len = mach_read_from_2(ptr += 2);
+			ulint	len = mach_read_from_2(ptr);
+			ptr += 2;
 			/* The high-order bit of len is the NOT NULL flag;
 			the rest is 0 or 0x7fff for variable-length fields,
 			and 1..0x7ffe for fixed-length fields. */
@@ -567,8 +568,25 @@ mlog_parse_index(
 			dict_index_add_col(ind,
 				dict_table_get_nth_col(table, i), 0);
 		}
-		ptr += 2;
+		dict_table_add_system_columns(table);
+		if (n_uniq != n) {
+			/* Identify DB_TRX_ID and DB_ROLL_PTR in the index. */
+			ut_a(dtype_get_len(dict_col_get_type(
+				dict_field_get_col(dict_index_get_nth_field(
+				ind, n_uniq + (DATA_TRX_ID - 1)))))
+				== DATA_TRX_ID_LEN);
+			ut_a(dtype_get_len(dict_col_get_type(
+				dict_field_get_col(dict_index_get_nth_field(
+				ind, n_uniq + (DATA_ROLL_PTR - 1)))))
+				== DATA_ROLL_PTR_LEN);
+			dict_table_get_nth_col(table, i + DATA_TRX_ID)
+				->clust_pos = n_uniq + (DATA_TRX_ID - 1);
+			dict_table_get_nth_col(table, i + DATA_ROLL_PTR)
+				->clust_pos = n_uniq + (DATA_ROLL_PTR - 1);
+		}
 	}
+	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
+	ind->cached = TRUE;
 	*index = ind;
 	return(ptr);
 }

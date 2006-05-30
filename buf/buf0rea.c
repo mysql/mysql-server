@@ -140,10 +140,20 @@ buf_read_page_low(
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
-	*err = fil_io(OS_FILE_READ | wake_later,
-			sync, space,
-			offset, 0, UNIV_PAGE_SIZE,
-			(void*)block->frame, (void*)block);
+	if (zip_size) {
+		ulint	zip_blk = UNIV_PAGE_SIZE / zip_size;
+
+		*err = fil_io(OS_FILE_READ | wake_later,
+				sync, space,
+				offset / zip_blk, (offset % zip_blk)
+				* zip_size, zip_size,
+				(void*)block->page_zip.data, (void*)block);
+	} else {
+		*err = fil_io(OS_FILE_READ | wake_later,
+				sync, space,
+				offset, 0, UNIV_PAGE_SIZE,
+				(void*)block->frame, (void*)block);
+	}
 	ut_a(*err == DB_SUCCESS);
 
 	if (sync) {

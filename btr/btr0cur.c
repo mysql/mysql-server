@@ -3625,7 +3625,8 @@ btr_store_big_rec_extern_fields(
 			}
 
 			if (UNIV_LIKELY_NULL(page_zip)) {
-				int	err;
+				int		err;
+				page_zip_des_t*	blob_page_zip;
 
 				mach_write_to_2(page + FIL_PAGE_TYPE,
 						FIL_PAGE_TYPE_ZBLOB);
@@ -3649,6 +3650,16 @@ btr_store_big_rec_extern_fields(
 					0, c_stream.avail_out);
 				mlog_log_string(page + FIL_PAGE_TYPE,
 					page_zip->size - FIL_PAGE_TYPE, &mtr);
+				/* Copy the page to compressed storage,
+				because it will be flushed to disk
+				from there. */
+				blob_page_zip = buf_block_get_page_zip(
+						buf_block_align(page));
+				ut_ad(blob_page_zip);
+				ut_ad(blob_page_zip->size == page_zip->size);
+				memcpy(blob_page_zip->data, page,
+						page_zip->size);
+				/* TODO: retain blob_page_zip, release page */
 
 				if (err == Z_OK && prev_page_no != FIL_NULL) {
 

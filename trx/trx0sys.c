@@ -465,19 +465,32 @@ trx_sys_doublewrite_init_or_restore_pages(
 			do nothing */
 		} else {
 			ulint	zip_size;
-			/* Read in the actual page from the data files */
-
-			fil_io(OS_FILE_READ, TRUE, space_id, page_no, 0,
-					UNIV_PAGE_SIZE, read_buf, NULL);
-			/* Check if the page is corrupt */
+			ulint	zip_blk;
 
 			if (space_id) {
 				zip_size = fil_space_get_zip_size(space_id);
+				if (UNIV_LIKELY(!zip_size)) {
+					goto read_uncompressed;
+				}
+				zip_blk = UNIV_PAGE_SIZE / zip_size;
+				/* Read in the actual page from the file */
+				fil_io(OS_FILE_READ, TRUE, space_id,
+					page_no / zip_blk,
+					(page_no % zip_blk)
+					* zip_size, zip_size, read_buf, NULL);
 			} else {
+read_uncompressed:
 				zip_size = 0;
+				zip_blk = 1;
+				/* Read in the actual page from the file */
+				fil_io(OS_FILE_READ, TRUE, space_id, page_no,
+					0, UNIV_PAGE_SIZE, read_buf, NULL);
 			}
 
-			if (buf_page_is_corrupted(read_buf, zip_size)) {
+			/* Check if the page is corrupt */
+
+			if (UNIV_UNLIKELY(buf_page_is_corrupted(
+					read_buf, zip_size))) {
 
 				fprintf(stderr,
 		"InnoDB: Warning: database page corruption or a failed\n"
@@ -506,9 +519,17 @@ trx_sys_doublewrite_init_or_restore_pages(
 				doublewrite buffer to the intended
 				position */
 
-				fil_io(OS_FILE_WRITE, TRUE, space_id,
-					page_no, 0,
-					UNIV_PAGE_SIZE, page, NULL);
+				if (zip_size) {
+					fil_io(OS_FILE_WRITE, TRUE, space_id,
+						page_no / zip_blk,
+						(page_no % zip_blk)
+						* zip_size, zip_size,
+						page, NULL);
+				} else {
+					fil_io(OS_FILE_WRITE, TRUE, space_id,
+						page_no, 0,
+						UNIV_PAGE_SIZE, page, NULL);
+				}
 				fprintf(stderr,
 		"InnoDB: Recovered the page from the doublewrite buffer.\n");
 			}
