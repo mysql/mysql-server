@@ -939,7 +939,7 @@ int ha_tina::write_row(byte * buf)
       DBUG_RETURN(-1);
 
    /* use pwrite, as concurrent reader could have changed the position */
-  if (my_write(share->tina_write_filedes, buffer.ptr(), size,
+  if (my_write(share->tina_write_filedes, (byte*)buffer.ptr(), size,
                MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
 
@@ -1246,7 +1246,8 @@ int ha_tina::rnd_end()
       /* if there is something to write, write it */
       if ((write_end - write_begin) &&
           (my_write(update_temp_file,
-                    file_buff->ptr() + (write_begin - file_buff->start()),
+                    (byte*)(file_buff->ptr() +
+                            (write_begin - file_buff->start())),
                     write_end - write_begin, MYF_RW)))
         goto error;
 
@@ -1402,7 +1403,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
   {
     write_end= min(file_buff->end(), current_position);
     if ((write_end - write_begin) &&
-        (my_write(repair_file, file_buff->ptr(),
+        (my_write(repair_file, (byte*)file_buff->ptr(),
                   write_end - write_begin, MYF_RW)))
       DBUG_RETURN(-1);
 
