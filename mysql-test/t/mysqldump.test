@@ -2,7 +2,7 @@
 --source include/not_embedded.inc
 
 --disable_warnings
-DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa;
+DROP TABLE IF EXISTS t1, `"t"1`, t1aa, t2, t2aa, t3;
 drop database if exists mysqldump_test_db;
 drop database if exists db1;
 drop database if exists db2;
@@ -607,6 +607,13 @@ drop table t1, t2;
 drop database db1;
 
 #
+# BUG#15328 Segmentation fault occured if my.cnf is invalid for escape sequence
+#
+
+--exec $MYSQL_MY_PRINT_DEFAULTS --defaults-extra-file=$MYSQL_TEST_DIR/std_data/bug15328.cnf mysqldump
+
+
+#
 # Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
 #
 
@@ -1065,7 +1072,18 @@ insert into t1 values ('','');
 --exec $MYSQL_DUMP --skip-comments --hex-blob test t1
 drop table t1;
 
-# End of 4.1 tests
+#
+# Bug #18536: wrong table order
+#
+
+create table t1(a int);
+create table t2(a int);
+create table t3(a int);
+--error 6
+--exec $MYSQL_DUMP --skip-comments --force --no-data test t3 t1 non_existing t2
+drop table t1, t2, t3;
+
+--echo End of 4.1 tests
 
 #
 # Bug 14871 Invalid view dump output

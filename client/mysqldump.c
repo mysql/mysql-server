@@ -2785,14 +2785,13 @@ static my_bool dump_all_views_in_db(char *database)
   different case (e.g.  T1 vs t1)
 
   RETURN
-    int - 0 if a tablename was retrieved.  1 if not
+    pointer to the table name
+    0 if error
 */
 
-static int get_actual_table_name(const char *old_table_name,
-                                  char *new_table_name,
-                                  int buf_size)
+static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
 {
-  int retval;
+  char *name= 0;
   MYSQL_RES  *table_res;
   MYSQL_ROW  row;
   char query[50 + 2*NAME_LEN];
@@ -2809,66 +2808,55 @@ static int get_actual_table_name(const char *old_table_name,
     safe_exit(EX_MYSQLERR);
   }
 
-  retval = 1;
-
   if ((table_res= mysql_store_result(sock)))
   {
     my_ulonglong num_rows= mysql_num_rows(table_res);
     if (num_rows > 0)
     {
+      ulong *lengths;
       /*
         Return first row
         TODO: Return all matching rows
       */
       row= mysql_fetch_row(table_res);
-      strmake(new_table_name, row[0], buf_size-1);
-      retval= 0;
+      lengths= mysql_fetch_lengths(table_res);
+      name= strmake_root(root, row[0], lengths[0]);
     }
     mysql_free_result(table_res);
   }
-  return retval;
+  DBUG_PRINT("exit", ("new_table_name: %s", name));
+  DBUG_RETURN(name);
 }
 
 
 static int dump_selected_tables(char *db, char **table_names, int tables)
 {
-  uint i;
   char table_buff[NAME_LEN*+3];
-  char new_table_name[NAME_LEN];
   DYNAMIC_STRING lock_tables_query;
-  HASH dump_tables;
-  char *table_name;
+  MEM_ROOT root;
+  char **dump_tables, **pos, **end;
   DBUG_ENTER("dump_selected_tables");
 
   if (init_dumping(db))
     return 1;
 
-  /* Init hash table for storing the actual name of tables to dump */
-  if (hash_init(&dump_tables, charset_info, 16, 0, 0,
-                 (hash_get_key) get_table_key, (hash_free_key) free_table_ent,
-                0))
-    exit(EX_EOM);
+  init_alloc_root(&root, 8192, 0);
+  if (!(dump_tables= pos= (char**) alloc_root(&root, tables * sizeof(char *))))
+     exit(EX_EOM);
 
   init_dynamic_string(&lock_tables_query, "LOCK TABLES ", 256, 1024);
   for (; tables > 0 ; tables-- , table_names++)
   {
     /* the table name passed on commandline may be wrong case */
-    if (!get_actual_table_name(*table_names,
-                               new_table_name, sizeof(new_table_name)))
+    if ((*pos= get_actual_table_name(*table_names, &root)))
     {
       /* Add found table name to lock_tables_query */
       if (lock_tables)
       {
-        dynstr_append(&lock_tables_query,
-                      quote_name(new_table_name, table_buff, 1));
+        dynstr_append(&lock_tables_query, quote_name(*pos, table_buff, 1));
         dynstr_append(&lock_tables_query, " READ /*!32311 LOCAL */,");
       }
-
-      /* Add found table name to dump_tables list */
-      if (my_hash_insert(&dump_tables,
-                         (byte*)my_strdup(new_table_name, MYF(0))))
-        exit(EX_EOM);
-
+      pos++;
     }
     else
     {
@@ -2878,6 +2866,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
        /* We shall countinue here, if --force was given */
     }
   }
+  end= pos;
 
   if (lock_tables)
   {
@@ -2897,24 +2886,20 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     print_xml_tag1(md_result_file, "", "database name=", db, "\n");
 
   /* Dump each selected table */
-  for (i= 0; i < dump_tables.records; i++)
+  for (pos= dump_tables; pos < end; pos++)
   {
-    table_name= hash_element(&dump_tables, i);
-    DBUG_PRINT("info",("Dumping table %s", table_name));
-    dump_table(table_name,db);
+    DBUG_PRINT("info",("Dumping table %s", *pos));
+    dump_table(*pos, db);
     if (opt_dump_triggers &&
         mysql_get_server_version(sock) >= 50009)
-      dump_triggers_for_table(table_name, db);
+      dump_triggers_for_table(*pos, db);
   }
 
   /* Dump each selected view */
   if (was_views)
   {
-    for(i=0; i < dump_tables.records; i++)
-    {
-      table_name= hash_element(&dump_tables, i);
-      get_view_structure(table_name, db);
-    }
+    for (pos= dump_tables; pos < end; pos++)
+      get_view_structure(*pos, db);
   }
   /* obtain dump of routines (procs/functions) */
   if (opt_routines  && !opt_xml &&
@@ -2923,7 +2908,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     DBUG_PRINT("info", ("Dumping routines for database %s", db));
     dump_routines_for_db(db);
   }
-  hash_free(&dump_tables);
+  free_root(&root, MYF(0));
   my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
   order_by= 0;
   if (opt_xml)
