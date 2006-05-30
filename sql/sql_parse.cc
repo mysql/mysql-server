@@ -5188,23 +5188,35 @@ error:
 
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
 {
+  Security_context * backup_ctx= thd->security_ctx;
+
+  /* we need to switch to the saved context (if any) */
+  if (all_tables->security_ctx)
+    thd->security_ctx= all_tables->security_ctx;
+
   if (check_access(thd, privilege, all_tables->db,
 		   &all_tables->grant.privilege, 0, 0,
                    test(all_tables->schema_table)))
-    return 1;
+    goto deny;
 
   /* Show only 1 table for check_grant */
   if (grant_option && check_grant(thd, privilege, all_tables, 0, 1, 0))
-    return 1;
+    goto deny;
+
+  thd->security_ctx= backup_ctx;
 
   /* Check rights on tables of subselects and implictly opened tables */
   TABLE_LIST *subselects_tables;
   if ((subselects_tables= all_tables->next_global))
   {
     if ((check_table_access(thd, SELECT_ACL, subselects_tables, 0)))
-      return 1;
+      goto deny;
   }
   return 0;
+
+deny:
+  thd->security_ctx= backup_ctx;
+  return 1;
 }
 
 
@@ -5385,6 +5397,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   ulong found_access=0;
   TABLE_LIST *org_tables= tables;
   TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
+  Security_context *sctx= thd->security_ctx, *backup_ctx= thd->security_ctx;
   /*
     The check that first_not_own_table is not reached is for the case when
     the given table list refers to the list for prelocking (contains tables
@@ -5392,12 +5405,17 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   */
   for (; tables != first_not_own_table; tables= tables->next_global)
   {
+    if (tables->security_ctx)
+      sctx= tables->security_ctx;
+    else
+      sctx= backup_ctx;
+
     if (tables->schema_table && 
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
     {
       if (!no_errors)
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 thd->security_ctx->priv_user, thd->security_ctx->priv_host,
+                 sctx->priv_user, sctx->priv_host,
                  information_schema_name.str);
       return TRUE;
     }
@@ -5406,12 +5424,13 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
        Remove SHOW_VIEW_ACL, because it will be checked during making view
      */
     tables->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
-    if (tables->derived || tables->schema_table || tables->belong_to_view ||
+    if (tables->derived || tables->schema_table ||
         (tables->table && (int)tables->table->s->tmp_table) ||
         my_tz_check_n_skip_implicit_tables(&tables,
                                            thd->lex->time_zone_tables_used))
       continue;
-    if ((thd->security_ctx->master_access & want_access) ==
+    thd->security_ctx= sctx;
+    if ((sctx->master_access & want_access) ==
         (want_access & ~EXTRA_ACL) &&
 	thd->db)
       tables->grant.privilege= want_access;
@@ -5423,19 +5442,23 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       {
 	if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
 			 0, no_errors, test(tables->schema_table)))
-	  return TRUE;				// Access denied
+	  goto deny;                            // Access denied
 	found_access=tables->grant.privilege;
 	found=1;
       }
     }
     else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
 			  0, no_errors, test(tables->schema_table)))
-      return TRUE;
+      goto deny;
   }
+  thd->security_ctx= backup_ctx;
   if (grant_option)
     return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
 		       test(want_access & EXTRA_ACL), UINT_MAX, no_errors);
   return FALSE;
+deny:
+  thd->security_ctx= backup_ctx;
+  return TRUE;
 }
 
 

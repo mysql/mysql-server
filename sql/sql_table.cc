@@ -3896,6 +3896,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       */
       ha_autocommit_or_rollback(thd, 1);
       close_thread_tables(thd);
+      lex->reset_query_tables_list(FALSE);
       if (protocol->write())
 	goto err;
       continue;
@@ -3921,6 +3922,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->store(buff, length, system_charset_info);
       ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
+      lex->reset_query_tables_list(FALSE);
       table->table=0;				// For query cache
       if (protocol->write())
 	goto err;
@@ -4673,7 +4675,8 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
                            HA_CREATE_INFO *create_info,
                            ALTER_INFO *alter_info, uint order_num,
                            uint *index_drop_buffer, uint *index_drop_count,
-                           uint *index_add_buffer, uint *index_add_count)
+                           uint *index_add_buffer, uint *index_add_count,
+                           bool varchar)
 {
   Field **f_ptr, *field;
   uint changes= 0, tmp;
@@ -4708,7 +4711,8 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
       create_info->used_fields & HA_CREATE_USED_CHARSET ||
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
       (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
-      order_num)
+      order_num ||
+      (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar))
     DBUG_RETURN(ALTER_TABLE_DATA_CHANGED);
 
   /*
@@ -4882,7 +4886,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint db_create_options, used_fields;
   handlerton *old_db_type, *new_db_type;
   uint need_copy_table= 0;
-  bool no_table_reopen= FALSE;
+  bool no_table_reopen= FALSE, varchar= FALSE;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   uint fast_alter_partition= 0;
   bool partition_changed= FALSE;
@@ -5117,6 +5121,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   Field **f_ptr,*field;
   for (f_ptr=table->field ; (field= *f_ptr) ; f_ptr++)
   {
+    if (field->type() == MYSQL_TYPE_STRING)
+      varchar= TRUE;
     /* Check if field should be dropped */
     Alter_drop *drop;
     drop_it.rewind();
@@ -5452,7 +5458,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                     key_info_buffer, key_count,
                                     create_info, alter_info, order_num,
                                     index_drop_buffer, &index_drop_count,
-                                    index_add_buffer, &index_add_count);
+                                    index_add_buffer, &index_add_count,
+                                    varchar);
   }
 
   /*
