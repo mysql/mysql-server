@@ -139,9 +139,12 @@ void Guardian_thread::process_instance(Instance *instance,
     case JUST_CRASHED:
       if (current_time - current_node->crash_moment <= 2)
       {
-        instance->start();
-        log_info("guardian: starting instance %s",
-                 instance->options.instance_name);
+        if (instance->is_crashed())
+        {
+          instance->start();
+          log_info("guardian: starting instance %s",
+                   instance->options.instance_name);
+        }
       }
       else
         current_node->state= CRASHED;
@@ -152,11 +155,14 @@ void Guardian_thread::process_instance(Instance *instance,
       {
         if ((current_node->restart_counter < restart_retry))
         {
-          instance->start();
-          current_node->last_checked= current_time;
-          current_node->restart_counter++;
-          log_info("guardian: restarting instance %s",
-                   instance->options.instance_name);
+          if (instance->is_crashed())
+          {
+            instance->start();
+            current_node->last_checked= current_time;
+            current_node->restart_counter++;
+            log_info("guardian: restarting instance %s",
+                     instance->options.instance_name);
+          }
         }
         else
           current_node->state= CRASHED_AND_ABANDONED;
