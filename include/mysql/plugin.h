@@ -201,6 +201,17 @@ typedef struct st_mysql_ftparser_boolean_info
   char *quot;
 } MYSQL_FTPARSER_BOOLEAN_INFO;
 
+/*
+  The following flag means that buffer with a string (document, word)
+  may be overwritten by the caller before the end of the parsing (that is
+  before st_mysql_ftparser::deinit() call). If one needs the string
+  to survive between two successive calls of the parsing function, she
+  needs to save a copy of it. The flag may be set by MySQL before calling
+  st_mysql_ftparser::parse(), or it may be set by a plugin before calling
+  st_mysql_ftparser_param::mysql_parse() or
+  st_mysql_ftparser_param::mysql_add_word().
+*/
+#define MYSQL_FTFLAGS_NEED_COPY 1
 
 /*
   An argument of the full-text parser plugin. This structure is
@@ -234,8 +245,10 @@ typedef struct st_mysql_ftparser_boolean_info
 
   length: Length of the document or query string, in bytes.
 
+  flags: See MYSQL_FTFLAGS_* constants above.
+
   mode: The parsing mode.  With boolean operators, with stopwords, or
-  nothing.  See MYSQL_FTPARSER_* constants above.
+  nothing.  See  enum_ftparser_mode above.
 */
 
 typedef struct st_mysql_ftparser_param
@@ -250,6 +263,7 @@ typedef struct st_mysql_ftparser_param
   struct charset_info_st *cs;
   char *doc;
   int length;
+  int flags;
   enum enum_ftparser_mode mode;
 } MYSQL_FTPARSER_PARAM;
 
