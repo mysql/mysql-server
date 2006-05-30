@@ -40,6 +40,12 @@
 #define NDB_SCHEMA_TABLE_FILE "./" NDB_REP_DB "/" NDB_SCHEMA_TABLE
 
 /*
+  Timeout for syncing schema events between
+  mysql servers, and between mysql server and the binlog
+*/
+const int opt_ndb_sync_timeout= 120;
+
+/*
   Flag showing if the ndb injector thread is running, if so == 1
   -1 if it was started but later stopped for some reason
    0 if never started
@@ -498,6 +504,7 @@ ndbcluster_binlog_log_query(THD *thd, enum_binlog_command binlog_command,
   {
   case LOGCOM_CREATE_TABLE:
     type= SOT_CREATE_TABLE;
+    DBUG_ASSERT(FALSE);
     break;
   case LOGCOM_ALTER_TABLE:
     type= SOT_ALTER_TABLE;
@@ -505,9 +512,11 @@ ndbcluster_binlog_log_query(THD *thd, enum_binlog_command binlog_command,
     break;
   case LOGCOM_RENAME_TABLE:
     type= SOT_RENAME_TABLE;
+    DBUG_ASSERT(FALSE);
     break;
   case LOGCOM_DROP_TABLE:
     type= SOT_DROP_TABLE;
+    DBUG_ASSERT(FALSE);
     break;
   case LOGCOM_CREATE_DB:
     type= SOT_CREATE_DB;
@@ -519,12 +528,14 @@ ndbcluster_binlog_log_query(THD *thd, enum_binlog_command binlog_command,
     break;
   case LOGCOM_DROP_DB:
     type= SOT_DROP_DB;
+    DBUG_ASSERT(FALSE);
     break;
   }
   if (log)
   {
     ndbcluster_log_schema_op(thd, 0, query, query_length,
-                             db, table_name, 0, 0, type);
+                             db, table_name, 0, 0, type,
+                             0, 0, 0);
   }
   DBUG_VOID_RETURN;
 }
@@ -995,7 +1006,8 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                              uint32 ndb_table_id,
                              uint32 ndb_table_version,
                              enum SCHEMA_OP_TYPE type,
-                             const char *new_db, const char *new_table_name)
+                             const char *new_db, const char *new_table_name,
+                             int have_lock_open)
 {
   DBUG_ENTER("ndbcluster_log_schema_op");
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -1254,8 +1266,13 @@ end:
   if (ndb_error == 0 &&
       !bitmap_is_clear_all(&schema_subscribers))
   {
-    int max_timeout= 10;
+    int max_timeout= opt_ndb_sync_timeout;
     (void) pthread_mutex_lock(&ndb_schema_object->mutex);
+    if (have_lock_open)
+    {
+      safe_mutex_assert_owner(&LOCK_open);
+      (void) pthread_mutex_unlock(&LOCK_open);
+    }
     while (1)
     {
       struct timespec abstime;
@@ -1299,6 +1316,10 @@ end:
           ndb_report_waiting(type_str, max_timeout,
                              "distributing", ndb_schema_object->key);
       }
+    }
+    if (have_lock_open)
+    {
+      (void) pthread_mutex_lock(&LOCK_open);
     }
     (void) pthread_mutex_unlock(&ndb_schema_object->mutex);
   }
@@ -2698,6 +2719,7 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
                              NDB_SHARE *share, const char *type_str)
 {
   DBUG_ENTER("ndbcluster_handle_drop_table");
+  THD *thd= current_thd;
 
   NDBDICT *dict= ndb->getDictionary();
   if (event_name && dict->dropEvent(event_name))
@@ -2743,10 +2765,14 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
   these out of order, thus we are keeping the SYNC_DROP_ defined
   for now.
 */
+  const char *save_proc_info= thd->proc_info;
 #define SYNC_DROP_
 #ifdef SYNC_DROP_
+  thd->proc_info= "Syncing ndb table schema operation and binlog";
   (void) pthread_mutex_lock(&share->mutex);
-  int max_timeout= 10;
+  safe_mutex_assert_owner(&LOCK_open);
+  (void) pthread_mutex_unlock(&LOCK_open);
+  int max_timeout= opt_ndb_sync_timeout;
   while (share->op)
   {
     struct timespec abstime;
@@ -2770,6 +2796,7 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
                            type_str, share->key);
     }
   }
+  (void) pthread_mutex_lock(&LOCK_open);
   (void) pthread_mutex_unlock(&share->mutex);
 #else
   (void) pthread_mutex_lock(&share->mutex);
@@ -2777,6 +2804,7 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
   share->op= 0;
   (void) pthread_mutex_unlock(&share->mutex);
 #endif
+  thd->proc_info= save_proc_info;
 
   DBUG_RETURN(0);
 }

@@ -4649,7 +4649,7 @@ int ha_ndbcluster::create(const char *name,
                                share->db, share->table_name,
                                m_table->getObjectId(),
                                m_table->getObjectVersion(),
-                               SOT_CREATE_TABLE);
+                               SOT_CREATE_TABLE, 0, 0, 1);
       break;
     }
   }
@@ -5031,7 +5031,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
                                old_dbname, m_tabname,
                                ndb_table_id, ndb_table_version,
                                SOT_RENAME_TABLE,
-                               m_dbname, new_tabname);
+                               m_dbname, new_tabname, 1);
   }
   if (share)
     free_share(&share);
@@ -5155,7 +5155,7 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
                              current_thd->query, current_thd->query_length,
                              share->db, share->table_name,
                              ndb_table_id, ndb_table_version,
-                             SOT_DROP_TABLE);
+                             SOT_DROP_TABLE, 0, 0, 1);
   }
   else if (table_dropped && share && share->op) /* ndbcluster_log_schema_op
                                                    will do a force GCP */
@@ -5752,7 +5752,7 @@ static void ndbcluster_drop_database(char *path)
   ha_ndbcluster::set_dbname(path, db);
   ndbcluster_log_schema_op(current_thd, 0,
                            current_thd->query, current_thd->query_length,
-                           db, "", 0, 0, SOT_DROP_DB);
+                           db, "", 0, 0, SOT_DROP_DB, 0, 0, 0);
 #endif
   DBUG_VOID_RETURN;
 }
@@ -9941,13 +9941,13 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
                              thd->query, thd->query_length,
                              "", info->tablespace_name,
                              0, 0,
-                             SOT_TABLESPACE);
+                             SOT_TABLESPACE, 0, 0, 0);
   else
     ndbcluster_log_schema_op(thd, 0,
                              thd->query, thd->query_length,
                              "", info->logfile_group_name,
                              0, 0,
-                             SOT_LOGFILE_GROUP);
+                             SOT_LOGFILE_GROUP, 0, 0, 0);
 #endif
   DBUG_RETURN(FALSE);
 
