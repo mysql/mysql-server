@@ -2065,7 +2065,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   TABLE *table= tables->table;
   SELECT_LEX *select_lex= &lex->select_lex;
   SELECT_LEX *old_all_select_lex= lex->all_selects_list;
-  TABLE_LIST **save_query_tables_last= lex->query_tables_last;
   enum_sql_command save_sql_command= lex->sql_command;
   SELECT_LEX *lsel= tables->schema_select_lex;
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
@@ -2084,6 +2083,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   db_type not_used;
   Open_tables_state open_tables_state_backup;
   bool save_view_prepare_mode= lex->view_prepare_mode;
+  Query_tables_list query_tables_list_backup;
   lex->view_prepare_mode= TRUE;
   DBUG_ENTER("get_all_tables");
 
@@ -2095,6 +2095,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     themselves into main statement.
   */
   lex->sql_command= SQLCOM_SHOW_FIELDS;
+
+  lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
 
   /*
     We should not introduce deadlocks even if we already have some
@@ -2136,8 +2138,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                                              show_table_list->db),
                                             show_table_list->alias));
     thd->temporary_tables= 0;
-    close_thread_tables(thd);
-    show_table_list->table= 0;
+    close_tables_for_reopen(thd, &show_table_list);
     goto err;
   }
 
@@ -2248,9 +2249,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               in this case.
             */
             res= schema_table->process_table(thd, show_table_list, table,
-                                            res, base_name,
-                                            show_table_list->alias);
-            close_thread_tables(thd);
+                                             res, base_name,
+                                             show_table_list->alias);
+            close_tables_for_reopen(thd, &show_table_list);
+            DBUG_ASSERT(!lex->query_tables_own_last);
             if (res)
               goto err;
           }
@@ -2267,11 +2269,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   error= 0;
 err:
   thd->restore_backup_open_tables_state(&open_tables_state_backup);
+  lex->restore_backup_query_tables_list(&query_tables_list_backup);
   lex->derived_tables= derived_tables;
   lex->all_selects_list= old_all_select_lex;
-  lex->query_tables_last= save_query_tables_last;
   lex->view_prepare_mode= save_view_prepare_mode;
-  *save_query_tables_last= 0;
   lex->sql_command= save_sql_command;
   DBUG_RETURN(error);
 }
