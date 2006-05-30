@@ -612,7 +612,8 @@ bool partition_info::check_list_constants()
       no_list_values++;
   } while (++i < no_parts);
   list_func_it.rewind();
-  list_array= (LIST_PART_ENTRY*)sql_alloc(no_list_values*sizeof(LIST_PART_ENTRY));
+  list_array= (LIST_PART_ENTRY*)sql_alloc((no_list_values+1) *
+                                          sizeof(LIST_PART_ENTRY));
   if (unlikely(list_array == NULL))
   {
     mem_alloc_error(no_list_values * sizeof(LIST_PART_ENTRY));
@@ -631,25 +632,29 @@ bool partition_info::check_list_constants()
     }
   } while (++i < no_parts);
 
-  qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
-        &list_part_cmp);
-
-  not_first= FALSE;
-  i= prev_value= 0; //prev_value initialised to quiet compiler
-  do
+  if (no_list_values)
   {
-    curr_value= list_array[i].list_value;
-    if (likely(!not_first || prev_value != curr_value))
+    qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
+          &list_part_cmp);
+ 
+    not_first= FALSE;
+    i= prev_value= 0; //prev_value initialised to quiet compiler
+    do
     {
-      prev_value= curr_value;
-      not_first= TRUE;
-    }
-    else
-    {
-      my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
-      goto end;
-    }
-  } while (++i < no_list_values);
+      DBUG_ASSERT(i < no_list_values);
+      curr_value= list_array[i].list_value;
+      if (likely(!not_first || prev_value != curr_value))
+      {
+        prev_value= curr_value;
+        not_first= TRUE;
+      }
+      else
+      {
+        my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
+        goto end;
+      }
+    } while (++i < no_list_values);
+  }
   result= FALSE;
 end:
   DBUG_RETURN(result);
