@@ -570,7 +570,7 @@ DROP PROCEDURE create_log_tables;
 
 CREATE TABLE event (
   db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  name char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  name char(64) CHARACTER SET utf8 NOT NULL default '',
   body longblob NOT NULL,
   definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
   execute_at DATETIME default NULL,
@@ -636,7 +636,7 @@ SELECT @hadEventPriv :=1 FROM user WHERE Event_priv LIKE '%';
 ALTER TABLE user add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
 ALTER TABLE db add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
 ALTER TABLE event DROP PRIMARY KEY;
-ALTER TABLE event ADD PRIMARY KEY(definer, db, name);
+ALTER TABLE event ADD PRIMARY KEY(db, name);
 ALTER TABLE event ADD sql_mode
                         set('REAL_AS_FLOAT',
                             'PIPES_AS_CONCAT',
