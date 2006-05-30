@@ -1415,15 +1415,6 @@ BulkCipher* CryptProvider::NewDesEde()
 }
 
 
-extern "C" void yaSSL_CleanUp()
-{
-    TaoCrypt::CleanUp();
-    ysDelete(cryptProviderInstance);
-    ysDelete(sslFactoryInstance);
-    ysDelete(sessionsInstance);
-}
-
-
 typedef Mutex::Lock Lock;
 
  
@@ -2109,8 +2100,22 @@ ASN1_STRING* StringHolder::GetString()
 }
 
 
-
 } // namespace
+
+
+extern "C" void yaSSL_CleanUp()
+{
+    TaoCrypt::CleanUp();
+    yaSSL::ysDelete(yaSSL::cryptProviderInstance);
+    yaSSL::ysDelete(yaSSL::sslFactoryInstance);
+    yaSSL::ysDelete(yaSSL::sessionsInstance);
+
+    // In case user calls more than once, prevent seg fault
+    yaSSL::cryptProviderInstance = 0;
+    yaSSL::sslFactoryInstance = 0;
+    yaSSL::sessionsInstance = 0;
+}
+
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 namespace mySTL {

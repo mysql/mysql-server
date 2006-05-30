@@ -66,6 +66,7 @@ typedef unsigned char byte;
 // Wraps Windows Sockets and BSD Sockets
 class Socket {
     socket_t socket_;                    // underlying socket descriptor
+    bool     wouldBlock_;                // for non-blocking data
 public:
     explicit Socket(socket_t s = INVALID_SOCKET);
     ~Socket();
@@ -75,9 +76,10 @@ public:
     socket_t get_fd()    const;
 
     uint send(const byte* buf, unsigned int len, int flags = 0) const;
-    uint receive(byte* buf, unsigned int len, int flags = 0)    const;
+    uint receive(byte* buf, unsigned int len, int flags = 0);
 
-    bool wait() const;
+    bool wait();
+    bool WouldBlock() const;
 
     void closeSocket();
     void shutDown(int how = SD_SEND);

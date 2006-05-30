@@ -26,10 +26,13 @@
 #include "runtime.hpp"
 #include "yassl_error.hpp"
 #include "error.hpp"        // TaoCrypt error numbers
+#include "openssl/ssl.h"    // SSL_ERROR_WANT_READ
+#include <string.h>         // strncpy
 
 namespace yaSSL {
 
 
+/* may bring back in future
 Error::Error(const char* s, YasslError e, Library l) 
     : mySTL::runtime_error(s), error_(e), lib_(l) 
 {
@@ -47,6 +50,7 @@ Library Error::get_lib() const
 
     return lib_;
 }
+*/
 
 
 void SetErrorString(YasslError error, char* buffer)
@@ -116,6 +120,11 @@ void SetErrorString(YasslError error, char* buffer)
     case certificate_error :
         strncpy(buffer, "unable to proccess cerificate", max);
         break; 
+
+        // openssl errors
+    case SSL_ERROR_WANT_READ :
+        strncpy(buffer, "the read operation would block", max);
+        break;
 
         // TaoCrypt errors
     case NO_ERROR :
