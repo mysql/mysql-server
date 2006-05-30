@@ -151,8 +151,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->found_semicolon= 0;
   lex->safe_to_cache_query= 1;
   lex->time_zone_tables_used= 0;
-  lex->leaf_tables_insert= lex->query_tables= 0;
-  lex->query_tables_last= &lex->query_tables;
+  lex->leaf_tables_insert= 0;
   lex->variables_used= 0;
   lex->empty_field_list_on_rset= 0;
   lex->select_lex.select_number= 1;
@@ -175,14 +174,9 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->sphead= NULL;
   lex->spcont= NULL;
   lex->proc_list.first= 0;
-  lex->query_tables_own_last= 0;
   lex->escape_used= FALSE;
+  lex->reset_query_tables_list(FALSE);
 
-  if (lex->sroutines.records)
-    my_hash_reset(&lex->sroutines);
-  lex->sroutines_list.empty();
-  lex->sroutines_list_own_last= lex->sroutines_list.next;
-  lex->sroutines_list_own_elements= 0;
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
@@ -1615,6 +1609,52 @@ void st_select_lex::print_limit(THD *thd, String *str)
 
 
 /*
+  Initialize (or reset) Query_tables_list object.
+
+  SYNOPSIS
+    reset_query_tables_list()
+      init  TRUE  - we should perform full initialization of object with
+                    allocating needed memory
+            FALSE - object is already initialized so we should only reset
+                    its state so it can be used for parsing/processing
+                    of new statement
+
+  DESCRIPTION
+    This method initializes Query_tables_list so it can be used as part
+    of LEX object for parsing/processing of statement. One can also use
+    this method to reset state of already initialized Query_tables_list
+    so it can be used for processing of new statement.
+*/
+
+void Query_tables_list::reset_query_tables_list(bool init)
+{
+  query_tables= 0;
+  query_tables_last= &query_tables;
+  query_tables_own_last= 0;
+  if (init)
+    hash_init(&sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
+  else if (sroutines.records)
+    my_hash_reset(&sroutines);
+  sroutines_list.empty();
+  sroutines_list_own_last= sroutines_list.next;
+  sroutines_list_own_elements= 0;
+}
+
+
+/*
+  Destroy Query_tables_list object with freeing all resources used by it.
+
+  SYNOPSIS
+    destroy_query_tables_list()
+*/
+
+void Query_tables_list::destroy_query_tables_list()
+{
+  hash_free(&sroutines);
+}
+
+
+/*
   Initialize LEX object.
 
   SYNOPSIS
@@ -1630,12 +1670,9 @@ void st_select_lex::print_limit(THD *thd, String *str)
 
 st_lex::st_lex()
   :result(0), yacc_yyss(0), yacc_yyvs(0),
-   sql_command(SQLCOM_END), query_tables_own_last(0)
+   sql_command(SQLCOM_END)
 {
-  hash_init(&sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
-  sroutines_list.empty();
-  sroutines_list_own_last= sroutines_list.next;
-  sroutines_list_own_elements= 0;
+  reset_query_tables_list(TRUE);
 }
 
 
@@ -2019,6 +2056,11 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
 
   SYNOPSIS
     st_lex::cleanup_after_one_table_open()
+
+  NOTE
+    This method is mostly responsible for cleaning up of selects lists and
+    derived tables state. To rollback changes in Query_tables_list one has
+    to call Query_tables_list::reset_query_tables_list(FALSE).
 */
 
 void st_lex::cleanup_after_one_table_open()
@@ -2045,11 +2087,41 @@ void st_lex::cleanup_after_one_table_open()
     select_lex.cut_subtree();
   }
   time_zone_tables_used= 0;
-  if (sroutines.records)
-    my_hash_reset(&sroutines);
-  sroutines_list.empty();
-  sroutines_list_own_last= sroutines_list.next;
-  sroutines_list_own_elements= 0;
+}
+
+
+/*
+  Save current state of Query_tables_list for this LEX, and prepare it
+  for processing of new statemnt.
+
+  SYNOPSIS
+    reset_n_backup_query_tables_list()
+      backup  Pointer to Query_tables_list instance to be used for backup
+*/
+
+void st_lex::reset_n_backup_query_tables_list(Query_tables_list *backup)
+{
+  backup->set_query_tables_list(this);
+  /*
+    We have to perform full initialization here since otherwise we
+    will damage backed up state.
+  */
+  this->reset_query_tables_list(TRUE);
+}
+
+
+/*
+  Restore state of Query_tables_list for this LEX from backup.
+
+  SYNOPSIS
+    restore_backup_query_tables_list()
+      backup  Pointer to Query_tables_list instance used for backup
+*/
+
+void st_lex::restore_backup_query_tables_list(Query_tables_list *backup)
+{
+  this->destroy_query_tables_list();
+  this->set_query_tables_list(backup);
 }
 
 
