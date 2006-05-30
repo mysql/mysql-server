@@ -1320,25 +1320,18 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     we don't check rc here because we want to open the file back up even
     if the optimize failed but we will return rc below so that we will
     know it failed.
+    We also need to reopen our read descriptor since it has changed.
   */
   DBUG_PRINT("info", ("Reopening archive data file"));
-  if (!(azopen(&(share->archive_write), share->data_file_name, 
-               O_WRONLY|O_APPEND|O_BINARY)))
+  if (!azopen(&(share->archive_write), share->data_file_name,
+               O_WRONLY|O_APPEND|O_BINARY) ||
+      !azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY))
   {
     DBUG_PRINT("info", ("Could not open archive write file"));
     rc= HA_ERR_CRASHED_ON_USAGE;
-    goto error;
   }
 
-  /*
-    Now we need to reopen our read descriptor since it has changed.
-  */
-  if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
-  {
-    rc= HA_ERR_CRASHED_ON_USAGE;
-    goto error;
-  }
-
+  DBUG_RETURN(rc);
 error:
   azclose(&writer);
 
