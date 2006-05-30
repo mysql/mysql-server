@@ -56,7 +56,6 @@
    DBUG_RETURN(b);\
 }
 
-extern Uint64 g_latest_trans_gci;
 int ndb_dictionary_is_mysqld = 0;
 
 bool
@@ -4226,7 +4225,6 @@ NdbDictInterface::execWAIT_GCP_CONF(NdbApiSignal* signal,
 {
   const WaitGCPConf * const conf=
     CAST_CONSTPTR(WaitGCPConf, signal->getDataPtr());
-  g_latest_trans_gci= conf->gcp;
   m_waiter.signal(NO_WAIT);
 }
 
