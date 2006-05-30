@@ -311,6 +311,7 @@ static void _ftb_parse_query(FTB *ftb, byte *query, uint len,
   param->cs= ftb->charset;
   param->doc= query;
   param->length= len;
+  param->flags= 0;
   param->mode= MYSQL_FTPARSER_FULL_BOOLEAN_INFO;
   parser->parse(param);
   DBUG_VOID_RETURN;
@@ -665,6 +666,7 @@ static int _ftb_check_phrase(FTB *ftb, const byte *document, uint len,
   param->cs= ftb->charset;
   param->doc= (byte *)document;
   param->length= len;
+  param->flags= 0;
   param->mode= MYSQL_FTPARSER_WITH_STOPWORDS;
   parser->parse(param);
   DBUG_RETURN(ftb_param.match ? 1 : 0);
@@ -916,6 +918,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
   param->mysql_parse= ftb_find_relevance_parse;
   param->mysql_add_word= ftb_find_relevance_add_word;
   param->mysql_ftparam= (void *)&ftb_param;
+  param->flags= 0;
   param->cs= ftb->charset;
   param->mode= MYSQL_FTPARSER_SIMPLE_MODE;
   while (_mi_ft_segiterator(&ftsi))

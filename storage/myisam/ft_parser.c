@@ -24,13 +24,11 @@ typedef struct st_ft_docstat {
   double sum;
 } FT_DOCSTAT;
 
-
 typedef struct st_my_ft_parser_param
 {
-  TREE *wtree;
-  my_bool with_alloc;
+  TREE     *wtree;
+  MEM_ROOT *mem_root;
 } MY_FT_PARSER_PARAM;
-
 
 static int FT_WORD_cmp(CHARSET_INFO* cs, FT_WORD *w1, FT_WORD *w2)
 {
@@ -48,14 +46,14 @@ static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
 
 /* transforms tree of words into the array, applying normalization */
 
-FT_WORD * ft_linearize(TREE *wtree)
+FT_WORD * ft_linearize(TREE *wtree, MEM_ROOT *mem_root)
 {
   FT_WORD *wlist,*p;
   FT_DOCSTAT docstat;
   DBUG_ENTER("ft_linearize");
 
-  if ((wlist=(FT_WORD *) my_malloc(sizeof(FT_WORD)*
-				   (1+wtree->elements_in_tree),MYF(0))))
+  if ((wlist=(FT_WORD *) alloc_root(mem_root, sizeof(FT_WORD)*
+                                    (1+wtree->elements_in_tree))))
   {
     docstat.list=wlist;
     docstat.uniq=wtree->elements_in_tree;
@@ -249,12 +247,11 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
   MY_FT_PARSER_PARAM *ft_param=param->mysql_ftparam;
   DBUG_ENTER("ft_add_word");
   wtree= ft_param->wtree;
-  if (ft_param->with_alloc)
+  if (param->flags & MYSQL_FTFLAGS_NEED_COPY)
   {
     byte *ptr;
-    /* allocating the data in the tree - to avoid mallocs and frees */
     DBUG_ASSERT(wtree->with_delete == 0);
-    ptr= (byte *)alloc_root(&wtree->mem_root, word_len);
+    ptr= (byte *)alloc_root(ft_param->mem_root, word_len);
     memcpy(ptr, word, word_len);
     w.pos= ptr;
   }
@@ -286,16 +283,16 @@ static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
 }
 
 
-int ft_parse(TREE *wtree, byte *doc, int doclen, my_bool with_alloc,
+int ft_parse(TREE *wtree, byte *doc, int doclen,
                     struct st_mysql_ftparser *parser,
-                    MYSQL_FTPARSER_PARAM *param)
+                    MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
 {
   MY_FT_PARSER_PARAM my_param;
   DBUG_ENTER("ft_parse");
   DBUG_ASSERT(parser);
 
   my_param.wtree= wtree;
-  my_param.with_alloc= with_alloc;
+  my_param.mem_root= mem_root;
 
   param->mysql_parse= ft_parse_internal;
   param->mysql_add_word= ft_add_word;
@@ -357,6 +354,7 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
     info->ftparser_param= (MYSQL_FTPARSER_PARAM *)
       my_malloc(MAX_PARAM_NR * sizeof(MYSQL_FTPARSER_PARAM) *
                 info->s->ftparsers, MYF(MY_WME|MY_ZEROFILL));
+    init_alloc_root(&info->ft_memroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
     if (! info->ftparser_param)
       return 0;
   }
@@ -388,6 +386,7 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
 void ftparser_call_deinitializer(MI_INFO *info)
 {
   uint i, j, keys= info->s->state.header.keys;
+  free_root(&info->ft_memroot, MYF(0));
   if (! info->ftparser_param)
     return;
   for (i= 0; i < keys; i++)
