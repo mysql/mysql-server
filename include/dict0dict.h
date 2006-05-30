@@ -163,6 +163,13 @@ dict_table_autoinc_update(
 	dict_table_t*	table,	/* in: table */
 	ib_longlong	value);	/* in: value which was assigned to a row */
 /**************************************************************************
+Adds system columns to a table object. */
+
+void
+dict_table_add_system_columns(
+/*==========================*/
+	dict_table_t*	table);	/* in/out: table */
+/**************************************************************************
 Adds a table object to the dictionary cache. */
 
 void

@@ -1961,20 +1961,44 @@ buf_page_io_complete(
 	if (io_type == BUF_IO_READ) {
 		ulint	read_page_no;
 		ulint	read_space_id;
+		byte*	frame;
 
 		if (block->page_zip.size) {
 			ut_a(block->space);
 
-			switch (fil_page_get_type(block->page_zip.data)) {
+			frame = block->page_zip.data;
+
+			switch (fil_page_get_type(frame)) {
 			case FIL_PAGE_INDEX:
+				if (block->frame) {
+					if (!page_zip_decompress(
+							&block->page_zip,
+							block->frame)) {
+						goto corrupt;
+					}
+				}
+				break;
+			case FIL_PAGE_INODE:
+			case FIL_PAGE_IBUF_BITMAP:
+			case FIL_PAGE_TYPE_FSP_HDR:
+			case FIL_PAGE_TYPE_XDES:
 			case FIL_PAGE_TYPE_ZBLOB:
-				/* TODO: checksum, but do not decompress */
+				/* Copy to uncompressed storage. */
+				memcpy(block->frame, frame,
+						block->page_zip.size);
+				break;
+			case 0:
+				/* uninitialized page */
 				break;
 			default:
-				/* TODO: how to distinguish uncompressed
-				and compressed pages? */
-				break;
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+			"InnoDB: unknown compressed page type %lu\n",
+					fil_page_get_type(frame));
+				goto corrupt;
 			}
+		} else {
+			frame = block->frame;
 		}
 
 		/* If this page is not uninitialized and not in the
@@ -2013,22 +2037,19 @@ buf_page_io_complete(
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
-		if (buf_page_is_corrupted(block->frame/* TODO */,
-					block->page_zip.size)) {
+		if (buf_page_is_corrupted(frame, block->page_zip.size)) {
+corrupt:
 			fprintf(stderr,
 		"InnoDB: Database page corruption on disk or a failed\n"
-		"InnoDB: file read of page %lu.\n", (ulong) block->offset);
-
-			fputs(
-		"InnoDB: You may have to recover from a backup.\n", stderr);
-
-			buf_page_print(block->frame, block->page_zip.size);
-
+		"InnoDB: file read of page %lu.\n"
+		"InnoDB: You may have to recover from a backup.\n",
+				(ulong) block->offset);
+			buf_page_print(frame, block->page_zip.size);
 			fprintf(stderr,
 		"InnoDB: Database page corruption on disk or a failed\n"
-		"InnoDB: file read of page %lu.\n", (ulong) block->offset);
-			fputs(
-		"InnoDB: You may have to recover from a backup.\n", stderr);
+		"InnoDB: file read of page %lu.\n"
+		"InnoDB: You may have to recover from a backup.\n",
+				(ulong) block->offset);
 			fputs(
 		"InnoDB: It is also possible that your operating\n"
 		"InnoDB: system has corrupted its own file cache\n"

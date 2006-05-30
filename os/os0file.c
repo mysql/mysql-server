@@ -3943,7 +3943,8 @@ consecutive_loop:
 
 	/* Do the i/o with ordinary, synchronous i/o functions: */
 	if (slot->type == OS_FILE_WRITE) {
-		if (array == os_aio_write_array /* TODO: && !page_zip */) {
+#if 0 /* TODO: && !page_zip */
+		if (array == os_aio_write_array) {
 			if ((total_len % UNIV_PAGE_SIZE != 0)
 				|| (slot->offset % UNIV_PAGE_SIZE != 0)) {
 				fprintf(stderr,
@@ -3955,13 +3956,14 @@ consecutive_loop:
 			}
 			os_file_check_page_trailers(combined_buf, total_len);
 		}
-
+#endif
 		ret = os_file_write(slot->name, slot->file, combined_buf,
 				slot->offset, slot->offset_high, total_len);
-
-		if (array == os_aio_write_array /* TODO: && !page_zip */) {
+#if 0 /* TODO: && !page_zip */
+		if (array == os_aio_write_array) {
 			os_file_check_page_trailers(combined_buf, total_len);
 		}
+#endif
 	} else {
 		ret = os_file_read(slot->file, combined_buf,
 				slot->offset, slot->offset_high, total_len);

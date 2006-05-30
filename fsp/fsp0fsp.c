@@ -890,7 +890,7 @@ fsp_header_init(
 
 	mtr_x_lock(fil_space_get_latch(space), mtr);
 
-	page = buf_page_create(space, 0, 0/* TODO: zip_size!=16k? */, mtr);
+	page = buf_page_create(space, 0, zip_size, mtr);
 	buf_page_get(space, 0, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_FSP_PAGE);
@@ -1218,6 +1218,7 @@ fsp_fill_free_list(
 {
 	ulint	limit;
 	ulint	size;
+	ulint	zip_size;
 	xdes_t*	descr;
 	ulint	count		= 0;
 	ulint	frag_n_used;
@@ -1232,6 +1233,8 @@ fsp_fill_free_list(
 	/* Check if we can fill free list from above the free list limit */
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 	limit = mtr_read_ulint(header + FSP_FREE_LIMIT, MLOG_4BYTES, mtr);
+
+	zip_size = mach_read_from_4(FSP_PAGE_ZIP_SIZE + header);
 
 	if (space == 0 && srv_auto_extend_last_data_file
 			&& size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
@@ -1272,8 +1275,8 @@ fsp_fill_free_list(
 			pages should be ignored. */
 
 			if (i > 0) {
-				/* TODO: zip_size != 16384 */
-				descr_page = buf_page_create(space, i, 0, mtr);
+				descr_page = buf_page_create(
+						space, i, zip_size, mtr);
 				buf_page_get(space, i, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 				buf_page_dbg_add_level(descr_page,
@@ -1291,10 +1294,9 @@ fsp_fill_free_list(
 
 			mtr_start(&ibuf_mtr);
 
-			/* TODO: no ibuf on compressed tablespaces */
 			ibuf_page = buf_page_create(space,
 					i + FSP_IBUF_BITMAP_OFFSET,
-					0, &ibuf_mtr);
+					zip_size, &ibuf_mtr);
 			buf_page_get(space, i + FSP_IBUF_BITMAP_OFFSET,
 							RW_X_LATCH, &ibuf_mtr);
 #ifdef UNIV_SYNC_DEBUG

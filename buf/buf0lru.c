@@ -424,7 +424,7 @@ loop:
 			}
 
 			if (zip_size) {
-				/* TODO: allocate this from a separate pool */
+				/* TODO: allocate zip from an aligned pool */
 				block->page_zip.data = ut_malloc(zip_size);
 			} else {
 				block->page_zip.data = NULL;
