@@ -235,13 +235,14 @@ struct st_myisam_info {
   /* accumulate indexfile changes between write's */
   TREE	        *bulk_insert;
   DYNAMIC_ARRAY *ft1_to_ft2;            /* used only in ft1->ft2 conversion */
-  MYSQL_FTPARSER_PARAM *ftparser_param; /* share info between init/deinit  */
-  char *filename;			/* parameter to open filename */
-  uchar *buff,				/* Temp area for key */
-	*lastkey,*lastkey2;		/* Last used search key */
-  uchar *first_mbr_key;			/* Searhed spatial key */ 
-  byte	*rec_buff;			/* Tempbuff for recordpack */
-  uchar *int_keypos,			/* Save position for next/previous */
+  MEM_ROOT      ft_memroot;             /* used by the parser               */
+  MYSQL_FTPARSER_PARAM *ftparser_param; /* share info between init/deinit   */
+  char *filename;			/* parameter to open filename       */
+  uchar *buff,				/* Temp area for key                */
+	*lastkey,*lastkey2;		/* Last used search key             */
+  uchar *first_mbr_key;			/* Searhed spatial key              */
+  byte	*rec_buff;			/* Tempbuff for recordpack          */
+  uchar *int_keypos,			/* Save position for next/previous  */
         *int_maxpos;			/*  -""-  */
   uint  int_nod_flag;			/*  -""-  */
   uint32 int_keytree_version;		/*  -""-  */
@@ -325,6 +326,7 @@ typedef struct st_mi_sort_param
   uchar **sort_keys;
   byte *rec_buff;
   void *wordlist, *wordptr;
+  MEM_ROOT wordroot;
   char *record;
   MY_TMPDIR *tmpdir;
   int (*key_cmp)(struct st_mi_sort_param *, const void *, const void *);

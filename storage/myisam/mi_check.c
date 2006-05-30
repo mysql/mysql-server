@@ -2117,6 +2117,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     my_seek(param->read_cache.file,0L,MY_SEEK_END,MYF(0));
 
   sort_param.wordlist=NULL;
+  init_alloc_root(&sort_param.wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
 
   if (share->data_file_type == DYNAMIC_RECORD)
     length=max(share->base.min_pack_length+1,share->base.min_block_length);
@@ -2179,12 +2180,36 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     {
       uint ft_max_word_len_for_sort=FT_MAX_WORD_LEN_FOR_SORT*
                                     sort_param.keyinfo->seg->charset->mbmaxlen;
-      sort_info.max_records=
-        (ha_rows) (sort_info.filelength/ft_min_word_len+1);
+      sort_param.key_length+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
+      /*
+        fulltext indexes may have much more entries than the
+        number of rows in the table. We estimate the number here.
+
+        Note, built-in parser is always nr. 0 - see ftparser_call_initializer()
+      */
+      if (sort_param.keyinfo->ftparser_nr == 0)
+      {
+        /*
+          for built-in parser the number of generated index entries
+          cannot be larger than the size of the data file divided
+          by the minimal word's length
+        */
+        sort_info.max_records=
+          (ha_rows) (sort_info.filelength/ft_min_word_len+1);
+      }
+      else
+      {
+        /*
+          for external plugin parser we cannot tell anything at all :(
+          so, we'll use all the sort memory and start from ~10 buffpeks.
+          (see _create_index_by_sort)
+        */
+        sort_info.max_records=
+          10*param->sort_buffer_length/sort_param.key_length;
+      }
 
       sort_param.key_read=sort_ft_key_read;
       sort_param.key_write=sort_ft_key_write;
-      sort_param.key_length+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
     }
     else
     {
@@ -2200,6 +2225,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       goto err;
     }
     param->calc_checksum=0;			/* No need to calc glob_crc */
+    free_root(&sort_param.wordroot, MYF(0));
 
     /* Set for next loop */
     sort_info.max_records= (ha_rows) info->state->records;
@@ -2589,6 +2615,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
       uint ft_max_word_len_for_sort=FT_MAX_WORD_LEN_FOR_SORT*
                                     sort_param[i].keyinfo->seg->charset->mbmaxlen;
       sort_param[i].key_length+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
+      init_alloc_root(&sort_param[i].wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
     }
   }
   sort_info.total_keys=i;
@@ -2810,10 +2837,11 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
   {
     for (;;)
     {
-      my_free((char*) wptr, MYF(MY_ALLOW_ZERO_PTR));
+      free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
       if ((error=sort_get_next_record(sort_param)))
         DBUG_RETURN(error);
-      if (!(wptr=_mi_ft_parserecord(info,sort_param->key,sort_param->record)))
+      if (!(wptr=_mi_ft_parserecord(info,sort_param->key,sort_param->record,
+                                    &sort_param->wordroot)))
         DBUG_RETURN(1);
       if (wptr->pos)
         break;
@@ -2837,7 +2865,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
 #endif
   if (!wptr->pos)
   {
-    my_free((char*) sort_param->wordlist, MYF(0));
+    free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
     sort_param->wordlist=0;
     error=sort_write_record(sort_param);
   }
