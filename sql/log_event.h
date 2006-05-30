@@ -1221,9 +1221,6 @@ class Xid_log_event: public Log_event
   bool write(IO_CACHE* file);
 #endif
   bool is_valid() const { return 1; }
-#if !defined(DBUG_OFF) && !defined(MYSQL_CLIENT)
-  static my_bool show_xid;
-#endif
 };
 
 /*****************************************************************************
