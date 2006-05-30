@@ -2633,7 +2633,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
     if ((pos= find_type(&table->keynames, name->ptr(), name->length(), 1)) <=
 	0)
     {
-      my_error(ER_INDEX_DOES_NOT_EXIST, MYF(0), name->c_ptr(),
+      my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
 	       table->real_name);
       map->set_all();
       return 1;

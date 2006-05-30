@@ -1295,9 +1295,9 @@ explain select fld3 from t2 use index (fld1,fld3) where fld3 = 'honeysuckle';
 # The next should give an error
 #
 
--- error 1303
+-- error 1176
 explain select fld3 from t2 ignore index (fld3,not_used);
--- error 1303
+-- error 1176
 explain select fld3 from t2 use index (not_used);
 
 #
@@ -2256,9 +2256,9 @@ CREATE TABLE t1 (a int, INDEX idx(a));
 INSERT INTO t1 VALUES (2), (3), (1);
 
 EXPLAIN SELECT * FROM t1 IGNORE INDEX (idx);
---error 1303
+--error 1176
 EXPLAIN SELECT * FROM t1 IGNORE INDEX (a);
---error 1303
+--error 1176
 EXPLAIN SELECT * FROM t1 FORCE INDEX (a);
 
 DROP TABLE t1;
