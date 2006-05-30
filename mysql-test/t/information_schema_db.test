@@ -1,16 +1,25 @@
 -- source include/testdb_only.inc
 
+--disable_warnings
+drop table if exists t1,t2;
+drop view if exists v1,v2;
+drop function if exists f1;
+drop function if exists f2;
+--enable_warnings
+
 use INFORMATION_SCHEMA;
 --replace_result Tables_in_INFORMATION_SCHEMA Tables_in_information_schema
 show tables;
 --replace_result 'Tables_in_INFORMATION_SCHEMA (T%)' 'Tables_in_information_schema (T%)'
 show tables from INFORMATION_SCHEMA like 'T%';
 create database `inf%`;
+create database mbase;
 use `inf%`;
 show tables;
 
 #
 # Bug#18113 SELECT * FROM information_schema.xxx crashes server
+# Bug#17204 second CALL to procedure crashes Server
 # Crash happened when one selected data from one of INFORMATION_SCHEMA
 # tables and in order to build its contents server had to open view which
 # used stored function and table or view on which one had not global or
@@ -18,6 +27,7 @@ show tables;
 # privileges at all).
 #
 grant all privileges on `inf%`.* to 'mysqltest_1'@'localhost';
+grant all privileges on `mbase`.* to 'mysqltest_1'@'localhost';
 create table t1 (f1 int);
 delimiter |;
 create function func1(curr_int int) returns int
@@ -28,15 +38,63 @@ begin
 end|
 delimiter ;|
 create view v1 as select f1 from t1 where f1 = func1(f1);
+create function func2() returns int return 1;
+
+use mbase;
+delimiter |;
+create procedure p1 ()
+begin
+select table_name from information_schema.key_column_usage
+order by table_name;
+end|
+delimiter ;|
+
+create table t1 
+(f1 int(10) unsigned not null,
+ f2 varchar(100) not null,
+ primary key (f1), unique key (f2));
+
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
 --disable_result_log
 select * from information_schema.tables;
+call mbase.p1();
+call mbase.p1();
+call mbase.p1();
 --enable_result_log
+
 connection default;
+use `inf%`;
 drop user mysqltest_1@localhost;
+drop table t1;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='inf%' and func2();
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='inf%' and func2();
 drop view v1;
 drop function func1;
-drop table t1;
+drop function func2;
 
 drop database `inf%`;
+drop procedure mbase.p1;
+drop database mbase;
+
+#
+# Bug#18282 INFORMATION_SCHEMA.TABLES provides inconsistent info about invalid views
+#
+use test;
+create table t1 (i int);
+create function f1 () returns int return (select max(i) from t1);
+create view v1 as select f1();
+create table t2 (id int);
+create function f2 () returns int return (select max(i) from t2);
+create view v2 as select f2();
+drop table t2;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='test';
+drop table t1;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='test';
+drop function f1;
+drop function f2;
+drop view v1, v2;
