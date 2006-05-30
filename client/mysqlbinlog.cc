@@ -71,6 +71,7 @@ static int port= 0;
 static const char* sock= 0;
 static const char* user = 0;
 static char* pass = 0;
+static char *charset= 0;
 
 static ulonglong start_position, stop_position;
 #define start_position_mot ((my_off_t)start_position)
@@ -707,6 +708,9 @@ static struct my_option my_long_options[] =
    "Used to reserve file descriptors for usage by this program",
    (gptr*) &open_files_limit, (gptr*) &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
+  {"set-charset", OPT_SET_CHARSET,
+   "Add 'SET NAMES character_set' to the output.", (gptr*) &charset,
+   (gptr*) &charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"short-form", 's', "Just show the queries, no extra info.",
    (gptr*) &short_form, (gptr*) &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -1430,6 +1434,13 @@ int main(int argc, char** argv)
           "/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,"
           "COMPLETION_TYPE=0*/;\n");
 
+  if (charset)
+    fprintf(result_file,
+            "\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;"
+            "\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;"
+            "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"  
+            "\n/*!40101 SET NAMES %s */;\n", charset);
+
   for (save_stop_position= stop_position, stop_position= ~(my_off_t)0 ;
        (--argc >= 0) && !stop_passed ; )
   {
@@ -1453,6 +1464,12 @@ int main(int argc, char** argv)
           "/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;\n");
   if (disable_log_bin)
     fprintf(result_file, "/*!32316 SET SQL_LOG_BIN=@OLD_SQL_LOG_BIN*/;\n");
+
+  if (charset)
+    fprintf(result_file,
+            "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n"
+            "/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n"
+            "/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
 
   if (tmpdir.list)
     free_tmpdir(&tmpdir);
