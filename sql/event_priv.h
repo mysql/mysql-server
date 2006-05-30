@@ -33,7 +33,6 @@ my_time_compare(TIME *a, TIME *b);
 int
 evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
                           const LEX_STRING ev_name,
-                          const LEX_STRING user_name,
                           TABLE *table);
 
 int
@@ -43,8 +42,8 @@ int
 db_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
               uint *rows_affected);
 int
-db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, Event_timed **ett,
-              TABLE *tbl, MEM_ROOT *root);
+db_find_event(THD *thd, sp_name *name, Event_timed **ett, TABLE *tbl,
+              MEM_ROOT *root);
 
 int
 db_create_event(THD *thd, Event_timed *et, my_bool create_if_not,

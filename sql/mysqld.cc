@@ -1024,7 +1024,20 @@ void kill_mysql(void)
   DBUG_VOID_RETURN;
 }
 
-	/* Force server down. kill all connections and threads and exit */
+/*
+  Force server down. Kill all connections and threads and exit
+
+  SYNOPSIS
+  kill_server
+
+  sig_ptr       Signal number that caused kill_server to be called.
+
+  NOTE!
+    A signal number of 0 mean that the function was not called
+    from a signal handler and there is thus no signal to block
+    or stop, we just want to kill the server.
+
+*/
 
 #if defined(__NETWARE__)
 extern "C" void kill_server(int sig_ptr)
