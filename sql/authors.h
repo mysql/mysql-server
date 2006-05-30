@@ -74,6 +74,7 @@ struct show_table_authors_st show_table_authors[]= {
   { "Nikolay Grishakin", "Austin, TX, USA", "Testing - Server" },
   { "Wei He", "", "Chinese (GBK) character set" },
   { "Eric Herman", "Amsterdam, Netherlands", "Bug fixing - federated" },
+  { "Andrey Hristov", "Walldorf, Germany", "Event scheduler (5.1)" },
   { "Alexander (Alexi) Ivanov", "St. Petersburg, Russia", "Replication" },
   { "Alexander (Salle) Keremidarski", "Sofia, Bulgaria",
     "Bug fixing" },
