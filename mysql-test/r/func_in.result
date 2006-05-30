@@ -212,12 +212,20 @@ select f2 from t1 where f2 in (1,'z');
 f2
 0
 1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'z'
 select f1 from t1 where 'z' in (1,f1);
 f1
 z
 select * from t1 where 'z' in (f2,f1);
 f1	f2
+1	0
+a	1
 z	2
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'z'
+Warning	1292	Truncated incorrect DOUBLE value: 'z'
+Warning	1292	Truncated incorrect DOUBLE value: 'z'
 select * from t1 where 1 in (f2,f1);
 f1	f2
 1	0
