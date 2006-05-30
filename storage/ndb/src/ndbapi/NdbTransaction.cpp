@@ -32,6 +32,8 @@
 #include <signaldata/TcKeyFailConf.hpp>
 #include <signaldata/TcHbRep.hpp>
 
+Uint64 g_latest_trans_gci = 0;
+
 /*****************************************************************************
 NdbTransaction( Ndb* aNdb );
 
@@ -1568,6 +1570,9 @@ NdbTransaction::receiveTC_COMMITCONF(const TcCommitConf * commitConf)
     theCommitStatus = Committed;
     theCompletionStatus = CompletedSuccess;
     theGlobalCheckpointId = commitConf->gci;
+    // theGlobalCheckpointId == 0 if NoOp transaction
+    if (theGlobalCheckpointId)
+      g_latest_trans_gci = theGlobalCheckpointId;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1746,6 +1751,8 @@ from other transactions.
     if (tCommitFlag == 1) {
       theCommitStatus = Committed;
       theGlobalCheckpointId = tGCI;
+      assert(tGCI);
+      g_latest_trans_gci = tGCI;
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
 
@@ -1922,6 +1929,8 @@ NdbTransaction::receiveTCINDXCONF(const TcIndxConf * indxConf,
     if (tCommitFlag == 1) {
       theCommitStatus = Committed;
       theGlobalCheckpointId = tGCI;
+      assert(tGCI);
+      g_latest_trans_gci = tGCI;
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
       /**********************************************************************/
