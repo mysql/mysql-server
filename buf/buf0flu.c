@@ -365,8 +365,22 @@ flush:
 
 	for (i = 0; i < trx_doublewrite->first_free; i++) {
 		block = trx_doublewrite->buf_block_arr[i];
-		if (UNIV_LIKELY(!block->page_zip.data) && UNIV_UNLIKELY(
-				memcmp(block->frame + (FIL_PAGE_LSN + 4),
+		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+		if (UNIV_UNLIKELY(block->page_zip.size)) {
+			ulint	blk_size
+				= UNIV_PAGE_SIZE / block->page_zip.size;
+
+			fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
+					FALSE, block->space,
+					block->offset / blk_size,
+					(block->offset % blk_size)
+					* block->page_zip.size,
+					block->page_zip.size,
+					(void*)block->page_zip.data,
+					(void*)block);
+			continue;
+		} else if (UNIV_UNLIKELY(memcmp(
+				block->frame + (FIL_PAGE_LSN + 4),
 				block->frame + (UNIV_PAGE_SIZE
 				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
 			ut_print_timestamp(stderr);
@@ -379,7 +393,6 @@ flush:
 				(ulong)block->io_fix,
 				(ulong)block->state);
 		}
-		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 			FALSE, block->space, block->offset, 0, UNIV_PAGE_SIZE,
@@ -417,6 +430,7 @@ buf_flush_post_to_doublewrite_buf(
 /*==============================*/
 	buf_block_t*	block)	/* in: buffer block to write */
 {
+	ulint	zip_size;
 try_again:
 	mutex_enter(&(trx_doublewrite->mutex));
 
@@ -431,10 +445,21 @@ try_again:
 		goto try_again;
 	}
 
-	/* TODO: page_zip */
-	memcpy(trx_doublewrite->write_buf
+	zip_size = block->page_zip.size;
+
+	if (UNIV_UNLIKELY(zip_size)) {
+		/* Copy the compressed page and clear the rest. */
+		memcpy(trx_doublewrite->write_buf
 				+ UNIV_PAGE_SIZE * trx_doublewrite->first_free,
-			block->frame, UNIV_PAGE_SIZE);
+				block->page_zip.data, zip_size);
+		memset(trx_doublewrite->write_buf
+				+ UNIV_PAGE_SIZE * trx_doublewrite->first_free
+				+ zip_size, 0, UNIV_PAGE_SIZE - zip_size);
+	} else {
+		memcpy(trx_doublewrite->write_buf
+				+ UNIV_PAGE_SIZE * trx_doublewrite->first_free,
+				block->frame, UNIV_PAGE_SIZE);
+	}
 
 	trx_doublewrite->buf_block_arr[trx_doublewrite->first_free] = block;
 
@@ -468,9 +493,10 @@ buf_flush_init_for_writing(
 	ulint		zip_size = fil_space_get_zip_size(space);
 
 	if (zip_size && zip_size != ULINT_UNDEFINED) {
+		ut_a(page_zip);
+		ut_a(page_zip->size == zip_size);
 		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
 		case FIL_PAGE_TYPE_ZBLOB:
-			ut_ad(!page_zip);
 			mach_write_to_4(page + FIL_PAGE_OFFSET, page_no);
 			mach_write_to_4(page + FIL_PAGE_ZBLOB_SPACE_ID, space);
 			mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
@@ -484,8 +510,8 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_IBUF_BITMAP:
 		case FIL_PAGE_TYPE_FSP_HDR:
 		case FIL_PAGE_TYPE_XDES:
-			/* This is essentially an uncompressed page. */
-			break;
+			/* These are essentially uncompressed pages. */
+			memcpy(page_zip->data, page, zip_size);
 		case FIL_PAGE_INDEX:
 			ut_a(zip_size == page_zip->size);
 			mach_write_to_4(page

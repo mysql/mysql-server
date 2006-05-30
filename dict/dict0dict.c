@@ -793,29 +793,20 @@ dict_table_get_and_increment_handle_count(
 }
 
 /**************************************************************************
-Adds a table object to the dictionary cache. */
+Adds system columns to a table object. */
 
 void
-dict_table_add_to_cache(
-/*====================*/
-	dict_table_t*	table)	/* in: table */
+dict_table_add_system_columns(
+/*==========================*/
+	dict_table_t*	table)	/* in/out: table */
 {
-	ulint	fold;
-	ulint	id_fold;
-	ulint	i;
-
 	ut_ad(table);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(table->n_def == table->n_cols - DATA_N_SYS_COLS);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-	ut_ad(table->cached == FALSE);
-
-	fold = ut_fold_string(table->name);
-	id_fold = ut_fold_dulint(table->id);
-
-	table->cached = TRUE;
+	ut_ad(!table->cached);
 
 	/* NOTE: the system columns MUST be added in the following order
 	(so that they can be indexed by the numerical value of DATA_ROW_ID,
@@ -849,6 +840,26 @@ dict_table_add_to_cache(
 #if DATA_N_SYS_COLS != 4
 #error "DATA_N_SYS_COLS != 4"
 #endif
+}
+
+/**************************************************************************
+Adds a table object to the dictionary cache. */
+
+void
+dict_table_add_to_cache(
+/*====================*/
+	dict_table_t*	table)	/* in: table */
+{
+	ulint	fold;
+	ulint	id_fold;
+	ulint	i;
+
+	dict_table_add_system_columns(table);
+
+	table->cached = TRUE;
+
+	fold = ut_fold_string(table->name);
+	id_fold = ut_fold_dulint(table->id);
 
 	/* Look for a table with the same name: error if such exists */
 	{

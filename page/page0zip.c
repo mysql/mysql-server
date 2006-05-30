@@ -211,15 +211,13 @@ page_zip_compress_write_log(
 	Subtract 2 for the infimum and supremum records. */
 	trailer_size = page_dir_get_n_heap(page_zip->data) - 2;
 	/* Multiply by uncompressed of size stored per record */
-	if (page_is_leaf(page)) {
-		if (dict_index_is_clust(index)) {
-			trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE
-					+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
-		} else {
-			trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE;
-		}
-	} else {
+	if (!page_is_leaf(page)) {
 		trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE + REC_NODE_PTR_SIZE;
+	} else if (dict_index_is_clust(index)) {
+		trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE
+				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+	} else {
+		trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE;
 	}
 	/* Add the space occupied by BLOB pointers. */
 	trailer_size += page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
@@ -2311,8 +2309,7 @@ page_zip_parse_write_blob_ptr(
 
 	if (UNIV_UNLIKELY(offset < PAGE_ZIP_START)
 			|| UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)
-			|| UNIV_UNLIKELY(z_offset >= UNIV_PAGE_SIZE)
-			|| UNIV_UNLIKELY(!page_zip)) {
+			|| UNIV_UNLIKELY(z_offset >= UNIV_PAGE_SIZE)) {
 corrupt:
 		recv_sys->found_corrupt_log = TRUE;
 
@@ -2320,14 +2317,15 @@ corrupt:
 	}
 
 	if (page) {
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
-		ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
-
-		if (UNIV_UNLIKELY(!page_is_leaf(page))) {
+		if (UNIV_UNLIKELY(!page_zip)
+				|| UNIV_UNLIKELY(!page_is_leaf(page))) {
 
 			goto corrupt;
 		}
+
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+		ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 		memcpy(page + offset,
 				ptr + 4, BTR_EXTERN_FIELD_REF_SIZE);
@@ -2451,8 +2449,7 @@ page_zip_parse_write_node_ptr(
 
 	if (UNIV_UNLIKELY(offset < PAGE_ZIP_START)
 			|| UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)
-			|| UNIV_UNLIKELY(z_offset >= UNIV_PAGE_SIZE)
-			|| UNIV_UNLIKELY(!page_zip)) {
+			|| UNIV_UNLIKELY(z_offset >= UNIV_PAGE_SIZE)) {
 corrupt:
 		recv_sys->found_corrupt_log = TRUE;
 
@@ -2465,14 +2462,15 @@ corrupt:
 		byte*	storage;
 		ulint	heap_no;
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
-		ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
-
-		if (UNIV_UNLIKELY(page_is_leaf(page))) {
+		if (UNIV_UNLIKELY(!page_zip)
+				|| UNIV_UNLIKELY(page_is_leaf(page))) {
 
 			goto corrupt;
 		}
+
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+		ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 		field = page + offset;
 		storage = page_zip->data + z_offset;
@@ -2558,7 +2556,8 @@ page_zip_write_node_ptr(
 		mach_write_to_2(log_ptr, storage - page_zip->data);
 		log_ptr += 2;
 		memcpy(log_ptr, field, REC_NODE_PTR_SIZE);
-		mlog_close(mtr, log_ptr + 6);
+		log_ptr += REC_NODE_PTR_SIZE;
+		mlog_close(mtr, log_ptr);
 	}
 }
 

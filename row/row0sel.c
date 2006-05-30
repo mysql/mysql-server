@@ -2369,7 +2369,7 @@ row_sel_store_row_id_to_prebuilt(
 	data = rec_get_nth_field(index_rec, offsets,
 			dict_index_get_sys_col_pos(index, DATA_ROW_ID), &len);
 
-	if (len != DATA_ROW_ID_LEN) {
+	if (UNIV_UNLIKELY(len != DATA_ROW_ID_LEN)) {
 		fprintf(stderr,
 "InnoDB: Error: Row id field is wrong length %lu in ", (ulong) len);
 		dict_index_name_print(stderr, prebuilt->trx, index);
