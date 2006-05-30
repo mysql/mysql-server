@@ -324,7 +324,7 @@ int
 Event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
 {
   String value;
-  INTERVAL interval;
+  INTERVAL interval_tmp;
 
   DBUG_ENTER("Event_timed::init_interval");
 
@@ -332,71 +332,74 @@ Event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
     DBUG_RETURN(EVEX_PARSE_ERROR);
 
   value.alloc(MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN);
-  if (get_interval_value(expr, new_interval, &value, &interval))
+  if (get_interval_value(expr, new_interval, &value, &interval_tmp))
     DBUG_RETURN(EVEX_PARSE_ERROR);
 
   expression= 0;
 
   switch (new_interval) {
   case INTERVAL_YEAR:
-    expression= interval.year;
+    expression= interval_tmp.year;
     break;
   case INTERVAL_QUARTER:
   case INTERVAL_MONTH:
-    expression= interval.month;
+    expression= interval_tmp.month;
     break;
   case INTERVAL_WEEK:
   case INTERVAL_DAY:
-    expression= interval.day;
+    expression= interval_tmp.day;
     break;
   case INTERVAL_HOUR:
-    expression= interval.hour;
+    expression= interval_tmp.hour;
     break;
   case INTERVAL_MINUTE:
-    expression= interval.minute;
+    expression= interval_tmp.minute;
     break;
   case INTERVAL_SECOND:
-    expression= interval.second;
+    expression= interval_tmp.second;
     break;
   case INTERVAL_YEAR_MONTH:                     // Allow YEAR-MONTH YYYYYMM
-    expression= interval.year* 12 + interval.month;
+    expression= interval_tmp.year* 12 + interval_tmp.month;
     break;
   case INTERVAL_DAY_HOUR:
-    expression= interval.day* 24 + interval.hour;
+    expression= interval_tmp.day* 24 + interval_tmp.hour;
     break;
   case INTERVAL_DAY_MINUTE:
-    expression= (interval.day* 24 + interval.hour) * 60 + interval.minute;
+    expression= (interval_tmp.day* 24 + interval_tmp.hour) * 60 +
+                interval_tmp.minute;
     break;
   case INTERVAL_HOUR_SECOND: /* day is anyway 0 */
   case INTERVAL_DAY_SECOND:
     /* DAY_SECOND having problems because of leap seconds? */
-    expression= ((interval.day* 24 + interval.hour) * 60 + interval.minute)*60
-                 + interval.second;
+    expression= ((interval_tmp.day* 24 + interval_tmp.hour) * 60 +
+                  interval_tmp.minute)*60
+                 + interval_tmp.second;
     break;
   case INTERVAL_MINUTE_MICROSECOND: /* day and hour are 0 */
   case INTERVAL_HOUR_MICROSECOND:   /* day is anyway 0    */
   case INTERVAL_DAY_MICROSECOND:
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
-    expression= ((((interval.day*24) + interval.hour)*60+interval.minute)*60 +
-                interval.second) * 1000000L + interval.second_part;
+    expression= ((((interval_tmp.day*24) + interval_tmp.hour)*60+
+                  interval_tmp.minute)*60 +
+                 interval_tmp.second) * 1000000L + interval_tmp.second_part;
     break;
   case INTERVAL_HOUR_MINUTE:
-    expression= interval.hour * 60 + interval.minute;
+    expression= interval_tmp.hour * 60 + interval_tmp.minute;
     break;
   case INTERVAL_MINUTE_SECOND:
-    expression= interval.minute * 60 + interval.second;
+    expression= interval_tmp.minute * 60 + interval_tmp.second;
     break;
   case INTERVAL_SECOND_MICROSECOND:
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
-    expression= interval.second * 1000000L + interval.second_part;
+    expression= interval_tmp.second * 1000000L + interval_tmp.second_part;
     break;
   case INTERVAL_MICROSECOND:
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);  
   }
-  if (interval.neg || expression > EVEX_MAX_INTERVAL_VALUE)
+  if (interval_tmp.neg || expression > EVEX_MAX_INTERVAL_VALUE)
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
-  this->interval= new_interval;
+  interval= new_interval;
   DBUG_RETURN(0);
 }
 
@@ -961,7 +964,7 @@ Event_timed::compute_next_execution_time()
     }
     goto ret;
   }
-  current_thd->end_time();
+
   my_tz_UTC->gmt_sec_to_TIME(&time_now, current_thd->query_start());
 
   DBUG_PRINT("info",("NOW=[%llu]", TIME_to_ulonglong_datetime(&time_now)));
@@ -975,6 +978,7 @@ Event_timed::compute_next_execution_time()
     execute_at_null= TRUE;
     if (on_completion == Event_timed::ON_COMPLETION_DROP)
       dropped= true;
+    DBUG_PRINT("info", ("Dropped=%d", dropped));
     status= Event_timed::DISABLED;
     status_changed= true;
 
@@ -1225,7 +1229,7 @@ Event_timed::update_fields(THD *thd)
 {
   TABLE *table;
   Open_tables_state backup;
-  int ret= 0;
+  int ret;
 
   DBUG_ENTER("Event_timed::update_time_fields");
 
@@ -1233,7 +1237,7 @@ Event_timed::update_fields(THD *thd)
 
   /* No need to update if nothing has changed */
   if (!(status_changed || last_executed_changed))
-    goto done;
+    DBUG_RETURN(0);
 
   thd->reset_n_backup_open_tables_state(&backup);
 
@@ -1244,7 +1248,7 @@ Event_timed::update_fields(THD *thd)
   }
 
 
-  if ((ret= evex_db_find_event_by_name(thd, dbname, name, definer, table)))
+  if ((ret= evex_db_find_event_by_name(thd, dbname, name, table)))
     goto done;
 
   store_record(table,record[1]);

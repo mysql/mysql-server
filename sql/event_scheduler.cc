@@ -1299,11 +1299,17 @@ Event_scheduler::run(THD *thd)
     /* Skip disabled events */
     if (et->status != Event_timed::ENABLED)
     {
-      sql_print_error("SCHEDULER: Found a disabled event %*s.%*s in the queue",
-                      et->dbname.length, et->dbname.str, et->name.length,
-                      et->name.str);
+      /*
+        It could be a one-timer scheduled for a time, already in the past when the
+        scheduler was suspended.
+      */
+      sql_print_information("SCHEDULER: Found a disabled event %*s.%*s in the queue",
+                            et->dbname.length, et->dbname.str, et->name.length,
+                            et->name.str);
       queue_remove(&queue, 0);
       /* ToDo: check this again */
+      if (et->dropped)
+        et->drop(thd);
       delete et;
       UNLOCK_SCHEDULER_DATA();
       continue;
@@ -1812,7 +1818,10 @@ Event_scheduler::check_n_suspend_if_needed(THD *thd)
       DBUG_PRINT("info", ("We have to recompute the execution times"));
 
       for (i= 0; i < queue.elements; i++)
+      {
         ((Event_timed*)queue_element(&queue, i))->compute_next_execution_time();
+        ((Event_timed*)queue_element(&queue, i))->update_fields(thd);
+      }
       queue_fix(&queue);
     }
     /* This will implicitly unlock LOCK_scheduler_data */
@@ -2057,8 +2066,7 @@ Event_scheduler::load_named_event(THD *thd, Event_timed *etn, Event_timed **etn_
   /* No need to use my_error() here because db_find_event() has done it */
   {
     sp_name spn(etn->dbname, etn->name);
-    ret= db_find_event(thd, &spn, &etn->definer, &et_loaded, NULL,
-                       &scheduler_root);
+    ret= db_find_event(thd, &spn, &et_loaded, NULL, &scheduler_root);
   }
   thd->restore_backup_open_tables_state(&backup);
   /* In this case no memory was allocated so we don't need to clean */
