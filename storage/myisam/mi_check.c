@@ -2180,12 +2180,36 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     {
       uint ft_max_word_len_for_sort=FT_MAX_WORD_LEN_FOR_SORT*
                                     sort_param.keyinfo->seg->charset->mbmaxlen;
-      sort_info.max_records=
-        (ha_rows) (sort_info.filelength/ft_min_word_len+1);
+      sort_param.key_length+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
+      /*
+        fulltext indexes may have much more entries than the
+        number of rows in the table. We estimate the number here.
+
+        Note, built-in parser is always nr. 0 - see ftparser_call_initializer()
+      */
+      if (sort_param.keyinfo->ftparser_nr == 0)
+      {
+        /*
+          for built-in parser the number of generated index entries
+          cannot be larger than the size of the data file divided
+          by the minimal word's length
+        */
+        sort_info.max_records=
+          (ha_rows) (sort_info.filelength/ft_min_word_len+1);
+      }
+      else
+      {
+        /*
+          for external plugin parser we cannot tell anything at all :(
+          so, we'll use all the sort memory and start from ~10 buffpeks.
+          (see _create_index_by_sort)
+        */
+        sort_info.max_records=
+          10*param->sort_buffer_length/sort_param.key_length;
+      }
 
       sort_param.key_read=sort_ft_key_read;
       sort_param.key_write=sort_ft_key_write;
-      sort_param.key_length+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
     }
     else
     {
