@@ -71,7 +71,7 @@ class Transparent_file
    { buff= (byte *) my_malloc(buff_size*sizeof(byte),  MYF(MY_WME)); }
 
    ~Transparent_file()
-   { my_free(buff, MYF(MY_ALLOW_ZERO_PTR)); }
+   { my_free((gptr)buff, MYF(MY_ALLOW_ZERO_PTR)); }
 
    void init_buff(File filedes_arg)
    {
