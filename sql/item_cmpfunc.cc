@@ -76,11 +76,19 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
     field= NULL;
 
   type[0]= items[0]->result_type();
-  for (i= 1; i < nitems; i++)
+  /* Reset to 0 on first occurence of non-const item. 1 otherwise */
+  bool is_const= items[0]->const_item();
+
+  for (i= 1 ; i < nitems ; i++)
   {
-    type[0]= item_cmp_type(type[0], items[i]->result_type());
-    if (field && convert_constant_item(thd, field, &items[i]))
-      type[0]= INT_RESULT;
+    if (!items[i]->const_item())
+    {
+      type[0]= is_const ? items[i]->result_type() :
+                 item_cmp_type(type[0], items[i]->result_type());
+      is_const= 0;
+    }
+    else if (is_const)
+      type[0]= item_cmp_type(type[0], items[i]->result_type());
   }
 }
 
