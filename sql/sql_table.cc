@@ -2240,6 +2240,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         tables can be left opening
       */
       close_thread_tables(thd);
+      lex->reset_query_tables_list(FALSE);
       if (protocol->write())
 	goto err;
       continue;
@@ -2487,6 +2488,7 @@ send_result_message:
       }
     }
     close_thread_tables(thd);
+    lex->reset_query_tables_list(FALSE);
     table->table=0;				// For query cache
     if (protocol->write())
       goto err;
