@@ -718,3 +718,16 @@ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	I
 t1	MEMORY	10	Fixed	0	11	0	#	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	MEMORY	10	Fixed	0	12	0	#	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 drop table t1, t2;
+CREATE TABLE t1(a VARCHAR(1), b VARCHAR(2), c VARCHAR(256),
+KEY(a), KEY(b), KEY(c)) ENGINE=MEMORY;
+INSERT INTO t1 VALUES('a','aa',REPEAT('a', 256)),('a','aa',REPEAT('a',256));
+SELECT COUNT(*) FROM t1 WHERE a='a';
+COUNT(*)
+2
+SELECT COUNT(*) FROM t1 WHERE b='aa';
+COUNT(*)
+2
+SELECT COUNT(*) FROM t1 WHERE c=REPEAT('a',256);
+COUNT(*)
+2
+DROP TABLE t1;
