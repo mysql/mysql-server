@@ -399,7 +399,7 @@ static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
     TRUE        Error
 */
 
-bool federated_db_init()
+int federated_db_init()
 {
   DBUG_ENTER("federated_db_init");
 
