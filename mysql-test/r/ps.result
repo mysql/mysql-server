@@ -1157,3 +1157,4 @@ test.t1	analyze	status	Table is already up to date
 Warnings:
 Error	1146	Table 'test.t4' doesn't exist
 deallocate prepare stmt;
+drop table t1, t2, t3;

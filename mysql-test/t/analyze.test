@@ -61,6 +61,7 @@ prepare stmt1 from "SELECT * FROM t1 PROCEDURE ANALYSE()";
 execute stmt1;
 execute stmt1;
 deallocate prepare stmt1;
+drop table t1;
 
 #
 # bug#15225 (ANALYZE temporary has no effect)
