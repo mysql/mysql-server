@@ -63,3 +63,10 @@ show status like "Qcache_hits";
 drop table t1, t2;
 
 
+# Turn off query cache on server1
+connection server1;
+set GLOBAL query_cache_size=0;
+
+# Turn off query cache on server2
+connection server2;
+set GLOBAL query_cache_size=0;

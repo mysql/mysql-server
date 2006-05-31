@@ -89,5 +89,5 @@ select * from t2;
 
 # cleanup
 connection master;
-drop table t1;
+drop table t1, t2;
 sync_slave_with_master;

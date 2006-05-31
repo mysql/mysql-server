@@ -126,7 +126,7 @@ show slave status;
 show binlog events in 'slave-bin.000005' from 4;
 
 # The table drops caused Cluster Replication wrapper to fail as event ID would never be the same.# Moving drops here.
-
+connection master;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
