@@ -1509,9 +1509,21 @@ NdbTableImpl *
 NdbDictionaryImpl::getIndexTable(NdbIndexImpl * index,
 				 NdbTableImpl * table)
 {
+  const char *current_db= m_ndb.getDatabaseName();
+  NdbTableImpl *index_table;
   const BaseString internalName(
     m_ndb.internalize_index_name(table, index->getName()));
-  return getTable(m_ndb.externalizeTableName(internalName.c_str()));
+  // Get index table in system database
+  m_ndb.setDatabaseName(NDB_SYSTEM_DATABASE);
+  index_table= getTable(m_ndb.externalizeTableName(internalName.c_str()));
+  m_ndb.setDatabaseName(current_db);
+  if (!index_table)
+  {
+    // Index table not found
+    // Try geting index table in current database (old format)
+    index_table= getTable(m_ndb.externalizeTableName(internalName.c_str()));    
+  }
+  return index_table;
 }
 
 #if 0
