@@ -7633,6 +7633,7 @@ void Dblqh::execNEXT_SCANCONF(Signal* signal)
     scanLockReleasedLab(signal);
     break;
   default:
+    ndbout_c("%d", scanptr.p->scanState);
     ndbrequire(false);
   }//switch
 }//Dblqh::execNEXT_SCANCONF()
