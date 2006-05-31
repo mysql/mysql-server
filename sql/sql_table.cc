@@ -6465,7 +6465,7 @@ static bool check_engine(THD *thd, const char *table_name,
     if (create_info->used_fields & HA_CREATE_USED_ENGINE)
     {
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-               hton2plugin[(*new_engine)->slot]->name, "TEMPORARY");
+               hton2plugin[(*new_engine)->slot]->name.str, "TEMPORARY");
       *new_engine= 0;
       return TRUE;
     }

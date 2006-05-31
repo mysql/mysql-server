@@ -48,7 +48,7 @@
    check for dups and to find handlerton from legacy_db_type.
    Remove when legacy_db_type is finally gone */
 static handlerton *installed_htons[128];
-st_mysql_plugin *hton2plugin[MAX_HA];
+st_plugin_int *hton2plugin[MAX_HA];
 
 #define BITMAP_STACKBUF_SIZE (128/8)
 
@@ -102,7 +102,7 @@ handlerton *ha_resolve_by_name(THD *thd, LEX_STRING *name)
 
   if ((plugin= plugin_lock(name, MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
-    handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+    handlerton *hton= (handlerton *)plugin->data;
     if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
       return hton;
     plugin_unlock(plugin);
@@ -135,7 +135,7 @@ const char *ha_get_storage_engine(enum legacy_db_type db_type)
   default:
     if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT &&
         installed_htons[db_type])
-      return hton2plugin[installed_htons[db_type]->slot]->name;
+      return hton2plugin[installed_htons[db_type]->slot]->name.str;
       return "*NONE*";
   }
 }
@@ -351,11 +351,8 @@ static int ha_finish_errors(void)
 
 int ha_finalize_handlerton(st_plugin_int *plugin)
 {
-  handlerton *hton;
+  handlerton *hton= (handlerton *)plugin->data;
   DBUG_ENTER("ha_finalize_handlerton");
-
-  if (!(hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton))
-    DBUG_RETURN(1);
 
   switch (hton->state)
   {
@@ -363,10 +360,10 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
   case SHOW_OPTION_DISABLED:
     break;
   case SHOW_OPTION_YES:
-    if (hton->panic && hton->panic(HA_PANIC_CLOSE))
-      DBUG_RETURN(1);
     if (installed_htons[hton->db_type] == hton)
       installed_htons[hton->db_type]= NULL;
+    if (hton->panic && hton->panic(HA_PANIC_CLOSE))
+      DBUG_RETURN(1);
     break;
   };
   DBUG_RETURN(0);
@@ -376,8 +373,9 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
 int ha_initialize_handlerton(st_plugin_int *plugin)
 {
   handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
-
   DBUG_ENTER("ha_initialize_handlerton");
+
+  plugin->data= hton; // shortcut for the future
 
   /*
     the switch below and hton->state should be removed when
@@ -388,6 +386,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     break;
   case SHOW_OPTION_YES:
     {
+      uint tmp;
       /* now check the db_type for conflict */
       if (hton->db_type <= DB_TYPE_UNKNOWN ||
           hton->db_type >= DB_TYPE_DEFAULT ||
@@ -409,11 +408,11 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         hton->db_type= (enum legacy_db_type) idx;
       }
       installed_htons[hton->db_type]= hton;
-      uint tmp= hton->savepoint_offset;
+      tmp= hton->savepoint_offset;
       hton->savepoint_offset= savepoint_alloc_size;
       savepoint_alloc_size+= tmp;
       hton->slot= total_ha++;
-      hton2plugin[hton->slot]=plugin->plugin;
+      hton2plugin[hton->slot]=plugin;
       if (hton->prepare)
         total_ha_2pc++;
       break;
@@ -445,16 +444,14 @@ int ha_init()
   DBUG_RETURN(error);
 }
 
+/*
+  close, flush or restart databases
+  Ignore this for other databases than ours
+*/
 
-
-
-	/* close, flush or restart databases */
-	/* Ignore this for other databases than ours */
-
-static my_bool panic_handlerton(THD *unused1, st_plugin_int *plugin,
-                               void *arg)
+static my_bool panic_handlerton(THD *unused1, st_plugin_int *plugin, void *arg)
 {
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->panic)
     ((int*)arg)[0]|= hton->panic((enum ha_panic_function)((int*)arg)[1]);
   return FALSE;
@@ -476,7 +473,7 @@ int ha_panic(enum ha_panic_function flag)
 static my_bool dropdb_handlerton(THD *unused1, st_plugin_int *plugin,
                                  void *path)
 {
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->drop_database)
     hton->drop_database((char *)path);
   return FALSE;
@@ -492,9 +489,11 @@ void ha_drop_database(char* path)
 static my_bool closecon_handlerton(THD *thd, st_plugin_int *plugin,
                                    void *unused)
 {
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
-  /* there's no need to rollback here as all transactions must
-     be rolled back already */
+  handlerton *hton= (handlerton *)plugin->data;
+  /*
+    there's no need to rollback here as all transactions must
+    be rolled back already
+  */
   if (hton->state == SHOW_OPTION_YES && hton->close_connection &&
       thd->ha_data[hton->slot])
     hton->close_connection(thd);
@@ -585,7 +584,7 @@ int ha_prepare(THD *thd)
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-                            hton2plugin[(*ht)->slot]->name);
+                            hton2plugin[(*ht)->slot]->name.str);
       }
     }
   }
@@ -824,7 +823,7 @@ struct xahton_st {
 static my_bool xacommit_handlerton(THD *unused1, st_plugin_int *plugin,
                                    void *arg)
 {
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->recover)
   {
     hton->commit_by_xid(((struct xahton_st *)arg)->xid);
@@ -836,7 +835,7 @@ static my_bool xacommit_handlerton(THD *unused1, st_plugin_int *plugin,
 static my_bool xarollback_handlerton(THD *unused1, st_plugin_int *plugin,
                                      void *arg)
 {
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->recover)
   {
     hton->rollback_by_xid(((struct xahton_st *)arg)->xid);
@@ -851,7 +850,7 @@ int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
   struct xahton_st xaop;
   xaop.xid= xid;
   xaop.result= 1;
-  
+
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &xaop);
 
@@ -943,7 +942,7 @@ struct xarecover_st
 static my_bool xarecover_handlerton(THD *unused, st_plugin_int *plugin,
                                     void *arg)
 {
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   struct xarecover_st *info= (struct xarecover_st *) arg;
   int got;
 
@@ -952,7 +951,7 @@ static my_bool xarecover_handlerton(THD *unused, st_plugin_int *plugin,
     while ((got= hton->recover(info->list, info->len)) > 0 )
     {
       sql_print_information("Found %d prepared transaction(s) in %s",
-                            got, hton2plugin[hton->slot]->name);
+                            got, hton2plugin[hton->slot]->name.str);
       for (int i=0; i < got; i ++)
       {
         my_xid x=info->list[i].get_my_xid();
@@ -1132,7 +1131,7 @@ bool mysql_xa_recover(THD *thd)
 static my_bool release_temporary_latches(THD *thd, st_plugin_int *plugin,
                                  void *unused)
 {
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
 
   if (hton->state == SHOW_OPTION_YES && hton->release_temporary_latches)
     hton->release_temporary_latches(thd);
@@ -1257,7 +1256,7 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
 static my_bool snapshot_handlerton(THD *thd, st_plugin_int *plugin,
                                    void *arg)
 {
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES &&
       hton->start_consistent_snapshot)
   {
@@ -1288,7 +1287,7 @@ int ha_start_consistent_snapshot(THD *thd)
 static my_bool flush_handlerton(THD *thd, st_plugin_int *plugin,
                                 void *arg)
 {
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->flush_logs && hton->flush_logs())
     return TRUE;
   return FALSE;
@@ -2599,7 +2598,7 @@ struct binlog_func_st
 static my_bool binlog_func_list(THD *thd, st_plugin_int *plugin, void *arg)
 {
   hton_list_st *hton_list= (hton_list_st *)arg;
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->binlog_func)
   {
     uint sz= hton_list->sz;
@@ -2689,7 +2688,7 @@ static my_bool binlog_log_query_handlerton(THD *thd,
                                            st_plugin_int *plugin,
                                            void *args)
 {
-  return binlog_log_query_handlerton2(thd, (const handlerton *) plugin->plugin->info, args);
+  return binlog_log_query_handlerton2(thd, (const handlerton *)plugin->data, args);
 }
 
 void ha_binlog_log_query(THD *thd, const handlerton *hton,
@@ -2984,7 +2983,7 @@ static my_bool exts_handlerton(THD *unused, st_plugin_int *plugin,
                                void *arg)
 {
   List<char> *found_exts= (List<char> *) arg;
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   handler *file;
   if (hton->state == SHOW_OPTION_YES && hton->create &&
       (file= hton->create((TABLE_SHARE*) 0)))
@@ -3060,7 +3059,7 @@ static my_bool showstat_handlerton(THD *thd, st_plugin_int *plugin,
                                    void *arg)
 {
   enum ha_stat_type stat= *(enum ha_stat_type *) arg;
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->show_status &&
       hton->show_status(thd, stat_print, stat))
     return TRUE;
@@ -3090,8 +3089,8 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   {
     if (db_type->state != SHOW_OPTION_YES)
     {
-      const char *name=hton2plugin[db_type->slot]->name;
-      result= stat_print(thd, name, strlen(name),
+      const LEX_STRING *name=&hton2plugin[db_type->slot]->name;
+      result= stat_print(thd, name->str, name->length,
                          "", 0, "DISABLED", 8) ? 1 : 0;
     }
     else
