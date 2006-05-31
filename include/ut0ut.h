@@ -214,17 +214,19 @@ ut_print_filename(
 	FILE*		f,	/* in: output stream */
 	const char*	name);	/* in: name to print */
 
+/* Forward declaration of transaction handle */
+struct trx_struct;
+
 /**************************************************************************
 Outputs a NUL-terminated string, quoted as an SQL identifier. */
-
-struct trx_struct;
 
 void
 ut_print_name(
 /*==========*/
 	FILE*		f,	/* in: output stream */
 	struct trx_struct*trx,	/* in: transaction */
-	ibool		table_id,/* in: TRUE=decode table name */
+	ibool		table_id,/* in: TRUE=print a table name,
+				FALSE=print other identifier */
 	const char*	name);	/* in: name to print */
 
 /**************************************************************************
@@ -235,7 +237,8 @@ ut_print_namel(
 /*===========*/
 	FILE*		f,	/* in: output stream */
 	struct trx_struct*trx,	/* in: transaction (NULL=no quotes) */
-	ibool		table_id,/* in: TRUE=decode table name */
+	ibool		table_id,/* in: TRUE=print a table name,
+				FALSE=print other identifier */
 	const char*	name,	/* in: name to print */
 	ulint		namelen);/* in: length of name */
 
