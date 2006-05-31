@@ -3,7 +3,9 @@
 #ifndef ysSSL_crypto_h__
 #define yaSSL_crypto_h__
 
+#ifdef YASSL_PREFIX
 #include "prefix_crypto.h"
+#endif
 
 const char* SSLeay_version(int type);
 

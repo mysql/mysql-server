@@ -28,7 +28,10 @@
 #ifndef yaSSL_openssl_h__
 #define yaSSL_openssl_h__
 
+#ifdef YASSL_PREFIX
 #include "prefix_ssl.h"
+#endif
+
 #include <stdio.h>   /* ERR_print fp */
 #include "opensslv.h" /* for version number */
 #include "rsa.h"
