@@ -15,7 +15,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 INCLUDES= @ZLIB_INCLUDES@ -I$(top_srcdir)/include \
-	@openssl_includes@ @yassl_includes@ -I$(top_builddir)/include
+	@openssl_includes@ -I$(top_builddir)/include
 
 DEFS= -DMYSQL_INSTANCE_MANAGER -DMYSQL_SERVER
 
