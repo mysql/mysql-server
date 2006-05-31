@@ -1242,11 +1242,12 @@ runInsertError2(NDBT_Context* ctx, NDBT_Step* step){
     CHECK(hugoOp1.pkInsertRecord(pNdb, 1) == 0);
     CHECK(hugoOp1.pkDeleteRecord(pNdb, 1) == 0);
     
-    CHECK(hugoOp1.execute_NoCommit(pNdb) == 0);
+    hugoOp1.execute_NoCommit(pNdb);
     CHECK(hugoOp1.closeTransaction(pNdb) == 0);
   }
   
   restarter.insertErrorInAllNodes(0);
+  return NDBT_OK;
 }
   
 NDBT_TESTSUITE(testBasic);
