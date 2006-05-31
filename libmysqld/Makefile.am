@@ -29,7 +29,7 @@ INCLUDES=		@bdb_includes@ \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_srcdir)/sql -I$(top_srcdir)/sql/examples \
 			-I$(top_srcdir)/regex \
-			$(openssl_includes) $(yassl_includes) @ZLIB_INCLUDES@
+			$(openssl_includes) @ZLIB_INCLUDES@
 
 noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a
@@ -81,7 +81,7 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/strings/libmystrings.a \
 		$(top_builddir)/dbug/libdbug.a \
 		$(top_builddir)/vio/libvio.a
-		
+
 
 #
 # To make it easy for the end user to use the embedded library we
