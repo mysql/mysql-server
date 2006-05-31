@@ -1635,6 +1635,8 @@ public:
 #endif
 char *str_to_hex(char *to, const char *from, uint len);
 
+#ifdef HAVE_ROW_BASED_REPLICATION
+
 /*****************************************************************************
 
   Table map log event class
@@ -1643,7 +1645,6 @@ char *str_to_hex(char *to, const char *from, uint len);
   identifier (an integer number).
 
  ****************************************************************************/
-
 class Table_map_log_event : public Log_event
 {
 public:
@@ -1749,6 +1750,7 @@ private:
    - Provide an interface for adding an individual row to the event.
 
  ****************************************************************************/
+
 
 class Rows_log_event : public Log_event
 {
@@ -2121,5 +2123,6 @@ private:
 #endif
 };
 
+#endif /* HAVE_ROW_BASED_REPLICATION */
 
 #endif /* _log_event_h */
