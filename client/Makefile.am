@@ -25,7 +25,7 @@ endif
 INCLUDES =			-I$(top_builddir)/include \
 				-I$(top_srcdir)/include \
 				-I$(top_srcdir)/regex \
-                                $(openssl_includes) $(yassl_includes) 
+                                $(openssl_includes)
 LIBS =				@CLIENT_LIBS@
 LDADD=				@CLIENT_EXTRA_LDFLAGS@ \
                                 $(top_builddir)/libmysql/libmysqlclient.la
@@ -69,7 +69,7 @@ link_sources:
          done; \
          rm -f $(srcdir)/my_user.c; \
          @LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c;
-	
+
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
