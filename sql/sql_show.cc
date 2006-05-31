@@ -55,12 +55,13 @@ static my_bool show_handlerton(THD *thd, st_plugin_int *plugin,
 {
   handlerton *default_type= (handlerton *) arg;
   Protocol *protocol= thd->protocol;
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
 
   if (!(hton->flags & HTON_HIDDEN))
   {
     protocol->prepare_for_resend();
-    protocol->store(plugin->plugin->name, system_charset_info);
+    protocol->store(plugin->name.str, plugin->name.length,
+                    system_charset_info);
     const char *option_name= show_comp_option_name[(int) hton->state];
 
     if (hton->state == SHOW_OPTION_YES && default_type == hton)
@@ -3091,7 +3092,7 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
                                    void *ptable)
 {
   TABLE *table= (TABLE *) ptable;
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
   DBUG_ENTER("iter_schema_engines");
@@ -3099,7 +3100,7 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
   if (!(hton->flags & HTON_HIDDEN))
   {
     if (!(wild && wild[0] &&
-          wild_case_compare(scs, plugin->plugin->name,wild)))
+          wild_case_compare(scs, plugin->name.str,wild)))
     {
       LEX_STRING state[2]={{STRING_WITH_LEN("ENABLED")},
                            {STRING_WITH_LEN("DISABLED")}};
@@ -3107,8 +3108,7 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
       LEX_STRING *tmp;
       restore_record(table, s->default_values);
 
-      table->field[0]->store(plugin->plugin->name,
-                             strlen(plugin->plugin->name), scs);
+      table->field[0]->store(plugin->name.str, plugin->name.length, scs);
       tmp= &state[test(hton->state)];
       table->field[1]->store(tmp->str, tmp->length, scs);
       table->field[2]->store(plugin->plugin->descr,
@@ -5008,7 +5008,7 @@ static my_bool run_hton_fill_schema_files(THD *thd, st_plugin_int *plugin,
 {
   struct run_hton_fill_schema_files_args *args=
     (run_hton_fill_schema_files_args *) arg;
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton= (handlerton *)plugin->data;
   if(hton->fill_files_table)
     hton->fill_files_table(thd, args->tables, args->cond);
   return false;

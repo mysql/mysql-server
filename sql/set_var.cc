@@ -3307,7 +3307,7 @@ byte *sys_var_thd_storage_engine::value_ptr(THD *thd, enum_var_type type,
   handlerton *val;
   val= (type == OPT_GLOBAL) ? global_system_variables.*offset :
         thd->variables.*offset;
-  return (byte *) hton2plugin[val->slot]->name;
+  return (byte *) hton2plugin[val->slot]->name.str;
 }
 
 

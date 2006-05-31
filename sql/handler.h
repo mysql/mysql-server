@@ -461,7 +461,7 @@ typedef bool (stat_print_fn)(THD *thd, const char *type, uint type_len,
                              const char *file, uint file_len,
                              const char *status, uint status_len);
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
-extern st_mysql_plugin *hton2plugin[MAX_HA];
+extern st_plugin_int *hton2plugin[MAX_HA];
 
 /*
   handlerton is a singleton structure - one instance per storage engine -
@@ -1530,7 +1530,7 @@ static inline enum legacy_db_type ha_legacy_type(const handlerton *db_type)
 
 static inline const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 {
-  return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name;
+  return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name.str;
 }
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
