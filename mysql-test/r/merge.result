@@ -776,3 +776,9 @@ insert into t1 values ("Monty"),("WAX"),("Walrus");
 alter table t1 engine=MERGE;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 drop table t1;
+create table t1 (b bit(1));
+create table t2 (b bit(1));
+create table tm (b bit(1)) engine = merge union = (t1,t2);
+select * from tm;
+b
+drop table tm, t1, t2;
