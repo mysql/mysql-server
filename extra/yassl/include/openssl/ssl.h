@@ -377,11 +377,9 @@ char* SSL_state_string_long(SSL*);
 
 
 /* EVP stuff, des and md5, different file? */
-typedef struct Digest Digest;
-typedef Digest EVP_MD;
+typedef char EVP_MD;
 
-typedef struct BulkCipher BulkCipher;
-typedef BulkCipher EVP_CIPHER;
+typedef char EVP_CIPHER;
 
 typedef struct EVP_PKEY EVP_PKEY;
 

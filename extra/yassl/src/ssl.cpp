@@ -811,25 +811,34 @@ const char* X509_verify_cert_error_string(long /* error */)
 
 const EVP_MD* EVP_md5(void)
 {
-    return GetCryptProvider().NewMd5();
+    static const char* type = "MD5";
+    return type;
 }
 
 
 const EVP_CIPHER* EVP_des_ede3_cbc(void)
 {
-    return GetCryptProvider().NewDesEde();
+    static const char* type = "DES_EDE3_CBC";
+    return type;
 }
 
 
 int EVP_BytesToKey(const EVP_CIPHER* type, const EVP_MD* md, const byte* salt,
                    const byte* data, int sz, int count, byte* key, byte* iv)
 {
-    EVP_MD* myMD = const_cast<EVP_MD*>(md);
-    uint digestSz = myMD->get_digestSize();
+    // only support MD5 for now
+    if (strncmp(md, "MD5", 3)) return 0;
+
+    // only support DES_EDE3_CBC for now
+    if (strncmp(type, "DES_EDE3_CBC", 12)) return 0; 
+
+    yaSSL::MD5 myMD;
+    uint digestSz = myMD.get_digestSize();
     byte digest[SHA_LEN];                   // max size
 
-    int keyLen    = type->get_keySize();
-    int ivLen     = type->get_ivSize();
+    yaSSL::DES_EDE cipher;
+    int keyLen    = cipher.get_keySize();
+    int ivLen     = cipher.get_ivSize();
     int keyLeft   = keyLen;
     int ivLeft    = ivLen;
     int keyOutput = 0;
@@ -838,17 +847,17 @@ int EVP_BytesToKey(const EVP_CIPHER* type, const EVP_MD* md, const byte* salt,
         int digestLeft = digestSz;
         // D_(i - 1)
         if (keyOutput)                      // first time D_0 is empty
-            myMD->update(digest, digestSz);
+            myMD.update(digest, digestSz);
         // data
-        myMD->update(data, sz);
+        myMD.update(data, sz);
         // salt
         if (salt)
-            myMD->update(salt, EVP_SALT_SZ);
-        myMD->get_digest(digest);
+            myMD.update(salt, EVP_SALT_SZ);
+        myMD.get_digest(digest);
         // count
         for (int j = 1; j < count; j++) {
-            myMD->update(digest, digestSz);
-            myMD->get_digest(digest);
+            myMD.update(digest, digestSz);
+            myMD.get_digest(digest);
         }
 
         if (keyLeft) {
