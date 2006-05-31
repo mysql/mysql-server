@@ -1223,11 +1223,9 @@ trx_sig_is_compatible(
 /********************************************************************
 Sends a signal to a trx object. */
 
-ibool
+void
 trx_sig_send(
 /*=========*/
-					/* out: TRUE if the signal was
-					successfully delivered */
 	trx_t*		trx,		/* in: trx handle */
 	ulint		type,		/* in: signal type */
 	ulint		sender,		/* in: TRX_SIG_SELF or
@@ -1254,11 +1252,9 @@ trx_sig_send(
 
 	if (!trx_sig_is_compatible(trx, type, sender)) {
 		/* The signal is not compatible with the other signals in
-		the queue: do nothing */
+		the queue: die */
 
 		ut_error;
-
-		return(FALSE);
 	}
 
 	/* Queue the signal object */
@@ -1299,11 +1295,6 @@ trx_sig_send(
 	}
 
 	if ((sender != TRX_SIG_SELF) || (type == TRX_SIG_BREAK_EXECUTION)) {
-
-		/* The following call will add a TRX_SIG_ERROR_OCCURRED
-		signal to the end of the queue, if the session is not yet
-		in the error state: */
-
 		ut_error;
 	}
 
@@ -1314,8 +1305,6 @@ trx_sig_send(
 
 		trx_sig_start_handle(trx, next_thr);
 	}
-
-	return(TRUE);
 }
 
 /********************************************************************
@@ -1541,7 +1530,6 @@ trx_commit_step(
 {
 	commit_node_t*	node;
 	que_thr_t*	next_thr;
-	ibool		success;
 
 	node = thr->run_node;
 
@@ -1562,15 +1550,10 @@ trx_commit_step(
 
 		/* Send the commit signal to the transaction */
 
-		success = trx_sig_send(thr_get_trx(thr), TRX_SIG_COMMIT,
-					TRX_SIG_SELF, thr, NULL, &next_thr);
+		trx_sig_send(thr_get_trx(thr), TRX_SIG_COMMIT, TRX_SIG_SELF,
+			thr, NULL, &next_thr);
 
 		mutex_exit(&kernel_mutex);
-
-		if (!success) {
-			/* Error in delivering the commit signal */
-			que_thr_handle_error(thr, DB_ERROR, NULL, 0);
-		}
 
 		return(next_thr);
 	}
