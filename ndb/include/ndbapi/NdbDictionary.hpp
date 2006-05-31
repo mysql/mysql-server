@@ -1183,6 +1183,15 @@ public:
 			   const char * tableName) const;
 
     /**
+     * Get index with given name, NULL if undefined
+     * @param indexName  Name of index to get.
+     * @param Table instance table that index belongs to.
+     * @return  index if successful, otherwise 0.
+     */
+    const Index * getIndex(const char * indexName,
+			   const Table & table) const;
+
+    /**
      * Fetch list of indexes of given table.
      * @param list  Reference to list where to store the listed indexes
      * @param tableName  Name of table that index belongs to.
@@ -1230,14 +1239,14 @@ public:
 
     /**
      * Create defined table given defined Table instance
-     * @param table Table to create
+     * @param Table instance to create
      * @return 0 if successful otherwise -1.
      */
     int createTable(const Table &table);
 
     /**
      * Drop table given retrieved Table instance
-     * @param table Table to drop
+     * @param Table instance to drop
      * @return 0 if successful otherwise -1.
      */
     int dropTable(Table & table);
@@ -1301,7 +1310,15 @@ public:
      */
     int dropIndex(const char * indexName,
 		  const char * tableName);
-    
+
+    /**
+     * Drop index the defined Index instance
+     * @param Index to drop
+     * @return 0 if successful otherwise -1.
+     */
+    int dropIndex(const Index &);
+
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Invalidate cached index object
