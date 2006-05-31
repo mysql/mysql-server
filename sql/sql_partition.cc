@@ -1665,8 +1665,8 @@ static int add_keyword_int(File fptr, const char *keyword, longlong num)
 
 static int add_engine(File fptr, handlerton *engine_type)
 {
-  const char *engine_str= hton2plugin[engine_type->slot]->name;
-  DBUG_PRINT("info", ("ENGINE = %s", engine_str));
+  const char *engine_str= hton2plugin[engine_type->slot]->name.str;
+  DBUG_PRINT("info", ("ENGINE: %s", engine_str));
   int err= add_string(fptr, "ENGINE = ");
   return err + add_string(fptr, engine_str);
 }
@@ -1676,7 +1676,7 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   int err= 0;
 
   if (p_elem->tablespace_name)
-    err+= add_keyword_string(fptr,"TABLESPACE", FALSE, 
+    err+= add_keyword_string(fptr,"TABLESPACE", FALSE,
                              p_elem->tablespace_name);
   if (p_elem->nodegroup_id != UNDEF_NODEGROUP)
     err+= add_keyword_int(fptr,"NODEGROUP",(longlong)p_elem->nodegroup_id);
@@ -4515,8 +4515,8 @@ the generated partition syntax in a correct manner.
           DBUG_PRINT("info", ("No explicit engine used"));
           create_info->db_type= table->part_info->default_engine_type;
         }
-        DBUG_PRINT("info", ("New engine type = %s",
-                   hton2plugin[create_info->db_type->slot]->name));
+        DBUG_PRINT("info", ("New engine type: %s",
+                   hton2plugin[create_info->db_type->slot]->name.str));
         thd->work_part_info= NULL;
         *partition_changed= TRUE;
       }

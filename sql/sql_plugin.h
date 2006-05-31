@@ -58,7 +58,8 @@ struct st_plugin_int
   struct st_mysql_plugin *plugin;
   struct st_plugin_dl *plugin_dl;
   enum enum_plugin_state state;
-  uint ref_count;           /* number of threads using the plugin */
+  uint ref_count;               /* number of threads using the plugin */
+  void *data;                   /* plugin type specific, e.g. handlerton */
 };
 
 typedef int (*plugin_type_init)(struct st_plugin_int *);
