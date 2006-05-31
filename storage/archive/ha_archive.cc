@@ -666,14 +666,6 @@ int ha_archive::create(const char *name, TABLE *table_arg,
                    create_info->auto_increment_value -1 :
                    (ulonglong) 0);
 
-  if ((create_file= my_create(fn_format(name_buff,name,"",ARM,
-                                        MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
-                              O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
-  {
-    error= my_errno;
-    goto error;
-  }
-
   for (uint key= 0; key < table_arg->s->keys; key++)
   {
     KEY *pos= table_arg->key_info+key;
@@ -687,9 +679,18 @@ int ha_archive::create(const char *name, TABLE *table_arg,
       if (!(field->flags & AUTO_INCREMENT_FLAG))
       {
         error= -1;
+        DBUG_PRINT("info", ("Index error in creating archive table"));
         goto error;
       }
     }
+  }
+
+  if ((create_file= my_create(fn_format(name_buff,name,"",ARM,
+                                        MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
+                              O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+  {
+    error= my_errno;
+    goto error;
   }
 
   write_meta_file(create_file, 0, auto_increment_value, 0, 
