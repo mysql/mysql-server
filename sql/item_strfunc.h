@@ -46,7 +46,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "md5"; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -57,7 +57,7 @@ public:
   String *val_str(String *);    
   void fix_length_and_dec();      
   const char *func_name() const { return "sha"; }	
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_func_aes_encrypt :public Item_str_func
@@ -88,7 +88,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "concat"; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_func_concat_ws :public Item_str_func
@@ -109,7 +109,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "reverse"; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -147,7 +147,7 @@ protected:
 public:
   Item_str_conv(Item *item) :Item_str_func(item) {}
   String *val_str(String *);
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -211,7 +211,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "substr"; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -223,7 +223,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "substring_index"; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -238,7 +238,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "trim"; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -418,7 +418,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "soundex"; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -526,7 +526,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "rpad"; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -539,7 +539,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "lpad"; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -554,7 +554,7 @@ public:
     collation.set(default_charset());
     decimals=0; max_length=64;
   }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -571,7 +571,7 @@ public:
     decimals=0;
     max_length=args[0]->max_length*2*collation.collation->mbmaxlen;
   }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_func_unhex :public Item_str_func
@@ -587,7 +587,7 @@ public:
     decimals=0;
     max_length=(1+args[0]->max_length)/2;
   }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -611,7 +611,7 @@ public:
   }
   void print(String *str);
   const char *func_name() const { return "cast_as_binary"; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -651,7 +651,7 @@ public:
   String* val_str(String* str);
   const char *func_name() const { return "inet_ntoa"; }
   void fix_length_and_dec() { decimals = 0; max_length=3*8+7; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_func_quote :public Item_str_func
@@ -666,7 +666,7 @@ public:
     collation.set(args[0]->collation);
     max_length= args[0]->max_length * 2 + 2;
   }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_func_conv_charset :public Item_str_func
@@ -709,7 +709,7 @@ public:
   void fix_length_and_dec();
   const char *func_name() const { return "convert"; }
   void print(String *str);
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_func_set_collation :public Item_str_func
@@ -742,7 +742,7 @@ public:
      maybe_null= 0;
   };
   table_map not_null_tables() const { return 0; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_func_collation :public Item_str_func
@@ -758,7 +758,7 @@ public:
      maybe_null= 0;
   };
   table_map not_null_tables() const { return 0; }
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_func_crc32 :public Item_int_func
@@ -769,7 +769,7 @@ public:
   const char *func_name() const { return "crc32"; }
   void fix_length_and_dec() { max_length=10; }
   longlong val_int();
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_func_uncompressed_length : public Item_int_func
@@ -780,7 +780,7 @@ public:
   const char *func_name() const{return "uncompressed_length";}
   void fix_length_and_dec() { max_length=10; }
   longlong val_int();
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 #ifdef HAVE_COMPRESS
@@ -797,7 +797,7 @@ public:
   void fix_length_and_dec(){max_length= (args[0]->max_length*120)/100+12;}
   const char *func_name() const{return "compress";}
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_func_uncompress: public Item_str_func
@@ -808,7 +808,7 @@ public:
   void fix_length_and_dec(){max_length= MAX_BLOB_WIDTH;}
   const char *func_name() const{return "uncompress";}
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
-  virtual bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 #define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
