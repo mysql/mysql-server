@@ -1347,14 +1347,6 @@ loop:
 		que_thr_dec_refer_count(thr, &next_thr);
 
 		if (next_thr == NULL) {
-			trx_t*	trx = thr_get_trx(thr);
-
-			if (trx->conc_state == TRX_ACTIVE) {
-				/* Check we haven't accidentally left the
-				transaction in TRX_LOCK_WAIT or something. */
-
-				ut_a(trx->que_state == TRX_QUE_RUNNING);
-			}
 
 			return;
 		}
