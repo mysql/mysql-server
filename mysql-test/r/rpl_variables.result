@@ -15,3 +15,4 @@ slave_load_tmpdir	SLAVE_LOAD_TMPDIR
 show variables like 'slave_skip_errors';
 Variable_name	Value
 slave_skip_errors	3,100,137,643,1752
+set global slave_net_timeout=default;

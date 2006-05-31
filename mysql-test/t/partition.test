@@ -846,6 +846,7 @@ delimiter ;|
 CALL test.p1(12);
 CALL test.p1(13);
 drop table t1;
+drop procedure test.p1;
 
 #
 # Bug 13520: Problem with delimiters in COMMENT DATA DIRECTORY ..

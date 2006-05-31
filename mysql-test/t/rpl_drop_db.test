@@ -56,3 +56,7 @@ connection slave;
 stop slave;
 #system rm -rf $MYSQLTEST_VARDIR/master-data/mysqltest1;
 
+connection master;
+use test;
+drop table t1;
+

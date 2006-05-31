@@ -49,4 +49,4 @@ select * from t1;
 a	b
 select * from t2;
 a	b
-drop table t1;
+drop table t1, t2;

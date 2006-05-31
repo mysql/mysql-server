@@ -70,3 +70,5 @@ show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	0
 drop table t1, t2;
+set GLOBAL query_cache_size=0;
+set GLOBAL query_cache_size=0;
