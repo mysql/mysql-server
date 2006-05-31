@@ -2152,6 +2152,7 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
                              bool ignore_check_option_errors)
   :table_list(table_list_par), table(table_par), fields(fields_par),
    last_insert_id(0),
+   lock(0),
    insert_into_view(table_list_par && table_list_par->view != 0)
 {
   bzero((char*) &info,sizeof(info));
@@ -2348,7 +2349,36 @@ bool select_insert::send_data(List<Item> &values)
       DBUG_RETURN(1);
     }
   }
-  if (!(error= write_record(thd, table, &info)))
+
+  /*
+    The thd->lock lock contain the locks for the select part of the
+    statement and the 'lock' variable contain the write lock for the
+    currently locked table that is being created or inserted
+    into. However, the row-based replication will investigate the
+    thd->lock to decide what table maps are to be written, so this one
+    has to contain the tables locked for writing.  To be able to write
+    table map for the table being created, we temporarily set
+    THD::lock to select_insert::lock while writing the record to the
+    storage engine. We cannot set this elsewhere, since the execution
+    of a stored function inside the select expression might cause the
+    lock structures to be NULL.
+   */
+  
+  {
+    MYSQL_LOCK *saved_lock= NULL;
+    if (lock)
+    {
+      saved_lock= thd->lock;
+      thd->lock= lock;
+    }
+
+    error= write_record(thd, table, &info);
+    
+    if (lock)
+      thd->lock= saved_lock;
+  }
+
+  if (!error)
   {
     if (table->triggers || info.handle_duplicates == DUP_UPDATE)
     {

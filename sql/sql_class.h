@@ -941,16 +941,18 @@ public:
   int binlog_flush_pending_rows_event(bool stmt_end);
   void binlog_delete_pending_rows_event();
 
-private:
 #ifdef HAVE_ROW_BASED_REPLICATION
+private:
   uint binlog_table_maps; // Number of table maps currently in the binlog
-#endif /* HAVE_ROW_BASED_REPLICATION */
-
 public:
-
+  uint get_binlog_table_maps() const {
+    return binlog_table_maps;
+  }
+#endif /* HAVE_ROW_BASED_REPLICATION */
 #endif /* MYSQL_CLIENT */
 
 #ifndef MYSQL_CLIENT
+public:
   enum enum_binlog_query_type {
       /*
         The query can be logged row-based or statement-based
@@ -1572,6 +1574,9 @@ class select_insert :public select_result_interceptor {
   bool send_eof();
   /* not implemented: select_insert is never re-used in prepared statements */
   void cleanup();
+
+protected:
+  MYSQL_LOCK *lock;
 };
 
 
@@ -1581,7 +1586,6 @@ class select_create: public select_insert {
   List<create_field> *extra_fields;
   List<Key> *keys;
   HA_CREATE_INFO *create_info;
-  MYSQL_LOCK *lock;
   Field **field;
 public:
   select_create (TABLE_LIST *table,
@@ -1590,8 +1594,7 @@ public:
 		 List<Key> &keys_par,
 		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
     :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore), create_table(table),
-    extra_fields(&fields_par),keys(&keys_par), create_info(create_info_par),
-    lock(0)
+    extra_fields(&fields_par),keys(&keys_par), create_info(create_info_par)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   

@@ -5602,6 +5602,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
 bool Rows_log_event::write_data_header(IO_CACHE *file)
 {
   byte buf[ROWS_HEADER_LEN];	// No need to init the buffer
+  DBUG_ASSERT(m_table_id != ~0UL);
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
                   {
                     int4store(buf + 0, m_table_id);
