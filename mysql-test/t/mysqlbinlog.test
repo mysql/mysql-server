@@ -135,6 +135,6 @@ flush logs;
 select * from t5  /* must be (1),(1) */;
 
 # clean up
-drop table t1, t2, t03, t04, t3, t4; 
+drop table t1, t2, t03, t04, t3, t4, t5; 
 
 # End of 5.0 tests
