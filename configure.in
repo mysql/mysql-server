@@ -778,48 +778,6 @@ struct request_info *req;
 AC_SUBST(WRAPLIBS)
 
 if test "$TARGET_LINUX" = "true"; then
-  AC_MSG_CHECKING([for atomic operations])
-
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-
-  atom_ops=
-  AC_TRY_RUN([
-#include <asm/atomic.h>
-int main()
-{
-  atomic_t v;
-
-  atomic_set(&v, 23);
-  atomic_add(5, &v);
-  return atomic_read(&v) == 28 ? 0 : -1;
-}
-  ],
-  [AC_DEFINE([HAVE_ATOMIC_ADD], [1],
-             [atomic_add() from <asm/atomic.h> (Linux only)])
-   atom_ops="${atom_ops}atomic_add "],
-  )
-  AC_TRY_RUN([
-#include <asm/atomic.h>
-int main()
-{
-  atomic_t v;
-
-  atomic_set(&v, 23);
-  atomic_sub(5, &v);
-  return atomic_read(&v) == 18 ? 0 : -1;
-}
-  ],
-  [AC_DEFINE([HAVE_ATOMIC_SUB], [1],
-             [atomic_sub() from <asm/atomic.h> (Linux only)])
-   atom_ops="${atom_ops}atomic_sub "],
-  )
-
-  if test -z "$atom_ops"; then atom_ops="no"; fi
-  AC_MSG_RESULT($atom_ops)
-
-  AC_LANG_RESTORE
-
   AC_ARG_WITH(pstack,
     [  --with-pstack           Use the pstack backtrace library],
     [ USE_PSTACK=$withval ],
@@ -1630,6 +1588,20 @@ then
 	      [Define to 1 if you want to use fast mutexes])
   fi
 fi
+
+AC_ARG_WITH([atomic-ops],
+	    AC_HELP_STRING([--with-atomic-ops=rwlocks|smp|up],
+	    [Implement atomic operations using pthread rwlocks or atomic CPU
+             instructions for multi-processor (default) or uniprocessor
+             configuration]), , [with_atomic_ops=smp])
+case "$with_atomic_ops" in
+  "up") AC_DEFINE([MY_ATOMIC_MODE_DUMMY], [1],
+                  [Assume single-CPU mode, no concurrency]) ;;
+  "rwlocks") AC_DEFINE([MY_ATOMIC_MODE_RWLOCKS], [1],
+                  [Use pthread rwlocks for atomic ops]) ;;
+  "smp") ;;
+   *) AC_MSG_ERROR(["$with_atomic_ops" is not a valid value for --with-atomic-ops]) ;;
+esac
 
 # Force static compilation to avoid linking problems/get more speed
 AC_ARG_WITH(mysqld-ldflags,

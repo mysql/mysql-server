@@ -181,6 +181,17 @@
 #define HOT_DATA
 #endif
 
+/*
+  now let's figure out if inline functions are supported
+  autoconf defines 'inline' to be empty, if not
+*/
+#define inline_test_1(X)        X ## 1
+#define inline_test_2(X)        inline_test_1(X)
+#if inline_test_2(inline) != 1
+#define HAVE_INLINE
+#endif
+#undef inline_test_2
+#undef inline_test_1
 
 /*
   The following macros are used to control inlining a bit more than
@@ -889,6 +900,8 @@ typedef unsigned long	ulonglong;	  /* ulong or unsigned long long */
 typedef long		longlong;
 #endif
 #endif
+typedef longlong int64;
+typedef ulonglong uint64;
 
 #if defined(NO_CLIENT_LONG_LONG)
 typedef unsigned long my_ulonglong;
