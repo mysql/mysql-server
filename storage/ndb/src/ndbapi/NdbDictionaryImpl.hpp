@@ -1022,6 +1022,33 @@ NdbDictionaryImpl::getIndexGlobal(const char * index_name,
     }
     break;
   }
+  {
+    // Index not found, try old format
+    const BaseString
+      old_internal_indexname(m_ndb.old_internalize_index_name(&ndbtab, 
+							      index_name));
+    retry= 2;
+    while (retry)
+    {
+      NdbTableImpl *tab=
+	fetchGlobalTableImplRef(InitIndex(old_internal_indexname,
+					  index_name, ndbtab));
+      if (tab)
+      {
+	// tab->m_index sould be set. otherwise tab == 0
+	NdbIndexImpl *idx= tab->m_index;
+	if (idx->m_table_id != (unsigned)ndbtab.getObjectId() ||
+	    idx->m_table_version != (unsigned)ndbtab.getObjectVersion())
+	{
+	  releaseIndexGlobal(*idx, 1);
+	  retry--;
+	  continue;
+	}
+	DBUG_RETURN(idx);
+      }
+      break;
+    }
+  }
   m_error.code= 4243;
   DBUG_RETURN(0);
 }
@@ -1088,12 +1115,36 @@ NdbDictionaryImpl::getIndex(const char* index_name,
 					   index_name,
 					   prim));
     if (!tab)
-      goto err;
+      goto retry;
 
     info= Ndb_local_table_info::create(tab, 0);
     if (!info)
-      goto err;
+      goto retry;
     m_localHash.put(internal_indexname.c_str(), info);
+  }
+  else
+    tab= info->m_table_impl;
+  
+  return tab->m_index;
+
+retry:
+  // Index not found, try fetching it from current database
+  const BaseString
+    old_internal_indexname(m_ndb.old_internalize_index_name(&prim, index_name));
+
+  info= m_localHash.get(old_internal_indexname.c_str());
+  if (info == 0)
+  {
+    tab= fetchGlobalTableImplRef(InitIndex(old_internal_indexname,
+					   index_name,
+					   prim));
+    if (!tab)
+      goto err;
+    
+    info= Ndb_local_table_info::create(tab, 0);
+    if (!info)
+      goto err;
+    m_localHash.put(old_internal_indexname.c_str(), info);
   }
   else
     tab= info->m_table_impl;
