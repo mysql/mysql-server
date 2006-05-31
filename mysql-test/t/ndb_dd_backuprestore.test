@@ -160,4 +160,14 @@ DROP TABLE test.t2;
 DROP TABLE test.t3;
 DROP TABLE test.t4;
 
+ALTER TABLESPACE table_space1
+DROP DATAFILE './table_space1/datafile.dat'
+ENGINE = NDB;
+
+DROP TABLESPACE table_space1
+ENGINE = NDB;
+
+DROP LOGFILE GROUP log_group1
+ENGINE =NDB;
+
 #End 5.1 test case
