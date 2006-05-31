@@ -38,3 +38,4 @@ rpl_sp                   : BUG#16456 2006-02-16 jmiller
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
+ndb_dd_backuprestore     : Nikolay: removed partitions from the test. Review pending.
