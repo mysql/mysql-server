@@ -3911,24 +3911,28 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
     {
       table->field[9]->store(part_info->part_func_string,
                              part_info->part_func_len, cs);
-      table->field[9]->set_notnull();
     }
     else if (part_info->list_of_part_fields)
     {
       collect_partition_expr(part_info->part_field_list, &tmp_str);
       table->field[9]->store(tmp_str.ptr(), tmp_str.length(), cs);
-      table->field[9]->set_notnull();
     }
+    table->field[9]->set_notnull();
 
     if (part_info->is_sub_partitioned())
     {
       /* Subpartition method */
+      tmp_res.length(0);
+      if (part_info->linear_hash_ind)
+        tmp_res.append(partition_keywords[PKW_LINEAR].str,
+                       partition_keywords[PKW_LINEAR].length);
       if (part_info->list_of_subpart_fields)
-        table->field[8]->store(partition_keywords[PKW_KEY].str,
-                               partition_keywords[PKW_KEY].length, cs);
+        tmp_res.append(partition_keywords[PKW_KEY].str,
+                       partition_keywords[PKW_KEY].length);
       else
-        table->field[8]->store(partition_keywords[PKW_HASH].str,
-                               partition_keywords[PKW_HASH].length, cs);
+        tmp_res.append(partition_keywords[PKW_HASH].str, 
+                       partition_keywords[PKW_HASH].length);
+      table->field[8]->store(tmp_res.ptr(), tmp_res.length(), cs);
       table->field[8]->set_notnull();
 
       /* Subpartition expression */
@@ -3936,14 +3940,13 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
       {
         table->field[10]->store(part_info->subpart_func_string,
                                 part_info->subpart_func_len, cs);
-        table->field[10]->set_notnull();
       }
       else if (part_info->list_of_subpart_fields)
       {
         collect_partition_expr(part_info->subpart_field_list, &tmp_str);
         table->field[10]->store(tmp_str.ptr(), tmp_str.length(), cs);
-        table->field[10]->set_notnull();
       }
+      table->field[10]->set_notnull();
     }
 
     while ((part_elem= part_it++))
@@ -5241,7 +5244,7 @@ ST_FIELD_INFO partitions_fields_info[]=
   {"PARTITION_ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"SUBPARTITION_ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"PARTITION_METHOD", 12, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"SUBPARTITION_METHOD", 5, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"SUBPARTITION_METHOD", 12, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PARTITION_EXPRESSION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
   {"SUBPARTITION_EXPRESSION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PARTITION_DESCRIPTION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
