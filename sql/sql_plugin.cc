@@ -47,8 +47,8 @@ static int min_plugin_interface_version= 0x0000;
 static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0x0000,
-  0x0000,
-  0x0000
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
+  MYSQL_FTPARSER_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -56,6 +56,7 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION
 };
+
 static DYNAMIC_ARRAY plugin_dl_array;
 static DYNAMIC_ARRAY plugin_array;
 static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
