@@ -696,7 +696,10 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
       do { 
 	int tmp = restarter.getRandomNodeOtherNodeGroup(node1, rand());
 	if (tmp == -1)
-	  break;
+	{
+	  ctx->stopTest();
+	  return NDBT_OK;
+	}
 	node1 = tmp;
       } while(nodesmask.get(node1));
       
