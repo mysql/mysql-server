@@ -1861,8 +1861,9 @@ pars_sql(
 #endif /* UNIV_SYNC_DEBUG */
 	pars_sym_tab_global = sym_tab_create(heap);
 
-	pars_sym_tab_global->sql_string = mem_heap_strdup(heap, str);
 	pars_sym_tab_global->string_len = strlen(str);
+	pars_sym_tab_global->sql_string = mem_heap_dup(heap, str,
+		pars_sym_tab_global->string_len + 1);
 	pars_sym_tab_global->next_char_pos = 0;
 	pars_sym_tab_global->info = info;
 
