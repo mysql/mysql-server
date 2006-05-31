@@ -1267,8 +1267,10 @@ int ha_tina::rnd_end()
 
     }
 
-    if (my_close(update_temp_file, MYF(0)))
+    if (my_sync(update_temp_file, MYF(MY_WME)) ||
+        my_close(update_temp_file, MYF(0)))
       DBUG_RETURN(-1);
+
     share->update_file_opened= FALSE;
 
     if (share->tina_write_opened)
@@ -1292,9 +1294,8 @@ int ha_tina::rnd_end()
                   share->data_file_name, MYF(0)))
       DBUG_RETURN(-1);
 
-    /* Open the file again and sync it */
-    if (((data_file= my_open(share->data_file_name, O_RDONLY, MYF(0))) == -1)
-        || my_sync(data_file, MYF(MY_WME)))
+    /* Open the file again */
+    if (((data_file= my_open(share->data_file_name, O_RDONLY, MYF(0))) == -1))
       DBUG_RETURN(-1);
     /*
       The datafile is consistent at this point and the write filedes is
