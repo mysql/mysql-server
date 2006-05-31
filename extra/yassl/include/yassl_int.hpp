@@ -127,25 +127,6 @@ private:
 };
 
 
-// hold add crypt references provided to callers
-class CryptProvider {
-    mySTL::list<Digest*>     digestList_;
-    mySTL::list<BulkCipher*> cipherList_;
-    CryptProvider() {}                         // only GetCryptProvider creates
-public:
-    ~CryptProvider();
-
-    Digest*     NewMd5();
-    BulkCipher* NewDesEde();
-
-    friend CryptProvider& GetCryptProvider();
-private:
-    CryptProvider(const CryptProvider&);            // hide copy
-    CryptProvider& operator=(const CryptProvider&); // and assign
-};
-
-CryptProvider& GetCryptProvider();
-
 #undef X509_NAME  // wincrypt.h clash
 
 // openSSL X509 names
