@@ -395,7 +395,8 @@ public:
   int createIndex(NdbIndexImpl &ix);
   int dropIndex(const char * indexName, 
 		const char * tableName);
-  int dropIndex(NdbIndexImpl &, const char * tableName);
+  //  int dropIndex(NdbIndexImpl &, const char * tableName);
+  int dropIndex(NdbIndexImpl &);
   NdbTableImpl * getIndexTable(NdbIndexImpl * index, 
 			       NdbTableImpl * table);
 
@@ -413,6 +414,8 @@ public:
     const BaseString& internalTableName, bool do_add_blob_tables);
   NdbIndexImpl * getIndex(const char * indexName,
 			  const char * tableName);
+  NdbIndexImpl * getIndex(const char * indexName,
+			  NdbTableImpl * table);
   NdbEventImpl * getEvent(const char * eventName);
   NdbEventImpl * getEventImpl(const char * internalName);
   
@@ -694,17 +697,26 @@ NdbDictionaryImpl::get_local_table_info(const BaseString& internalTableName,
   return info; // autoincrement already initialized
 }
 
+
 inline
 NdbIndexImpl * 
 NdbDictionaryImpl::getIndex(const char * index_name,
 			    const char * table_name)
 {
-  if (table_name || m_ndb.usingFullyQualifiedNames())
+  return getIndex(index_name, (table_name) ? getTable(table_name) : NULL);
+}
+
+inline
+NdbIndexImpl * 
+NdbDictionaryImpl::getIndex(const char * index_name,
+			    NdbTableImpl * table)
+{
+  if (table || m_ndb.usingFullyQualifiedNames())
   {
     const BaseString internal_indexname(
-      (table_name)
+      (table)
       ?
-      m_ndb.internalize_index_name(getTable(table_name), index_name)
+      m_ndb.internalize_index_name(table, index_name)
       :
       m_ndb.internalize_table_name(index_name)); // Index is also a table
 

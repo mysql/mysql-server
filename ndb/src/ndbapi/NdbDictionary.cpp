@@ -800,11 +800,27 @@ NdbDictionary::Dictionary::dropIndex(const char * indexName,
   return m_impl.dropIndex(indexName, tableName);
 }
 
+int 
+NdbDictionary::Dictionary::dropIndex(const Index & ind)
+{
+  return m_impl.dropIndex(NdbIndexImpl::getImpl(ind));
+}
+
 const NdbDictionary::Index * 
 NdbDictionary::Dictionary::getIndex(const char * indexName,
 				    const char * tableName) const
 {
   NdbIndexImpl * i = m_impl.getIndex(indexName, tableName);
+  if(i)
+    return i->m_facade;
+  return 0;
+}
+
+const NdbDictionary::Index * 
+NdbDictionary::Dictionary::getIndex(const char * indexName,
+				    const Table & t) const
+{
+  NdbIndexImpl * i = m_impl.getIndex(indexName, & NdbTableImpl::getImpl(t));
   if(i)
     return i->m_facade;
   return 0;
