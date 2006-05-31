@@ -4913,14 +4913,6 @@ Disable with --skip-bdb (will save memory).",
   {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB,
    "Tells the master that updates to the given database should not be logged tothe binary log.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#if !defined(DBUG_OFF) && !defined(MYSQL_CLIENT)
-  {"binlog-show-xid", OPT_BINLOG_SHOW_XID,
-   "Option used by mysql-test for debugging and testing: "
-   "do not display the XID in SHOW BINLOG EVENTS; "
-   "may be removed in future versions",
-   (gptr*) &Xid_log_event::show_xid, (gptr*) &Xid_log_event::show_xid,
-   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#endif
 #ifdef HAVE_ROW_BASED_REPLICATION
   {"binlog-row-event-max-size", OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
    "The maximum size of a row-based binary log event in bytes. Rows will be "
