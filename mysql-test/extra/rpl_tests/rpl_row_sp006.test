@@ -76,6 +76,7 @@ DROP PROCEDURE IF EXISTS mysqltest1.p1;
 DROP PROCEDURE IF EXISTS mysqltest1.p2;
 DROP TABLE IF EXISTS mysqltest1.t1;
 DROP TABLE IF EXISTS mysqltest1.t2;
+DROP DATABASE mysqltest1;
 
 # Lets compare. Note: If they match test will pass, if they do not match
 # the test will show that the diff statement failed and not reject file

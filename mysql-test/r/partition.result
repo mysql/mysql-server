@@ -717,6 +717,7 @@ CALL test.p1(13);
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 drop table t1;
+drop procedure test.p1;
 CREATE TABLE t1 (a int not null)
 partition by key(a)
 (partition p0 COMMENT='first partition');

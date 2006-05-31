@@ -21,13 +21,13 @@ show databases;
 #
 # Dump the "test" database, all it's tables and their data
 #
---exec $MYSQL_DUMP --skip-comments test
+--exec $MYSQL_DUMP --skip-comments --skip-lock-tables test
 
 #
 # Dump the "mysql" database and it's tables
 # Select data separately to add "order by"
 #
---exec $MYSQL_DUMP --skip-comments --no-data mysql
+--exec $MYSQL_DUMP --skip-comments --skip-lock-tables --no-data mysql
 use mysql;
 select * from columns_priv;
 select * from db order by host, db, user;

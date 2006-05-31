@@ -217,4 +217,6 @@ select "-- SLAVE AFTER JOIN --" as "";
 select * from t1;
 select * from t2;
 
+connection master;
+DROP TABLE t1, t2;
 # End of 4.1 tests
