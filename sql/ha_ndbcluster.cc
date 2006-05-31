@@ -5054,6 +5054,7 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
                             const char *db,
                             const char *table_name)
 {
+  THD *thd= current_thd;
   DBUG_ENTER("ha_ndbcluster::ndbcluster_delete_table");
   NDBDICT *dict= ndb->getDictionary();
 #ifdef HAVE_NDB_BINLOG
@@ -5085,7 +5086,7 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
       ndb_table_version= h->m_table->getObjectVersion();
     }
 #endif
-    h->release_metadata(current_thd, ndb);
+    h->release_metadata(thd, ndb);
   }
   else
   {
@@ -5151,8 +5152,8 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
 
   if (!IS_TMP_PREFIX(table_name) && share)
   {
-    ndbcluster_log_schema_op(current_thd, share,
-                             current_thd->query, current_thd->query_length,
+    ndbcluster_log_schema_op(thd, share,
+                             thd->query, thd->query_length,
                              share->db, share->table_name,
                              ndb_table_id, ndb_table_version,
                              SOT_DROP_TABLE, 0, 0, 1);
@@ -5733,6 +5734,7 @@ int ndbcluster_drop_database_impl(const char *path)
 
 static void ndbcluster_drop_database(char *path)
 {
+  THD *thd= current_thd;
   DBUG_ENTER("ndbcluster_drop_database");
 #ifdef HAVE_NDB_BINLOG
   /*
@@ -5750,8 +5752,8 @@ static void ndbcluster_drop_database(char *path)
 #ifdef HAVE_NDB_BINLOG
   char db[FN_REFLEN];
   ha_ndbcluster::set_dbname(path, db);
-  ndbcluster_log_schema_op(current_thd, 0,
-                           current_thd->query, current_thd->query_length,
+  ndbcluster_log_schema_op(thd, 0,
+                           thd->query, thd->query_length,
                            db, "", 0, 0, SOT_DROP_DB, 0, 0, 0);
 #endif
   DBUG_VOID_RETURN;
@@ -6827,6 +6829,7 @@ static void dbug_print_open_tables()
 */
 int handle_trailing_share(NDB_SHARE *share)
 {
+  THD *thd= current_thd;
   static ulong trailing_share_id= 0;
   DBUG_ENTER("handle_trailing_share");
 
@@ -6837,7 +6840,7 @@ int handle_trailing_share(NDB_SHARE *share)
   bzero((char*) &table_list,sizeof(table_list));
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
-  close_cached_tables(current_thd, 0, &table_list, TRUE);
+  close_cached_tables(thd, 0, &table_list, TRUE);
 
   pthread_mutex_lock(&ndbcluster_mutex);
   if (!--share->use_count)
