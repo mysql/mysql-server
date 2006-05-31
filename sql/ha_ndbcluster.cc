@@ -4934,13 +4934,17 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 {
   NDBDICT *dict;
   char old_dbname[FN_HEADLEN];
+  char new_dbname[FN_HEADLEN];
   char new_tabname[FN_HEADLEN];
   const NDBTAB *orig_tab;
   int result;
+  bool recreate_indexes= FALSE;
+  NDBDICT::List index_list;
 
   DBUG_ENTER("ha_ndbcluster::rename_table");
   DBUG_PRINT("info", ("Renaming %s to %s", from, to));
   set_dbname(from, old_dbname);
+  set_dbname(to, new_dbname);
   set_tabname(from);
   set_tabname(to, new_tabname);
 
@@ -4965,6 +4969,11 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     DBUG_ASSERT(r == 0);
   }
 #endif
+  if (my_strcasecmp(system_charset_info, new_dbname, old_dbname))
+  {
+    dict->listIndexes(index_list, *orig_tab);    
+    recreate_indexes= TRUE;
+  }
   // Change current database to that of target table
   set_dbname(to);
   ndb->setDatabaseName(m_dbname);
@@ -5044,6 +5053,32 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
                                ndb_table_id, ndb_table_version,
                                SOT_RENAME_TABLE,
                                m_dbname, new_tabname);
+  }
+
+  // If we are moving tables between databases, we need to recreate
+  // indexes
+  if (recreate_indexes)
+  {
+    for (unsigned i = 0; i < index_list.count; i++) 
+    {
+        NDBDICT::List::Element& index_el = index_list.elements[i];
+	// Recreate any indexes not stored in the system database
+	if (my_strcasecmp(system_charset_info, 
+			  index_el.database, NDB_SYSTEM_DATABASE))
+	{
+	  set_dbname(from);
+	  ndb->setDatabaseName(m_dbname);
+	  const NDBINDEX * index= dict->getIndexGlobal(index_el.name,  new_tab);
+	  DBUG_PRINT("info", ("Creating index %s/%s",
+			      index_el.database, index->getName()));
+	  dict->createIndex(*index, new_tab);
+	  DBUG_PRINT("info", ("Dropping index %s/%s",
+			      index_el.database, index->getName()));
+	  set_dbname(from);
+	  ndb->setDatabaseName(m_dbname);
+	  dict->dropIndexGlobal(*index);
+	}
+    }
   }
   if (share)
     free_share(&share);
