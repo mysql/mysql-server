@@ -991,7 +991,11 @@ static void __cdecl kill_server(int sig_ptr)
   my_thread_init();				// If this is a new thread
 #endif
   close_connections();
-  if (sig != MYSQL_KILL_SIGNAL && sig != 0)
+  if (sig != MYSQL_KILL_SIGNAL &&
+#ifdef __WIN__
+      sig != SIGINT &&				/* Bug#18235 */
+#endif
+      sig != 0)
     unireg_abort(1);				/* purecov: inspected */
   else
     unireg_end();
