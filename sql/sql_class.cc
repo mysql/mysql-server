@@ -2624,31 +2624,6 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
 
     error= mysql_bin_log.flush_and_set_pending_rows_event(this, 0);
   }
-  else if (stmt_end && binlog_table_maps > 0)
-  {                      /* there is no pending event at this point */
-    /*
-      If pending is null and we are going to end the statement, we
-      have to write an extra, empty, binrow event so that the slave
-      knows to discard the tables it has received.  Otherwise, the
-      table maps written this far will be included in the table maps
-      for the following statement.
-
-      TODO: Remove the need for a dummy event altogether.  It can be
-      fixed if we can write table maps to a memory buffer before
-      writing the first binrow event.  We can then flush and clear the
-      memory buffer with table map events before writing the first
-      binrow event.  In the event of a crash, nothing is lost since
-      the table maps are only needed if there are binrow events.
-    */
-
-    Rows_log_event *ev=
-      new Write_rows_log_event(this, 0, ~0UL, 0, FALSE);
-    ev->set_flags(Rows_log_event::STMT_END_F);
-    binlog_set_pending_rows_event(ev);
-
-    error= mysql_bin_log.flush_and_set_pending_rows_event(this, 0);
-    binlog_table_maps= 0;
-  }
 
   DBUG_RETURN(error);
 }
