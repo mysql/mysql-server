@@ -307,6 +307,6 @@ public:
   int execute_simple_query(const char *query, int len);
 };
 
-bool federated_db_init(void);
+int federated_db_init(void);
 int federated_db_end(ha_panic_function type);
 
