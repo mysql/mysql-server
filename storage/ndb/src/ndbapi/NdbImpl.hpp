@@ -93,6 +93,8 @@ public:
                     m_schemaname.c_str(), table_name_separator);
   }
 
+  BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
+
   /**
    * NOTE free lists must be _after_ theNdbObjectIdMap take
    *   assure that destructors are run in correct order
