@@ -1720,37 +1720,26 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       bitmap_init(&slock, schema->slock, 8*SCHEMA_SLOCK_SIZE, false);
       uint node_id= g_ndb_cluster_connection->node_id();
       ndbcluster_get_schema(tmp_share, schema);
+      enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
       DBUG_PRINT("info",
                  ("%s.%s: log query_length: %d  query: '%s'  type: %d",
                   schema->db, schema->name,
                   schema->query_length, schema->query,
-                  schema->type));
-      char key[FN_REFLEN];
-      build_table_filename(key, sizeof(key), schema->db, schema->name, "");
-      if ((enum SCHEMA_OP_TYPE)schema->type == SOT_CLEAR_SLOCK)
+                  schema_type));
+      if (schema_type == SOT_CLEAR_SLOCK)
       {
-        pthread_mutex_lock(&ndbcluster_mutex);
-        NDB_SCHEMA_OBJECT *ndb_schema_object=
-          (NDB_SCHEMA_OBJECT*) hash_search(&ndb_schema_objects,
-                                           (byte*) key, strlen(key));
-        if (ndb_schema_object)
-        {
-          pthread_mutex_lock(&ndb_schema_object->mutex);
-          memcpy(ndb_schema_object->slock, schema->slock,
-                 sizeof(ndb_schema_object->slock));
-          DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
-                    (char*)ndb_schema_object->slock_bitmap.bitmap,
-                    no_bytes_in_map(&ndb_schema_object->slock_bitmap));
-          pthread_mutex_unlock(&ndb_schema_object->mutex);
-          pthread_cond_signal(&injector_cond);
-        }
-        pthread_mutex_unlock(&ndbcluster_mutex);
+        /*
+          handle slock after epoch is completed to ensure that
+          schema events get inserted in the binlog after any data
+          events
+        */
+        post_epoch_log_list->push_back(schema, mem_root);
         DBUG_RETURN(0);
       }
       if (schema->node_id != node_id)
       {
         int log_query= 0, post_epoch_unlock= 0;
-        switch ((enum SCHEMA_OP_TYPE)schema->type)
+        switch (schema_type)
         {
         case SOT_DROP_TABLE:
           // fall through
@@ -1944,10 +1933,30 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
                 schema->type));
     int log_query= 0;
     {
+      enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
       char key[FN_REFLEN];
       build_table_filename(key, sizeof(key), schema->db, schema->name, "");
+      if (schema_type == SOT_CLEAR_SLOCK)
+      {
+        pthread_mutex_lock(&ndbcluster_mutex);
+        NDB_SCHEMA_OBJECT *ndb_schema_object=
+          (NDB_SCHEMA_OBJECT*) hash_search(&ndb_schema_objects,
+                                           (byte*) key, strlen(key));
+        if (ndb_schema_object)
+        {
+          pthread_mutex_lock(&ndb_schema_object->mutex);
+          memcpy(ndb_schema_object->slock, schema->slock,
+                 sizeof(ndb_schema_object->slock));
+          DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
+                    (char*)ndb_schema_object->slock_bitmap.bitmap,
+                    no_bytes_in_map(&ndb_schema_object->slock_bitmap));
+          pthread_mutex_unlock(&ndb_schema_object->mutex);
+          pthread_cond_signal(&injector_cond);
+        }
+        pthread_mutex_unlock(&ndbcluster_mutex);
+        continue;
+      }
       NDB_SHARE *share= get_share(key, 0, false, false);
-      enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
       switch (schema_type)
       {
       case SOT_DROP_DB:
