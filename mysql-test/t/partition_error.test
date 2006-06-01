@@ -747,3 +747,31 @@ CREATE TABLE t1(a int)
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert into t1 values (10);
 drop table t1;
+
+#
+# Bug 18198 Partitions: Verify that erroneus partition functions doesn't work
+#
+create table t1 (v varchar(12))
+partition by range (ascii(v))
+(partition p0 values less than (10));
+drop table t1;
+
+-- error 1064
+create table t1 (a int)
+partition by hash (rand(a));
+-- error 1064
+create table t1 (a int)
+partition by hash(CURTIME() + a);
+-- error 1064
+create table t1 (a int)
+partition by hash (NOW()+a);
+-- error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
+create table t1 (a int)
+partition by hash (extract(hour from convert_tz(a, '+00:00', '+00:00')));
+-- error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
+create table t1 (a int)
+partition by range (a + (select count(*) from t1))
+(partition p1 values less than (1));
+-- error ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
+create table t1 (a char(10))
+partition by hash (extractvalue(a,'a'));
