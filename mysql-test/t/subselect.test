@@ -2109,3 +2109,25 @@ insert into t1 values (1, 2), (2, 2), (3, 2);
 select * from (select min(i) from t1 where j=(select * from (select min(j) from t1) t2)) t3;
 drop table t1;
 
+# 
+# Bug#19700: subselect returning BIGINT always returned it as SIGNED
+#
+CREATE TABLE t1 (i BIGINT UNSIGNED);
+INSERT INTO t1 VALUES (10000000000000000000); -- > MAX SIGNED BIGINT 9323372036854775807
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (i BIGINT UNSIGNED);
+INSERT INTO t2 VALUES (10000000000000000000); -- same as first table
+INSERT INTO t2 VALUES (1);
+
+/* simple test */
+SELECT t1.i FROM t1 JOIN t2 ON t1.i = t2.i;
+
+/* subquery test */
+SELECT t1.i FROM t1 WHERE t1.i = (SELECT MAX(i) FROM t2);
+
+/* subquery test with cast*/
+SELECT t1.i FROM t1 WHERE t1.i = CAST((SELECT MAX(i) FROM t2) AS UNSIGNED);
+
+DROP TABLE t1;
+DROP TABLE t2;
