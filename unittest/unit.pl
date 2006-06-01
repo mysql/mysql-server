@@ -59,7 +59,7 @@ sub _find_test_files (@) {
     my @files;
     find sub { 
         $File::Find::prune = 1 if /^SCCS$/;
-        push(@files, $File::Find::name) if -x _ && /\.t\z/;
+        push(@files, $File::Find::name) if -x _ && /-t\z/;
     }, @dirs;
     return @files;
 }

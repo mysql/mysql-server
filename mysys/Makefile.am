@@ -63,7 +63,6 @@ libmysys_a_LIBADD =	@THREAD_LOBJECTS@
 # testhash_DEPENDENCIES=	$(LIBRARIES)
 # test_charset_DEPENDENCIES=	$(LIBRARIES)
 # charset2html_DEPENDENCIES=	$(LIBRARIES)
-noinst_PROGRAMS=	test_atomic$(EXEEXT)
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
