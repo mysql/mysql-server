@@ -73,3 +73,4 @@ CREATE TABLE t1 ( a INT UNIQUE );
 SET FOREIGN_KEY_CHECKS=0;
 INSERT INTO t1 VALUES (1),(1);
 Got one of the listed errors
+drop table t1;
