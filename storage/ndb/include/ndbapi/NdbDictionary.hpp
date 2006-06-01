@@ -1635,6 +1635,16 @@ public:
     int listIndexes(List & list, const char * tableName);
     int listIndexes(List & list, const char * tableName) const;
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    /**
+     * Fetch list of indexes of given table.
+     * @param list  Reference to list where to store the listed indexes
+     * @param table  Reference to table that index belongs to.
+     * @return  0 if successful, otherwise -1
+     */
+    int listIndexes(List & list, const Table &table) const;
+#endif
+
     /** @} *******************************************************************/
     /** 
      * @name Events
