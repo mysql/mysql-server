@@ -47,6 +47,10 @@ master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 flush logs;
 create table t3 (a int)ENGINE=NDB;
 start slave;
+
+let $result_pattern= '%127.0.0.1%root%master-bin.000002%slave-relay-bin.000005%Yes%Yes%0%0%None%' ;
+
+--source include/wait_slave_status.inc
 flush logs;
 stop slave;
 create table t2 (n int)ENGINE=NDB;

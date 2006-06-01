@@ -1665,8 +1665,8 @@ static int add_keyword_int(File fptr, const char *keyword, longlong num)
 
 static int add_engine(File fptr, handlerton *engine_type)
 {
-  const char *engine_str= engine_type->name;
-  DBUG_PRINT("info", ("ENGINE = %s", engine_str));
+  const char *engine_str= hton2plugin[engine_type->slot]->name.str;
+  DBUG_PRINT("info", ("ENGINE: %s", engine_str));
   int err= add_string(fptr, "ENGINE = ");
   return err + add_string(fptr, engine_str);
 }
@@ -1676,7 +1676,7 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   int err= 0;
 
   if (p_elem->tablespace_name)
-    err+= add_keyword_string(fptr,"TABLESPACE", FALSE, 
+    err+= add_keyword_string(fptr,"TABLESPACE", FALSE,
                              p_elem->tablespace_name);
   if (p_elem->nodegroup_id != UNDEF_NODEGROUP)
     err+= add_keyword_int(fptr,"NODEGROUP",(longlong)p_elem->nodegroup_id);
@@ -1843,6 +1843,8 @@ char *generate_partition_syntax(partition_info *part_info,
   {
     err+= add_subpartition_by(fptr);
     /* Must be hash partitioning for subpartitioning */
+    if (part_info->linear_hash_ind)
+      err+= add_string(fptr, partition_keywords[PKW_LINEAR].str);
     if (part_info->list_of_subpart_fields)
       err+= add_key_partition(fptr, part_info->subpart_field_list);
     else
@@ -3559,17 +3561,9 @@ static bool check_engine_condition(partition_element *p_elem,
   DBUG_ENTER("check_engine_condition");
 
   DBUG_PRINT("enter", ("def_eng = %u, first = %u", default_engine, *first));
-  if (*engine_type)
-    DBUG_PRINT("info", ("engine_type = %s", (*engine_type)->name));
-  else
-    DBUG_PRINT("info", ("engine_type = NULL"));
   if (*first && default_engine)
   {
     *engine_type= p_elem->engine_type;
-    if (*engine_type)
-      DBUG_PRINT("info", ("engine_type changed to = %s", (*engine_type)->name));
-    else
-      DBUG_PRINT("info", ("engine_type changed to = NULL"));
   }
   *first= FALSE;
   if ((!default_engine &&
@@ -4523,8 +4517,8 @@ the generated partition syntax in a correct manner.
           DBUG_PRINT("info", ("No explicit engine used"));
           create_info->db_type= table->part_info->default_engine_type;
         }
-        DBUG_PRINT("info", ("New engine type = %s",
-                   create_info->db_type->name));
+        DBUG_PRINT("info", ("New engine type: %s",
+                   hton2plugin[create_info->db_type->slot]->name.str));
         thd->work_part_info= NULL;
         *partition_changed= TRUE;
       }
@@ -4586,11 +4580,9 @@ the generated partition syntax in a correct manner.
       }
       if (!is_native_partitioned)
       {
-        DBUG_ASSERT(create_info->db_type != &default_hton);
+        DBUG_ASSERT(create_info->db_type);
         create_info->db_type= &partition_hton;
       }
-      DBUG_PRINT("info", ("default_engine_type = %s",
-                 thd->work_part_info->default_engine_type->name));
     }
   }
   DBUG_RETURN(FALSE);

@@ -144,10 +144,7 @@ static void add_word(MYSQL_FTPARSER_PARAM *param, char *word, size_t len)
   MYSQL_FTPARSER_BOOLEAN_INFO bool_info=
     { FT_TOKEN_WORD, 0, 0, 0, 0, ' ', 0 };
 
-  if (param->mode == MYSQL_FTPARSER_FULL_BOOLEAN_INFO)
-    param->mysql_add_word(param->mysql_ftparam, word, len, &bool_info);
-  else
-    param->mysql_add_word(param->mysql_ftparam, word, len, 0);
+  param->mysql_add_word(param, word, len, &bool_info);
 }
 
 /*

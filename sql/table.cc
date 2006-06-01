@@ -2355,12 +2355,23 @@ table_check_intact(TABLE *table, uint table_f_count,
       // previous MySQL version
       error= TRUE;
       if (MYSQL_VERSION_ID > table->s->mysql_version)
+      {
         my_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE, MYF(0), table->alias,
                  table_f_count, table->s->fields, table->s->mysql_version,
                  MYSQL_VERSION_ID);
+        sql_print_error(ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
+                        table->alias, table_f_count, table->s->fields,
+                        table->s->mysql_version, MYSQL_VERSION_ID);
+        DBUG_RETURN(error);
+
+      }
       else if (MYSQL_VERSION_ID == table->s->mysql_version)
+      {
         my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED,MYF(0), table->alias,
                  table_f_count, table->s->fields);
+        sql_print_error(ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED), table->alias,
+                        table_f_count, table->s->fields);
+      }
       else
         /*
           moving from newer mysql to older one -> let's say not an error but

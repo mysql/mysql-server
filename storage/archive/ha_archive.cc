@@ -145,49 +145,7 @@ static handler *archive_create_handler(TABLE_SHARE *table);
 */
 #define ARCHIVE_MIN_ROWS_TO_USE_BULK_INSERT 2
 
-
-static const char archive_hton_name[]= "ARCHIVE";
-static const char archive_hton_comment[]= "Archive storage engine";
-
-/* dummy handlerton - only to have something to return from archive_db_init */
-handlerton archive_hton = {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  archive_hton_name,
-  SHOW_OPTION_YES,
-  archive_hton_comment, 
-  DB_TYPE_ARCHIVE_DB,
-  archive_db_init,
-  0,       /* slot */
-  0,       /* savepoint size. */
-  NULL,    /* close_connection */
-  NULL,    /* savepoint */
-  NULL,    /* rollback to savepoint */
-  NULL,    /* releas savepoint */
-  NULL,    /* commit */
-  NULL,    /* rollback */
-  NULL,    /* prepare */
-  NULL,    /* recover */
-  NULL,    /* commit_by_xid */
-  NULL,    /* rollback_by_xid */
-  NULL,    /* create_cursor_read_view */
-  NULL,    /* set_cursor_read_view */
-  NULL,    /* close_cursor_read_view */
-  archive_create_handler,    /* Create a new handler */
-  NULL,    /* Drop a database */
-  archive_db_end,    /* Panic call */
-  NULL,    /* Start Consistent Snapshot */
-  NULL,    /* Flush logs */
-  NULL,    /* Show status */
-  NULL,    /* Partition flags */
-  NULL,    /* Alter table flags */
-  NULL,    /* Alter interface */
-  NULL,    /* fill_files_table */
-  HTON_NO_FLAGS,
-  NULL,    /* binlog_func */
-  NULL,    /* binlog_log_query */
-  NULL	   /* release_temporary_latches */
-
-};
+handlerton archive_hton;
 
 static handler *archive_create_handler(TABLE_SHARE *table)
 {
@@ -217,11 +175,18 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
     TRUE        Error
 */
 
-bool archive_db_init()
+int archive_db_init()
 {
   DBUG_ENTER("archive_db_init");
   if (archive_inited)
     DBUG_RETURN(FALSE);
+
+  archive_hton.state=SHOW_OPTION_YES;
+  archive_hton.db_type=DB_TYPE_ARCHIVE_DB;
+  archive_hton.create=archive_create_handler;
+  archive_hton.panic=archive_db_end;
+  archive_hton.flags=HTON_NO_FLAGS;
+
   if (pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (hash_init(&archive_open_tables, system_charset_info, 32, 0, 0,
@@ -701,14 +666,6 @@ int ha_archive::create(const char *name, TABLE *table_arg,
                    create_info->auto_increment_value -1 :
                    (ulonglong) 0);
 
-  if ((create_file= my_create(fn_format(name_buff,name,"",ARM,
-                                        MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
-                              O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
-  {
-    error= my_errno;
-    goto error;
-  }
-
   for (uint key= 0; key < table_arg->s->keys; key++)
   {
     KEY *pos= table_arg->key_info+key;
@@ -722,9 +679,18 @@ int ha_archive::create(const char *name, TABLE *table_arg,
       if (!(field->flags & AUTO_INCREMENT_FLAG))
       {
         error= -1;
+        DBUG_PRINT("info", ("Index error in creating archive table"));
         goto error;
       }
     }
+  }
+
+  if ((create_file= my_create(fn_format(name_buff,name,"",ARM,
+                                        MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
+                              O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+  {
+    error= my_errno;
+    goto error;
   }
 
   write_meta_file(create_file, 0, auto_increment_value, 0, 
@@ -1355,25 +1321,18 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     we don't check rc here because we want to open the file back up even
     if the optimize failed but we will return rc below so that we will
     know it failed.
+    We also need to reopen our read descriptor since it has changed.
   */
   DBUG_PRINT("info", ("Reopening archive data file"));
-  if (!(azopen(&(share->archive_write), share->data_file_name, 
-               O_WRONLY|O_APPEND|O_BINARY)))
+  if (!azopen(&(share->archive_write), share->data_file_name,
+               O_WRONLY|O_APPEND|O_BINARY) ||
+      !azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY))
   {
     DBUG_PRINT("info", ("Could not open archive write file"));
     rc= HA_ERR_CRASHED_ON_USAGE;
-    goto error;
   }
 
-  /*
-    Now we need to reopen our read descriptor since it has changed.
-  */
-  if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
-  {
-    rc= HA_ERR_CRASHED_ON_USAGE;
-    goto error;
-  }
-
+  DBUG_RETURN(rc);
 error:
   azclose(&writer);
 
@@ -1582,16 +1541,19 @@ bool ha_archive::check_and_repair(THD *thd)
   DBUG_RETURN(repair(thd, &check_opt));
 }
 
+struct st_mysql_storage_engine archive_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &archive_hton };
 
 mysql_declare_plugin(archive)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &archive_hton,
-  archive_hton_name,
+  &archive_storage_engine,
+  "ARCHIVE",
   "Brian Aker, MySQL AB",
-  archive_hton_comment,
-  NULL, /* Plugin Init */
+  "Archive storage engine",
+  archive_db_init, /* Plugin Init */
   archive_db_done, /* Plugin Deinit */
   0x0100 /* 1.0 */,
 }
 mysql_declare_plugin_end;
+

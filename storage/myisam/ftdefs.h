@@ -30,6 +30,8 @@
 
 #define FT_MAX_WORD_LEN_FOR_SORT 31
 
+#define FTPARSER_MEMROOT_ALLOC_SIZE 65536
+
 #define COMPILE_STOPWORDS_IN
 
 /* Interested readers may consult SMART
@@ -119,12 +121,12 @@ void _mi_ft_segiterator_dummy_init(const byte *, uint, FT_SEG_ITERATOR *);
 uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
 
 void ft_parse_init(TREE *, CHARSET_INFO *);
-int ft_parse(TREE *, byte *, int, my_bool, struct st_mysql_ftparser *parser,
-             MYSQL_FTPARSER_PARAM *param);
-FT_WORD * ft_linearize(TREE *);
-FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const byte *);
-uint _mi_ft_parse(TREE *, MI_INFO *, uint, const byte *, my_bool,
-                  MYSQL_FTPARSER_PARAM *param);
+int ft_parse(TREE *, byte *, int, struct st_mysql_ftparser *parser,
+             MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
+FT_WORD * ft_linearize(TREE *, MEM_ROOT *);
+FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const byte *, MEM_ROOT *);
+uint _mi_ft_parse(TREE *, MI_INFO *, uint, const byte *,
+                  MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 
 FT_INFO *ft_init_nlq_search(MI_INFO *, uint, byte *, uint, uint, byte *);
 FT_INFO *ft_init_boolean_search(MI_INFO *, uint, byte *, uint, CHARSET_INFO *);

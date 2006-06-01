@@ -77,7 +77,7 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
   {
     uint pack_length= (ftsi->seg->bit_start);
     ftsi->len= (pack_length == 1 ? (uint) *(uchar*) ftsi->pos :
-                uint2korr(ftsi->pos)); 
+                uint2korr(ftsi->pos));
     ftsi->pos+= pack_length;			 /* Skip VARCHAR length */
     DBUG_RETURN(1);
   }
@@ -95,9 +95,8 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
 
 /* parses a document i.e. calls ft_parse for every keyseg */
 
-uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr,
-                  const byte *record, my_bool with_alloc,
-                  MYSQL_FTPARSER_PARAM *param)
+uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record,
+                  MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
 {
   FT_SEG_ITERATOR ftsi;
   struct st_mysql_ftparser *parser;
@@ -110,14 +109,14 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr,
   while (_mi_ft_segiterator(&ftsi))
   {
     if (ftsi.pos)
-      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, with_alloc, parser,
-                   param))
+      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, parser, param, mem_root))
         DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
 
-FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, const byte *record)
+FT_WORD *_mi_ft_parserecord(MI_INFO *info, uint keynr, const byte *record,
+                             MEM_ROOT *mem_root)
 {
   TREE ptree;
   MYSQL_FTPARSER_PARAM *param;
@@ -125,10 +124,11 @@ FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, const byte *record)
   if (! (param= ftparser_call_initializer(info, keynr, 0)))
     DBUG_RETURN(NULL);
   bzero((char*) &ptree, sizeof(ptree));
-  if (_mi_ft_parse(&ptree, info, keynr, record, 0, param))
+  param->flags= 0;
+  if (_mi_ft_parse(&ptree, info, keynr, record, param, mem_root))
     DBUG_RETURN(NULL);
 
-  DBUG_RETURN(ft_linearize(&ptree));
+  DBUG_RETURN(ft_linearize(&ptree, mem_root));
 }
 
 static int _mi_ft_store(MI_INFO *info, uint keynr, byte *keybuf,
@@ -206,10 +206,11 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
   int cmp, cmp2;
   DBUG_ENTER("_mi_ft_update");
 
-  if (!(old_word=oldlist=_mi_ft_parserecord(info, keynr, oldrec)))
-    goto err0;
-  if (!(new_word=newlist=_mi_ft_parserecord(info, keynr, newrec)))
-    goto err1;
+  if (!(old_word=oldlist=_mi_ft_parserecord(info, keynr, oldrec,
+                                            &info->ft_memroot)) ||
+      !(new_word=newlist=_mi_ft_parserecord(info, keynr, newrec,
+                                            &info->ft_memroot)))
+    goto err;
 
   error=0;
   while(old_word->pos && new_word->pos)
@@ -222,13 +223,13 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
     {
       key_length=_ft_make_key(info,keynr,keybuf,old_word,pos);
       if ((error=_mi_ck_delete(info,keynr,(uchar*) keybuf,key_length)))
-        goto err2;
+        goto err;
     }
     if (cmp > 0 || cmp2)
     {
       key_length=_ft_make_key(info,keynr,keybuf,new_word,pos);
       if ((error=_mi_ck_write(info,keynr,(uchar*) keybuf,key_length)))
-        goto err2;
+        goto err;
     }
     if (cmp<=0) old_word++;
     if (cmp>=0) new_word++;
@@ -238,11 +239,8 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
  else if (new_word->pos)
    error=_mi_ft_store(info,keynr,keybuf,new_word,pos);
 
-err2:
-    my_free((char*) newlist,MYF(0));
-err1:
-    my_free((char*) oldlist,MYF(0));
-err0:
+err:
+  free_root(&info->ft_memroot, MYF(MY_MARK_BLOCKS_FREE));
   DBUG_RETURN(error);
 }
 
@@ -255,12 +253,13 @@ int _mi_ft_add(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
   int error= -1;
   FT_WORD *wlist;
   DBUG_ENTER("_mi_ft_add");
+  DBUG_PRINT("enter",("keynr: %d",keynr));
 
-  if ((wlist=_mi_ft_parserecord(info, keynr, record)))
-  {
+  if ((wlist=_mi_ft_parserecord(info, keynr, record, &info->ft_memroot)))
     error=_mi_ft_store(info,keynr,keybuf,wlist,pos);
-    my_free((char*) wlist,MYF(0));
-  }
+
+  free_root(&info->ft_memroot, MYF(MY_MARK_BLOCKS_FREE));
+  DBUG_PRINT("exit",("Return: %d",error));
   DBUG_RETURN(error);
 }
 
@@ -275,11 +274,10 @@ int _mi_ft_del(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
   DBUG_ENTER("_mi_ft_del");
   DBUG_PRINT("enter",("keynr: %d",keynr));
 
-  if ((wlist=_mi_ft_parserecord(info, keynr, record)))
-  {
+  if ((wlist=_mi_ft_parserecord(info, keynr, record, &info->ft_memroot)))
     error=_mi_ft_erase(info,keynr,keybuf,wlist,pos);
-    my_free((char*) wlist,MYF(0));
-  }
+
+  free_root(&info->ft_memroot, MYF(MY_MARK_BLOCKS_FREE));
   DBUG_PRINT("exit",("Return: %d",error));
   DBUG_RETURN(error);
 }

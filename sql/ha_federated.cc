@@ -370,47 +370,7 @@ static int federated_rollback(THD *thd, bool all);
 
 /* Federated storage engine handlerton */
 
-static const char federated_hton_name[]= "FEDERATED";
-static const char federated_hton_comment[]= "Federated MySQL storage engine";
-
-handlerton federated_hton= {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  federated_hton_name,
-  SHOW_OPTION_YES,
-  federated_hton_comment, 
-  DB_TYPE_FEDERATED_DB,
-  federated_db_init,
-  0,       /* slot */
-  0,       /* savepoint size. */
-  NULL,    /* close_connection */
-  NULL,    /* savepoint */
-  NULL,    /* rollback to savepoint */
-  NULL,    /* release savepoint */
-  federated_commit,    /* commit */
-  federated_rollback,    /* rollback */
-  NULL,    /* prepare */
-  NULL,    /* recover */
-  NULL,    /* commit_by_xid */
-  NULL,    /* rollback_by_xid */
-  NULL,    /* create_cursor_read_view */
-  NULL,    /* set_cursor_read_view */
-  NULL,    /* close_cursor_read_view */
-  federated_create_handler,    /* Create a new handler */
-  NULL,    /* Drop a database */
-  federated_db_end,    /* Panic call */
-  NULL,    /* Start Consistent Snapshot */
-  NULL,    /* Flush logs */
-  NULL,    /* Show status */
-  NULL,    /* Partition flags */
-  NULL,    /* Alter table flags */
-  NULL,    /* Alter Tablespace */
-  NULL,    /* Fill FILES table */
-  HTON_ALTER_NOT_SUPPORTED,
-  NULL,    /* binlog_func */
-  NULL,    /* binlog_log_query */
-  NULL	   /* release_temporary_latches */
-};
-
+handlerton federated_hton;
 
 static handler *federated_create_handler(TABLE_SHARE *table)
 {
@@ -439,9 +399,18 @@ static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
     TRUE        Error
 */
 
-bool federated_db_init()
+int federated_db_init()
 {
   DBUG_ENTER("federated_db_init");
+
+  federated_hton.state= SHOW_OPTION_YES;
+  federated_hton.db_type= DB_TYPE_FEDERATED_DB;
+  federated_hton.commit= federated_commit;
+  federated_hton.rollback= federated_rollback;
+  federated_hton.create= federated_create_handler;
+  federated_hton.panic= federated_db_end;
+  federated_hton.flags= HTON_ALTER_NOT_SUPPORTED;
+
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (!hash_init(&federated_open_tables, system_charset_info, 32, 0, 0,
@@ -2797,7 +2766,7 @@ int ha_federated::connection_autocommit(bool state)
   DBUG_ENTER("ha_federated::connection_autocommit");
   text= (state == true) ? "SET AUTOCOMMIT=1" : "SET AUTOCOMMIT=0";
   DBUG_RETURN(execute_simple_query(text, 16));
-}     
+}
 
 
 int ha_federated::execute_simple_query(const char *query, int len)
@@ -2811,15 +2780,17 @@ int ha_federated::execute_simple_query(const char *query, int len)
   DBUG_RETURN(0);
 }
 
+struct st_mysql_storage_engine federated_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &federated_hton };
 
 mysql_declare_plugin(federated)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &federated_hton,
-  federated_hton_name,
+  &federated_storage_engine,
+  "FEDERATED",
   "Patrick Galbraith and Brian Aker, MySQL AB",
-  federated_hton_comment,
-  NULL, /* Plugin Init */
+  "Federated MySQL storage engine",
+  federated_db_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
 }

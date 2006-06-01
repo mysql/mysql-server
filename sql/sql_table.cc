@@ -3106,7 +3106,8 @@ bool mysql_create_table_internal(THD *thd,
     }
     while ((key= key_iterator++))
     {
-      if (key->type == Key::FOREIGN_KEY)
+      if (key->type == Key::FOREIGN_KEY &&
+          !part_info->is_auto_partitioned)
       {
         my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
         goto err;
@@ -4980,7 +4981,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   old_db_type= table->s->db_type;
-  if (create_info->db_type == (handlerton*) &default_hton)
+  if (!create_info->db_type)
     create_info->db_type= old_db_type;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -6307,7 +6308,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   lex->col_list.empty();
   lex->alter_info.reset();
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type= (handlerton*) &default_hton;
+  create_info.db_type= 0;
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
@@ -6451,7 +6452,7 @@ static bool check_engine(THD *thd, const char *table_name,
                                   no_substitution, 1)))
     return TRUE;
 
-  if (req_engine != (handlerton*) &default_hton && req_engine != *new_engine)
+  if (req_engine && req_engine != *new_engine)
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_WARN_USING_OTHER_HANDLER,
@@ -6464,7 +6465,8 @@ static bool check_engine(THD *thd, const char *table_name,
   {
     if (create_info->used_fields & HA_CREATE_USED_ENGINE)
     {
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), (*new_engine)->name, "TEMPORARY");
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+               hton2plugin[(*new_engine)->slot]->name.str, "TEMPORARY");
       *new_engine= 0;
       return TRUE;
     }

@@ -28,7 +28,7 @@
 */
 #define MYSQL_UDF_PLUGIN             0  /* User-defined function        */
 #define MYSQL_STORAGE_ENGINE_PLUGIN  1  /* Storage Engine               */
-#define MYSQL_FTPARSER_PLUGIN        2  /* Full-text [pre]parser        */
+#define MYSQL_FTPARSER_PLUGIN        2  /* Full-text parser plugin      */
 #define MYSQL_MAX_PLUGIN_TYPE_NUM    3  /* The number of plugin types   */
 
 /*
@@ -95,12 +95,14 @@ struct st_mysql_plugin
 };
 
 /*************************************************************************
-  API for Full-text [pre]parser plugin. (MYSQL_FTPARSER_PLUGIN)
+  API for Full-text parser plugin. (MYSQL_FTPARSER_PLUGIN)
 */
 
-#define MYSQL_FTPARSER_INTERFACE_VERSION 0x0000
+#define MYSQL_FTPARSER_INTERFACE_VERSION 0x0100
 
 /* Parsing modes. Set in  MYSQL_FTPARSER_PARAM::mode */
+enum enum_ftparser_mode
+{
 /*
   Fast and simple mode.  This mode is used for indexing, and natural
   language queries.
@@ -109,7 +111,7 @@ struct st_mysql_plugin
   index. Stopwords or too short/long words should not be returned. The
   'boolean_info' argument of mysql_add_word() does not have to be set.
 */
-#define MYSQL_FTPARSER_SIMPLE_MODE             0
+  MYSQL_FTPARSER_SIMPLE_MODE= 0,
 
 /*
   Parse with stopwords mode.  This mode is used in boolean searches for
@@ -120,7 +122,7 @@ struct st_mysql_plugin
   or long.  The 'boolean_info' argument of mysql_add_word() does not
   have to be set.
 */
-#define MYSQL_FTPARSER_WITH_STOPWORDS          1
+  MYSQL_FTPARSER_WITH_STOPWORDS= 1,
 
 /*
   Parse in boolean mode.  This mode is used to parse a boolean query string.
@@ -133,7 +135,8 @@ struct st_mysql_plugin
   MYSQL_FTPARSER_WITH_STOPWORDS mode, no word should be ignored.
   Instead, use FT_TOKEN_STOPWORD for the token type of such a word.
 */
-#define MYSQL_FTPARSER_FULL_BOOLEAN_INFO       2
+  MYSQL_FTPARSER_FULL_BOOLEAN_INFO= 2
+};
 
 /*
   Token types for boolean mode searching (used for the type member of
@@ -198,6 +201,17 @@ typedef struct st_mysql_ftparser_boolean_info
   char *quot;
 } MYSQL_FTPARSER_BOOLEAN_INFO;
 
+/*
+  The following flag means that buffer with a string (document, word)
+  may be overwritten by the caller before the end of the parsing (that is
+  before st_mysql_ftparser::deinit() call). If one needs the string
+  to survive between two successive calls of the parsing function, she
+  needs to save a copy of it. The flag may be set by MySQL before calling
+  st_mysql_ftparser::parse(), or it may be set by a plugin before calling
+  st_mysql_ftparser_param::mysql_parse() or
+  st_mysql_ftparser_param::mysql_add_word().
+*/
+#define MYSQL_FTFLAGS_NEED_COPY 1
 
 /*
   An argument of the full-text parser plugin. This structure is
@@ -209,22 +223,20 @@ typedef struct st_mysql_ftparser_boolean_info
   to invoke the MySQL default parser.  If plugin's role is to extract
   textual data from .doc, .pdf or .xml content, it might extract
   plaintext from the content, and then pass the text to the default
-  MySQL parser to be parsed.  When mysql_parser is called, its param
-  argument should be given as the mysql_ftparam value.
+  MySQL parser to be parsed.
 
   mysql_add_word: A server callback to add a new word.  When parsing
   a document, the server sets this to point at a function that adds
   the word to MySQL full-text index.  When parsing a search query,
   this function will add the new word to the list of words to search
-  for.  When mysql_add_word is called, its param argument should be
-  given as the mysql_ftparam value.  boolean_info can be NULL for all
-  cases except when mode is MYSQL_FTPARSER_FULL_BOOLEAN_INFO.
+  for.  The boolean_info argument can be NULL for all cases except
+  when mode is MYSQL_FTPARSER_FULL_BOOLEAN_INFO.
 
   ftparser_state: A generic pointer. The plugin can set it to point
   to information to be used internally for its own purposes.
 
-  mysql_ftparam: This is set by the server.  It is passed as the first
-  argument to the mysql_parse or mysql_add_word callback.  The plugin
+  mysql_ftparam: This is set by the server.  It is used by MySQL functions
+  called via mysql_parse() and mysql_add_word() callback.  The plugin
   should not modify it.
 
   cs: Information about the character set of the document or query string.
@@ -233,21 +245,26 @@ typedef struct st_mysql_ftparser_boolean_info
 
   length: Length of the document or query string, in bytes.
 
+  flags: See MYSQL_FTFLAGS_* constants above.
+
   mode: The parsing mode.  With boolean operators, with stopwords, or
-  nothing.  See MYSQL_FTPARSER_* constants above.
+  nothing.  See  enum_ftparser_mode above.
 */
 
 typedef struct st_mysql_ftparser_param
 {
-  int (*mysql_parse)(void *param, char *doc, int doc_len);
-  int (*mysql_add_word)(void *param, char *word, int word_len,
+  int (*mysql_parse)(struct st_mysql_ftparser_param *,
+                     char *doc, int doc_len);
+  int (*mysql_add_word)(struct st_mysql_ftparser_param *,
+                        char *word, int word_len,
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
   struct charset_info_st *cs;
   char *doc;
   int length;
-  int mode;
+  int flags;
+  enum enum_ftparser_mode mode;
 } MYSQL_FTPARSER_PARAM;
 
 /*
@@ -265,5 +282,25 @@ struct st_mysql_ftparser
   int (*init)(MYSQL_FTPARSER_PARAM *param);
   int (*deinit)(MYSQL_FTPARSER_PARAM *param);
 };
+
+/*************************************************************************
+  API for Storage Engine plugin. (MYSQL_STORAGE_ENGINE_PLUGIN)
+*/
+
+/* handlertons of different MySQL releases are incompatible */
+#define MYSQL_HANDLERTON_INTERFACE_VERSION (MYSQL_VERSION_ID << 8)
+
+/*
+  The real API is in the sql/handler.h
+  Here we define only the descriptor structure, that is referred from
+  st_mysql_plugin.
+*/
+
+struct st_mysql_storage_engine
+{
+  int interface_version;
+  struct handlerton *handlerton;
+};
+
 #endif
 
