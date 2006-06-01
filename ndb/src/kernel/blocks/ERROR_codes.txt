@@ -63,6 +63,9 @@ Delay GCP_SAVEREQ by 10 secs
 
 7165: Delay INCL_NODE_REQ in starting node yeilding error in GCP_PREPARE
 
+7030: Delay in GCP_PREPARE until node has completed a node failure
+7031: Delay in GCP_PREPARE and die 3s later
+
 ERROR CODES FOR TESTING NODE FAILURE, LOCAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------
 
