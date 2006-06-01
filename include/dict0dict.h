@@ -45,6 +45,15 @@ dict_get_db_name_len(
 	const char*	name);	/* in: table name in the form
 				dbname '/' tablename */
 /************************************************************************
+Return the end of table name where we have removed dbname and '/'. */
+
+const char*
+dict_remove_db_name(
+/*================*/
+				/* out: table name */
+	const char*	name);	/* in: table name in the form
+				dbname '/' tablename */
+/************************************************************************
 Decrements the count of open MySQL handles to a table. */
 
 void
