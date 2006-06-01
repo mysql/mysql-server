@@ -337,9 +337,10 @@ JOIN::prepare(Item ***rref_pointer_array,
   /* Check that all tables, fields, conds and order are ok */
 
   if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
-       setup_tables(thd, &select_lex->context, join_list,
-                    tables_list, &conds, &select_lex->leaf_tables,
-                    FALSE)) ||
+       setup_tables_and_check_access(thd, &select_lex->context, join_list,
+                                     tables_list, &conds, 
+                                     &select_lex->leaf_tables, FALSE, 
+                                     SELECT_ACL)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), fields_list, 1,
@@ -8175,6 +8176,7 @@ Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
 			in this array
     from_field          if field will be created using other field as example,
                         pointer example field will be written here
+    default_field	If field has a default value field, store it here
     group		1 if we are going to do a relative group by on result
     modify_item		1 if item->result_field should point to new item.
 			This is relevent for how fill_record() is going to
@@ -8193,6 +8195,7 @@ Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         Item ***copy_func, Field **from_field,
+                        Field **default_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,
                         bool make_copy_field,
@@ -8260,7 +8263,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     if (orig_type == Item::REF_ITEM && orig_modify)
       ((Item_ref*)orig_item)->set_result_field(result);
     if (field->field->eq_def(result))
-      result->dflt_field= field->field;
+      *default_field= field->field;
     return result;
   }
   /* Fall through */
@@ -8349,7 +8352,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   char	*tmpname,path[FN_REFLEN];
   byte	*pos,*group_buff;
   uchar *null_flags;
-  Field **reg_field, **from_field;
+  Field **reg_field, **from_field, **default_field;
   uint *blob_field;
   Copy_field *copy=0;
   KEY *keyinfo;
@@ -8419,6 +8422,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                         &table, sizeof(*table),
                         &share, sizeof(*share),
                         &reg_field, sizeof(Field*) * (field_count+1),
+                        &default_field, sizeof(Field*) * (field_count),
                         &blob_field, sizeof(uint)*(field_count+1),
                         &from_field, sizeof(Field*)*field_count,
                         &copy_func, sizeof(*copy_func)*(copy_func_count+1),
@@ -8448,6 +8452,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   bzero((char*) table,sizeof(*table));
   bzero((char*) reg_field,sizeof(Field*)*(field_count+1));
+  bzero((char*) default_field, sizeof(Field*) * (field_count));
   bzero((char*) from_field,sizeof(Field*)*field_count);
 
   table->mem_root= own_root;
@@ -8514,9 +8519,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	Item *arg= *argp;
 	if (!arg->const_item())
 	{
+          uint field_index= (uint) (reg_field - table->field);
 	  Field *new_field=
             create_tmp_field(thd, table, arg, arg->type(), &copy_func,
-                             tmp_from_field, group != 0,not_all_columns,
+                             tmp_from_field, &default_field[field_index],
+                             group != 0,not_all_columns,
                              distinct, 0,
                              param->convert_blob_length);
 	  if (!new_field)
@@ -8525,12 +8532,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  reclength+=new_field->pack_length();
 	  if (new_field->flags & BLOB_FLAG)
 	  {
-	    *blob_field++= (uint) (reg_field - table->field);
+	    *blob_field++= field_index;
 	    blob_count++;
 	  }
           if (new_field->type() == FIELD_TYPE_BIT)
             total_uneven_bit_length+= new_field->field_length & 7;
-          new_field->field_index= (uint) (reg_field - table->field);
+          new_field->field_index= field_index;
 	  *(reg_field++)= new_field;
           if (new_field->real_type() == MYSQL_TYPE_STRING ||
               new_field->real_type() == MYSQL_TYPE_VARCHAR)
@@ -8557,6 +8564,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
     else
     {
+      uint field_index= (uint) (reg_field - table->field);
       /*
 	The last parameter to create_tmp_field() is a bit tricky:
 
@@ -8573,7 +8581,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       Field *new_field= (param->schema_table) ?
         create_tmp_field_for_schema(thd, item, table) :
         create_tmp_field(thd, table, item, type, &copy_func,
-                         tmp_from_field, group != 0,
+                         tmp_from_field, &default_field[field_index],
+                         group != 0,
                          !force_copy_fields &&
                            (not_all_columns || group !=0),
                          item->marker == 4, force_copy_fields,
@@ -8595,7 +8604,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         total_uneven_bit_length+= new_field->field_length & 7;
       if (new_field->flags & BLOB_FLAG)
       {
-        *blob_field++= (uint) (reg_field - table->field);
+        *blob_field++= field_index;
 	blob_count++;
       }
       if (item->marker == 4 && item->maybe_null)
@@ -8605,7 +8614,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       }
       new_field->query_id= thd->query_id;
       new_field->fieldnr= ++fieldnr;
-      new_field->field_index= (uint) (reg_field - table->field);
+      new_field->field_index= field_index;
       *(reg_field++) =new_field;
     }
     if (!--hidden_field_count)
@@ -8625,6 +8634,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
   field_count= (uint) (reg_field - table->field);
+  *reg_field= 0;
   *blob_field= 0;				// End marker
   share->fields= field_count;
 
@@ -8742,30 +8752,31 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
     field->reset();
 
-    if (field->dflt_field && field->dflt_field->ptr)
+    /*
+      Test if there is a default field value. The test for ->ptr is to skip
+      'offset' fields generated by initalize_tables
+    */
+    if (default_field[i] && default_field[i]->ptr)
     {
       /* 
-        field->dflt_field is set only in the cases  when 'field' can
-        inherit the default value that is defined for the field referred
-        by the Item_field object from which 'field' has been created.
-        For a field created not from a Item_field item dflt_field == 0.
+         default_field[i] is set only in the cases  when 'field' can
+         inherit the default value that is defined for the field referred
+         by the Item_field object from which 'field' has been created.
       */
       my_ptrdiff_t diff;
-      Field *orig_field= field->dflt_field;
+      Field *orig_field= default_field[i];
       /* Get the value from default_values */
       diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
                             orig_field->table->record[0]);
       orig_field->move_field_offset(diff);      // Points now at default_values
-      bool is_null= orig_field->is_real_null();
-      char *from= orig_field->ptr;
-      orig_field->move_field_offset(-diff);     // Back to record[0]
-      if (is_null)
+      if (orig_field->is_real_null())
         field->set_null();
       else
       {
         field->set_notnull();
-        memcpy(field->ptr, from, field->pack_length());
+        memcpy(field->ptr, orig_field->ptr, field->pack_length());
       }
+      orig_field->move_field_offset(-diff);     // Back to record[0]
     } 
 
     if (from_field[i])
@@ -12309,6 +12320,8 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   Item::Type order_item_type;
   Item **select_item; /* The corresponding item from the SELECT clause. */
   Field *from_field;  /* The corresponding field from the FROM clause. */
+  uint counter;
+  bool unaliased;
 
   /*
     Local SP variables may be int but are expressions, not positions.
@@ -12330,8 +12343,6 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     return FALSE;
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
-  uint counter;
-  bool unaliased;
   select_item= find_item_in_list(order_item, fields, &counter,
                                  REPORT_EXCEPT_NOT_FOUND, &unaliased);
   if (!select_item)

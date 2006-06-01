@@ -156,3 +156,5 @@ drop function bug15728_insert;
 drop table t1, t2;
 
 # End of 5.0 tests
+
+sync_slave_with_master;

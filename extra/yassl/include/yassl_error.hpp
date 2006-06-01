@@ -26,7 +26,6 @@
 #ifndef yaSSL_ERROR_HPP
 #define yaSSL_ERROR_HPP
 
-#include "stdexcept.hpp"
 
 
 namespace yaSSL {
@@ -63,7 +62,7 @@ enum { MAX_ERROR_SZ = 80 };
 
 void SetErrorString(YasslError, char*);
 
-
+/* remove for now, if go back to exceptions use this wrapper
 // Base class for all yaSSL exceptions
 class Error : public mySTL::runtime_error {
     YasslError  error_;
@@ -75,6 +74,7 @@ public:
     YasslError  get_number() const;
     Library     get_lib()    const;
 };
+*/
 
 
 } // naemspace
