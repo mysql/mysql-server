@@ -1096,6 +1096,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 	  jam();
 	  opbits &= ~(Uint32)Operationrec::OP_MASK;
 	  opbits |= (op = ZUPDATE);
+	  operationRecPtr.p->m_op_bits = opbits; // store to get correct ACCKEYCONF
 	}
 	opbits |= Operationrec::OP_STATE_RUNNING;
 	opbits |= Operationrec::OP_RUN_QUEUE;
