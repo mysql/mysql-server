@@ -2889,10 +2889,8 @@ bool MYSQL_LOG::write(Log_event *event_info)
     */
     if (opt_using_transactions && thd)
     {
-#ifdef HAVE_ROW_BASED_REPLICATION
       if (thd->binlog_setup_trx_data())
         goto err;
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 
       binlog_trx_data *const trx_data=
         (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
