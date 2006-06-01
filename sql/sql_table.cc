@@ -3106,7 +3106,8 @@ bool mysql_create_table_internal(THD *thd,
     }
     while ((key= key_iterator++))
     {
-      if (key->type == Key::FOREIGN_KEY)
+      if (key->type == Key::FOREIGN_KEY &&
+          !part_info->is_auto_partitioned)
       {
         my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
         goto err;

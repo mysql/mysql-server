@@ -748,3 +748,11 @@ f1	f2	f3
 111111	aaaaaa	1
 222222	bbbbbb	2
 drop table t1;
+CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
+CONSTRAINT pk_a PRIMARY KEY (a))engine=ndb;
+CREATE TABLE t2(a VARCHAR(255) NOT NULL,
+b VARCHAR(255) NOT NULL,
+c VARCHAR(255) NOT NULL,
+CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
+CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
+drop table t1, t2;
