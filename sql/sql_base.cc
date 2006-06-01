@@ -4441,6 +4441,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
        table_list= table_list->next_leaf, tablenr++)
   {
     TABLE *table= table_list->table;
+    table->pos_in_table_list= table_list;
     if (first_select_table &&
         table_list->top_table() == first_select_table)
     {
@@ -4585,7 +4586,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
         0)
     {
       my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
-	       table->s->table_name);
+	       table->pos_in_table_list->alias);
       map->set_all();
       return 1;
     }
