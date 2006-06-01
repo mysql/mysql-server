@@ -15,9 +15,9 @@ explain select * from t1 ignore key (str) where str="foo";
 explain select * from t1 use key (str,str) where str="foo";
 
 #The following should give errors
---error 1072
+--error 1176
 explain select * from t1 use key (str,str,foo) where str="foo";
---error 1072
+--error 1176
 explain select * from t1 ignore key (str,str,foo) where str="foo";
 drop table t1;
 
