@@ -829,38 +829,20 @@ fi
 # Later in this script LIBS will be augmented with a threads library.
 NON_THREADED_LIBS="$LIBS"
 
-AC_MSG_CHECKING([for int8])
-case $SYSTEM_TYPE in
-  *netware)
-    AC_MSG_RESULT([no])
-    ;;
-  *)
-AC_TRY_RUN([
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-
-#ifdef HAVE_STDDEF_H
-#include <stddef.h>
-#endif
-
-#ifdef HAVE_SYS_TYPES_H
+AC_CHECK_TYPES([int8, uint8, int16, uint16, int32, uint32, int64, uint64,
+                uchar, uint, ulong],[],[], [
 #include <sys/types.h>
-#endif
-
-int main()
-{
-  int8 i;
-  return 0;
-}
-],
-[AC_DEFINE([HAVE_INT_8_16_32], [1],
-           [whether int8, int16 and int32 types exist])
-AC_MSG_RESULT([yes])],
-[AC_MSG_RESULT([no])]
-)
-    ;;
-esac
+])
+AC_CHECK_TYPES([in_addr_t], [], [], [
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+])
+AC_CHECK_TYPES([fp_except], [], [], [
+#include <sys/types.h>
+#include <ieeefp.h>
+])
 
 #
 # Some system specific hacks
@@ -1734,16 +1716,6 @@ MYSQL_FUNC_ALLOCA
 MYSQL_TIMESPEC_TS
 # Do we have the tzname variable
 MYSQL_TZNAME
-# Do the system files define ulong
-MYSQL_CHECK_ULONG
-# Do the system files define uchar
-MYSQL_CHECK_UCHAR
-# Do the system files define uint
-MYSQL_CHECK_UINT
-# Check for fp_except in ieeefp.h
-MYSQL_CHECK_FP_EXCEPT
-# Check for IN_ADDR_T
-MYSQL_CHECK_IN_ADDR_T
 # Do the c++ compiler have a bool type
 MYSQL_CXX_BOOL
 # Check some common bugs with gcc 2.8.# on sparc
