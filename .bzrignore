@@ -1772,3 +1772,4 @@ zlib/*.ds?
 zlib/*.vcproj
 libmysqld/event_scheduler.cc
 mysys/test_atomic
+*-t
