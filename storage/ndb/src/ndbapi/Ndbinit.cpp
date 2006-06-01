@@ -219,6 +219,9 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
   }
   m_optimized_node_selection=
     m_ndb_cluster_connection.m_optimized_node_selection;
+
+  m_systemPrefix.assfmt("%s%c%s%c", NDB_SYSTEM_DATABASE, table_name_separator,
+			NDB_SYSTEM_SCHEMA, table_name_separator);
 }
 
 NdbImpl::~NdbImpl()

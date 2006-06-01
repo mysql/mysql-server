@@ -1,0 +1,36 @@
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+drop database if exists mysqltest;
+--enable_warnings
+
+#
+# Table rename tests
+#
+
+#
+# Create a normal table with primary key
+#
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL,
+  attr2 INT,
+  attr3 VARCHAR(10),
+  INDEX i1(attr1)
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES (0,0,0,"zero"),(1,1,1,"one"),(2,2,2,"two");
+SELECT * FROM t1 WHERE attr1 = 1;
+alter table t1 rename t2;
+SELECT * FROM t2 WHERE attr1 = 1;
+
+create database ndbtest;
+alter table t2 rename ndbtest.t2;
+SELECT * FROM ndbtest.t2 WHERE attr1 = 1;
+
+drop table ndbtest.t2;
+drop database ndbtest;
+
+# End of 4.1 tests
