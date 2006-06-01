@@ -417,6 +417,8 @@ public:
                   required, otherwise we only reading it and SELECT
                   privilege might be required.
   */
+  Settable_routine_parameter() {}
+  virtual ~Settable_routine_parameter() {}
   virtual void set_required_privilege(bool rw) {};
 
   /*
@@ -2330,6 +2332,7 @@ public:
     max_length= item->max_length;
     decimals= item->decimals;
     collation.set(item->collation);
+    unsigned_flag= item->unsigned_flag;
     return 0;
   };
   virtual void store(Item *)= 0;

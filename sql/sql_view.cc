@@ -1191,9 +1191,11 @@ ok:
 ok2:
   if (!old_lex->time_zone_tables_used && thd->lex->time_zone_tables_used)
     old_lex->time_zone_tables_used= thd->lex->time_zone_tables_used;
+  DBUG_ASSERT(lex == thd->lex);
+  thd->lex= old_lex;                            // Needed for prepare_security
   result= !table->prelocking_placeholder && table->prepare_security(thd);
 
-  lex_end(thd->lex);
+  lex_end(lex);
 end:
   if (arena)
     thd->restore_active_arena(arena, &backup);

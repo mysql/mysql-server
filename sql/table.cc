@@ -2832,7 +2832,8 @@ void st_table_list::hide_view_error(THD *thd)
   if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
       thd->net.last_errno == ER_SP_DOES_NOT_EXIST ||
       thd->net.last_errno == ER_PROCACCESS_DENIED_ERROR ||
-      thd->net.last_errno == ER_COLUMNACCESS_DENIED_ERROR)
+      thd->net.last_errno == ER_COLUMNACCESS_DENIED_ERROR ||
+      thd->net.last_errno == ER_TABLEACCESS_DENIED_ERROR)
   {
     TABLE_LIST *top= top_table();
     thd->clear_error();
@@ -3192,8 +3193,18 @@ bool st_table_list::prepare_view_securety_context(THD *thd)
                                 definer.host.str,
                                 thd->db))
     {
-      my_error(ER_NO_SUCH_USER, MYF(0), definer.user.str, definer.host.str);
-      DBUG_RETURN(TRUE);
+      if (thd->lex->sql_command == SQLCOM_SHOW_CREATE)
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, 
+                            ER_NO_SUCH_USER, 
+                            ER(ER_NO_SUCH_USER),
+                            definer.user.str, definer.host.str);
+      }
+      else
+      {
+        my_error(ER_NO_SUCH_USER, MYF(0), definer.user.str, definer.host.str);
+        DBUG_RETURN(TRUE);
+      }
     }
   }
   DBUG_RETURN(FALSE);
