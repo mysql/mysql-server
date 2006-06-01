@@ -3614,12 +3614,21 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     their layout. See Field_string::type() for details.
     Thus, if the table is too old we may have to rebuild the data to
     update the layout.
+
+    There was a bug prior to mysql-4.0.25. Number of null fields was
+    calculated incorrectly. As a result frm and data files gets out of
+    sync after fast alter table. There is no way to determine by which
+    mysql version (in 4.0 and 4.1 branches) table was created, thus we
+    disable fast alter table for all tables created by mysql versions
+    prior to 5.0 branch.
+    See BUG#6236.
   */
   need_copy_table= (alter_info->flags &
                     ~(ALTER_CHANGE_COLUMN_DEFAULT|ALTER_OPTIONS) ||
                     (create_info->used_fields &
                      ~(HA_CREATE_USED_COMMENT|HA_CREATE_USED_PASSWORD)) ||
                     table->s->tmp_table ||
+                    !table->s->mysql_version ||
                     (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar));
   create_info->frm_only= !need_copy_table;
 
