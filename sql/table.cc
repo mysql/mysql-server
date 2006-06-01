@@ -1614,6 +1614,10 @@ bool check_db_name(char *name)
     if (*name == '/' || *name == '\\' || *name == FN_LIBCHAR ||
 	*name == FN_EXTCHAR)
       return 1;
+#ifdef FN_DEVCHAR
+    if (*name == FN_DEVCHAR)
+      return 1;
+#endif
     name++;
   }
   return last_char_is_space || (uint) (name - start) > NAME_LEN;
@@ -1656,6 +1660,10 @@ bool check_table_name(const char *name, uint length)
 #endif
     if (*name == '/' || *name == '\\' || *name == FN_EXTCHAR)
       return 1;
+#ifdef FN_DEVCHAR
+    if (*name == FN_DEVCHAR)
+      return 1;
+#endif
     name++;
   }
 #if defined(USE_MB) && defined(USE_MB_IDENT)
