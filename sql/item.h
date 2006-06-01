@@ -783,6 +783,29 @@ public:
   virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
   virtual bool change_context_processor(byte *context) { return 0; }
   virtual bool reset_query_id_processor(byte *query_id) { return 0; }
+  /*
+    Check if a partition function is allowed
+    SYNOPSIS
+      check_partition_func_processor()
+      bool_arg                        Return argument
+    RETURN VALUE
+      0
+    DESCRIPTION
+    check_partition_func_processor is used to check if a partition function
+    uses an allowed function. The default is that an item is not allowed
+    in a partition function. However all mathematical functions, string
+    manipulation functions, date functions are allowed. Allowed functions
+    can never depend on server version, they cannot depend on anything
+    related to the environment. They can also only depend on a set of
+    fields in the table itself. They cannot depend on other tables and
+    cannot contain any queries and cannot contain udf's or similar.
+    If a new Item class is defined and it inherits from a class that is
+    allowed in a partition function then it is very important to consider
+    whether this should be inherited to the new class. If not the function
+    below should be defined in the new Item class.
+  */
+  virtual bool check_partition_func_processor(byte *bool_arg)
+  { *(bool *)bool_arg= FALSE; return 0; }
 
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
   virtual Item *set_no_const_sub(byte *arg) { return this; }
@@ -1073,6 +1096,7 @@ public:
     Item::maybe_null= TRUE;
   }
 
+  bool check_partition_func_processor(byte *bool_arg) { return 0; }
   bool fix_fields(THD *, Item **);
 
   enum Type type() const;
@@ -1119,6 +1143,7 @@ public:
   Item_num() {}                               /* Remove gcc warning */
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(CHARSET_INFO *tocs);
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
@@ -1260,6 +1285,7 @@ public:
       result_field->query_id= field->query_id;
     return 0;
   }
+  bool check_partition_func_processor(byte *bool_arg) { return 0; }
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   Item *equal_fields_propagator(byte *arg);
@@ -1303,6 +1329,7 @@ public:
   bool is_null() { return 1; }
   void print(String *str) { str->append(STRING_WITH_LEN("NULL")); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_null_result :public Item_null
@@ -1315,6 +1342,8 @@ public:
   {
     save_in_field(result_field, no_conversions);
   }
+  bool check_partition_func_processor(byte *bool_arg)
+  { *(bool *)bool_arg= FALSE; return 0; }
 };  
 
 /* Item represents one placeholder ('?') of prepared statement */
@@ -1605,6 +1634,8 @@ public:
   {}
   void print(String *str) { str->append(func_name); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
+  bool check_partition_func_processor(byte *bool_arg)
+  { *(bool *)bool_arg= FALSE; return 0; }
 };
 
 
@@ -1682,6 +1713,7 @@ public:
   void print(String *str);
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -1696,6 +1728,8 @@ public:
   {}
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   void print(String *str) { str->append(func_name); }
+  bool check_partition_func_processor(byte *bool_arg)
+  { *(bool *)bool_arg= FALSE; return 0; }
 };
 
 
@@ -1708,6 +1742,8 @@ public:
                                                     &my_charset_bin)
   { max_length=19;}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
+  bool check_partition_func_processor(byte *bool_arg)
+  { *(bool *)bool_arg= FALSE; return 0; }
 };
 
 class Item_empty_string :public Item_string
@@ -1730,6 +1766,8 @@ public:
     unsigned_flag=1;
   }
   enum_field_types field_type() const { return int_field_type; }
+  bool check_partition_func_processor(byte *bool_arg)
+  { *(bool *)bool_arg= FALSE; return 0; }
 };
 
 
@@ -1753,6 +1791,7 @@ public:
   void cleanup() {}
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
+  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 
@@ -1975,6 +2014,8 @@ public:
   }
   Item *new_item();
   virtual Item *real_item() { return ref; }
+  bool check_partition_func_processor(byte *bool_arg)
+  { *(bool *)bool_arg= FALSE; return 0; }
 };
 
 #ifdef MYSQL_SERVER
