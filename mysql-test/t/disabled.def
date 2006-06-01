@@ -35,6 +35,7 @@ rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
 rpl_row_func003 	 : BUG#19074 2006-13-04 andrei  test failed
 rpl_row_inexist_tbl      : BUG#18948 2006-03-09 mats    Disabled since patch makes this test wait forever
 rpl_sp                   : BUG#16456 2006-02-16 jmiller
+rpl_sp_effects           : BUG#19862 SELECT from view with ORDER BY...
 udf                      : BUG#18564 2006-03-27 ian     (Permission by Brian)
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
