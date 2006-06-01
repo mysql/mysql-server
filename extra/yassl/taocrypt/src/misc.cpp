@@ -81,6 +81,19 @@ extern "C" {
 
     }
 
+#if defined(__ICC) || defined(__INTEL_COMPILER)
+
+extern "C" {
+
+    int __cxa_pure_virtual() {
+      assert("Pure virtual method called." == "Aborted");
+      return 0;
+    }
+
+}  // extern "C"
+
+#endif
+
 #endif // YASSL_PURE_C
 
 
