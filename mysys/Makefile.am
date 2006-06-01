@@ -20,8 +20,7 @@ MYSQLBASEdir=		$(prefix)
 INCLUDES =		@ZLIB_INCLUDES@ -I$(top_builddir)/include \
 			-I$(top_srcdir)/include -I$(srcdir)
 pkglib_LIBRARIES =	libmysys.a
-LDADD =			libmysys.a ../dbug/libdbug.a \
-			../strings/libmystrings.a
+LDADD =			libmysys.a $(top_builddir)/strings/libmystrings.a
 noinst_HEADERS =	mysys_priv.h my_static.h
 libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_path.c mf_loadpath.c my_file.c \
@@ -32,7 +31,7 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_tempdir.c my_lock.c mf_brkhant.c my_alarm.c \
 			my_malloc.c my_realloc.c my_once.c mulalloc.c \
 			my_alloc.c safemalloc.c my_new.cc \
-			my_vle.c \
+			my_vle.c my_atomic.c \
 			my_fopen.c my_fstream.c my_getsystime.c \
 			my_error.c errors.c my_div.c my_messnc.c \
 			mf_format.c mf_same.c mf_dirname.c mf_fn_ext.c \
@@ -40,7 +39,7 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_pack.c mf_unixpath.c mf_strip.c \
 			mf_wcomp.c mf_wfile.c my_gethwaddr.c \
 			mf_qsort.c mf_qsort2.c mf_sort.c \
-			ptr_cmp.c mf_radix.c queues.c \
+			ptr_cmp.c mf_radix.c queues.c my_getncpus.c \
 			tree.c trie.c list.c hash.c array.c string.c typelib.c \
 			my_copy.c my_append.c my_lib.c \
 			my_delete.c my_rename.c my_redel.c \
@@ -64,7 +63,6 @@ libmysys_a_LIBADD =	@THREAD_LOBJECTS@
 # testhash_DEPENDENCIES=	$(LIBRARIES)
 # test_charset_DEPENDENCIES=	$(LIBRARIES)
 # charset2html_DEPENDENCIES=	$(LIBRARIES)
-EXTRA_PROGRAMS =	
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \

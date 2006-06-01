@@ -119,8 +119,8 @@ int writefrm(const char *name, const void *frmdata, uint len)
   {
     if (my_write(file,(byte*)frmdata,len,MYF(MY_WME | MY_NABP)))
       error= 2;
+    VOID(my_close(file,MYF(0)));
   }
-  VOID(my_close(file,MYF(0)));
   DBUG_RETURN(error);
 } /* writefrm */
 

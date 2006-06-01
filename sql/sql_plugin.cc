@@ -23,12 +23,18 @@ extern struct st_mysql_plugin *mysqld_builtins[];
 
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
-LEX_STRING plugin_type_names[]=
+LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   { (char *)STRING_WITH_LEN("UDF") },
   { (char *)STRING_WITH_LEN("STORAGE ENGINE") },
   { (char *)STRING_WITH_LEN("FTPARSER") }
 };
+
+plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
+{
+  0,ha_initialize_handlerton,0
+};
+
 static const char *plugin_interface_version_sym=
                    "_mysql_plugin_interface_version_";
 static const char *sizeof_st_plugin_sym=
@@ -41,8 +47,8 @@ static int min_plugin_interface_version= 0x0000;
 static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0x0000,
-  0x0000,
-  0x0000
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
+  MYSQL_FTPARSER_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -50,6 +56,7 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION
 };
+
 static DYNAMIC_ARRAY plugin_dl_array;
 static DYNAMIC_ARRAY plugin_array;
 static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
@@ -522,27 +529,15 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     {
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
-      DBUG_PRINT("warning", ("Plugin '%s' init function returned error.",
-                             plugin->name.str));
       goto err;
     }
   }
-
-  switch (plugin->plugin->type)
+  if (plugin_type_initialize[plugin->plugin->type] &&
+      (*plugin_type_initialize[plugin->plugin->type])(plugin))
   {
-  case MYSQL_STORAGE_ENGINE_PLUGIN:
-    if (ha_initialize_handlerton(plugin))
-    {
-      sql_print_error("Plugin '%s' handlerton init returned error.",
-                      plugin->name.str);
-      DBUG_PRINT("warning", ("Plugin '%s' handlerton init returned error.",
-                             plugin->name.str));
-      goto err;
-    }
-    break;
-
-  default:
-    break;
+    sql_print_error("Plugin '%s' registration as a %s failed.",
+                    plugin->name.str, plugin_type_names[plugin->plugin->type]);
+    goto err;
   }
 
   DBUG_RETURN(0);
@@ -554,14 +549,14 @@ static int plugin_finalize(THD *thd, struct st_plugin_int *plugin)
 {
   int rc;
   DBUG_ENTER("plugin_finalize");
-  
+
   if (plugin->ref_count)
   {
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
                  "Plugin is busy and will be uninstalled on shutdown");
     goto err;
   }
-  
+
   switch (plugin->plugin->type)
   {
   case MYSQL_STORAGE_ENGINE_PLUGIN:
@@ -591,7 +586,7 @@ static int plugin_finalize(THD *thd, struct st_plugin_int *plugin)
       goto err;
     }
   }
-  
+
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);
@@ -676,7 +671,7 @@ int plugin_init(void)
                   get_hash_key, NULL, 0))
       goto err;
   }
-  
+
   /* Register all the built-in plugins */
   for (builtins= mysqld_builtins; *builtins; builtins++)
   {
@@ -684,6 +679,12 @@ int plugin_init(void)
     {
       if (plugin_register_builtin(plugin))
         goto err;
+      struct st_plugin_int *tmp=dynamic_element(&plugin_array,
+                                                plugin_array.elements-1,
+                                                struct st_plugin_int *);
+      if (plugin_initialize(tmp))
+        goto err;
+      tmp->state= PLUGIN_IS_READY;
     }
   }
 

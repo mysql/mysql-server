@@ -329,7 +329,7 @@ static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
 static char *character_set_filesystem_name;
 static char *my_bind_addr_str;
-static char *default_collation_name;
+static char *default_collation_name, *default_storage_engine_str;
 static char mysql_data_home_buff[2];
 static struct passwd *user_info;
 static I_List<THD> thread_cache;
@@ -2651,12 +2651,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   if (add_status_vars(status_vars))
     return 1; // an error was already reported
 
-  if (plugin_init())
-  {
-    sql_print_error("Failed to init plugins.");
-    return 1;
-  }
-
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   get_options(argc,argv);
@@ -3172,6 +3166,12 @@ server.");
     using_update_log=1;
   }
 
+  if (plugin_init())
+  {
+    sql_print_error("Failed to init plugins.");
+    return 1;
+  }
+
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
   {
@@ -3218,15 +3218,27 @@ server.");
   /*
     Check that the default storage engine is actually available.
   */
-  if (!ha_storage_engine_is_enabled(global_system_variables.table_type))
   {
-    if (!opt_bootstrap)
+    LEX_STRING name= { default_storage_engine_str,
+                       strlen(default_storage_engine_str) };
+    handlerton *hton= ha_resolve_by_name(0, &name);
+    if (hton == NULL)
     {
-      sql_print_error("Default storage engine (%s) is not available",
-                      global_system_variables.table_type->name);
+      sql_print_error("Unknown/unsupported table type: %s",
+                      default_storage_engine_str);
       unireg_abort(1);
     }
-    global_system_variables.table_type= &myisam_hton;
+    if (!ha_storage_engine_is_enabled(hton))
+    {
+      if (!opt_bootstrap)
+      {
+        sql_print_error("Default storage engine (%s) is not available",
+                        default_storage_engine_str);
+        unireg_abort(1);
+      }
+      hton= &myisam_hton;
+    }
+    global_system_variables.table_type= hton;
   }
 
   tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
@@ -4901,14 +4913,6 @@ Disable with --skip-bdb (will save memory).",
   {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB,
    "Tells the master that updates to the given database should not be logged tothe binary log.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#if !defined(DBUG_OFF) && !defined(MYSQL_CLIENT)
-  {"binlog-show-xid", OPT_BINLOG_SHOW_XID,
-   "Option used by mysql-test for debugging and testing: "
-   "do not display the XID in SHOW BINLOG EVENTS; "
-   "may be removed in future versions",
-   (gptr*) &Xid_log_event::show_xid, (gptr*) &Xid_log_event::show_xid,
-   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#endif
 #ifdef HAVE_ROW_BASED_REPLICATION
   {"binlog-row-event-max-size", OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
    "The maximum size of a row-based binary log event in bytes. Rows will be "
@@ -4975,7 +4979,8 @@ Disable with --skip-bdb (will save memory).",
    "Set the default storage engine (table type) for tables.", 0, 0,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-table-type", OPT_STORAGE_ENGINE,
-   "(deprecated) Use --default-storage-engine.", 0, 0,
+   "(deprecated) Use --default-storage-engine.",
+   (gptr*)default_storage_engine_str, (gptr*)default_storage_engine_str,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-time-zone", OPT_DEFAULT_TIME_ZONE, "Set the default time zone.",
    (gptr*) &default_tz_name, (gptr*) &default_tz_name,
@@ -7004,8 +7009,8 @@ static void mysql_init_variables(void)
   sys_charset_system.value= (char*) system_charset_info->csname;
   character_set_filesystem_name= (char*) "binary";
 
-
   /* Set default values for some option variables */
+  default_storage_engine_str="MyISAM";
   global_system_variables.table_type= &myisam_hton;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
@@ -7465,17 +7470,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_BOOTSTRAP:
     opt_noacl=opt_bootstrap=1;
     break;
-  case OPT_STORAGE_ENGINE:
-  {
-    LEX_STRING name= { argument, strlen(argument) };
-    if ((global_system_variables.table_type=
-                        ha_resolve_by_name(current_thd, &name)) == NULL)
-    {
-      fprintf(stderr,"Unknown/unsupported table type: %s\n",argument);
-      exit(1);
-    }
-    break;
-  }
   case OPT_SERVER_ID:
     server_id_supplied = 1;
     break;

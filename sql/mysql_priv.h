@@ -504,13 +504,13 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "sql_list.h"
 #include "sql_map.h"
 #include "my_decimal.h"
+#include "sql_plugin.h"
 #include "handler.h"
 #include "parse_file.h"
 #include "table.h"
 #include "sql_error.h"
 #include "field.h"				/* Field definitions */
 #include "protocol.h"
-#include "sql_plugin.h"
 #include "sql_udf.h"
 #include "sql_partition.h"
 

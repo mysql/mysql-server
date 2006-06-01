@@ -42,7 +42,6 @@ have disables the InnoDB inlining in this file. */
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_share_mutex,	/* to protect innobase_open_files */
@@ -206,47 +205,8 @@ static int innobase_release_savepoint(THD* thd, void *savepoint);
 static handler *innobase_create_handler(TABLE_SHARE *table);
 
 static const char innobase_hton_name[]= "InnoDB";
-static const char innobase_hton_comment[]=
-  "Supports transactions, row-level locking, and foreign keys";
 
-handlerton innobase_hton = {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  innobase_hton_name,
-  SHOW_OPTION_YES,
-  innobase_hton_comment,
-  DB_TYPE_INNODB,
-  innobase_init,
-  0,				/* slot */
-  sizeof(trx_named_savept_t),	/* savepoint size. TODO: use it */
-  innobase_close_connection,
-  innobase_savepoint,
-  innobase_rollback_to_savepoint,
-  innobase_release_savepoint,
-  innobase_commit,		/* commit */
-  innobase_rollback,		/* rollback */
-  innobase_xa_prepare,		/* prepare */
-  innobase_xa_recover,		/* recover */
-  innobase_commit_by_xid,	/* commit_by_xid */
-  innobase_rollback_by_xid,	/* rollback_by_xid */
-  innobase_create_cursor_view,
-  innobase_set_cursor_view,
-  innobase_close_cursor_view,
-  innobase_create_handler,	/* Create a new handler */
-  innobase_drop_database,	/* Drop a database */
-  innobase_end,			/* Panic call */
-  innobase_start_trx_and_assign_read_view,    /* Start Consistent Snapshot */
-  innobase_flush_logs,		/* Flush logs */
-  innobase_show_status,		/* Show status */
-  NULL,                         /* Partition flags */
-  NULL,                         /* Alter table flags */
-  NULL,                         /* alter_tablespace */
-  NULL,                         /* Fill FILES table */
-  HTON_NO_FLAGS,
-  NULL,                         /* binlog_func */
-  NULL,                         /* binlog_log_query */
-  innobase_release_temporary_latches
-};
-
+handlerton innobase_hton;
 
 static handler *innobase_create_handler(TABLE_SHARE *table)
 {
@@ -1230,10 +1190,9 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 /*************************************************************************
 Opens an InnoDB database. */
 
-bool
+int
 innobase_init(void)
 /*===============*/
-			/* out: &innobase_hton, or NULL on error */
 {
 	static char	current_dir[3];		/* Set if using current lib */
 	int		err;
@@ -1242,8 +1201,33 @@ innobase_init(void)
 
 	DBUG_ENTER("innobase_init");
 
+        innobase_hton.state=have_innodb;
+        innobase_hton.db_type= DB_TYPE_INNODB;
+        innobase_hton.savepoint_offset=sizeof(trx_named_savept_t);
+        innobase_hton.close_connection=innobase_close_connection;
+        innobase_hton.savepoint_set=innobase_savepoint;
+        innobase_hton.savepoint_rollback=innobase_rollback_to_savepoint;
+        innobase_hton.savepoint_release=innobase_release_savepoint;
+        innobase_hton.commit=innobase_commit;
+        innobase_hton.rollback=innobase_rollback;
+        innobase_hton.prepare=innobase_xa_prepare;
+        innobase_hton.recover=innobase_xa_recover;
+        innobase_hton.commit_by_xid=innobase_commit_by_xid;
+        innobase_hton.rollback_by_xid=innobase_rollback_by_xid;
+        innobase_hton.create_cursor_read_view=innobase_create_cursor_view;
+        innobase_hton.set_cursor_read_view=innobase_set_cursor_view;
+        innobase_hton.close_cursor_read_view=innobase_close_cursor_view;
+        innobase_hton.create=innobase_create_handler;
+        innobase_hton.drop_database=innobase_drop_database;
+        innobase_hton.panic=innobase_end;
+        innobase_hton.start_consistent_snapshot=innobase_start_trx_and_assign_read_view;
+        innobase_hton.flush_logs=innobase_flush_logs;
+        innobase_hton.show_status=innobase_show_status;
+        innobase_hton.flags=HTON_NO_FLAGS;
+        innobase_hton.release_temporary_latches=innobase_release_temporary_latches;
+
 	 if (have_innodb != SHOW_OPTION_YES)
-	   goto error;
+	   DBUG_RETURN(0); // nothing else to do
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -6473,7 +6457,7 @@ innodb_show_status(
 
 	bool result = FALSE;
 
-	if (stat_print(thd, innobase_hton.name, strlen(innobase_hton.name),
+	if (stat_print(thd, innobase_hton_name, strlen(innobase_hton_name),
 			STRING_WITH_LEN(""), str, flen)) {
 		result= TRUE;
 	}
@@ -6500,7 +6484,7 @@ innodb_mutex_show_status(
 	ulint	  rw_lock_count_os_wait= 0;
 	ulint	  rw_lock_count_os_yield= 0;
 	ulonglong rw_lock_wait_time= 0;
-	uint	  hton_name_len= strlen(innobase_hton.name), buf1len, buf2len;
+	uint	  hton_name_len= strlen(innobase_hton_name), buf1len, buf2len;
 	DBUG_ENTER("innodb_mutex_show_status");
 
 #ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
@@ -6527,7 +6511,7 @@ innodb_mutex_show_status(
 					mutex->count_os_yield,
 					mutex->lspent_time/1000);
 
-				if (stat_print(thd, innobase_hton.name,
+				if (stat_print(thd, innobase_hton_name,
 						hton_name_len, buf1, buf1len,
 						buf2, buf2len)) {
 #ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
@@ -6557,7 +6541,7 @@ innodb_mutex_show_status(
 		rw_lock_count_os_wait, rw_lock_count_os_yield,
 		rw_lock_wait_time/1000);
 
-	if (stat_print(thd, innobase_hton.name, hton_name_len,
+	if (stat_print(thd, innobase_hton_name, hton_name_len,
 			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
 		DBUG_RETURN(1);
 	}
@@ -7459,19 +7443,20 @@ bool ha_innobase::check_if_incompatible_data(
 	return COMPATIBLE_DATA_YES;
 }
 
+struct st_mysql_storage_engine innobase_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &innobase_hton};
 
 mysql_declare_plugin(innobase)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &innobase_hton,
+  &innobase_storage_engine,
   innobase_hton_name,
   "Innobase OY",
-  innobase_hton_comment,
-  NULL, /* Plugin Init */
+  "Supports transactions, row-level locking, and foreign keys",
+  innobase_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   0
 }
 mysql_declare_plugin_end;
 
-#endif

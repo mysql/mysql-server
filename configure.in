@@ -778,48 +778,6 @@ struct request_info *req;
 AC_SUBST(WRAPLIBS)
 
 if test "$TARGET_LINUX" = "true"; then
-  AC_MSG_CHECKING([for atomic operations])
-
-  AC_LANG_SAVE
-  AC_LANG_CPLUSPLUS
-
-  atom_ops=
-  AC_TRY_RUN([
-#include <asm/atomic.h>
-int main()
-{
-  atomic_t v;
-
-  atomic_set(&v, 23);
-  atomic_add(5, &v);
-  return atomic_read(&v) == 28 ? 0 : -1;
-}
-  ],
-  [AC_DEFINE([HAVE_ATOMIC_ADD], [1],
-             [atomic_add() from <asm/atomic.h> (Linux only)])
-   atom_ops="${atom_ops}atomic_add "],
-  )
-  AC_TRY_RUN([
-#include <asm/atomic.h>
-int main()
-{
-  atomic_t v;
-
-  atomic_set(&v, 23);
-  atomic_sub(5, &v);
-  return atomic_read(&v) == 18 ? 0 : -1;
-}
-  ],
-  [AC_DEFINE([HAVE_ATOMIC_SUB], [1],
-             [atomic_sub() from <asm/atomic.h> (Linux only)])
-   atom_ops="${atom_ops}atomic_sub "],
-  )
-
-  if test -z "$atom_ops"; then atom_ops="no"; fi
-  AC_MSG_RESULT($atom_ops)
-
-  AC_LANG_RESTORE
-
   AC_ARG_WITH(pstack,
     [  --with-pstack           Use the pstack backtrace library],
     [ USE_PSTACK=$withval ],
@@ -871,38 +829,20 @@ fi
 # Later in this script LIBS will be augmented with a threads library.
 NON_THREADED_LIBS="$LIBS"
 
-AC_MSG_CHECKING([for int8])
-case $SYSTEM_TYPE in
-  *netware)
-    AC_MSG_RESULT([no])
-    ;;
-  *)
-AC_TRY_RUN([
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-
-#ifdef HAVE_STDDEF_H
-#include <stddef.h>
-#endif
-
-#ifdef HAVE_SYS_TYPES_H
+AC_CHECK_TYPES([int8, uint8, int16, uint16, int32, uint32, int64, uint64,
+                uchar, uint, ulong],[],[], [
 #include <sys/types.h>
-#endif
-
-int main()
-{
-  int8 i;
-  return 0;
-}
-],
-[AC_DEFINE([HAVE_INT_8_16_32], [1],
-           [whether int8, int16 and int32 types exist])
-AC_MSG_RESULT([yes])],
-[AC_MSG_RESULT([no])]
-)
-    ;;
-esac
+])
+AC_CHECK_TYPES([in_addr_t], [], [], [
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+])
+AC_CHECK_TYPES([fp_except], [], [], [
+#include <sys/types.h>
+#include <ieeefp.h>
+])
 
 #
 # Some system specific hacks
@@ -1631,6 +1571,20 @@ then
   fi
 fi
 
+AC_ARG_WITH([atomic-ops],
+	    AC_HELP_STRING([--with-atomic-ops=rwlocks|smp|up],
+	    [Implement atomic operations using pthread rwlocks or atomic CPU
+             instructions for multi-processor (default) or uniprocessor
+             configuration]), , [with_atomic_ops=smp])
+case "$with_atomic_ops" in
+  "up") AC_DEFINE([MY_ATOMIC_MODE_DUMMY], [1],
+                  [Assume single-CPU mode, no concurrency]) ;;
+  "rwlocks") AC_DEFINE([MY_ATOMIC_MODE_RWLOCKS], [1],
+                  [Use pthread rwlocks for atomic ops]) ;;
+  "smp") ;;
+   *) AC_MSG_ERROR(["$with_atomic_ops" is not a valid value for --with-atomic-ops]) ;;
+esac
+
 # Force static compilation to avoid linking problems/get more speed
 AC_ARG_WITH(mysqld-ldflags,
     [  --with-mysqld-ldflags   Extra linking arguments for mysqld],
@@ -1762,16 +1716,6 @@ MYSQL_FUNC_ALLOCA
 MYSQL_TIMESPEC_TS
 # Do we have the tzname variable
 MYSQL_TZNAME
-# Do the system files define ulong
-MYSQL_CHECK_ULONG
-# Do the system files define uchar
-MYSQL_CHECK_UCHAR
-# Do the system files define uint
-MYSQL_CHECK_UINT
-# Check for fp_except in ieeefp.h
-MYSQL_CHECK_FP_EXCEPT
-# Check for IN_ADDR_T
-MYSQL_CHECK_IN_ADDR_T
 # Do the c++ compiler have a bool type
 MYSQL_CXX_BOOL
 # Check some common bugs with gcc 2.8.# on sparc

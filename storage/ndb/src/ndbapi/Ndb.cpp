@@ -1311,6 +1311,35 @@ Ndb::internalize_table_name(const char *external_name) const
   DBUG_RETURN(ret);
 }
 
+const BaseString
+Ndb::old_internalize_index_name(const NdbTableImpl * table,
+				const char * external_name) const
+{
+  BaseString ret;
+  DBUG_ENTER("old_internalize_index_name");
+  DBUG_PRINT("enter", ("external_name: %s, table_id: %d",
+                       external_name, table ? table->m_id : ~0));
+  if (!table)
+  {
+    DBUG_PRINT("error", ("!table"));
+    DBUG_RETURN(ret);
+  }
+
+  if (fullyQualifiedNames)
+  {
+    /* Internal index name format <db>/<schema>/<tabid>/<table> */
+    ret.assfmt("%s%d%c%s",
+               theImpl->m_prefix.c_str(),
+               table->m_id,
+               table_name_separator,
+               external_name);
+  }
+  else
+    ret.assign(external_name);
+
+  DBUG_PRINT("exit", ("internal_name: %s", ret.c_str()));
+  DBUG_RETURN(ret);
+}
 
 const BaseString
 Ndb::internalize_index_name(const NdbTableImpl * table,
@@ -1328,9 +1357,9 @@ Ndb::internalize_index_name(const NdbTableImpl * table,
 
   if (fullyQualifiedNames)
   {
-    /* Internal index name format <db>/<schema>/<tabid>/<table> */
+    /* Internal index name format sys/def/<tabid>/<table> */
     ret.assfmt("%s%d%c%s",
-               theImpl->m_prefix.c_str(),
+               theImpl->m_systemPrefix.c_str(),
                table->m_id,
                table_name_separator,
                external_name);

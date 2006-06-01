@@ -46,7 +46,6 @@
 
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
-Uint64 g_latest_trans_gci= 0;
 
 /******************************************************************************
  * int init( int aNrOfCon, int aNrOfOp );
@@ -367,7 +366,6 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
           (tCon->theSendStatus == NdbTransaction::sendTC_OP)) {
-	g_latest_trans_gci= keyConf->gci;
         tReturnCode = tCon->receiveTCKEYCONF(keyConf, tLen);
         if (tReturnCode != -1) {
           completedTransaction(tCon);
@@ -520,7 +518,6 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
 	  (tCon->theSendStatus == NdbTransaction::sendTC_COMMIT)) {
-	g_latest_trans_gci= commitConf->gci;
 	tReturnCode = tCon->receiveTC_COMMITCONF(commitConf);
 	if (tReturnCode != -1) {
 	  completedTransaction(tCon);
@@ -855,7 +852,6 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     tCon = void2con(tFirstDataPtr);
     if ((tCon->checkMagicNumber() == 0) &&
 	(tCon->theSendStatus == NdbTransaction::sendTC_OP)) {
-      g_latest_trans_gci= indxConf->gci;
       tReturnCode = tCon->receiveTCINDXCONF(indxConf, tLen);
       if (tReturnCode != -1) { 
 	completedTransaction(tCon);

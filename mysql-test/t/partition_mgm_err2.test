@@ -15,7 +15,7 @@ enable_query_log;
 --system mkdir $MYSQLTEST_VARDIR/tmp/bug14354
 disable_query_log;
 eval CREATE TABLE t1 (id int) PARTITION BY RANGE(id) (
-PARTITION p1 VALUES LESS THAN (20) ENGINE=myiasm
+PARTITION p1 VALUES LESS THAN (20) ENGINE=myisam
 DATA DIRECTORY="$MYSQLTEST_VARDIR/tmp/bug14354"
 INDEX DIRECTORY="$MYSQLTEST_VARDIR/tmp/bug14354");
 enable_query_log;

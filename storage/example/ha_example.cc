@@ -77,46 +77,7 @@ static int example_init_func();
 static bool example_init_func_for_handlerton();
 static int example_panic(enum ha_panic_function flag);
 
-static const char example_hton_name[]= "EXAMPLE";
-static const char example_hton_comment[]= "Example storage engine";
-
-handlerton example_hton= {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  example_hton_name,
-  SHOW_OPTION_YES,
-  example_hton_comment, 
-  DB_TYPE_EXAMPLE_DB,
-  example_init_func_for_handlerton,
-  0,       /* slot */
-  0,       /* savepoint size. */
-  NULL,    /* close_connection */
-  NULL,    /* savepoint */
-  NULL,    /* rollback to savepoint */
-  NULL,    /* release savepoint */
-  NULL,    /* commit */
-  NULL,    /* rollback */
-  NULL,    /* prepare */
-  NULL,    /* recover */
-  NULL,    /* commit_by_xid */
-  NULL,    /* rollback_by_xid */
-  NULL,    /* create_cursor_read_view */
-  NULL,    /* set_cursor_read_view */
-  NULL,    /* close_cursor_read_view */
-  example_create_handler,    /* Create a new handler */
-  NULL,    /* Drop a database */
-  example_panic,    /* Panic call */
-  NULL,    /* Start Consistent Snapshot */
-  NULL,    /* Flush logs */
-  NULL,    /* Show status */
-  NULL,    /* Partition flags */
-  NULL,    /* Alter table flags */
-  NULL,    /* Alter tablespace */
-  NULL,    /* Fill Files table */
-  HTON_CAN_RECREATE,
-  NULL,
-  NULL,
-  NULL,
-};
+handlerton example_hton;
 
 /* Variables for example share methods */
 static HASH example_open_tables; // Hash used to track open tables
@@ -143,6 +104,11 @@ static int example_init_func()
     VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
     (void) hash_init(&example_open_tables,system_charset_info,32,0,0,
                      (hash_get_key) example_get_key,0,0);
+
+    example_hton.state=   SHOW_OPTION_YES;
+    example_hton.db_type= DB_TYPE_EXAMPLE_DB;
+    example_hton.create=  example_create_handler;
+    example_hton.flags=   HTON_CAN_RECREATE;
   }
   DBUG_RETURN(0);
 }
@@ -162,17 +128,6 @@ static int example_done_func()
   }
   DBUG_RETURN(0);
 }
-
-static bool example_init_func_for_handlerton()
-{
-  return example_init_func();
-}
-
-static int example_panic(enum ha_panic_function flag)
-{
-  return example_done_func();
-}
-
 
 /*
   Example of simple lock controls. The "share" it creates is structure we will
@@ -741,18 +696,21 @@ int ha_example::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("ha_example::create");
-  /* This is not implemented but we want someone to be able that it works. */
+  /* This is not implemented but we want someone to be able to see that it works. */
   DBUG_RETURN(0);
 }
+
+struct st_mysql_storage_engine example_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &example_hton };
 
 
 mysql_declare_plugin(example)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &example_hton,
-  example_hton_name,
+  &example_storage_engine,
+  "EXAMPLE",
   "Brian Aker, MySQL AB",
-  example_hton_comment,
+  "Example storage engine",
   example_init_func, /* Plugin Init */
   example_done_func, /* Plugin Deinit */
   0x0001 /* 0.1 */,
