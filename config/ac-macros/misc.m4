@@ -155,84 +155,6 @@ fi
 ])
 
 
-#---START: Used in for client configure
-AC_DEFUN([MYSQL_CHECK_ULONG],
-[AC_MSG_CHECKING(for type ulong)
-AC_CACHE_VAL(ac_cv_ulong,
-[AC_TRY_RUN([#include <stdio.h>
-#include <sys/types.h>
-main()
-{
-  ulong foo;
-  foo++;
-  exit(0);
-}], ac_cv_ulong=yes, ac_cv_ulong=no, ac_cv_ulong=no)])
-AC_MSG_RESULT($ac_cv_ulong)
-if test "$ac_cv_ulong" = "yes"
-then
-  AC_DEFINE([HAVE_ULONG], [1], [system headers define ulong])
-fi
-])
-
-AC_DEFUN([MYSQL_CHECK_UCHAR],
-[AC_MSG_CHECKING(for type uchar)
-AC_CACHE_VAL(ac_cv_uchar,
-[AC_TRY_RUN([#include <stdio.h>
-#include <sys/types.h>
-main()
-{
-  uchar foo;
-  foo++;
-  exit(0);
-}], ac_cv_uchar=yes, ac_cv_uchar=no, ac_cv_uchar=no)])
-AC_MSG_RESULT($ac_cv_uchar)
-if test "$ac_cv_uchar" = "yes"
-then
-  AC_DEFINE([HAVE_UCHAR], [1], [system headers define uchar])
-fi
-])
-
-AC_DEFUN([MYSQL_CHECK_UINT],
-[AC_MSG_CHECKING(for type uint)
-AC_CACHE_VAL(ac_cv_uint,
-[AC_TRY_RUN([#include <stdio.h>
-#include <sys/types.h>
-main()
-{
-  uint foo;
-  foo++;
-  exit(0);
-}], ac_cv_uint=yes, ac_cv_uint=no, ac_cv_uint=no)])
-AC_MSG_RESULT($ac_cv_uint)
-if test "$ac_cv_uint" = "yes"
-then
-  AC_DEFINE([HAVE_UINT], [1], [system headers define uint])
-fi
-])
-
-
-AC_DEFUN([MYSQL_CHECK_IN_ADDR_T],
-[AC_MSG_CHECKING(for type in_addr_t)
-AC_CACHE_VAL(ac_cv_in_addr_t,
-[AC_TRY_RUN([#include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
-int main(int argc, char **argv)
-{
-  in_addr_t foo;
-  exit(0);
-}], ac_cv_in_addr_t=yes, ac_cv_in_addr_t=no, ac_cv_in_addr_t=no)])
-AC_MSG_RESULT($ac_cv_in_addr_t)
-if test "$ac_cv_in_addr_t" = "yes"
-then
-  AC_DEFINE([HAVE_IN_ADDR_T], [1], [system headers define in_addr_t])
-fi
-])
-
-
 AC_DEFUN([MYSQL_PTHREAD_YIELD],
 [AC_CACHE_CHECK([if pthread_yield takes zero arguments], ac_cv_pthread_yield_zero_arg,
 [AC_TRY_LINK([#define _GNU_SOURCE
@@ -271,25 +193,6 @@ fi
 
 
 #---END:
-
-AC_DEFUN([MYSQL_CHECK_FP_EXCEPT],
-[AC_MSG_CHECKING(for type fp_except)
-AC_CACHE_VAL(ac_cv_fp_except,
-[AC_TRY_RUN([#include <stdio.h>
-#include <sys/types.h>
-#include <ieeefp.h>
-main()
-{
-  fp_except foo;
-  foo++;
-  exit(0);
-}], ac_cv_fp_except=yes, ac_cv_fp_except=no, ac_cv_fp_except=no)])
-AC_MSG_RESULT($ac_cv_fp_except)
-if test "$ac_cv_fp_except" = "yes"
-then
-  AC_DEFINE([HAVE_FP_EXCEPT], [1], [fp_except from ieeefp.h])
-fi
-])
 
 # From fileutils-3.14/aclocal.m4
 

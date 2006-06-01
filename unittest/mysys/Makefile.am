@@ -7,9 +7,5 @@ AM_LDFLAGS      += -L$(top_builddir)/strings -L$(top_builddir)/dbug
 
 LDADD            = -lmytap -lmysys -ldbug -lmystrings
 
-noinst_PROGRAMS  = bitmap.t base64.t
-
-bitmap_t_SOURCES = bitmap.t.c
-
-base64_t_SOURCES = base64.t.c
+noinst_PROGRAMS  = bitmap-t base64-t my_atomic-t
 

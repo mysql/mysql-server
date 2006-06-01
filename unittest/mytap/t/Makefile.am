@@ -5,8 +5,5 @@ AM_LDFLAGS      = -L$(top_builddir)/unittest/mytap
 
 LDADD           = -lmytap
 
-noinst_PROGRAMS = basic.t
+noinst_PROGRAMS = basic-t
 
-basic_t_SOURCES = basic.t.c
-
-all: $(noinst_PROGRAMS)
