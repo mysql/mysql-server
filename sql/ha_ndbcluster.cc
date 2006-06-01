@@ -1027,6 +1027,8 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
   DBUG_RETURN(0);
 }
 
+
+
 int ha_ndbcluster::build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase)
 {
   uint i;
@@ -4255,7 +4257,6 @@ int ha_ndbcluster::create_index(const char *name,
   DBUG_RETURN(0);  
 }
 
-
 /*
   Rename a table in NDB Cluster
 */
@@ -4264,12 +4265,16 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 {
   NDBDICT *dict;
   char new_tabname[FN_HEADLEN];
+  char new_dbname[FN_HEADLEN];
   const NDBTAB *orig_tab;
   int result;
+  bool recreate_indexes= FALSE;
+  NDBDICT::List index_list;
 
   DBUG_ENTER("ha_ndbcluster::rename_table");
   DBUG_PRINT("info", ("Renaming %s to %s", from, to));
   set_dbname(from);
+  set_dbname(to, new_dbname);
   set_tabname(from);
   set_tabname(to, new_tabname);
 
@@ -4287,6 +4292,12 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     if (!(orig_tab= dict->getTable(m_tabname)))
       ERR_RETURN(dict->getNdbError());
   }
+  if (my_strcasecmp(system_charset_info, new_dbname, m_dbname))
+  {
+    dict->listIndexes(index_list, m_tabname);
+    recreate_indexes= TRUE;
+  }
+
   m_table= (void *)orig_tab;
   // Change current database to that of target table
   set_dbname(to);
@@ -4295,6 +4306,34 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   {
     // Rename .ndb file
     result= handler::rename_table(from, to);
+  }
+
+  // If we are moving tables between databases, we need to recreate
+  // indexes
+  if (recreate_indexes)
+  {
+    const NDBTAB *new_tab;
+    set_tabname(to);
+    if (!(new_tab= dict->getTable(m_tabname)))
+      ERR_RETURN(dict->getNdbError());
+
+    for (unsigned i = 0; i < index_list.count; i++) {
+        NDBDICT::List::Element& index_el = index_list.elements[i];
+	set_dbname(from);
+	ndb->setDatabaseName(m_dbname);
+	const NDBINDEX * index= dict->getIndex(index_el.name,  *new_tab);
+	set_dbname(to);
+	ndb->setDatabaseName(m_dbname);
+	DBUG_PRINT("info", ("Creating index %s/%s", 
+			    m_dbname, index->getName()));
+	dict->createIndex(*index);
+        DBUG_PRINT("info", ("Dropping index %s/%s", 
+			    m_dbname, index->getName()));
+	
+	set_dbname(from);
+	ndb->setDatabaseName(m_dbname);
+	dict->dropIndex(*index);
+    }
   }
 
   DBUG_RETURN(result);
