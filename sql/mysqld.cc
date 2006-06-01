@@ -605,7 +605,7 @@ pthread_mutex_t LOCK_prepared_stmt_count;
 pthread_mutex_t LOCK_des_key_file;
 #endif
 rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
-pthread_cond_t COND_refresh,COND_thread_count;
+pthread_cond_t COND_refresh, COND_thread_count, COND_global_read_lock;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
 pthread_mutex_t  LOCK_server_started;
@@ -1335,6 +1335,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
+  (void) pthread_cond_destroy(&COND_global_read_lock);
   (void) pthread_cond_destroy(&COND_thread_cache);
   (void) pthread_cond_destroy(&COND_flush_thread_cache);
   (void) pthread_cond_destroy(&COND_manager);
@@ -1757,13 +1758,11 @@ void end_thread(THD *thd, bool put_in_cache)
     }
   }
 
-  DBUG_PRINT("info", ("sending a broadcast"));
-
   /* Tell main we are ready */
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   /* It's safe to broadcast outside a lock (COND... is not deleted here) */
+  DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
   (void) pthread_cond_broadcast(&COND_thread_count);
-  DBUG_PRINT("info", ("unlocked thread_count mutex"));
 #ifdef ONE_THREAD
   if (!(test_flags & TEST_NO_THREADS))	// For debugging under Linux
 #endif
@@ -2853,6 +2852,7 @@ static int init_thread_environment()
   (void) my_rwlock_init(&LOCK_grant, NULL);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
+  (void) pthread_cond_init(&COND_global_read_lock,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
   (void) pthread_cond_init(&COND_manager,NULL);
@@ -5026,7 +5026,7 @@ Disable with --skip-bdb (will save memory).",
     REQUIRED_ARG, 2/*default*/, 0/*min-value*/, 2/*max-value*/, 0, 0, 0},
   {"exit-info", 'T', "Used for debugging;  Use at your own risk!", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"external-locking", OPT_USE_LOCKING, "Use system (external) locking.  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running.",
+  {"external-locking", OPT_USE_LOCKING, "Use system (external) locking (disabled by default).  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running. Disable with --skip-external-locking.",
    (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"flush", OPT_FLUSH, "Flush tables to disk between SQL commands.", 0, 0, 0,

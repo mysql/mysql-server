@@ -46,10 +46,8 @@ public:
     // for compiler generated call, never used
     static void operator delete(void*) { assert(0); }
 private:
-#if defined(__hpux)
     // don't allow dynamic creation of exceptions
     static void* operator new(size_t);
-#endif
 };
 
 

@@ -5850,6 +5850,52 @@ DROP PROCEDURE bug18589_p2|
 
 
 #
+# BUG#18037: Server crash when returning system variable in stored procedures
+# BUG#19633: Stack corruption in fix_fields()/THD::rollback_item_tree_changes()
+#
+
+# Prepare.
+
+--disable_warnings
+DROP FUNCTION IF EXISTS bug18037_f1|
+DROP PROCEDURE IF EXISTS bug18037_p1|
+DROP PROCEDURE IF EXISTS bug18037_p2|
+--enable_warnings
+
+# Test case.
+
+CREATE FUNCTION bug18037_f1() RETURNS INT
+BEGIN
+  RETURN @@server_id;
+END|
+
+CREATE PROCEDURE bug18037_p1()
+BEGIN
+  DECLARE v INT DEFAULT @@server_id;
+END|
+
+CREATE PROCEDURE bug18037_p2()
+BEGIN
+  CASE @@server_id
+  WHEN -1 THEN
+    SELECT 0;
+  ELSE
+    SELECT 1;
+  END CASE;
+END|
+
+SELECT bug18037_f1()|
+CALL bug18037_p1()|
+CALL bug18037_p2()|
+
+# Cleanup.
+
+DROP FUNCTION bug18037_f1|
+DROP PROCEDURE bug18037_p1|
+DROP PROCEDURE bug18037_p2|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

@@ -748,9 +748,11 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   tables.alias= table_list->alias;
   thd->lex->allow_sum_func= 0;
 
-  if (setup_tables(thd, &select_lex->context, &select_lex->top_join_list,
-                   table_list, conds, &select_lex->leaf_tables,
-                   FALSE) ||
+  if (setup_tables_and_check_access(thd, &select_lex->context, 
+                                    &select_lex->top_join_list,
+                                    table_list, conds, 
+                                    &select_lex->leaf_tables,
+                                    FALSE, UPDATE_ACL) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       select_lex->setup_ref_array(thd, order_num) ||
       setup_order(thd, select_lex->ref_pointer_array,
@@ -841,10 +843,11 @@ reopen_tables:
     call in setup_tables()).
   */
 
-  if (setup_tables(thd, &lex->select_lex.context,
-                   &lex->select_lex.top_join_list,
-                   table_list, &lex->select_lex.where,
-                   &lex->select_lex.leaf_tables, FALSE))
+  if (setup_tables_and_check_access(thd, &lex->select_lex.context,
+                                    &lex->select_lex.top_join_list,
+                                    table_list, &lex->select_lex.where,
+                                    &lex->select_lex.leaf_tables, FALSE,
+                                    UPDATE_ACL))
     DBUG_RETURN(TRUE);
 
   if (setup_fields_with_no_wrap(thd, 0, *fields, 2, 0, 0))
