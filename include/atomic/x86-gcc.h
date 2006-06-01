@@ -19,6 +19,9 @@
   cmpxchg8b, if necessary
 */
 
+/* fix -ansi errors while maintaining readability */
+#define asm __asm__
+
 #define make_atomic_add_body8					\
   asm volatile (LOCK "xadd %0, %1;" : "+r" (v) , "+m" (a->val))
 #define make_atomic_swap_body8					\

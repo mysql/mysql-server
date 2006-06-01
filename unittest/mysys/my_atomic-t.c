@@ -1,3 +1,21 @@
+/* Copyright (C) 2006 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+#include <tap.h>
+
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_atomic.h>
@@ -25,6 +43,7 @@ pthread_handler_t test_atomic_add_handler(void *arg)
   N--;
   if (!N) pthread_cond_signal(&cond);
   pthread_mutex_unlock(&mutex);
+  return 0;
 }
 
 /*
@@ -54,6 +73,7 @@ pthread_handler_t test_atomic_swap_handler(void *arg)
   N--;
   if (!N) pthread_cond_signal(&cond);
   pthread_mutex_unlock(&mutex);
+  return 0;
 }
 
 /*
@@ -75,6 +95,7 @@ pthread_handler_t test_atomic_cas_handler(void *arg)
   N--;
   if (!N) pthread_cond_signal(&cond);
   pthread_mutex_unlock(&mutex);
+  return 0;
 }
 
 void test_atomic(const char *test, pthread_handler handler, int n, int m)
@@ -86,7 +107,7 @@ void test_atomic(const char *test, pthread_handler handler, int n, int m)
   my_atomic_store32(&b32, 0, &rwl);
   my_atomic_store32(&c32, 0, &rwl);
 
-  printf("Testing %s with %d threads, %d iterations... ", test, n, m);
+  diag("Testing %s with %d threads, %d iterations... ", test, n, m);
   for (N=n ; n ; n--)
     pthread_create(&t, &thr_attr, handler, &m);
 
@@ -95,24 +116,19 @@ void test_atomic(const char *test, pthread_handler handler, int n, int m)
     pthread_cond_wait(&cond, &mutex);
   pthread_mutex_unlock(&mutex);
   now=my_getsystime()-now;
-  printf("got %lu in %g secs\n", my_atomic_load32(&a32, &rwl),
-         ((double)now)/1e7);
+  ok(my_atomic_load32(&a32, &rwl) == 0,
+     "tested %s in %g secs", test, ((double)now)/1e7);
 }
 
 int main()
 {
   int err;
 
-#ifdef _IONBF
-  setvbuf(stdout, 0, _IONBF, 0);
-#endif
-  printf("N CPUs: %d\n", my_getncpus());
+  diag("N CPUs: %d", my_getncpus());
+  err= my_atomic_initialize();
 
-  if ((err= my_atomic_initialize()))
-  {
-    printf("my_atomic_initialize() failed. Error=%d\n", err);
-    return 1;
-  }
+  plan(4);
+  ok(err == 0, "my_atomic_initialize() returned %d", err);
 
   pthread_attr_init(&thr_attr);
   pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
@@ -128,6 +144,6 @@ int main()
   pthread_cond_destroy(&cond);
   pthread_attr_destroy(&thr_attr);
   my_atomic_rwlock_destroy(&rwl);
-  return 0;
+  return exit_status();
 }
 
