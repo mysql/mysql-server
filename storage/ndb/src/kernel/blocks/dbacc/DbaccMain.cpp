@@ -3190,6 +3190,7 @@ Dbacc::readTablePk(Uint32 localkey1, Uint32 eh, const Operationrec* op)
   else
   {
     ndbrequire(ElementHeader::getLocked(eh));
+    ndbrequire((op->m_op_bits & Operationrec::OP_MASK) != ZSCAN_OP);
     ret = c_lqh->readPrimaryKeys(op->userptr, ckeys, xfrm);
   }
   jamEntry();
