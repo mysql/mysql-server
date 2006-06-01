@@ -1843,6 +1843,8 @@ char *generate_partition_syntax(partition_info *part_info,
   {
     err+= add_subpartition_by(fptr);
     /* Must be hash partitioning for subpartitioning */
+    if (part_info->linear_hash_ind)
+      err+= add_string(fptr, partition_keywords[PKW_LINEAR].str);
     if (part_info->list_of_subpart_fields)
       err+= add_key_partition(fptr, part_info->subpart_field_list);
     else
