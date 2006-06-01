@@ -113,8 +113,11 @@ handlerton tina_hton= {
   NULL,    /* Alter Tablespace */
   NULL,    /* Fill FILES Table */
   HTON_CAN_RECREATE,
-  NULL, /* binlog_func */
-  NULL /* binlog_log_query */
+  NULL,    /* binlog_func */
+  NULL,    /* binlog_log_query */
+  NULL,	   /* release_temporary_latches */
+  NULL,    /* get_log_status */
+  NULL     /* create_iterator */
 };
 
 /*****************************************************************************

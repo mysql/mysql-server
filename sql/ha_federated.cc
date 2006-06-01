@@ -408,7 +408,9 @@ handlerton federated_hton= {
   HTON_ALTER_NOT_SUPPORTED,
   NULL,    /* binlog_func */
   NULL,    /* binlog_log_query */
-  NULL	   /* release_temporary_latches */
+  NULL,    /* release_temporary_latches */
+  NULL,    /* get_log_status */
+  NULL     /* create_iterator */
 };
 
 

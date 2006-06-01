@@ -117,7 +117,9 @@ handlerton binlog_hton = {
   HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
   NULL,                         /* binlog_func */
   NULL,                         /* binlog_log_query */
-  NULL				/* release_temporary_latches */
+  NULL,				/* release_temporary_latches */
+  NULL,                         /* get_log_status */
+  NULL                          /* create_iterator */
 };
 
 

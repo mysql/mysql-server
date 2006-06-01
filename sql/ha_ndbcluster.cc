@@ -81,7 +81,9 @@ handlerton ndbcluster_hton = {
   ndbcluster_init,
   ~(uint)0, /* slot */
   /* below are initialized by name in ndbcluster_init() */
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  NULL,    /* get_log_status */
+  NULL     /* create_iterator */
 };
 
 static handler *ndbcluster_create_handler(TABLE_SHARE *table)
