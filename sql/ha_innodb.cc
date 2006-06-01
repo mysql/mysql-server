@@ -42,6 +42,8 @@ have disables the InnoDB inlining in this file. */
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
+
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_share_mutex,	/* to protect innobase_open_files */
@@ -7459,4 +7461,6 @@ mysql_declare_plugin(innobase)
   0
 }
 mysql_declare_plugin_end;
+
+#endif
 
