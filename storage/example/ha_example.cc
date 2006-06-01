@@ -113,9 +113,11 @@ handlerton example_hton= {
   NULL,    /* Alter tablespace */
   NULL,    /* Fill Files table */
   HTON_CAN_RECREATE,
-  NULL,
-  NULL,
-  NULL,
+  NULL,    /* binlog_func */
+  NULL,    /* binlog_log_query */
+  NULL,	   /* release_temporary_latches */
+  NULL,    /* get_log_status */
+  NULL     /* create_iterator */
 };
 
 /* Variables for example share methods */

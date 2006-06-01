@@ -77,7 +77,9 @@ handlerton myisammrg_hton= {
   HTON_CAN_RECREATE | HTON_ALTER_CANNOT_CREATE,
   NULL,    /* binlog_func */
   NULL,    /* binlog_log_query */
-  NULL	   /* release_temporary_latches */
+  NULL,	   /* release_temporary_latches */
+  NULL,    /* get_log_status */
+  NULL     /* create_iterator */
 };
 
 static handler *myisammrg_create_handler(TABLE_SHARE *table)

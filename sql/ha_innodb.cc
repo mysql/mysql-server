@@ -244,7 +244,9 @@ handlerton innobase_hton = {
   HTON_NO_FLAGS,
   NULL,                         /* binlog_func */
   NULL,                         /* binlog_log_query */
-  innobase_release_temporary_latches
+  innobase_release_temporary_latches,
+  NULL,                         /* get_log_status */
+  NULL                          /* create_iterator */
 };
 
 

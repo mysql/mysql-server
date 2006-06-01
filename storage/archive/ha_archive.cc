@@ -185,8 +185,9 @@ handlerton archive_hton = {
   HTON_NO_FLAGS,
   NULL,    /* binlog_func */
   NULL,    /* binlog_log_query */
-  NULL	   /* release_temporary_latches */
-
+  NULL,	   /* release_temporary_latches */
+  NULL,    /* get_log_status */
+  NULL     /* create_iterator */
 };
 
 static handler *archive_create_handler(TABLE_SHARE *table)
