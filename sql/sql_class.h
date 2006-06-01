@@ -1389,6 +1389,10 @@ public:
   {
     current_stmt_binlog_row_based= 1;
   }
+  inline void clear_current_stmt_binlog_row_based()
+  {
+    current_stmt_binlog_row_based= 0;
+  }
   inline void reset_current_stmt_binlog_row_based()
   {
     current_stmt_binlog_row_based= test(variables.binlog_format == BINLOG_FORMAT_ROW);
