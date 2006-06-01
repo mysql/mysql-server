@@ -718,3 +718,98 @@ show create view v1;
 show create view v2;
 drop view v1;
 drop view v2;
+
+#
+# Bug#18681: View privileges are broken
+#
+CREATE DATABASE mysqltest1;
+CREATE USER readonly@localhost;
+CREATE TABLE mysqltest1.t1 (x INT);
+INSERT INTO mysqltest1.t1 VALUES (1), (2);
+CREATE SQL SECURITY INVOKER VIEW mysqltest1.v_t1 AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_ts AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_ti AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_tu AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_tus AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_td AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_tds AS SELECT * FROM mysqltest1.t1;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysqltest1.v_t1 TO readonly;
+GRANT SELECT ON mysqltest1.v_ts TO readonly;
+GRANT INSERT ON mysqltest1.v_ti TO readonly;
+GRANT UPDATE ON mysqltest1.v_tu TO readonly;
+GRANT UPDATE,SELECT ON mysqltest1.v_tus TO readonly;
+GRANT DELETE ON mysqltest1.v_td TO readonly;
+GRANT DELETE,SELECT ON mysqltest1.v_tds TO readonly;
+
+CONNECT (n1,localhost,readonly,,);
+CONNECTION n1;
+
+--error 1356
+SELECT * FROM mysqltest1.v_t1;
+--error 1356
+INSERT INTO mysqltest1.v_t1 VALUES(4);
+--error 1356
+DELETE FROM mysqltest1.v_t1 WHERE x = 1;
+--error 1356
+UPDATE mysqltest1.v_t1 SET x = 3 WHERE x = 2;
+--error 1356
+UPDATE mysqltest1.v_t1 SET x = 3;
+--error 1356
+DELETE FROM mysqltest1.v_t1;
+--error 1356
+SELECT 1 FROM mysqltest1.v_t1;
+--error 1142
+SELECT * FROM mysqltest1.t1;
+
+SELECT * FROM mysqltest1.v_ts;
+--error 1142
+SELECT * FROM mysqltest1.v_ts, mysqltest1.t1 WHERE mysqltest1.t1.x = mysqltest1.v_ts.x;
+--error 1142
+SELECT * FROM mysqltest1.v_ti;
+
+--error 1142
+INSERT INTO mysqltest1.v_ts VALUES (100);
+INSERT INTO mysqltest1.v_ti VALUES (100);
+
+--error 1142
+UPDATE mysqltest1.v_ts SET x= 200 WHERE x = 100;
+--error 1142
+UPDATE mysqltest1.v_ts SET x= 200;
+UPDATE mysqltest1.v_tu SET x= 200 WHERE x = 100;
+UPDATE mysqltest1.v_tus SET x= 200 WHERE x = 100;
+UPDATE mysqltest1.v_tu SET x= 200;
+
+--error 1142
+DELETE FROM mysqltest1.v_ts WHERE x= 200;
+--error 1142
+DELETE FROM mysqltest1.v_ts;
+--error 1143
+DELETE FROM mysqltest1.v_td WHERE x= 200;
+DELETE FROM mysqltest1.v_tds WHERE x= 200;
+DELETE FROM mysqltest1.v_td;
+
+CONNECTION default;
+DROP VIEW mysqltest1.v_tds;
+DROP VIEW mysqltest1.v_td;
+DROP VIEW mysqltest1.v_tus;
+DROP VIEW mysqltest1.v_tu;
+DROP VIEW mysqltest1.v_ti;
+DROP VIEW mysqltest1.v_ts;
+DROP VIEW mysqltest1.v_t1;
+DROP TABLE mysqltest1.t1;
+DROP USER readonly@localhost; 
+DROP DATABASE mysqltest1;
+
+#
+# BUG#14875: Bad view DEFINER makes SHOW CREATE VIEW fail
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE DEFINER = 'no-such-user'@localhost VIEW v AS SELECT a from t1;
+--warning 1448
+SHOW CREATE VIEW v;
+--error 1449
+SELECT * FROM v;
+DROP VIEW v;
+DROP TABLE t1;
+USE test;

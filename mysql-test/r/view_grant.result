@@ -535,3 +535,88 @@ View	Create View
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`some_user`@`localhost` SQL SECURITY INVOKER VIEW `v2` AS select 1 AS `1`
 drop view v1;
 drop view v2;
+CREATE DATABASE mysqltest1;
+CREATE USER readonly@localhost;
+CREATE TABLE mysqltest1.t1 (x INT);
+INSERT INTO mysqltest1.t1 VALUES (1), (2);
+CREATE SQL SECURITY INVOKER VIEW mysqltest1.v_t1 AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_ts AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_ti AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_tu AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_tus AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_td AS SELECT * FROM mysqltest1.t1;
+CREATE SQL SECURITY DEFINER VIEW mysqltest1.v_tds AS SELECT * FROM mysqltest1.t1;
+GRANT SELECT, INSERT, UPDATE, DELETE ON mysqltest1.v_t1 TO readonly;
+GRANT SELECT ON mysqltest1.v_ts TO readonly;
+GRANT INSERT ON mysqltest1.v_ti TO readonly;
+GRANT UPDATE ON mysqltest1.v_tu TO readonly;
+GRANT UPDATE,SELECT ON mysqltest1.v_tus TO readonly;
+GRANT DELETE ON mysqltest1.v_td TO readonly;
+GRANT DELETE,SELECT ON mysqltest1.v_tds TO readonly;
+SELECT * FROM mysqltest1.v_t1;
+ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+INSERT INTO mysqltest1.v_t1 VALUES(4);
+ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DELETE FROM mysqltest1.v_t1 WHERE x = 1;
+ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE mysqltest1.v_t1 SET x = 3 WHERE x = 2;
+ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE mysqltest1.v_t1 SET x = 3;
+ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DELETE FROM mysqltest1.v_t1;
+ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT 1 FROM mysqltest1.v_t1;
+ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM mysqltest1.t1;
+ERROR 42000: SELECT command denied to user 'readonly'@'localhost' for table 't1'
+SELECT * FROM mysqltest1.v_ts;
+x
+1
+2
+SELECT * FROM mysqltest1.v_ts, mysqltest1.t1 WHERE mysqltest1.t1.x = mysqltest1.v_ts.x;
+ERROR 42000: SELECT command denied to user 'readonly'@'localhost' for table 't1'
+SELECT * FROM mysqltest1.v_ti;
+ERROR 42000: SELECT command denied to user 'readonly'@'localhost' for table 'v_ti'
+INSERT INTO mysqltest1.v_ts VALUES (100);
+ERROR 42000: INSERT command denied to user 'readonly'@'localhost' for table 'v_ts'
+INSERT INTO mysqltest1.v_ti VALUES (100);
+UPDATE mysqltest1.v_ts SET x= 200 WHERE x = 100;
+ERROR 42000: UPDATE command denied to user 'readonly'@'localhost' for table 'v_ts'
+UPDATE mysqltest1.v_ts SET x= 200;
+ERROR 42000: UPDATE command denied to user 'readonly'@'localhost' for table 'v_ts'
+UPDATE mysqltest1.v_tu SET x= 200 WHERE x = 100;
+UPDATE mysqltest1.v_tus SET x= 200 WHERE x = 100;
+UPDATE mysqltest1.v_tu SET x= 200;
+DELETE FROM mysqltest1.v_ts WHERE x= 200;
+ERROR 42000: DELETE command denied to user 'readonly'@'localhost' for table 'v_ts'
+DELETE FROM mysqltest1.v_ts;
+ERROR 42000: DELETE command denied to user 'readonly'@'localhost' for table 'v_ts'
+DELETE FROM mysqltest1.v_td WHERE x= 200;
+ERROR 42000: SELECT command denied to user 'readonly'@'localhost' for column 'x' in table 'v_td'
+DELETE FROM mysqltest1.v_tds WHERE x= 200;
+DELETE FROM mysqltest1.v_td;
+DROP VIEW mysqltest1.v_tds;
+DROP VIEW mysqltest1.v_td;
+DROP VIEW mysqltest1.v_tus;
+DROP VIEW mysqltest1.v_tu;
+DROP VIEW mysqltest1.v_ti;
+DROP VIEW mysqltest1.v_ts;
+DROP VIEW mysqltest1.v_t1;
+DROP TABLE mysqltest1.t1;
+DROP USER readonly@localhost;
+DROP DATABASE mysqltest1;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE DEFINER = 'no-such-user'@localhost VIEW v AS SELECT a from t1;
+Warnings:
+Note	1449	There is no 'no-such-user'@'localhost' registered
+SHOW CREATE VIEW v;
+View	Create View
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`no-such-user`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`a` AS `a` from `t1`
+Warnings:
+Note	1449	There is no 'no-such-user'@'localhost' registered
+SELECT * FROM v;
+ERROR HY000: There is no 'no-such-user'@'localhost' registered
+DROP VIEW v;
+DROP TABLE t1;
+USE test;
