@@ -134,9 +134,11 @@ yylex(void);
 /* Grammar follows */
 %%
 
+top_statement:
+        procedure_definition ';'
+
 statement:
-	procedure_definition ';'
-	| stored_procedure_call
+	stored_procedure_call
 	| predefined_procedure_call ';'
 	| while_statement ';'
 	| for_statement ';'
