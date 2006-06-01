@@ -25,7 +25,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
-#ifdef	__WIN__
+#ifdef  __WIN__
 #include <io.h>
 #endif
 
@@ -879,7 +879,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info",
-	       ("Waiting for others threads to close their open tables"));
+	       ("Waiting for other threads to close their open tables"));
     while (found && ! thd->killed)
     {
       found=0;
@@ -890,6 +890,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
             ((table->s->version) < refresh_version && table->db_stat))
 	{
 	  found=1;
+          DBUG_PRINT("signal", ("Waiting for COND_refresh"));
 	  pthread_cond_wait(&COND_refresh,&LOCK_open);
 	  break;
 	}
@@ -1684,6 +1685,7 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   thd->mysys_var->current_cond= cond;
   proc_info=thd->proc_info;
   thd->proc_info="Waiting for table";
+  DBUG_ENTER("wait_for_condition");
   if (!thd->killed)
     (void) pthread_cond_wait(cond, mutex);
 
@@ -1704,6 +1706,7 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   thd->mysys_var->current_cond= 0;
   thd->proc_info= proc_info;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1982,6 +1985,10 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {
     if (table->s->version != refresh_version)
     {
+      DBUG_PRINT("note",
+                 ("Found table '%s.%s' with different refresh version",
+                  table_list->db, table_list->table_name));
+
       /*
         Don't close tables if we are working with a log table or were
         asked not to close the table explicitly
@@ -5368,6 +5375,58 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
 
 
 /*
+  prepare tables and check access for the view tables
+
+  SYNOPSIS
+    setup_tables_and_check_view_access()
+    thd		  Thread handler
+    context       name resolution contest to setup table list there
+    from_clause   Top-level list of table references in the FROM clause
+    tables	  Table list (select_lex->table_list)
+    conds	  Condition of current SELECT (can be changed by VIEW)
+    leaves        List of join table leaves list (select_lex->leaf_tables)
+    refresh       It is onle refresh for subquery
+    select_insert It is SELECT ... INSERT command
+    want_access   what access is needed
+
+  NOTE
+    a wrapper for check_tables that will also check the resulting
+    table leaves list for access to all the tables that belong to a view
+
+  RETURN
+    FALSE ok;  In this case *map will include the chosen index
+    TRUE  error
+*/
+bool setup_tables_and_check_access(THD *thd, 
+                                   Name_resolution_context *context,
+                                   List<TABLE_LIST> *from_clause,
+                                   TABLE_LIST *tables,
+                                   Item **conds, TABLE_LIST **leaves,
+                                   bool select_insert,
+                                   ulong want_access)
+{
+  TABLE_LIST *leaves_tmp = NULL;
+
+  if (setup_tables (thd, context, from_clause, tables, conds, 
+                    &leaves_tmp, select_insert))
+    return TRUE;
+
+  if (leaves)
+    *leaves = leaves_tmp;
+
+  for (; leaves_tmp; leaves_tmp= leaves_tmp->next_leaf)
+    if (leaves_tmp->belong_to_view && 
+        check_one_table_access(thd, want_access,  leaves_tmp))
+    {
+      tables->hide_view_error(thd);
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
+
+/*
    Create a key_map from a list of index names
 
    SYNOPSIS
@@ -6003,6 +6062,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   TABLE_SHARE *share;
   bool result= 0, signalled= 0;
   DBUG_ENTER("remove_table_from_cache");
+  DBUG_PRINT("enter", ("Table: '%s.%s'  flags: %u", db, table_name, flags));
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   for (;;)
@@ -6029,7 +6089,10 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
         DBUG_PRINT("info", ("Table was in use by other thread"));
         in_use->some_tables_deleted=1;
         if (table->db_stat)
+        {
+          DBUG_PRINT("info", ("Found another active instance of the table"));
   	  result=1;
+        }
         /* Kill delayed insert threads */
         if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
             ! in_use->killed)
@@ -6084,6 +6147,12 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
 
     if (result && (flags & RTFC_WAIT_OTHER_THREAD_FLAG))
     {
+      /*
+        Signal any thread waiting for tables to be freed to
+        reopen their tables
+      */
+      (void) pthread_cond_broadcast(&COND_refresh);
+      DBUG_PRINT("info", ("Waiting for refresh signal"));
       if (!(flags & RTFC_CHECK_KILLED_FLAG) || !thd->killed)
       {
         dropping_tables++;

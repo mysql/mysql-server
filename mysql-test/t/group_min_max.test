@@ -659,59 +659,7 @@ select a1 from t1 where a2 = 'b' group by a1;
 explain select distinct a1 from t1 where a2 = 'b';
 select distinct a1 from t1 where a2 = 'b';
 
-#
-# Bug #12672: primary key implcitly included in every innodb index
-#
-
---disable_warnings
-create table t4 (
-  pk_col int auto_increment primary key, a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(64) default ' '
-) engine=innodb;
---enable_warnings
-insert into t4 (a1, a2, b, c, d, dummy) select * from t1;
-
-create index idx12672_0 on t4 (a1);
-create index idx12672_1 on t4 (a1,a2,b,c);
-create index idx12672_2 on t4 (a1,a2,b);
-analyze table t1;
-
-select distinct a1 from t4 where pk_col not in (1,2,3,4);
-
-drop table t1,t2,t3,t4;
-
-#
-# Bug #6142: a problem with the empty innodb table
-#
-
---disable_warnings
-create table t1 (
-  a varchar(30), b varchar(30), primary key(a), key(b)
-) engine=innodb;
---enable_warnings
-select distinct a from t1;
-drop table t1;
-
-#
-# Bug #9798: group by with rollup
-#
-
---disable_warnings
-create table t1(a int, key(a)) engine=innodb;
---enable_warnings
-insert into t1 values(1);
-select a, count(a) from t1 group by a with rollup;
-drop table t1;
-
-#
-# Bug #13293 Wrongly used index results in endless loop.
-#
-create table t1 (f1 int, f2 char(1), primary key(f1,f2)) engine=innodb;
-insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
-alter table t1 drop primary key, add primary key (f2, f1);
-explain select distinct f1 a, f1 b from t1;
-explain select distinct f1, f2 from t1;
-drop table t1;
-
+drop table t1,t2,t3;
 #
 # Bug #14920 Ordering aggregated result sets with composite primary keys
 # corrupts resultset
