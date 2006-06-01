@@ -22,57 +22,9 @@
 #include "mysql_priv.h"
 #include "ha_blackhole.h"
 
-#include <mysql/plugin.h>
-
 /* Static declarations for handlerton */
 
-static handler *blackhole_create_handler(TABLE_SHARE *table);
-
-
-static const char blackhole_hton_name[]= "BLACKHOLE";
-static const char blackhole_hton_comment[]=
-  "/dev/null storage engine (anything you write to it disappears)";
-
-/* Blackhole storage engine handlerton */
-
-handlerton blackhole_hton= {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  blackhole_hton_name,
-  SHOW_OPTION_YES,
-  blackhole_hton_comment,
-  DB_TYPE_BLACKHOLE_DB,
-  NULL,
-  0,       /* slot */
-  0,       /* savepoint size. */
-  NULL,    /* close_connection */
-  NULL,    /* savepoint */
-  NULL,    /* rollback to savepoint */
-  NULL,    /* release savepoint */
-  NULL,    /* commit */
-  NULL,    /* rollback */
-  NULL,    /* prepare */
-  NULL,    /* recover */
-  NULL,    /* commit_by_xid */
-  NULL,    /* rollback_by_xid */
-  NULL,    /* create_cursor_read_view */
-  NULL,    /* set_cursor_read_view */
-  NULL,    /* close_cursor_read_view */
-  blackhole_create_handler,    /* Create a new handler */
-  NULL,    /* Drop a database */
-  NULL,    /* Panic call */
-  NULL,    /* Start Consistent Snapshot */
-  NULL,    /* Flush logs */
-  NULL,    /* Show status */
-  NULL,    /* Partition flags */
-  NULL,    /* Alter table flags */
-  NULL,    /* Alter Tablespace */
-  NULL,    /* Fill FILES table */
-  HTON_CAN_RECREATE | HTON_ALTER_CANNOT_CREATE,
-  NULL,    /* binlog_func */
-  NULL,    /* binlog_log_query */
-  NULL	   /* release_temporary_latches */
-};
-
+handlerton blackhole_hton;
 
 static handler *blackhole_create_handler(TABLE_SHARE *table)
 {
@@ -256,14 +208,26 @@ int ha_blackhole::index_last(byte * buf)
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
+static int blackhole_init()
+{
+  blackhole_hton.state= SHOW_OPTION_YES;
+  blackhole_hton.db_type= DB_TYPE_BLACKHOLE_DB;
+  blackhole_hton.create= blackhole_create_handler;
+  blackhole_hton.flags= HTON_CAN_RECREATE | HTON_ALTER_CANNOT_CREATE;
+  return 0;
+}
+
+struct st_mysql_storage_engine blackhole_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &blackhole_hton };
+
 mysql_declare_plugin(blackhole)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &blackhole_hton,
-  blackhole_hton_name,
+  &blackhole_storage_engine,
+  "BLACKHOLE",
   "MySQL AB",
-  blackhole_hton_comment,
-  NULL, /* Plugin Init */
+  "/dev/null storage engine (anything you write to it disappears)",
+  blackhole_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
 }

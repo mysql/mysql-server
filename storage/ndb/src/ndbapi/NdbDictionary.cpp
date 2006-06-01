@@ -1618,6 +1618,14 @@ NdbDictionary::Dictionary::listIndexes(List& list,
   return m_impl.listIndexes(list, tab->getTableId());
 }
 
+int
+NdbDictionary::Dictionary::listIndexes(List& list,
+				       const NdbDictionary::Table &table) const
+{
+  return m_impl.listIndexes(list, table.getTableId());
+}
+
+
 const struct NdbError & 
 NdbDictionary::Dictionary::getNdbError() const {
   return m_impl.getNdbError();

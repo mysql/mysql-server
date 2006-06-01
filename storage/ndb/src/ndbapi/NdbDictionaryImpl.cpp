@@ -56,7 +56,6 @@
    DBUG_RETURN(b);\
 }
 
-extern Uint64 g_latest_trans_gci;
 int ndb_dictionary_is_mysqld = 0;
 
 bool
@@ -1509,9 +1508,21 @@ NdbTableImpl *
 NdbDictionaryImpl::getIndexTable(NdbIndexImpl * index,
 				 NdbTableImpl * table)
 {
+  const char *current_db= m_ndb.getDatabaseName();
+  NdbTableImpl *index_table;
   const BaseString internalName(
     m_ndb.internalize_index_name(table, index->getName()));
-  return getTable(m_ndb.externalizeTableName(internalName.c_str()));
+  // Get index table in system database
+  m_ndb.setDatabaseName(NDB_SYSTEM_DATABASE);
+  index_table= getTable(m_ndb.externalizeTableName(internalName.c_str()));
+  m_ndb.setDatabaseName(current_db);
+  if (!index_table)
+  {
+    // Index table not found
+    // Try geting index table in current database (old format)
+    index_table= getTable(m_ndb.externalizeTableName(internalName.c_str()));    
+  }
+  return index_table;
 }
 
 #if 0
@@ -4223,7 +4234,6 @@ NdbDictInterface::execWAIT_GCP_CONF(NdbApiSignal* signal,
 {
   const WaitGCPConf * const conf=
     CAST_CONSTPTR(WaitGCPConf, signal->getDataPtr());
-  g_latest_trans_gci= conf->gcp;
   m_waiter.signal(NO_WAIT);
 }
 

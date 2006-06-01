@@ -3102,11 +3102,11 @@ opt_ts_engine:
                        "STORAGE ENGINE");
               YYABORT;
             }
-            lex->alter_tablespace_info->storage_engine= $4 ? $4 : &default_hton;
+            lex->alter_tablespace_info->storage_engine= $4;
           };
 
 opt_ts_wait:
-          /* empty */ 
+          /* empty */
           | ts_wait
           ;
 
@@ -3942,12 +3942,18 @@ storage_engines:
 	ident_or_text
 	{
 	  $$ = ha_resolve_by_name(YYTHD, &$1);
-	  if ($$ == NULL &&
-	      test(YYTHD->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION))
+	  if ($$ == NULL)
+          if (YYTHD->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
 	  {
 	    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
 	    YYABORT;
 	  }
+          else
+          {
+            push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                ER_UNKNOWN_STORAGE_ENGINE,
+                                ER(ER_UNKNOWN_STORAGE_ENGINE), $1.str);
+          }
 	};
 
 row_types:
@@ -4624,7 +4630,7 @@ alter:
 	  lex->select_lex.db=lex->name= 0;
 	  lex->like_name= 0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
-	  lex->create_info.db_type= (handlerton*) &default_hton;
+	  lex->create_info.db_type= 0;
 	  lex->create_info.default_table_charset= NULL;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
 	  lex->alter_info.reset();

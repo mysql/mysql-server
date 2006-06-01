@@ -1002,6 +1002,9 @@ typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
 #define WAITFOR_RESPONSE_TIMEOUT 120000 // Milliseconds
 #endif
 
+#define NDB_SYSTEM_DATABASE "sys"
+#define NDB_SYSTEM_SCHEMA "def"
+
 /**
  * @class Ndb 
  * @brief Represents the NDB kernel and is the main class of the NDB API.
@@ -1672,6 +1675,8 @@ private:
   const char * externalizeIndexName(const char * internalIndexName,
                                     bool fullyQualifiedNames);
   const char * externalizeIndexName(const char * internalIndexName);
+  const BaseString old_internalize_index_name(const NdbTableImpl * table,
+					      const char * external_name) const;
   const BaseString internalize_index_name(const NdbTableImpl * table,
                                           const char * external_name) const;
 

@@ -177,6 +177,7 @@
   so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
       example + csv + heap + blackhole + federated + 0
   (yes, the sum is deliberately inaccurate)
+  TODO remove the limit, use dynarrays
 */
 #define MAX_HA 15
 
@@ -460,6 +461,7 @@ typedef bool (stat_print_fn)(THD *thd, const char *type, uint type_len,
                              const char *file, uint file_len,
                              const char *status, uint status_len);
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
+extern st_plugin_int *hton2plugin[MAX_HA];
 
 /*
   handlerton is a singleton structure - one instance per storage engine -
@@ -475,38 +477,15 @@ enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 struct handlerton
 {
   /*
-    handlerton structure version
-   */
-  const int interface_version;
-/* last version change: 0x0001 in 5.1.6 */
-#define MYSQL_HANDLERTON_INTERFACE_VERSION 0x0001
-
-
-  /*
-    storage engine name as it should be printed to a user
-  */
-  const char *name;
-
-  /*
-    Historical marker for if the engine is available of not 
+    Historical marker for if the engine is available of not
   */
   SHOW_COMP_OPTION state;
-
-  /*
-    A comment used by SHOW to describe an engine.
-  */
-  const char *comment;
 
   /*
     Historical number used for frm file to determine the correct storage engine.
     This is going away and new engines will just use "name" for this.
   */
   enum legacy_db_type db_type;
-  /* 
-    Method that initizlizes a storage engine
-  */
-  bool (*init)();
-
   /*
     each storage engine has it's own memory area (actually a pointer)
     in the thd, for storing per-connection information.
@@ -586,8 +565,6 @@ struct handlerton
                             const char *db, const char *table_name);
    int (*release_temporary_latches)(THD *thd);
 };
-
-extern const handlerton default_hton;
 
 struct show_table_alias_st {
   const char *alias;
@@ -1553,7 +1530,7 @@ static inline enum legacy_db_type ha_legacy_type(const handlerton *db_type)
 
 static inline const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 {
-  return db_type == NULL ? "UNKNOWN" : db_type->name;
+  return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name.str;
 }
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
