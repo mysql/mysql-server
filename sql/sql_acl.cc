@@ -1088,6 +1088,8 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
 
   sctx->master_access= 0;
   sctx->db_access= 0;
+  sctx->priv_user= (char *) "";
+  *sctx->priv_host= 0;
 
   /*
      Find acl entry in user database.
@@ -3692,6 +3694,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   TABLE_LIST *table, *first_not_own_table= thd->lex->first_not_own_table();
   Security_context *sctx= thd->security_ctx;
   uint i;
+  ulong orig_want_access= want_access;
   DBUG_ENTER("check_grant");
   DBUG_ASSERT(number > 0);
 
@@ -3713,18 +3716,22 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     table->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
   }
 
-  want_access&= ~sctx->master_access;
-  if (!want_access)
-    DBUG_RETURN(0);                             // ok
-
   rw_rdlock(&LOCK_grant);
   for (table= tables;
        table && number-- && table != first_not_own_table;
        table= table->next_global)
   {
     GRANT_TABLE *grant_table;
+    sctx = test(table->security_ctx) ?
+      table->security_ctx : thd->security_ctx;
+
+    want_access= orig_want_access;
+    want_access&= ~sctx->master_access;
+    if (!want_access)
+      continue;                                 // ok
+
     if (!(~table->grant.privilege & want_access) || 
-        table->derived || table->schema_table || table->belong_to_view)
+        table->derived || table->schema_table)
     {
       /*
         It is subquery in the FROM clause. VIEW set table->derived after

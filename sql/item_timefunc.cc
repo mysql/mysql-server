@@ -2010,39 +2010,11 @@ longlong Item_date_add_interval::val_int()
 
 bool Item_date_add_interval::eq(const Item *item, bool binary_cmp) const
 {
-  INTERVAL interval, other_interval;
-  String val= value;   // Because of const
-
-  if (this == item)
-    return TRUE;
-
-  if ((item->type() != FUNC_ITEM) ||
-      (arg_count != ((Item_func*) item)->arg_count) ||
-      (func_name() != ((Item_func*) item)->func_name()))
-    return FALSE;
-
   Item_date_add_interval *other= (Item_date_add_interval*) item;
-
-  if ((int_type != other->int_type) ||
-      (!args[0]->eq(other->args[0], binary_cmp)))
-    return FALSE;
-
-  if (!args[1]->const_item() || !other->args[1]->const_item())
-    return (args[1]->eq(other->args[1], binary_cmp)); 
-
-  if (get_interval_value(args[1], int_type, &val, &interval))
-    return FALSE;
-
-  val= other->value;
-
-  if ((get_interval_value(other->args[1], other->int_type, &val,
-                         &other_interval)) ||
-      ((date_sub_interval ^ interval.neg) ^
-       (other->date_sub_interval ^ other_interval.neg)))
-    return FALSE;
-
-  // Assume comparing same types here due to earlier check
-  return memcmp(&interval, &other_interval, sizeof(INTERVAL)) == 0;
+  if (!Item_func::eq(item, binary_cmp))
+    return 0;
+  return ((int_type == other->int_type) &&
+          (date_sub_interval == other->date_sub_interval));
 }
 
 

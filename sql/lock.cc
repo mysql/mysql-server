@@ -1174,16 +1174,17 @@ bool lock_global_read_lock(THD *thd)
 
   if (!thd->global_read_lock)
   {
+    const char *old_message;
     (void) pthread_mutex_lock(&LOCK_global_read_lock);
-    const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_global_read_lock,
-					    "Waiting to get readlock");
+    old_message=thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
+                                "Waiting to get readlock");
     DBUG_PRINT("info",
 	       ("waiting_for: %d  protect_against: %d",
 		waiting_for_read_lock, protect_against_global_read_lock));
 
     waiting_for_read_lock++;
     while (protect_against_global_read_lock && !thd->killed)
-      pthread_cond_wait(&COND_refresh, &LOCK_global_read_lock);
+      pthread_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
     waiting_for_read_lock--;
     if (thd->killed)
     {
@@ -1205,9 +1206,15 @@ bool lock_global_read_lock(THD *thd)
   DBUG_RETURN(0);
 }
 
+
 void unlock_global_read_lock(THD *thd)
 {
   uint tmp;
+  DBUG_ENTER("unlock_global_read_lock");
+  DBUG_PRINT("info",
+             ("global_read_lock: %u  global_read_lock_blocks_commit: %u",
+              global_read_lock, global_read_lock_blocks_commit));
+
   pthread_mutex_lock(&LOCK_global_read_lock);
   tmp= --global_read_lock;
   if (thd->global_read_lock == MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT)
@@ -1215,8 +1222,13 @@ void unlock_global_read_lock(THD *thd)
   pthread_mutex_unlock(&LOCK_global_read_lock);
   /* Send the signal outside the mutex to avoid a context switch */
   if (!tmp)
-    pthread_cond_broadcast(&COND_refresh);
+  {
+    DBUG_PRINT("signal", ("Broadcasting COND_global_read_lock"));
+    pthread_cond_broadcast(&COND_global_read_lock);
+  }
   thd->global_read_lock= 0;
+
+  DBUG_VOID_RETURN;
 }
 
 #define must_wait (global_read_lock &&                             \
@@ -1254,11 +1266,15 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
       */
       DBUG_RETURN(is_not_commit);
     }
-    old_message=thd->enter_cond(&COND_refresh, &LOCK_global_read_lock,
+    old_message=thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
 				"Waiting for release of readlock");
     while (must_wait && ! thd->killed &&
 	   (!abort_on_refresh || thd->version == refresh_version))
-      (void) pthread_cond_wait(&COND_refresh,&LOCK_global_read_lock);
+    {
+      DBUG_PRINT("signal", ("Waiting for COND_global_read_lock"));
+      (void) pthread_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
+      DBUG_PRINT("signal", ("Got COND_global_read_lock"));
+    }
     if (thd->killed)
       result=1;
   }
@@ -1287,7 +1303,7 @@ void start_waiting_global_read_lock(THD *thd)
         (waiting_for_read_lock || global_read_lock_blocks_commit));
   (void) pthread_mutex_unlock(&LOCK_global_read_lock);
   if (tmp)
-    pthread_cond_broadcast(&COND_refresh);
+    pthread_cond_broadcast(&COND_global_read_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -1309,10 +1325,10 @@ bool make_global_read_lock_block_commit(THD *thd)
   /* For testing we set up some blocking, to see if we can be killed */
   DBUG_EXECUTE_IF("make_global_read_lock_block_commit_loop",
                   protect_against_global_read_lock++;);
-  old_message= thd->enter_cond(&COND_refresh, &LOCK_global_read_lock,
+  old_message= thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
                                "Waiting for all running commits to finish");
   while (protect_against_global_read_lock && !thd->killed)
-    pthread_cond_wait(&COND_refresh, &LOCK_global_read_lock);
+    pthread_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
   DBUG_EXECUTE_IF("make_global_read_lock_block_commit_loop",
                   protect_against_global_read_lock--;);
   if ((error= test(thd->killed)))

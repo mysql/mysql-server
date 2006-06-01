@@ -102,3 +102,43 @@ unlock tables;
 drop table t1, t2, t3;
 
 # End of 4.1 tests
+
+#
+# Test of deadlock problem when doing FLUSH TABLE with read lock
+# (Bug was in NTPL threads in Linux when using different mutex while
+#  waiting for a condtion variable)
+
+create table t1 (c1 int);
+create table t2 (c1 int);
+
+connect (con1,localhost,root,,);
+connect (con3,localhost,root,,);
+
+connection con1;
+lock table t1 write;
+
+connection con2;
+send flush tables with read lock;
+--sleep 1
+
+connection con3;
+send insert into t2 values(1);
+--sleep 1
+
+connection con1;
+unlock tables;
+disconnect con1;
+
+connection con2;
+reap;
+disconnect con2;
+
+connection con3;
+# It hangs here (insert into t2 does not end).
+reap;
+disconnect con3;
+
+connection default;
+drop table t1, t2;
+
+# End of 5.0 tests

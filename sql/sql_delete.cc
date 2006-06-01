@@ -394,10 +394,11 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   DBUG_ENTER("mysql_prepare_delete");
 
   thd->lex->allow_sum_func= 0;
-  if (setup_tables(thd, &thd->lex->select_lex.context,
-                   &thd->lex->select_lex.top_join_list,
-                   table_list, conds, &select_lex->leaf_tables,
-                   FALSE) ||
+  if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
+                                    &thd->lex->select_lex.top_join_list,
+                                    table_list, conds, 
+                                    &select_lex->leaf_tables, FALSE, 
+                                    DELETE_ACL) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       setup_ftfuncs(select_lex))
     DBUG_RETURN(TRUE);
@@ -456,10 +457,11 @@ bool mysql_multi_delete_prepare(THD *thd)
 
     lex->query_tables also point on local list of DELETE SELECT_LEX
   */
-  if (setup_tables(thd, &thd->lex->select_lex.context,
-                   &thd->lex->select_lex.top_join_list,
-                   lex->query_tables, &lex->select_lex.where,
-                   &lex->select_lex.leaf_tables, FALSE))
+  if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
+                                    &thd->lex->select_lex.top_join_list,
+                                    lex->query_tables, &lex->select_lex.where,
+                                    &lex->select_lex.leaf_tables, FALSE, 
+                                    DELETE_ACL))
     DBUG_RETURN(TRUE);
 
 
