@@ -285,7 +285,7 @@ dict_tables_have_same_db(
 
 /************************************************************************
 Return the end of table name where we have removed dbname and '/'. */
-static
+
 const char*
 dict_remove_db_name(
 /*================*/
