@@ -5425,6 +5425,12 @@ Dbdih::checkLocalNodefailComplete(Signal* signal, Uint32 failedNodeId,
     return;
   }
 
+  if (ERROR_INSERTED(7030))
+  {
+    ndbout_c("Reenable GCP_PREPARE");
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+  
   NFCompleteRep * const nf = (NFCompleteRep *)&signal->theData[0];
   nf->blockNo = DBDIH;
   nf->nodeId = cownNodeId;
@@ -7484,6 +7490,16 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
 {
   jamEntry();
   CRASH_INSERTION(7005);
+
+  if (ERROR_INSERTED(7030))
+  {
+    cgckptflag = true;
+    ndbout_c("Delayed GCP_PREPARE 5s");
+    sendSignalWithDelay(reference(), GSN_GCP_PREPARE, signal, 5000,
+			signal->getLength());
+    return;
+  }
+  
   Uint32 masterNodeId = signal->theData[0];
   Uint32 gci = signal->theData[1];
   BlockReference retRef = calcDihBlockRef(masterNodeId);
@@ -7496,6 +7512,14 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
   cgcpParticipantState = GCP_PARTICIPANT_PREPARE_RECEIVED;
   cnewgcp = gci;
 
+  if (ERROR_INSERTED(7031))
+  {
+    ndbout_c("Crashing delayed in GCP_PREPARE 3s");
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 3000, 1);
+    return;
+  }
+  
   signal->theData[0] = cownNodeId;
   signal->theData[1] = gci;  
   sendSignal(retRef, GSN_GCP_PREPARECONF, signal, 2, JBA);
