@@ -1,5 +1,6 @@
-drop table if exists t1,t2,t3,t4;
-drop table if exists t1_1,t1_2,t9_1,t9_2;
+drop table if exists t1,t2,t3,t4,t11;
+drop table if exists t1_1,t1_2,t9_1,t9_2,t1aa,t2aa;
+drop view if exists v1;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
@@ -143,9 +144,9 @@ explain select fld3 from t2 use index (fld1,fld3) where fld3 = 'honeysuckle';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	fld3	fld3	30	const	1	Using where; Using index
 explain select fld3 from t2 ignore index (fld3,not_used);
-ERROR HY000: Key 'not_used' doesn't exist in table 't2'
+ERROR 42000: Key column 'not_used' doesn't exist in table
 explain select fld3 from t2 use index (not_used);
-ERROR HY000: Key 'not_used' doesn't exist in table 't2'
+ERROR 42000: Key column 'not_used' doesn't exist in table
 select t2.fld3 from t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
 fld3
 honeysuckle
@@ -1363,6 +1364,17 @@ explain select t2.companynr,companyname from t4 left join t2 using (companynr) w
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1200	Using where; Not exists
+select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
+companynr	companyname
+select count(*) from t2 left join t4 using (companynr) where companynr is not null;
+count(*)
+1200
+explain select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 delete from t2 where fld1=999999;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1375,7 +1387,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	Using where
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 and companynr > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
@@ -1388,14 +1412,26 @@ explain select t2.companynr,companyname from t4 left join t2 using (companynr) w
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
+explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0 or companynr > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
+explain select companynr,companyname from t4 left join t2 using (companynr) where ifnull(companynr,1)>0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
 select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 companynr	companynr
 37	36
 41	40
 explain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using temporary
-1	SIMPLE	t4	index	NULL	PRIMARY	1	NULL	12	Using where; Using index
+1	SIMPLE	t4	index	NULL	PRIMARY	1	NULL	12	Using index; Using temporary
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
 select t2.fld1,t2.companynr,fld3,period from t3,t2 where t2.fld1 = 38208 and t2.fld1=t3.t2nr and period = 1008 or t2.fld1 = 38008 and t2.fld1 =t3.t2nr and period = 1008;
 fld1	companynr	fld3	period
 038008	37	reporters	1008
@@ -1471,7 +1507,7 @@ explain extended select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
 Warnings:
-Note	1003	select count(0) AS `count(*)`,min(test.t2.fld4) AS `min(fld4)`,max(test.t2.fld4) AS `max(fld4)`,sum(test.t2.fld1) AS `sum(fld1)`,avg(test.t2.fld1) AS `avg(fld1)`,std(test.t2.fld1) AS `std(fld1)`,variance(test.t2.fld1) AS `variance(fld1)` from test.t2 where ((test.t2.companynr = 34) and (test.t2.fld4 <> _latin1''))
+Note	1003	select count(0) AS `count(*)`,min(`test`.`t2`.`fld4`) AS `min(fld4)`,max(`test`.`t2`.`fld4`) AS `max(fld4)`,sum(`test`.`t2`.`fld1`) AS `sum(fld1)`,avg(`test`.`t2`.`fld1`) AS `avg(fld1)`,std(`test`.`t2`.`fld1`) AS `std(fld1)`,variance(`test`.`t2`.`fld1`) AS `variance(fld1)` from `test`.`t2` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld4` <> _latin1''))
 select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr limit 3;
 companynr	count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fld1)
 00	82	Anthony	windmills	10355753	126289.6707	115550.9757	13352027981.7087
@@ -1671,7 +1707,7 @@ fld1	count(*)
 158402	4181
 select sum(Period)/count(*) from t1;
 sum(Period)/count(*)
-9410.00
+9410.0000
 select companynr,count(price) as "count",sum(price) as "sum" ,abs(sum(price)/count(price)-avg(price)) as "diff",(0+count(price))*companynr as func from t3 group by companynr;
 companynr	count	sum	diff	func
 37	12543	309394878010	0.0000	464091
@@ -1683,7 +1719,7 @@ companynr	count	sum	diff	func
 512	4181	3288532102	0.0000	2140672
 select companynr,sum(price)/count(price) as avg from t3 group by companynr having avg > 70000000 order by avg;
 companynr	avg
-154	983543950.00
+154	983543950.0000
 select companynr,count(*) from t2 group by companynr order by 2 desc;
 companynr	count(*)
 37	588
@@ -2033,20 +2069,20 @@ show tables from test like "t?";
 Tables_in_test (t?)
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(11)	NULL		PRI	NULL	auto_increment	#	
-fld1	int(6) unsigned zerofill	NULL		UNI	000000		#	
-companynr	tinyint(2) unsigned zerofill	NULL			00		#	
-fld3	char(30)	latin1_swedish_ci		MUL			#	
-fld4	char(35)	latin1_swedish_ci					#	
-fld5	char(35)	latin1_swedish_ci					#	
-fld6	char(4)	latin1_swedish_ci					#	
+auto	int(11)	NULL	NO	PRI	NULL	auto_increment	#	
+fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		#	
+companynr	tinyint(2) unsigned zerofill	NULL	NO		00		#	
+fld3	char(30)	latin1_swedish_ci	NO	MUL			#	
+fld4	char(35)	latin1_swedish_ci	NO				#	
+fld5	char(35)	latin1_swedish_ci	NO				#	
+fld6	char(4)	latin1_swedish_ci	NO				#	
 show full columns from t2 from test like 'f%';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-fld1	int(6) unsigned zerofill	NULL		UNI	000000		#	
-fld3	char(30)	latin1_swedish_ci		MUL			#	
-fld4	char(35)	latin1_swedish_ci					#	
-fld5	char(35)	latin1_swedish_ci					#	
-fld6	char(4)	latin1_swedish_ci					#	
+fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		#	
+fld3	char(30)	latin1_swedish_ci	NO	MUL			#	
+fld4	char(35)	latin1_swedish_ci	NO				#	
+fld5	char(35)	latin1_swedish_ci	NO				#	
+fld6	char(4)	latin1_swedish_ci	NO				#	
 show full columns from t2 from test like 's%';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 show keys from t2;
@@ -2072,17 +2108,15 @@ INSERT INTO t1 (pseudo) VALUES ('test1');
 SELECT 1 as rnd1 from t1 where rand() > 2;
 rnd1
 DROP TABLE t1;
-CREATE TABLE t1 (gvid int(10) unsigned default NULL,  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  mmid int(10) unsigned default NULL,  hdid int(10) unsigned default NULL,  fsid int(10) unsigned default NULL,  ctid int(10) unsigned default NULL,  dtid int(10) unsigned default NULL,  cost int(10) unsigned default NULL,  performance int(10) unsigned default NULL,  serialnumber bigint(20) unsigned default NULL,  monitored tinyint(3) unsigned default '1',  removed tinyint(3) unsigned default '0',  target tinyint(3) unsigned default '0',  dt_modified timestamp(14) NOT NULL,  name varchar(255) binary default NULL,  description varchar(255) default NULL,  UNIQUE KEY hmid (hmid,volid)) ENGINE=MyISAM;
+CREATE TABLE t1 (gvid int(10) unsigned default NULL,  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  mmid int(10) unsigned default NULL,  hdid int(10) unsigned default NULL,  fsid int(10) unsigned default NULL,  ctid int(10) unsigned default NULL,  dtid int(10) unsigned default NULL,  cost int(10) unsigned default NULL,  performance int(10) unsigned default NULL,  serialnumber bigint(20) unsigned default NULL,  monitored tinyint(3) unsigned default '1',  removed tinyint(3) unsigned default '0',  target tinyint(3) unsigned default '0',  dt_modified timestamp NOT NULL,  name varchar(255) binary default NULL,  description varchar(255) default NULL,  UNIQUE KEY hmid (hmid,volid)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (200001,2,1,1,100,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\E$',''),(200002,2,2,1,101,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\C$',''),(200003,1,3,2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,0,1,20020425060427,'c:',NULL);
 CREATE TABLE t2 (  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  sampletid smallint(5) unsigned default NULL,  sampletime datetime default NULL,  samplevalue bigint(20) unsigned default NULL,  KEY idx1 (hmid,volid,sampletid,sampletime)) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1,3,10,'2002-06-01 08:00:00',35),(1,3,1010,'2002-06-01 12:00:01',35);
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= 'wrong-date-value' AND b.sampletime < 'wrong-date-value' AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 gvid	the_success	the_fail	the_size	the_time
 Warnings:
-Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
-Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
-Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
-Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
+Warning	1292	Incorrect datetime value: 'wrong-date-value' for column 'sampletime' at row 1
+Warning	1292	Incorrect datetime value: 'wrong-date-value' for column 'sampletime' at row 1
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= NULL AND b.sampletime < NULL AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 gvid	the_success	the_fail	the_size	the_time
 DROP TABLE t1,t2;
@@ -2110,196 +2144,165 @@ select @b;
 aaaa
 select @c;
 @c
-6.26
+6.260
 create table t1 (a int not null auto_increment primary key);
 insert into t1 values ();
 insert into t1 values ();
 insert into t1 values ();
 select * from (t1 as t2 left join t1 as t3 using (a)), t1;
-a	a	a
-1	1	1
-2	2	1
-3	3	1
-1	1	2
-2	2	2
-3	3	2
-1	1	3
-2	2	3
-3	3	3
-select * from t1, (t1 as t2 left join t1 as t3 using (a));
-a	a	a
-1	1	1
-2	1	1
-3	1	1
-1	2	2
-2	2	2
-3	2	2
-1	3	3
-2	3	3
-3	3	3
-select * from (t1 as t2 left join t1 as t3 using (a)) straight_join t1;
-a	a	a
-1	1	1
-2	2	1
-3	3	1
-1	1	2
-2	2	2
-3	3	2
-1	1	3
-2	2	3
-3	3	3
-select * from t1 straight_join (t1 as t2 left join t1 as t3 using (a));
-a	a	a
-1	1	1
-2	1	1
-3	1	1
-1	2	2
-2	2	2
-3	2	2
-1	3	3
-2	3	3
-3	3	3
-select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
-a	a	a
-1	1	2
-1	1	3
-2	2	2
-2	2	3
-3	3	2
-3	3	3
-select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
-a	a	a
-1	1	NULL
-2	1	1
-3	1	1
-1	2	NULL
-2	2	2
-3	2	2
-1	3	NULL
-2	3	3
-3	3	3
-select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 using ( a );
-a	a	a
-1	1	1
-2	2	2
-3	3	3
-select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) using ( a );
-a	a	a
-1	1	1
-2	1	NULL
-3	1	NULL
-1	2	NULL
-2	2	2
-3	2	NULL
-1	3	NULL
-2	3	NULL
-3	3	3
-select * from (t1 as t2 left join t1 as t3 using (a)) left outer join t1 on t1.a>1;
-a	a	a
-1	1	2
-1	1	3
-2	2	2
-2	2	3
-3	3	2
-3	3	3
-select * from t1 left outer join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
-a	a	a
-1	1	NULL
-2	1	1
-3	1	1
-1	2	NULL
-2	2	2
-3	2	2
-1	3	NULL
-2	3	3
-3	3	3
-select * from (t1 as t2 left join t1 as t3 using (a)) left join t1 using ( a );
-a	a	a
-1	1	1
-2	2	2
-3	3	3
-select * from t1 left join (t1 as t2 left join t1 as t3 using (a)) using ( a );
-a	a	a
-1	1	1
-2	1	NULL
-3	1	NULL
-1	2	NULL
-2	2	2
-3	2	NULL
-1	3	NULL
-2	3	NULL
-3	3	3
-select * from (t1 as t2 left join t1 as t3 using (a)) natural left join t1;
-a	a	a
-1	1	1
-2	2	2
-3	3	3
-select * from t1 natural left join (t1 as t2 left join t1 as t3 using (a));
-a	a	a
-1	1	1
-2	2	2
-3	3	3
-select * from (t1 as t2 left join t1 as t3 using (a)) right join t1 on t1.a>1;
-a	a	a
-1	NULL	1
-2	NULL	1
-3	NULL	1
-1	1	2
-2	2	2
-3	3	2
-1	1	3
-2	2	3
-3	3	3
-select * from t1 right join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
-a	a	a
-2	1	1
-3	1	1
-2	2	2
-3	2	2
-2	3	3
-3	3	3
-select * from (t1 as t2 left join t1 as t3 using (a)) right outer join t1 using ( a );
-a	a	a
-1	1	1
-2	NULL	1
-3	NULL	1
-1	NULL	2
-2	2	2
-3	NULL	2
-1	NULL	3
-2	NULL	3
-3	3	3
-select * from t1 right outer join (t1 as t2 left join t1 as t3 using (a)) using ( a );
-a	a	a
-1	1	1
-2	2	2
-3	3	3
-select * from (t1 as t2 left join t1 as t3 using (a)) natural right join t1;
-a	a	a
-1	1	1
-2	NULL	1
-3	NULL	1
-1	NULL	2
-2	2	2
-3	NULL	2
-1	NULL	3
-2	NULL	3
-3	3	3
-select * from t1 natural right join (t1 as t2 left join t1 as t3 using (a));
-a	a	a
-1	1	1
-2	2	2
-3	3	3
-select * from t1 natural join (t1 as t2 left join t1 as t3 using (a));
 a	a
 1	1
+2	1
+3	1
+1	2
 2	2
+3	2
+1	3
+2	3
 3	3
+select * from t1, (t1 as t2 left join t1 as t3 using (a));
+a	a
+1	1
+2	1
+3	1
+1	2
+2	2
+3	2
+1	3
+2	3
+3	3
+select * from (t1 as t2 left join t1 as t3 using (a)) straight_join t1;
+a	a
+1	1
+2	1
+3	1
+1	2
+2	2
+3	2
+1	3
+2	3
+3	3
+select * from t1 straight_join (t1 as t2 left join t1 as t3 using (a));
+a	a
+1	1
+2	1
+3	1
+1	2
+2	2
+3	2
+1	3
+2	3
+3	3
+select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
+a	a
+1	2
+2	2
+3	2
+1	3
+2	3
+3	3
+select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
+a	a
+2	1
+3	1
+2	2
+3	2
+2	3
+3	3
+select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 using ( a );
+a
+1
+2
+3
+select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) using ( a );
+a
+1
+2
+3
+select * from (t1 as t2 left join t1 as t3 using (a)) left outer join t1 on t1.a>1;
+a	a
+1	2
+1	3
+2	2
+2	3
+3	2
+3	3
+select * from t1 left outer join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
+a	a
+1	NULL
+2	1
+2	2
+2	3
+3	1
+3	2
+3	3
+select * from (t1 as t2 left join t1 as t3 using (a)) left join t1 using ( a );
+a
+1
+2
+3
+select * from t1 left join (t1 as t2 left join t1 as t3 using (a)) using ( a );
+a
+1
+2
+3
+select * from (t1 as t2 left join t1 as t3 using (a)) natural left join t1;
+a
+1
+2
+3
+select * from t1 natural left join (t1 as t2 left join t1 as t3 using (a));
+a
+1
+2
+3
+select * from (t1 as t2 left join t1 as t3 using (a)) right join t1 on t1.a>1;
+a	a
+NULL	1
+1	2
+2	2
+3	2
+1	3
+2	3
+3	3
+select * from t1 right join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
+a	a
+2	1
+3	1
+2	2
+3	2
+2	3
+3	3
+select * from (t1 as t2 left join t1 as t3 using (a)) right outer join t1 using ( a );
+a
+1
+2
+3
+select * from t1 right outer join (t1 as t2 left join t1 as t3 using (a)) using ( a );
+a
+1
+2
+3
+select * from (t1 as t2 left join t1 as t3 using (a)) natural right join t1;
+a
+1
+2
+3
+select * from t1 natural right join (t1 as t2 left join t1 as t3 using (a));
+a
+1
+2
+3
+select * from t1 natural join (t1 as t2 left join t1 as t3 using (a));
+a
+1
+2
+3
 select * from (t1 as t2 left join t1 as t3 using (a)) natural join t1;
-a	a	a
-1	1	1
-2	2	2
-3	3	3
+a
+1
+2
+3
 drop table t1;
 CREATE TABLE t1 (  aa char(2),  id int(11) NOT NULL auto_increment,  t2_id int(11) NOT NULL default '0',  PRIMARY KEY  (id),  KEY replace_id (t2_id)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES ("1",8264,2506),("2",8299,2517),("3",8301,2518),("4",8302,2519),("5",8303,2520),("6",8304,2521),("7",8305,2522);
@@ -2345,7 +2348,7 @@ select * from t2 where s = 'one';
 s
 select * from t3 where s = 'one';
 s
-one
+one 
 select * from t1,t2 where t1.s = t2.s;
 s	s
 two		two	
@@ -2648,8 +2651,8 @@ create table t11 like t1;
 insert into t1 values(1,""),(2,"");
 show table status like 't1%';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	9	Dynamic	2	20	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
-t11	MyISAM	9	Dynamic	0	0	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+t1	MyISAM	10	Dynamic	2	20	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+t11	MyISAM	10	Dynamic	0	0	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
 select 123 as a from t1 where f1 is null;
 a
 drop table t1,t11;
@@ -2665,10 +2668,9 @@ a	c
 drop table t1;
 CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL, UNIQUE idx (a,b) );
 INSERT INTO t1 VALUES (1,1),(1,2),(1,3),(1,4);
-CREATE TABLE t2 ( a INT NOT NULL, b INT NOT NULL, c INT );
-INSERT INTO t2 VALUES ( 1,10,1), (1,10,2), (1,11,1), (1,11,2), (1,2,1), (1,2,2),
-(1,2,3);
-SELECT t2.a, t2.b, IF(t1.b IS NULL,'',c) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
+CREATE TABLE t2 ( a INT NOT NULL, b INT NOT NULL, e INT );
+INSERT INTO t2 VALUES ( 1,10,1), (1,10,2), (1,11,1), (1,11,2), (1,2,1), (1,2,2),(1,2,3);
+SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY a, b, c;
 a	b	c	d
 1	2	1	1
@@ -2676,14 +2678,14 @@ a	b	c	d
 1	2	3	1
 1	10		2
 1	11		2
-SELECT t2.a, t2.b, IF(t1.b IS NULL,'',c) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
+SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY t1.a, t1.b, c;
 a	b	c	d
 1	10		4
 1	2	1	1
 1	2	2	1
 1	2	3	1
-SELECT t2.a, t2.b, IF(t1.b IS NULL,'',c) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
+SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY t2.a, t2.b, c;
 a	b	c	d
 1	2	1	1
@@ -2691,7 +2693,7 @@ a	b	c	d
 1	2	3	1
 1	10		2
 1	11		2
-SELECT t2.a, t2.b, IF(t1.b IS NULL,'',c) AS c, COUNT(*) AS d FROM t2,t1
+SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2,t1
 WHERE t2.a = t1.a AND t2.b = t1.b GROUP BY a, b, c;
 a	b	c	d
 1	2	1	1
@@ -2714,13 +2716,733 @@ select * from t1 where f1 in (select f3 from t2 where (f3,f4)= (select f3,f4 fro
 f1	f2
 1	1
 drop table t1,t2;
-CREATE TABLE t1 (a int, INDEX idx(a));
-INSERT INTO t1 VALUES (2), (3), (1);
-EXPLAIN SELECT * FROM t1 IGNORE INDEX (idx);
+CREATE TABLE t1 ( city char(30) );
+INSERT INTO t1 VALUES ('London');
+INSERT INTO t1 VALUES ('Paris');
+SELECT * FROM t1 WHERE city='London';
+city
+London
+SELECT * FROM t1 WHERE city='london';
+city
+London
+EXPLAIN SELECT * FROM t1 WHERE city='London' AND city='london';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-EXPLAIN SELECT * FROM t1 IGNORE INDEX (a);
-ERROR HY000: Key 'a' doesn't exist in table 't1'
-EXPLAIN SELECT * FROM t1 FORCE INDEX (a);
-ERROR HY000: Key 'a' doesn't exist in table 't1'
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE city='London' AND city='london';
+city
+London
+EXPLAIN SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
+city
+London
 DROP TABLE t1;
+create table t1 (a int(11) unsigned, b int(11) unsigned);
+insert into t1 values (1,0), (1,1), (1,2);
+select a-b  from t1 order by 1;
+a-b
+0
+1
+18446744073709551615
+select a-b , (a-b < 0)  from t1 order by 1;
+a-b	(a-b < 0)
+0	0
+1	0
+18446744073709551615	0
+select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
+d	(a-b >= 0)	b
+1	1	0
+0	1	1
+18446744073709551615	1	2
+select cast((a - b) as unsigned) from t1 order by 1;
+cast((a - b) as unsigned)
+0
+1
+18446744073709551615
+drop table t1;
+create table t1 (a int(11));
+select all all * from t1;
+a
+select distinct distinct * from t1;
+a
+select all distinct * from t1;
+ERROR HY000: Incorrect usage of ALL and DISTINCT
+select distinct all * from t1;
+ERROR HY000: Incorrect usage of ALL and DISTINCT
+drop table t1;
+CREATE TABLE t1 ( 
+K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', 
+K4N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', 
+F2I4 int(11) NOT NULL default '0' 
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES 
+('W%RT', '0100',  1), 
+('W-RT', '0100', 1), 
+('WART', '0100', 1), 
+('WART', '0200', 1), 
+('WERT', '0100', 2), 
+('WORT','0200', 2), 
+('WT', '0100', 2), 
+('W_RT', '0100', 2), 
+('WaRT', '0100', 3), 
+('WART', '0300', 3), 
+('WRT' , '0400', 3), 
+('WURM', '0500', 3), 
+('W%T', '0600', 4), 
+('WA%T', '0700', 4), 
+('WA_T', '0800', 4);
+SELECT K2C4, K4N4, F2I4 FROM t1
+WHERE  K2C4 = 'WART' AND 
+(F2I4 = 2 AND K2C4 = 'WART' OR (F2I4 = 2 OR K4N4 = '0200'));
+K2C4	K4N4	F2I4
+WART	0200	1
+SELECT K2C4, K4N4, F2I4 FROM t1
+WHERE  K2C4 = 'WART' AND (K2C4 = 'WART' OR K4N4 = '0200');
+K2C4	K4N4	F2I4
+WART	0100	1
+WART	0200	1
+WART	0300	3
+DROP TABLE t1;
+CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
+CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
+INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
+INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
+DROP TABLE t1, t2;
+create table t1 (a int, b int);
+create table t2 like t1;
+select t1.a from (t1 inner join t2 on t1.a=t2.a) where t2.a=1;
+a
+select t1.a from ((t1 inner join t2 on t1.a=t2.a)) where t2.a=1;
+a
+select x.a, y.a, z.a from ( (t1 x inner join t2 y on x.a=y.a) inner join t2 z on y.a=z.a) WHERE x.a=1;
+a	a	a
+drop table t1,t2;
+create table t1 (s1 varchar(5));
+insert into t1 values ('Wall');
+select min(s1) from t1 group by s1 with rollup;
+min(s1)
+Wall
+Wall
+drop table t1;
+create table t1 (s1 int) engine=myisam;
+insert into t1 values (0);
+select avg(distinct s1) from t1 group by s1 with rollup;
+avg(distinct s1)
+0.0000
+0.0000
+drop table t1;
+create table t1 (s1 int);
+insert into t1 values (null),(1);
+select distinct avg(s1) as x from t1 group by s1 with rollup;
+x
+NULL
+1.0000
+drop table t1;
+create table t1 (a int(11));
+select all all * from t1;
+a
+select distinct distinct * from t1;
+a
+select all distinct * from t1;
+ERROR HY000: Incorrect usage of ALL and DISTINCT
+select distinct all * from t1;
+ERROR HY000: Incorrect usage of ALL and DISTINCT
+drop table t1;
+CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
+CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
+INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
+INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+INSERT INTO t2 VALUES (2), (4), (6);
+SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
+a
+2
+4
+EXPLAIN SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+EXPLAIN SELECT t1.a FROM t1 INNER JOIN t2 ON t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+DROP TABLE t1,t2;
+select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
+x'10' + 0	X'10' + 0	b'10' + 0	B'10' + 0
+16	16	2	2
+create table t1 (f1 varchar(6) default NULL, f2 int(6) primary key not null);
+create table t2 (f3 varchar(5) not null, f4 varchar(5) not null, UNIQUE KEY UKEY (f3,f4));
+insert into t1 values (" 2", 2);
+insert into t2 values (" 2", " one "),(" 2", " two ");
+select * from t1 left join t2 on f1 = f3;
+f1	f2	f3	f4
+ 2	2	 2	 one 
+ 2	2	 2	 two 
+drop table t1,t2;
+create table t1 (empnum smallint, grp int);
+create table t2 (empnum int, name char(5));
+insert into t1 values(1,1);
+insert into t2 values(1,'bob');
+create view v1 as select * from t2 inner join t1 using (empnum);
+select * from v1;
+empnum	name	grp
+1	bob	1
+drop table t1,t2;
+drop view v1;
+create table t1 (pk int primary key, b int);
+create table t2 (pk int primary key, c int);
+select pk from t1 inner join t2 using (pk);
+pk
+drop table t1,t2;
+create table t1 (s1 int, s2 char(5), s3 decimal(10));
+create view v1 as select s1, s2, 'x' as s3 from t1;
+select * from t1 natural join v1;
+s1	s2	s3
+insert into t1 values (1,'x',5);
+select * from t1 natural join v1;
+s1	s2	s3
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'x'
+drop table t1;
+drop view v1;
+create table t1(a1 int);
+create table t2(a2 int);
+insert into t1 values(1),(2);
+insert into t2 values(1),(2);
+create view v2 (c) as select a1 from t1;
+select * from t1 natural left join t2;
+a1	a2
+1	1
+1	2
+2	1
+2	2
+select * from t1 natural right join t2;
+a2	a1
+1	1
+1	2
+2	1
+2	2
+select * from v2 natural left join t2;
+c	a2
+1	1
+1	2
+2	1
+2	2
+select * from v2 natural right join t2;
+a2	c
+1	1
+1	2
+2	1
+2	2
+drop table t1, t2;
+drop view v2;
+create table t1 (a int(10), t1_val int(10));
+create table t2 (b int(10), t2_val int(10));
+create table t3 (a int(10), b int(10));
+insert into t1 values (1,1),(2,2);
+insert into t2 values (1,1),(2,2),(3,3);
+insert into t3 values (1,1),(2,1),(3,1),(4,1);
+select * from t1 natural join t2 natural join t3;
+a	b	t1_val	t2_val
+1	1	1	1
+2	1	2	1
+select * from t1 natural join t3 natural join t2;
+b	a	t1_val	t2_val
+1	1	1	1
+1	2	2	1
+drop table t1, t2, t3;
+DO IFNULL(NULL, NULL);
+SELECT CAST(IFNULL(NULL, NULL) AS DECIMAL);
+CAST(IFNULL(NULL, NULL) AS DECIMAL)
+NULL
+SELECT ABS(IFNULL(NULL, NULL));
+ABS(IFNULL(NULL, NULL))
+NULL
+SELECT IFNULL(NULL, NULL);
+IFNULL(NULL, NULL)
+NULL
+SET @OLD_SQL_MODE12595=@@SQL_MODE, @@SQL_MODE='';
+SHOW LOCAL VARIABLES LIKE 'SQL_MODE';
+Variable_name	Value
+sql_mode	
+CREATE TABLE BUG_12595(a varchar(100));
+INSERT INTO BUG_12595 VALUES ('hakan%'), ('hakank'), ("ha%an");
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%';
+a
+hakan%
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan*%' ESCAPE '*';
+a
+hakan%
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan**%' ESCAPE '**';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan%' ESCAPE '';
+a
+hakan%
+hakank
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%' ESCAPE '';
+a
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha\%an' ESCAPE 0x5c;
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha%%an' ESCAPE '%';
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha\%an' ESCAPE '\\';
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha|%an' ESCAPE '|';
+a
+ha%an
+SET @@SQL_MODE='NO_BACKSLASH_ESCAPES';
+SHOW LOCAL VARIABLES LIKE 'SQL_MODE';
+Variable_name	Value
+sql_mode	NO_BACKSLASH_ESCAPES
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%';
+a
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan*%' ESCAPE '*';
+a
+hakan%
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan**%' ESCAPE '**';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%' ESCAPE '\\';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan%' ESCAPE '';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha\%an' ESCAPE 0x5c;
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha|%an' ESCAPE '|';
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\n%' ESCAPE '\n';
+ERROR HY000: Incorrect arguments to ESCAPE
+SET @@SQL_MODE=@OLD_SQL_MODE12595;
+DROP TABLE BUG_12595;
+create table t1 (a char(1));
+create table t2 (a char(1));
+insert into t1 values ('a'),('b'),('c');
+insert into t2 values ('b'),('c'),('d');
+select a from t1 natural join t2;
+a
+b
+c
+select * from t1 natural join t2 where a = 'b';
+a
+b
+drop table t1, t2;
+CREATE TABLE t1 (`id` TINYINT);
+CREATE TABLE t2 (`id` TINYINT);
+CREATE TABLE t3 (`id` TINYINT);
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+SELECT t1.id,t3.id FROM t1 JOIN t2 ON (t2.id=t1.id) LEFT JOIN t3 USING (id);
+ERROR 23000: Column 'id' in from clause is ambiguous
+SELECT t1.id,t3.id FROM t1 JOIN t2 ON (t2.notacolumn=t1.id) LEFT JOIN t3 USING (id);
+ERROR 23000: Column 'id' in from clause is ambiguous
+SELECT id,t3.id FROM t1 JOIN t2 ON (t2.id=t1.id) LEFT JOIN t3 USING (id);
+ERROR 23000: Column 'id' in from clause is ambiguous
+SELECT id,t3.id FROM (t1 JOIN t2 ON (t2.id=t1.id)) LEFT JOIN t3 USING (id);
+ERROR 23000: Column 'id' in from clause is ambiguous
+drop table t1, t2, t3;
+create table t1 (a int(10),b int(10));
+create table t2 (a int(10),b int(10));
+insert into t1 values (1,10),(2,20),(3,30);
+insert into t2 values (1,10);
+select * from t1 inner join t2 using (A);
+a	b	b
+1	10	10
+select * from t1 inner join t2 using (a);
+a	b	b
+1	10	10
+drop table t1, t2;
+create table t1 (a int, c int);
+create table t2 (b int);
+create table t3 (b int, a int);
+create table t4 (c int);
+insert into t1 values (1,1);
+insert into t2 values (1);
+insert into t3 values (1,1);
+insert into t4 values (1);
+select * from t1 join t2 join t3 on (t2.b = t3.b and t1.a = t3.a);
+a	c	b	b	a
+1	1	1	1	1
+select * from t1, t2 join t3 on (t2.b = t3.b and t1.a = t3.a);
+ERROR 42S22: Unknown column 't1.a' in 'on clause'
+select * from t1 join t2 join t3 join t4 on (t1.a = t4.c and t2.b = t4.c);
+a	c	b	b	a	c
+1	1	1	1	1	1
+select * from t1 join t2 join t4 using (c);
+c	a	b
+1	1	1
+drop table t1, t2, t3, t4;
+create table t1(x int, y int);
+create table t2(x int, y int);
+create table t3(x int, primary key(x));
+insert into t1 values (1, 1), (2, 1), (3, 1), (4, 3), (5, 6), (6, 6);
+insert into t2 values (1, 1), (2, 1), (3, 3), (4, 6), (5, 6);
+insert into t3 values (1), (2), (3), (4), (5);
+select t1.x, t3.x from t1, t2, t3  where t1.x = t2.x and t3.x >= t1.y and t3.x <= t2.y;
+x	x
+1	1
+2	1
+3	1
+3	2
+3	3
+4	3
+4	4
+4	5
+drop table t1,t2,t3;
+create table t1 (id char(16) not null default '', primary key  (id));
+insert into t1 values ('100'),('101'),('102');
+create table t2 (id char(16) default null);
+insert into t2 values (1);
+create view v1 as select t1.id from t1;
+create view v2 as select t2.id from t2;
+create view v3 as select (t1.id+2) as id from t1 natural left join t2;
+select t1.id from t1 left join v2 using (id);
+id
+100
+101
+102
+select t1.id from v2 right join t1 using (id);
+id
+100
+101
+102
+select t1.id from t1 left join v3 using (id);
+id
+100
+101
+102
+select * from t1 left join v2 using (id);
+id
+100
+101
+102
+select * from v2 right join t1 using (id);
+id
+100
+101
+102
+select * from t1 left join v3 using (id);
+id
+100
+101
+102
+select v1.id from v1 left join v2 using (id);
+id
+100
+101
+102
+select v1.id from v2 right join v1 using (id);
+id
+100
+101
+102
+select v1.id from v1 left join v3 using (id);
+id
+100
+101
+102
+select * from v1 left join v2 using (id);
+id
+100
+101
+102
+select * from v2 right join v1 using (id);
+id
+100
+101
+102
+select * from v1 left join v3 using (id);
+id
+100
+101
+102
+drop table t1, t2;
+drop view v1, v2, v3;
+create table t1 (id int(11) not null default '0');
+insert into t1 values (123),(191),(192);
+create table t2 (id char(16) character set utf8 not null);
+insert into t2 values ('58013'),('58014'),('58015'),('58016');
+create table t3 (a_id int(11) not null, b_id char(16) character set utf8);
+insert into t3 values (123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
+select count(*)
+from t1 inner join (t3 left join t2 on t2.id = t3.b_id) on t1.id = t3.a_id;
+count(*)
+6
+select count(*)
+from t1 inner join (t2 right join t3 on t2.id = t3.b_id) on t1.id = t3.a_id;
+count(*)
+6
+drop table t1,t2,t3;
+create table t1 (a int);
+create table t2 (b int);
+create table t3 (c int);
+select * from t1 join t2 join t3 on (t1.a=t3.c);
+a	b	c
+select * from t1 join t2 left join t3 on (t1.a=t3.c);
+a	b	c
+select * from t1 join t2 right join t3 on (t1.a=t3.c);
+a	b	c
+select * from t1 join t2 straight_join t3 on (t1.a=t3.c);
+a	b	c
+drop table t1, t2 ,t3;
+create table t1(f1 int, f2 date);
+insert into t1 values(1,'2005-01-01'),(2,'2005-09-01'),(3,'2005-09-30'),
+(4,'2005-10-01'),(5,'2005-12-30');
+select * from t1 where f2 >= 0;
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+4	2005-10-01
+5	2005-12-30
+select * from t1 where f2 >= '0000-00-00';
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+4	2005-10-01
+5	2005-12-30
+select * from t1 where f2 >= '2005-09-31';
+f1	f2
+4	2005-10-01
+5	2005-12-30
+select * from t1 where f2 >= '2005-09-3a';
+f1	f2
+4	2005-10-01
+5	2005-12-30
+Warnings:
+Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
+select * from t1 where f2 <= '2005-09-31';
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+select * from t1 where f2 <= '2005-09-3a';
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+Warnings:
+Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
+drop table t1;
+create table t1 (f1 int, f2 int);
+insert into t1 values (1, 30), (2, 20), (3, 10);
+create algorithm=merge view v1 as select f1, f2 from t1;
+create algorithm=merge view v2 (f2, f1) as select f1, f2 from t1;
+create algorithm=merge view v3 as select t1.f1 as f2, t1.f2 as f1 from t1;
+select t1.f1 as x1, f1 from t1 order by t1.f1;
+x1	f1
+1	1
+2	2
+3	3
+select v1.f1 as x1, f1 from v1 order by v1.f1;
+x1	f1
+1	1
+2	2
+3	3
+select v2.f1 as x1, f1 from v2 order by v2.f1;
+x1	f1
+10	10
+20	20
+30	30
+select v3.f1 as x1, f1 from v3 order by v3.f1;
+x1	f1
+10	10
+20	20
+30	30
+select f1, f2, v1.f1 as x1 from v1 order by v1.f1;
+f1	f2	x1
+1	30	1
+2	20	2
+3	10	3
+select f1, f2, v2.f1 as x1 from v2 order by v2.f1;
+f1	f2	x1
+10	3	10
+20	2	20
+30	1	30
+select f1, f2, v3.f1 as x1 from v3 order by v3.f1;
+f1	f2	x1
+10	3	10
+20	2	20
+30	1	30
+drop table t1;
+drop view v1, v2, v3;
+CREATE TABLE t1(key_a int4 NOT NULL, optimus varchar(32), PRIMARY KEY(key_a));
+CREATE TABLE t2(key_a int4 NOT NULL, prime varchar(32), PRIMARY KEY(key_a));
+CREATE table t3(key_a int4 NOT NULL, key_b int4 NOT NULL, foo varchar(32),
+PRIMARY KEY(key_a,key_b));
+INSERT INTO t1 VALUES (0,'');
+INSERT INTO t1 VALUES (1,'i');
+INSERT INTO t1 VALUES (2,'j');
+INSERT INTO t1 VALUES (3,'k');
+INSERT INTO t2 VALUES (1,'r');
+INSERT INTO t2 VALUES (2,'s');
+INSERT INTO t2 VALUES (3,'t');
+INSERT INTO t3 VALUES (1,5,'x');
+INSERT INTO t3 VALUES (1,6,'y');
+INSERT INTO t3 VALUES (2,5,'xx');
+INSERT INTO t3 VALUES (2,6,'yy');
+INSERT INTO t3 VALUES (2,7,'zz');
+INSERT INTO t3 VALUES (3,5,'xxx');
+SELECT t2.key_a,foo 
+FROM t1 INNER JOIN t2 ON t1.key_a = t2.key_a
+INNER JOIN t3 ON t1.key_a = t3.key_a
+WHERE t2.key_a=2 and key_b=5;
+key_a	foo
+2	xx
+EXPLAIN SELECT t2.key_a,foo 
+FROM t1 INNER JOIN t2 ON t1.key_a = t2.key_a
+INNER JOIN t3 ON t1.key_a = t3.key_a
+WHERE t2.key_a=2 and key_b=5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	SIMPLE	t3	const	PRIMARY	PRIMARY	8	const,const	1	
+SELECT t2.key_a,foo 
+FROM t1 INNER JOIN t2 ON t2.key_a = t1.key_a
+INNER JOIN t3 ON t1.key_a = t3.key_a
+WHERE t2.key_a=2 and key_b=5;
+key_a	foo
+2	xx
+EXPLAIN SELECT t2.key_a,foo 
+FROM t1 INNER JOIN t2 ON t2.key_a = t1.key_a
+INNER JOIN t3 ON t1.key_a = t3.key_a
+WHERE t2.key_a=2 and key_b=5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	SIMPLE	t3	const	PRIMARY	PRIMARY	8	const,const	1	
+DROP TABLE t1,t2,t3;
+create  table t1 (f1 int);
+insert into t1 values(1),(2);
+create table t2 (f2 int, f3 int, key(f2));
+insert into t2 values(1,1),(2,2);
+create table t3 (f4 int not null);
+insert into t3 values (2),(2),(2);
+select f1,(select count(*) from t2,t3 where f2=f1 and f3=f4) as count from t1;
+f1	count
+1	0
+2	3
+drop table t1,t2,t3;
+create table t1 (f1 int unique);
+create table t2 (f2 int unique);
+create table t3 (f3 int unique);
+insert into t1 values(1),(2);
+insert into t2 values(1),(2);
+insert into t3 values(1),(NULL);
+select * from t3 where f3 is null;
+f3
+NULL
+select t2.f2 from t1 left join t2 on f1=f2 join t3 on f1=f3 where f1=1;
+f2
+1
+drop table t1,t2,t3;
+create table t1(f1 char, f2 char not null);
+insert into t1 values(null,'a');
+create table t2 (f2 char not null);
+insert into t2 values('b');
+select * from t1 left join t2 on f1=t2.f2 where t1.f2='a';
+f1	f2	f2
+NULL	a	NULL
+drop table t1,t2;
+select * from (select * left join t on f1=f2) tt;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'on f1=f2) tt' at line 1
+CREATE TABLE t1 (sku int PRIMARY KEY, pr int);
+CREATE TABLE t2 (sku int PRIMARY KEY, sppr int, name varchar(255));
+INSERT INTO t1 VALUES
+(10, 10), (20, 10), (30, 20), (40, 30), (50, 10), (60, 10);
+INSERT INTO t2 VALUES 
+(10, 10, 'aaa'), (20, 10, 'bbb'), (30, 10, 'ccc'), (40, 20, 'ddd'),
+(50, 10, 'eee'), (60, 20, 'fff'), (70, 20, 'ggg'), (80, 30, 'hhh');
+SELECT t2.sku, t2.sppr, t2.name, t1.sku, t1.pr
+FROM t2, t1 WHERE t2.sku=20 AND (t2.sku=t1.sku OR t2.sppr=t1.sku);
+sku	sppr	name	sku	pr
+20	10	bbb	10	10
+20	10	bbb	20	10
+EXPLAIN
+SELECT t2.sku, t2.sppr, t2.name, t1.sku, t1.pr
+FROM t2, t1 WHERE t2.sku=20 AND (t2.sku=t1.sku OR t2.sppr=t1.sku);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using where
+DROP TABLE t1,t2;
+CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
+INSERT t1 SET i = 0;
+UPDATE t1 SET i = -1;
+Warnings:
+Warning	1264	Out of range value adjusted for column 'i' at row 1
+SELECT * FROM t1;
+i
+0
+UPDATE t1 SET i = CAST(i - 1 AS SIGNED);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'i' at row 1
+SELECT * FROM t1;
+i
+0
+UPDATE t1 SET i = i - 1;
+Warnings:
+Warning	1264	Out of range value adjusted for column 'i' at row 1
+SELECT * FROM t1;
+i
+255
+DROP TABLE t1;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, b int, c int, e int, primary key(a,b,c));
+insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C;
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+select 'In next EXPLAIN, B.rows must be exactly 10:' Z;
+Z
+In next EXPLAIN, B.rows must be exactly 10:
+explain select * from t2 A, t2 B where A.a=5 and A.b=5 and A.C<5
+and B.a=5 and B.b=A.e and (B.b =1 or B.b = 3 or B.b=5);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	A	range	PRIMARY	PRIMARY	12	NULL	3	Using where
+1	SIMPLE	B	ref	PRIMARY	PRIMARY	8	const,test.A.e	10	
+drop table t1, t2;
+CREATE TABLE t1 (a int PRIMARY KEY, b int, INDEX(b));
+INSERT INTO t1 VALUES (1, 3), (9,4), (7,5), (4,5), (6,2),
+(3,1), (5,1), (8,9), (2,2), (0,9);
+CREATE TABLE t2 (c int, d int, f int, INDEX(c,f));
+INSERT INTO t2 VALUES
+(1,0,0), (1,0,1), (2,0,0), (2,0,1), (3,0,0), (4,0,1),
+(5,0,0), (5,0,1), (6,0,0), (0,0,1), (7,0,0), (7,0,1),
+(0,0,0), (0,0,1), (8,0,0), (8,0,1), (9,0,0), (9,0,1);
+EXPLAIN
+SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using where
+1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	Using where
+EXPLAIN
+SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6 AND a > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using where
+1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	Using where
+DROP TABLE t1, t2;
