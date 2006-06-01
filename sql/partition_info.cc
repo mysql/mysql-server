@@ -685,8 +685,20 @@ bool partition_info::check_partition_info(handlerton **eng_type,
   uint i, tot_partitions;
   bool result= TRUE;
   char *same_name;
+  bool part_expression_ok= TRUE;
   DBUG_ENTER("partition_info::check_partition_info");
 
+  if (part_type != HASH_PARTITION || !list_of_part_fields)
+    part_expr->walk(&Item::check_partition_func_processor,
+                    (byte*)(&part_expression_ok));
+  if (is_sub_partitioned() && !list_of_subpart_fields)
+    subpart_expr->walk(&Item::check_partition_func_processor,
+                       (byte*)(&part_expression_ok));
+  if (!part_expression_ok)
+  {
+    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+    goto end;
+  }
   if (unlikely(!is_sub_partitioned() && 
                !(use_default_subpartitions && use_default_no_subpartitions)))
   {
