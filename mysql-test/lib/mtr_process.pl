@@ -389,8 +389,7 @@ sub mtr_kill_leftovers () {
 
     push(@kill_pids,{
 		     pid      => $cluster->{'pid'},
-		     pidfile  => $cluster->{'path_pid'},
-		     port     => $cluster->{'port'},
+		     pidfile  => $cluster->{'path_pid'}
 		    });
 
     $cluster->{'pid'}= 0; # Assume we are done with it
