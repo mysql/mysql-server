@@ -849,6 +849,7 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
 bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
+                        Field **def_field,
 			bool group, bool modify_item,
 			bool table_cant_handle_bit_fields,
                         bool make_copy_field,
@@ -1106,6 +1107,13 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
 bool setup_tables(THD *thd, Name_resolution_context *context,
                   List<TABLE_LIST> *from_clause, TABLE_LIST *tables,
                   Item **conds, TABLE_LIST **leaves, bool select_insert);
+bool setup_tables_and_check_access (THD *thd, 
+                                    Name_resolution_context *context,
+                                    List<TABLE_LIST> *from_clause, 
+                                    TABLE_LIST *tables, Item **conds, 
+                                    TABLE_LIST **leaves, 
+                                    bool select_insert,
+                                    ulong want_access);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Item** ref_pointer_array,
@@ -1549,6 +1557,7 @@ extern pthread_cond_t COND_server_started;
 extern int mysqld_server_started;
 extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
+extern pthread_cond_t COND_global_read_lock;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
 extern I_List<NAMED_LIST> key_caches;

@@ -198,28 +198,6 @@ void manager()
   if (create_pid_file(Options::Main::pid_file_name, manager_pid))
     return; /* necessary logging has been already done. */
 
-  sigset_t mask;
-  set_signals(&mask);
-
-  /* create the listener */
-  {
-    pthread_t listener_thd_id;
-    pthread_attr_t listener_thd_attr;
-    int rc;
-
-    pthread_attr_init(&listener_thd_attr);
-    pthread_attr_setdetachstate(&listener_thd_attr, PTHREAD_CREATE_DETACHED);
-    rc= set_stacksize_n_create_thread(&listener_thd_id, &listener_thd_attr,
-                                      listener, &listener_args);
-    pthread_attr_destroy(&listener_thd_attr);
-    if (rc)
-    {
-      log_error("manager(): set_stacksize_n_create_thread(listener) failed");
-      goto err;
-    }
-
-  }
-
   /* create guardian thread */
   {
     pthread_t guardian_thd_id;
@@ -265,6 +243,29 @@ void manager()
         "the wrong config file options. For instance, missing mysqld "
         "binary. Aborting.");
       return;
+    }
+  }
+
+  /* Initialize signals and alarm-infrastructure. */
+
+  sigset_t mask;
+  set_signals(&mask);
+
+  /* create the listener */
+  {
+    pthread_t listener_thd_id;
+    pthread_attr_t listener_thd_attr;
+    int rc;
+
+    pthread_attr_init(&listener_thd_attr);
+    pthread_attr_setdetachstate(&listener_thd_attr, PTHREAD_CREATE_DETACHED);
+    rc= set_stacksize_n_create_thread(&listener_thd_id, &listener_thd_attr,
+                                      listener, &listener_args);
+    pthread_attr_destroy(&listener_thd_attr);
+    if (rc)
+    {
+      log_error("manager(): set_stacksize_n_create_thread(listener) failed");
+      goto err;
     }
   }
 
