@@ -713,3 +713,17 @@ select * from t1 order by f1;
 select * from t1 order by f2;
 select * from t1 order by f3;
 drop table t1;
+
+#
+# Bug #18483 Cannot create table with FK constraint
+# ndb does not support foreign key constraint, it is silently ignored
+# in line with other storage engines
+#
+CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
+                 CONSTRAINT pk_a PRIMARY KEY (a))engine=ndb;
+CREATE TABLE t2(a VARCHAR(255) NOT NULL,
+                b VARCHAR(255) NOT NULL,
+                c VARCHAR(255) NOT NULL,
+                CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
+                CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
+drop table t1, t2;
