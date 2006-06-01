@@ -1686,7 +1686,7 @@ sub ndbd_start ($$$) {
   mtr_add_arg($args, "--nodaemon");
   mtr_add_arg($args, "$extra_args");
 
-  my $path_ndbd_log= "$cluster->{'data_dir'}/\l$cluster->{'name'}_ndbd_$idx.log";
+  my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_{$idx+1}.log";
   $pid= mtr_spawn($exe_ndbd, $args, "",
 		  $path_ndbd_log,
 		  $path_ndbd_log,
