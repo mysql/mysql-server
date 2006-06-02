@@ -181,7 +181,10 @@ class ha_innobase: public handler
 	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 					enum thr_lock_type lock_type);
 	void init_table_handle_for_HANDLER();
-	ulonglong get_auto_increment();
+        virtual void get_auto_increment(ulonglong offset, ulonglong increment,
+                                        ulonglong nb_desired_values,
+                                        ulonglong *first_value,
+                                        ulonglong *nb_reserved_values);
 	int reset_auto_increment(ulonglong value);
 
 	virtual bool get_error_message(int error, String *buf);

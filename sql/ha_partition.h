@@ -815,7 +815,11 @@ public:
      -------------------------------------------------------------------------
   */
   virtual void restore_auto_increment();
-  virtual ulonglong get_auto_increment();
+  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
+                                  ulonglong nb_desired_values,
+                                  ulonglong *first_value,
+                                  ulonglong *nb_reserved_values);
+  virtual void release_auto_increment();
 
   /*
      -------------------------------------------------------------------------

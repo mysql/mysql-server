@@ -693,10 +693,15 @@ void ha_heap::update_create_info(HA_CREATE_INFO *create_info)
     create_info->auto_increment_value= auto_increment_value;
 }
 
-ulonglong ha_heap::get_auto_increment()
+void ha_heap::get_auto_increment(ulonglong offset, ulonglong increment,
+                                 ulonglong nb_desired_values,
+                                 ulonglong *first_value,
+                                 ulonglong *nb_reserved_values)
 {
   ha_heap::info(HA_STATUS_AUTO);
-  return auto_increment_value;
+  *first_value= auto_increment_value;
+  /* such table has only table-level locking so reserves up to +inf */
+  *nb_reserved_values= ULONGLONG_MAX;
 }
 
 

@@ -9298,7 +9298,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     all places where a corresponding end_bulk_insert() should be put.
   */
   table->file->info(HA_STATUS_VARIABLE); /* update table->file->records */
-  new_table.file->start_bulk_insert(table->file->records);
+  new_table.file->ha_start_bulk_insert(table->file->records);
 #else
   /* HA_EXTRA_WRITE_CACHE can stay until close, no need to disable it */
   new_table.file->extra(HA_EXTRA_WRITE_CACHE);

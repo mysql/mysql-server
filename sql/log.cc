@@ -2946,6 +2946,11 @@ bool MYSQL_LOG::write(Log_event *event_info)
         }
         if (thd->insert_id_used)
         {
+          /*
+            If the auto_increment was second in a table's index (possible with
+            MyISAM or BDB) (table->next_number_key_offset != 0), such event is
+            in fact not necessary. We could avoid logging it.
+          */
           Intvar_log_event e(thd,(uchar) INSERT_ID_EVENT,thd->last_insert_id);
           if (e.write(file))
             goto err;

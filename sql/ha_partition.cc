@@ -2803,7 +2803,7 @@ void ha_partition::start_bulk_insert(ha_rows rows)
   file= m_file;
   do
   {
-    (*file)->start_bulk_insert(rows);
+    (*file)->ha_start_bulk_insert(rows);
   } while (*(++file));
   DBUG_VOID_RETURN;
 }
@@ -2830,7 +2830,7 @@ int ha_partition::end_bulk_insert()
   do
   {
     int tmp;
-    if ((tmp= (*file)->end_bulk_insert()))
+    if ((tmp= (*file)->ha_end_bulk_insert()))
       error= tmp;
   } while (*(++file));
   DBUG_RETURN(error);
@@ -4155,8 +4155,11 @@ void ha_partition::info(uint flag)
 
   if (flag & HA_STATUS_AUTO)
   {
+    ulonglong nb_reserved_values;
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
-    auto_increment_value= get_auto_increment();
+    /* we don't want to reserve any values, it's pure information */
+    get_auto_increment(0, 0, 0, &auto_increment_value, &nb_reserved_values);
+    release_auto_increment();
   }
   if (flag & HA_STATUS_VARIABLE)
   {
@@ -5302,19 +5305,55 @@ void ha_partition::restore_auto_increment()
   partitions.
 */
 
-ulonglong ha_partition::get_auto_increment()
+void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
+                                      ulonglong nb_desired_values,
+                                      ulonglong *first_value,
+                                      ulonglong *nb_reserved_values)
 {
-  ulonglong auto_inc, max_auto_inc= 0;
+  ulonglong first_value_part, last_value_part, nb_reserved_values_part,
+    last_value;
   DBUG_ENTER("ha_partition::get_auto_increment");
+
+  *first_value= 0;
+  last_value= ULONGLONG_MAX;
+  for (uint i= 0; i < m_tot_parts; i++)
+  {
+    m_file[i]->get_auto_increment(offset, increment, nb_desired_values,
+                                  &first_value_part, &nb_reserved_values_part);
+    if (first_value_part == ~(ulonglong)(0)) // error in one partition
+    {
+      *first_value= first_value_part;
+      break;
+    }
+    /*
+      Partition has reserved an interval. Intersect it with the intervals
+      already reserved for the previous partitions.
+    */
+    last_value_part= (nb_reserved_values_part == ULONGLONG_MAX) ?
+      ULONGLONG_MAX : (first_value_part + nb_reserved_values_part * increment);
+    set_if_bigger(*first_value, first_value_part);
+    set_if_smaller(last_value, last_value_part);
+  }
+  if (last_value < *first_value) /* empty intersection, error */
+  {
+    *first_value= ~(ulonglong)(0);
+  }
+  *nb_reserved_values= (last_value == ULONGLONG_MAX) ?
+    ULONGLONG_MAX : ((last_value - *first_value) / increment);
+
+  DBUG_VOID_RETURN;
+}
+
+void ha_partition::release_auto_increment()
+{
+  DBUG_ENTER("ha_partition::release_auto_increment");
 
   for (uint i= 0; i < m_tot_parts; i++)
   {
-    auto_inc= m_file[i]->get_auto_increment();
-    set_if_bigger(max_auto_inc, auto_inc);
+    m_file[i]->release_auto_increment();
   }
-  DBUG_RETURN(max_auto_inc);
+  DBUG_VOID_RETURN;
 }
-
 
 /****************************************************************************
                 MODULE initialise handler for HANDLER call
