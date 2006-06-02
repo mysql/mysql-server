@@ -533,8 +533,7 @@ extern TYPELIB myisam_stats_method_typelib;
 #define ha_supports_generate(T) (T != DB_TYPE_INNODB && \
                                  T != DB_TYPE_BERKELEY_DB && \
                                  T != DB_TYPE_ARCHIVE_DB && \
-                                 T != DB_TYPE_FEDERATED_DB && \
-                                 T != DB_TYPE_NDBCLUSTER)
+                                 T != DB_TYPE_FEDERATED_DB)
 
 bool ha_caching_allowed(THD* thd, char* table_key,
                         uint key_length, uint8 cache_type);
