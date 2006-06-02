@@ -912,9 +912,13 @@ error:
 }
 
 
-ulonglong ha_archive::get_auto_increment()
+void ha_archive::get_auto_increment(ulonglong offset, ulonglong increment,
+                                    ulonglong nb_desired_values,
+                                    ulonglong *first_value,
+                                    ulonglong *nb_reserved_values)
 {
-  return share->auto_increment_value + 1;
+  *nb_reserved_values= 1;
+  *first_value= share->auto_increment_value + 1;
 }
 
 /* Initialized at each key walk (called multiple times unlike rnd_init()) */
