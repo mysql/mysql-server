@@ -113,7 +113,10 @@ class ha_myisam: public handler
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
-  ulonglong get_auto_increment();
+  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
+                                  ulonglong nb_desired_values,
+                                  ulonglong *first_value,
+                                  ulonglong *nb_reserved_values);
   int rename_table(const char * from, const char * to);
   int delete_table(const char *name);
   int check(THD* thd, HA_CHECK_OPT* check_opt);

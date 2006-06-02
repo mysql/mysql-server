@@ -803,7 +803,10 @@ private:
   int set_index_key(NdbOperation *, const KEY *key_info, const byte *key_ptr);
   void print_results();
 
-  ulonglong get_auto_increment();
+  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
+                                  ulonglong nb_desired_values,
+                                  ulonglong *first_value,
+                                  ulonglong *nb_reserved_values);
   int ndb_err(NdbTransaction*);
   bool uses_blob_value();
 
@@ -865,7 +868,7 @@ private:
   bool m_primary_key_update;
   bool m_write_op;
   bool m_ignore_no_key;
-  ha_rows m_rows_to_insert;
+  ha_rows m_rows_to_insert; // TODO: merge it with handler::estimation_rows_to_insert?
   ha_rows m_rows_inserted;
   ha_rows m_bulk_insert_rows;
   ha_rows m_rows_changed;
