@@ -205,7 +205,6 @@ static int innobase_release_savepoint(THD* thd, void *savepoint);
 static handler *innobase_create_handler(TABLE_SHARE *table);
 
 static const char innobase_hton_name[]= "InnoDB";
-
 handlerton innobase_hton;
 
 static handler *innobase_create_handler(TABLE_SHARE *table)
