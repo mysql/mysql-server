@@ -1638,7 +1638,10 @@ int ha_myisam::rename_table(const char * from, const char * to)
 }
 
 
-ulonglong ha_myisam::get_auto_increment()
+void ha_myisam::get_auto_increment(ulonglong offset, ulonglong increment,
+                                   ulonglong nb_desired_values,
+                                   ulonglong *first_value,
+                                   ulonglong *nb_reserved_values)
 {
   ulonglong nr;
   int error;
@@ -1647,7 +1650,10 @@ ulonglong ha_myisam::get_auto_increment()
   if (!table->s->next_number_key_offset)
   {						// Autoincrement at key-start
     ha_myisam::info(HA_STATUS_AUTO);
-    return auto_increment_value;
+    *first_value= auto_increment_value;
+    /* MyISAM has only table-level lock, so reserves to +inf */
+    *nb_reserved_values= ULONGLONG_MAX;
+    return;
   }
 
   /* it's safe to call the following if bulk_insert isn't on */
@@ -1668,7 +1674,14 @@ ulonglong ha_myisam::get_auto_increment()
          val_int_offset(table->s->rec_buff_length)+1);
   }
   extra(HA_EXTRA_NO_KEYREAD);
-  return nr;
+  *first_value= nr;
+  /*
+    MySQL needs to call us for next row: assume we are inserting ("a",null)
+    here, we return 3, and next this statement will want to insert ("b",null):
+    there is no reason why ("b",3+1) would be the good row to insert: maybe it
+    already exists, maybe 3+1 is too large...
+  */
+  *nb_reserved_values= 1;
 }
 
 
