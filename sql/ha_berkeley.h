@@ -149,7 +149,10 @@ class ha_berkeley: public handler
     int5store(to,share->auto_ident);
     pthread_mutex_unlock(&share->mutex);
   }
-  ulonglong get_auto_increment();
+  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
+                                  ulonglong nb_desired_values,
+                                  ulonglong *first_value,
+                                  ulonglong *nb_reserved_values);
   void print_error(int error, myf errflag);
   uint8 table_cache_type() { return HA_CACHE_TBL_TRANSACT; }
   bool primary_key_is_clustered() { return true; }

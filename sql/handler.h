@@ -777,6 +777,9 @@ class handler :public Sql_alloc
 
 private:
   virtual int reset() { return extra(HA_EXTRA_RESET); }
+  ha_rows estimation_rows_to_insert;
+  virtual void start_bulk_insert(ha_rows rows) {}
+  virtual int end_bulk_insert() {return 0; }
 public:
   const handlerton *ht;                 /* storage engine of this handler */
   byte *ref;				/* Pointer to current row */
@@ -821,7 +824,7 @@ public:
   MY_BITMAP *write_set;
 
   handler(const handlerton *ht_arg, TABLE_SHARE *share_arg)
-    :table_share(share_arg), ht(ht_arg),
+    :table_share(share_arg), estimation_rows_to_insert(0), ht(ht_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
     delete_length(0), auto_increment_value(0),
     records(0), deleted(0), mean_rec_length(0),
@@ -1242,7 +1245,11 @@ public:
   */
   virtual int delete_all_rows()
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
-  virtual ulonglong get_auto_increment();
+  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
+                                  ulonglong nb_desired_values,
+                                  ulonglong *first_value,
+                                  ulonglong *nb_reserved_values);
+  virtual void release_auto_increment() { return; };
   virtual void restore_auto_increment();
 
   /*
@@ -1303,8 +1310,16 @@ public:
   virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int indexes_are_disabled(void) {return 0;}
-  virtual void start_bulk_insert(ha_rows rows) {}
-  virtual int end_bulk_insert() {return 0; }
+  void ha_start_bulk_insert(ha_rows rows)
+  {
+    estimation_rows_to_insert= rows;
+    start_bulk_insert(rows);
+  }
+  int ha_end_bulk_insert()
+  {
+    estimation_rows_to_insert= 0;
+    return end_bulk_insert();
+  }
   virtual int discard_or_import_tablespace(my_bool discard)
   {return HA_ERR_WRONG_COMMAND;}
   virtual int net_read_dump(NET* net) { return HA_ERR_WRONG_COMMAND; }

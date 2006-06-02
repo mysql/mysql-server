@@ -5230,7 +5230,10 @@ int ha_ndbcluster::delete_table(const char *name)
 }
 
 
-ulonglong ha_ndbcluster::get_auto_increment()
+void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
+                                       ulonglong nb_desired_values,
+                                       ulonglong *first_value,
+                                       ulonglong *nb_reserved_values)
 {  
   int cache_size;
   Uint64 auto_value;
@@ -5264,9 +5267,13 @@ ulonglong ha_ndbcluster::get_auto_increment()
     const NdbError err= ndb->getNdbError();
     sql_print_error("Error %lu in ::get_auto_increment(): %s",
                     (ulong) err.code, err.message);
-    DBUG_RETURN(~(ulonglong) 0);
+    *first_value= ~(ulonglong) 0;
+    DBUG_VOID_RETURN;
   }
-  DBUG_RETURN((longlong)auto_value);
+  *first_value= (longlong)auto_value;
+  /* From the point of view of MySQL, NDB reserves one row at a time */
+  *nb_reserved_values= 1;
+  DBUG_VOID_RETURN;
 }
 
 

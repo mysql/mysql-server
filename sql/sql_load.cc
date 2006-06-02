@@ -117,7 +117,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 {
   char name[FN_REFLEN];
   File file;
-  TABLE *table;
+  TABLE *table= NULL;
   int error;
   String *field_term=ex->field_term,*escaped=ex->escaped;
   String *enclosed=ex->enclosed;
@@ -366,7 +366,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (!thd->prelocked_mode)
-      table->file->start_bulk_insert((ha_rows) 0);
+      table->file->ha_start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
 
     thd->no_trans_update= 0;
@@ -383,7 +383,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error= read_sep_field(thd, info, table_list, fields_vars,
                             set_fields, set_values, read_info,
 			    *enclosed, skip_lines, ignore);
-    if (!thd->prelocked_mode && table->file->end_bulk_insert() && !error)
+    if (!thd->prelocked_mode && table->file->ha_end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno, MYF(0));
       error= 1;
@@ -505,6 +505,8 @@ err:
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  if (table != NULL)
+    table->file->release_auto_increment();
   thd->abort_on_warning= 0;
   DBUG_RETURN(error);
 }

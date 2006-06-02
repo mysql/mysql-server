@@ -6134,7 +6134,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                                           MODE_STRICT_ALL_TABLES));
 
   from->file->info(HA_STATUS_VARIABLE);
-  to->file->start_bulk_insert(from->file->records);
+  to->file->ha_start_bulk_insert(from->file->records);
 
   save_sql_mode= thd->variables.sql_mode;
 
@@ -6254,7 +6254,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   free_io_cache(from);
   delete [] copy;				// This is never 0
 
-  if (to->file->end_bulk_insert() && error <= 0)
+  if (to->file->ha_end_bulk_insert() && error <= 0)
   {
     to->file->print_error(my_errno,MYF(0));
     error=1;
