@@ -136,13 +136,12 @@ btr_search_sys_create(
 
 	btr_search_latch_temp = mem_alloc(sizeof(rw_lock_t));
 
-	rw_lock_create(&btr_search_latch);
+	rw_lock_create(&btr_search_latch, SYNC_SEARCH_SYS);
 
 	btr_search_sys = mem_alloc(sizeof(btr_search_sys_t));
 
 	btr_search_sys->hash_index = ha_create(TRUE, hash_size, 0, 0);
 
-	rw_lock_set_level(&btr_search_latch, SYNC_SEARCH_SYS);
 }
 
 /*********************************************************************
