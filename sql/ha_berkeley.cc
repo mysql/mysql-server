@@ -2255,8 +2255,12 @@ ha_rows ha_berkeley::records_in_range(uint keynr, key_range *start_key,
 }
 
 
-ulonglong ha_berkeley::get_auto_increment()
+void ha_berkeley::get_auto_increment(ulonglong offset, ulonglong increment,
+                                     ulonglong nb_desired_values,
+                                     ulonglong *first_value,
+                                     ulonglong *nb_reserved_values)
 {
+  /* Ideally in case of real error (not "empty table") nr should be ~ULL(0) */
   ulonglong nr=1;				// Default if error or new key
   int error;
   (void) ha_berkeley::extra(HA_EXTRA_KEYREAD);
@@ -2267,9 +2271,18 @@ ulonglong ha_berkeley::get_auto_increment()
   if (!table_share->next_number_key_offset)
   {						// Autoincrement at key-start
     error=ha_berkeley::index_last(table->record[1]);
+    /* has taken read lock on page of max key so reserves to infinite  */
+    *nb_reserved_values= ULONGLONG_MAX;
   }
   else
   {
+    /*
+      MySQL needs to call us for next row: assume we are inserting ("a",null)
+      here, we return 3, and next this statement will want to insert ("b",null):
+      there is no reason why ("b",3+1) would be the good row to insert: maybe it
+      already exists, maybe 3+1 is too large...
+    */
+    *nb_reserved_values= 1;
     DBT row,old_key;
     bzero((char*) &row,sizeof(row));
     KEY *key_info= &table->key_info[active_index];
@@ -2310,7 +2323,7 @@ ulonglong ha_berkeley::get_auto_increment()
       table->next_number_field->val_int_offset(table_share->rec_buff_length)+1;
   ha_berkeley::index_end();
   (void) ha_berkeley::extra(HA_EXTRA_NO_KEYREAD);
-  return nr;
+  *first_value= nr;
 }
 
 void ha_berkeley::print_error(int error, myf errflag)

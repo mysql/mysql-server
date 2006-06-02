@@ -6142,7 +6142,7 @@ int Write_rows_log_event::do_before_row_operations(TABLE *table)
     how many rows are going to be inserted, then it can allocate needed memory
     from the start.
   */
-  table->file->start_bulk_insert(0);
+  table->file->ha_start_bulk_insert(0);
   /*
     We need TIMESTAMP_NO_AUTO_SET otherwise ha_write_row() will not use fill
     any TIMESTAMP column with data from the row but instead will use
@@ -6165,7 +6165,7 @@ int Write_rows_log_event::do_before_row_operations(TABLE *table)
 int Write_rows_log_event::do_after_row_operations(TABLE *table, int error)
 {
   if (error == 0)
-    error= table->file->end_bulk_insert();
+    error= table->file->ha_end_bulk_insert();
   return error;
 }
 

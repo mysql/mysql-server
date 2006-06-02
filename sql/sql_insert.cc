@@ -428,7 +428,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     the code to make the call of end_bulk_insert() below safe.
   */
   if (lock_type != TL_WRITE_DELAYED && !thd->prelocked_mode)
-    table->file->start_bulk_insert(values_list.elements);
+    table->file->ha_start_bulk_insert(values_list.elements);
 
   thd->no_trans_update= 0;
   thd->abort_on_warning= (!ignore &&
@@ -553,7 +553,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   else
 #endif
   {
-    if (!thd->prelocked_mode && table->file->end_bulk_insert() && !error)
+    if (!thd->prelocked_mode && table->file->ha_end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno,MYF(0));
       error=1;
@@ -644,6 +644,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     thd->row_count_func= info.copied+info.deleted+info.updated;
     ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
+  if (table != NULL)
+    table->file->release_auto_increment();
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
 
@@ -652,6 +654,8 @@ abort:
   if (lock_type == TL_WRITE_DELAYED)
     end_delayed_insert(thd);
 #endif
+  if (table != NULL)
+    table->file->release_auto_increment();
   if (!joins_freed)
     free_underlaid_joins(thd, &thd->lex->select_lex);
   thd->abort_on_warning= 0;
@@ -971,7 +975,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
       uint key_nr;
       if (error != HA_WRITE_SKIP)
 	goto err;
-      table->file->restore_auto_increment();
+      table->file->restore_auto_increment(); // it's too early here! BUG#20188
       if ((int) (key_nr = table->file->get_dup_key(error)) < 0)
       {
 	error=HA_WRITE_SKIP;			/* Database can't find key */
@@ -2248,7 +2252,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       We won't start bulk inserts at all if this statement uses functions or
       should invoke triggers since they may access to the same table too.
     */
-    table->file->start_bulk_insert((ha_rows) 0);
+    table->file->ha_start_bulk_insert((ha_rows) 0);
   }
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
@@ -2299,7 +2303,7 @@ int select_insert::prepare2(void)
   DBUG_ENTER("select_insert::prepare2");
   if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
       !thd->prelocked_mode)
-    table->file->start_bulk_insert((ha_rows) 0);
+    table->file->ha_start_bulk_insert((ha_rows) 0);
   DBUG_RETURN(0);
 }
 
@@ -2373,6 +2377,7 @@ bool select_insert::send_data(List<Item> &values)
         last_insert_id= thd->insert_id();
     }
   }
+  table->file->release_auto_increment();
   DBUG_RETURN(error);
 }
 
@@ -2402,7 +2407,7 @@ void select_insert::send_error(uint errcode,const char *err)
     DBUG_VOID_RETURN;
   }
   if (!thd->prelocked_mode)
-    table->file->end_bulk_insert();
+    table->file->ha_end_bulk_insert();
   /*
     If at least one row has been inserted/modified and will stay in the table
     (the table doesn't have transactions) we must write to the binlog (and
@@ -2458,7 +2463,7 @@ bool select_insert::send_eof()
   int error,error2;
   DBUG_ENTER("select_insert::send_eof");
 
-  error= (!thd->prelocked_mode) ? table->file->end_bulk_insert():0;
+  error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert():0;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   /*
@@ -2724,7 +2729,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   if (!thd->prelocked_mode)
-    table->file->start_bulk_insert((ha_rows) 0);
+    table->file->ha_start_bulk_insert((ha_rows) 0);
   thd->no_trans_update= 0;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &

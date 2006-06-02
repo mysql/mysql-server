@@ -1639,7 +1639,7 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
   Update the auto_increment field if necessary
 
   SYNOPSIS
-     update_auto_increment()
+    update_auto_increment()
 
   RETURN
     0	ok
@@ -1668,8 +1668,9 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
     statement. For the following rows we generate new numbers based on the
     last used number.
 
-  - thd->next_insert_id != 0.  This happens when we have read a statement
-    from the binary log or when one has used SET LAST_INSERT_ID=#.
+  - thd->next_insert_id != 0.  This happens when we have read an Intvar event
+    of type INSERT_ID_EVENT from the binary log or when one has used SET
+    INSERT_ID=#.
 
     In this case we will set the column to the value of next_insert_id.
     The next row will be given the id
@@ -1685,7 +1686,19 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
     start counting from the inserted value.
 
     thd->next_insert_id is cleared after it's been used for a statement.
+
+   TODO
+
+    Replace all references to "next number" or NEXT_NUMBER to
+    "auto_increment", everywhere (see below: there is
+    table->auto_increment_field_not_null, and there also exists
+    table->next_number_field, it's not consistent).
+
 */
+
+#define AUTO_INC_DEFAULT_NB_ROWS 1 // Some prefer 1024 here
+#define AUTO_INC_DEFAULT_NB_MAX_BITS 16
+#define AUTO_INC_DEFAULT_NB_MAX ((1 << AUTO_INC_DEFAULT_NB_MAX_BITS) - 1)
 
 bool handler::update_auto_increment()
 {
@@ -1702,17 +1715,24 @@ bool handler::update_auto_increment()
   */
   thd->prev_insert_id= thd->next_insert_id;
   auto_increment_field_not_null= table->auto_increment_field_not_null;
-  table->auto_increment_field_not_null= FALSE;
+  table->auto_increment_field_not_null= FALSE; // to reset for next row
 
   if ((nr= table->next_number_field->val_int()) != 0 ||
       auto_increment_field_not_null &&
       thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
-    /* Clear flag for next row */
-    /* Mark that we didn't generate a new value **/
+    /*
+      The user did specify a value for the auto_inc column, we don't generate
+      a new value, write it down.
+    */
     auto_increment_column_changed=0;
 
-    /* Update next_insert_id if we have already generated a value */
+    /*
+      Update next_insert_id if we had already generated a value in this
+      statement (case of INSERT VALUES(null),(3763),(null):
+      the last NULL needs to insert 3764, not the value of the first NULL plus
+      1).
+    */
     if (thd->clear_next_insert_id && nr >= thd->next_insert_id)
     {
       if (variables->auto_increment_increment != 1)
@@ -1726,9 +1746,53 @@ bool handler::update_auto_increment()
   }
   if (!(nr= thd->next_insert_id))
   {
-    if ((nr= get_auto_increment()) == ~(ulonglong) 0)
+    ulonglong nb_desired_values= 1, nb_reserved_values;
+#ifdef TO_BE_ENABLED_SOON
+    /*
+      Reserved intervals will be stored in "THD::auto_inc_intervals".
+      handler::estimation_rows_to_insert will be the argument passed by
+      handler::ha_start_bulk_insert().
+    */
+    uint estimation_known= test(estimation_rows_to_insert > 0);
+    uint nb_already_reserved_intervals= thd->auto_inc_intervals.nb_elements();
+    /*
+      If an estimation was given to the engine:
+      - use it.
+      - if we already reserved numbers, it means the estimation was
+        not accurate, then we'll reserve 2*AUTO_INC_DEFAULT_NB_VALUES the 2nd
+        time, twice that the 3rd time etc.
+      If no estimation was given, use those increasing defaults from the
+      start, starting from AUTO_INC_DEFAULT_NB_VALUES.
+      Don't go beyond a max to not reserve "way too much" (because reservation
+      means potentially losing unused values).
+    */
+    if (nb_already_reserved_intervals == 0 && estimation_known)
+      nb_desired_values= estimation_rows_to_insert;
+    else /* go with the increasing defaults */
+    {
+      /* avoid overflow in formula, with this if() */
+      if (nb_already_reserved_intervals <= AUTO_INC_DEFAULT_NB_MAX_BITS)
+      {
+        nb_desired_values= AUTO_INC_DEFAULT_NB_VALUES * 
+          (1 << nb_already_reserved_intervals);
+        set_if_smaller(nb_desired_values, AUTO_INC_DEFAULT_NB_MAX);
+      }
+      else
+        nb_desired_values= AUTO_INC_DEFAULT_NB_MAX;
+    }
+#endif
+    /* This call ignores all its parameters but nr, currently */
+    get_auto_increment(variables->auto_increment_offset,
+                       variables->auto_increment_increment,
+                       nb_desired_values, &nr,
+                       &nb_reserved_values);
+    if (nr == ~(ulonglong) 0)
       result= 1;                                // Mark failure
 
+    /*
+      That should not be needed when engines actually use offset and increment
+      above.
+    */
     if (variables->auto_increment_increment != 1)
       nr= next_insert_id(nr-1, variables);
     /*
@@ -1786,7 +1850,29 @@ void handler::restore_auto_increment()
 }
 
 
-ulonglong handler::get_auto_increment()
+/*
+  Reserves an interval of auto_increment values from the handler.
+
+  SYNOPSIS
+    get_auto_increment()
+    offset              
+    increment
+    nb_desired_values   how many values we want
+    first_value         (OUT) the first value reserved by the handler
+    nb_reserved_values  (OUT) how many values the handler reserved
+
+  offset and increment means that we want values to be of the form
+  offset + N * increment, where N>=0 is integer.
+  If the function sets *first_value to ~(ulonglong)0 it means an error.
+  If the function sets *nb_reserved_values to ULONGLONG_MAX it means it has
+  reserved to "positive infinite".
+
+*/
+
+void handler::get_auto_increment(ulonglong offset, ulonglong increment,
+                                 ulonglong nb_desired_values,
+                                 ulonglong *first_value,
+                                 ulonglong *nb_reserved_values)
 {
   ulonglong nr;
   int error;
@@ -1796,6 +1882,12 @@ ulonglong handler::get_auto_increment()
   if (!table->s->next_number_key_offset)
   {						// Autoincrement at key-start
     error=index_last(table->record[1]);
+    /*
+      MySQL implicitely assumes such method does locking (as MySQL decides to
+      use nr+increment without checking again with the handler, in
+      handler::update_auto_increment()), so reserves to infinite.
+    */
+    *nb_reserved_values= ULONGLONG_MAX;
   }
   else
   {
@@ -1805,6 +1897,13 @@ ulonglong handler::get_auto_increment()
              table->s->next_number_key_offset);
     error= index_read(table->record[1], key, table->s->next_number_key_offset,
                       HA_READ_PREFIX_LAST);
+    /*
+      MySQL needs to call us for next row: assume we are inserting ("a",null)
+      here, we return 3, and next this statement will want to insert
+      ("b",null): there is no reason why ("b",3+1) would be the good row to
+      insert: maybe it already exists, maybe 3+1 is too large...
+    */
+    *nb_reserved_values= 1;
   }
 
   if (error)
@@ -1814,7 +1913,7 @@ ulonglong handler::get_auto_increment()
          val_int_offset(table->s->rec_buff_length)+1);
   index_end();
   (void) extra(HA_EXTRA_NO_KEYREAD);
-  return nr;
+  *first_value= nr;
 }
 
 
