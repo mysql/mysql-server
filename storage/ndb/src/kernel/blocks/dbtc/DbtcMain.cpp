@@ -7093,7 +7093,7 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
   for (transPtr.i = transPtrI; transPtr.i < capiConnectFilesize; transPtr.i++)
   {
     ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord); 
-    Uiint32 state = transPtr.p->apiConnectstate;
+    Uint32 state = transPtr.p->apiConnectstate;
     if (transPtr.p->m_transaction_nodes.get(failedNodeId))
     {
       jam();
