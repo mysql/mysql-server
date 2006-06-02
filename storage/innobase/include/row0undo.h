@@ -84,9 +84,7 @@ struct undo_node_struct{
 				record */
 	btr_pcur_t	pcur;	/* persistent cursor used in searching the
 				clustered index record */
-	dict_table_t*	table;	/* table where undo is done; NOTE that the
-				table has to be released explicitly with
-				dict_table_release */
+	dict_table_t*	table;	/* table where undo is done */
 	ulint		cmpl_info;/* compiler analysis of an update */
 	upd_t*		update;	/* update vector for a clustered index record */
 	dtuple_t*	ref;	/* row reference to the next row to handle */
