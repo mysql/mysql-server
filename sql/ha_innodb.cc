@@ -6948,17 +6948,21 @@ func_exit_early:
 	return(error);
 }
 
-/***********************************************************************
+/*******************************************************************************
 This function initializes the auto-inc counter if it has not been
 initialized yet. This function does not change the value of the auto-inc
 counter if it already has been initialized. Returns the value of the
-auto-inc counter. */
+auto-inc counter in *first_value, and ULONGLONG_MAX in *nb_reserved_values (as
+we have a table-level lock). offset, increment, nb_desired_values are ignored.
+*first_value is set to -1 if error (deadlock or lock wait timeout)            */
 
-ulonglong
-ha_innobase::get_auto_increment()
-/*=============================*/
-			 /* out: auto-increment column value, -1 if error
-			 (deadlock or lock wait timeout) */
+void ha_innobase::get_auto_increment(
+/*=================================*/
+        ulonglong offset,              /* in */
+        ulonglong increment,           /* in */
+        ulonglong nb_desired_values,   /* in */
+        ulonglong *first_value,        /* out */
+        ulonglong *nb_reserved_values) /* out */
 {
 	longlong	nr;
 	int		error;
@@ -6973,10 +6977,13 @@ ha_innobase::get_auto_increment()
 		ut_print_timestamp(stderr);
 		sql_print_error("Error %lu in ::get_auto_increment()",
 				(ulong) error);
-		return(~(ulonglong) 0);
+                *first_value= (~(ulonglong) 0);
+		return;
 	}
 
-	return((ulonglong) nr);
+        *first_value= (ulonglong) nr;
+        /* table-level autoinc lock reserves up to +inf */
+        *nb_reserved_values= ULONGLONG_MAX;
 }
 
 /* See comment in handler.h */
