@@ -83,7 +83,10 @@ public:
   {
     return HA_ONLY_WHOLE_INDEX;
   }
-  ulonglong get_auto_increment();
+  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
+                                  ulonglong nb_desired_values,
+                                  ulonglong *first_value,
+                                  ulonglong *nb_reserved_values);
   uint max_supported_keys()          const { return 1; }
   uint max_supported_key_length()    const { return sizeof(ulonglong); }
   uint max_supported_key_part_length() const { return sizeof(ulonglong); }
