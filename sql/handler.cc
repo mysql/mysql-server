@@ -3199,16 +3199,27 @@ namespace {
   }
 }
 
-/**
+/*
    Write table maps for all (manually or automatically) locked tables
    to the binary log.
 
-   This function will generate and write table maps for all tables
-   that are locked by the thread 'thd'.  Either manually locked
-   (stored in THD::locked_tables) and automatically locked (stored in
-   THD::lock) are considered.
+   SYNOPSIS
+     write_locked_table_maps()
+       thd     Pointer to THD structure
+
+   DESCRIPTION
+       This function will generate and write table maps for all tables
+       that are locked by the thread 'thd'.  Either manually locked
+       (stored in THD::locked_tables) and automatically locked (stored
+       in THD::lock) are considered.
    
-   See THD::lock and THD::locked_tables for more information.
+   RETURN VALUE
+       0   All OK
+       1   Failed to write all table maps
+
+   SEE ALSO
+       THD::lock
+       THD::locked_tables
  */
 static int
 write_locked_table_maps(THD *thd)
