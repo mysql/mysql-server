@@ -4085,6 +4085,12 @@ int ha_ndbcluster::create(const char *name,
   set_dbname(name2);
   set_tabname(name2);    
 
+  if (current_thd->lex->sql_command == SQLCOM_TRUNCATE)
+  {
+    DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
+    if ((my_errno= delete_table(name)))
+      DBUG_RETURN(my_errno);
+  }
   if (create_from_engine)
   {
     /*
