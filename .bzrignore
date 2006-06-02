@@ -1282,3 +1282,5 @@ extra/yassl/taocrypt/benchmark/benchmark
 extra/yassl/taocrypt/test/test
 extra/yassl/testsuite/testsuite
 client/mysql_upgrade
+sql/share/iso639-2.txt
+sql/share/fixerrmsg.pl
