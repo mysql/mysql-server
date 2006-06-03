@@ -1886,9 +1886,10 @@ char *generate_partition_syntax(partition_info *part_info,
         err+= add_partition_values(fptr, part_info, part_elem);
         if (!part_info->is_sub_partitioned() ||
             part_info->use_default_subpartitions)
+        {
           err+= add_partition_options(fptr, part_elem);
-        if (part_info->is_sub_partitioned() &&
-            (!part_info->use_default_subpartitions))
+        }
+        else
         {
           err+= add_space(fptr);
           err+= add_begin_parenthesis(fptr);
