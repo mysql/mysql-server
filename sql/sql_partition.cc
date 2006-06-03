@@ -2199,9 +2199,11 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
     out:part_id         The partition id is returned through this pointer
 
   RETURN VALUE
-    part_id
-    return TRUE means that the fields of the partition function didn't fit
-    into any partition and thus the values of the PF-fields are not allowed.
+    part_id                     Partition id of partition that would contain
+                                row with given values of PF-fields
+    HA_ERR_NO_PARTITION_FOUND   The fields of the partition function didn't
+                                fit into any partition and thus the values of 
+                                the PF-fields are not allowed.
 
   DESCRIPTION
     A routine used from write_row, update_row and delete_row from any
@@ -2240,9 +2242,11 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
     out:part_id         The partition id is returned through this pointer
 
   RETURN VALUE
-    part_id
-    return TRUE means that the fields of the partition function didn't fit
-    into any partition and thus the values of the PF-fields are not allowed.
+    part_id                     Partition id of partition that would contain
+                                row with given values of PF-fields
+    HA_ERR_NO_PARTITION_FOUND   The fields of the partition function didn't
+                                fit into any partition and thus the values of 
+                                the PF-fields are not allowed.
 
   DESCRIPTION
     
