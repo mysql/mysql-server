@@ -267,7 +267,7 @@ bool partition_info::set_up_default_subpartitions(handler *file,
     j= 0;
     do
     {
-      partition_element *subpart_elem= new partition_element();
+      partition_element *subpart_elem= new partition_element(part_elem);
       if (likely(subpart_elem != 0 &&
           (!part_elem->subpartitions.push_back(subpart_elem))))
       {
@@ -736,6 +736,8 @@ bool partition_info::check_partition_info(handlerton **eng_type,
     do
     {
       partition_element *part_elem= part_it++;
+      if (part_elem->engine_type == NULL)
+        part_elem->engine_type= default_engine_type;
       if (!is_sub_partitioned())
       {
         if (check_table_name(part_elem->partition_name,
@@ -744,8 +746,6 @@ bool partition_info::check_partition_info(handlerton **eng_type,
           my_error(ER_WRONG_PARTITION_NAME, MYF(0));
           goto end;
         }
-        if (part_elem->engine_type == NULL)
-          part_elem->engine_type= default_engine_type;
         DBUG_PRINT("info", ("engine = %d",
                    ha_legacy_type(part_elem->engine_type)));
         engine_array[part_count++]= part_elem->engine_type;
@@ -756,18 +756,18 @@ bool partition_info::check_partition_info(handlerton **eng_type,
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         do
         {
-          part_elem= sub_it++;
-          if (check_table_name(part_elem->partition_name,
-                               strlen(part_elem->partition_name)))
+          partition_element *sub_elem= sub_it++;
+          if (check_table_name(sub_elem->partition_name,
+                               strlen(sub_elem->partition_name)))
           {
             my_error(ER_WRONG_PARTITION_NAME, MYF(0));
             goto end;
           }
-          if (part_elem->engine_type == NULL)
-            part_elem->engine_type= default_engine_type;
+          if (sub_elem->engine_type == NULL)
+            sub_elem->engine_type= default_engine_type;
           DBUG_PRINT("info", ("engine = %u",
-                     ha_legacy_type(part_elem->engine_type)));
-          engine_array[part_count++]= part_elem->engine_type;
+                     ha_legacy_type(sub_elem->engine_type)));
+          engine_array[part_count++]= sub_elem->engine_type;
         } while (++j < no_subparts);
       }
     } while (++i < no_parts);
