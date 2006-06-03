@@ -1326,7 +1326,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         (!table->part_info->is_auto_partitioned) &&
         ((part_syntax= generate_partition_syntax(table->part_info,
                                                   &part_syntax_len,
-                                                  FALSE,FALSE))))
+                                                  FALSE))))
     {
        packet->append(part_syntax, part_syntax_len);
        my_free(part_syntax, MYF(0));

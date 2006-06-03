@@ -1754,7 +1754,6 @@ end:
     buf_length                 A pointer to the returned buffer length
     use_sql_alloc              Allocate buffer from sql_alloc if true
                                otherwise use my_malloc
-    write_all                  Write everything, also default values
 
   RETURN VALUES
     NULL error
@@ -1782,8 +1781,7 @@ end:
 
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length,
-                                bool use_sql_alloc,
-                                bool write_all)
+                                bool use_sql_alloc)
 {
   uint i,j, tot_no_parts, no_subparts, no_parts;
   partition_element *part_elem;
@@ -1865,7 +1863,7 @@ char *generate_partition_syntax(partition_info *part_info,
   tot_no_parts= part_info->partitions.elements;
   no_subparts= part_info->no_subparts;
 
-  if (write_all || (!part_info->use_default_partitions))
+  if (!part_info->use_default_partitions)
   {
     bool first= TRUE;
     err+= add_begin_parenthesis(fptr);
@@ -1886,10 +1884,11 @@ char *generate_partition_syntax(partition_info *part_info,
         err+= add_name_string(fptr, part_elem->partition_name);
         err+= add_space(fptr);
         err+= add_partition_values(fptr, part_info, part_elem);
-        if (!part_info->is_sub_partitioned())
+        if (!part_info->is_sub_partitioned() ||
+            part_info->use_default_subpartitions)
           err+= add_partition_options(fptr, part_elem);
         if (part_info->is_sub_partitioned() &&
-            (write_all || (!part_info->use_default_subpartitions)))
+            (!part_info->use_default_subpartitions))
         {
           err+= add_space(fptr);
           err+= add_begin_parenthesis(fptr);
@@ -3877,6 +3876,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
         DBUG_RETURN(TRUE);
       }
       alt_part_info->part_type= tab_part_info->part_type;
+      alt_part_info->subpart_type= tab_part_info->subpart_type;
       if (alt_part_info->set_up_defaults_for_partitioning(table->file,
                                                           ULL(0), 
                                                           tab_part_info->no_parts))
@@ -4319,6 +4319,15 @@ state of p1.
         my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
         DBUG_RETURN(TRUE);
       }
+      alt_part_info->part_type= tab_part_info->part_type;
+      alt_part_info->subpart_type= tab_part_info->subpart_type;
+      DBUG_ASSERT(!alt_part_info->use_default_partitions);
+      if (alt_part_info->set_up_defaults_for_partitioning(table->file,
+                                                          ULL(0), 
+                                                          0))
+      {
+        DBUG_RETURN(TRUE);
+      }
 /*
 Online handling:
 REORGANIZE PARTITION:
@@ -4455,7 +4464,7 @@ the generated partition syntax in a correct manner.
         tab_part_info->use_default_no_subpartitions= FALSE;
       }
       if (tab_part_info->check_partition_info((handlerton**)NULL,
-                               table->file, ULL(0)))
+                                              table->file, ULL(0)))
       {
         DBUG_RETURN(TRUE);
       }
