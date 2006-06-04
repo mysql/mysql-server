@@ -248,6 +248,7 @@ THD::THD()
   bzero(ha_data, sizeof(ha_data));
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
+  enable_slow_log= 0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
@@ -1646,7 +1647,7 @@ Statement::Statement(enum enum_state state_arg, ulong id_arg,
                      ulong alloc_block_size, ulong prealloc_size)
   :Query_arena(&main_mem_root, state_arg),
   id(id_arg),
-  set_query_id(1),
+  mark_used_columns(MARK_COLUMNS_READ),
   lex(&main_lex),
   query(0),
   query_length(0),
@@ -1666,7 +1667,7 @@ Query_arena::Type Statement::type() const
 void Statement::set_statement(Statement *stmt)
 {
   id=             stmt->id;
-  set_query_id=   stmt->set_query_id;
+  mark_used_columns=   stmt->mark_used_columns;
   lex=            stmt->lex;
   query=          stmt->query;
   query_length=   stmt->query_length;
@@ -2449,6 +2450,7 @@ field_type_name(enum_field_types type)
   return "Unknown";
 }
 
+
 my_size_t THD::max_row_length_blob(TABLE *table, const byte *data) const
 {
   my_size_t length= 0;
@@ -2465,29 +2467,27 @@ my_size_t THD::max_row_length_blob(TABLE *table, const byte *data) const
   return length;
 }
 
+
 my_size_t THD::pack_row(TABLE *table, MY_BITMAP const* cols, byte *row_data, 
                         const byte *record) const
 {
-  Field **p_field= table->field, *field= *p_field;
+  Field **p_field= table->field, *field;
   int n_null_bytes= table->s->null_bytes;
-  my_ptrdiff_t const offset= record - (byte*) table->record[0];
-
+  byte *ptr;
+  uint i;
+  my_ptrdiff_t const offset= (my_ptrdiff_t) (record - (byte*)
+                                             table->record[0]);
   memcpy(row_data, record, n_null_bytes);
-  byte *ptr= row_data+n_null_bytes;
+  ptr= row_data+n_null_bytes;
 
-  for (int i= 0 ; field ; i++, p_field++, field= *p_field)
+  for (i= 0 ; (field= *p_field) ; i++, p_field++)
   {
     if (bitmap_is_set(cols,i))
       ptr= (byte*)field->pack((char *) ptr, field->ptr + offset);
   }
-
-  /*
-    my_ptrdiff_t is signed, size_t is unsigned. Assert that the
-    conversion will work correctly.
-  */
-  DBUG_ASSERT(ptr - row_data >= 0);
-  return (static_cast<size_t>(ptr - row_data));
+  return (static_cast<my_size_t>(ptr - row_data));
 }
+
 
 int THD::binlog_write_row(TABLE* table, bool is_trans, 
                           MY_BITMAP const* cols, my_size_t colcnt, 
@@ -2495,23 +2495,24 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
 { 
   DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
 
-  /* 
-     Pack records into format for transfer. We are allocating more
-     memory than needed, but that doesn't matter.
+  /*
+    Pack records into format for transfer. We are allocating more
+    memory than needed, but that doesn't matter.
   */
   bool error= 0;
   byte *row_data= table->write_row_record;
   my_size_t const max_len= max_row_length(table, record);
-
-  /*
-   * Allocate room for a row (if needed)
-   */
+  my_size_t len;
+  Rows_log_event *ev;
+  
+  /* Allocate room for a row (if needed) */
   if (!row_data)
   {
     if (!table->s->blob_fields)
     {
       /* multiply max_len by 2 so it can be used for update_row as well */
-      table->write_row_record= (byte *) alloc_root(&table->mem_root, 2*max_len);
+      table->write_row_record= (byte *) alloc_root(&table->mem_root,
+                                                   2*max_len);
       if (!table->write_row_record)
         return HA_ERR_OUT_OF_MEM;
       row_data= table->write_row_record;
@@ -2519,12 +2520,11 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
     else if (unlikely(!(row_data= (byte *) my_malloc(max_len, MYF(MY_WME)))))
       return HA_ERR_OUT_OF_MEM;
   }
-  my_size_t const len= pack_row(table, cols, row_data, record);
+  len= pack_row(table, cols, row_data, record);
 
-  Rows_log_event* const ev=
-    binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
-				      len, is_trans,
-				      static_cast<Write_rows_log_event*>(0));
+  ev= binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
+                                        len, is_trans,
+                                        static_cast<Write_rows_log_event*>(0));
 
   /* add_row_data copies row_data to internal buffer */
   error= likely(ev != 0) ? ev->add_row_data(row_data,len) : HA_ERR_OUT_OF_MEM ;

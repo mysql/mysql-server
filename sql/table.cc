@@ -18,7 +18,7 @@
 /* Some general useful functions */
 
 #include "mysql_priv.h"
-#include <errno.h>
+#include "sql_trigger.h"
 #include <m_ctype.h>
 #include "md5.h"
 
@@ -93,21 +93,16 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
 {
   MEM_ROOT mem_root;
   TABLE_SHARE *share;
-  char path[FN_REFLEN], normalized_path[FN_REFLEN];
-  uint path_length, normalized_length;
+  char path[FN_REFLEN];
+  uint path_length;
 
   path_length= build_table_filename(path, sizeof(path) - 1,
                                     table_list->db,
                                     table_list->table_name, "");
-  normalized_length= build_table_filename(normalized_path,
-                                          sizeof(normalized_path) - 1,
-                                          table_list->db,
-                                          table_list->table_name, "");
-
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if ((share= (TABLE_SHARE*) alloc_root(&mem_root,
 					sizeof(*share) + key_length +
-                                        path_length + normalized_length +2)))
+                                        path_length +1)))
   {
     bzero((char*) share, sizeof(*share));
     share->table_cache_key.str=    (char*) (share+1);
@@ -123,9 +118,8 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->path.str= share->table_cache_key.str+ key_length;
     share->path.length= path_length;
     strmov(share->path.str, path);
-    share->normalized_path.str=    share->path.str+ path_length+1;
-    share->normalized_path.length= normalized_length;
-    strmov(share->normalized_path.str, normalized_path);
+    share->normalized_path.str=    share->path.str;
+    share->normalized_path.length= path_length;
 
     share->version=       refresh_version;
     share->flush_version= flush_version;
@@ -434,6 +428,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   Field  **field_ptr, *reg_field;
   const char **interval_array;
   enum legacy_db_type legacy_db_type;
+  my_bitmap_map *bitmaps;
   DBUG_ENTER("open_binary_frm");
 
   new_field_pack_flag= head[27];
@@ -984,7 +979,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       goto err;			/* purecov: inspected */
     }
 
-    reg_field->fieldnr= i+1;                    //Set field number
     reg_field->field_index= i;
     reg_field->comment=comment;
     if (field_type == FIELD_TYPE_BIT && !f_bit_as_char(pack_flag))
@@ -1019,7 +1013,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     uint primary_key=(uint) (find_type((char*) primary_key_name,
 				       &share->keynames, 3) - 1);
-    uint ha_option= handler_file->table_flags();
+    uint ha_option= handler_file->ha_table_flags();
     keyinfo= share->key_info;
     key_part= keyinfo->key_part;
 
@@ -1108,6 +1102,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           {
             share->keys_for_keyread.set_bit(key);
             field->part_of_key.set_bit(key);
+            field->part_of_key_not_clustered.set_bit(key);
           }
           if (handler_file->index_flags(key, i, 1) & HA_READ_ORDER)
             field->part_of_sortkey.set_bit(key);
@@ -1265,6 +1260,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->last_null_bit_pos= null_bit_pos;
 
   share->db_low_byte_first= handler_file->low_byte_first();
+  share->column_bitmap_size= bitmap_buffer_size(share->fields);
+
+  if (!(bitmaps= (my_bitmap_map*) alloc_root(&share->mem_root,
+                                    share->column_bitmap_size)))
+    goto err;
+  bitmap_init(&share->all_set, bitmaps, share->fields, FALSE);
+  bitmap_set_all(&share->all_set);
+
   delete handler_file;
 #ifndef DBUG_OFF
   if (use_hash)
@@ -1316,18 +1319,15 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           TABLE *outparam, bool is_create_table)
 {
   int error;
-  uint records, i;
+  uint records, i, bitmap_size;
   bool error_reported= FALSE;
-  byte *record;
+  byte *record, *bitmaps;
   Field **field_ptr;
-  MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, outparam));
 
   error= 1;
-  root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
-  old_root= *root_ptr;
   bzero((char*) outparam, sizeof(*outparam));
   outparam->in_use= thd;
   outparam->s= share;
@@ -1335,7 +1335,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->write_row_record= NULL;
 
   init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  *root_ptr= &outparam->mem_root;
 
   if (!(outparam->alias= my_strdup(alias, MYF(MY_WME))))
     goto err;
@@ -1467,24 +1466,41 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->partition_info_len)
   {
-    if (mysql_unpack_partition(thd, share->partition_info,
-                               share->partition_info_len,
-                               (uchar*)share->part_state,
-                               share->part_state_len,
-                               outparam, is_create_table,
-                               share->default_part_db_type))
-      goto err;
-    /*
-      Fix the partition functions and ensure they are not constant
-      functions
-    */
+    MEM_ROOT **root_ptr, *old_root;
+    bool tmp;
+    root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+    old_root= *root_ptr;
+    *root_ptr= &outparam->mem_root;
+
+    tmp= mysql_unpack_partition(thd, share->partition_info,
+                                share->partition_info_len,
+                                (uchar*)share->part_state,
+                                share->part_state_len,
+                                outparam, is_create_table,
+                                share->default_part_db_type);
     outparam->part_info->is_auto_partitioned= share->auto_partitioned;
-    DBUG_PRINT("info", ("autopartitioned = %u", share->auto_partitioned));
-    if (fix_partition_func(thd, share->normalized_path.str, outparam,
-                           is_create_table))
+    DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
+    if (!tmp)
+      tmp= fix_partition_func(thd, share->normalized_path.str, outparam,
+                              is_create_table);
+    *root_ptr= old_root;
+    if (tmp)
       goto err;
   }
 #endif
+
+  /* Allocate bitmaps */
+
+  bitmap_size= share->column_bitmap_size;
+  if (!(bitmaps= (byte*) alloc_root(&outparam->mem_root, bitmap_size*3)))
+    goto err;
+  bitmap_init(&outparam->def_read_set,
+              (my_bitmap_map*) bitmaps, share->fields, FALSE);
+  bitmap_init(&outparam->def_write_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
+  bitmap_init(&outparam->tmp_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
+  outparam->default_column_bitmaps();
 
   /* The table struct is now initialized;  Open the table */
   error= 2;
@@ -1527,13 +1543,15 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
   }
 
-  *root_ptr= old_root;
+#if defined(HAVE_purify) && !defined(DBUG_OFF)
+  bzero((char*) bitmaps, bitmap_size*3);
+#endif
+
   thd->status_var.opened_tables++;
 
   DBUG_RETURN (0);
 
  err:
-  *root_ptr= old_root;
   if (! error_reported)
     open_table_error(share, error, my_errno, 0);
   delete outparam->file;
@@ -1564,6 +1582,7 @@ int closefrm(register TABLE *table, bool free_share)
   uint idx;
   KEY *key_info;
   DBUG_ENTER("closefrm");
+  DBUG_PRINT("enter", ("table: 0x%lx", (long) table));
 
   if (table->db_stat)
     error=table->file->close();
@@ -2347,7 +2366,7 @@ table_check_intact(TABLE *table, uint table_f_count,
   DBUG_PRINT("info",("last_create_time=%d", *last_create_time));
   
   if ((fields_diff_count= (table->s->fields != table_f_count)) ||
-      (*last_create_time != table->file->create_time))
+      (*last_create_time != table->file->stats.create_time))
   {
     DBUG_PRINT("info", ("I am suspecting, checking table"));
     if (fields_diff_count)
@@ -2446,14 +2465,14 @@ table_check_intact(TABLE *table, uint table_f_count,
       }
     }
     if (!error)
-      *last_create_time= table->file->create_time;
+      *last_create_time= table->file->stats.create_time;
     else if (!fields_diff_count && error_num)
       my_error(error_num,MYF(0), table->alias, table_f_count, table->s->fields);
   }
   else
   {
     DBUG_PRINT("info", ("Table seems ok without thorough checking."));
-    *last_create_time= table->file->create_time;
+    *last_create_time= table->file->stats.create_time;
   }
    
   DBUG_RETURN(error);  
@@ -2893,7 +2912,7 @@ void st_table_list::cleanup_items()
   for (Field_translator *transl= field_translation;
        transl < field_translation_end;
        transl++)
-    transl->item->walk(&Item::cleanup_processor, 0);
+    transl->item->walk(&Item::cleanup_processor, 0, 0);
 }
 
 
@@ -3453,7 +3472,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
     field= *field_ref;
   }
   thd->lex->current_select->no_wrap_view_item= save_wrapper;
-  if (thd->lex->current_select->no_wrap_view_item)
+  if (save_wrapper)
   {
     DBUG_RETURN(field);
   }
@@ -3745,6 +3764,276 @@ Field_iterator_table_ref::get_natural_column_ref()
               (!nj_col->table_field ||
                nj_col->table_ref->table == nj_col->table_field->table));
   return nj_col;
+}
+
+/*****************************************************************************
+  Functions to handle column usage bitmaps (read_set, write_set etc...)
+*****************************************************************************/
+
+/* Reset all columns bitmaps */
+
+void st_table::clear_column_bitmaps()
+{
+  /*
+    Reset column read/write usage. It's identical to:
+    bitmap_clear_all(&table->def_read_set);
+    bitmap_clear_all(&table->def_write_set);
+  */
+  bzero((char*) def_read_set.bitmap, s->column_bitmap_size*2);
+  column_bitmaps_set(&def_read_set, &def_write_set);
+}
+
+
+/*
+  Tell handler we are going to call position() and rnd_pos() later.
+  
+  NOTES:
+  This is needed for handlers that uses the primary key to find the
+  row. In this case we have to extend the read bitmap with the primary
+  key fields.
+*/
+
+void st_table::prepare_for_position()
+{
+  DBUG_ENTER("st_table::prepare_for_position");
+
+  if ((file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
+      s->primary_key < MAX_KEY)
+  {
+    mark_columns_used_by_index_no_reset(s->primary_key, read_set);
+    /* signal change */
+    file->column_bitmaps_signal();
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Mark that only fields from one key is used
+
+  NOTE:
+    This changes the bitmap to use the tmp bitmap
+    After this, you can't access any other columns in the table until
+    bitmaps are reset, for example with st_table::clear_column_bitmaps()
+    or st_table::restore_column_maps_after_mark_index()
+*/
+
+void st_table::mark_columns_used_by_index(uint index)
+{
+  MY_BITMAP *bitmap= &tmp_set;
+  DBUG_ENTER("st_table::mark_columns_used_by_index");
+
+  (void) file->extra(HA_EXTRA_KEYREAD);
+  bitmap_clear_all(bitmap);
+  mark_columns_used_by_index_no_reset(index, bitmap);
+  column_bitmaps_set(bitmap, bitmap);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Restore to use normal column maps after key read
+
+  NOTES
+    This reverse the change done by mark_columns_used_by_index
+
+  WARNING
+    For this to work, one must have the normal table maps in place
+    when calling mark_columns_used_by_index
+*/
+
+void st_table::restore_column_maps_after_mark_index()
+{
+  DBUG_ENTER("st_table::restore_column_maps_after_mark_index");
+
+  key_read= 0;
+  (void) file->extra(HA_EXTRA_NO_KEYREAD);
+  default_column_bitmaps();
+  file->column_bitmaps_signal();
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  mark columns used by key, but don't reset other fields
+*/
+
+void st_table::mark_columns_used_by_index_no_reset(uint index,
+                                                   MY_BITMAP *bitmap)
+{
+  KEY_PART_INFO *key_part= key_info[index].key_part;
+  KEY_PART_INFO *key_part_end= (key_part +
+                                key_info[index].key_parts);
+  for (;key_part != key_part_end; key_part++)
+    bitmap_set_bit(bitmap, key_part->fieldnr-1);
+}
+
+
+/*
+  Mark auto-increment fields as used fields in both read and write maps
+
+  NOTES
+    This is needed in insert & update as the auto-increment field is
+    always set and sometimes read.
+*/
+
+void st_table::mark_auto_increment_column()
+{
+  DBUG_ASSERT(found_next_number_field);
+  /*
+    We must set bit in read set as update_auto_increment() is using the
+    store() to check overflow of auto_increment values
+  */
+  bitmap_set_bit(read_set, found_next_number_field->field_index);
+  bitmap_set_bit(write_set, found_next_number_field->field_index);
+  if (s->next_number_key_offset)
+    mark_columns_used_by_index_no_reset(s->next_number_index, read_set);
+  file->column_bitmaps_signal();
+}
+
+
+/*
+  Mark columns needed for doing an delete of a row
+
+  DESCRIPTON
+    Some table engines don't have a cursor on the retrieve rows
+    so they need either to use the primary key or all columns to
+    be able to delete a row.
+
+    If the engine needs this, the function works as follows:
+    - If primary key exits, mark the primary key columns to be read.
+    - If not, mark all columns to be read
+
+    If the engine has HA_REQUIRES_KEY_COLUMNS_FOR_DELETE, we will
+    mark all key columns as 'to-be-read'. This allows the engine to
+    loop over the given record to find all keys and doesn't have to
+    retrieve the row again.
+*/
+
+void st_table::mark_columns_needed_for_delete()
+{
+  if (triggers)
+  {
+    if (triggers->bodies[TRG_EVENT_DELETE][TRG_ACTION_BEFORE] ||
+        triggers->bodies[TRG_EVENT_DELETE][TRG_ACTION_AFTER])
+    {
+      /* TODO: optimize to only add columns used by trigger */
+      use_all_columns();
+      return;
+    }
+  }
+
+  if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
+  {
+    Field **reg_field;
+    for (reg_field= field ; *reg_field ; reg_field++)
+    {
+      if ((*reg_field)->flags & PART_KEY_FLAG)
+        bitmap_set_bit(read_set, (*reg_field)->field_index);
+    }
+    file->column_bitmaps_signal();
+  }
+  if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE)
+  {
+    /*
+      If the handler has no cursor capabilites, we have to read either
+      the primary key, the hidden primary key or all columns to be
+      able to do an delete
+    */
+    if (s->primary_key == MAX_KEY)
+      file->use_hidden_primary_key();
+    else
+    {
+      mark_columns_used_by_index_no_reset(s->primary_key, read_set);
+      file->column_bitmaps_signal();
+    }
+  }
+}
+
+
+/*
+  Mark columns needed for doing an update of a row
+
+  DESCRIPTON
+    Some engines needs to have all columns in an update (to be able to
+    build a complete row). If this is the case, we mark all not
+    updated columns to be read.
+
+    If this is no the case, we do like in the delete case and mark
+    if neeed, either the primary key column or all columns to be read.
+    (see mark_columns_needed_for_delete() for details)
+
+    If the engine has HA_REQUIRES_KEY_COLUMNS_FOR_DELETE, we will
+    mark all USED key columns as 'to-be-read'. This allows the engine to
+    loop over the given record to find all changed keys and doesn't have to
+    retrieve the row again.
+*/
+
+void st_table::mark_columns_needed_for_update()
+{
+  DBUG_ENTER("mark_columns_needed_for_update");
+  if (triggers)
+  {
+    if (triggers->bodies[TRG_EVENT_UPDATE][TRG_ACTION_BEFORE] ||
+        triggers->bodies[TRG_EVENT_UPDATE][TRG_ACTION_AFTER])
+    {
+      /* TODO: optimize to only add columns used by trigger */
+      use_all_columns();
+      DBUG_VOID_RETURN;
+    }
+  }
+  if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
+  {
+    /* Mark all used key columns for read */
+    Field **reg_field;
+    for (reg_field= field ; *reg_field ; reg_field++)
+    {
+      /* Merge keys is all keys that had a column refered to in the query */
+      if (merge_keys.is_overlapping((*reg_field)->part_of_key))
+        bitmap_set_bit(read_set, (*reg_field)->field_index);
+    }
+    file->column_bitmaps_signal();
+  }
+  if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE)
+  {
+    /*
+      If the handler has no cursor capabilites, we have to read either
+      the primary key, the hidden primary key or all columns to be
+      able to do an update
+    */
+    if (s->primary_key == MAX_KEY)
+      file->use_hidden_primary_key();
+    else
+    {
+      mark_columns_used_by_index_no_reset(s->primary_key, read_set);
+      file->column_bitmaps_signal();
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Mark columns the handler needs for doing an insert
+
+  For now, this is used to mark fields used by the trigger
+  as changed.
+*/
+
+void st_table::mark_columns_needed_for_insert()
+{
+  if (triggers)
+  {
+    if (triggers->bodies[TRG_EVENT_INSERT][TRG_ACTION_BEFORE] ||
+        triggers->bodies[TRG_EVENT_INSERT][TRG_ACTION_AFTER])
+    {
+      /* TODO: optimize to only add columns used by trigger */
+      use_all_columns();
+      return;
+    }
+  }
+  if (found_next_number_field)
+    mark_auto_increment_column();
 }
 
 

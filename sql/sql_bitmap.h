@@ -66,6 +66,7 @@ public:
   my_bool is_clear_all() const { return bitmap_is_clear_all(&map); }
   my_bool is_set_all() const { return bitmap_is_set_all(&map); }
   my_bool is_subset(const Bitmap& map2) const { return bitmap_is_subset(&map, &map2.map); }
+  my_bool is_overlapping(const Bitmap& map2) const { return bitmap_is_overlapping(&map, map2.map); }
   my_bool operator==(const Bitmap& map2) const { return bitmap_cmp(&map, &map2.map); }
   char *print(char *buf) const
   {
@@ -132,6 +133,7 @@ public:
   my_bool is_clear_all() const { return map == (ulonglong)0; }
   my_bool is_set_all() const { return map == ~(ulonglong)0; }
   my_bool is_subset(const Bitmap<64>& map2) const { return !(map & ~map2.map); }
+  my_bool is_overlapping(const Bitmap<64>& map2) const { return (map & map2.map)!= 0; }
   my_bool operator==(const Bitmap<64>& map2) const { return map == map2.map; }
   char *print(char *buf) const { longlong2str(map,buf,16); return buf; }
   ulonglong to_ulonglong() const { return map; }

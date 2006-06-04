@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t1m,t1i,t2m,t2i,t4;
 create table t1 (
 c_id int(11) not null default '0',
 org_id int(11) default null,
@@ -268,3 +268,61 @@ explain select distinct f1, f2 from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	PRIMARY	5	NULL	3	Using index for group-by; Using temporary
 drop table t1;
+set storage_engine=innodb;
+CREATE TABLE t1 (a int, b int);
+insert into t1 values (1,1),(1,2);
+CREATE TABLE t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t2 (a int, b int, primary key (a));
+BEGIN;
+INSERT INTO t2 values(100,100);
+CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+100	100
+ROLLBACK;
+SELECT * from t2;
+a	b
+100	100
+TRUNCATE table t2;
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+drop table t2;
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
+BEGIN;
+INSERT INTO t2 values(100,100);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+100	100
+COMMIT;
+BEGIN;
+INSERT INTO t2 values(101,101);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+100	100
+101	101
+ROLLBACK;
+SELECT * from t2;
+a	b
+100	100
+TRUNCATE table t2;
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+drop table t1,t2;

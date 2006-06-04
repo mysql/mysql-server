@@ -139,7 +139,7 @@ static HASH archive_open_tables;
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
 /* Static declarations for handerton */
-static handler *archive_create_handler(TABLE_SHARE *table);
+static handler *archive_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
 /*
   Number of rows that will force a bulk insert.
 */
@@ -147,9 +147,9 @@ static handler *archive_create_handler(TABLE_SHARE *table);
 
 handlerton archive_hton;
 
-static handler *archive_create_handler(TABLE_SHARE *table)
+static handler *archive_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
-  return new ha_archive(table);
+  return new (mem_root) ha_archive(table);
 }
 
 /*
@@ -662,8 +662,8 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   int error;
   DBUG_ENTER("ha_archive::create");
 
-  auto_increment_value= (create_info->auto_increment_value ?
-                   create_info->auto_increment_value -1 :
+  stats.auto_increment_value= (create_info->auto_increment_value ?
+                               create_info->auto_increment_value -1 :
                    (ulonglong) 0);
 
   for (uint key= 0; key < table_arg->s->keys; key++)
@@ -693,7 +693,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     goto error;
   }
 
-  write_meta_file(create_file, 0, auto_increment_value, 0, 
+  write_meta_file(create_file, 0, stats.auto_increment_value, 0, 
                   (char *)create_info->data_file_name,
                   FALSE);
   my_close(create_file,MYF(0));
@@ -889,7 +889,7 @@ int ha_archive::write_row(byte *buf)
     else
     {
       if (temp_auto > share->auto_increment_value)
-        auto_increment_value= share->auto_increment_value= temp_auto;
+        stats.auto_increment_value= share->auto_increment_value= temp_auto;
     }
   }
 
@@ -1028,7 +1028,7 @@ int ha_archive::rnd_init(bool scan)
   {
     scan_rows= share->rows_recorded;
     DBUG_PRINT("info", ("archive will retrieve %llu rows", scan_rows));
-    records= 0;
+    stats.records= 0;
 
     /* 
       If dirty, we lock, and then reset/flush the data.
@@ -1065,6 +1065,7 @@ int ha_archive::get_row(azio_stream *file_to_read, byte *buf)
   uint *ptr, *end;
   char *last;
   size_t total_blob_length= 0;
+  MY_BITMAP *read_set= table->read_set;
   DBUG_ENTER("ha_archive::get_row");
 
   read= azread(file_to_read, buf, table->s->reclength);
@@ -1090,8 +1091,9 @@ int ha_archive::get_row(azio_stream *file_to_read, byte *buf)
        ptr != end ;
        ptr++)
   {
-    if (ha_get_bit_in_read_set(((Field_blob*) table->field[*ptr])->fieldnr))
-      total_blob_length += ((Field_blob*) table->field[*ptr])->get_length();
+    if (bitmap_is_set(read_set,
+                      (((Field_blob*) table->field[*ptr])->field_index)))
+        total_blob_length += ((Field_blob*) table->field[*ptr])->get_length();
   }
 
   /* Adjust our row buffer if we need be */
@@ -1106,7 +1108,8 @@ int ha_archive::get_row(azio_stream *file_to_read, byte *buf)
     size_t size= ((Field_blob*) table->field[*ptr])->get_length();
     if (size)
     {
-      if (ha_get_bit_in_read_set(((Field_blob*) table->field[*ptr])->fieldnr))
+      if (bitmap_is_set(read_set,
+                        ((Field_blob*) table->field[*ptr])->field_index))
       {
         read= azread(file_to_read, last, size);
         if ((size_t) read != size)
@@ -1147,7 +1150,7 @@ int ha_archive::rnd_next(byte *buf)
 
 
   if (rc != HA_ERR_END_OF_FILE)
-    records++;
+    stats.records++;
 
   DBUG_RETURN(rc);
 }
@@ -1268,7 +1271,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     if (!rc)
     {
       share->rows_recorded= 0;
-      auto_increment_value= share->auto_increment_value= 0;
+      stats.auto_increment_value= share->auto_increment_value= 0;
       while (!(rc= get_row(&archive, buf)))
       {
         real_write_row(buf, &writer);
@@ -1278,7 +1281,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
           ulonglong auto_value=
             (ulonglong) field->val_int((char*)(buf + field->offset()));
           if (share->auto_increment_value < auto_value)
-            auto_increment_value= share->auto_increment_value=
+            stats.auto_increment_value= share->auto_increment_value=
               auto_value;
         }
         share->rows_recorded++;
@@ -1393,7 +1396,7 @@ void ha_archive::update_create_info(HA_CREATE_INFO *create_info)
   ha_archive::info(HA_STATUS_AUTO | HA_STATUS_CONST);
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
   {
-    create_info->auto_increment_value= auto_increment_value;
+    create_info->auto_increment_value= stats.auto_increment_value;
   }
   if (*share->real_path)
     create_info->data_file_name= share->real_path;
@@ -1410,8 +1413,8 @@ void ha_archive::info(uint flag)
     This should be an accurate number now, though bulk and delayed inserts can
     cause the number to be inaccurate.
   */
-  records= share->rows_recorded;
-  deleted= 0;
+  stats.records= share->rows_recorded;
+  stats.deleted= 0;
   /* Costs quite a bit more to get all information */
   if (flag & HA_STATUS_TIME)
   {
@@ -1419,17 +1422,17 @@ void ha_archive::info(uint flag)
 
     VOID(my_stat(share->data_file_name, &file_stat, MYF(MY_WME)));
 
-    mean_rec_length= table->s->reclength + buffer.alloced_length();
-    data_file_length= file_stat.st_size;
-    create_time= file_stat.st_ctime;
-    update_time= file_stat.st_mtime;
-    max_data_file_length= share->rows_recorded * mean_rec_length;
+    stats.mean_rec_length= table->s->reclength + buffer.alloced_length();
+    stats.data_file_length= file_stat.st_size;
+    stats.create_time= file_stat.st_ctime;
+    stats.update_time= file_stat.st_mtime;
+    stats.max_data_file_length= share->rows_recorded * stats.mean_rec_length;
   }
-  delete_length= 0;
-  index_file_length=0;
+  stats.delete_length= 0;
+  stats.index_file_length=0;
 
   if (flag & HA_STATUS_AUTO)
-    auto_increment_value= share->auto_increment_value;
+    stats.auto_increment_value= share->auto_increment_value;
 
   DBUG_VOID_RETURN;
 }
@@ -1558,6 +1561,7 @@ mysql_declare_plugin(archive)
   archive_db_init, /* Plugin Init */
   archive_db_done, /* Plugin Deinit */
   0x0100 /* 1.0 */,
+  0
 }
 mysql_declare_plugin_end;
 

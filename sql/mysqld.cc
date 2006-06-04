@@ -2468,10 +2468,12 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
     if (thd->lex->current_select &&
 	thd->lex->current_select->no_error && !thd->is_fatal_error)
     {
-      DBUG_PRINT("error", ("Error converted to warning: current_select: no_error %d  fatal_error: %d",
-                           (thd->lex->current_select ?
-                            thd->lex->current_select->no_error : 0),
-                           (int) thd->is_fatal_error));
+      DBUG_PRINT("error",
+                 ("Error converted to warning: current_select: no_error %d  "
+                  "fatal_error: %d",
+                  (thd->lex->current_select ?
+                   thd->lex->current_select->no_error : 0),
+                  (int) thd->is_fatal_error));
     }
     else
     {
@@ -5691,7 +5693,6 @@ log and this option does nothing anymore.",
     "The buffer that is allocated to cache index and rows for BDB tables.",
     (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULL,
     REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (ulonglong) ~0, 0, IO_SIZE, 0},
-  /* QQ: The following should be removed soon! (bdb_max_lock preferred) */
   {"bdb_lock_max", OPT_BDB_MAX_LOCK, "Synonym for bdb_max_lock.",
    (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
    REQUIRED_ARG, 10000, 0, (long) ~0, 0, 1, 0},

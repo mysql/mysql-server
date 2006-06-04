@@ -15,9 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
    USA */
 
+#include <my_global.h>
 #include <base64.h>
 #include <tap.h>
-#include <stdlib.h>
 #include <string.h>
 
 int

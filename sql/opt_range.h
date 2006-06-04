@@ -192,8 +192,9 @@ public:
     function is called.
     SYNOPSIS
       init_ror_merged_scan()
-        reuse_handler If true, the quick select may use table->handler, otherwise
-                      it must create and use a separate handler object.
+        reuse_handler  If true, the quick select may use table->handler,
+                       otherwise it must create and use a separate handler
+                       object.
     RETURN
       0     Ok
       other Error
@@ -259,7 +260,7 @@ class SEL_ARG;
 class QUICK_RANGE_SELECT : public QUICK_SELECT_I
 {
 protected:
-  bool next,dont_free;
+  bool next,dont_free,in_ror_merged_scan;
 public:
   int error;
 protected:
@@ -277,8 +278,8 @@ protected:
                                        freed by QUICK_RANGE_SELECT) */
   HANDLER_BUFFER *multi_range_buff; /* the handler buffer (allocated and
                                        freed by QUICK_RANGE_SELECT) */
+  MY_BITMAP column_bitmap, *save_read_set, *save_write_set;
 
-protected:
   friend class TRP_ROR_INTERSECT;
   friend
   QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,

@@ -44,19 +44,20 @@
 #include "ha_innodb.h"
 #endif
 
-/* While we have legacy_db_type, we have this array to
-   check for dups and to find handlerton from legacy_db_type.
-   Remove when legacy_db_type is finally gone */
-static handlerton *installed_htons[128];
+/*
+  While we have legacy_db_type, we have this array to
+  check for dups and to find handlerton from legacy_db_type.
+  Remove when legacy_db_type is finally gone
+*/
 st_plugin_int *hton2plugin[MAX_HA];
 
-#define BITMAP_STACKBUF_SIZE (128/8)
+static handlerton *installed_htons[128];
 
 KEY_CREATE_INFO default_key_create_info= { HA_KEY_ALG_UNDEF, 0, {NullS,0} };
 
 /* static functions defined in this file */
 
-static handler *create_default(TABLE_SHARE *table);
+static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root);
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
@@ -126,8 +127,7 @@ handlerton *ha_resolve_by_name(THD *thd, LEX_STRING *name)
 
 const char *ha_get_storage_engine(enum legacy_db_type db_type)
 {
-  switch (db_type)
-  {
+  switch (db_type) {
   case DB_TYPE_DEFAULT:
     return "DEFAULT";
   case DB_TYPE_UNKNOWN:
@@ -141,17 +141,15 @@ const char *ha_get_storage_engine(enum legacy_db_type db_type)
 }
 
 
-static handler *create_default(TABLE_SHARE *table)
+static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
-  handlerton *hton=ha_resolve_by_legacy_type(current_thd, DB_TYPE_DEFAULT);
-  return (hton && hton->create) ? hton->create(table) : NULL;
+  return (hton && hton->create) ? hton->create(table, mem_root) : NULL;
 }
 
 
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
 {
-  switch (db_type)
-  {
+  switch (db_type) {
   case DB_TYPE_DEFAULT:
     return (thd->variables.table_type != NULL) ?
             thd->variables.table_type :
@@ -204,36 +202,23 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
                          handlerton *db_type)
 {
-  handler *file= NULL;
+  handler *file;
+  DBUG_ENTER("get_new_handler");
+  DBUG_PRINT("enter", ("alloc: 0x%lx", (long) alloc));
+
+  if (db_type && db_type->state == SHOW_OPTION_YES && db_type->create)
+  {
+    if ((file= db_type->create(share, alloc)))
+      file->init();
+    DBUG_RETURN(file);
+  }
   /*
-    handlers are allocated with new in the handlerton create() function
-    we need to set the thd mem_root for these to be allocated correctly
+    Try the default table type
+    Here the call to current_thd() is ok as we call this function a lot of
+    times but we enter this branch very seldom.
   */
-  THD *thd= current_thd;
-  MEM_ROOT *thd_save_mem_root= thd->mem_root;
-  thd->mem_root= alloc;
-
-  if (db_type != NULL && db_type->state == SHOW_OPTION_YES && db_type->create)
-    file= db_type->create(share);
-
-  thd->mem_root= thd_save_mem_root;
-
-  if (!file)
-  {
-    handlerton *def= current_thd->variables.table_type;
-    /* Try first with 'default table type' */
-    if (db_type != def)
-      return get_new_handler(share, alloc, def);
-  }
-  if (file)
-  {
-    if (file->ha_initialise())
-    {
-      delete file;
-      file=0;
-    }
-  }
-  return file;
+  DBUG_RETURN(get_new_handler(share, alloc,
+                              current_thd->variables.table_type));
 }
 
 
@@ -244,11 +229,13 @@ handler *get_ha_partition(partition_info *part_info)
   DBUG_ENTER("get_ha_partition");
   if ((partition= new ha_partition(part_info)))
   {
-    if (partition->ha_initialise())
+    if (partition->initialise_partition(current_thd->mem_root))
     {
       delete partition;
       partition= 0;
     }
+    else
+      partition->init();
   }
   else
   {
@@ -1335,7 +1322,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       ! (file=get_new_handler(&dummy_share, thd->mem_root, table_type)))
     DBUG_RETURN(ENOENT);
 
-  if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
+  if (lower_case_table_names == 2 && !(file->ha_table_flags() & HA_FILE_BASED))
   {
     /* Ensure that table handler get path in lower case */
     strmov(tmp_path, path);
@@ -1418,6 +1405,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 
   table= table_arg;
   DBUG_ASSERT(table->s == table_share);
+  DBUG_ASSERT(alloc_root_inited(&table->mem_root));
 
   if ((error=open(name,mode,test_if_locked)))
   {
@@ -1439,106 +1427,23 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       table->db_stat|=HA_READ_ONLY;
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
 
-    DBUG_ASSERT(alloc_root_inited(&table->mem_root));
-
     if (!(ref= (byte*) alloc_root(&table->mem_root, ALIGN_SIZE(ref_length)*2)))
     {
       close();
       error=HA_ERR_OUT_OF_MEM;
     }
     else
-      dupp_ref=ref+ALIGN_SIZE(ref_length);
-
-    if (ha_allocate_read_write_set(table->s->fields))
-      error= 1;
+      dup_ref=ref+ALIGN_SIZE(ref_length);
+    cached_table_flags= table_flags();
   }
   DBUG_RETURN(error);
 }
 
 
-int handler::ha_initialise()
-{
-  DBUG_ENTER("ha_initialise");
-  DBUG_RETURN(FALSE);
-}
-
-
-/*
-  Initalize bit maps for used fields
-
-  Called from open_table_from_share()
-*/
-
-int handler::ha_allocate_read_write_set(ulong no_fields)
-{
-  uint bitmap_size= bitmap_buffer_size(no_fields+1);
-  uint32 *read_buf, *write_buf;
-  DBUG_ENTER("ha_allocate_read_write_set");
-  DBUG_PRINT("enter", ("no_fields = %d", no_fields));
-
-  if (!multi_alloc_root(&table->mem_root,
-                        &read_set, sizeof(MY_BITMAP),
-                        &write_set, sizeof(MY_BITMAP),
-                        &read_buf, bitmap_size,
-                        &write_buf, bitmap_size,
-                        NullS))
-  {
-    DBUG_RETURN(TRUE);
-  }
-  bitmap_init(read_set, read_buf, no_fields+1, FALSE);
-  bitmap_init(write_set, write_buf, no_fields+1, FALSE);
-  table->read_set= read_set;
-  table->write_set= write_set;
-  ha_clear_all_set();
-  DBUG_RETURN(FALSE);
-}
-
-void handler::ha_clear_all_set()
-{
-  DBUG_ENTER("ha_clear_all_set");
-  bitmap_clear_all(read_set);
-  bitmap_clear_all(write_set);
-  bitmap_set_bit(read_set, 0);
-  bitmap_set_bit(write_set, 0);
-  DBUG_VOID_RETURN;
-}
-
-int handler::ha_retrieve_all_cols()
-{
-  DBUG_ENTER("handler::ha_retrieve_all_cols");
-  bitmap_set_all(read_set);
-  DBUG_RETURN(0);
-}
-
-int handler::ha_retrieve_all_pk()
-{
-  DBUG_ENTER("ha_retrieve_all_pk");
-  ha_set_primary_key_in_read_set();
-  DBUG_RETURN(0);
-}
-
-void handler::ha_set_primary_key_in_read_set()
-{
-  ulong prim_key= table->s->primary_key;
-  DBUG_ENTER("handler::ha_set_primary_key_in_read_set");
-  DBUG_PRINT("info", ("Primary key = %d", prim_key));
-  if (prim_key != MAX_KEY)
-  {
-    KEY_PART_INFO *key_part= table->key_info[prim_key].key_part;
-    KEY_PART_INFO *key_part_end= key_part +
-              table->key_info[prim_key].key_parts;
-    for (;key_part != key_part_end; ++key_part)
-      ha_set_bit_in_read_set(key_part->fieldnr);
-  }
-  DBUG_VOID_RETURN;
-}
-
-
-
 /*
   Read first row (only) from a table
   This is never called for InnoDB or BDB tables, as these table types
-  has the HA_NOT_EXACT_COUNT set.
+  has the HA_STATS_RECORDS_IS_EXACT set.
 */
 
 int handler::read_first_row(byte * buf, uint primary_key)
@@ -1554,7 +1459,7 @@ int handler::read_first_row(byte * buf, uint primary_key)
     scanning the table.
     TODO remove the test for HA_READ_ORDER
   */
-  if (deleted < 10 || primary_key >= MAX_KEY ||
+  if (stats.deleted < 10 || primary_key >= MAX_KEY ||
       !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
   {
     (void) ha_rnd_init(1);
@@ -1807,6 +1712,29 @@ void handler::restore_auto_increment()
 
 
 /*
+  MySQL signal that it changed the column bitmap
+
+  USAGE
+    This is for handlers that needs to setup their own column bitmaps.
+    Normally the handler should set up their own column bitmaps in
+    index_init() or rnd_init() and in any column_bitmaps_signal() call after
+    this.
+
+    The handler is allowd to do changes to the bitmap after a index_init or
+    rnd_init() call is made as after this, MySQL will not use the bitmap
+    for any program logic checking.
+*/
+
+void handler::column_bitmaps_signal()
+{
+  DBUG_ENTER("column_bitmaps_signal");
+  DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", table->read_set,
+                      table->write_set));
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Reserves an interval of auto_increment values from the handler.
 
   SYNOPSIS
@@ -1822,7 +1750,6 @@ void handler::restore_auto_increment()
   If the function sets *first_value to ~(ulonglong)0 it means an error.
   If the function sets *nb_reserved_values to ULONGLONG_MAX it means it has
   reserved to "positive infinite".
-
 */
 
 void handler::get_auto_increment(ulonglong offset, ulonglong increment,
@@ -1834,6 +1761,9 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   int error;
 
   (void) extra(HA_EXTRA_KEYREAD);
+  table->mark_columns_used_by_index_no_reset(table->s->next_number_index,
+                                        table->read_set);
+  column_bitmaps_signal();
   index_init(table->s->next_number_index, 1);
   if (!table->s->next_number_key_offset)
   {						// Autoincrement at key-start
@@ -1873,7 +1803,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
 }
 
 
-void handler::print_keydupp_error(uint key_nr, const char *msg)
+void handler::print_keydup_error(uint key_nr, const char *msg)
 {
   /* Write the duplicated key in the error message */
   char key[MAX_KEY_LENGTH];
@@ -1930,7 +1860,7 @@ void handler::print_error(int error, myf errflag)
     uint key_nr=get_dup_key(error);
     if ((int) key_nr >= 0)
     {
-      print_keydupp_error(key_nr, ER(ER_DUP_ENTRY));
+      print_keydup_error(key_nr, ER(ER_DUP_ENTRY));
       DBUG_VOID_RETURN;
     }
     textno=ER_DUP_KEY;
@@ -1941,12 +1871,14 @@ void handler::print_error(int error, myf errflag)
     uint key_nr= get_dup_key(error);
     if ((int) key_nr >= 0)
     {
+      uint max_length;
       /* Write the key in the error message */
       char key[MAX_KEY_LENGTH];
       String str(key,sizeof(key),system_charset_info);
       /* Table is opened and defined at this point */
       key_unpack(&str,table,(uint) key_nr);
-      uint max_length= MYSQL_ERRMSG_SIZE-(uint) strlen(ER(ER_FOREIGN_DUPLICATE_KEY));
+      max_length= (MYSQL_ERRMSG_SIZE-
+                   (uint) strlen(ER(ER_FOREIGN_DUPLICATE_KEY)));
       if (str.length() >= max_length)
       {
         str.length(max_length-4);
@@ -2355,22 +2287,23 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
 }
 
 
-void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id)
+void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info,
+                                         uint part_id)
 {
   info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
        HA_STATUS_NO_LOCK);
-  stat_info->records= records;
-  stat_info->mean_rec_length= mean_rec_length;
-  stat_info->data_file_length= data_file_length;
-  stat_info->max_data_file_length= max_data_file_length;
-  stat_info->index_file_length= index_file_length;
-  stat_info->delete_length= delete_length;
-  stat_info->create_time= create_time;
-  stat_info->update_time= update_time;
-  stat_info->check_time= check_time;
-  stat_info->check_sum= 0;
+  stat_info->records=              stats.records;
+  stat_info->mean_rec_length=      stats.mean_rec_length;
+  stat_info->data_file_length=     stats.data_file_length;
+  stat_info->max_data_file_length= stats.max_data_file_length;
+  stat_info->index_file_length=    stats.index_file_length;
+  stat_info->delete_length=        stats.delete_length;
+  stat_info->create_time=          stats.create_time;
+  stat_info->update_time=          stats.update_time;
+  stat_info->check_time=           stats.check_time;
+  stat_info->check_sum=            0;
   if (table_flags() & (ulong) HA_HAS_CHECKSUM)
-  stat_info->check_sum= checksum();
+    stat_info->check_sum= checksum();
   return;
 }
 
@@ -2414,7 +2347,7 @@ int ha_create_table(THD *thd, const char *path,
 
   name= share.path.str;
   if (lower_case_table_names == 2 &&
-      !(table.file->table_flags() & HA_FILE_BASED))
+      !(table.file->ha_table_flags() & HA_FILE_BASED))
   {
     /* Ensure that handler gets name in lower case */
     strmov(name_buff, name);
@@ -2493,7 +2426,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
   if (lower_case_table_names == 2 &&
-      !(table.file->table_flags() & HA_FILE_BASED))
+      !(table.file->ha_table_flags() & HA_FILE_BASED))
   {
     /* Ensure that handler gets name in lower case */
     my_casedn_str(files_charset_info, path);
@@ -2843,6 +2776,9 @@ int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   multi_range_sorted= sorted;
   multi_range_buffer= buffer;
 
+  table->mark_columns_used_by_index_no_reset(active_index, table->read_set);
+  table->column_bitmaps_set(table->read_set, table->write_set);
+
   for (multi_range_curr= ranges, multi_range_end= ranges + range_count;
        multi_range_curr < multi_range_end;
        multi_range_curr++)
@@ -3085,7 +3021,7 @@ static my_bool exts_handlerton(THD *unused, st_plugin_int *plugin,
   handlerton *hton= (handlerton *)plugin->data;
   handler *file;
   if (hton->state == SHOW_OPTION_YES && hton->create &&
-      (file= hton->create((TABLE_SHARE*) 0)))
+      (file= hton->create((TABLE_SHARE*) 0, current_thd->mem_root)))
   {
     List_iterator_fast<char> it(*found_exts);
     const char **ext, *old_ext;
@@ -3225,7 +3161,7 @@ namespace {
     char const *name;
   };
 
-  int table_name_compare(void const *a, void const *b)
+  static int table_name_compare(void const *a, void const *b)
   {
     st_table_data const *x = (st_table_data const*) a;
     st_table_data const *y = (st_table_data const*) b;
@@ -3235,7 +3171,7 @@ namespace {
     return res != 0 ? res : strcmp(x->name, y->name);
   }
 
-  bool check_table_binlog_row_based(THD *thd, TABLE *table)
+  static bool check_table_binlog_row_based(THD *thd, TABLE *table)
   {
     static st_table_data const ignore[] = {
       { "mysql", "event" },
@@ -3256,44 +3192,29 @@ namespace {
     DBUG_ASSERT(table->s->cached_row_logging_check == 0 ||
                 table->s->cached_row_logging_check == 1);
 
-    return
-      thd->current_stmt_binlog_row_based &&
-      thd && (thd->options & OPTION_BIN_LOG) &&
-      mysql_bin_log.is_open() &&
-      table->s->cached_row_logging_check;
+    return (thd->current_stmt_binlog_row_based &&
+            (thd->options & OPTION_BIN_LOG) &&
+            mysql_bin_log.is_open() &&
+            table->s->cached_row_logging_check);
   }
 }
 
-template<class RowsEventT> int binlog_log_row(TABLE* table,
+template<class RowsEventT> int binlog_log_row(TABLE *table,
                                               const byte *before_record,
                                               const byte *after_record)
 {
   if (table->file->is_injective())
     return 0;
   bool error= 0;
-  THD *const thd= current_thd;
 
-  if (check_table_binlog_row_based(thd, table))
+  if (check_table_binlog_row_based(table->in_use, table))
   {
-    MY_BITMAP cols;
-    /* Potential buffer on the stack for the bitmap */
-    uint32 bitbuf[BITMAP_STACKBUF_SIZE/sizeof(uint32)];
-    uint n_fields= table->s->fields;
-    my_bool use_bitbuf= n_fields <= sizeof(bitbuf)*8;
-    if (likely(!(error= bitmap_init(&cols,
-                                    use_bitbuf ? bitbuf : NULL,
-                                    (n_fields + 7) & ~7UL,
-                                    false))))
-    {
-      bitmap_set_all(&cols);
-      error=
-        RowsEventT::binlog_row_logging_function(thd, table,
-                                                table->file->has_transactions(),
-                                                &cols, table->s->fields,
-                                                before_record, after_record);
-      if (!use_bitbuf)
-        bitmap_free(&cols);
-    }
+    error=
+      RowsEventT::binlog_row_logging_function(table->in_use, table,
+                                              table->file->has_transactions(),
+                                              &table->s->all_set,
+                                              table->s->fields,
+                                              before_record, after_record);
   }
   return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
 }
@@ -3354,6 +3275,28 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   DBUG_RETURN(0);
 }
 
+
+/*
+  Check handler usage and reset state of file to after 'open'
+*/
+
+int handler::ha_reset()
+{
+  DBUG_ENTER("ha_reset");
+  /* Check that we have called all proper delallocation functions */
+  DBUG_ASSERT((byte*) table->def_read_set.bitmap +
+              table->s->column_bitmap_size ==
+              (char*) table->def_write_set.bitmap);
+  DBUG_ASSERT(bitmap_is_set_all(&table->s->all_set));
+  DBUG_ASSERT(table->key_read == 0);
+  /* ensure that ha_index_end / ha_rnd_end has been called */
+  DBUG_ASSERT(inited == NONE);
+  /* Free cache used by filesort */
+  free_io_cache(table);
+  DBUG_RETURN(reset());
+}
+
+
 int handler::ha_write_row(byte *buf)
 {
   int error;
@@ -3397,16 +3340,33 @@ int handler::ha_delete_row(const byte *buf)
   return 0;
 }
 
+
+
+/*
+  use_hidden_primary_key() is called in case of an update/delete when
+  (table_flags() and HA_PRIMARY_KEY_REQUIRED_FOR_DELETE) is defined
+  but we don't have a primary key
+*/
+
+void handler::use_hidden_primary_key()
+{
+  /* fallback to use all columns in the table to identify row */
+  table->use_all_columns();
+}
+
+
 /*
   Dummy function which accept information about log files which is not need
   by handlers
 */
+
 void signal_log_not_needed(struct handlerton, char *log_file)
 {
   DBUG_ENTER("signal_log_not_needed");
   DBUG_PRINT("enter", ("logfile '%s'", log_file));
   DBUG_VOID_RETURN;
 }
+
 
 #ifdef TRANS_LOG_MGM_EXAMPLE_CODE
 /*
@@ -3460,6 +3420,7 @@ err:
   really detect the log status and check that the file is a log of this
   handler.
 */
+
 enum log_status fl_get_log_status(char *log)
 {
   MY_STAT stat_buff;
@@ -3567,7 +3528,7 @@ enum handler_create_iterator_result
 fl_create_iterator(enum handler_iterator_type type,
                    struct handler_iterator *iterator)
 {
-  switch(type){
+  switch(type) {
   case HA_TRANSACTLOG_ITERATOR:
     return fl_log_iterator_buffer_init(iterator);
   default:

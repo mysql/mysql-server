@@ -762,7 +762,7 @@ public:
   static CHARSET_INFO *default_charset();
   virtual CHARSET_INFO *compare_collation() { return NULL; }
 
-  virtual bool walk(Item_processor processor, byte *arg)
+  virtual bool walk(Item_processor processor, bool walk_subquery, byte *arg)
   {
     return (this->*processor)(arg);
   }
@@ -784,7 +784,7 @@ public:
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
   virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
   virtual bool change_context_processor(byte *context) { return 0; }
-  virtual bool reset_query_id_processor(byte *query_id) { return 0; }
+  virtual bool register_field_in_read_map(byte *arg) { return 0; }
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -1280,13 +1280,7 @@ public:
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(byte * arg);
   bool find_item_in_field_list_processor(byte *arg);
-  bool reset_query_id_processor(byte *arg)
-  {
-    field->query_id= *((query_id_t *) arg);
-    if (result_field)
-      result_field->query_id= field->query_id;
-    return 0;
-  }
+  bool register_field_in_read_map(byte *arg);
   bool check_partition_func_processor(byte *bool_arg) { return 0; }
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
@@ -1907,8 +1901,8 @@ public:
   {
     return ref ? (*ref)->real_item() : this;
   }
-  bool walk(Item_processor processor, byte *arg)
-  { return (*ref)->walk(processor, arg); }
+  bool walk(Item_processor processor, bool walk_subquery, byte *arg)
+  { return (*ref)->walk(processor, walk_subquery, arg); }
   void print(String *str);
   void cleanup();
   Item_field *filed_for_view_update()
@@ -2159,9 +2153,9 @@ public:
   int save_in_field(Field *field_arg, bool no_conversions);
   table_map used_tables() const { return (table_map)0L; }
 
-  bool walk(Item_processor processor, byte *args)
+  bool walk(Item_processor processor, bool walk_subquery, byte *args)
   {
-    return arg->walk(processor, args) ||
+    return arg->walk(processor, walk_subquery, args) ||
       (this->*processor)(args);
   }
 
@@ -2206,9 +2200,9 @@ public:
   }
   table_map used_tables() const { return (table_map)0L; }
 
-  bool walk(Item_processor processor, byte *args)
+  bool walk(Item_processor processor, bool walk_subquery, byte *args)
   {
-    return arg->walk(processor, args) ||
+    return arg->walk(processor, walk_subquery, args) ||
 	    (this->*processor)(args);
   }
 };

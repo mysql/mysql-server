@@ -279,9 +279,9 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_BEGIN            (LL(1) << 20)      // THD, intern
 #define OPTION_TABLE_LOCK       (LL(1) << 21)      // THD, intern
 #define OPTION_QUICK            (LL(1) << 22)      // SELECT (for DELETE)
+#define OPTION_KEEP_LOG         (LL(1) << 23)      // Keep binlog on rollback
 
-/* Thr following is used to detect a conflict with DISTINCT
-   in the user query has requested */
+/* The following is used to detect a conflict with DISTINCT */
 #define SELECT_ALL              (LL(1) << 24)      // SELECT, user, parser
 
 /* Set if we are updating a non-transaction safe table */
@@ -1106,27 +1106,28 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
                    List_iterator<Item> *it, bool any_privileges);
 bool setup_tables(THD *thd, Name_resolution_context *context,
                   List<TABLE_LIST> *from_clause, TABLE_LIST *tables,
-                  Item **conds, TABLE_LIST **leaves, bool select_insert);
-bool setup_tables_and_check_access (THD *thd, 
-                                    Name_resolution_context *context,
-                                    List<TABLE_LIST> *from_clause, 
-                                    TABLE_LIST *tables, Item **conds, 
-                                    TABLE_LIST **leaves, 
-                                    bool select_insert,
-                                    ulong want_access);
+                  TABLE_LIST **leaves, bool select_insert);
+bool setup_tables_and_check_access(THD *thd, 
+                                   Name_resolution_context *context,
+                                   List<TABLE_LIST> *from_clause, 
+                                   TABLE_LIST *tables, 
+                                   TABLE_LIST **leaves, 
+                                   bool select_insert,
+                                   ulong want_access);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Item** ref_pointer_array,
-                  List<Item> &item, ulong set_query_id,
+                  List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
 inline bool setup_fields_with_no_wrap(THD *thd, Item **ref_pointer_array,
-                                     List<Item> &item, ulong set_query_id,
-                                     List<Item> *sum_func_list,
-                                     bool allow_sum_func)
+                                      List<Item> &item,
+                                      enum_mark_columns mark_used_columns,
+                                      List<Item> *sum_func_list,
+                                      bool allow_sum_func)
 {
   bool res;
   thd->lex->select_lex.no_wrap_view_item= TRUE;
-  res= setup_fields(thd, ref_pointer_array, item, set_query_id, sum_func_list,
+  res= setup_fields(thd, ref_pointer_array, item, mark_used_columns, sum_func_list,
                     allow_sum_func);
   thd->lex->select_lex.no_wrap_view_item= FALSE;
   return res;
@@ -1774,7 +1775,8 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
 void end_read_record(READ_RECORD *info);
 ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 uint s_length, SQL_SELECT *select,
-		 ha_rows max_rows, ha_rows *examined_rows);
+		 ha_rows max_rows, bool sort_positions,
+                 ha_rows *examined_rows);
 void filesort_free_buffers(TABLE *table);
 void change_double_for_sort(double nr,byte *to);
 double my_double_round(double value, int dec, bool truncate);
