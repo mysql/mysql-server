@@ -670,3 +670,11 @@ select * from t1 where a like 'n%';
 a
 na
 drop table t1;
+create table t1 (s1 varchar(15)) partition by key (s1);
+select * from t1 where s1 = 0 or s1 is null;
+s1
+insert into t1 values ('aa'),('bb'),('0');
+explain partitions select * from t1 where s1 = 0 or s1 is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t1;
