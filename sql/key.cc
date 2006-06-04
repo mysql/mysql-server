@@ -301,14 +301,26 @@ bool key_cmp_if_same(TABLE *table,const byte *key,uint idx,uint key_length)
   return 0;
 }
 
-	/* unpack key-fields from record to some buffer */
-	/* This is used to get a good error message */
+/*
+  unpack key-fields from record to some buffer
+
+  SYNOPSIS
+     key_unpack()
+     to		Store value here in an easy to read form
+     table	Table to use
+     idx	Key number
+
+  NOTES
+    This is used mainly to get a good error message
+    We temporary change the column bitmap so that all columns are readable.
+*/
 
 void key_unpack(String *to,TABLE *table,uint idx)
 {
   KEY_PART_INFO *key_part,*key_part_end;
   Field *field;
   String tmp;
+  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
   DBUG_ENTER("key_unpack");
 
   to->length(0);
@@ -337,6 +349,7 @@ void key_unpack(String *to,TABLE *table,uint idx)
     else
       to->append(STRING_WITH_LEN("???"));
   }
+  dbug_tmp_restore_column_map(table->read_set, old_map);
   DBUG_VOID_RETURN;
 }
 
@@ -373,7 +386,7 @@ bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
     key is not updated
   */
   if (idx != table->s->primary_key && table->s->primary_key < MAX_KEY &&
-      (table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
+      (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
     return check_if_key_used(table, table->s->primary_key, fields);
   return 0;
 }

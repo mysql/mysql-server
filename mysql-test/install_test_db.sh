@@ -34,7 +34,6 @@ if [ x$1 = x"-slave" ]
 then
  shift 1
  data=var/slave-data
- ldata=$fix_bin/var/slave-data
 else
  if [ x$1 = x"-1" ] 
  then
@@ -42,8 +41,8 @@ else
  else
    data=var/master-data
  fi
- ldata=$fix_bin/$data
 fi
+ldata=$fix_bin/$data
 
 mdata=$data/mysql
 EXTRA_ARG=""
@@ -81,9 +80,7 @@ basedir=.
 EXTRA_ARG="--language=../sql/share/english/ --character-sets-dir=../sql/share/charsets/"
 fi
 
-mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
-    --basedir=$basedir --datadir=$ldata --skip-innodb --skip-ndbcluster --skip-bdb \
-    $EXTRA_ARG"
+mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables --basedir=$basedir --datadir=$ldata --skip-innodb --skip-ndbcluster --skip-bdb --tmpdir=. $EXTRA_ARG"
 echo "running $mysqld_boot"
 
 if $scriptdir/mysql_create_system_tables test $mdata $hostname | $mysqld_boot

@@ -263,6 +263,14 @@ ndbcluster_binlog_close_table(THD *thd, NDB_SHARE *share)
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  Creates a TABLE object for the ndb cluster table
+
+  NOTES
+    This does not open the underlying table
+*/
+
 static int
 ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
                              TABLE_SHARE *table_share, TABLE *table)
@@ -310,6 +318,8 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
   share->table_share= table_share;
   DBUG_ASSERT(share->table == 0);
   share->table= table;
+  /* We can't use 'use_all_columns()' as the file object is not setup yet */
+  table->column_bitmaps_set_no_signal(&table->s->all_set, &table->s->all_set);
 #ifndef DBUG_OFF
   dbug_print_table("table", table);
 #endif
@@ -343,7 +353,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
     {
       bitmap_init(&share->subscriber_bitmap[i],
                   (Uint32*)alloc_root(mem_root, max_ndb_nodes/8),
-                  max_ndb_nodes, false);
+                  max_ndb_nodes, FALSE);
       bitmap_clear_all(&share->subscriber_bitmap[i]);
     }
   }
@@ -867,6 +877,7 @@ static void ndbcluster_get_schema(NDB_SHARE *share,
   /* unpack blob values */
   byte* blobs_buffer= 0;
   uint blobs_buffer_size= 0;
+  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
   {
     ptrdiff_t ptrdiff= 0;
     int ret= get_ndb_blobs_value(table, share->ndb_value[0],
@@ -876,7 +887,7 @@ static void ndbcluster_get_schema(NDB_SHARE *share,
     {
       my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
       DBUG_PRINT("info", ("blob read error"));
-      DBUG_ASSERT(false);
+      DBUG_ASSERT(FALSE);
     }
   }
   /* db varchar 1 length byte */
@@ -928,6 +939,7 @@ static void ndbcluster_get_schema(NDB_SHARE *share,
   s->type= ((Field_long *)*field)->val_int();
   /* free blobs buffer */
   my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  dbug_tmp_restore_column_map(table->read_set, old_map);
 }
 
 /*
@@ -1073,7 +1085,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   {
     int i, updated= 0;
     int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
-    bitmap_init(&schema_subscribers, bitbuf, sizeof(bitbuf)*8, false);
+    bitmap_init(&schema_subscribers, bitbuf, sizeof(bitbuf)*8, FALSE);
     bitmap_set_all(&schema_subscribers);
     (void) pthread_mutex_lock(&schema_share->mutex);
     for (i= 0; i < no_storage_nodes; i++)
@@ -1333,7 +1345,7 @@ ndbcluster_update_slock(THD *thd,
 
   MY_BITMAP slock;
   uint32 bitbuf[SCHEMA_SLOCK_SIZE/4];
-  bitmap_init(&slock, bitbuf, sizeof(bitbuf)*8, false);
+  bitmap_init(&slock, bitbuf, sizeof(bitbuf)*8, FALSE);
 
   if (ndbtab == 0)
   {
@@ -1655,7 +1667,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       Cluster_schema *schema= (Cluster_schema *)
         sql_alloc(sizeof(Cluster_schema));
       MY_BITMAP slock;
-      bitmap_init(&slock, schema->slock, 8*SCHEMA_SLOCK_SIZE, false);
+      bitmap_init(&slock, schema->slock, 8*SCHEMA_SLOCK_SIZE, FALSE);
       uint node_id= g_ndb_cluster_connection->node_id();
       ndbcluster_get_schema(tmp_share, schema);
       if (schema->node_id != node_id)
@@ -1874,7 +1886,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
     {
       char key[FN_REFLEN];
       build_table_filename(key, sizeof(key), schema->db, schema->name, "");
-      NDB_SHARE *share= get_share(key, 0, false, false);
+      NDB_SHARE *share= get_share(key, 0, FALSE, FALSE);
       enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
       switch (schema_type)
       {
@@ -1935,7 +1947,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         }
         break;
       default:
-        DBUG_ASSERT(false);
+        DBUG_ASSERT(FALSE);
       }
       if (share)
       {
@@ -2012,18 +2024,20 @@ static int open_binlog_index(THD *thd, TABLE_LIST *tables,
   }
   *binlog_index= tables->table;
   thd->proc_info= save_proc_info;
+  (*binlog_index)->use_all_columns();
   return 0;
 }
+
 
 /*
   Insert one row in the binlog_index
 */
+
 int ndb_add_binlog_index(THD *thd, void *_row)
 {
   Binlog_index_row &row= *(Binlog_index_row *) _row;
   int error= 0;
   bool need_reopen;
-
   /*
     Turn of binlogging to prevent the table changes to be written to
     the binary log.
@@ -2065,10 +2079,9 @@ int ndb_add_binlog_index(THD *thd, void *_row)
   binlog_index->field[5]->store(row.n_deletes);
   binlog_index->field[6]->store(row.n_schemaops);
 
-  int r;
-  if ((r= binlog_index->file->ha_write_row(binlog_index->record[0])))
+  if ((error= binlog_index->file->ha_write_row(binlog_index->record[0])))
   {
-    sql_print_error("NDB Binlog: Writing row to binlog_index: %d", r);
+    sql_print_error("NDB Binlog: Writing row to binlog_index: %d", error);
     error= -1;
     goto add_binlog_index_err;
   }
@@ -2195,7 +2208,7 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
   }
 
   /* Create share which is needed to hold replication information */
-  if (!(share= get_share(key, 0, true, true)))
+  if (!(share= get_share(key, 0, TRUE, TRUE)))
   {
     sql_print_error("NDB Binlog: "
                     "allocating table share for %s failed", key);
@@ -2345,7 +2358,7 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
     }
   }
   if (share->flags & NSF_BLOB_FLAG)
-    my_event.mergeEvents(true);
+    my_event.mergeEvents(TRUE);
 
   /* add all columns to the event */
   int n_cols= ndbtab->getNoOfColumns();
@@ -2532,7 +2545,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
     }
 
     if (share->flags & NSF_BLOB_FLAG)
-      op->mergeEvents(true); // currently not inherited from event
+      op->mergeEvents(TRUE); // currently not inherited from event
 
     DBUG_PRINT("info", ("share->ndb_value[0]: 0x%x",
                         share->ndb_value[0]));
@@ -2679,7 +2692,7 @@ ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
           share->op->getState() == NdbEventOperation::EO_EXECUTING &&
           dict->getNdbError().code != 4009)
       {
-        DBUG_ASSERT(false);
+        DBUG_ASSERT(FALSE);
         DBUG_RETURN(-1);
       }
     }
@@ -2800,7 +2813,7 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
   /* make sure to flush any pending events as they can be dependent
      on one of the tables being changed below
   */
-  thd->binlog_flush_pending_rows_event(true);
+  thd->binlog_flush_pending_rows_event(TRUE);
 
   switch (type)
   {
@@ -2885,7 +2898,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   /* Potential buffer for the bitmap */
   uint32 bitbuf[128 / (sizeof(uint32) * 8)];
   bitmap_init(&b, n_fields <= sizeof(bitbuf) * 8 ? bitbuf : NULL, 
-              n_fields, false);
+              n_fields, FALSE);
   bitmap_set_all(&b);
 
   /*
@@ -2918,7 +2931,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       }
       ndb_unpack_record(table, share->ndb_value[0], &b, table->record[0]);
       int ret= trans.write_row(::server_id,
-                               injector::transaction::table(table, true),
+                               injector::transaction::table(table, TRUE),
                                &b, n_fields, table->record[0]);
       DBUG_ASSERT(ret == 0);
     }
@@ -2956,7 +2969,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       ndb_unpack_record(table, share->ndb_value[n], &b, table->record[n]);
       DBUG_EXECUTE("info", print_records(table, table->record[n]););
       int ret= trans.delete_row(::server_id,
-                                injector::transaction::table(table, true),
+                                injector::transaction::table(table, TRUE),
                                 &b, n_fields, table->record[n]);
       DBUG_ASSERT(ret == 0);
     }
@@ -2983,7 +2996,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
           since table has a primary key, we can do a write
           using only after values
 	*/
-        trans.write_row(::server_id, injector::transaction::table(table, true),
+        trans.write_row(::server_id, injector::transaction::table(table, TRUE),
                         &b, n_fields, table->record[0]);// after values
       }
       else
@@ -3003,7 +3016,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         ndb_unpack_record(table, share->ndb_value[1], &b, table->record[1]);
         DBUG_EXECUTE("info", print_records(table, table->record[1]););
         int ret= trans.update_row(::server_id,
-                                  injector::transaction::table(table, true),
+                                  injector::transaction::table(table, TRUE),
                                   &b, n_fields,
                                   table->record[1], // before values
                                   table->record[0]);// after values
@@ -3095,7 +3108,7 @@ static NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     }
     pthread_mutex_init(&ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
     bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
-                sizeof(ndb_schema_object->slock)*8, false);
+                sizeof(ndb_schema_object->slock)*8, FALSE);
     bitmap_clear_all(&ndb_schema_object->slock_bitmap);
     break;
   }
@@ -3434,7 +3447,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
               inj->new_trans(thd, &trans);
             }
             DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
-            injector::transaction::table tbl(table, true);
+            injector::transaction::table tbl(table, TRUE);
             int ret= trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
           }
@@ -3447,20 +3460,14 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
 
             const LEX_STRING& name=table->s->table_name;
             DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
-            injector::transaction::table tbl(table, true);
+            injector::transaction::table tbl(table, TRUE);
             int ret= trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
-
-            MY_BITMAP b;
-            uint32 bitbuf;
-            DBUG_ASSERT(table->s->fields <= sizeof(bitbuf) * 8);
-            bitmap_init(&b, &bitbuf, table->s->fields, false);
-            bitmap_set_all(&b);
             table->field[0]->store((longlong)::server_id);
             table->field[1]->store((longlong)gci);
             trans.write_row(::server_id,
-                            injector::transaction::table(table, true),
-                            &b, table->s->fields,
+                            injector::transaction::table(table, TRUE),
+                            &table->s->all_set, table->s->fields,
                             table->record[0]);
           }
           else

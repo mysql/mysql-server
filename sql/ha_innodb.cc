@@ -203,7 +203,8 @@ static int innobase_rollback(THD* thd, bool all);
 static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
 static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
-static handler *innobase_create_handler(TABLE_SHARE *table);
+static handler *innobase_create_handler(TABLE_SHARE *table,
+                                        MEM_ROOT *mem_root);
 
 static const char innobase_hton_name[]= "InnoDB";
 static const char innobase_hton_comment[]=
@@ -248,9 +249,9 @@ handlerton innobase_hton = {
 };
 
 
-static handler *innobase_create_handler(TABLE_SHARE *table)
+static handler *innobase_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
-  return new ha_innobase(table);
+  return new (mem_root) ha_innobase(table);
 }
 
 
@@ -843,10 +844,9 @@ ha_innobase::ha_innobase(TABLE_SHARE *table_arg)
 		  HA_NULL_IN_KEY |
 		  HA_CAN_INDEX_BLOBS |
 		  HA_CAN_SQL_HANDLER |
-		  HA_NOT_EXACT_COUNT |
-		  HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS |
+		  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
-		  HA_CAN_GEOMETRY |
+		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
 		  HA_TABLE_SCAN_ON_INDEX),
   start_of_scan(0),
   num_write_row(0)
@@ -2322,7 +2322,7 @@ ha_innobase::open(
 		}
 	}
 
-	block_size = 16 * 1024;	/* Index block size in InnoDB: used by MySQL
+	stats.block_size = 16 * 1024;	/* Index block size in InnoDB: used by MySQL
 				in query optimization */
 
 	/* Init table lock structure */
@@ -2917,16 +2917,15 @@ ha_innobase::store_key_val_for_row(
 /******************************************************************
 Builds a 'template' to the prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing. */
-static
 void
-build_template(
+ha_innobase::build_template(
 /*===========*/
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
 	THD*		thd,		/* in: current user thread, used
 					only if templ_type is
 					ROW_MYSQL_REC_FIELDS */
 	TABLE*		table,		/* in: MySQL table */
-	ulint		templ_type)	/* in: ROW_MYSQL_WHOLE_ROW or
+	uint		templ_type)	/* in: ROW_MYSQL_WHOLE_ROW or
 					ROW_MYSQL_REC_FIELDS */
 {
 	dict_index_t*	index;
@@ -3035,8 +3034,8 @@ build_template(
 				goto include_field;
 			}
 
-			if (table->file->ha_get_bit_in_read_set(i+1) ||
-				table->file->ha_get_bit_in_write_set(i+1)) {
+                        if (bitmap_is_set(table->read_set, i) ||
+                            bitmap_is_set(table->write_set, i)) {
 				/* This field is needed in the query */
 
 				goto include_field;
@@ -5420,7 +5419,7 @@ ha_innobase::info(
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
 
 		if (os_file_get_status(path,&stat_info)) {
-			create_time = stat_info.ctime;
+			stats.create_time = stat_info.ctime;
 		}
 	}
 
@@ -5448,21 +5447,21 @@ ha_innobase::info(
 			n_rows++;
 		}
 
-		records = (ha_rows)n_rows;
-		deleted = 0;
-		data_file_length = ((ulonglong)
+		stats.records = (ha_rows)n_rows;
+		stats.deleted = 0;
+		stats.data_file_length = ((ulonglong)
 				ib_table->stat_clustered_index_size)
 					* UNIV_PAGE_SIZE;
-		index_file_length = ((ulonglong)
+		stats.index_file_length = ((ulonglong)
 				ib_table->stat_sum_of_other_index_sizes)
 					* UNIV_PAGE_SIZE;
-		delete_length = 0;
-		check_time = 0;
+		stats.delete_length = 0;
+		stats.check_time = 0;
 
-		if (records == 0) {
-			mean_rec_length = 0;
+		if (stats.records == 0) {
+			stats.mean_rec_length = 0;
 		} else {
-			mean_rec_length = (ulong) (data_file_length / records);
+			stats.mean_rec_length = (ulong) (stats.data_file_length / stats.records);
 		}
 	}
 
@@ -5511,9 +5510,9 @@ ha_innobase::info(
 
 				if (index->stat_n_diff_key_vals[j + 1] == 0) {
 
-					rec_per_key = records;
+					rec_per_key = stats.records;
 				} else {
-					rec_per_key = (ha_rows)(records /
+					rec_per_key = (ha_rows)(stats.records /
 					 index->stat_n_diff_key_vals[j + 1]);
 				}
 
@@ -5568,7 +5567,7 @@ ha_innobase::info(
 			}
 		}
 
-		auto_increment_value = auto_inc;
+		stats.auto_increment_value = auto_inc;
 	}
 
 	prebuilt->trx->op_info = (char*)"";
@@ -5963,8 +5962,7 @@ ha_innobase::extra(
 /*===============*/
 			   /* out: 0 or error number */
 	enum ha_extra_function operation)
-			   /* in: HA_EXTRA_RETRIEVE_ALL_COLS or some
-			   other flag */
+			   /* in: HA_EXTRA_FLUSH or some other flag */
 {
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
@@ -5978,29 +5976,12 @@ ha_innobase::extra(
 				row_mysql_prebuilt_free_blob_heap(prebuilt);
 			}
 			break;
-		case HA_EXTRA_RESET:
-			if (prebuilt->blob_heap) {
-				row_mysql_prebuilt_free_blob_heap(prebuilt);
-			}
-			prebuilt->keep_other_fields_on_keyread = 0;
-			prebuilt->read_just_key = 0;
-			break;
 		case HA_EXTRA_RESET_STATE:
 			prebuilt->keep_other_fields_on_keyread = 0;
 			prebuilt->read_just_key = 0;
 			break;
 		case HA_EXTRA_NO_KEYREAD:
 			prebuilt->read_just_key = 0;
-			break;
-		case HA_EXTRA_RETRIEVE_ALL_COLS:
-			prebuilt->hint_need_to_fetch_extra_cols
-					= ROW_RETRIEVE_ALL_COLS;
-			break;
-		case HA_EXTRA_RETRIEVE_PRIMARY_KEY:
-			if (prebuilt->hint_need_to_fetch_extra_cols == 0) {
-				prebuilt->hint_need_to_fetch_extra_cols
-					= ROW_RETRIEVE_PRIMARY_KEY;
-			}
 			break;
 		case HA_EXTRA_KEYREAD:
 			prebuilt->read_just_key = 1;
@@ -6014,6 +5995,18 @@ ha_innobase::extra(
 
 	return(0);
 }
+
+int ha_innobase::reset()
+{
+  row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+  if (prebuilt->blob_heap) {
+    row_mysql_prebuilt_free_blob_heap(prebuilt);
+  }
+  prebuilt->keep_other_fields_on_keyread = 0;
+  prebuilt->read_just_key = 0;
+  return 0;
+}
+
 
 /**********************************************************************
 MySQL calls this function at the start of each SQL statement inside LOCK

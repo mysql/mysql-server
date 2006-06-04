@@ -152,7 +152,8 @@ void udf_init()
 
   table= tables.table;
   init_read_record(&read_record_info, new_thd, table, NULL,1,0);
-  while (!(error = read_record_info.read_record(&read_record_info)))
+  table->use_all_columns();
+  while (!(error= read_record_info.read_record(&read_record_info)))
   {
     DBUG_PRINT("info",("init udf record"));
     LEX_STRING name;
@@ -449,7 +450,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   /* Allow creation of functions even if we can't open func table */
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
-
+  table->use_all_columns();
   restore_record(table, s->default_values);	// Default values for fields
   table->field[0]->store(u_d->name.str, u_d->name.length, system_charset_info);
   table->field[1]->store((longlong) u_d->returns, TRUE);
@@ -507,8 +508,8 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   tables.table_name= tables.alias= (char*) "func";
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
+  table->use_all_columns();
   table->field[0]->store(udf_name->str, udf_name->length, system_charset_info);
-  table->file->ha_retrieve_all_cols();
   if (!table->file->index_read_idx(table->record[0], 0,
 				   (byte*) table->field[0]->ptr,
 				   table->key_info[0].key_length,

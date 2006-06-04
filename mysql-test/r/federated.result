@@ -1601,6 +1601,7 @@ fld_cid	fld_name	fld_parentid	fld_delt
 5	Torkel	0	0
 DROP TABLE federated.t1;
 DROP TABLE federated.bug_17377_table;
+DROP TABLE federated.t1;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;

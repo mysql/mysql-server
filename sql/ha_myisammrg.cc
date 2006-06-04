@@ -34,7 +34,8 @@
 ** MyISAM MERGE tables
 *****************************************************************************/
 
-static handler *myisammrg_create_handler(TABLE_SHARE *table);
+static handler *myisammrg_create_handler(TABLE_SHARE *table,
+                                         MEM_ROOT *mem_root);
 
 /* MyISAM MERGE handlerton */
 
@@ -80,9 +81,10 @@ handlerton myisammrg_hton= {
   NULL	   /* release_temporary_latches */
 };
 
-static handler *myisammrg_create_handler(TABLE_SHARE *table)
+static handler *myisammrg_create_handler(TABLE_SHARE *table,
+                                         MEM_ROOT *mem_root)
 {
-  return new ha_myisammrg(table);
+  return new (mem_root) ha_myisammrg(table);
 }
 
 
@@ -134,10 +136,10 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
     myrg_extra(file,HA_EXTRA_WAIT_LOCK,0);
 
-  if (table->s->reclength != mean_rec_length && mean_rec_length)
+  if (table->s->reclength != stats.mean_rec_length && stats.mean_rec_length)
   {
     DBUG_PRINT("error",("reclength: %d  mean_rec_length: %d",
-			table->s->reclength, mean_rec_length));
+			table->s->reclength, stats.mean_rec_length));
     goto err;
   }
 #if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
@@ -258,10 +260,12 @@ int ha_myisammrg::index_next_same(byte * buf,
   return error;
 }
 
+
 int ha_myisammrg::rnd_init(bool scan)
 {
-  return myrg_extra(file,HA_EXTRA_RESET,0);
+  return myrg_reset(file);
 }
+
 
 int ha_myisammrg::rnd_next(byte *buf)
 {
@@ -271,6 +275,7 @@ int ha_myisammrg::rnd_next(byte *buf)
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
+
 
 int ha_myisammrg::rnd_pos(byte * buf, byte *pos)
 {
@@ -303,18 +308,18 @@ void ha_myisammrg::info(uint flag)
     The following fails if one has not compiled MySQL with -DBIG_TABLES
     and one has more than 2^32 rows in the merge tables.
   */
-  records = (ha_rows) info.records;
-  deleted = (ha_rows) info.deleted;
+  stats.records = (ha_rows) info.records;
+  stats.deleted = (ha_rows) info.deleted;
 #if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
   if ((info.records >= (ulonglong) 1 << 32) ||
       (info.deleted >= (ulonglong) 1 << 32))
     table->s->crashed= 1;
 #endif
-  data_file_length=info.data_file_length;
+  stats.data_file_length=info.data_file_length;
   errkey  = info.errkey;
   table->s->keys_in_use.set_prefix(table->s->keys);
   table->s->db_options_in_use= info.options;
-  mean_rec_length= info.reclength;
+  stats.mean_rec_length= info.reclength;
   
   /* 
     The handler::block_size is used all over the code in index scan cost
@@ -332,11 +337,11 @@ void ha_myisammrg::info(uint flag)
     TODO: In 5.2 index scan cost calculation will be factored out into a
     virtual function in class handler and we'll be able to remove this hack.
   */
-  block_size= 0;
+  stats.block_size= 0;
   if (file->tables)
-    block_size= myisam_block_size / file->tables;
+    stats.block_size= myisam_block_size / file->tables;
   
-  update_time=0;
+  stats.update_time= 0;
 #if SIZEOF_OFF_T > 4
   ref_length=6;					// Should be big enough
 #else
@@ -362,6 +367,10 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
   return myrg_extra(file,operation,0);
 }
 
+int ha_myisammrg::reset(void)
+{
+  return myrg_reset(file);
+}
 
 /* To be used with WRITE_CACHE, EXTRA_CACHE and BULK_INSERT_BEGIN */
 

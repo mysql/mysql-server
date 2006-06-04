@@ -1343,8 +1343,8 @@ frm_type_enum mysql_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
     view    view for check with opened table
 
   DESCRIPTION
-    If it is VIEW and query have LIMIT clause then check that undertlying
-    table of viey contain one of following:
+    If it is VIEW and query have LIMIT clause then check that underlying
+    table of view contain one of following:
       1) primary key of underlying table
       2) unique key underlying table with fields for which NULL value is
          impossible
@@ -1385,19 +1385,19 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       this operation should not have influence on Field::query_id, to avoid
       marking as used fields which are not used
     */
-    bool save_set_query_id= thd->set_query_id;
-    thd->set_query_id= 0;
-    DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
+    enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
+    thd->mark_used_columns= MARK_COLUMNS_NONE;
+    DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
     for (Field_translator *fld= trans; fld < end_of_trans; fld++)
     {
       if (!fld->item->fixed && fld->item->fix_fields(thd, &fld->item))
       {
-        thd->set_query_id= save_set_query_id;
+        thd->mark_used_columns= save_mark_used_columns;
         return TRUE;
       }
     }
-    thd->set_query_id= save_set_query_id;
-    DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
+    thd->mark_used_columns= save_mark_used_columns;
+    DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   }
   /* Loop over all keys to see if a unique-not-null key is used */
   for (;key_info != key_info_end ; key_info++)
@@ -1550,7 +1550,6 @@ mysql_rename_view(THD *thd,
   File_parser *parser;
   char view_path[FN_REFLEN];
   bool error= TRUE;
-
   DBUG_ENTER("mysql_rename_view");
 
   strxnmov(view_path, FN_REFLEN-1, mysql_data_home, "/", view->db, "/",

@@ -193,14 +193,16 @@ Item_func::fix_fields(THD *thd, Item **ref)
   return FALSE;
 }
 
-bool Item_func::walk (Item_processor processor, byte *argument)
+
+bool Item_func::walk(Item_processor processor, bool walk_subquery,
+                     byte *argument)
 {
   if (arg_count)
   {
     Item **arg,**arg_end;
     for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
     {
-      if ((*arg)->walk(processor, argument))
+      if ((*arg)->walk(processor, walk_subquery, argument))
 	return 1;
     }
   }
@@ -4367,7 +4369,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   table=((Item_field *)item)->field->table;
-  if (!(table->file->table_flags() & HA_CAN_FULLTEXT))
+  if (!(table->file->ha_table_flags() & HA_CAN_FULLTEXT))
   {
     my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
     return 1;

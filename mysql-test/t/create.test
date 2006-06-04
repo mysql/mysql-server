@@ -226,6 +226,7 @@ drop table t1;
 # Test create table if not exists with duplicate key error
 #
 
+flush status;
 create table t1 (a int not null, b int, primary key (a));
 insert into t1 values (1,1);
 create table if not exists t1 select 2;
@@ -233,6 +234,8 @@ select * from t1;
 create table if not exists t1 select 3 as 'a',4 as 'b';
 --error 1062
 create table if not exists t1 select 3 as 'a',3 as 'b';
+show warnings;
+show status like "Opened_tables";
 select * from t1;
 drop table t1;
 
@@ -676,3 +679,37 @@ insert into t1 values('aaa');
 drop table t1;
 
 # End of 5.0 tests
+
+#
+# Test of behaviour with CREATE ... SELECT
+#
+
+CREATE TABLE t1 (a int, b int);
+insert into t1 values (1,1),(1,2);
+--error 1062
+CREATE TABLE t2 (primary key (a)) select * from t1;
+# This should give warning
+drop table if exists t2;
+--error 1062
+CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
+# This should give warning
+drop table if exists t2;
+CREATE TABLE t2 (a int, b int, primary key (a));
+--error 1062
+CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+SELECT * from t2;
+TRUNCATE table t2;
+--error 1062
+INSERT INTO t2 select * from t1;
+SELECT * from t2;
+drop table t2;
+
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
+--error 1062
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+SELECT * from t2;
+TRUNCATE table t2;
+--error 1062
+INSERT INTO t2 select * from t1;
+SELECT * from t2;
+drop table t1,t2;

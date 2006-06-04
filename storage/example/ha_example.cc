@@ -72,7 +72,7 @@
 
 #include <mysql/plugin.h>
 
-static handler* example_create_handler(TABLE_SHARE *table);
+static handler *example_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
 static int example_init_func();
 static bool example_init_func_for_handlerton();
 static int example_panic(enum ha_panic_function flag);
@@ -244,9 +244,9 @@ static int free_share(EXAMPLE_SHARE *share)
 }
 
 
-static handler* example_create_handler(TABLE_SHARE *table)
+static handler* example_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
-  return new ha_example(table);
+  return new (mem_root) ha_example(table);
 }
 
 
@@ -756,6 +756,7 @@ mysql_declare_plugin(example)
   example_init_func, /* Plugin Init */
   example_done_func, /* Plugin Deinit */
   0x0001 /* 0.1 */,
+  0
 }
 mysql_declare_plugin_end;
 

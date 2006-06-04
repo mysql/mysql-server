@@ -74,7 +74,7 @@ static int write_meta_file(File meta_file, ha_rows rows, bool dirty);
 pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
-static handler *tina_create_handler(TABLE_SHARE *table);
+static handler *tina_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
 static int tina_init_func();
 
 static const char tina_hton_name[]= "CSV";
@@ -114,7 +114,8 @@ handlerton tina_hton= {
   NULL,    /* Fill FILES Table */
   HTON_CAN_RECREATE,
   NULL, /* binlog_func */
-  NULL /* binlog_log_query */
+  NULL, /* binlog_log_query */
+  0
 };
 
 /*****************************************************************************
@@ -478,9 +479,9 @@ byte * find_eoln(byte *data, off_t begin, off_t end)
 }
 
 
-static handler *tina_create_handler(TABLE_SHARE *table)
+static handler *tina_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
-  return new ha_tina(table);
+  return new (mem_root) ha_tina(table);
 }
 
 
@@ -507,8 +508,10 @@ ha_tina::ha_tina(TABLE_SHARE *table_arg)
 int ha_tina::encode_quote(byte *buf)
 {
   char attribute_buffer[1024];
-  String attribute(attribute_buffer, sizeof(attribute_buffer), &my_charset_bin);
+  String attribute(attribute_buffer, sizeof(attribute_buffer),
+                   &my_charset_bin);
 
+  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
   buffer.length(0);
   for (Field **field=table->field ; *field ; field++)
   {
@@ -569,6 +572,7 @@ int ha_tina::encode_quote(byte *buf)
   buffer.append('\n');
   //buffer.replace(buffer.length(), 0, "\n", 1);
 
+  dbug_tmp_restore_column_map(table->read_set, old_map);
   return (buffer.length());
 }
 
@@ -621,6 +625,7 @@ int ha_tina::find_current_row(byte *buf)
 {
   byte *mapped_ptr;
   byte *end_ptr;
+  my_bitmap_map *org_bitmap;
   DBUG_ENTER("ha_tina::find_current_row");
 
   mapped_ptr= (byte *)share->mapped_file + current_position;
@@ -632,6 +637,9 @@ int ha_tina::find_current_row(byte *buf)
   if ((end_ptr=  find_eoln(share->mapped_file, current_position,
                            local_saved_data_file_length)) == 0)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
+
+  /* Avoid asserts in ::store() for columns that are not going to be updated */
+  org_bitmap= dbug_tmp_use_all_columns(table, table->write_set);
 
   for (Field **field=table->field ; *field ; field++)
   {
@@ -676,11 +684,13 @@ int ha_tina::find_current_row(byte *buf)
         buffer.append(*mapped_ptr);
       }
     }
-    (*field)->store(buffer.ptr(), buffer.length(), system_charset_info);
+    if (bitmap_is_set(table->read_set, (*field)->field_index))
+      (*field)->store(buffer.ptr(), buffer.length(), system_charset_info);
   }
   next_position= (end_ptr - share->mapped_file)+1;
   /* Maybe use \N for null? */
   memset(buf, 0, table->s->null_bytes); /* We do not implement nulls! */
+  tmp_restore_column_map(table->write_set, org_bitmap);
 
   DBUG_RETURN(0);
 }
@@ -898,7 +908,7 @@ int ha_tina::write_row(byte * buf)
     update_status();
   pthread_mutex_unlock(&share->mutex);
 
-  records++;
+  stats.records++;
   DBUG_RETURN(0);
 }
 
@@ -957,7 +967,7 @@ int ha_tina::delete_row(const byte * buf)
   if (chain_append())
     DBUG_RETURN(-1);
 
-  --records;
+  stats.records--;
 
   /* DELETE should never happen on the log table */
   DBUG_ASSERT(!share->is_log_table);
@@ -1005,7 +1015,7 @@ int ha_tina::rnd_init(bool scan)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   current_position= next_position= 0;
-  records= 0;
+  stats.records= 0;
   records_is_known= 0;
   chain_ptr= chain;
 #ifdef HAVE_MADVISE
@@ -1047,7 +1057,7 @@ int ha_tina::rnd_next(byte *buf)
   if ((rc= find_current_row(buf)))
     DBUG_RETURN(rc);
 
-  records++;
+  stats.records++;
   DBUG_RETURN(0);
 }
 
@@ -1090,8 +1100,8 @@ void ha_tina::info(uint flag)
 {
   DBUG_ENTER("ha_tina::info");
   /* This is a lie, but you don't want the optimizer to see zero or 1 */
-  if (!records_is_known && records < 2) 
-    records= 2;
+  if (!records_is_known && stats.records < 2) 
+    stats.records= 2;
   DBUG_VOID_RETURN;
 }
 
@@ -1204,6 +1214,8 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
     goto end;
   }
 
+  /* Don't assert in field::val() functions */
+  table->use_all_columns();
   if (!(buf= (byte*) my_malloc(table->s->reclength, MYF(MY_WME))))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
@@ -1307,7 +1319,7 @@ int ha_tina::delete_all_rows()
   if (get_mmap(share, 0) > 0)
     DBUG_RETURN(-1);
 
-  records=0;
+  stats.records=0;
   DBUG_RETURN(rc);
 }
 
@@ -1412,6 +1424,7 @@ mysql_declare_plugin(csv)
   tina_init_func, /* Plugin Init */
   tina_done_func, /* Plugin Deinit */
   0x0100 /* 1.0 */,
+  0
 }
 mysql_declare_plugin_end;
 

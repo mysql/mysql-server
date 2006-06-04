@@ -137,6 +137,7 @@ typedef struct st_table_share
   char	*comment;			/* Comment about table */
   CHARSET_INFO *table_charset;		/* Default charset of string fields */
 
+  MY_BITMAP all_set;
   /* A pair "database_name\0table_name\0", widely used as simply a db name */
   LEX_STRING table_cache_key;
   LEX_STRING db;                        /* Pointer to db */
@@ -181,6 +182,7 @@ typedef struct st_table_share
   uint next_number_index;
   uint next_number_key_offset;
   uint error, open_errno, errarg;       /* error from open_table_def() */
+  uint column_bitmap_size;
   uchar frm_version;
   bool null_field_first;
   bool system;                          /* Set if system table (one record) */
@@ -243,7 +245,7 @@ struct st_table {
   byte *write_row_record;		/* Used as optimisation in
 					   THD::write_row */
   byte *insert_values;                  /* used by INSERT ... UPDATE */
-  key_map quick_keys, used_keys, keys_in_use_for_query;
+  key_map quick_keys, used_keys, keys_in_use_for_query, merge_keys;
   KEY  *key_info;			/* data of keys in database */
 
   Field *next_number_field;		/* Set if next_number is activated */
@@ -256,8 +258,9 @@ struct st_table {
   ORDER		*group;
   const char	*alias;            	  /* alias or table name */
   uchar		*null_flags;
-  MY_BITMAP     *read_set;
-  MY_BITMAP     *write_set;
+  my_bitmap_map	*bitmap_init_value;
+  MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
+  MY_BITMAP     *read_set, *write_set;          /* Active column sets */
   query_id_t	query_id;
 
   ha_rows	quick_rows[MAX_KEY];
@@ -328,6 +331,39 @@ struct st_table {
 
   bool fill_item_list(List<Item> *item_list) const;
   void reset_item_list(List<Item> *item_list) const;
+  void clear_column_bitmaps(void);
+  void prepare_for_position(void);
+  void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
+  void mark_columns_used_by_index(uint index);
+  void restore_column_maps_after_mark_index();
+  void mark_auto_increment_column(void);
+  void mark_columns_needed_for_update(void);
+  void mark_columns_needed_for_delete(void);
+  void mark_columns_needed_for_insert(void);
+  inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
+                                 MY_BITMAP *write_set_arg)
+  {
+    read_set= read_set_arg;
+    write_set= write_set_arg;
+    if (file)
+      file->column_bitmaps_signal();
+  }
+  inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
+                                           MY_BITMAP *write_set_arg)
+  {
+    read_set= read_set_arg;
+    write_set= write_set_arg;
+  }
+  inline void use_all_columns()
+  {
+    column_bitmaps_set(&s->all_set, &s->all_set);
+  }
+  inline void default_column_bitmaps()
+  {
+    read_set= &def_read_set;
+    write_set= &def_write_set;
+  }
+
 };
 
 
@@ -899,3 +935,38 @@ my_bool
 table_check_intact(TABLE *table, uint table_f_count,
                    TABLE_FIELD_W_TYPE *table_def, time_t *last_create_time,
                    int error_num);
+
+static inline my_bitmap_map *tmp_use_all_columns(TABLE *table,
+                                                 MY_BITMAP *bitmap)
+{
+  my_bitmap_map *old= bitmap->bitmap;
+  bitmap->bitmap= table->s->all_set.bitmap;
+  return old;
+}
+
+
+static inline void tmp_restore_column_map(MY_BITMAP *bitmap,
+                                          my_bitmap_map *old)
+{
+  bitmap->bitmap= old;
+}
+
+/* The following is only needed for debugging */
+
+static inline my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table,
+                                                      MY_BITMAP *bitmap)
+{
+#ifndef DBUG_OFF
+  return tmp_use_all_columns(table, bitmap);
+#else
+  return 0;
+#endif
+}
+
+static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap,
+                                               my_bitmap_map *old)
+{
+#ifndef DBUG_OFF
+  tmp_restore_column_map(bitmap, old);
+#endif
+}

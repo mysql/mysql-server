@@ -152,8 +152,8 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd)
        order;
        order=order->next)
   {
-    (*order->item)->walk(&Item::change_context_processor,
-                         (byte *) &fake_select_lex->context);
+    (*order->item)->walk(&Item::change_context_processor, 0,
+                         (byte*) &fake_select_lex->context);
   }
 }
 
@@ -468,7 +468,7 @@ bool st_select_lex_unit::exec()
       }
       if (!res)
       {
-	records_at_start= table->file->records;
+	records_at_start= table->file->stats.records;
 	sl->join->exec();
         if (sl == union_distinct)
 	{
@@ -507,7 +507,7 @@ bool st_select_lex_unit::exec()
 	  rows and actual rows added to the temporary table.
 	*/
 	add_rows+= (ulonglong) (thd->limit_found_rows - (ulonglong)
-			      ((table->file->records -  records_at_start)));
+			      ((table->file->stats.records -  records_at_start)));
       }
     }
   }
@@ -567,7 +567,7 @@ bool st_select_lex_unit::exec()
       fake_select_lex->table_list.empty();
       if (!res)
       {
-	thd->limit_found_rows = (ulonglong)table->file->records + add_rows;
+	thd->limit_found_rows = (ulonglong)table->file->stats.records + add_rows;
         thd->examined_row_count+= examined_rows;
       }
       /*

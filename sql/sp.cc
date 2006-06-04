@@ -137,6 +137,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
     mysql_proc_table_exists= 0;
     DBUG_RETURN(0);
   }
+  table->use_all_columns();
 
   DBUG_ASSERT(table->s->system_table);
 
@@ -182,6 +183,8 @@ static TABLE *open_proc_table_for_update(THD *thd)
   tables.lock_type= TL_WRITE;
 
   table= open_ltable(thd, &tables, TL_WRITE);
+  if (table)
+    table->use_all_columns();
 
   /*
     Under explicit LOCK TABLES or in prelocked mode we should not
@@ -803,6 +806,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
     TABLE_LIST *leaves= 0;
     st_used_field used_fields[array_elements(init_fields)];
 
+    table->use_all_columns();
     memcpy((char*) used_fields, (char*) init_fields, sizeof(used_fields));
     /* Init header */
     for (used_field= &used_fields[0];
@@ -836,7 +840,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
     thd->lex->select_lex.context.resolve_in_table_list_only(&tables);
     setup_tables(thd, &thd->lex->select_lex.context,
                  &thd->lex->select_lex.top_join_list,
-                 &tables, 0, &leaves, FALSE);
+                 &tables, &leaves, FALSE);
     for (used_field= &used_fields[0];
 	 used_field->field_name;
 	 used_field++)

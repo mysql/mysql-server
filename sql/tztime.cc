@@ -1661,6 +1661,8 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     for MyISAM.
   */
   (void)table->file->ha_index_init(0, 1);
+  table->use_all_columns();
+
   tz_leapcnt= 0;
 
   res= table->file->index_first(table->record[0]);
@@ -1804,9 +1806,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 #ifdef ABBR_ARE_USED
   char chars[max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
 #endif
-
   DBUG_ENTER("tz_load_from_open_tables");
-
 
   /* Prepare tz_info for loading also let us make copy of time zone name */
   if (!(alloc_buff= alloc_root(&tz_storage, sizeof(TIME_ZONE_INFO) +
@@ -1830,6 +1830,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
+  table->use_all_columns();
   table->field[0]->store(tz_name->ptr(), tz_name->length(),
                          &my_charset_latin1);
   /*
@@ -1862,6 +1863,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     using the only index in this table).
   */
   table= tz_tables->table;
+  table->use_all_columns();
   tz_tables= tz_tables->next_local;
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
@@ -1889,6 +1891,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     Right - using special index.
   */
   table= tz_tables->table;
+  table->use_all_columns();
   tz_tables= tz_tables->next_local;
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
@@ -1962,6 +1965,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     in ascending order by index scan also satisfies us.
   */
   table= tz_tables->table; 
+  table->use_all_columns();
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
@@ -2280,14 +2284,15 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
   RETURN VALUE
     Pointer to corresponding Time_zone object. 0 - in case of bad time zone
     specification or other error.
-
 */
+
 Time_zone *my_tz_find_with_opening_tz_tables(THD *thd, const String *name)
 {
   Time_zone *tz;
   DBUG_ENTER("my_tz_find_with_opening_tables");
   DBUG_ASSERT(thd);
   DBUG_ASSERT(thd->slave_thread); // intended for use with slave thread only
+
   if (!(tz= my_tz_find(name, 0)) && time_zone_tables_exist)
   {
     /*

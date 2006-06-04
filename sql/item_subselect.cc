@@ -194,6 +194,46 @@ err:
   return res;
 }
 
+
+bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
+                          byte *argument)
+{
+
+  if (walk_subquery)
+  {
+    for (SELECT_LEX *lex= unit->first_select(); lex; lex= lex->next_select())
+    {
+      List_iterator<Item> li(lex->item_list);
+      Item *item;
+      ORDER *order;
+
+      if (lex->where && (lex->where)->walk(processor, walk_subquery, argument))
+        return 1;
+      if (lex->having && (lex->having)->walk(processor, walk_subquery,
+                                             argument))
+        return 1;
+
+      while ((item=li++))
+      {
+        if (item->walk(processor, walk_subquery, argument))
+          return 1;
+      }
+      for (order= (ORDER*) lex->order_list.first ; order; order= order->next)
+      {
+        if ((*order->item)->walk(processor, walk_subquery, argument))
+          return 1;
+      }
+      for (order= (ORDER*) lex->group_list.first ; order; order= order->next)
+      {
+        if ((*order->item)->walk(processor, walk_subquery, argument))
+          return 1;
+      }
+    }
+  }
+  return (this->*processor)(argument);
+}
+
+
 bool Item_subselect::exec()
 {
   int res;
@@ -373,7 +413,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
       as far as we moved content to upper level, field which depend of
       'upper' select is not really dependent => we remove this dependence
     */
-    substitution->walk(&Item::remove_dependence_processor,
+    substitution->walk(&Item::remove_dependence_processor, 0,
 		       (byte *) select_lex->outer_select());
     /* SELECT without FROM clause can't have WHERE or HAVING clause */
     DBUG_ASSERT(join->conds == 0 && join->having == 0);
