@@ -3033,7 +3033,7 @@ static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf)
   {
     isam_info= *(info->current=info->file);
     info->end=info->current+info->count;
-    mi_extra(isam_info, HA_EXTRA_RESET, 0);
+    mi_reset(isam_info);
     mi_extra(isam_info, HA_EXTRA_CACHE, 0);
     filepos=isam_info->s->pack.header_length;
   }
@@ -3056,7 +3056,7 @@ static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf)
     info->current++;
     isam_info= *info->current;
     filepos=isam_info->s->pack.header_length;
-    mi_extra(isam_info,HA_EXTRA_RESET, 0);
+    mi_reset(isam_info);
     mi_extra(isam_info,HA_EXTRA_CACHE, 0);
   }
 }

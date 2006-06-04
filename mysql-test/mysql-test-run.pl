@@ -1927,6 +1927,7 @@ sub install_db ($$) {
   mtr_add_arg($args, "--skip-innodb");
   mtr_add_arg($args, "--skip-ndbcluster");
   mtr_add_arg($args, "--skip-bdb");
+  mtr_add_arg($args, "--tmpdir=.");
 
   if ( ! $opt_netware )
   {

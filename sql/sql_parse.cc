@@ -162,8 +162,9 @@ bool end_active_trans(THD *thd)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
   }
+  thd->options&= ~(OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
+                   OPTION_KEEP_LOG);
   DBUG_RETURN(error);
 }
 
@@ -186,8 +187,7 @@ bool begin_trans(THD *thd)
   else
   {
     LEX *lex= thd->lex;
-    thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
-		   OPTION_BEGIN);
+    thd->options|= OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
       error= ha_start_consistent_snapshot(thd);
@@ -398,7 +398,7 @@ int check_user(THD *thd, enum enum_server_command command,
           NO_ACCESS)) // authentication is OK
     {
       DBUG_PRINT("info",
-                 ("Capabilities: %d  packet_length: %ld  Host: '%s'  "
+                 ("Capabilities: %lx  packet_length: %ld  Host: '%s'  "
                   "Login user: '%s' Priv_user: '%s'  Using password: %s "
                   "Access: %u  db: '%s'",
                   thd->client_capabilities,
@@ -1439,7 +1439,8 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     */
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     res= ha_commit(thd);
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
+                             OPTION_KEEP_LOG);
     break;
   case COMMIT_RELEASE:
     do_release= 1; /* fall through */
@@ -1456,7 +1457,8 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_rollback(thd))
       res= -1;
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
+                             OPTION_KEEP_LOG);
     if (!res && (completion == ROLLBACK_AND_CHAIN))
       res= begin_trans(thd);
     break;
@@ -2735,8 +2737,7 @@ mysql_execute_command(THD *thd)
       goto error;
     if (end_active_trans(thd))
       goto error;
-    else
-      res = load_master_data(thd);
+    res = load_master_data(thd);
     break;
 #endif /* HAVE_REPLICATION */
   case SQLCOM_SHOW_ENGINE_STATUS:
@@ -2799,11 +2800,6 @@ mysql_execute_command(THD *thd)
 	res= -1;
 	break;
       }
-    }
-    else 
-    {
-      /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
-      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
     }
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     bool link_to_local;
@@ -2918,6 +2914,9 @@ mysql_execute_command(THD *thd)
     }
     else
     {
+      /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
+      if (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)
+        thd->options|= OPTION_KEEP_LOG;
       /* regular create */
       if (lex->like_name)
         res= mysql_create_like_table(thd, create_table, &lex->create_info, 
@@ -3497,7 +3496,7 @@ end_with_restore_list:
 	lex->drop_if_exists= 1;
 
       /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
-      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->options|= OPTION_KEEP_LOG;
     }
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
 			lex->drop_temporary);
@@ -4221,7 +4220,8 @@ end_with_restore_list:
         res= TRUE; // cannot happen
       else
       {
-        if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
+        if ((thd->options &
+             (OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG)) &&
             !thd->slave_thread)
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_WARNING_NOT_COMPLETE_ROLLBACK,
@@ -4952,7 +4952,8 @@ end_with_restore_list:
     thd->transaction.xid_state.xa_state=XA_ACTIVE;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
     xid_cache_insert(&thd->transaction.xid_state);
-    thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
+    thd->options= ((thd->options & ~(OPTION_STATUS_NO_TRANS_UPDATE |
+                                     OPTION_KEEP_LOG)) |
                    OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     send_ok(thd);
@@ -5046,7 +5047,8 @@ end_with_restore_list:
                xa_state_names[thd->transaction.xid_state.xa_state]);
       break;
     }
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->options&= ~(OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
+                     OPTION_KEEP_LOG);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
@@ -5076,7 +5078,8 @@ end_with_restore_list:
       my_error(ER_XAER_RMERR, MYF(0));
     else
       send_ok(thd);
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->options&= ~(OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
+                     OPTION_KEEP_LOG);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     xid_cache_delete(&thd->transaction.xid_state);
     thd->transaction.xid_state.xa_state=XA_NOTR;
@@ -5667,6 +5670,14 @@ void mysql_reset_thd_for_next_command(THD *thd)
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
                           SERVER_QUERY_NO_INDEX_USED |
                           SERVER_QUERY_NO_GOOD_INDEX_USED);
+  /*
+    If in autocommit mode and not in a transaction, reset
+    OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG to not get warnings
+    in ha_rollback_trans() about some tables couldn't be rolled back.
+  */
+  if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+    thd->options&= ~(OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG);
+
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->tmp_table_used= 0;
   if (!thd->in_sub_stmt)

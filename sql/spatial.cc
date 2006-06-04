@@ -826,7 +826,6 @@ int Gis_polygon::area(double *ar, const char **end_of_data) const
       double x, y;
       get_point(&x, &y, data);
       data+= (SIZEOF_STORED_DOUBLE*2);
-      /* QQ: Is the following prev_x+x right ? */
       lr_area+= (prev_x + x)* (prev_y - y);
       prev_x= x;
       prev_y= y;
@@ -949,7 +948,6 @@ int Gis_polygon::centroid_xy(double *x, double *y) const
       double x, y;
       get_point(&x, &y, data);
       data+= (SIZEOF_STORED_DOUBLE*2);
-      /* QQ: Is the following prev_x+x right ? */
       cur_area+= (prev_x + x) * (prev_y - y);
       cur_cx+= x;
       cur_cy+= y;

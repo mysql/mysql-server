@@ -24,7 +24,7 @@
 #include "ha_heap.h"
 
 
-static handler *heap_create_handler(TABLE_SHARE *table);
+static handler *heap_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
 
 static const char heap_hton_name[]= "MEMORY";
 static const char heap_hton_comment[]=
@@ -68,9 +68,9 @@ handlerton heap_hton= {
   NULL     /* release_temporary_latches */
 };
 
-static handler *heap_create_handler(TABLE_SHARE *table)
+static handler *heap_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
-  return new ha_heap(table);
+  return new (mem_root) ha_heap(table);
 }
 
 
@@ -361,16 +361,16 @@ void ha_heap::info(uint flag)
   HEAPINFO info;
   (void) heap_info(file,&info,flag);
 
-  records = info.records;
-  deleted = info.deleted;
-  errkey  = info.errkey;
-  mean_rec_length=info.reclength;
-  data_file_length=info.data_length;
-  index_file_length=info.index_length;
-  max_data_file_length= info.max_records* info.reclength;
-  delete_length= info.deleted * info.reclength;
+  errkey= info.errkey;
+  stats.records = info.records;
+  stats.deleted = info.deleted;
+  stats.mean_rec_length=info.reclength;
+  stats.data_file_length=info.data_length;
+  stats.index_file_length=info.index_length;
+  stats.max_data_file_length= info.max_records* info.reclength;
+  stats.delete_length= info.deleted * info.reclength;
   if (flag & HA_STATUS_AUTO)
-    auto_increment_value= info.auto_increment;
+    stats.auto_increment_value= info.auto_increment;
   /*
     If info() is called for the first time after open(), we will still
     have to update the key statistics. Hoping that a table lock is now
@@ -380,10 +380,18 @@ void ha_heap::info(uint flag)
     update_key_stats();
 }
 
+
 int ha_heap::extra(enum ha_extra_function operation)
 {
   return heap_extra(file,operation);
 }
+
+
+int ha_heap::reset()
+{
+  return heap_reset(file);
+}
+
 
 int ha_heap::delete_all_rows()
 {
@@ -561,8 +569,8 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
       max_key->flag != HA_READ_AFTER_KEY)
     return HA_POS_ERROR;			// Can only use exact keys
 
-  if (records <= 1)
-    return records;
+  if (stats.records <= 1)
+    return stats.records;
 
   /* Assert that info() did run. We need current statistics here. */
   DBUG_ASSERT(key_stat_version == file->s->key_stat_version);
@@ -690,13 +698,13 @@ void ha_heap::update_create_info(HA_CREATE_INFO *create_info)
 {
   table->file->info(HA_STATUS_AUTO);
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
-    create_info->auto_increment_value= auto_increment_value;
+    create_info->auto_increment_value= stats.auto_increment_value;
 }
 
 ulonglong ha_heap::get_auto_increment()
 {
   ha_heap::info(HA_STATUS_AUTO);
-  return auto_increment_value;
+  return stats.auto_increment_value;
 }
 
 

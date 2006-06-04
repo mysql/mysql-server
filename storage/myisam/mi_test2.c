@@ -708,7 +708,7 @@ int main(int argc, char *argv[])
 
   if (!silent)
     printf("- mi_extra(CACHE) + mi_rrnd.... + mi_extra(NO_CACHE)\n");
-  if (mi_extra(file,HA_EXTRA_RESET,0) || mi_extra(file,HA_EXTRA_CACHE,0))
+  if (mi_reset(file) || mi_extra(file,HA_EXTRA_CACHE,0))
   {
     if (locking || (!use_blob && !pack_fields))
     {
@@ -751,7 +751,7 @@ int main(int argc, char *argv[])
   DBUG_PRINT("progpos",("Removing keys"));
   lastpos = HA_OFFSET_ERROR;
   /* DBUG_POP(); */
-  mi_extra(file,HA_EXTRA_RESET,0);
+  mi_reset(file);
   found_parts=0;
   while ((error=mi_rrnd(file,read_record,HA_OFFSET_ERROR)) !=
 	 HA_ERR_END_OF_FILE)

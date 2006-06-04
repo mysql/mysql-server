@@ -40,12 +40,11 @@ public:
   */
   const char *index_type(uint key_number);
   const char **bas_ext() const;
-  ulong table_flags() const
+  ulonglong table_flags() const
   {
     return(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
-           HA_DUPP_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
-           HA_FILE_BASED | HA_CAN_GEOMETRY | HA_READ_RND_SAME |
-           HA_CAN_INSERT_DELAYED);
+           HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
+           HA_FILE_BASED | HA_CAN_GEOMETRY | HA_CAN_INSERT_DELAYED);
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
@@ -84,5 +83,4 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
-  bool has_transactions() { return 1; }
 };

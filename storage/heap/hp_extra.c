@@ -32,13 +32,8 @@ int heap_extra(register HP_INFO *info, enum ha_extra_function function)
   DBUG_ENTER("heap_extra");
 
   switch (function) {
-  case HA_EXTRA_RESET:
   case HA_EXTRA_RESET_STATE:
-    info->lastinx= -1;
-    info->current_record= (ulong) ~0L;
-    info->current_hash_ptr=0;
-    info->update=0;
-    break;
+    heap_reset(info);
   case HA_EXTRA_NO_READCHECK:
     info->opt_flag&= ~READ_CHECK_USED;	/* No readcheck */
     break;
@@ -54,6 +49,16 @@ int heap_extra(register HP_INFO *info, enum ha_extra_function function)
   }
   DBUG_RETURN(0);
 } /* heap_extra */
+
+
+int heap_reset(HP_INFO *info)
+{
+  info->lastinx= -1;
+  info->current_record= (ulong) ~0L;
+  info->current_hash_ptr=0;
+  info->update=0;
+  return 0;
+}
 
 
 /*

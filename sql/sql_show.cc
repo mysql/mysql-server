@@ -704,6 +704,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
       field_list.push_back(new Item_field(field));
   }
   restore_record(table, s->default_values);              // Get empty record
+  table->use_all_columns();
   if (thd->protocol->send_fields(&field_list, Protocol::SEND_DEFAULTS |
                                               Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
@@ -917,9 +918,9 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
   RETURN
     0       OK
  */
-int
-store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                  HA_CREATE_INFO *create_info_arg)
+
+int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
+                      HA_CREATE_INFO *create_info_arg)
 {
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end, uname[NAME_LEN*3+1];
@@ -938,6 +939,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                      MODE_DB2 |
                                                      MODE_MAXDB |
                                                      MODE_ANSI)) != 0;
+  my_bitmap_map *old_map;
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s", table->s->table_name.str));
 
@@ -960,6 +962,12 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
   append_identifier(thd, packet, alias, strlen(alias));
   packet->append(STRING_WITH_LEN(" (\n"));
+  /*
+    We need this to get default values from the table
+    We have to restore the read_set if we are called from insert in case
+    of row based replication.
+  */
+  old_map= tmp_use_all_columns(table, table->read_set);
 
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
@@ -1121,10 +1129,11 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
            table->field[key_part->fieldnr-1]->key_length() &&
            !(key_info->flags & HA_FULLTEXT)))
       {
+        char *end;
         buff[0] = '(';
-        char* end=int10_to_str((long) key_part->length /
-			       key_part->field->charset()->mbmaxlen,
-			       buff + 1,10);
+        end= int10_to_str((long) key_part->length /
+                          key_part->field->charset()->mbmaxlen,
+                          buff + 1,10);
         *end++ = ')';
         packet->append(buff,(uint) (end-buff));
       }
@@ -1283,6 +1292,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     }
   }
 #endif
+  tmp_restore_column_map(table->read_set, old_map);
   DBUG_RETURN(0);
 }
 
@@ -2490,8 +2500,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
           {
             int res;
             /*
-              Set the parent lex of 'sel' because it is needed by sel.init_query()
-              which is called inside make_table_list.
+              Set the parent lex of 'sel' because it is needed by
+              sel.init_query() which is called inside make_table_list.
             */
             sel.parent_lex= lex;
             if (make_table_list(thd, &sel, base_name, file_name))
@@ -2686,50 +2696,55 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     case ROW_TYPE_COMPACT:
       tmp_buff= "Compact";
       break;
+    case ROW_TYPE_PAGES:
+      tmp_buff= "Paged";
+      break;
     }
     table->field[6]->store(tmp_buff, strlen(tmp_buff), cs);
     if (!tables->schema_table)
     {
-      table->field[7]->store((longlong) file->records, TRUE);
+      table->field[7]->store((longlong) file->stats.records, TRUE);
       table->field[7]->set_notnull();
     }
-    table->field[8]->store((longlong) file->mean_rec_length, TRUE);
-    table->field[9]->store((longlong) file->data_file_length, TRUE);
-    if (file->max_data_file_length)
+    table->field[8]->store((longlong) file->stats.mean_rec_length, TRUE);
+    table->field[9]->store((longlong) file->stats.data_file_length, TRUE);
+    if (file->stats.max_data_file_length)
     {
-      table->field[10]->store((longlong) file->max_data_file_length, TRUE);
+      table->field[10]->store((longlong) file->stats.max_data_file_length,
+                              TRUE);
     }
-    table->field[11]->store((longlong) file->index_file_length, TRUE);
-    table->field[12]->store((longlong) file->delete_length, TRUE);
+    table->field[11]->store((longlong) file->stats.index_file_length, TRUE);
+    table->field[12]->store((longlong) file->stats.delete_length, TRUE);
     if (show_table->found_next_number_field)
     {
-      table->field[13]->store((longlong) file->auto_increment_value, TRUE);
+      table->field[13]->store((longlong) file->stats.auto_increment_value,
+                              TRUE);
       table->field[13]->set_notnull();
     }
-    if (file->create_time)
+    if (file->stats.create_time)
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                                file->create_time);
+                                                file->stats.create_time);
       table->field[14]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[14]->set_notnull();
     }
-    if (file->update_time)
+    if (file->stats.update_time)
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                                file->update_time);
+                                                file->stats.update_time);
       table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[15]->set_notnull();
     }
-    if (file->check_time)
+    if (file->stats.check_time)
     {
-      thd->variables.time_zone->gmt_sec_to_TIME(&time, file->check_time);
+      thd->variables.time_zone->gmt_sec_to_TIME(&time, file->stats.check_time);
       table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[16]->set_notnull();
     }
     tmp_buff= (share->table_charset ?
                share->table_charset->name : "default");
     table->field[17]->store(tmp_buff, strlen(tmp_buff), cs);
-    if (file->table_flags() & (ulong) HA_HAS_CHECKSUM)
+    if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
     {
       table->field[18]->store((longlong) file->checksum(), TRUE);
       table->field[18]->set_notnull();
@@ -2826,6 +2841,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
   restore_record(show_table, s->default_values);
   base_name_length= strlen(base_name);
   file_name_length= strlen(file_name);
+  show_table->use_all_columns();               // Required for default
 
   for (ptr=show_table->field; (field= *ptr) ; ptr++)
   {
@@ -3332,7 +3348,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
         KEY *key=show_table->key_info+i;
         if (key->rec_per_key[j])
         {
-          ha_rows records=(show_table->file->records /
+          ha_rows records=(show_table->file->stats.records /
                            key->rec_per_key[j]);
           table->field[9]->store((longlong) records, TRUE);
           table->field[9]->set_notnull();
@@ -3737,7 +3753,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *table,
     table->field[20]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
     table->field[20]->set_notnull();
   }
-  if (file->table_flags() & (ulong) HA_HAS_CHECKSUM)
+  if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
   {
     table->field[21]->store((longlong) stat_info.check_sum, TRUE);
     table->field[21]->set_notnull();
@@ -4431,7 +4447,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     field_count++;
   }
   TMP_TABLE_PARAM *tmp_table_param =
-    (TMP_TABLE_PARAM*) (thd->calloc(sizeof(TMP_TABLE_PARAM)));
+    (TMP_TABLE_PARAM*) (thd->alloc(sizeof(TMP_TABLE_PARAM)));
   tmp_table_param->init();
   tmp_table_param->table_charset= cs;
   tmp_table_param->field_count= field_count;
@@ -4803,7 +4819,7 @@ bool get_schema_tables_result(JOIN *join)
         filesort_free_buffers(table_list->table);
       }
       else
-        table_list->table->file->records= 0;
+        table_list->table->file->stats.records= 0;
 
       if (table_list->schema_table->fill_table(thd, table_list,
                                                tab->select_cond))

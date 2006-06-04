@@ -44,6 +44,7 @@ static ha_rows find_all_keys(SORTPARAM *param,SQL_SELECT *select,
 static int write_keys(SORTPARAM *param,uchar * *sort_keys,
 		      uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
 static void make_sortkey(SORTPARAM *param,uchar *to, byte *ref_pos);
+static void register_used_fields(SORTPARAM *param);
 static int merge_index(SORTPARAM *param,uchar *sort_buffer,
 		       BUFFPEK *buffpek,
 		       uint maxbuffer,IO_CACHE *tempfile,
@@ -66,11 +67,11 @@ static void unpack_addon_fields(struct st_sort_addon_field *addon_field,
     table		Table to sort
     sortorder		How to sort the table
     s_length		Number of elements in sortorder	
-    select		condition to apply to the rows
-    special		Not used.
-			(This could be used to sort the rows pointed on by
-			select->file)
-   examined_rows	Store number of examined rows here
+    select		Condition to apply to the rows
+    ha_maxrows		Return only this many rows
+    sort_positions	Set to 1 if we want to force sorting by position
+			(Needed by UPDATE/INSERT or ALTER TABLE)
+    examined_rows	Store number of examined rows here
 
   IMPLEMENTATION
     Creates a set of pointers that can be used to read the rows
@@ -80,6 +81,10 @@ static void unpack_addon_fields(struct st_sort_addon_field *addon_field,
   REQUIREMENTS
     Before calling filesort, one must have done
     table->file->info(HA_STATUS_VARIABLE)
+
+  NOTES
+    If we sort by position (like if sort_positions is 1) filesort() will
+    call table->prepare_for_position().
 
   RETURN
     HA_POS_ERROR	Error
@@ -92,7 +97,8 @@ static void unpack_addon_fields(struct st_sort_addon_field *addon_field,
 */
 
 ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
-		 SQL_SELECT *select, ha_rows max_rows, ha_rows *examined_rows)
+		 SQL_SELECT *select, ha_rows max_rows,
+                 bool sort_positions, ha_rows *examined_rows)
 {
   int error;
   ulong memavl, min_sort_memory;
@@ -128,8 +134,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   param.ref_length= table->file->ref_length;
   param.addon_field= 0;
   param.addon_length= 0;
-  if (!(table->file->table_flags() & HA_FAST_KEY_READ) &&
-      !table->fulltext_searched)
+  if (!(table->file->ha_table_flags() & HA_FAST_KEY_READ) &&
+      !table->fulltext_searched && !sort_positions)
   {
     /* 
       Get the descriptors of all fields whose values are appended 
@@ -175,7 +181,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   if (select && select->quick && select->quick->records > 0L)
   {
     records=min((ha_rows) (select->quick->records*2+EXTRA_RECORDS*2),
-		table->file->records)+EXTRA_RECORDS;
+		table->file->stats.records)+EXTRA_RECORDS;
     selected_records_file=0;
   }
   else
@@ -404,8 +410,11 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   TABLE *sort_form;
   volatile THD::killed_state *killed= &current_thd->killed;
   handler *file;
+  MY_BITMAP *save_read_set, *save_write_set;
   DBUG_ENTER("find_all_keys");
-  DBUG_PRINT("info",("using: %s",(select?select->quick?"ranges":"where":"every row")));
+  DBUG_PRINT("info",("using: %s",
+                     (select ? select->quick ? "ranges" : "where":
+                      "every row")));
 
   idx=indexpos=0;
   error=quick_select=0;
@@ -415,7 +424,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   ref_pos= ref_buff;
   quick_select=select && select->quick;
   record=0;
-  flag= ((!indexfile && file->table_flags() & HA_REC_NOT_IN_SEQ)
+  flag= ((!indexfile && file->ha_table_flags() & HA_REC_NOT_IN_SEQ)
 	 || quick_select);
   if (indexfile || flag)
     ref_pos= &file->ref[0];
@@ -436,6 +445,19 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     init_read_record(&read_record_info, current_thd, select->quick->head,
                      select, 1, 1);
   }
+
+  /* Remember original bitmaps */
+  save_read_set=  sort_form->read_set;
+  save_write_set= sort_form->write_set;
+  /* Set up temporary column read map for columns used by sort */
+  bitmap_clear_all(&sort_form->tmp_set);
+  /* Temporary set for register_used_fields and register_field_in_read_map */
+  sort_form->read_set= &sort_form->tmp_set;
+  register_used_fields(param);
+  if (select and select->cond)
+    select->cond->walk(&Item::register_field_in_read_map, 1,
+                       (byte*) sort_form);
+  sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
 
   for (;;)
   {
@@ -514,6 +536,9 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     if (!next_pos)
       file->ha_rnd_end();
   }
+
+  /* Signal we should use orignal column read and write maps */
+  sort_form->column_bitmaps_set(save_read_set, save_write_set);
 
   DBUG_PRINT("test",("error: %d  indexpos: %d",error,indexpos));
   if (error != HA_ERR_END_OF_FILE)
@@ -844,6 +869,50 @@ static void make_sortkey(register SORTPARAM *param,
   }
   return;
 }
+
+
+/*
+  Register fields used by sorting in the sorted table's read set
+*/
+
+static void register_used_fields(SORTPARAM *param)
+{
+  reg1 SORT_FIELD *sort_field;
+  reg5 uint length;
+  TABLE *table=param->sort_form;
+  MY_BITMAP *bitmap= table->read_set;
+
+  for (sort_field= param->local_sortorder ;
+       sort_field != param->end ;
+       sort_field++)
+  {
+    Field *field;
+    if ((field= sort_field->field))
+    {
+      if (field->table == table)
+      bitmap_set_bit(bitmap, field->field_index);
+    }
+    else
+    {						// Item
+      sort_field->item->walk(&Item::register_field_in_read_map, 1,
+                             (byte *) table);
+    }
+  }
+
+  if (param->addon_field)
+  {
+    SORT_ADDON_FIELD *addonf= param->addon_field;
+    Field *field;
+    for ( ; (field= addonf->field) ; addonf++)
+      bitmap_set_bit(bitmap, field->field_index);
+  }
+  else
+  {
+    /* Save filepos last */
+    table->prepare_for_position();
+  }
+}
+
 
 static bool save_index(SORTPARAM *param, uchar **sort_keys, uint count, 
                        FILESORT_INFO *table_sort)
@@ -1353,7 +1422,8 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
   uint length= 0;
   uint fields= 0;
   uint null_fields= 0;
-  query_id_t query_id= thd->query_id;
+  MY_BITMAP *read_set= (*ptabfield)->table->read_set;
+
   /*
     If there is a reference to a field in the query add it
     to the the set of appended fields.
@@ -1365,17 +1435,9 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
   */
   *plength= 0;
 
-  /*
-    The following statement is added to avoid sorting in alter_table.
-    The fact is the filter 'field->query_id != thd->query_id'
-    doesn't work for alter table
-  */
-  if (thd->lex->sql_command != SQLCOM_SELECT &&
-      thd->lex->sql_command != SQLCOM_INSERT_SELECT)
-    return 0;
   for (pfield= ptabfield; (field= *pfield) ; pfield++)
   {
-    if (field->query_id != query_id)
+    if (!bitmap_is_set(read_set, field->field_index))
       continue;
     if (field->flags & BLOB_FLAG)
       return 0;
@@ -1398,7 +1460,7 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
   null_fields= 0;
   for (pfield= ptabfield; (field= *pfield) ; pfield++)
   {
-    if (field->query_id != thd->query_id)
+    if (!bitmap_is_set(read_set, field->field_index))
       continue;
     addonf->field= field;
     addonf->offset= length;

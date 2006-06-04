@@ -323,6 +323,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
   init_sql_alloc(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
   init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0);
+  table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50));
   while (!(read_record_info.read_record(&read_record_info)))
   {
@@ -369,6 +370,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   freeze_size(&acl_hosts);
 
   init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0);
+  table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100));
   password_length= table->field[2]->field_length /
     table->field[2]->charset()->mbmaxlen;
@@ -555,6 +557,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   freeze_size(&acl_users);
 
   init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0);
+  table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100));
   while (!(read_record_info.read_record(&read_record_info)))
   {
@@ -1785,14 +1788,15 @@ static bool update_user_table(THD *thd, TABLE *table,
   DBUG_ENTER("update_user_table");
   DBUG_PRINT("enter",("user: %s  host: %s",user,host));
 
+  table->use_all_columns();
   table->field[0]->store(host,(uint) strlen(host), system_charset_info);
   table->field[1]->store(user,(uint) strlen(user), system_charset_info);
   key_copy((byte *) user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  table->file->ha_retrieve_all_cols();
   if (table->file->index_read_idx(table->record[0], 0,
-				  (byte *) user_key, table->key_info->key_length,
+				  (byte *) user_key,
+                                  table->key_info->key_length,
 				  HA_READ_KEY_EXACT))
   {
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
@@ -1875,12 +1879,14 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     password=combo.password.str;
   }
 
-  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
-  table->field[1]->store(combo.user.str,combo.user.length, system_charset_info);
+  table->use_all_columns();
+  table->field[0]->store(combo.host.str,combo.host.length,
+                         system_charset_info);
+  table->field[1]->store(combo.user.str,combo.user.length,
+                         system_charset_info);
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  table->file->ha_retrieve_all_cols();
   if (table->file->index_read_idx(table->record[0], 0,
                                   user_key, table->key_info->key_length,
                                   HA_READ_KEY_EXACT))
@@ -2016,7 +2022,6 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       We should NEVER delete from the user table, as a uses can still
       use mysqld even if he doesn't have any privileges in the user table!
     */
-    table->file->ha_retrieve_all_cols();
     if (cmp_record(table,record[1]) &&
 	(error=table->file->ha_update_row(table->record[1],table->record[0])))
     {						// This should never happen
@@ -2092,13 +2097,15 @@ static int replace_db_table(TABLE *table, const char *db,
     DBUG_RETURN(-1);
   }
 
-  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+  table->use_all_columns();
+  table->field[0]->store(combo.host.str,combo.host.length,
+                         system_charset_info);
   table->field[1]->store(db,(uint) strlen(db), system_charset_info);
-  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
+  table->field[2]->store(combo.user.str,combo.user.length,
+                         system_charset_info);
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  table->file->ha_retrieve_all_cols();
   if (table->file->index_read_idx(table->record[0],0,
                                   user_key, table->key_info->key_length,
                                   HA_READ_KEY_EXACT))
@@ -2110,9 +2117,11 @@ static int replace_db_table(TABLE *table, const char *db,
     }
     old_row_exists = 0;
     restore_record(table, s->default_values);
-    table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+    table->field[0]->store(combo.host.str,combo.host.length,
+                           system_charset_info);
     table->field[1]->store(db,(uint) strlen(db), system_charset_info);
-    table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
+    table->field[2]->store(combo.user.str,combo.user.length,
+                           system_charset_info);
   }
   else
   {
@@ -2134,18 +2143,17 @@ static int replace_db_table(TABLE *table, const char *db,
     /* update old existing row */
     if (rights)
     {
-      table->file->ha_retrieve_all_cols();
-      if ((error=table->file->ha_update_row(table->record[1],
-                                            table->record[0])))
+      if ((error= table->file->ha_update_row(table->record[1],
+                                             table->record[0])))
 	goto table_error;			/* purecov: deadcode */
     }
     else	/* must have been a revoke of all privileges */
     {
-      if ((error = table->file->ha_delete_row(table->record[1])))
+      if ((error= table->file->ha_delete_row(table->record[1])))
 	goto table_error;			/* purecov: deadcode */
     }
   }
-  else if (rights && (error=table->file->ha_write_row(table->record[0])))
+  else if (rights && (error= table->file->ha_write_row(table->record[0])))
   {
     if (error && error != HA_ERR_FOUND_DUPP_KEY) /* purecov: inspected */
       goto table_error; /* purecov: deadcode */
@@ -2301,7 +2309,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     uint key_prefix_len;
     KEY_PART_INFO *key_part= col_privs->key_info->key_part;
     col_privs->field[0]->store(host.hostname,
-                               host.hostname ? (uint) strlen(host.hostname) : 0,
+                               host.hostname ? (uint) strlen(host.hostname) :
+                               0,
                                system_charset_info);
     col_privs->field[1]->store(db,(uint) strlen(db), system_charset_info);
     col_privs->field[2]->store(user,(uint) strlen(user), system_charset_info);
@@ -2442,6 +2451,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
   KEY_PART_INFO *key_part= table->key_info->key_part;
   DBUG_ENTER("replace_column_table");
 
+  table->use_all_columns();
   table->field[0]->store(combo.host.str,combo.host.length,
                          system_charset_info);
   table->field[1]->store(db,(uint) strlen(db),
@@ -2477,7 +2487,6 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              table->key_info->key_length);
 
-    table->file->ha_retrieve_all_cols();
     if (table->file->index_read(table->record[0], user_key,
 				table->key_info->key_length,
                                 HA_READ_KEY_EXACT))
@@ -2555,7 +2564,6 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              key_prefix_length);
 
-    table->file->ha_retrieve_all_cols();
     if (table->file->index_read(table->record[0], user_key,
 				key_prefix_length,
                                 HA_READ_KEY_EXACT))
@@ -2645,16 +2653,19 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     DBUG_RETURN(-1);				/* purecov: deadcode */
   }
 
+  table->use_all_columns();
   restore_record(table, s->default_values);     // Get empty record
-  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+  table->field[0]->store(combo.host.str,combo.host.length,
+                         system_charset_info);
   table->field[1]->store(db,(uint) strlen(db), system_charset_info);
-  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
-  table->field[3]->store(table_name,(uint) strlen(table_name), system_charset_info);
+  table->field[2]->store(combo.user.str,combo.user.length,
+                         system_charset_info);
+  table->field[3]->store(table_name,(uint) strlen(table_name),
+                         system_charset_info);
   store_record(table,record[1]);			// store at pos 1
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  table->file->ha_retrieve_all_cols();
   if (table->file->index_read_idx(table->record[0], 0,
                                   user_key, table->key_info->key_length,
 				  HA_READ_KEY_EXACT))
@@ -2767,6 +2778,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     DBUG_RETURN(-1);
   }
 
+  table->use_all_columns();
   restore_record(table, s->default_values);		// Get empty record
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
   table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
@@ -3464,10 +3476,14 @@ static my_bool grant_load(TABLE_LIST *tables)
 		   0,0);
   init_sql_alloc(&memex, ACL_ALLOC_BLOCK_SIZE, 0);
 
-  t_table = tables[0].table; c_table = tables[1].table;
+  t_table = tables[0].table;
+  c_table = tables[1].table;
   p_table= tables[2].table;
   t_table->file->ha_index_init(0, 1);
   p_table->file->ha_index_init(0, 1);
+  t_table->use_all_columns();
+  c_table->use_all_columns();
+  p_table->use_all_columns();
   if (!t_table->file->index_first(t_table->record[0]))
   {
     memex_ptr= &memex;
@@ -3475,7 +3491,7 @@ static my_bool grant_load(TABLE_LIST *tables)
     do
     {
       GRANT_TABLE *mem_check;
-      if (!(mem_check=new GRANT_TABLE(t_table,c_table)))
+      if (!(mem_check=new (memex_ptr) GRANT_TABLE(t_table,c_table)))
       {
 	/* This could only happen if we are out memory */
 	grant_option= FALSE;
@@ -3513,7 +3529,7 @@ static my_bool grant_load(TABLE_LIST *tables)
     {
       GRANT_NAME *mem_check;
       HASH *hash;
-      if (!(mem_check=new GRANT_NAME(p_table)))
+      if (!(mem_check=new (&memex) GRANT_NAME(p_table)))
       {
 	/* This could only happen if we are out memory */
 	grant_option= FALSE;
@@ -4891,6 +4907,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   uint key_prefix_length;
   DBUG_ENTER("handle_grant_table");
 
+  table->use_all_columns();
   if (! table_no) // mysql.user table
   {
     /*
@@ -5538,7 +5555,8 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	if (!strcmp(lex_user->user.str,user) &&
 	    !my_strcasecmp(system_charset_info, lex_user->host.str, host))
 	{
-	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user, ~(ulong)0, 1))
+	  if (!replace_db_table(tables[1].table, acl_db->db, *lex_user,
+                                ~(ulong)0, 1))
 	  {
 	    /*
 	      Don't increment counter as replace_db_table deleted the

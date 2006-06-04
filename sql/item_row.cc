@@ -142,15 +142,17 @@ void Item_row::print(String *str)
   str->append(')');
 }
 
-bool Item_row::walk(Item_processor processor, byte *arg)
+
+bool Item_row::walk(Item_processor processor, bool walk_subquery, byte *arg)
 {
   for (uint i= 0; i < arg_count; i++)
   {
-    if (items[i]->walk(processor, arg))
+    if (items[i]->walk(processor, walk_subquery, arg))
       return 1;
   }
   return (this->*processor)(arg);
 }
+
 
 Item *Item_row::transform(Item_transformer transformer, byte *arg)
 {

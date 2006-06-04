@@ -621,6 +621,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
     param->value.cs_info.character_set_of_placeholder= &my_charset_bin;
     param->value.cs_info.character_set_client=
       thd->variables.character_set_client;
+    DBUG_ASSERT(thd->variables.character_set_client);
     param->value.cs_info.final_character_set_of_str_value= &my_charset_bin;
     param->item_type= Item::STRING_ITEM;
     param->item_result_type= STRING_RESULT;
@@ -1066,7 +1067,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     its.rewind();
 
     if (table_list->lock_type == TL_WRITE_DELAYED &&
-        !(table_list->table->file->table_flags() & HA_CAN_INSERT_DELAYED))
+        !(table_list->table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
     {
       my_error(ER_ILLEGAL_HA, MYF(0), (table_list->view ?
                                        table_list->view_name.str :
@@ -1081,7 +1082,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
         my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
         goto error;
       }
-      if (setup_fields(thd, 0, *values, 0, 0, 0))
+      if (setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0))
         goto error;
     }
   }
@@ -1168,7 +1169,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   table_list->register_want_access(want_privilege);
 #endif
   thd->lex->select_lex.no_wrap_view_item= TRUE;
-  res= setup_fields(thd, 0, select->item_list, 1, 0, 0);
+  res= setup_fields(thd, 0, select->item_list, MARK_COLUMNS_READ, 0, 0);
   thd->lex->select_lex.no_wrap_view_item= FALSE;
   if (res)
     goto error;
@@ -1179,7 +1180,7 @@ static int mysql_test_update(Prepared_statement *stmt,
     (SELECT_ACL & ~table_list->table->grant.privilege);
   table_list->register_want_access(SELECT_ACL);
 #endif
-  if (setup_fields(thd, 0, stmt->lex->value_list, 0, 0, 0))
+  if (setup_fields(thd, 0, stmt->lex->value_list, MARK_COLUMNS_NONE, 0, 0))
     goto error;
   /* TODO: here we should send types of placeholders to the client. */
   DBUG_RETURN(0);
@@ -1333,7 +1334,7 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
 
   if (open_and_lock_tables(thd, tables))
     DBUG_RETURN(TRUE);
-  DBUG_RETURN(setup_fields(thd, 0, *values, 0, 0, 0));
+  DBUG_RETURN(setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0));
 }
 
 

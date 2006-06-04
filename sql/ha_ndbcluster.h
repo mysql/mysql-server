@@ -335,7 +335,12 @@ class Ndb_item {
     const Item *item= value.item;
 
     if (item && field)
-      ((Item *)item)->save_in_field(field, false);
+    {
+      my_bitmap_map *old_map=
+        dbug_tmp_use_all_columns(field->table, field->table->write_set);
+      ((Item *)item)->save_in_field(field, FALSE);
+      dbug_tmp_restore_column_map(field->table->write_set, old_map);
+    }
   };
 
   static NDB_FUNC_TYPE item_func_to_ndb_func(Item_func::Functype fun)
@@ -606,12 +611,13 @@ class ha_ndbcluster: public handler
   void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
+  int reset();
   int external_lock(THD *thd, int lock_type);
   int start_stmt(THD *thd, thr_lock_type lock_type);
   void print_error(int error, myf errflag);
   const char * table_type() const;
   const char ** bas_ext() const;
-  ulong table_flags(void) const;
+  ulonglong table_flags(void) const;
   void prepare_for_alter();
   int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
   int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
@@ -638,7 +644,6 @@ class ha_ndbcluster: public handler
                              enum thr_lock_type lock_type);
 
   bool low_byte_first() const;
-  bool has_transactions();
 
   virtual bool is_injective() const { return true; }
 
@@ -676,7 +681,7 @@ static void set_tabname(const char *pathname, char *tabname);
    AND ... AND pushed_condN)
    or less restrictive condition, depending on handler's capabilities.
    
-   handler->extra(HA_EXTRA_RESET) call empties the condition stack.
+   handler->reset() call empties the condition stack.
    Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the  
    condition stack.
    The current implementation supports arbitrary AND/OR nested conditions

@@ -216,23 +216,31 @@ longlong Item_func_nop_all::val_int()
 
 static bool convert_constant_item(THD *thd, Field *field, Item **item)
 {
+  int result= 0;
   if ((*item)->const_item())
   {
     /* For comparison purposes allow invalid dates like 2000-01-32 */
-    ulong orig_sql_mode= field->table->in_use->variables.sql_mode;
-    field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
+    TABLE *table= field->table;
+    ulong orig_sql_mode= table->in_use->variables.sql_mode;
+    my_bitmap_map *old_write_map=
+      dbug_tmp_use_all_columns(table, table->write_set);
+    my_bitmap_map *old_read_map=
+      dbug_tmp_use_all_columns(table, table->read_set);
+
+    table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
-      Item *tmp=new Item_int_with_ref(field->val_int(), *item,
-                                      test(field->flags & UNSIGNED_FLAG));
-      field->table->in_use->variables.sql_mode= orig_sql_mode;
+      Item *tmp= new Item_int_with_ref(field->val_int(), *item,
+                                       test(field->flags & UNSIGNED_FLAG));
       if (tmp)
         thd->change_item_tree(item, tmp);
-      return 1;					// Item was replaced
+      result= 1;					// Item was replaced
     }
-    field->table->in_use->variables.sql_mode= orig_sql_mode;
+    table->in_use->variables.sql_mode= orig_sql_mode;
+    dbug_tmp_restore_column_map(table->write_set, old_write_map);
+    dbug_tmp_restore_column_map(table->read_set, old_read_map);
   }
-  return 0;
+  return result;
 }
 
 
@@ -2587,14 +2595,14 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   return FALSE;
 }
 
-bool Item_cond::walk(Item_processor processor, byte *arg)
+bool Item_cond::walk(Item_processor processor, bool walk_subquery, byte *arg)
 {
   List_iterator_fast<Item> li(list);
   Item *item;
   while ((item= li++))
-    if (item->walk(processor, arg))
+    if (item->walk(processor, walk_subquery, arg))
       return 1;
-  return Item_func::walk(processor, arg);
+  return Item_func::walk(processor, walk_subquery, arg);
 }
 
 
@@ -3840,14 +3848,16 @@ void Item_equal::fix_length_and_dec()
     eval_item->cmp_charset= cmp_collation.collation;
 }
 
-bool Item_equal::walk(Item_processor processor, byte *arg)
+bool Item_equal::walk(Item_processor processor, bool walk_subquery, byte *arg)
 {
   List_iterator_fast<Item_field> it(fields);
   Item *item;
   while ((item= it++))
-    if (item->walk(processor, arg))
+  {
+    if (item->walk(processor, walk_subquery, arg))
       return 1;
-  return Item_func::walk(processor, arg);
+  }
+  return Item_func::walk(processor, walk_subquery, arg);
 }
 
 Item *Item_equal::transform(Item_transformer transformer, byte *arg)

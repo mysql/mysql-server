@@ -56,15 +56,15 @@ typedef struct st_table_ref
   */
   key_part_map  null_rejecting;
   table_map	depend_map;		  // Table depends on these tables.
-  byte          *null_ref_key;		  // null byte position in the key_buf.
-  					  // used for REF_OR_NULL optimization.
+  /* null byte position in the key_buf. Used for REF_OR_NULL optimization */
+  byte          *null_ref_key;
 } TABLE_REF;
 
-/*
-** CACHE_FIELD and JOIN_CACHE is used on full join to cache records in outer
-** table
-*/
 
+/*
+  CACHE_FIELD and JOIN_CACHE is used on full join to cache records in outer
+  table
+*/
 
 typedef struct st_cache_field {
   char *str;
@@ -83,7 +83,7 @@ typedef struct st_join_cache {
 
 
 /*
-** The structs which holds the join connections and join states
+  The structs which holds the join connections and join states
 */
 enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
 		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL,
@@ -102,6 +102,7 @@ typedef enum_nested_loop_state
 (*Next_select_func)(JOIN *, struct st_join_table *, bool);
 typedef int (*Read_record_func)(struct st_join_table *tab);
 Next_select_func setup_end_select_func(JOIN *join);
+
 
 typedef struct st_join_table {
   st_join_table() {}                          /* Remove gcc warning */
@@ -482,7 +483,11 @@ class store_key_field: public store_key
   }
   enum store_key_result copy()
   {
+    TABLE *table= copy_field.to_field->table;
+    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
+                                                     table->write_set);
     copy_field.do_copy(&copy_field);
+    dbug_tmp_restore_column_map(table->write_set, old_map);
     return err != 0 ? STORE_KEY_FATAL : STORE_KEY_OK;
   }
   const char *name() const { return field_name; }
@@ -502,7 +507,11 @@ public:
   {}
   enum store_key_result copy()
   {
+    TABLE *table= to_field->table;
+    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
+                                                     table->write_set);
     int res= item->save_in_field(to_field, 1);
+    dbug_tmp_restore_column_map(table->write_set, old_map);
     return (err != 0 || res > 2 ? STORE_KEY_FATAL : (store_key_result) res); 
 	                 
   }
@@ -539,7 +548,7 @@ public:
   const char *name() const { return "const"; }
 };
 
-bool cp_buffer_from_ref(THD *thd, TABLE_REF *ref);
+bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 bool error_if_full_join(JOIN *join);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
