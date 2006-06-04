@@ -385,6 +385,7 @@ select time_format('100:00:00', '%H %k %h %I %l');
 create table t1 (a timestamp default '2005-05-05 01:01:01',
                  b timestamp default '2005-05-05 01:01:01');
 delimiter //;
+drop function if exists t_slow_sysdate;
 create function t_slow_sysdate() returns timestamp
 begin
   do sleep(2);

@@ -1,3 +1,4 @@
+*-t
 *.a
 *.bb
 *.bbg
@@ -458,6 +459,7 @@ libmysqld/emb_qcache.cpp
 libmysqld/errmsg.c
 libmysqld/event.cc
 libmysqld/event_executor.cc
+libmysqld/event_scheduler.cc
 libmysqld/event_timed.cc
 libmysqld/examples/client_test.c
 libmysqld/examples/client_test.cc
@@ -788,6 +790,8 @@ mysys/main.cc
 mysys/my_new.cpp
 mysys/raid.cpp
 mysys/ste5KbMa
+mysys/test_atomic
+mysys/test_bitmap
 mysys/test_charset
 mysys/test_dir
 mysys/test_gethwaddr
@@ -1770,6 +1774,3 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
-libmysqld/event_scheduler.cc
-mysys/test_atomic
-*-t

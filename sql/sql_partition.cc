@@ -849,7 +849,7 @@ static bool fix_fields_part_func(THD *thd, TABLE_LIST *tables,
   context->table_list= tables;
   context->first_name_resolution_table= tables;
   context->last_name_resolution_table= NULL;
-  func_expr->walk(&Item::change_context_processor, (byte*) context);
+  func_expr->walk(&Item::change_context_processor, 0, (byte*) context);
   save_where= thd->where;
   thd->where= "partition function";
   error= func_expr->fix_fields(thd, (Item**)0);
@@ -1335,7 +1335,7 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   char db_name_string[FN_REFLEN];
   char* db_name;
   partition_info *part_info= table->part_info;
-  ulong save_set_query_id= thd->set_query_id;
+  enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   Item *thd_free_list= thd->free_list;
   DBUG_ENTER("fix_partition_func");
 
@@ -1343,8 +1343,8 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   {
     DBUG_RETURN(FALSE);
   }
-  thd->set_query_id= 0;
-  DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
+  thd->mark_used_columns= MARK_COLUMNS_NONE;
+  DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   /*
     Set-up the TABLE_LIST object to be a list with a single table
     Set the object to zero to create NULL pointers and set alias
@@ -1484,8 +1484,8 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   result= FALSE;
 end:
   thd->free_list= thd_free_list;
-  thd->set_query_id= save_set_query_id;
-  DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
+  thd->mark_used_columns= save_mark_used_columns;
+  DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   DBUG_RETURN(result);
 }
 
@@ -1992,10 +1992,7 @@ bool partition_key_modified(TABLE *table, List<Item> &fields)
     in function
 */
 
-static
-inline
-longlong
-part_val_int(Item *item_expr)
+static inline longlong part_val_int(Item *item_expr)
 {
   longlong value= item_expr->val_int();
   if (item_expr->null_value)
@@ -2412,10 +2409,12 @@ int get_partition_id_range(partition_info *part_info,
       loc_part_id++;
   *part_id= (uint32)loc_part_id;
   *func_value= part_func_value;
-  if (loc_part_id == max_partition)
-    if (range_array[loc_part_id] != LONGLONG_MAX)
-      if (part_func_value >= range_array[loc_part_id])
-        DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+  if (loc_part_id == max_partition &&
+      range_array[loc_part_id] != LONGLONG_MAX &&
+      part_func_value >= range_array[loc_part_id])
+    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+
+  DBUG_PRINT("exit",("partition: %d", *part_id));
   DBUG_RETURN(0);
 }
 

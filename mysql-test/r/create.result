@@ -266,6 +266,7 @@ select * from t1;
 0	1	2
 0	0	1
 drop table t1;
+flush status;
 create table t1 (a int not null, b int, primary key (a));
 insert into t1 values (1,1);
 create table if not exists t1 select 2;
@@ -281,6 +282,13 @@ Warnings:
 Note	1050	Table 't1' already exists
 create table if not exists t1 select 3 as 'a',3 as 'b';
 ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+show warnings;
+Level	Code	Message
+Note	1050	Table 't1' already exists
+Error	1062	Duplicate entry '3' for key 'PRIMARY'
+show status like "Opened_tables";
+Variable_name	Value
+Opened_tables	2
 select * from t1;
 a	b
 1	1
@@ -778,3 +786,41 @@ Warnings:
 Warning	1071	Specified key was too long; max key length is 765 bytes
 insert into t1 values('aaa');
 drop table t1;
+CREATE TABLE t1 (a int, b int);
+insert into t1 values (1,1),(1,2);
+CREATE TABLE t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t2 (a int, b int, primary key (a));
+CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+1	1
+TRUNCATE table t2;
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+1	1
+drop table t2;
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+1	1
+TRUNCATE table t2;
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+1	1
+drop table t1,t2;

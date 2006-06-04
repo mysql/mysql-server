@@ -94,6 +94,11 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
 						   0, REPORT_ALL_ERRORS, 1,
                                                    TRUE)))
       DBUG_RETURN(1);
+    bitmap_set_bit(find_fields->field->table->read_set,
+                   find_fields->field->field_index);
+    /* To make life easier when setting values in keys */
+    bitmap_set_bit(find_fields->field->table->write_set,
+                   find_fields->field->field_index);
   }
   DBUG_RETURN(0);
 }
@@ -272,7 +277,6 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   int count= 0;
   int iindex_topic, iindex_relations;
   Field *rtopic_id, *rkey_id;
-
   DBUG_ENTER("get_topics_for_keyword");
 
   if ((iindex_topic= find_type((char*) primary_key_name,
@@ -292,8 +296,9 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   rkey_id->store((longlong) key_id, TRUE);
   rkey_id->get_key_image(buff, rkey_id->pack_length(), Field::itRAW);
   int key_res= relations->file->index_read(relations->record[0],
-					   (byte *)buff, rkey_id->pack_length(),
-					   HA_READ_KEY_EXACT);
+                                           (byte *) buff,
+                                           rkey_id->pack_length(),
+                                           HA_READ_KEY_EXACT);
 
   for ( ;
         !key_res && key_id == (int16) rkey_id->val_int() ;
@@ -653,13 +658,15 @@ bool mysqld_help(THD *thd, const char *mask)
 
   if (open_and_lock_tables(thd, tables))
     goto error;
+
   /*
     Init tables and fields to be usable from items
     tables do not contain VIEWs => we can pass 0 as conds
   */
-  setup_tables(thd, &thd->lex->select_lex.context,
-               &thd->lex->select_lex.top_join_list,
-               tables, 0, &leaves, FALSE);
+  if (setup_tables(thd, &thd->lex->select_lex.context,
+                   &thd->lex->select_lex.top_join_list,
+                   tables, &leaves, FALSE))
+    goto error;
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
     goto error;
@@ -681,10 +688,12 @@ bool mysqld_help(THD *thd, const char *mask)
     int key_id;
     if (!(select=
           prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
-                                  used_fields[help_keyword_name].field,&error)))
+                                  used_fields[help_keyword_name].field,
+                                  &error)))
       goto error;
 
-    count_topics=search_keyword(thd,tables[3].table,used_fields,select,&key_id);
+    count_topics= search_keyword(thd,tables[3].table, used_fields, select,
+                                 &key_id);
     delete select;
     count_topics= (count_topics != 1) ? 0 :
                   get_topics_for_keyword(thd,tables[0].table,tables[2].table,
@@ -698,7 +707,8 @@ bool mysqld_help(THD *thd, const char *mask)
     Field *cat_cat_id= used_fields[help_category_parent_category_id].field;
     if (!(select=
           prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
-                                  used_fields[help_category_name].field,&error)))
+                                  used_fields[help_category_name].field,
+                                  &error)))
       goto error;
 
     count_categories= search_categories(thd, tables[1].table, used_fields,

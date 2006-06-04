@@ -1744,21 +1744,22 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli, const char *query
     {
       if (flags2_inited)
         /*
-          all bits of thd->options which are 1 in OPTIONS_WRITTEN_TO_BIN_LOG must
-          take their value from flags2.
+          all bits of thd->options which are 1 in OPTIONS_WRITTEN_TO_BIN_LOG
+          must take their value from flags2.
         */
-        thd->options= flags2|(thd->options & ~(ulong)OPTIONS_WRITTEN_TO_BIN_LOG);
+        thd->options= flags2|(thd->options & ~OPTIONS_WRITTEN_TO_BIN_LOG);
       /*
         else, we are in a 3.23/4.0 binlog; we previously received a
-        Rotate_log_event which reset thd->options and sql_mode etc, so nothing to do.
+        Rotate_log_event which reset thd->options and sql_mode etc, so
+        nothing to do.
       */
       /*
         We do not replicate IGNORE_DIR_IN_CREATE. That is, if the master is a
         slave which runs with SQL_MODE=IGNORE_DIR_IN_CREATE, this should not
         force us to ignore the dir too. Imagine you are a ring of machines, and
-        one has a disk problem so that you temporarily need IGNORE_DIR_IN_CREATE
-        on this machine; you don't want it to propagate elsewhere (you don't want
-        all slaves to start ignoring the dirs).
+        one has a disk problem so that you temporarily need
+        IGNORE_DIR_IN_CREATE on this machine; you don't want it to propagate
+        elsewhere (you don't want all slaves to start ignoring the dirs).
       */
       if (sql_mode_inited)
         thd->variables.sql_mode=
@@ -3264,8 +3265,8 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
     rli->notify_group_master_log_name_update();
     rli->group_master_log_pos= pos;
     rli->group_relay_log_pos= rli->event_relay_log_pos;
-    DBUG_PRINT("info", ("group_master_log_name: '%s' group_master_log_pos:\
-%lu",
+    DBUG_PRINT("info", ("group_master_log_name: '%s'  "
+                        "group_master_log_pos: %lu",
                         rli->group_master_log_name,
                         (ulong) rli->group_master_log_pos));
     /*
@@ -5200,8 +5201,9 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
     log only the primary key value instead of the entire "before image". This
     would save binlog space. TODO
   */
-  DBUG_ENTER("Rows_log_event::do_add_row_data(byte *data, my_size_t length)");
-  DBUG_PRINT("enter", ("row_data= %p, length= %lu", row_data, length));
+  DBUG_ENTER("Rows_log_event::do_add_row_data");
+  DBUG_PRINT("enter", ("row_data: 0x%lx  length: %lu", (ulong) row_data,
+                       length));
   DBUG_DUMP("row_data", (const char*)row_data, min(length, 32));
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
@@ -5256,7 +5258,7 @@ static char const *unpack_row(TABLE *table,
 {
   DBUG_ASSERT(record && row);
 
-  MY_BITMAP *write_set= table->file->write_set;
+  MY_BITMAP *write_set= table->write_set;
   my_size_t const n_null_bytes= table->s->null_bytes;
   my_ptrdiff_t const offset= record - (byte*) table->record[0];
 
@@ -5269,13 +5271,13 @@ static char const *unpack_row(TABLE *table,
   {
     Field *const f= *field_ptr;
 
-    if (bitmap_is_set(cols, field_ptr -  begin_ptr))
+    if (bitmap_is_set(cols, (uint) (field_ptr -  begin_ptr)))
     {
       /* Field...::unpack() cannot return 0 */
       ptr= f->unpack(f->ptr + offset, ptr);
     }
     else
-      bitmap_clear_bit(write_set, (field_ptr - begin_ptr) + 1);
+      bitmap_clear_bit(write_set, (uint) (field_ptr - begin_ptr));
   }
   return ptr;
 }
@@ -5431,7 +5433,8 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
     DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
     error= do_before_row_operations(table);
-    while (error == 0 && row_start < (const char*)m_rows_end) {
+    while (error == 0 && row_start < (const char*) m_rows_end)
+    {
       char const *row_end= do_prepare_row(thd, table, row_start);
       DBUG_ASSERT(row_end != NULL); // cannot happen
       DBUG_ASSERT(row_end <= (const char*)m_rows_end);
@@ -5466,8 +5469,10 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
                     rli->abort_slave=1;);
     error= do_after_row_operations(table, error);
     if (!cache_stmt)
-      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
-    
+    {
+      DBUG_PRINT("info", ("Marked that we need to keep log"));
+      thd->options|= OPTION_KEEP_LOG;
+    }
   }
 
   if (error)
@@ -6255,9 +6260,9 @@ replace_record(THD *thd, TABLE *table)
        - use index_read_idx() with the key that is duplicated, to
          retrieve the offending row.
      */
-    if (table->file->table_flags() & HA_DUPP_POS)
+    if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
-      error= table->file->rnd_pos(table->record[1], table->file->dupp_ref);
+      error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
       if (error)
         return error;
     }
@@ -6374,16 +6379,17 @@ static bool record_compare(TABLE *table)
   to find (and fetch) the row.  If the engine allows random access of the
   records, a combination of position() and rnd_pos() will be used.
  */
+
 static int find_and_fetch_row(TABLE *table, byte *key)
 {
   DBUG_ENTER("find_and_fetch_row(TABLE *table, byte *key, byte *record)");
-  DBUG_PRINT("enter", ("table=%p, key=%p, record=%p",
-		       table, key, table->record[1]));
+  DBUG_PRINT("enter", ("table: 0x%lx, key: 0x%lx  record: 0x%lx",
+		       (long) table, (long) key, (long) table->record[1]));
 
   DBUG_ASSERT(table->in_use != NULL);
 
-  if ((table->file->table_flags() & HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS)
-      && table->s->primary_key < MAX_KEY)
+  if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
+      table->s->primary_key < MAX_KEY)
   {
     /*
       Use a more efficient method to fetch the record given by
@@ -6399,15 +6405,15 @@ static int find_and_fetch_row(TABLE *table, byte *key)
   DBUG_ASSERT(table->record[1]);
 
   /* We need to retrieve all fields */
-  table->file->ha_set_all_bits_in_read_set();
+  /* TODO: Move this out from this function to main loop */
+  table->use_all_columns();
 
   if (table->s->keys > 0)
   {
     int error;
     /* We have a key: search the table using the index */
-    if (!table->file->inited)
-      if ((error= table->file->ha_index_init(0, FALSE)))
-        return error;
+    if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
+      return error;
     
     /*
       We need to set the null bytes to ensure that the filler bit are
@@ -6440,7 +6446,7 @@ static int find_and_fetch_row(TABLE *table, byte *key)
       comparison of non-PK columns to decide if the correct record is
       found.  I can see no scenario where it would be incorrect to
       chose the row to change only using a PK or an UNNI.
-     */
+    */
     if (table->key_info->flags & HA_NOSAME)
     {
       table->file->ha_index_end();
@@ -6564,7 +6570,7 @@ int Delete_rows_log_event::do_before_row_operations(TABLE *table)
 {
   DBUG_ASSERT(m_memory == NULL);
 
-  if ((table->file->table_flags() & HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS) &&
+  if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
       table->s->primary_key < MAX_KEY)
   {
     /*
@@ -6638,19 +6644,18 @@ char const *Delete_rows_log_event::do_prepare_row(THD *thd, TABLE *table,
 
 int Delete_rows_log_event::do_exec_row(TABLE *table)
 {
+  int error;
   DBUG_ASSERT(table != NULL);
 
-  int error= find_and_fetch_row(table, m_key);
-  if (error)
-    return error;
-
-  /*
-     Now we should have the right row to delete.  We are using
-     record[0] since it is guaranteed to point to a record with the
-     correct value.
-  */
-  error= table->file->ha_delete_row(table->record[0]);
-
+  if (!(error= find_and_fetch_row(table, m_key)))
+  { 
+    /*
+      Now we should have the right row to delete.  We are using
+      record[0] since it is guaranteed to point to a record with the
+      correct value.
+    */
+    error= table->file->ha_delete_row(table->record[0]);
+  }
   return error;
 }
 

@@ -1295,12 +1295,12 @@ int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 bool mysql_show_binlog_events(THD* thd)
 {
   Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysql_show_binlog_events");
   List<Item> field_list;
   const char *errmsg = 0;
   bool ret = TRUE;
   IO_CACHE log;
   File file = -1;
+  DBUG_ENTER("mysql_show_binlog_events");
 
   Log_event::init_show_field_list(&field_list);
   if (protocol->send_fields(&field_list,
@@ -1354,12 +1354,12 @@ bool mysql_show_binlog_events(THD* thd)
     pthread_mutex_lock(log_lock);
 
     /*
-       open_binlog() sought to position 4.
-       Read the first event in case it's a Format_description_log_event, to
-       know the format. If there's no such event, we are 3.23 or 4.x. This
-       code, like before, can't read 3.23 binlogs.
-       This code will fail on a mixed relay log (one which has Format_desc then
-       Rotate then Format_desc).
+      open_binlog() sought to position 4.
+      Read the first event in case it's a Format_description_log_event, to
+      know the format. If there's no such event, we are 3.23 or 4.x. This
+      code, like before, can't read 3.23 binlogs.
+      This code will fail on a mixed relay log (one which has Format_desc then
+      Rotate then Format_desc).
     */
 
     ev = Log_event::read_log_event(&log,(pthread_mutex_t*)0,description_event);
@@ -1383,7 +1383,8 @@ bool mysql_show_binlog_events(THD* thd)
     }
 
     for (event_count = 0;
-	 (ev = Log_event::read_log_event(&log,(pthread_mutex_t*)0,description_event)); )
+	 (ev = Log_event::read_log_event(&log,(pthread_mutex_t*) 0,
+                                         description_event)); )
     {
       if (event_count >= limit_start &&
 	  ev->net_send(protocol, linfo.log_file_name, pos))

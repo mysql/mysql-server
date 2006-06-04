@@ -121,6 +121,7 @@ public:
   */
   virtual void reset_value_registration() {}
   enum_parsing_place place() { return parsing_place; }
+  bool walk(Item_processor processor, bool walk_subquery, byte *arg);
 
   friend class select_subselect;
   friend class Item_in_optimizer;

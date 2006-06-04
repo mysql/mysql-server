@@ -1,0 +1,189 @@
+#
+# Suppress some common (not fatal) errors in system libraries found by valgrind
+#
+
+#
+# Pthread doesn't free all thread specific memory before program exists
+#
+{
+   pthread allocate_tls memory loss
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create@@GLIBC_2.1
+}
+
+{
+   pthread allocate_dtv memory loss
+   Memcheck:Leak
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls_storage
+   fun:__GI__dl_allocate_tls
+   fun:pthread_create
+}
+
+{
+   pthread allocate_dtv memory loss second
+   Memcheck:Leak
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:pthread_create*
+}
+
+{
+   pthread allocate_dtv memory loss second
+   Memcheck:Leak
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:pthread_create*
+}
+
+{
+   pthread memalign memory loss
+   Memcheck:Leak
+   fun:memalign
+   fun:_dl_allocate_tls_storage
+   fun:__GI__dl_allocate_tls
+   fun:pthread_create
+}
+
+{
+   pthread pthread_key_create
+   Memcheck:Leak
+   fun:malloc
+   fun:*
+   fun:*
+   fun:pthread_key_create
+   fun:my_thread_global_init
+}
+
+{
+   pthread strstr uninit
+   Memcheck:Cond
+   fun:strstr
+   obj:/lib/tls/libpthread.so.*
+   obj:/lib/tls/libpthread.so.*
+   fun:call_init
+   fun:_dl_init
+   obj:/lib/ld-*.so
+}
+
+{
+   pthread strstr uninit
+   Memcheck:Cond
+   fun:strstr
+   obj:/lib/tls/libpthread.so.*
+   obj:/lib/tls/libpthread.so.*
+   fun:call_init
+   fun:_dl_init
+   obj:/lib/ld-*.so
+}
+
+{
+   pthread errno
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlsym
+   fun:__errno_location
+}
+
+
+#
+# Warnings in libz becasue it works with aligned memory(?)
+#
+
+{
+   libz tr_flush_block
+   Memcheck:Cond
+   fun:_tr_flush_block
+   fun:deflate_slow
+   fun:deflate
+   fun:do_flush
+   fun:gzclose
+}
+
+{
+   libz tr_flush_block2
+   Memcheck:Cond
+   fun:_tr_flush_block
+   fun:deflate_slow
+   fun:deflate
+   fun:compress2
+}
+
+{
+   libz longest_match
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:do_flush
+}
+
+{
+   libz longest_match2
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:compress2
+}
+
+{
+   libz deflate
+   Memcheck:Cond
+   obj:*/libz.so.*
+   obj:*/libz.so.*
+   fun:deflate
+   fun:compress2
+}
+
+{
+   libz deflate2
+   Memcheck:Cond
+   obj:*/libz.so.*
+   obj:*/libz.so.*
+   fun:deflate
+   obj:*/libz.so.*
+   fun:gzflush
+}
+
+{
+   libz deflate3
+   Memcheck:Cond
+   obj:*/libz.so.*
+   obj:*/libz.so.*
+   fun:deflate
+   fun:do_flush
+}
+
+#
+# Warning from my_thread_init becasue mysqld dies before kill thread exists
+#
+
+{
+   my_thread_init kill thread memory loss second
+   Memcheck:Leak
+   fun:calloc
+   fun:my_thread_init
+   fun:kill_server_thread
+}
+
+#
+# Warning when printing stack trace (to suppress some not needed warnings)
+#
+
+{
+   vprintf on stacktrace
+   Memcheck:Cond
+   fun:vfprintf
+   fun:uffered_vfprintf
+   fun:vfprintf
+   fun:fprintf
+   fun:print_stacktrace
+}

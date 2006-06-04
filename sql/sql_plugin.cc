@@ -759,6 +759,7 @@ void plugin_load(void)
   }
   table= tables.table;
   init_read_record(&read_record_info, new_thd, table, NULL, 1, 0);
+  table->use_all_columns();
   while (!(error= read_record_info.read_record(&read_record_info)))
   {
     DBUG_PRINT("info", ("init plugin record"));
@@ -898,8 +899,8 @@ my_bool mysql_uninstall_plugin(THD *thd, LEX_STRING *name)
   else
     plugin->state= PLUGIN_IS_DELETED;
 
+  table->use_all_columns();
   table->field[0]->store(name->str, name->length, system_charset_info);
-  table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (! table->file->index_read_idx(table->record[0], 0,
                                     (byte *)table->field[0]->ptr,
                                     table->key_info[0].key_length,
