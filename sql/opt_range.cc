@@ -374,6 +374,12 @@ public:
     keys_map.clear_all();
     bzero((char*) keys,sizeof(keys));
   }
+  /*
+    Note: there may exist SEL_TREE objects with sel_tree->type=KEY and
+    keys[i]=0 for all i. (SergeyP: it is not clear whether there is any
+    merit in range analyzer functions (e.g. get_mm_parts) returning a
+    pointer to such SEL_TREE instead of NULL)
+  */
   SEL_ARG *keys[MAX_KEY];
   key_map keys_map;        /* bitmask of non-NULL elements in keys */
 
@@ -2580,7 +2586,8 @@ int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar, SEL_IMERGE *imerge)
     ppar->cur_part_fields= 0;
     ppar->cur_subpart_fields= 0;
     init_all_partitions_iterator(ppar->part_info, &ppar->part_iter);
-    if (-1 == (res |= find_used_partitions(ppar, (*ptree)->keys[0])))
+    SEL_ARG *key_tree= (*ptree)->keys[0];
+    if (!key_tree || (-1 == (res |= find_used_partitions(ppar, key_tree))))
       return -1;
   }
   return res;
@@ -5104,7 +5111,7 @@ get_mm_parts(RANGE_OPT_PARAM *param, COND *cond_func, Field *field,
       tree->keys_map.set_bit(key_part->key);
     }
   }
-
+  
   DBUG_RETURN(tree);
 }
 
