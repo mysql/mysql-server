@@ -674,19 +674,4 @@ create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb
 insert into t1 values('aaa');
 drop table t1;
 
-#
-# Bug#19479:mysqldump creates invalid dump
-#
---disable_warnings
-drop table if exists `about:text`;
---enable_warnings
-create table `about:text` ( 
-_id int not null auto_increment,
-`about:text` varchar(255) not null default '',
-primary key (_id)
-);
-
-show create table `about:text`; 
-drop table `about:text`;
-
 # End of 5.0 tests
