@@ -556,7 +556,7 @@ drop table t1;
 # being fixed.
 
 #
-#BUG 17946 Like searches fail with partitioning
+# BUG#17946 Like searches fail with partitioning
 #
 create table t1 (a char(32) primary key)
 partition by key()
@@ -564,5 +564,13 @@ partitions 100;
 insert into t1 values ('na');
 select * from t1;
 select * from t1 where a like 'n%';
+drop table t1;
+
+
+# BUG#19055 Crashes for varchar_col=NUMBER or varchar_col IS NULL
+create table t1 (s1 varchar(15)) partition by key (s1);
+select * from t1 where s1 = 0 or s1 is null;
+insert into t1 values ('aa'),('bb'),('0');
+explain partitions select * from t1 where s1 = 0 or s1 is null;
 drop table t1;
 
