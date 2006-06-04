@@ -188,13 +188,13 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   /* for now HANDLER can be used only for real TABLES */
   tables->required_type= FRMTYPE_TABLE;
   error= open_tables(thd, &tables, &counter, 0);
-
   HANDLER_TABLES_HACK(thd);
+
   if (error)
     goto err;
 
   /* There can be only one table in '*tables'. */
-  if (! (tables->table->file->table_flags() & HA_CAN_SQL_HANDLER))
+  if (! (tables->table->file->ha_table_flags() & HA_CAN_SQL_HANDLER))
   {
     if (! reopen)
       my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
@@ -421,6 +421,9 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   if (!lock)
     goto err0; // mysql_lock_tables() printed error message already
 
+  // Always read all columns
+  tables->table->read_set= &tables->table->s->all_set;
+
   if (cond)
   {
     if (table->query_id != thd->query_id)
@@ -514,6 +517,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       Item *item;
       for (key_len=0 ; (item=it_ke++) ; key_part++)
       {
+        my_bitmap_map *old_map;
 	// 'item' can be changed by fix_fields() call
         if ((!item->fixed &&
              item->fix_fields(thd, it_ke.ref())) ||
@@ -524,16 +528,19 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
           my_error(ER_WRONG_ARGUMENTS,MYF(0),"HANDLER ... READ");
 	  goto err;
         }
+        old_map= dbug_tmp_use_all_columns(table, table->write_set);
 	(void) item->save_in_field(key_part->field, 1);
+        dbug_tmp_restore_column_map(table->write_set, old_map);
 	key_len+=key_part->store_length;
       }
+
       if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
 	goto err;
       table->file->ha_index_or_rnd_end();
       table->file->ha_index_init(keyno, 1);
       key_copy(key, table->record[0], table->key_info + keyno, key_len);
       error= table->file->index_read(table->record[0],
-				  key,key_len,ha_rkey_mode);
+                                     key,key_len,ha_rkey_mode);
       mode=rkey_to_rnext[(int)ha_rkey_mode];
       break;
     }

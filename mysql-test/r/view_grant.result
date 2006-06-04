@@ -1,5 +1,5 @@
 drop database if exists mysqltest;
-drop view if exists v1;
+drop view if exists v1,v2,v3;
 grant create view on test.* to test@localhost;
 show grants for test@localhost;
 Grants for test@localhost

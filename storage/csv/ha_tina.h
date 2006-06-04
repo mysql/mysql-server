@@ -87,14 +87,16 @@ public:
   const char *table_type() const { return "CSV"; }
   const char *index_type(uint inx) { return "NONE"; }
   const char **bas_ext() const;
-  ulong table_flags() const
+  ulonglong table_flags() const
   {
-    return (HA_REC_NOT_IN_SEQ | HA_NOT_EXACT_COUNT | 
-      HA_NO_AUTO_INCREMENT );
+    return (HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_NO_AUTO_INCREMENT);
   }
   ulong index_flags(uint idx, uint part, bool all_parts) const
   {
-    /* We will never have indexes so this will never be called(AKA we return zero) */
+    /*
+      We will never have indexes so this will never be called(AKA we return
+      zero)
+    */
     return 0;
   }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
@@ -104,7 +106,7 @@ public:
   /*
      Called in test_quick_select to determine if indexes should be used.
    */
-  virtual double scan_time() { return (double) (records+deleted) / 20.0+10; }
+  virtual double scan_time() { return (double) (stats.records+stats.deleted) / 20.0+10; }
   /* The next method will never be called */
   virtual bool fast_key_read() { return 1;}
   /* 

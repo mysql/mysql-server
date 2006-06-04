@@ -26,7 +26,8 @@
 
 /* Static declarations for handlerton */
 
-static handler *blackhole_create_handler(TABLE_SHARE *table);
+static handler *blackhole_create_handler(TABLE_SHARE *table,
+                                         MEM_ROOT *mem_root);
 
 
 static const char blackhole_hton_name[]= "BLACKHOLE";
@@ -74,9 +75,10 @@ handlerton blackhole_hton= {
 };
 
 
-static handler *blackhole_create_handler(TABLE_SHARE *table)
+static handler *blackhole_create_handler(TABLE_SHARE *table,
+                                         MEM_ROOT *mem_root)
 {
-  return new ha_blackhole(table);
+  return new (mem_root) ha_blackhole(table);
 }
 
 
@@ -171,16 +173,9 @@ void ha_blackhole::info(uint flag)
 {
   DBUG_ENTER("ha_blackhole::info");
 
-  records= 0;
-  deleted= 0;
-  errkey= 0;
-  mean_rec_length= 0;
-  data_file_length= 0;
-  index_file_length= 0;
-  max_data_file_length= 0;
-  delete_length= 0;
+  bzero((char*) &stats, sizeof(stats));
   if (flag & HA_STATUS_AUTO)
-    auto_increment_value= 1;
+    stats.auto_increment_value= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -266,5 +261,6 @@ mysql_declare_plugin(blackhole)
   NULL, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
+  0
 }
 mysql_declare_plugin_end;

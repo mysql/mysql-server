@@ -173,3 +173,17 @@
    fun:my_thread_init
    fun:kill_server_thread
 }
+
+#
+# Warning when printing stack trace (to suppress some not needed warnings)
+#
+
+{
+   vprintf on stacktrace
+   Memcheck:Cond
+   fun:vfprintf
+   fun:uffered_vfprintf
+   fun:vfprintf
+   fun:fprintf
+   fun:print_stacktrace
+}

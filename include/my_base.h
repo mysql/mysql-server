@@ -105,7 +105,7 @@ enum ha_key_alg {
 enum ha_extra_function {
   HA_EXTRA_NORMAL=0,			/* Optimize for space (def) */
   HA_EXTRA_QUICK=1,			/* Optimize for speed */
-  HA_EXTRA_RESET=2,			/* Reset database to after open */
+  HA_EXTRA_NOT_USED=2,
   HA_EXTRA_CACHE=3,			/* Cache record in HA_rrnd() */
   HA_EXTRA_NO_CACHE=4,			/* End caching of records (def) */
   HA_EXTRA_NO_READCHECK=5,		/* No readcheck on update */
@@ -131,15 +131,6 @@ enum ha_extra_function {
   HA_EXTRA_RESET_STATE,			/* Reset positions */
   HA_EXTRA_IGNORE_DUP_KEY,		/* Dup keys don't rollback everything*/
   HA_EXTRA_NO_IGNORE_DUP_KEY,
-  /*
-    Instructs InnoDB to retrieve all columns (except in key read), not just
-    those where field->query_id is the same as the current query id
-  */
-  HA_EXTRA_RETRIEVE_ALL_COLS,
-  /*
-    Instructs InnoDB to retrieve at least all the primary key columns
-  */
-  HA_EXTRA_RETRIEVE_PRIMARY_KEY,
   HA_EXTRA_PREPARE_FOR_DELETE,
   HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
   HA_EXTRA_PRELOAD_BUFFER_SIZE,         /* Set buffer size for preloading */

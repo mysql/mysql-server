@@ -46,11 +46,11 @@ public:
   /* Rows also use a fixed-size format */
   enum row_type get_row_type() const { return ROW_TYPE_FIXED; }
   const char **bas_ext() const;
-  ulong table_flags() const
+  ulonglong table_flags() const
   {
     return (HA_FAST_KEY_READ | HA_NO_BLOBS | HA_NULL_IN_KEY |
-            HA_REC_NOT_IN_SEQ | HA_READ_RND_SAME |
-            HA_CAN_INSERT_DELAYED);
+            HA_REC_NOT_IN_SEQ | HA_CAN_INSERT_DELAYED | HA_NO_TRANSACTIONS |
+            HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT);
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
@@ -61,7 +61,8 @@ public:
   const key_map *keys_to_use_for_scanning() { return &btree_keys; }
   uint max_supported_keys()          const { return MAX_KEY; }
   uint max_supported_key_part_length() const { return MAX_KEY_LENGTH; }
-  double scan_time() { return (double) (records+deleted) / 20.0+10; }
+  double scan_time()
+  { return (double) (stats.records+stats.deleted) / 20.0+10; }
   double read_time(uint index, uint ranges, ha_rows rows)
   { return (double) rows /  20.0+1; }
 
@@ -87,6 +88,7 @@ public:
   void position(const byte *record);
   void info(uint);
   int extra(enum ha_extra_function operation);
+  int reset();
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
   int disable_indexes(uint mode);

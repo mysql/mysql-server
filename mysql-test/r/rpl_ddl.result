@@ -359,8 +359,6 @@ MAX(f1)
 
 -------- switch to master -------
 ROLLBACK;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 5
@@ -579,8 +577,6 @@ MAX(f1)
 
 -------- switch to master -------
 ROLLBACK;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 8

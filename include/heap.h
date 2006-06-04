@@ -209,6 +209,7 @@ extern int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 extern int heap_delete_table(const char *name);
 extern void heap_drop_table(HP_INFO *info);
 extern int heap_extra(HP_INFO *info,enum ha_extra_function function);
+extern int heap_reset(HP_INFO *info);
 extern int heap_rename(const char *old_name,const char *new_name);
 extern int heap_panic(enum ha_panic_function flag);
 extern int heap_rsame(HP_INFO *info,byte *record,int inx);

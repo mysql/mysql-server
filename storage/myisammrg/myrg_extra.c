@@ -38,10 +38,10 @@ int myrg_extra(MYRG_INFO *info,enum ha_extra_function function,
   }
   else
   {
-    if (function == HA_EXTRA_NO_CACHE || function == HA_EXTRA_RESET ||
-	function == HA_EXTRA_PREPARE_FOR_UPDATE)
+    if (function == HA_EXTRA_NO_CACHE ||
+        function == HA_EXTRA_PREPARE_FOR_UPDATE)
       info->cache_in_use=0;
-    if (function == HA_EXTRA_RESET || function == HA_EXTRA_RESET_STATE)
+    if (function == HA_EXTRA_RESET_STATE)
     {
       info->current_table=0;
       info->last_used_table=info->open_tables;
@@ -65,4 +65,24 @@ void myrg_extrafunc(MYRG_INFO *info, invalidator_by_filename inv)
     file->table->s->invalidator = inv;
 
   DBUG_VOID_RETURN;
+}
+
+
+int myrg_reset(MYRG_INFO *info)
+{
+  int save_error= 0;
+  MYRG_TABLE *file;
+  DBUG_ENTER("myrg_reset");
+
+  info->cache_in_use=0;
+  info->current_table=0;
+  info->last_used_table= info->open_tables;
+  
+  for (file=info->open_tables ; file != info->end_table ; file++)
+  {
+    int error;
+    if ((error= mi_reset(file->table)))
+      save_error=error;
+  }
+  DBUG_RETURN(save_error);
 }

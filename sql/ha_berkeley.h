@@ -90,7 +90,7 @@ class ha_berkeley: public handler
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   const char *index_type(uint key_number) { return "BTREE"; }
   const char **bas_ext() const;
-  ulong table_flags(void) const { return int_table_flags; }
+  ulonglong table_flags(void) const { return int_table_flags; }
   uint max_supported_keys()        const { return MAX_KEY-1; }
   uint extra_rec_buf_length() const { return BDB_HIDDEN_PRIMARY_KEY_LENGTH; }
   ha_rows estimate_rows_upper_bound();
@@ -98,7 +98,6 @@ class ha_berkeley: public handler
   uint max_supported_key_part_length() const { return UINT_MAX32; }
 
   const key_map *keys_to_use_for_scanning() { return &key_map_full; }
-  bool has_transactions()  { return 1;}
 
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);

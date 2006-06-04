@@ -37,9 +37,10 @@ enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
-
-enum enum_check_fields { CHECK_FIELD_IGNORE, CHECK_FIELD_WARN,
-			 CHECK_FIELD_ERROR_FOR_NULL };
+enum enum_check_fields
+{ CHECK_FIELD_IGNORE, CHECK_FIELD_WARN, CHECK_FIELD_ERROR_FOR_NULL };
+enum enum_mark_columns
+{ MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 
 extern char internal_table_name[2];
 extern const char **errmesg;
@@ -465,17 +466,17 @@ public:
    ulong id;
 
   /*
-    - if set_query_id=1, we set field->query_id for all fields. In that case 
-    field list can not contain duplicates.
-    0: Means query_id is not set and no indicator to handler of fields used
-       is set
-    1: Means query_id is set for fields in list and bit in read set is set
-       to inform handler of that field is to be read
-    2: Means query is set for fields in list and bit is set in update set
-       to inform handler that it needs to update this field in write_row
-       and update_row
+    MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
+                        handler of fields used is set
+    MARK_COLUMNS_READ:  Means a bit in read set is set to inform handler
+	                that the field is to be read. If field list contains
+                        duplicates, then thd->dup_field is set to point
+                        to the last found duplicate.
+    MARK_COLUMNS_WRITE: Means a bit is set in write set to inform handler
+			that it needs to update this field in write_row
+                        and update_row.
   */
-  ulong set_query_id;
+  enum enum_mark_columns mark_used_columns;
 
   LEX_STRING name; /* name for named prepared statements */
   LEX *lex;                                     // parse tree descriptor
@@ -1012,7 +1013,7 @@ public:
 #endif
     }
   } transaction;
-  Field      *dupp_field;
+  Field      *dup_field;
 #ifndef __WIN__
   sigset_t signals,block_signals;
 #endif
@@ -1391,7 +1392,8 @@ public:
   }
   inline void reset_current_stmt_binlog_row_based()
   {
-    current_stmt_binlog_row_based= test(variables.binlog_format == BINLOG_FORMAT_ROW);
+    current_stmt_binlog_row_based= test(variables.binlog_format ==
+                                        BINLOG_FORMAT_ROW);
   }
 };
 
@@ -1557,6 +1559,7 @@ class select_insert :public select_result_interceptor {
   int prepare2(void);
   bool send_data(List<Item> &items);
   virtual void store_values(List<Item> &values);
+  virtual bool can_rollback_data() { return 0; }
   void send_error(uint errcode,const char *err);
   bool send_eof();
   /* not implemented: select_insert is never re-used in prepared statements */
@@ -1578,17 +1581,19 @@ public:
 		 List<create_field> &fields_par,
 		 List<Key> &keys_par,
 		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
-    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore), create_table(table),
-    extra_fields(&fields_par),keys(&keys_par), create_info(create_info_par),
+    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore),
+    create_table(table), extra_fields(&fields_par),keys(&keys_par),
+    create_info(create_info_par),
     lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  
   void binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
   void abort();
+  virtual bool can_rollback_data() { return 1; }
+
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
   THD *get_thd(void) { return thd; }
 };

@@ -29,7 +29,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
 
 /* Return 0 if row hasn't changed */
 
-static bool compare_record(TABLE *table, query_id_t query_id)
+static bool compare_record(TABLE *table)
 {
   if (table->s->blob_fields + table->s->varchar_fields == 0)
     return cmp_record(table,record[1]);
@@ -39,9 +39,9 @@ static bool compare_record(TABLE *table, query_id_t query_id)
 	     table->s->null_bytes))
     return TRUE;				// Diff in NULL value
   /* Compare updated fields */
-  for (Field **ptr=table->field ; *ptr ; ptr++)
+  for (Field **ptr= table->field ; *ptr ; ptr++)
   {
-    if ((*ptr)->query_id == query_id &&
+    if (bitmap_is_set(table->write_set, (*ptr)->field_index) &&
 	(*ptr)->cmp_binary_offset(table->s->rec_buff_length))
       return TRUE;
   }
@@ -120,6 +120,7 @@ int mysql_update(THD *thd,
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, will_batch;
+  bool		can_compare_record;
   int           res;
   int		error, loc_error;
   uint		used_index= MAX_KEY, dup_key_found;
@@ -128,7 +129,6 @@ int mysql_update(THD *thd,
   uint		want_privilege;
 #endif
   uint          table_count= 0;
-  query_id_t	query_id=thd->query_id, timestamp_query_id;
   ha_rows	updated, found;
   key_map	old_used_keys;
   TABLE		*table;
@@ -137,8 +137,6 @@ int mysql_update(THD *thd,
   SELECT_LEX    *select_lex= &thd->lex->select_lex;
   bool need_reopen;
   DBUG_ENTER("mysql_update");
-
-  LINT_INIT(timestamp_query_id);
 
   for ( ; ; )
   {
@@ -181,26 +179,12 @@ int mysql_update(THD *thd,
     DBUG_RETURN(1);
 
   old_used_keys= table->used_keys;		// Keys used in WHERE
-  /*
-    Change the query_id for the timestamp column so that we can
-    check if this is modified directly
-  */
-  if (table->timestamp_field)
-  {
-    timestamp_query_id=table->timestamp_field->query_id;
-    table->timestamp_field->query_id=thd->query_id-1;
-  }
-
   /* Check the fields we are going to modify */
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
   table_list->register_want_access(want_privilege);
 #endif
-  /*
-    Indicate that the set of fields is to be updated by passing 2 for
-    set_query_id.
-  */
-  if (setup_fields_with_no_wrap(thd, 0, fields, 2, 0, 0))
+  if (setup_fields_with_no_wrap(thd, 0, fields, MARK_COLUMNS_WRITE, 0, 0))
     DBUG_RETURN(1);                     /* purecov: inspected */
   if (table_list->view && check_fields(thd, fields))
   {
@@ -214,12 +198,13 @@ int mysql_update(THD *thd,
   if (table->timestamp_field)
   {
     // Don't set timestamp column if this is modified
-    if (table->timestamp_field->query_id == thd->query_id)
+    if (bitmap_is_set(table->write_set,
+                      table->timestamp_field->field_index))
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
     {
-      table->timestamp_field->query_id=timestamp_query_id;
-      table->file->ha_set_bit_in_write_set(table->timestamp_field->fieldnr);
+      bitmap_set_bit(table->write_set,
+                     table->timestamp_field->field_index);
     }
   }
 
@@ -228,7 +213,7 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege=
     (SELECT_ACL & ~table->grant.privilege);
 #endif
-  if (setup_fields(thd, 0, values, 1, 0, 0))
+  if (setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0))
   {
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(1);				/* purecov: inspected */
@@ -252,7 +237,7 @@ int mysql_update(THD *thd,
     DBUG_RETURN(0);
   }
 #endif
-  /* Update the table->file->records number */
+  /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   select= make_select(table, 0, 0, conds, 0, &error);
@@ -313,19 +298,23 @@ int mysql_update(THD *thd,
       We can't update table directly;  We must first search after all
       matching rows before updating the table!
     */
-    table->file->ha_retrieve_all_cols();
     if (used_index < MAX_KEY && old_used_keys.is_set(used_index))
     {
       table->key_read=1;
-      table->file->extra(HA_EXTRA_KEYREAD);
+      table->mark_columns_used_by_index(used_index);
+    }
+    else
+    {
+      table->use_all_columns();
     }
 
-    /* note: can actually avoid sorting below.. */
+    /* note: We avoid sorting avoid if we sort on the used index */
     if (order && (need_sort || used_key_is_modified))
     {
       /*
 	Doing an ORDER BY;  Let filesort find and sort the rows we are going
 	to update
+        NOTE: filesort will call table->prepare_for_position()
       */
       uint         length;
       SORT_FIELD  *sortorder;
@@ -334,12 +323,11 @@ int mysql_update(THD *thd,
       table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
 						    MYF(MY_FAE | MY_ZEROFILL));
       if (!(sortorder=make_unireg_sortorder(order, &length)) ||
-          (table->sort.found_records = filesort(thd, table, sortorder, length,
-						select, limit,
-						&examined_rows))
+          (table->sort.found_records= filesort(thd, table, sortorder, length,
+                                               select, limit, 1,
+                                               &examined_rows))
           == HA_POS_ERROR)
       {
-	free_io_cache(table);
 	goto err;
       }
       /*
@@ -365,6 +353,7 @@ int mysql_update(THD *thd,
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
         goto err;
+      table->file->try_semi_consistent_read(1);
 
       /*
         When we get here, we have one of the following options:
@@ -376,11 +365,6 @@ int mysql_update(THD *thd,
            B.2 quick select is not used, this is full index scan (with LIMIT)
                Full index scan must be started with init_read_record_idx
       */
-      /* If quick select is used, initialize it before retrieving rows. */
-      if (select && select->quick && select->quick->reset())
-        goto err;
-
-      table->file->try_semi_consistent_read(1);
 
       if (used_index == MAX_KEY || (select && select->quick))
         init_read_record(&info,thd,table,select,0,1);
@@ -440,17 +424,14 @@ int mysql_update(THD *thd,
 	goto err;
     }
     if (table->key_read)
-    {
-      table->key_read=0;
-      table->file->extra(HA_EXTRA_NO_KEYREAD);
-    }
+      table->restore_column_maps_after_mark_index();
   }
 
   if (ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   
   if (select && select->quick && select->quick->reset())
-        goto err;
+    goto err;
   table->file->try_semi_consistent_read(1);
   init_read_record(&info,thd,table,select,0,1);
 
@@ -458,7 +439,6 @@ int mysql_update(THD *thd,
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
   thd->proc_info="Updating";
-  query_id=thd->query_id;
 
   transactional_table= table->file->has_transactions();
   thd->no_trans_update= 0;
@@ -468,12 +448,23 @@ int mysql_update(THD *thd,
                                 MODE_STRICT_ALL_TABLES)));
   will_batch= !table->file->start_bulk_update();
 
+  table->mark_columns_needed_for_update();
+
+  /*
+    We can use compare_record() to optimize away updates if
+    the table handler is returning all columns OR if
+    if all updated columns are read
+  */
+  can_compare_record= (!(table->file->ha_table_flags() &
+                         HA_PARTIAL_COLUMN_READ) ||
+                       bitmap_is_subset(table->write_set, table->read_set));
+                       
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     if (!(select && select->skip_record()))
     {
       if (table->file->was_semi_consistent_read())
-	    continue;  /* repeat the read of the same row if it still exists */
+        continue;  /* repeat the read of the same row if it still exists */
 
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd, fields, values, 0,
@@ -483,7 +474,7 @@ int mysql_update(THD *thd,
 
       found++;
 
-      if (compare_record(table, query_id))
+      if (!can_compare_record || compare_record(table))
       {
         if ((res= table_list->view_check_option(thd, ignore)) !=
             VIEW_CHECK_OK)
@@ -632,7 +623,6 @@ int mysql_update(THD *thd,
     table->file->end_bulk_update();
   table->file->try_semi_consistent_read(0);
   end_read_record(&info);
-  free_io_cache(table);				// If ORDER BY
   delete select;
   thd->proc_info= "end";
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
@@ -698,7 +688,6 @@ int mysql_update(THD *thd,
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
   thd->abort_on_warning= 0;
-  free_io_cache(table);
   DBUG_RETURN((error >= 0 || thd->net.report_error) ? 1 : 0);
 
 err:
@@ -749,8 +738,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   thd->lex->allow_sum_func= 0;
 
   if (setup_tables(thd, &select_lex->context, &select_lex->top_join_list,
-                   table_list, conds, &select_lex->leaf_tables,
-                   FALSE) ||
+                   table_list, &select_lex->leaf_tables, FALSE) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       select_lex->setup_ref_array(thd, order_num) ||
       setup_order(thd, select_lex->ref_pointer_array,
@@ -843,11 +831,10 @@ reopen_tables:
 
   if (setup_tables(thd, &lex->select_lex.context,
                    &lex->select_lex.top_join_list,
-                   table_list, &lex->select_lex.where,
-                   &lex->select_lex.leaf_tables, FALSE))
+                   table_list, &lex->select_lex.leaf_tables, FALSE))
     DBUG_RETURN(TRUE);
 
-  if (setup_fields_with_no_wrap(thd, 0, *fields, 2, 0, 0))
+  if (setup_fields_with_no_wrap(thd, 0, *fields, MARK_COLUMNS_WRITE, 0, 0))
     DBUG_RETURN(TRUE);
 
   for (tl= table_list; tl ; tl= tl->next_local)
@@ -875,7 +862,8 @@ reopen_tables:
     TABLE *table= tl->table;
     /* Only set timestamp column if this is not modified */
     if (table->timestamp_field &&
-        table->timestamp_field->query_id == thd->query_id)
+        bitmap_is_set(table->write_set,
+                      table->timestamp_field->field_index))
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     /* if table will be updated then check that it is unique */
@@ -887,6 +875,7 @@ reopen_tables:
         DBUG_RETURN(TRUE);
       }
 
+      table->mark_columns_needed_for_update();
       DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
       /*
         If table will be updated we should not downgrade lock for it and
@@ -1088,7 +1077,7 @@ int multi_update::prepare(List<Item> &not_used_values,
     reference tables
   */
 
-  if (setup_fields(thd, 0, *values, 1, 0, 0))
+  if (setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0))
     DBUG_RETURN(1);
 
   /*
@@ -1207,7 +1196,9 @@ multi_update::initialize_tables(JOIN *join)
     Item_field *ifield;
     List<Item> temp_fields= *fields_for_table[cnt];
     ORDER     group;
+    TMP_TABLE_PARAM *tmp_param;
 
+    table->mark_columns_needed_for_update();
     if (table == main_table)			// First table in join
     {
       if (safe_update_on_fly(join->join_tab, &temp_fields))
@@ -1216,9 +1207,9 @@ multi_update::initialize_tables(JOIN *join)
 	continue;
       }
     }
+    table->prepare_for_position();
 
-    TMP_TABLE_PARAM *tmp_param= tmp_table_param+cnt;
-
+    tmp_param= tmp_table_param+cnt;
     /*
       Create a temporary table to store all fields that are changed for this
       table. The first field in the temporary table is a pointer to the
@@ -1313,7 +1304,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
              !(table->triggers &&
                table->triggers->has_before_update_triggers());
     /* If scanning in clustered key */
-    if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
+    if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->s->primary_key < MAX_KEY)
       return !check_if_key_used(table, table->s->primary_key, *fields) &&
              !(table->triggers &&
@@ -1359,6 +1350,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
     TABLE *table= cur_table->table;
+    uint offset= cur_table->shared;
     /*
       Check if we are using outer join and we didn't find the row
       or if we have already updated this row in the previous call to this
@@ -1374,10 +1366,18 @@ bool multi_update::send_data(List<Item> &not_used_values)
     if (table->status & (STATUS_NULL_ROW | STATUS_UPDATED))
       continue;
 
-    uint offset= cur_table->shared;
-    table->file->position(table->record[0]);
+    /*
+      We can use compare_record() to optimize away updates if
+      the table handler is returning all columns OR if
+      if all updated columns are read
+    */
     if (table == table_to_update)
     {
+      bool can_compare_record;
+      can_compare_record= (!(table->file->ha_table_flags() &
+                             HA_PARTIAL_COLUMN_READ) ||
+                           bitmap_is_subset(table->write_set,
+                                            table->read_set));
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd, *fields_for_table[offset],
@@ -1387,7 +1387,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	DBUG_RETURN(1);
 
       found++;
-      if (compare_record(table, thd->query_id))
+      if (!can_compare_record || compare_record(table))
       {
 	int error;
         if ((error= cur_table->view_check_option(thd, ignore)) !=
@@ -1439,6 +1439,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       int error;
       TABLE *tmp_table= tmp_tables[offset];
+      table->file->position(table->record[0]);
       fill_record(thd, tmp_table->field+1, *values_for_table[offset], 1);
       /* Store pointer to row */
       memcpy((char*) tmp_table->field[0]->ptr,
@@ -1504,6 +1505,7 @@ int multi_update::do_updates(bool from_send_error)
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
     byte *ref_pos;
+    bool can_compare_record;
 
     table = cur_table->table;
     if (table == table_to_update)
@@ -1529,6 +1531,11 @@ int multi_update::do_updates(bool from_send_error)
 
     if ((local_error = tmp_table->file->ha_rnd_init(1)))
       goto err;
+
+    can_compare_record= (!(table->file->ha_table_flags() &
+                           HA_PARTIAL_COLUMN_READ) ||
+                         bitmap_is_subset(table->write_set,
+                                          table->read_set));
 
     ref_pos= (byte*) tmp_table->field[0]->ptr;
     for (;;)
@@ -1559,7 +1566,7 @@ int multi_update::do_updates(bool from_send_error)
                                             TRG_ACTION_BEFORE, TRUE))
         goto err2;
 
-      if (compare_record(table, thd->query_id))
+      if (!can_compare_record || compare_record(table))
       {
 	if ((local_error=table->file->ha_update_row(table->record[1],
 						    table->record[0])))

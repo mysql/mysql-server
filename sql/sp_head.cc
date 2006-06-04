@@ -3443,7 +3443,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   table->table_name= thd->strmake(name, table->table_name_length);
   table->alias= thd->strdup(name);
   table->lock_type= locktype;
-  table->select_lex= lex->current_select; // QQ?
+  table->select_lex= lex->current_select;
   table->cacheable_table= 1;
   
   lex->add_to_query_tables(table);
