@@ -469,7 +469,7 @@ int main(int argc, char *argv[])
 #endif
 
   printf("- Read through all records with scan\n");
-  if (heap_extra(file,HA_EXTRA_RESET) || heap_extra(file,HA_EXTRA_CACHE))
+  if (heap_reset(file) || heap_extra(file,HA_EXTRA_CACHE))
   {
     puts("got error from heap_extra");
     goto end;

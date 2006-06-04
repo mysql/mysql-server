@@ -49,14 +49,18 @@
 
 /* Bits in table_flags() to show what database can do */
 
-/*
-  Can switch index during the scan with ::rnd_same() - not used yet.
-  see mi_rsame/heap_rsame/myrg_rsame
-*/
-#define HA_READ_RND_SAME       (1 << 0)
+#define HA_NO_TRANSACTIONS     (1 << 0) /* Doesn't support transactions */
+#define HA_PARTIAL_COLUMN_READ (1 << 1) /* read may not return all columns */
 #define HA_TABLE_SCAN_ON_INDEX (1 << 2) /* No separate data/index file */
-#define HA_REC_NOT_IN_SEQ      (1 << 3) /* ha_info don't return recnumber;
-                                           It returns a position to ha_r_rnd */
+/*
+  The following should be set if the following is not true when scanning
+  a table with rnd_next()
+  - We will see all rows (including deleted ones)
+  - Row positions are 'table->s->db_record_offset' apart
+  If this flag is not set, filesort will do a postion() call for each matched
+  row to be able to find the row later.
+*/
+#define HA_REC_NOT_IN_SEQ      (1 << 3)
 #define HA_CAN_GEOMETRY        (1 << 4)
 /*
   Reading keys in random order is as fast as reading keys in sort order
@@ -64,28 +68,41 @@
   filesort to decide if we should sort key + data or key + pointer-to-row
 */
 #define HA_FAST_KEY_READ       (1 << 5)
+/*
+  Set the following flag if we on delete should force all key to be read
+  and on update read all keys that changes
+*/
+#define HA_REQUIRES_KEY_COLUMNS_FOR_DELETE (1 << 6)
 #define HA_NULL_IN_KEY         (1 << 7) /* One can have keys with NULL */
-#define HA_DUPP_POS            (1 << 8) /* ha_position() gives dup row */
+#define HA_DUPLICATE_POS       (1 << 8)    /* ha_position() gives dup row */
 #define HA_NO_BLOBS            (1 << 9) /* Doesn't support blobs */
 #define HA_CAN_INDEX_BLOBS     (1 << 10)
 #define HA_AUTO_PART_KEY       (1 << 11) /* auto-increment in multi-part key */
 #define HA_REQUIRE_PRIMARY_KEY (1 << 12) /* .. and can't create a hidden one */
-#define HA_NOT_EXACT_COUNT     (1 << 13)
+#define HA_STATS_RECORDS_IS_EXACT (1 << 13) /* stats.records is exact */
 /*
   INSERT_DELAYED only works with handlers that uses MySQL internal table
   level locks
 */
 #define HA_CAN_INSERT_DELAYED  (1 << 14)
+/*
+  If we get the primary key columns for free when we do an index read
+  It also implies that we have to retrive the primary key when using
+  position() and rnd_pos().
+*/
 #define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
 /*
-  If HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS is set, it means that the engine can
-  do this: the position of an arbitrary record can be retrieved using
-  position() when the table has a primary key, effectively allowing random
-  access on the table based on a given record.
+  If HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is set, it means that to position()
+  uses a primary key. Without primary key, we can't call position().
 */ 
-#define HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS (1 << 16) 
+#define HA_PRIMARY_KEY_REQUIRED_FOR_POSITION (1 << 16) 
 #define HA_CAN_RTREEKEYS       (1 << 17)
 #define HA_NOT_DELETE_WITH_CACHE (1 << 18)
+/*
+  The following is we need to a primary key to delete (and update) a row.
+  If there is no primary key, all columns needs to be read on update and delete
+*/
+#define HA_PRIMARY_KEY_REQUIRED_FOR_DELETE (1 << 19)
 #define HA_NO_PREFIX_CHAR_KEYS (1 << 20)
 #define HA_CAN_FULLTEXT        (1 << 21)
 #define HA_CAN_SQL_HANDLER     (1 << 22)
@@ -97,7 +114,8 @@
 #define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
 #define HA_NEED_READ_RANGE_BUFFER (1 << 29) /* for read_multi_range */
 #define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
-#define HA_NO_COPY_ON_ALTER    (1 << 31)
+#define HA_NO_COPY_ON_ALTER    (LL(1) << 31)
+#define HA_HAS_RECORDS	       (LL(1) << 32) /* records() gives exact count*/
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -241,7 +259,7 @@ enum legacy_db_type
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
-		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT };
+		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_PAGES };
 
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
@@ -608,7 +626,7 @@ struct handlerton
    void *(*create_cursor_read_view)();
    void (*set_cursor_read_view)(void *);
    void (*close_cursor_read_view)(void *);
-   handler *(*create)(TABLE_SHARE *table);
+   handler *(*create)(TABLE_SHARE *table, MEM_ROOT *mem_root);
    void (*drop_database)(char* path);
    int (*panic)(enum ha_panic_function flag);
    int (*start_consistent_snapshot)(THD *thd);
@@ -807,11 +825,37 @@ typedef struct st_handler_buffer
 
 typedef struct system_status_var SSV;
 
+class ha_statistics
+{
+public:
+  ulonglong data_file_length;		/* Length off data file */
+  ulonglong max_data_file_length;	/* Length off data file */
+  ulonglong index_file_length;
+  ulonglong max_index_file_length;
+  ulonglong delete_length;		/* Free bytes */
+  ulonglong auto_increment_value;
+  ha_rows records;			/* Estimated records in table */
+  ha_rows deleted;			/* Deleted records */
+  ulong mean_rec_length;		/* physical reclength */
+  time_t create_time;			/* When table was created */
+  time_t check_time;
+  time_t update_time;
+  uint block_size;			/* index block size */
+
+  ha_statistics():
+    data_file_length(0), max_data_file_length(0),
+    index_file_length(0), delete_length(0), auto_increment_value(0),
+    records(0), deleted(0), mean_rec_length(0), create_time(0),
+    check_time(0), update_time(0), block_size(0)
+  {}
+};
+
 /*
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
   changing virtual functions to avoid vtable confusion
  */
+
 class handler :public Sql_alloc
 {
   friend class ha_partition;
@@ -819,6 +863,7 @@ class handler :public Sql_alloc
  protected:
   struct st_table_share *table_share;   /* The table definition */
   struct st_table *table;               /* The current open table */
+  ulonglong cached_table_flags;         /* Set on init() and open() */
 
   virtual int index_init(uint idx, bool sorted) { active_index=idx; return 0; }
   virtual int index_end() { active_index=MAX_KEY; return 0; }
@@ -831,31 +876,18 @@ class handler :public Sql_alloc
   */
   virtual int rnd_init(bool scan) =0;
   virtual int rnd_end() { return 0; }
-
+  virtual ulonglong table_flags(void) const =0;
   void ha_statistic_increment(ulong SSV::*offset) const;
 
-
-private:
-  virtual int reset() { return extra(HA_EXTRA_RESET); }
   ha_rows estimation_rows_to_insert;
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() {return 0; }
 public:
   const handlerton *ht;                 /* storage engine of this handler */
   byte *ref;				/* Pointer to current row */
-  byte *dupp_ref;			/* Pointer to dupp row */
-  ulonglong data_file_length;		/* Length off data file */
-  ulonglong max_data_file_length;	/* Length off data file */
-  ulonglong index_file_length;
-  ulonglong max_index_file_length;
-  ulonglong delete_length;		/* Free bytes */
-  ulonglong auto_increment_value;
-  ha_rows records;			/* Records in table */
-  ha_rows deleted;			/* Deleted records */
-  ulong mean_rec_length;		/* physical reclength */
-  time_t create_time;			/* When table was created */
-  time_t check_time;
-  time_t update_time;
+  byte *dup_ref;			/* Pointer to duplicate row */
+
+  ha_statistics stats;
 
   /* The following are for read_multi_range */
   bool multi_range_sorted;
@@ -870,33 +902,31 @@ public:
   bool eq_range;
 
   uint errkey;				/* Last dup key */
-  uint sortkey, key_used_on_scan;
+  uint key_used_on_scan;
   uint active_index;
   /* Length of ref (1-8 or the clustered key length) */
   uint ref_length;
-  uint block_size;			/* index block size */
   FT_INFO *ft_handler;
   enum {NONE=0, INDEX, RND} inited;
   bool  auto_increment_column_changed;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const COND *pushed_cond;
-  MY_BITMAP *read_set;
-  MY_BITMAP *write_set;
 
   handler(const handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
-    delete_length(0), auto_increment_value(0),
-    records(0), deleted(0), mean_rec_length(0),
-    create_time(0), check_time(0), update_time(0),
-    key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
-    ref_length(sizeof(my_off_t)), block_size(0),
+    ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
+    ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE), implicit_emptied(0),
     pushed_cond(NULL)
     {}
   virtual ~handler(void)
   {
     /* TODO: DBUG_ASSERT(inited == NONE); */
+  }
+  /* This is called after create to allow us to set up cached variables */
+  void init()
+  {
+    cached_table_flags= table_flags();
   }
   /*
     Check whether a handler allows to lock the table.
@@ -925,10 +955,9 @@ public:
   {
     return TRUE;
   }
-  virtual int ha_initialise();
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   bool update_auto_increment();
-  void print_keydupp_error(uint key_nr, const char *msg);
+  void print_keydup_error(uint key_nr, const char *msg);
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
@@ -938,13 +967,19 @@ public:
     table_share= share;
   }
   virtual double scan_time()
-    { return ulonglong2double(data_file_length) / IO_SIZE + 2; }
+  { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
   virtual double read_time(uint index, uint ranges, ha_rows rows)
- { return rows2double(ranges+rows); }
+  { return rows2double(ranges+rows); }
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
-  virtual bool has_transactions(){ return 0;}
+  bool has_transactions()
+  { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
   virtual uint extra_rec_buf_length() const { return 0; }
   
+  /*
+    Number of rows in table. It will only be called if
+    (table_flags() & (HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT)) != 0
+  */
+  virtual ha_rows records() { return stats.records; }
   /*
     Return upper bound of current number of records in the table
     (max. of how many records one will retrieve when doing a full table scan)
@@ -952,7 +987,7 @@ public:
     possible upper bound.
   */
   virtual ha_rows estimate_rows_upper_bound()
-  { return records+EXTRA_RECORDS; }
+  { return stats.records+EXTRA_RECORDS; }
 
   /*
     Get the row type from the storage engine.  If this method returns
@@ -990,139 +1025,23 @@ public:
     inited=NONE;
     DBUG_RETURN(rnd_end());
   }
-  int ha_reset()
-  {
-    DBUG_ENTER("ha_reset");
-    ha_clear_all_set();
-    DBUG_RETURN(reset());
-  }
+  int ha_reset();
     
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
   {
     return inited == INDEX ? ha_index_end() : inited == RND ? ha_rnd_end() : 0;
   }
-  /*
-    These are a set of routines used to enable handlers to only read/write
-    partial lists of the fields in the table. The bit vector is maintained
-    by the server part and is used by the handler at calls to read/write
-    data in the table.
-    It replaces the use of query id's for this purpose. The benefit is that
-    the handler can also set bits in the read/write set if it has special
-    needs and it is also easy for other parts of the server to interact
-    with the handler (e.g. the replication part for row-level logging).
-    The routines are all part of the general handler and are not possible
-    to override by a handler. A handler can however set/reset bits by
-    calling these routines.
+  longlong ha_table_flags() { return cached_table_flags; }
 
-    The methods ha_retrieve_all_cols and ha_retrieve_all_pk are made
-    virtual to handle InnoDB specifics. If InnoDB doesn't need the
-    extra parameters HA_EXTRA_RETRIEVE_ALL_COLS and
-    HA_EXTRA_RETRIEVE_PRIMARY_KEY anymore then these methods need not be
-    virtual anymore.
+  /*
+    Signal that the table->read_set and table->write_set table maps changed
+    The handler is allowed to set additional bits in the above map in this
+    call. Normally the handler should ignore all calls until we have done
+    a ha_rnd_init() or ha_index_init(), write_row(), update_row or delete_row()
+    as there may be several calls to this routine.
   */
-  virtual int ha_retrieve_all_cols();
-  virtual int ha_retrieve_all_pk();
-  void ha_set_all_bits_in_read_set()
-  {
-    DBUG_ENTER("ha_set_all_bits_in_read_set");
-    bitmap_set_all(read_set);
-    DBUG_VOID_RETURN;
-  }
-  void ha_set_all_bits_in_write_set()
-  {
-    DBUG_ENTER("ha_set_all_bits_in_write_set");
-    bitmap_set_all(write_set);
-    DBUG_VOID_RETURN;
-  }
-  void ha_set_bit_in_read_set(uint fieldnr)
-  {
-    DBUG_ENTER("ha_set_bit_in_read_set");
-    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
-    bitmap_set_bit(read_set, fieldnr);
-    DBUG_VOID_RETURN;
-  }
-  void ha_clear_bit_in_read_set(uint fieldnr)
-  {
-    DBUG_ENTER("ha_clear_bit_in_read_set");
-    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
-    bitmap_clear_bit(read_set, fieldnr);
-    DBUG_VOID_RETURN;
-  }
-  void ha_set_bit_in_write_set(uint fieldnr)
-  {
-    DBUG_ENTER("ha_set_bit_in_write_set");
-    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
-    bitmap_set_bit(write_set, fieldnr);
-    DBUG_VOID_RETURN;
-  }
-  void ha_clear_bit_in_write_set(uint fieldnr)
-  {
-    DBUG_ENTER("ha_clear_bit_in_write_set");
-    DBUG_PRINT("info", ("fieldnr = %d", fieldnr));
-    bitmap_clear_bit(write_set, fieldnr);
-    DBUG_VOID_RETURN;
-  }
-  void ha_set_bit_in_rw_set(uint fieldnr, bool write_op)
-  {
-    DBUG_ENTER("ha_set_bit_in_rw_set");
-    DBUG_PRINT("info", ("Set bit %u in read set", fieldnr));
-    bitmap_set_bit(read_set, fieldnr);
-    if (!write_op) {
-      DBUG_VOID_RETURN;
-    }
-    else
-    {
-      DBUG_PRINT("info", ("Set bit %u in read and write set", fieldnr));
-      bitmap_set_bit(write_set, fieldnr);
-    }
-    DBUG_VOID_RETURN;
-  }
-  bool ha_get_bit_in_read_set(uint fieldnr)
-  {
-    bool bit_set=bitmap_is_set(read_set,fieldnr);
-    DBUG_ENTER("ha_get_bit_in_read_set");
-    DBUG_PRINT("info", ("bit %u = %u", fieldnr, bit_set));
-    DBUG_RETURN(bit_set);
-  }
-  bool ha_get_bit_in_write_set(uint fieldnr)
-  {
-    bool bit_set=bitmap_is_set(write_set,fieldnr);
-    DBUG_ENTER("ha_get_bit_in_write_set");
-    DBUG_PRINT("info", ("bit %u = %u", fieldnr, bit_set));
-    DBUG_RETURN(bit_set);
-  }
-  bool ha_get_all_bit_in_read_set()
-  {
-    bool all_bits_set= bitmap_is_set_all(read_set);
-    DBUG_ENTER("ha_get_all_bit_in_read_set");
-    DBUG_PRINT("info", ("all bits set = %u", all_bits_set));
-    DBUG_RETURN(all_bits_set);
-  }
-  bool ha_get_all_bit_in_read_clear()
-  {
-    bool all_bits_set= bitmap_is_clear_all(read_set);
-    DBUG_ENTER("ha_get_all_bit_in_read_clear");
-    DBUG_PRINT("info", ("all bits clear = %u", all_bits_set));
-    DBUG_RETURN(all_bits_set);
-  }
-  bool ha_get_all_bit_in_write_set()
-  {
-    bool all_bits_set= bitmap_is_set_all(write_set);
-    DBUG_ENTER("ha_get_all_bit_in_write_set");
-    DBUG_PRINT("info", ("all bits set = %u", all_bits_set));
-    DBUG_RETURN(all_bits_set);
-  }
-  bool ha_get_all_bit_in_write_clear()
-  {
-    bool all_bits_set= bitmap_is_clear_all(write_set);
-    DBUG_ENTER("ha_get_all_bit_in_write_clear");
-    DBUG_PRINT("info", ("all bits clear = %u", all_bits_set));
-    DBUG_RETURN(all_bits_set);
-  }
-  void ha_set_primary_key_in_read_set();
-  int ha_allocate_read_write_set(ulong no_fields);
-  void ha_clear_all_set();
+  virtual void column_bitmaps_signal();
   uint get_index(void) const { return active_index; }
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
   virtual int close(void)=0;
@@ -1275,6 +1194,13 @@ public:
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
+
+  /*
+    Reset state of file to after 'open'
+    This function is called after every statement for all tables used
+    by that statement.
+  */
+  virtual int reset() { return 0; }
   /*
     In an UPDATE or DELETE, if the row under the cursor was locked by another
     transaction, and the engine used an optimistic read of the last
@@ -1416,7 +1342,6 @@ public:
   /* The following can be called without an open handler */
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
-  virtual ulong table_flags(void) const =0;
 
   virtual int get_default_no_partitions(ulonglong max_rows) { return 1;}
   virtual void set_auto_partitions(partition_info *part_info) { return; }
@@ -1525,7 +1450,6 @@ public:
     false otherwise
  */
  virtual bool primary_key_is_clustered() { return FALSE; }
-
  virtual int cmp_ref(const byte *ref1, const byte *ref2)
  {
    return memcmp(ref1, ref2, ref_length);
@@ -1541,10 +1465,12 @@ public:
      cond_push()
      cond   Condition to be pushed. The condition tree must not be            
      modified by the by the caller.
+
    RETURN
      The 'remainder' condition that caller must use to filter out records.
      NULL means the handler will not return rows that do not match the
      passed condition.
+
    NOTES
    The pushed conditions form a stack (from which one can remove the
    last pushed condition using cond_pop).
@@ -1552,7 +1478,7 @@ public:
    AND ... AND pushed_condN)
    or less restrictive condition, depending on handler's capabilities.
    
-   handler->extra(HA_EXTRA_RESET) call empties the condition stack.
+   handler->ha_reset() call empties the condition stack.
    Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the
    condition stack.
  */ 
@@ -1568,18 +1494,7 @@ public:
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }
 
-private:
-  /*
-    Row-level primitives for storage engines.  These should be
-    overridden by the storage engine class. To call these methods, use
-    the corresponding 'ha_*' method above.
-  */
-  virtual int external_lock(THD *thd __attribute__((unused)),
-                            int lock_type __attribute__((unused)))
-  {
-    return 0;
-  }
-
+ /* These are only called from sql_select for internal temporary tables */
   virtual int write_row(byte *buf __attribute__((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
@@ -1594,6 +1509,24 @@ private:
   virtual int delete_row(const byte *buf __attribute__((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
+  }
+  /*
+    use_hidden_primary_key() is called in case of an update/delete when
+    (table_flags() and HA_PRIMARY_KEY_REQUIRED_FOR_DELETE) is defined
+    but we don't have a primary key
+  */
+  virtual void use_hidden_primary_key();
+
+private:
+  /*
+    Row-level primitives for storage engines.  These should be
+    overridden by the storage engine class. To call these methods, use
+    the corresponding 'ha_*' method above.
+  */
+  virtual int external_lock(THD *thd __attribute__((unused)),
+                            int lock_type __attribute__((unused)))
+  {
+    return 0;
   }
 };
 

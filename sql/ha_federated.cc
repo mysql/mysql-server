@@ -364,7 +364,8 @@ pthread_mutex_t federated_mutex;                // To init the hash
 static int federated_init= FALSE;               // Checking the state of hash
 
 /* Static declaration for handerton */
-static handler *federated_create_handler(TABLE_SHARE *table);
+static handler *federated_create_handler(TABLE_SHARE *table,
+                                         MEM_ROOT *mem_root);
 static int federated_commit(THD *thd, bool all);
 static int federated_rollback(THD *thd, bool all);
 
@@ -372,9 +373,10 @@ static int federated_rollback(THD *thd, bool all);
 
 handlerton federated_hton;
 
-static handler *federated_create_handler(TABLE_SHARE *table)
+static handler *federated_create_handler(TABLE_SHARE *table,
+                                         MEM_ROOT *mem_root)
 {
-  return new ha_federated(table);
+  return new (mem_root) ha_federated(table);
 }
 
 
@@ -765,6 +767,7 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
 {
   ulong *lengths;
   Field **field;
+  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   DBUG_ENTER("ha_federated::convert_row_to_internal_format");
 
   lengths= mysql_fetch_lengths(stored_result);
@@ -783,12 +786,15 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
       (*field)->set_null();
     else
     {
-      (*field)->set_notnull();
-      (*field)->store(*row, *lengths, &my_charset_bin);
+      if (bitmap_is_set(table->read_set, (*field)->field_index))
+      {
+        (*field)->set_notnull();
+        (*field)->store(*row, *lengths, &my_charset_bin);
+      }
     }
     (*field)->move_field_offset(-old_ptr);
   }
-
+  dbug_tmp_restore_column_map(table->write_set, old_map);
   DBUG_RETURN(0);
 }
 
@@ -1107,22 +1113,25 @@ bool ha_federated::create_where_from_key(String *to,
                                          KEY *key_info,
                                          const key_range *start_key,
                                          const key_range *end_key,
-                                         bool records_in_range)
+                                         bool records_in_range,
+                                         bool eq_range)
 {
-  bool both_not_null= 
+  bool both_not_null=
     (start_key != NULL && end_key != NULL) ? TRUE : FALSE;
   const byte *ptr;
   uint remainder, length;
   char tmpbuff[FEDERATED_QUERY_BUFFER_SIZE];
   String tmp(tmpbuff, sizeof(tmpbuff), system_charset_info);
   const key_range *ranges[2]= { start_key, end_key };
+  my_bitmap_map *old_map;
   DBUG_ENTER("ha_federated::create_where_from_key");
 
   tmp.length(0); 
   if (start_key == NULL && end_key == NULL)
     DBUG_RETURN(1);
 
-  for (int i= 0; i <= 1; i++)
+  old_map= dbug_tmp_use_all_columns(table, table->write_set);
+  for (uint i= 0; i <= 1; i++)
   {
     bool needs_quotes;
     KEY_PART_INFO *key_part;
@@ -1156,16 +1165,16 @@ bool ha_federated::create_where_from_key(String *to,
         {
           if (emit_key_part_name(&tmp, key_part) ||
               tmp.append(FEDERATED_ISNULL))
-            DBUG_RETURN(1);
+            goto err;
           continue;
         }
       }
 
       if (tmp.append(FEDERATED_OPENPAREN))
-        DBUG_RETURN(1);
+        goto err;
 
-      switch(ranges[i]->flag) {
-      case(HA_READ_KEY_EXACT):
+      switch (ranges[i]->flag) {
+      case HA_READ_KEY_EXACT:
         DBUG_PRINT("info", ("federated HA_READ_KEY_EXACT %d", i));
         if (store_length >= length ||
             !needs_quotes ||
@@ -1173,22 +1182,22 @@ bool ha_federated::create_where_from_key(String *to,
             field->result_type() != STRING_RESULT)
         {
           if (emit_key_part_name(&tmp, key_part))
-            DBUG_RETURN(1);
+            goto err;
 
           if (records_in_range)
           {
             if (tmp.append(FEDERATED_GE))
-              DBUG_RETURN(1);
+              goto err;
           }
           else
           {
             if (tmp.append(FEDERATED_EQ))
-              DBUG_RETURN(1);
+              goto err;
           }
 
           if (emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
                                     part_length))
-            DBUG_RETURN(1);
+            goto err;
         }
         else
         {
@@ -1197,43 +1206,49 @@ bool ha_federated::create_where_from_key(String *to,
               tmp.append(FEDERATED_LIKE) ||
               emit_key_part_element(&tmp, key_part, needs_quotes, 1, ptr,
                                     part_length))
-            DBUG_RETURN(1);
+            goto err;
         }
         break;
-      case(HA_READ_AFTER_KEY):
+      case HA_READ_AFTER_KEY:
+        if (eq_range)
+        {
+          if (tmp.append("1=1"))                // Dummy
+            goto err;
+          break;
+        }
         DBUG_PRINT("info", ("federated HA_READ_AFTER_KEY %d", i));
         if (store_length >= length) /* end key */
         {
           if (emit_key_part_name(&tmp, key_part))
-            DBUG_RETURN(1);
+            goto err;
 
           if (i > 0) /* end key */
           {
             if (tmp.append(FEDERATED_LE))
-              DBUG_RETURN(1);
+              goto err;
           }
           else /* start key */
           {
             if (tmp.append(FEDERATED_GT))
-              DBUG_RETURN(1);
+              goto err;
           }
 
           if (emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
                                     part_length))
           {
-            DBUG_RETURN(1);
+            goto err;
           }
           break;
         }
-      case(HA_READ_KEY_OR_NEXT):
+      case HA_READ_KEY_OR_NEXT:
         DBUG_PRINT("info", ("federated HA_READ_KEY_OR_NEXT %d", i));
         if (emit_key_part_name(&tmp, key_part) ||
             tmp.append(FEDERATED_GE) ||
             emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
               part_length))
-          DBUG_RETURN(1);
+          goto err;
         break;
-      case(HA_READ_BEFORE_KEY):
+      case HA_READ_BEFORE_KEY:
         DBUG_PRINT("info", ("federated HA_READ_BEFORE_KEY %d", i));
         if (store_length >= length)
         {
@@ -1241,23 +1256,23 @@ bool ha_federated::create_where_from_key(String *to,
               tmp.append(FEDERATED_LT) ||
               emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
                                     part_length))
-            DBUG_RETURN(1);
+            goto err;
           break;
         }
-      case(HA_READ_KEY_OR_PREV):
+      case HA_READ_KEY_OR_PREV:
         DBUG_PRINT("info", ("federated HA_READ_KEY_OR_PREV %d", i));
         if (emit_key_part_name(&tmp, key_part) ||
             tmp.append(FEDERATED_LE) ||
             emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
                                   part_length))
-          DBUG_RETURN(1);
+          goto err;
         break;
       default:
         DBUG_PRINT("info",("cannot handle flag %d", ranges[i]->flag));
-        DBUG_RETURN(1);
+        goto err;
       }
       if (tmp.append(FEDERATED_CLOSEPAREN))
-        DBUG_RETURN(1);
+        goto err;
 
 next_loop:
       if (store_length >= length)
@@ -1267,13 +1282,15 @@ next_loop:
       length-= store_length;
       ptr+= store_length;
       if (tmp.append(FEDERATED_AND))
-        DBUG_RETURN(1);
+        goto err;
 
       DBUG_PRINT("info",
                  ("create_where_from_key WHERE clause: %s",
                   tmp.c_ptr_quick()));
     }
   }
+  dbug_tmp_restore_column_map(table->write_set, old_map);
+
   if (both_not_null)
     if (tmp.append(FEDERATED_CLOSEPAREN))
       DBUG_RETURN(1);
@@ -1285,6 +1302,10 @@ next_loop:
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);
+
+err:
+  dbug_tmp_restore_column_map(table->write_set, old_map);
+  DBUG_RETURN(1);
 }
 
 /*
@@ -1324,7 +1345,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
       query.append(FEDERATED_BTICK);
       query.append(FEDERATED_COMMA);
     }
-    query.length(query.length()- (FEDERATED_COMMA_LEN - 1));
+    query.length(query.length()- FEDERATED_COMMA_LEN);
     query.append(FEDERATED_FROM);
     query.append(FEDERATED_BTICK);
 
@@ -1575,15 +1596,16 @@ int ha_federated::write_row(byte *buf)
   String insert_field_value_string(insert_field_value_buffer,
                                    sizeof(insert_field_value_buffer),
                                    &my_charset_bin);
-  values_string.length(0);
-  insert_string.length(0);
-  insert_field_value_string.length(0);
+  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
   DBUG_ENTER("ha_federated::write_row");
   DBUG_PRINT("info",
              ("table charset name %s csname %s",
               table->s->table_charset->name,
               table->s->table_charset->csname));
 
+  values_string.length(0);
+  insert_string.length(0);
+  insert_field_value_string.length(0);
   statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
@@ -1610,7 +1632,7 @@ int ha_federated::write_row(byte *buf)
   for (field= table->field; *field; field++)
   {
     /* if there is a query id and if it's equal to the current query id */
-    if (ha_get_bit_in_write_set((*field)->fieldnr))
+    if (bitmap_is_set(table->write_set, (*field)->field_index))
     {
       /*
         There are some fields. This will be used later to determine
@@ -1635,21 +1657,16 @@ int ha_federated::write_row(byte *buf)
 
       /* append commas between both fields and fieldnames */
       /*
-        unfortunately, we can't use the logic
-        if *(fields + 1) to make the following
-        appends conditional because we may not append
-        if the next field doesn't match the condition:
-        (((*field)->query_id && (*field)->query_id == current_query_id)
+        unfortunately, we can't use the logic if *(fields + 1) to
+        make the following appends conditional as we don't know if the
+        next field is in the write set
       */
       insert_string.append(FEDERATED_COMMA);
       values_string.append(FEDERATED_COMMA);
     }
   }
+  dbug_tmp_restore_column_map(table->read_set, old_map);
 
-  /*
-    remove trailing comma
-  */
-  insert_string.length(insert_string.length() - strlen(FEDERATED_COMMA));
   /*
     if there were no fields, we don't want to add a closing paren
     AND, we don't want to chop off the last char '('
@@ -1658,9 +1675,13 @@ int ha_federated::write_row(byte *buf)
   if (has_fields)
   {
     /* chops off leading commas */
-    values_string.length(values_string.length() - strlen(FEDERATED_COMMA));
+    insert_string.length(insert_string.length() - FEDERATED_COMMA_LEN);
+    values_string.length(values_string.length() - FEDERATED_COMMA_LEN);
     insert_string.append(FEDERATED_CLOSEPAREN);
   }
+  else
+    insert_string.length(insert_string.length() - FEDERATED_CLOSEPAREN_LEN);
+
   /* we always want to append this, even if there aren't any fields */
   values_string.append(FEDERATED_CLOSEPAREN);
 
@@ -1674,8 +1695,8 @@ int ha_federated::write_row(byte *buf)
     DBUG_RETURN(stash_remote_error());
   }
   /*
-    If the table we've just written a record to contains an auto_increment field,
-    then store the last_insert_id() value from the foreign server
+    If the table we've just written a record to contains an auto_increment
+    field, then store the last_insert_id() value from the foreign server
   */
   if (table->next_number_field)
     update_auto_increment();
@@ -1697,7 +1718,7 @@ void ha_federated::update_auto_increment(void)
   DBUG_ENTER("ha_federated::update_auto_increment");
 
   thd->insert_id(mysql->last_used_con->insert_id);
-  DBUG_PRINT("info",("last_insert_id %d", auto_increment_value));
+  DBUG_PRINT("info",("last_insert_id %d", stats.auto_increment_value));
 
   DBUG_VOID_RETURN;
 }
@@ -1785,7 +1806,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
     this? Because we only are updating one record, and LIMIT enforces
     this.
   */
-  bool has_a_primary_key= (table->s->primary_key == 0 ? TRUE : FALSE);
+  bool has_a_primary_key= test(table->s->primary_key != MAX_KEY);
   /* 
     buffers for following strings
   */
@@ -1837,48 +1858,52 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
 
   for (Field **field= table->field; *field; field++)
   {
-    where_string.append((*field)->field_name);
-    update_string.append((*field)->field_name);
-    update_string.append(FEDERATED_EQ);
-
-    if ((*field)->is_null())
-      new_field_value.append(FEDERATED_NULL);
-    else
+    if (bitmap_is_set(table->write_set, (*field)->field_index))
     {
-      /* otherwise = */
-      (*field)->val_str(&new_field_value);
-      (*field)->quote_data(&new_field_value);
-
-      if (!field_in_record_is_null(table, *field, (char*) old_data))
-        where_string.append(FEDERATED_EQ);
-    }
-
-    if (field_in_record_is_null(table, *field, (char*) old_data))
-      where_string.append(FEDERATED_ISNULL);
-    else
-    {
-      (*field)->val_str(&old_field_value,
-                        (char*) (old_data + (*field)->offset()));
-      (*field)->quote_data(&old_field_value);
-      where_string.append(old_field_value);
-    }
-
-    update_string.append(new_field_value);
-    new_field_value.length(0);
-
-    /*
-      Only append conjunctions if we have another field in which
-      to iterate
-    */
-    if (*(field + 1))
-    {
+      if ((*field)->is_null())
+        new_field_value.append(FEDERATED_NULL);
+      else
+      {
+        my_bitmap_map *old_map= tmp_use_all_columns(table, table->read_set);
+        /* otherwise = */
+        (*field)->val_str(&new_field_value);
+        (*field)->quote_data(&new_field_value);
+        tmp_restore_column_map(table->read_set, old_map);
+      }
+      update_string.append((*field)->field_name);
+      update_string.append(FEDERATED_EQ);
+      update_string.append(new_field_value);
       update_string.append(FEDERATED_COMMA);
+      new_field_value.length(0);
+    }
+
+    if (bitmap_is_set(table->read_set, (*field)->field_index))
+    {
+      where_string.append((*field)->field_name);
+      if (field_in_record_is_null(table, *field, (char*) old_data))
+        where_string.append(FEDERATED_ISNULL);
+      else
+      {
+        where_string.append(FEDERATED_EQ);
+        (*field)->val_str(&old_field_value,
+                          (char*) (old_data + (*field)->offset()));
+        (*field)->quote_data(&old_field_value);
+        where_string.append(old_field_value);
+        old_field_value.length(0);
+      }
       where_string.append(FEDERATED_AND);
     }
-    old_field_value.length(0);
   }
-  update_string.append(FEDERATED_WHERE);
-  update_string.append(where_string);
+
+  /* Remove last ', '. This works as there must be at least on updated field */
+  update_string.length(update_string.length() - FEDERATED_COMMA_LEN);
+  if (where_string.length())
+  {
+    where_string.length(where_string.length() - FEDERATED_AND_LEN);
+    update_string.append(FEDERATED_WHERE);
+    update_string.append(where_string);
+  }
+
   /*
     If this table has not a primary key, then we could possibly
     update multiple rows. We want to make sure to only update one!
@@ -1912,9 +1937,9 @@ int ha_federated::delete_row(const byte *buf)
 {
   char delete_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char data_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-
   String delete_string(delete_buffer, sizeof(delete_buffer), &my_charset_bin);
   String data_string(data_buffer, sizeof(data_buffer), &my_charset_bin);
+  uint found= 0;
   DBUG_ENTER("ha_federated::delete_row");
 
   delete_string.length(0);
@@ -1928,25 +1953,31 @@ int ha_federated::delete_row(const byte *buf)
   for (Field **field= table->field; *field; field++)
   {
     Field *cur_field= *field;
-    data_string.length(0);
-    delete_string.append(cur_field->field_name);
-
-    if (cur_field->is_null())
+    found++;
+    if (bitmap_is_set(table->read_set, cur_field->field_index))
     {
-      delete_string.append(FEDERATED_IS);
-      data_string.append(FEDERATED_NULL);
+      data_string.length(0);
+      delete_string.append(cur_field->field_name);
+      if (cur_field->is_null())
+      {
+        delete_string.append(FEDERATED_IS);
+        delete_string.append(FEDERATED_NULL);
+      }
+      else
+      {
+        delete_string.append(FEDERATED_EQ);
+        cur_field->val_str(&data_string);
+        cur_field->quote_data(&data_string);
+        delete_string.append(data_string);
+      }
+      delete_string.append(FEDERATED_AND);
     }
-    else
-    {
-      delete_string.append(FEDERATED_EQ);
-      cur_field->val_str(&data_string);
-      cur_field->quote_data(&data_string);
-    }
-
-    delete_string.append(data_string);
-    delete_string.append(FEDERATED_AND);
   }
-  delete_string.length(delete_string.length()-5); // Remove trailing AND
+
+ // Remove trailing AND
+  delete_string.length(delete_string.length() - FEDERATED_AND_LEN);
+  if (!found)
+    delete_string.length(delete_string.length() - FEDERATED_WHERE_LEN);
 
   delete_string.append(FEDERATED_LIMIT1);
   DBUG_PRINT("info",
@@ -1955,10 +1986,10 @@ int ha_federated::delete_row(const byte *buf)
   {
     DBUG_RETURN(stash_remote_error());
   }
-  deleted+= mysql->affected_rows;
+  stats.deleted+= mysql->affected_rows;
   DBUG_PRINT("info",
              ("rows deleted %d rows deleted for all time %d",
-             int(mysql->affected_rows), deleted));
+             int(mysql->affected_rows), stats.deleted));
 
   DBUG_RETURN(0);
 }
@@ -2019,7 +2050,7 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
   create_where_from_key(&index_string,
                         &table->key_info[index],
                         &range,
-                        NULL, 0);
+                        NULL, 0, 0);
   sql_query.append(index_string);
 
   DBUG_PRINT("info",
@@ -2081,15 +2112,10 @@ int ha_federated::index_init(uint keynr, bool sorted)
   DBUG_RETURN(0);
 }
 
-/*
 
-  int read_range_first(const key_range *start_key,
-                               const key_range *end_key,
-                               bool eq_range, bool sorted);
-*/
 int ha_federated::read_range_first(const key_range *start_key,
-                                           const key_range *end_key,
-                                          bool eq_range, bool sorted)
+                                   const key_range *end_key,
+                                   bool eq_range, bool sorted)
 {
   char sql_query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   int retval;
@@ -2105,7 +2131,7 @@ int ha_federated::read_range_first(const key_range *start_key,
   sql_query.append(share->select_query);
   create_where_from_key(&sql_query,
                         &table->key_info[active_index],
-                        start_key, end_key, 0);
+                        start_key, end_key, 0, eq_range);
 
   if (mysql_real_query(mysql, sql_query.ptr(), sql_query.length()))
   {
@@ -2450,18 +2476,20 @@ void ha_federated::info(uint flag)
         delete_length = ?
       */
       if (row[4] != NULL)
-        records=         (ha_rows) my_strtoll10(row[4], (char**) 0, &error);
+        stats.records=          (ha_rows) my_strtoll10(row[4], (char**) 0,
+                                                       &error);
       if (row[5] != NULL)
-        mean_rec_length= (ha_rows) my_strtoll10(row[5], (char**) 0, &error);
+        stats.mean_rec_length= (ha_rows) my_strtoll10(row[5], (char**) 0,
+                                                      &error);
       if (row[12] != NULL)
-        update_time=      (ha_rows) my_strtoll10(row[12], (char**) 0, &error);
+        stats.update_time=     (ha_rows) my_strtoll10(row[12], (char**) 0,
+                                                      &error);
       if (row[13] != NULL)
-        check_time=      (ha_rows) my_strtoll10(row[13], (char**) 0, &error);
+        stats.check_time=      (ha_rows) my_strtoll10(row[13], (char**) 0,
+                                                      &error);
     }
     if (flag & HA_STATUS_CONST)
-    {
-      block_size= 4096;
-    }
+      stats.block_size= 4096;
   }
 
   if (result)
@@ -2512,8 +2540,8 @@ int ha_federated::delete_all_rows()
   {
     DBUG_RETURN(stash_remote_error());
   }
-  deleted+= records;
-  records= 0;
+  stats.deleted+= stats.records;
+  stats.records= 0;
   DBUG_RETURN(0);
 }
 
@@ -2793,6 +2821,7 @@ mysql_declare_plugin(federated)
   federated_db_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
+  0
 }
 mysql_declare_plugin_end;
 

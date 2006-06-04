@@ -1,6 +1,6 @@
 # should work with embedded server after mysqltest is fixed
--- source include/not_embedded.inc
-source include/federated.inc;
+--source include/not_embedded.inc
+--source include/federated.inc
 
 connection slave;
 DROP TABLE IF EXISTS federated.t1;
@@ -1310,6 +1310,57 @@ select * from federated.t1 where fld_parentid=0 and fld_delt=0;
 DROP TABLE federated.t1;
 connection slave;
 DROP TABLE federated.bug_17377_table;
+DROP TABLE federated.t1;
 
+#
+# Test multi updates and deletes without keys
+#
 
-source include/federated_cleanup.inc;
+# The following can be enabled when bug #19773 has been fixed
+--disable_parsing
+connection slave;
+create table federated.t1 (i1 int, i2 int, i3 int);
+create table federated.t2 (id int, c1 varchar(20), c2 varchar(20));
+connection master;
+eval create table federated.t1 (i1 int, i2 int, i3 int) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+eval create table federated.t2 (id int, c1 varchar(20), c2 varchar(20)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t2';
+insert into federated.t1 values (1,5,10),(3,7,12),(4,5,2),(9,10,15),(2,2,2);
+insert into federated.t2 values (9,"abc","def"),(5,"opq","lmn"),(2,"test t","t test");
+select * from federated.t1 order by i1;
+select * from federated.t2;
+update federated.t1,federated.t2 set t1.i2=15, t2.c2="ppc" where t1.i1=t2.id;
+select * from federated.t1 order by i1;
+select * from federated.t2 order by id;
+delete   t1.*,t2.* from federated.t1,federated.t2 where t1.i2=t2.id;
+select * from federated.t1 order by i1;
+select * from federated.t2 order by id;
+drop table federated.t1, federated.t2;
+connection slave;
+drop table federated.t1, federated.t2;
+connection master;
+
+# Test multi updates and deletes with keys
+
+connection slave;
+create table federated.t1 (i1 int, i2 int, i3 int, primary key (i1));
+create table federated.t2 (id int, c1 varchar(20), c2 varchar(20), primary key (id));
+connection master;
+eval create table federated.t1 (i1 int auto_increment not null, i2 int, i3 int, primary key (i1)) ENGINE=FEDERATED ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+eval create table federated.t2 (id int auto_increment not null, c1 varchar(20), c2 varchar(20), primary key(id)) ENGINE=FEDERATED ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t2';
+insert into federated.t1 values (1,5,10),(3,7,12),(4,5,2),(9,10,15),(2,2,2);
+insert into federated.t2 values (9,"abc","def"),(5,"opq","lmn"),(2,"test t","t test");
+select * from federated.t1 order by i1;
+select * from federated.t2 order by id;
+update federated.t1,federated.t2 set t1.i2=15, t2.c2="ppc" where t1.i1=t2.id;
+select * from federated.t1 order by i1;
+select * from federated.t2 order by id;
+delete t1.*,t2.* from federated.t1,federated.t2 where t1.i2=t2.id;
+select * from federated.t1 order by i1;
+select * from federated.t2 order by id;
+drop table federated.t1, federated.t2;
+connection slave;
+drop table federated.t1, federated.t2;
+connection master;
+--enable_parsing
+
+--source include/federated_cleanup.inc

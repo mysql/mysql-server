@@ -182,7 +182,7 @@ public:
   {
     return agg_item_charsets(c, func_name(), items, nitems, flags);
   }
-  bool walk(Item_processor processor, byte *arg);
+  bool walk(Item_processor processor, bool walk_subquery, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);

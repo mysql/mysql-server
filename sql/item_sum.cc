@@ -353,14 +353,15 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
 }
 
 
-bool Item_sum::walk (Item_processor processor, byte *argument)
+bool Item_sum::walk (Item_processor processor, bool walk_subquery,
+                     byte *argument)
 {
   if (arg_count)
   {
     Item **arg,**arg_end;
     for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
     {
-      if ((*arg)->walk(processor, argument))
+      if ((*arg)->walk(processor, walk_subquery, argument))
 	return 1;
     }
   }
@@ -734,7 +735,7 @@ static int simple_raw_key_cmp(void* arg, const void* key1, const void* key2)
 static int item_sum_distinct_walk(void *element, element_count num_of_dups,
                                   void *item)
 {
-    return ((Item_sum_distinct*) (item))->unique_walk_function(element);
+  return ((Item_sum_distinct*) (item))->unique_walk_function(element);
 }
 
 C_MODE_END
@@ -2688,7 +2689,7 @@ longlong Item_sum_count_distinct::val_int()
     return (longlong) count;
   }
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-  return table->file->records;
+  return table->file->stats.records;
 }
 
 

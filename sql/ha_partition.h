@@ -95,7 +95,6 @@ private:
   uint m_rec_length;                     // Local copy of record length
 
   bool m_ordered;                        // Ordered/Unordered index scan
-  bool m_has_transactions;               // Can we support transactions
   bool m_pkey_is_clustered;              // Is primary key clustered
   bool m_create_handler;                 // Handler used to create table
   bool m_is_sub_partitioned;             // Is subpartitioned
@@ -157,7 +156,7 @@ public:
     enable later calls of the methods to retrieve constants from the under-
     lying handlers. Returns false if not successful.
   */
-  int ha_initialise();
+   bool initialise_partition(MEM_ROOT *mem_root);
 
   /*
     -------------------------------------------------------------------------
@@ -208,25 +207,24 @@ private:
     delete_table, rename_table and create uses very similar logic which
     is packed into this routine.
   */
-    uint del_ren_cre_table(const char *from,
-			   const char *to= NULL,
-			   TABLE *table_arg= NULL,
-			   HA_CREATE_INFO *create_info= NULL);
+  uint del_ren_cre_table(const char *from, const char *to,
+                         TABLE *table_arg, HA_CREATE_INFO *create_info);
   /*
     One method to create the table_name.par file containing the names of the
     underlying partitions, their engine and the number of partitions.
     And one method to read it in.
   */
   bool create_handler_file(const char *name);
-  bool get_from_handler_file(const char *name);
-  bool new_handlers_from_part_info();
-  bool create_handlers();
+  bool get_from_handler_file(const char *name, MEM_ROOT *mem_root);
+  bool new_handlers_from_part_info(MEM_ROOT *mem_root);
+  bool create_handlers(MEM_ROOT *mem_root);
   void clear_handler_file();
   void set_up_table_before_create(TABLE *table_arg,
                                   const char *partition_name_with_path,
                                   HA_CREATE_INFO *info,
                                   uint part_id);
   partition_element *find_partition_element(uint part_id);
+
 public:
 
   /*
@@ -588,7 +586,7 @@ public:
     NULLable field.
     (BDB, HEAP, MyISAM, NDB, InnoDB)
 
-    HA_DUPP_POS:
+    HA_DUPLICATE_POS:
     Tells that we can the position for the conflicting duplicate key
     record is stored in table->file->dupp_ref. (insert uses rnd_pos() on
     this to find the duplicated row)
@@ -609,11 +607,10 @@ public:
     with hidden primary key)
     (No handler has this limitation currently)
 
-    HA_NOT_EXACT_COUNT:
+    HA_STATS_RECORDS_IS_EXACT:
     Does the counter of records after the info call specify an exact
-    value or not. If it doesn't this flag is set.
+    value or not. If it does this flag is set.
     Only MyISAM and HEAP uses exact count.
-    (MyISAM, HEAP, BDB, InnoDB, NDB, Federated)
 
     HA_CAN_INSERT_DELAYED:
     Can the storage engine support delayed inserts.
@@ -676,7 +673,7 @@ public:
     index scan module.
     (NDB)
   */
-  virtual ulong table_flags() const
+  virtual ulonglong table_flags() const
   { return m_table_flags; }
 
   /*
@@ -769,13 +766,6 @@ public:
   */
   virtual uint extra_rec_buf_length() const;
   virtual uint min_record_length(uint options) const;
-
-  /*
-    Transactions on the table is supported if all handlers below support
-    transactions.
-  */
-  virtual bool has_transactions()
-  { return m_has_transactions; }
 
   /*
     Primary key is clustered can only be true if all underlying handlers have

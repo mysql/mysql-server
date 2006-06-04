@@ -948,8 +948,13 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
 {
   for (; table ; table= table->next)
+  {
     if (table->query_id == thd->query_id)
+    {
       table->query_id= 0;
+      table->file->ha_reset();
+    }
+  }
 }
 
 
@@ -1029,21 +1034,13 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     */
     ha_commit_stmt(thd);
 
+    /* Ensure we are calling ha_reset() for all used tables */
+    mark_used_tables_as_free_for_reuse(thd, thd->open_tables);
+
     /* We are under simple LOCK TABLES so should not do anything else. */
-    if (!prelocked_mode)
+    if (!prelocked_mode || !thd->lex->requires_prelocking())
       DBUG_VOID_RETURN;
 
-    if (!thd->lex->requires_prelocking())
-    {
-      /*
-        If we are executing one of substatements we have to mark
-        all tables which it used as free for reuse.
-      */
-      mark_used_tables_as_free_for_reuse(thd, thd->open_tables);
-      DBUG_VOID_RETURN;
-    }
-
-    DBUG_ASSERT(prelocked_mode);
     /*
       We are in prelocked mode, so we have to leave it now with doing
       implicit UNLOCK TABLES if need.
@@ -1097,7 +1094,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
 
   found_old_table= 0;
   while (thd->open_tables)
-    found_old_table|=close_thread_table(thd, &thd->open_tables);
+    found_old_table|= close_thread_table(thd, &thd->open_tables);
   thd->some_tables_deleted=0;
 
   /* Free tables to hold down open files */
@@ -1126,6 +1123,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
   DBUG_VOID_RETURN;
 }
 
+
 /* move one table to free list */
 
 bool close_thread_table(THD *thd, TABLE **table_ptr)
@@ -1150,11 +1148,8 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
       table->s->flush_version= flush_version;
       table->file->extra(HA_EXTRA_FLUSH);
     }
-    else
-    {
-      // Free memory and reset for next loop
-      table->file->ha_reset();
-    }
+    // Free memory and reset for next loop
+    table->file->ha_reset();
     table->in_use=0;
     if (unused_tables)
     {
@@ -1184,10 +1179,8 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 
 void close_temporary_tables(THD *thd)
 {
-  TABLE *next,
-    *prev_table /* prev link is not maintained in TABLE's double-linked list */,
-    *table;
-  char *query= (gptr) 0, *end;
+  TABLE *next, *prev_table, *table;
+  char *query= 0, *end;
   uint query_buf_size, max_names_len; 
   bool found_user_tables;
 
@@ -2096,6 +2089,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (table->timestamp_field)
     table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
+  table->clear_column_bitmaps();
   DBUG_ASSERT(table->key_read == 0);
   DBUG_RETURN(table);
 }
@@ -2193,6 +2187,7 @@ static bool reopen_table(TABLE *table)
     VOID(closefrm(table, 1));		// close file, free everything
 
   *table= tmp;
+  table->default_column_bitmaps();
   table->file->change_table_ptr(table, table->s);
 
   DBUG_ASSERT(table->alias != 0);
@@ -3560,22 +3555,50 @@ Field *view_ref_found= (Field*) 0x2;
 
 static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
 {
-  if (thd->set_query_id)
+  DBUG_ENTER("update_field_dependencies");
+  if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
-    table->file->ha_set_bit_in_rw_set(field->fieldnr,
-                                      (bool)(thd->set_query_id-1));
-    if (field->query_id != thd->query_id)
+    MY_BITMAP *current_bitmap, *other_bitmap;
+
+    /*
+      We always want to register the used keys, as the column bitmap may have
+      been set for all fields (for example for view).
+    */
+      
+    table->used_keys.intersect(field->part_of_key);
+    table->merge_keys.merge(field->part_of_key);
+
+    if (thd->mark_used_columns == MARK_COLUMNS_READ)
     {
-      if (table->get_fields_in_item_tree)
-        field->flags|= GET_FIXED_FIELDS_FLAG;
-      field->query_id= thd->query_id;
-      table->used_fields++;
-      table->used_keys.intersect(field->part_of_key);
+      current_bitmap= table->read_set;
+      other_bitmap=   table->write_set;
     }
     else
-      thd->dupp_field= field;
-  } else if (table->get_fields_in_item_tree)
+    {
+      current_bitmap= table->write_set;
+      other_bitmap=   table->read_set;
+    }
+
+    if (bitmap_fast_test_and_set(current_bitmap, field->field_index))
+    {
+      if (thd->mark_used_columns == MARK_COLUMNS_WRITE)
+      {
+        DBUG_PRINT("warning", ("Found duplicated field"));
+        thd->dup_field= field;
+      }
+      else
+      {
+        DBUG_PRINT("note", ("Field found before"));
+      }
+      DBUG_VOID_RETURN;
+    }
+    if (table->get_fields_in_item_tree)
+      field->flags|= GET_FIXED_FIELDS_FLAG;
+    table->used_fields++;
+  }
+  else if (table->get_fields_in_item_tree)
     field->flags|= GET_FIXED_FIELDS_FLAG;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3984,12 +4007,12 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
       fld= WRONG_GRANT;
     else
 #endif
-      if (thd->set_query_id)
+      if (thd->mark_used_columns != MARK_COLUMNS_NONE)
       {
         /*
-         * get rw_set correct for this field so that the handler
-         * knows that this field is involved in the query and gets
-         * retrieved/updated
+          Get rw_set correct for this field so that the handler
+          knows that this field is involved in the query and gets
+          retrieved/updated
          */
         Field *field_to_set= NULL;
         if (fld == view_ref_found)
@@ -3997,13 +4020,22 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
           Item *it= (*ref)->real_item();
           if (it->type() == Item::FIELD_ITEM)
             field_to_set= ((Item_field*)it)->field;
+          else
+          {
+            if (thd->mark_used_columns == MARK_COLUMNS_READ)
+              it->walk(&Item::register_field_in_read_map, 1, (byte *) 0);
+          }
         }
         else
           field_to_set= fld;
         if (field_to_set)
-          field_to_set->table->file->
-            ha_set_bit_in_rw_set(field_to_set->fieldnr,
-                                 (bool)(thd->set_query_id-1));
+        {
+          TABLE *table= field_to_set->table;
+          if (thd->mark_used_columns == MARK_COLUMNS_READ)
+            bitmap_set_bit(table->read_set, field_to_set->field_index);
+          else
+            bitmap_set_bit(table->write_set, field_to_set->field_index);
+        }
       }
   }
   DBUG_RETURN(fld);
@@ -4696,17 +4728,17 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       {
         TABLE *table_1= nj_col_1->table_ref->table;
         /* Mark field_1 used for table cache. */
-        field_1->query_id= thd->query_id;
-        table_1->file->ha_set_bit_in_read_set(field_1->fieldnr);
+        bitmap_set_bit(table_1->read_set, field_1->field_index);
         table_1->used_keys.intersect(field_1->part_of_key);
+        table_1->merge_keys.merge(field_1->part_of_key);
       }
       if (field_2)
       {
         TABLE *table_2= nj_col_2->table_ref->table;
         /* Mark field_2 used for table cache. */
-        field_2->query_id= thd->query_id;
-        table_2->file->ha_set_bit_in_read_set(field_2->fieldnr);
+        bitmap_set_bit(table_2->read_set, field_2->field_index);
         table_2->used_keys.intersect(field_2->part_of_key);
+        table_2->merge_keys.merge(field_2->part_of_key);
       }
 
       if (using_fields != NULL)
@@ -5174,17 +5206,17 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 ****************************************************************************/
 
 bool setup_fields(THD *thd, Item **ref_pointer_array,
-                  List<Item> &fields, ulong set_query_id,
+                  List<Item> &fields, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func)
 {
   reg2 Item *item;
-  ulong save_set_query_id= thd->set_query_id;
+  enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
   List_iterator<Item> it(fields);
   DBUG_ENTER("setup_fields");
 
-  thd->set_query_id=set_query_id;
-  DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
+  thd->mark_used_columns= mark_used_columns;
+  DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   if (allow_sum_func)
     thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   thd->where= THD::DEFAULT_WHERE;
@@ -5210,8 +5242,8 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
 	(item= *(it.ref()))->check_cols(1))
     {
       thd->lex->allow_sum_func= save_allow_sum_func;
-      thd->set_query_id= save_set_query_id;
-      DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
+      thd->mark_used_columns= save_mark_used_columns;
+      DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
       DBUG_RETURN(TRUE); /* purecov: inspected */
     }
     if (ref)
@@ -5222,8 +5254,8 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     thd->used_tables|= item->used_tables();
   }
   thd->lex->allow_sum_func= save_allow_sum_func;
-  thd->set_query_id= save_set_query_id;
-  DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
+  thd->mark_used_columns= save_mark_used_columns;
+  DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   DBUG_RETURN(test(thd->net.report_error));
 }
 
@@ -5267,7 +5299,6 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
     context       name resolution contest to setup table list there
     from_clause   Top-level list of table references in the FROM clause
     tables	  Table list (select_lex->table_list)
-    conds	  Condition of current SELECT (can be changed by VIEW)
     leaves        List of join table leaves list (select_lex->leaf_tables)
     refresh       It is onle refresh for subquery
     select_insert It is SELECT ... INSERT command
@@ -5289,7 +5320,7 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
 
 bool setup_tables(THD *thd, Name_resolution_context *context,
                   List<TABLE_LIST> *from_clause, TABLE_LIST *tables,
-                  Item **conds, TABLE_LIST **leaves, bool select_insert)
+                  TABLE_LIST **leaves, bool select_insert)
 {
   uint tablenr= 0;
   DBUG_ENTER("setup_tables");
@@ -5321,6 +5352,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     }
     setup_table_map(table, table_list, tablenr);
     table->used_keys= table->s->keys_for_keyread;
+    table->merge_keys.clear_all();
     if (table_list->use_index)
     {
       key_map map;
@@ -5546,7 +5578,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     }
 #endif
 
-
     /*
       Update the tables used in the query based on the referenced fields. For
       views and natural joins this update is performed inside the loop below.
@@ -5612,18 +5643,13 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
       if ((field= field_iterator.field()))
       {
-        /*
-          Mark if field used before in this select.
-          Used by 'insert' to verify if a field name is used twice.
-        */
-        if (field->query_id == thd->query_id)
-          thd->dupp_field= field;
-        field->query_id= thd->query_id;
-        field->table->file->ha_set_bit_in_read_set(field->fieldnr);
-
+        /* Mark fields as used to allow storage engine to optimze access */
+        bitmap_set_bit(field->table->read_set, field->field_index);
         if (table)
+        {
           table->used_keys.intersect(field->part_of_key);
-
+          table->merge_keys.merge(field->part_of_key);
+        }
         if (tables->is_natural_join)
         {
           TABLE *field_table;
@@ -5640,16 +5666,13 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           {
             thd->used_tables|= field_table->map;
             field_table->used_keys.intersect(field->part_of_key);
+            field_table->merge_keys.merge(field->part_of_key);
             field_table->used_fields++;
           }
         }
       }
       else
-      {
         thd->used_tables|= item->used_tables();
-        item->walk(&Item::reset_query_id_processor,
-                   (byte *)(&thd->query_id));
-      }
     }
     /*
       In case of stored tables, all fields are considered as used,
@@ -5658,10 +5681,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       For NATURAL joins, used_tables is updated in the IF above.
     */
     if (table)
-    {
       table->used_fields= table->s->fields;
-      table->file->ha_set_all_bits_in_read_set();
-    }
   }
   if (found)
     DBUG_RETURN(FALSE);
@@ -5720,8 +5740,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       arena->is_conventional())
     arena= 0;                                   // For easier test
 
-  thd->set_query_id=1;
-  DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
+  thd->mark_used_columns= MARK_COLUMNS_READ;
+  DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   select_lex->cond_count= 0;
 
   for (table= tables; table; table= table->next_local)
@@ -5976,7 +5996,7 @@ static void mysql_rm_tmp_tables(void)
 
       if (!bcmp(file->name,tmp_file_prefix,tmp_file_prefix_length))
       {
-        sprintf(filePath,"%s%s",tmpdir,file->name);
+        sprintf(filePath,"%s%c%s",tmpdir,FN_LIBCHAR,file->name);
         VOID(my_delete(filePath,MYF(MY_WME)));
       }
     }
@@ -6232,7 +6252,7 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     alias	  alias for table
     db            database
     table_name    name of table
-    db_stat	  open flags (for example HA_OPEN_KEYFILE|HA_OPEN_RNDFILE..)
+    db_stat	  open flags (for example ->OPEN_KEYFILE|HA_OPEN_RNDFILE..)
 		  can be 0 (example in ha_example_table)
     prgflag	  READ_ALL etc..
     ha_open_flags HA_OPEN_ABORT_IF_LOCKED etc..

@@ -519,3 +519,83 @@ a
 30
 drop view v1;
 drop table t1, t2;
+create table t1 (i1 int, i2 int, i3 int);
+create table t2 (id int, c1 varchar(20), c2 varchar(20));
+insert into t1 values (1,5,10),(3,7,12),(4,5,2),(9,10,15),(2,2,2);
+insert into t2 values (9,"abc","def"),(5,"opq","lmn"),(2,"test t","t test");
+select * from t1 order by i1;
+i1	i2	i3
+1	5	10
+2	2	2
+3	7	12
+4	5	2
+9	10	15
+select * from t2;
+id	c1	c2
+9	abc	def
+5	opq	lmn
+2	test t	t test
+update t1,t2 set t1.i2=15, t2.c2="ppc" where t1.i1=t2.id;
+select * from t1 order by i1;
+i1	i2	i3
+1	5	10
+2	15	2
+3	7	12
+4	5	2
+9	15	15
+select * from t2 order by id;
+id	c1	c2
+2	test t	ppc
+5	opq	lmn
+9	abc	ppc
+delete t1.*,t2.* from t1,t2 where t1.i2=t2.id;
+select * from t1 order by i1;
+i1	i2	i3
+2	15	2
+3	7	12
+9	15	15
+select * from t2 order by id;
+id	c1	c2
+2	test t	ppc
+9	abc	ppc
+drop table t1, t2;
+create table t1 (i1 int auto_increment not null, i2 int, i3 int, primary key (i1));
+create table t2 (id int auto_increment not null, c1 varchar(20), c2 varchar(20), primary key(id));
+insert into t1 values (1,5,10),(3,7,12),(4,5,2),(9,10,15),(2,2,2);
+insert into t2 values (9,"abc","def"),(5,"opq","lmn"),(2,"test t","t test");
+select * from t1 order by i1;
+i1	i2	i3
+1	5	10
+2	2	2
+3	7	12
+4	5	2
+9	10	15
+select * from t2 order by id;
+id	c1	c2
+2	test t	t test
+5	opq	lmn
+9	abc	def
+update t1,t2 set t1.i2=15, t2.c2="ppc" where t1.i1=t2.id;
+select * from t1 order by i1;
+i1	i2	i3
+1	5	10
+2	15	2
+3	7	12
+4	5	2
+9	15	15
+select * from t2 order by id;
+id	c1	c2
+2	test t	ppc
+5	opq	lmn
+9	abc	ppc
+delete t1.*,t2.* from t1,t2 where t1.i2=t2.id;
+select * from t1 order by i1;
+i1	i2	i3
+2	15	2
+3	7	12
+9	15	15
+select * from t2 order by id;
+id	c1	c2
+2	test t	ppc
+9	abc	ppc
+drop table t1, t2;

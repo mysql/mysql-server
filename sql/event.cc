@@ -31,8 +31,8 @@
    should be replicated as disabled. If an event is ALTERed as DISABLED the
    query should go untouched into the binary log, when ALTERed as enable then
    it should go as SLAVESIDE_DISABLED. This is regarding the SQL interface.
-   TT routines however modify mysql.event internally and this does not go the log
-   so in this case queries has to be injected into the log...somehow... or
+   TT routines however modify mysql.event internally and this does not go the
+   log so in this case queries has to be injected into the log...somehow... or
    maybe a solution is RBR for this case, because the event may go only from
    ENABLED to DISABLED status change and this is safe for replicating. As well
    an event may be deleted which is also safe for RBR.
@@ -40,9 +40,9 @@
  - Add logging to file
 
 Warning:
- - For now parallel execution is not possible because the same sp_head cannot be
-   executed few times!!! There is still no lock attached to particular event.
-
+ - For now parallel execution is not possible because the same sp_head cannot
+   be executed few times!!! There is still no lock attached to particular
+   event.
 */
 
 
@@ -411,9 +411,9 @@ common_1_lev_code:
 
   SYNOPSIS
     Events::open_event_table()
-      thd         Thread context
-      lock_type   How to lock the table
-      table       The table pointer
+    thd         Thread context
+    lock_type   How to lock the table
+    table       We will store the open table here
 
   RETURN VALUE
     1   Cannot lock table
@@ -426,7 +426,7 @@ Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
                                    TABLE **table)
 {
   TABLE_LIST tables;
-  DBUG_ENTER("open_proc_table");
+  DBUG_ENTER("open_events_table");
 
   bzero((char*) &tables, sizeof(tables));
   tables.db= (char*) "mysql";
@@ -445,7 +445,7 @@ Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
     DBUG_RETURN(2);
   }
   *table= tables.table;
-
+  tables.table->use_all_columns();
   DBUG_RETURN(0);
 }
 
@@ -512,12 +512,14 @@ evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
   table->field[Events::FIELD_NAME]->store(ev_name.str, ev_name.length,
                                           &my_charset_bin);
 
-  key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
+  key_copy(key, table->record[0], table->key_info,
+           table->key_info->key_length);
 
   if (table->file->index_read_idx(table->record[0], 0, key,
-                                 table->key_info->key_length,HA_READ_KEY_EXACT))
+                                 table->key_info->key_length,
+                                  HA_READ_KEY_EXACT))
   {
-    DBUG_PRINT("info", ("Row not fonud"));
+    DBUG_PRINT("info", ("Row not found"));
     DBUG_RETURN(EVEX_KEY_NOT_FOUND);
   }
 
@@ -708,7 +710,8 @@ db_create_event(THD *thd, Event_timed *et, my_bool create_if_not,
   }
 
   DBUG_PRINT("info", ("non-existant, go forward"));
-  if ((ret= sp_use_new_db(thd, et->dbname.str,olddb, sizeof(olddb),0, &dbchanged)))
+  if ((ret= sp_use_new_db(thd, et->dbname.str,olddb, sizeof(olddb),0,
+                          &dbchanged)))
   {
     my_error(ER_BAD_DB_ERROR, MYF(0));
     goto err;
@@ -1280,7 +1283,9 @@ db_drop_events_from_table(THD *thd, LEX_STRING *db)
 
   if ((ret= Events::open_event_table(thd, TL_WRITE, &table)))
   {
-    sql_print_error("Table mysql.event is damaged.");
+    if (my_errno != ENOENT)
+      sql_print_error("Table mysql.event is damaged. Got error %d on open",
+                      my_errno);
     DBUG_RETURN(ret);
   }
   /* only enabled events are in memory, so we go now and delete the rest */
