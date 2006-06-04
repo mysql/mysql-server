@@ -503,28 +503,25 @@ int tina_end(ha_panic_function type)
 off_t find_eoln_buff(Transparent_file *data_buff, off_t begin,
                      off_t end, int *eoln_len)
 {
+  *eoln_len= 0;
+
   for (off_t x= begin; x < end; x++)
   {
     /* Unix (includes Mac OS X) */
     if (data_buff->get_value(x) == '\n')
-    {
       *eoln_len= 1;
+    else
+      if (data_buff->get_value(x) == '\r') // Mac or Dos
+      {
+        /* old Mac line ending */
+        if (x + 1 == end || (data_buff->get_value(x + 1) != '\n'))
+          *eoln_len= 1;
+        else // DOS style ending
+          *eoln_len= 2;
+      }
+
+    if (*eoln_len)  // end of line was found
       return x;
-    }
-    if (data_buff->get_value(x) == '\r') // Mac or Dos
-    {
-      /* old Mac line ending */
-      if (x + 1 == end || (data_buff->get_value(x + 1) != '\n'))
-      {
-        *eoln_len= 1;
-        return x;
-      }
-      else // DOS style ending
-      {
-        *eoln_len= 2;
-        return x + 1;
-      }
-    }
   }
 
   return 0;
