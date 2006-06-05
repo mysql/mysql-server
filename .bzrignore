@@ -276,6 +276,7 @@ bkpush.log
 bkpush.log*
 build.log
 build_tags.sh
+client/#mysql.cc#
 client/*.ds?
 client/*.vcproj
 client/completion_hash.cpp
@@ -290,6 +291,7 @@ client/my_decimal.h
 client/my_user.c
 client/mysql
 client/mysql.cpp
+client/mysql_upgrade
 client/mysqladmin
 client/mysqladmin.c
 client/mysqladmin.cpp
@@ -365,6 +367,9 @@ extra/resolve_stack_dump
 extra/resolveip
 extra/sql_state.h
 extra/tztime.cc
+extra/yassl/taocrypt/benchmark/benchmark
+extra/yassl/taocrypt/test/test
+extra/yassl/testsuite/testsuite
 fcns.c
 fcns.h
 gdbinit
@@ -382,6 +387,7 @@ include/my_global.h
 include/mysql_version.h
 include/mysqld_ername.h
 include/mysqld_error.h
+include/openssl
 include/readline
 include/readline/*.h
 include/readline/readline.h
@@ -672,6 +678,7 @@ mysql-test/r/bdb-alter-table-2.err
 mysql-test/r/bdb-crash.err
 mysql-test/r/bdb-deadlock.err
 mysql-test/r/bdb.err
+mysql-test/r/bdb.log
 mysql-test/r/bdb_cache.err
 mysql-test/r/client_test.err
 mysql-test/r/csv.err
@@ -679,6 +686,7 @@ mysql-test/r/ctype_ucs.err
 mysql-test/r/derived.err
 mysql-test/r/exampledb.err
 mysql-test/r/func_encrypt.err
+mysql-test/r/im_client_port.log
 mysql-test/r/index_merge_load.result
 mysql-test/r/isam.err
 mysql-test/r/lowercase_table2.err
@@ -727,6 +735,7 @@ mysql-test/r/rpl000016.eval
 mysql-test/r/rpl_log.eval
 mysql-test/r/slave-running.eval
 mysql-test/r/slave-stopped.eval
+mysql-test/r/udf.log
 mysql-test/share/mysql
 mysql-test/std_data/*.pem
 mysql-test/t/index_merge.load
@@ -1051,6 +1060,7 @@ scripts/mysql_install_db
 scripts/mysql_secure_installation
 scripts/mysql_setpermission
 scripts/mysql_tableinfo
+scripts/mysql_upgrade
 scripts/mysql_zap
 scripts/mysqlaccess
 scripts/mysqlbug
@@ -1142,7 +1152,9 @@ sql/pack.c
 sql/safe_to_cache_query.txt
 sql/share/*.sys
 sql/share/charsets/gmon.out
+sql/share/fixerrmsg.pl
 sql/share/gmon.out
+sql/share/iso639-2.txt
 sql/share/mysql
 sql/share/norwegian-ny/errmsg.sys
 sql/share/norwegian/errmsg.sys
@@ -1273,13 +1285,3 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
-scripts/mysql_upgrade
-include/openssl
-mysql-test/r/bdb.log
-mysql-test/r/im_client_port.log
-mysql-test/r/udf.log
-extra/yassl/taocrypt/benchmark/benchmark
-extra/yassl/taocrypt/test/test
-extra/yassl/testsuite/testsuite
-client/mysql_upgrade
-client/#mysql.cc#
