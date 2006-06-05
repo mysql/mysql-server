@@ -497,7 +497,7 @@ int ha_tina::encode_quote(byte *buf)
   String attribute(attribute_buffer, sizeof(attribute_buffer),
                    &my_charset_bin);
 
-  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+  my_bitmap_map *org_bitmap= dbug_tmp_use_all_columns(table, table->read_set);
   buffer.length(0);
   for (Field **field=table->field ; *field ; field++)
   {
@@ -558,7 +558,7 @@ int ha_tina::encode_quote(byte *buf)
   buffer.append('\n');
   //buffer.replace(buffer.length(), 0, "\n", 1);
 
-  dbug_tmp_restore_column_map(table->read_set, old_map);
+  dbug_tmp_restore_column_map(table->read_set, org_bitmap);
   return (buffer.length());
 }
 
@@ -634,7 +634,10 @@ int ha_tina::find_current_row(byte *buf)
     if (*mapped_ptr == '"')
       mapped_ptr++; // Increment past the first quote
     else
+    {
+      dbug_tmp_restore_column_map(table->write_set, org_bitmap);
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    }
     for(;mapped_ptr != end_ptr; mapped_ptr++)
     {
       // Need to convert line feeds!
@@ -667,7 +670,10 @@ int ha_tina::find_current_row(byte *buf)
           we are working with a damaged file.
         */
         if (mapped_ptr == end_ptr -1)
+        {
+          dbug_tmp_restore_column_map(table->write_set, org_bitmap);
           DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+        }
         buffer.append(*mapped_ptr);
       }
     }
@@ -677,7 +683,7 @@ int ha_tina::find_current_row(byte *buf)
   next_position= (end_ptr - share->mapped_file)+eoln_len;
   /* Maybe use \N for null? */
   memset(buf, 0, table->s->null_bytes); /* We do not implement nulls! */
-  tmp_restore_column_map(table->write_set, org_bitmap);
+  dbug_tmp_restore_column_map(table->write_set, org_bitmap);
 
   DBUG_RETURN(0);
 }

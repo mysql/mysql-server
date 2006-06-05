@@ -143,6 +143,7 @@ const char *ha_get_storage_engine(enum legacy_db_type db_type)
 
 static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
+  handlerton *hton=ha_resolve_by_legacy_type(current_thd, DB_TYPE_DEFAULT);
   return (hton && hton->create) ? hton->create(table, mem_root) : NULL;
 }
 

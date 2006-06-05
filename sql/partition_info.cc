@@ -635,8 +635,8 @@ bool partition_info::check_list_constants()
         &list_part_cmp);
 
   not_first= FALSE;
-  i= prev_value= 0; //prev_value initialised to quiet compiler
-  do
+  prev_value= 0; // prev_value initialised to quiet compiler
+  for (i= 0; i < no_list_values ; i++)
   {
     curr_value= list_array[i].list_value;
     if (likely(!not_first || prev_value != curr_value))
@@ -649,7 +649,7 @@ bool partition_info::check_list_constants()
       my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
       goto end;
     }
-  } while (++i < no_list_values);
+  }
   result= FALSE;
 end:
   DBUG_RETURN(result);
@@ -689,10 +689,10 @@ bool partition_info::check_partition_info(handlerton **eng_type,
   DBUG_ENTER("partition_info::check_partition_info");
 
   if (part_type != HASH_PARTITION || !list_of_part_fields)
-    part_expr->walk(&Item::check_partition_func_processor,
+    part_expr->walk(&Item::check_partition_func_processor, 0,
                     (byte*)(&part_expression_ok));
   if (is_sub_partitioned() && !list_of_subpart_fields)
-    subpart_expr->walk(&Item::check_partition_func_processor,
+    subpart_expr->walk(&Item::check_partition_func_processor, 0,
                        (byte*)(&part_expression_ok));
   if (!part_expression_ok)
   {

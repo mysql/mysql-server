@@ -4146,7 +4146,8 @@ void ha_partition::info(uint flag)
     ulonglong nb_reserved_values;
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
     /* we don't want to reserve any values, it's pure information */
-    get_auto_increment(0, 0, 0, &stats.auto_increment_value, &nb_reserved_values);
+    get_auto_increment(0, 0, 0, &stats.auto_increment_value,
+                       &nb_reserved_values);
     release_auto_increment();
   }
   if (flag & HA_STATUS_VARIABLE)
@@ -4188,7 +4189,7 @@ void ha_partition::info(uint flag)
         stats.deleted+= file->stats.deleted;
         stats.data_file_length+= file->stats.data_file_length;
         stats.index_file_length+= file->stats.index_file_length;
-        stats.delete_length+= file->delete_length;
+        stats.delete_length+= file->stats.delete_length;
         if (file->stats.check_time > stats.check_time)
           stats.check_time= file->stats.check_time;
       }
@@ -5282,7 +5283,7 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
                                       ulonglong *nb_reserved_values)
 {
   ulonglong first_value_part, last_value_part, nb_reserved_values_part,
-    last_value;
+    last_value= ~ (ulonglong) 0;
   handler **pos, **end;
   DBUG_ENTER("ha_partition::get_auto_increment");
 
@@ -5308,8 +5309,9 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
   {
     *first_value= ~(ulonglong)(0);
   }
-  *nb_reserved_values= (last_value == ULONGLONG_MAX) ?
-    ULONGLONG_MAX : ((last_value - *first_value) / increment);
+  if (increment)                                // If not check for values
+    *nb_reserved_values= (last_value == ULONGLONG_MAX) ?
+      ULONGLONG_MAX : ((last_value - *first_value) / increment);
 
   DBUG_VOID_RETURN;
 }

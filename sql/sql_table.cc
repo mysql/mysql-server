@@ -6247,9 +6247,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
            {
              const char *err_msg= ER(ER_DUP_ENTRY);
              if (key_nr == 0 &&
-                 (to->key_info[0].key_part[0].field->flags & AUTO_INCREMENT_FLAG))
+                 (to->key_info[0].key_part[0].field->flags &
+                  AUTO_INCREMENT_FLAG))
                err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
-             to->file->print_keydupp_error(key_nr, err_msg);
+             to->file->print_keydup_error(key_nr, err_msg);
              break;
            }
          }

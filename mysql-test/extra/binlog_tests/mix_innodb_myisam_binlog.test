@@ -324,7 +324,7 @@ CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select *
 ROLLBACK;
 SELECT * from t2;
 DROP TABLE t1,t2;
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
 # Test for BUG#16559 (ROLLBACK should always have a zero error code in
