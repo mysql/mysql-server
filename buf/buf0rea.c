@@ -108,7 +108,8 @@ buf_read_page_low(
 		sync = TRUE;
 	}
 #endif
-	if (ibuf_bitmap_page(offset) || trx_sys_hdr_page(space, offset)) {
+	if (ibuf_bitmap_page(zip_size, offset)
+				|| trx_sys_hdr_page(space, offset)) {
 
 		/* Trx sys header is so low in the latching order that we play
 		safe and do not leave the i/o-completion to an asynchronous
@@ -203,7 +204,10 @@ buf_read_ahead_random(
 		return(0);
 	}
 
-	if (ibuf_bitmap_page(offset) || trx_sys_hdr_page(space, offset)) {
+	zip_size = fil_space_get_zip_size(space);
+
+	if (ibuf_bitmap_page(zip_size, offset)
+				|| trx_sys_hdr_page(space, offset)) {
 
 		/* If it is an ibuf bitmap page or trx sys hdr, we do
 		no read-ahead, as that could break the ibuf page access
@@ -211,8 +215,6 @@ buf_read_ahead_random(
 
 		return(0);
 	}
-
-	zip_size = fil_space_get_zip_size(space);
 
 	/* Remember the tablespace version before we ask te tablespace size
 	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
@@ -280,7 +282,7 @@ buf_read_ahead_random(
 		/* It is only sensible to do read-ahead in the non-sync aio
 		mode: hence FALSE as the first parameter */
 
-		if (!ibuf_bitmap_page(i)) {
+		if (!ibuf_bitmap_page(zip_size, i)) {
 			count += buf_read_page_low(&err, FALSE, ibuf_mode
 					| OS_AIO_SIMULATED_WAKE_LATER,
 					space, zip_size,
@@ -409,17 +411,8 @@ buf_read_ahead_linear(
 	ulint		err;
 	ulint		i;
 
-	if (srv_startup_is_before_trx_rollback_phase) {
+	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
 		/* No read-ahead to avoid thread deadlocks */
-		return(0);
-	}
-
-	if (ibuf_bitmap_page(offset) || trx_sys_hdr_page(space, offset)) {
-
-		/* If it is an ibuf bitmap page or trx sys hdr, we do
-		no read-ahead, as that could break the ibuf page access
-		order */
-
 		return(0);
 	}
 
@@ -435,6 +428,16 @@ buf_read_ahead_linear(
 	}
 
 	zip_size = fil_space_get_zip_size(space);
+
+	if (ibuf_bitmap_page(zip_size, offset)
+				|| trx_sys_hdr_page(space, offset)) {
+
+		/* If it is an ibuf bitmap page or trx sys hdr, we do
+		no read-ahead, as that could break the ibuf page access
+		order */
+
+		return(0);
+	}
 
 	/* Remember the tablespace version before we ask te tablespace size
 	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
@@ -573,7 +576,7 @@ buf_read_ahead_linear(
 		/* It is only sensible to do read-ahead in the non-sync
 		aio mode: hence FALSE as the first parameter */
 
-		if (!ibuf_bitmap_page(i)) {
+		if (!ibuf_bitmap_page(zip_size, i)) {
 			count += buf_read_page_low(&err, FALSE, ibuf_mode
 					| OS_AIO_SIMULATED_WAKE_LATER,
 					space, zip_size,
