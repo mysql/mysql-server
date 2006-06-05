@@ -773,3 +773,17 @@ Warnings:
 Warning	1071	Specified key was too long; max key length is 765 bytes
 insert into t1 values('aaa');
 drop table t1;
+drop table if exists `about:text`;
+create table `about:text` ( 
+_id int not null auto_increment,
+`about:text` varchar(255) not null default '',
+primary key (_id)
+);
+show create table `about:text`;
+Table	Create Table
+about:text	CREATE TABLE `about:text` (
+  `_id` int(11) NOT NULL auto_increment,
+  `about:text` varchar(255) NOT NULL default '',
+  PRIMARY KEY  (`_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table `about:text`;
