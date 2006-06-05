@@ -36,6 +36,13 @@ enum partition_state {
   PART_IS_ADDED= 8
 };
 
+/*
+  This struct is used to contain the value of an element
+  in the VALUES IN struct. It needs to keep knowledge of
+  whether it is a signed/unsigned value and whether it is
+  NULL or not.
+*/
+
 typedef struct p_elem_val
 {
   longlong value;
@@ -59,8 +66,8 @@ public:
   enum partition_state part_state;
   uint16 nodegroup_id;
   bool has_null_value;
-  bool signed_flag;
-  bool max_value;
+  bool signed_flag;/* Indicate whether this partition uses signed constants */
+  bool max_value;  /* Indicate whether this partition uses MAXVALUE */
 
   partition_element()
   : part_max_rows(0), part_min_rows(0), range_value(0),

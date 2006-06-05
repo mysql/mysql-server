@@ -557,4 +557,4 @@ drop table t1;
 create table t1 (a bigint unsigned)
 partition by range (a)
 (partition p0 values less than (-1));
-ERROR HY000: Partition function is unsigned, cannot have negative constants
+ERROR HY000: Partition constant is out of partition function domain
