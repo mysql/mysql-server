@@ -1262,27 +1262,29 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   ptrCheckGuard(nextOp, coprecsize, operationrec);  
   nextbits = nextOp.p->m_op_bits;
   
-  bool same = nextOp.p->is_same_trans(lastOp.p);
-
-  if (!same && ((opbits & Operationrec::OP_ACC_LOCK_MODE) ||
-		(nextbits & Operationrec::OP_LOCK_MODE)))
   {
-    jam();
+    const bool same = nextOp.p->is_same_trans(lastOp.p);
+    
+    if (!same && ((opbits & Operationrec::OP_ACC_LOCK_MODE) ||
+		  (nextbits & Operationrec::OP_LOCK_MODE)))
+    {
+      jam();
+      /**
+       * Not same transaction
+       *  and either last had exclusive lock
+       *          or next had exclusive lock
+       */
+      return;
+    }
+    
     /**
-     * Not same transaction
-     *  and either last had exclusive lock
-     *          or next had exclusive lock
+     * same trans and X-lock
      */
-    return;
-  }
-
-  /**
-   * same trans and X-lock
-   */
-  if (same && (opbits & Operationrec::OP_ACC_LOCK_MODE))
-  {
-    jam();
-    goto upgrade;
+    if (same && (opbits & Operationrec::OP_ACC_LOCK_MODE))
+    {
+      jam();
+      goto upgrade;
+    }
   }
 
   /**
@@ -1294,7 +1296,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
     jam();
     goto upgrade;
   }
-
+  
   /**
    * There is a shared parallell queue & and exclusive op is first in queue
    */
