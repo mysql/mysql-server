@@ -485,10 +485,9 @@ bool partition_info::check_range_constants()
     else
     {
       ulonglong upart_range_value_int;
-      if ((i != (no_parts - 1)) || !defined_max_value)
-        upart_range_value_int= part_def->range_value; 
-      else
-        upart_range_value_int= ULONGLONG_MAX;
+      if ((i == (no_parts - 1)) && defined_max_value)
+        part_def->range_value= ULONGLONG_MAX;
+      upart_range_value_int= part_def->range_value; 
       if (likely(current_largest_uint < upart_range_value_int))
       {
         current_largest_uint= upart_range_value_int;
@@ -572,7 +571,6 @@ bool partition_info::check_list_constants()
   uint i;
   uint list_index= 0;
   part_elem_value *list_value;
-  bool not_first;
   bool result= TRUE;
   longlong curr_value, prev_value;
   partition_element* part_def;
@@ -638,6 +636,7 @@ bool partition_info::check_list_constants()
 
   if (fixed)
   {
+    bool first= TRUE;
     if (!part_expr->unsigned_flag)
       qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
             &list_part_cmp);
@@ -645,15 +644,14 @@ bool partition_info::check_list_constants()
       qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
             &list_part_cmp_unsigned);
 
-    not_first= FALSE;
     i= prev_value= 0; //prev_value initialised to quiet compiler
     do
     {
       curr_value= list_array[i].list_value;
-      if (likely(!not_first || prev_value != curr_value))
+      if (likely(first || prev_value != curr_value))
       {
         prev_value= curr_value;
-        not_first= TRUE;
+        first= FALSE;
       }
       else
       {

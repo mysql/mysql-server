@@ -9,7 +9,29 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (a bigint unsigned);
+#
+# BUG 16002: Handle unsigned integer functions properly
+#
+--error 1064
+create table t1 (a bigint)
+partition by range (a)
+(partition p0 values less than (0xFFFFFFFFFFFFFFFF),
+ partition p1 values less than (10));
+--error 1064
+create table t1 (a bigint)
+partition by list (a)
+(partition p0 values in (0xFFFFFFFFFFFFFFFF),
+ partition p1 values in (10));
+
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (100),
+ partition p1 values less than MAXVALUE);
+insert into t1 values (1);
+drop table t1;
+
+create table t1 (a bigint unsigned)
+partition by hash (a);
 insert into t1 values (0xFFFFFFFFFFFFFFFD);
 insert into t1 values (0xFFFFFFFFFFFFFFFE);
 select * from t1 where (a + 1) < 10;
@@ -966,7 +988,7 @@ DROP TABLE t1;
 #
 #BUG 16002 Erroneus handling of unsigned partition functions
 #
---error ER_SIGNED_PARTITION_CONSTANT_ERROR
+--error ER_PARTITION_CONST_DOMAIN_ERROR
 create table t1 (a bigint unsigned)
 partition by list (a)
 (partition p0 values in (0-1));
@@ -977,6 +999,8 @@ partition by range (a)
 
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert into t1 values (0xFFFFFFFFFFFFFFFF);
+
+drop table t1;
 
 #
 #BUG 18750 Problems with partition names
