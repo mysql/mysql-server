@@ -155,6 +155,8 @@ ibool
 ibuf_bitmap_page(
 /*=============*/
 			/* out: TRUE if a bitmap page */
+	ulint	zip_size,/* in: compressed page size in bytes;
+			0 for uncompressed pages */
 	ulint	page_no);/* in: page number */
 /***************************************************************************
 Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages. */

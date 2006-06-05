@@ -4011,7 +4011,8 @@ fil_io(
 #ifndef UNIV_LOG_DEBUG
 	/* ibuf bitmap pages must be read in the sync aio mode: */
 	ut_ad(recv_no_ibuf_operations || (type == OS_FILE_WRITE)
-		|| !ibuf_bitmap_page(block_offset) || sync || is_log);
+		|| !ibuf_bitmap_page(fil_space_get_zip_size(space_id),
+			block_offset) || sync || is_log);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!ibuf_inside() || is_log || (type == OS_FILE_WRITE)
 					|| ibuf_page(space_id, block_offset));
