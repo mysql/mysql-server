@@ -1759,7 +1759,7 @@ buf_page_init_for_read(
 	if (mode == BUF_READ_IBUF_PAGES_ONLY) {
 		/* It is a read-ahead within an ibuf routine */
 
-		ut_ad(!ibuf_bitmap_page(offset));
+		ut_ad(!ibuf_bitmap_page(zip_size, offset));
 		ut_ad(ibuf_inside());
 
 		mtr_start(&mtr);
