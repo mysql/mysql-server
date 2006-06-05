@@ -5826,9 +5826,9 @@ ER_NDB_CANT_SWITCH_BINLOG_FORMAT
 	eng "The NDB cluster engine does not support changing the binlog format on the fly yet"
 ER_PARTITION_NO_TEMPORARY
 	eng "Cannot create temporary table with partitions"
-ER_SIGNED_PARTITION_CONSTANT_ERROR
-        eng "Partition function is unsigned, cannot have negative constants"
-        swe "Partitionsfunktionen är positiv, kan inte ha negativa konstanter"
+ER_PARTITION_CONST_DOMAIN_ERROR
+        eng "Partition constant is out of partition function domain"
+        swe "Partitionskonstanten är utanför partitioneringsfunktionens domän"
 ER_NULL_IN_VALUES_LESS_THAN
         eng "Not allowed to use NULL value in VALUES LESS THAN"
         swe "Det är inte tillåtet att använda NULL-värden i VALUES LESS THAN"

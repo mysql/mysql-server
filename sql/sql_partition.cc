@@ -819,8 +819,8 @@ int check_signed_flag(partition_info *part_info)
 
       if (part_elem->signed_flag)
       {
-        my_error(ER_SIGNED_PARTITION_CONSTANT_ERROR, MYF(0));
-        error= ER_SIGNED_PARTITION_CONSTANT_ERROR;
+        my_error(ER_PARTITION_CONST_DOMAIN_ERROR, MYF(0));
+        error= ER_PARTITION_CONST_DOMAIN_ERROR;
         break;
       }
     } while (++i < part_info->no_parts);
@@ -841,8 +841,8 @@ int check_signed_flag(partition_info *part_info)
     func_expr            The item tree reference of the partition function
     table                The table object
     part_info            Reference to partitioning data structure
-    sub_part             Is the table subpartitioned as well
-    set_up_fields        Flag if we are to set-up field arrays
+    is_sub_part          Is the table subpartitioned as well
+    is_field_to_be_setup Flag if we are to set-up field arrays
 
   RETURN VALUE
     TRUE                 An error occurred, something was wrong with the
@@ -1376,7 +1376,7 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
     fix_partition_func()
     thd                  The thread object
     table                TABLE object for which partition fields are set-up
-    create_table_ind     Indicator of whether openfrm was called as part of
+    is_create_table_ind  Indicator of whether openfrm was called as part of
                          CREATE or ALTER TABLE
 
   RETURN VALUE
@@ -1760,28 +1760,17 @@ static int add_partition_values(File fptr, partition_info *part_info,
   if (part_info->part_type == RANGE_PARTITION)
   {
     err+= add_string(fptr, "VALUES LESS THAN ");
-    if (p_elem->signed_flag)
+    if (!p_elem->max_value)
     {
-      if (!p_elem->max_value)
-      {
-        err+= add_begin_parenthesis(fptr);
+      err+= add_begin_parenthesis(fptr);
+      if (p_elem->signed_flag)
         err+= add_int(fptr, p_elem->range_value);
-        err+= add_end_parenthesis(fptr);
-      }
       else
-        err+= add_string(fptr, partition_keywords[PKW_MAXVALUE].str);
+        err+= add_uint(fptr, (ulonglong)p_elem->range_value);
+      err+= add_end_parenthesis(fptr);
     }
     else
-    {
-      if (!p_elem->max_value)
-      {
-        err+= add_begin_parenthesis(fptr);
-        err+= add_uint(fptr, (ulonglong)p_elem->range_value);
-        err+= add_end_parenthesis(fptr);
-      }
-      else
-        err+= add_string(fptr, partition_keywords[PKW_MAXVALUE].str);
-    }
+      err+= add_string(fptr, partition_keywords[PKW_MAXVALUE].str);
   }
   else if (part_info->part_type == LIST_PARTITION)
   {

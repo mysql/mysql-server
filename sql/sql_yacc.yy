@@ -3697,7 +3697,7 @@ opt_part_values:
         ;
 
 part_func_max:
-        MAX_VALUE_SYM
+        max_value_sym
         {
           LEX *lex= Lex;
           if (lex->part_info->defined_max_value)
@@ -3724,6 +3724,11 @@ part_func_max:
         }
         ;
 
+max_value_sym:
+        MAX_VALUE_SYM
+        | '(' MAX_VALUE_SYM ')'
+        ;
+        
 part_range_func:
         '(' part_bit_expr ')' 
         {
