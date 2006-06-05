@@ -952,14 +952,11 @@ ibool
 ibuf_fixed_addr_page(
 /*=================*/
 			/* out: TRUE if a fixed address ibuf i/o page */
+	ulint	space,	/* in: space id */
 	ulint	page_no)/* in: page number */
 {
-	if ((ibuf_bitmap_page(page_no))
-				|| (page_no == IBUF_TREE_ROOT_PAGE_NO)) {
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return((space == 0 && page_no == IBUF_TREE_ROOT_PAGE_NO)
+			|| ibuf_bitmap_page(page_no));
 }
 
 /***************************************************************************
@@ -983,7 +980,7 @@ ibuf_page(
 		return(FALSE);
 	}
 
-	if (ibuf_fixed_addr_page(page_no)) {
+	if (ibuf_fixed_addr_page(space, page_no)) {
 
 		return(TRUE);
 	}
@@ -1031,7 +1028,7 @@ ibuf_page_low(
 		return(FALSE);
 	}
 #endif
-	if (ibuf_fixed_addr_page(page_no)) {
+	if (ibuf_fixed_addr_page(space, page_no)) {
 
 		return(TRUE);
 	}
@@ -3070,7 +3067,7 @@ ibuf_merge_or_delete_for_page(
 		return;
 	}
 #endif
-	if (ibuf_fixed_addr_page(page_no) || fsp_descr_page(page_no)
+	if (ibuf_fixed_addr_page(space, page_no) || fsp_descr_page(page_no)
 					|| trx_sys_hdr_page(space, page_no)) {
 		return;
 	}
