@@ -574,3 +574,19 @@ insert into t1 values ('aa'),('bb'),('0');
 explain partitions select * from t1 where s1 = 0 or s1 is null;
 drop table t1;
 
+#
+# BUG#19684: EXPLAIN PARTITIONS produces garbage in 'partitions' column when
+# the length of string to be displayed exceeds some limit.
+create table t2 (a int, b int)
+  partition by LIST(a)
+  subpartition by HASH(b) subpartitions 40
+( partition p_0_long_partition_name values in(1),
+  partition p_1_long_partition_name values in(2));
+
+insert into t2 values (1,1),(2,2);
+
+--vertical_results
+explain partitions select * from t2;
+--horizontal_results
+drop table t2;
+
