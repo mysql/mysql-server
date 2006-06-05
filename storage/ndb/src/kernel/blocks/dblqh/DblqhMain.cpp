@@ -9063,6 +9063,7 @@ Dblqh::readPrimaryKeys(ScanRecord *scanP, TcConnectionrec *tcConP, Uint32 *dst)
   }
 
   int ret = c_tup->accReadPk(tableId, fragId, fragPageId, pageIndex, dst, false);
+  jamEntry();
   if(0)
     ndbout_c("readPrimaryKeys(table: %d fragment: %d [ %d %d ] -> %d",
 	     tableId, fragId, fragPageId, pageIndex, ret);
@@ -9433,6 +9434,11 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->m_curr_batch_size_bytes= 0;
   scanptr.p->m_max_batch_size_rows = max_rows;
   scanptr.p->m_max_batch_size_bytes = max_bytes;
+
+#if 0
+  if (! rangeScan)
+    tupScan = 1;
+#endif
 
   if (! rangeScan && ! tupScan)
     scanptr.p->scanBlockref = tcConnectptr.p->tcAccBlockref;
