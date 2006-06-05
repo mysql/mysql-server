@@ -120,8 +120,8 @@ handlerton binlog_hton = {
   SYNOPSIS
     open_log_table()
 
-    log_type   type of the log table to open: QUERY_LOG_GENERAL
-               or QUERY_LOG_SLOW
+    log_table_type   type of the log table to open: QUERY_LOG_GENERAL
+                     or QUERY_LOG_SLOW
 
   DESCRIPTION
 
@@ -136,14 +136,14 @@ handlerton binlog_hton = {
     TRUE - error occured
 */
 
-bool Log_to_csv_event_handler::open_log_table(uint log_type)
+bool Log_to_csv_event_handler::open_log_table(uint log_table_type)
 {
   THD *log_thd, *curr= current_thd;
   TABLE_LIST *table;
   bool error= FALSE;
   DBUG_ENTER("open_log_table");
 
-  switch (log_type) {
+  switch (log_table_type) {
   case QUERY_LOG_GENERAL:
     log_thd= general_log_thd;
     table= &general_log;
@@ -254,8 +254,8 @@ Log_to_csv_event_handler::~Log_to_csv_event_handler()
   SYNOPSIS
     reopen_log_table()
 
-    log_type   type of the log table to open: QUERY_LOG_GENERAL
-               or QUERY_LOG_SLOW
+    log_table_type   type of the log table to open: QUERY_LOG_GENERAL
+                     or QUERY_LOG_SLOW
 
   DESCRIPTION
 
@@ -272,12 +272,12 @@ Log_to_csv_event_handler::~Log_to_csv_event_handler()
     TRUE - open_log_table() returned an error
 */
 
-bool Log_to_csv_event_handler::reopen_log_table(uint log_type)
+bool Log_to_csv_event_handler::reopen_log_table(uint log_table_type)
 {
   /* don't open the log table, if it wasn't enabled during startup */
   if (!logger.is_log_tables_initialized)
     return FALSE;
-  return open_log_table(log_type);
+  return open_log_table(log_table_type);
 }
 
 void Log_to_csv_event_handler::cleanup()
@@ -613,9 +613,9 @@ void LOGGER::cleanup_end()
 }
 
 
-void LOGGER::close_log_table(uint log_type, bool lock_in_use)
+void LOGGER::close_log_table(uint log_table_type, bool lock_in_use)
 {
-  table_log_handler->close_log_table(log_type, lock_in_use);
+  table_log_handler->close_log_table(log_table_type, lock_in_use);
 }
 
 
@@ -655,9 +655,9 @@ void LOGGER::init_log_tables()
 }
 
 
-bool LOGGER::reopen_log_table(uint log_type)
+bool LOGGER::reopen_log_table(uint log_table_type)
 {
-  return table_log_handler->reopen_log_table(log_type);
+  return table_log_handler->reopen_log_table(log_table_type);
 }
 
 
@@ -992,9 +992,9 @@ int LOGGER::set_handlers(uint error_log_printer,
   SYNOPSIS
     close_log_table()
 
-    log_type       type of the log table to close: QUERY_LOG_GENERAL
-                   or QUERY_LOG_SLOW
-    lock_in_use    Set to TRUE if the caller owns LOCK_open. FALSE otherwise.
+    log_table_type   type of the log table to close: QUERY_LOG_GENERAL
+                     or QUERY_LOG_SLOW
+    lock_in_use      Set to TRUE if the caller owns LOCK_open. FALSE otherwise.
 
   DESCRIPTION
 
@@ -1004,7 +1004,7 @@ int LOGGER::set_handlers(uint error_log_printer,
 */
 
 void Log_to_csv_event_handler::
-  close_log_table(uint log_type, bool lock_in_use)
+  close_log_table(uint log_table_type, bool lock_in_use)
 {
   THD *log_thd, *curr= current_thd;
   TABLE_LIST *table;
@@ -1012,7 +1012,7 @@ void Log_to_csv_event_handler::
   if (!logger.is_log_tables_initialized)
     return;                                     /* do nothing */
 
-  switch (log_type) {
+  switch (log_table_type) {
   case QUERY_LOG_GENERAL:
     log_thd= general_log_thd;
     table= &general_log;
@@ -1382,7 +1382,7 @@ static int find_uniq_filename(char *name)
 
 
 void MYSQL_LOG::init(enum_log_type log_type_arg,
-                    enum cache_type io_cache_type_arg)
+                     enum cache_type io_cache_type_arg)
 {
   DBUG_ENTER("MYSQL_LOG::init");
   log_type= log_type_arg;
@@ -1452,8 +1452,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
                         ((log_type == LOG_BIN) ? MY_WAIT_IF_FULL : 0))))
     goto err;
 
-  switch (log_type) {
-  case LOG_NORMAL:
+  if (log_type == LOG_NORMAL)
   {
     char *end;
     int len=my_snprintf(buff, sizeof(buff), "%s, Version: %s. "
@@ -1474,14 +1473,9 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     if (my_b_write(&log_file, (byte*) buff, (uint) (end-buff)) ||
 	flush_io_cache(&log_file))
       goto err;
-    break;
-  }
-  case LOG_CLOSED:				// Impossible
-  case LOG_TO_BE_OPENED:
-    DBUG_ASSERT(1);
-    break;
   }
 
+  log_state= LOG_OPENED;
   DBUG_RETURN(0);
 
 err:
@@ -1493,13 +1487,13 @@ shutdown the MySQL server and restart it.", name, errno);
     my_close(file, MYF(0));
   end_io_cache(&log_file);
   safeFree(name);
-  log_type= LOG_CLOSED;
+  log_state= LOG_CLOSED;
   DBUG_RETURN(1);
 }
 
 MYSQL_LOG::MYSQL_LOG()
-  : name(0),  log_type(LOG_CLOSED), write_error(FALSE),
-    inited(FALSE), last_time(0)
+  : name(0),  log_type(LOG_UNKNOWN), log_state(LOG_CLOSED), write_error(FALSE),
+    inited(FALSE)
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
@@ -1535,7 +1529,7 @@ void MYSQL_LOG::close(uint exiting)
 {					// One can't set log_type here!
   DBUG_ENTER("MYSQL_LOG::close");
   DBUG_PRINT("enter",("exiting: %d", (int) exiting));
-  if (log_type != LOG_CLOSED && log_type != LOG_TO_BE_OPENED)
+  if (log_state == LOG_OPENED)
   {
     end_io_cache(&log_file);
 
@@ -1552,7 +1546,7 @@ void MYSQL_LOG::close(uint exiting)
     }
   }
 
-  log_type= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
+  log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
   safeFree(name);
   DBUG_VOID_RETURN;
 }
@@ -1572,6 +1566,24 @@ void MYSQL_LOG::cleanup()
 }
 
 
+int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
+{
+  fn_format(new_name, log_name, mysql_data_home, "", 4);
+  if (log_type == LOG_BIN)
+  {
+    if (!fn_ext(log_name)[0])
+    {
+      if (find_uniq_filename(new_name))
+      {
+	sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
+	return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+
 /*
   Reopen the log file
 
@@ -1584,9 +1596,8 @@ void MYSQL_LOG::cleanup()
 */
 
 
-void MYSQL_LOG::reopen_file()
+void MYSQL_QUERY_LOG::reopen_file()
 {
-  enum_log_type save_log_type;
   char *save_name;
 
   DBUG_ENTER("MYSQL_LOG::reopen_file");
@@ -1599,38 +1610,19 @@ void MYSQL_LOG::reopen_file()
   pthread_mutex_lock(&LOCK_log);
 
   save_name= name;
-  save_log_type= log_type;
   name= 0;				// Don't free name
   close(LOG_CLOSE_TO_BE_OPENED);
 
   /*
-     Note that at this point, log_type != LOG_CLOSED (important for is_open()).
+     Note that at this point, log_state != LOG_CLOSED (important for is_open()).
   */
 
-  open(save_name, save_log_type, 0, io_cache_type);
+  open(save_name, log_type, 0, io_cache_type);
   my_free(save_name, MYF(0));
 
   pthread_mutex_unlock(&LOCK_log);
 
   DBUG_VOID_RETURN;
-}
-
-
-int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
-{
-  fn_format(new_name,log_name,mysql_data_home,"",4);
-  if (log_type != LOG_NORMAL)
-  {
-    if (!fn_ext(log_name)[0])
-    {
-      if (find_uniq_filename(new_name))
-      {
-	sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
-	return 1;
-      }
-    }
-  }
-  return 0;
 }
 
 
@@ -1659,10 +1651,10 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
     TRUE - error occured
 */
 
-bool MYSQL_GENERAL_LOG::write(time_t event_time, const char *user_host,
-                              uint user_host_len, int thread_id,
-                              const char *command_type, uint command_type_len,
-                              const char *sql_text, uint sql_text_len)
+bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
+                            uint user_host_len, int thread_id,
+                            const char *command_type, uint command_type_len,
+                            const char *sql_text, uint sql_text_len)
 {
   char buff[32];
   uint length= 0;
@@ -1755,14 +1747,14 @@ err:
     TRUE - error occured
 */
 
-bool MYSQL_SLOW_LOG::write(THD *thd, time_t current_time,
-                           time_t query_start_arg, const char *user_host,
-                           uint user_host_len, longlong query_time,
-                           longlong lock_time, bool is_command,
-                           const char *sql_text, uint sql_text_len)
+bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
+                            time_t query_start_arg, const char *user_host,
+                            uint user_host_len, longlong query_time,
+                            longlong lock_time, bool is_command,
+                            const char *sql_text, uint sql_text_len)
 {
   bool error= 0;
-  DBUG_ENTER("MYSQL_SLOW_LOG::write");
+  DBUG_ENTER("MYSQL_QUERY_LOG::write");
 
   if (!is_open())
     DBUG_RETURN(0);
@@ -2015,7 +2007,6 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
   DBUG_ENTER("MYSQL_BIN_LOG::open");
   DBUG_PRINT("enter",("log_type: %d",(int) log_type_arg));
 
-  last_time= 0;
   write_error=0;
 
   /* open the main log file */
@@ -2119,6 +2110,8 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
 	goto err;
     }
   }
+  log_state= LOG_OPENED;
+
   DBUG_RETURN(0);
 
 err:
@@ -2131,7 +2124,7 @@ shutdown the MySQL server and restart it.", name, errno);
   end_io_cache(&log_file);
   end_io_cache(&index_file);
   safeFree(name);
-  log_type= LOG_CLOSED;
+  log_state= LOG_CLOSED;
   DBUG_RETURN(1);
 }
 
@@ -2350,7 +2343,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   LOG_INFO linfo;
   bool error=0;
   const char* save_name;
-  enum_log_type save_log_type;
   DBUG_ENTER("reset_logs");
 
   ha_reset_logs(thd);
@@ -2372,7 +2364,6 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   /* Save variables so that we can reopen the log */
   save_name=name;
   name=0;					// Protect against free
-  save_log_type=log_type;
   close(LOG_CLOSE_TO_BE_OPENED);
 
   /* First delete all old log files */
@@ -2396,8 +2387,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   if (!thd->slave_thread)
     need_start_event=1;
   if (!open_index_file(index_file_name, 0))
-    open(save_name, save_log_type, 0,
-         io_cache_type, no_auto_events, max_size, 0);
+    open(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0);
   my_free((gptr) save_name, MYF(0));
 
 err:
@@ -2753,7 +2743,6 @@ void MYSQL_BIN_LOG::new_file_without_locking()
 void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
 {
   char new_name[FN_REFLEN], *new_name_ptr, *old_name;
-  enum_log_type save_log_type;
 
   DBUG_ENTER("MYSQL_BIN_LOG::new_file_impl");
   if (!is_open())
@@ -2821,12 +2810,11 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
     signal_update();
   }
   old_name=name;
-  save_log_type=log_type;
   name=0;				// Don't free name
   close(LOG_CLOSE_TO_BE_OPENED);
 
   /*
-     Note that at this point, log_type != LOG_CLOSED (important for is_open()).
+     Note that at this point, log_state != LOG_CLOSED (important for is_open()).
   */
 
   /*
@@ -2838,7 +2826,7 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
      trigger temp tables deletion on slaves.
   */
 
-  open(old_name, save_log_type, new_name_ptr,
+  open(old_name, log_type, new_name_ptr,
        io_cache_type, no_auto_events, max_size, 1);
   my_free(old_name,MYF(0));
 
@@ -3543,7 +3531,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
 {					// One can't set log_type here!
   DBUG_ENTER("MYSQL_BIN_LOG::close");
   DBUG_PRINT("enter",("exiting: %d", (int) exiting));
-  if (log_type != LOG_CLOSED && log_type != LOG_TO_BE_OPENED)
+  if (log_state == LOG_OPENED)
   {
 #ifdef HAVE_REPLICATION
     if (log_type == LOG_BIN && !no_auto_events &&
@@ -3582,7 +3570,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
       sql_print_error(ER(ER_ERROR_ON_WRITE), index_file_name, errno);
     }
   }
-  log_type= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
+  log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
   safeFree(name);
   DBUG_VOID_RETURN;
 }

@@ -147,7 +147,8 @@ typedef struct st_log_info
 class Log_event;
 class Rows_log_event;
 
-enum enum_log_type { LOG_CLOSED, LOG_TO_BE_OPENED, LOG_NORMAL, LOG_BIN};
+enum enum_log_type { LOG_UNKNOWN, LOG_NORMAL, LOG_BIN };
+enum enum_log_state { LOG_OPENED, LOG_CLOSED, LOG_TO_BE_OPENED };
 
 /*
   TODO use mmap instead of IO_CACHE for binlog
@@ -160,7 +161,6 @@ public:
   MYSQL_LOG();
   void init_pthread_objects();
   void cleanup();
-  void reopen_file();
   bool open(const char *log_name,
             enum_log_type log_type,
             const char *new_name,
@@ -168,7 +168,7 @@ public:
   void init(enum_log_type log_type_arg,
             enum cache_type io_cache_type_arg);
   void close(uint exiting);
-  inline bool is_open() { return log_type != LOG_CLOSED; }
+  inline bool is_open() { return log_state != LOG_CLOSED; }
   const char *generate_name(const char *log_name, const char *suffix,
                             bool strip_ext, char *buff);
   int generate_new_name(char *new_name, const char *log_name);
@@ -180,33 +180,21 @@ public:
   char time_buff[20], db[NAME_LEN + 1];
   bool write_error, inited;
   IO_CACHE log_file;
-  volatile enum_log_type log_type;
+  enum_log_type log_type;
+  volatile enum_log_state log_state;
   enum cache_type io_cache_type;
-  time_t last_time;
-
   friend class Log_event;
 };
 
-class MYSQL_GENERAL_LOG: public MYSQL_LOG
+class MYSQL_QUERY_LOG: public MYSQL_LOG
 {
 public:
-  MYSQL_GENERAL_LOG() {}  /* get rid of gcc warning */
+  MYSQL_QUERY_LOG() : last_time(0) {}
+  void reopen_file();
   bool write(time_t event_time, const char *user_host,
              uint user_host_len, int thread_id,
              const char *command_type, uint command_type_len,
              const char *sql_text, uint sql_text_len);
-  bool open_query_log(const char *log_name)
-  {
-    char buf[FN_REFLEN];
-    return open(generate_name(log_name, ".log", 0, buf), LOG_NORMAL, 0,
-                WRITE_CACHE);
-  }
-};
-
-class MYSQL_SLOW_LOG: public MYSQL_LOG
-{
-public:
-  MYSQL_SLOW_LOG() {}  /* get rid of gcc warning */
   bool write(THD *thd, time_t current_time, time_t query_start_arg,
              const char *user_host, uint user_host_len,
              longlong query_time, longlong lock_time, bool is_command,
@@ -217,6 +205,14 @@ public:
     return open(generate_name(log_name, "-slow.log", 0, buf), LOG_NORMAL, 0,
                 WRITE_CACHE);
   }
+  bool open_query_log(const char *log_name)
+  {
+    char buf[FN_REFLEN];
+    return open(generate_name(log_name, ".log", 0, buf), LOG_NORMAL, 0,
+                WRITE_CACHE);
+  }
+private:
+  time_t last_time;
 };
 
 class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
@@ -269,6 +265,7 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 
 public:
   MYSQL_LOG::generate_name;
+  MYSQL_LOG::is_open;
   /*
     These describe the log's format. This is used only for relay logs.
     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
@@ -371,7 +368,6 @@ public:
   int find_next_log(LOG_INFO* linfo, bool need_mutex);
   int get_current_log(LOG_INFO* linfo);
   uint next_file_id();
-  inline bool is_open() { return log_type != LOG_CLOSED; }
   inline char* get_index_fname() { return index_file_name;}
   inline char* get_log_fname() { return log_file_name; }
   inline char* get_name() { return name; }
@@ -448,8 +444,8 @@ public:
 
 class Log_to_file_event_handler: public Log_event_handler
 {
-  MYSQL_GENERAL_LOG mysql_log;
-  MYSQL_SLOW_LOG mysql_slow_log;
+  MYSQL_QUERY_LOG mysql_log;
+  MYSQL_QUERY_LOG mysql_slow_log;
   bool is_initialized;
 public:
   Log_to_file_event_handler(): is_initialized(FALSE)
