@@ -7011,7 +7011,7 @@ static void mysql_init_variables(void)
   character_set_filesystem_name= (char*) "binary";
 
   /* Set default values for some option variables */
-  default_storage_engine_str="MyISAM";
+  default_storage_engine_str= (char*) "MyISAM";
   global_system_variables.table_type= &myisam_hton;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
