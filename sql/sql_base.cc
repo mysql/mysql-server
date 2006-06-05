@@ -5433,27 +5433,27 @@ bool setup_tables_and_check_access(THD *thd,
                                    Name_resolution_context *context,
                                    List<TABLE_LIST> *from_clause,
                                    TABLE_LIST *tables,
-                                   Item **conds, TABLE_LIST **leaves,
+                                   TABLE_LIST **leaves,
                                    bool select_insert,
                                    ulong want_access)
 {
-  TABLE_LIST *leaves_tmp = NULL;
+  TABLE_LIST *leaves_tmp= NULL;
 
-  if (setup_tables (thd, context, from_clause, tables, conds, 
-                    &leaves_tmp, select_insert))
+  if (setup_tables(thd, context, from_clause, tables,
+                   &leaves_tmp, select_insert))
     return TRUE;
 
-  if (leaves)
-    *leaves = leaves_tmp;
+  *leaves= leaves_tmp;
 
   for (; leaves_tmp; leaves_tmp= leaves_tmp->next_leaf)
+  {
     if (leaves_tmp->belong_to_view && 
         check_one_table_access(thd, want_access,  leaves_tmp))
     {
       tables->hide_view_error(thd);
       return TRUE;
     }
-
+  }
   return FALSE;
 }
 

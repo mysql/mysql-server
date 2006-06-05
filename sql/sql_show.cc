@@ -3119,9 +3119,10 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
     if (!(wild && wild[0] &&
           wild_case_compare(scs, plugin->name.str,wild)))
     {
-      LEX_STRING state[2]={{STRING_WITH_LEN("ENABLED")},
-                           {STRING_WITH_LEN("DISABLED")}};
-      LEX_STRING yesno[2]={{STRING_WITH_LEN("NO")}, {STRING_WITH_LEN("YES")}};
+      LEX_STRING state[2]= {{(char*) STRING_WITH_LEN("ENABLED")},
+                            {(char*) STRING_WITH_LEN("DISABLED")}};
+      LEX_STRING yesno[2]= {{(char*) STRING_WITH_LEN("NO")},
+                            {(char*) STRING_WITH_LEN("YES")}};
       LEX_STRING *tmp;
       restore_record(table, s->default_values);
 
