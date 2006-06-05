@@ -228,7 +228,7 @@ THD::THD()
   hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
-  cuted_fields= sent_row_count= 0L;
+  cuted_fields= sent_row_count= row_count= 0L;
   limit_found_rows= 0;
   statement_id_counter= 0UL;
 #ifdef ERROR_INJECT_SUPPORT

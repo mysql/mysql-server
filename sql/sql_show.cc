@@ -4178,7 +4178,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
       DBUG_RETURN(1);
 
     sch_table->field[7]->set_notnull();
-    sch_table->field[7]->store(show_str.c_ptr(), show_str.length(), scs);
+    sch_table->field[7]->store(show_str.ptr(), show_str.length(), scs);
 
     LEX_STRING *ival= &interval_type_to_name[et.interval];
     sch_table->field[8]->set_notnull();
