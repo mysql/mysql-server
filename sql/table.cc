@@ -2392,26 +2392,28 @@ table_check_intact(TABLE *table, uint table_f_count,
                         table_f_count, table->s->fields);
       }
       else
+      {
         /*
           moving from newer mysql to older one -> let's say not an error but
-          will check the definition afterwards. If a column was added at the end
-          then we don't care much since it's not in the middle.
+          will check the definition afterwards. If a column was added at the
+          end then we don't care much since it's not in the middle.
         */
         error= FALSE;
+      }
     }
     //definitely something has changed
     char buffer[255];
-    for (i=0 ;i < table_f_count; ++i, ++table_def)
+    for (i=0 ; i < table_f_count; i++, table_def++)
     {      
-      Field *field= table->field[i];
       String sql_type(buffer, sizeof(buffer), system_charset_info);
       sql_type.length(0);
       /*
         name changes are not fatal, we use sequence numbers => no prob for us
         but this can show tampered table or broken table.
       */
-      if (!fields_diff_count || i < table->s->fields)
+      if (i < table->s->fields)
       {
+        Field *field= table->field[i];
         if (strncmp(field->field_name, table_def->name.str,
                                        table_def->name.length))
         {
@@ -2459,7 +2461,7 @@ table_check_intact(TABLE *table, uint table_f_count,
       else
       {
         sql_print_error("(%s) Expected field %s at position %d to have type %s "
-                        " but no field found.", table_def->name.str,
+                        " but no field found.", table->alias,
                         table_def->name.str, i, table_def->type.str);
         error= TRUE;        
       }

@@ -420,3 +420,16 @@
    fun:fprintf
    fun:print_stacktrace
 }
+
+#
+# Safe warnings, that may happen because of thread scheduling
+#
+
+{
+   dbug initialization
+   Memcheck:Leak
+   fun:malloc
+   fun:DbugMalloc
+   fun:ListAdd
+   fun:_db_set_
+}

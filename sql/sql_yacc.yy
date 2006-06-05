@@ -1385,7 +1385,7 @@ ev_schedule_time: EVERY_SYM expr interval
                   String str(buff,(uint32) sizeof(buff), system_charset_info);
                   String *str2= $2->val_str(&str);
                   my_error(ER_WRONG_VALUE, MYF(0), "AT",
-                           str2? str2->c_ptr():"NULL");
+                           str2? str2->c_ptr_safe():"NULL");
                   YYABORT;
                   break;
                 }
@@ -1436,8 +1436,8 @@ ev_starts: /* empty */
                   char buff[20];
                   String str(buff,(uint32) sizeof(buff), system_charset_info);
                   String *str2= $2->val_str(&str);
-                  my_error(ER_WRONG_VALUE, MYF(0), "STARTS", str2? str2->c_ptr():
-                                                                   NULL);
+                  my_error(ER_WRONG_VALUE, MYF(0), "STARTS",
+	                   str2 ? str2->c_ptr_safe() : NULL);
                   YYABORT;
                   break;
                 }

@@ -361,6 +361,7 @@ static bool berkeley_show_logs(THD *thd, stat_print_fn *stat_print)
   init_sql_alloc(&show_logs_root, BDB_LOG_ALLOC_BLOCK_SIZE,
 		 BDB_LOG_ALLOC_BLOCK_SIZE);
   *root_ptr= &show_logs_root;
+  all_logs= free_logs= 0;
 
   if ((error= db_env->log_archive(db_env, &all_logs,
 				  DB_ARCH_ABS | DB_ARCH_LOG)) ||
@@ -395,6 +396,10 @@ static bool berkeley_show_logs(THD *thd, stat_print_fn *stat_print)
     }
   }
 err:
+  if (all_logs)
+    free(all_logs);
+  if (free_logs)
+    free(free_logs);
   free_root(&show_logs_root,MYF(0));
   *root_ptr= old_mem_root;
   DBUG_RETURN(error);
