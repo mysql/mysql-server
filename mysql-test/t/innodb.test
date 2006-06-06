@@ -2196,3 +2196,16 @@ drop table t2, t1;
 #
 --error ER_TABLE_CANT_HANDLE_SPKEYS
 create table t1 (g geometry not null, spatial gk(g)) engine=innodb;
+
+#######################################################################
+#                                                                     #
+# Please, DO NOT TOUCH this file as well as the innodb.result file.   #
+# These files are to be modified ONLY BY INNOBASE guys.               #
+#                                                                     #
+# Use innodb_mysql.[test|result] files instead.                       #
+#                                                                     #
+# If nevertheless you need to make some changes here, please, forward #
+# your commit message To: dev@innodb.com Cc: dev-innodb@mysql.com     #
+# (otherwise your changes may be erased).                             #
+#                                                                     #
+#######################################################################
