@@ -2222,6 +2222,7 @@ static int dump_all_tables_in_db(char *database)
 static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
 {
   char *name= 0;
+  ulong *lengths;
   MYSQL_RES  *tableRes;
   MYSQL_ROW  row;
   char query[50 + 2*NAME_LEN];
@@ -2246,7 +2247,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
     if (numRows > 0)
     {
       row= mysql_fetch_row( tableRes );
-      ulong *lengths= mysql_fetch_lengths(tableRes);
+      lengths= mysql_fetch_lengths(tableRes);
       name= strmake_root(root, row[0], lengths[0]);
     }
     mysql_free_result(tableRes);
