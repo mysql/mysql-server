@@ -2757,6 +2757,9 @@ int do_connect(struct st_query *q)
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl || con_ssl)
   {
+    /* Turn on ssl_verify_server_cert only if host is "localhost" */
+    opt_ssl_verify_server_cert= !strcmp(con_host, "localhost");
+
     mysql_ssl_set(&next_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
     mysql_options(&next_con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,

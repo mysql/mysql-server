@@ -1382,38 +1382,6 @@ sslFactory& GetSSL_Factory()
 }
 
 
-static CryptProvider* cryptProviderInstance = 0;
-
-CryptProvider& GetCryptProvider()
-{
-    if (!cryptProviderInstance)
-        cryptProviderInstance = NEW_YS CryptProvider;
-    return *cryptProviderInstance;
-}
-
-
-CryptProvider::~CryptProvider()
-{
-    mySTL::for_each(digestList_.begin(), digestList_.end(), del_ptr_zero());
-    mySTL::for_each(cipherList_.begin(), cipherList_.end(), del_ptr_zero());
-}
-
-
-Digest* CryptProvider::NewMd5()
-{
-    Digest* ptr = NEW_YS MD5();
-    digestList_.push_back(ptr);
-    return ptr;
-}
-
-
-BulkCipher* CryptProvider::NewDesEde()
-{
-    BulkCipher* ptr = NEW_YS DES_EDE();
-    cipherList_.push_back(ptr);
-    return ptr;
-}
-
 
 typedef Mutex::Lock Lock;
 
@@ -2106,12 +2074,10 @@ ASN1_STRING* StringHolder::GetString()
 extern "C" void yaSSL_CleanUp()
 {
     TaoCrypt::CleanUp();
-    yaSSL::ysDelete(yaSSL::cryptProviderInstance);
     yaSSL::ysDelete(yaSSL::sslFactoryInstance);
     yaSSL::ysDelete(yaSSL::sessionsInstance);
 
     // In case user calls more than once, prevent seg fault
-    yaSSL::cryptProviderInstance = 0;
     yaSSL::sslFactoryInstance = 0;
     yaSSL::sessionsInstance = 0;
 }
