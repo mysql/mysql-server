@@ -606,14 +606,24 @@ ulint
 xdes_calc_descriptor_page(
 /*======================*/
 				/* out: descriptor page offset */
+	ulint	zip_size,	/* in: compressed page size in bytes;
+				0 for uncompressed pages */
 	ulint	offset)		/* in: page offset */
 {
 #if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET \
-		+ (XDES_DESCRIBED_PER_PAGE / FSP_EXTENT_SIZE) * XDES_SIZE
+		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
 # error
 #endif
-
-	return(ut_2pow_round(offset, XDES_DESCRIBED_PER_PAGE));
+#if 1024 <= XDES_ARR_OFFSET + (1024 / FSP_EXTENT_SIZE) * XDES_SIZE
+# error /* extent descriptor will not fit on smallest page_zip */
+#endif
+	ut_ad(zip_size <= XDES_ARR_OFFSET
+			+ (zip_size / FSP_EXTENT_SIZE) * XDES_SIZE);
+	if (!zip_size) {
+		return(ut_2pow_round(offset, UNIV_PAGE_SIZE));
+	} else {
+		return(ut_2pow_round(offset, zip_size));
+	}
 }
 
 /************************************************************************
@@ -623,10 +633,16 @@ ulint
 xdes_calc_descriptor_index(
 /*=======================*/
 				/* out: descriptor index */
+	ulint	zip_size,	/* in: compressed page size in bytes;
+				0 for uncompressed pages */
 	ulint	offset)		/* in: page offset */
 {
-	return(ut_2pow_remainder(offset, XDES_DESCRIBED_PER_PAGE) /
-							FSP_EXTENT_SIZE);
+	if (!zip_size) {
+		return(ut_2pow_remainder(offset, UNIV_PAGE_SIZE)
+				/ FSP_EXTENT_SIZE);
+	} else {
+		return(ut_2pow_remainder(offset, zip_size) / FSP_EXTENT_SIZE);
+	}
 }
 
 /************************************************************************
@@ -652,15 +668,21 @@ xdes_get_descriptor_with_space_hdr(
 {
 	ulint	limit;
 	ulint	size;
+	ulint	zip_size;
 	ulint	descr_page_no;
 	page_t*	descr_page;
 
 	ut_ad(mtr);
 	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space),
 						MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains(mtr,
+			buf_block_align(sp_header), MTR_MEMO_PAGE_S_FIX)
+		|| mtr_memo_contains(mtr,
+			buf_block_align(sp_header), MTR_MEMO_PAGE_X_FIX));
 	/* Read free limit and space size */
-	limit = mtr_read_ulint(sp_header + FSP_FREE_LIMIT, MLOG_4BYTES, mtr);
-	size  = mtr_read_ulint(sp_header + FSP_SIZE, MLOG_4BYTES, mtr);
+	limit = mach_read_from_4(sp_header + FSP_FREE_LIMIT);
+	size  = mach_read_from_4(sp_header + FSP_SIZE);
+	zip_size = mach_read_from_4(sp_header + FSP_PAGE_ZIP_SIZE);
 
 	/* If offset is >= size or > limit, return NULL */
 
@@ -675,7 +697,7 @@ xdes_get_descriptor_with_space_hdr(
 		fsp_fill_free_list(FALSE, space, sp_header, mtr);
 	}
 
-	descr_page_no = xdes_calc_descriptor_page(offset);
+	descr_page_no = xdes_calc_descriptor_page(zip_size, offset);
 
 	if (descr_page_no == 0) {
 		/* It is on the space header page */
@@ -690,7 +712,7 @@ xdes_get_descriptor_with_space_hdr(
 	}
 
 	return(descr_page + XDES_ARR_OFFSET
-		+ XDES_SIZE * xdes_calc_descriptor_index(offset));
+		+ XDES_SIZE * xdes_calc_descriptor_index(zip_size, offset));
 }
 
 /************************************************************************
@@ -1304,7 +1326,7 @@ fsp_fill_free_list(
 #endif /* UNIV_SYNC_DEBUG */
 			fsp_init_file_page(ibuf_page, &ibuf_mtr);
 
-			ibuf_bitmap_page_init(ibuf_page, &ibuf_mtr);
+			ibuf_bitmap_page_init(ibuf_page, zip_size, &ibuf_mtr);
 
 			mtr_commit(&ibuf_mtr);
 		}
@@ -1313,8 +1335,11 @@ fsp_fill_free_list(
 									mtr);
 		xdes_init(descr, mtr);
 
-#if XDES_DESCRIBED_PER_PAGE % FSP_EXTENT_SIZE
-# error "XDES_DESCRIBED_PER_PAGE % FSP_EXTENT_SIZE != 0"
+#if UNIV_PAGE_SIZE % FSP_EXTENT_SIZE
+# error "UNIV_PAGE_SIZE % FSP_EXTENT_SIZE != 0"
+#endif
+#if 1024 % FSP_EXTENT_SIZE /* smallest page_zip->size */
+# error "1024 % FSP_EXTENT_SIZE != 0"
 #endif
 
 		if (0 == i % XDES_DESCRIBED_PER_PAGE) {
