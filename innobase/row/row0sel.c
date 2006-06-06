@@ -1064,11 +1064,12 @@ row_sel_try_search_shortcut(
 	ut_ad(plan->pcur.latch_mode == node->latch_mode);
 
 	plan->n_rows_fetched++;
+	ret = SEL_FOUND;
 func_exit:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
-	return(SEL_FOUND);
+	return(ret);
 }
 
 /*************************************************************************
