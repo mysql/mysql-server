@@ -145,9 +145,9 @@ explain select fld3 from t2 use index (fld1,fld3) where fld3 = 'honeysuckle';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	fld3	fld3	30	const	1	Using where; Using index
 explain select fld3 from t2 ignore index (fld3,not_used);
-ERROR 42000: Key column 'not_used' doesn't exist in table
+ERROR 42000: Key 'not_used' doesn't exist in table 't2'
 explain select fld3 from t2 use index (not_used);
-ERROR 42000: Key column 'not_used' doesn't exist in table
+ERROR 42000: Key 'not_used' doesn't exist in table 't2'
 select t2.fld3 from t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
 fld3
 honeysuckle
