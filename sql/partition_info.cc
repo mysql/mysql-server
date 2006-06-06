@@ -444,9 +444,9 @@ bool partition_info::check_engine_mix(handlerton **engine_array, uint no_parts)
 bool partition_info::check_range_constants()
 {
   partition_element* part_def;
-  longlong current_largest_int= LONGLONG_MIN;
-  ulonglong current_largest_uint= 0;
-  longlong part_range_value_int;
+  longlong current_largest;
+  longlong part_range_value;
+  bool first= TRUE;
   uint i;
   List_iterator<partition_element> it(partitions);
   bool result= TRUE;
@@ -465,33 +465,26 @@ bool partition_info::check_range_constants()
   do
   {
     part_def= it++;
-    if (signed_flag)
+    if ((i != (no_parts - 1)) || !defined_max_value)
     {
-      if ((i != (no_parts - 1)) || !defined_max_value)
-        part_range_value_int= part_def->range_value; 
-      else
-        part_range_value_int= LONGLONG_MAX;
-      if (likely(current_largest_int < part_range_value_int))
-      {
-        current_largest_int= part_range_value_int;
-        range_int_array[i]= part_range_value_int;
-      }
-      else
-      {
-        my_error(ER_RANGE_NOT_INCREASING_ERROR, MYF(0));
-        goto end;
-      }
+      part_range_value= part_def->range_value;
+      if (!signed_flag)
+        part_range_value-= 0x8000000000000000ULL;
+    }
+    else
+      part_range_value= LONGLONG_MAX;
+    if (first)
+    {
+      current_largest= part_range_value;
+      range_int_array[0]= part_range_value;
+      first= FALSE;
     }
     else
     {
-      ulonglong upart_range_value_int;
-      if ((i == (no_parts - 1)) && defined_max_value)
-        part_def->range_value= ULONGLONG_MAX;
-      upart_range_value_int= part_def->range_value; 
-      if (likely(current_largest_uint < upart_range_value_int))
+      if (likely(current_largest < part_range_value))
       {
-        current_largest_uint= upart_range_value_int;
-        range_int_array[i]= part_range_value_int;
+        current_largest= part_range_value;
+        range_int_array[i]= part_range_value;
       }
       else
       {
@@ -533,18 +526,6 @@ int partition_info::list_part_cmp(const void* a, const void* b)
     return 0;
 }
 
-int partition_info::list_part_cmp_unsigned(const void* a, const void* b)
-{
-  ulonglong a1= ((LIST_PART_ENTRY*)a)->list_value;
-  ulonglong b1= ((LIST_PART_ENTRY*)b)->list_value;
-  if (a1 < b1)
-    return -1;
-  else if (a1 > b1)
-    return +1;
-  else
-    return 0;
-}
-
 
 /*
   This routine allocates an array for all list constants to achieve a fast
@@ -572,7 +553,7 @@ bool partition_info::check_list_constants()
   uint list_index= 0;
   part_elem_value *list_value;
   bool result= TRUE;
-  longlong curr_value, prev_value;
+  longlong curr_value, prev_value, type_add, calc_value;
   partition_element* part_def;
   bool found_null= FALSE;
   List_iterator<partition_element> list_func_it(partitions);
@@ -623,13 +604,22 @@ bool partition_info::check_list_constants()
   }
 
   i= 0;
+  /*
+    Fix to be able to reuse signed sort functions also for unsigned
+    partition functions.
+  */
+  type_add= (longlong)(part_expr->unsigned_flag ?
+                                       0x8000000000000000ULL :
+                                       0ULL);
+
   do
   {
     part_def= list_func_it++;
     List_iterator<part_elem_value> list_val_it2(part_def->list_val_list);
     while ((list_value= list_val_it2++))
     {
-      list_array[list_index].list_value= list_value->value;
+      calc_value= list_value->value - type_add;
+      list_array[list_index].list_value= calc_value;
       list_array[list_index++].partition_id= i;
     }
   } while (++i < no_parts);
@@ -637,12 +627,8 @@ bool partition_info::check_list_constants()
   if (fixed)
   {
     bool first= TRUE;
-    if (!part_expr->unsigned_flag)
-      qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
-            &list_part_cmp);
-    else
-      qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
-            &list_part_cmp_unsigned);
+    qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
+          &list_part_cmp);
 
     i= prev_value= 0; //prev_value initialised to quiet compiler
     do

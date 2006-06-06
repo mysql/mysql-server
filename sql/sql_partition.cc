@@ -1752,8 +1752,7 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   return err + add_engine(fptr,p_elem->engine_type);
 }
 
-static int add_partition_values(File fptr, partition_info *part_info,
-                                partition_element *p_elem)
+static int add_partition_values(File fptr, partition_info *part_info, partition_element *p_elem)
 {
   int err= 0;
 
@@ -1766,7 +1765,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
       if (p_elem->signed_flag)
         err+= add_int(fptr, p_elem->range_value);
       else
-        err+= add_uint(fptr, (ulonglong)p_elem->range_value);
+        err+= add_uint(fptr, p_elem->range_value);
       err+= add_end_parenthesis(fptr);
     }
     else
@@ -2382,6 +2381,7 @@ int get_partition_id_list(partition_info *part_info,
   int min_list_index= 0;
   int max_list_index= part_info->no_list_values - 1;
   longlong part_func_value= part_val_int(part_info->part_expr);
+  longlong list_value;
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("get_partition_id_list");
 
@@ -2394,50 +2394,25 @@ int get_partition_id_list(partition_info *part_info,
     }
     goto notfound;
   }
+  if (unsigned_flag)
+    part_func_value-= 0x8000000000000000ULL;
   *func_value= part_func_value;
-  if (!unsigned_flag)
+  while (max_list_index >= min_list_index)
   {
-    longlong list_value;
-    while (max_list_index >= min_list_index)
+    list_index= (max_list_index + min_list_index) >> 1;
+    list_value= list_array[list_index].list_value;
+    if (list_value < part_func_value)
+      min_list_index= list_index + 1;
+    else if (list_value > part_func_value)
     {
-      list_index= (max_list_index + min_list_index) >> 1;
-      list_value= list_array[list_index].list_value;
-      if (list_value < part_func_value)
-        min_list_index= list_index + 1;
-      else if (list_value > part_func_value)
-      {
-        if (!list_index)
-          goto notfound;
-        max_list_index= list_index - 1;
-      }
-      else
-      {
-        *part_id= (uint32)list_array[list_index].partition_id;
-        DBUG_RETURN(0);
-      }
+      if (!list_index)
+        goto notfound;
+      max_list_index= list_index - 1;
     }
-  }
-  else
-  {
-    ulonglong ulist_value;
-    ulonglong upart_func_value= part_func_value;
-    while (max_list_index >= min_list_index)
+    else
     {
-      list_index= (max_list_index + min_list_index) >> 1;
-      ulist_value= list_array[list_index].list_value;
-      if (ulist_value < upart_func_value)
-        min_list_index= list_index + 1;
-      else if (ulist_value > upart_func_value)
-      {
-        if (!list_index)
-          goto notfound;
-        max_list_index= list_index - 1;
-      }
-      else
-      {
-        *part_id= (uint32)list_array[list_index].partition_id;
-        DBUG_RETURN(0);
-      }
+      *part_id= (uint32)list_array[list_index].partition_id;
+      DBUG_RETURN(0);
     }
   }
 notfound:
@@ -2496,57 +2471,30 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("get_list_array_idx_for_endpoint");
 
-  if (!unsigned_flag)
+  if (unsigned_flag)
+    part_func_value-= 0x8000000000000000ULL;
+  longlong list_value;
+  while (max_list_index >= min_list_index)
   {
-    longlong list_value;
-    while (max_list_index >= min_list_index)
-    {
-      list_index= (max_list_index + min_list_index) >> 1;
-      list_value= list_array[list_index].list_value;
-      if (list_value < part_func_value)
-        min_list_index= list_index + 1;
-      else if (list_value > part_func_value)
-      {
-        if (!list_index)
-          goto notfound_signed;
-        max_list_index= list_index - 1;
-      }
-      else 
-      {
-        DBUG_RETURN(list_index + test(left_endpoint ^ include_endpoint));
-      }
-    }
-  notfound_signed:
+    list_index= (max_list_index + min_list_index) >> 1;
+    list_value= list_array[list_index].list_value;
     if (list_value < part_func_value)
-      list_index++;
-    DBUG_RETURN(list_index);
-  }
-  else
-  {
-    ulonglong upart_func_value= part_func_value;
-    ulonglong ulist_value;
-    while (max_list_index >= min_list_index)
+      min_list_index= list_index + 1;
+    else if (list_value > part_func_value)
     {
-      list_index= (max_list_index + min_list_index) >> 1;
-      ulist_value= list_array[list_index].list_value;
-      if (ulist_value < upart_func_value)
-        min_list_index= list_index + 1;
-      else if (ulist_value > upart_func_value)
-      {
-        if (!list_index)
-          goto notfound_unsigned;
-        max_list_index= list_index - 1;
-      }
-      else 
-      {
-        DBUG_RETURN(list_index + test(left_endpoint ^ include_endpoint));
-      }
+      if (!list_index)
+        goto notfound;
+      max_list_index= list_index - 1;
     }
-  notfound_unsigned:
-    if (ulist_value < upart_func_value)
-      list_index++;
-    DBUG_RETURN(list_index);
+    else 
+    {
+      DBUG_RETURN(list_index + test(left_endpoint ^ include_endpoint));
+    }
   }
+notfound:
+  if (list_value < part_func_value)
+    list_index++;
+  DBUG_RETURN(list_index);
 }
 
 
@@ -2568,52 +2516,26 @@ int get_partition_id_range(partition_info *part_info,
     *part_id= 0;
     DBUG_RETURN(0);
   }
+  if (unsigned_flag)
+    part_func_value-= 0x8000000000000000ULL;
   *func_value= part_func_value;
-  if (!unsigned_flag)
+  while (max_part_id > min_part_id)
   {
-    while (max_part_id > min_part_id)
-    {
-      loc_part_id= (max_part_id + min_part_id + 1) >> 1;
-      if (range_array[loc_part_id] <= part_func_value)
-        min_part_id= loc_part_id + 1;
-      else
-        max_part_id= loc_part_id - 1;
-    }
-    loc_part_id= max_part_id;
-    if (part_func_value >= range_array[loc_part_id])
-      if (loc_part_id != max_partition)
-        loc_part_id++;
-    *part_id= (uint32)loc_part_id;
-    if (loc_part_id == max_partition)
-      if (range_array[loc_part_id] != LONGLONG_MAX)
-        if (part_func_value >= range_array[loc_part_id])
-          DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+    loc_part_id= (max_part_id + min_part_id + 1) >> 1;
+    if (range_array[loc_part_id] <= part_func_value)
+      min_part_id= loc_part_id + 1;
+    else
+      max_part_id= loc_part_id - 1;
   }
-  else
-  {
-    ulonglong upart_func_value= part_func_value;
-    ulonglong urange_value;
-    while (max_part_id > min_part_id)
-    {
-      loc_part_id= (max_part_id + min_part_id + 1) >> 1;
-      urange_value= range_array[loc_part_id];
-      if (urange_value <= upart_func_value)
-        min_part_id= loc_part_id + 1;
-      else
-        max_part_id= loc_part_id - 1;
-    }
-    loc_part_id= max_part_id;
-    urange_value= range_array[loc_part_id];
-    if (upart_func_value >= urange_value)
-      if (loc_part_id != max_partition)
-        loc_part_id++;
-    *part_id= (uint32)loc_part_id;
-    urange_value= range_array[loc_part_id];
-    if (loc_part_id == max_partition)
-      if (urange_value != ULONGLONG_MAX)
-        if (upart_func_value >= urange_value)
-          DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
-  }
+  loc_part_id= max_part_id;
+  if (part_func_value >= range_array[loc_part_id])
+    if (loc_part_id != max_partition)
+      loc_part_id++;
+  *part_id= (uint32)loc_part_id;
+  if (loc_part_id == max_partition)
+    if (range_array[loc_part_id] != LONGLONG_MAX)
+      if (part_func_value >= range_array[loc_part_id])
+        DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
   DBUG_RETURN(0);
 }
 
@@ -2671,71 +2593,34 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("get_partition_id_range_for_endpoint");
 
-  if (!unsigned_flag)
+  if (unsigned_flag)
+    part_func_value-= 0x8000000000000000ULL;
+  while (max_part_id > min_part_id)
   {
-    while (max_part_id > min_part_id)
-    {
-      loc_part_id= (max_part_id + min_part_id + 1) >> 1;
-      if (range_array[loc_part_id] <= part_func_value)
-        min_part_id= loc_part_id + 1;
-      else
-        max_part_id= loc_part_id - 1;
-    }
-    loc_part_id= max_part_id;
-    if (loc_part_id < max_partition && 
-        part_func_value >= range_array[loc_part_id+1])
-    {
-       loc_part_id++;
-    }
-    if (left_endpoint)
-    {
-      if (part_func_value >= range_array[loc_part_id])
-        loc_part_id++;
-    }
-    else 
-    {
-      if (part_func_value == range_array[loc_part_id])
-        loc_part_id += test(include_endpoint);
-      else if (part_func_value > range_array[loc_part_id])
-        loc_part_id++;
-      loc_part_id++;
-    }
+    loc_part_id= (max_part_id + min_part_id + 1) >> 1;
+    if (range_array[loc_part_id] <= part_func_value)
+      min_part_id= loc_part_id + 1;
+    else
+      max_part_id= loc_part_id - 1;
   }
-  else
+  loc_part_id= max_part_id;
+  if (loc_part_id < max_partition && 
+      part_func_value >= range_array[loc_part_id+1])
   {
-    ulonglong upart_func_value= part_func_value;
-    ulonglong urange_value;
-    while (max_part_id > min_part_id)
-    {
-      loc_part_id= (max_part_id + min_part_id + 1) >> 1;
-      urange_value= range_array[loc_part_id];
-      if (urange_value <= upart_func_value)
-        min_part_id= loc_part_id + 1;
-      else
-        max_part_id= loc_part_id - 1;
-    }
-    loc_part_id= max_part_id;
-    urange_value= range_array[loc_part_id+1];
-    if (loc_part_id < max_partition && 
-        upart_func_value >= urange_value)
-    {
-       loc_part_id++;
-    }
-    if (left_endpoint)
-    {
-      urange_value= range_array[loc_part_id];
-      if (upart_func_value >= urange_value)
-        loc_part_id++;
-    }
-    else 
-    {
-      urange_value= range_array[loc_part_id];
-      if (upart_func_value == urange_value)
-        loc_part_id += test(include_endpoint);
-      else if (upart_func_value > urange_value)
-        loc_part_id++;
+   loc_part_id++;
+  }
+  if (left_endpoint)
+  {
+    if (part_func_value >= range_array[loc_part_id])
       loc_part_id++;
-    }
+  }
+  else 
+  {
+    if (part_func_value == range_array[loc_part_id])
+      loc_part_id += test(include_endpoint);
+    else if (part_func_value > range_array[loc_part_id])
+      loc_part_id++;
+    loc_part_id++;
   }
   DBUG_RETURN(loc_part_id);
 }
