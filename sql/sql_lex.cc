@@ -804,8 +804,6 @@ int MYSQLlex(void *arg, void *yythd)
 	int length;
 	if ((length= my_mbcharlen(cs, c)) == 1)
 	{
-	  if (c == (uchar) NAMES_SEP_CHAR)
-	    break; /* Old .frm format can't handle this char */
 	  if (c == quote_char)
 	  {
 	    if (yyPeek() != quote_char)
