@@ -394,14 +394,22 @@ DROP TABLE t1;
 --error ER_RANGE_NOT_INCREASING_ERROR
 create table t1 (a bigint unsigned)
 partition by range (a)
+(partition p0 values less than (10),
+ partition p1 values less than (0));
+
+create table t1 (a bigint unsigned)
+partition by range (a)
 (partition p0 values less than (0),
  partition p1 values less than (10));
+show create table t1;
+drop table t1;
 
 create table t1 (a bigint unsigned)
 partition by range (a)
 (partition p0 values less than (2),
  partition p1 values less than (10));
+show create table t1;
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert into t1 values (0xFFFFFFFFFFFFFFFF);
-
 drop table t1;
+
