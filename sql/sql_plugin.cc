@@ -843,6 +843,7 @@ my_bool mysql_install_plugin(THD *thd, LEX_STRING *name, LEX_STRING *dl)
 
   tmp->state= PLUGIN_IS_READY;
 
+  table->use_all_columns();
   restore_record(table, s->default_values);
   table->field[0]->store(name->str, name->length, system_charset_info);
   table->field[1]->store(dl->str, dl->length, files_charset_info);
