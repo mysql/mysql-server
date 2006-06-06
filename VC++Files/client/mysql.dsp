@@ -144,6 +144,10 @@ SOURCE=.\readline.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\mysys\my_conio.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\sql_string.cpp
 # End Source File
 # End Target
