@@ -1,1 +1,1 @@
---innodb --default-storage-engine=innodb --binlog-format=row
+--innodb --default-storage-engine=innodb 
