@@ -838,3 +838,13 @@ connection default;
 drop view v1, v2;
 drop table t1;
 drop user mysqltest_1@localhost;
+
+#
+# Bug#19599 duplication of information_schema column value in a CONCAT expr with user var
+#
+set @a:= '.';
+create table t1(f1 char(5));
+create table t2(f1 char(5));
+select concat(@a, table_name), @a, table_name
+from information_schema.tables where table_schema = 'test';
+drop table t1,t2;

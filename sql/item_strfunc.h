@@ -674,6 +674,7 @@ public:
                                  str->charset(), conv_charset, &errors))
         null_value= 1;
       use_cached_value= 1;
+      str_value.mark_as_const();
       safe= (errors == 0);
     }
     else
