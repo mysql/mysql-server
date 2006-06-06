@@ -1121,3 +1121,12 @@ NULL	test	v2	select 1 AS `1`	NONE	NO	mysqltest_1@localhost	DEFINER
 drop view v1, v2;
 drop table t1;
 drop user mysqltest_1@localhost;
+set @a:= '.';
+create table t1(f1 char(5));
+create table t2(f1 char(5));
+select concat(@a, table_name), @a, table_name
+from information_schema.tables where table_schema = 'test';
+concat(@a, table_name)	@a	table_name
+.t1	.	t1
+.t2	.	t2
+drop table t1,t2;
