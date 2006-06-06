@@ -3935,7 +3935,7 @@ ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 	spa "Tu estАs usando modo de actualizaciСn segura y tentado actualizar una tabla sin un WHERE que usa una KEY columna"
 	swe "Du anvДnder 'sДker uppdateringsmod' och fЖrsЖkte uppdatera en tabell utan en WHERE-sats som anvДnder sig av en nyckel"
 	ukr "Ви у режим╕ безпечного оновлення та намага╓тесь оновити таблицю без оператора WHERE, що використову╓ KEY стовбець"
-ER_KEY_DOES_NOT_EXITS  
+ER_KEY_DOES_NOT_EXITS 42000 S1009
 	cze "Kl-BМХ '%-.64s' v tabulce '%-.64s' neexistuje"
 	dan "NЬglen '%-.64s' eksisterer ikke i tabellen '%-.64s'"
 	nla "Zoeksleutel '%-.64s' bestaat niet in tabel '%-.64s'"

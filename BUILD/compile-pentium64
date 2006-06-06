@@ -1,0 +1,13 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh" $@ --with-debug=full
+
+extra_flags="$pentium64_cflags $fast_cflags"
+c_warnings="$c_warnings"
+cxx_warnings="$cxx_warnings"
+extra_configs="$pentium_configs $static_link"
+
+extra_configs="$extra_configs "
+CC="$CC --pipe"
+. "$path/FINISH.sh"
