@@ -315,6 +315,8 @@ ibool
 fsp_descr_page(
 /*===========*/
 			/* out: TRUE if a descriptor page */
+	ulint	zip_size,/* in: compressed page size in bytes;
+			0 for uncompressed pages */
 	ulint	page_no);/* in: page number */
 /***************************************************************
 Parses a redo log record of a file page init. */

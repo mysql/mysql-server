@@ -878,7 +878,8 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_IBUF_BITMAP_INIT:
-		ptr = ibuf_parse_bitmap_init(ptr, end_ptr, page, mtr);
+		ptr = ibuf_parse_bitmap_init(ptr, end_ptr, page,
+				page_zip ? page_zip->size : 0, mtr);
 		break;
 	case MLOG_INIT_FILE_PAGE:
 		ptr = fsp_parse_init_file_page(ptr, end_ptr, page);
