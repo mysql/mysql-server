@@ -57,7 +57,7 @@ if(@ARGV < 3 || $ARGV[0] eq '--usage' || $ARGV[0] eq '--help')
     $template->param(dsn => $dsn);
 }
 
-my @releases = ({rel=>'4.1'},{rel=>'5.0'},{rel=>'5.1'});
+my @releases = ({rel=>'4.1'},{rel=>'5.0'},{rel=>'5.1'},{rel=>'5.1-dd'});
 $template->param(releases => \@releases);
 
 my $tables  = $dbh->selectall_arrayref("show tables");
@@ -91,12 +91,14 @@ foreach(@{$tables})
 
     # We now work out the DataMemory usage
     
-    # sizes for   4.1, 5.0, 5.1
-    my @totalsize= (0,0,0);
+    # sizes for   4.1, 5.0, 5.1 and 5.1-dd
+    my @totalsize= (0,0,0,0);
+    my $nrvarsize= 0;
 
     foreach(keys %$info)
     {
-	my @realsize = (0,0,0);
+	my @realsize = (0,0,0,0);
+	my @varsize  = (0,0,0,0);
 	my $type;
 	my $size;
 	my $name= $_;
@@ -112,53 +114,56 @@ foreach(@{$tables})
 	}
 
 	if($type =~ /tinyint/)
-	{@realsize=(1,1,1)}
+	{@realsize=(1,1,1,1)}
 	elsif($type =~ /smallint/)
-	{@realsize=(2,2,2)}
+	{@realsize=(2,2,2,2)}
 	elsif($type =~ /mediumint/)
-	{@realsize=(3,3,3)}
+	{@realsize=(3,3,3,3)}
 	elsif($type =~ /bigint/)
-	{@realsize=(8,8,8)}
+	{@realsize=(8,8,8,8)}
 	elsif($type =~ /int/)
-	{@realsize=(4,4,4)}
+	{@realsize=(4,4,4,4)}
 	elsif($type =~ /float/)
 	{
 	    if($size<=24)
-	    {@realsize=(4,4,4)}
+	    {@realsize=(4,4,4,4)}
 	    else
-	    {@realsize=(8,8,8)}
+	    {@realsize=(8,8,8,8)}
 	}
 	elsif($type =~ /double/ || $type =~ /real/)
-	{@realsize=(8,8,8)}
+	{@realsize=(8,8,8,8)}
 	elsif($type =~ /bit/)
 	{
 	    my $a=($size+7)/8;
-	    @realsize = ($a,$a,$a);
+	    @realsize = ($a,$a,$a,$a);
 	}
 	elsif($type =~ /datetime/)
-	{@realsize=(8,8,8)}
+	{@realsize=(8,8,8,8)}
 	elsif($type =~ /timestamp/)
-	{@realsize=(4,4,4)}
+	{@realsize=(4,4,4,4)}
 	elsif($type =~ /date/ || $type =~ /time/)
-	{@realsize=(3,3,3)}
+	{@realsize=(3,3,3,3)}
 	elsif($type =~ /year/)
-	{@realsize=(1,1,1)}
+	{@realsize=(1,1,1,1)}
 	elsif($type =~ /varchar/ || $type =~ /varbinary/)
 	{
-	    my $fixed= 1+$size;
+	    my $fixed=$size+ceil($size/256);
 	    my @dynamic=$dbh->selectrow_array("select avg(length(`"
 					      .$name
 					      ."`)) from `".$table.'`');
 	    $dynamic[0]=0 if !$dynamic[0];
-	    @realsize= ($fixed,$fixed,ceil($dynamic[0]));
+	    $dynamic[0]+=ceil($dynamic[0]/256); # size bit
+	    $nrvarsize++;
+	    $varsize[3]= ceil($dynamic[0]);
+	    @realsize= ($fixed,$fixed,ceil($dynamic[0]),$fixed);
 	}
 	elsif($type =~ /binary/ || $type =~ /char/)
-	{@realsize=($size,$size,$size)}
+	{@realsize=($size,$size,$size,$size)}
 	elsif($type =~ /text/ || $type =~ /blob/)
 	{
-	    @realsize=(256,256,1);
+	    @realsize=(256,256,256,256);
 	    $NoOfTables[$_]{val} += 1 foreach 0..$#releases; # blob uses table
-	} # FIXME check if 5.1 is correct
+	}
 
 	@realsize= align(4,@realsize);
 
@@ -212,20 +217,20 @@ foreach(@{$tables})
 	    type=>'bigint',
 	    size=>8,
 	    key=>'PRI',
-	    datamemory=>[{val=>8},{val=>8},{val=>8}],
+	    datamemory=>[{val=>8},{val=>8},{val=>8},{val=>8}],
 	};
 	$columnsize{'HIDDEN_NDB_PKEY'}= [8,8,8];
     }
 
-    my @IndexDataMemory= ({val=>0},{val=>0},{val=>0});
-    my @RowIndexMemory= ({val=>0},{val=>0},{val=>0});
+    my @IndexDataMemory= ({val=>0},{val=>0},{val=>0},{val=>0});
+    my @RowIndexMemory= ({val=>0},{val=>0},{val=>0},{val=>0});
 
     my @indexes;
     foreach my $index (keys %indexes) {
 	my $im41= 25;
 	$im41+=$columnsize{$_}[0] foreach @{$indexes{$index}{columns}};
-	my @im = ({val=>$im41},{val=>25},{val=>25});
-	my @dm = ({val=>10},{val=>10},{val=>10});
+	my @im = ({val=>$im41},{val=>25},{val=>25},{val=>25});
+	my @dm = ({val=>10},{val=>10},{val=>10},{val=>10});
 	push @indexes, {
 	    name=>$index,
 	    type=>$indexes{$index}{type},
@@ -233,13 +238,22 @@ foreach(@{$tables})
 	    indexmemory=>\@im,
 	    datamemory=>\@dm,
 	};
-	$IndexDataMemory[$_]{val}+=$dm[$_]{val} foreach 0..2;
-	$RowIndexMemory[$_]{val}+=$im[$_]{val} foreach 0..2;
+	$IndexDataMemory[$_]{val}+=$dm[$_]{val} foreach 0..$#releases;
+	$RowIndexMemory[$_]{val}+=$im[$_]{val} foreach 0..$#releases;
     }
 
     # total size + 16 bytes overhead
     my @TotalDataMemory;
-    $TotalDataMemory[$_]{val}=$IndexDataMemory[$_]{val}+$totalsize[$_]+16 foreach 0..2;
+    my @RowOverhead = ({val=>16},{val=>16},{val=>16},{val=>24});
+    # 5.1 has ptr to varsize page, and per-varsize overhead
+    my @nrvarsize_mem= ({val=>0},{val=>0},
+			{val=>8},{val=>0});
+    {
+	my @a= align(4,$nrvarsize*2);
+	$nrvarsize_mem[2]{val}+=$a[0]+$nrvarsize*4;
+    }
+
+    $TotalDataMemory[$_]{val}=$IndexDataMemory[$_]{val}+$totalsize[$_]+$RowOverhead[$_]{val}+$nrvarsize_mem[$_]{val} foreach 0..$#releases;
 
     my @RowDataMemory;
     push @RowDataMemory,{val=>$_} foreach @totalsize;
@@ -260,12 +274,18 @@ foreach(@{$tables})
     my @counts;
     $counts[$_]{val}= $count foreach 0..$#releases;
 
+    my @nrvarsize_rel= ({val=>0},{val=>0},
+			{val=>$nrvarsize},{val=>0});
+
     push @table_size, {
 	table=>$table,
 	indexes=>\@indexes,
 	columns=>\@columns,
 	count=>\@counts,
+	RowOverhead=>\@RowOverhead,
 	RowDataMemory=>\@RowDataMemory,
+	nrvarsize=>\@nrvarsize_rel,
+	nrvarsize_mem=>\@nrvarsize_mem,
 	releases=>\@releases,
 	IndexDataMemory=>\@IndexDataMemory,
 	TotalDataMemory=>\@TotalDataMemory,
