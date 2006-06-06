@@ -1081,7 +1081,11 @@ static void __cdecl kill_server(int sig_ptr)
   my_thread_init();				// If this is a new thread
 #endif
   close_connections();
-  if (sig != MYSQL_KILL_SIGNAL && sig != 0)
+  if (sig != MYSQL_KILL_SIGNAL &&
+#ifdef __WIN__
+      sig != SIGINT &&				/* Bug#18235 */
+#endif
+      sig != 0)
     unireg_abort(1);				/* purecov: inspected */
   else
     unireg_end();
@@ -4754,6 +4758,7 @@ enum options_mysqld
   OPT_INNODB_FILE_IO_THREADS,
   OPT_INNODB_LOCK_WAIT_TIMEOUT,
   OPT_INNODB_THREAD_CONCURRENCY,
+  OPT_INNODB_COMMIT_CONCURRENCY,
   OPT_INNODB_FORCE_RECOVERY,
   OPT_INNODB_STATUS_FILE,
   OPT_INNODB_MAX_DIRTY_PAGES_PCT,
@@ -5809,7 +5814,7 @@ log and this option does nothing anymore.",
    (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
    GET_LL, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, LONGLONG_MAX, 0,
    1024*1024L, 0},
-  {"innodb_commit_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
+  {"innodb_commit_concurrency", OPT_INNODB_COMMIT_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments.",
    (gptr*) &srv_commit_concurrency, (gptr*) &srv_commit_concurrency,
    0, GET_LONG, REQUIRED_ARG, 0, 0, 1000, 0, 1, 0},

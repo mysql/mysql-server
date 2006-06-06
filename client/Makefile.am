@@ -32,7 +32,7 @@ endif
 INCLUDES =			-I$(top_builddir)/include \
 				-I$(top_srcdir)/include \
 				-I$(top_srcdir)/regex \
-				$(openssl_includes) $(yassl_includes)
+                                $(openssl_includes)
 LIBS =				@CLIENT_LIBS@
 LDADD=				@CLIENT_EXTRA_LDFLAGS@ $(CLIENT_THREAD_LIBS) \
 				$(top_builddir)/libmysql/libmysqlclient.la

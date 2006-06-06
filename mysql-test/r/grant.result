@@ -607,6 +607,7 @@ insert into tables_priv values ('','test_db','mysqltest_1','test_table','test_gr
 flush privileges;
 delete from tables_priv where host = '' and user = 'mysqltest_1';
 flush privileges;
+use test;
 set @user123="non-existent";
 select * from mysql.db where user=@user123;
 Host	Db	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Create_tmp_table_priv	Lock_tables_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Execute_priv	Event_priv	Trigger_priv
@@ -637,7 +638,6 @@ show grants for mysqltest_7@;
 Grants for mysqltest_7@
 GRANT USAGE ON *.* TO 'mysqltest_7'@'' IDENTIFIED BY PASSWORD '*2FB071A056F9BB745219D9C876814231DAF46517'
 drop user mysqltest_7@;
-flush privileges;
 show grants for mysqltest_7@;
 ERROR 42000: There is no such grant defined for user 'mysqltest_7' on host ''
 create database mysqltest;
@@ -658,3 +658,214 @@ delete from mysql.db where user='mysqltest1';
 delete from mysql.tables_priv where user='mysqltest1';
 flush privileges;
 drop database mysqltest;
+use test;
+create table t1 (a int);
+create table t2 as select * from mysql.user where user='';
+delete from mysql.user where user='';
+flush privileges;
+create user mysqltest_8@'';
+create user mysqltest_8;
+create user mysqltest_8@host8;
+create user mysqltest_8@'';
+ERROR HY000: Operation CREATE USER failed for 'mysqltest_8'@''
+create user mysqltest_8;
+ERROR HY000: Operation CREATE USER failed for 'mysqltest_8'@'%'
+create user mysqltest_8@host8;
+ERROR HY000: Operation CREATE USER failed for 'mysqltest_8'@'host8'
+select user, QUOTE(host) from mysql.user where user="mysqltest_8";
+user	QUOTE(host)
+mysqltest_8	''
+mysqltest_8	'%'
+mysqltest_8	'host8'
+Schema privileges
+grant select on mysqltest.* to mysqltest_8@'';
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+GRANT SELECT ON `mysqltest`.* TO 'mysqltest_8'@''
+grant select on mysqltest.* to mysqltest_8@;
+show grants for mysqltest_8@;
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+GRANT SELECT ON `mysqltest`.* TO 'mysqltest_8'@''
+grant select on mysqltest.* to mysqltest_8;
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+GRANT SELECT ON `mysqltest`.* TO 'mysqltest_8'@'%'
+select * from  information_schema.schema_privileges
+where grantee like "'mysqltest_8'%";
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'mysqltest_8'@'%'	NULL	mysqltest	SELECT	NO
+'mysqltest_8'@''	NULL	mysqltest	SELECT	NO
+select * from t1;
+a
+revoke select on mysqltest.* from mysqltest_8@'';
+revoke select on mysqltest.* from mysqltest_8;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+select * from  information_schema.schema_privileges
+where grantee like "'mysqltest_8'%";
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+flush privileges;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+show grants for mysqltest_8@;
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+grant select on mysqltest.* to mysqltest_8@'';
+flush privileges;
+show grants for mysqltest_8@;
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+GRANT SELECT ON `mysqltest`.* TO 'mysqltest_8'@''
+revoke select on mysqltest.* from mysqltest_8@'';
+flush privileges;
+Column privileges
+grant update (a) on t1 to mysqltest_8@'';
+grant update (a) on t1 to mysqltest_8;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+GRANT UPDATE (a) ON `test`.`t1` TO 'mysqltest_8'@''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+GRANT UPDATE (a) ON `test`.`t1` TO 'mysqltest_8'@'%'
+flush privileges;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+GRANT UPDATE (a) ON `test`.`t1` TO 'mysqltest_8'@''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+GRANT UPDATE (a) ON `test`.`t1` TO 'mysqltest_8'@'%'
+select * from  information_schema.column_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'mysqltest_8'@'%'	NULL	test	t1	a	UPDATE	NO
+'mysqltest_8'@''	NULL	test	t1	a	UPDATE	NO
+select * from t1;
+a
+revoke update (a) on t1 from mysqltest_8@'';
+revoke update (a) on t1 from mysqltest_8;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+select * from  information_schema.column_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+flush privileges;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+Table privileges
+grant update on t1 to mysqltest_8@'';
+grant update on t1 to mysqltest_8;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+GRANT UPDATE ON `test`.`t1` TO 'mysqltest_8'@''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+GRANT UPDATE ON `test`.`t1` TO 'mysqltest_8'@'%'
+flush privileges;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+GRANT UPDATE ON `test`.`t1` TO 'mysqltest_8'@''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+GRANT UPDATE ON `test`.`t1` TO 'mysqltest_8'@'%'
+select * from  information_schema.table_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'mysqltest_8'@'%'	NULL	test	t1	UPDATE	NO
+'mysqltest_8'@''	NULL	test	t1	UPDATE	NO
+select * from t1;
+a
+revoke update on t1 from mysqltest_8@'';
+revoke update on t1 from mysqltest_8;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+select * from  information_schema.table_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+flush privileges;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+"DROP USER" should clear privileges
+grant all privileges on mysqltest.* to mysqltest_8@'';
+grant select on mysqltest.* to mysqltest_8@'';
+grant update on t1 to mysqltest_8@'';
+grant update (a) on t1 to mysqltest_8@'';
+grant all privileges on mysqltest.* to mysqltest_8;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_8'@''
+GRANT UPDATE, UPDATE (a) ON `test`.`t1` TO 'mysqltest_8'@''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_8'@'%'
+select * from  information_schema.user_privileges
+where grantee like "'mysqltest_8'%";
+GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
+'mysqltest_8'@'host8'	NULL	USAGE	NO
+'mysqltest_8'@'%'	NULL	USAGE	NO
+'mysqltest_8'@''	NULL	USAGE	NO
+select * from t1;
+a
+flush privileges;
+show grants for mysqltest_8@'';
+Grants for mysqltest_8@
+GRANT USAGE ON *.* TO 'mysqltest_8'@''
+GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_8'@''
+GRANT UPDATE, UPDATE (a) ON `test`.`t1` TO 'mysqltest_8'@''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_8'@'%'
+drop user mysqltest_8@'';
+show grants for mysqltest_8@'';
+ERROR 42000: There is no such grant defined for user 'mysqltest_8' on host ''
+show grants for mysqltest_8;
+Grants for mysqltest_8@%
+GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
+GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_8'@'%'
+select * from  information_schema.user_privileges
+where grantee like "'mysqltest_8'%";
+GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
+'mysqltest_8'@'host8'	NULL	USAGE	NO
+'mysqltest_8'@'%'	NULL	USAGE	NO
+drop user mysqltest_8;
+connect(localhost,mysqltest_8,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'mysqltest_8'@'localhost' (using password: NO)
+show grants for mysqltest_8;
+ERROR 42000: There is no such grant defined for user 'mysqltest_8' on host '%'
+drop user mysqltest_8@host8;
+show grants for mysqltest_8@host8;
+ERROR 42000: There is no such grant defined for user 'mysqltest_8' on host 'host8'
+insert into mysql.user select * from t2;
+flush privileges;
+drop table t2;
+drop table t1;

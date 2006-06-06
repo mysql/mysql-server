@@ -32,7 +32,7 @@ INCLUDES=		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_srcdir)/sql -I$(top_srcdir)/sql/examples \
 			-I$(top_srcdir)/regex \
-			$(openssl_includes) $(yassl_includes) @ZLIB_INCLUDES@
+			$(openssl_includes) @ZLIB_INCLUDES@
 
 noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a

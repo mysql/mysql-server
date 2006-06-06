@@ -343,7 +343,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                           "case that has been forced to lowercase because "
                           "lower_case_table_names is set. It will not be "
                           "possible to remove this privilege using REVOKE.",
-                          host.host.hostname, host.db);
+                          host.host.hostname ? host.host.hostname : "",
+                          host.db ? host.db : "");
     }
     host.access= get_access(table,2);
     host.access= fix_rights_for_db(host.access);
@@ -352,7 +353,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     {
       sql_print_warning("'host' entry '%s|%s' "
 		      "ignored in --skip-name-resolve mode.",
-		      host.host.hostname, host.db?host.db:"");
+			host.host.hostname ? host.host.hostname : "",
+			host.db ? host.db : "");
       continue;
     }
 #ifndef TO_BE_REMOVED
@@ -423,7 +425,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     {
       sql_print_warning("'user' entry '%s@%s' "
                         "ignored in --skip-name-resolve mode.",
-		      user.user, user.host.hostname);
+			user.user ? user.user : "",
+			user.host.hostname ? user.host.hostname : "");
       continue;
     }
 
@@ -546,8 +549,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 #endif
       }
       VOID(push_dynamic(&acl_users,(gptr) &user));
-      if (!user.host.hostname || user.host.hostname[0] == wild_many &&
-          !user.host.hostname[1])
+      if (!user.host.hostname ||
+	  (user.host.hostname[0] == wild_many && !user.host.hostname[1]))
         allow_all_hosts=1;			// Anyone can connect
     }
   }
@@ -574,7 +577,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     {
       sql_print_warning("'db' entry '%s %s@%s' "
 		        "ignored in --skip-name-resolve mode.",
-		        db.db, db.user, db.host.hostname);
+		        db.db,
+			db.user ? db.user : "",
+			db.host.hostname ? db.host.hostname : "");
       continue;
     }
     db.access=get_access(table,3);
@@ -593,7 +598,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                           "case that has been forced to lowercase because "
                           "lower_case_table_names is set. It will not be "
                           "possible to remove this privilege using REVOKE.",
-		          db.db, db.user, db.host.hostname, db.host.hostname);
+		          db.db,
+			  db.user ? db.user : "",
+			  db.host.hostname ? db.host.hostname : "");
       }
     }
     db.sort=get_sort(3,db.host.hostname,db.db,db.user);
@@ -1167,8 +1174,7 @@ static void acl_update_user(const char *user, const char *host,
   {
     ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
     if (!acl_user->user && !user[0] ||
-	acl_user->user &&
-	!strcmp(user,acl_user->user))
+	acl_user->user && !strcmp(user,acl_user->user))
     {
       if (!acl_user->host.hostname && !host[0] ||
 	  acl_user->host.hostname &&
@@ -1231,8 +1237,8 @@ static void acl_insert_user(const char *user, const char *host,
   set_user_salt(&acl_user, password, password_len);
 
   VOID(push_dynamic(&acl_users,(gptr) &acl_user));
-  if (!acl_user.host.hostname || acl_user.host.hostname[0] == wild_many
-      && !acl_user.host.hostname[1])
+  if (!acl_user.host.hostname ||
+      (acl_user.host.hostname[0] == wild_many && !acl_user.host.hostname[1]))
     allow_all_hosts=1;		// Anyone can connect /* purecov: tested */
   qsort((gptr) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
 	sizeof(ACL_USER),(qsort_cmp) acl_compare);
@@ -1292,7 +1298,7 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
   ACL_DB acl_db;
   safe_mutex_assert_owner(&acl_cache->lock);
   acl_db.user=strdup_root(&mem,user);
-  update_hostname(&acl_db.host,strdup_root(&mem,host));
+  update_hostname(&acl_db.host, *host ? strdup_root(&mem,host) : 0);
   acl_db.db=strdup_root(&mem,db);
   acl_db.access=privileges;
   acl_db.sort=get_sort(3,acl_db.host.hostname,acl_db.db,acl_db.user);
@@ -1679,11 +1685,10 @@ find_acl_user(const char *host, const char *user, my_bool exact)
   {
     ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
     DBUG_PRINT("info",("strcmp('%s','%s'), compare_hostname('%s','%s'),",
-		       user,
-		       acl_user->user ? acl_user->user : "",
-		       host,
-		       acl_user->host.hostname ? acl_user->host.hostname :
-		       ""));
+                       user, acl_user->user ? acl_user->user : "",
+                       host,
+                       acl_user->host.hostname ? acl_user->host.hostname :
+                       ""));
     if (!acl_user->user && !user[0] ||
 	acl_user->user && !strcmp(user,acl_user->user))
     {
@@ -1733,7 +1738,7 @@ static const char *calc_ip(const char *ip, long *val, char end)
 
 static void update_hostname(acl_host_and_ip *host, const char *hostname)
 {
-  host->hostname=(char*) hostname;		// This will not be modified!
+  host->hostname=(char*) hostname;             // This will not be modified!
   if (!hostname ||
       (!(hostname=calc_ip(hostname,&host->ip,'/')) ||
        !(hostname=calc_ip(hostname+1,&host->ip_mask,'\0'))))
@@ -1753,8 +1758,8 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
   }
   return (!host->hostname ||
 	  (hostname && !wild_case_compare(system_charset_info,
-                                          hostname,host->hostname)) ||
-	  (ip && !wild_compare(ip,host->hostname,0)));
+                                          hostname, host->hostname)) ||
+	  (ip && !wild_compare(ip, host->hostname, 0)));
 }
 
 bool hostname_requires_resolving(const char *hostname)
@@ -2408,7 +2413,8 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   {
     if (exact)
     {
-      if ((host &&
+      if (!grant_name->host.hostname ||
+          (host &&
 	   !my_strcasecmp(system_charset_info, host,
                           grant_name->host.hostname)) ||
 	  (ip && !strcmp(ip, grant_name->host.hostname)))
@@ -3515,8 +3521,10 @@ static my_bool grant_load(TABLE_LIST *tables)
 	{
           sql_print_warning("'tables_priv' entry '%s %s@%s' "
                             "ignored in --skip-name-resolve mode.",
-                            mem_check->tname, mem_check->user,
-                            mem_check->host, mem_check->host);
+                            mem_check->tname,
+                            mem_check->user ? mem_check->user : "",
+                            mem_check->host.hostname ?
+                            mem_check->host.hostname : "");
 	  continue;
 	}
       }
@@ -3554,7 +3562,8 @@ static my_bool grant_load(TABLE_LIST *tables)
           sql_print_warning("'procs_priv' entry '%s %s@%s' "
                             "ignored in --skip-name-resolve mode.",
                             mem_check->tname, mem_check->user,
-                            mem_check->host);
+                            mem_check->host.hostname ?
+                            mem_check->host.hostname : "");
 	  continue;
 	}
       }
@@ -4266,11 +4275,6 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     DBUG_RETURN(TRUE);
   }
 
-  if (!lex_user->host.str)
-  {
-    lex_user->host.str= (char*) "%";
-    lex_user->host.length=1;
-  }
   if (lex_user->host.length > HOSTNAME_LENGTH ||
       lex_user->user.length > USERNAME_LENGTH)
   {
@@ -4480,16 +4484,17 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   /* Add table & column access */
   for (index=0 ; index < column_priv_hash.records ; index++)
   {
-    const char *user;
+    const char *user, *host;
     GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
 							  index);
 
     if (!(user=grant_table->user))
       user= "";
+    if (!(host= grant_table->host.hostname))
+      host= "";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(system_charset_info, lex_user->host.str,
-                       grant_table->host.hostname))
+	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
     {
       ulong table_access= grant_table->privs;
       if ((table_access | grant_table->cols) != 0)
@@ -4616,15 +4621,16 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
   /* Add routine access */
   for (index=0 ; index < hash->records ; index++)
   {
-    const char *user;
+    const char *user, *host;
     GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(hash, index);
 
     if (!(user=grant_proc->user))
       user= "";
+    if (!(host= grant_proc->host.hostname))
+      host= "";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(system_charset_info, lex_user->host.str,
-                       grant_proc->host.hostname))
+	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
     {
       ulong proc_access= grant_proc->privs;
       if (proc_access != 0)
@@ -5079,39 +5085,37 @@ static int handle_grant_struct(uint struct_no, bool drop,
   {
     /*
       Get a pointer to the element.
-      Unfortunaltely, the host default differs for the structures.
     */
     switch (struct_no) {
     case 0:
       acl_user= dynamic_element(&acl_users, idx, ACL_USER*);
       user= acl_user->user;
-      if (!(host= acl_user->host.hostname))
-        host= "%";
-      break;
+      host= acl_user->host.hostname;
+    break;
 
     case 1:
       acl_db= dynamic_element(&acl_dbs, idx, ACL_DB*);
       user= acl_db->user;
-      if (!(host= acl_db->host.hostname))
-        host= "%";
+      host= acl_db->host.hostname;
       break;
 
     case 2:
       grant_name= (GRANT_NAME*) hash_element(&column_priv_hash, idx);
       user= grant_name->user;
-      if (!(host= grant_name->host.hostname))
-        host= "%";
+      host= grant_name->host.hostname;
       break;
 
     case 3:
       grant_name= (GRANT_NAME*) hash_element(&proc_priv_hash, idx);
       user= grant_name->user;
-      if (!(host= grant_name->host.hostname))
-        host= "%";
+      host= grant_name->host.hostname;
       break;
     }
     if (! user)
       user= "";
+    if (! host)
+      host= "";
+
 #ifdef EXTRA_DEBUG
     DBUG_PRINT("loop",("scan struct: %u  index: %u  user: '%s'  host: '%s'",
                        struct_no, idx, user, host));
@@ -5696,8 +5700,10 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
         LEX_USER lex_user;
 	lex_user.user.str= grant_proc->user;
 	lex_user.user.length= strlen(grant_proc->user);
-	lex_user.host.str= grant_proc->host.hostname;
-	lex_user.host.length= strlen(grant_proc->host.hostname);
+	lex_user.host.str= grant_proc->host.hostname ?
+	  grant_proc->host.hostname : (char*)"";
+	lex_user.host.length= grant_proc->host.hostname ?
+	  strlen(grant_proc->host.hostname) : 0;
 	if (!replace_routine_table(thd,grant_proc,tables[4].table,lex_user,
 				   grant_proc->db, grant_proc->tname,
                                    is_proc, ~(ulong)0, 1))
@@ -6004,16 +6010,17 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
 
   for (index=0 ; index < column_priv_hash.records ; index++)
   {
-    const char *user, *is_grantable= "YES";
+    const char *user, *host, *is_grantable= "YES";
     GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
 							  index);
     if (!(user=grant_table->user))
       user= "";
+    if (!(host= grant_table->host.hostname))
+      host= "";
 
     if (no_global_access &&
         (strcmp(thd->security_ctx->priv_user, user) ||
-         my_strcasecmp(system_charset_info, curr_host,
-                       grant_table->host.hostname)))
+         my_strcasecmp(system_charset_info, curr_host, host)))
       continue;
 
     ulong table_access= grant_table->privs;
@@ -6029,7 +6036,7 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
       if (!(table_access & GRANT_ACL))
         is_grantable= "NO";
 
-      strxmov(buff,"'",user,"'@'",grant_table->host.hostname,"'",NullS);
+      strxmov(buff, "'", user, "'@'", host, "'", NullS);
       if (!test_access)
         update_schema_privilege(table, buff, grant_table->db, grant_table->tname,
                                 0, 0, STRING_WITH_LEN("USAGE"), is_grantable);
@@ -6071,16 +6078,17 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
 
   for (index=0 ; index < column_priv_hash.records ; index++)
   {
-    const char *user, *is_grantable= "YES";
+    const char *user, *host, *is_grantable= "YES";
     GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
 							  index);
     if (!(user=grant_table->user))
       user= "";
+    if (!(host= grant_table->host.hostname))
+      host= "";
 
     if (no_global_access &&
         (strcmp(thd->security_ctx->priv_user, user) ||
-         my_strcasecmp(system_charset_info, curr_host,
-                       grant_table->host.hostname)))
+         my_strcasecmp(system_charset_info, curr_host, host)))
       continue;
 
     ulong table_access= grant_table->cols;
@@ -6090,7 +6098,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
         is_grantable= "NO";
 
       ulong test_access= table_access & ~GRANT_ACL;
-      strxmov(buff,"'",user,"'@'",grant_table->host.hostname,"'",NullS);
+      strxmov(buff, "'", user, "'@'", host, "'", NullS);
       if (!test_access)
         continue;
       else
