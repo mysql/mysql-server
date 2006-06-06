@@ -3172,7 +3172,7 @@ namespace {
     return res != 0 ? res : strcmp(x->name, y->name);
   }
 
-  static bool check_table_binlog_row_based(THD *thd, TABLE *table)
+  bool check_table_binlog_row_based(THD *thd, TABLE *table)
   {
     static st_table_data const ignore[] = {
       { "mysql", "event" },
