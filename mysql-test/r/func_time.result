@@ -7,20 +7,20 @@ period_add("9602",-12)	period_diff(199505,"9404")
 199502	13
 select now()-now(),weekday(curdate())-weekday(now()),unix_timestamp()-unix_timestamp(now());
 now()-now()	weekday(curdate())-weekday(now())	unix_timestamp()-unix_timestamp(now())
-0	0	0
+0.000000	0	0
 select from_unixtime(unix_timestamp("1994-03-02 10:11:12")),from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s"),from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0;
 from_unixtime(unix_timestamp("1994-03-02 10:11:12"))	from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s")	from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0
-1994-03-02 10:11:12	1994-03-02 10:11:12	19940302101112
+1994-03-02 10:11:12	1994-03-02 10:11:12	19940302101112.000000
 select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
 sec_to_time(time_to_sec("0:30:47")/6.21);
 sec_to_time(9001)	sec_to_time(9001)+0	time_to_sec("15:12:22")	sec_to_time(time_to_sec("0:30:47")/6.21)
-02:30:01	23001	54742	00:04:57
+02:30:01	23001.000000	54742	00:04:57
 select sec_to_time(time_to_sec('-838:59:59'));
 sec_to_time(time_to_sec('-838:59:59'))
 -838:59:59
 select now()-curdate()*1000000-curtime();
 now()-curdate()*1000000-curtime()
-0
+0.000000
 select strcmp(current_timestamp(),concat(current_date()," ",current_time()));
 strcmp(current_timestamp(),concat(current_date()," ",current_time()))
 0
@@ -630,3 +630,7 @@ select monthname(str_to_date(null, '%m')), monthname(str_to_date(null, '%m')),
 monthname(str_to_date(1, '%m')), monthname(str_to_date(0, '%m'));
 monthname(str_to_date(null, '%m'))	monthname(str_to_date(null, '%m'))	monthname(str_to_date(1, '%m'))	monthname(str_to_date(0, '%m'))
 NULL	NULL	January	NULL
+select now() - now() + 0, curtime() - curtime() + 0, 
+sec_to_time(1) + 0, from_unixtime(1) + 0;
+now() - now() + 0	curtime() - curtime() + 0	sec_to_time(1) + 0	from_unixtime(1) + 0
+0.000000	0.000000	1.000000	19700101030001.000000
