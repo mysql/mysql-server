@@ -2394,9 +2394,9 @@ int get_partition_id_list(partition_info *part_info,
     }
     goto notfound;
   }
+  *func_value= part_func_value;
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
-  *func_value= part_func_value;
   while (max_list_index >= min_list_index)
   {
     list_index= (max_list_index + min_list_index) >> 1;
@@ -2509,16 +2509,16 @@ int get_partition_id_range(partition_info *part_info,
   uint loc_part_id;
   longlong part_func_value= part_val_int(part_info->part_expr);
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
-  DBUG_ENTER("get_partition_id_int_range");
+  DBUG_ENTER("get_partition_id_range");
 
   if (part_info->part_expr->null_value)
   {
     *part_id= 0;
     DBUG_RETURN(0);
   }
+  *func_value= part_func_value;
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
-  *func_value= part_func_value;
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
