@@ -3583,6 +3583,7 @@ fil_extend_space_to_desired_size(
 	ulint		file_start_page_no;
 	ulint		offset_high;
 	ulint		offset_low;
+	ulint		page_size;
 	ibool		success		= TRUE;
 
 	fil_mutex_enter_and_prepare_for_io(space_id);
@@ -3601,6 +3602,11 @@ fil_extend_space_to_desired_size(
 		return(TRUE);
 	}
 
+	page_size = space->zip_size;
+	if (!page_size) {
+		page_size = UNIV_PAGE_SIZE;
+	}
+
 	node = UT_LIST_GET_LAST(space->chain);
 
 	fil_node_prepare_for_io(node, system, space);
@@ -3610,30 +3616,30 @@ fil_extend_space_to_desired_size(
 
 	/* Extend at most 64 pages at a time */
 	buf_size = ut_min(64, size_after_extend - start_page_no)
-				* UNIV_PAGE_SIZE;
-	buf2 = mem_alloc(buf_size + UNIV_PAGE_SIZE);
-	buf = ut_align(buf2, UNIV_PAGE_SIZE);
+				* page_size;
+	buf2 = mem_alloc(buf_size + page_size);
+	buf = ut_align(buf2, page_size);
 
 	memset(buf, 0, buf_size);
 
 	while (start_page_no < size_after_extend) {
-		ulint	n_pages = ut_min(buf_size / UNIV_PAGE_SIZE,
+		ulint	n_pages = ut_min(buf_size / page_size,
 				size_after_extend - start_page_no);
 
 		offset_high = (start_page_no - file_start_page_no)
-				/ (4096 * ((1024 * 1024) / UNIV_PAGE_SIZE));
+				/ (4096 * ((1024 * 1024) / page_size));
 		offset_low  = ((start_page_no - file_start_page_no)
-				% (4096 * ((1024 * 1024) / UNIV_PAGE_SIZE)))
-			* UNIV_PAGE_SIZE;
+				% (4096 * ((1024 * 1024) / page_size)))
+				* page_size;
 #ifdef UNIV_HOTBACKUP
 		success = os_file_write(node->name, node->handle, buf,
 					offset_low, offset_high,
-					UNIV_PAGE_SIZE * n_pages);
+					page_size * n_pages);
 #else
 		success = os_aio(OS_FILE_WRITE, OS_AIO_SYNC,
 			node->name, node->handle, buf,
 			offset_low, offset_high,
-			UNIV_PAGE_SIZE * n_pages,
+			page_size * n_pages,
 			NULL, NULL);
 #endif
 		if (success) {
@@ -3647,7 +3653,7 @@ fil_extend_space_to_desired_size(
 
 			n_pages = ((ulint)
 				(os_file_get_size_as_iblonglong(node->handle)
-				/ UNIV_PAGE_SIZE)) - node->size;
+				/ page_size)) - node->size;
 
 			node->size += n_pages;
 			space->size += n_pages;
@@ -3666,7 +3672,7 @@ fil_extend_space_to_desired_size(
 
 #ifndef UNIV_HOTBACKUP
 	if (space_id == 0) {
-		ulint pages_per_mb = (1024 * 1024) / UNIV_PAGE_SIZE;
+		ulint pages_per_mb = (1024 * 1024) / page_size;
 
 		/* Keep the last data file size info up to date, rounded to
 		full megabytes */
