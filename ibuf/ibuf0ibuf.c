@@ -572,7 +572,7 @@ ibuf_bitmap_page_init(
 {
 	ulint	byte_offset;
 
-	ut_ad(!(zip_size & (zip_size - 1))); /* must be a power of 2 */
+	ut_ad(ut_is_2pow(zip_size));
 
 	fil_page_set_type(page, FIL_PAGE_IBUF_BITMAP);
 
@@ -639,7 +639,7 @@ ibuf_bitmap_page_get_bits(
 #if IBUF_BITS_PER_PAGE % 2
 # error "IBUF_BITS_PER_PAGE % 2 != 0"
 #endif
-	ut_ad(!(zip_size & (zip_size - 1))); /* must be a power of 2 */
+	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 						MTR_MEMO_PAGE_X_FIX));
 
@@ -691,7 +691,7 @@ ibuf_bitmap_page_set_bits(
 #if IBUF_BITS_PER_PAGE % 2
 # error "IBUF_BITS_PER_PAGE % 2 != 0"
 #endif
-	ut_ad(!(zip_size & (zip_size - 1))); /* must be a power of 2 */
+	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 						MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_IBUF_DEBUG
@@ -741,7 +741,7 @@ ibuf_bitmap_page_no_calc(
 				0 for uncompressed pages */
 	ulint	page_no)	/* in: tablespace page number */
 {
-	ut_ad(!(zip_size & (zip_size - 1))); /* must be a power of 2 */
+	ut_ad(ut_is_2pow(zip_size));
 
 	if (!zip_size) {
 		return(FSP_IBUF_BITMAP_OFFSET
