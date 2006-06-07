@@ -249,10 +249,12 @@ page_cur_search_with_match(
 # endif /* PAGE_CUR_LE_OR_EXTENDS */
 	ut_ad((mode == PAGE_CUR_L) || (mode == PAGE_CUR_LE)
 		|| (mode == PAGE_CUR_G) || (mode == PAGE_CUR_GE));
+#endif /* UNIV_DEBUG */
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 	page_zip_des_t*	page_zip = buf_block_get_page_zip(
 			buf_block_align(page));
-	ut_ad(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG */
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	page_check_dir(page);
 
@@ -915,7 +917,9 @@ page_cur_insert_rec_low(
 			== (ibool) !!page_is_comp(page));
 
 	ut_ad(!page_rec_is_supremum(cursor->rec));
-	ut_ad(!page_zip || page_zip_validate(page_zip, page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	/* 1. Get the size of the physical record in the page */
 	rec_size = rec_offs_size(offsets);
@@ -1510,7 +1514,9 @@ page_cur_delete_rec(
 	current_rec = cursor->rec;
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
-	ut_ad(!page_zip || page_zip_validate(page_zip, page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));

@@ -588,7 +588,9 @@ page_copy_rec_list_end(
 	page_t*	page	= ut_align_down(rec, UNIV_PAGE_SIZE);
 	ulint	log_mode= 0; /* remove warning */
 
-	ut_ad(!new_page_zip || page_zip_validate(new_page_zip, new_page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!new_page_zip || page_zip_validate(new_page_zip, new_page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 	ut_ad(page_is_leaf(page) == page_is_leaf(new_page));
 	ut_ad(page_is_comp(page) == page_is_comp(new_page));
 
