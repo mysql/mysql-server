@@ -436,7 +436,7 @@ static void ndbcluster_binlog_wait(THD *thd)
 }
 
 /*
- Called from MYSQL_LOG::reset_logs in log.cc when binlog is emptied
+ Called from MYSQL_BIN_LOG::reset_logs in log.cc when binlog is emptied
 */
 static int ndbcluster_reset_logs(THD *thd)
 {
@@ -460,7 +460,7 @@ static int ndbcluster_reset_logs(THD *thd)
 }
 
 /*
-  Called from MYSQL_LOG::purge_logs in log.cc when the binlog "file"
+  Called from MYSQL_BIN_LOG::purge_logs in log.cc when the binlog "file"
   is removed
 */
 
