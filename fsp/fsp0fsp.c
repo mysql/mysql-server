@@ -1273,7 +1273,7 @@ fsp_fill_free_list(
 	limit = mtr_read_ulint(header + FSP_FREE_LIMIT, MLOG_4BYTES, mtr);
 
 	zip_size = mach_read_from_4(FSP_PAGE_ZIP_SIZE + header);
-	ut_a(!(zip_size & (zip_size - 1))); /* must be a power of 2 */
+	ut_a(ut_is_2pow(zip_size));
 	ut_a(zip_size <= UNIV_PAGE_SIZE);
 	ut_a(!zip_size || zip_size >= PAGE_ZIP_MIN_SIZE);
 
@@ -2842,7 +2842,7 @@ fsp_reserve_free_extents(
 
 	space_header = fsp_get_space_header(space, mtr);
 	zip_size = mach_read_from_4(FSP_PAGE_ZIP_SIZE + space_header);
-	ut_a(!(zip_size & (zip_size - 1))); /* must be a power of 2 */
+	ut_a(ut_is_2pow(zip_size));
 	ut_a(zip_size <= UNIV_PAGE_SIZE);
 	ut_a(!zip_size || zip_size >= PAGE_ZIP_MIN_SIZE);
 try_again:
@@ -3747,7 +3747,7 @@ fsp_validate(
 	header = fsp_get_space_header(space, &mtr);
 
 	zip_size = mach_read_from_4(FSP_PAGE_ZIP_SIZE + header);
-	ut_a(!(zip_size & (zip_size - 1))); /* must be a power of 2 */
+	ut_a(ut_is_2pow(zip_size));
 	ut_a(zip_size <= UNIV_PAGE_SIZE);
 	ut_a(!zip_size || zip_size >= PAGE_ZIP_MIN_SIZE);
 

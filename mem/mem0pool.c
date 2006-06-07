@@ -496,7 +496,7 @@ mem_area_free(
 
 		next_size = mem_area_get_size(
 					(mem_area_t*)(((byte*)area) + size));
-		if (ut_2_power_up(next_size) != next_size) {
+		if (UNIV_UNLIKELY(!next_size || !ut_is_2pow(next_size))) {
 			fprintf(stderr,
 "InnoDB: Error: Memory area size %lu, next area size %lu not a power of 2!\n"
 "InnoDB: Possibly a memory overrun of the buffer being freed here.\n",

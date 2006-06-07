@@ -17,7 +17,7 @@ fsp_descr_page(
 			0 for uncompressed pages */
 	ulint	page_no)/* in: page number */
 {
-	ut_ad(!(zip_size & (zip_size - 1))); /* must be a power of 2 */
+	ut_ad(ut_is_2pow(zip_size));
 
 	if (!zip_size) {
 		return(UNIV_UNLIKELY((page_no & (UNIV_PAGE_SIZE - 1))

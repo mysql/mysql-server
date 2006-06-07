@@ -79,6 +79,14 @@ ut_pair_cmp(
 	ulint	b1,	/* in: more significant part of second pair */
 	ulint	b2);	/* in: less significant part of second pair */
 /*****************************************************************
+Determines if a number is zero or a power of two.
+This function is used in assertions or assertion-like tests. */
+UNIV_INLINE
+ibool
+ut_is_2pow(
+/*=======*/		/* out: TRUE if zero or a power of 2 */
+	ulint	n);	/* in: number to be tested */
+/*****************************************************************
 Calculates fast the remainder when divided by a power of two. */
 UNIV_INLINE
 ulint

@@ -273,7 +273,7 @@ ut_calc_align(
 	ulint	 align_no)	/* in: align by this number */
 {
 	ut_ad(align_no > 0);
-	ut_ad(((align_no - 1) & align_no) == 0);
+	ut_ad(ut_is_2pow(align_no));
 
 	return((n + align_no - 1) & ~(align_no - 1));
 }
@@ -310,7 +310,7 @@ ut_calc_align_down(
 	ulint	 align_no)	 /* in: align by this number */
 {
 	ut_ad(align_no > 0);
-	ut_ad(((align_no - 1) & align_no) == 0);
+	ut_ad(ut_is_2pow(align_no));
 
 	return(n & ~(align_no - 1));
 }
