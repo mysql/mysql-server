@@ -369,7 +369,8 @@ fseg_print(
 /* Number of pages described in a single descriptor page: currently each page
 description takes less than 1 byte; a descriptor page is repeated every
 this many file pages */
-#define XDES_DESCRIBED_PER_PAGE		UNIV_PAGE_SIZE
+/* #define XDES_DESCRIBED_PER_PAGE		UNIV_PAGE_SIZE */
+/* This has been replaced with either UNIV_PAGE_SIZE or page_zip->size. */
 
 /* The space low address page map */
 /*--------------------------------------*/
