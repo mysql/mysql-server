@@ -80,9 +80,7 @@ public:
   void stop_v1(Parser_t::Context &ctx, const class Properties &args);
   void stop_v2(Parser_t::Context &ctx, const class Properties &args);
   void stop(const class Properties &args, int version);
-  void stopAll_v1(Parser_t::Context &ctx, const class Properties &args);
-  void stopAll_v2(Parser_t::Context &ctx, const class Properties &args);
-  void stopAll(Properties const &args, const char* tostop, int ver);
+  void stopAll(Parser_t::Context &ctx, const class Properties &args);
   void start(Parser_t::Context &ctx, const class Properties &args);
   void startAll(Parser_t::Context &ctx, const class Properties &args);
   void bye(Parser_t::Context &ctx, const class Properties &args);
