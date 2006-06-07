@@ -2287,6 +2287,7 @@ ConfigInfo::ConfigInfo()
 
     // Replace section with modified section
     m_info.put(param._section, section, true);
+    delete section;
     
     if(param._type != ConfigInfo::CI_SECTION){
       Properties * p;
@@ -2344,7 +2345,6 @@ ConfigInfo::ConfigInfo()
       ndbout << "Edit file " << __FILE__ << "." << endl;
       require(false);
     }
-    delete section;
   }
 }
 
