@@ -870,18 +870,24 @@ ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   if(handle->mgmd_version_build==-1)
   {
     char verstr[50];
-    ndb_mgm_get_version(handle,
+    if(!ndb_mgm_get_version(handle,
                         &(handle->mgmd_version_major),
                         &(handle->mgmd_version_minor),
                         &(handle->mgmd_version_build),
                         sizeof(verstr),
-                        verstr);
+                            verstr))
+    {
+      return -1;
+    }
   }
-  int use_v2= (handle->mgmd_version_major==5)
+  int use_v2= ((handle->mgmd_version_major==5)
     && (
         (handle->mgmd_version_minor==0 && handle->mgmd_version_build>=21)
         ||(handle->mgmd_version_minor==1 && handle->mgmd_version_build>=12)
-        );
+        ||(handle->mgmd_version_minor>1)
+        )
+               )
+    || (handle->mgmd_version_major>5);
 
   if(no_of_nodes < -1){
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NUMBER_OF_NODES, 
@@ -900,7 +906,7 @@ ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
       args.put("stop", (no_of_nodes==-1)?"mgm,db":"db");
     const Properties *reply;
     if(use_v2)
-      reply = ndb_mgm_call(handle, stop_reply_v2, "stop all v2", &args);
+      reply = ndb_mgm_call(handle, stop_reply_v2, "stop all", &args);
     else
       reply = ndb_mgm_call(handle, stop_reply_v1, "stop all", &args);
     CHECK_REPLY(reply, -1);
@@ -1013,18 +1019,24 @@ ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   if(handle->mgmd_version_build==-1)
   {
     char verstr[50];
-    ndb_mgm_get_version(handle,
+    if(!ndb_mgm_get_version(handle,
                         &(handle->mgmd_version_major),
                         &(handle->mgmd_version_minor),
                         &(handle->mgmd_version_build),
                         sizeof(verstr),
-                        verstr);
+                            verstr))
+    {
+      return -1;
+    }
   }
-  int use_v2= (handle->mgmd_version_major==5)
+  int use_v2= ((handle->mgmd_version_major==5)
     && (
         (handle->mgmd_version_minor==0 && handle->mgmd_version_build>=21)
         ||(handle->mgmd_version_minor==1 && handle->mgmd_version_build>=12)
-        );
+        ||(handle->mgmd_version_minor>1)
+        )
+               )
+    || (handle->mgmd_version_major>5);
 
   if(no_of_nodes < 0){
     SET_ERROR(handle, NDB_MGM_RESTART_FAILED, 

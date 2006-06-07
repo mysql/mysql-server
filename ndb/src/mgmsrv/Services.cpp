@@ -200,12 +200,9 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("node", String, Mandatory, "Node"),
     MGM_ARG("abort", Int, Mandatory, "Node"),
 
-  MGM_CMD("stop all", &MgmApiSession::stopAll_v1, ""),
+  MGM_CMD("stop all", &MgmApiSession::stopAll, ""),
     MGM_ARG("abort", Int, Mandatory, "Node"),
-
-  MGM_CMD("stop all v2", &MgmApiSession::stopAll_v2, ""),
-    MGM_ARG("abort", Int, Mandatory, "Node"),
-    MGM_ARG("stop", String, Mandatory, "MGM/DB or both"),
+    MGM_ARG("stop", String, Optional, "MGM/DB or both"),
 
   MGM_CMD("enter single user", &MgmApiSession::enterSingleUser, ""),
     MGM_ARG("nodeId", Int, Mandatory, "Node"),
@@ -1071,31 +1068,26 @@ MgmApiSession::stop(Properties const &args, int version) {
   m_output->println("");
 }
 
-
 void
-MgmApiSession::stopAll_v1(Parser<MgmApiSession>::Context &,
-			      Properties const &args) {
-  stopAll(args,"db",1);
-}
-
-void
-MgmApiSession::stopAll_v2(Parser<MgmApiSession>::Context &,
-			      Properties const &args) {
-  BaseString tostop;
-  args.get("stop", tostop);
-  stopAll(args, tostop.c_str(), 2);
-}
-
-void
-MgmApiSession::stopAll(Properties const &args, const char* tostop, int ver) {
+MgmApiSession::stopAll(Parser<MgmApiSession>::Context &,
+                       Properties const &args) {
   int stopped[2] = {0,0};
   Uint32 abort;
   args.get("abort", &abort);
 
+  BaseString stop;
+  const char* tostop= "db";
+  int ver=1;
+  if (args.get("stop", stop))
+  {
+    tostop= stop.c_str();
+    ver= 2;
+  }
+
   int result= 0;
   if(strstr(tostop,"db"))
     result= m_mgmsrv.shutdownDB(&stopped[0], abort != 0);
-  if(strstr(tostop,"mgm"))
+  if(!result && strstr(tostop,"mgm"))
     result= m_mgmsrv.shutdownMGM(&stopped[1], abort!=0, &m_stopSelf);
 
   m_output->println("stop reply");
