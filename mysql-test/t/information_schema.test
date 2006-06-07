@@ -576,28 +576,32 @@ connect (con2,localhost,user2,,mysqltest);
 connect (con3,localhost,user3,,mysqltest);
 connect (con4,localhost,user4,,);
 connection con1;
-select * from information_schema.column_privileges;
-select * from information_schema.table_privileges;
-select * from information_schema.schema_privileges;
-select * from information_schema.user_privileges;
+select * from information_schema.column_privileges order by grantee;
+select * from information_schema.table_privileges order by grantee;
+select * from information_schema.schema_privileges order by grantee;
+select * from information_schema.user_privileges order by grantee;
 show grants;
 connection con2;
-select * from information_schema.column_privileges;
-select * from information_schema.table_privileges;
-select * from information_schema.schema_privileges;
-select * from information_schema.user_privileges;
+select * from information_schema.column_privileges order by grantee;
+select * from information_schema.table_privileges order by grantee;
+select * from information_schema.schema_privileges order by grantee;
+select * from information_schema.user_privileges order by grantee;
 show grants;
 connection con3;
-select * from information_schema.column_privileges;
-select * from information_schema.table_privileges;
-select * from information_schema.schema_privileges;
-select * from information_schema.user_privileges;
+select * from information_schema.column_privileges order by grantee;
+select * from information_schema.table_privileges order by grantee;
+select * from information_schema.schema_privileges order by grantee;
+select * from information_schema.user_privileges order by grantee;
 show grants;
 connection con4;
-select * from information_schema.column_privileges where grantee like '%user%';
-select * from information_schema.table_privileges where grantee like '%user%';
-select * from information_schema.schema_privileges where grantee like '%user%';
-select * from information_schema.user_privileges where grantee like '%user%';
+select * from information_schema.column_privileges where grantee like '%user%'
+order by grantee;
+select * from information_schema.table_privileges where grantee like '%user%'
+order by grantee;
+select * from information_schema.schema_privileges where grantee like '%user%'
+order by grantee;
+select * from information_schema.user_privileges where grantee like '%user%'
+order by grantee;
 show grants;
 connection default;
 drop user user1@localhost, user2@localhost, user3@localhost, user4@localhost;
@@ -838,3 +842,13 @@ connection default;
 drop view v1, v2;
 drop table t1;
 drop user mysqltest_1@localhost;
+
+#
+# Bug#19599 duplication of information_schema column value in a CONCAT expr with user var
+#
+set @a:= '.';
+create table t1(f1 char(5));
+create table t2(f1 char(5));
+select concat(@a, table_name), @a, table_name
+from information_schema.tables where table_schema = 'test';
+drop table t1,t2;

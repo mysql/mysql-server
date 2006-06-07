@@ -599,7 +599,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_HOMELIB	'~'	/* ~/ is used as abbrev for home dir */
 #define FN_CURLIB	'.'	/* ./ is used as abbrev for current dir */
 #define FN_PARENTDIR	".."	/* Parent directory; Must be a string */
-#define FN_DEVCHAR	':'
 
 #ifndef FN_LIBCHAR
 #ifdef __EMX__

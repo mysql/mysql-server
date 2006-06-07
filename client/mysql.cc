@@ -823,6 +823,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_NOPAGER:
     printf("WARNING: option deprecated; use --disable-pager instead.\n");
     opt_nopager= 1;
+    break;
   case OPT_MYSQL_PROTOCOL:
   {
     if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) <= 0)
