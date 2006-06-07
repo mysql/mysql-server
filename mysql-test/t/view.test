@@ -516,7 +516,7 @@ drop table t1;
 #
 create table t1 (a int, b int);
 create view v1 as select a, sum(b) from t1 group by a;
--- error 1072
+-- error 1176
 select b from v1 use index (some_index) where b=1;
 drop view v1;
 drop table t1;

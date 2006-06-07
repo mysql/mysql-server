@@ -45,9 +45,11 @@ fi
 mkdir -p $BASE/lib
 
 for i in \
-  libmysql/.libs/libmysqlclient.s{l,o}* \
+  libmysql/.libs/libmysqlclient.so* \
+  libmysql/.libs/libmysqlclient.sl* \
   libmysql/.libs/libmysqlclient*.dylib \
-  libmysql_r/.libs/libmysqlclient_r.s{l,o}* \
+  libmysql_r/.libs/libmysqlclient_r.so* \
+  libmysql_r/.libs/libmysqlclient_r.sl* \
   libmysql_r/.libs/libmysqlclient_r*.dylib
 do
   if [ -f $i ]
