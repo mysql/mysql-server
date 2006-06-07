@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#define USES_TYPES
 #include "my_global.h"
 
 #if !defined(_MSC_VER) && !defined(__BORLANDC__) && !defined(__NETWARE__)

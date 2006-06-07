@@ -16,7 +16,6 @@
 
 /* TODO: Test all functions  */
 
-#define USES_TYPES
 #include "mysys_priv.h"
 #include "my_dir.h"
 

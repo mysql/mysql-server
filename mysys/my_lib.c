@@ -17,7 +17,6 @@
 /* TODO: check for overun of memory for names. */
 /*	 Convert MSDOS-TIME to standar time_t */
 
-#define USES_TYPES		/* sys/types is included */
 #include	"mysys_priv.h"
 #include	<m_string.h>
 #include	<my_dir.h>	/* Structs used by my_dir,includes sys/types */
