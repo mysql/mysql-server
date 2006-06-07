@@ -139,7 +139,7 @@ hash_create_mutexes(
 {
 	ulint	i;
 
-	ut_a(n_mutexes == ut_2_power_up(n_mutexes));
+	ut_a(n_mutexes > 0 && ut_is_2pow(n_mutexes));
 
 	table->mutexes = mem_alloc(n_mutexes * sizeof(mutex_t));
 
