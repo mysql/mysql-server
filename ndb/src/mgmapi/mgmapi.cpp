@@ -361,8 +361,9 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
        * Print some info about why the parser returns NULL
        */
       fprintf(handle->errstream,
-	      "Error in mgm protocol parser. cmd: >%s< status: %d curr: %d\n",
-	      cmd, (Uint32)ctx.m_status, ctx.m_currentToken);
+	      "Error in mgm protocol parser. cmd: >%s< status: %d curr: %s\n",
+	      cmd, (Uint32)ctx.m_status,
+              (ctx.m_currentToken)?ctx.m_currentToken:"NULL");
       DBUG_PRINT("info",("ctx.status: %d, ctx.m_currentToken: %s",
 		         ctx.m_status, ctx.m_currentToken));
     }
