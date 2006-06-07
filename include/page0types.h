@@ -38,6 +38,8 @@ struct page_zip_des_struct
 	ulint		m_end;		/* end offset of modification log */
 };
 
+#define PAGE_ZIP_MIN_SIZE	1024	/* smallest page_zip_des_struct.size */
+
 /**************************************************************************
 Write data to the compressed page.  The data must already be written to
 the uncompressed page. */

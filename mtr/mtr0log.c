@@ -396,7 +396,7 @@ mlog_parse_string(
 	len = mach_read_from_2(ptr);
 	ptr += 2;
 
-	ut_a(len + offset < UNIV_PAGE_SIZE);
+	ut_a(len + offset <= UNIV_PAGE_SIZE);
 
 	if (end_ptr < ptr + len) {
 
