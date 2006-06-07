@@ -158,7 +158,7 @@ static int TRACENR_FLAG = 0;
 static NdbOut * traceopout = 0;
 #define TRACE_OP(regTcPtr, place) do { if (TRACE_OP_CHECK(regTcPtr)) TRACE_OP_DUMP(regTcPtr, place); } while(0)
 #else
-#define TRACE_OP(x) {}
+#define TRACE_OP(x, y) {}
 #endif
 
 /* ------------------------------------------------------------------------- */
