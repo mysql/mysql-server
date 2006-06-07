@@ -736,6 +736,9 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define DBL_MAX		1.79769313486231470e+308
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
+#ifndef SSIZE_MAX
+#define SSIZE_MAX (ssize_t)((~((size_t) 0)) / 2)
+#endif
 
 #if !defined(HAVE_ISINF) && !defined(isinf)
 #define isinf(X)    0
