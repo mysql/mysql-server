@@ -501,8 +501,10 @@ retry_page_get:
 
 		block = buf_block_align(page);
 
-		ut_ad(!buf_block_get_page_zip(block) || page_zip_validate(
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+		ut_a(!buf_block_get_page_zip(block) || page_zip_validate(
 				buf_block_get_page_zip(block), page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 		block->check_index_page_at_flush = TRUE;
 

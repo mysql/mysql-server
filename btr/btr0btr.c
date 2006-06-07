@@ -877,7 +877,9 @@ btr_page_reorganize_low(
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
-	ut_ad(!page_zip || page_zip_validate(page_zip, page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 	data_size1 = page_get_data_size(page);
 	max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
 
@@ -946,7 +948,9 @@ btr_page_reorganize_low(
 	}
 
 func_exit:
-	ut_ad(!page_zip || page_zip_validate(page_zip, page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 	buf_frame_free(temp_page);
 
 	/* Restore logging mode */
@@ -1011,7 +1015,9 @@ btr_page_empty(
 {
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
-	ut_ad(!page_zip || page_zip_validate(page_zip, page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	btr_search_drop_page_hash_index(page);
 
@@ -1873,8 +1879,10 @@ func_start:
 	rec = page_cur_tuple_insert(page_cursor, insert_page_zip,
 					tuple, cursor->index, ext, n_ext, mtr);
 
-	ut_ad(!insert_page_zip
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!insert_page_zip
 		|| page_zip_validate(insert_page_zip, insert_page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	if (UNIV_LIKELY(rec != NULL)) {
 		/* Insert fit on the page: update the free bits for the
@@ -2932,9 +2940,9 @@ btr_validate_level(
 	mem_heap_t*	heap	= mem_heap_create(256);
 	ulint*		offsets	= NULL;
 	ulint*		offsets2= NULL;
-#ifdef UNIV_DEBUG
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 	page_zip_des_t*	page_zip;
-#endif
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	mtr_start(&mtr);
 
@@ -2947,10 +2955,10 @@ btr_validate_level(
 	index = tree->tree_index;
 
 	while (level != btr_page_get_level(page, &mtr)) {
-#ifdef UNIV_DEBUG
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 		page_zip = buf_block_get_page_zip(buf_block_align(page));
-		ut_ad(!page_zip || page_zip_validate(page_zip, page));
-#endif
+		ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 		ut_a(!page_is_leaf(page));
 
 		page_cur_set_before_first(page, &cursor);
@@ -2974,10 +2982,10 @@ loop:
 	offsets = offsets2 = NULL;
 	mtr_x_lock(dict_tree_get_lock(tree), &mtr);
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
-	ut_ad(!page_zip || page_zip_validate(page_zip, page));
-#endif
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	/* Check ordering etc. of records */
 
