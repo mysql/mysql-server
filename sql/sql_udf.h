@@ -70,6 +70,7 @@ class udf_handler :public Sql_alloc
   void cleanup();
   double val(my_bool *null_value)
   {
+    is_null= 0;
     if (get_arguments())
     {
       *null_value=1;
@@ -88,6 +89,7 @@ class udf_handler :public Sql_alloc
   }
   longlong val_int(my_bool *null_value)
   {
+    is_null= 0;
     if (get_arguments())
     {
       *null_value=1;
