@@ -2517,7 +2517,7 @@ do not allow the discard. We also reserve the data dictionary latch. */
 	" WHERE TABLE_ID = old_id;\n"
 	"COMMIT WORK;\n"
 	"END;\n"
-		, trx);
+		, FALSE, trx);
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
@@ -2913,7 +2913,7 @@ do not allow the TRUNCATE. We also reserve the data dictionary latch. */
 		" WHERE TABLE_ID = :old_id;\n"
 		"COMMIT WORK;\n"
 		"END;\n"
-		, trx);
+		, FALSE, trx);
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
@@ -3234,7 +3234,7 @@ fputs("  InnoDB: You are trying to drop table ", stderr);
 	"DELETE FROM SYS_TABLES WHERE ID = table_id;\n"
 	"COMMIT WORK;\n"
 	"END;\n"
-		, trx);
+		, FALSE, trx);
 
 	if (err != DB_SUCCESS) {
 		ut_a(err == DB_OUT_OF_FILE_SPACE);
@@ -3443,7 +3443,7 @@ row_delete_constraint_low(
 		"DELETE FROM SYS_FOREIGN_COLS WHERE ID = :id;\n"
 		"DELETE FROM SYS_FOREIGN WHERE ID = :id;\n"
 		"END;\n"
-		, trx));
+		, FALSE, trx));
 }
 
 /********************************************************************
@@ -3609,7 +3609,7 @@ row_rename_table_for_mysql(
 		"UPDATE SYS_TABLES SET NAME = :new_table_name\n"
 		" WHERE NAME = :old_table_name;\n"
 		"END;\n"
-		, trx);
+		, FALSE, trx);
 
 	if (err != DB_SUCCESS) {
 
@@ -3683,7 +3683,7 @@ row_rename_table_for_mysql(
 	"WHERE REF_NAME = :old_table_name\n"
 	"       AND TO_BINARY(REF_NAME) = TO_BINARY(:old_table_name);\n"
 	"END;\n"
-			, trx);
+			, FALSE, trx);
 
 	} else if (n_constraints_to_drop > 0) {
 		/* Drop some constraints of tmp tables. */

@@ -1984,12 +1984,7 @@ row_upd_step(
 error_handling:
 	trx->error_state = err;
 
-	if (err == DB_SUCCESS) {
-		/* Ok: do nothing */
-	} else if (err == DB_LOCK_WAIT) {
-
-		return(NULL);
-	} else {
+	if (err != DB_SUCCESS) {
 		return(NULL);
 	}
 
