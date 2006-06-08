@@ -24,6 +24,30 @@
 	/* Some functions to calculate dates */
 
 #ifndef TESTTIME
+
+LEX_STRING interval_type_to_name[INTERVAL_LAST] = {
+  {(char *) STRING_WITH_LEN("YEAR")},
+  {(char *) STRING_WITH_LEN("QUARTER")},
+  {(char *) STRING_WITH_LEN("MONTH")},
+  {(char *) STRING_WITH_LEN("DAY")},
+  {(char *) STRING_WITH_LEN("HOUR")},
+  {(char *) STRING_WITH_LEN("MINUTE")},
+  {(char *) STRING_WITH_LEN("WEEK")},
+  {(char *) STRING_WITH_LEN("SECOND")},
+  {(char *) STRING_WITH_LEN("MICROSECOND")},
+  {(char *) STRING_WITH_LEN("YEAR_MONTH")},
+  {(char *) STRING_WITH_LEN("DAY_HOUR")},
+  {(char *) STRING_WITH_LEN("DAY_MINUTE")},
+  {(char *) STRING_WITH_LEN("DAY_SECOND")},
+  {(char *) STRING_WITH_LEN("HOUR_MINUTE")},
+  {(char *) STRING_WITH_LEN("HOUR_SECOND")},
+  {(char *) STRING_WITH_LEN("MINUTE_SECOND")},
+  {(char *) STRING_WITH_LEN("DAY_MICROSECOND")},
+  {(char *) STRING_WITH_LEN("HOUR_MICROSECOND")},
+  {(char *) STRING_WITH_LEN("MINUTE_MICROSECOND")},
+  {(char *) STRING_WITH_LEN("SECOND_MICROSECOND")}
+}; 
+
 	/* Calc weekday from daynr */
 	/* Returns 0 for monday, 1 for tuesday .... */
 
@@ -908,5 +932,37 @@ calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign, longlong *seconds_out,
   return neg;
 }
 
+
+/*
+  Compares 2 TIME structures
+
+  SYNOPSIS
+    my_time_compare()
+
+      a - first TIME
+      b - second time
+
+  RETURN VALUE
+   -1   - a < b
+    0   - a == b
+    1   - a > b
+
+  NOTES
+    TIME.second_part is not considered during comparison
+*/
+
+int
+my_time_compare(TIME *a, TIME *b)
+{
+  my_ulonglong a_t= TIME_to_ulonglong_datetime(a);
+  my_ulonglong b_t= TIME_to_ulonglong_datetime(b);
+
+  if (a_t > b_t)
+    return 1;
+  else if (a_t < b_t)
+    return -1;
+
+  return 0;
+}
 
 #endif
