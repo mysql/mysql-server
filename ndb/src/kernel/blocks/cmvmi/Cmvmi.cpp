@@ -226,6 +226,7 @@ void Cmvmi::execEVENT_REP(Signal* signal)
 void
 Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
   EventSubscribeReq * subReq = (EventSubscribeReq *)&signal->theData[0];
+  Uint32 senderRef = signal->getSendersBlockRef();
   SubscriberPtr ptr;
   jamEntry();
   DBUG_ENTER("Cmvmi::execEVENT_SUBSCRIBE_REQ");
@@ -243,7 +244,7 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
      * Create a new one
      */
     if(subscribers.seize(ptr) == false){
-      sendSignal(subReq->blockRef, GSN_EVENT_SUBSCRIBE_REF, signal, 1, JBB);
+      sendSignal(senderRef, GSN_EVENT_SUBSCRIBE_REF, signal, 1, JBB);
       return;
     }
     ptr.p->logLevel.clear();
@@ -270,7 +271,7 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
   }
   
   signal->theData[0] = ptr.i;
-  sendSignal(ptr.p->blockRef, GSN_EVENT_SUBSCRIBE_CONF, signal, 1, JBB);
+  sendSignal(senderRef, GSN_EVENT_SUBSCRIBE_CONF, signal, 1, JBB);
   DBUG_VOID_RETURN;
 }
 
