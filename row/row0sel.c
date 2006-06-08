@@ -1920,9 +1920,8 @@ row_sel_step(
 				err = lock_table(0, table_node->table,
 							i_lock_mode, thr);
 				if (err != DB_SUCCESS) {
+					thr_get_trx(thr)->error_state = err;
 
-					que_thr_handle_error(thr, DB_ERROR,
-								NULL, 0);
 					return(NULL);
 				}
 
@@ -1958,17 +1957,8 @@ row_sel_step(
 
 	thr->graph->last_sel_node = node;
 
-	if (err == DB_SUCCESS) {
-		/* Ok: do nothing */
-
-	} else if (err == DB_LOCK_WAIT) {
-
-		return(NULL);
-	} else {
-		/* SQL error detected */
-		fprintf(stderr, "SQL error %lu\n", (ulong) err);
-
-		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
+	if (err != DB_SUCCESS) {
+		thr_get_trx(thr)->error_state = err;
 
 		return(NULL);
 	}
@@ -2029,7 +2019,7 @@ fetch_step(
 		fprintf(stderr,
 			"InnoDB: Error: fetch called on a closed cursor\n");
 
-		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
+		thr_get_trx(thr)->error_state = DB_ERROR;
 
 		return(NULL);
 	}
