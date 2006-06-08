@@ -2985,22 +2985,25 @@ Backup::parseTableDescription(Signal* signal,
     if (disk)
     {
       /**
-       * Remove all disk attributes, but add DISK_REF (8 bytes)
+       * Remove all disk attributes
        */
-      tabPtr.p->noOfAttributes -= (disk - 1);
+      tabPtr.p->noOfAttributes -= disk;
       
-      AttributePtr attrPtr;
-      ndbrequire(tabPtr.p->attributes.seize(attrPtr));
-      
-      Uint32 sz32 = 2;
-      attrPtr.p->data.attrId = AttributeHeader::DISK_REF;
-      attrPtr.p->data.m_flags = Attribute::COL_FIXED;
-      attrPtr.p->data.sz32 = 2;
-      
-      attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
-      tabPtr.p->sz_FixedAttributes += sz32;
+      {
+	AttributePtr attrPtr;
+	ndbrequire(tabPtr.p->attributes.seize(attrPtr));
+	
+	Uint32 sz32 = 2;
+	attrPtr.p->data.attrId = AttributeHeader::DISK_REF;
+	attrPtr.p->data.m_flags = Attribute::COL_FIXED;
+	attrPtr.p->data.sz32 = 2;
+	
+	attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
+	tabPtr.p->sz_FixedAttributes += sz32;
+	tabPtr.p->noOfAttributes ++;
+      }
     }
-   
+    
     {
       AttributePtr attrPtr;
       ndbrequire(tabPtr.p->attributes.seize(attrPtr));
@@ -3309,6 +3312,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
       ScanFragReq::setScanPrio(req->requestInfo, 1);
       ScanFragReq::setTupScanFlag(req->requestInfo, 1);
       ScanFragReq::setNoDiskFlag(req->requestInfo, 1);
+      ScanFragReq::setLcpScanFlag(req->requestInfo, 1);
     }
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
