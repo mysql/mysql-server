@@ -69,4 +69,80 @@ insert into t1 values (1,1,1);
 
 drop table t1;
 
+# Lock for update
+
+create table t1 (x integer not null primary key, y varchar(32)) engine = ndb;
+
+insert into t1 values (1,'one'), (2,'two'),(3,"three"); 
+
+# PK access
+connection con1;
+begin;
+select * from t1 where x = 1 for update;
+
+connection con2;
+begin;
+select * from t1 where x = 2 for update;
+--error 1205
+select * from t1 where x = 1 for update;
+rollback;
+
+connection con1;
+commit;
+
+# scan
+connection con1;
+begin;
+select * from t1 where y = 'one' or y = 'three' for update;
+
+connection con2;
+begin;
+# Have to check with pk access here since scans take locks on
+# all rows and then release them in chunks
+select * from t1 where x = 2 for update;
+--error 1205
+select * from t1 where x = 1 for update;
+rollback;
+
+connection con1;
+commit;
+
+# share locking
+
+# PK access
+connection con1;
+begin;
+select * from t1 where x = 1 lock in share mode;
+
+connection con2;
+begin;
+select * from t1 where x = 1 lock in share mode;
+select * from t1 where x = 2 for update;
+--error 1205
+select * from t1 where x = 1 for update;
+rollback;
+
+connection con1;
+commit;
+
+# scan
+connection con1;
+begin;
+select * from t1 where y = 'one' or y = 'three' lock in share mode;
+
+connection con2;
+begin;
+select * from t1 where y = 'one' lock in share mode;
+# Have to check with pk access here since scans take locks on
+# all rows and then release them in chunks
+select * from t1 where x = 2 for update;
+--error 1205
+select * from t1 where x = 1 for update;
+rollback;
+
+connection con1;
+commit;
+
+drop table t1;
+
 # End of 4.1 tests

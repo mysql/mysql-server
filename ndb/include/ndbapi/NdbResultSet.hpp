@@ -102,6 +102,27 @@ public:
   int restart(bool forceSend = false);
   
   /**
+   * Lock current row by transfering scan operation to a locking transaction. 
+   * Use this function 
+   * when a scan has found a record that you want to lock. 
+   * 1. Start a new transaction.
+   * 2. Call the function takeOverForUpdate using your new transaction 
+   *    as parameter, all the properties of the found record will be copied 
+   *    to the new transaction.
+   * 3. When you execute the new transaction, the lock held by the scan will 
+   *    be transferred to the new transaction(it's taken over).
+   *
+   * @note You must have started the scan with openScanExclusive
+   *       or explictly have requested keyinfo to be able to lock 
+   *       the found tuple.
+   *
+   * @param lockingTrans the locking transaction connection.
+   * @return an NdbOperation or NULL.
+   */
+  NdbOperation* lockTuple();
+  NdbOperation*	lockTuple(NdbConnection* lockingTrans);
+
+  /**
    * Transfer scan operation to an updating transaction. Use this function 
    * when a scan has found a record that you want to update. 
    * 1. Start a new transaction.
