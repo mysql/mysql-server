@@ -572,6 +572,7 @@ public:
     Uint8 rangeScan;
     Uint8 descending;
     Uint8 tupScan;
+    Uint8 lcpScan;
     Uint8 scanTcWaiting;
     Uint8 scanKeyinfoFlag;
     Uint8 m_last_row;
