@@ -199,7 +199,7 @@ max-time: 500
 cmd: testBasicAsynch
 args: -n PkDeleteAsynch 
 
-max-time: 500
+max-time: 1000
 cmd: testBasic
 args: -n MassiveRollback T1 T7 D1 D2
 
@@ -218,6 +218,14 @@ args: -n MassiveRollback4 T1 T7 D1 D2
 max-time: 500
 cmd: testBasic
 args: -n TupError
+
+max-time: 500
+cmd: testBasic
+args: -n InsertError T1
+
+max-time: 500
+cmd: testBasic
+args: -n InsertError2 T1
 
 max-time: 500
 cmd: testTimeout
@@ -272,6 +280,10 @@ args: -n ScanRead488 -l 10 T6 D1 D2
 max-time: 500
 cmd: testScan
 args: -n ScanRead488O -l 10 T6 D1 D2 
+
+max-time: 1000
+cmd: testScan
+args: -n ScanRead488T -l 10 T6 D1 D2 
 
 max-time: 1000
 cmd: testScan
@@ -472,6 +484,10 @@ args: -n Bug18612 T1
 max-time: 1000
 cmd: testNodeRestart
 args: -n Bug18612SR T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug20185 T1
 
 #
 # DICT TESTS
