@@ -1090,11 +1090,6 @@ runMassiveRollback4(NDBT_Context* ctx, NDBT_Step* step){
 	ok = false;
 	break;
       }
-      if (hugoOps.execute_NoCommit(pNdb) != 0)
-      {
-	ok = false;
-	break;
-      }
     }
     hugoOps.execute_Rollback(pNdb);
     CHECK(hugoOps.closeTransaction(pNdb) == 0);
@@ -1199,6 +1194,62 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
+runInsertError(NDBT_Context* ctx, NDBT_Step* step){
+
+  int result = NDBT_OK;
+  HugoOperations hugoOp1(*ctx->getTab());
+  HugoOperations hugoOp2(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+
+  NdbRestarter restarter;
+  restarter.insertErrorInAllNodes(4017);
+  const Uint32 LOOPS = 10;
+  for (Uint32 i = 0; i<LOOPS; i++)
+  {
+    CHECK(hugoOp1.startTransaction(pNdb) == 0);  
+    CHECK(hugoOp1.pkInsertRecord(pNdb, 1) == 0);
+    
+    CHECK(hugoOp2.startTransaction(pNdb) == 0);
+    CHECK(hugoOp2.pkReadRecord(pNdb, 1, 1) == 0);
+    
+    CHECK(hugoOp1.execute_async_prepare(pNdb, NdbTransaction::Commit) == 0);
+    CHECK(hugoOp2.execute_async_prepare(pNdb, NdbTransaction::Commit) == 0);
+    hugoOp1.wait_async(pNdb);
+    hugoOp2.wait_async(pNdb);
+    CHECK(hugoOp1.closeTransaction(pNdb) == 0);
+    CHECK(hugoOp2.closeTransaction(pNdb) == 0);
+  }
+  
+  restarter.insertErrorInAllNodes(0);
+  
+  return result;
+}
+
+int
+runInsertError2(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  HugoOperations hugoOp1(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+  
+  NdbRestarter restarter;
+  restarter.insertErrorInAllNodes(4017);
+  
+  const Uint32 LOOPS = 1;
+  for (Uint32 i = 0; i<LOOPS; i++)
+  {
+    CHECK(hugoOp1.startTransaction(pNdb) == 0);  
+    CHECK(hugoOp1.pkInsertRecord(pNdb, 1) == 0);
+    CHECK(hugoOp1.pkDeleteRecord(pNdb, 1) == 0);
+    
+    hugoOp1.execute_NoCommit(pNdb);
+    CHECK(hugoOp1.closeTransaction(pNdb) == 0);
+  }
+  
+  restarter.insertErrorInAllNodes(0);
+  return NDBT_OK;
+}
+  
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -1449,15 +1500,15 @@ TESTCASE("MassiveTransaction",
   INITIALIZER(runLoadTable2);
   FINALIZER(runClearTable2);
 }
-TESTCASE("Fill", 
-	 "Verify what happens when we fill the db" ){
-  INITIALIZER(runFillTable);
-  INITIALIZER(runPkRead);
-  FINALIZER(runClearTable2);
-}
 TESTCASE("TupError", 
 	 "Verify what happens when we fill the db" ){
   INITIALIZER(runTupErrors);
+}
+TESTCASE("InsertError", "" ){
+  INITIALIZER(runInsertError);
+}
+TESTCASE("InsertError2", "" ){
+  INITIALIZER(runInsertError2);
 }
 NDBT_TESTSUITE_END(testBasic);
 
@@ -1467,6 +1518,12 @@ TESTCASE("ReadConsistency",
 	 "same result no matter"){
   STEP(runInsertOne);
   STEP(runReadOne);
+  FINALIZER(runClearTable2);
+}
+TESTCASE("Fill", 
+	 "Verify what happens when we fill the db" ){
+  INITIALIZER(runFillTable);
+  INITIALIZER(runPkRead);
   FINALIZER(runClearTable2);
 }
 #endif

@@ -696,7 +696,10 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
       do { 
 	int tmp = restarter.getRandomNodeOtherNodeGroup(node1, rand());
 	if (tmp == -1)
-	  break;
+	{
+	  ctx->stopTest();
+	  return NDBT_OK;
+	}
 	node1 = tmp;
       } while(nodesmask.get(node1));
       
@@ -865,6 +868,65 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
     if (restarter.waitClusterStarted())
       return NDBT_FAILED;
   }
+  return NDBT_OK;
+}
+
+int runBug20185(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+  
+  const int masterNode = restarter.getMasterNodeId();
+
+  int dump[] = { 7090, 20 } ;
+  if (restarter.dumpStateAllNodes(dump, 2))
+    return NDBT_FAILED;
+  
+  NdbSleep_MilliSleep(3000);
+  
+retry:
+  if(hugoOps.startTransaction(pNdb) != 0)
+    return NDBT_FAILED;
+  
+  if(hugoOps.pkUpdateRecord(pNdb, 1, 1) != 0)
+    return NDBT_FAILED;
+  
+  if (hugoOps.execute_NoCommit(pNdb) != 0)
+    return NDBT_FAILED;
+  
+  const int node = hugoOps.getTransaction()->getConnectedNodeId();
+  if (node != masterNode)
+  {
+    hugoOps.closeTransaction(pNdb);
+    goto retry;
+  } 
+  
+  int nodeId;
+  do {
+    nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+  } while (nodeId == node);
+  
+  if (restarter.insertErrorInAllNodes(7030))
+    return NDBT_FAILED;
+  
+  if (restarter.insertErrorInNode(nodeId, 7031))
+    return NDBT_FAILED;
+  
+  NdbSleep_MilliSleep(500);
+  
+  if (hugoOps.execute_Commit(pNdb) == 0)
+    return NDBT_FAILED;
+
+  NdbSleep_MilliSleep(3000);
+
+  restarter.waitClusterStarted();
+  
+  if (restarter.dumpStateAllNodes(dump, 1))
+    return NDBT_FAILED;
+  
   return NDBT_OK;
 }
 
@@ -1173,6 +1235,12 @@ TESTCASE("Bug18612SR",
 	 "Test bug with partitioned clusters"){
   INITIALIZER(runLoadTable);
   STEP(runBug18612SR);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug20185",
+	 ""){
+  INITIALIZER(runLoadTable);
+  STEP(runBug20185);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
