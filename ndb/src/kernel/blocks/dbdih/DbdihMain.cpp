@@ -67,6 +67,7 @@
 #include <signaldata/CreateFragmentation.hpp>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/FsOpenReq.hpp>
+#include <signaldata/DictLock.hpp>
 #include <DebuggerNames.hpp>
 
 #include <EventLogger.hpp>
@@ -544,7 +545,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
     break;
   case DihContinueB::ZSTART_PERMREQ_AGAIN:
     jam();
-    nodeRestartPh2Lab(signal);
+    nodeRestartPh2Lab2(signal);
     return;
     break;
   case DihContinueB::SwitchReplica:
@@ -1284,6 +1285,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     case NodeState::ST_INITIAL_NODE_RESTART:
     case NodeState::ST_NODE_RESTART:
       jam();
+
       /***********************************************************************
        * When starting nodes while system is operational we must be controlled
        * by the master since only one node restart is allowed at a time. 
@@ -1294,7 +1296,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       req->startingRef = reference();
       req->startingVersion = 0; // Obsolete
       sendSignal(cmasterdihref, GSN_START_MEREQ, signal, 
-		 StartMeReq::SignalLength, JBB);
+                 StartMeReq::SignalLength, JBB);
       return;
     }
     ndbrequire(false);
@@ -1349,6 +1351,24 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       return;
     case NodeState::ST_NODE_RESTART:
     case NodeState::ST_INITIAL_NODE_RESTART:
+      ndbsttorry10Lab(signal, __LINE__);
+      return;
+    }
+    ndbrequire(false);
+    break;
+  case ZNDB_SPH7:
+    jam();
+    switch (typestart) {
+    case NodeState::ST_INITIAL_START:
+    case NodeState::ST_SYSTEM_RESTART:
+      jam();
+      ndbsttorry10Lab(signal, __LINE__);
+      return;
+    case NodeState::ST_NODE_RESTART:
+    case NodeState::ST_INITIAL_NODE_RESTART:
+      jam();
+      sendDictUnlockOrd(signal, c_dictLockSlavePtrI_nodeRestart);
+      c_dictLockSlavePtrI_nodeRestart = RNIL;
       ndbsttorry10Lab(signal, __LINE__);
       return;
     }
@@ -1564,6 +1584,31 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
 /*---------------------------------------------------------------------------*/
 void Dbdih::nodeRestartPh2Lab(Signal* signal) 
 {
+  /*
+   * Lock master DICT to avoid metadata operations during INR/NR.
+   * Done just before START_PERMREQ.
+   *
+   * It would be more elegant to do this just before START_MEREQ.
+   * The problem is, on INR we end up in massive invalidateNodeLCP
+   * which is not fully protected against metadata ops.
+   */
+  ndbrequire(c_dictLockSlavePtrI_nodeRestart == RNIL);
+
+  Uint32 lockType = DictLockReq::NodeRestartLock;
+  Callback c = { safe_cast(&Dbdih::recvDictLockConf_nodeRestart), 0 };
+  sendDictLockReq(signal, lockType, c);
+}
+
+void Dbdih::recvDictLockConf_nodeRestart(Signal* signal, Uint32 data, Uint32 ret)
+{
+  ndbrequire(c_dictLockSlavePtrI_nodeRestart == RNIL);
+  c_dictLockSlavePtrI_nodeRestart = data;
+
+  nodeRestartPh2Lab2(signal);
+}
+
+void Dbdih::nodeRestartPh2Lab2(Signal* signal)
+{
   /*------------------------------------------------------------------------*/
   // REQUEST FOR PERMISSION FROM MASTER TO START A NODE IN AN ALREADY
   // RUNNING SYSTEM.
@@ -1574,7 +1619,7 @@ void Dbdih::nodeRestartPh2Lab(Signal* signal)
   req->nodeId    = cownNodeId;
   req->startType = cstarttype;
   sendSignal(cmasterdihref, GSN_START_PERMREQ, signal, 3, JBB);
-}//Dbdih::nodeRestartPh2Lab()
+}
 
 void Dbdih::execSTART_PERMCONF(Signal* signal) 
 {
@@ -1696,12 +1741,12 @@ void Dbdih::execSTART_PERMREQ(Signal* signal)
   const BlockReference retRef = req->blockRef;
   const Uint32 nodeId   = req->nodeId;
   const Uint32 typeStart = req->startType;
-  
   CRASH_INSERTION(7122);
   ndbrequire(isMaster());
   ndbrequire(refToNode(retRef) == nodeId);
   if ((c_nodeStartMaster.activeState) ||
-      (c_nodeStartMaster.wait != ZFALSE)) {
+      (c_nodeStartMaster.wait != ZFALSE) ||
+      ERROR_INSERTED_CLEAR(7174)) {
     jam();
     signal->theData[0] = nodeId;
     signal->theData[1] = StartPermRef::ZNODE_ALREADY_STARTING_ERROR;
@@ -10448,6 +10493,10 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal)
 	     c_copyGCIMaster.m_copyReason,
 	     c_copyGCIMaster.m_waiting);
     break;
+  case GCP_READY: // shut up lint
+  case GCP_PREPARE_SENT:
+  case GCP_COMMIT_SENT:
+    break;
   }
   
   ndbout_c("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
@@ -14638,4 +14687,78 @@ Dbdih::NodeRecord::NodeRecord(){
   useInTransactions = false;
   copyCompleted = false;
   allowNodeStart = true;
+}
+
+// DICT lock slave
+
+void
+Dbdih::sendDictLockReq(Signal* signal, Uint32 lockType, Callback c)
+{
+  DictLockReq* req = (DictLockReq*)&signal->theData[0];
+  DictLockSlavePtr lockPtr;
+
+  c_dictLockSlavePool.seize(lockPtr);
+  ndbrequire(lockPtr.i != RNIL);
+
+  req->userPtr = lockPtr.i;
+  req->lockType = lockType;
+  req->userRef = reference();
+
+  lockPtr.p->lockPtr = RNIL;
+  lockPtr.p->lockType = lockType;
+  lockPtr.p->locked = false;
+  lockPtr.p->callback = c;
+
+  BlockReference dictMasterRef = calcDictBlockRef(cmasterNodeId);
+  sendSignal(dictMasterRef, GSN_DICT_LOCK_REQ, signal,
+      DictLockReq::SignalLength, JBB);
+}
+
+void
+Dbdih::execDICT_LOCK_CONF(Signal* signal)
+{
+  jamEntry();
+  recvDictLockConf(signal);
+}
+
+void
+Dbdih::execDICT_LOCK_REF(Signal* signal)
+{
+  jamEntry();
+  ndbrequire(false);
+}
+
+void
+Dbdih::recvDictLockConf(Signal* signal)
+{
+  const DictLockConf* conf = (const DictLockConf*)&signal->theData[0];
+
+  DictLockSlavePtr lockPtr;
+  c_dictLockSlavePool.getPtr(lockPtr, conf->userPtr);
+  
+  lockPtr.p->lockPtr = conf->lockPtr;
+  ndbrequire(lockPtr.p->lockType == conf->lockType);
+  ndbrequire(lockPtr.p->locked == false);
+  lockPtr.p->locked = true;
+
+  lockPtr.p->callback.m_callbackData = lockPtr.i;
+  execute(signal, lockPtr.p->callback, 0);
+}
+
+void
+Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
+{
+  DictUnlockOrd* ord = (DictUnlockOrd*)&signal->theData[0];
+
+  DictLockSlavePtr lockPtr;
+  c_dictLockSlavePool.getPtr(lockPtr, lockSlavePtrI);
+
+  ord->lockPtr = lockPtr.p->lockPtr;
+  ord->lockType = lockPtr.p->lockType;
+
+  c_dictLockSlavePool.release(lockPtr);
+
+  BlockReference dictMasterRef = calcDictBlockRef(cmasterNodeId);
+  sendSignal(dictMasterRef, GSN_DICT_UNLOCK_ORD, signal,
+      DictUnlockOrd::SignalLength, JBB);
 }

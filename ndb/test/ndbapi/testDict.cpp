@@ -1551,6 +1551,282 @@ end:
   return result;
 }
 
+// NFNR
+
+// Restarter controls dict ops : 1-run 2-pause 3-stop
+// synced by polling...
+
+static bool
+send_dict_ops_cmd(NDBT_Context* ctx, Uint32 cmd)
+{
+  ctx->setProperty("DictOps_CMD", cmd);
+  while (1) {
+    if (ctx->isTestStopped())
+      return false;
+    if (ctx->getProperty("DictOps_ACK") == cmd)
+      break;
+    NdbSleep_MilliSleep(100);
+  }
+  return true;
+}
+
+static bool
+recv_dict_ops_run(NDBT_Context* ctx)
+{
+  while (1) {
+    if (ctx->isTestStopped())
+      return false;
+    Uint32 cmd = ctx->getProperty("DictOps_CMD");
+    ctx->setProperty("DictOps_ACK", cmd);
+    if (cmd == 1)
+      break;
+    if (cmd == 3)
+      return false;
+    NdbSleep_MilliSleep(100);
+  }
+  return true;
+}
+
+int
+runRestarts(NDBT_Context* ctx, NDBT_Step* step)
+{
+  static int err_master[] = {   // non-crashing
+    0,
+    7174        // send one fake START_PERMREF
+  };
+  static int err_node[] = {
+    0,
+    7121,       // crash on START_PERMCONF
+    7130        // crash on START_MECONF
+  };
+  const uint err_master_cnt = sizeof(err_master)/sizeof(err_master[0]);
+  const uint err_node_cnt = sizeof(err_node)/sizeof(err_node[0]);
+
+  myRandom48Init(NdbTick_CurrentMillisecond());
+  NdbRestarter restarter;
+  int result = NDBT_OK;
+  const int loops = ctx->getNumLoops();
+
+  for (int l = 0; l < loops && result == NDBT_OK; l++) {
+    g_info << "1: === loop " << l << " ===" << endl;
+
+    // assuming 2-way replicated
+
+    int numnodes = restarter.getNumDbNodes();
+    CHECK(numnodes >= 1);
+    if (numnodes == 1)
+      break;
+
+    int masterNodeId = restarter.getMasterNodeId();
+    CHECK(masterNodeId != -1);
+
+    // for more complex cases need more restarter support methods
+
+    int nodeIdList[2] = { 0, 0 };
+    int nodeIdCnt = 0;
+
+    if (numnodes >= 2) {
+      int rand = myRandom48(numnodes);
+      int nodeId = restarter.getRandomNotMasterNodeId(rand);
+      CHECK(nodeId != -1);
+      nodeIdList[nodeIdCnt++] = nodeId;
+    }
+
+    if (numnodes >= 4) {
+      int rand = myRandom48(numnodes);
+      int nodeId = restarter.getRandomNodeOtherNodeGroup(nodeIdList[0], rand);
+      CHECK(nodeId != -1);
+      if (nodeId != masterNodeId)
+        nodeIdList[nodeIdCnt++] = nodeId;
+    }
+
+    g_info << "1: master=" << masterNodeId << " nodes=" << nodeIdList[0] << "," << nodeIdList[1] << endl;
+
+    const unsigned maxsleep = 2000; //ms
+
+    bool NF_ops = ctx->getProperty("Restart_NF_ops");
+    uint NF_type = ctx->getProperty("Restart_NF_type");
+    bool NR_ops = ctx->getProperty("Restart_NR_ops");
+    bool NR_error = ctx->getProperty("Restart_NR_error");
+
+    g_info << "1: " << (NF_ops ? "run" : "pause") << " dict ops" << endl;
+    if (! send_dict_ops_cmd(ctx, NF_ops ? 1 : 2))
+      break;
+    NdbSleep_MilliSleep(myRandom48(maxsleep));
+
+    {
+      int i = 0;
+      while (i < nodeIdCnt) {
+        int nodeId = nodeIdList[i++];
+
+        bool nostart = true;
+        bool abort = NF_type == 0 ? myRandom48(2) : (NF_type == 2);
+        bool initial = myRandom48(2);
+
+        char flags[40];
+        strcpy(flags, "flags: nostart");
+        if (abort)
+          strcat(flags, ",abort");
+        if (initial)
+          strcat(flags, ",initial");
+
+        g_info << "1: restart " << nodeId << " " << flags << endl;
+        CHECK(restarter.restartOneDbNode(nodeId, initial, nostart, abort) == 0);
+      }
+    }
+
+    g_info << "1: wait for nostart" << endl;
+    CHECK(restarter.waitNodesNoStart(nodeIdList, nodeIdCnt) == 0);
+    NdbSleep_MilliSleep(myRandom48(maxsleep));
+
+    g_info << "1: " << (NR_ops ? "run" : "pause") << " dict ops" << endl;
+    if (! send_dict_ops_cmd(ctx, NR_ops ? 1 : 2))
+      break;
+    NdbSleep_MilliSleep(myRandom48(maxsleep));
+
+    g_info << "1: start nodes" << endl;
+    CHECK(restarter.startNodes(nodeIdList, nodeIdCnt) == 0);
+
+    if (NR_error) {
+      {
+        int rand = myRandom48(err_master_cnt);
+        int err = err_master[rand];
+        if (err != 0) {
+          g_info << "1: insert master error " << err << endl;
+          CHECK(restarter.insertErrorInNode(masterNodeId, err) == 0);
+        }
+      }
+
+      // limitation: cannot have 2 node restarts and crash_insert
+      // one node may die for real (NF during startup)
+
+      int i = 0;
+      while (i < nodeIdCnt && nodeIdCnt == 1) {
+        int nodeId = nodeIdList[i++];
+
+        int rand = myRandom48(err_node_cnt);
+        int err = err_node[rand];
+        if (err != 0) {
+          g_info << "1: insert node " << nodeId << " error " << err << endl;
+          CHECK(restarter.insertErrorInNode(nodeId, err) == 0);
+        }
+      }
+    }
+    NdbSleep_MilliSleep(myRandom48(maxsleep));
+
+    g_info << "1: wait cluster started" << endl;
+    CHECK(restarter.waitClusterStarted() == 0);
+    NdbSleep_MilliSleep(myRandom48(maxsleep));
+
+    g_info << "1: restart done" << endl;
+  }
+
+  g_info << "1: stop dict ops" << endl;
+  send_dict_ops_cmd(ctx, 3);
+
+  return result;
+}
+
+int
+runDictOps(NDBT_Context* ctx, NDBT_Step* step)
+{
+  myRandom48Init(NdbTick_CurrentMillisecond());
+  int result = NDBT_OK;
+
+  for (int l = 0; result == NDBT_OK; l++) {
+    if (! recv_dict_ops_run(ctx))
+      break;
+    
+    g_info << "2: === loop " << l << " ===" << endl;
+
+    Ndb* pNdb = GETNDB(step);
+    NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+    const NdbDictionary::Table* pTab = ctx->getTab();
+    const char* tabName = pTab->getName();
+
+    const unsigned long maxsleep = 100; //ms
+
+    g_info << "2: create table" << endl;
+    {
+      uint count = 0;
+    try_create:
+      count++;
+      if (pDic->createTable(*pTab) != 0) {
+        const NdbError err = pDic->getNdbError();
+        if (count == 1)
+          g_err << "2: " << tabName << ": create failed: " << err << endl;
+        if (err.code != 711) {
+          result = NDBT_FAILED;
+          break;
+        }
+        NdbSleep_MilliSleep(myRandom48(maxsleep));
+        goto try_create;
+      }
+    }
+    NdbSleep_MilliSleep(myRandom48(maxsleep));
+
+    g_info << "2: verify create" << endl;
+    const NdbDictionary::Table* pTab2 = pDic->getTable(tabName);
+    if (pTab2 == NULL) {
+      const NdbError err = pDic->getNdbError();
+      g_err << "2: " << tabName << ": verify create: " << err << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    NdbSleep_MilliSleep(myRandom48(maxsleep));
+
+    // replace by the Retrieved table
+    pTab = pTab2;
+
+    int records = myRandom48(ctx->getNumRecords());
+    g_info << "2: load " << records << " records" << endl;
+    HugoTransactions hugoTrans(*pTab);
+    if (hugoTrans.loadTable(pNdb, records) != 0) {
+      // XXX get error code from hugo
+      g_err << "2: " << tabName << ": load failed" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    NdbSleep_MilliSleep(myRandom48(maxsleep));
+
+    g_info << "2: drop" << endl;
+    {
+      uint count = 0;
+    try_drop:
+      count++;
+      if (pDic->dropTable(tabName) != 0) {
+        const NdbError err = pDic->getNdbError();
+        if (count == 1)
+          g_err << "2: " << tabName << ": drop failed: " << err << endl;
+        if (err.code != 711) {
+          result = NDBT_FAILED;
+          break;
+        }
+        NdbSleep_MilliSleep(myRandom48(maxsleep));
+        goto try_drop;
+      }
+    }
+    NdbSleep_MilliSleep(myRandom48(maxsleep));
+
+    g_info << "2: verify drop" << endl;
+    const NdbDictionary::Table* pTab3 = pDic->getTable(tabName);
+    if (pTab3 != NULL) {
+      g_err << "2: " << tabName << ": verify drop: table exists" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    if (pDic->getNdbError().code != 709) {
+      const NdbError err = pDic->getNdbError();
+      g_err << "2: " << tabName << ": verify drop: " << err << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+    NdbSleep_MilliSleep(myRandom48(maxsleep));
+  }
+
+  return result;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("CreateAndDrop", 
 	 "Try to create and drop the table loop number of times\n"){
@@ -1655,6 +1931,34 @@ TESTCASE("FailAddFragment",
          "Fail add fragment or attribute in ACC or TUP or TUX\n"){
   INITIALIZER(runFailAddFragment);
 }
+TESTCASE("Restart_NF1",
+         "DICT ops during node graceful shutdown (not master)"){
+  TC_PROPERTY("Restart_NF_ops", 1);
+  TC_PROPERTY("Restart_NF_type", 1);
+  STEP(runRestarts);
+  STEP(runDictOps);
+}
+TESTCASE("Restart_NF2",
+         "DICT ops during node shutdown abort (not master)"){
+  TC_PROPERTY("Restart_NF_ops", 1);
+  TC_PROPERTY("Restart_NF_type", 2);
+  STEP(runRestarts);
+  STEP(runDictOps);
+}
+TESTCASE("Restart_NR1",
+         "DICT ops during node startup (not master)"){
+  TC_PROPERTY("Restart_NR_ops", 1);
+  STEP(runRestarts);
+  STEP(runDictOps);
+}
+TESTCASE("Restart_NR2",
+         "DICT ops during node startup with crash inserts (not master)"){
+  TC_PROPERTY("Restart_NR_ops", 1);
+  TC_PROPERTY("Restart_NR_error", 1);
+  STEP(runRestarts);
+  STEP(runDictOps);
+}
+
 NDBT_TESTSUITE_END(testDict);
 
 int main(int argc, const char** argv){
