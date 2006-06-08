@@ -3434,6 +3434,13 @@ sub valgrind_arguments {
 ##############################################################################
 
 sub usage ($) {
+  my $message= shift;
+
+  if ( $message )
+  {
+    print STDERR "$message \n";
+  }
+
   print STDERR <<HERE;
 
 mysql-test-run [ OPTIONS ] [ TESTCASE ]
