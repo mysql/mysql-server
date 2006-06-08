@@ -14,8 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "event_priv.h"
-#include "event.h"
+#include "mysql_priv.h"
+#include "events_priv.h"
+#include "events.h"
+#include "event_timed.h"
 #include "event_scheduler.h"
 #include "sp_head.h"
 
@@ -46,8 +48,8 @@
   The scheduler only manages execution of the events. Their creation,
   alteration and deletion is delegated to other routines found in event.cc .
   These routines interact with the scheduler :
-  - CREATE EVENT -> Event_scheduler::add_event()
-  - ALTER EVENT  -> Event_scheduler::replace_event()
+  - CREATE EVENT -> Event_scheduler::create_event()
+  - ALTER EVENT  -> Event_scheduler::update_event()
   - DROP EVENT   -> Event_scheduler::drop_event()
 
   There is one mutex in the single Event_scheduler object which controls
@@ -296,6 +298,35 @@ public:
     pthread_cond_destroy(&COND_started);
   }
 };
+
+
+/*
+  Compares the execute_at members of 2 Event_timed instances.
+  Used as callback for the prioritized queue when shifting
+  elements inside.
+
+  SYNOPSIS
+    event_timed_compare_q()
+  
+      vptr - not used (set it to NULL)
+      a    - first Event_timed object
+      b    - second Event_timed object
+
+  RETURN VALUE
+   -1   - a->execute_at < b->execute_at
+    0   - a->execute_at == b->execute_at
+    1   - a->execute_at > b->execute_at
+    
+  NOTES
+    execute_at.second_part is not considered during comparison
+*/
+
+static int 
+event_timed_compare_q(void *vptr, byte* a, byte *b)
+{
+  return my_time_compare(&((Event_timed *)a)->execute_at,
+                         &((Event_timed *)b)->execute_at);
+}
 
 
 /*
@@ -740,10 +771,10 @@ Event_scheduler::destroy()
 
 
 /*
-  Adds an event to the scheduler queue
+  Creates an event in the scheduler queue
 
   SYNOPSIS
-    Event_scheduler::add_event()
+    Event_scheduler::create_event()
       et              The event to add
       check_existence Whether to check if already loaded.
 
@@ -753,11 +784,11 @@ Event_scheduler::destroy()
 */
 
 enum Event_scheduler::enum_error_code
-Event_scheduler::add_event(THD *thd, Event_timed *et, bool check_existence)
+Event_scheduler::create_event(THD *thd, Event_timed *et, bool check_existence)
 {
   enum enum_error_code res;
   Event_timed *et_new;
-  DBUG_ENTER("Event_scheduler::add_event");
+  DBUG_ENTER("Event_scheduler::create_event");
   DBUG_PRINT("enter", ("thd=%p et=%p lock=%p",thd,et,&LOCK_scheduler_data));
 
   LOCK_SCHEDULER_DATA();
@@ -859,7 +890,7 @@ Event_scheduler::drop_event(THD *thd, Event_timed *et)
 
 
 /*
-  Replaces an event in the scheduler queue
+  Updates an event from the scheduler queue
 
   SYNOPSIS
     Event_scheduler::replace_event()
@@ -873,14 +904,14 @@ Event_scheduler::drop_event(THD *thd, Event_timed *et)
 */
 
 enum Event_scheduler::enum_error_code
-Event_scheduler::replace_event(THD *thd, Event_timed *et, LEX_STRING *new_schema,
+Event_scheduler::update_event(THD *thd, Event_timed *et, LEX_STRING *new_schema,
                                LEX_STRING *new_name)
 {
   enum enum_error_code res;
   Event_timed *et_old, *et_new= NULL;
   LEX_STRING old_schema, old_name;
 
-  DBUG_ENTER("Event_scheduler::replace_event");
+  DBUG_ENTER("Event_scheduler::update_event");
   DBUG_PRINT("enter", ("thd=%p et=%p et=[%s.%s] lock=%p",
              thd, et, et->dbname.str, et->name.str, &LOCK_scheduler_data));
 

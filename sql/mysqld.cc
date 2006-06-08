@@ -24,7 +24,7 @@
 #include "stacktrace.h"
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
-#include "event.h"
+#include "events.h"
 
 #include "ha_myisam.h"
 
