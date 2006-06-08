@@ -1359,6 +1359,12 @@ rec_loop:
 
 			if (srv_locks_unsafe_for_binlog
 			|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+
+				if (page_rec_is_supremum(next_rec)) {
+
+					goto skip_lock;
+				}
+
 				lock_type = LOCK_REC_NOT_GAP;
 			} else {
 				lock_type = LOCK_ORDINARY;
@@ -1377,6 +1383,7 @@ rec_loop:
 		}
 	}
 
+skip_lock:
 	if (page_rec_is_infimum(rec)) {
 
 		/* The infimum record on a page cannot be in the result set,
@@ -1407,6 +1414,12 @@ rec_loop:
 
 		if (srv_locks_unsafe_for_binlog
 		|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+
+			if (page_rec_is_supremum(rec)) {
+
+				goto next_rec;
+			}
+
 			lock_type = LOCK_REC_NOT_GAP;
 		} else {
 			lock_type = LOCK_ORDINARY;
