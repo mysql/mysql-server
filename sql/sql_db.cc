@@ -20,7 +20,7 @@
 #include "mysql_priv.h"
 #include <mysys_err.h>
 #include "sp.h"
-#include "event.h"
+#include "events.h"
 #include <my_dir.h>
 #include <m_ctype.h>
 #ifdef __WIN__

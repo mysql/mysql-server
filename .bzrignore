@@ -1771,3 +1771,4 @@ vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
 libmysqld/event_scheduler.cc
+libmysqld/events.cc
