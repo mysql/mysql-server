@@ -53,6 +53,7 @@ static const char S_innodb_lock_monitor[] = "innodb_lock_monitor";
 static const char S_innodb_tablespace_monitor[] = "innodb_tablespace_monitor";
 static const char S_innodb_table_monitor[] = "innodb_table_monitor";
 static const char S_innodb_mem_validate[] = "innodb_mem_validate";
+static const char S_innodb_sql[] = "innodb_sql";
 
 /* Name suffix for recovered orphaned temporary tables */
 static const char S_recover_innodb_tmp_table[] = "_recover_innodb_tmp_table";
@@ -1128,6 +1129,48 @@ row_insert_for_mysql(
 
 	row_mysql_convert_row_to_innobase(node->row, prebuilt, mysql_rec);
 
+#ifdef UNIV_DIRECT_SQL_DEBUG
+	if (strcmp(dict_remove_db_name(prebuilt->table->name), S_innodb_sql)
+		== 0)
+	{
+		mem_heap_t*	heap = mem_heap_create(512);
+		dfield_t*	df = dtuple_get_nth_field(node->row, 0);
+		char*		str = mem_heap_dup(heap,
+			dfield_get_data(df), dfield_get_len(df) + 1);
+
+		str[dfield_get_len(df)] = '\0';
+
+		/* TODO: If we someday add support in mem_heap_printf for
+		the maximum string length (%.*s), we can omit the
+		mem_heap_dup above and use dfield_get_data(df) directly
+		here. */
+		str = mem_heap_printf(heap,
+			"PROCEDURE P() IS BEGIN %s END;", str);
+
+		err = que_eval_sql(NULL, str, TRUE, trx);
+
+		if (err != DB_SUCCESS) {
+			fprintf(stderr, "InnoDB: Error: Got error code %lu"
+				" from innodb_sql\n", (ulong)err);
+
+			trx->error_state = DB_SUCCESS;
+			trx_general_rollback_for_mysql(trx, FALSE, NULL);
+			trx->op_info = "";
+
+			/* We can't return the specific error because the
+			error was generated accessing who knows what table,
+			while MySQL thinks we're accesssing "innodb_sql"
+			table, and for e.g. DB_DUPLICATE_KEY it crashes
+			trying to print the name of the key. */
+			err = DB_ERROR;
+		}
+
+		mem_heap_free(heap);
+
+		return((int)err);
+	}
+#endif
+
 	savept = trx_savept_take(trx);
 
 	thr = que_fork_get_first_thr(prebuilt->ins_graph);
@@ -1916,6 +1959,30 @@ row_create_table_for_mysql(
 		fputs("Memory NOT validated (recompile with UNIV_MEM_DEBUG)\n",
 			stderr);
 #endif /* UNIV_MEM_DEBUG */
+	} else if (table_name_len == sizeof S_innodb_sql
+		&& !memcmp(table_name, S_innodb_sql,
+			sizeof S_innodb_sql)) {
+
+#ifdef UNIV_DIRECT_SQL_DEBUG
+		/* Check that the table contains exactly one column of type
+		TEXT NOT NULL in Latin-1 encoding. */
+		dtype_t*	type;
+
+		ut_a(dict_table_get_n_user_cols(table) == 1);
+
+		type = dict_col_get_type(dict_table_get_nth_col(table, 0));
+
+		ut_a(dtype_get_mtype(type) == DATA_BLOB);
+		ut_a((dtype_get_prtype(type) & DATA_BINARY_TYPE) == 0);
+		ut_a(dtype_get_prtype(type) & DATA_NOT_NULL);
+		ut_a(dtype_get_charset_coll(dtype_get_prtype(type))
+			== DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL);
+
+#else
+		fputs("Created table 'innodb_sql' is not special since the\n"
+		"program was compiled without UNIV_DIRECT_SQL_DEBUG.\n",
+			stderr);
+#endif
 	}
 
 	heap = mem_heap_create(512);
