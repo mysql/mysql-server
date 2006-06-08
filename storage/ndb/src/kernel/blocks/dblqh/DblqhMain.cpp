@@ -8362,6 +8362,8 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   AccScanReq::setDescendingFlag(req->requestInfo, scanptr.p->descending);
   AccScanReq::setNoDiskScanFlag(req->requestInfo, 
 				!tcConnectptr.p->m_disk_table);
+  AccScanReq::setLcpScanFlag(req->requestInfo, scanptr.p->lcpScan);
+  
   req->transId1 = tcConnectptr.p->transid[0];
   req->transId2 = tcConnectptr.p->transid[1];
   req->savePointId = tcConnectptr.p->savePointId;
@@ -9453,6 +9455,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->rangeScan = rangeScan;
   scanptr.p->descending = descending;
   scanptr.p->tupScan = tupScan;
+  scanptr.p->lcpScan = ScanFragReq::getLcpScanFlag(reqinfo);
   scanptr.p->scanState = ScanRecord::SCAN_FREE;
   scanptr.p->scanFlag = ZFALSE;
   scanptr.p->m_row_id.setNull();

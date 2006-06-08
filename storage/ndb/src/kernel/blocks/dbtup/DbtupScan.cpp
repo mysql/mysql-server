@@ -53,7 +53,10 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     Fragrecord& frag = *fragPtr.p;
     // flags
     Uint32 bits = 0;
-    if (frag.m_lcp_scan_op == RNIL) {
+    
+    if (!AccScanReq::getLcpScanFlag(req->requestInfo) ||
+	tablePtr.p->m_no_of_disk_attributes == 0)
+    {
       // seize from pool and link to per-fragment list
       LocalDLList<ScanOp> list(c_scanOpPool, frag.m_scanList);
       if (! list.seize(scanPtr)) {
@@ -63,23 +66,25 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       if (!AccScanReq::getNoDiskScanFlag(req->requestInfo)
 	  && tablePtr.p->m_no_of_disk_attributes)
       {
-        bits |= ScanOp::SCAN_DD;
+	bits |= ScanOp::SCAN_DD;
       }
       bool mm = (bits & ScanOp::SCAN_DD);
       if (tablePtr.p->m_attributes[mm].m_no_of_varsize > 0) {
 	bits |= ScanOp::SCAN_VS;
 	
-        // disk pages have fixed page format
-        ndbrequire(! (bits & ScanOp::SCAN_DD));
+	// disk pages have fixed page format
+	ndbrequire(! (bits & ScanOp::SCAN_DD));
       }
       if (! AccScanReq::getReadCommittedFlag(req->requestInfo)) {
-        if (AccScanReq::getLockMode(req->requestInfo) == 0)
-          bits |= ScanOp::SCAN_LOCK_SH;
-        else
-          bits |= ScanOp::SCAN_LOCK_EX;
+	if (AccScanReq::getLockMode(req->requestInfo) == 0)
+	  bits |= ScanOp::SCAN_LOCK_SH;
+	else
+	  bits |= ScanOp::SCAN_LOCK_EX;
       }
     } else {
       jam();
+      // LCP scan and disk
+      
       ndbrequire(frag.m_lcp_scan_op == c_lcp_scan_op);
       c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
       bits |= ScanOp::SCAN_LCP;
