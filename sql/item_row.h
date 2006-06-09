@@ -68,7 +68,7 @@ public:
   void update_used_tables();
   void print(String *str);
 
-  bool walk(Item_processor processor, byte *arg);
+  bool walk(Item_processor processor, bool walk_subquery, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);
 
   uint cols() { return arg_count; }

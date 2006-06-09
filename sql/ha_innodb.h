@@ -33,6 +33,8 @@ typedef struct st_innobase_share {
 } INNOBASE_SHARE;
 
 
+struct row_prebuilt_struct;
+
 my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 						  uint full_name_len,
 						  ulonglong *unused);
@@ -89,7 +91,7 @@ class ha_innobase: public handler
 	const char* table_type() const { return("InnoDB");}
 	const char *index_type(uint key_number) { return "BTREE"; }
 	const char** bas_ext() const;
-	ulong table_flags() const { return int_table_flags; }
+	ulonglong table_flags() const { return int_table_flags; }
 	ulong index_flags(uint idx, uint part, bool all_parts) const
 	{
 	  return (HA_READ_NEXT |
@@ -109,7 +111,6 @@ class ha_innobase: public handler
 	uint max_supported_key_length() const { return 3500; }
 	uint max_supported_key_part_length() const;
 	const key_map *keys_to_use_for_scanning() { return &key_map_full; }
-	bool has_transactions()	 { return 1;}
 
 	int open(const char *name, int mode, uint test_if_locked);
 	int close(void);
@@ -147,20 +148,10 @@ class ha_innobase: public handler
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 	int discard_or_import_tablespace(my_bool discard);
 	int extra(enum ha_extra_function operation);
+        int reset();
 	int external_lock(THD *thd, int lock_type);
 	int transactional_table_lock(THD *thd, int lock_type);
 	int start_stmt(THD *thd, thr_lock_type lock_type);
-
-	int ha_retrieve_all_cols()
-	{
-	  ha_set_all_bits_in_read_set();
-	  return extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-	}
-	int ha_retrieve_all_pk()
-	{
-	  ha_set_primary_key_in_read_set();
-	  return extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
-	}
 	void position(byte *record);
 	ha_rows records_in_range(uint inx, key_range *min_key, key_range
 								*max_key);
@@ -210,6 +201,8 @@ class ha_innobase: public handler
 	int cmp_ref(const byte *ref1, const byte *ref2);
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);
+        void build_template(struct row_prebuilt_struct *prebuilt, THD *thd,
+                            TABLE *table, uint templ_type);
 };
 
 extern SHOW_VAR innodb_status_variables[];

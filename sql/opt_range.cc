@@ -828,6 +828,10 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc)
   :dont_free(0),error(0),free_file(0),in_range(0),cur_range(NULL),range(0)
 {
+  my_bitmap_map *bitmap;
+  DBUG_ENTER("QUICK_RANGE_SELECT::QUICK_RANGE_SELECT");
+
+  in_ror_merged_scan= 0;
   sorted= 0;
   index= key_nr;
   head=  table;
@@ -851,6 +855,19 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
     bzero((char*) &alloc,sizeof(alloc));
   file= head->file;
   record= head->record[0];
+  save_read_set= head->read_set;
+  save_write_set= head->write_set;
+
+  /* Allocate a bitmap for used columns */
+  if (!(bitmap= (my_bitmap_map*) my_malloc(head->s->column_bitmap_size,
+                                           MYF(MY_WME))))
+  {
+    column_bitmap.bitmap= 0;
+    error= 1;
+  }
+  else
+    bitmap_init(&column_bitmap, bitmap, head->s->fields, FALSE);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -880,24 +897,26 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     if (file) 
     {
       range_end();
-      file->extra(HA_EXTRA_NO_KEYREAD);
       if (free_file)
       {
         DBUG_PRINT("info", ("Freeing separate handler %p (free=%d)", file,
                             free_file));
-        file->ha_reset();
         file->ha_external_lock(current_thd, F_UNLCK);
         file->close();
         delete file;
       }
+      else
+      {
+        file->extra(HA_EXTRA_NO_KEYREAD);
+      }
     }
     delete_dynamic(&ranges); /* ranges are allocated in alloc */
     free_root(&alloc,MYF(0));
+    my_free((char*) column_bitmap.bitmap, MYF(MY_ALLOW_ZERO_PTR));
   }
-  if (multi_range)
-    my_free((char*) multi_range, MYF(0));
-  if (multi_range_buff)
-    my_free((char*) multi_range_buff, MYF(0));
+  head->column_bitmaps_set(save_read_set, save_write_set);
+  x_free(multi_range);
+  x_free(multi_range_buff);
   DBUG_VOID_RETURN;
 }
 
@@ -1017,20 +1036,21 @@ int QUICK_ROR_INTERSECT_SELECT::init()
 
 int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
-  handler *save_file= file;
+  handler *save_file= file, *org_file;
   THD *thd;
+  MY_BITMAP *bitmap;
   DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
 
+  in_ror_merged_scan= 1;
   if (reuse_handler)
   {
-    DBUG_PRINT("info", ("Reusing handler %p", file));
-    if (file->extra(HA_EXTRA_KEYREAD) ||
-        file->ha_retrieve_all_pk() ||
-        init() || reset())
+    DBUG_PRINT("info", ("Reusing handler 0x%lx", (long) file));
+    if (init() || reset())
     {
       DBUG_RETURN(1);
     }
-    DBUG_RETURN(0);
+    head->column_bitmaps_set(&column_bitmap, &column_bitmap);
+    goto end;
   }
 
   /* Create a separate handler object for this quick select */
@@ -1043,19 +1063,20 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   thd= head->in_use;
   if (!(file= get_new_handler(head->s, thd->mem_root, head->s->db_type)))
     goto failure;
-  DBUG_PRINT("info", ("Allocated new handler %p", file));
+  DBUG_PRINT("info", ("Allocated new handler 0x%lx", (long) file));
   if (file->ha_open(head, head->s->normalized_path.str, head->db_stat,
                     HA_OPEN_IGNORE_IF_LOCKED))
   {
     /* Caller will free the memory */
     goto failure;
   }
+
+  head->column_bitmaps_set(&column_bitmap, &column_bitmap);
+
   if (file->ha_external_lock(thd, F_RDLCK))
     goto failure;
 
-  if (file->extra(HA_EXTRA_KEYREAD) ||
-      file->ha_retrieve_all_pk() ||
-      init() || reset())
+  if (init() || reset())
   {
     file->ha_external_lock(thd, F_UNLCK);
     file->close();
@@ -1063,11 +1084,28 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
   free_file= TRUE;
   last_rowid= file->ref;
+
+end:
+  /*
+    We are only going to read key fields and call position() on 'file'
+    The following sets head->tmp_set to only use this key and then updates
+    head->read_set and head->write_set to use this bitmap.
+    The now bitmap is stored in 'column_bitmap' which is used in ::get_next()
+  */
+  org_file= head->file;
+  head->file= file;
+  /* We don't have to set 'head->keyread' here as the 'file' is unique */
+  head->mark_columns_used_by_index(index);
+  head->prepare_for_position();
+  head->file= org_file;
+  bitmap_copy(&column_bitmap, head->read_set);
+  head->column_bitmaps_set(&column_bitmap, &column_bitmap);
+
   DBUG_RETURN(0);
 
 failure:
-  if (file)
-    delete file;
+  head->column_bitmaps_set(save_read_set, save_write_set);
+  delete file;
   file= save_file;
   DBUG_RETURN(1);
 }
@@ -1772,32 +1810,26 @@ public:
 static int fill_used_fields_bitmap(PARAM *param)
 {
   TABLE *table= param->table;
-  param->fields_bitmap_size= bitmap_buffer_size(table->s->fields+1);
-  uint32 *tmp;
+  my_bitmap_map *tmp;
   uint pk;
-  if (!(tmp= (uint32*) alloc_root(param->mem_root,param->fields_bitmap_size)) ||
-      bitmap_init(&param->needed_fields, tmp, param->fields_bitmap_size*8,
-                  FALSE))
+  param->fields_bitmap_size= table->s->column_bitmap_size;
+  if (!(tmp= (my_bitmap_map*) alloc_root(param->mem_root,
+                                  param->fields_bitmap_size)) ||
+      bitmap_init(&param->needed_fields, tmp, table->s->fields, FALSE))
     return 1;
 
-  bitmap_clear_all(&param->needed_fields);
-  for (uint i= 0; i < table->s->fields; i++)
-  {
-    if (param->thd->query_id == table->field[i]->query_id)
-      bitmap_set_bit(&param->needed_fields, i+1);
-  }
+  bitmap_copy(&param->needed_fields, table->read_set);
+  bitmap_union(&param->needed_fields, table->write_set);
 
   pk= param->table->s->primary_key;
-  if (param->table->file->primary_key_is_clustered() && pk != MAX_KEY)
+  if (pk != MAX_KEY && param->table->file->primary_key_is_clustered())
   {
     /* The table uses clustered PK and it is not internally generated */
     KEY_PART_INFO *key_part= param->table->key_info[pk].key_part;
     KEY_PART_INFO *key_part_end= key_part +
                                  param->table->key_info[pk].key_parts;
     for (;key_part != key_part_end; ++key_part)
-    {
-      bitmap_clear_bit(&param->needed_fields, key_part->fieldnr);
-    }
+      bitmap_clear_bit(&param->needed_fields, key_part->fieldnr-1);
   }
   return 0;
 }
@@ -1849,7 +1881,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
 		      keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
-  DBUG_PRINT("info", ("records=%lu", (ulong)head->file->records));
+  DBUG_PRINT("info", ("records: %lu", (ulong) head->file->stats.records));
   delete quick;
   quick=0;
   needed_reg.clear_all();
@@ -1859,7 +1891,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     DBUG_RETURN(0); /* purecov: inspected */
   if (keys_to_use.is_clear_all())
     DBUG_RETURN(0);
-  records= head->file->records;
+  records= head->file->stats.records;
   if (!records)
     records++;					/* purecov: inspected */
   scan_time= (double) records / TIME_FOR_COMPARE + 1;
@@ -1884,7 +1916,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
     /* set up parameter that is passed to all functions */
     param.thd= thd;
-    param.baseflag=head->file->table_flags();
+    param.baseflag=head->file->ha_table_flags();
     param.prev_tables=prev_tables | const_tables;
     param.read_tables=read_tables;
     param.current_table= head->map;
@@ -2302,6 +2334,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   PART_PRUNE_PARAM prune_param;
   MEM_ROOT alloc;
   RANGE_OPT_PARAM  *range_par= &prune_param.range_param;
+  my_bitmap_map *old_read_set, *old_write_set;
 
   prune_param.part_info= part_info;
   init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
@@ -2315,6 +2348,8 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     DBUG_RETURN(FALSE);
   }
   
+  old_write_set= dbug_tmp_use_all_columns(table, table->write_set);
+  old_read_set=  dbug_tmp_use_all_columns(table, table->read_set);
   range_par->thd= thd;
   range_par->table= table;
   /* range_par->cond doesn't need initialization */
@@ -2404,6 +2439,8 @@ all_used:
   retval= FALSE; // some partitions are used
   mark_all_partitions_as_used(prune_param.part_info);
 end:
+  dbug_tmp_restore_column_map(table->write_set, old_write_set);
+  dbug_tmp_restore_column_map(table->read_set,  old_read_set);
   thd->no_errors=0;
   thd->mem_root= range_par->old_root;
   free_root(&alloc,MYF(0));			// Return memory & allocator
@@ -2430,6 +2467,8 @@ end:
 void store_key_image_to_rec(Field *field, char *ptr, uint len)
 {
   /* Do the same as print_key() does */ 
+  my_bitmap_map *old_map;
+
   if (field->real_maybe_null())
   {
     if (*ptr)
@@ -2440,7 +2479,10 @@ void store_key_image_to_rec(Field *field, char *ptr, uint len)
     field->set_notnull();
     ptr++;
   }    
+  old_map= dbug_tmp_use_all_columns(field->table,
+                                    field->table->write_set);
   field->set_key_image(ptr, len); 
+  dbug_tmp_restore_column_map(field->table->write_set, old_map);
 }
 
 
@@ -2520,11 +2562,11 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
 {
   MY_BITMAP all_merges;
   uint bitmap_bytes;
-  uint32 *bitmap_buf;
+  my_bitmap_map *bitmap_buf;
   uint n_bits= ppar->part_info->used_partitions.n_bits;
   bitmap_bytes= bitmap_buffer_size(n_bits);
-  if (!(bitmap_buf= (uint32*)alloc_root(ppar->range_param.mem_root,
-                                        bitmap_bytes)))
+  if (!(bitmap_buf= (my_bitmap_map*) alloc_root(ppar->range_param.mem_root,
+                                                bitmap_bytes)))
   {
     /*
       Fallback, process just the first SEL_IMERGE. This can leave us with more
@@ -2771,7 +2813,8 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         
       uint32 subpart_id;
       bitmap_clear_all(&ppar->subparts_bitmap);
-      while ((subpart_id= subpart_iter.get_next(&subpart_iter)) != NOT_A_PARTITION_ID)
+      while ((subpart_id= subpart_iter.get_next(&subpart_iter)) !=
+             NOT_A_PARTITION_ID)
         bitmap_set_bit(&ppar->subparts_bitmap, subpart_id);
 
       /* Mark each partition as used in each subpartition.  */
@@ -2877,7 +2920,8 @@ process_next_key_part:
       /* Got "full range" for subpartitioning fields */
       uint32 part_id;
       bool found= FALSE;
-      while ((part_id= ppar->part_iter.get_next(&ppar->part_iter)) != NOT_A_PARTITION_ID)
+      while ((part_id= ppar->part_iter.get_next(&ppar->part_iter)) !=
+             NOT_A_PARTITION_ID)
       {
         ppar->mark_full_partition_used(ppar->part_info, part_id);
         found= TRUE;
@@ -3024,11 +3068,12 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
  
   if (ppar->subpart_fields)
   {
-    uint32 *buf;
+    my_bitmap_map *buf;
     uint32 bufsize= bitmap_buffer_size(ppar->part_info->no_subparts);
-    if (!(buf= (uint32*)alloc_root(alloc, bufsize)))
+    if (!(buf= (my_bitmap_map*) alloc_root(alloc, bufsize)))
       return TRUE;
-    bitmap_init(&ppar->subparts_bitmap, buf, ppar->part_info->no_subparts, FALSE);
+    bitmap_init(&ppar->subparts_bitmap, buf, ppar->part_info->no_subparts,
+                FALSE);
   }
   range_par->key_parts= key_part;
   Field **field= (ppar->part_fields)? part_info->part_field_array :
@@ -3195,7 +3240,8 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
   else
   {
     double n_blocks=
-      ceil(ulonglong2double(param->table->file->data_file_length) / IO_SIZE);
+      ceil(ulonglong2double(param->table->file->stats.data_file_length) /
+           IO_SIZE);
     double busy_blocks=
       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, rows2double(records)));
     if (busy_blocks < 1.0)
@@ -3364,7 +3410,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 
   DBUG_PRINT("info", ("index_merge scans cost=%g", imerge_cost));
   if (imerge_too_expensive || (imerge_cost > read_time) ||
-      (non_cpk_scan_records+cpk_scan_records >= param->table->file->records) &&
+      (non_cpk_scan_records+cpk_scan_records >= param->table->file->stats.records) &&
       read_time != DBL_MAX)
   {
     /*
@@ -3422,7 +3468,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
       imerge_trp->read_cost= imerge_cost;
       imerge_trp->records= non_cpk_scan_records + cpk_scan_records;
       imerge_trp->records= min(imerge_trp->records,
-                               param->table->file->records);
+                               param->table->file->stats.records);
       imerge_trp->range_scans= range_scans;
       imerge_trp->range_scans_end= range_scans + n_child_scans;
       read_time= imerge_cost;
@@ -3483,7 +3529,7 @@ skip_to_ror_scan:
         ((TRP_ROR_INTERSECT*)(*cur_roru_plan))->index_scan_costs;
     roru_total_records += (*cur_roru_plan)->records;
     roru_intersect_part *= (*cur_roru_plan)->records /
-                           param->table->file->records;
+                           param->table->file->stats.records;
   }
 
   /*
@@ -3493,7 +3539,7 @@ skip_to_ror_scan:
     in disjunction do not share key parts.
   */
   roru_total_records -= (ha_rows)(roru_intersect_part*
-                                  param->table->file->records);
+                                  param->table->file->stats.records);
   /* ok, got a ROR read plan for each of the disjuncts
     Calculate cost:
     cost(index_union_scan(scan_1, ... scan_n)) =
@@ -3554,7 +3600,7 @@ static double get_index_only_read_time(const PARAM* param, ha_rows records,
                                        int keynr)
 {
   double read_time;
-  uint keys_per_block= (param->table->file->block_size/2/
+  uint keys_per_block= (param->table->file->stats.block_size/2/
 			(param->table->key_info[keynr].key_length+
 			 param->table->file->ref_length) + 1);
   read_time=((double) (records+keys_per_block-1)/
@@ -3606,7 +3652,7 @@ static
 ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
 {
   ROR_SCAN_INFO *ror_scan;
-  uint32 *bitmap_buf;
+  my_bitmap_map *bitmap_buf;
   uint keynr;
   DBUG_ENTER("make_ror_scan");
 
@@ -3621,12 +3667,12 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
   ror_scan->sel_arg= sel_arg;
   ror_scan->records= param->table->quick_rows[keynr];
 
-  if (!(bitmap_buf= (uint32*)alloc_root(param->mem_root,
-                                        param->fields_bitmap_size)))
+  if (!(bitmap_buf= (my_bitmap_map*) alloc_root(param->mem_root,
+                                                param->fields_bitmap_size)))
     DBUG_RETURN(NULL);
 
   if (bitmap_init(&ror_scan->covered_fields, bitmap_buf,
-                  param->fields_bitmap_size*8, FALSE))
+                  param->table->s->fields, FALSE))
     DBUG_RETURN(NULL);
   bitmap_clear_all(&ror_scan->covered_fields);
 
@@ -3635,8 +3681,8 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
                                param->table->key_info[keynr].key_parts;
   for (;key_part != key_part_end; ++key_part)
   {
-    if (bitmap_is_set(&param->needed_fields, key_part->fieldnr))
-      bitmap_set_bit(&ror_scan->covered_fields, key_part->fieldnr);
+    if (bitmap_is_set(&param->needed_fields, key_part->fieldnr-1))
+      bitmap_set_bit(&ror_scan->covered_fields, key_part->fieldnr-1);
   }
   ror_scan->index_read_cost=
     get_index_only_read_time(param, param->table->quick_rows[ror_scan->keynr],
@@ -3736,21 +3782,21 @@ static
 ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param)
 {
   ROR_INTERSECT_INFO *info;
-  uint32* buf;
+  my_bitmap_map* buf;
   if (!(info= (ROR_INTERSECT_INFO*)alloc_root(param->mem_root,
                                               sizeof(ROR_INTERSECT_INFO))))
     return NULL;
   info->param= param;
-  if (!(buf= (uint32*)alloc_root(param->mem_root,
-                                 param->fields_bitmap_size)))
+  if (!(buf= (my_bitmap_map*) alloc_root(param->mem_root,
+                                         param->fields_bitmap_size)))
     return NULL;
-  if (bitmap_init(&info->covered_fields, buf, param->fields_bitmap_size*8,
+  if (bitmap_init(&info->covered_fields, buf, param->table->s->fields,
                   FALSE))
     return NULL;
   info->is_covering= FALSE;
   info->index_scan_costs= 0.0;
   info->index_records= 0;
-  info->out_rows= param->table->file->records;
+  info->out_rows= param->table->file->stats.records;
   bitmap_clear_all(&info->covered_fields);
   return info;
 }
@@ -3869,14 +3915,14 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   SEL_ARG *sel_arg, *tuple_arg= NULL;
   bool cur_covered;
   bool prev_covered= test(bitmap_is_set(&info->covered_fields,
-                                        key_part->fieldnr));
+                                        key_part->fieldnr-1));
   key_range min_range;
   key_range max_range;
   min_range.key= (byte*) key_val;
   min_range.flag= HA_READ_KEY_EXACT;
   max_range.key= (byte*) key_val;
   max_range.flag= HA_READ_AFTER_KEY;
-  ha_rows prev_records= info->param->table->file->records;
+  ha_rows prev_records= info->param->table->file->stats.records;
   DBUG_ENTER("ror_intersect_selectivity");
 
   for (sel_arg= scan->sel_arg; sel_arg;
@@ -3884,7 +3930,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   {
     DBUG_PRINT("info",("sel_arg step"));
     cur_covered= test(bitmap_is_set(&info->covered_fields,
-                                    key_part[sel_arg->part].fieldnr));
+                                    key_part[sel_arg->part].fieldnr-1));
     if (cur_covered != prev_covered)
     {
       /* create (part1val, ..., part{n-1}val) tuple. */
@@ -4013,15 +4059,15 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   }
 
   info->total_cost= info->index_scan_costs;
-  DBUG_PRINT("info", ("info->total_cost= %g", info->total_cost));
+  DBUG_PRINT("info", ("info->total_cost: %g", info->total_cost));
   if (!info->is_covering)
   {
     info->total_cost += 
       get_sweep_read_cost(info->param, double2rows(info->out_rows));
     DBUG_PRINT("info", ("info->total_cost= %g", info->total_cost));
   }
-  DBUG_PRINT("info", ("New out_rows= %g", info->out_rows));
-  DBUG_PRINT("info", ("New cost= %g, %scovering", info->total_cost,
+  DBUG_PRINT("info", ("New out_rows: %g", info->out_rows));
+  DBUG_PRINT("info", ("New cost: %g, %scovering", info->total_cost,
                       info->is_covering?"" : "non-"));
   DBUG_RETURN(TRUE);
 }
@@ -4100,7 +4146,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   double min_cost= DBL_MAX;
   DBUG_ENTER("get_best_ror_intersect");
 
-  if ((tree->n_ror_scans < 2) || !param->table->file->records)
+  if ((tree->n_ror_scans < 2) || !param->table->file->stats.records)
     DBUG_RETURN(NULL);
 
   /*
@@ -4269,7 +4315,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     F=set of all fields to cover
     S={}
 
-    do {
+    do
+    {
       Order I by (#covered fields in F desc,
                   #components asc,
                   number of first not covered component asc);
@@ -4287,7 +4334,6 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   ROR_SCAN_INFO **ror_scan_mark;
   ROR_SCAN_INFO **ror_scans_end= tree->ror_scans_end;
   DBUG_ENTER("get_best_covering_ror_intersect");
-  uint nbits= param->fields_bitmap_size*8;
 
   for (ROR_SCAN_INFO **scan= tree->ror_scans; scan != ror_scans_end; ++scan)
     (*scan)->key_components=
@@ -4301,9 +4347,9 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   /*I=set of all covering indexes */
   ror_scan_mark= tree->ror_scans;
 
-  uint32 int_buf[MAX_KEY/32+1];
+  my_bitmap_map int_buf[MAX_KEY/(sizeof(my_bitmap_map)*8)+1];
   MY_BITMAP covered_fields;
-  if (bitmap_init(&covered_fields, int_buf, nbits, FALSE))
+  if (bitmap_init(&covered_fields, int_buf, param->table->s->fields, FALSE))
     DBUG_RETURN(0);
   bitmap_clear_all(&covered_fields);
 
@@ -4552,7 +4598,8 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
 
   if ((quick_intrsect=
          new QUICK_ROR_INTERSECT_SELECT(param->thd, param->table,
-                                        retrieve_full_rows? (!is_covering):FALSE,
+                                        (retrieve_full_rows? (!is_covering) :
+                                         FALSE),
                                         parent_alloc)))
   {
     DBUG_EXECUTE("info", print_ror_scans_arr(param->table,
@@ -7225,7 +7272,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     goto err;
   quick->records= records;
 
-  if (cp_buffer_from_ref(thd,ref) && thd->is_fatal_error ||
+  if (cp_buffer_from_ref(thd, table, ref) && thd->is_fatal_error ||
       !(range= new(alloc) QUICK_RANGE()))
     goto err;                                   // out of memory
 
@@ -7288,10 +7335,9 @@ err:
   rowids into Unique, get the sorted sequence and destroy the Unique.
   
   If table has a clustered primary key that covers all rows (TRUE for bdb
-     and innodb currently) and one of the index_merge scans is a scan on PK,
-  then
-    rows that will be retrieved by PK scan are not put into Unique and 
-    primary key scan is not performed here, it is performed later separately.
+  and innodb currently) and one of the index_merge scans is a scan on PK,
+  then rows that will be retrieved by PK scan are not put into Unique and 
+  primary key scan is not performed here, it is performed later separately.
 
   RETURN
     0     OK
@@ -7304,21 +7350,17 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   QUICK_RANGE_SELECT* cur_quick;
   int result;
   Unique *unique;
-  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::prepare_unique");
+  MY_BITMAP *save_read_set, *save_write_set;
+  handler *file= head->file;
+  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::read_keys_and_merge");
 
   /* We're going to just read rowids. */
-  if (head->file->extra(HA_EXTRA_KEYREAD))
-    DBUG_RETURN(1);
-
-  /*
-    Make innodb retrieve all PK member fields, so
-     * ha_innobase::position (which uses them) call works.
-     * We can filter out rows that will be retrieved by clustered PK.
-    (This also creates a deficiency - it is possible that we will retrieve
-     parts of key that are not used by current query at all.)
-  */
-  if (head->file->ha_retrieve_all_pk())
-    DBUG_RETURN(1);
+  save_read_set=  head->read_set;
+  save_write_set= head->write_set;
+  file->extra(HA_EXTRA_KEYREAD);
+  bitmap_clear_all(&head->tmp_set);
+  head->column_bitmaps_set(&head->tmp_set, &head->tmp_set);
+  head->prepare_for_position();
 
   cur_quick_it.rewind();
   cur_quick= cur_quick_it++;
@@ -7331,8 +7373,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   if (cur_quick->init() || cur_quick->reset())
     DBUG_RETURN(1);
 
-  unique= new Unique(refpos_order_cmp, (void *)head->file,
-                     head->file->ref_length,
+  unique= new Unique(refpos_order_cmp, (void *)file,
+                     file->ref_length,
                      thd->variables.sortbuff_size);
   if (!unique)
     DBUG_RETURN(1);
@@ -7375,15 +7417,16 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
 
   }
 
+  DBUG_PRINT("info", ("ok"));
   /* ok, all row ids are in Unique */
   result= unique->get(head);
   delete unique;
   doing_pk_scan= FALSE;
+  /* index_merge currently doesn't support "using index" at all */
+  file->extra(HA_EXTRA_NO_KEYREAD);
+  head->column_bitmaps_set(save_read_set, save_write_set);
   /* start table scan */
   init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1, 1);
-  /* index_merge currently doesn't support "using index" at all */
-  head->file->extra(HA_EXTRA_NO_KEYREAD);
-
   DBUG_RETURN(result);
 }
 
@@ -7405,9 +7448,7 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
   if (doing_pk_scan)
     DBUG_RETURN(pk_quick_select->get_next());
 
-  result= read_record.read_record(&read_record);
-
-  if (result == -1)
+  if ((result= read_record.read_record(&read_record)) == -1)
   {
     result= HA_ERR_END_OF_FILE;
     end_read_record(&read_record);
@@ -7415,7 +7456,8 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
     if (pk_quick_select)
     {
       doing_pk_scan= TRUE;
-      if ((result= pk_quick_select->init()) || (result= pk_quick_select->reset()))
+      if ((result= pk_quick_select->init()) ||
+          (result= pk_quick_select->reset()))
         DBUG_RETURN(result);
       DBUG_RETURN(pk_quick_select->get_next());
     }
@@ -7457,16 +7499,12 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
   {
     /* Get a rowid for first quick and save it as a 'candidate' */
     quick= quick_it++;
+    error= quick->get_next();
     if (cpk_quick)
     {
-      do
-      {
+      while (!error && !cpk_quick->row_in_ranges())
         error= quick->get_next();
-      }while (!error && !cpk_quick->row_in_ranges());
     }
-    else
-      error= quick->get_next();
-
     if (error)
       DBUG_RETURN(error);
 
@@ -7512,7 +7550,7 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
       }
     }
 
-    /* We get here iff we got the same row ref in all scans. */
+    /* We get here if we got the same row ref in all scans. */
     if (need_to_fetch_row)
       error= head->file->rnd_pos(head->record[0], last_rowid);
   } while (error == HA_ERR_RECORD_DELETED);
@@ -7585,6 +7623,7 @@ int QUICK_ROR_UNION_SELECT::get_next()
   DBUG_RETURN(error);
 }
 
+
 int QUICK_RANGE_SELECT::reset()
 {
   uint  mrange_bufsiz;
@@ -7624,7 +7663,7 @@ int QUICK_RANGE_SELECT::reset()
   }
 
   /* Allocate the handler buffer if necessary.  */
-  if (file->table_flags() & HA_NEED_READ_RANGE_BUFFER)
+  if (file->ha_table_flags() & HA_NEED_READ_RANGE_BUFFER)
   {
     mrange_bufsiz= min(multi_range_bufsiz,
                        (QUICK_SELECT_I::records + 1)* head->s->reclength);
@@ -7689,6 +7728,15 @@ int QUICK_RANGE_SELECT::get_next()
               (cur_range >= (QUICK_RANGE**) ranges.buffer) &&
               (cur_range <= (QUICK_RANGE**) ranges.buffer + ranges.elements));
 
+  if (in_ror_merged_scan)
+  {
+    /*
+      We don't need to signal the bitmap change as the bitmap is always the
+      same for this head->file
+    */
+    head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+  }
+
   for (;;)
   {
     if (in_range)
@@ -7696,10 +7744,7 @@ int QUICK_RANGE_SELECT::get_next()
       /* We did already start to read this key. */
       result= file->read_multi_range_next(&mrange);
       if (result != HA_ERR_END_OF_FILE)
-      {
-        in_range= ! result;
-	DBUG_RETURN(result);
-      }
+        goto end;
     }
 
     uint count= min(multi_range_length, ranges.elements -
@@ -7708,6 +7753,8 @@ int QUICK_RANGE_SELECT::get_next()
     {
       /* Ranges have already been used up before. None is left for read. */
       in_range= FALSE;
+      if (in_ror_merged_scan)
+        head->column_bitmaps_set_no_signal(save_read_set, save_write_set);
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
     KEY_MULTI_RANGE *mrange_slot, *mrange_end;
@@ -7739,12 +7786,18 @@ int QUICK_RANGE_SELECT::get_next()
     result= file->read_multi_range_first(&mrange, multi_range, count,
                                          sorted, multi_range_buff);
     if (result != HA_ERR_END_OF_FILE)
-    {
-      in_range= ! result;
-      DBUG_RETURN(result);
-    }
+      goto end;
     in_range= FALSE; /* No matching rows; go to next set of ranges. */
   }
+
+end:
+  in_range= ! result;
+  if (in_ror_merged_scan)
+  {
+    /* Restore bitmaps set on entry */
+    head->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+  }
+  DBUG_RETURN(result);
 }
 
 
@@ -7921,7 +7974,7 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
 
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
                                      uint used_key_parts)
- : QUICK_RANGE_SELECT(*q), rev_it(rev_ranges)
+ :QUICK_RANGE_SELECT(*q), rev_it(rev_ranges)
 {
   QUICK_RANGE *r;
 
@@ -8397,9 +8450,10 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
            groups, and thus can be applied after the grouping.
     GA4. There are no expressions among G_i, just direct column references.
     NGA1.If in the index I there is a gap between the last GROUP attribute G_k,
-         and the MIN/MAX attribute C, then NGA must consist of exactly the index
-         attributes that constitute the gap. As a result there is a permutation
-         of NGA that coincides with the gap in the index <B_1, ..., B_m>.
+         and the MIN/MAX attribute C, then NGA must consist of exactly the
+         index attributes that constitute the gap. As a result there is a
+         permutation of NGA that coincides with the gap in the index
+         <B_1, ..., B_m>.
     NGA2.If BA <> {}, then the WHERE clause must contain a conjunction EQ of
          equality conditions for all NG_i of the form (NG_i = const) or
          (const = NG_i), such that each NG_i is referenced in exactly one
@@ -8407,9 +8461,10 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
          gap in the index.
     WA1. There are no other attributes in the WHERE clause except the ones
          referenced in predicates RNG, PA, PC, EQ defined above. Therefore
-         WA is subset of (GA union NGA union C) for GA,NGA,C that pass the above
-         tests. By transitivity then it also follows that each WA_i participates
-         in the index I (if this was already tested for GA, NGA and C).
+         WA is subset of (GA union NGA union C) for GA,NGA,C that pass the
+         above tests. By transitivity then it also follows that each WA_i
+         participates in the index I (if this was already tested for GA, NGA
+         and C).
 
     C) Overall query form:
        SELECT EXPR([A_1,...,A_k], [B_1,...,B_m], [MIN(C)], [MAX(C)])
@@ -8471,12 +8526,12 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   TABLE *table= param->table;
   bool have_min= FALSE;              /* TRUE if there is a MIN function. */
   bool have_max= FALSE;              /* TRUE if there is a MAX function. */
-  Item_field *min_max_arg_item= NULL;/* The argument of all MIN/MAX functions.*/
+  Item_field *min_max_arg_item= NULL; // The argument of all MIN/MAX functions
   KEY_PART_INFO *min_max_arg_part= NULL; /* The corresponding keypart. */
   uint group_prefix_len= 0; /* Length (in bytes) of the key prefix. */
   KEY *index_info= NULL;    /* The index chosen for data access. */
   uint index= 0;            /* The id of the chosen index. */
-  uint group_key_parts= 0;  /* Number of index key parts in the group prefix. */
+  uint group_key_parts= 0;  // Number of index key parts in the group prefix.
   uint used_key_parts= 0;   /* Number of index key parts used for access. */
   byte key_infix[MAX_KEY_LENGTH]; /* Constants from equality predicates.*/
   uint key_infix_len= 0;          /* Length of key_infix. */
@@ -8594,28 +8649,19 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
       we check that all query fields are indeed covered by 'cur_index'.
     */
     if (pk < MAX_KEY && cur_index != pk &&
-        (table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
+        (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
     {
       /* For each table field */
       for (uint i= 0; i < table->s->fields; i++)
       {
         Field *cur_field= table->field[i];
         /*
-          If the field is used in the current query, check that the
-          field is covered by some keypart of the current index.
+          If the field is used in the current query ensure that it's
+          part of 'cur_index'
         */
-        if (thd->query_id == cur_field->query_id)
-        {
-          KEY_PART_INFO *key_part= cur_index_info->key_part;
-          KEY_PART_INFO *key_part_end= key_part + cur_index_info->key_parts;
-          for (;;)
-          {
-            if (key_part->field == cur_field)
-              break;
-            if (++key_part == key_part_end)
-              goto next_index;                  // Field was not part of key
-          }
-        }
+        if (bitmap_is_set(table->read_set, cur_field->field_index) &&
+            !cur_field->part_of_key_not_clustered.is_set(cur_index))
+          goto next_index;                  // Field was not part of key
       }
     }
 
@@ -8769,7 +8815,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         key_part_range[1]= last_part;
 
         /* Check if cur_part is referenced in the WHERE clause. */
-        if (join->conds->walk(&Item::find_item_in_field_list_processor,
+        if (join->conds->walk(&Item::find_item_in_field_list_processor, 0,
                               (byte*) key_part_range))
           goto next_index;
       }
@@ -8783,7 +8829,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     {
       for (cur_part= first_non_infix_part; cur_part != last_part; cur_part++)
       {
-        if (cur_part->field->query_id == thd->query_id)
+        if (bitmap_is_set(table->read_set, cur_part->field->field_index))
           goto next_index;
       }
     }
@@ -9247,8 +9293,8 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   double cpu_cost= 0; /* TODO: CPU cost of index_read calls? */
   DBUG_ENTER("cost_group_min_max");
 
-  table_records= table->file->records;
-  keys_per_block= (table->file->block_size / 2 /
+  table_records= table->file->stats.records;
+  keys_per_block= (table->file->stats.block_size / 2 /
                    (index_info->key_length + table->file->ref_length)
                         + 1);
   num_blocks= (table_records / keys_per_block) + 1;
@@ -10421,6 +10467,10 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
   const char *key_end= key+used_length;
   String tmp(buff,sizeof(buff),&my_charset_bin);
   uint store_length;
+  TABLE *table= key_part->field->table;
+  my_bitmap_map *old_write_set, *old_read_set;
+  old_write_set= dbug_tmp_use_all_columns(table, table->write_set);
+  old_read_set=  dbug_tmp_use_all_columns(table, table->read_set);
 
   for (; key < key_end; key+=store_length, key_part++)
   {
@@ -10446,18 +10496,28 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
     if (key+store_length < key_end)
       fputc('/',DBUG_FILE);
   }
+  dbug_tmp_restore_column_map(table->write_set, old_write_set);
+  dbug_tmp_restore_column_map(table->read_set, old_read_set);
 }
 
 
 static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg)
 {
   char buf[MAX_KEY/8+1];
+  TABLE *table;
+  my_bitmap_map *old_read_map, *old_write_map;
   DBUG_ENTER("print_quick");
   if (!quick)
     DBUG_VOID_RETURN;
   DBUG_LOCK_FILE;
 
+  table= quick->head;
+  old_read_map=  dbug_tmp_use_all_columns(table, table->read_set);
+  old_write_map= dbug_tmp_use_all_columns(table, table->write_set);
   quick->dbug_dump(0, TRUE);
+  dbug_tmp_restore_column_map(table->read_set, old_read_map);
+  dbug_tmp_restore_column_map(table->write_set, old_write_map);
+
   fprintf(DBUG_FILE,"other_keys: 0x%s:\n", needed_reg->print(buf));
 
   DBUG_UNLOCK_FILE;

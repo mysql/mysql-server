@@ -167,8 +167,10 @@ bool Log_to_csv_event_handler::open_log_table(uint log_type)
       table->table->file->ha_rnd_init(0))
     error= TRUE;
   else
+  {
+    table->table->use_all_columns();
     table->table->locked_by_logger= TRUE;
-
+  }
   /* restore thread settings */
   if (curr)
     curr->store_globals();
@@ -1153,7 +1155,8 @@ static int binlog_rollback(THD *thd, bool all)
     table. Such cases should be rare (updating a
     non-transactional table inside a transaction...)
   */
-  if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
+  if (unlikely(thd->options & (OPTION_STATUS_NO_TRANS_UPDATE |
+                               OPTION_KEEP_LOG)))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
@@ -1214,7 +1217,8 @@ static int binlog_savepoint_rollback(THD *thd, void *sv)
     non-transactional table. Otherwise, truncate the binlog cache starting
     from the SAVEPOINT command.
   */
-  if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
+  if (unlikely(thd->options &
+               (OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG)))
   {
     int const error=
       thd->binlog_query(THD::STMT_QUERY_TYPE,
@@ -2641,8 +2645,9 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
 {
   int error;
   DBUG_ENTER("THD::binlog_write_table_map");
-  DBUG_PRINT("enter", ("table: %p  (%s: #%u)",
-                       table, table->s->table_name, table->s->table_map_id));
+  DBUG_PRINT("enter", ("table: %0xlx  (%s: #%u)",
+                       (long) table, table->s->table_name,
+                       table->s->table_map_id));
 
   /* Pre-conditions */
   DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
@@ -2655,7 +2660,8 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
     the_event(this, table, table->s->table_map_id, is_trans, flags);
 
   if (is_trans)
-    trans_register_ha(this, options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN),
+    trans_register_ha(this,
+                      (options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) != 0,
                       &binlog_hton);
 
   if ((error= mysql_bin_log.write(&the_event)))
@@ -2846,7 +2852,7 @@ bool MYSQL_LOG::write(Log_event *event_info)
     }
 #endif /* HAVE_REPLICATION */
 
-#ifdef USING_TRANSACTIONS
+#if defined(USING_TRANSACTIONS) && defined(HAVE_ROW_BASED_REPLICATION)
     /*
       Should we write to the binlog cache or to the binlog on disk?
       Write to the binlog cache if:
@@ -2858,10 +2864,8 @@ bool MYSQL_LOG::write(Log_event *event_info)
     */
     if (opt_using_transactions && thd)
     {
-#ifdef HAVE_ROW_BASED_REPLICATION
       if (thd->binlog_setup_trx_data())
         goto err;
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 
       binlog_trx_data *const trx_data=
         (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
@@ -2871,7 +2875,7 @@ bool MYSQL_LOG::write(Log_event *event_info)
       if (event_info->get_cache_stmt() && !trans_log_in_use)
         trans_register_ha(thd,
                           (thd->options &
-                           (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)),
+                           (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) != 0,
                           &binlog_hton);
       if (event_info->get_cache_stmt() || trans_log_in_use)
       {
@@ -2885,7 +2889,7 @@ bool MYSQL_LOG::write(Log_event *event_info)
         LOCK_log.
       */
     }
-#endif
+#endif /* USING_TRANSACTIONS && HAVE_ROW_BASED_REPLICATION */
     DBUG_PRINT("info",("event type: %d",event_info->get_type_code()));
 
     /*
@@ -4359,5 +4363,6 @@ mysql_declare_plugin(binlog)
   binlog_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
+  0
 }
 mysql_declare_plugin_end;

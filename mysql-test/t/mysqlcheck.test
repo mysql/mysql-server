@@ -5,6 +5,10 @@
 # depends on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
 
+--disable_warnings
+drop database if exists client_test_db;
+--enable_warnings
+
 DROP SCHEMA test;
 CREATE SCHEMA test;
 #

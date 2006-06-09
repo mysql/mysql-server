@@ -1145,5 +1145,5 @@ prepare stmt from "analyze table t4, t1";
 execute stmt;
 execute stmt;
 deallocate prepare stmt;
-
+drop table t1, t2, t3;
 # End of 5.0 tests
