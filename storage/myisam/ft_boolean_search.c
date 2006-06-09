@@ -603,8 +603,9 @@ static int ftb_phrase_add_word(MYSQL_FTPARSER_PARAM *param,
   {
     FT_WORD *phrase_word= (FT_WORD *)phrase->data;
     FT_WORD *document_word= (FT_WORD *)document->data;
-    if (my_strnncoll(phrase_param->cs, phrase_word->pos, phrase_word->len,
-                     document_word->pos, document_word->len))
+    if (my_strnncoll(phrase_param->cs, (uchar*) phrase_word->pos,
+                     phrase_word->len,
+                     (uchar*) document_word->pos, document_word->len))
       return 0;
   }
   phrase_param->match++;

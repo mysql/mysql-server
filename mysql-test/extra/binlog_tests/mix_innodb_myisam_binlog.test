@@ -234,8 +234,8 @@ select (@after-@before) >= 2;
 drop table t1,t2;
 commit;
 
-# test for BUG#7947 - DO RELEASE_LOCK() not written to binlog on rollback in the middle
-# of a transaction
+# test for BUG#7947 - DO RELEASE_LOCK() not written to binlog on rollback in
+# the middle of a transaction
 
 connection con2;
 begin;
@@ -265,6 +265,68 @@ drop table t0,t2;
 
 # End of 4.1 tests
 
+#
+# Test behaviour of CREATE ... SELECT when mixing MyISAM and InnoDB tables
+#
+
+set autocommit=0;
+CREATE TABLE t1 (a int, b int) engine=myisam;
+reset master;
+INSERT INTO t1 values (1,1),(1,2);
+--error 1062
+CREATE TABLE t2 (primary key (a)) engine=innodb select * from t1;
+# This should give warning
+DROP TABLE if exists t2;
+INSERT INTO t1 values (3,3);
+--error 1062
+CREATE TEMPORARY TABLE t2 (primary key (a)) engine=innodb select * from t1;
+ROLLBACK;
+# This should give warning
+DROP TABLE IF EXISTS t2;
+
+CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb;
+INSERT INTO t1 VALUES (4,4);
+--error 1062
+CREATE TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+SELECT * from t2;
+TRUNCATE table t2;
+INSERT INTO t1 VALUES (5,5);
+--error 1062
+INSERT INTO t2 select * from t1;
+SELECT * FROM t2;
+DROP TABLE t2;
+
+INSERT INTO t1 values (6,6);
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb ;
+INSERT INTO t1 values (7,7);
+ROLLBACK;
+INSERT INTO t1 values (8,8);
+--error 1062
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+COMMIT;
+INSERT INTO t1 values (9,9);
+--error 1062
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ROLLBACK;
+SELECT * from t2;
+TRUNCATE table t2;
+INSERT INTO t1 values (10,10);
+--error 1062
+INSERT INTO t2 select * from t1;
+SELECT * from t1;
+INSERT INTO t2 values (100,100);
+--error 1062
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+COMMIT;
+INSERT INTO t2 values (101,101);
+--error 1062
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ROLLBACK;
+SELECT * from t2;
+DROP TABLE t1,t2;
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
+show binlog events from 102;
+
 # Test for BUG#16559 (ROLLBACK should always have a zero error code in
 # binlog). Has to be here and not earlier, as the SELECTs influence
 # XIDs differently between normal and ps-protocol (and SHOW BINLOG
@@ -283,3 +345,4 @@ disconnect con3;
 
 connection con4;
 select get_lock("a",10); # wait for rollback to finish
+

@@ -33,9 +33,9 @@ class ha_myisammrg: public handler
   const char *table_type() const { return "MRG_MyISAM"; }
   const char **bas_ext() const;
   const char *index_type(uint key_number);
-  ulong table_flags() const
+  ulonglong table_flags() const
   {
-    return (HA_REC_NOT_IN_SEQ | HA_AUTO_PART_KEY | HA_READ_RND_SAME |
+    return (HA_REC_NOT_IN_SEQ | HA_AUTO_PART_KEY | HA_NO_TRANSACTIONS |
 	    HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_FILE_BASED |
             HA_CAN_INSERT_DELAYED | HA_ANY_INDEX_MAY_BE_UNIQUE |
             HA_NO_COPY_ON_ALTER);
@@ -50,7 +50,7 @@ class ha_myisammrg: public handler
   uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
   uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
   double scan_time()
-    { return ulonglong2double(data_file_length) / IO_SIZE + file->tables; }
+  { return ulonglong2double(stats.data_file_length) / IO_SIZE + file->tables; }
 
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
@@ -73,6 +73,7 @@ class ha_myisammrg: public handler
   void position(const byte *record);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   void info(uint);
+  int reset(void);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int external_lock(THD *thd, int lock_type);

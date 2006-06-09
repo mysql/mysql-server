@@ -312,7 +312,7 @@ public:
   Item *get_tmp_table_item(THD *thd);
   virtual Field *create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length);
-  bool walk (Item_processor processor, byte *argument);
+  bool walk(Item_processor processor, bool walk_subquery, byte *argument);
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
   bool register_sum_func(THD *thd, Item **ref);

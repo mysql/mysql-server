@@ -1,1 +1,1 @@
---default-storage-engine=myisam --binlog-format=row
+--default-storage-engine=myisam 

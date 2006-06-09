@@ -209,8 +209,6 @@ commit;
 begin;
 create temporary table ti (a int) engine=innodb;
 rollback;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
 insert into ti values(1);
 set autocommit=0;
 create temporary table t1 (a int) engine=myisam;
@@ -256,6 +254,107 @@ master-bin.000001	1654	Query	1	#	use `test`; create table t2 (n int) engine=inno
 master-bin.000001	1754	Query	1	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`.`t1`,`test`.`ti`
 do release_lock("lock1");
 drop table t0,t2;
+set autocommit=0;
+CREATE TABLE t1 (a int, b int) engine=myisam;
+reset master;
+INSERT INTO t1 values (1,1),(1,2);
+CREATE TABLE t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+DROP TABLE if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+INSERT INTO t1 values (3,3);
+CREATE TEMPORARY TABLE t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+DROP TABLE IF EXISTS t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb;
+INSERT INTO t1 VALUES (4,4);
+CREATE TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+TRUNCATE table t2;
+INSERT INTO t1 VALUES (5,5);
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * FROM t2;
+a	b
+DROP TABLE t2;
+INSERT INTO t1 values (6,6);
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb ;
+INSERT INTO t1 values (7,7);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+INSERT INTO t1 values (8,8);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+COMMIT;
+INSERT INTO t1 values (9,9);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SELECT * from t2;
+a	b
+TRUNCATE table t2;
+INSERT INTO t1 values (10,10);
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t1;
+a	b
+1	1
+1	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+INSERT INTO t2 values (100,100);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+COMMIT;
+INSERT INTO t2 values (101,101);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ROLLBACK;
+SELECT * from t2;
+a	b
+100	100
+DROP TABLE t1,t2;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Query	1	198	use `test`; INSERT INTO t1 values (1,1),(1,2)
+master-bin.000001	198	Query	1	284	use `test`; DROP TABLE if exists t2
+master-bin.000001	284	Query	1	374	use `test`; INSERT INTO t1 values (3,3)
+master-bin.000001	374	Query	1	460	use `test`; DROP TABLE IF EXISTS t2
+master-bin.000001	460	Query	1	584	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
+master-bin.000001	584	Query	1	674	use `test`; INSERT INTO t1 VALUES (4,4)
+master-bin.000001	674	Query	1	80	use `test`; TRUNCATE table t2
+master-bin.000001	754	Xid	1	781	COMMIT /* xid= */
+master-bin.000001	781	Query	1	871	use `test`; INSERT INTO t1 VALUES (5,5)
+master-bin.000001	871	Query	1	947	use `test`; DROP TABLE t2
+master-bin.000001	947	Query	1	1037	use `test`; INSERT INTO t1 values (6,6)
+master-bin.000001	1037	Query	1	1171	use `test`; CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb
+master-bin.000001	1171	Query	1	1261	use `test`; INSERT INTO t1 values (7,7)
+master-bin.000001	1261	Query	1	1351	use `test`; INSERT INTO t1 values (8,8)
+master-bin.000001	1351	Query	1	1441	use `test`; INSERT INTO t1 values (9,9)
+master-bin.000001	1441	Query	1	80	use `test`; TRUNCATE table t2
+master-bin.000001	1521	Xid	1	1548	COMMIT /* xid= */
+master-bin.000001	1548	Query	1	1640	use `test`; INSERT INTO t1 values (10,10)
+master-bin.000001	1640	Query	1	1708	use `test`; BEGIN
+master-bin.000001	1708	Query	1	94	use `test`; INSERT INTO t2 values (100,100)
+master-bin.000001	1802	Xid	1	1829	COMMIT /* xid= */
+master-bin.000001	1829	Query	1	1908	use `test`; DROP TABLE t1,t2
 reset master;
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=myisam;
