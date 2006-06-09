@@ -1,3 +1,5 @@
+# Embedded server doesn't support binlog
+-- source include/not_embedded.inc
 -- source include/have_innodb.inc
 
 #
