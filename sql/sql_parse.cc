@@ -2020,7 +2020,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	    uptime,
 	    (int) thread_count, (ulong) thd->query_id,
 	    current_global_status_var.long_query_count,
-	    current_global_status_var.opened_tables, refresh_version, cached_tables(),
+	    current_global_status_var.opened_tables, refresh_version,
+            cached_open_tables(),
 	    (uptime ? (ulonglong2double(thd->query_id) / (double) uptime) :
 	     (double) 0));
 #ifdef SAFEMALLOC
