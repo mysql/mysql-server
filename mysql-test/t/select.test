@@ -1296,9 +1296,9 @@ explain select fld3 from t2 use index (fld1,fld3) where fld3 = 'honeysuckle';
 # The next should give an error
 #
 
---error 1176
+-- error 1176
 explain select fld3 from t2 ignore index (fld3,not_used);
---error 1176
+-- error 1176
 explain select fld3 from t2 use index (not_used);
 
 #
@@ -2263,6 +2263,21 @@ create table t2 (f3 int, f4 int, primary key(f3,f4));
 insert into t2 values(1,1);
 select * from t1 where f1 in (select f3 from t2 where (f3,f4)= (select f3,f4 from t2)); 
 drop table t1,t2;
+
+#
+# Bug #17873: confusing error message when IGNORE INDEX refers a column name
+#
+
+CREATE TABLE t1 (a int, INDEX idx(a));
+INSERT INTO t1 VALUES (2), (3), (1);
+
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (idx);
+--error 1176
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (a);
+--error 1176
+EXPLAIN SELECT * FROM t1 FORCE INDEX (a);
+
+DROP TABLE t1;
 
 # End of 4.1 tests
 
