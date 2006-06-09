@@ -28,6 +28,10 @@
 #ifndef yaSSL_openssl_h__
 #define yaSSL_openssl_h__
 
+#ifdef YASSL_PREFIX
+#include "prefix_ssl.h"
+#endif
+
 #include <stdio.h>   /* ERR_print fp */
 #include "opensslv.h" /* for version number */
 #include "rsa.h"
@@ -373,11 +377,9 @@ char* SSL_state_string_long(SSL*);
 
 
 /* EVP stuff, des and md5, different file? */
-typedef struct Digest Digest;
-typedef Digest EVP_MD;
+typedef char EVP_MD;
 
-typedef struct BulkCipher BulkCipher;
-typedef BulkCipher EVP_CIPHER;
+typedef char EVP_CIPHER;
 
 typedef struct EVP_PKEY EVP_PKEY;
 

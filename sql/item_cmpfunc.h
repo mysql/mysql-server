@@ -1178,7 +1178,7 @@ public:
                          COND **conds);
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
-  bool walk(Item_processor processor, byte *arg);
+  bool walk(Item_processor processor, bool walk_subquery, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);
   void traverse_cond(Cond_traverser, void *arg, traverse_order order);
   void neg_arguments(THD *thd);
@@ -1292,7 +1292,7 @@ public:
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);
   void update_used_tables();
-  bool walk(Item_processor processor, byte *arg);
+  bool walk(Item_processor processor, bool walk_subquery, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);
   void print(String *str);
   CHARSET_INFO *compare_collation() 

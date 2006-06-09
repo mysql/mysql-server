@@ -48,7 +48,7 @@ class ha_myisam: public handler
   const char *table_type() const { return "MyISAM"; }
   const char *index_type(uint key_number);
   const char **bas_ext() const;
-  ulong table_flags() const { return int_table_flags; }
+  ulonglong table_flags() const { return int_table_flags; }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
@@ -101,6 +101,7 @@ class ha_myisam: public handler
   void info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
+  int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
   int disable_indexes(uint mode);
@@ -113,7 +114,10 @@ class ha_myisam: public handler
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
-  ulonglong get_auto_increment();
+  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
+                                  ulonglong nb_desired_values,
+                                  ulonglong *first_value,
+                                  ulonglong *nb_reserved_values);
   int rename_table(const char * from, const char * to);
   int delete_table(const char *name);
   int check(THD* thd, HA_CHECK_OPT* check_opt);

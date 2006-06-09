@@ -614,7 +614,7 @@ drop table t1;
 create table t1 (a int, b int);
 create view v1 as select a, sum(b) from t1 group by a;
 select b from v1 use index (some_index) where b=1;
-ERROR 42000: Key column 'some_index' doesn't exist in table
+ERROR 42000: Key 'some_index' doesn't exist in table 'v1'
 drop view v1;
 drop table t1;
 create table t1 (col1 char(5),col2 char(5));

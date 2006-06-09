@@ -321,13 +321,15 @@ execute stmt4;
 prepare stmt4 from ' show variables like ''sql_mode'' ';
 execute stmt4;
 prepare stmt4 from ' show engine bdb logs ';
-# The output depends on the history (actions of the bdb engine).
+# The output depends on the bdb being enabled and on the history
+# history (actions of the bdb engine).
 # That is the reason why, we switch the output here off.
 #   (The real output will be tested in ps_6bdb.test)
-# --replace_result $MYSQL_TEST_DIR TEST_DIR
+--disable_warnings
 --disable_result_log
 execute stmt4;
 --enable_result_log
+--enable_warnings
 prepare stmt4 from ' show grants for user ';
 --error 1295
 prepare stmt4 from ' show create table t2 ';

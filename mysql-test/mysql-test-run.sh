@@ -1121,7 +1121,10 @@ mysql_install_db () {
     if [ ! -z "$USE_NDBCLUSTER" ]
     then
       $ECHO "Installing Master Databases 1"
-      $INSTALL_DB -1
+#     $INSTALL_DB -1
+      $RM -rf var/master-data1
+      mkdir var/master-data1
+      cp -r var/master-data/* var/master-data1
       if [ $? != 0 ]; then
 	error "Could not install master test DBs 1"
 	exit 1
@@ -1129,7 +1132,9 @@ mysql_install_db () {
     fi
     $ECHO "Installing Slave Databases"
     $RM -rf $SLAVE_MYDDIR $MY_LOG_DIR/* 
-    $INSTALL_DB -slave
+#    $INSTALL_DB -slave
+    mkdir var/slave-data
+    cp -r var/master-data/* var/slave-data
     if [ $? != 0 ]; then
 	error "Could not install slave test DBs"
 	exit 1
@@ -2155,6 +2160,7 @@ then
 
   # Remove files that can cause problems
   $RM -rf $MYSQL_TEST_DIR/var/ndbcluster
+  $RM -rf $MYSQL_TEST_DIR/var/tmp/snapshot*
   $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
 
   # Remove old berkeley db log files that can confuse the server

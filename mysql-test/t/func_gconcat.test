@@ -176,8 +176,8 @@ select t1.a, group_concat(c order by (select mid(group_concat(c order by a),1,5)
 select t1.a, group_concat(c order by (select mid(group_concat(c order by a),1,5) from t2 where t2.a=t1.a) desc) as grp from t1 group by 1;
 
 # The following returns random results as we are sorting on blob addresses
-# select group_concat(c order by (select group_concat(c order by a) from t2 where t2.a=t1.a)) as grp from t1;
-# select group_concat(c order by (select group_concat(c) from t2 where a=t1.a)) as grp from t1;
+select group_concat(c order by (select concat(5-t1.c,group_concat(c order by a)) from t2 where t2.a=t1.a)) as grp from t1;
+select group_concat(c order by (select concat(t1.c,group_concat(c)) from t2 where a=t1.a)) as grp from t1;
 
 select a,c,(select group_concat(c order by a) from t2 where a=t1.a) as grp from t1 order by grp;
 drop table t1,t2;

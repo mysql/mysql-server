@@ -115,6 +115,15 @@ select @a, @b;
 @a	@b
 NULL	15
 truncate table t1;
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 set c=b;
+Warnings:
+Warning	1261	Row 1 doesn't contain data for all columns
+Warning	1261	Row 2 doesn't contain data for all columns
+select * from t1;
+a	b	c
+NULL	10	10
+NULL	15	15
+truncate table t1;
 load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c="Wow";
 select * from t1;
 a	b	c

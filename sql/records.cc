@@ -64,10 +64,7 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
 
   table->status=0;			/* And it's always found */
   if (!table->file->inited)
-  {
     table->file->ha_index_init(idx, 1);
-    table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
-  }
   /* read_record will be changed to rr_index in rr_index_first */
   info->read_record= rr_index_first;
 }
@@ -195,11 +192,11 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     if (!table->sort.addon_field &&
         ! (specialflag & SPECIAL_SAFE_MODE) &&
 	thd->variables.read_rnd_buff_size &&
-	!(table->file->table_flags() & HA_FAST_KEY_READ) &&
+	!(table->file->ha_table_flags() & HA_FAST_KEY_READ) &&
 	(table->db_stat & HA_READ_ONLY ||
 	 table->reginfo.lock_type <= TL_READ_NO_INSERT) &&
-	(ulonglong) table->s->reclength* (table->file->records+
-                                          table->file->deleted) >
+	(ulonglong) table->s->reclength* (table->file->stats.records+
+                                          table->file->stats.deleted) >
 	(ulonglong) MIN_FILE_LENGTH_TO_USE_ROW_CACHE &&
 	info->io_cache->end_of_file/info->ref_length * table->s->reclength >
 	(my_off_t) MIN_ROWS_TO_USE_TABLE_CACHE &&
@@ -239,7 +236,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 	 (int) table->reginfo.lock_type <= (int) TL_READ_HIGH_PRIORITY ||
 	 !(table->s->db_options_in_use & HA_OPTION_PACK_RECORD) ||
 	 (use_record_cache < 0 &&
-	  !(table->file->table_flags() & HA_NOT_DELETE_WITH_CACHE))))
+	  !(table->file->ha_table_flags() & HA_NOT_DELETE_WITH_CACHE))))
       VOID(table->file->extra_opt(HA_EXTRA_CACHE,
 				  thd->variables.read_buff_size));
   }
