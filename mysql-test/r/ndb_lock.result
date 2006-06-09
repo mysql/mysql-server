@@ -63,3 +63,62 @@ pk	u	o
 5	5	5
 insert into t1 values (1,1,1);
 drop table t1;
+create table t1 (x integer not null primary key, y varchar(32)) engine = ndb;
+insert into t1 values (1,'one'), (2,'two'),(3,"three");
+begin;
+select * from t1 where x = 1 for update;
+x	y
+1	one
+begin;
+select * from t1 where x = 2 for update;
+x	y
+2	two
+select * from t1 where x = 1 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+commit;
+begin;
+select * from t1 where y = 'one' or y = 'three' for update;
+x	y
+3	three
+1	one
+begin;
+select * from t1 where x = 2 for update;
+x	y
+2	two
+select * from t1 where x = 1 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+commit;
+begin;
+select * from t1 where x = 1 lock in share mode;
+x	y
+1	one
+begin;
+select * from t1 where x = 1 lock in share mode;
+x	y
+1	one
+select * from t1 where x = 2 for update;
+x	y
+2	two
+select * from t1 where x = 1 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+commit;
+begin;
+select * from t1 where y = 'one' or y = 'three' lock in share mode;
+x	y
+3	three
+1	one
+begin;
+select * from t1 where y = 'one' lock in share mode;
+x	y
+1	one
+select * from t1 where x = 2 for update;
+x	y
+2	two
+select * from t1 where x = 1 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+commit;
+drop table t1;

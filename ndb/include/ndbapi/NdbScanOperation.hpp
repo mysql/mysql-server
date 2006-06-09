@@ -61,11 +61,10 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * readTuples
-   * 
    * @param lock_mode Lock mode
    * @param batch No of rows to fetch from each fragment at a time
    * @param parallel No of fragments to scan in parallell
-   * @note specifying 0 for batch and parallall means max performance
+   * @note specifying 0 for batch and parallell means max performance
    */ 
 #ifdef ndb_readtuples_impossible_overload
   int readTuples(LockMode lock_mode = LM_Read, 
