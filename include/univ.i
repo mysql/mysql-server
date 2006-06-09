@@ -85,7 +85,6 @@ memory is read outside the allocated blocks. */
 #if 0
 #define UNIV_DEBUG
 #define UNIV_MEM_DEBUG
-#define UNIV_DIRECT_SQL_DEBUG
 #define UNIV_IBUF_DEBUG
 #define UNIV_SYNC_DEBUG
 #define UNIV_SEARCH_DEBUG
