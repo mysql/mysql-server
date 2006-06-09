@@ -1927,7 +1927,7 @@ MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
 }
 
 int
-MgmtSrvr::alloc_node_id_req(Uint32 free_node_id)
+MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
 {
   SignalSender ss(theFacade);
   ss.lock(); // lock will be released on exit
@@ -1940,6 +1940,7 @@ MgmtSrvr::alloc_node_id_req(Uint32 free_node_id)
   req->senderRef = ss.getOwnRef();
   req->senderData = 19;
   req->nodeId = free_node_id;
+  req->nodeType = type;
 
   int do_send = 1;
   NodeId nodeId = 0;
@@ -2140,7 +2141,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 
   if (id_found && client_addr != 0)
   {
-    int res = alloc_node_id_req(id_found);
+    int res = alloc_node_id_req(id_found, type);
     unsigned save_id_found = id_found;
     switch (res)
     {
