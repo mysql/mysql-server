@@ -1,3 +1,4 @@
+drop database if exists client_test_db;
 DROP SCHEMA test;
 CREATE SCHEMA test;
 cluster.binlog_index                               OK

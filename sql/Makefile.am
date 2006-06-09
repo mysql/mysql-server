@@ -22,7 +22,7 @@ MYSQLBASEdir=		$(prefix)
 MYSQLLIBdir=            $(pkglibdir)
 INCLUDES =		@ZLIB_INCLUDES@ \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
-			-I$(top_srcdir)/regex -I$(srcdir) $(yassl_includes) \
+			-I$(top_srcdir)/regex -I$(srcdir) \
                         $(openssl_includes)
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share

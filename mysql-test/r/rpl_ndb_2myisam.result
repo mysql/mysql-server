@@ -27,7 +27,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -100,7 +100,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;

@@ -191,10 +191,10 @@ cache index t1 in unknown_key_cache;
 ERROR HY000: Unknown key cache 'unknown_key_cache'
 cache index t1 key (unknown_key) in keycache1;
 Table	Op	Msg_type	Msg_text
-test.t1	assign_to_keycache	error	Key column 'unknown_key' doesn't exist in table
+test.t1	assign_to_keycache	error	Key 'unknown_key' doesn't exist in table 't1'
 test.t1	assign_to_keycache	status	Operation failed
 Warnings:
-Error	1072	Key column 'unknown_key' doesn't exist in table
+Error	1176	Key 'unknown_key' doesn't exist in table 't1'
 select @@keycache2.key_buffer_size;
 @@keycache2.key_buffer_size
 4194304

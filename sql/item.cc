@@ -551,6 +551,23 @@ bool Item_field::find_item_in_field_list_processor(byte *arg)
 }
 
 
+/*
+  Mark field in read_map
+
+  NOTES
+    This is used by filesort to register used fields in a a temporary
+    column read set or to register used fields in a view
+*/
+
+bool Item_field::register_field_in_read_map(byte *arg)
+{
+  TABLE *table= (TABLE *) arg;
+  if (field->table == table || !table)
+    bitmap_set_bit(field->table->read_set, field->field_index);
+  return 0;
+}
+
+
 bool Item::check_cols(uint c)
 {
   if (c != 1)
@@ -790,14 +807,25 @@ CHARSET_INFO *Item::default_charset()
 }
 
 
+/*
+  Save value in field, but don't give any warnings
+
+  NOTES
+   This is used to temporary store and retrieve a value in a column,
+   for example in opt_range to adjust the key value to fit the column.
+*/
+
 int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
 {
   int res;
-  THD *thd= field->table->in_use;
+  TABLE *table= field->table;
+  THD *thd= table->in_use;
   enum_check_fields tmp= thd->count_cuted_fields;
+  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   res= save_in_field(field, no_conversions);
   thd->count_cuted_fields= tmp;
+  dbug_tmp_restore_column_map(table->write_set, old_map);
   return res;
 }
 
@@ -2366,7 +2394,8 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       CHARSET_INFO *tocs= thd->variables.collation_connection;
       uint32 dummy_offset;
 
-      value.cs_info.character_set_of_placeholder= fromcs;
+      value.cs_info.character_set_of_placeholder= 
+        value.cs_info.character_set_client= fromcs;
       /*
         Setup source and destination character sets so that they
         are different only if conversion is necessary: this will
@@ -3569,7 +3598,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
         Item** res= find_item_in_list(this, thd->lex->current_select->item_list,
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &not_used);
-        if (res != (Item **)not_found_item && (*res)->type() == Item::FIELD_ITEM)
+        if (res != (Item **)not_found_item &&
+            (*res)->type() == Item::FIELD_ITEM)
         {
           set_field((*((Item_field**)res))->field);
           return 0;
@@ -3588,7 +3618,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       if it is not expression from merged VIEW we will set this field.
 
       We can leave expression substituted from view for next PS/SP rexecution
-      (i.e. do not register this substitution for reverting on cleupup()
+      (i.e. do not register this substitution for reverting on cleanup()
       (register_item_tree_changing())), because this subtree will be
       fix_field'ed during setup_tables()->setup_underlying() (i.e. before
       all other expressions of query, and references on tables which do
@@ -3600,13 +3630,13 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       return FALSE;
 
     if (!outer_fixed && cached_table && cached_table->select_lex &&
-          context->select_lex &&
-          cached_table->select_lex != context->select_lex)
+        context->select_lex &&
+        cached_table->select_lex != context->select_lex)
     {
       int ret;
       if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
         goto error;
-      else if (!ret)
+      if (!ret)
         return FALSE;
     }
 
@@ -3617,17 +3647,28 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       set_if_bigger(thd->lex->in_sum_func->max_arg_level,
                     thd->lex->current_select->nest_level);
   }
-  else if (thd->set_query_id)
+  else if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
     TABLE *table= field->table;
-    table->file->ha_set_bit_in_rw_set(field->fieldnr,
-                                      (bool)(thd->set_query_id-1));
-    if (field->query_id != thd->query_id)
+    MY_BITMAP *current_bitmap, *other_bitmap;
+    if (thd->mark_used_columns == MARK_COLUMNS_READ)
     {
-      /* We only come here in unions */
-      field->query_id=thd->query_id;
-      table->used_fields++;
-      table->used_keys.intersect(field->part_of_key);
+      current_bitmap= table->read_set;
+      other_bitmap=   table->write_set;
+    }
+    else
+    {
+      current_bitmap= table->write_set;
+      other_bitmap=   table->read_set;
+    }
+    if (!bitmap_fast_test_and_set(current_bitmap, field->field_index))
+    {
+      if (!bitmap_is_set(other_bitmap, field->field_index))
+      {
+        /* First usage of column */
+        table->used_fields++;                     // Used to optimize loops
+        table->used_keys.intersect(field->part_of_key);
+      }
     }
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -5398,17 +5439,17 @@ void Item_insert_value::print(String *str)
 void Item_trigger_field::setup_field(THD *thd, TABLE *table,
                                      GRANT_INFO *table_grant_info)
 {
-  bool save_set_query_id= thd->set_query_id;
+  enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
 
   /* TODO: Think more about consequences of this step. */
-  thd->set_query_id= 0;
+  thd->mark_used_columns= MARK_COLUMNS_NONE;
   /*
     Try to find field by its name and if it will be found
     set field_idx properly.
   */
   (void)find_field_in_table(thd, table, field_name, (uint) strlen(field_name),
                             0, &field_idx);
-  thd->set_query_id= save_set_query_id;
+  thd->mark_used_columns= save_mark_used_columns;
   triggers= table->triggers;
   table_grants= table_grant_info;
 }

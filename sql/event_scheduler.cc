@@ -873,12 +873,18 @@ Event_scheduler::drop_event(THD *thd, Event_timed *et)
 */
 
 enum Event_scheduler::enum_error_code
-Event_scheduler::replace_event(THD *thd, Event_timed *et, LEX_STRING *new_schema,
+Event_scheduler::replace_event(THD *thd, Event_timed *et,
+                               LEX_STRING *new_schema,
                                LEX_STRING *new_name)
 {
   enum enum_error_code res;
   Event_timed *et_old, *et_new= NULL;
   LEX_STRING old_schema, old_name;
+
+  LINT_INIT(old_schema.str);
+  LINT_INIT(old_schema.length);
+  LINT_INIT(old_name.str);
+  LINT_INIT(old_name.length);
 
   DBUG_ENTER("Event_scheduler::replace_event");
   DBUG_PRINT("enter", ("thd=%p et=%p et=[%s.%s] lock=%p",

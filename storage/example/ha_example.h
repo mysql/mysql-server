@@ -62,7 +62,7 @@ public:
     implements. The current table flags are documented in
     handler.h
   */
-  ulong table_flags() const
+  ulonglong table_flags() const
   {
     return 0;
   }
@@ -97,7 +97,7 @@ public:
   /*
     Called in test_quick_select to determine if indexes should be used.
   */
-  virtual double scan_time() { return (double) (records+deleted) / 20.0+10; }
+  virtual double scan_time() { return (double) (stats.records+stats.deleted) / 20.0+10; }
   /*
     The next method will never be called if you do not implement indexes.
   */

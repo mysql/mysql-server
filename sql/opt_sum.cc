@@ -55,6 +55,36 @@ static int maxmin_in_range(bool max_fl, Field* field, COND *cond);
 
 
 /*
+  Get exact count of rows in all tables
+
+  SYNOPSIS
+    get_exact_records()
+    tables		List of tables
+
+  NOTES
+    When this is called, we know all table handlers supports HA_HAS_RECORDS
+    or HA_STATS_RECORDS_IS_EXACT
+
+  RETURN
+    ULONGLONG_MAX	Error: Could not calculate number of rows
+    #			Multiplication of number of rows in all tables
+*/
+
+static ulonglong get_exact_record_count(TABLE_LIST *tables)
+{
+  ulonglong count= 1;
+  for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
+  {
+    ha_rows tmp= tl->table->file->records();
+    if ((tmp == HA_POS_ERROR))
+      return ULONGLONG_MAX;
+    count*= tmp;
+  }
+  return count;
+}
+
+
+/*
   Substitutes constants for some COUNT(), MIN() and MAX() functions.
 
   SYNOPSIS
@@ -80,8 +110,8 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
   List_iterator_fast<Item> it(all_fields);
   int const_result= 1;
   bool recalc_const_item= 0;
-  longlong count= 1;
-  bool is_exact_count= TRUE;
+  ulonglong count= 1;
+  bool is_exact_count= TRUE, maybe_exact_count= TRUE;
   table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
   table_map where_tables= 0;
   Item *item;
@@ -120,22 +150,25 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
       used_tables|= tl->table->map;
 
     /*
-      If the storage manager of 'tl' gives exact row count, compute the total
-      number of rows. If there are no outer table dependencies, this count
-      may be used as the real count.
+      If the storage manager of 'tl' gives exact row count as part of
+      statistics (cheap), compute the total number of rows. If there are
+      no outer table dependencies, this count may be used as the real count.
       Schema tables are filled after this function is invoked, so we can't
       get row count 
     */
-    if ((tl->table->file->table_flags() & HA_NOT_EXACT_COUNT) ||
+    if (!(tl->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) ||
         tl->schema_table)
     {
+      maybe_exact_count&= test(!tl->schema_table &&
+                               (tl->table->file->ha_table_flags() &
+                                HA_HAS_RECORDS));
       is_exact_count= FALSE;
       count= 1;                                 // ensure count != 0
     }
     else
     {
       tl->table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-      count*= tl->table->file->records;
+      count*= tl->table->file->stats.records;
     }
   }
 
@@ -157,9 +190,19 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           there are no outer joins.
         */
         if (!conds && !((Item_sum_count*) item)->args[0]->maybe_null &&
-            !outer_tables && is_exact_count)
+            !outer_tables && maybe_exact_count)
         {
-          ((Item_sum_count*) item)->make_const(count);
+          if (!is_exact_count)
+          {
+            if ((count= get_exact_record_count(tables)) == ULONGLONG_MAX)
+            {
+              /* Error from handler in counting rows. Don't optimize count() */
+              const_result= 0;
+              continue;
+            }
+            is_exact_count= 1;                  // count is now exact
+          }
+          ((Item_sum_count*) item)->make_const((longlong) count);
           recalc_const_item= 1;
         }
         else

@@ -24,7 +24,7 @@
 class Table_triggers_list: public Sql_alloc
 {
   /* Triggers as SPs grouped by event, action_time */
-  sp_head           *bodies[TRG_EVENT_MAX][TRG_ACTION_MAX];
+  sp_head *bodies[TRG_EVENT_MAX][TRG_ACTION_MAX];
   /*
     Copy of TABLE::Field array with field pointers set to TABLE::record[1]
     buffer instead of TABLE::record[0] (used for OLD values in on UPDATE
@@ -132,6 +132,10 @@ private:
                                      const char *db_name,
                                      LEX_STRING *old_table_name,
                                      LEX_STRING *new_table_name);
+  friend void st_table::mark_columns_needed_for_insert(void);
+  friend void st_table::mark_columns_needed_for_update(void);
+  friend void st_table::mark_columns_needed_for_delete(void);
+
 };
 
 extern const LEX_STRING trg_action_time_type_names[];

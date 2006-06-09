@@ -24,7 +24,7 @@ bool mysql_do(THD *thd, List<Item> &values)
   List_iterator<Item> li(values);
   Item *value;
   DBUG_ENTER("mysql_do");
-  if (setup_fields(thd, 0, values, 0, 0, 0))
+  if (setup_fields(thd, 0, values, MARK_COLUMNS_NONE, 0, 0))
     DBUG_RETURN(TRUE);
   while ((value = li++))
     value->val_int();

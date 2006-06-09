@@ -7,5 +7,5 @@ extra_flags="$pentium64_cflags $debug_cflags"
 extra_configs="$pentium_configs $debug_configs $static_link"
 
 extra_configs="$extra_configs "
-
+CC="$CC --pipe"
 . "$path/FINISH.sh"
