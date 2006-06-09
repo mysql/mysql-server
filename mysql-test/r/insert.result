@@ -2,8 +2,8 @@ drop table if exists t1,t2,t3;
 create table t1 (a int not null);
 insert into t1 values (1);
 insert into t1 values (a+2);
-insert into t1 values (a+3);
-insert into t1 values (4),(a+5);
+insert into t1 values (a+3),(a+4);
+insert into t1 values (5),(a+6);
 select * from t1;
 a
 1
@@ -11,6 +11,7 @@ a
 3
 4
 5
+6
 drop table t1;
 create table t1 (id int not null auto_increment primary key, username varchar(32) not null, unique (username));
 insert into t1 values (0,"mysql");
@@ -299,3 +300,24 @@ select count(*) from t2;
 count(*)
 25500
 drop table t1,t2,t3;
+create table t1 (a int, b int);
+insert into t1 (a,b) values (a,b);
+insert into t1 SET a=1, b=a+1;
+insert into t1 (a,b) select 1,2;
+INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
+prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
+execute stmt1;
+ERROR 42000: Column 'a' specified twice
+insert into t1 (a,b,b) values (1,1,1);
+ERROR 42000: Column 'b' specified twice
+insert into t1 (a,a) values (1,1,1);
+ERROR 21S01: Column count doesn't match value count at row 1
+insert into t1 (a,a) values (1,1);
+ERROR 42000: Column 'a' specified twice
+insert into t1 SET a=1,b=2,a=1;
+ERROR 42000: Column 'a' specified twice
+insert into t1 (b,b) select 1,2;
+ERROR 42000: Column 'b' specified twice
+INSERT INTO t1 (b,b) SELECT 0,0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
+ERROR 42000: Column 'b' specified twice
+drop table t1;

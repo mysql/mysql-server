@@ -52,9 +52,9 @@ TYPELIB myisam_stats_method_typelib= {
 ** MyISAM tables
 *****************************************************************************/
 
-static handler *myisam_create_handler(TABLE_SHARE *table)
+static handler *myisam_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
-  return new ha_myisam(table);
+  return new (mem_root) ha_myisam(table);
 }
 
 // collect errors printed by mi_check routines
@@ -140,10 +140,11 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 ha_myisam::ha_myisam(TABLE_SHARE *table_arg)
   :handler(&myisam_hton, table_arg), file(0),
   int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
-                  HA_DUPP_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
-                  HA_FILE_BASED | HA_CAN_GEOMETRY | HA_READ_RND_SAME |
-                  HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS),
-  can_enable_indexes(1)
+                  HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
+                  HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
+                  HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
+                  HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
+   can_enable_indexes(1)
 {}
 
 
@@ -1266,7 +1267,7 @@ int ha_myisam::rnd_init(bool scan)
 {
   if (scan)
     return mi_scan_init(file);
-  return mi_extra(file, HA_EXTRA_RESET, 0);
+  return mi_reset(file);                        // Free buffers
 }
 
 int ha_myisam::rnd_next(byte *buf)
@@ -1306,24 +1307,23 @@ void ha_myisam::info(uint flag)
   (void) mi_status(file,&info,flag);
   if (flag & HA_STATUS_VARIABLE)
   {
-    records = info.records;
-    deleted = info.deleted;
-    data_file_length=info.data_file_length;
-    index_file_length=info.index_file_length;
-    delete_length = info.delete_length;
-    check_time  = info.check_time;
-    mean_rec_length=info.mean_reclength;
+    stats.records = info.records;
+    stats.deleted = info.deleted;
+    stats.data_file_length=info.data_file_length;
+    stats.index_file_length=info.index_file_length;
+    stats.delete_length = info.delete_length;
+    stats.check_time  = info.check_time;
+    stats. mean_rec_length=info.mean_reclength;
   }
   if (flag & HA_STATUS_CONST)
   {
     TABLE_SHARE *share= table->s;
-    max_data_file_length=  info.max_data_file_length;
-    max_index_file_length= info.max_index_file_length;
-    create_time= info.create_time;
-    sortkey= info.sortkey;
+    stats.max_data_file_length=  info.max_data_file_length;
+    stats.max_index_file_length= info.max_index_file_length;
+    stats.create_time= info.create_time;
     ref_length= info.reflength;
     share->db_options_in_use= info.options;
-    block_size= myisam_block_size;		/* record block size */
+    stats.block_size= myisam_block_size;        /* record block size */
 
     /* Update share */
     if (share->tmp_table == NO_TMP_TABLE)
@@ -1354,12 +1354,12 @@ void ha_myisam::info(uint flag)
   if (flag & HA_STATUS_ERRKEY)
   {
     errkey  = info.errkey;
-    my_store_ptr(dupp_ref, ref_length, info.dupp_key_pos);
+    my_store_ptr(dup_ref, ref_length, info.dupp_key_pos);
   }
   if (flag & HA_STATUS_TIME)
-    update_time = info.update_time;
+    stats.update_time = info.update_time;
   if (flag & HA_STATUS_AUTO)
-    auto_increment_value= info.auto_increment;
+    stats.auto_increment_value= info.auto_increment;
 }
 
 
@@ -1370,6 +1370,10 @@ int ha_myisam::extra(enum ha_extra_function operation)
   return mi_extra(file, operation, 0);
 }
 
+int ha_myisam::reset(void)
+{
+  return mi_reset(file);
+}
 
 /* To be used with WRITE_CACHE and EXTRA_CACHE */
 
@@ -1413,7 +1417,7 @@ void ha_myisam::update_create_info(HA_CREATE_INFO *create_info)
   ha_myisam::info(HA_STATUS_AUTO | HA_STATUS_CONST);
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
   {
-    create_info->auto_increment_value=auto_increment_value;
+    create_info->auto_increment_value= stats.auto_increment_value;
   }
   create_info->data_file_name=data_file_name;
   create_info->index_file_name=index_file_name;
@@ -1638,7 +1642,10 @@ int ha_myisam::rename_table(const char * from, const char * to)
 }
 
 
-ulonglong ha_myisam::get_auto_increment()
+void ha_myisam::get_auto_increment(ulonglong offset, ulonglong increment,
+                                   ulonglong nb_desired_values,
+                                   ulonglong *first_value,
+                                   ulonglong *nb_reserved_values)
 {
   ulonglong nr;
   int error;
@@ -1647,7 +1654,10 @@ ulonglong ha_myisam::get_auto_increment()
   if (!table->s->next_number_key_offset)
   {						// Autoincrement at key-start
     ha_myisam::info(HA_STATUS_AUTO);
-    return auto_increment_value;
+    *first_value= stats.auto_increment_value;
+    /* MyISAM has only table-level lock, so reserves to +inf */
+    *nb_reserved_values= ULONGLONG_MAX;
+    return;
   }
 
   /* it's safe to call the following if bulk_insert isn't on */
@@ -1668,7 +1678,14 @@ ulonglong ha_myisam::get_auto_increment()
          val_int_offset(table->s->rec_buff_length)+1);
   }
   extra(HA_EXTRA_NO_KEYREAD);
-  return nr;
+  *first_value= nr;
+  /*
+    MySQL needs to call us for next row: assume we are inserting ("a",null)
+    here, we return 3, and next this statement will want to insert ("b",null):
+    there is no reason why ("b",3+1) would be the good row to insert: maybe it
+    already exists, maybe 3+1 is too large...
+  */
+  *nb_reserved_values= 1;
 }
 
 
@@ -1731,7 +1748,7 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
 {
   uint options= table->s->db_options_in_use;
 
-  if (info->auto_increment_value != auto_increment_value ||
+  if (info->auto_increment_value != stats.auto_increment_value ||
       info->data_file_name != data_file_name ||
       info->index_file_name != index_file_name ||
       table_changes == IS_EQUAL_NO ||

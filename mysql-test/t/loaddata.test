@@ -92,6 +92,10 @@ load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@a, @b);
 select * from t1;
 select @a, @b;
 truncate table t1;
+# Reading of all columns with set
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 set c=b;
+select * from t1;
+truncate table t1;
 # now going to test fixed field-row file format
 load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c="Wow";
 select * from t1;

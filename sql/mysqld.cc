@@ -1081,7 +1081,11 @@ static void __cdecl kill_server(int sig_ptr)
   my_thread_init();				// If this is a new thread
 #endif
   close_connections();
-  if (sig != MYSQL_KILL_SIGNAL && sig != 0)
+  if (sig != MYSQL_KILL_SIGNAL &&
+#ifdef __WIN__
+      sig != SIGINT &&				/* Bug#18235 */
+#endif
+      sig != 0)
     unireg_abort(1);				/* purecov: inspected */
   else
     unireg_end();
@@ -2468,10 +2472,12 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
     if (thd->lex->current_select &&
 	thd->lex->current_select->no_error && !thd->is_fatal_error)
     {
-      DBUG_PRINT("error", ("Error converted to warning: current_select: no_error %d  fatal_error: %d",
-                           (thd->lex->current_select ?
-                            thd->lex->current_select->no_error : 0),
-                           (int) thd->is_fatal_error));
+      DBUG_PRINT("error",
+                 ("Error converted to warning: current_select: no_error %d  "
+                  "fatal_error: %d",
+                  (thd->lex->current_select ?
+                   thd->lex->current_select->no_error : 0),
+                  (int) thd->is_fatal_error));
     }
     else
     {
@@ -4752,6 +4758,7 @@ enum options_mysqld
   OPT_INNODB_FILE_IO_THREADS,
   OPT_INNODB_LOCK_WAIT_TIMEOUT,
   OPT_INNODB_THREAD_CONCURRENCY,
+  OPT_INNODB_COMMIT_CONCURRENCY,
   OPT_INNODB_FORCE_RECOVERY,
   OPT_INNODB_STATUS_FILE,
   OPT_INNODB_MAX_DIRTY_PAGES_PCT,
@@ -5691,7 +5698,6 @@ log and this option does nothing anymore.",
     "The buffer that is allocated to cache index and rows for BDB tables.",
     (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULL,
     REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (ulonglong) ~0, 0, IO_SIZE, 0},
-  /* QQ: The following should be removed soon! (bdb_max_lock preferred) */
   {"bdb_lock_max", OPT_BDB_MAX_LOCK, "Synonym for bdb_max_lock.",
    (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
    REQUIRED_ARG, 10000, 0, (long) ~0, 0, 1, 0},
@@ -5808,7 +5814,7 @@ log and this option does nothing anymore.",
    (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
    GET_LL, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, LONGLONG_MAX, 0,
    1024*1024L, 0},
-  {"innodb_commit_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
+  {"innodb_commit_concurrency", OPT_INNODB_COMMIT_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments.",
    (gptr*) &srv_commit_concurrency, (gptr*) &srv_commit_concurrency,
    0, GET_LONG, REQUIRED_ARG, 0, 0, 1000, 0, 1, 0},
@@ -7010,7 +7016,7 @@ static void mysql_init_variables(void)
   character_set_filesystem_name= (char*) "binary";
 
   /* Set default values for some option variables */
-  default_storage_engine_str="MyISAM";
+  default_storage_engine_str= (char*) "MyISAM";
   global_system_variables.table_type= &myisam_hton;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;

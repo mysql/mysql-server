@@ -240,6 +240,7 @@
    fun:kill_server_thread
 }
 
+
 # Red Hat AS 4 32 bit
 {
    dl_relocate_object
@@ -404,4 +405,31 @@
    Memcheck:Param
    futex(utime)
    fun:__lll_mutex_unlock_wake
+}
+
+#
+# Warning when printing stack trace (to suppress some not needed warnings)
+#
+
+{
+   vprintf on stacktrace
+   Memcheck:Cond
+   fun:vfprintf
+   fun:uffered_vfprintf
+   fun:vfprintf
+   fun:fprintf
+   fun:print_stacktrace
+}
+
+#
+# Safe warnings, that may happen because of thread scheduling
+#
+
+{
+   dbug initialization
+   Memcheck:Leak
+   fun:malloc
+   fun:DbugMalloc
+   fun:ListAdd
+   fun:_db_set_
 }

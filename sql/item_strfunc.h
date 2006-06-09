@@ -455,10 +455,10 @@ public:
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
 
-  bool walk(Item_processor processor, byte *arg)
+  bool walk(Item_processor processor, bool walk_subquery, byte *arg)
   {
-    return item->walk(processor, arg) ||
-      Item_str_func::walk(processor, arg);
+    return item->walk(processor, walk_subquery, arg) ||
+      Item_str_func::walk(processor, walk_subquery, arg);
   }
   Item *transform(Item_transformer transformer, byte *arg)
   {

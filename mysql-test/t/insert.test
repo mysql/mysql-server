@@ -9,8 +9,8 @@ drop table if exists t1,t2,t3;
 create table t1 (a int not null);
 insert into t1 values (1);
 insert into t1 values (a+2);
-insert into t1 values (a+3);
-insert into t1 values (4),(a+5);
+insert into t1 values (a+3),(a+4);
+insert into t1 values (5),(a+6);
 select * from t1;
 drop table t1;
 
@@ -176,3 +176,28 @@ insert into  t2 select t1.* from t1, t2 t, t3 where  t1.id1 = t.id2 and t.id2 = 
 select count(*) from t2;
 drop table t1,t2,t3;
 
+#
+# Test different cases of duplicate fields
+#
+
+create table t1 (a int, b int);
+insert into t1 (a,b) values (a,b);
+insert into t1 SET a=1, b=a+1;
+insert into t1 (a,b) select 1,2;
+INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
+prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
+--error 1110
+execute stmt1;
+--error 1110
+insert into t1 (a,b,b) values (1,1,1);
+--error 1136
+insert into t1 (a,a) values (1,1,1);
+--error 1110
+insert into t1 (a,a) values (1,1);
+--error 1110
+insert into t1 SET a=1,b=2,a=1;
+--error 1110
+insert into t1 (b,b) select 1,2;
+--error 1110
+INSERT INTO t1 (b,b) SELECT 0,0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
+drop table t1;

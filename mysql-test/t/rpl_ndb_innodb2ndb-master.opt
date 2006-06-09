@@ -1,1 +1,1 @@
---innodb --binlog-format=row 
+--innodb

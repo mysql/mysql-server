@@ -2728,7 +2728,7 @@ bool sys_var_max_user_conn::check(THD *thd, set_var *var)
   {
     /*
       Per-session values of max_user_connections can't be set directly.
-      QQ: May be we should have a separate error message for this?
+      May be we should have a separate error message for this?
     */
     my_error(ER_GLOBAL_VARIABLE, MYF(0), name);
     return TRUE;
@@ -2795,7 +2795,8 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
-      thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+      thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE |
+                               OPTION_KEEP_LOG);
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
       if (ha_commit(thd))
 	return 1;

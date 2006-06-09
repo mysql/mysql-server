@@ -117,11 +117,10 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 {
   char name[FN_REFLEN];
   File file;
-  TABLE *table;
+  TABLE *table= NULL;
   int error;
   String *field_term=ex->field_term,*escaped=ex->escaped;
   String *enclosed=ex->enclosed;
-  Item *unused_conds= 0;
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
@@ -155,7 +154,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     DBUG_RETURN(TRUE);
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
-                                    table_list, &unused_conds,
+                                    table_list,
                                     &thd->lex->select_lex.leaf_tables, FALSE,
                                     INSERT_ACL | UPDATE_ACL))
      DBUG_RETURN(-1);
@@ -188,51 +187,48 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   table= table_list->table;
   transactional_table= table->file->has_transactions();
 
+  if (table->found_next_number_field)
+    table->mark_auto_increment_column();
+
   if (!fields_vars.elements)
   {
     Field **field;
     for (field=table->field; *field ; field++)
       fields_vars.push_back(new Item_field(*field));
-    /*
-      Since all fields are set we set all bits in the write set
-    */
-    table->file->ha_set_all_bits_in_write_set();
+    bitmap_set_all(table->write_set);
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     /*
       Let us also prepare SET clause, altough it is probably empty
       in this case.
     */
-    if (setup_fields(thd, 0, set_fields, 1, 0, 0) ||
-        setup_fields(thd, 0, set_values, 1, 0, 0))
+    if (setup_fields(thd, 0, set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
+        setup_fields(thd, 0, set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
   }
   else
   {						// Part field list
     /* TODO: use this conds for 'WITH CHECK OPTIONS' */
-    /*
-      Indicate that both variables in field list and fields in update_list
-      is to be included in write set of table. We do however set all bits
-      in write set anyways since it is not allowed to specify NULLs in
-      LOAD DATA
-    */
-    table->file->ha_set_all_bits_in_write_set();
-    if (setup_fields(thd, 0, fields_vars, 2, 0, 0) ||
-        setup_fields(thd, 0, set_fields, 2, 0, 0) ||
+    if (setup_fields(thd, 0, fields_vars, MARK_COLUMNS_WRITE, 0, 0) ||
+        setup_fields(thd, 0, set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
         check_that_all_fields_are_given_values(thd, table, table_list))
       DBUG_RETURN(TRUE);
     /*
       Check whenever TIMESTAMP field with auto-set feature specified
       explicitly.
     */
-    if (table->timestamp_field &&
-        table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
-    /*
-      Fix the expressions in SET clause. This should be done after
-      check_that_all_fields_are_given_values() and setting use_timestamp
-      since it may update query_id for some fields.
-    */
-    if (setup_fields(thd, 0, set_values, 1, 0, 0))
+    if (table->timestamp_field)
+    {
+      if (bitmap_is_set(table->write_set,
+                        table->timestamp_field->field_index))
+        table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+      else
+      {
+        bitmap_set_bit(table->write_set,
+                       table->timestamp_field->field_index);
+      }
+    }
+    /* Fix the expressions in SET clause */
+    if (setup_fields(thd, 0, set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
   }
 
@@ -367,7 +363,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (!thd->prelocked_mode)
-      table->file->start_bulk_insert((ha_rows) 0);
+      table->file->ha_start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
 
     thd->no_trans_update= 0;
@@ -384,7 +380,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error= read_sep_field(thd, info, table_list, fields_vars,
                             set_fields, set_values, read_info,
 			    *enclosed, skip_lines, ignore);
-    if (!thd->prelocked_mode && table->file->end_bulk_insert() && !error)
+    if (!thd->prelocked_mode && table->file->ha_end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno, MYF(0));
       error= 1;
@@ -506,6 +502,8 @@ err:
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  if (table != NULL)
+    table->file->release_auto_increment();
   thd->abort_on_warning= 0;
   DBUG_RETURN(error);
 }

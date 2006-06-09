@@ -80,9 +80,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       !(table->triggers && table->triggers->has_delete_triggers()))
   {
-    /* Update the table->file->records number */
+    /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-    ha_rows const maybe_deleted= table->file->records;
+    ha_rows const maybe_deleted= table->file->stats.records;
     /*
       If all rows shall be deleted, we (almost) always log this
       statement-based (see [binlog], below), so we set this flag and
@@ -113,7 +113,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     DBUG_RETURN(0);
   }
 #endif
-  /* Update the table->file->records number */
+  /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   table->used_keys.clear_all();
@@ -184,7 +184,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       if (!(sortorder= make_unireg_sortorder((ORDER*) order->first,
                                              &length)) ||
 	  (table->sort.found_records = filesort(thd, table, sortorder, length,
-                                                select, HA_POS_ERROR,
+                                                select, HA_POS_ERROR, 1,
                                                 &examined_rows))
 	  == HA_POS_ERROR)
       {
@@ -225,6 +225,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   */
   if (ha_delete_all_rows)
     thd->options&= ~static_cast<ulonglong>(OPTION_BIN_LOG);
+
+  table->mark_columns_needed_for_delete();
 
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 !thd->net.report_error)
@@ -285,7 +287,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   }
   thd->proc_info= "end";
   end_read_record(&info);
-  free_io_cache(table);				// Will not do any harm
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_NORMAL);
 
@@ -396,7 +397,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   thd->lex->allow_sum_func= 0;
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
-                                    table_list, conds, 
+                                    table_list, 
                                     &select_lex->leaf_tables, FALSE, 
                                     DELETE_ACL) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
@@ -459,7 +460,7 @@ bool mysql_multi_delete_prepare(THD *thd)
   */
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
-                                    lex->query_tables, &lex->select_lex.where,
+                                    lex->query_tables,
                                     &lex->select_lex.leaf_tables, FALSE, 
                                     DELETE_ACL))
     DBUG_RETURN(TRUE);
@@ -567,6 +568,8 @@ multi_delete::initialize_tables(JOIN *join)
 	transactional_tables= 1;
       else
 	normal_tables= 1;
+      tbl->prepare_for_position();
+      tbl->mark_columns_needed_for_delete();
     }
     else if ((tab->type != JT_SYSTEM && tab->type != JT_CONST) &&
              walk == delete_tables)
@@ -606,7 +609,6 @@ multi_delete::~multi_delete()
        table_being_deleted= table_being_deleted->next_local)
   {
     TABLE *table= table_being_deleted->table;
-    free_io_cache(table);                       // Alloced by unique
     table->no_keyread=0;
   }
 
