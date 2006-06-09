@@ -1499,7 +1499,8 @@ int
 MgmtSrvr::setEventReportingLevelImpl(int nodeId, 
 				     const EventSubscribeReq& ll)
 {
-  INIT_SIGNAL_SENDER(ss,nodeId);
+  SignalSender ss(theFacade);
+  ss.lock();
 
   SimpleSignal ssig;
   EventSubscribeReq * dst = 
@@ -1508,41 +1509,54 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId,
 	   EventSubscribeReq::SignalLength);
   *dst = ll;
 
-  send(ss,ssig,nodeId,NODE_TYPE_DB);
+  NodeBitmask nodes;
+  nodes.clear();
+  Uint32 max = (nodeId == 0) ? (nodeId = 1, MAX_NDB_NODES) : nodeId;
+  for(; nodeId <= max; nodeId++)
+  {
+    if (nodeTypes[nodeId] != NODE_TYPE_DB)
+      continue;
+    if (okToSendTo(nodeId, false))
+      continue;
+    if (ss.sendSignal(nodeId, &ssig) == SEND_OK)
+    {
+      nodes.set(nodeId);
+    }
+  }
 
-#if 0
-  while (1)
+  int error = 0;
+  while (!nodes.isclear())
   {
     SimpleSignal *signal = ss.waitFor();
     int gsn = signal->readSignalNumber();
-    switch (gsn) { 
+    nodeId = refToNode(signal->header.theSendersBlockRef);
+    switch (gsn) {
     case GSN_EVENT_SUBSCRIBE_CONF:{
+      nodes.clear(nodeId);
       break;
     }
     case GSN_EVENT_SUBSCRIBE_REF:{
-      return SEND_OR_RECEIVE_FAILED;
+      nodes.clear(nodeId);
+      error = 1;
+      break;
     }
     case GSN_NF_COMPLETEREP:{
       const NFCompleteRep * const rep =
 	CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
-      if (rep->failedNodeId == nodeId)
-	return SEND_OR_RECEIVE_FAILED;
+      nodes.clear(rep->failedNodeId);
       break;
     }
     case GSN_NODE_FAILREP:{
-      const NodeFailRep * const rep =
-	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
-      if (NodeBitmask::get(rep->theNodes,nodeId))
-	return SEND_OR_RECEIVE_FAILED;
+      // ignore, NF_COMPLETEREP will arrive later
       break;
     }
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
     }
-
   }
-#endif
+  if (error)
+    return SEND_OR_RECEIVE_FAILED;
   return 0;
 }
 
@@ -1560,19 +1574,6 @@ MgmtSrvr::setNodeLogLevelImpl(int nodeId, const SetLogLevelOrd & ll)
   *dst = ll;
   
   return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
-}
-
-int
-MgmtSrvr::send(SignalSender &ss, SimpleSignal &ssig, Uint32 node, Uint32 node_type){
-  Uint32 max = (node == 0) ? MAX_NODES : node + 1;
-  
-  for(; node < max; node++){
-    while(nodeTypes[node] != (int)node_type && node < max) node++;
-    if(nodeTypes[node] != (int)node_type)
-      break;
-    ss.sendSignal(node, &ssig);
-  }
-  return 0;
 }
 
 //****************************************************************************
