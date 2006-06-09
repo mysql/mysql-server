@@ -362,7 +362,7 @@ rw_lock_s_unlock_func(
 
 	/* Reset the shared lock by decrementing the reader count */
 
-	ut_ad(lock->reader_count > 0);
+	ut_a(lock->reader_count > 0);
 	lock->reader_count--;
 
 #ifdef UNIV_SYNC_DEBUG
