@@ -486,8 +486,6 @@ public:
 private:
   //**************************************************************************
 
-  int send(SignalSender &ss, SimpleSignal &ssig, Uint32 node, Uint32 node_type);
-
   int sendStopMgmd(NodeId nodeId,
                    bool abort,
                    bool stop,
