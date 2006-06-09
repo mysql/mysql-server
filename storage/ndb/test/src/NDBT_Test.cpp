@@ -1149,6 +1149,8 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+extern int global_flag_skip_invalidate_cache;
+
 static void usage()
 {
   ndb_std_print_version();
@@ -1236,6 +1238,8 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   ndbout_c("random seed: %u", opt_seed);
   srand(opt_seed);
   srandom(opt_seed);
+
+  global_flag_skip_invalidate_cache = 1;
   
   {
     Ndb ndb(&con, "TEST_DB");
