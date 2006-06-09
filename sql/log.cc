@@ -2852,7 +2852,7 @@ bool MYSQL_LOG::write(Log_event *event_info)
     }
 #endif /* HAVE_REPLICATION */
 
-#ifdef USING_TRANSACTIONS
+#if defined(USING_TRANSACTIONS) && defined(HAVE_ROW_BASED_REPLICATION)
     /*
       Should we write to the binlog cache or to the binlog on disk?
       Write to the binlog cache if:
@@ -2864,10 +2864,8 @@ bool MYSQL_LOG::write(Log_event *event_info)
     */
     if (opt_using_transactions && thd)
     {
-#ifdef HAVE_ROW_BASED_REPLICATION
       if (thd->binlog_setup_trx_data())
         goto err;
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 
       binlog_trx_data *const trx_data=
         (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
@@ -2891,7 +2889,7 @@ bool MYSQL_LOG::write(Log_event *event_info)
         LOCK_log.
       */
     }
-#endif
+#endif /* USING_TRANSACTIONS && HAVE_ROW_BASED_REPLICATION */
     DBUG_PRINT("info",("event type: %d",event_info->get_type_code()));
 
     /*
