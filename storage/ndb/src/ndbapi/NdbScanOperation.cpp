@@ -478,10 +478,14 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
   */
   PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
                        theNdb->theNdbBlockNumber);
-  if(theError.code)
-    return -1;
 
-  Uint32 seq = theNdbCon->theNodeSequence;
+  const Uint32 seq = theNdbCon->theNodeSequence;
+
+  if(theError.code)
+  {
+    goto err4;
+  }
+  
   if(seq == tp->getNodeSequence(nodeId) && send_next_scan(idx, false) == 0)
   {
       
@@ -563,6 +567,10 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
   case -3: // send_next_scan -> return fail (set error-code self)
     if(theError.code == 0)
       setErrorCode(4028); // seq changed = Node fail
+    break;
+  case -4:
+err4:
+    setErrorCode(theError.code);
     break;
   }
     
