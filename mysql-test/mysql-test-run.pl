@@ -671,6 +671,12 @@ sub command_line_setup () {
     {
       push(@opt_extra_mysqld_opt, $arg);
     }
+    elsif ( $arg =~ /^--$/ )
+    {
+      # It is an effect of setting 'pass_through' in option processing
+      # that the lone '--' separating options from arguments survives,
+      # simply ignore it.
+    }
     elsif ( $arg =~ /^-/ )
     {
       usage("Invalid option \"$arg\"");
@@ -3428,6 +3434,13 @@ sub valgrind_arguments {
 ##############################################################################
 
 sub usage ($) {
+  my $message= shift;
+
+  if ( $message )
+  {
+    print STDERR "$message \n";
+  }
+
   print STDERR <<HERE;
 
 mysql-test-run [ OPTIONS ] [ TESTCASE ]
