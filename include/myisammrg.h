@@ -99,6 +99,7 @@ extern int myrg_create(const char *name, const char **table_names,
                        uint insert_method, my_bool fix_names);
 extern int myrg_extra(MYRG_INFO *file,enum ha_extra_function function,
 		      void *extra_arg);
+extern int myrg_reset(MYRG_INFO *info);
 extern void myrg_extrafunc(MYRG_INFO *info,invalidator_by_filename inv);
 extern ha_rows myrg_records_in_range(MYRG_INFO *info,int inx,
                                      key_range *min_key, key_range *max_key);

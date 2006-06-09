@@ -1,1 +1,1 @@
---default-storage-engine=ndb --binlog-format=row
+--default-storage-engine=ndbcluster 

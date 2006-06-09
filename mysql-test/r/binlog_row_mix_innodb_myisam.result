@@ -234,8 +234,6 @@ commit;
 begin;
 create temporary table ti (a int) engine=innodb;
 rollback;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
 insert into ti values(1);
 set autocommit=0;
 create temporary table t1 (a int) engine=myisam;
@@ -285,6 +283,162 @@ master-bin.000001	1260	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	1294	Query	1	#	use `test`; create table t2 (n int) engine=innodb
 do release_lock("lock1");
 drop table t0,t2;
+set autocommit=0;
+CREATE TABLE t1 (a int, b int) engine=myisam;
+reset master;
+INSERT INTO t1 values (1,1),(1,2);
+CREATE TABLE t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+DROP TABLE if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+INSERT INTO t1 values (3,3);
+CREATE TEMPORARY TABLE t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+DROP TABLE IF EXISTS t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb;
+INSERT INTO t1 VALUES (4,4);
+CREATE TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t2;
+a	b
+TRUNCATE table t2;
+INSERT INTO t1 VALUES (5,5);
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * FROM t2;
+a	b
+DROP TABLE t2;
+INSERT INTO t1 values (6,6);
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb ;
+INSERT INTO t1 values (7,7);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+INSERT INTO t1 values (8,8);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+COMMIT;
+INSERT INTO t1 values (9,9);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SELECT * from t2;
+a	b
+TRUNCATE table t2;
+INSERT INTO t1 values (10,10);
+INSERT INTO t2 select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * from t1;
+a	b
+1	1
+1	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+INSERT INTO t2 values (100,100);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+COMMIT;
+INSERT INTO t2 values (101,101);
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ROLLBACK;
+SELECT * from t2;
+a	b
+100	100
+DROP TABLE t1,t2;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Table_map	1	142	table_id: # (test.t1)
+master-bin.000001	142	Write_rows	1	189	table_id: # flags: STMT_END_F
+master-bin.000001	189	Query	1	257	use `test`; BEGIN
+master-bin.000001	257	Query	1	182	use `test`; CREATE TABLE `t2` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB
+master-bin.000001	439	Table_map	1	222	table_id: # (test.t2)
+master-bin.000001	479	Write_rows	1	260	table_id: # flags: STMT_END_F
+master-bin.000001	517	Xid	1	544	COMMIT /* xid= */
+master-bin.000001	544	Query	1	630	use `test`; DROP TABLE if exists t2
+master-bin.000001	630	Table_map	1	670	table_id: # (test.t1)
+master-bin.000001	670	Write_rows	1	708	table_id: # flags: STMT_END_F
+master-bin.000001	708	Query	1	776	use `test`; BEGIN
+master-bin.000001	776	Query	1	192	use `test`; CREATE TEMPORARY TABLE `t2` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB
+master-bin.000001	968	Query	1	1039	use `test`; ROLLBACK
+master-bin.000001	1039	Query	1	1125	use `test`; DROP TABLE IF EXISTS t2
+master-bin.000001	1125	Query	1	1249	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
+master-bin.000001	1249	Table_map	1	1289	table_id: # (test.t1)
+master-bin.000001	1289	Write_rows	1	1327	table_id: # flags: STMT_END_F
+master-bin.000001	1327	Query	1	1395	use `test`; BEGIN
+master-bin.000001	1395	Query	1	182	use `test`; CREATE TABLE `t2` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB
+master-bin.000001	1577	Table_map	1	222	table_id: # (test.t2)
+master-bin.000001	1617	Write_rows	1	260	table_id: # flags: STMT_END_F
+master-bin.000001	1655	Xid	1	1682	COMMIT /* xid= */
+master-bin.000001	1682	Query	1	80	use `test`; TRUNCATE table t2
+master-bin.000001	1762	Xid	1	1789	COMMIT /* xid= */
+master-bin.000001	1789	Table_map	1	1829	table_id: # (test.t1)
+master-bin.000001	1829	Write_rows	1	1867	table_id: # flags: STMT_END_F
+master-bin.000001	1867	Query	1	1935	use `test`; BEGIN
+master-bin.000001	1935	Table_map	1	40	table_id: # (test.t2)
+master-bin.000001	1975	Write_rows	1	78	table_id: # flags: STMT_END_F
+master-bin.000001	2013	Xid	1	2040	COMMIT /* xid= */
+master-bin.000001	2040	Query	1	2116	use `test`; DROP TABLE t2
+master-bin.000001	2116	Table_map	1	2156	table_id: # (test.t1)
+master-bin.000001	2156	Write_rows	1	2194	table_id: # flags: STMT_END_F
+master-bin.000001	2194	Table_map	1	2234	table_id: # (test.t1)
+master-bin.000001	2234	Write_rows	1	2272	table_id: # flags: STMT_END_F
+master-bin.000001	2272	Table_map	1	2312	table_id: # (test.t1)
+master-bin.000001	2312	Write_rows	1	2350	table_id: # flags: STMT_END_F
+master-bin.000001	2350	Query	1	2418	use `test`; BEGIN
+master-bin.000001	2418	Query	1	192	use `test`; CREATE TEMPORARY TABLE `t2` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB
+master-bin.000001	2610	Xid	1	2637	COMMIT /* xid= */
+master-bin.000001	2637	Table_map	1	2677	table_id: # (test.t1)
+master-bin.000001	2677	Write_rows	1	2715	table_id: # flags: STMT_END_F
+master-bin.000001	2715	Query	1	2783	use `test`; BEGIN
+master-bin.000001	2783	Query	1	192	use `test`; CREATE TEMPORARY TABLE `t2` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB
+master-bin.000001	2975	Query	1	3046	use `test`; ROLLBACK
+master-bin.000001	3046	Query	1	80	use `test`; TRUNCATE table t2
+master-bin.000001	3126	Xid	1	3153	COMMIT /* xid= */
+master-bin.000001	3153	Table_map	1	3193	table_id: # (test.t1)
+master-bin.000001	3193	Write_rows	1	3231	table_id: # flags: STMT_END_F
+master-bin.000001	3231	Query	1	3299	use `test`; BEGIN
+master-bin.000001	3299	Query	1	192	use `test`; CREATE TEMPORARY TABLE `t2` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB
+master-bin.000001	3491	Xid	1	3518	COMMIT /* xid= */
+master-bin.000001	3518	Query	1	3622	use `test`; DROP TABLE `t1` /* generated by server */
 reset master;
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=myisam;

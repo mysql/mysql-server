@@ -75,7 +75,9 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
   uint errors, length;
   if (from[0] == '#' && !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
                                  MYSQL50_TABLE_NAME_PREFIX_LENGTH))
-    return my_snprintf(to, to_length, "%s", from + 9);
+    return (uint) (strmake(to, from+MYSQL50_TABLE_NAME_PREFIX_LENGTH,
+                           to_length-1) -
+                   (from + MYSQL50_TABLE_NAME_PREFIX_LENGTH));
   length= strconvert(system_charset_info, from,
                      &my_charset_filename, to, to_length, &errors);
   if (check_if_legal_tablename(to) &&
@@ -1231,7 +1233,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       {
         if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                          &syntax_len,
-                                                         TRUE, FALSE)))
+                                                         TRUE)))
         {
           DBUG_RETURN(TRUE);
         }
@@ -2277,7 +2279,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     if (sql_field->sql_type == FIELD_TYPE_BIT)
     { 
       sql_field->pack_flag= FIELDFLAG_NUMBER;
-      if (file->table_flags() & HA_CAN_BIT_FIELD)
+      if (file->ha_table_flags() & HA_CAN_BIT_FIELD)
         total_uneven_bit_length+= sql_field->length & 7;
       else
         sql_field->pack_flag|= FIELDFLAG_TREAT_BIT_AS_CHAR;
@@ -2360,7 +2362,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (prepare_create_field(sql_field, &blob_columns, 
 			     &timestamps, &timestamps_with_niladic,
-			     file->table_flags()))
+			     file->ha_table_flags()))
       DBUG_RETURN(-1);
     if (sql_field->sql_type == MYSQL_TYPE_VARCHAR)
       create_info->varchar= 1;
@@ -2381,14 +2383,14 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(-1);
   }
   if (auto_increment &&
-      (file->table_flags() & HA_NO_AUTO_INCREMENT))
+      (file->ha_table_flags() & HA_NO_AUTO_INCREMENT))
   {
     my_message(ER_TABLE_CANT_HANDLE_AUTO_INCREMENT,
                ER(ER_TABLE_CANT_HANDLE_AUTO_INCREMENT), MYF(0));
     DBUG_RETURN(-1);
   }
 
-  if (blob_columns && (file->table_flags() & HA_NO_BLOBS))
+  if (blob_columns && (file->ha_table_flags() & HA_NO_BLOBS))
   {
     my_message(ER_TABLE_CANT_HANDLE_BLOB, ER(ER_TABLE_CANT_HANDLE_BLOB),
                MYF(0));
@@ -2545,7 +2547,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (key->type == Key::FULLTEXT)
     {
-      if (!(file->table_flags() & HA_CAN_FULLTEXT))
+      if (!(file->ha_table_flags() & HA_CAN_FULLTEXT))
       {
 	my_message(ER_TABLE_CANT_HANDLE_FT, ER(ER_TABLE_CANT_HANDLE_FT),
                    MYF(0));
@@ -2563,7 +2565,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     /* TODO: Add proper checks if handler supports key_type and algorithm */
     if (key_info->flags & HA_SPATIAL)
     {
-      if (!(file->table_flags() & HA_CAN_RTREEKEYS))
+      if (!(file->ha_table_flags() & HA_CAN_RTREEKEYS))
       {
         my_message(ER_TABLE_CANT_HANDLE_SPKEYS, ER(ER_TABLE_CANT_HANDLE_SPKEYS),
                    MYF(0));
@@ -2665,7 +2667,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	if (f_is_blob(sql_field->pack_flag) ||
             (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
 	{
-	  if (!(file->table_flags() & HA_CAN_INDEX_BLOBS))
+	  if (!(file->ha_table_flags() & HA_CAN_INDEX_BLOBS))
 	  {
 	    my_error(ER_BLOB_USED_AS_KEY, MYF(0), column->field_name);
 	    DBUG_RETURN(-1);
@@ -2702,22 +2704,24 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
             null_fields--;
 	  }
 	  else
-	     key_info->flags|= HA_NULL_PART_KEY;
-	  if (!(file->table_flags() & HA_NULL_IN_KEY))
-	  {
-	    my_error(ER_NULL_COLUMN_IN_INDEX, MYF(0), column->field_name);
-	    DBUG_RETURN(-1);
-	  }
-	  if (key->type == Key::SPATIAL)
-	  {
-	    my_message(ER_SPATIAL_CANT_HAVE_NULL,
-                       ER(ER_SPATIAL_CANT_HAVE_NULL), MYF(0));
-	    DBUG_RETURN(-1);
-	  }
+          {
+            key_info->flags|= HA_NULL_PART_KEY;
+            if (!(file->ha_table_flags() & HA_NULL_IN_KEY))
+            {
+              my_error(ER_NULL_COLUMN_IN_INDEX, MYF(0), column->field_name);
+              DBUG_RETURN(-1);
+            }
+            if (key->type == Key::SPATIAL)
+            {
+              my_message(ER_SPATIAL_CANT_HAVE_NULL,
+                         ER(ER_SPATIAL_CANT_HAVE_NULL), MYF(0));
+              DBUG_RETURN(-1);
+            }
+          }
 	}
 	if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
 	{
-	  if (column_nr == 0 || (file->table_flags() & HA_AUTO_PART_KEY))
+	  if (column_nr == 0 || (file->ha_table_flags() & HA_AUTO_PART_KEY))
 	    auto_increment--;			// Field is used
 	}
       }
@@ -2754,14 +2758,14 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	else if (!f_is_geom(sql_field->pack_flag) &&
 		  (column->length > length ||
 		   ((f_is_packed(sql_field->pack_flag) ||
-		     ((file->table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
+		     ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
 		      (key_info->flags & HA_NOSAME))) &&
 		    column->length != length)))
 	{
 	  my_message(ER_WRONG_SUB_KEY, ER(ER_WRONG_SUB_KEY), MYF(0));
 	  DBUG_RETURN(-1);
 	}
-	else if (!(file->table_flags() & HA_NO_PREFIX_CHAR_KEYS))
+	else if (!(file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS))
 	  length=column->length;
       }
       else if (length == 0)
@@ -2847,7 +2851,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     key_info++;
   }
   if (!unique_key && !primary_key &&
-      (file->table_flags() & HA_REQUIRE_PRIMARY_KEY))
+      (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY))
   {
     my_message(ER_REQUIRES_PRIMARY_KEY, ER(ER_REQUIRES_PRIMARY_KEY), MYF(0));
     DBUG_RETURN(-1);
@@ -3053,8 +3057,8 @@ bool mysql_create_table_internal(THD *thd,
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     db_options|=HA_OPTION_PACK_RECORD;
   alias= table_case_name(create_info, table_name);
-  if (!(file=get_new_handler((TABLE_SHARE*) 0, thd->mem_root,
-                             create_info->db_type)))
+  if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root,
+                              create_info->db_type)))
   {
     mem_alloc_error(sizeof(handler));
     DBUG_RETURN(TRUE);
@@ -3151,7 +3155,7 @@ bool mysql_create_table_internal(THD *thd,
     */
     if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                      &syntax_len,
-                                                     TRUE, FALSE)))
+                                                     TRUE)))
       goto err;
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;
@@ -3207,7 +3211,8 @@ bool mysql_create_table_internal(THD *thd,
         engines in partition clauses.
       */
       delete file;
-      if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, engine_type)))
+      if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root,
+                                  engine_type)))
       {
         mem_alloc_error(sizeof(handler));
         DBUG_RETURN(TRUE);
@@ -3457,7 +3462,7 @@ mysql_rename_table(handlerton *base,
     a lowercase file name, but we leave the .frm in mixed case.
    */
   if (lower_case_table_names == 2 && file &&
-      !(file->table_flags() & HA_FILE_BASED))
+      !(file->ha_table_flags() & HA_FILE_BASED))
   {
     strmov(tmp_name, old_name);
     my_casedn_str(files_charset_info, tmp_name);
@@ -4743,7 +4748,7 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
     if (!(tmp= field->is_equal(new_field)))
       DBUG_RETURN(ALTER_TABLE_DATA_CHANGED);
     // Clear indexed marker
-    field->add_index= 0;
+    field->flags&= ~FIELD_IN_ADD_INDEX;
     changes|= tmp;
   }
 
@@ -4819,7 +4824,7 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
     {
       // Mark field to be part of new key 
       field= table->field[key_part->fieldnr];
-      field->add_index= 1;
+      field->flags|= FIELD_IN_ADD_INDEX;
     }
     DBUG_PRINT("info", ("index changed: '%s'", table_key->name));
   }
@@ -4846,7 +4851,7 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
       {
         // Mark field to be part of new key 
         field= table->field[key_part->fieldnr];
-        field->add_index= 1;
+        field->flags|= FIELD_IN_ADD_INDEX;
       }
       DBUG_PRINT("info", ("index added: '%s'", new_key->name));
     }
@@ -4929,6 +4934,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 						   alter_info->tablespace_op));
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(TRUE);
+  table->use_all_columns();
 
   /* Check that we are not trying to rename to an existing table */
   if (new_name)
@@ -5164,8 +5170,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	def_it.remove();
       }
     }
-    else // This field was not dropped and not changed, add it to the list
-    {	 // for the new table.   
+    else
+    {
+      /*
+        This field was not dropped and not changed, add it to the list
+        for the new table.
+      */
       create_list.push_back(def=new create_field(field,field));
       alter_it.rewind();			// Change default if ALTER
       Alter_column *alter;
@@ -5678,7 +5688,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->proc_info="copy to tmp table";
   next_insert_id=thd->next_insert_id;		// Remember for logging
   copied=deleted=0;
-  if (new_table && !(new_table->file->table_flags() & HA_NO_COPY_ON_ALTER))
+  if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
   {
     /* We don't want update TIMESTAMP fields during ALTER TABLE. */
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
@@ -6142,7 +6152,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                                           MODE_STRICT_ALL_TABLES));
 
   from->file->info(HA_STATUS_VARIABLE);
-  to->file->start_bulk_insert(from->file->records);
+  to->file->ha_start_bulk_insert(from->file->stats.records);
 
   save_sql_mode= thd->variables.sql_mode;
 
@@ -6188,19 +6198,14 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 		    &tables, fields, all_fields, order) ||
 	!(sortorder=make_unireg_sortorder(order, &length)) ||
 	(from->sort.found_records = filesort(thd, from, sortorder, length,
-					     (SQL_SELECT *) 0, HA_POS_ERROR,
+					     (SQL_SELECT *) 0, HA_POS_ERROR, 1,
 					     &examined_rows)) ==
 	HA_POS_ERROR)
       goto err;
   };
 
-  /*
-    Handler must be told explicitly to retrieve all columns, because
-    this function does not set field->query_id in the columns to the
-    current query id
-  */
-  to->file->ha_set_all_bits_in_write_set();
-  from->file->ha_retrieve_all_cols();
+  /* Tell handler that we have values for all columns in the to table */
+  to->use_all_columns();
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
   if (ignore ||
       handle_duplicates == DUP_REPLACE)
@@ -6242,9 +6247,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
            {
              const char *err_msg= ER(ER_DUP_ENTRY);
              if (key_nr == 0 &&
-                 (to->key_info[0].key_part[0].field->flags & AUTO_INCREMENT_FLAG))
+                 (to->key_info[0].key_part[0].field->flags &
+                  AUTO_INCREMENT_FLAG))
                err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
-             to->file->print_keydupp_error(key_nr, err_msg);
+             to->file->print_keydup_error(key_nr, err_msg);
              break;
            }
          }
@@ -6262,7 +6268,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   free_io_cache(from);
   delete [] copy;				// This is never 0
 
-  if (to->file->end_bulk_insert() && error <= 0)
+  if (to->file->ha_end_bulk_insert() && error <= 0)
   {
     to->file->print_error(my_errno,MYF(0));
     error=1;
@@ -6367,10 +6373,10 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     {
       t->pos_in_table_list= table;
 
-      if (t->file->table_flags() & HA_HAS_CHECKSUM &&
+      if (t->file->ha_table_flags() & HA_HAS_CHECKSUM &&
 	  !(check_opt->flags & T_EXTEND))
 	protocol->store((ulonglong)t->file->checksum());
-      else if (!(t->file->table_flags() & HA_HAS_CHECKSUM) &&
+      else if (!(t->file->ha_table_flags() & HA_HAS_CHECKSUM) &&
 	       (check_opt->flags & T_QUICK))
 	protocol->store_null();
       else
@@ -6379,11 +6385,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	ha_checksum crc= 0;
         uchar null_mask=256 -  (1 << t->s->last_null_bit_pos);
 
-        /*
-          Set all bits in read set and inform InnoDB that we are reading all
-          fields
-        */
-        t->file->ha_retrieve_all_cols();
+        t->use_all_columns();
 
 	if (t->file->ha_rnd_init(1))
 	  protocol->store_null();

@@ -1478,6 +1478,7 @@ public:
    * @return 0 or -1 on error, and tupleId in out parameter
    */
   struct TupleIdRange {
+    TupleIdRange() {}
     Uint64 m_first_tuple_id;
     Uint64 m_last_tuple_id;
     void reset() {

@@ -69,8 +69,7 @@ bool check_partition_info(partition_info *part_info,handlerton **eng_type,
 bool fix_partition_func(THD *thd, const char *name, TABLE *table,
                         bool create_table_ind);
 char *generate_partition_syntax(partition_info *part_info,
-                                uint *buf_length, bool use_sql_alloc,
-                                bool write_all);
+                                uint *buf_length, bool use_sql_alloc);
 bool partition_key_modified(TABLE *table, List<Item> &fields);
 void get_partition_set(const TABLE *table, byte *buf, const uint index,
                        const key_range *key_spec,

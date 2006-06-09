@@ -303,6 +303,7 @@ extern int mi_rename(const char *from, const char *to);
 extern int mi_extra(struct st_myisam_info *file,
 		    enum ha_extra_function function,
 		    void *extra_arg);
+extern int mi_reset(struct st_myisam_info *file);
 extern ha_rows mi_records_in_range(struct st_myisam_info *info,int inx,
                                    key_range *min_key, key_range *max_key);
 extern int mi_log(int activate_log);

@@ -25,7 +25,8 @@
     We will need an updated Berkeley DB version for this.
   - Killing threads that has got a 'deadlock'
   - SHOW TABLE STATUS should give more information about the table.
-  - Get a more accurate count of the number of rows (estimate_rows_upper_bound()).
+  - Get a more accurate count of the number of rows
+    (estimate_rows_upper_bound()).
     We could store the found number of rows when the table is scanned and
     then increment the counter for each attempted write.
   - We will need to extend the manager thread to makes checkpoints at
@@ -126,13 +127,14 @@ static int berkeley_rollback(THD *thd, bool all);
 static int berkeley_rollback_to_savepoint(THD* thd, void *savepoint);
 static int berkeley_savepoint(THD* thd, void *savepoint);
 static int berkeley_release_savepoint(THD* thd, void *savepoint);
-static handler *berkeley_create_handler(TABLE_SHARE *table);
+static handler *berkeley_create_handler(TABLE_SHARE *table,
+                                        MEM_ROOT *mem_root);
 
 handlerton berkeley_hton;
 
-handler *berkeley_create_handler(TABLE_SHARE *table)
+static handler *berkeley_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
-  return new ha_berkeley(table);
+  return new (mem_root) ha_berkeley(table);
 }
 
 typedef struct st_berkeley_trx_data {
@@ -359,6 +361,7 @@ static bool berkeley_show_logs(THD *thd, stat_print_fn *stat_print)
   init_sql_alloc(&show_logs_root, BDB_LOG_ALLOC_BLOCK_SIZE,
 		 BDB_LOG_ALLOC_BLOCK_SIZE);
   *root_ptr= &show_logs_root;
+  all_logs= free_logs= 0;
 
   if ((error= db_env->log_archive(db_env, &all_logs,
 				  DB_ARCH_ABS | DB_ARCH_LOG)) ||
@@ -393,6 +396,10 @@ static bool berkeley_show_logs(THD *thd, stat_print_fn *stat_print)
     }
   }
 err:
+  if (all_logs)
+    free(all_logs);
+  if (free_logs)
+    free(free_logs);
   free_root(&show_logs_root,MYF(0));
   *root_ptr= old_mem_root;
   DBUG_RETURN(error);
@@ -456,7 +463,7 @@ void berkeley_cleanup_log_files(void)
 ha_berkeley::ha_berkeley(TABLE_SHARE *table_arg)
   :handler(&berkeley_hton, table_arg), alloc_ptr(0), rec_buff(0), file(0),
   int_table_flags(HA_REC_NOT_IN_SEQ | HA_FAST_KEY_READ |
-                  HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_NOT_EXACT_COUNT |
+                  HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS |
                   HA_PRIMARY_KEY_IN_READ_INDEX | HA_FILE_BASED |
                   HA_CAN_GEOMETRY |
                   HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX),
@@ -760,7 +767,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
   transaction=0;
   cursor=0;
   key_read=0;
-  block_size=8192;				// Berkeley DB block size
+  stats.block_size=8192;                        // Berkeley DB block size
   share->fixed_length_row= !(table_share->db_create_options &
                              HA_OPTION_PACK_RECORD);
 
@@ -776,7 +783,7 @@ int ha_berkeley::close(void)
 
   my_free((char*) rec_buff,MYF(MY_ALLOW_ZERO_PTR));
   my_free(alloc_ptr,MYF(MY_ALLOW_ZERO_PTR));
-  ha_berkeley::extra(HA_EXTRA_RESET);		// current_row buffer
+  ha_berkeley::reset();                         // current_row buffer
   DBUG_RETURN(free_share(share,table, hidden_primary_key,0));
 }
 
@@ -877,11 +884,13 @@ void ha_berkeley::unpack_row(char *record, DBT *row)
   else
   {
     /* Copy null bits */
+    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
     const char *ptr= (const char*) row->data;
     memcpy(record, ptr, table_share->null_bytes);
     ptr+= table_share->null_bytes;
     for (Field **field=table->field ; *field ; field++)
       ptr= (*field)->unpack(record + (*field)->offset(), ptr);
+    dbug_tmp_restore_column_map(table->write_set, old_map);
   }
 }
 
@@ -939,6 +948,7 @@ DBT *ha_berkeley::create_key(DBT *key, uint keynr, char *buff,
   KEY *key_info=table->key_info+keynr;
   KEY_PART_INFO *key_part=key_info->key_part;
   KEY_PART_INFO *end=key_part+key_info->key_parts;
+  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   DBUG_ENTER("create_key");
 
   key->data=buff;
@@ -962,6 +972,7 @@ DBT *ha_berkeley::create_key(DBT *key, uint keynr, char *buff,
   }
   key->size= (buff  - (char*) key->data);
   DBUG_DUMP("key",(char*) key->data, key->size);
+  dbug_tmp_restore_column_map(table->write_set, old_map);
   DBUG_RETURN(key);
 }
 
@@ -979,6 +990,7 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
   KEY *key_info=table->key_info+keynr;
   KEY_PART_INFO *key_part=key_info->key_part;
   KEY_PART_INFO *end=key_part+key_info->key_parts;
+  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   DBUG_ENTER("bdb:pack_key");
 
   bzero((char*) key,sizeof(*key));
@@ -1006,6 +1018,7 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
   }
   key->size= (buff  - (char*) key->data);
   DBUG_DUMP("key",(char*) key->data, key->size);
+  dbug_tmp_restore_column_map(table->write_set, old_map);
   DBUG_RETURN(key);
 }
 
@@ -1244,8 +1257,8 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   DB_TXN *sub_trans;
   bool primary_key_changed;
   DBUG_ENTER("update_row");
-  LINT_INIT(error);
 
+  LINT_INIT(error);
   statistic_increment(table->in_use->status_var.ha_update_count,&LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
@@ -1826,8 +1839,9 @@ void ha_berkeley::info(uint flag)
   DBUG_ENTER("ha_berkeley::info");
   if (flag & HA_STATUS_VARIABLE)
   {
-    records = share->rows + changed_rows; // Just to get optimisations right
-    deleted = 0;
+    // Just to get optimizations right
+    stats.records = share->rows + changed_rows;
+    stats.deleted = 0;
   }
   if ((flag & HA_STATUS_CONST) || version != share->version)
   {
@@ -1848,19 +1862,8 @@ void ha_berkeley::info(uint flag)
 int ha_berkeley::extra(enum ha_extra_function operation)
 {
   switch (operation) {
-  case HA_EXTRA_RESET:
   case HA_EXTRA_RESET_STATE:
-    key_read=0;
-    using_ignore=0;
-    if (current_row.flags & (DB_DBT_MALLOC | DB_DBT_REALLOC))
-    {
-      current_row.flags=0;
-      if (current_row.data)
-      {
-	free(current_row.data);
-	current_row.data=0;
-      }
-    }
+    reset();
     break;
   case HA_EXTRA_KEYREAD:
     key_read=1;					// Query satisfied with key
@@ -1883,8 +1886,17 @@ int ha_berkeley::extra(enum ha_extra_function operation)
 
 int ha_berkeley::reset(void)
 {
-  ha_berkeley::extra(HA_EXTRA_RESET);
-  key_read=0;					// Reset to state after open
+  key_read= 0;
+  using_ignore= 0;
+  if (current_row.flags & (DB_DBT_MALLOC | DB_DBT_REALLOC))
+  {
+    current_row.flags= 0;
+    if (current_row.data)
+    {
+      free(current_row.data);
+      current_row.data= 0;
+    }
+  }
   return 0;
 }
 
@@ -2173,7 +2185,7 @@ int ha_berkeley::rename_table(const char * from, const char * to)
 
 double ha_berkeley::scan_time()
 {
-  return rows2double(records/3);
+  return rows2double(stats.records/3);
 }
 
 ha_rows ha_berkeley::records_in_range(uint keynr, key_range *start_key,
@@ -2226,14 +2238,18 @@ ha_rows ha_berkeley::records_in_range(uint keynr, key_range *start_key,
     end_pos=end_range.less;
   else
     end_pos=end_range.less+end_range.equal;
-  rows=(end_pos-start_pos)*records;
+  rows=(end_pos-start_pos)*stats.records;
   DBUG_PRINT("exit",("rows: %g",rows));
   DBUG_RETURN((ha_rows)(rows <= 1.0 ? 1 : rows));
 }
 
 
-ulonglong ha_berkeley::get_auto_increment()
+void ha_berkeley::get_auto_increment(ulonglong offset, ulonglong increment,
+                                     ulonglong nb_desired_values,
+                                     ulonglong *first_value,
+                                     ulonglong *nb_reserved_values)
 {
+  /* Ideally in case of real error (not "empty table") nr should be ~ULL(0) */
   ulonglong nr=1;				// Default if error or new key
   int error;
   (void) ha_berkeley::extra(HA_EXTRA_KEYREAD);
@@ -2244,9 +2260,18 @@ ulonglong ha_berkeley::get_auto_increment()
   if (!table_share->next_number_key_offset)
   {						// Autoincrement at key-start
     error=ha_berkeley::index_last(table->record[1]);
+    /* has taken read lock on page of max key so reserves to infinite  */
+    *nb_reserved_values= ULONGLONG_MAX;
   }
   else
   {
+    /*
+      MySQL needs to call us for next row: assume we are inserting ("a",null)
+      here, we return 3, and next this statement will want to insert ("b",null):
+      there is no reason why ("b",3+1) would be the good row to insert: maybe it
+      already exists, maybe 3+1 is too large...
+    */
+    *nb_reserved_values= 1;
     DBT row,old_key;
     bzero((char*) &row,sizeof(row));
     KEY *key_info= &table->key_info[active_index];
@@ -2287,7 +2312,7 @@ ulonglong ha_berkeley::get_auto_increment()
       table->next_number_field->val_int_offset(table_share->rec_buff_length)+1;
   ha_berkeley::index_end();
   (void) ha_berkeley::extra(HA_EXTRA_NO_KEYREAD);
-  return nr;
+  *first_value= nr;
 }
 
 void ha_berkeley::print_error(int error, myf errflag)

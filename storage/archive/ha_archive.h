@@ -74,16 +74,19 @@ public:
   const char *table_type() const { return "ARCHIVE"; }
   const char *index_type(uint inx) { return "NONE"; }
   const char **bas_ext() const;
-  ulong table_flags() const
+  ulonglong table_flags() const
   {
-    return (HA_REC_NOT_IN_SEQ | HA_NOT_EXACT_COUNT | HA_CAN_BIT_FIELD |
+    return (HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_CAN_BIT_FIELD |
             HA_FILE_BASED | HA_CAN_INSERT_DELAYED | HA_CAN_GEOMETRY);
   }
   ulong index_flags(uint idx, uint part, bool all_parts) const
   {
     return HA_ONLY_WHOLE_INDEX;
   }
-  ulonglong get_auto_increment();
+  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
+                                  ulonglong nb_desired_values,
+                                  ulonglong *first_value,
+                                  ulonglong *nb_reserved_values);
   uint max_supported_keys()          const { return 1; }
   uint max_supported_key_length()    const { return sizeof(ulonglong); }
   uint max_supported_key_part_length() const { return sizeof(ulonglong); }

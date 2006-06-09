@@ -3,6 +3,23 @@ create table t1 (a int)
 partition by key(a)
 (partition p0 engine = MEMORY);
 drop table t1;
+create table t1 (a int)
+partition by range (a)
+subpartition by key (a)
+(partition p0 values less than (1));
+alter table t1 add partition (partition p1 values less than (2));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY RANGE (a) SUBPARTITION BY KEY (a) (PARTITION p0 VALUES LESS THAN (1) ENGINE = MyISAM, PARTITION p1 VALUES LESS THAN (2) ENGINE = MyISAM)
+alter table t1 reorganize partition p1 into (partition p1 values less than (3));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY RANGE (a) SUBPARTITION BY KEY (a) (PARTITION p0 VALUES LESS THAN (1) ENGINE = MyISAM, PARTITION p1 VALUES LESS THAN (3) ENGINE = MyISAM)
+drop table t1;
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -574,7 +591,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY RANGE (a) SUBPARTITION BY HASH (a) (PARTITION p0 VALUES LESS THAN (100) )
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY RANGE (a) SUBPARTITION BY HASH (a) (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM)
 alter table t1 add partition (partition p1 values less than (200)
 (subpartition subpart21));
 show create table t1;

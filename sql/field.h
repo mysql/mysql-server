@@ -62,10 +62,9 @@ public:
   struct st_table *orig_table;		// Pointer to original table
   const char	**table_name, *field_name;
   LEX_STRING	comment;
-  query_id_t	query_id;		// For quick test of used fields
-  bool          add_index;              // For check if field will be indexed
   /* Field is part of the following keys */
-  key_map	key_start,part_of_key,part_of_sortkey;
+  key_map	key_start, part_of_key, part_of_key_not_clustered;
+  key_map       part_of_sortkey;
   /* 
     We use three additional unireg types for TIMESTAMP to overcome limitation 
     of current binary format of .frm file. We'd like to be able to support 
@@ -88,12 +87,8 @@ public:
 
   utype		unireg_check;
   uint32	field_length;		// Length of field
-  uint          field_index;            // field number in fields array
   uint32	flags;
-  /* fieldnr is the id of the field (first field = 1) as is also
-     used in key_part.
-  */
-  uint16        fieldnr;
+  uint16        field_index;            // field number in fields array
   uchar		null_bit;		// Bit used to test null bit
 
   Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,uchar null_bit_arg,
