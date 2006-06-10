@@ -2341,8 +2341,6 @@ sub restore_installed_db ($) {
 
   if ( -d $path_snapshot)
   {
-    kill_running_server ();
-
     mtr_report("Restoring snapshot of databases");
 
     foreach my $data_dir (@data_dir_lst)
@@ -2367,8 +2365,8 @@ sub restore_installed_db ($) {
   }
   else
   {
-    # No snapshot existed, just stop all processes
-    stop_all_servers();
+    # No snapshot existed
+    mtr_error("No snapshot existed");
   }
 }
 
@@ -2381,6 +2379,9 @@ sub report_failure_and_restart ($) {
   print "\n";
   if ( $opt_force )
   {
+    # Stop all servers that are known to be running
+    stop_all_servers();
+
     # Restore the snapshot of the installed test db
     restore_installed_db($tinfo->{'name'});
     print "Resuming Tests\n\n";
