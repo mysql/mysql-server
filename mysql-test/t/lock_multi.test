@@ -109,6 +109,39 @@ unlock tables;
 drop table t1;
 
 #
+# Bug#19815 - CREATE/RENAME/DROP DATABASE can deadlock on a global read lock
+#
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+#
+connection con1;
+CREATE DATABASE mysqltest_1;
+FLUSH TABLES WITH READ LOCK;
+#
+# With bug in place: acquire LOCK_mysql_create_table and
+# wait in wait_if_global_read_lock().
+connection con2;
+send DROP DATABASE mysqltest_1;
+--sleep 1
+#
+# With bug in place: try to acquire LOCK_mysql_create_table...
+# When fixed: Reject dropping db because of the read lock.
+connection con1;
+--error ER_CANT_UPDATE_WITH_READLOCK
+DROP DATABASE mysqltest_1;
+UNLOCK TABLES;
+#
+connection con2;
+reap;
+#
+connection default;
+disconnect con1;
+disconnect con2;
+# This must have been dropped by connection 2 already,
+# which waited until the global read lock was released.
+--error ER_DB_DROP_EXISTS
+DROP DATABASE mysqltest_1;
+
 # Bug#16986 - Deadlock condition with MyISAM tables
 #
 connection locker;

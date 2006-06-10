@@ -43,6 +43,14 @@ Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 unlock tables;
 drop table t1;
+CREATE DATABASE mysqltest_1;
+FLUSH TABLES WITH READ LOCK;
+ DROP DATABASE mysqltest_1;
+DROP DATABASE mysqltest_1;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+UNLOCK TABLES;
+DROP DATABASE mysqltest_1;
+ERROR HY000: Can't drop database 'mysqltest_1'; database doesn't exist
 use mysql;
 LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
 FLUSH TABLES;
