@@ -395,7 +395,6 @@ public:
   int createIndex(NdbIndexImpl &ix);
   int dropIndex(const char * indexName, 
 		const char * tableName);
-  //  int dropIndex(NdbIndexImpl &, const char * tableName);
   int dropIndex(NdbIndexImpl &);
   NdbTableImpl * getIndexTable(NdbIndexImpl * index, 
 			       NdbTableImpl * table);
