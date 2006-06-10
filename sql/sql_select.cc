@@ -13878,6 +13878,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED);
   join->unit->offset_limit_cnt= 0;
 
+  /* 
+    NOTE: the number/types of items pushed into item_list must be in sync with
+    EXPLAIN column types as they're "defined" in THD::send_explain_fields()
+  */
   if (message)
   {
     item_list.push_back(new Item_int((int32)
@@ -14017,11 +14021,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         if (!table->derived_select_number && 
             (part_info= table->part_info))
         {          
-          char parts_buff[128]; 
-          String parts_str(parts_buff,sizeof(parts_buff),cs);
-          make_used_partitions_str(part_info, &parts_str);
-          item_list.push_back(new Item_string(parts_str.ptr(),
-                                              parts_str.length(), cs));
+          Item_string *item_str= new Item_string(cs);
+          make_used_partitions_str(part_info, &item_str->str_value);
+          item_list.push_back(item_str);
         }
         else
           item_list.push_back(item_null);
