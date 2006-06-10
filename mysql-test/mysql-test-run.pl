@@ -1026,10 +1026,13 @@ sub command_line_setup () {
   {
     for ( my $idx= 0; $idx < $cluster->{'nodes'}; $idx++ )
     {
+      my $nodeid= $idx+1;
       $cluster->{'ndbds'}->[$idx]=
 	{
 	 pid      => 0,
-	 path_pid => "$cluster->{'data_dir'}/ndb_{$idx+1}.pid",
+	 nodeid => $nodeid,
+	 path_pid => "$cluster->{'data_dir'}/ndb_${nodeid}.pid",
+	 path_fs => "$cluster->{'data_dir'}/ndb_${nodeid}_fs",
 	};
     }
   }
@@ -1697,7 +1700,8 @@ sub ndbd_start ($$$) {
   mtr_add_arg($args, "--nodaemon");
   mtr_add_arg($args, "$extra_args");
 
-  my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_{$idx+1}.log";
+  my $nodeid= $cluster->{'ndbds'}->[$idx]->{'nodeid'};
+  my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_${nodeid}.log";
   $pid= mtr_spawn($exe_ndbd, $args, "",
 		  $path_ndbd_log,
 		  $path_ndbd_log,
@@ -2355,9 +2359,10 @@ sub restore_installed_db ($) {
     # forcing a clean start of ndb
     foreach my $cluster (@{$clusters})
     {
-      for ( my $idx= 0; $idx < $cluster->{'nodes'}; $idx++ )
+      foreach my $ndbd (@{$cluster->{'ndbds'}})
       {
-	rmtree("$cluster->{'data_dir'}/ndb_{$idx+1}_fs");
+	mtr_verbose("$ndbd->{'path_fs'}" );
+	rmtree("$ndbd->{'path_fs'}" );
       }
     }
   }
