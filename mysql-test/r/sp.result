@@ -4796,22 +4796,6 @@ i
 0
 drop table t3|
 drop procedure bug16887|
-create table t3 (f1 int, f2 varchar(3), primary key(f1)) engine=innodb|
-insert into t3 values (1,'aaa'),(2,'bbb'),(3,'ccc')|
-CREATE FUNCTION bug13575 ( p1 integer ) 
-returns varchar(3) 
-BEGIN 
-DECLARE v1 VARCHAR(10) DEFAULT null;
-SELECT f2 INTO v1 FROM t3 WHERE f1 = p1; 
-RETURN v1;
-END|
-select distinct f1, bug13575(f1) from t3 order by f1|
-f1	bug13575(f1)
-1	aaa
-2	bbb
-3	ccc
-drop function bug13575;
-drop table t3|
 drop procedure if exists bug16474_1|
 drop procedure if exists bug16474_2|
 delete from t1|

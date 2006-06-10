@@ -194,3 +194,4 @@ idpro	price	nbprice
 1	1.0000	3
 2	1.0000	2
 3	2.0000	1
+DROP TABLE t1, t2;

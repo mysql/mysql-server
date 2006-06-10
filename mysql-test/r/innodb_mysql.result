@@ -326,3 +326,9 @@ ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 SELECT * from t2;
 a	b
 drop table t1,t2;
+create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
+character set utf8 collate utf8_general_ci;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 765 bytes
+insert into t1 values('aaa');
+drop table t1;

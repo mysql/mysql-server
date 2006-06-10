@@ -21,6 +21,7 @@ sub mtr_warning (@);
 sub mtr_error (@);
 sub mtr_child_error (@);
 sub mtr_debug (@);
+sub mtr_verbose (@);
 
 
 ##############################################################################
@@ -122,7 +123,7 @@ sub mtr_report_test_failed ($) {
   {
     print "[ fail ]  timeout\n";
   }
-  elsif ( $tinfo->{'ndb_test'} and  !$::flag_ndb_status_ok)
+  elsif ( $tinfo->{'ndb_test'} and $::cluster->[0]->{'installed_ok'} eq "NO")
   {
     print "[ fail ]  ndbcluster start failure\n";
     return;
@@ -157,6 +158,7 @@ sub mtr_report_stats ($) {
   my $tot_passed= 0;
   my $tot_failed= 0;
   my $tot_tests=  0;
+  my $tot_restarts= 0;
   my $found_problems= 0;            # Some warnings are errors...
 
   foreach my $tinfo (@$tests)
@@ -174,6 +176,10 @@ sub mtr_report_stats ($) {
     {
       $tot_tests++;
       $tot_failed++;
+    }
+    if ( $tinfo->{'restarted'} )
+    {
+      $tot_restarts++;
     }
   }
 
@@ -197,6 +203,8 @@ sub mtr_report_stats ($) {
       "the documentation at\n",
       "http://www.mysql.com/doc/en/MySQL_test_suite.html\n";
   }
+  print
+    "The servers were restarted $tot_restarts times\n";
 
   # ----------------------------------------------------------------------
   # If a debug run, there might be interesting information inside
@@ -333,6 +341,12 @@ sub mtr_debug (@) {
   if ( $::opt_script_debug )
   {
     print STDERR "####: ",join(" ", @_),"\n";
+  }
+}
+sub mtr_verbose (@) {
+  if ( $::opt_verbose )
+  {
+    print STDERR "> ",join(" ", @_),"\n";
   }
 }
 
