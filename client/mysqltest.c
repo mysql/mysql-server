@@ -2518,7 +2518,7 @@ int safe_connect(MYSQL* mysql, const char *host, const char *user,
 {
   int con_error= 1;
   my_bool reconnect= 1;
-  static int connection_retry_sleep= 2; /* Seconds */
+  static ulong connection_retry_sleep= 100000; /* Microseconds */
   int i;
   for (i= 0; i < opt_max_connect_retries; i++)
   {
@@ -2528,7 +2528,7 @@ int safe_connect(MYSQL* mysql, const char *host, const char *user,
       con_error= 0;
       break;
     }
-    sleep(connection_retry_sleep);
+    my_sleep(connection_retry_sleep);
   }
   /*
    TODO: change this to 0 in future versions, but the 'kill' test relies on
@@ -3301,7 +3301,7 @@ static struct my_option my_long_options[] =
   {"max-connect-retries", OPT_MAX_CONNECT_RETRIES,
    "Max number of connection attempts when connecting to server",
    (gptr*) &opt_max_connect_retries, (gptr*) &opt_max_connect_retries, 0,
-   GET_INT, REQUIRED_ARG, 5, 1, 10, 0, 0, 0},
+   GET_INT, REQUIRED_ARG, 500, 1, 10000, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &port,

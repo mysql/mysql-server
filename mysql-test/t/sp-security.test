@@ -527,29 +527,6 @@ drop database db_bug14533;
 
 
 #
-# BUG#7787: Stored procedures: improper warning for "grant execute" statement
-#
-
-# Prepare.
-
-CREATE DATABASE db_bug7787;
-use db_bug7787;
-
-# Test.
-
-CREATE PROCEDURE p1()
-  SHOW INNODB STATUS; 
-
-GRANT EXECUTE ON PROCEDURE p1 TO user_bug7787@localhost; 
-
-# Cleanup.
-
-DROP DATABASE db_bug7787;
-drop user user_bug7787@localhost;
-use test;
-
-
-#
 # WL#2897: Complete definer support in the stored routines.
 #
 # The following cases are tested:

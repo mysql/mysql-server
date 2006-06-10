@@ -770,13 +770,6 @@ alter table t1 rebuild partition;
 drop table t1;
 
 #
-# Bug #14673: Wrong InnoDB default row format
-#
-create table t1 (a int) engine=innodb partition by hash(a) ;
-show table status like 't1';
-drop table t1;
-
-#
 # Bug #14526: Partitions: indexed searches fail
 #
 create table t2 (s1 int not null auto_increment, primary key (s1)) partition by list (s1) (partition p1 values in (1),partition p2 values in (2),partition p3 values in (3),partition p4 values in (4));
@@ -866,6 +859,7 @@ delimiter ;|
 CALL test.p1(12);
 CALL test.p1(13);
 drop table t1;
+drop procedure test.p1;
 
 #
 # Bug 13520: Problem with delimiters in COMMENT DATA DIRECTORY ..

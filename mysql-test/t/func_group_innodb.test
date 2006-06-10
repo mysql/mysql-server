@@ -1,0 +1,85 @@
+#
+# Test of group functions that depend on innodb
+#
+
+--source include/have_innodb.inc
+
+--disable_warnings
+create table t1 (USR_ID integer not null, MAX_REQ integer not null, constraint PK_SEA_USER primary key (USR_ID)) engine=InnoDB;
+--enable_warnings
+insert into t1 values (1, 3);
+select count(*) + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ from t1 group by MAX_REQ;
+select Case When Count(*) < MAX_REQ Then 1 Else 0 End from t1 where t1.USR_ID = 1 group by MAX_REQ;
+drop table t1;
+
+
+#
+# Bug #12882  	min/max inconsistent on empty table
+#
+
+--disable_warnings
+create table t1m (a int) engine=myisam;
+create table t1i (a int) engine=innodb;
+create table t2m (a int) engine=myisam;
+create table t2i (a int) engine=innodb;
+--enable_warnings
+insert into t2m values (5);
+insert into t2i values (5);
+
+# test with MyISAM
+select min(a) from t1m;
+select min(7) from t1m;
+select min(7) from DUAL;
+explain select min(7) from t2m join t1m;
+select min(7) from t2m join t1m;
+
+select max(a) from t1m;
+select max(7) from t1m;
+select max(7) from DUAL;
+explain select max(7) from t2m join t1m;
+select max(7) from t2m join t1m;
+
+select 1, min(a) from t1m where a=99;
+select 1, min(a) from t1m where 1=99;
+select 1, min(1) from t1m where a=99;
+select 1, min(1) from t1m where 1=99;
+
+select 1, max(a) from t1m where a=99;
+select 1, max(a) from t1m where 1=99;
+select 1, max(1) from t1m where a=99;
+select 1, max(1) from t1m where 1=99;
+
+# test with InnoDB
+select min(a) from t1i;
+select min(7) from t1i;
+select min(7) from DUAL;
+explain select min(7) from t2i join t1i;
+select min(7) from t2i join t1i;
+
+select max(a) from t1i;
+select max(7) from t1i;
+select max(7) from DUAL;
+explain select max(7) from t2i join t1i;
+select max(7) from t2i join t1i;
+
+select 1, min(a) from t1i where a=99;
+select 1, min(a) from t1i where 1=99;
+select 1, min(1) from t1i where a=99;
+select 1, min(1) from t1i where 1=99;
+
+select 1, max(a) from t1i where a=99;
+select 1, max(a) from t1i where 1=99;
+select 1, max(1) from t1i where a=99;
+select 1, max(1) from t1i where 1=99;
+
+# mixed MyISAM/InnoDB test
+explain select count(*), min(7), max(7) from t1m, t1i;
+select count(*), min(7), max(7) from t1m, t1i;
+
+explain select count(*), min(7), max(7) from t1m, t2i;
+select count(*), min(7), max(7) from t1m, t2i;
+
+explain select count(*), min(7), max(7) from t2m, t1i;
+select count(*), min(7), max(7) from t2m, t1i;
+
+drop table t1m, t1i, t2m, t2i;

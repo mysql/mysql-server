@@ -79,3 +79,4 @@ terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 ERROR 23000: Duplicate entry '2003-03-22' for key 'day'
 drop table t2;
 drop table t2;
+drop table t1;

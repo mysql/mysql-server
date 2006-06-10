@@ -272,3 +272,11 @@ TRUNCATE table t2;
 INSERT INTO t2 select * from t1;
 SELECT * from t2;
 drop table t1,t2;
+
+#
+# Bug#17530: Incorrect key truncation on table creation caused server crash.
+#
+create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
+  character set utf8 collate utf8_general_ci;
+insert into t1 values('aaa');
+drop table t1;
