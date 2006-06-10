@@ -507,22 +507,21 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, byte *buf)
   return(-1);				/* Wrong data to read */
 }
 
-  
+
 /*
-  Update auto_increment info
+  Retrieve auto_increment info
 
   SYNOPSIS
-    update_auto_increment()
+    retrieve_auto_increment()
     info			MyISAM handler
     record			Row to update
 
   IMPLEMENTATION
-    Only replace the auto_increment value if it is higher than the previous
-    one. For signed columns we don't update the auto increment value if it's
+    For signed columns we don't retrieve the auto increment value if it's
     less than zero.
 */
 
-void update_auto_increment(MI_INFO *info,const byte *record)
+ulonglong retrieve_auto_increment(MI_INFO *info,const byte *record)
 {
   ulonglong value= 0;			/* Store unsigned values here */
   longlong s_value= 0;			/* Store signed values here */
@@ -587,6 +586,5 @@ void update_auto_increment(MI_INFO *info,const byte *record)
     and if s_value == 0 then value will contain either s_value or the
     correct value.
   */
-  set_if_bigger(info->s->state.auto_increment,
-                (s_value > 0) ? (ulonglong) s_value : value);
+  return (s_value > 0) ? (ulonglong) s_value : value;
 }
