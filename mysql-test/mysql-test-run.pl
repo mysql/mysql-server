@@ -2350,16 +2350,14 @@ sub restore_installed_db ($) {
       rmtree("$data_dir");
       mtr_copy_dir("$path_snapshot/$name", "$data_dir");
     }
-    if ($opt_with_ndbcluster)
-    {
-      # Remove the ndb_*_fs dirs, forcing a clean start of ndb
-      rmtree("$clusters->[0]->{'data_dir'}/ndb_1_fs");
-      rmtree("$clusters->[0]->{'data_dir'}/ndb_2_fs");
 
-      if ( $opt_with_ndbcluster_slave )
+    # Remove the ndb_*_fs dirs for all ndbd nodes
+    # forcing a clean start of ndb
+    foreach my $cluster (@{$clusters})
+    {
+      for ( my $idx= 0; $idx < $cluster->{'nodes'}; $idx++ )
       {
-	# Remove also the ndb_*_fs dirs for slave cluster
-	rmtree("$clusters->[1]->{'data_dir'}/ndb_1_fs");
+	rmtree("$cluster->{'data_dir'}/ndb_{$idx+1}_fs");
       }
     }
   }
