@@ -3105,6 +3105,7 @@ sub run_testcase_stop_servers($) {
   {
     if ( ! $mysqld->{'pid'} )
     {
+      # Remove ndbcluster tables if server is stopped
       rm_ndbcluster_tables($mysqld->{'path_myddir'});
     }
   }
