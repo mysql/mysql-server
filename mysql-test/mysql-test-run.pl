@@ -3382,9 +3382,12 @@ sub im_stop($) {
 # Before a testcase, run in record mode, save result file to var
 # After testcase, run and compare with the recorded file, they should be equal!
 #
-sub run_check_testcase ($) {
+sub run_check_testcase ($$) {
 
   my $mode=     shift;
+  my $mysqld=   shift;
+
+  my $name= "check-" . $mysqld->{'type'} . $mysqld->{'idx'};
 
   my $args;
   mtr_init_args(\$args);
@@ -3395,14 +3398,14 @@ sub run_check_testcase ($) {
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
 
-  mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_sock'});
-  mtr_add_arg($args, "--port=%d", $master->[0]->{'port'});
+  mtr_add_arg($args, "--socket=%s", $mysqld->{'path_sock'});
+  mtr_add_arg($args, "--port=%d", $mysqld->{'port'});
   mtr_add_arg($args, "--database=test");
   mtr_add_arg($args, "--user=%s", $opt_user);
   mtr_add_arg($args, "--password=");
 
   mtr_add_arg($args, "-R");
-  mtr_add_arg($args, "$opt_vardir/tmp/check-testcase.result");
+  mtr_add_arg($args, "$opt_vardir/tmp/$name.result");
 
   if ( $mode eq "before" )
   {
@@ -3415,8 +3418,8 @@ sub run_check_testcase ($) {
   if ( $res == 1  and $mode = "after")
   {
     mtr_run("diff",["-u",
-		    "$opt_vardir/tmp/check-testcase.result",
-		    "$opt_vardir/tmp/check-testcase.reject"],
+		    "$opt_vardir/tmp/$name.result",
+		    "$opt_vardir/tmp/$name.reject"],
 	    "", "", "", "");
   }
   elsif ( $res )
@@ -3709,14 +3712,26 @@ sub run_mysqltest ($) {
 
   if ( $opt_check_testcases )
   {
-    run_check_testcase("before");
+    foreach my $mysqld (@{$master}, @{$slave})
+    {
+      if ($mysqld->{'pid'})
+      {
+	run_check_testcase("before", $mysqld);
+      }
+    }
   }
 
   my $res = mtr_run_test($exe,$args,"","",$path_timefile,"");
 
   if ( $opt_check_testcases )
   {
-    run_check_testcase("after");
+    foreach my $mysqld (@{$master}, @{$slave})
+    {
+      if ($mysqld->{'pid'})
+      {
+	run_check_testcase("after", $mysqld);
+      }
+    }
   }
 
   return $res;
