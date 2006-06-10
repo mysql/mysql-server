@@ -83,13 +83,13 @@ link_sources:
 	for f in $(sql_src) ; do \
 	  rm -f $$f; \
 	  @LN_CP_F@ $(top_srcdir)/sql/$$f $$f; \
-	done;
-	for f in $(strings_src) ; do \
-	  rm -f $(srcdir)/$$f; \
-	  @LN_CP_F@ $(top_srcdir)/strings/$$f $$f; \
-	done;
-	-rm -f $(srcdir)/my_user.c;
-	@LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c
+         done; \
+        for f in $(strings_src) ; do \
+          rm -f $(srcdir)/$$f; \
+          @LN_CP_F@ $(top_srcdir)/strings/$$f $$f; \
+         done; \
+         rm -f $(srcdir)/my_user.c; \
+         @LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c;
 
 
 # Don't update the files from bitkeeper

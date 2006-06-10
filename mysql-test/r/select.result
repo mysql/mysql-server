@@ -2716,6 +2716,16 @@ select * from t1 where f1 in (select f3 from t2 where (f3,f4)= (select f3,f4 fro
 f1	f2
 1	1
 drop table t1,t2;
+CREATE TABLE t1 (a int, INDEX idx(a));
+INSERT INTO t1 VALUES (2), (3), (1);
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (idx);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+EXPLAIN SELECT * FROM t1 FORCE INDEX (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+DROP TABLE t1;
 CREATE TABLE t1 ( city char(30) );
 INSERT INTO t1 VALUES ('London');
 INSERT INTO t1 VALUES ('Paris');
