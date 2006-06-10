@@ -152,5 +152,5 @@ wait_for_slave_to_stop;
 drop table t2;
 connection master;
 drop table t2;
-
+drop table t1;
 # End of 4.1 tests

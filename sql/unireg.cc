@@ -24,7 +24,6 @@
     str is a (long) to record position where 0 is the first position.
 */
 
-#define USES_TYPES
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include <assert.h>

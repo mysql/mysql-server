@@ -660,11 +660,6 @@ partition by list (a)
 alter table t1 rebuild partition;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 drop table t1;
-create table t1 (a int) engine=innodb partition by hash(a) ;
-show table status like 't1';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	2	8192	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
-drop table t1;
 create table t2 (s1 int not null auto_increment, primary key (s1)) partition by list (s1) (partition p1 values in (1),partition p2 values in (2),partition p3 values in (3),partition p4 values in (4));
 insert into t2 values (null),(null),(null);
 select * from t2;
@@ -739,6 +734,7 @@ CALL test.p1(13);
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 drop table t1;
+drop procedure test.p1;
 CREATE TABLE t1 (a int not null)
 partition by key(a)
 (partition p0 COMMENT='first partition');

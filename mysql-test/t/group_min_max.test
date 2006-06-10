@@ -659,7 +659,30 @@ select a1 from t1 where a2 = 'b' group by a1;
 explain select distinct a1 from t1 where a2 = 'b';
 select distinct a1 from t1 where a2 = 'b';
 
-drop table t1,t2,t3;
+#
+# Bug #12672: primary key implcitly included in every innodb index
+#
+# Test case moved to group_min_max_innodb
+
+
+#
+# Bug #6142: a problem with the empty innodb table
+#
+# Test case moved to group_min_max_innodb
+
+
+#
+# Bug #9798: group by with rollup
+#
+# Test case moved to group_min_max_innodb
+
+
+#
+# Bug #13293 Wrongly used index results in endless loop.
+#
+# Test case moved to group_min_max_innodb
+
+
 #
 # Bug #14920 Ordering aggregated result sets with composite primary keys
 # corrupts resultset
