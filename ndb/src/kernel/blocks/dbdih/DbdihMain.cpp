@@ -1594,6 +1594,9 @@ void Dbdih::nodeRestartPh2Lab(Signal* signal)
    */
   ndbrequire(c_dictLockSlavePtrI_nodeRestart == RNIL);
 
+  // check that we are not yet taking part in schema ops
+  CRASH_INSERTION(7174);
+
   Uint32 lockType = DictLockReq::NodeRestartLock;
   Callback c = { safe_cast(&Dbdih::recvDictLockConf_nodeRestart), 0 };
   sendDictLockReq(signal, lockType, c);
@@ -1746,7 +1749,7 @@ void Dbdih::execSTART_PERMREQ(Signal* signal)
   ndbrequire(refToNode(retRef) == nodeId);
   if ((c_nodeStartMaster.activeState) ||
       (c_nodeStartMaster.wait != ZFALSE) ||
-      ERROR_INSERTED_CLEAR(7174)) {
+      ERROR_INSERTED_CLEAR(7175)) {
     jam();
     signal->theData[0] = nodeId;
     signal->theData[1] = StartPermRef::ZNODE_ALREADY_STARTING_ERROR;
@@ -14709,6 +14712,34 @@ Dbdih::sendDictLockReq(Signal* signal, Uint32 lockType, Callback c)
   lockPtr.p->locked = false;
   lockPtr.p->callback = c;
 
+  // handle rolling upgrade
+  {
+    Uint32 masterVersion = getNodeInfo(cmasterNodeId).m_version;
+
+    unsigned int get_major = getMajor(masterVersion);
+    unsigned int get_minor = getMinor(masterVersion);
+    unsigned int get_build = getBuild(masterVersion);
+
+    ndbrequire(get_major == 4 || get_major == 5);
+
+    if (masterVersion < NDBD_DICT_LOCK_VERSION_5 ||
+        ERROR_INSERTED(7176)) {
+      jam();
+
+      infoEvent("DIH: detect upgrade: master node %u old version %u.%u.%u",
+        (unsigned int)cmasterNodeId, get_major, get_minor, get_build);
+
+      DictLockConf* conf = (DictLockConf*)&signal->theData[0];
+      conf->userPtr = lockPtr.i;
+      conf->lockType = lockType;
+      conf->lockPtr = ZNIL;
+
+      sendSignal(reference(), GSN_DICT_LOCK_CONF, signal,
+          DictLockConf::SignalLength, JBB);
+      return;
+    }
+  }
+
   BlockReference dictMasterRef = calcDictBlockRef(cmasterNodeId);
   sendSignal(dictMasterRef, GSN_DICT_LOCK_REQ, signal,
       DictLockReq::SignalLength, JBB);
@@ -14757,6 +14788,19 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
   ord->lockType = lockPtr.p->lockType;
 
   c_dictLockSlavePool.release(lockPtr);
+
+  // handle rolling upgrade
+  {
+    Uint32 masterVersion = getNodeInfo(cmasterNodeId).m_version;
+
+    unsigned int get_major = getMajor(masterVersion);
+    ndbrequire(get_major == 4 || get_major == 5);
+
+    if (masterVersion < NDBD_DICT_LOCK_VERSION_5 ||
+        ERROR_INSERTED(7176)) {
+      return;
+    }
+  }
 
   BlockReference dictMasterRef = calcDictBlockRef(cmasterNodeId);
   sendSignal(dictMasterRef, GSN_DICT_UNLOCK_ORD, signal,

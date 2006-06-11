@@ -1590,17 +1590,18 @@ recv_dict_ops_run(NDBT_Context* ctx)
 int
 runRestarts(NDBT_Context* ctx, NDBT_Step* step)
 {
-  static int err_master[] = {   // non-crashing
-    0,
-    7174        // send one fake START_PERMREF
+  static int errlst_master[] = {   // non-crashing
+    7175,       // send one fake START_PERMREF
+    0 
   };
-  static int err_node[] = {
-    0,
-    7121,       // crash on START_PERMCONF
-    7130        // crash on START_MECONF
+  static int errlst_node[] = {
+    7174,       // crash before sending DICT_LOCK_REQ
+    7176,       // pretend master does not support DICT lock
+    7121,       // crash at receive START_PERMCONF
+    0
   };
-  const uint err_master_cnt = sizeof(err_master)/sizeof(err_master[0]);
-  const uint err_node_cnt = sizeof(err_node)/sizeof(err_node[0]);
+  const uint errcnt_master = sizeof(errlst_master)/sizeof(errlst_master[0]);
+  const uint errcnt_node = sizeof(errlst_node)/sizeof(errlst_node[0]);
 
   myRandom48Init(NdbTick_CurrentMillisecond());
   NdbRestarter restarter;
@@ -1632,7 +1633,7 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
       nodeIdList[nodeIdCnt++] = nodeId;
     }
 
-    if (numnodes >= 4) {
+    if (numnodes >= 4 && myRandom48(2) == 0) {
       int rand = myRandom48(numnodes);
       int nodeId = restarter.getRandomNodeOtherNodeGroup(nodeIdList[0], rand);
       CHECK(nodeId != -1);
@@ -1642,6 +1643,7 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
 
     g_info << "1: master=" << masterNodeId << " nodes=" << nodeIdList[0] << "," << nodeIdList[1] << endl;
 
+    const uint timeout = 60; //secs for node wait
     const unsigned maxsleep = 2000; //ms
 
     bool NF_ops = ctx->getProperty("Restart_NF_ops");
@@ -1655,9 +1657,8 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
     NdbSleep_MilliSleep(myRandom48(maxsleep));
 
     {
-      int i = 0;
-      while (i < nodeIdCnt) {
-        int nodeId = nodeIdList[i++];
+      for (int i = 0; i < nodeIdCnt; i++) {
+        int nodeId = nodeIdList[i];
 
         bool nostart = true;
         bool abort = NF_type == 0 ? myRandom48(2) : (NF_type == 2);
@@ -1676,8 +1677,30 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     g_info << "1: wait for nostart" << endl;
-    CHECK(restarter.waitNodesNoStart(nodeIdList, nodeIdCnt) == 0);
+    CHECK(restarter.waitNodesNoStart(nodeIdList, nodeIdCnt, timeout) == 0);
     NdbSleep_MilliSleep(myRandom48(maxsleep));
+
+    int err_master = 0;
+    int err_node[2] = { 0, 0 };
+
+    if (NR_error) {
+      err_master = errlst_master[l % errcnt_master];
+
+      // limitation: cannot have 2 node restarts and crash_insert
+      // one node may die for real (NF during startup)
+
+      for (int i = 0; i < nodeIdCnt && nodeIdCnt == 1; i++) {
+        err_node[i] = errlst_node[l % errcnt_node];
+
+        // 7176 - no DICT lock protection
+
+        if (err_node[i] == 7176) {
+          g_info << "1: no dict ops due to error insert "
+                 << err_node[i] << endl;
+          NR_ops = false;
+        }
+      }
+    }
 
     g_info << "1: " << (NR_ops ? "run" : "pause") << " dict ops" << endl;
     if (! send_dict_ops_cmd(ctx, NR_ops ? 1 : 2))
@@ -1689,23 +1712,17 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
 
     if (NR_error) {
       {
-        int rand = myRandom48(err_master_cnt);
-        int err = err_master[rand];
+        int err = err_master;
         if (err != 0) {
           g_info << "1: insert master error " << err << endl;
           CHECK(restarter.insertErrorInNode(masterNodeId, err) == 0);
         }
       }
 
-      // limitation: cannot have 2 node restarts and crash_insert
-      // one node may die for real (NF during startup)
+      for (int i = 0; i < nodeIdCnt; i++) {
+        int nodeId = nodeIdList[i];
 
-      int i = 0;
-      while (i < nodeIdCnt && nodeIdCnt == 1) {
-        int nodeId = nodeIdList[i++];
-
-        int rand = myRandom48(err_node_cnt);
-        int err = err_node[rand];
+        int err = err_node[i];
         if (err != 0) {
           g_info << "1: insert node " << nodeId << " error " << err << endl;
           CHECK(restarter.insertErrorInNode(nodeId, err) == 0);
@@ -1715,7 +1732,7 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
     NdbSleep_MilliSleep(myRandom48(maxsleep));
 
     g_info << "1: wait cluster started" << endl;
-    CHECK(restarter.waitClusterStarted() == 0);
+    CHECK(restarter.waitClusterStarted(timeout) == 0);
     NdbSleep_MilliSleep(myRandom48(maxsleep));
 
     g_info << "1: restart done" << endl;
