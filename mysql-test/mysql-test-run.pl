@@ -3407,7 +3407,7 @@ sub im_stop($) {
 
   # Try graceful shutdown.
 
-  mtr_kill_process($instance_manager->{'pid'}, 'TERM', 10, 1);
+  mtr_kill_process($instance_manager->{'pid'}, 'TERM', 10);
 
   # Check that all processes died.
 
@@ -3433,10 +3433,10 @@ sub im_stop($) {
 
   unless ($clean_shutdown)
   {
-    mtr_kill_process($instance_manager->{'angel_pid'}, 'KILL', 10, 1)
+    mtr_kill_process($instance_manager->{'angel_pid'}, 'KILL', 10)
       if defined $instance_manager->{'angel_pid'};
     
-    mtr_kill_process($instance_manager->{'pid'}, 'KILL', 10, 1);
+    mtr_kill_process($instance_manager->{'pid'}, 'KILL', 10);
 
     # Shutdown managed mysqld-processes. Some of them may be nonguarded, so IM
     # will not stop them on shutdown. So, we should firstly try to end them
