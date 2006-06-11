@@ -243,26 +243,22 @@ sub collect_one_test_case($$$$$$$) {
     if ( $::opt_skip_rpl )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No replication tests(--skip-rpl)";
       return;
     }
 
     $tinfo->{'slave_num'}= 1;           # Default, use one slave
 
-    # FIXME currently we always restart slaves
-    $tinfo->{'slave_restart'}= 1;
-
     if ( $tname eq 'rpl_failsafe' or $tname eq 'rpl_chain_temp_table' )
     {
-#      $tinfo->{'slave_num'}= 3;         # Not 3 ? Check old code, strange
+      # $tinfo->{'slave_num'}= 3;         # Not 3 ? Check old code, strange
     }
   }
 
   if ( defined mtr_match_prefix($tname,"federated") )
   {
-    $tinfo->{'slave_num'}= 1;           # Default, use one slave
-
-    # FIXME currently we always restart slaves
-    $tinfo->{'slave_restart'}= 1;
+    # Default, federated uses the first slave as it's federated database
+    $tinfo->{'slave_num'}= 1;
   }
 
   if ( $::opt_with_ndbcluster_all or defined mtr_match_substring($tname,"ndb") )
@@ -273,12 +269,14 @@ sub collect_one_test_case($$$$$$$) {
     {
       # All ndb test's should be skipped
       $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No ndbcluster test(--skip-ndbcluster)";
       return;
     }
     if ( ! $::opt_with_ndbcluster )
     {
       # Ndb is not supported, skip them
       $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No ndbcluster support";
       return;
     }
   }
@@ -383,6 +381,7 @@ sub collect_one_test_case($$$$$$$) {
     if ( $::glob_win32_perl )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No tests with sh scripts on Windows";
     }
     else
     {
@@ -396,6 +395,7 @@ sub collect_one_test_case($$$$$$$) {
     if ( $::glob_win32_perl )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No tests with sh scripts on Windows";
     }
     else
     {
@@ -433,26 +433,17 @@ sub collect_one_test_case($$$$$$$) {
     if ( $::glob_use_embedded_server )
     {
       $tinfo->{'skip'}= 1;
-      
-      mtr_report(
-        "Instance Manager tests are not available in embedded mode. " .
-        "Test case '$tname' is skipped.");
+      $tinfo->{'comment'}= "No IM with embedded server";
     }
     elsif ( $::opt_ps_protocol )
     {
       $tinfo->{'skip'}= 1;
-      
-      mtr_report(
-        "Instance Manager tests are not run with --ps-protocol. " .
-        "Test case '$tname' is skipped.");
+      $tinfo->{'comment'}= "No IM with --ps-protocol";
     }
     elsif ( $::opt_skip_im )
     {
       $tinfo->{'skip'}= 1;
-
-      mtr_report(
-        "Instance Manager executable is unavailable." .
-        "Test case '$tname' is skipped.");
+      $tinfo->{'comment'}= "No IM support avaliable";
     }
   }
   else
@@ -461,8 +452,10 @@ sub collect_one_test_case($$$$$$$) {
 
     if ( ! $tinfo->{'innodb_test'} )
     {
-      # mtr_report("Adding '--skip-innodb' to $tinfo->{'name'}");
-      push(@{$tinfo->{'master_opt'}}, "--skip-innodb");
+      # mtr_verbose("Adding '--skip-innodb' to $tinfo->{'name'}");
+      # FIXME activate the --skip-innodb only when running with
+      # selected test cases
+      # push(@{$tinfo->{'master_opt'}}, "--skip-innodb");
     }
   }
 
@@ -472,6 +465,7 @@ sub collect_one_test_case($$$$$$$) {
        ( $tinfo->{'master_restart'} or $tinfo->{'slave_restart'} ) )
   {
     $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= "Can't restart a running server";
   }
 
 }
