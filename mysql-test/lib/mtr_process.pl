@@ -496,7 +496,7 @@ sub mtr_kill_leftovers () {
 
   foreach my $srv ( @kill_pids )
   {
-    if ( mtr_ping_port($srv->{'port'}) )
+    if ( defined $srv->{'port'} and mtr_ping_port($srv->{'port'}) )
     {
       mtr_warning("can't kill old process holding port $srv->{'port'}");
     }
@@ -633,7 +633,7 @@ sub mtr_check_stop_servers ($) {
           foreach my $file ($srv->{'pidfile'}, $srv->{'sockfile'})
           {
             # Know it is dead so should be no race, careful anyway
-            if ( -f $file and ! unlink($file) and -f $file )
+            if ( defined $file and -f $file and ! unlink($file) and -f $file )
             {
               $errors++;
               mtr_warning("couldn't delete $file");
@@ -753,7 +753,8 @@ sub mtr_ping_with_timeout($) {
     foreach my $srv ( @$spec )
     {
       $res= 1;                          # We are optimistic
-      if ( $srv->{'pid'} and mtr_ping_port($srv->{'port'}) )
+      if ( $srv->{'pid'} and
+	   defined $srv->{'port'} and mtr_ping_port($srv->{'port'}) )
       {
         mtr_verbose("waiting for process $srv->{'pid'} to stop ".
 		   "using port $srv->{'port'}");
