@@ -683,6 +683,8 @@ select distinct a1 from t1 where a2 = 'b';
 # Test case moved to group_min_max_innodb
 
 
+drop table t1,t2,t3;
+
 #
 # Bug #14920 Ordering aggregated result sets with composite primary keys
 # corrupts resultset
