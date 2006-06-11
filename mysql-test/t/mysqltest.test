@@ -411,8 +411,8 @@ echo - MySQL: The world''s
 - source database;
 
 echo - MySQL: The world''s
--- most popular open
--- source database;
+-- most popular
+-- open source database;
 
 echo # MySQL: The
 --world''s
@@ -469,8 +469,8 @@ echo $message;
 
 let $message=  -- MySQL: The
 -- world''s most
--- popular open
--- source database;
+-- popular
+-- open source database;
 echo $message;
 
 let $message=  # MySQL: The
