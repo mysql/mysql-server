@@ -205,7 +205,7 @@ void Dbdict::execCONTINUEB(Signal* signal)
 
   case ZDICT_LOCK_POLL:
     jam();
-    checkDictLockQueue(signal);
+    checkDictLockQueue(signal, true);
     break;
 
   default :
@@ -2836,7 +2836,6 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   case BS_NODE_RESTART:
     jam();
     ok = true;
-    removeStaleDictLocks(signal, theFailedNodes);
     break;
   }
   ndbrequire(ok);
@@ -2859,6 +2858,15 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
       c_aliveNodes.clear(i);
     }//if
   }//for
+
+  /*
+   * NODE_FAILREP guarantees that no "in flight" signal from
+   * a dead node is accepted, and also that the job buffer contains
+   * no such (un-executed) signals.  Therefore no DICT_UNLOCK_ORD
+   * from a dead node (leading to master crash) is possible after
+   * this clean-up removes the lock record.
+   */
+  removeStaleDictLocks(signal, theFailedNodes);
 
 }//execNODE_FAILREP()
 
@@ -12210,7 +12218,7 @@ Dbdict::getIndexAttrMask(TableRecordPtr indexPtr, AttributeMask& mask)
 const Dbdict::DictLockType*
 Dbdict::getDictLockType(Uint32 lockType)
 {
-  static DictLockType lt[] = {
+  static const DictLockType lt[] = {
     { DictLockReq::NodeRestartLock, BS_NODE_RESTART, "NodeRestart" }
   };
   for (int i = 0; i < sizeof(lt)/sizeof(lt[0]); i++) {
@@ -12221,11 +12229,39 @@ Dbdict::getDictLockType(Uint32 lockType)
 }
 
 void
+Dbdict::sendDictLockInfoEvent(Uint32 pollCount)
+{
+  DictLockPtr loopPtr;
+  c_dictLockQueue.first(loopPtr);
+  unsigned count = 0;
+
+  char queue_buf[100];
+  char *p = &queue_buf[0];
+  const char *const q = &queue_buf[sizeof(queue_buf)];
+  *p = 0;
+
+  while (loopPtr.i != RNIL) {
+    jam();
+    my_snprintf(p, q-p, "%s%u%s",
+                ++count == 1 ? "" : " ",
+                (unsigned)refToNode(loopPtr.p->req.userRef),
+                loopPtr.p->locked ? "L" : "");
+    p += strlen(p);
+    c_dictLockQueue.next(loopPtr);
+  }
+
+  infoEvent("DICT: lock bs: %d ops: %d poll: %d cnt: %d queue: %s",
+      (int)c_blockState,
+      c_opRecordPool.getSize() - c_opRecordPool.getNoOfFree(),
+      c_dictLockPoll, (int)pollCount, queue_buf);
+}
+
+void
 Dbdict::sendDictLockInfoEvent(DictLockPtr lockPtr, const char* text)
 {
   infoEvent("DICT: %s %u for %s",
       text,
-      (unsigned int)refToNode(lockPtr.p->req.userRef), lockPtr.p->lt->text);
+      (unsigned)refToNode(lockPtr.p->req.userRef), lockPtr.p->lt->text);
 }
 
 void
@@ -12233,6 +12269,8 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
 {
   jamEntry();
   const DictLockReq* req = (const DictLockReq*)&signal->theData[0];
+
+  // make sure bad request crashes slave, not master (us)
 
   if (getOwnNodeId() != c_masterNodeId) {
     jam();
@@ -12247,6 +12285,19 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
     return;
   }
 
+  if (req->userRef != signal->getSendersBlockRef() ||
+      getNodeInfo(refToNode(req->userRef)).m_type != NodeInfo::DB) {
+    jam();
+    sendDictLockRef(signal, *req, DictLockRef::BadUserRef);
+    return;
+  }
+
+  if (c_aliveNodes.get(refToNode(req->userRef))) {
+    jam();
+    sendDictLockRef(signal, *req, DictLockRef::TooLate);
+    return;
+  }
+
   DictLockPtr lockPtr;
   if (! c_dictLockQueue.seize(lockPtr)) {
     jam();
@@ -12258,21 +12309,23 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
   lockPtr.p->locked = false;
   lockPtr.p->lt = lt;
 
-  checkDictLockQueue(signal);
+  checkDictLockQueue(signal, false);
 
   if (! lockPtr.p->locked)
     sendDictLockInfoEvent(lockPtr, "lock request by node");
 }
 
 void
-Dbdict::checkDictLockQueue(Signal* signal)
+Dbdict::checkDictLockQueue(Signal* signal, bool poll)
 {
+  Uint32 pollCount = ! poll ? 0 : signal->theData[1];
+
   DictLockPtr lockPtr;
 
   do {
     if (! c_dictLockQueue.first(lockPtr)) {
       jam();
-      setDictLockPoll(signal, false);
+      setDictLockPoll(signal, false, pollCount);
       return;
     }
 
@@ -12299,7 +12352,7 @@ Dbdict::checkDictLockQueue(Signal* signal)
   // this routine is called again when it is removed for any reason
 
   bool on = ! lockPtr.p->locked;
-  setDictLockPoll(signal, on);
+  setDictLockPoll(signal, on, pollCount);
 }
 
 void
@@ -12326,7 +12379,7 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
 
   c_dictLockQueue.release(lockPtr);
 
-  checkDictLockQueue(signal);
+  checkDictLockQueue(signal, false);
 }
 
 void
@@ -12359,21 +12412,32 @@ Dbdict::sendDictLockRef(Signal* signal, DictLockReq req, Uint32 errorCode)
 // control polling
 
 void
-Dbdict::setDictLockPoll(Signal* signal, bool on)
+Dbdict::setDictLockPoll(Signal* signal, bool on, Uint32 pollCount)
 {
   if (on) {
     jam();
     signal->theData[0] = ZDICT_LOCK_POLL;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
+    signal->theData[1] = pollCount + 1;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
   }
 
-  if (c_dictLockPoll != on) {
+  bool change = (c_dictLockPoll != on);
+
+  if (change) {
     jam();
-#ifdef VM_TRACE
-    infoEvent("DICT: lock polling %s", on ? "On" : "Off");
-#endif
     c_dictLockPoll = on;
   }
+
+  // avoid too many messages if master is stuck busy (BS_NODE_FAILURE)
+  bool periodic =
+    pollCount < 8 ||
+    pollCount < 64 && pollCount % 8 == 0 ||
+    pollCount < 512 && pollCount % 64 == 0 ||
+    pollCount < 4096 && pollCount % 512 == 0 ||
+    pollCount % 4096 == 0; // about every 6 minutes
+
+  if (change || periodic)
+    sendDictLockInfoEvent(pollCount);
 }
 
 // NF handling
@@ -12383,6 +12447,11 @@ Dbdict::removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes)
 {
   DictLockPtr loopPtr;
   c_dictLockQueue.first(loopPtr);
+
+  if (getOwnNodeId() != c_masterNodeId) {
+    ndbrequire(loopPtr.i == RNIL);
+    return;
+  }
 
   while (loopPtr.i != RNIL) {
     jam();
@@ -12409,7 +12478,7 @@ Dbdict::removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes)
     }
   }
 
-  checkDictLockQueue(signal);
+  checkDictLockQueue(signal, false);
 }
 
 

@@ -1804,14 +1804,15 @@ private:
   bool c_dictLockPoll;
 
   static const DictLockType* getDictLockType(Uint32 lockType);
+  void sendDictLockInfoEvent(Uint32 pollCount);
   void sendDictLockInfoEvent(DictLockPtr lockPtr, const char* text);
 
-  void checkDictLockQueue(Signal* signal);
+  void checkDictLockQueue(Signal* signal, bool poll);
   void sendDictLockConf(Signal* signal, DictLockPtr lockPtr);
   void sendDictLockRef(Signal* signal, DictLockReq req, Uint32 errorCode);
 
   // control polling i.e. continueB loop
-  void setDictLockPoll(Signal* signal, bool on);
+  void setDictLockPoll(Signal* signal, bool on, Uint32 pollCount);
 
   // NF handling
   void removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes);
