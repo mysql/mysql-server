@@ -329,6 +329,8 @@ our $file_ndb_testrun_log;
 
 our @data_dir_lst;
 
+our $used_binlog_format;
+
 ######################################################################
 #
 #  Function declarations
@@ -706,6 +708,21 @@ sub command_line_setup () {
       push(@opt_cases, $arg);
     }
   }
+
+  # --------------------------------------------------------------------------
+  # Find out type of logging that are being used
+  # --------------------------------------------------------------------------
+
+  # NOTE if the default binlog format is changed, this has to be changed
+  $used_binlog_format= "stmt";
+  foreach my $arg ( @opt_extra_mysqld_opt )
+  {
+    if ( defined mtr_match_substring($arg,"binlog-format=row"))
+    {
+      $used_binlog_format= "row";
+    }
+  }
+  mtr_report("Using binlog format '$used_binlog_format'");
 
   # --------------------------------------------------------------------------
   # Set the "var/" directory, as it is the base for everything else
