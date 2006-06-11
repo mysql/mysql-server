@@ -529,6 +529,9 @@ sub mtr_options_from_test_file($$) {
   {
     chomp;
 
+    # Skip all lines not starting with "--"
+    next if ( ! /^--/ );
+
     # Match this line against tag in "tags" array
     foreach my $tag (@tags)
     {
