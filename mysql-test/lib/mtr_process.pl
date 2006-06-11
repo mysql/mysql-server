@@ -25,7 +25,7 @@ sub sleep_until_file_created ($$$);
 sub mtr_kill_processes ($);
 sub mtr_ping_with_timeout($);
 sub mtr_ping_port ($);
-sub mtr_kill_process ($$$$);
+sub mtr_kill_process ($$$);
 
 # static in C
 sub spawn_impl ($$$$$$$$);
@@ -933,17 +933,16 @@ sub mtr_kill_processes ($) {
   {
     foreach my $sig (15, 9)
     {
-      last if mtr_kill_process($pid, $sig, 10, 1);
+      last if mtr_kill_process($pid, $sig, 10);
     }
   }
 }
 
 
-sub mtr_kill_process ($$$$) {
+sub mtr_kill_process ($$$) {
   my $pid= shift;
   my $signal= shift;
-  my $retries= shift;
-  my $timeout= shift;
+  my $timeout= shift; # Seconds to wait for process
   my $max_loop= $timeout*10; # Sleeping 0.1 between each kill attempt
 
   while (1)
@@ -952,7 +951,7 @@ sub mtr_kill_process ($$$$) {
 
     last unless kill (0, $pid) and $max_loop--;
 
-    mtr_verbose("Sleep 0.1 second waiting for processes to die");
+    mtr_verbose("Sleep 0.1 second waiting for processes $pid to die");
 
     select(undef, undef, undef, 0.1);
   }
