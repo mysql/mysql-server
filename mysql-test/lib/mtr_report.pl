@@ -108,7 +108,7 @@ sub mtr_report_test_passed ($) {
   if ( $::opt_timer and -f "$::opt_vardir/log/timer" )
   {
     $timer= mtr_fromfile("$::opt_vardir/log/timer");
-    $::glob_tot_real_time += $timer;
+    $::glob_tot_real_time += ($timer/1000);
     $timer= sprintf "%12s", $timer;
   }
   $tinfo->{'result'}= 'MTR_RES_PASSED';
@@ -204,7 +204,8 @@ sub mtr_report_stats ($) {
       "http://www.mysql.com/doc/en/MySQL_test_suite.html\n";
   }
   print
-    "The servers were restarted $tot_restarts times\n";
+      "The servers were restarted $tot_restarts times\n",
+      "Spent $::glob_tot_real_time seconds actually executing testcases\n";
 
   # ----------------------------------------------------------------------
   # If a debug run, there might be interesting information inside
