@@ -330,6 +330,8 @@ our $file_ndb_testrun_log;
 our @data_dir_lst;
 
 our $used_binlog_format;
+our $debug_compiled_binaries;
+our $glob_tot_real_time= 0;
 
 ######################################################################
 #
@@ -389,6 +391,7 @@ sub main () {
 
   check_ndbcluster_support(); # We check whether to actually use it later
   check_ssl_support();
+  check_debug_support();
 
   environment_setup();
   signal_setup();
@@ -1028,6 +1031,7 @@ sub command_line_setup () {
    connect_string  => "$opt_ndbconnectstring",
    path_pid        => "$data_dir/ndb_3.pid", # Nodes + 1
    pid             => 0, # pid of ndb_mgmd
+   installed_ok    => 'NO',
   };
 
   $data_dir= "$opt_vardir/ndbcluster-$opt_ndbcluster_port_slave";
@@ -1040,6 +1044,7 @@ sub command_line_setup () {
    connect_string  => "$opt_ndbconnectstring_slave",
    path_pid        => "$data_dir/ndb_2.pid", # Nodes + 1
    pid             => 0, # pid of ndb_mgmd
+   installed_ok    => 'NO',
   };
 
   # Init pids of ndbd's
@@ -1542,6 +1547,24 @@ sub check_ssl_support () {
   $opt_ssl_supported= 1;
 }
 
+
+sub check_debug_support () {
+
+  # check debug support by testing using a switch
+  # that is only available in that case
+  if ( mtr_run($exe_mysqld,
+	       ["--no-defaults",
+	        "--debug",
+	        "--help"],
+	       "", "/dev/null", "/dev/null", "") != 0 )
+  {
+    # mtr_report("Binaries are not debug compiled");
+    $debug_compiled_binaries= 0;
+    return;
+  }
+  mtr_report("Binaries are debug compiled");
+  $debug_compiled_binaries= 1;
+}
 
 ##############################################################################
 #

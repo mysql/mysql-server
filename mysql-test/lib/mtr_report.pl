@@ -204,8 +204,13 @@ sub mtr_report_stats ($) {
       "http://www.mysql.com/doc/en/MySQL_test_suite.html\n";
   }
   print
-      "The servers were restarted $tot_restarts times\n",
-      "Spent $::glob_tot_real_time seconds actually executing testcases\n";
+      "The servers were restarted $tot_restarts times\n";
+
+  if ( $::opt_timer )
+  {
+    print
+      "Spent $::glob_tot_real_time seconds actually executing testcases\n"
+  }
 
   # ----------------------------------------------------------------------
   # If a debug run, there might be interesting information inside
