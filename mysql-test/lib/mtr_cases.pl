@@ -10,6 +10,8 @@ use strict;
 sub collect_test_cases ($);
 sub collect_one_test_case ($$$$$$$);
 
+sub mtr_options_from_test_file($$);
+
 ##############################################################################
 #
 #  Collect information about test cases we are to run
@@ -482,6 +484,12 @@ sub collect_one_test_case($$$$$$$) {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Not running with binlog format '$tinfo->{'binlog_format'}'";
     }
+
+    if ( $tinfo->{'need_debug'} && $::debug_compiled_binaries )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test need debug binaries";
+    }
   }
 
   # We can't restart a running server that may be in use
@@ -496,66 +504,53 @@ sub collect_one_test_case($$$$$$$) {
 }
 
 
-sub mtr_options_from_test_file($$$) {
+use IO::File;
+
+# List of tags in the .test files that if found should set
+# the specified value in "tinfo"
+our @tags=
+(
+ ["include/have_innodb.inc", "innodb_test", 1],
+ ["include/have_binlog_format_row.inc", "binlog_format", "row"],
+ ["include/have_binlog_format_statement.inc", "binlog_format", "stmt"],
+ ["include/big_test.inc", "big_test", 1],
+ ["include/have_debug.inc", "need_debug", 1],
+ ["include/have_ndb_extra.inc", "ndb_extra", 1],
+ ["require_manager", "require_manager", 1],
+);
+
+sub mtr_options_from_test_file($$) {
   my $tinfo= shift;
   my $file= shift;
+  #mtr_verbose("$file");
+  my $F= IO::File->new($file) or mtr_error("can't open file \"$file\": $!");
 
-  open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
-  my @args;
-  while ( <FILE> )
+  while ( <$F> )
   {
     chomp;
 
-    # Check if test uses innodb
-    if ( defined mtr_match_substring($_,"include/have_innodb.inc"))
+    # Match this line against tag in "tags" array
+    foreach my $tag (@tags)
     {
-      $tinfo->{'innodb_test'} = 1;
-    }
-
-    # Check if test need rowbased logging
-    if ( defined mtr_match_substring($_,"include/have_binlog_format_row.inc"))
-    {
-      $tinfo->{'binlog_format'} = "row";
-    }
-
-    # Check if test need rowbased logging
-    if ( defined mtr_match_substring($_,"include/have_binlog_format_statement.inc"))
-    {
-      $tinfo->{'binlog_format'} = "stmt";
-    }
-
-    # Check if test need "big test"
-    if ( defined mtr_match_substring($_,"include/big_test.inc"))
-    {
-      $tinfo->{'big_test'} = 1;
-    }
-
-    # Check if test need "ndb_extra"
-    if ( defined mtr_match_substring($_,"include/have_ndb_extra.inc"))
-    {
-      $tinfo->{'ndb_extra'} = 1;
-    }
-
-    # Check if test need "manager", the old one
-    if ( defined mtr_match_substring($_,"require_manager;"))
-    {
-      $tinfo->{'require_manager'} = 1;
+      if ( $_ =~ /(.*)\Q$tag->[0]\E(.*)$/ )
+      {
+	# Tag matched, assign value to "tinfo"
+	$tinfo->{"$tag->[1]"}= $tag->[2];
+      }
     }
 
     # If test sources another file, open it as well
-    my $value= mtr_match_prefix($_, "--source");
-    if ( defined $value)
+    if ( /^--([[:space:]]*)source/ )
     {
-      $value=~ s/^\s+//;  # Remove leading space
-      $value=~ s/\s+$//;  # Remove ending space
+      my $value= $';
+      $value =~ s/^\s+//;  # Remove leading space
+      $value =~ s/\s+$//;  # Remove ending space
 
       my $sourced_file= "$::glob_mysql_test_dir/$value";
       mtr_options_from_test_file($tinfo, $sourced_file);
     }
 
   }
-  close FILE;
-
 }
 
 1;
