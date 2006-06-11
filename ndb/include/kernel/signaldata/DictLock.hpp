@@ -55,7 +55,9 @@ public:
   enum ErrorCode {
     NotMaster = 1,
     InvalidLockType = 2,
-    TooManyRequests = 3
+    BadUserRef = 3,
+    TooLate = 4,
+    TooManyRequests = 5
   };
 private:
   Uint32 userPtr;
