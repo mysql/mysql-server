@@ -97,7 +97,7 @@ sub mtr_report_test_skipped ($) {
   }
   else
   {
-    print "[ skipped ]  $tinfo->{'comment'}\n";
+    print "[ skipped ]   $tinfo->{'comment'}\n";
   }
 }
 
