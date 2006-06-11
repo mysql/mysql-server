@@ -457,6 +457,31 @@ sub collect_one_test_case($$$$$$$) {
       # selected test cases
       # push(@{$tinfo->{'master_opt'}}, "--skip-innodb");
     }
+
+    if ( $tinfo->{'big_test'} and ! $::opt_big_test )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test need 'big-test' option";
+    }
+
+    if ( $tinfo->{'ndb_extra'} and ! $::opt_ndb_extra_test )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test need 'ndb_extra' option";
+    }
+
+    if ( $tinfo->{'require_manager'} )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test need the _old_ manager(to be removed)";
+    }
+
+    if ( defined $tinfo->{'binlog_format'} and
+	 ! ( $tinfo->{'binlog_format'} eq $::used_binlog_format ) )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Not running with binlog format '$tinfo->{'binlog_format'}'";
+    }
   }
 
   # We can't restart a running server that may be in use
@@ -469,6 +494,7 @@ sub collect_one_test_case($$$$$$$) {
   }
 
 }
+
 
 sub mtr_options_from_test_file($$$) {
   my $tinfo= shift;
@@ -484,6 +510,36 @@ sub mtr_options_from_test_file($$$) {
     if ( defined mtr_match_substring($_,"include/have_innodb.inc"))
     {
       $tinfo->{'innodb_test'} = 1;
+    }
+
+    # Check if test need rowbased logging
+    if ( defined mtr_match_substring($_,"include/have_binlog_format_row.inc"))
+    {
+      $tinfo->{'binlog_format'} = "row";
+    }
+
+    # Check if test need rowbased logging
+    if ( defined mtr_match_substring($_,"include/have_binlog_format_statement.inc"))
+    {
+      $tinfo->{'binlog_format'} = "stmt";
+    }
+
+    # Check if test need "big test"
+    if ( defined mtr_match_substring($_,"include/big_test.inc"))
+    {
+      $tinfo->{'big_test'} = 1;
+    }
+
+    # Check if test need "ndb_extra"
+    if ( defined mtr_match_substring($_,"include/have_ndb_extra.inc"))
+    {
+      $tinfo->{'ndb_extra'} = 1;
+    }
+
+    # Check if test need "manager", the old one
+    if ( defined mtr_match_substring($_,"require_manager;"))
+    {
+      $tinfo->{'require_manager'} = 1;
     }
 
     # If test sources another file, open it as well
