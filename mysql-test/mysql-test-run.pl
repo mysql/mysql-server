@@ -900,7 +900,7 @@ sub command_line_setup () {
    port   =>  $opt_master_myport,
    start_timeout =>  400, # enough time create innodb tables
    cluster       =>  0, # index in clusters list
-   master_opt    => [],
+   start_opts    => [],
   };
 
   $master->[1]=
@@ -915,6 +915,7 @@ sub command_line_setup () {
    port   => $opt_master_myport + 1,
    start_timeout => 400, # enough time create innodb tables
    cluster       =>  0, # index in clusters list
+   start_opts    => [],
   };
 
   $slave->[0]=
@@ -930,6 +931,7 @@ sub command_line_setup () {
    start_timeout => 400,
 
    cluster       =>  1, # index in clusters list
+   start_opts    => [],
   };
 
   $slave->[1]=
@@ -944,6 +946,7 @@ sub command_line_setup () {
    port   => $opt_slave_myport + 1,
    start_timeout => 300,
    cluster       =>  -1, # index in clusters list
+   start_opts    => [],
   };
 
   $slave->[2]=
@@ -958,6 +961,7 @@ sub command_line_setup () {
    port   => $opt_slave_myport + 2,
    start_timeout => 300,
    cluster       =>  -1, # index in clusters list
+   start_opts    => [],
   };
 
   $instance_manager=
@@ -2262,6 +2266,8 @@ sub run_testcase ($) {
     elsif ( $res == 62 )
     {
       # Testcase itself tell us to skip this one
+      # FIXME get reason to skip from mysqltest
+      $tinfo->{'comment'}= "Detected by testcase";
       mtr_report_test_skipped($tinfo);
     }
     elsif ( $res == 63 )
@@ -2361,7 +2367,6 @@ sub restore_installed_db ($) {
     {
       foreach my $ndbd (@{$cluster->{'ndbds'}})
       {
-	mtr_verbose("$ndbd->{'path_fs'}" );
 	rmtree("$ndbd->{'path_fs'}" );
       }
     }
@@ -2372,7 +2377,6 @@ sub restore_installed_db ($) {
     mtr_error("No snapshot existed");
   }
 }
-
 
 sub report_failure_and_restart ($) {
   my $tinfo= shift;
@@ -2831,6 +2835,10 @@ sub mysqld_start ($$$) {
 
   # Remember pid of the started process
   $mysqld->{'pid'}= $pid;
+
+  # Remember options used when starting
+  $mysqld->{'start_opts'}= $extra_opt;
+
   mtr_verbose("mysqld pid: $pid");
   return $pid;
 }
@@ -2930,27 +2938,27 @@ sub run_testcase_stop_servers($) {
       return;
   }
 
-  # We try to find out if we are to restart the server
+  # We try to find out if we are to restart the master(s)
   my $do_restart= 0;          # Assumes we don't have to
 
   if ( $tinfo->{'master_sh'} )
   {
     $do_restart= 1;           # Always restart if script to run
-    mtr_report("Restart because: Always restart if script to run");
+    mtr_verbose("Restart because: Always restart if script to run");
   }
   elsif ( $opt_with_ndbcluster and
 	  $tinfo->{'ndb_test'} == 0 and
 	  $clusters->[0]->{'pid'} != 0 )
   {
     $do_restart= 1;           # Restart without cluster
-    mtr_report("Restart because: Test does not need cluster");
+    mtr_verbose("Restart because: Test does not need cluster");
   }
   elsif ( $opt_with_ndbcluster and
 	  $tinfo->{'ndb_test'} == 1 and
 	  $clusters->[0]->{'pid'} == 0 )
   {
     $do_restart= 1;           # Restart with cluster
-    mtr_report("Restart because: Test need cluster");
+    mtr_verbose("Restart because: Test need cluster");
   }
   elsif ( $master->[0]->{'running_master_is_special'} and
 	  $master->[0]->{'running_master_is_special'}->{'timezone'} eq
@@ -2959,24 +2967,30 @@ sub run_testcase_stop_servers($) {
 			$tinfo->{'master_opt'}) )
   {
     # If running master was started with special settings, but
-    # the current test requuires the same ones, we *don't* restart.
+    # the current test requires the same ones, we *don't* restart.
     $do_restart= 0;
-    mtr_report("Skip restart: options are equal " .
+    mtr_verbose("Skip restart: options are equal " .
 	       join(" ", @{$tinfo->{'master_opt'}}));
   }
-  elsif ( $tinfo->{'master_restart'} or
-	  $master->[0]->{'running_master_is_special'} )
+  elsif ( $tinfo->{'master_restart'} )
   {
     $do_restart= 1;
-    mtr_report("Restart because: master_restart or running_master_is_special");
+    mtr_verbose("Restart because: master_restart");
+  }
+  elsif ( $master->[0]->{'running_master_is_special'} )
+  {
+    $do_restart= 1;
+    mtr_verbose("Restart because: running_master_is_special");
   }
   # Check that running master was started with same options
   # as the current test requires
-  elsif (! mtr_same_opts($master->[0]->{'master_opt'},
+  elsif (! mtr_same_opts($master->[0]->{'start_opts'},
                          $tinfo->{'master_opt'}) )
   {
     $do_restart= 1;
-    mtr_report("Restart because: running with different options");
+    mtr_verbose("Restart because: running with different options '" .
+	       join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
+		join(" ", @{$master->[0]->{'start_opts'}}) . "'" );
   }
 
   my $pid;
@@ -3036,56 +3050,110 @@ sub run_testcase_stop_servers($) {
     }
   }
 
+  # We try to find out if we are to restart the slaves
+  my $do_slave_restart= 0;     # Assumes we don't have to
 
-  # ----------------------------------------------------------------------
-  # Always terminate all slaves, if any. Else we may have useless
-  # reconnection attempts and error messages in case the slave and
-  # master servers restart.
-  # ----------------------------------------------------------------------
+  # FIXME only restaret when necessary
+  $do_slave_restart= 1;
 
-  # Start shutdown of all started slaves
-  foreach my $mysqld (@{$slave})
+#   if ( ! $slave->[0]->{'pid'} )
+#   {
+#     # mtr_verbose("Slave not started, no need to check slave restart");
+#   }
+#   elsif ( $do_restart )
+#   {
+#     $do_slave_restart= 1;      # Always restart if master restart
+#     mtr_verbose("Restart slave because: Master restart");
+#   }
+#   elsif ( $tinfo->{'slave_sh'} )
+#   {
+#     $do_slave_restart= 1;      # Always restart if script to run
+#     mtr_verbose("Restart slave because: Always restart if script to run");
+#   }
+#   elsif ( $opt_with_ndbcluster and
+# 	  $tinfo->{'ndb_test'} == 0 and
+# 	  $clusters->[1]->{'pid'} != 0 )
+#   {
+#     $do_slave_restart= 1;       # Restart without slave cluster
+#     mtr_verbose("Restart slave because: Test does not need slave cluster");
+#   }
+#   elsif ( $opt_with_ndbcluster and
+# 	  $tinfo->{'ndb_test'} == 1 and
+# 	  $clusters->[1]->{'pid'} == 0 )
+#   {
+#     $do_slave_restart= 1;       # Restart with slave cluster
+#     mtr_verbose("Restart slave because: Test need slave cluster");
+#   }
+#   elsif ( $tinfo->{'slave_restart'} )
+#   {
+#     $do_slave_restart= 1;
+#     mtr_verbose("Restart slave because: slave_restart");
+#   }
+#   elsif ( $slave->[0]->{'running_slave_is_special'} )
+#   {
+#     $do_slave_restart= 1;
+#     mtr_verbose("Restart slave because: running_slave_is_special");
+#   }
+#   # Check that running slave was started with same options
+#   # as the current test requires
+#   elsif (! mtr_same_opts($slave->[0]->{'start_opts'},
+#                          $tinfo->{'slave_opt'}) )
+#   {
+#     $do_slave_restart= 1;
+#     mtr_verbose("Restart slave because: running with different options '" .
+# 	       join(" ", @{$tinfo->{'slave_opt'}}) . "' != '" .
+# 		join(" ", @{$slave->[0]->{'start_opts'}}) . "'" );
+#   }
+
+  if ( $do_slave_restart )
   {
-    if ( $mysqld->{'pid'} )
+
+    delete $slave->[0]->{'running_slave_is_special'}; # Forget history
+
+    # Start shutdown of all started slaves
+    foreach my $mysqld (@{$slave})
     {
-      $pid= mtr_mysqladmin_start($mysqld, "shutdown", 70);
+      if ( $mysqld->{'pid'} )
+      {
+	$pid= mtr_mysqladmin_start($mysqld, "shutdown", 70);
+
+	$admin_pids{$pid}= 1;
+
+	push(@kill_pids,{
+			 pid      => $mysqld->{'pid'},
+			 pidfile  => $mysqld->{'path_pid'},
+			 sockfile => $mysqld->{'path_sock'},
+			 port     => $mysqld->{'port'},
+			});
+
+
+	$mysqld->{'pid'}= 0; # Assume we are done with it
+      }
+    }
+
+    # Start shutdown of slave cluster
+    my $cluster= $clusters->[1];
+    if ( $cluster->{'pid'} )
+    {
+      $pid= mtr_ndbmgm_start($cluster, "shutdown");
 
       $admin_pids{$pid}= 1;
 
       push(@kill_pids,{
-		       pid      => $mysqld->{'pid'},
-		       pidfile  => $mysqld->{'path_pid'},
-		       sockfile => $mysqld->{'path_sock'},
-		       port     => $mysqld->{'port'},
+		       pid      => $cluster->{'pid'},
+		       pidfile  => $cluster->{'path_pid'}
 		      });
 
+      $cluster->{'pid'}= 0; # Assume we are done with it
 
-      $mysqld->{'pid'}= 0; # Assume we are done with it
-    }
-  }
-
-  # Start shutdown of slave cluster
-  my $cluster= $clusters->[1];
-  if ( $cluster->{'pid'} )
-  {
-    $pid= mtr_ndbmgm_start($cluster, "shutdown");
-
-    $admin_pids{$pid}= 1;
-
-    push(@kill_pids,{
-		     pid      => $cluster->{'pid'},
-		     pidfile  => $cluster->{'path_pid'}
-		    });
-
-    $cluster->{'pid'}= 0; # Assume we are done with it
-
-    foreach my $ndbd (@{$cluster->{'ndbds'}} )
-    {
-      push(@kill_pids,{
-		       pid      => $ndbd->{'pid'},
-		       pidfile  => $ndbd->{'path_pid'},
-		      });
-      $ndbd->{'pid'}= 0; # Assume we are done with it
+      foreach my $ndbd (@{$cluster->{'ndbds'}} )
+      {
+	push(@kill_pids,{
+			 pid      => $ndbd->{'pid'},
+			 pidfile  => $ndbd->{'path_pid'},
+			});
+	$ndbd->{'pid'}= 0; # Assume we are done with it
+      }
     }
   }
 
@@ -3138,13 +3206,12 @@ sub run_testcase_start_servers($) {
 
       mysqld_start($master->[0],$tinfo->{'master_opt'},[]);
 
-      # Remember options used to start
-      $master->[0]->{'master_opt'}= $tinfo->{'master_opt'};
     }
 
     if ( $clusters->[0]->{'pid'} and ! $master->[1]->{'pid'} )
     {
       # Test needs cluster, start an extra mysqld connected to cluster
+
       # First wait for first mysql server to have created ndb system tables ok
       # FIXME This is a workaround so that only one mysqld creates the tables
       if ( ! sleep_until_file_created(
@@ -3202,8 +3269,16 @@ sub run_testcase_start_servers($) {
       {
 	mysqld_start($slave->[$idx],$tinfo->{'slave_opt'},
 		     $tinfo->{'slave_mi'});
+
       }
     }
+
+    if ( $tinfo->{'slave_restart'} )
+    {
+      # Save this test case information, so next can examine it
+      $slave->[0]->{'running_slave_is_special'}= $tinfo;
+    }
+
   }
 
   # Wait for clusters to start
