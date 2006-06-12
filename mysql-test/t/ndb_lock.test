@@ -71,9 +71,9 @@ drop table t1;
 
 # Lock for update
 
-create table t1 (x integer not null primary key, y varchar(32)) engine = ndb;
+create table t1 (x integer not null primary key, y varchar(32), z integer, key(z)) engine = ndb;
 
-insert into t1 values (1,'one'), (2,'two'),(3,"three"); 
+insert into t1 values (1,'one',1), (2,'two',2),(3,"three",3); 
 
 # PK access
 connection con1;
@@ -90,7 +90,7 @@ rollback;
 connection con1;
 commit;
 
-# scan
+# table scan
 connection con1;
 begin;
 select * from t1 where y = 'one' or y = 'three' for update;
@@ -102,6 +102,23 @@ begin;
 select * from t1 where x = 2 for update;
 --error 1205
 select * from t1 where x = 1 for update;
+rollback;
+
+connection con1;
+commit;
+
+# index scan
+connection con1;
+begin;
+select * from t1 where z > 1 and z < 3 for update;
+
+connection con2;
+begin;
+# Have to check with pk access here since scans take locks on
+# all rows and then release them in chunks
+select * from t1 where x = 1 for update;
+--error 1205
+select * from t1 where x = 2 for update;
 rollback;
 
 connection con1;
@@ -125,7 +142,7 @@ rollback;
 connection con1;
 commit;
 
-# scan
+# table scan
 connection con1;
 begin;
 select * from t1 where y = 'one' or y = 'three' lock in share mode;
@@ -138,6 +155,24 @@ select * from t1 where y = 'one' lock in share mode;
 select * from t1 where x = 2 for update;
 --error 1205
 select * from t1 where x = 1 for update;
+rollback;
+
+connection con1;
+commit;
+
+# index scan
+connection con1;
+begin;
+select * from t1 where z > 1 and z < 3 lock in share mode;
+
+connection con2;
+begin;
+select * from t1 where z = 1 lock in share mode;
+# Have to check with pk access here since scans take locks on
+# all rows and then release them in chunks
+select * from t1 where x = 1 for update;
+--error 1205
+select * from t1 where x = 2 for update;
 rollback;
 
 connection con1;
