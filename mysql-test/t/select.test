@@ -2248,4 +2248,18 @@ insert into t2 values(1,1);
 select * from t1 where f1 in (select f3 from t2 where (f3,f4)= (select f3,f4 from t2)); 
 drop table t1,t2;
 
+#
+# Bug #4981: 4.x and 5.x produce non-optimal execution path, 3.23 regression test failure
+#
+CREATE TABLE t1(a int, b int, c int, KEY b(b), KEY c(c));
+insert into t1 values (1,0,0),(2,0,0);
+CREATE TABLE t2 (a int, b varchar(2), c varchar(2), PRIMARY KEY(a));
+insert into t2 values (1,'',''), (2,'','');
+CREATE TABLE t3 (a int, b int, PRIMARY KEY (a,b), KEY a (a), KEY b (b));
+insert into t3 values (1,1),(1,2);
+# must have "range checked" for t2
+explain select straight_join DISTINCT t2.a,t2.b, t1.c from t1, t3, t2 
+ where (t1.c=t2.a or (t1.c=t3.a and t2.a=t3.b)) and t1.b=556476786 and 
+       t2.b like '%%' order by t2.b limit 0,1;
+DROP TABLE t1,t2,t3;
 # End of 4.1 tests
