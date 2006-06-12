@@ -67,6 +67,9 @@ private:
 
   static Uint32 getNRScanFlag(const Uint32 & requestInfo);
   static void setNRScanFlag(Uint32 & requestInfo, Uint32 nr);
+
+  static Uint32 getLcpScanFlag(const Uint32 & requestInfo);
+  static void setLcpScanFlag(Uint32 & requestInfo, Uint32 nr);
 };
 
 /**
@@ -77,6 +80,7 @@ private:
  * z = Descending (TUX)      - 1  Bit 6
  * d = No disk scan          - 1  Bit 7
  * n = Node recovery scan    - 1  Bit 8
+ * c = LCP scan              - 1  Bit 9
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
@@ -88,6 +92,7 @@ private:
 #define AS_DESCENDING_SHIFT      (6)
 #define AS_NO_DISK_SCAN          (7)
 #define AS_NR_SCAN               (8)
+#define AS_LCP_SCAN              (9)
 
 inline 
 Uint32
@@ -152,6 +157,19 @@ void
 AccScanReq::setNRScanFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "AccScanReq::setNoDiskScanFlag");
   requestInfo |= (val << AS_NR_SCAN);
+}
+
+inline
+Uint32
+AccScanReq::getLcpScanFlag(const Uint32 & requestInfo){
+  return (requestInfo >> AS_LCP_SCAN) & 1;
+}
+
+inline
+void
+AccScanReq::setLcpScanFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "AccScanReq::setNoDiskScanFlag");
+  requestInfo |= (val << AS_LCP_SCAN);
 }
 
 class AccScanConf {
