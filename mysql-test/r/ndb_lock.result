@@ -83,9 +83,6 @@ x	y	z
 3	three	3
 1	one	1
 begin;
-select * from t1 where x = 2 for update;
-x	y	z
-2	two	2
 select * from t1 where x = 1 for update;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 rollback;
@@ -126,9 +123,6 @@ begin;
 select * from t1 where y = 'one' lock in share mode;
 x	y	z
 1	one	1
-select * from t1 where x = 2 for update;
-x	y	z
-2	two	2
 select * from t1 where x = 1 for update;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 rollback;
