@@ -485,7 +485,7 @@ sub collect_one_test_case($$$$$$$) {
       $tinfo->{'comment'}= "Not running with binlog format '$tinfo->{'binlog_format'}'";
     }
 
-    if ( $tinfo->{'need_debug'} && $::debug_compiled_binaries )
+    if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Test need debug binaries";
