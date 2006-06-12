@@ -1208,6 +1208,7 @@ typedef struct st_lock_param_type
   ulonglong deleted;
   THD *thd;
   HA_CREATE_INFO *create_info;
+  ALTER_INFO *alter_info;
   List<create_field> *create_list;
   List<create_field> new_create_list;
   List<Key> *key_list;
