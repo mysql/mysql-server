@@ -5742,7 +5742,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          be no new threads accessing the table. They will be hanging on the
          name lock.
       5) Close all tables that have already been opened but didn't stumble on
-         the abort locked previously.
+         the abort locked previously. This is done as part of the
+         get_name_lock call.
       6) We are now ready to release all locks we got in this thread.
       7) Write the bin log
          Unfortunately the writing of the binlog is not synchronised with
@@ -5817,15 +5818,24 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       3) Lock all partitions in TL_WRITE_ONLY to ensure that no users
          are still using the old partitioning scheme. Wait until all
          ongoing users have completed before progressing.
-      4) Write binlog
-      5) Now the change is completed except for the installation of the
+      4) Get a name lock on the table. This ensures that we can release all
+         locks on the table and since no one can open the table, there can
+         be no new threads accessing the table. They will be hanging on the
+         name lock.
+      5) Close all tables that have already been opened but didn't stumble on
+         the abort locked previously. This is done as part of the
+         get_name_lock call.
+      6) Close all table handlers and unlock all handlers but retain name lock
+      7) Write binlog
+      8) Now the change is completed except for the installation of the
          new frm file. We thus write an action in the log to change to
          the shadow frm file
-      6) Install the new frm file of the table where the partitions are
+      9) Install the new frm file of the table where the partitions are
          added to the table.
-      7) Wait until all accesses using the old frm file has completed
-      8) Remove entries from ddl log
-      9) Complete query
+      10)Wait until all accesses using the old frm file has completed
+      11)Remove entries from ddl log
+      12)Release name lock
+      13)Complete query
     */
     if (write_log_add_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_1") ||
@@ -5905,7 +5915,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       7) Close all tables opened but not yet locked, after this call we are
          certain that no other thread is in the lock wait queue or has
          opened the table. The name lock will ensure that they are blocked
-         on the open call.
+         on the open call. This is achieved also by get_name_lock call.
       8) Close all partitions opened by this thread, but retain name lock.
       9) Write bin log
       10) Prepare handlers for rename and delete of partitions
