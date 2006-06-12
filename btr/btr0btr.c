@@ -2509,6 +2509,11 @@ btr_discard_page(
 
 		ut_ad(page_rec_is_user_rec(node_ptr));
 
+		/* This will make page_zip_validate() fail on merge_page
+		until btr_level_list_remove() completes.  This is harmless,
+		because everything will take place within a single
+		mini-transaction and because writing to the redo log
+		is an atomic operation (performed by mtr_commit()). */
 		btr_set_min_rec_mark(node_ptr, mtr);
 	}
 
@@ -2516,6 +2521,14 @@ btr_discard_page(
 
 	/* Remove the page from the level list */
 	btr_level_list_remove(tree, page, mtr);
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	{
+		page_zip_des_t*	merge_page_zip = buf_block_get_page_zip(
+						buf_block_align(merge_page));
+		ut_a(!merge_page_zip
+			|| page_zip_validate(merge_page_zip, merge_page));
+	}
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	if (left_page_no != FIL_NULL) {
 		lock_update_discard(page_get_supremum_rec(merge_page), page);

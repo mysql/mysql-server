@@ -831,7 +831,7 @@ page_delete_rec_list_end(
 	rec_t*		last_rec;
 	rec_t*		prev_rec;
 	ulint		n_owned;
-	page_t*		page;
+	page_t*		page		= ut_align_down(rec, UNIV_PAGE_SIZE);
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -839,6 +839,9 @@ page_delete_rec_list_end(
 
 	ut_ad(size == ULINT_UNDEFINED || size < UNIV_PAGE_SIZE);
 	ut_ad(!page_zip || page_rec_is_comp(rec));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
 		rec = page_rec_get_next(rec);
@@ -852,7 +855,6 @@ page_delete_rec_list_end(
 	/* Reset the last insert info in the page header and increment
 	the modify clock for the frame */
 
-	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 	page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, NULL);
 
 	/* The page gets invalid for optimistic searches: increment the
@@ -1004,6 +1006,10 @@ page_delete_rec_list_start(
 
 	ut_ad((ibool) !!page_rec_is_comp(rec)
 			== dict_table_is_comp(index->table));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip,
+			ut_align_down(rec, UNIV_PAGE_SIZE)));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
 

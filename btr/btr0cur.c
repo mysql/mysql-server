@@ -1766,6 +1766,9 @@ btr_cur_optimistic_update(
 	new_rec_size = rec_get_converted_size(index, new_entry);
 
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	if (UNIV_LIKELY_NULL(page_zip)
 			&& !page_zip_alloc(page_zip, page, index,
@@ -1968,6 +1971,9 @@ btr_cur_pessimistic_update(
 							MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	optim_err = btr_cur_optimistic_update(flags, cursor, update,
 							cmpl_info, thr, mtr);
@@ -2085,6 +2091,9 @@ btr_cur_pessimistic_update(
 
 	btr_search_update_hash_on_delete(cursor);
 
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 	page_cur_delete_rec(page_cursor, index, offsets, page_zip, mtr);
 
 	page_cur_move_to_prev(page_cursor);
@@ -2604,17 +2613,24 @@ btr_cur_optimistic_delete(
 
 	if (no_compress_needed) {
 
+		page_zip_des_t*	page_zip;
+
 		lock_update_delete(rec);
 
 		btr_search_update_hash_on_delete(cursor);
 
 		max_ins_size = page_get_max_insert_size_after_reorganize(page,
 									1);
+		page_zip = buf_block_get_page_zip(buf_block_align(
+					btr_cur_get_rec(cursor)));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUGp
+		ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 		page_cur_delete_rec(btr_cur_get_page_cur(cursor),
-				cursor->index, offsets,
-				buf_block_get_page_zip(buf_block_align(
-					btr_cur_get_rec(cursor))),
-				mtr);
+				cursor->index, offsets, page_zip, mtr);
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUGp
+		ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 		ibuf_update_free_bits_low(cursor->index, page, max_ins_size,
 									mtr);
@@ -2695,6 +2711,9 @@ btr_cur_pessimistic_delete(
 	heap = mem_heap_create(1024);
 	rec = btr_cur_get_rec(cursor);
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	offsets = rec_get_offsets(rec, cursor->index,
 					NULL, ULINT_UNDEFINED, &heap);
@@ -2707,6 +2726,9 @@ btr_cur_pessimistic_delete(
 			|| !rec_get_1byte_offs_flag(rec))) {
 		btr_rec_free_externally_stored_fields(cursor->index, rec,
 					offsets, page_zip, in_rollback, mtr);
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUGp
+		ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 	}
 
 	if (UNIV_UNLIKELY(page_get_n_recs(page) < 2)
@@ -2739,6 +2761,11 @@ btr_cur_pessimistic_delete(
 			non-leaf level, we must mark the new leftmost node
 			pointer as the predefined minimum record */
 
+			/* This will make page_zip_validate() fail until
+			page_cur_delete_rec() completes.  This is harmless,
+			because everything will take place within a single
+			mini-transaction and because writing to the redo log
+			is an atomic operation (performed by mtr_commit()). */
 			btr_set_min_rec_mark(next_rec, mtr);
 		} else {
 			/* Otherwise, if we delete the leftmost node pointer
@@ -2762,6 +2789,9 @@ btr_cur_pessimistic_delete(
 
 	page_cur_delete_rec(btr_cur_get_page_cur(cursor), cursor->index,
 						offsets, page_zip, mtr);
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUGp
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	ut_ad(btr_check_node_ptr(tree, page, mtr));
 
