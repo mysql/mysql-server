@@ -628,6 +628,7 @@ class ha_ndbcluster: public handler
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();
   int external_lock(THD *thd, int lock_type);
+  void unlock_row();
   int start_stmt(THD *thd, thr_lock_type lock_type);
   void print_error(int error, myf errflag);
   const char * table_type() const;
@@ -855,6 +856,7 @@ private:
   char m_tabname[FN_HEADLEN];
   ulong m_table_flags;
   THR_LOCK_DATA m_lock;
+  bool m_lock_tuple;
   NDB_SHARE *m_share;
   NDB_INDEX_DATA  m_index[MAX_KEY];
   THD_NDB_SHARE *m_thd_ndb_share;
