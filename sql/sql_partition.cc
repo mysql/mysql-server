@@ -1675,6 +1675,7 @@ static int add_partition_options(File fptr, partition_element *p_elem)
 {
   int err= 0;
 
+  err+= add_space(fptr);
   if (p_elem->tablespace_name)
     err+= add_keyword_string(fptr,"TABLESPACE", FALSE,
                              p_elem->tablespace_name);
@@ -1702,7 +1703,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
 
   if (part_info->part_type == RANGE_PARTITION)
   {
-    err+= add_string(fptr, "VALUES LESS THAN ");
+    err+= add_string(fptr, " VALUES LESS THAN ");
     if (p_elem->range_value != LONGLONG_MAX)
     {
       err+= add_begin_parenthesis(fptr);
@@ -1716,7 +1717,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
   {
     uint i;
     List_iterator<longlong> list_val_it(p_elem->list_val_list);
-    err+= add_string(fptr, "VALUES IN ");
+    err+= add_string(fptr, " VALUES IN ");
     uint no_items= p_elem->list_val_list.elements;
     err+= add_begin_parenthesis(fptr);
     if (p_elem->has_null_value)
@@ -1740,7 +1741,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
     err+= add_end_parenthesis(fptr);
   }
 end:
-  return err + add_space(fptr);
+  return err;
 }
 
 /*
@@ -1754,6 +1755,7 @@ end:
     buf_length                 A pointer to the returned buffer length
     use_sql_alloc              Allocate buffer from sql_alloc if true
                                otherwise use my_malloc
+    show_partition_options     Should we display partition options
 
   RETURN VALUES
     NULL error
@@ -1781,7 +1783,8 @@ end:
 
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length,
-                                bool use_sql_alloc)
+                                bool use_sql_alloc,
+                                bool show_partition_options)
 {
   uint i,j, tot_no_parts, no_subparts, no_parts;
   partition_element *part_elem;
@@ -1882,12 +1885,12 @@ char *generate_partition_syntax(partition_info *part_info,
         first= FALSE;
         err+= add_partition(fptr);
         err+= add_name_string(fptr, part_elem->partition_name);
-        err+= add_space(fptr);
         err+= add_partition_values(fptr, part_info, part_elem);
         if (!part_info->is_sub_partitioned() ||
             part_info->use_default_subpartitions)
         {
-          err+= add_partition_options(fptr, part_elem);
+          if (show_partition_options)
+            err+= add_partition_options(fptr, part_elem);
         }
         else
         {
@@ -1900,8 +1903,8 @@ char *generate_partition_syntax(partition_info *part_info,
             part_elem= sub_it++;
             err+= add_subpartition(fptr);
             err+= add_name_string(fptr, part_elem->partition_name);
-            err+= add_space(fptr);
-            err+= add_partition_options(fptr, part_elem);
+            if (show_partition_options)
+              err+= add_partition_options(fptr, part_elem);
             if (j != (no_subparts-1))
             {
               err+= add_comma(fptr);
