@@ -68,14 +68,14 @@ ulong total_ha_2pc= 0;
 /* size of savepoint storage area (see ha_init) */
 ulong savepoint_alloc_size= 0;
 
-struct show_table_alias_st sys_table_aliases[]=
+static const LEX_STRING sys_table_aliases[]=
 {
-  {"INNOBASE",  DB_TYPE_INNODB},
-  {"NDB",       DB_TYPE_NDBCLUSTER},
-  {"BDB",       DB_TYPE_BERKELEY_DB},
-  {"HEAP",      DB_TYPE_HEAP},
-  {"MERGE",     DB_TYPE_MRG_MYISAM},
-  {NullS,       DB_TYPE_UNKNOWN}
+  {(char*)STRING_WITH_LEN("INNOBASE")},  {(char*)STRING_WITH_LEN("INNODB")},
+  {(char*)STRING_WITH_LEN("NDB")},       {(char*)STRING_WITH_LEN("NDBCLUSTER")},
+  {(char*)STRING_WITH_LEN("BDB")},       {(char*)STRING_WITH_LEN("BERKELEYDB")},
+  {(char*)STRING_WITH_LEN("HEAP")},      {(char*)STRING_WITH_LEN("MEMORY")},
+  {(char*)STRING_WITH_LEN("MERGE")},     {(char*)STRING_WITH_LEN("MRG_MYISAM")},
+  {NullS, 0}
 };
 
 const char *ha_row_type[] = {
@@ -91,15 +91,50 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
 uint known_extensions_id= 0;
 
-handlerton *ha_resolve_by_name(THD *thd, LEX_STRING *name)
+
+/*
+  Return the default storage engine handlerton for thread
+  
+  SYNOPSIS
+    ha_default_handlerton(thd)
+    thd         current thread
+  
+  RETURN
+    pointer to handlerton
+*/
+
+handlerton *ha_default_handlerton(THD *thd)
 {
-  show_table_alias_st *table_alias;
+  return (thd->variables.table_type != NULL) ?
+          thd->variables.table_type :
+          (global_system_variables.table_type != NULL ?
+           global_system_variables.table_type : &myisam_hton);
+}
+
+
+/*
+  Return the storage engine handlerton for the supplied name
+  
+  SYNOPSIS
+    ha_resolve_by_name(thd, name)
+    thd         current thread
+    name        name of storage engine
+  
+  RETURN
+    pointer to handlerton
+*/
+
+handlerton *ha_resolve_by_name(THD *thd, const LEX_STRING *name)
+{
+  const LEX_STRING *table_alias;
   st_plugin_int *plugin;
 
-  if (thd && !my_strnncoll(&my_charset_latin1,
+redo:
+  /* my_strnncoll is a macro and gcc doesn't do early expansion of macro */
+  if (thd && !my_charset_latin1.coll->strnncoll(&my_charset_latin1,
                            (const uchar *)name->str, name->length,
-                           (const uchar *)"DEFAULT", 7))
-    return ha_resolve_by_legacy_type(thd, DB_TYPE_DEFAULT);
+                           (const uchar *)STRING_WITH_LEN("DEFAULT"), 0))
+    return ha_default_handlerton(thd);
 
   if ((plugin= plugin_lock(name, MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
@@ -112,13 +147,15 @@ handlerton *ha_resolve_by_name(THD *thd, LEX_STRING *name)
   /*
     We check for the historical aliases.
   */
-  for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
+  for (table_alias= sys_table_aliases; table_alias->str; table_alias+= 2)
   {
     if (!my_strnncoll(&my_charset_latin1,
                       (const uchar *)name->str, name->length,
-                      (const uchar *)table_alias->alias,
-                      strlen(table_alias->alias)))
-      return ha_resolve_by_legacy_type(thd, table_alias->type);
+                      (const uchar *)table_alias->str, table_alias->length))
+    {
+      name= table_alias + 1;
+      goto redo;
+    }
   }
 
   return NULL;
@@ -130,20 +167,20 @@ const char *ha_get_storage_engine(enum legacy_db_type db_type)
   switch (db_type) {
   case DB_TYPE_DEFAULT:
     return "DEFAULT";
-  case DB_TYPE_UNKNOWN:
-    return "UNKNOWN";
   default:
     if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT &&
         installed_htons[db_type])
       return hton2plugin[installed_htons[db_type]->slot]->name.str;
-      return "*NONE*";
+    /* fall through */
+  case DB_TYPE_UNKNOWN:
+    return "UNKNOWN";
   }
 }
 
 
 static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
-  handlerton *hton=ha_resolve_by_legacy_type(current_thd, DB_TYPE_DEFAULT);
+  handlerton *hton= ha_default_handlerton(current_thd);
   return (hton && hton->create) ? hton->create(table, mem_root) : NULL;
 }
 
@@ -152,10 +189,7 @@ handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
 {
   switch (db_type) {
   case DB_TYPE_DEFAULT:
-    return (thd->variables.table_type != NULL) ?
-            thd->variables.table_type :
-            (global_system_variables.table_type != NULL ?
-             global_system_variables.table_type : &myisam_hton);
+    return ha_default_handlerton(thd);
   case DB_TYPE_UNKNOWN:
     return NULL;
   default:
@@ -196,7 +230,7 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
     break;
   }
 
-  return ha_resolve_by_legacy_type(thd, DB_TYPE_DEFAULT);  
+  return ha_default_handlerton(thd);
 } /* ha_checktype */
 
 
