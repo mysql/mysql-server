@@ -582,7 +582,7 @@ extern uint _mi_pack_key(MI_INFO *info,uint keynr,uchar *key,uchar *old,
 extern int _mi_read_key_record(MI_INFO *info,my_off_t filepos,byte *buf);
 extern int _mi_read_cache(IO_CACHE *info,byte *buff,my_off_t pos,
 			  uint length,int re_read_if_possibly);
-extern void update_auto_increment(MI_INFO *info,const byte *record);
+extern ulonglong retrieve_auto_increment(MI_INFO *info,const byte *record);
 
 extern byte *mi_alloc_rec_buff(MI_INFO *,ulong, byte**);
 #define mi_get_rec_buff_ptr(info,buf)                              \

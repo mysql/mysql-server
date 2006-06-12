@@ -2267,7 +2267,7 @@ NdbDictionaryImpl::dropIndex(const char * indexName,
     m_error.code = 4243;
     return -1;
   }
-  int ret = dropIndex(*idx); //, tableName);
+  int ret = dropIndex(*idx);
   // If index stored in cache is incompatible with the one in the kernel
   // we must clear the cache and try again
   if (ret == INCOMPATIBLE_VERSION) {
