@@ -93,7 +93,7 @@ commit;
 # table scan
 connection con1;
 begin;
-select * from t1 where y = 'one' or y = 'three' for update;
+select * from t1 where y = 'one' or y = 'three' order by x for update;
 
 connection con2;
 begin;
@@ -145,7 +145,7 @@ commit;
 # table scan
 connection con1;
 begin;
-select * from t1 where y = 'one' or y = 'three' lock in share mode;
+select * from t1 where y = 'one' or y = 'three' order by x lock in share mode;
 
 connection con2;
 begin;
