@@ -1,4 +1,4 @@
- /* Copyright (C) 2000-2003 MySQL AB
+  /* Copyright (C) 2000-2003 MySQL AB
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1043,12 +1043,23 @@ void ha_ndbcluster::release_metadata()
 
 int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type)
 {
+  DBUG_ENTER("ha_ndbcluster::get_ndb_lock_type");
   if (type >= TL_WRITE_ALLOW_WRITE)
-    return NdbOperation::LM_Exclusive;
-  else if (uses_blob_value(m_retrieve_all_fields))
-    return NdbOperation::LM_Read;
+  {
+    DBUG_PRINT("info", ("Using exclusive lock"));
+    DBUG_RETURN(NdbOperation::LM_Exclusive);
+  }
+  else if (type ==  TL_READ_WITH_SHARED_LOCKS || 
+	   uses_blob_value(m_retrieve_all_fields))
+  {
+    DBUG_PRINT("info", ("Using read lock"));
+    DBUG_RETURN(NdbOperation::LM_Read);
+  }
   else
-    return NdbOperation::LM_CommittedRead;
+  {
+    DBUG_PRINT("info", ("Using committed read"));
+    DBUG_RETURN(NdbOperation::LM_CommittedRead);
+  }
 }
 
 static const ulong index_type_flags[]=
@@ -1384,12 +1395,35 @@ inline int ha_ndbcluster::next_result(byte *buf)
 
   if (!cursor)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
+
+  if (m_lock_tuple)
+  {
+    /*
+      Lock level m_lock.type either TL_WRITE_ALLOW_WRITE
+      (SELECT FOR UPDATE) or TL_READ_WITH_SHARED_LOCKS (SELECT
+      LOCK WITH SHARE MODE) and row was not explictly unlocked 
+      with unlock_row() call
+    */
+      NdbConnection *trans= m_active_trans;
+      NdbOperation *op;
+      // Lock row
+      DBUG_PRINT("info", ("Keeping lock on scanned row"));
+      
+      if (!(op= m_active_cursor->lockTuple()))
+      {
+	m_lock_tuple= false;
+	ERR_RETURN(trans->getNdbError());
+      }
+      m_ops_pending++;
+  }
+  m_lock_tuple= false;
     
   /* 
      If this an update or delete, call nextResult with false
      to process any records already cached in NdbApi
   */
-  bool contact_ndb= m_lock.type < TL_WRITE_ALLOW_WRITE;
+  bool contact_ndb= m_lock.type < TL_WRITE_ALLOW_WRITE &&
+                    m_lock.type != TL_READ_WITH_SHARED_LOCKS;
   do {
     DBUG_PRINT("info", ("Call nextResult, contact_ndb: %d", contact_ndb));
     /*
@@ -1407,9 +1441,16 @@ inline int ha_ndbcluster::next_result(byte *buf)
     {
       // One more record found
       DBUG_PRINT("info", ("One more record found"));    
-
+      
       unpack_record(buf);
       table->status= 0;
+      /*
+	Explicitly lock tuple if "select for update" or
+	"select lock in share mode"
+      */
+      m_lock_tuple= (m_lock.type == TL_WRITE_ALLOW_WRITE
+		     || 
+		     m_lock.type == TL_READ_WITH_SHARED_LOCKS);
       DBUG_RETURN(0);
     } 
     else if (check == 1 || check == 2)
@@ -1444,7 +1485,6 @@ inline int ha_ndbcluster::next_result(byte *buf)
       contact_ndb= (check == 2);
     }
   } while (check == 2);
-    
   table->status= STATUS_NOT_FOUND;
   if (check == -1)
     DBUG_RETURN(ndb_err(trans));
@@ -1679,10 +1719,11 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     restart= false;
     NdbOperation::LockMode lm=
       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
+    bool need_pk = (lm == NdbOperation::LM_Read);
     if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
 					      m_index[active_index].index, 
 					      (const NDBTAB *) m_table)) ||
-	!(cursor= op->readTuples(lm, 0, parallelism, sorted)))
+	!(cursor= op->readTuples(lm, 0, parallelism, sorted, need_pk)))
       ERR_RETURN(trans->getNdbError());
     m_active_cursor= cursor;
   } else {
@@ -1817,8 +1858,9 @@ int ha_ndbcluster::full_table_scan(byte *buf)
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
+  bool need_pk = (lm == NdbOperation::LM_Read);
   if (!(op=trans->getNdbScanOperation((const NDBTAB *) m_table)) ||
-      !(cursor= op->readTuples(lm, 0, parallelism)))
+      !(cursor= op->readTuples(lm, 0, parallelism, need_pk)))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= cursor;
   DBUG_RETURN(define_read_attrs(buf, op));
@@ -2082,6 +2124,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     DBUG_PRINT("info", ("Calling updateTuple on cursor"));
     if (!(op= cursor->updateTuple()))
       ERR_RETURN(trans->getNdbError());
+    m_lock_tuple= false;
     m_ops_pending++;
     if (uses_blob_value(FALSE))
       m_blobs_pending= TRUE;
@@ -2157,6 +2200,7 @@ int ha_ndbcluster::delete_row(const byte *record)
     DBUG_PRINT("info", ("Calling deleteTuple on cursor"));
     if (cursor->deleteTuple() != 0)
       ERR_RETURN(trans->getNdbError());     
+    m_lock_tuple= false;
     m_ops_pending++;
 
     no_uncommitted_rows_update(-1);
@@ -2439,6 +2483,12 @@ int ha_ndbcluster::index_init(uint index)
 {
   DBUG_ENTER("index_init");
   DBUG_PRINT("enter", ("index: %u", index));
+  /*
+    Locks are are explicitly released in scan
+    unless m_lock.type == TL_READ_HIGH_PRIORITY
+    and no sub-sequent call to unlock_row()
+   */
+  m_lock_tuple= false;
   DBUG_RETURN(handler::index_init(index));
 }
 
@@ -2683,7 +2733,7 @@ int ha_ndbcluster::close_scan()
   if (!cursor)
     DBUG_RETURN(1);
 
-  
+  m_lock_tuple= false;
   if (m_ops_pending)
   {
     /*
@@ -3376,6 +3426,22 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 }
 
 /*
+  Unlock the last row read in an open scan.
+  Rows are unlocked by default in ndb, but
+  for SELECT FOR UPDATE and SELECT LOCK WIT SHARE MODE
+  locks are kept if unlock_row() is not called.
+*/
+
+void ha_ndbcluster::unlock_row() 
+{
+  DBUG_ENTER("unlock_row");
+
+  DBUG_PRINT("info", ("Unlocking row"));
+  m_lock_tuple= false;
+  DBUG_VOID_RETURN;
+}
+
+/*
   Start a transaction for running a statement if one is not
   already running in a transaction. This will be the case in
   a BEGIN; COMMIT; block
@@ -3767,6 +3833,12 @@ int ha_ndbcluster::create(const char *name,
   set_dbname(name2);
   set_tabname(name2);    
 
+  if (current_thd->lex->sql_command == SQLCOM_TRUNCATE)
+  {
+    DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
+    if ((my_errno= delete_table(name)))
+      DBUG_RETURN(my_errno);
+  }
   if (create_from_engine)
   {
     /*
