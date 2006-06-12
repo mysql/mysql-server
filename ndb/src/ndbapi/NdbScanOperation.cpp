@@ -126,7 +126,8 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection)
 
 NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
 					   Uint32 batch, 
-					   Uint32 parallel)
+					   Uint32 parallel,
+					   bool keyinfo)
 {
   m_ordered = 0;
 
@@ -170,7 +171,7 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     return 0;
   }
 
-  m_keyInfo = lockExcl ? 1 : 0;
+  m_keyInfo = (keyinfo || lockExcl) ? 1 : 0;
 
   bool range = false;
   if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex ||
@@ -956,18 +957,28 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbConnection* pTrans){
     if (newOp == NULL){
       return NULL;
     }
+    if (!m_keyInfo)
+    {
+      // Cannot take over lock if no keyinfo was requested
+      setErrorCodeAbort(4604);
+      return NULL;
+    }
     pTrans->theSimpleState = 0;
     
     const Uint32 len = (tRecAttr->attrSize() * tRecAttr->arraySize() + 3)/4-1;
 
     newOp->theTupKeyLen = len;
     newOp->theOperationType = opType;
-    if (opType == DeleteRequest) {
-      newOp->theStatus = GetValue;  
-    } else {
-      newOp->theStatus = SetValue;  
+    switch (opType) {
+    case (ReadRequest):
+      newOp->theLockMode = theLockMode;
+      // Fall through
+    case (DeleteRequest):
+      newOp->theStatus = GetValue;
+      break;
+    default:
+      newOp->theStatus = SetValue;
     }
-    
     const Uint32 * src = (Uint32*)tRecAttr->aRef();
     const Uint32 tScanInfo = src[len] & 0x3FFFF;
     const Uint32 tTakeOverNode = src[len] >> 20;
@@ -1241,8 +1252,9 @@ NdbResultSet*
 NdbIndexScanOperation::readTuples(LockMode lm,
 				  Uint32 batch,
 				  Uint32 parallel,
-				  bool order_by){
-  NdbResultSet * rs = NdbScanOperation::readTuples(lm, batch, 0);
+				  bool order_by,
+				  bool keyinfo){
+  NdbResultSet * rs = NdbScanOperation::readTuples(lm, batch, 0, keyinfo);
   if(rs && order_by){
     m_ordered = 1;
     Uint32 cnt = m_accessTable->getNoOfColumns() - 1;

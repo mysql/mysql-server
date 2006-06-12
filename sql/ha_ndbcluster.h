@@ -120,6 +120,7 @@ class ha_ndbcluster: public handler
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();
   int external_lock(THD *thd, int lock_type);
+  void unlock_row();
   int start_stmt(THD *thd);
   const char * table_type() const;
   const char ** bas_ext() const;
@@ -223,6 +224,7 @@ class ha_ndbcluster: public handler
   char m_tabname[FN_HEADLEN];
   ulong m_table_flags;
   THR_LOCK_DATA m_lock;
+  bool m_lock_tuple;
   NDB_SHARE *m_share;
   NDB_INDEX_DATA  m_index[MAX_KEY];
   // NdbRecAttr has no reference to blob

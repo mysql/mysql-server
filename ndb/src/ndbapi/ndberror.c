@@ -281,7 +281,7 @@ ErrorBundle ErrorCodes[] = {
   { 4601, AE, "Transaction is not started"},
   { 4602, AE, "You must call getNdbOperation before executeScan" },
   { 4603, AE, "There can only be ONE operation in a scan transaction" },
-  { 4604, AE, "takeOverScanOp, opType must be UpdateRequest or DeleteRequest" },
+  { 4604, AE, "takeOverScanOp, to take over a scanned row one must explicitly request keyinfo in readTuples call" },
   { 4605, AE, "You may only call openScanRead or openScanExclusive once for each operation"},
   { 4607, AE, "There may only be one operation in a scan transaction"},
   { 4608, AE, "You can not takeOverScan unless you have used openScanExclusive"},
