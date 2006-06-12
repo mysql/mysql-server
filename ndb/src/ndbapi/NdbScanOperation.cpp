@@ -160,7 +160,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     return -1;
   }
 
-  m_keyInfo = (keyinfo || lockExcl) ? 1 : 0;
+  m_keyInfo = ((scan_flags & SF_KeyInfo) || lockExcl) ? 1 : 0;
 
   bool rangeScan = false;
   if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex)
