@@ -286,15 +286,26 @@ int runRandScanRead(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   int parallelism = ctx->getProperty("Parallelism", 240);
   int abort = ctx->getProperty("AbortProb", 5);
+  int tupscan = ctx->getProperty("TupScan", (Uint32)0);
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   while (i<loops && !ctx->isTestStopped()) {
     g_info << i << ": ";
     NdbOperation::LockMode lm = (NdbOperation::LockMode)(rand() % 3);
+    int scan_flags = 0;
+  
+    if (tupscan == 1)
+      scan_flags |= NdbScanOperation::SF_TupScan;
+    else if (tupscan == 2 && ((rand() & 0x800)))
+    {
+      scan_flags |= NdbScanOperation::SF_TupScan;
+    }
+
     if (hugoTrans.scanReadRecords(GETNDB(step),
 				  records, abort, parallelism,
-				  lm) != 0){
+				  lm,
+				  scan_flags) != 0){
       return NDBT_FAILED;
     }
     i++;
@@ -1320,6 +1331,16 @@ TESTCASE("ScanRead488",
   STEPS(runRandScanRead, 70);
   FINALIZER(runClearTable);
 }
+TESTCASE("ScanRead488T", 
+	 "Verify scan requirement: It's only possible to have 11 concurrent "\
+	 "scans per fragment running in Ndb kernel at the same time. "\
+	 "When this limit is exceeded the scan will be aborted with errorcode "\
+	 "488."){
+  TC_PROPERTY("TupScan", 1);
+  INITIALIZER(runLoadTable);
+  STEPS(runRandScanRead, 70);
+  FINALIZER(runClearTable);
+}
 TESTCASE("ScanRead488O", 
 	 "Verify scan requirement: It's only possible to have 11 concurrent "\
 	 "scans per fragment running in Ndb kernel at the same time. "\
@@ -1336,6 +1357,7 @@ TESTCASE("ScanRead488_Mixed",
 	 "scans per fragment running in Ndb kernel at the same time. "\
 	 "When this limit is exceeded the scan will be aborted with errorcode "\
 	 "488."){
+  TC_PROPERTY("TupScan", 2);
   INITIALIZER(createOrderedPkIndex);
   INITIALIZER(runLoadTable);
   STEPS(runRandScanRead, 50);

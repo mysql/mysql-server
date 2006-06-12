@@ -25,11 +25,12 @@
  */
 class AllocNodeIdReq {
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
 
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 nodeId;
+  Uint32 nodeType;
 };
 
 class AllocNodeIdConf {
@@ -53,7 +54,8 @@ public:
     NotMaster  = 702,
     NodeReserved = 1701,
     NodeConnected = 1702,
-    NodeFailureHandlingNotCompleted = 1703
+    NodeFailureHandlingNotCompleted = 1703,
+    NodeTypeMismatch = 1704
   };
 
   Uint32 senderRef;

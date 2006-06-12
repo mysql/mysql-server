@@ -61,7 +61,8 @@ public:
   static Uint32 getAttrLen(const Uint32 & requestInfo);
   static Uint32 getScanPrio(const Uint32 & requestInfo);
   static Uint32 getNoDiskFlag(const Uint32 & requestInfo);
-  
+  static Uint32 getLcpScanFlag(const Uint32 & requestInfo);
+
   static void setLockMode(Uint32 & requestInfo, Uint32 lockMode);
   static void setHoldLockFlag(Uint32 & requestInfo, Uint32 holdLock);
   static void setKeyinfoFlag(Uint32 & requestInfo, Uint32 keyinfo);
@@ -72,6 +73,7 @@ public:
   static void setAttrLen(Uint32 & requestInfo, Uint32 attrLen);
   static void setScanPrio(Uint32& requestInfo, Uint32 prio);
   static void setNoDiskFlag(Uint32& requestInfo, Uint32 val);
+  static void setLcpScanFlag(Uint32 & requestInfo, Uint32 val);
 };
 
 class KeyInfo20 {
@@ -198,6 +200,7 @@ public:
  * Request Info
  *
  * a = Length of attrinfo    - 16 Bits (16-31)
+ * c = LCP scan              - 1  Bit 3
  * d = No disk               - 1  Bit 4
  * l = Lock Mode             - 1  Bit 5
  * h = Hold lock             - 1  Bit 7
@@ -205,7 +208,7 @@ public:
  * r = read committed        - 1  Bit 9
  * x = range scan            - 1  Bit 6
  * z = descending            - 1  Bit 10
- * t = tup scan               -1  Bit 11 (implies x=z=0)
+ * t = tup scan              - 1  Bit 11 (implies x=z=0)
  * p = Scan prio             - 4  Bits (12-15) -> max 15
  *
  *           1111111111222222222233
@@ -222,6 +225,7 @@ public:
 #define SF_RANGE_SCAN_SHIFT (6)
 #define SF_DESCENDING_SHIFT (10)
 #define SF_TUP_SCAN_SHIFT   (11)
+#define SF_LCP_SCAN_SHIFT   (3)
 
 #define SF_ATTR_LEN_SHIFT    (16)
 #define SF_ATTR_LEN_MASK     (65535)
@@ -357,6 +361,19 @@ void
 ScanFragReq::setNoDiskFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "ScanFragReq::setNoDiskFlag");
   requestInfo |= (val << SF_NO_DISK_SHIFT);
+}
+
+inline
+Uint32
+ScanFragReq::getLcpScanFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_LCP_SCAN_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragReq::setLcpScanFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setLcpScanFlag");
+  requestInfo |= (val << SF_LCP_SCAN_SHIFT);
 }
 
 inline
