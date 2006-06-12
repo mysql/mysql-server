@@ -25,7 +25,8 @@
 
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 
-static int createEvent(Ndb *pNdb, const NdbDictionary::Table &tab)
+static int createEvent(Ndb *pNdb, const NdbDictionary::Table &tab,
+                       bool merge_events = false)
 {
   char eventName[1024];
   sprintf(eventName,"%s_EVENT",tab.getName());
@@ -45,6 +46,7 @@ static int createEvent(Ndb *pNdb, const NdbDictionary::Table &tab)
   for(int a = 0; a < tab.getNoOfColumns(); a++){
     myEvent.addEventColumn(a);
   }
+  myEvent.mergeEvents(merge_events);
 
   int res = myDict->createEvent(myEvent); // Add event to database
 
@@ -137,7 +139,8 @@ NdbEventOperation *createEventOperation(Ndb *ndb,
 
 static int runCreateEvent(NDBT_Context* ctx, NDBT_Step* step)
 {
-  if (createEvent(GETNDB(step),* ctx->getTab()) != 0){
+  bool merge_events = ctx->getProperty("MergeEvents");
+  if (createEvent(GETNDB(step),* ctx->getTab(), merge_events) != 0){
     return NDBT_FAILED;
   }
   return NDBT_OK;
@@ -584,6 +587,8 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "Event operation creation failed on %s" << buf << endl;
     DBUG_RETURN(NDBT_FAILED);
   }
+  bool merge_events = ctx->getProperty("MergeEvents");
+  pOp->mergeEvents(merge_events);
 
   int i;
   int n_columns= table->getNoOfColumns();
@@ -616,6 +621,11 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
       while ((pOp= ndb->nextEvent()) != 0)
       {
 	assert(pOp == pCreate);
+      
+        if (pOp->getEventType() >=
+            NdbDictionary::Event::TE_FIRST_NON_DATA_EVENT)
+          continue;
+
 	int noRetries= 0;
 	do
 	{
@@ -640,7 +650,7 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
 	    goto end;
 
 	  }
-	
+
 	  switch (pOp->getEventType()) {
 	  case NdbDictionary::Event::TE_INSERT:
 	    if (op->writeTuple())
@@ -1598,6 +1608,33 @@ TESTCASE("EventOperationApplier_NR",
 	 "Verify that if we apply the data we get from event "
 	 "operation is the same as the original table"
 	 "NOTE! No errors are allowed!" ){
+  INITIALIZER(runCreateEvent);
+  INITIALIZER(runCreateShadowTable);
+  STEP(runEventApplier);
+  STEP(runEventMixedLoad);
+  STEP(runRestarter);
+  FINALIZER(runDropEvent);
+  FINALIZER(runVerify);
+  FINALIZER(runDropShadowTable);
+}
+TESTCASE("MergeEventOperationApplier", 
+	 "Verify that if we apply the data we get from merged event "
+	 "operation is the same as the original table"
+	 "NOTE! No errors are allowed!" ){
+  TC_PROPERTY("MergeEvents", 1);
+  INITIALIZER(runCreateEvent);
+  INITIALIZER(runCreateShadowTable);
+  STEP(runEventApplier);
+  STEP(runEventMixedLoad);
+  FINALIZER(runDropEvent);
+  FINALIZER(runVerify);
+  FINALIZER(runDropShadowTable);
+}
+TESTCASE("MergeEventOperationApplier_NR", 
+	 "Verify that if we apply the data we get from merged event "
+	 "operation is the same as the original table"
+	 "NOTE! No errors are allowed!" ){
+  TC_PROPERTY("MergeEvents", 1);
   INITIALIZER(runCreateEvent);
   INITIALIZER(runCreateShadowTable);
   STEP(runEventApplier);
