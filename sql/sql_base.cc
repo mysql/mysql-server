@@ -2686,7 +2686,7 @@ retry:
       goto err;
 
      // Code below is for repairing a crashed file
-     if ((error= lock_table_name(thd, table_list)))
+     if ((error= lock_table_name(thd, table_list, TRUE)))
      {
        if (error < 0)
  	goto err;
