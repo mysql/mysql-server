@@ -1312,13 +1312,12 @@ Ndb_mgmd_event_service::update_max_log_level(const LogLevel &log_level)
 void
 Ndb_mgmd_event_service::update_log_level(const LogLevel &tmp)
 {
-  if(!(tmp == m_logLevel)){
-    m_logLevel = tmp;
-    EventSubscribeReq req;
-    req = tmp;
-    req.blockRef = 0;
-    m_mgmsrv->m_log_level_requests.push_back(req);
-  }
+  m_logLevel = tmp;
+  EventSubscribeReq req;
+  req = tmp;
+  // send update to all nodes
+  req.blockRef = 0;
+  m_mgmsrv->m_log_level_requests.push_back(req);
 }
 
 void
