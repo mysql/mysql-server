@@ -44,7 +44,8 @@ public:
     SF_TupScan = (1 << 16),     // scan TUP - only LM_CommittedRead
     SF_OrderBy = (1 << 24),     // index scan in order
     SF_Descending = (2 << 24),  // index scan in descending order
-    SF_ReadRangeNo = (4 << 24)  // enable @ref get_range_no
+    SF_ReadRangeNo = (4 << 24), // enable @ref get_range_no
+    SF_KeyInfo = 1              // request KeyInfo to be sent back
   };
 
   /**
@@ -61,15 +62,14 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * readTuples
-   * 
    * @param lock_mode Lock mode
    * @param batch No of rows to fetch from each fragment at a time
    * @param parallel No of fragments to scan in parallell
-   * @note specifying 0 for batch and parallall means max performance
+   * @note specifying 0 for batch and parallell means max performance
    */ 
 #ifdef ndb_readtuples_impossible_overload
   int readTuples(LockMode lock_mode = LM_Read, 
-		 Uint32 batch = 0, Uint32 parallel = 0);
+		 Uint32 batch = 0, Uint32 parallel = 0, bool keyinfo = false);
 #endif
   
   inline int readTuples(int parallell){
@@ -141,6 +141,20 @@ public:
    */
   void close(bool forceSend = false, bool releaseOp = false);
 
+  /**
+   * Lock current tuple
+   *
+   * @return an NdbOperation or NULL.
+   */
+  NdbOperation* lockCurrentTuple();
+  /**
+   * Lock current tuple
+   *
+   * @param lockTrans Transaction that should perform the lock
+   *
+   * @return an NdbOperation or NULL.
+   */
+  NdbOperation*	lockCurrentTuple(NdbTransaction* lockTrans);
   /**
    * Update current tuple
    *
@@ -248,6 +262,19 @@ protected:
   Uint32 m_read_range_no;
   NdbRecAttr *m_curr_row; // Pointer to last returned row
 };
+
+inline
+NdbOperation* 
+NdbScanOperation::lockCurrentTuple(){
+  return lockCurrentTuple(m_transConnection);
+}
+
+inline
+NdbOperation* 
+NdbScanOperation::lockCurrentTuple(NdbTransaction* takeOverTrans){
+  return takeOverScanOp(NdbOperation::ReadRequest, 
+			takeOverTrans);
+}
 
 inline
 NdbOperation* 
