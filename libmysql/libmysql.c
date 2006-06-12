@@ -3827,7 +3827,15 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       sprintf(buff, "%.*f", (int) field->decimals, value);
       end= strend(buff);
     }
-    fetch_string_with_conversion(param, buff, (uint) (end - buff));
+    uint length= (uint) (end-buff);
+    if (field->flags & ZEROFILL_FLAG && length < field->length &&
+        field->length < MAX_DOUBLE_STRING_REP_LENGTH-1)
+    {
+      bmove_upp((char*) buff+field->length,buff+length, length);
+      bfill((char*) buff, field->length - length,'0');
+      length= field->length;
+    }
+    fetch_string_with_conversion(param, buff, length);
     break;
   }
   }

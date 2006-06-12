@@ -266,3 +266,19 @@ create table t1 (s1 float(0,2));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 's1').
 create table t1 (s1 float(1,2));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 's1').
+CREATE TABLE t1 (
+f1 real zerofill,
+f2 double zerofill,
+f3 float zerofill);
+INSERT INTO t1 VALUES ( 0.314152e+1, 0.314152e+1, 0.314152e+1);
+PREPARE stmt1 FROM 'select f1, f2, f3 FROM t1';
+select f1, f2, f3 FROM t1;
+f1	f2	f3
+0000000000000003.14152	0000000000000003.14152	000003.14152
+select f1, f2, f3 FROM t1;
+f1	f2	f3
+0000000000000003.14152	0000000000000003.14152	000003.14152
+EXECUTE stmt1;
+f1	f2	f3
+0000000000000003.14152	0000000000000003.14152	000003.14152
+DROP TABLE t1;
