@@ -188,3 +188,21 @@ drop table t1,t2,t3;
 create table t1 (s1 float(0,2));
 --error 1427
 create table t1 (s1 float(1,2));
+
+#
+# MySQL Bugs: #11589: mysqltest --ps-protocol, strange output, float/double/real with zerofill
+#
+
+CREATE TABLE t1 (
+  f1 real zerofill,
+  f2 double zerofill,
+  f3 float zerofill);
+INSERT INTO t1 VALUES ( 0.314152e+1, 0.314152e+1, 0.314152e+1);
+
+let $my_stmt= select f1, f2, f3 FROM t1;
+eval PREPARE stmt1 FROM '$my_stmt';
+select f1, f2, f3 FROM t1;
+eval $my_stmt;
+EXECUTE stmt1;
+
+DROP TABLE t1;
