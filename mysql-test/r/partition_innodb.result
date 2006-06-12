@@ -1,0 +1,94 @@
+SET @max_row = 20;
+DROP TABLE IF EXISTS t0_template;
+CREATE TABLE t0_template (
+f_int1 INTEGER,
+f_int2 INTEGER,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000) ,
+PRIMARY KEY(f_int1))
+ENGINE = MEMORY;
+INSERT INTO t0_template
+SET f_int1 = 20, f_int2 = 20, f_char1 = '20', f_char2 = '20',
+f_charbig = '===20===';
+INSERT INTO t0_template
+SET f_int1 = 19, f_int2 = 19, f_char1 = '19', f_char2 = '19',
+f_charbig = '===19===';
+INSERT INTO t0_template
+SET f_int1 = 18, f_int2 = 18, f_char1 = '18', f_char2 = '18',
+f_charbig = '===18===';
+INSERT INTO t0_template
+SET f_int1 = 17, f_int2 = 17, f_char1 = '17', f_char2 = '17',
+f_charbig = '===17===';
+INSERT INTO t0_template
+SET f_int1 = 16, f_int2 = 16, f_char1 = '16', f_char2 = '16',
+f_charbig = '===16===';
+INSERT INTO t0_template
+SET f_int1 = 15, f_int2 = 15, f_char1 = '15', f_char2 = '15',
+f_charbig = '===15===';
+INSERT INTO t0_template
+SET f_int1 = 14, f_int2 = 14, f_char1 = '14', f_char2 = '14',
+f_charbig = '===14===';
+INSERT INTO t0_template
+SET f_int1 = 13, f_int2 = 13, f_char1 = '13', f_char2 = '13',
+f_charbig = '===13===';
+INSERT INTO t0_template
+SET f_int1 = 12, f_int2 = 12, f_char1 = '12', f_char2 = '12',
+f_charbig = '===12===';
+INSERT INTO t0_template
+SET f_int1 = 11, f_int2 = 11, f_char1 = '11', f_char2 = '11',
+f_charbig = '===11===';
+INSERT INTO t0_template
+SET f_int1 = 10, f_int2 = 10, f_char1 = '10', f_char2 = '10',
+f_charbig = '===10===';
+INSERT INTO t0_template
+SET f_int1 = 9, f_int2 = 9, f_char1 = '9', f_char2 = '9',
+f_charbig = '===9===';
+INSERT INTO t0_template
+SET f_int1 = 8, f_int2 = 8, f_char1 = '8', f_char2 = '8',
+f_charbig = '===8===';
+INSERT INTO t0_template
+SET f_int1 = 7, f_int2 = 7, f_char1 = '7', f_char2 = '7',
+f_charbig = '===7===';
+INSERT INTO t0_template
+SET f_int1 = 6, f_int2 = 6, f_char1 = '6', f_char2 = '6',
+f_charbig = '===6===';
+INSERT INTO t0_template
+SET f_int1 = 5, f_int2 = 5, f_char1 = '5', f_char2 = '5',
+f_charbig = '===5===';
+INSERT INTO t0_template
+SET f_int1 = 4, f_int2 = 4, f_char1 = '4', f_char2 = '4',
+f_charbig = '===4===';
+INSERT INTO t0_template
+SET f_int1 = 3, f_int2 = 3, f_char1 = '3', f_char2 = '3',
+f_charbig = '===3===';
+INSERT INTO t0_template
+SET f_int1 = 2, f_int2 = 2, f_char1 = '2', f_char2 = '2',
+f_charbig = '===2===';
+INSERT INTO t0_template
+SET f_int1 = 1, f_int2 = 1, f_char1 = '1', f_char2 = '1',
+f_charbig = '===1===';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30)) engine='InnoDB';
+INSERT INTO t1 (f_date, f_varchar)
+SELECT CONCAT(CAST((f_int1 + 999) AS CHAR),'-02-10'), CAST(f_char1 AS CHAR)
+FROM t0_template
+WHERE f_int1 + 999 BETWEEN 1000 AND 9999;
+SELECT IF(9999 - 1000 + 1 > @max_row, @max_row , 9999 - 1000 + 1)
+INTO @exp_row_count;
+ALTER TABLE t1 PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER));
+#  1.1.5 Add two named partitions + test
+ALTER TABLE t1 ADD PARTITION (PARTITION part1, PARTITION part7);
+drop table t1;
+CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30))
+ENGINE=InnoDB
+PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER));
+# This statement crashes the server.
+#   CREATE partitioned table with three partitions in one step
+#   would be harmless.
+ALTER TABLE t1 ADD PARTITION PARTITIONS 1;
+DROP VIEW  IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t0_aux;
+DROP TABLE IF EXISTS t0_definition;
+DROP TABLE IF EXISTS t0_template;
