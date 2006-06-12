@@ -3426,11 +3426,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 }
 
 /*
-  Start a transaction for running a statement if one is not
-  already running in a transaction. This will be the case in
-  a BEGIN; COMMIT; block
-  When using LOCK TABLE's external_lock will start a transaction
-  since ndb does not currently does not support table locking
+  Unlock the last row read in an open scan.
+  Rows are unlocked by default in ndb, but
+  for SELECT FOR UPDATE and SELECT LOCK WIT SHARE MODE
+  locks are kept if unlock_row() is not called.
 */
 
 void ha_ndbcluster::unlock_row() 
@@ -3441,6 +3440,14 @@ void ha_ndbcluster::unlock_row()
   m_lock_tuple= false;
   DBUG_VOID_RETURN;
 }
+
+/*
+  Start a transaction for running a statement if one is not
+  already running in a transaction. This will be the case in
+  a BEGIN; COMMIT; block
+  When using LOCK TABLE's external_lock will start a transaction
+  since ndb does not currently does not support table locking
+*/
 
 int ha_ndbcluster::start_stmt(THD *thd)
 {
