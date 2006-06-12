@@ -2028,7 +2028,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
                                               m_index[active_index].index, 
                                               (const NDBTAB *) m_table)) ||
-        op->readTuples(lm, 0, parallelism, sorted, descending, need_pk))
+        op->readTuples(lm, 0, parallelism, sorted, descending, false, need_pk))
       ERR_RETURN(trans->getNdbError());
     m_active_cursor= op;
   } else {
