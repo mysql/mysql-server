@@ -45,14 +45,15 @@ public:
   NdbResultSet* readTuples(LockMode = LM_Read,
 			   Uint32 batch = 0, 
 			   Uint32 parallel = 0,
-			   bool order_by = false);
+			   bool order_by = false,
+			   bool keyinfo = false);
   
   inline NdbResultSet* readTuples(int parallell){
-    return readTuples(LM_Read, 0, parallell, false);
+    return readTuples(LM_Read, 0, parallell);
   }
   
   inline NdbResultSet* readTuplesExclusive(int parallell = 0){
-    return readTuples(LM_Exclusive, 0, parallell, false);
+    return readTuples(LM_Exclusive, 0, parallell);
   }
 
   /**

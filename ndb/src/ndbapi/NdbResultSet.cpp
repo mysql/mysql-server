@@ -73,6 +73,17 @@ void NdbResultSet::close(bool forceSend)
 }
 
 NdbOperation* 
+NdbResultSet::lockTuple(){
+  return lockTuple(m_operation->m_transConnection);
+}
+
+NdbOperation* 
+NdbResultSet::lockTuple(NdbConnection* takeOverTrans){
+  return m_operation->takeOverScanOp(NdbOperation::ReadRequest, 
+				     takeOverTrans);
+}
+
+NdbOperation* 
 NdbResultSet::updateTuple(){
   return updateTuple(m_operation->m_transConnection);
 }
