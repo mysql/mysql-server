@@ -172,7 +172,14 @@ connection slave;
 # here we would get error 1412 prior to bug
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 
-
+--connection master
+TRUNCATE t1;
+SELECT count(*) FROM t1;
+INSERT INTO t1 VALUES (101,NULL),(102,NULL),(103,NULL),(104,NULL),(105,NULL),(106,NULL),(107,NULL),(108,NULL),(109,NULL),(1010,NULL);
+--sync_slave_with_master
+connection slave;
+SELECT count(*) FROM t1;
+SELECT c1 FROM t1 ORDER BY c1 LIMIT 5;
 
 # cleanup
 --connection master
