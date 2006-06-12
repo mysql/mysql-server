@@ -99,7 +99,8 @@ connection con2;
 begin;
 # Have to check with pk access here since scans take locks on
 # all rows and then release them in chunks
-select * from t1 where x = 2 for update;
+# Bug #20390 SELECT FOR UPDATE does not release locks of untouched rows in full table scans
+#select * from t1 where x = 2 for update;
 --error 1205
 select * from t1 where x = 1 for update;
 rollback;
@@ -152,7 +153,8 @@ begin;
 select * from t1 where y = 'one' lock in share mode;
 # Have to check with pk access here since scans take locks on
 # all rows and then release them in chunks
-select * from t1 where x = 2 for update;
+# Bug #20390 SELECT FOR UPDATE does not release locks of untouched rows in full table scans
+#select * from t1 where x = 2 for update;
 --error 1205
 select * from t1 where x = 1 for update;
 rollback;
