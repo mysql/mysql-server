@@ -49,7 +49,8 @@ enum SCHEMA_OP_TYPE
   SOT_CLEAR_SLOCK= 7,
   SOT_TABLESPACE= 8,
   SOT_LOGFILE_GROUP= 9,
-  SOT_RENAME_TABLE= 10
+  SOT_RENAME_TABLE= 10,
+  SOT_TRUNCATE_TABLE= 11
 };
 
 const uint max_ndb_nodes= 64; /* multiple of 32 */
