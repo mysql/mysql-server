@@ -1038,6 +1038,8 @@ alter table t1 rebuild partition p1;
 alter table t1 rebuild partition p1;
 alter table t1 rebuild partition p1;
 
+drop table t1;
+
 #
 # BUG 19304 Partitions: MERGE handler not allowed in partitioned tables
 #
