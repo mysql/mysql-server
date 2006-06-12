@@ -5389,7 +5389,7 @@ static int get_name_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
   DBUG_ENTER("get_name_lock");
 
   bzero(&lpt->table_list, sizeof(lpt->table_list));
-  lpt->table_list.db= lpt->db;
+  lpt->table_list.db= (char*)lpt->db;
   lpt->table_list.table= lpt->table;
   lpt->table_list.table_name= (char*)lpt->table_name;
   pthread_mutex_lock(&LOCK_open);
@@ -5775,24 +5775,22 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         (not_completed= FALSE) ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
         ERROR_INJECT_CRASH("crash_drop_partition_4") ||
+        get_name_lock(lpt) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_5") ||
+        alter_close_tables(lpt) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_5") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_7") ||
         ((frm_install= TRUE), FALSE) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         ((frm_install= FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_6") ||
-        get_name_lock(lpt) || /* Always returns 0 */
-        ERROR_INJECT_CRASH("crash_drop_partition_7") ||
-        (close_open_tables_and_downgrade(lpt), FALSE) ||
         ERROR_INJECT_CRASH("crash_drop_partition_8") ||
-        alter_close_tables(lpt) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_9") ||
         mysql_drop_partitions(lpt) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_10") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_9") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_11") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_10") ||
         (release_name_lock(lpt), FALSE)) 
     {
       handle_alter_part_error(lpt, not_completed, TRUE, frm_install);
@@ -5836,19 +5834,24 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
+        ERROR_INJECT_CRASH("crash_add_partition_3") ||
+        get_name_lock(lpt) ||
+        ERROR_INJECT_CRASH("crash_add_partition_4") ||
+        alter_close_tables(lpt) ||
+        ERROR_INJECT_CRASH("crash_add_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_add_partition_4") ||
+        ERROR_INJECT_CRASH("crash_add_partition_6") ||
         write_log_rename_frm(lpt) ||
         (not_completed= FALSE) ||
-        ERROR_INJECT_CRASH("crash_add_partition_5") ||
+        ERROR_INJECT_CRASH("crash_add_partition_7") ||
         ((frm_install= TRUE), FALSE) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        ERROR_INJECT_CRASH("crash_add_partition_6") ||
-        (close_open_tables_and_downgrade(lpt), FALSE) ||
+        ERROR_INJECT_CRASH("crash_add_partition_8") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_add_partition_7")) 
+        ERROR_INJECT_CRASH("crash_add_partition_9") ||
+        (release_name_lock(lpt), FALSE)) 
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
       DBUG_RETURN(TRUE);
@@ -5924,23 +5927,21 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         (not_completed= FALSE) ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
         ERROR_INJECT_CRASH("crash_change_partition_5") ||
+        get_name_lock(lpt) ||
+        ERROR_INJECT_CRASH("crash_change_partition_6") ||
+        alter_close_tables(lpt) ||
+        ERROR_INJECT_CRASH("crash_change_partition_7") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_change_partition_6") ||
-        mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        ERROR_INJECT_CRASH("crash_change_partition_7") ||
-        get_name_lock(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_8") ||
-        (close_open_tables_and_downgrade(lpt), FALSE) ||
+        mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         ERROR_INJECT_CRASH("crash_change_partition_9") ||
-        alter_close_tables(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_10") ||
         mysql_rename_partitions(lpt) ||
         ((frm_install= TRUE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_11") ||
+        ERROR_INJECT_CRASH("crash_change_partition_10") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_12") ||
+        ERROR_INJECT_CRASH("crash_change_partition_11") ||
         (release_name_lock(lpt), FALSE))
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);

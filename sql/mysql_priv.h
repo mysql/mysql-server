@@ -1206,7 +1206,7 @@ typedef struct st_lock_param_type
   List<Key> new_key_list;
   TABLE *table;
   KEY *key_info_buffer;
-  char *db;
+  const char *db;
   const char *table_name;
   const void *pack_frm_data;
   enum thr_lock_type old_lock_type;
