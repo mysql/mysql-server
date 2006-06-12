@@ -471,16 +471,33 @@ HugoOperations::execute_async(Ndb* pNdb, NdbTransaction::ExecType et,
   return NDBT_OK;
 }
 
+int 
+HugoOperations::execute_async_prepare(Ndb* pNdb, NdbTransaction::ExecType et, 
+				      NdbTransaction::AbortOption eao){
+  
+  m_async_reply= 0;
+  pTrans->executeAsynchPrepare(et,
+			       HugoOperations_async_callback,
+			       this,
+			       eao);
+  
+  return NDBT_OK;
+}
+
 int
 HugoOperations::wait_async(Ndb* pNdb, int timeout)
 {
-  pNdb->pollNdb(1000);
-
-  if(m_async_reply)
+  volatile int * wait = &m_async_reply;
+  while (!* wait)
   {
-    if(m_async_return)
-      ndbout << "ERROR: " << pNdb->getNdbError(m_async_return) << endl;
-    return m_async_return;
+    pNdb->sendPollNdb(1000);
+    
+    if(* wait)
+    {
+      if(m_async_return)
+	ndbout << "ERROR: " << pNdb->getNdbError(m_async_return) << endl;
+      return m_async_return;
+    }
   }
   ndbout_c("wait returned nothing...");
   return -1;
