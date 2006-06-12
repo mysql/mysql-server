@@ -119,41 +119,50 @@ MgmtSrvr::logLevelThreadRun()
     /**
      * Handle started nodes
      */
-    EventSubscribeReq req;
-    req = m_event_listner[0].m_logLevel;
-    req.blockRef = _ownReference;
-
-    SetLogLevelOrd ord;
-    
     m_started_nodes.lock();
-    while(m_started_nodes.size() > 0){
-      Uint32 node = m_started_nodes[0];
-      m_started_nodes.erase(0, false);
-      m_started_nodes.unlock();
+    if (m_started_nodes.size() > 0)
+    {
+      // calculate max log level
+      EventSubscribeReq req;
+      {
+        LogLevel tmp;
+        m_event_listner.lock();
+        for(int i = m_event_listner.m_clients.size() - 1; i >= 0; i--)
+          tmp.set_max(m_event_listner[i].m_logLevel);
+        m_event_listner.unlock();
+        req = tmp;
+      }
+      req.blockRef = _ownReference;
+      while (m_started_nodes.size() > 0)
+      {
+        Uint32 node = m_started_nodes[0];
+        m_started_nodes.erase(0, false);
+        m_started_nodes.unlock();
 
-      setEventReportingLevelImpl(node, req);
-      
-      ord = m_nodeLogLevel[node];
-      setNodeLogLevelImpl(node, ord);
-      
-      m_started_nodes.lock();
-    }				 
+        setEventReportingLevelImpl(node, req);
+
+        SetLogLevelOrd ord;
+        ord = m_nodeLogLevel[node];
+        setNodeLogLevelImpl(node, ord);
+
+        m_started_nodes.lock();
+      }
+    }
     m_started_nodes.unlock();
     
     m_log_level_requests.lock();
-    while(m_log_level_requests.size() > 0){
-      req = m_log_level_requests[0];
+    while (m_log_level_requests.size() > 0)
+    {
+      EventSubscribeReq req = m_log_level_requests[0];
       m_log_level_requests.erase(0, false);
       m_log_level_requests.unlock();
-      
-      LogLevel tmp;
-      tmp = req;
-      
+
       if(req.blockRef == 0){
 	req.blockRef = _ownReference;
 	setEventReportingLevelImpl(0, req);
       } else {
-	ord = req;
+        SetLogLevelOrd ord;
+        ord = req;
 	setNodeLogLevelImpl(req.blockRef, ord);
       }
       m_log_level_requests.lock();
@@ -1291,7 +1300,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId,
   {
     if (nodeTypes[nodeId] != NODE_TYPE_DB)
       continue;
-    if (okToSendTo(nodeId, false))
+    if (okToSendTo(nodeId, true))
       continue;
     if (ss.sendSignal(nodeId, &ssig) == SEND_OK)
     {
