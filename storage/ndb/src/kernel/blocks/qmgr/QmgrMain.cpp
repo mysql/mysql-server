@@ -4736,6 +4736,7 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
   const AllocNodeIdReq * req = (AllocNodeIdReq*)signal->getDataPtr();
   Uint32 senderRef = req->senderRef;
   Uint32 nodeId = req->nodeId;
+  Uint32 nodeType = req->nodeType;
   Uint32 error = 0;
 
   if (refToBlock(senderRef) != QMGR) // request from management server
@@ -4786,7 +4787,9 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
     NodeRecPtr nodePtr;
     nodePtr.i = nodeId;
     ptrAss(nodePtr, nodeRec);
-    if (nodePtr.p->failState != NORMAL)
+    if (nodeType != getNodeInfo(nodeId).m_type)
+      error = AllocNodeIdRef::NodeTypeMismatch;
+    else if (nodePtr.p->failState != NORMAL)
       error = AllocNodeIdRef::NodeFailureHandlingNotCompleted;
   }
 
