@@ -1395,6 +1395,10 @@ public:
   {
     current_stmt_binlog_row_based= TRUE;
   }
+  inline void clear_current_stmt_binlog_row_based()
+  {
+    current_stmt_binlog_row_based= FALSE;
+  }
 #endif
   inline void reset_current_stmt_binlog_row_based()
   {
@@ -1405,7 +1409,6 @@ public:
     current_stmt_binlog_row_based= FALSE;
 #endif
   }
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 };
 
 

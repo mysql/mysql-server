@@ -1,0 +1,36 @@
+#
+# Copyright 2006 MySQL. All rights reserved.
+#
+# Test to check for the different version of truncating a table.
+# The statements are "TRUNCATE tbl" and "DELETE FROM tbl". We check
+# the behaviour of each possible value for BINLOG_FORMAT.
+#
+# Author(s): Mats Kindahl
+
+--source include/have_row_based.inc
+--source include/master-slave.inc
+
+let $format = STATEMENT;
+let $stmt   = TRUNCATE TABLE;
+--source extra/rpl_tests/rpl_truncate_helper.inc
+
+let $format = MIXED;
+let $stmt   = TRUNCATE TABLE;
+--source extra/rpl_tests/rpl_truncate_helper.inc
+
+let $format = ROW;
+let $stmt   = TRUNCATE TABLE;
+--source extra/rpl_tests/rpl_truncate_helper.inc
+
+let $format = STATEMENT;
+let $stmt   = DELETE FROM;
+--source extra/rpl_tests/rpl_truncate_helper.inc
+
+let $format = MIXED;
+let $stmt   = DELETE FROM;
+--source extra/rpl_tests/rpl_truncate_helper.inc
+
+let $format = ROW;
+let $stmt   = DELETE FROM;
+--source extra/rpl_tests/rpl_truncate_helper.inc
+
