@@ -436,3 +436,10 @@ id	aes_decrypt(str, 'bar')
 1	foo
 2	NULL
 DROP TABLE t1, t2;
+create table t1(a varchar(8), primary key(a));
+insert into t1 values('bar'), ('foo');
+select a from t1 where a=elt(1, 'foo', 'bar') or a=elt(2, 'foo', 'bar');
+a
+bar
+foo
+drop table t1;
