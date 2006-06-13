@@ -37,6 +37,7 @@ SELECT * FROM t1 ORDER BY a,b;
 connection master;
 DROP TABLE t1;
 --replace_regex /table_id: [0-9]+/table_id: #/
+--replace_result $SERVER_VERSION SERVER_VERSION
 SHOW BINLOG EVENTS;
 
 --echo **** On Master ****
@@ -60,5 +61,6 @@ SELECT * FROM t1 ORDER BY a,b;
 connection master;
 DROP TABLE t1;
 --replace_regex /table_id: [0-9]+/table_id: #/
+--replace_result $SERVER_VERSION SERVER_VERSION
 SHOW BINLOG EVENTS;
 
