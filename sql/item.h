@@ -327,6 +327,14 @@ public:
     cleanup();
     delete this;
   }
+  /*
+    result_as_longlong() must return TRUE for Items representing DATE/TIME
+    functions and DATE/TIME table fields.
+    Those Items have result_type()==STRING_RESULT (and not INT_RESULT), but
+    their values should be compared as integers (because the integer
+    representation is more precise than the string one).
+  */
+  virtual bool result_as_longlong() { return FALSE; }
 };
 
 
@@ -450,6 +458,10 @@ public:
   Item *get_tmp_table_item(THD *thd);
   void cleanup();
   inline uint32 max_disp_length() { return field->max_length(); }
+  bool result_as_longlong()
+  {
+    return field->can_be_compared_as_longlong();
+  }
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -973,6 +985,10 @@ public:
   }
   Item *real_item() { return *ref; }
   void print(String *str);
+  bool result_as_longlong()
+  {
+    return (*ref)->result_as_longlong();
+  }
 };
 
 
