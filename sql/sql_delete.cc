@@ -954,8 +954,10 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   // crashes, replacement works.  *(path + path_length - reg_ext_length)=
   // '\0';
   path[path_length - reg_ext_length] = 0;
+  VOID(pthread_mutex_lock(&LOCK_open));
   error= ha_create_table(thd, path, table_list->db, table_list->table_name,
                          &create_info, 1);
+  VOID(pthread_mutex_unlock(&LOCK_open));
   query_cache_invalidate3(thd, table_list, 0);
 
 end:

@@ -1232,6 +1232,9 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   case SOT_LOGFILE_GROUP:
     type_str= "logfile group";
     break;
+  case SOT_TRUNCATE_TABLE:
+    type_str= "truncate table";
+    break;
   default:
     abort(); /* should not happen, programming error */
   }
@@ -1765,6 +1768,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           post_epoch_unlock= 1;
           break;
         case SOT_CREATE_TABLE:
+	case SOT_TRUNCATE_TABLE:
           pthread_mutex_lock(&LOCK_open);
           if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
