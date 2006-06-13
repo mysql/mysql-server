@@ -43,6 +43,7 @@ have disables the InnoDB inlining in this file. */
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
+
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_share_mutex,	/* to protect innobase_open_files */
@@ -204,54 +205,16 @@ static int innobase_rollback(THD* thd, bool all);
 static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
 static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
-static handler *innobase_create_handler(TABLE_SHARE *table);
+static handler *innobase_create_handler(TABLE_SHARE *table,
+                                        MEM_ROOT *mem_root);
 
 static const char innobase_hton_name[]= "InnoDB";
-static const char innobase_hton_comment[]=
-  "Supports transactions, row-level locking, and foreign keys";
 
-handlerton innobase_hton = {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  innobase_hton_name,
-  SHOW_OPTION_YES,
-  innobase_hton_comment,
-  DB_TYPE_INNODB,
-  innobase_init,
-  0,				/* slot */
-  sizeof(trx_named_savept_t),	/* savepoint size. TODO: use it */
-  innobase_close_connection,
-  innobase_savepoint,
-  innobase_rollback_to_savepoint,
-  innobase_release_savepoint,
-  innobase_commit,		/* commit */
-  innobase_rollback,		/* rollback */
-  innobase_xa_prepare,		/* prepare */
-  innobase_xa_recover,		/* recover */
-  innobase_commit_by_xid,	/* commit_by_xid */
-  innobase_rollback_by_xid,	/* rollback_by_xid */
-  innobase_create_cursor_view,
-  innobase_set_cursor_view,
-  innobase_close_cursor_view,
-  innobase_create_handler,	/* Create a new handler */
-  innobase_drop_database,	/* Drop a database */
-  innobase_end,			/* Panic call */
-  innobase_start_trx_and_assign_read_view,    /* Start Consistent Snapshot */
-  innobase_flush_logs,		/* Flush logs */
-  innobase_show_status,		/* Show status */
-  NULL,                         /* Partition flags */
-  NULL,                         /* Alter table flags */
-  NULL,                         /* alter_tablespace */
-  NULL,                         /* Fill FILES table */
-  HTON_NO_FLAGS,
-  NULL,                         /* binlog_func */
-  NULL,                         /* binlog_log_query */
-  innobase_release_temporary_latches
-};
+handlerton innobase_hton;
 
-
-static handler *innobase_create_handler(TABLE_SHARE *table)
+static handler *innobase_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
-  return new ha_innobase(table);
+  return new (mem_root) ha_innobase(table);
 }
 
 
@@ -933,10 +896,9 @@ ha_innobase::ha_innobase(TABLE_SHARE *table_arg)
 		  HA_NULL_IN_KEY |
 		  HA_CAN_INDEX_BLOBS |
 		  HA_CAN_SQL_HANDLER |
-		  HA_NOT_EXACT_COUNT |
-		  HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS |
+		  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
-		  HA_CAN_GEOMETRY |
+		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
 		  HA_TABLE_SCAN_ON_INDEX),
   start_of_scan(0),
   num_write_row(0)
@@ -1367,10 +1329,9 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 /*************************************************************************
 Opens an InnoDB database. */
 
-bool
+int
 innobase_init(void)
 /*===============*/
-			/* out: &innobase_hton, or NULL on error */
 {
 	static char	current_dir[3];		/* Set if using current lib */
 	int		err;
@@ -1379,8 +1340,33 @@ innobase_init(void)
 
 	DBUG_ENTER("innobase_init");
 
+        innobase_hton.state=have_innodb;
+        innobase_hton.db_type= DB_TYPE_INNODB;
+        innobase_hton.savepoint_offset=sizeof(trx_named_savept_t);
+        innobase_hton.close_connection=innobase_close_connection;
+        innobase_hton.savepoint_set=innobase_savepoint;
+        innobase_hton.savepoint_rollback=innobase_rollback_to_savepoint;
+        innobase_hton.savepoint_release=innobase_release_savepoint;
+        innobase_hton.commit=innobase_commit;
+        innobase_hton.rollback=innobase_rollback;
+        innobase_hton.prepare=innobase_xa_prepare;
+        innobase_hton.recover=innobase_xa_recover;
+        innobase_hton.commit_by_xid=innobase_commit_by_xid;
+        innobase_hton.rollback_by_xid=innobase_rollback_by_xid;
+        innobase_hton.create_cursor_read_view=innobase_create_cursor_view;
+        innobase_hton.set_cursor_read_view=innobase_set_cursor_view;
+        innobase_hton.close_cursor_read_view=innobase_close_cursor_view;
+        innobase_hton.create=innobase_create_handler;
+        innobase_hton.drop_database=innobase_drop_database;
+        innobase_hton.panic=innobase_end;
+        innobase_hton.start_consistent_snapshot=innobase_start_trx_and_assign_read_view;
+        innobase_hton.flush_logs=innobase_flush_logs;
+        innobase_hton.show_status=innobase_show_status;
+        innobase_hton.flags=HTON_NO_FLAGS;
+        innobase_hton.release_temporary_latches=innobase_release_temporary_latches;
+
 	 if (have_innodb != SHOW_OPTION_YES)
-	   goto error;
+	   DBUG_RETURN(0); // nothing else to do
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -2476,7 +2462,7 @@ ha_innobase::open(
 		}
 	}
 
-	block_size = 16 * 1024;	/* Index block size in InnoDB: used by MySQL
+	stats.block_size = 16 * 1024;	/* Index block size in InnoDB: used by MySQL
 				in query optimization */
 
 	/* Init table lock structure */
@@ -3071,16 +3057,15 @@ ha_innobase::store_key_val_for_row(
 /******************************************************************
 Builds a 'template' to the prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing. */
-static
 void
-build_template(
+ha_innobase::build_template(
 /*===========*/
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
 	THD*		thd,		/* in: current user thread, used
 					only if templ_type is
 					ROW_MYSQL_REC_FIELDS */
 	TABLE*		table,		/* in: MySQL table */
-	ulint		templ_type)	/* in: ROW_MYSQL_WHOLE_ROW or
+	uint		templ_type)	/* in: ROW_MYSQL_WHOLE_ROW or
 					ROW_MYSQL_REC_FIELDS */
 {
 	dict_index_t*	index;
@@ -3189,8 +3174,8 @@ build_template(
 				goto include_field;
 			}
 
-			if (table->file->ha_get_bit_in_read_set(i+1) ||
-				table->file->ha_get_bit_in_write_set(i+1)) {
+                        if (bitmap_is_set(table->read_set, i) ||
+                            bitmap_is_set(table->write_set, i)) {
 				/* This field is needed in the query */
 
 				goto include_field;
@@ -5566,7 +5551,7 @@ ha_innobase::info(
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
 
 		if (os_file_get_status(path,&stat_info)) {
-			create_time = stat_info.ctime;
+			stats.create_time = stat_info.ctime;
 		}
 	}
 
@@ -5594,21 +5579,21 @@ ha_innobase::info(
 			n_rows++;
 		}
 
-		records = (ha_rows)n_rows;
-		deleted = 0;
-		data_file_length = ((ulonglong)
+		stats.records = (ha_rows)n_rows;
+		stats.deleted = 0;
+		stats.data_file_length = ((ulonglong)
 				ib_table->stat_clustered_index_size)
 					* UNIV_PAGE_SIZE;
-		index_file_length = ((ulonglong)
+		stats.index_file_length = ((ulonglong)
 				ib_table->stat_sum_of_other_index_sizes)
 					* UNIV_PAGE_SIZE;
-		delete_length = 0;
-		check_time = 0;
+		stats.delete_length = 0;
+		stats.check_time = 0;
 
-		if (records == 0) {
-			mean_rec_length = 0;
+		if (stats.records == 0) {
+			stats.mean_rec_length = 0;
 		} else {
-			mean_rec_length = (ulong) (data_file_length / records);
+			stats.mean_rec_length = (ulong) (stats.data_file_length / stats.records);
 		}
 	}
 
@@ -5657,9 +5642,9 @@ ha_innobase::info(
 
 				if (index->stat_n_diff_key_vals[j + 1] == 0) {
 
-					rec_per_key = records;
+					rec_per_key = stats.records;
 				} else {
-					rec_per_key = (ha_rows)(records /
+					rec_per_key = (ha_rows)(stats.records /
 					 index->stat_n_diff_key_vals[j + 1]);
 				}
 
@@ -5714,7 +5699,7 @@ ha_innobase::info(
 			}
 		}
 
-		auto_increment_value = auto_inc;
+		stats.auto_increment_value = auto_inc;
 	}
 
 	prebuilt->trx->op_info = (char*)"";
@@ -6109,8 +6094,7 @@ ha_innobase::extra(
 /*===============*/
 			   /* out: 0 or error number */
 	enum ha_extra_function operation)
-			   /* in: HA_EXTRA_RETRIEVE_ALL_COLS or some
-			   other flag */
+			   /* in: HA_EXTRA_FLUSH or some other flag */
 {
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
@@ -6124,29 +6108,12 @@ ha_innobase::extra(
 				row_mysql_prebuilt_free_blob_heap(prebuilt);
 			}
 			break;
-		case HA_EXTRA_RESET:
-			if (prebuilt->blob_heap) {
-				row_mysql_prebuilt_free_blob_heap(prebuilt);
-			}
-			prebuilt->keep_other_fields_on_keyread = 0;
-			prebuilt->read_just_key = 0;
-			break;
 		case HA_EXTRA_RESET_STATE:
 			prebuilt->keep_other_fields_on_keyread = 0;
 			prebuilt->read_just_key = 0;
 			break;
 		case HA_EXTRA_NO_KEYREAD:
 			prebuilt->read_just_key = 0;
-			break;
-		case HA_EXTRA_RETRIEVE_ALL_COLS:
-			prebuilt->hint_need_to_fetch_extra_cols
-					= ROW_RETRIEVE_ALL_COLS;
-			break;
-		case HA_EXTRA_RETRIEVE_PRIMARY_KEY:
-			if (prebuilt->hint_need_to_fetch_extra_cols == 0) {
-				prebuilt->hint_need_to_fetch_extra_cols
-					= ROW_RETRIEVE_PRIMARY_KEY;
-			}
 			break;
 		case HA_EXTRA_KEYREAD:
 			prebuilt->read_just_key = 1;
@@ -6160,6 +6127,18 @@ ha_innobase::extra(
 
 	return(0);
 }
+
+int ha_innobase::reset()
+{
+  row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+  if (prebuilt->blob_heap) {
+    row_mysql_prebuilt_free_blob_heap(prebuilt);
+  }
+  prebuilt->keep_other_fields_on_keyread = 0;
+  prebuilt->read_just_key = 0;
+  return 0;
+}
+
 
 /**********************************************************************
 MySQL calls this function at the start of each SQL statement inside LOCK
@@ -6619,7 +6598,7 @@ innodb_show_status(
 
 	bool result = FALSE;
 
-	if (stat_print(thd, innobase_hton.name, strlen(innobase_hton.name),
+	if (stat_print(thd, innobase_hton_name, strlen(innobase_hton_name),
 			STRING_WITH_LEN(""), str, flen)) {
 		result= TRUE;
 	}
@@ -6646,7 +6625,7 @@ innodb_mutex_show_status(
 	ulint	  rw_lock_count_os_wait= 0;
 	ulint	  rw_lock_count_os_yield= 0;
 	ulonglong rw_lock_wait_time= 0;
-	uint	  hton_name_len= strlen(innobase_hton.name), buf1len, buf2len;
+	uint	  hton_name_len= strlen(innobase_hton_name), buf1len, buf2len;
 	DBUG_ENTER("innodb_mutex_show_status");
 
 #ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
@@ -6673,7 +6652,7 @@ innodb_mutex_show_status(
 					mutex->count_os_yield,
 					mutex->lspent_time/1000);
 
-				if (stat_print(thd, innobase_hton.name,
+				if (stat_print(thd, innobase_hton_name,
 						hton_name_len, buf1, buf1len,
 						buf2, buf2len)) {
 #ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
@@ -6703,7 +6682,7 @@ innodb_mutex_show_status(
 		rw_lock_count_os_wait, rw_lock_count_os_yield,
 		rw_lock_wait_time/1000);
 
-	if (stat_print(thd, innobase_hton.name, hton_name_len,
+	if (stat_print(thd, innobase_hton_name, hton_name_len,
 			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
 		DBUG_RETURN(1);
 	}
@@ -7120,17 +7099,21 @@ func_exit_early:
 	return(error);
 }
 
-/***********************************************************************
+/*******************************************************************************
 This function initializes the auto-inc counter if it has not been
 initialized yet. This function does not change the value of the auto-inc
 counter if it already has been initialized. Returns the value of the
-auto-inc counter. */
+auto-inc counter in *first_value, and ULONGLONG_MAX in *nb_reserved_values (as
+we have a table-level lock). offset, increment, nb_desired_values are ignored.
+*first_value is set to -1 if error (deadlock or lock wait timeout)            */
 
-ulonglong
-ha_innobase::get_auto_increment()
-/*=============================*/
-			 /* out: auto-increment column value, -1 if error
-			 (deadlock or lock wait timeout) */
+void ha_innobase::get_auto_increment(
+/*=================================*/
+        ulonglong offset,              /* in */
+        ulonglong increment,           /* in */
+        ulonglong nb_desired_values,   /* in */
+        ulonglong *first_value,        /* out */
+        ulonglong *nb_reserved_values) /* out */
 {
 	longlong	nr;
 	int		error;
@@ -7145,10 +7128,13 @@ ha_innobase::get_auto_increment()
 		ut_print_timestamp(stderr);
 		sql_print_error("Error %lu in ::get_auto_increment()",
 				(ulong) error);
-		return(~(ulonglong) 0);
+                *first_value= (~(ulonglong) 0);
+		return;
 	}
 
-	return((ulonglong) nr);
+        *first_value= (ulonglong) nr;
+        /* table-level autoinc lock reserves up to +inf */
+        *nb_reserved_values= ULONGLONG_MAX;
 }
 
 /* See comment in handler.h */
@@ -7616,15 +7602,17 @@ bool ha_innobase::check_if_incompatible_data(
 	return COMPATIBLE_DATA_YES;
 }
 
+struct st_mysql_storage_engine innobase_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &innobase_hton};
 
 mysql_declare_plugin(innobase)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &innobase_hton,
+  &innobase_storage_engine,
   innobase_hton_name,
   "Innobase OY",
-  innobase_hton_comment,
-  NULL, /* Plugin Init */
+  "Supports transactions, row-level locking, and foreign keys",
+  innobase_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   0
@@ -7632,3 +7620,4 @@ mysql_declare_plugin(innobase)
 mysql_declare_plugin_end;
 
 #endif
+
