@@ -297,7 +297,6 @@ dtype_print(
 /***************************************************************************
 Returns the maximum size of a data type. Note: types in system tables may be
 incomplete and return incorrect information. */
-UNIV_INLINE
 ulint
 dtype_get_max_size(
 /*===============*/
