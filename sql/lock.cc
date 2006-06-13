@@ -828,7 +828,7 @@ int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list)
   if (wait_if_global_read_lock(thd, 0, 1))
     DBUG_RETURN(1);
   VOID(pthread_mutex_lock(&LOCK_open));
-  if ((lock_retcode = lock_table_name(thd, table_list)) < 0)
+  if ((lock_retcode = lock_table_name(thd, table_list, TRUE)) < 0)
     goto end;
   if (lock_retcode && wait_for_locked_table_names(thd, table_list))
   {
@@ -851,6 +851,7 @@ end:
     lock_table_name()
     thd			Thread handler
     table_list		Lock first table in this list
+    check_in_use        Do we need to check if table already in use by us
 
   WARNING
     If you are going to update the table, you should use
@@ -870,7 +871,7 @@ end:
     > 0  table locked, but someone is using it
 */
 
-int lock_table_name(THD *thd, TABLE_LIST *table_list)
+int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
 {
   TABLE *table;
   char  key[MAX_DBKEY_LENGTH];
@@ -882,17 +883,22 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
 
   key_length= create_table_def_key(thd, key, table_list, 0);
 
-  /* Only insert the table if we haven't insert it already */
-  for (table=(TABLE*) hash_first(&open_cache, (byte*)key, key_length, &state);
-       table ;
-       table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length, &state))
+  if (check_in_use)
   {
-    if (table->in_use == thd)
+    /* Only insert the table if we haven't insert it already */
+    for (table=(TABLE*) hash_first(&open_cache, (byte*)key,
+                                   key_length, &state);
+         table ;
+         table = (TABLE*) hash_next(&open_cache,(byte*) key,
+                                    key_length, &state))
     {
-      DBUG_PRINT("info", ("Table is in use"));
-      table->s->version= 0;                  // Ensure no one can use this
-      table->locked_by_name= 1;
-      DBUG_RETURN(0);
+      if (table->in_use == thd)
+      {
+        DBUG_PRINT("info", ("Table is in use"));
+        table->s->version= 0;                  // Ensure no one can use this
+        table->locked_by_name= 1;
+        DBUG_RETURN(0);
+      }
     }
   }
   /*
@@ -917,10 +923,10 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     my_free((gptr) table,MYF(0));
     DBUG_RETURN(-1);
   }
-  
+
   /* Return 1 if table is in use */
   DBUG_RETURN(test(remove_table_from_cache(thd, db, table_list->table_name,
-                                           RTFC_NO_FLAG)));
+             check_in_use ? RTFC_NO_FLAG : RTFC_WAIT_OTHER_THREAD_FLAG)));
 }
 
 
@@ -1003,7 +1009,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
   for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
   {
     int got_lock;
-    if ((got_lock=lock_table_name(thd,lock_table)) < 0)
+    if ((got_lock=lock_table_name(thd,lock_table, TRUE)) < 0)
       goto end;					// Fatal error
     if (got_lock)
       got_all_locks=0;				// Someone is using table
