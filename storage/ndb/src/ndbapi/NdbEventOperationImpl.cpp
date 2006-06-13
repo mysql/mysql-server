@@ -1933,15 +1933,16 @@ static struct Ev_t {
     enum_DEL = NdbDictionary::Event::_TE_DELETE,
     enum_UPD = NdbDictionary::Event::_TE_UPDATE,
     enum_NUL = NdbDictionary::Event::_TE_NUL,
-    enum_ERR = 255
+    enum_IDM = 254,     // idempotent op possibly allowed on NF
+    enum_ERR = 255      // always impossible
   };
   int t1, t2, t3;
 } ev_t[] = {
-  { Ev_t::enum_INS, Ev_t::enum_INS, Ev_t::enum_ERR },
+  { Ev_t::enum_INS, Ev_t::enum_INS, Ev_t::enum_IDM },
   { Ev_t::enum_INS, Ev_t::enum_DEL, Ev_t::enum_NUL }, //ok
   { Ev_t::enum_INS, Ev_t::enum_UPD, Ev_t::enum_INS }, //ok
   { Ev_t::enum_DEL, Ev_t::enum_INS, Ev_t::enum_UPD }, //ok
-  { Ev_t::enum_DEL, Ev_t::enum_DEL, Ev_t::enum_ERR },
+  { Ev_t::enum_DEL, Ev_t::enum_DEL, Ev_t::enum_IDM },
   { Ev_t::enum_DEL, Ev_t::enum_UPD, Ev_t::enum_ERR },
   { Ev_t::enum_UPD, Ev_t::enum_INS, Ev_t::enum_ERR },
   { Ev_t::enum_UPD, Ev_t::enum_DEL, Ev_t::enum_DEL }, //ok
@@ -2009,6 +2010,34 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
     }
   }
   assert(tp != 0 && tp->t3 != Ev_t::enum_ERR);
+
+  if (tp->t3 == Ev_t::enum_IDM) {
+    LinearSectionPtr (&ptr1)[3] = data->ptr;
+
+    /*
+     * TODO
+     * - can get data in INS ptr2[2] which is supposed to be empty
+     * - can get extra data in DEL ptr2[2]
+     * - why does DBUG_PRINT not work in this file ???
+     *
+     * replication + bug#19872 can ignore this since merge is on
+     * only for tables with explicit PK and before data is not used
+     */
+    const int maxsec = 1; // ignore section 2
+
+    int i;
+    for (i = 0; i <= maxsec; i++) {
+      if (ptr1[i].sz != ptr2[i].sz ||
+          memcmp(ptr1[i].p, ptr2[i].p, ptr1[i].sz << 2) != 0) {
+        DBUG_PRINT("info", ("idempotent op %d*%d data differs in sec %d",
+                             tp->t1, tp->t2, i));
+        assert(false);
+        DBUG_RETURN_EVENT(-1);
+      }
+    }
+    DBUG_PRINT("info", ("idempotent op %d*%d data ok", tp->t1, tp->t2));
+    DBUG_RETURN_EVENT(0);
+  }
 
   // save old data
   EventBufData olddata = *data;
