@@ -382,9 +382,9 @@ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	I
 t1	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t3	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-delete from t1;
-delete from t2;
-delete from t3;
+truncate table t1;
+truncate table t2;
+truncate table t3;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
