@@ -548,6 +548,8 @@ sys_ndb_index_stat_update_freq("ndb_index_stat_update_freq",
                                &SV::ndb_index_stat_update_freq);
 sys_var_long_ptr
 sys_ndb_extra_logging("ndb_extra_logging", &ndb_extra_logging);
+sys_var_thd_bool
+sys_ndb_use_copying_alter_table("ndb_use_copying_alter_table", &SV::ndb_use_copying_alter_table);
 
 /* Time/date/datetime formats */
 
@@ -917,6 +919,8 @@ SHOW_VAR init_vars[]= {
   {sys_ndb_report_thresh_binlog_mem_usage.name,
    (char*) &sys_ndb_report_thresh_binlog_mem_usage,                 SHOW_SYS},
 #endif
+  {sys_ndb_use_copying_alter_table.name,
+   (char*) &sys_ndb_use_copying_alter_table,                        SHOW_SYS},
   {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
   {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},

@@ -9824,10 +9824,21 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
   uint i;
   const NDBTAB *tab= (const NDBTAB *) m_table;
 
+  if (current_thd->variables.ndb_use_copying_alter_table)
+  {
+    DBUG_PRINT("info", ("On-line alter table disabled"));
+    DBUG_RETURN(COMPATIBLE_DATA_NO);
+  }
+
   for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(field->field_name);
+    if (!col)
+    {
+      DBUG_PRINT("info", ("Field has been renamed, copy table"));
+      DBUG_RETURN(COMPATIBLE_DATA_NO);
+    }
     if ((field->flags & FIELD_IN_ADD_INDEX) &&
         col->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
     {
