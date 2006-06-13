@@ -53,7 +53,10 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     Fragrecord& frag = *fragPtr.p;
     // flags
     Uint32 bits = 0;
-    if (frag.m_lcp_scan_op == RNIL) {
+    
+    if (!AccScanReq::getLcpScanFlag(req->requestInfo) ||
+	tablePtr.p->m_no_of_disk_attributes == 0)
+    {
       // seize from pool and link to per-fragment list
       LocalDLList<ScanOp> list(c_scanOpPool, frag.m_scanList);
       if (! list.seize(scanPtr)) {
@@ -63,23 +66,25 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       if (!AccScanReq::getNoDiskScanFlag(req->requestInfo)
 	  && tablePtr.p->m_no_of_disk_attributes)
       {
-        bits |= ScanOp::SCAN_DD;
+	bits |= ScanOp::SCAN_DD;
       }
       bool mm = (bits & ScanOp::SCAN_DD);
       if (tablePtr.p->m_attributes[mm].m_no_of_varsize > 0) {
 	bits |= ScanOp::SCAN_VS;
 	
-        // disk pages have fixed page format
-        ndbrequire(! (bits & ScanOp::SCAN_DD));
+	// disk pages have fixed page format
+	ndbrequire(! (bits & ScanOp::SCAN_DD));
       }
       if (! AccScanReq::getReadCommittedFlag(req->requestInfo)) {
-        if (AccScanReq::getLockMode(req->requestInfo) == 0)
-          bits |= ScanOp::SCAN_LOCK_SH;
-        else
-          bits |= ScanOp::SCAN_LOCK_EX;
+	if (AccScanReq::getLockMode(req->requestInfo) == 0)
+	  bits |= ScanOp::SCAN_LOCK_SH;
+	else
+	  bits |= ScanOp::SCAN_LOCK_EX;
       }
     } else {
       jam();
+      // LCP scan and disk
+      
       ndbrequire(frag.m_lcp_scan_op == c_lcp_scan_op);
       c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
       bits |= ScanOp::SCAN_LCP;
@@ -156,7 +161,7 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
       conf->scanPtr = scan.m_userPtr;
       unsigned signalLength = 1;
       sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
-          signal, signalLength, JBB);
+		 signal, signalLength, JBB);
       return;
     }
     break;
@@ -171,7 +176,7 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
       lockReq->requestInfo = AccLockReq::AbortWithConf;
       lockReq->accOpPtr = scan.m_accLockOp;
       EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ,
-          signal, AccLockReq::UndoSignalLength);
+		     signal, AccLockReq::UndoSignalLength);
       jamEntry();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       scan.m_state = ScanOp::Aborting;
@@ -182,10 +187,10 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
       ndbrequire(scan.m_accLockOp != RNIL);
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
-      lockReq->requestInfo = AccLockReq::Unlock;
+      lockReq->requestInfo = AccLockReq::Abort;
       lockReq->accOpPtr = scan.m_accLockOp;
       EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ,
-          signal, AccLockReq::UndoSignalLength);
+		     signal, AccLockReq::UndoSignalLength);
       jamEntry();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       scan.m_accLockOp = RNIL;
@@ -433,7 +438,7 @@ Dbtup::execACCKEYCONF(Signal* signal)
     jam();
     AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
     lockReq->returnCode = RNIL;
-    lockReq->requestInfo = AccLockReq::Unlock;
+    lockReq->requestInfo = AccLockReq::Abort;
     lockReq->accOpPtr = scan.m_accLockOp;
     EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
     jamEntry();
@@ -582,12 +587,15 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   Fragrecord& frag = *fragPtr.p;
   // tuple found
   Tuple_header* th = 0;
+  Uint32 thbits = 0;
   Uint32 loop_count = 0;
   Uint32 scanGCI = scanPtr.p->m_scanGCI;
   Uint32 foundGCI;
  
-  bool mm = (bits & ScanOp::SCAN_DD);
-  bool lcp = (bits & ScanOp::SCAN_LCP);
+  const bool mm = (bits & ScanOp::SCAN_DD);
+  const bool lcp = (bits & ScanOp::SCAN_LCP);
+  const bool dirty = (bits & ScanOp::SCAN_LOCK) == 0;
+  
   Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
   Uint32 size = table.m_offsets[mm].m_fix_header_size +
     (bits & ScanOp::SCAN_VS ? Tuple_header::HeaderSize + 1: 0);
@@ -750,22 +758,22 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	{
 	  pos.m_get = ScanPos::Get_next_tuple_fs;
           th = (Tuple_header*)&page->m_data[key.m_page_idx];
+	  thbits = th->m_header_bits;
+	  
 	  if (likely(! (bits & ScanOp::SCAN_NR)))
 	  {
-	    if (! (th->m_header_bits & Tuple_header::FREE)) {
-	      goto found_tuple;
-	    } 
-	    else 
+	    jam();
+	    if (! (thbits & Tuple_header::FREE))
 	    {
-	      jam();
-	      // skip free tuple
-	    }
+	      if (! ((thbits & Tuple_header::ALLOC) && dirty))
+		goto found_tuple;
+	    } 
 	  }
 	  else
 	  {
 	    if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI)
 	    {
-	      if (! (th->m_header_bits & Tuple_header::FREE))
+	      if (! (thbits & Tuple_header::FREE))
 	      {
 		jam();
 		goto found_tuple;
@@ -775,9 +783,11 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 		goto found_deleted_rowid;
 	      }
 	    }
-	    else
+	    else if (thbits != Fix_page::FREE_RECORD && 
+		     th->m_operation_ptr_i != RNIL)
 	    {
 	      jam();
+	      goto found_tuple; // Locked tuple...
 	      // skip free tuple
 	    }
 	  }
@@ -793,8 +803,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       {
         // caller has already set pos.m_get to next tuple
-        if (! (bits & ScanOp::SCAN_LCP && 
-           th->m_header_bits & Tuple_header::LCP_SKIP)) {
+        if (! (bits & ScanOp::SCAN_LCP && thbits & Tuple_header::LCP_SKIP)) {
           Local_key& key_mm = pos.m_key_mm;
           if (! (bits & ScanOp::SCAN_DD)) {
             key_mm = pos.m_key;
@@ -810,7 +819,11 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         } else {
           jam();
           // clear it so that it will show up in next LCP
-          th->m_header_bits &= ~(Uint32)Tuple_header::LCP_SKIP;
+          th->m_header_bits = thbits & ~(Uint32)Tuple_header::LCP_SKIP;
+	  if (tablePtr.p->m_bits & Tablerec::TR_Checksum) {
+	    jam();
+	    setChecksum(th, tablePtr.p);
+	  }
         }
       }
       break;
@@ -833,7 +846,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  th = (Tuple_header*)(mmpage->m_data + key_mm.m_page_idx);
 	  if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI)
 	  {
-	    if (! (th->m_header_bits & Tuple_header::FREE))
+	    if (! (thbits & Tuple_header::FREE))
 	      break;
 	  }
 	}
@@ -893,7 +906,7 @@ found_lcp_keep:
   
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
   conf->scanPtr = scan.m_userPtr;
-  conf->accOperationPtr = RNIL + 1;
+  conf->accOperationPtr = (Uint32)-1;
   conf->fragId = frag.fragmentId;
   conf->localKey[0] = lcp_list;
   conf->localKey[1] = 0;

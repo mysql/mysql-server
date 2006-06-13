@@ -1110,6 +1110,7 @@ static int opt_timer;
 static char * opt_remote_mgm = NULL;
 static char * opt_testname = NULL;
 static int opt_verbose;
+static int opt_seed = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -1129,6 +1130,9 @@ static struct my_option my_long_options[] =
   { "loops", 'l', "Number of loops",
     (gptr*) &opt_loops, (gptr*) &opt_loops, 0,
     GET_INT, REQUIRED_ARG, 5, 0, 0, 0, 0, 0 },
+  { "seed", 1024, "Random seed",
+    (gptr*) &opt_seed, (gptr*) &opt_seed, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "testname", 'n', "Name of test to run",
     (gptr*) &opt_testname, (gptr*) &opt_testname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -1144,6 +1148,8 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+extern int global_flag_skip_invalidate_cache;
 
 static void usage()
 {
@@ -1224,6 +1230,16 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
+
+  if (opt_seed == 0)
+  {
+    opt_seed = NdbTick_CurrentMillisecond();
+  }
+  ndbout_c("random seed: %u", opt_seed);
+  srand(opt_seed);
+  srandom(opt_seed);
+
+  global_flag_skip_invalidate_cache = 1;
   
   {
     Ndb ndb(&con, "TEST_DB");

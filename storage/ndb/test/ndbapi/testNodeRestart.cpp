@@ -696,7 +696,10 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
       do { 
 	int tmp = restarter.getRandomNodeOtherNodeGroup(node1, rand());
 	if (tmp == -1)
-	  break;
+	{
+	  ctx->stopTest();
+	  return NDBT_OK;
+	}
 	node1 = tmp;
       } while(nodesmask.get(node1));
       
@@ -876,12 +879,15 @@ int runBug20185(NDBT_Context* ctx, NDBT_Step* step){
   HugoOperations hugoOps(*ctx->getTab());
   Ndb* pNdb = GETNDB(step);
   
+  const int masterNode = restarter.getMasterNodeId();
+
   int dump[] = { 7090, 20 } ;
   if (restarter.dumpStateAllNodes(dump, 2))
     return NDBT_FAILED;
   
   NdbSleep_MilliSleep(3000);
-
+  
+retry:
   if(hugoOps.startTransaction(pNdb) != 0)
     return NDBT_FAILED;
   
@@ -891,8 +897,14 @@ int runBug20185(NDBT_Context* ctx, NDBT_Step* step){
   if (hugoOps.execute_NoCommit(pNdb) != 0)
     return NDBT_FAILED;
   
-  int nodeId;
   const int node = hugoOps.getTransaction()->getConnectedNodeId();
+  if (node != masterNode)
+  {
+    hugoOps.closeTransaction(pNdb);
+    goto retry;
+  } 
+  
+  int nodeId;
   do {
     nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
   } while (nodeId == node);
