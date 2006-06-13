@@ -1156,58 +1156,67 @@ fsp_try_extend_data_file(
 	}
 
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
+	zip_size = mach_read_from_4(header + FSP_PAGE_ZIP_SIZE);
 
 	old_size = size;
 
-	if (space == 0 && srv_last_file_size_max != 0) {
-		if (srv_last_file_size_max
-			 < srv_data_file_sizes[srv_n_data_files - 1]) {
-
-			fprintf(stderr,
-"InnoDB: Error: Last data file size is %lu, max size allowed %lu\n",
-				(ulong) srv_data_file_sizes[srv_n_data_files - 1],
-				(ulong) srv_last_file_size_max);
-		}
-
-		size_increase = srv_last_file_size_max
-				 - srv_data_file_sizes[srv_n_data_files - 1];
-		if (size_increase > SRV_AUTO_EXTEND_INCREMENT) {
-			size_increase = SRV_AUTO_EXTEND_INCREMENT;
-		}
-	} else {
-		if (space == 0) {
+	if (space == 0) {
+		if (!srv_last_file_size_max) {
 			size_increase = SRV_AUTO_EXTEND_INCREMENT;
 		} else {
-			/* We extend single-table tablespaces first one extent
-			at a time, but for bigger tablespaces more. It is not
-			enough to extend always by one extent, because some
-			extents are frag page extents. */
+			if (srv_last_file_size_max
+				 < srv_data_file_sizes[srv_n_data_files - 1]) {
 
-			if (size < FSP_EXTENT_SIZE) {
-				/* Let us first extend the file to 64 pages */
-				success = fsp_try_extend_data_file_with_pages(
-					  space, FSP_EXTENT_SIZE - 1,
+				fprintf(stderr,
+"InnoDB: Error: Last data file size is %lu, max size allowed %lu\n",
+					(ulong) srv_data_file_sizes[srv_n_data_files - 1],
+					(ulong) srv_last_file_size_max);
+			}
+
+			size_increase = srv_last_file_size_max
+				 - srv_data_file_sizes[srv_n_data_files - 1];
+			if (size_increase > SRV_AUTO_EXTEND_INCREMENT) {
+				size_increase = SRV_AUTO_EXTEND_INCREMENT;
+			}
+		}
+	} else {
+		/* We extend single-table tablespaces first one extent
+		at a time, but for bigger tablespaces more. It is not
+		enough to extend always by one extent, because some
+		extents are frag page extents. */
+		ulint	extent_size;	/* one megabyte, in pages */
+
+		if (!zip_size) {
+			extent_size = FSP_EXTENT_SIZE;
+		} else {
+			extent_size = FSP_EXTENT_SIZE
+					* UNIV_PAGE_SIZE / zip_size;
+		}
+
+		if (size < extent_size) {
+			/* Let us first extend the file to extent_size */
+			success = fsp_try_extend_data_file_with_pages(
+					  space, extent_size - 1,
 					  header, mtr);
-				if (!success) {
-					new_size = mtr_read_ulint(
+			if (!success) {
+				new_size = mtr_read_ulint(
 					 header + FSP_SIZE, MLOG_4BYTES, mtr);
 
-					*actual_increase = new_size - old_size;
+				*actual_increase = new_size - old_size;
 
-					return(FALSE);
-				}
-
-				size = FSP_EXTENT_SIZE;
+				return(FALSE);
 			}
 
-			if (size < 32 * FSP_EXTENT_SIZE) {
-				size_increase = FSP_EXTENT_SIZE;
-			} else {
-				/* Below in fsp_fill_free_list() we assume
-				that we add at most FSP_FREE_ADD extents at
-				a time */
-				size_increase = FSP_FREE_ADD * FSP_EXTENT_SIZE;
-			}
+			size = extent_size;
+		}
+
+		if (size < 32 * extent_size) {
+			size_increase = extent_size;
+		} else {
+			/* Below in fsp_fill_free_list() we assume
+			that we add at most FSP_FREE_ADD extents at
+			a time */
+			size_increase = FSP_FREE_ADD * extent_size;
 		}
 	}
 
@@ -1220,8 +1229,6 @@ fsp_try_extend_data_file(
 							size + size_increase);
 	/* We ignore any fragments of a full megabyte when storing the size
 	to the space header */
-
-	zip_size = mach_read_from_4(header + FSP_PAGE_ZIP_SIZE);
 
 	if (!zip_size) {
 		new_size = ut_calc_align_down(actual_size,
