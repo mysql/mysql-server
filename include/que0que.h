@@ -143,14 +143,12 @@ que_thr_stop_for_mysql(
 /*===================*/
 	que_thr_t*	thr);	/* in: query thread */
 /**************************************************************************
-Runs query threads. Note that the individual query thread which is run
-within this function may change if, e.g., the OS thread executing this
-function uses a threshold amount of resources. */
+Run a query thread. Handles lock waits. */
 
 void
 que_run_threads(
 /*============*/
-	que_thr_t*	thr);	/* in: query thread which is run initially */
+	que_thr_t*	thr);	/* in: query thread */
 /**************************************************************************
 After signal handling is finished, returns control to a query graph error
 handling routine. (Currently, just returns the control to the root of the
@@ -162,19 +160,6 @@ que_fork_error_handle(
 	trx_t*	trx,	/* in: trx */
 	que_t*	fork);	/* in: query graph which was run before signal
 			handling started, NULL not allowed */
-/**************************************************************************
-Handles an SQL error noticed during query thread execution. At the moment,
-does nothing! */
-
-void
-que_thr_handle_error(
-/*=================*/
-	que_thr_t*	thr,	/* in: query thread */
-	ulint		err_no,	/* in: error number */
-	byte*		err_str,/* in, own: error string or NULL; NOTE: the
-				function will take care of freeing of the
-				string! */
-	ulint		err_len);/* in: error string length */
 /**************************************************************************
 Moves a suspended query thread to the QUE_THR_RUNNING state and releases
 a single worker thread to execute it. This function should be used to end
@@ -337,9 +322,14 @@ Evaluate the given SQL */
 ulint
 que_eval_sql(
 /*=========*/
-	pars_info_t*	info,	/* out: error code or DB_SUCCESS */
-	const char*	sql,	/* in: info struct, or NULL */
+				/* out: error code or DB_SUCCESS */
+	pars_info_t*	info,	/* in: info struct, or NULL */
+	const char*	sql,	/* in: SQL string */
+	ibool		reserve_dict_mutex,
+				/* in: if TRUE, acquire/release
+				dict_sys->mutex around call to pars_sql. */
 	trx_t*		trx);	/* in: trx */
+
 /* Query graph query thread node: the fields are protected by the kernel
 mutex with the exceptions named below */
 

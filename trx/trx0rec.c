@@ -843,7 +843,7 @@ trx_undo_update_rec_get_update(
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n"
 "InnoDB: Run also CHECK TABLE ",
 				(ulong) dict_index_get_n_fields(index));
-			ut_print_name(stderr, trx, index->table_name);
+			ut_print_name(stderr, trx, TRUE, index->table_name);
 			fprintf(stderr, "\n"
 "InnoDB: n_fields = %lu, i = %lu, ptr %p\n",
 				(ulong) n_fields, (ulong) i, ptr);

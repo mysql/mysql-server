@@ -607,7 +607,7 @@ row_ins_set_detailed(
 	rewind(srv_misc_tmpfile);
 
 	if (os_file_set_eof(srv_misc_tmpfile)) {
-		ut_print_name(srv_misc_tmpfile, trx,
+		ut_print_name(srv_misc_tmpfile, trx, TRUE,
 				foreign->foreign_table_name);
 		dict_print_info_on_foreign_key_in_create_format(
 				srv_misc_tmpfile,
@@ -649,22 +649,22 @@ row_ins_foreign_report_err(
 	trx_print(ef, trx, 600);
 
 	fputs("Foreign key constraint fails for table ", ef);
-	ut_print_name(ef, trx, foreign->foreign_table_name);
+	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
 	fputs(":\n", ef);
 	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign,
 		TRUE);
 	putc('\n', ef);
 	fputs(errstr, ef);
 	fputs(" in parent table, in index ", ef);
-	ut_print_name(ef, trx, foreign->referenced_index->name);
+	ut_print_name(ef, trx, FALSE, foreign->referenced_index->name);
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		dtuple_print(ef, entry);
 	}
 	fputs("\nBut in child table ", ef);
-	ut_print_name(ef, trx, foreign->foreign_table_name);
+	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
 	fputs(", in index ", ef);
-	ut_print_name(ef, trx, foreign->foreign_index->name);
+	ut_print_name(ef, trx, FALSE, foreign->foreign_index->name);
 	if (rec) {
 		fputs(", there is a record:\n", ef);
 		rec_print(ef, rec, foreign->foreign_index);
@@ -702,20 +702,20 @@ row_ins_foreign_report_add_err(
 	fputs(" Transaction:\n", ef);
 	trx_print(ef, trx, 600);
 	fputs("Foreign key constraint fails for table ", ef);
-	ut_print_name(ef, trx, foreign->foreign_table_name);
+	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
 	fputs(":\n", ef);
 	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign,
 		TRUE);
 	fputs("\nTrying to add in child table, in index ", ef);
-	ut_print_name(ef, trx, foreign->foreign_index->name);
+	ut_print_name(ef, trx, FALSE, foreign->foreign_index->name);
 	if (entry) {
 		fputs(" tuple:\n", ef);
 		dtuple_print(ef, entry);
 	}
 	fputs("\nBut in parent table ", ef);
-	ut_print_name(ef, trx, foreign->referenced_table_name);
+	ut_print_name(ef, trx, TRUE, foreign->referenced_table_name);
 	fputs(", in index ", ef);
-	ut_print_name(ef, trx, foreign->referenced_index->name);
+	ut_print_name(ef, trx, FALSE, foreign->referenced_index->name);
 	fputs(",\nthe closest match we can find is record:\n", ef);
 	if (rec && page_rec_is_supremum(rec)) {
 		/* If the cursor ended on a supremum record, it is better
@@ -1283,16 +1283,19 @@ run_again:
 			fputs(" Transaction:\n", ef);
 			trx_print(ef, trx, 600);
 			fputs("Foreign key constraint fails for table ", ef);
-			ut_print_name(ef, trx, foreign->foreign_table_name);
+			ut_print_name(ef, trx, TRUE,
+					foreign->foreign_table_name);
 			fputs(":\n", ef);
 			dict_print_info_on_foreign_key_in_create_format(ef,
 					trx, foreign, TRUE);
 			fputs("\nTrying to add to index ", ef);
-			ut_print_name(ef, trx, foreign->foreign_index->name);
+			ut_print_name(ef, trx, FALSE,
+					foreign->foreign_index->name);
 			fputs(" tuple:\n", ef);
 			dtuple_print(ef, entry);
 			fputs("\nBut the parent table ", ef);
-			ut_print_name(ef, trx, foreign->referenced_table_name);
+			ut_print_name(ef, trx, TRUE,
+					foreign->referenced_table_name);
 		fputs("\nor its .ibd file does not currently exist!\n", ef);
 			mutex_exit(&dict_foreign_err_mutex);
 

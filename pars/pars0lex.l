@@ -325,10 +325,6 @@ In the state 'id', only two actions are possible (defined below). */
 			return(PARS_FOR_TOKEN);
 }
 
-"CONSISTENT"	{
-			return(PARS_CONSISTENT_TOKEN);
-}
-
 "READ"		{
 			return(PARS_READ_TOKEN);
 }
@@ -515,6 +511,18 @@ In the state 'id', only two actions are possible (defined below). */
 
 "FUNCTION"	{
 			return(PARS_FUNCTION_TOKEN);
+}
+
+"LOCK"	{
+			return(PARS_LOCK_TOKEN);
+}
+
+"SHARE"	{
+			return(PARS_SHARE_TOKEN);
+}
+
+"MODE"	{
+			return(PARS_MODE_TOKEN);
 }
 
 {ID}		{

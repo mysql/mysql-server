@@ -241,7 +241,7 @@ trx_rollback_to_savepoint_for_mysql(
 	if (trx->conc_state == TRX_NOT_STARTED) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
-		ut_print_name(stderr, trx, savep->name);
+		ut_print_name(stderr, trx, FALSE, savep->name);
 		fputs(" though it is not started\n", stderr);
 		return(DB_ERROR);
 	}
@@ -544,7 +544,7 @@ loop:
 
 		if (table) {
 			fputs("InnoDB: Table found: dropping table ", stderr);
-			ut_print_name(stderr, trx, table->name);
+			ut_print_name(stderr, trx, TRUE, table->name);
 			fputs(" in recovery\n", stderr);
 
 			err = row_drop_table_for_mysql(table->name, trx, TRUE);
@@ -1286,7 +1286,6 @@ trx_rollback_step(
 	que_thr_t*	thr)	/* in: query thread */
 {
 	roll_node_t*	node;
-	ibool		success;
 	ulint		sig_no;
 	trx_savept_t*	savept;
 
@@ -1313,18 +1312,12 @@ trx_rollback_step(
 
 		/* Send a rollback signal to the transaction */
 
-		success = trx_sig_send(thr_get_trx(thr),
-					sig_no, TRX_SIG_SELF,
-					thr, savept, NULL);
+		trx_sig_send(thr_get_trx(thr), sig_no, TRX_SIG_SELF, thr,
+			savept, NULL);
 
 		thr->state = QUE_THR_SIG_REPLY_WAIT;
 
 		mutex_exit(&kernel_mutex);
-
-		if (!success) {
-			/* Error in delivering the rollback signal */
-			que_thr_handle_error(thr, DB_ERROR, NULL, 0);
-		}
 
 		return(NULL);
 	}
