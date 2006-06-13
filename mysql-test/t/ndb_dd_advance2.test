@@ -23,7 +23,6 @@
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
 DROP TABLE IF EXISTS test.t3;
-DROP DATABASE IF EXISTS test;
 --enable_warnings
 
 #### Copy data from table in one table space to table in different table space. ####
@@ -48,8 +47,6 @@ DROP DATABASE IF EXISTS test;
  USE LOGFILE GROUP lg
  INITIAL_SIZE 12M
  ENGINE NDB;
-
- CREATE DATABASE test; 
 
  CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB) 
  TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
@@ -660,8 +657,8 @@ select length(@x0),length(@b2),length(@d2) from dual;
  SELECT a1,length(a2),substr(a2,1+2*900,2),length(a3),substr(a3,1+3*900,3)
  FROM test.t1 where a1=2;
 
- SHOW VARIABLES LIKE 'have_query_cache';
- SHOW STATUS LIKE 'Qcache%';
+ #SHOW VARIABLES LIKE 'have_query_cache';
+ #SHOW STATUS LIKE 'Qcache%';
 
  DELETE FROM test.t1;
  DROP TABLE test.t1;
