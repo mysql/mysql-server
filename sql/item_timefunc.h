@@ -339,6 +339,7 @@ public:
   {
     return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
   }  
+  bool result_as_longlong() { return TRUE; }
 };
 
 
@@ -354,6 +355,7 @@ public:
   {
     return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
   }
+  bool result_as_longlong() { return TRUE; }
 };
 
 
@@ -383,6 +385,7 @@ public:
     TIME representation using UTC-SYSTEM or per-thread time zone.
   */
   virtual void store_now_in_TIME(TIME *now_time)=0;
+  bool result_as_longlong() { return TRUE; }
 };
 
 
@@ -588,6 +591,7 @@ public:
   {
     return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
   }
+  bool result_as_longlong() { return TRUE; }
 };
 
 /*
@@ -715,6 +719,8 @@ public:
     max_length= 10;
     maybe_null= 1;
   }
+  bool result_as_longlong() { return TRUE; }
+  longlong val_int();
 };
 
 
@@ -731,6 +737,8 @@ public:
   {
     return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
   }
+  bool result_as_longlong() { return TRUE; }
+  longlong val_int();
 };
 
 
@@ -746,6 +754,8 @@ public:
   {
     return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
   }
+  bool result_as_longlong() { return TRUE; }
+  longlong val_int();
 };
 
 class Item_func_makedate :public Item_str_func
@@ -764,6 +774,8 @@ public:
   {
     return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
   }
+  bool result_as_longlong() { return TRUE; }
+  longlong val_int();
 };
 
 
