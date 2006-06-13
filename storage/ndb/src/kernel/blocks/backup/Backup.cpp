@@ -3819,19 +3819,37 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
 	       FsAppendReq::SignalLength, JBA);
     return;
   }//if
-  
-  filePtr.p->fileRunning = 0;
-  filePtr.p->fileClosing = 1;
-  
-  FsCloseReq * req = (FsCloseReq *)signal->getDataPtrSend();
-  req->filePointer = filePtr.p->filePointer;
-  req->userPointer = filePtr.i;
-  req->userReference = reference();
-  req->fileFlag = 0;
+
 #ifdef DEBUG_ABORT
-  ndbout_c("***** a FSCLOSEREQ filePtr.i = %u", filePtr.i);
+  Uint32 running= filePtr.p->fileRunning;
+  Uint32 closing= filePtr.p->fileClosing;
 #endif
-  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
+
+  if(!filePtr.p->fileClosing)
+  {
+    filePtr.p->fileRunning = 0;
+    filePtr.p->fileClosing = 1;
+
+    FsCloseReq * req = (FsCloseReq *)signal->getDataPtrSend();
+    req->filePointer = filePtr.p->filePointer;
+    req->userPointer = filePtr.i;
+    req->userReference = reference();
+    req->fileFlag = 0;
+#ifdef DEBUG_ABORT
+    ndbout_c("***** a FSCLOSEREQ filePtr.i = %u run=%d cl=%d", filePtr.i,
+             running, closing);
+#endif
+    sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
+  }
+  else
+  {
+#ifdef DEBUG_ABORT
+    ndbout_c("***** a NOT SENDING FSCLOSEREQ filePtr.i = %u run=%d cl=%d",
+             filePtr.i,
+             running, closing);
+#endif
+
+  }
 }
 
 
@@ -4082,9 +4100,7 @@ Backup::closeFiles(Signal* sig, BackupRecordPtr ptr)
       jam();
       continue;
     }//if
-    
-    filePtr.p->fileClosing = 1;
-    
+
     if(filePtr.p->fileRunning == 1){
       jam();
 #ifdef DEBUG_ABORT
@@ -4093,7 +4109,10 @@ Backup::closeFiles(Signal* sig, BackupRecordPtr ptr)
       filePtr.p->operation.dataBuffer.eof();
     } else {
       jam();
-      
+      filePtr.p->fileClosing = 1;
+      filePtr.p->operation.dataBuffer.eof();
+      checkFile(sig, filePtr); // make sure we write everything before closing
+
       FsCloseReq * req = (FsCloseReq *)sig->getDataPtrSend();
       req->filePointer = filePtr.p->filePointer;
       req->userPointer = filePtr.i;
@@ -4555,7 +4574,6 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
   jam();
   BackupFilePtr filePtr;
   c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
-  filePtr.p->fileClosing = 1;
   filePtr.p->operation.dataBuffer.eof();
 }
 
@@ -4647,7 +4665,6 @@ Backup::execEND_LCPREQ(Signal* signal)
   
     BackupFilePtr filePtr;
     c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
-    filePtr.p->fileClosing = 1;
     filePtr.p->operation.dataBuffer.eof();
     return;
   } 
