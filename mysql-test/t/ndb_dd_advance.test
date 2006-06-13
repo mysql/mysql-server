@@ -269,7 +269,7 @@ ENGINE =NDB;
 #### Create test that loads data, use mysql dump to dump data, drop table,
 #### create table and load from mysql dump.
 
- DROP DATABASE IF EXISTS test;
+# DROP DATABASE IF EXISTS test;
 
  CREATE LOGFILE GROUP lg
  ADD UNDOFILE './undofile.dat'
@@ -283,7 +283,7 @@ ENGINE =NDB;
  INITIAL_SIZE 12M
  ENGINE NDB;
 
-CREATE DATABASE test;
+# CREATE DATABASE test;
 
 CREATE TABLE test.t (
   a smallint NOT NULL,
@@ -319,7 +319,7 @@ show tables;
 SELECT * FROM test.t order by a;
 
  DROP TABLE test.t;
- DROP DATABASE test;  
+# DROP DATABASE test;  
 
  ALTER TABLESPACE ts
  DROP DATAFILE './datafile.dat'
@@ -395,7 +395,7 @@ SELECT * FROM test.t order by a;
 
 #### Use group by asc and dec; Use having; Use order by. ####
 
- DROP DATABASE IF EXISTS test;
+# DROP DATABASE IF EXISTS test;
  DROP table IF EXISTS test.t1; 
  DROP table IF EXISTS test.t2; 
  
@@ -417,7 +417,7 @@ SELECT * FROM test.t order by a;
  INITIAL_SIZE 12M
  ENGINE NDB;
 
-CREATE DATABASE test;
+# CREATE DATABASE test;
 
 CREATE TABLE test.t1 (
   a1 smallint NOT NULL,
