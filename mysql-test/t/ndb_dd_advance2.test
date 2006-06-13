@@ -564,7 +564,7 @@ delimiter //;
  SELECT * FROM test.t1 ORDER BY a1;
  
  connection con2;
- SELECT * FROM test.t1;
+ SELECT * FROM test.t1 ORDER BY a1;
  INSERT INTO test.t1 VALUES(NULL, "aaaaa3", "bbbbb3");  
  
  connection con1;
@@ -572,7 +572,7 @@ delimiter //;
 
  connection con2;
  INSERT INTO test.t1 VALUES(NULL, "aaaaa3", "bbbbb3"); 
- SELECT * FROM test.t1;
+ SELECT * FROM test.t1 ORDER BY a1;
  DELETE FROM test.t1;
  DROP TABLE test.t1;
 
@@ -648,9 +648,9 @@ select length(@x0),length(@b2),length(@d2) from dual;
  explain SELECT * from test.t1 WHERE a1 = 1;
 
  SELECT a1,length(a2),substr(a2,1+2*900,2),length(a3),substr(a3,1+3*900,3)
- FROM test.t1 WHERE a1=1;
+ FROM test.t1 WHERE a1=1 ORDER BY a1;
  SELECT a1,length(a2),substr(a2,1+2*9000,2),length(a3),substr(a3,1+3*9000,3)
- FROM test.t1 where a1=2;
+ FROM test.t1 where a1=2 ORDER BY a1;
 
  UPDATE test.t1 set a2=@vc2,a3=@d2 where a1=1;
  UPDATE test.t1 set a2=@vc1,a3=@d1 where a1=2;
@@ -709,7 +709,7 @@ select length(@x0),length(@b2),length(@d2) from dual;
  SELECT a5 from test.t1 where a1=50;
 
 
- SELECT * from test.t1;
+ SELECT * from test.t1 order by a1;
 
  DROP TABLE test.t1;
 
