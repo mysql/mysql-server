@@ -370,7 +370,6 @@ DROP DATAFILE './table_space2/datafile.dat'
 DROP TABLESPACE ts2 ENGINE NDB;
 DROP LOGFILE GROUP lg
 ENGINE=NDB;
-DROP DATABASE IF EXISTS test;
 CREATE LOGFILE GROUP lg
 ADD UNDOFILE './undofile.dat'
  INITIAL_SIZE 16M
@@ -381,7 +380,6 @@ ADD DATAFILE './datafile.dat'
  USE LOGFILE GROUP lg
 INITIAL_SIZE 12M
 ENGINE NDB;
-CREATE DATABASE test;
 CREATE TABLE test.t (
 a smallint NOT NULL,
 b int NOT NULL,
@@ -615,16 +613,12 @@ a	b	c	d	e	f
 99	100	101	aaa99	bbb99	ccccc99
 100	101	102	aaa100	bbb100	ccccc100
 DROP TABLE test.t;
-DROP DATABASE test;
 ALTER TABLESPACE ts
 DROP DATAFILE './datafile.dat'
  ENGINE NDB;
 DROP TABLESPACE ts ENGINE NDB;
 DROP LOGFILE GROUP lg
 ENGINE=NDB;
-DROP DATABASE IF EXISTS test;
-Warnings:
-Note	1008	Can't drop database 'test'; database doesn't exist
 DROP table IF EXISTS test.t1;
 Warnings:
 Note	1051	Unknown table 't1'
@@ -646,7 +640,6 @@ ADD DATAFILE './table_space2/datafile.dat'
  USE LOGFILE GROUP lg
 INITIAL_SIZE 12M
 ENGINE NDB;
-CREATE DATABASE test;
 CREATE TABLE test.t1 (
 a1 smallint NOT NULL,
 a2 int NOT NULL,

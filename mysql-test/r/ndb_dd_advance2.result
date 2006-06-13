@@ -1,7 +1,6 @@
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
 DROP TABLE IF EXISTS test.t3;
-DROP DATABASE IF EXISTS test;
 *****
 **** Copy data from table in one table space to table in different table space
 *****
@@ -20,7 +19,6 @@ ADD DATAFILE './table_space2/datafile.dat'
  USE LOGFILE GROUP lg
 INITIAL_SIZE 12M
 ENGINE NDB;
-CREATE DATABASE test;
 CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB) 
 TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
 CREATE TABLE test.t2 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB) 
@@ -598,19 +596,6 @@ SELECT a1,length(a2),substr(a2,1+2*900,2),length(a3),substr(a3,1+3*900,3)
 FROM test.t1 where a1=2;
 a1	length(a2)	substr(a2,1+2*900,2)	length(a3)	substr(a3,1+3*900,3)
 2	200		3000	dd1
-SHOW VARIABLES LIKE 'have_query_cache';
-Variable_name	Value
-have_query_cache	YES
-SHOW STATUS LIKE 'Qcache%';
-Variable_name	Value
-Qcache_free_blocks	0
-Qcache_free_memory	0
-Qcache_hits	0
-Qcache_inserts	0
-Qcache_lowmem_prunes	0
-Qcache_not_cached	0
-Qcache_queries_in_cache	0
-Qcache_total_blocks	0
 DELETE FROM test.t1;
 DROP TABLE test.t1;
 ALTER TABLESPACE ts1
