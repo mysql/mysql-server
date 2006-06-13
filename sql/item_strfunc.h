@@ -372,6 +372,7 @@ public:
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "elt"; }
+  bool eq(const Item *par_item, bool binary_cmp) const;
   unsigned int size_of() { return sizeof(*this);}  
 };
 

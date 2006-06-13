@@ -1599,6 +1599,17 @@ String *Item_func_elt::val_str(String *str)
 }
 
 
+bool Item_func_elt::eq(const Item *par_item, bool binary_cmp) const
+{
+  /* 
+    We can use (Item_func_elt*) typecast here because the check is done 
+    in the Item_func::eq().
+  */
+  return Item_func::eq(par_item, binary_cmp) &&
+         item->eq(((Item_func_elt*) par_item)->item, binary_cmp);
+}
+
+
 void Item_func_make_set::split_sum_func(List<Item> &fields)
 {
   if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
