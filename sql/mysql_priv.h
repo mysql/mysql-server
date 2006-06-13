@@ -1174,7 +1174,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                 HA_CREATE_INFO *create_info,
                                 TABLE_LIST *table_list,
                                 List<create_field> *create_list,
-                                List<Key> *key_list, const char *db,
+                                List<Key> *key_list, char *db,
                                 const char *table_name,
                                 uint fast_alter_partition);
 uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
@@ -1204,10 +1204,12 @@ void create_subpartition_name(char *out, const char *in1,
 
 typedef struct st_lock_param_type
 {
+  TABLE_LIST table_list;
   ulonglong copied;
   ulonglong deleted;
   THD *thd;
   HA_CREATE_INFO *create_info;
+  ALTER_INFO *alter_info;
   List<create_field> *create_list;
   List<create_field> new_create_list;
   List<Key> *key_list;
@@ -1687,7 +1689,7 @@ void unset_protect_against_global_read_lock(void);
 
 /* Lock based on name */
 int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);
-int lock_table_name(THD *thd, TABLE_LIST *table_list);
+int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use);
 void unlock_table_name(THD *thd, TABLE_LIST *table_list);
 bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list);
