@@ -62,11 +62,14 @@ public:
                         Uint32 parallel,
                         bool order_by,
                         bool order_desc = false,
-                        bool read_range_no = false) {
+                        bool read_range_no = false,
+			bool keyinfo = false) {
     Uint32 scan_flags =
       (SF_OrderBy & -(Int32)order_by) |
       (SF_Descending & -(Int32)order_desc) |
-      (SF_ReadRangeNo & -(Int32)read_range_no);
+      (SF_ReadRangeNo & -(Int32)read_range_no) | 
+      (SF_KeyInfo & -(Int32)keyinfo);
+    
     return readTuples(lock_mode, scan_flags, parallel);
   }
 #endif

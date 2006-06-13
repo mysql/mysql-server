@@ -162,7 +162,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     return -1;
   }
 
-  m_keyInfo = lockExcl ? 1 : 0;
+  m_keyInfo = ((scan_flags & SF_KeyInfo) || lockExcl) ? 1 : 0;
   bool tupScan = (scan_flags & SF_TupScan);
 
 #if 1 // XXX temp for testing
@@ -478,10 +478,14 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
   */
   PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
                        theNdb->theNdbBlockNumber);
-  if(theError.code)
-    return -1;
 
-  Uint32 seq = theNdbCon->theNodeSequence;
+  const Uint32 seq = theNdbCon->theNodeSequence;
+
+  if(theError.code)
+  {
+    goto err4;
+  }
+  
   if(seq == tp->getNodeSequence(nodeId) && send_next_scan(idx, false) == 0)
   {
       
@@ -563,6 +567,10 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
   case -3: // send_next_scan -> return fail (set error-code self)
     if(theError.code == 0)
       setErrorCode(4028); // seq changed = Node fail
+    break;
+  case -4:
+err4:
+    setErrorCode(theError.code);
     break;
   }
     
@@ -942,6 +950,12 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     if (newOp == NULL){
       return NULL;
     }
+    if (!m_keyInfo)
+    {
+      // Cannot take over lock if no keyinfo was requested
+      setErrorCodeAbort(4604);
+      return NULL;
+    }
     pTrans->theSimpleState = 0;
     
     assert(tRecAttr->get_size_in_bytes() > 0);
@@ -950,12 +964,16 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     
     newOp->theTupKeyLen = len;
     newOp->theOperationType = opType;
-    if (opType == DeleteRequest) {
-      newOp->theStatus = GetValue;  
-    } else {
-      newOp->theStatus = SetValue;  
+    switch (opType) {
+    case (ReadRequest):
+      newOp->theLockMode = theLockMode;
+      // Fall through
+    case (DeleteRequest):
+      newOp->theStatus = GetValue;
+      break;
+    default:
+      newOp->theStatus = SetValue;
     }
-    
     const Uint32 * src = (Uint32*)tRecAttr->aRef();
     const Uint32 tScanInfo = src[len] & 0x3FFFF;
     const Uint32 tTakeOverFragment = src[len] >> 20;

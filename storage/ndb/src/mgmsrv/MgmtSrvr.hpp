@@ -486,8 +486,6 @@ public:
 private:
   //**************************************************************************
 
-  int send(SignalSender &ss, SimpleSignal &ssig, Uint32 node, Uint32 node_type);
-
   int sendStopMgmd(NodeId nodeId,
                    bool abort,
                    bool stop,
@@ -520,7 +518,7 @@ private:
    */
   int getBlockNumber(const BaseString &blockName);
 
-  int alloc_node_id_req(Uint32 free_node_id);
+  int alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type);
   //**************************************************************************
   
   int _blockNumber;

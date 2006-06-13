@@ -7052,6 +7052,18 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
 	  found = true;
 	}
       }
+
+      ScanFragList deliv(c_scan_frag_pool, scanptr.p->m_delivered_scan_frags);
+      for(deliv.first(ptr); !ptr.isNull(); deliv.next(ptr))
+      {
+	jam();
+	if (refToNode(ptr.p->lqhBlockref) == failedNodeId)
+	{
+	  jam();
+	  found = true;
+	  break;
+	}
+      }
     }
     if(found){
       jam();
@@ -7081,15 +7093,20 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
   for (transPtr.i = transPtrI; transPtr.i < capiConnectFilesize; transPtr.i++)
   {
     ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord); 
+    Uint32 state = transPtr.p->apiConnectstate;
     if (transPtr.p->m_transaction_nodes.get(failedNodeId))
     {
       jam();
-
-      // Force timeout regardless of state      
-      c_appl_timeout_value = 1;
-      setApiConTimer(transPtr.i, TtcTimer - 2, __LINE__);
-      timeOutFoundLab(signal, transPtr.i, ZNODEFAIL_BEFORE_COMMIT);
-      c_appl_timeout_value = TapplTimeout;
+      
+      // avoid assertion in timeoutfoundlab
+      if (state != CS_PREPARE_TO_COMMIT)
+      {
+	// Force timeout regardless of state      
+	c_appl_timeout_value = 1;
+	setApiConTimer(transPtr.i, TtcTimer - 2, __LINE__);
+	timeOutFoundLab(signal, transPtr.i, ZNODEFAIL_BEFORE_COMMIT);
+	c_appl_timeout_value = TapplTimeout;
+      }
     }
     
     // Send CONTINUEB to continue later
