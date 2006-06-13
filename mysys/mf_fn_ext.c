@@ -40,14 +40,14 @@ my_string fn_ext(const char *name)
   DBUG_ENTER("fn_ext");
   DBUG_PRINT("mfunkt",("name: '%s'",name));
 
-#if defined(FN_DEVCHAR) || defined(FN_C_AFTER_DIR)
+#if defined(FN_DEVCHAR) || defined(FN_C_AFTER_DIR) || defined(BASKSLASH_MBTAIL)
   {
     char buff[FN_REFLEN];
     gpos=(my_string) name+dirname_part(buff,(char*) name);
   }
 #else
-  if (!(gpos=strrchr(name,FNLIBCHAR)))
-    gpos=name;
+  if (!(gpos= strrchr(name, FN_LIBCHAR)))
+    gpos= (my_string) name;
 #endif
   pos=strchr(gpos,FN_EXTCHAR);
   DBUG_RETURN (pos ? pos : strend(gpos));
