@@ -588,9 +588,8 @@ page_copy_rec_list_end(
 	page_t*	page	= ut_align_down(rec, UNIV_PAGE_SIZE);
 	ulint	log_mode= 0; /* remove warning */
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
-	ut_a(!new_page_zip || page_zip_validate(new_page_zip, new_page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+	/* page_zip_validate() will fail here if btr_compress()
+	sets FIL_PAGE_PREV to FIL_NULL */
 	ut_ad(page_is_leaf(page) == page_is_leaf(new_page));
 	ut_ad(page_is_comp(page) == page_is_comp(new_page));
 
@@ -1072,6 +1071,11 @@ page_move_rec_list_end(
 
 	old_data_size = page_get_data_size(new_page);
 	old_n_recs = page_get_n_recs(new_page);
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!new_page_zip || page_zip_validate(new_page_zip, new_page));
+	ut_a(!page_zip || page_zip_validate(page_zip,
+			ut_align_down(split_rec, UNIV_PAGE_SIZE)));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
 					split_rec, index, mtr))) {
