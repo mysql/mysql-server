@@ -1675,6 +1675,7 @@ static int add_partition_options(File fptr, partition_element *p_elem)
 {
   int err= 0;
 
+  err+= add_space(fptr);
   if (p_elem->tablespace_name)
     err+= add_keyword_string(fptr,"TABLESPACE", FALSE,
                              p_elem->tablespace_name);
@@ -1702,7 +1703,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
 
   if (part_info->part_type == RANGE_PARTITION)
   {
-    err+= add_string(fptr, "VALUES LESS THAN ");
+    err+= add_string(fptr, " VALUES LESS THAN ");
     if (p_elem->range_value != LONGLONG_MAX)
     {
       err+= add_begin_parenthesis(fptr);
@@ -1716,7 +1717,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
   {
     uint i;
     List_iterator<longlong> list_val_it(p_elem->list_val_list);
-    err+= add_string(fptr, "VALUES IN ");
+    err+= add_string(fptr, " VALUES IN ");
     uint no_items= p_elem->list_val_list.elements;
     err+= add_begin_parenthesis(fptr);
     if (p_elem->has_null_value)
@@ -1740,7 +1741,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
     err+= add_end_parenthesis(fptr);
   }
 end:
-  return err + add_space(fptr);
+  return err;
 }
 
 /*
@@ -1754,6 +1755,7 @@ end:
     buf_length                 A pointer to the returned buffer length
     use_sql_alloc              Allocate buffer from sql_alloc if true
                                otherwise use my_malloc
+    show_partition_options     Should we display partition options
 
   RETURN VALUES
     NULL error
@@ -1781,7 +1783,8 @@ end:
 
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length,
-                                bool use_sql_alloc)
+                                bool use_sql_alloc,
+                                bool show_partition_options)
 {
   uint i,j, tot_no_parts, no_subparts, no_parts;
   partition_element *part_elem;
@@ -1882,12 +1885,12 @@ char *generate_partition_syntax(partition_info *part_info,
         first= FALSE;
         err+= add_partition(fptr);
         err+= add_name_string(fptr, part_elem->partition_name);
-        err+= add_space(fptr);
         err+= add_partition_values(fptr, part_info, part_elem);
         if (!part_info->is_sub_partitioned() ||
             part_info->use_default_subpartitions)
         {
-          err+= add_partition_options(fptr, part_elem);
+          if (show_partition_options)
+            err+= add_partition_options(fptr, part_elem);
         }
         else
         {
@@ -1900,8 +1903,8 @@ char *generate_partition_syntax(partition_info *part_info,
             part_elem= sub_it++;
             err+= add_subpartition(fptr);
             err+= add_name_string(fptr, part_elem->partition_name);
-            err+= add_space(fptr);
-            err+= add_partition_options(fptr, part_elem);
+            if (show_partition_options)
+              err+= add_partition_options(fptr, part_elem);
             if (j != (no_subparts-1))
             {
               err+= add_comma(fptr);
@@ -4996,8 +4999,7 @@ static bool write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
             DBUG_RETURN(TRUE);
           }
           *next_entry= log_entry->entry_pos;
-          if (temp_list)
-            sub_elem->log_entry= log_entry;
+          sub_elem->log_entry= log_entry;
           insert_part_info_log_entry_list(part_info, log_entry);
         } while (++j < no_subparts);
       }
@@ -5015,8 +5017,7 @@ static bool write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
           DBUG_RETURN(TRUE);
         }
         *next_entry= log_entry->entry_pos;
-        if (temp_list)
-          part_elem->log_entry= log_entry;
+        part_elem->log_entry= log_entry;
         insert_part_info_log_entry_list(part_info, log_entry);
       }
     }
@@ -5290,7 +5291,7 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                        lpt->table_name, "#");
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
-                                   TRUE))
+                      lpt->alter_info->flags & ALTER_REORGANIZE_PARTITION))
     goto error;
   if (write_log_changed_partitions(lpt, &next_entry, (const char*)path))
     goto error;
@@ -5374,6 +5375,79 @@ static void release_log_entries(partition_info *part_info)
   pthread_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= NULL;
   part_info->exec_log_entry= NULL;
+}
+
+
+/*
+  Get a lock on table name to avoid that anyone can open the table in
+  a critical part of the ALTER TABLE.
+  SYNOPSIS
+    get_name_lock()
+    lpt                        Struct carrying parameters
+  RETURN VALUES
+    FALSE                      Success
+    TRUE                       Failure
+*/
+
+static int get_name_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  int error= 0;
+  DBUG_ENTER("get_name_lock");
+
+  bzero(&lpt->table_list, sizeof(lpt->table_list));
+  lpt->table_list.db= (char*)lpt->db;
+  lpt->table_list.table= lpt->table;
+  lpt->table_list.table_name= (char*)lpt->table_name;
+  pthread_mutex_lock(&LOCK_open);
+  error= lock_table_name(lpt->thd, &lpt->table_list, FALSE);
+  pthread_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Unlock and close table before renaming and dropping partitions
+  SYNOPSIS
+    alter_close_tables()
+    lpt                        Struct carrying parameters
+  RETURN VALUES
+    0
+*/
+
+static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  THD *thd= lpt->thd;
+  TABLE *table= lpt->table;
+  DBUG_ENTER("alter_close_tables");
+  /*
+    We need to also unlock tables and close all handlers.
+    We set lock to zero to ensure we don't do this twice
+    and we set db_stat to zero to ensure we don't close twice.
+  */
+  mysql_unlock_tables(thd, thd->lock);
+  thd->lock= 0;
+  table->file->close();
+  table->db_stat= 0;
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Release a lock name
+  SYNOPSIS
+    release_name_lock()
+    lpt
+  RETURN VALUES
+    0
+*/
+
+static int release_name_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  DBUG_ENTER("release_name_lock");
+  pthread_mutex_lock(&LOCK_open);
+  unlock_table_name(lpt->thd, &lpt->table_list);
+  pthread_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(0);
 }
 
 
@@ -5527,7 +5601,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                 HA_CREATE_INFO *create_info,
                                 TABLE_LIST *table_list,
                                 List<create_field> *create_list,
-                                List<Key> *key_list, const char *db,
+                                List<Key> *key_list, char *db,
                                 const char *table_name,
                                 uint fast_alter_partition)
 {
@@ -5544,6 +5618,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
 
   lpt->thd= thd;
   lpt->part_info= part_info;
+  lpt->alter_info= alter_info;
   lpt->create_info= create_info;
   lpt->create_list= create_list;
   lpt->key_list= key_list;
@@ -5667,8 +5742,17 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       2) Write the ddl log to ensure that the operation is completed
          even in the presence of a MySQL Server crash
       3) Lock the table in TL_WRITE_ONLY to ensure all other accesses to
-         the table have completed
-      4) Write the bin log
+         the table have completed. This ensures that other threads can not
+         execute on the table in parallel.
+      4) Get a name lock on the table. This ensures that we can release all
+         locks on the table and since no one can open the table, there can
+         be no new threads accessing the table. They will be hanging on the
+         name lock.
+      5) Close all tables that have already been opened but didn't stumble on
+         the abort locked previously. This is done as part of the
+         get_name_lock call.
+      6) We are now ready to release all locks we got in this thread.
+      7) Write the bin log
          Unfortunately the writing of the binlog is not synchronised with
          other logging activities. So no matter in which order the binlog
          is written compared to other activities there will always be cases
@@ -5679,14 +5763,13 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          require writing the statement first in the ddl log and then
          when recovering from the crash read the binlog and insert it into
          the binlog if not written already.
-      5) Install the previously written shadow frm file
-      6) Ensure that any users that has opened the table but not yet
-         reached the abort lock do that before downgrading the lock.
-      7) Prepare MyISAM handlers for drop of partitions
-      8) Drop the partitions
-      9) Remove entries from ddl log
-      10) Wait until all accesses using the old frm file has completed
-      11) Complete query
+      8) Install the previously written shadow frm file
+      9) Prepare handlers for drop of partitions
+      10) Drop the partitions
+      11) Remove entries from ddl log
+      12) Release name lock so that all other threads can access the table
+          again.
+      13) Complete query
 
       We insert Error injections at all places where it could be interesting
       to test if recovery is properly done.
@@ -5699,22 +5782,24 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
         (not_completed= FALSE) ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
+        ERROR_INJECT_CRASH("crash_drop_partition_4") ||
+        get_name_lock(lpt) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_5") ||
+        alter_close_tables(lpt) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_4") ||
-        (table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_5") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_7") ||
         ((frm_install= TRUE), FALSE) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         ((frm_install= FALSE), FALSE) ||
-        (close_open_tables_and_downgrade(lpt), FALSE) || 
-        ERROR_INJECT_CRASH("crash_drop_partition_6") ||
-        mysql_drop_partitions(lpt) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_7") ||
-        (write_log_completed(lpt, FALSE), FALSE) ||
         ERROR_INJECT_CRASH("crash_drop_partition_8") ||
-        (mysql_wait_completed_table(lpt, table), FALSE))
+        mysql_drop_partitions(lpt) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_9") ||
+        (write_log_completed(lpt, FALSE), FALSE) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_10") ||
+        (release_name_lock(lpt), FALSE)) 
     {
       handle_alter_part_error(lpt, not_completed, TRUE, frm_install);
       DBUG_RETURN(TRUE);
@@ -5740,15 +5825,24 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       3) Lock all partitions in TL_WRITE_ONLY to ensure that no users
          are still using the old partitioning scheme. Wait until all
          ongoing users have completed before progressing.
-      4) Write binlog
-      5) Now the change is completed except for the installation of the
+      4) Get a name lock on the table. This ensures that we can release all
+         locks on the table and since no one can open the table, there can
+         be no new threads accessing the table. They will be hanging on the
+         name lock.
+      5) Close all tables that have already been opened but didn't stumble on
+         the abort locked previously. This is done as part of the
+         get_name_lock call.
+      6) Close all table handlers and unlock all handlers but retain name lock
+      7) Write binlog
+      8) Now the change is completed except for the installation of the
          new frm file. We thus write an action in the log to change to
          the shadow frm file
-      6) Install the new frm file of the table where the partitions are
+      9) Install the new frm file of the table where the partitions are
          added to the table.
-      7) Wait until all accesses using the old frm file has completed
-      8) Remove entries from ddl log
-      9) Complete query
+      10)Wait until all accesses using the old frm file has completed
+      11)Remove entries from ddl log
+      12)Release name lock
+      13)Complete query
     */
     if (write_log_add_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_1") ||
@@ -5757,19 +5851,24 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
+        ERROR_INJECT_CRASH("crash_add_partition_3") ||
+        get_name_lock(lpt) ||
+        ERROR_INJECT_CRASH("crash_add_partition_4") ||
+        alter_close_tables(lpt) ||
+        ERROR_INJECT_CRASH("crash_add_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_add_partition_4") ||
+        ERROR_INJECT_CRASH("crash_add_partition_6") ||
         write_log_rename_frm(lpt) ||
         (not_completed= FALSE) ||
-        ERROR_INJECT_CRASH("crash_add_partition_5") ||
+        ERROR_INJECT_CRASH("crash_add_partition_7") ||
         ((frm_install= TRUE), FALSE) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        ERROR_INJECT_CRASH("crash_add_partition_6") ||
-        (close_open_tables_and_downgrade(lpt), FALSE) ||
+        ERROR_INJECT_CRASH("crash_add_partition_8") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_add_partition_7")) 
+        ERROR_INJECT_CRASH("crash_add_partition_9") ||
+        (release_name_lock(lpt), FALSE)) 
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
       DBUG_RETURN(TRUE);
@@ -5819,16 +5918,20 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       5) Lock all partitions in TL_WRITE_ONLY to ensure that no users
          are still using the old partitioning scheme. Wait until all
          ongoing users have completed before progressing.
-      6) Prepare MyISAM handlers for rename and delete of partitions
-      7) Rename the reorged partitions such that they are no longer
-         used and rename those added to their real new names.
-      8) Write bin log
-      9) Install the shadow frm file
-      10) Wait until all accesses using the old frm file has completed
-      11) Drop the reorganised partitions
-      12) Remove log entry
-      13)Wait until all accesses using the old frm file has completed
-      14)Complete query
+      6) Get a name lock of the table
+      7) Close all tables opened but not yet locked, after this call we are
+         certain that no other thread is in the lock wait queue or has
+         opened the table. The name lock will ensure that they are blocked
+         on the open call. This is achieved also by get_name_lock call.
+      8) Close all partitions opened by this thread, but retain name lock.
+      9) Write bin log
+      10) Prepare handlers for rename and delete of partitions
+      11) Rename and drop the reorged partitions such that they are no
+          longer used and rename those added to their real new names.
+      12) Install the shadow frm file
+      13) Release the name lock to enable other threads to start using the
+          table again.
+      14) Complete query
     */
     if (write_log_add_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_1") ||
@@ -5840,22 +5943,25 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
         (not_completed= FALSE) ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
+        ERROR_INJECT_CRASH("crash_change_partition_5") ||
+        get_name_lock(lpt) ||
+        ERROR_INJECT_CRASH("crash_change_partition_6") ||
+        alter_close_tables(lpt) ||
+        ERROR_INJECT_CRASH("crash_change_partition_7") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_change_partition_5") ||
-        (table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_6") ||
+        ERROR_INJECT_CRASH("crash_change_partition_8") ||
+        mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
+        ERROR_INJECT_CRASH("crash_change_partition_9") ||
+        mysql_drop_partitions(lpt) ||
+        ERROR_INJECT_CRASH("crash_change_partition_10") ||
         mysql_rename_partitions(lpt) ||
         ((frm_install= TRUE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_7") ||
-        mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        ERROR_INJECT_CRASH("crash_change_partition_8") ||
-        (close_open_tables_and_downgrade(lpt), FALSE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_9") ||
+        ERROR_INJECT_CRASH("crash_change_partition_11") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_10") ||
-        (mysql_wait_completed_table(lpt, table), FALSE))
+        ERROR_INJECT_CRASH("crash_change_partition_12") ||
+        (release_name_lock(lpt), FALSE))
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
       DBUG_RETURN(TRUE);
