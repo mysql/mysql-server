@@ -228,6 +228,7 @@ AsyncFile::run()
       endReq();
       return;
     default:
+      DEBUG(ndbout_c("Invalid Request"));
       abort();
       break;
     }//switch
@@ -676,6 +677,7 @@ AsyncFile::extendfile(Request* request) {
   return 0;
 #else
   request = request;
+  DEBUG(ndbout_c("no pwrite"));
   abort();
   return -1;
 #endif
@@ -792,6 +794,7 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
       bytes_written = return_value;
 
       if(bytes_written == 0){
+        DEBUG(ndbout_c("no bytes written"));
 	abort();
       }
       
@@ -830,8 +833,10 @@ AsyncFile::closeReq(Request * request)
 #else
   if (-1 == ::close(theFd)) {
 #ifndef DBUG_OFF
-    if (theFd == -1)
+    if (theFd == -1) {
+      DEBUG(ndbout_c("close on fd = -1"));
       abort();
+    }
 #endif
     request->error = errno;
   }
@@ -899,6 +904,7 @@ AsyncFile::appendReq(Request * request){
       return;
     }
     if(n == 0){
+      DEBUG(ndbout_c("append with n=0"));
       abort();
     }
     size -= n;
