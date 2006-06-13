@@ -907,6 +907,11 @@ s1
 2
 3
 drop table t1;
+create table t1 (a int) engine=memory
+partition by key(a);
+insert into t1 values (1);
+create index inx1 on t1(a);
+drop table t1;
 create table t1 (a int)
 PARTITION BY KEY (a)
 (PARTITION p0);
@@ -917,11 +922,6 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) PARTITION BY KEY (a) (PARTITION p0)
 set session sql_mode='';
-drop table t1;
-create table t1 (a int) engine=memory
-partition by key(a);
-insert into t1 values (1);
-create index inx1 on t1(a);
 drop table t1;
 create table t1 (a int)
 partition by key (a)
