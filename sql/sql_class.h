@@ -941,7 +941,6 @@ public:
   int binlog_flush_pending_rows_event(bool stmt_end);
   void binlog_delete_pending_rows_event();
 
-#ifdef HAVE_ROW_BASED_REPLICATION
 private:
   uint binlog_table_maps; // Number of table maps currently in the binlog
 public:
