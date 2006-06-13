@@ -618,9 +618,9 @@ btr_page_get_father_for_rec(
 		buf_page_print(buf_frame_align(node_ptr), 0);
 
 		fputs("InnoDB: Corruption of an index tree: table ", stderr);
-		ut_print_name(stderr, NULL, index->table_name);
+		ut_print_name(stderr, NULL, TRUE, index->table_name);
 		fputs(", index ", stderr);
-		ut_print_name(stderr, NULL, index->name);
+		ut_print_name(stderr, NULL, FALSE, index->name);
 		fprintf(stderr, ",\n"
 "InnoDB: father ptr page no %lu, child page no %lu\n",
 			(ulong)

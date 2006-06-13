@@ -1212,7 +1212,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	"CREATE UNIQUE CLUSTERED INDEX ID_IND ON SYS_FOREIGN_COLS (ID, POS);\n"
 	"COMMIT WORK;\n"
 	"END;\n"
-		, trx);
+		, FALSE, trx);
 
 	if (error != DB_SUCCESS) {
 		fprintf(stderr, "InnoDB: error %lu in creation\n",
@@ -1261,7 +1261,7 @@ dict_foreign_eval_sql(
 	ulint		error;
 	FILE*		ef	= dict_foreign_err_file;
 
-	error = que_eval_sql(info, sql, trx);
+	error = que_eval_sql(info, sql, FALSE, trx);
 
 	if (error == DB_DUPLICATE_KEY) {
 		mutex_enter(&dict_foreign_err_mutex);
@@ -1269,9 +1269,9 @@ dict_foreign_eval_sql(
 		ut_print_timestamp(ef);
 		fputs(" Error in foreign key constraint creation for table ",
 			ef);
-		ut_print_name(ef, trx, table->name);
+		ut_print_name(ef, trx, TRUE, table->name);
 		fputs(".\nA foreign key constraint of name ", ef);
-		ut_print_name(ef, trx, foreign->id);
+		ut_print_name(ef, trx, FALSE, foreign->id);
 		fputs("\nalready exists."
 			" (Note that internally InnoDB adds 'databasename/'\n"
 			"in front of the user-defined constraint name).\n",
@@ -1299,7 +1299,7 @@ dict_foreign_eval_sql(
 		ut_print_timestamp(ef);
 		fputs(" Internal error in foreign key constraint creation"
 			" for table ", ef);
-		ut_print_name(ef, trx, table->name);
+		ut_print_name(ef, trx, TRUE, table->name);
 		fputs(".\n"
 	"See the MySQL .err log in the datadir for more information.\n", ef);
 		mutex_exit(&dict_foreign_err_mutex);

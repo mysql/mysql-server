@@ -63,7 +63,7 @@ extern pars_res_word_t	pars_asc_token;
 extern pars_res_word_t	pars_desc_token;
 extern pars_res_word_t	pars_open_token;
 extern pars_res_word_t	pars_close_token;
-extern pars_res_word_t	pars_consistent_token;
+extern pars_res_word_t	pars_share_token;
 extern pars_res_word_t	pars_unique_token;
 extern pars_res_word_t	pars_clustered_token;
 
