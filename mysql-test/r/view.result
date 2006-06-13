@@ -1106,21 +1106,21 @@ insert ignore into v1 SELECT a from t2;
 Warnings:
 Error	1369	CHECK OPTION failed 'test.v1'
 Error	1369	CHECK OPTION failed 'test.v1'
-select * from t1;
+select * from t1 order by a desc;
 a
 1
 0
 update v1 set a=-1 where a=0;
 update v1 set a=2 where a=1;
 ERROR HY000: CHECK OPTION failed 'test.v1'
-select * from t1;
+select * from t1 order by a desc;
 a
 1
 -1
 update v1 set a=0 where a=0;
 insert into t2 values (1);
 update v1,t2 set v1.a=v1.a-1 where v1.a=t2.a;
-select * from t1;
+select * from t1 order by a desc;
 a
 0
 -1
@@ -1310,12 +1310,12 @@ Warning	1264	Out of range value for column 'a' at row 3
 Error	1369	CHECK OPTION failed 'test.v1'
 Warning	1264	Out of range value for column 'a' at row 4
 Error	1369	CHECK OPTION failed 'test.v1'
-select * from t1;
+select * from t1 order by a,b;
 a	b
 1	row 1
 2	row 2
 3	row 3
-select * from v1;
+select * from v1 order by a,b;
 a	b
 1	row 1
 2	row 2
