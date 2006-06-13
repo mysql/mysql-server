@@ -1069,6 +1069,9 @@ btr_root_raise_and_insert(
 
 	root = btr_cur_get_page(cursor);
 	root_page_zip = buf_block_get_page_zip(buf_block_align(root));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!root_page_zip || page_zip_validate(root_page_zip, root));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 	tree = btr_cur_get_tree(cursor);
 
 	ut_ad(dict_tree_get_page(tree) == buf_frame_get_page_no(root));
@@ -2132,6 +2135,10 @@ btr_lift_page_up(
 	father_page = buf_frame_align(
 			btr_page_get_father_node_ptr(tree, page, mtr));
 	father_page_zip = buf_block_get_page_zip(buf_block_align(father_page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!father_page_zip
+			|| page_zip_validate(father_page_zip, father_page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	page_level = btr_page_get_level(page, mtr);
 	index = tree->tree_index;
@@ -2192,6 +2199,7 @@ btr_compress(
 	ulint		left_page_no;
 	ulint		right_page_no;
 	page_t*		merge_page;
+	page_zip_des_t*	merge_page_zip;
 	ibool		is_left;
 	page_t*		page;
 	rec_t*		node_ptr;
@@ -2293,13 +2301,17 @@ btr_compress(
 		}
 	}
 
+	merge_page_zip = buf_block_get_page_zip(buf_block_align(merge_page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(!merge_page_zip || page_zip_validate(merge_page_zip, merge_page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
 	/* Move records to the merge page */
 	if (is_left) {
 		rec_t*	orig_pred = page_rec_get_prev(
 					page_get_supremum_rec(merge_page));
 		if (UNIV_UNLIKELY(!page_copy_rec_list_start(
-				merge_page, buf_block_get_page_zip(
-					buf_block_align(merge_page)),
+				merge_page, merge_page_zip,
 				page_get_supremum_rec(page),
 				cursor->index, mtr))) {
 			return(FALSE);
@@ -2317,9 +2329,9 @@ btr_compress(
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_t*		orig_succ = page_rec_get_next(
 					page_get_infimum_rec(merge_page));
-		page_zip_des_t*	merge_page_zip = buf_block_get_page_zip(
-					buf_block_align(merge_page));
+#ifdef UNIV_BTR_DEBUG
 		byte		fil_page_prev[4];
+#endif /* UNIV_BTR_DEBUG */
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 		if (UNIV_LIKELY_NULL(merge_page_zip)) {
@@ -2327,7 +2339,9 @@ btr_compress(
 			invoked by page_copy_rec_list_end() below,
 			requires that FIL_PAGE_PREV be FIL_NULL.
 			Clear the field, but prepare to restore it. */
+#ifdef UNIV_BTR_DEBUG
 			memcpy(fil_page_prev, merge_page + FIL_PAGE_PREV, 4);
+#endif /* UNIV_BTR_DEBUG */
 #if FIL_NULL != 0xffffffff
 # error "FIL_NULL != 0xffffffff"
 #endif
@@ -2339,8 +2353,7 @@ btr_compress(
 				page_get_infimum_rec(page),
 				cursor->index, mtr))) {
 			ut_a(merge_page_zip);
-			/* Restore FIL_PAGE_PREV. */
-			memcpy(merge_page + FIL_PAGE_PREV, fil_page_prev, 4);
+			/* FIL_PAGE_PREV was restored from merge_page_zip. */
 			return(FALSE);
 		}
 
