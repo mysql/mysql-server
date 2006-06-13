@@ -1839,8 +1839,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    /* ------------------------------------------------------------- */
 	    TregMemBuffer[theRegister]= 0x50;
             // arithmetic conversion if big-endian
-            * (Int64*)(TregMemBuffer+theRegister+2)=
-                                       TregMemBuffer[theRegister+1];
+            * (Int64*)(TregMemBuffer+theRegister+2)= TregMemBuffer[theRegister+1];
 	  } else if (TnoDataRW == 3) {
 	    /* ------------------------------------------------------------- */
 	    // Three words read means that we get the instruction plus two 
