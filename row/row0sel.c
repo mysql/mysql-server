@@ -45,6 +45,9 @@ to que_run_threads: this is to allow canceling runaway queries */
 
 #define SEL_COST_LIMIT	100
 
+/* The lower limit for what we consider a "big" row */
+#define BIG_ROW_SIZE	1024
+
 /* Flags for search shortcut */
 #define SEL_FOUND	0
 #define	SEL_EXHAUSTED	1
@@ -302,18 +305,44 @@ row_sel_fetch_columns(
 	}
 
 	while (column) {
+		mem_heap_t*	heap = NULL;
+		ibool		needs_copy;
+
 		field_no = column->field_nos[index_type];
 
 		if (field_no != ULINT_UNDEFINED) {
 
-			data = rec_get_nth_field(rec, offsets, field_no, &len);
+			if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets,
+						  field_no))) {
 
-			if (column->copy_val) {
+				/* Copy an externally stored field to the
+				temporary heap */
+
+				heap = mem_heap_create(1);
+
+				data = btr_rec_copy_externally_stored_field(
+					rec, offsets, field_no, &len, heap);
+
+				ut_a(len != UNIV_SQL_NULL);
+
+				needs_copy = TRUE;
+			} else {
+				data = rec_get_nth_field(rec, offsets,
+					field_no, &len);
+
+				needs_copy = column->copy_val;
+			}
+
+			if (needs_copy) {
 				eval_node_copy_and_alloc_val(column, data,
 									len);
 			} else {
 				val = que_node_get_val(column);
 				dfield_set_data(val, data, len);
+			}
+
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
 			}
 		}
 
@@ -1106,11 +1135,12 @@ row_sel_try_search_shortcut(
 	ut_ad(plan->pcur.latch_mode == node->latch_mode);
 
 	plan->n_rows_fetched++;
+	ret = SEL_FOUND;
 func_exit:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
-	return(SEL_FOUND);
+	return(ret);
 }
 
 /*************************************************************************
@@ -1214,7 +1244,8 @@ table_loop:
 	mtr_start(&mtr);
 
 	if (consistent_read && plan->unique_search && !plan->pcur_is_open
-						&& !plan->must_get_clust) {
+			&& !plan->must_get_clust
+			&& (plan->table->max_row_size < BIG_ROW_SIZE)) {
 		if (!search_latch_locked) {
 			rw_lock_s_lock(&btr_search_latch);
 
@@ -1328,6 +1359,12 @@ rec_loop:
 
 			if (srv_locks_unsafe_for_binlog
 			|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+
+				if (page_rec_is_supremum(next_rec)) {
+
+					goto skip_lock;
+				}
+
 				lock_type = LOCK_REC_NOT_GAP;
 			} else {
 				lock_type = LOCK_ORDINARY;
@@ -1346,6 +1383,7 @@ rec_loop:
 		}
 	}
 
+skip_lock:
 	if (page_rec_is_infimum(rec)) {
 
 		/* The infimum record on a page cannot be in the result set,
@@ -1376,6 +1414,12 @@ rec_loop:
 
 		if (srv_locks_unsafe_for_binlog
 		|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+
+			if (page_rec_is_supremum(rec)) {
+
+				goto next_rec;
+			}
+
 			lock_type = LOCK_REC_NOT_GAP;
 		} else {
 			lock_type = LOCK_ORDINARY;
@@ -1602,7 +1646,8 @@ rec_loop:
 	}
 
 	if ((plan->n_rows_fetched <= SEL_PREFETCH_LIMIT)
-				|| plan->unique_search || plan->no_prefetch) {
+		|| plan->unique_search || plan->no_prefetch
+		|| (plan->table->max_row_size >= BIG_ROW_SIZE)) {
 
 		/* No prefetch in operation: go to the next table */
 
@@ -1888,9 +1933,8 @@ row_sel_step(
 				err = lock_table(0, table_node->table,
 							i_lock_mode, thr);
 				if (err != DB_SUCCESS) {
+					thr_get_trx(thr)->error_state = err;
 
-					que_thr_handle_error(thr, DB_ERROR,
-								NULL, 0);
 					return(NULL);
 				}
 
@@ -1926,17 +1970,8 @@ row_sel_step(
 
 	thr->graph->last_sel_node = node;
 
-	if (err == DB_SUCCESS) {
-		/* Ok: do nothing */
-
-	} else if (err == DB_LOCK_WAIT) {
-
-		return(NULL);
-	} else {
-		/* SQL error detected */
-		fprintf(stderr, "SQL error %lu\n", (ulong) err);
-
-		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
+	if (err != DB_SUCCESS) {
+		thr_get_trx(thr)->error_state = err;
 
 		return(NULL);
 	}
@@ -1997,7 +2032,7 @@ fetch_step(
 		fprintf(stderr,
 			"InnoDB: Error: fetch called on a closed cursor\n");
 
-		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
+		thr_get_trx(thr)->error_state = DB_ERROR;
 
 		return(NULL);
 	}
@@ -2546,6 +2581,7 @@ row_sel_store_mysql_rec(
 {
 	mysql_row_templ_t*	templ;
 	mem_heap_t*		extern_field_heap	= NULL;
+	mem_heap_t*		heap;
 	byte*			data;
 	ulint			len;
 	ulint			i;
@@ -2570,7 +2606,19 @@ row_sel_store_mysql_rec(
 
 			ut_a(!prebuilt->trx->has_search_latch);
 
-			extern_field_heap = mem_heap_create(UNIV_PAGE_SIZE);
+			if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
+				if (prebuilt->blob_heap == NULL) {
+					prebuilt->blob_heap =
+						mem_heap_create(UNIV_PAGE_SIZE);
+				}
+
+				heap = prebuilt->blob_heap;
+			} else {
+				extern_field_heap =
+					mem_heap_create(UNIV_PAGE_SIZE);
+
+				heap = extern_field_heap;
+			}
 
 			/* NOTE: if we are retrieving a big BLOB, we may
 			already run out of memory in the next call, which
@@ -2578,7 +2626,7 @@ row_sel_store_mysql_rec(
 
 			data = btr_rec_copy_externally_stored_field(rec,
 					offsets, templ->rec_field_no, &len,
-					extern_field_heap);
+					heap);
 
 			ut_a(len != UNIV_SQL_NULL);
 		} else {
@@ -2589,48 +2637,6 @@ row_sel_store_mysql_rec(
 		}
 
 		if (len != UNIV_SQL_NULL) {
-			if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
-
-				ut_a(prebuilt->templ_contains_blob);
-
-				/* A heuristic test that we can allocate the
-				memory for a big BLOB. We have a safety margin
-				of 1000000 bytes. Since the test takes some
-				CPU time, we do not use it for small BLOBs. */
-
-				if (UNIV_UNLIKELY(len > 2000000)
-					&& UNIV_UNLIKELY(!ut_test_malloc(
-								 len + 1000000))) {
-
-					ut_print_timestamp(stderr);
-					fprintf(stderr,
-"  InnoDB: Warning: could not allocate %lu + 1000000 bytes to retrieve\n"
-"InnoDB: a big column. Table name ", (ulong) len);
-					ut_print_name(stderr,
-						prebuilt->trx,
-						prebuilt->table->name);
-					putc('\n', stderr);
-
-					if (extern_field_heap) {
-						mem_heap_free(
-							extern_field_heap);
-					}
-					return(FALSE);
-				}
-
-				/* Copy the BLOB data to the BLOB heap of
-				prebuilt */
-
-				if (prebuilt->blob_heap == NULL) {
-					prebuilt->blob_heap =
-						mem_heap_create(len);
-				}
-
-				data = memcpy(mem_heap_alloc(
-						prebuilt->blob_heap, len),
-						data, len);
-			}
-
 			row_sel_field_store_in_mysql_format(
 				mysql_rec + templ->mysql_col_offset,
 				templ, data, len);
@@ -3250,7 +3256,7 @@ row_search_for_mysql(
 		"InnoDB: Error: trying to free a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name ",
 		(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, trx, prebuilt->table->name);
+		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption(prebuilt);
@@ -3536,15 +3542,13 @@ shortcut_fails_too_big_rec:
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 		&& prebuilt->select_lock_type != LOCK_NONE
-		&& trx->mysql_query_str) {
+		&& trx->mysql_query_str && trx->mysql_thd) {
 
 		/* Scan the MySQL query string; check if SELECT is the first
 		word there */
-		ibool	success;
 
-		dict_accept(*trx->mysql_query_str, "SELECT", &success);
-
-		if (success) {
+		if (dict_str_starts_with_keyword(trx->mysql_thd,
+				*trx->mysql_query_str, "SELECT")) {
 			/* It is a plain locking SELECT and the isolation
 			level is low: do not lock gaps */
 

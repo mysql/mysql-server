@@ -344,6 +344,12 @@ struct dict_table_struct{
 				had an IX lock on */
 	UT_LIST_BASE_NODE_T(lock_t)
 			locks; /* list of locks on the table */
+	ulint		max_row_size;
+				/* maximum size of a single row in the
+				table, not guaranteed to be especially
+				accurate. it's ULINT_MAX if there are
+				unbounded variable-width fields. initialized
+				in dict_table_add_to_cache. */
 	/*----------------------*/
 	ibool		does_not_fit_in_memory;
 				/* this field is used to specify in simulations

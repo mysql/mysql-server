@@ -70,7 +70,6 @@ yylex(void);
 %token PARS_WHERE_TOKEN
 %token PARS_FOR_TOKEN
 %token PARS_DDOT_TOKEN
-%token PARS_CONSISTENT_TOKEN
 %token PARS_READ_TOKEN
 %token PARS_ORDER_TOKEN
 %token PARS_BY_TOKEN
@@ -120,6 +119,9 @@ yylex(void);
 %token PARS_UNSIGNED_TOKEN
 %token PARS_EXIT_TOKEN
 %token PARS_FUNCTION_TOKEN
+%token PARS_LOCK_TOKEN
+%token PARS_SHARE_TOKEN
+%token PARS_MODE_TOKEN
 
 %left PARS_AND_TOKEN PARS_OR_TOKEN
 %left PARS_NOT_TOKEN
@@ -132,9 +134,11 @@ yylex(void);
 /* Grammar follows */
 %%
 
+top_statement:
+        procedure_definition ';'
+
 statement:
-	procedure_definition ';'
-	| stored_procedure_call
+	stored_procedure_call
 	| predefined_procedure_call ';'
 	| while_statement ';'
 	| for_statement ';'
@@ -301,10 +305,10 @@ for_update_clause:
 				{ $$ = &pars_update_token; }
 ;
 
-consistent_read_clause:
+lock_shared_clause:
 	/* Nothing */		{ $$ = NULL; }
-	| PARS_CONSISTENT_TOKEN PARS_READ_TOKEN
-				{ $$ = &pars_consistent_token; }
+	| PARS_LOCK_TOKEN PARS_IN_TOKEN PARS_SHARE_TOKEN PARS_MODE_TOKEN
+				{ $$ = &pars_share_token; }
 ;
 
 order_direction:
@@ -324,7 +328,7 @@ select_statement:
 	PARS_FROM_TOKEN table_list
 	search_condition
 	for_update_clause
-	consistent_read_clause
+	lock_shared_clause
 	order_by_clause		{ $$ = pars_select_statement($2, $4, $5,
 								$6, $7, $8); }
 ;
