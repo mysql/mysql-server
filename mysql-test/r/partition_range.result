@@ -143,7 +143,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY RANGE (a) SUBPARTITION BY HASH (a+b) (PARTITION x1 VALUES LESS THAN (1)  (SUBPARTITION x11 ENGINE = MyISAM, SUBPARTITION x12 ENGINE = MyISAM), PARTITION x2 VALUES LESS THAN (5)  (SUBPARTITION x21 ENGINE = MyISAM, SUBPARTITION x22 ENGINE = MyISAM))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY RANGE (a) SUBPARTITION BY HASH (a+b) (PARTITION x1 VALUES LESS THAN (1) (SUBPARTITION x11 ENGINE = MyISAM, SUBPARTITION x12 ENGINE = MyISAM), PARTITION x2 VALUES LESS THAN (5) (SUBPARTITION x21 ENGINE = MyISAM, SUBPARTITION x22 ENGINE = MyISAM))
 ALTER TABLE t1 ADD COLUMN d int;
 show create table t1;
 Table	Create Table
@@ -153,7 +153,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL,
   `d` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY RANGE (a) SUBPARTITION BY HASH (a+b) (PARTITION x1 VALUES LESS THAN (1)  (SUBPARTITION x11 ENGINE = MyISAM, SUBPARTITION x12 ENGINE = MyISAM), PARTITION x2 VALUES LESS THAN (5)  (SUBPARTITION x21 ENGINE = MyISAM, SUBPARTITION x22 ENGINE = MyISAM))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY RANGE (a) SUBPARTITION BY HASH (a+b) (PARTITION x1 VALUES LESS THAN (1) (SUBPARTITION x11 ENGINE = MyISAM, SUBPARTITION x12 ENGINE = MyISAM), PARTITION x2 VALUES LESS THAN (5) (SUBPARTITION x21 ENGINE = MyISAM, SUBPARTITION x22 ENGINE = MyISAM))
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -386,4 +386,109 @@ partition p3 values less than (4));
 ALTER TABLE t1 DROP PARTITION p0;
 ALTER TABLE t1 DROP PARTITION p1;
 ALTER TABLE t1 DROP PARTITION p2;
+drop table t1;
+create table t1 (a int DEFAULT NULL,
+b varchar(30) DEFAULT NULL,
+c date DEFAULT NULL)
+ENGINE=MYISAM DEFAULT CHARSET=latin1;
+insert into t1 values (1, 'abc', '1995-01-01');
+insert into t1 values (1, 'abc', '1995-01-02');
+insert into t1 values (1, 'abc', '1995-01-03');
+insert into t1 values (1, 'abc', '1995-01-04');
+insert into t1 values (1, 'abc', '1995-01-05');
+insert into t1 values (1, 'abc', '1995-01-06');
+insert into t1 values (1, 'abc', '1995-01-07');
+insert into t1 values (1, 'abc', '1995-01-08');
+insert into t1 values (1, 'abc', '1995-01-09');
+insert into t1 values (1, 'abc', '1995-01-10');
+insert into t1 values (1, 'abc', '1995-01-11');
+insert into t1 values (1, 'abc', '1995-01-12');
+insert into t1 values (1, 'abc', '1995-01-13');
+insert into t1 values (1, 'abc', '1995-01-14');
+insert into t1 values (1, 'abc', '1995-01-15');
+insert into t1 values (1, 'abc', '1997-01-01');
+insert into t1 values (1, 'abc', '1997-01-02');
+insert into t1 values (1, 'abc', '1997-01-03');
+insert into t1 values (1, 'abc', '1997-01-04');
+insert into t1 values (1, 'abc', '1997-01-05');
+insert into t1 values (1, 'abc', '1997-01-06');
+insert into t1 values (1, 'abc', '1997-01-07');
+insert into t1 values (1, 'abc', '1997-01-08');
+insert into t1 values (1, 'abc', '1997-01-09');
+insert into t1 values (1, 'abc', '1997-01-10');
+insert into t1 values (1, 'abc', '1997-01-11');
+insert into t1 values (1, 'abc', '1997-01-12');
+insert into t1 values (1, 'abc', '1997-01-13');
+insert into t1 values (1, 'abc', '1997-01-14');
+insert into t1 values (1, 'abc', '1997-01-15');
+insert into t1 values (1, 'abc', '1998-01-01');
+insert into t1 values (1, 'abc', '1998-01-02');
+insert into t1 values (1, 'abc', '1998-01-03');
+insert into t1 values (1, 'abc', '1998-01-04');
+insert into t1 values (1, 'abc', '1998-01-05');
+insert into t1 values (1, 'abc', '1998-01-06');
+insert into t1 values (1, 'abc', '1998-01-07');
+insert into t1 values (1, 'abc', '1998-01-08');
+insert into t1 values (1, 'abc', '1998-01-09');
+insert into t1 values (1, 'abc', '1998-01-10');
+insert into t1 values (1, 'abc', '1998-01-11');
+insert into t1 values (1, 'abc', '1998-01-12');
+insert into t1 values (1, 'abc', '1998-01-13');
+insert into t1 values (1, 'abc', '1998-01-14');
+insert into t1 values (1, 'abc', '1998-01-15');
+insert into t1 values (1, 'abc', '1999-01-01');
+insert into t1 values (1, 'abc', '1999-01-02');
+insert into t1 values (1, 'abc', '1999-01-03');
+insert into t1 values (1, 'abc', '1999-01-04');
+insert into t1 values (1, 'abc', '1999-01-05');
+insert into t1 values (1, 'abc', '1999-01-06');
+insert into t1 values (1, 'abc', '1999-01-07');
+insert into t1 values (1, 'abc', '1999-01-08');
+insert into t1 values (1, 'abc', '1999-01-09');
+insert into t1 values (1, 'abc', '1999-01-10');
+insert into t1 values (1, 'abc', '1999-01-11');
+insert into t1 values (1, 'abc', '1999-01-12');
+insert into t1 values (1, 'abc', '1999-01-13');
+insert into t1 values (1, 'abc', '1999-01-14');
+insert into t1 values (1, 'abc', '1999-01-15');
+insert into t1 values (1, 'abc', '2000-01-01');
+insert into t1 values (1, 'abc', '2000-01-02');
+insert into t1 values (1, 'abc', '2000-01-03');
+insert into t1 values (1, 'abc', '2000-01-04');
+insert into t1 values (1, 'abc', '2000-01-05');
+insert into t1 values (1, 'abc', '2000-01-06');
+insert into t1 values (1, 'abc', '2000-01-07');
+insert into t1 values (1, 'abc', '2000-01-08');
+insert into t1 values (1, 'abc', '2000-01-09');
+insert into t1 values (1, 'abc', '2000-01-15');
+insert into t1 values (1, 'abc', '2000-01-11');
+insert into t1 values (1, 'abc', '2000-01-12');
+insert into t1 values (1, 'abc', '2000-01-13');
+insert into t1 values (1, 'abc', '2000-01-14');
+insert into t1 values (1, 'abc', '2000-01-15');
+insert into t1 values (1, 'abc', '2001-01-01');
+insert into t1 values (1, 'abc', '2001-01-02');
+insert into t1 values (1, 'abc', '2001-01-03');
+insert into t1 values (1, 'abc', '2001-01-04');
+insert into t1 values (1, 'abc', '2001-01-05');
+insert into t1 values (1, 'abc', '2001-01-06');
+insert into t1 values (1, 'abc', '2001-01-07');
+insert into t1 values (1, 'abc', '2001-01-08');
+insert into t1 values (1, 'abc', '2001-01-09');
+insert into t1 values (1, 'abc', '2001-01-15');
+insert into t1 values (1, 'abc', '2001-01-11');
+insert into t1 values (1, 'abc', '2001-01-12');
+insert into t1 values (1, 'abc', '2001-01-13');
+insert into t1 values (1, 'abc', '2001-01-14');
+insert into t1 values (1, 'abc', '2001-01-15');
+alter table t1
+partition by range (year(c))
+(partition p5 values less than (2000), partition p10 values less than (2010));
+alter table t1
+reorganize partition p5 into
+(partition p1 values less than (1996),
+partition p2 values less than (1997),
+partition p3 values less than (1998),
+partition p4 values less than (1999),
+partition p5 values less than (2000));
 drop table t1;
