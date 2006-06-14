@@ -36,6 +36,7 @@ insert into t1 values (0xFFFFFFFFFFFFFFFD);
 insert into t1 values (0xFFFFFFFFFFFFFFFE);
 select * from t1 where (a + 1) < 10;
 select * from t1 where (a + 1) > 10;
+drop table t1;
 
 #
 # Bug 19307: CSV engine crashes

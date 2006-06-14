@@ -827,4 +827,28 @@ end:
 }
 
 
+/*
+  Print error for no partition found
+  SYNOPSIS
+    print_no_partition_found()
+    table                        Table object
+  RETURN VALUES
+    NONE
+*/
+
+void partition_info::print_no_partition_found(TABLE *table)
+{
+  char buf[100];
+  char *buf_ptr= (char*)&buf;
+  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+
+  if (part_expr->null_value)
+    buf_ptr= (char*)"NULL";
+  else
+    longlong2str(part_expr->val_int(), buf,
+                 part_expr->unsigned_flag ? 10 : -10);
+  my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf_ptr);
+  dbug_tmp_restore_column_map(table->read_set, old_map);
+}
+
 #endif /* WITH_PARTITION_STORAGE_ENGINE */

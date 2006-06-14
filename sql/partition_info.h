@@ -217,7 +217,7 @@ public:
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE), fixed(FALSE),
     is_auto_partitioned(FALSE), from_openfrm(FALSE),
-    has_null_value(FALSE), has_null_part_id(0)
+    has_null_value(FALSE)
   {
     all_fields_in_PF.clear_all();
     all_fields_in_PPF.clear_all();
@@ -251,6 +251,7 @@ public:
   bool check_list_constants();
   bool check_partition_info(THD *thd, handlerton **eng_type,
                             handler *file, ulonglong max_rows);
+  void print_no_partition_found(TABLE *table);
 private:
   static int list_part_cmp(const void* a, const void* b);
   static int list_part_cmp_unsigned(const void* a, const void* b);
