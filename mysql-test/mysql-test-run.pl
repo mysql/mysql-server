@@ -1560,6 +1560,11 @@ sub check_debug_support () {
   {
     # mtr_report("Binaries are not debug compiled");
     $debug_compiled_binaries= 0;
+
+    if ( $opt_debug )
+    {
+      mtr_error("Can't use --debug, binaries does not support it");
+    }
     return;
   }
   mtr_report("Binaries are debug compiled");
