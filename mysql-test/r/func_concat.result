@@ -68,3 +68,10 @@ select 'a' union select concat('a', -0.0000);
 a
 a
 a0.0000
+create table t1(f1 varchar(6)) charset=utf8;
+insert into t1 values ("123456");
+select concat(f1, 2) a from t1 union select 'x' a from t1;
+a
+1234562
+x
+drop table t1;

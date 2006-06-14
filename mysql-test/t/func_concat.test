@@ -53,3 +53,11 @@ select 'a' union select concat('a', -0.0);
 select 'a' union select concat('a', -0.0000);
 
 # End of 4.1 tests
+
+#
+# Bug#15962: CONCAT() in UNION may lead to a data trucation.
+#
+create table t1(f1 varchar(6)) charset=utf8;
+insert into t1 values ("123456");
+select concat(f1, 2) a from t1 union select 'x' a from t1;
+drop table t1;
