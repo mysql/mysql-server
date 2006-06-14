@@ -5433,7 +5433,7 @@ Disable with --skip-ndbcluster (will save memory).",
 #endif
   {"nb-use-copying-alter-table",
    OPT_NDB_USE_COPYING_ALTER_TABLE,
-   "Force ndbcluster to always copy tables at alter table (used for ensuring that operations such as renaming fields are propagated to ndb data dictionary).",
+   "Force ndbcluster to always copy tables at alter table (should only be used if on-line alter table fails).",
    (gptr*) &global_system_variables.ndb_use_copying_alter_table,
    (gptr*) &global_system_variables.ndb_use_copying_alter_table,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},  
