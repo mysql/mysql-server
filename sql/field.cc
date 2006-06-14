@@ -7125,10 +7125,7 @@ int Field_blob::store(double nr)
 int Field_blob::store(longlong nr, bool unsigned_val)
 {
   CHARSET_INFO *cs=charset();
-  if (unsigned_val)
-    value.set((ulonglong) nr, cs);
-  else
-    value.set(nr, cs);
+  value.set(nr, unsigned_val, cs);
   return Field_blob::store(value.ptr(), (uint) value.length(), cs);
 }
 
