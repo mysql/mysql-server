@@ -748,6 +748,10 @@ CREATE TABLE t1(a int)
 insert into t1 values (10);
 drop table t1;
 
+--error ER_PARTITION_CONST_DOMAIN_ERROR
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (-1));
 #
 # Bug 18198 Partitions: Verify that erroneus partition functions doesn't work
 #
