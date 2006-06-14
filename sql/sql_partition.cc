@@ -61,7 +61,6 @@ static const char *equal_str= "=";
 static const char *end_paren_str= ")";
 static const char *begin_paren_str= "(";
 static const char *comma_str= ",";
-static char buff[22];
 
 int get_partition_id_list(partition_info *part_info,
                            uint32 *part_id,
@@ -189,9 +188,9 @@ bool is_name_in_list(char *name,
   SYNOPSIS
     partition_default_handling()
     table                         Table object
-    table_name                    Table name to use when getting no_parts
-    db_name                       Database name to use when getting no_parts
     part_info                     Partition info to set up
+    is_create_table_ind           Is this part of a table creation
+    normalized_path               Normalized path name of table and database
 
   RETURN VALUES
     TRUE                          Error
@@ -794,6 +793,43 @@ end:
 
 
 /*
+  Support function to check if all VALUES * (expression) is of the
+  right sign (no signed constants when unsigned partition function)
+
+  SYNOPSIS
+    check_signed_flag()
+    part_info                Partition info object
+
+  RETURN VALUES
+    0                        No errors due to sign errors
+    >0                       Sign error
+*/
+
+int check_signed_flag(partition_info *part_info)
+{
+  int error= 0;
+  uint i= 0;
+  if (part_info->part_type != HASH_PARTITION &&
+      part_info->part_expr->unsigned_flag)
+  {
+    List_iterator<partition_element> part_it(part_info->partitions);
+    do
+    {
+      partition_element *part_elem= part_it++;
+
+      if (part_elem->signed_flag)
+      {
+        my_error(ER_PARTITION_CONST_DOMAIN_ERROR, MYF(0));
+        error= ER_PARTITION_CONST_DOMAIN_ERROR;
+        break;
+      }
+    } while (++i < part_info->no_parts);
+  }
+  return error;
+}
+
+
+/*
   The function uses a new feature in fix_fields where the flag 
   GET_FIXED_FIELDS_FLAG is set for all fields in the item tree.
   This field must always be reset before returning from the function
@@ -802,10 +838,11 @@ end:
   SYNOPSIS
     fix_fields_part_func()
     thd                  The thread object
-    tables               A list of one table, the partitioned table
     func_expr            The item tree reference of the partition function
+    table                The table object
     part_info            Reference to partitioning data structure
-    sub_part             Is the table subpartitioned as well
+    is_sub_part          Is the table subpartitioned as well
+    is_field_to_be_setup Flag if we are to set-up field arrays
 
   RETURN VALUE
     TRUE                 An error occurred, something was wrong with the
@@ -828,17 +865,45 @@ end:
     on the field object.
 */
 
-static bool fix_fields_part_func(THD *thd, TABLE_LIST *tables,
-                                 Item* func_expr, partition_info *part_info,
-                                 bool is_sub_part)
+bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
+                          bool is_sub_part, bool is_field_to_be_setup)
 {
+  partition_info *part_info= table->part_info;
+  uint dir_length, home_dir_length;
   bool result= TRUE;
-  TABLE *table= tables->table;
+  TABLE_LIST tables;
   TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
   int error;
   Name_resolution_context *context;
   const char *save_where;
+  char* db_name;
+  char db_name_string[FN_REFLEN];
   DBUG_ENTER("fix_fields_part_func");
+
+  if (part_info->fixed)
+  {
+    if (!(is_sub_part || (error= check_signed_flag(part_info))))
+      result= FALSE;
+    goto end;
+  }
+
+  /*
+    Set-up the TABLE_LIST object to be a list with a single table
+    Set the object to zero to create NULL pointers and set alias
+    and real name to table name and get database name from file name.
+  */
+
+  bzero((void*)&tables, sizeof(TABLE_LIST));
+  tables.alias= tables.table_name= (char*) table->s->table_name.str;
+  tables.table= table;
+  tables.next_local= 0;
+  tables.next_name_resolution_table= 0;
+  strmov(db_name_string, table->s->normalized_path.str);
+  dir_length= dirname_length(db_name_string);
+  db_name_string[dir_length - 1]= 0;
+  home_dir_length= dirname_length(db_name_string);
+  db_name= &db_name_string[home_dir_length];
+  tables.db= db_name;
 
   context= thd->lex->current_context();
   table->map= 1; //To ensure correct calculation of const item
@@ -846,8 +911,8 @@ static bool fix_fields_part_func(THD *thd, TABLE_LIST *tables,
   save_table_list= context->table_list;
   save_first_table= context->first_name_resolution_table;
   save_last_table= context->last_name_resolution_table;
-  context->table_list= tables;
-  context->first_name_resolution_table= tables;
+  context->table_list= &tables;
+  context->first_name_resolution_table= &tables;
   context->last_name_resolution_table= NULL;
   func_expr->walk(&Item::change_context_processor, 0, (byte*) context);
   save_where= thd->where;
@@ -859,7 +924,8 @@ static bool fix_fields_part_func(THD *thd, TABLE_LIST *tables,
   if (unlikely(error))
   {
     DBUG_PRINT("info", ("Field in partition function not part of table"));
-    clear_field_flag(table);
+    if (is_field_to_be_setup)
+      clear_field_flag(table);
     goto end;
   }
   thd->where= save_where;
@@ -869,7 +935,13 @@ static bool fix_fields_part_func(THD *thd, TABLE_LIST *tables,
     clear_field_flag(table);
     goto end;
   }
-  result= set_up_field_array(table, is_sub_part);
+  if ((!is_sub_part) && (error= check_signed_flag(part_info)))
+    goto end;
+  result= FALSE;
+  if (is_field_to_be_setup)
+    result= set_up_field_array(table, is_sub_part);
+  if (!is_sub_part)
+    part_info->fixed= TRUE;
 end:
   table->get_fields_in_item_tree= FALSE;
   table->map= 0; //Restore old value
@@ -1303,9 +1375,8 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
   SYNOPSIS
     fix_partition_func()
     thd                  The thread object
-    name                 The name of the partitioned table
     table                TABLE object for which partition fields are set-up
-    create_table_ind     Indicator of whether openfrm was called as part of
+    is_create_table_ind  Indicator of whether openfrm was called as part of
                          CREATE or ALTER TABLE
 
   RETURN VALUE
@@ -1325,15 +1396,10 @@ NOTES
     of an error that is not discovered until here.
 */
 
-bool fix_partition_func(THD *thd, const char* name, TABLE *table,
+bool fix_partition_func(THD *thd, TABLE *table,
                         bool is_create_table_ind)
 {
   bool result= TRUE;
-  uint dir_length, home_dir_length;
-  TABLE_LIST tables;
-  TABLE_SHARE *share= table->s;
-  char db_name_string[FN_REFLEN];
-  char* db_name;
   partition_info *part_info= table->part_info;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   Item *thd_free_list= thd->free_list;
@@ -1345,23 +1411,6 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   }
   thd->mark_used_columns= MARK_COLUMNS_NONE;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
-  /*
-    Set-up the TABLE_LIST object to be a list with a single table
-    Set the object to zero to create NULL pointers and set alias
-    and real name to table name and get database name from file name.
-  */
-
-  bzero((void*)&tables, sizeof(TABLE_LIST));
-  tables.alias= tables.table_name= (char*) share->table_name.str;
-  tables.table= table;
-  tables.next_local= 0;
-  tables.next_name_resolution_table= 0;
-  strmov(db_name_string, name);
-  dir_length= dirname_length(db_name_string);
-  db_name_string[dir_length - 1]= 0;
-  home_dir_length= dirname_length(db_name_string);
-  db_name= &db_name_string[home_dir_length];
-  tables.db= db_name;
 
   if (!is_create_table_ind ||
        thd->lex->sql_command != SQLCOM_CREATE_TABLE)
@@ -1391,9 +1440,8 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
     }
     else
     {
-      if (unlikely(fix_fields_part_func(thd, &tables,
-                                        part_info->subpart_expr, part_info,
-                                        TRUE)))
+      if (unlikely(fix_fields_part_func(thd, part_info->subpart_expr,
+                                        table, TRUE, TRUE)))
         goto end;
       if (unlikely(part_info->subpart_expr->result_type() != INT_RESULT))
       {
@@ -1420,8 +1468,8 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
     }
     else
     {
-      if (unlikely(fix_fields_part_func(thd, &tables, part_info->part_expr,
-                                        part_info, FALSE)))
+      if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
+                                        table, FALSE, TRUE)))
         goto end;
       if (unlikely(part_info->part_expr->result_type() != INT_RESULT))
       {
@@ -1434,6 +1482,9 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   else
   {
     const char *error_str;
+    if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
+                                      table, FALSE, TRUE)))
+      goto end;
     if (part_info->part_type == RANGE_PARTITION)
     {
       error_str= partition_keywords[PKW_RANGE].str; 
@@ -1457,9 +1508,6 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
       my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), error_str);
       goto end;
     }
-    if (unlikely(fix_fields_part_func(thd, &tables, part_info->part_expr,
-                                      part_info, FALSE)))
-      goto end;
     if (unlikely(part_info->part_expr->result_type() != INT_RESULT))
     {
       my_error(ER_PARTITION_FUNC_NOT_ALLOWED_ERROR, MYF(0), part_str);
@@ -1479,7 +1527,6 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   check_range_capable_PF(table);
   set_up_partition_key_maps(table, part_info);
   set_up_partition_func_pointers(part_info);
-  part_info->fixed= TRUE;
   set_up_range_analysis_info(part_info);
   result= FALSE;
 end:
@@ -1563,6 +1610,7 @@ static int add_hash(File fptr)
 
 static int add_partition(File fptr)
 {
+  char buff[22];
   strxmov(buff, part_str, space_str, NullS);
   return add_string(fptr, buff);
 }
@@ -1576,6 +1624,7 @@ static int add_subpartition(File fptr)
 
 static int add_partition_by(File fptr)
 {
+  char buff[22];
   strxmov(buff, part_str, space_str, by_str, space_str, NullS);
   return add_string(fptr, buff);
 }
@@ -1631,7 +1680,15 @@ static int add_name_string(File fptr, const char *name)
 
 static int add_int(File fptr, longlong number)
 {
+  char buff[32];
   llstr(number, buff);
+  return add_string(fptr, buff);
+}
+
+static int add_uint(File fptr, ulonglong number)
+{
+  char buff[32];
+  longlong2str(number, buff, 10);
   return add_string(fptr, buff);
 }
 
@@ -1696,18 +1753,20 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   return err + add_engine(fptr,p_elem->engine_type);
 }
 
-static int add_partition_values(File fptr, partition_info *part_info,
-                         partition_element *p_elem)
+static int add_partition_values(File fptr, partition_info *part_info, partition_element *p_elem)
 {
   int err= 0;
 
   if (part_info->part_type == RANGE_PARTITION)
   {
     err+= add_string(fptr, " VALUES LESS THAN ");
-    if (p_elem->range_value != LONGLONG_MAX)
+    if (!p_elem->max_value)
     {
       err+= add_begin_parenthesis(fptr);
-      err+= add_int(fptr, p_elem->range_value);
+      if (p_elem->signed_flag)
+        err+= add_int(fptr, p_elem->range_value);
+      else
+        err+= add_uint(fptr, p_elem->range_value);
       err+= add_end_parenthesis(fptr);
     }
     else
@@ -1716,9 +1775,10 @@ static int add_partition_values(File fptr, partition_info *part_info,
   else if (part_info->part_type == LIST_PARTITION)
   {
     uint i;
-    List_iterator<longlong> list_val_it(p_elem->list_val_list);
+    List_iterator<part_elem_value> list_val_it(p_elem->list_val_list);
     err+= add_string(fptr, " VALUES IN ");
     uint no_items= p_elem->list_val_list.elements;
+
     err+= add_begin_parenthesis(fptr);
     if (p_elem->has_null_value)
     {
@@ -1733,8 +1793,12 @@ static int add_partition_values(File fptr, partition_info *part_info,
     i= 0;
     do
     {
-      longlong *list_value= list_val_it++;
-      err+= add_int(fptr, *list_value);
+      part_elem_value *list_value= list_val_it++;
+
+      if (!list_value->unsigned_flag)
+        err+= add_int(fptr, list_value->value);
+      else
+        err+= add_uint(fptr, list_value->value);
       if (i != (no_items-1))
         err+= add_comma(fptr);
     } while (++i < no_items);
@@ -2268,10 +2332,11 @@ int get_partition_id_list(partition_info *part_info,
 {
   LIST_PART_ENTRY *list_array= part_info->list_array;
   int list_index;
-  longlong list_value;
   int min_list_index= 0;
   int max_list_index= part_info->no_list_values - 1;
   longlong part_func_value= part_val_int(part_info->part_expr);
+  longlong list_value;
+  bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("get_partition_id_list");
 
   if (part_info->part_expr->null_value)
@@ -2284,6 +2349,8 @@ int get_partition_id_list(partition_info *part_info,
     goto notfound;
   }
   *func_value= part_func_value;
+  if (unsigned_flag)
+    part_func_value-= 0x8000000000000000ULL;
   while (max_list_index >= min_list_index)
   {
     list_index= (max_list_index + min_list_index) >> 1;
@@ -2350,13 +2417,17 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
                                        bool left_endpoint,
                                        bool include_endpoint)
 {
-  DBUG_ENTER("get_list_array_idx_for_endpoint");
   LIST_PART_ENTRY *list_array= part_info->list_array;
   uint list_index;
-  longlong list_value;
   uint min_list_index= 0, max_list_index= part_info->no_list_values - 1;
+  longlong list_value;
   /* Get the partitioning function value for the endpoint */
   longlong part_func_value= part_val_int(part_info->part_expr);
+  bool unsigned_flag= part_info->part_expr->unsigned_flag;
+  DBUG_ENTER("get_list_array_idx_for_endpoint");
+
+  if (unsigned_flag)
+    part_func_value-= 0x8000000000000000ULL;
   DBUG_ASSERT(part_info->no_list_values);
   do
   {
@@ -2392,13 +2463,17 @@ int get_partition_id_range(partition_info *part_info,
   uint max_part_id= max_partition;
   uint loc_part_id;
   longlong part_func_value= part_val_int(part_info->part_expr);
-  DBUG_ENTER("get_partition_id_int_range");
+  bool unsigned_flag= part_info->part_expr->unsigned_flag;
+  DBUG_ENTER("get_partition_id_range");
 
   if (part_info->part_expr->null_value)
   {
     *part_id= 0;
     DBUG_RETURN(0);
   }
+  *func_value= part_func_value;
+  if (unsigned_flag)
+    part_func_value-= 0x8000000000000000ULL;
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
@@ -2412,7 +2487,6 @@ int get_partition_id_range(partition_info *part_info,
     if (loc_part_id != max_partition)
       loc_part_id++;
   *part_id= (uint32)loc_part_id;
-  *func_value= part_func_value;
   if (loc_part_id == max_partition &&
       range_array[loc_part_id] != LONGLONG_MAX &&
       part_func_value >= range_array[loc_part_id])
@@ -2468,13 +2542,16 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
                                            bool left_endpoint,
                                            bool include_endpoint)
 {
-  DBUG_ENTER("get_partition_id_range_for_endpoint");
   longlong *range_array= part_info->range_int_array;
   uint max_partition= part_info->no_parts - 1;
   uint min_part_id= 0, max_part_id= max_partition, loc_part_id;
   /* Get the partitioning function value for the endpoint */
   longlong part_func_value= part_val_int(part_info->part_expr);
+  bool unsigned_flag= part_info->part_expr->unsigned_flag;
+  DBUG_ENTER("get_partition_id_range_for_endpoint");
 
+  if (unsigned_flag)
+    part_func_value-= 0x8000000000000000ULL;
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
@@ -2487,7 +2564,7 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   if (loc_part_id < max_partition && 
       part_func_value >= range_array[loc_part_id+1])
   {
-     loc_part_id++;
+   loc_part_id++;
   }
   if (left_endpoint)
   {
@@ -4467,7 +4544,7 @@ the generated partition syntax in a correct manner.
         tab_part_info->use_default_subpartitions= FALSE;
         tab_part_info->use_default_no_subpartitions= FALSE;
       }
-      if (tab_part_info->check_partition_info((handlerton**)NULL,
+      if (tab_part_info->check_partition_info(thd, (handlerton**)NULL,
                                               table->file, ULL(0)))
       {
         DBUG_RETURN(TRUE);
