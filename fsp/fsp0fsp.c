@@ -884,16 +884,22 @@ fsp_init(void)
 }
 
 /**************************************************************************
-Writes the space id to a tablespace header. This function is used past the
-buffer pool when we in fil0fil.c create a new single-table tablespace. */
+Writes the space id and compressed page size to a tablespace header.
+This function is used past the buffer pool when we in fil0fil.c create
+a new single-table tablespace. */
 
 void
-fsp_header_write_space_id(
-/*======================*/
-	page_t*	page,		/* in: first page in the space */
-	ulint	space_id)	/* in: space id */
+fsp_header_init_fields(
+/*===================*/
+	page_t*	page,		/* in/out: first page in the space */
+	ulint	space_id,	/* in: space id */
+	ulint	zip_size)	/* in: compressed page size in bytes;
+				0 for uncompressed pages */
 {
-	mach_write_to_4(page + FSP_HEADER_OFFSET + FSP_SPACE_ID, space_id);
+	mach_write_to_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page,
+			space_id);
+	mach_write_to_4(FSP_HEADER_OFFSET + FSP_PAGE_ZIP_SIZE + page,
+			zip_size);
 }
 
 /**************************************************************************
