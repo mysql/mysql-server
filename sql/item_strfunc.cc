@@ -389,7 +389,14 @@ void Item_func_concat::fix_length_and_dec()
     return;
 
   for (uint i=0 ; i < arg_count ; i++)
-    max_result_length+= args[i]->max_length;
+  {
+    if (args[i]->collation.collation->mbmaxlen != collation.collation->mbmaxlen)
+      max_result_length+= (args[i]->max_length /
+                           args[i]->collation.collation->mbmaxlen) *
+                           collation.collation->mbmaxlen;
+    else
+      max_result_length+= args[i]->max_length;
+  }
 
   if (max_result_length >= MAX_BLOB_WIDTH)
   {
