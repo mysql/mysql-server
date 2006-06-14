@@ -567,7 +567,6 @@ bool partition_info::check_list_constants()
   uint i;
   uint list_index= 0;
   longlong *list_value;
-  bool not_first;
   bool result= TRUE;
   longlong curr_value, prev_value;
   partition_element* part_def;
@@ -634,19 +633,19 @@ bool partition_info::check_list_constants()
 
   if (no_list_values)
   {
+    bool first= TRUE;
     qsort((void*)list_array, no_list_values, sizeof(LIST_PART_ENTRY), 
           &list_part_cmp);
  
-    not_first= FALSE;
     i= prev_value= 0; //prev_value initialised to quiet compiler
     do
     {
       DBUG_ASSERT(i < no_list_values);
       curr_value= list_array[i].list_value;
-      if (likely(!not_first || prev_value != curr_value))
+      if (likely(first || prev_value != curr_value))
       {
         prev_value= curr_value;
-        not_first= TRUE;
+        first= FALSE;
       }
       else
       {
