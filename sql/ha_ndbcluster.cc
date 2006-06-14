@@ -4344,15 +4344,29 @@ int ha_ndbcluster::delete_table(const char *name)
 
 int ha_ndbcluster::drop_table()
 {
+  THD *thd= current_thd;
   Ndb *ndb= get_ndb();
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
 
   DBUG_ENTER("drop_table");
   DBUG_PRINT("enter", ("Deleting %s", m_tabname));
-
+  
   release_metadata();
-  if (dict->dropTable(m_tabname))
+  while (dict->dropTable(m_tabname)) 
+  {
+    const NdbError err= dict->getNdbError();
+    switch (err.status)
+    {
+      case NdbError::TemporaryError:
+        if (!thd->killed)
+          continue; // retry indefinitly
+        break;
+      default:
+        break;
+    }
     ERR_RETURN(dict->getNdbError());
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -4761,14 +4775,24 @@ int ndbcluster_drop_database(const char *path)
   List_iterator_fast<char> it(drop_list);
   while ((tabname=it++))
   {
-    if (dict->dropTable(tabname))
+    while (dict->dropTable(tabname))
     {
       const NdbError err= dict->getNdbError();
-      if (err.code != 709)
+      switch (err.status)
+      {
+        case NdbError::TemporaryError:
+          if (!thd->killed)
+            continue; // retry indefinitly
+          break;
+        default:
+          break;
+      }
+      if (err.code != 709) // 709: No such table existed
       {
         ERR_PRINT(err);
         ret= ndb_to_mysql_error(&err);
       }
+      break;
     }
   }
   DBUG_RETURN(ret);      
