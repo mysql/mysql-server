@@ -2087,6 +2087,11 @@ int ha_ndbcluster::write_row(byte *record)
    */
   if (!m_use_write && m_ignore_dup_key)
   {
+    /*
+      compare if expression with that in start_bulk_insert()
+      start_bulk_insert will set parameters to ensure that each
+      write_row is committed individually
+    */
     int peek_res= peek_indexed_rows(record);
     
     if (!peek_res) 
@@ -3206,6 +3211,19 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   DBUG_PRINT("enter", ("rows: %d", (int)rows));
   
   m_rows_inserted= (ha_rows) 0;
+  if (!m_use_write && m_ignore_dup_key)
+  {
+    /*
+      compare if expression with that in write_row
+      we have a situation where peek_indexed_rows() will be called
+      so we cannot batch
+    */
+    DBUG_PRINT("info", ("Batching turned off as duplicate key is "
+                        "ignored by using peek_row"));
+    m_rows_to_insert= 1;
+    m_bulk_insert_rows= 1;
+    DBUG_VOID_RETURN;
+  }
   if (rows == (ha_rows) 0)
   {
     /* We don't know how many will be inserted, guess */
