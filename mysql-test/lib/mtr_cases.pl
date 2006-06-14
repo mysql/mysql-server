@@ -5,6 +5,7 @@
 # same name.
 
 use File::Basename;
+use IO::File();
 use strict;
 
 sub collect_test_cases ($);
@@ -505,8 +506,6 @@ sub collect_one_test_case($$$$$$$) {
 }
 
 
-use IO::File;
-
 # List of tags in the .test files that if found should set
 # the specified value in "tinfo"
 our @tags=
@@ -526,17 +525,16 @@ sub mtr_options_from_test_file($$) {
   #mtr_verbose("$file");
   my $F= IO::File->new($file) or mtr_error("can't open file \"$file\": $!");
 
-  while ( <$F> )
+  while ( my $line= <$F> )
   {
     chomp;
 
-    # Skip all lines not starting with "--"
-    next if ( ! /^--/ );
+    next if ( $line !~ /^--/ );
 
     # Match this line against tag in "tags" array
     foreach my $tag (@tags)
     {
-      if ( $_ =~ /(.*)\Q$tag->[0]\E(.*)$/ )
+      if ( index($line, $tag->[0]) >= 0 )
       {
 	# Tag matched, assign value to "tinfo"
 	$tinfo->{"$tag->[1]"}= $tag->[2];
@@ -544,11 +542,11 @@ sub mtr_options_from_test_file($$) {
     }
 
     # If test sources another file, open it as well
-    if ( /^--([[:space:]]*)source/ )
+    if ( $line =~ /^\-\-([[:space:]]*)source(.*)$/ )
     {
-      my $value= $';
+      my $value= $2;
       $value =~ s/^\s+//;  # Remove leading space
-      $value =~ s/\s+$//;  # Remove ending space
+      $value =~ s/[[:space:]]+$//;  # Remove ending space
 
       my $sourced_file= "$::glob_mysql_test_dir/$value";
       mtr_options_from_test_file($tinfo, $sourced_file);
