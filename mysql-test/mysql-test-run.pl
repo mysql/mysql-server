@@ -248,8 +248,6 @@ our $opt_ndbconnectstring;
 our $opt_ndbcluster_port_slave;
 our $opt_ndbconnectstring_slave;
 
-our $opt_old_master;
-
 our $opt_record;
 our $opt_check_testcases;
 
@@ -654,7 +652,6 @@ sub command_line_setup () {
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
              'netware'                  => \$opt_netware,
-             'old-master'               => \$opt_old_master,
              'reorder'                  => \$opt_reorder,
              'script-debug'             => \$opt_script_debug,
              'verbose'                  => \$opt_verbose,
@@ -2739,17 +2736,6 @@ sub mysqld_arguments ($$$$$) {
   {
     # We are running as root;  We need to add the --root argument
     mtr_add_arg($args, "%s--user=root", $prefix);
-  }
-
-  if ( $type eq 'master' )
-  {
-
-    if ( ! $opt_old_master )
-    {
-      mtr_add_arg($args, "%s--rpl-recovery-rank=1", $prefix);
-      mtr_add_arg($args, "%s--init-rpl-role=master", $prefix);
-    }
-
   }
 
   foreach my $arg ( @opt_extra_mysqld_opt, @$extra_opt )
