@@ -1158,14 +1158,6 @@ routine_name
 
 delete from proc where name='';
 use test;
-select * from information_schema.engines WHERE ENGINE="MyISAM";
-ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
-MyISAM	ENABLED	Default engine as of MySQL 3.23 with great performance	NO	NO	NO
-grant select on *.* to user3148@localhost;
-select user,db from information_schema.processlist;
-user	db
-user3148	test
-drop user user3148@localhost;
 grant select on test.* to mysqltest_1@localhost;
 create table t1 (id int);
 create view v1 as select * from t1;
@@ -1188,3 +1180,11 @@ concat(@a, table_name)	@a	table_name
 .t1	.	t1
 .t2	.	t2
 drop table t1,t2;
+select * from information_schema.engines WHERE ENGINE="MyISAM";
+ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
+MyISAM	ENABLED	Default engine as of MySQL 3.23 with great performance	NO	NO	NO
+grant select on *.* to user3148@localhost;
+select user,db from information_schema.processlist;
+user	db
+user3148	test
+drop user user3148@localhost;
