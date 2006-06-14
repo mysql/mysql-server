@@ -569,10 +569,6 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       break;                        // Found a part od the key for the field
   }
 
-#if 0
-  if (part->length != (((Item_field*) args[0])->field)->field_length)
-    return 0;
-#endif
   bool is_field_part= part == field_part;
   if (!(is_field_part || eq_type))
     return 0;

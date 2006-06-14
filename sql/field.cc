@@ -9037,7 +9037,11 @@ bool
 Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
                    int cuted_increment)
 {
-  THD *thd= table->in_use;
+  /*
+    If this field was created only for type conversion purposes it
+    will have table == NULL.
+  */
+  THD *thd= table ? table->in_use : current_thd;
   if (thd->count_cuted_fields)
   {
     thd->cuted_fields+= cuted_increment;
@@ -9074,7 +9078,8 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
 {
   if (table->in_use->really_abort_on_warning() ||
       set_warning(level, code, cuted_increment))
-    make_truncated_value_warning(table->in_use, str, str_length, ts_type,
+    make_truncated_value_warning(table ? table->in_use : current_thd,
+                                 str, str_length, ts_type,
                                  field_name);
 }
 
@@ -9106,8 +9111,8 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
   {
     char str_nr[22];
     char *str_end= longlong10_to_str(nr, str_nr, -10);
-    make_truncated_value_warning(table->in_use, str_nr, 
-                                 (uint) (str_end - str_nr), 
+    make_truncated_value_warning(table ? table->in_use : current_thd,
+                                 str_nr, (uint) (str_end - str_nr), 
                                  ts_type, field_name);
   }
 }
@@ -9139,7 +9144,35 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
     /* DBL_DIG is enough to print '-[digits].E+###' */
     char str_nr[DBL_DIG + 8];
     uint str_len= my_sprintf(str_nr, (str_nr, "%g", nr));
-    make_truncated_value_warning(table->in_use, str_nr, str_len, ts_type,
+    make_truncated_value_warning(table ? table->in_use : current_thd,
+                                 str_nr, str_len, ts_type,
                                  field_name);
+  }
+}
+
+/*
+  maximum possible display length for blob
+
+  SYNOPSIS
+    Field_blob::max_length()
+
+  RETURN
+    length
+*/
+uint32 Field_blob::max_length()
+{
+  switch (packlength)
+  {
+  case 1:
+    return 255 * field_charset->mbmaxlen;
+  case 2:
+    return 65535 * field_charset->mbmaxlen;
+  case 3:
+    return 16777215 * field_charset->mbmaxlen;
+  case 4:
+    return (uint32) 4294967295U;
+  default:
+    DBUG_ASSERT(0); // we should never go here
+    return 0;
   }
 }
