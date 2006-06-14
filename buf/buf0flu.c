@@ -489,12 +489,13 @@ buf_flush_init_for_writing(
 	ulint	space,		/* in: space id */
 	ulint	page_no)	/* in: page number */
 {
-	page_zip_des_t*	page_zip = page_zip_;
-	ulint		zip_size = fil_space_get_zip_size(space);
+	if (page_zip_) {
+		page_zip_des_t*	page_zip = page_zip_;
+		ulint		zip_size = page_zip->size;
+		ut_ad(zip_size);
+		ut_ad(ut_is_2pow(zip_size));
+		ut_ad(zip_size <= UNIV_PAGE_SIZE);
 
-	if (zip_size && zip_size != ULINT_UNDEFINED) {
-		ut_a(page_zip);
-		ut_a(page_zip->size == zip_size);
 		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
 		case FIL_PAGE_TYPE_ZBLOB:
 			mach_write_to_4(page + FIL_PAGE_OFFSET, page_no);
@@ -506,14 +507,15 @@ buf_flush_init_for_writing(
 							page, zip_size)
 					: BUF_NO_CHECKSUM_MAGIC);
 			return;
+		case FIL_PAGE_TYPE_ALLOCATED:
 		case FIL_PAGE_INODE:
 		case FIL_PAGE_IBUF_BITMAP:
 		case FIL_PAGE_TYPE_FSP_HDR:
 		case FIL_PAGE_TYPE_XDES:
 			/* These are essentially uncompressed pages. */
 			memcpy(page_zip->data, page, zip_size);
+			/* fall through */
 		case FIL_PAGE_INDEX:
-			ut_a(zip_size == page_zip->size);
 			mach_write_to_4(page
 					+ FIL_PAGE_OFFSET, page_no);
 			mach_write_to_4(page
@@ -534,9 +536,9 @@ buf_flush_init_for_writing(
 						page_zip->data, zip_size)
 					: BUF_NO_CHECKSUM_MAGIC);
 			return;
-		default:
-			ut_error;
 		}
+
+		ut_error;
 	}
 
 	/* Write the newest modification lsn to the page header and trailer */
