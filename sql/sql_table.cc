@@ -4744,6 +4744,11 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
 	create_info->row_type != ROW_TYPE_FIXED)
       create_info->table_options|= HA_OPTION_PACK_RECORD;
 
+    /* Check if field was renamed */
+    if (my_strcasecmp(system_charset_info,
+		      field->field_name,
+		      new_field->field_name))
+      field->flags|= FIELD_IS_RENAMED;      
     /* Evaluate changes bitmap and send to check_if_incompatible_data() */
     if (!(tmp= field->is_equal(new_field)))
       DBUG_RETURN(ALTER_TABLE_DATA_CHANGED);
