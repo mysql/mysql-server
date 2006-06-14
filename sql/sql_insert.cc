@@ -1938,6 +1938,14 @@ bool delayed_insert::handle_inserts(void)
   if (!using_bin_log)
     table->file->extra(HA_EXTRA_WRITE_CACHE);
   pthread_mutex_lock(&mutex);
+
+  /* Reset auto-increment cacheing */
+  if (thd.clear_next_insert_id)
+  {
+    thd.next_insert_id= 0;
+    thd.clear_next_insert_id= 0;
+  }
+
   while ((row=rows.get()))
   {
     stacked_inserts--;
