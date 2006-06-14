@@ -263,7 +263,7 @@ sub collect_one_test_case($$$$$$$) {
     $tinfo->{'slave_num'}= 1;
   }
 
-  if ( $::opt_with_ndbcluster_all or defined mtr_match_substring($tname,"ndb") )
+  if ( $::opt_with_ndbcluster or defined mtr_match_substring($tname,"ndb") )
   {
     # This is an ndb test or all tests should be run with ndb cluster started
     $tinfo->{'ndb_test'}= 1;
@@ -274,7 +274,7 @@ sub collect_one_test_case($$$$$$$) {
       $tinfo->{'comment'}= "No ndbcluster test(--skip-ndbcluster)";
       return;
     }
-    if ( ! $::opt_with_ndbcluster )
+    if ( ! $::opt_ndbcluster_supported )
     {
       # Ndb is not supported, skip them
       $tinfo->{'skip'}= 1;
@@ -287,9 +287,10 @@ sub collect_one_test_case($$$$$$$) {
     # This is not a ndb test
     $tinfo->{'ndb_test'}= 0;
     if ( $::opt_with_ndbcluster_only )
-    { 
+    {
       # Only the ndb test should be run, all other should be skipped
       $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Only ndbcluster tests(--with-ndbcluster-only)";
       return;
     }
   }
