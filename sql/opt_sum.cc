@@ -685,8 +685,10 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
       if (!(table->file->index_flags(idx, jdx, 0) & HA_READ_ORDER))
         return 0;
 
-        /* Check whether the index component is partial */
-      if (part->length < table->field[part->fieldnr-1]->pack_length())
+      /* Check whether the index component is partial */
+      Field *part_field= table->field[part->fieldnr-1];
+      if ((part_field->flags & BLOB_FLAG) ||
+          part->length < part_field->key_length())
         break;
 
       if (field->eq(part->field))
