@@ -667,10 +667,6 @@ struct handlerton
                         struct handler_iterator *fill_this_in);
 };
 
-struct show_table_alias_st {
-  const char *alias;
-  enum legacy_db_type type;
-};
 
 /* Possible flags of a handlerton */
 #define HTON_NO_FLAGS                 0
@@ -1545,7 +1541,8 @@ extern ulong total_ha, total_ha_2pc;
 #define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
 
 /* lookups */
-handlerton *ha_resolve_by_name(THD *thd, LEX_STRING *name);
+handlerton *ha_default_handlerton(THD *thd);
+handlerton *ha_resolve_by_name(THD *thd, const LEX_STRING *name);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
 const char *ha_get_storage_engine(enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
