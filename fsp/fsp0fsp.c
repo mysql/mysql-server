@@ -620,11 +620,11 @@ xdes_calc_descriptor_page(
 		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
 # error
 #endif
-	ut_ad(zip_size <= XDES_ARR_OFFSET
-			+ (zip_size / FSP_EXTENT_SIZE) * XDES_SIZE);
 	if (!zip_size) {
 		return(ut_2pow_round(offset, UNIV_PAGE_SIZE));
 	} else {
+		ut_ad(zip_size > XDES_ARR_OFFSET
+				+ (zip_size / FSP_EXTENT_SIZE) * XDES_SIZE);
 		return(ut_2pow_round(offset, zip_size));
 	}
 }

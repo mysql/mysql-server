@@ -764,6 +764,7 @@ recv_parse_or_apply_log_rec_body(
 
 	switch (type) {
 	case MLOG_1BYTE: case MLOG_2BYTES: case MLOG_4BYTES: case MLOG_8BYTES:
+		ut_a(!page_zip || fil_page_get_type(page) != FIL_PAGE_INDEX);
 		ptr = mlog_parse_nbytes(type, ptr, end_ptr, page);
 		break;
 	case MLOG_REC_INSERT: case MLOG_COMP_REC_INSERT:

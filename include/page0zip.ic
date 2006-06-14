@@ -132,7 +132,7 @@ page_zip_simple_validate(
 {
 	ut_ad(page_zip);
 	ut_ad(page_zip->data);
-	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(ut_is_2pow(page_zip->size));
 	ut_ad(page_zip->size <= UNIV_PAGE_SIZE);
 	ut_ad(page_zip->size > PAGE_DATA + PAGE_ZIP_DIR_SLOT_SIZE);
 	ut_ad(page_zip->m_start <= page_zip->m_end);
