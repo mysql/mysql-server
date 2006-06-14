@@ -2840,3 +2840,29 @@ EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6 AND a > 0;
 
 DROP TABLE t1, t2;
+
+#
+# Bug #18895: BIT values cause joins to fail
+#
+create table t1 (
+    a int unsigned    not null auto_increment primary key,
+    b bit             not null,
+    c bit             not null
+);
+
+create table t2 (
+    a int unsigned    not null auto_increment primary key,
+    b bit             not null,
+    c int unsigned    not null,
+    d varchar(50)
+);
+
+insert into t1 (b,c) values (0,1), (0,1);
+insert into t2 (b,c) values (0,1);
+
+-- Row 1 should succeed.  Row 2 should fail.  Both fail.
+select t1.a, t1.b + 0, t1.c + 0, t2.a, t2.b + 0, t2.c, t2.d
+from t1 left outer join t2 on t1.a = t2.c and t2.b <> 1
+where t1.b <> 1 order by t1.a;
+
+drop table t1,t2;
