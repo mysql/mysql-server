@@ -24,7 +24,7 @@ public:
   STATIC_CONST( ErrTable = 4263 );
   // "Invalid usage of blob attribute" 
   STATIC_CONST( ErrUsage = 4264 );
-  // "Method is not valid in current blob state"
+  // "The blob method is not valid in current blob state"
   STATIC_CONST( ErrState = 4265 );
   // "Invalid blob seek position"
   STATIC_CONST( ErrSeek = 4266 );
@@ -33,7 +33,9 @@ public:
   // "Error in blob head update forced rollback of transaction"
   STATIC_CONST( ErrAbort = 4268 );
   // "Unknown blob error"
-  STATIC_CONST( ErrUnknown = 4269 );
+  STATIC_CONST( ErrUnknown = 4270 );
+  // "The blob method is incompatible with operation type or lock mode"
+  STATIC_CONST( ErrCompat = 4275 );
 };
 
 #endif
