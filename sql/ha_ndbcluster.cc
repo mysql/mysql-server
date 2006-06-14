@@ -9833,8 +9833,8 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
   for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
-    const NDBCOL *col= tab->getColumn(field->field_name);
-    if (!col)
+    const NDBCOL *col= tab->getColumn(i);
+    if (field->flags & FIELD_IS_RENAMED)
     {
       DBUG_PRINT("info", ("Field has been renamed, copy table"));
       DBUG_RETURN(COMPATIBLE_DATA_NO);
