@@ -1966,6 +1966,9 @@ recs_done:
 }
 
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+/* Flag: make page_zip_validate() compare page headers only */
+ibool	page_zip_validate_header_only = FALSE;
+
 /**************************************************************************
 Check that the compressed and decompressed pages match. */
 
@@ -1977,12 +1980,27 @@ page_zip_validate(
 	const page_t*		page)	/* in: uncompressed page */
 {
 	page_zip_des_t	temp_page_zip = *page_zip;
-	page_t*		temp_page = buf_frame_alloc();
+	page_t*		temp_page;
 	ibool		valid;
 
 	ut_a(buf_block_get_page_zip(buf_block_align((byte*)page))
 		== page_zip);
 	ut_a(page_is_comp((page_t*) page));
+
+	if (memcmp(page_zip->data + FIL_PAGE_PREV, page + FIL_PAGE_PREV,
+			FIL_PAGE_LSN - FIL_PAGE_PREV)
+	    || memcmp(page_zip->data + FIL_PAGE_TYPE, page + FIL_PAGE_TYPE, 2)
+	    || memcmp(page_zip->data + FIL_PAGE_DATA, page + FIL_PAGE_DATA,
+			PAGE_DATA - FIL_PAGE_DATA)) {
+		fputs("page_zip_validate(): page header mismatch\n", stderr);
+		return(FALSE);
+	}
+
+	if (page_zip_validate_header_only) {
+		return(TRUE);
+	}
+
+	temp_page = buf_frame_alloc();
 
 	valid = page_zip_decompress(&temp_page_zip, temp_page);
 	if (!valid) {
