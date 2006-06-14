@@ -919,6 +919,12 @@ create table t1 (f1 smallint)
 partition by list (f1) (partition p0 values in (null));
 insert into t1 values (null);
 select * from t1 where f1 is null;
+select * from t1 where f1 < 1;
+select * from t1 where f1 <= NULL;
+select * from t1 where f1 < NULL;
+select * from t1 where f1 >= NULL;
+select * from t1 where f1 > NULL;
+select * from t1 where f1 > 1;
 drop table t1;
 
 create table t1 (f1 smallint)

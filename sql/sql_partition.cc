@@ -2263,8 +2263,8 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
 
 
 int get_partition_id_list(partition_info *part_info,
-                           uint32 *part_id,
-                           longlong *func_value)
+                          uint32 *part_id,
+                          longlong *func_value)
 {
   LIST_PART_ENTRY *list_array= part_info->list_array;
   int list_index;
@@ -2357,7 +2357,8 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
   uint min_list_index= 0, max_list_index= part_info->no_list_values - 1;
   /* Get the partitioning function value for the endpoint */
   longlong part_func_value= part_val_int(part_info->part_expr);
-  while (max_list_index >= min_list_index)
+  DBUG_ASSERT(part_info->no_list_values);
+  do
   {
     list_index= (max_list_index + min_list_index) >> 1;
     list_value= list_array[list_index].list_value;
@@ -2373,7 +2374,7 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
     {
       DBUG_RETURN(list_index + test(left_endpoint ^ include_endpoint));
     }
-  }
+  } while (max_list_index >= min_list_index);
 notfound:
   if (list_value < part_func_value)
     list_index++;
@@ -6305,6 +6306,18 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     part_iter->get_next= get_next_partition_id_list;
     part_iter->part_info= part_info;
     part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
+    if (max_endpoint_val == 0)
+    {
+      /*
+        We handle this special case without optimisations since it is
+        of little practical value but causes a great number of complex
+        checks later in the code.
+      */
+      part_iter->part_nums.start= part_iter->part_nums.end= 0;
+      part_iter->part_nums.cur= 0;
+      part_iter->ret_null_part= part_iter->ret_null_part_orig= TRUE;
+      return -1;
+    }
   }
   else
     DBUG_ASSERT(0);
