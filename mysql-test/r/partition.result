@@ -1,5 +1,10 @@
 drop table if exists t1;
 create table t1 (a int)
+engine = csv
+partition by list (a)
+(partition p0 values in (null));
+ERROR HY000: CSV handler cannot be used in partitioned tables
+create table t1 (a int)
 partition by key(a)
 (partition p0 engine = MEMORY);
 drop table t1;
