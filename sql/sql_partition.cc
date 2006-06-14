@@ -2532,10 +2532,10 @@ int get_partition_id_range(partition_info *part_info,
     if (loc_part_id != max_partition)
       loc_part_id++;
   *part_id= (uint32)loc_part_id;
-  if (loc_part_id == max_partition)
-    if (range_array[loc_part_id] != LONGLONG_MAX)
-      if (part_func_value >= range_array[loc_part_id])
-        DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+  if (loc_part_id == max_partition &&
+      range_array[loc_part_id] != LONGLONG_MAX &&
+      part_func_value >= range_array[loc_part_id])
+    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
   DBUG_RETURN(0);
 }
 
