@@ -4516,7 +4516,7 @@ double Item_func_match::val_real()
   if (ft_handler == NULL)
     DBUG_RETURN(-1.0);
 
-  if (table->null_row) /* NULL row from an outer join */
+  if (key != NO_SUCH_KEY && table->null_row) /* NULL row from an outer join */
     DBUG_RETURN(0.0);
 
   if (join_key)
