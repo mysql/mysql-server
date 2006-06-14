@@ -237,8 +237,6 @@ our $opt_gprof_dir;
 our $opt_gprof_master;
 our $opt_gprof_slave;
 
-our $opt_local;
-
 our $master;                    # Will be struct in C
 our $slave;
 our $clusters;
@@ -658,7 +656,6 @@ sub command_line_setup () {
              'comment=s'                => \$opt_comment,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
-             'local'                    => \$opt_local,
              'netware'                  => \$opt_netware,
              'old-master'               => \$opt_old_master,
              'reorder'                  => \$opt_reorder,
@@ -757,11 +754,6 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Do sanity checks of command line arguments
   # --------------------------------------------------------------------------
-
-  if ( $opt_extern and $opt_local )
-  {
-    mtr_error("Can't use --extern and --local at the same time");
-  }
 
   if ( ! $opt_socket )
   {     # FIXME set default before reading options?
@@ -4206,7 +4198,6 @@ Deprecated options
 
 Options not yet described, or that I want to look into more
   local                 
-  local-master          
   netware               
   old-master            
   sleep=SECONDS         

@@ -25,7 +25,7 @@ sub run_stress_test ()
 
   mtr_report("Starting stress testing\n");
 
-  if ( ! $::glob_use_embedded_server and ! $::opt_local_master )
+  if ( ! $::glob_use_embedded_server )
   {
     if ( ! mysqld_start($::master->[0],[],[]) )
     {
