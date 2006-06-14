@@ -212,10 +212,7 @@ String *Item::val_string_from_int(String *str)
   longlong nr= val_int();
   if (null_value)
     return 0;
-  if (unsigned_flag)
-    str->set((ulonglong) nr, &my_charset_bin);
-  else
-    str->set(nr, &my_charset_bin);
+  str->set(nr, unsigned_flag, &my_charset_bin);
   return str;
 }
 
