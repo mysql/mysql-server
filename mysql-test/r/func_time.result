@@ -751,6 +751,47 @@ select monthname(str_to_date(null, '%m')), monthname(str_to_date(null, '%m')),
 monthname(str_to_date(1, '%m')), monthname(str_to_date(0, '%m'));
 monthname(str_to_date(null, '%m'))	monthname(str_to_date(null, '%m'))	monthname(str_to_date(1, '%m'))	monthname(str_to_date(0, '%m'))
 NULL	NULL	January	NULL
+create table t1(f1 date, f2 time, f3 datetime);
+insert into t1 values ("2006-01-01", "12:01:01", "2006-01-01 12:01:01");
+insert into t1 values ("2006-01-02", "12:01:02", "2006-01-02 12:01:02");
+select f1 from t1 where f1 between "2006-1-1" and 20060101;
+f1
+2006-01-01
+select f1 from t1 where f1 between "2006-1-1" and "2006.1.1";
+f1
+2006-01-01
+select f1 from t1 where date(f1) between "2006-1-1" and "2006.1.1";
+f1
+2006-01-01
+select f2 from t1 where f2 between "12:1:2" and "12:2:2";
+f2
+12:01:02
+select f2 from t1 where time(f2) between "12:1:2" and "12:2:2";
+f2
+12:01:02
+select f3 from t1 where f3 between "2006-1-1 12:1:1" and "2006-1-1 12:1:2";
+f3
+2006-01-01 12:01:01
+select f3 from t1 where timestamp(f3) between "2006-1-1 12:1:1" and "2006-1-1 12:1:2";
+f3
+2006-01-01 12:01:01
+select f1 from t1 where "2006-1-1" between f1 and f3;
+f1
+2006-01-01
+select f1 from t1 where "2006-1-1" between date(f1) and date(f3);
+f1
+2006-01-01
+select f1 from t1 where "2006-1-1" between f1 and 'zzz';
+f1
+Warnings:
+Warning	1292	Truncated incorrect date value: 'zzz'
+select f1 from t1 where makedate(2006,1) between date(f1) and date(f3);
+f1
+2006-01-01
+select f1 from t1 where makedate(2006,2) between date(f1) and date(f3);
+f1
+2006-01-02
+drop table t1;
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
 timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
