@@ -617,4 +617,13 @@ SELECT MAX(b) FROM t1;
 EXPLAIN SELECT MAX(b) FROM t1;
 DROP TABLE t1;
 
+CREATE TABLE t1 (id int , b varchar(512), INDEX(b(250))) COLLATE latin1_bin;
+INSERT INTO t1 VALUES
+  (1,CONCAT(REPEAT('_', 250), "qq")), (1,CONCAT(REPEAT('_', 250), "zz")),
+  (1,CONCAT(REPEAT('_', 250), "aa")), (1,CONCAT(REPEAT('_', 250), "ff"));
+
+SELECT MAX(b) FROM t1;
+EXPLAIN SELECT MAX(b) FROM t1;
+DROP TABLE t1;
+
 # End of 4.1 tests
