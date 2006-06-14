@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005, 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -238,8 +238,8 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
     check_reorganise_list()
     new_part_info      New partition info
     old_part_info      Old partition info
-    list_part_names    The list of partition names that will go away and can be reused in the
-                       new table.
+    list_part_names    The list of partition names that will go away and
+                       can be reused in the new table.
 
   RETURN VALUES
     TRUE               Inacceptable name conflict detected.
