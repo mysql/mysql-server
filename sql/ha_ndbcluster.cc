@@ -3001,7 +3001,7 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   DBUG_PRINT("enter", ("rows: %d", (int)rows));
   
   m_rows_inserted= (ha_rows) 0;
-  if (!m_use_write && m_ignore_dup_key)
+  if (m_ignore_dup_key && table->primary_key != MAX_KEY)
   {
     /*
       compare if expression with that in write_row
