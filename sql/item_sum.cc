@@ -1584,10 +1584,7 @@ Item_sum_hybrid::val_str(String *str)
     my_decimal2string(E_DEC_FATAL_ERROR, &sum_dec, 0, 0, 0, str);
     return str;
   case INT_RESULT:
-    if (unsigned_flag)
-      str->set((ulonglong) sum_int, &my_charset_bin);
-    else
-      str->set((longlong) sum_int, &my_charset_bin);
+    str->set(sum_int, unsigned_flag, &my_charset_bin);
     break;
   case ROW_RESULT:
   default:

@@ -556,10 +556,7 @@ String *Item_int_func::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  if (!unsigned_flag)
-    str->set(nr,&my_charset_bin);
-  else
-    str->set((ulonglong) nr,&my_charset_bin);
+  str->set(nr, unsigned_flag, &my_charset_bin);
   return str;
 }
 
@@ -701,10 +698,7 @@ String *Item_func_numhybrid::val_str(String *str)
     longlong nr= int_op();
     if (null_value)
       return 0; /* purecov: inspected */
-    if (!unsigned_flag)
-      str->set(nr,&my_charset_bin);
-    else
-      str->set((ulonglong) nr,&my_charset_bin);
+    str->set(nr, unsigned_flag, &my_charset_bin);
     break;
   }
   case REAL_RESULT:
@@ -2058,10 +2052,7 @@ String *Item_func_min_max::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0;
-    if (!unsigned_flag)
-      str->set(nr,&my_charset_bin);
-    else
-      str->set((ulonglong) nr,&my_charset_bin);
+    str->set(nr, unsigned_flag, &my_charset_bin);
     return str;
   }
   case DECIMAL_RESULT:
@@ -2847,10 +2838,7 @@ String *Item_func_udf_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  if (!unsigned_flag)
-    str->set(nr,&my_charset_bin);
-  else
-    str->set((ulonglong) nr,&my_charset_bin);
+  str->set(nr, unsigned_flag, &my_charset_bin);
   return str;
 }
 
