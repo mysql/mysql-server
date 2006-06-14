@@ -45,8 +45,11 @@ public:
   int set_compare_func(Item_bool_func2 *owner, Item_result type);
   inline int set_compare_func(Item_bool_func2 *owner_arg)
   {
-    return set_compare_func(owner_arg, item_cmp_type((*a)->result_type(),
-						     (*b)->result_type()));
+    Item_result ar= (*a)->result_as_longlong() && (*b)->const_item() ?
+                      INT_RESULT : (*a)->result_type();
+    Item_result br= (*b)->result_as_longlong() && (*a)->const_item() ?
+                      INT_RESULT : (*b)->result_type();
+    return set_compare_func(owner_arg, item_cmp_type(ar, br));
   }
   inline int set_cmp_func(Item_bool_func2 *owner_arg,
 			  Item **a1, Item **a2,
@@ -59,8 +62,11 @@ public:
   inline int set_cmp_func(Item_bool_func2 *owner_arg,
 			  Item **a1, Item **a2)
   {
-    return set_cmp_func(owner_arg, a1, a2, item_cmp_type((*a1)->result_type(),
-							 (*a2)->result_type()));
+    Item_result ar= (*a1)->result_as_longlong() && (*a2)->const_item() ?
+                      INT_RESULT : (*a1)->result_type();
+    Item_result br= (*a2)->result_as_longlong() && (*a1)->const_item() ?
+                      INT_RESULT : (*a2)->result_type();
+    return set_cmp_func(owner_arg, a1, a2, item_cmp_type(ar, br));
   }
   inline int compare() { return (this->*func)(); }
 

@@ -52,6 +52,13 @@ select 'a' union select concat('a', -0.0);
 --replace_result a-0.0000 a0.0000
 select 'a' union select concat('a', -0.0000);
 
+#
+# Bug#16716: subselect in concat() may lead to a wrong result
+#
+select concat((select x from (select 'a' as x) as t1 ),
+  (select y from (select 'b' as y) as t2 )) from (select 1 union select 2 )
+  as t3;
+
 # End of 4.1 tests
 
 #
