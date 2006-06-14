@@ -4673,6 +4673,7 @@ int ha_ndbcluster::create(const char *name,
         default:
           break;
       }
+      break;
     }
     m_table = 0;
     DBUG_RETURN(my_errno);
