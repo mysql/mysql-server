@@ -4709,6 +4709,14 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
     At the moment we can't handle altering temporary tables without a copy.
     We also test if OPTIMIZE TABLE was given and was mapped to alter table.
     In that case we always do full copy.
+
+    There was a bug prior to mysql-4.0.25. Number of null fields was
+    calculated incorrectly. As a result frm and data files gets out of
+    sync after fast alter table. There is no way to determine by which
+    mysql version (in 4.0 and 4.1 branches) table was created, thus we
+    disable fast alter table for all tables created by mysql versions
+    prior to 5.0 branch.
+    See BUG#6236.
   */
   if (table->s->fields != create_list->elements ||
       table->s->db_type != create_info->db_type ||
@@ -4718,6 +4726,7 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
       (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
       order_num ||
+      !table->s->mysql_version ||
       (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar))
     DBUG_RETURN(ALTER_TABLE_DATA_CHANGED);
 
