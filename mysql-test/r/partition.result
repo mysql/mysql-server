@@ -1,4 +1,32 @@
 drop table if exists t1;
+create table t1 (a bigint)
+partition by range (a)
+(partition p0 values less than (0xFFFFFFFFFFFFFFFF),
+partition p1 values less than (10));
+ERROR 42000: VALUES value must be of same type as partition function near '),
+partition p1 values less than (10))' at line 3
+create table t1 (a bigint)
+partition by list (a)
+(partition p0 values in (0xFFFFFFFFFFFFFFFF),
+partition p1 values in (10));
+ERROR 42000: VALUES value must be of same type as partition function near '),
+partition p1 values in (10))' at line 3
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (100),
+partition p1 values less than MAXVALUE);
+insert into t1 values (1);
+drop table t1;
+create table t1 (a bigint unsigned)
+partition by hash (a);
+insert into t1 values (0xFFFFFFFFFFFFFFFD);
+insert into t1 values (0xFFFFFFFFFFFFFFFE);
+select * from t1 where (a + 1) < 10;
+a
+select * from t1 where (a + 1) > 10;
+a
+18446744073709551613
+18446744073709551614
 create table t1 (a int)
 engine = csv
 partition by list (a)
@@ -865,6 +893,16 @@ SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Dynamic	0	0	0	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 DROP TABLE t1;
+create table t1 (a bigint unsigned)
+partition by list (a)
+(partition p0 values in (0-1));
+ERROR HY000: Partition constant is out of partition function domain
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (10));
+insert into t1 values (0xFFFFFFFFFFFFFFFF);
+ERROR HY000: Table has no partition for value 18446744073709551615
+drop table t1;
 create table t1 (a int)
 partition by list (a)
 (partition `s1 s2` values in (0));
