@@ -6420,14 +6420,7 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   DBUG_PRINT("enter", ("error = %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
-  {
-    char buf[100];
-    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-    my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
-             m_part_info->part_expr->null_value ? "NULL" :
-             llstr(m_part_info->part_expr->val_int(), buf));
-    dbug_tmp_restore_column_map(table->read_set, old_map);
-  }
+    m_part_info->print_no_partition_found(table);
   else
     handler::print_error(error, errflag);
   DBUG_VOID_RETURN;
