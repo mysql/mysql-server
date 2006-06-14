@@ -445,7 +445,7 @@ sub collect_one_test_case($$$$$$$) {
     elsif ( $::opt_skip_im )
     {
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No IM support avaliable";
+      $tinfo->{'comment'}= "No IM tests(--skip-im)";
     }
   }
   else
