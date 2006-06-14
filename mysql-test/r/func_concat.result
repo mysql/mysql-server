@@ -68,13 +68,6 @@ select 'a' union select concat('a', -0.0000);
 a
 a
 a0.0000
-create table t1(f1 varchar(6)) charset=utf8;
-insert into t1 values ("123456");
-select concat(f1, 2) a from t1 union select 'x' a from t1;
-a
-1234562
-x
-drop table t1;
 select concat((select x from (select 'a' as x) as t1 ),
 (select y from (select 'b' as y) as t2 )) from (select 1 union select 2 )
 as t3;
@@ -82,3 +75,10 @@ concat((select x from (select 'a' as x) as t1 ),
 (select y from (select 'b' as y) as t2 ))
 ab
 ab
+create table t1(f1 varchar(6)) charset=utf8;
+insert into t1 values ("123456");
+select concat(f1, 2) a from t1 union select 'x' a from t1;
+a
+1234562
+x
+drop table t1;
