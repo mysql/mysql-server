@@ -615,11 +615,15 @@ fil_node_open_file(
 			ut_error;
 		}
 
-		if (size_bytes >= FSP_EXTENT_SIZE * UNIV_PAGE_SIZE) {
-			node->size = (ulint) ((size_bytes / (1024 * 1024))
-					   * ((1024 * 1024) / UNIV_PAGE_SIZE));
-		} else {
+		if (size_bytes >= 1024 * 1024) {
+			/* Truncate the size to whole megabytes. */
+			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
+		}
+
+		if (!zip_size) {
 			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
+		} else {
+			node->size = (ulint) (size_bytes / zip_size);
 		}
 #endif
 		space->size += node->size;
@@ -2522,10 +2526,19 @@ fil_create_new_single_table_tablespace(
 
 	memset(page, '\0', UNIV_PAGE_SIZE);
 
-	fsp_header_write_space_id(page, *space_id);
+	fsp_header_init_fields(page, *space_id, zip_size);
 
-	buf_flush_init_for_writing(page, NULL/* TODO: page_zip */,
+	if (!zip_size) {
+		buf_flush_init_for_writing(page, NULL,
 				ut_dulint_zero, *space_id, 0);
+	} else {
+		page_zip_des_t	page_zip;
+		page_zip.size = zip_size;
+		page_zip.data = page;
+		page_zip.n_blobs = page_zip.m_start = page_zip.m_end = 0;
+		buf_flush_init_for_writing(page, &page_zip,
+				ut_dulint_zero, *space_id, 0);
+	}
 
 	ret = os_file_write(path, file, page, 0, 0, UNIV_PAGE_SIZE);
 
@@ -4066,7 +4079,7 @@ fil_io(
 	node = UT_LIST_GET_FIRST(space->chain);
 
 	for (;;) {
-		if (node == NULL) {
+		if (UNIV_UNLIKELY(node == NULL)) {
 			fil_report_invalid_page_access(block_offset, space_id,
 				space->name, byte_offset, len, type);
 
@@ -4094,8 +4107,8 @@ fil_io(
 
 	/* Check that at least the start offset is within the bounds of a
 	single-table tablespace */
-	if (space->purpose == FIL_TABLESPACE && space->id != 0
-		&& node->size <= block_offset) {
+	if (UNIV_UNLIKELY(node->size <= block_offset)
+	    && space->id != 0 && space->purpose == FIL_TABLESPACE) {
 
 		fil_report_invalid_page_access(block_offset, space_id,
 			space->name, byte_offset, len, type);
