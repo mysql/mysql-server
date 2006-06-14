@@ -366,18 +366,18 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
   if (!(*item)->with_subselect && (*item)->const_item())
   {
     /* For comparison purposes allow invalid dates like 2000-01-32 */
-    ulong orig_sql_mode= field->table->in_use->variables.sql_mode;
-    field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
+    ulong orig_sql_mode= thd->variables.sql_mode;
+    thd->variables.sql_mode|= MODE_INVALID_DATES;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
       Item *tmp=new Item_int_with_ref(field->val_int(), *item,
                                       test(field->flags & UNSIGNED_FLAG));
-      field->table->in_use->variables.sql_mode= orig_sql_mode;
+      thd->variables.sql_mode= orig_sql_mode;
       if (tmp)
         thd->change_item_tree(item, tmp);
       return 1;					// Item was replaced
     }
-    field->table->in_use->variables.sql_mode= orig_sql_mode;
+    thd->variables.sql_mode= orig_sql_mode;
   }
   return 0;
 }
