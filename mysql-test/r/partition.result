@@ -779,6 +779,18 @@ insert into t1 values (null);
 select * from t1 where f1 is null;
 f1
 NULL
+select * from t1 where f1 < 1;
+f1
+select * from t1 where f1 <= NULL;
+f1
+select * from t1 where f1 < NULL;
+f1
+select * from t1 where f1 >= NULL;
+f1
+select * from t1 where f1 > NULL;
+f1
+select * from t1 where f1 > 1;
+f1
 drop table t1;
 create table t1 (f1 smallint)
 partition by range (f1) (partition p0 values less than (0));
