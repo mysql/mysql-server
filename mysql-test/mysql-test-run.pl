@@ -311,11 +311,10 @@ our $opt_warnings;
 our $opt_udiff;
 
 our $opt_skip_ndbcluster= 0;
-our $opt_with_ndbcluster;
 our $opt_skip_ndbcluster_slave= 0;
-our $opt_with_ndbcluster_slave;
-our $opt_with_ndbcluster_all= 0;
+our $opt_with_ndbcluster= 0;
 our $opt_with_ndbcluster_only= 0;
+our $opt_ndbcluster_supported= 0;
 our $opt_ndb_extra_test= 0;
 our $opt_skip_master_binlog= 0;
 our $opt_skip_slave_binlog= 0;
@@ -387,7 +386,7 @@ sub main () {
   command_line_setup();
   executable_setup();
 
-  check_ndbcluster_support(); # We check whether to actually use it later
+  check_ndbcluster_support();
   check_ssl_support();
   check_debug_support();
 
@@ -427,7 +426,7 @@ sub main () {
       $need_im||= $test->{component_id} eq 'im';
       $use_slaves||= $test->{slave_num};
     }
-    $opt_with_ndbcluster= $opt_with_ndbcluster_slave= 0
+    $opt_skip_ndbcluster= $opt_skip_ndbcluster_slave= 1
       unless $need_ndbcluster;
     $opt_skip_im= 1 unless $need_im;
 
@@ -575,12 +574,10 @@ sub command_line_setup () {
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
              'with-ndbcluster'          => \$opt_with_ndbcluster,
+             'with-ndbcluster-only'     => \$opt_with_ndbcluster_only,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
-             'with-ndbcluster-slave'    => \$opt_with_ndbcluster_slave,
              'skip-ndbcluster-slave|skip-ndb-slave'
                                         => \$opt_skip_ndbcluster_slave,
-             'with-ndbcluster-all'      => \$opt_with_ndbcluster_all,
-             'with-ndbcluster-only'     => \$opt_with_ndbcluster_only,
              'ndb-extra-test'           => \$opt_ndb_extra_test,
              'skip-master-binlog'       => \$opt_skip_master_binlog,
              'skip-slave-binlog'        => \$opt_skip_slave_binlog,
@@ -775,8 +772,8 @@ sub command_line_setup () {
     $glob_use_embedded_server= 1;
     push(@glob_test_mode, "embedded");
     $opt_skip_rpl= 1;              # We never run replication with embedded
-    $opt_skip_ndbcluster= 1;       # Avoid auto detection
-    $opt_skip_ssl= 1;
+    $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
+    $opt_skip_ssl= 1;              # Turn off use of SSL
 
     if ( $opt_extern )
     {
@@ -789,30 +786,39 @@ sub command_line_setup () {
     push(@glob_test_mode, "ps-protocol");
   }
 
+  if ( $opt_with_ndbcluster and $opt_skip_ndbcluster)
+  {
+    mtr_error("Can't specify both --with-ndbcluster and --skip-ndbcluster");
+  }
+
   if ( $opt_ndbconnectstring )
   {
     $glob_use_running_ndbcluster= 1;
+    mtr_error("Can't specify --ndb-connectstring and --skip-ndbcluster")
+      if $opt_skip_ndbcluster;
+    mtr_error("Can't specify --ndb-connectstring and --ndbcluster-port")
+      if $opt_ndbcluster_port;
   }
   else
   {
+    # Set default connect string
     $opt_ndbconnectstring= "host=localhost:$opt_ndbcluster_port";
   }
 
-  if ( $opt_skip_ndbcluster_slave )
+  if ( $opt_ndbconnectstring_slave )
   {
-    $opt_with_ndbcluster_slave= 0;
+      $glob_use_running_ndbcluster_slave= 1;
+      mtr_error("Can't specify ndb-connectstring_slave and " .
+		"--skip-ndbcluster-slave")
+	if $opt_skip_ndbcluster;
+      mtr_error("Can't specify --ndb-connectstring-slave and " .
+		"--ndbcluster-port-slave")
+	if $opt_ndbcluster_port_slave;
   }
   else
   {
-    $opt_with_ndbcluster_slave= 1;
-    if ( $opt_ndbconnectstring_slave )
-    {
-      $glob_use_running_ndbcluster_slave= 1;
-    }
-    else
-    {
-      $opt_ndbconnectstring_slave= "host=localhost:$opt_ndbcluster_port_slave";
-    }
+    # Set default connect string
+    $opt_ndbconnectstring_slave= "host=localhost:$opt_ndbcluster_port_slave";
   }
 
   if ( $opt_small_bench )
@@ -1575,12 +1581,10 @@ sub check_ndbcluster_support () {
   {
     mtr_report("Skipping ndbcluster");
     $opt_skip_ndbcluster_slave= 1;
-    $opt_with_ndbcluster= 0;
-    $opt_with_ndbcluster_slave= 0;
     return;
   }
 
-  # check ndbcluster support by testing using a switch
+  # check ndbcluster support by runnning mysqld using a switch
   # that is only available in that case
   if ( mtr_run($exe_mysqld,
 	       ["--no-defaults",
@@ -1591,13 +1595,10 @@ sub check_ndbcluster_support () {
     mtr_report("Skipping ndbcluster, mysqld not compiled with ndbcluster");
     $opt_skip_ndbcluster= 1;
     $opt_skip_ndbcluster_slave= 1;
-    $opt_with_ndbcluster= 0;
-    $opt_with_ndbcluster_slave= 0;
     return;
   }
-
+  $opt_ndbcluster_supported= 1;
   mtr_report("Using ndbcluster when necessary, mysqld supports it");
-  $opt_with_ndbcluster= 1;
   return;
 }
 
@@ -1605,7 +1606,7 @@ sub check_ndbcluster_support () {
 sub ndbcluster_start_install ($) {
   my $cluster= shift;
 
-  if ( ! $opt_with_ndbcluster or $glob_use_running_ndbcluster )
+  if ( $opt_skip_ndbcluster or $glob_use_running_ndbcluster )
   {
     return 0;
   }
@@ -2983,14 +2984,14 @@ sub run_testcase_stop_servers($) {
     $do_restart= 1;           # Always restart if script to run
     mtr_verbose("Restart because: Always restart if script to run");
   }
-  elsif ( $opt_with_ndbcluster and
+  elsif ( ! $opt_skip_ndbcluster and
 	  $tinfo->{'ndb_test'} == 0 and
 	  $clusters->[0]->{'pid'} != 0 )
   {
     $do_restart= 1;           # Restart without cluster
     mtr_verbose("Restart because: Test does not need cluster");
   }
-  elsif ( $opt_with_ndbcluster and
+  elsif ( ! $opt_skip_ndbcluster and
 	  $tinfo->{'ndb_test'} == 1 and
 	  $clusters->[0]->{'pid'} == 0 )
   {
@@ -3107,14 +3108,14 @@ sub run_testcase_stop_servers($) {
 #     $do_slave_restart= 1;      # Always restart if script to run
 #     mtr_verbose("Restart slave because: Always restart if script to run");
 #   }
-#   elsif ( $opt_with_ndbcluster and
+#   elsif ( ! $opt_skip_ndbcluster_slave and
 # 	  $tinfo->{'ndb_test'} == 0 and
 # 	  $clusters->[1]->{'pid'} != 0 )
 #   {
 #     $do_slave_restart= 1;       # Restart without slave cluster
 #     mtr_verbose("Restart slave because: Test does not need slave cluster");
 #   }
-#   elsif ( $opt_with_ndbcluster and
+#   elsif ( ! $opt_with_ndbcluster_slave and
 # 	  $tinfo->{'ndb_test'} == 1 and
 # 	  $clusters->[1]->{'pid'} == 0 )
 #   {
@@ -3228,7 +3229,7 @@ sub run_testcase_start_servers($) {
 
   if ( $tinfo->{'component_id'} eq 'mysqld' )
   {
-    if ( $opt_with_ndbcluster and
+    if ( ! $opt_skip_ndbcluster and
 	 !$clusters->[0]->{'pid'} and
 	 $tinfo->{'ndb_test'} )
     {
@@ -3292,7 +3293,7 @@ sub run_testcase_start_servers($) {
 
     do_before_start_slave($tname,$tinfo->{'slave_sh'});
 
-    if ( $opt_with_ndbcluster and
+    if ( ! $opt_skip_ndbcluster_slave and
 	 !$clusters->[1]->{'pid'} and
 	 $tinfo->{'ndb_test'} )
     {
@@ -4108,10 +4109,11 @@ Options to control directories to use
 Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
-  with-ndbcluster       Use cluster, and enable test cases that requires it
-  with-ndbcluster-all   Use cluster in all tests
+  with-ndbcluster       Use cluster in all tests
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
-  skip-ndb[cluster]     Skip the ndb test cases, don't start cluster
+  skip-ndb[cluster]     Skip all tests that need cluster
+  skip-ndb[cluster]-slave Skip all tests that need a slave cluster
+  ndb-extra             Run extra tests from ndb directory
   do-test=PREFIX        Run test cases which name are prefixed with PREFIX
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
   suite=NAME            Run the test suite named NAME. The default is "main"
@@ -4141,7 +4143,8 @@ Options that pass on options
 Options to run test on running server
 
   extern                Use running server for tests FIXME DANGEROUS
-  ndbconnectstring=STR  Use running cluster, and connect using STR
+  ndb-connectstring=STR Use running cluster, and connect using STR
+  ndb-connectstring-slave=STR Use running slave cluster, and connect using STR
   user=USER             User for connect to server
 
 Options for debugging the product
@@ -4192,6 +4195,7 @@ Misc options
   testcase-timeout=MINUTES Max test case run time (default $default_testcase_timeout)
   suite-timeout=MINUTES    Max test suite run time (default $default_suite_timeout)
 
+
 Deprecated options
   with-openssl          Deprecated option for ssl
 
@@ -4199,7 +4203,6 @@ Deprecated options
 Options not yet described, or that I want to look into more
   local                 
   netware               
-  old-master            
   sleep=SECONDS         
   socket=PATH           
   user-test=s           
