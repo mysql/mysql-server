@@ -5830,5 +5830,5 @@ ER_EVENT_MODIFY_QUEUE_ERROR
 ER_EVENT_SET_VAR_ERROR
         eng "Error during starting/stopping of the scheduler. Error code %u"
 ER_PARTITION_MERGE_ERROR
-        eng "MyISAM Merge handler cannot be used in partitioned tables"
-        swe "MyISAM Merge kan inte anändas i en partitionerad tabell"
+        eng "%s handler cannot be used in partitioned tables"
+        swe "%s kan inte användas i en partitionerad tabell"
