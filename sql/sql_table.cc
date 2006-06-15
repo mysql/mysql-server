@@ -3002,6 +3002,31 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
 
 
 /*
+  Copy HA_CREATE_INFO struct
+  SYNOPSIS
+    copy_create_info()
+    lex_create_info         The create_info struct setup by parser
+  RETURN VALUES
+    > 0                     A pointer to a copy of the lex_create_info
+    0                       Memory allocation error
+  DESCRIPTION
+  Allocate memory for copy of HA_CREATE_INFO structure from parser
+  to ensure we can reuse the parser struct in stored procedures
+  and prepared statements.
+*/
+
+static HA_CREATE_INFO *copy_create_info(HA_CREATE_INFO *lex_create_info)
+{
+  HA_CREATE_INFO *create_info;
+  if (!(create_info= (HA_CREATE_INFO*)sql_alloc(sizeof(HA_CREATE_INFO))))
+    mem_alloc_error(sizeof(HA_CREATE_INFO));
+  else
+    memcpy((void*)create_info, (void*)lex_create_info, sizeof(HA_CREATE_INFO));
+  return create_info;
+}
+
+
+/*
   Create a table
 
   SYNOPSIS
@@ -3030,7 +3055,7 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
 
 bool mysql_create_table_internal(THD *thd,
                                 const char *db, const char *table_name,
-                                HA_CREATE_INFO *create_info,
+                                HA_CREATE_INFO *lex_create_info,
                                 List<create_field> &fields,
                                 List<Key> &keys,bool internal_tmp_table,
                                 uint select_field_count)
@@ -3040,10 +3065,15 @@ bool mysql_create_table_internal(THD *thd,
   const char	*alias;
   uint		db_options, key_count;
   KEY		*key_info_buffer;
+  HA_CREATE_INFO *create_info;
   handler	*file;
   bool		error= TRUE;
   DBUG_ENTER("mysql_create_table_internal");
 
+  if (!(create_info= copy_create_info(lex_create_info)))
+  {
+    DBUG_RETURN(TRUE);
+  }
   /* Check for duplicate fields and check type of table to create */
   if (!fields.elements)
   {
@@ -4889,7 +4919,7 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
 */
 
 bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
-                       HA_CREATE_INFO *create_info,
+                       HA_CREATE_INFO *lex_create_info,
                        TABLE_LIST *table_list,
                        List<create_field> &fields, List<Key> &keys,
                        uint order_num, ORDER *order,
@@ -4907,6 +4937,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   ulonglong next_insert_id;
   uint db_create_options, used_fields;
   handlerton *old_db_type, *new_db_type;
+  HA_CREATE_INFO *create_info;
   uint need_copy_table= 0;
   bool no_table_reopen= FALSE, varchar= FALSE;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -4932,6 +4963,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   LINT_INIT(index_drop_buffer);
 
   thd->proc_info="init";
+  if (!(create_info= copy_create_info(lex_create_info)))
+  {
+    DBUG_RETURN(TRUE);
+  }
   table_name=table_list->table_name;
   alias= (lower_case_table_names == 2) ? table_list->alias : table_name;
   db=table_list->db;
