@@ -207,6 +207,13 @@ sym_tab_add_bound_lit(
 		*lit_type = PARS_STR_LIT;
 		break;
 
+	case DATA_CHAR:
+		ut_a(blit->length > 0);
+
+		len = blit->length;
+		*lit_type = PARS_STR_LIT;
+		break;
+
 	case DATA_INT:
 		ut_a(blit->length > 0);
 		ut_a(blit->length <= 8);
@@ -291,6 +298,45 @@ sym_tab_add_id(
 
 	node->name = mem_heap_strdupl(sym_tab->heap, (char*) name, len);
 	node->name_len = len;
+
+	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
+
+	dfield_set_data(&(node->common.val), NULL, UNIV_SQL_NULL);
+
+	node->common.val_buf_size = 0;
+	node->prefetch_buf = NULL;
+	node->cursor_def = NULL;
+
+	node->sym_table = sym_tab;
+
+	return(node);
+}
+
+/**********************************************************************
+Add a bound identifier to a symbol table. */
+
+sym_node_t*
+sym_tab_add_bound_id(
+/*===========*/
+					/* out: symbol table node */
+	sym_tab_t*	sym_tab,	/* in: symbol table */
+	const char*	name)		/* in: name of bound id */
+{
+	sym_node_t*		node;
+	pars_bound_id_t*	bid;
+
+	bid = pars_info_get_bound_id(sym_tab->info, name);
+	ut_a(bid);
+
+	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
+
+	node->common.type = QUE_NODE_SYMBOL;
+
+	node->resolved = FALSE;
+	node->indirection = NULL;
+
+	node->name = mem_heap_strdup(sym_tab->heap, bid->id);
+	node->name_len = strlen(node->name);
 
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
 

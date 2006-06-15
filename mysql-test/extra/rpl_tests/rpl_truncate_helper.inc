@@ -1,0 +1,41 @@
+
+--disable_query_log
+--disable_warnings
+connection slave;
+STOP SLAVE;
+connection master;
+DROP TABLE IF EXISTS t1;
+RESET MASTER;
+connection slave;
+DROP TABLE IF EXISTS t1;
+RESET SLAVE;
+START SLAVE;
+--enable_warnings
+--enable_query_log
+
+--echo **** On Master ****
+connection master;
+eval SET SESSION BINLOG_FORMAT=$format;
+eval SET GLOBAL  BINLOG_FORMAT=$format;
+
+eval CREATE TABLE t1 (a INT, b LONG) ENGINE=$engine;
+INSERT INTO t1 VALUES (1,1), (2,2);
+SELECT * FROM t1;
+--echo **** On Slave ****
+sync_slave_with_master;
+INSERT INTO t1 VALUE (3,3);
+SELECT * FROM t1;
+--echo **** On Master ****
+connection master;
+eval $stmt t1;
+SELECT * FROM t1;
+--echo **** On Slave ****
+sync_slave_with_master;
+# Should be empty
+SELECT * FROM t1;
+--echo **** On Master ****
+connection master;
+DROP TABLE t1;
+--replace_result $SERVER_VERSION SERVER_VERSION
+--replace_regex /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS;
