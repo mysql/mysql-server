@@ -322,4 +322,24 @@ select last_day('2005-01-00');
 select monthname(str_to_date(null, '%m')), monthname(str_to_date(null, '%m')),
        monthname(str_to_date(1, '%m')), monthname(str_to_date(0, '%m'));
 
+#
+# Bug#16377 result of DATE/TIME functions were compared as strings which
+#           can lead to a wrong result.
+#
+create table t1(f1 date, f2 time, f3 datetime);
+insert into t1 values ("2006-01-01", "12:01:01", "2006-01-01 12:01:01");
+insert into t1 values ("2006-01-02", "12:01:02", "2006-01-02 12:01:02");
+select f1 from t1 where f1 between "2006-1-1" and 20060101;
+select f1 from t1 where f1 between "2006-1-1" and "2006.1.1";
+select f1 from t1 where date(f1) between "2006-1-1" and "2006.1.1";
+select f2 from t1 where f2 between "12:1:2" and "12:2:2";
+select f2 from t1 where time(f2) between "12:1:2" and "12:2:2";
+select f3 from t1 where f3 between "2006-1-1 12:1:1" and "2006-1-1 12:1:2";
+select f3 from t1 where timestamp(f3) between "2006-1-1 12:1:1" and "2006-1-1 12:1:2";
+select f1 from t1 where "2006-1-1" between f1 and f3;
+select f1 from t1 where "2006-1-1" between date(f1) and date(f3);
+select f1 from t1 where "2006-1-1" between f1 and 'zzz';
+select f1 from t1 where makedate(2006,1) between date(f1) and date(f3);
+select f1 from t1 where makedate(2006,2) between date(f1) and date(f3);
+drop table t1;
 # End of 4.1 tests

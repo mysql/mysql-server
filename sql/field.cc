@@ -6841,7 +6841,11 @@ create_field::create_field(Field *old_field,Field *orig_field)
 bool 
 Field::set_warning(const uint level, const uint code, int cuted_increment)
 {
-  THD *thd= table->in_use;
+  /*
+    If this field was created only for type conversion purposes it
+    will have table == NULL.
+  */
+  THD *thd= table ? table->in_use : current_thd;
   if (thd->count_cuted_fields)
   {
     thd->cuted_fields+= cuted_increment;
@@ -6876,7 +6880,8 @@ Field::set_datetime_warning(const uint level, const uint code,
                             timestamp_type ts_type, int cuted_increment)
 {
   if (set_warning(level, code, cuted_increment))
-    make_truncated_value_warning(table->in_use, str, str_length, ts_type);
+    make_truncated_value_warning(table ? table->in_use : current_thd,
+                                 str, str_length, ts_type);
 }
 
 
@@ -6905,8 +6910,8 @@ Field::set_datetime_warning(const uint level, const uint code,
   {
     char str_nr[22];
     char *str_end= longlong10_to_str(nr, str_nr, -10);
-    make_truncated_value_warning(table->in_use, str_nr, str_end - str_nr, 
-                                 ts_type);
+    make_truncated_value_warning(table ? table->in_use : current_thd,
+                                 str_nr, str_end - str_nr, ts_type);
   }
 }
 
@@ -6935,7 +6940,8 @@ Field::set_datetime_warning(const uint level, const uint code,
     /* DBL_DIG is enough to print '-[digits].E+###' */
     char str_nr[DBL_DIG + 8];
     uint str_len= my_sprintf(str_nr, (str_nr, "%g", nr));
-    make_truncated_value_warning(table->in_use, str_nr, str_len, ts_type);
+    make_truncated_value_warning(table ? table->in_use : current_thd,
+                                 str_nr, str_len, ts_type);
   }
 }
 

@@ -3047,8 +3047,8 @@ unsent_create_error:
       }
     }
 
-    if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
-							  table_count)))
+    if (!res && !thd->is_fatal_error &&
+        (result= new multi_delete(thd,aux_tables, table_count)))
     {
       res= mysql_select(thd, &select_lex->ref_pointer_array,
 			select_lex->get_table_list(),
