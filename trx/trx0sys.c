@@ -360,7 +360,7 @@ trx_sys_doublewrite_init_or_restore_pages(
 	/* Read the trx sys header to check if we are using the doublewrite
 	buffer */
 
-	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, TRX_SYS_PAGE_NO, 0,
+	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, 0,
 					UNIV_PAGE_SIZE, read_buf, NULL);
 	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
 
@@ -397,10 +397,10 @@ trx_sys_doublewrite_init_or_restore_pages(
 
 	/* Read the pages from the doublewrite buffer to memory */
 
-	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, block1, 0,
+	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, 0, block1, 0,
 			TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
 			buf, NULL);
-	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, block2, 0,
+	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, 0, block2, 0,
 			TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
 			buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
 			NULL);
@@ -429,7 +429,7 @@ trx_sys_doublewrite_init_or_restore_pages(
 					+ i - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
 			}
 
-			fil_io(OS_FILE_WRITE, TRUE, 0, source_page_no, 0,
+			fil_io(OS_FILE_WRITE, TRUE, 0, 0, source_page_no, 0,
 				UNIV_PAGE_SIZE, page, NULL);
 			/* printf("Resetting space id in page %lu\n",
 						   source_page_no); */
@@ -464,28 +464,13 @@ trx_sys_doublewrite_init_or_restore_pages(
 			/* It is an unwritten doublewrite buffer page:
 			do nothing */
 		} else {
-			ulint	zip_size;
-			ulint	zip_blk;
+			ulint	zip_size = fil_space_get_zip_size(space_id);
 
-			if (space_id) {
-				zip_size = fil_space_get_zip_size(space_id);
-				if (UNIV_LIKELY(!zip_size)) {
-					goto read_uncompressed;
-				}
-				zip_blk = UNIV_PAGE_SIZE / zip_size;
-				/* Read in the actual page from the file */
-				fil_io(OS_FILE_READ, TRUE, space_id,
-					page_no / zip_blk,
-					(page_no % zip_blk)
-					* zip_size, zip_size, read_buf, NULL);
-			} else {
-read_uncompressed:
-				zip_size = 0;
-				zip_blk = 1;
-				/* Read in the actual page from the file */
-				fil_io(OS_FILE_READ, TRUE, space_id, page_no,
-					0, UNIV_PAGE_SIZE, read_buf, NULL);
-			}
+			/* Read in the actual page from the file */
+			fil_io(OS_FILE_READ, TRUE, space_id, zip_size,
+					page_no, 0, zip_size
+					? zip_size : UNIV_PAGE_SIZE,
+					read_buf, NULL);
 
 			/* Check if the page is corrupt */
 
@@ -519,17 +504,10 @@ read_uncompressed:
 				doublewrite buffer to the intended
 				position */
 
-				if (zip_size) {
-					fil_io(OS_FILE_WRITE, TRUE, space_id,
-						page_no / zip_blk,
-						(page_no % zip_blk)
-						* zip_size, zip_size,
+				fil_io(OS_FILE_WRITE, TRUE, space_id, zip_size,
+						page_no, 0, zip_size
+						? zip_size : UNIV_PAGE_SIZE,
 						page, NULL);
-				} else {
-					fil_io(OS_FILE_WRITE, TRUE, space_id,
-						page_no, 0,
-						UNIV_PAGE_SIZE, page, NULL);
-				}
 				fprintf(stderr,
 		"InnoDB: Recovered the page from the doublewrite buffer.\n");
 			}

@@ -1146,7 +1146,7 @@ log_group_file_header_flush(
 
 		srv_os_log_pending_writes++;
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id, 0,
 				dest_offset / UNIV_PAGE_SIZE,
 				dest_offset % UNIV_PAGE_SIZE,
 				OS_FILE_LOG_BLOCK_SIZE,
@@ -1266,7 +1266,7 @@ loop:
 
 		srv_os_log_pending_writes++;
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id, 0,
 			next_offset / UNIV_PAGE_SIZE,
 			next_offset % UNIV_PAGE_SIZE, write_len, buf, group);
 
@@ -1791,7 +1791,7 @@ log_group_checkpoint(
 		added with 1, as we want to distinguish between a normal log
 		file write and a checkpoint field write */
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, FALSE, group->space_id,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, FALSE, group->space_id, 0,
 				write_offset / UNIV_PAGE_SIZE,
 				write_offset % UNIV_PAGE_SIZE,
 				OS_FILE_LOG_BLOCK_SIZE,
@@ -1868,7 +1868,7 @@ log_group_read_checkpoint_info(
 
 	log_sys->n_log_ios++;
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, group->space_id,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, group->space_id, 0,
 			field / UNIV_PAGE_SIZE, field % UNIV_PAGE_SIZE,
 			OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
 }
@@ -2172,7 +2172,7 @@ loop:
 
 	log_sys->n_log_ios++;
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, sync, group->space_id,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, sync, group->space_id, 0,
 		source_offset / UNIV_PAGE_SIZE, source_offset % UNIV_PAGE_SIZE,
 		len, buf, NULL);
 
