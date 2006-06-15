@@ -244,6 +244,7 @@ struct system_variables
   my_bool innodb_table_locks;
   my_bool innodb_support_xa;
   my_bool ndb_force_send;
+  my_bool ndb_use_copying_alter_table;
   my_bool ndb_use_exact_count;
   my_bool ndb_use_transactions;
   my_bool ndb_index_stat_enable;
