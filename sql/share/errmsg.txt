@@ -5810,6 +5810,9 @@ ER_NDB_CANT_SWITCH_BINLOG_FORMAT
 	eng "The NDB cluster engine does not support changing the binlog format on the fly yet"
 ER_PARTITION_NO_TEMPORARY
 	eng "Cannot create temporary table with partitions"
+ER_PARTITION_CONST_DOMAIN_ERROR
+        eng "Partition constant is out of partition function domain"
+        swe "Partitionskonstanten är utanför partitioneringsfunktionens domän"
 ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
         eng "This partition function is not allowed"
         swe "Denna partitioneringsfunktion är inte tillåten"
