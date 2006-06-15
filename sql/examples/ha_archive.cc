@@ -1010,6 +1010,6 @@ ha_rows ha_archive::records_in_range(uint inx, key_range *min_key,
 int ha_archive::delete_all_rows()
 {
   DBUG_ENTER("ha_archive::delete_all_rows");
-  DBUG_RETURN(0);
+  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 #endif /* HAVE_ARCHIVE_DB */
