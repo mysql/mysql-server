@@ -292,3 +292,18 @@
    futex(utime)
    fun:__lll_mutex_unlock_wake
 }
+
+#
+# BUG#19940: NDB sends uninitialized parts of field buffers across the wire.
+# This is "works as designed"; the uninitialized part is not used at the
+# other end (but Valgrind cannot see this).
+#
+{
+   bug19940
+   Memcheck:Param
+   socketcall.sendto(msg)
+   fun:send
+   fun:_ZN15TCP_Transporter6doSendEv
+   fun:_ZN19TransporterRegistry11performSendEv
+   fun:_ZN19TransporterRegistry14forceSendCheckEi
+}
