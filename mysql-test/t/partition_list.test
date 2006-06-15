@@ -124,3 +124,15 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 SELECT COUNT(*) FROM t1 WHERE s1 < 3;
 DROP TABLE t1;
 
+#
+# Bug 19281 Partitions: Auto-increment value lost
+#
+create table t1 (a int auto_increment primary key)
+auto_increment=100
+partition by list (a)
+(partition p0 values in (1, 100));
+create index inx on t1 (a);
+insert into t1 values (null);
+select * from t1;
+drop table t1;
+
