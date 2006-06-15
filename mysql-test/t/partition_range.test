@@ -411,6 +411,7 @@ partition by range (a)
 show create table t1;
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert into t1 values (0xFFFFFFFFFFFFFFFF);
+drop table t1;
 
 #
 # BUG 18962 Errors in DROP PARTITION

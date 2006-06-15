@@ -27,6 +27,7 @@ select * from t1 where (a + 1) > 10;
 a
 18446744073709551613
 18446744073709551614
+drop table t1;
 create table t1 (a int)
 engine = csv
 partition by list (a)
