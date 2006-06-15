@@ -5432,7 +5432,7 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &max_system_variables.ndb_index_stat_update_freq,
    0, GET_ULONG, OPT_ARG, 20, 0, ~0L, 0, 0, 0},
 #endif
-  {"nb-use-copying-alter-table",
+  {"ndb-use-copying-alter-table",
    OPT_NDB_USE_COPYING_ALTER_TABLE,
    "Force ndbcluster to always copy tables at alter table (should only be used if on-line alter table fails).",
    (gptr*) &global_system_variables.ndb_use_copying_alter_table,
