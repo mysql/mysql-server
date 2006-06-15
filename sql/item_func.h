@@ -1179,7 +1179,8 @@ public:
 };
 
 
-class Item_func_get_user_var :public Item_func
+class Item_func_get_user_var :public Item_func,
+                              private Settable_routine_parameter
 {
   user_var_entry *var_entry;
 
@@ -1206,6 +1207,15 @@ public:
   table_map used_tables() const
   { return const_item() ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const;
+
+private:
+  bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
+
+public:
+  Settable_routine_parameter *get_settable_routine_parameter()
+  {
+    return this;
+  }
 };
 
 

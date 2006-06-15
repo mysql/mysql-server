@@ -5774,6 +5774,76 @@ select routine_name,routine_schema from information_schema.routines where
 
 
 #
+# BUG#12472/BUG#15137 'CREATE TABLE ... SELECT ... which explicitly or
+# implicitly uses stored function gives "Table not locked" error'.
+#
+--disable_warnings
+drop function if exists bug12472|
+--enable_warnings
+create function bug12472() returns int return (select count(*) from t1)|
+# Check case when function is used directly
+create table t3 as select bug12472() as i|
+show create table t3|
+select * from t3|
+drop table t3|
+# Check case when function is used indirectly through view
+create view v1 as select bug12472() as j|
+create table t3 as select * from v1|
+show create table t3|
+select * from t3|
+drop table t3|
+drop view v1|
+drop function bug12472|
+
+
+#
+# BUG#18587: Function that accepts and returns TEXT garbles data if longer than
+# 766 chars
+#
+
+# Prepare.
+
+--disable_warnings
+DROP FUNCTION IF EXISTS bug18589_f1|
+DROP PROCEDURE IF EXISTS bug18589_p1|
+DROP PROCEDURE IF EXISTS bug18589_p2|
+--enable_warnings
+
+CREATE FUNCTION bug18589_f1(arg TEXT) RETURNS TEXT
+BEGIN
+  RETURN CONCAT(arg, "");
+END|
+
+CREATE PROCEDURE bug18589_p1(arg TEXT, OUT ret TEXT)
+BEGIN
+  SET ret = CONCAT(arg, "");
+END|
+
+CREATE PROCEDURE bug18589_p2(arg TEXT)
+BEGIN
+  DECLARE v TEXT;
+  CALL bug18589_p1(arg, v);
+  SELECT v;
+END|
+
+# Test case.
+
+SELECT bug18589_f1(REPEAT("a", 767))|
+
+SET @bug18589_v1 = ""|
+CALL bug18589_p1(REPEAT("a", 767), @bug18589_v1)|
+SELECT @bug18589_v1|
+
+CALL bug18589_p2(REPEAT("a", 767))|
+
+# Cleanup.
+
+DROP FUNCTION bug18589_f1|
+DROP PROCEDURE bug18589_p1|
+DROP PROCEDURE bug18589_p2|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
