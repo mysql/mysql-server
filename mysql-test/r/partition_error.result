@@ -554,6 +554,10 @@ PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN(5));
 insert into t1 values (10);
 ERROR HY000: Table has no partition for value 10
 drop table t1;
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (-1));
+ERROR HY000: Partition constant is out of partition function domain
 create table t1 (v varchar(12))
 partition by range (ascii(v))
 (partition p0 values less than (10));

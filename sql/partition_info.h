@@ -167,6 +167,7 @@ public:
   uint no_subpart_fields;
   uint no_full_part_fields;
 
+  uint has_null_part_id;
   /*
     This variable is used to calculate the partition id when using
     LINEAR KEY/HASH. This functionality is kept in the MySQL Server
@@ -187,7 +188,6 @@ public:
   bool is_auto_partitioned;
   bool from_openfrm;
   bool has_null_value;
-  uint has_null_part_id;
 
 
   partition_info()
@@ -210,20 +210,14 @@ public:
     no_parts(0), no_subparts(0),
     count_curr_subparts(0), part_error_code(0),
     no_list_values(0), no_part_fields(0), no_subpart_fields(0),
-    no_full_part_fields(0), linear_hash_mask(0),
-    use_default_partitions(TRUE),
-    use_default_no_partitions(TRUE),
-    use_default_subpartitions(TRUE),
-    use_default_no_subpartitions(TRUE),
-    default_partitions_setup(FALSE),
-    defined_max_value(FALSE),
+    no_full_part_fields(0), has_null_part_id(0), linear_hash_mask(0),
+    use_default_partitions(TRUE), use_default_no_partitions(TRUE),
+    use_default_subpartitions(TRUE), use_default_no_subpartitions(TRUE),
+    default_partitions_setup(FALSE), defined_max_value(FALSE),
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
-    linear_hash_ind(FALSE),
-    fixed(FALSE),
-    is_auto_partitioned(FALSE),
-    from_openfrm(FALSE),
-    has_null_value(FALSE),
-    has_null_part_id(0)
+    linear_hash_ind(FALSE), fixed(FALSE),
+    is_auto_partitioned(FALSE), from_openfrm(FALSE),
+    has_null_value(FALSE)
   {
     all_fields_in_PF.clear_all();
     all_fields_in_PPF.clear_all();
@@ -255,10 +249,12 @@ public:
   static bool check_engine_mix(handlerton **engine_array, uint no_parts);
   bool check_range_constants();
   bool check_list_constants();
-  bool check_partition_info(handlerton **eng_type,
+  bool check_partition_info(THD *thd, handlerton **eng_type,
                             handler *file, ulonglong max_rows);
+  void print_no_partition_found(TABLE *table);
 private:
   static int list_part_cmp(const void* a, const void* b);
+  static int list_part_cmp_unsigned(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, ulonglong max_rows,
                                  uint start_no);
   bool set_up_default_subpartitions(handler *file, ulonglong max_rows);

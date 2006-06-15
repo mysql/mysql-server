@@ -3144,7 +3144,7 @@ bool mysql_create_table_internal(THD *thd,
     }
     DBUG_PRINT("info", ("db_type = %d",
                          ha_legacy_type(part_info->default_engine_type)));
-    if (part_info->check_partition_info(&engine_type, file,
+    if (part_info->check_partition_info(thd, &engine_type, file,
                                         create_info->max_rows))
       goto err;
     part_info->default_engine_type= engine_type;
@@ -4709,6 +4709,14 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
     At the moment we can't handle altering temporary tables without a copy.
     We also test if OPTIMIZE TABLE was given and was mapped to alter table.
     In that case we always do full copy.
+
+    There was a bug prior to mysql-4.0.25. Number of null fields was
+    calculated incorrectly. As a result frm and data files gets out of
+    sync after fast alter table. There is no way to determine by which
+    mysql version (in 4.0 and 4.1 branches) table was created, thus we
+    disable fast alter table for all tables created by mysql versions
+    prior to 5.0 branch.
+    See BUG#6236.
   */
   if (table->s->fields != create_list->elements ||
       table->s->db_type != create_info->db_type ||
@@ -4718,6 +4726,7 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
       (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
       order_num ||
+      !table->s->mysql_version ||
       (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar))
     DBUG_RETURN(ALTER_TABLE_DATA_CHANGED);
 
@@ -4743,6 +4752,13 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
 	new_field->sql_type == MYSQL_TYPE_VARCHAR &&
 	create_info->row_type != ROW_TYPE_FIXED)
       create_info->table_options|= HA_OPTION_PACK_RECORD;
+
+    /* Check if field was renamed */
+    field->flags&= ~FIELD_IS_RENAMED;
+    if (my_strcasecmp(system_charset_info,
+		      field->field_name,
+		      new_field->field_name))
+      field->flags|= FIELD_IS_RENAMED;      
 
     /* Evaluate changes bitmap and send to check_if_incompatible_data() */
     if (!(tmp= field->is_equal(new_field)))

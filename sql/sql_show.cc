@@ -2394,7 +2394,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
   SELECT_LEX sel;
   INDEX_FIELD_VALUES idx_field_vals;
-  char path[FN_REFLEN], *end, *base_name, *file_name;
+  char path[FN_REFLEN], *end, *base_name, *orig_base_name, *file_name;
   uint len;
   bool with_i_schema;
   enum enum_schema_tables schema_table_idx;
@@ -2474,7 +2474,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   partial_cond= make_cond_for_info_schema(cond, tables);
   it.rewind(); /* To get access to new elements in basis list */
-  while ((base_name= it++) ||
+  while ((orig_base_name= base_name= it++) ||
 	 /*
 	   generate error for non existing database.
 	   (to save old behaviour for SHOW TABLES FROM db)
@@ -2505,6 +2505,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
         if (mysql_find_files(thd, &files, base_name, 
                              path, idx_field_vals.table_value, 0))
           goto err;
+        if (lower_case_table_names)
+          orig_base_name= thd->strdup(base_name);
       }
 
       List_iterator_fast<char> it_files(files);
@@ -2573,7 +2575,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               in this case.
             */
             res= schema_table->process_table(thd, show_table_list, table,
-                                             res, base_name,
+                                             res, orig_base_name,
                                              show_table_list->alias);
             close_tables_for_reopen(thd, &show_table_list);
             DBUG_ASSERT(!lex->query_tables_own_last);
@@ -3998,8 +4000,8 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
       }
       else if (part_info->part_type == LIST_PARTITION)
       {
-        List_iterator<longlong> list_val_it(part_elem->list_val_list);
-        longlong *list_value;
+        List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
+        part_elem_value *list_value;
         uint no_items= part_elem->list_val_list.elements;
         tmp_str.length(0);
         tmp_res.length(0);
@@ -4011,7 +4013,10 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
         }
         while ((list_value= list_val_it++))
         {
-          tmp_res.set(*list_value, cs);
+          if (!list_value->unsigned_flag)
+            tmp_res.set(list_value->value, cs);
+          else
+            tmp_res.set((ulonglong)list_value->value, cs);
           tmp_str.append(tmp_res);
           if (--no_items != 0)
             tmp_str.append(",");
