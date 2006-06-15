@@ -1931,6 +1931,7 @@ pars_info_create(void)
 	info->heap = heap;
 	info->funcs = NULL;
 	info->bound_lits = NULL;
+	info->bound_ids = NULL;
 	info->graph_owns_us = TRUE;
 
 	return(info);
@@ -2071,6 +2072,32 @@ pars_info_add_function(
 }
 
 /********************************************************************
+Add bound id. */
+
+void
+pars_info_add_id(
+/*=============*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const char*	id)		/* in: id */
+{
+	pars_bound_id_t*	bid;
+
+	ut_ad(!pars_info_get_bound_id(info, name));
+
+	bid = mem_heap_alloc(info->heap, sizeof(*bid));
+
+	bid->name = name;
+	bid->id = id;
+
+	if (!info->bound_ids) {
+		info->bound_ids = ib_vector_create(info->heap, 8);
+	}
+
+	ib_vector_push(info->bound_ids, bid);
+}
+
+/********************************************************************
 Get user function with the given name.*/
 
 pars_user_func_t*
@@ -2126,6 +2153,37 @@ pars_info_get_bound_lit(
 
 		if (strcmp(pbl->name, name) == 0) {
 			return(pbl);
+		}
+	}
+
+	return(NULL);
+}
+
+/********************************************************************
+Get bound id with the given name.*/
+
+pars_bound_id_t*
+pars_info_get_bound_id(
+/*===================*/
+					/* out: bound id, or NULL if not
+					found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: bound id name to find */
+{
+	ulint		i;
+	ib_vector_t*	vec;
+
+	if (!info || !info->bound_ids) {
+		return(NULL);
+	}
+
+	vec = info->bound_ids;
+
+	for (i = 0; i < ib_vector_size(vec); i++) {
+		pars_bound_id_t*	bid = ib_vector_get(vec, i);
+
+		if (strcmp(bid->name, name) == 0) {
+			return(bid);
 		}
 	}
 

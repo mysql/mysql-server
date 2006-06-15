@@ -2183,6 +2183,7 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
                              bool ignore_check_option_errors)
   :table_list(table_list_par), table(table_par), fields(fields_par),
    last_insert_id(0),
+   lock(0),
    insert_into_view(table_list_par && table_list_par->view != 0)
 {
   bzero((char*) &info,sizeof(info));
@@ -2370,7 +2371,36 @@ bool select_insert::send_data(List<Item> &values)
       DBUG_RETURN(1);
     }
   }
-  if (!(error= write_record(thd, table, &info)))
+
+  /*
+    The thd->lock lock contain the locks for the select part of the
+    statement and the 'lock' variable contain the write lock for the
+    currently locked table that is being created or inserted
+    into. However, the row-based replication will investigate the
+    thd->lock to decide what table maps are to be written, so this one
+    has to contain the tables locked for writing.  To be able to write
+    table map for the table being created, we temporarily set
+    THD::lock to select_insert::lock while writing the record to the
+    storage engine. We cannot set this elsewhere, since the execution
+    of a stored function inside the select expression might cause the
+    lock structures to be NULL.
+   */
+  
+  {
+    MYSQL_LOCK *saved_lock= NULL;
+    if (lock)
+    {
+      saved_lock= thd->lock;
+      thd->lock= lock;
+    }
+
+    error= write_record(thd, table, &info);
+    
+    if (lock)
+      thd->lock= saved_lock;
+  }
+
+  if (!error)
   {
     if (table->triggers || info.handle_duplicates == DUP_UPDATE)
     {
@@ -2715,15 +2745,34 @@ private:
 };
 
 
-int select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+int
+select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
-  MY_HOOKS hooks(this);
   DBUG_ENTER("select_create::prepare");
+
+  TABLEOP_HOOKS *hook_ptr= NULL;
+#ifdef HAVE_ROW_BASED_REPLICATION
+  class MY_HOOKS : public TABLEOP_HOOKS {
+  public:
+    MY_HOOKS(select_create *x) : ptr(x) { }
+    virtual void do_prelock(TABLE **tables, uint count)
+    {
+      if (ptr->get_thd()->current_stmt_binlog_row_based)
+        ptr->binlog_show_create_table(tables, count);
+    }
+
+  private:
+    select_create *ptr;
+  };
+
+  MY_HOOKS hooks(this);
+  hook_ptr= &hooks;
+#endif
 
   unit= u;
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        extra_fields, keys, &values, &lock,
-                                       &hooks)))
+                                       &hook_ptr)))
     DBUG_RETURN(-1);				// abort() deletes table
 
   if (table->s->fields < values.elements)
@@ -2759,7 +2808,9 @@ int select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 }
 
 
-void select_create::binlog_show_create_table(TABLE **tables, uint count)
+#ifdef HAVE_ROW_BASED_REPLICATION
+void
+select_create::binlog_show_create_table(TABLE **tables, uint count)
 {
   /*
     Note 1: In RBR mode, we generate a CREATE TABLE statement for the
@@ -2778,9 +2829,7 @@ void select_create::binlog_show_create_table(TABLE **tables, uint count)
     schema that will do a close_thread_tables(), destroying the
     statement transaction cache.
   */
-#ifdef HAVE_ROW_BASED_REPLICATION
   DBUG_ASSERT(thd->current_stmt_binlog_row_based);
-#endif
   DBUG_ASSERT(tables && *tables && count > 0);
 
   char buf[2048];
@@ -2800,7 +2849,7 @@ void select_create::binlog_show_create_table(TABLE **tables, uint count)
                     /* is_trans */ TRUE,
                     /* suppress_use */ FALSE);
 }
-
+#endif // HAVE_ROW_BASED_REPLICATION
 
 void select_create::store_values(List<Item> &values)
 {

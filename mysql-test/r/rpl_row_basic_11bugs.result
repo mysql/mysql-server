@@ -44,3 +44,19 @@ t1
 USE test_ignore;
 ERROR 42000: Unknown database 'test_ignore'
 DROP DATABASE test_ignore;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (a INT);
+DELETE FROM t1;
+INSERT INTO t1 VALUES (1),(2);
+DELETE FROM t1 WHERE a = 0;
+UPDATE t1 SET a=99 WHERE a = 0;
+SHOW BINLOG EVENTS;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	102	Server ver: 5.1.11-beta-debug-log, Binlog ver: 4
+master-bin.000001	102	Query	1	188	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	188	Table_map	1	227	table_id: # (test.t1)
+master-bin.000001	227	Write_rows	1	266	table_id: # flags: STMT_END_F
