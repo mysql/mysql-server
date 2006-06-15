@@ -348,7 +348,7 @@ sub check_ndbcluster_support ();
 sub rm_ndbcluster_tables ($);
 sub ndbcluster_start_install ($);
 sub ndbcluster_start ($$);
-sub ndbcluster_wait_started ($);
+sub ndbcluster_wait_started ($$);
 sub mysqld_wait_started($);
 sub run_benchmarks ($);
 sub initialize_servers ();
@@ -1669,19 +1669,29 @@ sub ndbcluster_start_install ($) {
 }
 
 
-sub ndbcluster_wait_started($){
+sub ndbcluster_wait_started($$){
   my $cluster= shift;
+  my $ndb_waiter_extra_opt= shift;
   my $path_waiter_log= "$cluster->{'data_dir'}/ndb_waiter.log";
+  my $args;
+
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--core");
+  mtr_add_arg($args, "--ndb-connectstring=%s", $cluster->{'connect_string'});
+  mtr_add_arg($args, "--timeout=60");
+
+  if ($ndb_waiter_extra_opt)
+  {
+    mtr_add_arg($args, "$ndb_waiter_extra_opt");
+  }
 
   # Start the ndb_waiter which will connect to the ndb_mgmd
   # and poll it for state of the ndbd's, will return when
   # all nodes in the cluster is started
-  my $res= mtr_run($exe_ndb_waiter,
-		 ["--no-defaults",
-		  "--core",
-		  "--ndb-connectstring=$cluster->{'connect_string'}",
-		  "--timeout=60"],
-		 "", $path_waiter_log, $path_waiter_log, "");
+  my $res= mtr_run($exe_ndb_waiter, $args,
+		   "", $path_waiter_log, $path_waiter_log, "");
   mtr_verbose("ndbcluster_wait_started, returns: $res") if $res;
   return $res;
 }
@@ -1722,18 +1732,15 @@ sub ndb_mgmd_start ($) {
   # FIXME Should not be needed
   # Unfortunately the cluster nodes will fail to start
   # if ndb_mgmd has not started properly
-  sleep(1);
-
- # if (!sleep_until_file_created($cluster->{'path_pid'},
- #				30, # Seconds
- #				$pid))
- #  {
- #    mtr_warning("Failed to start ndb_mgd for $cluster->{'name'} cluster");
- #    return 1;
- #  }
+  while (ndbcluster_wait_started($cluster, "--no-contact"))
+  {
+    select(undef, undef, undef, 0.1);
+  }
 
   # Remember pid of ndb_mgmd
   $cluster->{'pid'}= $pid;
+
+  mtr_verbose("ndb_mgmd_start, pid: $pid");
 
   return $pid;
 }
@@ -1991,11 +1998,10 @@ sub mysql_install_db () {
 
     $cluster->{'installed_ok'}= "YES"; # Assume install suceeds
 
-    if (ndbcluster_wait_started($cluster))
+    if (ndbcluster_wait_started($cluster, ""))
     {
       # failed to install, disable usage and flag that its no ok
-      mtr_report("ndbcluster_install of $cluster->{'name'} failed, " .
-		 "continuing without it");
+      mtr_report("ndbcluster_install of $cluster->{'name'} failed");
       $cluster->{"installed_ok"}= "NO";
 
       $cluster_started_ok= 0;
@@ -3314,7 +3320,7 @@ sub run_testcase_start_servers($) {
 
     next if !$cluster->{'pid'};
 
-    if (ndbcluster_wait_started($cluster))
+    if (ndbcluster_wait_started($cluster, ""))
     {
       # failed to start
       mtr_report("Start of $cluster->{'name'} cluster failed, ");
