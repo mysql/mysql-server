@@ -278,6 +278,7 @@ bkpush.log
 bkpush.log*
 build.log
 build_tags.sh
+client/#mysql.cc#
 client/*.ds?
 client/*.vcproj
 client/completion_hash.cpp
@@ -1181,7 +1182,9 @@ sql/pack.c
 sql/safe_to_cache_query.txt
 sql/share/*.sys
 sql/share/charsets/gmon.out
+sql/share/fixerrmsg.pl
 sql/share/gmon.out
+sql/share/iso639-2.txt
 sql/share/mysql
 sql/share/norwegian-ny/errmsg.sys
 sql/share/norwegian/errmsg.sys

@@ -79,7 +79,8 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &f,
   NdbEventOperation(*this),
   m_facade(&f),
   m_ndb(theNdb),
-  m_state(EO_ERROR)
+  m_state(EO_ERROR),
+  m_oid(~(Uint32)0)
 {
   DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl");
 
@@ -88,7 +89,11 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &f,
   assert(myDict != NULL);
 
   const NdbDictionary::Event *myEvnt = myDict->getEvent(eventName);
-  if (!myEvnt) { m_error.code= myDict->getNdbError().code; DBUG_VOID_RETURN; }
+  if (!myEvnt)
+  {
+    m_error.code= myDict->getNdbError().code;
+    DBUG_VOID_RETURN;
+  }
 
   init(myEvnt->m_impl);
   DBUG_VOID_RETURN;
@@ -99,7 +104,8 @@ NdbEventOperationImpl::NdbEventOperationImpl(Ndb *theNdb,
   NdbEventOperation(*this),
   m_facade(this),
   m_ndb(theNdb),
-  m_state(EO_ERROR)
+  m_state(EO_ERROR),
+  m_oid(~(Uint32)0)
 {
   DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl [evnt]");
   init(evnt);
@@ -113,7 +119,6 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
 
   m_magic_number = 0;
   mi_type = 0;
-  m_oid = ~(Uint32)0;
   m_change_mask = 0;
 #ifdef VM_TRACE
   m_data_done_count = 0;
@@ -172,6 +177,9 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
 {
   DBUG_ENTER("NdbEventOperationImpl::~NdbEventOperationImpl");
   m_magic_number= 0;
+
+  if (m_oid == ~(Uint32)0)
+    DBUG_VOID_RETURN;
 
   stop();
   // m_bufferHandle->dropSubscribeEvent(m_bufferId);
