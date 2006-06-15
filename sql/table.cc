@@ -1481,8 +1481,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
     if (!tmp)
-      tmp= fix_partition_func(thd, share->normalized_path.str, outparam,
-                              is_create_table);
+      tmp= fix_partition_func(thd, outparam, is_create_table);
     *root_ptr= old_root;
     if (tmp)
       goto err;

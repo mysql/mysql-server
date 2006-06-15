@@ -367,6 +367,13 @@ select last_day('2005-01-00');
 select monthname(str_to_date(null, '%m')), monthname(str_to_date(null, '%m')),
        monthname(str_to_date(1, '%m')), monthname(str_to_date(0, '%m'));
 
+#
+# Bug #16546
+# 
+
+select now() - now() + 0, curtime() - curtime() + 0, 
+       sec_to_time(1) + 0, from_unixtime(1) + 0;
+
 --echo End of 4.1 tests
 
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
