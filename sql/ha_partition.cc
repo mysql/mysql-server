@@ -1581,6 +1581,7 @@ error:
 
 void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 {
+  m_file[0]->update_create_info(create_info);
   return;
 }
 
