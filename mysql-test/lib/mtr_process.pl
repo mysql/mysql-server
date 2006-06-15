@@ -629,6 +629,10 @@ sub mtr_check_stop_servers ($) {
       {
 	mtr_error("we could not kill or clean up all processes");
       }
+      else
+      {
+	mtr_verbose("All ports where free, continuing");
+      }
     }
   }
 
@@ -736,16 +740,22 @@ sub mtr_ping_with_timeout($) {
     foreach my $srv ( @$spec )
     {
       $res= 1;                          # We are optimistic
-      if ( $srv->{'pid'} and
-	   defined $srv->{'port'} and mtr_ping_port($srv->{'port'}) )
+      if ( $srv->{'pid'} and defined $srv->{'port'} )
       {
-        mtr_verbose("waiting for process $srv->{'pid'} to stop ".
-		   "using port $srv->{'port'}");
+	if ( mtr_ping_port($srv->{'port'}) )
+	{
+	  mtr_verbose("waiting for process $srv->{'pid'} to stop ".
+		      "using port $srv->{'port'}");
 
-	# Millisceond sleep emulated with select
-	select(undef, undef, undef, (0.1));
-        $res= 0;
-        next TIME;
+	  # Millisceond sleep emulated with select
+	  select(undef, undef, undef, (0.1));
+	  $res= 0;
+	  next TIME;
+	}
+	else
+	{
+	  # Process was not using port
+	}
       }
     }
     last;                               # If we got here, we are done
@@ -845,6 +855,8 @@ sub stop_reap_all {
 sub mtr_ping_port ($) {
   my $port= shift;
 
+  mtr_verbose("mtr_ping_port: $port");
+
   my $remote= "localhost";
   my $iaddr=  inet_aton($remote);
   if ( ! $iaddr )
@@ -860,10 +872,12 @@ sub mtr_ping_port ($) {
   if ( connect(SOCK, $paddr) )
   {
     close(SOCK);                        # FIXME check error?
+    mtr_verbose("USED");
     return 1;
   }
   else
   {
+    mtr_verbose("FREE");
     return 0;
   }
 }
