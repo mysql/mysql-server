@@ -2452,6 +2452,11 @@ int ha_ndbcluster::write_row(byte *record)
    */
   if (!m_use_write && m_ignore_dup_key)
   {
+    /*
+      compare if expression with that in start_bulk_insert()
+      start_bulk_insert will set parameters to ensure that each
+      write_row is committed individually
+    */
     int peek_res= peek_indexed_rows(record);
     
     if (!peek_res) 
@@ -3693,6 +3698,19 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   DBUG_PRINT("enter", ("rows: %d", (int)rows));
   
   m_rows_inserted= (ha_rows) 0;
+  if (!m_use_write && m_ignore_dup_key)
+  {
+    /*
+      compare if expression with that in write_row
+      we have a situation where peek_indexed_rows() will be called
+      so we cannot batch
+    */
+    DBUG_PRINT("info", ("Batching turned off as duplicate key is "
+                        "ignored by using peek_row"));
+    m_rows_to_insert= 1;
+    m_bulk_insert_rows= 1;
+    DBUG_VOID_RETURN;
+  }
   if (rows == (ha_rows) 0)
   {
     /* We don't know how many will be inserted, guess */
@@ -4468,12 +4486,13 @@ int ha_ndbcluster::create(const char *name,
                           TABLE *form, 
                           HA_CREATE_INFO *info)
 {
+  THD *thd= current_thd;
   NDBTAB tab;
   NDBCOL col;
   uint pack_length, length, i, pk_length= 0;
   const void *data, *pack_data;
   bool create_from_engine= (info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
-  bool is_truncate= (current_thd->lex->sql_command == SQLCOM_TRUNCATE);
+  bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -4661,10 +4680,21 @@ int ha_ndbcluster::create(const char *name,
       Failed to create an index,
       drop the table (and all it's indexes)
     */
-    if (dict->dropTableGlobal(*m_table) == 0)
+    while (dict->dropTableGlobal(*m_table))
     {
-      m_table = 0;
+      switch (dict->getNdbError().status)
+      {
+        case NdbError::TemporaryError:
+          if (!thd->killed) 
+            continue; // retry indefinitly
+          break;
+        default:
+          break;
+      }
+      break;
     }
+    m_table = 0;
+    DBUG_RETURN(my_errno);
   }
 
 #ifdef HAVE_NDB_BINLOG
@@ -4727,8 +4757,8 @@ int ha_ndbcluster::create(const char *name,
       */
       if (share && !do_event_op)
         share->flags|= NSF_NO_BINLOG;
-      ndbcluster_log_schema_op(current_thd, share,
-                               current_thd->query, current_thd->query_length,
+      ndbcluster_log_schema_op(thd, share,
+                               thd->query, thd->query_length,
                                share->db, share->table_name,
                                m_table->getObjectId(),
                                m_table->getObjectVersion(),
@@ -5177,9 +5207,9 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
   THD *thd= current_thd;
   DBUG_ENTER("ha_ndbcluster::ndbcluster_delete_table");
   NDBDICT *dict= ndb->getDictionary();
-#ifdef HAVE_NDB_BINLOG
   int ndb_table_id= 0;
   int ndb_table_version= 0;
+#ifdef HAVE_NDB_BINLOG
   /*
     Don't allow drop table unless
     schema distribution table is setup
@@ -5197,15 +5227,25 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
   int res= 0;
   if (h && h->m_table)
   {
-    if (dict->dropTableGlobal(*h->m_table))
-      res= ndb_to_mysql_error(&dict->getNdbError());
-#ifdef HAVE_NDB_BINLOG
-    if (res == 0)
+retry_temporary_error1:
+    if (dict->dropTableGlobal(*h->m_table) == 0)
     {
       ndb_table_id= h->m_table->getObjectId();
       ndb_table_version= h->m_table->getObjectVersion();
     }
-#endif
+    else
+    {
+      switch (dict->getNdbError().status)
+      {
+        case NdbError::TemporaryError:
+          if (!thd->killed) 
+            goto retry_temporary_error1; // retry indefinitly
+          break;
+        default:
+          break;
+      }
+      res= ndb_to_mysql_error(&dict->getNdbError());
+    }
     h->release_metadata(thd, ndb);
   }
   else
@@ -5216,17 +5256,28 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
       Ndb_table_guard ndbtab_g(dict, table_name);
       if (ndbtab_g.get_table())
       {
+    retry_temporary_error2:
         if (dict->dropTableGlobal(*ndbtab_g.get_table()) == 0)
         {
-#ifdef HAVE_NDB_BINLOG
           ndb_table_id= ndbtab_g.get_table()->getObjectId();
           ndb_table_version= ndbtab_g.get_table()->getObjectVersion();
-#endif
         }
-        else if (dict->getNdbError().code == NDB_INVALID_SCHEMA_OBJECT)
+        else
         {
-          ndbtab_g.invalidate();
-          continue;
+          switch (dict->getNdbError().status)
+          {
+            case NdbError::TemporaryError:
+              if (!thd->killed) 
+                goto retry_temporary_error2; // retry indefinitly
+              break;
+            default:
+              if (dict->getNdbError().code == NDB_INVALID_SCHEMA_OBJECT)
+              {
+                ndbtab_g.invalidate();
+                continue;
+              }
+              break;
+          }
         }
       }
       else
@@ -5848,6 +5899,7 @@ int ndbcluster_drop_database_impl(const char *path)
   while ((tabname=it++))
   {
     tablename_to_filename(tabname, tmp, FN_REFLEN - (tmp - full_path)-1);
+    VOID(pthread_mutex_lock(&LOCK_open));
     if (ha_ndbcluster::delete_table(0, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
@@ -5857,6 +5909,7 @@ int ndbcluster_drop_database_impl(const char *path)
         ret= ndb_to_mysql_error(&err);
       }
     }
+    VOID(pthread_mutex_unlock(&LOCK_open));
   }
   DBUG_RETURN(ret);      
 }
@@ -6420,14 +6473,7 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   DBUG_PRINT("enter", ("error = %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
-  {
-    char buf[100];
-    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-    my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
-             m_part_info->part_expr->null_value ? "NULL" :
-             llstr(m_part_info->part_expr->val_int(), buf));
-    dbug_tmp_restore_column_map(table->read_set, old_map);
-  }
+    m_part_info->print_no_partition_found(table);
   else
     handler::print_error(error, errflag);
   DBUG_VOID_RETURN;
@@ -9633,6 +9679,7 @@ int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
                                        MYF(0));
   uint i;
   int error= 0;
+  bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("set_range_data");
 
   if (!range_data)
@@ -9643,6 +9690,8 @@ int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
   for (i= 0; i < part_info->no_parts; i++)
   {
     longlong range_val= part_info->range_int_array[i];
+    if (unsigned_flag)
+      range_val-= 0x8000000000000000ULL;
     if (range_val < INT_MIN32 || range_val >= INT_MAX32)
     {
       if ((i != part_info->no_parts - 1) ||
@@ -9669,6 +9718,7 @@ int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
                                       * sizeof(int32), MYF(0));
   uint32 *part_id, i;
   int error= 0;
+  bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("set_list_data");
 
   if (!list_data)
@@ -9680,6 +9730,8 @@ int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
   {
     LIST_PART_ENTRY *list_entry= &part_info->list_array[i];
     longlong list_val= list_entry->list_value;
+    if (unsigned_flag)
+      list_val-= 0x8000000000000000ULL;
     if (list_val < INT_MIN32 || list_val > INT_MAX32)
     {
       my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
@@ -9745,7 +9797,19 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   }
   else 
   {
-    /*
+#ifdef NOT_YET
+    if (!current_thd->variables.new_mode)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          ndbcluster_hton_name,
+                          "LIST, RANGE and HASH partition disabled by default,"
+                          " use --new option to enable");
+      return HA_ERR_UNSUPPORTED;
+    }
+#endif
+   /*
       Create a shadow field for those tables that have user defined
       partitioning. This field stores the value of the partition
       function such that NDB can handle reorganisations of the data
@@ -9824,10 +9888,21 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
   uint i;
   const NDBTAB *tab= (const NDBTAB *) m_table;
 
+  if (current_thd->variables.ndb_use_copying_alter_table)
+  {
+    DBUG_PRINT("info", ("On-line alter table disabled"));
+    DBUG_RETURN(COMPATIBLE_DATA_NO);
+  }
+
   for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
-    const NDBCOL *col= tab->getColumn(field->field_name);
+    const NDBCOL *col= tab->getColumn(i);
+    if (field->flags & FIELD_IS_RENAMED)
+    {
+      DBUG_PRINT("info", ("Field has been renamed, copy table"));
+      DBUG_RETURN(COMPATIBLE_DATA_NO);
+    }
     if ((field->flags & FIELD_IN_ADD_INDEX) &&
         col->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
     {

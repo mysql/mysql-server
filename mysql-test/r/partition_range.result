@@ -363,6 +363,33 @@ SELECT COUNT(*) FROM t1 WHERE c3 < '2000-12-31';
 COUNT(*)
 10
 DROP TABLE t1;
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (10),
+partition p1 values less than (0));
+ERROR HY000: VALUES LESS THAN value must be strictly increasing for each partition
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (0),
+partition p1 values less than (10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) unsigned DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (0) ENGINE = MyISAM, PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM)
+drop table t1;
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (2),
+partition p1 values less than (10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) unsigned DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (2) ENGINE = MyISAM, PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM)
+insert into t1 values (0xFFFFFFFFFFFFFFFF);
+ERROR HY000: Table has no partition for value 18446744073709551615
+drop table t1;
 create table t1 (a int)
 partition by range (MOD(a,3))
 subpartition by hash(a)
