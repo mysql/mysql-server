@@ -157,7 +157,7 @@ use test;
 #
 connection default;
 
-# End of 5.0 tests
+#
 # Bug#19815 - CREATE/RENAME/DROP DATABASE can deadlock on a global read lock
 #
 connect (con1,localhost,root,,);
@@ -191,3 +191,4 @@ disconnect con2;
 --error ER_DB_DROP_EXISTS
 DROP DATABASE mysqltest_1;
 
+# End of 5.0 tests
