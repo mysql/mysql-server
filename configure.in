@@ -105,7 +105,7 @@ fi
 # If using gcc, add some extra warning flags.
 if test "$ac_cv_prog_gcc" = "yes"
 then
-  CFLAGS="$CFLAGS -Werror-implicit-function-declaration"
+  CFLAGS="$CFLAGS -Werror-implicit-function-declaration -Wpointer-arith"
 fi
 
 case "$target_os" in
