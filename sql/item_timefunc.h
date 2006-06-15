@@ -638,6 +638,7 @@ public:
   { 
     collation.set(&my_charset_bin);
     maybe_null=1;
+    decimals= DATETIME_DEC;
     max_length=MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
