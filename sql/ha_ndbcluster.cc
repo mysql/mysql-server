@@ -6473,14 +6473,7 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   DBUG_PRINT("enter", ("error = %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
-  {
-    char buf[100];
-    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-    my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
-             m_part_info->part_expr->null_value ? "NULL" :
-             llstr(m_part_info->part_expr->val_int(), buf));
-    dbug_tmp_restore_column_map(table->read_set, old_map);
-  }
+    m_part_info->print_no_partition_found(table);
   else
     handler::print_error(error, errflag);
   DBUG_VOID_RETURN;
@@ -9686,6 +9679,7 @@ int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
                                        MYF(0));
   uint i;
   int error= 0;
+  bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("set_range_data");
 
   if (!range_data)
@@ -9696,6 +9690,8 @@ int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
   for (i= 0; i < part_info->no_parts; i++)
   {
     longlong range_val= part_info->range_int_array[i];
+    if (unsigned_flag)
+      range_val-= 0x8000000000000000ULL;
     if (range_val < INT_MIN32 || range_val >= INT_MAX32)
     {
       if ((i != part_info->no_parts - 1) ||
@@ -9722,6 +9718,7 @@ int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
                                       * sizeof(int32), MYF(0));
   uint32 *part_id, i;
   int error= 0;
+  bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("set_list_data");
 
   if (!list_data)
@@ -9733,6 +9730,8 @@ int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
   {
     LIST_PART_ENTRY *list_entry= &part_info->list_array[i];
     longlong list_val= list_entry->list_value;
+    if (unsigned_flag)
+      list_val-= 0x8000000000000000ULL;
     if (list_val < INT_MIN32 || list_val > INT_MAX32)
     {
       my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
