@@ -4000,8 +4000,8 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
       }
       else if (part_info->part_type == LIST_PARTITION)
       {
-        List_iterator<longlong> list_val_it(part_elem->list_val_list);
-        longlong *list_value;
+        List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
+        part_elem_value *list_value;
         uint no_items= part_elem->list_val_list.elements;
         tmp_str.length(0);
         tmp_res.length(0);
@@ -4013,7 +4013,10 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
         }
         while ((list_value= list_val_it++))
         {
-          tmp_res.set(*list_value, cs);
+          if (!list_value->unsigned_flag)
+            tmp_res.set(list_value->value, cs);
+          else
+            tmp_res.set((ulonglong)list_value->value, cs);
           tmp_str.append(tmp_res);
           if (--no_items != 0)
             tmp_str.append(",");
