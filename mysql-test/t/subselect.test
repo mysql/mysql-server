@@ -2085,3 +2085,18 @@ create table t2 (a int, b int);
 insert into t2 values (2, 1), (1, 0);
 delete from t1 where c <= 1140006215 and (select b from t2 where a = 2) = 1;
 drop table t1, t2;
+
+#
+# Bug #7549: Missing error message for invalid view selection with subquery
+#
+
+CREATE TABLE t1 (a INT);
+
+--error 1054
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE no_such_column = ANY (SELECT 1);
+--error 1054
+CREATE VIEW v2 AS SELECT * FROM t1 WHERE no_such_column = (SELECT 1);
+--error 1054
+SELECT * FROM t1 WHERE no_such_column = ANY (SELECT 1);
+
+DROP TABLE t1;

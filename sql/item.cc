@@ -958,6 +958,12 @@ void Item_splocal::print(String *str)
 }
 
 
+bool Item_splocal::set_value(THD *thd, sp_rcontext *ctx, Item **it)
+{
+  return ctx->set_variable(thd, get_var_idx(), it);
+}
+
+
 /*****************************************************************************
   Item_case_expr methods
 *****************************************************************************/
@@ -1883,7 +1889,6 @@ Item_decimal::Item_decimal(const char *str_arg, uint length,
   name= (char*) str_arg;
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
                                              decimals, unsigned_flag);
 }
@@ -1893,7 +1898,6 @@ Item_decimal::Item_decimal(longlong val, bool unsig)
   int2my_decimal(E_DEC_FATAL_ERROR, val, unsig, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
                                              decimals, unsigned_flag);
 }
@@ -1904,7 +1908,6 @@ Item_decimal::Item_decimal(double val, int precision, int scale)
   double2my_decimal(E_DEC_FATAL_ERROR, val, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
                                              decimals, unsigned_flag);
 }
@@ -1917,7 +1920,6 @@ Item_decimal::Item_decimal(const char *str, const my_decimal *val_arg,
   name= (char*) str;
   decimals= (uint8) decimal_par;
   max_length= length;
-  unsigned_flag= !decimal_value.sign();
   fixed= 1;
 }
 
@@ -1927,7 +1929,6 @@ Item_decimal::Item_decimal(my_decimal *value_par)
   my_decimal2decimal(value_par, &decimal_value);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(decimal_value.intg + decimals,
                                              decimals, unsigned_flag);
 }
@@ -1939,7 +1940,6 @@ Item_decimal::Item_decimal(const char *bin, int precision, int scale)
                     &decimal_value, precision, scale);
   decimals= (uint8) decimal_value.frac;
   fixed= 1;
-  unsigned_flag= !decimal_value.sign();
   max_length= my_decimal_precision_to_length(precision, decimals,
                                              unsigned_flag);
 }
@@ -5365,6 +5365,25 @@ bool Item_trigger_field::eq(const Item *item, bool binary_cmp) const
 }
 
 
+void Item_trigger_field::set_required_privilege(const bool rw)
+{
+  /*
+    Require SELECT and UPDATE privilege if this field will be read and
+    set, and only UPDATE privilege for setting the field.
+  */
+  want_privilege= (rw ? SELECT_ACL | UPDATE_ACL : UPDATE_ACL);
+}
+
+
+bool Item_trigger_field::set_value(THD *thd, sp_rcontext */*ctx*/, Item **it)
+{
+  Item *item= sp_prepare_func_item(thd, it);
+
+  return (!item || (!fixed && fix_fields(thd, 0)) ||
+          (item->save_in_field(field, 0) < 0));
+}
+
+
 bool Item_trigger_field::fix_fields(THD *thd, Item **items)
 {
   /*
@@ -5387,8 +5406,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
 
     if (table_grants)
     {
-      table_grants->want_privilege=
-        access_type == AT_READ ? SELECT_ACL : UPDATE_ACL;
+      table_grants->want_privilege= want_privilege;
 
       if (check_grant_column(thd, table_grants, triggers->table->s->db,
                              triggers->table->s->table_name, field_name,
@@ -5420,6 +5438,7 @@ void Item_trigger_field::print(String *str)
 
 void Item_trigger_field::cleanup()
 {
+  want_privilege= original_privilege;
   /*
     Since special nature of Item_trigger_field we should not do most of
     things from Item_field::cleanup() or Item_ident::cleanup() here.

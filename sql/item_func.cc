@@ -4120,6 +4120,18 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 }
 
 
+bool Item_func_get_user_var::set_value(THD *thd,
+                                       sp_rcontext */*ctx*/, Item **it)
+{
+  Item_func_set_user_var *suv= new Item_func_set_user_var(get_name(), *it);
+  /*
+    Item_func_set_user_var is not fixed after construction, call
+    fix_fields().
+  */
+  return (!suv || suv->fix_fields(thd, it) || suv->check() || suv->update());
+}
+
+
 bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
@@ -4752,6 +4764,7 @@ Item_func_sp::sp_result_field(void) const
     dummy_table->alias = empty_name;
     dummy_table->maybe_null = maybe_null;
     dummy_table->in_use= current_thd;
+    dummy_table->copy_blobs= TRUE;
     share->table_cache_key = empty_name;
     share->table_name = empty_name;
   }

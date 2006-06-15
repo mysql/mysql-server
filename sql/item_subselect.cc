@@ -1351,6 +1351,17 @@ void Item_in_subselect::print(String *str)
 }
 
 
+bool Item_in_subselect::fix_fields(THD *thd, Item **ref)
+{
+  bool result = 0;
+  
+  if(thd->lex->view_prepare_mode && left_expr && !left_expr->fixed)
+    result = left_expr->fix_fields(thd, &left_expr);
+
+  return result || Item_subselect::fix_fields(thd, ref);
+}
+
+
 Item_subselect::trans_res
 Item_allany_subselect::select_transformer(JOIN *join)
 {
