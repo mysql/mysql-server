@@ -35,9 +35,10 @@
 
 
 /* Global Thread counter */
-int counter= 0;
+int counter;
 #ifdef HAVE_LIBPTHREAD
 pthread_mutex_t counter_mutex;
+pthread_cond_t count_threshhold;
 #endif
 
 static void db_error_with_table(MYSQL *mysql, char *table);
@@ -556,6 +557,7 @@ error:
 
   pthread_mutex_lock(&counter_mutex);
   counter--;
+  pthread_cond_signal(&count_threshhold);
   pthread_mutex_unlock(&counter_mutex);
   my_thread_end();
 
@@ -584,28 +586,26 @@ int main(int argc, char **argv)
   {
     pthread_t mainthread;            /* Thread descriptor */
     pthread_attr_t attr;          /* Thread attributes */
-    VOID(pthread_mutex_init(&counter_mutex, NULL));
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr,
+                                PTHREAD_CREATE_DETACHED);
 
-    for (; *argv != NULL; argv++) /* Loop through tables */
+    VOID(pthread_mutex_init(&counter_mutex, NULL));
+    VOID(pthread_cond_init(&count_threshhold, NULL));
+
+    for (counter= 0; *argv != NULL; argv++) /* Loop through tables */
     {
-      /*
-        If we hit thread count limit we loop until some threads exit.
-        We sleep for a second, so that we don't chew up a lot of 
-        CPU in the loop.
-      */
-sanity_label:
-      if (counter == opt_use_threads)
-      {
-        sleep(1);
-        goto sanity_label;
-      }
       pthread_mutex_lock(&counter_mutex);
+      while (counter == opt_use_threads)
+      {
+        struct timespec abstime;
+
+        set_timespec(abstime, 3);
+        pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
+      }
+      /* Before exiting the lock we set ourselves up for the next thread */
       counter++;
       pthread_mutex_unlock(&counter_mutex);
-      pthread_attr_init(&attr);
-      pthread_attr_setdetachstate(&attr,
-                                   PTHREAD_CREATE_DETACHED);
-
       /* now create the thread */
       if (pthread_create(&mainthread, &attr, worker_thread, 
                          (void *)*argv) != 0)
@@ -621,13 +621,18 @@ sanity_label:
     /*
       We loop until we know that all children have cleaned up.
     */
-loop_label:
-    if (counter)
+    pthread_mutex_lock(&counter_mutex);
+    while (counter)
     {
-      sleep(1);
-      goto loop_label;
+      struct timespec abstime;
+
+      set_timespec(abstime, 3);
+      pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
     }
+    pthread_mutex_unlock(&counter_mutex);
     VOID(pthread_mutex_destroy(&counter_mutex));
+    VOID(pthread_cond_destroy(&count_threshhold));
+    pthread_attr_destroy(&attr);
   }
   else
 #endif

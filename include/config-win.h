@@ -400,6 +400,7 @@ inline double ulonglong2double(ulonglong value)
 
 #define FN_LIBCHAR	'\\'
 #define FN_ROOTDIR	"\\"
+#define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
 #define FN_NO_CASE_SENCE	/* Files are not case-sensitive */
 #define OS_FILE_LIMIT	2048
