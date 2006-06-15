@@ -100,7 +100,8 @@ enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
       OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
       OPT_SSL_CIPHER,OPT_PS_PROTOCOL,OPT_SP_PROTOCOL,OPT_CURSOR_PROTOCOL,
-      OPT_VIEW_PROTOCOL, OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES};
+      OPT_VIEW_PROTOCOL, OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
+      OPT_MARK_PROGRESS};
 
 /* ************************************************************************ */
 /*
@@ -153,6 +154,7 @@ static int port = 0;
 static int opt_max_connect_retries;
 static my_bool opt_big_test= 0, opt_compress= 0, silent= 0, verbose = 0;
 static my_bool tty_password= 0;
+static my_bool opt_mark_progress= 0;
 static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
 static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
@@ -234,7 +236,7 @@ static my_bool display_result_vertically= FALSE, display_metadata= FALSE;
 
 /* See the timer_output() definition for details */
 static char *timer_file = NULL;
-static ulonglong timer_start;
+static ulonglong timer_start, progress_start= 0;
 static int got_end_timer= FALSE;
 static void timer_output(void);
 static ulonglong timer_now(void);
@@ -445,7 +447,7 @@ const char *command_names[]=
 TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names, 0};
 
-DYNAMIC_STRING ds_res;
+DYNAMIC_STRING ds_res, ds_progress;
 static void die(const char *fmt, ...);
 static void init_var_hash();
 static VAR* var_from_env(const char *, const char *);
@@ -631,6 +633,7 @@ static void free_used_memory()
     my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
   delete_dynamic(&q_lines);
   dynstr_free(&ds_res);
+  dynstr_free(&ds_progress);
   free_replace();
   free_replace_column();
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
@@ -3298,6 +3301,10 @@ static struct my_option my_long_options[] =
   {"manager-wait-timeout", OPT_MANAGER_WAIT_TIMEOUT,
    "Undocumented: Used for debugging.", (gptr*) &manager_wait_timeout,
    (gptr*) &manager_wait_timeout, 0, GET_INT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0},
+  {"mark-progress", OPT_MARK_PROGRESS,
+   "Write linenumber and elapsed time to <testname>.progress ",
+   (gptr*) &opt_mark_progress, (gptr*) &opt_mark_progress, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"max-connect-retries", OPT_MAX_CONNECT_RETRIES,
    "Max number of connection attempts when connecting to server",
    (gptr*) &opt_max_connect_retries, (gptr*) &opt_max_connect_retries, 0,
@@ -3535,6 +3542,13 @@ void dump_result_to_log_file(const char *record_file, char *buf, int size)
 {
   char log_file[FN_REFLEN];
   str_to_file(fn_format(log_file, record_file,"",".log",2), buf, size);
+}
+
+void dump_progress(const char *record_file)
+{
+  char log_file[FN_REFLEN];
+  str_to_file(fn_format(log_file, record_file,"",".progress",2),
+              ds_progress.str, ds_progress.length);
 }
 
 static void check_regerr(my_regex_t* r, int err)
@@ -5116,35 +5130,46 @@ static void init_var_hash(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-static void mark_progress(int line __attribute__((unused)))
+
+/*
+  Record how many milliseconds it took to execute the test file
+  up until the current line and save it in the dynamic string ds_progress.
+
+  The ds_progress will be dumped to <test_name>.progress when
+  test run completes
+
+*/
+static void mark_progress(struct st_query* q, int line)
 {
-#ifdef NOT_YET
-  static FILE* fp = NULL;
-  static double first;
+  char buf[32], *end;
+  ulonglong timer= timer_now();
+  if (!progress_start)
+    progress_start= timer;
+  timer-= progress_start;
 
-  struct timeval tv;
-  double now;
+  /* Milliseconds since start */
+  end= longlong2str(timer, buf, 10);
+  dynstr_append_mem(&ds_progress, buf, (int)(end-buf));
+  dynstr_append_mem(&ds_progress, "\t", 1);
 
-  if (!fp)
-  {
+  /* Parser line number */
+  end= int10_to_str(line, buf, 10);
+  dynstr_append_mem(&ds_progress, buf, (int)(end-buf));
+  dynstr_append_mem(&ds_progress, "\t", 1);
 
-    fp = fopen("/tmp/mysqltest_progress.log", "wt");
+  /* Filename */
+  dynstr_append(&ds_progress, cur_file->file_name);
+  dynstr_append_mem(&ds_progress, ":", 1);
 
-    if (!fp)
-    {
-      abort();
-    }
+  /* Line in file */
+  end= int10_to_str(cur_file->lineno, buf, 10);
+  dynstr_append_mem(&ds_progress, buf, (int)(end-buf));
 
-    gettimeofday(&tv, NULL);
-    first = tv.tv_sec * 1e6 + tv.tv_usec;
-  }
 
-  gettimeofday(&tv, NULL);
-  now = tv.tv_sec * 1e6 + tv.tv_usec;
+  dynstr_append_mem(&ds_progress, "\n", 1);
 
-  fprintf(fp, "%d %f\n", parser.current_line, (now - first) / 1e6);
-#endif
 }
+
 
 int main(int argc, char **argv)
 {
@@ -5185,6 +5210,7 @@ int main(int argc, char **argv)
   memset(&master_pos, 0, sizeof(master_pos));
 
   init_dynamic_string(&ds_res, "", 0, 65536);
+  init_dynamic_string(&ds_progress, "", 0, 2048);
   parse_args(argc, argv);
 
   DBUG_PRINT("info",("result_file: '%s'", result_file ? result_file : ""));
@@ -5509,7 +5535,8 @@ int main(int argc, char **argv)
     }
 
     parser.current_line += current_line_inc;
-    mark_progress(parser.current_line);
+    if ( opt_mark_progress )
+      mark_progress(q, parser.current_line);
   }
 
   start_lineno= 0;
@@ -5560,6 +5587,9 @@ int main(int argc, char **argv)
     die("No queries executed but result file found!");
   }
 
+  if ( opt_mark_progress )
+    dump_progress(result_file);
+  dynstr_free(&ds_progress);
 
   dynstr_free(&ds_res);
 
