@@ -129,6 +129,12 @@ getStatus(){
       ndbout << "status==NULL, retries="<<retries<<endl;
       MGMERR(handle);
       retries++;
+      ndb_mgm_disconnect(handle);
+      if (ndb_mgm_connect(handle,0,0,1)) {
+        MGMERR(handle);
+        g_err  << "Reconnect failed" << endl;
+        break;
+      }
       continue;
     }
     int count = status->no_of_nodes;
