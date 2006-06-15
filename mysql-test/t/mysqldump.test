@@ -1157,5 +1157,5 @@ insert into t1 values (1232131);
 insert into t1 values (4711);
 insert into t1 values (3231);
 insert into t1 values (0815);
---exec $MYSQL_DUMP --add-drop-database --databases test
+--exec $MYSQL_DUMP --skip-comments --add-drop-database --databases test
 drop view v1;
