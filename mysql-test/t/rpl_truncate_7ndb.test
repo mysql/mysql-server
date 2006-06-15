@@ -22,6 +22,8 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB;
 INSERT INTO t1 VALUES (1,1), (2,2);
 SELECT * FROM t1 ORDER BY a,b;
 --echo **** On Slave ****
+# This is silly, but NDB doesn't add to the binlog fast enough
+--real_sleep 10
 sync_slave_with_master;
 INSERT INTO t1 VALUE (3,3);
 SELECT * FROM t1 ORDER BY a,b;
