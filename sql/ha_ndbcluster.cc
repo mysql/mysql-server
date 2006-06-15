@@ -1836,6 +1836,11 @@ int ha_ndbcluster::write_row(byte *record)
 
   if(m_ignore_dup_key && table->primary_key != MAX_KEY)
   {
+    /*
+      compare if expression with that in start_bulk_insert()
+      start_bulk_insert will set parameters to ensure that each
+      write_row is committed individually
+    */
     int peek_res= peek_row(record);
     
     if (!peek_res) 
@@ -2996,6 +3001,19 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   DBUG_PRINT("enter", ("rows: %d", (int)rows));
   
   m_rows_inserted= (ha_rows) 0;
+  if (m_ignore_dup_key && table->primary_key != MAX_KEY)
+  {
+    /*
+      compare if expression with that in write_row
+      we have a situation where peek_row() will be called
+      so we cannot batch
+    */
+    DBUG_PRINT("info", ("Batching turned off as duplicate key is "
+                        "ignored by using peek_row"));
+    m_rows_to_insert= 1;
+    m_bulk_insert_rows= 1;
+    DBUG_VOID_RETURN;
+  }
   if (rows == (ha_rows) 0)
   {
     /* We don't know how many will be inserted, guess */
@@ -3306,8 +3324,23 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       {
         m_table= (void *)tab;
         m_table_version = tab->getObjectVersion();
-        if (!(my_errno= build_index_list(ndb, table, ILBP_OPEN)))
+        if ((my_errno= build_index_list(ndb, table, ILBP_OPEN)))
           DBUG_RETURN(my_errno);
+
+        const void *data, *pack_data;
+        uint length, pack_length;
+        if (readfrm(table->path, &data, &length) ||
+            packfrm(data, length, &pack_data, &pack_length) ||
+            pack_length != tab->getFrmLength() ||
+            memcmp(pack_data, tab->getFrmData(), pack_length))
+        {
+          my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+          my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+          NdbError err= ndb->getNdbError(NDB_INVALID_SCHEMA_OBJECT);
+          DBUG_RETURN(ndb_to_mysql_error(&err));
+        }
+        my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+        my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
       }
       m_table_info= tab_info;
     }
@@ -4021,20 +4054,30 @@ int ha_ndbcluster::delete_table(const char *name)
 
 int ha_ndbcluster::drop_table()
 {
+  THD *thd= current_thd;
   Ndb *ndb= get_ndb();
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
   
   DBUG_ENTER("drop_table");
   DBUG_PRINT("enter", ("Deleting %s", m_tabname));
   
-  if (dict->dropTable(m_tabname)) 
+  while (dict->dropTable(m_tabname)) 
   {
     const NdbError err= dict->getNdbError();
-    if (err.code == 709)
-      ; // 709: No such table existed
-    else 
+    switch (err.status)
+    {
+      case NdbError::TemporaryError:
+        if (!thd->killed)
+          continue; // retry indefinitly
+        break;
+      default:
+        break;
+    }
+    if (err.code != 709) // 709: No such table existed
       ERR_RETURN(dict->getNdbError());
-  }  
+    break;
+  }
+
   release_metadata();
   DBUG_RETURN(0);
 }
@@ -4438,14 +4481,24 @@ int ndbcluster_drop_database(const char *path)
   List_iterator_fast<char> it(drop_list);
   while ((tabname=it++))
   {
-    if (dict->dropTable(tabname))
+    while (dict->dropTable(tabname))
     {
       const NdbError err= dict->getNdbError();
-      if (err.code != 709)
+      switch (err.status)
+      {
+        case NdbError::TemporaryError:
+          if (!thd->killed)
+            continue; // retry indefinitly
+          break;
+        default:
+          break;
+      }
+      if (err.code != 709) // 709: No such table existed
       {
         ERR_PRINT(err);
         ret= ndb_to_mysql_error(&err);
       }
+      break;
     }
   }
   DBUG_RETURN(ret);      
