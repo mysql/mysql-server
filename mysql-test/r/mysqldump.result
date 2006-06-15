@@ -2727,11 +2727,6 @@ insert into t1 values (1232131);
 insert into t1 values (4711);
 insert into t1 values (3231);
 insert into t1 values (0815);
--- MySQL dump 10.10
---
--- Host: localhost    Database: test
--- ------------------------------------------------------
--- Server version	5.0.22-debug-log
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -2744,28 +2739,15 @@ insert into t1 values (0815);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
---
--- Current Database: `test`
---
-
 /*!40000 DROP DATABASE IF EXISTS `test`*/;
 
 CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET latin1 */;
 
 USE `test`;
-
---
--- Table structure for table `t1`
---
-
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `id` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
---
--- Dumping data for table `t1`
---
 
 
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
@@ -2773,21 +2755,11 @@ LOCK TABLES `t1` WRITE;
 INSERT INTO `t1` VALUES (1232131),(4711),(3231),(815);
 UNLOCK TABLES;
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
-
---
--- Temporary table structure for view `v1`
---
-
 DROP TABLE IF EXISTS `v1`;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 CREATE TABLE `v1` (
   `id` int(11)
 ) */;
-
---
--- Final view structure for view `v1`
---
-
 /*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
