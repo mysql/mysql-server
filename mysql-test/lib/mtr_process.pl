@@ -272,40 +272,17 @@ sub spawn_parent_impl {
           last;
         }
 
-        # If one of the mysqld processes died, we want to
+        # If one of the processes died, we want to
         # mark this, and kill the mysqltest process.
 
-        foreach my $idx (0..1)
-        {
-          if ( $::master->[$idx]->{'pid'} eq $ret_pid )
-          {
-            mtr_debug("child $ret_pid was master[$idx], " .
-                      "exit during mysqltest run");
-            $::master->[$idx]->{'pid'}= 0;
-            last;
-          }
-        }
-
-        foreach my $idx (0..2)
-        {
-          if ( $::slave->[$idx]->{'pid'} eq $ret_pid )
-          {
-            mtr_debug("child $ret_pid was slave[$idx], " .
-                      "exit during mysqltest run");
-            $::slave->[$idx]->{'pid'}= 0;
-            last;
-          }
-        }
-
-        mtr_debug("waitpid() caught exit of unknown child $ret_pid, " .
-                  "exit during mysqltest run");
+	mark_process_dead($ret_pid);
       }
 
       if ( $ret_pid != $pid )
       {
         # We terminated the waiting because a "mysqld" process died.
         # Kill the mysqltest process.
-
+	mtr_verbose("Kill mysqltest because another process died");
         kill(9,$pid);
 
         $ret_pid= waitpid($pid,0);
@@ -639,13 +616,19 @@ sub mtr_check_stop_servers ($) {
               mtr_warning("couldn't delete $file");
             }
           }
+	  $srv->{'pid'}= 0;
         }
       }
     }
     if ( $errors )
     {
-      # We are in trouble, just die....
-      mtr_error("we could not kill or clean up all processes");
+      # There where errors killing processes
+      # do one last attempt to ping the servers
+      # and if they can't be pinged, assume they are dead
+      if ( ! mtr_ping_with_timeout( \@$spec ) )
+      {
+	mtr_error("we could not kill or clean up all processes");
+      }
     }
   }
 
@@ -773,6 +756,49 @@ sub mtr_ping_with_timeout($) {
   return $res;
 }
 
+
+#
+# Loop through our list of processes and look for and entry
+# with the provided pid
+# Set the pid of that process to 0 if found
+#
+sub mark_process_dead($)
+{
+  my $ret_pid= shift;
+
+  foreach my $mysqld (@{$::master}, @{$::slave})
+  {
+    if ( $mysqld->{'pid'} eq $ret_pid )
+    {
+      mtr_verbose("$mysqld->{'type'} $mysqld->{'idx'} exited, pid: $ret_pid");
+      $mysqld->{'pid'}= 0;
+      return;
+    }
+  }
+
+  foreach my $cluster (@{$::clusters})
+  {
+    if ( $cluster->{'pid'} eq $ret_pid )
+    {
+      mtr_verbose("$cluster->{'name'} cluster ndb_mgmd exited, pid: $ret_pid");
+      $cluster->{'pid'}= 0;
+      return;
+    }
+
+    foreach my $ndbd (@{$cluster->{'ndbds'}})
+    {
+      if ( $ndbd->{'pid'} eq $ret_pid )
+      {
+	mtr_verbose("$cluster->{'name'} cluster ndbd exited, pid: $ret_pid");
+	$ndbd->{'pid'}= 0;
+	return;
+      }
+    }
+  }
+  mtr_warning("mark_process_dead couldn't find an entry for pid: $ret_pid");
+
+}
+
 ##############################################################################
 #
 #  The operating system will keep information about dead children, 
@@ -789,45 +815,8 @@ sub mtr_record_dead_children () {
   # -1 or 0 means there are no more procesess to wait for
   while ( ($ret_pid= waitpid(-1,&WNOHANG)) != 0 and $ret_pid != -1)
   {
-    mtr_warning("waitpid() caught exit of child $ret_pid");
-    foreach my $idx (0..1)
-    {
-      if ( $::master->[$idx]->{'pid'} eq $ret_pid )
-      {
-        mtr_warning("child $ret_pid was master[$idx]");
-        $::master->[$idx]->{'pid'}= 0;
-      }
-    }
-
-    foreach my $idx (0..2)
-    {
-      if ( $::slave->[$idx]->{'pid'} eq $ret_pid )
-      {
-        mtr_warning("child $ret_pid was slave[$idx]");
-        $::slave->[$idx]->{'pid'}= 0;
-        last;
-      }
-    }
-
-   foreach my $cluster (@{$::clusters})
-   {
-     if ( $cluster->{'pid'} eq $ret_pid )
-     {
-       mtr_warning("child $ret_pid was $cluster->{'name'} cluster ndb_mgmd");
-       $cluster->{'pid'}= 0;
-       last;
-     }
-
-     foreach my $ndbd (@{$cluster->{'ndbds'}})
-     {
-       if ( $ndbd->{'pid'} eq $ret_pid )
-       {
-	 mtr_warning("child $ret_pid was $cluster->{'name'} cluster ndbd");
-	 $ndbd->{'pid'}= 0;
-	 last;
-       }
-     }
-   }
+    mtr_warning("mtr_record_dead_children: $ret_pid");
+    mark_process_dead($ret_pid);
   }
 }
 
@@ -843,7 +832,8 @@ sub start_reap_all {
   my $pid;
   while(($pid= waitpid(-1, &WNOHANG)) != 0 and $pid != -1)
   {
-    print "start_reap_all: pid: $pid.\n";
+    mtr_warning("start_reap_all pid: $pid");
+    mark_process_dead($pid);
   };
 }
 
@@ -903,6 +893,7 @@ sub sleep_until_file_created ($$$) {
     # Check if it died after the fork() was successful
     if ( $pid != 0 && waitpid($pid,&WNOHANG) == $pid )
     {
+      mtr_warning("Process $pid died");
       return 0;
     }
 
