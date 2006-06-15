@@ -37,6 +37,9 @@ while (!`select @aborted_clients`)
   }
 }
 --enable_query_log
+# The server has disconnected, add small sleep to make sure
+# the disconnect has reached client
+sleep 1;
 
 connection default;
 # When the connection is closed in this way, the error code should
@@ -79,6 +82,9 @@ while (!`select @aborted_clients`)
   }
 }
 --enable_query_log
+# The server has disconnected, add small sleep to make sure
+# the disconnect has reached client
+sleep 1;
 
 connection con1;
 # When the connection is closed in this way, the error code should
