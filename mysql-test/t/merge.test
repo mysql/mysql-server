@@ -393,4 +393,13 @@ insert into t1 values ("Monty"),("WAX"),("Walrus");
 alter table t1 engine=MERGE;
 drop table t1;
 
+#
+# BUG#19648 - Merge table does not work with bit types
+#
+create table t1 (b bit(1));
+create table t2 (b bit(1));
+create table tm (b bit(1)) engine = merge union = (t1,t2);
+select * from tm;
+drop table tm, t1, t2;
+
 # End of 5.0 tests
