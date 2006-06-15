@@ -2670,7 +2670,7 @@ recv_recovery_from_checkpoint_start(
 	/* Read the first log file header to print a note if this is
 	a recovery from a restored InnoDB Hot Backup */
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, max_cp_group->space_id,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, max_cp_group->space_id, 0,
 				0, 0, LOG_FILE_HDR_SIZE,
 				log_hdr_buf, max_cp_group);
 
@@ -2691,7 +2691,7 @@ recv_recovery_from_checkpoint_start(
 					' ', 4);
 		/* Write to the log file to wipe over the label */
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE,
-				max_cp_group->space_id,
+				max_cp_group->space_id, 0,
 				0, 0, OS_FILE_LOG_BLOCK_SIZE,
 				log_hdr_buf, max_cp_group);
 	}

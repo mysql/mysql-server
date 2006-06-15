@@ -603,6 +603,8 @@ fil_io(
 				caution! */
 	ibool	sync,		/* in: TRUE if synchronous aio is desired */
 	ulint	space_id,	/* in: space id */
+	ulint	zip_size,	/* in: compressed page size in bytes;
+				0 for uncompressed pages */
 	ulint	block_offset,	/* in: offset in number of blocks */
 	ulint	byte_offset,	/* in: remainder of offset in bytes; in
 				aio this must be divisible by the OS block
@@ -613,52 +615,6 @@ fil_io(
 	void*	buf,		/* in/out: buffer where to store read data
 				or from where to write; in aio this must be
 				appropriately aligned */
-	void*	message);	/* in: message for aio handler if non-sync
-				aio used, else ignored */
-/************************************************************************
-Reads data from a space to a buffer. Remember that the possible incomplete
-blocks at the end of file are ignored: they are not taken into account when
-calculating the byte offset within a space. */
-
-ulint
-fil_read(
-/*=====*/
-				/* out: DB_SUCCESS, or DB_TABLESPACE_DELETED
-				if we are trying to do i/o on a tablespace
-				which does not exist */
-	ibool	sync,		/* in: TRUE if synchronous aio is desired */
-	ulint	space_id,	/* in: space id */
-	ulint	block_offset,	/* in: offset in number of blocks */
-	ulint	byte_offset,	/* in: remainder of offset in bytes; in aio
-				this must be divisible by the OS block size */
-	ulint	len,		/* in: how many bytes to read; this must not
-				cross a file boundary; in aio this must be a
-				block size multiple */
-	void*	buf,		/* in/out: buffer where to store data read;
-				in aio this must be appropriately aligned */
-	void*	message);	/* in: message for aio handler if non-sync
-				aio used, else ignored */
-/************************************************************************
-Writes data to a space from a buffer. Remember that the possible incomplete
-blocks at the end of file are ignored: they are not taken into account when
-calculating the byte offset within a space. */
-
-ulint
-fil_write(
-/*======*/
-				/* out: DB_SUCCESS, or DB_TABLESPACE_DELETED
-				if we are trying to do i/o on a tablespace
-				which does not exist */
-	ibool	sync,		/* in: TRUE if synchronous aio is desired */
-	ulint	space_id,	/* in: space id */
-	ulint	block_offset,	/* in: offset in number of blocks */
-	ulint	byte_offset,	/* in: remainder of offset in bytes; in aio
-				this must be divisible by the OS block size */
-	ulint	len,		/* in: how many bytes to write; this must
-				not cross a file boundary; in aio this must
-				be a block size multiple */
-	void*	buf,		/* in: buffer from which to write; in aio
-				this must be appropriately aligned */
 	void*	message);	/* in: message for aio handler if non-sync
 				aio used, else ignored */
 /**************************************************************************
