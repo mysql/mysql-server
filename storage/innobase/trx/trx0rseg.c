@@ -147,8 +147,7 @@ trx_rseg_mem_create(
 	rseg->space = space;
 	rseg->page_no = page_no;
 
-	mutex_create(&(rseg->mutex));
-	mutex_set_level(&(rseg->mutex), SYNC_RSEG);
+	mutex_create(&rseg->mutex, SYNC_RSEG);
 
 	UT_LIST_ADD_LAST(rseg_list, trx_sys->rseg_list, rseg);
 

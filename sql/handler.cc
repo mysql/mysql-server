@@ -3234,35 +3234,128 @@ namespace {
   }
 }
 
-template<class RowsEventT> int binlog_log_row(TABLE *table,
-                                              const byte *before_record,
-                                              const byte *after_record)
-{
-  if (table->file->is_injective())
-    return 0;
-  bool error= 0;
-
-  if (check_table_binlog_row_based(table->in_use, table))
-  {
-    error=
-      RowsEventT::binlog_row_logging_function(table->in_use, table,
-                                              table->file->has_transactions(),
-                                              &table->s->all_set,
-                                              table->s->fields,
-                                              before_record, after_record);
-  }
-  return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
-}
-
-
 /*
-  Instantiate the versions we need for the above template function, because we
-  have -fno-implicit-template as compiling option.
-*/
+   Write table maps for all (manually or automatically) locked tables
+   to the binary log.
 
-template int binlog_log_row<Write_rows_log_event>(TABLE *, const byte *, const byte *);
-template int binlog_log_row<Delete_rows_log_event>(TABLE *, const byte *, const byte *);
-template int binlog_log_row<Update_rows_log_event>(TABLE *, const byte *, const byte *);
+   SYNOPSIS
+     write_locked_table_maps()
+       thd     Pointer to THD structure
+
+   DESCRIPTION
+       This function will generate and write table maps for all tables
+       that are locked by the thread 'thd'.  Either manually locked
+       (stored in THD::locked_tables) and automatically locked (stored
+       in THD::lock) are considered.
+   
+   RETURN VALUE
+       0   All OK
+       1   Failed to write all table maps
+
+   SEE ALSO
+       THD::lock
+       THD::locked_tables
+ */
+namespace
+{
+  int write_locked_table_maps(THD *thd)
+  {
+    DBUG_ENTER("write_locked_table_maps");
+    DBUG_PRINT("enter", ("thd=%p, thd->lock=%p, thd->locked_tables=%p",
+                         thd, thd->lock, thd->locked_tables));
+
+    if (thd->get_binlog_table_maps() == 0)
+    {
+      /*
+        Exactly one table has to be locked, otherwise this code is not
+        guaranteed to work.
+      */
+      DBUG_ASSERT((thd->lock != NULL) + (thd->locked_tables != NULL) == 1);
+
+      MYSQL_LOCK *lock= thd->lock ? thd->lock : thd->locked_tables;
+      DBUG_ASSERT(lock->table_count > 0);
+      TABLE **const end_ptr= lock->table + lock->table_count;
+      for (TABLE **table_ptr= lock->table ; 
+           table_ptr != end_ptr ;
+           ++table_ptr)
+      {
+        TABLE *const table= *table_ptr;
+        DBUG_PRINT("info", ("Checking table %s", table->s->table_name));
+        if (table->current_lock == F_WRLCK &&
+            check_table_binlog_row_based(thd, table))
+        {
+          int const has_trans= table->file->has_transactions();
+          int const error= thd->binlog_write_table_map(table, has_trans);
+          /*
+            If an error occurs, it is the responsibility of the caller to
+            roll back the transaction.
+          */
+          if (unlikely(error))
+            DBUG_RETURN(1);
+        }
+      }
+    }
+    DBUG_RETURN(0);
+  }
+
+  template<class RowsEventT> int
+  binlog_log_row(TABLE* table,
+                 const byte *before_record,
+                 const byte *after_record)
+  {
+    if (table->file->is_injective())
+      return 0;
+    bool error= 0;
+    THD *const thd= table->in_use;
+
+    if (check_table_binlog_row_based(thd, table))
+    {
+      MY_BITMAP cols;
+      /* Potential buffer on the stack for the bitmap */
+      uint32 bitbuf[BITMAP_STACKBUF_SIZE/sizeof(uint32)];
+      uint n_fields= table->s->fields;
+      my_bool use_bitbuf= n_fields <= sizeof(bitbuf)*8;
+
+      /*
+        If there are no table maps written to the binary log, this is
+        the first row handled in this statement. In that case, we need
+        to write table maps for all locked tables to the binary log.
+      */
+      if (likely(!(error= bitmap_init(&cols,
+                                      use_bitbuf ? bitbuf : NULL,
+                                      (n_fields + 7) & ~7UL,
+                                      false))))
+      {
+        bitmap_set_all(&cols);
+        if (likely(!(error= write_locked_table_maps(thd))))
+        {
+          error=
+            RowsEventT::binlog_row_logging_function(thd, table,
+                                                    table->file->has_transactions(),
+                                                    &cols, table->s->fields,
+                                                    before_record, after_record);
+        }
+        if (!use_bitbuf)
+          bitmap_free(&cols);
+      }
+    }
+    return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
+  }
+
+  /*
+    Instantiate the versions we need for the above template function,
+    because we have -fno-implicit-template as compiling option.
+  */
+
+  template int
+  binlog_log_row<Write_rows_log_event>(TABLE *, const byte *, const byte *);
+
+  template int
+  binlog_log_row<Delete_rows_log_event>(TABLE *, const byte *, const byte *);
+
+  template int
+  binlog_log_row<Update_rows_log_event>(TABLE *, const byte *, const byte *);
+}
 
 #endif /* HAVE_ROW_BASED_REPLICATION */
 
@@ -3272,41 +3365,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   int error;
   if (unlikely(error= external_lock(thd, lock_type)))
     DBUG_RETURN(error);
-#ifdef HAVE_ROW_BASED_REPLICATION
-  if (table->file->is_injective())
-    DBUG_RETURN(0);
-
-  /*
-    There is a number of statements that are logged statement-based
-    but call external lock. For these, we do not need to generate a
-    table map.
-
-    TODO: The need for this switch is an indication that the model for
-    locking combined with row-based replication needs to be looked
-    over. Ideally, no such special handling should be needed.
-   */
-  switch (thd->lex->sql_command) {
-  case SQLCOM_TRUNCATE:
-  case SQLCOM_ALTER_TABLE:
-  case SQLCOM_OPTIMIZE:
-  case SQLCOM_REPAIR:
-    DBUG_RETURN(0);
-  default:
-    break;
-  }
-
-  /*
-    If we are locking a table for writing, we generate a table map.
-    For all other kinds of locks, we don't do anything.
-   */
-  if (lock_type == F_WRLCK && check_table_binlog_row_based(thd, table))
-  {
-    int const has_trans= table->file->has_transactions();
-    error= thd->binlog_write_table_map(table, has_trans);
-    if (unlikely(error))
-      DBUG_RETURN(error);
-  }
-#endif
   DBUG_RETURN(0);
 }
 

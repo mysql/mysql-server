@@ -39,7 +39,7 @@ location (which must be appropriately aligned). The mutex is initialized
 in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed. */
 
-#define mutex_create(M)	mutex_create_func((M), __FILE__, __LINE__, #M)
+#define mutex_create(M, level) mutex_create_func((M), (level), __FILE__, __LINE__, #M)
 /*===================*/
 /**********************************************************************
 Creates, or rather, initializes a mutex object in a specified memory
@@ -51,6 +51,7 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
+	ulint		level,		/* in: level */
 	const char*	cfile_name,	/* in: file name where created */
   ulint cline,	/* in: file line where created */
   const char* cmutex_name); /* in: mutex name */
@@ -155,14 +156,6 @@ mutex_validate(
 /*===========*/
 	mutex_t*	mutex);
 /**********************************************************************
-Sets the mutex latching level field. */
-
-void
-mutex_set_level(
-/*============*/
-	mutex_t*	mutex,	/* in: mutex */
-	ulint		level);	/* in: level */
-/**********************************************************************
 Adds a latch and its level in the thread level array. Allocates the memory
 for the array if called first time for this OS thread. Makes the checks
 against other latch levels stored in the array for this thread. */
@@ -171,8 +164,8 @@ void
 sync_thread_add_level(
 /*==================*/
 	void*	latch,	/* in: pointer to a mutex or an rw-lock */
-	ulint	level);	/* in: level in the latching order; if SYNC_LEVEL_NONE,
-			nothing is done */
+	ulint	level);	/* in: level in the latching order; if
+			SYNC_LEVEL_VARYING, nothing is done */
 /**********************************************************************
 Removes a latch from the thread level array if it is found there. */
 
@@ -383,7 +376,12 @@ or row lock! */
 #define SYNC_USER_TRX_LOCK	9999
 #define SYNC_NO_ORDER_CHECK	3000	/* this can be used to suppress
 					latching order checking */
-#define	SYNC_LEVEL_NONE		2000	/* default: level not defined */
+#define	SYNC_LEVEL_VARYING	2000	/* Level is varying. Only used with
+					buffer pool page locks, which do not
+					have a fixed level, but instead have
+					their level set after the page is
+					locked; see e.g.
+					ibuf_bitmap_get_map_page(). */
 #define	SYNC_DICT_OPERATION	1001	/* table create, drop, etc. reserve
 					this in X-mode, implicit or backround
 					operations purge, rollback, foreign
@@ -426,6 +424,7 @@ or row lock! */
 #define SYNC_TRX_SYS_HEADER	290
 #define SYNC_LOG		170
 #define SYNC_RECV		168
+#define SYNC_WORK_QUEUE		161
 #define	SYNC_SEARCH_SYS		160	/* NOTE that if we have a memory
 					heap that can be extended to the
 					buffer pool, its logical level is
@@ -472,8 +471,7 @@ struct mutex_struct {
 	os_thread_id_t thread_id; /* Debug version: The thread id of the
 				thread which locked the mutex. */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint	level;		/* Level in the global latching
-				order; default SYNC_LEVEL_NONE */
+	ulint	level;		/* Level in the global latching order */
 	const char*	cfile_name;/* File name where mutex created */
 	ulint	cline;		/* Line where created */
 	ulint	magic_n;
