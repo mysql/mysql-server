@@ -427,9 +427,9 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     return;
   }
 
-  struct sockaddr addr;
+  struct sockaddr_in addr;
   SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-  int r = getpeername(m_socket, &addr, &addrlen);
+  int r = getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
   if (r != 0 ) {
     m_output->println(cmd);
     m_output->println("result: getpeername(%d) failed, err= %d", m_socket, r);
@@ -441,7 +441,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   if(tmp == 0 || !m_allocated_resources->is_reserved(tmp)){
     BaseString error_string;
     if (!m_mgmsrv.alloc_node_id(&tmp, (enum ndb_mgm_node_type)nodetype, 
-				&addr, &addrlen, error_string)){
+				(struct sockaddr*)&addr, &addrlen, error_string)){
       const char *alias;
       const char *str;
       alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)
@@ -763,9 +763,8 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
   m_mgmsrv.m_event_listner.unlock();
 
   {
-    LogLevel ll;
-    ll.setLogLevel(category,level);
-    m_mgmsrv.m_event_listner.update_max_log_level(ll);
+    LogLevel tmp;
+    m_mgmsrv.m_event_listner.update_max_log_level(tmp);
   }
 
   m_output->println(reply);
@@ -1248,21 +1247,23 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
 void
 Ndb_mgmd_event_service::update_max_log_level(const LogLevel &log_level)
 {
-  LogLevel tmp= m_logLevel;
-  tmp.set_max(log_level);
+  LogLevel tmp = log_level;
+  m_clients.lock();
+  for(int i = m_clients.size() - 1; i >= 0; i--)
+    tmp.set_max(m_clients[i].m_logLevel);
+  m_clients.unlock();
   update_log_level(tmp);
 }
 
 void
 Ndb_mgmd_event_service::update_log_level(const LogLevel &tmp)
 {
-  if(!(tmp == m_logLevel)){
-    m_logLevel = tmp;
-    EventSubscribeReq req;
-    req = tmp;
-    req.blockRef = 0;
-    m_mgmsrv->m_log_level_requests.push_back(req);
-  }
+  m_logLevel = tmp;
+  EventSubscribeReq req;
+  req = tmp;
+  // send update to all nodes
+  req.blockRef = 0;
+  m_mgmsrv->m_log_level_requests.push_back(req);
 }
 
 void
