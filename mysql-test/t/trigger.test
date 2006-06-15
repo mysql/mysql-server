@@ -1165,4 +1165,126 @@ SELECT * FROM t1 WHERE conn_id != trigger_conn_id;
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
 
+
+#
+# Bug#6951: Triggers/Traditional: SET @ result wrong
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i1 INT);
+
+SET @save_sql_mode=@@sql_mode;
+
+SET SQL_MODE='';
+
+CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW
+  SET @x = 5/0;
+
+SET SQL_MODE='traditional';
+
+CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW
+  SET @x = 5/0;
+
+SET @x=1;
+INSERT INTO t1 VALUES (@x);
+SELECT @x;
+
+SET @x=2;
+--error 1365
+UPDATE t1 SET i1 = @x;
+SELECT @x;
+
+SET SQL_MODE='';
+
+SET @x=3;
+INSERT INTO t1 VALUES (@x);
+SELECT @x;
+
+SET @x=4;
+--error 1365
+UPDATE t1 SET i1 = @x;
+SELECT @x;
+
+SET @@sql_mode=@save_sql_mode;
+
+DROP TRIGGER t1_ai;
+DROP TRIGGER t1_au;
+DROP TABLE t1;
+
+
+#
+# Test for bug #14635 Accept NEW.x as INOUT parameters to stored
+# procedures from within triggers
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+--enable_warnings
+
+CREATE TABLE t1 (i1 INT);
+
+# Check that NEW.x pseudo variable is accepted as INOUT and OUT
+# parameter to stored routine.
+INSERT INTO t1 VALUES (3);
+CREATE PROCEDURE p1(OUT i1 INT) DETERMINISTIC NO SQL SET i1 = 5;
+CREATE PROCEDURE p2(INOUT i1 INT) DETERMINISTIC NO SQL SET i1 = i1 * 7;
+delimiter //;
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+  CALL p1(NEW.i1);
+  CALL p2(NEW.i1);
+END//
+delimiter ;//
+UPDATE t1 SET i1 = 11 WHERE i1 = 3;
+DROP TRIGGER t1_bu;
+DROP PROCEDURE p2;
+DROP PROCEDURE p1;
+
+# Check that OLD.x pseudo variable is not accepted as INOUT and OUT
+# parameter to stored routine.
+INSERT INTO t1 VALUES (13);
+CREATE PROCEDURE p1(OUT i1 INT) DETERMINISTIC NO SQL SET @a = 17;
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+  CALL p1(OLD.i1);
+--error ER_SP_NOT_VAR_ARG
+UPDATE t1 SET i1 = 19 WHERE i1 = 13;
+DROP TRIGGER t1_bu;
+DROP PROCEDURE p1;
+
+INSERT INTO t1 VALUES (23);
+CREATE PROCEDURE p1(INOUT i1 INT) DETERMINISTIC NO SQL SET @a = i1 * 29;
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+  CALL p1(OLD.i1);
+--error ER_SP_NOT_VAR_ARG
+UPDATE t1 SET i1 = 31 WHERE i1 = 23;
+DROP TRIGGER t1_bu;
+DROP PROCEDURE p1;
+
+# Check that NEW.x pseudo variable is read-only in the AFTER TRIGGER.
+INSERT INTO t1 VALUES (37);
+CREATE PROCEDURE p1(OUT i1 INT) DETERMINISTIC NO SQL SET @a = 41;
+CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+--error ER_SP_NOT_VAR_ARG
+UPDATE t1 SET i1 = 43 WHERE i1 = 37;
+DROP TRIGGER t1_au;
+DROP PROCEDURE p1;
+
+INSERT INTO t1 VALUES (47);
+CREATE PROCEDURE p1(INOUT i1 INT) DETERMINISTIC NO SQL SET @a = i1 * 49;
+CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+--error ER_SP_NOT_VAR_ARG
+UPDATE t1 SET i1 = 51 WHERE i1 = 47;
+DROP TRIGGER t1_au;
+DROP PROCEDURE p1;
+
+# Post requisite.
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
 # End of 5.0 tests

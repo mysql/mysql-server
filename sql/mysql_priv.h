@@ -718,12 +718,6 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         List<create_field> &fields, List<Key> &keys,
                         bool tmp_table, uint select_field_count);
 
-TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
-			       TABLE_LIST *create_table,
-			       List<create_field> *extra_fields,
-			       List<Key> *keys,
-			       List<Item> *items,
-                               MYSQL_LOCK **lock);
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
@@ -1315,10 +1309,11 @@ extern struct st_VioSSLFd * ssl_acceptor_fd;
 
 MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
                               uint flags, bool *need_reopen);
-/* mysql_lock_tables() flags bits */
+/* mysql_lock_tables() and open_table() flags bits */
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      0x0001
 #define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
 #define MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        0x0004
+#define MYSQL_OPEN_IGNORE_LOCKED_TABLES         0x0008
 
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
@@ -1582,6 +1577,16 @@ inline int hexchar_to_int(char c)
   return -1;
 }
 
+/*
+  is_user_table()
+  return true if the table was created explicitly
+*/
+
+inline bool is_user_table(TABLE * table)
+{
+  const char *name= table->s->table_name;
+  return strncmp(name, tmp_file_prefix, tmp_file_prefix_length);
+}
 
 /*
   Some functions that are different in the embedded library and the normal

@@ -310,11 +310,13 @@ sp_prepare_func_item(THD* thd, Item **it_addr)
 */
 
 bool
-sp_eval_expr(THD *thd, Field *result_field, Item *expr_item)
+sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 {
+  Item *expr_item;
+
   DBUG_ENTER("sp_eval_expr");
 
-  if (!(expr_item= sp_prepare_func_item(thd, &expr_item)))
+  if (!(expr_item= sp_prepare_func_item(thd, expr_item_ptr)))
     DBUG_RETURN(TRUE);
 
   bool err_status= FALSE;
@@ -936,6 +938,7 @@ sp_head::execute(THD *thd)
   bool err_status= FALSE;
   uint ip= 0;
   ulong save_sql_mode;
+  bool save_abort_on_warning;
   Query_arena *old_arena;
   /* per-instruction arena */
   MEM_ROOT execute_mem_root;
@@ -996,6 +999,10 @@ sp_head::execute(THD *thd)
   thd->derived_tables= 0;
   save_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
+  save_abort_on_warning= thd->abort_on_warning;
+  thd->abort_on_warning=
+    (m_sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
+
   /*
     It is also more efficient to save/restore current thd->lex once when
     do it in each instruction
@@ -1128,6 +1135,7 @@ sp_head::execute(THD *thd)
   DBUG_ASSERT(!thd->derived_tables);
   thd->derived_tables= old_derived_tables;
   thd->variables.sql_mode= save_sql_mode;
+  thd->abort_on_warning= save_abort_on_warning;
 
   thd->stmt_arena= old_arena;
   state= EXECUTED;
@@ -1204,18 +1212,20 @@ bool
 sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                           Field *return_value_fld)
 {
-  Item_cache **param_values;
   ulonglong binlog_save_options;
   bool need_binlog_call;
-  uint params;
+  uint arg_no;
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
+  char buf[STRING_BUFFER_USUAL_SIZE];
+  String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status= FALSE;
+  MEM_ROOT call_mem_root;
+  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena backup_arena;
 
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
-
-  params = m_pcont->context_var_count();
 
   /*
     Check that the function is called with all specified arguments.
@@ -1223,111 +1233,123 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     If it is not, use my_error() to report an error, or it will not terminate
     the invoking query properly.
   */
-
-  if (argcount != params)
+  if (argcount != m_pcont->context_var_count())
   {
     /*
       Need to use my_error here, or it will not terminate the
       invoking query properly.
     */
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
-             "FUNCTION", m_qname.str, params, argcount);
+             "FUNCTION", m_qname.str, m_pcont->context_var_count(), argcount);
     DBUG_RETURN(TRUE);
   }
-
-  /* Allocate param_values to be used for dumping the call into binlog. */
-
-  if (!(param_values= (Item_cache**)thd->alloc(sizeof(Item_cache*)*argcount)))
-    DBUG_RETURN(TRUE);
-
-  // QQ Should have some error checking here? (types, etc...)
+  /*
+    Prepare arena and memroot for objects which lifetime is whole
+    duration of function call (sp_rcontext, it's tables and items,
+    sp_cursor and Item_cache holders for case expressions).
+    We can't use caller's arena/memroot for those objects because
+    in this case some fixed amount of memory will be consumed for
+    each function/trigger invocation and so statements which involve
+    lot of them will hog memory.
+    TODO: we should create sp_rcontext once per command and reuse
+    it on subsequent executions of a function/trigger.
+  */
+  init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
   if (!(nctx= new sp_rcontext(m_pcont, return_value_fld, octx)) ||
       nctx->init(thd))
   {
-    delete nctx; /* Delete nctx if it was init() that failed. */
-    DBUG_RETURN(TRUE);
+    thd->restore_active_arena(&call_arena, &backup_arena);
+    err_status= TRUE;
+    goto err_with_cleanup;
   }
+
+  /*
+    We have to switch temporarily back to callers arena/memroot.
+    Function arguments belong to the caller and so the may reference
+    memory which they will allocate during calculation long after
+    this function call will be finished (e.g. in Item::cleanup()).
+  */
+  thd->restore_active_arena(&call_arena, &backup_arena);
 
 #ifndef DBUG_OFF
   nctx->sp= this;
 #endif
 
   /* Pass arguments. */
-
+  for (arg_no= 0; arg_no < argcount; arg_no++)
   {
-    uint i;
-    
-    for (i= 0 ; i < argcount ; i++)
+    /* Arguments must be fixed in Item_func_sp::fix_fields */
+    DBUG_ASSERT(argp[arg_no]->fixed);
+
+    if ((err_status= nctx->set_variable(thd, arg_no, &(argp[arg_no]))))
+      goto err_with_cleanup;
+  }
+
+  need_binlog_call= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
+
+  /*
+    Remember the original arguments for unrolled replication of functions
+    before they are changed by execution.
+  */
+  if (need_binlog_call)
+  {
+    binlog_buf.length(0);
+    binlog_buf.append(STRING_WITH_LEN("SELECT "));
+    append_identifier(thd, &binlog_buf, m_name.str, m_name.length);
+    binlog_buf.append('(');
+    for (arg_no= 0; arg_no < argcount; arg_no++)
     {
-      if (!argp[i]->fixed && argp[i]->fix_fields(thd, &argp[i]))
-      {
-        err_status= TRUE;
-        break;
-      }
+      String str_value_holder;
+      String *str_value;
 
-      param_values[i]= Item_cache::get_cache(argp[i]->result_type());
-      param_values[i]->store(argp[i]);
+      if (arg_no)
+        binlog_buf.append(',');
 
-      if (nctx->set_variable(thd, i, param_values[i]))
-      {
-        err_status= TRUE;
-        break;
-      }
+      str_value= sp_get_item_value(nctx->get_item(arg_no),
+                                   &str_value_holder);
+
+      if (str_value)
+        binlog_buf.append(*str_value);
+      else
+        binlog_buf.append(STRING_WITH_LEN("NULL"));
     }
+    binlog_buf.append(')');
   }
-
-  if (err_status)
-  {
-    delete nctx;
-    DBUG_RETURN(TRUE);
-  }
-
   thd->spcont= nctx;
 
   binlog_save_options= thd->options;
-  need_binlog_call= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
   if (need_binlog_call)
   {
     reset_dynamic(&thd->user_var_events);
     mysql_bin_log.start_union_events(thd);
   }
-    
+
+  /*
+    Switch to call arena/mem_root so objects like sp_cursor or
+    Item_cache holders for case expressions can be allocated on it.
+
+    TODO: In future we should associate call arena/mem_root with
+          sp_rcontext and allocate all these objects (and sp_rcontext
+          itself) on it directly rather than juggle with arenas.
+  */
+  thd->set_n_backup_active_arena(&call_arena, &backup_arena);
+
   thd->options&= ~OPTION_BIN_LOG;
   err_status= execute(thd);
   thd->options= binlog_save_options;
-  
+
+  thd->restore_active_arena(&call_arena, &backup_arena);
+
   if (need_binlog_call)
     mysql_bin_log.stop_union_events(thd);
 
   if (need_binlog_call && thd->binlog_evt_union.unioned_events)
   {
-    char buf[256];
-    String bufstr(buf, sizeof(buf), &my_charset_bin);
-    bufstr.length(0);
-    bufstr.append(STRING_WITH_LEN("SELECT "));
-    append_identifier(thd, &bufstr, m_name.str, m_name.length);
-    bufstr.append('(');
-    for (uint i=0; i < argcount; i++)
-    {
-      String str_value_holder;
-      String *str_value;
-
-      if (i)
-        bufstr.append(',');
-
-      str_value= sp_get_item_value(param_values[i], &str_value_holder);
-
-      if (str_value)
-        bufstr.append(*str_value);
-      else
-        bufstr.append(STRING_WITH_LEN("NULL"));
-    }
-    bufstr.append(')');
-    
-    Query_log_event qinfo(thd, bufstr.ptr(), bufstr.length(),
+    Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
                           thd->binlog_evt_union.unioned_events_trans, FALSE);
-    if (mysql_bin_log.write(&qinfo) && 
+    if (mysql_bin_log.write(&qinfo) &&
         thd->binlog_evt_union.unioned_events_trans)
     {
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
@@ -1348,24 +1370,16 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     }
   }
 
+
   nctx->pop_all_cursors();	// To avoid memory leaks after an error
+
+err_with_cleanup:
   delete nctx;
+  call_arena.free_items();
+  free_root(&call_mem_root, MYF(0));
   thd->spcont= octx;
 
   DBUG_RETURN(err_status);
-}
-
-
-static Item_func_get_user_var *item_is_user_var(Item *it)
-{
-  if (it->type() == Item::FUNC_ITEM)
-  {
-    Item_func *fi= static_cast<Item_func*>(it);
-
-    if (fi->functype() == Item_func::GUSERVAR_FUNC)
-      return static_cast<Item_func_get_user_var*>(fi);
-  }
-  return NULL;
 }
 
 
@@ -1444,22 +1458,28 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     for (uint i= 0 ; i < params ; i++)
     {
       Item *arg_item= it_args++;
-      sp_variable_t *spvar= m_pcont->find_variable(i);
 
       if (!arg_item)
         break;
+
+      sp_variable_t *spvar= m_pcont->find_variable(i);
 
       if (!spvar)
         continue;
 
       if (spvar->mode != sp_param_in)
       {
-        if (!arg_item->is_splocal() && !item_is_user_var(arg_item))
+        Settable_routine_parameter *srp=
+          arg_item->get_settable_routine_parameter();
+
+        if (!srp)
         {
           my_error(ER_SP_NOT_VAR_ARG, MYF(0), i+1, m_qname.str);
           err_status= TRUE;
           break;
         }
+
+        srp->set_required_privilege(spvar->mode == sp_param_inout);
       }
 
       if (spvar->mode == sp_param_out)
@@ -1467,7 +1487,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
         Item_null *null_item= new Item_null();
 
         if (!null_item ||
-            nctx->set_variable(thd, i, null_item))
+            nctx->set_variable(thd, i, (struct Item **)&null_item))
         {
           err_status= TRUE;
           break;
@@ -1475,7 +1495,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       }
       else
       {
-        if (nctx->set_variable(thd, i, *it_args.ref()))
+        if (nctx->set_variable(thd, i, it_args.ref()))
         {
           err_status= TRUE;
           break;
@@ -1527,36 +1547,16 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (spvar->mode == sp_param_in)
         continue;
 
-      if (arg_item->is_splocal())
+      Settable_routine_parameter *srp=
+        arg_item->get_settable_routine_parameter();
+
+      DBUG_ASSERT(srp);
+
+      if (srp->set_value(thd, octx, nctx->get_item_addr(i)))
       {
-        if (octx->set_variable(thd,
-                               ((Item_splocal*) arg_item)->get_var_idx(),
-                               nctx->get_item(i)))
-        {
-          err_status= TRUE;
-          break;
-        }
+        err_status= TRUE;
+        break;
       }
-      else
-      {
-        Item_func_get_user_var *guv= item_is_user_var(arg_item);
-
-	if (guv)
-	{
-	  Item *item= nctx->get_item(i);
-	  Item_func_set_user_var *suv;
-
-	  suv= new Item_func_set_user_var(guv->get_name(), item);
-	  /*
-            Item_func_set_user_var is not fixed after construction,
-            call fix_fields().
-	  */
-          if ((err_status= test(!suv || suv->fix_fields(thd, &item) ||
-                                suv->check() || suv->update())))
-            break;
-	}
-      }
-
     }
   }
 
@@ -2328,7 +2328,7 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 int
 sp_instr_set::exec_core(THD *thd, uint *nextp)
 {
-  int res= thd->spcont->set_variable(thd, m_offset, m_value);
+  int res= thd->spcont->set_variable(thd, m_offset, &m_value);
 
   if (res && thd->spcont->found_handler_here())
   {
@@ -2393,12 +2393,7 @@ sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
 int
 sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 {
-  int res= 0;
-  Item *it= sp_prepare_func_item(thd, &value);
-  if (!it ||
-      !trigger_field->fixed && trigger_field->fix_fields(thd, 0) ||
-      (it->save_in_field(trigger_field->field, 0) < 0))
-    res= -1;
+  const int res= (trigger_field->set_value(thd, &value) ? -1 : 0);
   *nextp = m_ip+1;
   return res;
 }
@@ -2603,7 +2598,7 @@ sp_instr_freturn::exec_core(THD *thd, uint *nextp)
     do it in scope of execution the current context/block.
   */
 
-  return thd->spcont->set_return_value(thd, m_value);
+  return thd->spcont->set_return_value(thd, &m_value);
 }
 
 void
@@ -3047,7 +3042,7 @@ sp_instr_set_case_expr::execute(THD *thd, uint *nextp)
 int
 sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
 {
-  int res= thd->spcont->set_case_expr(thd, m_case_expr_id, m_case_expr);
+  int res= thd->spcont->set_case_expr(thd, m_case_expr_id, &m_case_expr);
 
   if (res &&
       !thd->spcont->get_case_expr(m_case_expr_id) &&
@@ -3061,7 +3056,7 @@ sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
     Item *null_item= new Item_null();
     
     if (!null_item ||
-        thd->spcont->set_case_expr(thd, m_case_expr_id, null_item))
+        thd->spcont->set_case_expr(thd, m_case_expr_id, &null_item))
     {
       /* If this also failed, we have to abort. */
 
