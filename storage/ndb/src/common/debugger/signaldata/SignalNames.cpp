@@ -624,5 +624,12 @@ const GsnName SignalNames [] = {
   ,{ GSN_LCP_PREPARE_REQ,  "LCP_PREPARE_REQ" }
   ,{ GSN_LCP_PREPARE_REF,  "LCP_PREPARE_REF" }
   ,{ GSN_LCP_PREPARE_CONF, "LCP_PREPARE_CONF" }
+
+  /* DICT LOCK */
+  ,{ GSN_DICT_LOCK_REQ,          "DICT_LOCK_REQ" }
+  ,{ GSN_DICT_LOCK_CONF,         "DICT_LOCK_CONF" }
+  ,{ GSN_DICT_LOCK_REF,          "DICT_LOCK_REF" }
+  ,{ GSN_DICT_UNLOCK_ORD,        "DICT_UNLOCK_ORD" }
+
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);
