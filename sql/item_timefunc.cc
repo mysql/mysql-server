@@ -1367,7 +1367,7 @@ void Item_func_curtime::fix_length_and_dec()
 {
   TIME ltime;
 
-  decimals=0;
+  decimals= DATETIME_DEC;
   collation.set(&my_charset_bin);
   store_now_in_TIME(&ltime);
   value= TIME_to_ulonglong_time(&ltime);
@@ -1414,7 +1414,7 @@ String *Item_func_now::val_str(String *str)
 
 void Item_func_now::fix_length_and_dec()
 {
-  decimals=0;
+  decimals= DATETIME_DEC;
   collation.set(&my_charset_bin);
 
   store_now_in_TIME(&ltime);
@@ -1761,7 +1761,7 @@ void Item_func_from_unixtime::fix_length_and_dec()
 { 
   thd= current_thd;
   collation.set(&my_charset_bin);
-  decimals=0;
+  decimals= DATETIME_DEC;
   max_length=MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   maybe_null= 1;
   thd->time_zone_used= 1;
