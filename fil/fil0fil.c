@@ -294,6 +294,65 @@ fil_get_space_id_for_table(
 				found */
 	const char*	name);	/* in: table name in the standard
 				'databasename/tablename' format */
+/************************************************************************
+Reads data from a space to a buffer. Remember that the possible incomplete
+blocks at the end of file are ignored: they are not taken into account when
+calculating the byte offset within a space. */
+UNIV_INLINE
+ulint
+fil_read(
+/*=====*/
+				/* out: DB_SUCCESS, or DB_TABLESPACE_DELETED
+				if we are trying to do i/o on a tablespace
+				which does not exist */
+	ibool	sync,		/* in: TRUE if synchronous aio is desired */
+	ulint	space_id,	/* in: space id */
+	ulint	zip_size,	/* in: compressed page size in bytes;
+				0 for uncompressed pages */
+	ulint	block_offset,	/* in: offset in number of blocks */
+	ulint	byte_offset,	/* in: remainder of offset in bytes; in aio
+				this must be divisible by the OS block size */
+	ulint	len,		/* in: how many bytes to read; this must not
+				cross a file boundary; in aio this must be a
+				block size multiple */
+	void*	buf,		/* in/out: buffer where to store data read;
+				in aio this must be appropriately aligned */
+	void*	message)	/* in: message for aio handler if non-sync
+				aio used, else ignored */
+{
+	return(fil_io(OS_FILE_READ, sync, space_id, zip_size, block_offset,
+					  byte_offset, len, buf, message));
+}
+
+/************************************************************************
+Writes data to a space from a buffer. Remember that the possible incomplete
+blocks at the end of file are ignored: they are not taken into account when
+calculating the byte offset within a space. */
+UNIV_INLINE
+ulint
+fil_write(
+/*======*/
+				/* out: DB_SUCCESS, or DB_TABLESPACE_DELETED
+				if we are trying to do i/o on a tablespace
+				which does not exist */
+	ibool	sync,		/* in: TRUE if synchronous aio is desired */
+	ulint	space_id,	/* in: space id */
+	ulint	zip_size,	/* in: compressed page size in bytes;
+				0 for uncompressed pages */
+	ulint	block_offset,	/* in: offset in number of blocks */
+	ulint	byte_offset,	/* in: remainder of offset in bytes; in aio
+				this must be divisible by the OS block size */
+	ulint	len,		/* in: how many bytes to write; this must
+				not cross a file boundary; in aio this must
+				be a block size multiple */
+	void*	buf,		/* in: buffer from which to write; in aio
+				this must be appropriately aligned */
+	void*	message)	/* in: message for aio handler if non-sync
+				aio used, else ignored */
+{
+	return(fil_io(OS_FILE_WRITE, sync, space_id, zip_size, block_offset,
+					   byte_offset, len, buf, message));
+}
 
 
 /***********************************************************************
@@ -1526,12 +1585,12 @@ fil_ibuf_init_at_db_start(void)
 
 /********************************************************************
 Writes the flushed lsn and the latest archived log number to the page header
-of the first page of a data file. */
+of the first page of a data file of the system tablespace (space 0),
+which is uncompressed. */
 static
 ulint
 fil_write_lsn_and_arch_no_to_file(
 /*==============================*/
-	ulint	space_id,	/* in: space number */
 	ulint	sum_of_sizes,	/* in: combined size of previous files in
 				space, in database pages */
 	dulint	lsn,		/* in: lsn to write */
@@ -1544,11 +1603,11 @@ fil_write_lsn_and_arch_no_to_file(
 	buf1 = mem_alloc(2 * UNIV_PAGE_SIZE);
 	buf = ut_align(buf1, UNIV_PAGE_SIZE);
 
-	fil_read(TRUE, space_id, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
+	fil_read(TRUE, 0, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
 	mach_write_to_8(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
 
-	fil_write(TRUE, space_id, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
+	fil_write(TRUE, 0, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
 	return(DB_SUCCESS);
 }
@@ -1589,7 +1648,7 @@ fil_write_flushed_lsn_to_data_files(
 				mutex_exit(&(fil_system->mutex));
 
 				err = fil_write_lsn_and_arch_no_to_file(
-						space->id, sum_of_sizes,
+						sum_of_sizes,
 						lsn, arch_log_no);
 				if (err != DB_SUCCESS) {
 
@@ -3993,6 +4052,8 @@ fil_io(
 				caution! */
 	ibool	sync,		/* in: TRUE if synchronous aio is desired */
 	ulint	space_id,	/* in: space id */
+	ulint	zip_size,	/* in: compressed page size in bytes;
+				0 for uncompressed pages */
 	ulint	block_offset,	/* in: offset in number of blocks */
 	ulint	byte_offset,	/* in: remainder of offset in bytes; in
 				aio this must be divisible by the OS block
@@ -4023,15 +4084,19 @@ fil_io(
 	type = type & ~OS_AIO_SIMULATED_WAKE_LATER;
 
 	ut_ad(byte_offset < UNIV_PAGE_SIZE);
+	ut_ad(!zip_size || !byte_offset);
+	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(buf);
 	ut_ad(len > 0);
-	ut_a((1 << UNIV_PAGE_SIZE_SHIFT) == UNIV_PAGE_SIZE);
+#if (1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE
+# error "(1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE"
+#endif
 	ut_ad(fil_validate());
 #ifndef UNIV_LOG_DEBUG
 	/* ibuf bitmap pages must be read in the sync aio mode: */
 	ut_ad(recv_no_ibuf_operations || (type == OS_FILE_WRITE)
-		|| !ibuf_bitmap_page(fil_space_get_zip_size(space_id),
-			block_offset) || sync || is_log);
+		|| !ibuf_bitmap_page(zip_size, block_offset)
+		|| sync || is_log);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!ibuf_inside() || is_log || (type == OS_FILE_WRITE)
 					|| ibuf_page(space_id, block_offset));
@@ -4121,12 +4186,30 @@ fil_io(
 
 	/* Calculate the low 32 bits and the high 32 bits of the file offset */
 
-	offset_high = (block_offset >> (32 - UNIV_PAGE_SIZE_SHIFT));
-	offset_low  = ((block_offset << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL)
-			+ byte_offset;
+	if (!zip_size) {
+		offset_high = (block_offset >> (32 - UNIV_PAGE_SIZE_SHIFT));
+		offset_low  = ((block_offset << UNIV_PAGE_SIZE_SHIFT)
+				& 0xFFFFFFFFUL) + byte_offset;
 
-	ut_a(node->size - block_offset >=
-		(byte_offset + len + (UNIV_PAGE_SIZE - 1)) / UNIV_PAGE_SIZE);
+		ut_a(node->size - block_offset
+				>= (byte_offset + len + (UNIV_PAGE_SIZE - 1))
+				/ UNIV_PAGE_SIZE);
+	} else {
+		ulint	zip_size_shift;
+		switch (zip_size) {
+		case 1024: zip_size_shift = 10; break;
+		case 2048: zip_size_shift = 11; break;
+		case 4096: zip_size_shift = 12; break;
+		case 8192: zip_size_shift = 13; break;
+		case 16384: zip_size_shift = 14; break;
+		default: ut_error;
+		}
+		offset_high = block_offset >> (32 - zip_size_shift);
+		offset_low = (block_offset << zip_size_shift & 0xFFFFFFFFUL)
+				+ byte_offset;
+		ut_a(node->size - block_offset
+				>= (len + (zip_size - 1)) / zip_size);
+	}
 
 	/* Do aio */
 
@@ -4163,62 +4246,6 @@ fil_io(
 	}
 
 	return(DB_SUCCESS);
-}
-
-/************************************************************************
-Reads data from a space to a buffer. Remember that the possible incomplete
-blocks at the end of file are ignored: they are not taken into account when
-calculating the byte offset within a space. */
-
-ulint
-fil_read(
-/*=====*/
-				/* out: DB_SUCCESS, or DB_TABLESPACE_DELETED
-				if we are trying to do i/o on a tablespace
-				which does not exist */
-	ibool	sync,		/* in: TRUE if synchronous aio is desired */
-	ulint	space_id,	/* in: space id */
-	ulint	block_offset,	/* in: offset in number of blocks */
-	ulint	byte_offset,	/* in: remainder of offset in bytes; in aio
-				this must be divisible by the OS block size */
-	ulint	len,		/* in: how many bytes to read; this must not
-				cross a file boundary; in aio this must be a
-				block size multiple */
-	void*	buf,		/* in/out: buffer where to store data read;
-				in aio this must be appropriately aligned */
-	void*	message)	/* in: message for aio handler if non-sync
-				aio used, else ignored */
-{
-	return(fil_io(OS_FILE_READ, sync, space_id, block_offset,
-					  byte_offset, len, buf, message));
-}
-
-/************************************************************************
-Writes data to a space from a buffer. Remember that the possible incomplete
-blocks at the end of file are ignored: they are not taken into account when
-calculating the byte offset within a space. */
-
-ulint
-fil_write(
-/*======*/
-				/* out: DB_SUCCESS, or DB_TABLESPACE_DELETED
-				if we are trying to do i/o on a tablespace
-				which does not exist */
-	ibool	sync,		/* in: TRUE if synchronous aio is desired */
-	ulint	space_id,	/* in: space id */
-	ulint	block_offset,	/* in: offset in number of blocks */
-	ulint	byte_offset,	/* in: remainder of offset in bytes; in aio
-				this must be divisible by the OS block size */
-	ulint	len,		/* in: how many bytes to write; this must
-				not cross a file boundary; in aio this must
-				be a block size multiple */
-	void*	buf,		/* in: buffer from which to write; in aio
-				this must be appropriately aligned */
-	void*	message)	/* in: message for aio handler if non-sync
-				aio used, else ignored */
-{
-	return(fil_io(OS_FILE_WRITE, sync, space_id, block_offset,
-					   byte_offset, len, buf, message));
 }
 
 /**************************************************************************

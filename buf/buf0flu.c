@@ -305,7 +305,7 @@ corrupted_page:
 	write_buf = trx_doublewrite->write_buf;
 	i = 0;
 
-	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE,
+	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
 			trx_doublewrite->block1, 0, len,
 			(void*) write_buf, NULL);
 
@@ -335,7 +335,7 @@ corrupted_page:
 			+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
 	ut_ad(i == TRX_SYS_DOUBLEWRITE_BLOCK_SIZE);
 
-	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE,
+	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
 			trx_doublewrite->block2, 0, len,
 			(void*) write_buf, NULL);
 
@@ -367,14 +367,10 @@ flush:
 		block = trx_doublewrite->buf_block_arr[i];
 		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 		if (UNIV_UNLIKELY(block->page_zip.size)) {
-			ulint	blk_size
-				= UNIV_PAGE_SIZE / block->page_zip.size;
-
 			fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 					FALSE, block->space,
-					block->offset / blk_size,
-					(block->offset % blk_size)
-					* block->page_zip.size,
+					block->page_zip.size,
+					block->offset, 0,
 					block->page_zip.size,
 					(void*)block->page_zip.data,
 					(void*)block);
@@ -395,8 +391,9 @@ flush:
 		}
 
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-			FALSE, block->space, block->offset, 0, UNIV_PAGE_SIZE,
-					(void*)block->frame, (void*)block);
+				FALSE, block->space, 0,
+				block->offset, 0, UNIV_PAGE_SIZE,
+				(void*)block->frame, (void*)block);
 	}
 
 	/* Wake possible simulated aio thread to actually post the
@@ -605,8 +602,10 @@ buf_flush_write_block_low(
 			block->space, block->offset);
 	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-			FALSE, block->space, block->offset, 0, UNIV_PAGE_SIZE,
-					(void*)block->frame, (void*)block);
+				FALSE, block->space, block->page_zip.size,
+				block->offset, 0, block->page_zip.size
+				? block->page_zip.size : UNIV_PAGE_SIZE,
+				(void*)block->frame, (void*)block);
 	} else {
 		buf_flush_post_to_doublewrite_buf(block);
 	}
