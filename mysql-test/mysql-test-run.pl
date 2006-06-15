@@ -1687,6 +1687,7 @@ sub ndbcluster_wait_started($){
 }
 
 
+
 sub mysqld_wait_started($){
   my $mysqld= shift;
 
@@ -1706,6 +1707,7 @@ sub ndb_mgmd_start ($) {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--core");
+  mtr_add_arg($args, "--nodaemon");
   mtr_add_arg($args, "--config-file=%s", "$cluster->{'data_dir'}/config.ini");
 
 
@@ -1716,9 +1718,23 @@ sub ndb_mgmd_start ($) {
 		  "",
 		  { append_log_file => 1 });
 
+
+  # FIXME Should not be needed
+  # Unfortunately the cluster nodes will fail to start
+  # if ndb_mgmd has not started properly
+  sleep(1);
+
+ # if (!sleep_until_file_created($cluster->{'path_pid'},
+ #				30, # Seconds
+ #				$pid))
+ #  {
+ #    mtr_warning("Failed to start ndb_mgd for $cluster->{'name'} cluster");
+ #    return 1;
+ #  }
+
   # Remember pid of ndb_mgmd
   $cluster->{'pid'}= $pid;
-  mtr_verbose("ndb_mgmd_start, pid: $pid");
+
   return $pid;
 }
 
@@ -1773,19 +1789,6 @@ sub ndbcluster_start ($$) {
   }
 
   my $pid= ndb_mgmd_start($cluster);
-
-  # FIXME Should not be needed
-  # Unfortunately cluster will fail
-  # if ndb_mgmd has not started properly
-  # Wait for the ndb_mgmd pid file to be created
-  if (!sleep_until_file_created($cluster->{'path_pid'},
-				60,
-				$pid))
-  {
-    mtr_warning("Failed to start ndb_mgmd for $cluster->{'name'} cluster");
-    return 1;
-  }
-
 
   for ( my $idx= 0; $idx < $cluster->{'nodes'}; $idx++ )
   {
