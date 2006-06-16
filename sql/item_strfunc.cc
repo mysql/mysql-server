@@ -288,11 +288,13 @@ String *Item_func_concat::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String *res,*res2,*use_as_buff;
   uint i;
+  bool is_const= 0;
 
   null_value=0;
   if (!(res=args[0]->val_str(str)))
     goto null;
   use_as_buff= &tmp_value;
+  is_const= args[0]->const_item();
   for (i=1 ; i < arg_count ; i++)
   {
     if (res->length() == 0)
@@ -315,7 +317,7 @@ String *Item_func_concat::val_str(String *str)
 			    current_thd->variables.max_allowed_packet);
 	goto null;
       }
-      if (res->alloced_length() >= res->length()+res2->length())
+      if (!is_const && res->alloced_length() >= res->length()+res2->length())
       {						// Use old buffer
 	res->append(*res2);
       }
@@ -370,6 +372,7 @@ String *Item_func_concat::val_str(String *str)
 	res= &tmp_value;
 	use_as_buff=str;
       }
+      is_const= 0;
     }
   }
   res->set_charset(collation.collation);
@@ -389,7 +392,14 @@ void Item_func_concat::fix_length_and_dec()
     return;
 
   for (uint i=0 ; i < arg_count ; i++)
-    max_result_length+= args[i]->max_length;
+  {
+    if (args[i]->collation.collation->mbmaxlen != collation.collation->mbmaxlen)
+      max_result_length+= (args[i]->max_length /
+                           args[i]->collation.collation->mbmaxlen) *
+                           collation.collation->mbmaxlen;
+    else
+      max_result_length+= args[i]->max_length;
+  }
 
   if (max_result_length >= MAX_BLOB_WIDTH)
   {
