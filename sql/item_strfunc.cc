@@ -118,7 +118,15 @@ String *Item_func_md5::val_str(String *str)
 
 void Item_func_md5::fix_length_and_dec()
 {
-   max_length=32;
+  max_length=32;
+  /*
+    The MD5() function treats its parameter as being a case sensitive. Thus
+    we set binary collation on it so different instances of MD5() will be
+    compared properly.
+  */
+  args[0]->collation.set(
+      get_charset_by_csname(args[0]->collation.collation->csname,
+                            MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
 }
 
 
@@ -159,7 +167,15 @@ String *Item_func_sha::val_str(String *str)
 
 void Item_func_sha::fix_length_and_dec()
 {
-   max_length=SHA1_HASH_SIZE*2; // size of hex representation of hash
+  max_length=SHA1_HASH_SIZE*2; // size of hex representation of hash
+  /*
+    The SHA() function treats its parameter as being a case sensitive. Thus
+    we set binary collation on it so different instances of MD5() will be
+    compared properly.
+  */
+  args[0]->collation.set(
+      get_charset_by_csname(args[0]->collation.collation->csname,
+                            MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
 }
 
 
@@ -252,11 +268,14 @@ String *Item_func_concat::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String *res,*res2,*use_as_buff;
   uint i;
+  bool is_const= 0;
 
   null_value=0;
   if (!(res=args[0]->val_str(str)))
     goto null;
   use_as_buff= &tmp_value;
+  /* Item_subselect in --ps-protocol mode will state it as a non-const */
+  is_const= args[0]->const_item() || !args[0]->used_tables();
   for (i=1 ; i < arg_count ; i++)
   {
     if (res->length() == 0)
@@ -279,7 +298,7 @@ String *Item_func_concat::val_str(String *str)
 			    current_thd->variables.max_allowed_packet);
 	goto null;
       }
-      if (res->alloced_length() >= res->length()+res2->length())
+      if (!is_const && res->alloced_length() >= res->length()+res2->length())
       {						// Use old buffer
 	res->append(*res2);
       }
@@ -334,6 +353,7 @@ String *Item_func_concat::val_str(String *str)
 	res= &tmp_value;
 	use_as_buff=str;
       }
+      is_const= 0;
     }
   }
   res->set_charset(collation.collation);
