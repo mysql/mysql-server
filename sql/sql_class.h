@@ -1051,12 +1051,13 @@ class Sub_statement_state
 {
 public:
   ulonglong options;
-  ulonglong last_insert_id, next_insert_id;
+  ulonglong last_insert_id, next_insert_id, current_insert_id;
   ulonglong limit_found_rows;
   ha_rows    cuted_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
   uint in_sub_stmt;
   bool enable_slow_log, insert_id_used, clear_next_insert_id;
+  bool last_insert_id_used;
   my_bool no_send_ok;
   SAVEPOINT *savepoints;
 };
