@@ -794,6 +794,14 @@ public:
   {
     return 0;
   }
+  /*
+    result_as_longlong() must return TRUE for Items representing DATE/TIME
+    functions and DATE/TIME table fields.
+    Those Items have result_type()==STRING_RESULT (and not INT_RESULT), but
+    their values should be compared as integers (because the integer
+    representation is more precise than the string one).
+  */
+  virtual bool result_as_longlong() { return FALSE; }
 };
 
 
@@ -1219,6 +1227,10 @@ public:
     return 0;
   }
   void cleanup();
+  bool result_as_longlong()
+  {
+    return field->can_be_compared_as_longlong();
+  }
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   Item *equal_fields_propagator(byte *arg);
   Item *set_no_const_sub(byte *arg);
@@ -1827,6 +1839,10 @@ public:
   bool walk(Item_processor processor, byte *arg)
   { return (*ref)->walk(processor, arg); }
   void print(String *str);
+  bool result_as_longlong()
+  {
+    return (*ref)->result_as_longlong();
+  }
   void cleanup();
   Item_field *filed_for_view_update()
     { return (*ref)->filed_for_view_update(); }

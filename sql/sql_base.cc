@@ -4184,10 +4184,6 @@ static bool setup_natural_join_row_types(THD *thd,
   if (from_clause->elements == 0)
     return FALSE; /* We come here in the case of UNIONs. */
 
-  /* For stored procedures do not redo work if already done. */
-  if (!context->select_lex->first_execution)
-    return FALSE;
-
   List_iterator_fast<TABLE_LIST> table_ref_it(*from_clause);
   TABLE_LIST *table_ref; /* Current table reference. */
   /* Table reference to the left of the current. */
@@ -4200,14 +4196,18 @@ static bool setup_natural_join_row_types(THD *thd,
   {
     table_ref= left_neighbor;
     left_neighbor= table_ref_it++;
-    if (store_top_level_join_columns(thd, table_ref,
-                                     left_neighbor, right_neighbor))
-      return TRUE;
-    if (left_neighbor)
+    /* For stored procedures do not redo work if already done. */
+    if (context->select_lex->first_execution)
     {
-      TABLE_LIST *first_leaf_on_the_right;
-      first_leaf_on_the_right= table_ref->first_leaf_for_name_resolution();
-      left_neighbor->next_name_resolution_table= first_leaf_on_the_right;
+      if (store_top_level_join_columns(thd, table_ref,
+                                       left_neighbor, right_neighbor))
+        return TRUE;
+      if (left_neighbor)
+      {
+        TABLE_LIST *first_leaf_on_the_right;
+        first_leaf_on_the_right= table_ref->first_leaf_for_name_resolution();
+        left_neighbor->next_name_resolution_table= first_leaf_on_the_right;
+      }
     }
     right_neighbor= table_ref;
   }
