@@ -68,6 +68,7 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
 
   SYNOPSIS:
     agg_cmp_type()
+    thd          thread handle
     type   [out] the aggregated type
     items        array of items to aggregate the type from
     nitems       number of items in the array
@@ -82,36 +83,133 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
     If all items are constants the type will be aggregated from all items.
     If there are some non-constant items then only types of non-constant
     items will be used for aggregation.
+    If there are DATE/TIME fields/functions in the list and no string
+    fields/functions in the list then:
+      The INT_RESULT type will be used for aggregation instead of orginal
+      result type of any DATE/TIME field/function in the list
+      All constant items in the list will be converted to a DATE/TIME using
+      found field or result field of found function.
+
+    Implementation notes:
+      The code is equvalent to:
+      1. Check the list for presense of a STRING field/function.
+         Collect the is_const flag.
+      2. Get a Field* object to use for type coercion
+      3. Perform type conversion.
+      1 and 2 are implemented in 2 loops. The first searches for a DATE/TIME
+      field/function and checks presense of a STRING field/function.
+      The second loop works only if a DATE/TIME field/function is found.
+      It checks presense of a STRING field/function in the rest of the list.
+
+  TODO
+    1) The current implementation can produce false comparison results for
+    expressions like:
+      date_time_field BETWEEN string_field_with_dates AND string_constant
+    if the string_constant will omit some of leading zeroes.
+    In order to fully implement correct comparison of DATE/TIME the new
+    DATETIME_RESULT result type should be introduced and agg_cmp_type()
+    should return the DATE/TIME field used for the conversion. Later
+    this field can be used by comparison functions like Item_func_between to
+    convert string values to ints on the fly and thus return correct results.
+    This modification will affect functions BETWEEN, IN and CASE.
+
+    2) If in the list a DATE field/function and a DATETIME field/function
+    are present in the list then the first found field/function will be
+    used for conversion. This may lead to wrong results and probably should
+    be fixed.
 */
 
 static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
 {
   uint i;
+  Item::Type res;
+  char *buff= NULL;
+  uchar null_byte;
   Field *field= NULL;
 
-  /* If the first argument is a FIELD_ITEM, pull out the field. */
-  if (items[0]->real_item()->type() == Item::FIELD_ITEM)
-    field=((Item_field *)(items[0]->real_item()))->field;
-  /* But if it can't be compared as a longlong, we don't really care. */
-  if (field && !field->can_be_compared_as_longlong())
-    field= NULL;
-
-  type[0]= items[0]->result_type();
+  /* Search for date/time fields/functions */
+  for (i= 0; i < nitems; i++)
+  {
+    if (!items[i]->result_as_longlong())
+    {
+      /* Do not convert anything if a string field/function is present */
+      if (!items[i]->const_item() && items[i]->result_type() == STRING_RESULT)
+      {
+        i= nitems;
+        break;
+      }
+      continue;
+    }
+    if ((res= items[i]->real_item()->type()) == Item::FIELD_ITEM)
+    {
+      field= ((Item_field *)items[i]->real_item())->field;
+      break;
+    }
+    else if (res == Item::FUNC_ITEM)
+    {
+      field= items[i]->tmp_table_field_from_field_type(0);
+      if (field)
+        buff= alloc_root(thd->mem_root, field->max_length());
+      if (!buff || !field)
+      {
+        if (field)
+          delete field;
+        if (buff)
+          my_free(buff, MYF(MY_WME));
+        field= 0;
+      }
+      else
+        field->move_field(buff, &null_byte, 0);
+      break;
+    }
+  }
+  if (field)
+  {
+    /* Check the rest of the list for presense of a string field/function. */
+    for (i++ ; i < nitems; i++)
+    {
+      if (!items[i]->const_item() && items[i]->result_type() == STRING_RESULT &&
+          !items[i]->result_as_longlong())
+      {
+        field= 0;
+        break;
+      }
+    }
+  }
   /* Reset to 0 on first occurence of non-const item. 1 otherwise */
   bool is_const= items[0]->const_item();
+  /*
+    If the first item is a date/time function then its result should be
+    compared as int
+  */
+  if (field)
+  {
+    /* Suppose we are comparing dates and some non-constant items are present. */
+    type[0]= INT_RESULT;
+    is_const= 0;
+  }
+  else
+    type[0]= items[0]->result_type();
 
-  for (i= 1 ; i < nitems ; i++)
+  for (i= 0; i < nitems ; i++)
   {
     if (!items[i]->const_item())
     {
-      type[0]= is_const ? items[i]->result_type() :
-                 item_cmp_type(type[0], items[i]->result_type());
+      Item_result result= field && items[i]->result_as_longlong() ?
+                            INT_RESULT : items[i]->result_type();
+      type[0]= is_const ? result : item_cmp_type(type[0], result);
       is_const= 0;
     }
     else if (is_const)
       type[0]= item_cmp_type(type[0], items[i]->result_type());
-    else if (field && convert_constant_item(thd, field, &items[i]))
-      type[0]= INT_RESULT;
+    else if (field)
+      convert_constant_item(thd, field, &items[i]);
+  }
+
+  if (res == Item::FUNC_ITEM && field)
+  {
+    delete field;
+    my_free(buff, MYF(MY_WME));
   }
 }
 
@@ -268,18 +366,18 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
   if (!(*item)->with_subselect && (*item)->const_item())
   {
     /* For comparison purposes allow invalid dates like 2000-01-32 */
-    ulong orig_sql_mode= field->table->in_use->variables.sql_mode;
-    field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
+    ulong orig_sql_mode= thd->variables.sql_mode;
+    thd->variables.sql_mode|= MODE_INVALID_DATES;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
       Item *tmp=new Item_int_with_ref(field->val_int(), *item,
                                       test(field->flags & UNSIGNED_FLAG));
-      field->table->in_use->variables.sql_mode= orig_sql_mode;
+      thd->variables.sql_mode= orig_sql_mode;
       if (tmp)
         thd->change_item_tree(item, tmp);
       return 1;					// Item was replaced
     }
-    field->table->in_use->variables.sql_mode= orig_sql_mode;
+    thd->variables.sql_mode= orig_sql_mode;
   }
   return 0;
 }
@@ -1129,9 +1227,8 @@ void Item_func_between::fix_length_and_dec()
     return;
   agg_cmp_type(thd, &cmp_type, args, 3);
 
-  if (cmp_type == STRING_RESULT &&
-      agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV))
-    return;
+  if (cmp_type == STRING_RESULT)
+      agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV);
 }
 
 
