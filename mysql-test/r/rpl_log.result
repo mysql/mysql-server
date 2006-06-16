@@ -107,11 +107,11 @@ reset master;
 set insert_id=5;
 insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
 show binlog events;
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-slave-bin.000001	4	Start	2	4	Server ver: VERSION, Binlog ver: 3
-slave-bin.000001	79	Intvar	2	79	LAST_INSERT_ID=1
-slave-bin.000001	107	Intvar	2	107	INSERT_ID=5
-slave-bin.000001	135	Query	2	135	use `test`; insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id())
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	4	Format_desc	2	98	Server ver: VERSION, Binlog ver: 4
+slave-bin.000001	98	Intvar	2	126	LAST_INSERT_ID=1
+slave-bin.000001	126	Intvar	2	154	INSERT_ID=5
+slave-bin.000001	154	Query	2	289	use `test`; insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id())
 select * from t1;
 a	b
 1	1
