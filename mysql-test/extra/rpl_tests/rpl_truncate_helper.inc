@@ -37,5 +37,5 @@ SELECT * FROM t1;
 connection master;
 DROP TABLE t1;
 --replace_result $SERVER_VERSION SERVER_VERSION
---replace_regex /table_id: [0-9]+/table_id: #/
+--replace_regex /\/\* xid=[0-9]+ \*\//\/* xid= *\// /table_id: [0-9]+/table_id: #/
 SHOW BINLOG EVENTS;
