@@ -620,3 +620,32 @@ ERROR HY000: There is no 'no-such-user'@'localhost' registered
 DROP VIEW v;
 DROP TABLE t1;
 USE test;
+CREATE USER mysqltest_db1@localhost identified by 'PWD';
+GRANT ALL ON mysqltest_db1.* TO mysqltest_db1@localhost WITH GRANT OPTION;
+CREATE SCHEMA mysqltest_db1 ;
+USE mysqltest_db1 ;
+CREATE TABLE t1 (f1 INTEGER);
+CREATE VIEW view1 AS
+SELECT * FROM t1;
+SHOW CREATE VIEW view1;
+View	Create View
+view1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqltest_db1`@`localhost` SQL SECURITY DEFINER VIEW `view1` AS select `t1`.`f1` AS `f1` from `t1`
+CREATE VIEW view2 AS
+SELECT * FROM view1;
+# Here comes a suspicious warning
+SHOW CREATE VIEW view2;
+View	Create View
+view2	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqltest_db1`@`localhost` SQL SECURITY DEFINER VIEW `view2` AS select `view1`.`f1` AS `f1` from `view1`
+# But the view view2 is usable
+SELECT * FROM view2;
+f1
+CREATE VIEW view3 AS
+SELECT * FROM view2;
+SELECT * from view3;
+f1
+DROP VIEW mysqltest_db1.view3;
+DROP VIEW mysqltest_db1.view2;
+DROP VIEW mysqltest_db1.view1;
+DROP TABLE mysqltest_db1.t1;
+DROP SCHEMA mysqltest_db1;
+DROP USER mysqltest_db1@localhost;

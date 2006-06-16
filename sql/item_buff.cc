@@ -132,7 +132,7 @@ bool Cached_item_decimal::cmp()
 {
   my_decimal tmp;
   my_decimal *ptmp= item->val_decimal(&tmp);
-  if (null_value != item->null_value || my_decimal_cmp(&value, ptmp) == 0)
+  if (null_value != item->null_value || my_decimal_cmp(&value, ptmp))
   {
     null_value= item->null_value;
     my_decimal2decimal(ptmp, &value);
