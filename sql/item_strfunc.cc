@@ -274,7 +274,8 @@ String *Item_func_concat::val_str(String *str)
   if (!(res=args[0]->val_str(str)))
     goto null;
   use_as_buff= &tmp_value;
-  is_const= args[0]->const_item();
+  /* Item_subselect in --ps-protocol mode will state it as a non-const */
+  is_const= args[0]->const_item() || !args[0]->used_tables();
   for (i=1 ; i < arg_count ; i++)
   {
     if (res->length() == 0)
