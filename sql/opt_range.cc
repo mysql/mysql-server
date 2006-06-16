@@ -64,7 +64,7 @@ public:
 	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag);
   SEL_ARG(enum Type type_arg)
     :elements(1),use_count(1),left(0),next_key_part(0),color(BLACK),
-     type(type_arg)
+     type(type_arg),min_flag(0)
   {}
   inline bool is_same(SEL_ARG *arg)
   {
