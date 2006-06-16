@@ -5009,6 +5009,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   old_db_type= table->s->db_type;
   if (!create_info->db_type)
   {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     if (table->part_info &&
         create_info->used_fields & HA_CREATE_USED_ENGINE)
     {
@@ -5022,6 +5023,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       create_info->db_type= table->part_info->default_engine_type;
     }
     else
+#endif
       create_info->db_type= old_db_type;
   }
 
