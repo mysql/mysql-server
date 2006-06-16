@@ -317,7 +317,7 @@ byte *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, uint *length,
                             my_bool not_used __attribute__((unused)))
 {
   *length= sizeof(thd_ndb_share->key);
-  return (byte*) thd_ndb_share->key;
+  return (byte*) &thd_ndb_share->key;
 }
 
 Thd_ndb::Thd_ndb()
@@ -371,9 +371,9 @@ Thd_ndb::get_open_table(THD *thd, const void *key)
   DBUG_ENTER("Thd_ndb::get_open_table");
   HASH_SEARCH_STATE state;
   THD_NDB_SHARE *thd_ndb_share=
-    (THD_NDB_SHARE*)hash_first(&open_tables, (byte *)key, sizeof(key), &state);
+    (THD_NDB_SHARE*)hash_first(&open_tables, (byte *)&key, sizeof(key), &state);
   while (thd_ndb_share && thd_ndb_share->key != key)
-    thd_ndb_share= (THD_NDB_SHARE*)hash_next(&open_tables, (byte *)key, sizeof(key), &state);
+    thd_ndb_share= (THD_NDB_SHARE*)hash_next(&open_tables, (byte *)&key, sizeof(key), &state);
   if (thd_ndb_share == 0)
   {
     thd_ndb_share= (THD_NDB_SHARE *) alloc_root(&thd->transaction.mem_root,
