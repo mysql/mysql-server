@@ -85,21 +85,21 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
     items will be used for aggregation.
     If there are DATE/TIME fields/functions in the list and no string
     fields/functions in the list then:
-      The INT_RESULT type will be used for aggregation instead of orginal
+      The INT_RESULT type will be used for aggregation instead of original
       result type of any DATE/TIME field/function in the list
       All constant items in the list will be converted to a DATE/TIME using
       found field or result field of found function.
 
     Implementation notes:
-      The code is equvalent to:
-      1. Check the list for presense of a STRING field/function.
+      The code is equivalent to:
+      1. Check the list for presence of a STRING field/function.
          Collect the is_const flag.
       2. Get a Field* object to use for type coercion
       3. Perform type conversion.
       1 and 2 are implemented in 2 loops. The first searches for a DATE/TIME
-      field/function and checks presense of a STRING field/function.
+      field/function and checks presence of a STRING field/function.
       The second loop works only if a DATE/TIME field/function is found.
-      It checks presense of a STRING field/function in the rest of the list.
+      It checks presence of a STRING field/function in the rest of the list.
 
   TODO
     1) The current implementation can produce false comparison results for
@@ -122,8 +122,9 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
 static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
 {
   uint i;
-  Item::Type res;
-  char *buff= NULL;
+  Item::Type res= (Item::Type)0;
+  /* Used only for date/time fields, max_length = 19 */
+  char buff[20];
   uchar null_byte;
   Field *field= NULL;
 
@@ -149,28 +150,20 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
     {
       field= items[i]->tmp_table_field_from_field_type(0);
       if (field)
-        buff= alloc_root(thd->mem_root, field->max_length());
-      if (!buff || !field)
-      {
-        if (field)
-          delete field;
-        if (buff)
-          my_free(buff, MYF(MY_WME));
-        field= 0;
-      }
-      else
         field->move_field(buff, &null_byte, 0);
       break;
     }
   }
   if (field)
   {
-    /* Check the rest of the list for presense of a string field/function. */
+    /* Check the rest of the list for presence of a string field/function. */
     for (i++ ; i < nitems; i++)
     {
       if (!items[i]->const_item() && items[i]->result_type() == STRING_RESULT &&
           !items[i]->result_as_longlong())
       {
+        if (res == Item::FUNC_ITEM)
+          delete field;
         field= 0;
         break;
       }
@@ -207,10 +200,7 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
   }
 
   if (res == Item::FUNC_ITEM && field)
-  {
     delete field;
-    my_free(buff, MYF(MY_WME));
-  }
 }
 
 
