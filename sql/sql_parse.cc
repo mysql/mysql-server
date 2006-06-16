@@ -5201,7 +5201,14 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
   if (all_tables->security_ctx)
     thd->security_ctx= all_tables->security_ctx;
 
-  if (check_access(thd, privilege, all_tables->db,
+  const char *db_name;
+  if ((all_tables->view || all_tables->field_translation) &&
+      !all_tables->schema_table)
+    db_name= all_tables->view_db.str;
+  else
+    db_name= all_tables->db;
+
+  if (check_access(thd, privilege, db_name,
 		   &all_tables->grant.privilege, 0, 0,
                    test(all_tables->schema_table)))
     goto deny;

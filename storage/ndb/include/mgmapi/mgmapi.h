@@ -700,6 +700,28 @@ extern "C" {
 		    const int * node_list, int abort);
 
   /**
+   * Stops cluster nodes
+   *
+   * @param   handle        Management handle.
+   * @param   no_of_nodes   Number of database nodes to stop<br>
+   *                         -1: All database and management nodes<br>
+   *                          0: All database nodes in cluster<br>
+   *                          n: Stop the <var>n</var> node(s) specified in
+   *                            the array node_list
+   * @param   node_list     List of node IDs of database nodes to be stopped
+   * @param   abort         Don't perform graceful stop,
+   *                        but rather stop immediately
+   * @param   disconnect    Returns true if you need to disconnect to apply
+   *                        the stop command (e.g. stopping the mgm server
+   *                        that handle is connected to)
+   *
+   * @return                Number of nodes stopped (-1 on error).
+   */
+  int ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes,
+		    const int * node_list, int abort, int *disconnect);
+
+
+  /**
    * Restart database nodes
    *
    * @param   handle        Management handle.
@@ -737,6 +759,31 @@ extern "C" {
   int ndb_mgm_restart2(NdbMgmHandle handle, int no_of_nodes,
 		       const int * node_list, int initial,
 		       int nostart, int abort);
+
+  /**
+   * Restart nodes
+   *
+   * @param   handle        Management handle.
+   * @param   no_of_nodes   Number of database nodes to be restarted:<br>
+   *                          0: Restart all database nodes in the cluster<br>
+   *                          n: Restart the <var>n</var> node(s) specified in the
+   *                            array node_list
+   * @param   node_list     List of node IDs of database nodes to be restarted
+   * @param   initial       Remove filesystem from restarting node(s)
+   * @param   nostart       Don't actually start node(s) but leave them
+   *                        waiting for start command
+   * @param   abort         Don't perform graceful restart,
+   *                        but rather restart immediately
+   * @param   disconnect    Returns true if mgmapi client must disconnect from
+   *                        server to apply the requested operation. (e.g.
+   *                        restart the management server)
+   *
+   *
+   * @return                Number of nodes stopped (-1 on error).
+   */
+  int ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes,
+		       const int * node_list, int initial,
+		       int nostart, int abort, int *disconnect);
 
   /**
    * Start database nodes
@@ -1017,6 +1064,16 @@ extern "C" {
    * Get the node id of the mgm server we're connected to
    */
   Uint32 ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle);
+
+  /**
+   * Get the version of the mgm server we're talking to.
+   * Designed to allow switching of protocol depending on version
+   * so that new clients can speak to old servers in a compat mode
+   */
+  int ndb_mgm_get_version(NdbMgmHandle handle,
+                          int *major, int *minor, int* build,
+                          int len, char* str);
+
 
   /**
    * Config iterator
