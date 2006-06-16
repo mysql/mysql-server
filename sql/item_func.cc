@@ -416,7 +416,7 @@ String *Item_real_func::val_str(String *str)
   double nr= val_real();
   if (null_value)
     return 0; /* purecov: inspected */
-  str->set(nr,decimals, &my_charset_bin);
+  str->set_real(nr,decimals, &my_charset_bin);
   return str;
 }
 
@@ -556,7 +556,7 @@ String *Item_int_func::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  str->set(nr, unsigned_flag, &my_charset_bin);
+  str->set_int(nr, unsigned_flag, &my_charset_bin);
   return str;
 }
 
@@ -698,7 +698,7 @@ String *Item_func_numhybrid::val_str(String *str)
     longlong nr= int_op();
     if (null_value)
       return 0; /* purecov: inspected */
-    str->set(nr, unsigned_flag, &my_charset_bin);
+    str->set_int(nr, unsigned_flag, &my_charset_bin);
     break;
   }
   case REAL_RESULT:
@@ -706,7 +706,7 @@ String *Item_func_numhybrid::val_str(String *str)
     double nr= real_op();
     if (null_value)
       return 0; /* purecov: inspected */
-    str->set(nr,decimals,&my_charset_bin);
+    str->set_real(nr,decimals,&my_charset_bin);
     break;
   }
   case STRING_RESULT:
@@ -2052,7 +2052,7 @@ String *Item_func_min_max::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0;
-    str->set(nr, unsigned_flag, &my_charset_bin);
+    str->set_int(nr, unsigned_flag, &my_charset_bin);
     return str;
   }
   case DECIMAL_RESULT:
@@ -2068,7 +2068,7 @@ String *Item_func_min_max::val_str(String *str)
     double nr= val_real();
     if (null_value)
       return 0; /* purecov: inspected */
-    str->set(nr,decimals,&my_charset_bin);
+    str->set_real(nr,decimals,&my_charset_bin);
     return str;
   }
   case STRING_RESULT:
@@ -2819,7 +2819,7 @@ String *Item_func_udf_float::val_str(String *str)
   double nr= val_real();
   if (null_value)
     return 0;					/* purecov: inspected */
-  str->set(nr,decimals,&my_charset_bin);
+  str->set_real(nr,decimals,&my_charset_bin);
   return str;
 }
 
@@ -2838,7 +2838,7 @@ String *Item_func_udf_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  str->set(nr, unsigned_flag, &my_charset_bin);
+  str->set_int(nr, unsigned_flag, &my_charset_bin);
   return str;
 }
 
@@ -3638,7 +3638,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 
   switch (type) {
   case REAL_RESULT:
-    str->set(*(double*) value, decimals, &my_charset_bin);
+    str->set_real(*(double*) value, decimals, &my_charset_bin);
     break;
   case INT_RESULT:
     str->set(*(longlong*) value, &my_charset_bin);

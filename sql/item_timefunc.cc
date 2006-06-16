@@ -1503,7 +1503,7 @@ double Item_func_sysdate_local::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   store_now_in_TIME(&ltime);
-  return (longlong) TIME_to_ulonglong_datetime(&ltime);
+  return ulonglong2double(TIME_to_ulonglong_datetime(&ltime));
 }
 
 

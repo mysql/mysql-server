@@ -96,7 +96,7 @@ bool String::realloc(uint32 alloc_length)
   return FALSE;
 }
 
-bool String::set(longlong num, bool unsigned_flag, CHARSET_INFO *cs)
+bool String::set_int(longlong num, bool unsigned_flag, CHARSET_INFO *cs)
 {
   uint l=20*cs->mbmaxlen+1;
   int base= unsigned_flag ? 10 : -10;
@@ -108,7 +108,7 @@ bool String::set(longlong num, bool unsigned_flag, CHARSET_INFO *cs)
   return FALSE;
 }
 
-bool String::set(double num,uint decimals, CHARSET_INFO *cs)
+bool String::set_real(double num,uint decimals, CHARSET_INFO *cs)
 {
   char buff[331];
   uint dummy_errors;
