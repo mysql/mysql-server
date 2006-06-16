@@ -1611,14 +1611,11 @@ public:
 		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
     :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore),
     create_table(table), extra_fields(&fields_par),keys(&keys_par),
-    create_info(create_info_par),
-    lock(0)
+    create_info(create_info_par)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
-#ifdef HAVE_ROW_BASED_REPLICATION
   void binlog_show_create_table(TABLE **tables, uint count);
-#endif
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();

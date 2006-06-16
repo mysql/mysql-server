@@ -2772,7 +2772,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   unit= u;
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        extra_fields, keys, &values, &lock,
-                                       &hook_ptr)))
+                                       hook_ptr)))
     DBUG_RETURN(-1);				// abort() deletes table
 
   if (table->s->fields < values.elements)
