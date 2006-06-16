@@ -1137,7 +1137,7 @@ dnl Is this the right match for DEC OSF on alpha?
     # Edit Makefile.in files.
     #
     echo -n "configuring Makefile.in files for NetWare... "
-    for file in sql/Makefile.in libmysql/Makefile.in libmysql_r/Makefile.in sql/share/Makefile.in strings/Makefile.in client/Makefile.in
+    for file in sql/Makefile.in libmysql/Makefile.in libmysql_r/Makefile.in extra/Makefile.in strings/Makefile.in client/Makefile.in
     do
     # echo "#### $file ####"
       filedir="`dirname $file`"
@@ -1163,9 +1163,9 @@ s,\(\./gen_lex_hash\)\$(EXEEXT),\1.linux,
 s%\(mysqld_DEPENDENCIES = \) %\1$lib_DEPENDENCIES %
 EOF
           ;;
-        sql/share/Makefile.in)
+        extra/Makefile.in)
           cat > $filesed << EOF
-s,\(extra/comp_err\),\1.linux,
+s,\(extra/comp_err\)\$(EXEEXT),\1.linux,
 EOF
           ;;
         libmysql/Makefile.in)
