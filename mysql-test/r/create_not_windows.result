@@ -7,8 +7,8 @@ primary key (_id)
 show create table `about:text`;
 Table	Create Table
 about:text	CREATE TABLE `about:text` (
-  `_id` int(11) NOT NULL auto_increment,
-  `about:text` varchar(255) NOT NULL default '',
-  PRIMARY KEY  (`_id`)
+  `_id` int(11) NOT NULL AUTO_INCREMENT,
+  `about:text` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (`_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table `about:text`;
