@@ -70,7 +70,7 @@ handlerton ndbcluster_hton = {
   NULL, /* create_cursor_read_view */
   NULL, /* set_cursor_read_view */
   NULL, /* close_cursor_read_view */
-  HTON_NO_FLAGS
+  HTON_CAN_RECREATE
 };
 
 #define NDB_AUTO_INCREMENT_RETRIES 10
@@ -1174,12 +1174,23 @@ void ha_ndbcluster::release_metadata()
 
 int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type)
 {
+  DBUG_ENTER("ha_ndbcluster::get_ndb_lock_type");
   if (type >= TL_WRITE_ALLOW_WRITE)
-    return NdbOperation::LM_Exclusive;
-  else if (uses_blob_value(m_retrieve_all_fields))
-    return NdbOperation::LM_Read;
+  {
+    DBUG_PRINT("info", ("Using exclusive lock"));
+    DBUG_RETURN(NdbOperation::LM_Exclusive);
+  }
+  else if (type ==  TL_READ_WITH_SHARED_LOCKS ||
+	   uses_blob_value(m_retrieve_all_fields))
+  {
+    DBUG_PRINT("info", ("Using read lock"));
+    DBUG_RETURN(NdbOperation::LM_Read);
+  }
   else
-    return NdbOperation::LM_CommittedRead;
+  {
+    DBUG_PRINT("info", ("Using committed read"));
+    DBUG_RETURN(NdbOperation::LM_CommittedRead);
+  }
 }
 
 static const ulong index_type_flags[]=
@@ -1679,7 +1690,30 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
   int check;
   NdbTransaction *trans= m_active_trans;
   
-  bool contact_ndb= m_lock.type < TL_WRITE_ALLOW_WRITE;
+    if (m_lock_tuple)
+  {
+    /*
+      Lock level m_lock.type either TL_WRITE_ALLOW_WRITE
+      (SELECT FOR UPDATE) or TL_READ_WITH_SHARED_LOCKS (SELECT
+      LOCK WITH SHARE MODE) and row was not explictly unlocked 
+      with unlock_row() call
+    */
+      NdbConnection *trans= m_active_trans;
+      NdbOperation *op;
+      // Lock row
+      DBUG_PRINT("info", ("Keeping lock on scanned row"));
+      
+      if (!(op= m_active_cursor->lockCurrentTuple()))
+      {
+	m_lock_tuple= false;
+	ERR_RETURN(trans->getNdbError());
+      }
+      m_ops_pending++;
+  }
+  m_lock_tuple= false;
+
+  bool contact_ndb= m_lock.type < TL_WRITE_ALLOW_WRITE &&
+                    m_lock.type != TL_READ_WITH_SHARED_LOCKS;
   do {
     DBUG_PRINT("info", ("Call nextResult, contact_ndb: %d", contact_ndb));
     /*
@@ -1695,6 +1729,13 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
     
     if ((check= cursor->nextResult(contact_ndb, m_force_send)) == 0)
     {
+      /*
+	Explicitly lock tuple if "select for update" or
+	"select lock in share mode"
+      */
+      m_lock_tuple= (m_lock.type == TL_WRITE_ALLOW_WRITE
+		     || 
+		     m_lock.type == TL_READ_WITH_SHARED_LOCKS);
       DBUG_RETURN(0);
     } 
     else if (check == 1 || check == 2)
@@ -1983,10 +2024,11 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     restart= FALSE;
     NdbOperation::LockMode lm=
       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
+    bool need_pk = (lm == NdbOperation::LM_Read);
     if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
                                               m_index[active_index].index, 
                                               (const NDBTAB *) m_table)) ||
-        op->readTuples(lm, 0, parallelism, sorted, descending))
+        op->readTuples(lm, 0, parallelism, sorted, descending, false, need_pk))
       ERR_RETURN(trans->getNdbError());
     m_active_cursor= op;
   } else {
@@ -2036,8 +2078,11 @@ int ha_ndbcluster::full_table_scan(byte *buf)
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
+  bool need_pk = (lm == NdbOperation::LM_Read);
   if (!(op=trans->getNdbScanOperation((const NDBTAB *) m_table)) ||
-      op->readTuples(lm, 0, parallelism))
+      op->readTuples(lm, 
+		     (need_pk)?NdbScanOperation::SF_KeyInfo:0, 
+		     parallelism))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= op;
   if (generate_scan_filter(m_cond_stack, op))
@@ -2088,6 +2133,11 @@ int ha_ndbcluster::write_row(byte *record)
    */
   if (!m_use_write && m_ignore_dup_key)
   {
+    /*
+      compare if expression with that in start_bulk_insert()
+      start_bulk_insert will set parameters to ensure that each
+      write_row is committed individually
+    */
     int peek_res= peek_indexed_rows(record);
     
     if (!peek_res) 
@@ -2327,6 +2377,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     DBUG_PRINT("info", ("Calling updateTuple on cursor"));
     if (!(op= cursor->updateCurrentTuple()))
       ERR_RETURN(trans->getNdbError());
+    m_lock_tuple= false;
     m_ops_pending++;
     if (uses_blob_value(FALSE))
       m_blobs_pending= TRUE;
@@ -2406,6 +2457,7 @@ int ha_ndbcluster::delete_row(const byte *record)
     DBUG_PRINT("info", ("Calling deleteTuple on cursor"));
     if (cursor->deleteCurrentTuple() != 0)
       ERR_RETURN(trans->getNdbError());     
+    m_lock_tuple= false;
     m_ops_pending++;
 
     no_uncommitted_rows_update(-1);
@@ -2529,9 +2581,9 @@ void ha_ndbcluster::unpack_record(byte* buf)
     const NdbRecAttr* rec= m_value[hidden_no].rec;
     DBUG_ASSERT(rec);
     DBUG_PRINT("hidden", ("%d: %s \"%llu\"", hidden_no, 
-                          hidden_col->getName(), rec->u_64_value()));
+			  hidden_col->getName(), rec->u_64_value()));
   } 
-  //print_results();
+  print_results();
 #endif
   DBUG_VOID_RETURN;
 }
@@ -2605,6 +2657,12 @@ int ha_ndbcluster::index_init(uint index)
 {
   DBUG_ENTER("ha_ndbcluster::index_init");
   DBUG_PRINT("enter", ("index: %u", index));
+ /*
+    Locks are are explicitly released in scan
+    unless m_lock.type == TL_READ_HIGH_PRIORITY
+    and no sub-sequent call to unlock_row()
+   */
+  m_lock_tuple= false;
   DBUG_RETURN(handler::index_init(index));
 }
 
@@ -3217,6 +3275,19 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
   DBUG_PRINT("enter", ("rows: %d", (int)rows));
   
   m_rows_inserted= (ha_rows) 0;
+  if (!m_use_write && m_ignore_dup_key)
+  {
+    /*
+      compare if expression with that in write_row
+      we have a situation where peek_indexed_rows() will be called
+      so we cannot batch
+    */
+    DBUG_PRINT("info", ("Batching turned off as duplicate key is "
+                        "ignored by using peek_row"));
+    m_rows_to_insert= 1;
+    m_bulk_insert_rows= 1;
+    DBUG_VOID_RETURN;
+  }
   if (rows == (ha_rows) 0)
   {
     /* We don't know how many will be inserted, guess */
@@ -3611,6 +3682,22 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     m_ops_pending= 0;
   }
   DBUG_RETURN(error);
+}
+
+/*
+  Unlock the last row read in an open scan.
+  Rows are unlocked by default in ndb, but
+  for SELECT FOR UPDATE and SELECT LOCK WIT SHARE MODE
+  locks are kept if unlock_row() is not called.
+*/
+
+void ha_ndbcluster::unlock_row() 
+{
+  DBUG_ENTER("unlock_row");
+
+  DBUG_PRINT("info", ("Unlocking row"));
+  m_lock_tuple= false;
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -4085,6 +4172,12 @@ int ha_ndbcluster::create(const char *name,
   set_dbname(name2);
   set_tabname(name2);    
 
+  if (current_thd->lex->sql_command == SQLCOM_TRUNCATE)
+  {
+    DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
+    if ((my_errno= delete_table(name)))
+      DBUG_RETURN(my_errno);
+  }
   if (create_from_engine)
   {
     /*
@@ -4392,15 +4485,29 @@ int ha_ndbcluster::delete_table(const char *name)
 
 int ha_ndbcluster::drop_table()
 {
+  THD *thd= current_thd;
   Ndb *ndb= get_ndb();
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
 
   DBUG_ENTER("drop_table");
   DBUG_PRINT("enter", ("Deleting %s", m_tabname));
-
+  
   release_metadata();
-  if (dict->dropTable(m_tabname))
+  while (dict->dropTable(m_tabname)) 
+  {
+    const NdbError err= dict->getNdbError();
+    switch (err.status)
+    {
+      case NdbError::TemporaryError:
+        if (!thd->killed)
+          continue; // retry indefinitly
+        break;
+      default:
+        break;
+    }
     ERR_RETURN(dict->getNdbError());
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -4809,14 +4916,24 @@ int ndbcluster_drop_database(const char *path)
   List_iterator_fast<char> it(drop_list);
   while ((tabname=it++))
   {
-    if (dict->dropTable(tabname))
+    while (dict->dropTable(tabname))
     {
       const NdbError err= dict->getNdbError();
-      if (err.code != 709)
+      switch (err.status)
+      {
+        case NdbError::TemporaryError:
+          if (!thd->killed)
+            continue; // retry indefinitly
+          break;
+        default:
+          break;
+      }
+      if (err.code != 709) // 709: No such table existed
       {
         ERR_PRINT(err);
         ret= ndb_to_mysql_error(&err);
       }
+      break;
     }
   }
   DBUG_RETURN(ret);      
@@ -5891,6 +6008,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   byte *end_of_buffer= (byte*)buffer->buffer_end;
   NdbOperation::LockMode lm= 
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
+  bool need_pk = (lm == NdbOperation::LM_Read);
   const NDBTAB *tab= (const NDBTAB *) m_table;
   const NDBINDEX *unique_idx= (NDBINDEX *) m_index[active_index].unique_index;
   const NDBINDEX *idx= (NDBINDEX *) m_index[active_index].index; 
@@ -5957,7 +6075,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           end_of_buffer -= reclength;
         }
         else if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) 
-                 &&!scanOp->readTuples(lm, 0, parallelism, sorted, FALSE, TRUE)
+                 &&!scanOp->readTuples(lm, 0, parallelism, sorted, 
+				       FALSE, TRUE, need_pk)
                  &&!generate_scan_filter(m_cond_stack, scanOp)
                  &&!define_read_attrs(end_of_buffer-reclength, scanOp))
         {
