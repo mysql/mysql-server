@@ -109,5 +109,19 @@ show slave status;
 --error 1220
 show binlog events in 'slave-bin.000005' from 4;
 
+#
+# Bug #6880: LAST_INSERT_ID() within a statement
+#
+
+create table t1(a int auto_increment primary key, b int);
+insert into t1 values (NULL, 1);
+reset master;
+set insert_id=5;
+insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
+--replace_result $VERSION VERSION
+show binlog events;
+select * from t1;
+drop table t1;
+
 # End of 4.1 tests
 # Adding comment for force manual merge 5.0 -> wl1012: Delete me
