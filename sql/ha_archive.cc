@@ -1131,7 +1131,7 @@ int ha_archive::end_bulk_insert()
 int ha_archive::delete_all_rows()
 {
   DBUG_ENTER("ha_archive::delete_all_rows");
-  DBUG_RETURN(0);
+  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
 /*
