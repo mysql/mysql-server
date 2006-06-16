@@ -37,15 +37,8 @@ master-bin.000001	323	Table_map	1	93	table_id: # (cluster.apply_status)
 master-bin.000001	376	Write_rows	1	135	table_id: #
 master-bin.000001	418	Write_rows	1	182	table_id: # flags: STMT_END_F
 master-bin.000001	465	Query	1	530	COMMIT
-master-bin.000001	530	Query	1	80	use `test`; TRUNCATE TABLE t1
-master-bin.000001	610	Query	1	679	use `test`; COMMIT
-master-bin.000001	679	Query	1	743	BEGIN
-master-bin.000001	743	Table_map	1	40	table_id: # (test.t1)
-master-bin.000001	783	Table_map	1	93	table_id: # (cluster.apply_status)
-master-bin.000001	836	Write_rows	1	135	table_id: #
-master-bin.000001	878	Delete_rows	1	174	table_id: # flags: STMT_END_F
-master-bin.000001	917	Query	1	982	COMMIT
-master-bin.000001	982	Query	1	1058	use `test`; DROP TABLE t1
+master-bin.000001	530	Query	1	610	use `test`; TRUNCATE TABLE t1
+master-bin.000001	610	Query	1	686	use `test`; DROP TABLE t1
 **** On Master ****
 CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB;
 INSERT INTO t1 VALUES (1,1), (2,2);
@@ -80,26 +73,19 @@ master-bin.000001	323	Table_map	1	93	table_id: # (cluster.apply_status)
 master-bin.000001	376	Write_rows	1	135	table_id: #
 master-bin.000001	418	Write_rows	1	182	table_id: # flags: STMT_END_F
 master-bin.000001	465	Query	1	530	COMMIT
-master-bin.000001	530	Query	1	80	use `test`; TRUNCATE TABLE t1
-master-bin.000001	610	Query	1	679	use `test`; COMMIT
-master-bin.000001	679	Query	1	743	BEGIN
-master-bin.000001	743	Table_map	1	40	table_id: # (test.t1)
-master-bin.000001	783	Table_map	1	93	table_id: # (cluster.apply_status)
-master-bin.000001	836	Write_rows	1	135	table_id: #
-master-bin.000001	878	Delete_rows	1	174	table_id: # flags: STMT_END_F
-master-bin.000001	917	Query	1	982	COMMIT
-master-bin.000001	982	Query	1	1058	use `test`; DROP TABLE t1
-master-bin.000001	1058	Query	1	1175	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
-master-bin.000001	1175	Query	1	1239	BEGIN
-master-bin.000001	1239	Table_map	1	40	table_id: # (test.t1)
-master-bin.000001	1279	Table_map	1	93	table_id: # (cluster.apply_status)
-master-bin.000001	1332	Write_rows	1	135	table_id: #
-master-bin.000001	1374	Write_rows	1	182	table_id: # flags: STMT_END_F
-master-bin.000001	1421	Query	1	1486	COMMIT
-master-bin.000001	1486	Query	1	1550	BEGIN
-master-bin.000001	1550	Table_map	1	40	table_id: # (test.t1)
-master-bin.000001	1590	Table_map	1	93	table_id: # (cluster.apply_status)
-master-bin.000001	1643	Write_rows	1	135	table_id: #
-master-bin.000001	1685	Delete_rows	1	174	table_id: # flags: STMT_END_F
-master-bin.000001	1724	Query	1	1789	COMMIT
-master-bin.000001	1789	Query	1	1865	use `test`; DROP TABLE t1
+master-bin.000001	530	Query	1	610	use `test`; TRUNCATE TABLE t1
+master-bin.000001	610	Query	1	686	use `test`; DROP TABLE t1
+master-bin.000001	686	Query	1	803	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB
+master-bin.000001	803	Query	1	867	BEGIN
+master-bin.000001	867	Table_map	1	40	table_id: # (test.t1)
+master-bin.000001	907	Table_map	1	93	table_id: # (cluster.apply_status)
+master-bin.000001	960	Write_rows	1	135	table_id: #
+master-bin.000001	1002	Write_rows	1	182	table_id: # flags: STMT_END_F
+master-bin.000001	1049	Query	1	1114	COMMIT
+master-bin.000001	1114	Query	1	1178	BEGIN
+master-bin.000001	1178	Table_map	1	40	table_id: # (test.t1)
+master-bin.000001	1218	Table_map	1	93	table_id: # (cluster.apply_status)
+master-bin.000001	1271	Write_rows	1	135	table_id: #
+master-bin.000001	1313	Delete_rows	1	174	table_id: # flags: STMT_END_F
+master-bin.000001	1352	Query	1	1417	COMMIT
+master-bin.000001	1417	Query	1	1493	use `test`; DROP TABLE t1
