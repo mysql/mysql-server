@@ -26,7 +26,7 @@
 
 /* Forward declarations */
 class handler;
-class MYSQL_LOG;
+class MYSQL_BIN_LOG;
 class st_table;
 
 typedef st_table TABLE;
@@ -219,7 +219,7 @@ public:
 
     private:
       /* Only the injector may construct these object */
-      transaction(MYSQL_LOG *, THD *);
+      transaction(MYSQL_BIN_LOG *, THD *);
 
       void swap(transaction& o) {
         /* std::swap(m_start_pos, o.m_start_pos); */
