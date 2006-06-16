@@ -840,9 +840,8 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
   m_mgmsrv.m_event_listner.unlock();
 
   {
-    LogLevel ll;
-    ll.setLogLevel(category,level);
-    m_mgmsrv.m_event_listner.update_max_log_level(ll);
+    LogLevel tmp;
+    m_mgmsrv.m_event_listner.update_max_log_level(tmp);
   }
 
   m_output->println(reply);
@@ -1370,21 +1369,23 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
 void
 Ndb_mgmd_event_service::update_max_log_level(const LogLevel &log_level)
 {
-  LogLevel tmp= m_logLevel;
-  tmp.set_max(log_level);
+  LogLevel tmp = log_level;
+  m_clients.lock();
+  for(int i = m_clients.size() - 1; i >= 0; i--)
+    tmp.set_max(m_clients[i].m_logLevel);
+  m_clients.unlock();
   update_log_level(tmp);
 }
 
 void
 Ndb_mgmd_event_service::update_log_level(const LogLevel &tmp)
 {
-  if(!(tmp == m_logLevel)){
-    m_logLevel = tmp;
-    EventSubscribeReq req;
-    req = tmp;
-    req.blockRef = 0;
-    m_mgmsrv->m_log_level_requests.push_back(req);
-  }
+  m_logLevel = tmp;
+  EventSubscribeReq req;
+  req = tmp;
+  // send update to all nodes
+  req.blockRef = 0;
+  m_mgmsrv->m_log_level_requests.push_back(req);
 }
 
 void

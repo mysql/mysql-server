@@ -149,7 +149,8 @@ int mi_write(MI_INFO *info, byte *record)
     info->state->checksum+=info->checksum;
   }
   if (share->base.auto_key)
-    update_auto_increment(info,record);
+    set_if_bigger(info->s->state.auto_increment,
+                  retrieve_auto_increment(info, record));
   info->update= (HA_STATE_CHANGED | HA_STATE_AKTIV | HA_STATE_WRITTEN |
 		 HA_STATE_ROW_CHANGED);
   info->state->records++;

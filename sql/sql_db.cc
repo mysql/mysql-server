@@ -424,15 +424,26 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
     DBUG_RETURN(-1);
   }
-  
-  VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  /* do not create database if another thread is holding read lock */
+  /*
+    Do not create database if another thread is holding read lock.
+    Wait for global read lock before acquiring LOCK_mysql_create_db.
+    After wait_if_global_read_lock() we have protection against another
+    global read lock. If we would acquire LOCK_mysql_create_db first,
+    another thread could step in and get the global read lock before we
+    reach wait_if_global_read_lock(). If this thread tries the same as we
+    (admin a db), it would then go and wait on LOCK_mysql_create_db...
+    Furthermore wait_if_global_read_lock() checks if the current thread
+    has the global read lock and refuses the operation with
+    ER_CANT_UPDATE_WITH_READLOCK if applicable.
+  */
   if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
     goto exit2;
   }
+
+  VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   /* Check directory */
   strxmov(path, mysql_data_home, "/", db, NullS);
@@ -537,9 +548,9 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   }
 
 exit:
+  VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   start_waiting_global_read_lock(thd);
 exit2:
-  VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   DBUG_RETURN(error);
 }
 
@@ -553,11 +564,22 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   int error= 0;
   DBUG_ENTER("mysql_alter_db");
 
-  VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
-
-  /* do not alter database if another thread is holding read lock */
+  /*
+    Do not alter database if another thread is holding read lock.
+    Wait for global read lock before acquiring LOCK_mysql_create_db.
+    After wait_if_global_read_lock() we have protection against another
+    global read lock. If we would acquire LOCK_mysql_create_db first,
+    another thread could step in and get the global read lock before we
+    reach wait_if_global_read_lock(). If this thread tries the same as we
+    (admin a db), it would then go and wait on LOCK_mysql_create_db...
+    Furthermore wait_if_global_read_lock() checks if the current thread
+    has the global read lock and refuses the operation with
+    ER_CANT_UPDATE_WITH_READLOCK if applicable.
+  */
   if ((error=wait_if_global_read_lock(thd,0,1)))
     goto exit2;
+
+  VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   /* Check directory */
   strxmov(path, mysql_data_home, "/", db, "/", MY_DB_OPT_FILE, NullS);
@@ -596,9 +618,9 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   send_ok(thd, result);
 
 exit:
+  VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   start_waiting_global_read_lock(thd);
 exit2:
-  VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   DBUG_RETURN(error);
 }
 
@@ -630,14 +652,25 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   TABLE_LIST* dropped_tables= 0;
   DBUG_ENTER("mysql_rm_db");
 
-  VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
-
-  /* do not drop database if another thread is holding read lock */
+  /*
+    Do not drop database if another thread is holding read lock.
+    Wait for global read lock before acquiring LOCK_mysql_create_db.
+    After wait_if_global_read_lock() we have protection against another
+    global read lock. If we would acquire LOCK_mysql_create_db first,
+    another thread could step in and get the global read lock before we
+    reach wait_if_global_read_lock(). If this thread tries the same as we
+    (admin a db), it would then go and wait on LOCK_mysql_create_db...
+    Furthermore wait_if_global_read_lock() checks if the current thread
+    has the global read lock and refuses the operation with
+    ER_CANT_UPDATE_WITH_READLOCK if applicable.
+  */
   if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
     goto exit2;
   }
+
+  VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   length= unpack_dirname(path,path);		// Convert if not unix
@@ -747,7 +780,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
 exit:
   (void)sp_drop_db_routines(thd, db); /* QQ Ignore errors for now  */
-  start_waiting_global_read_lock(thd);
   /*
     If this database was the client's selected database, we silently change the
     client's selected database to nothing (to have an empty SELECT DATABASE()
@@ -776,9 +808,9 @@ exit:
     thd->db= 0;
     thd->db_length= 0;
   }
-exit2:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
-
+  start_waiting_global_read_lock(thd);
+exit2:
   DBUG_RETURN(error);
 }
 
