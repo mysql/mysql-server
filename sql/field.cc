@@ -3471,8 +3471,7 @@ int Field_long::store(longlong nr, bool unsigned_val)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int error= 0;
   int32 res;
-  DBUG_ASSERT(table->in_use == current_thd);    // General safety
-  
+
   if (unsigned_flag)
   {
     if (nr < 0 && !unsigned_val)
