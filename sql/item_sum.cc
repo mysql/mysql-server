@@ -1578,13 +1578,13 @@ Item_sum_hybrid::val_str(String *str)
   case STRING_RESULT:
     return &value;
   case REAL_RESULT:
-    str->set(sum,decimals, &my_charset_bin);
+    str->set_real(sum,decimals, &my_charset_bin);
     break;
   case DECIMAL_RESULT:
     my_decimal2string(E_DEC_FATAL_ERROR, &sum_dec, 0, 0, 0, str);
     return str;
   case INT_RESULT:
-    str->set(sum_int, unsigned_flag, &my_charset_bin);
+    str->set_int(sum_int, unsigned_flag, &my_charset_bin);
     break;
   case ROW_RESULT:
   default:
