@@ -313,9 +313,9 @@ bool Log_to_csv_event_handler::
 
   table->field[1]->store(user_host, user_host_len, client_cs);
   table->field[1]->set_notnull();
-  table->field[2]->store((longlong) thread_id);
+  table->field[2]->store((longlong) thread_id, TRUE);
   table->field[2]->set_notnull();
-  table->field[3]->store((longlong) server_id);
+  table->field[3]->store((longlong) server_id, TRUE);
   table->field[3]->set_notnull();
   table->field[4]->store(command_type, command_type_len, client_cs);
   table->field[4]->set_notnull();
@@ -395,13 +395,13 @@ bool Log_to_csv_event_handler::
   if (query_start_arg)
   {
     /* fill in query_time field */
-    table->field[2]->store(query_time);
+    table->field[2]->store(query_time, TRUE);
     /* lock_time */
-    table->field[3]->store(lock_time);
+    table->field[3]->store(lock_time, TRUE);
     /* rows_sent */
-    table->field[4]->store((longlong) thd->sent_row_count);
+    table->field[4]->store((longlong) thd->sent_row_count, TRUE);
     /* rows_examined */
-    table->field[5]->store((longlong) thd->examined_row_count);
+    table->field[5]->store((longlong) thd->examined_row_count, TRUE);
   }
   else
   {
@@ -420,18 +420,18 @@ bool Log_to_csv_event_handler::
 
   if (thd->last_insert_id_used)
   {
-    table->field[7]->store((longlong) thd->current_insert_id);
+    table->field[7]->store((longlong) thd->current_insert_id, TRUE);
     table->field[7]->set_notnull();
   }
 
   /* set value if we do an insert on autoincrement column */
   if (thd->insert_id_used)
   {
-    table->field[8]->store((longlong) thd->last_insert_id);
+    table->field[8]->store((longlong) thd->last_insert_id, TRUE);
     table->field[8]->set_notnull();
   }
 
-  table->field[9]->store((longlong) server_id);
+  table->field[9]->store((longlong) server_id, TRUE);
   table->field[9]->set_notnull();
 
   /* sql_text */

@@ -4978,7 +4978,7 @@ int Field_time::store_time(TIME *ltime, timestamp_type type)
             (ltime->minute * 100 + ltime->second);
   if (ltime->neg)
     tmp= -tmp;
-  return Field_time::store((longlong) tmp);
+  return Field_time::store((longlong) tmp, TRUE);
 }
 
 
@@ -4990,7 +4990,7 @@ int Field_time::store(double nr)
   if (nr > 8385959.0)
   {
     tmp=8385959L;
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                          ER_WARN_DATA_OUT_OF_RANGE, nr, MYSQL_TIMESTAMP_TIME);
     error= 1;
   }
@@ -7117,7 +7117,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 int Field_blob::store(double nr)
 {
   CHARSET_INFO *cs=charset();
-  value.set(nr, 2, cs);
+  value.set_real(nr, 2, cs);
   return Field_blob::store(value.ptr(),(uint) value.length(), cs);
 }
 
@@ -7125,7 +7125,7 @@ int Field_blob::store(double nr)
 int Field_blob::store(longlong nr, bool unsigned_val)
 {
   CHARSET_INFO *cs=charset();
-  value.set(nr, unsigned_val, cs);
+  value.set_int(nr, unsigned_val, cs);
   return Field_blob::store(value.ptr(), (uint) value.length(), cs);
 }
 
@@ -8216,7 +8216,7 @@ int Field_bit::store_decimal(const my_decimal *val)
 {
   int err= 0;
   longlong i= convert_decimal2longlong(val, 1, &err);
-  return test(err | store(i));
+  return test(err | store(i, TRUE));
 }
 
 

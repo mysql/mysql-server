@@ -1808,7 +1808,7 @@ String *Item_func_format::val_str(String *str)
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, decimals, FALSE);
     /* Here default_charset() is right as this is not an automatic conversion */
-    str->set(nr,decimals, default_charset());
+    str->set_real(nr,decimals, default_charset());
     if (isnan(nr))
       return str;
     str_length=str->length();
