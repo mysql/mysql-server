@@ -513,14 +513,15 @@ ErrorBundle ErrorCodes[] = {
   { 4262, UD, "NdbScanFilter: Condition is out of bounds"},
   { 4263, IE, "Invalid blob attributes or invalid blob parts table" },
   { 4264, AE, "Invalid usage of blob attribute" },
-  { 4265, AE, "Method is not valid in current blob state" },
+  { 4265, AE, "The blob method is not valid in current blob state" },
   { 4266, AE, "Invalid blob seek position" },
   { 4267, IE, "Corrupted blob value" },
   { 4268, IE, "Error in blob head update forced rollback of transaction" },
   { 4269, IE, "No connection to ndb management server" },
   { 4270, IE, "Unknown blob error" },
   { 4335, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" },
-  { 4271, AE, "Invalid index object, not retrieved via getIndex()" }
+  { 4271, AE, "Invalid index object, not retrieved via getIndex()" },
+  { 4275, AE, "The blob method is incompatible with operation type or lock mode" }
 };
 
 static
