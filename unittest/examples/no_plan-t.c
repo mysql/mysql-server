@@ -14,8 +14,8 @@
   tests are skipped for an unknown reason.
 */
 int main() {
-  ok(1, NULL);
-  ok(1, NULL);
-  ok(1, NULL);
+  ok(1, " ");
+  ok(1, " ");
+  ok(1, " ");
   return exit_status();
 }
