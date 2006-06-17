@@ -1,11 +1,14 @@
 #!/bin/sh
 
+# Terminate loudly on error, we don't want partial package
+set -e
+trap "echo '*** script failed ***'" 0
+
 #
 # Script to create a Windows src package
 #
 
 version=@VERSION@
-export version
 CP="cp -p"
 
 DEBUG=0
@@ -199,7 +202,7 @@ copy_dir_files()
        print_debug "Creating directory '$arg'"
        mkdir $BASE/$arg
      fi
-    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp \
+    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp *.yy \
              README INSTALL* LICENSE AUTHORS NEWS ChangeLog \
              *.inc *.test *.result *.pem Moscow_leap des_key_file \
              *.vcproj *.sln *.dat *.000001 *.require *.opt
@@ -260,7 +263,7 @@ done
 #
 # Create project files for ndb
 #
-make -C $SOURCE/ndb windoze
+make -C $SOURCE/ndb windoze || true
 
 #
 # Input directories to be copied recursively
@@ -336,8 +339,17 @@ done
 # Fix some windows files to avoid compiler warnings
 #
 
-./extra/replace std:: "" < $BASE/sql/sql_yacc.cpp | sed '/^ *switch (yytype)$/ { N; /\n *{$/ { N; /\n *default:$/ { N; /\n *break;$/ { N; /\n *}$/ d; };};};} ' > $BASE/sql/sql_yacc.cpp-new
-mv $BASE/sql/sql_yacc.cpp-new $BASE/sql/sql_yacc.cpp
+if [ -x extra/replace ] ; then
+  ./extra/replace std:: "" < $BASE/sql/sql_yacc.cpp | \
+  sed '/^ *switch (yytype)$/ { N; /\n *{$/ { N; /\n *default:$/ { N; /\n *break;$/ { N; /\n *}$/ d; };};};} ' \
+  > $BASE/sql/sql_yacc.cpp-new
+  mv $BASE/sql/sql_yacc.cpp-new $BASE/sql/sql_yacc.cpp
+else
+  if [ "$SILENT" = "0" ] ; then
+    echo 'WARNING: "extra/replace" not built, can not filter "sql_yacc.ccp"'
+    echo 'WARNING: to reduce the number of warnings when building'
+  fi
+fi
 
 #
 # Search the tree for plain text files and adapt the line end marker
@@ -351,8 +363,6 @@ find $BASE \( -name "*.cnf" -o -name "*.ini" \
   do
     unix_to_dos $v
   done
-# File extension '.txt' matches too many other files, error messages etc.
-unix_to_dos $BASE/Docs/*.txt 
 
 mv $BASE/README $BASE/README.txt
 
@@ -360,19 +370,23 @@ mv $BASE/README $BASE/README.txt
 # Clean up if we did this from a bk tree
 #
 
-if [ -d $BASE/SSL/SCCS ]
-then
-  find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
-fi
-find $BASE/ -type d -name .deps -printf " \"%p\"" | xargs rm -r -f
-find $BASE/ -type d -name .libs -printf " \"%p\"" | xargs rm -r -f
+find $BASE -type d \( -name SCCS -o -name .deps -o -name .libs \) -print0 | \
+xargs -0 rm -r -f
 rm -r -f "$BASE/mysql-test/var"
 
 #
 # Initialize the initial data directory
 #
 
-if [ -f scripts/mysql_install_db ]; then
+if [ ! -f scripts/mysql_install_db ] ; then
+  if [ "$SILENT" = "0" ] ; then
+    echo 'WARNING: "scripts/mysql_install_db" is not built, can not initiate databases'
+  fi
+elif [ ! -f extra/my_print_defaults ]; then
+  if [ "$SILENT" = "0" ] ; then
+    echo 'WARNING: "extra/my_print_defaults" is not built, can not initiate databases'
+  fi
+else
   print_debug "Initializing the 'data' directory"
   scripts/mysql_install_db --no-defaults --windows --datadir=$BASE/data
   if test "$?" = 1
@@ -453,7 +467,7 @@ set_tarzip_options()
       OPT=cvf
       EXT=".tar"
       NEED_COMPRESS=1
-      if [ "$SILENT" = "1" ] ; then
+      if [ "$DEBUG" = "0" ] ; then
         OPT=cf
       fi
     else
@@ -462,7 +476,7 @@ set_tarzip_options()
       OPT="-r"
       EXT=".zip"
       NEED_COMPRESS=0
-      if [ "$SILENT" = "1" ] ; then
+      if [ "$DEBUG" = "0" ] ; then
         OPT="$OPT -q"
       fi
     fi
@@ -524,5 +538,8 @@ fi
 
 print_debug "Removing temporary directory"
 rm -r -f $BASE
+
+# No need to report anything if we got here
+trap "" 0
 
 # End of script
