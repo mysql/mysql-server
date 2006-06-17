@@ -19,7 +19,8 @@ dist-hook:
 	done
 
 windoze:
-	for i in `find . -name 'Makefile.am'`; do make -C `dirname $$i` windoze-dsp; done
+	for i in `find . -name 'old_dirs' -prune -o -name 'Makefile.am' -print`; \
+	do make -C `dirname $$i` windoze-dsp; done
 
 windoze-dsp:
 
