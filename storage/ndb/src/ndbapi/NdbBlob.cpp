@@ -982,7 +982,7 @@ NdbBlob::writeData(const void* data, Uint32 bytes)
   }
   const char* buf = static_cast<const char*>(data);
   int ret = writeDataPrivate(buf, bytes);
-  DBUG_RETURN(0);
+  DBUG_RETURN(ret);
 }
 
 int
