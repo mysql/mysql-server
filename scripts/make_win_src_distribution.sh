@@ -301,8 +301,6 @@ do
   fi
 done
 
-cp extra/sql_state.h extra/mysqld_error.h $BASE/include
-
 #
 # support files
 #
