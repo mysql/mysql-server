@@ -594,7 +594,7 @@ ErrorBundle ErrorCodes[] = {
   { 4262, DMEC, UD, "NdbScanFilter: Condition is out of bounds"},
   { 4263, DMEC, IE, "Invalid blob attributes or invalid blob parts table" },
   { 4264, DMEC, AE, "Invalid usage of blob attribute" },
-  { 4265, DMEC, AE, "Method is not valid in current blob state" },
+  { 4265, DMEC, AE, "The method is not valid in current blob state" },
   { 4266, DMEC, AE, "Invalid blob seek position" },
   { 4267, DMEC, IE, "Corrupted blob value" },
   { 4268, DMEC, IE, "Error in blob head update forced rollback of transaction" },
@@ -604,7 +604,8 @@ ErrorBundle ErrorCodes[] = {
   { 4271, DMEC, AE, "Invalid index object, not retrieved via getIndex()" },
   { 4272, DMEC, AE, "Table definition has undefined column" },
   { 4273, DMEC, IE, "No blob table in dict cache" },
-  { 4274, DMEC, IE, "Corrupted main table PK in blob operation" }
+  { 4274, DMEC, IE, "Corrupted main table PK in blob operation" },
+  { 4275, DMEC, AE, "The blob method is incompatible with operation type or lock mode" }
 };
 
 static
