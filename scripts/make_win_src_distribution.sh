@@ -77,7 +77,7 @@ show_usage()
   echo "  --tmp     Specify the temporary location"
   echo "  --suffix  Suffix name for the package"
   echo "  --dirname Directory name to copy files (intermediate)"
-  echo "  --silent  Do not list verbosely files processed"
+  echo "  --silent  Show no progress information"
   echo "  --tar     Create tar.gz package"
   echo "  --zip     Create zip package"
   echo "  --help    Show this help message"
@@ -143,10 +143,11 @@ unix_to_dos()
 # Create a tmp dest directory to copy files
 #
 
-BASE=$TMP/my_win_dist$SUFFIX
+BASE=$TMP/my_win_dist$SUFFIX.$$
+trap "rm -r -f $BASE; echo '*** interrupted ***'; exit 1" 1 2 3 13 15
 
 if [ -d $BASE ] ; then
-  print_debug "Destination directory '$BASE' already exists, deleting it"
+  echo "WARNING: Destination directory '$BASE' already exists, deleting it"
   rm -r -f $BASE
 fi
 
@@ -462,21 +463,15 @@ set_tarzip_options()
     if [ "$arg" = "tar" ]; then
       ZIPFILE1=gnutar
       ZIPFILE2=gtar
-      OPT=cvf
+      OPT=cf
       EXT=".tar"
       NEED_COMPRESS=1
-      if [ "$DEBUG" = "0" ] ; then
-        OPT=cf
-      fi
     else
       ZIPFILE1=zip
       ZIPFILE2=""
-      OPT="-r"
+      OPT="-r -q"
       EXT=".zip"
       NEED_COMPRESS=0
-      if [ "$DEBUG" = "0" ] ; then
-        OPT="$OPT -q"
-      fi
     fi
   done
 }
