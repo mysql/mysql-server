@@ -29,7 +29,7 @@ netware_build_files =           client/mysql.def client/mysqladmin.def \
                                 client/mysqlbinlog.def client/mysqlcheck.def \
                                 client/mysqldump.def client/mysqlimport.def \
                                 client/mysqlshow.def client/mysqltest.def \
-                                extra/mysql_install.def extra/my_print_defaults.def \
+                                extra/my_print_defaults.def \
                                 extra/perror.def extra/replace.def \
                                 extra/resolveip.def extra/comp_err.def \
                                 libmysqld/libmysqld.def myisam/myisamchk.def \
@@ -50,7 +50,7 @@ EXTRA_DIST=	comp_err.def init_db.sql install_test_db.ncf \
 		libmysqlmain.c my_manage.c my_manage.h \
 		my_print_defaults.def myisam_ftdump.def myisamchk.def \
 		myisamlog.def myisampack.def mysql.def mysql.xdc \
-		mysql_fix_privilege_tables.pl mysql_install.def \
+		mysql_fix_privilege_tables.pl \
 		mysql_install_db.c mysql_install_db.def \
 		mysql_secure_installation.pl mysql_test_run.c \
 		mysql_test_run.def mysql_waitpid.def mysqladmin.def \
