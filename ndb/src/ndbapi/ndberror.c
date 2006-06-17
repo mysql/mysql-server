@@ -521,7 +521,7 @@ ErrorBundle ErrorCodes[] = {
   { 4270, IE, "Unknown blob error" },
   { 4335, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" },
   { 4271, AE, "Invalid index object, not retrieved via getIndex()" },
-  { 4275, IE, "The blob method is incompatible with operation type or lock mode" }
+  { 4275, AE, "The blob method is incompatible with operation type or lock mode" }
 };
 
 static
