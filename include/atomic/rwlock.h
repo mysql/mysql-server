@@ -16,12 +16,6 @@
 
 typedef struct {pthread_rwlock_t rw;} my_atomic_rwlock_t;
 
-#ifdef MY_ATOMIC_EXTRA_DEBUG
-#define CHECK_RW if (rw) if (a->rw) assert(rw == a->rw); else a->rw=rw;
-#else
-#define CHECK_RW
-#endif
-
 #ifdef MY_ATOMIC_MODE_DUMMY
 /*
   the following can never be enabled by ./configure, one need to put #define in
@@ -36,6 +30,7 @@ typedef struct {pthread_rwlock_t rw;} my_atomic_rwlock_t;
 #define my_atomic_rwlock_wrlock(name)
 #define my_atomic_rwlock_rdunlock(name)
 #define my_atomic_rwlock_wrunlock(name)
+#define MY_ATOMIC_MODE "dummy (non-atomic)"
 #else
 #define my_atomic_rwlock_destroy(name)     pthread_rwlock_destroy(& (name)->rw)
 #define my_atomic_rwlock_init(name)        pthread_rwlock_init(& (name)->rw, 0)
@@ -43,119 +38,12 @@ typedef struct {pthread_rwlock_t rw;} my_atomic_rwlock_t;
 #define my_atomic_rwlock_wrlock(name)      pthread_rwlock_wrlock(& (name)->rw)
 #define my_atomic_rwlock_rdunlock(name)    pthread_rwlock_unlock(& (name)->rw)
 #define my_atomic_rwlock_wrunlock(name)    pthread_rwlock_unlock(& (name)->rw)
+#define MY_ATOMIC_MODE "rwlocks"
 #endif
 
-#ifdef HAVE_INLINE
-
-#define make_atomic_add(S)						\
-static inline uint ## S my_atomic_add ## S(				\
-        my_atomic_ ## S ## _t *a, uint ## S v, my_atomic_rwlock_t *rw)	\
-{									\
-  uint ## S ret;							\
-  CHECK_RW;								\
-  if (rw) my_atomic_rwlock_wrlock(rw);					\
-  ret= a->val;								\
-  a->val+= v;								\
-  if (rw) my_atomic_rwlock_wrunlock(rw);				\
-  return ret;								\
-}
-
-#define make_atomic_swap(S)						\
-static inline uint ## S my_atomic_swap ## S(				\
-        my_atomic_ ## S ## _t *a, uint ## S v, my_atomic_rwlock_t *rw)	\
-{									\
-  uint ## S ret;							\
-  CHECK_RW;								\
-  if (rw) my_atomic_rwlock_wrlock(rw);					\
-  ret= a->val;								\
-  a->val= v;								\
-  if (rw) my_atomic_rwlock_wrunlock(rw);				\
-  return ret;								\
-}
-
-#define make_atomic_cas(S)						\
-static inline uint my_atomic_cas ## S(my_atomic_ ## S ## _t *a,		\
-        uint ## S *cmp, uint ## S set, my_atomic_rwlock_t *rw)		\
-{									\
-  uint ret;								\
-  CHECK_RW;								\
-  if (rw) my_atomic_rwlock_wrlock(rw);					\
-  if (ret= (a->val == *cmp)) a->val= set; else *cmp=a->val;		\
-  if (rw) my_atomic_rwlock_wrunlock(rw);				\
-  return ret;								\
-}
-
-#define make_atomic_load(S)						\
-static inline uint ## S my_atomic_load ## S(				\
-        my_atomic_ ## S ## _t *a, my_atomic_rwlock_t *rw)		\
-{									\
-  uint ## S ret;							\
-  CHECK_RW;								\
-  if (rw) my_atomic_rwlock_wrlock(rw);					\
-  ret= a->val;								\
-  if (rw) my_atomic_rwlock_wrunlock(rw);				\
-  return ret;								\
-}
-
-#define make_atomic_store(S)						\
-static inline void my_atomic_store ## S(				\
-        my_atomic_ ## S ## _t *a, uint ## S v, my_atomic_rwlock_t *rw)	\
-{									\
-  CHECK_RW;								\
-  if (rw) my_atomic_rwlock_rdlock(rw);					\
-  (a)->val= (v);							\
-  if (rw) my_atomic_rwlock_rdunlock(rw);				\
-}
-
-#else /* no inline functions */
-
-#define make_atomic_add(S)						\
-extern uint ## S my_atomic_add ## S(					\
-        my_atomic_ ## S ## _t *a, uint ## S v, my_atomic_rwlock_t *rw);
-
-#define make_atomic_swap(S)						\
-extern uint ## S my_atomic_swap ## S(					\
-        my_atomic_ ## S ## _t *a, uint ## S v, my_atomic_rwlock_t *rw);
-
-#define make_atomic_cas(S)						\
-extern uint my_atomic_cas ## S(my_atomic_ ## S ## _t *a,		\
-        uint ## S *cmp, uint ## S set, my_atomic_rwlock_t *rw);
-
-#define make_atomic_load(S)						\
-extern uint ## S my_atomic_load ## S(					\
-        my_atomic_ ## S ## _t *a, my_atomic_rwlock_t *rw);
-
-#define make_atomic_store(S)						\
-extern void my_atomic_store ## S(					\
-        my_atomic_ ## S ## _t *a, uint ## S v, my_atomic_rwlock_t *rw);
-
-#endif
-
-make_atomic_add( 8)
-make_atomic_add(16)
-make_atomic_add(32)
-make_atomic_add(64)
-make_atomic_cas( 8)
-make_atomic_cas(16)
-make_atomic_cas(32)
-make_atomic_cas(64)
-make_atomic_load( 8)
-make_atomic_load(16)
-make_atomic_load(32)
-make_atomic_load(64)
-make_atomic_store( 8)
-make_atomic_store(16)
-make_atomic_store(32)
-make_atomic_store(64)
-make_atomic_swap( 8)
-make_atomic_swap(16)
-make_atomic_swap(32)
-make_atomic_swap(64)
-#undef make_atomic_add
-#undef make_atomic_cas
-#undef make_atomic_load
-#undef make_atomic_store
-#undef make_atomic_swap
-#undef CHECK_RW
-
+#define make_atomic_add_body(S)     int ## S sav; sav= *a; *a+= v; v=sav;
+#define make_atomic_swap_body(S)    int ## S sav; sav= *a; *a= v; v=sav;
+#define make_atomic_cas_body(S)     if ((ret= (*a == *cmp))) *a= set; else *cmp=*a;
+#define make_atomic_load_body(S)    ret= *a;
+#define make_atomic_store_body(S)   *a= v;
 
