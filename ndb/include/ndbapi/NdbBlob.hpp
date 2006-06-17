@@ -74,19 +74,41 @@ class NdbColumnImpl;
  * NdbBlob methods return -1 on error and 0 on success, and use output
  * parameters when necessary.
  *
- * Operation types:
- * - insertTuple must use setValue if blob column is non-nullable
- * - readTuple with exclusive lock can also update existing value
- * - updateTuple can overwrite with setValue or update existing value
- * - writeTuple always overwrites and must use setValue if non-nullable
+ * Usage notes for different operation types:
+ *
+ * - insertTuple must use setValue if blob attribute is non-nullable
+ *
+ * - readTuple or scan readTuples with lock mode LM_CommittedRead is
+ *   automatically upgraded to lock mode LM_Read if any blob attributes
+ *   are accessed (to guarantee consistent view)
+ *
+ * - readTuple (with any lock mode) can only read blob value
+ *
+ * - updateTuple can either overwrite existing value with setValue or
+ *   update it in active phase
+ *
+ * - writeTuple always overwrites blob value and must use setValue if
+ *   blob attribute is non-nullable
+ *
  * - deleteTuple creates implicit non-accessible blob handles
- * - scan with exclusive lock can also update existing value
- * - scan "lock takeover" update op must do its own getBlobHandle
+ *
+ * - scan readTuples (any lock mode) can use its blob handles only
+ *   to read blob value
+ *
+ * - scan readTuples with lock mode LM_Exclusive can update row and blob
+ *   value using updateCurrentTuple, where the operation returned must
+ *   create its own blob handles explicitly
+ *
+ * - scan readTuples with lock mode LM_Exclusive can delete row (and
+ *   therefore blob values) using deleteCurrentTuple, which creates
+ *   implicit non-accessible blob handles
+ *
+ * - the operation returned by lockCurrentTuple cannot update blob value
  *
  * Bugs / limitations:
- * - lock mode upgrade should be handled automatically
- * - lock mode vs allowed operation is not checked
+ *
  * - too many pending blob ops can blow up i/o buffers
+ *
  * - table and its blob part tables are not created atomically
  */
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -194,6 +216,9 @@ public:
   /**
    * Return error object.  The error may be blob specific (below) or may
    * be copied from a failed implicit operation.
+   *
+   * The error code is copied back to the operation unless the operation
+   * already has a non-zero error code.
    */
   const NdbError& getNdbError() const;
   /**
@@ -290,6 +315,7 @@ private:
   bool isWriteOp();
   bool isDeleteOp();
   bool isScanOp();
+  bool isReadOnlyOp();
   bool isTakeOverOp();
   // computations
   Uint32 getPartNumber(Uint64 pos);
@@ -323,9 +349,9 @@ private:
   int preCommit();
   int atNextResult();
   // errors
-  void setErrorCode(int anErrorCode, bool invalidFlag = true);
-  void setErrorCode(NdbOperation* anOp, bool invalidFlag = true);
-  void setErrorCode(NdbTransaction* aCon, bool invalidFlag = true);
+  void setErrorCode(int anErrorCode, bool invalidFlag = false);
+  void setErrorCode(NdbOperation* anOp, bool invalidFlag = false);
+  void setErrorCode(NdbTransaction* aCon, bool invalidFlag = false);
 #ifdef VM_TRACE
   int getOperationType() const;
   friend class NdbOut& operator<<(NdbOut&, const NdbBlob&);
