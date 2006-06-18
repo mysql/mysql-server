@@ -2121,7 +2121,9 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->enable_slow_log= enable_slow_log;
   backup->last_insert_id=  last_insert_id;
   backup->next_insert_id=  next_insert_id;
+  backup->current_insert_id=  current_insert_id;
   backup->insert_id_used=  insert_id_used;
+  backup->last_insert_id_used=  last_insert_id_used;
   backup->clear_next_insert_id= clear_next_insert_id;
   backup->limit_found_rows= limit_found_rows;
   backup->examined_row_count= examined_row_count;
@@ -2171,7 +2173,9 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   enable_slow_log=  backup->enable_slow_log;
   last_insert_id=   backup->last_insert_id;
   next_insert_id=   backup->next_insert_id;
+  current_insert_id= backup->current_insert_id;
   insert_id_used=   backup->insert_id_used;
+  last_insert_id_used= backup->last_insert_id_used;
   clear_next_insert_id= backup->clear_next_insert_id;
   limit_found_rows= backup->limit_found_rows;
   sent_row_count=   backup->sent_row_count;

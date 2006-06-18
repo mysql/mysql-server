@@ -1306,3 +1306,48 @@ id
 5
 99
 drop table t1;
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1));
+avg(1)
+NULL
