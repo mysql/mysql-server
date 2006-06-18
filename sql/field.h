@@ -124,7 +124,7 @@ public:
   static bool type_can_have_key_part(enum_field_types);
   static enum_field_types field_type_merge(enum_field_types, enum_field_types);
   static Item_result result_merge_type(enum_field_types);
-  bool eq(Field *field)
+  virtual bool eq(Field *field)
   {
     return (ptr == field->ptr && null_ptr == field->null_ptr &&
             null_bit == field->null_bit);
@@ -1386,6 +1386,13 @@ public:
   {
     bit_ptr= bit_ptr_arg;
     bit_ofs= bit_ofs_arg;
+  }
+  bool eq(Field *field)
+  {
+    return (Field::eq(field) &&
+            field->type() == type() &&
+            bit_ptr == ((Field_bit *)field)->bit_ptr &&
+            bit_ofs == ((Field_bit *)field)->bit_ofs);
   }
   void move_field_offset(my_ptrdiff_t ptr_diff)
   {
