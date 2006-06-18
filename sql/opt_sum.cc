@@ -582,7 +582,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     }
     else
     {
-      store_val_in_field(part->field, args[between && max_fl ? 2 : 1]);
+      store_val_in_field(part->field, args[between && max_fl ? 2 : 1],
+                         CHECK_FIELD_IGNORE);
       if (part->null_bit) 
         *key_ptr++= (byte) test(part->field->is_null());
       part->field->get_key_image((char*) key_ptr, part->length,
@@ -638,6 +639,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
         field BETWEEN const1 AND const2
      3. all references to the columns from the same table as column field
         occur only in conjucts mentioned above.
+     4. each of k first components the index is not partial, i.e. is not
+        defined on a fixed length proper prefix of the field.
 
      If such an index exists the function through the ref parameter
      returns the key value to find max/min for the field using the index,
@@ -647,8 +650,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       of the whole search key)
 
   NOTE
-   This function may set table->key_read to 1, which must be reset after
-   index is used! (This can only happen when function returns 1)
+    This function may set table->key_read to 1, which must be reset after
+    index is used! (This can only happen when function returns 1)
 
   RETURN
     0   Index can not be used to optimize MIN(field)/MAX(field)
@@ -681,6 +684,10 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
     {
       if (!(table->file->index_flags(idx, jdx, 0) & HA_READ_ORDER))
         return 0;
+
+        /* Check whether the index component is partial */
+      if (part->length < table->field[part->fieldnr-1]->pack_length())
+        break;
 
       if (field->eq(part->field))
       {
