@@ -4823,7 +4823,7 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 */
 
 bool
-store_val_in_field(Field *field,Item *item)
+store_val_in_field(Field *field, Item *item, enum_check_fields check_flag)
 {
   bool error;
   TABLE *table= field->table;
@@ -4838,7 +4838,7 @@ store_val_in_field(Field *field,Item *item)
     with select_insert, which make count_cuted_fields= 1
    */
   enum_check_fields old_count_cuted_fields= thd->count_cuted_fields;
-  thd->count_cuted_fields= CHECK_FIELD_WARN;
+  thd->count_cuted_fields= check_flag;
   error= item->save_in_field(field, 1);
   thd->count_cuted_fields= old_count_cuted_fields;
   dbug_tmp_restore_column_map(table->write_set, old_map);
@@ -11031,7 +11031,7 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
 	    field->real_type() != MYSQL_TYPE_VARCHAR &&
 	    (field->type() != FIELD_TYPE_FLOAT || field->decimals() == 0))
 	{
-	  return !store_val_in_field(field,right_item);
+	  return !store_val_in_field(field, right_item, CHECK_FIELD_WARN);
 	}
       }
     }
