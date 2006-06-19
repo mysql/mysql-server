@@ -221,3 +221,13 @@ drop table t1;
 set names latin1;
 
 # End of 4.1 tests
+
+#
+# BUG#19580 - FULLTEXT search produces wrong results on UTF-8 columns
+#
+SET NAMES utf8;
+CREATE TABLE t1(a VARCHAR(255), FULLTEXT(a)) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES('„MySQL“');
+SELECT a FROM t1 WHERE MATCH a AGAINST('“MySQL„' IN BOOLEAN MODE);
+DROP TABLE t1;
+SET NAMES latin1;
