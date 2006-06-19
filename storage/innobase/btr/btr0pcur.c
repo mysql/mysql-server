@@ -397,6 +397,9 @@ btr_pcur_move_to_next_page(
 	ut_ad(next_page_no != FIL_NULL);
 
 	next_page = btr_page_get(space, next_page_no, cursor->latch_mode, mtr);
+#ifdef UNIV_BTR_DEBUG
+	ut_a(btr_page_get_prev(next_page, mtr) == buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 	ut_a(page_is_comp(next_page) == page_is_comp(page));
 	buf_block_align(next_page)->check_index_page_at_flush = TRUE;
 

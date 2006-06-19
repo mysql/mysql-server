@@ -908,8 +908,10 @@ public:
   /* container for handler's private per-connection data */
   void *ha_data[MAX_HA];
 
-#ifdef HAVE_ROW_BASED_REPLICATION
 #ifndef MYSQL_CLIENT
+  int binlog_setup_trx_data();
+
+#ifdef HAVE_ROW_BASED_REPLICATION
 
   /*
     Public interface to write RBR events to the binlog
@@ -939,7 +941,6 @@ public:
 				      RowsEventT* hint);
   Rows_log_event* binlog_get_pending_rows_event() const;
   void            binlog_set_pending_rows_event(Rows_log_event* ev);
-  int             binlog_setup_trx_data();
   
   my_size_t max_row_length_blob(TABLE* table, const byte *data) const;
   my_size_t max_row_length(TABLE* table, const byte *data) const
@@ -960,12 +961,15 @@ public:
 
 private:
   uint binlog_table_maps; // Number of table maps currently in the binlog
-
 public:
-
-#endif
+  uint get_binlog_table_maps() const {
+    return binlog_table_maps;
+  }
 #endif /* HAVE_ROW_BASED_REPLICATION */
+#endif /* MYSQL_CLIENT */
+
 #ifndef MYSQL_CLIENT
+public:
   enum enum_binlog_query_type {
       /*
         The query can be logged row-based or statement-based
@@ -1403,18 +1407,26 @@ public:
   inline void set_current_stmt_binlog_row_based_if_mixed()
   {
     if (variables.binlog_format == BINLOG_FORMAT_MIXED)
-      current_stmt_binlog_row_based= 1;
+      current_stmt_binlog_row_based= TRUE;
   }
   inline void set_current_stmt_binlog_row_based()
   {
-    current_stmt_binlog_row_based= 1;
+    current_stmt_binlog_row_based= TRUE;
   }
+  inline void clear_current_stmt_binlog_row_based()
+  {
+    current_stmt_binlog_row_based= FALSE;
+  }
+#endif
   inline void reset_current_stmt_binlog_row_based()
   {
-    current_stmt_binlog_row_based= test(variables.binlog_format ==
-                                        BINLOG_FORMAT_ROW);
+#ifdef HAVE_ROW_BASED_REPLICATION
+    current_stmt_binlog_row_based=
+      test(variables.binlog_format == BINLOG_FORMAT_ROW);
+#else
+    current_stmt_binlog_row_based= FALSE;
+#endif
   }
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 };
 
 
@@ -1579,6 +1591,9 @@ class select_insert :public select_result_interceptor {
   bool send_eof();
   /* not implemented: select_insert is never re-used in prepared statements */
   void cleanup();
+
+protected:
+  MYSQL_LOCK *lock;
 };
 
 
@@ -1588,7 +1603,6 @@ class select_create: public select_insert {
   List<create_field> *extra_fields;
   List<Key> *keys;
   HA_CREATE_INFO *create_info;
-  MYSQL_LOCK *lock;
   Field **field;
 public:
   select_create (TABLE_LIST *table,
@@ -1598,10 +1612,10 @@ public:
 		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
     :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore),
     create_table(table), extra_fields(&fields_par),keys(&keys_par),
-    create_info(create_info_par),
-    lock(0)
+    create_info(create_info_par)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+
   void binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
