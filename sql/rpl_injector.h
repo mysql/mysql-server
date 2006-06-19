@@ -59,6 +59,11 @@ public:
   */
   static injector *instance();
 
+  /*
+    Delete the singleton instance (if allocated). Used during server shutdown.
+  */
+  static void free_instance();
+
     /*
       A transaction where rows can be added.
 
