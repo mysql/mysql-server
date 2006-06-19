@@ -1,3 +1,4 @@
+Success: the process has been started.
 SHOW INSTANCES;
 instance_name	status
 mysqld1	online
