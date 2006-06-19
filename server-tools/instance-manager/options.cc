@@ -114,7 +114,6 @@ static const int ANGEL_PID_FILE_SUFFIX_LEN= strlen(ANGEL_PID_FILE_SUFFIX);
 */
 
 enum options {
-  OPT_PASSWD= 'P',
   OPT_USERNAME= 'u',
   OPT_PASSWORD= 'p',
   OPT_LOG= 256,
@@ -135,6 +134,7 @@ enum options {
   OPT_PORT,
   OPT_WAIT_TIMEOUT,
   OPT_BIND_ADDRESS,
+  OPT_PRINT_PASSWORD_LINE,
   OPT_ADD_USER,
   OPT_DROP_USER,
   OPT_EDIT_USER,
@@ -225,8 +225,8 @@ static struct my_option my_long_options[] =
     (gptr *) &Options::Main::mysqld_safe_compatible,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
 
-  { "passwd", OPT_PASSWD,
-    "Prepare an entry for the password file and exit.",
+  { "print-password-line", OPT_PRINT_PASSWORD_LINE,
+    "Print out a user entry as a line for the password file and exit.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "password", OPT_PASSWORD, "Password to update the password file",
@@ -339,7 +339,7 @@ get_one_option(int optid,
   case 'V':
     version();
     exit(0);
-  case OPT_PASSWD:
+  case OPT_PRINT_PASSWORD_LINE:
   case OPT_ADD_USER:
   case OPT_DROP_USER:
   case OPT_EDIT_USER:
@@ -354,8 +354,8 @@ get_one_option(int optid,
     }
 
     switch (optid) {
-    case OPT_PASSWD:
-      Options::User_management::cmd= new Passwd_cmd();
+    case OPT_PRINT_PASSWORD_LINE:
+      Options::User_management::cmd= new Print_password_line_cmd();
       break;
     case OPT_ADD_USER:
       Options::User_management::cmd= new Add_user_cmd();
