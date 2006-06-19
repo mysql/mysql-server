@@ -888,8 +888,9 @@ JOIN::optimize()
 			   group_list ? 0 : select_distinct,
 			   group_list && simple_group,
 			   select_options,
-			   (order == 0 || skip_sort_order) ? select_limit :
-			   HA_POS_ERROR,
+			   (order == 0 || skip_sort_order || 
+                            test(select_options & OPTION_BUFFER_RESULT)) ? 
+                             select_limit : HA_POS_ERROR,
 			   (char *) "")))
       DBUG_RETURN(1);
 
@@ -5530,6 +5531,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       keyinfo->key_length+=  key_part_info->length;
     }
   }
+  else
+  {
+    set_if_smaller(table->max_rows, rows_limit);
+    param->end_write_records= rows_limit;
+  }
 
   if (distinct && field_count != param->hidden_field_count)
   {
@@ -5544,8 +5550,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     null_pack_length-=hidden_null_pack_length;
     keyinfo->key_parts= ((field_count-param->hidden_field_count)+
 			 test(null_pack_length));
-    set_if_smaller(table->max_rows, rows_limit);
-    param->end_write_records= rows_limit;
     table->distinct=1;
     table->keys=1;
     if (blob_count)
