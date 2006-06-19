@@ -302,16 +302,15 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
  {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
  {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
-const char *log_output_names[] =
-{ "NONE", "FILE", "TABLE", NullS};
+const char *log_output_names[] = { "NONE", "FILE", "TABLE", NullS};
+static const unsigned int log_output_names_len[]= { 4, 4, 5, 0 };
 TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
-				 log_output_names, NULL};
+                             log_output_names, 
+                             (unsigned int *) log_output_names_len};
 
 /* static variables */
 
 /* the default log output is log tables */
-static const char *log_output_str= "TABLE";
-static ulong log_output_options= LOG_TABLE;
 static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
@@ -342,7 +341,9 @@ static my_bool opt_sync_bdb_logs;
 
 /* Global variables */
 
-bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
+bool opt_update_log, opt_bin_log;
+my_bool opt_log, opt_slow_log;
+uint log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
@@ -520,6 +521,7 @@ ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
+const char *log_output_str= "TABLE";
 
 double log_10[32];			/* 10 potences */
 time_t start_time;
@@ -1229,6 +1231,8 @@ void clean_up(bool print_message)
     free_defaults(defaults_argv);
   my_free(sys_init_connect.value, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sys_init_slave.value, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sys_var_general_log_path.value, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sys_var_slow_log_path.value, MYF(MY_ALLOW_ZERO_PTR));
   free_tmpdir(&mysql_tmpdir_list);
 #ifdef HAVE_REPLICATION
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
@@ -2607,6 +2611,7 @@ static bool init_global_datetime_format(timestamp_type format_type,
 static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
+  char buff[FN_REFLEN];
   umask(((~my_umask) & 0666));
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
@@ -2762,6 +2767,16 @@ static int init_common_variables(const char *conf_file_name, int argc,
     sys_init_slave.value_length= strlen(opt_init_slave);
   else
     sys_init_slave.value=my_strdup("",MYF(0));
+
+  if (!opt_logname)
+    opt_logname= make_default_log_name(buff, ".log");
+  sys_var_general_log_path.value= my_strdup(opt_logname, MYF(0));
+  sys_var_general_log_path.value_length= strlen(opt_logname);
+
+  if (!opt_slow_logname)
+    opt_slow_logname= make_default_log_name(buff, "-slow.log");
+  sys_var_slow_log_path.value= my_strdup(opt_slow_logname, MYF(0));
+  sys_var_slow_log_path.value_length= strlen(opt_slow_logname);
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
@@ -4816,7 +4831,9 @@ enum options_mysqld
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
   OPT_PLUGIN_DIR,
   OPT_LOG_OUTPUT,
-  OPT_PORT_OPEN_TIMEOUT
+  OPT_PORT_OPEN_TIMEOUT,
+  OPT_GENERAL_LOG,
+  OPT_SLOW_LOG
 };
 
 
@@ -5046,6 +5063,9 @@ Disable with --skip-bdb (will save memory).",
    "Set up signals usable for debugging",
    (gptr*) &opt_debugging, (gptr*) &opt_debugging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"general-log", OPT_GENERAL_LOG,
+   "Enable|disable general log", (gptr*) &opt_log,
+   (gptr*) &opt_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_LARGE_PAGES
   {"large-pages", OPT_ENABLE_LARGE_PAGES, "Enable support for large pages. \
 Disable with --skip-large-pages.",
@@ -5621,6 +5641,9 @@ replicating a LOAD DATA INFILE command.",
    "Tells the slave thread to continue replication when a query returns an error from the provided list.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"slow-query-log", OPT_SLOW_LOG,
+   "Enable|disable slow query log", (gptr*) &opt_slow_log,
+   (gptr*) &opt_slow_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", OPT_SOCKET, "Socket file to use for connection.",
    (gptr*) &mysqld_unix_port, (gptr*) &mysqld_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6930,6 +6953,7 @@ static void mysql_init_variables(void)
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
   opt_log= opt_update_log= opt_slow_log= 0;
+  log_output_options= find_bit_type(log_output_str, &log_output_typelib);
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;

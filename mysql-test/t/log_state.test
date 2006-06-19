@@ -1,0 +1,122 @@
+-- source include/not_embedded.inc
+--source include/have_csv.inc
+
+--disable_ps_protocol
+set global general_log= OFF;
+truncate table mysql.general_log;
+truncate table mysql.slow_log;
+show global variables
+where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
+Variable_name = 'general_log' or Variable_name = 'slow_query_log';
+flush logs;
+set global general_log= ON;
+create table t1(f1 int);
+--replace_column 1 TIMESTAMP 3 #
+select * from mysql.general_log;
+set global general_log= OFF;
+drop table t1;
+--replace_column 1 TIMESTAMP 3 #
+select * from mysql.general_log;
+set global general_log= ON;
+flush logs;
+show global variables
+where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
+Variable_name = 'general_log' or Variable_name = 'slow_query_log';
+
+connect (con1,localhost,root,,);
+connection con1;
+set session long_query_time=1;
+select sleep(2);
+--replace_column 1 TIMESTAMP, 3 USER_HOST, 4 QUERY_TIME
+select * from mysql.slow_log;
+connection default;
+
+set global slow_query_log= ON;
+connection con1;
+set session long_query_time=1;
+select sleep(2);
+--replace_column 1 TIMESTAMP, 3 USER_HOST, 4 QUERY_TIME
+select * from mysql.slow_log;
+disconnect con1;
+connection default;
+show global variables
+where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
+Variable_name = 'general_log' or Variable_name = 'slow_query_log';
+
+set global general_log= ON;
+set global general_log= OFF;
+set global general_log= OFF;
+set global slow_query_log= ON;
+set global slow_query_log= OFF;
+set global slow_query_log= OFF;
+
+set global general_log= ON;
+truncate table mysql.general_log;
+create table t1(f1 int);
+drop table t1;
+--replace_column 1 TIMESTAMP 3 #
+select * from mysql.general_log;
+set global general_log= OFF;
+truncate table mysql.general_log;
+--replace_column 1 TIMESTAMP 3 #
+select * from mysql.general_log;
+set global general_log= ON;
+show global variables
+where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
+Variable_name = 'general_log' or Variable_name = 'slow_query_log';
+
+--replace_column 2 #
+show variables like 'general_log_file';
+--replace_column 2 #
+show variables like 'slow_query_log_file';
+show variables like 'log_output';
+
+--error 1231
+set global general_log_file='/not exiting path/log.master';
+--error 1231
+set global general_log_file='/tmp';
+--error 1231
+set global general_log_file='';
+--replace_column 2 #
+show variables like 'general_log_file';
+set global general_log= OFF;
+set global general_log_file='/tmp/log.master';
+set global general_log= ON;
+create table t1(f1 int);
+drop table t1;
+set global general_log= OFF;
+set global general_log_file=default;
+set global general_log= ON;
+create table t1(f1 int);
+drop table t1;
+--replace_column 2 #
+show variables like 'general_log_file';
+--replace_column 2 #
+show variables like 'slow_query_log_file';
+
+set global general_log= default;
+set global slow_query_log= default;
+set global general_log_file= default;
+set global slow_query_log_file= default;
+show variables like 'general_log';
+show variables like 'slow_query_log';
+set global general_log=ON;
+set global log_output=default;
+show variables like 'log_output';
+set global general_log=OFF;
+set global log_output=FILE;
+truncate table mysql.general_log;
+show variables like 'log_output';
+set global general_log=ON;
+create table t1(f1 int);
+--replace_column 1 TIMESTAMP 3 #
+select * from mysql.general_log;
+set global general_log=OFF;
+set global log_output="FILE,TABLE";
+show variables like 'log_output';
+set global general_log=ON;
+drop table t1;
+--replace_column 1 TIMESTAMP 3 #
+select * from mysql.general_log;
+
+--enable_ps_protocol
