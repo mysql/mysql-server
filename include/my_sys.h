@@ -547,7 +547,6 @@ extern File my_open(const char *FileName,int Flags,myf MyFlags);
 extern File my_register_filename(File fd, const char *FileName,
 				 enum file_type type_of_file,
 				 uint error_message_number, myf MyFlags);
-extern void my_print_open_files(void);
 extern File my_create(const char *FileName,int CreateFlags,
 		      int AccessFlags, myf MyFlags);
 extern int my_close(File Filedes,myf MyFlags);
@@ -638,7 +637,7 @@ extern void allow_break(void);
 #endif
 
 #ifdef EXTRA_DEBUG
-void my_print_open_files();
+void my_print_open_files(void);
 #else
 #define my_print_open_files()
 #endif
@@ -672,13 +671,15 @@ extern my_string my_path(my_string to,const char *progname,
 			 const char *own_pathname_part);
 extern my_string my_load_path(my_string to, const char *path,
 			      const char *own_path_prefix);
-extern int wild_compare(const char *str,const char *wildstr,pbool str_is_pattern);
+extern int wild_compare(const char *str,const char *wildstr,
+                        pbool str_is_pattern);
 extern WF_PACK *wf_comp(my_string str);
 extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
 extern void wf_end(struct wild_file_pack *buffer);
 extern size_s strip_sp(my_string str);
 extern void get_date(my_string to,int timeflag,time_t use_time);
-extern void soundex(CHARSET_INFO *, my_string out_pntr, my_string in_pntr,pbool remove_garbage);
+extern void soundex(CHARSET_INFO *, my_string out_pntr, my_string in_pntr,
+                    pbool remove_garbage);
 extern int init_record_cache(RECORD_CACHE *info,uint cachesize,File file,
 			     uint reclength,enum cache_type type,
 			     pbool use_async_io);
