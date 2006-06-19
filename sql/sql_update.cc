@@ -859,7 +859,12 @@ reopen_tables:
       }
     }
   }
-
+  /*
+    Set exclude_from_table_unique_test value back to FALSE. It is needed for
+    further check in multi_update::prepare whether to use record cache.
+  */
+  lex->select_lex.exclude_from_table_unique_test= FALSE;
+ 
   if (thd->fill_derived_tables() &&
       mysql_handle_derived(lex, &mysql_derived_filling))
     DBUG_RETURN(TRUE);
