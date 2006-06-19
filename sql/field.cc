@@ -50,8 +50,8 @@ const char field_separator=',';
 #define BLOB_PACK_LENGTH_TO_MAX_LENGH(arg) \
 ((ulong) ((LL(1) << min(arg, 4) * 8) - LL(1)))
 
-#define ASSERT_COLUMN_MARKED_FOR_READ DBUG_ASSERT(!table->read_set || bitmap_is_set(table->read_set, field_index))
-#define ASSERT_COLUMN_MARKED_FOR_WRITE DBUG_ASSERT(!table->write_set || bitmap_is_set(table->write_set, field_index))
+#define ASSERT_COLUMN_MARKED_FOR_READ DBUG_ASSERT(!table || (!table->read_set || bitmap_is_set(table->read_set, field_index)))
+#define ASSERT_COLUMN_MARKED_FOR_WRITE DBUG_ASSERT(!table || (!table->write_set || bitmap_is_set(table->write_set, field_index)))
 
 /*
   Rules for merging different types of fields in UNION

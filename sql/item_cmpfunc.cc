@@ -148,7 +148,7 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
     }
     else if (res == Item::FUNC_ITEM)
     {
-      field= items[i]->tmp_table_field_from_field_type(0);
+      field= items[i]->tmp_table_field_from_field_type(0, 0);
       if (field)
         field->move_field(buff, &null_byte, 0);
       break;
@@ -354,9 +354,21 @@ longlong Item_func_nop_all::val_int()
 static bool convert_constant_item(THD *thd, Field *field, Item **item)
 {
   int result= 0;
+
   if (!(*item)->with_subselect && (*item)->const_item())
   {
+    TABLE *table= field->table;
+    ulong orig_sql_mode= thd->variables.sql_mode;
+    my_bitmap_map *old_write_map;
+    my_bitmap_map *old_read_map;
+
+    if (table)
+    {
+      old_write_map= dbug_tmp_use_all_columns(table, table->write_set);
+      old_read_map= dbug_tmp_use_all_columns(table, table->read_set);
+    }
     /* For comparison purposes allow invalid dates like 2000-01-32 */
+    thd->variables.sql_mode|= MODE_INVALID_DATES;
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
       Item *tmp= new Item_int_with_ref(field->val_int(), *item,
@@ -365,9 +377,12 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
         thd->change_item_tree(item, tmp);
       result= 1;					// Item was replaced
     }
-    table->in_use->variables.sql_mode= orig_sql_mode;
-    dbug_tmp_restore_column_map(table->write_set, old_write_map);
-    dbug_tmp_restore_column_map(table->read_set, old_read_map);
+    thd->variables.sql_mode= orig_sql_mode;
+    if (table)
+    {
+      dbug_tmp_restore_column_map(table->write_set, old_write_map);
+      dbug_tmp_restore_column_map(table->read_set, old_read_map);
+    }
   }
   return result;
 }
