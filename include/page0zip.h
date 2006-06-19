@@ -271,6 +271,7 @@ page_zip_write_header(
 /**************************************************************************
 Reorganize and compress a page.  This is a low-level operation for
 compressed pages, to be used when page_zip_compress() fails.
+On success, a redo log entry MLOG_ZIP_PAGE_COMPRESS will be written.
 The function btr_page_reorganize() should be preferred whenever possible. */
 
 ibool
