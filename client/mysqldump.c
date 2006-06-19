@@ -1494,8 +1494,14 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       field= mysql_fetch_field_direct(result, 0);
       if (strcmp(field->name, "View") == 0)
       {
+        char *scv_buff = NULL;
+
         if (verbose)
           fprintf(stderr, "-- It's a view, create dummy table for view\n");
+
+        /* save "show create" statement for later */
+        if ((row= mysql_fetch_row(result)) && (scv_buff=row[1]))
+          scv_buff= my_strdup(scv_buff, MYF(0));
 
         mysql_free_result(result);
 
@@ -1514,9 +1520,22 @@ static uint get_table_structure(char *table, char *db, char *table_type,
                     "SHOW FIELDS FROM %s", result_table);
         if (mysql_query_with_error_report(sock, 0, query_buff))
         {
+          /*
+            View references invalid or privileged table/col/fun (err 1356),
+            so we cannot create a stand-in table.  Be defensive and dump
+            a comment with the view's 'show create' statement. (Bug #17371)
+          */
+
+          if (mysql_errno(sock) == ER_VIEW_INVALID)
+            fprintf(sql_file, "\n-- failed on view %s: %s\n\n", result_table, scv_buff ? scv_buff : "");
+
+          my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
+
           safe_exit(EX_MYSQLERR);
-          DBUG_RETURN(0);
+          DBUG_RETURN(0); 
         }
+        else
+          my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
 
         if ((result= mysql_store_result(sock)))
         {
