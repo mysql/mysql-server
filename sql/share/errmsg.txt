@@ -5835,3 +5835,6 @@ ER_EVENT_SET_VAR_ERROR
 ER_PARTITION_MERGE_ERROR
         eng "%s handler cannot be used in partitioned tables"
         swe "%s kan inte användas i en partitionerad tabell"
+ER_CANT_ACTIVATE_LOG
+        eng "Cannot activate '%-.64s' log."
+

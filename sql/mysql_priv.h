@@ -1167,6 +1167,7 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 void remove_db_from_cache(const char *db);
 void flush_tables();
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
+char *make_default_log_name(char *buff,const char* log_ext);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 uint fast_alter_partition_table(THD *thd, TABLE *table,
@@ -1514,7 +1515,9 @@ extern bool opt_endinfo, using_udf_functions;
 extern my_bool locked_in_memory;
 extern bool opt_using_transactions, mysqld_embedded;
 extern bool using_update_log, opt_large_files, server_id_supplied;
-extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
+extern bool opt_update_log, opt_bin_log, opt_error_log;
+extern my_bool opt_log, opt_slow_log;
+extern uint log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern my_bool opt_character_set_client_handshake;
@@ -1536,6 +1539,8 @@ extern my_bool opt_enable_shared_memory;
 extern char *default_tz_name;
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;
+extern char *opt_logname, *opt_slow_logname;
+extern const char *log_output_str;
 
 extern MYSQL_LOG mysql_bin_log;
 extern LOGGER logger;
@@ -1582,6 +1587,7 @@ extern TABLE *unused_tables;
 extern const char* any_db;
 extern struct my_option my_long_options[];
 extern const LEX_STRING view_type;
+extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
 
