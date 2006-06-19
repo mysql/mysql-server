@@ -41,7 +41,7 @@ drop table t1;
 create table t1 (ix timestamp);
 insert into t1 values (19991101000000),(19990102030405),(19990630232922),(19990601000000),(19990930232922),(19990531232922),(19990501000000),(19991101000000),(19990501000000);
 select ix+0 from t1;
-delete from t1;
+truncate table t1;
 insert into t1 values ("19991101000000"),("19990102030405"),("19990630232922"),("19990601000000");
 select ix+0 from t1;
 drop table t1;
@@ -82,10 +82,10 @@ drop table t1;
 create table t1 (ix timestamp);
 insert into t1 values (0),(20030101010160),(20030101016001),(20030101240101),(20030132010101),(20031301010101),(20031200000000),(20030000000000);
 select ix+0 from t1;
-delete from t1;
+truncate table t1;
 insert into t1 values ("00000000000000"),("20030101010160"),("20030101016001"),("20030101240101"),("20030132010101"),("20031301010101"),("20031200000000"),("20030000000000");
 select ix+0 from t1;
-delete from t1;
+truncate table t1;
 insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
 select ix+0 from t1;
 drop table t1;
@@ -186,7 +186,7 @@ insert into t1 (t1) values (default);
 select * from t1;
 show create table t1;
 show columns from t1;
-delete from t1;
+truncate table t1;
 
 # 
 # Let us test some cases when auto-set should be disabled or influence

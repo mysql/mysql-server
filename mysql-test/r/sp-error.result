@@ -368,7 +368,7 @@ end|
 insert into t1 values (666, 51.3)|
 call bug2272()|
 ERROR 42S22: Unknown column 'v' in 'field list'
-delete from t1|
+truncate table t1|
 drop procedure bug2272|
 create procedure bug2329_1()
 begin
@@ -520,7 +520,7 @@ declare exit handler for sqlexception select 'Error!';
 open c;
 fetch c into v;
 end|
-delete from t1|
+truncate table t1|
 call bug7299()|
 ERROR 02000: No data - zero rows fetched, selected, or processed
 drop procedure bug7299|
@@ -621,7 +621,7 @@ val	x	bug8408()
 3	3.14	3
 7	7	3
 drop function bug8408|
-delete from t1|
+truncate table t1|
 drop procedure if exists bug10537|
 create procedure bug10537()
 load data local infile '/tmp/somefile' into table t1|

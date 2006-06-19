@@ -261,26 +261,21 @@ master-bin.000001	243	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	282	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	316	Xid	1	#	COMMIT /* xid= */
 master-bin.000001	343	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	382	Query	1	#	use `test`; delete from t1
-master-bin.000001	459	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	486	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	525	Query	1	#	use `test`; delete from t2
-master-bin.000001	602	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	629	Query	1	#	use `test`; alter table t2 engine=MyISAM
-master-bin.000001	720	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	759	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	793	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	820	Query	1	#	use `test`; BEGIN
-master-bin.000001	888	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	927	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	956	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	983	Query	1	#	use `test`; drop table t1,t2
-master-bin.000001	1062	Query	1	#	use `test`; create table t0 (n int)
-master-bin.000001	1148	Table_map	1	#	table_id: # (test.t0)
-master-bin.000001	1187	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	1221	Table_map	1	#	table_id: # (test.t0)
-master-bin.000001	1260	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	1294	Query	1	#	use `test`; create table t2 (n int) engine=innodb
+master-bin.000001	382	Delete_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	421	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	448	Query	1	#	use `test`; alter table t2 engine=MyISAM
+master-bin.000001	539	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	578	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	612	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	639	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	678	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	712	Query	1	#	use `test`; drop table t1,t2
+master-bin.000001	791	Query	1	#	use `test`; create table t0 (n int)
+master-bin.000001	877	Table_map	1	#	table_id: # (test.t0)
+master-bin.000001	916	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	950	Table_map	1	#	table_id: # (test.t0)
+master-bin.000001	989	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	1023	Query	1	#	use `test`; create table t2 (n int) engine=innodb
 do release_lock("lock1");
 drop table t0,t2;
 set autocommit=0;
