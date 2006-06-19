@@ -1095,3 +1095,12 @@ insert into t1 values(
 insert into t1 values(1e100);
 select * from t1;
 drop table t1;
+
+#
+# Bug#19667 group by a decimal expression yields wrong result
+#
+create table t1 (i int, j int);
+insert into t1 values (1,1), (1,2), (2,3), (2,4);
+select i, count(distinct j) from t1 group by i;
+select i+0.0 as i2, count(distinct j) from t1 group by i2;
+drop table t1;

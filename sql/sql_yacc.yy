@@ -10635,6 +10635,8 @@ union_list:
             yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
+          /* This counter shouldn't be incremented for UNION parts */
+          Lex->nest_level--;
 	  if (mysql_new_select(lex, 0))
 	    YYABORT;
           mysql_init_select(lex);

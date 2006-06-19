@@ -1503,7 +1503,7 @@ double Item_func_sysdate_local::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   store_now_in_TIME(&ltime);
-  return (longlong) TIME_to_ulonglong_datetime(&ltime);
+  return ulonglong2double(TIME_to_ulonglong_datetime(&ltime));
 }
 
 
@@ -2344,6 +2344,20 @@ String *Item_datetime_typecast::val_str(String *str)
 }
 
 
+longlong Item_datetime_typecast::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  TIME ltime;
+  if (get_arg0_date(&ltime,1))
+  {
+    null_value= 1;
+    return 0;
+  }
+
+  return TIME_to_ulonglong_datetime(&ltime);
+}
+
+
 bool Item_time_typecast::get_time(TIME *ltime)
 {
   bool res= get_arg0_time(ltime);
@@ -2357,6 +2371,17 @@ bool Item_time_typecast::get_time(TIME *ltime)
   return res;
 }
 
+
+longlong Item_time_typecast::val_int()
+{
+  TIME ltime;
+  if (get_time(&ltime))
+  {
+    null_value= 1;
+    return 0;
+  }
+  return ltime.hour * 10000L + ltime.minute * 100 + ltime.second;
+}
 
 String *Item_time_typecast::val_str(String *str)
 {
@@ -2397,6 +2422,14 @@ String *Item_date_typecast::val_str(String *str)
   return 0;
 }
 
+longlong Item_date_typecast::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  TIME ltime;
+  if (args[0]->get_date(&ltime, TIME_FUZZY_DATE))
+    return 0;
+  return (longlong) (ltime.year * 10000L + ltime.month * 100 + ltime.day);
+}
 
 /*
   MAKEDATE(a,b) is a date function that creates a date value 
@@ -2429,6 +2462,33 @@ String *Item_func_makedate::val_str(String *str)
 
 err:
   null_value=1;
+  return 0;
+}
+
+
+longlong Item_func_makedate::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  TIME l_time;
+  long daynr=  (long) args[1]->val_int();
+  long yearnr= (long) args[0]->val_int();
+  long days;
+
+  if (args[0]->null_value || args[1]->null_value ||
+      yearnr < 0 || daynr <= 0)
+    goto err;
+
+  days= calc_daynr(yearnr,1,1) + daynr - 1;
+  /* Day number from year 0 to 9999-12-31 */
+  if (days >= 0 && days < MAX_DAY_NUMBER)
+  {
+    null_value=0;
+    get_date_from_daynr(days,&l_time.year,&l_time.month,&l_time.day);
+    return (longlong) (l_time.year * 10000L + l_time.month * 100 + l_time.day);
+  }
+
+err:
+  null_value= 1;
   return 0;
 }
 
