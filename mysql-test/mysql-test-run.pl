@@ -2843,7 +2843,31 @@ sub im_stop($) {
 
   # Try graceful shutdown.
 
+  mtr_debug("IM-main pid: $instance_manager->{'pid'}");
+  mtr_debug("Stopping IM-main...");
+
   mtr_kill_process($instance_manager->{'pid'}, 'TERM', 10, 1);
+
+  # If necessary, wait for angel process to die.
+
+  if (defined $instance_manager->{'angel_pid'})
+  {
+    mtr_debug("IM-angel pid: $instance_manager->{'angel_pid'}");
+    mtr_debug("Waiting for IM-angel to die...");
+
+    my $total_attempts= 10;
+
+    for (my $cur_attempt=1; $cur_attempt <= $total_attempts; ++$cur_attempt)
+    {
+      unless (kill (0, $instance_manager->{'angel_pid'}))
+      {
+        mtr_debug("IM-angel died.");
+        last;
+      }
+
+      sleep(1);
+    }
+  }
 
   # Check that all processes died.
 
@@ -2851,14 +2875,26 @@ sub im_stop($) {
 
   while (1)
   {
-    last if kill (0, $instance_manager->{'pid'});
+    if (kill (0, $instance_manager->{'pid'}))
+    {
+      mtr_debug("IM-main is still alive.");
+      last;
+    }
 
-    last if (defined $instance_manager->{'angel_pid'}) &&
-            kill (0, $instance_manager->{'angel_pid'});
+    if (defined $instance_manager->{'angel_pid'} &&
+        kill (0, $instance_manager->{'angel_pid'}))
+    {
+      mtr_debug("IM-angel is still alive.");
+      last;
+    }
 
     foreach my $pid (@mysqld_pids)
     {
-      last if kill (0, $pid);
+      if (kill (0, $pid))
+      {
+        mtr_debug("Guarded mysqld ($pid) is still alive.");
+        last;
+      }
     }
 
     $clean_shutdown= 1;
@@ -2869,15 +2905,21 @@ sub im_stop($) {
 
   unless ($clean_shutdown)
   {
-    mtr_kill_process($instance_manager->{'angel_pid'}, 'KILL', 10, 1)
-      if defined $instance_manager->{'angel_pid'};
+
+    if (defined $instance_manager->{'angel_pid'})
+    {
+      mtr_debug("Killing IM-angel...");
+      mtr_kill_process($instance_manager->{'angel_pid'}, 'KILL', 10, 1)
+    }
     
+    mtr_debug("Killing IM-main...");
     mtr_kill_process($instance_manager->{'pid'}, 'KILL', 10, 1);
 
     # Shutdown managed mysqld-processes. Some of them may be nonguarded, so IM
     # will not stop them on shutdown. So, we should firstly try to end them
     # legally.
 
+    mtr_debug("Killing guarded mysqld(s)...");
     mtr_kill_processes(\@mysqld_pids);
 
     # Complain in error log so that a warning will be shown.
