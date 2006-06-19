@@ -5681,7 +5681,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   /* If malloc fails, catched in is_valid() */
   if ((m_memory= my_malloc(m_colcnt, MYF(MY_WME))))
   {
-    m_coltype= reinterpret_cast<unsigned char*>(m_memory);
+    m_coltype= reinterpret_cast<uchar*>(m_memory);
     for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
       m_coltype[i]= m_table->field[i]->type();
   }
@@ -5737,11 +5737,11 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 
   /* Extract the length of the various parts from the buffer */
   byte const* const ptr_dblen= (byte const*)vpart + 0;
-  m_dblen= *(unsigned char*) ptr_dblen;
+  m_dblen= *(uchar*) ptr_dblen;
 
   /* Length of database name + counter + terminating null */
   byte const* const ptr_tbllen= ptr_dblen + m_dblen + 2;
-  m_tbllen= *(unsigned char*) ptr_tbllen;
+  m_tbllen= *(uchar*) ptr_tbllen;
 
   /* Length of table name + counter + terminating null */
   byte const* const ptr_colcnt= ptr_tbllen + m_tbllen + 2;

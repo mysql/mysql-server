@@ -119,7 +119,7 @@ int ndbcluster_util_inited= 0;
 
 static Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
-unsigned char g_node_id_map[max_ndb_nodes];
+uchar g_node_id_map[max_ndb_nodes];
 
 // Handler synchronization
 pthread_mutex_t ndbcluster_mutex;
@@ -1005,7 +1005,7 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
 
   if (data.unique_index_attrid_map)
     my_free((char*)data.unique_index_attrid_map, MYF(0));
-  data.unique_index_attrid_map= (unsigned char*)my_malloc(sz,MYF(MY_WME));
+  data.unique_index_attrid_map= (uchar*)my_malloc(sz,MYF(MY_WME));
 
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;

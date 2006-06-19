@@ -205,8 +205,8 @@ LEX_STRING interval_type_to_name[] = {
 
 int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
 {
- return cs->coll->strnncollsp(cs, (unsigned char *) s.str,s.length,
-                                  (unsigned char *) t.str,t.length, 0);
+ return cs->coll->strnncollsp(cs, (uchar *) s.str,s.length,
+                                  (uchar *) t.str,t.length, 0);
 }
 
 

@@ -720,8 +720,8 @@ void String::qs_append(uint i)
 int sortcmp(const String *s,const String *t, CHARSET_INFO *cs)
 {
  return cs->coll->strnncollsp(cs,
-                              (unsigned char *) s->ptr(),s->length(),
-                              (unsigned char *) t->ptr(),t->length(), 0);
+                              (uchar *) s->ptr(),s->length(),
+                              (uchar *) t->ptr(),t->length(), 0);
 }
 
 
@@ -734,7 +734,7 @@ int sortcmp(const String *s,const String *t, CHARSET_INFO *cs)
     t		Second string
 
   NOTE:
-    Strings are compared as a stream of unsigned chars
+    Strings are compared as a stream of uchars
 
   RETURN
   < 0	s < t
