@@ -255,12 +255,15 @@ public:
    *   @param   processId: Id of the DB process to stop
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    */
-  int stopNodes(const Vector<NodeId> &node_ids, int *stopCount, bool abort);
+  int stopNodes(const Vector<NodeId> &node_ids, int *stopCount, bool abort,
+                int *stopSelf);
+
+  int shutdownMGM(int *stopCount, bool abort, int *stopSelf);
 
   /**
-   *   Stop the system
+   * shutdown the DB nodes
    */
-  int stop(int * cnt = 0, bool abort = false);
+  int shutdownDB(int * cnt = 0, bool abort = false);
 
   /**
    *   print version info about a node
@@ -294,14 +297,14 @@ public:
    */
   int restartNodes(const Vector<NodeId> &node_ids,
                    int *stopCount, bool nostart,
-                   bool initialStart, bool abort);
+                   bool initialStart, bool abort, int *stopSelf);
   
   /**
-   *   Restart the system
+   *   Restart all DB nodes
    */
-  int restart(bool nostart, bool initialStart, 
-	      bool abort = false,
-	      int * stopCount = 0);
+  int restartDB(bool nostart, bool initialStart, 
+                bool abort = false,
+                int * stopCount = 0);
   
   struct BackupEvent {
     enum Event {
@@ -500,7 +503,8 @@ private:
 		   bool stop,
 		   bool restart,
 		   bool nostart,
-		   bool initialStart);
+		   bool initialStart,
+                   int *stopSelf);
  
   /**
    *   Check if it is possible to send a signal to a (DB) process

@@ -50,3 +50,52 @@ insert into t1 values (1);
 insert delayed into t1 values (1);
 select * from t1;
 drop table t1;
+
+#
+# Bug #20195: INSERT DELAYED with auto_increment is assigned wrong values
+#
+CREATE TABLE t1 ( a int(10) NOT NULL auto_increment, PRIMARY KEY (a));
+
+# Make one delayed insert to start the separate thread
+insert delayed into t1 values(null);
+
+# Do some normal inserts
+insert into t1 values(null);
+insert into t1 values(null);
+
+# Discarded, since the delayed-counter is 2, which is already used
+insert delayed into t1 values(null);
+
+# Discarded, since the delayed-counter is 3, which is already used
+insert delayed into t1 values(null);
+
+# Works, since the delayed-counter is 4, which is unused
+insert delayed into t1 values(null);
+
+# Do some more inserts
+insert into t1 values(null);
+insert into t1 values(null);
+insert into t1 values(null);
+
+# Delete one of the above to make a hole
+delete from t1 where a=6;
+
+# Discarded, since the delayed-counter is 5, which is already used
+insert delayed into t1 values(null);
+
+# Works, since the delayed-counter is 6, which is unused (the row we deleted)
+insert delayed into t1 values(null);
+
+# Discarded, since the delayed-counter is 7, which is already used
+insert delayed into t1 values(null);
+
+# Works, since the delayed-counter is 8, which is unused
+insert delayed into t1 values(null);
+
+# Check what we have now
+# must wait so that the delayed thread finishes
+# Note: this must be increased if the test fails
+--sleep 1
+select * from t1 order by a;
+
+DROP TABLE t1;

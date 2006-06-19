@@ -52,4 +52,19 @@ select 'a' union select concat('a', -0.0);
 --replace_result a-0.0000 a0.0000
 select 'a' union select concat('a', -0.0000);
 
+#
+# Bug#16716: subselect in concat() may lead to a wrong result
+#
+select concat((select x from (select 'a' as x) as t1 ),
+  (select y from (select 'b' as y) as t2 )) from (select 1 union select 2 )
+  as t3;
+
 # End of 4.1 tests
+
+#
+# Bug#15962: CONCAT() in UNION may lead to a data trucation.
+#
+create table t1(f1 varchar(6)) charset=utf8;
+insert into t1 values ("123456");
+select concat(f1, 2) a from t1 union select 'x' a from t1;
+drop table t1;

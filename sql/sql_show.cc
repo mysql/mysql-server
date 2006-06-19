@@ -3423,7 +3423,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
              show_table->field[key_part->fieldnr-1]->key_length()))
         {
           table->field[10]->store((longlong) key_part->length /
-                                  key_part->field->charset()->mbmaxlen);
+                                  key_part->field->charset()->mbmaxlen, TRUE);
           table->field[10]->set_notnull();
         }
         uint flags= key_part->field ? key_part->field->flags : 0;

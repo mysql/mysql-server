@@ -2640,10 +2640,10 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.time_zone= my_tz_SYSTEM;
   
   /*
-    Init mutexes for the global MYSQL_LOG objects.
+    Init mutexes for the global MYSQL_BIN_LOG objects.
     As safe_mutex depends on what MY_INIT() does, we can't init the mutexes of
-    global MYSQL_LOGs in their constructors, because then they would be inited
-    before MY_INIT(). So we do it here.
+    global MYSQL_BIN_LOGs in their constructors, because then they would be
+    inited before MY_INIT(). So we do it here.
   */
   mysql_bin_log.init_pthread_objects();
 
