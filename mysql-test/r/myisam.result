@@ -748,3 +748,11 @@ select count(id1) from t1 where id2 = 10;
 count(id1)
 5
 drop table t1;
+CREATE TABLE t1(a CHAR(9), b VARCHAR(7)) ENGINE=MyISAM;
+INSERT INTO t1(a) VALUES('xxxxxxxxx'),('xxxxxxxxx');
+UPDATE t1 AS ta1,t1 AS ta2 SET ta1.b='aaaaaa',ta2.b='bbbbbb';
+SELECT * FROM t1;
+a	b
+xxxxxxxxx	bbbbbb
+xxxxxxxxx	bbbbbb
+DROP TABLE t1;
