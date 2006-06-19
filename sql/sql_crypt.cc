@@ -52,7 +52,7 @@ void SQL_CRYPT::crypt_init(ulong *rand_nr)
     decode_buff[+i]=a;
   }
   for (i=0 ; i <= 255 ; i++)
-   encode_buff[(unsigned char) decode_buff[i]]=i;
+   encode_buff[(uchar) decode_buff[i]]=i;
   org_rand=rand;
   shift=0;
 }
@@ -75,7 +75,7 @@ void SQL_CRYPT::decode(char *str,uint length)
   for (uint i=0; i < length; i++)
   {
     shift^=(uint) (my_rnd(&rand)*255.0);
-    uint idx= (uint) ((unsigned char) str[0] ^ shift);
+    uint idx= (uint) ((uchar) str[0] ^ shift);
     *str = decode_buff[idx];
     shift^= (uint) (uchar) *str++;
   }

@@ -5211,7 +5211,7 @@ int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
     else if (nr > 1900)
       nr-= 1900;
   }
-  *ptr= (char) (unsigned char) nr;
+  *ptr= (char) (uchar) nr;
   return error;
 }
 
@@ -5243,7 +5243,7 @@ int Field_year::store(longlong nr, bool unsigned_val)
     else if (nr > 1900)
       nr-= 1900;
   }
-  *ptr= (char) (unsigned char) nr;
+  *ptr= (char) (uchar) nr;
   return 0;
 }
 
@@ -6200,9 +6200,9 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 
 void Field_string::sort_string(char *to,uint length)
 {
-  uint tmp=my_strnxfrm(field_charset,
-		       (unsigned char *) to, length,
-		       (unsigned char *) ptr, field_length);
+  uint tmp= my_strnxfrm(field_charset,
+                        (uchar*) to, length,
+                        (uchar*) ptr, field_length);
   DBUG_ASSERT(tmp == length);
 }
 
