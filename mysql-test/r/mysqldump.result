@@ -2718,9 +2718,8 @@ p		CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 select 42
 drop function f;
 drop procedure p;
-drop database if exists test;
-create database test;
-use test;
+create database mysqldump_test_db;
+use mysqldump_test_db;
 create table t1 (id int);
 create view v1 as select * from t1;
 insert into t1 values (1232131);
@@ -2739,11 +2738,11 @@ insert into t1 values (0815);
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-/*!40000 DROP DATABASE IF EXISTS `test`*/;
+/*!40000 DROP DATABASE IF EXISTS `mysqldump_test_db`*/;
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET latin1 */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_test_db` /*!40100 DEFAULT CHARACTER SET latin1 */;
 
-USE `test`;
+USE `mysqldump_test_db`;
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
   `id` int(11) default NULL
@@ -2776,3 +2775,5 @@ DROP TABLE IF EXISTS `v1`;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 drop view v1;
+drop table t1;
+drop database mysqldump_test_db;
