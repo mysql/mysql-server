@@ -1526,17 +1526,37 @@ bool close_temporary_table(THD *thd, TABLE_LIST *table_list)
 }
 
 /*
-  Close temporary table and unlink from thd->temporary tables
+  unlink from thd->temporary tables and close temporary table
 */
 
 void close_temporary_table(THD *thd, TABLE *table,
                            bool free_share, bool delete_table)
 {
-  TABLE **prev= table->open_prev;
-  if ((*table->open_prev= table->next))
-    table->next->open_prev= prev;
+  if (table->prev)
+  {
+    table->prev->next= table->next;
+    if (table->prev->next)
+      table->next->prev= table->prev;
+  }
+  else
+  {
+    /* removing the item from the list */
+    DBUG_ASSERT(table == thd->temporary_tables);
+    /*
+      slave must reset its temporary list pointer to zero to exclude
+      passing non-zero value to end_slave via rli->save_temporary_tables
+      when no temp tables opened, see an invariant below.
+    */
+    thd->temporary_tables= table->next;
+    if (thd->temporary_tables)
+      table->next->prev= 0;
+  }
   if (thd->slave_thread)
+  {
+    /* natural invariant of temporary_tables */
+    DBUG_ASSERT(slave_open_temp_tables || !thd->temporary_tables);
     slave_open_temp_tables--;
+  }
   close_temporary(table, free_share, delete_table);
 }
 
@@ -3504,10 +3524,12 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 
   if (link_in_list)
   {
-    tmp_table->open_prev= &thd->temporary_tables;
-    if ((tmp_table->next= thd->temporary_tables))
-      thd->temporary_tables->open_prev= &tmp_table->next;
+    /* growing temp list at the head */
+    tmp_table->next= thd->temporary_tables;
+    if (tmp_table->next)
+      tmp_table->next->prev= tmp_table;
     thd->temporary_tables= tmp_table;
+    thd->temporary_tables->prev= 0;
     if (thd->slave_thread)
       slave_open_temp_tables++;
   }
