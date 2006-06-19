@@ -28,6 +28,10 @@
 
 #include "ha_myisam.h"
 
+#ifdef HAVE_ROW_BASED_REPLICATION
+#include "rpl_injector.h"
+#endif
+
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
 #define OPT_INNODB_DEFAULT 1
 #else
@@ -1183,6 +1187,9 @@ void clean_up(bool print_message)
     what they have that is dependent on the binlog
   */
   ha_binlog_end(current_thd);
+#ifdef HAVE_ROW_BASED_REPLICATION
+  injector::free_instance();
+#endif
   mysql_bin_log.cleanup();
 
 #ifdef HAVE_REPLICATION
