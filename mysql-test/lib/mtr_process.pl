@@ -890,19 +890,28 @@ sub mtr_kill_processes ($) {
 sub mtr_kill_process ($$$$) {
   my $pid= shift;
   my $signal= shift;
-  my $retries= shift;
+  my $total_retries= shift;
   my $timeout= shift;
 
-  while (1)
+  for (my $cur_attempt= 1; $cur_attempt <= $total_retries; ++$cur_attempt)
   {
+    mtr_debug("Sending $signal to $pid...");
+
     kill($signal, $pid);
 
-    last unless kill (0, $pid) and $retries--;
+    unless (kill (0, $pid))
+    {
+      mtr_debug("Process $pid died.");
+      return;
+    }
 
-    mtr_debug("Sleep $timeout second waiting for processes to die");
+    mtr_debug("Sleeping $timeout second(s) waiting for processes to die...");
 
     sleep($timeout);
   }
+
+  mtr_debug("Process $pid is still alive after $total_retries " .
+            "of sending signal $signal.");
 }
 
 ##############################################################################

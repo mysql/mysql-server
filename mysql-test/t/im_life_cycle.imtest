@@ -17,11 +17,23 @@
 #
 ###########################################################################
 
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.1.
+--echo --------------------------------------------------------------------
+
+# Wait for mysqld1 (guarded instance) to start.
+
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD1_PATH_PID 30 started
+
+# Let IM detect that mysqld1 is online. This delay should be longer than
+# monitoring interval.
+
+--sleep 3
+
+# Check that start conditions are as expected.
+
 SHOW INSTANCES;
---replace_column 3 VERSION
-SHOW INSTANCE STATUS mysqld1;
---replace_column 3 VERSION
-SHOW INSTANCE STATUS mysqld2;
 
 ###########################################################################
 #
@@ -33,20 +45,24 @@ SHOW INSTANCE STATUS mysqld2;
 #
 ###########################################################################
 
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.2.
+--echo --------------------------------------------------------------------
+
 START INSTANCE mysqld2;
-# FIXME
---sleep 3
+# FIXME: START INSTANCE should be synchronous.
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started
 
-SHOW INSTANCES;
---replace_column 3 VERSION
-SHOW INSTANCE STATUS mysqld1;
---replace_column 3 VERSION
-SHOW INSTANCE STATUS mysqld2;
+# FIXME: SHOW INSTANCES is not deterministic unless START INSTANCE is
+# synchronous. Even waiting for mysqld to start by looking at its pid file is
+# not enough, because IM may not detect that mysqld has started.
+# SHOW INSTANCES;
 
---connect (mysql_con,localhost,root,,mysql,$IM_MYSQLD1_PORT,$IM_MYSQLD1_SOCK)
+--connect (mysql_con,localhost,root,,mysql,$IM_MYSQLD2_PORT,$IM_MYSQLD2_SOCK)
 --connection mysql_con
 
---replace_result $IM_MYSQLD1_PORT IM_MYSQLD1_PORT
+--replace_result $IM_MYSQLD2_PORT IM_MYSQLD2_PORT
 SHOW VARIABLES LIKE 'port';
 
 --connection default
@@ -61,15 +77,19 @@ SHOW VARIABLES LIKE 'port';
 #
 ###########################################################################
 
-STOP INSTANCE mysqld2;
-# FIXME
---sleep 3
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.3.
+--echo --------------------------------------------------------------------
 
-SHOW INSTANCES;
---replace_column 3 VERSION
-SHOW INSTANCE STATUS mysqld1;
---replace_column 3 VERSION
-SHOW INSTANCE STATUS mysqld2;
+STOP INSTANCE mysqld2;
+# FIXME: STOP INSTANCE should be synchronous.
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped
+
+# FIXME: SHOW INSTANCES is not deterministic unless START INSTANCE is
+# synchronous. Even waiting for mysqld to start by looking at its pid file is
+# not enough, because IM may not detect that mysqld has started.
+# SHOW INSTANCES;
 
 ###########################################################################
 #
@@ -81,15 +101,16 @@ SHOW INSTANCE STATUS mysqld2;
 #
 ###########################################################################
 
---error 3000
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.4.
+--echo --------------------------------------------------------------------
+
+--error 3000 # ER_BAD_INSTANCE_NAME
 START INSTANCE mysqld3;
 
---error 3002
+--error 3002 # ER_INSTANCE_ALREADY_STARTED
 START INSTANCE mysqld1;
-
-# FIXME TODO
-# BUG#12813: START/STOP INSTANCE commands accept a list as argument
-# START INSTANCE mysqld1, mysqld2;
 
 ###########################################################################
 #
@@ -101,17 +122,18 @@ START INSTANCE mysqld1;
 #
 ###########################################################################
 
---error 3000
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.5.
+--echo --------------------------------------------------------------------
+
+--error 3000 # ER_BAD_INSTANCE_NAME
 STOP INSTANCE mysqld3;
 
 # TODO: IM should be fixed.
 # BUG#12673: Instance Manager allows to stop the instance many times
-# --error 3002
+# --error 3002 # ER_INSTANCE_ALREADY_STARTED
 # STOP INSTANCE mysqld2;
-
-# FIXME TODO
-# BUG#12813: START/STOP INSTANCE commands accept a list as argument
-# STOP INSTANCE mysqld1, mysqld2;
 
 ###########################################################################
 #
@@ -119,9 +141,21 @@ STOP INSTANCE mysqld3;
 #
 ###########################################################################
 
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.6.
+--echo --------------------------------------------------------------------
+
 SHOW INSTANCES;
 
---exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD1_PATH_PID restarted
+--exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD1_PATH_PID restarted 30
+
+# Give some time to IM to detect that mysqld was restarted. It should be longer
+# than monitoring interval.
+
+--sleep 3
+
+SHOW INSTANCES;
 
 ###########################################################################
 #
@@ -129,17 +163,26 @@ SHOW INSTANCES;
 #
 ###########################################################################
 
-SHOW INSTANCES;
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.7.
+--echo --------------------------------------------------------------------
 
 START INSTANCE mysqld2;
-# FIXME
---sleep 3
+# FIXME: START INSTANCE should be synchronous.
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started
 
-SHOW INSTANCES;
+# FIXME: SHOW INSTANCES is not deterministic unless START INSTANCE is
+# synchronous. Even waiting for mysqld to start by looking at its pid file is
+# not enough, because IM may not detect that mysqld has started.
+# SHOW INSTANCES;
 
---exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD2_PATH_PID killed
+--exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD2_PATH_PID killed 10
 
-SHOW INSTANCES;
+# FIXME: SHOW INSTANCES is not deterministic unless START INSTANCE is
+# synchronous. Even waiting for mysqld to start by looking at its pid file is
+# not enough, because IM may not detect that mysqld has started.
+# SHOW INSTANCES;
 
 ###########################################################################
 #
@@ -147,7 +190,13 @@ SHOW INSTANCES;
 # incomplete SHOW INSTANCE STATUS command.
 #
 ###########################################################################
---error 1149
+
+--echo
+--echo --------------------------------------------------------------------
+--echo -- 1.1.8.
+--echo --------------------------------------------------------------------
+
+--error ER_SYNTAX_ERROR
 SHOW INSTANCE STATUS;
 
 #
@@ -159,8 +208,13 @@ SHOW INSTANCE STATUS;
 #                                 a list as argument.
 #
 
---error 1149
+--echo
+--echo --------------------------------------------------------------------
+--echo -- BUG#12813
+--echo --------------------------------------------------------------------
+
+--error ER_SYNTAX_ERROR
 START INSTANCE mysqld1,mysqld2,mysqld3;
 
---error 1149
+--error ER_SYNTAX_ERROR
 STOP INSTANCE mysqld1,mysqld2,mysqld3;
