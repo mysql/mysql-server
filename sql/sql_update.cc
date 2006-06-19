@@ -1038,7 +1038,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   for (table_ref= leaves;  table_ref; table_ref= table_ref->next_leaf)
   {
     TABLE *table=table_ref->table;
-    if (!(tables_to_update & table->map) &&
+    if ((tables_to_update & table->map) &&
         unique_table(thd, table_ref, update_tables))
       table->no_cache= 1;			// Disable row cache
   }
