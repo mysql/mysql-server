@@ -3028,6 +3028,7 @@ page_zip_write_header_log(
 /**************************************************************************
 Reorganize and compress a page.  This is a low-level operation for
 compressed pages, to be used when page_zip_compress() fails.
+On success, a redo log entry MLOG_ZIP_PAGE_COMPRESS will be written.
 The function btr_page_reorganize() should be preferred whenever possible. */
 
 ibool
@@ -3072,13 +3073,15 @@ page_zip_reorganize(
 	/* Copy max trx id to recreated page */
 	page_set_max_trx_id(page, NULL, page_get_max_trx_id(temp_page));
 
+	/* Restore logging. */
+	mtr_set_log_mode(mtr, log_mode);
+
 	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page, index, mtr))) {
 
 		/* Restore the old page and exit. */
 		buf_frame_copy(page, temp_page);
 
 		buf_frame_free(temp_page);
-		mtr_set_log_mode(mtr, log_mode);
 		return(FALSE);
 	}
 
@@ -3086,7 +3089,6 @@ page_zip_reorganize(
 	btr_search_drop_page_hash_index(page);
 
 	buf_frame_free(temp_page);
-	mtr_set_log_mode(mtr, log_mode);
 	return(TRUE);
 }
 
