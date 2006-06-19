@@ -2303,7 +2303,11 @@ btr_compress(
 
 	merge_page_zip = buf_block_get_page_zip(buf_block_align(merge_page));
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
-	ut_a(!merge_page_zip || page_zip_validate(merge_page_zip, merge_page));
+	if (UNIV_LIKELY_NULL(merge_page_zip)) {
+		ut_a(page_zip_validate(merge_page_zip, merge_page));
+		ut_a(page_zip_validate(buf_block_get_page_zip(
+				buf_block_align(page)), page));
+	}
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 	/* Move records to the merge page */

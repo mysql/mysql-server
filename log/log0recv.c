@@ -886,6 +886,7 @@ recv_parse_or_apply_log_rec_body(
 		ptr = fsp_parse_init_file_page(ptr, end_ptr, page);
 		break;
 	case MLOG_WRITE_STRING:
+		ut_a(!page_zip || fil_page_get_type(page) != FIL_PAGE_INDEX);
 		ptr = mlog_parse_string(ptr, end_ptr, page);
 		break;
 	case MLOG_FILE_CREATE:
