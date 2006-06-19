@@ -897,7 +897,7 @@ bool Protocol_simple::store(float from, uint32 decimals, String *buffer)
 	      field_types[field_pos] == MYSQL_TYPE_FLOAT);
   field_pos++;
 #endif
-  buffer->set((double) from, decimals, thd->charset());
+  buffer->set_real((double) from, decimals, thd->charset());
   return net_store_data((char*) buffer->ptr(), buffer->length());
 }
 
@@ -909,7 +909,7 @@ bool Protocol_simple::store(double from, uint32 decimals, String *buffer)
 	      field_types[field_pos] == MYSQL_TYPE_DOUBLE);
   field_pos++;
 #endif
-  buffer->set(from, decimals, thd->charset());
+  buffer->set_real(from, decimals, thd->charset());
   return net_store_data((char*) buffer->ptr(), buffer->length());
 }
 

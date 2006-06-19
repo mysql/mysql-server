@@ -10364,7 +10364,7 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       table->field[c++]->set_null(); // DELETED_ROWS
       table->field[c++]->set_null(); // UPDATE_COUNT
       table->field[c++]->store(lfg.getUndoFreeWords()); // FREE_EXTENTS
-      table->field[c++]->store(lfg.getUndoBufferSize()); // TOTAL_EXTENTS
+      table->field[c++]->store(uf.getSize()/4); // TOTAL_EXTENTS
       table->field[c++]->store(4); // EXTENT_SIZE
 
       table->field[c++]->store(uf.getSize()); // INITIAL_SIZE
@@ -10394,8 +10394,8 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
 
       table->field[c++]->store("NORMAL", 6, system_charset_info);
 
-      char extra[30];
-      int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u",id);
+      char extra[100];
+      int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u;UNDO_BUFFER_SIZE=%lu",id,lfg.getUndoBufferSize());
       table->field[c]->store(extra, len, system_charset_info);
       schema_table_store_record(thd, table);
     }
