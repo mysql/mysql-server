@@ -147,6 +147,25 @@ void manager(const Options &options)
   if (create_pid_file(options.pid_file_name, manager_pid))
     return;
 
+  /*
+    Initialize signals and alarm-infrastructure.
+
+    NOTE: To work nicely with LinuxThreads, the signal thread is the first
+    thread in the process.
+
+    NOTE:
+      After init_thr_alarm() call it's possible to call thr_alarm() (from
+      different threads), that results in sending ALARM signal to the alarm
+      thread (which can be the main thread). That signal can interrupt
+      blocking calls.
+
+      In other words, a blocking call can be interrupted in the main thread
+      after init_thr_alarm().
+  */
+
+  sigset_t mask;
+  set_signals(&mask);
+
   /* create guardian thread */
   {
     pthread_t guardian_thd_id;
@@ -154,9 +173,16 @@ void manager(const Options &options)
     int rc;
 
     /*
-       NOTE: Guardian should be shutdown first. Only then all other threads
-       need to be stopped. This should be done, as guardian is responsible for
-       shutting down the instances, and this is a long operation.
+      NOTE: Guardian should be shutdown first. Only then all other threads
+      need to be stopped. This should be done, as guardian is responsible
+      for shutting down the instances, and this is a long operation.
+
+      NOTE: Guardian uses thr_alarm() when detects current state of
+      instances (is_running()), but it is not interfere with
+      flush_instances() later in the code, because until flush_instances()
+      complete in the main thread, Guardian thread is not permitted to
+      process instances. And before flush_instances() there is no instances
+      to proceed.
     */
 
     pthread_attr_init(&guardian_thd_attr);
@@ -172,10 +198,8 @@ void manager(const Options &options)
 
   }
 
-  /*
-    To work nicely with LinuxThreads, the signal thread is the first thread
-    in the process.
-  */
+  /* Load instances. */
+
   int signo;
   bool shutdown_complete;
 
@@ -188,11 +212,6 @@ void manager(const Options &options)
                "binary. Aborting.");
     return;
   }
-
-  /* Initialize signals and alarm-infrastructure. */
-
-  sigset_t mask;
-  set_signals(&mask);
 
   /* create the listener */
   {
