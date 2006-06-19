@@ -670,14 +670,6 @@ alter table t1 max_rows=100000000000;
 show create table t1;
 drop table t1;
 
-#
-# Bug#17530: Incorrect key truncation on table creation caused server crash.
-#
-create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
-  character set utf8 collate utf8_general_ci;
-insert into t1 values('aaa');
-drop table t1;
-
 # End of 5.0 tests
 
 #

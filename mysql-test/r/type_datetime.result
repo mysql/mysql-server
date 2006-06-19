@@ -151,7 +151,7 @@ insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00
 Warnings:
 Warning	1264	Out of range value for column 't' at row 1
 Warning	1264	Out of range value for column 't' at row 2
-select * from t1;
+select * from t1 order by t;
 t
 0000-00-00 00:00:00
 2003-01-01 00:00:00
