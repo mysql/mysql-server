@@ -37,9 +37,6 @@
 #define MAX_USER_HOST_SIZE 512
 #define MAX_TIME_SIZE 32
 
-/* we need this for log files intialization */
-extern char *opt_logname, *opt_slow_logname;
-
 LOGGER logger;
 
 MYSQL_LOG mysql_bin_log;
@@ -62,6 +59,13 @@ sql_print_message_func sql_print_message_handlers[3] =
   sql_print_error
 };
 
+
+char *make_default_log_name(char *buff,const char* log_ext)
+{
+  strmake(buff, glob_hostname, FN_REFLEN-5);
+  return fn_format(buff, buff, mysql_data_home, log_ext,
+                   MYF(MY_UNPACK_FILENAME|MY_APPEND_EXT));
+}
 
 /*
   This is a POD. Please keep it that way!
@@ -250,8 +254,10 @@ bool Log_to_csv_event_handler::reopen_log_table(uint log_type)
 
 void Log_to_csv_event_handler::cleanup()
 {
-  close_log_table(QUERY_LOG_GENERAL, FALSE);
-  close_log_table(QUERY_LOG_SLOW, FALSE);
+  if (opt_log)
+    close_log_table(QUERY_LOG_GENERAL, FALSE);
+  if (opt_slow_log)
+    close_log_table(QUERY_LOG_SLOW, FALSE);
   logger.is_log_tables_initialized= FALSE;
 }
 
@@ -505,10 +511,10 @@ bool Log_to_file_event_handler::init()
   if (!is_initialized)
   {
     if (opt_slow_log)
-      mysql_slow_log.open_slow_log(opt_slow_logname);
+      mysql_slow_log.open_slow_log(sys_var_slow_log_path.value);
 
     if (opt_log)
-      mysql_log.open_query_log(opt_logname);
+      mysql_log.open_query_log(sys_var_general_log_path.value);
 
     is_initialized= TRUE;
   }
@@ -526,8 +532,10 @@ void Log_to_file_event_handler::cleanup()
 void Log_to_file_event_handler::flush()
 {
   /* reopen log files */
-  mysql_log.new_file(1);
-  mysql_slow_log.new_file(1);
+  if (opt_log)
+    mysql_log.new_file(1);
+  if (opt_slow_log)
+    mysql_slow_log.new_file(1);
 }
 
 /*
@@ -647,10 +655,7 @@ bool LOGGER::flush_logs(THD *thd)
   close_general_log.db= (char*) "mysql";
   close_general_log.db_length= 5;
 
-  /* reopen log files */
-  file_log_handler->flush();
-
-  /* flush tables, in the case they are enabled */
+  /* lock tables, in the case they are enabled */
   if (logger.is_log_tables_initialized)
   {
     /*
@@ -663,23 +668,29 @@ bool LOGGER::flush_logs(THD *thd)
       Here we use one of the logger handler THD's. Simply because it
       seems appropriate.
     */
-    lock_and_wait_for_table_name(table_log_handler->general_log_thd,
-                                 &close_slow_log);
-    lock_and_wait_for_table_name(table_log_handler->general_log_thd,
-                                 &close_general_log);
+    if (opt_slow_log)
+      lock_and_wait_for_table_name(table_log_handler->general_log_thd,
+				   &close_slow_log);
+    if (opt_log)
+      lock_and_wait_for_table_name(table_log_handler->general_log_thd,
+				   &close_general_log);
+  }
 
-    /*
-      Deny others from logging to general and slow log,
-      while reopening tables.
-    */
-    logger.lock();
+  /*
+    Deny others from logging to general and slow log,
+    while reopening tables.
+  */
+  logger.lock();
 
+  /* reopen log files */
+  file_log_handler->flush();
+
+  /* flush tables, in the case they are enabled */
+  if (logger.is_log_tables_initialized)
     table_log_handler->flush(table_log_handler->general_log_thd,
                              &close_slow_log, &close_general_log);
-
-    /* end of log tables flush */
-    logger.unlock();
-  }
+  /* end of log flush */
+  logger.unlock();
   return FALSE;
 }
 
@@ -727,6 +738,11 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
       return 0;
 
     lock();
+    if (!opt_slow_log)
+    {
+      unlock();
+      return 0;
+    }
 
     /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
     user_host_len= strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
@@ -801,6 +817,11 @@ bool LOGGER::general_log_print(THD *thd, enum enum_server_command command,
       id=0;                                     /* Log from connect handler */
 
     lock();
+    if (!opt_log)
+    {
+      unlock();
+      return 0;
+    }
     time_t current_time= time(NULL);
 
     user_host_len= strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
@@ -904,26 +925,126 @@ void LOGGER::init_general_log(uint general_log_printer)
 }
 
 
+bool LOGGER::activate_log_handler(THD* thd, uint log_type)
+{
+  bool res= 0;
+  lock();
+  switch (log_type) {
+  case QUERY_LOG_SLOW:
+    if (!opt_slow_log)
+    {
+      if ((res= reopen_log_table(log_type)))
+        goto err;
+      file_log_handler->get_mysql_slow_log()->
+        open_query_log(sys_var_slow_log_path.value);
+      init_slow_log(log_output_options);
+      opt_slow_log= TRUE;
+    }
+    break;
+  case QUERY_LOG_GENERAL:
+    if (!opt_log)
+    {
+      if ((res= reopen_log_table(log_type)))
+        goto err;
+      file_log_handler->get_mysql_log()->
+        open_query_log(sys_var_general_log_path.value);
+      init_general_log(log_output_options);
+      opt_log= TRUE;
+    }
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+err:
+  unlock();
+  return res;
+}
+
+
+void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
+{
+  TABLE_LIST *table_list;
+  my_bool *tmp_opt= 0;
+  MYSQL_LOG *file_log;
+  THD *log_thd;
+
+  switch (log_type) {
+  case QUERY_LOG_SLOW:
+    table_list= &table_log_handler->slow_log;
+    tmp_opt= &opt_slow_log;
+    file_log= file_log_handler->get_mysql_slow_log();
+    log_thd= table_log_handler->slow_log_thd;
+    break;
+  case QUERY_LOG_GENERAL:
+    table_list= &table_log_handler->general_log;
+    tmp_opt= &opt_log;
+    file_log= file_log_handler->get_mysql_log();
+    log_thd= table_log_handler->general_log_thd;
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+
+  if (!(*tmp_opt))
+    return;
+
+  if (is_log_tables_initialized)
+    lock_and_wait_for_table_name(log_thd, table_list);
+  lock();
+
+  if (is_log_tables_initialized)
+  {
+    VOID(pthread_mutex_lock(&LOCK_open));
+    close_log_table(log_type, TRUE);
+    table_list->table= 0;
+    query_cache_invalidate3(log_thd, table_list, 0);
+    unlock_table_name(log_thd, table_list);
+    VOID(pthread_mutex_unlock(&LOCK_open));
+  }
+  file_log->close(0);
+  *tmp_opt= FALSE;
+  unlock();
+}
+
+
 bool Log_to_csv_event_handler::flush(THD *thd, TABLE_LIST *close_slow_log,
                                      TABLE_LIST *close_general_log)
 {
   VOID(pthread_mutex_lock(&LOCK_open));
-  close_log_table(QUERY_LOG_GENERAL, TRUE);
-  close_log_table(QUERY_LOG_SLOW, TRUE);
-  close_general_log->next_local= close_slow_log;
-  query_cache_invalidate3(thd, close_general_log, 0);
-  unlock_table_name(thd, close_slow_log);
-  unlock_table_name(thd, close_general_log);
+  if (opt_log)
+  {
+    close_log_table(QUERY_LOG_GENERAL, TRUE);
+    query_cache_invalidate3(thd, close_general_log, 0);
+    unlock_table_name(thd, close_general_log);
+  }
+  if (opt_slow_log)
+  {
+    close_log_table(QUERY_LOG_SLOW, TRUE);
+    query_cache_invalidate3(thd, close_slow_log, 0);
+    unlock_table_name(thd, close_slow_log);
+  }
   VOID(pthread_mutex_unlock(&LOCK_open));
-  return reopen_log_table(QUERY_LOG_SLOW) ||
-         reopen_log_table(QUERY_LOG_GENERAL);
+  /*
+    we use | and not || here, to ensure that both reopen_log_table
+    are called, even if the first one fails
+  */
+  if ((opt_slow_log && reopen_log_table(QUERY_LOG_SLOW)) |
+      (opt_log && reopen_log_table(QUERY_LOG_GENERAL)))
+    return 1;
+  return 0;
 }
 
 /* the parameters are unused for the log tables */
 bool Log_to_csv_event_handler::init()
 {
-  /* we always open log tables. even if the logging is disabled */
-  return (open_log_table(QUERY_LOG_GENERAL) || open_log_table(QUERY_LOG_SLOW));
+  /*
+    we use | and not || here, to ensure that both open_log_table
+    are called, even if the first one fails
+  */
+  if ((opt_log && open_log_table(QUERY_LOG_GENERAL)) |
+      (opt_slow_log && open_log_table(QUERY_LOG_SLOW)))
+    return 1;
+  return 0;
 }
 
 int LOGGER::set_handlers(uint error_log_printer,
