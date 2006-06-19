@@ -226,4 +226,17 @@ insert into t1(x,y) select x,z from t2 on duplicate key update x=values(z);
 insert into t1(x,y) select x,z from t2 on duplicate key update x=values(t2.x);
 drop table t1,t2; 
 
+#
+# Bug #9676: INSERT INTO x SELECT .. FROM x LIMIT 1; slows down with big 
+#             tables
+#
+
+#Note: not an exsaustive test : just a check of the code path.
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 values (1), (2);
+
+INSERT INTO t1 SELECT a + 2 FROM t1 LIMIT 1;
+
+DROP TABLE t1;
+
 # End of 4.1 tests
