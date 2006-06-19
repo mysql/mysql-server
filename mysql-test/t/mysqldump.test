@@ -1161,3 +1161,19 @@ show create procedure p;
 drop function f;
 drop procedure p;
 
+#
+# BUG#17201 Spurious 'DROP DATABASE' in output,
+# also confusion between tables and views.
+# Example code from Markus Popp
+
+drop database if exists test;
+create database test;
+use test;
+create table t1 (id int);
+create view v1 as select * from t1;
+insert into t1 values (1232131);
+insert into t1 values (4711);
+insert into t1 values (3231);
+insert into t1 values (0815);
+--exec $MYSQL_DUMP --skip-comments --add-drop-database --databases test
+drop view v1;
