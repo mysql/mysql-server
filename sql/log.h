@@ -438,6 +438,8 @@ public:
                            CHARSET_INFO *client_cs);
   void flush();
   void init_pthread_objects();
+  MYSQL_LOG *get_mysql_slow_log() { return &mysql_slow_log; }
+  MYSQL_LOG *get_mysql_log() { return &mysql_log; }
 };
 
 
@@ -510,8 +512,21 @@ public:
   void init_error_log(uint error_log_printer);
   void init_slow_log(uint slow_log_printer);
   void init_general_log(uint general_log_printer);
- };
-
+  void deactivate_log_handler(THD* thd, uint log_type);
+  bool activate_log_handler(THD* thd, uint log_type);
+  MYSQL_LOG *get_slow_log_file_handler()
+  { 
+    if (file_log_handler)
+      return file_log_handler->get_mysql_slow_log();
+    return NULL;
+  }
+  MYSQL_LOG *get_log_file_handler()
+  { 
+    if (file_log_handler)
+      return file_log_handler->get_mysql_log();
+    return NULL;
+  }
+};
 
 enum enum_binlog_format {
   BINLOG_FORMAT_STMT= 0, // statement-based

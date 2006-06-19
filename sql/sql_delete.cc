@@ -931,7 +931,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   /* close log tables in use */
   if (!my_strcasecmp(system_charset_info, table_list->db, "mysql"))
   {
-    if (!my_strcasecmp(system_charset_info, table_list->table_name,
+    if (opt_log &&
+        !my_strcasecmp(system_charset_info, table_list->table_name,
                        "general_log"))
     {
       lock_logger= 1;
@@ -940,7 +941,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       closed_log_tables= closed_log_tables | QUERY_LOG_GENERAL;
     }
     else
-      if (!my_strcasecmp(system_charset_info, table_list->table_name,
+      if (opt_slow_log &&
+          !my_strcasecmp(system_charset_info, table_list->table_name,
                          "slow_log"))
       {
         lock_logger= 1;
@@ -981,10 +983,10 @@ end:
     unlock_table_name(thd, table_list);
     VOID(pthread_mutex_unlock(&LOCK_open));
 
-    if (closed_log_tables & QUERY_LOG_SLOW)
+    if (opt_slow_log && (closed_log_tables & QUERY_LOG_SLOW))
       logger.reopen_log_table(QUERY_LOG_SLOW);
 
-    if (closed_log_tables & QUERY_LOG_GENERAL)
+    if (opt_log && (closed_log_tables & QUERY_LOG_GENERAL))
       logger.reopen_log_table(QUERY_LOG_GENERAL);
     if (lock_logger)
       logger.unlock();
