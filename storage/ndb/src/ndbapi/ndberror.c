@@ -344,6 +344,7 @@ ErrorBundle ErrorCodes[] = {
   /**
    * SchemaError
    */
+  { 311,  DMEC, IE, "Undefined fragment" },
   { 703,  DMEC, SE, "Invalid table format" },
   { 704,  DMEC, SE, "Attribute name too long" },
   { 705,  DMEC, SE, "Table name too long" },

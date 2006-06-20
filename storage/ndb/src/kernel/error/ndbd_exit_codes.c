@@ -59,6 +59,7 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_NODE_NOT_DEAD, XRE, "Internal node state conflict, "
     "most probably resolved by restarting node again"},
    {NDBD_EXIT_SR_REDOLOG, XFI, "Error while reading the REDO log"},
+   {NDBD_EXIT_SR_SCHEMAFILE, XFI, "Error while reading the schema file"},
    /* Currently unused? */
    {2311, XIE, "Conflict when selecting restart type"},
    {NDBD_EXIT_NO_MORE_UNDOLOG, XCR,
