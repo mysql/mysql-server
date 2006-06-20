@@ -50,8 +50,8 @@ const char field_separator=',';
 #define BLOB_PACK_LENGTH_TO_MAX_LENGH(arg) \
 ((ulong) ((LL(1) << min(arg, 4) * 8) - LL(1)))
 
-#define ASSERT_COLUMN_MARKED_FOR_READ DBUG_ASSERT(!table->read_set || bitmap_is_set(table->read_set, field_index))
-#define ASSERT_COLUMN_MARKED_FOR_WRITE DBUG_ASSERT(!table->write_set || bitmap_is_set(table->write_set, field_index))
+#define ASSERT_COLUMN_MARKED_FOR_READ DBUG_ASSERT(!table || (!table->read_set || bitmap_is_set(table->read_set, field_index)))
+#define ASSERT_COLUMN_MARKED_FOR_WRITE DBUG_ASSERT(!table || (!table->write_set || bitmap_is_set(table->write_set, field_index)))
 
 /*
   Rules for merging different types of fields in UNION
@@ -3471,8 +3471,7 @@ int Field_long::store(longlong nr, bool unsigned_val)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int error= 0;
   int32 res;
-  DBUG_ASSERT(table->in_use == current_thd);    // General safety
-  
+
   if (unsigned_flag)
   {
     if (nr < 0 && !unsigned_val)
@@ -4605,11 +4604,11 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   bool have_smth_to_conv;
   my_bool in_dst_time_gap;
-  THD *thd= table->in_use;
+  THD *thd= table ? table->in_use : current_thd;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   have_smth_to_conv= (str_to_datetime(from, len, &l_time,
-                                      (table->in_use->variables.sql_mode &
+                                      (thd->variables.sql_mode &
                                        MODE_NO_ZERO_DATE) |
                                       MODE_NO_ZERO_IN_DATE, &error) >
                       MYSQL_TIMESTAMP_ERROR);
@@ -4675,7 +4674,7 @@ int Field_timestamp::store(longlong nr, bool unsigned_val)
   my_time_t timestamp= 0;
   int error;
   my_bool in_dst_time_gap;
-  THD *thd= table->in_use;
+  THD *thd= table ? table->in_use : current_thd;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   longlong tmp= number_to_datetime(nr, &l_time, (thd->variables.sql_mode &
@@ -4731,7 +4730,7 @@ longlong Field_timestamp::val_int(void)
   ASSERT_COLUMN_MARKED_FOR_READ;
   uint32 temp;
   TIME time_tmp;
-  THD  *thd= table->in_use;
+  THD  *thd= table ? table->in_use : current_thd;
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4757,7 +4756,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
   ASSERT_COLUMN_MARKED_FOR_READ;
   uint32 temp, temp2;
   TIME time_tmp;
-  THD *thd= table->in_use;
+  THD *thd= table ? table->in_use : current_thd;
   char *to;
 
   val_buffer->alloc(field_length+1);
@@ -4828,7 +4827,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
 bool Field_timestamp::get_date(TIME *ltime, uint fuzzydate)
 {
   long temp;
-  THD *thd= table->in_use;
+  THD *thd= table ? table->in_use : current_thd;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
     temp=uint4korr(ptr);
@@ -4911,7 +4910,8 @@ void Field_timestamp::sql_type(String &res) const
 
 void Field_timestamp::set_time()
 {
-  long tmp= (long) table->in_use->query_start();
+  THD *thd= table ? table->in_use : current_thd;
+  long tmp= (long) thd->query_start();
   set_notnull();
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4978,7 +4978,7 @@ int Field_time::store_time(TIME *ltime, timestamp_type type)
             (ltime->minute * 100 + ltime->second);
   if (ltime->neg)
     tmp= -tmp;
-  return Field_time::store((longlong) tmp);
+  return Field_time::store((longlong) tmp, TRUE);
 }
 
 
@@ -4990,7 +4990,7 @@ int Field_time::store(double nr)
   if (nr > 8385959.0)
   {
     tmp=8385959L;
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                          ER_WARN_DATA_OUT_OF_RANGE, nr, MYSQL_TIMESTAMP_TIME);
     error= 1;
   }
@@ -5108,12 +5108,13 @@ String *Field_time::val_str(String *val_buffer,
 bool Field_time::get_date(TIME *ltime, uint fuzzydate)
 {
   long tmp;
+  THD *thd= table ? table->in_use : current_thd;
   if (!(fuzzydate & TIME_FUZZY_DATE))
   {
-    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WARN_DATA_OUT_OF_RANGE,
                         ER(ER_WARN_DATA_OUT_OF_RANGE), field_name,
-                        table->in_use->row_count);
+                        thd->row_count);
     return 1;
   }
   tmp=(long) sint3korr(ptr);
@@ -5306,9 +5307,10 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
   TIME l_time;
   uint32 tmp;
   int error;
+  THD *thd= table ? table->in_use : current_thd;
 
   if (str_to_datetime(from, len, &l_time, TIME_FUZZY_DATE |
-                      (table->in_use->variables.sql_mode &
+                      (thd->variables.sql_mode &
                        (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                         MODE_INVALID_DATES)),
                       &error) <= MYSQL_TIMESTAMP_ERROR)
@@ -5362,9 +5364,10 @@ int Field_date::store(longlong nr, bool unsigned_val)
   TIME not_used;
   int error;
   longlong initial_nr= nr;
+  THD *thd= table ? table->in_use : current_thd;
 
   nr= number_to_datetime(nr, &not_used, (TIME_FUZZY_DATE |
-                                         (table->in_use->variables.sql_mode &
+                                         (thd->variables.sql_mode &
                                           (MODE_NO_ZERO_IN_DATE |
                                            MODE_NO_ZERO_DATE |
                                            MODE_INVALID_DATES))), &error);
@@ -5514,9 +5517,10 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
   TIME l_time;
   long tmp;
   int error;
+  THD *thd= table ? table->in_use : current_thd;
   if (str_to_datetime(from, len, &l_time,
                       (TIME_FUZZY_DATE |
-                       (table->in_use->variables.sql_mode &
+                       (thd->variables.sql_mode &
                         (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                          MODE_INVALID_DATES))),
                       &error) <= MYSQL_TIMESTAMP_ERROR)
@@ -5555,9 +5559,10 @@ int Field_newdate::store(longlong nr, bool unsigned_val)
   TIME l_time;
   longlong tmp;
   int error;
+  THD *thd= table ? table->in_use : current_thd;
   if (number_to_datetime(nr, &l_time,
                          (TIME_FUZZY_DATE |
-                          (table->in_use->variables.sql_mode &
+                          (thd->variables.sql_mode &
                            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                             MODE_INVALID_DATES))),
                          &error) == LL(-1))
@@ -5705,10 +5710,11 @@ int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   ulonglong tmp= 0;
   enum enum_mysql_timestamp_type func_res;
+  THD *thd= table ? table->in_use : current_thd;
 
   func_res= str_to_datetime(from, len, &time_tmp,
                             (TIME_FUZZY_DATE |
-                             (table->in_use->variables.sql_mode &
+                             (thd->variables.sql_mode &
                               (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                                MODE_INVALID_DATES))),
                             &error);
@@ -5756,9 +5762,10 @@ int Field_datetime::store(longlong nr, bool unsigned_val)
   TIME not_used;
   int error;
   longlong initial_nr= nr;
+  THD *thd= table ? table->in_use : current_thd;
 
   nr= number_to_datetime(nr, &not_used, (TIME_FUZZY_DATE |
-                                         (table->in_use->variables.sql_mode &
+                                         (thd->variables.sql_mode &
                                           (MODE_NO_ZERO_IN_DATE |
                                            MODE_NO_ZERO_DATE |
                                            MODE_INVALID_DATES))), &error);
@@ -6174,17 +6181,6 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 {
   uint a_len, b_len;
 
-  if (field_charset->strxfrm_multiply > 1)
-  {
-    /*
-      We have to remove end space to be able to compare multi-byte-characters
-      like in latin_de 'ae' and 0xe4
-    */
-    return field_charset->coll->strnncollsp(field_charset,
-                                            (const uchar*) a_ptr, field_length,
-                                            (const uchar*) b_ptr,
-                                            field_length, 0);
-  }
   if (field_charset->mbmaxlen != 1)
   {
     uint char_len= field_length/field_charset->mbmaxlen;
@@ -6193,8 +6189,14 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
   }
   else
     a_len= b_len= field_length;
-  return my_strnncoll(field_charset,(const uchar*) a_ptr, a_len,
-                                    (const uchar*) b_ptr, b_len);
+  /*
+    We have to remove end space to be able to compare multi-byte-characters
+    like in latin_de 'ae' and 0xe4
+  */
+  return field_charset->coll->strnncollsp(field_charset,
+                                          (const uchar*) a_ptr, a_len,
+                                          (const uchar*) b_ptr, b_len,
+                                          0);
 }
 
 
@@ -7117,7 +7119,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 int Field_blob::store(double nr)
 {
   CHARSET_INFO *cs=charset();
-  value.set(nr, 2, cs);
+  value.set_real(nr, 2, cs);
   return Field_blob::store(value.ptr(),(uint) value.length(), cs);
 }
 
@@ -7125,10 +7127,7 @@ int Field_blob::store(double nr)
 int Field_blob::store(longlong nr, bool unsigned_val)
 {
   CHARSET_INFO *cs=charset();
-  if (unsigned_val)
-    value.set((ulonglong) nr, cs);
-  else
-    value.set(nr, cs);
+  value.set_int(nr, unsigned_val, cs);
   return Field_blob::store(value.ptr(), (uint) value.length(), cs);
 }
 
@@ -8219,7 +8218,7 @@ int Field_bit::store_decimal(const my_decimal *val)
 {
   int err= 0;
   longlong i= convert_decimal2longlong(val, 1, &err);
-  return test(err | store(i));
+  return test(err | store(i, TRUE));
 }
 
 
@@ -9251,7 +9250,11 @@ bool
 Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
                    int cuted_increment)
 {
-  THD *thd= table->in_use;
+  /*
+    If this field was created only for type conversion purposes it
+    will have table == NULL.
+  */
+  THD *thd= table ? table->in_use : current_thd;
   if (thd->count_cuted_fields)
   {
     thd->cuted_fields+= cuted_increment;
@@ -9286,9 +9289,10 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
                             const char *str, uint str_length, 
                             timestamp_type ts_type, int cuted_increment)
 {
-  if (table->in_use->really_abort_on_warning() ||
+  THD *thd= table ? table->in_use : current_thd;
+  if (thd->really_abort_on_warning() ||
       set_warning(level, code, cuted_increment))
-    make_truncated_value_warning(table->in_use, str, str_length, ts_type,
+    make_truncated_value_warning(thd, str, str_length, ts_type,
                                  field_name);
 }
 
@@ -9315,13 +9319,13 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
                             longlong nr, timestamp_type ts_type,
                             int cuted_increment)
 {
-  if (table->in_use->really_abort_on_warning() ||
+  THD *thd= table ? table->in_use : current_thd;
+  if (thd->really_abort_on_warning() ||
       set_warning(level, code, cuted_increment))
   {
     char str_nr[22];
     char *str_end= longlong10_to_str(nr, str_nr, -10);
-    make_truncated_value_warning(table->in_use, str_nr, 
-                                 (uint) (str_end - str_nr), 
+    make_truncated_value_warning(thd, str_nr, (uint) (str_end - str_nr), 
                                  ts_type, field_name);
   }
 }
@@ -9347,13 +9351,15 @@ void
 Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code, 
                             double nr, timestamp_type ts_type)
 {
-  if (table->in_use->really_abort_on_warning() ||
+  THD *thd= table ? table->in_use : current_thd;
+  if (thd->really_abort_on_warning() ||
       set_warning(level, code, 1))
   {
     /* DBL_DIG is enough to print '-[digits].E+###' */
     char str_nr[DBL_DIG + 8];
     uint str_len= my_sprintf(str_nr, (str_nr, "%g", nr));
-    make_truncated_value_warning(table->in_use, str_nr, str_len, ts_type,
+    make_truncated_value_warning(thd, str_nr, str_len, ts_type,
                                  field_name);
   }
 }
+

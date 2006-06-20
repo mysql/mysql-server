@@ -416,7 +416,7 @@ String *Item_real_func::val_str(String *str)
   double nr= val_real();
   if (null_value)
     return 0; /* purecov: inspected */
-  str->set(nr,decimals, &my_charset_bin);
+  str->set_real(nr,decimals, &my_charset_bin);
   return str;
 }
 
@@ -556,10 +556,7 @@ String *Item_int_func::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  if (!unsigned_flag)
-    str->set(nr,&my_charset_bin);
-  else
-    str->set((ulonglong) nr,&my_charset_bin);
+  str->set_int(nr, unsigned_flag, &my_charset_bin);
   return str;
 }
 
@@ -701,10 +698,7 @@ String *Item_func_numhybrid::val_str(String *str)
     longlong nr= int_op();
     if (null_value)
       return 0; /* purecov: inspected */
-    if (!unsigned_flag)
-      str->set(nr,&my_charset_bin);
-    else
-      str->set((ulonglong) nr,&my_charset_bin);
+    str->set_int(nr, unsigned_flag, &my_charset_bin);
     break;
   }
   case REAL_RESULT:
@@ -712,7 +706,7 @@ String *Item_func_numhybrid::val_str(String *str)
     double nr= real_op();
     if (null_value)
       return 0; /* purecov: inspected */
-    str->set(nr,decimals,&my_charset_bin);
+    str->set_real(nr,decimals,&my_charset_bin);
     break;
   }
   case STRING_RESULT:
@@ -2058,10 +2052,7 @@ String *Item_func_min_max::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0;
-    if (!unsigned_flag)
-      str->set(nr,&my_charset_bin);
-    else
-      str->set((ulonglong) nr,&my_charset_bin);
+    str->set_int(nr, unsigned_flag, &my_charset_bin);
     return str;
   }
   case DECIMAL_RESULT:
@@ -2077,7 +2068,7 @@ String *Item_func_min_max::val_str(String *str)
     double nr= val_real();
     if (null_value)
       return 0; /* purecov: inspected */
-    str->set(nr,decimals,&my_charset_bin);
+    str->set_real(nr,decimals,&my_charset_bin);
     return str;
   }
   case STRING_RESULT:
@@ -2828,7 +2819,7 @@ String *Item_func_udf_float::val_str(String *str)
   double nr= val_real();
   if (null_value)
     return 0;					/* purecov: inspected */
-  str->set(nr,decimals,&my_charset_bin);
+  str->set_real(nr,decimals,&my_charset_bin);
   return str;
 }
 
@@ -2847,10 +2838,7 @@ String *Item_func_udf_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  if (!unsigned_flag)
-    str->set(nr,&my_charset_bin);
-  else
-    str->set((ulonglong) nr,&my_charset_bin);
+  str->set_int(nr, unsigned_flag, &my_charset_bin);
   return str;
 }
 
@@ -3300,7 +3288,7 @@ longlong Item_func_last_insert_id::val_int()
     return value;                       // Avoid side effect of insert_id()
   }
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  return thd->insert_id();
+  return thd->last_insert_id_used ? thd->current_insert_id : thd->insert_id();
 }
 
 /* This function is just used to test speed of different functions */
@@ -3650,7 +3638,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 
   switch (type) {
   case REAL_RESULT:
-    str->set(*(double*) value, decimals, &my_charset_bin);
+    str->set_real(*(double*) value, decimals, &my_charset_bin);
     break;
   case INT_RESULT:
     str->set(*(longlong*) value, &my_charset_bin);
@@ -4516,7 +4504,7 @@ double Item_func_match::val_real()
   if (ft_handler == NULL)
     DBUG_RETURN(-1.0);
 
-  if (table->null_row) /* NULL row from an outer join */
+  if (key != NO_SUCH_KEY && table->null_row) /* NULL row from an outer join */
     DBUG_RETURN(0.0);
 
   if (join_key)

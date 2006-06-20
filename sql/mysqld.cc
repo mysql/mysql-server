@@ -2635,10 +2635,10 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.time_zone= my_tz_SYSTEM;
   
   /*
-    Init mutexes for the global MYSQL_LOG objects.
+    Init mutexes for the global MYSQL_BIN_LOG objects.
     As safe_mutex depends on what MY_INIT() does, we can't init the mutexes of
-    global MYSQL_LOGs in their constructors, because then they would be inited
-    before MY_INIT(). So we do it here.
+    global MYSQL_BIN_LOGs in their constructors, because then they would be
+    inited before MY_INIT(). So we do it here.
   */
   mysql_bin_log.init_pthread_objects();
 
@@ -4984,11 +4984,12 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-storage-engine", OPT_STORAGE_ENGINE,
-   "Set the default storage engine (table type) for tables.", 0, 0,
+   "Set the default storage engine (table type) for tables.",
+   (gptr*)&default_storage_engine_str, (gptr*)&default_storage_engine_str,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-table-type", OPT_STORAGE_ENGINE,
    "(deprecated) Use --default-storage-engine.",
-   (gptr*)default_storage_engine_str, (gptr*)default_storage_engine_str,
+   (gptr*)&default_storage_engine_str, (gptr*)&default_storage_engine_str,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-time-zone", OPT_DEFAULT_TIME_ZONE, "Set the default time zone.",
    (gptr*) &default_tz_name, (gptr*) &default_tz_name,
@@ -5431,7 +5432,7 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &max_system_variables.ndb_index_stat_update_freq,
    0, GET_ULONG, OPT_ARG, 20, 0, ~0L, 0, 0, 0},
 #endif
-  {"nb-use-copying-alter-table",
+  {"ndb-use-copying-alter-table",
    OPT_NDB_USE_COPYING_ALTER_TABLE,
    "Force ndbcluster to always copy tables at alter table (should only be used if on-line alter table fails).",
    (gptr*) &global_system_variables.ndb_use_copying_alter_table,
@@ -6155,7 +6156,8 @@ The minimum value for this variable is 4096.",
    "Each thread that does a sequential scan allocates a buffer of this size for each table it scans. If you do many sequential scans, you may want to increase this value.",
    (gptr*) &global_system_variables.read_buff_size,
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
-   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
+   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE,
+   0},
   {"read_only", OPT_READONLY,
    "Make all non-temporary tables read-only, with the exception for replication (slave) threads and users with the SUPER privilege",
    (gptr*) &opt_readonly,
@@ -6166,12 +6168,12 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.read_rnd_buff_size,
    (gptr*) &max_system_variables.read_rnd_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
-   ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
+   SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"record_buffer", OPT_RECORD_BUFFER,
    "Alias for read_buffer_size",
    (gptr*) &global_system_variables.read_buff_size,
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
-   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
+   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE, 0},
 #ifdef HAVE_REPLICATION
   {"relay_log_purge", OPT_RELAY_LOG_PURGE,
    "0 = do not purge relay logs. 1 = purge them as soon as they are no more needed.",
