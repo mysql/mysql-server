@@ -694,7 +694,7 @@ select length(@x0),length(@b2),length(@d2) from dual;
  disable_query_log;
  while ($1)
  {
-  eval insert into test.t1 values($1, "aaaaaaaaaaaaaaaa$1", "bbbbbbbbbbbbbbbbbb$1", NOW(), USER());
+  eval insert into test.t1 values($1, "aaaaaaaaaaaaaaaa$1", "bbbbbbbbbbbbbbbbbb$1", '2006-06-20' , USER());
   dec $1;
  }
  enable_query_log;
