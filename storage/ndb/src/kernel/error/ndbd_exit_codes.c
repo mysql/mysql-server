@@ -51,8 +51,9 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_SYSTEM_ERROR, XIE,
     "System error, node killed during node restart by other node"},
    {NDBD_EXIT_INDEX_NOTINRANGE, XIE, "Array index out of range"},
-   {NDBD_EXIT_ARBIT_SHUTDOWN, XAE, "Arbitrator shutdown, "
-    "please investigate error(s) on other node(s)"},
+   {NDBD_EXIT_ARBIT_SHUTDOWN, XAE, "Node lost connection to other nodes and "
+    "can not form a unpartitioned cluster, please investigate if there are "
+    "error(s) on other node(s)"},
    {NDBD_EXIT_POINTER_NOTINRANGE, XIE, "Pointer too large"},
    {NDBD_EXIT_SR_OTHERNODEFAILED, XRE, "Another node failed during system "
     "restart, please investigate error(s) on other node(s)"},
@@ -99,7 +100,7 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_WATCHDOG_TERMINATE, XIE, "WatchDog terminate, internal error "
     "or massive overload on the machine running this node"},
    {NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL, XCR,
-    "Signal lost, out of send buffer memory, please increase SendBufferMemory"},
+    "Signal lost, out of send buffer memory, please increase SendBufferMemory or lower the load"},
    {NDBD_EXIT_SIGNAL_LOST,    XIE, "Signal lost (unknown reason)"},
    {NDBD_EXIT_ILLEGAL_SIGNAL, XIE,
     "Illegal signal (version mismatch a possibility)"},
