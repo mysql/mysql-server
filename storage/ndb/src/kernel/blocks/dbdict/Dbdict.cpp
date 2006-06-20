@@ -1355,10 +1355,11 @@ void Dbdict::readSchemaConf(Signal* signal,
       sf->FileSize == sf0->FileSize &&
       sf->PageNumber == n &&
       computeChecksum((Uint32*)sf, NDB_SF_PAGE_SIZE_IN_WORDS) == 0;
-    ndbrequire(ok || !crashInd);
+    ndbrequireErr(ok || !crashInd, NDBD_EXIT_SR_SCHEMAFILE);
     if (! ok) {
       jam();
-      ndbrequire(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1);
+      ndbrequireErr(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1,
+                    NDBD_EXIT_SR_SCHEMAFILE);
       readSchemaRef(signal, fsPtr);
       return;
     }
