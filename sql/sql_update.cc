@@ -985,7 +985,12 @@ reopen_tables:
       }
     }
   }
-
+  /*
+    Set exclude_from_table_unique_test value back to FALSE. It is needed for
+    further check in multi_update::prepare whether to use record cache.
+  */
+  lex->select_lex.exclude_from_table_unique_test= FALSE;
+ 
   if (thd->fill_derived_tables() &&
       mysql_handle_derived(lex, &mysql_derived_filling))
     DBUG_RETURN(TRUE);
@@ -1164,7 +1169,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   for (table_ref= leaves;  table_ref; table_ref= table_ref->next_leaf)
   {
     TABLE *table=table_ref->table;
-    if (!(tables_to_update & table->map) &&
+    if ((tables_to_update & table->map) &&
         unique_table(thd, table_ref, update_tables))
       table->no_cache= 1;			// Disable row cache
   }
