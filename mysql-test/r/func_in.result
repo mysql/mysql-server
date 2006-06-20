@@ -202,24 +202,3 @@ select count(*) from t1 where id not in (1,2);
 count(*)
 1
 drop table t1;
-create table t1 (f1 char(1), f2 int);
-insert into t1 values (1,0),('a',1),('z',2);
-select f1 from t1 where f1 in (1,'z');
-f1
-1
-z
-select f2 from t1 where f2 in (1,'z');
-f2
-0
-1
-select f1 from t1 where 'z' in (1,f1);
-f1
-z
-select * from t1 where 'z' in (f2,f1);
-f1	f2
-z	2
-select * from t1 where 1 in (f2,f1);
-f1	f2
-1	0
-a	1
-drop table t1;
