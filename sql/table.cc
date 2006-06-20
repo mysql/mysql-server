@@ -1484,7 +1484,18 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       tmp= fix_partition_func(thd, outparam, is_create_table);
     *root_ptr= old_root;
     if (tmp)
+    {
+      if (is_create_table)
+      {
+        /*
+          During CREATE/ALTER TABLE it is ok to receive errors here.
+          It is not ok if it happens during the opening of an frm
+          file as part of a normal query.
+        */
+        error_reported= TRUE;
+      }
       goto err;
+    }
   }
 #endif
 

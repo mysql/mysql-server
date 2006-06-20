@@ -339,6 +339,7 @@ int rea_create_table(THD *thd, const char *path,
   DBUG_RETURN(0);
 
 err_handler:
+  VOID(file->create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info));
   my_delete(frm_name, MYF(0));
   DBUG_RETURN(1);
 } /* rea_create_table */
