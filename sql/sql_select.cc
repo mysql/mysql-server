@@ -8834,6 +8834,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     null_pack_length-=hidden_null_pack_length;
     keyinfo->key_parts= ((field_count-param->hidden_field_count)+
 			 test(null_pack_length));
+    set_if_smaller(table->s->max_rows, rows_limit);
+    param->end_write_records= rows_limit;
     table->distinct= 1;
     table->s->keys= 1;
     if (blob_count)

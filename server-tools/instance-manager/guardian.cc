@@ -271,10 +271,7 @@ int Guardian_thread::init()
   {
     if (!(instance->options.nonguarded))
       if (guard(instance, TRUE))                /* do not lock guardian */
-      {
-        instance_map->unlock();
         return 1;
-      }
   }
 
   return 0;

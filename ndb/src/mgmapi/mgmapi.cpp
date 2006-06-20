@@ -1945,7 +1945,7 @@ ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
     }
 
     delete prop;
-    return (ndb_mgm_configuration*)cvf.m_cfg;
+    return (ndb_mgm_configuration*)cvf.getConfigValues();
   } while(0);
 
   delete prop;
