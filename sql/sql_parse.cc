@@ -26,7 +26,8 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
-#include "event.h"
+#include "events.h"
+#include "event_timed.h"
 
 #ifdef HAVE_OPENSSL
 /*
