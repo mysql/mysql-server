@@ -38,7 +38,7 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
-#include "event.h"
+#include "event_timed.h"
 #include <myisam.h>
 #include <myisammrg.h>
 
