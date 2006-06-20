@@ -1311,8 +1311,12 @@ fsp_fill_free_list(
 	while ((init_space && i < 1)
 		|| ((i + FSP_EXTENT_SIZE <= size) && (count < FSP_FREE_ADD))) {
 
-		const ibool	init_xdes
-		= !(i & (zip_size ? UNIV_PAGE_SIZE - 1 : zip_size - 1));
+		ibool	init_xdes;
+		if (zip_size) {
+			init_xdes = i % zip_size == 0;
+		} else {
+			init_xdes = i % UNIV_PAGE_SIZE == 0;
+		}
 
 		mlog_write_ulint(header + FSP_FREE_LIMIT, i + FSP_EXTENT_SIZE,
 							MLOG_4BYTES, mtr);
