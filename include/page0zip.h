@@ -69,7 +69,7 @@ page_zip_simple_validate(
 						descriptor */
 #endif /* UNIV_DEBUG */
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 /**************************************************************************
 Check that the compressed and decompressed pages match. */
 
@@ -79,7 +79,7 @@ page_zip_validate(
 	const page_zip_des_t*	page_zip,/* in: compressed page */
 	const page_t*		page)	/* in: uncompressed page */
 	__attribute__((nonnull));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 /**************************************************************************
 Ensure that enough space is available in the modification log.

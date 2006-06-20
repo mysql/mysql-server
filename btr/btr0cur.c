@@ -501,10 +501,10 @@ retry_page_get:
 
 		block = buf_block_align(page);
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 		ut_a(!buf_block_get_page_zip(block) || page_zip_validate(
 				buf_block_get_page_zip(block), page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 		block->check_index_page_at_flush = TRUE;
 
@@ -1767,9 +1767,9 @@ btr_cur_optimistic_update(
 	new_rec_size = rec_get_converted_size(index, new_entry);
 
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	if (UNIV_LIKELY_NULL(page_zip)
 			&& !page_zip_alloc(page_zip, page, index,
@@ -1972,9 +1972,9 @@ btr_cur_pessimistic_update(
 							MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	optim_err = btr_cur_optimistic_update(flags, cursor, update,
 							cmpl_info, thr, mtr);
@@ -2092,9 +2092,9 @@ btr_cur_pessimistic_update(
 
 	btr_search_update_hash_on_delete(cursor);
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 	page_cur_delete_rec(page_cursor, index, offsets, page_zip, mtr);
 
 	page_cur_move_to_prev(page_cursor);
@@ -2624,14 +2624,14 @@ btr_cur_optimistic_delete(
 									1);
 		page_zip = buf_block_get_page_zip(buf_block_align(
 					btr_cur_get_rec(cursor)));
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUGp
+#ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 		page_cur_delete_rec(btr_cur_get_page_cur(cursor),
 				cursor->index, offsets, page_zip, mtr);
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUGp
+#ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 		ibuf_update_free_bits_low(cursor->index, page, max_ins_size,
 									mtr);
@@ -2712,9 +2712,9 @@ btr_cur_pessimistic_delete(
 	heap = mem_heap_create(1024);
 	rec = btr_cur_get_rec(cursor);
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	offsets = rec_get_offsets(rec, cursor->index,
 					NULL, ULINT_UNDEFINED, &heap);
@@ -2727,9 +2727,9 @@ btr_cur_pessimistic_delete(
 			|| !rec_get_1byte_offs_flag(rec))) {
 		btr_rec_free_externally_stored_fields(cursor->index, rec,
 					offsets, page_zip, in_rollback, mtr);
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUGp
+#ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 	}
 
 	if (UNIV_UNLIKELY(page_get_n_recs(page) < 2)
@@ -2790,9 +2790,9 @@ btr_cur_pessimistic_delete(
 
 	page_cur_delete_rec(btr_cur_get_page_cur(cursor), cursor->index,
 						offsets, page_zip, mtr);
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUGp
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	ut_ad(btr_check_node_ptr(tree, page, mtr));
 
