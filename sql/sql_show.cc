@@ -2143,7 +2143,7 @@ bool schema_table_store_record(THD *thd, TABLE *table)
 void get_index_field_values(LEX *lex, INDEX_FIELD_VALUES *index_field_values)
 {
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
-  switch (lex->orig_sql_command) {
+  switch (lex->sql_command) {
   case SQLCOM_SHOW_DATABASES:
     index_field_values->db_value= wild;
     break;
@@ -2332,10 +2332,9 @@ int make_db_list(THD *thd, List<char> *files,
   /*
     This part of code is for SHOW TABLES, SHOW TABLE STATUS commands.
     idx_field_vals->db_value can't be 0 (see get_index_field_values()
-    function). lex->orig_sql_command can be not equal to SQLCOM_END
-    only in case of executing of SHOW commands.
+    function).
   */
-  if (lex->orig_sql_command != SQLCOM_END)
+  if (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
   {
     if (!my_strcasecmp(system_charset_info, information_schema_name.str,
                        idx_field_vals->db_value))
@@ -2414,12 +2413,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   LINT_INIT(end);
   LINT_INIT(len);
 
-  /*
-    Let us set fake sql_command so views won't try to merge
-    themselves into main statement.
-  */
-  lex->sql_command= SQLCOM_SHOW_FIELDS;
-
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
 
   /*
@@ -2442,8 +2435,16 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
       I_S tables will be done.
     */
     thd->temporary_tables= open_tables_state_backup.temporary_tables;
+    /*
+      Let us set fake sql_command so views won't try to merge
+      themselves into main statement. If we don't do this,
+      SELECT * from information_schema.xxxx will cause problems.
+      SQLCOM_SHOW_FIELDS is used because it satisfies 'only_view_structure()' 
+    */
+    lex->sql_command= SQLCOM_SHOW_FIELDS;
     res= open_normal_and_derived_tables(thd, show_table_list,
                                         MYSQL_LOCK_IGNORE_FLUSH);
+    lex->sql_command= save_sql_command;
     /*
       get_all_tables() returns 1 on failure and 0 on success thus
       return only these and not the result code of ::process_table()
@@ -2474,13 +2475,13 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   partial_cond= make_cond_for_info_schema(cond, tables);
   it.rewind(); /* To get access to new elements in basis list */
+
+  /*
+    Below we generate error for non existing database.
+    (to save old behaviour for SHOW TABLES FROM db)
+  */
   while ((orig_base_name= base_name= it++) ||
-	 /*
-	   generate error for non existing database.
-	   (to save old behaviour for SHOW TABLES FROM db)
-	 */
-	 ((lex->orig_sql_command == SQLCOM_SHOW_TABLES ||
-           lex->orig_sql_command == SQLCOM_SHOW_TABLE_STATUS) &&
+         ((sql_command_flags[save_sql_command] & CF_SHOW_TABLE_COMMAND) &&
 	  (base_name= select_lex->db) && !bases.elements))
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -2521,7 +2522,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
         {
           if (schema_table_idx == SCH_TABLE_NAMES)
           {
-            if (lex->verbose || lex->orig_sql_command == SQLCOM_END)
+            if (lex->verbose ||
+                (sql_command_flags[save_sql_command] & CF_STATUS_COMMAND) == 0)
             {
               if (with_i_schema)
               {
@@ -2565,8 +2567,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             TABLE_LIST *show_table_list= (TABLE_LIST*) sel.table_list.first;
             lex->all_selects_list= &sel;
             lex->derived_tables= 0;
+            lex->sql_command= SQLCOM_SHOW_FIELDS;
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
+            lex->sql_command= save_sql_command;
             /*
               We should use show_table_list->alias instead of 
               show_table_list->table_name because table_name
@@ -2876,7 +2880,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 
   if (res)
   {
-    if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS)
+    if (lex->sql_command != SQLCOM_SHOW_FIELDS)
     {
       /*
         I.e. we are in SELECT FROM INFORMATION_SCHEMA.COLUMS
@@ -2927,7 +2931,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     col_access= get_column_grant(thd, &tables->grant, 
                                  base_name, file_name,
                                  field->field_name) & COL_ACLS;
-    if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && 
+    if (lex->sql_command != SQLCOM_SHOW_FIELDS  &&
         !tables->schema_table && !col_access)
       continue;
     end= tmp;
@@ -2972,7 +2976,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       table->field[5]->set_notnull();
     }
     else if (field->unireg_check == Field::NEXT_NUMBER ||
-             lex->orig_sql_command != SQLCOM_SHOW_FIELDS ||
+             lex->sql_command != SQLCOM_SHOW_FIELDS ||
              field->maybe_null())
       table->field[5]->set_null();                // Null as default
     else
@@ -3242,16 +3246,18 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
   get_field(thd->mem_root, proc_table->field[11], &definer);
   if (!full_access)
     full_access= !strcmp(sp_user, definer.ptr());
-  if (!full_access && check_some_routine_access(thd, sp_db.ptr(), sp_name.ptr(),
-                                                proc_table->field[2]->val_int() ==
+  if (!full_access && check_some_routine_access(thd, sp_db.ptr(),
+                                                sp_name.ptr(),
+                                                proc_table->field[2]->
+                                                val_int() ==
                                                 TYPE_ENUM_PROCEDURE))
     return 0;
 
-  if (lex->orig_sql_command == SQLCOM_SHOW_STATUS_PROC &&
+  if (lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
       proc_table->field[2]->val_int() == TYPE_ENUM_PROCEDURE ||
-      lex->orig_sql_command == SQLCOM_SHOW_STATUS_FUNC &&
+      lex->sql_command == SQLCOM_SHOW_STATUS_FUNC &&
       proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION ||
-      lex->orig_sql_command == SQLCOM_END)
+      (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0)
   {
     restore_record(table, s->default_values);
     if (!wild || !wild[0] || !wild_compare(sp_name.ptr(), wild, 0))
@@ -3362,7 +3368,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
   DBUG_ENTER("get_schema_stat_record");
   if (res)
   {
-    if (thd->lex->orig_sql_command != SQLCOM_SHOW_KEYS)
+    if (thd->lex->sql_command != SQLCOM_SHOW_KEYS)
     {
       /*
         I.e. we are in SELECT FROM INFORMATION_SCHEMA.STATISTICS
@@ -4153,7 +4159,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     optimized. It's guaranteed in case of SHOW EVENTS that the user
     has access.
   */
-  if (thd->lex->orig_sql_command != SQLCOM_SHOW_EVENTS &&
+  if (thd->lex->sql_command != SQLCOM_SHOW_EVENTS &&
       check_access(thd, EVENT_ACL, et.dbname.str, 0, 0, 1,
                    is_schema_db(et.dbname.str)))
     DBUG_RETURN(0);
@@ -4383,7 +4389,7 @@ int fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
     If it's SHOW EVENTS then thd->lex->select_lex.db is guaranteed not to
     be NULL. Let's do an assert anyway.
   */
-  if (thd->lex->orig_sql_command == SQLCOM_SHOW_EVENTS)
+  if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
     DBUG_ASSERT(thd->lex->select_lex.db);
     if (check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
@@ -4411,7 +4417,7 @@ int fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
                   will save use from doing a table scan and comparing
                   every single row's `db` with the schema which we show.
   */
-  if (thd->lex->orig_sql_command == SQLCOM_SHOW_EVENTS)
+  if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
     ret= events_table_index_read_for_db(thd, schema_table, event_table);
   else
     ret= events_table_scan_all(thd, schema_table, event_table);
@@ -4477,7 +4483,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
                          (SHOW_VAR *)all_status_vars.buffer,
                          OPT_GLOBAL,
                          (lex->option_type == OPT_GLOBAL ?
-                          &tmp: &thd->status_var), "",tables->table);
+                          &tmp: thd->initial_status_var), "",tables->table);
   pthread_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
 }
@@ -4670,8 +4676,8 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     schema_table        pointer to 'schema_tables' element
 
   RETURN
-   -1	errror
-    0	success
+   1	error
+   0	success
 */
 
 int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
@@ -4994,7 +5000,7 @@ bool get_schema_tables_result(JOIN *join)
       break;
 
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
-    if (table_list->schema_table && thd->fill_derived_tables())
+    if (table_list->schema_table && thd->fill_information_schema_tables())
     {
       bool is_subselect= (&lex->unit != lex->current_select->master_unit() &&
                           lex->current_select->master_unit()->item);

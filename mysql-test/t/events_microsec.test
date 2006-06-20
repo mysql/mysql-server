@@ -1,4 +1,7 @@
+--disable_warnings
 create database if not exists events_test;
+--enable_warnings
+
 use events_test;
 
 --error ER_NOT_SUPPORTED_YET
