@@ -1,5 +1,22 @@
 drop table if exists t1;
 create table t1 (a int)
+partition by range (a)
+(partition p0 values less than ((select count(*) from t1)));
+ERROR HY000: This partition function is not allowed
+create table t1 (a int)
+partition by range (a)
+(partition p0 values less than (a);
+ERROR 42S22: Unknown column 'a' in 'partition function'
+create table t1 (a int)
+partition by range (a)
+(partition p0 values less than (1));
+alter table t1 add partition (partition p1 values less than (a));
+ERROR 42S22: Unknown column 'a' in 'partition function'
+alter table t1 add partition 
+(partition p1 values less than ((select count(*) from t1)));
+ERROR HY000: This partition function is not allowed
+drop table t1;
+create table t1 (a int)
 engine = x
 partition by key (a);
 Warnings:
