@@ -80,6 +80,10 @@ static const ErrStruct errArray[] =
    /* this error message is complemented by additional info when generated */
    {NDBD_EXIT_INVALID_CONFIG, XCE,
     "Invalid configuration received from Management Server"},
+
+   {NDBD_EXIT_RESOURCE_ALLOC_ERROR, XCE,
+    "Resource allocation error, please review the configuration"},
+
    /* this error message is complemented by additional info when
       generated, such as signal, and text
    */
