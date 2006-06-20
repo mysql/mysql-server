@@ -140,8 +140,8 @@ insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
-slave-bin.000001	#	Table_map	2	#	table_id: 29 (test.t1)
-slave-bin.000001	#	Write_rows	2	#	table_id: 29 flags: STMT_END_F
+slave-bin.000001	#	Table_map	2	#	table_id: 30 (test.t1)
+slave-bin.000001	#	Write_rows	2	#	table_id: 30 flags: STMT_END_F
 select * from t1;
 a	b
 1	1
