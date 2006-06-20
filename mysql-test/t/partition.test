@@ -1199,4 +1199,27 @@ alter table t1 drop partition p2;
 use test;
 drop database db99;
 
+#
+#BUG 17138 Problem with stored procedure and analyze partition
+#
+create table t1 (a int)
+partition by list (a)
+(partition p0 values in (0));
+
+insert into t1 values (0);
+delimiter //;
+
+create procedure po ()
+begin
+  begin
+    declare continue handler for sqlexception begin end;
+    update ignore t1 set a = 1 where a = 0;
+  end;
+  prepare stmt1 from 'alter table t1';
+  execute stmt1;
+end//
+
+call po()//
+delimiter ;//
+drop table t1;
 --echo End of 5.1 tests
