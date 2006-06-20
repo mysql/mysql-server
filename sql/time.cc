@@ -26,26 +26,26 @@
 #ifndef TESTTIME
 
 LEX_STRING interval_type_to_name[INTERVAL_LAST] = {
-  {(char *) STRING_WITH_LEN("YEAR")},
-  {(char *) STRING_WITH_LEN("QUARTER")},
-  {(char *) STRING_WITH_LEN("MONTH")},
-  {(char *) STRING_WITH_LEN("DAY")},
-  {(char *) STRING_WITH_LEN("HOUR")},
-  {(char *) STRING_WITH_LEN("MINUTE")},
-  {(char *) STRING_WITH_LEN("WEEK")},
-  {(char *) STRING_WITH_LEN("SECOND")},
-  {(char *) STRING_WITH_LEN("MICROSECOND")},
-  {(char *) STRING_WITH_LEN("YEAR_MONTH")},
-  {(char *) STRING_WITH_LEN("DAY_HOUR")},
-  {(char *) STRING_WITH_LEN("DAY_MINUTE")},
-  {(char *) STRING_WITH_LEN("DAY_SECOND")},
-  {(char *) STRING_WITH_LEN("HOUR_MINUTE")},
-  {(char *) STRING_WITH_LEN("HOUR_SECOND")},
-  {(char *) STRING_WITH_LEN("MINUTE_SECOND")},
-  {(char *) STRING_WITH_LEN("DAY_MICROSECOND")},
-  {(char *) STRING_WITH_LEN("HOUR_MICROSECOND")},
-  {(char *) STRING_WITH_LEN("MINUTE_MICROSECOND")},
-  {(char *) STRING_WITH_LEN("SECOND_MICROSECOND")}
+  { C_STRING_WITH_LEN("YEAR")},
+  { C_STRING_WITH_LEN("QUARTER")},
+  { C_STRING_WITH_LEN("MONTH")},
+  { C_STRING_WITH_LEN("DAY")},
+  { C_STRING_WITH_LEN("HOUR")},
+  { C_STRING_WITH_LEN("MINUTE")},
+  { C_STRING_WITH_LEN("WEEK")},
+  { C_STRING_WITH_LEN("SECOND")},
+  { C_STRING_WITH_LEN("MICROSECOND")},
+  { C_STRING_WITH_LEN("YEAR_MONTH")},
+  { C_STRING_WITH_LEN("DAY_HOUR")},
+  { C_STRING_WITH_LEN("DAY_MINUTE")},
+  { C_STRING_WITH_LEN("DAY_SECOND")},
+  { C_STRING_WITH_LEN("HOUR_MINUTE")},
+  { C_STRING_WITH_LEN("HOUR_SECOND")},
+  { C_STRING_WITH_LEN("MINUTE_SECOND")},
+  { C_STRING_WITH_LEN("DAY_MICROSECOND")},
+  { C_STRING_WITH_LEN("HOUR_MICROSECOND")},
+  { C_STRING_WITH_LEN("MINUTE_MICROSECOND")},
+  { C_STRING_WITH_LEN("SECOND_MICROSECOND")}
 }; 
 
 	/* Calc weekday from daynr */
@@ -939,7 +939,7 @@ calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign, longlong *seconds_out,
   SYNOPSIS
     my_time_compare()
 
-      a - first TIME
+      a - first time
       b - second time
 
   RETURN VALUE
