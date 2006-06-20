@@ -984,7 +984,7 @@ public:
   */
 #define HA_CHECK_DUPP_KEY 1
 #define HA_CHECK_DUPP_UNIQUE 2
-#define HA_CHECK_DUPP (CHECK_DUPP_KEY + CHECK_DUPP_UNIQUE)
+#define HA_CHECK_DUPP (HA_CHECK_DUPP_KEY + HA_CHECK_DUPP_UNIQUE)
   virtual bool cannot_ignore_error(int error, uint flags)
   {
     if (!error ||
