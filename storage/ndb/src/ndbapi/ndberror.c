@@ -284,6 +284,7 @@ ErrorBundle ErrorCodes[] = {
   /**
    * Application error
    */
+  { 763,  DMEC, AE, "Alter table requires cluster nodes to have exact same version" },
   { 823,  DMEC, AE, "Too much attrinfo from application in tuple manager" },
   { 831,  DMEC, AE, "Too many nullable/bitfields in table definition" },
   { 876,  DMEC, AE, "876" },
@@ -344,7 +345,7 @@ ErrorBundle ErrorCodes[] = {
   /**
    * SchemaError
    */
-  { 311,  DMEC, IE, "Undefined fragment" },
+  { 311,  DMEC, AE, "Undefined partition used in setPartitionId" },
   { 703,  DMEC, SE, "Invalid table format" },
   { 704,  DMEC, SE, "Attribute name too long" },
   { 705,  DMEC, SE, "Table name too long" },
