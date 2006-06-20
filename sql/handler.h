@@ -977,6 +977,9 @@ public:
     ignorable than others. E.g. the partition handler can get inserts
     into a range where there is no partition and this is an ignorable
     error.
+    HA_ERR_FOUND_DUPP_UNIQUE is a special case in MyISAM that means the
+    same thing as HA_ERR_FOUND_DUPP_KEY but can in some cases lead to
+    a slightly different error message.
   */
 #define HA_CHECK_DUPP_KEY 1
 #define HA_CHECK_DUPP_UNIQUE 2
@@ -985,9 +988,8 @@ public:
   {
     if (!error ||
         ((flags & HA_CHECK_DUPP_KEY) &&
-         error == HA_ERR_FOUND_DUPP_KEY) ||
-         ((flags & HA_CHECK_DUPP_UNIQUE) &&
-          error == HA_ERR_FOUND_DUPP_UNIQUE))
+         (error == HA_ERR_FOUND_DUPP_KEY ||
+          error == HA_ERR_FOUND_DUPP_UNIQUE)))
       return FALSE;
     return TRUE;
   }
