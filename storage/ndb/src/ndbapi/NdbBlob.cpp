@@ -394,6 +394,16 @@ NdbBlob::isScanOp()
 }
 
 inline bool
+NdbBlob::isReadOnlyOp()
+{
+  return ! (
+    theNdbOp->theOperationType == NdbOperation::InsertRequest ||
+    theNdbOp->theOperationType == NdbOperation::UpdateRequest ||
+    theNdbOp->theOperationType == NdbOperation::WriteRequest
+  );
+}
+
+inline bool
 NdbBlob::isTakeOverOp()
 {
   return
@@ -638,12 +648,12 @@ NdbBlob::getValue(void* data, Uint32 bytes)
 {
   DBUG_ENTER("NdbBlob::getValue");
   DBUG_PRINT("info", ("data=%p bytes=%u", data, bytes));
-  if (theGetFlag || theState != Prepared) {
-    setErrorCode(NdbBlobImpl::ErrState);
+  if (! isReadOp() && ! isScanOp()) {
+    setErrorCode(NdbBlobImpl::ErrCompat);
     DBUG_RETURN(-1);
   }
-  if (! isReadOp() && ! isScanOp()) {
-    setErrorCode(NdbBlobImpl::ErrUsage);
+  if (theGetFlag || theState != Prepared) {
+    setErrorCode(NdbBlobImpl::ErrState);
     DBUG_RETURN(-1);
   }
   if (data == NULL && bytes != 0) {
@@ -661,12 +671,12 @@ NdbBlob::setValue(const void* data, Uint32 bytes)
 {
   DBUG_ENTER("NdbBlob::setValue");
   DBUG_PRINT("info", ("data=%p bytes=%u", data, bytes));
-  if (theSetFlag || theState != Prepared) {
-    setErrorCode(NdbBlobImpl::ErrState);
+  if (isReadOnlyOp()) {
+    setErrorCode(NdbBlobImpl::ErrCompat);
     DBUG_RETURN(-1);
   }
-  if (! isInsertOp() && ! isUpdateOp() && ! isWriteOp()) {
-    setErrorCode(NdbBlobImpl::ErrUsage);
+  if (theSetFlag || theState != Prepared) {
+    setErrorCode(NdbBlobImpl::ErrState);
     DBUG_RETURN(-1);
   }
   if (data == NULL && bytes != 0) {
@@ -762,6 +772,10 @@ int
 NdbBlob::setNull()
 {
   DBUG_ENTER("NdbBlob::setNull");
+  if (isReadOnlyOp()) {
+    setErrorCode(NdbBlobImpl::ErrCompat);
+    DBUG_RETURN(-1);
+  }
   if (theNullFlag == -1) {
     if (theState == Prepared) {
       DBUG_RETURN(setValue(0, 0));
@@ -800,6 +814,10 @@ NdbBlob::truncate(Uint64 length)
 {
   DBUG_ENTER("NdbBlob::truncate");
   DBUG_PRINT("info", ("length=%llu", length));
+  if (isReadOnlyOp()) {
+    setErrorCode(NdbBlobImpl::ErrCompat);
+    DBUG_RETURN(-1);
+  }
   if (theNullFlag == -1) {
     setErrorCode(NdbBlobImpl::ErrState);
     DBUG_RETURN(-1);
@@ -857,12 +875,14 @@ NdbBlob::setPos(Uint64 pos)
 int
 NdbBlob::readData(void* data, Uint32& bytes)
 {
+  DBUG_ENTER("NdbBlob::readData");
   if (theState != Active) {
     setErrorCode(NdbBlobImpl::ErrState);
-    return -1;
+    DBUG_RETURN(-1);
   }
   char* buf = static_cast<char*>(data);
-  return readDataPrivate(buf, bytes);
+  int ret = readDataPrivate(buf, bytes);
+  DBUG_RETURN(ret);
 }
 
 int
@@ -951,12 +971,18 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
 int
 NdbBlob::writeData(const void* data, Uint32 bytes)
 {
+  DBUG_ENTER("NdbBlob::writeData");
+  if (isReadOnlyOp()) {
+    setErrorCode(NdbBlobImpl::ErrCompat);
+    DBUG_RETURN(-1);
+  }
   if (theState != Active) {
     setErrorCode(NdbBlobImpl::ErrState);
-    return -1;
+    DBUG_RETURN(-1);
   }
   const char* buf = static_cast<const char*>(data);
-  return writeDataPrivate(buf, bytes);
+  int ret = writeDataPrivate(buf, bytes);
+  DBUG_RETURN(ret);
 }
 
 int
@@ -1355,6 +1381,9 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
         DBUG_RETURN(-1);
     }
     if (isReadOp()) {
+      // upgrade lock mode
+      if (theNdbOp->theLockMode == NdbOperation::LM_CommittedRead)
+        theNdbOp->theLockMode = NdbOperation::LM_Read;
       // add read of head+inline in this op
       if (getHeadInlineValue(theNdbOp) == -1)
         DBUG_RETURN(-1);
@@ -1373,6 +1402,9 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
     supportedOp = true;
   }
   if (isScanOp()) {
+    // upgrade lock mode
+    if (theNdbOp->theLockMode == NdbOperation::LM_CommittedRead)
+      theNdbOp->theLockMode = NdbOperation::LM_Read;
     // add read of head+inline in this op
     if (getHeadInlineValue(theNdbOp) == -1)
       DBUG_RETURN(-1);

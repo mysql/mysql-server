@@ -406,7 +406,7 @@ extern const char *join_type_str[];
 void TEST_join(JOIN *join);
 
 /* Extern functions in sql_select.cc */
-bool store_val_in_field(Field *field,Item *val);
+bool store_val_in_field(Field *field, Item *val, enum_check_fields check_flag);
 TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
 			ulonglong select_options, ha_rows rows_limit,

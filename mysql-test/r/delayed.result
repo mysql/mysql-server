@@ -39,3 +39,33 @@ select * from t1;
 a
 1
 drop table t1;
+CREATE TABLE t1 ( a int(10) NOT NULL auto_increment, PRIMARY KEY (a));
+insert delayed into t1 values(null);
+insert into t1 values(null);
+insert into t1 values(null);
+insert delayed into t1 values(null);
+insert delayed into t1 values(null);
+insert delayed into t1 values(null);
+insert into t1 values(null);
+insert into t1 values(null);
+insert into t1 values(null);
+delete from t1 where a=6;
+insert delayed into t1 values(null);
+insert delayed into t1 values(null);
+insert delayed into t1 values(null);
+insert delayed into t1 values(null);
+select * from t1 order by a;
+a
+1
+2
+3
+4
+5
+7
+8
+9
+10
+11
+12
+13
+DROP TABLE t1;

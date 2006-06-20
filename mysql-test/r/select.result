@@ -2656,16 +2656,6 @@ t11	MyISAM	10	Dynamic	0	0	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL
 select 123 as a from t1 where f1 is null;
 a
 drop table t1,t11;
-CREATE TABLE t1 (a INT, b INT);
-(SELECT a, b AS c FROM t1) ORDER BY c+1;
-a	c
-(SELECT a, b AS c FROM t1) ORDER BY b+1;
-a	c
-SELECT a, b AS c FROM t1 ORDER BY c+1;
-a	c
-SELECT a, b AS c FROM t1 ORDER BY b+1;
-a	c
-drop table t1;
 CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL, UNIQUE idx (a,b) );
 INSERT INTO t1 VALUES (1,1),(1,2),(1,3),(1,4);
 CREATE TABLE t2 ( a INT NOT NULL, b INT NOT NULL, e INT );
@@ -2716,6 +2706,20 @@ select * from t1 where f1 in (select f3 from t2 where (f3,f4)= (select f3,f4 fro
 f1	f2
 1	1
 drop table t1,t2;
+CREATE TABLE t1(a int, b int, c int, KEY b(b), KEY c(c));
+insert into t1 values (1,0,0),(2,0,0);
+CREATE TABLE t2 (a int, b varchar(2), c varchar(2), PRIMARY KEY(a));
+insert into t2 values (1,'',''), (2,'','');
+CREATE TABLE t3 (a int, b int, PRIMARY KEY (a,b), KEY a (a), KEY b (b));
+insert into t3 values (1,1),(1,2);
+explain select straight_join DISTINCT t2.a,t2.b, t1.c from t1, t3, t2 
+where (t1.c=t2.a or (t1.c=t3.a and t2.a=t3.b)) and t1.b=556476786 and 
+t2.b like '%%' order by t2.b limit 0,1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	b,c	b	5	const	1	Using where; Using temporary; Using filesort
+1	SIMPLE	t3	index	PRIMARY,a,b	PRIMARY	8	NULL	2	Using index
+1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	2	Range checked for each record (index map: 0x1)
+DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (a int, INDEX idx(a));
 INSERT INTO t1 VALUES (2), (3), (1);
 EXPLAIN SELECT * FROM t1 IGNORE INDEX (idx);
@@ -2726,61 +2730,6 @@ ERROR 42000: Key 'a' doesn't exist in table 't1'
 EXPLAIN SELECT * FROM t1 FORCE INDEX (a);
 ERROR 42000: Key 'a' doesn't exist in table 't1'
 DROP TABLE t1;
-CREATE TABLE t1 ( city char(30) );
-INSERT INTO t1 VALUES ('London');
-INSERT INTO t1 VALUES ('Paris');
-SELECT * FROM t1 WHERE city='London';
-city
-London
-SELECT * FROM t1 WHERE city='london';
-city
-London
-EXPLAIN SELECT * FROM t1 WHERE city='London' AND city='london';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-SELECT * FROM t1 WHERE city='London' AND city='london';
-city
-London
-EXPLAIN SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
-city
-London
-DROP TABLE t1;
-create table t1 (a int(11) unsigned, b int(11) unsigned);
-insert into t1 values (1,0), (1,1), (1,2);
-select a-b  from t1 order by 1;
-a-b
-0
-1
-18446744073709551615
-select a-b , (a-b < 0)  from t1 order by 1;
-a-b	(a-b < 0)
-0	0
-1	0
-18446744073709551615	0
-select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
-d	(a-b >= 0)	b
-1	1	0
-0	1	1
-18446744073709551615	1	2
-select cast((a - b) as unsigned) from t1 order by 1;
-cast((a - b) as unsigned)
-0
-1
-18446744073709551615
-drop table t1;
-create table t1 (a int(11));
-select all all * from t1;
-a
-select distinct distinct * from t1;
-a
-select all distinct * from t1;
-ERROR HY000: Incorrect usage of ALL and DISTINCT
-select distinct all * from t1;
-ERROR HY000: Incorrect usage of ALL and DISTINCT
-drop table t1;
 CREATE TABLE t1 ( 
 K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', 
 K4N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', 
@@ -2814,19 +2763,6 @@ WART	0100	1
 WART	0200	1
 WART	0300	3
 DROP TABLE t1;
-CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
-CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
-INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
-INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
-DROP TABLE t1, t2;
 create table t1 (a int, b int);
 create table t2 like t1;
 select t1.a from (t1 inner join t2 on t1.a=t2.a) where t2.a=1;
@@ -2857,29 +2793,6 @@ x
 NULL
 1.0000
 drop table t1;
-create table t1 (a int(11));
-select all all * from t1;
-a
-select distinct distinct * from t1;
-a
-select all distinct * from t1;
-ERROR HY000: Incorrect usage of ALL and DISTINCT
-select distinct all * from t1;
-ERROR HY000: Incorrect usage of ALL and DISTINCT
-drop table t1;
-CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
-CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
-INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
-INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	a	a	23	test.t1.a	2	
-DROP TABLE t1, t2;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
@@ -3456,3 +3369,23 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using where
 1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	Using where
 DROP TABLE t1, t2;
+create table t1 (
+a int unsigned    not null auto_increment primary key,
+b bit             not null,
+c bit             not null
+);
+create table t2 (
+a int unsigned    not null auto_increment primary key,
+b bit             not null,
+c int unsigned    not null,
+d varchar(50)
+);
+insert into t1 (b,c) values (0,1), (0,1);
+insert into t2 (b,c) values (0,1);
+select t1.a, t1.b + 0, t1.c + 0, t2.a, t2.b + 0, t2.c, t2.d
+from t1 left outer join t2 on t1.a = t2.c and t2.b <> 1
+where t1.b <> 1 order by t1.a;
+a	t1.b + 0	t1.c + 0	a	t2.b + 0	c	d
+1	0	1	1	0	1	NULL
+2	0	1	NULL	NULL	NULL	NULL
+drop table t1,t2;
