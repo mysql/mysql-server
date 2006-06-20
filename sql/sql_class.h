@@ -1610,7 +1610,8 @@ public:
   virtual bool can_rollback_data() { return 1; }
 
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
-  THD *get_thd(void) { return thd; }
+  const THD *get_thd(void) { return thd; }
+  const HA_CREATE_INFO *get_create_info() { return create_info; };
 };
 
 #include <myisam.h>
