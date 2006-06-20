@@ -10,6 +10,30 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# Bug 19309 Partitions: Crash if double procedural alter
+#
+create table t1 (a int)
+partition by list (a)
+(partition p0 values in (1));
+
+create procedure pz()
+alter table t1 engine = myisam;
+
+call pz();
+call pz();
+drop procedure pz;
+drop table t1;
+
+#
+# Bug 19307: CSV engine crashes
+#
+--error ER_PARTITION_MERGE_ERROR
+create table t1 (a int)
+engine = csv
+partition by list (a)
+(partition p0 values in (null));
+
+#
 # BUG 16002: Handle unsigned integer functions properly
 #
 --error 1064
