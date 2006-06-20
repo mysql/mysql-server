@@ -1162,6 +1162,18 @@ drop function f;
 drop procedure p;
 
 #
+# Bug #17371 Unable to dump a schema with invalid views
+#
+#
+create table t1 ( id serial );
+create view v1 as select * from t1;
+drop table t1;
+# mysqldump gets 1356 from server, but gives us 2
+--echo mysqldump {
+--error 2
+--exec $MYSQL_DUMP --force -N --compact --skip-comments test
+--echo } mysqldump
+drop view v1;
 # BUG#17201 Spurious 'DROP DATABASE' in output,
 # also confusion between tables and views.
 # Example code from Markus Popp

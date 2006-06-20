@@ -565,7 +565,7 @@ create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
     result->name= "";
     if (!(result->type_names=(const char **)
           alloc_root(mem_root,(sizeof(char *)+sizeof(int))*(result->count+1))))
-      return 0;
+      DBUG_RETURN(0);
     result->type_lengths= (unsigned int *)(result->type_names + result->count+1);
     List_iterator<String> it(*src);
     String conv;
@@ -599,7 +599,7 @@ create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
     result->type_names[result->count]= 0;
     result->type_lengths[result->count]= 0;
   }
-  return result;
+  DBUG_RETURN(result);
 }
 
 
