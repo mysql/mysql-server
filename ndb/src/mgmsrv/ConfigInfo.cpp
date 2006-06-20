@@ -2241,11 +2241,11 @@ ConfigInfo::ConfigInfo()
     if (!m_info.getCopy(param._section, &section)) {
       Properties newsection(true);
       m_info.put(param._section, &newsection);
+
+      // Get copy of section
+      m_info.getCopy(param._section, &section);
     }
-    
-    // Get copy of section
-    m_info.getCopy(param._section, &section);
-    
+
     // Create pinfo (parameter info) entry 
     Properties pinfo(true); 
     pinfo.put("Id",          param._paramId);
@@ -2299,6 +2299,7 @@ ConfigInfo::ConfigInfo()
 
     // Replace section with modified section
     m_info.put(param._section, section, true);
+    delete section;
     
     if(param._type != ConfigInfo::CI_SECTION){
       Properties * p;
