@@ -1727,22 +1727,17 @@ static bool check_prepared_statement(Prepared_statement *stmt,
     res= mysql_test_insert_select(stmt, tables);
     break;
 
-  case SQLCOM_SHOW_DATABASES:
+    /*
+      Note that we don't need to have cases in this list if they are
+      marked with CF_STATUS_COMMAND in sql_command_flags
+    */
   case SQLCOM_SHOW_PROCESSLIST:
   case SQLCOM_SHOW_STORAGE_ENGINES:
   case SQLCOM_SHOW_PRIVILEGES:
   case SQLCOM_SHOW_COLUMN_TYPES:
-  case SQLCOM_SHOW_STATUS:
-  case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_ENGINE_LOGS:
   case SQLCOM_SHOW_ENGINE_STATUS:
   case SQLCOM_SHOW_ENGINE_MUTEX:
-  case SQLCOM_SHOW_TABLES:
-  case SQLCOM_SHOW_OPEN_TABLES:
-  case SQLCOM_SHOW_CHARSETS:
-  case SQLCOM_SHOW_COLLATIONS:
-  case SQLCOM_SHOW_FIELDS:
-  case SQLCOM_SHOW_KEYS:
   case SQLCOM_SHOW_CREATE_DB:
   case SQLCOM_SHOW_GRANTS:
   case SQLCOM_DROP_TABLE:
@@ -1762,9 +1757,17 @@ static bool check_prepared_statement(Prepared_statement *stmt,
     break;
 
   default:
-    /* All other statements are not supported yet. */
-    my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
-    goto error;
+    /*
+      Trivial check of all status commands. This is easier than having
+      things in the above case list, as it's less chance for mistakes.
+    */
+    if (!(sql_command_flags[sql_command] & CF_STATUS_COMMAND))
+    {
+      /* All other statements are not supported yet. */
+      my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
+      goto error;
+    }
+    break;
   }
   if (res == 0)
     DBUG_RETURN(text_protocol? FALSE : (send_prep_stmt(stmt, 0) ||

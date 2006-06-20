@@ -80,6 +80,8 @@ connect (user4,localhost,mysqltest_3,,mysqltest);
 connection user4;
 select table_name, column_name, privileges from information_schema.columns
 where table_schema = 'mysqltest' and table_name = 'v1';
+--error 1345
+explain select * from v1;
 connection default;
 
 drop view v1, mysqltest.v1;

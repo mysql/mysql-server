@@ -23,6 +23,32 @@ select 1;
 show status like 'last_query_cost';
 Variable_name	Value
 Last_query_cost	0.000000
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+select * from t1 where a=6;
+a
+6
+6
+6
+6
+6
+show status like 'last_query_cost';
+Variable_name	Value
+Last_query_cost	12.084449
+show status like 'last_query_cost';
+Variable_name	Value
+Last_query_cost	12.084449
+select 1;
+1
+1
+show status like 'last_query_cost';
+Variable_name	Value
+Last_query_cost	0.000000
+drop table t1;
 FLUSH STATUS;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
@@ -43,3 +69,27 @@ SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	5
 SET GLOBAL thread_cache_size=@save_thread_cache_size;
+show status like 'com_show_status';
+Variable_name	Value
+Com_show_status	3
+show status like 'hand%write%';
+Variable_name	Value
+Handler_write	0
+show status like '%tmp%';
+Variable_name	Value
+Created_tmp_disk_tables	0
+Created_tmp_files	0
+Created_tmp_tables	0
+show status like 'hand%write%';
+Variable_name	Value
+Handler_write	0
+show status like '%tmp%';
+Variable_name	Value
+Created_tmp_disk_tables	0
+Created_tmp_files	0
+Created_tmp_tables	0
+show status like 'com_show_status';
+Variable_name	Value
+Com_show_status	8
+rnd_diff	tmp_table_diff
+20	8

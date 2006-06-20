@@ -2058,16 +2058,19 @@ sp_cursor_stmt:
 	  {
 	    Lex->sphead->reset_lex(YYTHD);
 
-	    /* We use statement here just be able to get a better
-	       error message. Using 'select' works too, but will then
-	       result in a generic "syntax error" if a non-select
-	       statement is given. */
+	    /*
+	      We use statement here just be able to get a better
+	      error message. Using 'select' works too, but will then
+	      result in a generic "syntax error" if a non-select
+	      statement is given.
+	    */
 	  }
 	  statement
 	  {
 	    LEX *lex= Lex;
 
-	    if (lex->sql_command != SQLCOM_SELECT)
+	    if (lex->sql_command != SQLCOM_SELECT &&
+	       !(sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND))
 	    {
 	      my_message(ER_SP_BAD_CURSOR_QUERY, ER(ER_SP_BAD_CURSOR_QUERY),
                          MYF(0));
@@ -8062,16 +8065,14 @@ show_param:
          DATABASES wild_and_where
          {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
-           lex->orig_sql_command= SQLCOM_SHOW_DATABASES;
+           lex->sql_command= SQLCOM_SHOW_DATABASES;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_SCHEMATA))
              YYABORT;
          }
          | opt_full TABLES opt_db wild_and_where
            {
              LEX *lex= Lex;
-             lex->sql_command= SQLCOM_SELECT;
-             lex->orig_sql_command= SQLCOM_SHOW_TABLES;
+             lex->sql_command= SQLCOM_SHOW_TABLES;
              lex->select_lex.db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                YYABORT;
@@ -8079,8 +8080,7 @@ show_param:
          | opt_full TRIGGERS_SYM opt_db wild_and_where
            {
              LEX *lex= Lex;
-             lex->sql_command= SQLCOM_SELECT;
-             lex->orig_sql_command= SQLCOM_SHOW_TRIGGERS;
+             lex->sql_command= SQLCOM_SHOW_TRIGGERS;
              lex->select_lex.db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TRIGGERS))
                YYABORT;
@@ -8088,8 +8088,7 @@ show_param:
          | EVENTS_SYM opt_db wild_and_where
            {
              LEX *lex= Lex;
-             lex->sql_command= SQLCOM_SELECT;
-             lex->orig_sql_command= SQLCOM_SHOW_EVENTS;
+             lex->sql_command= SQLCOM_SHOW_EVENTS;
              lex->select_lex.db= $2;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
                YYABORT;
@@ -8106,8 +8105,7 @@ show_param:
          | TABLE_SYM STATUS_SYM opt_db wild_and_where
            {
              LEX *lex= Lex;
-             lex->sql_command= SQLCOM_SELECT;
-             lex->orig_sql_command= SQLCOM_SHOW_TABLE_STATUS;
+             lex->sql_command= SQLCOM_SHOW_TABLE_STATUS;
              lex->select_lex.db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLES))
                YYABORT;
@@ -8115,8 +8113,7 @@ show_param:
         | OPEN_SYM TABLES opt_db wild_and_where
 	  {
 	    LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SELECT;
-            lex->orig_sql_command= SQLCOM_SHOW_OPEN_TABLES;
+            lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
 	    lex->select_lex.db= $3;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_OPEN_TABLES))
               YYABORT;
@@ -8125,16 +8122,14 @@ show_param:
 	  {
 	    LEX *lex= Lex;
 	    WARN_DEPRECATED(yythd, "5.2", "SHOW PLUGIN", "'SHOW PLUGINS'");
-            lex->sql_command= SQLCOM_SELECT;
-            lex->orig_sql_command= SQLCOM_SHOW_PLUGINS;
+            lex->sql_command= SQLCOM_SHOW_PLUGINS;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PLUGINS))
               YYABORT;
 	  }
         | PLUGINS_SYM
 	  {
 	    LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SELECT;
-            lex->orig_sql_command= SQLCOM_SHOW_PLUGINS;
+            lex->sql_command= SQLCOM_SHOW_PLUGINS;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PLUGINS))
               YYABORT;
 	  }
@@ -8147,8 +8142,7 @@ show_param:
 	| opt_full COLUMNS from_or_in table_ident opt_db wild_and_where
 	  {
  	    LEX *lex= Lex;
-	    lex->sql_command= SQLCOM_SELECT;
-	    lex->orig_sql_command= SQLCOM_SHOW_FIELDS;
+	    lex->sql_command= SQLCOM_SHOW_FIELDS;
 	    if ($5)
 	      $4->change_db($5);
 	    if (prepare_schema_table(YYTHD, lex, $4, SCH_COLUMNS))
@@ -8180,8 +8174,7 @@ show_param:
         | keys_or_index from_or_in table_ident opt_db where_clause
           {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SELECT;
-            lex->orig_sql_command= SQLCOM_SHOW_KEYS;
+            lex->sql_command= SQLCOM_SHOW_KEYS;
 	    if ($4)
 	      $3->change_db($4);
             if (prepare_schema_table(YYTHD, lex, $3, SCH_STATISTICS))
@@ -8202,7 +8195,6 @@ show_param:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
-            lex->orig_sql_command= SQLCOM_SHOW_AUTHORS;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
               YYABORT;
 	  }
@@ -8232,8 +8224,7 @@ show_param:
         | opt_var_type STATUS_SYM wild_and_where
           {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SELECT;
-            lex->orig_sql_command= SQLCOM_SHOW_STATUS;
+            lex->sql_command= SQLCOM_SHOW_STATUS;
             lex->option_type= $1;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
               YYABORT;
@@ -8267,8 +8258,7 @@ show_param:
         | opt_var_type  VARIABLES wild_and_where
 	  {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SELECT;
-            lex->orig_sql_command= SQLCOM_SHOW_VARIABLES;
+            lex->sql_command= SQLCOM_SHOW_VARIABLES;
             lex->option_type= $1;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
               YYABORT;
@@ -8276,16 +8266,14 @@ show_param:
         | charset wild_and_where
           {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SELECT;
-            lex->orig_sql_command= SQLCOM_SHOW_CHARSETS;
+            lex->sql_command= SQLCOM_SHOW_CHARSETS;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_CHARSETS))
               YYABORT;
           }
         | COLLATION_SYM wild_and_where
           {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SELECT;
-            lex->orig_sql_command= SQLCOM_SHOW_COLLATIONS;
+            lex->sql_command= SQLCOM_SHOW_COLLATIONS;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_COLLATIONS))
               YYABORT;
           }
@@ -8391,8 +8379,7 @@ show_param:
 	| PROCEDURE STATUS_SYM wild_and_where
 	  {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SELECT;
-            lex->orig_sql_command= SQLCOM_SHOW_STATUS_PROC;
+            lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
 	    if (!sp_add_to_query_tables(YYTHD, lex, "mysql", "proc", TL_READ))
 	      YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
@@ -8401,8 +8388,7 @@ show_param:
 	| FUNCTION_SYM STATUS_SYM wild_and_where
 	  {
             LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SELECT;
-            lex->orig_sql_command= SQLCOM_SHOW_STATUS_FUNC;
+            lex->sql_command= SQLCOM_SHOW_STATUS_FUNC;
 	    if (!sp_add_to_query_tables(YYTHD, lex, "mysql", "proc", TL_READ))
 	      YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
@@ -8497,8 +8483,7 @@ describe:
           lex->lock_option= TL_READ;
           mysql_init_select(lex);
           lex->current_select->parsing_place= SELECT_LIST;
-          lex->sql_command= SQLCOM_SELECT;
-          lex->orig_sql_command= SQLCOM_SHOW_FIELDS;
+          lex->sql_command= SQLCOM_SHOW_FIELDS;
           lex->select_lex.db= 0;
           lex->verbose= 0;
           if (prepare_schema_table(YYTHD, lex, $2, SCH_COLUMNS))

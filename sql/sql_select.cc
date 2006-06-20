@@ -551,9 +551,6 @@ JOIN::optimize()
     DBUG_RETURN(0);
   optimized= 1;
 
-  if (thd->lex->orig_sql_command != SQLCOM_SHOW_STATUS)
-    thd->status_var.last_query_cost= 0.0;
-
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
 	      unit->select_limit_cnt);
   /* select_limit is used to decide if we are likely to scan the whole table */
@@ -3875,10 +3872,8 @@ choose_plan(JOIN *join, table_map join_tables)
 
   /* 
     Store the cost of this query into a user variable
-    Don't update last_query_cost for 'show status' command
   */
-  if (join->thd->lex->orig_sql_command != SQLCOM_SHOW_STATUS)
-    join->thd->status_var.last_query_cost= join->best_read;
+  join->thd->status_var.last_query_cost= join->best_read;
   DBUG_VOID_RETURN;
 }
 
