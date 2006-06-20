@@ -1,4 +1,11 @@
 drop table if exists t1;
+create table t1 (a int)
+partition by list (a)
+(partition p0 values in (1));
+create procedure pz()
+alter table t1 engine = myisam;
+call pz();
+call pz();
 create table t1 (a bigint)
 partition by range (a)
 (partition p0 values less than (0xFFFFFFFFFFFFFFFF),
