@@ -1797,7 +1797,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
     break;
   case GSN_EVENT_REP:
   {
-    EventReport *rep = CAST_PTR(EventReport, signal->getDataPtrSend());
+    EventReport *rep = (EventReport*) signal->getDataPtr();
     if (rep->getNodeId() == 0)
       rep->setNodeId(refToNode(signal->theSendersBlockRef));
     eventReport(signal->getDataPtr());
