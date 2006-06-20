@@ -191,3 +191,13 @@ SELECT COUNT(*) FROM t1 WHERE s1 < 3;
 COUNT(*)
 2
 DROP TABLE t1;
+create table t1 (a int auto_increment primary key)
+auto_increment=100
+partition by list (a)
+(partition p0 values in (1, 100));
+create index inx on t1 (a);
+insert into t1 values (null);
+select * from t1;
+a
+100
+drop table t1;
