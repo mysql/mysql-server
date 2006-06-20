@@ -196,9 +196,9 @@ page_zip_compress_write_log(
 	byte*	log_ptr;
 	ulint	trailer_size;
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	log_ptr = mlog_open(mtr, 11 + 2 + 2);
 
@@ -992,9 +992,9 @@ zlib_error:
 	/* Copy the rest of the compressed page */
 	memcpy(page_zip->data + PAGE_DATA, buf, page_zip->size - PAGE_DATA);
 	mem_heap_free(heap);
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	if (mtr) {
 		page_zip_compress_write_log(page_zip, page, index, mtr);
@@ -1965,7 +1965,7 @@ recs_done:
 	return(TRUE);
 }
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 /* Flag: make page_zip_validate() compare page headers only */
 ibool	page_zip_validate_header_only = FALSE;
 
@@ -2039,7 +2039,7 @@ func_exit:
 	buf_frame_free(temp_page);
 	return(valid);
 }
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 #ifdef UNIV_DEBUG
 static
@@ -2294,10 +2294,10 @@ page_zip_write_rec(
 	ut_a(!*data);
 	page_zip->m_end = data - page_zip->data;
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip,
 			ut_align_down((byte*) rec, UNIV_PAGE_SIZE)));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 }
 
 /***************************************************************
@@ -2341,18 +2341,18 @@ corrupt:
 			goto corrupt;
 		}
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 		ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 		memcpy(page + offset,
 				ptr + 4, BTR_EXTERN_FIELD_REF_SIZE);
 		memcpy(page_zip->data + z_offset,
 				ptr + 4, BTR_EXTERN_FIELD_REF_SIZE);
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 		ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 	}
 
 	return(ptr + (2 + 2 + BTR_EXTERN_FIELD_REF_SIZE));
@@ -2415,10 +2415,10 @@ page_zip_write_blob_ptr(
 
 	memcpy(externs, field, BTR_EXTERN_FIELD_REF_SIZE);
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip,
 			ut_align_down((rec_t*) rec, UNIV_PAGE_SIZE)));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	if (mtr) {
 		byte*	log_ptr	= mlog_open(mtr,
@@ -2486,9 +2486,9 @@ corrupt:
 			goto corrupt;
 		}
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 		ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 		field = page + offset;
 		storage = page_zip->data + z_offset;
@@ -2509,9 +2509,9 @@ corrupt:
 		memcpy(field, ptr + 4, REC_NODE_PTR_SIZE);
 		memcpy(storage, ptr + 4, REC_NODE_PTR_SIZE);
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 		ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 	}
 
 	return(ptr + (2 + 2 + REC_NODE_PTR_SIZE));
@@ -2701,9 +2701,9 @@ page_zip_clear_rec(
 		*data++ = (heap_no - 1) << 1 | 1;
 		ut_ad(!*data);
 		page_zip->m_end = data - page_zip->data;
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 		ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 	} else {
 		/* There is not enough space to log the clearing.
 		Try to clear the block and to recompress the page. */
@@ -2975,16 +2975,16 @@ corrupt:
 
 			goto corrupt;
 		}
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 		ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 		memcpy(page + offset, ptr, len);
 		memcpy(page_zip->data + offset, ptr, len);
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 		ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 	}
 
 	return(ptr + len);
@@ -3109,9 +3109,9 @@ page_zip_copy(
 							MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align((page_t*) src),
 							MTR_MEMO_PAGE_X_FIX));
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(src_zip, src));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 	ut_a(page_zip->size == src_zip->size);
 
 	/* Skip the file page header and trailer. */
@@ -3142,9 +3142,9 @@ page_zip_copy(
 		}
 	}
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	page_zip_compress_write_log(page_zip, page, index, mtr);
 }

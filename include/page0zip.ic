@@ -160,9 +160,9 @@ page_zip_alloc(
 	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
 {
 	ut_ad(page_is_comp((page_t*) page));
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	if (page_zip_available(page_zip, index, length, create)) {
 		return(TRUE);

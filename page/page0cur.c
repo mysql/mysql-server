@@ -250,11 +250,11 @@ page_cur_search_with_match(
 	ut_ad((mode == PAGE_CUR_L) || (mode == PAGE_CUR_LE)
 		|| (mode == PAGE_CUR_G) || (mode == PAGE_CUR_GE));
 #endif /* UNIV_DEBUG */
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	page_zip_des_t*	page_zip = buf_block_get_page_zip(
 			buf_block_align(page));
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	page_check_dir(page);
 
@@ -917,9 +917,9 @@ page_cur_insert_rec_low(
 			== (ibool) !!page_is_comp(page));
 
 	ut_ad(!page_rec_is_supremum(cursor->rec));
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	/* 1. Get the size of the physical record in the page */
 	rec_size = rec_offs_size(offsets);
