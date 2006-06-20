@@ -14,21 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef atomic_rwlock_init
+#ifndef my_atomic_rwlock_init
 
-#ifdef MY_ATOMIC_EXTRA_DEBUG
-#ifndef MY_ATOMIC_MODE_RWLOCKS
-#error MY_ATOMIC_EXTRA_DEBUG can be only used with MY_ATOMIC_MODE_RWLOCKS
-#endif
-#define LOCK_PTR void *rw;
-#else
-#define LOCK_PTR
-#endif
-
-typedef volatile struct {uint8   val; LOCK_PTR} my_atomic_8_t;
-typedef volatile struct {uint16  val; LOCK_PTR} my_atomic_16_t;
-typedef volatile struct {uint32  val; LOCK_PTR} my_atomic_32_t;
-typedef volatile struct {uint64  val; LOCK_PTR} my_atomic_64_t;
+#define intptr         void *
 
 #ifndef MY_ATOMIC_MODE_RWLOCKS
 #include "atomic/nolock.h"
@@ -36,6 +24,103 @@ typedef volatile struct {uint64  val; LOCK_PTR} my_atomic_64_t;
 
 #ifndef my_atomic_rwlock_init
 #include "atomic/rwlock.h"
+#endif
+
+#ifdef HAVE_INLINE
+
+#define make_atomic_add(S)					\
+static inline int ## S my_atomic_add ## S(			\
+                        int ## S volatile *a, int ## S v)	\
+{								\
+  make_atomic_add_body(S);					\
+  return v;							\
+}
+
+#define make_atomic_swap(S)					\
+static inline int ## S my_atomic_swap ## S(			\
+                         int ## S volatile *a, int ## S v)	\
+{								\
+  make_atomic_swap_body(S);					\
+  return v;							\
+}
+
+#define make_atomic_cas(S)					\
+static inline int my_atomic_cas ## S(int ## S volatile *a,	\
+                            int ## S *cmp, int ## S set)	\
+{								\
+  int8 ret;							\
+  make_atomic_cas_body(S);					\
+  return ret;							\
+}
+
+#define make_atomic_load(S)					\
+static inline int ## S my_atomic_load ## S(int ## S volatile *a) \
+{								\
+  int ## S ret;						\
+  make_atomic_load_body(S);					\
+  return ret;							\
+}
+
+#define make_atomic_store(S)					\
+static inline void my_atomic_store ## S(			\
+                     int ## S volatile *a, int ## S v)	\
+{								\
+  make_atomic_store_body(S);					\
+}
+
+#else /* no inline functions */
+
+#define make_atomic_add(S)					\
+extern int ## S my_atomic_add ## S(int ## S volatile *a, int ## S v);
+
+#define make_atomic_swap(S)					\
+extern int ## S my_atomic_swap ## S(int ## S volatile *a, int ## S v);
+
+#define make_atomic_cas(S)					\
+extern int my_atomic_cas ## S(int ## S volatile *a, int ## S *cmp, int ## S set);
+
+#define make_atomic_load(S)					\
+extern int ## S my_atomic_load ## S(int ## S volatile *a);
+
+#define make_atomic_store(S)					\
+extern void my_atomic_store ## S(int ## S volatile *a, int ## S v);
+
+#endif
+
+make_atomic_add( 8)
+make_atomic_add(16)
+make_atomic_add(32)
+
+make_atomic_cas( 8)
+make_atomic_cas(16)
+make_atomic_cas(32)
+make_atomic_cas(ptr)
+
+make_atomic_load( 8)
+make_atomic_load(16)
+make_atomic_load(32)
+make_atomic_load(ptr)
+
+make_atomic_store( 8)
+make_atomic_store(16)
+make_atomic_store(32)
+make_atomic_store(ptr)
+
+make_atomic_swap( 8)
+make_atomic_swap(16)
+make_atomic_swap(32)
+make_atomic_swap(ptr)
+
+#undef make_atomic_add
+#undef make_atomic_cas
+#undef make_atomic_load
+#undef make_atomic_store
+#undef make_atomic_swap
+#undef intaptr
+
+#ifdef _atomic_h_cleanup_
+#include _atomic_h_cleanup_
+#undef _atomic_h_cleanup_
 #endif
 
 #define MY_ATOMIC_OK       0

@@ -438,6 +438,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
   uint col_access=thd->col_access;
 #endif
   TABLE_LIST table_list;
+  char tbbuff[FN_REFLEN];
   DBUG_ENTER("mysql_find_files");
 
   if (wild && !wild[0])
@@ -453,6 +454,8 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       my_error(ER_CANT_READ_DIR, MYF(ME_BELL+ME_WAITTANG), path, my_errno);
     DBUG_RETURN(-1);
   }
+
+  VOID(tablename_to_filename(tmp_file_prefix, tbbuff, sizeof(tbbuff)));
 
   for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
   {
@@ -491,7 +494,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
     {
         // Return only .frm files which aren't temp files.
       if (my_strcasecmp(system_charset_info, ext=fn_rext(file->name),reg_ext) ||
-          is_prefix(file->name,tmp_file_prefix))
+          is_prefix(file->name,tbbuff))
         continue;
       *ext=0;
       VOID(filename_to_tablename(file->name, uname, sizeof(uname)));
@@ -3421,7 +3424,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
              show_table->field[key_part->fieldnr-1]->key_length()))
         {
           table->field[10]->store((longlong) key_part->length /
-                                  key_part->field->charset()->mbmaxlen);
+                                  key_part->field->charset()->mbmaxlen, TRUE);
           table->field[10]->set_notnull();
         }
         uint flags= key_part->field ? key_part->field->flags : 0;
