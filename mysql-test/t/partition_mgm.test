@@ -6,10 +6,12 @@ CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30))
 PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER)) PARTITIONS 2;
 SHOW CREATE TABLE t1;
 
-#--exec ls $MYSQLTEST_VARDIR/master-data/test/t1*
+--replace_result $MYSQLTEST_VARDIR "hello"
+--exec ls $MYSQLTEST_VARDIR/master-data/test/t1*
 ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
-#--exec ls $MYSQLTEST_VARDIR/master-data/test/t1*
+--replace_result $MYSQLTEST_VARDIR "hello"
+--exec ls $MYSQLTEST_VARDIR/master-data/test/t1*
 
 
 
