@@ -1083,16 +1083,19 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	  to convert the latter operation internally to an UPDATE.
           We also should not perform this conversion if we have 
           timestamp field with ON UPDATE which is different from DEFAULT.
+          Another case when conversion should not be performed is when
+          we have ON DELETE trigger on table so user may notice that
+          we cheat here. Note that it is ok to do such conversion for
+          tables which have ON UPDATE but have no ON DELETE triggers,
+          we just should not expose this fact to users by invoking
+          ON UPDATE triggers.
 	*/
 	if (last_uniq_key(table,key_nr) &&
 	    !table->file->referenced_by_foreign_key() &&
             (table->timestamp_field_type == TIMESTAMP_NO_AUTO_SET ||
-             table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
+             table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH) &&
+            (!table->triggers || !table->triggers->has_delete_triggers()))
         {
-          if (table->triggers &&
-              table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                TRG_ACTION_BEFORE, TRUE))
-            goto before_trg_err;
           if (thd->clear_next_insert_id)
           {
             /* Reset auto-increment cacheing if we do an update */
@@ -1103,13 +1106,11 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 					        table->record[0])))
             goto err;
           info->deleted++;
-          trg_error= (table->triggers &&
-                      table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                        TRG_ACTION_AFTER,
-                                                        TRUE));
-          /* Update logfile and count */
-          info->copied++;
-          goto ok_or_after_trg_err;
+          /*
+            Since we pretend that we have done insert we should call
+            its after triggers.
+          */
+          goto after_trg_n_copied_inc;
         }
         else
         {
@@ -1133,10 +1134,6 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         }
       }
     }
-    info->copied++;
-    trg_error= (table->triggers &&
-                table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
-                                                  TRG_ACTION_AFTER, TRUE));
     /*
       Restore column maps if they where replaced during an duplicate key
       problem.
@@ -1151,14 +1148,14 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	(error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE))
       goto err;
     table->file->restore_auto_increment();
+    goto ok_or_after_trg_err;
   }
-  else
-  {
-    info->copied++;
-    trg_error= (table->triggers &&
-                table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
-                                                  TRG_ACTION_AFTER, TRUE));
-  }
+
+after_trg_n_copied_inc:
+  info->copied++;
+  trg_error= (table->triggers &&
+              table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
+                                                TRG_ACTION_AFTER, TRUE));
 
 ok_or_after_trg_err:
   if (key)
