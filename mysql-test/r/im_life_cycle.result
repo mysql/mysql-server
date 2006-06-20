@@ -1,44 +1,45 @@
+
+--------------------------------------------------------------------
+-- 1.1.1.
+--------------------------------------------------------------------
+Success: the process has been started.
 SHOW INSTANCES;
 instance_name	status
 mysqld1	online
 mysqld2	offline
-SHOW INSTANCE STATUS mysqld1;
-instance_name	status	version
-mysqld1	online	VERSION
-SHOW INSTANCE STATUS mysqld2;
-instance_name	status	version
-mysqld2	offline	VERSION
+
+--------------------------------------------------------------------
+-- 1.1.2.
+--------------------------------------------------------------------
 START INSTANCE mysqld2;
-SHOW INSTANCES;
-instance_name	status
-mysqld1	online
-mysqld2	online
-SHOW INSTANCE STATUS mysqld1;
-instance_name	status	version
-mysqld1	online	VERSION
-SHOW INSTANCE STATUS mysqld2;
-instance_name	status	version
-mysqld2	online	VERSION
+Success: the process has been started.
 SHOW VARIABLES LIKE 'port';
 Variable_name	Value
-port	IM_MYSQLD1_PORT
+port	IM_MYSQLD2_PORT
+
+--------------------------------------------------------------------
+-- 1.1.3.
+--------------------------------------------------------------------
 STOP INSTANCE mysqld2;
-SHOW INSTANCES;
-instance_name	status
-mysqld1	online
-mysqld2	offline
-SHOW INSTANCE STATUS mysqld1;
-instance_name	status	version
-mysqld1	online	VERSION
-SHOW INSTANCE STATUS mysqld2;
-instance_name	status	version
-mysqld2	offline	VERSION
+Success: the process has been stopped.
+
+--------------------------------------------------------------------
+-- 1.1.4.
+--------------------------------------------------------------------
 START INSTANCE mysqld3;
 ERROR HY000: Bad instance name. Check that the instance with such a name exists
 START INSTANCE mysqld1;
 ERROR HY000: The instance is already started
+
+--------------------------------------------------------------------
+-- 1.1.5.
+--------------------------------------------------------------------
 STOP INSTANCE mysqld3;
 ERROR HY000: Bad instance name. Check that the instance with such a name exists
+
+--------------------------------------------------------------------
+-- 1.1.6.
+--------------------------------------------------------------------
 SHOW INSTANCES;
 instance_name	status
 mysqld1	online
@@ -50,20 +51,25 @@ SHOW INSTANCES;
 instance_name	status
 mysqld1	online
 mysqld2	offline
+
+--------------------------------------------------------------------
+-- 1.1.7.
+--------------------------------------------------------------------
 START INSTANCE mysqld2;
-SHOW INSTANCES;
-instance_name	status
-mysqld1	online
-mysqld2	online
+Success: the process has been started.
 Killing the process...
 Sleeping...
 Success: the process was killed.
-SHOW INSTANCES;
-instance_name	status
-mysqld1	online
-mysqld2	offline
+
+--------------------------------------------------------------------
+-- 1.1.8.
+--------------------------------------------------------------------
 SHOW INSTANCE STATUS;
 ERROR 42000: You have an error in your command syntax. Check the manual that corresponds to your MySQL Instance Manager version for the right syntax to use
+
+--------------------------------------------------------------------
+-- BUG#12813
+--------------------------------------------------------------------
 START INSTANCE mysqld1,mysqld2,mysqld3;
 ERROR 42000: You have an error in your command syntax. Check the manual that corresponds to your MySQL Instance Manager version for the right syntax to use
 STOP INSTANCE mysqld1,mysqld2,mysqld3;
