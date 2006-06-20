@@ -179,6 +179,10 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
   for (i= 0; i < nitems ; i++)
   {
     Item_result result= items[i]->result_type();
+    /*
+      Use INT_RESULT as result type for DATE/TIME fields/functions and
+      for constants successfully converted to DATE/TIME
+    */
     if (field &&
          ((!items[i]->const_item() && items[i]->result_as_longlong()) ||
          (items[i]->const_item() && convert_constant_item(thd, field,
