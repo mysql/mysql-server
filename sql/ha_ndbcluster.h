@@ -654,6 +654,14 @@ class ha_ndbcluster: public handler
   int get_default_no_partitions(ulonglong max_rows);
   bool get_no_parts(const char *name, uint *no_parts);
   void set_auto_partitions(partition_info *part_info);
+  virtual bool cannot_ignore_error(int error, uint flags)
+  {
+    if (!handler::cannot_ignore_error(error, flags))
+      return FALSE;
+    if (error == HA_ERR_NO_PARTITION_FOUND)
+      return FALSE;
+    return TRUE;
+  }
 
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,

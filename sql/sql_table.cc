@@ -6268,10 +6268,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     if ((error=to->file->ha_write_row((byte*) to->record[0])))
     {
-      if ((!ignore &&
-	   handle_duplicates != DUP_REPLACE) ||
-	  (error != HA_ERR_FOUND_DUPP_KEY &&
-	   error != HA_ERR_FOUND_DUPP_UNIQUE))
+      if (!ignore ||
+          to->file->cannot_ignore_error(error, HA_CHECK_DUPP))
       {
          if (error == HA_ERR_FOUND_DUPP_KEY)
          {
