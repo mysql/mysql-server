@@ -838,9 +838,9 @@ page_delete_rec_list_end(
 
 	ut_ad(size == ULINT_UNDEFINED || size < UNIV_PAGE_SIZE);
 	ut_ad(!page_zip || page_rec_is_comp(rec));
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
 		rec = page_rec_get_next(rec);
@@ -1005,10 +1005,10 @@ page_delete_rec_list_start(
 
 	ut_ad((ibool) !!page_rec_is_comp(rec)
 			== dict_table_is_comp(index->table));
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip,
 			ut_align_down(rec, UNIV_PAGE_SIZE)));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
 
@@ -1071,11 +1071,11 @@ page_move_rec_list_end(
 
 	old_data_size = page_get_data_size(new_page);
 	old_n_recs = page_get_n_recs(new_page);
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef UNIV_ZIP_DEBUG
 	ut_a(!new_page_zip || page_zip_validate(new_page_zip, new_page));
 	ut_a(!page_zip || page_zip_validate(page_zip,
 			ut_align_down(split_rec, UNIV_PAGE_SIZE)));
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+#endif /* UNIV_ZIP_DEBUG */
 
 	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
 					split_rec, index, mtr))) {
