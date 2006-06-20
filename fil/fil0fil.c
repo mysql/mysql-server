@@ -980,6 +980,7 @@ fil_node_free(
 	mem_free(node);
 }
 
+#ifdef UNIV_LOG_ARCHIVE
 /********************************************************************
 Drops files from the start of a file space, so that its size is cut by
 the amount given. */
@@ -1005,7 +1006,7 @@ fil_space_truncate_start(
 	while (trunc_len > 0) {
 		node = UT_LIST_GET_FIRST(space->chain);
 
-		ut_a(node->size * UNIV_PAGE_SIZE >= trunc_len);
+		ut_a(node->size * UNIV_PAGE_SIZE <= trunc_len);
 
 		trunc_len -= node->size * UNIV_PAGE_SIZE;
 
@@ -1014,6 +1015,7 @@ fil_space_truncate_start(
 
 	mutex_exit(&(system->mutex));
 }
+#endif /* UNIV_LOG_ARCHIVE */
 
 /***********************************************************************
 Creates a space memory object and puts it to the tablespace memory cache. If
