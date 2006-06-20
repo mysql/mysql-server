@@ -8330,7 +8330,7 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	     *--------_----------------------------------------------------- */
 	    const Uint32 nextCrashed = noCrashedReplicas + 1;
 	    replicaPtr.p->noCrashedReplicas = nextCrashed;
-	    arrGuard(nextCrashed, 8);
+	    arrGuardErr(nextCrashed, 8, NDBD_EXIT_MAX_CRASHED_REPLICAS);
 	    replicaPtr.p->createGci[nextCrashed] = newestRestorableGCI + 1;
 	    ndbrequire(newestRestorableGCI + 1 != 0xF1F1F1F1);
 	    replicaPtr.p->replicaLastGci[nextCrashed] = (Uint32)-1;
