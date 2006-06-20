@@ -862,7 +862,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   for (table_ref= all_tables;  table_ref; table_ref=table_ref->next)
   {
     TABLE *table=table_ref->table;
-    if (!(tables_to_update & table->map) && 
+    if ((tables_to_update & table->map) && 
 	mysql_lock_have_duplicate(thd, table, update_tables))
       table->no_cache= 1;			// Disable row cache
   }
