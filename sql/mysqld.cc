@@ -4072,8 +4072,8 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	struct request_info req;
 	signal(SIGCHLD, SIG_DFL);
 	request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, new_sock, NULL);
-	fromhost(&req);
-	if (!hosts_access(&req))
+	my_fromhost(&req);
+	if (!my_hosts_access(&req))
 	{
 	  /*
 	    This may be stupid but refuse() includes an exit(0)
@@ -4081,7 +4081,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	    clean_exit() - same stupid thing ...
 	  */
 	  syslog(deny_severity, "refused connect from %s",
-		 eval_client(&req));
+		 my_eval_client(&req));
 
 	  /*
 	    C++ sucks (the gibberish in front just translates the supplied
