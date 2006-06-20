@@ -65,7 +65,7 @@ bool select_union::send_data(List<Item> &values)
   if ((error= table->file->ha_write_row(table->record[0])))
   {
     /* create_myisam_from_heap will generate error if needed */
-    if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE &&
+    if (table->file->cannot_ignore_error(error, HA_CHECK_DUPP) &&
         create_myisam_from_heap(thd, table, &tmp_table_param, error, 1))
       return 1;
   }
