@@ -8817,7 +8817,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   else
   {
-    set_if_smaller(table->max_rows, rows_limit);
+    set_if_smaller(table->s->max_rows, rows_limit);
     param->end_write_records= rows_limit;
   }
 
