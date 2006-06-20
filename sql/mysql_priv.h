@@ -1582,6 +1582,7 @@ extern TABLE *unused_tables;
 extern const char* any_db;
 extern struct my_option my_long_options[];
 extern const LEX_STRING view_type;
+extern uint sql_command_flags[];
 
 /* optional things, have_* variables */
 

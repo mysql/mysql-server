@@ -343,7 +343,6 @@ typedef struct system_status_var
 
 #define last_system_status_var com_stmt_close
 
-
 #ifdef MYSQL_SERVER
 
 void free_tmp_table(THD *thd, TABLE *entry);
@@ -833,6 +832,7 @@ public:
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
+  struct  system_status_var *initial_status_var; /* used by show status */
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   THR_LOCK_OWNER main_lock_id;          // To use for conventional queries
   THR_LOCK_OWNER *lock_id;              // If not main_lock_id, points to
@@ -1305,6 +1305,10 @@ public:
   inline bool fill_derived_tables()
   {
     return !stmt_arena->is_stmt_prepare() && !lex->only_view_structure();
+  }
+  inline bool fill_information_schema_tables()
+  {
+    return !stmt_arena->is_stmt_prepare();
   }
   inline gptr trans_alloc(unsigned int size)
   {
@@ -1952,8 +1956,16 @@ public:
   void cleanup();
 };
 
+/* Bits in sql_command_flags */
+
+#define CF_CHANGES_DATA		1
+#define CF_HAS_ROW_COUNT	2
+#define CF_STATUS_COMMAND	4
+#define CF_SHOW_TABLE_COMMAND	8
+
 /* Functions in sql_class.cc */
 
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
-
+void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
+                        STATUS_VAR *dec_var);
 #endif /* MYSQL_SERVER */

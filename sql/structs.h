@@ -180,7 +180,7 @@ typedef struct user_resources {
   uint questions;
   /*
      Maximum number of updating statements per hour (which statements are
-     updating is defined by uc_update_queries array).
+     updating is defined by sql_command_flags array).
   */
   uint updates;
   /* Maximum number of connections established per hour. */
