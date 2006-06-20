@@ -47,10 +47,6 @@ mysqld2	offline
 Killing the process...
 Sleeping...
 Success: the process was restarted.
-
---------------------------------------------------------------------
--- 1.1.7.
---------------------------------------------------------------------
 SHOW INSTANCES;
 instance_name	state
 mysqld1	online
