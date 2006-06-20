@@ -1853,15 +1853,10 @@ bool select_dumpvar::send_data(List<Item> &items)
   Item_func_set_user_var *xx;
   Item_splocal *yy;
   my_var *zz;
-  DBUG_ENTER("send_data");
-  if (unit->offset_limit_cnt)
-  {						// using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
-  }
+  DBUG_ENTER("select_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
-  {				          // Using limit offset,count
+  {						// using limit offset,count
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
