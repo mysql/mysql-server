@@ -14,6 +14,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifdef HAVE_LIBWRAP
+#include <tcpd.h>
+#include <syslog.h>
+#ifdef NEED_SYS_SYSLOG_H
+#include <sys/syslog.h>
+#endif /* NEED_SYS_SYSLOG_H */
+
 extern void my_fromhost(struct request_info *req);
 extern int my_hosts_access(struct request_info *req);
 extern char *my_eval_client(struct request_info *req);
+
+#endif /* HAVE_LIBWRAP */
