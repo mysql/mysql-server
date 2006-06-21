@@ -66,3 +66,15 @@ DROP TABLE IF EXISTS t0_definition;
 DROP TABLE IF EXISTS t0_template;
 --enable_warnings
 
+#
+# Bug#20086: Can't get data from key partitioned tables with VARCHAR key
+#
+create table t1 (id varchar(64) primary key) engine=innodb
+partition by key(id) partitions 5;
+insert into t1 values ('a');
+insert into t1 values ('aa');
+insert into t1 values ('aaa');
+select * from t1 where id = 'a';
+select * from t1 where id = 'aa';
+select * from t1 where id = 'aaa';
+drop table t1;

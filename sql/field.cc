@@ -1243,6 +1243,21 @@ uint Field::offset()
 }
 
 
+void Field::hash(ulong *nr, ulong *nr2)
+{
+  if (is_null())
+  {
+    *nr^= (*nr << 1) | 1;
+  }
+  else
+  {
+    uint len= pack_length();
+    CHARSET_INFO *cs= charset();
+    cs->coll->hash_sort(cs, (uchar*) ptr, len, nr, nr2);
+  }
+}
+
+
 void Field::copy_from_tmp(int row_offset)
 {
   memcpy(ptr,ptr+row_offset,pack_length());
@@ -6920,6 +6935,21 @@ uint Field_varstring::is_equal(create_field *new_field)
       return IS_EQUAL_PACK_LENGTH; // VARCHAR, longer variable length
   }
   return IS_EQUAL_NO;
+}
+
+
+void Field_varstring::hash(ulong *nr, ulong *nr2)
+{
+  if (is_null())
+  {
+    *nr^= (*nr << 1) | 1;
+  }
+  else
+  {
+    uint len=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+    CHARSET_INFO *cs= charset();
+    cs->coll->hash_sort(cs, (uchar*) ptr + length_bytes, len, nr, nr2);
+  }
 }
 
 

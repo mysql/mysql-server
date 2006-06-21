@@ -351,6 +351,8 @@ public:
     return field_length / charset()->mbmaxlen;
   }
 
+  /* Hash value */
+  virtual void hash(ulong *nr, ulong *nr2);
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -1120,6 +1122,7 @@ public:
                        char *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);
   uint is_equal(create_field *new_field);
+  void hash(ulong *nr, ulong *nr2);
 };
 
 
