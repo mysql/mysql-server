@@ -701,6 +701,12 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
   {
     KEY_PART_INFO *part,*part_end;
     key_part_map key_part_to_use= 0;
+    /*
+      Perform a check if index is not disabled by ALTER TABLE
+      or IGNORE INDEX.
+    */
+    if (!table->keys_in_use_for_query.is_set(idx))
+      continue;
     uint jdx= 0;
     *prefix_len= 0;
     for (part= keyinfo->key_part, part_end= part+keyinfo->key_parts ;
