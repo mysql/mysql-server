@@ -798,7 +798,7 @@ private:
   int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
   int get_ndb_partition_id(NdbOperation *);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
-  int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
+  int get_ndb_blobs_value(NdbBlob *last_ndb_blob, my_ptrdiff_t ptrdiff);
   int set_primary_key(NdbOperation *op, const byte *key);
   int set_primary_key_from_record(NdbOperation *op, const byte *record);
   int set_index_key_from_record(NdbOperation *op, const byte *record,
@@ -883,6 +883,7 @@ private:
   ha_rows m_ops_pending;
   bool m_skip_auto_increment;
   bool m_blobs_pending;
+  my_ptrdiff_t m_blobs_offset;
   // memory for blobs in one tuple
   char *m_blobs_buffer;
   uint32 m_blobs_buffer_size;
