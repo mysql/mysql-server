@@ -4696,11 +4696,6 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
   SegmentedSectionPtr tabInfoPtr;
   getSection(tabInfoPtr, alterTabPtr.p->m_tabInfoPtrI);
   signal->setSection(tabInfoPtr, AlterTabReq::DICT_TAB_INFO);
-#ifndef DBUG_OFF
-  ndbout_c("DICT_TAB_INFO in DICT");
-  SimplePropertiesSectionReader reader(tabInfoPtr, getSectionSegmentPool());
-  reader.printAll(ndbout);
-#endif
   EXECUTE_DIRECT(SUMA, GSN_ALTER_TAB_REQ, signal,
                  AlterTabReq::SignalLength);
   releaseSections(signal);
@@ -6961,13 +6956,37 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
 {
   TableRecordPtr tablePtr;
   c_tableRecordPool.getPtr(tablePtr, tableId);
-  if (removeFromHash){
+  if (removeFromHash)
+  {
     jam();
     release_object(tablePtr.p->m_obj_ptr_i);
   }
+  else
+  {
+    Rope tmp(c_rope_pool, tablePtr.p->tableName);
+    tmp.erase();
+  }
   
-  Rope frm(c_rope_pool, tablePtr.p->frmData);
-  frm.erase();
+  {
+    Rope tmp(c_rope_pool, tablePtr.p->frmData);
+    tmp.erase();
+  }
+
+  {
+    Rope tmp(c_rope_pool, tablePtr.p->tsData);
+    tmp.erase();
+  }
+
+  {
+    Rope tmp(c_rope_pool, tablePtr.p->ngData);
+    tmp.erase();
+  }
+
+  {
+    Rope tmp(c_rope_pool, tablePtr.p->rangeData);
+    tmp.erase();
+  }
+
   tablePtr.p->tabState = TableRecord::NOT_DEFINED;
   
   LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool, 
