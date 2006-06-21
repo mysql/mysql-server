@@ -2657,7 +2657,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     tmp_disable_binlog(thd);
     if (!mysql_create_table(thd, create_table->db, create_table->table_name,
                             create_info, *extra_fields, *keys, 0,
-                            select_field_count))
+                            select_field_count, 0))
     {
       /*
         If we are here in prelocked mode we either create temporary table

@@ -3034,11 +3034,15 @@ static HA_CREATE_INFO *copy_create_info(HA_CREATE_INFO *lex_create_info)
     thd			Thread object
     db			Database
     table_name		Table name
-    create_info		Create information (like MAX_ROWS)
+    lex_create_info	Create information (like MAX_ROWS)
     fields		List of fields to create
     keys		List of keys to create
     internal_tmp_table  Set to 1 if this is an internal temporary table
 			(From ALTER TABLE)
+    select_field_count  
+    use_copy_create_info Should we make a copy of create info (we do this
+                         when this is called from sql_parse.cc where we
+                         want to ensure lex object isn't manipulated.
 
   DESCRIPTION
     If one creates a temporary table, this is automatically opened
@@ -3058,7 +3062,8 @@ bool mysql_create_table_internal(THD *thd,
                                 HA_CREATE_INFO *lex_create_info,
                                 List<create_field> &fields,
                                 List<Key> &keys,bool internal_tmp_table,
-                                uint select_field_count)
+                                uint select_field_count,
+                                bool use_copy_create_info)
 {
   char		path[FN_REFLEN];
   uint          path_length;
@@ -3070,10 +3075,16 @@ bool mysql_create_table_internal(THD *thd,
   bool		error= TRUE;
   DBUG_ENTER("mysql_create_table_internal");
 
-  if (!(create_info= copy_create_info(lex_create_info)))
+  if (use_copy_create_info)
   {
-    DBUG_RETURN(TRUE);
+    if (!(create_info= copy_create_info(lex_create_info)))
+    {
+      DBUG_RETURN(TRUE);
+    }
   }
+  else
+    create_info= lex_create_info;
+ 
   /* Check for duplicate fields and check type of table to create */
   if (!fields.elements)
   {
@@ -3388,7 +3399,8 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
                         List<create_field> &fields,
                         List<Key> &keys,bool internal_tmp_table,
-                        uint select_field_count)
+                        uint select_field_count,
+                        bool use_copy_create_info)
 {
   bool result;
   DBUG_ENTER("mysql_create_table");
@@ -3412,7 +3424,8 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
 
   result= mysql_create_table_internal(thd, db, table_name, create_info,
                                       fields, keys, internal_tmp_table,
-                                      select_field_count);
+                                      select_field_count,
+                                      use_copy_create_info);
 
   pthread_mutex_lock(&LOCK_lock_db);
   if (!--creating_table && creating_database)
@@ -4358,7 +4371,7 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 */
 
 bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
-                             HA_CREATE_INFO *create_info,
+                             HA_CREATE_INFO *lex_create_info,
                              Table_ident *table_ident)
 {
   TABLE *tmp_table;
@@ -4371,9 +4384,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   int  err;
   bool res= TRUE;
   enum legacy_db_type not_used;
+  HA_CREATE_INFO *create_info;
 
   TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
+
+  if (!(create_info= copy_create_info(lex_create_info)))
+  {
+    DBUG_RETURN(TRUE);
+  }
   src_db= table_ident->db.str ? table_ident->db.str : thd->db;
 
   /*
@@ -5721,7 +5740,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   */
   tmp_disable_binlog(thd);
   error= mysql_create_table(thd, new_db, tmp_name,
-                            create_info,create_list,key_list,1,0);
+                            create_info,create_list,key_list,1,0,0);
   reenable_binlog(thd);
   if (error)
     DBUG_RETURN(error);
