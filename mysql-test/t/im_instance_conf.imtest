@@ -69,7 +69,9 @@ SHOW VARIABLES LIKE 'server_id';
 # Check that CREATE INSTANCE succeeds for non-existing instance and also check
 # that both config file and internal configuration cache have been updated.
 
-CREATE INSTANCE mysqld3;
+CREATE INSTANCE mysqld3
+  server_id = 3,
+  socket = "$MYSQL_TMP_DIR/mysqld_3.sock";
 
 SHOW INSTANCES;
  
@@ -99,7 +101,10 @@ CREATE INSTANCE mysqld3;
 --exec grep nonguarded $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
 
-CREATE INSTANCE mysqld4 nonguarded;
+CREATE INSTANCE mysqld4
+  nonguarded,
+  server_id = 4,
+  socket = "$MYSQL_TMP_DIR/mysqld_4.sock";
 
 SHOW INSTANCES;
 
@@ -115,7 +120,11 @@ SHOW INSTANCES;
 --exec grep test-B $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
-CREATE INSTANCE mysqld5 test-A = 000, test-B = test;
+CREATE INSTANCE mysqld5
+  test-A = 000,
+  test-B = test,
+  server_id = 5,
+  socket = "$MYSQL_TMP_DIR/mysqld_5.sock";
 
 SHOW INSTANCES;
 
@@ -135,7 +144,11 @@ SHOW INSTANCES;
 --exec grep test-C $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
-CREATE INSTANCE mysqld6  test-C1  =  10  ,  test-C2  =  02  ;
+CREATE INSTANCE mysqld6
+  test-C1  =  10  ,
+  test-C2  =  02  ,
+  server_id = 6,
+  socket = "$MYSQL_TMP_DIR/mysqld_6.sock";
 
 SHOW INSTANCES;
 
@@ -183,22 +196,37 @@ SHOW INSTANCES;
 --exec grep test-4 $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
-CREATE INSTANCE mysqld9 test-1=" hello world ", test-2='  ';
+CREATE INSTANCE mysqld9
+  test-1=" hello world ",
+  test-2='  ',
+  server_id = 9,
+  socket = "$MYSQL_TMP_DIR/mysqld_9.sock";
 SHOW INSTANCES;
 
-CREATE INSTANCE mysqld9a test-3='\b\babc\sdef';
+CREATE INSTANCE mysqld10
+  test-3='\b\babc\sdef',
+  server_id = 10,
+  socket = "$MYSQL_TMP_DIR/mysqld_10.sock";
 # test-3='abc def'
 SHOW INSTANCES;
 
-CREATE INSTANCE mysqld9b test-4='abc\tdef', test-5='abc\ndef';
+CREATE INSTANCE mysqld11
+  test-4='abc\tdef',
+  test-5='abc\ndef',
+  server_id = 11,
+  socket = "$MYSQL_TMP_DIR/mysqld_11.sock";
 SHOW INSTANCES;
 
-CREATE INSTANCE mysqld9c test-6="abc\rdef", test-7="abc\\def";
+CREATE INSTANCE mysqld12
+  test-6="abc\rdef",
+  test-7="abc\\def",
+  server_id = 12,
+  socket = "$MYSQL_TMP_DIR/mysqld_12.sock";
 # test-6=abc
 SHOW INSTANCES;
 
 --error ER_SYNTAX_ERROR
-CREATE INSTANCE mysqld10 test-bad=' \ ';
+CREATE INSTANCE mysqld13 test-bad=' \ ';
 SHOW INSTANCES;
 
 --echo --------------------------------------------------------------------
