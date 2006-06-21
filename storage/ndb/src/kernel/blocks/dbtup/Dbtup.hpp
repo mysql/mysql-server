@@ -246,6 +246,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZTUP_SCAN 10
 #define ZFREE_EXTENT 11
 #define ZUNMAP_PAGES 12
+#define ZFREE_VAR_PAGES 13
 
 #define ZSCAN_PROCEDURE 0
 #define ZCOPY_PROCEDURE 2
@@ -620,6 +621,7 @@ struct Fragrecord {
   Uint32 m_tablespace_id;
   Uint32 m_logfile_group_id;
   Disk_alloc_info m_disk_alloc_info;
+  Uint32 m_var_page_chunks;
 };
 typedef Ptr<Fragrecord> FragrecordPtr;
 
@@ -2335,6 +2337,7 @@ private:
 
 
   void releaseFragment(Signal* signal, Uint32 tableId);
+  void drop_fragment_free_var_pages(Signal*);
   void drop_fragment_free_exent(Signal*, TablerecPtr, FragrecordPtr, Uint32);
   void drop_fragment_unmap_pages(Signal*, TablerecPtr, FragrecordPtr, Uint32);
   void drop_fragment_unmap_page_callback(Signal* signal, Uint32, Uint32);
