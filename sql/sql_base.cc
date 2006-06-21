@@ -4546,7 +4546,7 @@ bool setup_tables_and_check_access(THD *thd,
 
   for (; leaves_tmp; leaves_tmp= leaves_tmp->next_leaf)
     if (leaves_tmp->belong_to_view && 
-        check_one_table_access(thd, want_access,  leaves_tmp))
+        check_single_table_access(thd, want_access,  leaves_tmp))
     {
       tables->hide_view_error(thd);
       return TRUE;
