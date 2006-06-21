@@ -3333,15 +3333,6 @@ end_with_restore_list:
                                              &lex->value_list,
                                              lex->duplicates, lex->ignore)))
       {
-        /*
-          Skip first table, which is the table we are inserting in.
-          Below we set context.table_list again because the call above to
-          mysql_insert_select_prepare() calls resolve_in_table_list_only(),
-          which in turn resets context.table_list and
-          context.first_name_resolution_table.
-        */
-        select_lex->context.table_list= 
-          select_lex->context.first_name_resolution_table= second_table;
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
         /*
           Invalidate the table in the query cache if something changed
