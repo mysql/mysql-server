@@ -17839,7 +17839,8 @@ void Dblqh::stepAhead(Signal* signal, Uint32 stepAheadWords)
     logFilePtr.p->currentLogpage = logPagePtr.p->logPageWord[ZNEXT_PAGE];
     logPagePtr.i = logPagePtr.p->logPageWord[ZNEXT_PAGE];
     logFilePtr.p->currentFilepage++;
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuardErr(logPagePtr, clogPageFileSize, logPageRecord,
+                     NDBD_EXIT_SR_REDOLOG);
     logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = ZPAGE_HEADER_SIZE;
     logPartPtr.p->execSrPagesRead--;
     logPartPtr.p->execSrPagesExecuted++;
