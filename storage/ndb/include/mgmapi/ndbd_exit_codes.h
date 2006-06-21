@@ -77,6 +77,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_SR_RESTARTCONFLICT          2311
 #define NDBD_EXIT_NO_MORE_UNDOLOG             2312 
 #define NDBD_EXIT_SR_UNDOLOG                  2313 
+#define NDBD_EXIT_SR_SCHEMAFILE               2310
 #define NDBD_EXIT_MEMALLOC                    2327
 #define NDBD_EXIT_BLOCK_JBUFCONGESTION        2334
 #define NDBD_EXIT_TIME_QUEUE_SHORT            2335
@@ -90,6 +91,9 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_NDBASSERT                   2343
 #define NDBD_EXIT_INVALID_CONFIG              2350
 #define NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY   2351
+
+/* Errorcodes for fatal resource errors */
+#define NDBD_EXIT_RESOURCE_ALLOC_ERROR        2500
 
 #define NDBD_EXIT_OS_SIGNAL_RECEIVED          6000
 

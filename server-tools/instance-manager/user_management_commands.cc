@@ -180,10 +180,10 @@ static int save_password_file(User_map *user_map)
 }
 
 /*************************************************************************
-  Passwd_cmd
+  Print_password_line_cmd
 *************************************************************************/
 
-int Passwd_cmd::execute()
+int Print_password_line_cmd::execute()
 {
   LEX_STRING user_name;
   const char *password;
