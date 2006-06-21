@@ -1,11 +1,14 @@
 #!/bin/sh
 
+# Terminate loudly on error, we don't want partial package
+set -e
+trap "echo '*** script failed ***'" 0
+
 #
 # Script to create a Windows src package
 #
 
 version=@VERSION@
-export version
 CP="cp -p"
 
 DEBUG=0
@@ -74,7 +77,7 @@ show_usage()
   echo "  --tmp     Specify the temporary location"
   echo "  --suffix  Suffix name for the package"
   echo "  --dirname Directory name to copy files (intermediate)"
-  echo "  --silent  Do not list verbosely files processed"
+  echo "  --silent  Show no progress information"
   echo "  --tar     Create tar.gz package"
   echo "  --zip     Create zip package"
   echo "  --help    Show this help message"
@@ -140,10 +143,11 @@ unix_to_dos()
 # Create a tmp dest directory to copy files
 #
 
-BASE=$TMP/my_win_dist$SUFFIX
+BASE=$TMP/my_win_dist$SUFFIX.$$
+trap "rm -r -f $BASE; echo '*** interrupted ***'; exit 1" 1 2 3 13 15
 
 if [ -d $BASE ] ; then
-  print_debug "Destination directory '$BASE' already exists, deleting it"
+  echo "WARNING: Destination directory '$BASE' already exists, deleting it"
   rm -r -f $BASE
 fi
 
@@ -199,7 +203,7 @@ copy_dir_files()
        print_debug "Creating directory '$arg'"
        mkdir $BASE/$arg
      fi
-    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp \
+    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp *.yy \
              README INSTALL* LICENSE AUTHORS NEWS ChangeLog \
              *.inc *.test *.result *.pem Moscow_leap des_key_file \
              *.vcproj *.sln *.dat *.000001 *.require *.opt
@@ -252,7 +256,7 @@ copy_dir_dirs() {
 for i in client dbug extra storage/heap include storage/archive storage/csv \
          include/mysql libmysql libmysqld storage/myisam storage/example \
          storage/myisammrg mysys regex sql strings sql-common \
-         tools vio zlib
+         vio zlib
 do
   copy_dir_files $i
 done
@@ -260,7 +264,7 @@ done
 #
 # Create project files for ndb
 #
-#make -C $SOURCE/storage/ndb windoze
+#make -C $SOURCE/storage/ndb windoze || true
 
 #
 # Input directories to be copied recursively
@@ -334,8 +338,17 @@ done
 # Fix some windows files to avoid compiler warnings
 #
 
-./extra/replace std:: "" < $BASE/sql/sql_yacc.cpp | sed '/^ *switch (yytype)$/ { N; /\n *{$/ { N; /\n *default:$/ { N; /\n *break;$/ { N; /\n *}$/ d; };};};} ' > $BASE/sql/sql_yacc.cpp-new
-mv $BASE/sql/sql_yacc.cpp-new $BASE/sql/sql_yacc.cpp
+if [ -x extra/replace ] ; then
+  ./extra/replace std:: "" < $BASE/sql/sql_yacc.cpp | \
+  sed '/^ *switch (yytype)$/ { N; /\n *{$/ { N; /\n *default:$/ { N; /\n *break;$/ { N; /\n *}$/ d; };};};} ' \
+  > $BASE/sql/sql_yacc.cpp-new
+  mv $BASE/sql/sql_yacc.cpp-new $BASE/sql/sql_yacc.cpp
+else
+  if [ "$SILENT" = "0" ] ; then
+    echo 'WARNING: "extra/replace" not built, can not filter "sql_yacc.ccp"'
+    echo 'WARNING: to reduce the number of warnings when building'
+  fi
+fi
 
 #
 # Search the tree for plain text files and adapt the line end marker
@@ -356,19 +369,23 @@ mv $BASE/README $BASE/README.txt
 # Clean up if we did this from a bk tree
 #
 
-if [ -d $BASE/SSL/SCCS ]
-then
-  find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
-fi
-find $BASE/ -type d -name .deps -printf " \"%p\"" | xargs rm -r -f
-find $BASE/ -type d -name .libs -printf " \"%p\"" | xargs rm -r -f
+find $BASE -type d \( -name SCCS -o -name .deps -o -name .libs \) -print0 | \
+xargs -0 rm -r -f
 rm -r -f "$BASE/mysql-test/var"
 
 #
 # Initialize the initial data directory
 #
 
-if [ -f scripts/mysql_install_db ]; then
+if [ ! -f scripts/mysql_install_db ] ; then
+  if [ "$SILENT" = "0" ] ; then
+    echo 'WARNING: "scripts/mysql_install_db" is not built, can not initiate databases'
+  fi
+elif [ ! -f extra/my_print_defaults ]; then
+  if [ "$SILENT" = "0" ] ; then
+    echo 'WARNING: "extra/my_print_defaults" is not built, can not initiate databases'
+  fi
+else
   print_debug "Initializing the 'data' directory"
   scripts/mysql_install_db --no-defaults --windows --datadir=$BASE/data
   if test "$?" = 1
@@ -446,21 +463,15 @@ set_tarzip_options()
     if [ "$arg" = "tar" ]; then
       ZIPFILE1=gnutar
       ZIPFILE2=gtar
-      OPT=cvf
+      OPT=cf
       EXT=".tar"
       NEED_COMPRESS=1
-      if [ "$SILENT" = "1" ] ; then
-        OPT=cf
-      fi
     else
       ZIPFILE1=zip
       ZIPFILE2=""
-      OPT="-r"
+      OPT="-r -q"
       EXT=".zip"
       NEED_COMPRESS=0
-      if [ "$SILENT" = "1" ] ; then
-        OPT="$OPT -q"
-      fi
     fi
   done
 }
@@ -520,5 +531,8 @@ fi
 
 print_debug "Removing temporary directory"
 rm -r -f $BASE
+
+# No need to report anything if we got here
+trap "" 0
 
 # End of script

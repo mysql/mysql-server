@@ -697,6 +697,15 @@ select count(*)   from t1 where id2 = 10;
 select count(id1) from t1 where id2 = 10;
 drop table t1;
 
+#
+# BUG#18036 - update of table joined to self reports table as crashed
+#
+CREATE TABLE t1(a CHAR(9), b VARCHAR(7)) ENGINE=MyISAM;
+INSERT INTO t1(a) VALUES('xxxxxxxxx'),('xxxxxxxxx');
+UPDATE t1 AS ta1,t1 AS ta2 SET ta1.b='aaaaaa',ta2.b='bbbbbb';
+SELECT * FROM t1;
+DROP TABLE t1;
+
 # End of 4.1 tests
 
 #
@@ -869,4 +878,3 @@ drop table t1;
 create table t1 (a int not null, key key_block_size=1024 (a));
 --error 1064
 create table t1 (a int not null, key `a` key_block_size=1024 (a));
-
