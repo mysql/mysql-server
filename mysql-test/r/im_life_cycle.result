@@ -2,6 +2,7 @@
 --------------------------------------------------------------------
 -- 1.1.1.
 --------------------------------------------------------------------
+Success: the process has been started.
 SHOW INSTANCES;
 instance_name	state
 mysqld1	online
@@ -11,10 +12,7 @@ mysqld2	offline
 -- 1.1.2.
 --------------------------------------------------------------------
 START INSTANCE mysqld2;
-SHOW INSTANCES;
-instance_name	state
-mysqld1	online
-mysqld2	online
+Success: the process has been started.
 SHOW VARIABLES LIKE 'port';
 Variable_name	Value
 port	IM_MYSQLD2_PORT
@@ -23,16 +21,7 @@ port	IM_MYSQLD2_PORT
 -- 1.1.3.
 --------------------------------------------------------------------
 STOP INSTANCE mysqld2;
-SHOW INSTANCES;
-instance_name	state
-mysqld1	online
-mysqld2	offline
-SHOW INSTANCE STATUS mysqld1;
-instance_name	state	version_number	version	mysqld_compatible
-mysqld1	online	VERSION_NUMBER	VERSION	no
-SHOW INSTANCE STATUS mysqld2;
-instance_name	state	version_number	version	mysqld_compatible
-mysqld2	offline	VERSION_NUMBER	VERSION	no
+Success: the process has been stopped.
 
 --------------------------------------------------------------------
 -- 1.1.4.
@@ -58,26 +47,19 @@ mysqld2	offline
 Killing the process...
 Sleeping...
 Success: the process was restarted.
+SHOW INSTANCES;
+instance_name	state
+mysqld1	online
+mysqld2	offline
 
 --------------------------------------------------------------------
 -- 1.1.7.
 --------------------------------------------------------------------
-SHOW INSTANCES;
-instance_name	state
-mysqld1	online
-mysqld2	offline
 START INSTANCE mysqld2;
-SHOW INSTANCES;
-instance_name	state
-mysqld1	online
-mysqld2	online
+Success: the process has been started.
 Killing the process...
 Sleeping...
 Success: the process was killed.
-SHOW INSTANCES;
-instance_name	state
-mysqld1	online
-mysqld2	offline
 
 --------------------------------------------------------------------
 -- 1.1.8.

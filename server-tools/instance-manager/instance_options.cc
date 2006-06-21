@@ -120,7 +120,7 @@ int Instance_options::get_default_option(char *result, size_t result_len,
 {
   int rc= 1;
   LEX_STRING verbose_option=
-    { C_STRING_WITH_SIZE(" --no-defaults --verbose --help") };
+    { C_STRING_WITH_LEN(" --no-defaults --verbose --help") };
 
   /* reserve space for the path + option + final '\0' */
   Buffer cmd(mysqld_path.length + verbose_option.length + 1);
@@ -155,7 +155,7 @@ int Instance_options::fill_instance_version()
 {
   char result[MAX_VERSION_LENGTH];
   LEX_STRING version_option=
-    { C_STRING_WITH_SIZE(" --no-defaults --version") };
+    { C_STRING_WITH_LEN(" --no-defaults --version") };
   int rc= 1;
   Buffer cmd(mysqld_path.length + version_option.length + 1);
 
@@ -210,7 +210,7 @@ int Instance_options::fill_mysqld_real_path()
 {
   char result[FN_REFLEN];
   LEX_STRING help_option=
-    { C_STRING_WITH_SIZE(" --no-defaults --help") };
+    { C_STRING_WITH_LEN(" --no-defaults --help") };
   int rc= 1;
   Buffer cmd(mysqld_path.length + help_option.length);
 
