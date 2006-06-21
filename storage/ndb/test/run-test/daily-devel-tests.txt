@@ -228,6 +228,16 @@ max-time: 2500
 cmd: test_event
 args: -n CreateDropNR -l 2
 
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --separate-events --maxops 10000
+
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --no-multiops
+
 max-time: 600
 cmd: testBasic
 args: -n PkRead T1
