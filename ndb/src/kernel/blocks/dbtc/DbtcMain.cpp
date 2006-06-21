@@ -6978,6 +6978,18 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
 	  found = true;
 	}
       }
+
+      ScanFragList deliv(c_scan_frag_pool, scanptr.p->m_delivered_scan_frags);
+      for(deliv.first(ptr); !ptr.isNull(); deliv.next(ptr))
+      {
+	jam();
+	if (refToNode(ptr.p->lqhBlockref) == failedNodeId)
+	{
+	  jam();
+	  found = true;
+	  break;
+	}
+      }
     }
     if(found){
       jam();
