@@ -807,3 +807,24 @@ SELECT * FROM v;
 DROP VIEW v;
 DROP TABLE t1;
 USE test;
+
+#
+# BUG#20482: failure on Create join view with sources views/tables 
+#             in different schemas
+#
+--disable_warnings
+CREATE DATABASE test1;
+CREATE DATABASE test2;
+--enable_warnings
+
+CREATE TABLE test1.t0 (a VARCHAR(20));
+CREATE TABLE test2.t1 (a VARCHAR(20));
+CREATE VIEW  test2.t3 AS SELECT * FROM test1.t0;
+CREATE OR REPLACE VIEW test.v1 AS 
+  SELECT ta.a AS col1, tb.a AS col2 FROM test2.t3 ta, test2.t1 tb;
+
+DROP VIEW test.v1;
+DROP VIEW test2.t3;
+DROP TABLE test2.t1, test1.t0;
+DROP DATABASE test2;
+DROP DATABASE test1;

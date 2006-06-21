@@ -4978,11 +4978,10 @@ error:
 
 
 /*
-  Check grants for commands which work only with one table and all other
-  tables belonging to subselects or implicitly opened tables.
+  Check grants for commands which work only with one table.
 
   SYNOPSIS
-    check_one_table_access()
+    check_single_table_access()
     thd			Thread handler
     privilege		requested privilege
     all_tables		global table list of query
@@ -4992,7 +4991,8 @@ error:
     1 - access denied, error is sent to client
 */
 
-bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
+bool check_single_table_access(THD *thd, ulong privilege, 
+                               TABLE_LIST *all_tables)
 {
   Security_context * backup_ctx= thd->security_ctx;
 
@@ -5010,19 +5010,41 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
     goto deny;
 
   thd->security_ctx= backup_ctx;
+  return 0;
+
+deny:
+  thd->security_ctx= backup_ctx;
+  return 1;
+}
+
+/*
+  Check grants for commands which work only with one table and all other
+  tables belonging to subselects or implicitly opened tables.
+
+  SYNOPSIS
+    check_one_table_access()
+    thd			Thread handler
+    privilege		requested privilege
+    all_tables		global table list of query
+
+  RETURN
+    0 - OK
+    1 - access denied, error is sent to client
+*/
+
+bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
+{
+  if (check_single_table_access (thd,privilege,all_tables))
+    return 1;
 
   /* Check rights on tables of subselects and implictly opened tables */
   TABLE_LIST *subselects_tables;
   if ((subselects_tables= all_tables->next_global))
   {
     if ((check_table_access(thd, SELECT_ACL, subselects_tables, 0)))
-      goto deny;
+      return 1;
   }
   return 0;
-
-deny:
-  thd->security_ctx= backup_ctx;
-  return 1;
 }
 
 
