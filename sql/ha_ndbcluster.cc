@@ -735,7 +735,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   ha_ndbcluster *ha= (ha_ndbcluster *)arg;
   int ret= get_ndb_blobs_value(ha->table, ha->m_value,
                                ha->m_blobs_buffer, ha->m_blobs_buffer_size,
-                               0);
+                               ha->m_blobs_offset);
   DBUG_RETURN(ret);
 }
 
@@ -864,6 +864,7 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
       if (ndb_blob != NULL)
       {
         // Set callback
+	m_blobs_offset= buf - (byte*) table->record[0];
         void *arg= (void *)this;
         DBUG_RETURN(ndb_blob->setActiveHook(g_get_ndb_blobs_value, arg) != 0);
       }
@@ -5477,6 +5478,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE_SHARE *table_arg):
   m_ops_pending(0),
   m_skip_auto_increment(TRUE),
   m_blobs_pending(0),
+  m_blobs_offset(0),
   m_blobs_buffer(0),
   m_blobs_buffer_size(0),
   m_dupkey((uint) -1),
