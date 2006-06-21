@@ -1851,7 +1851,8 @@ zlib_done:
 			goto err_exit;
 		}
 		page_zip->m_end = mod_log_ptr - page_zip->data;
-		ut_ad(page_zip->m_end < page_zip->size);
+		ut_ad(page_zip_get_trailer_len(page_zip, index, NULL)
+				+ page_zip->m_end < page_zip->size);
 	}
 
 	if (UNIV_UNLIKELY(!page_zip_set_extra_bytes(
@@ -3128,7 +3129,8 @@ page_zip_copy(
 	page_zip->n_blobs = src_zip->n_blobs;
 	page_zip->m_start = src_zip->m_start;
 	page_zip->m_end = src_zip->m_end;
-	ut_ad(page_zip->m_end < page_zip->size);
+	ut_ad(page_zip_get_trailer_len(page_zip, index, NULL)
+			+ page_zip->m_end < page_zip->size);
 
 	if (!page_is_leaf(src)
 			&& UNIV_UNLIKELY(mach_read_from_4((byte*) src
