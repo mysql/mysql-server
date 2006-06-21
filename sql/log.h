@@ -467,8 +467,8 @@ public:
                            CHARSET_INFO *client_cs);
   void flush();
   void init_pthread_objects();
-  MYSQL_LOG *get_mysql_slow_log() { return &mysql_slow_log; }
-  MYSQL_LOG *get_mysql_log() { return &mysql_log; }
+  MYSQL_QUERY_LOG *get_mysql_slow_log() { return &mysql_slow_log; }
+  MYSQL_QUERY_LOG *get_mysql_log() { return &mysql_log; }
 };
 
 
@@ -543,13 +543,13 @@ public:
   void init_general_log(uint general_log_printer);
   void deactivate_log_handler(THD* thd, uint log_type);
   bool activate_log_handler(THD* thd, uint log_type);
-  MYSQL_LOG *get_slow_log_file_handler()
+  MYSQL_QUERY_LOG *get_slow_log_file_handler()
   { 
     if (file_log_handler)
       return file_log_handler->get_mysql_slow_log();
     return NULL;
   }
-  MYSQL_LOG *get_log_file_handler()
+  MYSQL_QUERY_LOG *get_log_file_handler()
   { 
     if (file_log_handler)
       return file_log_handler->get_mysql_log();

@@ -936,7 +936,7 @@ bool LOGGER::activate_log_handler(THD* thd, uint log_type)
       if ((res= reopen_log_table(log_type)))
         goto err;
       file_log_handler->get_mysql_slow_log()->
-        open_query_log(sys_var_slow_log_path.value);
+        open_slow_log(sys_var_slow_log_path.value);
       init_slow_log(log_output_options);
       opt_slow_log= TRUE;
     }
