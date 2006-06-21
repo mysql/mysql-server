@@ -1,5 +1,5 @@
 -- source include/have_innodb.inc
-
+-- source include/have_partition.inc
 SET @max_row = 20;
 let $engine= 'InnoDB';
 let $MAX_VALUE= (2147483646);
