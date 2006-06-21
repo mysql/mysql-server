@@ -1313,9 +1313,9 @@ fsp_fill_free_list(
 
 		ibool	init_xdes;
 		if (zip_size) {
-			init_xdes = i % zip_size == 0;
+			init_xdes = ut_2pow_remainder(i, zip_size) == 0;
 		} else {
-			init_xdes = i % UNIV_PAGE_SIZE == 0;
+			init_xdes = ut_2pow_remainder(i, UNIV_PAGE_SIZE) == 0;
 		}
 
 		mlog_write_ulint(header + FSP_FREE_LIMIT, i + FSP_EXTENT_SIZE,
