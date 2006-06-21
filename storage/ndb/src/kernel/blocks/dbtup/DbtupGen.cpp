@@ -227,6 +227,12 @@ void Dbtup::execCONTINUEB(Signal* signal)
     drop_fragment_unmap_pages(signal, tabPtr, fragPtr, signal->theData[3]);
     return;
   }
+  case ZFREE_VAR_PAGES:
+  {
+    ljam();
+    drop_fragment_free_var_pages(signal);
+    return;
+  }
   default:
     ndbrequire(false);
     break;
