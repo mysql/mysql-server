@@ -862,7 +862,8 @@ int prepare_create_field(create_field *sql_field,
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
                         List<create_field> &fields, List<Key> &keys,
-                        bool tmp_table, uint select_field_count);
+                        bool tmp_table, uint select_field_count,
+                        bool use_copy_create_info);
 
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
