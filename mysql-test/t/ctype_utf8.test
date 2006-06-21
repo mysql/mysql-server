@@ -926,4 +926,30 @@ INSERT INTO t1 VALUES('uUABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbb
 check table t1;
 drop table t1;
 
+#
+# Bug#14896: Comparison with a key in a partial index over mb chararacter field
+#
+
+SET NAMES utf8;
+CREATE TABLE t1 (id int PRIMARY KEY,
+                 a varchar(16) collate utf8_unicode_ci NOT NULL default '',
+                 b int,
+                 f varchar(128) default 'XXX',
+                 INDEX (a(4))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+INSERT INTO t1(id, a, b) VALUES
+  (1, 'cccc', 50), (2, 'cccc', 70), (3, 'cccc', 30),
+  (4, 'cccc', 30), (5, 'cccc', 20), (6, 'bbbbbb', 40),
+  (7, 'dddd', 30), (8, 'aaaa', 10), (9, 'aaaa', 50),
+  (10, 'eeeee', 40), (11, 'bbbbbb', 60);
+
+SELECT id, a, b FROM t1;
+
+SELECT id, a, b FROM t1 WHERE a BETWEEN 'aaaa' AND 'bbbbbb';
+
+SELECT id, a FROM t1 WHERE a='bbbbbb';
+SELECT id, a FROM t1 WHERE a='bbbbbb' ORDER BY b;
+
+DROP TABLE t1;
+
 # End of 4.1 tests
