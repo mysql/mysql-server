@@ -65,7 +65,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
 			sql_array.h sql_cursor.h events.h events_priv.h \
-			sql_plugin.h authors.h sql_partition.h \
+			sql_plugin.h authors.h sql_partition.h event_timed.h \
 			partition_info.h partition_element.h event_scheduler.h \
 			contributors.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
