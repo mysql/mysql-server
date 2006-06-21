@@ -1978,6 +1978,7 @@ buf_page_io_complete(
 					}
 				}
 				break;
+			case FIL_PAGE_TYPE_ALLOCATED:
 			case FIL_PAGE_INODE:
 			case FIL_PAGE_IBUF_BITMAP:
 			case FIL_PAGE_TYPE_FSP_HDR:
@@ -1986,9 +1987,6 @@ buf_page_io_complete(
 				/* Copy to uncompressed storage. */
 				memcpy(block->frame, frame,
 						block->page_zip.size);
-				break;
-			case 0:
-				/* uninitialized page */
 				break;
 			default:
 				ut_print_timestamp(stderr);
