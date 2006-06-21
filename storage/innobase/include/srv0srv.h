@@ -18,6 +18,9 @@ Created 10/10/1995 Heikki Tuuri
 
 extern const char*	srv_main_thread_op_info;
 
+/* Prefix used by MySQL to indicate pre-5.1 table name encoding */
+extern const char	srv_mysql50_table_name_prefix[9];
+
 /* When this event is set the lock timeout and InnoDB monitor
 thread starts running */
 extern os_event_t	srv_lock_timeout_thread_event;

@@ -4,6 +4,14 @@
 drop table if exists t1,t2,t1m,t1i,t2m,t2i,t4;
 --enable_warnings
 
+#
+# Bug#17530: Incorrect key truncation on table creation caused server crash.
+#
+create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
+  character set utf8 collate utf8_general_ci;
+insert into t1 values('aaa');
+drop table t1;
+
 # BUG#16798: Uninitialized row buffer reads in ref-or-null optimizer
 # (repeatable only w/innodb).
 create table t1 (

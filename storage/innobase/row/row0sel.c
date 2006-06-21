@@ -302,18 +302,44 @@ row_sel_fetch_columns(
 	}
 
 	while (column) {
+		mem_heap_t*	heap = NULL;
+		ibool		needs_copy;
+
 		field_no = column->field_nos[index_type];
 
 		if (field_no != ULINT_UNDEFINED) {
 
-			data = rec_get_nth_field(rec, offsets, field_no, &len);
+			if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets,
+						  field_no))) {
 
-			if (column->copy_val) {
+				/* Copy an externally stored field to the
+				temporary heap */
+
+				heap = mem_heap_create(1);
+
+				data = btr_rec_copy_externally_stored_field(
+					rec, offsets, field_no, &len, heap);
+
+				ut_a(len != UNIV_SQL_NULL);
+
+				needs_copy = TRUE;
+			} else {
+				data = rec_get_nth_field(rec, offsets,
+					field_no, &len);
+
+				needs_copy = column->copy_val;
+			}
+
+			if (needs_copy) {
 				eval_node_copy_and_alloc_val(column, data,
 									len);
 			} else {
 				val = que_node_get_val(column);
 				dfield_set_data(val, data, len);
+			}
+
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
 			}
 		}
 
@@ -2036,8 +2062,13 @@ row_fetch_print(
 		dtype_print(type);
 		fprintf(stderr, "\n");
 
-		ut_print_buf(stderr, dfield_get_data(dfield),
-			dfield_get_len(dfield));
+		if (dfield_get_len(dfield) != UNIV_SQL_NULL) {
+			ut_print_buf(stderr, dfield_get_data(dfield),
+				dfield_get_len(dfield));
+		} else {
+			fprintf(stderr, " <NULL>;");
+		}
+
 		fprintf(stderr, "\n");
 
 		exp = que_node_get_next(exp);
@@ -2542,6 +2573,7 @@ row_sel_store_mysql_rec(
 {
 	mysql_row_templ_t*	templ;
 	mem_heap_t*		extern_field_heap	= NULL;
+	mem_heap_t*		heap;
 	byte*			data;
 	ulint			len;
 	ulint			i;
@@ -2558,9 +2590,6 @@ row_sel_store_mysql_rec(
 
 		templ = prebuilt->mysql_template + i;
 
-		data = rec_get_nth_field(rec, offsets,
-					templ->rec_field_no, &len);
-
 		if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets,
 						templ->rec_field_no))) {
 
@@ -2569,7 +2598,19 @@ row_sel_store_mysql_rec(
 
 			ut_a(!prebuilt->trx->has_search_latch);
 
-			extern_field_heap = mem_heap_create(UNIV_PAGE_SIZE);
+			if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
+				if (prebuilt->blob_heap == NULL) {
+					prebuilt->blob_heap =
+						mem_heap_create(UNIV_PAGE_SIZE);
+				}
+
+				heap = prebuilt->blob_heap;
+			} else {
+				extern_field_heap =
+					mem_heap_create(UNIV_PAGE_SIZE);
+
+				heap = extern_field_heap;
+			}
 
 			/* NOTE: if we are retrieving a big BLOB, we may
 			already run out of memory in the next call, which
@@ -2577,54 +2618,17 @@ row_sel_store_mysql_rec(
 
 			data = btr_rec_copy_externally_stored_field(rec,
 					offsets, templ->rec_field_no, &len,
-					extern_field_heap);
+					heap);
 
 			ut_a(len != UNIV_SQL_NULL);
+		} else {
+			/* Field is stored in the row. */
+
+			data = rec_get_nth_field(rec, offsets,
+				templ->rec_field_no, &len);
 		}
 
 		if (len != UNIV_SQL_NULL) {
-			if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
-
-				ut_a(prebuilt->templ_contains_blob);
-
-				/* A heuristic test that we can allocate the
-				memory for a big BLOB. We have a safety margin
-				of 1000000 bytes. Since the test takes some
-				CPU time, we do not use it for small BLOBs. */
-
-				if (UNIV_UNLIKELY(len > 2000000)
-					&& UNIV_UNLIKELY(!ut_test_malloc(
-								 len + 1000000))) {
-
-					ut_print_timestamp(stderr);
-					fprintf(stderr,
-"  InnoDB: Warning: could not allocate %lu + 1000000 bytes to retrieve\n"
-"InnoDB: a big column. Table name ", (ulong) len);
-					ut_print_name(stderr,
-						prebuilt->trx,
-						prebuilt->table->name);
-					putc('\n', stderr);
-
-					if (extern_field_heap) {
-						mem_heap_free(
-							extern_field_heap);
-					}
-					return(FALSE);
-				}
-
-				/* Copy the BLOB data to the BLOB heap of
-				prebuilt */
-
-				if (prebuilt->blob_heap == NULL) {
-					prebuilt->blob_heap =
-						mem_heap_create(len);
-				}
-
-				data = memcpy(mem_heap_alloc(
-						prebuilt->blob_heap, len),
-						data, len);
-			}
-
 			row_sel_field_store_in_mysql_format(
 				mysql_rec + templ->mysql_col_offset,
 				templ, data, len);
@@ -3244,7 +3248,7 @@ row_search_for_mysql(
 		"InnoDB: Error: trying to free a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name ",
 		(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, trx, prebuilt->table->name);
+		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption(prebuilt);
@@ -3530,15 +3534,13 @@ shortcut_fails_too_big_rec:
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 		&& prebuilt->select_lock_type != LOCK_NONE
-		&& trx->mysql_query_str) {
+		&& trx->mysql_query_str && trx->mysql_thd) {
 
 		/* Scan the MySQL query string; check if SELECT is the first
 		word there */
-		ibool	success;
 
-		dict_accept(*trx->mysql_query_str, "SELECT", &success);
-
-		if (success) {
+		if (dict_str_starts_with_keyword(trx->mysql_thd,
+				*trx->mysql_query_str, "SELECT")) {
 			/* It is a plain locking SELECT and the isolation
 			level is low: do not lock gaps */
 
@@ -4402,7 +4404,7 @@ row_search_check_if_query_cache_permitted(
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
 
-	table = dict_table_get(norm_name, trx);
+	table = dict_table_get(norm_name);
 
 	if (table == NULL) {
 
