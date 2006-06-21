@@ -467,6 +467,10 @@ set sql_mode=2097152;
 select @@sql_mode;
 @@sql_mode
 STRICT_TRANS_TABLES
+set sql_mode=4194304;
+select @@sql_mode;
+@@sql_mode
+STRICT_ALL_TABLES
 set sql_mode=16384+(65536*4);
 select @@sql_mode;
 @@sql_mode

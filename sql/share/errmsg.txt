@@ -5837,4 +5837,5 @@ ER_PARTITION_MERGE_ERROR
         swe "%s kan inte användas i en partitionerad tabell"
 ER_CANT_ACTIVATE_LOG
         eng "Cannot activate '%-.64s' log."
-
+ER_RBR_NOT_AVAILABLE
+        eng "The server was not built with row-based replication"
