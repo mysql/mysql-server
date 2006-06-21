@@ -1159,7 +1159,10 @@ NdbEventBuffer::nextEvent()
     NdbEventOperationImpl *op= data->m_event_op;
     DBUG_PRINT_EVENT("info", ("available data=%p op=%p", data, op));
 
-    // blob table ops must not be seen at this level
+    /*
+     * If merge is on, blob part sub-events must not be seen on this level.
+     * If merge is not on, there are no blob part sub-events.
+     */
     assert(op->theMainOp == NULL);
 
     // set NdbEventOperation data
@@ -1174,13 +1177,6 @@ NdbEventBuffer::nextEvent()
 #ifdef VM_TRACE
     op->m_data_done_count++;
 #endif
-
-    // NUL event is not returned
-    if (data->sdata->operation == NdbDictionary::Event::_TE_NUL)
-    {
-      DBUG_PRINT_EVENT("info", ("skip _TE_NUL"));
-      continue;
-    }
 
     int r= op->receive_event();
     if (r > 0)
@@ -1203,6 +1199,12 @@ NdbEventBuffer::nextEvent()
           gci_ops = m_available_data.next_gci_ops();
         }
         assert(gci_ops && (op->getGCI() == gci_ops->m_gci));
+        // to return TE_NUL it should be made into data event
+        if (data->sdata->operation == NdbDictionary::Event::_TE_NUL)
+        {
+          DBUG_PRINT_EVENT("info", ("skip _TE_NUL"));
+          continue;
+        }
 	DBUG_RETURN_EVENT(op->m_facade);
       }
       // the next event belonged to an event op that is no
@@ -1800,19 +1802,19 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     else
     {
       // event with same op, PK found, merge into old buffer
-      Uint32 old_op = data->sdata->operation;
       if (unlikely(merge_data(sdata, ptr, data)))
       {
         op->m_has_error = 3;
         DBUG_RETURN_EVENT(-1);
       }
-      Uint32 new_op = data->sdata->operation;
-
-      // make Gci_ops reflect the merge by delete old and add new
-      EventBufData_list::Gci_op g = { op, (1 << old_op) };
-      // bucket->m_data.del_gci_op(g); // XXX whats wrong? fix later
-      g.event_types = (1 << new_op);
-      bucket->m_data.add_gci_op(g);
+      // merge is on so we do not report blob part events
+      if (! is_blob_event) {
+        // report actual operation, not composite
+        // there is no way to "fix" the flags for a composite op
+        // since the flags represent multiple ops on multiple PKs
+        EventBufData_list::Gci_op g = { op, (1 << sdata->operation) };
+        bucket->m_data.add_gci_op(g);
+      }
     }
     DBUG_RETURN_EVENT(0);
   }
@@ -2381,21 +2383,18 @@ void EventBufData_list::append_list(EventBufData_list *list, Uint64 gci)
 }
 
 void
-EventBufData_list::add_gci_op(Gci_op g, bool del)
+EventBufData_list::add_gci_op(Gci_op g)
 {
   DBUG_ENTER_EVENT("EventBufData_list::add_gci_op");
   DBUG_PRINT_EVENT("info", ("p.op: %p  g.event_types: %x", g.op, g.event_types));
-  assert(g.op != NULL);
+  assert(g.op != NULL && g.op->theMainOp == NULL); // as in nextEvent
   Uint32 i;
   for (i = 0; i < m_gci_op_count; i++) {
     if (m_gci_op_list[i].op == g.op)
       break;
   }
   if (i < m_gci_op_count) {
-    if (! del)
-      m_gci_op_list[i].event_types |= g.event_types;
-    else
-      m_gci_op_list[i].event_types &= ~ g.event_types;
+    m_gci_op_list[i].event_types |= g.event_types;
   } else {
     if (m_gci_op_count == m_gci_op_alloc) {
       Uint32 n = 1 + 2 * m_gci_op_alloc;
@@ -2413,7 +2412,6 @@ EventBufData_list::add_gci_op(Gci_op g, bool del)
       m_gci_op_alloc = n;
     }
     assert(m_gci_op_count < m_gci_op_alloc);
-    assert(! del);
 #ifndef DBUG_OFF
     i = m_gci_op_count;
 #endif
