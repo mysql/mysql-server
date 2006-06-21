@@ -142,6 +142,7 @@ set insert_id=5;
 insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events;
 select * from t1;
 drop table t1;
