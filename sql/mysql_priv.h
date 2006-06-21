@@ -513,6 +513,8 @@ class THD;
 void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
 bool check_one_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables);
+bool check_single_table_access(THD *thd, ulong privilege,
+			   TABLE_LIST *tables);
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
