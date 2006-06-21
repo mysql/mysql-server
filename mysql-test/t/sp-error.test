@@ -508,7 +508,7 @@ end|
 insert into t1 values (666, 51.3)|
 --error 1054
 call bug2272()|
-delete from t1|
+truncate table t1|
 drop procedure bug2272|
 
 #
@@ -742,7 +742,7 @@ begin
   fetch c into v;
 end|
 
-delete from t1|
+truncate table t1|
 --error ER_SP_FETCH_NO_DATA
 call bug7299()|
 drop procedure bug7299|
@@ -871,7 +871,7 @@ insert into t1 value (2, 2.7), (3, 3.14), (7, 7.0)|
 select *,bug8408() from t1|
 
 drop function bug8408|
-delete from t1|
+truncate table t1|
 
 
 #
