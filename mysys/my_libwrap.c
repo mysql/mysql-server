@@ -14,14 +14,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/* 
+  This is needed to be able to compile with original libwrap header
+  files that don't have the prototypes
+*/
+
 #include <my_global.h>
+#include <my_libwrap.h>
+
 #ifdef HAVE_LIBWRAP
-#include <tcpd.h>
-#include <syslog.h>
-#ifdef NEED_SYS_SYSLOG_H
-#include <sys/syslog.h>
-#endif /* NEED_SYS_SYSLOG_H */
-#endif
 
 void my_fromhost(struct request_info *req)
 {
@@ -37,3 +38,5 @@ char *my_eval_client(struct request_info *req)
 {
   eval_client(req);
 }
+
+#endif /* HAVE_LIBWRAP */
