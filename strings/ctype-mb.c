@@ -502,21 +502,19 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
 			 char *min_str,char *max_str,
 			 uint *min_length,uint *max_length)
 {
+  uint mblen;
   const char *end= ptr + ptr_length;
   char *min_org= min_str;
   char *min_end= min_str + res_length;
   char *max_end= max_str + res_length;
-  uint charlen= res_length / cs->mbmaxlen;
+  uint maxcharlen= res_length / cs->mbmaxlen;
 
-  for (; ptr != end && min_str != min_end && charlen > 0 ; ptr++, charlen--)
+  for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
+    /* We assume here that escape, w_any, w_namy are one-byte characters */
     if (*ptr == escape && ptr+1 != end)
-    {
-      ptr++;					/* Skip escape */
-      *min_str++= *max_str++ = *ptr;
-      continue;
-    }
-    if (*ptr == w_one || *ptr == w_many)	/* '_' and '%' in SQL */
+      ptr++;                                    /* Skip escape */
+    else if (*ptr == w_one || *ptr == w_many)   /* '_' and '%' in SQL */
     {
       /* Write min key  */
       *min_length= (uint) (min_str - min_org);
@@ -534,7 +532,16 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
       pad_max_char(cs, max_str, max_end);
       return 0;
     }
-    *min_str++= *max_str++ = *ptr;
+    if ((mblen= my_ismbchar(cs, ptr, end)) > 1)
+    {
+      if (ptr+mblen > end || min_str+mblen > min_end)
+        break;
+      while (mblen--)
+       *min_str++= *max_str++= *ptr++;
+    }
+    else
+       *min_str++= *max_str++= *ptr++;    
+
   }
   *min_length= *max_length = (uint) (min_str - min_org);
 

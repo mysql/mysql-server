@@ -952,4 +952,59 @@ SELECT id, a FROM t1 WHERE a='bbbbbb' ORDER BY b;
 
 DROP TABLE t1;
 
+#
+# Bug#16674: LIKE predicate for a utf8 character set column
+#
+
+SET NAMES utf8;
+
+CREATE TABLE t1 (
+  a CHAR(13) DEFAULT '',
+  INDEX(a)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+INSERT INTO t1 VALUES 
+ ('Käli Käli 2-4'), ('Käli Käli 2-4'),
+ ('Käli Käli 2+4'), ('Käli Käli 2+4'),
+ ('Käli Käli 2-6'), ('Käli Käli 2-6');
+
+CREATE TABLE t2 (
+  a CHAR(13) DEFAULT '',
+  INDEX(a)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+
+INSERT INTO t2 VALUES
+ ('Kali Kali 2-4'), ('Kali Kali 2-4'),
+ ('Kali Kali 2+4'), ('Kali Kali 2+4'),
+ ('Kali Kali 2-6'), ('Kali Kali 2-6');
+
+SELECT a FROM t1 WHERE a LIKE 'Käli Käli 2+4';
+SELECT a FROM t2 WHERE a LIKE 'Kali Kali 2+4';
+
+EXPLAIN SELECT a FROM t1 WHERE a LIKE 'Käli Käli 2+4';
+EXPLAIN SELECT a FROM t1 WHERE a = 'Käli Käli 2+4';
+EXPLAIN SELECT a FROM t2 WHERE a LIKE 'Kali Kali 2+4';
+EXPLAIN SELECT a FROM t2 WHERE a = 'Kali Kali 2+4';
+
+DROP TABLE t1,t2;
+
+CREATE TABLE t1 (
+  a char(255) DEFAULT '', 
+  KEY(a(10))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  a char(255) DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+ALTER TABLE t1 ADD KEY (a(10));
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+DROP TABLE t1;
+
 # End of 4.1 tests
