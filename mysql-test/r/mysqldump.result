@@ -3035,7 +3035,7 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_test_db` /*!40100 DEFAULT CH
 USE `mysqldump_test_db`;
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
-  `id` int(11) default NULL
+  `id` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 
