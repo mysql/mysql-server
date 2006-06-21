@@ -80,9 +80,6 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
 
   NOTES
     Aggregation rules:
-    If all items are constants the type will be aggregated from all items.
-    If there are some non-constant items then only types of non-constant
-    items will be used for aggregation.
     If there are DATE/TIME fields/functions in the list and no string
     fields/functions in the list then:
       The INT_RESULT type will be used for aggregation instead of original
@@ -141,7 +138,8 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
       }
       continue;
     }
-    if ((res= items[i]->real_item()->type()) == Item::FIELD_ITEM)
+    if ((res= items[i]->real_item()->type()) == Item::FIELD_ITEM &&
+        items[i]->result_type() != INT_RESULT)
     {
       field= ((Item_field *)items[i]->real_item())->field;
       break;
@@ -169,34 +167,29 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
       }
     }
   }
-  /* Reset to 0 on first occurence of non-const item. 1 otherwise */
-  bool is_const= items[0]->const_item();
   /*
     If the first item is a date/time function then its result should be
     compared as int
   */
   if (field)
-  {
-    /* Suppose we are comparing dates and some non-constant items are present. */
+    /* Suppose we are comparing dates */
     type[0]= INT_RESULT;
-    is_const= 0;
-  }
   else
     type[0]= items[0]->result_type();
 
   for (i= 0; i < nitems ; i++)
   {
-    if (!items[i]->const_item())
-    {
-      Item_result result= field && items[i]->result_as_longlong() ?
-                            INT_RESULT : items[i]->result_type();
-      type[0]= is_const ? result : item_cmp_type(type[0], result);
-      is_const= 0;
-    }
-    else if (is_const)
-      type[0]= item_cmp_type(type[0], items[i]->result_type());
-    else if (field)
-      convert_constant_item(thd, field, &items[i]);
+    Item_result result= items[i]->result_type();
+    /*
+      Use INT_RESULT as result type for DATE/TIME fields/functions and
+      for constants successfully converted to DATE/TIME
+    */
+    if (field &&
+         ((!items[i]->const_item() && items[i]->result_as_longlong()) ||
+         (items[i]->const_item() && convert_constant_item(thd, field,
+                                                          &items[i]))))
+      result= INT_RESULT;
+    type[0]= item_cmp_type(type[0], result);
   }
 
   if (res == Item::FUNC_ITEM && field)

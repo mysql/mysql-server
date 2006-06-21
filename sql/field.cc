@@ -4566,7 +4566,7 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   }
 
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
   {
     int4store(ptr,tmp);
   }
@@ -4632,7 +4632,7 @@ int Field_timestamp::store(longlong nr, bool unsigned_val)
                          nr, MYSQL_TIMESTAMP_DATETIME, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
   {
     int4store(ptr,timestamp);
   }
@@ -4656,7 +4656,7 @@ longlong Field_timestamp::val_int(void)
   THD  *thd= table ? table->in_use : current_thd;
 
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
     temp=uint4korr(ptr);
   else
 #endif
@@ -4686,7 +4686,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
   val_buffer->length(field_length);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
     temp=uint4korr(ptr);
   else
 #endif
@@ -4751,7 +4751,7 @@ bool Field_timestamp::get_date(TIME *ltime, uint fuzzydate)
   long temp;
   THD *thd= table ? table->in_use : current_thd;
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
     temp=uint4korr(ptr);
   else
 #endif
@@ -4788,7 +4788,7 @@ int Field_timestamp::cmp(const char *a_ptr, const char *b_ptr)
 {
   int32 a,b;
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
   {
     a=sint4korr(a_ptr);
     b=sint4korr(b_ptr);
@@ -4806,7 +4806,7 @@ int Field_timestamp::cmp(const char *a_ptr, const char *b_ptr)
 void Field_timestamp::sort_string(char *to,uint length __attribute__((unused)))
 {
 #ifdef WORDS_BIGENDIAN
-  if (!table->s->db_low_byte_first)
+  if (!table || !table->s->db_low_byte_first)
   {
     to[0] = ptr[0];
     to[1] = ptr[1];
@@ -4836,7 +4836,7 @@ void Field_timestamp::set_time()
   long tmp= (long) thd->query_start();
   set_notnull();
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
   {
     int4store(ptr,tmp);
   }
@@ -5238,7 +5238,7 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
                          from, len, MYSQL_TIMESTAMP_DATE, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
   {
     int4store(ptr,tmp);
   }
@@ -5299,7 +5299,7 @@ int Field_date::store(longlong nr, bool unsigned_val)
                          MYSQL_TIMESTAMP_DATETIME, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
   {
     int4store(ptr, nr);
   }
@@ -5325,7 +5325,7 @@ double Field_date::val_real(void)
 {
   int32 j;
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
     j=sint4korr(ptr);
   else
 #endif
@@ -5338,7 +5338,7 @@ longlong Field_date::val_int(void)
 {
   int32 j;
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
     j=sint4korr(ptr);
   else
 #endif
@@ -5354,7 +5354,7 @@ String *Field_date::val_str(String *val_buffer,
   val_buffer->alloc(field_length);
   int32 tmp;
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
     tmp=sint4korr(ptr);
   else
 #endif
@@ -5372,7 +5372,7 @@ int Field_date::cmp(const char *a_ptr, const char *b_ptr)
 {
   int32 a,b;
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
   {
     a=sint4korr(a_ptr);
     b=sint4korr(b_ptr);
@@ -5390,7 +5390,7 @@ int Field_date::cmp(const char *a_ptr, const char *b_ptr)
 void Field_date::sort_string(char *to,uint length __attribute__((unused)))
 {
 #ifdef WORDS_BIGENDIAN
-  if (!table->s->db_low_byte_first)
+  if (!table || !table->s->db_low_byte_first)
   {
     to[0] = ptr[0];
     to[1] = ptr[1];
@@ -5630,7 +5630,7 @@ int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
                          from, len, MYSQL_TIMESTAMP_DATETIME, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
   {
     int8store(ptr,tmp);
   }
@@ -5683,7 +5683,7 @@ int Field_datetime::store(longlong nr, bool unsigned_val)
                          MYSQL_TIMESTAMP_DATETIME, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
   {
     int8store(ptr,nr);
   }
@@ -5712,7 +5712,7 @@ int Field_datetime::store_time(TIME *ltime,timestamp_type type)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
   }
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
   {
     int8store(ptr,tmp);
   }
@@ -5739,7 +5739,7 @@ longlong Field_datetime::val_int(void)
 {
   longlong j;
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
     j=sint8korr(ptr);
   else
 #endif
@@ -5759,7 +5759,7 @@ String *Field_datetime::val_str(String *val_buffer,
   int part3;
 
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
     tmp=sint8korr(ptr);
   else
 #endif
@@ -5824,7 +5824,7 @@ int Field_datetime::cmp(const char *a_ptr, const char *b_ptr)
 {
   longlong a,b;
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
+  if (table && table->s->db_low_byte_first)
   {
     a=sint8korr(a_ptr);
     b=sint8korr(b_ptr);
@@ -5842,7 +5842,7 @@ int Field_datetime::cmp(const char *a_ptr, const char *b_ptr)
 void Field_datetime::sort_string(char *to,uint length __attribute__((unused)))
 {
 #ifdef WORDS_BIGENDIAN
-  if (!table->s->db_low_byte_first)
+  if (!table || !table->s->db_low_byte_first)
   {
     to[0] = ptr[0];
     to[1] = ptr[1];

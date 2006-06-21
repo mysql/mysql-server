@@ -1322,7 +1322,7 @@ TransporterRegistry::start_clients_thread()
 	      else
 	      {
 		ndbout_c("Management server closed connection early. "
-			 "It is probably being shut down (or has crashed). "
+			 "It is probably being shut down (or has problems). "
 			 "We will retry the connection.");
 	      }
 	    }

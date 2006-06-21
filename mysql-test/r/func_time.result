@@ -785,8 +785,8 @@ select f1 from t1 where "2006-1-1" between f1 and 'zzz';
 f1
 Warnings:
 Warning	1292	Incorrect date value: 'zzz' for column 'f1' at row 1
-Warning	1292	Truncated incorrect INTEGER value: 'zzz'
-Warning	1292	Truncated incorrect INTEGER value: 'zzz'
+Warning	1292	Truncated incorrect DOUBLE value: 'zzz'
+Warning	1292	Truncated incorrect DOUBLE value: 'zzz'
 select f1 from t1 where makedate(2006,1) between date(f1) and date(f3);
 f1
 2006-01-01
@@ -794,10 +794,17 @@ select f1 from t1 where makedate(2006,2) between date(f1) and date(f3);
 f1
 2006-01-02
 drop table t1;
-select now() - now() + 0, curtime() - curtime() + 0, 
+create table t1 select now() - now(), curtime() - curtime(), 
 sec_to_time(1) + 0, from_unixtime(1) + 0;
-now() - now() + 0	curtime() - curtime() + 0	sec_to_time(1) + 0	from_unixtime(1) + 0
-0.000000	0.000000	1.000000	19700101030001.000000
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `now() - now()` double(23,6) NOT NULL default '0.000000',
+  `curtime() - curtime()` double(23,6) NOT NULL default '0.000000',
+  `sec_to_time(1) + 0` double(23,6) default NULL,
+  `from_unixtime(1) + 0` double(23,6) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
 timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
