@@ -140,6 +140,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_undo_complete= false;
   regFragPtr.p->m_lcp_scan_op = RNIL; 
   regFragPtr.p->m_lcp_keep_list = RNIL;
+  regFragPtr.p->m_var_page_chunks = RNIL;
   
   Uint32 noAllocatedPages= allocFragPages(regFragPtr.p, pages);
   
@@ -970,7 +971,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     case -1:
       break;
     default:
-      ndbrequire(res == pagePtr.i);
+      ndbrequire((Uint32)res == pagePtr.i);
       drop_fragment_unmap_page_callback(signal, pos, res);
     }
     return;
@@ -1050,6 +1051,44 @@ Dbtup::drop_fragment_free_exent(Signal *signal,
       LocalDLList<Page> list(* cheat_pool, alloc_info.m_dirty_pages[pos]);
       list.remove();
     }
+  }
+  
+  signal->theData[0] = ZFREE_VAR_PAGES;
+  signal->theData[1] = tabPtr.i;
+  signal->theData[2] = fragPtr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);  
+}
+
+void
+Dbtup::drop_fragment_free_var_pages(Signal* signal)
+{
+  ljam();
+  Uint32 tableId = signal->theData[1];
+  Uint32 fragPtrI = signal->theData[2];
+  
+  TablerecPtr tabPtr;
+  tabPtr.i= tableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  
+  PagePtr pagePtr;
+  if ((pagePtr.i = fragPtr.p->m_var_page_chunks) != RNIL)
+  {
+    c_page_pool.getPtr(pagePtr);
+    Var_page* page = (Var_page*)pagePtr.p;
+    fragPtr.p->m_var_page_chunks = page->next_chunk;
+
+    Uint32 sz = page->chunk_size;
+    returnCommonArea(pagePtr.i, sz);
+    
+    signal->theData[0] = ZFREE_VAR_PAGES;
+    signal->theData[1] = tabPtr.i;
+    signal->theData[2] = fragPtr.i;
+    sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);  
+    return;
   }
   
   releaseFragPages(fragPtr.p);
