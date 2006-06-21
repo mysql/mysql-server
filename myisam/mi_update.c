@@ -164,7 +164,8 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
       key_changed|= HA_STATE_CHANGED;		/* Must update index file */
   }
   if (auto_key_changed)
-    update_auto_increment(info,newrec);
+    set_if_bigger(info->s->state.auto_increment,
+                  retrieve_auto_increment(info, newrec));
   if (share->calc_checksum)
     info->state->checksum+=(info->checksum - old_checksum);
 
