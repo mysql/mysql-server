@@ -82,6 +82,16 @@ sym_tab_add_id(
 	byte*		name,		/* in: identifier name */
 	ulint		len);		/* in: identifier length */
 
+/**********************************************************************
+Add a bound identifier to a symbol table. */
+
+sym_node_t*
+sym_tab_add_bound_id(
+/*===========*/
+					/* out: symbol table node */
+	sym_tab_t*	sym_tab,	/* in: symbol table */
+	const char*	name);		/* in: name of bound id */
+
 #define	SYM_CLUST_FIELD_NO	0
 #define	SYM_SEC_FIELD_NO	1
 

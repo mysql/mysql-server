@@ -108,11 +108,44 @@ static char*	srv_monitor_file_name;
 static int inno_bcmp(register const char *s1, register const char *s2,
 	register uint len)
 {
-  while (len-- != 0 && *s1++ == *s2++) ;
-  return len+1;
+	while ((len-- != 0) && (*s1++ == *s2++))
+		;
+
+	return(len + 1);
 }
 #define memcmp(A,B,C) inno_bcmp((A),(B),(C))
 #endif
+
+static
+char*
+srv_parse_megabytes(
+/*================*/
+			/* out: next character in string */
+	char*	str,	/* in: string containing a quantity in bytes */
+	ulint*	megs)	/* out: the number in megabytes */
+{
+	char*	endp;
+	ulint	size;
+
+	size = strtoul(str, &endp, 10);
+
+	str = endp;
+
+	switch (*str) {
+	case 'G': case 'g':
+		size *= 1024;
+		/* fall through */
+	case 'M': case 'm':
+		str++;
+		break;
+	default:
+		size /= 1024 * 1024;
+		break;
+	}
+
+	*megs = size;
+	return(str);
+}
 
 /*************************************************************************
 Reads the data files and their sizes from a character string given in
@@ -138,7 +171,6 @@ srv_parse_data_file_paths_and_sizes(
 					last file if specified, 0 if not */
 {
 	char*	input_str;
-	char*	endp;
 	char*	path;
 	ulint	size;
 	ulint	i	= 0;
@@ -168,18 +200,7 @@ srv_parse_data_file_paths_and_sizes(
 
 		str++;
 
-		size = strtoul(str, &endp, 10);
-
-		str = endp;
-
-		if (*str != 'M' && *str != 'G') {
-			size = size / (1024 * 1024);
-		} else if (*str == 'G') {
-			size = size * 1024;
-			str++;
-		} else {
-			str++;
-		}
+		str = srv_parse_megabytes(str, &size);
 
 		if (0 == memcmp(str, ":autoextend", (sizeof ":autoextend") - 1)) {
 
@@ -189,18 +210,7 @@ srv_parse_data_file_paths_and_sizes(
 
 				str += (sizeof ":max:") - 1;
 
-				size = strtoul(str, &endp, 10);
-
-				str = endp;
-
-				if (*str != 'M' && *str != 'G') {
-					size = size / (1024 * 1024);
-				} else if (*str == 'G') {
-					size = size * 1024;
-					str++;
-				} else {
-					str++;
-				}
+				str = srv_parse_megabytes(str, &size);
 			}
 
 			if (*str != '\0') {
@@ -273,18 +283,7 @@ srv_parse_data_file_paths_and_sizes(
 			str++;
 		}
 
-		size = strtoul(str, &endp, 10);
-
-		str = endp;
-
-		if ((*str != 'M') && (*str != 'G')) {
-			size = size / (1024 * 1024);
-		} else if (*str == 'G') {
-			size = size * 1024;
-			str++;
-		} else {
-			str++;
-		}
+		str = srv_parse_megabytes(str, &size);
 
 		(*data_file_names)[i] = path;
 		(*data_file_sizes)[i] = size;
@@ -299,20 +298,8 @@ srv_parse_data_file_paths_and_sizes(
 
 				str += (sizeof ":max:") - 1;
 
-				size = strtoul(str, &endp, 10);
-
-				str = endp;
-
-				if (*str != 'M' && *str != 'G') {
-					size = size / (1024 * 1024);
-				} else if (*str == 'G') {
-					size = size * 1024;
-					str++;
-				} else {
-					str++;
-				}
-
-				*max_auto_extend_size = size;
+				str = srv_parse_megabytes(str,
+						max_auto_extend_size);
 			}
 
 			if (*str != '\0') {
@@ -934,8 +921,7 @@ skip_size_check:
 
 	ios = 0;
 
-	mutex_create(&ios_mutex);
-	mutex_set_level(&ios_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&ios_mutex, SYNC_NO_ORDER_CHECK);
 
 	return(DB_SUCCESS);
 }
@@ -1167,8 +1153,8 @@ NetWare. */
 		return((int) err);
 	}
 
-	mutex_create(&srv_monitor_file_mutex);
-	mutex_set_level(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
+
 	if (srv_innodb_status) {
 		srv_monitor_file_name = mem_alloc(
 				strlen(fil_path_to_mysql_datadir) +
@@ -1189,15 +1175,15 @@ NetWare. */
 		}
 	}
 
-	mutex_create(&srv_dict_tmpfile_mutex);
-	mutex_set_level(&srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
+	mutex_create(&srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
+
 	srv_dict_tmpfile = os_file_create_tmpfile();
 	if (!srv_dict_tmpfile) {
 		return(DB_ERROR);
 	}
 
-	mutex_create(&srv_misc_tmpfile_mutex);
-	mutex_set_level(&srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
+	mutex_create(&srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
+
 	srv_misc_tmpfile = os_file_create_tmpfile();
 	if (!srv_misc_tmpfile) {
 		return(DB_ERROR);

@@ -646,11 +646,9 @@ flush logs;
 -------- switch to master -------
 SELECT * FROM mysqltest1.t7;
 f1
-
 -------- switch to slave --------
 SELECT * FROM mysqltest1.t7;
 f1
-
 -------- switch to master -------
 
 ######## LOCK TABLES mysqltest1.t1 WRITE, mysqltest1.t8 READ  ########

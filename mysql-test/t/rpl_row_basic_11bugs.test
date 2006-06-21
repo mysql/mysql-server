@@ -2,6 +2,8 @@
 --source include/have_binlog_format_row.inc
 
 
+let $SERVER_VERSION=`select version()`;
+
 #This test case is not written for NDB, the result files 
 #will not match when NDB is the default engine
 -- source include/not_ndb_default.inc
@@ -36,3 +38,19 @@ USE test_ignore;
 connection master;
 DROP DATABASE test_ignore;
 sync_slave_with_master;
+
+# Bug#19995: Extreneous table maps generated for statements that does
+# not generate rows
+--disable_query_log
+--source include/master-slave-reset.inc
+--enable_query_log
+
+connection master;
+CREATE TABLE t1 (a INT);
+DELETE FROM t1;
+INSERT INTO t1 VALUES (1),(2);
+DELETE FROM t1 WHERE a = 0;
+UPDATE t1 SET a=99 WHERE a = 0;
+--replace_result $SERVER_VERSION SERVER_VERSION
+--replace_regex /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS;
