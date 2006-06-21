@@ -1,4 +1,18 @@
 drop table if exists t1;
+create table t1 (a int)
+partition by list (a)
+(partition p0 values in (1));
+create procedure pz()
+alter table t1 engine = myisam;
+call pz();
+call pz();
+drop procedure pz;
+drop table t1;
+create table t1 (a int)
+engine = csv
+partition by list (a)
+(partition p0 values in (null));
+ERROR HY000: CSV handler cannot be used in partitioned tables
 create table t1 (a bigint)
 partition by range (a)
 (partition p0 values less than (0xFFFFFFFFFFFFFFFF),
