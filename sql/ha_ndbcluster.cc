@@ -735,7 +735,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   ha_ndbcluster *ha= (ha_ndbcluster *)arg;
   int ret= get_ndb_blobs_value(ha->table, ha->m_value,
                                ha->m_blobs_buffer, ha->m_blobs_buffer_size,
-                               0);
+                               ha->m_blobs_offset);
   DBUG_RETURN(ret);
 }
 
@@ -864,6 +864,7 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
       if (ndb_blob != NULL)
       {
         // Set callback
+	m_blobs_offset= buf - (byte*) table->record[0];
         void *arg= (void *)this;
         DBUG_RETURN(ndb_blob->setActiveHook(g_get_ndb_blobs_value, arg) != 0);
       }
@@ -5477,6 +5478,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE_SHARE *table_arg):
   m_ops_pending(0),
   m_skip_auto_increment(TRUE),
   m_blobs_pending(0),
+  m_blobs_offset(0),
   m_blobs_buffer(0),
   m_blobs_buffer_size(0),
   m_dupkey((uint) -1),
@@ -10364,7 +10366,7 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       table->field[c++]->set_null(); // DELETED_ROWS
       table->field[c++]->set_null(); // UPDATE_COUNT
       table->field[c++]->store(lfg.getUndoFreeWords()); // FREE_EXTENTS
-      table->field[c++]->store(lfg.getUndoBufferSize()); // TOTAL_EXTENTS
+      table->field[c++]->store(uf.getSize()/4); // TOTAL_EXTENTS
       table->field[c++]->store(4); // EXTENT_SIZE
 
       table->field[c++]->store(uf.getSize()); // INITIAL_SIZE
@@ -10394,8 +10396,8 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
 
       table->field[c++]->store("NORMAL", 6, system_charset_info);
 
-      char extra[30];
-      int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u",id);
+      char extra[100];
+      int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u;UNDO_BUFFER_SIZE=%lu",id,lfg.getUndoBufferSize());
       table->field[c]->store(extra, len, system_charset_info);
       schema_table_store_record(thd, table);
     }

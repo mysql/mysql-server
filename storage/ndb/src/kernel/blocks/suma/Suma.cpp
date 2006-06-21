@@ -410,7 +410,22 @@ Suma::createSequenceReply(Signal* signal,
   jam();
 
   if (ref != NULL)
+  {
+    switch ((UtilSequenceRef::ErrorCode)ref->errorCode)
+    {
+      case UtilSequenceRef::NoSuchSequence:
+        ndbrequire(false);
+      case UtilSequenceRef::TCError:
+      {
+        char buf[128];
+        snprintf(buf, sizeof(buf),
+                 "Startup failed during sequence creation. TC error %d",
+                 ref->TCErrorCode);
+        progError(__LINE__, NDBD_EXIT_RESOURCE_ALLOC_ERROR, buf);
+      }
+    }
     ndbrequire(false);
+  }
 
   sendSTTORRY(signal);
 }
