@@ -2943,7 +2943,7 @@ mysql_execute_command(THD *thd)
         res= mysql_create_table(thd, create_table->db,
 				create_table->table_name, &lex->create_info,
 				lex->create_list,
-				lex->key_list, 0, 0);
+				lex->key_list, 0, 0, 1);
       }
       if (!res)
 	send_ok(thd);
