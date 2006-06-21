@@ -2602,7 +2602,7 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
 			     set_var *var, const char *log_ext,
 			     bool log_state, uint log_type)
 {
-  MYSQL_LOG *file_log;
+  MYSQL_QUERY_LOG *file_log;
   char buff[FN_REFLEN];
   char *res= 0, *old_value=(char *)(var ? var->value->str_value.ptr() : 0);
   bool result= 0;
@@ -2640,7 +2640,18 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
   var_str->value_length= str_length;
   my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
   if (file_log && log_state)
-    file_log->open_query_log(sys_var_general_log_path.value);
+  {
+    switch (log_type) {
+    case QUERY_LOG_SLOW:
+      file_log->open_slow_log(sys_var_general_log_path.value);
+      break;
+    case QUERY_LOG_GENERAL:
+      file_log->open_query_log(sys_var_general_log_path.value);
+      break;
+    default:
+      DBUG_ASSERT(0);
+    }
+  }
 
   logger.unlock();
   pthread_mutex_unlock(&LOCK_global_system_variables);
