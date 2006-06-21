@@ -120,16 +120,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/utsname.h>
 #endif /* __WIN__ */
 
-#ifdef HAVE_LIBWRAP
-#include <tcpd.h>
-#include <syslog.h>
-#ifdef NEED_SYS_SYSLOG_H
-#include <sys/syslog.h>
-#endif /* NEED_SYS_SYSLOG_H */
-int allow_severity = LOG_INFO;
-int deny_severity = LOG_WARNING;
-
-#endif /* HAVE_LIBWRAP */
+#include <my_libwrap.h>
 
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
@@ -591,6 +582,8 @@ static const char* default_dbug_option;
 #endif
 #ifdef HAVE_LIBWRAP
 const char *libwrapName= NULL;
+int allow_severity = LOG_INFO;
+int deny_severity = LOG_WARNING;
 #endif
 #ifdef HAVE_QUERY_CACHE
 static ulong query_cache_limit= 0;
