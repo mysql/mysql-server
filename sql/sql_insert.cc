@@ -2188,7 +2188,6 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
                              bool ignore_check_option_errors)
   :table_list(table_list_par), table(table_par), fields(fields_par),
    last_insert_id(0),
-   lock(0),
    insert_into_view(table_list_par && table_list_par->view != 0)
 {
   bzero((char*) &info,sizeof(info));
@@ -2356,6 +2355,7 @@ bool select_insert::send_data(List<Item> &values)
 {
   DBUG_ENTER("select_insert::send_data");
   bool error=0;
+
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
@@ -2377,34 +2377,8 @@ bool select_insert::send_data(List<Item> &values)
     }
   }
 
-  /*
-    The thd->lock lock contain the locks for the select part of the
-    statement and the 'lock' variable contain the write lock for the
-    currently locked table that is being created or inserted
-    into. However, the row-based replication will investigate the
-    thd->lock to decide what table maps are to be written, so this one
-    has to contain the tables locked for writing.  To be able to write
-    table map for the table being created, we temporarily set
-    THD::lock to select_insert::lock while writing the record to the
-    storage engine. We cannot set this elsewhere, since the execution
-    of a stored function inside the select expression might cause the
-    lock structures to be NULL.
-   */
-  
-  {
-    MYSQL_LOCK *saved_lock= NULL;
-    if (lock)
-    {
-      saved_lock= thd->lock;
-      thd->lock= lock;
-    }
-
-    error= write_record(thd, table, &info);
+  error= write_record(thd, table, &info);
     
-    if (lock)
-      thd->lock= saved_lock;
-  }
-
   if (!error)
   {
     if (table->triggers || info.handle_duplicates == DUP_UPDATE)
@@ -2776,8 +2750,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   unit= u;
   if (!(table= create_table_from_items(thd, create_info, create_table,
-                                       extra_fields, keys, &values, &lock,
-                                       hook_ptr)))
+                                       extra_fields, keys, &values,
+                                       &thd->extra_lock, hook_ptr)))
     DBUG_RETURN(-1);				// abort() deletes table
 
   if (table->s->fields < values.elements)
@@ -2884,13 +2858,13 @@ bool select_create::send_eof()
   {
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     VOID(pthread_mutex_lock(&LOCK_open));
-    mysql_unlock_tables(thd, lock);
+    mysql_unlock_tables(thd, thd->extra_lock);
     if (!table->s->tmp_table)
     {
       if (close_thread_table(thd, &table))
         VOID(pthread_cond_broadcast(&COND_refresh));
     }
-    lock=0;
+    thd->extra_lock=0;
     table=0;
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
@@ -2900,10 +2874,10 @@ bool select_create::send_eof()
 void select_create::abort()
 {
   VOID(pthread_mutex_lock(&LOCK_open));
-  if (lock)
+  if (thd->extra_lock)
   {
-    mysql_unlock_tables(thd, lock);
-    lock=0;
+    mysql_unlock_tables(thd, thd->extra_lock);
+    thd->extra_lock=0;
   }
   if (table)
   {
