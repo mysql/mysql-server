@@ -52,6 +52,8 @@ protected:
     m_status(NdbDictionary::Object::New) {
     m_id = -1;
   }
+  
+  friend class NdbDictionary::ObjectId;
 };
 
 /**
@@ -468,9 +470,10 @@ public:
   static int parseFilegroupInfo(NdbFilegroupImpl &dst,
 				const Uint32 * data, Uint32 len);
   
-  int create_file(const NdbFileImpl &, const NdbFilegroupImpl&, bool overwrite = false);
+  int create_file(const NdbFileImpl &, const NdbFilegroupImpl&, 
+		  bool overwrite, NdbDictObjectImpl*);
   int drop_file(const NdbFileImpl &);
-  int create_filegroup(const NdbFilegroupImpl &);
+  int create_filegroup(const NdbFilegroupImpl &, NdbDictObjectImpl*);
   int drop_filegroup(const NdbFilegroupImpl &);
   
   int get_filegroup(NdbFilegroupImpl&, NdbDictionary::Object::Type, Uint32);
@@ -622,17 +625,17 @@ public:
   NdbEventImpl * getBlobEvent(const NdbEventImpl& ev, uint col_no);
   NdbEventImpl * getEventImpl(const char * internalName);
 
-  int createDatafile(const NdbDatafileImpl &, bool force = false);
+  int createDatafile(const NdbDatafileImpl &, bool force, NdbDictObjectImpl*);
   int dropDatafile(const NdbDatafileImpl &);
-  int createUndofile(const NdbUndofileImpl &, bool force = false);
+  int createUndofile(const NdbUndofileImpl &, bool force, NdbDictObjectImpl*);
   int dropUndofile(const NdbUndofileImpl &);
 
-  int createTablespace(const NdbTablespaceImpl &);
+  int createTablespace(const NdbTablespaceImpl &, NdbDictObjectImpl*);
   int dropTablespace(const NdbTablespaceImpl &);
 
-  int createLogfileGroup(const NdbLogfileGroupImpl &);
+  int createLogfileGroup(const NdbLogfileGroupImpl &, NdbDictObjectImpl*);
   int dropLogfileGroup(const NdbLogfileGroupImpl &);
-
+  
   const NdbError & getNdbError() const;
   NdbError m_error;
   Uint32 m_local_table_data_size;
