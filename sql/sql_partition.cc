@@ -2103,26 +2103,15 @@ static inline longlong part_val_int(Item *item_expr)
 
 static uint32 calculate_key_value(Field **field_array)
 {
-  uint32 hashnr= 0;
+  ulong nr1= 1;
   ulong nr2= 4;
 
   do
   {
     Field *field= *field_array;
-    if (field->is_null())
-    {
-      hashnr^= (hashnr << 1) | 1;
-    }
-    else
-    {
-      uint len= field->pack_length();
-      ulong nr1= 1;
-      CHARSET_INFO *cs= field->charset();
-      cs->coll->hash_sort(cs, (uchar*)field->ptr, len, &nr1, &nr2);
-      hashnr^= (uint32)nr1;
-    }
+    field->hash(&nr1, &nr2);
   } while (*(++field_array));
-  return hashnr;
+  return (uint32) nr1;
 }
 
 
