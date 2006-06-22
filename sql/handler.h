@@ -216,11 +216,6 @@
 #define HA_BLOCK_LOCK		256	/* unlock when reading some records */
 #define HA_OPEN_TEMPORARY	512
 
-	/* Errors on write which is recoverable  (Key exist) */
-#define HA_WRITE_SKIP 121		/* Duplicate key on write */
-#define HA_READ_CHECK 123		/* Update with is recoverable */
-#define HA_CANT_DO_THAT 131		/* Databasehandler can't do it */
-
 	/* Some key definitions */
 #define HA_KEY_NULL_LENGTH	1
 #define HA_KEY_BLOB_LENGTH	2
@@ -984,7 +979,7 @@ public:
 #define HA_CHECK_DUPP_KEY 1
 #define HA_CHECK_DUPP_UNIQUE 2
 #define HA_CHECK_DUPP (HA_CHECK_DUPP_KEY + HA_CHECK_DUPP_UNIQUE)
-  virtual bool cannot_ignore_error(int error, uint flags)
+  virtual bool is_fatal_error(int error, uint flags)
   {
     if (!error ||
         ((flags & HA_CHECK_DUPP_KEY) &&
