@@ -38,3 +38,25 @@ AC_DEFUN([AC_SYS_OS_COMPILER_FLAG],
  fi
 ])
 
+AC_DEFUN([AC_CHECK_NOEXECSTACK],
+[
+ AC_CACHE_CHECK(whether --noexecstack is desirable for .S files,
+		mysql_cv_as_noexecstack, [dnl
+  cat > conftest.c <<EOF
+void foo (void) { }
+EOF
+  if AC_TRY_COMMAND([${CC-cc} $CFLAGS $CPPFLAGS
+		     -S -o conftest.s conftest.c 1>&AS_MESSAGE_LOG_FD]) \
+     && grep .note.GNU-stack conftest.s >/dev/null \
+     && AC_TRY_COMMAND([${CC-cc} $CCASFLAGS $CPPFLAGS -Wa,--noexecstack
+		       -c -o conftest.o conftest.s 1>&AS_MESSAGE_LOG_FD])
+  then
+    mysql_cv_as_noexecstack=yes
+  else
+    mysql_cv_as_noexecstack=no
+  fi
+  rm -f conftest*])
+ if test $mysql_cv_as_noexecstack = yes; then
+   CCASFLAGS="$CCASFLAGS -Wa,--noexecstack"
+ fi
+])
