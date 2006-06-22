@@ -139,7 +139,7 @@ SignalLoggerManager::log(LogMode logMode, const char * params)
   } else {
     for (int i = 0; i < count; ++i){
       BlockNumber number = getBlockNo(blocks[i]);
-      cnt += log(SLM_ON, number-MIN_BLOCK_NO, logMode);
+      cnt += log(SLM_ON, number, logMode);
     }
   }
   for(int i = 0; i<count; i++){

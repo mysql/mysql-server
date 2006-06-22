@@ -214,6 +214,7 @@ ErrorBundle ErrorCodes[] = {
    * OverloadError
    */
   { 701,  DMEC, OL, "System busy with other schema operation" },
+  { 711,  DMEC, OL, "System busy with node restart, schema operations not allowed" },
   { 410,  DMEC, OL, "REDO log files overloaded, consult online manual (decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)" },
   { 677,  DMEC, OL, "Index UNDO buffers overloaded (increase UndoIndexBuffer)" },
   { 891,  DMEC, OL, "Data UNDO buffers overloaded (increase UndoDataBuffer)" },
