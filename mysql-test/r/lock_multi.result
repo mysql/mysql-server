@@ -66,3 +66,11 @@ Select_priv
 N
 use test;
 use test;
+CREATE DATABASE mysqltest_1;
+FLUSH TABLES WITH READ LOCK;
+ DROP DATABASE mysqltest_1;
+DROP DATABASE mysqltest_1;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+UNLOCK TABLES;
+DROP DATABASE mysqltest_1;
+ERROR HY000: Can't drop database 'mysqltest_1'; database doesn't exist

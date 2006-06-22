@@ -453,25 +453,24 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     if ((uint) share->base.auto_key -1 == key)
     {
       /* Check that auto_increment key is bigger than max key value */
-      ulonglong save_auto_value=info->s->state.auto_increment;
-      info->s->state.auto_increment=0;
+      ulonglong auto_increment;
       info->lastinx=key;
       _mi_read_key_record(info, 0L, info->rec_buff);
-      update_auto_increment(info, info->rec_buff);
-      if (info->s->state.auto_increment > save_auto_value)
+      auto_increment= retrieve_auto_increment(info, info->rec_buff);
+      if (auto_increment > info->s->state.auto_increment)
       {
-	mi_check_print_warning(param,
-			       "Auto-increment value: %s is smaller than max used value: %s",
-			       llstr(save_auto_value,buff2),
-			       llstr(info->s->state.auto_increment, buff));
+        mi_check_print_warning(param, "Auto-increment value: %s is smaller "
+                               "than max used value: %s",
+                               llstr(info->s->state.auto_increment,buff2),
+                               llstr(auto_increment, buff));
       }
       if (param->testflag & T_AUTO_INC)
       {
-	set_if_bigger(info->s->state.auto_increment,
-		      param->auto_increment_value);
+        set_if_bigger(info->s->state.auto_increment,
+                      auto_increment);
+        set_if_bigger(info->s->state.auto_increment,
+                      param->auto_increment_value);
       }
-      else
-	info->s->state.auto_increment=save_auto_value;
 
       /* Check that there isn't a row with auto_increment = 0 in the table */
       mi_extra(info,HA_EXTRA_KEYREAD,0);
@@ -481,8 +480,8 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
       {
 	/* Don't count this as a real warning, as myisamchk can't correct it */
 	uint save=param->warning_printed;
-	mi_check_print_warning(param,
-			       "Found row where the auto_increment column has the value 0");
+        mi_check_print_warning(param, "Found row where the auto_increment "
+                               "column has the value 0");
 	param->warning_printed=save;
       }
       mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
@@ -4124,11 +4123,10 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
   }
   else
   {
-    ulonglong auto_increment= (repair_only ? info->s->state.auto_increment :
-			       param->auto_increment_value);
-    info->s->state.auto_increment=0;
-    update_auto_increment(info, record);
+    ulonglong auto_increment= retrieve_auto_increment(info, record);
     set_if_bigger(info->s->state.auto_increment,auto_increment);
+    if (!repair_only)
+      set_if_bigger(info->s->state.auto_increment, param->auto_increment_value);
   }
   mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
   my_free((char*) record, MYF(0));
