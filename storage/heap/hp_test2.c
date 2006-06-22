@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
   get_options(argc,argv);
   
   bzero(&hp_create_info, sizeof(hp_create_info));
+  hp_create_info.max_table_size= 1024L*1024L;
 
   write_count=update=opt_delete=0;
   key_check=0;

@@ -127,11 +127,11 @@ String *Item_func_md5::val_str(String *str)
   if (sptr)
   {
     my_MD5_CTX context;
-    unsigned char digest[16];
+    uchar digest[16];
 
     null_value=0;
     my_MD5Init (&context);
-    my_MD5Update (&context,(unsigned char *) sptr->ptr(), sptr->length());
+    my_MD5Update (&context,(uchar *) sptr->ptr(), sptr->length());
     my_MD5Final (digest, &context);
     if (str->alloc(32))				// Ensure that memory is free
     {
@@ -178,7 +178,7 @@ String *Item_func_sha::val_str(String *str)
     mysql_sha1_reset(&context);  /* We do not have to check for error here */
     /* No need to check error as the only case would be too long message */
     mysql_sha1_input(&context,
-                     (const unsigned char *) sptr->ptr(), sptr->length());
+                     (const uchar *) sptr->ptr(), sptr->length());
     /* Ensure that memory is free and we got result */
     if (!( str->alloc(SHA1_HASH_SIZE*2) ||
            (mysql_sha1_result(&context,digest))))

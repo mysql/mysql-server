@@ -138,7 +138,7 @@ static void print_records(TABLE *table, const char *record)
 
     for (int i= 0; i < n && pos < 20; i++)
     {
-      pos+= sprintf(&buf[pos]," %x", (int) (unsigned char) field_ptr[i]);
+      pos+= sprintf(&buf[pos]," %x", (int) (uchar) field_ptr[i]);
     }
     buf[pos]= 0;
     DBUG_PRINT("info",("[%u]field_ptr[0->%d]: %s", j, n, buf));
@@ -871,11 +871,11 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
 
 struct Cluster_schema
 {
-  unsigned char db_length;
+  uchar db_length;
   char db[64];
-  unsigned char name_length;
+  uchar name_length;
   char name[64];
-  unsigned char slock_length;
+  uchar slock_length;
   uint32 slock[SCHEMA_SLOCK_SIZE/4];
   unsigned short query_length;
   char *query;
@@ -974,7 +974,7 @@ static char *ndb_pack_varchar(const NDBCOL *col, char *buf,
       memcpy(buf, str, sz);
       break;
     case NDBCOL::ArrayTypeShortVar:
-      *(unsigned char*)buf= (unsigned char)sz;
+      *(uchar*)buf= (uchar)sz;
       memcpy(buf + 1, str, sz);
       break;
     case NDBCOL::ArrayTypeMediumVar:

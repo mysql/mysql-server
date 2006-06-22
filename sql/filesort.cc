@@ -672,62 +672,62 @@ static void make_sortkey(register SORTPARAM *param,
       switch (sort_field->result_type) {
       case STRING_RESULT:
       {
-          CHARSET_INFO *cs=item->collation.collation;
-	  char fill_char= ((cs->state & MY_CS_BINSORT) ? (char) 0 : ' ');
-          int diff;
-          uint sort_field_length;
+        CHARSET_INFO *cs=item->collation.collation;
+        char fill_char= ((cs->state & MY_CS_BINSORT) ? (char) 0 : ' ');
+        int diff;
+        uint sort_field_length;
 
-	  if (maybe_null)
-	    *to++=1;
-	  /* All item->str() to use some extra byte for end null.. */
-	  String tmp((char*) to,sort_field->length+4,cs);
-          String *res= item->str_result(&tmp);
-	  if (!res)
-	  {
-	    if (maybe_null)
-	      bzero((char*) to-1,sort_field->length+1);
-	    else
-	    {
-	      DBUG_PRINT("warning",
-			 ("Got null on something that shouldn't be null"));
-	      bzero((char*) to,sort_field->length);	// Avoid crash
-	    }
-	    break;
-	  }
-	  length= res->length();
-          sort_field_length= sort_field->length - sort_field->suffix_length;
-	  diff=(int) (sort_field_length - length);
-	  if (diff < 0)
-	  {
-	    diff=0;				/* purecov: inspected */
-	    length= sort_field_length;
-	  }
-          if (sort_field->suffix_length)
-          {
-            /* Store length last in result_string */
-            store_length(to + sort_field_length, length,
-                         sort_field->suffix_length);
-          }
-          if (sort_field->need_strxnfrm)
-          {
-	    char *from=(char*) res->ptr();
-            uint tmp_length;
-	    if ((unsigned char *)from == to)
-	    {
-	      set_if_smaller(length,sort_field->length);
-	      memcpy(param->tmp_buffer,from,length);
-	      from=param->tmp_buffer;
-	    }
-	    tmp_length= my_strnxfrm(cs,to,sort_field->length,
-                                    (unsigned char *) from, length);
-            DBUG_ASSERT(tmp_length == sort_field->length);
-          }
+        if (maybe_null)
+          *to++=1;
+        /* All item->str() to use some extra byte for end null.. */
+        String tmp((char*) to,sort_field->length+4,cs);
+        String *res= item->str_result(&tmp);
+        if (!res)
+        {
+          if (maybe_null)
+            bzero((char*) to-1,sort_field->length+1);
           else
           {
-             my_strnxfrm(cs,(uchar*)to,length,(const uchar*)res->ptr(),length);
-             cs->cset->fill(cs, (char *)to+length,diff,fill_char);
+            DBUG_PRINT("warning",
+                       ("Got null on something that shouldn't be null"));
+            bzero((char*) to,sort_field->length);	// Avoid crash
           }
-	  break;
+          break;
+        }
+        length= res->length();
+        sort_field_length= sort_field->length - sort_field->suffix_length;
+        diff=(int) (sort_field_length - length);
+        if (diff < 0)
+        {
+          diff=0;				/* purecov: inspected */
+          length= sort_field_length;
+        }
+        if (sort_field->suffix_length)
+        {
+          /* Store length last in result_string */
+          store_length(to + sort_field_length, length,
+                       sort_field->suffix_length);
+        }
+        if (sort_field->need_strxnfrm)
+        {
+          char *from=(char*) res->ptr();
+          uint tmp_length;
+          if ((uchar*) from == to)
+          {
+            set_if_smaller(length,sort_field->length);
+            memcpy(param->tmp_buffer,from,length);
+            from=param->tmp_buffer;
+          }
+          tmp_length= my_strnxfrm(cs,to,sort_field->length,
+                                  (uchar*) from, length);
+          DBUG_ASSERT(tmp_length == sort_field->length);
+        }
+        else
+        {
+          my_strnxfrm(cs,(uchar*)to,length,(const uchar*)res->ptr(),length);
+          cs->cset->fill(cs, (char *)to+length,diff,fill_char);
+        }
+        break;
       }
       case INT_RESULT:
 	{
