@@ -4056,6 +4056,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       DBUG_PRINT("warning", ("ops_pending != 0L"));
     m_ops_pending= 0;
   }
+  thd->set_current_stmt_binlog_row_based_if_mixed();
   DBUG_RETURN(error);
 }
 
@@ -4105,7 +4106,8 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
 
   // Start of statement
   m_ops_pending= 0;    
-  
+  thd->set_current_stmt_binlog_row_based_if_mixed();
+
   DBUG_RETURN(error);
 }
 
@@ -5452,7 +5454,8 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                 HA_CAN_BIT_FIELD | \
                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | \
                 HA_PRIMARY_KEY_REQUIRED_FOR_DELETE | \
-                HA_PARTIAL_COLUMN_READ
+                HA_PARTIAL_COLUMN_READ | \
+                HA_HAS_OWN_BINLOGGING
 
 ha_ndbcluster::ha_ndbcluster(TABLE_SHARE *table_arg):
   handler(&ndbcluster_hton, table_arg),
@@ -7954,6 +7957,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   my_net_init(&thd->net, 0);
   thd->main_security_ctx.master_access= ~0;
   thd->main_security_ctx.priv_user = 0;
+  thd->current_stmt_binlog_row_based= TRUE;     // If in mixed mode
 
   /*
     wait for mysql server to start
