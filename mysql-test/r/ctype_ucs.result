@@ -715,3 +715,10 @@ lily
 river
 drop table t1;
 deallocate prepare stmt;
+CREATE TABLE t1 (id int, s char(5) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci);
+INSERT INTO t1 VALUES (1, 'ZZZZZ'), (1, 'ZZZ'), (2, 'ZZZ'), (2, 'ZZZZZ');
+SELECT id, MIN(s) FROM t1 GROUP BY id;
+id	MIN(s)
+1	ZZZ
+2	ZZZ
+DROP TABLE t1;

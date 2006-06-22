@@ -451,4 +451,16 @@ execute stmt using @param1;
 select utext from t1 where utext like '%%';
 drop table t1;
 deallocate prepare stmt;
+
+#
+# Bug #20076: server crashes for a query with GROUP BY if MIN/MAX aggregation
+#             over a 'ucs2' field uses a temporary table 
+#
+
+CREATE TABLE t1 (id int, s char(5) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci);
+INSERT INTO t1 VALUES (1, 'ZZZZZ'), (1, 'ZZZ'), (2, 'ZZZ'), (2, 'ZZZZZ');
+
+SELECT id, MIN(s) FROM t1 GROUP BY id;
+
+DROP TABLE t1;
 # End of 4.1 tests
