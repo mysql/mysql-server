@@ -1082,6 +1082,7 @@ private:
     BlockState& operator=(const BlockState& bs) {
       Dbdict* dict = (Dbdict*)globalData.getBlock(DBDICT);
       dict->infoEvent("DICT: bs %d->%d", m_value, bs.m_value);
+      globalSignalLoggers.log(DBDICT, "bs %d->%d", m_value, bs.m_value);
       m_value = bs.m_value;
       return *this;
     }
