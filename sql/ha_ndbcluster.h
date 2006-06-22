@@ -661,8 +661,6 @@ class ha_ndbcluster: public handler
 
   bool low_byte_first() const;
 
-  virtual bool is_injective() const { return true; }
-
   const char* index_type(uint key_number);
 
   double scan_time();
