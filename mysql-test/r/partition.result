@@ -1043,4 +1043,12 @@ alter table t1 add partition (partition p2 values in (3));
 alter table t1 drop partition p2;
 use test;
 drop database db99;
+create table t1 (a int, index(a))
+partition by hash(a);
+insert into t1 values (1),(2);
+select * from t1 ORDER BY a DESC;
+a
+2
+1
+drop table t1;
 End of 5.1 tests
