@@ -302,6 +302,7 @@ ENGINE NDB;
 # bug#16341
 create table t1 (a int primary key) engine = myisam;
 
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_CREATE_FILEGROUP_FAILED
 --eval create logfile group lg1 add undofile '$MYSQLTEST_VARDIR/master-data/test/t1.frm' initial_size 1M undo_buffer_size = 1M engine=ndb;
 
@@ -311,6 +312,7 @@ initial_size 1M
 undo_buffer_size = 1M
 engine=ndb;
 
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_CREATE_FILEGROUP_FAILED
 --eval create tablespace ts1 add datafile '$MYSQLTEST_VARDIR/master-data/test/t1.frm' use logfile group lg1 initial_size 1M engine ndb;
 
