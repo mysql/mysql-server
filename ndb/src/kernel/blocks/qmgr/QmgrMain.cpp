@@ -2477,7 +2477,7 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
   {
     jam();
     CRASH_INSERTION(932);
-    BaseString::snprintf(buf, 100, "Node %u disconected", nodeId);    
+    BaseString::snprintf(buf, 100, "Node %u disconnected", nodeId);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
   }
@@ -2500,7 +2500,7 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     ndbrequire(false);
   case ZAPI_INACTIVE:
   {
-    BaseString::snprintf(buf, 100, "Node %u disconected", nodeId);    
+    BaseString::snprintf(buf, 100, "Node %u disconnected", nodeId);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
   }
