@@ -13986,7 +13986,8 @@ Dbdict::trans_commit_complete_done(Signal* signal,
     conf->senderRef = reference();
     conf->senderData = trans_ptr.p->m_senderData;
     conf->fileId = f_ptr.p->key;
-    
+    conf->fileVersion = f_ptr.p->m_version;
+
     //@todo check api failed
     sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILE_CONF, signal, 
 	       CreateFileConf::SignalLength, JBB);
