@@ -851,7 +851,7 @@ private:
   char m_dbname[FN_HEADLEN];
   //char m_schemaname[FN_HEADLEN];
   char m_tabname[FN_HEADLEN];
-  ulong m_table_flags;
+  ulonglong m_table_flags;
   THR_LOCK_DATA m_lock;
   bool m_lock_tuple;
   NDB_SHARE *m_share;

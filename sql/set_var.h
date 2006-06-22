@@ -785,10 +785,10 @@ public:
 
 class sys_var_log_output :public sys_var
 {
-  uint *value;
+  ulong *value;
   TYPELIB *enum_names;
 public:
-  sys_var_log_output(const char *name_arg, uint *value_arg,
+  sys_var_log_output(const char *name_arg, ulong *value_arg,
                      TYPELIB *typelib, sys_after_update_func func)
     :sys_var(name_arg,func), value(value_arg), enum_names(typelib)
   {}

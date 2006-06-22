@@ -2724,7 +2724,8 @@ void sys_var_log_output::set_default(THD *thd, enum_var_type type)
 }
 
 
-byte *sys_var_log_output::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+byte *sys_var_log_output::value_ptr(THD *thd, enum_var_type type,
+                                    LEX_STRING *base)
 {
   char buff[256];
   String tmp(buff, sizeof(buff), &my_charset_latin1);
