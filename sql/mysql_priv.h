@@ -1758,6 +1758,8 @@ bool date_add_interval(TIME *ltime, interval_type int_type, INTERVAL interval);
 bool calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign,
                     longlong *seconds_out, long *microseconds_out);
 
+extern LEX_STRING interval_type_to_name[];
+
 extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,
 					       const char *format_str,
 					       uint format_length);
@@ -1773,6 +1775,7 @@ void make_date(const DATE_TIME_FORMAT *format, const TIME *l_time,
                String *str);
 void make_time(const DATE_TIME_FORMAT *format, const TIME *l_time,
                String *str);
+int my_time_compare(TIME *a, TIME *b);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
@@ -1790,6 +1793,7 @@ void filesort_free_buffers(TABLE *table);
 void change_double_for_sort(double nr,byte *to);
 double my_double_round(double value, int dec, bool truncate);
 int get_quick_record(SQL_SELECT *select);
+
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
 uint calc_week(TIME *l_time, uint week_behaviour, uint *year);
 void find_date(char *pos,uint *vek,uint flag);
