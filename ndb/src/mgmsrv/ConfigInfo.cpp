@@ -30,6 +30,7 @@ extern my_bool opt_core;
 #define MAX_LINE_LENGTH 255
 #define KEY_INTERNAL 0
 #define MAX_INT_RNIL 0xfffffeff
+#define MAX_PORT_NO 65535
 
 #define _STR_VALUE(x) #x
 #define STR_VALUE(x) _STR_VALUE(x)
@@ -426,7 +427,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     UNDEFINED,
     "1",
-    STR_VALUE(MAX_INT_RNIL) },
+    STR_VALUE(MAX_PORT_NO) },
 
   {
     CFG_DB_NO_REPLICAS,
@@ -1430,7 +1431,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     NDB_PORT,
     "0",
-    STR_VALUE(MAX_INT_RNIL) },
+    STR_VALUE(MAX_PORT_NO) },
 
   {
     KEY_INTERNAL,
@@ -1442,7 +1443,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     UNDEFINED,
     "0",
-    STR_VALUE(MAX_INT_RNIL) },
+    STR_VALUE(MAX_PORT_NO) },
 
   {
     CFG_NODE_ARBIT_RANK,
@@ -1573,7 +1574,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     MANDATORY,
     "0",
-    STR_VALUE(MAX_INT_RNIL) },
+    STR_VALUE(MAX_PORT_NO) },
 
   {
     CFG_TCP_SEND_BUFFER_SIZE,
@@ -1679,7 +1680,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     MANDATORY,
     "0", 
-    STR_VALUE(MAX_INT_RNIL) },
+    STR_VALUE(MAX_PORT_NO) },
 
   {
     CFG_SHM_SIGNUM,
@@ -1879,7 +1880,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     MANDATORY,
     "0", 
-    STR_VALUE(MAX_INT_RNIL) },
+    STR_VALUE(MAX_PORT_NO) },
 
   {
     CFG_SCI_HOST1_ID_0,
