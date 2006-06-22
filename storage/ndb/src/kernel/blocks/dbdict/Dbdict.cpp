@@ -15153,6 +15153,17 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
       break;
     }
     
+    {
+      Uint32 dl;
+      const ndb_mgm_configuration_iterator * p = 
+	m_ctx.m_config.getOwnConfigIterator();
+      if(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl) && dl)
+      {
+	op->m_errorCode = CreateFileRef::NotSupportedWhenDiskless;
+	break;
+      }
+    }
+    
     // Loop through all filenames...
     if(!c_obj_pool.seize(obj_ptr)){
       op->m_errorCode = CreateTableRef::NoMoreTableRecords;

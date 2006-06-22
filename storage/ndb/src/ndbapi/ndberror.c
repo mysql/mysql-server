@@ -417,6 +417,7 @@ ErrorBundle ErrorCodes[] = {
   { 1514, DMEC, SE, "Currently there is a limit of one logfile group" },
   
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
+  { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },
   
   /**
    * FunctionNotImplemented
