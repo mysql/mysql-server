@@ -1,6 +1,7 @@
 
 --source include/have_ndb.inc
 --source include/master-slave.inc
+--source include/have_binlog_format_mixed_or_row.inc
 
 --disable_query_log
 --disable_warnings
