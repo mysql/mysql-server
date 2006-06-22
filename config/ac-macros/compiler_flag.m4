@@ -47,7 +47,7 @@ void foo (void) { }
 EOF
   if AC_TRY_COMMAND([${CC-cc} $CFLAGS $CPPFLAGS
 		     -S -o conftest.s conftest.c 1>&AS_MESSAGE_LOG_FD]) \
-     && grep -q .note.GNU-stack conftest.s \
+     && grep .note.GNU-stack conftest.s >/dev/null \
      && AC_TRY_COMMAND([${CC-cc} $CCASFLAGS $CPPFLAGS -Wa,--noexecstack
 		       -c -o conftest.o conftest.s 1>&AS_MESSAGE_LOG_FD])
   then
