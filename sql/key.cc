@@ -210,9 +210,13 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
     }
     else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
     {
+      my_bitmap_map *old_map;
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
+      old_map= dbug_tmp_use_all_columns(key_part->field->table,
+                                        key_part->field->table->write_set);
       key_part->field->set_key_image((char *) from_key, length);
+      dbug_tmp_restore_column_map(key_part->field->table->write_set, old_map);
       from_key+= HA_KEY_BLOB_LENGTH;
     }
     else
