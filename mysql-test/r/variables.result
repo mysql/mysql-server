@@ -421,6 +421,18 @@ set tmp_table_size=100;
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set log_warnings=1;
+select @@session.insert_id;
+@@session.insert_id
+1
+set @save_insert_id=@@session.insert_id;
+set session insert_id=20;
+select @@session.insert_id;
+@@session.insert_id
+20
+set @@session.insert_id=@save_insert_id;
+select @@session.insert_id;
+@@session.insert_id
+1
 create table t1 (a int not null auto_increment, primary key(a));
 create table t2 (a int not null auto_increment, primary key(a));
 insert into t1 values(null),(null),(null);
