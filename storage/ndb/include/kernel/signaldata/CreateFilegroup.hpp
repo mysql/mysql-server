@@ -159,7 +159,8 @@ struct CreateFileRef {
     InvalidFilegroupVersion = 754,
     FilenameAlreadyExists = 760,
     OutOfFileRecords = 751,
-    InvalidFileType = 750
+    InvalidFileType = 750,
+    NotSupportedWhenDiskless = 775
   };
   
   Uint32 senderData;
