@@ -193,6 +193,7 @@ struct CreateFileConf {
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 fileId;
+  Uint32 fileVersion;
 };
 
 #endif
