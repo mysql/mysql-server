@@ -311,8 +311,10 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
   if (!reopen)
   {
     // allocate memory on ndb share so it can be reused after online alter table
-    share->record[0]= (byte*) alloc_root(&share->mem_root, table->s->rec_buff_length);
-    share->record[1]= (byte*) alloc_root(&share->mem_root, table->s->rec_buff_length);
+    (void)multi_alloc_root(&share->mem_root,
+                           &(share->record[0]), table->s->rec_buff_length,
+                           &(share->record[1]), table->s->rec_buff_length,
+                           NULL);
   }
   {
     my_ptrdiff_t row_offset= share->record[0] - table->record[0];
@@ -2159,6 +2161,9 @@ int ndb_add_binlog_index(THD *thd, void *_row)
     break;
   }
 
+  // Set all fields non-null.
+  if(binlog_index->s->null_bytes > 0)
+    bzero(binlog_index->record[0], binlog_index->s->null_bytes);
   binlog_index->field[0]->store(row.master_log_pos);
   binlog_index->field[1]->store(row.master_log_file,
                                 strlen(row.master_log_file),
@@ -3275,6 +3280,13 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   THD_CHECK_SENTRY(thd);
 
+  /* We need to set thd->thread_id before thd->store_globals, or it will
+     set an invalid value for thd->variables.pseudo_thread_id.
+  */
+  pthread_mutex_lock(&LOCK_thread_count);
+  thd->thread_id= thread_id++;
+  pthread_mutex_unlock(&LOCK_thread_count);
+
   thd->thread_stack= (char*) &thd; /* remember where our stack is */
   if (thd->store_globals())
   {
@@ -3307,7 +3319,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_detach_this_thread();
   thd->real_id= pthread_self();
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thread_id++;
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
   thd->lex->start_transaction_opt= 0;
@@ -3641,6 +3652,10 @@ restart:
             injector::transaction::table tbl(table, TRUE);
             int ret= trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
+
+            // Set all fields non-null.
+            if(table->s->null_bytes > 0)
+              bzero(table->record[0], table->s->null_bytes);
             table->field[0]->store((longlong)::server_id);
             table->field[1]->store((longlong)gci);
             trans.write_row(::server_id,

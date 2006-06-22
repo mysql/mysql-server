@@ -2475,15 +2475,19 @@ my_size_t THD::pack_row(TABLE *table, MY_BITMAP const* cols, byte *row_data,
   int n_null_bytes= table->s->null_bytes;
   byte *ptr;
   uint i;
-  my_ptrdiff_t const offset= (my_ptrdiff_t) (record - (byte*)
-                                             table->record[0]);
+  my_ptrdiff_t const rec_offset= record - table->record[0];
+  my_ptrdiff_t const def_offset= table->s->default_values - table->record[0];
   memcpy(row_data, record, n_null_bytes);
   ptr= row_data+n_null_bytes;
 
   for (i= 0 ; (field= *p_field) ; i++, p_field++)
   {
     if (bitmap_is_set(cols,i))
+    {
+      my_ptrdiff_t const offset=
+        field->is_null(rec_offset) ? def_offset : rec_offset;
       ptr= (byte*)field->pack((char *) ptr, field->ptr + offset);
+    }
   }
   return (static_cast<my_size_t>(ptr - row_data));
 }
