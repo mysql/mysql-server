@@ -26,7 +26,8 @@
 #include "sql_trigger.h"
 #include "authors.h"
 #include "contributors.h"
-#include "event.h"
+#include "events.h"
+#include "event_timed.h"
 #include <my_dir.h>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
