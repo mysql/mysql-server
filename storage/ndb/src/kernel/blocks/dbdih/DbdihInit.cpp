@@ -251,6 +251,9 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_CREATE_FRAGMENTATION_REQ, 
 	       &Dbdih::execCREATE_FRAGMENTATION_REQ);
 
+  addRecSignal(GSN_START_FRAGREF,
+	       &Dbdih::execSTART_FRAGREF);
+  
   apiConnectRecord = 0;
   connectRecord = 0;
   fileRecord = 0;
