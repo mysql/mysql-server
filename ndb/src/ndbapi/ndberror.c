@@ -326,6 +326,7 @@ ErrorBundle ErrorCodes[] = {
    * SchemaError
    */
   { 701,  SE, "System busy with other schema operation" },
+  { 711,  SE, "System busy with node restart, schema operations not allowed" },
   { 703,  SE, "Invalid table format" },
   { 704,  SE, "Attribute name too long" },
   { 705,  SE, "Table name too long" },
