@@ -1202,7 +1202,9 @@ drop database db99;
 #
 #BUG 17138 Problem with stored procedure and analyze partition
 #
-drop procedure mysqltest_1 if exists;
+--disable_warnings
+drop procedure if exists mysqltest_1;
+--enable_warnings
 
 create table t1 (a int)
 partition by list (a)
