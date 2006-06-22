@@ -1202,6 +1202,8 @@ drop database db99;
 #
 #BUG 17138 Problem with stored procedure and analyze partition
 #
+drop procedure mysqltest_1 if exists;
+
 create table t1 (a int)
 partition by list (a)
 (partition p0 values in (0));
@@ -1209,7 +1211,7 @@ partition by list (a)
 insert into t1 values (0);
 delimiter //;
 
-create procedure po ()
+create procedure mysqltest_1 ()
 begin
   begin
     declare continue handler for sqlexception begin end;
@@ -1219,7 +1221,9 @@ begin
   execute stmt1;
 end//
 
-call po()//
+call mysqltest_1()//
 delimiter ;//
 drop table t1;
+drop procedure mysqltest_1;
+
 --echo End of 5.1 tests

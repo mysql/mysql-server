@@ -976,15 +976,16 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
     while ((error=table->file->ha_write_row(table->record[0])))
     {
       uint key_nr;
-      if (error != HA_WRITE_SKIP)
+      bool is_duplicate_key_error;
+      if (table->file->is_fatal_error(error, HA_CHECK_DUPP))
 	goto err;
       table->file->restore_auto_increment(); // it's too early here! BUG#20188
-      if (info->ignore &&
-          !table->file->cannot_ignore_error(error, 0))
+      is_duplicate_key_error= table->file->is_fatal_error(error, 0);
+      if (info->ignore && !is_duplicate_key_error)
         goto ok_or_after_trg_err;
       if ((int) (key_nr = table->file->get_dup_key(error)) < 0)
       {
-	error=HA_WRITE_SKIP;			/* Database can't find key */
+	error=HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
 	goto err;
       }
       /* Read all columns for the row we are going to replace */
@@ -1066,7 +1067,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
                                               table->record[0])))
 	{
           if (info->ignore &&
-              !table->file->cannot_ignore_error(error, HA_CHECK_DUPP_KEY))
+              !table->file->is_fatal_error(error, HA_CHECK_DUPP_KEY))
             goto ok_or_after_trg_err;
           goto err;
 	}
@@ -1152,7 +1153,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
   else if ((error=table->file->ha_write_row(table->record[0])))
   {
     if (!info->ignore ||
-        table->file->cannot_ignore_error(error, HA_CHECK_DUPP))
+        table->file->is_fatal_error(error, HA_CHECK_DUPP))
       goto err;
     table->file->restore_auto_increment();
   }
