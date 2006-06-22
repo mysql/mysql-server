@@ -516,6 +516,31 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
   /* it doesn't make sense to add last_query_cost values */
 }
 
+/*
+  Add the difference between two status variable arrays to another one.
+
+  SYNOPSIS
+    add_diff_to_status
+    to_var       add to this array
+    from_var     from this array
+    dec_var      minus this array
+  
+  NOTE
+    This function assumes that all variables are long/ulong.
+*/
+
+void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
+                        STATUS_VAR *dec_var)
+{
+  ulong *end= (ulong*) ((byte*) to_var + offsetof(STATUS_VAR,
+						  last_system_status_var) +
+			sizeof(ulong));
+  ulong *to= (ulong*) to_var, *from= (ulong*) from_var, *dec= (ulong*) dec_var;
+
+  while (to != end)
+    *(to++)+= *(from++) - *(dec++);
+}
+
 
 void THD::awake(THD::killed_state state_to_set)
 {

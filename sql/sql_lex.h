@@ -934,7 +934,7 @@ typedef struct st_lex : public Query_tables_list
     the variable can contain 0 or 1 for each nest level.
   */
   nesting_map allow_sum_func;
-  enum_sql_command sql_command, orig_sql_command;
+  enum_sql_command sql_command;
   thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum my_lex_states next_state;

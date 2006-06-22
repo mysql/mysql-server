@@ -199,6 +199,8 @@ select table_name, column_name, privileges from information_schema.columns
 where table_schema = 'mysqltest' and table_name = 'v1';
 table_name	column_name	privileges
 v1	c	select
+explain select * from v1;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 drop view v1, mysqltest.v1;
 drop tables mysqltest.t4, mysqltest.t1, t2, t3, t5;
 drop database mysqltest;
