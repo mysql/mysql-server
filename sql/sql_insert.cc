@@ -981,8 +981,13 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	goto err;
       table->file->restore_auto_increment(); // it's too early here! BUG#20188
       is_duplicate_key_error= table->file->is_fatal_error(error, 0);
-      if (info->ignore && !is_duplicate_key_error)
-        goto ok_or_after_trg_err;
+      if (!is_duplicate_key_error)
+      {
+        if (info->ignore)
+          goto ok_or_after_trg_err;
+        else
+          goto err;
+      }
       if ((int) (key_nr = table->file->get_dup_key(error)) < 0)
       {
 	error=HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
