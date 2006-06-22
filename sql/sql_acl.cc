@@ -2049,8 +2049,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   }
   else if ((error=table->file->ha_write_row(table->record[0]))) // insert
   {						// This should never happen
-    if (error && error != HA_ERR_FOUND_DUPP_KEY &&
-	error != HA_ERR_FOUND_DUPP_UNIQUE)	/* purecov: inspected */
+    if (table->file->is_fatal_error(error, HA_CHECK_DUPP))
     {
       table->file->print_error(error,MYF(0));	/* purecov: deadcode */
       error= -1;				/* purecov: deadcode */
@@ -2172,7 +2171,7 @@ static int replace_db_table(TABLE *table, const char *db,
   }
   else if (rights && (error= table->file->ha_write_row(table->record[0])))
   {
-    if (error && error != HA_ERR_FOUND_DUPP_KEY) /* purecov: inspected */
+    if (table->file->is_fatal_error(error, HA_CHECK_DUPP_KEY))
       goto table_error; /* purecov: deadcode */
   }
 
@@ -2744,7 +2743,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   else
   {
     error=table->file->ha_write_row(table->record[0]);
-    if (error && error != HA_ERR_FOUND_DUPP_KEY)
+    if (table->file->is_fatal_error(error, HA_CHECK_DUPP_KEY))
       goto table_error;				/* purecov: deadcode */
   }
 
@@ -2862,7 +2861,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   else
   {
     error=table->file->ha_write_row(table->record[0]);
-    if (error && error != HA_ERR_FOUND_DUPP_KEY)
+    if (table->file->is_fatal_error(error, HA_CHECK_DUPP_KEY))
       goto table_error;
   }
 

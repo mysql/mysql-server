@@ -216,11 +216,6 @@
 #define HA_BLOCK_LOCK		256	/* unlock when reading some records */
 #define HA_OPEN_TEMPORARY	512
 
-	/* Errors on write which is recoverable  (Key exist) */
-#define HA_WRITE_SKIP 121		/* Duplicate key on write */
-#define HA_READ_CHECK 123		/* Update with is recoverable */
-#define HA_CANT_DO_THAT 131		/* Databasehandler can't do it */
-
 	/* Some key definitions */
 #define HA_KEY_NULL_LENGTH	1
 #define HA_KEY_BLOB_LENGTH	2
@@ -970,7 +965,30 @@ public:
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
   virtual uint extra_rec_buf_length() const { return 0; }
-  
+
+  /*
+    This method is used to analyse the error to see whether the error
+    is ignorable or not, certain handlers can have more error that are
+    ignorable than others. E.g. the partition handler can get inserts
+    into a range where there is no partition and this is an ignorable
+    error.
+    HA_ERR_FOUND_DUPP_UNIQUE is a special case in MyISAM that means the
+    same thing as HA_ERR_FOUND_DUPP_KEY but can in some cases lead to
+    a slightly different error message.
+  */
+#define HA_CHECK_DUPP_KEY 1
+#define HA_CHECK_DUPP_UNIQUE 2
+#define HA_CHECK_DUPP (HA_CHECK_DUPP_KEY + HA_CHECK_DUPP_UNIQUE)
+  virtual bool is_fatal_error(int error, uint flags)
+  {
+    if (!error ||
+        ((flags & HA_CHECK_DUPP_KEY) &&
+         (error == HA_ERR_FOUND_DUPP_KEY ||
+          error == HA_ERR_FOUND_DUPP_UNIQUE)))
+      return FALSE;
+    return TRUE;
+  }
+
   /*
     Number of rows in table. It will only be called if
     (table_flags() & (HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT)) != 0
@@ -1022,7 +1040,7 @@ public:
     DBUG_RETURN(rnd_end());
   }
   int ha_reset();
-    
+
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
   {
