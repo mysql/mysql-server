@@ -482,6 +482,10 @@ AM_PROG_CC_STDC
 
 # We need an assembler, too
 AM_PROG_AS
+CCASFLAGS="$CCASFLAGS $ASFLAGS"
+
+# Check if we need noexec stack for assembler
+AC_CHECK_NOEXECSTACK
 
 if test "$am_cv_prog_cc_stdc" = "no"
 then
