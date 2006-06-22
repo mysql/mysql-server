@@ -3305,7 +3305,7 @@ namespace
                  const byte *before_record,
                  const byte *after_record)
   {
-    if (table->file->is_injective())
+    if (table->file->ha_table_flags() & HA_HAS_OWN_BINLOGGING)
       return 0;
     bool error= 0;
     THD *const thd= table->in_use;

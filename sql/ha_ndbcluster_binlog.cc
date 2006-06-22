@@ -3347,9 +3347,11 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   ndb_binlog_thread_running= 1;
   if (opt_bin_log)
   {
-    if (global_system_variables.binlog_format == BINLOG_FORMAT_ROW)
+    if (global_system_variables.binlog_format == BINLOG_FORMAT_ROW ||
+        global_system_variables.binlog_format == BINLOG_FORMAT_MIXED)
     {
       ndb_binlog_running= TRUE;
+      thd->current_stmt_binlog_row_based= TRUE;     // If in mixed mode
     }
     else
     {
