@@ -692,6 +692,14 @@ public:
      THD::prelocked_mode for more info.)
   */
   MYSQL_LOCK *locked_tables;
+
+  /*
+    CREATE-SELECT keeps an extra lock for the table being
+    created. This field is used to keep the extra lock available for
+    lower level routines, which would otherwise miss that lock.
+   */
+  MYSQL_LOCK *extra_lock;
+
   /*
     prelocked_mode_type enum and prelocked_mode member are used for
     indicating whenever "prelocked mode" is on, and what type of
@@ -744,7 +752,7 @@ public:
   void reset_open_tables_state()
   {
     open_tables= temporary_tables= handler_tables= derived_tables= 0;
-    lock= locked_tables= 0;
+    extra_lock= lock= locked_tables= 0;
     prelocked_mode= NON_PRELOCKED;
     state_flags= 0U;
   }
@@ -1595,9 +1603,6 @@ class select_insert :public select_result_interceptor {
   bool send_eof();
   /* not implemented: select_insert is never re-used in prepared statements */
   void cleanup();
-
-protected:
-  MYSQL_LOCK *lock;
 };
 
 

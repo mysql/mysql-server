@@ -53,6 +53,9 @@ void Dbdih::initData()
   waitGCPProxyPool.setSize(ZPROXY_FILE_SIZE);
   waitGCPMasterPool.setSize(ZPROXY_MASTER_FILE_SIZE);
 
+  c_dictLockSlavePool.setSize(1); // assert single usage
+  c_dictLockSlavePtrI_nodeRestart = RNIL;
+
   cgcpOrderBlocked = 0;
   c_lcpState.ctcCounter = 0;
   cwaitLcpSr       = false;
@@ -250,6 +253,9 @@ Dbdih::Dbdih(Block_context& ctx):
 
   addRecSignal(GSN_CREATE_FRAGMENTATION_REQ, 
 	       &Dbdih::execCREATE_FRAGMENTATION_REQ);
+
+  addRecSignal(GSN_DICT_LOCK_CONF, &Dbdih::execDICT_LOCK_CONF);
+  addRecSignal(GSN_DICT_LOCK_REF, &Dbdih::execDICT_LOCK_REF);
 
   apiConnectRecord = 0;
   connectRecord = 0;
