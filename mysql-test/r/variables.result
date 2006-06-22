@@ -429,6 +429,16 @@ set session insert_id=20;
 select @@session.insert_id;
 @@session.insert_id
 20
+set session last_insert_id=100;
+select @@session.insert_id;
+@@session.insert_id
+20
+select @@session.last_insert_id;
+@@session.last_insert_id
+100
+select @@session.insert_id;
+@@session.insert_id
+20
 set @@session.insert_id=@save_insert_id;
 select @@session.insert_id;
 @@session.insert_id
