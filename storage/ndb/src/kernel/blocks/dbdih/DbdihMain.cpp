@@ -15055,13 +15055,14 @@ Dbdih::sendDictLockReq(Signal* signal, Uint32 lockType, Callback c)
   {
     Uint32 masterVersion = getNodeInfo(cmasterNodeId).m_version;
 
-    unsigned int get_major = getMajor(masterVersion);
-    unsigned int get_minor = getMinor(masterVersion);
-    unsigned int get_build = getBuild(masterVersion);
-
-    ndbrequire(get_major == 4 || get_major == 5);
+    const unsigned int get_major = getMajor(masterVersion);
+    const unsigned int get_minor = getMinor(masterVersion);
+    const unsigned int get_build = getBuild(masterVersion);
+    ndbrequire(get_major >= 4);
 
     if (masterVersion < NDBD_DICT_LOCK_VERSION_5 ||
+        masterVersion < NDBD_DICT_LOCK_VERSION_5_1 &&
+          get_major == 5 && get_minor == 1 ||
         ERROR_INSERTED(7176)) {
       jam();
 
@@ -15132,10 +15133,13 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
   {
     Uint32 masterVersion = getNodeInfo(cmasterNodeId).m_version;
 
-    unsigned int get_major = getMajor(masterVersion);
-    ndbrequire(get_major == 4 || get_major == 5);
+    const unsigned int get_major = getMajor(masterVersion);
+    const unsigned int get_minor = getMinor(masterVersion);
+    ndbrequire(get_major >= 4);
 
     if (masterVersion < NDBD_DICT_LOCK_VERSION_5 ||
+        masterVersion < NDBD_DICT_LOCK_VERSION_5_1 &&
+          get_major == 5 && get_minor == 1 ||
         ERROR_INSERTED(7176)) {
       return;
     }
