@@ -21,6 +21,9 @@
 #   - DROP INSTANCE fails for active instance.
 #   - DROP INSTANCE updates both config file and internal configuration cache;
 #
+# NOTE: each CREATE INSTANCE statement must specify socket-file-name, otherwise
+# this results of the test can be affected by another running test suite.
+#
 ###########################################################################
 
 --source include/im_check_os.inc
