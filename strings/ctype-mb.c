@@ -536,12 +536,7 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
     if (*ptr == escape && ptr+1 != end)
       ptr++;                                    /* Skip escape */
     else if (*ptr == w_one || *ptr == w_many)   /* '_' and '%' in SQL */
-    {
-      charlen= my_charpos(cs, min_org, min_str, res_length/cs->mbmaxlen);
-      
-      if (charlen < (uint) (min_str - min_org))
-        min_str= min_org + charlen;
-      
+    {      
       /*
         Calculate length of keys:
         'a\0\0... is the smallest possible string when we have space expand
