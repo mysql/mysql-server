@@ -4990,4 +4990,25 @@ CALL bug18037_p2()|
 DROP FUNCTION bug18037_f1|
 DROP PROCEDURE bug18037_p1|
 DROP PROCEDURE bug18037_p2|
+drop table if exists t3|
+drop procedure if exists bug15217|
+create table t3 as select 1|
+create procedure bug15217()
+begin
+declare var1 char(255);
+declare cur1 cursor for select * from t3;
+open cur1;
+fetch cur1 into var1;
+select concat('data was: /', var1, '/');
+close cur1;
+end |
+call bug15217()|
+concat('data was: /', var1, '/')
+data was: /1/
+flush tables |
+call bug15217()|
+concat('data was: /', var1, '/')
+data was: /1/
+drop table t3|
+drop procedure bug15217|
 drop table t1,t2;
