@@ -3263,37 +3263,39 @@ namespace
   int write_locked_table_maps(THD *thd)
   {
     DBUG_ENTER("write_locked_table_maps");
-    DBUG_PRINT("enter", ("thd=%p, thd->lock=%p, thd->locked_tables=%p",
-                         thd, thd->lock, thd->locked_tables));
+    DBUG_PRINT("enter", ("thd=%p, thd->lock=%p, thd->locked_tables=%p, thd->extra_lock",
+                         thd, thd->lock, thd->locked_tables, thd->extra_lock));
 
     if (thd->get_binlog_table_maps() == 0)
     {
-      /*
-        Exactly one table has to be locked, otherwise this code is not
-        guaranteed to work.
-      */
-      DBUG_ASSERT((thd->lock != NULL) + (thd->locked_tables != NULL) == 1);
-
-      MYSQL_LOCK *lock= thd->lock ? thd->lock : thd->locked_tables;
-      DBUG_ASSERT(lock->table_count > 0);
-      TABLE **const end_ptr= lock->table + lock->table_count;
-      for (TABLE **table_ptr= lock->table ; 
-           table_ptr != end_ptr ;
-           ++table_ptr)
+      MYSQL_LOCK *const locks[] = {
+        thd->extra_lock, thd->lock, thd->locked_tables
+      };
+      for (my_ptrdiff_t i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
       {
-        TABLE *const table= *table_ptr;
-        DBUG_PRINT("info", ("Checking table %s", table->s->table_name));
-        if (table->current_lock == F_WRLCK &&
-            check_table_binlog_row_based(thd, table))
+        MYSQL_LOCK const *const lock= locks[i];
+        if (lock == NULL)
+          continue;
+
+        TABLE **const end_ptr= lock->table + lock->table_count;
+        for (TABLE **table_ptr= lock->table ; 
+             table_ptr != end_ptr ;
+             ++table_ptr)
         {
-          int const has_trans= table->file->has_transactions();
-          int const error= thd->binlog_write_table_map(table, has_trans);
-          /*
-            If an error occurs, it is the responsibility of the caller to
-            roll back the transaction.
-          */
-          if (unlikely(error))
-            DBUG_RETURN(1);
+          TABLE *const table= *table_ptr;
+          DBUG_PRINT("info", ("Checking table %s", table->s->table_name));
+          if (table->current_lock == F_WRLCK &&
+              check_table_binlog_row_based(thd, table))
+          {
+            int const has_trans= table->file->has_transactions();
+            int const error= thd->binlog_write_table_map(table, has_trans);
+            /*
+              If an error occurs, it is the responsibility of the caller to
+              roll back the transaction.
+            */
+            if (unlikely(error))
+              DBUG_RETURN(1);
+          }
         }
       }
     }

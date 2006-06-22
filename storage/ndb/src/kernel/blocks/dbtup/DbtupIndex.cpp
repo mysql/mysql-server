@@ -63,7 +63,7 @@ Dbtup::tuxAllocNode(Signal* signal,
   if ((ptr= alloc_fix_rec(fragPtr.p, tablePtr.p, &key, &frag_page_id)) == 0)
   {
     ljam();
-    ndbrequire(terrorCode != 0);
+    terrorCode = ZMEM_NOMEM_ERROR; // caller sets error
     return terrorCode;
   }
   pageId= key.m_page_no;
