@@ -952,6 +952,7 @@ INSERT INTO t1 VALUES
  ('Käli Käli 2-4'), ('Käli Käli 2-4'),
  ('Käli Käli 2+4'), ('Käli Käli 2+4'),
  ('Käli Käli 2-6'), ('Käli Käli 2-6');
+INSERT INTO t1 SELECT * FROM t1;
 
 CREATE TABLE t2 (
   a CHAR(13) DEFAULT '',
@@ -962,6 +963,7 @@ INSERT INTO t2 VALUES
  ('Kali Kali 2-4'), ('Kali Kali 2-4'),
  ('Kali Kali 2+4'), ('Kali Kali 2+4'),
  ('Kali Kali 2-6'), ('Kali Kali 2-6');
+INSERT INTO t2 SELECT * FROM t2;
 
 SELECT a FROM t1 WHERE a LIKE 'Käli Käli 2+4';
 SELECT a FROM t2 WHERE a LIKE 'Kali Kali 2+4';
