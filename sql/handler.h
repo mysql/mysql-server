@@ -116,6 +116,8 @@
 #define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
 #define HA_NO_COPY_ON_ALTER    (LL(1) << 31)
 #define HA_HAS_RECORDS	       (LL(1) << 32) /* records() gives exact count*/
+/* Has it's own method of binlog logging */
+#define HA_HAS_OWN_BINLOGGING  (LL(1) << 33)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -1052,12 +1054,6 @@ public:
   int ha_write_row(byte * buf);
   int ha_update_row(const byte * old_data, byte * new_data);
   int ha_delete_row(const byte * buf);
-
-  /*
-    If the handler does it's own injection of the rows, this member function
-    should return 'true'.
-  */
-  virtual bool is_injective() const { return false; }
 
   /*
     SYNOPSIS
