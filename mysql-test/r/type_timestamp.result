@@ -1,4 +1,5 @@
 drop table if exists t1,t2;
+set time_zone="+03:00";
 CREATE TABLE t1 (a int, t timestamp);
 CREATE TABLE t2 (a int, t datetime);
 SET TIMESTAMP=1234;
@@ -491,3 +492,4 @@ a	b	c
 5	NULL	2001-09-09 04:46:59
 6	NULL	2006-06-06 06:06:06
 drop table t1;
+set time_zone= @@global.time_zone;
