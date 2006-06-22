@@ -27,3 +27,7 @@ a
 2
 3
 drop database testdb2;
+create database testdb1;
+rename database testdb1 to testdb1;
+ERROR HY000: Can't create database 'testdb1'; database exists
+drop database testdb1;
