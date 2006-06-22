@@ -200,14 +200,14 @@ DROP LOGFILE GROUP lg1
 ENGINE NDB;
 **** End = And No =  ****
 create table t1 (a int primary key) engine = myisam;
-create logfile group lg1 add undofile '/home/jonas/src/51-work/mysql-test/var/master-data/test/t1.frm' initial_size 1M undo_buffer_size = 1M engine=ndb;;
+create logfile group lg1 add undofile 'MYSQLTEST_VARDIR/master-data/test/t1.frm' initial_size 1M undo_buffer_size = 1M engine=ndb;;
 ERROR HY000: Failed to create UNDOFILE
 create logfile group lg1
 add undofile 'undofile.dat'
 initial_size 1M
 undo_buffer_size = 1M
 engine=ndb;
-create tablespace ts1 add datafile '/home/jonas/src/51-work/mysql-test/var/master-data/test/t1.frm' use logfile group lg1 initial_size 1M engine ndb;;
+create tablespace ts1 add datafile 'MYSQLTEST_VARDIR/master-data/test/t1.frm' use logfile group lg1 initial_size 1M engine ndb;;
 ERROR HY000: Failed to create DATAFILE
 drop tablespace ts1
 engine ndb;
