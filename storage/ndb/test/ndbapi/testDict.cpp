@@ -1852,7 +1852,9 @@ runDictOps(NDBT_Context* ctx, NDBT_Step* step)
     Ndb* pNdb = GETNDB(step);
     NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
     const NdbDictionary::Table* pTab = ctx->getTab();
-    const char* tabName = pTab->getName();
+    //const char* tabName = pTab->getName(); //XXX what goes on?
+    char tabName[40];
+    strcpy(tabName, pTab->getName());
 
     const unsigned long maxsleep = 100; //ms
 
@@ -1888,7 +1890,7 @@ runDictOps(NDBT_Context* ctx, NDBT_Step* step)
     // replace by the Retrieved table
     pTab = pTab2;
 
-    int records = myRandom48(ctx->getNumRecords());
+    int records = ctx->getNumRecords();
     g_info << "2: load " << records << " records" << endl;
     HugoTransactions hugoTrans(*pTab);
     if (hugoTrans.loadTable(pNdb, records) != 0) {
@@ -1925,7 +1927,8 @@ runDictOps(NDBT_Context* ctx, NDBT_Step* step)
       result = NDBT_FAILED;
       break;
     }
-    if (pDic->getNdbError().code != 709) {
+    if (pDic->getNdbError().code != 709 &&
+        pDic->getNdbError().code != 723) {
       const NdbError err = pDic->getNdbError();
       g_err << "2: " << tabName << ": verify drop: " << err << endl;
       result = NDBT_FAILED;
