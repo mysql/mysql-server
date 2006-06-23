@@ -236,9 +236,9 @@ ENGINE =NDB;
  
  INSERT INTO t1 VALUES (1,1);
  INSERT INTO t1 VALUES (2,2);
- SELECT * FROM t1;
+ SELECT * FROM t1 order by a;
  INSERT INTO t2(a,b) SELECT * FROM t1;  
- SELECT * FROM t2;
+ SELECT * FROM t2 order by a;
  
 ### Select from disk into memory table ###
 
@@ -247,7 +247,7 @@ ENGINE =NDB;
  INSERT INTO t2 VALUES (3,3);
  INSERT INTO t2 VALUES (4,4);
  INSERT INTO t1(a,b) SELECT * FROM t2;  
- SELECT * FROM t1; 
+ SELECT * FROM t1 order by a; 
 
  DROP TABLE t1, t2;
 
@@ -463,8 +463,8 @@ while ($1)
 }
 enable_query_log; 
 
-SELECT * FROM test.t1;
-SELECT * FROM test.t2;
+SELECT * FROM test.t1 order by a1;
+SELECT * FROM test.t2 order by b1;
 SELECT COUNT(a1), a1, COUNT(a1)*a1 FROM test.t1 GROUP BY a1;
 SELECT COUNT(a2), (a2+1), COUNT(a2)*(a2+0) FROM test.t1 GROUP BY a2;
 
@@ -482,7 +482,7 @@ drop table test.t1;
 
 create table test.t1 (a char(1), key(a)) TABLESPACE ts1 STORAGE DISK ENGINE=NDB;
 insert into test.t1 values('1'),('1'),('1'),('2'),('2'),('3'),('3');
-select * from test.t1 where a >= '1'; 
+select * from test.t1 where a >= '1' order by a; 
 select distinct a from test.t1 order by a desc;
 select distinct a from test.t1 where a >= '1' order by a desc;
 select distinct a from test.t1 where a >= '1' order by a asc;
@@ -502,7 +502,7 @@ INSERT INTO test.t2(infoID, shipcode) VALUES
       (1, 'Z001'),
       (2, 'R002');
 
-SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 WHERE t1.infoID=t2.infoID;
+SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 WHERE t1.infoID=t2.infoID order by email;
 SELECT DISTINCTROW email FROM test.t1 ORDER BY dateentered DESC;
 SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 WHERE test.t1.infoID=test.t2.infoID ORDER BY dateentered DESC;
 drop table test.t1,test.t2;
