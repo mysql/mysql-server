@@ -1646,10 +1646,10 @@ void ha_binlog_log_query(THD *thd, const handlerton *db_type,
 void ha_binlog_wait(THD *thd);
 int ha_binlog_end(THD *thd);
 #else
-#define ha_reset_logs(a) 0
-#define ha_binlog_index_purge_file(a,b) 0
-#define ha_reset_slave(a)
-#define ha_binlog_log_query(a,b,c,d,e,f,g);
-#define ha_binlog_wait(a)
-#define ha_binlog_end(a) 0
+#define ha_reset_logs(a) do {} while (0)
+#define ha_binlog_index_purge_file(a,b) do {} while (0)
+#define ha_reset_slave(a) do {} while (0)
+#define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
+#define ha_binlog_wait(a) do {} while (0)
+#define ha_binlog_end(a)  do {} while (0)
 #endif
