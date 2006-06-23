@@ -1075,7 +1075,6 @@ sp_head::execute(THD *thd)
     thd->net.no_send_error= 0;
     if (i->free_list)
       cleanup_items(i->free_list);
-    i->state= Query_arena::EXECUTED;
     
     /* 
       If we've set thd->user_var_events_alloc to mem_root of this SP
@@ -2210,6 +2209,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     m_lex->mark_as_requiring_prelocking(NULL);
   }
   thd->rollback_item_tree_changes();
+  /* Update the state of the active arena. */
+  thd->stmt_arena->state= Query_arena::EXECUTED;
+
 
   /*
     Unlike for PS we should not call Item's destructors for newly created
