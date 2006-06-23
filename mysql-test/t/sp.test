@@ -5888,6 +5888,33 @@ DROP FUNCTION bug18037_f1|
 DROP PROCEDURE bug18037_p1|
 DROP PROCEDURE bug18037_p2|
 
+#
+# Bug#15217 "Using a SP cursor on a table created with PREPARE fails with
+#           weird error". Check that the code that is supposed to work at
+#           the first execution of a stored procedure actually works for
+#           sp_instr_copen.
+
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug15217|
+--enable_warnings
+create table t3 as select 1|
+create procedure bug15217()
+begin
+  declare var1 char(255);
+  declare cur1 cursor for select * from t3;
+  open cur1;
+  fetch cur1 into var1;
+  select concat('data was: /', var1, '/');
+  close cur1;
+end |
+# Returns expected result
+call bug15217()|
+flush tables |
+# Returns error with garbage as column name
+call bug15217()|
+drop table t3|
+drop procedure bug15217|
 
 #
 # BUG#NNNN: New bug synopsis
