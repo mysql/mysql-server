@@ -3823,7 +3823,9 @@ end_with_restore_list:
     uint rows_affected= 1;
     DBUG_ASSERT(lex->et);
     do {
-      if (! lex->et->dbname.str)
+      if (! lex->et->dbname.str ||
+          (lex->sql_command == SQLCOM_ALTER_EVENT && lex->spname &&
+           !lex->spname->m_db.str))
       {
         my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
         res= true;
@@ -3831,7 +3833,10 @@ end_with_restore_list:
       }
 
       if (check_access(thd, EVENT_ACL, lex->et->dbname.str, 0, 0, 0,
-                       is_schema_db(lex->et->dbname.str)))
+                       is_schema_db(lex->et->dbname.str)) ||
+          (lex->sql_command == SQLCOM_ALTER_EVENT && lex->spname &&
+           (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
+                         is_schema_db(lex->spname->m_db.str)))))
         break;
 
       if (end_active_trans(thd))
