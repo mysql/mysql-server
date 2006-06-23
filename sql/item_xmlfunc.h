@@ -42,7 +42,8 @@ public:
   Item_func_xml_extractvalue(Item *a,Item *b) :Item_xml_str_func(a,b) {}
   const char *func_name() const { return "extractvalue"; }
   String *val_str(String *);
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg)
+  { return safe_for_single_char_collation(int_arg);}
 };
 
 
