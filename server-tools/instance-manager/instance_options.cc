@@ -420,8 +420,13 @@ int Instance_options::complete_initialization(const char *default_path)
   const char *tmp;
   char *end;
 
-  if (!mysqld_path.str && !(mysqld_path.str= strdup_root(&alloc, default_path)))
-    goto err;
+  if (!mysqld_path.str)
+  {
+    // Need one extra byte, as convert_dirname() adds a slash at the end.
+    if (!(mysqld_path.str= alloc_root(&alloc, strlen(default_path) + 2)))
+      goto err;
+    strcpy(mysqld_path.str, default_path);
+  }
 
   // it's safe to cast this to char* since this is a buffer we are allocating
   end= convert_dirname((char*)mysqld_path.str, mysqld_path.str, NullS);
