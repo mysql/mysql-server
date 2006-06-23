@@ -1009,4 +1009,35 @@ ALTER TABLE t1 ADD KEY (a(10));
 SELECT * FROM t1 WHERE a LIKE 'KÃ¤li KÃ¤li 2%';
 DROP TABLE t1;
 
+#
+# Bug#18359: LIKE predicate for a 'utf8' text column with a partial index
+#            (see bug #16674 as well)
+#
+
+SET NAMES latin2;
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL default '0',
+  tid int(11) NOT NULL default '0',
+  val text NOT NULL,
+  INDEX idx(tid, val(10))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 VALUES
+  (40988,72,'VOLNÝ ADSL'),(41009,72,'VOLNÝ ADSL'),
+  (41032,72,'VOLNÝ ADSL'),(41038,72,'VOLNÝ ADSL'),
+  (41063,72,'VOLNÝ ADSL'),(41537,72,'VOLNÝ ADSL Office'),
+  (42141,72,'VOLNÝ ADSL'),(42565,72,'VOLNÝ ADSL Combi'),
+  (42749,72,'VOLNÝ ADSL'),(44205,72,'VOLNÝ ADSL');
+
+SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLNY ADSL'; 
+SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLNÝ ADSL'; 
+SELECT * FROM t1 WHERE tid=72 and val LIKE '%VOLNÝ ADSL'; 
+
+ALTER TABLE t1 DROP KEY idx;
+ALTER TABLE t1 ADD KEY idx (tid,val(11));
+
+SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLNÝ ADSL'; 
+
+DROP TABLE t1;
 # End of 4.1 tests
