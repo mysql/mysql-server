@@ -718,6 +718,9 @@ private:
   void checkPrepDropTabComplete(Signal *, TabRecordPtr tabPtr);
   void checkWaitDropTabFailedLqh(Signal *, Uint32 nodeId, Uint32 tableId);
 
+  void execDICT_LOCK_CONF(Signal* signal);
+  void execDICT_LOCK_REF(Signal* signal);
+
   // Statement blocks
 //------------------------------------
 // Methods that send signals
@@ -935,6 +938,7 @@ private:
   void initialStartCompletedLab(Signal *);
   void allNodesLcpCompletedLab(Signal *);
   void nodeRestartPh2Lab(Signal *);
+  void nodeRestartPh2Lab2(Signal *);
   void initGciFilesLab(Signal *);
   void dictStartConfLab(Signal *);
   void nodeDictStartConfLab(Signal *);
@@ -1603,6 +1607,30 @@ private:
   void startInfoReply(Signal *, Uint32 nodeId);
 
   void dump_replica_info();
+
+  /*
+   * Lock master DICT.  Only current use is by starting node
+   * during NR.  A pool of slave records is convenient anyway.
+   */
+  struct DictLockSlaveRecord {
+    Uint32 lockPtr;
+    Uint32 lockType;
+    bool locked;
+    Callback callback;
+    Uint32 nextPool;
+  };
+
+  typedef Ptr<DictLockSlaveRecord> DictLockSlavePtr;
+  ArrayPool<DictLockSlaveRecord> c_dictLockSlavePool;
+
+  // slave
+  void sendDictLockReq(Signal* signal, Uint32 lockType, Callback c);
+  void recvDictLockConf(Signal* signal);
+  void sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI);
+
+  // NR
+  Uint32 c_dictLockSlavePtrI_nodeRestart; // userPtr for NR
+  void recvDictLockConf_nodeRestart(Signal* signal, Uint32 data, Uint32 ret);
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
