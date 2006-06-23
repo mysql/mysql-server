@@ -74,3 +74,9 @@ ERROR HY000: Can't execute the query because you have a conflicting read lock
 UNLOCK TABLES;
 DROP DATABASE mysqltest_1;
 ERROR HY000: Can't drop database 'mysqltest_1'; database doesn't exist
+create table t1 (f1 int(12) unsigned not null auto_increment, primary key(f1)) engine=innodb;
+lock tables t1 write;
+ alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
+ alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
+unlock tables;
+drop table t1;
