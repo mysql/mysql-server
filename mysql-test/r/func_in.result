@@ -202,35 +202,6 @@ select count(*) from t1 where id not in (1,2);
 count(*)
 1
 drop table t1;
-create table t1 (f1 char(1), f2 int);
-insert into t1 values (1,0),('a',1),('z',2);
-select f1 from t1 where f1 in (1,'z');
-f1
-1
-z
-select f2 from t1 where f2 in (1,'z');
-f2
-0
-1
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'z'
-select f1 from t1 where 'z' in (1,f1);
-f1
-z
-select * from t1 where 'z' in (f2,f1);
-f1	f2
-1	0
-a	1
-z	2
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'z'
-Warning	1292	Truncated incorrect DOUBLE value: 'z'
-Warning	1292	Truncated incorrect DOUBLE value: 'z'
-select * from t1 where 1 in (f2,f1);
-f1	f2
-1	0
-a	1
-drop table t1;
 CREATE TABLE t1 (a int PRIMARY KEY);
 INSERT INTO t1 VALUES (44), (45), (46);
 SELECT * FROM t1 WHERE a IN (45);
