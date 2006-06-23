@@ -504,6 +504,7 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_TEXT:
     case HA_KEYTYPE_BINARY:
+    case HA_KEYTYPE_BIT:
       if (keyseg->flag & HA_SPACE_PACK)
       {
         int a_length;
@@ -515,7 +516,9 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
         a= end;
       break;
     case HA_KEYTYPE_VARTEXT1:
+    case HA_KEYTYPE_VARTEXT2:
     case HA_KEYTYPE_VARBINARY1:
+    case HA_KEYTYPE_VARBINARY2:
       {
         int a_length;
         get_key_length(a_length, a);
@@ -544,6 +547,9 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
     case HA_KEYTYPE_FLOAT:
     case HA_KEYTYPE_DOUBLE:
       a= end;
+      break;
+    case HA_KEYTYPE_END:
+      DBUG_ASSERT(0);
       break;
     }
   }
