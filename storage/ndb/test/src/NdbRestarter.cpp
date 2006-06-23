@@ -329,7 +329,10 @@ NdbRestarter::waitNodesState(int * _nodes, int _num_nodes,
       }
 
       g_info << "State node " << ndbNode->node_id << " "
-	     << ndb_mgm_get_node_status_string(ndbNode->node_status)<< endl;
+	     << ndb_mgm_get_node_status_string(ndbNode->node_status);
+      if (ndbNode->node_status == NDB_MGM_NODE_STATUS_STARTING)
+        g_info<< ", start_phase=" << ndbNode->start_phase;
+      g_info << endl;
 
       assert(ndbNode != NULL);
 
