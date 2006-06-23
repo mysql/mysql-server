@@ -446,3 +446,13 @@
    fun:ListAdd
    fun:_db_set_
 }
+
+{
+   dbug initialization by kill_server
+   Memcheck:Leak
+   fun:malloc
+   fun:DbugMalloc
+   fun:code_state
+   fun:_db_enter_
+   fun:kill_server
+}
