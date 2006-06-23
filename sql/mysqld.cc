@@ -343,7 +343,7 @@ static my_bool opt_sync_bdb_logs;
 
 bool opt_update_log, opt_bin_log;
 my_bool opt_log, opt_slow_log;
-uint log_output_options;
+ulong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
@@ -3225,7 +3225,7 @@ server.");
     {
       sql_print_error("CSV engine is not present, falling back to the "
                       "log files");
-      log_output_options= log_output_options & ~LOG_TABLE | LOG_FILE;
+      log_output_options= (log_output_options & ~LOG_TABLE) | LOG_FILE;
     }
 
     logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
@@ -6953,7 +6953,8 @@ static void mysql_init_variables(void)
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
-  opt_log= opt_update_log= opt_slow_log= 0;
+  opt_log= opt_slow_log= 0;
+  opt_update_log= 0;
   log_output_options= find_bit_type(log_output_str, &log_output_typelib);
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;

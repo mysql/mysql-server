@@ -101,7 +101,7 @@ static inline void bitmap_unlock(MY_BITMAP *map __attribute__((unused)))
 
 
 my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
-		    my_bool thread_safe)
+		    my_bool thread_safe __attribute__((unused)))
 {
   DBUG_ENTER("bitmap_init");
   if (!buf)
