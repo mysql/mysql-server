@@ -694,6 +694,7 @@ end:
     file                A reference to a handler of the table
     max_rows            Maximum number of rows stored in the table
     engine_type         Return value for used engine in partitions
+    check_partition_function Should we check the partition function
 
   RETURN VALUE
     TRUE                 Error, something went wrong
@@ -708,26 +709,42 @@ end:
 */
 
 bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
-                                          handler *file, ulonglong max_rows)
+                                          handler *file, ulonglong max_rows,
+                                          bool check_partition_function)
 {
   handlerton **engine_array= NULL;
   uint part_count= 0;
   uint i, tot_partitions;
   bool result= TRUE;
   char *same_name;
-  bool part_expression_ok= TRUE;
+  int part_expression_ok= PF_SAFE;
   DBUG_ENTER("partition_info::check_partition_info");
 
-  if (part_type != HASH_PARTITION || !list_of_part_fields)
-    part_expr->walk(&Item::check_partition_func_processor, 0,
-                    (byte*)(&part_expression_ok));
-  if (is_sub_partitioned() && !list_of_subpart_fields)
-    subpart_expr->walk(&Item::check_partition_func_processor, 0,
-                       (byte*)(&part_expression_ok));
-  if (!part_expression_ok)
+  pf_collation_allowed= PF_SAFE;
+  spf_collation_allowed= PF_SAFE;
+  if (check_partition_function)
   {
-    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-    goto end;
+    if (part_type != HASH_PARTITION || !list_of_part_fields)
+    {
+      part_expr->walk(&Item::check_partition_func_processor, 0,
+                      (byte*)(&part_expression_ok));
+      pf_collation_allowed= (char)part_expression_ok;
+      part_expression_ok= PF_SAFE;
+      if (is_sub_partitioned() && !list_of_subpart_fields)
+      {
+        subpart_expr->walk(&Item::check_partition_func_processor, 0,
+                           (byte*)(&part_expression_ok));
+      }
+      spf_collation_allowed= (char)part_expression_ok;
+    }
+    else
+      multi_char_collation_allowed= TRUE;
+    if (!pf_collation_allowed ||
+        !spf_collation_allowed)
+    {
+      my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+      goto end;
+    }
   }
   if (unlikely(!is_sub_partitioned() && 
                !(use_default_subpartitions && use_default_no_subpartitions)))
