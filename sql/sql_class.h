@@ -1415,21 +1415,25 @@ public:
   void restore_sub_statement_state(Sub_statement_state *backup);
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
-#ifdef HAVE_ROW_BASED_REPLICATION
   inline void set_current_stmt_binlog_row_based_if_mixed()
   {
+#ifdef HAVE_ROW_BASED_REPLICATION
     if (variables.binlog_format == BINLOG_FORMAT_MIXED)
       current_stmt_binlog_row_based= TRUE;
+#endif
   }
   inline void set_current_stmt_binlog_row_based()
   {
+#ifdef HAVE_ROW_BASED_REPLICATION
     current_stmt_binlog_row_based= TRUE;
+#endif
   }
   inline void clear_current_stmt_binlog_row_based()
   {
+#ifdef HAVE_ROW_BASED_REPLICATION
     current_stmt_binlog_row_based= FALSE;
-  }
 #endif
+  }
   inline void reset_current_stmt_binlog_row_based()
   {
 #ifdef HAVE_ROW_BASED_REPLICATION
