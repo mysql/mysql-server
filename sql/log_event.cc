@@ -5871,7 +5871,7 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
                         table_list->db, table_list->table_name);
         thd->query_error= 1;
       }
-      DBUG_RETURN(error);
+      goto err;
     }
 
     m_table= table_list->table;
@@ -5948,7 +5948,8 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
       }
 
       thd->query_error= 1;
-      DBUG_RETURN(ERR_BAD_TABLE_DEF);
+      error= ERR_BAD_TABLE_DEF;
+      goto err;
     }
 
     /*
@@ -5956,12 +5957,10 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
       locked by linking the table into the list of tables to lock, and
       tell the RLI that we are touching a table.
     */
-    if (!error)
-    {
-      table_list->next_global= table_list->next_local= rli->tables_to_lock;
-      rli->tables_to_lock= table_list;
-      rli->tables_to_lock_count++;
-    }
+    table_list->next_global= table_list->next_local= rli->tables_to_lock;
+    rli->tables_to_lock= table_list;
+    rli->tables_to_lock_count++;
+    /* 'memory' is freed in clear_tables_to_lock */
   }
 
   /*
@@ -5976,7 +5975,10 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
 
   if (likely(!error))
     rli->inc_event_relay_log_pos();
+  DBUG_RETURN(error);
 
+err:
+  my_free((gptr) memory, MYF(MY_WME));
   DBUG_RETURN(error);
 }
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
