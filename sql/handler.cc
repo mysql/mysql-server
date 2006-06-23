@@ -3328,16 +3328,18 @@ namespace
       if (likely(!(error= bitmap_init(&cols,
                                       use_bitbuf ? bitbuf : NULL,
                                       (n_fields + 7) & ~7UL,
-                                      false))))
+                                      FALSE))))
       {
         bitmap_set_all(&cols);
         if (likely(!(error= write_locked_table_maps(thd))))
         {
           error=
             RowsEventT::binlog_row_logging_function(thd, table,
-                                                    table->file->has_transactions(),
+                                                    table->file->
+                                                    has_transactions(),
                                                     &cols, table->s->fields,
-                                                    before_record, after_record);
+                                                    before_record,
+                                                    after_record);
         }
         if (!use_bitbuf)
           bitmap_free(&cols);
