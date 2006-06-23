@@ -72,7 +72,9 @@ uint dirname_part(my_string to, const char *name)
 
   SYNPOSIS
     convert_dirname()
-    to				Store result here
+    to				Store result here. Must be at least of size
+    				min(FN_REFLEN, strlen(from) + 1) to make room
+    				for adding FN_LIBCHAR at the end.
     from			Original filename. May be == to
     from_end			Pointer at end of filename (normally end \0)
 

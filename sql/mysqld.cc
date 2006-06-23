@@ -28,6 +28,10 @@
 
 #include "ha_myisam.h"
 
+#ifdef HAVE_ROW_BASED_REPLICATION
+#include "rpl_injector.h"
+#endif
+
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
 #define OPT_INNODB_DEFAULT 1
 #else
@@ -1185,6 +1189,9 @@ void clean_up(bool print_message)
     what they have that is dependent on the binlog
   */
   ha_binlog_end(current_thd);
+#ifdef HAVE_ROW_BASED_REPLICATION
+  injector::free_instance();
+#endif
   mysql_bin_log.cleanup();
 
 #ifdef HAVE_REPLICATION
@@ -1263,13 +1270,13 @@ void clean_up(bool print_message)
           MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
+  logger.cleanup_end();
   (void) pthread_mutex_lock(&LOCK_thread_count);
   DBUG_PRINT("quit", ("got thread count lock"));
   ready_to_exit=1;
   /* do the broadcast inside the lock to ensure that my_end() is not called */
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
-  logger.cleanup_end();
 
   /*
     The following lines may never be executed as the main thread may have
