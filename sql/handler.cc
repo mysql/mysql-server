@@ -3268,10 +3268,11 @@ namespace
 
     if (thd->get_binlog_table_maps() == 0)
     {
-      MYSQL_LOCK *const locks[] = {
-        thd->extra_lock, thd->lock, thd->locked_tables
-      };
-      for (my_ptrdiff_t i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
+      MYSQL_LOCK *locks[3];
+      locks[0]= thd->extra_lock;
+      locks[1]= thd->lock;
+      locks[2]= thd->locked_tables;
+      for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
       {
         MYSQL_LOCK const *const lock= locks[i];
         if (lock == NULL)
