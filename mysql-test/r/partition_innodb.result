@@ -92,3 +92,18 @@ DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t0_aux;
 DROP TABLE IF EXISTS t0_definition;
 DROP TABLE IF EXISTS t0_template;
+create table t1 (id varchar(64) primary key) engine=innodb
+partition by key(id) partitions 5;
+insert into t1 values ('a');
+insert into t1 values ('aa');
+insert into t1 values ('aaa');
+select * from t1 where id = 'a';
+id
+a
+select * from t1 where id = 'aa';
+id
+aa
+select * from t1 where id = 'aaa';
+id
+aaa
+drop table t1;
