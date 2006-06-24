@@ -392,8 +392,10 @@ drop table t1;
 # Bug #16546
 # 
 
-select now() - now() + 0, curtime() - curtime() + 0, 
-       sec_to_time(1) + 0, from_unixtime(1) + 0;
+create table t1 select now() - now(), curtime() - curtime(), 
+                       sec_to_time(1) + 0, from_unixtime(1) + 0;
+show create table t1;
+drop table t1;
 
 --echo End of 4.1 tests
 

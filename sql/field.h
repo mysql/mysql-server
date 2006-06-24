@@ -822,7 +822,7 @@ public:
     if ((*null_value= is_null()))
       return 0;
 #ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
+    if (table && table->s->db_low_byte_first)
       return sint4korr(ptr);
 #endif
     long tmp;

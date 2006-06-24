@@ -3381,15 +3381,6 @@ end_with_restore_list:
                                              &lex->value_list,
                                              lex->duplicates, lex->ignore)))
       {
-        /*
-          Skip first table, which is the table we are inserting in.
-          Below we set context.table_list again because the call above to
-          mysql_insert_select_prepare() calls resolve_in_table_list_only(),
-          which in turn resets context.table_list and
-          context.first_name_resolution_table.
-        */
-        select_lex->context.table_list= 
-          select_lex->context.first_name_resolution_table= second_table;
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
         /*
           Invalidate the table in the query cache if something changed
@@ -5243,11 +5234,10 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 
 
 /*
-  Check grants for commands which work only with one table and all other
-  tables belonging to subselects or implicitly opened tables.
+  Check grants for commands which work only with one table.
 
   SYNOPSIS
-    check_one_table_access()
+    check_single_table_access()
     thd			Thread handler
     privilege		requested privilege
     all_tables		global table list of query
@@ -5257,7 +5247,8 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     1 - access denied, error is sent to client
 */
 
-bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
+bool check_single_table_access(THD *thd, ulong privilege, 
+                               TABLE_LIST *all_tables)
 {
   Security_context * backup_ctx= thd->security_ctx;
 
@@ -5282,19 +5273,41 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
     goto deny;
 
   thd->security_ctx= backup_ctx;
+  return 0;
+
+deny:
+  thd->security_ctx= backup_ctx;
+  return 1;
+}
+
+/*
+  Check grants for commands which work only with one table and all other
+  tables belonging to subselects or implicitly opened tables.
+
+  SYNOPSIS
+    check_one_table_access()
+    thd			Thread handler
+    privilege		requested privilege
+    all_tables		global table list of query
+
+  RETURN
+    0 - OK
+    1 - access denied, error is sent to client
+*/
+
+bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
+{
+  if (check_single_table_access (thd,privilege,all_tables))
+    return 1;
 
   /* Check rights on tables of subselects and implictly opened tables */
   TABLE_LIST *subselects_tables;
   if ((subselects_tables= all_tables->next_global))
   {
     if ((check_table_access(thd, SELECT_ACL, subselects_tables, 0)))
-      goto deny;
+      return 1;
   }
   return 0;
-
-deny:
-  thd->security_ctx= backup_ctx;
-  return 1;
 }
 
 
@@ -5463,8 +5476,26 @@ bool check_global_access(THD *thd, ulong want_access)
 
 
 /*
-  Check the privilege for all used tables.  Table privileges are cached
-  in the table list for GRANT checking
+  Check the privilege for all used tables.
+
+  SYNOPSYS
+    check_table_access()
+      thd          Thread context
+      want_access  Privileges requested
+      tables       List of tables to be checked
+      no_errors    FALSE/TRUE - report/don't report error to
+                   the client (using my_error() call).
+
+  NOTES
+    Table privileges are cached in the table list for GRANT checking.
+    This functions assumes that table list used and
+    thd->lex->query_tables_own_last value correspond to each other
+    (the latter should be either 0 or point to next_global member
+    of one of elements of this table list).
+
+  RETURN VALUE
+    FALSE - OK
+    TRUE  - Access denied
 */
 
 bool
@@ -7377,14 +7408,28 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   TABLE_LIST *aux_tables=
     (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
+  TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
   DBUG_ENTER("multi_delete_precheck");
 
   /* sql_yacc guarantees that tables and aux_tables are not zero */
   DBUG_ASSERT(aux_tables != 0);
   if (check_db_used(thd, tables) || check_db_used(thd,aux_tables) ||
-      check_table_access(thd,SELECT_ACL, tables,0) ||
-      check_table_access(thd,DELETE_ACL, aux_tables,0))
+      check_table_access(thd, SELECT_ACL, tables, 0))
     DBUG_RETURN(TRUE);
+
+  /*
+    Since aux_tables list is not part of LEX::query_tables list we
+    have to juggle with LEX::query_tables_own_last value to be able
+    call check_table_access() safely.
+  */
+  thd->lex->query_tables_own_last= 0;
+  if (check_table_access(thd, DELETE_ACL, aux_tables, 0))
+  {
+    thd->lex->query_tables_own_last= save_query_tables_own_last;
+    DBUG_RETURN(TRUE);
+  }
+  thd->lex->query_tables_own_last= save_query_tables_own_last;
+
   if ((thd->options & OPTION_SAFE_UPDATES) && !select_lex->where)
   {
     my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
