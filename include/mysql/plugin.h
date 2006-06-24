@@ -31,6 +31,10 @@
 #define MYSQL_FTPARSER_PLUGIN        2  /* Full-text parser plugin      */
 #define MYSQL_MAX_PLUGIN_TYPE_NUM    3  /* The number of plugin types   */
 
+#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
+#define __attribute__(A)
+#endif
+
 /*
   Macros for beginning and ending plugin declarations.  Between
   mysql_declare_plugin and mysql_declare_plugin_end there should
