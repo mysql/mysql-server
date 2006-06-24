@@ -1046,6 +1046,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	}
       }
 
+
       for (i=0 ; i < keyinfo->key_parts ; key_part++,i++)
       {
         Field *field;

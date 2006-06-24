@@ -330,6 +330,16 @@ alter table t1 add key (c1,c1,c2);
 ERROR 42S21: Duplicate column name 'c1'
 drop table t1;
 create table t1 (
+i1 INT NOT NULL,
+i2 INT NOT NULL,
+UNIQUE i1idx (i1),
+UNIQUE i2idx (i2));
+desc t1;
+Field	Type	Null	Key	Default	Extra
+i1	int(11)	NO	UNI		
+i2	int(11)	NO	UNI		
+drop table t1;
+create table t1 (
 c1 int,
 c2 varchar(20) not null,
 primary key (c1),
