@@ -11,6 +11,7 @@
 connect (wait_con,localhost,root,,test,,);
 flush status; # Reset counters
 connection wait_con;
+set session wait_timeout=100;
 let $retries=300;
 let $aborted_clients = `SHOW STATUS LIKE 'aborted_clients'`;
 set @aborted_clients= 0;
