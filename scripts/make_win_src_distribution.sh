@@ -203,7 +203,7 @@ copy_dir_files()
        print_debug "Creating directory '$arg'"
        mkdir $BASE/$arg
      fi
-    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp *.yy \
+    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp *.yy *dsp *.dsw \
              README INSTALL* LICENSE AUTHORS NEWS ChangeLog \
              *.inc *.test *.result *.pem Moscow_leap des_key_file \
              *.vcproj *.sln *.dat *.000001 *.require *.opt

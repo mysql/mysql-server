@@ -2053,5 +2053,9 @@ SOURCE=.\unireg.cpp
 !ENDIF
 
 # End Source File
+# Begin Source File
+
+SOURCE=..\sql-common\my_user.c
+# End Source File
 # End Target
 # End Project
