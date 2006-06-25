@@ -138,7 +138,8 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
       }
       continue;
     }
-    if ((res= items[i]->real_item()->type()) == Item::FIELD_ITEM)
+    if ((res= items[i]->real_item()->type()) == Item::FIELD_ITEM &&
+        items[i]->result_type() != INT_RESULT)
     {
       field= ((Item_field *)items[i]->real_item())->field;
       break;
