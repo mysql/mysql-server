@@ -2465,7 +2465,8 @@ Suma::execSUB_STOP_REQ(Signal* signal){
 
   TablePtr tabPtr;
   tabPtr.i = subPtr.p->m_table_ptrI;
-  if (!(tabPtr.p = c_tables.getPtr(tabPtr.i)) ||
+  if (tabPtr.i == RNIL ||
+      !(tabPtr.p = c_tables.getPtr(tabPtr.i)) ||
       tabPtr.p->m_tableId != subPtr.p->m_tableId)
   {
     jam();
