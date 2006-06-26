@@ -204,6 +204,8 @@ static void check_locks(THR_LOCK *lock, const char *where,
       {
 	if ((int) data->type == (int) TL_READ_NO_INSERT)
 	  count++;
+        /* Protect against infinite loop. */
+        DBUG_ASSERT(count <= lock->read_no_write_count);
       }
       if (count != lock->read_no_write_count)
       {
