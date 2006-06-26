@@ -1,3 +1,6 @@
+# Can't test with embedded server that doesn't support grants
+-- source include/not_embedded.inc
+
 CREATE DATABASE IF NOT EXISTS events_test;
 #
 # DROP DATABASE test start (bug #16406)

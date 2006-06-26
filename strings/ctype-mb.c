@@ -24,12 +24,12 @@
 void my_caseup_str_mb(CHARSET_INFO * cs, char *str)
 {
   register uint32 l;
-  register char *end=str+strlen(str); /* BAR TODO: remove strlen() call */
   register uchar *map=cs->to_upper;
   
   while (*str)
   {
-    if ((l=my_ismbchar(cs, str,end)))
+    /* Pointing after the '\0' is safe here. */
+    if ((l=my_ismbchar(cs, str, str + cs->mbmaxlen)))
       str+=l;
     else
     { 
@@ -42,12 +42,12 @@ void my_caseup_str_mb(CHARSET_INFO * cs, char *str)
 void my_casedn_str_mb(CHARSET_INFO * cs, char *str)
 {
   register uint32 l;
-  register char *end=str+strlen(str);
   register uchar *map=cs->to_lower;
   
   while (*str)
   {
-    if ((l=my_ismbchar(cs, str,end)))
+    /* Pointing after the '\0' is safe here. */
+    if ((l=my_ismbchar(cs, str, str + cs->mbmaxlen)))
       str+=l;
     else
     {
@@ -101,15 +101,18 @@ uint my_casedn_mb(CHARSET_INFO * cs, char *src, uint srclen,
   return srclen;
 }
 
+/*
+  my_strcasecmp_mb() returns 0 if strings are equal, non-zero otherwise.
+ */
 int my_strcasecmp_mb(CHARSET_INFO * cs,const char *s, const char *t)
 {
   register uint32 l;
-  register const char *end=s+strlen(s);
   register uchar *map=cs->to_upper;
   
-  while (s<end)
+  while (*s && *t)
   {
-    if ((l=my_ismbchar(cs, s,end)))
+    /* Pointing after the '\0' is safe here. */
+    if ((l=my_ismbchar(cs, s, s + cs->mbmaxlen)))
     {
       while (l--)
         if (*s++ != *t++) 
@@ -120,7 +123,8 @@ int my_strcasecmp_mb(CHARSET_INFO * cs,const char *s, const char *t)
     else if (map[(uchar) *s++] != map[(uchar) *t++])
       return 1;
   }
-  return *t;
+  /* At least one of '*s' and '*t' is zero here. */
+  return (*t != *s);
 }
 
 
