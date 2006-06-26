@@ -9476,7 +9476,14 @@ Dbdict::createEventComplete_RT_USER_GET(Signal* signal,
 
   NodeReceiverGroup rg(DBDICT, c_aliveNodes);
   RequestTracker & p = evntRecPtr.p->m_reqTracker;
-  p.init<CreateEvntRef>(c_counterMgr, rg, GSN_CREATE_EVNT_REF, evntRecPtr.i);
+  if (!p.init<CreateEvntRef>(c_counterMgr, rg, GSN_CREATE_EVNT_REF, 
+			     evntRecPtr.i))
+  {
+    jam();
+    evntRecPtr.p->m_errorCode = 701;
+    createEvent_sendReply(signal, evntRecPtr);
+    return;
+  }
 
   sendSignal(rg, GSN_CREATE_EVNT_REQ, signal, CreateEvntReq::SignalLength, JBB);
 }
@@ -9764,8 +9771,12 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
     return;
   }
   OpSubEventPtr subbPtr;
+  Uint32 errCode = 0;
   if (!c_opSubEvent.seize(subbPtr)) {
+    errCode = SubStartRef::Busy;
+busy:
     SubStartRef * ref = (SubStartRef *)signal->getDataPtrSend();
+
     { // fix
       Uint32 subcriberRef = ((SubStartReq*)signal->getDataPtr())->subscriberRef;
       ref->subscriberRef = subcriberRef;
@@ -9775,7 +9786,7 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
     //      ret->setErrorLine(__LINE__);
     //      ret->setErrorNode(reference());
     ref->senderRef = reference();
-    ref->errorCode = SubStartRef::Busy;
+    ref->errorCode = errCode;
 
     sendSignal(origSenderRef, GSN_SUB_START_REF, signal,
 	       SubStartRef::SignalLength2, JBB);
@@ -9798,7 +9809,12 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
     subbPtr.p->m_senderRef = origSenderRef; // not sure if API sets correctly
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
     RequestTracker & p = subbPtr.p->m_reqTracker;
-    p.init<SubStartRef>(c_counterMgr, rg, GSN_SUB_START_REF, subbPtr.i);
+    if (!p.init<SubStartRef>(c_counterMgr, rg, GSN_SUB_START_REF, subbPtr.i))
+    {
+      c_opSubEvent.release(subbPtr);
+      errCode = SubStartRef::Busy;
+      goto busy;
+    }
     
     SubStartReq* req = (SubStartReq*) signal->getDataPtrSend();
     
@@ -9988,14 +10004,17 @@ void Dbdict::execSUB_STOP_REQ(Signal* signal)
     return;
   }
   OpSubEventPtr subbPtr;
+  Uint32 errCode = 0;
   if (!c_opSubEvent.seize(subbPtr)) {
+    errCode = SubStopRef::Busy;
+busy:
     SubStopRef * ref = (SubStopRef *)signal->getDataPtrSend();
     jam();
     //      ret->setErrorCode(SubStartRef::SeizeError);
     //      ret->setErrorLine(__LINE__);
     //      ret->setErrorNode(reference());
     ref->senderRef = reference();
-    ref->errorCode = SubStopRef::Busy;
+    ref->errorCode = errCode;
 
     sendSignal(origSenderRef, GSN_SUB_STOP_REF, signal,
 	       SubStopRef::SignalLength, JBB);
@@ -10020,10 +10039,16 @@ void Dbdict::execSUB_STOP_REQ(Signal* signal)
     subbPtr.p->m_senderRef = origSenderRef; // not sure if API sets correctly
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
     RequestTracker & p = subbPtr.p->m_reqTracker;
-    p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF, subbPtr.i);
-
+    if (!p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF, subbPtr.i))
+    {
+      jam();
+      c_opSubEvent.release(subbPtr);
+      errCode = SubStopRef::Busy;
+      goto busy;
+    }
+    
     SubStopReq* req = (SubStopReq*) signal->getDataPtrSend();
-
+    
     req->senderRef  = reference();
     req->senderData = subbPtr.i;
     
@@ -10313,9 +10338,14 @@ Dbdict::dropEventUTIL_EXECUTE_READ(Signal* signal,
 
   NodeReceiverGroup rg(DBDICT, c_aliveNodes);
   RequestTracker & p = evntRecPtr.p->m_reqTracker;
-  p.init<SubRemoveRef>(c_counterMgr, rg, GSN_SUB_REMOVE_REF,
-						evntRecPtr.i);
-
+  if (!p.init<SubRemoveRef>(c_counterMgr, rg, GSN_SUB_REMOVE_REF,
+			    evntRecPtr.i))
+  {
+    evntRecPtr.p->m_errorCode = 701;
+    dropEvent_sendReply(signal, evntRecPtr);
+    return;
+  }
+  
   SubRemoveReq* req = (SubRemoveReq*) signal->getDataPtrSend();
 
   req->senderRef       = reference();
