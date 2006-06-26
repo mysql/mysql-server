@@ -1,3 +1,6 @@
+show variables like 'collation_server';
+Variable_name	Value
+collation_server	ucs2_unicode_ci
 show variables like "%character_set_ser%";
 Variable_name	Value
 character_set_server	ucs2
