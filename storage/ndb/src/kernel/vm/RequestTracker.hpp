@@ -26,12 +26,12 @@ public:
   void init() { m_confs.clear(); m_nRefs = 0; }
 
   template<typename SignalClass>
-  void init(SafeCounterManager& mgr,
+  bool init(SafeCounterManager& mgr,
 	    NodeReceiverGroup rg, Uint16 GSN, Uint32 senderData)
   {
     init();
     SafeCounter tmp(mgr, m_sc);
-    tmp.init<SignalClass>(rg, GSN, senderData);
+    return tmp.init<SignalClass>(rg, GSN, senderData);
   }
 
   bool ignoreRef(SafeCounterManager& mgr, Uint32 nodeId)
