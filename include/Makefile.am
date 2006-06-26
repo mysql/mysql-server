@@ -32,7 +32,8 @@ noinst_HEADERS =	config-win.h config-netware.h \
 			thr_lock.h t_ctype.h violite.h md5.h base64.h \
 			mysql_version.h.in my_handler.h my_time.h decimal.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
-			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h
+			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
+			my_libwrap.h
 
 # mysql_version.h are generated
 CLEANFILES =            mysql_version.h my_config.h readline openssl
