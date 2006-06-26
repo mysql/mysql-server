@@ -533,9 +533,11 @@ BackupRestore::object(Uint32 type, const void * ptr)
     if (!m_no_restore_disk)
     {
       NdbDictionary::Datafile old(*(NdbDictionary::Datafile*)ptr);
-      NdbDictionary::Tablespace * ts = m_tablespaces[old.getTablespaceId()];
+      NdbDictionary::ObjectId objid;
+      old.getTablespaceId(&objid);
+      NdbDictionary::Tablespace * ts = m_tablespaces[objid.getObjectId()];
       debug << "Connecting datafile " << old.getPath() 
-	    << " to tablespace: oldid: " << old.getTablespaceId() 
+	    << " to tablespace: oldid: " << objid.getObjectId()
 	    << " newid: " << ts->getObjectId() << endl;
       old.setTablespace(* ts);
       info << "Creating datafile \"" << old.getPath() << "\"..." << flush;
@@ -554,10 +556,11 @@ BackupRestore::object(Uint32 type, const void * ptr)
     if (!m_no_restore_disk)
     {
       NdbDictionary::Undofile old(*(NdbDictionary::Undofile*)ptr);
-      NdbDictionary::LogfileGroup * lg = 
-	m_logfilegroups[old.getLogfileGroupId()];
+      NdbDictionary::ObjectId objid;
+      old.getLogfileGroupId(&objid);
+      NdbDictionary::LogfileGroup * lg = m_logfilegroups[objid.getObjectId()];
       debug << "Connecting undofile " << old.getPath() 
-	    << " to logfile group: oldid: " << old.getLogfileGroupId() 
+	    << " to logfile group: oldid: " << objid.getObjectId()
 	    << " newid: " << lg->getObjectId() 
 	    << " " << (void*)lg << endl;
       old.setLogfileGroup(* lg);

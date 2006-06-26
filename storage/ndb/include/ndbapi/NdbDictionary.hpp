@@ -184,7 +184,7 @@ public:
     virtual int getObjectId() const;
     
   private:
-    friend class Dictionary;
+    friend class NdbDictObjectImpl;
     class NdbDictObjectImpl & m_impl;
   };
   
@@ -1462,11 +1462,11 @@ public:
     void setSize(Uint64);
     Uint64 getSize() const;
     Uint64 getFree() const;
-
+    
     void setTablespace(const char * name);
     void setTablespace(const class Tablespace &);
     const char * getTablespace() const;
-    Uint32 getTablespaceId() const;
+    void getTablespaceId(ObjectId * dst) const;
 
     void setNode(Uint32 nodeId);
     Uint32 getNode() const;
@@ -1509,7 +1509,7 @@ public:
     void setLogfileGroup(const char * name);
     void setLogfileGroup(const class LogfileGroup &);
     const char * getLogfileGroup() const;
-    Uint32 getLogfileGroupId() const;
+    void getLogfileGroupId(ObjectId * dst) const;
 
     void setNode(Uint32 nodeId);
     Uint32 getNode() const;
