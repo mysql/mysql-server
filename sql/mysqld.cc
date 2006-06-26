@@ -116,16 +116,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/utsname.h>
 #endif /* __WIN__ */
 
-#ifdef HAVE_LIBWRAP
-#include <tcpd.h>
-#include <syslog.h>
-#ifdef NEED_SYS_SYSLOG_H
-#include <sys/syslog.h>
-#endif /* NEED_SYS_SYSLOG_H */
-int allow_severity = LOG_INFO;
-int deny_severity = LOG_WARNING;
-
-#endif /* HAVE_LIBWRAP */
+#include <my_libwrap.h>
 
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
@@ -687,6 +678,8 @@ static const char* default_dbug_option;
 #endif
 #ifdef HAVE_LIBWRAP
 const char *libwrapName= NULL;
+int allow_severity = LOG_INFO;
+int deny_severity = LOG_WARNING;
 #endif
 #ifdef HAVE_QUERY_CACHE
 static ulong query_cache_limit= 0;
@@ -4239,8 +4232,8 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	struct request_info req;
 	signal(SIGCHLD, SIG_DFL);
 	request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, new_sock, NULL);
-	fromhost(&req);
-	if (!hosts_access(&req))
+	my_fromhost(&req);
+	if (!my_hosts_access(&req))
 	{
 	  /*
 	    This may be stupid but refuse() includes an exit(0)
@@ -4248,7 +4241,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	    clean_exit() - same stupid thing ...
 	  */
 	  syslog(deny_severity, "refused connect from %s",
-		 eval_client(&req));
+		 my_eval_client(&req));
 
 	  /*
 	    C++ sucks (the gibberish in front just translates the supplied

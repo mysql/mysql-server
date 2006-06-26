@@ -34,12 +34,10 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysql_create_system_tables
 
 noinst_SCRIPTS =	make_binary_distribution \
-			make_sharedlib_distribution \
-			make_win_src_distribution
+			make_sharedlib_distribution
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_sharedlib_distribution.sh \
-			make_win_src_distribution.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
 			mysql_fix_privilege_tables.sh \
@@ -83,7 +81,6 @@ CLEANFILES =		@server_scripts@ \
 			mysqldumpslow \
 			mysql_tableinfo \
 			mysqld_multi \
-			make_win_src_distribution \
 			mysql_create_system_tables
 
 DISTCLEANFILES =        mysqlbug
