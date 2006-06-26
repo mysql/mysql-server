@@ -783,6 +783,7 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
 #endif
 
+  Query_log_event();
   Query_log_event(const char* buf, uint event_len,
                   const Format_description_log_event *description_event,
                   Log_event_type event_type);
@@ -805,6 +806,26 @@ public:
   virtual ulong get_post_header_size_for_derived() { return 0; }
   /* Writes derived event-specific part of post header. */
 };
+
+
+/*****************************************************************************
+
+  Muted Query Log Event class
+
+  Pretends to Log SQL queries, but doesn't actually do so.
+
+ ****************************************************************************/
+class Muted_query_log_event: public Query_log_event
+{
+public:
+#ifndef MYSQL_CLIENT
+  Muted_query_log_event();
+
+  bool write(IO_CACHE* file) { return(false); };
+  virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
+#endif
+};
+
 
 #ifdef HAVE_REPLICATION
 

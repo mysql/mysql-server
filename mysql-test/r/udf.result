@@ -76,6 +76,24 @@ call XXX2();
 metaphon(testval)
 HL
 drop procedure xxx2;
+CREATE TABLE bug19904(n INT, v varchar(10));
+INSERT INTO bug19904 VALUES (1,'one'),(2,'two'),(NULL,NULL),(3,'three'),(4,'four');
+SELECT myfunc_double(n) AS f FROM bug19904;
+f
+49.00
+50.00
+NULL
+51.00
+52.00
+SELECT metaphon(v) AS f FROM bug19904;
+f
+ON
+TW
+NULL
+0R
+FR
+DROP TABLE bug19904;
+End of 5.0 tests.
 DROP FUNCTION metaphon;
 DROP FUNCTION myfunc_double;
 DROP FUNCTION myfunc_nonexist;
