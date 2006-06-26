@@ -1581,9 +1581,8 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   // save old db in case we are creating in a different database
   save_db = thd->db;
   save_db_length= thd->db_length;
-  thd->db = (char*)db;
-  DBUG_ASSERT(thd->db != 0);
-  thd->db_length= strlen(thd->db);
+  DBUG_ASSERT(db != 0);
+  thd->reset_db((char*)db, strlen(db));
   mysql_parse(thd, thd->query, packet_len); // run create table
   thd->db = save_db;		// leave things the way the were before
   thd->db_length= save_db_length;
@@ -3713,8 +3712,9 @@ err:
   sql_print_information("Slave I/O thread exiting, read up to log '%s', position %s",
 		  IO_RPL_LOG_NAME, llstr(mi->master_log_pos,llbuff));
   VOID(pthread_mutex_lock(&LOCK_thread_count));
-  thd->query = thd->db = 0; // extra safety
-  thd->query_length= thd->db_length= 0;
+  thd->query= 0; // extra safety
+  thd->query_length= 0;
+  thd->reset_db(NULL, 0);
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (mysql)
   {
@@ -3932,8 +3932,10 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
     should already have done these assignments (each event which sets these
     variables is supposed to set them to 0 before terminating)).
   */
-  thd->query= thd->db= thd->catalog= 0; 
-  thd->query_length= thd->db_length= 0;
+  thd->catalog= 0; 
+  thd->reset_db(NULL, 0);
+  thd->query= 0; 
+  thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&rli->run_lock);
