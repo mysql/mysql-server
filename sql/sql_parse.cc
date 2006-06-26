@@ -5469,8 +5469,26 @@ bool check_global_access(THD *thd, ulong want_access)
 
 
 /*
-  Check the privilege for all used tables.  Table privileges are cached
-  in the table list for GRANT checking
+  Check the privilege for all used tables.
+
+  SYNOPSYS
+    check_table_access()
+      thd          Thread context
+      want_access  Privileges requested
+      tables       List of tables to be checked
+      no_errors    FALSE/TRUE - report/don't report error to
+                   the client (using my_error() call).
+
+  NOTES
+    Table privileges are cached in the table list for GRANT checking.
+    This functions assumes that table list used and
+    thd->lex->query_tables_own_last value correspond to each other
+    (the latter should be either 0 or point to next_global member
+    of one of elements of this table list).
+
+  RETURN VALUE
+    FALSE - OK
+    TRUE  - Access denied
 */
 
 bool
@@ -7383,14 +7401,28 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   TABLE_LIST *aux_tables=
     (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
+  TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
   DBUG_ENTER("multi_delete_precheck");
 
   /* sql_yacc guarantees that tables and aux_tables are not zero */
   DBUG_ASSERT(aux_tables != 0);
   if (check_db_used(thd, tables) || check_db_used(thd,aux_tables) ||
-      check_table_access(thd,SELECT_ACL, tables,0) ||
-      check_table_access(thd,DELETE_ACL, aux_tables,0))
+      check_table_access(thd, SELECT_ACL, tables, 0))
     DBUG_RETURN(TRUE);
+
+  /*
+    Since aux_tables list is not part of LEX::query_tables list we
+    have to juggle with LEX::query_tables_own_last value to be able
+    call check_table_access() safely.
+  */
+  thd->lex->query_tables_own_last= 0;
+  if (check_table_access(thd, DELETE_ACL, aux_tables, 0))
+  {
+    thd->lex->query_tables_own_last= save_query_tables_own_last;
+    DBUG_RETURN(TRUE);
+  }
+  thd->lex->query_tables_own_last= save_query_tables_own_last;
+
   if ((thd->options & OPTION_SAFE_UPDATES) && !select_lex->where)
   {
     my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
