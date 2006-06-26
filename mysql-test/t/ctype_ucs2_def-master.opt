@@ -1,1 +1,1 @@
---default-character-set=ucs2 --default-collation=ucs2_unicode_ci
+--default-collation=ucs2_unicode_ci --default-character-set=ucs2
