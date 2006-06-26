@@ -4391,19 +4391,23 @@ NdbUndofileImpl::assign(const NdbUndofileImpl& org)
 }
 
 int 
-NdbDictionaryImpl::createDatafile(const NdbDatafileImpl & file, bool force){
+NdbDictionaryImpl::createDatafile(const NdbDatafileImpl & file, 
+				  bool force,
+				  NdbDictObjectImpl* obj)
+  
+{
   DBUG_ENTER("NdbDictionaryImpl::createDatafile");
   NdbFilegroupImpl tmp(NdbDictionary::Object::Tablespace);
   if(file.m_filegroup_version != ~(Uint32)0){
     tmp.m_id = file.m_filegroup_id;
     tmp.m_version = file.m_filegroup_version;
-    DBUG_RETURN(m_receiver.create_file(file, tmp));
+    DBUG_RETURN(m_receiver.create_file(file, tmp, force, obj));
   }
   
   
   if(m_receiver.get_filegroup(tmp, NdbDictionary::Object::Tablespace,
 			      file.m_filegroup_name.c_str()) == 0){
-    DBUG_RETURN(m_receiver.create_file(file, tmp, force));
+    DBUG_RETURN(m_receiver.create_file(file, tmp, force, obj));
   }
   DBUG_RETURN(-1); 
 }
@@ -4414,53 +4418,65 @@ NdbDictionaryImpl::dropDatafile(const NdbDatafileImpl & file){
 }
 
 int
-NdbDictionaryImpl::createUndofile(const NdbUndofileImpl & file, bool force){
+NdbDictionaryImpl::createUndofile(const NdbUndofileImpl & file, 
+				  bool force,
+				  NdbDictObjectImpl* obj)
+{
   DBUG_ENTER("NdbDictionaryImpl::createUndofile");
   NdbFilegroupImpl tmp(NdbDictionary::Object::LogfileGroup);
   if(file.m_filegroup_version != ~(Uint32)0){
     tmp.m_id = file.m_filegroup_id;
     tmp.m_version = file.m_filegroup_version;
-    DBUG_RETURN(m_receiver.create_file(file, tmp));
+    DBUG_RETURN(m_receiver.create_file(file, tmp, force, obj));
   }
   
   
   if(m_receiver.get_filegroup(tmp, NdbDictionary::Object::LogfileGroup,
 			      file.m_filegroup_name.c_str()) == 0){
-    DBUG_RETURN(m_receiver.create_file(file, tmp, force));
+    DBUG_RETURN(m_receiver.create_file(file, tmp, force, obj));
   }
   DBUG_PRINT("info", ("Failed to find filegroup"));
   DBUG_RETURN(-1);
 }
 
 int
-NdbDictionaryImpl::dropUndofile(const NdbUndofileImpl & file){
+NdbDictionaryImpl::dropUndofile(const NdbUndofileImpl & file)
+{
   return m_receiver.drop_file(file);
 }
 
 int
-NdbDictionaryImpl::createTablespace(const NdbTablespaceImpl & fg){
-  return m_receiver.create_filegroup(fg);
+NdbDictionaryImpl::createTablespace(const NdbTablespaceImpl & fg,
+				    NdbDictObjectImpl* obj)
+{
+  return m_receiver.create_filegroup(fg, obj);
 }
 
 int
-NdbDictionaryImpl::dropTablespace(const NdbTablespaceImpl & fg){
+NdbDictionaryImpl::dropTablespace(const NdbTablespaceImpl & fg)
+{
   return m_receiver.drop_filegroup(fg);
 }
 
 int
-NdbDictionaryImpl::createLogfileGroup(const NdbLogfileGroupImpl & fg){
- return m_receiver.create_filegroup(fg);
+NdbDictionaryImpl::createLogfileGroup(const NdbLogfileGroupImpl & fg,
+				      NdbDictObjectImpl* obj)
+{
+  return m_receiver.create_filegroup(fg, obj);
 }
 
 int
-NdbDictionaryImpl::dropLogfileGroup(const NdbLogfileGroupImpl & fg){
+NdbDictionaryImpl::dropLogfileGroup(const NdbLogfileGroupImpl & fg)
+{
   return m_receiver.drop_filegroup(fg);
 }
 
 int
 NdbDictInterface::create_file(const NdbFileImpl & file,
 			      const NdbFilegroupImpl & group,
-			      bool overwrite){
+			      bool overwrite,
+			      NdbDictObjectImpl* obj)
+{
   DBUG_ENTER("NdbDictInterface::create_file"); 
   UtilBufferWriter w(m_buffer);
   DictFilegroupInfo::File f; f.init();
@@ -4503,23 +4519,39 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
     Send signal without time-out since creating files can take a very long
     time if the file is very big.
   */
-  DBUG_RETURN(dictSignal(&tSignal, ptr, 1,
-	                 0, // master
-		         WAIT_CREATE_INDX_REQ,
-		         -1, 100,
-		         err));
+  int ret = dictSignal(&tSignal, ptr, 1,
+		       0, // master
+		       WAIT_CREATE_INDX_REQ,
+		       -1, 100,
+		       err);
+
+  if (ret == 0 && obj)
+  {
+    Uint32* data = (Uint32*)m_buffer.get_data();
+    obj->m_id = data[0];
+    obj->m_version = data[1];
+  }
+
+  DBUG_RETURN(ret);
 }
 
 void
 NdbDictInterface::execCREATE_FILE_CONF(NdbApiSignal * signal,
-					    LinearSectionPtr ptr[3])
+				       LinearSectionPtr ptr[3])
 {
+  const CreateFileConf* conf=
+    CAST_CONSTPTR(CreateFileConf, signal->getDataPtr());
+  m_buffer.grow(4 * 2); // 2 words
+  Uint32* data = (Uint32*)m_buffer.get_data();
+  data[0] = conf->fileId;
+  data[1] = conf->fileVersion;
+  
   m_waiter.signal(NO_WAIT);  
 }
 
 void
 NdbDictInterface::execCREATE_FILE_REF(NdbApiSignal * signal,
-					   LinearSectionPtr ptr[3])
+				      LinearSectionPtr ptr[3])
 {
   const CreateFileRef* ref = 
     CAST_CONSTPTR(CreateFileRef, signal->getDataPtr());
@@ -4529,7 +4561,8 @@ NdbDictInterface::execCREATE_FILE_REF(NdbApiSignal * signal,
 }
 
 int
-NdbDictInterface::drop_file(const NdbFileImpl & file){
+NdbDictInterface::drop_file(const NdbFileImpl & file)
+{
   DBUG_ENTER("NdbDictInterface::drop_file");
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
@@ -4569,7 +4602,9 @@ NdbDictInterface::execDROP_FILE_REF(NdbApiSignal * signal,
 }
 
 int
-NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group){
+NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
+				   NdbDictObjectImpl* obj)
+{
   DBUG_ENTER("NdbDictInterface::create_filegroup");
   UtilBufferWriter w(m_buffer);
   DictFilegroupInfo::Filegroup fg; fg.init();
@@ -4638,17 +4673,32 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group){
   ptr[0].sz = m_buffer.length() / 4;
 
   int err[] = { CreateFilegroupRef::Busy, CreateFilegroupRef::NotMaster, 0};
-  DBUG_RETURN(dictSignal(&tSignal, ptr, 1,
-	                 0, // master
-		         WAIT_CREATE_INDX_REQ,
-		         DICT_WAITFOR_TIMEOUT, 100,
-		         err));
+  int ret = dictSignal(&tSignal, ptr, 1,
+		       0, // master
+		       WAIT_CREATE_INDX_REQ,
+		       DICT_WAITFOR_TIMEOUT, 100,
+		       err);
+  
+  if (ret == 0 && obj)
+  {
+    Uint32* data = (Uint32*)m_buffer.get_data();
+    obj->m_id = data[0];
+    obj->m_version = data[1];
+  }
+  
+  DBUG_RETURN(ret);
 }
 
 void
 NdbDictInterface::execCREATE_FILEGROUP_CONF(NdbApiSignal * signal,
 					    LinearSectionPtr ptr[3])
 {
+  const CreateFilegroupConf* conf=
+    CAST_CONSTPTR(CreateFilegroupConf, signal->getDataPtr());
+  m_buffer.grow(4 * 2); // 2 words
+  Uint32* data = (Uint32*)m_buffer.get_data();
+  data[0] = conf->filegroupId;
+  data[1] = conf->filegroupVersion;
   m_waiter.signal(NO_WAIT);  
 }
 
@@ -4664,7 +4714,8 @@ NdbDictInterface::execCREATE_FILEGROUP_REF(NdbApiSignal * signal,
 }
 
 int
-NdbDictInterface::drop_filegroup(const NdbFilegroupImpl & group){
+NdbDictInterface::drop_filegroup(const NdbFilegroupImpl & group)
+{
   DBUG_ENTER("NdbDictInterface::drop_filegroup");
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
