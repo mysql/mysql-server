@@ -502,7 +502,7 @@ INSERT INTO test.t2(infoID, shipcode) VALUES
       (1, 'Z001'),
       (2, 'R002');
 
-SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 WHERE t1.infoID=t2.infoID order by email;
+SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 WHERE t1.infoID=t2.infoID order by email, shipcode;
 SELECT DISTINCTROW email FROM test.t1 ORDER BY dateentered DESC;
 SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 WHERE test.t1.infoID=test.t2.infoID ORDER BY dateentered DESC;
 drop table test.t1,test.t2;

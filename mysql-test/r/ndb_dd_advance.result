@@ -853,11 +853,11 @@ INSERT INTO test.t1 (email, infoID, dateentered) VALUES
 INSERT INTO test.t2(infoID, shipcode) VALUES
 (1, 'Z001'),
 (2, 'R002');
-SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 WHERE t1.infoID=t2.infoID order by email;
+SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 WHERE t1.infoID=t2.infoID order by email, shipcode;
 email	shipcode
 test1@testdomain.com	Z001
-test2@testdomain.com	Z001
 test2@testdomain.com	R002
+test2@testdomain.com	Z001
 test3@testdomain.com	Z001
 SELECT DISTINCTROW email FROM test.t1 ORDER BY dateentered DESC;
 email
