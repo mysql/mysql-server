@@ -1146,4 +1146,122 @@ execute stmt;
 execute stmt;
 deallocate prepare stmt;
 drop table t1, t2, t3;
+
+#
+# Bug#17199 "Table not found" error occurs if the query contains a call
+#            to a function from another database.
+#            Test prepared statements- related behaviour.
+#
+#
+# ALTER TABLE RENAME and Prepared Statements: wrong DB name buffer was used
+# in ALTER ... RENAME which caused memory corruption in prepared statements.
+# No need to fix this problem in 4.1 as ALTER TABLE is not allowed in
+# Prepared Statements in 4.1.
+#
+create database mysqltest_long_database_name_to_thrash_heap;
+use test;
+create table t1 (i int);
+prepare stmt from "alter table test.t1 rename t1";
+use mysqltest_long_database_name_to_thrash_heap;
+execute stmt;
+show tables like 't1';
+prepare stmt from "alter table test.t1 rename t1";
+use test;
+execute stmt;
+show tables like 't1';
+use mysqltest_long_database_name_to_thrash_heap;
+show tables like 't1';
+deallocate prepare stmt;
+#
+# Check that a prepared statement initializes its current database at
+# PREPARE, and then works correctly even if the current database has been
+# changed.
+# 
+use mysqltest_long_database_name_to_thrash_heap; 
+# Necessary for preparation of INSERT/UPDATE/DELETE to succeed
+prepare stmt_create from "create table t1 (i int)";
+prepare stmt_insert from "insert into t1 (i) values (1)";
+prepare stmt_update from "update t1 set i=2";
+prepare stmt_delete from "delete from t1 where i=2";
+prepare stmt_select from "select * from t1";
+prepare stmt_alter from "alter table t1 add column (b int)";
+prepare stmt_alter1 from "alter table t1 drop column b";
+prepare stmt_analyze from "analyze table t1";
+prepare stmt_optimize from "optimize table t1";
+prepare stmt_show from "show tables like 't1'";
+prepare stmt_truncate from "truncate table t1";
+prepare stmt_drop from "drop table t1";
+# Drop the table that was used to prepare INSERT/UPDATE/DELETE: we will
+# create a new one by executing stmt_create
+drop table t1;
+# Switch the current database
+use test;
+# Check that all prepared statements operate on the database that was
+# active at PREPARE
+execute stmt_create;
+# should return empty set
+show tables like 't1';
+use mysqltest_long_database_name_to_thrash_heap;
+show tables like 't1';
+use test;
+execute stmt_insert;
+select * from mysqltest_long_database_name_to_thrash_heap.t1;
+execute stmt_update;
+select * from mysqltest_long_database_name_to_thrash_heap.t1;
+execute stmt_delete;
+execute stmt_select;
+execute stmt_alter;
+show columns from mysqltest_long_database_name_to_thrash_heap.t1;
+execute stmt_alter1;
+show columns from mysqltest_long_database_name_to_thrash_heap.t1;
+execute stmt_analyze;
+execute stmt_optimize;
+execute stmt_show;
+execute stmt_truncate;
+execute stmt_drop;
+show tables like 't1';
+use mysqltest_long_database_name_to_thrash_heap;
+show tables like 't1';
+#
+# Attempt a statement PREPARE when there is no current database:
+# is expected to return an error.
+#
+drop database mysqltest_long_database_name_to_thrash_heap;
+--error ER_NO_DB_ERROR
+prepare stmt_create from "create table t1 (i int)";
+--error ER_NO_DB_ERROR
+prepare stmt_insert from "insert into t1 (i) values (1)";
+--error ER_NO_DB_ERROR
+prepare stmt_update from "update t1 set i=2";
+--error ER_NO_DB_ERROR
+prepare stmt_delete from "delete from t1 where i=2";
+--error ER_NO_DB_ERROR
+prepare stmt_select from "select * from t1";
+--error ER_NO_DB_ERROR
+prepare stmt_alter from "alter table t1 add column (b int)";
+--error ER_NO_DB_ERROR
+prepare stmt_alter1 from "alter table t1 drop column b";
+--error ER_NO_DB_ERROR
+prepare stmt_analyze from "analyze table t1";
+--error ER_NO_DB_ERROR
+prepare stmt_optimize from "optimize table t1";
+--error ER_NO_DB_ERROR
+prepare stmt_show from "show tables like 't1'";
+--error ER_NO_DB_ERROR
+prepare stmt_truncate from "truncate table t1";
+--error ER_NO_DB_ERROR
+prepare stmt_drop from "drop table t1";
+#
+# The above has automatically deallocated all our statements.
+#
+# Attempt to CREATE a temporary table when no DB used: it should fail
+# This proves that no table can be used without explicit specification of
+# its database if there is no current database. 
+#
+--error ER_NO_DB_ERROR
+create temporary table t1 (i int);
+#
+# Restore the old environemnt
+#
+use test;
 # End of 5.0 tests

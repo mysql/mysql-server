@@ -1158,3 +1158,108 @@ Warnings:
 Error	1146	Table 'test.t4' doesn't exist
 deallocate prepare stmt;
 drop table t1, t2, t3;
+create database mysqltest_long_database_name_to_thrash_heap;
+use test;
+create table t1 (i int);
+prepare stmt from "alter table test.t1 rename t1";
+use mysqltest_long_database_name_to_thrash_heap;
+execute stmt;
+show tables like 't1';
+Tables_in_mysqltest_long_database_name_to_thrash_heap (t1)
+prepare stmt from "alter table test.t1 rename t1";
+use test;
+execute stmt;
+show tables like 't1';
+Tables_in_test (t1)
+use mysqltest_long_database_name_to_thrash_heap;
+show tables like 't1';
+Tables_in_mysqltest_long_database_name_to_thrash_heap (t1)
+t1
+deallocate prepare stmt;
+use mysqltest_long_database_name_to_thrash_heap;
+prepare stmt_create from "create table t1 (i int)";
+prepare stmt_insert from "insert into t1 (i) values (1)";
+prepare stmt_update from "update t1 set i=2";
+prepare stmt_delete from "delete from t1 where i=2";
+prepare stmt_select from "select * from t1";
+prepare stmt_alter from "alter table t1 add column (b int)";
+prepare stmt_alter1 from "alter table t1 drop column b";
+prepare stmt_analyze from "analyze table t1";
+prepare stmt_optimize from "optimize table t1";
+prepare stmt_show from "show tables like 't1'";
+prepare stmt_truncate from "truncate table t1";
+prepare stmt_drop from "drop table t1";
+drop table t1;
+use test;
+execute stmt_create;
+show tables like 't1';
+Tables_in_test (t1)
+use mysqltest_long_database_name_to_thrash_heap;
+show tables like 't1';
+Tables_in_mysqltest_long_database_name_to_thrash_heap (t1)
+t1
+use test;
+execute stmt_insert;
+select * from mysqltest_long_database_name_to_thrash_heap.t1;
+i
+1
+execute stmt_update;
+select * from mysqltest_long_database_name_to_thrash_heap.t1;
+i
+2
+execute stmt_delete;
+execute stmt_select;
+i
+execute stmt_alter;
+show columns from mysqltest_long_database_name_to_thrash_heap.t1;
+Field	Type	Null	Key	Default	Extra
+i	int(11)	YES		NULL	
+b	int(11)	YES		NULL	
+execute stmt_alter1;
+show columns from mysqltest_long_database_name_to_thrash_heap.t1;
+Field	Type	Null	Key	Default	Extra
+i	int(11)	YES		NULL	
+execute stmt_analyze;
+Table	Op	Msg_type	Msg_text
+mysqltest_long_database_name_to_thrash_heap.t1	analyze	status	Table is already up to date
+execute stmt_optimize;
+Table	Op	Msg_type	Msg_text
+mysqltest_long_database_name_to_thrash_heap.t1	optimize	status	Table is already up to date
+execute stmt_show;
+Tables_in_mysqltest_long_database_name_to_thrash_heap (t1)
+t1
+execute stmt_truncate;
+execute stmt_drop;
+show tables like 't1';
+Tables_in_test (t1)
+use mysqltest_long_database_name_to_thrash_heap;
+show tables like 't1';
+Tables_in_mysqltest_long_database_name_to_thrash_heap (t1)
+drop database mysqltest_long_database_name_to_thrash_heap;
+prepare stmt_create from "create table t1 (i int)";
+ERROR 3D000: No database selected
+prepare stmt_insert from "insert into t1 (i) values (1)";
+ERROR 3D000: No database selected
+prepare stmt_update from "update t1 set i=2";
+ERROR 3D000: No database selected
+prepare stmt_delete from "delete from t1 where i=2";
+ERROR 3D000: No database selected
+prepare stmt_select from "select * from t1";
+ERROR 3D000: No database selected
+prepare stmt_alter from "alter table t1 add column (b int)";
+ERROR 3D000: No database selected
+prepare stmt_alter1 from "alter table t1 drop column b";
+ERROR 3D000: No database selected
+prepare stmt_analyze from "analyze table t1";
+ERROR 3D000: No database selected
+prepare stmt_optimize from "optimize table t1";
+ERROR 3D000: No database selected
+prepare stmt_show from "show tables like 't1'";
+ERROR 3D000: No database selected
+prepare stmt_truncate from "truncate table t1";
+ERROR 3D000: No database selected
+prepare stmt_drop from "drop table t1";
+ERROR 3D000: No database selected
+create temporary table t1 (i int);
+ERROR 3D000: No database selected
+use test;
