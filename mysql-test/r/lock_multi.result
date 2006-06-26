@@ -67,6 +67,21 @@ Select_priv
 N
 use test;
 use test;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+ FLUSH TABLES WITH READ LOCK;
+CREATE TABLE t2 (c1 int);
+UNLOCK TABLES;
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+ FLUSH TABLES WITH READ LOCK;
+CREATE TABLE t2 AS SELECT * FROM t1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+UNLOCK TABLES;
+UNLOCK TABLES;
+DROP TABLE t1;
 create table t1 (f1 int(12) unsigned not null auto_increment, primary key(f1)) engine=innodb;
 lock tables t1 write;
  alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
