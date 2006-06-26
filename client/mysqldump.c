@@ -1585,6 +1585,9 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         }
         mysql_free_result(result);
 
+        if (path)
+          my_fclose(sql_file, MYF(MY_WME));
+
         seen_views= 1;
         DBUG_RETURN(0);
       }
