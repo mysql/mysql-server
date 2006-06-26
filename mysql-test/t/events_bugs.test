@@ -175,4 +175,38 @@ set sql_mode=@old_sql_mode;
 #
 # End  - 16407: Events: Changes in sql_mode won't be taken into account  
 #
+
+#
+# START - 18897: Events: unauthorized action possible with alter event rename
+#
+set global event_scheduler=2;
+--disable_warnings
+delete from mysql.user where User like 'mysqltest_%';
+delete from mysql.db where User like 'mysqltest_%';
+flush privileges;
+drop database if exists mysqltest_db1;
+--enable_warnings
+create user mysqltest_user1@localhost;
+create database mysqltest_db1;
+grant event on events_test.* to mysqltest_user1@localhost;
+connect (conn2,localhost,mysqltest_user1,,events_test);
+create event mysqltest_user1 on schedule every 10 second do select 42;
+--error ER_DBACCESS_DENIED_ERROR
+alter event mysqltest_user1 rename to mysqltest_db1.mysqltest_user1;
+--echo "Let's test now rename when there is no select DB"
+disconnect conn2;
+connect (conn2,localhost,mysqltest_user1,,*NO-ONE*);
+select database();
+--error ER_NO_DB_ERROR
+alter event events_test.mysqltest_user1 rename to mysqltest_user1;
+select event_schema, event_name, definer, event_type, status from information_schema.events;
+drop event events_test.mysqltest_user1;
+disconnect conn2;
+connection default;
+drop user mysqltest_user1@localhost;
+drop database mysqltest_db1;
+#
+# END   - 18897: Events: unauthorized action possible with alter event rename
+#
+
 drop database events_test;
