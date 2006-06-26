@@ -2743,6 +2743,25 @@ end	AFTER	#		root@localhost
 drop trigger tr1;
 drop trigger tr2;
 drop table t1, t2;
+create table t (qty int, price int);
+insert into t values(3, 50);
+insert into t values(5, 51);
+create view v1 as select qty, price, qty*price as value from t;
+create view v2 as select qty from v1;
+mysqldump {
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v1` AS select `t`.`qty` AS `qty`,`t`.`price` AS `price`,(`t`.`qty` * `t`.`price`) AS `value` from `t` */;
+
+} mysqldump {
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v2` AS select `v1`.`qty` AS `qty` from `v1` */;
+
+} mysqldump
+drop view v1;
+drop view v2;
+drop table t;
 /*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
 return 42 */|
 /*!50003 CREATE PROCEDURE `p`()
