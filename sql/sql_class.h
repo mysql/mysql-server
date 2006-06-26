@@ -1570,6 +1570,47 @@ public:
   void restore_sub_statement_state(Sub_statement_state *backup);
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
+
+  /*
+    Initialize the current database from a NULL-terminated string with length
+  */
+  void set_db(const char *new_db, uint new_db_len)
+  {
+    if (new_db)
+    {
+      /* Do not reallocate memory if current chunk is big enough. */
+      if (db && db_length >= new_db_len)
+        memcpy(db, new_db, new_db_len+1);
+      else
+      {
+        safeFree(db);
+        db= my_strdup_with_length(new_db, new_db_len, MYF(MY_WME));
+      }
+      db_length= db ? new_db_len: 0;
+    }
+  }
+  void reset_db(char *new_db, uint new_db_len)
+  {
+    db= new_db;
+    db_length= new_db_len;
+  }
+  /*
+    Copy the current database to the argument. Use the current arena to
+    allocate memory for a deep copy: current database may be freed after
+    a statement is parsed but before it's executed.
+  */
+  bool copy_db_to(char **p_db, uint *p_db_length)
+  {
+    if (db == NULL)
+    {
+      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+      return TRUE;
+    }
+    *p_db= strmake(db, db_length);
+    if (p_db_length)
+      *p_db_length= db_length;
+    return FALSE;
+  }
 };
 
 
@@ -1915,7 +1956,7 @@ typedef struct st_sort_buffer {
 
 class Table_ident :public Sql_alloc
 {
- public:
+public:
   LEX_STRING db;
   LEX_STRING table;
   SELECT_LEX_UNIT *sel;

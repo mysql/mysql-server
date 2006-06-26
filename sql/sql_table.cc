@@ -2672,7 +2672,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 
   TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
-  src_db= table_ident->db.str ? table_ident->db.str : thd->db;
+  DBUG_ASSERT(table_ident->db.str); /* Must be set in the parser */
+  src_db= table_ident->db.str;
 
   /*
     Validate the source table
