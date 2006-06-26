@@ -299,6 +299,11 @@ void Dbtup::releaseFragPages(Fragrecord* regFragPtr)
 	LocalDLList<Page> tmp(c_page_pool, regFragPtr->thFreeFirst);
 	tmp.remove();
       }
+
+      {
+	LocalSLList<Page> tmp(c_page_pool, regFragPtr->m_empty_pages);
+	tmp.remove();
+      }
       
       return;
     } else {
