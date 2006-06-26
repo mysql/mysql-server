@@ -1559,6 +1559,56 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
   DBUG_RETURN(result);
 }
 
+static
+int
+runSubscribeUnsubscribe(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char buf[1024];
+  const NdbDictionary::Table & tab = * ctx->getTab();
+  sprintf(buf, "%s_EVENT", tab.getName());
+  Ndb* ndb = GETNDB(step);
+  int loops = 5 * ctx->getNumLoops();
+
+  while (--loops)
+  {
+    NdbEventOperation *pOp= ndb->createEventOperation(buf);
+    if (pOp == 0)
+    {
+      g_err << "createEventOperation: "
+	    << ndb->getNdbError().code << " "
+	    << ndb->getNdbError().message << endl;
+      return NDBT_FAILED;
+    }
+    
+    int n_columns= tab.getNoOfColumns();
+    for (int j = 0; j < n_columns; j++)
+    {
+      pOp->getValue(tab.getColumn(j)->getName());
+      pOp->getPreValue(tab.getColumn(j)->getName());
+    }
+    if ( pOp->execute() )
+    {
+      g_err << "pOp->execute(): "
+	    << pOp->getNdbError().code << " "
+	    << pOp->getNdbError().message << endl;
+      
+      ndb->dropEventOperation(pOp);
+      
+      return NDBT_FAILED;
+    }
+    
+    if (ndb->dropEventOperation(pOp))
+    {
+      g_err << "pOp->execute(): "
+	    << ndb->getNdbError().code << " "
+	    << ndb->getNdbError().message << endl;
+      return NDBT_FAILED;
+    }
+  }
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -1672,6 +1722,13 @@ TESTCASE("CreateDropNR",
 	 "Verify that we can Create and Drop in any order"
 	 "NOTE! No errors are allowed!" ){
   FINALIZER(runCreateDropNR);
+}
+TESTCASE("SubscribeUnsubscribe", 
+	 "A bunch of threads doing subscribe/unsubscribe in loop"
+	 "NOTE! No errors are allowed!" ){
+  INITIALIZER(runCreateEvent);
+  STEPS(runSubscribeUnsubscribe, 16);
+  FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);
 
