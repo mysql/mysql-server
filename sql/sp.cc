@@ -404,7 +404,8 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 {
   LEX *old_lex= thd->lex, newlex;
   String defstr;
-  char olddb[128];
+  char old_db_buf[NAME_LEN+1];
+  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged;
   ulong old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
@@ -450,9 +451,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     goto end;
   }
 
-  dbchanged= FALSE;
-  if ((ret= sp_use_new_db(thd, name->m_db.str, olddb, sizeof(olddb),
-			  1, &dbchanged)))
+  if ((ret= sp_use_new_db(thd, name->m_db, &old_db, 1, &dbchanged)))
     goto end;
 
   lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
@@ -462,14 +461,14 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   {
     sp_head *sp= newlex.sphead;
 
-    if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
+    if (dbchanged && (ret= mysql_change_db(thd, old_db.str, 1)))
       goto end;
     delete sp;
     ret= SP_PARSE_ERROR;
   }
   else
   {
-    if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
+    if (dbchanged && (ret= mysql_change_db(thd, old_db.str, 1)))
       goto end;
     *sphp= newlex.sphead;
     (*sphp)->set_definer(&definer_user_name, &definer_host_name);
@@ -505,15 +504,14 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   int ret;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
-  char olddb[128];
+  char old_db_buf[NAME_LEN+1];
+  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged;
   DBUG_ENTER("db_create_routine");
   DBUG_PRINT("enter", ("type: %d name: %.*s",type,sp->m_name.length,
                        sp->m_name.str));
 
-  dbchanged= FALSE;
-  if ((ret= sp_use_new_db(thd, sp->m_db.str, olddb, sizeof(olddb),
-			  0, &dbchanged)))
+  if ((ret= sp_use_new_db(thd, sp->m_db, &old_db, 0, &dbchanged)))
   {
     ret= SP_NO_DB_ERROR;
     goto done;
@@ -641,7 +639,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 done:
   close_thread_tables(thd);
   if (dbchanged)
-    (void)mysql_change_db(thd, olddb, 1);
+    (void) mysql_change_db(thd, old_db.str, 1);
   DBUG_RETURN(ret);
 }
 
@@ -1814,49 +1812,76 @@ create_string(THD *thd, String *buf,
 }
 
 
-//
-// Utilities...
-//
+
+/*
+  Change the current database if needed.
+
+  SYNOPSIS
+    sp_use_new_db()
+      thd            thread handle
+
+      new_db         new database name (a string and its length)
+
+      old_db         [IN] str points to a buffer where to store the old
+                          database, length contains the size of the buffer
+                     [OUT] if old db was not NULL, its name is copied
+                     to the buffer pointed at by str and length is updated
+                     accordingly. Otherwise str[0] is set to '\0' and length
+                     is set to 0. The out parameter should be used only if
+                     the database name has been changed (see dbchangedp).
+
+     dbchangedp      [OUT] is set to TRUE if the current database is changed,
+                     FALSE otherwise. A database is not changed if the old
+                     name is the same as the new one, both names are empty,
+                     or an error has occurred.
+
+  RETURN VALUE
+    0                success
+    1                access denied or out of memory (the error message is
+                     set in THD)
+*/
 
 int
-sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddblen,
+sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
 	      bool no_access_check, bool *dbchangedp)
 {
-  bool changeit;
+  int ret;
+  static char empty_c_string[1]= {0};          /* used for not defined db */
   DBUG_ENTER("sp_use_new_db");
-  DBUG_PRINT("enter", ("newdb: %s", newdb));
+  DBUG_PRINT("enter", ("newdb: %s", new_db.str));
 
-  if (! newdb)
-    newdb= (char *)"";
-  if (thd->db && thd->db[0])
+  /*
+    Set new_db to an empty string if it's NULL, because mysql_change_db
+    requires a non-NULL argument.
+    new_db.str can be NULL only if we're restoring the old database after
+    execution of a stored procedure and there were no current database
+    selected. The stored procedure itself must always have its database
+    initialized.
+  */
+  if (new_db.str == NULL)
+    new_db.str= empty_c_string;
+
+  if (thd->db)
   {
-    if (my_strcasecmp(system_charset_info, thd->db, newdb) == 0)
-      changeit= 0;
-    else
-    {
-      changeit= 1;
-      strnmov(olddb, thd->db, olddblen);
-    }
+    old_db->length= (strmake(old_db->str, thd->db, old_db->length) -
+                     old_db->str);
   }
   else
-  {				// thd->db empty
-    if (newdb[0])
-      changeit= 1;
-    else
-      changeit= 0;
-    olddb[0] = '\0';
+  {
+    old_db->str[0]= '\0';
+    old_db->length= 0;
   }
-  if (!changeit)
+
+  /* Don't change the database if the new name is the same as the old one. */
+  if (my_strcasecmp(system_charset_info, old_db->str, new_db.str) == 0)
   {
     *dbchangedp= FALSE;
     DBUG_RETURN(0);
   }
-  else
-  {
-    int ret= mysql_change_db(thd, newdb, no_access_check);
 
-    if (! ret)
-      *dbchangedp= TRUE;
-    DBUG_RETURN(ret);
-  }
+  ret= mysql_change_db(thd, new_db.str, no_access_check);
+
+  *dbchangedp= ret == 0;
+  DBUG_RETURN(ret);
 }
+

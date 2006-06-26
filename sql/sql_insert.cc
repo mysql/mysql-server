@@ -298,9 +298,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   {
     if (thd->locked_tables)
     {
-      if (find_locked_table(thd,
-			    table_list->db ? table_list->db : thd->db,
-			    table_list->table_name))
+      DBUG_ASSERT(table_list->db); /* Must be set in the parser */
+      if (find_locked_table(thd, table_list->db, table_list->table_name))
       {
 	my_error(ER_DELAYED_INSERT_TABLE_LOCKED, MYF(0),
                  table_list->table_name);
@@ -1329,8 +1328,8 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
   TABLE *table;
   DBUG_ENTER("delayed_get_table");
 
-  if (!table_list->db)
-    table_list->db=thd->db;
+  /* Must be set in the parser */
+  DBUG_ASSERT(table_list->db);
 
   /* Find the thread which handles this table. */
   if (!(tmp=find_handler(thd,table_list)))
@@ -1369,15 +1368,15 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
       pthread_mutex_lock(&LOCK_thread_count);
       thread_count++;
       pthread_mutex_unlock(&LOCK_thread_count);
-      if (!(tmp->thd.db=my_strdup(table_list->db,MYF(MY_WME))) ||
-	  !(tmp->thd.query=my_strdup(table_list->table_name,MYF(MY_WME))))
+      tmp->thd.set_db(table_list->db, strlen(table_list->db));
+      tmp->thd.query= my_strdup(table_list->table_name,MYF(MY_WME));
+      if (tmp->thd.db == NULL || tmp->thd.query == NULL)
       {
 	delete tmp;
 	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
 	goto err1;
       }
       tmp->table_list= *table_list;			// Needed to open table
-      tmp->table_list.db= tmp->thd.db;
       tmp->table_list.alias= tmp->table_list.table_name= tmp->thd.query;
       tmp->lock();
       pthread_mutex_lock(&tmp->mutex);
