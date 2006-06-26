@@ -93,8 +93,6 @@ const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED"
 };
 
-static char empty_c_string[1]= {0};		// Used for not defined 'db'
-
 #ifdef __WIN__
 static void  test_signal(int sig_ptr)
 {
@@ -300,8 +298,7 @@ int check_user(THD *thd, enum enum_server_command command,
       thd->db is saved in caller and needs to be freed by caller if this
       function returns 0
     */
-    thd->db= 0;
-    thd->db_length= 0;
+    thd->reset_db(NULL, 0);
     if (mysql_change_db(thd, db, FALSE))
     {
       /* Send the error to the client */
@@ -341,9 +338,8 @@ int check_user(THD *thd, enum enum_server_command command,
     if connect failed. Also in case of 'CHANGE USER' failure, current
     database will be switched to 'no database selected'.
   */
-  thd->db= 0;
-  thd->db_length= 0;
-  
+  thd->reset_db(NULL, 0);
+
   USER_RESOURCES ur;
   int res= acl_getroot(thd, &ur, passwd, passwd_len);
 #ifndef EMBEDDED_LIBRARY
@@ -1316,19 +1312,6 @@ end:
   DBUG_RETURN(0);
 }
 
-    /* This works because items are allocated with sql_alloc() */
-
-void free_items(Item *item)
-{
-  Item *next;
-  DBUG_ENTER("free_items");
-  for (; item ; item=next)
-  {
-    next=item->next;
-    item->delete_self();
-  }
-  DBUG_VOID_RETURN;
-}
 
     /* This works because items are allocated with sql_alloc() */
 
@@ -1340,7 +1323,26 @@ void cleanup_items(Item *item)
   DBUG_VOID_RETURN;
 }
 
-int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
+/*
+  Handle COM_TABLE_DUMP command
+
+  SYNOPSIS
+    mysql_table_dump
+      thd           thread handle
+      db            database name or an empty string. If empty,
+                    the current database of the connection is used
+      tbl_name      name of the table to dump
+
+  NOTES
+    This function is written to handle one specific command only.
+
+  RETURN VALUE
+    0               success
+    1               error, the error message is set in THD
+*/
+
+static
+int mysql_table_dump(THD* thd, char* db, char* tbl_name)
 {
   TABLE* table;
   TABLE_LIST* table_list;
@@ -1377,7 +1379,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
     goto err;
   }
   net_flush(&thd->net);
-  if ((error= table->file->dump(thd,fd)))
+  if ((error= table->file->dump(thd,-1)))
     my_error(ER_GET_ERRNO, MYF(0), error);
 
 err:
@@ -1627,7 +1629,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     tbl_name= strmake(db, packet + 1, db_len)+1;
     strmake(tbl_name, packet + db_len + 2, tbl_len);
-    mysql_table_dump(thd, db, tbl_name, -1);
+    mysql_table_dump(thd, db, tbl_name);
     break;
   }
   case COM_CHANGE_USER:
@@ -1801,11 +1803,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
 			&LOCK_status);
     bzero((char*) &table_list,sizeof(table_list));
-    if (!(table_list.db=thd->db))
-    {
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+    if (thd->copy_db_to(&table_list.db, 0))
       break;
-    }
     pend= strend(packet);
     thd->convert_string(&conv_name, system_charset_info,
 			packet, (uint) (pend-packet), thd->charset());
@@ -2152,6 +2151,34 @@ void log_slow_statement(THD *thd)
 }
 
 
+/*
+  Create a TABLE_LIST object for an INFORMATION_SCHEMA table.
+
+  SYNOPSIS
+    prepare_schema_table()
+      thd              thread handle
+      lex              current lex
+      table_ident      table alias if it's used
+      schema_table_idx the type of the INFORMATION_SCHEMA table to be
+                       created
+
+  DESCRIPTION
+    This function is used in the parser to convert a SHOW or DESCRIBE
+    table_name command to a SELECT from INFORMATION_SCHEMA.
+    It prepares a SELECT_LEX and a TABLE_LIST object to represent the
+    given command as a SELECT parse tree.
+
+  NOTES
+    Due to the way this function works with memory and LEX it cannot
+    be used outside the parser (parse tree transformations outside
+    the parser break PS and SP).
+
+  RETURN VALUE
+    0                 success
+    1                 out of memory or SHOW commands are not allowed
+                      in this version of the server.
+*/
+
 int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
                          enum enum_schema_tables schema_table_idx)
 {
@@ -2179,13 +2206,13 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     DBUG_RETURN(1);
 #else
     {
-      char *db= lex->select_lex.db ? lex->select_lex.db : thd->db;
-      if (!db)
+      char *db;
+      if (lex->select_lex.db == NULL &&
+          thd->copy_db_to(&lex->select_lex.db, 0))
       {
-	my_message(ER_NO_DB_ERROR,
-                   ER(ER_NO_DB_ERROR), MYF(0)); /* purecov: inspected */
-        DBUG_RETURN(1);				/* purecov: inspected */
+        DBUG_RETURN(1);
       }
+      db= lex->select_lex.db;
       remove_escape(db);				// Fix escaped '_'
       if (check_db_name(db))
       {
@@ -2202,11 +2229,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
                  db);
 	DBUG_RETURN(1);
       }
-      /*
-        We need to do a copy to make this prepared statement safe if this
-        was thd->db
-      */
-      lex->select_lex.db= thd->strdup(db);
       break;
     }
 #endif
@@ -2759,8 +2781,8 @@ mysql_execute_command(THD *thd)
   case SQLCOM_LOAD_MASTER_TABLE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (!first_table->db)
-      first_table->db= thd->db;
+    DBUG_ASSERT(first_table->db); /* Must be set in the parser */
+
     if (check_access(thd, CREATE_ACL, first_table->db,
 		     &first_table->grant.privilege, 0, 0,
                      test(first_table->schema_table)))
@@ -3002,25 +3024,8 @@ end_with_restore_list:
 	my_error(ER_WRONG_TABLE_NAME, MYF(0), lex->name);
         goto error;
       }
-      if (!select_lex->db)
-      {
-        /*
-          In the case of ALTER TABLE ... RENAME we should supply the
-          default database if the new name is not explicitly qualified
-          by a database. (Bug #11493)
-        */
-        if (lex->alter_info.flags & ALTER_RENAME)
-        {
-          if (! thd->db)
-          {
-            my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-            goto error;
-          }
-          select_lex->db= thd->db;
-        }
-        else
-          select_lex->db= first_table->db;
-      }
+      /* Must be set in the parser */
+      DBUG_ASSERT(select_lex->db);
       if (check_access(thd, ALTER_ACL, first_table->db,
 		       &first_table->grant.privilege, 0, 0,
                        test(first_table->schema_table)) ||
@@ -3728,12 +3733,8 @@ end_with_restore_list:
   }
   case SQLCOM_ALTER_DB:
   {
-    char *db= lex->name ? lex->name : thd->db;
-    if (!db)
-    {
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-      break;
-    }
+    char *db= lex->name;
+    DBUG_ASSERT(db); /* Must be set in the parser */
     if (!strip_sp(db) || check_db_name(db))
     {
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
@@ -4182,23 +4183,11 @@ end_with_restore_list:
   case SQLCOM_CREATE_SPFUNCTION:
   {
     uint namelen;
-    char *name, *db;
+    char *name;
     int result;
 
     DBUG_ASSERT(lex->sphead != 0);
-
-    if (!lex->sphead->m_db.str || !lex->sphead->m_db.str[0])
-    {
-      if (!thd->db)
-      {
-        my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-        delete lex->sphead;
-        lex->sphead= 0;
-        goto error;
-      }
-      lex->sphead->m_db.length= strlen(thd->db);
-      lex->sphead->m_db.str= thd->db;
-    }
+    DBUG_ASSERT(lex->sphead->m_db.str); /* Must be initialized in the parser */
 
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str, 0, 0, 0,
                      is_schema_db(lex->sphead->m_db.str)))
@@ -4315,41 +4304,27 @@ end_with_restore_list:
     }
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
-    /*
-      We need to copy name and db in order to use them for
-      check_routine_access which is called after lex->sphead has
-      been deleted.
-    */
-    name= thd->strdup(name); 
-    lex->sphead->m_db.str= db= thd->strmake(lex->sphead->m_db.str,
-                                            lex->sphead->m_db.length);
     res= (result= lex->sphead->create(thd));
     if (result == SP_OK)
     {
-      /*
-        We must cleanup the unit and the lex here because
-        sp_grant_privileges calls (indirectly) db_find_routine,
-        which in turn may call MYSQLparse with THD::lex.
-        TODO: fix db_find_routine to use a temporary lex.
-      */
-      lex->unit.cleanup();
-      delete lex->sphead;
-      lex->sphead= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* only add privileges if really neccessary */
       if (sp_automatic_privileges && !opt_noacl &&
           check_routine_access(thd, DEFAULT_CREATE_PROC_ACLS,
-      			       db, name,
+      			       lex->sphead->m_db.str, name,
                                lex->sql_command == SQLCOM_CREATE_PROCEDURE, 1))
       {
         close_thread_tables(thd);
-        if (sp_grant_privileges(thd, db, name, 
+        if (sp_grant_privileges(thd, lex->sphead->m_db.str, name,
                                 lex->sql_command == SQLCOM_CREATE_PROCEDURE))
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
 	  	       ER_PROC_AUTO_GRANT_FAIL,
 		       ER(ER_PROC_AUTO_GRANT_FAIL));
       }
 #endif
+      lex->unit.cleanup();
+      delete lex->sphead;
+      lex->sphead= 0;
       send_ok(thd);
     }
     else
@@ -4764,7 +4739,8 @@ end_with_restore_list:
         view_store_options(thd, first_table, &buff);
         buff.append(STRING_WITH_LEN("VIEW "));
         /* Test if user supplied a db (ie: we did not use thd->db) */
-        if (first_table->db != thd->db && first_table->db[0])
+        if (first_table->db && first_table->db[0] &&
+            (thd->db == NULL || strcmp(first_table->db, thd->db)))
         {
           append_identifier(thd, &buff, first_table->db,
                             first_table->db_length);
@@ -5346,7 +5322,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
         (want_access & ~EXTRA_ACL) &&
 	thd->db)
       tables->grant.privilege= want_access;
-    else if (tables->db && tables->db == thd->db)
+    else if (tables->db && thd->db && strcmp(tables->db, thd->db) == 0)
     {
       if (found && !grant_option)		// db already checked
 	tables->grant.privilege=found_access;
@@ -5494,21 +5470,24 @@ bool check_merge_table_access(THD *thd, char *db,
 
 static bool check_db_used(THD *thd,TABLE_LIST *tables)
 {
+  char *current_db= NULL;
   for (; tables; tables= tables->next_global)
   {
-    if (!tables->db)
+    if (tables->db == NULL)
     {
-      if (!(tables->db=thd->db))
-      {
-	my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR),
-                   MYF(0));                     /* purecov: tested */
-	return TRUE;				/* purecov: tested */
-      }
+      /*
+        This code never works and should be removed in 5.1.  All tables
+        that are added to the list of tables should already have its
+        database field initialized properly (see st_lex::add_table_to_list).
+      */
+      DBUG_ASSERT(0);
+      if (thd->copy_db_to(&current_db, 0))
+        return TRUE;
+      tables->db= current_db;
     }
   }
   return FALSE;
 }
-
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
@@ -6129,19 +6108,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ptr->db= table->db.str;
     ptr->db_length= table->db.length;
   }
-  else if (thd->db)
-  {
-    ptr->db= thd->db;
-    ptr->db_length= thd->db_length;
-  }
-  else
-  {
-    /* The following can't be "" as we may do 'casedn_str()' on it */
-    ptr->db= empty_c_string;
-    ptr->db_length= 0;
-  }
-  if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
-    ptr->db= thd->strdup(ptr->db);
+  else if (thd->copy_db_to(&ptr->db, &ptr->db_length))
+    DBUG_RETURN(0);
 
   ptr->alias= alias_str;
   if (lower_case_table_names && table->table.length)
@@ -7332,6 +7300,8 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
     my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
     DBUG_RETURN(TRUE);
   }
+  if (check_db_used(thd, tables))
+    DBUG_RETURN(TRUE);
   DBUG_RETURN(FALSE);
 }
 

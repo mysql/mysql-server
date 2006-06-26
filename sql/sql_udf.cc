@@ -140,6 +140,7 @@ void udf_init()
   READ_RECORD read_record_info;
   TABLE *table;
   int error;
+  char db[]= "mysql"; /* A subject to casednstr, can't be constant */
   DBUG_ENTER("ufd_init");
 
   if (initialized)
@@ -161,13 +162,12 @@ void udf_init()
   initialized = 1;
   new_thd->thread_stack= (char*) &new_thd;
   new_thd->store_globals();
-  new_thd->db= my_strdup("mysql", MYF(0));
-  new_thd->db_length=5;
+  new_thd->set_db(db, sizeof(db)-1);
 
   bzero((gptr) &tables,sizeof(tables));
   tables.alias= tables.table_name= (char*) "func";
   tables.lock_type = TL_READ;
-  tables.db=new_thd->db;
+  tables.db= db;
 
   if (simple_open_n_lock_tables(new_thd, &tables))
   {

@@ -1667,13 +1667,13 @@ String *Item_func_database::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   THD *thd= current_thd;
-  if (!thd->db)
+  if (thd->db == NULL)
   {
     null_value= 1;
     return 0;
   }
   else
-    str->copy((const char*) thd->db,(uint) strlen(thd->db),system_charset_info);
+    str->copy(thd->db, thd->db_length, system_charset_info);
   return str;
 }
 
