@@ -2757,6 +2757,15 @@ p		CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 select 42
 drop function f;
 drop procedure p;
+create table t1 ( id serial );
+create view v1 as select * from t1;
+drop table t1;
+mysqldump {
+
+-- failed on view `v1`: CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`id` AS `id` from `t1`
+
+} mysqldump
+drop view v1;
 create database mysqldump_test_db;
 use mysqldump_test_db;
 create table t1 (id int);
