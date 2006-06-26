@@ -29,7 +29,7 @@ ADD_LIBRARY(mysqldemb emb_qcache.cc libmysqld.c lib_sql.cc
             ../libmysql/libmysql.c ../sql/password.c ../sql-common/client.c
             ../sql-common/my_time.c ../sql-common/my_user.c
             ../sql-common/pack.c ../sql/derror.cc ../sql/event_executor.cc
-            ../sql/event_timed.cc ../sql/event.cc ../sql/discover.cc
+            ../sql/event_timed.cc ../sql/events.cc ../sql/discover.cc
             ../sql/field_conv.cc ../sql/field.cc ../sql/filesort.cc
             ../sql/gstream.cc ../sql/ha_heap.cc ../sql/ha_myisam.cc
             ../sql/ha_myisammrg.cc ${mysql_se_ha_src}
