@@ -1,3 +1,6 @@
+# Can't test with embedded server that doesn't support grants
+-- source include/not_embedded.inc
+
 create database if not exists events_test;
 use events_test;
 --echo "We use procedure here because its statements won't be logged into the general log"
@@ -51,6 +54,8 @@ SET @old_global_long_query_time:=(select get_value());
 SET @old_session_long_query_time:=@@long_query_time;
 SHOW VARIABLES LIKE 'log_slow_queries';
 DROP FUNCTION get_value;
+--echo "Make it quite long"
+SET SESSION long_query_time=300;
 TRUNCATE mysql.slow_log;
 --replace_column 1 USER_HOST
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
@@ -61,7 +66,10 @@ SET SESSION long_query_time=1;
 SELECT SLEEP(2);
 --replace_column 1 USER_HOST 2 SLEEPVAL
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
+SET SESSION long_query_time=300;
+--echo "Make it quite long"
 TRUNCATE mysql.slow_log;
+SET SESSION long_query_time=1;
 CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
 --echo "This won't go to the slow log"
 CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(3);
@@ -75,9 +83,9 @@ SELECT * FROM slow_event_test;
 --echo "Check slow log. Should not see anything because 3 is under the threshold of 4 for GLOBAL, though over SESSION which is 2"
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 --echo "This should go to the slow log"
+DROP EVENT long_event;
 SET SESSION long_query_time=10;
 SET GLOBAL long_query_time=1;
-DROP EVENT long_event;
 CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(2);
 --echo "Sleep some more time than the actual event run will take"
 --sleep 3
@@ -87,9 +95,11 @@ SELECT * FROM slow_event_test;
 --replace_column 1 USER_HOST 2 SLEEPVAL
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 DROP EVENT long_event2;
-SET GLOBAL  long_query_time =@old_global_long_query_time;
-SET SESSION long_query_time =@old_session_long_query_time; 
+--echo "Make it quite long"
+SET SESSION long_query_time=300;
 TRUNCATE mysql.slow_log;
 DROP TABLE slow_event_test;
+SET GLOBAL  long_query_time =@old_global_long_query_time;
+SET SESSION long_query_time =@old_session_long_query_time; 
 
 drop database events_test;

@@ -756,7 +756,7 @@ information_schema.columns
 where data_type = 'longtext';
 table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_TYPE
-information_schema	EVENTS	EVENT_BODY
+information_schema	EVENTS	EVENT_DEFINITION
 information_schema	EVENTS	SQL_MODE
 information_schema	PARTITIONS	PARTITION_EXPRESSION
 information_schema	PARTITIONS	SUBPARTITION_EXPRESSION

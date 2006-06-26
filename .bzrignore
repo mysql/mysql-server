@@ -462,6 +462,7 @@ libmysqld/event.cc
 libmysqld/event_executor.cc
 libmysqld/event_scheduler.cc
 libmysqld/event_timed.cc
+libmysqld/events.cc
 libmysqld/examples/client_test.c
 libmysqld/examples/client_test.cc
 libmysqld/examples/completion_hash.cc
