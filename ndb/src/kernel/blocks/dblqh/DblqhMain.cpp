@@ -7349,15 +7349,15 @@ void Dblqh::scanLockReleasedLab(Signal* signal)
       scanptr.p->m_curr_batch_size_rows = 0;
       scanptr.p->m_curr_batch_size_bytes = 0;
       closeScanLab(signal);
+    } else if (scanptr.p->m_last_row && !scanptr.p->scanLockHold) {
+      jam();
+      closeScanLab(signal);
+      return;
     } else if (scanptr.p->check_scan_batch_completed() &&
                scanptr.p->scanLockHold != ZTRUE) {
       jam();
       scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
       sendScanFragConf(signal, ZFALSE);
-    } else if (scanptr.p->m_last_row && !scanptr.p->scanLockHold) {
-      jam();
-      closeScanLab(signal);
-      return;
     } else {
       jam();
       /*
