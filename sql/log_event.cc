@@ -3123,7 +3123,7 @@ Rotate_log_event::Rotate_log_event(THD* thd_arg,
                       llstr(pos_arg, buff), flags));
 #endif
   if (flags & DUP_NAME)
-    new_log_ident= my_strdup_with_length((const byte*) new_log_ident_arg,
+    new_log_ident= my_strdup_with_length(new_log_ident_arg,
                                          ident_len, MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
@@ -3147,7 +3147,7 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                      (header_size+post_header_len)); 
   ident_offset = post_header_len; 
   set_if_smaller(ident_len,FN_REFLEN-1);
-  new_log_ident= my_strdup_with_length((byte*) buf + ident_offset,
+  new_log_ident= my_strdup_with_length(buf + ident_offset,
                                        (uint) ident_len,
                                        MYF(MY_WME));
   DBUG_VOID_RETURN;
