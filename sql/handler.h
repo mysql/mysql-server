@@ -1335,7 +1335,7 @@ public:
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
 
-  virtual int get_default_no_partitions(ulonglong max_rows) { return 1;}
+  virtual int get_default_no_partitions(TABLE_SHARE *) { return 1;}
   virtual void set_auto_partitions(partition_info *part_info) { return; }
   virtual bool get_no_parts(const char *name,
                             uint *no_parts)
