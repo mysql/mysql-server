@@ -117,9 +117,16 @@ public:
     CustomTriggerId    = 25,
     FrmLen             = 26,
     FrmData            = 27,
+
     FragmentCount      = 128, // No of fragments in table (!fragment replicas)
     FragmentDataLen    = 129,
     FragmentData       = 130, // CREATE_FRAGMENTATION reply
+
+    MaxRowsLow         = 139,
+    MaxRowsHigh        = 140,
+    MinRowsLow         = 143,
+    MinRowsHigh        = 144,
+
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -263,6 +270,10 @@ public:
     Uint32 FragmentCount;
     Uint32 FragmentDataLen;
     Uint16 FragmentData[(MAX_FRAGMENT_DATA_BYTES+1)/2];
+    Uint32 MaxRowsLow;
+    Uint32 MaxRowsHigh;
+    Uint32 MinRowsLow;
+    Uint32 MinRowsHigh;
     
     void init();
   };
