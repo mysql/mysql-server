@@ -4158,7 +4158,6 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
   }
   tab.setMaxRows(max_rows);
   tab.setMinRows(min_rows);
-  fprintf(stderr, "max/min %llu %llu\n", max_rows, min_rows);
 }
 
 int ha_ndbcluster::create(const char *name, 
