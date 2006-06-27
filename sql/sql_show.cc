@@ -26,12 +26,37 @@
 #include "sql_trigger.h"
 #include "authors.h"
 #include "contributors.h"
-#include "event.h"
+#include "events.h"
+#include "event_timed.h"
 #include <my_dir.h>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #endif
+
+enum enum_i_s_events_fields
+{
+  ISE_EVENT_CATALOG= 0,
+  ISE_EVENT_SCHEMA,
+  ISE_EVENT_NAME,
+  ISE_DEFINER,
+  ISE_EVENT_BODY,
+  ISE_EVENT_DEFINITION,
+  ISE_EVENT_TYPE,
+  ISE_EXECUTE_AT,
+  ISE_INTERVAL_VALUE,
+  ISE_INTERVAL_FIELD,
+  ISE_SQL_MODE,
+  ISE_STARTS,
+  ISE_ENDS,
+  ISE_STATUS,
+  ISE_ON_COMPLETION,
+  ISE_CREATED,
+  ISE_LAST_ALTERED,
+  ISE_LAST_EXECUTED,
+  ISE_EVENT_COMMENT
+};
+
 
 static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
@@ -4116,6 +4141,8 @@ static interval_type get_real_interval_type(interval_type i_type)
   case INTERVAL_SECOND_MICROSECOND:
   case INTERVAL_MICROSECOND:
     return INTERVAL_MICROSECOND;
+  case INTERVAL_LAST:
+    DBUG_ASSERT(0);
   }
   DBUG_ASSERT(0);
   return INTERVAL_SECOND;
@@ -4171,85 +4198,101 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   /* ->field[0] is EVENT_CATALOG and is by default NULL */
 
-  sch_table->field[1]->store(et.dbname.str, et.dbname.length, scs);
-  sch_table->field[2]->store(et.name.str, et.name.length, scs);
-  sch_table->field[3]->store(et.definer.str, et.definer.length, scs);
-  sch_table->field[4]->store(et.body.str, et.body.length, scs);
+  sch_table->field[ISE_EVENT_SCHEMA]->
+                                store(et.dbname.str, et.dbname.length,scs);
+  sch_table->field[ISE_EVENT_NAME]->
+                                store(et.name.str, et.name.length, scs);
+  sch_table->field[ISE_DEFINER]->
+                                store(et.definer.str, et.definer.length, scs);
+  sch_table->field[ISE_EVENT_BODY]->
+                                store(STRING_WITH_LEN("SQL"), scs);
+  sch_table->field[ISE_EVENT_DEFINITION]->
+                                store(et.body.str, et.body.length, scs);
 
-  /* [9] is SQL_MODE */
+  /* SQL_MODE */
   {
     byte *sql_mode_str;
-    ulong sql_mode_len=0;
+    ulong sql_mode_len= 0;
     sql_mode_str=
            sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
                                                               &sql_mode_len);
-    sch_table->field[9]->store((const char*)sql_mode_str, sql_mode_len, scs);
+    sch_table->field[ISE_SQL_MODE]->
+                                store((const char*)sql_mode_str, sql_mode_len, scs);
   }
 
   if (et.expression)
   {
     String show_str;
     /* type */
-    sch_table->field[5]->store(STRING_WITH_LEN("RECURRING"), scs);
+    sch_table->field[ISE_EVENT_TYPE]->store(STRING_WITH_LEN("RECURRING"), scs);
 
     if (Events::reconstruct_interval_expression(&show_str, et.interval,
                                                 et.expression))
       DBUG_RETURN(1);
 
-    sch_table->field[7]->set_notnull();
-    sch_table->field[7]->store(show_str.ptr(), show_str.length(), scs);
+    sch_table->field[ISE_INTERVAL_VALUE]->set_notnull();
+    sch_table->field[ISE_INTERVAL_VALUE]->
+                                store(show_str.ptr(), show_str.length(), scs);
 
     LEX_STRING *ival= &interval_type_to_name[et.interval];
-    sch_table->field[8]->set_notnull();
-    sch_table->field[8]->store(ival->str, ival->length, scs);
+    sch_table->field[ISE_INTERVAL_FIELD]->set_notnull();
+    sch_table->field[ISE_INTERVAL_FIELD]->store(ival->str, ival->length, scs);
 
-    /* starts & ends */
-    sch_table->field[10]->set_notnull();
-    sch_table->field[10]->store_time(&et.starts, MYSQL_TIMESTAMP_DATETIME);
+    /* starts & ends . STARTS is always set - see sql_yacc.yy */
+    sch_table->field[ISE_STARTS]->set_notnull();
+    sch_table->field[ISE_STARTS]->
+                                store_time(&et.starts, MYSQL_TIMESTAMP_DATETIME);
 
     if (!et.ends_null)
     {
-      sch_table->field[11]->set_notnull();
-      sch_table->field[11]->store_time(&et.ends, MYSQL_TIMESTAMP_DATETIME);
+      sch_table->field[ISE_ENDS]->set_notnull();
+      sch_table->field[ISE_ENDS]->
+                                store_time(&et.ends, MYSQL_TIMESTAMP_DATETIME);
     }
   }
   else
   {
-    //type
-    sch_table->field[5]->store(STRING_WITH_LEN("ONE TIME"), scs);
+    /* type */
+    sch_table->field[ISE_EVENT_TYPE]->store(STRING_WITH_LEN("ONE TIME"), scs);
 
-    sch_table->field[6]->set_notnull();
-    sch_table->field[6]->store_time(&et.execute_at, MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[ISE_EXECUTE_AT]->set_notnull();
+    sch_table->field[ISE_EXECUTE_AT]->
+                          store_time(&et.execute_at, MYSQL_TIMESTAMP_DATETIME);
   }
 
   /* status */
   if (et.status == Event_timed::ENABLED)
-    sch_table->field[12]->store(STRING_WITH_LEN("ENABLED"), scs);
+    sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("ENABLED"), scs);
   else
-    sch_table->field[12]->store(STRING_WITH_LEN("DISABLED"), scs);
+    sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("DISABLED"), scs);
 
   /* on_completion */
   if (et.on_completion == Event_timed::ON_COMPLETION_DROP)
-    sch_table->field[13]->store(STRING_WITH_LEN("NOT PRESERVE"), scs);
+    sch_table->field[ISE_ON_COMPLETION]->
+                                store(STRING_WITH_LEN("NOT PRESERVE"), scs);
   else
-    sch_table->field[13]->store(STRING_WITH_LEN("PRESERVE"), scs);
+    sch_table->field[ISE_ON_COMPLETION]->
+                                store(STRING_WITH_LEN("PRESERVE"), scs);
     
   int not_used=0;
   number_to_datetime(et.created, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
-  sch_table->field[14]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+  sch_table->field[ISE_CREATED]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
 
   number_to_datetime(et.modified, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
-  sch_table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+  sch_table->field[ISE_LAST_ALTERED]->
+                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
 
   if (et.last_executed.year)
   {
-    sch_table->field[16]->set_notnull();
-    sch_table->field[16]->store_time(&et.last_executed,MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[ISE_LAST_EXECUTED]->set_notnull();
+    sch_table->field[ISE_LAST_EXECUTED]->
+                       store_time(&et.last_executed, MYSQL_TIMESTAMP_DATETIME);
   }
 
-  sch_table->field[17]->store(et.comment.str, et.comment.length, scs);
+  sch_table->field[ISE_EVENT_COMMENT]->
+                      store(et.comment.str, et.comment.length, scs);
 
   if (schema_table_store_record(thd, sch_table))
     DBUG_RETURN(1);
@@ -5173,7 +5216,8 @@ ST_FIELD_INFO events_fields_info[]=
   {"EVENT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Db"},
   {"EVENT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
   {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer"},
-  {"EVENT_BODY", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"EVENT_BODY", 8, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"EVENT_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"EVENT_TYPE", 9, MYSQL_TYPE_STRING, 0, 0, "Type"},
   {"EXECUTE_AT", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Execute at"},
   {"INTERVAL_VALUE", 256, MYSQL_TYPE_STRING, 0, 1, "Interval value"},

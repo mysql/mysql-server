@@ -16,9 +16,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
-
-
 #define EVENT_EXEC_STARTED      0
 #define EVENT_EXEC_ALREADY_EXEC 1
 #define EVENT_EXEC_CANT_FORK    2
@@ -27,16 +24,12 @@
 #define EVEX_NAME_FIELD_LEN 64
 #define EVEX_MAX_INTERVAL_VALUE 2147483647L
 
-int
-my_time_compare(TIME *a, TIME *b);
+class Event_timed;
 
 int
 evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
                           const LEX_STRING ev_name,
                           TABLE *table);
-
-int
-event_timed_compare_q(void *vptr, byte* a, byte *b);
 
 int
 db_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
