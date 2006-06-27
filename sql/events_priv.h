@@ -25,6 +25,7 @@
 #define EVEX_MAX_INTERVAL_VALUE 2147483647L
 
 class Event_timed;
+class sp_name;
 
 int
 evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
@@ -32,7 +33,7 @@ evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
                           TABLE *table);
 
 int
-db_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
+db_drop_event(THD *thd, LEX_STRING db, LEX_STRING name, bool drop_if_exists,
               uint *rows_affected);
 int
 db_find_event(THD *thd, sp_name *name, Event_timed **ett, TABLE *tbl,
@@ -66,6 +67,20 @@ event_timed_definer_equal(Event_timed *et, LEX_STRING *definer);
 /* Compares the whole identifier*/
 bool
 event_timed_identifier_equal(Event_timed *a, Event_timed *b);
+
+
+
+/* Compares only the name part of the identifier */
+bool
+event_timed_name_equal(sp_name *name, LEX_STRING *event_name);
+
+/* Compares only the schema part of the identifier */
+bool
+event_timed_db_equal(sp_name *name, LEX_STRING *db);
+
+/* Compares the whole identifier*/
+bool
+event_timed_identifier_equal(sp_name *a, Event_timed *b);
 
 
 bool

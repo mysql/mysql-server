@@ -988,14 +988,15 @@ Events::update_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
     !0  Error (my_error() called)
 */
 
-int db_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
-                  uint *rows_affected)
+int db_drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
+                  bool drop_if_exists, uint *rows_affected)
 {
   TABLE *table;
   Open_tables_state backup;
   int ret;
 
   DBUG_ENTER("db_drop_event");
+  DBUG_PRINT("enter", ("db=%s name=%s", db.str, name.str));
   ret= EVEX_OPEN_TABLE_FAILED;
 
   thd->reset_n_backup_open_tables_state(&backup);
@@ -1005,13 +1006,10 @@ int db_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
     goto done;
   }
 
-  if (!(ret= evex_db_find_event_aux(thd, et, table)))
+  if (!(ret= evex_db_find_event_by_name(thd, db, name, table)))
   {
     if ((ret= table->file->ha_delete_row(table->record[0])))
-    { 	
       my_error(ER_EVENT_CANNOT_DELETE, MYF(0));
-      goto done;
-    }
   }
   else if (ret == EVEX_KEY_NOT_FOUND)
   { 
@@ -1019,13 +1017,11 @@ int db_drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                           ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
-                          "Event", et->name.str);
+                          "Event", name.str);
       ret= 0;
     } else
-      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), et->name.str);
-    goto done;
+      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
   }
-
 
 done:
   /*
@@ -1044,7 +1040,7 @@ done:
   SYNOPSIS
     Events::drop_event()
       thd             THD
-      et              event's name
+      name            event's name
       drop_if_exists  if set and the event not existing => warning onto the stack
       rows_affected   affected number of rows is returned heres
 
@@ -1054,16 +1050,17 @@ done:
 */
 
 int
-Events::drop_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
-                   bool drop_if_exists, uint *rows_affected)
+Events::drop_event(THD *thd, sp_name *name, bool drop_if_exists,
+                   uint *rows_affected)
 {
   int ret;
 
   DBUG_ENTER("Events::drop_event");
-  if (!(ret= db_drop_event(thd, et, drop_if_exists, rows_affected)))
+  if (!(ret= db_drop_event(thd, name->m_db, name->m_name, drop_if_exists,
+                           rows_affected)))
   {
     Event_scheduler *scheduler= Event_scheduler::get_instance();
-    if (scheduler->initialized() && (ret= scheduler->drop_event(thd, et)))
+    if (scheduler->initialized() && (ret= scheduler->drop_event(thd, name)))
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
   }
 

@@ -16,7 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
+class sp_name;
 class Event_timed;
 class Event_parse_data;
 
@@ -56,8 +56,7 @@ public:
                sp_name *new_name, uint *rows_affected);
 
   static int
-  drop_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
-             bool drop_if_exists, uint *rows_affected);
+  drop_event(THD *thd, sp_name *name, bool drop_if_exists, uint *rows_affected);
 
   static int
   open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
