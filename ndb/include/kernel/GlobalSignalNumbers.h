@@ -611,8 +611,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_WAIT_GCP_REF                500
 #define GSN_WAIT_GCP_CONF               501
 
-/* 502 not used */
-
 /**
  * Trigger and index signals
  */
@@ -681,6 +679,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_BACKUP_FRAGMENT_REQ         545
 #define GSN_BACKUP_FRAGMENT_REF         546
 #define GSN_BACKUP_FRAGMENT_CONF        547
+
+#define GSN_BACKUP_FRAGMENT_COMPLETE_REP 502
 
 #define GSN_STOP_BACKUP_REQ             548
 #define GSN_STOP_BACKUP_REF             549

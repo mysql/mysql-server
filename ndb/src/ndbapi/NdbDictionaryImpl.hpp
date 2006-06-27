@@ -130,6 +130,9 @@ public:
   Uint32 m_hashpointerValue;
   Vector<Uint16> m_fragments;
 
+  Uint64 m_max_rows;
+  Uint64 m_min_rows;
+
   bool m_logging;
   int m_kvalue;
   int m_minLoadFactor;

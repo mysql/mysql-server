@@ -281,6 +281,10 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
   w.add(DictTabInfo::TableKValue, tablePtr.p->kValue);
   w.add(DictTabInfo::FragmentTypeVal, tablePtr.p->fragmentType);
   w.add(DictTabInfo::TableTypeVal, tablePtr.p->tableType);
+  w.add(DictTabInfo::MaxRowsLow, tablePtr.p->maxRowsLow);
+  w.add(DictTabInfo::MaxRowsHigh, tablePtr.p->maxRowsHigh);
+  w.add(DictTabInfo::MinRowsLow, tablePtr.p->minRowsLow);
+  w.add(DictTabInfo::MinRowsHigh, tablePtr.p->minRowsHigh);
   
   if(!signal)
   {
@@ -1525,6 +1529,10 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->minLoadFactor = 70;
   tablePtr.p->noOfPrimkey = 1;
   tablePtr.p->tupKeyLength = 1;
+  tablePtr.p->maxRowsLow = 0;
+  tablePtr.p->maxRowsHigh = 0;
+  tablePtr.p->minRowsLow = 0;
+  tablePtr.p->minRowsHigh = 0;
   tablePtr.p->storedTable = true;
   tablePtr.p->tableType = DictTabInfo::UserTable;
   tablePtr.p->primaryTableId = RNIL;
@@ -4464,6 +4472,13 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
   Uint32 lhPageBits = 0;
   ::calcLHbits(&lhPageBits, &lhDistrBits, fragId, fragCount);
 
+  Uint64 maxRows = tabPtr.p->maxRowsLow +
+    (((Uint64)tabPtr.p->maxRowsHigh) << 32);
+  Uint64 minRows = tabPtr.p->minRowsLow +
+    (((Uint64)tabPtr.p->minRowsHigh) << 32);
+  maxRows = (maxRows + fragCount - 1) / fragCount;
+  minRows = (minRows + fragCount - 1) / fragCount;
+
   {  
     LqhFragReq* req = (LqhFragReq*)signal->getDataPtrSend();
     req->senderData = senderData;
@@ -4479,7 +4494,10 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     req->lh3PageBits = 0; //lhPageBits;
     req->noOfAttributes = tabPtr.p->noOfAttributes;
     req->noOfNullAttributes = tabPtr.p->noOfNullBits;
-    req->noOfPagesToPreAllocate = 0;
+    req->maxRowsLow = maxRows & 0xFFFFFFFF;
+    req->maxRowsHigh = maxRows >> 32;
+    req->minRowsLow = minRows & 0xFFFFFFFF;
+    req->minRowsHigh = minRows >> 32;
     req->schemaVersion = tabPtr.p->tableVersion;
     Uint32 keyLen = tabPtr.p->tupKeyLength;
     req->keyLength = keyLen; // wl-2066 no more "long keys"
@@ -4487,8 +4505,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
 
     req->noOfKeyAttr = tabPtr.p->noOfPrimkey;
     req->noOfNewAttr = 0;
-    // noOfCharsets passed to TUP in upper half
-    req->noOfNewAttr |= (tabPtr.p->noOfCharsets << 16);
+    req->noOfCharsets = tabPtr.p->noOfCharsets;
     req->checksumIndicator = 1;
     req->noOfAttributeGroups = 1;
     req->GCPIndicator = 0;
@@ -5054,6 +5071,15 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->tableType = (DictTabInfo::TableType)tableDesc.TableType;
   tablePtr.p->kValue = tableDesc.TableKValue;
   tablePtr.p->fragmentCount = tableDesc.FragmentCount;
+  tablePtr.p->maxRowsLow = tableDesc.MaxRowsLow;
+  tablePtr.p->maxRowsHigh = tableDesc.MaxRowsHigh;
+  tablePtr.p->minRowsLow = tableDesc.MinRowsLow;
+  tablePtr.p->minRowsHigh = tableDesc.MinRowsHigh;
+
+  Uint64 maxRows =
+    (((Uint64)tablePtr.p->maxRowsHigh) << 32) + tablePtr.p->maxRowsLow;
+  Uint64 minRows =
+    (((Uint64)tablePtr.p->minRowsHigh) << 32) + tablePtr.p->minRowsLow;
 
   tablePtr.p->frmLen = tableDesc.FrmLen;
   memcpy(tablePtr.p->frmData, tableDesc.FrmData, tableDesc.FrmLen);  
