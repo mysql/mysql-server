@@ -114,6 +114,14 @@ public:
   AttributeData * getData(int i) const;
 }; // class TupleS
 
+struct FragmentInfo
+{
+  Uint32 fragmentNo;
+  Uint64 noOfRecords;
+  Uint32 filePosLow;
+  Uint32 filePosHigh;
+};
+
 class TableS {
   
   friend class TupleS;
@@ -136,6 +144,9 @@ class TableS {
 
   int pos;
 
+  Uint64 m_noOfRecords;
+  Vector<FragmentInfo *> m_fragmentInfo;
+
   void createAttr(NdbDictionary::Column *column);
 
 public:
@@ -145,6 +156,9 @@ public:
 
   Uint32 getTableId() const { 
     return m_dictTable->getTableId(); 
+  }
+  Uint32 getNoOfRecords() const { 
+    return m_noOfRecords; 
   }
   /*
   void setMysqlTableName(char * tableName) {
@@ -274,6 +288,7 @@ class RestoreMetaData : public BackupFile {
   bool readMetaTableDesc();
 		
   bool readGCPEntry();
+  bool readFragmentInfo();
   Uint32 readMetaTableList();
 
   Uint32 m_startGCP;
