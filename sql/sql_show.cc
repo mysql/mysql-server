@@ -4324,7 +4324,7 @@ int events_table_index_read_for_db(THD *thd, TABLE *schema_table,
 
   DBUG_PRINT("info", ("Using prefix scanning on PK"));
   event_table->file->ha_index_init(0, 1);
-  event_table->field[Events::FIELD_DB]->
+  event_table->field[ET_FIELD_DB]->
         store(thd->lex->select_lex.db, strlen(thd->lex->select_lex.db), scs);
   key_info= event_table->key_info;
   key_len= key_info->key_part[0].store_length;
@@ -4443,7 +4443,7 @@ int fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
               thd->lex->select_lex.db:"(null)"));
 
   thd->reset_n_backup_open_tables_state(&backup);
-  if (Events::open_event_table(thd, TL_READ, &event_table))
+  if (Events::get_instance()->open_event_table(thd, TL_READ, &event_table))
   {
     sql_print_error("Table mysql.event is damaged.");
     thd->restore_backup_open_tables_state(&backup);

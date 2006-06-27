@@ -3847,13 +3847,14 @@ end_with_restore_list:
 
       switch (lex->sql_command) {
       case SQLCOM_CREATE_EVENT:
-        res= Events::create_event(thd, lex->et, lex->event_parse_data,
-                                  (uint) lex->create_info.options,
-                                  &rows_affected);
+        res= Events::get_instance()->
+                  create_event(thd, lex->et, lex->event_parse_data,
+                               (uint) lex->create_info.options, &rows_affected);
         break;
       case SQLCOM_ALTER_EVENT:
-        res= Events::update_event(thd, lex->et, lex->event_parse_data,
-                                  lex->spname, &rows_affected);
+        res= Events::get_instance()->
+                  update_event(thd, lex->et, lex->event_parse_data,
+                               lex->spname, &rows_affected);
         break;
       default:;
       }
@@ -3895,7 +3896,7 @@ end_with_restore_list:
     }
 
     if (lex->sql_command == SQLCOM_SHOW_CREATE_EVENT)
-      res= Events::show_create_event(thd, lex->spname);
+      res= Events::get_instance()->show_create_event(thd, lex->spname);
     else
     {
       uint rows_affected= 1;
@@ -3904,8 +3905,9 @@ end_with_restore_list:
         res= -1;
         break;
       }
-      if (!(res= Events::drop_event(thd, lex->spname, lex->drop_if_exists,
-                                    &rows_affected)))
+      if (!(res= Events::get_instance()->drop_event(thd, lex->spname,
+                                                    lex->drop_if_exists,
+                                                    &rows_affected)))
         send_ok(thd, rows_affected);     
     }
     break;
@@ -3913,7 +3915,7 @@ end_with_restore_list:
 #ifndef DBUG_OFF
   case SQLCOM_SHOW_SCHEDULER_STATUS:
   {
-    res= Events::dump_internal_status(thd);
+    res= Events::get_instance()->dump_internal_status(thd);
     break;
   }
 #endif

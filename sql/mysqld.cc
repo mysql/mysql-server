@@ -886,7 +886,7 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
-  Events::shutdown();
+  Events::deinit();
   end_slave();
 
   if (thread_count)

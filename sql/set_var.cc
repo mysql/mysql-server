@@ -3891,7 +3891,7 @@ byte *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
 bool
 sys_var_event_scheduler::update(THD *thd, set_var *var)
 {
-  enum Event_scheduler::enum_error_code res;
+  int res;
   Event_scheduler *scheduler= Event_scheduler::get_instance();
   /* here start the thread if not running. */
   DBUG_ENTER("sys_var_event_scheduler::update");

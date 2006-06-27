@@ -16,5 +16,87 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+enum enum_events_table_field
+{
+  ET_FIELD_DB = 0,
+  ET_FIELD_NAME,
+  ET_FIELD_BODY,
+  ET_FIELD_DEFINER,
+  ET_FIELD_EXECUTE_AT,
+  ET_FIELD_INTERVAL_EXPR,
+  ET_FIELD_TRANSIENT_INTERVAL,
+  ET_FIELD_CREATED,
+  ET_FIELD_MODIFIED,
+  ET_FIELD_LAST_EXECUTED,
+  ET_FIELD_STARTS,
+  ET_FIELD_ENDS,
+  ET_FIELD_STATUS,
+  ET_FIELD_ON_COMPLETION,
+  ET_FIELD_SQL_MODE,
+  ET_FIELD_COMMENT,
+  ET_FIELD_COUNT /* a cool trick to count the number of fields :) */
+};
+
+
+int
+evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
+                           const LEX_STRING ev_name,
+                           TABLE *table);
+
+class Event_queue_element;
+
+class Event_db_repository
+{
+public:
+  Event_db_repository(){}
+  ~Event_db_repository(){}
+
+  int
+  init_repository();
+
+  void
+  deinit_repository();
+
+  int
+  open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
+
+  int
+  create_event(THD *thd, Event_timed *et, my_bool create_if_not,
+              uint *rows_affected);
+
+  int
+  update_event(THD *thd, Event_timed *et, sp_name *new_name);
+
+  int 
+  drop_event(THD *thd, LEX_STRING db, LEX_STRING name, bool drop_if_exists,
+             uint *rows_affected);
+
+  int
+  drop_schema_events(THD *thd, LEX_STRING schema);
+
+  int
+  drop_user_events(THD *thd, LEX_STRING definer);
+
+  int
+  find_event(THD *thd, sp_name *name, Event_timed **ett, TABLE *tbl,
+             MEM_ROOT *root);
+
+  int
+  load_named_event(THD *thd, Event_timed *etn, Event_timed **etn_new);
+
+  int
+  find_event_by_name(THD *thd, LEX_STRING db, LEX_STRING name, TABLE *table);
+private:
+
+  int
+  drop_events_by_field(THD *thd, enum enum_events_table_field field,
+                       LEX_STRING field_value);
+
+  MEM_ROOT repo_root;
+
+  /* Prevent use of these */
+  Event_db_repository(const Event_db_repository &);
+  void operator=(Event_db_repository &);
+};
  
 #endif /* _EVENT_DB_REPOSITORY_H_ */
