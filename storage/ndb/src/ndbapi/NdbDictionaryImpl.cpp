@@ -2067,11 +2067,11 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 		   fragmentTypeMapping, 
 		   (Uint32)NdbDictionary::Object::FragUndefined);
   
-  Uint64 max_rows = ((Uint64)tableDesc.MaxRowsHigh) << 32;
-  max_rows += tableDesc.MaxRowsLow;
+  Uint64 max_rows = ((Uint64)tableDesc->MaxRowsHigh) << 32;
+  max_rows += tableDesc->MaxRowsLow;
   impl->m_max_rows = max_rows;
-  Uint64 min_rows = ((Uint64)tableDesc.MinRowsHigh) << 32;
-  min_rows += tableDesc.MinRowsLow;
+  Uint64 min_rows = ((Uint64)tableDesc->MinRowsHigh) << 32;
+  min_rows += tableDesc->MinRowsLow;
   impl->m_min_rows = min_rows;
   impl->m_default_no_part_flag = tableDesc->DefaultNoPartFlag;
   impl->m_linear_flag = tableDesc->LinearHashFlag;
@@ -2526,10 +2526,10 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   tmpTab->TableType = DictTabInfo::UserTable;
   tmpTab->PrimaryTableId = impl.m_primaryTableId;
   tmpTab->NoOfAttributes = sz;
-  tmpTab.MaxRowsHigh = (Uint32)(impl.m_max_rows >> 32);
-  tmpTab.MaxRowsLow = (Uint32)(impl.m_max_rows & 0xFFFFFFFF);
-  tmpTab.MinRowsHigh = (Uint32)(impl.m_min_rows >> 32);
-  tmpTab.MinRowsLow = (Uint32)(impl.m_min_rows & 0xFFFFFFFF);
+  tmpTab->MaxRowsHigh = (Uint32)(impl.m_max_rows >> 32);
+  tmpTab->MaxRowsLow = (Uint32)(impl.m_max_rows & 0xFFFFFFFF);
+  tmpTab->MinRowsHigh = (Uint32)(impl.m_min_rows >> 32);
+  tmpTab->MinRowsLow = (Uint32)(impl.m_min_rows & 0xFFFFFFFF);
   tmpTab->DefaultNoPartFlag = impl.m_default_no_part_flag;
   tmpTab->LinearHashFlag = impl.m_linear_flag;
 

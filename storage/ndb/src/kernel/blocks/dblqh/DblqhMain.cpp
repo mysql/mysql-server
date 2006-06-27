@@ -1007,7 +1007,6 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   Uint32 ttupKeyLength = req->keyLength;
   Uint32 nextLcp = req->nextLCP;
   Uint32 noOfKeyAttr = req->noOfKeyAttr;
-  Uint32 noOfNewAttr = req->noOfNewAttr;
   Uint32 noOfCharsets = req->noOfCharsets;
   Uint32 checksumIndicator = req->checksumIndicator;
   Uint32 gcpIndicator = req->GCPIndicator;
@@ -1128,7 +1127,6 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   addfragptr.p->fragCopyCreation = (tmp == 0 ? 0 : 1);
   addfragptr.p->addfragErrorCode = 0;
   addfragptr.p->noOfKeyAttr = noOfKeyAttr;
-  addfragptr.p->noOfNewAttr = noOfNewAttr;
   addfragptr.p->noOfCharsets = noOfCharsets;
   addfragptr.p->checksumIndicator = checksumIndicator;
   addfragptr.p->GCPIndicator = gcpIndicator;
@@ -1282,12 +1280,10 @@ Dblqh::sendAddFragReq(Signal* signal)
       tupFragReq->noOfNullAttr = addfragptr.p->noOfNull;
       tupFragReq->schemaVersion = addfragptr.p->schemaVer;
       tupFragReq->noOfKeyAttr = addfragptr.p->noOfKeyAttr;
-      tupFragReq->noOfNewAttr = addfragptr.p->noOfNewAttr;
       tupFragReq->noOfCharsets = addfragptr.p->noOfCharsets;
       tupFragReq->checksumIndicator = addfragptr.p->checksumIndicator;
-      tupFragReq->noOfAttributeGroups = addfragptr.p->noOfAttributeGroups;
       tupFragReq->globalCheckpointIdIndicator = addfragptr.p->GCPIndicator;
-      tupFragReq->tablespaceId = addfragptr.p->tablespace_id;
+      tupFragReq->tablespaceid = addfragptr.p->tablespace_id;
       sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
 		 signal, TupFragReq::SignalLength, JBB);
       return;
@@ -1307,10 +1303,8 @@ Dblqh::sendAddFragReq(Signal* signal)
       tupFragReq->noOfNullAttr = 0; /* ordered index: no nullable */
       tupFragReq->schemaVersion = addfragptr.p->schemaVer;
       tupFragReq->noOfKeyAttr = 1; /* ordered index: one key */
-      tupFragReq->noOfNewAttr = addfragptr.p->noOfNewAttr;
       tupFragReq->noOfCharsets = addfragptr.p->noOfCharsets;
       tupFragReq->checksumIndicator = addfragptr.p->checksumIndicator;
-      tupFragReq->noOfAttributeGroups = addfragptr.p->noOfAttributeGroups;
       tupFragReq->globalCheckpointIdIndicator = addfragptr.p->GCPIndicator;
       sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
 		 signal, TupFragReq::SignalLength, JBB);

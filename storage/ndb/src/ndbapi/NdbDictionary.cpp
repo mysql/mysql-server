@@ -451,6 +451,7 @@ NdbDictionary::Table::getMaxRows() const
   return m_impl.m_max_rows;
 }
 
+void
 NdbDictionary::Table::setMinRows(Uint64 minRows)
 {
   m_impl.m_min_rows = minRows;

@@ -53,19 +53,15 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   Uint32 reqinfo        = tupFragReq->reqInfo;
   regTabPtr.i           = tupFragReq->tableId;
   Uint32 noOfAttributes = tupFragReq->noOfAttr;
-  Uint32 pages          = tupFragReq->pages;
   Uint32 fragId         = tupFragReq->fragId;
   Uint32 noOfNullAttr = tupFragReq->noOfNullAttr;
   /*  Uint32 schemaVersion = tupFragReq->schemaVersion;*/
   Uint32 noOfKeyAttr = tupFragReq->noOfKeyAttr;
-
-  Uint32 noOfNewAttr = tupFragReq->noOfNewAttrREMOVE;
   Uint32 noOfCharsets = tupFragReq->noOfCharsets;
 
   Uint32 checksumIndicator = tupFragReq->checksumIndicator;
-  Uint32 noOfAttributeGroups = tupFragReq->noOfAttributeGroupsREMOVE;
-  Uint32 globalCheckpointIdIndicator = tupFragReq->globalCheckpointIdIndicator;
-  Uint32 tablespace= tupFragReq->tablespace;
+  Uint32 gcpIndicator = tupFragReq->globalCheckpointIdIndicator;
+  Uint32 tablespace_id= tupFragReq->tablespaceid;
 
   Uint64 maxRows =
     (((Uint64)tupFragReq->maxRowsHigh) << 32) + tupFragReq->maxRowsLow;
@@ -144,7 +140,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
 
   regFragPtr.p->fragTableId= regTabPtr.i;
   regFragPtr.p->fragmentId= fragId;
-  regFragPtr.p->m_tablespace_id= tablespace;
+  regFragPtr.p->m_tablespace_id= tablespace_id;
   regFragPtr.p->m_undo_complete= false;
   regFragPtr.p->m_lcp_scan_op = RNIL; 
   regFragPtr.p->m_lcp_keep_list = RNIL;
@@ -423,26 +419,6 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     return;
   }
 
-  if (lastAttr)
-  {
-    ljam();
-    Uint32 noRowsPerPage = ZWORDS_ON_PAGE/regTabPtr.p->tupheadsize;
-    Uint32 noAllocatedPages =
-      (fragOperPtr.p->minRows + noRowsPerPage - 1 )/ noRowsPerPage;
-    if (fragOperPtr.p->minRows == 0)
-      noAllocatedPages = 2;
-    else if (noAllocatedPages == 0)
-      noAllocatedPages = 2;
-    noAllocatedPages = allocFragPages(regFragPtr.p, noAllocatedPages);
-
-    if (noAllocatedPages == 0) {
-      ljam();
-      terrorCode = ZNO_PAGES_ALLOCATED_ERROR;
-      addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
-      return;
-    }//if
-  }
-
 /* **************************************************************** */
 /* **************          TUP_ADD_ATTCONF       ****************** */
 /* **************************************************************** */
@@ -558,6 +534,26 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   }
 #endif
   
+  {
+    ndbrequire(regTabPtr.p->m_offsets[MM].m_fix_header_size > 0);
+    Uint32 noRowsPerPage =
+      ZWORDS_ON_PAGE/regTabPtr.p->m_offsets[MM].m_fix_header_size;
+    Uint32 noAllocatedPages =
+      (fragOperPtr.p->minRows + noRowsPerPage - 1 )/ noRowsPerPage;
+    if (fragOperPtr.p->minRows == 0)
+      noAllocatedPages = 2;
+    else if (noAllocatedPages == 0)
+      noAllocatedPages = 2;
+    noAllocatedPages = allocFragPages(regFragPtr.p, noAllocatedPages);
+
+    if (noAllocatedPages == 0) {
+      ljam();
+      terrorCode = ZNO_PAGES_ALLOCATED_ERROR;
+      addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
+      return;
+    }//if
+  }
+
   CreateFilegroupImplReq rep;
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
