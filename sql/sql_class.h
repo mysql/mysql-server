@@ -1300,7 +1300,7 @@ public:
   pthread_t  real_id;
   uint	     tmp_table, global_read_lock;
   uint	     server_status,open_options,system_thread;
-  uint32     db_length;
+  uint       db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;

@@ -1028,7 +1028,7 @@ set autocommit=1;
 let $VERSION=`select version()`;
 
 reset master;
-create table bug16206 (a int) engine=         blackhole;
+create table bug16206 (a int);
 insert into bug16206 values(1);
 start transaction;
 insert into bug16206 values(2);
