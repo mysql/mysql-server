@@ -14,8 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "event_priv.h"
-#include "event.h"
+#include "mysql_priv.h"
+#include "events_priv.h"
+#include "events.h"
+#include "event_timed.h"
 #include "event_scheduler.h"
 #include "sp.h"
 #include "sp_head.h"
@@ -160,35 +162,11 @@ TABLE_FIELD_W_TYPE event_table_fields[Events::FIELD_COUNT] = {
 };
 
 
-LEX_STRING interval_type_to_name[] = {
-  {(char *) STRING_WITH_LEN("YEAR")},
-  {(char *) STRING_WITH_LEN("QUARTER")},
-  {(char *) STRING_WITH_LEN("MONTH")},
-  {(char *) STRING_WITH_LEN("DAY")},
-  {(char *) STRING_WITH_LEN("HOUR")},
-  {(char *) STRING_WITH_LEN("MINUTE")},
-  {(char *) STRING_WITH_LEN("WEEK")},
-  {(char *) STRING_WITH_LEN("SECOND")},
-  {(char *) STRING_WITH_LEN("MICROSECOND")},
-  {(char *) STRING_WITH_LEN("YEAR_MONTH")},
-  {(char *) STRING_WITH_LEN("DAY_HOUR")},
-  {(char *) STRING_WITH_LEN("DAY_MINUTE")},
-  {(char *) STRING_WITH_LEN("DAY_SECOND")},
-  {(char *) STRING_WITH_LEN("HOUR_MINUTE")},
-  {(char *) STRING_WITH_LEN("HOUR_SECOND")},
-  {(char *) STRING_WITH_LEN("MINUTE_SECOND")},
-  {(char *) STRING_WITH_LEN("DAY_MICROSECOND")},
-  {(char *) STRING_WITH_LEN("HOUR_MICROSECOND")},
-  {(char *) STRING_WITH_LEN("MINUTE_MICROSECOND")},
-  {(char *) STRING_WITH_LEN("SECOND_MICROSECOND")}
-}; 
-
-
 /*
   Compares 2 LEX strings regarding case.
 
   SYNOPSIS
-    my_time_compare()
+    sortcmp_lex_string()
 
       s - first LEX_STRING
       t - second LEX_STRING
@@ -207,68 +185,6 @@ int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
 {
  return cs->coll->strnncollsp(cs, (uchar *) s.str,s.length,
                                   (uchar *) t.str,t.length, 0);
-}
-
-
-/*
-  Compares 2 TIME structures
-
-  SYNOPSIS
-    my_time_compare()
-
-      a - first TIME
-      b - second time
-
-  RETURN VALUE
-   -1   - a < b
-    0   - a == b
-    1   - a > b
-
-  NOTES
-    TIME.second_part is not considered during comparison
-*/
-
-int
-my_time_compare(TIME *a, TIME *b)
-{
-  my_ulonglong a_t= TIME_to_ulonglong_datetime(a);
-  my_ulonglong b_t= TIME_to_ulonglong_datetime(b);
-
-  if (a_t > b_t)
-    return 1;
-  else if (a_t < b_t)
-    return -1;
-
-  return 0;
-}
-
-
-/*
-  Compares the execute_at members of 2 Event_timed instances.
-  Used as callback for the prioritized queue when shifting
-  elements inside.
-
-  SYNOPSIS
-    event_timed_compare()
-  
-      vptr - not used (set it to NULL)
-      a    - first Event_timed object
-      b    - second Event_timed object
-
-  RETURNS:
-   -1   - a->execute_at < b->execute_at
-    0   - a->execute_at == b->execute_at
-    1   - a->execute_at > b->execute_at
-    
-  Notes
-    execute_at.second_part is not considered during comparison
-*/
-
-int 
-event_timed_compare_q(void *vptr, byte* a, byte *b)
-{
-  return my_time_compare(&((Event_timed *)a)->execute_at,
-                         &((Event_timed *)b)->execute_at);
 }
 
 
@@ -1002,7 +918,8 @@ Events::create_event(THD *thd, Event_timed *et, uint create_options,
                              rows_affected)))
   {
     Event_scheduler *scheduler= Event_scheduler::get_instance();
-    if (scheduler->initialized() && (ret= scheduler->add_event(thd, et, true)))
+    if (scheduler->initialized() &&
+        (ret= scheduler->create_event(thd, et, true)))
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
   }
   /* No need to close the table, it will be closed in sql_parse::do_command */
@@ -1047,7 +964,7 @@ Events::update_event(THD *thd, Event_timed *et, sp_name *new_name,
   {
     Event_scheduler *scheduler= Event_scheduler::get_instance();
     if (scheduler->initialized() &&
-        (ret= scheduler->replace_event(thd, et,
+        (ret= scheduler->update_event(thd, et,
                                        new_name? &new_name->m_db: NULL,
                                        new_name? &new_name->m_name: NULL)))
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
