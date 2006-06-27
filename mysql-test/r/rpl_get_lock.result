@@ -25,7 +25,7 @@ explain extended select is_free_lock("lock"), is_used_lock("lock");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select sql_no_cache is_free_lock(_latin1'lock') AS `is_free_lock("lock")`,is_used_lock(_latin1'lock') AS `is_used_lock("lock")`
+Note	1003	select is_free_lock(_latin1'lock') AS `is_free_lock("lock")`,is_used_lock(_latin1'lock') AS `is_used_lock("lock")`
 select is_free_lock("lock2");
 is_free_lock("lock2")
 1
