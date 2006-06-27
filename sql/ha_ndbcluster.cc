@@ -430,6 +430,13 @@ ha_rows ha_ndbcluster::records()
   {
     retval= stat.row_count;
   }
+  else
+  {
+    /**
+     * Be consistent with BUG#19914 until we fix it properly
+     */
+    DBUG_RETURN(-1);
+  }
 
   THD *thd= current_thd;
   if (get_thd_ndb(thd)->error)
