@@ -1177,7 +1177,7 @@ bool net_request_file(NET* net, const char* fname)
 }
 
 
-const char *rewrite_db(const char* db, uint32 *new_len)
+const char *rewrite_db(const char* db, uint *new_len)
 {
   if (replicate_rewrite_db.is_empty() || !db)
     return db;
