@@ -880,7 +880,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
         load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
         definer view_replace_or_algorithm view_replace view_algorithm_opt
-        view_algorithm view_or_trigger_or_sp view_or_trigger_or_sp_tail
+        view_algorithm view_or_trigger_or_sp_or_event
+        view_or_trigger_or_sp_or_event_tail
         view_suid view_tail view_list_opt view_list view_select
         view_check_option trigger_tail sp_tail
         install uninstall partition_entry binlog_base64_event
@@ -1257,78 +1258,13 @@ create:
 	    lex->name=$4.str;
             lex->create_info.options=$3;
 	  }
-	| CREATE EVENT_SYM opt_if_not_exists sp_name
-          /*
-             BE CAREFUL when you add a new rule to update the block where
-             YYTHD->client_capabilities is set back to original value
-          */
-          {
-            LEX *lex=Lex;
-
-            if (lex->et)
-            {
-              /*
-                Recursive events are not possible because recursive SPs
-                are not also possible. lex->sp_head is not stacked.
-              */
-              // ToDo Andrey : Change the error message
-              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
-              YYABORT;
-            }
-
-            lex->create_info.options= $3;
-
-            if (!(lex->et= new(YYTHD->mem_root) Event_timed())) // implicitly calls Event_timed::init()
-              YYABORT;
-            if (!(lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
-              YYABORT;
-
-            /*
-              We have to turn of CLIENT_MULTI_QUERIES while parsing a
-              stored procedure, otherwise yylex will chop it into pieces
-              at each ';'.
-            */
-            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-            YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
-
-            
-            lex->event_parse_data->identifier= $4;
-
-            if (!lex->et_compile_phase)
-            {
-              lex->et->init_name(YYTHD, $4);
-              lex->et->init_definer(YYTHD);
-            }
-          }
-          ON SCHEDULE_SYM ev_schedule_time
-          opt_ev_on_completion
-          opt_ev_status
-          opt_ev_comment
-          DO_SYM ev_sql_stmt
-          {
-            /*
-              Restore flag if it was cleared above
-              $1 - CREATE
-              $2 - EVENT_SYM
-              $3 - opt_if_not_exists
-              $4 - sp_name
-              $5 - the block above
-            */
-            YYTHD->client_capabilities |= $<ulong_num>5;
-
-            /*
-              sql_command is set here because some rules in ev_sql_stmt
-              can overwrite it
-            */
-            Lex->sql_command= SQLCOM_CREATE_EVENT;
-          }
 	| CREATE
 	  {
             Lex->create_view_mode= VIEW_CREATE_NEW;
             Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
             Lex->create_view_suid= TRUE;
 	  }
-	  view_or_trigger_or_sp
+	  view_or_trigger_or_sp_or_event
 	  {}
 	| CREATE USER clear_privileges grant_list
 	  {
@@ -1345,6 +1281,72 @@ create:
             lex->alter_tablespace_info->ts_cmd_type= CREATE_TABLESPACE;
           }
 	;
+
+
+event_tail:
+          EVENT_SYM opt_if_not_exists sp_name
+          /*
+             BE CAREFUL when you add a new rule to update the block where
+             YYTHD->client_capabilities is set back to original value
+          */
+          {
+            LEX *lex=Lex;
+
+            if (lex->et)
+            {
+              /*
+                Recursive CREATE EVENT statement are not possible because
+                recursive SPs are not also possible. lex->sp_head is not stacked.
+              */
+              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
+              YYABORT;
+            }
+
+            lex->create_info.options= $2;
+
+            if (!(lex->et= new(YYTHD->mem_root) Event_timed())) // implicitly calls Event_timed::init()
+              YYABORT;
+            if (!(lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
+              YYABORT;
+
+            /*
+              We have to turn of CLIENT_MULTI_QUERIES while parsing a
+              stored procedure, otherwise yylex will chop it into pieces
+              at each ';'.
+            */
+            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+            YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
+
+            
+            lex->event_parse_data->identifier= $3;
+
+            if (!lex->et_compile_phase)
+            {
+              lex->et->init_name(YYTHD, $3);
+              lex->et->init_definer(YYTHD);
+            }
+          }
+          ON SCHEDULE_SYM ev_schedule_time
+          opt_ev_on_completion
+          opt_ev_status
+          opt_ev_comment
+          DO_SYM ev_sql_stmt
+          {
+            /*
+              Restore flag if it was cleared above
+              $1 - EVENT_SYM
+              $2 - opt_if_not_exists
+              $3 - sp_name
+              $4 - the block above
+            */
+            YYTHD->client_capabilities |= $<ulong_num>4;
+
+            /*
+              sql_command is set here because some rules in ev_sql_stmt
+              can overwrite it
+            */
+            Lex->sql_command= SQLCOM_CREATE_EVENT;
+          }
 
 
 ev_schedule_time: EVERY_SYM expr interval
@@ -1517,25 +1519,41 @@ ev_sql_stmt:
             LEX *lex= Lex;
             sp_head *sp;
 
-            $<sphead>$= lex->sphead;
-
-            if (!lex->sphead)
+            /*
+              This stops the following :
+              - CREATE EVENT ... DO CREATE EVENT ...;
+              - ALTER  EVENT ... DO CREATE EVENT ...;
+              - CREATE EVENT ... DO ALTER EVENT DO ....;
+              - CREATE PROCEDURE ... BEGIN CREATE EVENT ... END|
+              This allows:
+              - CREATE EVENT ... DO DROP EVENT yyy;
+              - CREATE EVENT ... DO ALTER EVENT yyy;
+                (the nested ALTER EVENT can have anything but DO clause)
+              - ALTER  EVENT ... DO ALTER EVENT yyy;
+                (the nested ALTER EVENT can have anything but DO clause)
+              - ALTER  EVENT ... DO DROP EVENT yyy;
+              - CREATE PROCEDURE ... BEGIN ALTER EVENT ... END|
+                (the nested ALTER EVENT can have anything but DO clause)
+              - CREATE PROCEDURE ... BEGIN DROP EVENT ... END|
+            */
+            if (lex->sphead)
             {
-              if (!(sp= new sp_head()))
-                YYABORT;
-
-              sp->reset_thd_mem_root(YYTHD);
-              sp->init(lex);
-
-              sp->m_type= TYPE_ENUM_PROCEDURE;
-
-              lex->sphead= sp;
-
-              bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-              lex->sphead->m_chistics= &lex->sp_chistics;
-
-              lex->sphead->m_body_begin= lex->ptr;
+              my_error(ER_EVENT_RECURSIVITY_FORBIDDEN, MYF(0));
+              YYABORT;
             }
+              
+            if (!(lex->sphead= new sp_head()))
+              YYABORT;
+
+            lex->sphead->reset_thd_mem_root(YYTHD);
+            lex->sphead->init(lex);
+
+            lex->sphead->m_type= TYPE_ENUM_PROCEDURE;
+
+            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            lex->sphead->m_chistics= &lex->sp_chistics;
+
+            lex->sphead->m_body_begin= lex->ptr;
             
             Lex->event_parse_data->body_begin= lex->ptr;
 
@@ -1546,18 +1564,15 @@ ev_sql_stmt:
           {
             LEX *lex=Lex;
 
-            if (!$<sphead>1)
-            {
-              sp_head *sp= lex->sphead;
-              // return back to the original memory root ASAP
-              sp->init_strings(YYTHD, lex, NULL);
-              sp->restore_thd_mem_root(YYTHD);
+            // return back to the original memory root ASAP
+            lex->sphead->init_strings(YYTHD, lex, NULL);
+            lex->sphead->restore_thd_mem_root(YYTHD);
 
-              lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
+            lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
 
-              lex->et->sphead= lex->sphead;
-              lex->sphead= NULL;
-            }
+            lex->et->sphead= lex->sphead;
+            lex->sphead= NULL;
+
             Lex->event_parse_data->init_body(YYTHD);
             if (!lex->et_compile_phase)
             {
@@ -4738,16 +4753,7 @@ alter:
             LEX *lex=Lex;
             Event_timed *et;
 
-            if (lex->et)
-            {
-              /*
-                Recursive events are not possible because recursive SPs
-                are not also possible. lex->sp_head is not stacked.
-              */
-              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
-              YYABORT;
-            }
-            lex->spname= 0;//defensive programming
+            lex->spname= NULL;
 
             if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
               YYABORT;
@@ -10767,19 +10773,21 @@ subselect_end:
 
 **************************************************************************/
 
-view_or_trigger_or_sp:
-	definer view_or_trigger_or_sp_tail
+view_or_trigger_or_sp_or_event:
+	definer view_or_trigger_or_sp_or_event_tail
 	{}
 	| view_replace_or_algorithm definer view_tail
 	{}
 	;
 
-view_or_trigger_or_sp_tail:
+view_or_trigger_or_sp_or_event_tail:
 	view_tail
 	{}
 	| trigger_tail
 	{}
 	| sp_tail
+	{}
+	| event_tail
 	{}
 	;
 
