@@ -3834,14 +3834,13 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
     if (alter_info->flags == ALTER_TABLE_REORG)
     {
       uint new_part_no, curr_part_no;
-      ulonglong max_rows= table->s->max_rows;
       if (tab_part_info->part_type != HASH_PARTITION ||
           tab_part_info->use_default_no_partitions)
       {
         my_error(ER_REORG_NO_PARAM_ERROR, MYF(0));
         DBUG_RETURN(TRUE);
       }
-      new_part_no= table->file->get_default_no_partitions(max_rows);
+      new_part_no= table->file->get_default_no_partitions(create_info);
       curr_part_no= tab_part_info->no_parts;
       if (new_part_no == curr_part_no)
       {
