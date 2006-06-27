@@ -119,7 +119,8 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
 int 
 NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
 			     Uint32 scan_flags, 
-			     Uint32 parallel)
+			     Uint32 parallel,
+			     Uint32 batch)
 {
   m_ordered = m_descending = false;
   Uint32 fragCount = m_currentTable->m_fragmentCount;
@@ -191,8 +192,11 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     tupScan = false;
   }
   
-  theParallelism = parallel;
-
+  if (rangeScan && (scan_flags & SF_OrderBy))
+    parallel = fragCount;
+  
+  theParallelism = parallel;    
+  
   if(fix_receivers(parallel) == -1){
     setErrorCodeAbort(4000);
     return -1;
@@ -211,6 +215,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   req->tableSchemaVersion = m_accessTable->m_version;
   req->storedProcId = 0xFFFF;
   req->buddyConPtr = theNdbCon->theBuddyConPtr;
+  req->first_batch_size = batch; // Save user specified batch size
   
   Uint32 reqInfo = 0;
   ScanTabReq::setParallelism(reqInfo, parallel);
@@ -768,13 +773,14 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
    * The number of records sent by each LQH is calculated and the kernel
    * is informed of this number by updating the SCAN_TABREQ signal
    */
-  Uint32 batch_size, batch_byte_size, first_batch_size;
+  ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
+  Uint32 batch_size = req->first_batch_size; // User specified
+  Uint32 batch_byte_size, first_batch_size;
   theReceiver.calculate_batch_size(key_size,
                                    theParallelism,
                                    batch_size,
                                    batch_byte_size,
                                    first_batch_size);
-  ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
   ScanTabReq::setScanBatch(req->requestInfo, batch_size);
   req->batch_byte_size= batch_byte_size;
   req->first_batch_size= first_batch_size;
@@ -1268,13 +1274,14 @@ NdbIndexScanOperation::getKeyFromSCANTABREQ(Uint32* data, Uint32 size)
 int
 NdbIndexScanOperation::readTuples(LockMode lm,
 				  Uint32 scan_flags,
-				  Uint32 parallel)
+				  Uint32 parallel,
+				  Uint32 batch)
 {
   const bool order_by = scan_flags & SF_OrderBy;
   const bool order_desc = scan_flags & SF_Descending;
   const bool read_range_no = scan_flags & SF_ReadRangeNo;
-
-  int res = NdbScanOperation::readTuples(lm, scan_flags, 0);
+  
+  int res = NdbScanOperation::readTuples(lm, scan_flags, parallel, batch);
   if(!res && read_range_no)
   {
     m_read_range_no = 1;
