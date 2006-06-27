@@ -11,7 +11,7 @@ explain extended select uncompress(compress(@test_compress_string));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select sql_no_cache uncompress(compress((@test_compress_string))) AS `uncompress(compress(@test_compress_string))`
+Note	1003	select uncompress(compress((@test_compress_string))) AS `uncompress(compress(@test_compress_string))`
 select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
 uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)
 1
@@ -19,7 +19,7 @@ explain extended select uncompressed_length(compress(@test_compress_string))=len
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select sql_no_cache (uncompressed_length(compress((@test_compress_string))) = length((@test_compress_string))) AS `uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)`
+Note	1003	select (uncompressed_length(compress((@test_compress_string))) = length((@test_compress_string))) AS `uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)`
 select uncompressed_length(compress(@test_compress_string));
 uncompressed_length(compress(@test_compress_string))
 117
