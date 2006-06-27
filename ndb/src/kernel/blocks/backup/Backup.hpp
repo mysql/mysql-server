@@ -68,6 +68,7 @@ protected:
   void execBACKUP_DATA(Signal* signal);
   void execSTART_BACKUP_REQ(Signal* signal);
   void execBACKUP_FRAGMENT_REQ(Signal* signal);
+  void execBACKUP_FRAGMENT_COMPLETE_REP(Signal* signal);
   void execSTOP_BACKUP_REQ(Signal* signal);
   void execBACKUP_STATUS_REQ(Signal* signal);
   void execABORT_BACKUP_ORD(Signal* signal);
@@ -183,10 +184,12 @@ public:
   typedef Ptr<Attribute> AttributePtr;
   
   struct Fragment {
+    Uint64 noOfRecords;
     Uint32 tableId;
-    Uint32 node;
-    Uint16 scanned;  // 0 = not scanned x = scanned by node x
-    Uint16 scanning; // 0 = not scanning x = scanning on node x
+    Uint8  node;
+    Uint8  scanned;  // 0 = not scanned x = scanned by node x
+    Uint8  scanning; // 0 = not scanning x = scanning on node x
+    Uint8  unused1;
     Uint32 nextPool;
   };
   typedef Ptr<Fragment> FragmentPtr;
@@ -194,6 +197,8 @@ public:
   struct Table {
     Table(ArrayPool<Attribute> &, ArrayPool<Fragment> &);
     
+    Uint64 noOfRecords;
+
     Uint32 tableId;
     Uint32 schemaVersion;
     Uint32 tableType;
@@ -269,8 +274,8 @@ public:
     Uint32 tablePtr;    // Ptr.i to current table
 
     FsBuffer dataBuffer;
-    Uint32 noOfRecords;
-    Uint32 noOfBytes;
+    Uint64 noOfRecords;
+    Uint64 noOfBytes;
     Uint32 maxRecordSize;
     
   private:
