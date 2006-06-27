@@ -1,5 +1,5 @@
-#ifndef _EVENT_TIMED_H_
-#define _EVENT_TIMED_H_
+#ifndef _EVENT_DATA_OBJECTS_H_
+#define _EVENT_DATA_OBJECTS_H_
 /* Copyright (C) 2004-2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -41,6 +41,7 @@
 
 
 class sp_head;
+class Sql_alloc;
 
 class Event_timed
 {
@@ -213,5 +214,89 @@ public:
   void
   set_thread_id(ulong tid) { thread_id= tid; }
 };
- 
-#endif /* _EVENT_H_ */
+
+
+class Event_parse_data : public Sql_alloc
+{
+  Event_parse_data(const Event_parse_data &);	/* Prevent use of these */
+  void operator=(Event_parse_data &);
+
+public:
+  enum enum_status
+  {
+    ENABLED = 1,
+    DISABLED
+  };
+
+  enum enum_on_completion
+  {
+    ON_COMPLETION_DROP = 1,
+    ON_COMPLETION_PRESERVE
+  };
+
+  enum enum_on_completion on_completion;
+  enum enum_status status;
+
+  const uchar *body_begin;
+
+  LEX_STRING dbname;
+  LEX_STRING name;
+  LEX_STRING body;
+
+  LEX_STRING definer_user;
+  LEX_STRING definer_host;
+  LEX_STRING definer;// combination of user and host
+
+  LEX_STRING comment;
+  Item* item_starts;
+  Item* item_ends;
+  Item* item_execute_at;
+
+  TIME starts;
+  TIME ends;
+  TIME execute_at;
+  my_bool starts_null;
+  my_bool ends_null;
+  my_bool execute_at_null;
+
+  Item* item_expression;
+  Item* item_interval;
+  longlong expression;
+  interval_type interval;
+
+//  ulonglong created;
+//  ulonglong modified;
+
+  static Event_parse_data *
+  new_instance(THD *thd);
+
+  Event_parse_data() {}
+  ~Event_parse_data() {}
+
+  int
+  init_definer(THD *thd);
+
+  int
+  init_execute_at(THD *thd, Item *expr);
+
+  int
+  init_interval(THD *thd, Item *expr, interval_type new_interval);
+
+  void
+  init_name(THD *thd, sp_name *spn);
+
+  int
+  init_starts(THD *thd, Item *starts);
+
+  int
+  init_ends(THD *thd, Item *ends);
+
+  void
+  init_body(THD *thd);
+
+  void
+  init_comment(THD *thd, LEX_STRING *set_comment);
+
+};
+
+#endif /* _EVENT_DATA_OBJECTS_H_ */
