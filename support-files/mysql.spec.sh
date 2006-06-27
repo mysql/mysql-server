@@ -485,25 +485,7 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # Initiate databases if needed
 %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
 
-# Upgrade databases if needed
-# This must be done as database user "root", who should be password-protected,
-# but this password is not available here.
-# So ensure the server is isolated as much as possible, and start it so that
-# passwords are not checked.
-# See the related change in the start script "/etc/init.d/mysql".
-if type mktemp >/dev/null 2>&1
-then
-  mysql_tmp_sockdir=`mktemp -dt`
-else
-  PID=$$
-  mysql_tmp_sockdir=/tmp/mysql-$PID
-  ( umask 077 ; mkdir $mysql_tmp_sockdir )
-fi
-chown %{mysqld_user}:%{mysqld_group} $mysql_tmp_sockdir
-%{_sysconfdir}/init.d/mysql start --skip-networking --skip-grant-tables --socket=$mysql_tmp_sockdir/upgrade.sock
-%{_bindir}/mysql_upgrade --socket=$mysql_tmp_sockdir/upgrade.sock
-%{_sysconfdir}/init.d/mysql stop  --skip-networking --skip-grant-tables
-rm -fr $mysql_tmp_sockdir
+# Upgrade databases if needed would go here - but it cannot be automated yet
 
 # Change permissions again to fix any new files.
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
@@ -741,6 +723,12 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Tue Jun 27 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Revert all previous attempts to call "mysql_upgrade" during RPM upgrade,
+  there are some more aspects which need to be solved before this is possible.
+  For now, just ensure the binary "mysql_upgrade" is delivered and installed.
+
 * Thu Jun 22 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Close a gap of the previous version by explicitly using
