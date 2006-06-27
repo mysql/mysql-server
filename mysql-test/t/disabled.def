@@ -13,9 +13,9 @@
 #events_stress            : BUG#17619 2006-02-21 andrey  Race conditions
 #events                   : BUG#17619 2006-02-21 andrey  Race conditions
 #events_scheduling        : BUG#19170 2006-04-26 andrey  Test case of 19170 fails on some platforms. Has to be checked.
-im_instance_conf         : Bug#20294 2006-06-06 monty   Instance manager test im_instance_conf fails randomly
-im_options               : Bug#20294 2006-06-06 monty   Instance manager test im_instance_conf fails randomly
-im_life_cycle            : Bug#20368 2006-06-10 alik    im_life_cycle test fails
+#im_instance_conf          : Bug#20294 2006-06-06 monty   Instance manager test im_instance_conf fails randomly
+#im_options                : Bug#20294 2006-06-06 monty   Instance manager test im_instance_conf fails randomly
+#im_life_cycle             : Bug#20368 2006-06-10 alik    im_life_cycle test fails
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 #ndb_binlog_discover      : BUG#19395 2006-04-28 tomas/knielsen mysqld does not always detect cluster shutdown
@@ -26,7 +26,6 @@ partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when up
 ps_7ndb                  : BUG#18950 2006-02-16 jmiller create table like does not obtain LOCK_open
 rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
 rpl_ndb_2myisam          : BUG#19227 Seems to pass currently
-rpl_ndb_auto_inc         : BUG#17086 2006-02-16 jmiller CR: auto_increment_increment and auto_increment_offset produce duplicate key er
 #rpl_ndb_commit_afterflush : BUG#19328 2006-05-04 tomas Slave timeout with COM_REGISTER_SLAVE error causing stop
 rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on s/AMD
 rpl_ndb_ddl              : BUG#18946 result file needs update + test needs to checked

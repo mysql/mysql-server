@@ -271,6 +271,35 @@ deallocate prepare stmt;
 drop table t1;
 drop view v1, v2, v3;
 drop function bug15683;
+
+
 #
-# End of 5.0 tests
+# Bug#19634 "Re-execution of multi-delete which involve trigger/stored 
+#            function crashes server"
 #
+--disable_warnings
+drop table if exists t1, t2, t3;
+drop function if exists bug19634;
+--enable_warnings
+create table t1 (id int, data int);
+create table t2 (id int);
+create table t3 (data int);
+create function bug19634() returns int return (select count(*) from t3);
+prepare stmt from "delete t1 from t1, t2 where t1.id = t2.id and bug19634()";
+# This should not crash server
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+
+create trigger t1_bi before delete on t1 for each row insert into t3 values (old.data);
+prepare stmt from "delete t1 from t1, t2 where t1.id = t2.id";
+
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+
+drop function bug19634;
+drop table t1, t2, t3;
+
+
+--echo End of 5.0 tests

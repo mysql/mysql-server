@@ -15,8 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define MYSQL_LEX 1
-#include "event_priv.h"
-#include "event.h"
+#include "mysql_priv.h"
+#include "events_priv.h"
+#include "events.h"
+#include "event_timed.h"
 #include "sp_head.h"
 
 
@@ -395,6 +397,8 @@ Event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
     break;
   case INTERVAL_MICROSECOND:
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);  
+  case INTERVAL_LAST:
+    DBUG_ASSERT(0);
   }
   if (interval_tmp.neg || expression > EVEX_MAX_INTERVAL_VALUE)
     DBUG_RETURN(EVEX_BAD_PARAMS);
@@ -834,6 +838,8 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
     */
     DBUG_RETURN(1);
     break;
+  case INTERVAL_LAST:
+    DBUG_ASSERT(0);
   }
   DBUG_PRINT("info", ("seconds=%ld months=%ld", seconds, months));
   if (seconds)
@@ -1279,7 +1285,6 @@ done:
   DBUG_RETURN(ret);
 }
 
-extern LEX_STRING interval_type_to_name[];
 
 /*
   Get SHOW CREATE EVENT as string
