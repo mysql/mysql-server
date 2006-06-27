@@ -693,6 +693,7 @@ create table t1(pt GEOMETRY);
 alter table t1 add primary key pti(pt);
 ERROR 42000: BLOB/TEXT column 'pt' used in key specification without a key length
 alter table t1 add primary key pti(pt(20));
+drop table t1;
 create table t1 (g GEOMETRY);
 select * from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
