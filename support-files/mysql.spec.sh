@@ -491,11 +491,19 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # So ensure the server is isolated as much as possible, and start it so that
 # passwords are not checked.
 # See the related change in the start script "/etc/init.d/mysql".
-chmod 700 $mysql_datadir
-%{_sysconfdir}/init.d/mysql start --skip-networking --skip-grant-tables
-%{_bindir}/mysql_upgrade
+if type mktemp >/dev/null 2>&1
+then
+  mysql_tmp_sockdir=`mktemp -dt`
+else
+  PID=$$
+  mysql_tmp_sockdir=/tmp/mysql-$PID
+  ( umask 077 ; mkdir $mysql_tmp_sockdir )
+fi
+chown %{mysqld_user}:%{mysqld_group} $mysql_tmp_sockdir
+%{_sysconfdir}/init.d/mysql start --skip-networking --skip-grant-tables --socket=$mysql_tmp_sockdir/upgrade.sock
+%{_bindir}/mysql_upgrade --socket=$mysql_tmp_sockdir/upgrade.sock
 %{_sysconfdir}/init.d/mysql stop  --skip-networking --skip-grant-tables
-chmod 755 $mysql_datadir
+rm -fr $mysql_tmp_sockdir
 
 # Change permissions again to fix any new files.
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
@@ -733,6 +741,12 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Thu Jun 22 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Close a gap of the previous version by explicitly using
+  a newly created temporary directory for the socket to be used
+  in the "mysql_upgrade" operation, overriding any local setting.
+
 * Tue Jun 20 2006 Joerg Bruehe <joerg@mysql.com>
 
 - To run "mysql_upgrade", we need a running server;
