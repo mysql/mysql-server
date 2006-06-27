@@ -20,65 +20,42 @@ class sp_name;
 class Event_timed;
 class Event_parse_data;
 
+#include "event_db_repository.h"
+
+/* Return codes */
+enum enum_events_error_code
+{
+  OP_OK= 0,
+  OP_NOT_RUNNING,
+  OP_CANT_KILL,
+  OP_CANT_INIT,
+  OP_DISABLED_EVENT,
+  OP_LOAD_ERROR,
+  OP_ALREADY_EXISTS
+};
+
+int
+sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
+
+
 class Events
 {
 public:
+  /*
+    Quite NOT the best practice and will be removed once
+    Event_timed::drop() and Event_timed is fixed not do drop directly
+    or other scheme will be found.
+  */
+  friend class Event_timed;
+
   static ulong opt_event_scheduler;
   static TYPELIB opt_typelib;
 
-  enum enum_table_field
-  {
-    FIELD_DB = 0,
-    FIELD_NAME,
-    FIELD_BODY,
-    FIELD_DEFINER,
-    FIELD_EXECUTE_AT,
-    FIELD_INTERVAL_EXPR,
-    FIELD_TRANSIENT_INTERVAL,
-    FIELD_CREATED,
-    FIELD_MODIFIED,
-    FIELD_LAST_EXECUTED,
-    FIELD_STARTS,
-    FIELD_ENDS,
-    FIELD_STATUS,
-    FIELD_ON_COMPLETION,
-    FIELD_SQL_MODE,
-    FIELD_COMMENT,
-    FIELD_COUNT /* a cool trick to count the number of fields :) */
-  };
-
-  static int
-  create_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
-               uint create_options, uint *rows_affected);
-
-  static int
-  update_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
-               sp_name *new_name, uint *rows_affected);
-
-  static int
-  drop_event(THD *thd, sp_name *name, bool drop_if_exists, uint *rows_affected);
-
-  static int
-  open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
-
-  static int
-  show_create_event(THD *thd, sp_name *spn);
-
-  static int
-  reconstruct_interval_expression(String *buf, interval_type interval,
-                                  longlong expression);
-
-  static int
-  drop_schema_events(THD *thd, char *db);
-  
-  static int
-  dump_internal_status(THD *thd);
-  
   static int
   init();
   
   static void
-  shutdown();
+  deinit();
 
   static void
   init_mutexes();
@@ -86,8 +63,48 @@ public:
   static void
   destroy_mutexes();
 
+  static Events*
+  get_instance();
+
+  int
+  create_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
+               uint create_options, uint *rows_affected);
+
+  int
+  update_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
+               sp_name *new_name, uint *rows_affected);
+
+  int
+  drop_event(THD *thd, sp_name *name, bool drop_if_exists, uint *rows_affected);
+
+  int
+  open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
+
+  int
+  show_create_event(THD *thd, sp_name *spn);
+
+  /* Needed for both SHOW CREATE EVENT and INFORMATION_SCHEMA */
+  static int
+  reconstruct_interval_expression(String *buf, interval_type interval,
+                                  longlong expression);
+
+  int
+  drop_schema_events(THD *thd, char *db);
+  
+  int
+  dump_internal_status(THD *thd);
+
+  Event_db_repository db_repository;
 
 private:
+  /* Singleton DP is used */
+  Events(){}
+  ~Events(){}
+
+  /* Singleton instance */
+  static Events singleton;
+
+
   /* Prevent use of these */
   Events(const Events &);
   void operator=(Events &);
