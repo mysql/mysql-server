@@ -622,6 +622,7 @@ class ha_ndbcluster: public handler
   int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
 
   bool get_error_message(int error, String *buf);
+  ha_rows records();
   void info(uint);
   void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
   int extra(enum ha_extra_function operation);
