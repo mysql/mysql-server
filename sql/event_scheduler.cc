@@ -833,12 +833,13 @@ end:
 */
 
 bool
-Event_scheduler::drop_event(THD *thd, Event_timed *et)
+Event_scheduler::drop_event(THD *thd, sp_name *name)
 {
   int res;
   Event_timed *et_old;
   DBUG_ENTER("Event_scheduler::drop_event");
-  DBUG_PRINT("enter", ("thd=%p et=%p lock=%p",thd,et,&LOCK_scheduler_data));
+  DBUG_PRINT("enter", ("thd=%p name=%p lock=%p", thd, name,
+             &LOCK_scheduler_data));
 
   LOCK_SCHEDULER_DATA();
   if (!is_running_or_suspended())
@@ -848,7 +849,7 @@ Event_scheduler::drop_event(THD *thd, Event_timed *et)
     DBUG_RETURN(OP_OK);
   }
 
-  if (!(et_old= find_event(et, TRUE)))
+  if (!(et_old= find_event(name, TRUE)))
     DBUG_PRINT("info", ("No such event found, probably DISABLED"));
 
   UNLOCK_SCHEDULER_DATA();
@@ -1038,6 +1039,48 @@ Event_scheduler::find_event(Event_timed *etn, bool remove_from_q)
     DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?", etn->dbname.str, etn->name.str,
                         et->dbname.str, et->name.str));
     if (event_timed_identifier_equal(etn, et))
+    {
+      if (remove_from_q)
+        queue_remove(&queue, i);
+      DBUG_RETURN(et);
+    }
+  }
+
+  DBUG_RETURN(NULL);
+}
+
+
+/*
+  Searches for an event in the scheduler queue
+
+  SYNOPSIS
+    Event_scheduler::find_event()
+      name           The event to find
+      comparator     The function to use for comparing
+      remove_from_q  If found whether to remove from the Q
+
+  RETURN VALUE
+    NULL       Not found
+    otherwise  Address
+
+  NOTE
+    The caller should do the locking also the caller is responsible for
+    actual signalling in case an event is removed from the queue 
+    (signalling COND_new_work for instance).
+*/
+
+Event_timed *
+Event_scheduler::find_event(sp_name *name, bool remove_from_q)
+{
+  uint i;
+  DBUG_ENTER("Event_scheduler::find_event");
+
+  for (i= 0; i < queue.elements; ++i)
+  {
+    Event_timed *et= (Event_timed *) queue_element(&queue, i);
+    DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?", name->m_db.str, name->m_name.str,
+                        et->dbname.str, et->name.str));
+    if (event_timed_identifier_equal(name, et))
     {
       if (remove_from_q)
         queue_remove(&queue, i);

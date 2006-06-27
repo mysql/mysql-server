@@ -1299,7 +1299,7 @@ Event_timed::drop(THD *thd)
   uint tmp= 0;
   DBUG_ENTER("Event_timed::drop");
 
-  DBUG_RETURN(db_drop_event(thd, this, false, &tmp));
+  DBUG_RETURN(db_drop_event(thd, dbname, name, false, &tmp));
 }
 
 
@@ -1903,8 +1903,62 @@ bool
 event_timed_identifier_equal(Event_timed *a, Event_timed *b)
 {
   return event_timed_name_equal(a, &b->name) &&
-         event_timed_db_equal(a, &b->dbname) &&
-         event_timed_definer_equal(a, &b->definer);
+         event_timed_db_equal(a, &b->dbname);
+}
+
+
+/*
+  Checks whether two events have the same name
+
+  SYNOPSIS
+    event_timed_name_equal()
+
+  RETURN VALUE
+    TRUE  names are equal
+    FALSE names are not equal
+*/
+
+bool
+event_timed_name_equal(sp_name *name, LEX_STRING *event_name)
+{
+  return !sortcmp_lex_string(name->m_name, *event_name, system_charset_info);
+}
+
+
+/*
+  Checks whether two events are in the same schema
+
+  SYNOPSIS
+    event_timed_db_equal()
+
+  RETURN VALUE
+    TRUE  schemas are equal
+    FALSE schemas are not equal
+*/
+
+bool
+event_timed_db_equal(sp_name *name, LEX_STRING *db)
+{
+  return !sortcmp_lex_string(name->m_db, *db, system_charset_info);
+}
+
+
+/*
+  Checks whether two events are equal by identifiers
+
+  SYNOPSIS
+    event_timed_identifier_equal()
+
+  RETURN VALUE
+    TRUE   equal
+    FALSE  not equal
+*/
+
+bool
+event_timed_identifier_equal(sp_name *a, Event_timed *b)
+{
+  return event_timed_name_equal(a, &b->name) &&
+         event_timed_db_equal(a, &b->dbname);
 }
 
 
