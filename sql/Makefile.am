@@ -64,7 +64,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			tztime.h my_decimal.h\
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
-			sql_array.h sql_cursor.h events.h events_priv.h \
+			sql_array.h sql_cursor.h events.h \
 			sql_plugin.h authors.h sql_partition.h event_data_objects.h \
                         event_queue.h event_db_repository.h \
 			partition_info.h partition_element.h event_scheduler.h \

@@ -18,6 +18,7 @@
 
 class sp_name;
 class Event_timed;
+class Event_db_repository;
 
 class THD;
 typedef bool * (*event_timed_identifier_comparator)(Event_timed*, Event_timed*);
@@ -31,17 +32,6 @@ events_shutdown();
 class Event_scheduler
 {
 public:
-  /* Return codes */
-  enum enum_error_code
-  {
-    OP_OK= 0,
-    OP_NOT_RUNNING,
-    OP_CANT_KILL,
-    OP_CANT_INIT,
-    OP_DISABLED_EVENT,
-    OP_LOAD_ERROR,
-    OP_ALREADY_EXISTS
-  };
 
   enum enum_state
   {
@@ -66,10 +56,10 @@ public:
 
   /* Methods for queue management follow */
 
-  enum enum_error_code
+  int
   create_event(THD *thd, Event_timed *et, bool check_existence);
 
-  enum enum_error_code
+  int
   update_event(THD *thd, Event_timed *et, LEX_STRING *new_schema,
                 LEX_STRING *new_name);
 
@@ -78,10 +68,10 @@ public:
 
 
   int
-  drop_schema_events(THD *thd, LEX_STRING *schema);
+  drop_schema_events(THD *thd, LEX_STRING schema);
 
   int
-  drop_user_events(THD *thd, LEX_STRING *definer, uint *dropped_num)
+  drop_user_events(THD *thd, LEX_STRING *definer)
   { DBUG_ASSERT(0); return 0;}
 
   uint
@@ -92,20 +82,24 @@ public:
   bool
   start();
 
-  enum enum_error_code
+  int
   stop();
 
   bool
   start_suspended();
 
+  /*
+    Need to be public because has to be called from the function 
+    passed to pthread_create.
+  */
   bool
   run(THD *thd);
 
-  enum enum_error_code
+  int
   suspend_or_resume(enum enum_suspend_or_resume action);
   
   bool 
-  init();
+  init(Event_db_repository *db_repo);
 
   void
   destroy();
@@ -156,14 +150,11 @@ private:
   void
   stop_all_running_events(THD *thd);
 
-  enum enum_error_code
-  load_named_event(THD *thd, Event_timed *etn, Event_timed **etn_new);
-
   int
   load_events_from_db(THD *thd);
 
   void
-  drop_matching_events(THD *thd, LEX_STRING *pattern,
+  drop_matching_events(THD *thd, LEX_STRING pattern,
                        bool (*)(Event_timed *,LEX_STRING *));
 
   bool
@@ -229,6 +220,8 @@ private:
 
   /* The MEM_ROOT of the object */
   MEM_ROOT scheduler_root;
+
+  Event_db_repository *db_repository;
 
   /* The sorted queue with the Event_timed objects */
   QUEUE queue;

@@ -40,8 +40,34 @@
 #define EVENT_FREE_WHEN_FINISHED (1L << 2)
 
 
+#define EVENT_EXEC_STARTED      0
+#define EVENT_EXEC_ALREADY_EXEC 1
+#define EVENT_EXEC_CANT_FORK    2
+
+
 class sp_head;
 class Sql_alloc;
+
+class Event_timed;
+
+/* Compares only the schema part of the identifier */
+bool
+event_timed_db_equal(Event_timed *et, LEX_STRING *db);
+
+
+/* Compares the whole identifier*/
+bool
+event_timed_identifier_equal(Event_timed *a, Event_timed *b);
+
+/* Compares only the schema part of the identifier */
+bool
+event_timed_db_equal(sp_name *name, LEX_STRING *db);
+
+
+/* Compares the whole identifier*/
+bool
+event_timed_identifier_equal(sp_name *a, Event_timed *b);
+
 
 class Event_timed
 {
@@ -293,6 +319,12 @@ public:
 
   void
   init_comment(THD *thd, LEX_STRING *set_comment);
+
+};
+
+
+class Event_queue_element : public Event_timed
+{
 
 };
 
