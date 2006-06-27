@@ -408,6 +408,8 @@ create table t1(pt GEOMETRY);
 --error 1170
 alter table t1 add primary key pti(pt);
 alter table t1 add primary key pti(pt(20));
+drop table t1;
+
 --enable_metadata
 create table t1 (g GEOMETRY);
 select * from t1;
