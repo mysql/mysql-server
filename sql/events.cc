@@ -904,8 +904,8 @@ done:
 */
 
 int
-Events::create_event(THD *thd, Event_timed *et, uint create_options,
-                     uint *rows_affected)
+Events::create_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
+                     uint create_options, uint *rows_affected)
 {
   int ret;
 
@@ -948,8 +948,8 @@ Events::create_event(THD *thd, Event_timed *et, uint create_options,
 */
 
 int
-Events::update_event(THD *thd, Event_timed *et, sp_name *new_name,
-                               uint *rows_affected)
+Events::update_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
+                     sp_name *new_name, uint *rows_affected)
 {
   int ret;
 
@@ -1054,8 +1054,8 @@ done:
 */
 
 int
-Events::drop_event(THD *thd, Event_timed *et, bool drop_if_exists,
-                             uint *rows_affected)
+Events::drop_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
+                   bool drop_if_exists, uint *rows_affected)
 {
   int ret;
 
@@ -1091,7 +1091,7 @@ Events::show_create_event(THD *thd, sp_name *spn)
   Event_timed *et= NULL;
   Open_tables_state backup;
 
-  DBUG_ENTER("evex_update_event");
+  DBUG_ENTER("Events::show_create_event");
   DBUG_PRINT("enter", ("name: %*s", spn->m_name.length, spn->m_name.str));
 
   thd->reset_n_backup_open_tables_state(&backup);

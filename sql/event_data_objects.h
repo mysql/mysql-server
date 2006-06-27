@@ -259,19 +259,16 @@ public:
   my_bool ends_null;
   my_bool execute_at_null;
 
+  sp_name *identifier;
   Item* item_expression;
-  Item* item_interval;
   longlong expression;
   interval_type interval;
-
-//  ulonglong created;
-//  ulonglong modified;
 
   static Event_parse_data *
   new_instance(THD *thd);
 
-  Event_parse_data() {}
-  ~Event_parse_data() {}
+  Event_parse_data();
+  ~Event_parse_data();
 
   int
   init_definer(THD *thd);
