@@ -123,9 +123,9 @@ private:
   Uint32 kValue;
   Uint32 schemaVersion;
   Uint32 nextLCP;
-  Uint16 noOfNewAttr;
-  Uint16 noOfCharsets;
+  Uint32 noOfCharsets;
   Uint32 startGci;
+  Uint32 tableType;             // DictTabInfo::TableType
   Uint32 primaryTableId;        // table of index or RNIL
   Uint32 tablespace_id;       // RNIL for MM table
   Uint16 tableId;

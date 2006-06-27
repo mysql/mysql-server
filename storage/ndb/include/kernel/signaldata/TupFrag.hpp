@@ -30,7 +30,7 @@ class TupFragReq {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  STATIC_CONST( SignalLength = 18 );
+  STATIC_CONST( SignalLength = 17 );
 private:
   Uint32 userPtr;
   Uint32 userRef;
@@ -45,10 +45,8 @@ private:
   Uint32 noOfNullAttr;
   Uint32 schemaVersion;
   Uint32 noOfKeyAttr;
-  Uint16 noOfNewAttr;
-  Uint16 noOfCharsets;
+  Uint32 noOfCharsets;
   Uint32 checksumIndicator;
-  Uint32 noOfAttributeGroups;
   Uint32 globalCheckpointIdIndicator;
   Uint32 tablespaceid;
 };

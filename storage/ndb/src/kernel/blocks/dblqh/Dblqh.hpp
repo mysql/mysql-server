@@ -448,9 +448,7 @@ public:
     Uint16 totalAttrReceived;
     Uint16 fragCopyCreation;
     Uint16 noOfKeyAttr;
-    Uint16 noOfNewAttr;
     Uint16 noOfCharsets;
-    Uint16 noOfAttributeGroups;
     Uint16 lh3DistrBits;
     Uint16 tableType;
     Uint16 primaryTableId;

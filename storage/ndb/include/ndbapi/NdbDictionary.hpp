@@ -831,13 +831,6 @@ public:
     virtual int getObjectVersion() const;
 
     /**
-     * Set/Get Maximum number of rows in table (only used to calculate
-     * number of partitions).
-     */
-    void setMaxRows(Uint64 maxRows);
-    Uint64 getMaxRows() const;
-
-    /**
      * Set/Get indicator if default number of partitions is used in table.
      */
     void setDefaultNoPartitionsFlag(Uint32 indicator);
