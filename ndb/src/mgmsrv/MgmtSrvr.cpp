@@ -2380,13 +2380,19 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
       event.Event = BackupEvent::BackupCompleted;
       event.Completed.BackupId = rep->backupId;
     
-      event.Completed.NoOfBytes = rep->noOfBytes;
+      event.Completed.NoOfBytes = rep->noOfBytesLow;
       event.Completed.NoOfLogBytes = rep->noOfLogBytes;
-      event.Completed.NoOfRecords = rep->noOfRecords;
+      event.Completed.NoOfRecords = rep->noOfRecordsLow;
       event.Completed.NoOfLogRecords = rep->noOfLogRecords;
       event.Completed.stopGCP = rep->stopGCP;
       event.Completed.startGCP = rep->startGCP;
       event.Nodes = rep->nodes;
+
+      if (signal->header.theLength >= BackupCompleteRep::SignalLength)
+      {
+        event.Completed.NoOfBytes += ((Uint64)rep->noOfBytesHigh) << 32;
+        event.Completed.NoOfRecords += ((Uint64)rep->noOfRecordsHigh) << 32;
+      }
 
       backupId = rep->backupId;
       return 0;

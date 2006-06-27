@@ -319,6 +319,8 @@ NdbTableImpl::init(){
   m_noOfDistributionKeys= 0;
   m_noOfBlobs= 0;
   m_replicaCount= 0;
+  m_min_rows = 0;
+  m_max_rows = 0;
 }
 
 bool
@@ -416,6 +418,9 @@ NdbTableImpl::assign(const NdbTableImpl& org)
 
   m_version = org.m_version;
   m_status = org.m_status;
+
+  m_max_rows = org.m_max_rows;
+  m_min_rows = org.m_min_rows;
 }
 
 void NdbTableImpl::setName(const char * name)
@@ -1302,6 +1307,12 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 		   fragmentTypeMapping, 
 		   (Uint32)NdbDictionary::Object::FragUndefined);
   
+  Uint64 max_rows = ((Uint64)tableDesc.MaxRowsHigh) << 32;
+  max_rows += tableDesc.MaxRowsLow;
+  impl->m_max_rows = max_rows;
+  Uint64 min_rows = ((Uint64)tableDesc.MinRowsHigh) << 32;
+  min_rows += tableDesc.MinRowsLow;
+  impl->m_min_rows = min_rows;
   impl->m_logging = tableDesc.TableLoggedFlag;
   impl->m_kvalue = tableDesc.TableKValue;
   impl->m_minLoadFactor = tableDesc.MinLoadFactor;
@@ -1630,7 +1641,16 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   tmpTab.MaxLoadFactor = impl.m_maxLoadFactor;
   tmpTab.TableType = DictTabInfo::UserTable;
   tmpTab.NoOfAttributes = sz;
+  tmpTab.MaxRowsHigh = (Uint32)(impl.m_max_rows >> 32);
+  tmpTab.MaxRowsLow = (Uint32)(impl.m_max_rows & 0xFFFFFFFF);
+  tmpTab.MinRowsHigh = (Uint32)(impl.m_min_rows >> 32);
+  tmpTab.MinRowsLow = (Uint32)(impl.m_min_rows & 0xFFFFFFFF);
   
+  Uint64 maxRows =
+    (((Uint64)tmpTab.MaxRowsHigh) << 32) + tmpTab.MaxRowsLow;
+  Uint64 minRows =
+    (((Uint64)tmpTab.MinRowsHigh) << 32) + tmpTab.MinRowsLow;
+
   tmpTab.FragmentType = getKernelConstant(impl.m_fragmentType,
 					  fragmentTypeMapping,
 					  DictTabInfo::AllNodesSmallTable);
