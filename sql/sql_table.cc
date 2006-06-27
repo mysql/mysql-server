@@ -3185,8 +3185,7 @@ bool mysql_create_table_internal(THD *thd,
     }
     DBUG_PRINT("info", ("db_type = %d",
                          ha_legacy_type(part_info->default_engine_type)));
-    if (part_info->check_partition_info(thd, &engine_type, file,
-                                        create_info->max_rows))
+    if (part_info->check_partition_info(thd, &engine_type, file, create_info))
       goto err;
     part_info->default_engine_type= engine_type;
 
@@ -3224,7 +3223,8 @@ bool mysql_create_table_internal(THD *thd,
       */
       if (part_info->use_default_no_partitions &&
           part_info->no_parts &&
-          (int)part_info->no_parts != file->get_default_no_partitions(0ULL))
+          (int)part_info->no_parts !=
+          file->get_default_no_partitions(create_info))
       {
         uint i;
         List_iterator<partition_element> part_it(part_info->partitions);
@@ -3237,10 +3237,10 @@ bool mysql_create_table_internal(THD *thd,
                part_info->use_default_no_subpartitions &&
                part_info->no_subparts &&
                (int)part_info->no_subparts !=
-                 file->get_default_no_partitions(0ULL))
+                 file->get_default_no_partitions(create_info))
       {
         DBUG_ASSERT(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
-        part_info->no_subparts= file->get_default_no_partitions(0ULL);
+        part_info->no_subparts= file->get_default_no_partitions(create_info);
       }
     }
     else if (create_info->db_type != engine_type)
