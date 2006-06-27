@@ -121,7 +121,15 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
    * no more than MAX_SCAN_BATCH_SIZE is sent from all nodes in total per
    * batch.
    */
-  batch_byte_size= max_batch_byte_size;
+  if (batch_size == 0)
+  {
+    batch_byte_size= max_batch_byte_size;
+  }
+  else
+  {
+    batch_byte_size= batch_size * tot_size;
+  }
+  
   if (batch_byte_size * parallelism > max_scan_batch_size) {
     batch_byte_size= max_scan_batch_size / parallelism;
   }
