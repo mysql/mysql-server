@@ -95,6 +95,9 @@ Backup::Backup(Block_context& ctx) :
   addRecSignal(GSN_BACKUP_FRAGMENT_REQ, &Backup::execBACKUP_FRAGMENT_REQ);
   addRecSignal(GSN_BACKUP_FRAGMENT_REF, &Backup::execBACKUP_FRAGMENT_REF);
   addRecSignal(GSN_BACKUP_FRAGMENT_CONF, &Backup::execBACKUP_FRAGMENT_CONF);
+
+  addRecSignal(GSN_BACKUP_FRAGMENT_COMPLETE_REP,
+               &Backup::execBACKUP_FRAGMENT_COMPLETE_REP);
   
   addRecSignal(GSN_STOP_BACKUP_REQ, &Backup::execSTOP_BACKUP_REQ);
   addRecSignal(GSN_STOP_BACKUP_REF, &Backup::execSTOP_BACKUP_REF);

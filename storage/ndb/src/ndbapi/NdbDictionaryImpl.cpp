@@ -445,7 +445,6 @@ NdbTableImpl::init(){
   m_hashpointerValue= 0;
   m_linear_flag= true;
   m_primaryTable.clear();
-  m_max_rows = 0;
   m_default_no_part_flag = 1;
   m_logging= true;
   m_row_gci = true;
@@ -461,6 +460,8 @@ NdbTableImpl::init(){
   m_noOfDistributionKeys= 0;
   m_noOfBlobs= 0;
   m_replicaCount= 0;
+  m_min_rows = 0;
+  m_max_rows = 0;
   m_tablespace_name.clear();
   m_tablespace_id = ~0;
   m_tablespace_version = ~0;
@@ -728,6 +729,9 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_id = org.m_id;
   m_version = org.m_version;
   m_status = org.m_status;
+
+  m_max_rows = org.m_max_rows;
+  m_min_rows = org.m_min_rows;
 
   m_tablespace_name = org.m_tablespace_name;
   m_tablespace_id= org.m_tablespace_id;
@@ -2063,9 +2067,12 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 		   fragmentTypeMapping, 
 		   (Uint32)NdbDictionary::Object::FragUndefined);
   
-  Uint64 max_rows = ((Uint64)tableDesc->MaxRowsHigh) << 32;
-  max_rows += tableDesc->MaxRowsLow;
+  Uint64 max_rows = ((Uint64)tableDesc.MaxRowsHigh) << 32;
+  max_rows += tableDesc.MaxRowsLow;
   impl->m_max_rows = max_rows;
+  Uint64 min_rows = ((Uint64)tableDesc.MinRowsHigh) << 32;
+  min_rows += tableDesc.MinRowsLow;
+  impl->m_min_rows = min_rows;
   impl->m_default_no_part_flag = tableDesc->DefaultNoPartFlag;
   impl->m_linear_flag = tableDesc->LinearHashFlag;
   impl->m_logging = tableDesc->TableLoggedFlag;
@@ -2519,8 +2526,10 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   tmpTab->TableType = DictTabInfo::UserTable;
   tmpTab->PrimaryTableId = impl.m_primaryTableId;
   tmpTab->NoOfAttributes = sz;
-  tmpTab->MaxRowsHigh = (Uint32)(impl.m_max_rows >> 32);
-  tmpTab->MaxRowsLow = (Uint32)(impl.m_max_rows & 0xFFFFFFFF);
+  tmpTab.MaxRowsHigh = (Uint32)(impl.m_max_rows >> 32);
+  tmpTab.MaxRowsLow = (Uint32)(impl.m_max_rows & 0xFFFFFFFF);
+  tmpTab.MinRowsHigh = (Uint32)(impl.m_min_rows >> 32);
+  tmpTab.MinRowsLow = (Uint32)(impl.m_min_rows & 0xFFFFFFFF);
   tmpTab->DefaultNoPartFlag = impl.m_default_no_part_flag;
   tmpTab->LinearHashFlag = impl.m_linear_flag;
 

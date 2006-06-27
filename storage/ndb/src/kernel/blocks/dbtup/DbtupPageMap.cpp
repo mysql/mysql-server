@@ -351,6 +351,7 @@ void Dbtup::initFragRange(Fragrecord* const regFragPtr)
   regFragPtr->rootPageRange = RNIL;
   regFragPtr->currentPageRange = RNIL;
   regFragPtr->noOfPages = 0;
+  regFragPtr->noOfPagesToGrow = 2;
   regFragPtr->nextStartRange = 0;
 }//initFragRange()
 
@@ -426,9 +427,10 @@ Uint32 Dbtup::allocFragPages(Fragrecord* regFragPtr, Uint32 tafpNoAllocRequested
 
 void Dbtup::allocMoreFragPages(Fragrecord* const regFragPtr) 
 {
-  Uint32 noAllocPages = regFragPtr->noOfPages >> 3; // 12.5%
-  noAllocPages += regFragPtr->noOfPages >> 4; // 6.25%
+  Uint32 noAllocPages = regFragPtr->noOfPagesToGrow >> 3; // 12.5%
+  noAllocPages += regFragPtr->noOfPagesToGrow >> 4; // 6.25%
   noAllocPages += 2;
+  regFragPtr->noOfPagesToGrow += noAllocPages;
 /* -----------------------------------------------------------------*/
 // We will grow by 18.75% plus two more additional pages to grow
 // a little bit quicker in the beginning.

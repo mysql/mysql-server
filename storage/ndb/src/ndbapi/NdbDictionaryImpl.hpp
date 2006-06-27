@@ -186,6 +186,7 @@ public:
   Vector<Uint16> m_fragments;
 
   Uint64 m_max_rows;
+  Uint64 m_min_rows;
   Uint32 m_default_no_part_flag;
   bool m_linear_flag;
   bool m_logging;
