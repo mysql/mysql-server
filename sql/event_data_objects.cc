@@ -18,7 +18,7 @@
 #include "mysql_priv.h"
 #include "events_priv.h"
 #include "events.h"
-#include "event_timed.h"
+#include "event_data_objects.h"
 #include "sp_head.h"
 
 

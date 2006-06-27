@@ -27,7 +27,7 @@
 #include "authors.h"
 #include "contributors.h"
 #include "events.h"
-#include "event_timed.h"
+#include "event_data_objects.h"
 #include <my_dir.h>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
