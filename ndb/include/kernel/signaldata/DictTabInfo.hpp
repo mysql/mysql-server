@@ -124,7 +124,7 @@ public:
 
     MaxRowsLow         = 139,
     MaxRowsHigh        = 140,
-    MinRowsLow         = 133,
+    MinRowsLow         = 143,
     MinRowsHigh        = 144,
 
     TableEnd           = 999,
