@@ -3819,7 +3819,6 @@ end_with_restore_list:
   }
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
-  case SQLCOM_DROP_EVENT:
   {
     uint rows_affected= 1;
     DBUG_ASSERT(lex->et);
@@ -3856,9 +3855,6 @@ end_with_restore_list:
         res= Events::update_event(thd, lex->et, lex->event_parse_data,
                                   lex->spname, &rows_affected);
         break;
-      case SQLCOM_DROP_EVENT:
-        res= Events::drop_event(thd, lex->et, lex->event_parse_data,
-                                lex->drop_if_exists, &rows_affected);
       default:;
       }
       DBUG_PRINT("info", ("CREATE/ALTER/DROP returned error code=%d af_rows=%d",
@@ -3877,6 +3873,7 @@ end_with_restore_list:
     
     break;
   }
+  case SQLCOM_DROP_EVENT:
   case SQLCOM_SHOW_CREATE_EVENT:
   {
     DBUG_ASSERT(lex->spname);
@@ -3893,9 +3890,24 @@ end_with_restore_list:
     if (lex->spname->m_name.length > NAME_LEN)
     {
       my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+      /* this jumps to the end of the function and skips own messaging */
       goto error;
     }
-    res= Events::show_create_event(thd, lex->spname);
+
+    if (lex->sql_command == SQLCOM_SHOW_CREATE_EVENT)
+      res= Events::show_create_event(thd, lex->spname);
+    else
+    {
+      uint rows_affected= 1;
+      if (end_active_trans(thd))
+      {
+        res= -1;
+        break;
+      }
+      if (!(res= Events::drop_event(thd, lex->spname, lex->drop_if_exists,
+                                    &rows_affected)))
+        send_ok(thd, rows_affected);     
+    }
     break;
   }
 #ifndef DBUG_OFF

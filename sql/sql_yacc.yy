@@ -7686,33 +7686,9 @@ drop:
 	  }
         | DROP EVENT_SYM if_exists sp_name
           {
-            if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
-              YYABORT;
-            Lex->event_parse_data->identifier= $4;
-
-            LEX *lex=Lex;
-
-            if (lex->et)
-            {
-              /*
-                Recursive events are not possible because recursive SPs
-                are not also possible. lex->sp_head is not stacked.
-              */
-              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
-              YYABORT;
-            }
-
-            if (!(lex->et= new (YYTHD->mem_root) Event_timed()))
-              YYABORT;
-	  
-            if (!lex->et_compile_phase)
-            {
-              lex->et->init_name(YYTHD, $4);
-              lex->et->init_definer(YYTHD);
-            }
-
-            lex->sql_command = SQLCOM_DROP_EVENT;
-            lex->drop_if_exists= $3;
+            Lex->drop_if_exists= $3;
+            Lex->spname= $4;
+            Lex->sql_command = SQLCOM_DROP_EVENT;
           }
         | DROP TRIGGER_SYM sp_name
           {

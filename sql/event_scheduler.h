@@ -16,6 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+class sp_name;
 class Event_timed;
 
 class THD;
@@ -73,7 +74,7 @@ public:
                 LEX_STRING *new_name);
 
   bool
-  drop_event(THD *thd, Event_timed *et);
+  drop_event(THD *thd, sp_name *name);
 
 
   int
@@ -135,6 +136,9 @@ public:
 private:
   Event_timed *
   find_event(Event_timed *etn, bool remove_from_q);
+
+  Event_timed *
+  find_event(sp_name *name, bool remove_from_q);
 
   uint
   workers_count();
