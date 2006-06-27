@@ -1778,3 +1778,8 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
+libmysql/viosocket.o.6WmSJk
+libmysqld/event_data_objects.cc
+libmysqld/event_db_repository.cc
+libmysqld/event_queue.cc
+server-tools/instance-manager/net_serv.cc
