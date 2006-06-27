@@ -27,6 +27,7 @@
 
 /* TODO: Move month and days to language files */
 
+/* Day number for Dec 31st, 9999 */
 #define MAX_DAY_NUMBER 3652424L
 
 static const char *month_names[]=
@@ -401,7 +402,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   if (yearday > 0)
   {
     uint days= calc_daynr(l_time->year,1,1) +  yearday - 1;
-    if (days <= 0 || days >= MAX_DAY_NUMBER)
+    if (days <= 0 || days > MAX_DAY_NUMBER)
       goto err;
     get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day);
   }
@@ -447,7 +448,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
              (weekday - 1);
     }
 
-    if (days <= 0 || days >= MAX_DAY_NUMBER)
+    if (days <= 0 || days > MAX_DAY_NUMBER)
       goto err;
     get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day);
   }
@@ -1931,7 +1932,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
     ltime->hour=   (uint) (sec/3600);
     daynr= calc_daynr(ltime->year,ltime->month,1) + days;
     /* Day number from year 0 to 9999-12-31 */
-    if ((ulonglong) daynr >= MAX_DAY_NUMBER)
+    if ((ulonglong) daynr > MAX_DAY_NUMBER) 
       goto null_date;
     get_date_from_daynr((long) daynr, &ltime->year, &ltime->month,
                         &ltime->day);
@@ -1941,7 +1942,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
     period= (calc_daynr(ltime->year,ltime->month,ltime->day) +
              sign * (long) interval.day);
     /* Daynumber from year 0 to 9999-12-31 */
-    if ((ulong) period >= MAX_DAY_NUMBER)
+    if ((ulong) period > MAX_DAY_NUMBER)
       goto null_date;
     get_date_from_daynr((long) period,&ltime->year,&ltime->month,&ltime->day);
     break;
@@ -2412,7 +2413,7 @@ String *Item_func_makedate::val_str(String *str)
 
   days= calc_daynr(yearnr,1,1) + daynr - 1;
   /* Day number from year 0 to 9999-12-31 */
-  if (days >= 0 && days < MAX_DAY_NUMBER)
+  if (days >= 0 && days <= MAX_DAY_NUMBER)
   {
     null_value=0;
     get_date_from_daynr(days,&l_time.year,&l_time.month,&l_time.day);

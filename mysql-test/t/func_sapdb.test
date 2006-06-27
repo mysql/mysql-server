@@ -37,6 +37,8 @@ select weekofyear("1997-11-31 23:59:59.000001");
 
 select makedate(1997,1);
 select makedate(1997,0);
+select makedate(9999,365);
+select makedate(9999,366);
 
 #Time functions
 
