@@ -37,7 +37,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
 {
   ljamEntry();
 
-  if (signal->theData[0] == (Uint32)-1) {
+  TupFragReq* tupFragReq = (TupFragReq*)signal->getDataPtr();
+  if (tupFragReq->userPtr == (Uint32)-1) {
     ljam();
     abortAddFragOp(signal);
     return;
@@ -47,31 +48,36 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   FragrecordPtr regFragPtr;
   TablerecPtr regTabPtr;
 
-  Uint32 userptr= signal->theData[0];
-  Uint32 userblockref= signal->theData[1];
-  Uint32 reqinfo= signal->theData[2];
-  regTabPtr.i= signal->theData[3];
-  Uint32 noOfAttributes= signal->theData[4];
-  Uint32 fragId= signal->theData[5];
-  Uint32 pages= signal->theData[6];
-  Uint32 noOfNullAttr= signal->theData[7];
-  /*  Uint32 schemaVersion= signal->theData[8];*/
-  Uint32 noOfKeyAttr= signal->theData[9];
+  Uint32 userptr        = tupFragReq->userPtr;
+  Uint32 userblockref   = tupFragReq->userRef;
+  Uint32 reqinfo        = tupFragReq->reqInfo;
+  regTabPtr.i           = tupFragReq->tableId;
+  Uint32 noOfAttributes = tupFragReq->noOfAttr;
+  Uint32 pages          = tupFragReq->pages;
+  Uint32 fragId         = tupFragReq->fragId;
+  Uint32 noOfNullAttr = tupFragReq->noOfNullAttr;
+  /*  Uint32 schemaVersion = tupFragReq->schemaVersion;*/
+  Uint32 noOfKeyAttr = tupFragReq->noOfKeyAttr;
 
-  //Uint32 noOfNewAttr= (signal->theData[10] & 0xFFFF);
-  /* DICT sends number of character sets in upper half */
-  Uint32 noOfCharsets= (signal->theData[10] >> 16);
-  Uint32 gcpIndicator = signal->theData[13];
-  Uint32 tablespace= signal->theData[14];
+  Uint32 noOfNewAttr = tupFragReq->noOfNewAttrREMOVE;
+  Uint32 noOfCharsets = tupFragReq->noOfCharsets;
 
-  Uint32 checksumIndicator= signal->theData[11];
+  Uint32 checksumIndicator = tupFragReq->checksumIndicator;
+  Uint32 noOfAttributeGroups = tupFragReq->noOfAttributeGroupsREMOVE;
+  Uint32 globalCheckpointIdIndicator = tupFragReq->globalCheckpointIdIndicator;
+  Uint32 tablespace= tupFragReq->tablespace;
+
+  Uint64 maxRows =
+    (((Uint64)tupFragReq->maxRowsHigh) << 32) + tupFragReq->maxRowsLow;
+  Uint64 minRows =
+    (((Uint64)tupFragReq->minRowsHigh) << 32) + tupFragReq->minRowsLow;
 
 #ifndef VM_TRACE
   // config mismatch - do not crash if release compiled
   if (regTabPtr.i >= cnoOfTablerec) {
     ljam();
-    signal->theData[0] = userptr;
-    signal->theData[1] = 800;
+    tupFragReq->userPtr = userptr;
+    tupFragReq->userRef = 800;
     sendSignal(userblockref, GSN_TUPFRAGREF, signal, 2, JBB);
     return;
   }
@@ -80,8 +86,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
   if (cfirstfreeFragopr == RNIL) {
     ljam();
-    signal->theData[0]= userptr;
-    signal->theData[1]= ZNOFREE_FRAGOP_ERROR;
+    tupFragReq->userPtr = userptr;
+    tupFragReq->userRef = ZNOFREE_FRAGOP_ERROR;
     sendSignal(userblockref, GSN_TUPFRAGREF, signal, 2, JBB);
     return;
   }
@@ -101,6 +107,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
 	 sizeof(fragOperPtr.p->m_var_attributes_size));
 
   fragOperPtr.p->charsetIndex = 0;
+  fragOperPtr.p->minRows = minRows;
+  fragOperPtr.p->maxRows = maxRows;
 
   ndbrequire(reqinfo == ZADDFRAG);
 
@@ -140,16 +148,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_undo_complete= false;
   regFragPtr.p->m_lcp_scan_op = RNIL; 
   regFragPtr.p->m_lcp_keep_list = RNIL;
-  regFragPtr.p->m_var_page_chunks = RNIL;
-  
-  Uint32 noAllocatedPages= allocFragPages(regFragPtr.p, pages);
-  
-  if (noAllocatedPages == 0) {
-    ljam();
-    terrorCode= ZNO_PAGES_ALLOCATED_ERROR;
-    fragrefuse3Lab(signal, fragOperPtr, regFragPtr, regTabPtr.p, fragId);
-    return;
-  }
+  regFragPtr.p->m_var_page_chunks = RNIL;  
 
   if (ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId ||
       ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId) {
@@ -422,6 +421,26 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
     CLEAR_ERROR_INSERT_VALUE;
     return;
+  }
+
+  if (lastAttr)
+  {
+    ljam();
+    Uint32 noRowsPerPage = ZWORDS_ON_PAGE/regTabPtr.p->tupheadsize;
+    Uint32 noAllocatedPages =
+      (fragOperPtr.p->minRows + noRowsPerPage - 1 )/ noRowsPerPage;
+    if (fragOperPtr.p->minRows == 0)
+      noAllocatedPages = 2;
+    else if (noAllocatedPages == 0)
+      noAllocatedPages = 2;
+    noAllocatedPages = allocFragPages(regFragPtr.p, noAllocatedPages);
+
+    if (noAllocatedPages == 0) {
+      ljam();
+      terrorCode = ZNO_PAGES_ALLOCATED_ERROR;
+      addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
+      return;
+    }//if
   }
 
 /* **************************************************************** */

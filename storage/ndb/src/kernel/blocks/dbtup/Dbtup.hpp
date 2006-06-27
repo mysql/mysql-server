@@ -328,7 +328,8 @@ typedef Ptr<Attrbufrec> AttrbufrecPtr;
 
 
 struct Fragoperrec {
-  bool   definingFragment;
+  Uint64 minRows;
+  Uint64 maxRows;
   Uint32 nextFragoprec;
   Uint32 lqhPtrFrag;
   Uint32 fragidFrag;
@@ -341,6 +342,7 @@ struct Fragoperrec {
   Uint32 m_var_attributes_size[2]; // In bytes
   BlockReference lqhBlockrefFrag;
   bool inUse;
+  bool definingFragment;
 };
 typedef Ptr<Fragoperrec> FragoperrecPtr;
 
@@ -602,6 +604,8 @@ struct Fragrecord {
   Uint32 currentPageRange;
   Uint32 rootPageRange;
   Uint32 noOfPages;
+  Uint32 noOfPagesToGrow;
+
   DLList<Page>::Head emptyPrimPage; // allocated pages (not init)
   DLList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
   SLList<Page>::Head m_empty_pages; // Empty pages not in logical/physical map

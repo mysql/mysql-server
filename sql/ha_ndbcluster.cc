@@ -9879,7 +9879,17 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   } while (++i < part_info->no_parts);
   tab->setDefaultNoPartitionsFlag(part_info->use_default_no_partitions);
   tab->setLinearFlag(part_info->linear_hash_ind);
-  tab->setMaxRows(table->s->max_rows);
+  {
+    ha_rows max_rows= form->s->max_rows;
+    ha_rows min_rows= form->s->min_rows;
+    if (max_rows < min_rows)
+      max_rows= min_rows;
+    if (max_rows != (ha_rows)0) /* default setting, don't set fragmentation */
+    {
+      tab->setMaxRows(max_rows);
+      tab->setMaxRows(min_rows);
+    }
+  }
   tab->setTablespaceNames(ts_names, fd_index*sizeof(char*));
   tab->setFragmentCount(fd_index);
   tab->setFragmentData(&frag_data, fd_index*2);
