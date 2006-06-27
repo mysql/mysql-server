@@ -1280,6 +1280,8 @@ create:
 
             if (!(lex->et= new(YYTHD->mem_root) Event_timed())) // implicitly calls Event_timed::init()
               YYABORT;
+            if (!(lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
+              YYABORT;
 
             /*
               We have to turn of CLIENT_MULTI_QUERIES while parsing a
@@ -1288,6 +1290,9 @@ create:
             */
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
+
+            
+            lex->event_parse_data->identifier= $4;
 
             if (!lex->et_compile_phase)
             {
@@ -1344,6 +1349,8 @@ create:
 
 ev_schedule_time: EVERY_SYM expr interval
 	  {
+            Lex->event_parse_data->item_expression= $2;
+            Lex->event_parse_data->interval= $3;
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
             {
@@ -1365,6 +1372,7 @@ ev_schedule_time: EVERY_SYM expr interval
           ev_ends
         | AT_SYM expr
           {
+            Lex->event_parse_data->item_execute_at= $2;
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
             {
@@ -1395,6 +1403,7 @@ ev_schedule_time: EVERY_SYM expr interval
 opt_ev_status: /* empty */ { $$= 0; }
         | ENABLE_SYM
           {
+            Lex->event_parse_data->status= Event_parse_data::ENABLED;
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
               lex->et->status= Event_timed::ENABLED;
@@ -1402,6 +1411,7 @@ opt_ev_status: /* empty */ { $$= 0; }
           }
         | DISABLE_SYM
           {
+            Lex->event_parse_data->status= Event_parse_data::DISABLED;
             LEX *lex=Lex;
 
             if (!lex->et_compile_phase)
@@ -1412,10 +1422,12 @@ opt_ev_status: /* empty */ { $$= 0; }
 
 ev_starts: /* empty */
           {
+            Lex->event_parse_data->item_starts= new Item_func_now_local();
             Lex->et->init_starts(YYTHD, new Item_func_now_local());
           }
         | STARTS_SYM expr
           {
+            Lex->event_parse_data->item_starts= $2;
             LEX *lex= Lex;
             if (!lex->et_compile_phase)
             {
@@ -1443,6 +1455,7 @@ ev_starts: /* empty */
 ev_ends: /* empty */
         | ENDS_SYM expr
           {
+            Lex->event_parse_data->item_ends= $2;
             LEX *lex= Lex;
             if (!lex->et_compile_phase)
             {
@@ -1467,6 +1480,8 @@ opt_ev_on_completion: /* empty */ { $$= 0; }
 ev_on_completion:
           ON COMPLETION_SYM PRESERVE_SYM
           {
+            Lex->event_parse_data->on_completion=
+                                  Event_parse_data::ON_COMPLETION_PRESERVE;
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
               lex->et->on_completion= Event_timed::ON_COMPLETION_PRESERVE;
@@ -1474,6 +1489,8 @@ ev_on_completion:
           }
         | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
           {
+            Lex->event_parse_data->on_completion=
+                                  Event_parse_data::ON_COMPLETION_DROP;
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
               lex->et->on_completion= Event_timed::ON_COMPLETION_DROP;
@@ -1484,6 +1501,7 @@ ev_on_completion:
 opt_ev_comment: /* empty */ { $$= 0; }
         | COMMENT_SYM TEXT_STRING_sys
           {
+            Lex->comment= Lex->event_parse_data->comment= $2;
             LEX *lex= Lex;
             if (!lex->et_compile_phase)
             {
@@ -1518,6 +1536,8 @@ ev_sql_stmt:
 
               lex->sphead->m_body_begin= lex->ptr;
             }
+            
+            Lex->event_parse_data->body_begin= lex->ptr;
 
             if (!lex->et_compile_phase)
               lex->et->body_begin= lex->ptr;
@@ -1538,6 +1558,7 @@ ev_sql_stmt:
               lex->et->sphead= lex->sphead;
               lex->sphead= NULL;
             }
+            Lex->event_parse_data->init_body(YYTHD);
             if (!lex->et_compile_phase)
             {
               lex->et->init_body(YYTHD);
@@ -4728,6 +4749,10 @@ alter:
             }
             lex->spname= 0;//defensive programming
 
+            if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
+              YYABORT;
+            Lex->event_parse_data->identifier= $3;
+
             if (!(et= new (YYTHD->mem_root) Event_timed()))// implicitly calls Event_timed::init()
               YYABORT;
             lex->et = et;
@@ -4739,9 +4764,9 @@ alter:
             }
 
             /*
-                We have to turn of CLIENT_MULTI_QUERIES while parsing a
-                stored procedure, otherwise yylex will chop it into pieces
-                at each ';'.
+              We have to turn of CLIENT_MULTI_QUERIES while parsing a
+              stored procedure, otherwise yylex will chop it into pieces
+              at each ';'.
             */
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
@@ -7661,6 +7686,10 @@ drop:
 	  }
         | DROP EVENT_SYM if_exists sp_name
           {
+            if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
+              YYABORT;
+            Lex->event_parse_data->identifier= $4;
+
             LEX *lex=Lex;
 
             if (lex->et)
@@ -8430,12 +8459,8 @@ show_param:
           }
         | CREATE EVENT_SYM sp_name
           {
-            Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
             Lex->spname= $3;
-            Lex->et= new (YYTHD->mem_root) Event_timed();
-            if (!Lex->et)
-              YYABORT;
-            Lex->et->init_definer(YYTHD);
+            Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
           }
       ;
 

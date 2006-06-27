@@ -22,6 +22,95 @@
 #include "sp_head.h"
 
 
+Event_parse_data *
+Event_parse_data::new_instance(THD *thd)
+{
+  return new (thd->mem_root) Event_parse_data;
+}
+
+
+Event_parse_data::Event_parse_data()
+{
+  item_execute_at= item_expression= item_starts= item_ends= NULL;
+}
+
+
+/*
+  Set body of the event - what should be executed.
+
+  SYNOPSIS
+    Event_timed::init_body()
+      thd   THD
+
+  NOTE
+    The body is extracted by copying all data between the
+    start of the body set by another method and the current pointer in Lex.
+ 
+    Some questionable removal of characters is done in here, and that part
+    should be refactored when the parser is smarter.
+*/
+
+void
+Event_parse_data::init_body(THD *thd)
+{
+  DBUG_ENTER("Event_parse_data::init_body");
+  DBUG_PRINT("info", ("body=[%s] body_begin=0x%ld end=0x%ld", body_begin,
+             body_begin, thd->lex->ptr));
+
+  body.length= thd->lex->ptr - body_begin;
+  const uchar *body_end= body_begin + body.length - 1;
+
+  /* Trim nuls or close-comments ('*'+'/') or spaces at the end */
+  while (body_begin < body_end)
+  {
+
+    if ((*body_end == '\0') || 
+        (my_isspace(thd->variables.character_set_client, *body_end)))
+    { /* consume NULs and meaningless whitespace */
+      --body.length;
+      --body_end;
+      continue;
+    }
+
+    /*  
+       consume closing comments
+
+       This is arguably wrong, but it's the best we have until the parser is
+       changed to be smarter.   FIXME PARSER 
+
+       See also the sp_head code, where something like this is done also.
+
+       One idea is to keep in the lexer structure the count of the number of
+       open-comments we've entered, and scan left-to-right looking for a
+       closing comment IFF the count is greater than zero.
+
+       Another idea is to remove the closing comment-characters wholly in the
+       parser, since that's where it "removes" the opening characters.
+    */
+    if ((*(body_end - 1) == '*') && (*body_end == '/'))
+    {
+      DBUG_PRINT("info", ("consumend one '*" "/' comment in the query '%s'", 
+          body_begin));
+      body.length-= 2;
+      body_end-= 2;
+      continue;
+    }
+
+    break;  /* none were found, so we have excised all we can. */
+  }
+
+  /* the first is always whitespace which I cannot skip in the parser */
+  while (my_isspace(thd->variables.character_set_client, *body_begin))
+  {
+    ++body_begin;
+    --body.length;
+  }
+  body.str= thd->strmake((char *)body_begin, body.length);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Constructor
 
