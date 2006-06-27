@@ -517,7 +517,7 @@ coercibility(load_file('../../std_data/words.dat'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select sql_no_cache charset(load_file(_latin1'../../std_data/words.dat')) AS `charset(load_file('../../std_data/words.dat'))`,collation(load_file(_latin1'../../std_data/words.dat')) AS `collation(load_file('../../std_data/words.dat'))`,coercibility(load_file(_latin1'../../std_data/words.dat')) AS `coercibility(load_file('../../std_data/words.dat'))`
+Note	1003	select charset(load_file(_latin1'../../std_data/words.dat')) AS `charset(load_file('../../std_data/words.dat'))`,collation(load_file(_latin1'../../std_data/words.dat')) AS `collation(load_file('../../std_data/words.dat'))`,coercibility(load_file(_latin1'../../std_data/words.dat')) AS `coercibility(load_file('../../std_data/words.dat'))`
 update t1 set imagem=load_file('../../std_data/words.dat') where id=1;
 select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 if(imagem is null, "ERROR", "OK")	length(imagem)
