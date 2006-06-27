@@ -1,6 +1,8 @@
 CREATE DATABASE IF NOT EXISTS events_test;
 CREATE DATABASE events_conn1_test2;
-CREATE TABLE events_test.fill_it(test_name varchar(20), occur datetime);
+CREATE TABLE events_test.fill_it1(test_name varchar(20), occur datetime);
+CREATE TABLE events_test.fill_it2(test_name varchar(20), occur datetime);
+CREATE TABLE events_test.fill_it3(test_name varchar(20), occur datetime);
 CREATE USER event_user2@localhost;
 CREATE DATABASE events_conn2_db;
 GRANT ALL ON *.* TO event_user2@localhost;
@@ -57,5 +59,7 @@ SET GLOBAL event_scheduler=2;
 DROP DATABASE events_conn1_test4;
 SET GLOBAL event_scheduler=1;
 USE events_test;
-DROP TABLE fill_it;
+DROP TABLE fill_it1;
+DROP TABLE fill_it2;
+DROP TABLE fill_it3;
 DROP DATABASE events_test;
