@@ -9590,8 +9590,12 @@ ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
 /*
   Create a table in NDB Cluster
  */
-static uint get_no_fragments(ulonglong max_rows)
+static uint get_no_fragments(TABLE_SHARE *table_share)
 {
+  ha_rows max_rows= table_share->max_rows;
+  ha_rows min_rows= table_share->min_rows;
+  if (max_rows < min_rows)
+    max_rows= min_rows;
 #if MYSQL_VERSION_ID >= 50000
   uint acc_row_size= 25 + /*safety margin*/ 2;
 #else
@@ -9628,10 +9632,10 @@ static bool adjusted_frag_count(uint no_fragments, uint no_nodes,
   return (reported_frags < no_fragments);
 }
 
-int ha_ndbcluster::get_default_no_partitions(ulonglong max_rows)
+int ha_ndbcluster::get_default_no_partitions(TABLE_SHARE *table_share)
 {
   uint reported_frags;
-  uint no_fragments= get_no_fragments(max_rows);
+  uint no_fragments= get_no_fragments(table_share);
   uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
   if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
   {
