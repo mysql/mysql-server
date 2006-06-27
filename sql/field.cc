@@ -2604,6 +2604,18 @@ void Field_new_decimal::sql_type(String &str) const
 }
 
 
+uint Field_new_decimal::is_equal(create_field *new_field)
+{
+  return ((new_field->sql_type == real_type()) &&
+          ((new_field->flags & UNSIGNED_FLAG) == 
+           (uint) (flags & UNSIGNED_FLAG)) &&
+          ((new_field->flags & AUTO_INCREMENT_FLAG) ==
+           (uint) (flags & AUTO_INCREMENT_FLAG)) &&
+          (new_field->length == max_length()) &&
+          (new_field->decimals == dec));
+}
+
+
 /****************************************************************************
 ** tiny int
 ****************************************************************************/

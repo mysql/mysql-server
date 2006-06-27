@@ -1095,3 +1095,14 @@ insert into t1 values(
 insert into t1 values(1e100);
 select * from t1;
 drop table t1;
+
+#
+# Bug #18014: problem with 'alter table'
+#
+
+create table t1(a decimal(7,2));
+insert into t1 values(123.12);
+select * from t1;
+alter table t1 modify a decimal(10,2);
+select * from t1;
+drop table t1;

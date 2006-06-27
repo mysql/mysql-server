@@ -514,6 +514,7 @@ public:
   uint32 max_length() { return field_length; }
   uint size_of() const { return sizeof(*this); } 
   uint32 pack_length() const { return (uint32) bin_size; }
+  uint is_equal(create_field *new_field);
 };
 
 
