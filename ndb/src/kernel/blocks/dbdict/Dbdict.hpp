@@ -134,6 +134,10 @@ public:
    * on disk.  Index trigger ids are volatile.
    */
   struct TableRecord : public MetaData::Table {
+    Uint32 maxRowsLow;
+    Uint32 maxRowsHigh;
+    Uint32 minRowsLow;
+    Uint32 minRowsHigh;
     /****************************************************
      *    Support variables for table handling
      ****************************************************/
