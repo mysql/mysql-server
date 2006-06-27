@@ -30,19 +30,8 @@ SET NAMES latin1;
 # START - BUG#16408: Events: crash for an event in a procedure
 #
 set @a=3;
+--error 1562
 CREATE PROCEDURE p_16 () CREATE EVENT e_16 ON SCHEDULE EVERY @a SECOND DO SET @a=5;
-call p_16();
---echo "Here we used to crash!"
---error ER_EVENT_ALREADY_EXISTS
-call p_16();
---error ER_EVENT_ALREADY_EXISTS
-call p_16();
-DROP EVENT e_16;
-CALL p_16();
---error ER_EVENT_ALREADY_EXISTS
-CALL p_16();
-DROP PROCEDURE p_16;
-DROP EVENT e_16;
 #
 # END   - BUG#16408: Events: crash for an event in a procedure
 #

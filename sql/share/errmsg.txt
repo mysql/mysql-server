@@ -5839,3 +5839,6 @@ ER_CANT_ACTIVATE_LOG
         eng "Cannot activate '%-.64s' log."
 ER_RBR_NOT_AVAILABLE
         eng "The server was not built with row-based replication"
+ER_EVENT_RECURSIVITY_FORBIDDEN
+        eng "Recursivity of EVENT DDL statements is forbidden when body is present"
+
