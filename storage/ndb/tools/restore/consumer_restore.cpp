@@ -709,6 +709,16 @@ BackupRestore::table(const TableS & table){
       copy.setFragmentData((const void *)ng_array, no_parts << 1);
     }
 
+    /*
+      update min and max rows to reflect the table, this to
+      ensure that memory is allocated properly in the ndb kernel
+    */
+    copy.setMinRows(table.getNoOfRecords());
+    if (table.getNoOfRecords() > copy.getMaxRows())
+    {
+      copy.setMaxRows(table.getNoOfRecords());
+    }
+
     if (dict->createTable(copy) == -1) 
     {
       err << "Create table " << table.getTableName() << " failed: "

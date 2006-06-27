@@ -37,8 +37,10 @@ printLQH_FRAG_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recB
   fprintf(output, " noOfAttributes: %d noOfNullAttributes: %d keyLength: %d\n",
 	  sig->noOfAttributes, sig->noOfNullAttributes, sig->keyLength);
 
-  fprintf(output, " noOfPagesToPreAllocate: %d schemaVersion: %d nextLCP: %d\n",
-	  sig->noOfPagesToPreAllocate, sig->schemaVersion, sig->nextLCP);
+  fprintf(output, " maxRowsLow/High: %u/%u  minRowsLow/High: %u/%u\n",
+	  sig->maxRowsLow, sig->maxRowsHigh, sig->minRowsLow, sig->minRowsHigh);
+  fprintf(output, " schemaVersion: %d nextLCP: %d\n",
+	  sig->schemaVersion, sig->nextLCP);
   
   return true;
 }

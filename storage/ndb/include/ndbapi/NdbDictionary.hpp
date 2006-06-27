@@ -888,6 +888,20 @@ public:
      */
     void setObjectType(Object::Type type);
 
+    /**
+     * Set/Get Maximum number of rows in table (only used to calculate
+     * number of partitions).
+     */
+    void setMaxRows(Uint64 maxRows);
+    Uint64 getMaxRows() const;
+
+    /**
+     * Set/Get Minimum number of rows in table (only used to calculate
+     * number of partitions).
+     */
+    void setMinRows(Uint64 minRows);
+    Uint64 getMinRows() const;
+
     /** @} *******************************************************************/
 
     /**

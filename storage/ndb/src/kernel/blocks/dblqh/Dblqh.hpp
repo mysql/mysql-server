@@ -431,7 +431,6 @@ public:
     UintR dictConnectptr;
     UintR fragmentPtr;
     UintR nextAddfragrec;
-    UintR noOfAllocPages;
     UintR schemaVer;
     UintR tupConnectptr;
     UintR tuxConnectptr;
@@ -449,13 +448,18 @@ public:
     Uint16 totalAttrReceived;
     Uint16 fragCopyCreation;
     Uint16 noOfKeyAttr;
-    Uint32 noOfNewAttr; // noOfCharsets in upper half
+    Uint16 noOfNewAttr;
+    Uint16 noOfCharsets;
     Uint16 noOfAttributeGroups;
     Uint16 lh3DistrBits;
     Uint16 tableType;
     Uint16 primaryTableId;
     Uint32 tablespace_id;
-  };// Size 108 bytes
+    Uint32 maxRowsLow;
+    Uint32 maxRowsHigh;
+    Uint32 minRowsLow;
+    Uint32 minRowsHigh;
+  };// Size 128 bytes
   typedef Ptr<AddFragRecord> AddFragRecordPtr;
   
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
