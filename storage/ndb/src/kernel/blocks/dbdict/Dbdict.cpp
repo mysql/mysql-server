@@ -5362,7 +5362,6 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     req->nextLCP = lcpNo;
 
     req->noOfKeyAttr = tabPtr.p->noOfPrimkey;
-    req->noOfNewAttr = 0;
     req->noOfCharsets = tabPtr.p->noOfCharsets;
     req->checksumIndicator = 1;
     req->GCPIndicator = 1;
@@ -5984,8 +5983,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->m_tablespace_id = c_tableDesc.TablespaceId; 
   tablePtr.p->maxRowsLow = c_tableDesc.MaxRowsLow; 
   tablePtr.p->maxRowsHigh = c_tableDesc.MaxRowsHigh; 
-  tablePtr.p->minRowsLow = tableDesc.MinRowsLow;
-  tablePtr.p->minRowsHigh = tableDesc.MinRowsHigh;
+  tablePtr.p->minRowsLow = c_tableDesc.MinRowsLow;
+  tablePtr.p->minRowsHigh = c_tableDesc.MinRowsHigh;
   tablePtr.p->defaultNoPartFlag = c_tableDesc.DefaultNoPartFlag; 
   tablePtr.p->linearHashFlag = c_tableDesc.LinearHashFlag; 
   

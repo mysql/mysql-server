@@ -315,8 +315,6 @@ public:
     Uint32 CustomTriggerId;
     Uint32 TablespaceId;
     Uint32 TablespaceVersion;
-    Uint32 MaxRowsLow;
-    Uint32 MaxRowsHigh;
     Uint32 DefaultNoPartFlag;
     Uint32 LinearHashFlag;
     /*
