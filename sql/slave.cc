@@ -1177,24 +1177,6 @@ bool net_request_file(NET* net, const char* fname)
 }
 
 
-const char *rewrite_db(const char* db, uint *new_len)
-{
-  if (replicate_rewrite_db.is_empty() || !db)
-    return db;
-  I_List_iterator<i_string_pair> it(replicate_rewrite_db);
-  i_string_pair* tmp;
-
-  while ((tmp=it++))
-  {
-    if (!strcmp(tmp->key, db))
-    {
-      *new_len= (uint32)strlen(tmp->val);
-      return tmp->val;
-    }
-  }
-  return db;
-}
-
 /*
   From other comments and tests in code, it looks like
   sometimes Query_log_event and Load_log_event can have db == 0
