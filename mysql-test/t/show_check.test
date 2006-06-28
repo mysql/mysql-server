@@ -445,4 +445,17 @@ delete from mysql.tables_priv where user='mysqltest_4';
 flush privileges;
 drop database mysqltest;
 
+#
+# Ensure that show plugin code is tested
+#
+
+--disable_result_log
+show full plugin;
+--enable_result_log
+show warnings;
+--disable_result_log
+show plugin;
+show plugins;
+--enable_result_log
+
 --echo End of 5.1 tests

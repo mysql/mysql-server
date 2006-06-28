@@ -3223,9 +3223,11 @@ server.");
     /* fall back to the log files if tables are not present */
     if (have_csv_db == SHOW_OPTION_NO)
     {
+      /* purecov: begin inspected */
       sql_print_error("CSV engine is not present, falling back to the "
                       "log files");
       log_output_options= (log_output_options & ~LOG_TABLE) | LOG_FILE;
+      /* purecov: end */
     }
 
     logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
