@@ -628,7 +628,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
     If it's SHOW EVENTS then thd->lex->select_lex.db is guaranteed not to
     be NULL. Let's do an assert anyway.
   */
-  if (thd->lex->orig_sql_command == SQLCOM_SHOW_EVENTS)
+  if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
     DBUG_ASSERT(thd->lex->select_lex.db);
     if (check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
