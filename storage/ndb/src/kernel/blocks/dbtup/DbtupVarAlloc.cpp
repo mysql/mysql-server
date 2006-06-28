@@ -323,6 +323,13 @@ Dbtup::get_empty_var_page(Fragrecord* fragPtr)
     ptr.p->nextList = RNIL;
     list.add(ret.i + 1, ptr);
   }
+
+  c_page_pool.getPtr(ret);
+  
+  Var_page* page = (Var_page*)ret.p;
+  page->chunk_size = cnt;
+  page->next_chunk = fragPtr->m_var_page_chunks;
+  fragPtr->m_var_page_chunks = ret.i;
   
   return ret.i;
 }

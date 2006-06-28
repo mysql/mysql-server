@@ -201,17 +201,19 @@ class BackupCompleteRep {
 
   friend bool printBACKUP_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 8 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 10 + NdbNodeBitmask::Size );
 private:
   Uint32 senderData;
   Uint32 backupId;
   Uint32 startGCP;
   Uint32 stopGCP;
-  Uint32 noOfBytes;
-  Uint32 noOfRecords;
+  Uint32 noOfBytesLow;
+  Uint32 noOfRecordsLow;
   Uint32 noOfLogBytes;
   Uint32 noOfLogRecords;
   NdbNodeBitmask nodes;
+  Uint32 noOfBytesHigh;
+  Uint32 noOfRecordsHigh;
 };
 
 /**

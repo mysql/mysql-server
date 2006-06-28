@@ -163,6 +163,31 @@ public:
     };
   };
 
+  class Dictionary; // Forward declaration
+  
+  class ObjectId : public Object 
+  {
+  public:
+    ObjectId();
+    virtual ~ObjectId();
+    
+    /**
+     * Get status of object
+     */
+    virtual Status getObjectStatus() const;
+    
+    /**
+     * Get version of object
+     */
+    virtual int getObjectVersion() const;
+    
+    virtual int getObjectId() const;
+    
+  private:
+    friend class Dictionary;
+    class NdbDictObjectImpl & m_impl;
+  };
+  
   class Table; // forward declaration
   class Tablespace; // forward declaration
 //  class NdbEventOperation; // forward declaration
@@ -806,13 +831,6 @@ public:
     virtual int getObjectVersion() const;
 
     /**
-     * Set/Get Maximum number of rows in table (only used to calculate
-     * number of partitions).
-     */
-    void setMaxRows(Uint64 maxRows);
-    Uint64 getMaxRows() const;
-
-    /**
      * Set/Get indicator if default number of partitions is used in table.
      */
     void setDefaultNoPartitionsFlag(Uint32 indicator);
@@ -862,6 +880,20 @@ public:
      * Set table object type
      */
     void setObjectType(Object::Type type);
+
+    /**
+     * Set/Get Maximum number of rows in table (only used to calculate
+     * number of partitions).
+     */
+    void setMaxRows(Uint64 maxRows);
+    Uint64 getMaxRows() const;
+
+    /**
+     * Set/Get Minimum number of rows in table (only used to calculate
+     * number of partitions).
+     */
+    void setMinRows(Uint64 minRows);
+    Uint64 getMinRows() const;
 
     /** @} *******************************************************************/
 
@@ -1781,20 +1813,20 @@ public:
      * @{
      */
     
-    int createLogfileGroup(const LogfileGroup &);
+    int createLogfileGroup(const LogfileGroup &, ObjectId* = 0);
     int dropLogfileGroup(const LogfileGroup&);
     LogfileGroup getLogfileGroup(const char * name);
 
-    int createTablespace(const Tablespace &);
+    int createTablespace(const Tablespace &, ObjectId* = 0);
     int dropTablespace(const Tablespace&);
     Tablespace getTablespace(const char * name);
     Tablespace getTablespace(Uint32 tablespaceId);
 
-    int createDatafile(const Datafile &, bool overwrite_existing = false);
+    int createDatafile(const Datafile &, bool overwrite_existing = false, ObjectId* = 0);
     int dropDatafile(const Datafile&);
     Datafile getDatafile(Uint32 node, const char * path);
     
-    int createUndofile(const Undofile &, bool overwrite_existing = false);
+    int createUndofile(const Undofile &, bool overwrite_existing = false, ObjectId * = 0);
     int dropUndofile(const Undofile&);
     Undofile getUndofile(Uint32 node, const char * path);
     

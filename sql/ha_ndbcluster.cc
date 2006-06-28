@@ -9628,10 +9628,22 @@ static bool adjusted_frag_count(uint no_fragments, uint no_nodes,
   return (reported_frags < no_fragments);
 }
 
-int ha_ndbcluster::get_default_no_partitions(ulonglong max_rows)
+int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *info)
 {
+  ha_rows max_rows, min_rows;
+  if (info)
+  {
+    max_rows= info->max_rows;
+    min_rows= info->min_rows;
+  }
+  else
+  {
+    max_rows= table_share->max_rows;
+    min_rows= table_share->min_rows;
+  }
   uint reported_frags;
-  uint no_fragments= get_no_fragments(max_rows);
+  uint no_fragments=
+    get_no_fragments(max_rows >= min_rows ? max_rows : min_rows);
   uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
   if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
   {
@@ -9879,7 +9891,17 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   } while (++i < part_info->no_parts);
   tab->setDefaultNoPartitionsFlag(part_info->use_default_no_partitions);
   tab->setLinearFlag(part_info->linear_hash_ind);
-  tab->setMaxRows(table->s->max_rows);
+  {
+    ha_rows max_rows= table_share->max_rows;
+    ha_rows min_rows= table_share->min_rows;
+    if (max_rows < min_rows)
+      max_rows= min_rows;
+    if (max_rows != (ha_rows)0) /* default setting, don't set fragmentation */
+    {
+      tab->setMaxRows(max_rows);
+      tab->setMinRows(min_rows);
+    }
+  }
   tab->setTablespaceNames(ts_names, fd_index*sizeof(char*));
   tab->setFragmentCount(fd_index);
   tab->setFragmentData(&frag_data, fd_index*2);
@@ -9982,7 +10004,8 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
   {
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
-  
+
+  NdbError err;
   NDBDICT *dict = ndb->getDictionary();
   int error;
   const char * errmsg;
@@ -9995,6 +10018,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
     
     NdbDictionary::Tablespace ndb_ts;
     NdbDictionary::Datafile ndb_df;
+    NdbDictionary::ObjectId objid;
     if (set_up_tablespace(info, &ndb_ts))
     {
       DBUG_RETURN(1);
@@ -10004,7 +10028,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
       DBUG_RETURN(1);
     }
     errmsg= "TABLESPACE";
-    if (dict->createTablespace(ndb_ts))
+    if (dict->createTablespace(ndb_ts, &objid))
     {
       DBUG_PRINT("error", ("createTablespace returned %d", error));
       goto ndberror;
@@ -10013,8 +10037,17 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
     errmsg= "DATAFILE";
     if (dict->createDatafile(ndb_df))
     {
+      err= dict->getNdbError();
+      NdbDictionary::Tablespace tmp= dict->getTablespace(ndb_ts.getName());
+      if (dict->getNdbError().code == 0 &&
+	  tmp.getObjectId() == objid.getObjectId() &&
+	  tmp.getObjectVersion() == objid.getObjectVersion())
+      {
+	dict->dropTablespace(tmp);
+      }
+      
       DBUG_PRINT("error", ("createDatafile returned %d", error));
-      goto ndberror;
+      goto ndberror2;
     }
     is_tablespace= 1;
     break;
@@ -10068,6 +10101,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
     error= ER_CREATE_FILEGROUP_FAILED;
     NdbDictionary::LogfileGroup ndb_lg;
     NdbDictionary::Undofile ndb_uf;
+    NdbDictionary::ObjectId objid;
     if (info->undo_file_name == NULL)
     {
       /*
@@ -10080,7 +10114,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
       DBUG_RETURN(1);
     }
     errmsg= "LOGFILE GROUP";
-    if (dict->createLogfileGroup(ndb_lg))
+    if (dict->createLogfileGroup(ndb_lg, &objid))
     {
       goto ndberror;
     }
@@ -10092,7 +10126,15 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
     errmsg= "UNDOFILE";
     if (dict->createUndofile(ndb_uf))
     {
-      goto ndberror;
+      err= dict->getNdbError();
+      NdbDictionary::LogfileGroup tmp= dict->getLogfileGroup(ndb_lg.getName());
+      if (dict->getNdbError().code == 0 &&
+	  tmp.getObjectId() == objid.getObjectId() &&
+	  tmp.getObjectVersion() == objid.getObjectVersion())
+      {
+	dict->dropLogfileGroup(tmp);
+      }
+      goto ndberror2;
     }
     break;
   }
@@ -10169,7 +10211,8 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
   DBUG_RETURN(FALSE);
 
 ndberror:
-  const NdbError err= dict->getNdbError();
+  err= dict->getNdbError();
+ndberror2:
   ERR_PRINT(err);
   ndb_to_mysql_error(&err);
   
