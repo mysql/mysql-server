@@ -414,6 +414,37 @@ void ha_ndbcluster::set_rec_per_key()
   DBUG_VOID_RETURN;
 }
 
+ha_rows ha_ndbcluster::records()
+{
+  ha_rows retval;
+  DBUG_ENTER("ha_ndbcluster::records");
+  struct Ndb_local_table_statistics *info= m_table_info;
+  DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
+                      ((const NDBTAB *)m_table)->getTableId(),
+                      info->no_uncommitted_rows_count));
+
+  Ndb *ndb= get_ndb();
+  ndb->setDatabaseName(m_dbname);
+  struct Ndb_statistics stat;
+  if (ndb_get_table_statistics(ndb, m_table, &stat) == 0)
+  {
+    retval= stat.row_count;
+  }
+  else
+  {
+    /**
+     * Be consistent with BUG#19914 until we fix it properly
+     */
+    DBUG_RETURN(-1);
+  }
+
+  THD *thd= current_thd;
+  if (get_thd_ndb(thd)->error)
+    info->no_uncommitted_rows_count= 0;
+
+  DBUG_RETURN(retval + info->no_uncommitted_rows_count);
+}
+
 void ha_ndbcluster::records_update()
 {
   if (m_ha_not_exact_count)
@@ -5455,7 +5486,8 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | \
                 HA_PRIMARY_KEY_REQUIRED_FOR_DELETE | \
                 HA_PARTIAL_COLUMN_READ | \
-                HA_HAS_OWN_BINLOGGING
+                HA_HAS_OWN_BINLOGGING | \
+                HA_HAS_RECORDS
 
 ha_ndbcluster::ha_ndbcluster(TABLE_SHARE *table_arg):
   handler(&ndbcluster_hton, table_arg),
