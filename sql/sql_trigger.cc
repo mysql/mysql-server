@@ -183,6 +183,15 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       !(tables= add_table_for_trigger(thd, thd->lex->spname)))
     DBUG_RETURN(TRUE);
 
+  /*
+    We don't allow creating triggers on tables in the 'mysql' schema
+  */
+  if (create && !my_strcasecmp(system_charset_info, "mysql", tables->db))
+  {
+    my_error(ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   /* We should have only one table in table list. */
   DBUG_ASSERT(tables->next_global == 0);
 
