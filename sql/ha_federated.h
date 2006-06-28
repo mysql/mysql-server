@@ -165,8 +165,8 @@ private:
       return errorcode otherwise
   */
   uint convert_row_to_internal_format(byte *buf, MYSQL_ROW row,
-                                      MYSQL_RES *row);
-  bool create_where_from_key(String *to, KEY *key_info, 
+                                      MYSQL_RES *result);
+  bool create_where_from_key(String *to, KEY *key_info,
                              const key_range *start_key,
                              const key_range *end_key,
                              bool records_in_range);
