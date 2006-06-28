@@ -110,8 +110,8 @@
 		</Configuration>
 		<Configuration
 			Name="Max nt|Win32"
-			OutputDirectory=".\max"
-			IntermediateDirectory=".\max"
+			OutputDirectory=".\max_nt"
+			IntermediateDirectory=".\max_nt"
 			ConfigurationType="4"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE">
@@ -125,10 +125,10 @@
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
-				PrecompiledHeaderFile=".\max/mysys.pch"
-				AssemblerListingLocation=".\max/"
-				ObjectFile=".\max/"
-				ProgramDataBaseFileName=".\max/"
+				PrecompiledHeaderFile=".\max_nt/mysys.pch"
+				AssemblerListingLocation=".\max_nt/"
+				ObjectFile=".\max_nt/"
+				ProgramDataBaseFileName=".\max_nt/"
 				WarningLevel="3"
 				SuppressStartupBanner="TRUE"
 				CompileAs="0"/>
@@ -136,7 +136,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="..\lib_release\mysys-max.lib"
+				OutputFile="..\lib_release\mysys-max-nt.lib"
 				SuppressStartupBanner="TRUE"/>
 			<Tool
 				Name="VCMIDLTool"/>
@@ -209,9 +209,9 @@
 				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
 		</Configuration>
 		<Configuration
-			Name="Release nt|Win32"
-			OutputDirectory=".\release"
-			IntermediateDirectory=".\release"
+			Name="nt|Win32"
+			OutputDirectory=".\nt"
+			IntermediateDirectory=".\nt"
 			ConfigurationType="4"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE">
@@ -225,10 +225,10 @@
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
-				PrecompiledHeaderFile=".\release/mysys.pch"
-				AssemblerListingLocation=".\release/"
-				ObjectFile=".\release/"
-				ProgramDataBaseFileName=".\release/"
+				PrecompiledHeaderFile=".\nt/mysys.pch"
+				AssemblerListingLocation=".\nt/"
+				ObjectFile=".\nt/"
+				ProgramDataBaseFileName=".\nt/"
 				WarningLevel="3"
 				SuppressStartupBanner="TRUE"
 				CompileAs="0"/>
@@ -236,7 +236,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="..\lib_release\mysys.lib"
+				OutputFile="..\lib_release\mysys-nt.lib"
 				SuppressStartupBanner="TRUE"/>
 			<Tool
 				Name="VCMIDLTool"/>
