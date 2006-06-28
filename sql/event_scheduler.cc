@@ -785,7 +785,7 @@ Event_scheduler::destroy()
 */
 
 int
-Event_scheduler::create_event(THD *thd, Event_timed *et, bool check_existence)
+Event_scheduler::create_event(THD *thd, Event_parse_data *et, bool check_existence)
 {
   int res;
   Event_timed *et_new;
@@ -799,14 +799,15 @@ Event_scheduler::create_event(THD *thd, Event_timed *et, bool check_existence)
     UNLOCK_SCHEDULER_DATA();
     DBUG_RETURN(OP_OK);
   }
-  if (check_existence && find_event(et, FALSE))
+  if (check_existence && find_event(et->dbname, et->name, FALSE))
   {
     res= OP_ALREADY_EXISTS;
     goto end;
   }
 
   /* We need to load the event on scheduler_root */
-  if (!(res= db_repository->load_named_event(thd, et, &et_new)))
+  if (!(res= db_repository->
+                load_named_event(thd, et->dbname, et->name, &et_new)))
   {
     queue_insert_safe(&queue, (byte *) et_new);
     DBUG_PRINT("info", ("Sending COND_new_work"));
@@ -850,7 +851,7 @@ Event_scheduler::drop_event(THD *thd, sp_name *name)
     DBUG_RETURN(OP_OK);
   }
 
-  if (!(et_old= find_event(name, TRUE)))
+  if (!(et_old= find_event(name->m_db, name->m_name, TRUE)))
     DBUG_PRINT("info", ("No such event found, probably DISABLED"));
 
   UNLOCK_SCHEDULER_DATA();
@@ -906,7 +907,7 @@ Event_scheduler::drop_event(THD *thd, sp_name *name)
 */
 
 int
-Event_scheduler::update_event(THD *thd, Event_timed *et,
+Event_scheduler::update_event(THD *thd, Event_parse_data *et,
                                LEX_STRING *new_schema,
                                LEX_STRING *new_name)
 {
@@ -931,7 +932,7 @@ Event_scheduler::update_event(THD *thd, Event_timed *et,
     DBUG_RETURN(OP_OK);
   }
 
-  if (!(et_old= find_event(et, TRUE)))
+  if (!(et_old= find_event(et->dbname, et->name, TRUE)))
     DBUG_PRINT("info", ("%s.%s not found cached, probably was DISABLED",
                         et->dbname.str, et->name.str));
 
@@ -948,7 +949,8 @@ Event_scheduler::update_event(THD *thd, Event_timed *et,
     1. Error occured
     2. If the replace is DISABLED, we don't load it into the queue.
   */
-  if (!(res= db_repository->load_named_event(thd, et, &et_new)))
+  if (!(res= db_repository->
+            load_named_event(thd, et->dbname, et->name, &et_new)))
   {
     queue_insert_safe(&queue, (byte *) et_new);
     DBUG_PRINT("info", ("Sending COND_new_work"));
@@ -1014,50 +1016,8 @@ Event_scheduler::update_event(THD *thd, Event_timed *et,
 
   SYNOPSIS
     Event_scheduler::find_event()
-      etn            The event to find
-      comparator     The function to use for comparing
-      remove_from_q  If found whether to remove from the Q
-
-  RETURN VALUE
-    NULL       Not found
-    otherwise  Address
-
-  NOTE
-    The caller should do the locking also the caller is responsible for
-    actual signalling in case an event is removed from the queue 
-    (signalling COND_new_work for instance).
-*/
-
-Event_timed *
-Event_scheduler::find_event(Event_timed *etn, bool remove_from_q)
-{
-  uint i;
-  DBUG_ENTER("Event_scheduler::find_event");
-
-  for (i= 0; i < queue.elements; ++i)
-  {
-    Event_timed *et= (Event_timed *) queue_element(&queue, i);
-    DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?", etn->dbname.str, etn->name.str,
-                        et->dbname.str, et->name.str));
-    if (event_timed_identifier_equal(etn, et))
-    {
-      if (remove_from_q)
-        queue_remove(&queue, i);
-      DBUG_RETURN(et);
-    }
-  }
-
-  DBUG_RETURN(NULL);
-}
-
-
-/*
-  Searches for an event in the scheduler queue
-
-  SYNOPSIS
-    Event_scheduler::find_event()
+      db             The schema of the event to find
       name           The event to find
-      comparator     The function to use for comparing
       remove_from_q  If found whether to remove from the Q
 
   RETURN VALUE
@@ -1071,7 +1031,7 @@ Event_scheduler::find_event(Event_timed *etn, bool remove_from_q)
 */
 
 Event_timed *
-Event_scheduler::find_event(sp_name *name, bool remove_from_q)
+Event_scheduler::find_event(LEX_STRING db, LEX_STRING name, bool remove_from_q)
 {
   uint i;
   DBUG_ENTER("Event_scheduler::find_event");
@@ -1079,9 +1039,9 @@ Event_scheduler::find_event(sp_name *name, bool remove_from_q)
   for (i= 0; i < queue.elements; ++i)
   {
     Event_timed *et= (Event_timed *) queue_element(&queue, i);
-    DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?", name->m_db.str, name->m_name.str,
+    DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?", db.str, name.str,
                         et->dbname.str, et->name.str));
-    if (event_timed_identifier_equal(name, et))
+    if (event_timed_identifier_equal(db, name, et))
     {
       if (remove_from_q)
         queue_remove(&queue, i);
@@ -1624,7 +1584,7 @@ Event_scheduler::clean_queue(THD *thd)
   SYNOPSIS
     Event_scheduler::stop_all_running_events()
       thd  Thread
-  
+
   NOTE
     LOCK_scheduler data must be acquired prior to call to this method
 */
@@ -1726,7 +1686,7 @@ Event_scheduler::stop()
     /*
       One situation to be here is if there was a start that forked a new
       thread but the new thread did not acquire yet LOCK_scheduler_data.
-      Hence, in this case return an error.    
+      Hence, in this case return an error.
     */
     DBUG_PRINT("info", ("manager not running but %d. doing nothing", state));
     UNLOCK_SCHEDULER_DATA();
@@ -1841,7 +1801,7 @@ Event_scheduler::workers_count()
   }
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   DBUG_PRINT("exit", ("%d", count));
-  DBUG_RETURN(count);  
+  DBUG_RETURN(count);
 }
 
 
@@ -1851,7 +1811,7 @@ Event_scheduler::workers_count()
   SYNOPSIS
     Event_scheduler::check_n_suspend_if_needed()
       thd  Thread
-  
+
   RETURN VALUE
     FALSE  Not suspended, we haven't slept
     TRUE   We were suspended. LOCK_scheduler_data is unlocked.
@@ -1936,7 +1896,7 @@ Event_scheduler::check_n_wait_for_non_empty_queue(THD *thd)
   
   if (!queue.elements)
     thd->enter_cond(&cond_vars[COND_new_work], &LOCK_scheduler_data,
-                    "Empty queue, sleeping");  
+                    "Empty queue, sleeping");
 
   /* Wait in a loop protecting against catching spurious signals */
   while (!queue.elements && state == RUNNING)
@@ -2079,7 +2039,7 @@ Event_scheduler::get_state()
 
   SYNOPSIS
     Event_scheduler::initialized()
-  
+
   RETURN VALUE
     FALSE  Was not initialized so far
     TRUE   Was initialized

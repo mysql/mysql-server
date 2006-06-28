@@ -57,11 +57,11 @@ public:
   /* Methods for queue management follow */
 
   int
-  create_event(THD *thd, Event_timed *et, bool check_existence);
+  create_event(THD *thd, Event_parse_data *et, bool check_existence);
 
   int
-  update_event(THD *thd, Event_timed *et, LEX_STRING *new_schema,
-                LEX_STRING *new_name);
+  update_event(THD *thd, Event_parse_data *et, LEX_STRING *new_schema,
+               LEX_STRING *new_name);
 
   bool
   drop_event(THD *thd, sp_name *name);
@@ -129,10 +129,7 @@ public:
 
 private:
   Event_timed *
-  find_event(Event_timed *etn, bool remove_from_q);
-
-  Event_timed *
-  find_event(sp_name *name, bool remove_from_q);
+  find_event(LEX_STRING db, LEX_STRING name, bool remove_from_q);
 
   uint
   workers_count();

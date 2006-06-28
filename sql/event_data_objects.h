@@ -54,19 +54,9 @@ class Event_timed;
 bool
 event_timed_db_equal(Event_timed *et, LEX_STRING *db);
 
-
 /* Compares the whole identifier*/
 bool
-event_timed_identifier_equal(Event_timed *a, Event_timed *b);
-
-/* Compares only the schema part of the identifier */
-bool
-event_timed_db_equal(sp_name *name, LEX_STRING *db);
-
-
-/* Compares the whole identifier*/
-bool
-event_timed_identifier_equal(sp_name *a, Event_timed *b);
+event_timed_identifier_equal(LEX_STRING db, LEX_STRING name, Event_timed *b);
 
 
 class Event_timed
@@ -123,7 +113,6 @@ public:
   enum enum_status status;
   sp_head *sphead;
   ulong sql_mode;
-  const uchar *body_begin;
 
   bool dropped;
   bool free_sphead_on_delete;
@@ -138,9 +127,6 @@ public:
     DBUG_RETURN(p);
   }
 
-  static void *operator new(size_t size, MEM_ROOT *mem_root)
-  { return (void*) alloc_root(mem_root, (uint) size); }
-
   static void operator delete(void *ptr, size_t size)
   {
     DBUG_ENTER("Event_timed::delete(ptr,size)");
@@ -148,17 +134,6 @@ public:
     TRASH(ptr, size);
     my_free((gptr) ptr, MYF(0));
     DBUG_VOID_RETURN;
-  }
-
-  static void operator delete(void *ptr, MEM_ROOT *mem_root)
-  {
-    /*
-      Don't free the memory it will be done by the mem_root but
-      we need to call the destructor because we free other resources
-      which are not allocated on the root but on the heap, or we
-      deinit mutexes.
-    */
-    DBUG_ASSERT(0);
   }
 
   Event_timed();
@@ -170,30 +145,6 @@ public:
 
   void
   deinit_mutexes();
-
-  int
-  init_definer(THD *thd);
-
-  int
-  init_execute_at(THD *thd, Item *expr);
-
-  int
-  init_interval(THD *thd, Item *expr, interval_type new_interval);
-
-  void
-  init_name(THD *thd, sp_name *spn);
-
-  int
-  init_starts(THD *thd, Item *starts);
-
-  int
-  init_ends(THD *thd, Item *ends);
-
-  void
-  init_body(THD *thd);
-
-  void
-  init_comment(THD *thd, LEX_STRING *set_comment);
 
   int
   load_from_row(MEM_ROOT *mem_root, TABLE *table);
@@ -231,9 +182,6 @@ public:
   void
   free_sp();
 
-  bool
-  has_equal_db(Event_timed *etn);
-
   int
   kill_thread(THD *thd);
 
@@ -268,12 +216,9 @@ public:
   LEX_STRING dbname;
   LEX_STRING name;
   LEX_STRING body;
-
-  LEX_STRING definer_user;
-  LEX_STRING definer_host;
   LEX_STRING definer;// combination of user and host
-
   LEX_STRING comment;
+
   Item* item_starts;
   Item* item_ends;
   Item* item_execute_at;
@@ -316,10 +261,6 @@ public:
 
   void
   init_body(THD *thd);
-
-  void
-  init_comment(THD *thd, LEX_STRING *set_comment);
-
 };
 
 
