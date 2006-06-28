@@ -5619,3 +5619,5 @@ ER_NON_GROUPING_FIELD_USED 42000
 	eng "non-grouping field '%-.64s' is used in %-.64s clause"
 ER_TABLE_CANT_HANDLE_SPKEYS
         eng "The used table type doesn't support SPATIAL indexes"
+ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
+	eng "Triggers can not be created on system tables"

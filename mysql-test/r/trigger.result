@@ -1078,3 +1078,15 @@ i1
 43
 51
 DROP TABLE t1;
+create trigger wont_work after update on mysql.user for each row
+begin
+set @a:= 1;
+end|
+ERROR HY000: Triggers can not be created on system tables
+use mysql|
+create trigger wont_work after update on event for each row
+begin
+set @a:= 1;
+end|
+ERROR HY000: Triggers can not be created on system tables
+End of 5.0 tests
