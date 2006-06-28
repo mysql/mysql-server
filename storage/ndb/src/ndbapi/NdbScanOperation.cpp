@@ -1587,7 +1587,6 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
   if (holdLock && theError.code == 0 && 
       (m_sent_receivers_count + m_conf_receivers_count + m_api_receivers_count))
   {
-    TransporterFacade * tp = TransporterFacade::instance();
     NdbApiSignal tSignal(theNdb->theMyRef);
     tSignal.setSignal(GSN_SCAN_NEXTREQ);
     
@@ -1605,8 +1604,7 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
       setErrorCode(4008);
       return -1;
     }
-    checkForceSend(forceSend);
-
+    
     /**
      * If no receiver is outstanding...
      *   set it to 1 as execCLOSE_SCAN_REP resets it
@@ -1615,9 +1613,7 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
     
     while(theError.code == 0 && (m_sent_receivers_count + m_conf_receivers_count))
     {
-      theNdb->theImpl->theWaiter.m_node = nodeId;
-      theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
-      int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
+      int return_code = poll_guard->wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId, forceSend);
       switch(return_code){
       case 0:
 	break;
@@ -1639,8 +1635,7 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
    */
   while(theError.code == 0 && m_sent_receivers_count)
   {
-    int return_code= poll_guard->wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId,
-                                           false);
+    int return_code= poll_guard->wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId, forceSend);
     switch(return_code){
     case 0:
       break;
