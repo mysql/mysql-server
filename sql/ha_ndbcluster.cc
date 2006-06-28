@@ -186,8 +186,8 @@ static int update_status_variables(Ndb_cluster_connection *c)
 
 SHOW_VAR ndb_status_variables[]= {
   {"cluster_node_id",        (char*) &ndb_cluster_node_id,         SHOW_LONG},
-  {"connected_host",         (char*) &ndb_connected_host,      SHOW_CHAR_PTR},
-  {"connected_port",         (char*) &ndb_connected_port,          SHOW_LONG},
+  {"config_from_host",         (char*) &ndb_connected_host,      SHOW_CHAR_PTR},
+  {"config_from_port",         (char*) &ndb_connected_port,          SHOW_LONG},
 //  {"number_of_replicas",     (char*) &ndb_number_of_replicas,      SHOW_LONG},
   {"number_of_storage_nodes",(char*) &ndb_number_of_storage_nodes, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
