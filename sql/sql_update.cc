@@ -1094,7 +1094,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       memcpy((char*) tmp_table->field[0]->ptr,
 	     (char*) table->file->ref, table->file->ref_length);
       /* Write row, ignoring duplicated updates to a row */
-      if (error= tmp_table->file->write_row(tmp_table->record[0]))
+      if ((error= tmp_table->file->write_row(tmp_table->record[0])))
       {
         if (error != HA_ERR_FOUND_DUPP_KEY &&
             error != HA_ERR_FOUND_DUPP_UNIQUE &&
