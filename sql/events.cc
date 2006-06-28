@@ -258,7 +258,7 @@ int
 Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
                                    TABLE **table)
 {
-  return db_repository.open_event_table(thd, lock_type, table);
+  return db_repository->open_event_table(thd, lock_type, table);
 }
 
 
@@ -292,7 +292,7 @@ Events::create_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
   DBUG_PRINT("enter", ("name: %*s options:%d", et->name.length,
                 et->name.str, create_options));
 
-  if (!(ret= db_repository.
+  if (!(ret= db_repository->
                  create_event(thd, et,
                               create_options & HA_LEX_CREATE_IF_NOT_EXISTS,
                               rows_affected)))
@@ -340,7 +340,7 @@ Events::update_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
     crash later in the code when loading and compiling the new definition.
     Also on error conditions my_error() is called so no need to handle here
   */
-  if (!(ret= db_repository.update_event(thd, et, new_name)))
+  if (!(ret= db_repository->update_event(thd, et, new_name)))
   {
     Event_scheduler *scheduler= Event_scheduler::get_instance();
     if (scheduler->initialized() &&
@@ -376,7 +376,7 @@ Events::drop_event(THD *thd, sp_name *name, bool drop_if_exists,
 
   DBUG_ENTER("Events::drop_event");
 
-  if (!(ret= db_repository.drop_event(thd, name->m_db, name->m_name,
+  if (!(ret= db_repository->drop_event(thd, name->m_db, name->m_name,
                                       drop_if_exists, rows_affected)))
   {
     Event_scheduler *scheduler= Event_scheduler::get_instance();
@@ -411,7 +411,7 @@ Events::show_create_event(THD *thd, sp_name *spn)
   DBUG_PRINT("enter", ("name: %*s", spn->m_name.length, spn->m_name.str));
 
   thd->reset_n_backup_open_tables_state(&backup);
-  ret= db_repository.find_event(thd, spn, &et, NULL, thd->mem_root);
+  ret= db_repository->find_event(thd, spn, &et, NULL, thd->mem_root);
   thd->restore_backup_open_tables_state(&backup);
 
   if (!ret)
@@ -484,7 +484,7 @@ Events::drop_schema_events(THD *thd, char *db)
 
   Event_scheduler *scheduler= Event_scheduler::get_instance();
   ret= scheduler->drop_schema_events(thd, db_lex);
-  ret= db_repository.drop_schema_events(thd, db_lex);
+  ret= db_repository->drop_schema_events(thd, db_lex);
 
   DBUG_RETURN(ret);
 }
@@ -510,15 +510,14 @@ Events::init()
   int ret= 0;
   Event_db_repository *db_repo;
   DBUG_ENTER("Events::init");
-  db_repo= &get_instance()->db_repository;
-  db_repo->init_repository();
+  db_repository->init_repository();
 
   /* it should be an assignment! */
   if (opt_event_scheduler)
   {
     Event_scheduler *scheduler= Event_scheduler::get_instance();
     DBUG_ASSERT(opt_event_scheduler == 1 || opt_event_scheduler == 2);
-    DBUG_RETURN(scheduler->init(db_repo) || 
+    DBUG_RETURN(scheduler->init(db_repository) || 
                 (opt_event_scheduler == 1? scheduler->start():
                                            scheduler->start_suspended()));
   }
@@ -540,15 +539,49 @@ void
 Events::deinit()
 {
   DBUG_ENTER("Events::deinit");
+
   Event_scheduler *scheduler= Event_scheduler::get_instance();
   if (scheduler->initialized())
   {
     scheduler->stop();
     scheduler->destroy();
   }
-  get_instance()->db_repository.deinit_repository();
+
+  db_repository->deinit_repository();
 
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Inits Events mutexes
+
+  SYNOPSIS
+    Events::init_mutexes()
+      thd  Thread
+*/
+
+void
+Events::init_mutexes()
+{
+  db_repository= new Event_db_repository;
+  Event_scheduler::init_mutexes();
+}
+
+
+/*
+  Destroys Events mutexes
+
+  SYNOPSIS
+    Events::destroy_mutexes()
+*/
+
+void
+Events::destroy_mutexes()
+{
+  Event_scheduler::destroy_mutexes();
+  delete db_repository;
+  db_repository= NULL;
 }
 
 
@@ -603,34 +636,5 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
       DBUG_RETURN(1);
     db= thd->lex->select_lex.db;
   }
-  DBUG_RETURN(get_instance()->db_repository.fill_schema_events(thd, tables, db));
-}
-
-
-/*
-  Inits Events mutexes
-
-  SYNOPSIS
-    Events::init_mutexes()
-      thd  Thread
-*/
-
-void
-Events::init_mutexes()
-{
-  Event_scheduler::init_mutexes();
-}
-
-
-/*
-  Destroys Events mutexes
-
-  SYNOPSIS
-    Events::destroy_mutexes()
-*/
-
-void
-Events::destroy_mutexes()
-{
-  Event_scheduler::destroy_mutexes();
+  DBUG_RETURN(get_instance()->db_repository->fill_schema_events(thd, tables, db));
 }

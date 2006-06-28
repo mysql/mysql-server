@@ -1304,7 +1304,7 @@ Event_timed::drop(THD *thd)
   DBUG_ENTER("Event_timed::drop");
 
   DBUG_RETURN(Events::get_instance()->
-                db_repository.drop_event(thd, dbname, name, false, &tmp));
+                db_repository->drop_event(thd, dbname, name, false, &tmp));
 }
 
 
