@@ -874,7 +874,11 @@ JOIN::optimize()
      The FROM clause must contain a single non-constant table.
   */
   if (tables - const_tables == 1 && (group_list || select_distinct) &&
-      !tmp_table_param.sum_func_count)
+      !tmp_table_param.sum_func_count &&
+      (!join_tab[const_tables].select ||
+       !join_tab[const_tables].select->quick ||
+       join_tab[const_tables].select->quick->get_type() != 
+       QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
   {
     if (group_list &&
        list_contains_unique_index(join_tab[const_tables].table,
@@ -11279,9 +11283,9 @@ static bool
 list_contains_unique_index(TABLE *table,
                           bool (*find_func) (Field *, void *), void *data)
 {
-  for (uint keynr= 0; keynr < table->keys; keynr++)
+  for (uint keynr= 0; keynr < table->s->keys; keynr++)
   {
-    if (keynr == table->primary_key ||
+    if (keynr == table->s->primary_key ||
          (table->key_info[keynr].flags & HA_NOSAME))
     {
       KEY *keyinfo= table->key_info + keynr;
