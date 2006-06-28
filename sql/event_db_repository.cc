@@ -271,7 +271,7 @@ evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
                           const LEX_STRING ev_name,
                           TABLE *table)
 {
-  return Events::get_instance()->db_repository.
+  return Events::get_instance()->db_repository->
             find_event_by_name(thd, dbname, ev_name, table);
 }
 

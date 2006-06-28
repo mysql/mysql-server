@@ -19,8 +19,7 @@
 class sp_name;
 class Event_timed;
 class Event_parse_data;
-
-#include "event_db_repository.h"
+class Event_db_repository;
 
 /* Return codes */
 enum enum_events_error_code
@@ -51,16 +50,16 @@ public:
   static ulong opt_event_scheduler;
   static TYPELIB opt_typelib;
 
-  static int
+  int
   init();
   
-  static void
+  void
   deinit();
 
-  static void
+  void
   init_mutexes();
   
-  static void
+  void
   destroy_mutexes();
 
   static Events*
@@ -78,6 +77,9 @@ public:
   drop_event(THD *thd, sp_name *name, bool drop_if_exists, uint *rows_affected);
 
   int
+  drop_schema_events(THD *thd, char *db);
+
+  int
   open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 
   int
@@ -88,16 +90,13 @@ public:
   reconstruct_interval_expression(String *buf, interval_type interval,
                                   longlong expression);
 
-  int
-  drop_schema_events(THD *thd, char *db);
-
   static int
   fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
   
   int
   dump_internal_status(THD *thd);
 
-  Event_db_repository db_repository;
+  Event_db_repository *db_repository;
 
 private:
   /* Singleton DP is used */
@@ -106,7 +105,6 @@ private:
 
   /* Singleton instance */
   static Events singleton;
-
 
   /* Prevent use of these */
   Events(const Events &);
