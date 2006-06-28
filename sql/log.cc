@@ -959,14 +959,14 @@ bool MYSQL_LOG::reset_logs(THD* thd)
 
   for (;;)
   {
-    my_delete(linfo.log_file_name, MYF(MY_WME));
+    my_delete_allow_opened(linfo.log_file_name, MYF(MY_WME));
     if (find_next_log(&linfo, 0))
       break;
   }
 
   /* Start logging with a new file */
   close(LOG_CLOSE_INDEX);
-  my_delete(index_file_name, MYF(MY_WME));	// Reset (open will update)
+  my_delete_allow_opened(index_file_name, MYF(MY_WME));	// Reset (open will update)
   if (!thd->slave_thread)
     need_start_event=1;
   if (!open_index_file(index_file_name, 0))

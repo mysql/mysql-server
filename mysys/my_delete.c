@@ -32,3 +32,54 @@ int my_delete(const char *name, myf MyFlags)
   }
   DBUG_RETURN(err);
 } /* my_delete */
+
+#if defined(__WIN__) && defined(__NT__)
+/*
+  Delete file which is possibly not closed.
+
+  This function is intended to be used exclusively as a temporal solution
+  for Win NT in case when it is needed to delete a not closed file (note
+  that the file must be opened everywhere with FILE_SHARE_DELETE mode).
+  Deleting not-closed files can not be supported on Win 98|ME (and because
+  of that is considered harmful).
+  
+  The function deletes the file with its preliminary renaming. This is
+  because when not-closed share-delete file is deleted it still lives on
+  a disk until it will not be closed everwhere. This may conflict with an
+  attempt to create a new file with the same name. The deleted file is
+  renamed to <name>.<num>.deleted where <name> - the initial name of the
+  file, <num> - a hexadecimal number chosen to make the temporal name to
+  be unique.
+*/
+int nt_share_delete(const char *name, myf MyFlags)
+{
+  char buf[MAX_PATH + 20];
+  ulong cnt;
+  DBUG_ENTER("nt_share_delete");
+  DBUG_PRINT("my",("name %s MyFlags %d", name, MyFlags));
+  
+  for (cnt= GetTickCount(); cnt; cnt--)
+  {
+    sprintf(buf, "%s.%08X.deleted", name, cnt);
+    if (MoveFile(name, buf))
+      break;
+      
+    if ((errno= GetLastError()) == ERROR_ALREADY_EXISTS)
+      continue;
+      
+    DBUG_PRINT("warning", ("Failed to rename %s to %s, errno: %d",
+                           name, buf, errno));
+    break;
+  }
+
+  if (DeleteFile(buf))
+    DBUG_RETURN(0);
+
+  my_errno= GetLastError();
+  if (MyFlags & (MY_FAE+MY_WME))
+    my_error(EE_DELETE, MYF(ME_BELL + ME_WAITTANG + (MyFlags & ME_NOINPUT)),
+	       name, my_errno);
+
+  DBUG_RETURN(-1);
+}
+#endif
