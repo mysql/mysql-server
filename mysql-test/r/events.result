@@ -85,13 +85,25 @@ SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	event_starts_test	root@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 DROP EVENT event_starts_test;
+create table test_nested(a int);
 create event e_43 on schedule every 1 second do set @a = 5;
 set global event_scheduler = 1;
 alter event e_43 do alter event e_43 do set @a = 4;
+ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
+alter event e_43 do
+begin
+alter event e_43 on schedule every 5 minute;
+insert into test_nested values(1);
+end|
+set global event_scheduler = 1;
 select db, name, body, status, interval_field, interval_value from mysql.event;
 db	name	body	status	interval_field	interval_value
-events_test	e_43	set @a = 4	ENABLED	SECOND	1
+events_test	e_43	begin
+alter event e_43 on schedule every 5 minute;
+insert into test_nested values(1);
+end	ENABLED	MINUTE	5
 drop event e_43;
+drop table test_nested;
 "Let's check whether we can use non-qualified names"
 create table non_qualif(a int);
 create event non_qualif_ev on schedule every 10 minute do insert into non_qualif values (800219);
@@ -358,7 +370,7 @@ root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
 drop event закачка21;
 create table t_16 (s1 int);
 create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
-ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
 drop table t_16;
 create event white_space
 on schedule every 10 hour

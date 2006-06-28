@@ -15,10 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
-#include "events_priv.h"
 #include "events.h"
-#include "event_timed.h"
+#include "event_data_objects.h"
 #include "event_scheduler.h"
+#include "event_db_repository.h"
 #include "sp_head.h"
 
 /*
@@ -574,8 +574,8 @@ event_worker_thread(void *arg)
     to change the context before sending the signal. We are under
     LOCK_scheduler_data being held by Event_scheduler::run() -> ::execute_top().
   */
-  change_security_context(thd, event->definer_user, event->definer_host,
-                          event->dbname, &security_ctx, &save_ctx);
+  thd->change_security_context(event->definer_user, event->definer_host,
+                               event->dbname, &security_ctx, &save_ctx);
   DBUG_PRINT("info", ("master_access=%d db_access=%d",
              thd->security_ctx->master_access, thd->security_ctx->db_access));
 
@@ -687,7 +687,7 @@ Event_scheduler::get_instance()
 */
 
 bool
-Event_scheduler::init()
+Event_scheduler::init(Event_db_repository *db_repo)
 {
   int i= 0;
   bool ret= FALSE;
@@ -695,6 +695,7 @@ Event_scheduler::init()
   DBUG_PRINT("enter", ("this=%p", this));
 
   LOCK_SCHEDULER_DATA();
+  db_repository= db_repo;
   for (;i < COND_LAST; i++)
     if (pthread_cond_init(&cond_vars[i], NULL))
     {
@@ -783,10 +784,10 @@ Event_scheduler::destroy()
     OP_LOAD_ERROR     Error during loading from disk
 */
 
-enum Event_scheduler::enum_error_code
+int
 Event_scheduler::create_event(THD *thd, Event_timed *et, bool check_existence)
 {
-  enum enum_error_code res;
+  int res;
   Event_timed *et_new;
   DBUG_ENTER("Event_scheduler::create_event");
   DBUG_PRINT("enter", ("thd=%p et=%p lock=%p",thd,et,&LOCK_scheduler_data));
@@ -805,7 +806,7 @@ Event_scheduler::create_event(THD *thd, Event_timed *et, bool check_existence)
   }
 
   /* We need to load the event on scheduler_root */
-  if (!(res= load_named_event(thd, et, &et_new)))
+  if (!(res= db_repository->load_named_event(thd, et, &et_new)))
   {
     queue_insert_safe(&queue, (byte *) et_new);
     DBUG_PRINT("info", ("Sending COND_new_work"));
@@ -833,12 +834,13 @@ end:
 */
 
 bool
-Event_scheduler::drop_event(THD *thd, Event_timed *et)
+Event_scheduler::drop_event(THD *thd, sp_name *name)
 {
   int res;
   Event_timed *et_old;
   DBUG_ENTER("Event_scheduler::drop_event");
-  DBUG_PRINT("enter", ("thd=%p et=%p lock=%p",thd,et,&LOCK_scheduler_data));
+  DBUG_PRINT("enter", ("thd=%p name=%p lock=%p", thd, name,
+             &LOCK_scheduler_data));
 
   LOCK_SCHEDULER_DATA();
   if (!is_running_or_suspended())
@@ -848,7 +850,7 @@ Event_scheduler::drop_event(THD *thd, Event_timed *et)
     DBUG_RETURN(OP_OK);
   }
 
-  if (!(et_old= find_event(et, TRUE)))
+  if (!(et_old= find_event(name, TRUE)))
     DBUG_PRINT("info", ("No such event found, probably DISABLED"));
 
   UNLOCK_SCHEDULER_DATA();
@@ -903,12 +905,12 @@ Event_scheduler::drop_event(THD *thd, Event_timed *et)
     OP_ALREADY_EXISTS Event already in the queue    
 */
 
-enum Event_scheduler::enum_error_code
+int
 Event_scheduler::update_event(THD *thd, Event_timed *et,
                                LEX_STRING *new_schema,
                                LEX_STRING *new_name)
 {
-  enum enum_error_code res;
+  int res= OP_OK;
   Event_timed *et_old, *et_new= NULL;
   LEX_STRING old_schema, old_name;
 
@@ -946,7 +948,7 @@ Event_scheduler::update_event(THD *thd, Event_timed *et,
     1. Error occured
     2. If the replace is DISABLED, we don't load it into the queue.
   */
-  if (!(res= load_named_event(thd, et, &et_new)))
+  if (!(res= db_repository->load_named_event(thd, et, &et_new)))
   {
     queue_insert_safe(&queue, (byte *) et_new);
     DBUG_PRINT("info", ("Sending COND_new_work"));
@@ -960,7 +962,7 @@ Event_scheduler::update_event(THD *thd, Event_timed *et,
     et->dbname= old_schema;
     et->name= old_name;
   }
-
+  DBUG_PRINT("info", ("res=%d", res));
   UNLOCK_SCHEDULER_DATA();
   /*
     Andrey: Is this comment still truthful ???
@@ -1050,6 +1052,48 @@ Event_scheduler::find_event(Event_timed *etn, bool remove_from_q)
 
 
 /*
+  Searches for an event in the scheduler queue
+
+  SYNOPSIS
+    Event_scheduler::find_event()
+      name           The event to find
+      comparator     The function to use for comparing
+      remove_from_q  If found whether to remove from the Q
+
+  RETURN VALUE
+    NULL       Not found
+    otherwise  Address
+
+  NOTE
+    The caller should do the locking also the caller is responsible for
+    actual signalling in case an event is removed from the queue 
+    (signalling COND_new_work for instance).
+*/
+
+Event_timed *
+Event_scheduler::find_event(sp_name *name, bool remove_from_q)
+{
+  uint i;
+  DBUG_ENTER("Event_scheduler::find_event");
+
+  for (i= 0; i < queue.elements; ++i)
+  {
+    Event_timed *et= (Event_timed *) queue_element(&queue, i);
+    DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?", name->m_db.str, name->m_name.str,
+                        et->dbname.str, et->name.str));
+    if (event_timed_identifier_equal(name, et))
+    {
+      if (remove_from_q)
+        queue_remove(&queue, i);
+      DBUG_RETURN(et);
+    }
+  }
+
+  DBUG_RETURN(NULL);
+}
+
+
+/*
   Drops all events from the in-memory queue and disk that match
   certain pattern evaluated by a comparator function
 
@@ -1068,11 +1112,11 @@ Event_scheduler::find_event(Event_timed *etn, bool remove_from_q)
 */
 
 void
-Event_scheduler::drop_matching_events(THD *thd, LEX_STRING *pattern,
+Event_scheduler::drop_matching_events(THD *thd, LEX_STRING pattern,
                            bool (*comparator)(Event_timed *,LEX_STRING *))
 {
   DBUG_ENTER("Event_scheduler::drop_matching_events");
-  DBUG_PRINT("enter", ("pattern=%*s state=%d", pattern->length, pattern->str,
+  DBUG_PRINT("enter", ("pattern=%*s state=%d", pattern.length, pattern.str,
              state));
   if (is_running_or_suspended())
   {
@@ -1081,7 +1125,7 @@ Event_scheduler::drop_matching_events(THD *thd, LEX_STRING *pattern,
     {
       Event_timed *et= (Event_timed *) queue_element(&queue, i);
       DBUG_PRINT("info", ("[%s.%s]?", et->dbname.str, et->name.str));
-      if (comparator(et, pattern))
+      if (comparator(et, &pattern))
       {
         /*
           The queue is ordered. If we remove an element, then all elements after
@@ -1136,7 +1180,7 @@ Event_scheduler::drop_matching_events(THD *thd, LEX_STRING *pattern,
 */
 
 int
-Event_scheduler::drop_schema_events(THD *thd, LEX_STRING *schema)
+Event_scheduler::drop_schema_events(THD *thd, LEX_STRING schema)
 {
   int ret;
   DBUG_ENTER("Event_scheduler::drop_schema_events");
@@ -1144,7 +1188,6 @@ Event_scheduler::drop_schema_events(THD *thd, LEX_STRING *schema)
   if (is_running_or_suspended())
     drop_matching_events(thd, schema, event_timed_db_equal);
 
-  ret= db_drop_events_from_table(thd, schema);
   UNLOCK_SCHEDULER_DATA();
 
   DBUG_RETURN(ret);
@@ -1670,7 +1713,7 @@ Event_scheduler::stop_all_running_events(THD *thd)
     The caller must have acquited LOCK_scheduler_data.
 */
 
-enum Event_scheduler::enum_error_code
+int
 Event_scheduler::stop()
 {
   THD *thd= current_thd;
@@ -1735,7 +1778,7 @@ Event_scheduler::stop()
     OP_OK  OK
 */
 
-enum Event_scheduler::enum_error_code
+int
 Event_scheduler::suspend_or_resume(
               enum Event_scheduler::enum_suspend_or_resume action)
 {
@@ -2073,59 +2116,6 @@ Event_scheduler::events_count()
 }
 
 
-/*
-  Looks for a named event in mysql.event and then loads it from
-  the table, compiles and inserts it into the cache.
-
-  SYNOPSIS
-    Event_scheduler::load_named_event()
-      thd      THD
-      etn      The name of the event to load and compile on scheduler's root
-      etn_new  The loaded event
-
-  RETURN VALUE
-    NULL       Error during compile or the event is non-enabled.
-    otherwise  Address
-*/
-
-enum Event_scheduler::enum_error_code
-Event_scheduler::load_named_event(THD *thd, Event_timed *etn, Event_timed **etn_new)
-{
-  int ret= 0;
-  MEM_ROOT *tmp_mem_root;
-  Event_timed *et_loaded= NULL;
-  Open_tables_state backup;
-
-  DBUG_ENTER("Event_scheduler::load_and_compile_event");
-  DBUG_PRINT("enter",("thd=%p name:%*s",thd, etn->name.length, etn->name.str));
-
-  thd->reset_n_backup_open_tables_state(&backup);
-  /* No need to use my_error() here because db_find_event() has done it */
-  {
-    sp_name spn(etn->dbname, etn->name);
-    ret= db_find_event(thd, &spn, &et_loaded, NULL, &scheduler_root);
-  }
-  thd->restore_backup_open_tables_state(&backup);
-  /* In this case no memory was allocated so we don't need to clean */
-  if (ret)
-    DBUG_RETURN(OP_LOAD_ERROR);
-
-  if (et_loaded->status != Event_timed::ENABLED)
-  {
-    /*
-      We don't load non-enabled events.
-      In db_find_event() `et_new` was allocated on the heap and not on
-      scheduler_root therefore we delete it here.
-    */
-    delete et_loaded;
-    DBUG_RETURN(OP_DISABLED_EVENT);
-  }
-
-  et_loaded->compute_next_execution_time();
-  *etn_new= et_loaded;
-
-  DBUG_RETURN(OP_OK);
-}
 
 
 /*
@@ -2169,7 +2159,7 @@ Event_scheduler::load_events_from_db(THD *thd)
     DBUG_RETURN(EVEX_GENERAL_ERROR);
   }
 
-  if ((ret= Events::open_event_table(thd, TL_READ, &table)))
+  if ((ret= db_repository->open_event_table(thd, TL_READ, &table)))
   {
     sql_print_error("SCHEDULER: Table mysql.event is damaged. Can not open.");
     DBUG_RETURN(EVEX_OPEN_TABLE_FAILED);
