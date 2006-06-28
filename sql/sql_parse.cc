@@ -5212,7 +5212,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         even if the query itself redirects the output.
       */
       if (!(result= new select_send()))
-        return 1;
+        return 1;                               /* purecov: inspected */
       thd->send_explain_fields(result);
       res= mysql_explain_union(thd, &thd->lex->unit, result);
       if (lex->describe & DESCRIBE_EXTENDED)
@@ -5231,7 +5231,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     else
     {
       if (!result && !(result= new select_send()))
-        return 1;
+        return 1;                               /* purecov: inspected */
       query_cache_store_query(thd, all_tables);
       res= handle_select(thd, lex, result, 0);
       if (result != lex->result)

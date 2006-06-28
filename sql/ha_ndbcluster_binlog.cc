@@ -125,6 +125,7 @@ static TABLE_LIST binlog_tables;
 */
 
 #ifndef DBUG_OFF
+/* purecov: begin deadcode */
 static void print_records(TABLE *table, const char *record)
 {
   for (uint j= 0; j < table->s->fields; j++)
@@ -144,6 +145,7 @@ static void print_records(TABLE *table, const char *record)
     DBUG_PRINT("info",("[%u]field_ptr[0->%d]: %s", j, n, buf));
   }
 }
+/* purecov: end */
 #else
 #define print_records(a,b)
 #endif

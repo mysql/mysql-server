@@ -688,9 +688,17 @@ static void make_sortkey(register SORTPARAM *param,
             bzero((char*) to-1,sort_field->length+1);
           else
           {
+            /* purecov: begin deadcode */
+            /*
+              This should only happen during extreme conditions if we run out
+              of memory or have an item marked not null when it can be null.
+              This code is here mainly to avoid a hard crash in this case.
+            */
+            DBUG_ASSERT(0);
             DBUG_PRINT("warning",
                        ("Got null on something that shouldn't be null"));
             bzero((char*) to,sort_field->length);	// Avoid crash
+            /* purecov: end */
           }
           break;
         }
@@ -699,7 +707,7 @@ static void make_sortkey(register SORTPARAM *param,
         diff=(int) (sort_field_length - length);
         if (diff < 0)
         {
-          diff=0;				/* purecov: inspected */
+          diff=0;
           length= sort_field_length;
         }
         if (sort_field->suffix_length)
