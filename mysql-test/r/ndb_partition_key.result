@@ -78,7 +78,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL DEFAULT '0',
   `d` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`,`c`) USING HASH
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY (b) 
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (b)  */
 DROP TABLE t1;
 CREATE TABLE t1 (a int not null primary key)
 PARTITION BY KEY(a)
@@ -97,19 +97,19 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY (a) (PARTITION p0  ENGINE = ndbcluster, PARTITION p1  ENGINE = ndbcluster)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION p0 ENGINE = ndbcluster, PARTITION p1 ENGINE = ndbcluster) */
 alter table t1 engine=heap;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1 PARTITION BY KEY (a) (PARTITION p0  ENGINE = MEMORY, PARTITION p1  ENGINE = MEMORY)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION p0 ENGINE = MEMORY, PARTITION p1 ENGINE = MEMORY) */
 alter table t1 engine=ndb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY (a) (PARTITION p0  ENGINE = ndbcluster, PARTITION p1  ENGINE = ndbcluster)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION p0 ENGINE = ndbcluster, PARTITION p1 ENGINE = ndbcluster) */
 alter table t1 engine=heap remove partitioning;
 show create table t1;
 Table	Create Table
@@ -123,7 +123,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY (a) (PARTITION p0  ENGINE = ndbcluster, PARTITION p1  ENGINE = ndbcluster)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION p0 ENGINE = ndbcluster, PARTITION p1 ENGINE = ndbcluster) */
 alter table t1
 partition by key (a)
 (partition p0 engine=ndb, partition p1 engine=ndb);
@@ -131,7 +131,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY (a) (PARTITION p0  ENGINE = ndbcluster, PARTITION p1  ENGINE = ndbcluster)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION p0 ENGINE = ndbcluster, PARTITION p1 ENGINE = ndbcluster) */
 alter table t1 remove partitioning;
 show create table t1;
 Table	Create Table
@@ -150,7 +150,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY (a) (PARTITION p0  ENGINE = ndbcluster, PARTITION p1  ENGINE = ndbcluster)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION p0 ENGINE = ndbcluster, PARTITION p1 ENGINE = ndbcluster) */
 drop table t1;
 CREATE TABLE t1 (
 c1 MEDIUMINT NOT NULL AUTO_INCREMENT,

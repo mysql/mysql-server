@@ -246,6 +246,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZTUP_SCAN 10
 #define ZFREE_EXTENT 11
 #define ZUNMAP_PAGES 12
+#define ZFREE_VAR_PAGES 13
 
 #define ZSCAN_PROCEDURE 0
 #define ZCOPY_PROCEDURE 2
@@ -327,7 +328,8 @@ typedef Ptr<Attrbufrec> AttrbufrecPtr;
 
 
 struct Fragoperrec {
-  bool   definingFragment;
+  Uint64 minRows;
+  Uint64 maxRows;
   Uint32 nextFragoprec;
   Uint32 lqhPtrFrag;
   Uint32 fragidFrag;
@@ -340,6 +342,7 @@ struct Fragoperrec {
   Uint32 m_var_attributes_size[2]; // In bytes
   BlockReference lqhBlockrefFrag;
   bool inUse;
+  bool definingFragment;
 };
 typedef Ptr<Fragoperrec> FragoperrecPtr;
 
@@ -601,6 +604,8 @@ struct Fragrecord {
   Uint32 currentPageRange;
   Uint32 rootPageRange;
   Uint32 noOfPages;
+  Uint32 noOfPagesToGrow;
+
   DLList<Page>::Head emptyPrimPage; // allocated pages (not init)
   DLList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
   SLList<Page>::Head m_empty_pages; // Empty pages not in logical/physical map
@@ -620,6 +625,7 @@ struct Fragrecord {
   Uint32 m_tablespace_id;
   Uint32 m_logfile_group_id;
   Disk_alloc_info m_disk_alloc_info;
+  Uint32 m_var_page_chunks;
 };
 typedef Ptr<Fragrecord> FragrecordPtr;
 
@@ -2335,6 +2341,7 @@ private:
 
 
   void releaseFragment(Signal* signal, Uint32 tableId);
+  void drop_fragment_free_var_pages(Signal*);
   void drop_fragment_free_exent(Signal*, TablerecPtr, FragrecordPtr, Uint32);
   void drop_fragment_unmap_pages(Signal*, TablerecPtr, FragrecordPtr, Uint32);
   void drop_fragment_unmap_page_callback(Signal* signal, Uint32, Uint32);

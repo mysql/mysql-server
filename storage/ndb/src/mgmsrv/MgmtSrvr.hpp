@@ -323,9 +323,9 @@ public:
 	Uint32 ErrorCode;
       } FailedToStart ;
       struct {
+	Uint64 NoOfBytes;
+	Uint64 NoOfRecords;
 	Uint32 BackupId;
-	Uint32 NoOfBytes;
-	Uint32 NoOfRecords;
 	Uint32 NoOfLogBytes;
 	Uint32 NoOfLogRecords;
 	Uint32 startGCP;

@@ -243,21 +243,21 @@ public:
     return no_parts * (is_sub_partitioned() ? no_subparts : 1);
   }
 
-  bool set_up_defaults_for_partitioning(handler *file, ulonglong max_rows,
+  bool set_up_defaults_for_partitioning(handler *file, HA_CREATE_INFO *info,
                                         uint start_no);
   char *has_unique_names();
   static bool check_engine_mix(handlerton **engine_array, uint no_parts);
   bool check_range_constants();
   bool check_list_constants();
   bool check_partition_info(THD *thd, handlerton **eng_type,
-                            handler *file, ulonglong max_rows);
+                            handler *file, HA_CREATE_INFO *info);
   void print_no_partition_found(TABLE *table);
 private:
   static int list_part_cmp(const void* a, const void* b);
   static int list_part_cmp_unsigned(const void* a, const void* b);
-  bool set_up_default_partitions(handler *file, ulonglong max_rows,
+  bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
                                  uint start_no);
-  bool set_up_default_subpartitions(handler *file, ulonglong max_rows);
+  bool set_up_default_subpartitions(handler *file, HA_CREATE_INFO *info);
   char *create_default_partition_names(uint part_no, uint no_parts,
                                        uint start_no);
   char *create_subpartition_name(uint subpart_no, const char *part_name);
