@@ -1107,6 +1107,26 @@ void Dbdih::execSTART_FRAGCONF(Signal* signal)
   return;
 }//Dbdih::execSTART_FRAGCONF()
 
+void Dbdih::execSTART_FRAGREF(Signal* signal) 
+{
+  jamEntry();
+ 
+  /**
+   * Kill starting node
+   */
+  Uint32 errCode = signal->theData[1];
+  Uint32 nodeId = signal->theData[2];
+  
+  SystemError * const sysErr = (SystemError*)&signal->theData[0];
+  sysErr->errorCode = SystemError::StartFragRefError;
+  sysErr->errorRef = reference();
+  sysErr->data1 = errCode;
+  sysErr->data2 = 0;
+  sendSignal(calcNdbCntrBlockRef(nodeId), GSN_SYSTEM_ERROR, signal, 
+	     SystemError::SignalLength, JBB);
+  return;
+}//Dbdih::execSTART_FRAGCONF()
+
 void Dbdih::execSTART_MEREF(Signal* signal) 
 {
   jamEntry();
