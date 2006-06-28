@@ -16,10 +16,102 @@
 
 #define MYSQL_LEX 1
 #include "mysql_priv.h"
-#include "events_priv.h"
 #include "events.h"
-#include "event_timed.h"
+#include "event_data_objects.h"
+#include "event_db_repository.h"
 #include "sp_head.h"
+
+
+#define EVEX_MAX_INTERVAL_VALUE 2147483647L
+
+
+Event_parse_data *
+Event_parse_data::new_instance(THD *thd)
+{
+  return new (thd->mem_root) Event_parse_data;
+}
+
+
+Event_parse_data::Event_parse_data()
+{
+  item_execute_at= item_expression= item_starts= item_ends= NULL;
+}
+
+
+/*
+  Set body of the event - what should be executed.
+
+  SYNOPSIS
+    Event_timed::init_body()
+      thd   THD
+
+  NOTE
+    The body is extracted by copying all data between the
+    start of the body set by another method and the current pointer in Lex.
+ 
+    Some questionable removal of characters is done in here, and that part
+    should be refactored when the parser is smarter.
+*/
+
+void
+Event_parse_data::init_body(THD *thd)
+{
+  DBUG_ENTER("Event_parse_data::init_body");
+  DBUG_PRINT("info", ("body=[%s] body_begin=0x%ld end=0x%ld", body_begin,
+             body_begin, thd->lex->ptr));
+
+  body.length= thd->lex->ptr - body_begin;
+  const uchar *body_end= body_begin + body.length - 1;
+
+  /* Trim nuls or close-comments ('*'+'/') or spaces at the end */
+  while (body_begin < body_end)
+  {
+
+    if ((*body_end == '\0') || 
+        (my_isspace(thd->variables.character_set_client, *body_end)))
+    { /* consume NULs and meaningless whitespace */
+      --body.length;
+      --body_end;
+      continue;
+    }
+
+    /*  
+       consume closing comments
+
+       This is arguably wrong, but it's the best we have until the parser is
+       changed to be smarter.   FIXME PARSER 
+
+       See also the sp_head code, where something like this is done also.
+
+       One idea is to keep in the lexer structure the count of the number of
+       open-comments we've entered, and scan left-to-right looking for a
+       closing comment IFF the count is greater than zero.
+
+       Another idea is to remove the closing comment-characters wholly in the
+       parser, since that's where it "removes" the opening characters.
+    */
+    if ((*(body_end - 1) == '*') && (*body_end == '/'))
+    {
+      DBUG_PRINT("info", ("consumend one '*" "/' comment in the query '%s'", 
+          body_begin));
+      body.length-= 2;
+      body_end-= 2;
+      continue;
+    }
+
+    break;  /* none were found, so we have excised all we can. */
+  }
+
+  /* the first is always whitespace which I cannot skip in the parser */
+  while (my_isspace(thd->variables.character_set_client, *body_begin))
+  {
+    ++body_begin;
+    --body.length;
+  }
+  body.str= thd->strmake((char *)body_begin, body.length);
+
+  DBUG_VOID_RETURN;
+}
 
 
 /*
@@ -644,29 +736,29 @@ Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
 
   et= this;
 
-  if (table->s->fields != Events::FIELD_COUNT)
+  if (table->s->fields != ET_FIELD_COUNT)
     goto error;
 
   if ((et->dbname.str= get_field(mem_root,
-                                 table->field[Events::FIELD_DB])) == NULL)
+                                 table->field[ET_FIELD_DB])) == NULL)
     goto error;
 
   et->dbname.length= strlen(et->dbname.str);
 
   if ((et->name.str= get_field(mem_root,
-                               table->field[Events::FIELD_NAME])) == NULL)
+                               table->field[ET_FIELD_NAME])) == NULL)
     goto error;
 
   et->name.length= strlen(et->name.str);
 
   if ((et->body.str= get_field(mem_root,
-                               table->field[Events::FIELD_BODY])) == NULL)
+                               table->field[ET_FIELD_BODY])) == NULL)
     goto error;
 
   et->body.length= strlen(et->body.str);
 
   if ((et->definer.str= get_field(mem_root,
-                                  table->field[Events::FIELD_DEFINER])) == NullS)
+                                  table->field[ET_FIELD_DEFINER])) == NullS)
     goto error;
   et->definer.length= strlen(et->definer.str);
 
@@ -683,27 +775,27 @@ Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
   et->definer_host.str= strmake_root(mem_root, ptr + 1, len);/* 1:because of @*/
   et->definer_host.length= len;
   
-  et->starts_null= table->field[Events::FIELD_STARTS]->is_null();
-  res1= table->field[Events::FIELD_STARTS]->
+  et->starts_null= table->field[ET_FIELD_STARTS]->is_null();
+  res1= table->field[ET_FIELD_STARTS]->
                                     get_date(&et->starts,TIME_NO_ZERO_DATE);
 
-  et->ends_null= table->field[Events::FIELD_ENDS]->is_null();
-  res2= table->field[Events::FIELD_ENDS]->get_date(&et->ends, TIME_NO_ZERO_DATE);
+  et->ends_null= table->field[ET_FIELD_ENDS]->is_null();
+  res2= table->field[ET_FIELD_ENDS]->get_date(&et->ends, TIME_NO_ZERO_DATE);
   
-  if (!table->field[Events::FIELD_INTERVAL_EXPR]->is_null())
-    et->expression= table->field[Events::FIELD_INTERVAL_EXPR]->val_int();
+  if (!table->field[ET_FIELD_INTERVAL_EXPR]->is_null())
+    et->expression= table->field[ET_FIELD_INTERVAL_EXPR]->val_int();
   else
     et->expression= 0;
   /*
     If res1 and res2 are true then both fields are empty.
-    Hence if Events::FIELD_EXECUTE_AT is empty there is an error.
+    Hence if ET_FIELD_EXECUTE_AT is empty there is an error.
   */
   et->execute_at_null=
-            table->field[Events::FIELD_EXECUTE_AT]->is_null();
+            table->field[ET_FIELD_EXECUTE_AT]->is_null();
   DBUG_ASSERT(!(et->starts_null && et->ends_null && !et->expression &&
               et->execute_at_null));
   if (!et->expression &&
-      table->field[Events::FIELD_EXECUTE_AT]-> get_date(&et->execute_at,
+      table->field[ET_FIELD_EXECUTE_AT]-> get_date(&et->execute_at,
                                                         TIME_NO_ZERO_DATE))
     goto error;
 
@@ -711,22 +803,22 @@ Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
     In DB the values start from 1 but enum interval_type starts
     from 0
   */
-  if (!table->field[Events::FIELD_TRANSIENT_INTERVAL]->is_null())
+  if (!table->field[ET_FIELD_TRANSIENT_INTERVAL]->is_null())
     et->interval= (interval_type) ((ulonglong)
-          table->field[Events::FIELD_TRANSIENT_INTERVAL]->val_int() - 1);
+          table->field[ET_FIELD_TRANSIENT_INTERVAL]->val_int() - 1);
   else
     et->interval= (interval_type) 0;
 
-  et->created= table->field[Events::FIELD_CREATED]->val_int();
-  et->modified= table->field[Events::FIELD_MODIFIED]->val_int();
+  et->created= table->field[ET_FIELD_CREATED]->val_int();
+  et->modified= table->field[ET_FIELD_MODIFIED]->val_int();
 
-  table->field[Events::FIELD_LAST_EXECUTED]->
+  table->field[ET_FIELD_LAST_EXECUTED]->
                      get_date(&et->last_executed, TIME_NO_ZERO_DATE);
 
   last_executed_changed= false;
 
   /* ToDo : Andrey . Find a way not to allocate ptr on event_mem_root */
-  if ((ptr= get_field(mem_root, table->field[Events::FIELD_STATUS])) == NullS)
+  if ((ptr= get_field(mem_root, table->field[ET_FIELD_STATUS])) == NullS)
     goto error;
 
   DBUG_PRINT("load_from_row", ("Event [%s] is [%s]", et->name.str, ptr));
@@ -734,20 +826,20 @@ Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
 
   /* ToDo : Andrey . Find a way not to allocate ptr on event_mem_root */
   if ((ptr= get_field(mem_root,
-                  table->field[Events::FIELD_ON_COMPLETION])) == NullS)
+                  table->field[ET_FIELD_ON_COMPLETION])) == NullS)
     goto error;
 
   et->on_completion= (ptr[0]=='D'? Event_timed::ON_COMPLETION_DROP:
                                    Event_timed::ON_COMPLETION_PRESERVE);
 
-  et->comment.str= get_field(mem_root, table->field[Events::FIELD_COMMENT]);
+  et->comment.str= get_field(mem_root, table->field[ET_FIELD_COMMENT]);
   if (et->comment.str != NullS)
     et->comment.length= strlen(et->comment.str);
   else
     et->comment.length= 0;
     
 
-  et->sql_mode= (ulong) table->field[Events::FIELD_SQL_MODE]->val_int();
+  et->sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
 
   DBUG_RETURN(0);
 error:
@@ -1188,6 +1280,7 @@ Event_timed::mark_last_executed(THD *thd)
 }
 
 
+
 /*
   Drops the event
 
@@ -1210,7 +1303,8 @@ Event_timed::drop(THD *thd)
   uint tmp= 0;
   DBUG_ENTER("Event_timed::drop");
 
-  DBUG_RETURN(db_drop_event(thd, this, false, &tmp));
+  DBUG_RETURN(Events::get_instance()->
+                db_repository->drop_event(thd, dbname, name, false, &tmp));
 }
 
 
@@ -1247,7 +1341,7 @@ Event_timed::update_fields(THD *thd)
 
   thd->reset_n_backup_open_tables_state(&backup);
 
-  if (Events::open_event_table(thd, TL_WRITE, &table))
+  if (Events::get_instance()->open_event_table(thd, TL_WRITE, &table))
   {
     ret= EVEX_OPEN_TABLE_FAILED;
     goto done;
@@ -1263,15 +1357,15 @@ Event_timed::update_fields(THD *thd)
 
   if (last_executed_changed)
   {
-    table->field[Events::FIELD_LAST_EXECUTED]->set_notnull();
-    table->field[Events::FIELD_LAST_EXECUTED]->store_time(&last_executed,
+    table->field[ET_FIELD_LAST_EXECUTED]->set_notnull();
+    table->field[ET_FIELD_LAST_EXECUTED]->store_time(&last_executed,
                                                MYSQL_TIMESTAMP_DATETIME);
     last_executed_changed= false;
   }
   if (status_changed)
   {
-    table->field[Events::FIELD_STATUS]->set_notnull();
-    table->field[Events::FIELD_STATUS]->store((longlong)status, true);
+    table->field[ET_FIELD_STATUS]->set_notnull();
+    table->field[ET_FIELD_STATUS]->store((longlong)status, true);
     status_changed= false;
   }
 
@@ -1541,8 +1635,8 @@ Event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   thd->query_length= show_create.length();
   DBUG_PRINT("info", ("query:%s",thd->query));
 
-  change_security_context(thd, definer_user, definer_host, dbname,
-                          &security_ctx, &save_ctx);
+  thd->change_security_context(definer_user, definer_host, dbname,
+                               &security_ctx, &save_ctx);
   thd->lex= &lex;
   lex_start(thd, (uchar*)thd->query, thd->query_length);
   lex.et_compile_phase= TRUE;
@@ -1580,7 +1674,7 @@ done:
   lex.et->deinit_mutexes();
 
   lex_end(&lex);
-  restore_security_context(thd, save_ctx);
+  thd->restore_security_context(save_ctx);
   DBUG_PRINT("note", ("return old data on its place. set back NAMES"));
 
   thd->lex= old_lex;
@@ -1781,23 +1875,6 @@ event_timed_db_equal(Event_timed *et, LEX_STRING *db)
 }
 
 
-/*
-  Checks whether two events have the same definer
-
-  SYNOPSIS
-    event_timed_definer_equal()
-
-  Returns
-    TRUE  definers are equal
-    FALSE definers are not equal
-*/
-
-bool
-event_timed_definer_equal(Event_timed *et, LEX_STRING *definer)
-{
-  return !sortcmp_lex_string(et->definer, *definer, system_charset_info);
-}
-
 
 /*
   Checks whether two events are equal by identifiers
@@ -1814,8 +1891,62 @@ bool
 event_timed_identifier_equal(Event_timed *a, Event_timed *b)
 {
   return event_timed_name_equal(a, &b->name) &&
-         event_timed_db_equal(a, &b->dbname) &&
-         event_timed_definer_equal(a, &b->definer);
+         event_timed_db_equal(a, &b->dbname);
+}
+
+
+/*
+  Checks whether two events have the same name
+
+  SYNOPSIS
+    event_timed_name_equal()
+
+  RETURN VALUE
+    TRUE  names are equal
+    FALSE names are not equal
+*/
+
+bool
+event_timed_name_equal(sp_name *name, LEX_STRING *event_name)
+{
+  return !sortcmp_lex_string(name->m_name, *event_name, system_charset_info);
+}
+
+
+/*
+  Checks whether two events are in the same schema
+
+  SYNOPSIS
+    event_timed_db_equal()
+
+  RETURN VALUE
+    TRUE  schemas are equal
+    FALSE schemas are not equal
+*/
+
+bool
+event_timed_db_equal(sp_name *name, LEX_STRING *db)
+{
+  return !sortcmp_lex_string(name->m_db, *db, system_charset_info);
+}
+
+
+/*
+  Checks whether two events are equal by identifiers
+
+  SYNOPSIS
+    event_timed_identifier_equal()
+
+  RETURN VALUE
+    TRUE   equal
+    FALSE  not equal
+*/
+
+bool
+event_timed_identifier_equal(sp_name *a, Event_timed *b)
+{
+  return event_timed_name_equal(a, &b->name) &&
+         event_timed_db_equal(a, &b->dbname);
 }
 
 

@@ -27,7 +27,7 @@
 #include "sp.h"
 #include "sp_cache.h"
 #include "events.h"
-#include "event_timed.h"
+#include "event_data_objects.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -3831,7 +3831,6 @@ end_with_restore_list:
   }
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
-  case SQLCOM_DROP_EVENT:
   {
     uint rows_affected= 1;
     DBUG_ASSERT(lex->et);
@@ -3860,17 +3859,15 @@ end_with_restore_list:
 
       switch (lex->sql_command) {
       case SQLCOM_CREATE_EVENT:
-        res= Events::create_event(thd, lex->et,
-                                  (uint) lex->create_info.options,
-                                  &rows_affected);
+        res= Events::get_instance()->
+                  create_event(thd, lex->et, lex->event_parse_data,
+                               (uint) lex->create_info.options, &rows_affected);
         break;
       case SQLCOM_ALTER_EVENT:
-        res= Events::update_event(thd, lex->et, lex->spname,
-                                  &rows_affected);
+        res= Events::get_instance()->
+                  update_event(thd, lex->et, lex->event_parse_data,
+                               lex->spname, &rows_affected);
         break;
-      case SQLCOM_DROP_EVENT:
-        res= Events::drop_event(thd, lex->et, lex->drop_if_exists,
-                                &rows_affected);
       default:;
       }
       DBUG_PRINT("info", ("CREATE/ALTER/DROP returned error code=%d af_rows=%d",
@@ -3889,10 +3886,10 @@ end_with_restore_list:
     
     break;
   }
+  case SQLCOM_DROP_EVENT:
   case SQLCOM_SHOW_CREATE_EVENT:
   {
     DBUG_ASSERT(lex->spname);
-    DBUG_ASSERT(lex->et);
     if (! lex->spname->m_db.str)
     {
       my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
@@ -3906,15 +3903,31 @@ end_with_restore_list:
     if (lex->spname->m_name.length > NAME_LEN)
     {
       my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+      /* this jumps to the end of the function and skips own messaging */
       goto error;
     }
-    res= Events::show_create_event(thd, lex->spname);
+
+    if (lex->sql_command == SQLCOM_SHOW_CREATE_EVENT)
+      res= Events::get_instance()->show_create_event(thd, lex->spname);
+    else
+    {
+      uint rows_affected= 1;
+      if (end_active_trans(thd))
+      {
+        res= -1;
+        break;
+      }
+      if (!(res= Events::get_instance()->drop_event(thd, lex->spname,
+                                                    lex->drop_if_exists,
+                                                    &rows_affected)))
+        send_ok(thd, rows_affected);     
+    }
     break;
   }
 #ifndef DBUG_OFF
   case SQLCOM_SHOW_SCHEDULER_STATUS:
   {
-    res= Events::dump_internal_status(thd);
+    res= Events::get_instance()->dump_internal_status(thd);
     break;
   }
 #endif
