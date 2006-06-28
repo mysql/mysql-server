@@ -477,7 +477,7 @@ bool select_send::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> li(items);
   String *packet= &thd->packet;
-  DBUG_ENTER("send_data");
+  DBUG_ENTER("select_send::send_data");
 
 #ifdef HAVE_INNOBASE_DB
   /* We may be passing the control from mysqld to the client: release the
@@ -611,7 +611,7 @@ select_export::prepare(List<Item> &list)
 bool select_export::send_data(List<Item> &items)
 {
 
-  DBUG_ENTER("send_data");
+  DBUG_ENTER("select_export::send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
   bool space_inited=0;
   String tmp(buff,sizeof(buff)),*res;
@@ -828,7 +828,7 @@ bool select_dump::send_data(List<Item> &items)
   String tmp(buff,sizeof(buff)),*res;
   tmp.length(0);
   Item *item;
-  DBUG_ENTER("send_data");
+  DBUG_ENTER("select_dump::send_data");
 
   if (thd->offset_limit)
   {						// using limit offset,count
