@@ -88,6 +88,15 @@ int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
                                   (unsigned char *) t.str,t.length, 0);
 }
 
+/*
+  Accessor for the singleton instance.
+
+  SYNOPSIS
+    Events::get_instance()
+
+  RETURN VALUE
+    address  
+*/
 
 Events *
 Events::get_instance()
@@ -110,7 +119,7 @@ Events::get_instance()
       interval - the interval type (for instance YEAR_MONTH)
       expression - the value in the lowest entity
 
-  RETURNS
+  RETURN VALUE
    0 - OK
    1 - Error
 */
@@ -559,6 +568,42 @@ int
 Events::dump_internal_status(THD *thd)
 {
   return Event_scheduler::dump_internal_status(thd);
+}
+
+
+/*
+  Proxy for Event_db_repository::fill_schema_events.
+  Callback for I_S from sql_show.cc
+
+  SYNOPSIS
+    Events::fill_schema_events()
+      thd     Thread
+      tables  The schema table
+      cond    Unused
+
+  RETURN VALUE
+    0  OK
+    !0 Error
+*/
+
+int
+Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
+{
+  char *db= NULL;
+  DBUG_ENTER("Events::fill_schema_events");
+  /*
+    If it's SHOW EVENTS then thd->lex->select_lex.db is guaranteed not to
+    be NULL. Let's do an assert anyway.
+  */
+  if (thd->lex->orig_sql_command == SQLCOM_SHOW_EVENTS)
+  {
+    DBUG_ASSERT(thd->lex->select_lex.db);
+    if (check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
+                     is_schema_db(thd->lex->select_lex.db)))
+      DBUG_RETURN(1);
+    db= thd->lex->select_lex.db;
+  }
+  DBUG_RETURN(get_instance()->db_repository.fill_schema_events(thd, tables, db));
 }
 
 

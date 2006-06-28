@@ -90,6 +90,9 @@ public:
 
   int
   drop_schema_events(THD *thd, char *db);
+
+  static int
+  fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
   
   int
   dump_internal_status(THD *thd);

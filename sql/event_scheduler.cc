@@ -2159,7 +2159,7 @@ Event_scheduler::load_events_from_db(THD *thd)
     DBUG_RETURN(EVEX_GENERAL_ERROR);
   }
 
-  if ((ret= Events::get_instance()->open_event_table(thd, TL_READ, &table)))
+  if ((ret= db_repository->open_event_table(thd, TL_READ, &table)))
   {
     sql_print_error("SCHEDULER: Table mysql.event is damaged. Can not open.");
     DBUG_RETURN(EVEX_OPEN_TABLE_FAILED);

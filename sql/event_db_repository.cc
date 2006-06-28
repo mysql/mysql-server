@@ -20,6 +20,7 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "events.h"
+#include "sql_show.h"
 
 #define EVEX_DB_FIELD_LEN 64
 #define EVEX_NAME_FIELD_LEN 64
@@ -188,8 +189,7 @@ evex_fill_row(THD *thd, TABLE *table, Event_timed *et, my_bool is_update)
   if (et->expression)
   {
     table->field[ET_FIELD_INTERVAL_EXPR]->set_notnull();
-    table->field[ET_FIELD_INTERVAL_EXPR]->
-                                          store((longlong)et->expression, true);
+    table->field[ET_FIELD_INTERVAL_EXPR]->store((longlong)et->expression, true);
 
     table->field[ET_FIELD_TRANSIENT_INTERVAL]->set_notnull();
     /*
@@ -277,15 +277,180 @@ evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
 
 
 /*
+  Performs an index scan of event_table (mysql.event) and fills schema_table.
+
+  Synopsis
+    Event_db_repository::index_read_for_db_for_i_s()
+      thd          Thread
+      schema_table The I_S.EVENTS table
+      event_table  The event table to use for loading (mysql.event)
+
+  Returns
+    0  OK
+    1  Error
+*/
+
+int
+Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
+                                               TABLE *event_table, char *db)
+{
+  int ret=0;
+  CHARSET_INFO *scs= system_charset_info;
+  KEY *key_info;
+  uint key_len;
+  byte *key_buf= NULL;
+  LINT_INIT(key_buf);
+
+  DBUG_ENTER("Event_db_repository::index_read_for_db_for_i_s");
+
+  DBUG_PRINT("info", ("Using prefix scanning on PK"));
+  event_table->file->ha_index_init(0, 1);
+  event_table->field[ET_FIELD_DB]->store(db, strlen(db), scs);
+  key_info= event_table->key_info;
+  key_len= key_info->key_part[0].store_length;
+
+  if (!(key_buf= (byte *)alloc_root(thd->mem_root, key_len)))
+  {
+    ret= 1;
+    /* don't send error, it would be done by sql_alloc_error_handler() */
+  }
+  else
+  {
+    key_copy(key_buf, event_table->record[0], key_info, key_len);
+    if (!(ret= event_table->file->index_read(event_table->record[0], key_buf,
+                                             key_len, HA_READ_PREFIX)))
+    {
+      DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
+      do
+      {
+        ret= copy_event_to_schema_table(thd, schema_table, event_table);
+        if (ret == 0)
+          ret= event_table->file->index_next_same(event_table->record[0],
+                                                  key_buf, key_len); 
+      } while (ret == 0);
+    }
+    DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
+  }
+  event_table->file->ha_index_end(); 
+  /*  ret is guaranteed to be != 0 */
+  if (ret == HA_ERR_END_OF_FILE || ret == HA_ERR_KEY_NOT_FOUND)
+    DBUG_RETURN(0);
+  DBUG_RETURN(1);
+}
+
+
+/*
+  Performs a table scan of event_table (mysql.event) and fills schema_table.
+
+  Synopsis
+    Events_db_repository::table_scan_all_for_i_s()
+      thd          Thread
+      schema_table The I_S.EVENTS in memory table
+      event_table  The event table to use for loading.
+
+  Returns
+    0  OK
+    1  Error
+*/
+
+int
+Event_db_repository::table_scan_all_for_i_s(THD *thd, TABLE *schema_table,
+                                            TABLE *event_table)
+{
+  int ret;
+  READ_RECORD read_record_info;
+
+  DBUG_ENTER("Event_db_repository::table_scan_all_for_i_s");
+  init_read_record(&read_record_info, thd, event_table, NULL, 1, 0);
+
+  /*
+    rr_sequential, in read_record(), returns 137==HA_ERR_END_OF_FILE,
+    but rr_handle_error returns -1 for that reason. Thus, read_record()
+    returns -1 eventually.
+  */
+  do
+  {
+    ret= read_record_info.read_record(&read_record_info);
+    if (ret == 0)
+      ret= copy_event_to_schema_table(thd, schema_table, event_table);
+  }
+  while (ret == 0);
+
+  DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
+  end_read_record(&read_record_info);
+
+  /*  ret is guaranteed to be != 0 */
+  DBUG_RETURN(ret == -1? 0:1);
+}
+
+
+/*
+  Fills I_S.EVENTS with data loaded from mysql.event. Also used by
+  SHOW EVENTS
+
+  Synopsis
+    Event_db_repository::fill_schema_events()
+      thd     Thread
+      tables  The schema table
+      db      If not NULL then get events only from this schema
+
+  Returns
+    0  OK
+    1  Error
+*/
+
+int
+Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *tables, char *db)
+{
+  TABLE *schema_table= tables->table;
+  TABLE *event_table= NULL;
+  Open_tables_state backup;
+  int ret= 0;
+
+  DBUG_ENTER("Event_db_repository::fill_schema_events");
+  DBUG_PRINT("info",("db=%s", db? db:"(null)"));
+
+  thd->reset_n_backup_open_tables_state(&backup);
+  if (open_event_table(thd, TL_READ, &event_table))
+  {
+    sql_print_error("Table mysql.event is damaged.");
+    thd->restore_backup_open_tables_state(&backup);
+    DBUG_RETURN(1);
+  }
+
+  /*
+    1. SELECT I_S => use table scan. I_S.EVENTS does not guarantee order
+                     thus we won't order it. OTOH, SHOW EVENTS will be
+                     ordered.
+    2. SHOW EVENTS => PRIMARY KEY with prefix scanning on (db)
+       Reasoning: Events are per schema, therefore a scan over an index
+                  will save use from doing a table scan and comparing
+                  every single row's `db` with the schema which we show.
+  */
+  if (db)
+    ret= index_read_for_db_for_i_s(thd, schema_table, event_table, db);
+  else
+    ret= table_scan_all_for_i_s(thd, schema_table, event_table);
+
+  close_thread_tables(thd);
+  thd->restore_backup_open_tables_state(&backup);
+
+  DBUG_PRINT("info", ("Return code=%d", ret));
+  DBUG_RETURN(ret);
+}
+
+
+/*
   Looks for a named event in mysql.event and in case of success returns
   an object will data loaded from the table.
 
   SYNOPSIS
-    db_find_event()
+    Event_db_repository::find_event()
       thd      THD
       name     the name of the event to find
       ett      event's data if event is found
       tbl      TABLE object to use when not NULL
+      root     On which root to load the event
 
   NOTES
     1) Use sp_name for look up, return in **ett if found
@@ -308,7 +473,7 @@ Event_db_repository::find_event(THD *thd, sp_name *name, Event_timed **ett,
 
   if (tbl)
     table= tbl;
-  else if (Events::get_instance()->db_repository.open_event_table(thd, TL_READ, &table))
+  else if (open_event_table(thd, TL_READ, &table))
   {
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
     ret= EVEX_GENERAL_ERROR;
