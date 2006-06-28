@@ -655,10 +655,14 @@ Copies records from page to new_page, from the given record onward,
 including that record. Infimum and supremum records are not copied.
 The records are copied to the start of the record list on new_page. */
 
-ibool
+rec_t*
 page_copy_rec_list_end(
 /*===================*/
-					/* out: TRUE on success */
+					/* out: pointer to the original
+					successor of the infimum record
+					on new_page, or NULL on zip overflow
+					(new_page will be decompressed
+					from new_page_zip) */
 	page_t*		new_page,	/* in/out: index page to copy to */
 	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
 	rec_t*		rec,		/* in: record on page */
@@ -670,12 +674,14 @@ Copies records from page to new_page, up to the given record, NOT
 including that record. Infimum and supremum records are not copied.
 The records are copied to the end of the record list on new_page. */
 
-ibool
+rec_t*
 page_copy_rec_list_start(
 /*=====================*/
-					/* out: TRUE on success; FALSE on
-					compression failure (new_page will
-					be decompressed from new_page_zip) */
+					/* out: pointer to the original
+					predecessor of the supremum record
+					on new_page, or NULL on zip overflow
+					(new_page will be decompressed
+					from new_page_zip) */
 	page_t*		new_page,	/* in/out: index page to copy to */
 	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
 	rec_t*		rec,		/* in: record on page */

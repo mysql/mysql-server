@@ -2312,12 +2312,12 @@ btr_compress(
 
 	/* Move records to the merge page */
 	if (is_left) {
-		rec_t*	orig_pred = page_rec_get_prev(
-					page_get_supremum_rec(merge_page));
-		if (UNIV_UNLIKELY(!page_copy_rec_list_start(
+		rec_t*	orig_pred = page_copy_rec_list_start(
 				merge_page, merge_page_zip,
 				page_get_supremum_rec(page),
-				cursor->index, mtr))) {
+				cursor->index, mtr);
+
+		if (UNIV_UNLIKELY(!orig_pred)) {
 			return(FALSE);
 		}
 
@@ -2331,8 +2331,7 @@ btr_compress(
 	} else {
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		rec_t*		orig_succ = page_rec_get_next(
-					page_get_infimum_rec(merge_page));
+		rec_t*		orig_succ;
 #ifdef UNIV_BTR_DEBUG
 		byte		fil_page_prev[4];
 #endif /* UNIV_BTR_DEBUG */
@@ -2352,12 +2351,16 @@ btr_compress(
 			memset(merge_page + FIL_PAGE_PREV, 0xff, 4);
 		}
 
-		if (UNIV_UNLIKELY(!page_copy_rec_list_end(
+		orig_succ = page_copy_rec_list_end(
 				merge_page, merge_page_zip,
 				page_get_infimum_rec(page),
-				cursor->index, mtr))) {
+				cursor->index, mtr);
+
+		if (UNIV_UNLIKELY(!orig_succ)) {
 			ut_a(merge_page_zip);
 			/* FIL_PAGE_PREV was restored from merge_page_zip. */
+			ut_ad(!memcmp(fil_page_prev,
+					merge_page + FIL_PAGE_PREV, 4));
 			return(FALSE);
 		}
 
