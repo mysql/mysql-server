@@ -302,6 +302,22 @@ set wait_timeout=100;
 set log_warnings=1;
 
 #
+# Bugs: #20392: INSERT_ID session variable has weird value
+#
+select @@session.insert_id;
+set @save_insert_id=@@session.insert_id;
+set session insert_id=20;
+select @@session.insert_id;
+
+set session last_insert_id=100;
+select @@session.insert_id;
+select @@session.last_insert_id;
+select @@session.insert_id;
+
+set @@session.insert_id=@save_insert_id;
+select @@session.insert_id;
+
+#
 # key buffer
 #
 
