@@ -375,7 +375,9 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   /* We don't allow creation of several triggers of the same type yet */
   if (bodies[lex->trg_chistics.event][lex->trg_chistics.action_time])
   {
-    my_message(ER_TRG_ALREADY_EXISTS, ER(ER_TRG_ALREADY_EXISTS), MYF(0));
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "multiple triggers with the same action time"
+             " and event for one table");
     return 1;
   }
 
