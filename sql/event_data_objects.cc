@@ -35,6 +35,49 @@ Event_parse_data::new_instance(THD *thd)
 Event_parse_data::Event_parse_data()
 {
   item_execute_at= item_expression= item_starts= item_ends= NULL;
+  status= ENABLED;
+  on_completion= ON_COMPLETION_DROP;
+  expression= 0;
+
+  /* Actually in the parser STARTS is always set */
+  set_zero_time(&starts, MYSQL_TIMESTAMP_DATETIME);
+  set_zero_time(&ends, MYSQL_TIMESTAMP_DATETIME);
+  set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
+  starts_null= ends_null= execute_at_null= TRUE;
+
+  body.str= comment.str= 0;
+  body.length= comment.length= 0;
+}
+
+
+/*
+  Set a name of the event
+
+  SYNOPSIS
+    Event_parse_data::init_name()
+      thd   THD
+      spn   the name extracted in the parser
+*/
+
+void
+Event_parse_data::init_name(THD *thd, sp_name *spn)
+{
+  DBUG_ENTER("Event_parse_data::init_name");
+
+  /* We have to copy strings to get them into the right memroot */
+  DBUG_ASSERT(spn);
+  dbname.length= spn->m_db.length;
+  if (spn->m_db.length == 0)
+    dbname.str= NULL;
+  else
+    dbname.str= thd->strmake(spn->m_db.str, spn->m_db.length);
+  name.length= spn->m_name.length;
+  name.str= thd->strmake(spn->m_name.str, spn->m_name.length);
+
+  DBUG_PRINT("dbname", ("len=%d db=%s",dbname.length, dbname.str));
+  DBUG_PRINT("name", ("len=%d name=%s",name.length, name.str));
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -42,7 +85,7 @@ Event_parse_data::Event_parse_data()
   Set body of the event - what should be executed.
 
   SYNOPSIS
-    Event_timed::init_body()
+    Event_parse_data::init_body()
       thd   THD
 
   NOTE
@@ -115,225 +158,45 @@ Event_parse_data::init_body(THD *thd)
 
 
 /*
-  Constructor
+  Inits definer (definer_user and definer_host) during parsing.
 
   SYNOPSIS
-    Event_timed::Event_timed()
+    Event_parse_data::init_definer()
+  
+  RETURN VALUE
+    0  OK
 */
 
-Event_timed::Event_timed():in_spawned_thread(0),locked_by_thread_id(0),
-                           running(0), thread_id(0), status_changed(false),
-                           last_executed_changed(false), expression(0),
-                           created(0), modified(0),
-                           on_completion(Event_timed::ON_COMPLETION_DROP),
-                           status(Event_timed::ENABLED), sphead(0),
-                           sql_mode(0), body_begin(0), dropped(false),
-                           free_sphead_on_delete(true), flags(0)
-                
+int
+Event_parse_data::init_definer(THD *thd)
 {
-  pthread_mutex_init(&this->LOCK_running, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&this->COND_finished, NULL);
-  init();
-}
+  int definer_user_len;
+  int definer_host_len;
+  DBUG_ENTER("Event_parse_data::init_definer");
 
+  DBUG_PRINT("info",("init definer_user thd->mem_root=0x%lx "
+                     "thd->sec_ctx->priv_user=0x%lx", thd->mem_root,
+                     thd->security_ctx->priv_user));
 
-/*
-  Destructor
+  definer_user_len= strlen(thd->security_ctx->priv_user);
+  definer_host_len= strlen(thd->security_ctx->priv_host);
 
-  SYNOPSIS
-    Event_timed::~Event_timed()
-*/
+  /* + 1 for @ */
+  DBUG_PRINT("info",("init definer as whole"));
+  definer.length= definer_user_len + definer_host_len + 1;
+  definer.str= thd->alloc(definer.length + 1);
 
-Event_timed::~Event_timed()
-{    
-  deinit_mutexes();
+  DBUG_PRINT("info",("copy the user"));
+  memcpy(definer.str, thd->security_ctx->priv_user, definer_user_len);
+  definer.str[definer_user_len]= '@';
 
-  if (free_sphead_on_delete)
-    free_sp();
-}
+  DBUG_PRINT("info",("copy the host"));
+  memcpy(definer.str + definer_user_len + 1, thd->security_ctx->priv_host,
+         definer_host_len);
+  definer.str[definer.length]= '\0';
+  DBUG_PRINT("info",("definer [%s] initted", definer.str));
 
-
-/*
-  Destructor
-
-  SYNOPSIS
-    Event_timed::~deinit_mutexes()
-*/
-
-void
-Event_timed::deinit_mutexes()
-{
-  pthread_mutex_destroy(&this->LOCK_running);
-  pthread_cond_destroy(&this->COND_finished);
-}
-
-
-/*
-  Checks whether the event is running
-
-  SYNOPSIS
-    Event_timed::is_running()
-*/
-
-bool
-Event_timed::is_running()
-{
-  bool ret;
-
-  VOID(pthread_mutex_lock(&this->LOCK_running));
-  ret= running;
-  VOID(pthread_mutex_unlock(&this->LOCK_running));
-
-  return ret;
-}
-
-
-/*
-  Init all member variables
-
-  SYNOPSIS
-    Event_timed::init()
-*/
-
-void
-Event_timed::init()
-{
-  DBUG_ENTER("Event_timed::init");
-
-  dbname.str= name.str= body.str= comment.str= 0;
-  dbname.length= name.length= body.length= comment.length= 0;
-
-  set_zero_time(&starts, MYSQL_TIMESTAMP_DATETIME);
-  set_zero_time(&ends, MYSQL_TIMESTAMP_DATETIME);
-  set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
-  set_zero_time(&last_executed, MYSQL_TIMESTAMP_DATETIME);
-  starts_null= ends_null= execute_at_null= TRUE;
-
-  definer_user.str= definer_host.str= 0;
-  definer_user.length= definer_host.length= 0;
-
-  sql_mode= 0;
-
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Set a name of the event
-
-  SYNOPSIS
-    Event_timed::init_name()
-      thd   THD
-      spn   the name extracted in the parser
-*/
-
-void
-Event_timed::init_name(THD *thd, sp_name *spn)
-{
-  DBUG_ENTER("Event_timed::init_name");
-  /* During parsing, we must use thd->mem_root */
-  MEM_ROOT *root= thd->mem_root;
-
-  /* We have to copy strings to get them into the right memroot */
-  if (spn)
-  {
-    dbname.length= spn->m_db.length;
-    if (spn->m_db.length == 0)
-      dbname.str= NULL;
-    else
-      dbname.str= strmake_root(root, spn->m_db.str, spn->m_db.length);
-    name.length= spn->m_name.length;
-    name.str= strmake_root(root, spn->m_name.str, spn->m_name.length);
-
-    if (spn->m_qname.length == 0)
-      spn->init_qname(thd);
-  }
-  else if (thd->db)
-  {
-    dbname.length= thd->db_length;
-    dbname.str= strmake_root(root, thd->db, dbname.length);
-  }
-
-  DBUG_PRINT("dbname", ("len=%d db=%s",dbname.length, dbname.str));
-  DBUG_PRINT("name", ("len=%d name=%s",name.length, name.str));
-
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Set body of the event - what should be executed.
-
-  SYNOPSIS
-    Event_timed::init_body()
-      thd   THD
-
-  NOTE
-    The body is extracted by copying all data between the
-    start of the body set by another method and the current pointer in Lex.
- 
-    Some questionable removal of characters is done in here, and that part
-    should be refactored when the parser is smarter.
-*/
-
-void
-Event_timed::init_body(THD *thd)
-{
-  DBUG_ENTER("Event_timed::init_body");
-  DBUG_PRINT("info", ("body=[%s] body_begin=0x%ld end=0x%ld", body_begin,
-             body_begin, thd->lex->ptr));
-
-  body.length= thd->lex->ptr - body_begin;
-  const uchar *body_end= body_begin + body.length - 1;
-
-  /* Trim nuls or close-comments ('*'+'/') or spaces at the end */
-  while (body_begin < body_end)
-  {
-
-    if ((*body_end == '\0') || 
-        (my_isspace(thd->variables.character_set_client, *body_end)))
-    { /* consume NULs and meaningless whitespace */
-      --body.length;
-      --body_end;
-      continue;
-    }
-
-    /*  
-       consume closing comments
-
-       This is arguably wrong, but it's the best we have until the parser is
-       changed to be smarter.   FIXME PARSER 
-
-       See also the sp_head code, where something like this is done also.
-
-       One idea is to keep in the lexer structure the count of the number of
-       open-comments we've entered, and scan left-to-right looking for a
-       closing comment IFF the count is greater than zero.
-
-       Another idea is to remove the closing comment-characters wholly in the
-       parser, since that's where it "removes" the opening characters.
-    */
-    if ((*(body_end - 1) == '*') && (*body_end == '/'))
-    {
-      DBUG_PRINT("info", ("consumend one '*" "/' comment in the query '%s'", 
-          body_begin));
-      body.length-= 2;
-      body_end-= 2;
-      continue;
-    }
-
-    break;  /* none were found, so we have excised all we can. */
-  }
-
-  /* the first is always whitespace which I cannot skip in the parser */
-  while (my_isspace(thd->variables.character_set_client, *body_begin))
-  {
-    ++body_begin;
-    --body.length;
-  }
-  body.str= strmake_root(thd->mem_root, (char *)body_begin, body.length);
-
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
@@ -341,7 +204,7 @@ Event_timed::init_body(THD *thd)
   Set time for execution for one time events.
 
   SYNOPSIS
-    Event_timed::init_execute_at()
+    Event_parse_data::init_execute_at()
       expr   when (datetime)
 
   RETURN VALUE
@@ -352,14 +215,14 @@ Event_timed::init_body(THD *thd)
 */
 
 int
-Event_timed::init_execute_at(THD *thd, Item *expr)
+Event_parse_data::init_execute_at(THD *thd, Item *expr)
 {
   my_bool not_used;
   TIME ltime;
   my_time_t t;
 
   TIME time_tmp;
-  DBUG_ENTER("Event_timed::init_execute_at");
+  DBUG_ENTER("Event_parse_data::init_execute_at");
 
   if (expr->fix_fields(thd, &expr))
     DBUG_RETURN(EVEX_PARSE_ERROR);
@@ -368,7 +231,7 @@ Event_timed::init_execute_at(THD *thd, Item *expr)
   DBUG_PRINT("info", ("starts_null && ends_null should be 1 is %d",
                       (starts_null && ends_null)));
   DBUG_ASSERT(starts_null && ends_null);
-  
+
   /* let's check whether time is in the past */
   thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, 
                                             (my_time_t) thd->query_start());
@@ -403,7 +266,7 @@ Event_timed::init_execute_at(THD *thd, Item *expr)
   Set time for execution for transient events.
 
   SYNOPSIS
-    Event_timed::init_interval()
+    Event_parse_data::init_interval()
       expr      how much?
       new_interval  what is the interval
 
@@ -415,12 +278,12 @@ Event_timed::init_execute_at(THD *thd, Item *expr)
 */
 
 int
-Event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
+Event_parse_data::init_interval(THD *thd, Item *expr, interval_type new_interval)
 {
   String value;
   INTERVAL interval_tmp;
 
-  DBUG_ENTER("Event_timed::init_interval");
+  DBUG_ENTER("Event_parse_data::init_interval");
 
   if (expr->fix_fields(thd, &expr))
     DBUG_RETURN(EVEX_PARSE_ERROR);
@@ -504,9 +367,9 @@ Event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
   Set activation time.
 
   SYNOPSIS
-    Event_timed::init_starts()
-    expr      how much?
-    interval  what is the interval
+    Event_parse_data::init_starts()
+      expr      how much?
+      interval  what is the interval
 
   NOTES
     Note that activation time is not execution time.
@@ -523,13 +386,13 @@ Event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
 */
 
 int
-Event_timed::init_starts(THD *thd, Item *new_starts)
+Event_parse_data::init_starts(THD *thd, Item *new_starts)
 {
   my_bool not_used;
   TIME ltime, time_tmp;
   my_time_t t;
 
-  DBUG_ENTER("Event_timed::init_starts");
+  DBUG_ENTER("Event_parse_data::init_starts");
 
   if (new_starts->fix_fields(thd, &new_starts))
     DBUG_RETURN(EVEX_PARSE_ERROR);
@@ -570,7 +433,7 @@ Event_timed::init_starts(THD *thd, Item *new_starts)
   Set deactivation time.
 
   SYNOPSIS
-    Event_timed::init_ends()
+    Event_parse_data::init_ends()
       thd       THD
       new_ends  when?
 
@@ -590,13 +453,13 @@ Event_timed::init_starts(THD *thd, Item *new_starts)
 */
 
 int
-Event_timed::init_ends(THD *thd, Item *new_ends)
+Event_parse_data::init_ends(THD *thd, Item *new_ends)
 {
   TIME ltime, ltime_now;
   my_bool not_used;
   my_time_t t;
 
-  DBUG_ENTER("Event_timed::init_ends");
+  DBUG_ENTER("Event_parse_data::init_ends");
 
   if (new_ends->fix_fields(thd, &new_ends))
     DBUG_RETURN(EVEX_PARSE_ERROR);
@@ -641,67 +504,106 @@ Event_timed::init_ends(THD *thd, Item *new_ends)
 
 
 /*
-  Sets comment.
+  Constructor
 
   SYNOPSIS
-    Event_timed::init_comment()
-      thd      THD - used for memory allocation
-      comment  the string.
+    Event_timed::Event_timed()
 */
 
-void
-Event_timed::init_comment(THD *thd, LEX_STRING *set_comment)
+Event_timed::Event_timed():in_spawned_thread(0),locked_by_thread_id(0),
+                           running(0), thread_id(0), status_changed(false),
+                           last_executed_changed(false), expression(0),
+                           created(0), modified(0),
+                           on_completion(Event_timed::ON_COMPLETION_DROP),
+                           status(Event_timed::ENABLED), sphead(0),
+                           sql_mode(0), dropped(false),
+                           free_sphead_on_delete(true), flags(0)
+                
 {
-  DBUG_ENTER("Event_timed::init_comment");
-
-  comment.str= strmake_root(thd->mem_root, set_comment->str,
-                            comment.length= set_comment->length);
-
-  DBUG_VOID_RETURN;
+  pthread_mutex_init(&this->LOCK_running, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&this->COND_finished, NULL);
+  init();
 }
 
 
 /*
-  Inits definer (definer_user and definer_host) during parsing.
+  Destructor
 
   SYNOPSIS
-    Event_timed::init_definer()
-  
-  RETURN VALUE
-    0  OK
+    Event_timed::~Event_timed()
 */
 
-int
-Event_timed::init_definer(THD *thd)
+Event_timed::~Event_timed()
+{    
+  deinit_mutexes();
+
+  if (free_sphead_on_delete)
+    free_sp();
+}
+
+
+/*
+  Destructor
+
+  SYNOPSIS
+    Event_timed::deinit_mutexes()
+*/
+
+void
+Event_timed::deinit_mutexes()
 {
-  DBUG_ENTER("Event_timed::init_definer");
+  pthread_mutex_destroy(&this->LOCK_running);
+  pthread_cond_destroy(&this->COND_finished);
+}
 
-  DBUG_PRINT("info",("init definer_user thd->mem_root=0x%lx "
-                     "thd->sec_ctx->priv_user=0x%lx", thd->mem_root,
-                     thd->security_ctx->priv_user));
-  definer_user.str= strdup_root(thd->mem_root, thd->security_ctx->priv_user);
-  definer_user.length= strlen(thd->security_ctx->priv_user);
 
-  DBUG_PRINT("info",("init definer_host thd->s_c->priv_host=0x%lx",
-                     thd->security_ctx->priv_host));
-  definer_host.str= strdup_root(thd->mem_root, thd->security_ctx->priv_host);
-  definer_host.length= strlen(thd->security_ctx->priv_host);
+/*
+  Checks whether the event is running
 
-  DBUG_PRINT("info",("init definer as whole"));
-  definer.length= definer_user.length + definer_host.length + 1;
-  definer.str= alloc_root(thd->mem_root, definer.length + 1);
+  SYNOPSIS
+    Event_timed::is_running()
+*/
 
-  DBUG_PRINT("info",("copy the user"));
-  memcpy(definer.str, definer_user.str, definer_user.length);
-  definer.str[definer_user.length]= '@';
+bool
+Event_timed::is_running()
+{
+  bool ret;
 
-  DBUG_PRINT("info",("copy the host"));
-  memcpy(definer.str + definer_user.length + 1, definer_host.str,
-         definer_host.length);
-  definer.str[definer.length]= '\0';
-  DBUG_PRINT("info",("definer initted"));
+  VOID(pthread_mutex_lock(&this->LOCK_running));
+  ret= running;
+  VOID(pthread_mutex_unlock(&this->LOCK_running));
 
-  DBUG_RETURN(0);
+  return ret;
+}
+
+
+/*
+  Init all member variables
+
+  SYNOPSIS
+    Event_timed::init()
+*/
+
+void
+Event_timed::init()
+{
+  DBUG_ENTER("Event_timed::init");
+
+  dbname.str= name.str= body.str= comment.str= 0;
+  dbname.length= name.length= body.length= comment.length= 0;
+
+  set_zero_time(&starts, MYSQL_TIMESTAMP_DATETIME);
+  set_zero_time(&ends, MYSQL_TIMESTAMP_DATETIME);
+  set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
+  set_zero_time(&last_executed, MYSQL_TIMESTAMP_DATETIME);
+  starts_null= ends_null= execute_at_null= TRUE;
+
+  definer_user.str= definer_host.str= 0;
+  definer_user.length= definer_host.length= 0;
+
+  sql_mode= 0;
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -739,20 +641,17 @@ Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
   if (table->s->fields != ET_FIELD_COUNT)
     goto error;
 
-  if ((et->dbname.str= get_field(mem_root,
-                                 table->field[ET_FIELD_DB])) == NULL)
+  if ((et->dbname.str= get_field(mem_root, table->field[ET_FIELD_DB])) == NULL)
     goto error;
 
   et->dbname.length= strlen(et->dbname.str);
 
-  if ((et->name.str= get_field(mem_root,
-                               table->field[ET_FIELD_NAME])) == NULL)
+  if ((et->name.str= get_field(mem_root, table->field[ET_FIELD_NAME])) == NULL)
     goto error;
 
   et->name.length= strlen(et->name.str);
 
-  if ((et->body.str= get_field(mem_root,
-                               table->field[ET_FIELD_BODY])) == NULL)
+  if ((et->body.str= get_field(mem_root, table->field[ET_FIELD_BODY])) == NULL)
     goto error;
 
   et->body.length= strlen(et->body.str);
@@ -837,7 +736,6 @@ Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
     et->comment.length= strlen(et->comment.str);
   else
     et->comment.length= 0;
-    
 
   et->sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
 
@@ -858,7 +756,7 @@ error:
       time_now      current time
       i_value       quantity of time type interval to add
       i_type        type of interval to add (SECOND, MINUTE, HOUR, WEEK ...)
-  
+
   RETURN VALUE
     0  OK
     1  Error
@@ -1639,7 +1537,6 @@ Event_timed::compile(THD *thd, MEM_ROOT *mem_root)
                                &security_ctx, &save_ctx);
   thd->lex= &lex;
   lex_start(thd, (uchar*)thd->query, thd->query_length);
-  lex.et_compile_phase= TRUE;
   if (MYSQLparse((void *)thd) || thd->is_fatal_error)
   {
     DBUG_PRINT("error", ("error during compile or thd->is_fatal_error=%d",
@@ -1662,7 +1559,7 @@ Event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   }
   DBUG_PRINT("note", ("success compiling %s.%s", dbname.str, name.str));
 
-  sphead= lex.et->sphead;
+  sphead= lex.sphead;
   sphead->m_db= dbname;
 
   sphead->set_definer(definer.str, definer.length);
@@ -1670,8 +1567,6 @@ Event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   sphead->optimize();
   ret= 0;
 done:
-  lex.et->free_sphead_on_delete= false;
-  lex.et->deinit_mutexes();
 
   lex_end(&lex);
   thd->restore_security_context(save_ctx);
@@ -1709,7 +1604,7 @@ extern pthread_attr_t connection_attrib;
 
 int
 Event_timed::spawn_now(void * (*thread_func)(void*), void *arg)
-{  
+{
   THD *thd= current_thd;
   int ret= EVENT_EXEC_STARTED;
   DBUG_ENTER("Event_timed::spawn_now");
@@ -1875,7 +1770,6 @@ event_timed_db_equal(Event_timed *et, LEX_STRING *db)
 }
 
 
-
 /*
   Checks whether two events are equal by identifiers
 
@@ -1888,121 +1782,8 @@ event_timed_db_equal(Event_timed *et, LEX_STRING *db)
 */
 
 bool
-event_timed_identifier_equal(Event_timed *a, Event_timed *b)
+event_timed_identifier_equal(LEX_STRING db, LEX_STRING name, Event_timed *b)
 {
-  return event_timed_name_equal(a, &b->name) &&
-         event_timed_db_equal(a, &b->dbname);
-}
-
-
-/*
-  Checks whether two events have the same name
-
-  SYNOPSIS
-    event_timed_name_equal()
-
-  RETURN VALUE
-    TRUE  names are equal
-    FALSE names are not equal
-*/
-
-bool
-event_timed_name_equal(sp_name *name, LEX_STRING *event_name)
-{
-  return !sortcmp_lex_string(name->m_name, *event_name, system_charset_info);
-}
-
-
-/*
-  Checks whether two events are in the same schema
-
-  SYNOPSIS
-    event_timed_db_equal()
-
-  RETURN VALUE
-    TRUE  schemas are equal
-    FALSE schemas are not equal
-*/
-
-bool
-event_timed_db_equal(sp_name *name, LEX_STRING *db)
-{
-  return !sortcmp_lex_string(name->m_db, *db, system_charset_info);
-}
-
-
-/*
-  Checks whether two events are equal by identifiers
-
-  SYNOPSIS
-    event_timed_identifier_equal()
-
-  RETURN VALUE
-    TRUE   equal
-    FALSE  not equal
-*/
-
-bool
-event_timed_identifier_equal(sp_name *a, Event_timed *b)
-{
-  return event_timed_name_equal(a, &b->name) &&
-         event_timed_db_equal(a, &b->dbname);
-}
-
-
-/*
-  Switches the security context
-  SYNOPSIS
-    change_security_context()
-      thd     Thread
-      user    The user
-      host    The host of the user
-      db      The schema for which the security_ctx will be loaded
-      s_ctx   Security context to load state into
-      backup  Where to store the old context
-  
-  RETURN VALUE
-    0  - OK
-    1  - Error (generates error too)
-*/
-
-bool
-change_security_context(THD *thd, LEX_STRING user, LEX_STRING host,
-                        LEX_STRING db, Security_context *s_ctx,
-                        Security_context **backup)
-{
-  DBUG_ENTER("change_security_context");
-  DBUG_PRINT("info",("%s@%s@%s", user.str, host.str, db.str));
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  s_ctx->init();
-  *backup= 0;
-  if (acl_getroot_no_password(s_ctx, user.str, host.str, host.str, db.str))
-  {
-    my_error(ER_NO_SUCH_USER, MYF(0), user.str, host.str);
-    DBUG_RETURN(TRUE);
-  }
-  *backup= thd->security_ctx;
-  thd->security_ctx= s_ctx;
-#endif
-  DBUG_RETURN(FALSE);
-}
-
-
-/*
-  Restores the security context
-  SYNOPSIS
-    restore_security_context()
-      thd    - thread
-      backup - switch to this context
-*/
-
-void
-restore_security_context(THD *thd, Security_context *backup)
-{
-  DBUG_ENTER("restore_security_context");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (backup)
-    thd->security_ctx= backup;
-#endif
-  DBUG_VOID_RETURN;
+  return !sortcmp_lex_string(name, b->name, system_charset_info) &&
+         !sortcmp_lex_string(db, b->dbname, system_charset_info);
 }

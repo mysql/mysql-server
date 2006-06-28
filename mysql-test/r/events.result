@@ -297,9 +297,9 @@ select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_comp
 db	name	body	definer	convert_tz(execute_at, 'UTC', 'SYSTEM')	on_completion
 events_test	e_26	set @a = 5	root@localhost	2017-01-01 00:00:00	DROP
 drop event e_26;
-create event e_26 on schedule at NULL disabled do set @a = 5;
+create event e_26 on schedule at NULL disable do set @a = 5;
 ERROR HY000: Incorrect AT value: 'NULL'
-create event e_26 on schedule at 'definitely not a datetime' disabled do set @a = 5;
+create event e_26 on schedule at 'definitely not a datetime' disable do set @a = 5;
 ERROR HY000: Incorrect AT value: 'definitely not a datetime'
 set names utf8;
 create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;

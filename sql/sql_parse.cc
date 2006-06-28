@@ -3833,57 +3833,31 @@ end_with_restore_list:
   case SQLCOM_ALTER_EVENT:
   {
     uint rows_affected= 1;
-    DBUG_ASSERT(lex->et);
-    do {
-      if (! lex->et->dbname.str ||
-          (lex->sql_command == SQLCOM_ALTER_EVENT && lex->spname &&
-           !lex->spname->m_db.str))
-      {
-        my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-        res= true;
-        break;
-      }
+    DBUG_ASSERT(lex->event_parse_data);
+    switch (lex->sql_command) {
+    case SQLCOM_CREATE_EVENT:
+      res= Events::get_instance()->create_event(thd, lex->event_parse_data,
+                                               (uint) lex->create_info.options,
+                                               &rows_affected);
+      break;
+    case SQLCOM_ALTER_EVENT:
+      res= Events::get_instance()->update_event(thd, lex->event_parse_data,
+                                                  lex->spname, &rows_affected);
+      break;
+    default:;
+    }
+    DBUG_PRINT("info", ("CREATE/ALTER/DROP returned error code=%d af_rows=%d",
+               res, rows_affected));
+    if (!res)
+      send_ok(thd, rows_affected);
 
-      if (check_access(thd, EVENT_ACL, lex->et->dbname.str, 0, 0, 0,
-                       is_schema_db(lex->et->dbname.str)) ||
-          (lex->sql_command == SQLCOM_ALTER_EVENT && lex->spname &&
-           (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
-                         is_schema_db(lex->spname->m_db.str)))))
-        break;
-
-      if (end_active_trans(thd))
-      {
-        res= -1;
-        break;
-      }
-
-      switch (lex->sql_command) {
-      case SQLCOM_CREATE_EVENT:
-        res= Events::get_instance()->
-                  create_event(thd, lex->et, lex->event_parse_data,
-                               (uint) lex->create_info.options, &rows_affected);
-        break;
-      case SQLCOM_ALTER_EVENT:
-        res= Events::get_instance()->
-                  update_event(thd, lex->et, lex->event_parse_data,
-                               lex->spname, &rows_affected);
-        break;
-      default:;
-      }
-      DBUG_PRINT("info", ("CREATE/ALTER/DROP returned error code=%d af_rows=%d",
-                  res, rows_affected));
-      if (!res)
-        send_ok(thd, rows_affected);
-
-      /* lex->unit.cleanup() is called outside, no need to call it here */
-    } while (0);
     if (!thd->spcont)
     {
-      lex->et->free_sphead_on_delete= true;
-      lex->et->free_sp();
-      lex->et->deinit_mutexes();
+      delete lex->sphead;
+      lex->sphead= NULL;
     }
-    
+
+    /* lex->unit.cleanup() is called outside, no need to call it here */
     break;
   }
   case SQLCOM_DROP_EVENT:
@@ -3912,11 +3886,6 @@ end_with_restore_list:
     else
     {
       uint rows_affected= 1;
-      if (end_active_trans(thd))
-      {
-        res= -1;
-        break;
-      }
       if (!(res= Events::get_instance()->drop_event(thd, lex->spname,
                                                     lex->drop_if_exists,
                                                     &rows_affected)))
@@ -6020,14 +5989,6 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	{
           delete lex->sphead;
           lex->sphead= NULL;
-          if (lex->et)
-          {
-            lex->et->free_sphead_on_delete= true;
-            /* alloced on thd->mem_root so no real memory free but dtor call */
-            lex->et->free_sp();
-            lex->et->deinit_mutexes();
-            lex->et= NULL;
-          }
 	}
 	else
 	{
@@ -6063,13 +6024,6 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	/* Clean up after failed stored procedure/function */
 	delete lex->sphead;
 	lex->sphead= NULL;
-      }
-      if (lex->et)
-      {
-        lex->et->free_sphead_on_delete= true;
-        lex->et->free_sp();
-        lex->et->deinit_mutexes();
-        lex->et= NULL;
       }
     }
     thd->proc_info="freeing items";

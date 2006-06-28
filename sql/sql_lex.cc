@@ -174,11 +174,11 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->sphead= NULL;
   lex->spcont= NULL;
   lex->proc_list.first= 0;
-  lex->escape_used= lex->et_compile_phase= FALSE;
+  lex->escape_used= FALSE;
   lex->reset_query_tables_list(FALSE);
 
   lex->name= 0;
-  lex->et= NULL;
+  lex->event_parse_data= NULL;
 
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
