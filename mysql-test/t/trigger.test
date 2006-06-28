@@ -1281,4 +1281,26 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
-# End of 5.0 tests
+#
+# Bug #18005: Creating a trigger on mysql.event leads to server crash on
+# scheduler startup
+#
+# Bug #18361: Triggers on mysql.user table cause server crash
+#
+# We don't allow triggers on the mysql schema
+delimiter |;
+--error ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
+create trigger wont_work after update on mysql.user for each row
+begin
+ set @a:= 1;
+end|
+# Try when we're already using the mysql schema
+use mysql|
+--error ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
+create trigger wont_work after update on event for each row
+begin
+ set @a:= 1;
+end|
+delimiter ;|
+
+--echo End of 5.0 tests
