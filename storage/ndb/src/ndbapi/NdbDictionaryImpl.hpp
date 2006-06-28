@@ -46,14 +46,22 @@ public:
   NdbDictionary::Object::Status m_status;
   
   bool change();
+  
+  static NdbDictObjectImpl & getImpl(NdbDictionary::ObjectId & t) { 
+    return t.m_impl;
+  }
+  static const NdbDictObjectImpl & getImpl(const NdbDictionary::ObjectId & t){
+    return t.m_impl;
+  }
+  
 protected:
+  friend class NdbDictionary::ObjectId;
+
   NdbDictObjectImpl(NdbDictionary::Object::Type type) :
     m_type(type),
     m_status(NdbDictionary::Object::New) {
     m_id = -1;
   }
-  
-  friend class NdbDictionary::ObjectId;
 };
 
 /**

@@ -186,8 +186,8 @@ static int update_status_variables(Ndb_cluster_connection *c)
 
 SHOW_VAR ndb_status_variables[]= {
   {"cluster_node_id",        (char*) &ndb_cluster_node_id,         SHOW_LONG},
-  {"connected_host",         (char*) &ndb_connected_host,      SHOW_CHAR_PTR},
-  {"connected_port",         (char*) &ndb_connected_port,          SHOW_LONG},
+  {"config_from_host",         (char*) &ndb_connected_host,      SHOW_CHAR_PTR},
+  {"config_from_port",         (char*) &ndb_connected_port,          SHOW_LONG},
 //  {"number_of_replicas",     (char*) &ndb_number_of_replicas,      SHOW_LONG},
   {"number_of_storage_nodes",(char*) &ndb_number_of_storage_nodes, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
@@ -10006,7 +10006,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
   }
 
   NdbError err;
-  NDBDICT *dict = ndb->getDictionary();
+  NDBDICT *dict= ndb->getDictionary();
   int error;
   const char * errmsg;
   LINT_INIT(errmsg);
@@ -10070,9 +10070,12 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
     }
     else if(info->ts_alter_tablespace_type == ALTER_TABLESPACE_DROP_FILE)
     {
-      NdbDictionary::Datafile df = dict->getDatafile(0, 
-						     info->data_file_name);
-      if (strcmp(df.getPath(), info->data_file_name) == 0)
+      NdbDictionary::Tablespace ts= dict->getTablespace(info->tablespace_name);
+      NdbDictionary::Datafile df= dict->getDatafile(0, info->data_file_name);
+      NdbDictionary::ObjectId objid;
+      df.getTablespaceId(&objid);
+      if (ts.getObjectId() == objid.getObjectId() && 
+	  strcmp(df.getPath(), info->data_file_name) == 0)
       {
 	errmsg= " DROP DATAFILE";
 	if (dict->dropDatafile(df))
@@ -10401,10 +10404,12 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       table->field[c++]->set_null(); // TABLE_NAME
 
       // LOGFILE_GROUP_NAME
+      NdbDictionary::ObjectId objid;
+      uf.getLogfileGroupId(&objid);
       table->field[c++]->store(uf.getLogfileGroup(),
                                strlen(uf.getLogfileGroup()),
                                system_charset_info);
-      table->field[c++]->store(uf.getLogfileGroupId()); // LOGFILE_GROUP_NUMBER
+      table->field[c++]->store(objid.getObjectId()); // LOGFILE_GROUP_NUMBER
       table->field[c++]->store(ndbcluster_hton_name,
                                ndbcluster_hton_name_length,
                                system_charset_info); // ENGINE
