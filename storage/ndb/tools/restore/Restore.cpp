@@ -85,7 +85,12 @@ RestoreMetaData::RestoreMetaData(const char* path, Uint32 nodeId, Uint32 bNo) {
 
 RestoreMetaData::~RestoreMetaData(){
   for(Uint32 i= 0; i < allTables.size(); i++)
-    delete allTables[i];
+  {
+    TableS *table = allTables[i];
+    for(Uint32 j= 0; j < table->m_fragmentInfo.size(); j++)
+      delete table->m_fragmentInfo[j];
+    delete table;
+  }
   allTables.clear();
 }
 
@@ -117,6 +122,9 @@ RestoreMetaData::loadContent()
   if (! markSysTables())
     return 0;
   if(!readGCPEntry())
+    return 0;
+
+  if(!readFragmentInfo())
     return 0;
   return 1;
 }
@@ -353,6 +361,52 @@ RestoreMetaData::readGCPEntry() {
   return true;
 }
 
+bool
+RestoreMetaData::readFragmentInfo()
+{
+  BackupFormat::CtlFile::FragmentInfo fragInfo;
+  TableS * table = 0;
+  Uint32 tableId = RNIL;
+
+  while (buffer_read(&fragInfo, 4, 2) == 2)
+  {
+    fragInfo.SectionType = ntohl(fragInfo.SectionType);
+    fragInfo.SectionLength = ntohl(fragInfo.SectionLength);
+
+    if (fragInfo.SectionType != BackupFormat::FRAGMENT_INFO)
+    {
+      err << "readFragmentInfo invalid section type: " <<
+        fragInfo.SectionType << endl;
+      return false;
+    }
+
+    if (buffer_read(&fragInfo.TableId, (fragInfo.SectionLength-2)*4, 1) != 1)
+    {
+      err << "readFragmentInfo invalid section length: " <<
+        fragInfo.SectionLength << endl;
+      return false;
+    }
+
+    fragInfo.TableId = ntohl(fragInfo.TableId);
+    if (fragInfo.TableId != tableId)
+    {
+      tableId = fragInfo.TableId;
+      table = getTable(tableId);
+    }
+
+    FragmentInfo * tmp = new FragmentInfo;
+    tmp->fragmentNo = ntohl(fragInfo.FragmentNo);
+    tmp->noOfRecords = ntohl(fragInfo.NoOfRecordsLow) +
+      (((Uint64)ntohl(fragInfo.NoOfRecordsHigh)) << 32);
+    tmp->filePosLow = ntohl(fragInfo.FilePosLow);
+    tmp->filePosHigh = ntohl(fragInfo.FilePosHigh);
+
+    table->m_fragmentInfo.push_back(tmp);
+    table->m_noOfRecords += tmp->noOfRecords;
+  }
+  return true;
+}
+
 TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   : m_dictTable(tableImpl)
 {
@@ -360,6 +414,7 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   m_noOfNullable = m_nullBitmaskSize = 0;
   m_auto_val_id= ~(Uint32)0;
   m_max_auto_val= 0;
+  m_noOfRecords= 0;
   backupVersion = version;
   isSysTable = false;
   
@@ -1161,4 +1216,5 @@ operator<<(NdbOut& ndbout, const TableS & table){
 template class Vector<TableS*>;
 template class Vector<AttributeS*>;
 template class Vector<AttributeDesc*>;
+template class Vector<FragmentInfo*>;
 template class Vector<DictObject>;

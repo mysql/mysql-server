@@ -117,6 +117,7 @@ public:
     CustomTriggerId    = 25,
     FrmLen             = 26,
     FrmData            = 27,
+
     FragmentCount      = 128, // No of fragments in table (!fragment replicas)
     FragmentDataLen    = 129,
     FragmentData       = 130, // CREATE_FRAGMENTATION reply
@@ -132,6 +133,8 @@ public:
     MaxRowsHigh        = 140,
     DefaultNoPartFlag  = 141,
     LinearHashFlag     = 142,
+    MinRowsLow         = 143,
+    MinRowsHigh        = 144,
 
     RowGCIFlag         = 150,
     RowChecksumFlag    = 151,
@@ -312,8 +315,6 @@ public:
     Uint32 CustomTriggerId;
     Uint32 TablespaceId;
     Uint32 TablespaceVersion;
-    Uint32 MaxRowsLow;
-    Uint32 MaxRowsHigh;
     Uint32 DefaultNoPartFlag;
     Uint32 LinearHashFlag;
     /*
@@ -328,6 +329,12 @@ public:
     Uint16 ReplicaData[MAX_FRAGMENT_DATA_BYTES];
     Uint32 FragmentDataLen;
     Uint16 FragmentData[3*MAX_NDB_PARTITIONS];
+
+    Uint32 MaxRowsLow;
+    Uint32 MaxRowsHigh;
+    Uint32 MinRowsLow;
+    Uint32 MinRowsHigh;
+
     Uint32 TablespaceDataLen;
     Uint32 TablespaceData[2*MAX_NDB_PARTITIONS];
     Uint32 RangeListDataLen;

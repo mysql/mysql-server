@@ -1770,8 +1770,31 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           /* acknowledge this query _after_ epoch completion */
           post_epoch_unlock= 1;
           break;
-        case SOT_CREATE_TABLE:
 	case SOT_TRUNCATE_TABLE:
+        {
+          char key[FN_REFLEN];
+          build_table_filename(key, sizeof(key), schema->db, schema->name, "");
+          NDB_SHARE *share= get_share(key, 0, FALSE, FALSE);
+          // invalidation already handled by binlog thread
+          if (!share || !share->op)
+          {
+            {
+              injector_ndb->setDatabaseName(schema->db);
+              Ndb_table_guard ndbtab_g(injector_ndb->getDictionary(),
+                                       schema->name);
+              ndbtab_g.invalidate();
+            }
+            TABLE_LIST table_list;
+            bzero((char*) &table_list,sizeof(table_list));
+            table_list.db= schema->db;
+            table_list.alias= table_list.table_name= schema->name;
+            close_cached_tables(thd, 0, &table_list, FALSE);
+          }
+          if (share)
+            free_share(&share);
+        }
+        // fall through
+        case SOT_CREATE_TABLE:
           pthread_mutex_lock(&LOCK_open);
           if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {

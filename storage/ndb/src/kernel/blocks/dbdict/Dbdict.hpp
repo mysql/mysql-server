@@ -206,6 +206,8 @@ public:
     TableRecord(){}
     Uint32 maxRowsLow;
     Uint32 maxRowsHigh;
+    Uint32 minRowsLow;
+    Uint32 minRowsHigh;
     /* Table id (array index in DICT and other blocks) */
     Uint32 tableId;
     Uint32 m_obj_ptr_i;
