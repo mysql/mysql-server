@@ -41,6 +41,8 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
 
 static int
 store_create_info(THD *thd, TABLE_LIST *table_list, String *packet);
+static void
+append_algorithm(TABLE_LIST *table, String *buff);
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 static bool schema_table_store_record(THD *thd, TABLE *table);
@@ -1099,6 +1101,28 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
 void
 view_store_options(THD *thd, TABLE_LIST *table, String *buff)
 {
+  append_algorithm(table, buff);
+  append_definer(thd, buff, &table->definer.user, &table->definer.host);
+  if (table->view_suid)
+    buff->append(STRING_WITH_LEN("SQL SECURITY DEFINER "));
+  else
+    buff->append(STRING_WITH_LEN("SQL SECURITY INVOKER "));
+}
+
+
+/*
+  Append DEFINER clause to the given buffer.
+  
+  SYNOPSIS
+    append_definer()
+    thd           [in] thread handle
+    buffer        [inout] buffer to hold DEFINER clause
+    definer_user  [in] user name part of definer
+    definer_host  [in] host name part of definer
+*/
+
+static void append_algorithm(TABLE_LIST *table, String *buff)
+{
   buff->append(STRING_WITH_LEN("ALGORITHM="));
   switch ((int8)table->algorithm) {
   case VIEW_ALGORITHM_UNDEFINED:
@@ -1113,11 +1137,6 @@ view_store_options(THD *thd, TABLE_LIST *table, String *buff)
   default:
     DBUG_ASSERT(0); // never should happen
   }
-  append_definer(thd, buff, &table->definer.user, &table->definer.host);
-  if (table->view_suid)
-    buff->append(STRING_WITH_LEN("SQL SECURITY DEFINER "));
-  else
-    buff->append(STRING_WITH_LEN("SQL SECURITY INVOKER "));
 }
 
 
@@ -3105,7 +3124,16 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
     table->field[1]->store(tables->view_db.str, tables->view_db.length, cs);
     table->field[2]->store(tables->view_name.str, tables->view_name.length, cs);
     if (grant & SHOW_VIEW_ACL)
-      table->field[3]->store(tables->query.str, tables->query.length, cs);
+    {
+      char buff[2048];
+      String qwe_str(buff, sizeof(buff), cs);
+      qwe_str.length(0);
+      qwe_str.append(STRING_WITH_LEN("/* "));
+      append_algorithm(tables, &qwe_str);
+      qwe_str.append(STRING_WITH_LEN("*/ "));
+      qwe_str.append(tables->query.str, tables->query.length);
+      table->field[3]->store(qwe_str.ptr(), qwe_str.length(), cs);
+    }
 
     if (tables->with_check != VIEW_CHECK_NONE)
     {
