@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1,t2;
 CREATE TABLE t1 (
 gesuchnr int(11) DEFAULT '0' NOT NULL,
 benutzer_id int(11) DEFAULT '0' NOT NULL,
@@ -31,3 +31,24 @@ SELECT * from t1 ORDER BY i;
 i	j	k
 3	1	42
 17	2	24
+CREATE TABLE t2 (a INT(11) NOT NULL,
+b INT(11) NOT NULL,
+c INT(11) NOT NULL,
+x TEXT,
+y TEXT,
+z TEXT,
+id INT(10) unsigned NOT NULL AUTO_INCREMENT,
+i INT(11) DEFAULT NULL,
+PRIMARY KEY (id),
+UNIQUE KEY a (a,b,c)
+) ENGINE=ndbcluster;
+REPLACE INTO t2 (a,b,c,x,y,z,i) VALUES (1,1,1,'a','a','a',1),(1,1,1,'b','b','b',2), (1,1,1,'c','c','c',3);
+SELECT * FROM t2 ORDER BY id;
+a	b	c	x	y	z	id	i
+1	1	1	c	c	c	3	3
+REPLACE INTO t2(a,b,c,x,y,z,i) values (1,1,1,'a','a','a',1);
+REPLACE INTO t2(a,b,c,x,y,z,i) values (1,1,1,'b','b','b',2);
+SELECT * FROM t2 ORDER BY id;
+a	b	c	x	y	z	id	i
+1	1	1	b	b	b	5	2
+DROP TABLE t2;

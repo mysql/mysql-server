@@ -771,10 +771,11 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   if (ndb_blob->blobsNextBlob() != NULL)
     DBUG_RETURN(0);
   ha_ndbcluster *ha= (ha_ndbcluster *)arg;
-  DBUG_RETURN(ha->get_ndb_blobs_value(ndb_blob));
+  DBUG_RETURN(ha->get_ndb_blobs_value(ndb_blob, ha->m_blobs_offset));
 }
 
-int ha_ndbcluster::get_ndb_blobs_value(NdbBlob *last_ndb_blob)
+int ha_ndbcluster::get_ndb_blobs_value(NdbBlob *last_ndb_blob,
+				       my_ptrdiff_t ptrdiff)
 {
   DBUG_ENTER("get_ndb_blobs_value");
 
@@ -807,7 +808,10 @@ int ha_ndbcluster::get_ndb_blobs_value(NdbBlob *last_ndb_blob)
           if (ndb_blob->readData(buf, len) != 0)
             DBUG_RETURN(-1);
           DBUG_ASSERT(len == blob_len);
+          // Ugly hack assumes only ptr needs to be changed
+          field_blob->ptr+= ptrdiff;
           field_blob->set_ptr(len, buf);
+          field_blob->ptr-= ptrdiff;
         }
         offset+= blob_size;
       }
@@ -870,6 +874,7 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
       if (ndb_blob != NULL)
       {
         // Set callback
+	m_blobs_offset= buf - (byte*) table->record[0];
         void *arg= (void *)this;
         DBUG_RETURN(ndb_blob->setActiveHook(g_get_ndb_blobs_value, arg) != 0);
       }
@@ -4589,6 +4594,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_ops_pending(0),
   m_skip_auto_increment(TRUE),
   m_blobs_pending(0),
+  m_blobs_offset(0),
   m_blobs_buffer(0),
   m_blobs_buffer_size(0),
   m_dupkey((uint) -1),
