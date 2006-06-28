@@ -1236,9 +1236,14 @@ NdbDictionary::Datafile::getTablespace() const {
   return m_impl.m_filegroup_name.c_str();
 }
 
-Uint32
-NdbDictionary::Datafile::getTablespaceId() const {
-  return m_impl.m_filegroup_id;
+void
+NdbDictionary::Datafile::getTablespaceId(NdbDictionary::ObjectId* dst) const 
+{
+  if (dst)
+  {
+    NdbDictObjectImpl::getImpl(* dst).m_id = m_impl.m_filegroup_id;
+    NdbDictObjectImpl::getImpl(* dst).m_version = m_impl.m_filegroup_version;
+  }
 }
 
 NdbDictionary::Object::Status
@@ -1322,9 +1327,14 @@ NdbDictionary::Undofile::getLogfileGroup() const {
   return m_impl.m_filegroup_name.c_str();
 }
 
-Uint32
-NdbDictionary::Undofile::getLogfileGroupId() const {
-  return m_impl.m_filegroup_id;
+void
+NdbDictionary::Undofile::getLogfileGroupId(NdbDictionary::ObjectId * dst)const 
+{
+  if (dst)
+  {
+    NdbDictObjectImpl::getImpl(* dst).m_id = m_impl.m_filegroup_id;
+    NdbDictObjectImpl::getImpl(* dst).m_version = m_impl.m_filegroup_version;
+  }
 }
 
 NdbDictionary::Object::Status
@@ -1841,7 +1851,8 @@ NdbDictionary::Dictionary::createLogfileGroup(const LogfileGroup & lg,
 					      ObjectId * obj)
 {
   return m_impl.createLogfileGroup(NdbLogfileGroupImpl::getImpl(lg),
-				   obj ? &obj->m_impl : 0);
+				   obj ? 
+				   & NdbDictObjectImpl::getImpl(* obj) : 0);
 }
 
 int
@@ -1864,7 +1875,8 @@ NdbDictionary::Dictionary::createTablespace(const Tablespace & lg,
 					    ObjectId * obj)
 {
   return m_impl.createTablespace(NdbTablespaceImpl::getImpl(lg),
-				 obj ? &obj->m_impl : 0);
+				 obj ? 
+				 & NdbDictObjectImpl::getImpl(* obj) : 0);
 }
 
 int
@@ -1899,7 +1911,7 @@ NdbDictionary::Dictionary::createDatafile(const Datafile & df,
 {
   return m_impl.createDatafile(NdbDatafileImpl::getImpl(df), 
 			       force,
-			       obj ? &obj->m_impl : 0);
+			       obj ? & NdbDictObjectImpl::getImpl(* obj) : 0);
 }
 
 int
@@ -1925,7 +1937,7 @@ NdbDictionary::Dictionary::createUndofile(const Undofile & df,
 {
   return m_impl.createUndofile(NdbUndofileImpl::getImpl(df), 
 			       force,
-			       obj ? &obj->m_impl : 0);
+			       obj ? & NdbDictObjectImpl::getImpl(* obj) : 0);
 }
 
 int
