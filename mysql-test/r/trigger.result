@@ -295,7 +295,7 @@ create trigger trg before insert on t1 for each row set @a:=1;
 create trigger trg after insert on t1 for each row set @a:=1;
 ERROR HY000: Trigger already exists
 create trigger trg2 before insert on t1 for each row set @a:=1;
-ERROR HY000: Trigger already exists
+ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
 create trigger trg before insert on t3 for each row set @a:=1;
 ERROR HY000: Trigger already exists
 create trigger trg2 before insert on t3 for each row set @a:=1;
