@@ -573,12 +573,14 @@ Copies records from page to new_page, from a given record onward,
 including that record. Infimum and supremum records are not copied.
 The records are copied to the start of the record list on new_page. */
 
-ibool
+rec_t*
 page_copy_rec_list_end(
 /*===================*/
-					/* out: TRUE on success; FALSE on
-					compression failure (new_page will
-					be decompressed from new_page_zip) */
+					/* out: pointer to the original
+					successor of the infimum record
+					on new_page, or NULL on zip overflow
+					(new_page will be decompressed
+					from new_page_zip) */
 	page_t*		new_page,	/* in/out: index page to copy to */
 	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
 	rec_t*		rec,		/* in: record on page */
@@ -586,6 +588,7 @@ page_copy_rec_list_end(
 	mtr_t*		mtr)		/* in: mtr */
 {
 	page_t*	page	= ut_align_down(rec, UNIV_PAGE_SIZE);
+	rec_t*	ret	= page_rec_get_next(page_get_infimum_rec(new_page));
 	ulint	log_mode= 0; /* remove warning */
 
 	/* page_zip_validate() will fail here if btr_compress()
@@ -608,15 +611,29 @@ page_copy_rec_list_end(
 		mtr_set_log_mode(mtr, log_mode);
 
 		if (UNIV_UNLIKELY(!page_zip_compress(
-				new_page_zip, new_page, index, mtr))
-				&& UNIV_UNLIKELY(!page_zip_reorganize(
 				new_page_zip, new_page, index, mtr))) {
+			/* Before trying to reorganize the page,
+			store the number of preceding records on the page. */
+			ulint	ret_pos
+				= page_rec_get_n_recs_before(ret);
 
-			if (UNIV_UNLIKELY(!page_zip_decompress(
-					new_page_zip, new_page))) {
-				ut_error;
+			if (UNIV_UNLIKELY(!page_zip_reorganize(
+					new_page_zip, new_page, index, mtr))) {
+
+				if (UNIV_UNLIKELY(!page_zip_decompress(
+						new_page_zip, new_page))) {
+					ut_error;
+				}
+				return(NULL);
+			} else {
+				/* The page was reorganized:
+				Seek to ret_pos. */
+				ret = new_page + PAGE_NEW_INFIMUM;
+
+				do {
+					ret = rec_get_next_ptr(ret, TRUE);
+				} while (--ret_pos);
 			}
-			return(FALSE);
 		}
 	}
 
@@ -629,7 +646,7 @@ page_copy_rec_list_end(
 
 	btr_search_move_or_delete_hash_entries(new_page, page, index);
 
-	return(TRUE);
+	return(ret);
 }
 
 /*****************************************************************
@@ -637,12 +654,14 @@ Copies records from page to new_page, up to the given record,
 NOT including that record. Infimum and supremum records are not copied.
 The records are copied to the end of the record list on new_page. */
 
-ibool
+rec_t*
 page_copy_rec_list_start(
 /*=====================*/
-					/* out: TRUE on success; FALSE on
-					compression failure (new_page will
-					be decompressed from new_page_zip) */
+					/* out: pointer to the original
+					predecessor of the supremum record
+					on new_page, or NULL on zip overflow
+					(new_page will be decompressed
+					from new_page_zip) */
 	page_t*		new_page,	/* in/out: index page to copy to */
 	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
 	rec_t*		rec,		/* in: record on page */
@@ -655,13 +674,15 @@ page_copy_rec_list_start(
 	rec_t*		old_end;
 	ulint		log_mode	= 0 /* remove warning */;
 	mem_heap_t*	heap		= NULL;
+	rec_t*		ret		= page_rec_get_prev(
+					page_get_supremum_rec(new_page));
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	if (page_rec_is_infimum(rec)) {
 
-		return(TRUE);
+		return(ret);
 	}
 
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
@@ -700,16 +721,30 @@ page_copy_rec_list_start(
 		mtr_set_log_mode(mtr, log_mode);
 
 		if (UNIV_UNLIKELY(!page_zip_compress(
-				new_page_zip, new_page, index, mtr))
-				&& UNIV_UNLIKELY(!page_zip_reorganize(
 				new_page_zip, new_page, index, mtr))) {
+			/* Before trying to reorganize the page,
+			store the number of preceding records on the page. */
+			ulint	ret_pos
+				= page_rec_get_n_recs_before(ret);
 
-			if (UNIV_UNLIKELY(!page_zip_decompress(
-					new_page_zip, new_page))) {
-				ut_error;
+			if (UNIV_UNLIKELY(!page_zip_reorganize(
+					new_page_zip, new_page, index, mtr))) {
+
+				if (UNIV_UNLIKELY(!page_zip_decompress(
+						new_page_zip, new_page))) {
+					ut_error;
+				}
+
+				return(NULL);
+			} else {
+				/* The page was reorganized:
+				Seek to ret_pos. */
+				ret = new_page + PAGE_NEW_INFIMUM;
+
+				do {
+					ret = rec_get_next_ptr(ret, TRUE);
+				} while (--ret_pos);
 			}
-
-			return(FALSE);
 		}
 	}
 
@@ -722,7 +757,7 @@ page_copy_rec_list_start(
 
 	btr_search_move_or_delete_hash_entries(new_page, page, index);
 
-	return(TRUE);
+	return(ret);
 }
 
 /**************************************************************
