@@ -43,6 +43,17 @@ evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
                            const LEX_STRING ev_name,
                            TABLE *table);
 
+int
+events_table_index_read_for_db(THD *thd, TABLE *schema_table,
+                               TABLE *event_table);
+
+int
+events_table_scan_all(THD *thd, TABLE *schema_table, TABLE *event_table);
+
+int
+fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
+
+
 class Event_queue_element;
 
 class Event_db_repository
@@ -56,9 +67,6 @@ public:
 
   void
   deinit_repository();
-
-  int
-  open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 
   int
   create_event(THD *thd, Event_timed *et, my_bool create_if_not,
@@ -86,11 +94,23 @@ public:
 
   int
   find_event_by_name(THD *thd, LEX_STRING db, LEX_STRING name, TABLE *table);
-private:
 
+  int
+  open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
+
+  int
+  fill_schema_events(THD *thd, TABLE_LIST *tables, char *db);
+
+private:
   int
   drop_events_by_field(THD *thd, enum enum_events_table_field field,
                        LEX_STRING field_value);
+  int
+  index_read_for_db_for_i_s(THD *thd, TABLE *schema_table, TABLE *event_table,
+                            char *db);
+
+  int
+  table_scan_all_for_i_s(THD *thd, TABLE *schema_table, TABLE *event_table);
 
   MEM_ROOT repo_root;
 
