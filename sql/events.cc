@@ -186,7 +186,7 @@ common_1_lev_code:
     expr= tmp_expr - (tmp_expr/60)*60;
     /* the code after the switch will finish */
   }
-    break;      
+    break;
   case INTERVAL_DAY_SECOND:
   {
     ulonglong tmp_expr= expr;
@@ -283,23 +283,19 @@ Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
 */
 
 int
-Events::create_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
-                     uint create_options, uint *rows_affected)
+Events::create_event(THD *thd, Event_parse_data *parse_data, uint create_options,
+                     uint *rows_affected)
 {
   int ret;
-
   DBUG_ENTER("Events::create_event");
-  DBUG_PRINT("enter", ("name: %*s options:%d", et->name.length,
-                et->name.str, create_options));
-
   if (!(ret= db_repository->
-                 create_event(thd, et,
+                 create_event(thd, parse_data,
                               create_options & HA_LEX_CREATE_IF_NOT_EXISTS,
                               rows_affected)))
   {
     Event_scheduler *scheduler= Event_scheduler::get_instance();
     if (scheduler->initialized() &&
-        (ret= scheduler->create_event(thd, et, true)))
+        (ret= scheduler->create_event(thd, parse_data, true)))
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
   }
   /* No need to close the table, it will be closed in sql_parse::do_command */
@@ -315,7 +311,7 @@ Events::create_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
     Events::update_event()
       thd        THD
       et         event's data
-      new_name   set in case of RENAME TO.    
+      new_name   set in case of RENAME TO.
 
   RETURN VALUE
     0   OK
@@ -328,25 +324,23 @@ Events::create_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
 */
 
 int
-Events::update_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
-                     sp_name *new_name, uint *rows_affected)
+Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name,
+                     uint *rows_affected)
 {
   int ret;
-
   DBUG_ENTER("Events::update_event");
-  DBUG_PRINT("enter", ("name: %*s", et->name.length, et->name.str));
   /*
     db_update_event() opens & closes the table to prevent
     crash later in the code when loading and compiling the new definition.
     Also on error conditions my_error() is called so no need to handle here
   */
-  if (!(ret= db_repository->update_event(thd, et, new_name)))
+  if (!(ret= db_repository->update_event(thd, parse_data, new_name)))
   {
     Event_scheduler *scheduler= Event_scheduler::get_instance();
     if (scheduler->initialized() &&
-        (ret= scheduler->update_event(thd, et,
-                                       new_name? &new_name->m_db: NULL,
-                                       new_name? &new_name->m_name: NULL)))
+        (ret= scheduler->update_event(thd, parse_data,
+                                      new_name? &new_name->m_db: NULL,
+                                      new_name? &new_name->m_name: NULL)))
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
   }
   DBUG_RETURN(ret);
@@ -411,7 +405,7 @@ Events::show_create_event(THD *thd, sp_name *spn)
   DBUG_PRINT("enter", ("name: %*s", spn->m_name.length, spn->m_name.str));
 
   thd->reset_n_backup_open_tables_state(&backup);
-  ret= db_repository->find_event(thd, spn, &et, NULL, thd->mem_root);
+  ret= db_repository->find_event(thd, spn->m_db, spn->m_name, &et, NULL, thd->mem_root);
   thd->restore_backup_open_tables_state(&backup);
 
   if (!ret)

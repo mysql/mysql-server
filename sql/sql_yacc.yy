@@ -1290,24 +1290,11 @@ event_tail:
              YYTHD->client_capabilities is set back to original value
           */
           {
-            LEX *lex=Lex;
+            Lex->create_info.options= $2;
 
-            if (lex->et)
-            {
-              /*
-                Recursive CREATE EVENT statement are not possible because
-                recursive SPs are not also possible. lex->sp_head is not stacked.
-              */
-              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
+            if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
               YYABORT;
-            }
-
-            lex->create_info.options= $2;
-
-            if (!(lex->et= new(YYTHD->mem_root) Event_timed())) // implicitly calls Event_timed::init()
-              YYABORT;
-            if (!(lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
-              YYABORT;
+            Lex->event_parse_data->identifier= $3;
 
             /*
               We have to turn of CLIENT_MULTI_QUERIES while parsing a
@@ -1316,15 +1303,6 @@ event_tail:
             */
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
-
-            
-            lex->event_parse_data->identifier= $3;
-
-            if (!lex->et_compile_phase)
-            {
-              lex->et->init_name(YYTHD, $3);
-              lex->et->init_definer(YYTHD);
-            }
           }
           ON SCHEDULE_SYM ev_schedule_time
           opt_ev_on_completion
@@ -1353,52 +1331,12 @@ ev_schedule_time: EVERY_SYM expr interval
 	  {
             Lex->event_parse_data->item_expression= $2;
             Lex->event_parse_data->interval= $3;
-            LEX *lex=Lex;
-            if (!lex->et_compile_phase)
-            {
-              switch (lex->et->init_interval(YYTHD , $2, $3)) {
-              case EVEX_PARSE_ERROR:
-                yyerror(ER(ER_SYNTAX_ERROR));
-                YYABORT;
-                break;
-              case EVEX_BAD_PARAMS:
-                my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
-              case EVEX_MICROSECOND_UNSUP:
-                my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
-                YYABORT;
-                break;
-              }
-            }
           }
           ev_starts
           ev_ends
         | AT_SYM expr
           {
             Lex->event_parse_data->item_execute_at= $2;
-            LEX *lex=Lex;
-            if (!lex->et_compile_phase)
-            {
-              switch (lex->et->init_execute_at(YYTHD, $2)) {
-              case EVEX_PARSE_ERROR:
-                yyerror(ER(ER_SYNTAX_ERROR));
-                YYABORT;  
-                break;
-              case ER_WRONG_VALUE:
-                {
-                  char buff[120];
-                  String str(buff,(uint32) sizeof(buff), system_charset_info);
-                  String *str2= $2->val_str(&str);
-                  my_error(ER_WRONG_VALUE, MYF(0), "AT",
-                           str2? str2->c_ptr_safe():"NULL");
-                  YYABORT;
-                  break;
-                }
-              case EVEX_BAD_PARAMS:
-                my_error(ER_EVENT_EXEC_TIME_IN_THE_PAST, MYF(0));
-                YYABORT;
-                break;
-              }
-            }
           }
       ;
 
@@ -1406,18 +1344,11 @@ opt_ev_status: /* empty */ { $$= 0; }
         | ENABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::ENABLED;
-            LEX *lex=Lex;
-            if (!lex->et_compile_phase)
-              lex->et->status= Event_timed::ENABLED;
             $$= 1;
           }
         | DISABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::DISABLED;
-            LEX *lex=Lex;
-
-            if (!lex->et_compile_phase)
-              lex->et->status= Event_timed::DISABLED;
             $$= 1;
           }
       ;
@@ -1425,32 +1356,10 @@ opt_ev_status: /* empty */ { $$= 0; }
 ev_starts: /* empty */
           {
             Lex->event_parse_data->item_starts= new Item_func_now_local();
-            Lex->et->init_starts(YYTHD, new Item_func_now_local());
           }
         | STARTS_SYM expr
           {
             Lex->event_parse_data->item_starts= $2;
-            LEX *lex= Lex;
-            if (!lex->et_compile_phase)
-            {
-
-              switch (lex->et->init_starts(YYTHD, $2)) {
-              case EVEX_PARSE_ERROR:
-                yyerror(ER(ER_SYNTAX_ERROR));
-                YYABORT;
-                break;
-              case EVEX_BAD_PARAMS:
-                {
-                  char buff[20];
-                  String str(buff,(uint32) sizeof(buff), system_charset_info);
-                  String *str2= $2->val_str(&str);
-                  my_error(ER_WRONG_VALUE, MYF(0), "STARTS",
-	                   str2 ? str2->c_ptr_safe() : NULL);
-                  YYABORT;
-                  break;
-                }
-              }
-            }
           }
       ;
 
@@ -1458,20 +1367,6 @@ ev_ends: /* empty */
         | ENDS_SYM expr
           {
             Lex->event_parse_data->item_ends= $2;
-            LEX *lex= Lex;
-            if (!lex->et_compile_phase)
-            {
-              switch (lex->et->init_ends(YYTHD, $2)) {
-              case EVEX_PARSE_ERROR:
-                yyerror(ER(ER_SYNTAX_ERROR));
-                YYABORT;
-                break;
-              case EVEX_BAD_PARAMS:
-                my_error(ER_EVENT_ENDS_BEFORE_STARTS, MYF(0));
-                YYABORT;
-                break;
-              }
-            }
           }
       ;
 
@@ -1484,18 +1379,12 @@ ev_on_completion:
           {
             Lex->event_parse_data->on_completion=
                                   Event_parse_data::ON_COMPLETION_PRESERVE;
-            LEX *lex=Lex;
-            if (!lex->et_compile_phase)
-              lex->et->on_completion= Event_timed::ON_COMPLETION_PRESERVE;
             $$= 1;
           }
         | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
           {
             Lex->event_parse_data->on_completion=
                                   Event_parse_data::ON_COMPLETION_DROP;
-            LEX *lex=Lex;
-            if (!lex->et_compile_phase)
-              lex->et->on_completion= Event_timed::ON_COMPLETION_DROP;
             $$= 1;
           }
       ;
@@ -1504,20 +1393,12 @@ opt_ev_comment: /* empty */ { $$= 0; }
         | COMMENT_SYM TEXT_STRING_sys
           {
             Lex->comment= Lex->event_parse_data->comment= $2;
-            LEX *lex= Lex;
-            if (!lex->et_compile_phase)
-            {
-              lex->comment= $2;
-              lex->et->init_comment(YYTHD, &$2);
-            }
-            $$= 1;
           }
       ;
 
 ev_sql_stmt:
           {
             LEX *lex= Lex;
-            sp_head *sp;
 
             /*
               This stops the following :
@@ -1557,8 +1438,6 @@ ev_sql_stmt:
             
             Lex->event_parse_data->body_begin= lex->ptr;
 
-            if (!lex->et_compile_phase)
-              lex->et->body_begin= lex->ptr;
           }
           ev_sql_stmt_inner
           {
@@ -1570,14 +1449,7 @@ ev_sql_stmt:
 
             lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
 
-            lex->et->sphead= lex->sphead;
-            lex->sphead= NULL;
-
             Lex->event_parse_data->init_body(YYTHD);
-            if (!lex->et_compile_phase)
-            {
-              lex->et->init_body(YYTHD);
-            }
           }
       ;
 
@@ -4753,24 +4625,11 @@ alter:
              YYTHD->client_capabilities is set back to original value
           */
           {
-            LEX *lex=Lex;
-            Event_timed *et;
-
-            lex->spname= NULL;
+            Lex->spname= NULL;
 
             if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
               YYABORT;
             Lex->event_parse_data->identifier= $3;
-
-            if (!(et= new (YYTHD->mem_root) Event_timed()))// implicitly calls Event_timed::init()
-              YYABORT;
-            lex->et = et;
-
-            if (!lex->et_compile_phase)
-            {
-              et->init_definer(YYTHD);
-              et->init_name(YYTHD, $3);
-            }
 
             /*
               We have to turn of CLIENT_MULTI_QUERIES while parsing a
@@ -4838,7 +4697,7 @@ opt_ev_rename_to: /* empty */ { $$= 0;}
           {
             LEX *lex=Lex;
             lex->spname= $3; //use lex's spname to hold the new name
-	                     //the original name is in the Event_timed object
+	                     //the original name is in the Event_parse_data object
             $$= 1;
           }
       ;

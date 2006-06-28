@@ -17,7 +17,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 class sp_name;
-class Event_timed;
 class Event_parse_data;
 class Event_db_repository;
 
@@ -45,7 +44,6 @@ public:
     Event_timed::drop() and Event_timed is fixed not do drop directly
     or other scheme will be found.
   */
-  friend class Event_timed;
 
   static ulong opt_event_scheduler;
   static TYPELIB opt_typelib;
@@ -66,12 +64,12 @@ public:
   get_instance();
 
   int
-  create_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
-               uint create_options, uint *rows_affected);
+  create_event(THD *thd, Event_parse_data *parse_data, uint create_options,
+               uint *rows_affected);
 
   int
-  update_event(THD *thd, Event_timed *et, Event_parse_data *parse_data,
-               sp_name *new_name, uint *rows_affected);
+  update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name,
+               uint *rows_affected);
 
   int
   drop_event(THD *thd, sp_name *name, bool drop_if_exists, uint *rows_affected);
