@@ -1777,3 +1777,5 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
+*.gcda
+*.gcno
