@@ -229,7 +229,7 @@ class JOIN :public Sql_alloc
   }
 
   JOIN(JOIN &join)
-    :fields_list(join.fields_list)
+    :Sql_alloc(), fields_list(join.fields_list)
   {
     init(join.thd, join.fields_list, join.select_options,
          join.result);
