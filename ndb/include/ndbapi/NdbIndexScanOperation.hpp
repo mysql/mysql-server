@@ -41,7 +41,9 @@ public:
    * @param parallel No of fragments to scan in parallel (0=max)
    */ 
   virtual int readTuples(LockMode lock_mode = LM_Read, 
-                         Uint32 scan_flags = 0, Uint32 parallel = 0);
+                         Uint32 scan_flags = 0, 
+			 Uint32 parallel = 0,
+			 Uint32 batch = 0);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
@@ -69,7 +71,7 @@ public:
       (SF_ReadRangeNo & -(Int32)read_range_no) | 
       (SF_KeyInfo & -(Int32)keyinfo);
     
-    return readTuples(lock_mode, scan_flags, parallel);
+    return readTuples(lock_mode, scan_flags, parallel, batch);
   }
 #endif
 
