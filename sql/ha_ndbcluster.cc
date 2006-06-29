@@ -4667,7 +4667,15 @@ int ha_ndbcluster::create(const char *name,
   // reset at return
   m_table= ndbtab_g.get_table();
   // TODO check also that we have the same frm...
-  DBUG_ASSERT(m_table != 0);
+  if (!m_table)
+  {
+    /* purecov: begin deadcode */
+    const NdbError err= dict->getNdbError();
+    ERR_PRINT(err);
+    my_errno= ndb_to_mysql_error(&err);
+    DBUG_RETURN(my_errno);
+    /* purecov: end */
+  }
 
   DBUG_PRINT("info", ("Table %s/%s created successfully", 
                       m_dbname, m_tabname));
