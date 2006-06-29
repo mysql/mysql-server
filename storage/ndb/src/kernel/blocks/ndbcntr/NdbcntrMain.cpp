@@ -205,6 +205,13 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
 	     killingNode, data1);
     break;
 
+  case SystemError::StartFragRefError:
+    BaseString::snprintf(buf, sizeof(buf), 
+			 "Node %d killed this node because "
+			 "it replied StartFragRef error code: %u.",
+			 killingNode, data1);
+    break;
+    
   case SystemError::CopySubscriptionRef:
     BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "

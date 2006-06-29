@@ -683,6 +683,7 @@ private:
   void execGETGCIREQ(Signal *);
   void execDIH_RESTARTREQ(Signal *);
   void execSTART_RECCONF(Signal *);
+  void execSTART_FRAGREF(Signal *);
   void execSTART_FRAGCONF(Signal *);
   void execADD_FRAGCONF(Signal *);
   void execADD_FRAGREF(Signal *);
