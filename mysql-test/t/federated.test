@@ -1322,7 +1322,9 @@ create table federated.t1 (i1 int, i2 int, i3 int);
 create table federated.t2 (id int, c1 varchar(20), c2 varchar(20));
 
 connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval create table federated.t1 (i1 int, i2 int, i3 int) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval create table federated.t2 (id int, c1 varchar(20), c2 varchar(20)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t2';
 insert into federated.t1 values (1,5,10),(3,7,12),(4,5,2),(9,10,15),(2,2,2);
 insert into federated.t2 values (9,"abc","def"),(5,"opq","lmn"),(2,"test t","t test");
@@ -1344,7 +1346,9 @@ create table federated.t1 (i1 int, i2 int, i3 int, primary key (i1));
 create table federated.t2 (id int, c1 varchar(20), c2 varchar(20), primary key (id));
 
 connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval create table federated.t1 (i1 int auto_increment not null, i2 int, i3 int, primary key (i1)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval create table federated.t2 (id int auto_increment not null, c1 varchar(20), c2 varchar(20), primary key(id)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t2';
 insert into federated.t1 values (1,5,10),(3,7,12),(4,5,2),(9,10,15),(2,2,2);
 insert into federated.t2 values (9,"abc","def"),(5,"opq","lmn"),(2,"test t","t test");
