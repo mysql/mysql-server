@@ -124,7 +124,7 @@ typedef struct st_table_share
 #endif
   uint	*blob_field;			/* Index to blobs in Field arrray*/
   byte	*default_values;		/* row with default values */
-  char	*comment;			/* Comment about table */
+  LEX_STRING comment;			/* Comment about table */
   CHARSET_INFO *table_charset;		/* Default charset of string fields */
 
   /* A pair "database_name\0table_name\0", widely used as simply a db name */
