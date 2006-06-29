@@ -5918,6 +5918,7 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
 
     if (col <= tsh->fields)
     {
+      /* purecov: begin inspected */
       /*
         If we get here, the number of columns in the event didn't
         match the number of columns in the table on the slave, *or*
@@ -5950,6 +5951,7 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
       thd->query_error= 1;
       error= ERR_BAD_TABLE_DEF;
       goto err;
+      /* purecov: end */
     }
 
     /*
