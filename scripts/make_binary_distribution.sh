@@ -134,7 +134,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
   client/mysqldump$BS client/mysqlimport$BS \
   client/mysqltest$BS client/mysqlcheck$BS \
-  client/mysqlbinlog$BS \
+  client/mysqlbinlog$BS client/mysql_upgrade$BS \
   tests/mysql_client_test$BS \
   libmysqld/examples/mysql_client_test_embedded$BS \
   libmysqld/examples/mysqltest_embedded$BS \
