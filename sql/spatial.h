@@ -165,6 +165,8 @@ struct Geometry_buffer;
 class Geometry
 {
 public:
+  Geometry() {}                                 /* remove gcc warning */
+  virtual ~Geometry() {}                        /* remove gcc warning */
   static void *operator new(size_t size, void *buffer)
   {
     return buffer;
@@ -172,6 +174,8 @@ public:
 
   static void operator delete(void *ptr, void *buffer)
   {}
+
+  static void operator delete(void *buffer) {}  /* remove gcc warning */
 
   enum wkbType
   {
