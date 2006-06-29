@@ -100,8 +100,10 @@ printBACKUP_FRAGMENT_CONF(FILE * out, const Uint32 * data, Uint32 l, Uint16 b){
   BackupFragmentConf* sig = (BackupFragmentConf*)data;
   fprintf(out, " backupPtr: %d backupId: %d\n",
 	  sig->backupPtr, sig->backupId);
-  fprintf(out, " tableId: %d fragmentNo: %d records: %d bytes: %d\n",
-	  sig->tableId, sig->fragmentNo, sig->noOfRecords, sig->noOfBytes);
+  fprintf(out, " tableId: %d fragmentNo: %d records: %llu bytes: %llu\n",
+	  sig->tableId, sig->fragmentNo,
+          sig->noOfRecordsLow + (((Uint64)sig->noOfRecordsHigh) << 32),
+          sig->noOfBytesLow + (((Uint64)sig->noOfBytesHigh) << 32));
   return true;
 }
 

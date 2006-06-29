@@ -1229,6 +1229,18 @@ bool Query_log_event::write(IO_CACHE* file)
           my_b_safe_write(file, (byte*) query, q_len)) ? 1 : 0;
 }
 
+/*
+  Query_log_event::Query_log_event()
+ 
+  The simplest constructor that could possibly work.  This is used for
+  creating static objects that have a special meaning and are invisible
+  to the log.  
+*/
+Query_log_event::Query_log_event()
+  :Log_event(), data_buf(0)
+{
+}
+
 
 /*
   Query_log_event::Query_log_event()
@@ -1623,14 +1635,33 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+
+static const char *rewrite_db(const char *db)
+{
+  if (replicate_rewrite_db.is_empty() || db == NULL)
+    return db;
+  I_List_iterator<i_string_pair> it(replicate_rewrite_db);
+  i_string_pair* tmp;
+
+  while ((tmp=it++))
+  {
+    if (strcmp(tmp->key, db) == 0)
+      return tmp->val;
+  }
+  return db;
+}
+
+
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
   return exec_event(rli, query, q_len);
 }
 
 
-int Query_log_event::exec_event(struct st_relay_log_info* rli, const char *query_arg, uint32 q_len_arg)
+int Query_log_event::exec_event(struct st_relay_log_info* rli,
+                                const char *query_arg, uint32 q_len_arg)
 {
+  const char *new_db= rewrite_db(db);
   int expected_error,actual_error= 0;
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would lead to
@@ -1639,8 +1670,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli, const char *query
     Thank you.
   */
   thd->catalog= catalog_len ? (char *) catalog : (char *)"";
-  thd->db_length= db_len;
-  thd->db= (char*) rewrite_db(db, &thd->db_length);
+  thd->set_db(new_db, strlen(new_db));          /* allocates a copy of 'db' */
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
@@ -1856,9 +1886,10 @@ end:
     don't suffer from these assignments to 0 as DROP TEMPORARY
     TABLE uses the db.table syntax.
   */
-  thd->db= thd->catalog= 0;	        // prevent db from being freed
+  thd->catalog= 0;
+  thd->set_db(NULL, 0);                 /* will free the current database */
   thd->query= 0;			// just to be sure
-  thd->query_length= thd->db_length =0;
+  thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);      
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
@@ -1871,6 +1902,21 @@ end:
   return (thd->query_error ? thd->query_error : 
           (thd->one_shot_set ? (rli->inc_event_relay_log_pos(),0) :
            Log_event::exec_event(rli))); 
+}
+#endif
+
+
+/**************************************************************************
+	Muted_query_log_event methods
+**************************************************************************/
+
+#ifndef MYSQL_CLIENT
+/*
+  Muted_query_log_event::Muted_query_log_event()
+*/
+Muted_query_log_event::Muted_query_log_event()
+  :Query_log_event()
+{
 }
 #endif
 
@@ -2789,8 +2835,8 @@ void Load_log_event::set_fields(const char* affected_db,
 int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
 			       bool use_rli_only_for_errors)
 {
-  thd->db_length= db_len;
-  thd->db= (char*) rewrite_db(db, &thd->db_length);
+  const char *new_db= rewrite_db(db);
+  thd->set_db(new_db, strlen(new_db));
   DBUG_ASSERT(thd->query == 0);
   thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
@@ -2845,7 +2891,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
-    tables.db = thd->db;
+    tables.db= thd->strmake(thd->db, thd->db_length);
     tables.alias = tables.table_name = (char*) table_name;
     tables.lock_type = TL_WRITE;
     tables.updating= 1;
@@ -2940,7 +2986,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       ex.skip_lines = skip_lines;
       List<Item> field_list;
       thd->main_lex.select_lex.context.resolve_in_table_list_only(&tables);
-      set_fields(thd->db, field_list, &thd->main_lex.select_lex.context);
+      set_fields(tables.db, field_list, &thd->main_lex.select_lex.context);
       thd->variables.pseudo_thread_id= thread_id;
       List<Item> set_fields;
       if (net)
@@ -2987,11 +3033,12 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 
 error:
   thd->net.vio = 0; 
-  char *save_db= thd->db;
+  const char *remember_db= thd->db;
   VOID(pthread_mutex_lock(&LOCK_thread_count));
-  thd->db= thd->catalog= 0;
+  thd->catalog= 0;
+  thd->set_db(NULL, 0);                   /* will free the current database */
   thd->query= 0;
-  thd->query_length= thd->db_length= 0;
+  thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);
   if (thd->query_error)
@@ -3008,7 +3055,7 @@ error:
     }
     slave_print_error(rli,sql_errno,"\
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
-		      err, (char*)table_name, print_slave_db_safe(save_db));
+		      err, (char*)table_name, print_slave_db_safe(remember_db));
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
     return 1;
   }
@@ -3018,7 +3065,7 @@ Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
   {
     slave_print_error(rli,ER_UNKNOWN_ERROR, "\
 Fatal error running LOAD DATA INFILE on table '%s'. Default database: '%s'",
-		      (char*)table_name, print_slave_db_safe(save_db));
+		      (char*)table_name, print_slave_db_safe(remember_db));
     return 1;
   }
 
@@ -3094,7 +3141,7 @@ Rotate_log_event::Rotate_log_event(THD* thd_arg,
                       llstr(pos_arg, buff), flags));
 #endif
   if (flags & DUP_NAME)
-    new_log_ident= my_strdup_with_length((const byte*) new_log_ident_arg,
+    new_log_ident= my_strdup_with_length(new_log_ident_arg,
                                          ident_len, MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
@@ -3118,7 +3165,7 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                      (header_size+post_header_len)); 
   ident_offset = post_header_len; 
   set_if_smaller(ident_len,FN_REFLEN-1);
-  new_log_ident= my_strdup_with_length((byte*) buf + ident_offset,
+  new_log_ident= my_strdup_with_length(buf + ident_offset,
                                        (uint) ident_len,
                                        MYF(MY_WME));
   DBUG_VOID_RETURN;

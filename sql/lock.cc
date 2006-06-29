@@ -905,7 +905,7 @@ void unlock_table_name(THD *thd, TABLE_LIST *table_list)
   if (table_list->table)
   {
     hash_delete(&open_cache, (byte*) table_list->table);
-    (void) pthread_cond_broadcast(&COND_refresh);
+    broadcast_refresh();
   }
 }
 
@@ -997,9 +997,9 @@ end:
 			(default 0, which will unlock all tables)
 
   NOTES
-    One must have a lock on LOCK_open when calling this
-    This function will send a COND_refresh signal to inform other threads
-    that the name locks are removed
+    One must have a lock on LOCK_open when calling this.
+    This function will broadcast refresh signals to inform other threads
+    that the name locks are removed.
 
   RETURN
     0	ok
@@ -1013,7 +1013,7 @@ void unlock_table_names(THD *thd, TABLE_LIST *table_list,
        table != last_table;
        table= table->next_local)
     unlock_table_name(thd,table);
-  pthread_cond_broadcast(&COND_refresh);
+  broadcast_refresh();
 }
 
 
@@ -1301,6 +1301,40 @@ bool make_global_read_lock_block_commit(THD *thd)
     thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;
   thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
   DBUG_RETURN(error);
+}
+
+
+/*
+  Broadcast COND_refresh and COND_global_read_lock.
+
+  SYNOPSIS
+    broadcast_refresh()
+      void                      No parameters.
+
+  DESCRIPTION
+    Due to a bug in a threading library it could happen that a signal
+    did not reach its target. A condition for this was that the same
+    condition variable was used with different mutexes in
+    pthread_cond_wait(). Some time ago we changed LOCK_open to
+    LOCK_global_read_lock in global read lock handling. So COND_refresh
+    was used with LOCK_open and LOCK_global_read_lock.
+
+    We did now also change from COND_refresh to COND_global_read_lock
+    in global read lock handling. But now it is necessary to signal
+    both conditions at the same time.
+
+  NOTE
+    When signalling COND_global_read_lock within the global read lock
+    handling, it is not necessary to also signal COND_refresh.
+
+  RETURN
+    void
+*/
+
+void broadcast_refresh(void)
+{
+  VOID(pthread_cond_broadcast(&COND_refresh));
+  VOID(pthread_cond_broadcast(&COND_global_read_lock));
 }
 
 

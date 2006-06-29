@@ -530,7 +530,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
   if (found_old_table)
   {
     /* Tell threads waiting for refresh that something has happened */
-    VOID(pthread_cond_broadcast(&COND_refresh));
+    broadcast_refresh();
   }
   if (!lock_in_use)
     VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1035,7 +1035,7 @@ TABLE *unlink_open_table(THD *thd, TABLE *list, TABLE *find)
   }
   *prev=0;
   // Notify any 'refresh' threads
-  pthread_cond_broadcast(&COND_refresh);
+  broadcast_refresh();
   return start;
 }
 
@@ -1577,7 +1577,7 @@ bool reopen_table(TABLE *table,bool locked)
   if (table->triggers)
     table->triggers->set_table(table);
 
-  VOID(pthread_cond_broadcast(&COND_refresh));
+  broadcast_refresh();
   error=0;
 
  end:
@@ -1678,7 +1678,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
   {
     my_afree((gptr) tables);
   }
-  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
+  broadcast_refresh();
   *prev=0;
   DBUG_RETURN(error);
 }
@@ -1715,7 +1715,7 @@ void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
     }
   }
   if (found)
-    VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
+    broadcast_refresh();
   DBUG_VOID_RETURN;
 }
 
@@ -1807,7 +1807,7 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name)
   }
   *prev=0;
   if (found)
-    VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
+    broadcast_refresh();
   if (thd->locked_tables && thd->locked_tables->table_count == 0)
   {
     my_free((gptr) thd->locked_tables,MYF(0));
@@ -5249,7 +5249,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
         Signal any thread waiting for tables to be freed to
         reopen their tables
       */
-      (void) pthread_cond_broadcast(&COND_refresh);
+      broadcast_refresh();
       DBUG_PRINT("info", ("Waiting for refresh signal"));
       if (!(flags & RTFC_CHECK_KILLED_FLAG) || !thd->killed)
       {
