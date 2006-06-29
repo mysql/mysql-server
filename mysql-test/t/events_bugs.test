@@ -198,4 +198,19 @@ drop database mysqltest_db1;
 # END   - 18897: Events: unauthorized action possible with alter event rename
 #
 
+#
+# START - BUG#16394: Events: Crash if schedule contains SELECT
+#
+--error ER_PARSE_ERROR
+create event e_53 on schedule at (select s1 from ttx) do drop table t;
+--error ER_PARSE_ERROR
+create event e_53 on schedule every (select s1 from ttx) second do drop table t;
+--error ER_PARSE_ERROR
+create event e_53 on schedule every 5 second starts (select s1 from ttx) do drop table t;
+--error ER_PARSE_ERROR
+create event e_53 on schedule every 5 second ends (select s1 from ttx) do drop table t;
+#
+# END   - BUG#16394: Events: Crash if schedule contains SELECT
+#
+
 drop database events_test;

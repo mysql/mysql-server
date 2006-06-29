@@ -190,4 +190,12 @@ events_test	mysqltest_user1	mysqltest_user1@localhost	RECURRING	ENABLED
 drop event events_test.mysqltest_user1;
 drop user mysqltest_user1@localhost;
 drop database mysqltest_db1;
+create event e_53 on schedule at (select s1 from ttx) do drop table t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) do drop table t' at line 1
+create event e_53 on schedule every (select s1 from ttx) second do drop table t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) second do drop table t' at line 1
+create event e_53 on schedule every 5 second starts (select s1 from ttx) do drop table t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) do drop table t' at line 1
+create event e_53 on schedule every 5 second ends (select s1 from ttx) do drop table t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) do drop table t' at line 1
 drop database events_test;

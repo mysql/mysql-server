@@ -1303,6 +1303,9 @@ event_tail:
             */
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
+
+            /* We need that for disallowing subqueries */
+            Lex->sql_command= SQLCOM_CREATE_EVENT;
           }
           ON SCHEDULE_SYM ev_schedule_time
           opt_ev_on_completion
@@ -4638,6 +4641,9 @@ alter:
             */
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+
+            /* we need that for disallowing subqueries */
+            Lex->sql_command= SQLCOM_ALTER_EVENT;
           }
           ev_alter_on_schedule_completion
           opt_ev_rename_to
@@ -4653,15 +4659,15 @@ alter:
             */
             YYTHD->client_capabilities |= $<ulong_num>4;
 
-            /*
-              sql_command is set here because some rules in ev_sql_stmt
-              can overwrite it
-            */
             if (!($5 || $6 || $7 || $8 || $9))
             {
 	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
+            /*
+              sql_command is set here because some rules in ev_sql_stmt
+              can overwrite it
+            */
             Lex->sql_command= SQLCOM_ALTER_EVENT;
           }
         | ALTER TABLESPACE alter_tablespace_info
@@ -6959,8 +6965,10 @@ select_derived2:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables|= DERIVED_SUBQUERY;
-          if (lex->sql_command == (int)SQLCOM_HA_READ ||
-              lex->sql_command == (int)SQLCOM_KILL)
+          if (lex->sql_command == SQLCOM_HA_READ ||
+              lex->sql_command == SQLCOM_KILL ||
+              lex->sql_command == SQLCOM_CREATE_EVENT ||
+              lex->sql_command == SQLCOM_ALTER_EVENT)
 	  {
 	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
@@ -10592,8 +10600,10 @@ subselect_start:
 	'(' SELECT_SYM
 	{
 	  LEX *lex=Lex;
-          if (lex->sql_command == (int)SQLCOM_HA_READ ||
-              lex->sql_command == (int)SQLCOM_KILL)
+          if (lex->sql_command == SQLCOM_HA_READ ||
+              lex->sql_command == SQLCOM_KILL ||
+              lex->sql_command == SQLCOM_CREATE_EVENT ||
+              lex->sql_command == SQLCOM_ALTER_EVENT)
 	  {
             yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
