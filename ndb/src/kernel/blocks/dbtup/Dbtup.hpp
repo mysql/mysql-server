@@ -496,7 +496,8 @@ struct DiskBufferSegmentInfo {
 typedef Ptr<DiskBufferSegmentInfo> DiskBufferSegmentInfoPtr;
 
 struct Fragoperrec {
-  bool   definingFragment;
+  Uint64 minRows;
+  Uint64 maxRows;
   Uint32 nextFragoprec;
   Uint32 lqhPtrFrag;
   Uint32 fragidFrag;
@@ -509,6 +510,7 @@ struct Fragoperrec {
   Uint32 charsetIndex;
   BlockReference lqhBlockrefFrag;
   bool inUse;
+  bool definingFragment;
 };
 typedef Ptr<Fragoperrec> FragoperrecPtr;
 
@@ -560,6 +562,7 @@ struct Fragrecord {
   Uint32 currentPageRange;
   Uint32 rootPageRange;
   Uint32 noOfPages;
+  Uint32 noOfPagesToGrow;
   Uint32 emptyPrimPage;
 
   Uint32 firstusedOprec;

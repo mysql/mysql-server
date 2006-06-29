@@ -694,3 +694,13 @@ alter table t1 add primary key pti(pt);
 ERROR 42000: BLOB/TEXT column 'pt' used in key specification without a key length
 alter table t1 add primary key pti(pt(20));
 drop table t1;
+create table t1 (g GEOMETRY);
+select * from t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	t1	g	g	255	4294967295	0	Y	144	0	63
+g
+select asbinary(g) from t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					asbinary(g)	252	8192	0	Y	128	0	63
+asbinary(g)
+drop table t1;

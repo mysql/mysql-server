@@ -90,49 +90,7 @@ static void end_server(MYSQL *mysql)
 }
 
 
-static int mysql_init_charset(MYSQL *mysql)
-{
-  char charset_name_buff[16], *charset_name;
-
-  if ((charset_name=mysql->options.charset_name))
-  {
-    const char *save=charsets_dir;
-    if (mysql->options.charset_dir)
-      charsets_dir=mysql->options.charset_dir;
-    mysql->charset=get_charset_by_name(mysql->options.charset_name,
-                                       MYF(MY_WME));
-    charsets_dir=save;
-  }
-  else if (mysql->server_language)
-  {
-    charset_name=charset_name_buff;
-    sprintf(charset_name,"%d",mysql->server_language);	/* In case of errors */
-    mysql->charset=get_charset((uint8) mysql->server_language, MYF(MY_WME));
-  }
-  else
-    mysql->charset=default_charset_info;
-
-  if (!mysql->charset)
-  {
-    mysql->net.last_errno=CR_CANT_READ_CHARSET;
-    strmov(mysql->net.sqlstate, "HY0000");
-    if (mysql->options.charset_dir)
-      sprintf(mysql->net.last_error,ER(mysql->net.last_errno),
-              charset_name ? charset_name : "unknown",
-              mysql->options.charset_dir);
-    else
-    {
-      char cs_dir_name[FN_REFLEN];
-      get_charsets_dir(cs_dir_name);
-      sprintf(mysql->net.last_error,ER(mysql->net.last_errno),
-              charset_name ? charset_name : "unknown",
-              cs_dir_name);
-    }
-    return mysql->net.last_errno;
-  }
-  return 0;
-}
-
+int mysql_init_character_set(MYSQL *mysql);
 
 MYSQL * STDCALL
 mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
@@ -222,10 +180,10 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 
   init_embedded_mysql(mysql, client_flag, db_name);
 
-  if (check_embedded_connection(mysql))
+  if (mysql_init_character_set(mysql))
     goto error;
 
-  if (mysql_init_charset(mysql))
+  if (check_embedded_connection(mysql))
     goto error;
 
   mysql->server_status= SERVER_STATUS_AUTOCOMMIT;

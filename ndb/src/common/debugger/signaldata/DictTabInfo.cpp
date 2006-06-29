@@ -48,6 +48,10 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, FragmentCount, FragmentCount),
   DTIMAP2(Table, FragmentDataLen, FragmentDataLen, 0, MAX_FRAGMENT_DATA_BYTES),
   DTIMAPB(Table, FragmentData, FragmentData, 0, MAX_FRAGMENT_DATA_BYTES, FragmentDataLen),
+  DTIMAP(Table, MaxRowsLow, MaxRowsLow),
+  DTIMAP(Table, MaxRowsHigh, MaxRowsHigh),
+  DTIMAP(Table, MinRowsLow, MinRowsLow),
+  DTIMAP(Table, MinRowsHigh, MinRowsHigh),
   DTIBREAK(AttributeName)
 };
 
@@ -124,6 +128,10 @@ DictTabInfo::Table::init(){
   FragmentCount = 0;
   FragmentDataLen = 0;
   memset(FragmentData, 0, sizeof(FragmentData));
+  MaxRowsLow = 0;
+  MaxRowsHigh = 0;
+  MinRowsLow = 0;
+  MinRowsHigh = 0;
 }
 
 void
