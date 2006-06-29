@@ -6510,24 +6510,10 @@ show_param:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_GRANTS;
-	    THD *thd= lex->thd;
-            Security_context *sctx= thd->security_ctx;
 	    LEX_USER *curr_user;
-            if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+            if (!(curr_user= (LEX_USER*) lex->thd->alloc(sizeof(st_lex_user))))
               YYABORT;
-            curr_user->user.str= sctx->priv_user;
-            curr_user->user.length= strlen(sctx->priv_user);
-            if (*sctx->priv_host != 0)
-            {
-              curr_user->host.str= sctx->priv_host;
-              curr_user->host.length= strlen(sctx->priv_host);
-            }
-            else
-            {
-              curr_user->host.str= (char *) "%";
-              curr_user->host.length= 1;
-            }
-            curr_user->password=null_lex_str;
+            bzero(curr_user, sizeof(st_lex_user));
 	    lex->grant_user= curr_user;
 	  }
 	| GRANTS FOR_SYM user
@@ -7477,22 +7463,14 @@ user:
 	  }
 	| CURRENT_USER optional_braces
 	{
-          THD *thd= YYTHD;
-          Security_context *sctx= thd->security_ctx;
-          if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+          if (!($$=(LEX_USER*) YYTHD->alloc(sizeof(st_lex_user))))
             YYABORT;
-          $$->user.str= sctx->priv_user;
-          $$->user.length= strlen(sctx->priv_user);
-          if (*sctx->priv_host != 0)
-          {
-            $$->host.str= sctx->priv_host;
-            $$->host.length= strlen(sctx->priv_host);
-          }
-          else
-          {
-            $$->host.str= (char *) "%";
-            $$->host.length= 1;
-          }
+          /* 
+            empty LEX_USER means current_user and 
+            will be handled in the  get_current_user() function
+            later
+          */
+          bzero($$, sizeof(LEX_USER));
 	};
 
 /* Keyword that we allow for identifiers (except SP labels) */
