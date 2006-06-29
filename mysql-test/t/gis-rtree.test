@@ -187,4 +187,48 @@ check table t1 extended;
 
 drop table t1;
 
+#
+# Bug#17877 - Corrupted spatial index
+#
+CREATE TABLE t1 (
+  c1 geometry NOT NULL default '',
+  SPATIAL KEY i1 (c1(32))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 (c1) VALUES (
+  PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
+                            -18.6055555000 -66.8158332999,
+                            -18.7186111000 -66.8102777000,
+                            -18.7211111000 -66.9269443999,
+                            -18.6086111000 -66.9327777000))'));
+# This showed a missing key.
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1;
+#
+CREATE TABLE t1 (
+  c1 geometry NOT NULL default '',
+  SPATIAL KEY i1 (c1(32))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 (c1) VALUES (
+  PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
+                            -18.6055555000 -66.8158332999,
+                            -18.7186111000 -66.8102777000,
+                            -18.7211111000 -66.9269443999,
+                            -18.6086111000 -66.9327777000))'));
+INSERT INTO t1 (c1) VALUES (
+  PolygonFromText('POLYGON((-65.7402776999 -96.6686111000,
+                            -65.7372222000 -96.5516666000,
+                            -65.8502777000 -96.5461111000,
+                            -65.8527777000 -96.6627777000,
+                            -65.7402776999 -96.6686111000))'));
+# This is the same as the first insert to get a non-unique key.
+INSERT INTO t1 (c1) VALUES (
+  PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
+                            -18.6055555000 -66.8158332999,
+                            -18.7186111000 -66.8102777000,
+                            -18.7211111000 -66.9269443999,
+                            -18.6086111000 -66.9327777000))'));
+# This showed (and still shows) OK.
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1;
+
 # End of 4.1 tests

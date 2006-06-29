@@ -3057,6 +3057,12 @@ end_with_restore_list:
 	}
       }
       /* Don't yet allow changing of symlinks with ALTER TABLE */
+      if (lex->create_info.data_file_name)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                     "DATA DIRECTORY option ignored");
+      if (lex->create_info.index_file_name)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                     "INDEX DIRECTORY option ignored");
       lex->create_info.data_file_name=lex->create_info.index_file_name=0;
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
