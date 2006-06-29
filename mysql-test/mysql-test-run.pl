@@ -1033,7 +1033,8 @@ sub executable_setup () {
       $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
 					   "$glob_basedir/client_debug",
                                            "$glob_basedir/bin",);
-      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-max",
+      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-max-nt",
+                                           "$path_client_bindir/mysqld-max",
                                            "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
                                            "$path_client_bindir/mysqld-debug",
