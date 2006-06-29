@@ -1692,7 +1692,7 @@ drop table federated.t1, federated.t2;
 create table t1 (id int not null auto_increment primary key, val int);
 create table t1
 (id int not null auto_increment primary key, val int) engine=federated
-connection='mysql://root@127.0.0.1:9308/test/t1';
+connection='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
 insert into t1 values (1,0),(2,0);
 update t1 set val = NULL where id = 1;
 select * from t1;
