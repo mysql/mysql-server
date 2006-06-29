@@ -1548,6 +1548,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   TABLE *table;
   Tz_names_entry *tmp_tzname;
   my_bool return_val= 1;
+  char db[]= "mysql";
   int res;
   DBUG_ENTER("my_tz_init");
 
@@ -1604,13 +1605,12 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     leap seconds shared by all time zones.
   */
 
-  thd->db= my_strdup("mysql",MYF(0));
-  thd->db_length= 5;				// Safety
+  thd->set_db(db, sizeof(db)-1);
   bzero((char*) &tables_buff, sizeof(TABLE_LIST));
   tables_buff[0].alias= tables_buff[0].table_name=
     (char*)"time_zone_leap_second";
   tables_buff[0].lock_type= TL_READ;
-  tables_buff[0].db= thd->db;
+  tables_buff[0].db= db;
   /*
     Fill TABLE_LIST for the rest of the time zone describing tables
     and link it to first one.

@@ -22,6 +22,7 @@ extern const char	*not_error_sqlstate;
 extern "C" {
 #endif
 
+extern CHARSET_INFO *default_client_charset_info;
 MYSQL_FIELD *unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 			   my_bool default_value, uint server_capabilities);
 void free_rows(MYSQL_DATA *cur);

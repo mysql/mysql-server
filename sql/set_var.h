@@ -935,7 +935,7 @@ public:
 	     uint name_length_arg, gptr data_arg)
     :name_length(name_length_arg), data(data_arg)
   {
-    name= my_strdup_with_length((byte*) name_arg, name_length, MYF(MY_WME));
+    name= my_strdup_with_length(name_arg, name_length, MYF(MY_WME));
     links->push_back(this);
   }
   inline bool cmp(const char *name_cmp, uint length)

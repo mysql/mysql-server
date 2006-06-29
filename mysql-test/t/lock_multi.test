@@ -142,6 +142,7 @@ disconnect con2;
 --error ER_DB_DROP_EXISTS
 DROP DATABASE mysqltest_1;
 
+#
 # Bug#16986 - Deadlock condition with MyISAM tables
 #
 connection locker;
@@ -170,6 +171,55 @@ connection locker;
 use test;
 #
 connection default;
+#
+# Test if CREATE TABLE with LOCK TABLE deadlocks.
+#
+connection writer;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+#
+# This waits until t1 is unlocked.
+connection locker;
+send FLUSH TABLES WITH READ LOCK;
+--sleep 1
+#
+# This must not block.
+connection writer;
+CREATE TABLE t2 (c1 int);
+UNLOCK TABLES;
+#
+# This awakes now.
+connection locker;
+reap;
+UNLOCK TABLES;
+#
+connection default;
+DROP TABLE t1, t2;
+#
+# Test if CREATE TABLE SELECT with LOCK TABLE deadlocks.
+#
+connection writer;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+#
+# This waits until t1 is unlocked.
+connection locker;
+send FLUSH TABLES WITH READ LOCK;
+--sleep 1
+#
+# This must not block.
+connection writer;
+--error 1100
+CREATE TABLE t2 AS SELECT * FROM t1;
+UNLOCK TABLES;
+#
+# This awakes now.
+connection locker;
+reap;
+UNLOCK TABLES;
+#
+connection default;
+DROP TABLE t1;
 
 #
 # Bug #17264: MySQL Server freeze

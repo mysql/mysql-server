@@ -311,6 +311,14 @@ protected:
 public:
 
   ulonglong options;
+
+  /*
+    In sql_cache we store SQL_CACHE flag as specified by user to be
+    able to restore SELECT statement from internal structures.
+  */
+  enum e_sql_cache { SQL_CACHE_UNSPECIFIED, SQL_NO_CACHE, SQL_CACHE };
+  e_sql_cache sql_cache;
+
   /*
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT
@@ -758,6 +766,11 @@ public:
     *this= *state;
   }
 
+  /*
+    Direct addition to the list of query tables.
+    If you are using this function, you must ensure that the table
+    object, in particular table->db member, is initialized.
+  */
   void add_to_query_tables(TABLE_LIST *table)
   {
     *(table->prev_global= query_tables_last)= table;

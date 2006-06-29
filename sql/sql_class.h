@@ -1300,7 +1300,7 @@ public:
   pthread_t  real_id;
   uint	     tmp_table, global_read_lock;
   uint	     server_status,open_options,system_thread;
-  uint32     db_length;
+  uint       db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
@@ -1571,6 +1571,49 @@ public:
   void restore_sub_statement_state(Sub_statement_state *backup);
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
+
+  /*
+    Initialize the current database from a NULL-terminated string with length
+    If we run out of memory, we free the current database and return TRUE.
+    This way the user will notice the error as there will be no current
+    database selected (in addition to the error message set by malloc).
+  */
+  bool set_db(const char *new_db, uint new_db_len)
+  {
+    /* Do not reallocate memory if current chunk is big enough. */
+    if (db && new_db && db_length >= new_db_len)
+      memcpy(db, new_db, new_db_len+1);
+    else
+    {
+      x_free(db);
+      db= new_db ? my_strdup_with_length(new_db, new_db_len, MYF(MY_WME)) :
+                   NULL;
+    }
+    db_length= db ? new_db_len : 0;
+    return new_db && !db;
+  }
+  void reset_db(char *new_db, uint new_db_len)
+  {
+    db= new_db;
+    db_length= new_db_len;
+  }
+  /*
+    Copy the current database to the argument. Use the current arena to
+    allocate memory for a deep copy: current database may be freed after
+    a statement is parsed but before it's executed.
+  */
+  bool copy_db_to(char **p_db, uint *p_db_length)
+  {
+    if (db == NULL)
+    {
+      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+      return TRUE;
+    }
+    *p_db= strmake(db, db_length);
+    if (p_db_length)
+      *p_db_length= db_length;
+    return FALSE;
+  }
 };
 
 
@@ -1916,7 +1959,7 @@ typedef struct st_sort_buffer {
 
 class Table_ident :public Sql_alloc
 {
- public:
+public:
   LEX_STRING db;
   LEX_STRING table;
   SELECT_LEX_UNIT *sel;

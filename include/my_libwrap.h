@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,26 +14,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef BACKUP_CONTINUEB_H
-#define BACKUP_CONTINUEB_H
+#ifdef HAVE_LIBWRAP
+#include <tcpd.h>
+#include <syslog.h>
+#ifdef NEED_SYS_SYSLOG_H
+#include <sys/syslog.h>
+#endif /* NEED_SYS_SYSLOG_H */
 
-#include "SignalData.hpp"
+extern void my_fromhost(struct request_info *req);
+extern int my_hosts_access(struct request_info *req);
+extern char *my_eval_client(struct request_info *req);
 
-class BackupContinueB {
-  /**
-   * Sender(s)/Reciver(s)
-   */
-  friend class Backup;
-  friend bool printCONTINUEB_BACKUP(FILE * output, const Uint32 * theData, Uint32 len);
-private:
-  enum {
-    START_FILE_THREAD = 0,
-    BUFFER_UNDERFLOW  = 1,
-    BUFFER_FULL_SCAN  = 2,
-    BUFFER_FULL_FRAG_COMPLETE = 3,
-    BUFFER_FULL_META  = 4,
-    BACKUP_FRAGMENT_INFO = 5
-  };
-};
-
-#endif
+#endif /* HAVE_LIBWRAP */

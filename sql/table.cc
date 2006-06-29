@@ -678,27 +678,6 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       if (outparam->key_info[key].flags & HA_FULLTEXT)
 	outparam->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;
 
-      if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
-      {
-	/*
-	  If the UNIQUE key doesn't have NULL columns and is not a part key
-	  declare this as a primary key.
-	*/
-	primary_key=key;
-	for (i=0 ; i < keyinfo->key_parts ;i++)
-	{
-	  uint fieldnr= key_part[i].fieldnr;
-	  if (!fieldnr ||
-	      outparam->field[fieldnr-1]->null_ptr ||
-	      outparam->field[fieldnr-1]->key_length() !=
-	      key_part[i].length)
-	  {
-	    primary_key=MAX_KEY;		// Can't be used
-	    break;
-	  }
-	}
-      }
-
       for (i=0 ; i < keyinfo->key_parts ; key_part++,i++)
       {
 	if (new_field_pack_flag <= 1)
@@ -1614,10 +1593,6 @@ bool check_db_name(char *name)
     if (*name == '/' || *name == '\\' || *name == FN_LIBCHAR ||
 	*name == FN_EXTCHAR)
       return 1;
-#ifdef FN_DEVCHAR
-    if (*name == FN_DEVCHAR)
-      return 1;
-#endif
     name++;
   }
   return last_char_is_space || (uint) (name - start) > NAME_LEN;
@@ -1660,10 +1635,6 @@ bool check_table_name(const char *name, uint length)
 #endif
     if (*name == '/' || *name == '\\' || *name == FN_EXTCHAR)
       return 1;
-#ifdef FN_DEVCHAR
-    if (*name == FN_DEVCHAR)
-      return 1;
-#endif
     name++;
   }
 #if defined(USE_MB) && defined(USE_MB_IDENT)

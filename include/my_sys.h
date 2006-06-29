@@ -157,7 +157,7 @@ extern gptr my_realloc(gptr oldpoint,uint Size,myf MyFlags);
 extern void my_no_flags_free(gptr ptr);
 extern gptr my_memdup(const byte *from,uint length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
-extern char *my_strdup_with_length(const byte *from, uint length,
+extern char *my_strdup_with_length(const char *from, uint length,
 				   myf MyFlags);
 /* we do use FG (as a no-op) in below so that a typo on FG is caught */
 #define my_free(PTR,FG) ((void)FG,my_no_flags_free(PTR))
@@ -541,6 +541,7 @@ typedef int (*Process_option_func)(void *ctx, const char *group_name,
 
 #include <my_alloc.h>
 
+
 	/* Prototypes for mysys and my_func functions */
 
 extern int my_copy(const char *from,const char *to,myf MyFlags);
@@ -612,6 +613,13 @@ extern File my_sopen(const char *path, int oflag, int shflag, int pmode);
 #define my_access access
 #endif
 extern int check_if_legal_filename(const char *path);
+
+#if defined(__WIN__) && defined(__NT__)
+extern int nt_share_delete(const char *name,myf MyFlags);
+#define my_delete_allow_opened(fname,flags)  nt_share_delete((fname),(flags))
+#else
+#define my_delete_allow_opened(fname,flags)  my_delete((fname),(flags))
+#endif
 
 #ifndef TERMINATE
 extern void TERMINATE(FILE *file);
