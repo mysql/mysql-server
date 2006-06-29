@@ -2766,7 +2766,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 {
   ulong column_priv= 0;
   List_iterator <LEX_USER> str_list (user_list);
-  LEX_USER *Str;
+  LEX_USER *Str, *tmp_Str;
   TABLE_LIST tables[3];
   bool create_new_users=0;
   char *db_name, *table_name;
@@ -2891,10 +2891,15 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   thd->mem_root= &memex;
   grant_version++;
 
-  while ((Str = str_list++))
+  while ((tmp_Str = str_list++))
   {
     int error;
     GRANT_TABLE *grant_table;
+    if (!(Str= get_current_user(thd, tmp_Str)))
+    {
+      result= TRUE;
+      continue;
+    }  
     if (Str->host.length > HOSTNAME_LENGTH ||
 	Str->user.length > USERNAME_LENGTH)
     {
@@ -3030,7 +3035,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 			 bool revoke_grant, bool no_error)
 {
   List_iterator <LEX_USER> str_list (user_list);
-  LEX_USER *Str;
+  LEX_USER *Str, *tmp_Str;
   TABLE_LIST tables[2];
   bool create_new_users=0, result=0;
   char *db_name, *table_name;
@@ -3098,10 +3103,15 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   DBUG_PRINT("info",("now time to iterate and add users"));
 
-  while ((Str= str_list++))
+  while ((tmp_Str= str_list++))
   {
     int error;
     GRANT_NAME *grant_name;
+    if (!(Str= get_current_user(thd, tmp_Str)))
+    {
+      result= TRUE;
+      continue;
+    }  
     if (Str->host.length > HOSTNAME_LENGTH ||
 	Str->user.length > USERNAME_LENGTH)
     {
@@ -3170,7 +3180,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                  ulong rights, bool revoke_grant)
 {
   List_iterator <LEX_USER> str_list (list);
-  LEX_USER *Str;
+  LEX_USER *Str, *tmp_Str;
   char tmp_db[NAME_LEN+1];
   bool create_new_users=0;
   TABLE_LIST tables[2];
@@ -3229,8 +3239,13 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   grant_version++;
 
   int result=0;
-  while ((Str = str_list++))
+  while ((tmp_Str = str_list++))
   {
+    if (!(Str= get_current_user(thd, tmp_Str)))
+    {
+      result= TRUE;
+      continue;
+    }  
     if (Str->host.length > HOSTNAME_LENGTH ||
 	Str->user.length > USERNAME_LENGTH)
     {
@@ -5187,7 +5202,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   int result;
   String wrong_users;
   ulong sql_mode;
-  LEX_USER *user_name;
+  LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_create_user");
@@ -5199,8 +5214,13 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  while ((user_name= user_list++))
+  while ((tmp_user_name= user_list++))
   {
+    if (!(user_name= get_current_user(thd, tmp_user_name)))
+    {
+      result= TRUE;
+      continue;
+    }  
     /*
       Search all in-memory structures and grant tables
       for a mention of the new user name.
@@ -5246,7 +5266,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   String wrong_users;
-  LEX_USER *user_name;
+  LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_drop_user");
@@ -5258,8 +5278,14 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  while ((user_name= user_list++))
+  while ((tmp_user_name= user_list++))
   {
+    user_name= get_current_user(thd, tmp_user_name);
+    if (!(user_name= get_current_user(thd, tmp_user_name)))
+    {
+      result= TRUE;
+      continue;
+    }  
     if (handle_grant_data(tables, 1, user_name, NULL) <= 0)
     {
       append_user(&wrong_users, user_name);
@@ -5296,8 +5322,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   String wrong_users;
-  LEX_USER *user_from;
-  LEX_USER *user_to;
+  LEX_USER *user_from, *tmp_user_from;
+  LEX_USER *user_to, *tmp_user_to;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_rename_user");
@@ -5309,9 +5335,19 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  while ((user_from= user_list++))
+  while ((tmp_user_from= user_list++))
   {
-    user_to= user_list++;
+    if (!(user_from= get_current_user(thd, tmp_user_from)))
+    {
+      result= TRUE;
+      continue;
+    }  
+    tmp_user_to= user_list++;
+    if (!(user_to= get_current_user(thd, tmp_user_to)))
+    {
+      result= TRUE;
+      continue;
+    }  
     DBUG_ASSERT(user_to != 0); /* Syntax enforces pairs of users. */
 
     /*
@@ -5366,10 +5402,15 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-  LEX_USER *lex_user;
+  LEX_USER *lex_user, *tmp_lex_user;
   List_iterator <LEX_USER> user_list(list);
-  while ((lex_user=user_list++))
+  while ((tmp_lex_user= user_list++))
   {
+    if (!(lex_user= get_current_user(thd, tmp_lex_user)))
+    {
+      result= -1;
+      continue;
+    }  
     if (!find_acl_user(lex_user->host.str, lex_user->user.str, TRUE))
     {
       sql_print_error("REVOKE ALL PRIVILEGES, GRANT: User '%s'@'%s' does not "
