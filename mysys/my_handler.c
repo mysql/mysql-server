@@ -548,7 +548,8 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
     case HA_KEYTYPE_DOUBLE:
       a= end;
       break;
-    case HA_KEYTYPE_END:
+    case HA_KEYTYPE_END:                        /* purecov: inspected */
+      /* keep compiler happy */
       DBUG_ASSERT(0);
       break;
     }
