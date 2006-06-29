@@ -1151,70 +1151,76 @@ runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
   {
     for(int flags = 0; flags < 4; flags++)
     {
-      for (int par = 0; par < 16; par += 1 + (rand() % 3))
+      for (int batch = 0; batch < 100; batch += (1 + batch + (batch >> 3)))
       {
-	bool disk = flags & 1;
-	bool tups = flags & 2;
-	g_info << "lm: " << lm 
-	       << " disk: " << disk 
-	       << " tup scan: " << tups 
-	       << " par: " << par 
-	       << endl;
-	
-	NdbConnection* pCon = pNdb->startTransaction();
-	NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
-	if (pOp == NULL) {
-	  ERR(pCon->getNdbError());
-	  return NDBT_FAILED;
-	}
-	
-	if( pOp->readTuples((NdbOperation::LockMode)lm,
-			    tups ? NdbScanOperation::SF_TupScan : 0,
-			    par) != 0) 
+	for (int par = 0; par < 16; par += 1 + (rand() % 3))
 	{
-	  ERR(pCon->getNdbError());
-	  return NDBT_FAILED;
-	}
-	
-	int check = pOp->interpret_exit_ok();
-	if( check == -1 ) {
-	  ERR(pCon->getNdbError());
-	  return NDBT_FAILED;
-	}
-	
-	// Define attributes to read  
-	bool found_disk = false;
-	for(int a = 0; a<pTab->getNoOfColumns(); a++){
-	  if (pTab->getColumn(a)->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
-	  {
-	    found_disk = true;
-	    if (!disk)
-	      continue;
-	  }
+	  bool disk = flags & 1;
+	  bool tups = flags & 2;
+	  g_info << "lm: " << lm 
+		 << " disk: " << disk 
+		 << " tup scan: " << tups 
+		 << " par: " << par 
+		 << " batch: " << batch 
+		 << endl;
 	  
-	  if((pOp->getValue(pTab->getColumn(a)->getName())) == 0) {
+	  NdbConnection* pCon = pNdb->startTransaction();
+	  NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+	  if (pOp == NULL) {
 	    ERR(pCon->getNdbError());
 	    return NDBT_FAILED;
 	  }
-	} 
-	
-	if (! (disk && !found_disk))
-	{
-	  check = pCon->execute(NoCommit);
+	  
+	  if( pOp->readTuples((NdbOperation::LockMode)lm,
+			      tups ? NdbScanOperation::SF_TupScan : 0,
+			      par,
+			      batch) != 0) 
+	  {
+	    ERR(pCon->getNdbError());
+	    return NDBT_FAILED;
+	  }
+	  
+	  int check = pOp->interpret_exit_ok();
 	  if( check == -1 ) {
 	    ERR(pCon->getNdbError());
 	    return NDBT_FAILED;
 	  }
 	  
-	  int res;
-	  int row = 0;
-	  while((res = pOp->nextResult()) == 0);
+	  // Define attributes to read  
+	  bool found_disk = false;
+	  for(int a = 0; a<pTab->getNoOfColumns(); a++){
+	    if (pTab->getColumn(a)->getStorageType() == 
+		NdbDictionary::Column::StorageTypeDisk)
+	    {
+	      found_disk = true;
+	      if (!disk)
+		continue;
+	    }
+	    
+	    if((pOp->getValue(pTab->getColumn(a)->getName())) == 0) {
+	      ERR(pCon->getNdbError());
+	      return NDBT_FAILED;
+	    }
+	  } 
+	  
+	  if (! (disk && !found_disk))
+	  {
+	    check = pCon->execute(NoCommit);
+	    if( check == -1 ) {
+	      ERR(pCon->getNdbError());
+	      return NDBT_FAILED;
+	    }
+	    
+	    int res;
+	    int row = 0;
+	    while((res = pOp->nextResult()) == 0);
+	  }
+	  pCon->close();
 	}
-	pCon->close();
       }
     }
   }
-  
+
   return NDBT_OK;
 }
 
