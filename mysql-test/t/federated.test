@@ -1371,6 +1371,7 @@ drop table federated.t1, federated.t2;
 connection slave;
 create table t1 (id int not null auto_increment primary key, val int);
 connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval create table t1
   (id int not null auto_increment primary key, val int) engine=federated
   connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1';
