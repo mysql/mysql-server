@@ -67,12 +67,6 @@ conf_to_src_LDFLAGS= @NOINST_LDFLAGS@
 #strtoull.o:		@CHARSET_OBJS@
 
 
-if ASSEMBLER
-# On Linux gcc can compile the assembly files
-%.o	: %.s
-	$(AS) $(ASFLAGS) -o $@ $<
-endif
-
 FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
 
 str_test: str_test.c $(pkglib_LIBRARIES)
