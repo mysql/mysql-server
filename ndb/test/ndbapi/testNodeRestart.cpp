@@ -294,6 +294,7 @@ int runRestarts(NDBT_Context* ctx, NDBT_Step* step){
     }    
     i++;
   }
+  ctx->stopTest();
   return result;
 }
 
