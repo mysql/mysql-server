@@ -857,7 +857,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "8",
-    "1",
+    "3",
     STR_VALUE(MAX_INT_RNIL) },
 
   {
