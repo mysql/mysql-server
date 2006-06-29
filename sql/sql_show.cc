@@ -1080,10 +1080,10 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       packet->append(ha_row_type[(uint) share->row_type]);
     }
     table->file->append_create_info(packet);
-    if (share->comment && share->comment[0])
+    if (share->comment.length)
     {
       packet->append(STRING_WITH_LEN(" COMMENT="));
-      append_unescaped(packet, share->comment, strlen(share->comment));
+      append_unescaped(packet, share->comment.str, share->comment.length);
     }
     if (share->connect_string.length)
     {
@@ -2547,11 +2547,14 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
                              (uint) (ptr-option_buff)-1), cs);
     {
       char *comment;
-      comment= show_table->file->update_table_comment(share->comment);
+      comment= show_table->file->update_table_comment(share->comment.str);
       if (comment)
       {
-        table->field[20]->store(comment, strlen(comment), cs);
-        if (comment != share->comment)
+        table->field[20]->store(comment,
+                                (comment == share->comment.str ?
+                                 share->comment.length : 
+                                 strlen(comment)), cs);
+        if (comment != share->comment.str)
           my_free(comment, MYF(0));
       }
     }

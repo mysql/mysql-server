@@ -410,7 +410,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   int_length= uint2korr(head+274);
   share->null_fields= uint2korr(head+282);
   com_length= uint2korr(head+284);
-  share->comment= strdup_root(&outparam->mem_root, (char*) head+47);
+  share->comment.length=  (int) (head[46]);
+  share->comment.str= strmake_root(&outparam->mem_root, (char*) head+47,
+                                   share->comment.length);
 
   DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length));
 
