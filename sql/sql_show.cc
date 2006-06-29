@@ -582,7 +582,14 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   {
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
-      field_list.push_back(new Item_field(field));
+    {
+      if (table_list->view)
+        field_list.push_back(new Item_ident_for_show(field,
+                                                     table_list->view_db.str,
+                                                     table_list->view_name.str));
+      else
+        field_list.push_back(new Item_field(field));
+    }
   }
   restore_record(table, s->default_values);              // Get empty record
   if (thd->protocol->send_fields(&field_list, Protocol::SEND_DEFAULTS |
