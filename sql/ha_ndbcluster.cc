@@ -160,8 +160,8 @@ static int update_status_variables(Ndb_cluster_connection *c)
 
 struct show_var_st ndb_status_variables[]= {
   {"cluster_node_id",        (char*) &ndb_cluster_node_id,         SHOW_LONG},
-  {"connected_host",         (char*) &ndb_connected_host,      SHOW_CHAR_PTR},
-  {"connected_port",         (char*) &ndb_connected_port,          SHOW_LONG},
+  {"config_from_host",         (char*) &ndb_connected_host,      SHOW_CHAR_PTR},
+  {"config_from_port",         (char*) &ndb_connected_port,          SHOW_LONG},
 //  {"number_of_replicas",     (char*) &ndb_number_of_replicas,      SHOW_LONG},
   {"number_of_storage_nodes",(char*) &ndb_number_of_storage_nodes, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
@@ -363,6 +363,7 @@ void ha_ndbcluster::records_update()
   {
     Ndb *ndb= get_ndb();
     struct Ndb_statistics stat;
+    ndb->setDatabaseName(m_dbname);
     if (ndb_get_table_statistics(ndb, m_tabname, &stat) == 0){
       mean_rec_length= stat.row_size;
       data_file_length= stat.fragment_memory;
@@ -3081,6 +3082,7 @@ void ha_ndbcluster::info(uint flag)
         DBUG_VOID_RETURN;
       Ndb *ndb= get_ndb();
       struct Ndb_statistics stat;
+      ndb->setDatabaseName(m_dbname);
       if (current_thd->variables.ndb_use_exact_count &&
           ndb_get_table_statistics(ndb, m_tabname, &stat) == 0)
       {
@@ -4116,7 +4118,11 @@ static int create_ndb_column(NDBCOL &col,
 
 static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
 {
-  if (form->s->max_rows == (ha_rows) 0) /* default setting, don't set fragmentation */
+  ha_rows max_rows= form->s->max_rows;
+  ha_rows min_rows= form->s->min_rows;
+  if (max_rows < min_rows)
+    max_rows= min_rows;
+  if (max_rows == (ha_rows)0) /* default setting, don't set fragmentation */
     return;
   /**
    * get the number of fragments right
@@ -4134,7 +4140,6 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
       acc_row_size+= 4 + /*safety margin*/ 4;
 #endif
     ulonglong acc_fragment_size= 512*1024*1024;
-    ulonglong max_rows= form->s->max_rows;
 #if MYSQL_VERSION_ID >= 50100
     no_fragments= (max_rows*acc_row_size)/acc_fragment_size+1;
 #else
@@ -4158,6 +4163,8 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
       ftype= NDBTAB::FragAllSmall;
     tab.setFragmentType(ftype);
   }
+  tab.setMaxRows(max_rows);
+  tab.setMinRows(min_rows);
 }
 
 int ha_ndbcluster::create(const char *name, 
@@ -5837,62 +5844,60 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
   DBUG_ENTER("ndb_get_table_statistics");
   DBUG_PRINT("enter", ("table: %s", table));
   NdbTransaction* pTrans;
+  NdbError error;
   int retries= 10;
   int retry_sleep= 30 * 1000; /* 30 milliseconds */
 
   do
   {
-    pTrans= ndb->startTransaction();
-    if (pTrans == NULL)
-    {
-      if (ndb->getNdbError().status == NdbError::TemporaryError &&
-          retries--)
-      {
-        my_sleep(retry_sleep);
-        continue;
-      }
-      break;
-    }
-
-    NdbScanOperation* pOp= pTrans->getNdbScanOperation(table);
-    if (pOp == NULL)
-      break;
-    
-    if (pOp->readTuples(NdbOperation::LM_CommittedRead))
-      break;
-    
-    int check= pOp->interpret_exit_last_row();
-    if (check == -1)
-      break;
-    
     Uint64 rows, commits, mem;
     Uint32 size;
-    pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&rows);
-    pOp->getValue(NdbDictionary::Column::COMMIT_COUNT, (char*)&commits);
-    pOp->getValue(NdbDictionary::Column::ROW_SIZE, (char*)&size);
-    pOp->getValue(NdbDictionary::Column::FRAGMENT_MEMORY, (char*)&mem);
-    
-    check= pTrans->execute(NdbTransaction::NoCommit,
-                           NdbTransaction::AbortOnError,
-                           TRUE);
-    if (check == -1)
-    {
-      if (pTrans->getNdbError().status == NdbError::TemporaryError &&
-          retries--)
-      {
-        ndb->closeTransaction(pTrans);
-        pTrans= 0;
-        my_sleep(retry_sleep);
-        continue;
-      }
-      break;
-    }
-
     Uint32 count= 0;
     Uint64 sum_rows= 0;
     Uint64 sum_commits= 0;
     Uint64 sum_row_size= 0;
     Uint64 sum_mem= 0;
+    NdbScanOperation*pOp;
+    NdbResultSet *rs;
+    int check;
+
+    if ((pTrans= ndb->startTransaction()) == NULL)
+    {
+      error= ndb->getNdbError();
+      goto retry;
+    }
+      
+    if ((pOp= pTrans->getNdbScanOperation(table)) == NULL)
+    {
+      error= pTrans->getNdbError();
+      goto retry;
+    }
+    
+    if (pOp->readTuples(NdbOperation::LM_CommittedRead))
+    {
+      error= pOp->getNdbError();
+      goto retry;
+    }
+    
+    if (pOp->interpret_exit_last_row() == -1)
+    {
+      error= pOp->getNdbError();
+      goto retry;
+    }
+    
+    pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&rows);
+    pOp->getValue(NdbDictionary::Column::COMMIT_COUNT, (char*)&commits);
+    pOp->getValue(NdbDictionary::Column::ROW_SIZE, (char*)&size);
+    pOp->getValue(NdbDictionary::Column::FRAGMENT_MEMORY, (char*)&mem);
+    
+    if (pTrans->execute(NdbTransaction::NoCommit,
+                        NdbTransaction::AbortOnError,
+                        TRUE) == -1)
+    {
+      error= pTrans->getNdbError();
+      goto retry;
+    }
+    
     while ((check= pOp->nextResult(TRUE, TRUE)) == 0)
     {
       sum_rows+= rows;
@@ -5904,7 +5909,10 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     }
     
     if (check == -1)
-      break;
+    {
+      error= pOp->getNdbError();
+      goto retry;
+    }
 
     pOp->close(TRUE);
 
@@ -5921,12 +5929,21 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
                         sum_mem, count));
 
     DBUG_RETURN(0);
+retry:
+    if (pTrans)
+    {
+      ndb->closeTransaction(pTrans);
+      pTrans= NULL;
+    }
+    if (error.status == NdbError::TemporaryError && retries--)
+    {
+      my_sleep(retry_sleep);
+      continue;
+    }
+    break;
   } while(1);
-
-  if (pTrans)
-    ndb->closeTransaction(pTrans);
-  DBUG_PRINT("exit", ("failed"));
-  DBUG_RETURN(-1);
+  DBUG_PRINT("exit", ("failed, error %u(%s)", error.code, error.message));
+  ERR_RETURN(error);
 }
 
 /*

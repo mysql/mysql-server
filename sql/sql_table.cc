@@ -1656,8 +1656,23 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       my_casedn_str(files_charset_info, path);
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
   }
-  else
+  else  
+  {
+	#ifdef FN_DEVCHAR
+	  /* check if the table name contains FN_DEVCHAR when defined */
+	  const char *start= alias;
+	  while (*start != '\0')
+	  {
+		  if (*start == FN_DEVCHAR)
+		  {
+			  my_error(ER_WRONG_TABLE_NAME, MYF(0), alias);
+			  DBUG_RETURN(TRUE);
+		  }
+		  start++;
+	  }	  
+	#endif
     build_table_path(path, sizeof(path), db, alias, reg_ext);
+  }
 
   /* Check if table already exists */
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -1674,8 +1689,6 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     DBUG_RETURN(TRUE);
   }
-  if (wait_if_global_read_lock(thd, 0, 1))
-    DBUG_RETURN(TRUE);
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
@@ -1743,7 +1756,6 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
 
 end:
   VOID(pthread_mutex_unlock(&LOCK_open));
-  start_waiting_global_read_lock(thd);
   thd->proc_info="After create";
   DBUG_RETURN(error);
 
@@ -1923,7 +1935,7 @@ void close_cached_table(THD *thd, TABLE *table)
   thd->open_tables=unlink_open_table(thd,thd->open_tables,table);
 
   /* When lock on LOCK_open is freed other threads can continue */
-  pthread_cond_broadcast(&COND_refresh);
+  broadcast_refresh();
   DBUG_VOID_RETURN;
 }
 
@@ -2672,7 +2684,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 
   TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
-  src_db= table_ident->db.str ? table_ident->db.str : thd->db;
+  DBUG_ASSERT(table_ident->db.str); /* Must be set in the parser */
+  src_db= table_ident->db.str;
 
   /*
     Validate the source table
@@ -3894,7 +3907,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (error)
   {
     VOID(pthread_mutex_unlock(&LOCK_open));
-    VOID(pthread_cond_broadcast(&COND_refresh));
+    broadcast_refresh();
     goto err;
   }
   thd->proc_info="end";
@@ -3904,7 +3917,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
     mysql_bin_log.write(&qinfo);
   }
-  VOID(pthread_cond_broadcast(&COND_refresh));
+  broadcast_refresh();
   VOID(pthread_mutex_unlock(&LOCK_open));
 #ifdef HAVE_BERKELEY_DB
   if (old_db_type == DB_TYPE_BERKELEY_DB)

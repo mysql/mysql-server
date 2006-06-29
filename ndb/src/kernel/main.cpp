@@ -420,6 +420,10 @@ int main(int argc, char** argv)
   FILE * signalLog = fopen(buf, "a");
   globalSignalLoggers.setOwnNodeId(globalData.ownId);
   globalSignalLoggers.setOutputStream(signalLog);
+#if 0 // to log startup
+  globalSignalLoggers.log(SignalLoggerManager::LogInOut, "BLOCK=DBDICT,DBDIH");
+  globalData.testOn = 1;
+#endif
 #endif
   
   catchsigs(false);

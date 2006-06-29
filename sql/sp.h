@@ -104,15 +104,15 @@ extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first);
 TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup);
 void close_proc_table(THD *thd, Open_tables_state *backup);
 
-//
-// Utilities...
-//
 
-// Do a "use newdb". The current db is stored at olddb.
-// If newdb is the same as the current one, nothing is changed.
-// dbchangedp is set to true if the db was actually changed.
+/*
+  Do a "use new_db". The current db is stored at old_db.  If new_db is the
+  same as the current one, nothing is changed.  dbchangedp is set to true if
+  the db was actually changed.
+*/
+
 int
-sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddbmax,
+sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
 	      bool no_access_check, bool *dbchangedp);
 
 #endif /* _SP_H_ */

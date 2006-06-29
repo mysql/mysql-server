@@ -1019,19 +1019,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 Warnings:
-Note	1003	select sql_no_cache (select sql_no_cache rand() AS `RAND()` from `test`.`t1`) AS `(SELECT RAND() FROM t1)` from `test`.`t1`
+Note	1003	select (select rand() AS `RAND()` from `test`.`t1`) AS `(SELECT RAND() FROM t1)` from `test`.`t1`
 EXPLAIN EXTENDED SELECT (SELECT ENCRYPT('test') FROM t1) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 Warnings:
-Note	1003	select sql_no_cache (select sql_no_cache encrypt(_latin1'test') AS `ENCRYPT('test')` from `test`.`t1`) AS `(SELECT ENCRYPT('test') FROM t1)` from `test`.`t1`
+Note	1003	select (select encrypt(_latin1'test') AS `ENCRYPT('test')` from `test`.`t1`) AS `(SELECT ENCRYPT('test') FROM t1)` from `test`.`t1`
 EXPLAIN EXTENDED SELECT (SELECT BENCHMARK(1,1) FROM t1) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 Warnings:
-Note	1003	select sql_no_cache (select sql_no_cache benchmark(1,1) AS `BENCHMARK(1,1)` from `test`.`t1`) AS `(SELECT BENCHMARK(1,1) FROM t1)` from `test`.`t1`
+Note	1003	select (select benchmark(1,1) AS `BENCHMARK(1,1)` from `test`.`t1`) AS `(SELECT BENCHMARK(1,1) FROM t1)` from `test`.`t1`
 drop table t1;
 CREATE TABLE `t1` (
 `mot` varchar(30) character set latin1 NOT NULL default '',
@@ -1126,7 +1126,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	UNCACHEABLE SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
 3	UNCACHEABLE SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
 Warnings:
-Note	1003	select sql_no_cache `test`.`t1`.`a` AS `a`,(select sql_no_cache (select sql_no_cache rand() AS `rand()` from `test`.`t1` limit 1) AS `(select rand() from t1 limit 1)` from `test`.`t1` limit 1) AS `(select (select rand() from t1 limit 1)  from t1 limit 1)` from `test`.`t1`
+Note	1003	select `test`.`t1`.`a` AS `a`,(select (select rand() AS `rand()` from `test`.`t1` limit 1) AS `(select rand() from t1 limit 1)` from `test`.`t1` limit 1) AS `(select (select rand() from t1 limit 1)  from t1 limit 1)` from `test`.`t1`
 drop table t1;
 select t1.Continent, t2.Name, t2.Population from t1 LEFT JOIN t2 ON t1.Code = t2.Country  where t2.Population IN (select max(t2.Population) AS Population from t2, t1 where t2.Country = t1.Code group by Continent);
 ERROR 42S02: Table 'test.t1' doesn't exist
