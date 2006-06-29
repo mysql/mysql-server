@@ -363,6 +363,7 @@ void ha_ndbcluster::records_update()
   {
     Ndb *ndb= get_ndb();
     struct Ndb_statistics stat;
+    ndb->setDatabaseName(m_dbname);
     if (ndb_get_table_statistics(ndb, m_tabname, &stat) == 0){
       mean_rec_length= stat.row_size;
       data_file_length= stat.fragment_memory;
@@ -3076,6 +3077,7 @@ void ha_ndbcluster::info(uint flag)
         DBUG_VOID_RETURN;
       Ndb *ndb= get_ndb();
       struct Ndb_statistics stat;
+      ndb->setDatabaseName(m_dbname);
       if (current_thd->variables.ndb_use_exact_count &&
           ndb_get_table_statistics(ndb, m_tabname, &stat) == 0)
       {
@@ -5836,62 +5838,57 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
   DBUG_ENTER("ndb_get_table_statistics");
   DBUG_PRINT("enter", ("table: %s", table));
   NdbTransaction* pTrans;
+  NdbError error;
   int retries= 10;
   int retry_sleep= 30 * 1000; /* 30 milliseconds */
 
   do
   {
-    pTrans= ndb->startTransaction();
-    if (pTrans == NULL)
-    {
-      if (ndb->getNdbError().status == NdbError::TemporaryError &&
-          retries--)
-      {
-        my_sleep(retry_sleep);
-        continue;
-      }
-      break;
-    }
-
-    NdbScanOperation* pOp= pTrans->getNdbScanOperation(table);
-    if (pOp == NULL)
-      break;
-    
-    if (pOp->readTuples(NdbOperation::LM_CommittedRead))
-      break;
-    
-    int check= pOp->interpret_exit_last_row();
-    if (check == -1)
-      break;
-    
     Uint64 rows, commits, mem;
     Uint32 size;
+    Uint64 sum_rows= 0;
+    Uint64 sum_commits= 0;
+    NdbScanOperation*pOp;
+    NdbResultSet *rs;
+    int check;
+
+    if ((pTrans= ndb->startTransaction()) == NULL)
+    {
+      error= ndb->getNdbError();
+      goto retry;
+    }
+      
+    if ((pOp= pTrans->getNdbScanOperation(table)) == NULL)
+    {
+      error= pTrans->getNdbError();
+      goto retry;
+    }
+    
+    if (pOp->readTuples(NdbOperation::LM_CommittedRead))
+    {
+      error= pOp->getNdbError();
+      goto retry;
+    }
+    
+    if (pOp->interpret_exit_last_row() == -1)
+    {
+      error= pOp->getNdbError();
+      goto retry;
+    }
+    
     pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&rows);
     pOp->getValue(NdbDictionary::Column::COMMIT_COUNT, (char*)&commits);
     pOp->getValue(NdbDictionary::Column::ROW_SIZE, (char*)&size);
     pOp->getValue(NdbDictionary::Column::FRAGMENT_MEMORY, (char*)&mem);
     
-    check= pTrans->execute(NdbTransaction::NoCommit,
-                           NdbTransaction::AbortOnError,
-                           TRUE);
-    if (check == -1)
+    if (pTrans->execute(NdbTransaction::NoCommit,
+                        NdbTransaction::AbortOnError,
+                        TRUE) == -1)
     {
-      if (pTrans->getNdbError().status == NdbError::TemporaryError &&
-          retries--)
-      {
-        ndb->closeTransaction(pTrans);
-        pTrans= 0;
-        my_sleep(retry_sleep);
-        continue;
-      }
-      break;
+      error= pTrans->getNdbError();
+      goto retry;
     }
-
-    Uint32 count= 0;
-    Uint64 sum_rows= 0;
-    Uint64 sum_commits= 0;
-    Uint64 sum_row_size= 0;
-    Uint64 sum_mem= 0;
+    
     while ((check= pOp->nextResult(TRUE, TRUE)) == 0)
     {
       sum_rows+= rows;
@@ -5903,7 +5900,10 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     }
     
     if (check == -1)
-      break;
+    {
+      error= pOp->getNdbError();
+      goto retry;
+    }
 
     pOp->close(TRUE);
 
@@ -5920,12 +5920,21 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
                         sum_mem, count));
 
     DBUG_RETURN(0);
+retry:
+    if (pTrans)
+    {
+      ndb->closeTransaction(pTrans);
+      pTrans= NULL;
+    }
+    if (error.status == NdbError::TemporaryError && retries--)
+    {
+      my_sleep(retry_sleep);
+      continue;
+    }
+    break;
   } while(1);
-
-  if (pTrans)
-    ndb->closeTransaction(pTrans);
-  DBUG_PRINT("exit", ("failed"));
-  DBUG_RETURN(-1);
+  DBUG_PRINT("exit", ("failed, error %u(%s)", error.code, error.message));
+  ERR_RETURN(error);
 }
 
 /*
