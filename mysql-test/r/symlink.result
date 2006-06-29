@@ -74,18 +74,24 @@ t9	CREATE TABLE `t9` (
 ) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 drop database mysqltest;
 create table t1 (a int not null) engine=myisam;
+Warnings:
+Warning	0	DATA DIRECTORY option ignored
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 add b int;
+Warnings:
+Warning	0	DATA DIRECTORY option ignored
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Warnings:
+Warning	0	INDEX DIRECTORY option ignored
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
