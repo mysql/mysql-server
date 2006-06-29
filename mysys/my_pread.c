@@ -66,8 +66,9 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
 
     pthread_mutex_unlock(&my_file_info[Filedes].mutex);
 #else
-    error=((readbytes = (uint) pread(Filedes, Buffer, Count, offset)) != Count);
-    my_errno= errno;
+    if ((error= ((readbytes =
+                  (uint) pread(Filedes, Buffer, Count, offset)) != Count)))
+      my_errno= errno;
 #endif
     if (error || readbytes != Count)
     {
