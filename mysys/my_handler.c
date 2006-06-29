@@ -15,6 +15,7 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
+#include <my_global.h>
 #include "my_handler.h"
 
 int mi_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
