@@ -148,6 +148,19 @@ They should be used with caution.
 
 %{see_base}
 
+%package bench
+Requires: %{name}-client perl-DBI perl
+Summary: MySQL - Benchmarks and test system
+Group: Applications/Databases
+Provides: mysql-bench
+Obsoletes: mysql-bench
+AutoReqProv: no
+
+%description bench
+This package contains MySQL benchmark scripts and data.
+
+%{see_base}
+
 %package devel
 Summary: MySQL - Development header files and libraries
 Group: Applications/Databases
