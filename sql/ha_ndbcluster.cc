@@ -5852,8 +5852,11 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
   {
     Uint64 rows, commits, mem;
     Uint32 size;
+    Uint32 count= 0;
     Uint64 sum_rows= 0;
     Uint64 sum_commits= 0;
+    Uint64 sum_row_size= 0;
+    Uint64 sum_mem= 0;
     NdbScanOperation*pOp;
     NdbResultSet *rs;
     int check;
