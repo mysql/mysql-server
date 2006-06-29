@@ -72,11 +72,11 @@ printBACKUP_ABORT_REP(FILE * out, const Uint32 * data, Uint32 len, Uint16 bno){
 bool 
 printBACKUP_COMPLETE_REP(FILE * out, const Uint32 * data, Uint32 len, Uint16 b){
   BackupCompleteRep* sig = (BackupCompleteRep*)data;
-  fprintf(out, " senderData: %d backupId: %d records: %d bytes: %d\n",
+  fprintf(out, " senderData: %d backupId: %d records: %llu bytes: %llu\n",
 	  sig->senderData,
 	  sig->backupId,
-	  sig->noOfRecords,
-	  sig->noOfBytes);
+	  sig->noOfRecordsLow + (((Uint64)sig->noOfRecordsHigh) << 32),
+          sig->noOfBytesLow + (((Uint64)sig->noOfBytesHigh) << 32));
   return true;
 }
 

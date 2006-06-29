@@ -134,6 +134,10 @@ public:
    * on disk.  Index trigger ids are volatile.
    */
   struct TableRecord : public MetaData::Table {
+    Uint32 maxRowsLow;
+    Uint32 maxRowsHigh;
+    Uint32 minRowsLow;
+    Uint32 minRowsHigh;
     /****************************************************
      *    Support variables for table handling
      ****************************************************/
@@ -1780,12 +1784,17 @@ private:
    *
    * XXX only table ops check BlockState
    */
+  struct DictLockType;
+  friend struct DictLockType;
 
   struct DictLockType {
     DictLockReq::LockType lockType;
     BlockState blockState;
     const char* text;
   };
+
+  struct DictLockRecord;
+  friend struct DictLockRecord;
 
   struct DictLockRecord {
     DictLockReq req;

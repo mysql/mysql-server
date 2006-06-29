@@ -4116,7 +4116,11 @@ static int create_ndb_column(NDBCOL &col,
 
 static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
 {
-  if (form->s->max_rows == (ha_rows) 0) /* default setting, don't set fragmentation */
+  ha_rows max_rows= form->s->max_rows;
+  ha_rows min_rows= form->s->min_rows;
+  if (max_rows < min_rows)
+    max_rows= min_rows;
+  if (max_rows == (ha_rows)0) /* default setting, don't set fragmentation */
     return;
   /**
    * get the number of fragments right
@@ -4134,7 +4138,6 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
       acc_row_size+= 4 + /*safety margin*/ 4;
 #endif
     ulonglong acc_fragment_size= 512*1024*1024;
-    ulonglong max_rows= form->s->max_rows;
 #if MYSQL_VERSION_ID >= 50100
     no_fragments= (max_rows*acc_row_size)/acc_fragment_size+1;
 #else
@@ -4158,6 +4161,8 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
       ftype= NDBTAB::FragAllSmall;
     tab.setFragmentType(ftype);
   }
+  tab.setMaxRows(max_rows);
+  tab.setMinRows(min_rows);
 }
 
 int ha_ndbcluster::create(const char *name, 
