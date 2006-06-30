@@ -147,8 +147,6 @@ select extract(MONTH FROM "2001-02-00");
 #
 SELECT DATE_SUB(str_to_date('9999-12-31 00:01:00','%Y-%m-%d %H:%i:%s'), INTERVAL 1 MINUTE);
 SELECT DATE_ADD(str_to_date('9999-12-30 23:59:00','%Y-%m-%d %H:%i:%s'), INTERVAL 1 MINUTE);
-
-#
 # test EXTRACT QUARTER (Bug #18100)
 #
 
