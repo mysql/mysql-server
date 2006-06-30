@@ -1,0 +1,116 @@
+#! /bin/sh
+
+NOINST_NAME=$1
+
+mkdir $NOINST_NAME
+mkdir $NOINST_NAME/bin
+cp client/release/*.exe $NOINST_NAME/bin/
+cp extra/release/*.exe $NOINST_NAME/bin/
+mv $NOINST_NAME/bin/comp_err.exe $NOINST_NAME/bin/comp-err.exe
+cp storage/myisam/release/*.exe $NOINST_NAME/bin/
+cp server-tools/instance-manager/release/*.exe $NOINST_NAME/bin/
+cp tests/release/*.exe $NOINST_NAME/bin/
+cp libmysql/release/*.exe $NOINST_NAME/bin/
+cp libmysql/release/libmysql.dll $NOINST_NAME/bin/
+
+cp sql/release/mysqld.exe $NOINST_NAME/bin/mysqld.exe
+cp sql/debug/mysqld.exe $NOINST_NAME/bin/mysqld-debug.exe
+# For Pro/Classic builds, do this instead:
+#   cp sql/release/mysqld.exe $NOINST_NAME/bin/mysqld-nt.exe
+#   cp sql/debug/mysqld.exe $NOINST_NAME/bin/mysqld-debug.exe
+
+cp COPYING EXCEPTIONS-CLIENT $NOINST_NAME/
+cp -dpR win/data $NOINST_NAME/data
+mkdir $NOINST_NAME/Docs
+cp Docs/INSTALL-BINARY Docs/manual.chm ChangeLog COPYING $NOINST_NAME/Docs/
+
+# These will be filled in when we enable embedded.
+mkdir -p $NOINST_NAME/Embedded/DLL/debug $NOINST_NAME/Embedded/DLL/release $NOINST_NAME/Embedded/static/release
+
+mkdir -p $NOINST_NAME/examples/libmysqltest/debug $NOINST_NAME/examples/libmysqltest/release
+cp libmysql/mytest.c libmysql/myTest.vcproj libmysql/release/myTest.exe $NOINST_NAME/examples/libmysqltest/
+cp libmysql/debug/myTest.exe $NOINST_NAME/examples/libmysqltest/debug/
+cp libmysql/release/myTest.exe $NOINST_NAME/examples/libmysqltest/release/
+
+mkdir -p $NOINST_NAME/examples/tests
+cp tests/*.res tests/*.tst tests/*.pl tests/*.c $NOINST_NAME/examples/tests/
+
+mkdir -p $NOINST_NAME/include
+cp include/conf*.h \
+   include/mysql*.h \
+   include/errmsg.h \
+   include/my_alloc.h \
+   include/my_getopt.h \
+   include/my_sys.h \
+   include/my_list.h \
+   include/my_pthread.h \
+   include/my_dbug.h \
+   include/m_string.h \
+   include/m_ctype.h \
+   include/my_global.h \
+   include/typelib.h $NOINST_NAME/include/
+cp libmysql/libmysql.def $NOINST_NAME/include/
+cp libmysqld/libmysqld.def $NOINST_NAME/include/
+
+mkdir -p $NOINST_NAME/lib/debug $NOINST_NAME/lib/opt
+cp libmysql/debug/libmysql.dll \
+   libmysql/debug/libmysql.lib \
+   client/debug/mysqlclient.lib \
+   mysys/debug/mysys.lib \
+   regex/debug/regex.lib \
+   strings/debug/strings.lib \
+   zlib/debug/zlib.lib $NOINST_NAME/lib/debug/
+cp libmysql/release/libmysql.dll \
+   libmysql/release/libmysql.lib \
+   client/release/mysqlclient.lib \
+   regex/release/regex.lib \
+   strings/release/strings.lib \
+   zlib/release/zlib.lib $NOINST_NAME/lib/opt/
+cp mysys/release/mysys.lib $NOINST_NAME/lib/opt/mysys_tls.lib
+
+cp support-files/my-*.ini $NOINST_NAME/
+
+mkdir -p $NOINST_NAME/mysql-test/include $NOINST_NAME/mysql-test/lib \
+         $NOINST_NAME/mysql-test/r $NOINST_NAME/mysql-test/std_data \
+         $NOINST_NAME/mysql-test/t $NOINST_NAME/mysql-test/extra
+cp mysql-test/mysql-test-run.pl $NOINST_NAME/mysql-test/
+cp mysql-test/README $NOINST_NAME/mysql-test/
+cp mysql-test/install_test_db.sh $NOINST_NAME/mysql-test/install_test_db
+cp mysql-test/include/*.inc $NOINST_NAME/mysql-test/include/
+cp mysql-test/lib/*.pl $NOINST_NAME/mysql-test/lib/
+cp mysql-test/lib/*.sql $NOINST_NAME/mysql-test/lib/
+cp mysql-test/r/*.require $NOINST_NAME/mysql-test/r/
+# Need this trick, or we get "argument list too long".
+ABS_DST=`pwd`/$NOINST_NAME
+(cd mysql-test/r/ && cp *.result $ABS_DST/mysql-test/r/)
+cp mysql-test/std_data/* $NOINST_NAME/mysql-test/std_data/
+cp mysql-test/t/*.disabled $NOINST_NAME/mysql-test/t/
+cp mysql-test/t/*.opt $NOINST_NAME/mysql-test/t/
+cp mysql-test/t/*.sh $NOINST_NAME/mysql-test/t/
+cp mysql-test/t/*.slave-mi $NOINST_NAME/mysql-test/t/
+cp mysql-test/t/*.sql $NOINST_NAME/mysql-test/t/
+cp mysql-test/t/*.def $NOINST_NAME/mysql-test/t/
+(cd mysql-test/t/ && cp *.test $ABS_DST/mysql-test/t/)
+cp -dpR mysql-test/extra/* $NOINST_NAME/mysql-test/extra/
+
+# This copies in the unsubstituted scripts (containing @VAR@), but that seems
+# rather better than substituting random Unix paths and architecture names
+# from the Unix bootstrap host. Not sure what the point is of including these
+# shell scripts in the Windows packaging in any case.
+mkdir -p $NOINST_NAME/scripts
+for i in `cd scripts && ls`; do \
+  if echo $i | grep -q '\.sh'; then \
+    cp scripts/$i $NOINST_NAME/scripts/`echo $i | sed -e 's/\.sh$//'`; \
+  else if [ $i = Makefile.am -o $i = Makefile.in -o -e scripts/$i.sh ] ; then \
+    : ; \
+  else \
+    cp scripts/$i $NOINST_NAME/scripts/$i; \
+  fi; fi; \
+done
+
+cp -dpR sql/share $NOINST_NAME/
+cp -dpR sql-bench $NOINST_NAME/
+rm -f $NOINST_NAME/sql-bench/*.sh $NOINST_NAME/sql-bench/Makefile*
+
+zip -r $NOINST_NAME.zip $NOINST_NAME
+rm -Rf $NOINST_NAME
