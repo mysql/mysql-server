@@ -2300,12 +2300,14 @@ void ha_ndbcluster::unpack_record(byte* buf)
   {
     // Table with hidden primary key
     int hidden_no= table->fields;
+    char buff[22];
     const NDBTAB *tab= (const NDBTAB *) m_table;
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     NdbRecAttr* rec= m_value[hidden_no].rec;
     DBUG_ASSERT(rec);
-    DBUG_PRINT("hidden", ("%d: %s \"%llu\"", hidden_no, 
-                          hidden_col->getName(), rec->u_64_value()));
+    DBUG_PRINT("hidden", ("%d: %s \"%s\"", hidden_no, 
+                          hidden_col->getName(), 
+                          llstr(rec->u_64_value(), buff)));
   } 
   print_results();
 #endif
