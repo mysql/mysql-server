@@ -145,7 +145,8 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
 #else
     if ((writenbytes = (uint) pwrite(Filedes, Buffer, Count,offset)) == Count)
       break;
-    my_errno= errno;
+    else
+      my_errno= errno;
 #endif
     if ((int) writenbytes != -1)
     {					/* Safegueard */
