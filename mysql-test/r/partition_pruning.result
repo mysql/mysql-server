@@ -697,3 +697,10 @@ ref	NULL
 rows	2
 Extra	
 drop table t2;
+create table t1 (s1 int);
+explain partitions select 1 from t1 union all select 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	0	const row not found
+2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	
+drop table t1;
