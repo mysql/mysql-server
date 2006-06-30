@@ -166,9 +166,9 @@ int main()
   pthread_cond_init(&cond, 0);
   my_atomic_rwlock_init(&rwl);
 
-  test_atomic("my_atomic_add32", test_atomic_add_handler, 100,1000000);
-  test_atomic("my_atomic_swap32", test_atomic_swap_handler, 100,1000000);
-  test_atomic("my_atomic_cas32", test_atomic_cas_handler, 100,1000000);
+  test_atomic("my_atomic_add32", test_atomic_add_handler, 100,10000);
+  test_atomic("my_atomic_swap32", test_atomic_swap_handler, 100,10000);
+  test_atomic("my_atomic_cas32", test_atomic_cas_handler, 100,10000);
 
   pthread_mutex_destroy(&mutex);
   pthread_cond_destroy(&cond);
