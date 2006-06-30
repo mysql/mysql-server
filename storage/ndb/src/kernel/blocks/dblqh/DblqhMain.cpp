@@ -416,6 +416,35 @@ void Dblqh::execCONTINUEB(Signal* signal)
     checkDropTab(signal);
     return;
     break;
+  case ZENABLE_EXPAND_CHECK:
+  {
+    jam();
+    fragptr.i = signal->theData[1];
+    if (fragptr.i != RNIL)
+    {
+      jam();
+      c_redo_complete_fragments.getPtr(fragptr);
+      signal->theData[0] = fragptr.p->tabRef;
+      signal->theData[1] = fragptr.p->fragId;
+      sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+
+      c_redo_complete_fragments.next(fragptr);
+      signal->theData[0] = ZENABLE_EXPAND_CHECK;
+      signal->theData[1] = fragptr.i;
+      sendSignal(DBLQH_REF, GSN_CONTINUEB, signal, 2, JBB);	
+      return;
+    }
+    else
+    {
+      jam();
+      c_redo_complete_fragments.remove();
+      StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
+      conf->startingNodeId = getOwnNodeId();
+      sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
+		 StartRecConf::SignalLength, JBB);
+      return;
+    }
+  }
   default:
     ndbrequire(false);
     break;
@@ -15658,24 +15687,23 @@ void Dblqh::srFourthComp(Signal* signal)
   } else if ((cstartType == NodeState::ST_NODE_RESTART) ||
              (cstartType == NodeState::ST_SYSTEM_RESTART)) {
     jam();
-    
-    
 
+    if(cstartType == NodeState::ST_SYSTEM_RESTART)
+    {
+      jam();
+      if (c_redo_complete_fragments.first(fragptr))
+      {
+	jam();
+        signal->theData[0] = ZENABLE_EXPAND_CHECK;
+        signal->theData[1] = fragptr.i;
+        sendSignal(DBLQH_REF, GSN_CONTINUEB, signal, 2, JBB);
+	return;
+      }
+    }
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
-	       StartRecConf::SignalLength, JBB);
-
-    if(cstartType == NodeState::ST_SYSTEM_RESTART){
-      c_redo_complete_fragments.first(fragptr);
-      while(fragptr.i != RNIL){
-	signal->theData[0] = fragptr.p->tabRef;
-	signal->theData[1] = fragptr.p->fragId;
-	sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
-	c_redo_complete_fragments.next(fragptr);
-      }
-      c_redo_complete_fragments.remove();
-    }
+		 StartRecConf::SignalLength, JBB);
   } else {
     ndbrequire(false);
   }//if
