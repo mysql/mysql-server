@@ -93,10 +93,10 @@ do
   if test "$#" -eq 0
   then
     nohup $ledir/mysqld --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR \
-     --skip-locking >> $err 2>&1 &
+     --skip-external-locking >> $err 2>&1 &
   else
     nohup $ledir/mysqld --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR \
-     --skip-locking "$@" >> $err 2>&1 &
+     --skip-external-locking "$@" >> $err 2>&1 &
   fi
   pid=$!
   rm -f $lockfile
