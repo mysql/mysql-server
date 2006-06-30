@@ -66,7 +66,6 @@ page_zip_dir_size(
 	/* Exclude the page infimum and supremum from the record count. */
 	ulint	size = PAGE_ZIP_DIR_SLOT_SIZE
 			* (page_dir_get_n_heap((page_t*) page_zip->data) - 2);
-	ut_ad(page_zip->m_end + size < page_zip->size);
 	return(size);
 }
 
