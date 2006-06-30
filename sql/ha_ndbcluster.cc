@@ -6476,7 +6476,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
                    ("Table: %s  commit_count: %s  rows: %s",
                     share->table_name,
                     llstr(stat.commit_count, buff),
-                    llstr(stat.row_count, buff2));
+                    llstr(stat.row_count, buff2)));
       }
       else
       {
