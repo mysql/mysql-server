@@ -1381,16 +1381,16 @@ start_master()
 
   if [ x$DO_DDD = x1 ]
   then
-    $ECHO "set args $master_args" > $GDB_MASTER_INIT
+    $ECHO "set args $master_args" > $GDB_MASTER_INIT$1
     manager_launch master ddd -display $DISPLAY --debugger \
-    "gdb -x $GDB_MASTER_INIT" $MASTER_MYSQLD
+    "gdb -x $GDB_MASTER_INIT$1" $MASTER_MYSQLD
   elif [ x$DO_GDB = x1 ]
   then
     if [ x$MANUAL_GDB = x1 ]
     then
-      $ECHO "set args $master_args" > $GDB_MASTER_INIT
+      $ECHO "set args $master_args" > $GDB_MASTER_INIT$1
       $ECHO "To start gdb for the master , type in another window:"
-      $ECHO "cd $CWD ; gdb -x $GDB_MASTER_INIT $MASTER_MYSQLD"
+      $ECHO "cd $CWD ; gdb -x $GDB_MASTER_INIT$1 $MASTER_MYSQLD"
       wait_for_master=1500
     else
       ( $ECHO set args $master_args;
@@ -1402,9 +1402,9 @@ disa 1
 end
 r
 EOF
-      fi )  > $GDB_MASTER_INIT
+      fi )  > $GDB_MASTER_INIT$1
       manager_launch master $XTERM -display $DISPLAY \
-      -title "Master" -e gdb -x $GDB_MASTER_INIT $MASTER_MYSQLD
+      -title "Master" -e gdb -x $GDB_MASTER_INIT$1 $MASTER_MYSQLD
     fi
   else
     manager_launch master $MASTER_MYSQLD $master_args
@@ -2088,13 +2088,7 @@ then
   fi
 
   start_manager
-
-# Do not automagically start daemons if we are in gdb or running only one test
-# case
-  if [ -z "$DO_GDB" ] && [ -z "$DO_DDD" ]
-  then
-    mysql_start
-  fi
+  mysql_start
   $ECHO  "Loading Standard Test Databases"
   mysql_loadstd
 fi
