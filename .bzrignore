@@ -1286,3 +1286,5 @@ vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
 BitKeeper/etc/RESYNC_TREE
+mysql-test/r/*.log
+scripts/mysql_upgrade_shell
