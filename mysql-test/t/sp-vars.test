@@ -1271,3 +1271,39 @@ SELECT f1();
 #
 
 DROP FUNCTION f1;
+
+
+#
+# Bug#17226: Variable set in cursor on first iteration is assigned
+# second iterations value
+#
+# The problem was in incorrect handling of local variables of type
+# TEXT (BLOB).
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE v_char VARCHAR(255);
+  DECLARE v_text TEXT DEFAULT '';
+
+  SET v_char = 'abc';
+
+  SET v_text = v_char;
+
+  SET v_char = 'def';
+
+  SET v_text = concat(v_text, '|', v_char);
+
+  SELECT v_text;
+END|
+delimiter ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+# End of 5.0 tests.
