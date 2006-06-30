@@ -621,8 +621,8 @@ page_cur_insert_rec_write_log(
 
 		log_end = &log_ptr[2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN];
 		/* Write the cursor rec offset as a 2-byte ulint */
-		mach_write_to_2(log_ptr, cursor_rec
-					- buf_frame_align(cursor_rec));
+		mach_write_to_2(log_ptr,
+				ut_align_offset(cursor_rec, UNIV_PAGE_SIZE));
 		log_ptr += 2;
 	} else {
 		log_ptr = mlog_open(mtr, 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
@@ -1022,6 +1022,7 @@ use_heap:
 
 	/* 4. Insert the record in the linked list of records */
 	current_rec = cursor->rec;
+	ut_ad(current_rec != insert_rec);
 
 	{
 		/* next record after current before the insertion */

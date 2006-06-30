@@ -269,6 +269,12 @@ rec_get_next_ptr(
 			+ ut_align_offset(rec, UNIV_PAGE_SIZE)
 			< UNIV_PAGE_SIZE);
 #endif
+		/* There must be at least REC_N_NEW_EXTRA_BYTES + 1
+		between each record. */
+		ut_ad((field_value > REC_N_NEW_EXTRA_BYTES
+				&& field_value < 32768)
+			|| field_value < (uint16) -REC_N_NEW_EXTRA_BYTES);
+
 		return((byte*) ut_align_down(rec, UNIV_PAGE_SIZE)
 			+ ut_align_offset(rec + field_value, UNIV_PAGE_SIZE));
 	} else {
@@ -322,6 +328,12 @@ rec_get_next_offs(
 
 			return(0);
 		}
+
+		/* There must be at least REC_N_NEW_EXTRA_BYTES + 1
+		between each record. */
+		ut_ad((field_value > REC_N_NEW_EXTRA_BYTES
+				&& field_value < 32768)
+			|| field_value < (uint16) -REC_N_NEW_EXTRA_BYTES);
 
 		return(ut_align_offset(rec + field_value, UNIV_PAGE_SIZE));
 	} else {
