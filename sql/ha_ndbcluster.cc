@@ -1364,6 +1364,12 @@ int ha_ndbcluster::unique_index_read(const byte *key,
       m_value[i].ptr= NULL;
     }
   }
+  if (table->primary_key == MAX_KEY) 
+  {
+    DBUG_PRINT("info", ("Getting hidden key"));
+    if (get_ndb_value(op, NULL, i, NULL))
+      ERR_RETURN(op->getNdbError());
+  }
 
   if (execute_no_commit_ie(this,trans) != 0) 
   {
