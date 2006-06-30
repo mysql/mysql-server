@@ -341,8 +341,8 @@ i2	int(11)	NO	UNI
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i1` int(11) NOT NULL default '0',
-  `i2` int(11) NOT NULL default '0',
+  `i1` int(11) NOT NULL,
+  `i2` int(11) NOT NULL,
   UNIQUE KEY `i1idx` (`i1`),
   UNIQUE KEY `i2idx` (`i2`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
