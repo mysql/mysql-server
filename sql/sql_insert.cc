@@ -298,9 +298,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   {
     if (thd->locked_tables)
     {
-      if (find_locked_table(thd,
-			    table_list->db ? table_list->db : thd->db,
-			    table_list->table_name))
+      DBUG_ASSERT(table_list->db); /* Must be set in the parser */
+      if (find_locked_table(thd, table_list->db, table_list->table_name))
       {
 	my_error(ER_DELAYED_INSERT_TABLE_LOCKED, MYF(0),
                  table_list->table_name);
@@ -1329,8 +1328,8 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
   TABLE *table;
   DBUG_ENTER("delayed_get_table");
 
-  if (!table_list->db)
-    table_list->db=thd->db;
+  /* Must be set in the parser */
+  DBUG_ASSERT(table_list->db);
 
   /* Find the thread which handles this table. */
   if (!(tmp=find_handler(thd,table_list)))
@@ -1349,18 +1348,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
     */
     if (! (tmp= find_handler(thd, table_list)))
     {
-      /*
-        Avoid that a global read lock steps in while we are creating the
-        new thread. It would block trying to open the table. Hence, the
-        DI thread and this thread would wait until after the global
-        readlock is gone. Since the insert thread needs to wait for a
-        global read lock anyway, we do it right now. Note that
-        wait_if_global_read_lock() sets a protection against a new
-        global read lock when it succeeds. This needs to be released by
-        start_waiting_global_read_lock().
-      */
-      if (wait_if_global_read_lock(thd, 0, 1))
-        goto err;
       if (!(tmp=new delayed_insert()))
       {
 	my_error(ER_OUTOFMEMORY,MYF(0),sizeof(delayed_insert));
@@ -1369,15 +1356,15 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
       pthread_mutex_lock(&LOCK_thread_count);
       thread_count++;
       pthread_mutex_unlock(&LOCK_thread_count);
-      if (!(tmp->thd.db=my_strdup(table_list->db,MYF(MY_WME))) ||
-	  !(tmp->thd.query=my_strdup(table_list->table_name,MYF(MY_WME))))
+      tmp->thd.set_db(table_list->db, strlen(table_list->db));
+      tmp->thd.query= my_strdup(table_list->table_name,MYF(MY_WME));
+      if (tmp->thd.db == NULL || tmp->thd.query == NULL)
       {
 	delete tmp;
 	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
 	goto err1;
       }
       tmp->table_list= *table_list;			// Needed to open table
-      tmp->table_list.db= tmp->thd.db;
       tmp->table_list.alias= tmp->table_list.table_name= tmp->thd.query;
       tmp->lock();
       pthread_mutex_lock(&tmp->mutex);
@@ -1401,11 +1388,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_cond_wait(&tmp->cond_client,&tmp->mutex);
       }
       pthread_mutex_unlock(&tmp->mutex);
-      /*
-        Release the protection against the global read lock and wake
-        everyone, who might want to set a global read lock.
-      */
-      start_waiting_global_read_lock(thd);
       thd->proc_info="got old table";
       if (tmp->thd.killed)
       {
@@ -1441,11 +1423,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 
  err1:
   thd->fatal_error();
-  /*
-    Release the protection against the global read lock and wake
-    everyone, who might want to set a global read lock.
-  */
-  start_waiting_global_read_lock(thd);
  err:
   pthread_mutex_unlock(&LOCK_delayed_create);
   DBUG_RETURN(0); // Continue with normal insert
@@ -2676,7 +2653,7 @@ bool select_create::send_eof()
       hash_delete(&open_cache,(byte*) table);
       /* Tell threads waiting for refresh that something has happened */
       if (version != refresh_version)
-        VOID(pthread_cond_broadcast(&COND_refresh));
+        broadcast_refresh();
     }
     lock=0;
     table=0;
@@ -2705,7 +2682,7 @@ void select_create::abort()
         quick_rm_table(table_type, create_table->db, create_table->table_name);
       /* Tell threads waiting for refresh that something has happened */
       if (version != refresh_version)
-        VOID(pthread_cond_broadcast(&COND_refresh));
+        broadcast_refresh();
     }
     else if (!create_info->table_existed)
       close_temporary_table(thd, create_table->db, create_table->table_name);

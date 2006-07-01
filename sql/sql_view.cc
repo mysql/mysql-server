@@ -452,15 +452,15 @@ bool mysql_create_view(THD *thd,
   */
   for (sl= select_lex; sl; sl= sl->next_select())
   {
-    char *db= view->db ? view->db : thd->db;
+    DBUG_ASSERT(view->db);                     /* Must be set in the parser */
     List_iterator_fast<Item> it(sl->item_list);
     Item *item;
-    fill_effective_table_privileges(thd, &view->grant, db,
+    fill_effective_table_privileges(thd, &view->grant, view->db,
                                     view->table_name);
     while ((item= it++))
     {
       Item_field *fld;
-      uint priv= (get_column_grant(thd, &view->grant, db,
+      uint priv= (get_column_grant(thd, &view->grant, view->db,
                                     view->table_name, item->name) &
                   VIEW_ANY_ACL);
       if ((fld= item->filed_for_view_update()))
@@ -641,8 +641,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
       if (!parser->ok() || !is_equal(&view_type, parser->type()))
       {
-        my_error(ER_WRONG_OBJECT, MYF(0),
-                 (view->db ? view->db : thd->db), view->table_name, "VIEW");
+        my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
         DBUG_RETURN(-1);
       }
 

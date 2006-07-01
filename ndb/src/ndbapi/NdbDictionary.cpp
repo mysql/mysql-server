@@ -385,6 +385,30 @@ NdbDictionary::Table::getNoOfPrimaryKeys() const {
   return m_impl.m_noOfKeys;
 }
 
+void
+NdbDictionary::Table::setMaxRows(Uint64 maxRows)
+{
+  m_impl.m_max_rows = maxRows;
+}
+
+Uint64
+NdbDictionary::Table::getMaxRows() const
+{
+  return m_impl.m_max_rows;
+}
+
+void
+NdbDictionary::Table::setMinRows(Uint64 minRows)
+{
+  m_impl.m_min_rows = minRows;
+}
+
+Uint64
+NdbDictionary::Table::getMinRows() const
+{
+  return m_impl.m_min_rows;
+}
+
 const char*
 NdbDictionary::Table::getPrimaryKey(int no) const {
   int count = 0;

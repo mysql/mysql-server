@@ -78,7 +78,7 @@
 #define FEDERATED_VALUES_LEN sizeof(FEDERATED_VALUES)
 #define FEDERATED_UPDATE "UPDATE "
 #define FEDERATED_UPDATE_LEN sizeof(FEDERATED_UPDATE)
-#define FEDERATED_SET "SET "
+#define FEDERATED_SET " SET "
 #define FEDERATED_SET_LEN sizeof(FEDERATED_SET)
 #define FEDERATED_AND " AND "
 #define FEDERATED_AND_LEN sizeof(FEDERATED_AND)
@@ -130,6 +130,7 @@ typedef struct st_federated_share {
     remote host info, parse_url supplies
   */
   char *scheme;
+  char *connect_string;
   char *hostname;
   char *username;
   char *password;
@@ -139,7 +140,7 @@ typedef struct st_federated_share {
   char *socket;
   char *sport;
   ushort port;
-  uint table_name_length, use_count;
+  uint table_name_length, connect_string_length, use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
 } FEDERATED_SHARE;
@@ -153,7 +154,6 @@ class ha_federated: public handler
   FEDERATED_SHARE *share;    /* Shared lock info */
   MYSQL *mysql; /* MySQL connection */
   MYSQL_RES *stored_result;
-  uint ref_length;
   uint fetch_num; // stores the fetch num
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
   int remote_error_number;
@@ -164,8 +164,9 @@ private:
       return 0 on success
       return errorcode otherwise
   */
-  uint convert_row_to_internal_format(byte *buf, MYSQL_ROW row);
-  bool create_where_from_key(String *to, KEY *key_info, 
+  uint convert_row_to_internal_format(byte *buf, MYSQL_ROW row,
+                                      MYSQL_RES *result);
+  bool create_where_from_key(String *to, KEY *key_info,
                              const key_range *start_key,
                              const key_range *end_key,
                              bool records_in_range);
@@ -298,6 +299,13 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     //required
   virtual bool get_error_message(int error, String *buf);
+
+  int read_next(byte *buf, MYSQL_RES *result);
+  int index_read_idx_with_result_set(byte *buf, uint index,
+                                     const byte *key,
+                                     uint key_len,
+                                     ha_rkey_function find_flag,
+                                     MYSQL_RES **result);
 };
 
 bool federated_db_init(void);

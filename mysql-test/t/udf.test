@@ -99,6 +99,17 @@ delimiter ;//
 call XXX2();
 drop procedure xxx2;
 
+#
+# Bug#19904: UDF: not initialized *is_null per row
+#
+
+CREATE TABLE bug19904(n INT, v varchar(10));
+INSERT INTO bug19904 VALUES (1,'one'),(2,'two'),(NULL,NULL),(3,'three'),(4,'four');
+SELECT myfunc_double(n) AS f FROM bug19904;
+SELECT metaphon(v) AS f FROM bug19904;
+DROP TABLE bug19904;
+
+--echo End of 5.0 tests.
 
 #
 # Drop the example functions from udf_example
@@ -113,4 +124,5 @@ DROP FUNCTION sequence;
 DROP FUNCTION lookup;
 DROP FUNCTION reverse_lookup;
 DROP FUNCTION avgcost;
+
 
