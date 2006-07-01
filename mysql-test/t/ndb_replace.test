@@ -39,6 +39,7 @@ INSERT  INTO t1 VALUES (1,1,23),(2,2,24);
 REPLACE INTO t1 (j,k) VALUES (1,42);
 REPLACE INTO t1 (i,j) VALUES (17,2);
 SELECT * from t1 ORDER BY i;
+DROP TABLE t1;
 
 # bug#19906
 CREATE TABLE t2 (a INT(11) NOT NULL,
@@ -64,4 +65,40 @@ SELECT * FROM t2 ORDER BY id;
 
 DROP TABLE t2;
 
+#
+# Bug #20728 "REPLACE does not work correctly for NDB table with PK and
+#             unique index"
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (pk int primary key, apk int unique, data int) engine=ndbcluster;
+# Test for plain replace which updates pk
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
+replace into t1 (pk, apk) values (4, 1), (5, 2);
+select * from t1 order by pk;
+delete from t1;
+# Another test for plain replace which doesn't touch pk
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
+replace into t1 (pk, apk) values (1, 4), (2, 5);
+select * from t1 order by pk;
+delete from t1;
+# Test for load data replace which updates pk
+insert into t1 values (1, 1, 1), (4, 4, 4), (6, 6, 6);
+load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+delete from t1;
+# Now test for load data replace which doesn't touch pk
+insert into t1 values (1, 1, 1), (3, 3, 3), (5, 5, 5);
+load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+delete from t1;
+# Finally test for both types of replace ... select
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
+replace into t1 (pk, apk) select 4, 1;
+replace into t1 (pk, apk) select 2, 4;
+select * from t1 order by pk;
+# Clean-up
+drop table t1;
 
+--echo End of 5.0 tests.
