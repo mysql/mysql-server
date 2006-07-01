@@ -120,16 +120,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/utsname.h>
 #endif /* __WIN__ */
 
-#ifdef HAVE_LIBWRAP
-#include <tcpd.h>
-#include <syslog.h>
-#ifdef NEED_SYS_SYSLOG_H
-#include <sys/syslog.h>
-#endif /* NEED_SYS_SYSLOG_H */
-int allow_severity = LOG_INFO;
-int deny_severity = LOG_WARNING;
-
-#endif /* HAVE_LIBWRAP */
+#include <my_libwrap.h>
 
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
@@ -323,6 +314,7 @@ static char *default_character_set_name;
 static char *character_set_filesystem_name;
 static char *my_bind_addr_str;
 static char *default_collation_name;
+static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static char mysql_data_home_buff[2];
 static struct passwd *user_info;
 static I_List<THD> thread_cache;
@@ -591,6 +583,8 @@ static const char* default_dbug_option;
 #endif
 #ifdef HAVE_LIBWRAP
 const char *libwrapName= NULL;
+int allow_severity = LOG_INFO;
+int deny_severity = LOG_WARNING;
 #endif
 #ifdef HAVE_QUERY_CACHE
 static ulong query_cache_limit= 0;
@@ -4072,8 +4066,8 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	struct request_info req;
 	signal(SIGCHLD, SIG_DFL);
 	request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, new_sock, NULL);
-	fromhost(&req);
-	if (!hosts_access(&req))
+	my_fromhost(&req);
+	if (!my_hosts_access(&req))
 	{
 	  /*
 	    This may be stupid but refuse() includes an exit(0)
@@ -4081,7 +4075,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	    clean_exit() - same stupid thing ...
 	  */
 	  syslog(deny_severity, "refused connect from %s",
-		 eval_client(&req));
+		 my_eval_client(&req));
 
 	  /*
 	    C++ sucks (the gibberish in front just translates the supplied
@@ -6389,7 +6383,7 @@ static void mysql_init_variables(void)
   /* Variables in libraries */
   charsets_dir= 0;
   default_character_set_name= (char*) MYSQL_DEFAULT_CHARSET_NAME;
-  default_collation_name= (char*) MYSQL_DEFAULT_COLLATION_NAME;
+  default_collation_name= compiled_default_collation_name;
   sys_charset_system.value= (char*) system_charset_info->csname;
   character_set_filesystem_name= (char*) "binary";
 
@@ -6551,7 +6545,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
     break;
   case 'C':
-    default_collation_name= 0;
+    if (default_collation_name == compiled_default_collation_name)
+      default_collation_name= 0;
     break;
   case 'l':
     opt_log=1;

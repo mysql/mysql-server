@@ -295,7 +295,7 @@ create trigger trg before insert on t1 for each row set @a:=1;
 create trigger trg after insert on t1 for each row set @a:=1;
 ERROR HY000: Trigger already exists
 create trigger trg2 before insert on t1 for each row set @a:=1;
-ERROR HY000: Trigger already exists
+ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
 create trigger trg before insert on t3 for each row set @a:=1;
 ERROR HY000: Trigger already exists
 create trigger trg2 before insert on t3 for each row set @a:=1;
@@ -1078,3 +1078,15 @@ i1
 43
 51
 DROP TABLE t1;
+create trigger wont_work after update on mysql.user for each row
+begin
+set @a:= 1;
+end|
+ERROR HY000: Triggers can not be created on system tables
+use mysql|
+create trigger wont_work after update on event for each row
+begin
+set @a:= 1;
+end|
+ERROR HY000: Triggers can not be created on system tables
+End of 5.0 tests

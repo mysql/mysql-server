@@ -1133,7 +1133,7 @@ bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
   uint new_length= (var ? var->value->str_value.length() : 0);
   if (!old_value)
     old_value= (char*) "";
-  if (!(res= my_strdup_with_length((byte*)old_value, new_length, MYF(0))))
+  if (!(res= my_strdup_with_length(old_value, new_length, MYF(0))))
     return 1;
   /*
     Replace the old value in such a way that the any thread using
@@ -2578,7 +2578,7 @@ bool sys_var_insert_id::update(THD *thd, set_var *var)
 byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type,
 				   LEX_STRING *base)
 {
-  return (byte*) &thd->current_insert_id;
+  return (byte*) &thd->next_insert_id;
 }
 
 

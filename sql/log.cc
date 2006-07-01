@@ -36,6 +36,8 @@
 MYSQL_LOG mysql_log, mysql_slow_log, mysql_bin_log;
 ulong sync_binlog_counter= 0;
 
+static Muted_query_log_event invisible_commit;
+
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
 static bool binlog_init();
@@ -94,7 +96,9 @@ static int binlog_end_trans(THD *thd, IO_CACHE *trans_log, Log_event *end_ev)
 {
   int error=0;
   DBUG_ENTER("binlog_end_trans");
-  if (end_ev)
+
+  /* NULL denotes ROLLBACK with nothing to replicate */
+  if (end_ev != NULL)
     error= mysql_bin_log.write(thd, trans_log, end_ev);
 
   statistic_increment(binlog_cache_use, &LOCK_status);
@@ -126,14 +130,19 @@ static int binlog_commit(THD *thd, bool all)
   DBUG_ASSERT(mysql_bin_log.is_open() &&
      (all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))));
 
-  if (!my_b_tell(trans_log))
+  if (my_b_tell(trans_log) == 0)
   {
     // we're here because trans_log was flushed in MYSQL_LOG::log()
     DBUG_RETURN(0);
   }
-  Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
-  qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
-  DBUG_RETURN(binlog_end_trans(thd, trans_log, &qev));
+  if (all) 
+  {
+    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
+    qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
+    DBUG_RETURN(binlog_end_trans(thd, trans_log, &qev));
+  }
+  else
+    DBUG_RETURN(binlog_end_trans(thd, trans_log, &invisible_commit));
 }
 
 static int binlog_rollback(THD *thd, bool all)
@@ -959,14 +968,14 @@ bool MYSQL_LOG::reset_logs(THD* thd)
 
   for (;;)
   {
-    my_delete(linfo.log_file_name, MYF(MY_WME));
+    my_delete_allow_opened(linfo.log_file_name, MYF(MY_WME));
     if (find_next_log(&linfo, 0))
       break;
   }
 
   /* Start logging with a new file */
   close(LOG_CLOSE_INDEX);
-  my_delete(index_file_name, MYF(MY_WME));	// Reset (open will update)
+  my_delete_allow_opened(index_file_name, MYF(MY_WME));	// Reset (open will update)
   if (!thd->slave_thread)
     need_start_event=1;
   if (!open_index_file(index_file_name, 0))
@@ -1812,6 +1821,9 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 {
   DBUG_ENTER("MYSQL_LOG::write(THD *, IO_CACHE *, Log_event *)");
   VOID(pthread_mutex_lock(&LOCK_log));
+
+  /* NULL would represent nothing to replicate after ROLLBACK */
+  DBUG_ASSERT(commit_event != NULL);
 
   if (likely(is_open()))                       // Should always be true
   {
