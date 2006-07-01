@@ -241,6 +241,33 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
 }
 
 
+/*
+  Mark fields used by triggers for INSERT-like statement.
+
+  SYNOPSIS
+    mark_fields_used_by_triggers_for_insert_stmt()
+      thd     The current thread
+      table   Table to which insert will happen
+      duplic  Type of duplicate handling for insert which will happen
+
+  NOTE
+    For REPLACE there is no sense in marking particular fields
+    used by ON DELETE trigger as to execute it properly we have
+    to retrieve and store values for all table columns anyway.
+*/
+
+void mark_fields_used_by_triggers_for_insert_stmt(THD *thd, TABLE *table,
+                                                  enum_duplicates duplic)
+{
+  if (table->triggers)
+  {
+    table->triggers->mark_fields_used(thd, TRG_EVENT_INSERT);
+    if (duplic == DUP_UPDATE)
+      table->triggers->mark_fields_used(thd, TRG_EVENT_UPDATE);
+  }
+}
+
+
 bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                   List<Item> &fields,
                   List<List_item> &values_list,
@@ -401,6 +428,17 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->proc_info="update";
   if (duplic != DUP_ERROR || ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  if (duplic == DUP_REPLACE)
+  {
+    if (!table->triggers || !table->triggers->has_delete_triggers())
+      table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+    /*
+      REPLACE should change values of all columns so we should mark
+      all columns as columns to be set. As nice side effect we will
+      retrieve columns which values are needed for ON DELETE triggers.
+    */
+    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+  }
   /*
     let's *try* to start bulk inserts. It won't necessary
     start them as values_list.elements should be greater than
@@ -428,6 +466,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     /* thd->net.report_error is now set, which will abort the next loop */
     error= 1;
   }
+
+  mark_fields_used_by_triggers_for_insert_stmt(thd, table, duplic);
 
   if (table_list->prepare_where(thd, 0, TRUE) ||
       table_list->prepare_check_option(thd))
@@ -599,6 +639,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->next_insert_id=0;			// Reset this if wrongly used
   if (duplic != DUP_ERROR || ignore)
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+  if (duplic == DUP_REPLACE &&
+      (!table->triggers || !table->triggers->has_delete_triggers()))
+    table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
   /* Reset value of LAST_INSERT_ID if no rows where inserted */
   if (!info.copied && thd->insert_id_used)
@@ -1902,7 +1945,8 @@ bool delayed_insert::handle_inserts(void)
 {
   int error;
   ulong max_rows;
-  bool using_ignore=0, using_bin_log=mysql_bin_log.is_open();
+  bool using_ignore= 0, using_opt_replace= 0;
+  bool using_bin_log= mysql_bin_log.is_open();
   delayed_row *row;
   DBUG_ENTER("handle_inserts");
 
@@ -1964,6 +2008,13 @@ bool delayed_insert::handle_inserts(void)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
       using_ignore=1;
     }
+    if (info.handle_duplicates == DUP_REPLACE &&
+        (!table->triggers ||
+         !table->triggers->has_delete_triggers()))
+    {
+      table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+      using_opt_replace= 1;
+    }
     thd.clear_error(); // reset error for binlog
     if (write_record(&thd, table, &info))
     {
@@ -1975,6 +2026,11 @@ bool delayed_insert::handle_inserts(void)
     {
       using_ignore=0;
       table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+    }
+    if (using_opt_replace)
+    {
+      using_opt_replace= 0;
+      table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     }
     if (row->query && row->log_query && using_bin_log)
     {
@@ -2221,6 +2277,12 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  if (info.handle_duplicates == DUP_REPLACE)
+  {
+    if (!table->triggers || !table->triggers->has_delete_triggers())
+      table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+  }
   thd->no_trans_update= 0;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
@@ -2230,6 +2292,10 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
          check_that_all_fields_are_given_values(thd, table, table_list)) ||
         table_list->prepare_where(thd, 0, TRUE) ||
         table_list->prepare_check_option(thd));
+
+  if (!res)
+    mark_fields_used_by_triggers_for_insert_stmt(thd, table,
+                                                 info.handle_duplicates);
   DBUG_RETURN(res);
 }
 
@@ -2395,6 +2461,7 @@ bool select_insert::send_eof()
 
   error= (!thd->prelocked_mode) ? table->file->end_bulk_insert():0;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+  table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
   /*
     We must invalidate the table in the query cache before binlog writing
@@ -2624,6 +2691,12 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  if (info.handle_duplicates == DUP_REPLACE)
+  {
+    if (!table->triggers || !table->triggers->has_delete_triggers())
+      table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+  }
   if (!thd->prelocked_mode)
     table->file->start_bulk_insert((ha_rows) 0);
   thd->no_trans_update= 0;
@@ -2663,6 +2736,7 @@ bool select_create::send_eof()
   else
   {
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+    table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     VOID(pthread_mutex_lock(&LOCK_open));
     mysql_unlock_tables(thd, lock);
     /*
@@ -2696,6 +2770,7 @@ void select_create::abort()
   if (table)
   {
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+    table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     enum db_type table_type=table->s->db_type;
     if (!table->s->tmp_table)
     {
