@@ -67,6 +67,14 @@ public:
       Ptr[str_length]=0;
     return Ptr;
   }
+  inline char *c_ptr_safe()
+  {
+    if (Ptr && str_length < Alloced_length)
+      Ptr[str_length]=0;
+    else
+      (void) realloc(str_length);
+    return Ptr;
+  }
 
   void set(String &str,uint32 offset,uint32 arg_length)
   {

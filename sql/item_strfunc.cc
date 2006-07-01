@@ -51,14 +51,14 @@ double Item_str_func::val()
 {
   String *res;
   res=val_str(&str_value);
-  return res ? atof(res->c_ptr()) : 0.0;
+  return res ? atof(res->c_ptr_safe()) : 0.0;
 }
 
 longlong Item_str_func::val_int()
 {
   String *res;
   res=val_str(&str_value);
-  return res ? strtoll(res->c_ptr(),NULL,10) : (longlong) 0;
+  return res ? strtoll(res->c_ptr_safe(),NULL,10) : (longlong) 0;
 }
 
 
