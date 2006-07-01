@@ -302,6 +302,13 @@ public:
   virtual void start_bulk_insert(ha_rows rows);
   virtual int end_bulk_insert();
 
+  virtual bool is_fatal_error(int error, uint flags)
+  {
+    if (!handler::is_fatal_error(error, flags) ||
+        error == HA_ERR_NO_PARTITION_FOUND)
+      return FALSE;
+    return TRUE;
+  }
   /*
     -------------------------------------------------------------------------
     MODULE full table scan
