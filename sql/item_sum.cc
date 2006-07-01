@@ -2663,7 +2663,7 @@ bool Item_sum_count_distinct::add()
     return tree->unique_add(table->record[0] + table->s->null_bytes);
   }
   if ((error= table->file->ha_write_row(table->record[0])) &&
-      table->file->is_fatal_error(error, HA_CHECK_DUPP))
+      table->file->is_fatal_error(error, HA_CHECK_DUP))
     return TRUE;
   return FALSE;
 }

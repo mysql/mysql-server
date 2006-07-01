@@ -542,13 +542,13 @@ int mysql_update(THD *thd,
           }
 	}
  	else if (!ignore ||
-                 table->file->is_fatal_error(error, HA_CHECK_DUPP_KEY))
+                 table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
 	{
           /*
             If (ignore && error is ignorable) we don't have to
             do anything; otherwise...
           */
-          if (table->file->is_fatal_error(error, HA_CHECK_DUPP_KEY))
+          if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
             thd->fatal_error(); /* Other handler errors are fatal */
 	  table->file->print_error(error,MYF(0));
 	  error= 1;
@@ -1424,13 +1424,13 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	{
 	  updated--;
           if (!ignore ||
-              table->file->is_fatal_error(error, HA_CHECK_DUPP_KEY))
+              table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
 	  {
             /*
               If (ignore && error == is ignorable) we don't have to
               do anything; otherwise...
             */
-            if (table->file->is_fatal_error(error, HA_CHECK_DUPP_KEY))
+            if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
               thd->fatal_error(); /* Other handler errors are fatal */
 	    table->file->print_error(error,MYF(0));
 	    DBUG_RETURN(1);
@@ -1459,7 +1459,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       /* Write row, ignoring duplicated updates to a row */
       if ((error= tmp_table->file->ha_write_row(tmp_table->record[0])))
       {
-        if (tmp_table->file->is_fatal_error(error, HA_CHECK_DUPP) &&
+        if (tmp_table->file->is_fatal_error(error, HA_CHECK_DUP) &&
             create_myisam_from_heap(thd, tmp_table,
                                          tmp_table_param + offset, error, 1))
 	{
@@ -1583,7 +1583,7 @@ int multi_update::do_updates(bool from_send_error)
 						    table->record[0])))
 	{
 	  if (!ignore ||
-              table->file->is_fatal_error(local_error, HA_CHECK_DUPP_KEY))
+              table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
 	    goto err;
 	}
 	updated++;

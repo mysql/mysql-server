@@ -235,6 +235,11 @@
 /* Options of START TRANSACTION statement (and later of SET TRANSACTION stmt) */
 #define MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT 1
 
+/* Flags for method is_fatal_error */
+#define HA_CHECK_DUP_KEY 1
+#define HA_CHECK_DUP_UNIQUE 2
+#define HA_CHECK_DUP (HA_CHECK_DUP_KEY + HA_CHECK_DUP_UNIQUE)
+
 enum legacy_db_type
 {
   DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
@@ -972,17 +977,14 @@ public:
     ignorable than others. E.g. the partition handler can get inserts
     into a range where there is no partition and this is an ignorable
     error.
-    HA_ERR_FOUND_DUPP_UNIQUE is a special case in MyISAM that means the
-    same thing as HA_ERR_FOUND_DUPP_KEY but can in some cases lead to
+    HA_ERR_FOUND_DUP_UNIQUE is a special case in MyISAM that means the
+    same thing as HA_ERR_FOUND_DUP_KEY but can in some cases lead to
     a slightly different error message.
   */
-#define HA_CHECK_DUPP_KEY 1
-#define HA_CHECK_DUPP_UNIQUE 2
-#define HA_CHECK_DUPP (HA_CHECK_DUPP_KEY + HA_CHECK_DUPP_UNIQUE)
   virtual bool is_fatal_error(int error, uint flags)
   {
     if (!error ||
-        ((flags & HA_CHECK_DUPP_KEY) &&
+        ((flags & HA_CHECK_DUP_KEY) &&
          (error == HA_ERR_FOUND_DUPP_KEY ||
           error == HA_ERR_FOUND_DUPP_UNIQUE)))
       return FALSE;
