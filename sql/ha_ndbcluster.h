@@ -656,9 +656,8 @@ class ha_ndbcluster: public handler
   void set_auto_partitions(partition_info *part_info);
   virtual bool is_fatal_error(int error, uint flags)
   {
-    if (!handler::is_fatal_error(error, flags))
-      return FALSE;
-    if (error == HA_ERR_NO_PARTITION_FOUND)
+    if (!handler::is_fatal_error(error, flags) ||
+        error == HA_ERR_NO_PARTITION_FOUND)
       return FALSE;
     return TRUE;
   }
