@@ -376,24 +376,6 @@ sp_name::init_qname(THD *thd)
 	  m_name.length, m_name.str);
 }
 
-sp_name *
-sp_name_current_db_new(THD *thd, LEX_STRING name)
-{
-  sp_name *qname;
-
-  if (! thd->db)
-    qname= new sp_name(name);
-  else
-  {
-    LEX_STRING db;
-
-    db.length= strlen(thd->db);
-    db.str= thd->strmake(thd->db, db.length);
-    qname= new sp_name(db, name);
-  }
-  qname->init_qname(thd);
-  return qname;
-}
 
 /*
   Check that the name 'ident' is ok. It's assumed to be an 'ident'
@@ -504,27 +486,20 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
 
-  /* We have to copy strings to get them into the right memroot */
-  if (name)
-  {
-    m_db.length= name->m_db.length;
-    if (name->m_db.length == 0)
-      m_db.str= NULL;
-    else
-      m_db.str= strmake_root(root, name->m_db.str, name->m_db.length);
-    m_name.length= name->m_name.length;
-    m_name.str= strmake_root(root, name->m_name.str, name->m_name.length);
+  DBUG_ASSERT(name);
+  /* Must be initialized in the parser */
+  DBUG_ASSERT(name->m_db.str && name->m_db.length);
 
-    if (name->m_qname.length == 0)
-      name->init_qname(thd);
-    m_qname.length= name->m_qname.length;
-    m_qname.str= strmake_root(root, name->m_qname.str, m_qname.length);
-  }
-  else if (thd->db)
-  {
-    m_db.length= thd->db_length;
-    m_db.str= strmake_root(root, thd->db, m_db.length);
-  }
+  /* We have to copy strings to get them into the right memroot */
+  m_db.length= name->m_db.length;
+  m_db.str= strmake_root(root, name->m_db.str, name->m_db.length);
+  m_name.length= name->m_name.length;
+  m_name.str= strmake_root(root, name->m_name.str, name->m_name.length);
+
+  if (name->m_qname.length == 0)
+    name->init_qname(thd);
+  m_qname.length= name->m_qname.length;
+  m_qname.str= strmake_root(root, name->m_qname.str, m_qname.length);
 
   if (m_param_begin && m_param_end)
   {
@@ -565,7 +540,7 @@ create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
     result->name= "";
     if (!(result->type_names=(const char **)
           alloc_root(mem_root,(sizeof(char *)+sizeof(int))*(result->count+1))))
-      return 0;
+      DBUG_RETURN(0);
     result->type_lengths= (unsigned int *)(result->type_names + result->count+1);
     List_iterator<String> it(*src);
     String conv;
@@ -599,7 +574,7 @@ create_typelib(MEM_ROOT *mem_root, create_field *field_def, List<String> *src)
     result->type_names[result->count]= 0;
     result->type_lengths[result->count]= 0;
   }
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -933,7 +908,8 @@ bool
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char olddb[128];
+  char old_db_buf[NAME_LEN+1];
+  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged;
   sp_rcontext *ctx;
   bool err_status= FALSE;
@@ -980,10 +956,8 @@ sp_head::execute(THD *thd)
                m_first_instance->m_last_cached_sp == this) ||
               (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
 
-  dbchanged= FALSE;
   if (m_db.length &&
-      (err_status= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0,
-                                 &dbchanged)))
+      (err_status= sp_use_new_db(thd, m_db, &old_db, 0, &dbchanged)))
     goto done;
 
   if ((ctx= thd->spcont))
@@ -1075,7 +1049,6 @@ sp_head::execute(THD *thd)
     thd->net.no_send_error= 0;
     if (i->free_list)
       cleanup_items(i->free_list);
-    i->state= Query_arena::EXECUTED;
     
     /* 
       If we've set thd->user_var_events_alloc to mem_root of this SP
@@ -1155,10 +1128,10 @@ sp_head::execute(THD *thd)
   {
     /*
       No access check when changing back to where we came from.
-      (It would generate an error from mysql_change_db() when olddb=="")
+      (It would generate an error from mysql_change_db() when old_db=="")
     */
     if (! thd->killed)
-      err_status|= mysql_change_db(thd, olddb, 1);
+      err_status|= mysql_change_db(thd, old_db.str, 1);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_PRINT("info",
@@ -1816,9 +1789,6 @@ sp_head::reset_thd_mem_root(THD *thd)
                       (ulong) &mem_root, (ulong) &thd->mem_root));
   free_list= thd->free_list; // Keep the old list
   thd->free_list= NULL;	// Start a new one
-  /* Copy the db, since substatements will point to it */
-  m_thd_db= thd->db;
-  thd->db= thd->strmake(thd->db, thd->db_length);
   m_thd= thd;
   DBUG_VOID_RETURN;
 }
@@ -1834,7 +1804,6 @@ sp_head::restore_thd_mem_root(THD *thd)
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
   thd->free_list= flist;	// Restore the old one
-  thd->db= m_thd_db;		// Restore the original db pointer
   thd->mem_root= m_thd_root;
   m_thd= NULL;
   DBUG_VOID_RETURN;
@@ -2210,6 +2179,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     m_lex->mark_as_requiring_prelocking(NULL);
   }
   thd->rollback_item_tree_changes();
+  /* Update the state of the active arena. */
+  thd->stmt_arena->state= Query_arena::EXECUTED;
+
 
   /*
     Unlike for PS we should not call Item's destructors for newly created

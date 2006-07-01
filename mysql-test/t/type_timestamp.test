@@ -6,6 +6,9 @@
 drop table if exists t1,t2;
 --enable_warnings
 
+# Set timezone to GMT-3, to make it possible to use "interval 3 hour"
+set time_zone="+03:00";
+
 CREATE TABLE t1 (a int, t timestamp);
 CREATE TABLE t2 (a int, t datetime);
 SET TIMESTAMP=1234;
@@ -322,3 +325,6 @@ select * from t1;
 drop table t1;
 
 # End of 4.1 tests
+
+# Restore timezone to default
+set time_zone= @@global.time_zone;

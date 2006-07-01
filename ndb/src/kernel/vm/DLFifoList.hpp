@@ -115,6 +115,13 @@ public:
    */
   bool hasNext(const Ptr<T> &) const;
 
+  /**
+   * Check if prev exists i.e. this is not first
+   *
+   * NOTE ptr must be both p & i
+   */
+  bool hasPrev(const Ptr<T> &) const;
+
   Uint32 noOfElements() const {
     Uint32 c = 0;
     Uint32 i = head.firstItem;
@@ -355,6 +362,13 @@ inline
 bool
 DLFifoList<T>::hasNext(const Ptr<T> & p) const {
   return p.p->nextList != RNIL;
+}
+
+template <class T>
+inline
+bool
+DLFifoList<T>::hasPrev(const Ptr<T> & p) const {
+  return p.p->prevList != RNIL;
 }
 
 #endif
