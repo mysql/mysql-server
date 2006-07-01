@@ -5436,9 +5436,14 @@ void Item_insert_value::print(String *str)
 void Item_trigger_field::setup_field(THD *thd, TABLE *table,
                                      GRANT_INFO *table_grant_info)
 {
+  /*
+    There is no sense in marking fields used by trigger with current value
+    of THD::query_id since it is completely unrelated to the THD::query_id
+    value for statements which will invoke trigger. So instead we use
+    Table_triggers_list::mark_fields_used() method which is called during
+    execution of these statements.
+  */
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
-
-  /* TODO: Think more about consequences of this step. */
   thd->mark_used_columns= MARK_COLUMNS_NONE;
   /*
     Try to find field by its name and if it will be found
