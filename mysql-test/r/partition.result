@@ -1074,4 +1074,12 @@ end//
 call mysqltest_1()//
 drop table t1;
 drop procedure mysqltest_1;
+create table t1 (a int, index(a))
+partition by hash(a);
+insert into t1 values (1),(2);
+select * from t1 ORDER BY a DESC;
+a
+2
+1
+drop table t1;
 End of 5.1 tests
