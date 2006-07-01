@@ -3400,7 +3400,8 @@ int ha_partition::common_first_last(byte *buf)
 
   if ((error= partition_scan_set_up(buf, FALSE)))
     return error;
-  if (!m_ordered_scan_ongoing)
+  if (!m_ordered_scan_ongoing &&
+      m_index_scan_type != partition_index_last)
     return handle_unordered_scan_next_partition(buf);
   return handle_ordered_index_scan(buf);
 }
