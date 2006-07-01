@@ -294,26 +294,26 @@ show create function sub1;
 ERROR 42000: FUNCTION sub1 does not exist
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
 ROUTINE_NAME	ROUTINE_DEFINITION
-sel2	
-sub1	
+sel2	NULL
+sub1	NULL
 grant all privileges on test.* to mysqltest_1@localhost;
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
 ROUTINE_NAME	ROUTINE_DEFINITION
-sel2	
-sub1	
+sel2	NULL
+sub1	NULL
 create function sub2(i int) returns int
 return i+1;
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
 ROUTINE_NAME	ROUTINE_DEFINITION
-sel2	
-sub1	
+sel2	NULL
+sub1	NULL
 sub2	return i+1
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure
-sel2		
+sel2		NULL
 show create function sub1;
 Function	sql_mode	Create Function
-sub1		
+sub1		NULL
 show create function sub2;
 Function	sql_mode	Create Function
 sub2		CREATE DEFINER=`mysqltest_1`@`localhost` FUNCTION `sub2`(i int) RETURNS int(11)
@@ -1134,3 +1134,39 @@ concat(@a, table_name)	@a	table_name
 .t1	.	t1
 .t2	.	t2
 drop table t1,t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+CREATE PROCEDURE p1() SET @a= 1;
+CREATE FUNCTION f1() RETURNS INT RETURN @a + 1;
+CREATE USER mysql_bug20230@localhost;
+GRANT EXECUTE ON PROCEDURE p1 TO mysql_bug20230@localhost;
+GRANT EXECUTE ON FUNCTION f1 TO mysql_bug20230@localhost;
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES;
+ROUTINE_NAME	ROUTINE_DEFINITION
+f1	RETURN @a + 1
+p1	SET @a= 1
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure
+p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+SET @a= 1
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function
+f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+RETURN @a + 1
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES;
+ROUTINE_NAME	ROUTINE_DEFINITION
+f1	NULL
+p1	NULL
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure
+p1		NULL
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function
+f1		NULL
+CALL p1();
+SELECT f1();
+f1()
+2
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
+DROP USER mysql_bug20230@localhost;
