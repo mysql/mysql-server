@@ -433,6 +433,9 @@ int mysql_update(THD *thd,
                                (MODE_STRICT_TRANS_TABLES |
                                 MODE_STRICT_ALL_TABLES)));
 
+  if (table->triggers)
+    table->triggers->mark_fields_used(thd, TRG_EVENT_UPDATE);
+
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     if (!(select && select->skip_record()))
@@ -754,6 +757,9 @@ reopen_tables:
         my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tl->alias, "UPDATE");
         DBUG_RETURN(TRUE);
       }
+
+      if (table->triggers)
+        table->triggers->mark_fields_used(thd, TRG_EVENT_UPDATE);
 
       DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
       /*
