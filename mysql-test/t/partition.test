@@ -1252,4 +1252,13 @@ delimiter ;//
 drop table t1;
 drop procedure mysqltest_1;
 
+#
+# Bug 20583 Partitions: Crash using index_last
+#
+create table t1 (a int, index(a))
+partition by hash(a);
+insert into t1 values (1),(2);
+select * from t1 ORDER BY a DESC;
+drop table t1;
+
 --echo End of 5.1 tests
