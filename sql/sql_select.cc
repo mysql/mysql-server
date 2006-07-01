@@ -9355,9 +9355,9 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   /* copy row that filled HEAP table */
   if ((write_err=new_table.file->write_row(table->record[0])))
   {
-    if (write_err != HA_ERR_FOUND_DUPP_KEY &&
-	write_err != HA_ERR_FOUND_DUPP_UNIQUE || !ignore_last_dupp_key_error)
-    goto err;
+    if (new_table.file->is_fatal_error(write_err, HA_CHECK_DUP) ||
+	!ignore_last_dupp_key_error)
+      goto err;
   }
 
   /* remove heap table and change to use myisam table */
@@ -10778,8 +10778,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       join->found_records++;
       if ((error=table->file->write_row(table->record[0])))
       {
-	if (error == HA_ERR_FOUND_DUPP_KEY ||
-	    error == HA_ERR_FOUND_DUPP_UNIQUE)
+        if (!table->file->is_fatal_error(error, HA_CHECK_DUP))
 	  goto end;
 	if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
 				    error,1))
