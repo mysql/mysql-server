@@ -976,12 +976,25 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
     while ((error=table->file->ha_write_row(table->record[0])))
     {
       uint key_nr;
-      if (error != HA_WRITE_SKIP)
+      bool is_duplicate_key_error;
+      if (table->file->is_fatal_error(error, HA_CHECK_DUP))
 	goto err;
       table->file->restore_auto_increment(); // it's too early here! BUG#20188
+      is_duplicate_key_error= table->file->is_fatal_error(error, 0);
+      if (!is_duplicate_key_error)
+      {
+        /*
+          We come here when we had an ignorable error which is not a duplicate
+          key error. In this we ignore error if ignore flag is set, otherwise
+          report error as usual. We will not do any duplicate key processing.
+        */
+        if (info->ignore)
+          goto ok_or_after_trg_err; /* Ignoring a not fatal error, return 0 */
+        goto err;
+      }
       if ((int) (key_nr = table->file->get_dup_key(error)) < 0)
       {
-	error=HA_WRITE_SKIP;			/* Database can't find key */
+	error= HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
 	goto err;
       }
       /* Read all columns for the row we are going to replace */
@@ -1062,7 +1075,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if ((error=table->file->ha_update_row(table->record[1],
                                               table->record[0])))
 	{
-	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
+          if (info->ignore &&
+              !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
             goto ok_or_after_trg_err;
           goto err;
 	}
@@ -1145,7 +1159,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
   else if ((error=table->file->ha_write_row(table->record[0])))
   {
     if (!info->ignore ||
-	(error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE))
+        table->file->is_fatal_error(error, HA_CHECK_DUP))
       goto err;
     table->file->restore_auto_increment();
     goto ok_or_after_trg_err;
