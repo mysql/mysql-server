@@ -926,7 +926,7 @@ page_cur_insert_rec_low(
 
 	/* 2. Try to find suitable space from page memory management */
 	if (UNIV_LIKELY_NULL(page_zip)
-	    && !page_zip_alloc(page_zip, page, index, rec_size, 1, mtr)) {
+	    && !page_zip_available(page_zip, index, rec_size, 1)) {
 
 		/* Try compressing the whole page afterwards. */
 		page_zip = NULL;
