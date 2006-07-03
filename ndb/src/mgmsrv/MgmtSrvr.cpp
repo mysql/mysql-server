@@ -1412,6 +1412,12 @@ MgmtSrvr::exitSingleUser(int * stopCount, bool abort)
 
 #include <ClusterMgr.hpp>
 
+void
+MgmtSrvr::updateStatus(NodeBitmask nodes)
+{
+  theFacade->theClusterMgr->forceHB(nodes);
+}
+
 int 
 MgmtSrvr::status(int nodeId, 
                  ndb_mgm_node_status * _status, 
