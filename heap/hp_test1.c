@@ -59,7 +59,7 @@ int main(int argc, char **argv)
   bzero((gptr) flags,sizeof(flags));
 
   printf("- Creating heap-file\n");
-  if (heap_create(filename,1,keyinfo,30,(ulong) flag*100000L,101L,
+  if (heap_create(filename,1,keyinfo,30,(ulong) flag*100000L,10L,
 		  &hp_create_info) ||
       !(file= heap_open(filename, 2)))
     goto err;

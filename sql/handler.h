@@ -428,7 +428,8 @@ typedef struct st_ha_create_information
 {
   CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
-  const char *comment,*password;
+  LEX_STRING comment;
+  const char *password;
   const char *data_file_name, *index_file_name;
   const char *alias;
   ulonglong max_rows,min_rows;
