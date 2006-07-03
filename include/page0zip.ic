@@ -92,34 +92,6 @@ In summary, the compressed page looks like this:
 /* 'deleted' flag */
 #define PAGE_ZIP_DIR_SLOT_DEL	0x8000
 
-/**************************************************************************
-Determine if enough space is available for a page_zip_write_rec() call
-in the modification log. */
-UNIV_INLINE
-ibool
-page_zip_available(
-/*===============*/
-					/* out: TRUE if page_zip_write_rec()
-					will succeed */
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	dict_index_t*		index,	/* in: index of the B-tree node */
-	ulint			length,	/* in: combined size of the record */
-	ulint			create)	/* in: nonzero=add the record to
-					the heap */
-	__attribute__((warn_unused_result, nonnull, pure));
-
-/**************************************************************************
-Initialize a compressed page descriptor. */
-UNIV_INLINE
-void
-page_zip_des_init(
-/*==============*/
-	page_zip_des_t*	page_zip)	/* in/out: compressed page
-					descriptor */
-{
-	memset(page_zip, 0, sizeof *page_zip);
-}
-
 #ifdef UNIV_DEBUG
 /**************************************************************************
 Validate a compressed page descriptor. */
@@ -141,47 +113,6 @@ page_zip_simple_validate(
 	return(TRUE);
 }
 #endif /* UNIV_DEBUG */
-
-/**************************************************************************
-Ensure that enough space is available in the modification log.
-If not, try to compress the page. */
-UNIV_INLINE
-ibool
-page_zip_alloc(
-/*===========*/
-				/* out: TRUE if enough space is available */
-	page_zip_des_t*	page_zip,/* in/out: compressed page;
-				will only be modified if compression is needed
-				and successful */
-	const page_t*	page,	/* in: uncompressed page */
-	dict_index_t*	index,	/* in: index of the B-tree node */
-	ulint		length,	/* in: combined size of the record */
-	ulint		create,	/* in: nonzero=add the record to the heap */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
-{
-	ut_ad(page_is_comp((page_t*) page));
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_ZIP_DEBUG */
-
-	if (page_zip_available(page_zip, index, length, create)) {
-		return(TRUE);
-	}
-
-	if (page_zip->m_start == page_zip->m_end) {
-		/* The page has been freshly compressed, so
-		recompressing it will not help. */
-		return(FALSE);
-	}
-
-	if (!page_zip_compress(page_zip, page, index, mtr)) {
-		/* Unable to compress the page */
-		return(FALSE);
-	}
-
-	/* Check if there is enough space available after compression. */
-	return(page_zip_available(page_zip, index, length, create));
-}
 
 /**************************************************************************
 Determine if the length of the page trailer. */
@@ -262,6 +193,59 @@ page_zip_available(
 		+ trailer_len
 		+ page_zip->m_end
 		< page_zip->size));
+}
+
+/**************************************************************************
+Initialize a compressed page descriptor. */
+UNIV_INLINE
+void
+page_zip_des_init(
+/*==============*/
+	page_zip_des_t*	page_zip)	/* in/out: compressed page
+					descriptor */
+{
+	memset(page_zip, 0, sizeof *page_zip);
+}
+
+/**************************************************************************
+Ensure that enough space is available in the modification log.
+If not, try to compress the page. */
+UNIV_INLINE
+ibool
+page_zip_alloc(
+/*===========*/
+				/* out: TRUE if enough space is available */
+	page_zip_des_t*	page_zip,/* in/out: compressed page;
+				will only be modified if compression is needed
+				and successful */
+	const page_t*	page,	/* in: uncompressed page */
+	dict_index_t*	index,	/* in: index of the B-tree node */
+	ulint		length,	/* in: combined size of the record */
+	ulint		create,	/* in: nonzero=add the record to the heap */
+	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+{
+	ut_ad(page_is_comp((page_t*) page));
+#ifdef UNIV_ZIP_DEBUG
+	ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
+
+	if (page_zip_available(page_zip, index, length, create)) {
+		return(TRUE);
+	}
+
+	if (page_zip->m_start == page_zip->m_end) {
+		/* The page has been freshly compressed, so
+		recompressing it will not help. */
+		return(FALSE);
+	}
+
+	if (!page_zip_compress(page_zip, page, index, mtr)) {
+		/* Unable to compress the page */
+		return(FALSE);
+	}
+
+	/* Check if there is enough space available after compression. */
+	return(page_zip_available(page_zip, index, length, create));
 }
 
 /**************************************************************************
