@@ -559,6 +559,7 @@ void
 Events::init_mutexes()
 {
   db_repository= new Event_db_repository;
+  Event_scheduler::create_instance();
   Event_scheduler::init_mutexes();
 }
 

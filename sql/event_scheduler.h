@@ -21,7 +21,6 @@ class Event_timed;
 class Event_db_repository;
 
 class THD;
-typedef bool * (*event_timed_identifier_comparator)(Event_timed*, Event_timed*);
 
 int
 events_init();
@@ -29,10 +28,12 @@ events_init();
 void
 events_shutdown();
 
-class Event_scheduler
+#include "event_queue.h"
+#include "event_scheduler.h"
+
+class Event_scheduler : public Event_queue
 {
 public:
-
   enum enum_state
   {
     UNINITIALIZED= 0,
@@ -50,32 +51,22 @@ public:
     RESUME= 2
   };
 
+  /* This is the current status of the life-cycle of the scheduler. */
+  enum enum_state state;
+
+
+  static void
+  create_instance();
+
   /* Singleton access */
   static Event_scheduler*
   get_instance();
 
-  /* Methods for queue management follow */
+  bool 
+  init(Event_db_repository *db_repo);
 
-  int
-  create_event(THD *thd, Event_parse_data *et, bool check_existence);
-
-  int
-  update_event(THD *thd, Event_parse_data *et, LEX_STRING *new_schema,
-               LEX_STRING *new_name);
-
-  bool
-  drop_event(THD *thd, sp_name *name);
-
-
-  int
-  drop_schema_events(THD *thd, LEX_STRING schema);
-
-  int
-  drop_user_events(THD *thd, LEX_STRING *definer)
-  { DBUG_ASSERT(0); return 0;}
-
-  uint
-  events_count();
+  void
+  destroy();
 
   /* State changing methods follow */
 
@@ -97,19 +88,13 @@ public:
 
   int
   suspend_or_resume(enum enum_suspend_or_resume action);
-  
-  bool 
-  init(Event_db_repository *db_repo);
-
-  void
-  destroy();
-
+/*  
   static void
   init_mutexes();
   
   static void
   destroy_mutexes();
-
+*/
   void
   report_error_during_start();
 
@@ -124,35 +109,34 @@ public:
   static int
   dump_internal_status(THD *thd);
 
-  static bool
-  check_system_tables(THD *thd);
+  /* helper functions for working with mutexes & conditionals */
+  void
+  lock_data(const char *func, uint line);
 
-private:
-  Event_timed *
-  find_event(LEX_STRING db, LEX_STRING name, bool remove_from_q);
+  void
+  unlock_data(const char *func, uint line);
+
+  int
+  cond_wait(int cond, pthread_mutex_t *mutex);
+
+  void
+  queue_changed();
+
+protected:
 
   uint
   workers_count();
 
-  bool
-  is_running_or_suspended();
-
   /* helper functions */
   bool
-  execute_top(THD *thd);
+  execute_top(THD *thd, Event_timed *et);
 
   void
-  clean_queue(THD *thd);
+  clean_memory(THD *thd);
   
   void
   stop_all_running_events(THD *thd);
 
-  int
-  load_events_from_db(THD *thd);
-
-  void
-  drop_matching_events(THD *thd, LEX_STRING pattern,
-                       bool (*)(Event_timed *,LEX_STRING *));
 
   bool
   check_n_suspend_if_needed(THD *thd);
@@ -163,46 +147,12 @@ private:
   /* Singleton DP is used */
   Event_scheduler();
   
-  enum enum_cond_vars
-  {
-    COND_NONE= -1,
-    /*
-      COND_new_work is a conditional used to signal that there is a change
-      of the queue that should inform the executor thread that new event should
-      be executed sooner than previously expected, because of add/replace event.
-    */
-    COND_new_work= 0,
-    /*
-      COND_started is a conditional used to synchronize the thread in which 
-      ::start() was called and the spawned thread. ::start() spawns a new thread
-      and then waits on COND_started but also checks when awaken that `state` is
-      either RUNNING or CANTSTART. Then it returns back.
-    */
-    COND_started_or_stopped,
-    /*
-      Conditional used for signalling from the scheduler thread back to the
-      thread that calls ::suspend() or ::resume. Synchronizing the calls.
-    */
-    COND_suspend_or_resume,
-    /* Must be always last */
-    COND_LAST
-  };
 
-  /* Singleton instance */
-  static Event_scheduler singleton;
+  pthread_mutex_t *LOCK_scheduler_data;
   
-  /* This is the current status of the life-cycle of the manager. */
-  enum enum_state state;
 
   /* Set to start the scheduler in suspended state */
   bool start_scheduler_suspended;
-
-  /*
-    LOCK_scheduler_data is the mutex which protects the access to the
-    manager's queue as well as used when signalling COND_new_work,
-    COND_started and COND_shutdown.
-  */
-  pthread_mutex_t LOCK_scheduler_data;
 
   /*
     Holds the thread id of the executor thread or 0 if the executor is not
@@ -212,33 +162,27 @@ private:
   */
   ulong thread_id;
 
-  pthread_cond_t cond_vars[COND_LAST];
-  static const char * const cond_vars_names[COND_LAST];
+  enum enum_cond_vars
+  {
+    COND_NONE= -1,
+    COND_new_work= 0,
+    COND_started_or_stopped,
+    COND_suspend_or_resume,
+    /* Must be always last */
+    COND_LAST
+  };
 
-  /* The MEM_ROOT of the object */
-  MEM_ROOT scheduler_root;
-
-  Event_db_repository *db_repository;
-
-  /* The sorted queue with the Event_timed objects */
-  QUEUE queue;
-  
-  uint mutex_last_locked_at_line;
-  uint mutex_last_unlocked_at_line;
-  const char* mutex_last_locked_in_func;
-  const char* mutex_last_unlocked_in_func;
-  enum enum_cond_vars cond_waiting_on;
+  uint mutex_last_locked_at_line_nr;
+  uint mutex_last_unlocked_at_line_nr;
+  const char* mutex_last_locked_in_func_name;
+  const char* mutex_last_unlocked_in_func_name;
+  int cond_waiting_on;
   bool mutex_scheduler_data_locked;
 
-  /* helper functions for working with mutexes & conditionals */
-  void
-  lock_data(const char *func, uint line);
 
-  void
-  unlock_data(const char *func, uint line);
+  static const char * const cond_vars_names[COND_LAST];
 
-  int
-  cond_wait(enum enum_cond_vars, pthread_mutex_t *mutex);
+  pthread_cond_t cond_vars[COND_LAST];
 
 private:
   /* Prevent use of these */
