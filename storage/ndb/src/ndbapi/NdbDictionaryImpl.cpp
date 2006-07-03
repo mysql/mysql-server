@@ -328,9 +328,14 @@ NdbColumnImpl::create_pseudo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::FRAGMENT;
     col->m_impl.m_attrSize = 4;
     col->m_impl.m_arraySize = 1;
-  } else if(!strcmp(name, "NDB$FRAGMENT_MEMORY")){
+  } else if(!strcmp(name, "NDB$FRAGMENT_FIXED_MEMORY")){
     col->setType(NdbDictionary::Column::Bigunsigned);
-    col->m_impl.m_attrId = AttributeHeader::FRAGMENT_MEMORY;
+    col->m_impl.m_attrId = AttributeHeader::FRAGMENT_FIXED_MEMORY;
+    col->m_impl.m_attrSize = 8;
+    col->m_impl.m_arraySize = 1;
+  } else if(!strcmp(name, "NDB$FRAGMENT_VARSIZED_MEMORY")){
+    col->setType(NdbDictionary::Column::Bigunsigned);
+    col->m_impl.m_attrId = AttributeHeader::FRAGMENT_VARSIZED_MEMORY;
     col->m_impl.m_attrSize = 8;
     col->m_impl.m_arraySize = 1;
   } else if(!strcmp(name, "NDB$ROW_COUNT")){
@@ -1316,7 +1321,8 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
     m_globalHash->lock();
     if(--f_dictionary_count == 0){
       delete NdbDictionary::Column::FRAGMENT; 
-      delete NdbDictionary::Column::FRAGMENT_MEMORY;
+      delete NdbDictionary::Column::FRAGMENT_FIXED_MEMORY;
+      delete NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY;
       delete NdbDictionary::Column::ROW_COUNT;
       delete NdbDictionary::Column::COMMIT_COUNT;
       delete NdbDictionary::Column::ROW_SIZE;
@@ -1326,7 +1332,8 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
       delete NdbDictionary::Column::ROWID;
       delete NdbDictionary::Column::ROW_GCI;
       NdbDictionary::Column::FRAGMENT= 0;
-      NdbDictionary::Column::FRAGMENT_MEMORY= 0;
+      NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 0;
+      NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 0;
       NdbDictionary::Column::ROW_COUNT= 0;
       NdbDictionary::Column::COMMIT_COUNT= 0;
       NdbDictionary::Column::ROW_SIZE= 0;
@@ -1483,8 +1490,10 @@ NdbDictionaryImpl::setTransporter(class Ndb* ndb,
     if(f_dictionary_count++ == 0){
       NdbDictionary::Column::FRAGMENT= 
 	NdbColumnImpl::create_pseudo("NDB$FRAGMENT");
-      NdbDictionary::Column::FRAGMENT_MEMORY= 
-	NdbColumnImpl::create_pseudo("NDB$FRAGMENT_MEMORY");
+      NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 
+	NdbColumnImpl::create_pseudo("NDB$FRAGMENT_FIXED_MEMORY");
+      NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 
+	NdbColumnImpl::create_pseudo("NDB$FRAGMENT_VARSIZED_MEMORY");
       NdbDictionary::Column::ROW_COUNT= 
 	NdbColumnImpl::create_pseudo("NDB$ROW_COUNT");
       NdbDictionary::Column::COMMIT_COUNT= 
@@ -5041,7 +5050,8 @@ template class Vector<NdbTableImpl*>;
 template class Vector<NdbColumnImpl*>;
 
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
-const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_MEMORY = 0;
+const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_FIXED_MEMORY = 0;
+const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COMMIT_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_SIZE = 0;
