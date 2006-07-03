@@ -265,3 +265,23 @@ drop view v1|
 drop table t3|
 
 delimiter ;|
+
+#
+# Bug#15298 SHOW GRANTS FOR CURRENT_USER: Incorrect output in DEFINER context
+#
+--disable_warnings
+drop procedure if exists bug15298_1;
+drop procedure if exists bug15298_2;
+--enable_warnings
+grant all privileges on test.* to 'mysqltest_1'@'localhost';
+create procedure 15298_1 () sql security definer show grants for current_user;
+create procedure 15298_2 () sql security definer show grants;
+
+connect (con1,localhost,mysqltest_1,,test);
+call 15298_1();
+call 15298_2();
+
+connection default;
+drop user mysqltest_1@localhost;
+drop procedure 15298_1;
+drop procedure 15298_2;
