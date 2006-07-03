@@ -104,7 +104,7 @@ class LqhFragReq {
   friend bool printLQH_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 24 );
+  STATIC_CONST( SignalLength = 23 );
   
   enum RequestInfo {
     CreateInRunning = 0x8000000,
@@ -115,33 +115,33 @@ private:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 fragmentId;
-  Uint8  requestInfo; 
-  Uint8  unused1; 
+  Uint32 requestInfo; 
+  Uint32 maxLoadFactor;
+  Uint32 minLoadFactor;
+  Uint32 kValue;
+  Uint32 schemaVersion;
+  Uint32 nextLCP;
+  Uint16 noOfNewAttr;
+  Uint16 noOfCharsets;
+  Uint32 startGci;
+  Uint32 tableType;             // DictTabInfo::TableType
+  Uint32 primaryTableId;        // table of index or RNIL
+  Uint16 tableId;
+  Uint16 localKeyLength;
+  Uint16 lh3DistrBits;
+  Uint16 lh3PageBits;
   Uint16 noOfAttributes;
-  Uint32 tableId;
-  Uint32 localKeyLength;
-  Uint16 maxLoadFactor;
-  Uint16 minLoadFactor;
-  Uint16 kValue;
-  Uint8  tableType;             // DictTabInfo::TableType
-  Uint8  GCPIndicator;
-  Uint32 lh3DistrBits;
-  Uint32 lh3PageBits;
-  Uint32 noOfNullAttributes;
+  Uint16 noOfNullAttributes;
+  Uint16 noOfPagesToPreAllocate;
+  Uint16 keyLength;
+  Uint16 noOfKeyAttr;
+  Uint8 checksumIndicator;
+  Uint8 GCPIndicator;
+  Uint32 noOfAttributeGroups;
   Uint32 maxRowsLow;
   Uint32 maxRowsHigh;
   Uint32 minRowsLow;
   Uint32 minRowsHigh;
-  Uint32 schemaVersion;
-  Uint32 keyLength;
-  Uint32 nextLCP;
-  Uint32 noOfKeyAttr;
-  Uint16 noOfNewAttr;
-  Uint16 noOfCharsets;
-  Uint32 checksumIndicator;
-  Uint32 noOfAttributeGroups;
-  Uint32 startGci;
-  Uint32 primaryTableId;        // table of index or RNIL
 };
 
 class LqhFragConf {
