@@ -1287,6 +1287,18 @@ bool Query_log_event::write(IO_CACHE* file)
           my_b_safe_write(file, (byte*) query, q_len)) ? 1 : 0;
 }
 
+/*
+  Query_log_event::Query_log_event()
+ 
+  The simplest constructor that could possibly work.  This is used for
+  creating static objects that have a special meaning and are invisible
+  to the log.  
+*/
+Query_log_event::Query_log_event()
+  :Log_event(), data_buf(0)
+{
+}
+
 
 /*
   Query_log_event::Query_log_event()
@@ -1931,6 +1943,21 @@ end:
   return (thd->query_error ? thd->query_error : 
           (thd->one_shot_set ? (rli->inc_event_relay_log_pos(),0) :
            Log_event::exec_event(rli))); 
+}
+#endif
+
+
+/**************************************************************************
+	Muted_query_log_event methods
+**************************************************************************/
+
+#ifndef MYSQL_CLIENT
+/*
+  Muted_query_log_event::Muted_query_log_event()
+*/
+Muted_query_log_event::Muted_query_log_event()
+  :Query_log_event()
+{
 }
 #endif
 
