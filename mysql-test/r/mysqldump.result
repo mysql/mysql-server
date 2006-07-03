@@ -2782,6 +2782,25 @@ end	AFTER	#		root@localhost
 drop trigger tr1;
 drop trigger tr2;
 drop table t1, t2;
+create table t (qty int, price int);
+insert into t values(3, 50);
+insert into t values(5, 51);
+create view v1 as select qty, price, qty*price as value from t;
+create view v2 as select qty from v1;
+mysqldump {
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v1` AS select `t`.`qty` AS `qty`,`t`.`price` AS `price`,(`t`.`qty` * `t`.`price`) AS `value` from `t` */;
+
+} mysqldump {
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v2` AS select `v1`.`qty` AS `qty` from `v1` */;
+
+} mysqldump
+drop view v1;
+drop view v2;
+drop table t;
 /*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
 return 42 */|
 /*!50003 CREATE PROCEDURE `p`()
@@ -2796,6 +2815,43 @@ p		CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 select 42
 drop function f;
 drop procedure p;
+create table t1 ( id serial );
+create view v1 as select * from t1;
+drop table t1;
+mysqldump {
+
+-- failed on view `v1`: CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`id` AS `id` from `t1`
+
+} mysqldump
+drop view v1;
+create database mysqldump_test_db;
+use mysqldump_test_db;
+create table t1 (id int);
+create view v1 as select * from t1;
+insert into t1 values (1232131);
+insert into t1 values (4711);
+insert into t1 values (3231);
+insert into t1 values (0815);
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+/*!40000 DROP DATABASE IF EXISTS `mysqldump_test_db`*/;
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_test_db` /*!40100 DEFAULT CHARACTER SET latin1 */;
+
+USE `mysqldump_test_db`;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `id` int(11) default NULL
 create table t1 (a text , b text);
 create table t2 (a text , b text);
 insert t1 values ("Duck, Duck", "goose");
