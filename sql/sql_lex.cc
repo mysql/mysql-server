@@ -41,8 +41,6 @@ sys_var_long_ptr trg_new_row_fake_var(0, 0);
 #define yySkip()	lex->ptr++
 #define yyLength()	((uint) (lex->ptr - lex->tok_start)-1)
 
-pthread_key(LEX*,THR_LEX);
-
 /* Longest standard keyword name */
 #define TOCK_NAME_LENGTH 24
 
@@ -90,8 +88,6 @@ void lex_init(void)
     symbols[i].length=(uchar) strlen(symbols[i].name);
   for (i=0 ; i < array_elements(sql_functions) ; i++)
     sql_functions[i].length=(uchar) strlen(sql_functions[i].name);
-
-  VOID(pthread_key_create(&THR_LEX,NULL));
 
   DBUG_VOID_RETURN;
 }
