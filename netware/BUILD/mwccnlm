@@ -7,4 +7,4 @@ set -e
 # convert it to "-I../include"
 args=" "`echo $* | sed -e 's/-I.\/../-I../g'`
 
-wine --debugmsg -all -- mwccnlm $args
+wine --debugmsg -all -- mwccnlm $args 2>&1 | sed -e 's/^[[:cntrl:]].*[[:cntrl:]]>//'

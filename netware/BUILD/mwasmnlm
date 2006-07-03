@@ -5,4 +5,4 @@ set -e
 
 args=" $*"
 
-wine --debugmsg -all -- mwasmnlm $args
+wine --debugmsg -all -- mwasmnlm $args 2>&1 | sed -e 's/^[[:cntrl:]].*[[:cntrl:]]>//'
