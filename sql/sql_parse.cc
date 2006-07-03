@@ -3457,7 +3457,7 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     TABLE_LIST *aux_tables=
-      (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
+      (TABLE_LIST *)thd->lex->auxiliary_table_list.first;
     multi_delete *result;
 
     if (!thd->locked_tables &&
@@ -5762,7 +5762,7 @@ void mysql_init_multi_delete(LEX *lex)
   mysql_init_select(lex);
   lex->select_lex.select_limit= 0;
   lex->unit.select_limit_cnt= HA_POS_ERROR;
-  lex->select_lex.table_list.save_and_clear(&lex->auxilliary_table_list);
+  lex->select_lex.table_list.save_and_clear(&lex->auxiliary_table_list);
   lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
@@ -7141,7 +7141,7 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   TABLE_LIST *aux_tables=
-    (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
+    (TABLE_LIST *)thd->lex->auxiliary_table_list.first;
   TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
   DBUG_ENTER("multi_delete_precheck");
 
@@ -7195,7 +7195,7 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
 
   lex->table_count= 0;
 
-  for (target_tbl= (TABLE_LIST *)lex->auxilliary_table_list.first;
+  for (target_tbl= (TABLE_LIST *)lex->auxiliary_table_list.first;
        target_tbl; target_tbl= target_tbl->next_local)
   {
     lex->table_count++;
