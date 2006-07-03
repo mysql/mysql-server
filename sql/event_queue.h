@@ -16,5 +16,107 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
- 
+class sp_name;
+class Event_timed;
+class Event_db_repository;
+
+class THD;
+typedef bool * (*event_timed_identifier_comparator)(Event_timed*, Event_timed*);
+
+class Event_scheduler;
+
+class Event_queue
+{
+public:
+  Event_queue();
+
+  static void
+  init_mutexes();
+  
+  static void
+  destroy_mutexes();
+  
+  bool
+  init(Event_db_repository *db_repo);
+  
+  void
+  deinit();
+
+  /* Methods for queue management follow */
+
+  int
+  create_event(THD *thd, Event_parse_data *et, bool check_existence);
+
+  int
+  update_event(THD *thd, Event_parse_data *et, LEX_STRING *new_schema,
+               LEX_STRING *new_name);
+
+  bool
+  drop_event(THD *thd, sp_name *name);
+
+  int
+  drop_schema_events(THD *thd, LEX_STRING schema);
+
+  int
+  drop_user_events(THD *thd, LEX_STRING *definer)
+  { DBUG_ASSERT(0); return 0;}
+
+  uint
+  events_count();
+
+  uint
+  events_count_no_lock();
+
+  static bool
+  check_system_tables(THD *thd);
+
+  void
+  recalculate_queue(THD *thd);
+  
+  void
+  empty_queue();
+
+///////////////protected
+  Event_timed *
+  find_event(LEX_STRING db, LEX_STRING name, bool remove_from_q);
+
+  int
+  load_events_from_db(THD *thd);
+
+  void
+  drop_matching_events(THD *thd, LEX_STRING pattern,
+                       bool (*)(Event_timed *,LEX_STRING *));
+
+  /* LOCK_event_queue is the mutex which protects the access to the queue. */
+  pthread_mutex_t LOCK_event_queue;
+
+  Event_db_repository *db_repository;
+
+  /* The MEM_ROOT of the object */
+  MEM_ROOT scheduler_root;
+
+  /* The sorted queue with the Event_timed objects */
+  QUEUE queue;
+  
+  uint mutex_last_locked_at_line;
+  uint mutex_last_unlocked_at_line;
+  const char* mutex_last_locked_in_func;
+  const char* mutex_last_unlocked_in_func;
+  bool mutex_queue_data_locked;
+
+  /* helper functions for working with mutexes & conditionals */
+  void
+  lock_data(const char *func, uint line);
+
+  void
+  unlock_data(const char *func, uint line);
+
+  static void
+  on_queue_change();
+protected:
+  /* Singleton instance */
+  static Event_scheduler *singleton;
+
+};
+
 #endif /* _EVENT_QUEUE_H_ */

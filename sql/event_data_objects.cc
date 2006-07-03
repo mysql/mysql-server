@@ -25,12 +25,32 @@
 #define EVEX_MAX_INTERVAL_VALUE 2147483647L
 
 
+/*
+  Returns a new instance
+
+  SYNOPSIS
+    Event_parse_data::new_instance()
+
+  RETURN VALUE
+    Address or NULL in case of error
+  
+  NOTE
+    Created on THD's mem_root
+*/
+
 Event_parse_data *
 Event_parse_data::new_instance(THD *thd)
 {
   return new (thd->mem_root) Event_parse_data;
 }
 
+
+/*
+  Constructor
+
+  SYNOPSIS
+    Event_parse_data::Event_parse_data()
+*/
 
 Event_parse_data::Event_parse_data()
 {

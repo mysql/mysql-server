@@ -1297,3 +1297,4 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING na
 
   DBUG_RETURN(OP_OK);
 }
+

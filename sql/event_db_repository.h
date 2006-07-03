@@ -113,6 +113,9 @@ private:
   int
   table_scan_all_for_i_s(THD *thd, TABLE *schema_table, TABLE *event_table);
 
+  static bool
+  check_system_tables(THD *thd);
+
   MEM_ROOT repo_root;
 
   /* Prevent use of these */
