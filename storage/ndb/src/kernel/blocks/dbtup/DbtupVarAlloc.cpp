@@ -302,6 +302,7 @@ Dbtup::get_empty_var_page(Fragrecord* fragPtr)
 
   Uint32 cnt;
   allocConsPages(10, cnt, ptr.i);
+  fragPtr->noOfVarPages+= cnt;
   if (unlikely(cnt == 0))
   {
     return RNIL;
