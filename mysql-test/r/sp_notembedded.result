@@ -206,3 +206,17 @@ drop procedure bug10100pd|
 drop procedure bug10100pc|
 drop view v1|
 drop table t3|
+drop procedure if exists bug15298_1;
+drop procedure if exists bug15298_2;
+grant all privileges on test.* to 'mysqltest_1'@'localhost';
+create procedure 15298_1 () sql security definer show grants for current_user;
+create procedure 15298_2 () sql security definer show grants;
+call 15298_1();
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+call 15298_2();
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+drop user mysqltest_1@localhost;
+drop procedure 15298_1;
+drop procedure 15298_2;

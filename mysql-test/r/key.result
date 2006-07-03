@@ -336,8 +336,16 @@ UNIQUE i1idx (i1),
 UNIQUE i2idx (i2));
 desc t1;
 Field	Type	Null	Key	Default	Extra
-i1	int(11)	NO	UNI		
+i1	int(11)	NO	PRI		
 i2	int(11)	NO	UNI		
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i1` int(11) NOT NULL,
+  `i2` int(11) NOT NULL,
+  UNIQUE KEY `i1idx` (`i1`),
+  UNIQUE KEY `i2idx` (`i2`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (
 c1 int,

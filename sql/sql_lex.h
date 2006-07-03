@@ -1116,6 +1116,3 @@ extern void lex_start(THD *thd, uchar *buf,uint length);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
 
-extern pthread_key(LEX*,THR_LEX);
-
-#define current_lex (current_thd->lex)

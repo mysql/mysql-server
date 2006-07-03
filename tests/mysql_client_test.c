@@ -8311,6 +8311,39 @@ static void test_list_fields()
 }
 
 
+static void test_bug19671()
+{
+  MYSQL_RES *result;
+  int rc;
+  myheader("test_bug19671");
+
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "drop view if exists v1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "create table t1(f1 int)");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "create view v1 as select va.* from t1 va");
+  myquery(rc);
+
+  result= mysql_list_fields(mysql, "v1", NULL);
+  mytest(result);
+
+  rc= my_process_result_set(result);
+  DIE_UNLESS(rc == 0);
+
+  verify_prepare_field(result, 0, "f1", "f1", MYSQL_TYPE_LONG,
+                       "v1", "v1", current_db, 11, "0");
+
+  mysql_free_result(result);
+  myquery(mysql_query(mysql, "drop view v1"));
+  myquery(mysql_query(mysql, "drop table t1"));
+}
+
+
 /* Test a memory ovverun bug */
 
 static void test_mem_overun()
@@ -14882,11 +14915,13 @@ static void test_bug17667()
 
     printf("success.  All queries found intact in the log.\n");
 
-  } else {
+  }
+  else
+  {
     fprintf(stderr, "Could not find the log file, var/log/master.log, so "
-        "test_bug17667 is \ninconclusive.  Run test from the "
-        "mysql-test/mysql-test-run* program \nto set up the correct "
-        "environment for this test.\n\n");
+            "test_bug17667 is \ninconclusive.  Run test from the "
+            "mysql-test/mysql-test-run* program \nto set up the correct "
+            "environment for this test.\n\n");
   }
 
   if (log_file != NULL)
@@ -14896,7 +14931,8 @@ static void test_bug17667()
 
 
 /*
-  Bug#14169: type of group_concat() result changed to blob if tmp_table was used
+  Bug#14169: type of group_concat() result changed to blob if tmp_table was
+  used
 */
 static void test_bug14169()
 {
@@ -14929,7 +14965,62 @@ static void test_bug14169()
 
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
-}/*
+}
+
+
+/*
+  Bug#20152: mysql_stmt_execute() writes to MYSQL_TYPE_DATE buffer
+*/
+
+static void test_bug20152()
+{
+  MYSQL_BIND bind[1];
+  MYSQL_STMT *stmt;
+  MYSQL_TIME tm;
+  int rc;
+  const char *query= "INSERT INTO t1 (f1) VALUES (?)";
+
+  myheader("test_bug20152");
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_DATE;
+  bind[0].buffer= (void*)&tm;
+
+  tm.year = 2006;
+  tm.month = 6;
+  tm.day = 18;
+  tm.hour = 14;
+  tm.minute = 9;
+  tm.second = 42;
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE t1 (f1 DATE)");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_close(stmt);
+  check_execute(stmt, rc);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+
+  if (tm.hour == 14 && tm.minute == 9 && tm.second == 42) {
+    if (!opt_silent)
+      printf("OK!");
+  } else {
+    printf("[14:09:42] != [%02d:%02d:%02d]\n", tm.hour, tm.minute, tm.second);
+    DIE_UNLESS(0==1);
+  }
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -15193,8 +15284,10 @@ static struct my_tests_st my_tests[]= {
   { "test_bug12744", test_bug12744 },
   { "test_bug16143", test_bug16143 },
   { "test_bug15613", test_bug15613 },
+  { "test_bug20152", test_bug20152 },
   { "test_bug14169", test_bug14169 },
   { "test_bug17667", test_bug17667 },
+  { "test_bug19671", test_bug19671},
   { 0, 0 }
 };
 
