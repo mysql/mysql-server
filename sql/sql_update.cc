@@ -120,6 +120,7 @@ int mysql_update(THD *thd,
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table;
+  bool		can_compare_record;
   int           res;
   int		error;
   uint		used_index= MAX_KEY;
@@ -433,6 +434,13 @@ int mysql_update(THD *thd,
                                (MODE_STRICT_TRANS_TABLES |
                                 MODE_STRICT_ALL_TABLES)));
 
+  /*
+    We can use compare_record() to optimize away updates if
+    the table handler is returning all columns
+  */
+  can_compare_record= !(table->file->table_flags() &
+                        HA_PARTIAL_COLUMN_READ);
+                       
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     if (!(select && select->skip_record()))
@@ -445,7 +453,7 @@ int mysql_update(THD *thd,
 
       found++;
 
-      if (compare_record(table, query_id))
+      if (!can_compare_record || compare_record(table, query_id))
       {
         if ((res= table_list->view_check_option(thd, ignore)) !=
             VIEW_CHECK_OK)
@@ -1248,8 +1256,15 @@ bool multi_update::send_data(List<Item> &not_used_values)
 
     uint offset= cur_table->shared;
     table->file->position(table->record[0]);
+    /*
+      We can use compare_record() to optimize away updates if
+      the table handler is returning all columns
+    */
     if (table == table_to_update)
     {
+      bool can_compare_record;
+      can_compare_record= !(table->file->table_flags() &
+                            HA_PARTIAL_COLUMN_READ);
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd, *fields_for_table[offset],
@@ -1259,7 +1274,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	DBUG_RETURN(1);
 
       found++;
-      if (compare_record(table, thd->query_id))
+      if (!can_compare_record || compare_record(table, thd->query_id))
       {
 	int error;
         if ((error= cur_table->view_check_option(thd, ignore)) !=
@@ -1376,6 +1391,7 @@ int multi_update::do_updates(bool from_send_error)
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
     byte *ref_pos;
+    bool can_compare_record;
 
     table = cur_table->table;
     if (table == table_to_update)
@@ -1401,6 +1417,9 @@ int multi_update::do_updates(bool from_send_error)
 
     if ((local_error = tmp_table->file->ha_rnd_init(1)))
       goto err;
+
+    can_compare_record= !(table->file->table_flags() &
+                          HA_PARTIAL_COLUMN_READ);
 
     ref_pos= (byte*) tmp_table->field[0]->ptr;
     for (;;)
@@ -1431,7 +1450,7 @@ int multi_update::do_updates(bool from_send_error)
                                             TRG_ACTION_BEFORE, TRUE))
         goto err2;
 
-      if (compare_record(table, thd->query_id))
+      if (!can_compare_record || compare_record(table, thd->query_id))
       {
 	if ((local_error=table->file->update_row(table->record[1],
 						 table->record[0])))
