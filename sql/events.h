@@ -19,6 +19,8 @@
 class sp_name;
 class Event_parse_data;
 class Event_db_repository;
+class Event_queue;
+class Event_scheduler_ng;
 
 /* Return codes */
 enum enum_events_error_code
@@ -60,6 +62,15 @@ public:
   void
   destroy_mutexes();
 
+  bool
+  start_execution_of_events();
+  
+  bool
+  stop_execution_of_events();
+  
+  bool
+  is_started();
+
   static Events*
   get_instance();
 
@@ -95,6 +106,8 @@ public:
   dump_internal_status(THD *thd);
 
   Event_db_repository *db_repository;
+  Event_queue *event_queue;
+  Event_scheduler_ng *scheduler_ng;
 
 private:
   /* Singleton DP is used */
