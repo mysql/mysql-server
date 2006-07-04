@@ -396,6 +396,8 @@ ClusterMgr::execNF_COMPLETEREP(const Uint32 * theData){
 
 void
 ClusterMgr::reportConnected(NodeId nodeId){
+  DBUG_ENTER("ClusterMgr::reportConnected");
+  DBUG_PRINT("info", ("nodeId: %u", nodeId));
   /**
    * Ensure that we are sending heartbeat every 100 ms
    * until we have got the first reply from NDB providing
@@ -421,6 +423,7 @@ ClusterMgr::reportConnected(NodeId nodeId){
   theNode.nfCompleteRep = true;
   
   theFacade.ReportNodeAlive(nodeId);
+  DBUG_VOID_RETURN;
 }
 
 void
