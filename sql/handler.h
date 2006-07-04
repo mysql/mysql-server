@@ -57,6 +57,7 @@
   see mi_rsame/heap_rsame/myrg_rsame
 */
 #define HA_READ_RND_SAME       (1 << 0)
+#define HA_PARTIAL_COLUMN_READ (1 << 1) /* read may not return all columns */
 #define HA_TABLE_SCAN_ON_INDEX (1 << 2) /* No separate data/index file */
 #define HA_REC_NOT_IN_SEQ      (1 << 3) /* ha_info don't return recnumber;
                                            It returns a position to ha_r_rnd */

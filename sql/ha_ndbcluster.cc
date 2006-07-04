@@ -4575,7 +4575,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
                 HA_NO_PREFIX_CHAR_KEYS |
                 HA_NEED_READ_RANGE_BUFFER |
                 HA_CAN_GEOMETRY |
-                HA_CAN_BIT_FIELD),
+                HA_CAN_BIT_FIELD |
+                HA_PARTIAL_COLUMN_READ),
   m_share(0),
   m_use_write(FALSE),
   m_ignore_dup_key(FALSE),
