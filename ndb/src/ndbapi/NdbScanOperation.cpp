@@ -1550,7 +1550,10 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend){
      * If no receiver is outstanding...
      *   set it to 1 as execCLOSE_SCAN_REP resets it
      */
-    m_sent_receivers_count = m_sent_receivers_count ? m_sent_receivers_count : 1;
+    if (m_sent_receivers_count < theParallelism)
+      m_sent_receivers_count++;
+    else
+      m_conf_receivers_count++;
     
     while(theError.code == 0 && (m_sent_receivers_count + m_conf_receivers_count))
     {
