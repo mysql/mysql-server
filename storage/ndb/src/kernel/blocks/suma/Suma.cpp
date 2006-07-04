@@ -2667,7 +2667,8 @@ Suma::reportAllSubscribers(Signal *signal,
 {
   SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
 
-  if (table_event == NdbDictionary::Event::_TE_SUBSCRIBE)
+  if (table_event == NdbDictionary::Event::_TE_SUBSCRIBE &&
+      !c_startup.m_restart_server_node_id)
   {
     data->gci            = m_last_complete_gci + 1;
     data->tableId        = subPtr.p->m_tableId;
