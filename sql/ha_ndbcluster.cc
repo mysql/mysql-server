@@ -9866,7 +9866,6 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   }
   else 
   {
-#ifdef NOT_YET
     if (!current_thd->variables.new_mode)
     {
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -9877,7 +9876,6 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
                           " use --new option to enable");
       return HA_ERR_UNSUPPORTED;
     }
-#endif
    /*
       Create a shadow field for those tables that have user defined
       partitioning. This field stores the value of the partition
