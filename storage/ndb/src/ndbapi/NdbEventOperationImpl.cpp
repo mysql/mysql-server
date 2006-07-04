@@ -1522,6 +1522,46 @@ NdbEventBuffer::complete_outof_order_gcis()
 }
 
 void
+NdbEventBuffer::report_node_connected(Uint32 node_id)
+{
+  NdbEventOperation* op= m_ndb->getEventOperation(0);
+  if (op == 0)
+    return;
+
+  DBUG_ENTER("NdbEventBuffer::report_node_connected");
+  SubTableData data;
+  LinearSectionPtr ptr[3];
+  bzero(&data, sizeof(data));
+  bzero(ptr, sizeof(ptr));
+
+  data.tableId = ~0;
+  data.operation = NdbDictionary::Event::_TE_ACTIVE;
+  data.req_nodeid = (Uint8)node_id;
+  data.ndbd_nodeid = (Uint8)node_id;
+  data.logType = SubTableData::LOG;
+  data.gci = m_latestGCI + 1;
+  /**
+   * Insert this event for each operation
+   */
+  {
+    // no need to lock()/unlock(), receive thread calls this
+    NdbEventOperationImpl* impl = &op->m_impl;
+    do if (!impl->m_node_bit_mask.isclear())
+    {
+      data.senderData = impl->m_oid;
+      insertDataL(impl, &data, ptr);
+    } while((impl = impl->m_next));
+    for (impl = m_dropped_ev_op; impl; impl = impl->m_next)
+      if (!impl->m_node_bit_mask.isclear())
+      {
+        data.senderData = impl->m_oid;
+        insertDataL(impl, &data, ptr);
+      }
+  }
+  DBUG_VOID_RETURN;
+}
+
+void
 NdbEventBuffer::report_node_failure(Uint32 node_id)
 {
   NdbEventOperation* op= m_ndb->getEventOperation(0);
