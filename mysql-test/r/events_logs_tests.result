@@ -49,8 +49,8 @@ USER_HOST	SLEEPVAL	events_test	SELECT SLEEP(2)
 SET SESSION long_query_time=300;
 "Make it quite long"
 TRUNCATE mysql.slow_log;
-SET SESSION long_query_time=1;
 CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
+SET SESSION long_query_time=1;
 "This won't go to the slow log"
 CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(3);
 SELECT * FROM slow_event_test;
