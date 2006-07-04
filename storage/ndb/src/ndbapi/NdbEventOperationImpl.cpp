@@ -1809,11 +1809,18 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       }
       // merge is on so we do not report blob part events
       if (! is_blob_event) {
-        // report actual operation, not composite
+        // report actual operation and the composite
         // there is no way to "fix" the flags for a composite op
         // since the flags represent multiple ops on multiple PKs
-        EventBufData_list::Gci_op g = { op, (1 << sdata->operation) };
-        bucket->m_data.add_gci_op(g);
+        // XXX fix by doing merge at end of epoch (extra mem cost)
+        {
+          EventBufData_list::Gci_op g = { op, (1 << sdata->operation) };
+          bucket->m_data.add_gci_op(g);
+        }
+        {
+          EventBufData_list::Gci_op g = { op, (1 << data->sdata->operation) };
+          bucket->m_data.add_gci_op(g);
+        }
       }
     }
     DBUG_RETURN_EVENT(0);
