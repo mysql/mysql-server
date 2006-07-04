@@ -57,7 +57,9 @@ public:
    */ 
   virtual
   int readTuples(LockMode lock_mode = LM_Read, 
-                 Uint32 scan_flags = 0, Uint32 parallel = 0);
+                 Uint32 scan_flags = 0, 
+		 Uint32 parallel = 0,
+		 Uint32 batch = 0);
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
