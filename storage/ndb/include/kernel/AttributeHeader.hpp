@@ -39,12 +39,13 @@ public:
   STATIC_CONST( RANGE_NO     = 0xFFFB ); // Read range no (when batched ranges)
   
   STATIC_CONST( ROW_SIZE     = 0xFFFA );
-  STATIC_CONST( FRAGMENT_MEMORY= 0xFFF9 );
+  STATIC_CONST( FRAGMENT_FIXED_MEMORY= 0xFFF9 );
 
   STATIC_CONST( RECORDS_IN_RANGE = 0xFFF8 );
   STATIC_CONST( DISK_REF     = 0xFFF7 );
   STATIC_CONST( ROWID        = 0xFFF6 );
   STATIC_CONST( ROW_GCI      = 0xFFF5 );
+  STATIC_CONST( FRAGMENT_VARSIZED_MEMORY = 0xFFF4 );
 
   // NOTE: in 5.1 ctors and init take size in bytes
 

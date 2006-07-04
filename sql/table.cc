@@ -1025,6 +1025,27 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       if (share->key_info[key].flags & HA_FULLTEXT)
 	share->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;
 
+      if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
+      {
+	/*
+	  If the UNIQUE key doesn't have NULL columns and is not a part key
+	  declare this as a primary key.
+	*/
+	primary_key=key;
+	for (i=0 ; i < keyinfo->key_parts ;i++)
+	{
+	  uint fieldnr= key_part[i].fieldnr;
+	  if (!fieldnr ||
+	      share->field[fieldnr-1]->null_ptr ||
+	      share->field[fieldnr-1]->key_length() !=
+	      key_part[i].length)
+	  {
+	    primary_key=MAX_KEY;		// Can't be used
+	    break;
+	  }
+	}
+      }
+
       for (i=0 ; i < keyinfo->key_parts ; key_part++,i++)
       {
         Field *field;

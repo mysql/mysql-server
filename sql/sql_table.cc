@@ -3278,8 +3278,23 @@ bool mysql_create_table_internal(THD *thd,
       my_casedn_str(files_charset_info, path);
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
   }
-  else
+  else  
+  {
+ #ifdef FN_DEVCHAR
+    /* check if the table name contains FN_DEVCHAR when defined */
+    const char *start= alias;
+    while (*start != '\0')
+    {
+      if (*start == FN_DEVCHAR)
+      {
+        my_error(ER_WRONG_TABLE_NAME, MYF(0), alias);
+        DBUG_RETURN(TRUE);
+      }
+      start++;
+    }	  
+#endif
     path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext);
+  }
 
   /* Check if table already exists */
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -6322,12 +6337,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     if ((error=to->file->ha_write_row((byte*) to->record[0])))
     {
-      if ((!ignore &&
-	   handle_duplicates != DUP_REPLACE) ||
-	  (error != HA_ERR_FOUND_DUPP_KEY &&
-	   error != HA_ERR_FOUND_DUPP_UNIQUE))
+      if (!ignore || handle_duplicates != DUP_ERROR ||
+          to->file->is_fatal_error(error, HA_CHECK_DUP))
       {
-         if (error == HA_ERR_FOUND_DUPP_KEY)
+         if (!to->file->is_fatal_error(error, HA_CHECK_DUP))
          {
            uint key_nr= to->file->get_dup_key(error);
            if ((int) key_nr >= 0)

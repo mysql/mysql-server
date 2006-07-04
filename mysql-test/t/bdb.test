@@ -1045,6 +1045,7 @@ commit;
 alter table t1 add primary key(a);
 drop table t1;
 
+
 --echo End of 5.0 tests
 
 #

@@ -7420,7 +7420,7 @@ ndb_get_table_statistics(Ndb* ndb, const NDBTAB *ndbtab,
 
   do
   {
-    Uint64 rows, commits, mem;
+    Uint64 rows, commits, fixed_mem, var_mem;
     Uint32 size;
     Uint32 count= 0;
     Uint64 sum_rows= 0;
@@ -7458,7 +7458,10 @@ ndb_get_table_statistics(Ndb* ndb, const NDBTAB *ndbtab,
     pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&rows);
     pOp->getValue(NdbDictionary::Column::COMMIT_COUNT, (char*)&commits);
     pOp->getValue(NdbDictionary::Column::ROW_SIZE, (char*)&size);
-    pOp->getValue(NdbDictionary::Column::FRAGMENT_MEMORY, (char*)&mem);
+    pOp->getValue(NdbDictionary::Column::FRAGMENT_FIXED_MEMORY, 
+		  (char*)&fixed_mem);
+    pOp->getValue(NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY, 
+		  (char*)&var_mem);
     
     if (pTrans->execute(NdbTransaction::NoCommit,
                         NdbTransaction::AbortOnError,
@@ -7474,7 +7477,7 @@ ndb_get_table_statistics(Ndb* ndb, const NDBTAB *ndbtab,
       sum_commits+= commits;
       if (sum_row_size < size)
         sum_row_size= size;
-      sum_mem+= mem;
+      sum_mem+= fixed_mem + var_mem;
       count++;
     }
     

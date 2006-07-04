@@ -1120,6 +1120,7 @@ server-tools/instance-manager/messages.cpp
 server-tools/instance-manager/mysql_connection.cpp
 server-tools/instance-manager/mysqlmanager
 server-tools/instance-manager/mysqlmanager.cpp
+server-tools/instance-manager/net_serv.cc
 server-tools/instance-manager/options.cpp
 server-tools/instance-manager/parse.cpp
 server-tools/instance-manager/parse_output.cpp
@@ -1780,4 +1781,3 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
-server-tools/instance-manager/net_serv.cc
