@@ -235,6 +235,7 @@
 #define ZSCAN_MARKERS 18
 #define ZOPERATION_EVENT_REP 19
 #define ZPREP_DROP_TABLE 20
+#define ZENABLE_EXPAND_CHECK 21
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
