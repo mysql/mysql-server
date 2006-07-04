@@ -659,3 +659,56 @@ DROP VIEW test2.t3;
 DROP TABLE test2.t1, test1.t0;
 DROP DATABASE test2;
 DROP DATABASE test1;
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+DROP VIEW IF EXISTS v3;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP PROCEDURE IF EXISTS p1;
+CREATE SQL SECURITY DEFINER VIEW v1 AS SELECT CURRENT_USER() AS cu;
+CREATE FUNCTION f1() RETURNS VARCHAR(77) SQL SECURITY INVOKER
+RETURN CURRENT_USER();
+CREATE SQL SECURITY DEFINER VIEW v2 AS SELECT f1() AS cu;
+CREATE PROCEDURE p1(OUT cu VARCHAR(77)) SQL SECURITY INVOKER
+SET cu= CURRENT_USER();
+CREATE FUNCTION f2() RETURNS VARCHAR(77) SQL SECURITY INVOKER
+BEGIN
+DECLARE cu VARCHAR(77);
+CALL p1(cu);
+RETURN cu;
+END|
+CREATE SQL SECURITY DEFINER VIEW v3 AS SELECT f2() AS cu;
+CREATE USER mysqltest_u1@localhost;
+GRANT ALL ON test.* TO mysqltest_u1@localhost;
+
+The following tests should all return 1.
+
+SELECT CURRENT_USER() = 'mysqltest_u1@localhost';
+CURRENT_USER() = 'mysqltest_u1@localhost'
+1
+SELECT f1() = 'mysqltest_u1@localhost';
+f1() = 'mysqltest_u1@localhost'
+1
+CALL p1(@cu);
+SELECT @cu = 'mysqltest_u1@localhost';
+@cu = 'mysqltest_u1@localhost'
+1
+SELECT f2() = 'mysqltest_u1@localhost';
+f2() = 'mysqltest_u1@localhost'
+1
+SELECT cu = 'root@localhost' FROM v1;
+cu = 'root@localhost'
+1
+SELECT cu = 'root@localhost' FROM v2;
+cu = 'root@localhost'
+1
+SELECT cu = 'root@localhost' FROM v3;
+cu = 'root@localhost'
+1
+DROP VIEW v3;
+DROP FUNCTION f2;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP VIEW v2;
+DROP VIEW v1;
+DROP USER mysqltest_u1@localhost;
