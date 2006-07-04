@@ -536,7 +536,7 @@ mlog_parse_index(
 		n_uniq = mach_read_from_2(ptr);
 		ptr += 2;
 		ut_ad(n_uniq <= n);
-		if (end_ptr < ptr + (n + 1) * 2) {
+		if (end_ptr < ptr + n * 2) {
 			return(NULL);
 		}
 	} else {
