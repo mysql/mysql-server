@@ -2390,17 +2390,37 @@ static void reset_one_shot_variables(THD *thd)
 }
 
 
-/****************************************************************************
-** mysql_execute_command
-** Execute command saved in thd and current_lex->sql_command
-****************************************************************************/
+/*
+  Execute command saved in thd and current_lex->sql_command
+
+  SYNOPSIS
+    mysql_execute_command()
+      thd                       Thread handle
+
+  IMPLEMENTATION
+
+    Before every operation that can request a write lock for a table
+    wait if a global read lock exists. However do not wait if this
+    thread has locked tables already. No new locks can be requested
+    until the other locks are released. The thread that requests the
+    global read lock waits for write locked tables to become unlocked.
+
+    Note that wait_if_global_read_lock() sets a protection against a new
+    global read lock when it succeeds. This needs to be released by
+    start_waiting_global_read_lock() after the operation.
+
+  RETURN
+    FALSE       OK
+    TRUE        Error
+*/
 
 bool
 mysql_execute_command(THD *thd)
 {
-  bool	res= FALSE;
-  int result= 0;
-  LEX	*lex= thd->lex;
+  bool res= FALSE;
+  bool need_start_waiting= FALSE; // have protection against global read lock
+  int  result= 0;
+  LEX  *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= &lex->select_lex;
   /* first table of first SELECT_LEX */
@@ -2865,7 +2885,8 @@ mysql_execute_command(THD *thd)
       TABLE in the same way. That way we avoid that a new table is
       created during a gobal read lock.
     */
-    if (wait_if_global_read_lock(thd, 0, 1))
+    if (!thd->locked_tables &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
     {
       res= 1;
       goto end_with_restore_list;
@@ -2901,7 +2922,7 @@ mysql_execute_command(THD *thd)
           {
             update_non_unique_table_error(create_table, "CREATE", duplicate);
             res= 1;
-            goto end_with_restart_wait;
+            goto end_with_restore_list;
           }
         }
         /* If we create merge table, we have to test tables in merge, too */
@@ -2917,7 +2938,7 @@ mysql_execute_command(THD *thd)
             {
               update_non_unique_table_error(tab, "CREATE", duplicate);
               res= 1;
-              goto end_with_restart_wait;
+              goto end_with_restore_list;
             }
           }
         }
@@ -2961,13 +2982,6 @@ mysql_execute_command(THD *thd)
       if (!res)
 	send_ok(thd);
     }
-
-end_with_restart_wait:
-    /*
-      Release the protection against the global read lock and wake
-      everyone, who might want to set a global read lock.
-    */
-    start_waiting_global_read_lock(thd);
 
     /* put tables back for PS rexecuting */
 end_with_restore_list:
@@ -3088,6 +3102,13 @@ end_with_restore_list:
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
 	goto error;
+
+      if (!thd->locked_tables &&
+          !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+      {
+        res= 1;
+        break;
+      }
 
       thd->enable_slow_log= opt_log_slow_admin_statements;
       res= mysql_alter_table(thd, select_lex->db, lex->name,
@@ -3345,6 +3366,14 @@ end_with_restore_list:
       break;
     /* Skip first table, which is the table we are inserting in */
     select_lex->context.table_list= first_table->next_local;
+
+    if (!thd->locked_tables &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    {
+      res= 1;
+      break;
+    }
+
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
@@ -3368,6 +3397,14 @@ end_with_restore_list:
     select_lex->options|= SELECT_NO_UNLOCK;
 
     unit->set_limit(select_lex);
+
+    if (! thd->locked_tables &&
+        ! (need_start_waiting= ! wait_if_global_read_lock(thd, 0, 1)))
+    {
+      res= 1;
+      break;
+    }
+
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
       /* Skip first table, which is the table we are inserting in */
@@ -3435,6 +3472,14 @@ end_with_restore_list:
       break;
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
+
+    if (!thd->locked_tables &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    {
+      res= 1;
+      break;
+    }
+
     res = mysql_delete(thd, all_tables, select_lex->where,
                        &select_lex->order_list,
                        unit->select_limit_cnt, select_lex->options,
@@ -3447,6 +3492,13 @@ end_with_restore_list:
     TABLE_LIST *aux_tables=
       (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
     multi_delete *result;
+
+    if (!thd->locked_tables &&
+        !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
+    {
+      res= 1;
+      break;
+    }
 
     if ((res= multi_delete_precheck(thd, all_tables)))
       break;
@@ -5178,11 +5230,22 @@ end:
   */
   if (!(sql_command_flags[lex->sql_command] & CF_HAS_ROW_COUNT))
     thd->row_count_func= -1;
-  DBUG_RETURN(res || thd->net.report_error);
+
+  goto finish;
 
 error:
-  res= 1;           // would be better to set res=1 before "goto error"
-  goto end;
+  res= TRUE;
+
+finish:
+  if (need_start_waiting)
+  {
+    /*
+      Release the protection against the global read lock and wake
+      everyone, who might want to set a global read lock.
+    */
+    start_waiting_global_read_lock(thd);
+  }
+  DBUG_RETURN(res || thd->net.report_error);
 }
 
 
