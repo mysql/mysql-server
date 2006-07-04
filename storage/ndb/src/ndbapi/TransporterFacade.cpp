@@ -794,6 +794,8 @@ TransporterFacade::connected()
 void
 TransporterFacade::ReportNodeDead(NodeId tNodeId)
 {
+  DBUG_ENTER("TransporterFacade::ReportNodeDead");
+  DBUG_PRINT("enter",("nodeid= %d", tNodeId));
   /**
    * When a node fails we must report this to each Ndb object. 
    * The function that is used for communicating node failures is called.
@@ -810,6 +812,7 @@ TransporterFacade::ReportNodeDead(NodeId tNodeId)
       (*RegPC) (obj, tNodeId, false, false);
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 void
