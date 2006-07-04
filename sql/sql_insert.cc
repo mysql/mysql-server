@@ -1421,18 +1421,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
     */
     if (! (tmp= find_handler(thd, table_list)))
     {
-      /*
-        Avoid that a global read lock steps in while we are creating the
-        new thread. It would block trying to open the table. Hence, the
-        DI thread and this thread would wait until after the global
-        readlock is gone. Since the insert thread needs to wait for a
-        global read lock anyway, we do it right now. Note that
-        wait_if_global_read_lock() sets a protection against a new
-        global read lock when it succeeds. This needs to be released by
-        start_waiting_global_read_lock().
-      */
-      if (wait_if_global_read_lock(thd, 0, 1))
-        goto err;
       if (!(tmp=new delayed_insert()))
       {
 	my_error(ER_OUTOFMEMORY,MYF(0),sizeof(delayed_insert));
@@ -1473,11 +1461,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_cond_wait(&tmp->cond_client,&tmp->mutex);
       }
       pthread_mutex_unlock(&tmp->mutex);
-      /*
-        Release the protection against the global read lock and wake
-        everyone, who might want to set a global read lock.
-      */
-      start_waiting_global_read_lock(thd);
       thd->proc_info="got old table";
       if (tmp->thd.killed)
       {
@@ -1513,11 +1496,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 
  err1:
   thd->fatal_error();
-  /*
-    Release the protection against the global read lock and wake
-    everyone, who might want to set a global read lock.
-  */
-  start_waiting_global_read_lock(thd);
  err:
   pthread_mutex_unlock(&LOCK_delayed_create);
   DBUG_RETURN(0); // Continue with normal insert
@@ -2876,7 +2854,7 @@ bool select_create::send_eof()
     if (!table->s->tmp_table)
     {
       if (close_thread_table(thd, &table))
-        VOID(pthread_cond_broadcast(&COND_refresh));
+        broadcast_refresh();
     }
     thd->extra_lock=0;
     table=0;
@@ -2906,7 +2884,7 @@ void select_create::abort()
         quick_rm_table(table_type, create_table->db, create_table->table_name);
       /* Tell threads waiting for refresh that something has happened */
       if (version != refresh_version)
-        VOID(pthread_cond_broadcast(&COND_refresh));
+        broadcast_refresh();
     }
     else if (!create_info->table_existed)
       close_temporary_table(thd, table, 1, 1);
