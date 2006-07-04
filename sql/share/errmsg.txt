@@ -5831,7 +5831,7 @@ ER_DUP_ENTRY_AUTOINCREMENT_CASE
 ER_EVENT_MODIFY_QUEUE_ERROR
         eng "Internal scheduler error %d"
 ER_EVENT_SET_VAR_ERROR
-        eng "Error during starting/stopping of the scheduler. Error code %u"
+        eng "Error during starting/stopping of the scheduler."
 ER_PARTITION_MERGE_ERROR
         eng "%s handler cannot be used in partitioned tables"
         swe "%s kan inte användas i en partitionerad tabell"

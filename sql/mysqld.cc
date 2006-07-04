@@ -864,7 +864,7 @@ static void close_connections(void)
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
     /* We skip slave threads & scheduler on this first loop through. */
-    if (tmp->slave_thread || tmp->system_thread == SYSTEM_THREAD_EVENT_SCHEDULER)
+    if (tmp->slave_thread)
       continue;
 
     tmp->killed= THD::KILL_CONNECTION;

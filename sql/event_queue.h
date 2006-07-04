@@ -19,22 +19,23 @@
 class sp_name;
 class Event_timed;
 class Event_db_repository;
+class Event_job_data;
 
 class THD;
 typedef bool * (*event_timed_identifier_comparator)(Event_timed*, Event_timed*);
 
-class Event_scheduler;
+class Event_scheduler_ng;
 
 class Event_queue
 {
 public:
   Event_queue();
 
-  static void
+  void
   init_mutexes();
   
-  static void
-  destroy_mutexes();
+  void
+  deinit_mutexes();
   
   bool
   init(Event_db_repository *db_repo);
@@ -76,6 +77,18 @@ public:
   void
   empty_queue();
 
+  Event_timed *
+  get_top_for_execution_if_time(THD *thd, time_t now, struct timespec *abstime);
+ 
+  Event_timed*
+  get_top();
+  
+  void
+  remove_top();
+  
+  void
+  top_changed();
+
 ///////////////protected
   Event_timed *
   find_event(LEX_STRING db, LEX_STRING name, bool remove_from_q);
@@ -91,9 +104,6 @@ public:
   pthread_mutex_t LOCK_event_queue;
 
   Event_db_repository *db_repository;
-
-  /* The MEM_ROOT of the object */
-  MEM_ROOT scheduler_root;
 
   /* The sorted queue with the Event_timed objects */
   QUEUE queue;
@@ -111,11 +121,11 @@ public:
   void
   unlock_data(const char *func, uint line);
 
-  static void
+  void
   on_queue_change();
+  
+  Event_scheduler_ng *scheduler;
 protected:
-  /* Singleton instance */
-  static Event_scheduler *singleton;
 
 };
 

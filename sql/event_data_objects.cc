@@ -556,6 +556,7 @@ Event_timed::Event_timed():in_spawned_thread(0),locked_by_thread_id(0),
 Event_timed::~Event_timed()
 {    
   deinit_mutexes();
+  free_root(&mem_root, MYF(0));
 
   if (free_sphead_on_delete)
     free_sp();
@@ -622,6 +623,8 @@ Event_timed::init()
   definer_user.length= definer_host.length= 0;
 
   sql_mode= 0;
+  /* init memory root */
+  init_alloc_root(&mem_root, 256, 512);
 
   DBUG_VOID_RETURN;
 }
@@ -644,7 +647,7 @@ Event_timed::init()
 */
 
 int
-Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
+Event_timed::load_from_row(TABLE *table)
 {
   char *ptr;
   Event_timed *et;
@@ -661,22 +664,22 @@ Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
   if (table->s->fields != ET_FIELD_COUNT)
     goto error;
 
-  if ((et->dbname.str= get_field(mem_root, table->field[ET_FIELD_DB])) == NULL)
+  if ((et->dbname.str= get_field(&mem_root, table->field[ET_FIELD_DB])) == NULL)
     goto error;
 
   et->dbname.length= strlen(et->dbname.str);
 
-  if ((et->name.str= get_field(mem_root, table->field[ET_FIELD_NAME])) == NULL)
+  if ((et->name.str= get_field(&mem_root, table->field[ET_FIELD_NAME])) == NULL)
     goto error;
 
   et->name.length= strlen(et->name.str);
 
-  if ((et->body.str= get_field(mem_root, table->field[ET_FIELD_BODY])) == NULL)
+  if ((et->body.str= get_field(&mem_root, table->field[ET_FIELD_BODY])) == NULL)
     goto error;
 
   et->body.length= strlen(et->body.str);
 
-  if ((et->definer.str= get_field(mem_root,
+  if ((et->definer.str= get_field(&mem_root,
                                   table->field[ET_FIELD_DEFINER])) == NullS)
     goto error;
   et->definer.length= strlen(et->definer.str);
@@ -688,10 +691,10 @@ Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
 
   len= ptr - et->definer.str;
 
-  et->definer_user.str= strmake_root(mem_root, et->definer.str, len);
+  et->definer_user.str= strmake_root(&mem_root, et->definer.str, len);
   et->definer_user.length= len;
   len= et->definer.length - len - 1;            //1 is because of @
-  et->definer_host.str= strmake_root(mem_root, ptr + 1, len);/* 1:because of @*/
+  et->definer_host.str= strmake_root(&mem_root, ptr + 1, len);/* 1:because of @*/
   et->definer_host.length= len;
   
   et->starts_null= table->field[ET_FIELD_STARTS]->is_null();
@@ -737,21 +740,21 @@ Event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
   last_executed_changed= false;
 
   /* ToDo : Andrey . Find a way not to allocate ptr on event_mem_root */
-  if ((ptr= get_field(mem_root, table->field[ET_FIELD_STATUS])) == NullS)
+  if ((ptr= get_field(&mem_root, table->field[ET_FIELD_STATUS])) == NullS)
     goto error;
 
   DBUG_PRINT("load_from_row", ("Event [%s] is [%s]", et->name.str, ptr));
   et->status= (ptr[0]=='E'? Event_timed::ENABLED:Event_timed::DISABLED);
 
   /* ToDo : Andrey . Find a way not to allocate ptr on event_mem_root */
-  if ((ptr= get_field(mem_root,
+  if ((ptr= get_field(&mem_root,
                   table->field[ET_FIELD_ON_COMPLETION])) == NullS)
     goto error;
 
   et->on_completion= (ptr[0]=='D'? Event_timed::ON_COMPLETION_DROP:
                                    Event_timed::ON_COMPLETION_PRESERVE);
 
-  et->comment.str= get_field(mem_root, table->field[ET_FIELD_COMMENT]);
+  et->comment.str= get_field(&mem_root, table->field[ET_FIELD_COMMENT]);
   if (et->comment.str != NullS)
     et->comment.length= strlen(et->comment.str);
   else
@@ -953,10 +956,10 @@ Event_timed::compute_next_execution_time()
   int tmp;
 
   DBUG_ENTER("Event_timed::compute_next_execution_time");
-  DBUG_PRINT("enter", ("starts=%llu ends=%llu last_executed=%llu",
+  DBUG_PRINT("enter", ("starts=%llu ends=%llu last_executed=%llu this=%p",
                         TIME_to_ulonglong_datetime(&starts),
                         TIME_to_ulonglong_datetime(&ends),
-                        TIME_to_ulonglong_datetime(&last_executed)));
+                        TIME_to_ulonglong_datetime(&last_executed), this));
 
   if (status == Event_timed::DISABLED)
   {
@@ -1168,7 +1171,8 @@ Event_timed::compute_next_execution_time()
     goto ret;
   }
 ret:
-  DBUG_PRINT("info", ("ret=0"));
+  DBUG_PRINT("info", ("ret=0 execute_at=%llu",
+             TIME_to_ulonglong_datetime(&execute_at)));
   DBUG_RETURN(false);
 err:
   DBUG_PRINT("info", ("ret=1"));
@@ -1392,6 +1396,7 @@ Event_timed::get_create_event(THD *thd, String *buf)
 int
 Event_timed::execute(THD *thd, MEM_ROOT *mem_root)
 {
+  Security_context *save_ctx;
   /* this one is local and not needed after exec */
   Security_context security_ctx;
   int ret= 0;
@@ -1400,14 +1405,8 @@ Event_timed::execute(THD *thd, MEM_ROOT *mem_root)
   DBUG_PRINT("info", ("    EVEX EXECUTING event %s.%s [EXPR:%d]",
                dbname.str, name.str, (int) expression));
 
-  VOID(pthread_mutex_lock(&this->LOCK_running));
-  if (running)
-  {
-    VOID(pthread_mutex_unlock(&this->LOCK_running));
-    DBUG_RETURN(-100);
-  }
-  running= true;
-  VOID(pthread_mutex_unlock(&this->LOCK_running));
+  thd->change_security_context(definer_user, definer_host, dbname,
+                               &security_ctx, &save_ctx);
 
   if (!sphead && (ret= compile(thd, mem_root)))
     goto done;
@@ -1434,14 +1433,11 @@ Event_timed::execute(THD *thd, MEM_ROOT *mem_root)
                definer_host.str, dbname.str));
     ret= -99;
   }
-
-  VOID(pthread_mutex_lock(&this->LOCK_running));
-  running= false;
   /* Will compile every time a new sp_head on different root */
   free_sp();
-  VOID(pthread_mutex_unlock(&this->LOCK_running));
 
 done:
+  thd->restore_security_context(save_ctx);
   /*
     1. Don't cache sphead if allocated on another mem_root
     2. Don't call security_ctx.destroy() because this will free our dbname.str
@@ -1807,3 +1803,4 @@ event_timed_identifier_equal(LEX_STRING db, LEX_STRING name, Event_timed *b)
   return !sortcmp_lex_string(name, b->name, system_charset_info) &&
          !sortcmp_lex_string(db, b->dbname, system_charset_info);
 }
+

@@ -129,136 +129,10 @@ TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] = {
 
   SYNOPSIS
     evex_fill_row()
-      thd    THD
-      table  the row to fill out
-      et     Event's data
-
-  RETURN VALUE
-    0 - OK
-    EVEX_GENERAL_ERROR    - bad data
-    EVEX_GET_FIELD_FAILED - field count does not match. table corrupted?
-
-  DESCRIPTION 
-    Used both when an event is created and when it is altered.
-*/
-
-static int
-evex_fill_row(THD *thd, TABLE *table, Event_timed *et, my_bool is_update)
-{
-  CHARSET_INFO *scs= system_charset_info;
-  enum enum_events_table_field field_num;
-
-  DBUG_ENTER("evex_fill_row");
-
-  DBUG_PRINT("info", ("dbname=[%s]", et->dbname.str));
-  DBUG_PRINT("info", ("name  =[%s]", et->name.str));
-  DBUG_PRINT("info", ("body  =[%s]", et->body.str));
-
-  if (table->field[field_num= ET_FIELD_DEFINER]->
-                  store(et->definer.str, et->definer.length, scs))
-    goto err_truncate;
-
-  if (table->field[field_num= ET_FIELD_DB]->
-                  store(et->dbname.str, et->dbname.length, scs))
-    goto err_truncate;
-
-  if (table->field[field_num= ET_FIELD_NAME]->
-                  store(et->name.str, et->name.length, scs))
-    goto err_truncate;
-
-  /* both ON_COMPLETION and STATUS are NOT NULL thus not calling set_notnull()*/
-  table->field[ET_FIELD_ON_COMPLETION]->
-                                       store((longlong)et->on_completion, true);
-
-  table->field[ET_FIELD_STATUS]->store((longlong)et->status, true);
-
-  /*
-    Change the SQL_MODE only if body was present in an ALTER EVENT and of course
-    always during CREATE EVENT.
-  */ 
-  if (et->body.str)
-  {
-    table->field[ET_FIELD_SQL_MODE]->
-                               store((longlong)thd->variables.sql_mode, true);
-
-    if (table->field[field_num= ET_FIELD_BODY]->
-                     store(et->body.str, et->body.length, scs))
-      goto err_truncate;
-  }
-
-  if (et->expression)
-  {
-    table->field[ET_FIELD_INTERVAL_EXPR]->set_notnull();
-    table->field[ET_FIELD_INTERVAL_EXPR]->store((longlong)et->expression, true);
-
-    table->field[ET_FIELD_TRANSIENT_INTERVAL]->set_notnull();
-    /*
-      In the enum (C) intervals start from 0 but in mysql enum valid values start
-      from 1. Thus +1 offset is needed!
-    */
-    table->field[ET_FIELD_TRANSIENT_INTERVAL]->
-                                         store((longlong)et->interval+1, true);
-
-    table->field[ET_FIELD_EXECUTE_AT]->set_null();
-
-    if (!et->starts_null)
-    {
-      table->field[ET_FIELD_STARTS]->set_notnull();
-      table->field[ET_FIELD_STARTS]->
-                            store_time(&et->starts, MYSQL_TIMESTAMP_DATETIME);
-    }
-
-    if (!et->ends_null)
-    {
-      table->field[ET_FIELD_ENDS]->set_notnull();
-      table->field[ET_FIELD_ENDS]->
-                            store_time(&et->ends, MYSQL_TIMESTAMP_DATETIME);
-    }
-  }
-  else if (et->execute_at.year)
-  {
-    table->field[ET_FIELD_INTERVAL_EXPR]->set_null();
-    table->field[ET_FIELD_TRANSIENT_INTERVAL]->set_null();
-    table->field[ET_FIELD_STARTS]->set_null();
-    table->field[ET_FIELD_ENDS]->set_null();
-    
-    table->field[ET_FIELD_EXECUTE_AT]->set_notnull();
-    table->field[ET_FIELD_EXECUTE_AT]->
-                        store_time(&et->execute_at, MYSQL_TIMESTAMP_DATETIME);
-  }
-  else
-  {
-    DBUG_ASSERT(is_update);
-    /*
-      it is normal to be here when the action is update
-      this is an error if the action is create. something is borked
-    */
-  }
-    
-  ((Field_timestamp *)table->field[ET_FIELD_MODIFIED])->set_time();
-
-  if (et->comment.str)
-  {
-    if (table->field[field_num= ET_FIELD_COMMENT]->
-                 store(et->comment.str, et->comment.length, scs))
-      goto err_truncate;
-  }
-
-  DBUG_RETURN(0);
-err_truncate:
-  my_error(ER_EVENT_DATA_TOO_LONG, MYF(0), table->field[field_num]->field_name);
-  DBUG_RETURN(EVEX_GENERAL_ERROR);
-}
-
-
-/*
-  Puts some data common to CREATE and ALTER EVENT into a row.
-
-  SYNOPSIS
-    evex_fill_row()
-      thd    THD
-      table  the row to fill out
-      et     Event's data
+      thd        THD
+      table      The row to fill out
+      et         Event's data
+      is_update  CREATE EVENT or ALTER EVENT
 
   RETURN VALUE
     0 - OK
@@ -596,7 +470,7 @@ Event_db_repository::find_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   TABLE *table;
   int ret;
   Event_timed *et= NULL;
-  DBUG_ENTER("db_find_event");
+  DBUG_ENTER("Event_db_repository::find_event");
   DBUG_PRINT("enter", ("name: %*s", name.length, name.str));
 
   if (tbl)
@@ -621,7 +495,7 @@ Event_db_repository::find_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
 
     2)::load_from_row() is silent on error therefore we emit error msg here
   */
-  if ((ret= et->load_from_row(root, table)))
+  if ((ret= et->load_from_row(table)))
   {
     my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
     goto done;
@@ -722,7 +596,7 @@ evex_check_params(THD *thd, Event_parse_data *parse_data)
   const char *pos= NULL;
   Item *bad_item;
 
-  DBUG_ENTER("evex_check_timing_params");
+  DBUG_ENTER("evex_check_params");
   DBUG_PRINT("info", ("execute_at=0x%d expr=0x%d starts=0x%d ends=0x%d",
                       parse_data->item_execute_at,
                       parse_data->item_expression,
@@ -1212,7 +1086,7 @@ Event_db_repository::drop_events_by_field(THD *thd,
   TABLE *table;
   Open_tables_state backup;
   READ_RECORD read_record_info;
-  DBUG_ENTER("drop_events_from_table_by_field");  
+  DBUG_ENTER("Event_db_repository::drop_events_by_field");  
   DBUG_PRINT("enter", ("field=%d field_value=%s", field, field_value.str));
 
   if (open_event_table(thd, TL_WRITE, &table))
@@ -1270,7 +1144,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING na
   Event_timed *et_loaded= NULL;
   Open_tables_state backup;
 
-  DBUG_ENTER("Event_scheduler::load_and_compile_event");
+  DBUG_ENTER("Event_db_repository::load_named_event");
   DBUG_PRINT("enter",("thd=%p name:%*s",thd, name.length, name.str));
 
   thd->reset_n_backup_open_tables_state(&backup);
@@ -1297,4 +1171,3 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING na
 
   DBUG_RETURN(OP_OK);
 }
-

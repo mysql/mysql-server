@@ -323,7 +323,6 @@ root@localhost	закачка	events_test
 "Should be only 1 process"
 select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
-event_scheduler	localhost	NULL	Connect	Suspended	NULL
 select release_lock("test_lock1");
 release_lock("test_lock1")
 1
@@ -343,7 +342,7 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 "Should have only 2 processes: the scheduler and the locked event"
 select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
-event_scheduler	localhost	NULL	Connect	Sleeping	NULL
+event_scheduler	localhost	NULL	Connect	Waiting for next activation	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2", 20)
 "Release the mutex, the event worker should finish."
 "Release the mutex, the event worker should finish."
@@ -359,13 +358,12 @@ create event закачка21 on schedule every 10 hour do select get_lock("test
 "Should have only 3 processes: the scheduler, our conn and the locked event"
 select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
-event_scheduler	localhost	NULL	Connect	Sleeping	NULL
+event_scheduler	localhost	NULL	Connect	Waiting for next activation	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
 set global event_scheduler=2;
 "Should have only our process now:"
 select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
-event_scheduler	localhost	NULL	Connect	Suspended	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
 drop event закачка21;
 create table t_16 (s1 int);

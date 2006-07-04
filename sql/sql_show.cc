@@ -4177,7 +4177,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   restore_record(sch_table, s->default_values);
 
-  if (et.load_from_row(thd->mem_root, event_table))
+  if (et.load_from_row(event_table))
   {
     my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0));
     DBUG_RETURN(1);

@@ -19,6 +19,7 @@
 class sp_name;
 class Event_timed;
 class Event_db_repository;
+class Event_queue;
 
 class THD;
 
@@ -31,7 +32,7 @@ events_shutdown();
 #include "event_queue.h"
 #include "event_scheduler.h"
 
-class Event_scheduler : public Event_queue
+class Event_scheduler
 {
 public:
   enum enum_state
@@ -56,7 +57,13 @@ public:
 
 
   static void
-  create_instance();
+  create_instance(Event_queue *queue);
+
+  static void
+  init_mutexes();
+  
+  static void
+  destroy_mutexes();
 
   /* Singleton access */
   static Event_scheduler*
@@ -122,6 +129,8 @@ public:
   void
   queue_changed();
 
+  Event_queue *event_queue;
+
 protected:
 
   uint
@@ -147,9 +156,11 @@ protected:
   /* Singleton DP is used */
   Event_scheduler();
   
-
+  pthread_mutex_t LOCK_data;
   pthread_mutex_t *LOCK_scheduler_data;
-  
+
+  /* The MEM_ROOT of the object */
+  MEM_ROOT scheduler_root;
 
   /* Set to start the scheduler in suspended state */
   bool start_scheduler_suspended;
@@ -172,17 +183,19 @@ protected:
     COND_LAST
   };
 
-  uint mutex_last_locked_at_line_nr;
-  uint mutex_last_unlocked_at_line_nr;
-  const char* mutex_last_locked_in_func_name;
-  const char* mutex_last_unlocked_in_func_name;
+  uint mutex_last_locked_at_line;
+  uint mutex_last_unlocked_at_line;
+  const char* mutex_last_locked_in_func;
+  const char* mutex_last_unlocked_in_func;
   int cond_waiting_on;
   bool mutex_scheduler_data_locked;
-
 
   static const char * const cond_vars_names[COND_LAST];
 
   pthread_cond_t cond_vars[COND_LAST];
+
+  /* Singleton instance */
+  static Event_scheduler *singleton;
 
 private:
   /* Prevent use of these */
