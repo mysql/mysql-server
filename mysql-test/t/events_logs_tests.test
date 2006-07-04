@@ -69,8 +69,8 @@ SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 SET SESSION long_query_time=300;
 --echo "Make it quite long"
 TRUNCATE mysql.slow_log;
-SET SESSION long_query_time=1;
 CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
+SET SESSION long_query_time=1;
 --echo "This won't go to the slow log"
 CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(3);
 SELECT * FROM slow_event_test;
