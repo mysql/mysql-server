@@ -2735,4 +2735,18 @@ m	e
 4	a
 1	b
 DROP VIEW v1;
-DROP TABLE IF EXISTS t1,t2;
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a INT NOT NULL, b INT NULL DEFAULT NULL);
+CREATE VIEW v1 AS SELECT a, b FROM t1;
+INSERT INTO v1 (b) VALUES (2);
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
+SET SQL_MODE = STRICT_ALL_TABLES;
+INSERT INTO v1 (b) VALUES (4);
+ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
+SET SQL_MODE = '';
+SELECT * FROM t1;
+a	b
+0	2
+DROP VIEW v1;
+DROP TABLE t1;
