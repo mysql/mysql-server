@@ -525,7 +525,8 @@ public:
     const char* getDefaultValue() const;
 
     static const Column * FRAGMENT;
-    static const Column * FRAGMENT_MEMORY;
+    static const Column * FRAGMENT_FIXED_MEMORY;
+    static const Column * FRAGMENT_VARSIZED_MEMORY;
     static const Column * ROW_COUNT;
     static const Column * COMMIT_COUNT;
     static const Column * ROW_SIZE;
