@@ -20,6 +20,7 @@
 #include "event_scheduler.h"
 #include "event_db_repository.h"
 #include "sp_head.h"
+#include "event_scheduler_ng.h"
 
 /*
  TODO list :
@@ -293,9 +294,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, uint create_options
                               create_options & HA_LEX_CREATE_IF_NOT_EXISTS,
                               rows_affected)))
   {
-    Event_scheduler *scheduler= Event_scheduler::get_instance();
-    if (scheduler->initialized() &&
-        (ret= scheduler->create_event(thd, parse_data, true)))
+    if ((ret= event_queue->create_event(thd, parse_data, true)))
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
   }
   /* No need to close the table, it will be closed in sql_parse::do_command */
@@ -336,11 +335,9 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name,
   */
   if (!(ret= db_repository->update_event(thd, parse_data, new_name)))
   {
-    Event_scheduler *scheduler= Event_scheduler::get_instance();
-    if (scheduler->initialized() &&
-        (ret= scheduler->update_event(thd, parse_data,
-                                      new_name? &new_name->m_db: NULL,
-                                      new_name? &new_name->m_name: NULL)))
+    if ((ret= event_queue->update_event(thd, parse_data,
+                                        new_name? &new_name->m_db: NULL,
+                                        new_name? &new_name->m_name: NULL)))
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
   }
   DBUG_RETURN(ret);
@@ -373,8 +370,7 @@ Events::drop_event(THD *thd, sp_name *name, bool drop_if_exists,
   if (!(ret= db_repository->drop_event(thd, name->m_db, name->m_name,
                                       drop_if_exists, rows_affected)))
   {
-    Event_scheduler *scheduler= Event_scheduler::get_instance();
-    if (scheduler->initialized() && (ret= scheduler->drop_event(thd, name)))
+    if ((ret= event_queue->drop_event(thd, name)))
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
   }
   DBUG_RETURN(ret);
@@ -476,8 +472,7 @@ Events::drop_schema_events(THD *thd, char *db)
   DBUG_ENTER("evex_drop_db_events");  
   DBUG_PRINT("enter", ("dropping events from %s", db));
 
-  Event_scheduler *scheduler= Event_scheduler::get_instance();
-  ret= scheduler->drop_schema_events(thd, db_lex);
+  ret= event_queue->drop_schema_events(thd, db_lex);
   ret= db_repository->drop_schema_events(thd, db_lex);
 
   DBUG_RETURN(ret);
@@ -505,16 +500,18 @@ Events::init()
   Event_db_repository *db_repo;
   DBUG_ENTER("Events::init");
   db_repository->init_repository();
+  event_queue->init(db_repository);
+  event_queue->scheduler= scheduler_ng;
+  scheduler_ng->init(event_queue);
 
   /* it should be an assignment! */
   if (opt_event_scheduler)
   {
-    Event_scheduler *scheduler= Event_scheduler::get_instance();
     DBUG_ASSERT(opt_event_scheduler == 1 || opt_event_scheduler == 2);
-    DBUG_RETURN(scheduler->init(db_repository) || 
-                (opt_event_scheduler == 1? scheduler->start():
-                                           scheduler->start_suspended()));
+    if (opt_event_scheduler == 1)
+      DBUG_RETURN(scheduler_ng->start());
   }
+
   DBUG_RETURN(0);
 }
 
@@ -534,13 +531,9 @@ Events::deinit()
 {
   DBUG_ENTER("Events::deinit");
 
-  Event_scheduler *scheduler= Event_scheduler::get_instance();
-  if (scheduler->initialized())
-  {
-    scheduler->stop();
-    scheduler->destroy();
-  }
-
+  scheduler_ng->stop();
+  scheduler_ng->deinit();
+  event_queue->deinit();
   db_repository->deinit_repository();
 
   DBUG_VOID_RETURN;
@@ -559,8 +552,12 @@ void
 Events::init_mutexes()
 {
   db_repository= new Event_db_repository;
-  Event_scheduler::create_instance();
-  Event_scheduler::init_mutexes();
+
+  event_queue= new Event_queue;
+  event_queue->init_mutexes();
+
+  scheduler_ng= new Event_scheduler_ng();
+  scheduler_ng->init_mutexes();
 }
 
 
@@ -574,9 +571,11 @@ Events::init_mutexes()
 void
 Events::destroy_mutexes()
 {
-  Event_scheduler::destroy_mutexes();
+  event_queue->deinit_mutexes();
+  scheduler_ng->deinit_mutexes();
+  
+  delete scheduler_ng;
   delete db_repository;
-  db_repository= NULL;
 }
 
 
@@ -595,7 +594,7 @@ Events::destroy_mutexes()
 int
 Events::dump_internal_status(THD *thd)
 {
-  return Event_scheduler::dump_internal_status(thd);
+  return Event_scheduler_ng::dump_internal_status(thd);
 }
 
 
@@ -632,4 +631,27 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
     db= thd->lex->select_lex.db;
   }
   DBUG_RETURN(get_instance()->db_repository->fill_schema_events(thd, tables, db));
+}
+
+
+bool
+Events::start_execution_of_events()
+{
+  DBUG_ENTER("Events::start_execution_of_events");
+  DBUG_RETURN(scheduler_ng->start());
+}
+
+
+bool
+Events::stop_execution_of_events()
+{
+  DBUG_ENTER("Events::stop_execution_of_events");
+  DBUG_RETURN(scheduler_ng->stop());
+}
+
+bool
+Events::is_started()
+{
+  DBUG_ENTER("Events::is_started");
+  DBUG_RETURN(scheduler_ng->get_state() == Event_scheduler_ng::RUNNING);
 }

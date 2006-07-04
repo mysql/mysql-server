@@ -72,8 +72,11 @@ class Event_timed
 
   bool status_changed;
   bool last_executed_changed;
+  
+  MEM_ROOT mem_root;
 
 public:
+  THD *thd;
   enum enum_status
   {
     ENABLED = 1,
@@ -147,7 +150,7 @@ public:
   deinit_mutexes();
 
   int
-  load_from_row(MEM_ROOT *mem_root, TABLE *table);
+  load_from_row(TABLE *table);
 
   bool
   compute_next_execution_time();
@@ -264,9 +267,33 @@ public:
 };
 
 
-class Event_queue_element : public Event_timed
+class Event_job_data
 {
+public:
+  LEX_STRING dbname;
+  LEX_STRING name;
+  sp_head *sphead;
+  LEX_STRING definer;
+  LEX_STRING body;
+  ulong sql_mode;
 
+  THD *thd;
+  
+  Event_job_data(){}
+  ~Event_job_data(){}
+
+  int
+  execute();
+
+private:
+  int
+  load_from_disk();
+  
+  int
+  compile();
+
+
+  Event_job_data(const Event_job_data &);	/* Prevent use of these */
+  void operator=(Event_job_data &);
 };
-
 #endif /* _EVENT_DATA_OBJECTS_H_ */

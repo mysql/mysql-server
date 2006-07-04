@@ -20,223 +20,8 @@
 #include "event_scheduler.h"
 #include "event_db_repository.h"
 #include "sp_head.h"
+#include "event_queue.h"
 
-/*
-  ToDo:
-  1. Talk to Alik to get a check for configure.in for my_time_t and time_t
-  2. Look at guardian.h|cc to see its life cycle, has similarities.
-*/
-
-
-/*
-  The scheduler is implemented as class Event_scheduler. Only one instance is
-  kept during the runtime of the server, by implementing the Singleton DP.
-  Object instance is always there because the memory is allocated statically
-  and initialized when the OS loader loads mysqld. This initialization is
-  bare. Extended initialization is done during the call to
-  Event_scheduler::init() in Events::init(). The reason for that late initialization
-  is that some subsystems needed to boot the Scheduler are not available at
-  earlier stages of the mysqld boot procedure. Events::init() is called in
-  mysqld.cc . If the mysqld is started with --event-scheduler=0 then
-  no initialization takes place and the scheduler is unavailable during this
-  server run. The server should be started with --event-scheduler=1 to have
-  the scheduler initialized and able to execute jobs. This starting alwa
-  s implies that the jobs execution will start immediately. If the server
-  is started with --event-scheduler=2 then the scheduler is started in suspended
-  state. Default state, if --event-scheduler is not specified is 2.
-
-  The scheduler only manages execution of the events. Their creation,
-  alteration and deletion is delegated to other routines found in event.cc .
-  These routines interact with the scheduler :
-  - CREATE EVENT -> Event_scheduler::create_event()
-  - ALTER EVENT  -> Event_scheduler::update_event()
-  - DROP EVENT   -> Event_scheduler::drop_event()
-
-  There is one mutex in the single Event_scheduler object which controls
-  the simultaneous access to the objects invariants. Using one lock makes
-  it easy to follow the workflow. This mutex is LOCK_scheduler_data. It is
-  initialized in Event_scheduler::init(). Which in turn is called by the
-  Facade class Events in event.cc, coming from init_thread_environment() from
-  mysqld.cc -> no concurrency at this point. It's destroyed in
-  Events::destroy_mutexes() called from clean_up_mutexes() in mysqld.cc .
-
-  The full initialization is done in Event_scheduler::init() called from 
-  Events::init(). It's done before any requests coming in, so this is a
-  guarantee for not having concurrency.
-
-  The scheduler is started with Event_scheduler::start() and stopped with
-  Event_scheduler::stop(). When the scheduler starts it loads all events
-  from mysql.event table. Unfortunately, there is a race condition between
-  the event disk management functions and the scheduler ones
-  (add/replace/drop_event & load_events_from_db()), because the operations
-  do not happen under one global lock but the disk operations are guarded
-  by the MYISAM lock on mysql.event. In the same time, the queue operations
-  are guarded by  LOCK_scheduler_data. If the scheduler is start()-ed during
-  server startup and stopped()-ed during server shutdown (in Events::shutdown()
-  called by kill_server() in mysqld.cc) these races does not exist.
-
-  Since the user may want to temporarily inhibit execution of events the
-  scheduler can be suspended and then it can be forced to resume its
-  operations. The API call to perform these is
-  Event_scheduler::suspend_or_resume(enum enum_suspend_or_resume) .
-  When the scheduler is suspended the main scheduler thread, which ATM
-  happens to have thread_id 1, locks on a condition COND_suspend_or_resume.
-  When this is signal is sent for the reverse operation the main scheduler
-  loops continues to roll and execute events.
-
-  When the scheduler is suspended all add/replace/drop_event() operations
-  work as expected and the modify the queue but no events execution takes
-  place.
-
-  In contrast to the previous scheduler implementation, found in
-  event_executor.cc, the start, shutdown, suspend and resume are synchronous
-  operations. As a whole all operations are synchronized and no busy waits
-  are used except in stop_all_running_events(), which waits until all
-  running event worker threads have finished. It would have been nice to
-  use a conditional on which this method will wait and the last thread to
-  finish would signal it but this implies subclassing THD.
-
-  The scheduler does not keep a counter of how many event worker threads are
-  running, at any specific moment, because this will copy functionality
-  already existing in the server. Namely, all THDs are registered in the
-  global `threads` array. THD has member variable system_thread which
-  identifies the type of thread. Connection threads being NON_SYSTEM_THREAD,
-  all other have their enum value. Important for the scheduler are 
-  SYSTEM_THREAD_EVENT_SCHEDULER and SYSTEM_THREAD_EVENT_WORKER.
-
-  Class THD subclasses class ilink, which is the linked list of all threads.
-  When a THD instance is destroyed it's being removed from threads, thus
-  no manual intervention is needed. On the contrary registering is manual
-  with threads.append() . Traversing the threads array every time a subclass
-  of THD, for instance if we would have had THD_scheduler_worker to see
-  how many events we have and whether the scheduler is shutting down will
-  take much time and lead to a deadlock. stop_all_running_events() is called
-  under LOCK_scheduler_data. If the THD_scheduler_worker was aware of
-  the single Event_scheduler instance it will try to check
-  Event_scheduler::state but for this it would need to acquire 
-  LOCK_scheduler_data => deadlock. Thus stop_all_running_events() uses a
-  busy wait.
-
-  DROP DATABASE DDL should drop all events defined in a specific schema.
-  DROP USER also should drop all events who has as definer the user being
-  dropped (this one is not addressed at the moment but a hook exists). For
-  this specific needs Event_scheduler::drop_matching_events() is
-  implemented. Which expects a callback to be applied on every object in
-  the queue. Thus events that match specific schema or user, will be
-  removed from the queue. The exposed interface is :
-  - Event_scheduler::drop_schema_events()
-  - Event_scheduler::drop_user_events()
-
-  This bulk dropping happens under LOCK_scheduler_data, thus no two or
-  more threads can execute it in parallel. However, DROP DATABASE is also
-  synchronized, currently, in the server thus this does not impact the 
-  overall performance. In addition, DROP DATABASE is not that often
-  executed DDL.
-
-  Though the interface to the scheduler is only through the public methods
-  of class Event_scheduler, there are currently few functions which are
-  used during its operations. Namely :
-  - static evex_print_warnings()
-    After every event execution all errors/warnings are dumped, so the user
-    can see in case of a problem what the problem was.
-
-  - static init_event_thread()
-    This function is both used by event_scheduler_thread() and
-    event_worker_thread(). It initializes the THD structure. The
-    initialization looks pretty similar to the one in slave.cc done for the
-    replication threads. However, though the similarities it cannot be
-    factored out to have one routine.
-
-  - static event_scheduler_thread()
-    Because our way to register functions to be used by the threading library
-    does not allow usage of static methods this function is used to start the
-    scheduler in it. It does THD initialization and then calls
-    Event_scheduler::run(). 
-
-  - static event_worker_thread()
-    With already stated the reason for not being able to use methods, this
-    function executes the worker threads.
-
-  The execution of events is, to some extent, synchronized to inhibit race
-  conditions when Event_timed::thread_id is being updated with the thread_id of
-  the THD in which the event is being executed. The thread_id is in the
-  Event_timed object because we need to be able to kill quickly a specific
-  event during ALTER/DROP EVENT without traversing the global `threads` array.
-  However, this makes the scheduler's code more complicated. The event worker
-  thread is started by Event_timed::spawn_now(), which in turn calls
-  pthread_create(). The thread_id which will be associated in init_event_thread
-  is not known in advance thus the registering takes place in
-  event_worker_thread(). This registering has to be synchronized under
-  LOCK_scheduler_data, so no kill_event() on a object in
-  replace_event/drop_event/drop_matching_events() could take place.
-  
-  This synchronization is done through class Worker_thread_param that is
-  local to this file. Event_scheduler::execute_top() is called under
-  LOCK_scheduler_data. This method :
-  1. Creates an instance of Worker_thread_param on the stack
-  2. Locks Worker_thread_param::LOCK_started
-  3. Calls Event_timed::spawn_now() which in turn creates a new thread.
-  4. Locks on Worker_thread_param::COND_started_or_stopped and waits till the
-     worker thread send signal. The code is spurious wake-up safe because
-     Worker_thread_param::started is checked.
-  5. The worker thread initializes its THD, then sets Event_timed::thread_id,
-     sets Worker_thread_param::started to TRUE and sends back
-     Worker_thread_param::COND_started. From this moment on, the event
-     is being executed and could be killed by using Event_timed::thread_id.
-     When Event_timed::spawn_thread_finish() is called in the worker thread,
-     it sets thread_id to 0. From this moment on, the worker thread should not
-     touch the Event_timed instance.
-
-
-  The life-cycle of the server is a FSA.
-  enum enum_state Event_scheduler::state keeps the state of the scheduler.
-
-  The states are:
-
-  |---UNINITIALIZED
-  |                                         
-  |                                      |------------------> IN_SHUTDOWN   
-  --> INITIALIZED -> COMMENCING ---> RUNNING ----------|
-       ^ ^               |            | ^              |
-       | |- CANTSTART <--|            | |- SUSPENDED <-|
-       |______________________________|
-
-    - UNINITIALIZED :The object is created and only the mutex is initialized
-    - INITIALIZED   :All member variables are initialized
-    - COMMENCING    :The scheduler is starting, no other attempt to start 
-                     should succeed before the state is back to INITIALIZED.
-    - CANTSTART     :Set by the ::run() method in case it can't start for some
-                     reason. In this case the connection thread that tries to
-                     start the scheduler sees that some error has occurred and
-                     returns an error to the user. Finally, the connection
-                     thread sets the state to INITIALIZED, so further attempts
-                     to start the scheduler could be made.
-    - RUNNING       :The scheduler is running. New events could be added,
-                     dropped, altered. The scheduler could be stopped.
-    - SUSPENDED     :Like RUNNING but execution of events does not take place.
-                     Operations on the memory queue are possible.
-    - IN_SHUTDOWN   :The scheduler is shutting down, due to request by setting
-                     the global event_scheduler to 0/FALSE, or because of a
-                     KILL command sent by a user to the master thread.
-
-  In every method the macros LOCK_SCHEDULER_DATA() and UNLOCK_SCHEDULER_DATA()
-  are used for (un)locking purposes.  They are used to save the programmer
-  from typing everytime
-  lock_data(__FUNCTION__, __LINE__); 
-  All locking goes through Event_scheduler::lock_data() and ::unlock_data().
-  These two functions then record in variables where for last time
-  LOCK_scheduler_data was locked and unlocked (two different variables). In
-  multithreaded environment, in some cases they make no sense but are useful for
-  inspecting deadlocks without having the server debug log turned on and the
-  server is still running.
-
-  The same strategy is used for conditional variables.
-  Event_scheduler::cond_wait() is invoked from all places with parameter
-  an enum enum_cond_vars. In this manner, it's possible to inspect the last
-  on which condition the last call to cond_wait() was waiting. If the server
-  was started with debug trace switched on, the trace file also holds information
-  about conditional variables used.
-*/
 
 #ifdef __GNUC__
 #if __GNUC__ >= 2
@@ -248,6 +33,10 @@
 
 #define LOCK_SCHEDULER_DATA()   lock_data(SCHED_FUNC, __LINE__)
 #define UNLOCK_SCHEDULER_DATA() unlock_data(SCHED_FUNC, __LINE__)
+
+
+Event_scheduler*
+Event_scheduler::singleton= NULL;
 
 
 #ifndef DBUG_OFF
@@ -462,7 +251,7 @@ event_scheduler_thread(void *arg)
     thd->security_ctx->set_user((char*)"event_scheduler");
 
     sql_print_information("SCHEDULER: Manager thread booting");
-    if (Event_scheduler::check_system_tables(thd))
+    if (Event_scheduler::get_instance()->event_queue->check_system_tables(thd))
       scheduler->report_error_during_start();
     else
       scheduler->run(thd);
@@ -625,13 +414,13 @@ event_worker_thread(void *arg)
 Event_scheduler::Event_scheduler()
 {
   thread_id= 0;
-  mutex_last_unlocked_at_line_nr= mutex_last_locked_at_line_nr= 0;
-  mutex_last_unlocked_in_func_name= mutex_last_locked_in_func_name= "";
+  mutex_last_unlocked_at_line= mutex_last_locked_at_line= 0;
+  mutex_last_unlocked_in_func= mutex_last_locked_in_func= "";
   cond_waiting_on= COND_NONE;
   mutex_scheduler_data_locked= FALSE;
   state= UNINITIALIZED;
   start_scheduler_suspended= FALSE;
-  LOCK_scheduler_data= &LOCK_event_queue;
+  LOCK_scheduler_data= &LOCK_data;
 }
 
 
@@ -647,9 +436,10 @@ Event_scheduler::Event_scheduler()
 */
 
 void
-Event_scheduler::create_instance()
+Event_scheduler::create_instance(Event_queue *queue)
 {
   singleton= new Event_scheduler();
+  singleton->event_queue= queue;
 }
 
 /*
@@ -689,8 +479,8 @@ Event_scheduler::init(Event_db_repository *db_repo)
   DBUG_ENTER("Event_scheduler::init");
   DBUG_PRINT("enter", ("this=%p", this));
   
-  Event_queue::init(db_repo);
   LOCK_SCHEDULER_DATA();
+  init_alloc_root(&scheduler_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
   for (;i < COND_LAST; i++)
     if (pthread_cond_init(&cond_vars[i], NULL))
     {
@@ -720,7 +510,6 @@ void
 Event_scheduler::destroy()
 {
   DBUG_ENTER("Event_scheduler");
-  Event_queue::deinit();
   LOCK_SCHEDULER_DATA();
   switch (state) {
   case UNINITIALIZED:
@@ -879,7 +668,7 @@ Event_scheduler::run(THD *thd)
   DBUG_PRINT("enter", ("thd=%p", thd));
 
   LOCK_SCHEDULER_DATA();
-  ret= load_events_from_db(thd);
+  ret= event_queue->load_events_from_db(thd);
 
   if (!ret)
   {
@@ -923,8 +712,9 @@ Event_scheduler::run(THD *thd)
     }
     DBUG_ASSERT(state == RUNNING);
 
-    et= (Event_timed *)queue_top(&queue);
-    
+//    et= (Event_timed *)queue_top(&event_queue->queue);
+    et= event_queue->get_top();
+
     /* Skip disabled events */
     if (et->status != Event_timed::ENABLED)
     {
@@ -935,7 +725,7 @@ Event_scheduler::run(THD *thd)
       sql_print_information("SCHEDULER: Found a disabled event %*s.%*s in the queue",
                             et->dbname.length, et->dbname.str, et->name.length,
                             et->name.str);
-      queue_remove(&queue, 0);
+      queue_remove(&event_queue->queue, 0);
       /* ToDo: check this again */
       if (et->dropped)
         et->drop(thd);
@@ -1095,16 +885,16 @@ Event_scheduler::execute_top(THD *thd, Event_timed *et)
     sql_print_information("SCHEDULER: %s.%s in execution. Skip this time.",
                           et->dbname.str, et->name.str);
     if ((et->flags & EVENT_EXEC_NO_MORE) || et->status == Event_timed::DISABLED)
-      queue_remove(&queue, 0);// 0 is top, internally 1
+      event_queue->remove_top();
     else
-      queue_replaced(&queue);
+      event_queue->top_changed();
     break;
   default:
     DBUG_ASSERT(!spawn_ret_code);
     if ((et->flags & EVENT_EXEC_NO_MORE) || et->status == Event_timed::DISABLED)
-      queue_remove(&queue, 0);// 0 is top, internally 1
+      event_queue->remove_top();
     else
-      queue_replaced(&queue);
+      event_queue->top_changed();
     /* 
       We don't lock LOCK_scheduler_data here because it's a pre-requisite
       for calling the current_method.
@@ -1152,7 +942,7 @@ Event_scheduler::clean_memory(THD *thd)
 
   sql_print_information("SCHEDULER: Emptying the queue");
 
-  empty_queue();
+  event_queue->empty_queue();
 
   DBUG_VOID_RETURN;
 }
@@ -1432,7 +1222,7 @@ Event_scheduler::check_n_suspend_if_needed(THD *thd)
   }
   if (was_suspended)
   {
-    recalculate_queue(thd);
+    event_queue->recalculate_queue(thd);
     /* This will implicitly unlock LOCK_scheduler_data */
     thd->exit_cond("");
   }
@@ -1461,14 +1251,14 @@ Event_scheduler::check_n_wait_for_non_empty_queue(THD *thd)
   bool slept= FALSE;
   DBUG_ENTER("Event_scheduler::check_n_wait_for_non_empty_queue");
   DBUG_PRINT("enter", ("q.elements=%lu state=%s",
-             events_count_no_lock(), states_names[state]));
+             event_queue->events_count_no_lock(), states_names[state]));
   
-  if (!events_count_no_lock())
+  if (!event_queue->events_count_no_lock())
     thd->enter_cond(&cond_vars[COND_new_work], LOCK_scheduler_data,
                     "Empty queue, sleeping");
 
   /* Wait in a loop protecting against catching spurious signals */
-  while (!events_count_no_lock() && state == RUNNING)
+  while (!event_queue->events_count_no_lock() && state == RUNNING)
   {
     slept= TRUE;
     DBUG_PRINT("info", ("Entering condition because of empty queue"));
@@ -1485,7 +1275,7 @@ Event_scheduler::check_n_wait_for_non_empty_queue(THD *thd)
     thd->exit_cond("");
 
   DBUG_PRINT("exit", ("q.elements=%lu state=%s thd->killed=%d",
-             events_count_no_lock(), states_names[state], thd->killed));
+             event_queue->events_count_no_lock(), states_names[state], thd->killed));
 
   DBUG_RETURN(slept);
 }
@@ -1627,7 +1417,7 @@ Event_scheduler::dump_internal_status(THD *thd)
     /* queue.elements */
     protocol->prepare_for_resend();
     protocol->store(STRING_WITH_LEN("queue.elements"), scs);
-    int_string.set((longlong) scheduler->events_count_no_lock(), scs);
+    int_string.set((longlong) scheduler->event_queue->events_count_no_lock(), scs);
     protocol->store(&int_string);
     ret= protocol->write();
 
@@ -1663,8 +1453,8 @@ Event_scheduler::lock_data(const char *func, uint line)
   DBUG_PRINT("enter", ("mutex_lock=%p func=%s line=%u",
              &LOCK_scheduler_data, func, line));
   pthread_mutex_lock(LOCK_scheduler_data);
-  mutex_last_locked_in_func_name= func;
-  mutex_last_locked_at_line_nr= line;
+  mutex_last_locked_in_func= func;
+  mutex_last_locked_at_line= line;
   mutex_scheduler_data_locked= TRUE;
   DBUG_VOID_RETURN;
 }
@@ -1685,9 +1475,9 @@ Event_scheduler::unlock_data(const char *func, uint line)
   DBUG_ENTER("Event_scheduler::UNLOCK_mutex");
   DBUG_PRINT("enter", ("mutex_unlock=%p func=%s line=%u",
              LOCK_scheduler_data, func, line));
-  mutex_last_unlocked_at_line_nr= line;
+  mutex_last_unlocked_at_line= line;
   mutex_scheduler_data_locked= FALSE;
-  mutex_last_unlocked_in_func_name= func;
+  mutex_last_unlocked_in_func= func;
   pthread_mutex_unlock(LOCK_scheduler_data);
   DBUG_VOID_RETURN;
 }
@@ -1732,4 +1522,32 @@ Event_scheduler::queue_changed()
   DBUG_PRINT("info", ("Sending COND_new_work"));
   pthread_cond_signal(&cond_vars[COND_new_work]);
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Inits mutexes.
+
+  SYNOPSIS
+    Event_scheduler::init_mutexes()
+*/
+
+void
+Event_scheduler::init_mutexes()
+{
+  pthread_mutex_init(singleton->LOCK_scheduler_data, MY_MUTEX_INIT_FAST);
+}
+
+
+/*
+  Destroys mutexes.
+
+  SYNOPSIS
+    Event_queue::destroy_mutexes()
+*/
+
+void
+Event_scheduler::destroy_mutexes()
+{
+  pthread_mutex_destroy(singleton->LOCK_scheduler_data);
 }
