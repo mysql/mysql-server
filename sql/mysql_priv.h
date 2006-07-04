@@ -1696,6 +1696,7 @@ void start_waiting_global_read_lock(THD *thd);
 bool make_global_read_lock_block_commit(THD *thd);
 bool set_protect_against_global_read_lock(void);
 void unset_protect_against_global_read_lock(void);
+void broadcast_refresh(void);
 
 /* Lock based on name */
 int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);

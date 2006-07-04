@@ -192,32 +192,6 @@ disconnect con2;
 DROP DATABASE mysqltest_1;
 
 #
-# Bug #17264: MySQL Server freeze
-#
-connection locker;
-create table t1 (f1 int(12) unsigned not null auto_increment, primary key(f1)) engine=innodb;
-lock tables t1 write;
-connection writer;
---sleep 2
-delimiter //;
-send alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
-delimiter ;//
-connection reader;
---sleep 2
-delimiter //;
-send alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
-delimiter ;//
-connection locker;
---sleep 2
-unlock tables;
-connection writer;
-reap;
-connection reader;
-reap;
-connection locker;
-drop table t1;
-
-# End of 5.0 tests
 # Bug#16986 - Deadlock condition with MyISAM tables
 #
 connection locker;
@@ -246,4 +220,81 @@ connection locker;
 use test;
 #
 connection default;
+#
+# Test if CREATE TABLE with LOCK TABLE deadlocks.
+#
+connection writer;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+#
+# This waits until t1 is unlocked.
+connection locker;
+send FLUSH TABLES WITH READ LOCK;
+--sleep 1
+#
+# This must not block.
+connection writer;
+CREATE TABLE t2 (c1 int);
+UNLOCK TABLES;
+#
+# This awakes now.
+connection locker;
+reap;
+UNLOCK TABLES;
+#
+connection default;
+DROP TABLE t1, t2;
+#
+# Test if CREATE TABLE SELECT with LOCK TABLE deadlocks.
+#
+connection writer;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+#
+# This waits until t1 is unlocked.
+connection locker;
+send FLUSH TABLES WITH READ LOCK;
+--sleep 1
+#
+# This must not block.
+connection writer;
+--error 1100
+CREATE TABLE t2 AS SELECT * FROM t1;
+UNLOCK TABLES;
+#
+# This awakes now.
+connection locker;
+reap;
+UNLOCK TABLES;
+#
+connection default;
+DROP TABLE t1;
+
+#
+# Bug #17264: MySQL Server freeze
+#
+connection locker;
+create table t1 (f1 int(12) unsigned not null auto_increment, primary key(f1)) engine=innodb;
+lock tables t1 write;
+connection writer;
+--sleep 2
+delimiter //;
+send alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
+delimiter ;//
+connection reader;
+--sleep 2
+delimiter //;
+send alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
+delimiter ;//
+connection locker;
+--sleep 2
+unlock tables;
+connection writer;
+reap;
+connection reader;
+reap;
+connection locker;
+drop table t1;
+
+# End of 5.0 tests
 
