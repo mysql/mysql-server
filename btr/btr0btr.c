@@ -986,7 +986,8 @@ btr_parse_page_reorganize(
 	byte*		end_ptr __attribute__((unused)),
 				/* in: buffer end */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_t*		page,	/* in: page or NULL */
+	page_t*		page,	/* in/out: page to be reorganized, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	mtr_t*		mtr)	/* in: mtr or NULL */
 {
 	ut_ad(ptr && end_ptr);
@@ -994,8 +995,6 @@ btr_parse_page_reorganize(
 	/* The record is empty, except for the record initial part */
 
 	if (UNIV_LIKELY(page != NULL)) {
-		page_zip_des_t*	page_zip = buf_block_get_page_zip(
-						buf_block_align(page));
 		btr_page_reorganize_low(TRUE, page, page_zip, index, mtr);
 	}
 

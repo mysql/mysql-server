@@ -346,7 +346,8 @@ btr_parse_page_reorganize(
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_t*		page,	/* in: page or NULL */
+	page_t*		page,	/* in/out: page to be reorganized, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /******************************************************************
 Gets the number of pages in a B-tree. */
