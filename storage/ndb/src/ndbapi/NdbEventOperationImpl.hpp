@@ -422,6 +422,7 @@ public:
   void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep);
   void complete_outof_order_gcis();
   
+  void report_node_connected(Uint32 node_id);
   void report_node_failure(Uint32 node_id);
   void completeClusterFailed();
 
