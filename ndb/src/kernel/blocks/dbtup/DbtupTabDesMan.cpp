@@ -59,7 +59,7 @@ Uint32 Dbtup::allocTabDescr(const Tablerec* regTabPtr, Uint32* offset)
   Uint32 reference = RNIL;
   Uint32 allocSize = getTabDescrOffsets(regTabPtr, offset);
 /* ---------------------------------------------------------------- */
-/*       ALWAYS ALLOCATE A MULTIPLE OF 16 BYTES                     */
+/*       ALWAYS ALLOCATE A MULTIPLE OF 16 WORDS                     */
 /* ---------------------------------------------------------------- */
   allocSize = (((allocSize - 1) >> 4) + 1) << 4;
   Uint32 list = nextHigherTwoLog(allocSize - 1);	/* CALCULATE WHICH LIST IT BELONGS TO     */
@@ -73,7 +73,6 @@ Uint32 Dbtup::allocTabDescr(const Tablerec* regTabPtr, Uint32* offset)
       if (retNo >= ZTD_FREE_SIZE) {
         ljam();
         Uint32 retRef = reference + allocSize;          /* SET THE RETURN POINTER                 */
-        retNo = itdaMergeTabDescr(retRef, retNo);       /* MERGE WITH POSSIBLE RIGHT NEIGHBOURS   */
         freeTabDescr(retRef, retNo);	                /* RETURN UNUSED TD SPACE TO THE TD AREA  */
       } else {
         ljam();
@@ -102,6 +101,7 @@ Uint32 Dbtup::allocTabDescr(const Tablerec* regTabPtr, Uint32* offset)
 
 void Dbtup::freeTabDescr(Uint32 retRef, Uint32 retNo) 
 {
+  retNo = itdaMergeTabDescr(retRef, retNo);       /* MERGE WITH POSSIBLE RIGHT NEIGHBOURS   */
   while (retNo >= ZTD_FREE_SIZE) {
     ljam();
     Uint32 list = nextHigherTwoLog(retNo);
@@ -111,6 +111,7 @@ void Dbtup::freeTabDescr(Uint32 retRef, Uint32 retNo)
     retRef += sizeOfChunk;
     retNo -= sizeOfChunk;
   }//while
+  ndbassert(retNo == 0);
 }//Dbtup::freeTabDescr()
 
 Uint32
