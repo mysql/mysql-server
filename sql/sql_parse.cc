@@ -1250,6 +1250,12 @@ pthread_handler_t handle_bootstrap(void *arg)
   thd->version=refresh_version;
   thd->security_ctx->priv_user=
     thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
+  /*
+    Make the "client" handle multiple results. This is necessary
+    to enable stored procedures with SELECTs and Dynamic SQL
+    in init-file.
+  */
+  thd->client_capabilities|= CLIENT_MULTI_RESULTS;
 
   buff= (char*) thd->net.buff;
   thd->init_for_queries();
