@@ -839,7 +839,7 @@ recv_parse_or_apply_log_rec_body(
 				|| (ibool)!!page_is_comp(page)
 				== dict_table_is_comp(index->table));
 			ptr = btr_parse_page_reorganize(ptr, end_ptr, index,
-								page, mtr);
+							page, page_zip, mtr);
 		}
 		break;
 	case MLOG_PAGE_CREATE: case MLOG_COMP_PAGE_CREATE:
