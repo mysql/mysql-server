@@ -58,6 +58,7 @@
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
+
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
@@ -468,6 +469,9 @@ static sys_var_thd_ha_rows	sys_select_limit("sql_select_limit",
 static sys_var_timestamp	sys_timestamp("timestamp");
 static sys_var_last_insert_id	sys_last_insert_id("last_insert_id");
 static sys_var_last_insert_id	sys_identity("identity");
+
+static sys_var_thd_lc_time_names       sys_lc_time_names("lc_time_names");
+
 static sys_var_insert_id	sys_insert_id("insert_id");
 static sys_var_readonly		sys_error_count("error_count",
 						OPT_SESSION,
@@ -558,6 +562,7 @@ sys_var *sys_variables[]=
   &sys_key_cache_division_limit,
   &sys_key_cache_age_threshold,
   &sys_last_insert_id,
+  &sys_lc_time_names,
   &sys_license,
   &sys_local_infile,
   &sys_log_binlog,
@@ -780,6 +785,7 @@ struct show_var_st init_vars[]= {
                                                                     SHOW_SYS},
   {"language",                language,                             SHOW_CHAR},
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},
+  {sys_lc_time_names.name,    (char*) &sys_lc_time_names,           SHOW_SYS},
   {sys_license.name,	      (char*) &sys_license,                 SHOW_SYS},
   {sys_local_infile.name,     (char*) &sys_local_infile,	    SHOW_SYS},
 #ifdef HAVE_MLOCKALL
@@ -2560,6 +2566,43 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
  else
    thd->variables.time_zone= global_system_variables.time_zone;
  pthread_mutex_unlock(&LOCK_global_system_variables);
+}
+
+bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
+{
+  char *locale_str =var->value->str_value.c_ptr();
+  MY_LOCALE *locale_match=  my_locale_by_name(locale_str);
+
+  if(locale_match == NULL) 
+  {
+    my_printf_error(ER_UNKNOWN_ERROR, "Unknown locale: '%s'", MYF(0), locale_str);
+    return 1;
+  }
+  else 
+  {
+    var->save_result.locale_value= locale_match;
+    return 0;
+  }
+}
+
+
+bool sys_var_thd_lc_time_names::update(THD *thd, set_var *var)
+{
+  thd->variables.lc_time_names= var->save_result.locale_value;
+  return 0;
+}
+
+
+byte *sys_var_thd_lc_time_names::value_ptr(THD *thd, enum_var_type type,
+					  LEX_STRING *base)
+{
+  return (byte *)(thd->variables.lc_time_names->name);
+}
+
+
+void sys_var_thd_lc_time_names::set_default(THD *thd, enum_var_type type)
+{
+  thd->variables.lc_time_names = &my_locale_en_US;
 }
 
 /*
