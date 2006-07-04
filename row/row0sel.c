@@ -1747,10 +1747,6 @@ next_table_no_mtr:
 
 		thr->run_node = que_node_get_parent(node);
 
-		if (search_latch_locked) {
-			rw_lock_s_unlock(&btr_search_latch);
-		}
-
 		err = DB_SUCCESS;
 		goto func_exit;
 	}
@@ -1794,20 +1790,10 @@ table_exhausted_no_mtr:
 			sel_assign_into_var_values(node->into_list, node);
 
 			thr->run_node = que_node_get_parent(node);
+		} else {
+			node->state = SEL_NODE_NO_MORE_ROWS;
 
-			if (search_latch_locked) {
-				rw_lock_s_unlock(&btr_search_latch);
-			}
-
-			goto func_exit;
-		}
-
-		node->state = SEL_NODE_NO_MORE_ROWS;
-
-		thr->run_node = que_node_get_parent(node);
-
-		if (search_latch_locked) {
-			rw_lock_s_unlock(&btr_search_latch);
+			thr->run_node = que_node_get_parent(node);
 		}
 
 		goto func_exit;
@@ -1871,6 +1857,9 @@ lock_wait_or_error:
 	ut_ad(sync_thread_levels_empty_gen(TRUE));
 
 func_exit:
+	if (search_latch_locked) {
+		rw_lock_s_unlock(&btr_search_latch);
+	}
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -3489,19 +3478,8 @@ stderr);
 
 				srv_n_rows_read++;
 
-				if (trx->search_latch_timeout > 0
-					&& trx->has_search_latch) {
-
-					trx->search_latch_timeout--;
-
-					rw_lock_s_unlock(&btr_search_latch);
-					trx->has_search_latch = FALSE;
-				}
-
-				/* NOTE that we do NOT store the cursor
-				position */
 				err = DB_SUCCESS;
-				goto func_exit;
+				goto release_search_latch_if_needed;
 
 			case SEL_EXHAUSTED:
 				mtr_commit(&mtr);
@@ -3509,6 +3487,8 @@ stderr);
 				/* ut_print_name(stderr, index->name);
 				fputs(" record not found 2\n", stderr); */
 
+				err = DB_RECORD_NOT_FOUND;
+release_search_latch_if_needed:
 				if (trx->search_latch_timeout > 0
 					&& trx->has_search_latch) {
 
@@ -3520,9 +3500,13 @@ stderr);
 
 				/* NOTE that we do NOT store the cursor
 				position */
-
-				err = DB_RECORD_NOT_FOUND;
 				goto func_exit;
+
+			case SEL_RETRY:
+				break;
+
+			default:
+				ut_ad(0);
 			}
 shortcut_fails_too_big_rec:
 			mtr_commit(&mtr);
