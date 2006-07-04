@@ -293,7 +293,8 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
     { "Partition", 0, NdbDictionary::Column::FRAGMENT },
     { "Row count", 0, NdbDictionary::Column::ROW_COUNT },
     { "Commit count", 0, NdbDictionary::Column::COMMIT_COUNT },
-    { "Frag memory", 0, NdbDictionary::Column::FRAGMENT_MEMORY },
+    { "Frag fixed memory", 0, NdbDictionary::Column::FRAGMENT_FIXED_MEMORY },
+    { "Frag varsized memory", 0, NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY },
     { 0, 0, 0 }
   };
 
