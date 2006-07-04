@@ -3312,8 +3312,7 @@ bool mysql_create_table_internal(THD *thd,
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     goto err;
   }
-  if (wait_if_global_read_lock(thd, 0, 1))
-    goto err;
+
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
@@ -3389,7 +3388,6 @@ bool mysql_create_table_internal(THD *thd,
   error= FALSE;
 unlock_and_end:
   VOID(pthread_mutex_unlock(&LOCK_open));
-  start_waiting_global_read_lock(thd);
 
 err:
   thd->proc_info="After create";
@@ -3621,7 +3619,7 @@ void close_cached_table(THD *thd, TABLE *table)
   thd->open_tables=unlink_open_table(thd,thd->open_tables,table);
 
   /* When lock on LOCK_open is freed other threads can continue */
-  pthread_cond_broadcast(&COND_refresh);
+  broadcast_refresh();
   DBUG_VOID_RETURN;
 }
 
@@ -6133,7 +6131,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
   VOID(pthread_mutex_unlock(&LOCK_open));
-  VOID(pthread_cond_broadcast(&COND_refresh));
+  broadcast_refresh();
   /*
     The ALTER TABLE is always in its own transaction.
     Commit must not be called while LOCK_open is locked. It could call
