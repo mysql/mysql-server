@@ -2338,6 +2338,8 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
   ndbrequire(failedNodePtr.p->failState == NORMAL);
   
   failedNodePtr.p->failState = WAITING_FOR_FAILCONF1;
+  NodeReceiverGroup rg(QMGR, c_clusterNodes);
+  sendSignal(rg, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(DBTC_REF, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(DBDICT_REF, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBA);
@@ -2360,6 +2362,27 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
   sendSignal(CMVMI_REF, GSN_CLOSE_COMREQ, signal, 
 	     CloseComReqConf::SignalLength, JBA);
 }//Qmgr::sendApiFailReq()
+
+void Qmgr::execAPI_FAILREQ(Signal* signal)
+{
+  jamEntry();
+  NodeRecPtr failedNodePtr;
+  failedNodePtr.i = signal->theData[0];
+  // signal->theData[1] == QMGR_REF
+  ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
+
+  ndbrequire(getNodeInfo(failedNodePtr.i).getType() != NodeInfo::DB);
+
+  // ignore if api not active
+  if (failedNodePtr.p->phase != ZAPI_ACTIVE)
+    return;
+
+  signal->theData[0] = NDB_LE_Disconnected;
+  signal->theData[1] = failedNodePtr.i;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+
+  node_failed(signal, failedNodePtr.i);
+}
 
 void Qmgr::execAPI_FAILCONF(Signal* signal) 
 {
