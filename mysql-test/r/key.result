@@ -336,8 +336,8 @@ UNIQUE i1idx (i1),
 UNIQUE i2idx (i2));
 desc t1;
 Field	Type	Null	Key	Default	Extra
-i1	int(11)		UNI	0	
-i2	int(11)		UNI	0	
+i1	int(11)	NO	UNI		
+i2	int(11)	NO	UNI		
 drop table t1;
 create table t1 (
 c1 int,
