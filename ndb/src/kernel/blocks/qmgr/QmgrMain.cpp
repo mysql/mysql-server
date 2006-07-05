@@ -438,6 +438,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
 void
 Qmgr::execREAD_NODESCONF(Signal* signal)
 {
+  jamEntry();
   check_readnodes_reply(signal, 
 			refToNode(signal->getSendersBlockRef()),
 			GSN_READ_NODESCONF);
@@ -446,6 +447,7 @@ Qmgr::execREAD_NODESCONF(Signal* signal)
 void
 Qmgr::execREAD_NODESREF(Signal* signal)
 {
+  jamEntry();
   check_readnodes_reply(signal, 
 			refToNode(signal->getSendersBlockRef()),
 			GSN_READ_NODESREF);
