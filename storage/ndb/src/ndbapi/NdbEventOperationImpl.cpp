@@ -942,6 +942,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
 {
 #ifdef VM_TRACE
   m_latest_command= "NdbEventBuffer::NdbEventBuffer";
+  m_flush_gci = 0;
 #endif
 
   if ((p_cond = NdbCondition_Create()) ==  NULL) {
@@ -1109,6 +1110,8 @@ NdbEventBuffer::flushIncompleteEvents(Uint64 gci)
   /**
    *  Find min complete gci
    */
+  // called by user thread, so we need to lock the data
+  lock();
   Uint32 i;
   Uint32 sz= m_active_gci.size();
   Gci_container* array = (Gci_container*)m_active_gci.getBase();
@@ -1127,6 +1130,10 @@ NdbEventBuffer::flushIncompleteEvents(Uint64 gci)
       bzero(tmp, sizeof(Gci_container));
     }
   }
+#ifdef VM_TRACE
+  m_flush_gci = gci;
+#endif
+  unlock();
   return 0;
 }
 
@@ -1301,7 +1308,11 @@ operator<<(NdbOut& out, const Gci_container_pod& gci)
 
 static
 Gci_container*
-find_bucket_chained(Vector<Gci_container_pod> * active, Uint64 gci)
+find_bucket_chained(Vector<Gci_container_pod> * active, Uint64 gci
+#ifdef VM_TRACE
+                    ,Uint64 flush_gci
+#endif
+                    )
 {
   Uint32 pos = (gci & ACTIVE_GCI_MASK);
   Gci_container *bucket= ((Gci_container*)active->getBase()) + pos;
@@ -1322,6 +1333,13 @@ find_bucket_chained(Vector<Gci_container_pod> * active, Uint64 gci)
 	bzero(bucket, sizeof(Gci_container));
 	bucket->m_gci = gci;
 	bucket->m_gcp_complete_rep_count = ~(Uint32)0;
+#ifdef VM_TRACE
+        if (gci < flush_gci)
+        {
+          ndbout_c("received old gci %llu < flush gci %llu", gci, flush_gci);
+          assert(false);
+        }
+#endif
 	return bucket;
       }
       move_pos += ACTIVE_GCI_DIRECTORY_SIZE;
@@ -1336,7 +1354,16 @@ find_bucket_chained(Vector<Gci_container_pod> * active, Uint64 gci)
       bucket += ACTIVE_GCI_DIRECTORY_SIZE;
       
       if(bucket->m_gci == gci)
+      {
+#ifdef VM_TRACE
+        if (gci < flush_gci)
+        {
+          ndbout_c("received old gci %llu < flush gci %llu", gci, flush_gci);
+          assert(false);
+        }
+#endif
 	return bucket;
+      }
       
     } while(pos < size);
     
@@ -1346,14 +1373,22 @@ find_bucket_chained(Vector<Gci_container_pod> * active, Uint64 gci)
 
 inline
 Gci_container*
-find_bucket(Vector<Gci_container_pod> * active, Uint64 gci)
+find_bucket(Vector<Gci_container_pod> * active, Uint64 gci
+#ifdef VM_TRACE
+            ,Uint64 flush_gci
+#endif
+            )
 {
   Uint32 pos = (gci & ACTIVE_GCI_MASK);
   Gci_container *bucket= ((Gci_container*)active->getBase()) + pos;
   if(likely(gci == bucket->m_gci))
     return bucket;
 
-  return find_bucket_chained(active,gci);
+  return find_bucket_chained(active,gci
+#ifdef VM_TRACE
+                             , flush_gci
+#endif
+                             );
 }
 
 static
@@ -1386,7 +1421,11 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
   const Uint64 gci= rep->gci;
   const Uint32 cnt= rep->gcp_complete_rep_count;
 
-  Gci_container *bucket = find_bucket(&m_active_gci, gci);
+  Gci_container *bucket = find_bucket(&m_active_gci, gci
+#ifdef VM_TRACE
+                                      , m_flush_gci
+#endif
+                                      );
 
   if (unlikely(bucket == 0))
   {
@@ -1752,7 +1791,11 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 
   if ( likely((Uint32)op->mi_type & (1 << (Uint32)sdata->operation)) )
   {
-    Gci_container* bucket= find_bucket(&m_active_gci, gci);
+    Gci_container* bucket= find_bucket(&m_active_gci, gci
+#ifdef VM_TRACE
+                                       , m_flush_gci
+#endif
+                                       );
       
     DBUG_PRINT_EVENT("info", ("data insertion in eventId %d", op->m_eventId));
     DBUG_PRINT_EVENT("info", ("gci=%d tab=%d op=%d node=%d",

@@ -463,6 +463,7 @@ public:
 
 #ifdef VM_TRACE
   const char *m_latest_command;
+  Uint64 m_flush_gci;
 #endif
 
   Ndb *m_ndb;
